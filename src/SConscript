@@ -1,0 +1,392 @@
+# Copyright 2008 Google Inc.  All rights reserved.
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions are
+# met:
+#
+#     * Redistributions of source code must retain the above copyright
+#       notice, this list of conditions and the following disclaimer.
+#     * Redistributions in binary form must reproduce the above
+#       copyright notice, this list of conditions and the following
+#       disclaimer in the documentation and/or other materials provided
+#       with the distribution.
+#     * Neither the name of Google Inc. nor the names of its
+#       contributors may be used to endorse or promote products derived
+#       from this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+import sys
+from os.path import join, dirname, abspath
+root_dir = dirname(File('SConstruct').rfile().abspath)
+sys.path.append(join(root_dir, 'tools'))
+import js2c
+Import('toolchain arch os mode use_snapshot library_type')
+
+
+BUILD_OPTIONS_MAP = {
+  'gcc': {
+    'debug': {
+      'default': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'ENABLE_DISASSEMBLER', 'DEBUG'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-pedantic -Wall -W -Wno-unused-parameter -Werror'
+      },
+      'dtoa': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'ENABLE_DISASSEMBLER', 'DEBUG'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-Werror'
+      },
+      'jscre': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'ENABLE_DISASSEMBLER', 'DEBUG', 'SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-w'
+      }
+    },
+    'release': {
+      'default': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -O2',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-pedantic -Wall -W -Wno-unused-parameter -Werror'
+      },
+      'dtoa': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -O2',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-Werror'
+      },
+      'jscre': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -O2',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-w'
+      }
+    }
+  },
+  'gcc-darwin': {
+    'debug': {
+      'default': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'ENABLE_DISASSEMBLER', 'DEBUG'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-pedantic -Wall -W -Wno-unused-parameter -Werror'
+      },
+      'dtoa': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'ENABLE_DISASSEMBLER', 'DEBUG'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-Werror'
+      },
+      'jscre': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -g -O0',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'ENABLE_DISASSEMBLER', 'DEBUG', 'SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-w'
+      }
+    },
+    'release': {
+      'default': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -O2',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-pedantic -Wall -W -Wno-unused-parameter -Werror'
+      },
+      'dtoa': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -O2',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-Werror'
+      },
+      'jscre': {
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS -O2',
+        'CPPDEFINES': ['ENABLE_LOGGING_AND_PROFILING', 'SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
+        'CXXFLAGS': '$CCFLAGS -fno-rtti -fno-exceptions',
+        'DIALECTFLAGS': '-ansi',
+        'LIBS': 'pthread',
+        'WARNINGFLAGS': '-w'
+      }
+    }
+  },
+  'msvc': {
+    'debug': {
+      'default': {
+        'ARFLAGS': '/NOLOGO',
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS /Od /Gm /MTd',
+        'CCPDBFLAGS': '/Zi',
+        'CPPDEFINES': ['WIN32', '_CRT_SECURE_NO_DEPRECATE', '_CRT_NONSTDC_NO_DEPRECATE', '_USE_32BIT_TIME_T', 'PCRE_STATIC', 'ENABLE_LOGGING_AND_PROFILING', 'DEBUG', '_DEBUG', 'ENABLE_DISASSEMBLER'],
+        'CXXFLAGS': '$CCFLAGS /EHsc /GS- /GR-',
+        'DIALECTFLAGS': '/nologo',
+        'LIBS': 'WS2_32',
+        'LINKFLAGS': '/NOLOGO /SUBSYSTEM:CONSOLE /MACHINE:X86 /INCREMENTAL:NO /DEBUG',
+        'PDB': '${TARGET}.pdb',
+        'WARNINGFLAGS': '/W3 /WX /wd4355 /wd4800'
+      },
+      'dtoa': {
+        'ARFLAGS': '/NOLOGO',
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS /Od /Gm /MTd',
+        'CCPDBFLAGS': '/Zi',
+        'CPPDEFINES': ['WIN32', '_CRT_SECURE_NO_DEPRECATE', '_CRT_NONSTDC_NO_DEPRECATE', '_USE_32BIT_TIME_T', 'PCRE_STATIC', 'ENABLE_LOGGING_AND_PROFILING', 'DEBUG', '_DEBUG', 'ENABLE_DISASSEMBLER'],
+        'CXXFLAGS': '$CCFLAGS /EHsc /GS- /GR-',
+        'DIALECTFLAGS': '/nologo',
+        'LIBS': 'WS2_32',
+        'LINKFLAGS': '/NOLOGO /SUBSYSTEM:CONSOLE /MACHINE:X86 /INCREMENTAL:NO /DEBUG',
+        'PDB': '${TARGET}.pdb',
+        'WARNINGFLAGS': '/WX /wd4018 /wd4244'
+      },
+      'jscre': {
+        'ARFLAGS': '/NOLOGO',
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS /Od /Gm /MTd',
+        'CCPDBFLAGS': '/Zi',
+        'CPPDEFINES': ['WIN32', '_CRT_SECURE_NO_DEPRECATE', '_CRT_NONSTDC_NO_DEPRECATE', '_USE_32BIT_TIME_T', 'PCRE_STATIC', 'ENABLE_LOGGING_AND_PROFILING', 'DEBUG', '_DEBUG', 'ENABLE_DISASSEMBLER', 'SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
+        'CXXFLAGS': '$CCFLAGS /EHsc /GS- /GR-',
+        'DIALECTFLAGS': '/nologo',
+        'LIBS': 'WS2_32',
+        'LINKFLAGS': '/NOLOGO /SUBSYSTEM:CONSOLE /MACHINE:X86 /INCREMENTAL:NO /DEBUG',
+        'PDB': '${TARGET}.pdb',
+        'WARNINGFLAGS': '/WX /wd4003 /wd4005 /wd4018 /wd4133'
+      }
+    },
+    'release': {
+      'default': {
+        'ARFLAGS': '/NOLOGO',
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS /O2 /MT',
+        'CCPDBFLAGS': '/Zi',
+        'CPPDEFINES': ['WIN32', '_CRT_SECURE_NO_DEPRECATE', '_CRT_NONSTDC_NO_DEPRECATE', '_USE_32BIT_TIME_T', 'PCRE_STATIC', 'ENABLE_LOGGING_AND_PROFILING'],
+        'CXXFLAGS': '$CCFLAGS /EHsc /GS- /GR-',
+        'DIALECTFLAGS': '/nologo',
+        'LIBS': 'WS2_32',
+        'LINKFLAGS': '/NOLOGO /SUBSYSTEM:CONSOLE /MACHINE:X86 /INCREMENTAL:NO /OPT:REF /OPT:ICF /SUBSYSTEM:CONSOLE',
+        'PDB': '${TARGET}.pdb',
+        'WARNINGFLAGS': '/W3 /WX /wd4355 /wd4800'
+      },
+      'dtoa': {
+        'ARFLAGS': '/NOLOGO',
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS /O2 /MT',
+        'CCPDBFLAGS': '/Zi',
+        'CPPDEFINES': ['WIN32', '_CRT_SECURE_NO_DEPRECATE', '_CRT_NONSTDC_NO_DEPRECATE', '_USE_32BIT_TIME_T', 'PCRE_STATIC', 'ENABLE_LOGGING_AND_PROFILING'],
+        'CXXFLAGS': '$CCFLAGS /EHsc /GS- /GR-',
+        'DIALECTFLAGS': '/nologo',
+        'LIBS': 'WS2_32',
+        'LINKFLAGS': '/NOLOGO /SUBSYSTEM:CONSOLE /MACHINE:X86 /INCREMENTAL:NO /OPT:REF /OPT:ICF /SUBSYSTEM:CONSOLE',
+        'PDB': '${TARGET}.pdb',
+        'WARNINGFLAGS': '/WX /wd4018 /wd4244'
+      },
+      'jscre': {
+        'ARFLAGS': '/NOLOGO',
+        'CCFLAGS': '$DIALECTFLAGS $WARNINGFLAGS /O2 /MT',
+        'CCPDBFLAGS': '/Zi',
+        'CPPDEFINES': ['WIN32', '_CRT_SECURE_NO_DEPRECATE', '_CRT_NONSTDC_NO_DEPRECATE', '_USE_32BIT_TIME_T', 'PCRE_STATIC', 'ENABLE_LOGGING_AND_PROFILING', 'SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
+        'CXXFLAGS': '$CCFLAGS /EHsc /GS- /GR-',
+        'DIALECTFLAGS': '/nologo',
+        'LIBS': 'WS2_32',
+        'LINKFLAGS': '/NOLOGO /SUBSYSTEM:CONSOLE /MACHINE:X86 /INCREMENTAL:NO /OPT:REF /OPT:ICF /SUBSYSTEM:CONSOLE',
+        'PDB': '${TARGET}.pdb',
+        'WARNINGFLAGS': '/WX /wd4003 /wd4005 /wd4018 /wd4133'
+      }
+    }
+  }
+}
+
+
+PLATFORM_INDEPENDENT_SOURCES = '''
+accessors.cc
+allocation.cc
+api.cc
+assembler.cc
+ast.cc
+bootstrapper.cc
+builtins.cc
+checks.cc
+code-stubs.cc
+codegen.cc
+compiler.cc
+contexts.cc
+conversions.cc
+counters.cc
+dateparser.cc
+debug.cc
+execution.cc
+factory.cc
+flags.cc
+frames.cc
+global-handles.cc
+handles.cc
+hashmap.cc
+heap.cc
+ic.cc
+jsregexp.cc
+log.cc
+mark-compact.cc
+messages.cc
+objects-debug.cc
+objects.cc
+parser.cc
+prettyprinter.cc
+property.cc
+rewriter.cc
+runtime.cc
+scanner.cc
+scopeinfo.cc
+scopes.cc
+serialize.cc
+snapshot-common.cc
+spaces.cc
+string-stream.cc
+stub-cache.cc
+token.cc
+top.cc
+unicode.cc
+usage-analyzer.cc
+utils.cc
+v8-counters.cc
+v8.cc
+v8threads.cc
+variables.cc
+zone.cc
+'''.split()
+
+
+PLATFORM_DEPENDENT_SOURCES = {
+  'arch:arm': ['assembler-arm.cc', 'builtins-arm.cc', 'codegen-arm.cc', 'cpu-arm.cc', 'disasm-arm.cc', 'disassembler-arm.cc', 'frames-arm.cc', 'ic-arm.cc', 'macro-assembler-arm.cc', 'simulator-arm.cc', 'stub-cache-arm.cc'],
+  'arch:ia32': ['assembler-ia32.cc', 'builtins-ia32.cc', 'codegen-ia32.cc', 'cpu-ia32.cc', 'disasm-ia32.cc', 'disassembler-ia32.cc', 'frames-ia32.cc', 'ic-ia32.cc', 'macro-assembler-ia32.cc', 'simulator-ia32.cc', 'stub-cache-ia32.cc'],
+  'os:linux': ['platform-linux.cc'],
+  'os:macos': ['platform-macos.cc'],
+  'os:win32': ['platform-win32.cc']
+}
+
+
+LIBRARY_FILES = '''
+runtime.js
+v8natives.js
+array.js
+string.js
+uri.js
+math.js
+messages.js
+apinatives.js
+debug-delay.js
+mirror-delay.js
+date-delay.js
+regexp-delay.js
+'''.split()
+
+
+JSCRE_FILES = '''
+pcre_compile.cpp
+pcre_exec.cpp
+pcre_tables.cpp
+pcre_ucp_searchfuncs.cpp
+pcre_xclass.cpp
+'''.split()
+
+
+def Abort(message):
+  print message
+  sys.exit(1)
+
+
+def BuildObject(env, input, **kw):
+  if library_type == 'static':
+    return env.StaticObject(input, **kw)
+  elif library_type == 'shared':
+    return env.SharedObject(input, **kw)
+  else:
+    return env.Object(input, **kw)
+
+
+def ConfigureBuild():
+  env = Environment()
+  options = BUILD_OPTIONS_MAP[toolchain][mode]['default']
+  env.Replace(**options)
+  env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)
+  env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile $LOGFILE')
+
+  # Build the standard platform-independent source files.
+  source_files = PLATFORM_INDEPENDENT_SOURCES
+  source_files += PLATFORM_DEPENDENT_SOURCES["arch:%s" % arch]
+  source_files += PLATFORM_DEPENDENT_SOURCES["os:%s" % os]
+  full_source_files = [s for s in source_files]
+
+  # Combine the javascript library files into a single C++ file and
+  # compile it.
+  library_files = [s for s in LIBRARY_FILES]
+  library_files.append('macros.py')
+  libraries_src, libraries_empty_src = env.JS2C(['libraries.cc', 'libraries_empty.cc'], library_files)
+  libraries_obj = BuildObject(env, libraries_src, CPPPATH=['.'])
+
+  # Build JSCRE.
+  jscre_env = env.Copy()
+  jscre_options = BUILD_OPTIONS_MAP[toolchain][mode]['jscre']
+  jscre_env.Replace(**jscre_options)
+  jscre_files = [join('third_party', 'jscre', s) for s in JSCRE_FILES]
+  jscre_obj = BuildObject(jscre_env, jscre_files)
+
+  # Build dtoa.
+  dtoa_env = env.Copy()
+  dtoa_options = BUILD_OPTIONS_MAP[toolchain][mode]['dtoa']
+  dtoa_env.Replace(**dtoa_options)
+  dtoa_files = ['dtoa-config.c']
+  dtoa_obj = BuildObject(dtoa_env, dtoa_files)
+
+  full_source_objs = BuildObject(env, full_source_files)
+  non_snapshot_files = [jscre_obj, dtoa_obj, full_source_objs]
+
+  # Create snapshot if necessary.
+  empty_snapshot_obj = BuildObject(env, 'snapshot-empty.cc')
+  if use_snapshot:
+    mksnapshot_src = 'mksnapshot.cc'
+    mksnapshot = env.Program('mksnapshot', [mksnapshot_src, libraries_obj, non_snapshot_files, empty_snapshot_obj], PDB='mksnapshot.exe.pdb')
+    snapshot_cc = env.Snapshot('snapshot.cc', mksnapshot, LOGFILE=File('snapshot.log').abspath)
+    snapshot_obj = BuildObject(env, snapshot_cc, CPPPATH=['.'])
+    libraries_obj = BuildObject(env, libraries_empty_src, CPPPATH=['.'])
+  else:
+    snapshot_obj = empty_snapshot_obj
+
+  all_files = [non_snapshot_files, libraries_obj, snapshot_obj]
+  if library_type == 'static':
+    env.StaticLibrary('v8', all_files)
+  elif library_type == 'shared':
+    # There seems to be a glitch in the way scons decides where to put
+    # .pdb files when compiling using msvc so we specify it manually.
+    # This should not affect any other platforms.
+    env.SharedLibrary('v8', all_files, PDB='v8.dll.pdb')
+  else:
+    env.Library('v8', all_files)
+
+
+ConfigureBuild()
