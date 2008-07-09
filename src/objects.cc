@@ -1486,7 +1486,7 @@ Object* JSObject::SetProperty(LookupResult* result,
           return AddFastProperty(name, value, attributes);
         }
       case CONSTANT_FUNCTION:
-        if (value == result->GetConstantFunction()) return this;
+        if (value == result->GetConstantFunction()) return value;
         // Only replace the function if necessary.
         return ReplaceConstantFunctionProperty(name, value);
       case CALLBACKS:

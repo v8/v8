@@ -588,9 +588,11 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 
 void FunctionTemplate::SetInternalFieldCount(int value) {
   if (IsDeadCheck("v8::FunctionTemplate::SetInternalFieldCount()")) return;
-  ApiCheck(i::Smi::IsValid(value),
-           "v8::FunctionTemplate::SetInternalFieldCount()",
-           "Invalid internal field count");
+  if (!ApiCheck(i::Smi::IsValid(value),
+                "v8::FunctionTemplate::SetInternalFieldCount()",
+                "Invalid internal field count")) {
+    return;
+  }
   Utils::OpenHandle(this)->set_internal_field_count(i::Smi::FromInt(value));
 }
 
@@ -2042,6 +2044,11 @@ int v8::Object::InternalFieldCount() {
 Local<Value> v8::Object::GetInternal(int index) {
   if (IsDeadCheck("v8::Object::GetInternal()")) return Local<Value>();
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  if (!ApiCheck(index < obj->GetInternalFieldCount(),
+                "v8::Object::GetInternal()",
+                "Reading internal field out of bounds")) {
+    return Local<Value>();
+  }
   i::Handle<i::Object> value(obj->GetInternalField(index));
   return Utils::ToLocal(value);
 }
@@ -2050,6 +2057,11 @@ Local<Value> v8::Object::GetInternal(int index) {
 void v8::Object::SetInternal(int index, v8::Handle<Value> value) {
   if (IsDeadCheck("v8::Object::SetInternal()")) return;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  if (!ApiCheck(index < obj->GetInternalFieldCount(),
+                "v8::Object::SetInternal()",
+                "Writing internal field out of bounds")) {
+    return;
+  }
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   obj->SetInternalField(index, *val);
 }

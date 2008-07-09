@@ -175,6 +175,10 @@ class Debug {
                                JavaScriptFrame* frame);
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
   static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
+
+  // Returns whether the operation succedded.
+  static bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
+
   static bool IsDebugBreak(Address addr);
 
   // Check whether a code stub with the specified major key is a possible break
@@ -201,6 +205,12 @@ class Debug {
   static bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
   static Address step_in_fp() { return thread_local_.step_into_fp_; }
   static Address* step_in_fp_addr() { return &thread_local_.step_into_fp_; }
+
+  // Getter and setter for the disable break state.
+  static bool disable_break() { return disable_break_; }
+  static void set_disable_break(bool disable_break) {
+    disable_break_ = disable_break;
+  }
 
   // Getters for the current exception break state.
   static bool break_on_exception() { return break_on_exception_; }
@@ -255,8 +265,8 @@ class Debug {
   static void ActivateStepIn(StackFrame* frame);
   static void ClearStepIn();
   static void ClearStepNext();
-  static void EnsureCompiled(Handle<SharedFunctionInfo> shared);
-  static Handle<DebugInfo> AddDebugInfo(Handle<SharedFunctionInfo> shared);
+  // Returns whether the compile succedded.
+  static bool EnsureCompiled(Handle<SharedFunctionInfo> shared);
   static void RemoveDebugInfo(Handle<DebugInfo> debug_info);
   static void SetAfterBreakTarget(JavaScriptFrame* frame);
   static Handle<Object> CheckBreakPoints(Handle<Object> break_point);
@@ -270,6 +280,7 @@ class Debug {
   static bool has_break_points_;
   static DebugInfoListNode* debug_info_list_;
 
+  static bool disable_break_;
   static bool break_on_exception_;
   static bool break_on_uncaught_exception_;
 
@@ -481,6 +492,26 @@ class EnterDebuggerContext BASE_EMBEDDED {
 
  private:
   SaveContext save;
+};
+
+
+// Stack allocated class for disabling break.
+class DisableBreak BASE_EMBEDDED {
+ public:
+  // Enter the debugger by storing the previous top context and setting the
+  // current top context to the debugger context.
+  explicit DisableBreak(bool disable_break)  {
+    prev_disable_break_ = Debug::disable_break();
+    Debug::set_disable_break(disable_break);
+  }
+  ~DisableBreak() {
+    Debug::set_disable_break(prev_disable_break_);
+  }
+
+ private:
+  // The previous state of the disable break used to restore the value when this
+  // object is destructed.
+  bool prev_disable_break_;
 };
 
 

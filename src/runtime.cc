@@ -61,6 +61,13 @@ namespace v8 { namespace internal {
   RUNTIME_ASSERT(args[index]->Is##Type());                           \
   Handle<Type> name = args.at<Type>(index);
 
+// Cast the given object to a boolean and store it in a variable with
+// the given name.  If the object is not a boolean call IllegalOperation
+// and return.
+#define CONVERT_BOOLEAN_CHECKED(name, obj)                            \
+  RUNTIME_ASSERT(obj->IsBoolean());                                   \
+  bool name = (obj)->IsTrue();
+
 // Cast the given object to a double and store it in a variable with
 // the given name.  If the object is not a number (as opposed to
 // the number not-a-number) call IllegalOperation and return.
@@ -956,8 +963,9 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   uint32_t pattern_length = pat->length();
   uint32_t sub_length = sub->length();
 
-  if (start_index + pattern_length > sub_length)
+  if (start_index + pattern_length > sub_length) {
     start_index = sub_length - pattern_length;
+  }
 
   for (int i = start_index; i >= 0; i--) {
     bool found = true;
@@ -1553,6 +1561,7 @@ static Object* Runtime_StringToNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, subject, args[0]);
+  subject->TryFlatten();
   return Heap::NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
 }
 
@@ -2979,6 +2988,11 @@ static Object* RuntimePreempt(Arguments args) {
 
 
 static Object* Runtime_DebugBreak(Arguments args) {
+  // Just continue if breaks are disabled.
+  if (Debug::disable_break()) {
+    return args[0];
+  }
+
   // Don't break in system functions. If the current function is either in the
   // builtins object of some context or is in the debug context just return with
   // the debug break stack guard active.
@@ -4356,11 +4370,15 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   Object* check_result = Runtime_CheckExecutionState(args);
   if (check_result->IsFailure()) return check_result;
   CONVERT_CHECKED(Smi, wrapped_id, args[1]);
   CONVERT_ARG_CHECKED(String, source, 2);
+  CONVERT_BOOLEAN_CHECKED(disable_break, args[3]);
+
+  // Handle the processing of break.
+  DisableBreak disable_break_save(disable_break);
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
@@ -4489,10 +4507,14 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
   Object* check_result = Runtime_CheckExecutionState(args);
   if (check_result->IsFailure()) return check_result;
   CONVERT_ARG_CHECKED(String, source, 1);
+  CONVERT_BOOLEAN_CHECKED(disable_break, args[2]);
+
+  // Handle the processing of break.
+  DisableBreak disable_break_save(disable_break);
 
   // Enter the top context from before the debugger was invoked.
   SaveContext save;

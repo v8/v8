@@ -473,6 +473,9 @@ int Debug::ArchiveSpacePerThread() {
 }
 
 
+// Default break enabled.
+bool Debug::disable_break_ = false;
+
 // Default call debugger on uncaught exception.
 bool Debug::break_on_exception_ = false;
 bool Debug::break_on_uncaught_exception_ = true;
@@ -640,16 +643,18 @@ Object* Debug::Break(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
 
-  if (!Load()) {
-    return Heap::undefined_value();
+  // Get the top-most JavaScript frame.
+  JavaScriptFrameIterator it;
+  JavaScriptFrame* frame = it.frame();
+
+  // Just continue if breaks are disabled or debugger cannot be loaded.
+  if (disable_break() || !Load()) {
+    SetAfterBreakTarget(frame);
+    return args[0];
   }
 
   SaveBreakFrame save;
   EnterDebuggerContext enter;
-
-  // Get the top-most JavaScript frame.
-  JavaScriptFrameIterator it;
-  JavaScriptFrame* frame = it.frame();
 
   // Deactivate interrupt during breakpoint processing.
   StackGuard::DisableInterrupts();
@@ -710,8 +715,7 @@ Object* Debug::Break(Arguments args) {
   // Install jump to the call address which was overwritten.
   SetAfterBreakTarget(frame);
 
-  // Return whatever - return value is ignored.
-  return Heap::undefined_value();
+  return args[0];
 }
 
 
@@ -788,17 +792,10 @@ bool Debug::HasDebugInfo(Handle<SharedFunctionInfo> shared) {
 }
 
 
-// Return the debug info for this function. If the function currently has no
-// debug info it will be created. The reason for having this function is that
-// the debug info member is of type Object and not DebugInfo, as it can contain
-// undefined to indicate that currently no debug info exists for the function.
+// Return the debug info for this function. EnsureDebugInfo must be called
+// prior to ensure the debug info has been generated for shared.
 Handle<DebugInfo> Debug::GetDebugInfo(Handle<SharedFunctionInfo> shared) {
-  // If the debug info does not exist create it.
-  if (!HasDebugInfo(shared)) {
-    AddDebugInfo(shared);
-  }
-
-  // Return the debug info.
+  ASSERT(HasDebugInfo(shared));
   return Handle<DebugInfo>(DebugInfo::cast(shared->debug_info()));
 }
 
@@ -806,17 +803,12 @@ Handle<DebugInfo> Debug::GetDebugInfo(Handle<SharedFunctionInfo> shared) {
 void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
                           int source_position,
                           Handle<Object> break_point_object) {
-  // Make sure the function is compiled before accessing code object.
-  EnsureCompiled(shared);
-
-  // Get the debug info (create it if it does not exist).
-  Handle<DebugInfo> debug_info;
-  if (shared->debug_info()->IsUndefined()) {
-    debug_info = AddDebugInfo(shared);
-  } else {
-    debug_info = Handle<DebugInfo>(DebugInfo::cast(shared->debug_info()));
+  if (!EnsureDebugInfo(shared)) {
+    // Return if retrieving debug info failed.
+    return;
   }
 
+  Handle<DebugInfo> debug_info = GetDebugInfo(shared);
   // Source positions starts with zero.
   ASSERT(source_position >= 0);
 
@@ -864,14 +856,14 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
 
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
-  // Make sure the function is compiled before accessing code object.
-  EnsureCompiled(shared);
-
-  // Get the debug info.
-  Handle<DebugInfo> debug_info = GetDebugInfo(shared);
+  // Make sure the function has setup the debug info.
+  if (!EnsureDebugInfo(shared)) {
+    // Return if we failed to retrieve the debug info.
+    return;
+  }
 
   // Flood the function with break points.
-  BreakLocationIterator it(debug_info, ALL_BREAK_LOCATIONS);
+  BreakLocationIterator it(GetDebugInfo(shared), ALL_BREAK_LOCATIONS);
   while (!it.Done()) {
     it.SetOneShot();
     it.Next();
@@ -940,6 +932,10 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   // Get the debug info (create it if it does not exist).
   Handle<SharedFunctionInfo> shared =
       Handle<SharedFunctionInfo>(JSFunction::cast(frame->function())->shared());
+  if (!EnsureDebugInfo(shared)) {
+    // Return if ensuring debug info failed.
+    return;
+  }
   Handle<DebugInfo> debug_info = GetDebugInfo(shared);
 
   // Find the break location where execution has stopped.
@@ -1164,23 +1160,19 @@ void Debug::ClearStepNext() {
 }
 
 
-void Debug::EnsureCompiled(Handle<SharedFunctionInfo> shared) {
-  if (!shared->is_compiled()) {
-    // TODO(1240742): We need to handle stack-overflow exceptions
-    // here. It might make sense to add a boolean return value to
-    // EnsureCompiled to indicate whether or not the compilation
-    // succeeded.
-    CompileLazyShared(shared, KEEP_EXCEPTION);
-  }
-  ASSERT(shared->is_compiled());
+bool Debug::EnsureCompiled(Handle<SharedFunctionInfo> shared) {
+  if (shared->is_compiled()) return true;
+  return CompileLazyShared(shared, CLEAR_EXCEPTION);
 }
 
 
-Handle<DebugInfo> Debug::AddDebugInfo(Handle<SharedFunctionInfo> shared) {
-  ASSERT(!HasDebugInfo(shared));
+// Ensures the debug information is present for shared.
+bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
+  // Return if we already have the debug info for shared.
+  if (HasDebugInfo(shared)) return true;
 
-  // Make sure that the function is compiled.
-  EnsureCompiled(shared);
+  // Ensure shared in compiled. Return false if this failed.
+  if (!EnsureCompiled(shared)) return false;
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info =
@@ -1210,7 +1202,7 @@ Handle<DebugInfo> Debug::AddDebugInfo(Handle<SharedFunctionInfo> shared) {
   // Now there is at least one break point.
   has_break_points_ = true;
 
-  return debug_info;
+  return true;
 }
 
 
@@ -1248,6 +1240,10 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   // Get the executing function in which the debug break occurred.
   Handle<SharedFunctionInfo> shared =
       Handle<SharedFunctionInfo>(JSFunction::cast(frame->function())->shared());
+  if (!EnsureDebugInfo(shared)) {
+    // Return if we failed to retrieve the debug info.
+    return;
+  }
   Handle<DebugInfo> debug_info = GetDebugInfo(shared);
   Handle<Code> code(debug_info->code());
   Handle<Code> original_code(debug_info->original_code());

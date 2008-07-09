@@ -1548,8 +1548,9 @@ FrameMirror.prototype.sourceLineText = function() {
 };
 
 
-FrameMirror.prototype.evaluate = function(source) {
-  var result = %DebugEvaluate(this.break_id_, this.details_.frameId(), source);
+FrameMirror.prototype.evaluate = function(source, disable_break) {
+  var result = %DebugEvaluate(this.break_id_, this.details_.frameId(),
+                              source, Boolean(disable_break));
   return MakeMirror(result);
 };
 

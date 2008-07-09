@@ -233,8 +233,8 @@ namespace v8 { namespace internal {
   F(ChangeBreakOnException, 2) \
   F(PrepareStep, 3) \
   F(ClearStepping, 1) \
-  F(DebugEvaluate, 3) \
-  F(DebugEvaluateGlobal, 2) \
+  F(DebugEvaluate, 4) \
+  F(DebugEvaluateGlobal, 3) \
   F(DebugGetLoadedScripts, 1) \
   F(DebugReferencedBy, 3) \
   F(DebugConstructedBy, 2) \

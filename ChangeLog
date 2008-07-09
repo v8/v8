@@ -1,4 +1,20 @@
+2008-07-09: Version 0.1.1 (126448)
+
+        Fixed bug in stack overflow check code for IA-32 targets where a
+        non-tagged value in register eax was pushed to the stack.
+
+        Fixed potential quadratic behavior when converting strings to
+        numbers.
+
+        Fixed bug where the return value from Object::SetProperty could
+        end up being the property holder instead of the written value.
+
+        Improved debugger support by allowing nested break points and by
+        dealing with stack-overflows when compiling functions before
+        setting break points in them.
+
+
 2008-07-03: Version 0.1.0 (125876)
 
-    Initial export.
+        Initial export.
 

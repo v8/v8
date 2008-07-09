@@ -687,9 +687,8 @@ ExecutionState.prototype.prepareStep = function(opt_action, opt_count) {
   return %PrepareStep(this.break_id, action, count);
 }
 
-ExecutionState.prototype.evaluateGlobal = function(source) {
-  var result = %DebugEvaluateGlobal(this.break_id, source);
-  return result;
+ExecutionState.prototype.evaluateGlobal = function(source, disable_break) {
+  return %DebugEvaluateGlobal(this.break_id, source, Boolean(disable_break));
 };
 
 ExecutionState.prototype.GetFrameCount = function() {
@@ -1760,6 +1759,15 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   var expression = request.arguments.expression;
   var frame = request.arguments.frame;
   var global = request.arguments.global;
+  var disable_break = request.arguments.disable_break;
+
+  // The expression argument could be an integer so we convert it to a
+  // string.
+  try {
+    expression = String(expression);
+  } catch(e) {
+    return response.failed('Failed to convert expression argument to string');
+  }
 
   // Check for legal arguments.
   if (!IS_UNDEFINED(frame) && global) {
@@ -1769,8 +1777,14 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   // Global evaluate.
   if (global) {
     // Evaluate in the global context.
-    response.body = MakeMirror(this.exec_state_.evaluateGlobal(expression));
+    response.body = MakeMirror(
+        this.exec_state_.evaluateGlobal(expression), Boolean(disable_break));
     return;
+  }
+
+  // Default value for disable_break is true.
+  if (IS_UNDEFINED(disable_break)) {
+    disable_break = true;
   }
 
   // Check whether a frame was specified.
@@ -1780,11 +1794,13 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
       return response.failed('Invalid frame "' + frame + '"');
     }
     // Evaluate in the specified frame.
-    response.body = this.exec_state_.GetFrame(frame_number).evaluate(expression);
+    response.body = this.exec_state_.GetFrame(frame_number).evaluate(
+        expression, Boolean(disable_break));
     return;
   } else {
     // Evaluate in the selected frame.
-    response.body = this.exec_state_.GetFrame().evaluate(expression);
+    response.body = this.exec_state_.GetFrame().evaluate(
+        expression, Boolean(disable_break));
     return;
   }
 };
