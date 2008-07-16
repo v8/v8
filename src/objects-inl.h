@@ -1522,8 +1522,6 @@ ACCESSORS(TemplateInfo, property_list, Object, kPropertyListOffset)
 
 ACCESSORS(FunctionTemplateInfo, serial_number, Object, kSerialNumberOffset)
 ACCESSORS(FunctionTemplateInfo, call_code, Object, kCallCodeOffset)
-ACCESSORS(FunctionTemplateInfo, internal_field_count, Object,
-          kInternalFieldCountOffset)
 ACCESSORS(FunctionTemplateInfo, property_accessors, Object,
           kPropertyAccessorsOffset)
 ACCESSORS(FunctionTemplateInfo, prototype_template, Object,
@@ -1545,6 +1543,8 @@ ACCESSORS(FunctionTemplateInfo, access_check_info, Object,
 ACCESSORS(FunctionTemplateInfo, flag, Smi, kFlagOffset)
 
 ACCESSORS(ObjectTemplateInfo, constructor, Object, kConstructorOffset)
+ACCESSORS(ObjectTemplateInfo, internal_field_count, Object,
+          kInternalFieldCountOffset)
 
 ACCESSORS(SignatureInfo, receiver, Object, kReceiverOffset)
 ACCESSORS(SignatureInfo, args, Object, kArgsOffset)

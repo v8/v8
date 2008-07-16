@@ -3326,7 +3326,6 @@ class FunctionTemplateInfo: public TemplateInfo {
  public:
   DECL_ACCESSORS(serial_number, Object)
   DECL_ACCESSORS(call_code, Object)
-  DECL_ACCESSORS(internal_field_count, Object)
   DECL_ACCESSORS(property_accessors, Object)
   DECL_ACCESSORS(prototype_template, Object)
   DECL_ACCESSORS(parent_template, Object)
@@ -3356,9 +3355,7 @@ class FunctionTemplateInfo: public TemplateInfo {
 
   static const int kSerialNumberOffset = TemplateInfo::kHeaderSize;
   static const int kCallCodeOffset = kSerialNumberOffset + kPointerSize;
-  static const int kInternalFieldCountOffset = kCallCodeOffset + kPointerSize;
-  static const int kPropertyAccessorsOffset =
-      kInternalFieldCountOffset + kPointerSize;
+  static const int kPropertyAccessorsOffset = kCallCodeOffset + kPointerSize;
   static const int kPrototypeTemplateOffset =
       kPropertyAccessorsOffset + kPointerSize;
   static const int kParentTemplateOffset =
@@ -3392,6 +3389,7 @@ class FunctionTemplateInfo: public TemplateInfo {
 class ObjectTemplateInfo: public TemplateInfo {
  public:
   DECL_ACCESSORS(constructor, Object)
+  DECL_ACCESSORS(internal_field_count, Object)
 
   static inline ObjectTemplateInfo* cast(Object* obj);
 
@@ -3401,7 +3399,9 @@ class ObjectTemplateInfo: public TemplateInfo {
 #endif
 
   static const int kConstructorOffset = TemplateInfo::kHeaderSize;
-  static const int kSize              = kConstructorOffset + kHeaderSize;
+  static const int kInternalFieldCountOffset =
+      kConstructorOffset + kPointerSize;
+  static const int kSize = kInternalFieldCountOffset + kHeaderSize;
 };
 
 

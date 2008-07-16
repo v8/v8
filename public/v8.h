@@ -905,10 +905,12 @@ class Object : public Value {
    */
   Local<String> ObjectProtoToString();
 
-  // TODO(1245384): Naming, consistent.
+  /** Gets the number of internal fields for this Object. */
   int InternalFieldCount();
-  Local<Value> GetInternal(int index);
-  void SetInternal(int index, Handle<Value> value);
+  /** Gets the value in an internal field. */
+  Local<Value> GetInternalField(int index);
+  /** Sets the value in an internal field. */
+  void SetInternalField(int index, Handle<Value> value);
 
   // Testers for local properties.
   bool HasRealNamedProperty(Handle<String> key);
@@ -924,7 +926,7 @@ class Object : public Value {
   /** Tests for a named lookup interceptor.*/
   bool HasNamedLookupInterceptor();
 
-    /** Tests for an index lookup interceptor.*/
+  /** Tests for an index lookup interceptor.*/
   bool HasIndexedLookupInterceptor();
 
 
@@ -1282,11 +1284,6 @@ class FunctionTemplate : public Template {
    */
   Local<ObjectTemplate> PrototypeTemplate();
 
-  int InternalFieldCount();
-
-  /** Sets the number of internal fields on the object template.*/
-  void SetInternalFieldCount(int value);
-
   void SetClassName(Handle<String> name);
 
   /**
@@ -1405,6 +1402,18 @@ class ObjectTemplate : public Template {
   void SetAccessCheckCallbacks(NamedSecurityCallback named_handler,
                                IndexedSecurityCallback indexed_handler,
                                Handle<Value> data = Handle<Value>());
+
+  /**
+   * Gets the number of internal fields for objects generated from
+   * this template.
+   */
+  int InternalFieldCount();
+
+  /**
+   * Sets the number of internal fields for objects generated from
+   * this template.
+   */
+  void SetInternalFieldCount(int value);
 
  private:
   ObjectTemplate();

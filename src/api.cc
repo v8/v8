@@ -559,14 +559,6 @@ static void InitializeFunctionTemplate(
 }
 
 
-int FunctionTemplate::InternalFieldCount() {
-  if (IsDeadCheck("v8::FunctionTemplate::InternalFieldCount()")) {
-    return 0;
-  }
-  return i::Smi::cast(Utils::OpenHandle(this)->internal_field_count())->value();
-}
-
-
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
   if (IsDeadCheck("v8::FunctionTemplate::PrototypeTemplate()")) {
     return Local<ObjectTemplate>();
@@ -586,17 +578,6 @@ void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
 }
 
 
-void FunctionTemplate::SetInternalFieldCount(int value) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetInternalFieldCount()")) return;
-  if (!ApiCheck(i::Smi::IsValid(value),
-                "v8::FunctionTemplate::SetInternalFieldCount()",
-                "Invalid internal field count")) {
-    return;
-  }
-  Utils::OpenHandle(this)->set_internal_field_count(i::Smi::FromInt(value));
-}
-
-
 // To distinguish the function templates, so that we can find them in the
 // function cache of the global context.
 static int next_serial_number = 0;
@@ -612,7 +593,6 @@ Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
   InitializeFunctionTemplate(obj);
   obj->set_serial_number(i::Smi::FromInt(next_serial_number++));
-  obj->set_internal_field_count(i::Smi::FromInt(0));
   if (callback != 0) {
     if (data.IsEmpty()) data = v8::Undefined();
     Utils::ToLocal(obj)->SetCallHandler(callback, data);
@@ -750,6 +730,89 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
 }
 
 
+void FunctionTemplate::SetClassName(Handle<String> name) {
+  if (IsDeadCheck("v8::FunctionTemplate::SetClassName()")) return;
+  Utils::OpenHandle(this)->set_class_name(*Utils::OpenHandle(*name));
+}
+
+
+void FunctionTemplate::SetHiddenPrototype(bool value) {
+  if (IsDeadCheck("v8::FunctionTemplate::SetHiddenPrototype()")) return;
+  Utils::OpenHandle(this)->set_hidden_prototype(value);
+}
+
+
+void FunctionTemplate::SetNamedInstancePropertyHandler(
+      NamedPropertyGetter getter,
+      NamedPropertySetter setter,
+      NamedPropertyQuery query,
+      NamedPropertyDeleter remover,
+      NamedPropertyEnumerator enumerator,
+      Handle<Value> data) {
+  if (IsDeadCheck("v8::FunctionTemplate::SetNamedInstancePropertyHandler()")) {
+    return;
+  }
+  HandleScope scope;
+  i::Handle<i::Struct> struct_obj =
+      i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
+  i::Handle<i::InterceptorInfo> obj =
+      i::Handle<i::InterceptorInfo>::cast(struct_obj);
+  if (getter != 0) obj->set_getter(*FromCData(getter));
+  if (setter != 0) obj->set_setter(*FromCData(setter));
+  if (query != 0) obj->set_query(*FromCData(query));
+  if (remover != 0) obj->set_deleter(*FromCData(remover));
+  if (enumerator != 0) obj->set_enumerator(*FromCData(enumerator));
+  if (data.IsEmpty()) data = v8::Undefined();
+  obj->set_data(*Utils::OpenHandle(*data));
+  Utils::OpenHandle(this)->set_named_property_handler(*obj);
+}
+
+
+void FunctionTemplate::SetIndexedInstancePropertyHandler(
+      IndexedPropertyGetter getter,
+      IndexedPropertySetter setter,
+      IndexedPropertyQuery query,
+      IndexedPropertyDeleter remover,
+      IndexedPropertyEnumerator enumerator,
+      Handle<Value> data) {
+  if (IsDeadCheck(
+        "v8::FunctionTemplate::SetIndexedInstancePropertyHandler()")) {
+    return;
+  }
+  HandleScope scope;
+  i::Handle<i::Struct> struct_obj =
+      i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
+  i::Handle<i::InterceptorInfo> obj =
+      i::Handle<i::InterceptorInfo>::cast(struct_obj);
+  if (getter != 0) obj->set_getter(*FromCData(getter));
+  if (setter != 0) obj->set_setter(*FromCData(setter));
+  if (query != 0) obj->set_query(*FromCData(query));
+  if (remover != 0) obj->set_deleter(*FromCData(remover));
+  if (enumerator != 0) obj->set_enumerator(*FromCData(enumerator));
+  if (data.IsEmpty()) data = v8::Undefined();
+  obj->set_data(*Utils::OpenHandle(*data));
+  Utils::OpenHandle(this)->set_indexed_property_handler(*obj);
+}
+
+
+void FunctionTemplate::SetInstanceCallAsFunctionHandler(
+      InvocationCallback callback,
+      Handle<Value> data) {
+  if (IsDeadCheck("v8::FunctionTemplate::SetInstanceCallAsFunctionHandler()")) {
+    return;
+  }
+  HandleScope scope;
+  i::Handle<i::Struct> struct_obj =
+      i::Factory::NewStruct(i::CALL_HANDLER_INFO_TYPE);
+  i::Handle<i::CallHandlerInfo> obj =
+      i::Handle<i::CallHandlerInfo>::cast(struct_obj);
+  obj->set_callback(*FromCData(callback));
+  if (data.IsEmpty()) data = v8::Undefined();
+  obj->set_data(*Utils::OpenHandle(*data));
+  Utils::OpenHandle(this)->set_instance_call_handler(*obj);
+}
+
+
 // --- O b j e c t T e m p l a t e ---
 
 
@@ -770,6 +833,7 @@ Local<ObjectTemplate> ObjectTemplate::New(
   InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
   if (!constructor.IsEmpty())
     obj->set_constructor(*Utils::OpenHandle(*constructor));
+  obj->set_internal_field_count(i::Smi::FromInt(0));
   return Utils::ToLocal(obj);
 }
 
@@ -898,87 +962,26 @@ void ObjectTemplate::SetCallAsFunctionHandler(InvocationCallback callback,
 }
 
 
-void FunctionTemplate::SetClassName(Handle<String> name) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetClassName()")) return;
-  Utils::OpenHandle(this)->set_class_name(*Utils::OpenHandle(*name));
+int ObjectTemplate::InternalFieldCount() {
+  if (IsDeadCheck("v8::ObjectTemplate::InternalFieldCount()")) {
+    return 0;
+  }
+  return i::Smi::cast(Utils::OpenHandle(this)->internal_field_count())->value();
 }
 
 
-void FunctionTemplate::SetHiddenPrototype(bool value) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetHiddenPrototype()")) return;
-  Utils::OpenHandle(this)->set_hidden_prototype(value);
-}
-
-
-void FunctionTemplate::SetNamedInstancePropertyHandler(
-      NamedPropertyGetter getter,
-      NamedPropertySetter setter,
-      NamedPropertyQuery query,
-      NamedPropertyDeleter remover,
-      NamedPropertyEnumerator enumerator,
-      Handle<Value> data) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetNamedInstancePropertyHandler()")) {
+void ObjectTemplate::SetInternalFieldCount(int value) {
+  if (IsDeadCheck("v8::ObjectTemplate::SetInternalFieldCount()")) return;
+  if (!ApiCheck(i::Smi::IsValid(value),
+                "v8::ObjectTemplate::SetInternalFieldCount()",
+                "Invalid internal field count")) {
     return;
   }
-  HandleScope scope;
-  i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
-  i::Handle<i::InterceptorInfo> obj =
-      i::Handle<i::InterceptorInfo>::cast(struct_obj);
-  if (getter != 0) obj->set_getter(*FromCData(getter));
-  if (setter != 0) obj->set_setter(*FromCData(setter));
-  if (query != 0) obj->set_query(*FromCData(query));
-  if (remover != 0) obj->set_deleter(*FromCData(remover));
-  if (enumerator != 0) obj->set_enumerator(*FromCData(enumerator));
-  if (data.IsEmpty()) data = v8::Undefined();
-  obj->set_data(*Utils::OpenHandle(*data));
-  Utils::OpenHandle(this)->set_named_property_handler(*obj);
+  Utils::OpenHandle(this)->set_internal_field_count(i::Smi::FromInt(value));
 }
 
 
-void FunctionTemplate::SetIndexedInstancePropertyHandler(
-      IndexedPropertyGetter getter,
-      IndexedPropertySetter setter,
-      IndexedPropertyQuery query,
-      IndexedPropertyDeleter remover,
-      IndexedPropertyEnumerator enumerator,
-      Handle<Value> data) {
-  if (IsDeadCheck(
-        "v8::FunctionTemplate::SetIndexedInstancePropertyHandler()")) {
-    return;
-  }
-  HandleScope scope;
-  i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
-  i::Handle<i::InterceptorInfo> obj =
-      i::Handle<i::InterceptorInfo>::cast(struct_obj);
-  if (getter != 0) obj->set_getter(*FromCData(getter));
-  if (setter != 0) obj->set_setter(*FromCData(setter));
-  if (query != 0) obj->set_query(*FromCData(query));
-  if (remover != 0) obj->set_deleter(*FromCData(remover));
-  if (enumerator != 0) obj->set_enumerator(*FromCData(enumerator));
-  if (data.IsEmpty()) data = v8::Undefined();
-  obj->set_data(*Utils::OpenHandle(*data));
-  Utils::OpenHandle(this)->set_indexed_property_handler(*obj);
-}
-
-
-void FunctionTemplate::SetInstanceCallAsFunctionHandler(
-      InvocationCallback callback,
-      Handle<Value> data) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetInstanceCallAsFunctionHandler()")) {
-    return;
-  }
-  HandleScope scope;
-  i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::CALL_HANDLER_INFO_TYPE);
-  i::Handle<i::CallHandlerInfo> obj =
-      i::Handle<i::CallHandlerInfo>::cast(struct_obj);
-  obj->set_callback(*FromCData(callback));
-  if (data.IsEmpty()) data = v8::Undefined();
-  obj->set_data(*Utils::OpenHandle(*data));
-  Utils::OpenHandle(this)->set_instance_call_handler(*obj);
-}
+// --- S c r i p t D a t a ---
 
 
 ScriptData* ScriptData::PreCompile(const char* input, int length) {
@@ -2041,11 +2044,11 @@ int v8::Object::InternalFieldCount() {
 }
 
 
-Local<Value> v8::Object::GetInternal(int index) {
-  if (IsDeadCheck("v8::Object::GetInternal()")) return Local<Value>();
+Local<Value> v8::Object::GetInternalField(int index) {
+  if (IsDeadCheck("v8::Object::GetInternalField()")) return Local<Value>();
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   if (!ApiCheck(index < obj->GetInternalFieldCount(),
-                "v8::Object::GetInternal()",
+                "v8::Object::GetInternalField()",
                 "Reading internal field out of bounds")) {
     return Local<Value>();
   }
@@ -2054,11 +2057,11 @@ Local<Value> v8::Object::GetInternal(int index) {
 }
 
 
-void v8::Object::SetInternal(int index, v8::Handle<Value> value) {
-  if (IsDeadCheck("v8::Object::SetInternal()")) return;
+void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
+  if (IsDeadCheck("v8::Object::SetInternalField()")) return;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
   if (!ApiCheck(index < obj->GetInternalFieldCount(),
-                "v8::Object::SetInternal()",
+                "v8::Object::SetInternalField()",
                 "Writing internal field out of bounds")) {
     return;
   }

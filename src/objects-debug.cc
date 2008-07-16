@@ -757,7 +757,6 @@ void FunctionTemplateInfo::FunctionTemplateInfoVerify() {
   TemplateInfoVerify();
   VerifyPointer(serial_number());
   VerifyPointer(call_code());
-  VerifyPointer(internal_field_count());
   VerifyPointer(property_accessors());
   VerifyPointer(prototype_template());
   VerifyPointer(parent_template());
@@ -778,8 +777,6 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint() {
   serial_number()->ShortPrint();
   PrintF("\n - call_code: ");
   call_code()->ShortPrint();
-  PrintF("\n - internal_field_count: ");
-  internal_field_count()->ShortPrint();
   PrintF("\n - property_accessors: ");
   property_accessors()->ShortPrint();
   PrintF("\n - prototype_template: ");
@@ -805,12 +802,15 @@ void ObjectTemplateInfo::ObjectTemplateInfoVerify() {
   CHECK(IsObjectTemplateInfo());
   TemplateInfoVerify();
   VerifyPointer(constructor());
+  VerifyPointer(internal_field_count());
 }
 
 void ObjectTemplateInfo::ObjectTemplateInfoPrint() {
   PrintF("ObjectTemplateInfo");
-  PrintF("\n - constructor");
+  PrintF("\n - constructor: ");
   constructor()->ShortPrint();
+  PrintF("\n - internal_field_count: ");
+  internal_field_count()->ShortPrint();
 }
 
 void SignatureInfo::SignatureInfoVerify() {
@@ -821,9 +821,9 @@ void SignatureInfo::SignatureInfoVerify() {
 
 void SignatureInfo::SignatureInfoPrint() {
   PrintF("SignatureInfo");
-  PrintF("\n - receiver");
+  PrintF("\n - receiver: ");
   receiver()->ShortPrint();
-  PrintF("\n - args");
+  PrintF("\n - args: ");
   args()->ShortPrint();
 }
 
@@ -834,7 +834,7 @@ void TypeSwitchInfo::TypeSwitchInfoVerify() {
 
 void TypeSwitchInfo::TypeSwitchInfoPrint() {
   PrintF("TypeSwitchInfo");
-  PrintF("\n - types");
+  PrintF("\n - types: ");
   types()->ShortPrint();
 }
 

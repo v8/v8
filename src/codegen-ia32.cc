@@ -361,7 +361,7 @@ Handle<Code> Ia32CodeGenerator::MakeCode(FunctionLiteral* flit,
   Ia32CodeGenerator cgen(initial_buffer_size, script, is_eval);
   cgen.GenCode(flit);
   if (cgen.HasStackOverflow()) {
-    Top::StackOverflow();
+    ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
   }
 
@@ -571,6 +571,9 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
     } else {
       Comment cmnt(masm_, "[ declarations");
       ProcessDeclarations(scope->declarations());
+      // Bail out if a stack-overflow exception occured when
+      // processing declarations.
+      if (HasStackOverflow()) return;
     }
 
     if (FLAG_trace) {
@@ -3250,6 +3253,8 @@ void Ia32CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
 
   // Build the function boilerplate and instantiate it.
   Handle<JSFunction> boilerplate = BuildBoilerplate(node);
+  // Check for stack-overflow exception.
+  if (HasStackOverflow()) return;
   InstantiateBoilerplate(boilerplate);
 }
 

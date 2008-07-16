@@ -115,6 +115,12 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
   } else {
     code = MakeCode(node, script_, false);
 
+    // Check for stack-overflow exception.
+    if (code.is_null()) {
+      SetStackOverflow();
+      return Handle<JSFunction>::null();
+    }
+
     // Function compilation complete.
     LOG(CodeCreateEvent("Function", *code, *node->name()));
   }
@@ -186,7 +192,10 @@ void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
           array->set_undefined(j++);
         }
       } else {
-        array->set(j++, *BuildBoilerplate(node->fun()));
+        Handle<JSFunction> function = BuildBoilerplate(node->fun());
+        // Check for stack-overflow exception.
+        if (HasStackOverflow()) return;
+        array->set(j++, *function);
       }
     }
   }

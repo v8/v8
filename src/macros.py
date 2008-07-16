@@ -37,13 +37,13 @@ const DONT_DELETE = 4;
 const GETTER = 0;
 const SETTER = 1;
 
-# These definitions must match the constants defined in v9.h
+# These definitions must match the index of the properties in objects.h.
 const kApiTagOffset =                  0;
 const kApiPropertyListOffset =         1;
 const kApiSerialNumberOffset =         2;
 const kApiConstructorOffset =          2;
-const kApiPrototypeTemplateOffset =    6;
-const kApiParentTemplateOffset =       7;
+const kApiPrototypeTemplateOffset =    5;
+const kApiParentTemplateOffset =       6;
 
 const NO_HINT     = 0;
 const NUMBER_HINT = 1;

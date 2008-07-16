@@ -1217,6 +1217,12 @@ class Visitor BASE_EMBEDDED {
     return (stack_overflow_ = true);
   }
 
+  // If a stack-overflow exception is encountered when visiting a
+  // node, calling SetStackOverflow will make sure that the visitor
+  // bails out without visiting more nodes.
+  void SetStackOverflow() { stack_overflow_ = true; }
+
+
   // Individual nodes
 #define DEF_VISIT(type)                         \
   virtual void Visit##type(type* node) = 0;

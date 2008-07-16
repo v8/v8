@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import platform
+import re
 import sys
 from os.path import join, dirname, abspath
 root_dir = dirname(File('SConstruct').rfile().abspath)
@@ -47,17 +48,17 @@ def GuessOS():
   elif id == 'Windows':
     return 'win32'
   else:
-    Abort("Don't know how to build v8 for OS '%s'." % id)
+    return '<none>'
 
 
 def GuessProcessor():
   id = platform.machine()
   if id.startswith('arm'):
     return 'arm'
-  elif (not id) or id.startswith('x86'):
+  elif (not id) or (not re.match('(x|i[3-6])86', id) is None):
     return 'ia32'
   else:
-    Abort("Don't know how to build v8 for processor '%s'." %  id)
+    return '<none>'
 
 
 def GuessToolchain(os):
@@ -70,8 +71,7 @@ def GuessToolchain(os):
   elif 'msvc' in tools:
     return 'msvc'
   else:
-    tools = ', '.join(tools)
-    Abort("Don't know how to build v8 using these tools: %s" % tools)
+    return '<none>'
 
 
 def GetOptions():

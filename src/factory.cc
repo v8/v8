@@ -619,18 +619,27 @@ Handle<JSFunction> Factory::CreateApiFunction(
     bool is_global) {
   Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::HandleApiCall));
 
-  int internal_field_count = Smi::cast(obj->internal_field_count())->value();
-  int size = kPointerSize * internal_field_count;
+  int internal_field_count = 0;
+  if (!obj->instance_template()->IsUndefined()) {
+    Handle<ObjectTemplateInfo> instance_template =
+        Handle<ObjectTemplateInfo>(
+            ObjectTemplateInfo::cast(obj->instance_template()));
+    internal_field_count =
+        Smi::cast(instance_template->internal_field_count())->value();
+  }
+
+  int instance_size = kPointerSize * internal_field_count;
   if (is_global) {
-    size += JSGlobalObject::kSize;
+    instance_size += JSGlobalObject::kSize;
   } else {
-    size += JSObject::kHeaderSize;
+    instance_size += JSObject::kHeaderSize;
   }
 
   InstanceType type = is_global ? JS_GLOBAL_OBJECT_TYPE : JS_OBJECT_TYPE;
 
   Handle<JSFunction> result =
-      Factory::NewFunction(Factory::empty_symbol(), type, size, code, true);
+      Factory::NewFunction(Factory::empty_symbol(), type, instance_size,
+                           code, true);
   // Set class name.
   Handle<Object> class_name = Handle<Object>(obj->class_name());
   if (class_name->IsString()) {

@@ -578,9 +578,7 @@ bool Debug::CompileDebuggerScript(int index) {
 
 bool Debug::Load() {
   // Return if debugger is already loaded.
-  if (IsLoaded()) {
-    return true;
-  }
+  if (IsLoaded()) return true;
 
   // Create the debugger context.
   HandleScope scope;
@@ -1499,17 +1497,20 @@ Handle<String> Debugger::ProcessRequest(Handle<Object> exec_state,
 
   // Call ProcessDebugRequest expect String result. The ProcessDebugRequest
   // will never throw an exception (see debug.js).
-  bool has_pending_exception = false;
+  bool caught_exception;
   const int argc = 3;
   Object** argv[argc] = { exec_state.location(),
                           request.location(),
                           stopped ? Factory::true_value().location() :
                                     Factory::false_value().location()};
-  Handle<Object> result = Execution::Call(process_denbug_request,
-                                          Factory::undefined_value(),
-                                          argc, argv,
-                                          &has_pending_exception);
-  ASSERT(!has_pending_exception);
+  Handle<Object> result = Execution::TryCall(process_denbug_request,
+                                             Factory::undefined_value(),
+                                             argc, argv,
+                                             &caught_exception);
+  if (caught_exception) {
+    return Factory::empty_symbol();
+  }
+
   return Handle<String>::cast(result);
 }
 
@@ -1522,14 +1523,17 @@ bool Debugger::IsPlainBreakRequest(Handle<Object> request) {
         *Factory::LookupAsciiSymbol("IsPlainBreakRequest"))));
 
   // Call ProcessDebugRequest expect String result.
-  bool has_pending_exception = false;
+  bool caught_exception;
   const int argc = 1;
   Object** argv[argc] = { request.location() };
-  Handle<Object> result = Execution::Call(process_denbug_request,
-                                          Factory::undefined_value(),
-                                          argc, argv,
-                                          &has_pending_exception);
-  ASSERT(!has_pending_exception);
+  Handle<Object> result = Execution::TryCall(process_denbug_request,
+                                             Factory::undefined_value(),
+                                             argc, argv,
+                                             &caught_exception);
+  if (caught_exception) {
+    return false;
+  }
+
   return *result == Heap::true_value();
 }
 
@@ -1551,7 +1555,8 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
     if (!Debug::break_on_exception()) return;
   }
 
-  // Enter the debugger.
+  // Enter the debugger.  Bail out if the debugger cannot be loaded.
+  if (!Debug::Load()) return;
   SaveBreakFrame save;
   EnterDebuggerContext enter;
 
@@ -1578,6 +1583,9 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
 
 void Debugger::OnDebugBreak(Handle<Object> break_points_hit) {
   HandleScope scope;
+
+  // Debugger has already been entered by caller.
+  ASSERT(Top::context() == *Debug::debug_context());
 
   // Bail out if there is no listener for this event
   if (!Debugger::EventActive(v8::Break)) return;
@@ -1611,8 +1619,8 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
   if (compiling_natives()) return;
   if (!EventActive(v8::BeforeCompile)) return;
 
-  // Enter the debugger.
-  Debug::Load();
+  // Enter the debugger.  Bail out if the debugger cannot be loaded.
+  if (!Debug::Load()) return;
   SaveBreakFrame save;
   EnterDebuggerContext enter;
 
@@ -1633,15 +1641,18 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
 
 // Handle debugger actions when a new script is compiled.
 void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
+  HandleScope scope;
+
   // No compile events while compiling natives.
   if (compiling_natives()) return;
 
   // No more to do if not debugging.
   if (!debugger_active()) return;
 
-  HandleScope scope;
+  // Enter the debugger.  Bail out if the debugger cannot be loaded.
+  if (!Debug::Load()) return;
+  SaveBreakFrame save;
   EnterDebuggerContext enter;
-  bool caught_exception = false;
 
   // If debugging there might be script break points registered for this
   // script. Make sure that these break points are set.
@@ -1660,6 +1671,7 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
   Handle<JSValue> wrapper = GetScriptWrapper(script);
 
   // Call UpdateScriptBreakPoints expect no exceptions.
+  bool caught_exception = false;
   const int argc = 1;
   Object** argv[argc] = { reinterpret_cast<Object**>(wrapper.location()) };
   Handle<Object> result = Execution::TryCall(
@@ -1697,7 +1709,8 @@ void Debugger::OnNewFunction(Handle<JSFunction> function) {
   if (compiling_natives()) return;
   if (!Debugger::EventActive(v8::NewFunction)) return;
 
-  // Enter the debugger.
+  // Enter the debugger.  Bail out if the debugger cannot be loaded.
+  if (!Debug::Load()) return;
   SaveBreakFrame save;
   EnterDebuggerContext enter;
 
@@ -1954,9 +1967,7 @@ void DebugMessageThread::Run() {
 void DebugMessageThread::DebugEvent(v8::DebugEvent event,
                                     Handle<Object> exec_state,
                                     Handle<Object> event_data) {
-  if (!Debug::Load()) {
-    return;
-  }
+  if (!Debug::Load()) return;
 
   // Process the individual events.
   bool interactive = false;

@@ -1,3 +1,19 @@
+2008-07-16: Version 0.1.2 (127441)
+
+        Fixed building on Mac OS X by recognizing i386 and friends as
+        IA-32 platforms.
+
+        Added propagation of stack overflow exceptions that occur while
+        compiling nested functions.
+
+        Improved debugger with support for recursive break points and
+        handling of exceptions that occur in the debugger JavaScript code.
+
+        Renamed GetInternal to GetInternalField and SetInternal to
+        SetInternalField in the API and moved InternalFieldCount and
+        SetInternalFieldCount from FunctionTemplate to ObjectTemplate.
+
+
 2008-07-09: Version 0.1.1 (126448)
 
         Fixed bug in stack overflow check code for IA-32 targets where a

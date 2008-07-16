@@ -77,7 +77,8 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 
   // Rewrite the AST by introducing .result assignments where needed.
   if (!Rewriter::Process(literal) || !AnalyzeVariableUsage(literal)) {
-    Top::StackOverflow();
+    // Signal a stack overflow by returning a null handle.  The stack
+    // overflow exception will be thrown by the caller.
     return Handle<Code>::null();
   }
 
@@ -122,6 +123,13 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // Build AST.
   FunctionLiteral* lit = MakeAST(is_global, script, extension, pre_data);
 
+  // Check for parse errors.
+  if (lit == NULL) {
+    ASSERT(Top::has_pending_exception());
+    StackGuard::EnableInterrupts();
+    return Handle<JSFunction>::null();
+  }
+
   // Measure how long it takes to do the compilation; only take the
   // rest of the function into account to avoid overlap with the
   // parsing statistics.
@@ -131,12 +139,11 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   StatsRateScope timer(rate);
 
   // Compile the code.
-  Handle<Code> code = Handle<Code>::null();
-  if (lit != NULL) code = MakeCode(lit, script, is_eval);
+  Handle<Code> code = MakeCode(lit, script, is_eval);
 
-  // Check for stack overflow.
+  // Check for stack-overflow exceptions.
   if (code.is_null()) {
-    ASSERT(Top::has_pending_exception());
+    Top::StackOverflow();
     StackGuard::EnableInterrupts();
     return Handle<JSFunction>::null();
   }
@@ -253,18 +260,24 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared) {
                                      end_position,
                                      is_expression);
 
+  // Check for parse errors.
+  if (lit == NULL) {
+    ASSERT(Top::has_pending_exception());
+    StackGuard::EnableInterrupts();
+    return false;
+  }
+
   // Measure how long it takes to do the lazy compilation; only take
   // the rest of the function into account to avoid overlap with the
   // lazy parsing statistics.
   StatsRateScope timer(&Counters::compile_lazy);
 
-  // Compile the code (if we have a syntax tree).
-  Handle<Code> code = Handle<Code>::null();
-  if (lit != NULL) code = MakeCode(lit, script, false);
+  // Compile the code.
+  Handle<Code> code = MakeCode(lit, script, false);
 
-  // Check for stack-overflow during compilation.
+  // Check for stack-overflow exception.
   if (code.is_null()) {
-    ASSERT(Top::has_pending_exception());
+    Top::StackOverflow();
     StackGuard::EnableInterrupts();
     return false;
   }
