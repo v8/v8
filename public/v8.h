@@ -1779,11 +1779,14 @@ class Context {
                                      Handle<ObjectTemplate>(),
                                  Handle<Value> global_object = Handle<Value>());
 
-  /** Returns the context that is on the top of the stack.*/
-  static Local<Context> Current();
+  /** Returns the last entered context. */
+  static Local<Context> GetEntered();
 
-  /** Returns the security context used to start JS execution.*/
-  static Local<Context> GetSecurityContext();
+  /** Returns the context that is on the top of the stack. */
+  static Local<Context> GetCurrent();
+
+  /** Returns the security context that is currently used. */
+  static Local<Context> GetCurrentSecurityContext();
 
   /**
    * Sets the security token for the context.  To access an object in

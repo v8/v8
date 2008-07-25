@@ -112,7 +112,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
 
   // Make sure we have an initial stack limit.
   StackGuard guard;
-  StackGuard::DisableInterrupts();
+  PostponeInterruptsScope postpone;
 
   // Notify debugger
   Debugger::OnBeforeCompile(script);
@@ -126,7 +126,6 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // Check for parse errors.
   if (lit == NULL) {
     ASSERT(Top::has_pending_exception());
-    StackGuard::EnableInterrupts();
     return Handle<JSFunction>::null();
   }
 
@@ -144,7 +143,6 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
     Top::StackOverflow();
-    StackGuard::EnableInterrupts();
     return Handle<JSFunction>::null();
   }
 
@@ -171,8 +169,6 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // property space by setting the expected number of properties for
   // the instances of the function.
   SetExpectedNofPropertiesFromEstimate(fun, lit->expected_property_count());
-
-  StackGuard::EnableInterrupts();
 
   // Notify debugger
   Debugger::OnAfterCompile(script, fun);
@@ -242,7 +238,7 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared) {
 
   // Make sure we have an initial stack limit.
   StackGuard guard;
-  StackGuard::DisableInterrupts();
+  PostponeInterruptsScope postpone;
 
   // Compute name, source code and script data.
   Handle<String> name(String::cast(shared->name()));
@@ -263,7 +259,6 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared) {
   // Check for parse errors.
   if (lit == NULL) {
     ASSERT(Top::has_pending_exception());
-    StackGuard::EnableInterrupts();
     return false;
   }
 
@@ -278,7 +273,6 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared) {
   // Check for stack-overflow exception.
   if (code.is_null()) {
     Top::StackOverflow();
-    StackGuard::EnableInterrupts();
     return false;
   }
 
@@ -293,7 +287,6 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared) {
 
   // Check the function has compiled code.
   ASSERT(shared->is_compiled());
-  StackGuard::EnableInterrupts();
   return true;
 }
 

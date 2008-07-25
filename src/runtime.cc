@@ -2988,8 +2988,8 @@ static Object* RuntimePreempt(Arguments args) {
 
 
 static Object* Runtime_DebugBreak(Arguments args) {
-  // Just continue if breaks are disabled.
-  if (Debug::disable_break()) {
+  // Just continue if breaks are disabled or if we fail to load the debugger.
+  if (Debug::disable_break() || !Debug::Load()) {
     return args[0];
   }
 
@@ -3008,11 +3008,6 @@ static Object* Runtime_DebugBreak(Arguments args) {
 
   // Clear the debug request flag.
   StackGuard::Continue(DEBUGBREAK);
-
-  // Make sure debugger is loaded.
-  if (!Debug::Load()) {
-    return args[0];
-  }
 
   HandleScope scope;
   SaveBreakFrame save;
@@ -3309,13 +3304,15 @@ static Object* EvalContext() {
   StackFrameLocator locator;
   JavaScriptFrame* frame = locator.FindJavaScriptFrame(1);
 
-  // Check if the caller of eval() supports eval. If not, eval is
-  // called through an alias in which case we throw an EvalError.
+  // TODO(900055): Right now we check if the caller of eval() supports
+  // eval to determine if it's an aliased eval or not. This may not be
+  // entirely correct in the unlikely case where a function uses both
+  // aliased and direct eval calls.
   HandleScope scope;
   if (!ScopeInfo<>::SupportsEval(frame->FindCode())) {
-    Handle<Object> error =
-        Factory::NewEvalError("illegal_eval", HandleVector<Object>(NULL, 0));
-    return Top::Throw(*error);
+    // Aliased eval: Evaluate in the global context of the eval
+    // function to support aliased, cross environment evals.
+    return *Top::global_context();
   }
 
   // Fetch the caller context from the frame.
@@ -4885,6 +4882,9 @@ static Object* Runtime_Abort(Arguments args) {
 }
 
 
+#ifdef DEBUG
+// ListNatives is ONLY used by the fuzz-natives.js in debug mode
+// Exclude the code in release mode.
 static Object* Runtime_ListNatives(Arguments args) {
   ASSERT(args.length() == 1);
   HandleScope scope;
@@ -4904,6 +4904,7 @@ static Object* Runtime_ListNatives(Arguments args) {
 #undef ADD_ENTRY
   return *result;
 }
+#endif
 
 
 static Object* Runtime_IS_VAR(Arguments args) {

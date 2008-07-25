@@ -147,8 +147,6 @@ class StackGuard BASE_EMBEDDED {
   static int ArchiveSpacePerThread();
 
   static bool IsStackOverflow();
-  static void EnableInterrupts();
-  static void DisableInterrupts();
   static bool IsPreempted();
   static void Preempt();
   static bool IsInterrupted();
@@ -186,6 +184,10 @@ class StackGuard BASE_EMBEDDED {
     }
   }
 
+  // Enable or disable interrupts.
+  static void EnableInterrupts();
+  static void DisableInterrupts();
+
   static const int kLimitSize = 512 * KB;
   static const uintptr_t kInterruptLimit = 0xfffffffe;
   static const uintptr_t kIllegalLimit = 0xffffffff;
@@ -198,16 +200,21 @@ class StackGuard BASE_EMBEDDED {
        initial_climit_(kIllegalLimit),
        climit_(kIllegalLimit),
        nesting_(0),
+       postpone_interrupts_nesting_(0),
        interrupt_flags_(0) {}
     uintptr_t initial_jslimit_;
     uintptr_t jslimit_;
     uintptr_t initial_climit_;
     uintptr_t climit_;
     int nesting_;
+    int postpone_interrupts_nesting_;
     int interrupt_flags_;
   };
+
   static ThreadLocal thread_local_;
+
   friend class StackLimitCheck;
+  friend class PostponeInterruptsScope;
 };
 
 
@@ -216,6 +223,25 @@ class StackLimitCheck BASE_EMBEDDED {
  public:
   bool HasOverflowed() const {
     return reinterpret_cast<uintptr_t>(this) < StackGuard::climit();
+  }
+};
+
+
+// Support for temporarily postponing interrupts. When the outermost
+// postpone scope is left the interrupts will be re-enabled and any
+// interrupts that occured while in the scope will be taken into
+// account.
+class PostponeInterruptsScope BASE_EMBEDDED {
+ public:
+  PostponeInterruptsScope() {
+    StackGuard::thread_local_.postpone_interrupts_nesting_++;
+    StackGuard::DisableInterrupts();
+  }
+
+  ~PostponeInterruptsScope() {
+    if (--StackGuard::thread_local_.postpone_interrupts_nesting_ == 0) {
+      StackGuard::EnableInterrupts();
+    }
   }
 };
 

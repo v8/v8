@@ -83,7 +83,6 @@ void VariableProxy::BindTo(Variable* var) {
   // non-const) multiple variable declarations, const vars introduced via
   // eval() etc.  Const-ness and variable declarations are a complete mess
   // in JS. Sigh...
-  // ASSERT(var->mode() == Variable::CONST || !is_const());
   var_ = var;
   var->var_uses()->RecordUses(&var_uses_);
   var->obj_uses()->RecordUses(&obj_uses_);

@@ -530,10 +530,12 @@ void Debug::Setup(bool create_heap_objects) {
 bool Debug::CompileDebuggerScript(int index) {
   HandleScope scope;
 
-  // Find source and name for the requested script.
+  // Bail out if the index is invalid.
   if (index == -1) {
     return false;
   }
+
+  // Find source and name for the requested script.
   Handle<String> source_code = Bootstrapper::NativesSourceLookup(index);
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> script_name = Factory::NewStringFromAscii(name);
@@ -552,26 +554,25 @@ bool Debug::CompileDebuggerScript(int index) {
     return false;
   }
 
-  // Execute the boilerplate function in the global object for the supplied
-  // context.
-  bool caught_exception = false;
+  // Execute the boilerplate function in the debugger context.
   Handle<Context> context = Top::global_context();
-  Handle<JSFunction> debug_fun(Factory::NewFunctionFromBoilerplate(boilerplate,
-                                                                   context));
-  Handle<GlobalObject> debug_global(context->global());
-  Handle<Object> result = Execution::TryCall(debug_fun, debug_global,
-                                             0, NULL, &caught_exception);
+  bool caught_exception = false;
+  Handle<JSFunction> function =
+      Factory::NewFunctionFromBoilerplate(boilerplate, context);
+  Handle<Object> result =
+      Execution::TryCall(function, Handle<Object>(context->global()),
+                         0, NULL, &caught_exception);
+
+  // Check for caught exceptions.
   if (caught_exception) {
-    MessageHandler::ReportMessage("error_loading_debugger",
-                                  NULL,
+    MessageHandler::ReportMessage("error_loading_debugger", NULL,
                                   HandleVector<Object>(&result, 1));
     return false;
   }
 
-  // Mark this script as native.
-  Handle<Script> script(Script::cast(debug_fun->shared()->script()));
+  // Mark this script as native and return successfully.
+  Handle<Script> script(Script::cast(function->shared()->script()));
   script->set_type(Smi::FromInt(SCRIPT_TYPE_NATIVE));
-
   return true;
 }
 
@@ -580,39 +581,44 @@ bool Debug::Load() {
   // Return if debugger is already loaded.
   if (IsLoaded()) return true;
 
+  // Bail out if we're already in the process of compiling the native
+  // JavaScript source code for the debugger.
+  if (Debugger::compiling_natives()) return false;
+
+  // Disable breakpoints and interrupts while compiling and running the
+  // debugger scripts including the context creation code.
+  DisableBreak disable(true);
+  PostponeInterruptsScope postpone;
+
   // Create the debugger context.
   HandleScope scope;
-  Handle<Object> empty_global_object;
-  Handle<Context> debug_context;
-  v8::Handle<v8::ObjectTemplate> global_template =
-      v8::Handle<v8::ObjectTemplate>();
-  debug_context = Bootstrapper::CreateEnvironment(empty_global_object,
-                                                  global_template,
-                                                  NULL);
+  Handle<Context> context =
+      Bootstrapper::CreateEnvironment(Handle<Object>::null(),
+                                      v8::Handle<ObjectTemplate>(),
+                                      NULL);
 
-  // Enter the debugger context.
+  // Use the debugger context.
   SaveContext save;
-  Top::set_context(*debug_context);
-  Top::set_security_context(*debug_context);
+  Top::set_context(*context);
+  Top::set_security_context(*context);
+
+  // Expose the builtins object in the debugger context.
+  Handle<String> key = Factory::LookupAsciiSymbol("builtins");
+  Handle<GlobalObject> global = Handle<GlobalObject>(context->global());
+  SetProperty(global, key, Handle<Object>(global->builtins()), NONE);
 
   // Compile the JavaScript for the debugger in the debugger context.
   Debugger::set_compiling_natives(true);
-  if (!CompileDebuggerScript(Natives::GetIndex("mirror"))) {
-    return false;
-  };
-  if (!CompileDebuggerScript(Natives::GetIndex("debug"))) {
-    return false;
-  };
+  bool caught_exception =
+      !CompileDebuggerScript(Natives::GetIndex("mirror")) ||
+      !CompileDebuggerScript(Natives::GetIndex("debug"));
   Debugger::set_compiling_natives(false);
 
-  // Expose the builtins object in the debugger context.
-  Handle<String> builtins_string = Factory::LookupAsciiSymbol("builtins");
-  Handle<JSGlobalObject> global(JSGlobalObject::cast(debug_context->global()));
-  SetProperty(global, builtins_string,
-              Handle<JSObject>(global->builtins()), NONE);
+  // Check for caught exceptions.
+  if (caught_exception) return false;
 
   // Debugger loaded.
-  debug_context_ = Handle<Context>::cast(GlobalHandles::Create(*debug_context));
+  debug_context_ = Handle<Context>::cast(GlobalHandles::Create(*context));
   return true;
 }
 
@@ -654,8 +660,8 @@ Object* Debug::Break(Arguments args) {
   SaveBreakFrame save;
   EnterDebuggerContext enter;
 
-  // Deactivate interrupt during breakpoint processing.
-  StackGuard::DisableInterrupts();
+  // Postpone interrupt during breakpoint processing.
+  PostponeInterruptsScope postpone;
 
   // Get the debug info (create it if it does not exist).
   Handle<SharedFunctionInfo> shared =
@@ -706,9 +712,6 @@ Object* Debug::Break(Arguments args) {
     // Set up for the remaining steps.
     PrepareStep(step_action, step_count);
   }
-
-  // Reactivate interrupt.
-  StackGuard::EnableInterrupts();
 
   // Install jump to the call address which was overwritten.
   SetAfterBreakTarget(frame);
@@ -1344,8 +1347,8 @@ void Debugger::DebugRequest(const uint16_t* json_request, int length) {
     pending_requests_tail_ = pending_request;
   }
 
-  // Use the stack guard to signal the debug request.
-  StackGuard::DebugBreak();
+  // Set the pending request flag to force the VM to stop soon.
+  v8::Debug::DebugBreak();
 }
 
 
@@ -1517,7 +1520,7 @@ Handle<String> Debugger::ProcessRequest(Handle<Object> exec_state,
 
 bool Debugger::IsPlainBreakRequest(Handle<Object> request) {
   // Get the function IsPlainBreakRequest (defined in debug.js).
-  Handle<JSFunction> process_denbug_request =
+  Handle<JSFunction> process_debug_request =
     Handle<JSFunction>(JSFunction::cast(
     Debug::debug_context()->global()->GetProperty(
         *Factory::LookupAsciiSymbol("IsPlainBreakRequest"))));
@@ -1526,7 +1529,7 @@ bool Debugger::IsPlainBreakRequest(Handle<Object> request) {
   bool caught_exception;
   const int argc = 1;
   Object** argv[argc] = { request.location() };
-  Handle<Object> result = Execution::TryCall(process_denbug_request,
+  Handle<Object> result = Execution::TryCall(process_debug_request,
                                              Factory::undefined_value(),
                                              argc, argv,
                                              &caught_exception);
@@ -1962,8 +1965,8 @@ void DebugMessageThread::Run() {
 }
 
 
-// This method is called by the V8 thread whenever a debug event occours in the
-// vm.
+// This method is called by the V8 thread whenever a debug event occurs in
+// the VM.
 void DebugMessageThread::DebugEvent(v8::DebugEvent event,
                                     Handle<Object> exec_state,
                                     Handle<Object> event_data) {

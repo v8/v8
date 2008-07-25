@@ -35,7 +35,7 @@
 
 namespace v8 { namespace internal {
 
-bool Snapshot::Deserialize(char* content, int len) {
+bool Snapshot::Deserialize(const char* content, int len) {
   Deserializer des(content, len);
   des.GetFlags();
   return V8::Initialize(&des);

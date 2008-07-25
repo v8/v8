@@ -345,15 +345,17 @@ class HandleScopeImplementer {
 
   HandleScopeImplementer()
       : blocks(0),
-        entered_contexts(0),
-        security_contexts(0) {
+        entered_contexts_(0),
+        saved_contexts_(0),
+        saved_security_contexts_(0) {
     Initialize();
   }
 
   void Initialize() {
     blocks.Initialize(0);
-    entered_contexts.Initialize(0);
-    security_contexts.Initialize(0);
+    entered_contexts_.Initialize(0);
+    saved_contexts_.Initialize(0);
+    saved_security_contexts_.Initialize(0);
     spare = NULL;
     ignore_out_of_memory = false;
     call_depth = 0;
@@ -378,12 +380,20 @@ class HandleScopeImplementer {
   inline void DecrementCallDepth() {call_depth--;}
   inline bool CallDepthIsZero() { return call_depth == 0; }
 
-  inline void AddEnteredContext(Handle<Object>);
-  inline Handle<Object> RemoveLastEnteredContext();
-  inline bool HasEnteredContexts();
-  inline void AddSecurityContext(Handle<Object>);
-  inline Handle<Object> RemoveLastSecurityContext();
-  inline bool HasSecurityContexts();
+  inline void EnterContext(Handle<Object> context);
+  inline bool LeaveLastContext();
+
+  // Returns the last entered context or an empty handle if no
+  // contexts have been entered.
+  inline Handle<Object> LastEnteredContext();
+
+  inline void SaveContext(Handle<Object> context);
+  inline Handle<Object> RestoreContext();
+  inline bool HasSavedContexts();
+
+  inline void SaveSecurityContext(Handle<Object> context);
+  inline Handle<Object> RestoreSecurityContext();
+  inline bool HasSavedSecurityContexts();
 
   inline List<void**>* Blocks() { return &blocks; }
 
@@ -394,10 +404,12 @@ class HandleScopeImplementer {
   List<void**> blocks;
   Object** spare;
   int call_depth;
-  // Used as a stack to keep track of contexts entered.
-  List<Handle<Object> > entered_contexts;
-  // Used as a stack to keep track of security contexts entered.
-  List<Handle<Object> > security_contexts;
+  // Used as a stack to keep track of entered contexts.
+  List<Handle<Object> > entered_contexts_;
+  // Used as a stack to keep track of saved contexts.
+  List<Handle<Object> > saved_contexts_;
+  // Used as a stack to keep track of saved security contexts.
+  List<Handle<Object> > saved_security_contexts_;
   bool ignore_out_of_memory;
   // This is only used for threading support.
   ImplementationUtilities::HandleScopeData handle_scope_data_;
@@ -415,32 +427,51 @@ class HandleScopeImplementer {
 static const int kHandleBlockSize = v8::internal::KB - 2;  // fit in one page
 
 
-void HandleScopeImplementer::AddEnteredContext(Handle<Object> context) {
-  entered_contexts.Add(context);
+void HandleScopeImplementer::SaveContext(Handle<Object> context) {
+  saved_contexts_.Add(context);
 }
 
 
-Handle<Object> HandleScopeImplementer::RemoveLastEnteredContext() {
-  return entered_contexts.RemoveLast();
+Handle<Object> HandleScopeImplementer::RestoreContext() {
+  return saved_contexts_.RemoveLast();
 }
 
 
-bool HandleScopeImplementer::HasEnteredContexts() {
-  return !entered_contexts.is_empty();
-}
-
-void HandleScopeImplementer::AddSecurityContext(Handle<Object> context) {
-  security_contexts.Add(context);
+bool HandleScopeImplementer::HasSavedContexts() {
+  return !saved_contexts_.is_empty();
 }
 
 
-Handle<Object> HandleScopeImplementer::RemoveLastSecurityContext() {
-  return security_contexts.RemoveLast();
+void HandleScopeImplementer::SaveSecurityContext(Handle<Object> context) {
+  saved_security_contexts_.Add(context);
 }
 
 
-bool HandleScopeImplementer::HasSecurityContexts() {
-  return !security_contexts.is_empty();
+Handle<Object> HandleScopeImplementer::RestoreSecurityContext() {
+  return saved_security_contexts_.RemoveLast();
+}
+
+
+bool HandleScopeImplementer::HasSavedSecurityContexts() {
+  return !saved_security_contexts_.is_empty();
+}
+
+
+void HandleScopeImplementer::EnterContext(Handle<Object> context) {
+  entered_contexts_.Add(context);
+}
+
+
+bool HandleScopeImplementer::LeaveLastContext() {
+  if (entered_contexts_.is_empty()) return false;
+  entered_contexts_.RemoveLast();
+  return true;
+}
+
+
+Handle<Object> HandleScopeImplementer::LastEnteredContext() {
+  if (entered_contexts_.is_empty()) return Handle<Object>::null();
+  return entered_contexts_.last();
 }
 
 

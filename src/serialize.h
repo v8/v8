@@ -202,7 +202,7 @@ class Serializer: public ObjectVisitor {
 
 class SnapshotReader {
  public:
-  SnapshotReader(char* str, int len): str_(str), end_(str + len) {}
+  SnapshotReader(const char* str, int len): str_(str), end_(str + len) {}
 
   void ExpectC(char expected) {
     int c = GetC();
@@ -216,7 +216,7 @@ class SnapshotReader {
   }
 
   int GetInt() {
-    int result = *reinterpret_cast<int*>(str_);
+    int result = *reinterpret_cast<const int*>(str_);
     str_ += sizeof(result);
     return result;
   }
@@ -238,8 +238,8 @@ class SnapshotReader {
   }
 
  private:
-  char* str_;
-  char* end_;
+  const char* str_;
+  const char* end_;
 };
 
 
@@ -249,7 +249,7 @@ class Deserializer: public ObjectVisitor {
  public:
   // Create a deserializer. The snapshot is held in str and has size len.
   // Ownership of str is not assumed by the Deserializer.
-  Deserializer(char* str, int len);
+  Deserializer(const char* str, int len);
 
   virtual ~Deserializer();
 

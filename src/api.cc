@@ -403,11 +403,12 @@ void** v8::HandleScope::CreateHandle(void* value) {
 void Context::Enter() {
   if (IsDeadCheck("v8::Context::Enter()")) return;
   i::Handle<i::Context> env = Utils::OpenHandle(this);
+  thread_local.EnterContext(env);
 
-  thread_local.AddEnteredContext(i::GlobalHandles::Create(i::Top::context()));
+  thread_local.SaveContext(i::GlobalHandles::Create(i::Top::context()));
   i::Top::set_context(*env);
 
-  thread_local.AddSecurityContext(
+  thread_local.SaveSecurityContext(
       i::GlobalHandles::Create(i::Top::security_context()));
   i::Top::set_security_context(*env);
 }
@@ -415,14 +416,19 @@ void Context::Enter() {
 
 void Context::Exit() {
   if (has_shut_down) return;
+  if (!ApiCheck(thread_local.LeaveLastContext(),
+                "v8::Context::Exit()",
+                "Cannot exit non-entered context")) {
+    return;
+  }
 
   // Content of 'last_context' and 'last_security_context' could be NULL.
-  i::Handle<i::Object> last_context = thread_local.RemoveLastEnteredContext();
+  i::Handle<i::Object> last_context = thread_local.RestoreContext();
   i::Top::set_context(static_cast<i::Context*>(*last_context));
   i::GlobalHandles::Destroy(last_context.location());
 
   i::Handle<i::Object> last_security_context =
-      thread_local.RemoveLastSecurityContext();
+      thread_local.RestoreSecurityContext();
   i::Top::set_security_context(
       static_cast<i::Context*>(*last_security_context));
   i::GlobalHandles::Destroy(last_security_context.location());
@@ -2145,16 +2151,26 @@ bool Context::InSecurityContext() {
 }
 
 
-v8::Local<v8::Context> Context::Current() {
-  if (IsDeadCheck("v8::Context::Current()")) return Local<Context>();
+v8::Local<v8::Context> Context::GetEntered() {
+  if (IsDeadCheck("v8::Context::GetEntered()")) return Local<Context>();
+  i::Handle<i::Object> last = thread_local.LastEnteredContext();
+  if (last.is_null()) return Local<Context>();
+  i::Handle<i::Context> context = i::Handle<i::Context>::cast(last);
+  return Utils::ToLocal(context);
+}
+
+
+v8::Local<v8::Context> Context::GetCurrent() {
+  if (IsDeadCheck("v8::Context::GetCurrent()")) return Local<Context>();
   i::Handle<i::Context> context(i::Top::global_context());
   return Utils::ToLocal(context);
 }
 
 
-v8::Local<v8::Context> Context::GetSecurityContext() {
-  if (IsDeadCheck("v8::Context::GetSecurityContext()")) return Local<Context>();
-  ASSERT(i::Top::security_context() != NULL);
+v8::Local<v8::Context> Context::GetCurrentSecurityContext() {
+  if (IsDeadCheck("v8::Context::GetCurrentSecurityContext()")) {
+    return Local<Context>();
+  }
   i::Handle<i::Context> context(i::Top::security_context());
   return Utils::ToLocal(context);
 }

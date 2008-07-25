@@ -921,17 +921,18 @@ void Serializer::PutGlobalHandleStack(const List<Handle<Object> >& stack) {
 
 
 void Serializer::PutContextStack() {
-  List<Handle<Object> > entered_contexts(2);
-  while (HandleScopeImplementer::instance()->HasEnteredContexts()) {
+  List<Handle<Object> > contexts(2);
+  while (HandleScopeImplementer::instance()->HasSavedContexts()) {
     Handle<Object> context =
-      HandleScopeImplementer::instance()->RemoveLastEnteredContext();
-    entered_contexts.Add(context);
+      HandleScopeImplementer::instance()->RestoreContext();
+    contexts.Add(context);
   }
-  PutGlobalHandleStack(entered_contexts);
+  PutGlobalHandleStack(contexts);
+
   List<Handle<Object> > security_contexts(2);
-  while (HandleScopeImplementer::instance()->HasSecurityContexts()) {
+  while (HandleScopeImplementer::instance()->HasSavedSecurityContexts()) {
     Handle<Object> context =
-      HandleScopeImplementer::instance()->RemoveLastSecurityContext();
+      HandleScopeImplementer::instance()->RestoreSecurityContext();
     security_contexts.Add(context);
   }
   PutGlobalHandleStack(security_contexts);
@@ -1049,7 +1050,7 @@ RelativeAddress Serializer::Allocate(HeapObject* obj) {
 static const int kInitArraySize = 32;
 
 
-Deserializer::Deserializer(char* str, int len)
+Deserializer::Deserializer(const char* str, int len)
   : reader_(str, len),
     map_pages_(kInitArraySize), old_pages_(kInitArraySize),
     code_pages_(kInitArraySize), large_objects_(kInitArraySize),
@@ -1254,13 +1255,13 @@ void Deserializer::GetContextStack() {
   List<Handle<Object> > entered_contexts(2);
   GetGlobalHandleStack(&entered_contexts);
   for (int i = 0; i < entered_contexts.length(); i++) {
-    HandleScopeImplementer::instance()->AddEnteredContext(entered_contexts[i]);
+    HandleScopeImplementer::instance()->SaveContext(entered_contexts[i]);
   }
   List<Handle<Object> > security_contexts(2);
   GetGlobalHandleStack(&security_contexts);
   for (int i = 0; i < security_contexts.length(); i++) {
     HandleScopeImplementer::instance()->
-      AddSecurityContext(security_contexts[i]);
+      SaveSecurityContext(security_contexts[i]);
   }
 }
 

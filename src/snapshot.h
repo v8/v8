@@ -45,10 +45,10 @@ class Snapshot {
   static bool WriteToFile(const char* snapshot_file);
 
  private:
-  static char data_[];
+  static const char data_[];
   static int size_;
 
-  static bool Deserialize(char* content, int len);
+  static bool Deserialize(const char* content, int len);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Snapshot);
 };

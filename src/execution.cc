@@ -75,7 +75,8 @@ static Handle<Object> Invoke(bool construct,
     code = stub.GetCode();
   }
 
-  {  // Save and restore context around invocation and block the
+  {
+    // Save and restore context around invocation and block the
     // allocation of handles without explicit handle scopes.
     SaveContext save;
     NoHandleAllocation na;
@@ -295,6 +296,7 @@ bool StackGuard::IsDebugBreak() {
   ExecutionAccess access;
   return thread_local_.interrupt_flags_ & DEBUGBREAK;
 }
+
 
 void StackGuard::DebugBreak() {
   ExecutionAccess access;

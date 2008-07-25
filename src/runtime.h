@@ -33,11 +33,11 @@ namespace v8 { namespace internal {
 // The interface to C++ runtime functions.
 
 // ----------------------------------------------------------------------------
-// RUNTIME_FUNCTION_LIST defines all runtime functions accessed
-// either directly by id (via the code generator), or indirectly
-// via a native call by name (from within JS code).
+// RUNTIME_FUNCTION_LIST_ALWAYS defines runtime calls available in both
+// release and debug mode.
+// This macro should only be used by the macro RUNTIME_FUNCTION_LIST.
 
-#define RUNTIME_FUNCTION_LIST(F) \
+#define RUNTIME_FUNCTION_LIST_ALWAYS(F) \
   /* Property access */ \
   F(AddProperty, 4) \
   F(GetProperty, 2) \
@@ -279,12 +279,27 @@ namespace v8 { namespace internal {
   F(FunctionGetAssemblerCode, 1) \
   F(Abort, 2) \
   \
-  /* Testing */ \
-  F(ListNatives, 1) \
-  \
   /* Pseudo functions - handled as macros by parser */ \
   F(IS_VAR, 1)
 
+
+#ifdef DEBUG
+#define RUNTIME_FUNCTION_LIST_DEBUG(F) \
+  /* Testing */ \
+  F(ListNatives, 1)
+#else
+#define RUNTIME_FUNCTION_LIST_DEBUG(F)
+#endif
+
+
+// ----------------------------------------------------------------------------
+// RUNTIME_FUNCTION_LIST defines all runtime functions accessed
+// either directly by id (via the code generator), or indirectly
+// via a native call by name (from within JS code).
+
+#define RUNTIME_FUNCTION_LIST(F) \
+  RUNTIME_FUNCTION_LIST_ALWAYS(F) \
+  RUNTIME_FUNCTION_LIST_DEBUG(F)
 
 // ----------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.

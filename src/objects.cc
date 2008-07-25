@@ -348,7 +348,7 @@ Object* Object::GetProperty(Object* receiver,
     if (current == last) break;
   }
 
-  if (!result->IsValid()) {
+  if (!result->IsProperty()) {
     *attributes = ABSENT;
     return Heap::undefined_value();
   }
@@ -378,17 +378,14 @@ Object* Object::GetProperty(Object* receiver,
                                      result->GetCallbackObject(),
                                      name,
                                      holder);
-    case MAP_TRANSITION:
-    case CONSTANT_TRANSITION:
-      *attributes = ABSENT;
-      return Heap::undefined_value();
     case INTERCEPTOR: {
       JSObject* recvr = JSObject::cast(receiver);
       return holder->GetPropertyWithInterceptor(recvr, name, attributes);
     }
+    default:
+      UNREACHABLE();
+      return NULL;
   }
-  UNREACHABLE();
-  return NULL;
 }
 
 
@@ -1571,7 +1568,7 @@ PropertyAttributes JSObject::GetPropertyAttributePostInterceptor(
   // Check local property, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
-  if (result.IsValid()) return result.GetAttributes();
+  if (result.IsProperty()) return result.GetAttributes();
 
   if (continue_search) {
     // Continue searching via the prototype chain.

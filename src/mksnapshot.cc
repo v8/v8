@@ -132,7 +132,7 @@ static int WriteInternalSnapshotToFile(const char* filename,
   fprintf(f, "#include \"platform.h\"\n\n");
   fprintf(f, "#include \"snapshot.h\"\n\n");
   fprintf(f, "namespace v8 {\nnamespace internal {\n\n");
-  fprintf(f, "char Snapshot::data_[] = {");
+  fprintf(f, "const char Snapshot::data_[] = {");
   int written = 0;
   written += fprintf(f, "%i", str[0]);
   for (int i = 1; i < size; ++i) {
