@@ -346,7 +346,7 @@ def ConfigureBuild():
   # compile it.
   library_files = [s for s in LIBRARY_FILES]
   library_files.append('macros.py')
-  libraries_src, libraries_empty_src = env.JS2C(['libraries.cc', 'libraries_empty.cc'], library_files)
+  libraries_src, libraries_empty_src = env.JS2C(['libraries.cc', 'libraries-empty.cc'], library_files)
   libraries_obj = BuildObject(env, libraries_src, CPPPATH=['.'])
 
   # Build JSCRE.

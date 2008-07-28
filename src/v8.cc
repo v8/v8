@@ -102,6 +102,8 @@ void V8::TearDown() {
   Builtins::TearDown();
   Bootstrapper::TearDown();
 
+  Top::TearDown();
+
   Heap::TearDown();
   Logger::TearDown();
 

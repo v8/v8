@@ -1,3 +1,11 @@
+2008-07-28: Version 0.1.4 (128918)
+
+        Added support for storing JavaScript stack traces in a stack
+        allocated buffer to make it visible in shallow core dumps.
+        Controlled by the --preallocate-message-memory flag which is
+        disabled by default.
+
+
 2008-07-25: Version 0.1.3 (128832)
 
         Fixed bug in JSObject::GetPropertyAttributePostInterceptor where

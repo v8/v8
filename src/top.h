@@ -235,6 +235,7 @@ class Top {
 
   // Administration
   static void Initialize();
+  static void TearDown();
   static void Iterate(ObjectVisitor* v);
   static void Iterate(ObjectVisitor* v, ThreadLocalTop* t);
   static char* Iterate(ObjectVisitor* v, char* t);

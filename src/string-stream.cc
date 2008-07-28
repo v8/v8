@@ -49,6 +49,13 @@ NoAllocationStringAllocator::NoAllocationStringAllocator(unsigned bytes) {
 }
 
 
+NoAllocationStringAllocator::NoAllocationStringAllocator(char* memory,
+                                                         unsigned size) {
+  size_ = size;
+  space_ = memory;
+}
+
+
 bool StringStream::Put(char c) {
   if (space() == 0) return false;
   if (length_ >= capacity_ - 1) {

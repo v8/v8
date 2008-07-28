@@ -38,9 +38,8 @@ namespace v8 { namespace internal {
 
 DEFINE_bool(trace_exception, false,
             "print stack trace when throwing exceptions");
-DEFINE_int(preallocated_stack_trace_memory, 0,
-           "preallocate some space to build stack traces. "
-           "Default is not to preallocate.");
+DEFINE_bool(preallocate_message_memory, false,
+            "preallocate some memory to build stack traces.");
 
 ThreadLocalTop Top::thread_local_;
 Mutex* Top::break_access_ = OS::CreateMutex();
@@ -48,7 +47,7 @@ StackFrame::Id Top::break_frame_id_;
 int Top::break_count_;
 int Top::break_id_;
 
-NoAllocationStringAllocator* preallocated_message_space;
+NoAllocationStringAllocator* preallocated_message_space = NULL;
 
 Address top_addresses[] = {
 #define C(name) reinterpret_cast<Address>(Top::name()),
@@ -111,21 +110,149 @@ void Top::InitializeThreadLocal() {
 }
 
 
+// Create a dummy thread that will wait forever on a semaphore. The only
+// purpose for this thread is to have some stack area to save essential data
+// into for use by a stacks only core dump (aka minidump).
+class PreallocatedMemoryThread: public Thread {
+ public:
+  PreallocatedMemoryThread() : keep_running_(true) {
+    wait_for_ever_semaphore_ = OS::CreateSemaphore(0);
+    data_ready_semaphore_ = OS::CreateSemaphore(0);
+  }
+
+  // When the thread starts running it will allocate a fixed number of bytes
+  // on the stack and publish the location of this memory for others to use.
+  void Run() {
+    char local_buffer[16 * 1024];
+
+    // Initialize the buffer with a known good value.
+    strncpy(local_buffer, "Trace data was not generated.\n",
+            sizeof(local_buffer));
+
+    // Publish the local buffer and signal its availability.
+    data_ = &local_buffer[0];
+    length_ = sizeof(local_buffer);
+    data_ready_semaphore_->Signal();
+
+    while (keep_running_) {
+      // This thread will wait here until the end of time.
+      wait_for_ever_semaphore_->Wait();
+    }
+
+    // Make sure we access the buffer after the wait to remove all possibility
+    // of it being optimized away.
+    strncpy(local_buffer, "PreallocatedMemoryThread shutting down.\n",
+            sizeof(local_buffer));
+  }
+
+  static char* data() {
+    if (data_ready_semaphore_ != NULL) {
+      // Initial access is guarded until the data has been published.
+      data_ready_semaphore_->Wait();
+      delete data_ready_semaphore_;
+      data_ready_semaphore_ = NULL;
+    }
+    return data_;
+  }
+
+  static unsigned length() {
+    if (data_ready_semaphore_ != NULL) {
+      // Initial access is guarded until the data has been published.
+      data_ready_semaphore_->Wait();
+      delete data_ready_semaphore_;
+      data_ready_semaphore_ = NULL;
+    }
+    return length_;
+  }
+
+  static void StartThread() {
+    if (the_thread_ != NULL) return;
+
+    the_thread_ = new PreallocatedMemoryThread();
+    the_thread_->Start();
+  }
+
+  // Stop the PreallocatedMemoryThread and release its resources.
+  static void StopThread() {
+    if (the_thread_ == NULL) return;
+
+    the_thread_->keep_running_ = false;
+    wait_for_ever_semaphore_->Signal();
+
+    // Wait for the thread to terminate.
+    the_thread_->Join();
+
+    if (data_ready_semaphore_ != NULL) {
+      delete data_ready_semaphore_;
+      data_ready_semaphore_ = NULL;
+    }
+
+    delete wait_for_ever_semaphore_;
+    wait_for_ever_semaphore_ = NULL;
+
+    // Done with the thread entirely.
+    delete the_thread_;
+    the_thread_ = NULL;
+  }
+
+ private:
+  // Used to make sure that the thread keeps looping even for spurious wakeups.
+  bool keep_running_;
+
+  // The preallocated memory thread singleton.
+  static PreallocatedMemoryThread* the_thread_;
+  // This semaphore is used by the PreallocatedMemoryThread to wait for ever.
+  static Semaphore* wait_for_ever_semaphore_;
+  // Semaphore to signal that the data has been initialized.
+  static Semaphore* data_ready_semaphore_;
+
+  // Location and size of the preallocated memory block.
+  static char* data_;
+  static unsigned length_;
+
+  DISALLOW_EVIL_CONSTRUCTORS(PreallocatedMemoryThread);
+};
+
+PreallocatedMemoryThread* PreallocatedMemoryThread::the_thread_ = NULL;
+Semaphore* PreallocatedMemoryThread::wait_for_ever_semaphore_ = NULL;
+Semaphore* PreallocatedMemoryThread::data_ready_semaphore_ = NULL;
+char* PreallocatedMemoryThread::data_ = NULL;
+unsigned PreallocatedMemoryThread::length_ = 0;
+
+static bool initialized = false;
+
 void Top::Initialize() {
+  CHECK(!initialized);
+
   InitializeThreadLocal();
 
   break_frame_id_ = StackFrame::NO_ID;
   break_count_ = 0;
   break_id_ = 0;
 
-  if (FLAG_preallocated_stack_trace_memory != 0) {
-    if (FLAG_preallocated_stack_trace_memory < StringStream::kInitialCapacity)
-      FLAG_preallocated_stack_trace_memory = StringStream::kInitialCapacity;
-    // 3/4 is allocated to the message and 1/4 is allocated to the work area.
+  // Only preallocate on the first initialization.
+  if (FLAG_preallocate_message_memory && (preallocated_message_space == NULL)) {
+    // Start the thread which will set aside some memory.
+    PreallocatedMemoryThread::StartThread();
     preallocated_message_space =
-        new NoAllocationStringAllocator(
-            FLAG_preallocated_stack_trace_memory * 3 / 4);
-    PreallocatedStorage::Init(FLAG_preallocated_stack_trace_memory / 4);
+        new NoAllocationStringAllocator(PreallocatedMemoryThread::data(),
+                                        PreallocatedMemoryThread::length());
+    PreallocatedStorage::Init(PreallocatedMemoryThread::length() / 4);
+  }
+  initialized = true;
+}
+
+
+void Top::TearDown() {
+  if (initialized) {
+    // Remove the external reference to the preallocated stack memory.
+    if (preallocated_message_space != NULL) {
+      delete preallocated_message_space;
+      preallocated_message_space = NULL;
+    }
+
+    PreallocatedMemoryThread::StopThread();
+    initialized = false;
   }
 }
 
@@ -250,14 +377,14 @@ void Top::PrintStack() {
     stack_trace_nesting_level++;
 
     StringAllocator* allocator;
-    if (FLAG_preallocated_stack_trace_memory == 0) {
+    if (preallocated_message_space == NULL) {
       allocator = new HeapStringAllocator();
     } else {
       allocator = preallocated_message_space;
     }
 
     NativeAllocationChecker allocation_checker(
-      FLAG_preallocated_stack_trace_memory == 0 ?
+      !FLAG_preallocate_message_memory ?
       NativeAllocationChecker::ALLOW :
       NativeAllocationChecker::DISALLOW);
 
@@ -269,7 +396,8 @@ void Top::PrintStack() {
     accumulator.Log();
     incomplete_message = NULL;
     stack_trace_nesting_level = 0;
-    if (FLAG_preallocated_stack_trace_memory == 0) {
+    if (preallocated_message_space == NULL) {
+      // Remove the HeapStringAllocator created above.
       delete allocator;
     }
   } else if (stack_trace_nesting_level == 1) {
@@ -735,7 +863,7 @@ Object* Top::LookupSpecialFunction(JSObject* receiver,
 
 char* Top::ArchiveThread(char* to) {
   memcpy(to, reinterpret_cast<char*>(&thread_local_), sizeof(thread_local_));
-  Initialize();
+  InitializeThreadLocal();
   return to + sizeof(thread_local_);
 }
 
