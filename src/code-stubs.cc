@@ -50,33 +50,21 @@ Handle<Code> CodeStub::GetCode() {
     // Generate the new code.
     MacroAssembler masm(NULL, 256);
 
-    bool needs_check_for_stub_calls = !AllowsStubCalls();
-    if (needs_check_for_stub_calls) {
-      // Nested stubs are not allowed for leafs.
-      ASSERT(!masm.generating_stub());
-      masm.set_generating_stub(true);
-    }
+    // Nested stubs are not allowed for leafs.
+    masm.set_allow_stub_calls(AllowsStubCalls());
 
     // Generate the code for the stub.
+    masm.set_generating_stub(true);
     Generate(&masm);
-
-    if (needs_check_for_stub_calls) masm.set_generating_stub(false);
 
     // Create the code object.
     CodeDesc desc;
     masm.GetCode(&desc);
 
-    // Copy the generated code into a heap object.
-    // TODO(1238541): Simplify this somewhat complicated encoding.
-    CodeStub::Major major = MajorKey();
-    // Lower three bits in state field.
-    InlineCacheState state = static_cast<InlineCacheState>(major & 0x07);
-    // Upper two bits in type field.
-    PropertyType type = static_cast<PropertyType>((major >> 3) & 0x03);
-    // Compute flags with state and type used to hold majr key.
-    Code::Flags flags = Code::ComputeFlags(Code::STUB, state, type);
-
+    // Copy the generated code into a heap object, and store the major key.
+    Code::Flags flags = Code::ComputeFlags(Code::STUB);
     Handle<Code> code = Factory::NewCode(desc, NULL, flags);
+    code->set_major_key(MajorKey());
 
     // Add unresolved entries in the code to the fixup list.
     Bootstrapper::AddFixup(*code, &masm);
@@ -110,22 +98,22 @@ const char* CodeStub::MajorName(CodeStub::Major major_key) {
   switch (major_key) {
     case CallFunction:
       return "CallFunction";
-    case InlinedGenericOp:
-      return "InlinedGenericOp";
+    case GenericBinaryOp:
+      return "GenericBinaryOp";
     case SmiOp:
       return "SmiOp";
     case Compare:
       return "Compare";
     case RecordWrite:
       return "RecordWrite";
-    case GenericOp:
-      return "GenericOp";
     case StackCheck:
       return "StackCheck";
     case UnarySub:
       return "UnarySub";
     case RevertToNumber:
       return "RevertToNumber";
+    case ToBoolean:
+      return "ToBoolean";
     case CounterOp:
       return "CounterOp";
     case ArgumentsAccess:

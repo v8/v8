@@ -199,9 +199,12 @@ StackGuard::StackGuard() {
     ASSERT(thread_local_.climit_ == kIllegalLimit);
 
     thread_local_.initial_jslimit_ = thread_local_.jslimit_ =
-      GENERATED_CODE_STACK_LIMIT(kLimitSize);
+        GENERATED_CODE_STACK_LIMIT(kLimitSize);
+    // NOTE: The check for overflow is not safe as there is no guarentee that
+    // the running thread has its stack in all memory up to address 0x00000000.
     thread_local_.initial_climit_ = thread_local_.climit_ =
-      reinterpret_cast<uintptr_t>(this) - kLimitSize;
+        reinterpret_cast<uintptr_t>(this) >= kLimitSize ?
+            reinterpret_cast<uintptr_t>(this) - kLimitSize : 0;
 
     if (thread_local_.interrupt_flags_ != 0) {
       set_limits(kInterruptLimit, access);
@@ -271,9 +274,7 @@ bool StackGuard::IsInterrupted() {
 void StackGuard::Interrupt() {
   ExecutionAccess access;
   thread_local_.interrupt_flags_ |= INTERRUPT;
-  if (!Top::is_break_no_lock()) {
-    set_limits(kInterruptLimit, access);
-  }
+  set_limits(kInterruptLimit, access);
 }
 
 
@@ -286,9 +287,7 @@ bool StackGuard::IsPreempted() {
 void StackGuard::Preempt() {
   ExecutionAccess access;
   thread_local_.interrupt_flags_ |= PREEMPT;
-  if (!Top::is_break_no_lock()) {
-    set_limits(kInterruptLimit, access);
-  }
+  set_limits(kInterruptLimit, access);
 }
 
 
@@ -300,10 +299,8 @@ bool StackGuard::IsDebugBreak() {
 
 void StackGuard::DebugBreak() {
   ExecutionAccess access;
-  if (!Top::is_break_no_lock()) {
-    thread_local_.interrupt_flags_ |= DEBUGBREAK;
-    set_limits(kInterruptLimit, access);
-  }
+  thread_local_.interrupt_flags_ |= DEBUGBREAK;
+  set_limits(kInterruptLimit, access);
 }
 
 

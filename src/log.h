@@ -49,6 +49,9 @@ namespace v8 { namespace internal {
 // Log code (create, move, and delete) events to the logfile, default is off.
 // --log-code implies --log.
 //
+// --log-debugger
+// Log the internal activity of the debugger, to aid in debugging the debugger.
+//
 // --log-gc
 // Log GC heap samples after each GC that can be processed by hp2ps, default
 // is off.  --log-gc implies --log.

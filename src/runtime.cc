@@ -806,6 +806,10 @@ static Object* Runtime_SetCode(Arguments args) {
     target->shared()->set_length(fun->shared()->length());
     target->shared()->set_formal_parameter_count(
                           fun->shared()->formal_parameter_count());
+    // Set the source code of the target function.
+    target->shared()->set_script(fun->shared()->script());
+    target->shared()->set_start_position(fun->shared()->start_position());
+    target->shared()->set_end_position(fun->shared()->end_position());
     context = Handle<Context>(fun->context());
 
     // Make sure we get a fresh copy of the literal vector to avoid
@@ -2730,31 +2734,31 @@ static Object* Runtime_GetFunctionDelegate(Arguments args) {
 
 static Object* Runtime_NewContext(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 1);
 
-  CONVERT_CHECKED(JSFunction, function, args[1]);
+  CONVERT_CHECKED(JSFunction, function, args[0]);
   int length = ScopeInfo<>::NumberOfContextSlots(function->code());
   Object* result = Heap::AllocateFunctionContext(length, function);
   if (result->IsFailure()) return result;
 
   Top::set_context(Context::cast(result));
 
-  return args[0];  // return TOS
+  return result;  // non-failure
 }
 
 
 static Object* Runtime_PushContext(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 1);
 
   // Convert the object to a proper JavaScript object.
-  Object* object = args[1];
+  Object* object = args[0];
   if (!object->IsJSObject()) {
     object = object->ToObject();
     if (object->IsFailure()) {
       if (!Failure::cast(object)->IsInternalError()) return object;
       HandleScope scope;
-      Handle<Object> handle(args[1]);
+      Handle<Object> handle(args[0]);
       Handle<Object> result =
           Factory::NewTypeError("with_expression", HandleVector(&handle, 1));
       return Top::Throw(*result);
@@ -2767,7 +2771,7 @@ static Object* Runtime_PushContext(Arguments args) {
 
   Top::set_context(Context::cast(result));
 
-  return args[0];  // return TOS
+  return result;
 }
 
 
@@ -2993,9 +2997,9 @@ static Object* Runtime_DebugBreak(Arguments args) {
     return args[0];
   }
 
-  // Don't break in system functions. If the current function is either in the
-  // builtins object of some context or is in the debug context just return with
-  // the debug break stack guard active.
+  // Don't break in system functions. If the current function is
+  // either in the builtins object of some context or is in the debug
+  // context just return with the debug break stack guard active.
   JavaScriptFrameIterator it;
   JavaScriptFrame* frame = it.frame();
   Object* fun = frame->function();
@@ -3013,13 +3017,8 @@ static Object* Runtime_DebugBreak(Arguments args) {
   SaveBreakFrame save;
   EnterDebuggerContext enter;
 
-  // Process debug requests. Returns true if break request.
-  bool break_request = Debugger::ProcessPendingRequests();
-
-  // Notify the debug event listeners if break request.
-  if (break_request) {
-    Debugger::OnDebugBreak(Factory::undefined_value());
-  }
+  // Notify the debug event listeners.
+  Debugger::OnDebugBreak(Factory::undefined_value());
 
   // Return to continue execution.
   return args[0];

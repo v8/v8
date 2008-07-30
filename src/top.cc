@@ -290,13 +290,9 @@ bool Top::check_break(int break_id) {
 
 bool Top::is_break() {
   ExecutionAccess access;
-  return is_break_no_lock();
-}
-
-
-bool Top::is_break_no_lock() {
   return break_id_ != 0;
 }
+
 
 StackFrame::Id Top::break_frame_id() {
   ExecutionAccess access;

@@ -93,19 +93,19 @@ void Debugger::Stop(Instr* instr) {
 }
 
 
-static char* reg_names[] = {  "r0",  "r1",  "r2",  "r3",
-                              "r4",  "r5",  "r6",  "r7",
-                              "r8",  "r9", "r10", "r11",
-                             "r12", "r13", "r14", "r15",
-                              "pc",  "lr",  "sp",  "ip",
-                              "fp",  "sl", ""};
+static const char* reg_names[] = {  "r0",  "r1",  "r2",  "r3",
+                                    "r4",  "r5",  "r6",  "r7",
+                                    "r8",  "r9", "r10", "r11",
+                                   "r12", "r13", "r14", "r15",
+                                    "pc",  "lr",  "sp",  "ip",
+                                    "fp",  "sl", ""};
 
-static int   reg_nums[]  = {     0,     1,     2,     3,
-                                 4,     5,     6,     7,
-                                 8,     9,    10,    11,
-                                12,    13,    14,    15,
-                                15,    14,    13,    12,
-                                11,    10};
+static int   reg_nums[]  = {           0,     1,     2,     3,
+                                       4,     5,     6,     7,
+                                       8,     9,    10,    11,
+                                      12,    13,    14,    15,
+                                      15,    14,    13,    12,
+                                      11,    10};
 
 
 static int RegNameToRegNum(char* name) {
@@ -287,7 +287,7 @@ void Debugger::Debug() {
         }
       } else if (strcmp(cmd, "gdb") == 0) {
         PrintF("relinquishing control to gdb\n");
-        asm("int $3");
+        v8::internal::OS::DebugBreak();
         PrintF("regaining control from gdb\n");
       } else if (strcmp(cmd, "break") == 0) {
         if (args == 2) {
@@ -665,7 +665,7 @@ int32_t Simulator::GetImm(Instr* instr, bool* carry_out) {
 static int count_bits(int bit_vector) {
   int count = 0;
   while (bit_vector != 0) {
-    if (bit_vector & 1 != 0) {
+    if ((bit_vector & 1) != 0) {
       count++;
     }
     bit_vector >>= 1;
@@ -1420,8 +1420,52 @@ Object* Simulator::call(int32_t entry, int32_t p0, int32_t p1, int32_t p2,
   // the LR the simulation stops when returning to this call point.
   set_register(lr, end_sim_pc);
 
+  // Remember the values of callee-saved registers.
+  // The code below assumes that r9 is not used as sb (static base) in
+  // simulator code and therefore is regarded as a callee-saved register.
+  int32_t r4_val = get_register(r4);
+  int32_t r5_val = get_register(r5);
+  int32_t r6_val = get_register(r6);
+  int32_t r7_val = get_register(r7);
+  int32_t r8_val = get_register(r8);
+  int32_t r9_val = get_register(r9);
+  int32_t r10_val = get_register(r10);
+  int32_t r11_val = get_register(r11);
+
+  // Setup the callee-saved registers with a known value. To be able to check
+  // that they are preserved properly across JS execution.
+  int32_t callee_saved_value = icount_;
+  set_register(r4, callee_saved_value);
+  set_register(r5, callee_saved_value);
+  set_register(r6, callee_saved_value);
+  set_register(r7, callee_saved_value);
+  set_register(r8, callee_saved_value);
+  set_register(r9, callee_saved_value);
+  set_register(r10, callee_saved_value);
+  set_register(r11, callee_saved_value);
+
   // Start the simulation
   execute();
+
+  // Check that the callee-saved registers have been preserved.
+  CHECK_EQ(get_register(r4), callee_saved_value);
+  CHECK_EQ(get_register(r5), callee_saved_value);
+  CHECK_EQ(get_register(r6), callee_saved_value);
+  CHECK_EQ(get_register(r7), callee_saved_value);
+  CHECK_EQ(get_register(r8), callee_saved_value);
+  CHECK_EQ(get_register(r9), callee_saved_value);
+  CHECK_EQ(get_register(r10), callee_saved_value);
+  CHECK_EQ(get_register(r11), callee_saved_value);
+
+  // Restore callee-saved registers with the original value.
+  set_register(r4, r4_val);
+  set_register(r5, r5_val);
+  set_register(r6, r6_val);
+  set_register(r7, r7_val);
+  set_register(r8, r8_val);
+  set_register(r9, r9_val);
+  set_register(r10, r10_val);
+  set_register(r11, r11_val);
 
   int result = get_register(r0);
   return reinterpret_cast<Object*>(result);

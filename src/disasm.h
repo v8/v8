@@ -61,6 +61,10 @@ class Disassembler {
   // Returns the length of the disassembled machine instruction in bytes.
   int InstructionDecode(char* buffer, const int buffer_size, byte* instruction);
 
+  // Returns -1 if instruction does not mark the beginning of a constant pool,
+  // or the number of entries in the constant pool beginning here.
+  int ConstantPoolSizeAt(byte* instruction);
+
   // Write disassembly into specified file 'f' using specified NameConverter
   // (see constructor).
   static void Disassemble(FILE* f, byte* begin, byte* end);

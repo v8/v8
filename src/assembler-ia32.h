@@ -264,6 +264,59 @@ class Operand BASE_EMBEDDED {
 };
 
 
+// -----------------------------------------------------------------------------
+// A Displacement describes the 32bit immediate field of an instruction which
+// may be used together with a Label in order to refer to a yet unknown code
+// position. Displacements stored in the instruction stream are used to describe
+// the instruction and to chain a list of instructions using the same Label.
+// A Displacement contains 2 different fields:
+//
+// next field: position of next displacement in the chain (0 = end of list)
+// type field: instruction type
+//
+// A next value of null (0) indicates the end of a chain (note that there can
+// be no displacement at position zero, because there is always at least one
+// instruction byte before the displacement).
+//
+// Displacement _data field layout
+//
+// |31.....1|.......0|
+// [  next  |  type  |
+
+class Displacement BASE_EMBEDDED {
+ public:
+  enum Type {
+    UNCONDITIONAL_JUMP,
+    OTHER
+  };
+
+  int data() const { return data_; }
+  Type type() const { return TypeField::decode(data_); }
+  void next(Label* L) const {
+    int n = NextField::decode(data_);
+    n > 0 ? L->link_to(n) : L->Unuse();
+  }
+  void link_to(Label* L) { init(L, type()); }
+
+  explicit Displacement(int data) { data_ = data; }
+
+  Displacement(Label* L, Type type) { init(L, type); }
+
+  void print() {
+    PrintF("%s (%x) ", (type() == UNCONDITIONAL_JUMP ? "jmp" : "[other]"),
+                       NextField::decode(data_));
+  }
+
+ private:
+  int data_;
+
+  class TypeField: public BitField<Type, 0, 1> {};
+  class NextField: public BitField<int,  1, 32-1> {};
+
+  void init(Label* L, Type type);
+};
+
+
 // CpuFeatures keeps track of which features are supported by the target CPU.
 // Supported features must be enabled by a Scope before use.
 // Example:
@@ -708,6 +761,11 @@ class Assembler : public Malloced {
   void print(Label* L);
   void bind_to(Label* L, int pos);
   void link_to(Label* L, Label* appendix);
+
+  // displacements
+  inline Displacement disp_at(Label* L);
+  inline void disp_at_put(Label* L, Displacement disp);
+  inline void emit_disp(Label* L, Displacement::Type type);
 
   // record reloc info for current pc_
   void RecordRelocInfo(RelocMode rmode, intptr_t data = 0);

@@ -624,9 +624,15 @@ void Code::CodePrint() {
 
 
 void Code::CodeVerify() {
-  ASSERT(ic_flag() == IC_TARGET_IS_ADDRESS);
+  CHECK(ic_flag() == IC_TARGET_IS_ADDRESS);
+  Address last_gc_pc = NULL;
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify();
+    // Ensure that GC will not iterate twice over the same pointer.
+    if (is_gc_reloc_mode(it.rinfo()->rmode())) {
+      CHECK(it.rinfo()->pc() != last_gc_pc);
+      last_gc_pc = it.rinfo()->pc();
+    }
   }
 }
 

@@ -28,27 +28,11 @@
 #include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
-#ifndef WIN32
-#include <stdint.h>
-#endif
+
+#include "v8.h"
 #include "disasm.h"
 
 namespace disasm {
-
-// Windows is missing the stdint.h header file
-#ifdef WIN32
-typedef signed char int8_t;
-typedef unsigned char uint8_t;
-typedef unsigned short uint16_t;
-typedef int int32_t;
-#endif
-
-
-#define UNIMPLEMENTED() \
-  assert(false)
-
-#define UNREACHABLE() \
-  assert(false)
 
 enum OperandOrder {
   UNSET_OP_ORDER = 0,
@@ -653,6 +637,7 @@ int DisassemblerIA32::FPUInstruction(byte* data) {
     const char* mnem = "?";
     switch (regop) {
       case eax: mnem = "fild_s"; break;
+      case edx: mnem = "fist_s"; break;
       case ebx: mnem = "fistp_s"; break;
       default: UnimplementedInstruction();
     }
@@ -690,6 +675,10 @@ int DisassemblerIA32::FPUInstruction(byte* data) {
       default: UnimplementedInstruction();
     }
     AppendToBuffer("%s%s st%d", mnem, is_pop ? "p" : "", b2 & 0x7);
+    return 2;
+  } else if (b1 == 0xDA && b2 == 0xE9) {
+    const char* mnem = "fucompp";
+    AppendToBuffer("%s", mnem);
     return 2;
   }
   AppendToBuffer("Unknown FP instruction");
@@ -965,6 +954,7 @@ int DisassemblerIA32::InstructionDecode(char* out_buffer,
         break;
 
       case 0xD9:  // fall through
+      case 0xDA:  // fall through
       case 0xDB:  // fall through
       case 0xDC:  // fall through
       case 0xDD:  // fall through
@@ -1044,12 +1034,26 @@ int DisassemblerIA32::InstructionDecode(char* out_buffer,
   }
 
   int instr_len = data - instr;
-  if (instr_len == 0) instr_len = 1;  // parse at least a byte
-#ifdef WIN32
-  _snprintf(out_buffer, out_buffer_size, "%s", tmp_buffer_);
-#else
-  snprintf(out_buffer, out_buffer_size, "%s", tmp_buffer_);
-#endif
+  ASSERT(instr_len > 0);  // Ensure progress.
+
+  int outp = 0;
+  // Instruction bytes.
+  for (byte* bp = instr; bp < data; bp++) {
+    outp += v8::internal::OS::SNPrintF(out_buffer + outp,
+                                       out_buffer_size - outp,
+                                       "%02x",
+                                       *bp);
+  }
+  for (int i = 6 - instr_len; i >= 0; i--) {
+    outp += v8::internal::OS::SNPrintF(out_buffer + outp,
+                                       out_buffer_size - outp,
+                                       "  ");
+  }
+
+  outp += v8::internal::OS::SNPrintF(out_buffer + outp,
+                                     out_buffer_size - outp,
+                                     " %s",
+                                     tmp_buffer_);
   return instr_len;
 }
 
@@ -1122,6 +1126,10 @@ int Disassembler::InstructionDecode(char* buffer,
   DisassemblerIA32 d(converter_, false /*do not crash if unimplemented*/);
   return d.InstructionDecode(buffer, buffer_size, instruction);
 }
+
+
+// The IA-32 assembler does not currently use constant pools.
+int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
 
 
 /*static*/ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {

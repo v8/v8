@@ -62,6 +62,10 @@ DECLARE_bool(gc_global);
 
 bool MarkCompactCollector::compacting_collection_ = false;
 
+int MarkCompactCollector::previous_marked_count_ = 0;
+GCTracer* MarkCompactCollector::tracer_ = NULL;
+
+
 #ifdef DEBUG
 MarkCompactCollector::CollectorState MarkCompactCollector::state_ = IDLE;
 
@@ -75,8 +79,14 @@ int MarkCompactCollector::live_map_objects_ = 0;
 int MarkCompactCollector::live_lo_objects_ = 0;
 #endif
 
-void MarkCompactCollector::CollectGarbage() {
+void MarkCompactCollector::CollectGarbage(GCTracer* tracer) {
+  // Rather than passing the tracer around we stash it in a static member
+  // variable.
+  tracer_ = tracer;
   Prepare();
+  // Prepare has selected whether to compact the old generation or not.
+  // Tell the tracer.
+  if (IsCompacting()) tracer_->set_is_compacting();
 
   MarkLiveObjects();
 
@@ -96,6 +106,12 @@ void MarkCompactCollector::CollectGarbage() {
   }
 
   Finish();
+
+  // Save the count of marked objects remaining after the collection and
+  // null out the GC tracer.
+  previous_marked_count_ = tracer_->marked_count();
+  ASSERT(previous_marked_count_ == 0);
+  tracer_ = NULL;
 }
 
 
@@ -165,76 +181,6 @@ void MarkCompactCollector::Finish() {
   // GC, because it relies on the new address of certain old space
   // objects (empty string, illegal builtin).
   StubCache::Clear();
-}
-
-
-// ---------------------------------------------------------------------------
-// Forwarding pointers and map pointer encoding
-// | 11 bits | offset to the live object in the page
-// | 11 bits | offset in a map page
-// | 10 bits | map table index
-
-static const int kMapPageIndexBits = 10;
-static const int kMapPageOffsetBits = 11;
-static const int kForwardingOffsetBits = 11;
-static const int kAlignmentBits = 1;
-
-static const int kMapPageIndexShift = 0;
-static const int kMapPageOffsetShift =
-  kMapPageIndexShift + kMapPageIndexBits;
-static const int kForwardingOffsetShift =
-  kMapPageOffsetShift + kMapPageOffsetBits;
-
-// 0x000003FF
-static const uint32_t kMapPageIndexMask =
-  (1 << kMapPageOffsetShift) - 1;
-
-// 0x001FFC00
-static const uint32_t kMapPageOffsetMask =
-  ((1 << kForwardingOffsetShift) - 1) & ~kMapPageIndexMask;
-
-// 0xFFE00000
-static const uint32_t kForwardingOffsetMask =
-  ~(kMapPageIndexMask | kMapPageOffsetMask);
-
-
-static uint32_t EncodePointers(Address map_addr, int offset) {
-  // Offset is the distance to the first alive object in the same
-  // page. The offset between two objects in the same page should not
-  // exceed the object area size of a page.
-  ASSERT(0 <= offset && offset < Page::kObjectAreaSize);
-
-  int compact_offset = offset >> kObjectAlignmentBits;
-  ASSERT(compact_offset < (1 << kForwardingOffsetBits));
-
-  Page* map_page = Page::FromAddress(map_addr);
-  int map_page_index = map_page->mc_page_index;
-  ASSERT_MAP_PAGE_INDEX(map_page_index);
-
-  int map_page_offset = map_page->Offset(map_addr) >> kObjectAlignmentBits;
-
-  return (compact_offset << kForwardingOffsetShift)
-    | (map_page_offset << kMapPageOffsetShift)
-    | (map_page_index << kMapPageIndexShift);
-}
-
-
-static int DecodeOffset(uint32_t encoded) {
-  // The offset field is represented in the MSB.
-  int offset = (encoded >> kForwardingOffsetShift) << kObjectAlignmentBits;
-  ASSERT(0 <= offset && offset < Page::kObjectAreaSize);
-  return offset;
-}
-
-
-static Address DecodeMapPointer(uint32_t encoded, MapSpace* map_space) {
-  int map_page_index = (encoded & kMapPageIndexMask) >> kMapPageIndexShift;
-  ASSERT_MAP_PAGE_INDEX(map_page_index);
-
-  int map_page_offset = ((encoded & kMapPageOffsetMask) >> kMapPageOffsetShift)
-                        << kObjectAlignmentBits;
-
-  return (map_space->PageAddress(map_page_index) + map_page_offset);
 }
 
 
@@ -341,17 +287,15 @@ class MarkingVisitor : public ObjectVisitor {
     //   object->IsConsString() &&
     //   (ConsString::cast(object)->second() == Heap::empty_string())
     // except the map for the object might be marked.
-    intptr_t map_word =
-        reinterpret_cast<intptr_t>(HeapObject::cast(obj)->map());
-    uint32_t tag =
-        (reinterpret_cast<Map*>(clear_mark_bit(map_word)))->instance_type();
-    if ((tag < FIRST_NONSTRING_TYPE) &&
-        (kConsStringTag ==
-         static_cast<StringRepresentationTag>(tag &
-                                              kStringRepresentationMask)) &&
-        (Heap::empty_string() ==
-         reinterpret_cast<String*>(
-             reinterpret_cast<ConsString*>(obj)->second()))) {
+    MapWord map_word = HeapObject::cast(obj)->map_word();
+    map_word.ClearMark();
+    InstanceType type = map_word.ToMap()->instance_type();
+    if ((type < FIRST_NONSTRING_TYPE) &&
+        (static_cast<StringRepresentationTag>(
+            type & kStringRepresentationMask) == kConsStringTag) &&
+        (reinterpret_cast<String*>(
+             reinterpret_cast<ConsString*>(obj)->second()) ==
+         Heap::empty_string())) {
       // Since we don't have the object start it is impossible to update the
       // remeber set quickly.  Therefore this optimization only is taking
       // place when we can avoid changing.
@@ -381,7 +325,8 @@ class MarkingVisitor : public ObjectVisitor {
     MarkCompactCollector::UpdateLiveObjectCount(obj);
 #endif
     Map* map = obj->map();
-    set_mark(obj);
+    obj->SetMark();
+    MarkCompactCollector::tracer()->increment_marked_count();
     // Mark the map pointer and the body.
     MarkCompactCollector::MarkObject(map);
     obj->IterateBody(map->instance_type(), obj->SizeFromMap(map), this);
@@ -398,7 +343,7 @@ class MarkingVisitor : public ObjectVisitor {
     for (Object** p = start; p < end; p++) {
       if (!(*p)->IsHeapObject()) continue;
       HeapObject* obj = HeapObject::cast(*p);
-      if (is_marked(obj)) continue;
+      if (obj->IsMarked()) continue;
       VisitUnmarkedObject(obj);
     }
     return true;
@@ -413,7 +358,7 @@ class SymbolTableCleaner : public ObjectVisitor {
   void VisitPointers(Object** start, Object** end) {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
-      if ((*p)->IsHeapObject() && !is_marked(HeapObject::cast(*p))) {
+      if ((*p)->IsHeapObject() && !HeapObject::cast(*p)->IsMarked()) {
         // Set the entry to null_value (as deleted).
         *p = Heap::null_value();
         pointers_removed_++;
@@ -429,92 +374,46 @@ class SymbolTableCleaner : public ObjectVisitor {
 };
 
 
-static void MarkObjectGroups(MarkingVisitor* marker) {
-  List<ObjectGroup*>& object_groups = GlobalHandles::ObjectGroups();
-
-  for (int i = 0; i < object_groups.length(); i++) {
-    ObjectGroup* entry = object_groups[i];
-    bool group_marked = false;
-    List<Object**>& objects = entry->objects_;
-    for (int j = 0; j < objects.length(); j++) {
-      Object* obj = *objects[j];
-      if (obj->IsHeapObject() && is_marked(HeapObject::cast(obj))) {
-        group_marked = true;
-        break;
-      }
-    }
-
-    if (!group_marked) continue;
-
-    for (int j = 0; j < objects.length(); j++) {
-      marker->VisitPointer(objects[j]);
-    }
-  }
-}
-
-
 void MarkCompactCollector::MarkUnmarkedObject(HeapObject* obj) {
 #ifdef DEBUG
-  if (!is_marked(obj)) UpdateLiveObjectCount(obj);
+  UpdateLiveObjectCount(obj);
 #endif
-  ASSERT(!is_marked(obj));
+  ASSERT(!obj->IsMarked());
   if (obj->IsJSGlobalObject()) Counters::global_objects.Increment();
 
   if (FLAG_cleanup_caches_in_maps_at_gc && obj->IsMap()) {
     Map::cast(obj)->ClearCodeCache();
   }
 
-  set_mark(obj);
+  obj->SetMark();
+  tracer_->increment_marked_count();
   if (!marking_stack.overflowed()) {
     ASSERT(Heap::Contains(obj));
     marking_stack.Push(obj);
   } else {
     // Set object's stack overflow bit, wait for rescan.
-    set_overflow(obj);
+    obj->SetOverflow();
   }
-}
-
-
-void MarkCompactCollector::MarkObjectsReachableFromTopFrame() {
-  MarkingVisitor marking_visitor;
-  do {
-    while (!marking_stack.is_empty()) {
-      HeapObject* obj = marking_stack.Pop();
-      ASSERT(Heap::Contains(obj));
-      ASSERT(is_marked(obj) && !is_overflowed(obj));
-
-      // Because the object is marked, the map pointer is not tagged as a
-      // normal HeapObject pointer, we need to recover the map pointer,
-      // then use the map pointer to mark the object body.
-      intptr_t map_word = reinterpret_cast<intptr_t>(obj->map());
-      Map* map = reinterpret_cast<Map*>(clear_mark_bit(map_word));
-      MarkObject(map);
-      obj->IterateBody(map->instance_type(), obj->SizeFromMap(map),
-                       &marking_visitor);
-    };
-    // Check objects in object groups.
-    MarkObjectGroups(&marking_visitor);
-  } while (!marking_stack.is_empty());
 }
 
 
 static int OverflowObjectSize(HeapObject* obj) {
   // Recover the normal map pointer, it might be marked as live and
   // overflowed.
-  intptr_t map_word = reinterpret_cast<intptr_t>(obj->map());
-  map_word = clear_mark_bit(map_word);
-  map_word = clear_overflow_bit(map_word);
-  return obj->SizeFromMap(reinterpret_cast<Map*>(map_word));
+  MapWord map_word = obj->map_word();
+  map_word.ClearMark();
+  map_word.ClearOverflow();
+  return obj->SizeFromMap(map_word.ToMap());
 }
 
 
 static bool VisitOverflowedObject(HeapObject* obj) {
-  if (!is_overflowed(obj)) return true;
-  ASSERT(is_marked(obj));
+  if (!obj->IsOverflowed()) return true;
+  ASSERT(obj->IsMarked());
 
   if (marking_stack.overflowed()) return false;
 
-  clear_overflow(obj);  // clear overflow bit
+  obj->ClearOverflow();
   ASSERT(Heap::Contains(obj));
   marking_stack.Push(obj);
   return true;
@@ -536,61 +435,97 @@ static void ScanOverflowedObjects(T* it) {
 bool MarkCompactCollector::MustBeMarked(Object** p) {
   // Check whether *p is a HeapObject pointer.
   if (!(*p)->IsHeapObject()) return false;
-  return !is_marked(HeapObject::cast(*p));
+  return !HeapObject::cast(*p)->IsMarked();
 }
 
 
-void MarkCompactCollector::MarkLiveObjects() {
-#ifdef DEBUG
-  ASSERT(state_ == PREPARE_GC);
-  state_ = MARK_LIVE_OBJECTS;
-#endif
-  // The to space contains live objects, the from space is used as a marking
-  // stack.
-  marking_stack.Initialize(Heap::new_space()->FromSpaceLow(),
-                           Heap::new_space()->FromSpaceHigh());
-
-  ASSERT(!marking_stack.overflowed());
-
-  // Mark the heap roots, including global variables, stack variables, etc.
-  MarkingVisitor marking_visitor;
-
-  Heap::IterateStrongRoots(&marking_visitor);
+void MarkCompactCollector::MarkStrongRoots(MarkingVisitor* marking_visitor) {
+  // Mark the heap roots gray, including global variables, stack variables,
+  // etc.
+  Heap::IterateStrongRoots(marking_visitor);
 
   // Take care of the symbol table specially.
   SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
+  // 1. Mark the prefix of the symbol table gray.
+  symbol_table->IteratePrefix(marking_visitor);
 #ifdef DEBUG
   UpdateLiveObjectCount(symbol_table);
 #endif
+  // 2. Mark the symbol table black (ie, do not push it on the marking stack
+  // or mark it overflowed).
+  symbol_table->SetMark();
+  tracer_->increment_marked_count();
+}
 
-  // 1. mark the prefix of the symbol table and push the objects on
-  // the stack.
-  symbol_table->IteratePrefix(&marking_visitor);
-  // 2. mark the symbol table without pushing it on the stack.
-  set_mark(symbol_table);  // map word is changed.
 
-  bool has_processed_weak_pointers = false;
+void MarkCompactCollector::MarkObjectGroups() {
+  List<ObjectGroup*>& object_groups = GlobalHandles::ObjectGroups();
 
-  // Mark objects reachable from the roots.
-  while (true) {
-    MarkObjectsReachableFromTopFrame();
+  for (int i = 0; i < object_groups.length(); i++) {
+    ObjectGroup* entry = object_groups[i];
+    if (entry == NULL) continue;
 
-    if (!marking_stack.overflowed()) {
-      if (has_processed_weak_pointers) break;
-      // First we mark weak pointers not yet reachable.
-      GlobalHandles::MarkWeakRoots(&MustBeMarked);
-      // Then we process weak pointers and process the transitive closure.
-      GlobalHandles::IterateWeakRoots(&marking_visitor);
-      has_processed_weak_pointers = true;
-      continue;
+    List<Object**>& objects = entry->objects_;
+    bool group_marked = false;
+    for (int j = 0; j < objects.length(); j++) {
+      Object* object = *objects[j];
+      if (object->IsHeapObject() && HeapObject::cast(object)->IsMarked()) {
+        group_marked = true;
+        break;
+      }
     }
 
-    // The marking stack overflowed, we need to rebuild it by scanning the
-    // whole heap.
-    marking_stack.clear_overflowed();
+    if (!group_marked) continue;
 
-    // We have early stops if the stack overflowed again while scanning
-    // overflowed objects in a space.
+    // An object in the group is marked, so mark as gray all white heap
+    // objects in the group.
+    for (int j = 0; j < objects.length(); ++j) {
+      if ((*objects[j])->IsHeapObject()) {
+        MarkObject(HeapObject::cast(*objects[j]));
+      }
+    }
+    // Once the entire group has been colored gray, set the object group
+    // to NULL so it won't be processed again.
+    delete object_groups[i];
+    object_groups[i] = NULL;
+  }
+}
+
+
+// Mark as black all objects reachable starting from gray objects.  (Gray
+// objects are marked and on the marking stack, or marked and marked as
+// overflowed and not on the marking stack).
+//
+// Before: the heap contains a mixture of white, gray, and black objects.
+// After: the heap contains a mixture of white and black objects.
+void MarkCompactCollector::ProcessMarkingStack(
+    MarkingVisitor* marking_visitor) {
+
+  while (true) {
+    while (!marking_stack.is_empty()) {
+      HeapObject* object = marking_stack.Pop();
+      ASSERT(object->IsHeapObject());
+      ASSERT(Heap::Contains(object));
+      // Removing a (gray) object from the marking stack turns it black.
+      ASSERT(object->IsMarked() && !object->IsOverflowed());
+
+      // Because the object is marked, we have to recover the original map
+      // pointer and use it to mark the object's body.
+      MapWord map_word = object->map_word();
+      map_word.ClearMark();
+      Map* map = map_word.ToMap();
+      MarkObject(map);
+      object->IterateBody(map->instance_type(), object->SizeFromMap(map),
+                          marking_visitor);
+    }
+
+    // The only gray objects are marked overflowed in the heap.  If there
+    // are any, refill the marking stack and continue.
+    if (!marking_stack.overflowed()) return;
+
+    marking_stack.clear_overflowed();
+    // We have early stops if the marking stack overflows while refilling it
+    // with gray objects to avoid pointlessly scanning extra spaces.
     SemiSpaceIterator new_it(Heap::new_space(), &OverflowObjectSize);
     ScanOverflowedObjects(&new_it);
     if (marking_stack.overflowed()) continue;
@@ -610,9 +545,62 @@ void MarkCompactCollector::MarkLiveObjects() {
     LargeObjectIterator lo_it(Heap::lo_space(), &OverflowObjectSize);
     ScanOverflowedObjects(&lo_it);
   }
+}
 
-  // Prune the symbol table removing all symbols only pointed to by
-  // the symbol table.
+
+void MarkCompactCollector::ProcessObjectGroups(
+    MarkingVisitor* marking_visitor) {
+  bool work_to_do = true;
+  ASSERT(marking_stack.is_empty());
+  while (work_to_do) {
+    MarkObjectGroups();
+    work_to_do = !marking_stack.is_empty();
+    ProcessMarkingStack(marking_visitor);
+  }
+}
+
+
+void MarkCompactCollector::MarkLiveObjects() {
+#ifdef DEBUG
+  ASSERT(state_ == PREPARE_GC);
+  state_ = MARK_LIVE_OBJECTS;
+#endif
+  // The to space contains live objects, the from space is used as a marking
+  // stack.
+  marking_stack.Initialize(Heap::new_space()->FromSpaceLow(),
+                           Heap::new_space()->FromSpaceHigh());
+
+  ASSERT(!marking_stack.overflowed());
+
+  MarkingVisitor marking_visitor;
+  MarkStrongRoots(&marking_visitor);
+  ProcessMarkingStack(&marking_visitor);
+
+  // The objects reachable from the roots are marked black, unreachable
+  // objects are white.  Mark objects reachable from object groups with at
+  // least one marked object, and continue until no new objects are
+  // reachable from the object groups.
+  ProcessObjectGroups(&marking_visitor);
+
+  // The objects reachable from the roots or object groups are marked black,
+  // unreachable objects are white.  Process objects reachable only from
+  // weak global handles.
+  //
+  // First we mark weak pointers not yet reachable.
+  GlobalHandles::MarkWeakRoots(&MustBeMarked);
+  // Then we process weak pointers and process the transitive closure.
+  GlobalHandles::IterateWeakRoots(&marking_visitor);
+  ProcessMarkingStack(&marking_visitor);
+
+  // Repeat the object groups to mark unmarked groups reachable from the
+  // weak roots.
+  ProcessObjectGroups(&marking_visitor);
+
+  // Prune the symbol table removing all symbols only pointed to by the
+  // symbol table.  Cannot use SymbolTable::cast here because the symbol
+  // table is marked.
+  SymbolTable* symbol_table =
+      reinterpret_cast<SymbolTable*>(Heap::symbol_table());
   SymbolTableCleaner v;
   symbol_table->IterateElements(&v);
   symbol_table->ElementsRemoved(v.PointersRemoved());
@@ -623,11 +611,6 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   // Remove object groups after marking phase.
   GlobalHandles::RemoveObjectGroups();
-
-  // Objects in the active semispace of the young generation will be relocated
-  // to the inactive semispace.  Set the relocation info to the beginning of
-  // the inactive semispace.
-  Heap::new_space()->MCResetRelocationInfo();
 }
 
 
@@ -652,11 +635,9 @@ void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
 
 
 static int CountMarkedCallback(HeapObject* obj) {
-  if (!is_marked(obj)) return obj->Size();
-  clear_mark(obj);
-  int obj_size = obj->Size();
-  set_mark(obj);
-  return obj_size;
+  MapWord map_word = obj->map_word();
+  map_word.ClearMark();
+  return obj->SizeFromMap(map_word.ToMap());
 }
 
 
@@ -672,7 +653,7 @@ void MarkCompactCollector::VerifyHeapAfterMarkingPhase() {
           live_objects = 0;                                \
           while (it.has_next()) {                          \
             HeapObject* obj = HeapObject::cast(it.next()); \
-            if (is_marked(obj)) live_objects++;            \
+            if (obj->IsMarked()) live_objects++;           \
           }                                                \
           ASSERT(live_objects == expected);
 
@@ -765,10 +746,14 @@ void EncodeFreeRegion(Address free_start, int free_size) {
 // Try to promote all objects in new space.  Heap numbers and sequential
 // strings are promoted to the code space, all others to the old space.
 inline Object* MCAllocateFromNewSpace(HeapObject* object, int object_size) {
-  bool has_pointers = !object->IsHeapNumber() && !object->IsSeqString();
-  Object* forwarded = has_pointers ?
-      Heap::old_space()->MCAllocateRaw(object_size) :
-      Heap::code_space()->MCAllocateRaw(object_size);
+  AllocationSpace target_space = Heap::TargetSpace(object);
+  Object* forwarded;
+  if (target_space == OLD_SPACE) {
+    forwarded = Heap::old_space()->MCAllocateRaw(object_size);
+  } else {
+    ASSERT(target_space == CODE_SPACE);
+    forwarded = Heap::code_space()->MCAllocateRaw(object_size);
+  }
 
   if (forwarded->IsFailure()) {
     forwarded = Heap::new_space()->MCAllocateRaw(object_size);
@@ -819,8 +804,9 @@ inline void EncodeForwardingAddressInPagedSpace(HeapObject* old_object,
         HeapObject::cast(new_object)->address();
   }
 
-  uint32_t encoded = EncodePointers(old_object->map()->address(), *offset);
-  old_object->set_map(reinterpret_cast<Map*>(encoded));
+  MapWord encoding =
+      MapWord::EncodeAddress(old_object->map()->address(), *offset);
+  old_object->set_map_word(encoding);
   *offset += object_size;
   ASSERT(*offset <= Page::kObjectAreaSize);
 }
@@ -865,8 +851,9 @@ inline void EncodeForwardingAddressesInRange(Address start,
   int object_size;  // Will be set on each iteration of the loop.
   for (Address current = start; current < end; current += object_size) {
     HeapObject* object = HeapObject::FromAddress(current);
-    if (is_marked(object)) {
-      clear_mark(object);
+    if (object->IsMarked()) {
+      object->ClearMark();
+      MarkCompactCollector::tracer()->decrement_marked_count();
       object_size = object->Size();
 
       Object* forwarded = Alloc(object, object_size);
@@ -937,8 +924,9 @@ static void SweepSpace(NewSpace* space) {
        current < space->top();
        current += object->Size()) {
     object = HeapObject::FromAddress(current);
-    if (is_marked(object)) {
-      clear_mark(object);
+    if (object->IsMarked()) {
+      object->ClearMark();
+      MarkCompactCollector::tracer()->decrement_marked_count();
     } else {
       // We give non-live objects a map that will correctly give their size,
       // since their existing map might not be live after the collection.
@@ -971,8 +959,9 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
          current < p->AllocationTop();
          current += object->Size()) {
       object = HeapObject::FromAddress(current);
-      if (is_marked(object)) {
-        clear_mark(object);
+      if (object->IsMarked()) {
+        object->ClearMark();
+        MarkCompactCollector::tracer()->decrement_marked_count();
         if (MarkCompactCollector::IsCompacting() && object->IsCode()) {
           // If this is compacting collection marked code objects have had
           // their IC targets converted to objects.
@@ -1037,6 +1026,11 @@ void MarkCompactCollector::DeallocateMapBlock(Address start,
 
 void MarkCompactCollector::EncodeForwardingAddresses() {
   ASSERT(state_ == ENCODE_FORWARDING_ADDRESSES);
+  // Objects in the active semispace of the young generation may be
+  // relocated to the inactive semispace (if not promoted).  Set the
+  // relocation info to the beginning of the inactive semispace.
+  Heap::new_space()->MCResetRelocationInfo();
+
   // Compute the forwarding pointers in each space.
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromOldSpace,
                                         IgnoreNonLiveObject>(
@@ -1267,8 +1261,8 @@ int MarkCompactCollector::UpdatePointersInNewObject(HeapObject* obj) {
 
 int MarkCompactCollector::UpdatePointersInOldObject(HeapObject* obj) {
   // Decode the map pointer.
-  uint32_t encoded = reinterpret_cast<uint32_t>(obj->map());
-  Address map_addr = DecodeMapPointer(encoded, Heap::map_space());
+  MapWord encoding = obj->map_word();
+  Address map_addr = encoding.DecodeMapAddress(Heap::map_space());
   ASSERT(Heap::map_space()->Contains(HeapObject::FromAddress(map_addr)));
 
   // At this point, the first word of map_addr is also encoded, cannot
@@ -1279,9 +1273,8 @@ int MarkCompactCollector::UpdatePointersInOldObject(HeapObject* obj) {
 
   // Update map pointer.
   Address new_map_addr = GetForwardingAddressInOldSpace(map);
-  int offset = DecodeOffset(encoded);
-  encoded = EncodePointers(new_map_addr, offset);
-  obj->set_map(reinterpret_cast<Map*>(encoded));
+  int offset = encoding.DecodeOffset();
+  obj->set_map_word(MapWord::EncodeAddress(new_map_addr, offset));
 
 #ifdef DEBUG
   if (FLAG_gc_verbose) {
@@ -1299,10 +1292,10 @@ int MarkCompactCollector::UpdatePointersInOldObject(HeapObject* obj) {
 
 Address MarkCompactCollector::GetForwardingAddressInOldSpace(HeapObject* obj) {
   // Object should either in old or map space.
-  uint32_t encoded = reinterpret_cast<uint32_t>(obj->map());
+  MapWord encoding = obj->map_word();
 
   // Offset to the first live object's forwarding address.
-  int offset = DecodeOffset(encoded);
+  int offset = encoding.DecodeOffset();
   Address obj_addr = obj->address();
 
   // Find the first live object's forwarding address.
@@ -1485,8 +1478,8 @@ int MarkCompactCollector::ConvertCodeICTargetToAddress(HeapObject* obj) {
 
 int MarkCompactCollector::RelocateMapObject(HeapObject* obj) {
   // decode map pointer (forwarded address)
-  uint32_t encoded = reinterpret_cast<uint32_t>(obj->map());
-  Address map_addr = DecodeMapPointer(encoded, Heap::map_space());
+  MapWord encoding = obj->map_word();
+  Address map_addr = encoding.DecodeMapAddress(Heap::map_space());
   ASSERT(Heap::map_space()->Contains(HeapObject::FromAddress(map_addr)));
 
   // Get forwarding address before resetting map pointer
@@ -1514,9 +1507,9 @@ int MarkCompactCollector::RelocateMapObject(HeapObject* obj) {
 
 int MarkCompactCollector::RelocateOldObject(HeapObject* obj) {
   // decode map pointer (forwarded address)
-  uint32_t encoded = reinterpret_cast<uint32_t>(obj->map());
-  Address map_addr = DecodeMapPointer(encoded, Heap::map_space());
-  ASSERT(Heap::map_space()->Contains(HeapObject::FromAddress(map_addr)));
+  MapWord encoding = obj->map_word();
+  Address map_addr = encoding.DecodeMapAddress(Heap::map_space());
+  ASSERT(Heap::map_space()->Contains(map_addr));
 
   // Get forwarding address before resetting map pointer
   Address new_addr = GetForwardingAddressInOldSpace(obj);
@@ -1560,8 +1553,8 @@ int MarkCompactCollector::RelocateOldObject(HeapObject* obj) {
 
 int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
   // decode map pointer (forwarded address)
-  uint32_t encoded = reinterpret_cast<uint32_t>(obj->map());
-  Address map_addr = DecodeMapPointer(encoded, Heap::map_space());
+  MapWord encoding = obj->map_word();
+  Address map_addr = encoding.DecodeMapAddress(Heap::map_space());
   ASSERT(Heap::map_space()->Contains(HeapObject::FromAddress(map_addr)));
 
   // Get forwarding address before resetting map pointer
@@ -1636,10 +1629,11 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
     ASSERT(Heap::new_space()->FromSpaceOffsetForAddress(new_addr) <=
            Heap::new_space()->ToSpaceOffsetForAddress(old_addr));
   } else {
-    bool has_pointers = !obj->IsHeapNumber() && !obj->IsSeqString();
-    if (has_pointers) {
+    AllocationSpace target_space = Heap::TargetSpace(obj);
+    if (target_space == OLD_SPACE) {
       Heap::old_space()->MCAdjustRelocationEnd(new_addr, obj_size);
     } else {
+      ASSERT(target_space == CODE_SPACE);
       Heap::code_space()->MCAdjustRelocationEnd(new_addr, obj_size);
     }
   }

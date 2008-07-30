@@ -174,7 +174,12 @@ int main(int argc, char** argv) {
   v8::ExtensionConfiguration extensions(kExtensionCount, extension_list);
   v8::Context::New(&extensions);
 
-  // TODO(1247464): Cache delayed scripts.
+  // Make sure all builtin scripts are cached.
+  { HandleScope scope;
+    for (int i = 0; i < i::Natives::GetBuiltinsCount(); i++) {
+      i::Bootstrapper::NativesSourceLookup(i);
+    }
+  }
   // Get rid of unreferenced scripts.
   i::Heap::CollectGarbage(0, i::OLD_SPACE);
   i::Serializer ser;

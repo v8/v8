@@ -36,14 +36,14 @@ class CodeStub BASE_EMBEDDED {
  public:
   enum Major {
     CallFunction,
-    InlinedGenericOp,
+    GenericBinaryOp,
     SmiOp,
     Compare,
     RecordWrite,  // Last stub that allows stub calls inside.
-    GenericOp,
     StackCheck,
     UnarySub,
     RevertToNumber,
+    ToBoolean,
     CounterOp,
     ArgumentsAccess,
     Runtime,

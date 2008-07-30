@@ -75,6 +75,32 @@ Object* Heap::AllocateRaw(int size_in_bytes, AllocationSpace space) {
 }
 
 
+Object* Heap::AllocateForDeserialization(int size_in_bytes,
+                                         AllocationSpace space) {
+  ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
+  PagedSpace* where;
+
+  switch (space) {
+    case NEW_SPACE:
+      return new_space_->AllocateRaw(size_in_bytes);
+    case LO_SPACE:
+      return lo_space_->AllocateRaw(size_in_bytes);
+    case OLD_SPACE:
+      where = old_space_;
+      break;
+    case CODE_SPACE:
+      where = code_space_;
+      break;
+    case MAP_SPACE:
+      where = map_space_;
+      break;
+  }
+
+  // Only paged spaces fall through.
+  return where->AllocateForDeserialization(size_in_bytes);
+}
+
+
 Object* Heap::NumberFromInt32(int32_t value) {
   if (Smi::IsValid(value)) return Smi::FromInt(value);
   // Bypass NumberFromDouble to avoid various redundant checks.
@@ -139,6 +165,21 @@ Object* Heap::AllocatePropertyStorageForMap(Map* map) {
     return AllocateFixedArray(map->unused_property_fields());
   }
   return Heap::empty_fixed_array();
+}
+
+
+AllocationSpace Heap::TargetSpace(HeapObject* object) {
+  // Heap numbers and sequential strings are promoted to code space, all
+  // other object types are promoted to old space.  We do not use
+  // object->IsHeapNumber() and object->IsSeqString() because we already
+  // know that object has the heap object tag.
+  InstanceType type = object->map()->instance_type();
+  ASSERT((type != CODE_TYPE) && (type != MAP_TYPE));
+  bool has_pointers =
+      type != HEAP_NUMBER_TYPE &&
+      (type >= FIRST_NONSTRING_TYPE ||
+       String::cast(object)->representation_tag() != kSeqStringTag);
+  return has_pointers ? OLD_SPACE : CODE_SPACE;
 }
 
 

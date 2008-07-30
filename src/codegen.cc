@@ -251,7 +251,9 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
     {&v8::internal::CodeGenerator::GenerateValueOf,
      "_ValueOf"},
     {&v8::internal::CodeGenerator::GenerateSetValueOf,
-     "_SetValueOf"}
+     "_SetValueOf"},
+    {&v8::internal::CodeGenerator::GenerateFastCharCodeAt,
+     "_FastCharCodeAt"}
   };
   if (node->name()->length() > 0 && node->name()->Get(0) == '_') {
     for (unsigned i = 0;
@@ -275,17 +277,6 @@ const char* RuntimeStub::GetName() {
 
 void RuntimeStub::Generate(MacroAssembler* masm) {
   masm->TailCallRuntime(Runtime::FunctionForId((Runtime::FunctionId)id_));
-}
-
-
-const char* GenericOpStub::GetName() {
-  switch (op_) {
-  case Token::ADD: return "GenericOpStub_ADD";
-  case Token::SUB: return "GenericOpStub_SUB";
-  case Token::MUL: return "GenericOpStub_MUL";
-  case Token::DIV: return "GenericOpStub_DIV";
-  default:         return "GenericOpStub";
-  }
 }
 
 

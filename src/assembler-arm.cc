@@ -1084,7 +1084,14 @@ void Assembler::swpb(Register dst,
 
 // Exception-generating instructions and debugging support
 void Assembler::stop(const char* msg) {
+#if !defined(__arm__)
+  // The simulator handles these special instructions and stops execution.
   emit(15 << 28 | ((intptr_t) msg));
+#else
+  // Just issue a simple break instruction for now. Alternatively we could use
+  // the swi(0x9f0001) instruction on Linux.
+  bkpt(0);
+#endif
 }
 
 

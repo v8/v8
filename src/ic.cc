@@ -135,7 +135,7 @@ Address IC::OriginalCodeAddress() {
 
 
 IC::State IC::StateFrom(Code* target, Object* receiver) {
-  IC::State state = target->state();
+  IC::State state = target->ic_state();
 
   if (state != MONOMORPHIC) return state;
   if (receiver->IsUndefined() || receiver->IsNull()) return state;
@@ -206,7 +206,7 @@ void IC::Clear(Address address) {
   Code* target = GetTargetAtAddress(address);
 
   // Don't clear debug break inline cache as it will remove the break point.
-  if (target->state() == DEBUG_BREAK) return;
+  if (target->ic_state() == DEBUG_BREAK) return;
 
   switch (target->kind()) {
     case Code::LOAD_IC: return LoadIC::Clear(address, target);
@@ -220,32 +220,32 @@ void IC::Clear(Address address) {
 
 
 void CallIC::Clear(Address address, Code* target) {
-  if (target->state() == UNINITIALIZED) return;
+  if (target->ic_state() == UNINITIALIZED) return;
   Code* code = StubCache::FindCallInitialize(target->arguments_count());
   SetTargetAtAddress(address, code);
 }
 
 
 void KeyedLoadIC::Clear(Address address, Code* target) {
-  if (target->state() == UNINITIALIZED) return;
+  if (target->ic_state() == UNINITIALIZED) return;
   SetTargetAtAddress(address, initialize_stub());
 }
 
 
 void LoadIC::Clear(Address address, Code* target) {
-  if (target->state() == UNINITIALIZED) return;
+  if (target->ic_state() == UNINITIALIZED) return;
   SetTargetAtAddress(address, initialize_stub());
 }
 
 
 void StoreIC::Clear(Address address, Code* target) {
-  if (target->state() == UNINITIALIZED) return;
+  if (target->ic_state() == UNINITIALIZED) return;
   SetTargetAtAddress(address, initialize_stub());
 }
 
 
 void KeyedStoreIC::Clear(Address address, Code* target) {
-  if (target->state() == UNINITIALIZED) return;
+  if (target->ic_state() == UNINITIALIZED) return;
   SetTargetAtAddress(address, initialize_stub());
 }
 

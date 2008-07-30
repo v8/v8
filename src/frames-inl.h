@@ -103,11 +103,6 @@ inline StackHandler* StackFrame::top_handler() const {
 }
 
 
-inline Object** StackFrame::top_register_buffer() const {
-  return iterator_->register_buffer();
-}
-
-
 inline Object* StandardFrame::GetExpression(int index) const {
   return Memory::Object_at(GetExpressionAddress(index));
 }

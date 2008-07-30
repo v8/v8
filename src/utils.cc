@@ -231,4 +231,57 @@ int WriteChars(const char* filename,
 }
 
 
+StringBuilder::StringBuilder(int size) {
+  buffer_ = NewArray<char>(size);
+  size_ = size;
+  position_ = 0;
+}
+
+
+void StringBuilder::AddString(const char* s) {
+  AddSubstring(s, strlen(s));
+}
+
+
+void StringBuilder::AddSubstring(const char* s, int n) {
+  ASSERT(!is_finalized() && position_ + n < size_);
+  ASSERT(static_cast<size_t>(n) <= strlen(s));
+  memcpy(&buffer_[position_], s, n * kCharSize);
+  position_ += n;
+}
+
+
+void StringBuilder::AddFormatted(const char* format, ...) {
+  ASSERT(!is_finalized() && position_ < size_);
+  va_list args;
+  va_start(args, format);
+  int remaining = size_ - position_;
+  int n = OS::VSNPrintF(&buffer_[position_], remaining, format, args);
+  va_end(args);
+  if (n < 0 || n >= remaining) {
+    position_ = size_;
+  } else {
+    position_ += n;
+  }
+}
+
+
+void StringBuilder::AddPadding(char c, int count) {
+  for (int i = 0; i < count; i++) {
+    AddCharacter(c);
+  }
+}
+
+
+char* StringBuilder::Finalize() {
+  ASSERT(!is_finalized() && position_ < size_);
+  buffer_[position_] = '\0';
+  // Make sure nobody managed to add a 0-character to the
+  // buffer while building the string.
+  ASSERT(strlen(buffer_) == static_cast<size_t>(position_));
+  position_ = -1;
+  ASSERT(is_finalized());
+  return buffer_;
+}
+
 } }  // namespace v8::internal

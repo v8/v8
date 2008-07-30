@@ -143,7 +143,7 @@ static const int kNoPosition = -1;
 
 
 enum RelocMode {
-  // Please note the order is important (see is_code_target).
+  // Please note the order is important (see is_code_target, is_gc_reloc_mode).
   js_construct_call,   // code target that is an exit JavaScript frame stub.
   exit_js_frame,       // code target that is an exit JavaScript frame stub.
   code_target_context,  // code target used for contextual loads.
@@ -163,7 +163,8 @@ enum RelocMode {
 
   // Pseudo-types
   reloc_mode_count,
-  last_code_enum = code_target
+  last_code_enum = code_target,
+  last_gced_enum = embedded_string
 };
 
 
@@ -184,6 +185,12 @@ inline bool is_exit_js_frame(RelocMode mode) {
 
 inline bool is_code_target(RelocMode mode) {
   return mode <= last_code_enum;
+}
+
+
+// Is the relocation mode affected by GC?
+inline bool is_gc_reloc_mode(RelocMode mode) {
+  return mode <= last_gced_enum;
 }
 
 

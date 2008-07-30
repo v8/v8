@@ -37,12 +37,9 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_bool(optimize_locals, true,
-            "optimize locals by allocating them in registers");
 DEFINE_bool(trace, false, "trace function calls");
 DECLARE_bool(debug_info);
 DECLARE_bool(debug_code);
-DECLARE_bool(optimize_locals);
 
 #ifdef DEBUG
 DECLARE_bool(gc_greedy);
@@ -163,8 +160,6 @@ class ArmCodeGenerator: public CodeGenerator {
   Scope* scope_;
   Condition cc_reg_;
   CodeGenState* state_;
-  RegList reg_locals_;  // the list of registers used to hold locals
-  int num_reg_locals_;  // the number of registers holding locals
   int break_stack_height_;
 
   // Labels
@@ -213,7 +208,6 @@ class ArmCodeGenerator: public CodeGenerator {
 
   MemOperand FunctionOperand() const { return ParameterOperand(-2); }
 
-  Register SlotRegister(int slot_index);
   MemOperand SlotOperand(Slot* slot, Register tmp);
 
   void LoadCondition(Expression* x, CodeGenState::AccessType access,
@@ -246,7 +240,7 @@ class ArmCodeGenerator: public CodeGenerator {
   void AccessReferenceProperty(Expression* key,
                                CodeGenState::AccessType access);
 
-  void GenericOperation(Token::Value op);
+  void GenericBinaryOperation(Token::Value op);
   void Comparison(Condition cc, bool strict = false);
 
   void SmiOperation(Token::Value op, Handle<Object> value, bool reversed);
@@ -274,9 +268,8 @@ class ArmCodeGenerator: public CodeGenerator {
   void RecordStatementPosition(Node* node);
 
   // Activation frames
-  void EnterJSFrame(int argc, RegList callee_saved);  // preserves r1
-  void ExitJSFrame(RegList callee_saved,
-                   ExitJSFlag flag = RETURN);  // preserves r0-r2
+  void EnterJSFrame(int argc);  // preserves r1
+  void ExitJSFrame(ExitJSFlag flag = RETURN);  // preserves r0-r2
 
   virtual void GenerateShiftDownAndTailCall(ZoneList<Expression*>* args);
   virtual void GenerateSetThisFunction(ZoneList<Expression*>* args);
@@ -296,6 +289,8 @@ class ArmCodeGenerator: public CodeGenerator {
 
   virtual void GenerateValueOf(ZoneList<Expression*>* args);
   virtual void GenerateSetValueOf(ZoneList<Expression*>* args);
+
+  virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args);
 };
 
 
@@ -417,15 +412,6 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
     state_ = &state;
     scope_ = scope;
     cc_reg_ = al;
-    if (FLAG_optimize_locals) {
-      num_reg_locals_ = scope->num_stack_slots() < kNumJSCalleeSaved
-          ? scope->num_stack_slots()
-          : kNumJSCalleeSaved;
-      reg_locals_ = JSCalleeSavedList(num_reg_locals_);
-    } else {
-      num_reg_locals_ = 0;
-      reg_locals_ = 0;
-    }
 
     // Entry
     // stack: function, receiver, arguments, return address
@@ -436,38 +422,26 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
     // cp: callee's context
 
     { Comment cmnt(masm_, "[ enter JS frame");
-      EnterJSFrame(scope->num_parameters(), reg_locals_);
+      EnterJSFrame(scope->num_parameters());
     }
     // tos: code slot
 #ifdef DEBUG
     if (strlen(FLAG_stop_at) > 0 &&
         fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
-      __ bkpt(0);  // not supported before v5, but illegal instruction works too
+      __ stop("stop-at");
     }
 #endif
 
     // Allocate space for locals and initialize them.
-    if (scope->num_stack_slots() > num_reg_locals_) {
+    if (scope->num_stack_slots() > 0) {
       Comment cmnt(masm_, "[ allocate space for locals");
       // Pushing the first local materializes the code slot on the stack
       // (formerly stored in tos register r0).
       __ Push(Operand(Factory::undefined_value()));
       // The remaining locals are pushed using the fact that r0 (tos)
       // already contains the undefined value.
-      for (int i = scope->num_stack_slots(); i-- > num_reg_locals_ + 1;) {
+      for (int i = 1; i < scope->num_stack_slots(); i++) {
         __ push(r0);
-      }
-    }
-    // Initialize locals allocated in registers
-    if (num_reg_locals_ > 0) {
-      if (scope->num_stack_slots() > num_reg_locals_) {
-        // r0 contains 'undefined'
-        __ mov(SlotRegister(0), Operand(r0));
-      } else {
-        __ mov(SlotRegister(0), Operand(Factory::undefined_value()));
-      }
-      for (int i = num_reg_locals_ - 1; i > 0; i--) {
-        __ mov(SlotRegister(i), Operand(SlotRegister(0)));
       }
     }
 
@@ -475,7 +449,16 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
       // Allocate local context.
       // Get outer context and create a new context based on it.
       __ Push(FunctionOperand());
-      __ CallRuntime(Runtime::kNewContext, 2);
+      __ CallRuntime(Runtime::kNewContext, 1);  // r0 holds the result
+
+      if (kDebug) {
+        Label verified_true;
+        __ cmp(r0, Operand(cp));
+        __ b(eq, &verified_true);
+        __ stop("NewContext: r0 is expected to be the same as cp");
+        __ bind(&verified_true);
+      }
+      __ pop(r0);  // restore TOS
       // Update context local.
       __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     }
@@ -580,19 +563,12 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
   __ Push(Operand(Factory::undefined_value()));
   __ bind(&function_return_);
   if (FLAG_trace) __ CallRuntime(Runtime::kTraceExit, 1);
-  ExitJSFrame(reg_locals_);
+  ExitJSFrame();
 
   // Code generation state must be reset.
   scope_ = NULL;
   ASSERT(!has_cc());
   ASSERT(state_ == NULL);
-}
-
-
-Register ArmCodeGenerator::SlotRegister(int slot_index) {
-  Register reg;
-  reg.code_ = JSCalleeSavedCode(slot_index);
-  return reg;
 }
 
 
@@ -614,9 +590,9 @@ MemOperand ArmCodeGenerator::SlotOperand(Slot* slot, Register tmp) {
     case Slot::LOCAL: {
       ASSERT(0 <= index &&
              index < scope_->num_stack_slots() &&
-             index >= num_reg_locals_);
+             index >= 0);
       int local_offset = JavaScriptFrameConstants::kLocal0Offset -
-          (index - num_reg_locals_) * kPointerSize;
+                         index * kPointerSize;
       return MemOperand(fp, local_offset);
     }
 
@@ -1063,7 +1039,34 @@ void SetPropertyStub::Generate(MacroAssembler* masm) {
 }
 
 
-void GenericOpStub::Generate(MacroAssembler* masm) {
+class GenericBinaryOpStub : public CodeStub {
+ public:
+  explicit GenericBinaryOpStub(Token::Value op) : op_(op) { }
+
+ private:
+  Token::Value op_;
+
+  Major MajorKey() { return GenericBinaryOp; }
+  int MinorKey() { return static_cast<int>(op_); }
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() {
+    switch (op_) {
+      case Token::ADD: return "GenericBinaryOpStub_ADD";
+      case Token::SUB: return "GenericBinaryOpStub_SUB";
+      case Token::MUL: return "GenericBinaryOpStub_MUL";
+      case Token::DIV: return "GenericBinaryOpStub_DIV";
+      default:         return "GenericBinaryOpStub";
+    }
+  }
+
+#ifdef DEBUG
+  void Print() { PrintF("GenericBinaryOpStub (%s)\n", Token::String(op_)); }
+#endif
+};
+
+
+void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   switch (op_) {
     case Token::ADD: {
       Label slow, exit;
@@ -1303,34 +1306,27 @@ class JSExitStub : public CodeStub {
  public:
   enum Kind { Inc, Dec, ToNumber };
 
-  JSExitStub(int num_callee_saved, RegList callee_saved, ExitJSFlag flag)
-      : num_callee_saved_(num_callee_saved),
-        callee_saved_(callee_saved),
-        flag_(flag) { }
+  explicit JSExitStub(ExitJSFlag flag) : flag_(flag) { }
 
  private:
-  int num_callee_saved_;
-  RegList callee_saved_;
   ExitJSFlag flag_;
 
   Major MajorKey() { return JSExit; }
-  int MinorKey() { return (num_callee_saved_ << 3) | static_cast<int>(flag_); }
+  int MinorKey() { return static_cast<int>(flag_); }
   void Generate(MacroAssembler* masm);
 
   const char* GetName() { return "JSExitStub"; }
 
 #ifdef DEBUG
   void Print() {
-    PrintF("JSExitStub (num_callee_saved %d, flag %d)\n",
-           num_callee_saved_,
-           static_cast<int>(flag_));
+    PrintF("JSExitStub flag %d)\n", static_cast<int>(flag_));
   }
 #endif
 };
 
 
 void JSExitStub::Generate(MacroAssembler* masm) {
-  __ ExitJSFrame(flag_, callee_saved_);
+  __ ExitJSFrame(flag_);
   masm->StubReturn(1);
 }
 
@@ -1339,21 +1335,6 @@ void JSExitStub::Generate(MacroAssembler* masm) {
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   // r0 holds exception
   ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
-  if (FLAG_optimize_locals) {
-    // Locals are allocated in callee-saved registers, so we need to restore
-    // saved callee-saved registers by unwinding the stack
-    static JSCalleeSavedBuffer regs;
-    intptr_t arg0 = reinterpret_cast<intptr_t>(&regs);
-    __ push(r0);
-    __ mov(r0, Operand(arg0));  // exception in r0 (TOS) is pushed, r0 == arg0
-    // Do not push a second C entry frame, but call directly
-    __ Call(FUNCTION_ADDR(StackFrameIterator::RestoreCalleeSavedForTopHandler),
-            runtime_entry);  // passing r0
-    // Frame::RestoreJSCalleeSaved returns arg0 (TOS)
-    __ mov(r1, Operand(r0));
-    __ pop(r0);  // r1 holds arg0, r0 holds exception
-    __ ldm(ia, r1, kJSCalleeSaved);  // restore callee-saved registers
-  }
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
   __ ldr(sp, MemOperand(r3));
   __ pop(r2);  // pop next in chain
@@ -1495,7 +1476,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ mov(r3, Operand(Top::context_address()));
   __ ldr(cp, MemOperand(r3));
   __ mov(sp, Operand(fp));  // respect ABI stack constraint
-  __ ldm(ia, sp, kJSCalleeSaved | pp.bit() | fp.bit() | sp.bit() | pc.bit());
+  __ ldm(ia, sp, pp.bit() | fp.bit() | sp.bit() | pc.bit());
 
   // check if we should retry or throw exception
   Label retry;
@@ -1552,7 +1533,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
   // all JS callee-saved are saved and traversed by GC; push in reverse order:
   // JS callee-saved, caller_pp, caller_fp, sp_on_exit (ip==pp), caller_pc
-  __ stm(db_w, sp, kJSCalleeSaved | pp.bit() | fp.bit() | ip.bit() | lr.bit());
+  __ stm(db_w, sp, pp.bit() | fp.bit() | ip.bit() | lr.bit());
   __ mov(fp, Operand(sp));  // setup new frame pointer
 
   // Store the current context in top.
@@ -1844,13 +1825,13 @@ void ArmCodeGenerator::AccessReferenceProperty(
 }
 
 
-void ArmCodeGenerator::GenericOperation(Token::Value op) {
+void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
   // Stub is entered with a call: 'return address' is in lr.
   switch (op) {
     case Token::ADD:  // fall through.
     case Token::SUB:  // fall through.
     case Token::MUL: {
-      GenericOpStub stub(op);
+      GenericBinaryOpStub stub(op);
       __ CallStub(&stub);
       break;
     }
@@ -2039,7 +2020,7 @@ void ArmCodeGenerator::SmiOperation(Token::Value op,
         __ mov(ip, Operand(value));
         __ push(ip);
       }
-      GenericOperation(op);
+      GenericBinaryOperation(op);
       break;
   }
 
@@ -2096,48 +2077,74 @@ void ArmCodeGenerator::Comparison(Condition cc, bool strict) {
 }
 
 
+class CallFunctionStub: public CodeStub {
+ public:
+  explicit CallFunctionStub(int argc) : argc_(argc) {}
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  int argc_;
+
+  const char* GetName() { return "CallFuntionStub"; }
+
+#if defined(DEBUG)
+  void Print() { PrintF("CallFunctionStub (argc %d)\n", argc_); }
+#endif  // defined(DEBUG)
+
+  Major MajorKey() { return CallFunction; }
+  int MinorKey() { return argc_; }
+};
+
+
+void CallFunctionStub::Generate(MacroAssembler* masm) {
+  Label slow;
+
+  // Push the number of arguments.
+  masm->Push(Operand(argc_));
+
+  // Get the function to call from the stack.
+  // function, receiver [, arguments], argc_
+  masm->ldr(r1, MemOperand(sp, (argc_ + 1) * kPointerSize));
+
+  // Check that the function is really a JavaScript function.
+  masm->tst(r1, Operand(kSmiTagMask));
+  masm->b(eq, &slow);
+  // Get the map of the function object.
+  masm->ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  masm->ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+  masm->cmp(r2, Operand(JS_FUNCTION_TYPE));
+  masm->b(ne, &slow);
+
+  // Fast-case: Invoke the function now.
+  masm->ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+  masm->ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  masm->ldr(r1,
+            MemOperand(r1, SharedFunctionInfo::kCodeOffset - kHeapObjectTag));
+  masm->add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
+  masm->Jump(r1);  // Callee will return to the original call site directly.
+
+  // Slow-case: Non-function called.
+  masm->bind(&slow);
+  masm->InvokeBuiltin("CALL_NON_FUNCTION", 0, JUMP_JS);
+}
+
+
 // Call the function just below TOS on the stack with the given
 // arguments. The receiver is the TOS.
 void ArmCodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
                                          int position) {
-  Label fast, slow, exit;
-
   // Push the arguments ("left-to-right") on the stack.
   for (int i = 0; i < args->length(); i++) Load(args->at(i));
 
-  // Push the number of arguments.
-  __ Push(Operand(args->length()));
-
-  // Get the function to call from the stack.
-  // +1 ~ receiver.
-  __ ldr(r1, MemOperand(sp, (args->length() + 1) * kPointerSize));
-
-  // Check that the function really is a JavaScript function.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &slow);
-  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));  // get the map
-  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  __ cmp(r2, Operand(JS_FUNCTION_TYPE));
-  __ b(eq, &fast);
-
+  // Record the position for debugging purposes.
   __ RecordPosition(position);
 
-  // Slow-case: Non-function called.
-  __ bind(&slow);
-  __ InvokeBuiltin("CALL_NON_FUNCTION", 0, CALL_JS);
-  __ b(&exit);
-
-  // Fast-case: Get the code from the function, call the first
-  // instruction in it, and pop function.
-  __ bind(&fast);
-  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-  __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r1, MemOperand(r1, SharedFunctionInfo::kCodeOffset - kHeapObjectTag));
-  __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Call(r1);
+  // Use the shared code stub to call the function.
+  CallFunctionStub call_function(args->length());
+  __ CallStub(&call_function);
 
   // Restore context and pop function from the stack.
-  __ bind(&exit);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   __ add(sp, sp, Operand(kPointerSize));  // discard
 }
@@ -2352,7 +2359,15 @@ void ArmCodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   Load(node->expression());
-  __ CallRuntime(Runtime::kPushContext, 2);
+  __ CallRuntime(Runtime::kPushContext, 1);
+  if (kDebug) {
+    Label verified_true;
+    __ cmp(r0, Operand(cp));
+    __ b(eq, &verified_true);
+    __ stop("PushContext: r0 is expected to be the same as cp");
+    __ bind(&verified_true);
+  }
+  __ pop(r0);  // restore TOS
   // Update context local.
   __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
@@ -2999,12 +3014,7 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
       case CodeGenState::LOAD:  // fall through
       case CodeGenState::LOAD_TYPEOF_EXPR:
         // Special handling for locals allocated in registers.
-        if (FLAG_optimize_locals && node->type() == Slot::LOCAL &&
-            node->index() < num_reg_locals_) {
-          __ Push(Operand(SlotRegister(node->index())));
-        } else {
-          __ Push(SlotOperand(node, r2));
-        }
+        __ Push(SlotOperand(node, r2));
         if (node->var()->mode() == Variable::CONST) {
           // Const slots may contain 'the hole' value (the constant hasn't
           // been initialized yet) which needs to be converted into the
@@ -3022,22 +3032,12 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
         // the code is identical to a normal store (see below).
         { Comment cmnt(masm_, "[ Init const");
           Label L;
-          if (FLAG_optimize_locals && node->type() == Slot::LOCAL &&
-              node->index() < num_reg_locals_) {
-            __ mov(r2, Operand(SlotRegister(node->index())));
-          } else {
-            __ ldr(r2, SlotOperand(node, r2));
-          }
+          __ ldr(r2, SlotOperand(node, r2));
           __ cmp(r2, Operand(Factory::the_hole_value()));
           __ b(ne, &L);
           // We must execute the store.
-          if (FLAG_optimize_locals && node->type() == Slot::LOCAL &&
-              node->index() < num_reg_locals_) {
-            __ mov(SlotRegister(node->index()), Operand(r0));
-          } else {
-            // r2 may be loaded with context; used below in RecordWrite.
-            __ str(r0, SlotOperand(node, r2));
-          }
+          // r2 may be loaded with context; used below in RecordWrite.
+          __ str(r0, SlotOperand(node, r2));
           if (node->type() == Slot::CONTEXT) {
             // Skip write barrier if the written value is a smi.
             Label exit;
@@ -3063,13 +3063,8 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
         // Variable::CONST because of const declarations which will
         // initialize consts to 'the hole' value and by doing so, end
         // up calling this code.
-        if (FLAG_optimize_locals && node->type() == Slot::LOCAL &&
-            node->index() < num_reg_locals_) {
-          __ mov(SlotRegister(node->index()), Operand(r0));
-        } else {
-          // r2 may be loaded with context; used below in RecordWrite.
-          __ str(r0, SlotOperand(node, r2));
-        }
+        // r2 may be loaded with context; used below in RecordWrite.
+        __ str(r0, SlotOperand(node, r2));
         if (node->type() == Slot::CONTEXT) {
           // Skip write barrier if the written value is a smi.
           Label exit;
@@ -3306,7 +3301,7 @@ void ArmCodeGenerator::VisitAssignment(Assignment* node) {
       SmiOperation(node->binary_op(), literal->handle(), false);
     } else {
       Load(node->value());
-      GenericOperation(node->binary_op());
+      GenericBinaryOperation(node->binary_op());
     }
   }
 
@@ -3602,14 +3597,13 @@ void ArmCodeGenerator::GenerateTailCallWithArguments(
   __ ldr(r1, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
 
   // Reset parameter pointer and frame pointer to previous frame
-  ExitJSFrame(reg_locals_, DO_NOT_RETURN);
+  ExitJSFrame(DO_NOT_RETURN);
 
   // Jump (tail-call) to the function in register r1.
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
   __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
   __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCodeOffset));
   __ add(pc, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-  return;
 }
 
 
@@ -3726,10 +3720,21 @@ void ArmCodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 }
 
 
+// This should generate code that performs a charCodeAt() call or returns
+// undefined in order to trigger the slow case, Runtime_StringCharCodeAt.
+// It is not yet implemented on ARM, so it always goes to the slow case.
+void ArmCodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+  __ push(r0);
+  __ mov(r0, Operand(Factory::undefined_value()));
+}
+
+
+
 // This is used in the implementation of apply on ia32 but it is not
 // used on ARM yet.
 void ArmCodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
-  __ int3();
+  __ stop("ArmCodeGenerator::GenerateIsArray");
   cc_reg_ = eq;
 }
 
@@ -3772,7 +3777,7 @@ void ArmCodeGenerator::GenerateShiftDownAndTailCall(
 
     // Get the 'this' function and exit the frame without returning.
     __ ldr(r1, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
-    ExitJSFrame(reg_locals_, DO_NOT_RETURN);
+    ExitJSFrame(DO_NOT_RETURN);
     // return address in lr
 
     // Move arguments one element down the stack.
@@ -4132,7 +4137,7 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     } else {
       Load(node->left());
       Load(node->right());
-      GenericOperation(node->op());
+      GenericBinaryOperation(node->op());
     }
   }
 }
@@ -4346,21 +4351,13 @@ void ArmCodeGenerator::RecordStatementPosition(Node* node) {
 }
 
 
-void ArmCodeGenerator::EnterJSFrame(int argc, RegList callee_saved) {
-  __ EnterJSFrame(argc, callee_saved);
+void ArmCodeGenerator::EnterJSFrame(int argc) {
+  __ EnterJSFrame(argc);
 }
 
 
-void ArmCodeGenerator::ExitJSFrame(RegList callee_saved, ExitJSFlag flag) {
-  // The JavaScript debugger expects ExitJSFrame to be implemented as a stub,
-  // so that a breakpoint can be inserted at the end of a function.
-  int num_callee_saved = NumRegs(callee_saved);
-
-  // We support a fixed number of register variable configurations
-  ASSERT(num_callee_saved <= 5 &&
-         JSCalleeSavedList(num_callee_saved) == callee_saved);
-
-  JSExitStub stub(num_callee_saved, callee_saved, flag);
+void ArmCodeGenerator::ExitJSFrame(ExitJSFlag flag) {
+  JSExitStub stub(flag);
   __ CallJSExitStub(&stub);
 }
 

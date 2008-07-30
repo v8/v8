@@ -73,12 +73,12 @@ class StackHandlerIterator BASE_EMBEDDED {
 #define INITIALIZE_SINGLETON(type, field) field##_(this),
 StackFrameIterator::StackFrameIterator()
     : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
-      frame_(NULL), handler_(NULL), thread(Top::GetCurrentThread()) {
+      frame_(NULL), handler_(NULL), thread_(Top::GetCurrentThread()) {
   Reset();
 }
 StackFrameIterator::StackFrameIterator(ThreadLocalTop* t)
     : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
-      frame_(NULL), handler_(NULL), thread(t) {
+      frame_(NULL), handler_(NULL), thread_(t) {
   Reset();
 }
 #undef INITIALIZE_SINGLETON
@@ -92,13 +92,6 @@ void StackFrameIterator::Advance() {
   // handler and the value of any callee-saved register if needed.
   StackFrame::State state;
   StackFrame::Type type = frame_->GetCallerState(&state);
-
-  // Restore any callee-saved registers to the register buffer. Avoid
-  // the virtual call if the platform doesn't have any callee-saved
-  // registers.
-  if (kNumJSCalleeSaved > 0) {
-    frame_->RestoreCalleeSavedRegisters(register_buffer());
-  }
 
   // Unwind handlers corresponding to the current frame.
   StackHandlerIterator it(frame_, handler_);
@@ -115,33 +108,11 @@ void StackFrameIterator::Advance() {
 
 
 void StackFrameIterator::Reset() {
-  Address fp = Top::c_entry_fp(thread);
+  Address fp = Top::c_entry_fp(thread_);
   StackFrame::State state;
   StackFrame::Type type = ExitFrame::GetStateForFramePointer(fp, &state);
   frame_ = SingletonFor(type, &state);
-  handler_ = StackHandler::FromAddress(Top::handler(thread));
-  // Zap the register buffer in debug mode.
-  if (kDebug) {
-    Object** buffer = register_buffer();
-    for (int i = 0; i < kNumJSCalleeSaved; i++) {
-      buffer[i] = reinterpret_cast<Object*>(kZapValue);
-    }
-  }
-}
-
-
-Object** StackFrameIterator::RestoreCalleeSavedForTopHandler(Object** buffer) {
-  ASSERT(kNumJSCalleeSaved > 0);
-  // Traverse the frames until we find the frame containing the top
-  // handler. Such a frame is guaranteed to always exists by the
-  // callers of this function.
-  for (StackFrameIterator it; true; it.Advance()) {
-    StackHandlerIterator handlers(it.frame(), it.handler());
-    if (!handlers.done()) {
-      memcpy(buffer, it.register_buffer(), kNumJSCalleeSaved * kPointerSize);
-      return buffer;
-    }
-  }
+  handler_ = StackHandler::FromAddress(Top::handler(thread_));
 }
 
 
@@ -302,20 +273,9 @@ Code* ExitDebugFrame::FindCode() const {
 }
 
 
-RegList ExitFrame::FindCalleeSavedRegisters() const {
-  // Exit frames save all - if any - callee-saved registers.
-  return kJSCalleeSaved;
-}
-
-
 Address StandardFrame::GetExpressionAddress(int n) const {
-  ASSERT(0 <= n && n < ComputeExpressionsCount());
-  if (kNumJSCalleeSaved > 0 && n < kNumJSCalleeSaved) {
-    return reinterpret_cast<Address>(top_register_buffer() + n);
-  } else {
-    const int offset = StandardFrameConstants::kExpressionsOffset;
-    return fp() + offset - (n - kNumJSCalleeSaved) * kPointerSize;
-  }
+  const int offset = StandardFrameConstants::kExpressionsOffset;
+  return fp() + offset - n * kPointerSize;
 }
 
 
@@ -326,7 +286,7 @@ int StandardFrame::ComputeExpressionsCount() const {
   Address limit = sp();
   ASSERT(base >= limit);  // stack grows downwards
   // Include register-allocated locals in number of expressions.
-  return (base - limit) / kPointerSize + kNumJSCalleeSaved;
+  return (base - limit) / kPointerSize;
 }
 
 
@@ -360,12 +320,7 @@ Object* JavaScriptFrame::GetParameter(int index) const {
 int JavaScriptFrame::ComputeParametersCount() const {
   Address base  = pp() + JavaScriptFrameConstants::kReceiverOffset;
   Address limit = fp() + JavaScriptFrameConstants::kSavedRegistersOffset;
-  int result = (base - limit) / kPointerSize;
-  if (kNumJSCalleeSaved > 0) {
-    return result - NumRegs(FindCalleeSavedRegisters());
-  } else {
-    return result;
-  }
+  return (base - limit) / kPointerSize;
 }
 
 
@@ -492,7 +447,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   }
 
   // Print the expression stack.
-  int expressions_start = Max(stack_locals_count, kNumJSCalleeSaved);
+  int expressions_start = stack_locals_count;
   if (expressions_start < expressions_count) {
     accumulator->Add("  // expression stack (top to bottom)\n");
   }
@@ -640,38 +595,6 @@ int JSCallerSavedCode(int n) {
   }
   ASSERT(0 <= n && n < kNumJSCallerSaved);
   return reg_code[n];
-}
-
-
-int JSCalleeSavedCode(int n) {
-  static int reg_code[kNumJSCalleeSaved + 1];  // avoid zero-size array error
-  static bool initialized = false;
-  if (!initialized) {
-    initialized = true;
-    int i = 0;
-    for (int r = 0; r < kNumRegs; r++)
-      if ((kJSCalleeSaved & (1 << r)) != 0)
-        reg_code[i++] = r;
-
-    ASSERT(i == kNumJSCalleeSaved);
-  }
-  ASSERT(0 <= n && n < kNumJSCalleeSaved);
-  return reg_code[n];
-}
-
-
-RegList JSCalleeSavedList(int n) {
-  // avoid zero-size array error
-  static RegList reg_list[kNumJSCalleeSaved + 1];
-  static bool initialized = false;
-  if (!initialized) {
-    initialized = true;
-    reg_list[0] = 0;
-    for (int i = 0; i < kNumJSCalleeSaved; i++)
-      reg_list[i+1] = reg_list[i] + (1 << JSCalleeSavedCode(i));
-  }
-  ASSERT(0 <= n && n <= kNumJSCalleeSaved);
-  return reg_list[n];
 }
 
 

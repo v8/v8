@@ -428,7 +428,7 @@ void CallIC::Generate(MacroAssembler* masm,
   __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
   __ ldr(r1, MemOperand(ip, 0 * kPointerSize));
 
-  __ EnterJSFrame(0, 0);
+  __ EnterJSFrame(0);
 
   // Push the receiver and the name of the function.
   __ ldr(r0, MemOperand(pp, 0));
@@ -447,7 +447,7 @@ void CallIC::Generate(MacroAssembler* masm,
   __ ldr(r0, MemOperand(v8::internal::fp,  // fp is shadowed by IC::fp
                         JavaScriptFrameConstants::kArgsLengthOffset));
 
-  __ ExitJSFrame(DO_NOT_RETURN, 0);
+  __ ExitJSFrame(DO_NOT_RETURN);
 
   // Patch the function on the stack; 1 ~ receiver.
   __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));

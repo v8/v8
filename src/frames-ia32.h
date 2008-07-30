@@ -48,12 +48,6 @@ static const int kNumJSCallerSaved = 5;
 
 typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 
-// Callee-saved registers available for variable allocation in JavaScript code
-static const RegList kJSCalleeSaved = 0;
-
-static const int kNumJSCalleeSaved = 0;
-
-
 // ----------------------------------------------------
 
 
@@ -142,11 +136,6 @@ inline Object* JavaScriptFrame::function() const {
   return result;
 }
 
-
-Object** StackFrameIterator::register_buffer() const {
-  ASSERT(kNumJSCalleeSaved == 0);
-  return NULL;
-}
 
 // ----------------------------------------------------
 

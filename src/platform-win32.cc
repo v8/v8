@@ -537,12 +537,13 @@ char* OS::LocalTimezone(double time) {
 }
 
 
-// Returns the local time offset in milliseconds east of UTC.
+// Returns the local time offset in milliseconds east of UTC without
+// taking daylight savings time into account.
 double OS::LocalTimeOffset() {
-  // 1199174400 = Jan 1 2008 (UTC).
-  // Random date where daylight savings time is not in effect.
-  int64_t offset = Time(1199174400).LocalOffset();
-  return static_cast<double>(offset);
+  // Use current time, rounded to the millisecond.
+  Time t(TimeCurrentMillis());
+  // Time::LocalOffset inlcudes any daylight savings offset, so subtract it.
+  return static_cast<double>(t.LocalOffset() - t.DaylightSavingsOffset());
 }
 
 
@@ -653,8 +654,12 @@ int OS::VSNPrintF(char* str, size_t size, const char* format, va_list args) {
   int n = _vsnprintf(str, size, format, args);
   // Make sure to zero-terminate the string if the output was
   // truncated or if there was an error.
-  if (n < 0 || static_cast<size_t>(n) >= size) str[size - 1] = '\0';
-  return n;
+  if (n < 0 || static_cast<size_t>(n) >= size) {
+    str[size - 1] = '\0';
+    return -1;
+  } else {
+    return n;
+  }
 }
 
 
@@ -704,13 +709,15 @@ size_t OS::AllocateAlignment() {
 }
 
 
-void* OS::Allocate(const size_t requested, size_t* allocated) {
+void* OS::Allocate(const size_t requested,
+                   size_t* allocated,
+                   bool executable) {
   // VirtualAlloc rounds allocated size to page size automatically.
   size_t msize = RoundUp(requested, GetPageSize());
 
   // Windows XP SP2 allows Data Excution Prevention (DEP).
-  LPVOID mbase = VirtualAlloc(NULL, requested, MEM_COMMIT | MEM_RESERVE,
-                              PAGE_EXECUTE_READWRITE);
+  int prot = executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  LPVOID mbase = VirtualAlloc(NULL, requested, MEM_COMMIT | MEM_RESERVE, prot);
   if (mbase == NULL) {
     LOG(StringEvent("OS::Allocate", "VirtualAlloc failed"));
     return NULL;
@@ -739,6 +746,11 @@ void OS::Sleep(int milliseconds) {
 void OS::Abort() {
   // Redirect to windows specific abort to ensure
   // collaboration with sandboxing.
+  __debugbreak();
+}
+
+
+void OS::DebugBreak() {
   __debugbreak();
 }
 
@@ -1153,7 +1165,7 @@ bool VirtualMemory::IsReserved() {
 
 VirtualMemory::VirtualMemory(size_t size, void* address_hint) {
   address_ =
-      VirtualAlloc(address_hint, size, MEM_RESERVE, PAGE_EXECUTE_READWRITE);
+      VirtualAlloc(address_hint, size, MEM_RESERVE, PAGE_NOACCESS);
   size_ = size;
 }
 
@@ -1165,8 +1177,9 @@ VirtualMemory::~VirtualMemory() {
 }
 
 
-bool VirtualMemory::Commit(void* address, size_t size) {
-  if (NULL == VirtualAlloc(address, size, MEM_COMMIT, PAGE_EXECUTE_READWRITE)) {
+bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
+  int prot = executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  if (NULL == VirtualAlloc(address, size, MEM_COMMIT, prot)) {
     return false;
   }
 
@@ -1360,46 +1373,6 @@ Mutex* OS::CreateMutex() {
 
 
 // ----------------------------------------------------------------------------
-// Win32 select support.
-//
-// On Win32 the function WaitForMultipleObjects can be used to wait
-// for all kind of synchronization handles. Currently the
-// implementation only suports the fixed Select::MaxSelectSize maximum
-// number of handles
-
-
-class Select::PlatformData : public Malloced {
- public:
-  PlatformData(int len, Semaphore** sems);
-  int len_;
-  HANDLE objs_[Select::MaxSelectSize];
-};
-
-
-Select::Select(int len, Semaphore** sems) {
-  data_ = new PlatformData(len, sems);
-}
-
-
-Select::~Select() {
-  delete data_;
-}
-
-
-int Select::WaitSingle() {
-  return WaitForMultipleObjects(data_->len_,
-                                data_->objs_,
-                                FALSE,
-                                INFINITE) - WAIT_OBJECT_0;
-}
-
-
-void Select::WaitAll() {
-  WaitForMultipleObjects(data_->len_, data_->objs_, TRUE, INFINITE);
-}
-
-
-// ----------------------------------------------------------------------------
 // Win32 semaphore support.
 //
 // On Win32 semaphores are implemented using Win32 Semaphore objects. The
@@ -1428,23 +1401,12 @@ class Win32Semaphore : public Semaphore {
 
  private:
   HANDLE sem;
-  friend class Select::PlatformData;
 };
 
 
 Semaphore* OS::CreateSemaphore(int count) {
   return new Win32Semaphore(count);
 }
-
-
-
-Select::PlatformData::PlatformData(int len, Semaphore** sems) : len_(len) {
-  ASSERT(len_ < Select::MaxSelectSize);
-  for (int i = 0; i < len_; i++) {
-    objs_[i] = reinterpret_cast<Win32Semaphore*>(sems[i])->sem;
-  }
-}
-
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 

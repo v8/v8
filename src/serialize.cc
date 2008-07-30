@@ -507,10 +507,6 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
       RUNTIME_ENTRY,
       1,
       "Runtime::PerformGC");
-  Add(FUNCTION_ADDR(StackFrameIterator::RestoreCalleeSavedForTopHandler),
-      RUNTIME_ENTRY,
-      2,
-      "StackFrameIterator::RestoreCalleeSavedForTopHandler");
 
   // Miscellaneous
   Add(ExternalReference::builtin_passed_function().address(),
@@ -670,6 +666,8 @@ class SnapshotWriter {
 
   int length() { return len_; }
 
+  Address position() { return reinterpret_cast<Address>(&str_[len_]); }
+
  private:
   char* str_;  // the snapshot
   int len_;   // the curent length of str_
@@ -704,8 +702,73 @@ int SnapshotWriter::InsertString(const char* s, int pos) {
 }
 
 
+class ReferenceUpdater: public ObjectVisitor {
+ public:
+  ReferenceUpdater(HeapObject* obj, Serializer* serializer)
+    : obj_address_(obj->address()),
+      serializer_(serializer),
+      reference_encoder_(serializer->reference_encoder_),
+      offsets_(8),
+      addresses_(8) {
+  }
+
+  virtual void VisitPointers(Object** start, Object** end) {
+    for (Object** p = start; p < end; ++p) {
+      if ((*p)->IsHeapObject()) {
+        offsets_.Add(reinterpret_cast<Address>(p) - obj_address_);
+        Address a = serializer_->GetSavedAddress(HeapObject::cast(*p));
+        addresses_.Add(a);
+      }
+    }
+  }
+
+  virtual void VisitExternalReferences(Address* start, Address* end) {
+    for (Address* p = start; p < end; ++p) {
+      uint32_t code = reference_encoder_->Encode(*p);
+      CHECK(*p == NULL ? code == 0 : code != 0);
+      offsets_.Add(reinterpret_cast<Address>(p) - obj_address_);
+      addresses_.Add(reinterpret_cast<Address>(code));
+    }
+  }
+
+  virtual void VisitRuntimeEntry(RelocInfo* rinfo) {
+    Address target = rinfo->target_address();
+    uint32_t encoding = reference_encoder_->Encode(target);
+    CHECK(target == NULL ? encoding == 0 : encoding != 0);
+    offsets_.Add(reinterpret_cast<Address>(rinfo->pc()) - obj_address_);
+    addresses_.Add(reinterpret_cast<Address>(encoding));
+  }
+
+  void Update(Address start_address) {
+    for (int i = 0; i < offsets_.length(); i++) {
+      Address* p = reinterpret_cast<Address*>(start_address + offsets_[i]);
+      *p = addresses_[i];
+    }
+  }
+
+ private:
+  Address obj_address_;
+  Serializer* serializer_;
+  ExternalReferenceEncoder* reference_encoder_;
+  List<int> offsets_;
+  List<Address> addresses_;
+};
+
+
+// Helper functions for a map of encoded heap object addresses.
+static uint32_t HeapObjectHash(HeapObject* key) {
+  return reinterpret_cast<uint32_t>(key) >> 2;
+}
+
+
+static bool MatchHeapObject(void* key1, void* key2) {
+  return key1 == key2;
+}
+
+
 Serializer::Serializer()
-  : global_handles_(4) {
+  : global_handles_(4),
+    saved_addresses_(MatchHeapObject) {
   root_ = true;
   roots_ = 0;
   objects_ = 0;
@@ -751,6 +814,28 @@ void Serializer::InitializeAllocators() {
 }
 
 
+bool Serializer::IsVisited(HeapObject *obj) {
+  HashMap::Entry* entry =
+    saved_addresses_.Lookup(obj, HeapObjectHash(obj), false);
+  return entry != NULL;
+}
+
+
+Address Serializer::GetSavedAddress(HeapObject *obj) {
+  HashMap::Entry* entry
+  = saved_addresses_.Lookup(obj, HeapObjectHash(obj), false);
+  ASSERT(entry != NULL);
+  return reinterpret_cast<Address>(entry->value);
+}
+
+
+void Serializer::SaveAddress(HeapObject* obj, Address addr) {
+  HashMap::Entry* entry =
+    saved_addresses_.Lookup(obj, HeapObjectHash(obj), true);
+  entry->value = addr;
+}
+
+
 void Serializer::Serialize() {
   // No active threads.
   CHECK_EQ(NULL, ThreadState::FirstInUse());
@@ -776,45 +861,22 @@ void Serializer::Finalize(char** str, int* len) {
 }
 
 
-// Serialize roots by writing them into the stream. Serialize pointers
-// in HeapObjects by changing them to the encoded address where the
-// object will be allocated on deserialization
+// Serialize objects by writing them into the stream.
 
 void Serializer::VisitPointers(Object** start, Object** end) {
   bool root = root_;
   root_ = false;
   for (Object** p = start; p < end; ++p) {
     bool serialized;
+    Address a = Encode(*p, &serialized);
     if (root) {
       roots_++;
-      Address a = Encode(*p, &serialized);
       // If the object was not just serialized,
       // write its encoded address instead.
       if (!serialized) PutEncodedAddress(a);
-    } else {
-      // Rewrite the pointer in the HeapObject.
-      *p = reinterpret_cast<Object*>(Encode(*p, &serialized));
     }
   }
   root_ = root;
-}
-
-
-void Serializer::VisitExternalReferences(Address* start, Address* end) {
-  for (Address* p = start; p < end; ++p) {
-    uint32_t code = reference_encoder_->Encode(*p);
-    CHECK(*p == NULL ? code == 0 : code != 0);
-    *p = reinterpret_cast<Address>(code);
-  }
-}
-
-
-void Serializer::VisitRuntimeEntry(RelocInfo* rinfo) {
-  Address target = rinfo->target_address();
-  uint32_t encoding = reference_encoder_->Encode(target);
-  CHECK(target == NULL ? encoding == 0 : encoding != 0);
-  uint32_t* pc = reinterpret_cast<uint32_t*>(rinfo->pc());
-  *pc = encoding;
 }
 
 
@@ -858,12 +920,13 @@ void Serializer::PutHeader() {
 #else
   writer_->PutC('0');
 #endif
-  // Write sizes of paged memory spaces.
+  // Write sizes of paged memory spaces. Allocate extra space for the old
+  // and code spaces, because objects in new space will be promoted to them.
   writer_->PutC('S');
   writer_->PutC('[');
-  writer_->PutInt(Heap::old_space()->Size());
+  writer_->PutInt(Heap::old_space()->Size() + Heap::new_space()->Size());
   writer_->PutC('|');
-  writer_->PutInt(Heap::code_space()->Size());
+  writer_->PutInt(Heap::code_space()->Size() + Heap::new_space()->Size());
   writer_->PutC('|');
   writer_->PutInt(Heap::map_space()->Size());
   writer_->PutC(']');
@@ -927,6 +990,9 @@ void Serializer::PutContextStack() {
       HandleScopeImplementer::instance()->RestoreContext();
     contexts.Add(context);
   }
+  for (int i = contexts.length() - 1; i >= 0; i--) {
+    HandleScopeImplementer::instance()->SaveContext(contexts[i]);
+  }
   PutGlobalHandleStack(contexts);
 
   List<Handle<Object> > security_contexts(2);
@@ -934,6 +1000,10 @@ void Serializer::PutContextStack() {
     Handle<Object> context =
       HandleScopeImplementer::instance()->RestoreSecurityContext();
     security_contexts.Add(context);
+  }
+  for (int i = security_contexts.length() - 1; i >= 0; i--) {
+    Handle<Object> context = security_contexts[i];
+    HandleScopeImplementer::instance()->SaveSecurityContext(context);
   }
   PutGlobalHandleStack(security_contexts);
 }
@@ -951,10 +1021,8 @@ Address Serializer::Encode(Object* o, bool* serialized) {
     return reinterpret_cast<Address>(o);
   } else {
     HeapObject* obj = HeapObject::cast(o);
-    if (is_marked(obj)) {
-      // Already serialized: encoded address is in map.
-      intptr_t map_word = reinterpret_cast<intptr_t>(obj->map());
-      return reinterpret_cast<Address>(clear_mark_bit(map_word));
+    if (IsVisited(obj)) {
+      return GetSavedAddress(obj);
     } else {
       // First visit: serialize the object.
       *serialized = true;
@@ -973,18 +1041,14 @@ Address Serializer::PutObject(HeapObject* obj) {
   // allocated during deserialization.
   Address addr = Allocate(obj).Encode();
 
+  SaveAddress(obj, addr);
+
   if (type == CODE_TYPE) {
     Code* code = Code::cast(obj);
     // Ensure Code objects contain Object pointers, not Addresses.
     code->ConvertICTargetsFromAddressToObject();
     LOG(CodeMoveEvent(code->address(), addr));
   }
-
-  // Put the encoded address in the map() of the object, and mark the
-  // object. Do this to break recursion before visiting any pointers
-  // in the object.
-  obj->set_map(reinterpret_cast<Map*>(addr));
-  set_mark(obj);
 
   // Write out the object prologue: type, size, and simulated address of obj.
   writer_->PutC('[');
@@ -1000,9 +1064,7 @@ Address Serializer::PutObject(HeapObject* obj) {
   Address map_addr = Encode(map, &serialized);
 
   // Visit all the pointers in the object other than the map. This
-  // will rewrite these pointers in place in the body of the object
-  // with their encoded RelativeAddresses, and recursively serialize
-  // any as-yet-unvisited objects.
+  // will recursively serialize any as-yet-unvisited objects.
   obj->IterateBody(type, size, this);
 
   // Mark end of recursively embedded objects, start of object body.
@@ -1013,8 +1075,11 @@ Address Serializer::PutObject(HeapObject* obj) {
   // Write out the raw contents of the object following the map
   // pointer containing the now-updated pointers. No compression, but
   // fast to deserialize.
+  ReferenceUpdater updater(obj, this);
+  obj->IterateBody(type, size, &updater);
   writer_->PutBytes(obj->address() + HeapObject::kSize,
                     size - HeapObject::kSize);
+  updater.Update(writer_->position() - size);
 
 #ifdef DEBUG
   if (FLAG_debug_serialization) {
@@ -1023,6 +1088,12 @@ Address Serializer::PutObject(HeapObject* obj) {
     writer_->PutC(']');
   }
 #endif
+
+  if (type == CODE_TYPE) {
+    Code* code = Code::cast(obj);
+    // Convert relocations from Object* to Address in Code objects
+    code->ConvertICTargetsFromObjectToAddress();
+  }
 
   objects_++;
   return addr;
@@ -1038,6 +1109,9 @@ RelativeAddress Serializer::Allocate(HeapObject* obj) {
     found = Heap::InSpace(obj, s);
   }
   CHECK(found);
+  if (s == NEW_SPACE) {
+    s = Heap::TargetSpace(obj);
+  }
   int size = obj->Size();
   return allocator_[s]->Allocate(size);
 }
@@ -1100,11 +1174,9 @@ void Deserializer::Deserialize() {
   reference_decoder_ = new ExternalReferenceDecoder();
   // By setting linear allocation only, we forbid the use of free list
   // allocation which is not predicted by SimulatedAddress.
-  Heap::SetLinearAllocationOnly(true);
   GetHeader();
   Heap::IterateRoots(this);
   GetContextStack();
-  Heap::SetLinearAllocationOnly(false);
   Heap::RebuildRSets();
 }
 
@@ -1328,10 +1400,6 @@ static inline Object* ResolvePaged(int page_index,
                                    int page_offset,
                                    PagedSpace* space,
                                    List<Page*>* page_list) {
-#ifdef DEBUG
-  space->CheckLinearAllocationOnly();
-#endif
-
   ASSERT(page_index < page_list->length());
   Address address = (*page_list)[page_index]->OffsetToAddress(page_offset);
   return HeapObject::FromAddress(address);

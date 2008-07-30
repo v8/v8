@@ -145,27 +145,30 @@ void Decoder::PrintShiftRm(Instr* instr) {
   int rm = instr->RmField();
 
   PrintRegister(rm);
-  if ((shift != LSL) || (shift_amount != 0)) {
-    if (instr->RegShiftField() == 0) {
-      // by immediate
-      if ((shift == ROR) && (shift_amount == 0)) {
-        Print(", RRX");
-        return;
-      } else if (((shift == LSR) || (shift == ASR)) && (shift_amount == 0)) {
-        shift_amount = 32;
-      }
-      out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                           out_buffer_size_ - out_buffer_pos_,
-                                           ", %s #%d",
-                                           shift_names[shift], shift_amount);
-    } else {
-      // by register
-      int rs = instr->RsField();
-      out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                           out_buffer_size_ - out_buffer_pos_,
-                                           ", %s ", shift_names[shift]);
-      PrintRegister(rs);
+
+  if ((instr->RegShiftField() == 0) && (shift == LSL) && (shift_amount == 0)) {
+    // Special case for using rm only.
+    return;
+  }
+  if (instr->RegShiftField() == 0) {
+    // by immediate
+    if ((shift == ROR) && (shift_amount == 0)) {
+      Print(", RRX");
+      return;
+    } else if (((shift == LSR) || (shift == ASR)) && (shift_amount == 0)) {
+      shift_amount = 32;
     }
+    out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                         out_buffer_size_ - out_buffer_pos_,
+                                         ", %s #%d",
+                                         shift_names[shift], shift_amount);
+  } else {
+    // by register
+    int rs = instr->RsField();
+    out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                         out_buffer_size_ - out_buffer_pos_,
+                                         ", %s ", shift_names[shift]);
+    PrintRegister(rs);
   }
 }
 
@@ -799,6 +802,11 @@ void Decoder::DecodeType7(Instr* instr) {
 // Disassemble the instruction at *instr_ptr into the output buffer.
 int Decoder::InstructionDecode(byte* instr_ptr) {
   Instr* instr = Instr::At(instr_ptr);
+  // Print raw instruction bytes.
+  out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                       out_buffer_size_ - out_buffer_pos_,
+                                       "%08x       ",
+                                       instr->InstructionBits());
   if (instr->ConditionField() == special_condition) {
     Format(instr, "break 'msg");
     return Instr::kInstrSize;
@@ -921,6 +929,16 @@ int Disassembler::InstructionDecode(char* buffer, const int buffer_size,
 }
 
 
+int Disassembler::ConstantPoolSizeAt(byte* instruction) {
+  int instruction_bits = *(reinterpret_cast<int*>(instruction));
+  if ((instruction_bits & 0xfff00000) == 0x03000000) {
+    return instruction_bits & 0x0000ffff;
+  } else {
+    return -1;
+  }
+}
+
+
 void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
   Disassembler d;
   for (byte* pc = begin; pc < end;) {
@@ -928,16 +946,8 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
     buffer[0] = '\0';
     byte* prev_pc = pc;
     pc += d.InstructionDecode(buffer, sizeof buffer, pc);
-    fprintf(f, "%p", prev_pc);
-    fprintf(f, "    ");
-
-    for (byte* bp = prev_pc; bp < pc; bp++) {
-      fprintf(f, "%02x",  *bp);
-    }
-    for (int i = 6 - (pc - prev_pc); i >= 0; i--) {
-      fprintf(f, "  ");
-    }
-    fprintf(f, "  %s\n", buffer);
+    fprintf(f, "%p    %08x      %s\n",
+            prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer);
   }
 }
 

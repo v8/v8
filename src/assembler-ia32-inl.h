@@ -204,11 +204,30 @@ Address Assembler::target_address_at(Address pc) {
   return pc + sizeof(int32_t) + *reinterpret_cast<int32_t*>(pc);
 }
 
+
 void Assembler::set_target_address_at(Address pc, Address target) {
   int32_t* p = reinterpret_cast<int32_t*>(pc);
   *p = target - (pc + sizeof(int32_t));
   CPU::FlushICache(p, sizeof(int32_t));
 }
+
+
+Displacement Assembler::disp_at(Label* L) {
+  return Displacement(long_at(L->pos()));
+}
+
+
+void Assembler::disp_at_put(Label* L, Displacement disp) {
+  long_at_put(L->pos(), disp.data());
+}
+
+
+void Assembler::emit_disp(Label* L, Displacement::Type type) {
+  Displacement disp(L, type);
+  L->link_to(pc_offset());
+  emit(static_cast<int>(disp.data()));
+}
+
 
 void Operand::set_modrm(int mod,  // reg == 0
                         Register rm) {

@@ -256,8 +256,8 @@ namespace v8 { namespace internal {
   F(StackGuard, 1) \
   \
   /* Contexts */ \
-  F(NewContext, 2) \
-  F(PushContext, 2) \
+  F(NewContext, 1) \
+  F(PushContext, 1) \
   F(LookupContext, 2) \
   F(LoadContextSlot, 2) \
   F(LoadContextSlotNoReferenceError, 2) \

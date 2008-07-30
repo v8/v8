@@ -234,7 +234,7 @@ class Debug {
     return reinterpret_cast<Address *>(&registers_[r]);
   }
 
-  // Addres of the debug break return entry code.
+  // Address of the debug break return entry code.
   static Code* debug_break_return_entry() { return debug_break_return_entry_; }
 
   // Support for getting the address of the debug break on return code.
@@ -321,14 +321,11 @@ class Debug {
 };
 
 
-class PendingRequest;
 class DebugMessageThread;
-
 
 class Debugger {
  public:
   static void DebugRequest(const uint16_t* json_request, int length);
-  static bool ProcessPendingRequests();
 
   static Handle<Object> MakeJSObject(Vector<const char> constructor_name,
                                      int argc, Object*** argv,
@@ -357,7 +354,6 @@ class Debugger {
   static void OnAfterCompile(Handle<Script> script,
                            Handle<JSFunction> fun);
   static void OnNewFunction(Handle<JSFunction> fun);
-  static void OnPendingRequestProcessed(Handle<Object> event_data);
   static void ProcessDebugEvent(v8::DebugEvent event,
                                 Handle<Object> event_data);
   static void SetMessageHandler(v8::DebugMessageHandler handler, void* data);
@@ -384,68 +380,91 @@ class Debugger {
   static DebugMessageThread* message_thread_;
   static v8::DebugMessageHandler debug_message_handler_;
   static void* debug_message_handler_data_;
-
-  // Head and tail of linked list of pending commands. The list is protected
-  // by a mutex as it can be updated/read from different threads.
-  static Mutex* pending_requests_access_;
-  static PendingRequest* pending_requests_head_;
-  static PendingRequest* pending_requests_tail_;
 };
 
 
-// Linked list of pending requests issued by debugger while V8 was running.
-class PendingRequest {
+// A Queue of Vector<uint16_t> objects.  A thread-safe version is
+// LockingMessageQueue, based on this class.
+class MessageQueue BASE_EMBEDDED {
  public:
-  PendingRequest(const uint16_t* json_request, int length);
-  ~PendingRequest();
-
-  PendingRequest* next() { return next_; }
-  void set_next(PendingRequest* next) { next_ = next; }
-  Handle<String> request();
-
+  explicit MessageQueue(int size);
+  ~MessageQueue();
+  bool IsEmpty() const { return start_ == end_; }
+  Vector<uint16_t> Get();
+  void Put(const Vector<uint16_t>& message);
+  void Clear() { start_ = end_ = 0; }  // Queue is empty after Clear().
  private:
-  Vector<uint16_t> json_request_;  // Request string.
-  PendingRequest* next_;  // Next pointer for linked list.
+  // Doubles the size of the message queue, and copies the messages.
+  void Expand();
+
+  Vector<uint16_t>* messages_;
+  int start_;
+  int end_;
+  int size_;  // The size of the queue buffer.  Queue can hold size-1 messages.
 };
 
 
+// LockingMessageQueue is a thread-safe circular buffer of Vector<uint16_t>
+// messages.  The message data is not managed by LockingMessageQueue.
+// Pointers to the data are passed in and out. Implemented by adding a
+// Mutex to MessageQueue.
+class LockingMessageQueue BASE_EMBEDDED {
+ public:
+  explicit LockingMessageQueue(int size);
+  ~LockingMessageQueue();
+  bool IsEmpty() const;
+  Vector<uint16_t> Get();
+  void Put(const Vector<uint16_t>& message);
+  void Clear();
+ private:
+  // Logs a timestamp, operation name, and operation argument
+  void LogQueueOperation(const char* operation_name,
+                                              Vector<uint16_t> parameter);
+  MessageQueue queue_;
+  Mutex* lock_;
+  DISALLOW_EVIL_CONSTRUCTORS(LockingMessageQueue);
+};
+
+
+/* This class is the data for a running thread that serializes
+ * event messages and command processing for the debugger.
+ * All uncommented methods are called only from this message thread.
+ */
 class DebugMessageThread: public Thread {
  public:
-  DebugMessageThread();
-  virtual ~DebugMessageThread();
-
+  DebugMessageThread();  // Called from API thread.
+  virtual ~DebugMessageThread();  // Never called.
+  // Called by V8 thread.  Reports events from V8 VM.
+  // Also handles command processing in stopped state of V8,
+  // when host_running_ is false.
   void DebugEvent(v8::DebugEvent,
                   Handle<Object> exec_state,
                   Handle<Object> event_data);
-  void SetEventJSON(Vector<uint16_t> event_json);
+  // Puts event on the output queue.  Called by V8.
+  // This is where V8 hands off
+  // processing of the event to the DebugMessageThread thread,
+  // which forwards it to the debug_message_handler set by the API.
+  void SendMessage(Vector<uint16_t> event_json);
+  // Formats an event into JSON, and calls SendMessage.
   void SetEventJSONFromEvent(Handle<Object> event_data);
-  void SetCommand(Vector<uint16_t> command);
-  void SetResult(const char* result);
-  void SetResult(Vector<uint16_t> result);
-  void CommandResult(Vector<uint16_t> result);
-
+  // Puts a command coming from the public API on the queue.  Called
+  // by the API client thread.  This is where the API client hands off
+  // processing of the command to the DebugMessageThread thread.
   void ProcessCommand(Vector<uint16_t> command);
-
   void OnDebuggerInactive();
 
- protected:
+  // Main function of DebugMessageThread thread.
   void Run();
-  void HandleCommand();
 
-  bool host_running_;  // Is the debugging host running or stopped
-  v8::DebugEvent event_;  // Active event
-  Semaphore* command_received_;  // Signal from the telnet connection
-  Semaphore* debug_event_;  // Signal from the V8 thread
-  Semaphore* debug_command_;  // Signal to the V8 thread
-  Semaphore* debug_result_;  // Signal from the V8 thread
-
+  bool host_running_;  // Is the debugging host running or stopped?
+  Semaphore* command_received_;  // Non-zero when command queue is non-empty.
+  Semaphore* message_received_;  // Exactly equal to message queue length.
  private:
-  void SetVector(Vector<uint16_t>* vector, Vector<uint16_t> value);
   bool TwoByteEqualsAscii(Vector<uint16_t> two_byte, const char* ascii);
 
-  Vector<uint16_t> event_json_;  // Active event JSON.
-  Vector<uint16_t> command_;  // Current command.
-  Vector<uint16_t> result_;  // Result of processing command.
+  static const int kQueueInitialSize = 4;
+  LockingMessageQueue command_queue_;
+  LockingMessageQueue message_queue_;
   DISALLOW_EVIL_CONSTRUCTORS(DebugMessageThread);
 };
 

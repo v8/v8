@@ -226,14 +226,77 @@ PagedSpace* MemoryAllocator::PageOwner(Page* page) {
 }
 
 
-// -----------------------------------------------------------------------------
-// Space
+// --------------------------------------------------------------------------
+// PagedSpace
 
 bool PagedSpace::Contains(Address addr) {
   Page* p = Page::FromAddress(addr);
   ASSERT(p->is_valid());
 
   return MemoryAllocator::IsPageInSpace(p, this);
+}
+
+
+// Try linear allocation in the page of alloc_info's allocation top.  Does
+// not contain slow case logic (eg, move to the next page or try free list
+// allocation) so it can be used by all the allocation functions and for all
+// the paged spaces.
+HeapObject* PagedSpace::AllocateLinearly(AllocationInfo* alloc_info,
+                                         int size_in_bytes) {
+  Address current_top = alloc_info->top;
+  Address new_top = current_top + size_in_bytes;
+  if (new_top > alloc_info->limit) return NULL;
+
+  alloc_info->top = new_top;
+  ASSERT(alloc_info->VerifyPagedAllocation());
+  accounting_stats_.AllocateBytes(size_in_bytes);
+  return HeapObject::FromAddress(current_top);
+}
+
+
+// Raw allocation.
+Object* PagedSpace::AllocateRaw(int size_in_bytes) {
+  ASSERT(HasBeenSetup());
+  ASSERT_OBJECT_SIZE(size_in_bytes);
+  HeapObject* object = AllocateLinearly(&allocation_info_, size_in_bytes);
+  if (object != NULL) return object;
+
+  object = SlowAllocateRaw(size_in_bytes);
+  if (object != NULL) return object;
+
+  return Failure::RetryAfterGC(size_in_bytes, identity());
+}
+
+
+// Reallocating (and promoting) objects during a compacting collection.
+Object* PagedSpace::MCAllocateRaw(int size_in_bytes) {
+  ASSERT(HasBeenSetup());
+  ASSERT_OBJECT_SIZE(size_in_bytes);
+  HeapObject* object = AllocateLinearly(&mc_forwarding_info_, size_in_bytes);
+  if (object != NULL) return object;
+
+  object = SlowMCAllocateRaw(size_in_bytes);
+  if (object != NULL) return object;
+
+  return Failure::RetryAfterGC(size_in_bytes, identity());
+}
+
+
+// Allocating during deserialization.  Always roll to the next page in the
+// space, which should be suitably expanded.
+Object* PagedSpace::AllocateForDeserialization(int size_in_bytes) {
+  ASSERT(HasBeenSetup());
+  ASSERT_OBJECT_SIZE(size_in_bytes);
+  HeapObject* object = AllocateLinearly(&allocation_info_, size_in_bytes);
+  if (object != NULL) return object;
+
+  // The space should be pre-expanded.
+  Page* current_page = Page::FromAllocationTop(allocation_info_.top);
+  ASSERT(current_page->next_page()->is_valid());
+  object = AllocateInNextPage(current_page, size_in_bytes);
+
+  ASSERT(object != NULL);
+  return object;
 }
 
 
@@ -263,7 +326,7 @@ Object* NewSpace::AllocateRawInternal(int size_in_bytes,
                                       AllocationInfo* alloc_info) {
   Address new_top = alloc_info->top + size_in_bytes;
   if (new_top > alloc_info->limit) {
-    return Failure::RetryAfterGC(size_in_bytes, NEW_SPACE);
+    return Failure::RetryAfterGC(size_in_bytes, identity());
   }
 
   Object* obj = HeapObject::FromAddress(alloc_info->top);

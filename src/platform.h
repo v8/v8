@@ -144,10 +144,12 @@ class OS {
   static void PrintError(const char* format, ...);
   static void VPrintError(const char* format, va_list args);
 
-  // Allocate/Free memory used by JS heap.
-  // Pages are readable/writeable/executable by default.
+  // Allocate/Free memory used by JS heap. Pages are readable/writeable, but
+  // they are not guaranteed to be executable unless 'executable' is true.
   // Returns the address of allocated memory, or NULL if failed.
-  static void* Allocate(const size_t requested, size_t* allocated);
+  static void* Allocate(const size_t requested,
+                        size_t* allocated,
+                        bool executable);
   static void Free(void* buf, const size_t length);
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
@@ -164,6 +166,9 @@ class OS {
 
   // Abort the current process.
   static void Abort();
+
+  // Debug break.
+  static void DebugBreak();
 
   // Walk the stack.
   static const int kStackWalkError = -1;
@@ -191,7 +196,8 @@ class OS {
     virtual void* memory() = 0;
   };
 
-  // Safe formatting print.
+  // Safe formatting print. Ensures that str is always null-terminated.
+  // Returns the number of chars written, or -1 if output was truncated.
   static int SNPrintF(char* str, size_t size, const char* format, ...);
   static int VSNPrintF(char* str,
                        size_t size,
@@ -232,7 +238,7 @@ class VirtualMemory {
   size_t size() { return size_; }
 
   // Commits real memory. Returns whether the operation succeeded.
-  bool Commit(void* address, size_t size);
+  bool Commit(void* address, size_t size, bool executable);
 
   // Uncommit real memory.  Returns whether the operation succeeded.
   bool Uncommit(void* address, size_t size);
@@ -341,19 +347,22 @@ class Mutex {
 
 
 // ----------------------------------------------------------------------------
-// Guard
+// ScopedLock
 //
-// Stack-allocated Guards provide block-scoped locking and unlocking
+// Stack-allocated ScopedLocks provide block-scoped locking and unlocking
 // of a mutex.
-
-class Guard {
+class ScopedLock {
  public:
-  explicit Guard(Mutex* mux): mux_(mux) { mux_->Lock(); }
-  ~Guard() { mux_->Unlock(); }
+  explicit ScopedLock(Mutex* mutex): mutex_(mutex) {
+    mutex_->Lock();
+  }
+  ~ScopedLock() {
+    mutex_->Unlock();
+  }
 
  private:
-  Mutex* mux_;
-  DISALLOW_EVIL_CONSTRUCTORS(Guard);
+  Mutex* mutex_;
+  DISALLOW_EVIL_CONSTRUCTORS(ScopedLock);
 };
 
 
@@ -376,26 +385,6 @@ class Semaphore {
 
   // Increments the semaphore counter.
   virtual void Signal() = 0;
-};
-
-
-// ----------------------------------------------------------------------------
-// Select
-//
-// A selector makes it possible to wait for several synchronization objects
-
-class Select {
- public:
-  Select(int len, Semaphore** sems);
-  ~Select();
-  int WaitSingle();
-  void WaitAll();
-  static const int MaxSelectSize = 32;
-
-  class PlatformData;
- private:
-  PlatformData* data_;  // Platform specific data.
-  DISALLOW_EVIL_CONSTRUCTORS(Select);
 };
 
 

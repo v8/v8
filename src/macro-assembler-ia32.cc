@@ -43,7 +43,8 @@ DEFINE_bool(native_code_counters, false,
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       unresolved_(0),
-      generating_stub_(false) {
+      generating_stub_(false),
+      allow_stub_calls_(true) {
 }
 
 
@@ -507,7 +508,7 @@ void MacroAssembler::NegativeZeroTest(Register result,
 
 
 void MacroAssembler::CallStub(CodeStub* stub) {
-  ASSERT(!generating_stub());  // calls are not allowed in stubs
+  ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
   call(stub->GetCode(), code_target);
 }
 
@@ -681,8 +682,8 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   bool resolved;
   Handle<Code> code = ResolveBuiltin(id, &resolved);
 
-    // Calls are not allowed in stubs.
-  ASSERT(flag == JUMP_FUNCTION || !generating_stub());
+    // Calls are not allowed in some stubs.
+  ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
   // Rely on the assertion to check that the number of provided
   // arguments match the expected number of arguments. Fake a

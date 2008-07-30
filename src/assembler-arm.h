@@ -503,16 +503,9 @@ class Assembler : public Malloced {
 
   // Exception-generating instructions and debugging support
   void stop(const char* msg);
-  void untested(const char* msg);
-  void unimplemented(const char* msg);
-  void unreachable(const char* msg);
 
   void bkpt(uint32_t imm16);  // v5 and above
   void swi(uint32_t imm24, Condition cond = al);
-  // To generate a breakpoint on ARM Linux you can use swi(0x9f0001).
-  // For some reason stepi or cont will not work in gdb until you have done:
-  // set $pc = $pc + 4
-  inline void int3() { swi(0x9f0001); }
 
   // Coprocessor instructions
 

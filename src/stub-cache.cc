@@ -64,8 +64,8 @@ Code* StubCache::Set(String* name, Map* map, Code* code) {
   // the stub cache only contains monomorphic stubs. Make sure that
   // the bits are the least significant so they will be the ones
   // masked out.
-  ASSERT(Code::ExtractStateFromFlags(flags) == MONOMORPHIC);
-  ASSERT(Code::kFlagsStateShift == 0);
+  ASSERT(Code::ExtractICStateFromFlags(flags) == MONOMORPHIC);
+  ASSERT(Code::kFlagsICStateShift == 0);
 
   // Make sure that the code type is not included in the hash.
   ASSERT(Code::ExtractTypeFromFlags(flags) == 0);

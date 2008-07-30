@@ -47,7 +47,7 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // r0: number of arguments
 
-  __ EnterJSFrame(0, 0);
+  __ EnterJSFrame(0);
 
   // Allocate the new receiver object.
   __ push(r0);
@@ -119,7 +119,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Remove receiver from the stack, remove caller arguments, and
   // return.
   __ bind(&exit);
-  __ ExitJSFrame(RETURN, 0);
+  __ ExitJSFrame(RETURN);
 
   // Compute the offset from the beginning of the JSConstructCall
   // builtin code object to the return address after the call.
@@ -221,13 +221,13 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // TODO(1233523): Implement. Unused for now.
-  __ int3();
+  __ stop("Builtins::Generate_FunctionApply");
 }
 
 
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // TODO(1233523): Implement. Unused for now.
-  __ int3();
+  __ stop("Builtins::Generate_ArgumentsAdaptorTrampoline");
 
   Label return_site;
   __ bind(&return_site);
@@ -269,9 +269,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ mov(r2, Operand(cp));  // context to be saved
 
   // push in reverse order: context (r2), args_len (r3), caller_pp, caller_fp,
-  // sp_on_exit (ip == pp), return address, prolog_pc
+  // sp_on_exit (ip == pp), return address
   __ stm(db_w, sp, r2.bit() | r3.bit() | pp.bit() | fp.bit() |
-         ip.bit() | lr.bit() | pc.bit());
+         ip.bit() | lr.bit());
   // Setup new frame pointer.
   __ add(fp, sp, Operand(-StandardFrameConstants::kContextOffset));
   __ mov(pp, Operand(ip));  // setup new parameter pointer

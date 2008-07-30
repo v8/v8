@@ -1,4 +1,4 @@
-# Copyright 2006-2008 Google Inc. All Rights Reserved.
+# Copyright 2006 Google Inc. All Rights Reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -48,7 +48,7 @@ def CompressScript(lines):
   # Note that we could easily compress the scripts mode but don't
   # since we want it to remain readable.
   lines = re.sub('//.*\n', '\n', lines) # end-of-line comments
-  lines = re.sub('\s+\n+', '\n', lines) # trailing whitespace 
+  lines = re.sub('\s+\n+', '\n', lines) # trailing whitespace
   return lines
 
 
@@ -87,37 +87,11 @@ def ParseValue(string):
     return string
 
 
-def MakeVersion(source, target):
-  TEMPLATE = """
-    #include "v8.h"
-
-    void v8::V8::GetVersion(v8::VersionInfo *info) {
-      info->major = %(major)s;
-      info->minor = %(minor)s;
-      info->build_major = %(build_major)s;
-      info->build_minor = %(build_minor)s;
-      info->revision = %(revision)s;
-    }
-"""
-  PATTERN = re.compile('\$[a-zA-Z]+:\s*([0-9]+)\s*\$')
-  def VersionToInt(str):
-    match = PATTERN.match(str)
-    if match: return match.group(1)
-    else: return str
-  config = LoadConfigFrom(source)
-  map = { }
-  for key, value in config.items('VERSION'):
-    map[key] = VersionToInt(value)
-  output = TEMPLATE % map
-  file = open(target, "w")
-  file.write(output)
-  file.close()
-
-
 def ExpandConstants(lines, constants):
   for key, value in constants.items():
     lines = lines.replace(key, str(value))
   return lines
+
 
 def ExpandMacros(lines, macros):
   for name, macro in macros.items():
@@ -298,11 +272,10 @@ def JS2C(source, target, env):
     if delay: id = id[:-6]
     if delay:
       delay_ids.append((id, len(lines)))
-      source_lines_empty.append(SOURCE_DECLARATION % { 'id': id, 'data': data })
     else:
       ids.append((id, len(lines)))
-      source_lines_empty.append(SOURCE_DECLARATION % { 'id': id, 'data': 0 })
     source_lines.append(SOURCE_DECLARATION % { 'id': id, 'data': data })
+    source_lines_empty.append(SOURCE_DECLARATION % { 'id': id, 'data': 0 })
   
   # Build delay support functions
   get_index_cases = [ ]

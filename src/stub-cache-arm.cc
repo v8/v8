@@ -157,7 +157,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
   HandleScope scope;
 
   // Enter the JS frame but don't add additional arguments.
-  __ EnterJSFrame(0, 0);
+  __ EnterJSFrame(0);
 
   // Push the function on the stack and call the runtime function.
   __ Push(MemOperand(pp, 0));
@@ -167,7 +167,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
   __ mov(r1, Operand(r0));
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kArgsLengthOffset));
 
-  __ ExitJSFrame(DO_NOT_RETURN, 0);
+  __ ExitJSFrame(DO_NOT_RETURN);
 
   // Do a tail-call of the compiled function.
   __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));

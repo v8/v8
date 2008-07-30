@@ -41,14 +41,13 @@
  */
 namespace v8 {
 
-// Debug events which can occour in the V8 JavaScript engine.
+// Debug events which can occur in the V8 JavaScript engine.
 enum DebugEvent {
   Break = 1,
   Exception = 2,
   NewFunction = 3,
   BeforeCompile = 4,
-  AfterCompile  = 5,
-  PendingRequestProcessed = 6
+  AfterCompile  = 5
 };
 
 
@@ -72,6 +71,8 @@ typedef void (*DebugEventCallback)(DebugEvent event,
  *
  * \param message the debug message
  * \param length length of the message
+ * A DebugMessageHandler does not take posession of the message string,
+ * and must not rely on the data persisting after the handler returns.
  */
 typedef void (*DebugMessageHandler)(const uint16_t* message, int length,
                                     void* data);

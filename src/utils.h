@@ -271,6 +271,7 @@ class Access {
 template <typename T>
 class Vector {
  public:
+  Vector() : start_(NULL), length_(0) {}
   Vector(T* data, int length) : start_(data), length_(length) {
     ASSERT(length == 0 || (length > 0 && data != NULL));
   }
@@ -300,6 +301,7 @@ class Vector {
   // Releases the array underlying this vector. Once disposed the
   // vector is empty.
   void Dispose() {
+    if (is_empty()) return;
     DeleteArray(start_);
     start_ = NULL;
     length_ = 0;
@@ -352,6 +354,69 @@ class AsciiStringAdapter: public v8::String::ExternalAsciiStringResource {
   Vector<const char> data_;
 };
 
+
+// Helper class for building result strings in a character buffer. The
+// purpose of the class is to use safe operations that checks the
+// buffer bounds on all operations in debug mode.
+class StringBuilder {
+ public:
+  // Create a string builder with a buffer of the given size. The
+  // buffer is allocated through NewArray<char> and must be
+  // deallocated by the caller of Finalize().
+  explicit StringBuilder(int size);
+
+  StringBuilder(char* buffer, int size)
+      : buffer_(buffer), size_(size), position_(0) { }
+
+  ~StringBuilder() { if (!is_finalized()) Finalize(); }
+
+  int size() const { return size_; }
+
+  // Get the current position in the builder.
+  int position() const {
+    ASSERT(!is_finalized());
+    return position_;
+  }
+
+  // Reset the position.
+  void Reset() { position_ = 0; }
+
+  // Add a single character to the builder. It is not allowed to add
+  // 0-characters; use the Finalize() method to terminate the string
+  // instead.
+  void AddCharacter(char c) {
+    ASSERT(c != '\0');
+    ASSERT(!is_finalized() && position_ < size_);
+    buffer_[position_++] = c;
+  }
+
+  // Add an entire string to the builder. Uses strlen() internally to
+  // compute the length of the input string.
+  void AddString(const char* s);
+
+  // Add the first 'n' characters of the given string 's' to the
+  // builder. The input string must have enough characters.
+  void AddSubstring(const char* s, int n);
+
+  // Add formatted contents to the builder just like printf().
+  void AddFormatted(const char* format, ...);
+
+  // Add character padding to the builder. If count is non-positive,
+  // nothing is added to the builder.
+  void AddPadding(char c, int count);
+
+  // Finalize the string by 0-terminating it and returning the buffer.
+  char* Finalize();
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
+
+  char* buffer_;
+  int size_;
+  int position_;
+
+  bool is_finalized() const { return position_ < 0; }
+};
 
 } }  // namespace v8::internal
 

@@ -747,7 +747,7 @@ class String : public Primitive {
    * be careful to supply the length parameter.
    * If it is not given, the function calls
    * 'strlen' to determine the buffer length, it might be
-   * wrong if '\0' character is in the 'data'.
+   * wrong if 'data' contains a null character.
    */
   static Local<String> New(const char* data, int length = -1);
 
@@ -777,10 +777,10 @@ class String : public Primitive {
   */
   static Local<String> NewExternal(ExternalAsciiStringResource* resource);
 
-  /** Creates an undetectable string from the supplied character.*/
+  /** Creates an undetectable string from the supplied ascii or utf-8 data.*/
   static Local<String> NewUndetectable(const char* data, int length = -1);
 
-    /** Creates an undetectable string from the supplied unsigned integer.*/
+  /** Creates an undetectable string from the supplied utf-16 data.*/
   static Local<String> NewUndetectable(const uint16_t* data, int length = -1);
 
   /**
@@ -1562,13 +1562,6 @@ class Exception {
 };
 
 
-/**
- * Ignore
- */
-struct VersionInfo {
-  int major, minor, build_major, build_minor, revision;
-};
-
 // --- C o u n t e r s  C a l l b a c k s
 
 typedef int* (*CounterLookupCallback)(const wchar_t* name);
@@ -1633,8 +1626,8 @@ class V8 {
    */
   static void SetFlagsFromString(const char* str, int length);
 
-  /** Sets the version fields in the given VersionInfo struct.*/
-  static void GetVersion(VersionInfo* info);
+  /** Get the version string. */
+  static const char* GetVersion();
 
   /**
    * Enables the host application to provide a mechanism for recording
@@ -1682,6 +1675,14 @@ class V8 {
    * from scratch.
    */
   static bool Initialize();
+
+
+  /**
+   * Adjusts the about of registered external memory.
+   * Returns the adjusted value.
+   * Used for triggering a global GC earlier than otherwise.
+   */
+  static int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
 
  private:
   V8();

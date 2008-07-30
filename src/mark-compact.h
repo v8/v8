@@ -39,6 +39,9 @@ typedef bool (*IsAliveFunction)(HeapObject* obj, int* size, int* offset);
 typedef void (*DeallocateFunction)(Address start, int size_in_bytes);
 
 
+// Forward declaration of visitor.
+class MarkingVisitor;
+
 // ----------------------------------------------------------------------------
 // Mark-Compact collector
 //
@@ -70,13 +73,21 @@ class MarkCompactCollector : public AllStatic {
   typedef void (*ProcessNonLiveFunction)(HeapObject* object);
 
   // Performs a global garbage collection.
-  static void CollectGarbage();
+  static void CollectGarbage(GCTracer* tracer);
 
   // True if the last full GC performed heap compaction.
   static bool HasCompacted() { return compacting_collection_; }
 
   // True after the Prepare phase if the compaction is taking place.
   static bool IsCompacting() { return compacting_collection_; }
+
+  // The count of the number of objects left marked at the end of the last
+  // completed full GC (expected to be zero).
+  static int previous_marked_count() { return previous_marked_count_; }
+
+  // During a full GC, there is a stack-allocated GCTracer that is used for
+  // bookkeeping information.  Return a pointer to that tracer.
+  static GCTracer* tracer() { return tracer_; }
 
 #ifdef DEBUG
   // Checks whether performing mark-compact collection.
@@ -101,6 +112,14 @@ class MarkCompactCollector : public AllStatic {
 #endif
   // Global flag indicating whether spaces were compacted on the last GC.
   static bool compacting_collection_;
+
+  // The number of objects left marked at the end of the last completed full
+  // GC (expected to be zero).
+  static int previous_marked_count_;
+
+  // A pointer to the current stack-allocated GC tracer object during a full
+  // collection (NULL before and after).
+  static GCTracer* tracer_;
 
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
@@ -136,10 +155,24 @@ class MarkCompactCollector : public AllStatic {
   static void MarkUnmarkedObject(HeapObject* obj);
 
   static inline void MarkObject(HeapObject* obj) {
-     if (!is_marked(obj)) MarkUnmarkedObject(obj);
+     if (!obj->IsMarked()) MarkUnmarkedObject(obj);
   }
 
-  static void MarkObjectsReachableFromTopFrame();
+  // Mark the heap roots.
+  static void MarkStrongRoots(MarkingVisitor* marking_visitor);
+
+  // Mark objects in object groups that have at least one object in the
+  // group marked.
+  static void MarkObjectGroups();
+
+  // Mark all objects in an object group with at least one marked
+  // object, then all objects reachable from marked objects in object
+  // groups, and repeat.
+  static void ProcessObjectGroups(MarkingVisitor* marking_visitor);
+
+  // Mark all objects reachable (transitively) from objects in the
+  // marking stack or marked as overflowed in the heap.
+  static void ProcessMarkingStack(MarkingVisitor* marking_visitor);
 
   // Callback function for telling whether the object *p must be marked.
   static bool MustBeMarked(Object** p);

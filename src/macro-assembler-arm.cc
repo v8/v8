@@ -46,7 +46,8 @@ Register pp = { 10 };  // parameter pointer
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       unresolved_(0),
-      generating_stub_(false) {
+      generating_stub_(false),
+      allow_stub_calls_(true) {
 }
 
 
@@ -209,23 +210,31 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
 
   Label fast, done;
 
-  // First, test that the start address is not in the new space.  We cannot
-  // set remembered set bits in the new space.
+  // First, test that the object is not in the new space.  We cannot set
+  // remembered set bits in the new space.
+  // object: heap object pointer (with tag)
+  // offset: offset to store location from the object
   and_(scratch, object, Operand(Heap::NewSpaceMask()));
   cmp(scratch, Operand(ExternalReference::new_space_start()));
   b(eq, &done);
 
-  mov(ip, Operand(Page::kPageAlignmentMask));  // load mask only once
   // Compute the bit offset in the remembered set.
-  and_(scratch, object, Operand(ip));
-  add(offset, scratch, Operand(offset));
+  // object: heap object pointer (with tag)
+  // offset: offset to store location from the object
+  mov(ip, Operand(Page::kPageAlignmentMask));  // load mask only once
+  and_(scratch, object, Operand(ip));  // offset into page of the object
+  add(offset, scratch, Operand(offset));  // add offset into the object
   mov(offset, Operand(offset, LSR, kObjectAlignmentBits));
 
   // Compute the page address from the heap object pointer.
+  // object: heap object pointer (with tag)
+  // offset: bit offset of store position in the remembered set
   bic(object, object, Operand(ip));
 
   // If the bit offset lies beyond the normal remembered set range, it is in
   // the extra remembered set area of a large object.
+  // object: page start
+  // offset: bit offset of store position in the remembered set
   cmp(offset, Operand(Page::kPageSize / kPointerSize));
   b(lt, &fast);
 
@@ -245,11 +254,14 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
   add(object, object, Operand(scratch));
 
   bind(&fast);
-  // Now object is the address of the start of the remembered set and offset
-  // is the bit offset from that start.
   // Get address of the rset word.
-  add(object, object, Operand(offset, LSR, kRSetWordShift));
-  // Get bit offset in the word.
+  // object: start of the remembered set (page start for the fast case)
+  // offset: bit offset of store position in the remembered set
+  bic(scratch, offset, Operand(kBitsPerInt - 1));  // clear the bit offset
+  add(object, object, Operand(scratch, LSR, kRSetWordShift));
+  // Get bit offset in the rset word.
+  // object: address of remembered set word
+  // offset: bit offset of store position
   and_(offset, offset, Operand(kBitsPerInt - 1));
 
   ldr(scratch, MemOperand(object));
@@ -261,7 +273,7 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
 }
 
 
-void MacroAssembler::EnterJSFrame(int argc, RegList callee_saved) {
+void MacroAssembler::EnterJSFrame(int argc) {
   // Generate code entering a JS function called from a JS function
   // stack: receiver, arguments
   // r0: number of arguments (not including function, nor receiver)
@@ -299,18 +311,10 @@ void MacroAssembler::EnterJSFrame(int argc, RegList callee_saved) {
   mov(r3, Operand(r0));  // args_len to be saved
   mov(r2, Operand(cp));  // context to be saved
 
-  // Make sure there are no instructions between both stm instructions, because
-  // the callee_saved list is obtained during stack unwinding by decoding the
-  // first stmdb instruction, which is found (or not) at a constant offset from
-  // the pc saved by the second stmdb instruction.
-  if (callee_saved != 0) {
-    stm(db_w, sp, callee_saved);
-  }
-
   // push in reverse order: context (r2), args_len (r3), caller_pp, caller_fp,
-  // sp_on_exit (ip == pp, may be patched on exit), return address, prolog_pc
+  // sp_on_exit (ip == pp, may be patched on exit), return address
   stm(db_w, sp, r2.bit() | r3.bit() | pp.bit() | fp.bit() |
-      ip.bit() | lr.bit() | pc.bit());
+      ip.bit() | lr.bit());
 
   // Setup new frame pointer.
   add(fp, sp, Operand(-StandardFrameConstants::kContextOffset));
@@ -321,18 +325,14 @@ void MacroAssembler::EnterJSFrame(int argc, RegList callee_saved) {
 }
 
 
-void MacroAssembler::ExitJSFrame(ExitJSFlag flag, RegList callee_saved) {
+void MacroAssembler::ExitJSFrame(ExitJSFlag flag) {
   // r0: result
   // sp: stack pointer
   // fp: frame pointer
   // pp: parameter pointer
 
-  if (callee_saved != 0 || flag == DO_NOT_RETURN) {
+  if (flag == DO_NOT_RETURN) {
     add(r3, fp, Operand(JavaScriptFrameConstants::kSavedRegistersOffset));
-  }
-
-  if (callee_saved != 0) {
-    ldm(ia_w, r3, callee_saved);
   }
 
   if (flag == DO_NOT_RETURN) {
@@ -563,13 +563,13 @@ void MacroAssembler::CheckAccessGlobal(Register holder_reg,
 
 
 void MacroAssembler::CallStub(CodeStub* stub) {
-  ASSERT(!generating_stub());  // stub calls are not allowed in stubs
+  ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
   Call(stub->GetCode(), code_target);
 }
 
 
 void MacroAssembler::CallJSExitStub(CodeStub* stub) {
-  ASSERT(!generating_stub());  // stub calls are not allowed in stubs
+  ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
   Call(stub->GetCode(), exit_js_frame);
 }
 
@@ -592,6 +592,15 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
     mov(r0, Operand(num_arguments - 1));
   } else {
     ASSERT(f->nargs == num_arguments);
+    // TODO(1236192): Most runtime routines don't need the number of
+    // arguments passed in because it is constant. At some point we
+    // should remove this need and make the runtime routine entry code
+    // smarter.
+
+    // The number of arguments is fixed for this call.
+    // Set r0 correspondingly.
+    push(r0);
+    mov(r0, Operand(f->nargs - 1));  // receiver does not count as an argument
   }
 
   RuntimeStub stub((Runtime::FunctionId) f->stub_id);
@@ -605,16 +614,6 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
 
 
 void MacroAssembler::TailCallRuntime(Runtime::Function* f) {
-  // TODO(1236192): Most runtime routines don't need the number of
-  // arguments passed in because it is constant. At some point we
-  // should remove this need and make the runtime routine entry code
-  // smarter.
-  if (f->nargs >= 0) {
-    // The number of arguments is fixed for this call.
-    // Set r0 correspondingly.
-    push(r0);
-    mov(r0, Operand(f->nargs - 1));  // receiver does not count as an argument
-  }
   JumpToBuiltin(ExternalReference(f));  // tail call to runtime routine
 }
 

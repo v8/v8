@@ -56,6 +56,10 @@
 
 // ECMA-262 section 15.5.4.5
 %AddProperty($String.prototype, "charCodeAt", function(pos) {
+  var fast_answer = %_FastCharCodeAt(this, pos);
+  if (%_IsSmi(fast_answer)) {
+    return fast_answer;
+  }
   var subject = ToString(this);
   var index = TO_INTEGER(pos);
   return %StringCharCodeAt(subject, index);

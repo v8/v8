@@ -554,8 +554,8 @@ void String::StringShortPrint(StringStream* accumulator) {
   StringInputBuffer buf(this);
 
   bool truncated = false;
-  if (len > 1024) {
-    len = 1024;
+  if (len > kMaxShortPrintLength) {
+    len = kMaxShortPrintLength;
     truncated = true;
   }
   bool ascii = true;
@@ -2324,7 +2324,7 @@ Object* Map::Copy() {
 
 
 Object* Map::UpdateCodeCache(String* name, Code* code) {
-  ASSERT(code->state() == MONOMORPHIC);
+  ASSERT(code->ic_state() == MONOMORPHIC);
   FixedArray* cache = code_cache();
 
   // When updating the code cache we disregard the type encoded in the

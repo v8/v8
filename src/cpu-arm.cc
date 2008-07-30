@@ -26,8 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // CPU specific code for arm independent of OS goes here.
-
+#if defined(__arm__)
 #include <sys/syscall.h>  // for cache flushing.
+#endif
 
 #include "v8.h"
 

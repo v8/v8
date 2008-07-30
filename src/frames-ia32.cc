@@ -71,11 +71,6 @@ void ExitFrame::Iterate(ObjectVisitor* v) const {
 }
 
 
-void ExitFrame::RestoreCalleeSavedRegisters(Object* buffer[]) const {
-  // Do nothing.
-}
-
-
 int JavaScriptFrame::GetProvidedParametersCount() const {
   return ComputeParametersCount();
 }
@@ -114,16 +109,6 @@ Address InternalFrame::GetCallerStackPointer() const {
   // Internal frames have no arguments. The stack pointer of the
   // caller is at a fixed offset from the frame pointer.
   return fp() + StandardFrameConstants::kCallerSPOffset;
-}
-
-
-RegList JavaScriptFrame::FindCalleeSavedRegisters() const {
-  return 0;
-}
-
-
-void JavaScriptFrame::RestoreCalleeSavedRegisters(Object* buffer[]) const {
-  // Do nothing.
 }
 
 

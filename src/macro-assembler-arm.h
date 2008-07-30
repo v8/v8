@@ -93,8 +93,8 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Activation frames
 
-  void EnterJSFrame(int argc, RegList callee_saved);
-  void ExitJSFrame(ExitJSFlag flag, RegList callee_saved);
+  void EnterJSFrame(int argc);
+  void ExitJSFrame(ExitJSFlag flag);
 
 
   // Support functions.
@@ -198,10 +198,13 @@ class MacroAssembler: public Assembler {
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() { return generating_stub_; }
+  void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
+  bool allow_stub_calls() { return allow_stub_calls_; }
 
  private:
   List<Unresolved> unresolved_;
   bool generating_stub_;
+  bool allow_stub_calls_;
 };
 
 

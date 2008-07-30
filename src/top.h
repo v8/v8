@@ -179,7 +179,6 @@ class Top {
   static void set_break(StackFrame::Id break_frame_id, int break_id);
   static bool check_break(int break_id);
   static bool is_break();
-  static bool is_break_no_lock();
   static StackFrame::Id break_frame_id();
   static int break_id();
 

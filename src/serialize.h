@@ -120,6 +120,7 @@ class ExternalReferenceDecoder {
 class RelativeAddress;
 class SimulatedHeapSpace;
 class SnapshotWriter;
+class ReferenceUpdater;
 
 
 class Serializer: public ObjectVisitor {
@@ -149,9 +150,15 @@ class Serializer: public ObjectVisitor {
   static void disable() { serialization_enabled_ = false; }
 
  private:
+  friend class ReferenceUpdater;
+
   virtual void VisitPointers(Object** start, Object** end);
-  virtual void VisitExternalReferences(Address* start, Address* end);
-  virtual void VisitRuntimeEntry(RelocInfo* rinfo);
+
+  bool IsVisited(HeapObject *obj);
+
+  Address GetSavedAddress(HeapObject *obj);
+
+  void SaveAddress(HeapObject* obj, Address addr);
 
   void PutEncodedAddress(Address addr);
   // Write the global flags into the file.
@@ -194,6 +201,8 @@ class Serializer: public ObjectVisitor {
   List<Object**> global_handles_;
 
   ExternalReferenceEncoder* reference_encoder_;
+
+  HashMap saved_addresses_;
 
   DISALLOW_EVIL_CONSTRUCTORS(Serializer);
 };
@@ -248,7 +257,6 @@ class SnapshotReader {
 class Deserializer: public ObjectVisitor {
  public:
   // Create a deserializer. The snapshot is held in str and has size len.
-  // Ownership of str is not assumed by the Deserializer.
   Deserializer(const char* str, int len);
 
   virtual ~Deserializer();

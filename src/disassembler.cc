@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "code-stubs.h"
 #include "debug.h"
 #include "disasm.h"
 #include "disassembler.h"
@@ -83,7 +84,7 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
 
 
 const char* V8NameConverter::NameInCode(byte* addr) const {
-  // If the V8NameConverter is used for well known code, so we can "safely"
+  // The V8NameConverter is used for well known code, so we can "safely"
   // dereference pointers in generated code.
   return (code_ != NULL) ? reinterpret_cast<const char*>(addr) : "";
 }
@@ -97,17 +98,19 @@ static void DumpBuffer(FILE* f, char* buff) {
   }
 }
 
-static const int kOutBufferSize = 1024;
+static const int kOutBufferSize = 256 + String::kMaxShortPrintLength;
 static const int kRelocInfoPosition = 57;
 
 static int DecodeIt(FILE* f,
                     const V8NameConverter& converter,
                     byte* begin,
                     byte* end) {
+  NoHandleAllocation ha;
+  AssertNoAllocation no_alloc;
   ExternalReferenceEncoder ref_encoder;
+
   char decode_buffer[128];
   char out_buffer[kOutBufferSize];
-  const int sob = sizeof out_buffer;
   byte* pc = begin;
   disasm::Disassembler d(converter);
   RelocIterator* it = NULL;
@@ -122,15 +125,20 @@ static int DecodeIt(FILE* f,
     // First decode instruction so that we know its length.
     byte* prev_pc = pc;
     if (constants > 0) {
-      OS::SNPrintF(decode_buffer, sizeof(decode_buffer), "%s", "constant");
+      OS::SNPrintF(decode_buffer,
+                   sizeof(decode_buffer),
+                   "%08x       constant",
+                   *reinterpret_cast<int32_t*>(pc));
       constants--;
       pc += 4;
     } else {
-      int instruction_bits = *(reinterpret_cast<int*>(pc));
-      if ((instruction_bits & 0xfff00000) == 0x03000000) {
-        OS::SNPrintF(decode_buffer, sizeof(decode_buffer),
-                     "%s", "constant pool begin");
-        constants = instruction_bits & 0x0000ffff;
+      int num_const = d.ConstantPoolSizeAt(pc);
+      if (num_const >= 0) {
+        OS::SNPrintF(decode_buffer,
+                     sizeof(decode_buffer),
+                     "%08x       constant pool begin",
+                     *reinterpret_cast<int32_t*>(pc));
+        constants = num_const;
         pc += 4;
       } else {
         decode_buffer[0] = '\0';
@@ -158,35 +166,22 @@ static int DecodeIt(FILE* f,
       }
     }
 
-    int outp = 0;  // pointer into out_buffer, implements append operation.
+    StringBuilder out(out_buffer, sizeof(out_buffer));
 
     // Comments.
     for (int i = 0; i < comments.length(); i++) {
-      outp += OS::SNPrintF(out_buffer + outp, sob - outp,
-                           "                  %s\n", comments[i]);
+      out.AddFormatted("                  %s\n", comments[i]);
     }
 
     // Write out comments, resets outp so that we can format the next line.
-    if (outp > 0) {
-      DumpBuffer(f, out_buffer);
-      outp = 0;
-    }
+    DumpBuffer(f, out.Finalize());
+    out.Reset();
 
     // Instruction address and instruction offset.
-    outp += OS::SNPrintF(out_buffer + outp, sob - outp,
-                         "%p  %4d  ", prev_pc, prev_pc - begin);
+    out.AddFormatted("%p  %4d  ", prev_pc, prev_pc - begin);
 
-    // Instruction bytes.
-    ASSERT(pc - prev_pc == 4);
-    outp += OS::SNPrintF(out_buffer + outp,
-                         sob - outp,
-                         "%08x",
-                         *reinterpret_cast<intptr_t*>(prev_pc));
-
-    for (int i = 6 - (pc - prev_pc); i >= 0; i--) {
-      outp += OS::SNPrintF(out_buffer + outp, sob - outp, "  ");
-    }
-    outp += OS::SNPrintF(out_buffer + outp, sob - outp, " %s", decode_buffer);
+    // Instruction.
+    out.AddFormatted("%s", decode_buffer);
 
     // Print all the reloc info for this instruction which are not comments.
     for (int i = 0; i < pcs.length(); i++) {
@@ -196,59 +191,68 @@ static int DecodeIt(FILE* f,
       // Indent the printing of the reloc info.
       if (i == 0) {
         // The first reloc info is printed after the disassembled instruction.
-        for (int p = outp; p < kRelocInfoPosition; p++) {
-          outp += OS::SNPrintF(out_buffer + outp, sob - outp, " ");
-        }
+        out.AddPadding(' ', kRelocInfoPosition - out.position());
       } else {
         // Additional reloc infos are printed on separate lines.
-        outp += OS::SNPrintF(out_buffer + outp, sob - outp, "\n");
-        for (int p = 0; p < kRelocInfoPosition; p++) {
-          outp += OS::SNPrintF(out_buffer + outp, sob - outp, " ");
-        }
+        out.AddFormatted("\n");
+        out.AddPadding(' ', kRelocInfoPosition);
       }
 
       if (is_position(relocinfo.rmode())) {
-        outp += OS::SNPrintF(out_buffer + outp,
-                             sob - outp,
-                             "    ;; debug: statement %d",
-                             relocinfo.data());
+        out.AddFormatted("    ;; debug: statement %d", relocinfo.data());
       } else if (relocinfo.rmode() == embedded_object) {
         HeapStringAllocator allocator;
         StringStream accumulator(&allocator);
         relocinfo.target_object()->ShortPrint(&accumulator);
         SmartPointer<char> obj_name = accumulator.ToCString();
-        outp += OS::SNPrintF(out_buffer + outp, sob - outp,
-                             "    ;; object: %s",
-                             *obj_name);
+        out.AddFormatted("    ;; object: %s", *obj_name);
       } else if (relocinfo.rmode() == external_reference) {
         const char* reference_name =
             ref_encoder.NameOfAddress(*relocinfo.target_reference_address());
-        outp += OS::SNPrintF(out_buffer + outp, sob - outp,
-                            "    ;; external reference (%s)",
-                            reference_name);
-      } else if (relocinfo.rmode() == code_target) {
-        outp +=
-            OS::SNPrintF(out_buffer + outp, sob - outp,
-                         "    ;; code target (%s)",
-                         converter.NameOfAddress(relocinfo.target_address()));
+        out.AddFormatted("    ;; external reference (%s)", reference_name);
       } else {
-        outp += OS::SNPrintF(out_buffer + outp, sob - outp,
-                             "    ;; %s%s",
-#if defined(DEBUG)
-                             RelocInfo::RelocModeName(relocinfo.rmode()),
-#else
-                             "reloc_info",
-#endif
-                             "");
+        out.AddFormatted("    ;; %s",
+                         RelocInfo::RelocModeName(relocinfo.rmode()));
+        if (is_code_target(relocinfo.rmode())) {
+          Code* code = Debug::GetCodeTarget(relocinfo.target_address());
+          Code::Kind kind = code->kind();
+          if (kind == Code::STUB) {
+            // Reverse lookup required as the minor key cannot be retrieved
+            // from the code object.
+            Object* obj = Heap::code_stubs()->SlowReverseLookup(code);
+            if (obj != Heap::undefined_value()) {
+              ASSERT(obj->IsSmi());
+              // Get the STUB key and extract major and minor key.
+              uint32_t key = Smi::cast(obj)->value();
+              CodeStub::Major major_key = code->major_key();
+              uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
+              ASSERT(major_key == CodeStub::MajorKeyFromKey(key));
+              out.AddFormatted(" (%s, %s, ",
+                               Code::Kind2String(kind),
+                               CodeStub::MajorName(code->major_key()));
+              switch (code->major_key()) {
+                case CodeStub::CallFunction:
+                  out.AddFormatted("argc = %d)", minor_key);
+                  break;
+                case CodeStub::Runtime: {
+                  Runtime::FunctionId id =
+                      static_cast<Runtime::FunctionId>(minor_key);
+                  out.AddFormatted("%s)", Runtime::FunctionForId(id)->name);
+                  break;
+                }
+                default:
+                  out.AddFormatted("minor: %d)", minor_key);
+              }
+            }
+          } else {
+            out.AddFormatted(" (%s)", Code::Kind2String(kind));
+          }
+        }
       }
     }
-    outp += OS::SNPrintF(out_buffer + outp, sob - outp, "\n");
-
-    if (outp > 0) {
-      ASSERT(outp < kOutBufferSize);
-      DumpBuffer(f, out_buffer);
-      outp = 0;
-    }
+    out.AddString("\n");
+    DumpBuffer(f, out.Finalize());
+    out.Reset();
   }
 
   delete it;
@@ -262,6 +266,7 @@ int Disassembler::Decode(FILE* f, byte* begin, byte* end) {
 }
 
 
+// Called by Code::CodePrint.
 void Disassembler::Decode(FILE* f, Code* code) {
   byte* begin = Code::cast(code)->instruction_start();
   byte* end = begin + Code::cast(code)->instruction_size();

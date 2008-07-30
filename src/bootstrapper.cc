@@ -491,8 +491,12 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
   {  // --- E m p t y ---
     Handle<Code> call_code =
         Handle<Code>(Builtins::builtin(Builtins::EmptyFunction));
+    Handle<String> source = Factory::NewStringFromAscii(CStrVector("() {}"));
 
     empty_function->set_code(*call_code);
+    empty_function->shared()->set_script(*Factory::NewScript(source));
+    empty_function->shared()->set_start_position(0);
+    empty_function->shared()->set_end_position(source->length());
     global_context()->function_map()->set_prototype(*empty_function);
     global_context()->function_instance_map()->set_prototype(*empty_function);
 
@@ -1209,11 +1213,11 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 
 void Genesis::MakeFunctionInstancePrototypeWritable() {
   // Make a new function map so all future functions
-  // will have settable prototype properties.
+  // will have settable and enumerable prototype properties.
   HandleScope scope;
 
   Handle<DescriptorArray> function_map_descriptors =
-      ComputeFunctionInstanceDescriptor(false);
+      ComputeFunctionInstanceDescriptor(false, true);
   Handle<Map> fm = Factory::CopyMap(Top::function_map());
   fm->set_instance_descriptors(*function_map_descriptors);
   Top::context()->global_context()->set_function_map(*fm);

@@ -44,84 +44,12 @@ DEFINE_bool(collect_heap_spill_statistics, false,
 DECLARE_bool(log_gc);
 #endif
 
-// For paged spaces, top and limit should always be in the same page and top
-// should not be greater than limit.
-#define ASSERT_PAGED_ALLOCATION_INFO(info)       \
-  ASSERT((Page::FromAllocationTop((info).top) == \
-          Page::FromAllocationTop((info).limit)) \
-      &&((info).top <= (info).limit))
-
-
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
 #define ASSERT_SEMISPACE_ALLOCATION_INFO(info, space) \
   ASSERT((space)->low() <= (info).top                 \
          && (info).top <= (space)->high()             \
          && (info).limit == (space)->high())
-
-// ----------------------------------------------------------------------------
-// SpaceIterator
-
-SpaceIterator::SpaceIterator() : current_space_(NEW_SPACE), iterator_(NULL) {
-  // SpaceIterator depends on AllocationSpace enumeration starts with NEW_SPACE.
-  ASSERT(NEW_SPACE == 0);
-}
-
-
-SpaceIterator::~SpaceIterator() {
-  // Delete active iterator if any.
-  if (iterator_ != NULL) delete iterator_;
-}
-
-
-bool SpaceIterator::has_next() {
-  // Iterate until no more spaces.
-  return current_space_ != LAST_SPACE;
-}
-
-
-ObjectIterator* SpaceIterator::next() {
-  if (iterator_ != NULL) {
-    delete iterator_;
-    iterator_ = NULL;
-    // Move to the next space
-    current_space_++;
-    if (current_space_ > LAST_SPACE) {
-      return NULL;
-    }
-  }
-
-  // Return iterator for the new current space.
-  return CreateIterator();
-}
-
-
-// Create an iterator for the space to iterate.
-ObjectIterator* SpaceIterator::CreateIterator() {
-  ASSERT(iterator_ == NULL);
-
-  switch (current_space_) {
-    case NEW_SPACE:
-      iterator_ = new SemiSpaceIterator(Heap::new_space());
-      break;
-    case OLD_SPACE:
-      iterator_ = new HeapObjectIterator(Heap::old_space());
-      break;
-    case CODE_SPACE:
-      iterator_ = new HeapObjectIterator(Heap::code_space());
-      break;
-    case MAP_SPACE:
-      iterator_ = new HeapObjectIterator(Heap::map_space());
-      break;
-    case LO_SPACE:
-      iterator_ = new LargeObjectIterator(Heap::lo_space());
-      break;
-  }
-
-  // Return the newly allocated iterator;
-  ASSERT(iterator_ != NULL);
-  return iterator_;
-}
 
 
 // ----------------------------------------------------------------------------
@@ -260,9 +188,9 @@ bool MemoryAllocator::Setup(int capacity) {
   // Due to alignment, allocated space might be one page less than required
   // number (kPagesPerChunk) of pages for old spaces.
   //
-  // Reserve two chunk ids for semispaces, one for map space and one for old
-  // space.
-  max_nof_chunks_ = (capacity_ / (kChunkSize - Page::kPageSize)) + 4;
+  // Reserve two chunk ids for semispaces, one for map space, one for old
+  // space, and one for code space.
+  max_nof_chunks_ = (capacity_ / (kChunkSize - Page::kPageSize)) + 5;
   if (max_nof_chunks_ > kMaxNofChunks) return false;
 
   size_ = 0;
@@ -298,10 +226,11 @@ void MemoryAllocator::TearDown() {
 
 
 void* MemoryAllocator::AllocateRawMemory(const size_t requested,
-                                         size_t* allocated) {
+                                         size_t* allocated,
+                                         bool executable) {
   if (size_ + static_cast<int>(requested) > capacity_) return NULL;
 
-  void* mem = OS::Allocate(requested, allocated);
+  void* mem = OS::Allocate(requested, allocated, executable);
   int alloced = *allocated;
   size_ += alloced;
   Counters::memory_allocated.Increment(alloced);
@@ -360,8 +289,7 @@ Page* MemoryAllocator::AllocatePages(int requested_pages, int* allocated_pages,
 
     if (requested_pages <= 0) return Page::FromAddress(NULL);
   }
-
-  void* chunk = AllocateRawMemory(chunk_size, &chunk_size);
+  void* chunk = AllocateRawMemory(chunk_size, &chunk_size, owner->executable());
   if (chunk == NULL) return Page::FromAddress(NULL);
   LOG(NewEvent("PagedChunk", chunk, chunk_size));
 
@@ -388,8 +316,7 @@ Page* MemoryAllocator::CommitPages(Address start, size_t size,
   ASSERT(initial_chunk_->address() <= start);
   ASSERT(start + size <= reinterpret_cast<Address>(initial_chunk_->address())
                              + initial_chunk_->size());
-
-  if (!initial_chunk_->Commit(start, size)) {
+  if (!initial_chunk_->Commit(start, size, owner->executable())) {
     return Page::FromAddress(NULL);
   }
   Counters::memory_allocated.Increment(size);
@@ -403,7 +330,9 @@ Page* MemoryAllocator::CommitPages(Address start, size_t size,
 }
 
 
-bool MemoryAllocator::CommitBlock(Address start, size_t size) {
+bool MemoryAllocator::CommitBlock(Address start,
+                                  size_t size,
+                                  bool executable) {
   ASSERT(start != NULL);
   ASSERT(size > 0);
   ASSERT(initial_chunk_ != NULL);
@@ -411,7 +340,7 @@ bool MemoryAllocator::CommitBlock(Address start, size_t size) {
   ASSERT(start + size <= reinterpret_cast<Address>(initial_chunk_->address())
                              + initial_chunk_->size());
 
-  if (!initial_chunk_->Commit(start, size)) return false;
+  if (!initial_chunk_->Commit(start, size, executable)) return false;
   Counters::memory_allocated.Increment(size);
   return true;
 }
@@ -545,14 +474,11 @@ void MemoryAllocator::ReportStatistics() {
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
-PagedSpace::PagedSpace(int max_capacity, AllocationSpace id) {
-  ASSERT(id == OLD_SPACE || id == CODE_SPACE || id == MAP_SPACE);
+PagedSpace::PagedSpace(int max_capacity, AllocationSpace id, bool executable)
+    : Space(id, executable) {
   max_capacity_ = (RoundDown(max_capacity, Page::kPageSize) / Page::kPageSize)
                   * Page::kObjectAreaSize;
-  identity_ = id;
   accounting_stats_.Clear();
-
-  allocation_mode_ = LINEAR;
 
   allocation_info_.top = NULL;
   allocation_info_.limit = NULL;
@@ -627,6 +553,7 @@ Object* PagedSpace::FindObject(Address addr) {
   if (!Contains(addr)) return Failure::Exception();
 
   Page* p = Page::FromAddress(addr);
+  ASSERT(IsUsed(p));
   Address cur = p->ObjectAreaStart();
   Address end = p->AllocationTop();
   while (cur < end) {
@@ -636,14 +563,24 @@ Object* PagedSpace::FindObject(Address addr) {
     cur = next;
   }
 
+  UNREACHABLE();
   return Failure::Exception();
+}
+
+
+bool PagedSpace::IsUsed(Page* page) {
+  PageIterator it(this, PageIterator::PAGES_IN_USE);
+  while (it.has_next()) {
+    if (page == it.next()) return true;
+  }
+  return false;
 }
 
 
 void PagedSpace::SetAllocationInfo(AllocationInfo* alloc_info, Page* p) {
   alloc_info->top = p->ObjectAreaStart();
   alloc_info->limit = p->ObjectAreaEnd();
-  ASSERT_PAGED_ALLOCATION_INFO(*alloc_info);
+  ASSERT(alloc_info->VerifyPagedAllocation());
 }
 
 
@@ -661,19 +598,6 @@ void PagedSpace::MCResetRelocationInfo() {
   // All the bytes in the space are 'available'.  We will rediscover
   // allocated and wasted bytes during GC.
   accounting_stats_.Reset();
-}
-
-
-void PagedSpace::SetLinearAllocationOnly(bool linear_only) {
-  if (linear_only) {
-    // Note that the free_list is not cleared. If we switch back to
-    // FREE_LIST mode it will be available for use. Resetting it
-    // requires correct accounting for the wasted bytes.
-    allocation_mode_ = LINEAR_ONLY;
-  } else {
-    ASSERT(allocation_mode_ == LINEAR_ONLY);
-    allocation_mode_ = LINEAR;
-  }
 }
 
 
@@ -695,6 +619,33 @@ int PagedSpace::MCSpaceOffsetForAddress(Address addr) {
             : Page::FromAddress(addr);
   int index = p->mc_page_index;
   return (index * Page::kPageSize) + p->Offset(addr);
+}
+
+
+// Slow case for reallocating and promoting objects during a compacting
+// collection.  This function is not space-specific.
+HeapObject* PagedSpace::SlowMCAllocateRaw(int size_in_bytes) {
+  Page* current_page = TopPageOf(mc_forwarding_info_);
+  if (!current_page->next_page()->is_valid()) {
+    if (!Expand(current_page)) {
+      return NULL;
+    }
+  }
+
+  // There are surely more pages in the space now.
+  ASSERT(current_page->next_page()->is_valid());
+  // We do not add the top of page block for current page to the space's
+  // free list---the block may contain live objects so we cannot write
+  // bookkeeping information to it.  Instead, we will recover top of page
+  // blocks when we move objects to their new locations.
+  //
+  // We do however write the allocation pointer to the page.  The encoding
+  // of forwarding addresses is as an offset in terms of live bytes, so we
+  // need quick access to the allocation top of each page to decode
+  // forwarding addresses.
+  current_page->mc_relocation_top = mc_forwarding_info_.top;
+  SetAllocationInfo(&mc_forwarding_info_, current_page->next_page());
+  return AllocateLinearly(&mc_forwarding_info_, size_in_bytes);
 }
 
 
@@ -754,7 +705,7 @@ void PagedSpace::Shrink() {
   Page* current_page = top_page->next_page();
   // Loop over the pages to the end of the space.
   while (current_page->is_valid()) {
-    // Keep every odd-numbered page, one page for every two in the space.
+    // Advance last_page_to_keep every other step to end up at the midpoint.
     if ((free_pages & 0x1) == 1) {
       pages_to_keep++;
       last_page_to_keep = last_page_to_keep->next_page();
@@ -816,13 +767,16 @@ void PagedSpace::Print() { }
 // NewSpace implementation
 
 NewSpace::NewSpace(int initial_semispace_capacity,
-                   int maximum_semispace_capacity) {
+                   int maximum_semispace_capacity,
+                   AllocationSpace id,
+                   bool executable)
+    : Space(id, executable) {
   ASSERT(initial_semispace_capacity <= maximum_semispace_capacity);
   ASSERT(IsPowerOf2(maximum_semispace_capacity));
   maximum_capacity_ = maximum_semispace_capacity;
   capacity_ = initial_semispace_capacity;
-  to_space_ = new SemiSpace(capacity_, maximum_capacity_);
-  from_space_ = new SemiSpace(capacity_, maximum_capacity_);
+  to_space_ = new SemiSpace(capacity_, maximum_capacity_, id, executable);
+  from_space_ = new SemiSpace(capacity_, maximum_capacity_, id, executable);
 
   // Allocate and setup the histogram arrays if necessary.
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
@@ -984,15 +938,20 @@ void NewSpace::Verify() {
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
-SemiSpace::SemiSpace(int initial_capacity, int maximum_capacity)
-    : capacity_(initial_capacity), maximum_capacity_(maximum_capacity),
-      start_(NULL), age_mark_(NULL) {
+SemiSpace::SemiSpace(int initial_capacity,
+                     int maximum_capacity,
+                     AllocationSpace id,
+                     bool executable)
+    : Space(id, executable), capacity_(initial_capacity),
+      maximum_capacity_(maximum_capacity), start_(NULL), age_mark_(NULL) {
 }
 
 
 bool SemiSpace::Setup(Address start, int size) {
   ASSERT(size == maximum_capacity_);
-  if (!MemoryAllocator::CommitBlock(start, capacity_)) return false;
+  if (!MemoryAllocator::CommitBlock(start, capacity_, executable())) {
+    return false;
+  }
 
   start_ = start;
   address_mask_ = ~(size - 1);
@@ -1011,7 +970,9 @@ void SemiSpace::TearDown() {
 
 
 bool SemiSpace::Double() {
-  if (!MemoryAllocator::CommitBlock(high(), capacity_)) return false;
+  if (!MemoryAllocator::CommitBlock(high(), capacity_, executable())) {
+    return false;
+  }
   capacity_ *= 2;
   return true;
 }
@@ -1279,17 +1240,20 @@ void FreeListNode::set_size(int size_in_bytes) {
   } else {
     UNREACHABLE();
   }
+  ASSERT(Size() == size_in_bytes);
 }
 
 
 Address FreeListNode::next() {
   ASSERT(map() == Heap::byte_array_map());
+  ASSERT(Size() >= kNextOffset + kPointerSize);
   return Memory::Address_at(address() + kNextOffset);
 }
 
 
 void FreeListNode::set_next(Address next) {
   ASSERT(map() == Heap::byte_array_map());
+  ASSERT(Size() >= kNextOffset + kPointerSize);
   Memory::Address_at(address() + kNextOffset) = next;
 }
 
@@ -1378,6 +1342,7 @@ Object* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
   int rem = cur - index;
   int rem_bytes = rem << kPointerSizeLog2;
   FreeListNode* cur_node = FreeListNode::FromAddress(free_[cur].head_node_);
+  ASSERT(cur_node->Size() == (cur << kPointerSizeLog2));
   FreeListNode* rem_node = FreeListNode::FromAddress(free_[cur].head_node_ +
                                                      size_in_bytes);
   // Distinguish the cases prev < rem < cur and rem <= prev < cur
@@ -1421,7 +1386,23 @@ Object* OldSpaceFreeList::Allocate(int size_in_bytes, int* wasted_bytes) {
 }
 
 
-MapSpaceFreeList::MapSpaceFreeList() {
+#ifdef DEBUG
+bool OldSpaceFreeList::Contains(FreeListNode* node) {
+  for (int i = 0; i < kFreeListsLength; i++) {
+    Address cur_addr = free_[i].head_node_;
+    while (cur_addr != NULL) {
+      FreeListNode* cur_node = FreeListNode::FromAddress(cur_addr);
+      if (cur_node == node) return true;
+      cur_addr = cur_node->next();
+    }
+  }
+  return false;
+}
+#endif
+
+
+MapSpaceFreeList::MapSpaceFreeList(AllocationSpace owner) {
+  owner_ = owner;
   Reset();
 }
 
@@ -1448,7 +1429,7 @@ void MapSpaceFreeList::Free(Address start) {
 
 Object* MapSpaceFreeList::Allocate() {
   if (head_ == NULL) {
-    return Failure::RetryAfterGC(Map::kSize, MAP_SPACE);
+    return Failure::RetryAfterGC(Map::kSize, owner_);
   }
 
   FreeListNode* node = FreeListNode::FromAddress(head_);
@@ -1478,9 +1459,8 @@ void OldSpace::PrepareForMarkCompact(bool will_compact) {
     accounting_stats_.FillWastedBytes(Waste());
   }
 
-  // Clear the free list and switch to linear allocation if we are in FREE_LIST
+  // Clear the free list before a full GC---it will be rebuilt afterward.
   free_list_.Reset();
-  if (allocation_mode_ == FREE_LIST) allocation_mode_ = LINEAR;
 }
 
 
@@ -1506,7 +1486,7 @@ void OldSpace::MCCommitRelocationInfo() {
   // Update fast allocation info.
   allocation_info_.top = mc_forwarding_info_.top;
   allocation_info_.limit = mc_forwarding_info_.limit;
-  ASSERT_PAGED_ALLOCATION_INFO(allocation_info_);
+  ASSERT(allocation_info_.VerifyPagedAllocation());
 
   // The space is compacted and we haven't yet built free lists or
   // wasted any space.
@@ -1540,112 +1520,54 @@ void OldSpace::MCCommitRelocationInfo() {
 }
 
 
-Object* OldSpace::AllocateRawInternal(int size_in_bytes,
-                                      AllocationInfo* alloc_info) {
-  ASSERT(HasBeenSetup());
-
-  if (allocation_mode_ == LINEAR_ONLY || allocation_mode_ == LINEAR) {
-    // Try linear allocation in the current page.
-    Address cur_top = alloc_info->top;
-    Address new_top = cur_top + size_in_bytes;
-    if (new_top <= alloc_info->limit) {
-      Object* obj = HeapObject::FromAddress(cur_top);
-      alloc_info->top = new_top;
-      ASSERT_PAGED_ALLOCATION_INFO(*alloc_info);
-
-      accounting_stats_.AllocateBytes(size_in_bytes);
-      ASSERT(Size() <= Capacity());
-      return obj;
-    }
-  } else {
-    // For now we should not try free list allocation during m-c relocation.
-    ASSERT(alloc_info == &allocation_info_);
-    int wasted_bytes;
-    Object* object = free_list_.Allocate(size_in_bytes, &wasted_bytes);
-    accounting_stats_.WasteBytes(wasted_bytes);
-    if (!object->IsFailure()) {
-      accounting_stats_.AllocateBytes(size_in_bytes);
-      return object;
-    }
+// Slow case for normal allocation.  Try in order: (1) allocate in the next
+// page in the space, (2) allocate off the space's free list, (3) expand the
+// space, (4) fail.
+HeapObject* OldSpace::SlowAllocateRaw(int size_in_bytes) {
+  // Linear allocation in this space has failed.  If there is another page
+  // in the space, move to that page and allocate there.  This allocation
+  // should succeed (size_in_bytes should not be greater than a page's
+  // object area size).
+  Page* current_page = TopPageOf(allocation_info_);
+  if (current_page->next_page()->is_valid()) {
+    return AllocateInNextPage(current_page, size_in_bytes);
   }
-  // Fast allocation failed.
-  return SlowAllocateRaw(size_in_bytes, alloc_info);
+
+  // There is no next page in this space.  Try free list allocation.
+  int wasted_bytes;
+  Object* result = free_list_.Allocate(size_in_bytes, &wasted_bytes);
+  accounting_stats_.WasteBytes(wasted_bytes);
+  if (!result->IsFailure()) {
+    accounting_stats_.AllocateBytes(size_in_bytes);
+    return HeapObject::cast(result);
+  }
+
+  // Free list allocation failed and there is no next page.  Try to expand
+  // the space and allocate in the new next page.
+  ASSERT(!current_page->next_page()->is_valid());
+  if (Expand(current_page)) {
+    return AllocateInNextPage(current_page, size_in_bytes);
+  }
+
+  // Finally, fail.
+  return NULL;
 }
 
 
-// Slow cases for AllocateRawInternal.  In linear allocation mode, try
-// to allocate in the next page in the space.  If there are no more
-// pages, switch to free-list allocation if permitted, otherwise try
-// to grow the space.  In free-list allocation mode, try to grow the
-// space and switch to linear allocation.
-Object* OldSpace::SlowAllocateRaw(int size_in_bytes,
-                                  AllocationInfo* alloc_info) {
-  if (allocation_mode_ == LINEAR_ONLY || allocation_mode_ == LINEAR) {
-    Page* top_page = TopPageOf(*alloc_info);
-    // Until we implement free-list allocation during global gc, we have two
-    // cases: one for normal allocation and one for m-c relocation allocation.
-    if (alloc_info == &allocation_info_) {  // Normal allocation.
-      int free_size = top_page->ObjectAreaEnd() - alloc_info->top;
-      // Add the extra space at the top of this page to the free list.
-      if (free_size > 0) {
-        int wasted_bytes = free_list_.Free(alloc_info->top, free_size);
-        accounting_stats_.WasteBytes(wasted_bytes);
-        alloc_info->top += free_size;
-        ASSERT_PAGED_ALLOCATION_INFO(*alloc_info);
-      }
-
-      // Move to the next page in this space if there is one; switch
-      // to free-list allocation, if we can; try to expand the space otherwise
-      if (top_page->next_page()->is_valid()) {
-        SetAllocationInfo(alloc_info, top_page->next_page());
-      } else if (allocation_mode_ == LINEAR) {
-        allocation_mode_ = FREE_LIST;
-      } else if (Expand(top_page)) {
-        ASSERT(top_page->next_page()->is_valid());
-        SetAllocationInfo(alloc_info, top_page->next_page());
-      } else {
-        return Failure::RetryAfterGC(size_in_bytes, identity());
-      }
-    } else {  // Allocation during m-c relocation.
-      // During m-c 'allocation' while computing forwarding addresses, we do
-      // not yet add blocks to the free list because they still contain live
-      // objects.  We also cache the m-c forwarding allocation pointer in the
-      // current page.
-
-      // If there are no more pages try to expand the space.  This can only
-      // happen when promoting objects from the new space.
-      if (!top_page->next_page()->is_valid()) {
-        if (!Expand(top_page)) {
-          return Failure::RetryAfterGC(size_in_bytes, identity());
-        }
-      }
-
-      // Move to the next page.
-      ASSERT(top_page->next_page()->is_valid());
-      top_page->mc_relocation_top = alloc_info->top;
-      SetAllocationInfo(alloc_info, top_page->next_page());
-    }
-  } else {  // Free-list allocation.
-    // We failed to allocate from the free list; try to expand the space and
-    // switch back to linear allocation.
-    ASSERT(alloc_info == &allocation_info_);
-    Page* top_page = TopPageOf(*alloc_info);
-    if (!top_page->next_page()->is_valid()) {
-      if (!Expand(top_page)) {
-        return Failure::RetryAfterGC(size_in_bytes, identity());
-      }
-    }
-
-    // We surely have more pages, move to the next page and switch to linear
-    // allocation.
-    ASSERT(top_page->next_page()->is_valid());
-    SetAllocationInfo(alloc_info, top_page->next_page());
-    ASSERT(allocation_mode_ == FREE_LIST);
-    allocation_mode_ = LINEAR;
+// Add the block at the top of the page to the space's free list, set the
+// allocation info to the next page (assumed to be one), and allocate
+// linearly there.
+HeapObject* OldSpace::AllocateInNextPage(Page* current_page,
+                                         int size_in_bytes) {
+  ASSERT(current_page->next_page()->is_valid());
+  // Add the block at the top of this page to the free list.
+  int free_size = current_page->ObjectAreaEnd() - allocation_info_.top;
+  if (free_size > 0) {
+    int wasted_bytes = free_list_.Free(allocation_info_.top, free_size);
+    accounting_stats_.WasteBytes(wasted_bytes);
   }
-
-  // Perform the allocation.
-  return AllocateRawInternal(size_in_bytes, alloc_info);
+  SetAllocationInfo(&allocation_info_, current_page->next_page());
+  return AllocateLinearly(&allocation_info_, size_in_bytes);
 }
 
 
@@ -1655,7 +1577,7 @@ Object* OldSpace::SlowAllocateRaw(int size_in_bytes,
 void OldSpace::Verify() {
   // The allocation pointer should be valid, and it should be in a page in the
   // space.
-  ASSERT_PAGED_ALLOCATION_INFO(allocation_info_);
+  ASSERT(allocation_info_.VerifyPagedAllocation());
   Page* top_page = Page::FromAllocationTop(allocation_info_.top);
   ASSERT(MemoryAllocator::IsPageInSpace(top_page, this));
 
@@ -2045,10 +1967,8 @@ void MapSpace::PrepareForMarkCompact(bool will_compact) {
     accounting_stats_.AllocateBytes(free_list_.available());
   }
 
-  // Clear the free list and switch to linear allocation if not already
-  // required.
+  // Clear the free list before a full GC---it will be rebuilt afterward.
   free_list_.Reset();
-  if (allocation_mode_ != LINEAR_ONLY) allocation_mode_ = LINEAR;
 }
 
 
@@ -2056,7 +1976,7 @@ void MapSpace::MCCommitRelocationInfo() {
   // Update fast allocation info.
   allocation_info_.top = mc_forwarding_info_.top;
   allocation_info_.limit = mc_forwarding_info_.limit;
-  ASSERT_PAGED_ALLOCATION_INFO(allocation_info_);
+  ASSERT(allocation_info_.VerifyPagedAllocation());
 
   // The space is compacted and we haven't yet wasted any space.
   ASSERT(Waste() == 0);
@@ -2079,95 +1999,51 @@ void MapSpace::MCCommitRelocationInfo() {
 }
 
 
-Object* MapSpace::AllocateRawInternal(int size_in_bytes,
-                                      AllocationInfo* alloc_info) {
-  ASSERT(HasBeenSetup());
-  // When doing free-list allocation, we implicitly assume that we always
-  // allocate a map-sized block.
-  ASSERT(size_in_bytes == Map::kSize);
+// Slow case for normal allocation. Try in order: (1) allocate in the next
+// page in the space, (2) allocate off the space's free list, (3) expand the
+// space, (4) fail.
+HeapObject* MapSpace::SlowAllocateRaw(int size_in_bytes) {
+  // Linear allocation in this space has failed.  If there is another page
+  // in the space, move to that page and allocate there.  This allocation
+  // should succeed.
+  Page* current_page = TopPageOf(allocation_info_);
+  if (current_page->next_page()->is_valid()) {
+    return AllocateInNextPage(current_page, size_in_bytes);
+  }
 
-  if (allocation_mode_ == LINEAR_ONLY || allocation_mode_ == LINEAR) {
-    // Try linear allocation in the current page.
-    Address cur_top = alloc_info->top;
-    Address new_top = cur_top + size_in_bytes;
-    if (new_top <= alloc_info->limit) {
-      Object* obj = HeapObject::FromAddress(cur_top);
-      alloc_info->top = new_top;
-      ASSERT_PAGED_ALLOCATION_INFO(*alloc_info);
-
+  // There is no next page in this space.  Try free list allocation.  The
+  // map space free list implicitly assumes that all free blocks are map
+  // sized.
+  if (size_in_bytes == Map::kSize) {
+    Object* result = free_list_.Allocate();
+    if (!result->IsFailure()) {
       accounting_stats_.AllocateBytes(size_in_bytes);
-      return obj;
-    }
-  } else {
-    // We should not do free list allocation during m-c compaction.
-    ASSERT(alloc_info == &allocation_info_);
-    Object* object = free_list_.Allocate();
-    if (!object->IsFailure()) {
-      accounting_stats_.AllocateBytes(size_in_bytes);
-      return object;
+      return HeapObject::cast(result);
     }
   }
-  // Fast allocation failed.
-  return SlowAllocateRaw(size_in_bytes, alloc_info);
+
+  // Free list allocation failed and there is no next page.  Try to expand
+  // the space and allocate in the new next page.
+  ASSERT(!current_page->next_page()->is_valid());
+  if (Expand(current_page)) {
+    return AllocateInNextPage(current_page, size_in_bytes);
+  }
+
+  // Finally, fail.
+  return NULL;
 }
 
 
-// Slow case for AllocateRawInternal.  In linear allocation mode, try to
-// allocate in the next page in the space.  If there are no more pages, switch
-// to free-list allocation.  In free-list allocation mode, try to grow the
-// space and switch to linear allocation.
-Object* MapSpace::SlowAllocateRaw(int size_in_bytes,
-                                  AllocationInfo* alloc_info) {
-  if (allocation_mode_ == LINEAR_ONLY || allocation_mode_ == LINEAR) {
-    Page* top_page = TopPageOf(*alloc_info);
-
-    // We do not do free-list allocation during compacting GCs.
-    if (alloc_info == &mc_forwarding_info_) {
-      // We expect to always have more pages, because the map space cannot
-      // grow during GC.  Move to the next page.
-      CHECK(top_page->next_page()->is_valid());
-      top_page->mc_relocation_top = alloc_info->top;
-      SetAllocationInfo(alloc_info, top_page->next_page());
-    } else {  // Normal allocation.
-      // Move to the next page in this space (counting the top-of-page block
-      // as waste) if there is one, otherwise switch to free-list allocation if
-      // permitted, otherwise try to expand the heap
-      if (top_page->next_page()->is_valid() ||
-          (allocation_mode_ == LINEAR_ONLY && Expand(top_page))) {
-        int free_size = top_page->ObjectAreaEnd() - alloc_info->top;
-        ASSERT(free_size == kPageExtra);
-        accounting_stats_.WasteBytes(free_size);
-        SetAllocationInfo(alloc_info, top_page->next_page());
-      } else if (allocation_mode_ == LINEAR) {
-        allocation_mode_ = FREE_LIST;
-      } else {
-        return Failure::RetryAfterGC(size_in_bytes, MAP_SPACE);
-      }
-    }
-  } else {  // Free-list allocation.
-    ASSERT(alloc_info == &allocation_info_);
-    // We failed to allocate from the free list (ie, it must be empty) so try
-    // to expand the space and switch back to linear allocation.
-    Page* top_page = TopPageOf(*alloc_info);
-    if (!top_page->next_page()->is_valid()) {
-      if (!Expand(top_page)) {
-        return Failure::RetryAfterGC(size_in_bytes, MAP_SPACE);
-      }
-    }
-
-    // We have more pages now so we can move to the next and switch to linear
-    // allocation.
-    ASSERT(top_page->next_page()->is_valid());
-    int free_size = top_page->ObjectAreaEnd() - alloc_info->top;
-    ASSERT(free_size == kPageExtra);
-    accounting_stats_.WasteBytes(free_size);
-    SetAllocationInfo(alloc_info, top_page->next_page());
-    ASSERT(allocation_mode_ == FREE_LIST);
-    allocation_mode_ = LINEAR;
-  }
-
-  // Perform the allocation.
-  return AllocateRawInternal(size_in_bytes, alloc_info);
+// Move to the next page (there is assumed to be one) and allocate there.
+// The top of page block is always wasted, because it is too small to hold a
+// map.
+HeapObject* MapSpace::AllocateInNextPage(Page* current_page,
+                                         int size_in_bytes) {
+  ASSERT(current_page->next_page()->is_valid());
+  ASSERT(current_page->ObjectAreaEnd() - allocation_info_.top == kPageExtra);
+  accounting_stats_.WasteBytes(kPageExtra);
+  SetAllocationInfo(&allocation_info_, current_page->next_page());
+  return AllocateLinearly(&allocation_info_, size_in_bytes);
 }
 
 
@@ -2177,7 +2053,7 @@ Object* MapSpace::SlowAllocateRaw(int size_in_bytes,
 void MapSpace::Verify() {
   // The allocation pointer should be valid, and it should be in a page in the
   // space.
-  ASSERT_PAGED_ALLOCATION_INFO(allocation_info_);
+  ASSERT(allocation_info_.VerifyPagedAllocation());
   Page* top_page = Page::FromAllocationTop(allocation_info_.top);
   ASSERT(MemoryAllocator::IsPageInSpace(top_page, this));
 
@@ -2315,9 +2191,12 @@ HeapObject* LargeObjectIterator::next() {
 // LargeObjectChunk
 
 LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
-                                        size_t* chunk_size) {
+                                        size_t* chunk_size,
+                                        bool executable) {
   size_t requested = ChunkSizeFor(size_in_bytes);
-  void* mem = MemoryAllocator::AllocateRawMemory(requested, chunk_size);
+  void* mem = MemoryAllocator::AllocateRawMemory(requested,
+                                                 chunk_size,
+                                                 executable);
   if (mem == NULL) return NULL;
   LOG(NewEvent("LargeObjectChunk", mem, *chunk_size));
   if (*chunk_size < requested) {
@@ -2339,8 +2218,9 @@ int LargeObjectChunk::ChunkSizeFor(int size_in_bytes) {
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
 
-LargeObjectSpace::LargeObjectSpace()
-    : first_chunk_(NULL),
+LargeObjectSpace::LargeObjectSpace(AllocationSpace id, bool executable)
+    : Space(id, executable),
+      first_chunk_(NULL),
       size_(0),
       page_count_(0) {}
 
@@ -2371,9 +2251,9 @@ Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
   ASSERT(0 < object_size && object_size <= requested_size);
   size_t chunk_size;
   LargeObjectChunk* chunk =
-      LargeObjectChunk::New(requested_size, &chunk_size);
+      LargeObjectChunk::New(requested_size, &chunk_size, executable());
   if (chunk == NULL) {
-    return Failure::RetryAfterGC(requested_size, LO_SPACE);
+    return Failure::RetryAfterGC(requested_size, identity());
   }
 
   size_ += chunk_size;
@@ -2483,8 +2363,9 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
   LargeObjectChunk* current = first_chunk_;
   while (current != NULL) {
     HeapObject* object = current->GetObject();
-    if (is_marked(object)) {
-      clear_mark(object);
+    if (object->IsMarked()) {
+      object->ClearMark();
+      MarkCompactCollector::tracer()->decrement_marked_count();
       previous = current;
       current = current->next();
     } else {

@@ -132,21 +132,6 @@ const int kBitsPerByteLog2 = 3;
 const int kBitsPerPointer = kPointerSize * kBitsPerByte;
 const int kBitsPerInt = kIntSize * kBitsPerByte;
 
-// Bits used by the mark-compact collector, PLEASE READ.
-//
-// The first word of a heap object is a map pointer. The last two bits are
-// tagged as '01' (kHeapObjectTag). We reuse the last two bits to mark an
-// object as live and/or overflowed:
-//   last bit = 0, marked as alive
-//   second bit = 1, overflowed
-// An object is only marked as overflowed when it is marked as live while
-// the marking stack is overflowed.
-
-const int kMarkingBit = 0;  // marking bit
-const int kMarkingMask = (1 << kMarkingBit);  // marking mask
-const int kOverflowBit = 1;  // overflow bit
-const int kOverflowMask = (1 << kOverflowBit);  // overflow mask
-
 
 // Zap-value: The value used for zapping dead objects. Should be a recognizable
 // illegal heap object pointer.
@@ -227,13 +212,14 @@ typedef bool (*WeakSlotCallback)(Object** pointer);
 // Miscellaneous
 
 // NOTE: SpaceIterator depends on AllocationSpace enumeration values being
-// consecutive and that NEW_SPACE is the first.
+// consecutive.
 enum AllocationSpace {
   NEW_SPACE,
   OLD_SPACE,
   CODE_SPACE,
   MAP_SPACE,
   LO_SPACE,
+  FIRST_SPACE = NEW_SPACE,
   LAST_SPACE = LO_SPACE
 };
 const int kSpaceTagSize = 3;

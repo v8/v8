@@ -108,18 +108,16 @@ char* OS::LocalTimezone(double time) {
 double OS::DaylightSavingsOffset(double time) {
   time_t tv = static_cast<time_t>(floor(time/msPerSecond));
   struct tm* t = localtime(&tv);
-  return t->tm_isdst ? 3600 * msPerSecond : 0;
+  return t->tm_isdst > 0 ? 3600 * msPerSecond : 0;
 }
 
 
 double OS::LocalTimeOffset() {
-  // 1199174400 = Jan 1 2008 (UTC).
-  // Random date where daylight savings time is not in effect.
-  static const int kJan1st2008 = 1199174400;
-  time_t tv = static_cast<time_t>(kJan1st2008);
+  time_t tv = time(NULL);
   struct tm* t = localtime(&tv);
-  ASSERT(t->tm_isdst <= 0);
-  return static_cast<double>(t->tm_gmtoff * msPerSecond);
+  // tm_gmtoff includes any daylight savings offset, so subtract it.
+  return static_cast<double>(t->tm_gmtoff * msPerSecond -
+                             (t->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
 
@@ -159,7 +157,13 @@ int OS::SNPrintF(char* str, size_t size, const char* format, ...) {
 
 
 int OS::VSNPrintF(char* str, size_t size, const char* format, va_list args) {
-  return vsnprintf(str, size, format, args);  // forward to linux.
+  int n = vsnprintf(str, size, format, args);  // forward to linux.
+  if (n < 0 || static_cast<size_t>(n) >= size) {
+    str[size - 1] = '\0';
+    return -1;
+  } else {
+    return n;
+  }
 }
 
 
@@ -192,10 +196,12 @@ size_t OS::AllocateAlignment() {
 }
 
 
-void* OS::Allocate(const size_t requested, size_t* allocated) {
+void* OS::Allocate(const size_t requested,
+                   size_t* allocated,
+                   bool executable) {
   const size_t msize = RoundUp(requested, getpagesize());
-  void* mbase = mmap(NULL, msize, PROT_READ | PROT_WRITE | PROT_EXEC,
-                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
+  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
   if (mbase == MAP_FAILED) {
     LOG(StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
@@ -221,6 +227,15 @@ void OS::Sleep(int milliseconds) {
 void OS::Abort() {
   // Redirect to std abort to signal abnormal program termination.
   abort();
+}
+
+
+void OS::DebugBreak() {
+#if defined (__arm__) || defined(__thumb__)
+  asm("bkpt 0");
+#else
+  asm("int $3");
+#endif
 }
 
 
@@ -351,8 +366,9 @@ bool VirtualMemory::IsReserved() {
 }
 
 
-bool VirtualMemory::Commit(void* address, size_t size) {
-  if (MAP_FAILED == mmap(address, size, PROT_READ | PROT_WRITE | PROT_EXEC,
+bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
+  int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
+  if (MAP_FAILED == mmap(address, size, prot,
                          MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
                          kMmapFd, kMmapFdOffset)) {
     return false;
@@ -516,38 +532,22 @@ class LinuxSemaphore : public Semaphore {
   explicit LinuxSemaphore(int count) {  sem_init(&sem_, 0, count); }
   virtual ~LinuxSemaphore() { sem_destroy(&sem_); }
 
-  virtual void Wait() { sem_wait(&sem_); }
-
+  virtual void Wait();
   virtual void Signal() { sem_post(&sem_); }
-
  private:
   sem_t sem_;
 };
 
+void LinuxSemaphore::Wait() {
+  while (true) {
+    int result = sem_wait(&sem_);
+    if (result == 0) return;  // Successfully got semaphore.
+    CHECK(result == -1 && errno == EINTR);  // Signal caused spurious wakeup.
+  }
+}
 
 Semaphore* OS::CreateSemaphore(int count) {
   return new LinuxSemaphore(count);
-}
-
-// TODO(1233584): Implement Linux support.
-Select::Select(int len, Semaphore** sems) {
-  FATAL("Not implemented");
-}
-
-
-Select::~Select() {
-  FATAL("Not implemented");
-}
-
-
-int Select::WaitSingle() {
-  FATAL("Not implemented");
-  return 0;
-}
-
-
-void Select::WaitAll() {
-  FATAL("Not implemented");
 }
 
 #ifdef ENABLE_LOGGING_AND_PROFILING

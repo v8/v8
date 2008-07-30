@@ -2090,6 +2090,11 @@ bool v8::V8::Initialize() {
 }
 
 
+const char* v8::V8::GetVersion() {
+  return "0.2.0 (129146)";
+}
+
+
 Persistent<Context> v8::Context::New(v8::ExtensionConfiguration* extensions,
                                      v8::Handle<ObjectTemplate> global_template,
                                      v8::Handle<Value> global_object) {
@@ -2470,6 +2475,12 @@ void V8::SetFailedAccessCheckCallbackFunction(
 void V8::AddObjectToGroup(void* group_id, Persistent<Object> obj) {
   if (IsDeadCheck("v8::V8::AddObjectToGroup()")) return;
   i::GlobalHandles::AddToGroup(group_id, reinterpret_cast<i::Object**>(*obj));
+}
+
+
+int V8::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
+  if (IsDeadCheck("v8::V8::AdjustAmountOfExternalAllocatedMemory()")) return 0;
+  return i::Heap::AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
 }
 
 

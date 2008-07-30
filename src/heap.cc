@@ -91,6 +91,9 @@ LargeObjectSpace* Heap::lo_space_ = NULL;
 int Heap::promoted_space_limit_ = 0;
 int Heap::old_gen_exhausted_ = false;
 
+int Heap::amount_of_external_allocated_memory_ = 0;
+int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
+
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
 int Heap::semispace_size_  = 1*MB;
@@ -109,10 +112,11 @@ int Heap::new_space_growth_limit_ = 8;
 int Heap::scavenge_count_ = 0;
 Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 
-#ifdef DEBUG
-bool Heap::allocation_allowed_ = true;
 int Heap::mc_count_ = 0;
 int Heap::gc_count_ = 0;
+
+#ifdef DEBUG
+bool Heap::allocation_allowed_ = true;
 
 int Heap::allocation_timeout_ = 0;
 bool Heap::disallow_allocation_failure_ = false;
@@ -156,7 +160,8 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   }
 
   // Is enough data promoted to justify a global GC?
-  if (PromotedSpaceSize() > promoted_space_limit_) {
+  if (PromotedSpaceSize() + PromotedExternalMemorySize()
+      > promoted_space_limit_) {
     Counters::gc_compactor_caused_by_promoted_data.Increment();
     return MARK_COMPACTOR;
   }
@@ -239,10 +244,10 @@ void Heap::ReportStatisticsAfterGC() {
 
 void Heap::GarbageCollectionPrologue() {
   RegExpImpl::NewSpaceCollectionPrologue();
+  gc_count_++;
 #ifdef DEBUG
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
   allow_allocation(false);
-  gc_count_++;
 
   if (FLAG_verify_heap) {
     Verify();
@@ -298,57 +303,6 @@ void Heap::GarbageCollectionEpilogue() {
 }
 
 
-// GCTracer collects and prints ONE line after each garbage collector
-// invocation IFF --trace_gc is used.
-
-class GCTracer BASE_EMBEDDED {
- public:
-  GCTracer() : start_time_(0.0), start_size_(0.0) {
-    if (!FLAG_trace_gc) return;
-    start_time_ = OS::TimeCurrentMillis();
-    start_size_ = SizeOfHeapObjects();
-  }
-
-  ~GCTracer() {
-    if (!FLAG_trace_gc) return;
-    // Printf ONE line iff flag is set.
-    PrintF("%s %.1f -> %.1f MB, %d ms.\n",
-           CollectorString(),
-           start_size_, SizeOfHeapObjects(),
-           static_cast<int>(OS::TimeCurrentMillis() - start_time_));
-  }
-
-  // Sets the collector.
-  void set_collector(GarbageCollector collector) {
-    collector_ = collector;
-  }
-
- private:
-
-  // Returns a string matching the collector.
-  const char* CollectorString() {
-    switch (collector_) {
-      case SCAVENGER:
-        return "Scavenge";
-      case MARK_COMPACTOR:
-        return MarkCompactCollector::HasCompacted() ? "Mark-compact"
-                                                    : "Mark-sweep";
-    }
-    return "Unknown GC";
-  }
-
-  // Returns size of object in heap (in MB).
-  double SizeOfHeapObjects() {
-    return (static_cast<double>(Heap::SizeOfObjects())) / MB;
-  }
-
-  double start_time_;  // Timestamp set in the constructor.
-  double start_size_;  // Size of objects in heap set in constructor.
-  GarbageCollector collector_;  // Type of collector.
-};
-
-
-
 bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
   // The VM is in the GC state until exiting this function.
   VMState state(GC);
@@ -364,15 +318,19 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
 
   { GCTracer tracer;
     GarbageCollectionPrologue();
+    // The GC count was incremented in the prologue.  Tell the tracer about
+    // it.
+    tracer.set_gc_count(gc_count_);
 
     GarbageCollector collector = SelectGarbageCollector(space);
+    // Tell the tracer which collector we've selected.
     tracer.set_collector(collector);
 
     StatsRate* rate = (collector == SCAVENGER)
         ? &Counters::gc_scavenger
         : &Counters::gc_compactor;
     rate->Start();
-    PerformGarbageCollection(space, collector);
+    PerformGarbageCollection(space, collector, &tracer);
     rate->Stop();
 
     GarbageCollectionEpilogue();
@@ -399,15 +357,22 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
 }
 
 
+void Heap::PerformScavenge() {
+  GCTracer tracer;
+  PerformGarbageCollection(NEW_SPACE, SCAVENGER, &tracer);
+}
+
+
 void Heap::PerformGarbageCollection(AllocationSpace space,
-                                    GarbageCollector collector) {
+                                    GarbageCollector collector,
+                                    GCTracer* tracer) {
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);
     global_gc_prologue_callback_();
   }
 
   if (collector == MARK_COMPACTOR) {
-    MarkCompact();
+    MarkCompact(tracer);
 
     int promoted_space_size = PromotedSpaceSize();
     promoted_space_limit_ =
@@ -434,6 +399,12 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   // Process weak handles post gc.
   GlobalHandles::PostGarbageCollectionProcessing();
 
+  if (collector == MARK_COMPACTOR) {
+    // Register the amount of external allocated memory.
+    amount_of_external_allocated_memory_at_last_global_gc_ =
+        amount_of_external_allocated_memory_;
+  }
+
   if (collector == MARK_COMPACTOR && global_gc_epilogue_callback_) {
     ASSERT(!allocation_allowed_);
     global_gc_epilogue_callback_();
@@ -441,16 +412,15 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 }
 
 
-void Heap::MarkCompact() {
+void Heap::MarkCompact(GCTracer* tracer) {
   gc_state_ = MARK_COMPACT;
-#ifdef DEBUG
   mc_count_++;
-#endif
+  tracer->set_full_gc_count(mc_count_);
   LOG(ResourceEvent("markcompact", "begin"));
 
   MarkCompactPrologue();
 
-  MarkCompactCollector::CollectGarbage();
+  MarkCompactCollector::CollectGarbage(tracer);
 
   MarkCompactEpilogue();
 
@@ -482,6 +452,7 @@ Object* Heap::FindCodeObject(Address a) {
   if (obj->IsFailure()) {
     obj = lo_space_->FindObject(a);
   }
+  ASSERT(!obj->IsFailure());
   return obj;
 }
 
@@ -777,9 +748,8 @@ HeapObject* Heap::MigrateObject(HeapObject** source_p,
     *dst++ = *src++;
   } while (counter-- > 0);
 
-  // Set forwarding pointers, cannot use Map::cast because it asserts
-  // the value type to be Map.
-  (*source_p)->set_map(reinterpret_cast<Map*>(target));
+  // Set the forwarding address.
+  (*source_p)->set_map_word(MapWord::FromForwardingAddress(target));
 
   // Update NewSpace stats if necessary.
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
@@ -795,24 +765,23 @@ void Heap::CopyObject(HeapObject** p) {
 
   HeapObject* object = *p;
 
-  // We use the first word (where the map pointer usually is) of a
-  // HeapObject to record the forwarding pointer.  A forwarding pointer can
+  // We use the first word (where the map pointer usually is) of a heap
+  // object to record the forwarding pointer.  A forwarding pointer can
   // point to the old space, the code space, or the to space of the new
   // generation.
-  HeapObject* first_word = object->map();
+  MapWord first_word = object->map_word();
 
-  // If the first word (where the map pointer is) is not a map pointer, the
-  // object has already been copied.  We do not use first_word->IsMap()
-  // because we know that first_word always has the heap object tag.
-  if (first_word->map()->instance_type() != MAP_TYPE) {
-    *p = first_word;
+  // If the first word is a forwarding address, the object has already been
+  // copied.
+  if (first_word.IsForwardingAddress()) {
+    *p = first_word.ToForwardingAddress();
     return;
   }
 
   // Optimization: Bypass ConsString objects where the right-hand side is
   // Heap::empty_string().  We do not use object->IsConsString because we
   // already know that object has the heap object tag.
-  InstanceType type = Map::cast(first_word)->instance_type();
+  InstanceType type = first_word.ToMap()->instance_type();
   if (type < FIRST_NONSTRING_TYPE &&
       String::cast(object)->representation_tag() == kConsStringTag &&
       ConsString::cast(object)->second() == Heap::empty_string()) {
@@ -821,35 +790,29 @@ void Heap::CopyObject(HeapObject** p) {
     // After patching *p we have to repeat the checks that object is in the
     // active semispace of the young generation and not already copied.
     if (!InFromSpace(object)) return;
-    first_word = object->map();
-    if (first_word->map()->instance_type() != MAP_TYPE) {
-      *p = first_word;
+    first_word = object->map_word();
+    if (first_word.IsForwardingAddress()) {
+      *p = first_word.ToForwardingAddress();
       return;
     }
-    type = Map::cast(first_word)->instance_type();
+    type = first_word.ToMap()->instance_type();
   }
 
-  int object_size = object->SizeFromMap(Map::cast(first_word));
+  int object_size = object->SizeFromMap(first_word.ToMap());
   Object* result;
   // If the object should be promoted, we try to copy it to old space.
   if (ShouldBePromoted(object->address(), object_size)) {
-    // Heap numbers and sequential strings are promoted to code space, all
-    // other object types are promoted to old space.  We do not use
-    // object->IsHeapNumber() and object->IsSeqString() because we already
-    // know that object has the heap object tag.
-    bool has_pointers =
-        type != HEAP_NUMBER_TYPE &&
-        (type >= FIRST_NONSTRING_TYPE ||
-         String::cast(object)->representation_tag() != kSeqStringTag);
-    if (has_pointers) {
+    AllocationSpace target_space = Heap::TargetSpace(object);
+    if (target_space == OLD_SPACE) {
       result = old_space_->AllocateRaw(object_size);
     } else {
+      ASSERT(target_space == CODE_SPACE);
       result = code_space_->AllocateRaw(object_size);
     }
 
     if (!result->IsFailure()) {
       *p = MigrateObject(p, HeapObject::cast(result), object_size);
-      if (has_pointers) {
+      if (target_space == OLD_SPACE) {
         // Record the object's address at the top of the to space, to allow
         // it to be swept by the scavenger.
         promoted_top -= kPointerSize;
@@ -2469,11 +2432,24 @@ bool Heap::ConfigureHeap(int semispace_size, int old_gen_size) {
 }
 
 
+bool Heap::ConfigureHeapDefault() {
+  return ConfigureHeap(FLAG_new_space_size, FLAG_old_space_size);
+}
+
+
 int Heap::PromotedSpaceSize() {
   return old_space_->Size()
       + code_space_->Size()
       + map_space_->Size()
       + lo_space_->Size();
+}
+
+
+int Heap::PromotedExternalMemorySize() {
+  if (amount_of_external_allocated_memory_
+      <= amount_of_external_allocated_memory_at_last_global_gc_) return 0;
+  return amount_of_external_allocated_memory_
+      - amount_of_external_allocated_memory_at_last_global_gc_;
 }
 
 
@@ -2487,7 +2463,7 @@ bool Heap::Setup(bool create_heap_objects) {
   // size) and old-space-size if set or the initial values of semispace_size_
   // and old_generation_size_ otherwise.
   if (!heap_configured) {
-    if (!ConfigureHeap(FLAG_new_space_size, FLAG_old_space_size)) return false;
+    if (!ConfigureHeapDefault()) return false;
   }
 
   // Setup memory allocator and allocate an initial chunk of memory.  The
@@ -2509,31 +2485,35 @@ bool Heap::Setup(bool create_heap_objects) {
   int old_space_size = new_space_start - old_space_start;
   int code_space_size = young_generation_size_ - old_space_size;
 
-  // Initialize new space.
-  new_space_ = new NewSpace(initial_semispace_size_, semispace_size_);
+  // Initialize new space. It will not contain code.
+  new_space_ = new NewSpace(initial_semispace_size_,
+                            semispace_size_,
+                            NEW_SPACE,
+                            false);
   if (new_space_ == NULL) return false;
   if (!new_space_->Setup(new_space_start, young_generation_size_)) return false;
 
   // Initialize old space, set the maximum capacity to the old generation
-  // size.
-  old_space_ = new OldSpace(old_generation_size_, OLD_SPACE);
+  // size. It will not contain code.
+  old_space_ = new OldSpace(old_generation_size_, OLD_SPACE, false);
   if (old_space_ == NULL) return false;
   if (!old_space_->Setup(old_space_start, old_space_size)) return false;
 
   // Initialize the code space, set its maximum capacity to the old
-  // generation size.
-  code_space_ = new OldSpace(old_generation_size_, CODE_SPACE);
+  // generation size. It needs executable memory.
+  code_space_ = new OldSpace(old_generation_size_, CODE_SPACE, true);
   if (code_space_ == NULL) return false;
   if (!code_space_->Setup(code_space_start, code_space_size)) return false;
 
   // Initialize map space.
-  map_space_ = new MapSpace(kMaxMapSpaceSize);
+  map_space_ = new MapSpace(kMaxMapSpaceSize, MAP_SPACE);
   if (map_space_ == NULL) return false;
   // Setting up a paged space without giving it a virtual memory range big
   // enough to hold at least a page will cause it to allocate.
   if (!map_space_->Setup(NULL, 0)) return false;
 
-  lo_space_ = new LargeObjectSpace();
+  // The large object space may contain code, so it needs executable memory.
+  lo_space_ = new LargeObjectSpace(LO_SPACE, true);
   if (lo_space_ == NULL) return false;
   if (!lo_space_->Setup()) return false;
 
@@ -2615,6 +2595,66 @@ void Heap::PrintHandles() {
 }
 
 #endif
+
+
+SpaceIterator::SpaceIterator() : current_space_(FIRST_SPACE), iterator_(NULL) {
+}
+
+
+SpaceIterator::~SpaceIterator() {
+  // Delete active iterator if any.
+  delete iterator_;
+}
+
+
+bool SpaceIterator::has_next() {
+  // Iterate until no more spaces.
+  return current_space_ != LAST_SPACE;
+}
+
+
+ObjectIterator* SpaceIterator::next() {
+  if (iterator_ != NULL) {
+    delete iterator_;
+    iterator_ = NULL;
+    // Move to the next space
+    current_space_++;
+    if (current_space_ > LAST_SPACE) {
+      return NULL;
+    }
+  }
+
+  // Return iterator for the new current space.
+  return CreateIterator();
+}
+
+
+// Create an iterator for the space to iterate.
+ObjectIterator* SpaceIterator::CreateIterator() {
+  ASSERT(iterator_ == NULL);
+
+  switch (current_space_) {
+    case NEW_SPACE:
+      iterator_ = new SemiSpaceIterator(Heap::new_space());
+      break;
+    case OLD_SPACE:
+      iterator_ = new HeapObjectIterator(Heap::old_space());
+      break;
+    case CODE_SPACE:
+      iterator_ = new HeapObjectIterator(Heap::code_space());
+      break;
+    case MAP_SPACE:
+      iterator_ = new HeapObjectIterator(Heap::map_space());
+      break;
+    case LO_SPACE:
+      iterator_ = new LargeObjectIterator(Heap::lo_space());
+      break;
+  }
+
+  // Return the newly allocated iterator;
+  ASSERT(iterator_ != NULL);
+  return iterator_;
+}
 
 
 HeapIterator::HeapIterator() {
@@ -2905,6 +2945,45 @@ void Heap::TracePathToGlobal() {
   IterateRoots(&root_visitor);
 }
 #endif
+
+
+GCTracer::GCTracer()
+    : start_time_(0.0),
+      start_size_(0.0),
+      gc_count_(0),
+      full_gc_count_(0),
+      is_compacting_(false),
+      marked_count_(0) {
+  // These two fields reflect the state of the previous full collection.
+  // Set them before they are changed by the collector.
+  previous_has_compacted_ = MarkCompactCollector::HasCompacted();
+  previous_marked_count_ = MarkCompactCollector::previous_marked_count();
+  if (!FLAG_trace_gc) return;
+  start_time_ = OS::TimeCurrentMillis();
+  start_size_ = SizeOfHeapObjects();
+}
+
+
+GCTracer::~GCTracer() {
+  if (!FLAG_trace_gc) return;
+  // Printf ONE line iff flag is set.
+  PrintF("%s %.1f -> %.1f MB, %d ms.\n",
+         CollectorString(),
+         start_size_, SizeOfHeapObjects(),
+         static_cast<int>(OS::TimeCurrentMillis() - start_time_));
+}
+
+
+const char* GCTracer::CollectorString() {
+  switch (collector_) {
+    case SCAVENGER:
+      return "Scavenge";
+    case MARK_COMPACTOR:
+      return MarkCompactCollector::HasCompacted() ? "Mark-compact"
+                                                  : "Mark-sweep";
+  }
+  return "Unknown GC";
+}
 
 
 } }  // namespace v8::internal

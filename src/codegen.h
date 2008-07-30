@@ -169,6 +169,9 @@ class CodeGenerator: public Visitor {
   virtual void GenerateValueOf(ZoneList<Expression*>* args) = 0;
   virtual void GenerateSetValueOf(ZoneList<Expression*>* args) = 0;
 
+  // Fast support for charCodeAt(n).
+  virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args) = 0;
+
  private:
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;
@@ -195,25 +198,6 @@ class RuntimeStub : public CodeStub {
   void Print() {
     PrintF("RuntimeStub (id %s)\n", Runtime::FunctionForId(id_)->name);
   }
-#endif
-};
-
-
-class GenericOpStub : public CodeStub {
- public:
-  explicit GenericOpStub(Token::Value op) : op_(op) { }
-
- private:
-  Token::Value op_;
-
-  Major MajorKey() { return GenericOp; }
-  int MinorKey() { return static_cast<int>(op_); }
-  void Generate(MacroAssembler* masm);
-
-  const char* GetName();
-
-#ifdef DEBUG
-  void Print() { PrintF("GenericOpStub (token %s)\n", Token::String(op_)); }
 #endif
 };
 

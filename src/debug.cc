@@ -37,6 +37,7 @@
 #include "global-handles.h"
 #include "natives.h"
 #include "stub-cache.h"
+#include "log.h"
 
 namespace v8 { namespace internal {
 
@@ -44,6 +45,7 @@ DEFINE_bool(remote_debugging, false, "enable remote debugging");
 DEFINE_int(debug_port, 5858, "port for remote debugging");
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response");
 DECLARE_bool(allow_natives_syntax);
+DECLARE_bool(log_debugger);
 
 
 static void PrintLn(v8::Local<v8::Value> value) {
@@ -56,35 +58,6 @@ static void PrintLn(v8::Local<v8::Value> value) {
   s->WriteAscii(data);
   PrintF("%s\n", data);
   DeleteArray(data);
-}
-
-
-PendingRequest::PendingRequest(const uint16_t* json_request, int length)
-    : json_request_(Vector<uint16_t>::empty()),
-      next_(NULL) {
-  // Copy the request.
-  json_request_ =
-      Vector<uint16_t>(const_cast<uint16_t *>(json_request), length).Clone();
-}
-
-
-PendingRequest::~PendingRequest() {
-  // Deallocate what was allocated.
-  if (!json_request_.is_empty()) {
-    json_request_.Dispose();
-  }
-}
-
-Handle<String> PendingRequest::request() {
-  // Create a string in the heap from the pending request.
-  if (!json_request_.is_empty()) {
-    return Factory::NewStringFromTwoByte(
-        Vector<const uint16_t>(
-            reinterpret_cast<const uint16_t*>(json_request_.start()),
-            json_request_.length()));
-  } else {
-    return Handle<String>();
-  }
 }
 
 
@@ -1016,7 +989,7 @@ bool Debug::StepNextContinue(BreakLocationIterator* break_location_iterator,
 // object.
 bool Debug::IsDebugBreak(Address addr) {
   Code* code = GetCodeTarget(addr);
-  return code->state() == DEBUG_BREAK;
+  return code->ic_state() == DEBUG_BREAK;
 }
 
 
@@ -1326,80 +1299,6 @@ DebugMessageThread* Debugger::message_thread_ = NULL;
 v8::DebugMessageHandler Debugger::debug_message_handler_ = NULL;
 void* Debugger::debug_message_handler_data_ = NULL;
 
-Mutex* Debugger::pending_requests_access_ = OS::CreateMutex();
-PendingRequest* Debugger::pending_requests_head_ = NULL;
-PendingRequest* Debugger::pending_requests_tail_ = NULL;
-
-
-void Debugger::DebugRequest(const uint16_t* json_request, int length) {
-  // Create a pending request.
-  PendingRequest* pending_request = new PendingRequest(json_request, length);
-
-  // Add the pending request to list.
-  Guard with(pending_requests_access_);
-  if (pending_requests_head_ == NULL) {
-    ASSERT(pending_requests_tail_ == NULL);
-    pending_requests_head_ = pending_request;
-    pending_requests_tail_ = pending_request;
-  } else {
-    ASSERT(pending_requests_tail_ != NULL);
-    pending_requests_tail_->set_next(pending_request);
-    pending_requests_tail_ = pending_request;
-  }
-
-  // Set the pending request flag to force the VM to stop soon.
-  v8::Debug::DebugBreak();
-}
-
-
-bool Debugger::ProcessPendingRequests() {
-  HandleScope scope;
-
-  // Lock access to pending requests list while processing them. Typically
-  // there will be either zero or one pending request.
-  Guard with(pending_requests_access_);
-
-  EnterDebuggerContext enter;
-
-  // Get the current execution state.
-  bool caught_exception;
-  Handle<Object> exec_state = MakeExecutionState(&caught_exception);
-  if (caught_exception) {
-    return false;
-  }
-
-  // Process the list of pending requests.
-  bool plain_break = false;
-  PendingRequest* pending_request = pending_requests_head_;
-  if (pending_request == NULL) {
-    // If no pending commands plain break issued some other way (e.g. debugger
-    // statement).
-    plain_break = true;
-  }
-  while (pending_request != NULL) {
-    Handle<String> response = ProcessRequest(exec_state,
-                                             pending_request->request(),
-                                             false);
-    OnPendingRequestProcessed(response);
-
-    // Check whether one of the commands is a plain break request.
-    if (!plain_break) {
-      plain_break = IsPlainBreakRequest(pending_request->request());
-    }
-
-    // Move to the next item in the list.
-    PendingRequest* next = pending_request->next();
-    delete pending_request;
-    pending_request = next;
-  }
-
-  // List processed.
-  pending_requests_head_ = NULL;
-  pending_requests_tail_ = NULL;
-
-  return plain_break;
-}
-
 
 Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
                                       int argc, Object*** argv,
@@ -1536,7 +1435,6 @@ bool Debugger::IsPlainBreakRequest(Handle<Object> request) {
   if (caught_exception) {
     return false;
   }
-
   return *result == Heap::true_value();
 }
 
@@ -1684,7 +1582,6 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
   if (caught_exception) {
     return;
   }
-
   // Bail out based on state or if there is no listener for this event
   if (Debug::InDebugger()) return;
   if (!Debugger::EventActive(v8::AfterCompile)) return;
@@ -1697,7 +1594,6 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
   if (caught_exception) {
     return;
   }
-
   // Process debug event
   ProcessDebugEvent(v8::AfterCompile, event_data);
 }
@@ -1724,15 +1620,8 @@ void Debugger::OnNewFunction(Handle<JSFunction> function) {
   if (caught_exception) {
     return;
   }
-
   // Process debug event.
   ProcessDebugEvent(v8::NewFunction, event_data);
-}
-
-
-void Debugger::OnPendingRequestProcessed(Handle<Object> event_data) {
-  // Process debug event.
-  ProcessDebugEvent(v8::PendingRequestProcessed, event_data);
 }
 
 
@@ -1744,12 +1633,10 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
   if (caught_exception) {
     return;
   }
-
   // First notify the builtin debugger.
   if (message_thread_ != NULL) {
     message_thread_->DebugEvent(event, exec_state, event_data);
   }
-
   // Notify registered debug event listeners. The list can contain both C and
   // JavaScript functions.
   v8::NeanderArray listeners(Factory::debug_event_listeners());
@@ -1799,6 +1686,10 @@ void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
 }
 
 
+// Posts an output message from the debugger to the debug_message_handler
+// callback.  This callback is part of the public API.  Messages are
+// kept internally as Vector<uint16_t> strings, which are allocated in various
+// places and deallocated by the calling function sometime after this call.
 void Debugger::SendMessage(Vector< uint16_t> message) {
   if (debug_message_handler_ != NULL) {
     debug_message_handler_(message.start(), message.length(),
@@ -1823,7 +1714,6 @@ void Debugger::UpdateActiveDebugger() {
   for (int i = 0; i < length && !active_listener; i++) {
     active_listener = !listeners.get(i)->IsUndefined();
   }
-
   set_debugger_active((Debugger::message_thread_ != NULL &&
                        Debugger::debug_message_handler_ != NULL) ||
                        active_listener);
@@ -1834,22 +1724,29 @@ void Debugger::UpdateActiveDebugger() {
 
 DebugMessageThread::DebugMessageThread()
     : host_running_(true),
-      event_json_(Vector<uint16_t>::empty()),
-      command_(Vector<uint16_t>::empty()),
-      result_(Vector<uint16_t>::empty()) {
+      command_queue_(kQueueInitialSize),
+      message_queue_(kQueueInitialSize) {
   command_received_ = OS::CreateSemaphore(0);
-  debug_event_ = OS::CreateSemaphore(0);
-  debug_command_ = OS::CreateSemaphore(0);
-  debug_result_ = OS::CreateSemaphore(0);
+  message_received_ = OS::CreateSemaphore(0);
 }
 
-
+// Does not free resources held by DebugMessageThread
+// because this cannot be done thread-safely.
 DebugMessageThread::~DebugMessageThread() {
 }
 
 
-void DebugMessageThread::SetEventJSON(Vector<uint16_t> event_json) {
-  SetVector(&event_json_, event_json);
+// Puts an event coming from V8 on the queue.  Creates
+// a copy of the JSON formatted event string managed by the V8.
+// Called by the V8 thread.
+// The new copy of the event string is destroyed in Run().
+void DebugMessageThread::SendMessage(Vector<uint16_t> message) {
+  Vector<uint16_t> message_copy = message.Clone();
+  if (FLAG_log_debugger) {
+    Logger::StringEvent("Put message on event message_queue.", "");
+  }
+  message_queue_.Put(message_copy);
+  message_received_->Signal();
 }
 
 
@@ -1862,60 +1759,24 @@ void DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
   v8::Local<v8::Function> fun =
       v8::Function::Cast(*api_event_data->Get(fun_name));
   v8::TryCatch try_catch;
-  v8::Local<v8::Value> json_result = *fun->Call(api_event_data, 0, NULL);
-  v8::Local<v8::String> json_result_string;
+  v8::Local<v8::Value> json_event = *fun->Call(api_event_data, 0, NULL);
+  v8::Local<v8::String> json_event_string;
   if (!try_catch.HasCaught()) {
-    if (!json_result->IsUndefined()) {
-      json_result_string = json_result->ToString();
+    if (!json_event->IsUndefined()) {
+      json_event_string = json_event->ToString();
       if (FLAG_trace_debug_json) {
-        PrintLn(json_result_string);
+        PrintLn(json_event_string);
       }
-      v8::String::Value val(json_result_string);
+      v8::String::Value val(json_event_string);
       Vector<uint16_t> str(reinterpret_cast<uint16_t*>(*val),
-                          json_result_string->Length());
-      SetEventJSON(str);
+                          json_event_string->Length());
+      SendMessage(str);
     } else {
-      SetEventJSON(Vector<uint16_t>::empty());
+      SendMessage(Vector<uint16_t>::empty());
     }
   } else {
     PrintLn(try_catch.Exception());
-    SetEventJSON(Vector<uint16_t>::empty());
-  }
-}
-
-
-void DebugMessageThread::SetCommand(Vector<uint16_t> command) {
-  SetVector(&command_, command);
-}
-
-
-void DebugMessageThread::SetResult(const char* result) {
-  int len = strlen(result);
-  uint16_t* tmp = NewArray<uint16_t>(len);
-  for (int i = 0; i < len; i++) {
-    tmp[i] = result[i];
-  }
-  SetResult(Vector<uint16_t>(tmp, len));
-  DeleteArray(tmp);
-}
-
-
-void DebugMessageThread::SetResult(Vector<uint16_t> result) {
-  SetVector(&result_, result);
-}
-
-
-void DebugMessageThread::SetVector(Vector<uint16_t>* vector,
-                                   Vector<uint16_t> value) {
-  // Deallocate current result.
-  if (!vector->is_empty()) {
-    vector->Dispose();
-    *vector = Vector<uint16_t>::empty();
-  }
-
-  // Allocate a copy of the new result.
-  if (!value.is_empty()) {
-    *vector = value.Clone();
+    SendMessage(Vector<uint16_t>::empty());
   }
 }
 
@@ -1935,31 +1796,17 @@ bool DebugMessageThread::TwoByteEqualsAscii(Vector<uint16_t> two_byte,
 }
 
 
-void DebugMessageThread::CommandResult(Vector<uint16_t> result) {
-  SetResult(result);
-  debug_result_->Signal();
-}
-
-
 void DebugMessageThread::Run() {
-  // Process commands and debug events.
+  // Sends debug events to an installed debugger message callback.
   while (true) {
-    // Set the current command prompt
-    Semaphore* sems[2];
-    sems[0] = command_received_;
-    sems[1] = debug_event_;
-    int signal = Select(2, sems).WaitSingle();
-    if (signal == 0) {
-      if (command_.length() > 0) {
-        HandleCommand();
-        if (result_.length() > 0) {
-          Debugger::SendMessage(result_);
-          SetResult(Vector<uint16_t>::empty());
-        }
-      }
-    } else {
-      // Send the the current event as JSON to the debugger.
-      Debugger::SendMessage(event_json_);
+    // Wait and Get are paired so that semaphore count equals queue length.
+    message_received_->Wait();
+    if (FLAG_log_debugger) {
+      Logger::StringEvent("Get message from event message_queue.", "");
+    }
+    Vector<uint16_t> message = message_queue_.Get();
+    if (message.length() > 0) {
+      Debugger::SendMessage(message);
     }
   }
 }
@@ -1987,18 +1834,6 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
       break;
     case v8::NewFunction:
       break;
-    case v8::PendingRequestProcessed: {
-      // For a processed pending request the event_data is the JSON response
-      // string.
-      v8::Handle<v8::String> str =
-          v8::Handle<v8::String>(
-              Utils::ToLocal(Handle<String>::cast(event_data)));
-      v8::String::Value val(str);
-      SetEventJSON(Vector<uint16_t>(reinterpret_cast<uint16_t*>(*val),
-                   str->Length()));
-      debug_event_->Signal();
-      break;
-    }
     default:
       UNREACHABLE();
   }
@@ -2021,15 +1856,77 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     return;
   }
 
-  // Notify the debug session thread that a debug event has occoured.
-  host_running_ = false;
-  event_ = event;
-  SetEventJSONFromEvent(event_data);
-  debug_event_->Signal();
+  // First process all pending commands in the queue. During this processing
+  // each message is checked to see if it is a plain break command. If there is
+  // a plain break request in the queue or if the queue is empty a break event
+  // is sent to the debugger.
+  bool plain_break = false;
+  if (command_queue_.IsEmpty()) {
+    plain_break = true;
+  } else {
+    // Drain queue.
+    while (!command_queue_.IsEmpty()) {
+      command_received_->Wait();
+      if (FLAG_log_debugger) {
+        Logger::StringEvent(
+            "Get command from command_queue, in drain queue loop.",
+            "");
+      }
+      Vector<uint16_t> command = command_queue_.Get();
+      // Support for sending a break command as just "break" instead of an
+      // actual JSON break command.
+      // If break is made into a separate API call, function
+      // TwoByteEqualsASCII can be removed.
+      if (TwoByteEqualsAscii(command, "break")) {
+        plain_break = true;
+        continue;
+      }
 
-  // Wait for commands from the debug session.
+      // Get the command as a string object.
+      Handle<String> command_string;
+      if (!command.is_empty()) {
+        command_string = Factory::NewStringFromTwoByte(
+                             Vector<const uint16_t>(
+                                 reinterpret_cast<const uint16_t*>(
+                                     command.start()),
+                                 command.length()));
+      } else {
+        command_string = Handle<String>();
+      }
+
+      // Process the request.
+      Handle<String> message_string = Debugger::ProcessRequest(exec_state,
+                                                                command_string,
+                                                                false);
+      // Convert text result to UTF-16 string and send it.
+      v8::String::Value val(Utils::ToLocal(message_string));
+      Vector<uint16_t> message(reinterpret_cast<uint16_t*>(*val),
+                                message_string->length());
+      SendMessage(message);
+
+      // Check whether one of the commands is a plain break request.
+      if (!plain_break) {
+        plain_break = Debugger::IsPlainBreakRequest(message_string);
+      }
+    }
+  }
+
+  // If this break event is not to go to the debugger just return.
+  if (!plain_break) return;
+
+  // Notify the debugger that a debug event has occoured.
+  host_running_ = false;
+  SetEventJSONFromEvent(event_data);
+
+  // Wait for commands from the debugger.
   while (true) {
-    debug_command_->Wait();
+    command_received_->Wait();
+    if (FLAG_log_debugger) {
+      Logger::StringEvent(
+          "Get command from command queue, in interactive loop.",
+          "");
+    }
+    Vector<uint16_t> command = command_queue_.Get();
     ASSERT(!host_running_);
     if (!Debugger::debugger_active()) {
       host_running_ = true;
@@ -2037,7 +1934,7 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     }
 
     // Invoke the JavaScript to convert the debug command line to a JSON
-    // request, invoke the JSON request and convert the JSON respose to a text
+    // request, invoke the JSON request and convert the JSON response to a text
     // representation.
     v8::Local<v8::String> fun_name;
     v8::Local<v8::Function> fun;
@@ -2045,8 +1942,8 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     v8::TryCatch try_catch;
     fun_name = v8::String::New("processDebugCommand");
     fun = v8::Function::Cast(*cmd_processor->Get(fun_name));
-    args[0] = v8::String::New(reinterpret_cast<uint16_t*>(command_.start()),
-                              command_.length());
+    args[0] = v8::String::New(reinterpret_cast<uint16_t*>(command.start()),
+                              command.length());
     v8::Local<v8::Value> result_val = fun->Call(cmd_processor, 1, args);
 
     // Get the result of the command.
@@ -2083,13 +1980,11 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     Vector<uint16_t> str(reinterpret_cast<uint16_t*>(*val),
                         result_string->Length());
 
-    // Change the prompt if VM is running after this command.
-    if (running) {
-      host_running_ = true;
-    }
+    // Set host_running_ correctly for nested debugger evaluations.
+    host_running_ = running;
 
     // Return the result.
-    CommandResult(str);
+    SendMessage(str);
 
     // Return from debug event processing is VM should be running.
     if (running) {
@@ -2099,34 +1994,132 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
 }
 
 
-void DebugMessageThread::HandleCommand() {
-  // Handle the command.
-  if (TwoByteEqualsAscii(command_, "b") ||
-      TwoByteEqualsAscii(command_, "break")) {
-    v8::Debug::DebugBreak();
-    SetResult("request queued");
-  } else if (host_running_) {
-    // Send the JSON command to the running VM.
-    Debugger::DebugRequest(command_.start(), command_.length());
-    SetResult("request queued");
-  } else {
-    debug_command_->Signal();
-    debug_result_->Wait();
-  }
-}
-
-
+// Puts a command coming from the public API on the queue.  Creates
+// a copy of the command string managed by the debugger.  Up to this
+// point, the command data was managed by the API client.  Called
+// by the API client thread.  This is where the API client hands off
+// processing of the command to the DebugMessageThread thread.
+// The new copy of the command is destroyed in HandleCommand().
 void DebugMessageThread::ProcessCommand(Vector<uint16_t> command) {
-  SetCommand(command);
+  Vector<uint16_t> command_copy = command.Clone();
+  if (FLAG_log_debugger) {
+    Logger::StringEvent("Put command on command_queue.", "");
+  }
+  command_queue_.Put(command_copy);
+  // If not in a break schedule a break and send the "request queued" response.
+  if (host_running_) {
+    v8::Debug::DebugBreak();
+    uint16_t buffer[14] = {'r', 'e', 'q', 'u', 'e', 's', 't', ' ',
+        'q', 'u', 'e', 'u', 'e', 'd'};
+    SendMessage(Vector<uint16_t>(buffer, 14));
+  }
   command_received_->Signal();
 }
 
 
 void DebugMessageThread::OnDebuggerInactive() {
+  // Send an empty command to the debugger if in a break to make JavaScript run
+  // again if the debugger is closed.
   if (!host_running_) {
-    debug_command_->Signal();
-    SetResult("");
+    ProcessCommand(Vector<uint16_t>::empty());
   }
 }
+
+
+MessageQueue::MessageQueue(int size) : start_(0), end_(0), size_(size) {
+  messages_ = NewArray<Vector<uint16_t> >(size);
+}
+
+
+MessageQueue::~MessageQueue() {
+  DeleteArray(messages_);
+}
+
+
+Vector<uint16_t> MessageQueue::Get() {
+  ASSERT(!IsEmpty());
+  int result = start_;
+  start_ = (start_ + 1) % size_;
+  return messages_[result];
+}
+
+
+void MessageQueue::Put(const Vector<uint16_t>& message) {
+  if ((end_ + 1) % size_ == start_) {
+    Expand();
+  }
+  messages_[end_] = message;
+  end_ = (end_ + 1) % size_;
+}
+
+
+void MessageQueue::Expand() {
+  MessageQueue new_queue(size_ * 2);
+  while (!IsEmpty()) {
+    new_queue.Put(Get());
+  }
+  Vector<uint16_t>* array_to_free = messages_;
+  *this = new_queue;
+  new_queue.messages_ = array_to_free;
+  // Automatic destructor called on new_queue, freeing array_to_free.
+}
+
+
+LockingMessageQueue::LockingMessageQueue(int size) : queue_(size) {
+  lock_ = OS::CreateMutex();
+}
+
+
+LockingMessageQueue::~LockingMessageQueue() {
+  delete lock_;
+}
+
+
+bool LockingMessageQueue::IsEmpty() const {
+  ScopedLock sl(lock_);
+  return queue_.IsEmpty();
+}
+
+
+Vector<uint16_t> LockingMessageQueue::Get() {
+  ScopedLock sl(lock_);
+  Vector<uint16_t> result = queue_.Get();
+  // Logging code for debugging debugger.
+  if (FLAG_log_debugger) {
+    LogQueueOperation("Get", result);
+  }
+
+  return result;
+}
+
+
+void LockingMessageQueue::Put(const Vector<uint16_t>& message) {
+  ScopedLock sl(lock_);
+  queue_.Put(message);
+  // Logging code for debugging debugger.
+  if (FLAG_log_debugger) {
+    LogQueueOperation("Put", message);
+  }
+}
+
+
+void LockingMessageQueue::Clear() {
+  ScopedLock sl(lock_);
+  queue_.Clear();
+}
+
+
+void LockingMessageQueue::LogQueueOperation(const char* operation_name,
+                                            Vector<uint16_t> parameter) {
+  StringBuilder s(23+parameter.length()+strlen(operation_name) +1);
+  s.AddFormatted("Time: %f15.3 %s ", OS::TimeCurrentMillis(), operation_name);
+  for (int i = 0; i < parameter.length(); ++i) {
+    s.AddCharacter(static_cast<char>(parameter[i]));
+  }
+  char* result_string = s.Finalize();
+  Logger::StringEvent(result_string, "");
+  DeleteArray(result_string);
+}
+
 
 } }  // namespace v8::internal

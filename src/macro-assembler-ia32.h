@@ -236,10 +236,13 @@ class MacroAssembler: public Assembler {
   // Verify restrictions about code generated in stubs.
   void set_generating_stub(bool value) { generating_stub_ = value; }
   bool generating_stub() { return generating_stub_; }
+  void set_allow_stub_calls(bool value) { allow_stub_calls_ = value; }
+  bool allow_stub_calls() { return allow_stub_calls_; }
 
  private:
   List<Unresolved> unresolved_;
   bool generating_stub_;
+  bool allow_stub_calls_;
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
@@ -276,6 +279,15 @@ class CodePatcher {
 // Generate an Operand for loading a field from an object.
 static inline Operand FieldOperand(Register object, int offset) {
   return Operand(object, offset - kHeapObjectTag);
+}
+
+
+// Generate an Operand for loading an indexed field from an object.
+static inline Operand FieldOperand(Register object,
+                                   Register index,
+                                   ScaleFactor scale,
+                                   int offset) {
+  return Operand(object, index, scale, offset - kHeapObjectTag);
 }
 
 

@@ -45,11 +45,12 @@ DEFINE_bool(log_all, false, "Log all events to the log file.");
 DEFINE_bool(log_api, false, "Log API events to the log file.");
 DEFINE_bool(log_code, false,
             "Log code events to the log file without profiling.");
+DEFINE_bool(log_debugger, false, "Log debugger internal messages.");
 DEFINE_bool(log_gc, false,
             "Log heap samples on garbage collection for the hp2ps tool.");
-DEFINE_bool(log_suspect, false, "Log suspect operations.");
 DEFINE_bool(log_handles, false, "Log global handle events.");
 DEFINE_bool(log_state_changes, false, "Log state changes.");
+DEFINE_bool(log_suspect, false, "Log suspect operations.");
 DEFINE_bool(prof, false,
             "Log statistical profiling information (implies --log-code).");
 DEFINE_bool(sliding_state_window, false,
@@ -267,26 +268,6 @@ void Profiler::Run() {
 
 
 //
-// Synchronize class used for ensuring block structured
-// locking for the Logger::*Event functions.
-//
-
-class Synchronize {
- public:
-  explicit Synchronize(Mutex* mutex) {
-    mutex_ = mutex;
-    mutex_->Lock();
-  }
-  ~Synchronize() {
-    mutex_->Unlock();
-  }
- private:
-  // Mutex used for enforcing block structured access.
-  Mutex* mutex_;
-};
-
-
-//
 // Logger class implementation.
 //
 Ticker* Logger::ticker_ = NULL;
@@ -301,7 +282,7 @@ SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 void Logger::Preamble(const char* content) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "%s", content);
 #endif
 }
@@ -310,7 +291,7 @@ void Logger::Preamble(const char* content) {
 void Logger::StringEvent(const char* name, const char* value) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "%s,\"%s\"\n", name, value);
 #endif
 }
@@ -319,7 +300,7 @@ void Logger::StringEvent(const char* name, const char* value) {
 void Logger::IntEvent(const char* name, int value) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "%s,%d\n", name, value);
 #endif
 }
@@ -328,7 +309,7 @@ void Logger::IntEvent(const char* name, int value) {
 void Logger::HandleEvent(const char* name, Object** location) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_handles) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "%s,0x%x\n", name,
           reinterpret_cast<unsigned int>(location));
 #endif
@@ -341,7 +322,7 @@ void Logger::HandleEvent(const char* name, Object** location) {
 // FLAG_log_api is true.
 void Logger::ApiEvent(const char* format, ...) {
   ASSERT(logfile_ != NULL && FLAG_log_api);
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   va_list ap;
   va_start(ap, format);
   vfprintf(logfile_, format, ap);
@@ -370,7 +351,7 @@ void Logger::SharedLibraryEvent(const char* library_path,
                                 unsigned end) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_prof) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "shared-library,\"%s\",0x%08x,0x%08x\n", library_path,
           start, end);
 #endif
@@ -382,7 +363,7 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
                                 unsigned end) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_prof) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "shared-library,\"%ls\",0x%08x,0x%08x\n", library_path,
           start, end);
 #endif
@@ -445,7 +426,7 @@ void Logger::ApiEntryCall(const char* name) {
 void Logger::NewEvent(const char* name, void* object, size_t size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "new,%s,0x%x,%u\n", name,
           reinterpret_cast<unsigned int>(object),
           static_cast<unsigned int>(size));
@@ -456,7 +437,7 @@ void Logger::NewEvent(const char* name, void* object, size_t size) {
 void Logger::DeleteEvent(const char* name, void* object) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "delete,%s,0x%x\n", name,
           reinterpret_cast<unsigned int>(object));
 #endif
@@ -466,7 +447,7 @@ void Logger::DeleteEvent(const char* name, void* object) {
 void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
 
   fprintf(logfile_, "code-creation,%s,0x%x,%d,\"", tag,
           reinterpret_cast<unsigned int>(code->address()),
@@ -483,7 +464,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   fprintf(logfile_, "code-creation,%s,0x%x,%d,\"%s\"\n", tag,
@@ -496,7 +477,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
 void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
 
   fprintf(logfile_, "code-creation,%s,0x%x,%d,\"args_count: %d\"\n", tag,
           reinterpret_cast<unsigned int>(code->address()),
@@ -509,7 +490,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 void Logger::CodeMoveEvent(Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "code-move,0x%x,0x%x\n",
           reinterpret_cast<unsigned int>(from),
           reinterpret_cast<unsigned int>(to));
@@ -520,7 +501,7 @@ void Logger::CodeMoveEvent(Address from, Address to) {
 void Logger::CodeDeleteEvent(Address from) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "code-delete,0x%x\n", reinterpret_cast<unsigned int>(from));
 #endif
 }
@@ -529,7 +510,7 @@ void Logger::CodeDeleteEvent(Address from) {
 void Logger::ResourceEvent(const char* name, const char* tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "%s,%s,", name, tag);
 
   uint32_t sec, usec;
@@ -546,7 +527,7 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
 void Logger::SuspectReadEvent(String* name, String* obj) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_suspect) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "suspect-read,");
   obj->PrintOn(logfile_);
   fprintf(logfile_, ",\"");
@@ -559,7 +540,7 @@ void Logger::SuspectReadEvent(String* name, String* obj) {
 void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_gc) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "heap-sample-begin,\"%s\",\"%s\"\n", space, kind);
 #endif
 }
@@ -568,7 +549,7 @@ void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
 void Logger::HeapSampleEndEvent(const char* space, const char* kind) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_gc) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "heap-sample-end,\"%s\",\"%s\"\n", space, kind);
 #endif
 }
@@ -577,7 +558,7 @@ void Logger::HeapSampleEndEvent(const char* space, const char* kind) {
 void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_gc) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "heap-sample-item,%s,%d,%d\n", type, number, bytes);
 #endif
 }
@@ -586,7 +567,7 @@ void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (logfile_ == NULL) return;
-  Synchronize s(mutex_);
+  ScopedLock sl(mutex_);
   fprintf(logfile_, "tick,0x%x,0x%x,%d", sample->pc, sample->sp,
           static_cast<int>(sample->state));
   if (overflow) fprintf(logfile_, ",overflow");
@@ -611,7 +592,7 @@ bool Logger::Setup() {
 
   // Each of the individual log flags implies --log.  Check after
   // checking --log-all and --prof in case they set --log-code.
-  if (FLAG_log_api || FLAG_log_code || FLAG_log_gc ||
+  if (FLAG_log_api || FLAG_log_code || FLAG_log_debugger || FLAG_log_gc ||
       FLAG_log_handles || FLAG_log_suspect) {
     FLAG_log = true;
   }

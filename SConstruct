@@ -64,10 +64,7 @@ def GuessProcessor():
 def GuessToolchain(os):
   tools = Environment()['TOOLS']
   if 'gcc' in tools:
-    if os == 'macos' and 'Kernel Version 8' in platform.version():
-      return 'gcc-darwin'
-    else:
-      return 'gcc'
+    return 'gcc'
   elif 'msvc' in tools:
     return 'msvc'
   else:
@@ -79,19 +76,20 @@ def GetOptions():
   os_guess = GuessOS()
   toolchain_guess = GuessToolchain(os_guess)
   processor_guess = GuessProcessor()
-  result.Add('mode', 'debug or release', 'release')
-  result.Add('toolchain', 'the toolchain to use (gcc, gcc-darwin or msvc)', toolchain_guess)
-  result.Add('os', 'the os to build for (linux, macos or win32)', os_guess)
-  result.Add('processor', 'the processor to build for (arm or ia32)', processor_guess)
+  result.Add('mode', 'compilation mode (debug, release)', 'release')
+  result.Add('toolchain', 'the toolchain to use (gcc, msvc)', toolchain_guess)
+  result.Add('os', 'the os to build for (linux, macos, win32)', os_guess)
+  result.Add('processor', 'the processor to build for (arm, ia32)', processor_guess)
   result.Add('snapshot', 'build using snapshots for faster start-up (on, off)', 'off')
   result.Add('library', 'which type of library to produce (static, shared, default)', 'default')
+  result.Add('sample', 'build sample (process, shell)', '')
   return result
 
 
 def VerifyOptions(env):
   if not env['mode'] in ['debug', 'release']:
     Abort("Unknown build mode '%s'." % env['mode'])
-  if not env['toolchain'] in ['gcc', 'gcc-darwin', 'msvc']:
+  if not env['toolchain'] in ['gcc', 'msvc']:
     Abort("Unknown toolchain '%s'." % env['toolchain'])
   if not env['os'] in ['linux', 'macos', 'win32']:
     Abort("Unknown os '%s'." % env['os'])
@@ -101,9 +99,11 @@ def VerifyOptions(env):
     Abort("Illegal value for option snapshot: '%s'." % env['snapshot'])
   if not env['library'] in ['static', 'shared', 'default']:
     Abort("Illegal value for option library: '%s'." % env['library'])
+  if not env['sample'] in ['', 'process', 'shell']:
+    Abort("Illegal value for option sample: '%s'." % env['sample'])
 
 
-def Start():
+def Build():
   opts = GetOptions()
   env = Environment(options=opts)
   Help(opts.GenerateHelpText(env))
@@ -116,12 +116,38 @@ def Start():
   use_snapshot = (env['snapshot'] == 'on')
   library_type = env['library']
 
-  env.SConscript(
+  # Build the object files by invoking SCons recursively.
+  object_files = env.SConscript(
     join('src', 'SConscript'),
-    build_dir=mode,
+    build_dir='build',
     exports='toolchain arch os mode use_snapshot library_type',
     duplicate=False
   )
 
+  # Link the object files into a library.
+  if library_type == 'static':
+    library = env.StaticLibrary('v8', object_files)
+  elif library_type == 'shared':
+    # There seems to be a glitch in the way scons decides where to put
+    # PDB files when compiling using MSVC so we specify it manually.
+    # This should not affect any other platforms.
+    library = env.SharedLibrary('v8', object_files, PDB='v8.dll.pdb')
+  else:
+    library = env.Library('v8', object_files)
 
-Start()
+  # Bail out if we're not building any sample.
+  sample = env['sample']
+  if not sample: return
+
+  # Build the sample.
+  env.Replace(CPPPATH='public')
+  object_path = join('build', 'samples', sample)
+  source_path = join('samples', sample + '.cc')
+  object = env.Object(object_path, source_path)
+  if toolchain == 'gcc':
+    env.Program(sample, [object, library], LIBS='pthread')
+  else:
+    env.Program(sample, [object, library], LIBS='WS2_32')
+
+
+Build()

@@ -58,27 +58,19 @@ typedef Object* JSCallerSavedBuffer[kNumJSCallerSaved];
 int JSCallerSavedCode(int n);
 
 
-// Callee-saved registers available for variable allocation in JavaScript code
-static const RegList kJSCalleeSaved =
-  1 << 4 |  // r4 v1
-  1 << 5 |  // r5 v2
-  1 << 6 |  // r6 v3
-  1 << 7 |  // r7 v4
-  kR9Available << 9 ;  // r9 v6
-
-static const int kNumJSCalleeSaved = 4 + kR9Available;
-
-
-typedef Object* JSCalleeSavedBuffer[kNumJSCalleeSaved];
-
-
 // Callee-saved registers preserved when switching from C to JavaScript
-static const RegList kCalleeSaved = kJSCalleeSaved |
+static const RegList kCalleeSaved =
+  1 <<  4 |  //  r4 v1
+  1 <<  5 |  //  r5 v2
+  1 <<  6 |  //  r6 v3
+  1 <<  7 |  //  r7 v4
   1 <<  8 |  //  r8 v5 (cp in JavaScript code)
+  kR9Available
+    <<  9 |  //  r9 v6
   1 << 10 |  // r10 v7 (pp in JavaScript code)
   1 << 11 ;  // r11 v8 (fp in JavaScript code)
 
-static const int kNumCalleeSaved = kNumJSCalleeSaved + 3;
+static const int kNumCalleeSaved = 7 + kR9Available;
 
 
 // ----------------------------------------------------
@@ -117,14 +109,13 @@ class ExitFrameConstants : public AllStatic {
   static const int kSavedRegistersOffset = 0 * kPointerSize;
 
   // Let the parameters pointer for exit frames point just below the
-  // frame structure on the stack (includes callee saved registers).
-  static const int kPPDisplacement = (4 + kNumJSCalleeSaved) * kPointerSize;
+  // frame structure on the stack.
+  static const int kPPDisplacement = 4 * kPointerSize;
 
-  // The frame pointer for exit frames points to the JavaScript callee
-  // saved registers. The caller fields are below those on the stack.
-  static const int kCallerPPOffset = (0 + kNumJSCalleeSaved) * kPointerSize;
-  static const int kCallerFPOffset = (1 + kNumJSCalleeSaved) * kPointerSize;
-  static const int kCallerPCOffset = (3 + kNumJSCalleeSaved) * kPointerSize;
+  // The caller fields are below the frame pointer on the stack.
+  static const int kCallerPPOffset = +0 * kPointerSize;
+  static const int kCallerFPOffset = +1 * kPointerSize;
+  static const int kCallerPCOffset = +3 * kPointerSize;
 };
 
 
@@ -150,8 +141,11 @@ class JavaScriptFrameConstants : public AllStatic {
   // FP-relative.
   static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
   static const int kArgsLengthOffset     = -1 * kPointerSize;
+  // 0 * kPointerSize : StandardFrameConstants::kCallerPPOffset
+  // 1 * kPointersize : StandardFrameConstents::kCallerFPOffset
   static const int kSPOnExitOffset       = +2 * kPointerSize;
-  static const int kSavedRegistersOffset = +5 * kPointerSize;
+  // 3 * kPointerSize : StandardFrameConstants::kCallerPCOffset
+  static const int kSavedRegistersOffset = +4 * kPointerSize;
 
   // PP-relative.
   static const int kParam0Offset   = -2 * kPointerSize;
@@ -177,12 +171,6 @@ inline Object* JavaScriptFrame::function() const {
 }
 
 
-inline Object** StackFrameIterator::register_buffer() const {
-  static Object* buffer[kNumJSCalleeSaved];
-  return buffer;
-}
-
-
 // ----------------------------------------------------
 
 
@@ -197,6 +185,7 @@ inline Object** StackFrameIterator::register_buffer() const {
   //             |             |
   // ----------- +=============+ <--- sp (stack pointer)
   //             |  function   |
+  //             +-------------+
   //             +-------------+
   //             |             |
   //             | expressions |
@@ -221,13 +210,6 @@ inline Object** StackFrameIterator::register_buffer() const {
   //      m    2 |  sp_on_exit |  (pp if return, caller_sp if no return)
   //      e      +-------------+
   //           3 |  caller_pc  |
-  //             +-------------+
-  //           4 |  prolog_pc  |  (used to find list of callee-saved regs)
-  //             +-------------+
-  //           5 |             |
-  //             |callee-saved |  (only saved if clobbered by this function,
-  //             |    regs     |   must be traversed during GC)
-  //             |             |
   //             +-------------+ <--- caller_sp (incl. parameters)
   //             |             |
   //             | parameters  |
@@ -374,16 +356,6 @@ inline Object** StackFrameIterator::register_buffer() const {
   //             | parameters  |  (first 4 args are passed in r0-r3)
   //             |             |
   //             +-------------+ <--- fp (frame pointer)
-  //      C    0 |     r4      |  r4-r7, r9 are potentially holding JS locals
-  //             +-------------+
-  //           1 |     r5      |  and must be traversed by the GC for proper
-  //      e      +-------------+
-  //      n    2 |     r6      |  relocation
-  //      t      +-------------+
-  //      r    3 |     r7      |
-  //      y      +-------------+
-  //         [ 4 |     r9      | ]  only if r9 available
-  //             +-------------+
   //      f  4/5 |  caller_fp  |
   //      r      +-------------+
   //      a  5/6 |  sp_on_exit |  (pp)

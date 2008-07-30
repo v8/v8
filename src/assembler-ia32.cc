@@ -135,85 +135,19 @@ void CpuFeatures::Probe() {
 
 
 // -----------------------------------------------------------------------------
-// A Displacement describes the 32bit immediate field of an instruction which
-// may be used together with a Label in order to refer to a yet unknown code
-// position. Displacements stored in the instruction stream are used to describe
-// the instruction and to chain a list of instructions using the same Label.
-// A Displacement contains 3 different fields:
-//
-// next field: position of next displacement in the chain (0 = end of list)
-// type field: instruction type
-//
-// A next value of null (0) indicates the end of a chain (note that there can
-// be no displacement at position zero, because there is always at least one
-// instruction byte before the displacement).
-//
-// Displacement _data field layout
-//
-// |31.....1|.......0|
-// [  next  |  type  |
+// Implementation of Displacement
 
-class Displacement BASE_EMBEDDED {
- private:
-  enum Type {
-    UNCONDITIONAL_JUMP,
-    OTHER
-  };
-
-  int data_;
-
-  class TypeField: public BitField<Type, 0, 1> {};
-  class NextField: public BitField<int,  1, 32-1> {};
-
-  void init(Label* L, Type type) {
-    ASSERT(!L->is_bound());
-    int next = 0;
-    if (L->is_linked()) {
-      next = L->pos();
-      ASSERT(next > 0);  // Displacements must be at positions > 0
-    }
-    // Ensure that we _never_ overflow the next field.
-    ASSERT(NextField::is_valid(Assembler::kMaximalBufferSize));
-    data_ = NextField::encode(next) | TypeField::encode(type);
+void Displacement::init(Label* L, Type type) {
+  ASSERT(!L->is_bound());
+  int next = 0;
+  if (L->is_linked()) {
+    next = L->pos();
+    ASSERT(next > 0);  // Displacements must be at positions > 0
   }
-
-  int data() const { return data_; }
-  Type type() const { return TypeField::decode(data_); }
-  void next(Label* L) const {
-    int n = NextField::decode(data_);
-    n > 0 ? L->link_to(n) : L->Unuse();
-  }
-  void link_to(Label* L) { init(L, type()); }
-
-  explicit Displacement(int data) { data_ = data; }
-
-  Displacement(Label* L, Type type) { init(L, type); }
-
-  void print() {
-    PrintF("%s (%x) ", (type() == UNCONDITIONAL_JUMP ? "jmp" : "[other]"),
-                       NextField::decode(data_));
-  }
-
-  friend class Assembler;
-  friend class MacroAssembler;
-};
-
-
-// TODO(1236137): Stop using macros here. The reason for using them is
-// to avoid declaring the Displacement class in the .h file and have
-// functions on the assembler that returns them. Maybe that's not a
-// big issue?
-#define disp_at(L)                              \
-  Displacement(long_at((L)->pos()))
-
-#define disp_at_put(L, disp)                    \
-  long_at_put((L)->pos(), (disp).data())
-
-#define emit_disp(L, type) {                    \
-    Displacement disp((L), (type));             \
-    (L)->link_to(pc_offset());                  \
-    emit(static_cast<int>(disp.data()));        \
-  }
+  // Ensure that we _never_ overflow the next field.
+  ASSERT(NextField::is_valid(Assembler::kMaximalBufferSize));
+  data_ = NextField::encode(next) | TypeField::encode(type);
+}
 
 
 // -----------------------------------------------------------------------------

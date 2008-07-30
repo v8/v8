@@ -192,6 +192,10 @@ namespace v8 { namespace internal {
   V(zero_symbol, "0")
 
 
+// Forward declaration of the GCTracer class.
+class GCTracer;
+
+
 // The all static Heap captures the interface to the global object heap.
 // All JavaScript contexts by this process share the same object heap.
 
@@ -200,6 +204,7 @@ class Heap : public AllStatic {
   // Configure heap size before setup. Return false if the heap has been
   // setup already.
   static bool ConfigureHeap(int semispace_size, int old_gen_size);
+  static bool ConfigureHeapDefault();
 
   // Initializes the global object heap. If create_heap_objects is true,
   // also creates the basic non-mutable objects.
@@ -504,6 +509,13 @@ class Heap : public AllStatic {
   // Please note this function does not perform a garbage collection.
   static inline Object* AllocateRaw(int size_in_bytes, AllocationSpace space);
 
+
+  // Allocate an unitialized object during deserialization.  Performs linear
+  // allocation (ie, guaranteed no free list allocation) and assumes the
+  // spaces are all preexpanded so allocation should not fail.
+  static inline Object* AllocateForDeserialization(int size_in_bytes,
+                                                   AllocationSpace space);
+
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -544,9 +556,7 @@ class Heap : public AllStatic {
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
-  static void PerformScavenge() {
-    PerformGarbageCollection(NEW_SPACE, SCAVENGER);
-  }
+  static void PerformScavenge();
 
   static void SetGlobalGCPrologueCallback(GCCallback callback) {
     global_gc_prologue_callback_ = callback;
@@ -601,6 +611,9 @@ class Heap : public AllStatic {
   static bool InSpace(Address addr, AllocationSpace space);
   static bool InSpace(HeapObject* value, AllocationSpace space);
 
+  // Finds out which space an object should get promoted to based on its type.
+  static inline AllocationSpace TargetSpace(HeapObject* object);
+
   // Sets the stub_cache_ (only used when expanding the dictionary).
   static void set_code_stubs(Dictionary* value) { code_stubs_ = value; }
 
@@ -634,9 +647,7 @@ class Heap : public AllStatic {
   // Write barrier support for address[offset] = o.
   inline static void RecordWrite(Address address, int offset);
 
-  // Given an address in the heap, returns a pointer to the object which
-  // body contains the address. Returns Failure::Exception() if the
-  // operation fails.
+  // Given an address occupied by a live code object, return that object.
   static Object* FindCodeObject(Address a);
 
   // Invoke Shrink on shrinkable spaces.
@@ -656,14 +667,6 @@ class Heap : public AllStatic {
   static void TracePathToObject();
   static void TracePathToGlobal();
 #endif
-
-  // Helper for Serialization/Deserialization that restricts memory allocation
-  // to the predictable LINEAR_ONLY policy
-  static void SetLinearAllocationOnly(bool linear_only) {
-    old_space_->SetLinearAllocationOnly(linear_only);
-    code_space_->SetLinearAllocationOnly(linear_only);
-    map_space_->SetLinearAllocationOnly(linear_only);
-  }
 
   // Callback function pased to Heap::Iterate etc.  Copies an object if
   // necessary, the object might be promoted to an old space.  The caller must
@@ -695,6 +698,25 @@ class Heap : public AllStatic {
   // Entries in the cache.  Must be a power of 2.
   static const int kNumberStringCacheSize = 64;
 
+  // Adjusts the amount of registered external memory.
+  // Returns the adjusted value.
+  static int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
+    int amount = amount_of_external_allocated_memory_ + change_in_bytes;
+    if (change_in_bytes >= 0) {
+      // Avoid overflow.
+      if (amount > amount_of_external_allocated_memory_) {
+        amount_of_external_allocated_memory_ = amount;
+      }
+    } else {
+      // Avoid underflow.
+      if (amount >= 0) {
+        amount_of_external_allocated_memory_ = amount;
+      }
+    }
+    ASSERT(amount_of_external_allocated_memory_ >= 0);
+    return amount_of_external_allocated_memory_;
+  }
+
  private:
   static int semispace_size_;
   static int initial_semispace_size_;
@@ -716,10 +738,14 @@ class Heap : public AllStatic {
   // Returns the size of object residing in non new spaces.
   static int PromotedSpaceSize();
 
-#ifdef DEBUG
-  static bool allocation_allowed_;
+  // Returns the amount of external memory registered since last global gc.
+  static int PromotedExternalMemorySize();
+
   static int mc_count_;  // how many mark-compact collections happened
   static int gc_count_;  // how many gc happened
+
+#ifdef DEBUG
+  static bool allocation_allowed_;
 
   // If the --gc-interval flag is set to a positive value, this
   // variable holds the value indicating the number of allocations
@@ -733,6 +759,13 @@ class Heap : public AllStatic {
 
   // Promotion limit that trigger a global GC
   static int promoted_space_limit_;
+
+  // The amount of external memory registered through the API kept alive
+  // by global handles
+  static int amount_of_external_allocated_memory_;
+
+  // Caches the amount of external memory registered at the last global gc.
+  static int amount_of_external_allocated_memory_at_last_global_gc_;
 
   // Indicates that an allocation has failed in the old generation since the
   // last GC.
@@ -762,7 +795,8 @@ class Heap : public AllStatic {
 
   // Performs garbage collection
   static void PerformGarbageCollection(AllocationSpace space,
-                                       GarbageCollector collector);
+                                       GarbageCollector collector,
+                                       GCTracer* tracer);
 
   // Returns either a Smi or a Number object from 'value'. If 'new_object'
   // is false, it may return a preallocated immutable object.
@@ -801,7 +835,7 @@ class Heap : public AllStatic {
   static void Scavenge();
 
   // Performs a major collection in the whole heap.
-  static void MarkCompact();
+  static void MarkCompact(GCTracer* tracer);
 
   // Code to be run before and after mark-compact.
   static void MarkCompactPrologue();
@@ -885,6 +919,26 @@ class VerifyPointersAndRSetVisitor: public ObjectVisitor {
 #endif
 
 
+// Space iterator for iterating over all spaces of the heap.
+// For each space an object iterator is provided. The deallocation of the
+// returned object iterators is handled by the space iterator.
+
+class SpaceIterator : public Malloced {
+ public:
+  SpaceIterator();
+  virtual ~SpaceIterator();
+
+  bool has_next();
+  ObjectIterator* next();
+
+ private:
+  ObjectIterator* CreateIterator();
+
+  int current_space_;  // from enum AllocationSpace.
+  ObjectIterator* iterator_;  // object iterator for the current space.
+};
+
+
 // A HeapIterator provides iteration over the whole heap It aggregates a the
 // specific iterators for the different spaces as these can only iterate over
 // one space only.
@@ -950,74 +1004,6 @@ class MarkingStack {
 };
 
 
-// ----------------------------------------------------------------------------
-// Functions and constants used for marking live objects.
-//
-
-// Many operations (eg, Object::Size()) are based on an object's map.  When
-// objects are marked as live or overflowed, their map pointer is changed.
-// Use clear_mark_bit and/or clear_overflow_bit to recover the original map
-// word.
-static inline intptr_t clear_mark_bit(intptr_t map_word) {
-  return map_word | kMarkingMask;
-}
-
-
-static inline intptr_t clear_overflow_bit(intptr_t map_word) {
-  return map_word & ~kOverflowMask;
-}
-
-
-// True if the object is marked live.
-static inline bool is_marked(HeapObject* obj) {
-  intptr_t map_word = reinterpret_cast<intptr_t>(obj->map());
-  return (map_word & kMarkingMask) == 0;
-}
-
-
-// Mutate an object's map pointer to indicate that the object is live.
-static inline void set_mark(HeapObject* obj) {
-  ASSERT(!is_marked(obj));
-  intptr_t map_word = reinterpret_cast<intptr_t>(obj->map());
-  obj->set_map(reinterpret_cast<Map*>(map_word & ~kMarkingMask));
-}
-
-
-// Mutate an object's map pointer to remove the indication that the object
-// is live, ie, (partially) restore the map pointer.
-static inline void clear_mark(HeapObject* obj) {
-  ASSERT(is_marked(obj));
-  intptr_t map_word = reinterpret_cast<intptr_t>(obj->map());
-  obj->set_map(reinterpret_cast<Map*>(clear_mark_bit(map_word)));
-}
-
-
-// True if the object is marked overflowed.
-static inline bool is_overflowed(HeapObject* obj) {
-  intptr_t map_word = reinterpret_cast<intptr_t>(obj->map());
-  return (map_word & kOverflowMask) != 0;
-}
-
-
-// Mutate an object's map pointer to indicate that the object is overflowed.
-// Overflowed objects have been reached during marking of the heap but not
-// pushed on the marking stack (and thus their children have not necessarily
-// been marked).
-static inline void set_overflow(HeapObject* obj) {
-  intptr_t map_word = reinterpret_cast<intptr_t>(obj->map());
-  obj->set_map(reinterpret_cast<Map*>(map_word | kOverflowMask));
-}
-
-
-// Mutate an object's map pointer to remove the indication that the object
-// is overflowed, ie, (partially) restore the map pointer.
-static inline void clear_overflow(HeapObject* obj) {
-  ASSERT(is_overflowed(obj));
-  intptr_t map_word = reinterpret_cast<intptr_t>(obj->map());
-  obj->set_map(reinterpret_cast<Map*>(clear_overflow_bit(map_word)));
-}
-
-
 // A helper class to document/test C++ scopes where we do not
 // expect a GC. Usage:
 //
@@ -1078,6 +1064,72 @@ class HeapProfiler {
   static void CollectStats(HeapObject* obj, HistogramInfo* info);
 };
 #endif
+
+// GCTracer collects and prints ONE line after each garbage collector
+// invocation IFF --trace_gc is used.
+
+class GCTracer BASE_EMBEDDED {
+ public:
+  GCTracer();
+
+  ~GCTracer();
+
+  // Sets the collector.
+  void set_collector(GarbageCollector collector) { collector_ = collector; }
+
+  // Sets the GC count.
+  void set_gc_count(int count) { gc_count_ = count; }
+
+  // Sets the full GC count.
+  void set_full_gc_count(int count) { full_gc_count_ = count; }
+
+  // Sets the flag that this is a compacting full GC.
+  void set_is_compacting() { is_compacting_ = true; }
+
+  // Increment and decrement the count of marked objects.
+  void increment_marked_count() { ++marked_count_; }
+  void decrement_marked_count() { --marked_count_; }
+
+  int marked_count() { return marked_count_; }
+
+ private:
+  // Returns a string matching the collector.
+  const char* CollectorString();
+
+  // Returns size of object in heap (in MB).
+  double SizeOfHeapObjects() {
+    return (static_cast<double>(Heap::SizeOfObjects())) / MB;
+  }
+
+  double start_time_;  // Timestamp set in the constructor.
+  double start_size_;  // Size of objects in heap set in constructor.
+  GarbageCollector collector_;  // Type of collector.
+
+  // A count (including this one, eg, the first collection is 1) of the
+  // number of garbage collections.
+  int gc_count_;
+
+  // A count (including this one) of the number of full garbage collections.
+  int full_gc_count_;
+
+  // True if the current GC is a compacting full collection, false
+  // otherwise.
+  bool is_compacting_;
+
+  // True if the *previous* full GC cwas a compacting collection (will be
+  // false if there has not been a previous full GC).
+  bool previous_has_compacted_;
+
+  // On a full GC, a count of the number of marked objects.  Incremented
+  // when an object is marked and decremented when an object's mark bit is
+  // cleared.  Will be zero on a scavenge collection.
+  int marked_count_;
+
+  // The count from the end of the previous full GC.  Will be zero if there
+  // was no previous full GC.
+  int previous_marked_count_;
+};
+
 
 } }  // namespace v8::internal
 

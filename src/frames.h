@@ -37,11 +37,6 @@ int NumRegs(RegList list);
 
 // Return the code of the n-th saved register available to JavaScript.
 int JSCallerSavedCode(int n);
-int JSCalleeSavedCode(int n);
-
-// Return the list of the first n callee-saved registers available to
-// JavaScript.
-RegList JSCalleeSavedList(int n);
 
 
 // Forward declarations.
@@ -186,15 +181,8 @@ class StackFrame BASE_EMBEDDED {
                          PrintMode mode,
                          int index);
 
-  // Find callee-saved registers for this frame.
-  virtual RegList FindCalleeSavedRegisters() const { return 0; }
-
-  // Restore state of callee-saved registers to the provided buffer.
-  virtual void RestoreCalleeSavedRegisters(Object* buffer[]) const { }
-
   // Get the top handler from the current stack iterator.
   inline StackHandler* top_handler() const;
-  inline Object** top_register_buffer() const;
 
   // Compute the stack frame type for the given state.
   static Type ComputeType(State* state);
@@ -296,9 +284,6 @@ class ExitFrame: public StackFrame {
   explicit ExitFrame(StackFrameIterator* iterator) : StackFrame(iterator) { }
 
   virtual Address GetCallerStackPointer() const;
-
-  virtual RegList FindCalleeSavedRegisters() const;
-  virtual void RestoreCalleeSavedRegisters(Object* buffer[]) const;
 
  private:
   virtual Type GetCallerState(State* state) const;
@@ -438,14 +423,6 @@ class JavaScriptFrame: public StandardFrame {
 
   virtual Address GetCallerStackPointer() const;
 
-  // Find the callee-saved registers for this JavaScript frame. This
-  // may require traversing the instruction stream and decoding
-  // certain instructions.
-  virtual RegList FindCalleeSavedRegisters() const;
-
-  // Restore callee-saved registers.
-  virtual void RestoreCalleeSavedRegisters(Object* buffer[]) const;
-
  private:
   friend class StackFrameIterator;
 };
@@ -539,18 +516,13 @@ class StackFrameIterator BASE_EMBEDDED {
   // Go back to the first frame.
   void Reset();
 
-  // Computes the state of the callee-saved registers for the top
-  // stack handler structure. Used for restoring register state when
-  // unwinding due to thrown exceptions.
-  static Object** RestoreCalleeSavedForTopHandler(Object** buffer);
-
  private:
 #define DECLARE_SINGLETON(ignore, type) type type##_;
   STACK_FRAME_TYPE_LIST(DECLARE_SINGLETON)
 #undef DECLARE_SINGLETON
   StackFrame* frame_;
   StackHandler* handler_;
-  ThreadLocalTop* thread;
+  ThreadLocalTop* thread_;
 
   StackHandler* handler() const {
     ASSERT(!done());
@@ -559,11 +531,6 @@ class StackFrameIterator BASE_EMBEDDED {
 
   // Get the type-specific frame singleton in a given state.
   StackFrame* SingletonFor(StackFrame::Type type, StackFrame::State* state);
-
-  // The register buffer contains the state of callee-saved registers
-  // for the current frame. It is computed as the stack frame
-  // iterators advances through stack frames.
-  inline Object** register_buffer() const;
 
   friend class StackFrame;
   DISALLOW_EVIL_CONSTRUCTORS(StackFrameIterator);

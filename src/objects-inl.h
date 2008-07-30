@@ -576,6 +576,121 @@ bool Smi::IsValid(int value) {
 }
 
 
+MapWord MapWord::FromMap(Map* map) {
+  return MapWord(reinterpret_cast<uintptr_t>(map));
+}
+
+
+Map* MapWord::ToMap() {
+  return reinterpret_cast<Map*>(value_);
+}
+
+
+bool MapWord::IsForwardingAddress() {
+  // This function only works for map words that are heap object pointers.
+  // Since it is a heap object, it has a map.  We use that map's instance
+  // type to detect if this map word is not actually a map (ie, it is a
+  // forwarding address during a scavenge collection).
+  return reinterpret_cast<HeapObject*>(value_)->map()->instance_type() !=
+      MAP_TYPE;
+}
+
+
+MapWord MapWord::FromForwardingAddress(HeapObject* object) {
+  return MapWord(reinterpret_cast<uintptr_t>(object));
+}
+
+
+HeapObject* MapWord::ToForwardingAddress() {
+  ASSERT(IsForwardingAddress());
+  return reinterpret_cast<HeapObject*>(value_);
+}
+
+
+bool MapWord::IsMarked() {
+  return (value_ & kMarkingMask) == 0;
+}
+
+
+void MapWord::SetMark() {
+  value_ &= ~kMarkingMask;
+}
+
+
+void MapWord::ClearMark() {
+  value_ |= kMarkingMask;
+}
+
+
+bool MapWord::IsOverflowed() {
+  return (value_ & kOverflowMask) != 0;
+}
+
+
+void MapWord::SetOverflow() {
+  value_ |= kOverflowMask;
+}
+
+
+void MapWord::ClearOverflow() {
+  value_ &= ~kOverflowMask;
+}
+
+
+MapWord MapWord::EncodeAddress(Address map_address, int offset) {
+  // Offset is the distance in live bytes from the first live object in the
+  // same page. The offset between two objects in the same page should not
+  // exceed the object area size of a page.
+  ASSERT(0 <= offset && offset < Page::kObjectAreaSize);
+
+  int compact_offset = offset >> kObjectAlignmentBits;
+  ASSERT(compact_offset < (1 << kForwardingOffsetBits));
+
+  Page* map_page = Page::FromAddress(map_address);
+  ASSERT_MAP_PAGE_INDEX(map_page->mc_page_index);
+
+  int map_page_offset =
+      map_page->Offset(map_address) >> kObjectAlignmentBits;
+
+  uintptr_t encoding =
+      (compact_offset << kForwardingOffsetShift) |
+      (map_page_offset << kMapPageOffsetShift) |
+      (map_page->mc_page_index << kMapPageIndexShift);
+  return MapWord(encoding);
+}
+
+
+Address MapWord::DecodeMapAddress(MapSpace* map_space) {
+  int map_page_index = (value_ & kMapPageIndexMask) >> kMapPageIndexShift;
+  ASSERT_MAP_PAGE_INDEX(map_page_index);
+
+  int map_page_offset =
+      ((value_ & kMapPageOffsetMask) >> kMapPageOffsetShift)
+      << kObjectAlignmentBits;
+
+  return (map_space->PageAddress(map_page_index) + map_page_offset);
+}
+
+
+int MapWord::DecodeOffset() {
+  // The offset field is represented in the kForwardingOffsetBits
+  // most-significant bits.
+  int offset = (value_ >> kForwardingOffsetShift) << kObjectAlignmentBits;
+  ASSERT(0 <= offset && offset < Page::kObjectAreaSize);
+  return offset;
+}
+
+
+MapWord MapWord::FromEncodedAddress(Address address) {
+  return MapWord(reinterpret_cast<uintptr_t>(address));
+}
+
+
+Address MapWord::ToEncodedAddress() {
+  return reinterpret_cast<Address>(value_);
+}
+
+
 #ifdef DEBUG
 void HeapObject::VerifyObjectField(int offset) {
   VerifyPointer(READ_FIELD(this, offset));
@@ -584,15 +699,25 @@ void HeapObject::VerifyObjectField(int offset) {
 
 
 Map* HeapObject::map() {
-  return reinterpret_cast<Map*> READ_FIELD(this, kMapOffset);
+  return map_word().ToMap();
 }
 
 
 void HeapObject::set_map(Map* value) {
-  WRITE_FIELD(this, kMapOffset, value);
+  set_map_word(MapWord::FromMap(value));
 }
 
 
+MapWord HeapObject::map_word() {
+  return MapWord(reinterpret_cast<uintptr_t>(READ_FIELD(this, kMapOffset)));
+}
+
+
+void HeapObject::set_map_word(MapWord map_word) {
+  // WRITE_FIELD does not update the remembered set, but there is no need
+  // here.
+  WRITE_FIELD(this, kMapOffset, reinterpret_cast<Object*>(map_word.value_));
+}
 
 
 HeapObject* HeapObject::FromAddress(Address address) {
@@ -632,6 +757,47 @@ void HeapObject::CopyBody(JSObject* from) {
     WRITE_FIELD(this, offset, value);
     WRITE_BARRIER(this, offset);
   }
+}
+
+
+bool HeapObject::IsMarked() {
+  return map_word().IsMarked();
+}
+
+
+void HeapObject::SetMark() {
+  ASSERT(!IsMarked());
+  MapWord first_word = map_word();
+  first_word.SetMark();
+  set_map_word(first_word);
+}
+
+
+void HeapObject::ClearMark() {
+  ASSERT(IsMarked());
+  MapWord first_word = map_word();
+  first_word.ClearMark();
+  set_map_word(first_word);
+}
+
+
+bool HeapObject::IsOverflowed() {
+  return map_word().IsOverflowed();
+}
+
+
+void HeapObject::SetOverflow() {
+  MapWord first_word = map_word();
+  first_word.SetOverflow();
+  set_map_word(first_word);
+}
+
+
+void HeapObject::ClearOverflow() {
+  ASSERT(IsOverflowed());
+  MapWord first_word = map_word();
+  first_word.ClearOverflow();
+  set_map_word(first_word);
 }
 
 
@@ -1377,8 +1543,8 @@ Code::Kind Code::kind() {
 }
 
 
-InlineCacheState Code::state() {
-  InlineCacheState result = ExtractStateFromFlags(flags());
+InlineCacheState Code::ic_state() {
+  InlineCacheState result = ExtractICStateFromFlags(flags());
   // Only allow uninitialized or debugger states for non-IC code
   // objects. This is used in the debugger to determine whether or not
   // a call to code object has been replaced with a debug break call.
@@ -1391,7 +1557,7 @@ InlineCacheState Code::state() {
 
 
 PropertyType Code::type() {
-  ASSERT(state() == MONOMORPHIC);
+  ASSERT(ic_state() == MONOMORPHIC);
   return ExtractTypeFromFlags(flags());
 }
 
@@ -1403,11 +1569,16 @@ int Code::arguments_count() {
 
 
 CodeStub::Major Code::major_key() {
-  // TODO(1238541): Simplify this somewhat complicated encoding.
   ASSERT(kind() == STUB);
-  int low = ExtractStateFromFlags(flags());
-  int high = ExtractTypeFromFlags(flags());
-  return static_cast<CodeStub::Major>(high << 3 | low);
+  return static_cast<CodeStub::Major>(READ_BYTE_FIELD(this,
+                                                      kStubMajorKeyOffset));
+}
+
+
+void Code::set_major_key(CodeStub::Major major) {
+  ASSERT(kind() == STUB);
+  ASSERT(0 <= major && major < 256);
+  WRITE_BYTE_FIELD(this, kStubMajorKeyOffset, major);
 }
 
 
@@ -1418,18 +1589,18 @@ bool Code::is_inline_cache_stub() {
 
 
 Code::Flags Code::ComputeFlags(Kind kind,
-                               InlineCacheState state,
+                               InlineCacheState ic_state,
                                PropertyType type,
                                int argc) {
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
-  bits |= state << kFlagsStateShift;
+  bits |= ic_state << kFlagsICStateShift;
   bits |= type << kFlagsTypeShift;
   bits |= argc << kFlagsArgumentsCountShift;
   // Cast to flags and validate result before returning it.
   Flags result = static_cast<Flags>(bits);
   ASSERT(ExtractKindFromFlags(result) == kind);
-  ASSERT(ExtractStateFromFlags(result) == state);
+  ASSERT(ExtractICStateFromFlags(result) == ic_state);
   ASSERT(ExtractTypeFromFlags(result) == type);
   ASSERT(ExtractArgumentsCountFromFlags(result) == argc);
   return result;
@@ -1449,8 +1620,8 @@ Code::Kind Code::ExtractKindFromFlags(Flags flags) {
 }
 
 
-InlineCacheState Code::ExtractStateFromFlags(Flags flags) {
-  int bits = (flags & kFlagsStateMask) >> kFlagsStateShift;
+InlineCacheState Code::ExtractICStateFromFlags(Flags flags) {
+  int bits = (flags & kFlagsICStateMask) >> kFlagsICStateShift;
   return static_cast<InlineCacheState>(bits);
 }
 
@@ -1761,12 +1932,12 @@ INT_ACCESSORS(Code, sinfo_size, kSInfoSizeOffset)
 
 
 Code::ICTargetState Code::ic_flag() {
-  return static_cast<ICTargetState>(READ_INT_FIELD(this, kICFlagOffset));
+  return static_cast<ICTargetState>(READ_BYTE_FIELD(this, kICFlagOffset));
 }
 
 
 void Code::set_ic_flag(ICTargetState value) {
-  WRITE_INT_FIELD(this, kICFlagOffset, value);
+  WRITE_BYTE_FIELD(this, kICFlagOffset, value);
 }
 
 

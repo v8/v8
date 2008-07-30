@@ -818,13 +818,149 @@ class Failure: public Object {
 };
 
 
+// Heap objects typically have a map pointer in their first word.  However,
+// during GC other data (eg, mark bits, forwarding addresses) is sometimes
+// encoded in the first word.  The class MapWord is an abstraction of the
+// value in a heap object's first word.
+class MapWord BASE_EMBEDDED {
+ public:
+  // Normal state: the map word contains a map pointer.
+
+  // Create a map word from a map pointer.
+  static inline MapWord FromMap(Map* map);
+
+  // View this map word as a map pointer.
+  inline Map* ToMap();
+
+
+  // Scavenge collection: the map word of live objects in the from space
+  // contains a forwarding address (a heap object pointer in the to space).
+
+  // True if this map word is a forwarding address for a scavenge
+  // collection.  Only valid during a scavenge collection (specifically,
+  // when all map words are heap object pointers, ie. not during a full GC).
+  inline bool IsForwardingAddress();
+
+  // Create a map word from a forwarding address.
+  static inline MapWord FromForwardingAddress(HeapObject* object);
+
+  // View this map word as a forwarding address.
+  inline HeapObject* ToForwardingAddress();
+
+
+  // Marking phase of full collection: the map word of live objects is
+  // marked, and may be marked as overflowed (eg, the object is live, its
+  // children have not been visited, and it does not fit in the marking
+  // stack).
+
+  // True if this map word's mark bit is set.
+  inline bool IsMarked();
+
+  // Return this map word but with its mark bit set.
+  inline void SetMark();
+
+  // Return this map word but with its mark bit cleared.
+  inline void ClearMark();
+
+  // True if this map word's overflow bit is set.
+  inline bool IsOverflowed();
+
+  // Return this map word but with its overflow bit set.
+  inline void SetOverflow();
+
+  // Return this map word but with its overflow bit cleared.
+  inline void ClearOverflow();
+
+
+  // Compacting phase of a full compacting collection: the map word of live
+  // objects contains an encoding of the original map address along with the
+  // forwarding address (represented as an offset from the first live object
+  // in the same page as the (old) object address).
+
+  // Create a map word from a map address and a forwarding address offset.
+  static inline MapWord EncodeAddress(Address map_address, int offset);
+
+  // Return the map address encoded in this map word.
+  inline Address DecodeMapAddress(MapSpace* map_space);
+
+  // Return the forwarding offset encoded in this map word.
+  inline int DecodeOffset();
+
+
+  // During serialization: the map word is used to hold an encoded
+  // address, and possibly a mark bit (set and cleared with SetMark
+  // and ClearMark).
+
+  // Create a map word from an encoded address.
+  static inline MapWord FromEncodedAddress(Address address);
+
+  inline Address ToEncodedAddress();
+
+ private:
+  // HeapObject calls the private constructor and directly reads the value.
+  friend class HeapObject;
+
+  explicit MapWord(uintptr_t value) : value_(value) {}
+
+  uintptr_t value_;
+
+  // Bits used by the marking phase of the garbage collector.
+  //
+  // The first word of a heap object is normall a map pointer. The last two
+  // bits are tagged as '01' (kHeapObjectTag). We reuse the last two bits to
+  // mark an object as live and/or overflowed:
+  //   last bit = 0, marked as alive
+  //   second bit = 1, overflowed
+  // An object is only marked as overflowed when it is marked as live while
+  // the marking stack is overflowed.
+  static const int kMarkingBit = 0;  // marking bit
+  static const int kMarkingMask = (1 << kMarkingBit);  // marking mask
+  static const int kOverflowBit = 1;  // overflow bit
+  static const int kOverflowMask = (1 << kOverflowBit);  // overflow mask
+
+  // Forwarding pointers and map pointer encoding
+  //  31             21 20              10 9               0
+  // +-----------------+------------------+-----------------+
+  // |forwarding offset|page offset of map|page index of map|
+  // +-----------------+------------------+-----------------+
+  //  11 bits           11 bits            10 bits
+  static const int kMapPageIndexBits = 10;
+  static const int kMapPageOffsetBits = 11;
+  static const int kForwardingOffsetBits = 11;
+
+  static const int kMapPageIndexShift = 0;
+  static const int kMapPageOffsetShift =
+      kMapPageIndexShift + kMapPageIndexBits;
+  static const int kForwardingOffsetShift =
+      kMapPageOffsetShift + kMapPageOffsetBits;
+
+  // 0x000003FF
+  static const uint32_t kMapPageIndexMask =
+      (1 << kMapPageOffsetShift) - 1;
+
+  // 0x001FFC00
+  static const uint32_t kMapPageOffsetMask =
+      ((1 << kForwardingOffsetShift) - 1) & ~kMapPageIndexMask;
+
+  // 0xFFE00000
+  static const uint32_t kForwardingOffsetMask =
+      ~(kMapPageIndexMask | kMapPageOffsetMask);
+};
+
+
 // HeapObject is the superclass for all classes describing heap allocated
 // objects.
 class HeapObject: public Object {
  public:
-  // [map]: contains a Map which contains the objects reflective information.
+  // [map]: Contains a map which contains the object's reflective
+  // information.
   inline Map* map();
   inline void set_map(Map* value);
+
+  // During garbage collection, the map word of a heap object does not
+  // necessarily contain a map pointer.
+  inline MapWord map_word();
+  inline void set_map_word(MapWord map_word);
 
   // Converts an address to a HeapObject pointer.
   static inline HeapObject* FromAddress(Address address);
@@ -856,6 +992,31 @@ class HeapObject: public Object {
   // Useful when the map pointer field is used for other purposes.
   // GC internal.
   inline int SizeFromMap(Map* map);
+
+  // Support for the marking heap objects during the marking phase of GC.
+  // True if the object is marked live.
+  inline bool IsMarked();
+
+  // Mutate this object's map pointer to indicate that the object is live.
+  inline void SetMark();
+
+  // Mutate this object's map pointer to remove the indication that the
+  // object is live (ie, partially restore the map pointer).
+  inline void ClearMark();
+
+  // True if this object is marked as overflowed.  Overflowed objects have
+  // been reached and marked during marking of the heap, but their children
+  // have not necessarily been marked and they have not been pushed on the
+  // marking stack.
+  inline bool IsOverflowed();
+
+  // Mutate this object's map pointer to indicate that the object is
+  // overflowed.
+  inline void SetOverflow();
+
+  // Mutate this object's map pointer to remove the indication that the
+  // object is overflowed (ie, partially restore the map pointer).
+  inline void ClearOverflow();
 
   static inline Object* GetHeapObjectField(HeapObject* obj, int index);
 
@@ -1875,10 +2036,9 @@ class Code: public HeapObject {
 
   // [flags]: Access to specific code flags.
   inline Kind kind();
-  inline InlineCacheState state();  // only valid for IC stubs
+  inline InlineCacheState ic_state();  // only valid for IC stubs
   inline PropertyType type();  // only valid for monomorphic IC stubs
   inline int arguments_count();  // only valid for call IC stubs
-  inline CodeStub::Major major_key();  // only valid for kind STUB
 
   // Testers for IC stub kinds.
   inline bool is_inline_cache_stub();
@@ -1894,9 +2054,13 @@ class Code: public HeapObject {
   inline ICTargetState ic_flag();
   inline void set_ic_flag(ICTargetState value);
 
+  // [major_key]: For kind STUB, the major key.
+  inline CodeStub::Major major_key();
+  inline void set_major_key(CodeStub::Major major);
+
   // Flags operations.
   static inline Flags ComputeFlags(Kind kind,
-                                   InlineCacheState state = UNINITIALIZED,
+                                   InlineCacheState ic_state = UNINITIALIZED,
                                    PropertyType type = NORMAL,
                                    int argc = -1);
 
@@ -1905,7 +2069,7 @@ class Code: public HeapObject {
                                               int argc = -1);
 
   static inline Kind ExtractKindFromFlags(Flags flags);
-  static inline InlineCacheState ExtractStateFromFlags(Flags flags);
+  static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
   static inline PropertyType ExtractTypeFromFlags(Flags flags);
   static inline int ExtractArgumentsCountFromFlags(Flags flags);
   static inline Flags RemoveTypeFromFlags(Flags flags);
@@ -1970,16 +2134,20 @@ class Code: public HeapObject {
   static const int kRelocationSizeOffset = kInstructionSizeOffset + kIntSize;
   static const int kSInfoSizeOffset = kRelocationSizeOffset + kIntSize;
   static const int kFlagsOffset = kSInfoSizeOffset + kIntSize;
-  static const int kICFlagOffset = kFlagsOffset + kIntSize;
-  static const int kHeaderSize = kICFlagOffset + kIntSize;
+  static const int kKindSpecificFlagsOffset  = kFlagsOffset + kIntSize;
+  static const int kHeaderSize = kKindSpecificFlagsOffset + kIntSize;
+
+  // Byte offsets within kKindSpecificFlagsOffset.
+  static const int kICFlagOffset = kKindSpecificFlagsOffset + 0;
+  static const int kStubMajorKeyOffset = kKindSpecificFlagsOffset + 1;
 
   // Flags layout.
-  static const int kFlagsStateShift          = 0;
+  static const int kFlagsICStateShift        = 0;
   static const int kFlagsKindShift           = 3;
   static const int kFlagsTypeShift           = 6;
   static const int kFlagsArgumentsCountShift = 9;
 
-  static const int kFlagsStateMask          = 0x00000007;  // 000000111
+  static const int kFlagsICStateMask        = 0x00000007;  // 000000111
   static const int kFlagsKindMask           = 0x00000038;  // 000111000
   static const int kFlagsTypeMask           = 0x000001C0;  // 111000000
   static const int kFlagsArgumentsCountMask = 0xFFFFFE00;
@@ -2708,6 +2876,9 @@ class String: public HeapObject {
   // array index.
   static const int kHashComputedMask = 1;
   static const int kIsArrayIndexMask = 1 << 1;
+
+  // Limit for truncation in short printing.
+  static const int kMaxShortPrintLength = 1024;
 
   // Support for regular expressions.
   const uc16* GetTwoByteData();

@@ -1,3 +1,40 @@
+2008-07-30: Version 0.2.0 (129146)
+
+        Changed all text files to have native svn:eol-style.
+
+        Added a few samples and support for building them. The samples
+        include a simple shell that can be used to benchmark and test V8.
+
+        Changed V8::GetVersion to return the version as a string.
+
+        Added source for lazily loaded scripts to snapshots and made
+        serialization non-destructive.
+
+        Improved ARM support by fixing the write barrier code to use
+        aligned loads and stores and by removing premature locals
+        optimization that relied on broken support for callee-saved
+        registers (removed).
+
+        Refactored the code for marking live objects during garbage
+        collection and the code for allocating objects in paged
+        spaces. Introduced an abstraction for the map word of a heap-
+        allocated object and changed the memory allocator to allocate
+        executable memory only for spaces that may contain code objects.
+
+        Moved StringBuilder to utils.h and ScopedLock to platform.h, where
+        they can be used by debugging and logging modules. Added
+        thread-safe message queues for dealing with debugger events.
+
+        Fixed the source code reported by toString for certain builtin
+        empty functions and made sure that the prototype property of a
+        function is enumerable.
+
+        Improved performance of converting values to condition flags in
+        generated code.
+
+        Merged disassembler-{arch} files.
+
+
 2008-07-28: Version 0.1.4 (128918)
 
         Added support for storing JavaScript stack traces in a stack

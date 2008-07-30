@@ -83,7 +83,7 @@ namespace v8 { namespace internal {
 
 class PagedSpace;
 class MemoryAllocator;
-struct AllocationInfo;
+class AllocationInfo;
 
 // -----------------------------------------------------------------------------
 // A page normally has 8K bytes. Large object pages may be larger.  A page
@@ -141,7 +141,7 @@ class Page {
   // Returns the next page of this page.
   inline Page* next_page();
 
-  // Return the end of allocation in this page.
+  // Return the end of allocation in this page. Undefined for unused pages.
   inline Address AllocationTop();
 
   // Returns the start address of the object area in this page.
@@ -272,6 +272,22 @@ class Page {
 
 
 // ----------------------------------------------------------------------------
+// Space is the abstract superclass for all allocation spaces.
+class Space : public Malloced {
+ public:
+  Space(AllocationSpace id, bool executable)
+      : id_(id), executable_(executable) {}
+  // Does the space need executable memory?
+  bool executable() { return executable_; }
+  // Identity used in error reporting.
+  AllocationSpace identity() { return id_; }
+ private:
+  AllocationSpace id_;
+  bool executable_;
+};
+
+
+// ----------------------------------------------------------------------------
 // A space acquires chunks of memory from the operating system. The memory
 // allocator manages chunks for the paged heap spaces (old space and map
 // space).  A paged chunk consists of pages. Pages in a chunk have contiguous
@@ -322,7 +338,7 @@ class MemoryAllocator : public AllStatic {
   // the address is not NULL, the size is greater than zero, and that the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
-  static bool CommitBlock(Address start, size_t size);
+  static bool CommitBlock(Address start, size_t size, bool executable);
 
   // Attempts to allocate the requested (non-zero) number of pages from the
   // OS.  Fewer pages might be allocated than requested. If it fails to
@@ -345,7 +361,9 @@ class MemoryAllocator : public AllStatic {
   // Allocates and frees raw memory of certain size.
   // These are just thin wrappers around OS::Allocate and OS::Free,
   // but keep track of allocated bytes as part of heap.
-  static void* AllocateRawMemory(const size_t requested, size_t* allocated);
+  static void* AllocateRawMemory(const size_t requested,
+                                 size_t* allocated,
+                                 bool executable);
   static void FreeRawMemory(void* buf, size_t length);
 
   // Returns the maximum available bytes of heaps.
@@ -458,28 +476,6 @@ class ObjectIterator : public Malloced {
 
 
 // -----------------------------------------------------------------------------
-// Space iterator for iterating over all spaces.
-//
-// For each space an object iterator is provided. The deallocation of the
-// returned object iterators is handled by the space iterator.
-
-class SpaceIterator : public Malloced {
- public:
-  SpaceIterator();
-  virtual ~SpaceIterator();
-
-  bool has_next();
-  ObjectIterator* next();
-
- private:
-  ObjectIterator* CreateIterator();
-
-  int current_space_;  // from enum AllocationSpace.
-  ObjectIterator* iterator_;  // object iterator for the current space.
-};
-
-
-// -----------------------------------------------------------------------------
 // Heap object iterator in new/old/map spaces.
 //
 // A HeapObjectIterator iterates objects from a given address to the
@@ -562,9 +558,17 @@ class PageIterator BASE_EMBEDDED {
 
 // An abstraction of allocation and relocation pointers in a page-structured
 // space.
-struct AllocationInfo {
+class AllocationInfo {
+ public:
   Address top;  // current allocation top
   Address limit;  // current allocation limit
+
+#ifdef DEBUG
+  bool VerifyPagedAllocation() {
+    return (Page::FromAllocationTop(top) == Page::FromAllocationTop(limit))
+        && (top <= limit);
+  }
+#endif
 };
 
 
@@ -653,11 +657,13 @@ class AllocationStats BASE_EMBEDDED {
 };
 
 
-class PagedSpace : public Malloced {
+class PagedSpace : public Space {
   friend class PageIterator;
  public:
   // Creates a space with a maximum capacity, and an id.
-  PagedSpace(int max_capacity, AllocationSpace id);
+  PagedSpace(int max_capacity, AllocationSpace id, bool executable);
+
+  virtual ~PagedSpace() {}
 
   // Set up the space using the given address range of virtual memory (from
   // the memory allocator's initial chunk) if possible.  If the block of
@@ -677,11 +683,14 @@ class PagedSpace : public Malloced {
   inline bool Contains(Address a);
   bool Contains(HeapObject* o) { return Contains(o->address()); }
 
-  // Finds an object that the given address falls in its body. Returns
-  // Failure::Exception() if the operation failed.  The implementation
-  // iterates objects in the page containing the address, the cost is
-  // linear to the number of objects in the page. It may be slow.
+  // Given an address occupied by a live object, return that object if it is
+  // in this space, or Failure::Exception() if it is not. The implementation
+  // iterates over objects in the page containing the address, the cost is
+  // linear in the number of objects in the page. It may be slow.
   Object* FindObject(Address addr);
+
+  // Checks whether page is currently in use by this space.
+  bool IsUsed(Page* page);
 
   // Clears remembered sets of pages in this space.
   void ClearRSet();
@@ -705,13 +714,17 @@ class PagedSpace : public Malloced {
   // Returns the allocation pointer in this space.
   Address top() { return allocation_info_.top; }
 
-  AllocationSpace identity() { return identity_; }
+  // Allocate the requested number of bytes in the space if possible, return a
+  // failure object if not.
+  inline Object* AllocateRaw(int size_in_bytes);
 
-  // If 'linear_only' is true, force allocation_mode_ to
-  // LINEAR_ONLY. If 'linear_only' is false, allocation_mode_ is
-  // checked to be LINEAR_ONLY and changed to LINEAR, allowing it to
-  // alternate between LINEAR and FREE_LIST automatically.
-  void SetLinearAllocationOnly(bool linear_only);
+  // Allocate the requested number of bytes for relocation during mark-compact
+  // collection.
+  inline Object* MCAllocateRaw(int size_in_bytes);
+
+
+  // Allocate the requested number of bytes during deserialization.
+  inline Object* AllocateForDeserialization(int size_in_bytes);
 
   // ---------------------------------------------------------------------------
   // Mark-compact collection support functions
@@ -735,8 +748,6 @@ class PagedSpace : public Malloced {
   bool EnsureCapacity(int capacity);
 
 #ifdef DEBUG
-  void CheckLinearAllocationOnly() { CHECK(allocation_mode_ == LINEAR_ONLY); }
-
   // Print meta info and objects in this space.
   void Print();
 
@@ -747,13 +758,6 @@ class PagedSpace : public Malloced {
 #endif
 
  protected:
-  // In LINEAR and LINEAR_ONLY mode, allocation is from the end of the last
-  // page.  In FREE_LIST mode, allocation is from a fragment list of free
-  // space at the end of recent pages. LINEAR and FREE_LIST mode alternate
-  // automatically.  LINEAR_ONLY mode is sticky until converted to LINEAR by
-  // an API call.
-  enum AllocationMode { LINEAR_ONLY, LINEAR, FREE_LIST };
-
   // Maximum capacity of this space.
   int max_capacity_;
 
@@ -762,9 +766,6 @@ class PagedSpace : public Malloced {
 
   // The first page in this space.
   Page* first_page_;
-
-  // The allocation mode.
-  AllocationMode allocation_mode_;
 
   // Normal allocation information.
   AllocationInfo allocation_info_;
@@ -785,13 +786,27 @@ class PagedSpace : public Malloced {
   // pages are appened to the last_page;
   bool Expand(Page* last_page);
 
+  // Generic fast case allocation function that tries linear allocation in
+  // the top page of 'alloc_info'.  Returns NULL on failure.
+  inline HeapObject* AllocateLinearly(AllocationInfo* alloc_info,
+                                      int size_in_bytes);
+
+  // During normal allocation or deserialization, roll to the next page in
+  // the space (there is assumed to be one) and allocate there.  This
+  // function is space-dependent.
+  virtual HeapObject* AllocateInNextPage(Page* current_page,
+                                         int size_in_bytes) = 0;
+
+  // Slow path of AllocateRaw.  This function is space-dependent.
+  virtual HeapObject* SlowAllocateRaw(int size_in_bytes) = 0;
+
+  // Slow path of MCAllocateRaw.
+  HeapObject* SlowMCAllocateRaw(int size_in_bytes);
+
 #ifdef DEBUG
   void DoPrintRSet(const char* space_name);
 #endif
  private:
-  // Identity of this space.
-  AllocationSpace identity_;
-
   // Returns the page of the allocation pointer.
   Page* AllocationTopPage() { return TopPageOf(allocation_info_); }
 
@@ -844,7 +859,7 @@ class HistogramInfo BASE_EMBEDDED {
 // uses the memory in the from space as a marking stack when tracing live
 // objects.
 
-class SemiSpace  BASE_EMBEDDED {
+class SemiSpace : public Space {
  public:
   // Creates a space in the young generation. The constructor does not
   // allocate memory from the OS.  A SemiSpace is given a contiguous chunk of
@@ -852,7 +867,10 @@ class SemiSpace  BASE_EMBEDDED {
   // otherwise.  In the mark-compact collector, the memory region of the from
   // space is used as the marking stack. It requires contiguous memory
   // addresses.
-  SemiSpace(int initial_capacity, int maximum_capacity);
+  SemiSpace(int initial_capacity,
+            int maximum_capacity,
+            AllocationSpace id,
+            bool executable);
 
   // Sets up the semispace using the given chunk.
   bool Setup(Address start, int size);
@@ -971,7 +989,7 @@ class SemiSpaceIterator : public ObjectIterator {
 // The new space consists of a contiguous pair of semispaces.  It simply
 // forwards most functions to the appropriate semispace.
 
-class NewSpace : public Malloced {
+class NewSpace : public Space {
  public:
   // Create a new space with a given allocation capacity (ie, the capacity of
   // *one* of the semispaces).  The constructor does not allocate heap memory
@@ -979,7 +997,10 @@ class NewSpace : public Malloced {
   // memory of size 2 * semispace_capacity.  To support fast containment
   // testing in the new space, the size of this chunk must be a power of two
   // and it must be aligned to its size.
-  NewSpace(int initial_semispace_capacity, int maximum_semispace_capacity);
+  NewSpace(int initial_semispace_capacity,
+           int maximum_semispace_capacity,
+           AllocationSpace id,
+           bool executable);
 
   // Sets up the new space using the given chunk.
   bool Setup(Address start, int size);
@@ -1039,8 +1060,6 @@ class NewSpace : public Malloced {
   Address* allocation_top_address() { return &allocation_info_.top; }
   Address* allocation_limit_address() { return &allocation_info_.limit; }
 
-  // Allocate the requested number of bytes in the space if possible, return a
-  // failure object if not.
   Object* AllocateRaw(int size_in_bytes) {
     return AllocateRawInternal(size_in_bytes, &allocation_info_);
   }
@@ -1270,6 +1289,11 @@ class OldSpaceFreeList BASE_EMBEDDED {
   void RebuildSizeList();
   bool needs_rebuild_;
 
+#ifdef DEBUG
+  // Does this free list contain a free block located at the address of 'node'?
+  bool Contains(FreeListNode* node);
+#endif
+
   DISALLOW_EVIL_CONSTRUCTORS(OldSpaceFreeList);
 };
 
@@ -1277,7 +1301,7 @@ class OldSpaceFreeList BASE_EMBEDDED {
 // The free list for the map space.
 class MapSpaceFreeList BASE_EMBEDDED {
  public:
-  MapSpaceFreeList();
+  explicit MapSpaceFreeList(AllocationSpace owner);
 
   // Clear the free list.
   void Reset();
@@ -1302,6 +1326,10 @@ class MapSpaceFreeList BASE_EMBEDDED {
   // The head of the free list.
   Address head_;
 
+  // The identity of the owning space, for building allocation Failure
+  // objects.
+  AllocationSpace owner_;
+
   DISALLOW_EVIL_CONSTRUCTORS(MapSpaceFreeList);
 };
 
@@ -1313,8 +1341,8 @@ class OldSpace : public PagedSpace {
  public:
   // Creates an old space object with a given maximum capacity.
   // The constructor does not allocate pages from OS.
-  explicit OldSpace(int max_capacity, AllocationSpace id)
-      : PagedSpace(max_capacity, id), free_list_(id) {
+  explicit OldSpace(int max_capacity, AllocationSpace id, bool executable)
+      : PagedSpace(max_capacity, id, executable), free_list_(id) {
   }
 
   // Returns maximum available bytes that the old space can have.
@@ -1327,21 +1355,9 @@ class OldSpace : public PagedSpace {
   // pointer).
   int AvailableFree() { return free_list_.available(); }
 
-  // The top of allocation in a page in this space.
+  // The top of allocation in a page in this space. Undefined if page is unused.
   Address PageAllocationTop(Page* page) {
     return page == TopPageOf(allocation_info_) ? top() : page->ObjectAreaEnd();
-  }
-
-  // Allocates requested bytes. May return Failure if the space is full.
-  Object* AllocateRaw(int size_in_bytes) {
-    ASSERT_OBJECT_SIZE(size_in_bytes);
-    return AllocateRawInternal(size_in_bytes, &allocation_info_);
-  }
-
-  // Allocates requested bytes for object relocation.
-  Object* MCAllocateRaw(int size_in_bytes) {
-    ASSERT_OBJECT_SIZE(size_in_bytes);
-    return AllocateRawInternal(size_in_bytes, &mc_forwarding_info_);
   }
 
   // Give a block of memory to the space's free list.  It might be added to
@@ -1376,6 +1392,14 @@ class OldSpace : public PagedSpace {
   void PrintRSet();
 #endif
 
+ protected:
+  // Virtual function in the superclass.  Slow path of AllocateRaw.
+  HeapObject* SlowAllocateRaw(int size_in_bytes);
+
+  // Virtual function in the superclass.  Allocate linearly at the start of
+  // the page after current_page (there is assumed to be one).
+  HeapObject* AllocateInNextPage(Page* current_page, int size_in_bytes);
+
  private:
   // The space's free list.
   OldSpaceFreeList free_list_;
@@ -1383,14 +1407,6 @@ class OldSpace : public PagedSpace {
   // During relocation, we keep a pointer to the most recently relocated
   // object in order to know when to move to the next page.
   Address mc_end_of_relocation_;
-
-  // Implementation of AllocateRaw. Allocates requested number of bytes using
-  // the given allocation information according to the space's current
-  // allocation mode.
-  Object* AllocateRawInternal(int size_in_bytes, AllocationInfo* alloc_info);
-
-  // Slow path of AllocateRaw functions.
-  Object* SlowAllocateRaw(int size_in_bytes, AllocationInfo* alloc_info);
 
  public:
   TRACK_MEMORY("OldSpace")
@@ -1403,28 +1419,17 @@ class OldSpace : public PagedSpace {
 class MapSpace : public PagedSpace {
  public:
   // Creates a map space object with a maximum capacity.
-  explicit MapSpace(int max_capacity) : PagedSpace(max_capacity, MAP_SPACE) { }
+  explicit MapSpace(int max_capacity, AllocationSpace id)
+      : PagedSpace(max_capacity, id, false), free_list_(id) { }
 
   // The bytes available on the free list (ie, not above the linear allocation
   // pointer).
   int AvailableFree() { return free_list_.available(); }
 
-  // The top of allocation in a page in this space.
+  // The top of allocation in a page in this space. Undefined if page is unused.
   Address PageAllocationTop(Page* page) {
     return page == TopPageOf(allocation_info_) ? top()
         : page->ObjectAreaEnd() - kPageExtra;
-  }
-
-  // Allocates requested bytes. May return Failure if the space is full.
-  Object* AllocateRaw(int size_in_bytes) {
-    ASSERT_OBJECT_SIZE(size_in_bytes);
-    return AllocateRawInternal(size_in_bytes, &allocation_info_);
-  }
-
-  // Allocates requested bytes for object relocation.
-  Object* MCAllocateRaw(int size_in_bytes) {
-    ASSERT_OBJECT_SIZE(size_in_bytes);
-    return AllocateRawInternal(size_in_bytes, &mc_forwarding_info_);
   }
 
   // Give a map-sized block of memory to the space's free list.
@@ -1459,19 +1464,20 @@ class MapSpace : public PagedSpace {
 
   static const int kPageExtra = Page::kObjectAreaSize % Map::kSize;
 
+ protected:
+  // Virtual function in the superclass.  Slow path of AllocateRaw.
+  HeapObject* SlowAllocateRaw(int size_in_bytes);
+
+  // Virtual function in the superclass.  Allocate linearly at the start of
+  // the page after current_page (there is assumed to be one).
+  HeapObject* AllocateInNextPage(Page* current_page, int size_in_bytes);
+
  private:
   // The space's free list.
   MapSpaceFreeList free_list_;
 
   // An array of page start address in a map space.
   Address page_addresses_[kMaxMapPageIndex];
-
-  // Implementation of AllocateRaw. Allocates requested bytes using
-  // the given allocation information.
-  Object* AllocateRawInternal(int size_in_bytes, AllocationInfo* alloc_info);
-
-  // Slow path of AllocateRaw functions.
-  Object* SlowAllocateRaw(int size_int_bytes, AllocationInfo* alloc_info);
 
  public:
   TRACK_MEMORY("MapSpace")
@@ -1495,7 +1501,9 @@ class LargeObjectChunk {
   // object and possibly extra remembered set words) bytes after the object
   // area start of that page. The allocated chunk size is set in the output
   // parameter chunk_size.
-  static LargeObjectChunk* New(int size_in_bytes, size_t* chunk_size);
+  static LargeObjectChunk* New(int size_in_bytes,
+                               size_t* chunk_size,
+                               bool executable);
 
   // Interpret a raw address as a large object chunk.
   static LargeObjectChunk* FromAddress(Address address) {
@@ -1542,10 +1550,10 @@ class LargeObjectChunk {
 };
 
 
-class LargeObjectSpace {
+class LargeObjectSpace : public Space {
   friend class LargeObjectIterator;
  public:
-  LargeObjectSpace();
+  explicit LargeObjectSpace(AllocationSpace id, bool executable);
 
   // Initializes internal data structures.
   bool Setup();
