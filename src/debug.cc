@@ -1742,9 +1742,7 @@ DebugMessageThread::~DebugMessageThread() {
 // The new copy of the event string is destroyed in Run().
 void DebugMessageThread::SendMessage(Vector<uint16_t> message) {
   Vector<uint16_t> message_copy = message.Clone();
-  if (FLAG_log_debugger) {
-    Logger::StringEvent("Put message on event message_queue.", "");
-  }
+  Logger::DebugTag("Put message on event message_queue.");
   message_queue_.Put(message_copy);
   message_received_->Signal();
 }
@@ -1801,9 +1799,7 @@ void DebugMessageThread::Run() {
   while (true) {
     // Wait and Get are paired so that semaphore count equals queue length.
     message_received_->Wait();
-    if (FLAG_log_debugger) {
-      Logger::StringEvent("Get message from event message_queue.", "");
-    }
+    Logger::DebugTag("Get message from event message_queue.");
     Vector<uint16_t> message = message_queue_.Get();
     if (message.length() > 0) {
       Debugger::SendMessage(message);
@@ -1867,11 +1863,7 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     // Drain queue.
     while (!command_queue_.IsEmpty()) {
       command_received_->Wait();
-      if (FLAG_log_debugger) {
-        Logger::StringEvent(
-            "Get command from command_queue, in drain queue loop.",
-            "");
-      }
+      Logger::DebugTag("Get command from command_queue, in drain queue loop.");
       Vector<uint16_t> command = command_queue_.Get();
       // Support for sending a break command as just "break" instead of an
       // actual JSON break command.
@@ -1921,11 +1913,7 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
   // Wait for commands from the debugger.
   while (true) {
     command_received_->Wait();
-    if (FLAG_log_debugger) {
-      Logger::StringEvent(
-          "Get command from command queue, in interactive loop.",
-          "");
-    }
+    Logger::DebugTag("Get command from command queue, in interactive loop.");
     Vector<uint16_t> command = command_queue_.Get();
     ASSERT(!host_running_);
     if (!Debugger::debugger_active()) {
@@ -2002,9 +1990,7 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
 // The new copy of the command is destroyed in HandleCommand().
 void DebugMessageThread::ProcessCommand(Vector<uint16_t> command) {
   Vector<uint16_t> command_copy = command.Clone();
-  if (FLAG_log_debugger) {
-    Logger::StringEvent("Put command on command_queue.", "");
-  }
+  Logger::DebugTag("Put command on command_queue.");
   command_queue_.Put(command_copy);
   // If not in a break schedule a break and send the "request queued" response.
   if (host_running_) {
@@ -2084,11 +2070,7 @@ bool LockingMessageQueue::IsEmpty() const {
 Vector<uint16_t> LockingMessageQueue::Get() {
   ScopedLock sl(lock_);
   Vector<uint16_t> result = queue_.Get();
-  // Logging code for debugging debugger.
-  if (FLAG_log_debugger) {
-    LogQueueOperation("Get", result);
-  }
-
+  Logger::DebugEvent("Get", result);
   return result;
 }
 
@@ -2096,29 +2078,13 @@ Vector<uint16_t> LockingMessageQueue::Get() {
 void LockingMessageQueue::Put(const Vector<uint16_t>& message) {
   ScopedLock sl(lock_);
   queue_.Put(message);
-  // Logging code for debugging debugger.
-  if (FLAG_log_debugger) {
-    LogQueueOperation("Put", message);
-  }
+  Logger::DebugEvent("Put", message);
 }
 
 
 void LockingMessageQueue::Clear() {
   ScopedLock sl(lock_);
   queue_.Clear();
-}
-
-
-void LockingMessageQueue::LogQueueOperation(const char* operation_name,
-                                            Vector<uint16_t> parameter) {
-  StringBuilder s(23+parameter.length()+strlen(operation_name) +1);
-  s.AddFormatted("Time: %f15.3 %s ", OS::TimeCurrentMillis(), operation_name);
-  for (int i = 0; i < parameter.length(); ++i) {
-    s.AddCharacter(static_cast<char>(parameter[i]));
-  }
-  char* result_string = s.Finalize();
-  Logger::StringEvent(result_string, "");
-  DeleteArray(result_string);
 }
 
 

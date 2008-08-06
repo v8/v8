@@ -139,6 +139,19 @@ void Object::Lookup(String* name, LookupResult* result) {
   } else if (IsBoolean()) {
     holder = global_context->boolean_function()->instance_prototype();
   }
+#ifdef DEBUG
+  // Used to track outstanding bug #1308895.
+  // TODO(1308895) Remove when bug is fixed.
+  if (holder == NULL) {
+    PrintF("\nName being looked up: ");
+    name->Print();
+    PrintF("\nThis (object name is looked up in: ");
+    this->Print();
+    if (IsScript()) {
+      PrintF("IsScript() returns true.\n");
+    }
+  }
+#endif
   ASSERT(holder != NULL);  // cannot handle null or undefined.
   JSObject::cast(holder)->Lookup(name, result);
 }
@@ -960,13 +973,29 @@ Object* JSObject::AddFastProperty(String* name,
     return AddSlowProperty(name, value, attributes);
   }
 
+  // Replace a CONSTANT_TRANSITION flag with a transition.
+  // Do this by removing it, and the standard code for adding a map transition
+  // will then run.
+  DescriptorArray* old_descriptors = map()->instance_descriptors();
+  int old_name_index = old_descriptors->Search(name);
+  bool constant_transition = false;  // Only used in assertions.
+  if (old_name_index != DescriptorArray::kNotFound && CONSTANT_TRANSITION ==
+      PropertyDetails(old_descriptors->GetDetails(old_name_index)).type()) {
+    constant_transition = true;
+    Object* r = old_descriptors->CopyRemove(name);
+    if (r->IsFailure()) return r;
+    old_descriptors = DescriptorArray::cast(r);
+    map()->set_instance_descriptors(old_descriptors);
+    old_name_index = DescriptorArray::kNotFound;
+  }
+
   // Compute the new index for new field.
   int index = map()->NextFreePropertyIndex();
 
   // Allocate new instance descriptors with (name, index) added
-  FieldDescriptor fd(name, index, attributes);
+  FieldDescriptor new_field(name, index, attributes);
   Object* new_descriptors =
-      map()->instance_descriptors()->CopyInsert(&fd, true);
+      map()->instance_descriptors()->CopyInsert(&new_field, true);
   if (new_descriptors->IsFailure()) return new_descriptors;
 
   // Only allow map transition if the object's map is NOT equal to the
@@ -974,6 +1003,7 @@ Object* JSObject::AddFastProperty(String* name,
   bool allow_map_transition =
         !map()->instance_descriptors()->Contains(name) &&
         (Top::context()->global_context()->object_function()->map() != map());
+  ASSERT(allow_map_transition || !constant_transition);
 
   if (map()->unused_property_fields() > 0) {
     ASSERT(index < properties()->length());
@@ -1055,7 +1085,33 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
 
   DescriptorArray* descriptors = DescriptorArray::cast(new_descriptors);
   Map::cast(new_map)->set_instance_descriptors(descriptors);
+  Map* old_map = map();
   set_map(Map::cast(new_map));
+
+  // If the old map is the global object map (from new Object()),
+  // then transitions are not added to it, so we are done.
+  if (old_map == Top::context()->global_context()->object_function()->map()) {
+    return function;
+  }
+
+  // Do not add CONSTANT_TRANSITIONS to global objects
+  if (IsGlobalObject()) {
+    return function;
+  }
+
+  // Add a CONSTANT_TRANSITION descriptor to the old map,
+  // so future assignments to this property on other objects
+  // of the same type will create a normal field, not a constant function.
+  // Don't do this for special properties, with non-trival attributes.
+  if (attributes != NONE) {
+    return function;
+  }
+  ConstTransitionDescriptor mark(name);
+  new_descriptors = old_map->instance_descriptors()->CopyInsert(&mark, false);
+  if (new_descriptors->IsFailure()) {
+    return new_descriptors;
+  }
+  old_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
 
   return function;
 }
@@ -1356,7 +1412,7 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
     }
   } else {
     int entry = property_dictionary()->FindStringEntry(name);
-    if (entry != -1) {
+    if (entry != DescriptorArray::kNotFound) {
       // Make sure to disallow caching for uninitialized constants
       // found in the dictionary-mode objects.
       if (property_dictionary()->ValueAt(entry)->IsTheHole()) {
@@ -1494,7 +1550,12 @@ Object* JSObject::SetProperty(LookupResult* result,
       case INTERCEPTOR:
         return SetPropertyWithInterceptor(name, value, attributes);
       case CONSTANT_TRANSITION:
-        break;
+        // Replace with a MAP_TRANSITION to a new map with a FIELD, even
+        // if the value is a function.
+        // AddProperty has been extended to do this, in this case.
+        return AddFastProperty(name, value, attributes);
+      default:
+        UNREACHABLE();
     }
   }
 
@@ -1731,6 +1792,7 @@ Object* JSObject::NormalizeProperties() {
         break;
       }
       default:
+        ASSERT(details.IsTransition());
         break;
     }
   }
@@ -2631,18 +2693,33 @@ Object* DescriptorArray::CopyReplace(String* name,
 }
 
 
-bool DescriptorArray::IsSortedNoDuplicates() {
-  String* current_key = NULL;
-  uint32_t current = 0;
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    String* key = r.GetKey();
-    if (key == current_key) return false;
-    current_key = key;
-    uint32_t hash = r.GetKey()->Hash();
-    if (hash < current) return false;
-    current = hash;
+Object* DescriptorArray::CopyRemove(String* name) {
+  if (!name->IsSymbol()) {
+    Object* result = Heap::LookupSymbol(name);
+    if (result->IsFailure()) return result;
+    name = String::cast(result);
   }
-  return true;
+  ASSERT(name->IsSymbol());
+  Object* result = Allocate(number_of_descriptors() - 1);
+  if (result->IsFailure()) return result;
+  DescriptorArray* new_descriptors = DescriptorArray::cast(result);
+
+  // Set the enumeration index in the descriptors and set the enumeration index
+  // in the result.
+  new_descriptors->SetNextEnumerationIndex(NextEnumerationIndex());
+
+  // Write the old content and the descriptor information
+  DescriptorWriter w(new_descriptors);
+  DescriptorReader r(this);
+  while (!r.eos()) {
+    if (r.GetKey() != name) {  // Both are symbols; object identity suffices.
+      w.WriteFrom(&r);
+    }
+    r.advance();
+  }
+  ASSERT(w.eos());
+
+  return new_descriptors;
 }
 
 
@@ -3990,6 +4067,25 @@ int Code::SourceStatementPosition(Address pc) {
 }
 
 
+#ifdef ENABLE_DISASSEMBLER
+// Identify kind of code.
+const char* Code::Kind2String(Kind kind) {
+  switch (kind) {
+    case FUNCTION: return "FUNCTION";
+    case STUB: return "STUB";
+    case BUILTIN: return "BUILTIN";
+    case LOAD_IC: return "LOAD_IC";
+    case KEYED_LOAD_IC: return "KEYED_LOAD_IC";
+    case STORE_IC: return "STORE_IC";
+    case KEYED_STORE_IC: return "KEYED_STORE_IC";
+    case CALL_IC: return "CALL_IC";
+  }
+  UNREACHABLE();
+  return NULL;
+}
+#endif  // ENABLE_DISASSEMBLER
+
+
 void JSObject::SetFastElements(FixedArray* elems) {
 #ifdef DEBUG
   // Check the provided array is filled with the_hole.
@@ -5193,7 +5289,7 @@ void HashTable<prefix_size, element_size>::IterateElements(ObjectVisitor* v) {
 
 template<int prefix_size, int element_size>
 Object* HashTable<prefix_size, element_size>::Allocate(int at_least_space_for) {
-  int capacity = NextPowerOf2(at_least_space_for);
+  int capacity = RoundUpToPowerOf2(at_least_space_for);
   if (capacity < 4) capacity = 4;  // Guarantee min capacity.
   Object* obj = Heap::AllocateHashTable(EntryToIndex(capacity));
   if (!obj->IsFailure()) {

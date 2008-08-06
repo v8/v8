@@ -46,7 +46,13 @@ $Math.__proto__ = global.Object.prototype;
 function $Math_random() { return %Math_random(0); }
 %AddProperty($Math, "random", $Math_random, DONT_ENUM);
 
-function $Math_abs(x) { return %Math_abs(ToNumber(x)); }
+function $Math_abs(x) {
+  if (%_IsSmi(x)) {
+    return x >= 0 ? x : -x;
+  } else {
+    return %Math_abs(ToNumber(x));
+  }
+}
 %AddProperty($Math, "abs", $Math_abs, DONT_ENUM);
 
 function $Math_acos(x) { return %Math_acos(ToNumber(x)); }
@@ -95,7 +101,7 @@ function $Math_max(arg1, arg2) {  // length == 2
   var r = -$Infinity;
   for (var i = %_ArgumentsLength() - 1; i >= 0; --i) {
     var n = ToNumber(%_Arguments(i));
-    if (%NumberIsNaN(n)) return n;
+    if (NUMBER_IS_NAN(n)) return n;
     // Make sure +0 is consider greater than -0.
     if (n > r || (n === 0 && r === 0 && (1 / n) > (1 / r))) r = n;
   }
@@ -107,7 +113,7 @@ function $Math_min(arg1, arg2) {  // length == 2
   var r = $Infinity;
   for (var i = %_ArgumentsLength() - 1; i >= 0; --i) {
     var n = ToNumber(%_Arguments(i));
-    if (%NumberIsNaN(n)) return n;
+    if (NUMBER_IS_NAN(n)) return n;
     // Make sure -0 is consider less than +0.
     if (n < r || (n === 0 && r === 0 && (1 / n) < (1 / r))) r = n;
   }

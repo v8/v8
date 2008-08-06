@@ -2018,6 +2018,12 @@ void Assembler::emit_farith(int b1, int b2, int i) {
 
 void Assembler::RecordRelocInfo(RelocMode rmode, intptr_t data) {
   ASSERT(rmode != no_reloc);
+  // Don't record external references unless the heap will be serialized.
+  if (rmode == external_reference &&
+      !Serializer::enabled() &&
+      !FLAG_debug_code) {
+    return;
+  }
   RelocInfo rinfo(pc_, rmode, data);
   reloc_info_writer.Write(&rinfo);
 }

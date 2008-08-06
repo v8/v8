@@ -177,6 +177,31 @@ enum Condition {
 INLINE(Condition NegateCondition(Condition cc));
 
 
+// Corresponds to transposing the operands of a comparison.
+inline Condition ReverseCondition(Condition cc) {
+  switch (cc) {
+    case lo:
+      return hi;
+    case hi:
+      return lo;
+    case hs:
+      return ls;
+    case ls:
+      return hs;
+    case lt:
+      return gt;
+    case gt:
+      return lt;
+    case ge:
+      return le;
+    case le:
+      return ge;
+    default:
+      return cc;
+  };
+}
+
+
 // The pc store offset may be 8 or 12 depending on the processor implementation.
 int PcStoreOffset();
 
@@ -371,8 +396,8 @@ class Assembler : public Malloced {
 
   // Returns the branch offset to the given label from the current code position
   // Links the label to the current position if it is still unbound
-  // Manages the jump elimination optimization if necessary
-  int branch_offset(Label* L, Condition cond);
+  // Manages the jump elimination optimization if the second parameter is true.
+  int branch_offset(Label* L, bool jump_elimination_allowed);
 
   // Return the address in the constant pool of the code target address used by
   // the branch/call instruction at pc.
@@ -403,11 +428,13 @@ class Assembler : public Malloced {
   void bx(Register target, Condition cond = al);  // v5 and above, plus v4t
 
   // Convenience branch instructions using labels
-  void b(Label* L, Condition cond = al)  { b(branch_offset(L, cond), cond); }
-  void b(Condition cond, Label* L)  { b(branch_offset(L, cond), cond); }
-  void bl(Label* L, Condition cond = al)  { bl(branch_offset(L, cond), cond); }
-  void bl(Condition cond, Label* L)  { bl(branch_offset(L, cond), cond); }
-  void blx(Label* L)  { blx(branch_offset(L, al)); }  // v5 and above
+  void b(Label* L, Condition cond = al)  {
+    b(branch_offset(L, cond == al), cond);
+  }
+  void b(Condition cond, Label* L)  { b(branch_offset(L, cond == al), cond); }
+  void bl(Label* L, Condition cond = al)  { bl(branch_offset(L, false), cond); }
+  void bl(Condition cond, Label* L)  { bl(branch_offset(L, false), cond); }
+  void blx(Label* L)  { blx(branch_offset(L, false)); }  // v5 and above
 
   // Data-processing instructions
   void and_(Register dst, Register src1, const Operand& src2,

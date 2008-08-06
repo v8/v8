@@ -45,7 +45,6 @@ DEFINE_bool(log_all, false, "Log all events to the log file.");
 DEFINE_bool(log_api, false, "Log API events to the log file.");
 DEFINE_bool(log_code, false,
             "Log code events to the log file without profiling.");
-DEFINE_bool(log_debugger, false, "Log debugger internal messages.");
 DEFINE_bool(log_gc, false,
             "Log heap samples on garbage collection for the hp2ps tool.");
 DEFINE_bool(log_handles, false, "Log global handle events.");
@@ -564,6 +563,34 @@ void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
 }
 
 
+void Logger::DebugTag(const char* call_site_tag) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL) return;
+  ScopedLock sl(mutex_);
+  fprintf(logfile_, "debug-tag,%s\n", call_site_tag);
+#endif
+}
+
+
+void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL) return;
+  StringBuilder s(parameter.length() + 1);
+  for (int i = 0; i < parameter.length(); ++i) {
+    s.AddCharacter(static_cast<char>(parameter[i]));
+  }
+  char* parameter_string = s.Finalize();
+  ScopedLock sl(mutex_);
+  fprintf(logfile_,
+          "debug-queue-event,%s,%15.3f,%s\n",
+          event_type,
+          OS::TimeCurrentMillis(),
+          parameter_string);
+  DeleteArray(parameter_string);
+#endif
+}
+
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (logfile_ == NULL) return;
@@ -592,7 +619,7 @@ bool Logger::Setup() {
 
   // Each of the individual log flags implies --log.  Check after
   // checking --log-all and --prof in case they set --log-code.
-  if (FLAG_log_api || FLAG_log_code || FLAG_log_debugger || FLAG_log_gc ||
+  if (FLAG_log_api || FLAG_log_code || FLAG_log_gc ||
       FLAG_log_handles || FLAG_log_suspect) {
     FLAG_log = true;
   }

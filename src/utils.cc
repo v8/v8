@@ -36,7 +36,9 @@
 namespace v8 { namespace internal {
 
 
-int32_t NextPowerOf2(uint32_t x) {
+// Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,
+// figure 3-3, page 48, where the function is called clp2.
+uint32_t RoundUpToPowerOf2(uint32_t x) {
   x = x - 1;
   x = x | (x >> 1);
   x = x | (x >> 2);

@@ -2304,9 +2304,16 @@ void Ia32CodeGenerator::Comparison(Condition cc, bool strict) {
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == equal);
 
+  // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
+  if (cc == greater || cc == less_equal) {
+    cc = ReverseCondition(cc);
+    __ pop(edx);
+    __ pop(eax);
+  } else {
+    __ pop(eax);
+    __ pop(edx);
+  }
   ComparisonDeferred* deferred = new ComparisonDeferred(this, cc, strict);
-  __ pop(eax);
-  __ pop(edx);
   __ mov(ecx, Operand(eax));
   __ or_(ecx, Operand(edx));
   __ test(ecx, Immediate(kSmiTagMask));
@@ -4354,10 +4361,20 @@ void Ia32CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ mov(TOS, Factory::undefined_value());
         break;
 
-      case Token::ADD:
+      case Token::ADD: {
+        // Smi check.
+        Label continue_label;
+        __ pop(eax);
+        __ test(eax, Immediate(kSmiTagMask));
+        __ j(zero, &continue_label);
+
+        __ push(eax);
         __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION);
+
+        __ bind(&continue_label);
         __ push(eax);
         break;
+      }
 
       default:
         UNREACHABLE();

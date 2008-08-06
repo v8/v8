@@ -237,7 +237,6 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSFunction* function,
                                               CheckType check) {
   // ----------- S t a t e -------------
-  //  -- r0: number of arguments
   //  -- r1: receiver
   //  -- lr: return address
   // -----------------------------------
@@ -322,17 +321,20 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       UNREACHABLE();
   }
 
+  // Number of arguments for this function.
+  const int argc = arguments().immediate();
+
   // Get the function and setup the context.
   __ mov(r3, Operand(Handle<JSFunction>(function)));
   __ ldr(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
 
   // Patch the function on the stack; 1 ~ receiver.
-  __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-  __ str(r3, MemOperand(ip, 1 * kPointerSize));
+  __ str(r3, MemOperand(sp, (argc + 1) * kPointerSize));
 
   // Jump to the cached code (tail call).
   Handle<Code> code(function->code());
-  __ Jump(code, code_target);
+  ParameterCount expected(function->shared()->formal_parameter_count());
+  __ InvokeCode(code, expected, arguments(), code_target, JUMP_FUNCTION);
 
   // Handle call cache miss.
   __ bind(&miss);

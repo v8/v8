@@ -39,6 +39,11 @@ extern Register pp;  // parameter pointer
 
 
 // Helper types to make boolean flag easier to read at call-site.
+enum InvokeFlag {
+  CALL_FUNCTION,
+  JUMP_FUNCTION
+};
+
 enum InvokeJSFlags {
   CALL_JS,
   JUMP_JS
@@ -102,6 +107,35 @@ class MacroAssembler: public Assembler {
   void Push(const MemOperand& src);
   void Pop(Register dst);
   void Pop(const MemOperand& dst);
+
+  // ---------------------------------------------------------------------------
+  // JavaScript invokes
+
+  // Helper functions for generating invokes.
+  void InvokePrologue(const ParameterCount& expected,
+                      const ParameterCount& actual,
+                      Handle<Code> code_constant,
+                      Register code_reg,
+                      Label* done,
+                      InvokeFlag flag);
+
+  // Invoke the JavaScript function code by either calling or jumping.
+  void InvokeCode(Register code,
+                  const ParameterCount& expected,
+                  const ParameterCount& actual,
+                  InvokeFlag flag);
+
+  void InvokeCode(Handle<Code> code,
+                  const ParameterCount& expected,
+                  const ParameterCount& actual,
+                  RelocMode rmode,
+                  InvokeFlag flag);
+
+  // Invoke the JavaScript function in the given register. Changes the
+  // current context to the context in the function before invoking.
+  void InvokeFunction(Register function,
+                      const ParameterCount& actual,
+                      InvokeFlag flag);
 
   // ---------------------------------------------------------------------------
   // Debugger Support

@@ -233,6 +233,7 @@ PLATFORM_DEPENDENT_SOURCES = {
   'arch:ia32': ['assembler-ia32.cc', 'builtins-ia32.cc', 'codegen-ia32.cc', 'cpu-ia32.cc', 'disasm-ia32.cc', 'frames-ia32.cc', 'ic-ia32.cc', 'macro-assembler-ia32.cc', 'simulator-ia32.cc', 'stub-cache-ia32.cc'],
   'os:linux': ['platform-linux.cc'],
   'os:macos': ['platform-macos.cc'],
+  'os:nullos': ['platform-nullos.cc'],
   'os:win32': ['platform-win32.cc']
 }
 

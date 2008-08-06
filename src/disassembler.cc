@@ -224,9 +224,8 @@ static int DecodeIt(FILE* f,
               ASSERT(obj->IsSmi());
               // Get the STUB key and extract major and minor key.
               uint32_t key = Smi::cast(obj)->value();
-              CodeStub::Major major_key = code->major_key();
               uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
-              ASSERT(major_key == CodeStub::MajorKeyFromKey(key));
+              ASSERT(code->major_key() == CodeStub::MajorKeyFromKey(key));
               out.AddFormatted(" (%s, %s, ",
                                Code::Kind2String(kind),
                                CodeStub::MajorName(code->major_key()));

@@ -503,9 +503,8 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ CheckAccessGlobal(edx, eax, &miss);
   __ jmp(&probe);
 
-  // Cache miss: Restore receiver from stack and jump to runtime.
+  // Cache miss: Jump to runtime.
   __ bind(&miss);
-  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));  // 1 ~ return address
   Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 

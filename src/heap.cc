@@ -2420,7 +2420,7 @@ bool Heap::ConfigureHeap(int semispace_size, int old_gen_size) {
 
   // The new space size must be a power of two to support single-bit testing
   // for containment.
-  semispace_size_ = NextPowerOf2(semispace_size_);
+  semispace_size_ = RoundUpToPowerOf2(semispace_size_);
   initial_semispace_size_ = Min(initial_semispace_size_, semispace_size_);
   young_generation_size_ = 2 * semispace_size_;
 

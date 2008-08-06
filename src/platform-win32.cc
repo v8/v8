@@ -690,22 +690,30 @@ bool OS::IsOutsideAllocatedSpace(void* pointer) {
 }
 
 
-// Get the system's page size used by VirtualAlloc().
+// Get the system's page size used by VirtualAlloc() or the next power
+// of two. The reason for always returning a power of two is that the
+// rounding up in OS::Allocate expects that.
 static size_t GetPageSize() {
   static size_t page_size = 0;
   if (page_size == 0) {
     SYSTEM_INFO info;
     GetSystemInfo(&info);
-    page_size = info.dwPageSize;
+    page_size = RoundUpToPowerOf2(info.dwPageSize);
   }
   return page_size;
 }
 
 
+// The allocation alignment is the guaranteed alignment for
+// VirtualAlloc'ed blocks of memory.
 size_t OS::AllocateAlignment() {
-  // See also http://blogs.msdn.com/oldnewthing/archive/2003/10/08/55239.aspx
-  const size_t kWindowsVirtualAllocAlignment = 64*1024;
-  return kWindowsVirtualAllocAlignment;
+  static size_t allocate_alignment = 0;
+  if (allocate_alignment == 0) {
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    allocate_alignment = info.dwAllocationGranularity;
+  }
+  return allocate_alignment;
 }
 
 
@@ -717,7 +725,7 @@ void* OS::Allocate(const size_t requested,
 
   // Windows XP SP2 allows Data Excution Prevention (DEP).
   int prot = executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  LPVOID mbase = VirtualAlloc(NULL, requested, MEM_COMMIT | MEM_RESERVE, prot);
+  LPVOID mbase = VirtualAlloc(NULL, msize, MEM_COMMIT | MEM_RESERVE, prot);
   if (mbase == NULL) {
     LOG(StringEvent("OS::Allocate", "VirtualAlloc failed"));
     return NULL;

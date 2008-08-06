@@ -86,6 +86,7 @@ macro IS_SCRIPT(arg)            = (%ClassOf(arg) === 'Script');
 
 # 'Inline' macros
 # (Make sure arg is evaluated only once via %IS_VAR)
+macro NUMBER_IS_NAN(arg)        = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
 macro TO_INTEGER(arg)           = (%_IsSmi(%IS_VAR(arg)) ? arg : ToInteger(arg));
 macro TO_INT32(arg)             = (%_IsSmi(%IS_VAR(arg)) ? arg : ToInt32(arg));
 

@@ -270,12 +270,6 @@ class MarkingVisitor : public ObjectVisitor {
   }
 
  private:
-  // Mark obj if needed.
-  void MarkObject(Object* obj) {
-    if (!obj->IsHeapObject()) return;
-    MarkCompactCollector::MarkObject(HeapObject::cast(obj));
-  }
-
   // Mark object pointed to by p.
   void MarkObjectByPointer(Object** p) {
     Object* obj = *p;

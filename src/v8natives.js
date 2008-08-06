@@ -41,7 +41,7 @@
 
 
 // ECMA-262 - 15.1.1.2.
-%AddProperty(global, "Infinity", %NumberPositiveInfinity(1), DONT_ENUM | DONT_DELETE);
+%AddProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE);
 
 
 // ECMA-262 - 15.1.1.3.
@@ -50,7 +50,8 @@
 
 // ECMA 262 - 15.1.4
 function $isNaN(number) {
-  return %NumberIsNaN(ToNumber(number));
+  var n = ToNumber(number);
+  return NUMBER_IS_NAN(n);
 };
 %AddProperty(global, "isNaN", $isNaN, DONT_ENUM);
 
@@ -265,10 +266,10 @@ $Object.prototype.constructor = $Object;
 %AddProperty($Number, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
 
 // ECMA-262 section 15.7.3.4.
-%AddProperty($Number, "NEGATIVE_INFINITY", %NumberNegativeInfinity(1),  DONT_ENUM | DONT_DELETE | READ_ONLY);
+%AddProperty($Number, "NEGATIVE_INFINITY", -1/0,  DONT_ENUM | DONT_DELETE | READ_ONLY);
 
 // ECMA-262 section 15.7.3.5.
-%AddProperty($Number, "POSITIVE_INFINITY", %NumberPositiveInfinity(1),  DONT_ENUM | DONT_DELETE | READ_ONLY);
+%AddProperty($Number, "POSITIVE_INFINITY", 1/0,  DONT_ENUM | DONT_DELETE | READ_ONLY);
 
 // ECMA-262 section 15.7.4.2.
 %AddProperty($Number.prototype, "toString", function(radix) {

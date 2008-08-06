@@ -400,7 +400,7 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
 // Implementation of RelocInfo
 
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
 const char* RelocInfo::RelocModeName(RelocMode rmode) {
   switch (rmode) {
     case no_reloc:
@@ -435,8 +435,10 @@ const char* RelocInfo::RelocModeName(RelocMode rmode) {
   }
   return "unknown relocation type";
 }
+#endif  // ENABLE_DISASSEMBLER
 
 
+#ifdef DEBUG
 void RelocInfo::Print() {
   PrintF("%p  %s", pc_, RelocModeName(rmode_));
   if (rmode_ == comment) {

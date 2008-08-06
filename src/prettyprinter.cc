@@ -456,17 +456,7 @@ void PrettyPrinter::Print(const char* format, ...) {
     int n = OS::VSNPrintF(output_ + pos_, available, format, arguments);
     va_end(arguments);
 
-    // Return value from VSNPrintF is not portable. On linux the return value
-    // is the number of  characters which would have been written to the string
-    // if enough space had been  available. On windows it returns -1 if the
-    // result is truncated but does not indicate the required buffer size.
-#ifdef WIN32
-    if (n <= 0) n = available;
-#else
-    CHECK_GE(n, 0);  // no errors
-#endif
-
-    if (n < available) {
+    if (n >= 0) {
       // there was enough space - we are done
       pos_ += n;
       return;
@@ -474,8 +464,6 @@ void PrettyPrinter::Print(const char* format, ...) {
       // there was not enough space - allocate more and try again
       const int slack = 32;
       int new_size = size_ + (size_ >> 1) + slack;
-      if (new_size < size_ + n)
-        new_size = size_ + n + slack;
       char* new_output = NewArray<char>(new_size);
       memcpy(new_output, output_, pos_);
       DeleteArray(output_);

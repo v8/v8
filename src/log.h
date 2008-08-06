@@ -49,9 +49,6 @@ namespace v8 { namespace internal {
 // Log code (create, move, and delete) events to the logfile, default is off.
 // --log-code implies --log.
 //
-// --log-debugger
-// Log the internal activity of the debugger, to aid in debugging the debugger.
-//
 // --log-gc
 // Log GC heap samples after each GC that can be processed by hp2ps, default
 // is off.  --log-gc implies --log.
@@ -134,6 +131,11 @@ class Logger {
   // Emits an event that an undefined property was read from an
   // object.
   static void SuspectReadEvent(String* name, String* obj);
+
+  // Emits an event when a message is put on or read from a debugging queue.
+  // DebugTag lets us put a call-site specific label on the event.
+  static void DebugTag(const char* call_site_tag);
+  static void DebugEvent(const char* event_type, Vector<uint16_t> parameter);
 
 
   // ==== Events logged by --log-api. ====

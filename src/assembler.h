@@ -268,11 +268,14 @@ class RelocInfo BASE_EMBEDDED {
   void patch_code_with_call(Address target, int guard_bytes);
   INLINE(bool is_call_instruction());
 
+#ifdef ENABLE_DISASSEMBLER
+  // Printing
+  static const char* RelocModeName(RelocMode rmode);
+#endif  // ENABLE_DISASSEMBLER
 #ifdef DEBUG
   // Debugging
   void Print();
   void Verify();
-  static const char* RelocModeName(RelocMode rmode);
 #endif
 
   static const int kCodeTargetMask = (1 << (last_code_enum + 1)) - 1;

@@ -407,7 +407,7 @@ class MessageQueue BASE_EMBEDDED {
 // LockingMessageQueue is a thread-safe circular buffer of Vector<uint16_t>
 // messages.  The message data is not managed by LockingMessageQueue.
 // Pointers to the data are passed in and out. Implemented by adding a
-// Mutex to MessageQueue.
+// Mutex to MessageQueue.  Includes logging of all puts and gets.
 class LockingMessageQueue BASE_EMBEDDED {
  public:
   explicit LockingMessageQueue(int size);
@@ -417,9 +417,6 @@ class LockingMessageQueue BASE_EMBEDDED {
   void Put(const Vector<uint16_t>& message);
   void Clear();
  private:
-  // Logs a timestamp, operation name, and operation argument
-  void LogQueueOperation(const char* operation_name,
-                                              Vector<uint16_t> parameter);
   MessageQueue queue_;
   Mutex* lock_;
   DISALLOW_EVIL_CONSTRUCTORS(LockingMessageQueue);

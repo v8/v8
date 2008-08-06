@@ -364,6 +364,95 @@ void MacroAssembler::ExitJSFrame(ExitJSFlag flag) {
 }
 
 
+void MacroAssembler::InvokePrologue(const ParameterCount& expected,
+                                    const ParameterCount& actual,
+                                    Handle<Code> code_constant,
+                                    Register code_reg,
+                                    Label* done,
+                                    InvokeFlag flag) {
+  if (actual.is_immediate()) {
+    mov(r0, Operand(actual.immediate()));  // Push the number of arguments.
+  } else {
+    if (!actual.reg().is(r0)) {
+      mov(r0, Operand(actual.reg()));
+    }
+  }
+}
+
+
+void MacroAssembler::InvokeCode(Register code,
+                                const ParameterCount& expected,
+                                const ParameterCount& actual,
+                                InvokeFlag flag) {
+  Label done;
+
+  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag);
+  if (flag == CALL_FUNCTION) {
+    Call(code);
+  } else {
+    ASSERT(flag == JUMP_FUNCTION);
+    Jump(code);
+  }
+
+  // Continue here if InvokePrologue does handle the invocation due to
+  // mismatched parameter counts.
+  bind(&done);
+}
+
+
+void MacroAssembler::InvokeCode(Handle<Code> code,
+                                const ParameterCount& expected,
+                                const ParameterCount& actual,
+                                RelocMode rmode,
+                                InvokeFlag flag) {
+  Label done;
+
+  InvokePrologue(expected, actual, code, no_reg, &done, flag);
+  if (flag == CALL_FUNCTION) {
+    Call(code, rmode);
+  } else {
+    Jump(code, rmode);
+  }
+
+  // Continue here if InvokePrologue does handle the invocation due to
+  // mismatched parameter counts.
+  bind(&done);
+}
+
+
+void MacroAssembler::InvokeFunction(Register fun,
+                                    const ParameterCount& actual,
+                                    InvokeFlag flag) {
+  // Contract with called JS functions requires that function is passed in r1.
+  ASSERT(fun.is(r1));
+
+  Register code_reg = r3;
+  Register expected_reg = r2;
+
+  // Make sure that the code and expected registers do not collide with the
+  // actual register being passed in.
+  if (actual.is_reg()) {
+    if (actual.reg().is(code_reg)) {
+      code_reg = r4;
+    } else if (actual.reg().is(expected_reg)) {
+      expected_reg = r4;
+    }
+  }
+
+  ldr(code_reg, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+  ldr(expected_reg,
+      FieldMemOperand(code_reg,
+                      SharedFunctionInfo::kFormalParameterCountOffset));
+  ldr(code_reg,
+      MemOperand(code_reg, SharedFunctionInfo::kCodeOffset - kHeapObjectTag));
+  add(code_reg, code_reg, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  ParameterCount expected(expected_reg);
+  InvokeCode(code_reg, expected, actual, flag);
+}
+
+
 void MacroAssembler::SaveRegistersToMemory(RegList regs) {
   ASSERT((regs & ~kJSCallerSaved) == 0);
   // Copy the content of registers to memory location.

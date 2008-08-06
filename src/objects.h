@@ -96,8 +96,10 @@ enum PropertyAttributes {
   READ_ONLY         = v8::ReadOnly,
   DONT_ENUM         = v8::DontEnum,
   DONT_DELETE       = v8::DontDelete,
-  INTERCEPTED       = 1 << 3,
   ABSENT            = 16  // Used in runtime to indicate a property is absent.
+  // ABSENT can never be stored in or returned from a descriptor's attributes
+  // bitfield.  It is only used as a return value meaning the attributes of
+  // a non-existent property.
 };
 
 namespace v8 { namespace internal {
@@ -1133,6 +1135,8 @@ class JSObject: public HeapObject {
                                      PropertyAttributes attributes);
   Object* IgnoreAttributesAndSetLocalProperty(String* key,
                                               Object* value);
+
+  // Sets a property that currently has lazy loading.
   Object* SetLazyProperty(LookupResult* result,
                           String* name,
                           Object* value,
@@ -1284,6 +1288,11 @@ class JSObject: public HeapObject {
                                   Object* value);
 
   // Add a constant function property to a fast-case object.
+  // This leaves a CONSTANT_TRANSITION in the old map, and
+  // if it is called on a second object with this map, a
+  // normal property is added instead, with a map transition.
+  // This avoids the creation of many maps with the same constant
+  // function, all orphaned.
   Object* AddConstantFunctionProperty(String* name,
                                       JSFunction* function,
                                       PropertyAttributes attributes);
@@ -1551,11 +1560,12 @@ class DescriptorArray: public FixedArray {
   // of the named property, but preserve its enumeration index.
   Object* CopyReplace(String* name, int index, PropertyAttributes attributes);
 
+  // Copy the descriptor array, removing the property index and attributes
+  // of the named property.
+  Object* CopyRemove(String* name);
+
   // Sort the instance descriptors by the hash codes of their keys.
   void Sort();
-
-  // Is the descriptor array sorted and without duplicates?
-  bool IsSortedNoDuplicates();
 
   // Search the instance descriptors for given name.
   inline int Search(String* name);
@@ -1599,6 +1609,9 @@ class DescriptorArray: public FixedArray {
 #ifdef DEBUG
   // Print all the descriptors.
   void PrintDescriptors();
+
+  // Is the descriptor array sorted and without duplicates?
+  bool IsSortedNoDuplicates();
 #endif
 
   // The maximum number of descriptors we want in a descriptor array (should
@@ -2014,9 +2027,10 @@ class Code: public HeapObject {
     IC_TARGET_IS_OBJECT
   };
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
+  // Printing
   static const char* Kind2String(Kind kind);
-#endif
+#endif  // ENABLE_DISASSEMBLER
 
   // [instruction_size]: Size of the native instructions
   inline int instruction_size();
@@ -2511,8 +2525,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kEndPositionOffset = kStartPositionAndTypeOffset + kIntSize;
   static const int kFunctionTokenPositionOffset = kEndPositionOffset + kIntSize;
   static const int kDebugInfoOffset = kFunctionTokenPositionOffset + kIntSize;
-  static const int kAccessAttributesOffset = kDebugInfoOffset + kPointerSize;
-  static const int kSize = kAccessAttributesOffset + kPointerSize;
+  static const int kSize = kDebugInfoOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);

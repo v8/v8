@@ -78,17 +78,14 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ sub(r1, r1, Operand(1), SetCC);
   __ b(ge, &loop);
 
-  // Get the function to call from the stack and get the code from it.
+  // Get the function to call from the stack.
   __ ldr(r1, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
-  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-  __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCodeOffset));
-  __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
 
   // Call the function.
   Label return_site;
   __ RecordPosition(position);
-  __ Call(r1);
+  ParameterCount actual(r0);
+  __ InvokeFunction(r1, actual, CALL_FUNCTION);
   __ bind(&return_site);
 
   // Restore context from the frame and discard the function.
@@ -161,10 +158,11 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // Push the function and the receiver onto the stack.
-  __ mov(r5, Operand(r1));  // change save order: function above receiver
-  __ stm(db_w, sp, r2.bit() | r5.bit());
+  __ push(r1);
+  __ push(r2);
 
   // Copy arguments to the stack in a loop.
+  // r1: function
   // r3: argc
   // r4: argv, i.e. points to first arg
   Label loop, entry;
@@ -172,9 +170,9 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // r2 points past last arg.
   __ b(&entry);
   __ bind(&loop);
-  __ ldr(r1, MemOperand(r4, kPointerSize, PostIndex));  // read next parameter
-  __ ldr(r1, MemOperand(r1));  // dereference handle
-  __ push(r1);  // push parameter
+  __ ldr(r0, MemOperand(r4, kPointerSize, PostIndex));  // read next parameter
+  __ ldr(r0, MemOperand(r0));  // dereference handle
+  __ push(r0);  // push parameter
   __ bind(&entry);
   __ cmp(r4, Operand(r2));
   __ b(ne, &loop);
@@ -194,9 +192,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
             code_target);
   } else {
-    __ mov(ip, Operand(r0));
-    __ mov(r0, Operand(r3));
-    __ Call(ip);
+    ParameterCount actual(r3);
+    __ InvokeFunction(r1, actual, CALL_FUNCTION);
   }
 
   // Exit the JS frame and remove the parameters (except function), and return.

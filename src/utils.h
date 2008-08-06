@@ -40,21 +40,19 @@ static inline bool IsPowerOf2(T x) {
 }
 
 
-// Returns smallest power of 2 greater or equal to x (from Hacker's Delight).
-int32_t NextPowerOf2(uint32_t x);
 
 
-// The C++ standard leaves the semantics of '>>'
-// undefined for negative signed operands. Most
-// implementations do the right thing, though.
+// The C++ standard leaves the semantics of '>>' undefined for
+// negative signed operands. Most implementations do the right thing,
+// though.
 static inline int ArithmeticShiftRight(int x, int s) {
   return x >> s;
 }
 
 
 // Compute the 0-relative offset of some absolute value x of type T.
-// This allows conversion of Addresses and integral types into 0-relative
-// int offsets.
+// This allows conversion of Addresses and integral types into
+// 0-relative int offsets.
 template <typename T>
 static inline int OffsetFrom(T x) {
   return x - static_cast<T>(0);
@@ -62,8 +60,8 @@ static inline int OffsetFrom(T x) {
 
 
 // Compute the absolute value of type T for some 0-relative offset x.
-// This allows conversion of 0-relative int offsets into Addresses
-// and integral types.
+// This allows conversion of 0-relative int offsets into Addresses and
+// integral types.
 template <typename T>
 static inline T AddressFrom(int x) {
   return static_cast<T>(0) + x;
@@ -83,6 +81,11 @@ template <typename T>
 static inline T RoundUp(T x, int m) {
   return RoundDown(x + m - 1, m);
 }
+
+
+// Returns the smallest power of two which is >= x. If you pass in a
+// number that is already a power of two, it is returned as is.
+uint32_t RoundUpToPowerOf2(uint32_t x);
 
 
 template <typename T>
@@ -114,8 +117,8 @@ static T Min(T a, T b) {
 
 
 // ----------------------------------------------------------------------------
-// BitField is a help template for encoding and decode bitfield with unsigned
-// content.
+// BitField is a help template for encoding and decode bitfield with
+// unsigned content.
 template<class T, int shift, int size>
 class BitField {
  public:

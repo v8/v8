@@ -2174,6 +2174,8 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     if (x && x->AsLiteral() && x->AsLiteral()->handle()->IsNumber()) {
       double x_val = x->AsLiteral()->handle()->Number();
       switch (op) {
+        case Token::ADD:
+          return x;
         case Token::SUB:
           return NewNumberLiteral(-x_val);
         case Token::BIT_NOT:

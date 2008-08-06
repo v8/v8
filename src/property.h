@@ -108,7 +108,11 @@ class MapTransitionDescriptor: public Descriptor {
       : Descriptor(key, map, attributes, MAP_TRANSITION) { }
 };
 
-
+// Marks a field name in a map so that adding the field is guaranteed
+// to create a FIELD descriptor in the new map.  Used after adding
+// a constant function the first time, creating a CONSTANT_FUNCTION
+// descriptor in the new map.  This avoids creating multiple maps with
+// the same CONSTANT_FUNCTION field.
 class ConstTransitionDescriptor: public Descriptor {
  public:
   explicit ConstTransitionDescriptor(String* key)

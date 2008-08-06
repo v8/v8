@@ -428,7 +428,7 @@ function ToBoolean(x) {
   if (IS_BOOLEAN(x)) return x;
   if (IS_STRING(x)) return x.length != 0;
   if (x == null) return false;
-  if (IS_NUMBER(x)) return !((x == 0) || %NumberIsNaN(x));
+  if (IS_NUMBER(x)) return !((x == 0) || NUMBER_IS_NAN(x));
   return true;
 };
 
@@ -452,6 +452,7 @@ function ToInteger(x) {
 
 // ECMA-262, section 9.6, page 34.
 function ToUint32(x) {
+  if (%_IsSmi(x) && x >= 0) return x;
   return %NumberToJSUint32(ToNumber(x));
 };
 

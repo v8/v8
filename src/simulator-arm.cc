@@ -59,7 +59,9 @@ class Debugger {
 
  private:
   static const instr_t kBreakpointInstr =
-      (AL << 28 | 7 << 25 | 1 << 24 | break_point);
+      ((AL << 28) | (7 << 25) | (1 << 24) | break_point);
+  static const instr_t kNopInstr =
+      ((AL << 28) | (13 << 21));
 
   Simulator* sim_;
 
@@ -311,6 +313,14 @@ void Debugger::Debug() {
         PrintF("Z flag: %d; ", sim_->z_flag_);
         PrintF("C flag: %d; ", sim_->c_flag_);
         PrintF("V flag: %d\n", sim_->v_flag_);
+      } else if (strcmp(cmd, "unstop") == 0) {
+        intptr_t stop_pc = sim_->get_pc() - Instr::kInstrSize;
+        Instr* stop_instr = reinterpret_cast<Instr*>(stop_pc);
+        if (stop_instr->ConditionField() == special_condition) {
+          stop_instr->SetInstructionBits(kNopInstr);
+        } else {
+          PrintF("Not at debugger stop.");
+        }
       } else {
         PrintF("Unknown command: %s\n", cmd);
       }

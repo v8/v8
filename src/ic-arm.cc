@@ -340,7 +340,6 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  //  -- r0: number of arguments
   //  -- r1: receiver
   //  -- lr: return address
   // -----------------------------------
@@ -348,11 +347,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   Label miss, probe, done, global;
 
   // Get the name of the function from the stack; 1 ~ receiver.
-  __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-  __ ldr(r2, MemOperand(ip, 1 * kPointerSize));
-
-  // Push the number of arguments on the stack to free r0.
-  __ push(r0);
+  __ ldr(r2, MemOperand(sp, (argc + 1) * kPointerSize));
 
   // Check that the receiver isn't a smi.
   __ tst(r1, Operand(kSmiTagMask));
@@ -385,33 +380,20 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ cmp(r0, Operand(JS_FUNCTION_TYPE));
   __ b(ne, &miss);
 
-  // Restore the number of arguments.
-  __ pop(r0);
-
   // Patch the function on the stack; 1 ~ receiver.
-  __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-  __ str(r1, MemOperand(ip, 1 * kPointerSize));
+  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
 
-  // Get the context and call code from the function.
-  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-  __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCodeOffset));
-
-  // Jump to the code.
-  __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r1);
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
 
   // Global object access: Check access rights.
   __ bind(&global);
   __ CheckAccessGlobal(r1, r0, &miss);
   __ b(&probe);
 
-  // Cache miss: Restore number of arguments and receiver from stack
-  // and jump to runtime.
+  // Cache miss: Jump to runtime.
   __ bind(&miss);
-  __ pop(r0);
-  __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-  __ ldr(r1, MemOperand(ip));
   Generate(masm, argc, ExternalReference(IC_Utility(kCallIC_Miss)));
 }
 
@@ -420,14 +402,13 @@ void CallIC::Generate(MacroAssembler* masm,
                       int argc,
                       const ExternalReference& f) {
   // ----------- S t a t e -------------
-  //  -- r0: number of arguments
   //  -- lr: return address
   // -----------------------------------
 
   // Get the receiver of the function from the stack into r1.
-  __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-  __ ldr(r1, MemOperand(ip, 0 * kPointerSize));
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
 
+  __ mov(r0, Operand(argc));  // Setup number of arguments for EnterJSFrame.
   __ EnterJSFrame(0);
 
   // Push the receiver and the name of the function.
@@ -442,25 +423,17 @@ void CallIC::Generate(MacroAssembler* masm,
   CEntryStub stub;
   __ CallStub(&stub);
 
-  // Move result to r1 and restore number of arguments.
+  // Move result to r1.
   __ mov(r1, Operand(r0));
-  __ ldr(r0, MemOperand(v8::internal::fp,  // fp is shadowed by IC::fp
-                        JavaScriptFrameConstants::kArgsLengthOffset));
 
   __ ExitJSFrame(DO_NOT_RETURN);
 
   // Patch the function on the stack; 1 ~ receiver.
-  __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-  __ str(r1, MemOperand(ip, 1 * kPointerSize));
+  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
 
-  // Get the context and call code from the function.
-  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-  __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCodeOffset));
-
-  // Jump to the code.
-  __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r1);
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
 }
 
 

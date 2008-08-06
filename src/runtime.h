@@ -107,9 +107,6 @@ namespace v8 { namespace internal {
   F(NumberShr, 2) \
   F(NumberSar, 2) \
   \
-  F(NumberIsNaN, 1) \
-  F(NumberIsFinite, 1) \
-  \
   /* Comparisons */ \
   F(ObjectEquals, 2) \
   F(NumberEquals, 2) \
@@ -179,11 +176,10 @@ namespace v8 { namespace internal {
   F(DateDaylightSavingsOffset, 1) \
   \
   /* Numbers */ \
+  F(NumberIsFinite, 1) \
   F(NumberMaxValue, 1) \
   F(NumberMinValue, 1) \
   F(NumberNaN, 1) \
-  F(NumberNegativeInfinity, 1) \
-  F(NumberPositiveInfinity, 1) \
   \
   /* Globals */ \
   F(CompileString, 2) \

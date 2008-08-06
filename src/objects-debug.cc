@@ -592,22 +592,6 @@ void Oddball::OddballVerify() {
 }
 
 
-const char* Code::Kind2String(Kind kind) {
-  switch (kind) {
-    case FUNCTION: return "FUNCTION";
-    case STUB: return "STUB";
-    case BUILTIN: return "BUILTIN";
-    case LOAD_IC: return "LOAD_IC";
-    case KEYED_LOAD_IC: return "KEYED_LOAD_IC";
-    case STORE_IC: return "STORE_IC";
-    case KEYED_STORE_IC: return "KEYED_STORE_IC";
-    case CALL_IC: return "CALL_IC";
-  }
-  UNREACHABLE();
-  return NULL;
-}
-
-
 void Code::CodePrint() {
   HeapObject::PrintHeader("Code");
   PrintF("kind = %s", Kind2String(kind()));
@@ -992,6 +976,27 @@ void DescriptorArray::PrintDescriptors() {
     desc.Print();
   }
   PrintF("\n");
+}
+
+
+bool DescriptorArray::IsSortedNoDuplicates() {
+  String* current_key = NULL;
+  uint32_t current = 0;
+  for (DescriptorReader r(this); !r.eos(); r.advance()) {
+    String* key = r.GetKey();
+    if (key == current_key) {
+      PrintDescriptors();
+      return false;
+    }
+    current_key = key;
+    uint32_t hash = r.GetKey()->Hash();
+    if (hash < current) {
+      PrintDescriptors();
+      return false;
+    }
+    current = hash;
+  }
+  return true;
 }
 
 

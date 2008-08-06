@@ -985,15 +985,18 @@ class MarkingStack {
 
   void clear_overflowed() { overflowed_ = false; }
 
-  void Push(HeapObject* p) {
+  void Push(HeapObject* object) {
     ASSERT(!is_full());
-    *(top_++) = p;
+    CHECK(object->IsHeapObject());
+    *(top_++) = object;
     if (is_full()) overflowed_ = true;
   }
 
   HeapObject* Pop() {
     ASSERT(!is_empty());
-    return *(--top_);
+    HeapObject* object = *(--top_);
+    CHECK(object->IsHeapObject());
+    return object;
   }
 
  private:

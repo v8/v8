@@ -1,3 +1,25 @@
+2008-08-06: Version 0.2.1 (130029)
+
+        Improved performance of unary addition by avoiding runtime calls.
+
+        Fixed the handling of '>' and '<=' to use right-to-left conversion
+        and left-to-right evaluation as specified by ECMA-262.
+
+        Fixed a branch elimination bug on the ARM platform where incorrect
+        code was generated because of overly aggressive branch
+        elimination.
+
+        Improved performance of code that repeatedly assigns the same
+        function to the same property of different objects with the same
+        map.
+
+        Untangled DEBUG and ENABLE_DISASSEMBLER defines.  The disassembler
+        no longer expects DEBUG to be defined.
+
+        Added platform-nullos.cc to serve as the basis for new platform
+        implementations.
+
+        
 2008-07-30: Version 0.2.0 (129146)
 
         Changed all text files to have native svn:eol-style.

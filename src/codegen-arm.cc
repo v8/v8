@@ -2033,7 +2033,14 @@ void ArmCodeGenerator::Comparison(Condition cc, bool strict) {
   ASSERT(!strict || cc == eq);
 
   Label exit, smi;
-  __ pop(r1);
+  // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
+  if (cc == gt || cc == le) {
+    cc = ReverseCondition(cc);
+    __ mov(r1, Operand(r0));
+    __ pop(r0);
+  } else {
+    __ pop(r1);
+  }
   __ orr(r2, r0, Operand(r1));
   __ tst(r2, Operand(kSmiTagMask));
   __ b(eq, &smi);
@@ -2100,14 +2107,15 @@ class CallFunctionStub: public CodeStub {
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
 
-  // Push the number of arguments.
-  masm->Push(Operand(argc_));
+  // Flush the TOS cache
+  masm->push(r0);
 
   // Get the function to call from the stack.
-  // function, receiver [, arguments], argc_
+  // function, receiver [, arguments]
   masm->ldr(r1, MemOperand(sp, (argc_ + 1) * kPointerSize));
 
   // Check that the function is really a JavaScript function.
+  // r1: pushed function (to be verified)
   masm->tst(r1, Operand(kSmiTagMask));
   masm->b(eq, &slow);
   // Get the map of the function object.
@@ -2117,15 +2125,13 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   masm->b(ne, &slow);
 
   // Fast-case: Invoke the function now.
-  masm->ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-  masm->ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  masm->ldr(r1,
-            MemOperand(r1, SharedFunctionInfo::kCodeOffset - kHeapObjectTag));
-  masm->add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-  masm->Jump(r1);  // Callee will return to the original call site directly.
+  // r1: pushed function
+  ParameterCount actual(argc_);
+  masm->InvokeFunction(r1, actual, JUMP_FUNCTION);
 
   // Slow-case: Non-function called.
   masm->bind(&slow);
+  masm->mov(r0, Operand(argc_));  // Setup the number of arguments.
   masm->InvokeBuiltin("CALL_NON_FUNCTION", 0, JUMP_JS);
 }
 

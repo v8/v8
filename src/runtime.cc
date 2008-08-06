@@ -3232,20 +3232,6 @@ static Object* Runtime_DateDaylightSavingsOffset(Arguments args) {
 }
 
 
-
-static Object* Runtime_NumberIsNaN(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-
-  CONVERT_DOUBLE_CHECKED(value, args[0]);
-  if (isnan(value)) {
-    return Heap::true_value();
-  } else {
-    return Heap::false_value();
-  }
-}
-
-
 static Object* Runtime_NumberIsFinite(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -3279,20 +3265,6 @@ static Object* Runtime_NumberNaN(Arguments) {
   NoHandleAllocation ha;
 
   return Heap::nan_value();
-}
-
-
-static Object* Runtime_NumberNegativeInfinity(Arguments) {
-  NoHandleAllocation ha;
-
-  return Heap::negative_infinity_value();
-}
-
-
-static Object* Runtime_NumberPositiveInfinity(Arguments) {
-  NoHandleAllocation ha;
-
-  return Heap::infinity_value();
 }
 
 
