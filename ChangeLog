@@ -1,3 +1,8 @@
+2008-08-11: Version 0.1.5 (130240)
+
+        Made the prototype property of functions enumerable.
+
+
 2008-07-28: Version 0.1.4 (128918)
 
         Added support for storing JavaScript stack traces in a stack

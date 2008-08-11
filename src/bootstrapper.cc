@@ -1209,11 +1209,11 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 
 void Genesis::MakeFunctionInstancePrototypeWritable() {
   // Make a new function map so all future functions
-  // will have settable prototype properties.
+  // will have settable and enumerable prototype properties.
   HandleScope scope;
 
   Handle<DescriptorArray> function_map_descriptors =
-      ComputeFunctionInstanceDescriptor(false);
+      ComputeFunctionInstanceDescriptor(false, true);
   Handle<Map> fm = Factory::CopyMap(Top::function_map());
   fm->set_instance_descriptors(*function_map_descriptors);
   Top::context()->global_context()->set_function_map(*fm);
