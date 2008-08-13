@@ -271,10 +271,10 @@ class RelocInfo BASE_EMBEDDED {
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* RelocModeName(RelocMode rmode);
+  void Print();
 #endif  // ENABLE_DISASSEMBLER
 #ifdef DEBUG
   // Debugging
-  void Print();
   void Verify();
 #endif
 

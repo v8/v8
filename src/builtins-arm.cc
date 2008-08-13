@@ -40,6 +40,10 @@ namespace v8 { namespace internal {
 void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 int argc,
                                 CFunctionId id) {
+  // r0 contains the number of arguments excluding the receiver.
+  // JumpToBuiltin expects r0 to contains the number of arguments
+  // including the receiver.
+  __ add(r0, r0, Operand(1));
   __ JumpToBuiltin(ExternalReference(id));
 }
 
@@ -50,10 +54,10 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ EnterJSFrame(0);
 
   // Allocate the new receiver object.
-  __ push(r0);
   __ ldr(r0, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
+  __ push(r0);
   __ CallRuntime(Runtime::kNewObject, 1);
-  __ push(r0);  // empty TOS cache
+  __ push(r0);  // save the receiver
 
   // Push the function and the allocated receiver from the stack.
   __ ldr(r1, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
@@ -90,7 +94,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   // Restore context from the frame and discard the function.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ add(sp, sp, Operand(kPointerSize));
+  __ pop();
 
   // If the result is an object (in the ECMA sense), we should get rid
   // of the receiver and use the result; see ECMA-262 section 13.2.2-7
@@ -273,19 +277,14 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ add(fp, sp, Operand(-StandardFrameConstants::kContextOffset));
   __ mov(pp, Operand(ip));  // setup new parameter pointer
   // r0 is already set to 0 as spare slot to store caller code object during GC
+  __ push(r0);  // code pointer
 
   // Inlined EnterJSFrame ends here.
-
-  // Empty top-of-stack cache (code pointer).
-  __ push(r0);
 
   // Store the registers containing object pointers on the expression stack to
   // make sure that these are correctly updated during GC.
   // Use sp as base to push.
   __ CopyRegistersFromMemoryToStack(sp, pointer_regs);
-
-  // Empty top-of-stack cache (fake receiver).
-  __ push(r0);
 
 #ifdef DEBUG
   __ RecordComment("// Calling from debug break to runtime - come in - over");
@@ -308,7 +307,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 
   __ mov(sp, Operand(fp));  // respect ABI stack constraint
   __ ldm(ia, sp, pp.bit() | fp.bit() | sp.bit() | lr.bit());
-  __ add(sp, sp, Operand(kPointerSize));  // discard fake function
+  __ pop();  // discard fake function
 
   // Inlined ExitJSFrame ends here.
 

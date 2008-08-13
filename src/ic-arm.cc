@@ -125,13 +125,14 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
 
   Label miss;
+
+  __ ldr(r0, MemOperand(sp, 0));
 
   // Check that the receiver isn't a smi.
   __ tst(r0, Operand(kSmiTagMask));
@@ -156,13 +157,14 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 
 void LoadIC::GenerateShortStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
 
   Label miss;
+
+  __ ldr(r0, MemOperand(sp, 0));
 
   // Check that the receiver isn't a smi.
   __ tst(r0, Operand(kSmiTagMask));
@@ -191,13 +193,14 @@ void LoadIC::GenerateShortStringLength(MacroAssembler* masm) {
 
 void LoadIC::GenerateMediumStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
 
   Label miss;
+
+  __ ldr(r0, MemOperand(sp, 0));
 
   // Check that the receiver isn't a smi.
   __ tst(r0, Operand(kSmiTagMask));
@@ -225,7 +228,6 @@ void LoadIC::GenerateMediumStringLength(MacroAssembler* masm) {
 
 void LoadIC::GenerateLongStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
@@ -233,6 +235,7 @@ void LoadIC::GenerateLongStringLength(MacroAssembler* masm) {
 
   Label miss;
 
+  __ ldr(r0, MemOperand(sp, 0));
   // Check that the receiver isn't a smi.
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
@@ -259,7 +262,6 @@ void LoadIC::GenerateLongStringLength(MacroAssembler* masm) {
 
 void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
@@ -278,15 +280,14 @@ Object* CallIC_Miss(Arguments args);
 
 void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  //  -- r0: number of arguments
-  //  -- r1: receiver
   //  -- lr: return address
   // -----------------------------------
   Label number, non_number, non_string, boolean, probe, miss;
 
+  // Get the receiver of the function from the stack into r1.
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
   // Get the name of the function from the stack; 1 ~ receiver.
-  __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-  __ ldr(r2, MemOperand(ip, 1 * kPointerSize));
+  __ ldr(r2, MemOperand(sp, (argc + 1) * kPointerSize));
 
   // Probe the stub cache.
   Code::Flags flags =
@@ -340,12 +341,13 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
-  //  -- r1: receiver
   //  -- lr: return address
   // -----------------------------------
 
   Label miss, probe, done, global;
 
+  // Get the receiver of the function from the stack into r1.
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
   // Get the name of the function from the stack; 1 ~ receiver.
   __ ldr(r2, MemOperand(sp, (argc + 1) * kPointerSize));
 
@@ -405,11 +407,12 @@ void CallIC::Generate(MacroAssembler* masm,
   //  -- lr: return address
   // -----------------------------------
 
+  // Setup number of arguments for EnterJSFrame.
+  __ mov(r0, Operand(argc));
   // Get the receiver of the function from the stack into r1.
   __ ldr(r1, MemOperand(sp, argc * kPointerSize));
-
-  __ mov(r0, Operand(argc));  // Setup number of arguments for EnterJSFrame.
   __ EnterJSFrame(0);
+  __ pop();  // remove the code slot
 
   // Push the receiver and the name of the function.
   __ ldr(r0, MemOperand(pp, 0));
@@ -417,7 +420,7 @@ void CallIC::Generate(MacroAssembler* masm,
   __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
 
   // Call the entry.
-  __ mov(r0, Operand(2 - 1));  // do not count receiver
+  __ mov(r0, Operand(2));
   __ mov(r1, Operand(f));
 
   CEntryStub stub;
@@ -442,12 +445,12 @@ Object* LoadIC_Miss(Arguments args);
 
 void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
 
+  __ ldr(r0, MemOperand(sp, 0));
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(Code::LOAD_IC, MONOMORPHIC);
   StubCache::GenerateProbe(masm, flags, r0, r2, r3);
@@ -459,7 +462,6 @@ void LoadIC::GenerateMegamorphic(MacroAssembler* masm) {
 
 void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
@@ -467,6 +469,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   Label miss, probe, done, global;
 
+  __ ldr(r0, MemOperand(sp, 0));
   // Check that the receiver isn't a smi.
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
@@ -495,7 +498,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Cache miss: Restore receiver from stack and jump to runtime.
   __ bind(&miss);
-  __ ldr(r0, MemOperand(sp));
   Generate(masm, ExternalReference(IC_Utility(kLoadIC_Miss)));
 }
 
@@ -507,18 +509,17 @@ void LoadIC::GenerateMiss(MacroAssembler* masm) {
 
 void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
 
+  __ ldr(r0, MemOperand(sp, 0));
   __ push(r0);
   __ push(r2);
 
-  // Set the number of arguments and jump to the entry.
-  __ mov(r0, Operand(2 - 1));  // not counting receiver.
-  __ JumpToBuiltin(f);
+  // Perform tail call to the entry.
+  __ TailCallRuntime(f, 2);
 }
 
 
@@ -572,9 +573,8 @@ void StoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ ldr(r3, MemOperand(sp));  // copy receiver
   __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
 
-  // Set the number of arguments and jump to the entry.
-  __ mov(r0, Operand(3 - 1));  // not counting receiver.
-  __ JumpToBuiltin(f);
+  // Perform tail call to the entry.
+  __ TailCallRuntime(f, 3);
 }
 
 

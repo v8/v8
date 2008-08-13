@@ -40,7 +40,10 @@ namespace v8 { namespace internal {
 void Builtins::Generate_Adaptor(MacroAssembler* masm,
                                 int argc,
                                 CFunctionId id) {
-  __ mov(eax, argc);
+  // argc is the number of arguments excluding the receiver.
+  // JumpToBuiltin expects eax to contain the number of arguments
+  // including the receiver.
+  __ mov(eax, argc + 1);
   __ mov(Operand::StaticVariable(ExternalReference::builtin_passed_function()),
          edi);
   __ JumpToBuiltin(ExternalReference(id));
@@ -754,7 +757,6 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
   __ Set(eax, Immediate(0));  // no arguments
-  __ push(eax);  // fake receiver - use NULL
   __ mov(Operand(ebx), Immediate(ExternalReference::debug_break()));
 
   CEntryDebugBreakStub ceb;

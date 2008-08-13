@@ -639,7 +639,7 @@ function DefineError(name) {
   f.prototype.name = name;
   f.prototype.constructor = f;
   %SetCode(f, function(m) {
-    if (%IsConstructCall(this)) {
+    if (%IsConstructCall()) {
       if (!IS_UNDEFINED(m)) this.message = ToString(m);
     } else {
       return new f(m);

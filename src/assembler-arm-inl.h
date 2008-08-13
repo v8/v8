@@ -170,6 +170,14 @@ Operand::Operand(Register rm) {
 }
 
 
+bool Operand::is_reg() const {
+  return rm_.is_valid() &&
+         rs_.is(no_reg) &&
+         shift_op_ == LSL &&
+         shift_imm_ == 0;
+}
+
+
 void Assembler::CheckBuffer() {
   if (buffer_space() <= kGap) {
     GrowBuffer();

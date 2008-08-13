@@ -252,6 +252,7 @@ enum {
   B27 = 1 << 27,
 
   // Instruction bit masks
+  RdMask     = 15 << 12,  // in str instruction
   CondMask   = 15 << 28,
   OpCodeMask = 15 << 21,  // in data-processing instructions
   Imm24Mask  = (1 << 24) - 1,
@@ -260,6 +261,23 @@ enum {
   nv = 15 << 28
 };
 
+
+DEFINE_bool(push_pop_elimination, true,
+            "eliminate redundant push/pops in assembly code");
+DEFINE_bool(print_push_pop_elimination, false,
+            "print elimination of redundant push/pops in assembly code");
+
+// add(sp, sp, 4) instruction (aka Pop())
+static const Instr kPopInstruction =
+    al | 4 * B21 | 4 | LeaveCC | I | sp.code() * B16 | sp.code() * B12;
+// str(r, MemOperand(sp, 4, NegPreIndex), al) instruction (aka push(r))
+// register r is not encoded.
+static const Instr kPushRegPattern =
+    al | B26 | 4 | NegPreIndex | sp.code() * B16;
+// ldr(r, MemOperand(sp, 4, PostIndex), al) instruction (aka pop(r))
+// register r is not encoded.
+static const Instr kPopRegPattern =
+    al | B26 | L | 4 | PostIndex | sp.code() * B16;
 
 // spare_buffer_
 static const int kMinimalBufferSize = 4*KB;
@@ -817,6 +835,23 @@ void Assembler::rsb(Register dst, Register src1, const Operand& src2,
 void Assembler::add(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {
   addrmod1(cond | 4*B21 | s, src1, dst, src2);
+
+  // Eliminate pattern: push(r), pop()
+  //   str(src, MemOperand(sp, 4, NegPreIndex), al);
+  //   add(sp, sp, Operand(kPointerSize));
+  // Both instructions can be eliminated.
+  int pattern_size = 2 * kInstrSize;
+  if (FLAG_push_pop_elimination &&
+      last_bound_pos_ <= (pc_offset() - pattern_size) &&
+      reloc_info_writer.last_pc() <= (pc_ - pattern_size) &&
+      // pattern
+      instr_at(pc_ - 1 * kInstrSize) == kPopInstruction &&
+      (instr_at(pc_ - 2 * kInstrSize) & ~RdMask) == kPushRegPattern) {
+    pc_ -= 2 * kInstrSize;
+    if (FLAG_print_push_pop_elimination) {
+      PrintF("%x push(reg)/pop() eliminated\n", pc_offset());
+    }
+  }
 }
 
 
@@ -994,11 +1029,44 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
 // Load/Store instructions
 void Assembler::ldr(Register dst, const MemOperand& src, Condition cond) {
   addrmod2(cond | B26 | L, dst, src);
+
+  // Eliminate pattern: push(r), pop(r)
+  //   str(r, MemOperand(sp, 4, NegPreIndex), al)
+  //   ldr(r, MemOperand(sp, 4, PostIndex), al)
+  // Both instructions can be eliminated.
+  int pattern_size = 2 * kInstrSize;
+  if (FLAG_push_pop_elimination &&
+      last_bound_pos_ <= (pc_offset() - pattern_size) &&
+      reloc_info_writer.last_pc() <= (pc_ - pattern_size) &&
+      // pattern
+      instr_at(pc_ - 1 * kInstrSize) == (kPopRegPattern | dst.code() * B12) &&
+      instr_at(pc_ - 2 * kInstrSize) == (kPushRegPattern | dst.code() * B12)) {
+    pc_ -= 2 * kInstrSize;
+    if (FLAG_print_push_pop_elimination) {
+      PrintF("%x push/pop (same reg) eliminated\n", pc_offset());
+    }
+  }
 }
 
 
 void Assembler::str(Register src, const MemOperand& dst, Condition cond) {
   addrmod2(cond | B26, src, dst);
+
+  // Eliminate pattern: pop(), push(r)
+  //     add sp, sp, #4 LeaveCC, al; str r, [sp, #-4], al
+  // ->  str r, [sp, 0], al
+  int pattern_size = 2 * kInstrSize;
+  if (FLAG_push_pop_elimination &&
+     last_bound_pos_ <= (pc_offset() - pattern_size) &&
+     reloc_info_writer.last_pc() <= (pc_ - pattern_size) &&
+     instr_at(pc_ - 1 * kInstrSize) == (kPushRegPattern | src.code() * B12) &&
+     instr_at(pc_ - 2 * kInstrSize) == kPopInstruction) {
+    pc_ -= 2 * kInstrSize;
+    emit(al | B26 | 0 | Offset | sp.code() * B16 | src.code() * B12);
+    if (FLAG_print_push_pop_elimination) {
+      PrintF("%x pop()/push(reg) eliminated\n", pc_offset());
+    }
+  }
 }
 
 

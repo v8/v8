@@ -42,11 +42,14 @@ DEFINE_bool(defer_negation, true, "defer negation operation");
 DECLARE_bool(debug_info);
 DECLARE_bool(debug_code);
 
+#ifdef ENABLE_DISASSEMBLER
+DEFINE_bool(print_code, false, "print generated code");
+#endif
+
 #ifdef DEBUG
 DECLARE_bool(gc_greedy);
 DEFINE_bool(trace_codegen, false,
             "print name of functions for which code is generated");
-DEFINE_bool(print_code, false, "print generated code");
 DEFINE_bool(print_builtin_code, false, "print generated code for builtins");
 DEFINE_bool(print_source, false, "pretty print source code");
 DEFINE_bool(print_builtin_source, false,
@@ -322,10 +325,13 @@ class Ia32CodeGenerator: public CodeGenerator {
 Handle<Code> Ia32CodeGenerator::MakeCode(FunctionLiteral* flit,
                                          Handle<Script> script,
                                          bool is_eval) {
+#ifdef ENABLE_DISASSEMBLER
+  bool print_code = FLAG_print_code && !Bootstrapper::IsActive();
+#endif
+
 #ifdef DEBUG
   bool print_source = false;
   bool print_ast = false;
-  bool print_code = false;
   const char* ftype;
 
   if (Bootstrapper::IsActive()) {
@@ -336,7 +342,6 @@ Handle<Code> Ia32CodeGenerator::MakeCode(FunctionLiteral* flit,
   } else {
     print_source = FLAG_print_source;
     print_ast = FLAG_print_ast;
-    print_code = FLAG_print_code;
     ftype = "user-defined";
   }
 
@@ -377,7 +382,7 @@ Handle<Code> Ia32CodeGenerator::MakeCode(FunctionLiteral* flit,
   // Add unresolved entries in the code to the fixup list.
   Bootstrapper::AddFixup(*code, cgen.masm());
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
   if (print_code) {
     // Print the source code if available.
     if (!script->IsUndefined() && !script->source()->IsUndefined()) {
@@ -393,9 +398,9 @@ Handle<Code> Ia32CodeGenerator::MakeCode(FunctionLiteral* flit,
       PrintF("\n\n");
     }
     PrintF("--- Code ---\n");
-    code->Print();
+    code->Disassemble();
   }
-#endif  // DEBUG
+#endif  // ENABLE_DISASSEMBLER
 
   return code;
 }
@@ -1710,8 +1715,7 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   // by calling the runtime system.
   if (!is_length_) {
     __ bind(&slow);
-    __ Set(eax, Immediate(0));  // not counting receiver
-    __ JumpToBuiltin(ExternalReference(Runtime::kGetArgumentsProperty));
+    __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
   }
 }
 
@@ -2268,8 +2272,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
   __ push(eax);
 
   // Do tail-call to runtime routine.
-  __ Set(eax, Immediate(0));  // not counting receiver
-  __ JumpToBuiltin(ExternalReference(Runtime::kStackGuard));
+  __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1);
 }
 
 
@@ -5020,7 +5023,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
   // esp: stack pointer  (restored after C call)
-  // edi: number of arguments  (C callee-saved)
+  // edi: number of arguments including receiver  (C callee-saved)
 
   if (do_gc) {
     __ mov(Operand(esp, 0 * kPointerSize), eax);  // Result.
@@ -5028,8 +5031,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   }
 
   // Call C function.
-  __ lea(eax,
-         Operand(ebp, edi, times_4, StandardFrameConstants::kCallerSPOffset));
+  __ lea(eax, Operand(ebp,
+                      edi,
+                      times_4,
+                      StandardFrameConstants::kCallerSPOffset - kPointerSize));
   __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
   __ mov(Operand(esp, 1 * kPointerSize), eax);  // argv.
   __ call(Operand(ebx));
@@ -5073,7 +5078,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   // Pop arguments from caller's stack and return.
   __ pop(ebx);  // Ok to clobber ebx - function pointer not needed anymore.
-  __ lea(esp, Operand(esp, ecx, times_4, +1 * kPointerSize));  // +1 ~ receiver.
+  __ lea(esp, Operand(esp, ecx, times_4, 0));
   __ push(ebx);
   __ ret(0);
 
@@ -5162,7 +5167,7 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
 
 
 void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
-  // eax: number of arguments
+  // eax: number of arguments including receiver
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
   // esp: stack pointer  (restored after C call)
@@ -5219,7 +5224,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // ebx: pointer to builtin function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
   // esp: stack pointer  (restored after C call)
-  // edi: number of arguments  (C callee-saved)
+  // edi: number of arguments including receiver (C callee-saved)
 
   Label entry;
   __ bind(&entry);

@@ -47,7 +47,7 @@ const $String = global.String;
 const $Number = global.Number;
 const $Function = global.Function;
 const $Boolean = global.Boolean;
-const $NaN = %NumberNaN(1);
+const $NaN = %NumberNaN();
 
 
 // ECMA-262, section 11.9.1, page 55.
@@ -317,7 +317,7 @@ function FILTER_KEY(key) {
 
 
 function CALL_NON_FUNCTION() {
-  var callee = %GetCalledFunction(0);
+  var callee = %GetCalledFunction();
   var delegate = %GetFunctionDelegate(callee);
   if (!IS_FUNCTION(delegate)) {
     throw %MakeTypeError('called_non_callable', [typeof callee]);
@@ -408,7 +408,7 @@ function ToNumber(x) {
   if (IS_NUMBER(x)) return x;
   if (IS_STRING(x)) return %StringToNumber(x);
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
-  if (IS_UNDEFINED(x)) return %NumberNaN(1);
+  if (IS_UNDEFINED(x)) return %NumberNaN();
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 };
 

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Copyright 2006 Google Inc. All Rights Reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
@@ -336,9 +337,10 @@ def JS2C(source, target, env):
   output.close()
 
 def main():
-  output = sys.argv[1]
-  input = sys.argv[2:]
-  JS2C(input, [output], None)
+  natives = sys.argv[1]
+  natives_empty = sys.argv[2]
+  source_files = sys.argv[3:]
+  JS2C(source_files, [natives, natives_empty], None)
 
 if __name__ == "__main__":
   main()

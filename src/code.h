@@ -55,10 +55,10 @@ class ParameterCount BASE_EMBEDDED {
   }
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ParameterCount);
-
   const Register reg_;
   const int immediate_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ParameterCount);
 };
 
 

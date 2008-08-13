@@ -102,12 +102,6 @@ class MacroAssembler: public Assembler {
   void ExitJSFrame(ExitJSFlag flag);
 
 
-  // Support functions.
-  void Push(const Operand& src);
-  void Push(const MemOperand& src);
-  void Pop(Register dst);
-  void Pop(const MemOperand& dst);
-
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
@@ -198,8 +192,8 @@ class MacroAssembler: public Assembler {
 
   // Tail call of a runtime routine (jump).
   // Like JumpToBuiltin, but also takes care of passing the number
-  // of parameters, if known.
-  void TailCallRuntime(Runtime::Function* f);
+  // of parameters.
+  void TailCallRuntime(const ExternalReference& ext, int num_arguments);
 
   // Jump to the builtin routine.
   void JumpToBuiltin(const ExternalReference& builtin);

@@ -306,6 +306,11 @@ class Operand BASE_EMBEDDED {
   // rm <shift_op> rs
   explicit Operand(Register rm, ShiftOp shift_op, Register rs);
 
+  // Return true if this is a register operand.
+  INLINE(bool is_reg() const);
+
+  Register rm() const { return rm_; }
+
  private:
   Register rm_;
   Register rs_;
@@ -583,12 +588,16 @@ class Assembler : public Malloced {
   // Pseudo instructions
   void nop()  { mov(r0, Operand(r0)); }
 
-  void push(Register src, Condition cond = al) {
-    str(src, MemOperand(sp, 4, NegPreIndex), cond);
+  void push(Register src) {
+    str(src, MemOperand(sp, 4, NegPreIndex), al);
   }
 
-  void pop(Register dst, Condition cond = al) {
-    ldr(dst, MemOperand(sp, 4, PostIndex), cond);
+  void pop(Register dst) {
+    ldr(dst, MemOperand(sp, 4, PostIndex), al);
+  }
+
+  void pop() {
+    add(sp, sp, Operand(kPointerSize));
   }
 
   // Load effective address of memory operand x into register dst

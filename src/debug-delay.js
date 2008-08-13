@@ -395,7 +395,7 @@ Debug.removeListener = function(listener) {
 };
 
 Debug.Break = function(f) {
-  %Break(0);
+  %Break();
 };
 
 Debug.breakLocations = function(f) {
@@ -622,7 +622,7 @@ Debug.scriptBreakPoints = function() {
 
 
 Debug.clearStepping = function() {
-  %ClearStepping(0);
+  %ClearStepping();
 }
 
 Debug.setBreakOnException = function() {
@@ -667,7 +667,7 @@ Debug.showBreakPoints = function(f, full) {
 // scanning the heap.
 Debug.scripts = function() {
   // Collect all scripts in the heap.
-  return %DebugGetLoadedScripts(0);
+  return %DebugGetLoadedScripts();
 }
 
 function MakeExecutionState(break_id) {
@@ -1858,7 +1858,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
   }
 
   // Collect all scripts in the heap.
-  var scripts = %DebugGetLoadedScripts(0);
+  var scripts = %DebugGetLoadedScripts();
 
   response.body = [];
 
@@ -1896,7 +1896,7 @@ DebugCommandProcessor.prototype.isRunning = function(json_response) {
 
 
 DebugCommandProcessor.prototype.systemBreak = function(cmd, args) {
-  return %SystemBreak(0);
+  return %SystemBreak();
 };
 
 

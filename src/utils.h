@@ -412,13 +412,13 @@ class StringBuilder {
   char* Finalize();
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
-
   char* buffer_;
   int size_;
   int position_;
 
   bool is_finalized() const { return position_ < 0; }
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
 };
 
 } }  // namespace v8::internal

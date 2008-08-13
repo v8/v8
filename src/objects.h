@@ -2030,6 +2030,7 @@ class Code: public HeapObject {
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* Kind2String(Kind kind);
+  void Disassemble();
 #endif  // ENABLE_DISASSEMBLER
 
   // [instruction_size]: Size of the native instructions
@@ -2195,15 +2196,6 @@ class Map: public HeapObject {
   inline byte bit_field();
   inline void set_bit_field(byte value);
 
-  // Tells whether this object has a special lookup behavior.
-  void set_special_lookup() {
-    set_bit_field(bit_field() | (1 << kHasSpecialLookup));
-  }
-
-  bool has_special_lookup() {
-    return ((1 << kHasSpecialLookup) & bit_field()) != 0;
-  }
-
   // Tells whether the object in the prototype property will be used
   // for instances created from this function.  If the prototype
   // property is set to a value that is not a JSObject, the prototype
@@ -2343,7 +2335,7 @@ class Map: public HeapObject {
   static const int kBitFieldOffset = kInstanceAttributesOffset + 3;
 
   // Bit positions for bit field.
-  static const int kHasSpecialLookup = 0;
+  static const int kUnused = 0;  // To be used for marking recently used maps.
   static const int kHasNonInstancePrototype = 1;
   static const int kIsHiddenPrototype = 2;
   static const int kHasNamedInterceptor = 3;
@@ -2374,7 +2366,7 @@ enum ScriptType {
 };
 
 
-// Script describes a script which has beed added to the VM.
+// Script describes a script which has been added to the VM.
 class Script: public Struct {
  public:
   // [source]: the script source.
@@ -2528,8 +2520,6 @@ class SharedFunctionInfo: public HeapObject {
   static const int kSize = kDebugInfoOffset + kPointerSize;
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
-
   // Bit positions in length_and_flg.
   // The least significant bit is used as the flag.
   static const int kFlagBit         = 0;
@@ -2543,6 +2533,8 @@ class SharedFunctionInfo: public HeapObject {
   static const int kIsTopLevelBit   = 1;
   static const int kStartPositionShift = 2;
   static const int kStartPositionMask = ~((1 << kStartPositionShift) - 1);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
 
 
@@ -2652,8 +2644,9 @@ class GlobalObject: public JSObject {
   static const int kHeaderSize = kGlobalContextOffset + kPointerSize;
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(GlobalObject);
   friend class AGCCVersionRequiresThisClassToHaveAFriendSoHereItIs;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(GlobalObject);
 };
 
 
@@ -3406,12 +3399,12 @@ class AccessorInfo: public Struct {
   static const int kSize = kFlagOffset + kPointerSize;
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
-
   // Bit positions in flag.
   static const int kAllCanReadBit  = 0;
   static const int kAllCanWriteBit = 1;
   class AttributesField: public BitField<PropertyAttributes, 2, 3> {};
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
 };
 
 
@@ -3561,12 +3554,12 @@ class FunctionTemplateInfo: public TemplateInfo {
   static const int kSize = kFlagOffset + kPointerSize;
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateInfo);
-
   // Bit position in the flag, from least significant bit position.
   static const int kHiddenPrototypeBit   = 0;
   static const int kUndetectableBit      = 1;
   static const int kNeedsAccessCheckBit  = 2;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FunctionTemplateInfo);
 };
 
 

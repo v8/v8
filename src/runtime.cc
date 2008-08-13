@@ -201,14 +201,9 @@ static Object* Runtime_IsInPrototypeChain(Arguments args) {
 
 static Object* Runtime_IsConstructCall(Arguments args) {
   NoHandleAllocation ha;
+  ASSERT(args.length() == 0);
   JavaScriptFrameIterator it;
   return Heap::ToBoolean(it.frame()->IsConstructor());
-}
-
-
-static Object* Runtime_GetBuiltins(Arguments args) {
-  NoHandleAllocation ha;
-  return Top::context()->builtins();
 }
 
 
@@ -1875,7 +1870,7 @@ static Object* ConvertCase(Arguments args,
   // with the exact length.  This is implemented using a goto back
   // to this label if we discover that the assumption doesn't hold.
   // I apologize sincerely for this and will give a vaffel-is to
-  // anyone who can implement it in a nicer way.
+  // the first person who can implement it in a nicer way.
  try_convert:
 
   // Allocate the resulting string.
@@ -2076,13 +2071,6 @@ static Object* Runtime_NumberMul(Arguments args) {
   CONVERT_DOUBLE_CHECKED(x, args[0]);
   CONVERT_DOUBLE_CHECKED(y, args[1]);
   return Heap::AllocateHeapNumber(x * y);
-}
-
-
-static Object* Runtime_NumberAlloc(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-  return Heap::AllocateHeapNumber(0);
 }
 
 
@@ -2539,8 +2527,9 @@ static Object* Runtime_Math_pow(Arguments args) {
 
 // Returns a number value with positive sign, greater than or equal to
 // 0 but less than 1, chosen randomly.
-static Object* Runtime_Math_random(Arguments) {
+static Object* Runtime_Math_random(Arguments args) {
   NoHandleAllocation ha;
+  ASSERT(args.length() == 0);
 
   // To get much better precision, we combine the results of two
   // invocations of random(). The result is computed by normalizing a
@@ -2704,7 +2693,7 @@ static Object* Runtime_LazyCompile(Arguments args) {
 
 static Object* Runtime_GetCalledFunction(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 0);
   StackFrameIterator it;
   // Get past the JS-to-C exit frame.
   ASSERT(it.frame()->is_exit());
@@ -3177,8 +3166,9 @@ static Object* Runtime_DebugTrace(Arguments args) {
 }
 
 
-static Object* Runtime_DateCurrentTime(Arguments) {
+static Object* Runtime_DateCurrentTime(Arguments args) {
   NoHandleAllocation ha;
+  ASSERT(args.length() == 0);
 
   // According to ECMA-262, section 15.9.1, page 117, the precision of
   // the number in a Date object representing a particular instant in
@@ -3217,7 +3207,7 @@ static Object* Runtime_DateLocalTimezone(Arguments args) {
 
 static Object* Runtime_DateLocalTimeOffset(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 0);
 
   return Heap::NumberFromDouble(OS::LocalTimeOffset());
 }
@@ -3247,22 +3237,25 @@ static Object* Runtime_NumberIsFinite(Arguments args) {
 }
 
 
-static Object* Runtime_NumberMaxValue(Arguments) {
+static Object* Runtime_NumberMaxValue(Arguments args) {
   NoHandleAllocation ha;
+  ASSERT(args.length() == 0);
 
   return Heap::number_max_value();
 }
 
 
-static Object* Runtime_NumberMinValue(Arguments) {
+static Object* Runtime_NumberMinValue(Arguments args) {
   NoHandleAllocation ha;
+  ASSERT(args.length() == 0);
 
   return Heap::number_min_value();
 }
 
 
-static Object* Runtime_NumberNaN(Arguments) {
+static Object* Runtime_NumberNaN(Arguments args) {
   NoHandleAllocation ha;
+  ASSERT(args.length() == 0);
 
   return Heap::nan_value();
 }
@@ -3550,7 +3543,7 @@ static Object* Runtime_RemoveDebugEventListener(Arguments args) {
 
 
 static Object* Runtime_Break(Arguments args) {
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 0);
   StackGuard::DebugBreak();
   return Heap::undefined_value();
 }
@@ -4262,7 +4255,7 @@ static Object* Runtime_PrepareStep(Arguments args) {
 // Clear all stepping set by PrepareStep.
 static Object* Runtime_ClearStepping(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 0);
   Debug::ClearStepping();
   return Heap::undefined_value();
 }
@@ -4545,7 +4538,7 @@ static int DebugGetLoadedScripts(FixedArray* instances, int instances_size) {
 
 static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 0);
 
   // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
   // rid of all the cached script wrappes and the second gets rid of the
@@ -4773,6 +4766,7 @@ static Object* Runtime_GetPrototype(Arguments args) {
 
 
 static Object* Runtime_SystemBreak(Arguments args) {
+  ASSERT(args.length() == 0);
   CPU::DebugBreak();
   return Heap::undefined_value();
 }
@@ -4857,7 +4851,7 @@ static Object* Runtime_Abort(Arguments args) {
 // ListNatives is ONLY used by the fuzz-natives.js in debug mode
 // Exclude the code in release mode.
 static Object* Runtime_ListNatives(Arguments args) {
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 0);
   HandleScope scope;
   Handle<JSArray> result = Factory::NewJSArray(0);
   int index = 0;

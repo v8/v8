@@ -276,7 +276,7 @@ const char* RuntimeStub::GetName() {
 
 
 void RuntimeStub::Generate(MacroAssembler* masm) {
-  masm->TailCallRuntime(Runtime::FunctionForId((Runtime::FunctionId)id_));
+  masm->TailCallRuntime(ExternalReference(id_), num_arguments_);
 }
 
 

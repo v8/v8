@@ -664,13 +664,6 @@ Handle<JSFunction> Factory::CreateApiFunction(
     map->set_needs_access_check();
   }
 
-  // If the function template info specifies a lookup handler the
-  // initial_map must have set the bit has_special_lookup.
-  if (obj->lookup_callback()->IsProxy()) {
-    ASSERT(!map->has_special_lookup());
-    map->set_special_lookup();
-  }
-
   // Set interceptor information in the map.
   if (!obj->named_property_handler()->IsUndefined()) {
     map->set_has_named_interceptor();

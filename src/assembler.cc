@@ -435,10 +435,8 @@ const char* RelocInfo::RelocModeName(RelocMode rmode) {
   }
   return "unknown relocation type";
 }
-#endif  // ENABLE_DISASSEMBLER
 
 
-#ifdef DEBUG
 void RelocInfo::Print() {
   PrintF("%p  %s", pc_, RelocModeName(rmode_));
   if (rmode_ == comment) {
@@ -461,8 +459,10 @@ void RelocInfo::Print() {
 
   PrintF("\n");
 }
+#endif  // ENABLE_DISASSEMBLER
 
 
+#ifdef DEBUG
 void RelocInfo::Verify() {
   switch (rmode_) {
     case embedded_object:

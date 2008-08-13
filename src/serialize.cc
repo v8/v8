@@ -1057,28 +1057,18 @@ Address Serializer::PutObject(HeapObject* obj) {
   writer_->PutInt(size >> kObjectAlignmentBits);
   PutEncodedAddress(addr);  // encodes AllocationSpace
 
-  // Get the map's encoded address, possibly serializing it on first
-  // visit. Note that we do not update obj->map(), since
-  // it already contains the forwarding address of 'obj'.
-  bool serialized;
-  Address map_addr = Encode(map, &serialized);
-
   // Visit all the pointers in the object other than the map. This
   // will recursively serialize any as-yet-unvisited objects.
-  obj->IterateBody(type, size, this);
+  obj->Iterate(this);
 
   // Mark end of recursively embedded objects, start of object body.
   writer_->PutC('|');
-  // Write out the encoded address for the map.
-  PutEncodedAddress(map_addr);
-
-  // Write out the raw contents of the object following the map
-  // pointer containing the now-updated pointers. No compression, but
+  // Write out the raw contents of the object. No compression, but
   // fast to deserialize.
+  writer_->PutBytes(obj->address(), size);
+  // Update pointers and external references in the written object.
   ReferenceUpdater updater(obj, this);
-  obj->IterateBody(type, size, &updater);
-  writer_->PutBytes(obj->address() + HeapObject::kSize,
-                    size - HeapObject::kSize);
+  obj->Iterate(&updater);
   updater.Update(writer_->position() - size);
 
 #ifdef DEBUG
@@ -1177,7 +1167,6 @@ void Deserializer::Deserialize() {
   GetHeader();
   Heap::IterateRoots(this);
   GetContextStack();
-  Heap::RebuildRSets();
 }
 
 
@@ -1364,16 +1353,9 @@ Object* Deserializer::GetObject() {
   }
   ASSERT(c == '|');
 
-  // Read, resolve and set the map pointer: don't rely on map being initialized.
-  Address map_addr = GetEncodedAddress();
-  Map* map = reinterpret_cast<Map*>(Resolve(map_addr));
   HeapObject* obj = reinterpret_cast<HeapObject*>(o);
-  obj->set_map(map);
-
   // Read the uninterpreted contents of the object after the map
-  reader_.GetBytes(obj->address() + HeapObject::kSize,
-                    size - HeapObject::kSize);
-
+  reader_.GetBytes(obj->address(), size);
 #ifdef DEBUG
   if (expect_debug_information_) {
     // Read in the epilogue to check that we're still synchronized
@@ -1382,7 +1364,9 @@ Object* Deserializer::GetObject() {
   }
 #endif
 
-  // Resolve the encoded pointers we just read in
+  // Resolve the encoded pointers we just read in.
+  // Same as obj->Iterate(this), but doesn't rely on the map pointer being set.
+  VisitPointer(reinterpret_cast<Object**>(obj->address()));
   obj->IterateBody(type, size, this);
 
   if (type == CODE_TYPE) {

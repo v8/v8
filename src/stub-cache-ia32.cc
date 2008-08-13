@@ -332,9 +332,10 @@ void StubCompiler::GenerateLoadCallback(MacroAssembler* masm,
   __ push(reg);  // holder
   __ push(scratch2);  // restore return address
 
-  // Do tail-call to the C builtin.
-  __ mov(eax, 3);  // not counting receiver
-  __ JumpToBuiltin(ExternalReference(IC_Utility(IC::kLoadCallbackProperty)));
+  // Do tail-call to the runtime system.
+  ExternalReference load_callback_property =
+      ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
+  __ TailCallRuntime(load_callback_property, 4);
 }
 
 
@@ -383,9 +384,10 @@ void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
   __ push(name);  // name
   __ push(scratch2);  // restore return address
 
-  // Do tail-call to the C builtin.
-  __ mov(eax, 2);  // not counting receiver
-  __ JumpToBuiltin(ExternalReference(IC_Utility(IC::kLoadInterceptorProperty)));
+  // Do tail-call to the runtime system.
+  ExternalReference load_ic_property =
+      ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
+  __ TailCallRuntime(load_ic_property, 3);
 }
 
 
@@ -672,9 +674,9 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   __ push(Operand(ebp, (argc + 3) * kPointerSize));  // name
 
   // Perform call.
-  __ mov(Operand(eax), Immediate(2));  // 2 arguments w/o receiver
   ExternalReference load_interceptor =
       ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
+  __ mov(Operand(eax), Immediate(3));
   __ mov(Operand(ebx), Immediate(load_interceptor));
 
   CEntryStub stub;
@@ -780,9 +782,10 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   __ push(eax);  // value
   __ push(ebx);  // restore return address
 
-  // Do tail-call to the C builtin.
-  __ mov(eax, 3);  // not counting receiver
-  __ JumpToBuiltin(ExternalReference(IC_Utility(IC::kStoreCallbackProperty)));
+  // Do tail-call to the runtime system.
+  ExternalReference store_callback_property =
+      ExternalReference(IC_Utility(IC::kStoreCallbackProperty));
+  __ TailCallRuntime(store_callback_property, 4);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -834,11 +837,10 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   __ push(eax);  // value
   __ push(ebx);  // restore return address
 
-  // Do tail-call to the C builtin.
-  __ mov(eax, 2);  // not counting receiver
-  ExternalReference store_interceptor =
+  // Do tail-call to the runtime system.
+  ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
-  __ JumpToBuiltin(store_interceptor);
+  __ TailCallRuntime(store_ic_property, 3);
 
   // Handle store cache miss.
   __ bind(&miss);

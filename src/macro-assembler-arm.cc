@@ -174,30 +174,6 @@ void MacroAssembler::Ret() {
 }
 
 
-void MacroAssembler::Push(const Operand& src) {
-  push(r0);
-  mov(r0, src);
-}
-
-
-void MacroAssembler::Push(const MemOperand& src) {
-  push(r0);
-  ldr(r0, src);
-}
-
-
-void MacroAssembler::Pop(Register dst) {
-  mov(dst, Operand(r0));
-  pop(r0);
-}
-
-
-void MacroAssembler::Pop(const MemOperand& dst) {
-  str(r0, dst);
-  pop(r0);
-}
-
-
 // Will clobber 4 registers: object, offset, scratch, ip.  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
@@ -320,7 +296,7 @@ void MacroAssembler::EnterJSFrame(int argc) {
   add(fp, sp, Operand(-StandardFrameConstants::kContextOffset));
   mov(pp, Operand(ip));  // setup new parameter pointer
   mov(r0, Operand(0));  // spare slot to store caller code object during GC
-  // r0: TOS (code slot == 0)
+  push(r0);
   // r1: preserved
 }
 
@@ -517,7 +493,6 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
   ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
   // The pc (return address) is passed in register lr.
   if (try_location == IN_JAVASCRIPT) {
-    mov(r0, Operand(Smi::FromInt(StackHandler::kCodeNotPresent)));  // new TOS
     stm(db_w, sp, pp.bit() | fp.bit() | lr.bit());
     if (type == TRY_CATCH_HANDLER) {
       mov(r3, Operand(StackHandler::TRY_CATCH));
@@ -529,14 +504,14 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     ldr(r1, MemOperand(r3));
     push(r1);  // next sp
     str(sp, MemOperand(r3));  // chain handler
-    // TOS is r0
+    mov(r0, Operand(Smi::FromInt(StackHandler::kCodeNotPresent)));  // new TOS
+    push(r0);
   } else {
     // Must preserve r0-r3, r5-r7 are available.
     ASSERT(try_location == IN_JS_ENTRY);
     // The parameter pointer is meaningless here and fp does not point to a JS
     // frame. So we save NULL for both pp and fp. We expect the code throwing an
     // exception to check fp before dereferencing it to restore the context.
-    mov(r5, Operand(Smi::FromInt(StackHandler::kCodeNotPresent)));  // new TOS
     mov(pp, Operand(0));  // set pp to NULL
     mov(ip, Operand(0));  // to save a NULL fp
     stm(db_w, sp, pp.bit() | ip.bit() | lr.bit());
@@ -546,6 +521,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     ldr(r6, MemOperand(r7));
     push(r6);  // next sp
     str(sp, MemOperand(r7));  // chain handler
+    mov(r5, Operand(Smi::FromInt(StackHandler::kCodeNotPresent)));  // new TOS
     push(r5);  // flush TOS
   }
 }
@@ -670,29 +646,17 @@ void MacroAssembler::StubReturn(int argc) {
   Ret();
 }
 
+
 void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
-  ASSERT(num_arguments >= 1);  // must have receiver for call
+  // All parameters are on the stack.  r0 has the return value after call.
 
-  if (f->nargs < 0) {
-    // The number of arguments is not constant for this call, or we don't
-    // have an entry stub that pushes the value. Push it before the call.
-    push(r0);
-    // Receiver does not count as an argument.
-    mov(r0, Operand(num_arguments - 1));
-  } else {
-    ASSERT(f->nargs == num_arguments);
-    // TODO(1236192): Most runtime routines don't need the number of
-    // arguments passed in because it is constant. At some point we
-    // should remove this need and make the runtime routine entry code
-    // smarter.
+  // Either the expected number of arguments is unknown, or the actual
+  // number of arguments match the expectation.
+  ASSERT(f->nargs < 0 || f->nargs == num_arguments);
 
-    // The number of arguments is fixed for this call.
-    // Set r0 correspondingly.
-    push(r0);
-    mov(r0, Operand(f->nargs - 1));  // receiver does not count as an argument
-  }
-
-  RuntimeStub stub((Runtime::FunctionId) f->stub_id);
+  Runtime::FunctionId function_id =
+      static_cast<Runtime::FunctionId>(f->stub_id);
+  RuntimeStub stub(function_id, num_arguments);
   CallStub(&stub);
 }
 
@@ -702,8 +666,14 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId fid, int num_arguments) {
 }
 
 
-void MacroAssembler::TailCallRuntime(Runtime::Function* f) {
-  JumpToBuiltin(ExternalReference(f));  // tail call to runtime routine
+void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
+                                     int num_arguments) {
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  mov(r0, Operand(num_arguments));
+  JumpToBuiltin(ext);
 }
 
 
@@ -781,10 +751,10 @@ void MacroAssembler::Abort(const char* msg) {
     RecordComment(msg);
   }
 #endif
-  push(r0);
   mov(r0, Operand(p0));
   push(r0);
   mov(r0, Operand(Smi::FromInt(p1 - p0)));
+  push(r0);
   CallRuntime(Runtime::kAbort, 2);
   // will not return here
 }

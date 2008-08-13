@@ -34,6 +34,11 @@
 
 namespace v8 { namespace internal {
 
+#ifdef DEBUG
+  DECLARE_bool(print_builtin_code);
+#endif  // DEBUG
+
+
 // ----------------------------------------------------------------------------
 // Support macros for defining builtins in C.
 // ----------------------------------------------------------------------------
@@ -58,6 +63,8 @@ namespace v8 { namespace internal {
 //
 // and they evaluate to undefined values if too few arguments were
 // passed to the builtin function invocation.
+//
+// __argc__ is the number of arguments including the receiver.
 // ----------------------------------------------------------------------------
 
 
@@ -82,7 +89,8 @@ namespace v8 { namespace internal {
       } else if (type == StackFrame::ARGUMENTS_ADAPTOR) {               \
         ArgumentsAdaptorFrame* frame =                                  \
             ArgumentsAdaptorFrame::cast(it.frame());                    \
-        __argc__ = frame->GetProvidedParametersCount();                 \
+        /* __argc__ includes the receiver. */                           \
+        __argc__ = frame->GetProvidedParametersCount() + 1;             \
         __argv__ = reinterpret_cast<Object**>(frame->pp()) - 1;         \
         it.Advance();                                                   \
         is_construct =                                                  \
@@ -107,17 +115,11 @@ namespace v8 { namespace internal {
   Object* a2 = BUILTIN_ARG(3);
 
 
-#define BUILTIN_VARARG(name, aidx0, aidxN)    \
-  BUILTIN_0(name);                            \
-  int aidx0 = 1;                              \
-  int aidxN = __argc__;                       \
-
-
 // Use an inline function to avoid evaluating the index (n) more than
 // once in the BUILTIN_ARG macro.
 static inline Object* __builtin_arg__(int n, int argc, Object** argv) {
   ASSERT(n >= 0);
-  return (argc >= n) ? argv[-n] : Heap::undefined_value();
+  return (argc > n) ? argv[-n] : Heap::undefined_value();
 }
 
 
@@ -181,7 +183,7 @@ BUILTIN_0(ArrayCode) {
 
   // Optimize the case where there is one argument and the argument is a
   // small smi.
-  if (__argc__ == 1) {
+  if (__argc__ == 2) {
     Object* obj = BUILTIN_ARG(1);
     if (obj->IsSmi()) {
       int len = Smi::cast(obj)->value();
@@ -195,26 +197,27 @@ BUILTIN_0(ArrayCode) {
     // Take the argument as the length.
     obj = array->Initialize(0);
     if (obj->IsFailure()) return obj;
-    if (__argc__ == 1) return array->SetElementsLength(BUILTIN_ARG(1));
+    if (__argc__ == 2) return array->SetElementsLength(BUILTIN_ARG(1));
   }
 
   // Optimize the case where there are no paramaters passed.
-  if (__argc__ == 0) return array->Initialize(4);
+  if (__argc__ == 1) return array->Initialize(4);
 
   // Take the arguments as elements.
-  int len = Smi::FromInt(__argc__)->value();
-  Object* obj = Heap::AllocateFixedArrayWithHoles(len);
+  int number_of_elements = __argc__ - 1;
+  Smi* len = Smi::FromInt(number_of_elements);
+  Object* obj = Heap::AllocateFixedArrayWithHoles(len->value());
   if (obj->IsFailure()) return obj;
   FixedArray* elms = FixedArray::cast(obj);
   FixedArray::WriteBarrierMode mode = elms->GetWriteBarrierMode();
   // Fill in the content
-  for (int index = 0; index < __argc__; index++) {
+  for (int index = 0; index < number_of_elements; index++) {
     elms->set(index, BUILTIN_ARG(index+1), mode);
   }
 
   // Set length and elements on the array.
   array->set_elements(FixedArray::cast(obj));
-  array->set_length(Smi::FromInt(__argc__));
+  array->set_length(len);
 
   return array;
 }
@@ -229,12 +232,12 @@ BUILTIN_0(ArrayPush) {
   int len = Smi::cast(array->length())->value();
 
   // Set new length.
-  int new_length = len + __argc__;
+  int new_length = len + __argc__ - 1;
   FixedArray* elms = FixedArray::cast(array->elements());
 
   if (new_length <= elms->length()) {
     // Backing storage has extra space for the provided values.
-    for (int index = 0; index < __argc__; index++) {
+    for (int index = 0; index < __argc__ - 1; index++) {
       elms->set(index + len, BUILTIN_ARG(index+1));
     }
   } else {
@@ -247,7 +250,7 @@ BUILTIN_0(ArrayPush) {
     // Fill out the new array with old elements.
     for (int i = 0; i < len; i++) new_elms->set(i, elms->get(i), mode);
     // Add the provided values.
-    for (int index = 0; index < __argc__; index++) {
+    for (int index = 0; index < __argc__ - 1; index++) {
       new_elms->set(index + len, BUILTIN_ARG(index+1), mode);
     }
     // Set the new backing storage.
@@ -327,7 +330,7 @@ static inline Object* TypeCheck(int argc,
   if (args_obj->IsUndefined()) return holder;
   FixedArray* args = FixedArray::cast(args_obj);
   int length = args->length();
-  if (argc < length) length = argc;
+  if (argc <= length) length = argc - 1;
   for (int i = 0; i < length; i++) {
     Object* argtype = args->get(i);
     if (argtype->IsUndefined()) continue;
@@ -405,7 +408,7 @@ BUILTIN_0(HandleApiCall) {
         callee,
         is_construct,
         reinterpret_cast<void**>(__argv__ - 1),
-        __argc__);
+        __argc__ - 1);
 
     v8::Handle<v8::Value> value;
     {
@@ -467,7 +470,7 @@ BUILTIN_0(HandleApiCallAsFunction) {
         callee,
         is_construct,
         reinterpret_cast<void**>(__argv__ - 1),
-        __argc__);
+        __argc__ - 1);
     v8::Handle<v8::Value> value;
     {
       // Leaving JavaScript.
@@ -692,6 +695,13 @@ void Builtins::Setup(bool create_heap_objects) {
       // Log the event and add the code to the builtins array.
       LOG(CodeCreateEvent("Builtin", Code::cast(code), functions[i].s_name));
       builtins_[i] = code;
+#ifdef DEBUG
+      if (FLAG_print_builtin_code) {
+        PrintF("Builtin: %s\n", functions[i].s_name);
+        code->Print();
+        PrintF("\n");
+      }
+#endif
     } else {
       // Deserializing. The values will be filled in during IterateBuiltins.
       builtins_[i] = NULL;

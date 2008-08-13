@@ -530,38 +530,29 @@ void MacroAssembler::CallRuntime(Runtime::FunctionId id, int num_arguments) {
 
 
 void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
-  if (num_arguments < 1) {
-    // must have receiver for call
+  // If the expected number of arguments of the runtime function is
+  // constant, we check that the actual number of arguments match the
+  // expectation.
+  if (f->nargs >= 0 && f->nargs != num_arguments) {
     IllegalOperation();
     return;
   }
 
-  // TODO(1236192): Most runtime routines don't need the number of
-  // arguments passed in because it is constant. At some point we
-  // should remove this need and make the runtime routine entry code
-  // smarter.
-
-  if (f->nargs < 0) {
-    // The number of arguments is not constant for this call.
-    // Receiver does not count as an argument.
-    mov(Operand(eax), Immediate(num_arguments - 1));
-  } else {
-    if (f->nargs != num_arguments) {
-      IllegalOperation();
-      return;
-    }
-    // Receiver does not count as an argument.
-    mov(Operand(eax), Immediate(f->nargs - 1));
-  }
-
-  RuntimeStub stub((Runtime::FunctionId) f->stub_id);
+  Runtime::FunctionId function_id =
+      static_cast<Runtime::FunctionId>(f->stub_id);
+  RuntimeStub stub(function_id, num_arguments);
   CallStub(&stub);
 }
 
 
-
-void MacroAssembler::TailCallRuntime(Runtime::Function* f) {
-  JumpToBuiltin(ExternalReference(f));  // tail call to runtime routine
+void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
+                                     int num_arguments) {
+  // TODO(1236192): Most runtime routines don't need the number of
+  // arguments passed in because it is constant. At some point we
+  // should remove this need and make the runtime routine entry code
+  // smarter.
+  mov(Operand(eax), Immediate(num_arguments));
+  JumpToBuiltin(ext);
 }
 
 

@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "code-stubs.h"
+#include "codegen.h"
 #include "debug.h"
 #include "disasm.h"
 #include "disassembler.h"
@@ -234,9 +235,9 @@ static int DecodeIt(FILE* f,
                   out.AddFormatted("argc = %d)", minor_key);
                   break;
                 case CodeStub::Runtime: {
-                  Runtime::FunctionId id =
-                      static_cast<Runtime::FunctionId>(minor_key);
-                  out.AddFormatted("%s)", Runtime::FunctionForId(id)->name);
+                  const char* name =
+                      RuntimeStub::GetNameFromMinorKey(minor_key);
+                  out.AddFormatted("%s)", name);
                   break;
                 }
                 default:

@@ -32,10 +32,14 @@
 #ifndef V8_V8_H_
 #define V8_V8_H_
 
-// Google3 uses NDEBUG.
-#if defined(GOOGLE3) && !defined(NDEBUG)
-#define DEBUG
+#if defined(GOOGLE3)
+// Google3 special flag handling.
+#if defined(DEBUG) && defined(NDEBUG)
+// If both are defined in Google3, then we are building an optimized v8 with
+// assertions enabled.
+#undef NDEBUG
 #endif
+#endif  // defined(GOOGLE3)
 
 // V8 only uses DEBUG, but included external files
 // may use NDEBUG - make sure they are consistent.

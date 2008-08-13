@@ -214,6 +214,44 @@ void MarkCompactCollector::Finish() {
 
 static MarkingStack marking_stack;
 
+
+inline HeapObject* ShortCircuitConsString(Object** p) {
+  // Optimization: If the heap object pointed to by p is a cons string whose
+  // right substring is Heap::empty_string, update it in place to its left
+  // substring.  Return the updated value.
+  //
+  // Here we assume that if we change *p, we replace it with a heap object
+  // (ie, the left substring of a cons string is always a heap object).
+  //
+  // The check performed is:
+  //   object->IsConsString() &&
+  //   (ConsString::cast(object)->second() == Heap::empty_string())
+  // except the maps for the object and its possible substrings might be
+  // marked.
+  HeapObject* object = HeapObject::cast(*p);
+  MapWord map_word = object->map_word();
+  map_word.ClearMark();
+  InstanceType type = map_word.ToMap()->instance_type();
+  if (type >= FIRST_NONSTRING_TYPE) return object;
+
+  StringRepresentationTag rep =
+      static_cast<StringRepresentationTag>(type & kStringRepresentationMask);
+  if (rep != kConsStringTag) return object;
+
+  Object* second = reinterpret_cast<ConsString*>(object)->second();
+  if (reinterpret_cast<String*>(second) != Heap::empty_string()) return object;
+
+  // Since we don't have the object's start, it is impossible to update the
+  // remembered set.  Therefore, we only replace the string with its left
+  // substring when the remembered set does not change.
+  Object* first = reinterpret_cast<ConsString*>(object)->first();
+  if (!Heap::InNewSpace(object) && Heap::InNewSpace(first)) return object;
+
+  *p = first;
+  return HeapObject::cast(first);
+}
+
+
 // Helper class for marking pointers in HeapObjects.
 class MarkingVisitor : public ObjectVisitor {
  public:
@@ -272,34 +310,9 @@ class MarkingVisitor : public ObjectVisitor {
  private:
   // Mark object pointed to by p.
   void MarkObjectByPointer(Object** p) {
-    Object* obj = *p;
-    if (!obj->IsHeapObject()) return;
-
-    // Optimization: Bypass ConsString object where right size is
-    // Heap::empty_string().
-    // Please note this checks performed equals:
-    //   object->IsConsString() &&
-    //   (ConsString::cast(object)->second() == Heap::empty_string())
-    // except the map for the object might be marked.
-    MapWord map_word = HeapObject::cast(obj)->map_word();
-    map_word.ClearMark();
-    InstanceType type = map_word.ToMap()->instance_type();
-    if ((type < FIRST_NONSTRING_TYPE) &&
-        (static_cast<StringRepresentationTag>(
-            type & kStringRepresentationMask) == kConsStringTag) &&
-        (reinterpret_cast<String*>(
-             reinterpret_cast<ConsString*>(obj)->second()) ==
-         Heap::empty_string())) {
-      // Since we don't have the object start it is impossible to update the
-      // remeber set quickly.  Therefore this optimization only is taking
-      // place when we can avoid changing.
-      Object* first = reinterpret_cast<ConsString*>(obj)->first();
-      if (Heap::InNewSpace(obj) || !Heap::InNewSpace(first)) {
-        obj = first;
-        *p = obj;
-      }
-    }
-    MarkCompactCollector::MarkObject(HeapObject::cast(obj));
+    if (!(*p)->IsHeapObject()) return;
+    HeapObject* object = ShortCircuitConsString(p);
+    MarkCompactCollector::MarkObject(object);
   }
 
   // Tells whether the mark sweep collection will perform compaction.
@@ -345,6 +358,48 @@ class MarkingVisitor : public ObjectVisitor {
 };
 
 
+// Visitor class for marking heap roots.
+class RootMarkingVisitor : public ObjectVisitor {
+ public:
+  void VisitPointer(Object** p) {
+    MarkObjectByPointer(p);
+  }
+
+  void VisitPointers(Object** start, Object** end) {
+    for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
+  }
+
+  MarkingVisitor* stack_visitor() { return &stack_visitor_; }
+
+ private:
+  MarkingVisitor stack_visitor_;
+
+  void MarkObjectByPointer(Object** p) {
+    if (!(*p)->IsHeapObject()) return;
+
+    // Replace flat cons strings in place.
+    HeapObject* object = ShortCircuitConsString(p);
+    if (object->IsMarked()) return;
+
+#ifdef DEBUG
+    MarkCompactCollector::UpdateLiveObjectCount(object);
+#endif
+    Map* map = object->map();
+    // Mark the object.
+    object->SetMark();
+    MarkCompactCollector::tracer()->increment_marked_count();
+    // Mark the map pointer and body, and push them on the marking stack.
+    MarkCompactCollector::MarkObject(map);
+    object->IterateBody(map->instance_type(), object->SizeFromMap(map),
+                        &stack_visitor_);
+
+    // Mark all the objects reachable from the map and body.  May leave
+    // overflowed objects in the heap.
+    MarkCompactCollector::EmptyMarkingStack(&stack_visitor_);
+  }
+};
+
+
 // Helper class for pruning the symbol table.
 class SymbolTableCleaner : public ObjectVisitor {
  public:
@@ -368,26 +423,21 @@ class SymbolTableCleaner : public ObjectVisitor {
 };
 
 
-void MarkCompactCollector::MarkUnmarkedObject(HeapObject* obj) {
+void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
 #ifdef DEBUG
-  UpdateLiveObjectCount(obj);
+  UpdateLiveObjectCount(object);
 #endif
-  ASSERT(!obj->IsMarked());
-  if (obj->IsJSGlobalObject()) Counters::global_objects.Increment();
+  ASSERT(!object->IsMarked());
+  if (object->IsJSGlobalObject()) Counters::global_objects.Increment();
 
-  if (FLAG_cleanup_caches_in_maps_at_gc && obj->IsMap()) {
-    Map::cast(obj)->ClearCodeCache();
+  if (FLAG_cleanup_caches_in_maps_at_gc && object->IsMap()) {
+    Map::cast(object)->ClearCodeCache();
   }
 
-  obj->SetMark();
+  object->SetMark();
   tracer_->increment_marked_count();
-  if (!marking_stack.overflowed()) {
-    ASSERT(Heap::Contains(obj));
-    marking_stack.Push(obj);
-  } else {
-    // Set object's stack overflow bit, wait for rescan.
-    obj->SetOverflow();
-  }
+  ASSERT(Heap::Contains(object));
+  marking_stack.Push(object);
 }
 
 
@@ -401,26 +451,23 @@ static int OverflowObjectSize(HeapObject* obj) {
 }
 
 
-static bool VisitOverflowedObject(HeapObject* obj) {
-  if (!obj->IsOverflowed()) return true;
-  ASSERT(obj->IsMarked());
-
-  if (marking_stack.overflowed()) return false;
-
-  obj->ClearOverflow();
-  ASSERT(Heap::Contains(obj));
-  marking_stack.Push(obj);
-  return true;
-}
-
-
+// Fill the marking stack with overflowed objects returned by the given
+// iterator.  Stop when the marking stack is filled or the end of the space
+// is reached, whichever comes first.
 template<class T>
 static void ScanOverflowedObjects(T* it) {
+  // The caller should ensure that the marking stack is initially not full,
+  // so that we don't waste effort pointlessly scanning for objects.
+  ASSERT(!marking_stack.is_full());
+
   while (it->has_next()) {
-    HeapObject* obj = it->next();
-    if (!VisitOverflowedObject(obj)) {
-      ASSERT(marking_stack.overflowed());
-      break;
+    HeapObject* object = it->next();
+    if (object->IsOverflowed()) {
+      object->ClearOverflow();
+      ASSERT(object->IsMarked());
+      ASSERT(Heap::Contains(object));
+      marking_stack.Push(object);
+      if (marking_stack.is_full()) return;
     }
   }
 }
@@ -433,15 +480,15 @@ bool MarkCompactCollector::MustBeMarked(Object** p) {
 }
 
 
-void MarkCompactCollector::MarkStrongRoots(MarkingVisitor* marking_visitor) {
+void MarkCompactCollector::ProcessRoots(RootMarkingVisitor* visitor) {
   // Mark the heap roots gray, including global variables, stack variables,
   // etc.
-  Heap::IterateStrongRoots(marking_visitor);
+  Heap::IterateStrongRoots(visitor);
 
   // Take care of the symbol table specially.
   SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
   // 1. Mark the prefix of the symbol table gray.
-  symbol_table->IteratePrefix(marking_visitor);
+  symbol_table->IteratePrefix(visitor);
 #ifdef DEBUG
   UpdateLiveObjectCount(symbol_table);
 #endif
@@ -449,6 +496,12 @@ void MarkCompactCollector::MarkStrongRoots(MarkingVisitor* marking_visitor) {
   // or mark it overflowed).
   symbol_table->SetMark();
   tracer_->increment_marked_count();
+
+  // There may be overflowed objects in the heap.  Visit them now.
+  while (marking_stack.overflowed()) {
+    RefillMarkingStack();
+    EmptyMarkingStack(visitor->stack_visitor());
+  }
 }
 
 
@@ -486,70 +539,82 @@ void MarkCompactCollector::MarkObjectGroups() {
 }
 
 
-// Mark as black all objects reachable starting from gray objects.  (Gray
-// objects are marked and on the marking stack, or marked and marked as
-// overflowed and not on the marking stack).
-//
-// Before: the heap contains a mixture of white, gray, and black objects.
-// After: the heap contains a mixture of white and black objects.
-void MarkCompactCollector::ProcessMarkingStack(
-    MarkingVisitor* marking_visitor) {
+// Mark all objects reachable from the objects on the marking stack.
+// Before: the marking stack contains zero or more heap object pointers.
+// After: the marking stack is empty, and all objects reachable from the
+// marking stack have been marked, or are overflowed in the heap.
+void MarkCompactCollector::EmptyMarkingStack(MarkingVisitor* visitor) {
+  while (!marking_stack.is_empty()) {
+    HeapObject* object = marking_stack.Pop();
+    ASSERT(object->IsHeapObject());
+    ASSERT(Heap::Contains(object));
+    ASSERT(object->IsMarked());
+    ASSERT(!object->IsOverflowed());
 
-  while (true) {
-    while (!marking_stack.is_empty()) {
-      HeapObject* object = marking_stack.Pop();
-      ASSERT(object->IsHeapObject());
-      ASSERT(Heap::Contains(object));
-      // Removing a (gray) object from the marking stack turns it black.
-      ASSERT(object->IsMarked() && !object->IsOverflowed());
-
-      // Because the object is marked, we have to recover the original map
-      // pointer and use it to mark the object's body.
-      MapWord map_word = object->map_word();
-      map_word.ClearMark();
-      Map* map = map_word.ToMap();
-      MarkObject(map);
-      object->IterateBody(map->instance_type(), object->SizeFromMap(map),
-                          marking_visitor);
-    }
-
-    // The only gray objects are marked overflowed in the heap.  If there
-    // are any, refill the marking stack and continue.
-    if (!marking_stack.overflowed()) return;
-
-    marking_stack.clear_overflowed();
-    // We have early stops if the marking stack overflows while refilling it
-    // with gray objects to avoid pointlessly scanning extra spaces.
-    SemiSpaceIterator new_it(Heap::new_space(), &OverflowObjectSize);
-    ScanOverflowedObjects(&new_it);
-    if (marking_stack.overflowed()) continue;
-
-    HeapObjectIterator old_it(Heap::old_space(), &OverflowObjectSize);
-    ScanOverflowedObjects(&old_it);
-    if (marking_stack.overflowed()) continue;
-
-    HeapObjectIterator code_it(Heap::code_space(), &OverflowObjectSize);
-    ScanOverflowedObjects(&code_it);
-    if (marking_stack.overflowed()) continue;
-
-    HeapObjectIterator map_it(Heap::map_space(), &OverflowObjectSize);
-    ScanOverflowedObjects(&map_it);
-    if (marking_stack.overflowed()) continue;
-
-    LargeObjectIterator lo_it(Heap::lo_space(), &OverflowObjectSize);
-    ScanOverflowedObjects(&lo_it);
+    // Because the object is marked, we have to recover the original map
+    // pointer and use it to mark the object's body.
+    MapWord map_word = object->map_word();
+    map_word.ClearMark();
+    Map* map = map_word.ToMap();
+    MarkObject(map);
+    object->IterateBody(map->instance_type(), object->SizeFromMap(map),
+                        visitor);
   }
 }
 
 
-void MarkCompactCollector::ProcessObjectGroups(
-    MarkingVisitor* marking_visitor) {
+// Sweep the heap for overflowed objects, clear their overflow bits, and
+// push them on the marking stack.  Stop early if the marking stack fills
+// before sweeping completes.  If sweeping completes, there are no remaining
+// overflowed objects in the heap so the overflow flag on the markings stack
+// is cleared.
+void MarkCompactCollector::RefillMarkingStack() {
+  ASSERT(marking_stack.overflowed());
+
+  SemiSpaceIterator new_it(Heap::new_space(), &OverflowObjectSize);
+  ScanOverflowedObjects(&new_it);
+  if (marking_stack.is_full()) return;
+
+  HeapObjectIterator old_it(Heap::old_space(), &OverflowObjectSize);
+  ScanOverflowedObjects(&old_it);
+  if (marking_stack.is_full()) return;
+
+  HeapObjectIterator code_it(Heap::code_space(), &OverflowObjectSize);
+  ScanOverflowedObjects(&code_it);
+  if (marking_stack.is_full()) return;
+
+  HeapObjectIterator map_it(Heap::map_space(), &OverflowObjectSize);
+  ScanOverflowedObjects(&map_it);
+  if (marking_stack.is_full()) return;
+
+  LargeObjectIterator lo_it(Heap::lo_space(), &OverflowObjectSize);
+  ScanOverflowedObjects(&lo_it);
+  if (marking_stack.is_full()) return;
+
+  marking_stack.clear_overflowed();
+}
+
+
+// Mark all objects reachable (transitively) from objects on the marking
+// stack.  Before: the marking stack contains zero or more heap object
+// pointers.  After: the marking stack is empty and there are no overflowed
+// objects in the heap.
+void MarkCompactCollector::ProcessMarkingStack(MarkingVisitor* visitor) {
+  EmptyMarkingStack(visitor);
+  while (marking_stack.overflowed()) {
+    RefillMarkingStack();
+    EmptyMarkingStack(visitor);
+  }
+}
+
+
+void MarkCompactCollector::ProcessObjectGroups(MarkingVisitor* visitor) {
   bool work_to_do = true;
   ASSERT(marking_stack.is_empty());
   while (work_to_do) {
     MarkObjectGroups();
     work_to_do = !marking_stack.is_empty();
-    ProcessMarkingStack(marking_visitor);
+    ProcessMarkingStack(visitor);
   }
 }
 
@@ -566,15 +631,14 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   ASSERT(!marking_stack.overflowed());
 
-  MarkingVisitor marking_visitor;
-  MarkStrongRoots(&marking_visitor);
-  ProcessMarkingStack(&marking_visitor);
+  RootMarkingVisitor root_visitor;
+  ProcessRoots(&root_visitor);
 
   // The objects reachable from the roots are marked black, unreachable
   // objects are white.  Mark objects reachable from object groups with at
   // least one marked object, and continue until no new objects are
   // reachable from the object groups.
-  ProcessObjectGroups(&marking_visitor);
+  ProcessObjectGroups(root_visitor.stack_visitor());
 
   // The objects reachable from the roots or object groups are marked black,
   // unreachable objects are white.  Process objects reachable only from
@@ -583,12 +647,15 @@ void MarkCompactCollector::MarkLiveObjects() {
   // First we mark weak pointers not yet reachable.
   GlobalHandles::MarkWeakRoots(&MustBeMarked);
   // Then we process weak pointers and process the transitive closure.
-  GlobalHandles::IterateWeakRoots(&marking_visitor);
-  ProcessMarkingStack(&marking_visitor);
+  GlobalHandles::IterateWeakRoots(&root_visitor);
+  while (marking_stack.overflowed()) {
+    RefillMarkingStack();
+    EmptyMarkingStack(root_visitor.stack_visitor());
+  }
 
   // Repeat the object groups to mark unmarked groups reachable from the
   // weak roots.
-  ProcessObjectGroups(&marking_visitor);
+  ProcessObjectGroups(root_visitor.stack_visitor());
 
   // Prune the symbol table removing all symbols only pointed to by the
   // symbol table.  Cannot use SymbolTable::cast here because the symbol

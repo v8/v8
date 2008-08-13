@@ -41,9 +41,7 @@ $Math.__proto__ = global.Object.prototype;
 %AddProperty(global, "Math", $Math, DONT_ENUM);
 
 
-// TODO(1240985): Make this work without arguments to the runtime
-// call.
-function $Math_random() { return %Math_random(0); }
+function $Math_random() { return %Math_random(); }
 %AddProperty($Math, "random", $Math_random, DONT_ENUM);
 
 function $Math_abs(x) {

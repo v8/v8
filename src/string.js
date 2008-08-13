@@ -34,7 +34,7 @@
 // Set the String function and constructor.
 %SetCode($String, function(x) {
   var value = %_ArgumentsLength() == 0 ? '' : ToString(x);
-  if (%IsConstructCall(this)) {
+  if (%IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
     return value;
@@ -349,7 +349,7 @@ function ApplyReplacementFunction(replace, captures, subject) {
   var pat = ToString(searchString);
   var index = (%_ArgumentsLength() > 1)
       ? ToNumber(%_Arguments(1) /* position */)
-      : %NumberNaN(1);
+      : %NumberNaN();
   var firstIndex;
   if ($isNaN(index)) {
     firstIndex = sub.length - pat.length;

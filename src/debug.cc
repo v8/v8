@@ -618,7 +618,7 @@ void Debug::Iterate(ObjectVisitor* v) {
 
 Object* Debug::Break(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 0);
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it;
@@ -627,7 +627,7 @@ Object* Debug::Break(Arguments args) {
   // Just continue if breaks are disabled or debugger cannot be loaded.
   if (disable_break() || !Load()) {
     SetAfterBreakTarget(frame);
-    return args[0];
+    return Heap::undefined_value();
   }
 
   SaveBreakFrame save;
@@ -689,7 +689,7 @@ Object* Debug::Break(Arguments args) {
   // Install jump to the call address which was overwritten.
   SetAfterBreakTarget(frame);
 
-  return args[0];
+  return Heap::undefined_value();
 }
 
 

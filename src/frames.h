@@ -81,13 +81,13 @@ class StackHandler BASE_EMBEDDED {
   static const int kCodeNotPresent = 0;
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StackHandler);
-
   // Accessors.
   inline State state() const;
 
   inline Address pc() const;
   inline void set_pc(Address value);
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StackHandler);
 };
 
 
@@ -187,9 +187,6 @@ class StackFrame BASE_EMBEDDED {
   // Compute the stack frame type for the given state.
   static Type ComputeType(State* state);
 
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StackFrame);
-
  protected:
   // TODO(1233523): Once the ARM code uses the new calling
   // conventions, we should be able to make state_ private again.
@@ -207,6 +204,8 @@ class StackFrame BASE_EMBEDDED {
 
   friend class StackFrameIterator;
   friend class StackHandlerIterator;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StackFrame);
 };
 
 

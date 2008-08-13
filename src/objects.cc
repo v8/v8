@@ -37,6 +37,10 @@
 #include "scopeinfo.h"
 #include "string-stream.h"
 
+#ifdef ENABLE_DISASSEMBLER
+#include "disassembler.h"
+#endif
+
 namespace v8 { namespace internal {
 
 #ifdef DEBUG
@@ -985,7 +989,6 @@ Object* JSObject::AddFastProperty(String* name,
     Object* r = old_descriptors->CopyRemove(name);
     if (r->IsFailure()) return r;
     old_descriptors = DescriptorArray::cast(r);
-    map()->set_instance_descriptors(old_descriptors);
     old_name_index = DescriptorArray::kNotFound;
   }
 
@@ -995,35 +998,35 @@ Object* JSObject::AddFastProperty(String* name,
   // Allocate new instance descriptors with (name, index) added
   FieldDescriptor new_field(name, index, attributes);
   Object* new_descriptors =
-      map()->instance_descriptors()->CopyInsert(&new_field, true);
+      old_descriptors->CopyInsert(&new_field, true);
   if (new_descriptors->IsFailure()) return new_descriptors;
 
   // Only allow map transition if the object's map is NOT equal to the
   // global object_function's map and there is not a transition for name.
   bool allow_map_transition =
-        !map()->instance_descriptors()->Contains(name) &&
+        !old_descriptors->Contains(name) &&
         (Top::context()->global_context()->object_function()->map() != map());
   ASSERT(allow_map_transition || !constant_transition);
 
   if (map()->unused_property_fields() > 0) {
     ASSERT(index < properties()->length());
     // Allocate a new map for the object.
-    Object* new_map = map()->Copy();
-    if (new_map->IsFailure()) return new_map;
+    Object* r = map()->Copy();
+    if (r->IsFailure()) return r;
+    Map* new_map = Map::cast(r);
     if (allow_map_transition) {
       // Allocate new instance descriptors for the old map with map transition.
       MapTransitionDescriptor d(name, Map::cast(new_map), attributes);
-      Object* old_descriptors = map()->instance_descriptors()->CopyInsert(&d);
-      if (old_descriptors->IsFailure()) return old_descriptors;
-      // We have now allocate all the necessary object and change can be
-      // applied.
-      map()->set_instance_descriptors(DescriptorArray::cast(old_descriptors));
+      Object* r = old_descriptors->CopyInsert(&d);
+      if (r->IsFailure()) return r;
+      old_descriptors = DescriptorArray::cast(r);
     }
-    Map::cast(new_map)->
-      set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-    Map::cast(new_map)->
-      set_unused_property_fields(map()->unused_property_fields() - 1);
-    set_map(Map::cast(new_map));
+    // We have now allocated all the necessary objects.
+    // All the changes can be applied at once, so they are atomic.
+    map()->set_instance_descriptors(old_descriptors);
+    new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
+    new_map->set_unused_property_fields(map()->unused_property_fields() - 1);
+    set_map(new_map);
     properties()->set(index, value);
   } else {
     ASSERT(map()->unused_property_fields() == 0);
@@ -1043,26 +1046,23 @@ Object* JSObject::AddFastProperty(String* name,
     FixedArray::cast(values)->set(index, value);
 
     // Allocate a new map for the object.
-    Object* new_map = map()->Copy();
-    if (new_map->IsFailure()) return new_map;
+    Object* r = map()->Copy();
+    if (r->IsFailure()) return r;
+    Map* new_map = Map::cast(r);
 
     if (allow_map_transition) {
       MapTransitionDescriptor d(name, Map::cast(new_map), attributes);
-      // Allocate a new instance descriptors for the old map with map
-      // transition.
-      Object* old_descriptors = map()->instance_descriptors()->CopyInsert(&d);
-      if (old_descriptors->IsFailure()) return old_descriptors;
-
-      // We have now allocate all the necessary object and change can be
-      // applied.
-      map()->set_instance_descriptors(DescriptorArray::cast(old_descriptors));
+      // Allocate new instance descriptors for the old map with map transition.
+      Object* r = old_descriptors->CopyInsert(&d);
+      if (r->IsFailure()) return r;
+      old_descriptors = DescriptorArray::cast(r);
     }
-
-    Map::cast(new_map)->
-      set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-    Map::cast(new_map)->
-      set_unused_property_fields(kExtraFields - 1);
-    set_map(Map::cast(new_map));
+    // We have now allocated all the necessary objects.
+    // All changes can be done at once, atomically.
+    map()->set_instance_descriptors(old_descriptors);
+    new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
+    new_map->set_unused_property_fields(kExtraFields - 1);
+    set_map(new_map);
     set_properties(FixedArray::cast(values));
   }
 
@@ -1109,7 +1109,7 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
   ConstTransitionDescriptor mark(name);
   new_descriptors = old_map->instance_descriptors()->CopyInsert(&mark, false);
   if (new_descriptors->IsFailure()) {
-    return new_descriptors;
+    return function;  // We have accomplished the main goal, so return success.
   }
   old_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
 
@@ -4082,6 +4082,20 @@ const char* Code::Kind2String(Kind kind) {
   }
   UNREACHABLE();
   return NULL;
+}
+
+
+void Code::Disassemble() {
+  PrintF("kind = %s", Kind2String(kind()));
+
+  PrintF("\nInstructions (size = %d)\n", instruction_size());
+  Disassembler::Decode(NULL, this);
+  PrintF("\n");
+
+  PrintF("RelocInfo (size = %d)\n", relocation_size());
+  for (RelocIterator it(this); !it.done(); it.next())
+    it.rinfo()->Print();
+  PrintF("\n");
 }
 #endif  // ENABLE_DISASSEMBLER
 

@@ -182,15 +182,28 @@ class CodeGenerator: public Visitor {
 // RuntimeStub models code stubs calling entrypoints in the Runtime class.
 class RuntimeStub : public CodeStub {
  public:
-  explicit RuntimeStub(Runtime::FunctionId id) : id_(id) { }
+  explicit RuntimeStub(Runtime::FunctionId id, int num_arguments)
+      : id_(id), num_arguments_(num_arguments) { }
 
   void Generate(MacroAssembler* masm);
 
+  // Disassembler support.  It is useful to be able to print the name
+  // of the runtime function called through this stub.
+  static const char* GetNameFromMinorKey(int minor_key) {
+    return Runtime::FunctionForId(IdField::decode(minor_key))->stub_name;
+  }
+
  private:
   Runtime::FunctionId id_;
+  int num_arguments_;
+
+  class ArgumentField: public BitField<int,  0, 16> {};
+  class IdField: public BitField<Runtime::FunctionId, 16, kMinorBits - 16> {};
 
   Major MajorKey() { return Runtime; }
-  int MinorKey() { return id_; }
+  int MinorKey() {
+    return IdField::encode(id_) | ArgumentField::encode(num_arguments_);
+  }
 
   const char* GetName();
 

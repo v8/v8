@@ -134,7 +134,7 @@ var local_time_offset;
 
 function LocalTimeOffset() {
   if (IS_UNDEFINED(local_time_offset)) {
-    local_time_offset = %DateLocalTimeOffset(0);
+    local_time_offset = %DateLocalTimeOffset();
   }
   return local_time_offset;
 };
@@ -355,11 +355,11 @@ function TimeClip(time) {
 
 
 %SetCode($Date, function(year, month, date, hours, minutes, seconds, ms) {
-  if (%IsConstructCall(this)) {
+  if (%IsConstructCall()) {
     // ECMA 262 - 15.9.3
     var argc = %_ArgumentsLength();
     if (argc == 0) {
-      %_SetValueOf(this, %DateCurrentTime(argc));
+      %_SetValueOf(this, %DateCurrentTime());
       return;
     }
     if (argc == 1) {
@@ -585,7 +585,7 @@ function DateUTC(year, month, date, hours, minutes, seconds, ms) {
 // Mozilla-specific extension. Returns the number of milliseconds
 // elapsed since 1 January 1970 00:00:00 UTC.
 function DateNow() {
-  return %DateCurrentTime(0);
+  return %DateCurrentTime();
 };
 
 

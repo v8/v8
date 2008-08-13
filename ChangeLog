@@ -1,3 +1,21 @@
+2008-08-13: Version 0.2.2 (130807)
+
+        Improved performance of garbage collection by changing the way
+        we use the marking stack in the event of stack overflow during
+        full garbage collection and by changing the way we mark roots.
+
+        Cleaned up ARM version by removing top of stack caching and by
+        introducing push/pop elimination.
+
+        Cleaned up the way runtime functions are called to allow
+        runtime calls with no arguments.
+
+        Changed Windows build options to make sure that exceptions are
+        disabled and that optimization flags are enabled.
+
+        Added first version of Visual Studio project files.
+
+
 2008-08-06: Version 0.2.1 (130029)
 
         Improved performance of unary addition by avoiding runtime calls.
@@ -19,7 +37,7 @@
         Added platform-nullos.cc to serve as the basis for new platform
         implementations.
 
-        
+
 2008-07-30: Version 0.2.0 (129146)
 
         Changed all text files to have native svn:eol-style.

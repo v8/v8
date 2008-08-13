@@ -213,9 +213,9 @@ class OS {
   static double nan_value();
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(OS);
-
   static const int msPerSecond = 1000;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(OS);
 };
 
 

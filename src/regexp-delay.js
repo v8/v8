@@ -105,7 +105,7 @@ function DoConstructRegExp(object, pattern, flags, isConstructorCall) {
 
 
 function RegExpConstructor(pattern, flags) {
-  if (%IsConstructCall(this)) {
+  if (%IsConstructCall()) {
     DoConstructRegExp(this, pattern, flags, true);
   } else {
     // RegExp : Called as function; see ECMA-262, section 15.10.3.1.

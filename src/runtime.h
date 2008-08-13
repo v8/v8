@@ -52,11 +52,10 @@ namespace v8 { namespace internal {
   \
   F(IsInPrototypeChain, 2) \
   \
-  F(IsConstructCall, 1) \
+  F(IsConstructCall, 0) \
   \
   /* Utilities */ \
-  F(GetBuiltins, 1) \
-  F(GetCalledFunction, 1) \
+  F(GetCalledFunction, 0) \
   F(GetFunctionDelegate, 1) \
   F(NewArguments, 1) \
   F(LazyCompile, 1) \
@@ -91,7 +90,6 @@ namespace v8 { namespace internal {
   F(NumberMul, 2) \
   F(NumberDiv, 2) \
   F(NumberMod, 2) \
-  F(NumberAlloc, 1) \
   F(NumberUnaryMinus, 1) \
   \
   F(StringAdd, 2) \
@@ -127,7 +125,7 @@ namespace v8 { namespace internal {
   F(Math_floor, 1) \
   F(Math_log, 1) \
   F(Math_pow, 2) \
-  F(Math_random, 1) \
+  F(Math_random, 0) \
   F(Math_round, 1) \
   F(Math_sin, 1) \
   F(Math_sqrt, 1) \
@@ -169,17 +167,17 @@ namespace v8 { namespace internal {
   F(GetTemplateField, 2) \
   \
   /* Dates */ \
-  F(DateCurrentTime, 1) \
+  F(DateCurrentTime, 0) \
   F(DateParseString, 1) \
   F(DateLocalTimezone, 1) \
-  F(DateLocalTimeOffset, 1) \
+  F(DateLocalTimeOffset, 0) \
   F(DateDaylightSavingsOffset, 1) \
   \
   /* Numbers */ \
   F(NumberIsFinite, 1) \
-  F(NumberMaxValue, 1) \
-  F(NumberMinValue, 1) \
-  F(NumberNaN, 1) \
+  F(NumberMaxValue, 0) \
+  F(NumberMinValue, 0) \
+  F(NumberNaN, 0) \
   \
   /* Globals */ \
   F(CompileString, 2) \
@@ -205,7 +203,7 @@ namespace v8 { namespace internal {
   /* Debugging */ \
   F(AddDebugEventListener, 2) \
   F(RemoveDebugEventListener, 1) \
-  F(Break, 1) \
+  F(Break, 0) \
   F(DebugGetLocalPropertyDetails, 2) \
   F(DebugGetProperty, 2) \
   F(DebugLocalPropertyNames, 1) \
@@ -228,14 +226,14 @@ namespace v8 { namespace internal {
   F(ClearBreakPoint, 1) \
   F(ChangeBreakOnException, 2) \
   F(PrepareStep, 3) \
-  F(ClearStepping, 1) \
+  F(ClearStepping, 0) \
   F(DebugEvaluate, 4) \
   F(DebugEvaluateGlobal, 3) \
-  F(DebugGetLoadedScripts, 1) \
+  F(DebugGetLoadedScripts, 0) \
   F(DebugReferencedBy, 3) \
   F(DebugConstructedBy, 2) \
   F(GetPrototype, 1) \
-  F(SystemBreak, 1) \
+  F(SystemBreak, 0) \
   \
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4)\
@@ -263,7 +261,7 @@ namespace v8 { namespace internal {
   F(DeclareGlobals, 3) \
   F(DeclareContextSlot, 5) \
   F(InitializeVarGlobal, -1 /* 1 or 2 */) \
-  F(InitializeConstGlobal, -1 /* 1 or 2 */) \
+  F(InitializeConstGlobal, 2) \
   F(InitializeConstContextSlot, 3) \
   \
   /* Debugging */ \
@@ -282,7 +280,7 @@ namespace v8 { namespace internal {
 #ifdef DEBUG
 #define RUNTIME_FUNCTION_LIST_DEBUG(F) \
   /* Testing */ \
-  F(ListNatives, 1)
+  F(ListNatives, 0)
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUG(F)
 #endif

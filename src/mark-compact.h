@@ -39,8 +39,10 @@ typedef bool (*IsAliveFunction)(HeapObject* obj, int* size, int* offset);
 typedef void (*DeallocateFunction)(Address start, int size_in_bytes);
 
 
-// Forward declaration of visitor.
+// Forward declarations.
+class RootMarkingVisitor;
 class MarkingVisitor;
+
 
 // ----------------------------------------------------------------------------
 // Mark-Compact collector
@@ -141,16 +143,11 @@ class MarkCompactCollector : public AllStatic {
   //
   //    after: live objects are marked.
 
+  friend class RootMarkingVisitor;
   friend class MarkingVisitor;
 
   // Marking operations for objects reachable from roots.
   static void MarkLiveObjects();
-  static void UnmarkLiveObjects();
-
-  // Visit overflowed object, push overflowed object on the marking stack and
-  // clear the overflow bit. If the marking stack is overflowed during this
-  // process, return false;
-  static bool VisitOverflowedObject(HeapObject* obj);
 
   static void MarkUnmarkedObject(HeapObject* obj);
 
@@ -158,8 +155,8 @@ class MarkCompactCollector : public AllStatic {
      if (!obj->IsMarked()) MarkUnmarkedObject(obj);
   }
 
-  // Mark the heap roots.
-  static void MarkStrongRoots(MarkingVisitor* marking_visitor);
+  // Mark the heap roots and all objects reachable from them.
+  static void ProcessRoots(RootMarkingVisitor* visitor);
 
   // Mark objects in object groups that have at least one object in the
   // group marked.
@@ -168,11 +165,22 @@ class MarkCompactCollector : public AllStatic {
   // Mark all objects in an object group with at least one marked
   // object, then all objects reachable from marked objects in object
   // groups, and repeat.
-  static void ProcessObjectGroups(MarkingVisitor* marking_visitor);
+  static void ProcessObjectGroups(MarkingVisitor* visitor);
 
-  // Mark all objects reachable (transitively) from objects in the
-  // marking stack or marked as overflowed in the heap.
-  static void ProcessMarkingStack(MarkingVisitor* marking_visitor);
+  // Mark objects reachable (transitively) from objects in the marking stack
+  // or overflowed in the heap.
+  static void ProcessMarkingStack(MarkingVisitor* visitor);
+
+  // Mark objects reachable (transitively) from objects in the marking
+  // stack.  This function empties the marking stack, but may leave
+  // overflowed objects in the heap, in which case the marking stack's
+  // overflow flag will be set.
+  static void EmptyMarkingStack(MarkingVisitor* visitor);
+
+  // Refill the marking stack with overflowed objects from the heap.  This
+  // function either leaves the marking stack full or clears the overflow
+  // flag on the marking stack.
+  static void RefillMarkingStack();
 
   // Callback function for telling whether the object *p must be marked.
   static bool MustBeMarked(Object** p);

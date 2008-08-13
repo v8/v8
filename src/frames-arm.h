@@ -68,7 +68,7 @@ static const RegList kCalleeSaved =
   kR9Available
     <<  9 |  //  r9 v6
   1 << 10 |  // r10 v7 (pp in JavaScript code)
-  1 << 11 ;  // r11 v8 (fp in JavaScript code)
+  1 << 11;   // r11 v8 (fp in JavaScript code)
 
 static const int kNumCalleeSaved = 7 + kR9Available;
 

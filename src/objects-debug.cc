@@ -594,16 +594,9 @@ void Oddball::OddballVerify() {
 
 void Code::CodePrint() {
   HeapObject::PrintHeader("Code");
-  PrintF("kind = %s", Kind2String(kind()));
-
-  PrintF("\nInstructions (size = %d)\n", instruction_size());
-  Disassembler::Decode(NULL /*use PrintF*/, this);
-  PrintF("\n");
-
-  PrintF("RelocInfo (size = %d)\n", relocation_size());
-  for (RelocIterator it(this); !it.done(); it.next())
-    it.rinfo()->Print();
-  PrintF("\n");
+#ifdef ENABLE_DISASSEMBLER
+  Disassemble();
+#endif
 }
 
 

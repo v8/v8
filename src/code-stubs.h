@@ -69,6 +69,10 @@ class CodeStub BASE_EMBEDDED {
 
   virtual ~CodeStub() {}
 
+ protected:
+  static const int kMajorBits = 5;
+  static const int kMinorBits = kBitsPerPointer - kMajorBits - kSmiTagSize;
+
  private:
   // Generates the assembler code for the stub.
   virtual void Generate(MacroAssembler* masm) = 0;
@@ -92,9 +96,6 @@ class CodeStub BASE_EMBEDDED {
   }
 
   bool AllowsStubCalls() { return MajorKey() <= RecordWrite; }
-
-  static const int kMajorBits = 5;
-  static const int kMinorBits = kBitsPerPointer - kMajorBits - kSmiTagSize;
 
   class MajorKeyBits: public BitField<uint32_t, 0, kMajorBits> {};
   class MinorKeyBits: public BitField<uint32_t, kMajorBits, kMinorBits> {};

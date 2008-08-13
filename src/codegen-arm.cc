@@ -41,11 +41,14 @@ DEFINE_bool(trace, false, "trace function calls");
 DECLARE_bool(debug_info);
 DECLARE_bool(debug_code);
 
+#ifdef ENABLE_DISASSEMBLER
+DEFINE_bool(print_code, false, "print generated code");
+#endif
+
 #ifdef DEBUG
 DECLARE_bool(gc_greedy);
 DEFINE_bool(trace_codegen, false,
             "print name of functions for which code is generated");
-DEFINE_bool(print_code, false, "print generated code");
 DEFINE_bool(print_builtin_code, false, "print generated code for builtins");
 DEFINE_bool(print_source, false, "pretty print source code");
 DEFINE_bool(print_builtin_source, false,
@@ -233,7 +236,7 @@ class ArmCodeGenerator: public CodeGenerator {
     AccessReference(ref, CodeGenState::INIT_CONST);
   }
 
-  void ToBoolean(Register reg, Label* true_target, Label* false_target);
+  void ToBoolean(Label* true_target, Label* false_target);
 
 
   // Access property from the reference (must be at the TOS).
@@ -303,10 +306,13 @@ class ArmCodeGenerator: public CodeGenerator {
 Handle<Code> ArmCodeGenerator::MakeCode(FunctionLiteral* flit,
                                         Handle<Script> script,
                                         bool is_eval) {
+#ifdef ENABLE_DISASSEMBLER
+  bool print_code = FLAG_print_code && !Bootstrapper::IsActive();
+#endif  // ENABLE_DISASSEMBLER
+
 #ifdef DEBUG
   bool print_source = false;
   bool print_ast = false;
-  bool print_code = false;
   const char* ftype;
 
   if (Bootstrapper::IsActive()) {
@@ -317,7 +323,6 @@ Handle<Code> ArmCodeGenerator::MakeCode(FunctionLiteral* flit,
   } else {
     print_source = FLAG_print_source;
     print_ast = FLAG_print_ast;
-    print_code = FLAG_print_code;
     ftype = "user-defined";
   }
 
@@ -358,7 +363,7 @@ Handle<Code> ArmCodeGenerator::MakeCode(FunctionLiteral* flit,
   // Add unresolved entries in the code to the fixup list.
   Bootstrapper::AddFixup(*code, cgen.masm());
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
   if (print_code) {
     // Print the source code if available.
     if (!script->IsUndefined() && !script->source()->IsUndefined()) {
@@ -374,9 +379,9 @@ Handle<Code> ArmCodeGenerator::MakeCode(FunctionLiteral* flit,
       PrintF("\n\n");
     }
     PrintF("--- Code ---\n");
-    code->Print();
+    code->Disassemble();
   }
-#endif  // DEBUG
+#endif  // ENABLE_DISASSEMBLER
 
   return code;
 }
@@ -396,8 +401,7 @@ ArmCodeGenerator::ArmCodeGenerator(int buffer_size,
 
 // Calling conventions:
 
-// r0: always contains top-of-stack (TOS), but in case of a call it's
-//     the number of arguments
+// r0: the number of arguments
 // fp: frame pointer
 // sp: stack pointer
 // pp: caller's parameter pointer
@@ -435,20 +439,18 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
     // Allocate space for locals and initialize them.
     if (scope->num_stack_slots() > 0) {
       Comment cmnt(masm_, "[ allocate space for locals");
-      // Pushing the first local materializes the code slot on the stack
-      // (formerly stored in tos register r0).
-      __ Push(Operand(Factory::undefined_value()));
-      // The remaining locals are pushed using the fact that r0 (tos)
-      // already contains the undefined value.
-      for (int i = 1; i < scope->num_stack_slots(); i++) {
-        __ push(r0);
+      // Initialize stack slots with 'undefined' value.
+      __ mov(ip, Operand(Factory::undefined_value()));
+      for (int i = 0; i < scope->num_stack_slots(); i++) {
+        __ push(ip);
       }
     }
 
     if (scope->num_heap_slots() > 0) {
       // Allocate local context.
       // Get outer context and create a new context based on it.
-      __ Push(FunctionOperand());
+      __ ldr(r0, FunctionOperand());
+      __ push(r0);
       __ CallRuntime(Runtime::kNewContext, 1);  // r0 holds the result
 
       if (kDebug) {
@@ -458,7 +460,6 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
         __ stop("NewContext: r0 is expected to be the same as cp");
         __ bind(&verified_true);
       }
-      __ pop(r0);  // restore TOS
       // Update context local.
       __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     }
@@ -505,8 +506,10 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
       Comment cmnt(masm_, "[ allocate arguments object");
       {
         Reference target(this, scope->arguments());
-        __ Push(FunctionOperand());
+        __ ldr(r0, FunctionOperand());
+        __ push(r0);
         __ CallRuntime(Runtime::kNewArguments, 1);
+        __ push(r0);
         SetValue(&target);
       }
       // The value of arguments must also be stored in .arguments.
@@ -528,13 +531,21 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
       scope->VisitIllegalRedeclaration(this);
     } else {
       Comment cmnt(masm_, "[ declarations");
+      // ProcessDeclarations calls DeclareGlobals indirectly
       ProcessDeclarations(scope->declarations());
+
       // Bail out if a stack-overflow exception occured when
       // processing declarations.
       if (HasStackOverflow()) return;
     }
 
-    if (FLAG_trace) __ CallRuntime(Runtime::kTraceEnter, 1);
+    if (FLAG_trace) {
+      // Push a valid value as the parameter. The runtime call only uses
+      // it as the return value to indicate non-failure.
+      __ mov(r0, Operand(Smi::FromInt(0)));
+      __ push(r0);
+      __ CallRuntime(Runtime::kTraceEnter, 1);
+    }
     CheckStack();
 
     // Compile the body of the function in a vanilla state. Don't
@@ -546,7 +557,13 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
       bool is_builtin = Bootstrapper::IsActive();
       bool should_trace =
           is_builtin ? FLAG_trace_builtin_calls : FLAG_trace_calls;
-      if (should_trace) __ CallRuntime(Runtime::kDebugTrace, 1);
+      if (should_trace) {
+        // Push a valid value as the parameter. The runtime call only uses
+        // it as the return value to indicate non-failure.
+        __ mov(r0, Operand(Smi::FromInt(0)));
+        __ push(r0);
+        __ CallRuntime(Runtime::kDebugTrace, 1);
+      }
 #endif
       VisitStatements(body);
     }
@@ -560,9 +577,16 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
   // fp: frame pointer
   // pp: parameter pointer
   // cp: callee's context
-  __ Push(Operand(Factory::undefined_value()));
+  __ mov(r0, Operand(Factory::undefined_value()));
+
   __ bind(&function_return_);
-  if (FLAG_trace) __ CallRuntime(Runtime::kTraceExit, 1);
+  if (FLAG_trace) {
+    // Push the return value on the stack as the parameter.
+    // Runtime::TraceExit returns the parameter as it is.
+    __ push(r0);
+    __ CallRuntime(Runtime::kTraceExit, 1);
+  }
+
   ExitJSFrame();
 
   // Code generation state must be reset.
@@ -629,10 +653,10 @@ MemOperand ArmCodeGenerator::SlotOperand(Slot* slot, Register tmp) {
 }
 
 
-// Loads a value on TOS. If it is a boolean value, the result may have been
-// (partially) translated into branches, or it may have set the condition code
-// register. If force_cc is set, the value is forced to set the condition code
-// register and no value is pushed. If the condition code register was set,
+// Loads a value on the stack. If it is a boolean value, the result may have
+// been (partially) translated into branches, or it may have set the condition
+// code register. If force_cc is set, the value is forced to set the condition
+// code register and no value is pushed. If the condition code register was set,
 // has_cc() is true and cc_reg_ contains the condition to test for 'true'.
 void ArmCodeGenerator::LoadCondition(Expression* x,
                                      CodeGenState::AccessType access,
@@ -649,11 +673,8 @@ void ArmCodeGenerator::LoadCondition(Expression* x,
   Visit(x);
   state_ = old_state;
   if (force_cc && !has_cc()) {
-    // Pop the TOS from the stack and convert it to a boolean in the
-    // condition code register.
-    __ mov(r1, Operand(r0));
-    __ pop(r0);
-    ToBoolean(r1, true_target, false_target);
+    // Convert the TOS value to a boolean in the condition code register.
+    ToBoolean(true_target, false_target);
   }
   ASSERT(has_cc() || !force_cc);
 }
@@ -671,10 +692,12 @@ void ArmCodeGenerator::Load(Expression* x, CodeGenState::AccessType access) {
     // convert cc_reg_ into a bool
     Label loaded, materialize_true;
     __ b(cc_reg_, &materialize_true);
-    __ Push(Operand(Factory::false_value()));
+    __ mov(r0, Operand(Factory::false_value()));
+    __ push(r0);
     __ b(&loaded);
     __ bind(&materialize_true);
-    __ Push(Operand(Factory::true_value()));
+    __ mov(r0, Operand(Factory::true_value()));
+    __ push(r0);
     __ bind(&loaded);
     cc_reg_ = al;
   }
@@ -689,7 +712,8 @@ void ArmCodeGenerator::Load(Expression* x, CodeGenState::AccessType access) {
     // reincarnate "true", if necessary
     if (true_target.is_linked()) {
       __ bind(&true_target);
-      __ Push(Operand(Factory::true_value()));
+      __ mov(r0, Operand(Factory::true_value()));
+      __ push(r0);
     }
     // if both "true" and "false" need to be reincarnated,
     // jump across code for "false"
@@ -698,7 +722,8 @@ void ArmCodeGenerator::Load(Expression* x, CodeGenState::AccessType access) {
     // reincarnate "false", if necessary
     if (false_target.is_linked()) {
       __ bind(&false_target);
-      __ Push(Operand(Factory::false_value()));
+      __ mov(r0, Operand(Factory::false_value()));
+      __ push(r0);
     }
     // everything is loaded at this point
     __ bind(&loaded);
@@ -708,7 +733,8 @@ void ArmCodeGenerator::Load(Expression* x, CodeGenState::AccessType access) {
 
 
 void ArmCodeGenerator::LoadGlobal() {
-  __ Push(GlobalObject());
+  __ ldr(r0, GlobalObject());
+  __ push(r0);
 }
 
 
@@ -776,6 +802,7 @@ void ArmCodeGenerator::LoadReference(Reference* ref) {
   } else {
     Load(e);
     __ CallRuntime(Runtime::kThrowReferenceError, 1);
+    __ push(r0);
   }
 }
 
@@ -785,7 +812,9 @@ void ArmCodeGenerator::UnloadReference(Reference* ref) {
   if (size <= 0) {
     // Do nothing. No popping is necessary.
   } else {
+    __ pop(r0);
     __ add(sp, sp, Operand(size * kPointerSize));
+    __ push(r0);
   }
 }
 
@@ -805,43 +834,38 @@ void ArmCodeGenerator::AccessReference(Reference* ref,
 // ECMA-262, section 9.2, page 30: ToBoolean(). Convert the given
 // register to a boolean in the condition code register. The code
 // may jump to 'false_target' in case the register converts to 'false'.
-void ArmCodeGenerator::ToBoolean(Register reg,
-                                 Label* true_target,
+void ArmCodeGenerator::ToBoolean(Label* true_target,
                                  Label* false_target) {
-  // Note: The generated code snippet cannot change 'reg'.
+  // Note: The generated code snippet does not change stack variables.
   //       Only the condition code should be set.
+  __ pop(r0);
 
   // Fast case checks
 
-  // Check if reg is 'false'.
-  __ cmp(reg, Operand(Factory::false_value()));
+  // Check if the value is 'false'.
+  __ cmp(r0, Operand(Factory::false_value()));
   __ b(eq, false_target);
 
-  // Check if reg is 'true'.
-  __ cmp(reg, Operand(Factory::true_value()));
+  // Check if the value is 'true'.
+  __ cmp(r0, Operand(Factory::true_value()));
   __ b(eq, true_target);
 
-  // Check if reg is 'undefined'.
-  __ cmp(reg, Operand(Factory::undefined_value()));
+  // Check if the value is 'undefined'.
+  __ cmp(r0, Operand(Factory::undefined_value()));
   __ b(eq, false_target);
 
-  // Check if reg is a smi.
-  __ cmp(reg, Operand(Smi::FromInt(0)));
+  // Check if the value is a smi.
+  __ cmp(r0, Operand(Smi::FromInt(0)));
   __ b(eq, false_target);
-  __ tst(reg, Operand(kSmiTagMask));
+  __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, true_target);
 
   // Slow case: call the runtime.
   __ push(r0);
-  if (r0.is(reg)) {
-    __ CallRuntime(Runtime::kToBool, 1);
-  } else {
-    __ mov(r0, Operand(reg));
-    __ CallRuntime(Runtime::kToBool, 1);
-  }
+  __ CallRuntime(Runtime::kToBool, 1);
+
   // Convert result (r0) to condition code
   __ cmp(r0, Operand(Factory::false_value()));
-  __ pop(r0);
 
   cc_reg_ = ne;
 }
@@ -865,9 +889,11 @@ class GetPropertyStub : public CodeStub {
 
 
 void GetPropertyStub::Generate(MacroAssembler* masm) {
+  // sp[0]: key
+  // sp[1]: receiver
   Label slow, fast;
-  // Get the object from the stack.
-  __ ldr(r1, MemOperand(sp, 1 * kPointerSize));  // 1 ~ key
+  // Get the key and receiver object from the stack.
+  __ ldm(ia, sp, r0.bit() | r1.bit());
   // Check that the key is a smi.
   __ tst(r0, Operand(kSmiTagMask));
   __ b(ne, &slow);
@@ -903,8 +929,7 @@ void GetPropertyStub::Generate(MacroAssembler* masm) {
   __ ldm(ia, sp, r0.bit() | r1.bit());
   __ stm(db_w, sp, r0.bit() | r1.bit());
   // Do tail-call to runtime routine.
-  __ mov(r0, Operand(1));  // not counting receiver
-  __ JumpToBuiltin(ExternalReference(Runtime::kGetProperty));
+  __ TailCallRuntime(ExternalReference(Runtime::kGetProperty), 2);
 
   // Fast case: Do the load.
   __ bind(&fast);
@@ -932,10 +957,15 @@ class SetPropertyStub : public CodeStub {
 };
 
 
+
 void SetPropertyStub::Generate(MacroAssembler* masm) {
+  // r0 : value
+  // sp[0] : key
+  // sp[1] : receiver
+
   Label slow, fast, array, extra, exit;
   // Get the key and the object from the stack.
-  __ ldm(ia, sp, r1.bit() | r3.bit());  // r0 == value, r1 == key, r3 == object
+  __ ldm(ia, sp, r1.bit() | r3.bit());  // r1 = key, r3 = receiver
   // Check that the key is a smi.
   __ tst(r1, Operand(kSmiTagMask));
   __ b(ne, &slow);
@@ -970,13 +1000,11 @@ void SetPropertyStub::Generate(MacroAssembler* masm) {
 
 
   // Slow case: Push extra copies of the arguments (3).
-  // r0 == value
   __ bind(&slow);
   __ ldm(ia, sp, r1.bit() | r3.bit());  // r0 == value, r1 == key, r3 == object
   __ stm(db_w, sp, r0.bit() | r1.bit() | r3.bit());
   // Do tail-call to runtime routine.
-  __ mov(r0, Operand(2));  // not counting receiver
-  __ JumpToBuiltin(ExternalReference(Runtime::kSetProperty));
+  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3);
 
 
   // Extra capacity case: Check if there is extra capacity to
@@ -1067,12 +1095,14 @@ class GenericBinaryOpStub : public CodeStub {
 
 
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
+  // r1 : x
+  // r0 : y
+  // result : r0
+
   switch (op_) {
     case Token::ADD: {
       Label slow, exit;
       // fast path
-      // Get x (y is on TOS, i.e., r0).
-      __ ldr(r1, MemOperand(sp, 0 * kPointerSize));
       __ orr(r2, r1, Operand(r0));  // r2 = x | y;
       __ add(r0, r1, Operand(r0), SetCC);  // add y optimistically
       // go slow-path in case of overflow
@@ -1084,6 +1114,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // slow path
       __ bind(&slow);
       __ sub(r0, r0, Operand(r1));  // revert optimistic add
+      __ push(r1);
       __ push(r0);
       __ mov(r0, Operand(1));  // set number of arguments
       __ InvokeBuiltin("ADD", 1, JUMP_JS);
@@ -1095,7 +1126,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     case Token::SUB: {
       Label slow, exit;
       // fast path
-      __ ldr(r1, MemOperand(sp, 0 * kPointerSize));  // get x
       __ orr(r2, r1, Operand(r0));  // r2 = x | y;
       __ sub(r3, r1, Operand(r0), SetCC);  // subtract y optimistically
       // go slow-path in case of overflow
@@ -1107,6 +1137,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ b(eq, &exit);
       // slow path
       __ bind(&slow);
+      __ push(r1);
       __ push(r0);
       __ mov(r0, Operand(1));  // set number of arguments
       __ InvokeBuiltin("SUB", 1, JUMP_JS);
@@ -1117,7 +1148,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 
     case Token::MUL: {
       Label slow, exit;
-      __ ldr(r1, MemOperand(sp, 0 * kPointerSize));  // get x
       // tag check
       __ orr(r2, r1, Operand(r0));  // r2 = x | y;
       ASSERT(kSmiTag == 0);  // adjust code below
@@ -1137,6 +1167,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ b(ne, &exit);
       // slow case
       __ bind(&slow);
+      __ push(r1);
       __ push(r0);
       __ mov(r0, Operand(1));  // set number of arguments
       __ InvokeBuiltin("MUL", 1, JUMP_JS);
@@ -1146,7 +1177,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     }
     default: UNREACHABLE();
   }
-  masm->StubReturn(2);
+  __ Ret();
 }
 
 
@@ -1221,8 +1252,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
   __ b(hs, &within_limit);
   // Do tail-call to runtime routine.
   __ push(r0);
-  __ mov(r0, Operand(0));  // not counting receiver (i.e. flushed TOS)
-  __ JumpToBuiltin(ExternalReference(Runtime::kStackGuard));
+  __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1);
   __ bind(&within_limit);
 
   masm->StubReturn(1);
@@ -1385,7 +1415,7 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   __ mov(r2, Operand(external_caught));
   __ str(r0, MemOperand(r2));
 
-  // Set pending exception and TOS to out of memory exception.
+  // Set pending exception and r0 to out of memory exception.
   Failure* out_of_memory = Failure::OutOfMemoryException();
   __ mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
   __ mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
@@ -1414,17 +1444,19 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               bool do_gc,
                               bool do_restore) {
   // r0: result parameter for PerformGC, if any
-  // r4: number of arguments  (C callee-saved)
+  // r4: number of arguments including receiver  (C callee-saved)
   // r5: pointer to builtin function  (C callee-saved)
 
   if (do_gc) {
     __ Call(FUNCTION_ADDR(Runtime::PerformGC), runtime_entry);  // passing r0
   }
 
-  // call C built-in
-  __ mov(r0, Operand(r4));  // a0 = argc
+  // Call C built-in.
+  // r0 = argc.
+  __ mov(r0, Operand(r4));
+  // r1 = argv.
   __ add(r1, fp, Operand(r4, LSL, kPointerSizeLog2));
-  __ add(r1, r1, Operand(ExitFrameConstants::kPPDisplacement));  // a1 = argv
+  __ add(r1, r1, Operand(ExitFrameConstants::kPPDisplacement - kPointerSize));
 
   // TODO(1242173): To let the GC traverse the return address of the exit
   // frames, we need to know where the return address is. Right now,
@@ -1512,7 +1544,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
 void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // Called from JavaScript; parameters are on stack as if calling JS function
-  // r0: number of arguments
+  // r0: number of arguments including receiver
   // r1: pointer to builtin function
   // fp: frame pointer  (restored after C call)
   // sp: stack pointer  (restored as callee's pp after C call)
@@ -1527,9 +1559,8 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // Enter C frame
   // Compute parameter pointer before making changes and save it as ip register
   // so that it is restored as sp register on exit, thereby popping the args.
-  // ip = sp + kPointerSize*(args_len+1);  // +1 for receiver
+  // ip = sp + kPointerSize*args_len;
   __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-  __ add(ip, ip, Operand(kPointerSize));
 
   // all JS callee-saved are saved and traversed by GC; push in reverse order:
   // JS callee-saved, caller_pp, caller_fp, sp_on_exit (ip==pp), caller_pc
@@ -1701,7 +1732,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ str(r3, MemOperand(ip));
 
   // Remove constructor mark.
-  __ add(sp, sp, Operand(kPointerSize));
+  __ pop();
 
   // Restore callee-saved registers, sp, and return.
 #ifdef DEBUG
@@ -1759,8 +1790,7 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
     // by calling the runtime system.
     __ bind(&slow);
     __ push(r0);
-    __ mov(r0, Operand(0));  // not counting receiver
-    __ JumpToBuiltin(ExternalReference(Runtime::kGetArgumentsProperty));
+    __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
   }
 }
 
@@ -1787,14 +1817,10 @@ void ArmCodeGenerator::AccessReferenceProperty(
     Literal* literal = key->AsLiteral();
     Handle<String> name(String::cast(*literal->handle()));
 
-    // Loading adds a value to the stack; push the TOS to prepare.
-    if (is_load) __ push(r0);
-
-    // Setup the name register.
-    __ mov(r2, Operand(name));
-
     // Call the appropriate IC code.
     if (is_load) {
+      // Setup the name register.
+      __ mov(r2, Operand(name));
       Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
       Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
       if (var != NULL) {
@@ -1803,49 +1829,59 @@ void ArmCodeGenerator::AccessReferenceProperty(
       } else {
         __ Call(ic, code_target);
       }
+
     } else {
+      __ pop(r0);  // value
+      // Setup the name register.
+      __ mov(r2, Operand(name));
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       __ Call(ic, code_target);
     }
-    return;
-  }
 
-  // Access keyed property.
-  ASSERT(type == Reference::KEYED);
-
-  if (is_load) {
-    __ push(r0);  // empty tos
-    // TODO(1224671): Implement inline caching for keyed loads as on ia32.
-    GetPropertyStub stub;
-    __ CallStub(&stub);
   } else {
-    SetPropertyStub stub;
-    __ CallStub(&stub);
+    // Access keyed property.
+    ASSERT(type == Reference::KEYED);
+
+    if (is_load) {
+      // TODO(1224671): Implement inline caching for keyed loads as on ia32.
+      GetPropertyStub stub;
+      __ CallStub(&stub);
+
+    } else {
+      __ pop(r0);  // value
+      SetPropertyStub stub;
+      __ CallStub(&stub);
+    }
   }
+  __ push(r0);
 }
 
 
 void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
+  // sp[0] : y
+  // sp[1] : x
+  // result : r0
+
   // Stub is entered with a call: 'return address' is in lr.
   switch (op) {
     case Token::ADD:  // fall through.
     case Token::SUB:  // fall through.
     case Token::MUL: {
+      __ pop(r0);  // r0 : y
+      __ pop(r1);  // r1 : x
       GenericBinaryOpStub stub(op);
       __ CallStub(&stub);
       break;
     }
 
     case Token::DIV: {
-      __ push(r0);
-      __ mov(r0, Operand(1));  // set number of arguments
+      __ mov(r0, Operand(1));
       __ InvokeBuiltin("DIV", 1, CALL_JS);
       break;
     }
 
     case Token::MOD: {
-      __ push(r0);
-      __ mov(r0, Operand(1));  // set number of arguments
+      __ mov(r0, Operand(1));
       __ InvokeBuiltin("MOD", 1, CALL_JS);
       break;
     }
@@ -1854,6 +1890,7 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
     case Token::BIT_AND:
     case Token::BIT_XOR: {
       Label slow, exit;
+      __ pop(r0);  // get y
       __ pop(r1);  // get x
       // tag check
       __ orr(r2, r1, Operand(r0));  // r2 = x | y;
@@ -1885,7 +1922,7 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
     case Token::SHR:
     case Token::SAR: {
       Label slow, exit;
-      __ mov(r1, Operand(r0));  // get y
+      __ pop(r1);  // get y
       __ pop(r0);  // get x
       // tag check
       __ orr(r2, r1, Operand(r0));  // r2 = x | y;
@@ -1928,15 +1965,15 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
 
         default: UNREACHABLE();
       }
-      // tag result and store it in TOS (r0)
+      // tag result and store it in r0
       ASSERT(kSmiTag == 0);  // adjust code below
       __ mov(r0, Operand(r3, LSL, kSmiTagSize));
       __ b(&exit);
       // slow case
       __ bind(&slow);
       __ push(r0);  // restore stack
-      __ mov(r0, Operand(r1));
-      __ Push(Operand(1));  // 1 argument (not counting receiver).
+      __ push(r1);
+      __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
       switch (op) {
         case Token::SAR: __ InvokeBuiltin("SAR", 1, CALL_JS); break;
         case Token::SHR: __ InvokeBuiltin("SHR", 1, CALL_JS); break;
@@ -1948,8 +1985,9 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
     }
 
     case Token::COMMA:
+      __ pop(r0);
       // simply discard left value
-      __ add(sp, sp, Operand(kPointerSize));
+      __ pop();
       break;
 
     default:
@@ -1958,8 +1996,6 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
       break;
   }
 }
-
-
 
 
 void ArmCodeGenerator::SmiOperation(Token::Value op,
@@ -1972,9 +2008,12 @@ void ArmCodeGenerator::SmiOperation(Token::Value op,
   // code size is increased by ~1% (measured on a combination of
   // different benchmarks).
 
+  // sp[0] : operand
+
   ASSERT(value->IsSmi());
 
   Label exit;
+  __ pop(r0);
 
   switch (op) {
     case Token::ADD: {
@@ -2015,10 +2054,13 @@ void ArmCodeGenerator::SmiOperation(Token::Value op,
 
     default:
       if (!reversed) {
-        __ Push(Operand(value));
+        __ push(r0);
+        __ mov(r0, Operand(value));
+        __ push(r0);
       } else {
         __ mov(ip, Operand(value));
         __ push(ip);
+        __ push(r0);
       }
       GenericBinaryOperation(op);
       break;
@@ -2029,6 +2071,10 @@ void ArmCodeGenerator::SmiOperation(Token::Value op,
 
 
 void ArmCodeGenerator::Comparison(Condition cc, bool strict) {
+  // sp[0] : y
+  // sp[1] : x
+  // result : cc register
+
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == eq);
 
@@ -2036,9 +2082,10 @@ void ArmCodeGenerator::Comparison(Condition cc, bool strict) {
   // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
   if (cc == gt || cc == le) {
     cc = ReverseCondition(cc);
-    __ mov(r1, Operand(r0));
+    __ pop(r1);
     __ pop(r0);
   } else {
+    __ pop(r0);
     __ pop(r1);
   }
   __ orr(r2, r0, Operand(r1));
@@ -2063,13 +2110,15 @@ void ArmCodeGenerator::Comparison(Condition cc, bool strict) {
       ASSERT(cc == gt || cc == ge);  // remaining cases
       ncr = LESS;
     }
-    __ Push(Operand(Smi::FromInt(ncr)));
+    __ push(r0);
+    __ mov(r0, Operand(Smi::FromInt(ncr)));
     argc = 2;
   }
 
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
-  __ Push(Operand(argc));
+  __ push(r0);
+  __ mov(r0, Operand(argc));
   __ InvokeBuiltin(native, argc, CALL_JS);
   __ cmp(r0, Operand(0));
   __ b(&exit);
@@ -2079,7 +2128,6 @@ void ArmCodeGenerator::Comparison(Condition cc, bool strict) {
   __ cmp(r1, Operand(r0));
 
   __ bind(&exit);
-  __ pop(r0);  // be careful not to destroy the cc register
   cc_reg_ = cc;
 }
 
@@ -2106,10 +2154,6 @@ class CallFunctionStub: public CodeStub {
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
-
-  // Flush the TOS cache
-  masm->push(r0);
-
   // Get the function to call from the stack.
   // function, receiver [, arguments]
   masm->ldr(r1, MemOperand(sp, (argc_ + 1) * kPointerSize));
@@ -2136,12 +2180,13 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 }
 
 
-// Call the function just below TOS on the stack with the given
-// arguments. The receiver is the TOS.
+// Call the function on the stack with the given arguments.
 void ArmCodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
                                          int position) {
   // Push the arguments ("left-to-right") on the stack.
-  for (int i = 0; i < args->length(); i++) Load(args->at(i));
+  for (int i = 0; i < args->length(); i++) {
+    Load(args->at(i));
+  }
 
   // Record the position for debugging purposes.
   __ RecordPosition(position);
@@ -2152,7 +2197,7 @@ void ArmCodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 
   // Restore context and pop function from the stack.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  __ add(sp, sp, Operand(kPointerSize));  // discard
+  __ pop();  // discard the TOS
 }
 
 
@@ -2183,13 +2228,13 @@ void ArmCodeGenerator::VisitBlock(Block* node) {
 
 
 void ArmCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
-  __ Push(Operand(pairs));
-  __ Push(Operand(cp));
-  __ Push(Operand(Smi::FromInt(is_eval() ? 1 : 0)));
+  __ mov(r0, Operand(pairs));
+  __ push(r0);
+  __ push(cp);
+  __ mov(r0, Operand(Smi::FromInt(is_eval() ? 1 : 0)));
+  __ push(r0);
   __ CallRuntime(Runtime::kDeclareGlobals, 3);
-
-  // Get rid of return value.
-  __ pop(r0);
+  // The result is discarded.
 }
 
 
@@ -2207,27 +2252,30 @@ void ArmCodeGenerator::VisitDeclaration(Declaration* node) {
     // during variable resolution and must have mode DYNAMIC.
     ASSERT(var->mode() == Variable::DYNAMIC);
     // For now, just do a runtime call.
-    __ Push(Operand(cp));
-    __ Push(Operand(var->name()));
+    __ push(cp);
+    __ mov(r0, Operand(var->name()));
+    __ push(r0);
     // Declaration nodes are always declared in only two modes.
     ASSERT(node->mode() == Variable::VAR || node->mode() == Variable::CONST);
     PropertyAttributes attr = node->mode() == Variable::VAR ? NONE : READ_ONLY;
-    __ Push(Operand(Smi::FromInt(attr)));
+    __ mov(r0, Operand(Smi::FromInt(attr)));
+    __ push(r0);
     // Push initial value, if any.
     // Note: For variables we must not push an initial value (such as
     // 'undefined') because we may have a (legal) redeclaration and we
     // must not destroy the current value.
     if (node->mode() == Variable::CONST) {
-      __ Push(Operand(Factory::the_hole_value()));
+      __ mov(r0, Operand(Factory::the_hole_value()));
+      __ push(r0);
     } else if (node->fun() != NULL) {
       Load(node->fun());
     } else {
-      __ Push(Operand(0));  // no initial value!
+      __ mov(r0, Operand(0));  // no initial value!
+      __ push(r0);
     }
     __ CallRuntime(Runtime::kDeclareContextSlot, 5);
-    // DeclareContextSlot pops the assigned value by accepting an
-    // extra argument and returning the TOS; no need to explicitly pop
-    // here.
+    __ push(r0);
+
     return;
   }
 
@@ -2247,7 +2295,7 @@ void ArmCodeGenerator::VisitDeclaration(Declaration* node) {
     Load(val);
     SetValue(&target);
     // Get rid of the assigned value (declarations are statements).
-    __ pop(r0);  // Pop(no_reg);
+    __ pop();
   }
 }
 
@@ -2258,7 +2306,7 @@ void ArmCodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   Expression* expression = node->expression();
   expression->MarkAsStatement();
   Load(expression);
-  __ pop(r0);  // __ Pop(no_reg)
+  __ pop();
 }
 
 
@@ -2279,6 +2327,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
 
   Label exit;
   if (has_then_stm && has_else_stm) {
+    Comment cmnt(masm_, "[ IfThenElse");
     Label then;
     Label else_;
     // if (cond)
@@ -2293,6 +2342,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     Visit(node->else_statement());
 
   } else if (has_then_stm) {
+    Comment cmnt(masm_, "[ IfThen");
     ASSERT(!has_else_stm);
     Label then;
     // if (cond)
@@ -2303,6 +2353,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     Visit(node->then_statement());
 
   } else if (has_else_stm) {
+    Comment cmnt(masm_, "[ IfElse");
     ASSERT(!has_then_stm);
     Label else_;
     // if (!cond)
@@ -2313,6 +2364,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     Visit(node->else_statement());
 
   } else {
+    Comment cmnt(masm_, "[ If");
     ASSERT(!has_then_stm && !has_else_stm);
     // if (cond)
     LoadCondition(node->condition(), CodeGenState::LOAD, &exit, &exit, false);
@@ -2331,8 +2383,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
 void ArmCodeGenerator::CleanStack(int num_bytes) {
   ASSERT(num_bytes >= 0);
   if (num_bytes > 0) {
-    __ add(sp, sp, Operand(num_bytes - kPointerSize));
-    __ pop(r0);
+    __ add(sp, sp, Operand(num_bytes));
   }
 }
 
@@ -2357,6 +2408,9 @@ void ArmCodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   Comment cmnt(masm_, "[ ReturnStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   Load(node->expression());
+  // Move the function result into r0.
+  __ pop(r0);
+
   __ b(&function_return_);
 }
 
@@ -2373,7 +2427,6 @@ void ArmCodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
     __ stop("PushContext: r0 is expected to be the same as cp");
     __ bind(&verified_true);
   }
-  __ pop(r0);  // restore TOS
   // Update context local.
   __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
@@ -2421,11 +2474,13 @@ void ArmCodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     } else {
       __ bind(&next);
       next.Unuse();
+      __ ldr(r0, MemOperand(sp, 0));
       __ push(r0);  // duplicate TOS
       Load(clause->label());
       Comparison(eq, true);
       Branch(false, &next);
-      __ pop(r0);  // __ Pop(no_reg)
+      // Entering the case statement -> remove the switch value from the stack
+      __ pop(r0);
     }
 
     // Generate code for the body.
@@ -2436,6 +2491,8 @@ void ArmCodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   }
 
   __ bind(&next);
+  // Reached the end of the case statements -> remove the switch value
+  // from the stack.
   __ pop(r0);  // __ Pop(no_reg)
   if (default_case.is_bound()) __ b(&default_case);
 
@@ -2532,6 +2589,7 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Get the object to enumerate over (converted to JSObject).
   Load(node->enumerable());
+  __ pop(r0);
 
   // Both SpiderMonkey and kjs ignore null and undefined in contrast
   // to the specification.  12.6.4 mandates a call to ToObject.
@@ -2556,7 +2614,8 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ b(hs, &jsobject);
 
   __ bind(&primitive);
-  __ Push(Operand(0));
+  __ push(r0);
+  __ mov(r0, Operand(0));
   __ InvokeBuiltin("TO_OBJECT", 0, CALL_JS);
 
 
@@ -2564,6 +2623,7 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Get the set of properties (as a FixedArray or Map).
   __ push(r0);  // duplicate the object being enumerated
+  __ push(r0);
   __ CallRuntime(Runtime::kGetPropertyNamesFast, 1);
 
   // If we got a Map, we can do a fast modification check.
@@ -2580,10 +2640,13 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ ldr(r2,
          FieldMemOperand(r1, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
-  __ Push(Operand(r2));
-  __ Push(FieldMemOperand(r2, FixedArray::kLengthOffset));
+  __ push(r0);  // map
+  __ push(r2);  // enum cache bridge cache
+  __ ldr(r0, FieldMemOperand(r2, FixedArray::kLengthOffset));
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  __ Push(Operand(Smi::FromInt(0)));
+  __ push(r0);
+  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ push(r0);
   __ b(&entry);
 
 
@@ -2591,11 +2654,15 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   __ mov(r1, Operand(Smi::FromInt(0)));
   __ push(r1);  // insert 0 in place of Map
+  __ push(r0);
 
   // Push the length of the array and the initial index onto the stack.
-  __ Push(FieldMemOperand(r0, FixedArray::kLengthOffset));
+  __ ldr(r0, FieldMemOperand(r0, FixedArray::kLengthOffset));
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  __ Push(Operand(Smi::FromInt(0)));
+  __ push(r0);
+  __ mov(r0, Operand(Smi::FromInt(0)));  // init index
+  __ push(r0);
+
   __ b(&entry);
 
   // Body.
@@ -2605,36 +2672,46 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Next.
   __ bind(node->continue_target());
   __ bind(&next);
+  __ pop(r0);
   __ add(r0, r0, Operand(Smi::FromInt(1)));
+  __ push(r0);
 
   // Condition.
   __ bind(&entry);
 
-  __ ldr(ip, MemOperand(sp, 0));
-  __ cmp(r0, Operand(ip));
+  // sp[0] : index
+  // sp[1] : array/enum cache length
+  // sp[2] : array or enum cache
+  // sp[3] : 0 or map
+  // sp[4] : enumerable
+  __ ldr(r0, MemOperand(sp, 0 * kPointerSize));  // load the current count
+  __ ldr(r1, MemOperand(sp, 1 * kPointerSize));  // load the length
+  __ cmp(r0, Operand(r1));  // compare to the array length
   __ b(hs, &cleanup);
 
+  __ ldr(r0, MemOperand(sp, 0 * kPointerSize));
+
   // Get the i'th entry of the array.
-  __ ldr(r2, MemOperand(sp, kPointerSize));
+  __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ ldr(r3, MemOperand(r2, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
 
   // Get Map or 0.
-  __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
+  __ ldr(r2, MemOperand(sp, 3 * kPointerSize));
   // Check if this (still) matches the map of the enumerable.
   // If not, we have to filter the key.
-  __ ldr(r1, MemOperand(sp, 3 * kPointerSize));
+  __ ldr(r1, MemOperand(sp, 4 * kPointerSize));
   __ ldr(r1, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ cmp(r1, Operand(r2));
   __ b(eq, &end_del_check);
 
   // Convert the entry to a string (or null if it isn't a property anymore).
-  __ Push(MemOperand(sp, 4 * kPointerSize));  // push enumerable
-  __ Push(Operand(r3));  // push entry
-  __ Push(Operand(1));
+  __ ldr(r0, MemOperand(sp, 4 * kPointerSize));  // push enumerable
+  __ push(r0);
+  __ push(r3);  // push entry
+  __ mov(r0, Operand(1));
   __ InvokeBuiltin("FILTER_KEY", 1, CALL_JS);
   __ mov(r3, Operand(r0));
-  __ pop(r0);
 
   // If the property has been removed while iterating, we just skip it.
   __ cmp(r3, Operand(Factory::null_value()));
@@ -2644,26 +2721,31 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ bind(&end_del_check);
 
   // Store the entry in the 'each' expression and take another spin in the loop.
-  __ Push(Operand(r3));
+  // r3: i'th entry of the enum cache (or string there of)
+  __ push(r3);  // push entry
   { Reference each(this, node->each());
     if (!each.is_illegal()) {
-      if (each.size() > 0) __ Push(MemOperand(sp, kPointerSize * each.size()));
+      if (each.size() > 0) {
+        __ ldr(r0, MemOperand(sp, kPointerSize * each.size()));
+        __ push(r0);
+      }
       SetValue(&each);
-      if (each.size() > 0) __ pop(r0);
+      if (each.size() > 0) {
+        __ pop(r0);  // discard the value
+      }
     }
   }
-  __ pop(r0);
+  __ pop();  // pop the i'th entry pushed above
   CheckStack();  // TODO(1222600): ignore if body contains calls.
   __ jmp(&loop);
 
   // Cleanup.
   __ bind(&cleanup);
   __ bind(node->break_target());
-  __ add(sp, sp, Operand(4 * kPointerSize));
+  __ add(sp, sp, Operand(5 * kPointerSize));
 
   // Exit.
   __ bind(&exit);
-  __ pop(r0);
 
   break_stack_height_ -= kForInStackSize;
 }
@@ -2674,24 +2756,22 @@ void ArmCodeGenerator::VisitTryCatch(TryCatch* node) {
 
   Label try_block, exit;
 
-  __ push(r0);
   __ bl(&try_block);
-
 
   // --- Catch block ---
 
   // Store the caught exception in the catch variable.
+  __ push(r0);
   { Reference ref(this, node->catch_var());
     // Load the exception to the top of the stack.
-    __ Push(MemOperand(sp, ref.size() * kPointerSize));
+    __ ldr(r0, MemOperand(sp, ref.size() * kPointerSize));
+    __ push(r0);
     SetValue(&ref);
+    __ pop(r0);
   }
 
   // Remove the exception from the stack.
-  __ add(sp, sp, Operand(kPointerSize));
-
-  // Restore TOS register caching.
-  __ pop(r0);
+  __ pop();
 
   VisitStatements(node->catch_block()->statements());
   __ b(&exit);
@@ -2714,6 +2794,7 @@ void ArmCodeGenerator::VisitTryCatch(TryCatch* node) {
 
   // Generate code for the statements in the try block.
   VisitStatements(node->try_block()->statements());
+  __ pop(r0);  // Discard the result.
 
   // Stop the introduced shadowing and count the number of required unlinks.
   int nof_unlinks = 0;
@@ -2732,20 +2813,13 @@ void ArmCodeGenerator::VisitTryCatch(TryCatch* node) {
   ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
   __ add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   // Code slot popped.
-  __ pop(r0);  // restore TOS
   if (nof_unlinks > 0) __ b(&exit);
 
   // Generate unlink code for all used shadow labels.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
-      // Unlink from try chain; be careful not to destroy the TOS.
+      // Unlink from try chain;
       __ bind(shadows[i]);
-
-      bool is_return = (shadows[i]->shadowed() == &function_return_);
-      if (!is_return) {
-        // Break/continue case. TOS is the code slot of the handler.
-        __ push(r0);  // flush TOS
-      }
 
       // Reload sp from the top handler, because some statements that we
       // break from (eg, for...in) may have left stuff on the stack.
@@ -2757,10 +2831,6 @@ void ArmCodeGenerator::VisitTryCatch(TryCatch* node) {
       ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
       __ add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
       // Code slot popped.
-
-      if (!is_return) {
-        __ pop(r0);  // restore TOS
-      }
 
       __ b(shadows[i]->shadowed());
     }
@@ -2780,9 +2850,9 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
 
   Label exit, unlink, try_block, finally_block;
 
-  __ push(r0);
   __ bl(&try_block);
 
+  __ push(r0);  // save exception object on the stack
   // In case of thrown exceptions, this is where we continue.
   __ mov(r2, Operand(Smi::FromInt(THROWING)));
   __ b(&finally_block);
@@ -2815,7 +2885,8 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
   }
 
   // Set the state on the stack to FALLING.
-  __ Push(Operand(Factory::undefined_value()));  // fake TOS
+  __ mov(r0, Operand(Factory::undefined_value()));  // fake TOS
+  __ push(r0);
   __ mov(r2, Operand(Smi::FromInt(FALLING)));
   if (nof_unlinks > 0) __ b(&unlink);
 
@@ -2823,18 +2894,22 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       __ bind(shadows[i]);
-      if (shadows[i]->shadowed() != &function_return_) {
+      if (shadows[i]->shadowed() == &function_return_) {
+        __ push(r0);  // Materialize the return value on the stack
+      } else {
         // Fake TOS for break and continue (not return).
-        __ Push(Operand(Factory::undefined_value()));
+        __ mov(r0, Operand(Factory::undefined_value()));
+        __ push(r0);
       }
       __ mov(r2, Operand(Smi::FromInt(JUMPING + i)));
       __ b(&unlink);
     }
   }
 
-  // Unlink from try chain; be careful not to destroy the TOS.
+  // Unlink from try chain;
   __ bind(&unlink);
 
+  __ pop(r0);  // Store TOS in r0 across stack manipulation
   // Reload sp from the top handler, because some statements that we
   // break from (eg, for...in) may have left stuff on the stack.
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
@@ -2846,7 +2921,7 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
   ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
   __ add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
   // Code slot popped.
-
+  __ push(r0);
 
   // --- Finally block ---
   __ bind(&finally_block);
@@ -2854,25 +2929,25 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
   // Push the state on the stack. If necessary move the state to a
   // local variable to avoid having extra values on the stack while
   // evaluating the finally block.
-  __ Push(Operand(r2));
+  __ push(r2);
   if (node->finally_var() != NULL) {
     Reference target(this, node->finally_var());
     SetValue(&target);
     ASSERT(target.size() == 0);  // no extra stuff on the stack
-    __ pop(r0);
+    __ pop();  // remove the extra avalue that was pushed above
   }
 
   // Generate code for the statements in the finally block.
   VisitStatements(node->finally_block()->statements());
 
-  // Get the state from the stack - or the local variable - and
-  // restore the TOS register.
+  // Get the state from the stack - or the local variable.
   if (node->finally_var() != NULL) {
     Reference target(this, node->finally_var());
     GetValue(&target);
   }
-  __ Pop(r2);
+  __ pop(r2);
 
+  __ pop(r0);  // Restore value or faked TOS.
   // Generate code that jumps to the right destination for all used
   // shadow labels.
   for (int i = 0; i <= nof_escapes; i++) {
@@ -2881,7 +2956,6 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
       if (shadows[i]->shadowed() != &function_return_) {
         Label next;
         __ b(ne, &next);
-        __ pop(r0);  // pop faked TOS
         __ b(shadows[i]->shadowed());
         __ bind(&next);
       } else {
@@ -2895,11 +2969,11 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
   __ b(ne, &exit);
 
   // Rethrow exception.
+  __ push(r0);
   __ CallRuntime(Runtime::kReThrow, 1);
 
   // Done.
   __ bind(&exit);
-  __ pop(r0);  // restore TOS caching.
 }
 
 
@@ -2907,6 +2981,7 @@ void ArmCodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatament");
   if (FLAG_debug_info) RecordStatementPosition(node);
   __ CallRuntime(Runtime::kDebugBreak, 1);
+  __ push(r0);
 }
 
 
@@ -2914,11 +2989,13 @@ void ArmCodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
 
   // Push the boilerplate on the stack.
-  __ Push(Operand(boilerplate));
+  __ mov(r0, Operand(boilerplate));
+  __ push(r0);
 
   // Create a new closure.
-  __ Push(Operand(cp));
+  __ push(cp);
   __ CallRuntime(Runtime::kNewClosure, 2);
+  __ push(r0);
 }
 
 
@@ -2961,8 +3038,9 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
     ASSERT(node->var()->mode() == Variable::DYNAMIC);
 
     // For now, just do a runtime call.
-    __ Push(Operand(cp));
-    __ Push(Operand(node->var()->name()));
+    __ push(cp);
+    __ mov(r0, Operand(node->var()->name()));
+    __ push(r0);
 
     switch (access()) {
       case CodeGenState::UNDEFINED:
@@ -2971,18 +3049,19 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
 
       case CodeGenState::LOAD:
         __ CallRuntime(Runtime::kLoadContextSlot, 2);
-        // result (TOS) is the value that was loaded
+        __ push(r0);
         break;
 
       case CodeGenState::LOAD_TYPEOF_EXPR:
         __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
-        // result (TOS) is the value that was loaded
+        __ push(r0);
         break;
 
       case CodeGenState::STORE:
         // Storing a variable must keep the (new) value on the stack. This
         // is necessary for compiling assignment expressions.
         __ CallRuntime(Runtime::kStoreContextSlot, 3);
+        __ push(r0);
         // result (TOS) is the value that was stored
         break;
 
@@ -3004,6 +3083,7 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
         // need the split into 2 operations: declaration of the
         // context slot followed by initialization.
         __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+        __ push(r0);
         break;
     }
 
@@ -3020,14 +3100,17 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
       case CodeGenState::LOAD:  // fall through
       case CodeGenState::LOAD_TYPEOF_EXPR:
         // Special handling for locals allocated in registers.
-        __ Push(SlotOperand(node, r2));
+        __ ldr(r0, SlotOperand(node, r2));
+        __ push(r0);
         if (node->var()->mode() == Variable::CONST) {
           // Const slots may contain 'the hole' value (the constant hasn't
           // been initialized yet) which needs to be converted into the
           // 'undefined' value.
           Comment cmnt(masm_, "[ Unhole const");
+          __ pop(r0);
           __ cmp(r0, Operand(Factory::the_hole_value()));
           __ mov(r0, Operand(Factory::undefined_value()), LeaveCC, eq);
+          __ push(r0);
         }
         break;
 
@@ -3043,6 +3126,7 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
           __ b(ne, &L);
           // We must execute the store.
           // r2 may be loaded with context; used below in RecordWrite.
+          __ ldr(r0, MemOperand(sp, 0));
           __ str(r0, SlotOperand(node, r2));
           if (node->type() == Slot::CONTEXT) {
             // Skip write barrier if the written value is a smi.
@@ -3070,6 +3154,7 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
         // initialize consts to 'the hole' value and by doing so, end
         // up calling this code.
         // r2 may be loaded with context; used below in RecordWrite.
+        __ pop(r0);
         __ str(r0, SlotOperand(node, r2));
         if (node->type() == Slot::CONTEXT) {
           // Skip write barrier if the written value is a smi.
@@ -3082,6 +3167,7 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
           __ RecordWrite(r2, r3, r1);
           __ bind(&exit);
         }
+        __ push(r0);
         break;
       }
     }
@@ -3117,7 +3203,8 @@ void ArmCodeGenerator::VisitVariableProxy(VariableProxy* proxy_node) {
 
 void ArmCodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
-  __ Push(Operand(node->handle()));
+  __ mov(r0, Operand(node->handle()));
+  __ push(r0);
 }
 
 
@@ -3143,16 +3230,19 @@ void ArmCodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 
   // If the entry is undefined we call the runtime system to computed
   // the literal.
-  __ Push(Operand(r1));                                   // literal array  (0)
-  __ Push(Operand(Smi::FromInt(node->literal_index())));  // literal index  (1)
-  __ Push(Operand(node->pattern()));                      // RegExp pattern (2)
-  __ Push(Operand(node->flags()));                        // RegExp flags   (3)
+  __ push(r1);  // literal array  (0)
+  __ mov(r0, Operand(Smi::FromInt(node->literal_index())));
+  __ push(r0);  // literal index  (1)
+  __ mov(r0, Operand(node->pattern()));  // RegExp pattern (2)
+  __ push(r0);
+  __ mov(r0, Operand(node->flags()));  // RegExp flags   (3)
+  __ push(r0);
   __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  __ Pop(r2);
-  __ bind(&done);
+  __ mov(r2, Operand(r0));
 
+  __ bind(&done);
   // Push the literal.
-  __ Push(Operand(r2));
+  __ push(r2);
 }
 
 
@@ -3177,13 +3267,15 @@ void ObjectLiteralDeferred::Generate() {
   // the literal.
 
   // Literal array (0).
-  __ Push(Operand(r1));
+  __ push(r1);
   // Literal index (1).
-  __ Push(Operand(Smi::FromInt(node_->literal_index())));
+  __ mov(r0, Operand(Smi::FromInt(node_->literal_index())));
+  __ push(r0);
   // Constant properties (2).
-  __ Push(Operand(node_->constant_properties()));
+  __ mov(r0, Operand(node_->constant_properties()));
+  __ push(r0);
   __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
-  __ Pop(r2);
+  __ mov(r2, Operand(r0));
 }
 
 
@@ -3212,9 +3304,12 @@ void ArmCodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   __ bind(deferred->exit());
 
   // Push the object literal boilerplate.
-  __ Push(Operand(r2));
+  __ push(r2);
+
   // Clone the boilerplate object.
   __ CallRuntime(Runtime::kCloneObjectLiteralBoilerplate, 1);
+  __ push(r0);  // save the result
+  // r0: cloned object literal
 
   for (int i = 0; i < node->properties()->length(); i++) {
     ObjectLiteral::Property* property = node->properties()->at(i);
@@ -3224,31 +3319,32 @@ void ArmCodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
       case ObjectLiteral::Property::CONSTANT: break;
       case ObjectLiteral::Property::COMPUTED:  // fall through
       case ObjectLiteral::Property::PROTOTYPE: {
-        // Save a copy of the resulting object on the stack.
-        __ push(r0);
+        __ push(r0);  // dup the result
         Load(key);
         Load(value);
         __ CallRuntime(Runtime::kSetProperty, 3);
-        // Restore the result object from the stack.
-        __ pop(r0);
+        // restore r0
+        __ ldr(r0, MemOperand(sp, 0));
         break;
       }
       case ObjectLiteral::Property::SETTER: {
         __ push(r0);
         Load(key);
-        __ Push(Operand(Smi::FromInt(1)));
+        __ mov(r0, Operand(Smi::FromInt(1)));
+        __ push(r0);
         Load(value);
         __ CallRuntime(Runtime::kDefineAccessor, 4);
-        __ pop(r0);
+        __ ldr(r0, MemOperand(sp, 0));
         break;
       }
       case ObjectLiteral::Property::GETTER: {
         __ push(r0);
         Load(key);
-        __ Push(Operand(Smi::FromInt(0)));
+        __ mov(r0, Operand(Smi::FromInt(0)));
+        __ push(r0);
         Load(value);
         __ CallRuntime(Runtime::kDefineAccessor, 4);
-        __ pop(r0);
+        __ ldr(r0, MemOperand(sp, 0));
         break;
       }
     }
@@ -3268,6 +3364,7 @@ void ArmCodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     if (value->AsLiteral() == NULL) {
       // The property must be set by generated code.
       Load(value);
+      __ pop(r0);
 
       // Fetch the object literal
       __ ldr(r1, MemOperand(sp, 0));
@@ -3281,8 +3378,6 @@ void ArmCodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
       // Update the write barrier for the array address.
       __ mov(r3, Operand(offset));
       __ RecordWrite(r1, r3, r2);
-
-      __ pop(r0);
     }
   }
 }
@@ -3290,8 +3385,8 @@ void ArmCodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
 void ArmCodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
-
   if (FLAG_debug_info) RecordStatementPosition(node);
+
   Reference target(this, node->target());
   if (target.is_illegal()) return;
 
@@ -3305,9 +3400,12 @@ void ArmCodeGenerator::VisitAssignment(Assignment* node) {
     Literal* literal = node->value()->AsLiteral();
     if (literal != NULL && literal->handle()->IsSmi()) {
       SmiOperation(node->binary_op(), literal->handle(), false);
+      __ push(r0);
+
     } else {
       Load(node->value());
       GenericBinaryOperation(node->binary_op());
+      __ push(r0);
     }
   }
 
@@ -3316,6 +3414,7 @@ void ArmCodeGenerator::VisitAssignment(Assignment* node) {
       (var->mode() == Variable::CONST) &&
       node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
     // Assignment ignored - leave the value on the stack.
+
   } else {
     __ RecordPosition(node->position());
     if (node->op() == Token::INIT_CONST) {
@@ -3336,6 +3435,7 @@ void ArmCodeGenerator::VisitThrow(Throw* node) {
   Load(node->exception());
   __ RecordPosition(node->position());
   __ CallRuntime(Runtime::kThrow, 1);
+  __ push(r0);
 }
 
 
@@ -3344,6 +3444,7 @@ void ArmCodeGenerator::VisitProperty(Property* node) {
   if (is_referenced()) {
     __ RecordPosition(node->position());
     AccessReferenceProperty(node->key(), access());
+
   } else {
     // All stores are through references.
     ASSERT(access() != CodeGenState::STORE);
@@ -3382,22 +3483,21 @@ void ArmCodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
 
     // Push the name of the function and the receiver onto the stack.
-    __ Push(Operand(var->name()));
+    __ mov(r0, Operand(var->name()));
+    __ push(r0);
     LoadGlobal();
 
     // Load the arguments.
     for (int i = 0; i < args->length(); i++) Load(args->at(i));
-    __ Push(Operand(args->length()));
 
     // Setup the receiver register and call the IC initialization code.
     Handle<Code> stub = ComputeCallInitialize(args->length());
-    __ ldr(r1, GlobalObject());
     __ RecordPosition(node->position());
     __ Call(stub, code_target_context);
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-
     // Remove the function from the stack.
-    __ add(sp, sp, Operand(kPointerSize));
+    __ pop();
+    __ push(r0);
 
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
@@ -3406,17 +3506,19 @@ void ArmCodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
 
     // Load the function
-    __ Push(Operand(cp));
-    __ Push(Operand(var->name()));
+    __ push(cp);
+    __ mov(r0, Operand(var->name()));
+    __ push(r0);
     __ CallRuntime(Runtime::kLoadContextSlot, 2);
     // r0: slot value; r1: receiver
 
     // Load the receiver.
-    __ push(r0);
-    __ mov(r0, Operand(r1));
+    __ push(r0);  // function
+    __ push(r1);  // receiver
 
     // Call the function.
     CallWithArguments(args, node->position());
+    __ push(r0);
 
   } else if (property != NULL) {
     // Check if the key is a literal string.
@@ -3428,22 +3530,23 @@ void ArmCodeGenerator::VisitCall(Call* node) {
       // ------------------------------------------------------------------
 
       // Push the name of the function and the receiver onto the stack.
-      __ Push(Operand(literal->handle()));
+      __ mov(r0, Operand(literal->handle()));
+      __ push(r0);
       Load(property->obj());
 
       // Load the arguments.
       for (int i = 0; i < args->length(); i++) Load(args->at(i));
-      __ Push(Operand(args->length()));
 
       // Set the receiver register and call the IC initialization code.
       Handle<Code> stub = ComputeCallInitialize(args->length());
-      __ ldr(r1, MemOperand(sp, args->length() * kPointerSize));
       __ RecordPosition(node->position());
       __ Call(stub, code_target);
       __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
       // Remove the function from the stack.
-      __ add(sp, sp, Operand(kPointerSize));
+      __ pop();
+
+      __ push(r0);  // push after get rid of function from the stack
 
     } else {
       // -------------------------------------------
@@ -3452,13 +3555,14 @@ void ArmCodeGenerator::VisitCall(Call* node) {
 
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
-      GetValue(&ref);
+      GetValue(&ref);  // receiver
 
       // Pass receiver to called function.
-      __ Push(MemOperand(sp, ref.size() * kPointerSize));
-
+      __ ldr(r0, MemOperand(sp, ref.size() * kPointerSize));
+      __ push(r0);
       // Call the function.
       CallWithArguments(args, node->position());
+      __ push(r0);
     }
 
   } else {
@@ -3468,12 +3572,11 @@ void ArmCodeGenerator::VisitCall(Call* node) {
 
     // Load the function.
     Load(function);
-
     // Pass the global object as the receiver.
     LoadGlobal();
-
     // Call the function.
     CallWithArguments(args, node->position());
+    __ push(r0);
   }
 }
 
@@ -3496,34 +3599,39 @@ void ArmCodeGenerator::VisitCallNew(CallNew* node) {
   ZoneList<Expression*>* args = node->arguments();
   for (int i = 0; i < args->length(); i++) Load(args->at(i));
 
-  // Push the number of arguments.
-  __ Push(Operand(args->length()));
+  // r0: the number of arguments.
+  __ mov(r0, Operand(args->length()));
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   __ RecordPosition(position);
   __ Call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
           js_construct_call);
-  __ add(sp, sp, Operand(kPointerSize));  // discard
+
+  // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
+  __ str(r0, MemOperand(sp, 0 * kPointerSize));
 }
 
 
 void ArmCodeGenerator::GenerateSetThisFunction(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
+  __ ldr(r0, MemOperand(sp, 0));
   __ str(r0, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
 }
 
 
 void ArmCodeGenerator::GenerateGetThisFunction(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
-  __ Push(MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
+  __ ldr(r0, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
+  __ push(r0);
 }
 
 
 void ArmCodeGenerator::GenerateSetThis(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
+  __ ldr(r0, MemOperand(sp, 0));
   __ str(r0, MemOperand(pp, JavaScriptFrameConstants::kReceiverOffset));
 }
 
@@ -3531,17 +3639,19 @@ void ArmCodeGenerator::GenerateSetThis(ZoneList<Expression*>* args) {
 void ArmCodeGenerator::GenerateSetArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
+  __ pop(r0);
   __ mov(r0, Operand(r0, LSR, kSmiTagSize));
   __ str(r0, MemOperand(fp, JavaScriptFrameConstants::kArgsLengthOffset));
-  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ mov(r0, Operand(Smi::FromInt(0)));  // return a meaningful value
+  __ push(r0);
 }
 
 
 void ArmCodeGenerator::GenerateGetArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
-  __ push(r0);
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kArgsLengthOffset));
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
+  __ push(r0);
 }
 
 
@@ -3549,19 +3659,20 @@ void ArmCodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Label leave;
   Load(args->at(0));
-  // r0 contains object.
-  // if (object->IsSmi()) return TOS.
+  __ pop(r0);  // r0 contains object.
+  // if (object->IsSmi()) return the object.
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &leave);
   // It is a heap object - get map.
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  // if (!object->IsJSValue()) return TOS.
+  // if (!object->IsJSValue()) return the object.
   __ cmp(r1, Operand(JS_VALUE_TYPE));
   __ b(ne, &leave);
   // Load the value.
   __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
   __ bind(&leave);
+  __ push(r0);
 }
 
 
@@ -3570,9 +3681,8 @@ void ArmCodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   Label leave;
   Load(args->at(0));  // Load the object.
   Load(args->at(1));  // Load the value.
-  __ pop(r1);
-  // r0 contains value.
-  // r1 contains object.
+  __ pop(r0);  // r0 contains value
+  __ pop(r1);  // r1 contains object
   // if (object->IsSmi()) return object.
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &leave);
@@ -3589,6 +3699,7 @@ void ArmCodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   __ RecordWrite(r1, r2, r3);
   // Leave.
   __ bind(&leave);
+  __ push(r0);
 }
 
 
@@ -3597,6 +3708,7 @@ void ArmCodeGenerator::GenerateTailCallWithArguments(
   // r0 = number of arguments (smi)
   ASSERT(args->length() == 1);
   Load(args->at(0));
+  __ pop(r0);
   __ mov(r0, Operand(r0, LSR, kSmiTagSize));
 
   // r1 = new function (previously written to stack)
@@ -3615,34 +3727,35 @@ void ArmCodeGenerator::GenerateTailCallWithArguments(
 
 void ArmCodeGenerator::GenerateSetArgument(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 3);
-  // r1 = args[i]
+  // r0 = args[i]; r1 = i
   Comment cmnt(masm_, "[ GenerateSetArgument");
-  Load(args->at(1));
-  __ mov(r1, Operand(r0));
-  // r0 = i
-  Load(args->at(0));
+  Load(args->at(1));  // args[i] (value)
+  Load(args->at(0));  // i
+  __ pop(r1);  // i
+  __ pop(r0);  // value
 #if defined(DEBUG)
   { Label L;
-    __ tst(r0, Operand(kSmiTagMask));
+    __ tst(r1, Operand(kSmiTagMask));
     __ b(eq, &L);
     __ stop("SMI expected");
     __ bind(&L);
   }
 #endif  // defined(DEBUG)
   __ add(r2, pp, Operand(JavaScriptFrameConstants::kParam0Offset));
-  __ str(r1,
-         MemOperand(r2, r0, LSL, kPointerSizeLog2 - kSmiTagSize, NegOffset));
-  __ pop(r0);
+  __ str(r0,
+         MemOperand(r2, r1, LSL, kPointerSizeLog2 - kSmiTagSize, NegOffset));
+  __ push(r0);
 }
 
 
 void ArmCodeGenerator::GenerateSquashFrame(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
-  // Load r1 with old number of arguments, r0 with new number, r1 > r0.
-  Load(args->at(0));
-  __ mov(r1, Operand(r0, LSR, kSmiTagSize));
-  Load(args->at(1));
+  Load(args->at(0));  // old number of arguments
+  Load(args->at(1));  // new number of arguments, r1 > r0
+  __ pop(r0);
   __ mov(r0, Operand(r0, LSR, kSmiTagSize));
+  __ pop(r1);
+  __ mov(r1, Operand(r1, LSR, kSmiTagSize));
   // r1 = number of words to move stack.
   __ sub(r1, r1, Operand(r0));
   // r2 is source.
@@ -3663,17 +3776,20 @@ void ArmCodeGenerator::GenerateSquashFrame(ZoneList<Expression*>* args) {
 
   // Move down stack pointer esp.
   __ mov(sp, Operand(r1));
-  // Balance stack and put something GC-able in r0.
-  __ pop(r0);
+  // Put something GC-able in r0.
+  __ mov(r0, Operand(Smi::FromInt(0)));
+  __ push(r0);
 }
 
 
 void ArmCodeGenerator::GenerateExpandFrame(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
-  // Load r1 with new number of arguments, r0 with old number (as Smi), r1 > r0.
   Load(args->at(1));
-  __ mov(r1, Operand(r0, LSR, kSmiTagSize));
   Load(args->at(0));
+  __ pop(r0);  // new number of arguments
+  __ pop(r1);  // old number of arguments, r1 > r0
+  __ mov(r1, Operand(r1, LSR, kSmiTagSize));
+
   // r1 = number of words to move stack.
   __ sub(r1, r1, Operand(r0, LSR, kSmiTagSize));
   Label end_of_expand_frame;
@@ -3684,7 +3800,6 @@ void ArmCodeGenerator::GenerateExpandFrame(ZoneList<Expression*>* args) {
     __ ldr(ip, MemOperand(ip));
     __ cmp(r2, Operand(ip));
     __ b(gt, &not_too_big);
-    __ pop(r0);
     __ mov(r0, Operand(Factory::false_value()));
     __ b(&end_of_expand_frame);
     __ bind(&not_too_big);
@@ -3710,18 +3825,18 @@ void ArmCodeGenerator::GenerateExpandFrame(ZoneList<Expression*>* args) {
   __ cmp(r3, Operand(r0));
   __ b(ne, &move);
 
-  // Balance stack and put success value in top of stack
-  __ pop(r0);
+  // Put success value in top of stack
   __ mov(r0, Operand(Factory::true_value()));
   __ bind(&end_of_expand_frame);
+  __ push(r0);
 }
 
 
 void ArmCodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
-  __ tst(r0, Operand(kSmiTagMask));
   __ pop(r0);
+  __ tst(r0, Operand(kSmiTagMask));
   cc_reg_ = eq;
 }
 
@@ -3731,8 +3846,8 @@ void ArmCodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 // It is not yet implemented on ARM, so it always goes to the slow case.
 void ArmCodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
-  __ push(r0);
   __ mov(r0, Operand(Factory::undefined_value()));
+  __ push(r0);
 }
 
 
@@ -3748,15 +3863,14 @@ void ArmCodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 void ArmCodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 
-  // Flush the TOS cache and seed the result with the formal
-  // parameters count, which will be used in case no arguments adaptor
-  // frame is found below the current frame.
-  __ push(r0);
+  // Seed the result with the formal parameters count, which will be used
+  // in case no arguments adaptor frame is found below the current frame.
   __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to the arguments.length.
   ArgumentsAccessStub stub(true);
   __ CallStub(&stub);
+  __ push(r0);
 }
 
 
@@ -3766,48 +3880,52 @@ void ArmCodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   // Load the key onto the stack and set register r1 to the formal
   // parameters count for the currently executing function.
   Load(args->at(0));
+  __ pop(r0);
   __ mov(r1, Operand(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
   ArgumentsAccessStub stub(false);
   __ CallStub(&stub);
+  __ push(r0);
 }
 
 
 void ArmCodeGenerator::GenerateShiftDownAndTailCall(
     ZoneList<Expression*>* args) {
-    // r0 = number of arguments
-    ASSERT(args->length() == 1);
-    Load(args->at(0));
-    __ mov(r0, Operand(r0, LSR, kSmiTagSize));
+  // r0 = number of arguments
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  __ pop(r0);
+  __ mov(r0, Operand(r0, LSR, kSmiTagSize));
 
-    // Get the 'this' function and exit the frame without returning.
-    __ ldr(r1, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
-    ExitJSFrame(DO_NOT_RETURN);
-    // return address in lr
+  // Get the 'this' function and exit the frame without returning.
+  __ ldr(r1, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
+  ExitJSFrame(DO_NOT_RETURN);
+  // return address in lr
 
-    // Move arguments one element down the stack.
-    Label move;
-    Label moved;
-    __ sub(r2, r0, Operand(0), SetCC);
-    __ b(eq, &moved);
-    __ bind(&move);
-    __ sub(ip, r2, Operand(1));
-    __ ldr(r3, MemOperand(sp, ip, LSL, kPointerSizeLog2));
-    __ str(r3, MemOperand(sp, r2, LSL, kPointerSizeLog2));
-    __ sub(r2, r2, Operand(1), SetCC);
-    __ b(ne, &move);
-    __ bind(&moved);
+  // Move arguments one element down the stack.
+  Label move;
+  Label moved;
+  __ sub(r2, r0, Operand(0), SetCC);
+  __ b(eq, &moved);
+  __ bind(&move);
+  __ sub(ip, r2, Operand(1));
+  __ ldr(r3, MemOperand(sp, ip, LSL, kPointerSizeLog2));
+  __ str(r3, MemOperand(sp, r2, LSL, kPointerSizeLog2));
+  __ sub(r2, r2, Operand(1), SetCC);
+  __ b(ne, &move);
+  __ bind(&moved);
 
-    // Remove the TOS (copy of last argument)
-    __ add(sp, sp, Operand(kPointerSize));
+  // Remove the TOS (copy of last argument)
+  __ pop();
 
-    // Jump (tail-call) to the function in register r1.
-    __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-    __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCodeOffset));
-    __ add(pc, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-    return;
+  // Jump (tail-call) to the function in register r1.
+  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+  __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCodeOffset));
+  __ add(pc, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  return;
 }
 
 
@@ -3819,28 +3937,31 @@ void ArmCodeGenerator::VisitCallRuntime(CallRuntime* node) {
   Comment cmnt(masm_, "[ CallRuntime");
   Runtime::Function* function = node->function();
 
-  if (function == NULL) {
-    // Prepare stack for calling JS runtime function.
-    __ Push(Operand(node->name()));
-    // Push the builtins object found in the current global object.
-    __ ldr(r1, GlobalObject());
-    __ Push(FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
-  }
-
-  // Push the arguments ("left-to-right").
-  for (int i = 0; i < args->length(); i++) Load(args->at(i));
-
   if (function != NULL) {
+    // Push the arguments ("left-to-right").
+    for (int i = 0; i < args->length(); i++) Load(args->at(i));
+
     // Call the C runtime function.
     __ CallRuntime(function, args->length());
+    __ push(r0);
+
   } else {
+    // Prepare stack for calling JS runtime function.
+    __ mov(r0, Operand(node->name()));
+    __ push(r0);
+    // Push the builtins object found in the current global object.
+    __ ldr(r1, GlobalObject());
+    __ ldr(r0, FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
+    __ push(r0);
+
+    for (int i = 0; i < args->length(); i++) Load(args->at(i));
+
     // Call the JS runtime function.
-    __ Push(Operand(args->length()));
-    __ ldr(r1, MemOperand(sp, args->length() * kPointerSize));
     Handle<Code> stub = ComputeCallInitialize(args->length());
     __ Call(stub, code_target);
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
-    __ add(sp, sp, Operand(kPointerSize));
+    __ pop();
+    __ push(r0);
   }
 }
 
@@ -3860,54 +3981,59 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
   } else if (op == Token::DELETE) {
     Property* property = node->expression()->AsProperty();
+    Variable* variable = node->expression()->AsVariableProxy()->AsVariable();
     if (property != NULL) {
       Load(property->obj());
       Load(property->key());
-      __ Push(Operand(1));  // not counting receiver
+      __ mov(r0, Operand(1));  // not counting receiver
       __ InvokeBuiltin("DELETE", 1, CALL_JS);
-      return;
-    }
 
-    Variable* variable = node->expression()->AsVariableProxy()->AsVariable();
-    if (variable != NULL) {
+    } else if (variable != NULL) {
       Slot* slot = variable->slot();
       if (variable->is_global()) {
         LoadGlobal();
-        __ Push(Operand(variable->name()));
-        __ Push(Operand(1));  // not counting receiver
+        __ mov(r0, Operand(variable->name()));
+        __ push(r0);
+        __ mov(r0, Operand(1));  // not counting receiver
         __ InvokeBuiltin("DELETE", 1, CALL_JS);
-        return;
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
         // lookup the context holding the named variable
-        __ Push(Operand(cp));
-        __ Push(Operand(variable->name()));
+        __ push(cp);
+        __ mov(r0, Operand(variable->name()));
+        __ push(r0);
         __ CallRuntime(Runtime::kLookupContext, 2);
         // r0: context
-        __ Push(Operand(variable->name()));
-        __ Push(Operand(1));  // not counting receiver
+        __ push(r0);
+        __ mov(r0, Operand(variable->name()));
+        __ push(r0);
+        __ mov(r0, Operand(1));  // not counting receiver
         __ InvokeBuiltin("DELETE", 1, CALL_JS);
-        return;
-      }
 
-      // Default: Result of deleting non-global, not dynamically
-      // introduced variables is false.
-      __ Push(Operand(Factory::false_value()));
+      } else {
+        // Default: Result of deleting non-global, not dynamically
+        // introduced variables is false.
+        __ mov(r0, Operand(Factory::false_value()));
+      }
 
     } else {
       // Default: Result of deleting expressions is true.
       Load(node->expression());  // may have side-effects
+      __ pop();
       __ mov(r0, Operand(Factory::true_value()));
     }
+    __ push(r0);
 
   } else if (op == Token::TYPEOF) {
     // Special case for loading the typeof expression; see comment on
     // LoadTypeofExpression().
     LoadTypeofExpression(node->expression());
     __ CallRuntime(Runtime::kTypeof, 1);
+    __ push(r0);  // r0 has result
 
   } else {
     Load(node->expression());
+    __ pop(r0);
     switch (op) {
       case Token::NOT:
       case Token::DELETE:
@@ -3928,7 +4054,8 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ tst(r0, Operand(kSmiTagMask));
         __ b(eq, &smi_label);
 
-        __ Push(Operand(0));  // not counting receiver
+        __ push(r0);
+        __ mov(r0, Operand(0));  // not counting receiver
         __ InvokeBuiltin("BIT_NOT", 0, CALL_JS);
 
         __ b(&continue_label);
@@ -3946,13 +4073,15 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
 
       case Token::ADD:
-        __ Push(Operand(0));  // not counting receiver
+        __ push(r0);
+        __ mov(r0, Operand(0));  // not counting receiver
         __ InvokeBuiltin("TO_NUMBER", 0, CALL_JS);
         break;
 
       default:
         UNREACHABLE();
     }
+    __ push(r0);  // r0 has result
   }
 }
 
@@ -3967,11 +4096,15 @@ void ArmCodeGenerator::VisitCountOperation(CountOperation* node) {
   bool is_const = (var != NULL && var->mode() == Variable::CONST);
 
   // Postfix: Make room for the result.
-  if (is_postfix) __ Push(Operand(0));
+  if (is_postfix) {
+     __ mov(r0, Operand(0));
+     __ push(r0);
+  }
 
   { Reference target(this, node->expression());
     if (target.is_illegal()) return;
     GetValue(&target);
+    __ pop(r0);
 
     Label slow, exit;
 
@@ -4024,6 +4157,7 @@ void ArmCodeGenerator::VisitCountOperation(CountOperation* node) {
 
     // Store the new value in the target if not const.
     __ bind(&exit);
+    __ push(r0);
     if (!is_const) SetValue(&target);
   }
 
@@ -4069,10 +4203,12 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     } else {
       Label pop_and_continue, exit;
 
+      __ ldr(r0, MemOperand(sp, 0));  // dup the stack top
+      __ push(r0);
       // Avoid popping the result if it converts to 'false' using the
       // standard ToBoolean() conversion as described in ECMA-262,
       // section 9.2, page 30.
-      ToBoolean(r0, &pop_and_continue, &exit);
+      ToBoolean(&pop_and_continue, &exit);
       Branch(false, &exit);
 
       // Pop the result of evaluating the first part.
@@ -4108,10 +4244,12 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     } else {
       Label pop_and_continue, exit;
 
+      __ ldr(r0, MemOperand(sp, 0));
+      __ push(r0);
       // Avoid popping the result if it converts to 'true' using the
       // standard ToBoolean() conversion as described in ECMA-262,
       // section 9.2, page 30.
-      ToBoolean(r0, &exit, &pop_and_continue);
+      ToBoolean(&exit, &pop_and_continue);
       Branch(true, &exit);
 
       // Pop the result of evaluating the first part.
@@ -4145,12 +4283,14 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       Load(node->right());
       GenericBinaryOperation(node->op());
     }
+    __ push(r0);
   }
 }
 
 
 void ArmCodeGenerator::VisitThisFunction(ThisFunction* node) {
-  __ Push(FunctionOperand());
+  __ ldr(r0, FunctionOperand());
+  __ push(r0);
 }
 
 
@@ -4177,6 +4317,7 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
     if (left_is_null || right_is_null) {
       Load(left_is_null ? right : left);
       Label exit, undetectable;
+      __ pop(r0);
       __ cmp(r0, Operand(Factory::null_value()));
 
       // The 'null' value is only equal to 'undefined' if using
@@ -4190,7 +4331,6 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
         __ tst(r0, Operand(kSmiTagMask));
 
         __ b(ne, &undetectable);
-        __ pop(r0);
         __ b(false_target());
 
         __ bind(&undetectable);
@@ -4201,7 +4341,6 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
       }
 
       __ bind(&exit);
-      __ pop(r0);
 
       cc_reg_ = eq;
       return;
@@ -4220,10 +4359,9 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
        right->AsLiteral()->handle()->IsString())) {
     Handle<String> check(String::cast(*right->AsLiteral()->handle()));
 
-    // Load the operand, move it to register r1, and restore TOS.
+    // Load the operand, move it to register r1.
     LoadTypeofExpression(operation->expression());
-    __ mov(r1, Operand(r0));
-    __ pop(r0);
+    __ pop(r1);
 
     if (check->Equals(Heap::number_symbol())) {
       __ tst(r1, Operand(kSmiTagMask));
@@ -4333,13 +4471,15 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
       break;
 
     case Token::IN:
-      __ Push(Operand(1));  // not counting receiver
+      __ mov(r0, Operand(1));  // not counting receiver
       __ InvokeBuiltin("IN", 1, CALL_JS);
+      __ push(r0);
       break;
 
     case Token::INSTANCEOF:
-      __ Push(Operand(1));  // not counting receiver
+      __ mov(r0, Operand(1));  // not counting receiver
       __ InvokeBuiltin("INSTANCE_OF", 1, CALL_JS);
+      __ push(r0);
       break;
 
     default:

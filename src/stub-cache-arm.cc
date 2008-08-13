@@ -160,7 +160,8 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
   __ EnterJSFrame(0);
 
   // Push the function on the stack and call the runtime function.
-  __ Push(MemOperand(pp, 0));
+  __ ldr(r0, MemOperand(pp, 0));
+  __ push(r0);
   __ CallRuntime(Runtime::kLazyCompile, 1);
 
   // Move result to r1 and restore number of arguments.
@@ -181,14 +182,16 @@ Object* CallStubCompiler::CompileCallField(Object* object,
                                            JSObject* holder,
                                            int index) {
   // ----------- S t a t e -------------
-  //  -- r0: number of arguments
-  //  -- r1: receiver
   //  -- lr: return address
   // -----------------------------------
 
   HandleScope scope;
   Label miss;
 
+  const int argc = arguments().immediate();
+
+  // Get the receiver of the function from the stack into r1.
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
   // Check that the receiver isn't a smi.
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &miss);
@@ -211,9 +214,11 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ cmp(r2, Operand(JS_FUNCTION_TYPE));
   __ b(ne, &miss);
 
+  // TODO(1233523): remove r0 after changing Jump to InvokeCode
+  // Setup argument length register.
+  __ mov(r0, Operand(argc));
   // Patch the function on the stack; 1 ~ receiver.
-  __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-  __ str(r3, MemOperand(ip, 1 * kPointerSize));
+  __ str(r3, MemOperand(sp, (argc + 1) * kPointerSize));
 
   // Setup the context and jump to the call code of the function (tail call).
   __ ldr(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
@@ -237,12 +242,15 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               JSFunction* function,
                                               CheckType check) {
   // ----------- S t a t e -------------
-  //  -- r1: receiver
   //  -- lr: return address
   // -----------------------------------
 
   HandleScope scope;
   Label miss;
+
+  // Get the receiver from the stack
+  const int argc = arguments().immediate();
+  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
 
   // Check that the receiver isn't a smi.
   if (check != NUMBER_CHECK) {
@@ -321,9 +329,6 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       UNREACHABLE();
   }
 
-  // Number of arguments for this function.
-  const int argc = arguments().immediate();
-
   // Get the function and setup the context.
   __ mov(r3, Operand(Handle<JSFunction>(function)));
   __ ldr(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
@@ -350,8 +355,6 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
-  //  -- r0: number of arguments
-  //  -- r1: receiver
   //  -- lr: return address
   // -----------------------------------
 
@@ -484,9 +487,10 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   __ push(r2);  // name
   __ push(r0);  // value
 
-  // Do tail-call to the C builtin.
-  __ mov(r0, Operand(3));  // not counting receiver
-  __ JumpToBuiltin(ExternalReference(IC_Utility(IC::kStoreCallbackProperty)));
+  // Do tail-call to the runtime system.
+  ExternalReference store_callback_property =
+      ExternalReference(IC_Utility(IC::kStoreCallbackProperty));
+  __ TailCallRuntime(store_callback_property, 4);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -537,11 +541,10 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   __ push(r2);  // name
   __ push(r0);  // value
 
-  // Do tail-call to the C builtin.
-  __ mov(r0, Operand(2));  // not counting receiver
-  ExternalReference store_interceptor =
+  // Do tail-call to the runtime system.
+  ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
-  __ JumpToBuiltin(store_interceptor);
+  __ TailCallRuntime(store_ic_property, 3);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -558,7 +561,6 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
                                            JSObject* holder,
                                            int index) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
@@ -566,6 +568,8 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
 
   HandleScope scope;
   Label miss;
+
+  __ ldr(r0, MemOperand(sp, 0));
 
   // Check that the receiver isn't a smi.
   __ tst(r0, Operand(kSmiTagMask));
@@ -597,7 +601,6 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
                                               JSObject* holder,
                                               AccessorInfo* callback) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
@@ -606,6 +609,7 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
   HandleScope scope;
   Label miss;
 
+  __ ldr(r0, MemOperand(sp, 0));
   // Check that the receiver isn't a smi.
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
@@ -620,9 +624,10 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
   __ push(r2);  // name
   __ push(reg);  // holder
 
-  // Do tail-call to the C builtin.
-  __ mov(r0, Operand(3));  // not counting receiver
-  __ JumpToBuiltin(ExternalReference(IC_Utility(IC::kLoadCallbackProperty)));
+  // Do tail-call to the runtime system.
+  ExternalReference load_callback_property =
+      ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
+  __ TailCallRuntime(load_callback_property, 4);
 
   // Handle load cache miss.
   __ bind(&miss);
@@ -638,7 +643,6 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
                                               JSObject* holder,
                                               Object* value) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp] : receiver
@@ -647,6 +651,7 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
   HandleScope scope;
   Label miss;
 
+  __ ldr(r0, MemOperand(sp, 0));
   // Check that the receiver isn't a smi.
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
@@ -672,7 +677,6 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
                                                  JSObject* holder,
                                                  String* name) {
   // ----------- S t a t e -------------
-  //  -- r0    : receiver
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
@@ -681,6 +685,7 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
   HandleScope scope;
   Label miss;
 
+  __ ldr(r0, MemOperand(sp, 0));
   // Check that the receiver isn't a smi.
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
@@ -693,9 +698,10 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
   __ push(reg);  // holder
   __ push(r2);  // name
 
-  // Do tail-call to the C builtin.
-  __ mov(r0, Operand(2));  // not counting receiver
-  __ JumpToBuiltin(ExternalReference(IC_Utility(IC::kLoadInterceptorProperty)));
+  // Do tail-call to the runtime system.
+  ExternalReference load_ic_property =
+      ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
+  __ TailCallRuntime(load_ic_property, 3);
 
   // Handle load cache miss.
   __ bind(&miss);

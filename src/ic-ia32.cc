@@ -248,8 +248,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ j(below, &fast, taken);
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
-  __ mov(eax, Operand(esp, 1 * kPointerSize));  // 1 ~ return address.
-  __ mov(ecx, Operand(esp, 2 * kPointerSize));  // 1 ~ return address, name.
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1);
   KeyedLoadIC::Generate(masm, ExternalReference(Runtime::kGetProperty));
   // Check if the key is a symbol that is not an array index.
@@ -333,8 +331,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ push(eax);
   __ push(ecx);
   // Do tail-call to runtime routine.
-  __ Set(eax, Immediate(2));  // not counting receiver
-  __ JumpToBuiltin(ExternalReference(Runtime::kSetProperty));
+  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3);
 
 
   // Extra capacity case: Check if there is extra capacity to
@@ -530,7 +527,7 @@ void CallIC::Generate(MacroAssembler* masm,
 
   // Call the entry.
   CEntryStub stub;
-  __ mov(Operand(eax), Immediate(2 - 1));  // do not count receiver
+  __ mov(Operand(eax), Immediate(2));
   __ mov(Operand(ebx), Immediate(f));
   __ CallStub(&stub);
 
@@ -636,9 +633,8 @@ void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ push(ecx);
   __ push(ebx);
 
-  // Set the number of arguments and jump to the entry.
-  __ mov(Operand(eax), Immediate(1));  // not counting receiver.
-  __ JumpToBuiltin(f);
+  // Perform tail call to the entry.
+  __ TailCallRuntime(f, 2);
 }
 
 
@@ -673,9 +669,8 @@ void KeyedLoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ push(eax);
   __ push(ebx);
 
-  // Set the number of arguments and jump to the entry.
-  __ mov(Operand(eax), Immediate(1));  // not counting receiver.
-  __ JumpToBuiltin(f);
+  // Perform tail call to the entry.
+  __ TailCallRuntime(f, 2);
 }
 
 
@@ -715,9 +710,8 @@ void StoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ push(eax);
   __ push(ebx);
 
-  // Set the number of arguments and jump to the entry.
-  __ Set(eax, Immediate(2));  // not counting receiver.
-  __ JumpToBuiltin(f);
+  // Perform tail call to the entry.
+  __ TailCallRuntime(f, 3);
 }
 
 
@@ -740,8 +734,7 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ push(ecx);
 
   // Do tail-call to runtime routine.
-  __ Set(eax, Immediate(2));  // not counting receiver
-  __ JumpToBuiltin(f);
+  __ TailCallRuntime(f, 3);
 }
 
 

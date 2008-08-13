@@ -33,7 +33,7 @@
 // const $Number = global.Number;
 // const $Function = global.Function;
 // const $Array = global.Array;
-// const $NaN = %NumberNaN(1);
+// const $NaN = %NumberNaN();
 
 
 // ECMA 262 - 15.1.1.1.
@@ -99,7 +99,7 @@ function $isFinite(number) {
 
 
 %SetCode($Boolean, function(x) {
-  if (%IsConstructCall(this)) {
+  if (%IsConstructCall()) {
     %_SetValueOf(this, ToBoolean(x));
   } else {
     return ToBoolean(x);
@@ -185,7 +185,7 @@ $Object.prototype.constructor = $Object;
 
 
 %SetCode($Object, function(x) {
-  if (%IsConstructCall(this)) {
+  if (%IsConstructCall()) {
     if (x == null) return this;
     return ToObject(x);
   } else {
@@ -245,7 +245,7 @@ $Object.prototype.constructor = $Object;
 // Set the Number function and constructor.
 %SetCode($Number, function(x) {
   var value = %_ArgumentsLength() == 0 ? 0 : ToNumber(x);
-  if (%IsConstructCall(this)) {
+  if (%IsConstructCall()) {
     %_SetValueOf(this, value);
   } else {
     return value;
@@ -257,10 +257,10 @@ $Object.prototype.constructor = $Object;
 %AddProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
 
 // ECMA-262 section 15.7.3.1.
-%AddProperty($Number, "MAX_VALUE", %NumberMaxValue(1), DONT_ENUM | DONT_DELETE | READ_ONLY);
+%AddProperty($Number, "MAX_VALUE", %NumberMaxValue(), DONT_ENUM | DONT_DELETE | READ_ONLY);
 
 // ECMA-262 section 15.7.3.2.
-%AddProperty($Number, "MIN_VALUE", %NumberMinValue(1), DONT_ENUM | DONT_DELETE | READ_ONLY);
+%AddProperty($Number, "MIN_VALUE", %NumberMinValue(), DONT_ENUM | DONT_DELETE | READ_ONLY);
 
 // ECMA-262 section 15.7.3.3.
 %AddProperty($Number, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);

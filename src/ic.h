@@ -128,8 +128,6 @@ class IC {
   static inline void SetTargetAtAddress(Address address, Code* target);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
-
   // Frame pointer for the frame that uses (calls) the IC.
   Address fp_;
 
@@ -138,6 +136,8 @@ class IC {
   // GetProperty and SetProperty are called and they in turn might
   // invoke the garbage collector.
   Address* pc_address_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(IC);
 };
 
 

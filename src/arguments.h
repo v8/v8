@@ -45,7 +45,7 @@ namespace v8 { namespace internal {
 class Arguments BASE_EMBEDDED {
  public:
   Object*& operator[] (int index) {
-    ASSERT(0 <= index && index <= length_);
+    ASSERT(0 <= index && index < length_);
     return arguments_[-index];
   }
 
@@ -58,7 +58,7 @@ class Arguments BASE_EMBEDDED {
   }
 
   // Get the total number of arguments including the receiver.
-  int length() const { return length_ + 1; }
+  int length() const { return length_; }
 
  private:
   int length_;

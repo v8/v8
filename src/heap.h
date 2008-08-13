@@ -985,11 +985,17 @@ class MarkingStack {
 
   void clear_overflowed() { overflowed_ = false; }
 
+  // Push the (marked) object on the marking stack if there is room,
+  // otherwise mark the object as overflowed and wait for a rescan of the
+  // heap.
   void Push(HeapObject* object) {
-    ASSERT(!is_full());
     CHECK(object->IsHeapObject());
-    *(top_++) = object;
-    if (is_full()) overflowed_ = true;
+    if (is_full()) {
+      object->SetOverflow();
+      overflowed_ = true;
+    } else {
+      *(top_++) = object;
+    }
   }
 
   HeapObject* Pop() {
