@@ -1010,7 +1010,7 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   ON_BAILOUT("v8::Script::Compile()", return Local<Script>());
   LOG_API("Script::Compile");
   i::Handle<i::String> str = Utils::OpenHandle(*source);
-  i::Handle<i::String> name_obj;
+  i::Handle<i::Object> name_obj;
   int line_offset = 0;
   int column_offset = 0;
   if (origin != NULL) {
@@ -1044,6 +1044,13 @@ Local<Script> Script::Compile(v8::Handle<String> source,
       i::Factory::NewFunctionFromBoilerplate(boilerplate,
                                              i::Top::global_context());
   return Local<Script>(ToApi<Script>(result));
+}
+
+
+Local<Script> Script::Compile(v8::Handle<String> source,
+                              v8::Handle<Value> file_name) {
+  ScriptOrigin origin(file_name);
+  return Compile(source, &origin);
 }
 
 
@@ -2091,7 +2098,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.2.2 (130807)";
+  return "0.2.3";
 }
 
 

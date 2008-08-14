@@ -462,17 +462,17 @@ class ScriptData {
  */
 class ScriptOrigin {
  public:
-  ScriptOrigin(Handle<String> resource_name,
+  ScriptOrigin(Handle<Value> resource_name,
                Handle<Integer> resource_line_offset = Handle<Integer>(),
                Handle<Integer> resource_column_offset = Handle<Integer>())
       : resource_name_(resource_name),
         resource_line_offset_(resource_line_offset),
         resource_column_offset_(resource_column_offset) { }
-  inline Handle<String> ResourceName();
+  inline Handle<Value> ResourceName();
   inline Handle<Integer> ResourceLineOffset();
   inline Handle<Integer> ResourceColumnOffset();
  private:
-  Handle<String> resource_name_;
+  Handle<Value> resource_name_;
   Handle<Integer> resource_line_offset_;
   Handle<Integer> resource_column_offset_;
 };
@@ -492,6 +492,13 @@ class Script {
   static Local<Script> Compile(Handle<String> source,
                                ScriptOrigin* origin = NULL,
                                ScriptData* pre_data = NULL);
+
+  /**
+   * Compiles the specified script using the specified file name
+   * object (typically a string) as the script's origin.
+   */
+  static Local<Script> Compile(Handle<String> source,
+                               Handle<Value> file_name);
 
   Local<Value> Run();
 };
@@ -2052,7 +2059,7 @@ Local<T> HandleScope::Close(Handle<T> value) {
   return Local<T>(reinterpret_cast<T*>(after));
 }
 
-Handle<String> ScriptOrigin::ResourceName() {
+Handle<Value> ScriptOrigin::ResourceName() {
   return resource_name_;
 }
 

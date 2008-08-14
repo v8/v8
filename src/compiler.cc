@@ -181,7 +181,7 @@ static StaticResource<SafeStringInputBuffer> safe_string_input_buffer;
 
 
 Handle<JSFunction> Compiler::Compile(Handle<String> source,
-                                     Handle<String> script_name,
+                                     Handle<Object> script_name,
                                      int line_offset, int column_offset,
                                      v8::Extension* extension,
                                      ScriptDataImpl* input_pre_data) {

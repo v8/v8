@@ -373,10 +373,13 @@ class Debugger {
     Debugger::compiling_natives_ = compiling_natives;
   }
   static bool compiling_natives() { return Debugger::compiling_natives_; }
+  static void set_loading_debugger(bool v) { is_loading_debugger_ = v; }
+  static bool is_loading_debugger() { return Debugger::is_loading_debugger_; }
 
  private:
   static bool debugger_active_;  // Are there any active debugger?
   static bool compiling_natives_;  // Are we compiling natives?
+  static bool is_loading_debugger_;  // Are we loading the debugger?
   static DebugMessageThread* message_thread_;
   static v8::DebugMessageHandler debug_message_handler_;
   static void* debug_message_handler_data_;

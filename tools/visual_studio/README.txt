@@ -43,6 +43,12 @@ A project which uses V8 should then depend on v8_snapshot.vcproj.
 If V8 without snapshot if preferred only v8_base.vcproj and v8.vcproj are
 required and a project which uses V8 should depend on v8.vcproj.
 
+Two sample project files are available as well. These are v8_shell_sample.vcproj
+for building the sample in samples\shell.cc and v8_process_sample.vcproj for
+building the sample in samples\process.cc. Add either of these (or both) to a
+solution with v8_base, v8, v8_mksnapshot and v8_snapshot set up as described
+above and have them depend on v8_snapshot.
+
 Python requirements
 -------------------
 When using the Microsoft Visual Studio project files Python version 2.4 or later

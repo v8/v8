@@ -39,6 +39,8 @@
 
 namespace v8 { namespace internal {
 
+DEFINE_string(expose_natives_as, NULL, "expose natives in global object");
+DEFINE_string(expose_debug_as, NULL, "expose debug in global object");
 DEFINE_string(natives_file, NULL, "alternative natives file");  // for debugging
 DEFINE_bool(expose_gc, false, "expose gc extension");  // for debugging
 
@@ -277,6 +279,7 @@ class Genesis BASE_EMBEDDED {
   bool InstallExtensions(v8::ExtensionConfiguration* extensions);
   bool InstallExtension(const char* name);
   bool InstallExtension(v8::RegisteredExtension* current);
+  bool InstallSpecialObjects();
   bool ConfigureGlobalObject(v8::Handle<v8::ObjectTemplate> global_template);
 
   // Migrates all properties from the 'from' object to the 'to'
@@ -997,6 +1000,42 @@ bool Genesis::InstallNatives() {
 }
 
 
+bool Genesis::InstallSpecialObjects() {
+  HandleScope scope;
+  Handle<JSGlobalObject> global(
+      JSGlobalObject::cast(global_context()->global()));
+  // Expose the natives in global if a name for it is specified.
+  if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
+    Handle<String> natives_string =
+        Factory::LookupAsciiSymbol(FLAG_expose_natives_as);
+    SetProperty(global, natives_string,
+                Handle<JSObject>(global->builtins()), DONT_ENUM);
+  }
+
+  // Expose the debug global object in global if a name for it is specified.
+  if (FLAG_expose_debug_as != NULL && strlen(FLAG_expose_debug_as) != 0) {
+    // If loading fails we just bail out without installing the
+    // debugger but without tanking the whole context.
+    if (!Debug::Load())
+      return true;
+    Handle<JSGlobalObject> debug_global =
+        Handle<JSGlobalObject>(
+            JSGlobalObject::cast(Debug::debug_context()->global()));
+    Handle<String> debug_string =
+        Factory::LookupAsciiSymbol(FLAG_expose_debug_as);
+    SetProperty(global, debug_string,
+                Handle<JSObject>(debug_global), DONT_ENUM);
+
+    // Set the security token for the debugger global object to the same as
+    // the shell global object to allow calling between these (otherwise
+    // exposing debug global object dosen't make much sense).
+    debug_global->set_security_token(global->security_token());
+  }
+
+  return true;
+}
+
+
 bool Genesis::InstallExtensions(v8::ExtensionConfiguration* extensions) {
   // Clear coloring of extension list
   v8::RegisteredExtension* current = v8::RegisteredExtension::first_extension();
@@ -1295,6 +1334,8 @@ Genesis::Genesis(Handle<Object> global_object,
   if (!ConfigureGlobalObject(global_template)) return;
 
   if (!InstallExtensions(extensions)) return;
+
+  if (!InstallSpecialObjects()) return;
 
   result_ = global_context_;
 }

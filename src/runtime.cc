@@ -94,12 +94,10 @@ static Object* IllegalOperation() {
 static Object* Runtime_CloneObjectLiteralBoilerplate(Arguments args) {
   CONVERT_CHECKED(JSObject, boilerplate, args[0]);
 
-#ifdef DEBUG
-  // Verify the constructor of the boilerplate is equal to the
-  // object function in the CURRENT global_context.
-  CHECK(boilerplate->map()->constructor()
-          ==  Top::context()->global_context()->object_function());
-#endif
+  // Verify that the constructor of the boilerplate is equal to the
+  // object function in the current global context.
+  ASSERT(boilerplate->map()->constructor() ==
+         Top::context()->global_context()->object_function());
   return boilerplate->Copy();
 }
 

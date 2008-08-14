@@ -51,7 +51,7 @@ class Compiler : public AllStatic {
 
   // Compile a String source within a context.
   static Handle<JSFunction> Compile(Handle<String> source,
-                                    Handle<String> script_name,
+                                    Handle<Object> script_name,
                                     int line_offset, int column_offset,
                                     v8::Extension* extension,
                                     ScriptDataImpl* script_Data);

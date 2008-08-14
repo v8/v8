@@ -272,9 +272,6 @@ class MarkCompactCollector : public AllStatic {
   // Returns the heap size of the object.
   static int UpdatePointersInOldObject(HeapObject* obj);
 
-  // Updates the pointer in a slot.
-  static void UpdatePointer(Object** p);
-
   // Calculates the forwarding address of an object in an old space.
   static Address GetForwardingAddressInOldSpace(HeapObject* obj);
 

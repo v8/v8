@@ -1240,18 +1240,79 @@ void MarkCompactCollector::VerifyPageHeaders(PagedSpace* space) {
 // Helper class for updating pointers in HeapObjects.
 class UpdatingVisitor: public ObjectVisitor {
  public:
-
   void VisitPointer(Object** p) {
-    MarkCompactCollector::UpdatePointer(p);
+    UpdatePointer(p);
   }
 
   void VisitPointers(Object** start, Object** end) {
     // Mark all HeapObject pointers in [start, end)
-    for (Object** p = start; p < end; p++) {
-      MarkCompactCollector::UpdatePointer(p);
+    for (Object** p = start; p < end; p++) UpdatePointer(p);
+  }
+
+ private:
+  void UpdatePointer(Object** p) {
+    if (!(*p)->IsHeapObject()) return;
+
+    HeapObject* obj = HeapObject::cast(*p);
+    Address old_addr = obj->address();
+    Address new_addr;
+    ASSERT(!Heap::InFromSpace(obj));
+
+    if (Heap::new_space()->Contains(obj)) {
+      Address f_addr = Heap::new_space()->FromSpaceLow() +
+                       Heap::new_space()->ToSpaceOffsetForAddress(old_addr);
+      new_addr = Memory::Address_at(f_addr);
+
+#ifdef DEBUG
+      ASSERT(Heap::old_space()->Contains(new_addr) ||
+             Heap::code_space()->Contains(new_addr) ||
+             Heap::new_space()->FromSpaceContains(new_addr));
+
+      if (Heap::new_space()->FromSpaceContains(new_addr)) {
+        ASSERT(Heap::new_space()->FromSpaceOffsetForAddress(new_addr) <=
+               Heap::new_space()->ToSpaceOffsetForAddress(old_addr));
+      }
+#endif
+
+    } else if (Heap::lo_space()->Contains(obj)) {
+      // Don't move objects in the large object space.
+      return;
+
+    } else {
+      ASSERT(Heap::old_space()->Contains(obj) ||
+             Heap::code_space()->Contains(obj) ||
+             Heap::map_space()->Contains(obj));
+
+      new_addr = MarkCompactCollector::GetForwardingAddressInOldSpace(obj);
+      ASSERT(Heap::old_space()->Contains(new_addr) ||
+             Heap::code_space()->Contains(new_addr) ||
+             Heap::map_space()->Contains(new_addr));
+
+#ifdef DEBUG
+      if (Heap::old_space()->Contains(obj)) {
+        ASSERT(Heap::old_space()->MCSpaceOffsetForAddress(new_addr) <=
+               Heap::old_space()->MCSpaceOffsetForAddress(old_addr));
+      } else if (Heap::code_space()->Contains(obj)) {
+        ASSERT(Heap::code_space()->MCSpaceOffsetForAddress(new_addr) <=
+               Heap::code_space()->MCSpaceOffsetForAddress(old_addr));
+      } else {
+        ASSERT(Heap::map_space()->MCSpaceOffsetForAddress(new_addr) <=
+               Heap::map_space()->MCSpaceOffsetForAddress(old_addr));
+      }
+#endif
     }
+
+    *p = HeapObject::FromAddress(new_addr);
+
+#ifdef DEBUG
+    if (FLAG_gc_verbose) {
+      PrintF("update %p : %p -> %p\n",
+             reinterpret_cast<Address>(p), old_addr, new_addr);
+    }
+#endif
   }
 };
+
 
 void MarkCompactCollector::UpdatePointers() {
 #ifdef DEBUG
@@ -1389,70 +1450,6 @@ Address MarkCompactCollector::GetForwardingAddressInOldSpace(HeapObject* obj) {
   ASSERT(next_page->OffsetToAddress(offset) < next_page->mc_relocation_top);
 
   return next_page->OffsetToAddress(offset);
-}
-
-void MarkCompactCollector::UpdatePointer(Object** p) {
-  // We need to check if p is in to_space.
-  if (!(*p)->IsHeapObject()) return;
-
-  HeapObject* obj = HeapObject::cast(*p);
-  Address old_addr = obj->address();
-  Address new_addr;
-
-  ASSERT(!Heap::InFromSpace(obj));
-
-  if (Heap::new_space()->Contains(obj)) {
-    Address f_addr = Heap::new_space()->FromSpaceLow() +
-                     Heap::new_space()->ToSpaceOffsetForAddress(old_addr);
-    new_addr = Memory::Address_at(f_addr);
-
-#ifdef DEBUG
-    ASSERT(Heap::old_space()->Contains(new_addr) ||
-           Heap::code_space()->Contains(new_addr) ||
-           Heap::new_space()->FromSpaceContains(new_addr));
-
-    if (Heap::new_space()->FromSpaceContains(new_addr)) {
-      ASSERT(Heap::new_space()->FromSpaceOffsetForAddress(new_addr) <=
-             Heap::new_space()->ToSpaceOffsetForAddress(old_addr));
-    }
-#endif
-
-  } else if (Heap::lo_space()->Contains(obj)) {
-    // Don't move objects in the large object space.
-    new_addr = obj->address();
-
-  } else {
-    ASSERT(Heap::old_space()->Contains(obj) ||
-           Heap::code_space()->Contains(obj) ||
-           Heap::map_space()->Contains(obj));
-
-    new_addr = GetForwardingAddressInOldSpace(obj);
-    ASSERT(Heap::old_space()->Contains(new_addr) ||
-           Heap::code_space()->Contains(new_addr) ||
-           Heap::map_space()->Contains(new_addr));
-
-#ifdef DEBUG
-    if (Heap::old_space()->Contains(obj)) {
-      ASSERT(Heap::old_space()->MCSpaceOffsetForAddress(new_addr) <=
-             Heap::old_space()->MCSpaceOffsetForAddress(old_addr));
-    } else if (Heap::code_space()->Contains(obj)) {
-      ASSERT(Heap::code_space()->MCSpaceOffsetForAddress(new_addr) <=
-             Heap::code_space()->MCSpaceOffsetForAddress(old_addr));
-    } else {
-      ASSERT(Heap::map_space()->MCSpaceOffsetForAddress(new_addr) <=
-             Heap::map_space()->MCSpaceOffsetForAddress(old_addr));
-    }
-#endif
-  }
-
-  *p = HeapObject::FromAddress(new_addr);
-
-#ifdef DEBUG
-  if (FLAG_gc_verbose) {
-    PrintF("update %p : %p -> %p\n",
-           reinterpret_cast<Address>(p), old_addr, new_addr);
-  }
-#endif
 }
 
 

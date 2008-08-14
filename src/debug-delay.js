@@ -406,10 +406,32 @@ Debug.breakLocations = function(f) {
 // Returns a Script object. If the parameter is a function the return value
 // is the script in which the function is defined. If the parameter is a string
 // the return value is the script for which the script name has that string
-// value.
+// value.  If it is a regexp and there is a unique script whose name matches
+// we return that, otherwise undefined.
 Debug.findScript = function(func_or_script_name) {
   if (IS_FUNCTION(func_or_script_name)) {
     return %FunctionGetScript(func_or_script_name);
+  } else if (IS_REGEXP(func_or_script_name)) {
+    var scripts = Debug.scripts();
+    var last_result = null;
+    var result_count = 0;
+    for (var i in scripts) {
+      var script = scripts[i];
+      if (func_or_script_name.test(script.name)) {
+        last_result = script;
+        result_count++;
+      }
+    }
+    // Return the unique script matching the regexp.  If there are more
+    // than one we don't return a value since there is no good way to
+    // decide which one to return.  Returning a "random" one, say the
+    // first, would introduce nondeterminism (or something close to it)
+    // because the order is the heap iteration order.
+    if (result_count == 1) {
+      return last_result;
+    } else {
+      return undefined;
+    }
   } else {
     return %GetScript(func_or_script_name);
   }

@@ -1,4 +1,18 @@
-2008-08-13: Version 0.2.2 (130807)
+2008-08-14: Version 0.2.3
+
+        Improved performance of garbage collection by moving the
+        function that updates pointers during compacting collection
+        into the updating visitor.  This gives the compiler a better
+        chance to inline and avoid a function call per (potential)
+        pointer.
+
+        Extended the shell sample with a --runtime-flags option.
+
+        Added Visual Studio project files for the shell.cc and
+        process.cc samples.
+
+
+2008-08-13: Version 0.2.2
 
         Improved performance of garbage collection by changing the way
         we use the marking stack in the event of stack overflow during
@@ -16,7 +30,7 @@
         Added first version of Visual Studio project files.
 
 
-2008-08-06: Version 0.2.1 (130029)
+2008-08-06: Version 0.2.1
 
         Improved performance of unary addition by avoiding runtime calls.
 
@@ -38,7 +52,7 @@
         implementations.
 
 
-2008-07-30: Version 0.2.0 (129146)
+2008-07-30: Version 0.2.0
 
         Changed all text files to have native svn:eol-style.
 
@@ -75,7 +89,7 @@
         Merged disassembler-{arch} files.
 
 
-2008-07-28: Version 0.1.4 (128918)
+2008-07-28: Version 0.1.4
 
         Added support for storing JavaScript stack traces in a stack
         allocated buffer to make it visible in shallow core dumps.
@@ -83,7 +97,7 @@
         disabled by default.
 
 
-2008-07-25: Version 0.1.3 (128832)
+2008-07-25: Version 0.1.3
 
         Fixed bug in JSObject::GetPropertyAttributePostInterceptor where
         map transitions would count as properties.
@@ -103,7 +117,7 @@
         across multiple users of V8 when linked as a shared library.
 
 
-2008-07-16: Version 0.1.2 (127441)
+2008-07-16: Version 0.1.2
 
         Fixed building on Mac OS X by recognizing i386 and friends as
         IA-32 platforms.
@@ -119,7 +133,7 @@
         SetInternalFieldCount from FunctionTemplate to ObjectTemplate.
 
 
-2008-07-09: Version 0.1.1 (126448)
+2008-07-09: Version 0.1.1
 
         Fixed bug in stack overflow check code for IA-32 targets where a
         non-tagged value in register eax was pushed to the stack.
@@ -135,7 +149,7 @@
         setting break points in them.
 
 
-2008-07-03: Version 0.1.0 (125876)
+2008-07-03: Version 0.1.0
 
         Initial export.
 

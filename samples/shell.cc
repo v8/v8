@@ -31,12 +31,16 @@
 
 
 void RunShell(v8::Handle<v8::Context> context);
-bool ExecuteString(v8::Handle<v8::String> source);
+bool ExecuteString(v8::Handle<v8::String> source,
+                   v8::Handle<v8::Value> name,
+                   bool print_result);
 v8::Handle<v8::Value> Print(const v8::Arguments& args);
 v8::Handle<v8::String> ReadFile(const char* name);
+void ProcessRuntimeFlags(int argc, char* argv[]);
 
 
 int main(int argc, char* argv[]) {
+  ProcessRuntimeFlags(argc, argv);
   v8::HandleScope handle_scope;
   // Create a template for the global object.
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
@@ -51,14 +55,19 @@ int main(int argc, char* argv[]) {
     const char* str = argv[i];
     if (strcmp(str, "--shell") == 0) {
       run_shell = true;
+    } else if (strcmp(str, "--runtime-flags") == 0) {
+      // Skip the --runtime-flags flag since it was processed earlier.
+      i++;
     } else {
+      // Use all other arguments as names of files to load and run.
       v8::HandleScope handle_scope;
+      v8::Handle<v8::String> file_name = v8::String::New(str);
       v8::Handle<v8::String> source = ReadFile(str);
       if (source.IsEmpty()) {
         printf("Error reading '%s'\n", str);
         return 1;
       }
-      if (!ExecuteString(source))
+      if (!ExecuteString(source, file_name, false))
         return 1;
     }
   }
@@ -116,17 +125,19 @@ void RunShell(v8::Handle<v8::Context> context) {
     char* str = fgets(buffer, kBufferSize, stdin);
     if (str == NULL) break;
     v8::HandleScope handle_scope;
-    ExecuteString(v8::String::New(str));
+    ExecuteString(v8::String::New(str), v8::Undefined(), true);
   }
   printf("\n");
 }
 
 
 // Executes a string within the current v8 context.
-bool ExecuteString(v8::Handle<v8::String> source) {
+bool ExecuteString(v8::Handle<v8::String> source,
+                   v8::Handle<v8::Value> name,
+                   bool print_result) {
   v8::HandleScope handle_scope;
   v8::TryCatch try_catch;
-  v8::Handle<v8::Script> script = v8::Script::Compile(source);
+  v8::Handle<v8::Script> script = v8::Script::Compile(source, name);
   if (script.IsEmpty()) {
     // Print errors that happened during compilation.
     v8::String::AsciiValue error(try_catch.Exception());
@@ -140,13 +151,24 @@ bool ExecuteString(v8::Handle<v8::String> source) {
       printf("%s\n", *error);
       return false;
     } else {
-      if (!result->IsUndefined()) {
+      if (print_result && !result->IsUndefined()) {
         // If all went well and the result wasn't undefined then print
         // the returned value.
         v8::String::AsciiValue str(result);
         printf("%s\n", *str);
       }
       return true;
+    }
+  }
+}
+
+
+// Set the vm flags before using the vm.
+void ProcessRuntimeFlags(int argc, char* argv[]) {
+  for (int i = 1; i < argc; i++) {
+    if (strcmp(argv[i], "--runtime-flags") == 0 && i + 1 < argc) {
+      i++;
+      v8::V8::SetFlagsFromString(argv[i], strlen(argv[i]));
     }
   }
 }

@@ -42,7 +42,6 @@
 namespace v8 { namespace internal {
 
 DEFINE_bool(remote_debugging, false, "enable remote debugging");
-DEFINE_int(debug_port, 5858, "port for remote debugging");
 DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response");
 DECLARE_bool(allow_natives_syntax);
 DECLARE_bool(log_debugger);
@@ -556,7 +555,9 @@ bool Debug::Load() {
 
   // Bail out if we're already in the process of compiling the native
   // JavaScript source code for the debugger.
-  if (Debugger::compiling_natives()) return false;
+  if (Debugger::compiling_natives() || Debugger::is_loading_debugger())
+    return false;
+  Debugger::set_loading_debugger(true);
 
   // Disable breakpoints and interrupts while compiling and running the
   // debugger scripts including the context creation code.
@@ -586,6 +587,10 @@ bool Debug::Load() {
       !CompileDebuggerScript(Natives::GetIndex("mirror")) ||
       !CompileDebuggerScript(Natives::GetIndex("debug"));
   Debugger::set_compiling_natives(false);
+
+  // Make sure we mark the debugger as not loading before we might
+  // return.
+  Debugger::set_loading_debugger(false);
 
   // Check for caught exceptions.
   if (caught_exception) return false;
@@ -1295,6 +1300,7 @@ bool Debug::IsDebugGlobal(GlobalObject* global) {
 
 bool Debugger::debugger_active_ = false;
 bool Debugger::compiling_natives_ = false;
+bool Debugger::is_loading_debugger_ = false;
 DebugMessageThread* Debugger::message_thread_ = NULL;
 v8::DebugMessageHandler Debugger::debug_message_handler_ = NULL;
 void* Debugger::debug_message_handler_data_ = NULL;
