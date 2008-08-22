@@ -660,12 +660,10 @@ class ObjectLiteral: public MaterializedLiteral {
   };
 
   ObjectLiteral(Handle<FixedArray> constant_properties,
-                Expression* result,
                 ZoneList<Property*>* properties,
                 int literal_index)
       : MaterializedLiteral(literal_index),
         constant_properties_(constant_properties),
-        result_(result),
         properties_(properties) {
   }
 
@@ -674,12 +672,10 @@ class ObjectLiteral: public MaterializedLiteral {
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
   }
-  Expression* result() const { return result_; }
   ZoneList<Property*>* properties() const { return properties_; }
 
  private:
   Handle<FixedArray> constant_properties_;
-  Expression* result_;
   ZoneList<Property*>* properties_;
 };
 
@@ -709,20 +705,17 @@ class RegExpLiteral: public MaterializedLiteral {
 class ArrayLiteral: public Expression {
  public:
   ArrayLiteral(Handle<FixedArray> literals,
-               Expression* result,
                ZoneList<Expression*>* values)
-      : literals_(literals), result_(result), values_(values) {
+      : literals_(literals), values_(values) {
   }
 
   virtual void Accept(Visitor* v);
 
   Handle<FixedArray> literals() const { return literals_; }
-  Expression* result() const { return result_; }
   ZoneList<Expression*>* values() const { return values_; }
 
  private:
   Handle<FixedArray> literals_;
-  Expression* result_;
   ZoneList<Expression*>* values_;
 };
 
@@ -1119,6 +1112,7 @@ class FunctionLiteral: public Expression {
                   Scope* scope,
                   ZoneList<Statement*>* body,
                   int materialized_literal_count,
+                  bool contains_array_literal,
                   int expected_property_count,
                   int num_parameters,
                   int start_position,
@@ -1128,6 +1122,7 @@ class FunctionLiteral: public Expression {
         scope_(scope),
         body_(body),
         materialized_literal_count_(materialized_literal_count),
+        contains_array_literal_(contains_array_literal),
         expected_property_count_(expected_property_count),
         num_parameters_(num_parameters),
         start_position_(start_position),
@@ -1151,6 +1146,7 @@ class FunctionLiteral: public Expression {
   bool is_expression() const { return is_expression_; }
 
   int materialized_literal_count() { return materialized_literal_count_; }
+  bool contains_array_literal() { return contains_array_literal_; }
   int expected_property_count() { return expected_property_count_; }
   int num_parameters() { return num_parameters_; }
 
@@ -1161,6 +1157,7 @@ class FunctionLiteral: public Expression {
   Scope* scope_;
   ZoneList<Statement*>* body_;
   int materialized_literal_count_;
+  bool contains_array_literal_;
   int expected_property_count_;
   int num_parameters_;
   int start_position_;

@@ -44,6 +44,11 @@ POSSIBILITY OF SUCH DAMAGE.
 
 #include "../../../public/v8.h"
 
+// JSCRE is very chatty in debug mode, so in order to keep it slient
+// while still importing v8.h correctly (it contains #ifdef DEBUGs)
+// we allow DEBUG to be set and undef it manually.
+#undef DEBUG
+
 typedef uint16_t UChar;
 
 struct JSRegExp;

@@ -158,6 +158,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   Handle<JSFunction> fun =
       Factory::NewFunctionBoilerplate(lit->name(),
                                       lit->materialized_literal_count(),
+                                      lit->contains_array_literal(),
                                       code);
 
   CodeGenerator::SetFunctionInfo(fun, lit->scope()->num_parameters(),

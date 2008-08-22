@@ -1922,19 +1922,16 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
     case Token::SHR:
     case Token::SAR: {
       Label slow, exit;
-      __ pop(r1);  // get y
-      __ pop(r0);  // get x
+      __ pop(r0);  // get y
+      __ pop(r1);  // get x
       // tag check
       __ orr(r2, r1, Operand(r0));  // r2 = x | y;
       ASSERT(kSmiTag == 0);  // adjust code below
       __ tst(r2, Operand(kSmiTagMask));
       __ b(ne, &slow);
-       // get copies of operands
-      __ mov(r3, Operand(r0));
-      __ mov(r2, Operand(r1));
       // remove tags from operands (but keep sign)
-      __ mov(r3, Operand(r3, ASR, kSmiTagSize));
-      __ mov(r2, Operand(r2, ASR, kSmiTagSize));
+      __ mov(r3, Operand(r1, ASR, kSmiTagSize));
+      __ mov(r2, Operand(r0, ASR, kSmiTagSize));
       // use only the 5 least significant bits of the shift count
       __ and_(r2, r2, Operand(0x1f));
       // perform operation
@@ -1971,8 +1968,8 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
       __ b(&exit);
       // slow case
       __ bind(&slow);
-      __ push(r0);  // restore stack
-      __ push(r1);
+      __ push(r1);  // restore stack
+      __ push(r0);
       __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
       switch (op) {
         case Token::SAR: __ InvokeBuiltin("SAR", 1, CALL_JS); break;
@@ -2176,7 +2173,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Slow-case: Non-function called.
   masm->bind(&slow);
   masm->mov(r0, Operand(argc_));  // Setup the number of arguments.
-  masm->InvokeBuiltin("CALL_NON_FUNCTION", 0, JUMP_JS);
+  masm->InvokeBuiltin("CALL_NON_FUNCTION", argc_, JUMP_JS);
 }
 
 
@@ -3354,8 +3351,24 @@ void ArmCodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 
 void ArmCodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   Comment cmnt(masm_, "[ ArrayLiteral");
-  // Load the resulting object.
-  Load(node->result());
+
+  // Call runtime to create the array literal.
+  __ mov(r0, Operand(node->literals()));
+  __ push(r0);
+  // TODO(1332579): The second argument to CreateArrayLiteral is
+  // supposed to be the literals array of the function of this frame.
+  // Until the new ARM calling convention is in place, that function
+  // is not always available.  Therefore, on ARM we pass in the hole
+  // until the new calling convention is in place.
+  __ mov(r0, Operand(Factory::the_hole_value()));
+  __ push(r0);
+  __ CallRuntime(Runtime::kCreateArrayLiteral, 2);
+
+  // Push the resulting array literal on the stack.
+  __ push(r0);
+
+  // Generate code to set the elements in the array that are not
+  // literals.
   for (int i = 0; i < node->values()->length(); i++) {
     Expression* value = node->values()->at(i);
 

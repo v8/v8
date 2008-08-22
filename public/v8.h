@@ -43,9 +43,49 @@ typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef unsigned short uint16_t;
 typedef long long int64_t;
-#else
-#include <stdint.h>
+
+// Setup for Windows DLL export/import. When building the V8 DLL the
+// BUILDING_V8_SHARED needs to be defined. When building a program which uses
+// the V8 DLL USING_V8_SHARED needs to be defined. When either building the V8
+// static library or building a program which uses the V8 static library neither
+// BUILDING_V8_SHARED nor USING_V8_SHARED should be defined.
+// The reason for having both EXPORT and EXPORT_INLINE is that classes which
+// have their code inside this header file needs to have __declspec(dllexport)
+// when building the DLL but cannot have __declspec(dllimport) when building
+// a program which uses the DLL.
+#if defined(BUILDING_V8_SHARED) && defined(USING_V8_SHARED)
+#error both BUILDING_V8_SHARED and USING_V8_SHARED are set - please check the\
+  build configuration to ensure that at most one of these is set
 #endif
+
+#ifdef BUILDING_V8_SHARED
+#define EXPORT __declspec(dllexport)
+#define EXPORT_INLINE __declspec(dllexport)
+#elif USING_V8_SHARED
+#define EXPORT __declspec(dllimport)
+#define EXPORT_INLINE
+#else
+#define EXPORT
+#define EXPORT_INLINE
+#endif  // BUILDING_V8_SHARED
+
+#else  // _WIN32
+
+#include <stdint.h>
+
+// Setup for Linux shared library export. There is no need to destinguish
+// neither between building or using the V8 shared library nor between using
+// the shared or static V8 library as there is on Windows. Therefore there is
+// on checking of BUILDING_V8_SHARED and USING_V8_SHARED.
+#if defined(__GNUC__) && (__GNUC__ >= 4)
+#define EXPORT __attribute__ ((visibility("default")))
+#define EXPORT_INLINE __attribute__ ((visibility("default")))
+#else  // defined(__GNUC__) && (__GNUC__ >= 4)
+#define EXPORT
+#define EXPORT_INLINE
+#endif  // defined(__GNUC__) && (__GNUC__ >= 4)
+
+#endif  // _WIN32
 
 /**
  * The v8 javascript engine.
@@ -122,7 +162,7 @@ typedef void (*WeakReferenceCallback)(Persistent<Object> object,
  * behind the scenes and the same rules apply to these values as to
  * their handles.
  */
-template <class T> class Handle {
+template <class T> class EXPORT_INLINE Handle {
  public:
 
   /**
@@ -210,7 +250,7 @@ template <class T> class Handle {
  * handle scope are destroyed when the handle scope is destroyed.  Hence it
  * is not necessary to explicitly deallocate local handles.
  */
-template <class T> class Local : public Handle<T> {
+template <class T> class EXPORT_INLINE Local : public Handle<T> {
  public:
   Local();
   template <class S> inline Local(Local<S> that)
@@ -253,7 +293,7 @@ template <class T> class Local : public Handle<T> {
  * different storage cells but rather two references to the same
  * storage cell.
  */
-template <class T> class Persistent : public Handle<T> {
+template <class T> class EXPORT_INLINE Persistent : public Handle<T> {
  public:
 
   /**
@@ -348,7 +388,7 @@ template <class T> class Persistent : public Handle<T> {
  * handle and may deallocate it.  The behavior of accessing a handle
  * for which the handle scope has been deleted is undefined.
  */
-class HandleScope {
+class EXPORT HandleScope {
  public:
   HandleScope() : previous_(current_), is_closed_(false) {
     current_.extensions = 0;
@@ -386,7 +426,7 @@ class HandleScope {
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
-  class Data {
+  class EXPORT Data {
    public:
     int extensions;
     void** next;
@@ -434,7 +474,7 @@ class HandleScope {
 /**
  * The superclass of values and API object templates.
  */
-class Data {
+class EXPORT Data {
  private:
   Data();
 };
@@ -446,7 +486,7 @@ class Data {
  * compiling it, and stored between compilations.  When script data
  * is given to the compile method compilation will be faster.
  */
-class ScriptData {
+class EXPORT ScriptData {
  public:
   virtual ~ScriptData() { }
   static ScriptData* PreCompile(const char* input, int length);
@@ -460,7 +500,7 @@ class ScriptData {
 /**
  * The origin, within a file, of a script.
  */
-class ScriptOrigin {
+class EXPORT ScriptOrigin {
  public:
   ScriptOrigin(Handle<Value> resource_name,
                Handle<Integer> resource_line_offset = Handle<Integer>(),
@@ -481,7 +521,7 @@ class ScriptOrigin {
 /**
  * A compiled javascript script.
  */
-class Script {
+class EXPORT Script {
  public:
 
   /**
@@ -507,7 +547,7 @@ class Script {
 /**
  * An error message.
  */
-class Message {
+class EXPORT Message {
  public:
   Local<String> Get();
   Local<Value> GetSourceLine();
@@ -536,7 +576,7 @@ class Message {
 /**
  * The superclass of all javascript values and objects.
  */
-class Value : public Data {
+class EXPORT Value : public Data {
  public:
 
   /**
@@ -632,14 +672,14 @@ class Value : public Data {
 /**
  * The superclass of primitive values.  See ECMA-262 4.3.2.
  */
-class Primitive : public Value { };
+class EXPORT Primitive : public Value { };
 
 
 /**
  * A primitive boolean value (ECMA-262, 4.3.14).  Either the true
  * or false value.
  */
-class Boolean : public Primitive {
+class EXPORT Boolean : public Primitive {
  public:
   bool Value();
   static inline Handle<Boolean> New(bool value);
@@ -649,7 +689,7 @@ class Boolean : public Primitive {
 /**
  * A javascript string value (ECMA-262, 4.3.17).
  */
-class String : public Primitive {
+class EXPORT String : public Primitive {
  public:
   int Length();
 
@@ -690,7 +730,7 @@ class String : public Primitive {
   * ExternalStringResource to manage the life cycle of the underlying
   * buffer.
   */
-  class ExternalStringResource {
+  class EXPORT ExternalStringResource {
    public:
     /**
      * Override the destructor to manage the life cycle of the underlying
@@ -715,7 +755,7 @@ class String : public Primitive {
   * underlying buffer.
   */
 
-  class ExternalAsciiStringResource {
+  class EXPORT ExternalAsciiStringResource {
    public:
     /**
      * Override the destructor to manage the life cycle of the underlying
@@ -794,7 +834,7 @@ class String : public Primitive {
    * Converts an object to an ascii string.
    * Useful if you want to print the object.
    */
-  class AsciiValue {
+  class EXPORT AsciiValue {
    public:
     explicit AsciiValue(Handle<v8::Value> obj);
     ~AsciiValue();
@@ -806,7 +846,7 @@ class String : public Primitive {
   /**
    * Converts an object to a two-byte string.
    */
-  class Value {
+  class EXPORT Value {
    public:
     explicit Value(Handle<v8::Value> obj);
     ~Value();
@@ -820,7 +860,7 @@ class String : public Primitive {
 /**
  * A javascript number value (ECMA-262, 4.3.20)
  */
-class Number : public Primitive {
+class EXPORT Number : public Primitive {
  public:
   double Value();
   static Local<Number> New(double value);
@@ -833,7 +873,7 @@ class Number : public Primitive {
 /**
  * A javascript value representing a signed integer.
  */
-class Integer : public Number {
+class EXPORT Integer : public Number {
  public:
   static Local<Integer> New(int32_t value);
   int64_t Value();
@@ -846,7 +886,7 @@ class Integer : public Number {
 /**
  * A javascript value representing a 32-bit signed integer.
  */
-class Int32 : public Integer {
+class EXPORT Int32 : public Integer {
  public:
   int32_t Value();
  private:
@@ -857,7 +897,7 @@ class Int32 : public Integer {
 /**
  * A javascript value representing a 32-bit unsigned integer.
  */
-class Uint32 : public Integer {
+class EXPORT Uint32 : public Integer {
  public:
   uint32_t Value();
  private:
@@ -868,7 +908,7 @@ class Uint32 : public Integer {
 /**
  * An instance of the built-in Date constructor (ECMA-262, 15.9).
  */
-class Date : public Value {
+class EXPORT Date : public Value {
  public:
   static Local<Value> New(double time);
 };
@@ -884,7 +924,7 @@ enum PropertyAttribute {
 /**
  * A javascript object (ECMA-262, 4.3.3)
  */
-class Object : public Value {
+class EXPORT Object : public Value {
  public:
   bool Set(Handle<Value> key,
            Handle<Value> value,
@@ -947,7 +987,7 @@ class Object : public Value {
 /**
  * An instance of the built-in array constructor (ECMA-262, 15.4.2).
  */
-class Array : public Object {
+class EXPORT Array : public Object {
  public:
   uint32_t Length();
 
@@ -961,7 +1001,7 @@ class Array : public Object {
 /**
  * A javascript function object (ECMA-262, 15.3).
  */
-class Function : public Object {
+class EXPORT Function : public Object {
  public:
   Local<Object> NewInstance();
   Local<Object> NewInstance(int argc, Handle<Value> argv[]);
@@ -979,7 +1019,7 @@ class Function : public Object {
  * mainly used to associate c++ data structures with javascript
  * objects.
  */
-class External : public Value {
+class EXPORT External : public Value {
  public:
   static Local<External> New(void* value);
   static External* Cast(Value* obj);
@@ -995,7 +1035,7 @@ class External : public Value {
 /**
  * The superclass of object and function templates.
  */
-class Template : public Data {
+class EXPORT Template : public Data {
  public:
   /** Adds a property to each instance created by this template.*/
   void Set(Handle<String> name, Handle<Data> value,
@@ -1015,7 +1055,7 @@ class Template : public Data {
  * including the receiver, the number and values of arguments, and
  * the holder of the function.
  */
-class Arguments {
+class EXPORT Arguments {
  public:
   inline int Length() const;
   inline Local<Value> operator[](int i) const;
@@ -1045,7 +1085,7 @@ class Arguments {
  * The information passed to an accessor callback about the context
  * of the property access.
  */
-class AccessorInfo {
+class EXPORT AccessorInfo {
  public:
   inline AccessorInfo(Local<Object> self,
                       Local<Value> data,
@@ -1266,7 +1306,7 @@ typedef bool (*IndexedSecurityCallback)(Local<Object> global,
  *   child_instance.instance_accessor calls InstanceAccessorCallback
  *   child_instance.instance_property == 3;
  */
-class FunctionTemplate : public Template {
+class EXPORT FunctionTemplate : public Template {
  public:
   /** Creates a function template.*/
   static Local<FunctionTemplate> New(InvocationCallback callback = 0,
@@ -1338,7 +1378,7 @@ class FunctionTemplate : public Template {
 /**
  * ObjectTemplate: (TODO(758124): Add comments.)
  */
-class ObjectTemplate : public Template {
+class EXPORT ObjectTemplate : public Template {
  public:
   static Local<ObjectTemplate> New();
   /** Creates a new instance of this template.*/
@@ -1433,7 +1473,7 @@ class ObjectTemplate : public Template {
  * A function signature which specifies which receivers and arguments
  * in can legally be called with.
  */
-class Signature : public Data {
+class EXPORT Signature : public Data {
  public:
   static Local<Signature> New(Handle<FunctionTemplate> receiver =
                                   Handle<FunctionTemplate>(),
@@ -1448,7 +1488,7 @@ class Signature : public Data {
  * A utility for determining the type of objects based on which
  * template they were constructed from.
  */
-class TypeSwitch : public Data {
+class EXPORT TypeSwitch : public Data {
  public:
   static Local<TypeSwitch> New(Handle<FunctionTemplate> type);
   static Local<TypeSwitch> New(int argc, Handle<FunctionTemplate> types[]);
@@ -1464,7 +1504,7 @@ class TypeSwitch : public Data {
 /**
  * Ignore
  */
-class Extension {
+class EXPORT Extension {
  public:
   Extension(const char* name,
             const char* source = 0,
@@ -1492,13 +1532,13 @@ class Extension {
 };
 
 
-void RegisterExtension(Extension* extension);
+void EXPORT RegisterExtension(Extension* extension);
 
 
 /**
  * Ignore
  */
-class DeclareExtension {
+class EXPORT DeclareExtension {
  public:
   inline DeclareExtension(Extension* extension) {
     RegisterExtension(extension);
@@ -1509,17 +1549,17 @@ class DeclareExtension {
 // --- S t a t i c s ---
 
 
-Handle<Primitive> Undefined();
-Handle<Primitive> Null();
-Handle<Boolean> True();
-Handle<Boolean> False();
+Handle<Primitive> EXPORT Undefined();
+Handle<Primitive> EXPORT Null();
+Handle<Boolean> EXPORT True();
+Handle<Boolean> EXPORT False();
 
 
 /**
  * A set of constraints that specifies the limits of the runtime's
  * memory use.
  */
-class ResourceConstraints {
+class EXPORT ResourceConstraints {
  public:
   ResourceConstraints();
   int max_young_space_size() { return max_young_space_size_; }
@@ -1553,13 +1593,13 @@ typedef void (*MessageCallback)(Handle<Message> message, Handle<Value> data);
  * operation; the caller must return immediately and only after the exception
  * has been handled does it become legal to invoke javascript operations.
  */
-Handle<Value> ThrowException(Handle<Value> exception);
+Handle<Value> EXPORT ThrowException(Handle<Value> exception);
 
 /**
  * Create new error objects by calling the corresponding error object
  * constructor with the message.
  */
-class Exception {
+class EXPORT Exception {
  public:
   static Local<Value> RangeError(Handle<String> message);
   static Local<Value> ReferenceError(Handle<String> message);
@@ -1603,7 +1643,7 @@ typedef Persistent<Context> (*ContextGenerator)();
 /**
  * Container class for static utility functions.
  */
-class V8 {
+class EXPORT V8 {
  public:
   static void SetFatalErrorHandler(FatalErrorCallback that);
 
@@ -1711,7 +1751,7 @@ class V8 {
 /**
  * An external exception handler.
  */
-class TryCatch {
+class EXPORT TryCatch {
  public:
 
   /**
@@ -1763,7 +1803,7 @@ class TryCatch {
 /**
  * Ignore
  */
-class ExtensionConfiguration {
+class EXPORT ExtensionConfiguration {
  public:
   ExtensionConfiguration(int name_count, const char* names[])
       : name_count_(name_count), names_(names) { }
@@ -1778,7 +1818,7 @@ class ExtensionConfiguration {
  * A sandboxed execution context with its own set of built-in objects
  * and functions.
  */
-class Context {
+class EXPORT Context {
  public:
   Local<Object> Global();
 
@@ -1821,7 +1861,7 @@ class Context {
    * Stack-allocated class which sets the execution context for all
    * operations executed within a local scope.
    */
-  class Scope {
+  class EXPORT Scope {
    public:
     inline Scope(Handle<Context> context) : context_(context) {
       context_->Enter();
@@ -1901,14 +1941,14 @@ class Context {
  * }
  * // V8 Now no longer locked.
  */
-class Unlocker {
+class EXPORT Unlocker {
  public:
   Unlocker();
   ~Unlocker();
 };
 
 
-class Locker {
+class EXPORT Locker {
  public:
   Locker();
   ~Locker();
@@ -2100,6 +2140,7 @@ void Template::Set(const char* name, v8::Handle<Data> value) {
 
 
 #undef EXPORT
+#undef EXPORT_INLINE
 #undef TYPE_CHECK
 
 

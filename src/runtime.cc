@@ -93,11 +93,6 @@ static Object* IllegalOperation() {
 
 static Object* Runtime_CloneObjectLiteralBoilerplate(Arguments args) {
   CONVERT_CHECKED(JSObject, boilerplate, args[0]);
-
-  // Verify that the constructor of the boilerplate is equal to the
-  // object function in the current global context.
-  ASSERT(boilerplate->map()->constructor() ==
-         Top::context()->global_context()->object_function());
   return boilerplate->Copy();
 }
 
@@ -110,9 +105,16 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
   int literals_index = Smi::cast(args[1])->value();
   Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
 
-  // Create the boilerplate object for the function literal
-  Handle<JSObject> boilerplate =
-      Factory::NewJSObject(Top::object_function(), TENURED);
+  // Get the object function from the literals array.  This is the
+  // object function from the context in which the function was
+  // created.  We do not use the object function from the current
+  // global context because this might be the object function from
+  // another context which we should not have access to.
+  const int kObjectFunIndex = JSFunction::kLiteralObjectFunctionIndex;
+  Handle<JSFunction> constructor =
+      Handle<JSFunction>(JSFunction::cast(literals->get(kObjectFunIndex)));
+
+  Handle<JSObject> boilerplate = Factory::NewJSObject(constructor, TENURED);
 
   {  // Add the constant propeties to the boilerplate.
     int length = constant_properties->length();
@@ -150,25 +152,40 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
 
 
 static Object* Runtime_CreateArrayLiteral(Arguments args) {
-  // Takes a FixedArray containing literals and produces
-  // JSArray with the elements matching the literals.
-  ASSERT(args.length() == 1);
-  CONVERT_CHECKED(FixedArray, literals, args[0]);
+  // Takes a FixedArray of elements containing the literal elements of
+  // the array literal and produces JSArray with those elements.
+  // Additionally takes the literals array of the surrounding function
+  // which contains the Array function to use for creating the array
+  // literal.
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(FixedArray, elements, args[0]);
 
-  // Retrieve the array constructor from the global context.
+#ifdef USE_OLD_CALLING_CONVENTIONS
+  ASSERT(args[1]->IsTheHole());
+  // TODO(1332579): Pass in the literals array from the function once
+  // the new calling convention is in place on ARM.  Currently, we
+  // retrieve the array constructor from the global context.  This is
+  // a security problem since the global object might have been
+  // reinitialized and the array constructor from the global context
+  // might be from a context that we are not allowed to access.
   JSFunction* constructor =
       JSFunction::cast(Top::context()->global_context()->array_function());
+#else
+  CONVERT_CHECKED(FixedArray, literals, args[1]);
+  const int kArrayFunIndex = JSFunction::kLiteralArrayFunctionIndex;
+  JSFunction* constructor = JSFunction::cast(literals->get(kArrayFunIndex));
+#endif
 
   // Create the JSArray.
   Object* object = Heap::AllocateJSObject(constructor);
   if (object->IsFailure()) return object;
 
-  // Copy the literals.
-  Object* elements = literals->Copy();
-  if (elements->IsFailure()) return elements;
+  // Copy the elements.
+  Object* content = elements->Copy();
+  if (content->IsFailure()) return content;
 
   // Set the elements.
-  JSArray::cast(object)->SetContent(FixedArray::cast(elements));
+  JSArray::cast(object)->SetContent(FixedArray::cast(content));
   return object;
 }
 
@@ -691,10 +708,20 @@ static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   Handle<String> pattern = args.at<String>(2);
   Handle<String> flags = args.at<String>(3);
 
+  // Get the RegExp function from the literals array.  This is the
+  // RegExp function from the context in which the function was
+  // created.  We do not use the RegExp function from the current
+  // global context because this might be the RegExp function from
+  // another context which we should not have access to.
+  const int kRegexpFunIndex = JSFunction::kLiteralRegExpFunctionIndex;
+  Handle<JSFunction> constructor =
+      Handle<JSFunction>(JSFunction::cast(literals->get(kRegexpFunIndex)));
+
   // Compute the regular expression literal.
   bool has_pending_exception;
   Handle<Object> regexp =
-      RegExpImpl::CreateRegExpLiteral(pattern, flags, &has_pending_exception);
+      RegExpImpl::CreateRegExpLiteral(constructor, pattern, flags,
+                                      &has_pending_exception);
   if (has_pending_exception) {
     ASSERT(Top::has_pending_exception());
     return Failure::Exception();
@@ -807,12 +834,21 @@ static Object* Runtime_SetCode(Arguments args) {
 
     // Make sure we get a fresh copy of the literal vector to avoid
     // cross context contamination.
-    int number_of_literals = fun->literals()->length();
+    int number_of_literals = fun->NumberOfLiterals();
+    Handle<FixedArray> literals =
+        Factory::NewFixedArray(number_of_literals, TENURED);
     if (number_of_literals > 0) {
-      Handle<FixedArray> literals =
-          Factory::NewFixedArray(number_of_literals, TENURED);
-      target->set_literals(*literals);
+      // Insert the object, regexp and array functions in the literals
+      // array prefix.  These are the functions that will be used when
+      // creating object, regexp and array literals.
+      literals->set(JSFunction::kLiteralObjectFunctionIndex,
+                    context->global_context()->object_function());
+      literals->set(JSFunction::kLiteralRegExpFunctionIndex,
+                    context->global_context()->regexp_function());
+      literals->set(JSFunction::kLiteralArrayFunctionIndex,
+                    context->global_context()->array_function());
     }
+    target->set_literals(*literals);
   }
 
   target->set_context(*context);

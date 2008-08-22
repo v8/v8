@@ -85,18 +85,19 @@ void RegExpImpl::OldSpaceCollectionPrologue() {
 }
 
 
-Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<String> pattern,
+Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
+                                               Handle<String> pattern,
                                                Handle<String> flags,
                                                bool* has_pending_exception) {
-  // Ensure that RegExp has been loaded.
-  if (!Top::regexp_function()->IsLoaded()) {
-    LoadLazy(Top::regexp_function(), has_pending_exception);
+  // Ensure that the constructor function has been loaded.
+  if (!constructor->IsLoaded()) {
+    LoadLazy(constructor, has_pending_exception);
     if (*has_pending_exception) return Handle<Object>(Failure::Exception());
   }
   // Call the construct code with 2 arguments.
   Object** argv[2] = { Handle<Object>::cast(pattern).location(),
                        Handle<Object>::cast(flags).location() };
-  return Execution::New(Top::regexp_function(), 2, argv, has_pending_exception);
+  return Execution::New(constructor, 2, argv, has_pending_exception);
 }
 
 

@@ -101,7 +101,6 @@ namespace v8 { namespace internal {
   V(ADD, 1)                    \
   V(SUB, 1)                    \
   V(MUL, 1)                    \
-  V(MULNEG, 1)                 \
   V(DIV, 1)                    \
   V(MOD, 1)                    \
   V(INC, 0)                    \

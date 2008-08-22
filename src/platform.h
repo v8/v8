@@ -390,32 +390,37 @@ class Semaphore {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 // ----------------------------------------------------------------------------
-// ProfileSampler
+// Sampler
 //
-// A profile sampler periodically samples the program counter and stack pointer
-// for the thread that created it.
+// A sampler periodically samples the state of the VM and optionally
+// (if used for profiling) the program counter and stack pointer for
+// the thread that created it.
 
-// TickSample captures the information collected
-// for each profiling sample.
-struct TickSample {
+// TickSample captures the information collected for each sample.
+class TickSample {
+ public:
+  TickSample() : pc(0), sp(0), state(OTHER) {}
   unsigned int pc;  // Instruction pointer.
   unsigned int sp;  // Stack pointer.
-  StateTag state;    // The state of the VM.
+  StateTag state;   // The state of the VM.
 };
 
-class ProfileSampler {
+class Sampler {
  public:
   // Initialize sampler.
-  explicit ProfileSampler(int interval);
-  virtual ~ProfileSampler();
+  explicit Sampler(int interval, bool profiling);
+  virtual ~Sampler();
 
-  // This method is called for each sampling period with the current program
-  // counter.
+  // This method is called for each sampling period with the current
+  // program counter.
   virtual void Tick(TickSample* sample) = 0;
 
   // Start and stop sampler.
   void Start();
   void Stop();
+
+  // Is the sampler used for profiling.
+  inline bool IsProfiling() { return profiling_; }
 
   class PlatformData;
  protected:
@@ -423,9 +428,10 @@ class ProfileSampler {
 
  private:
   int interval_;
+  bool profiling_;
   bool active_;
   PlatformData* data_;  // Platform specific data.
-  DISALLOW_IMPLICIT_CONSTRUCTORS(ProfileSampler);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

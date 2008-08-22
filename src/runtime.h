@@ -237,7 +237,7 @@ namespace v8 { namespace internal {
   \
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4)\
-  F(CreateArrayLiteral, 1) \
+  F(CreateArrayLiteral, 2) \
   F(CreateObjectLiteralBoilerplate, 3) \
   F(CloneObjectLiteralBoilerplate, 1) \
   \

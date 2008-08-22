@@ -172,11 +172,6 @@ function MUL(x) {
 };
 
 
-function MULNEG(x) {
-  return %NumberUnaryMinus(%NumberMul(%ToNumber(this), %ToNumber(x)));
-};
-
-
 // ECMA-262, section 11.5.2, page 49.
 function DIV(x) {
   return %NumberDiv(%ToNumber(this), %ToNumber(x));
@@ -358,7 +353,7 @@ function APPLY_PREPARE(args) {
       %ClassOf(args) != 'Arguments') {
     throw %MakeTypeError('apply_wrong_args', []);
   }
-  
+
   // Return the length which is the number of arguments to copy to the
   // stack. It is guaranteed to be a small integer at this point.
   return length;

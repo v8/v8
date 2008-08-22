@@ -1,5 +1,9 @@
 This directory contains Microsoft Visual Studio project files for including v8
-in a Visual Studio solution.
+in a Visual Studio/Visual C++ Express solution. All these project files have
+been created for use with Microsoft Visual Studio 2005. They can however also
+be used in both Visual Studio 2008 and Visual C++ 2008 Express Edition. When
+using the project files in the 2008 editions minor upgrades to the files will
+be performed by Visual Studio.
 
 v8_base.vcproj
 --------------

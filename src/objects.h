@@ -2568,6 +2568,14 @@ class JSFunction: public JSObject {
   inline bool IsLoaded();
 
   // [literals]: Fixed array holding the materialized literals.
+  //
+  // If the function contains object, regexp or array literals, the
+  // literals array prefix contains the object, regexp, and array
+  // function to be used when creating these literals.  This is
+  // necessary so that we do not dynamically lookup the object, regexp
+  // or array functions.  Performing a dynamic lookup, we might end up
+  // using the functions from a new context that we should not have
+  // access to.
   DECL_ACCESSORS(literals, FixedArray)
 
   // The initial map for an object created by this constructor.
@@ -2619,6 +2627,12 @@ class JSFunction: public JSObject {
   static const int kContextOffset = kSharedFunctionInfoOffset + kPointerSize;
   static const int kLiteralsOffset = kContextOffset + kPointerSize;
   static const int kSize = kLiteralsOffset + kPointerSize;
+
+  // Layout of the literals array.
+  static const int kLiteralsPrefixSize = 3;
+  static const int kLiteralObjectFunctionIndex = 0;
+  static const int kLiteralRegExpFunctionIndex = 1;
+  static const int kLiteralArrayFunctionIndex = 2;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);

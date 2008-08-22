@@ -1614,8 +1614,7 @@ void OldSpace::Verify() {
         ASSERT(!object->IsMap());
 
         // The object itself should look OK.
-        // This is blocked by bug #1006953.
-        // object->Verify();
+        object->Verify();
 
         // All the interior pointers should be contained in the heap and have
         // their remembered set bits set if they point to new space.  Code
@@ -2091,8 +2090,7 @@ void MapSpace::Verify() {
         ASSERT(object->IsMap() || object->IsByteArray());
 
         // The object itself should look OK.
-        // This is blocked by bug #1006953.
-        // object->Verify();
+        object->Verify();
 
         // All the interior pointers should be contained in the heap and
         // have their remembered set bits set if they point to new space.
@@ -2429,8 +2427,7 @@ void LargeObjectSpace::Verify() {
            || object->IsFixedArray() || object->IsByteArray());
 
     // The object itself should look OK.
-    // This is blocked by bug #1006953.
-    // object->Verify();
+    object->Verify();
 
     // Byte arrays and strings don't have interior pointers.
     if (object->IsCode()) {

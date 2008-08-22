@@ -189,8 +189,6 @@ class Ia32CodeGenerator: public CodeGenerator {
   void UnloadReference(Reference* ref);
   friend class Reference;
 
-  bool TryDeferNegate(Expression* x);
-
   // State
   bool has_cc() const  { return cc_reg_ >= 0; }
   CodeGenState::AccessType access() const  { return state_->access(); }
@@ -256,8 +254,7 @@ class Ia32CodeGenerator: public CodeGenerator {
 
   void GenericBinaryOperation(
       Token::Value op,
-      const OverwriteMode overwrite_mode = NO_OVERWRITE,
-      bool negate_result = false);
+      const OverwriteMode overwrite_mode = NO_OVERWRITE);
   void Comparison(Condition cc, bool strict = false);
 
   void SmiComparison(Condition cc,  Handle<Object> value, bool strict = false);
@@ -1080,35 +1077,31 @@ class FloatingPointHelper : public AllStatic {
 
 class GenericBinaryOpStub: public CodeStub {
  public:
-  GenericBinaryOpStub(Token::Value op, OverwriteMode mode, bool negate_result)
-      : op_(op), mode_(mode), negate_result_(negate_result) { }
+  GenericBinaryOpStub(Token::Value op, OverwriteMode mode)
+      : op_(op), mode_(mode) { }
 
  private:
   Token::Value op_;
   OverwriteMode mode_;
-  bool negate_result_;
 
   const char* GetName();
 
 #ifdef DEBUG
   void Print() {
-    PrintF("GenericBinaryOpStub (op %s), (mode %d), (negate_result %s)\n",
+    PrintF("GenericBinaryOpStub (op %s), (mode %d)\n",
            Token::String(op_),
-           static_cast<int>(mode_),
-           negate_result_ ? "true" : "false");
+           static_cast<int>(mode_));
   }
 #endif
 
-  // Minor key encoding in 16 bits OOOOOOOOOOOOOMMN.
-  class NegateBits: public BitField<bool, 0, 1> {};
-  class ModeBits: public BitField<OverwriteMode, 1, 2> {};
-  class OpBits: public BitField<Token::Value, 3, 13> {};
+  // Minor key encoding in 16 bits OOOOOOOOOOOOOOMM.
+  class ModeBits: public BitField<OverwriteMode, 0, 2> {};
+  class OpBits: public BitField<Token::Value, 2, 14> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
-    // Encode the three parameters in a unique 16 bit value.
-    return NegateBits::encode(negate_result_) |
-           OpBits::encode(op_) |
+    // Encode the parameters in a unique 16 bit value.
+    return OpBits::encode(op_) |
            ModeBits::encode(mode_);
   }
   void Generate(MacroAssembler* masm);
@@ -1134,7 +1127,6 @@ const char* GenericBinaryOpStub::GetName() {
 
 void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
   Label call_runtime;
-  if (negate_result_ && op_ != Token::MUL) UNIMPLEMENTED();
   __ mov(eax, Operand(esp, 1 * kPointerSize));  // Get y.
   __ mov(edx, Operand(esp, 2 * kPointerSize));  // Get x.
 
@@ -1209,13 +1201,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ j(overflow, &non_smi_result, not_taken);
       // ...but operands OK for float arithmetic.
 
-      if (negate_result_) {
-        __ xor_(ecx, Operand(ecx));
-        __ sub(ecx, Operand(eax));
-        // Go slow on overflows.
-        __ j(overflow, &non_smi_result, not_taken);
-        __ mov(eax, Operand(ecx));
-      }
       // If the result is +0 we may need to check if the result should
       // really be -0. Welcome to the -0 fan club.
       __ NegativeZeroTest(eax, ebx, edx, ecx, &non_smi_result);
@@ -1355,7 +1340,6 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         case Token::DIV: __ fdivp(1); break;
         default: UNREACHABLE();
       }
-      if (negate_result_) __ fchs();
       __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
       __ ret(2 * kPointerSize);
     }
@@ -1468,9 +1452,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ InvokeBuiltin(Builtins::SUB, JUMP_FUNCTION);
       break;
     case Token::MUL:
-      __ InvokeBuiltin(negate_result_ ? Builtins::MULNEG
-                                      : Builtins::MUL,
-                       JUMP_FUNCTION);
+      __ InvokeBuiltin(Builtins::MUL, JUMP_FUNCTION);
         break;
     case Token::DIV:
       __ InvokeBuiltin(Builtins::DIV, JUMP_FUNCTION);
@@ -1588,10 +1570,11 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   Label undo;
   Label slow;
   Label done;
+  Label try_float;
 
-  // Enter runtime system if the value is not a smi.
+  // Check whether the value is a smi.
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow, not_taken);
+  __ j(not_zero, &try_float, not_taken);
 
   // Enter runtime system if the value of the expression is zero
   // to make sure that we switch between 0 and -0.
@@ -1609,7 +1592,7 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, &done, taken);
 
-  // Undo optimistic sub and enter runtime system.
+  // Restore eax and enter runtime system.
   __ bind(&undo);
   __ mov(eax, Operand(edx));
 
@@ -1619,6 +1602,19 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   __ push(eax);
   __ push(ecx);  // push return address
   __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_FUNCTION);
+
+  // Try floating point case.
+  __ bind(&try_float);
+  __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ cmp(edx, Factory::heap_number_map());
+  __ j(not_equal, &slow);
+  __ mov(edx, Operand(eax));
+  // edx: operand
+  FloatingPointHelper::AllocateHeapNumber(masm, &undo, ebx, ecx);
+  // eax: allocated 'empty' number
+  __ fld_d(FieldOperand(edx, HeapNumber::kValueOffset));
+  __ fchs();
+  __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
 
   __ bind(&done);
 
@@ -1725,18 +1721,16 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 
 
 void Ia32CodeGenerator::GenericBinaryOperation(Token::Value op,
-                                               OverwriteMode overwrite_mode,
-                                               bool negate_result) {
+                                               OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
-  if (negate_result && op != Token::MUL) UNIMPLEMENTED();
   switch (op) {
     case Token::ADD:
     case Token::SUB:
     case Token::MUL:
     case Token::DIV:
     case Token::MOD: {
-      GenericBinaryOpStub stub(op, overwrite_mode, negate_result);
+      GenericBinaryOpStub stub(op, overwrite_mode);
       __ CallStub(&stub);
       __ push(eax);
       break;
@@ -1763,7 +1757,7 @@ void Ia32CodeGenerator::GenericBinaryOperation(Token::Value op,
       __ bind(&slow);
       __ push(edx);  // restore stack slots
       __ push(eax);
-      GenericBinaryOpStub stub(op, overwrite_mode, false);
+      GenericBinaryOpStub stub(op, overwrite_mode);
       __ CallStub(&stub);
       __ bind(&exit);
       __ push(eax);  // push the result to the stack
@@ -1821,7 +1815,7 @@ void Ia32CodeGenerator::GenericBinaryOperation(Token::Value op,
       __ bind(&slow);
       __ push(eax);  // restore stack
       __ push(edx);
-        GenericBinaryOpStub stub(op, overwrite_mode, false);
+        GenericBinaryOpStub stub(op, overwrite_mode);
       __ CallStub(&stub);
       __ bind(&exit);
       __ push(eax);
@@ -1851,7 +1845,7 @@ class DeferredInlinedSmiOperation: public DeferredCode {
   virtual void Generate() {
     __ push(eax);
     __ push(Immediate(Smi::FromInt(value_)));
-    GenericBinaryOpStub igostub(op_, overwrite_mode_, false);
+    GenericBinaryOpStub igostub(op_, overwrite_mode_);
     __ CallStub(&igostub);
   }
 
@@ -1874,7 +1868,7 @@ class DeferredInlinedSmiOperationReversed: public DeferredCode {
   virtual void Generate() {
     __ push(Immediate(Smi::FromInt(value_)));
     __ push(eax);
-    GenericBinaryOpStub igostub(op_, overwrite_mode_, false);
+    GenericBinaryOpStub igostub(op_, overwrite_mode_);
     __ CallStub(&igostub);
   }
 
@@ -1899,7 +1893,7 @@ class DeferredInlinedSmiAdd: public DeferredCode {
     __ sub(Operand(eax), immediate);
     __ push(eax);
     __ push(immediate);
-    GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, false);
+    GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_);
     __ CallStub(&igostub);
   }
 
@@ -1923,7 +1917,7 @@ class DeferredInlinedSmiAddReversed: public DeferredCode {
     __ sub(Operand(eax), immediate);
     __ push(immediate);
     __ push(eax);
-    GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, false);
+    GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_);
     __ CallStub(&igostub);
   }
 
@@ -1947,7 +1941,7 @@ class DeferredInlinedSmiSub: public DeferredCode {
     __ add(Operand(eax), immediate);
     __ push(eax);
     __ push(immediate);
-    GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, false);
+    GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_);
     __ CallStub(&igostub);
   }
 
@@ -1973,7 +1967,7 @@ class DeferredInlinedSmiSubReversed: public DeferredCode {
     __ add(eax, Operand(tos_reg_));
     __ push(eax);
     __ push(Operand(tos_reg_));
-    GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, false);
+    GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_);
     __ CallStub(&igostub);
   }
 
@@ -2971,9 +2965,6 @@ void Ia32CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ mov(eax, Operand(esp, 0 * kPointerSize));  // load the current count
   __ cmp(eax, Operand(esp, kPointerSize));  // compare to the array length
   __ j(above_equal, &cleanup);
-  // TODO(1222589): remove redundant load here, which is only needed in
-  // PUSH_TOS/POP_TOS mode
-  __ mov(eax, Operand(esp, 0 * kPointerSize));  // load the current count
 
   // Get the i'th entry of the array.
   __ mov(edx, Operand(esp, 2 * kPointerSize));
@@ -3668,8 +3659,21 @@ void Ia32CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 
 void Ia32CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   Comment cmnt(masm_, "[ ArrayLiteral");
-  // Load the resulting object.
-  Load(node->result());
+
+  // Call runtime to create the array literal.
+  __ push(Immediate(node->literals()));
+  // Load the function of this frame.
+  __ mov(ecx, FunctionOperand());
+  // Load the literals array of the function.
+  __ mov(ecx, FieldOperand(ecx, JSFunction::kLiteralsOffset));
+  __ push(ecx);
+  __ CallRuntime(Runtime::kCreateArrayLiteral, 2);
+
+  // Push the resulting array literal on the stack.
+  __ push(eax);
+
+  // Generate code to set the elements in the array that are not
+  // literals.
   for (int i = 0; i < node->values()->length(); i++) {
     Expression* value = node->values()->at(i);
 
@@ -4578,20 +4582,6 @@ void Ia32CodeGenerator::VisitCountOperation(CountOperation* node) {
 }
 
 
-// Returns 'true' if able to defer negation to the consuming arithmetic
-// operation.
-bool Ia32CodeGenerator::TryDeferNegate(Expression* x) {
-  UnaryOperation* unary = x->AsUnaryOperation();
-  if (FLAG_defer_negation && unary != NULL && unary->op() == Token::SUB) {
-    Load(unary->expression());
-    return true;
-  } else {
-    Load(x);
-    return false;
-  }
-}
-
-
 void Ia32CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Token::Value op = node->op();
@@ -4706,16 +4696,9 @@ void Ia32CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       SmiOperation(node->op(), lliteral->handle(), true, overwrite_mode);
 
     } else {
-      bool negate_result = false;
-      if (node->op() == Token::MUL) {  // Implement only MUL for starters
-        bool left_negated = TryDeferNegate(node->left());
-        bool right_negated = TryDeferNegate(node->right());
-        negate_result = left_negated != right_negated;
-      } else {
-        Load(node->left());
-        Load(node->right());
-      }
-      GenericBinaryOperation(node->op(), overwrite_mode, negate_result);
+      Load(node->left());
+      Load(node->right());
+      GenericBinaryOperation(node->op(), overwrite_mode);
     }
   }
 }
@@ -5207,7 +5190,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
     // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
     // correct here, but computed for the other call. Very error
     // prone! FIX THIS.  Actually there are deeper problems with
-    // register saving than this assymetry (see the buganizer report
+    // register saving than this assymetry (see the bug report
     // associated with this issue).
     __ PushRegistersFromMemory(kJSCallerSaved);
   }

@@ -34,7 +34,8 @@ class RegExpImpl {
  public:
   // Creates a regular expression literal in the old space.
   // This function calls the garbage collector if necessary.
-  static Handle<Object> CreateRegExpLiteral(Handle<String> pattern,
+  static Handle<Object> CreateRegExpLiteral(Handle<JSFunction> constructor,
+                                            Handle<String> pattern,
                                             Handle<String> flags,
                                             bool* has_pending_exception);
 

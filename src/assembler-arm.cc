@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "assembler-arm-inl.h"
+#include "serialize.h"
 
 namespace v8 { namespace internal {
 
@@ -1443,6 +1444,12 @@ void Assembler::RecordRelocInfo(RelocMode rmode, intptr_t data) {
     BlockConstPoolBefore(pc_offset() + kInstrSize);
   }
   if (rinfo.rmode() != no_reloc) {
+    // Don't record external references unless the heap will be serialized.
+    if (rmode == external_reference &&
+        !Serializer::enabled() &&
+        !FLAG_debug_code) {
+      return;
+    }
     ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     reloc_info_writer.Write(&rinfo);
   }

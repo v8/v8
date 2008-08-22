@@ -232,16 +232,31 @@ class TemporaryScope BASE_EMBEDDED {
  public:
   explicit TemporaryScope(Parser* parser);
   ~TemporaryScope();
-  int NextMaterializedLiteralIndex() { return materialized_literal_count_++; }
-  void AddProperty() { expected_property_count_++; }
 
+  int NextMaterializedLiteralIndex() {
+    int next_index =
+        materialized_literal_count_ + JSFunction::kLiteralsPrefixSize;
+    materialized_literal_count_++;
+    return next_index;
+  }
   int materialized_literal_count() { return materialized_literal_count_; }
+
+  void set_contains_array_literal() { contains_array_literal_ = true; }
+  bool contains_array_literal() { return contains_array_literal_; }
+
+  void AddProperty() { expected_property_count_++; }
   int expected_property_count() { return expected_property_count_; }
  private:
   // Captures the number of nodes that need materialization in the
-  // function.  regexp literals, boilerplate for array literals, and
-  // boilerplate for object literals.
+  // function.  regexp literals, and boilerplate for object literals.
   int materialized_literal_count_;
+
+  // Captures whether or not the function contains array literals.  If
+  // the function contains array literals, we have to allocate space
+  // for the array constructor in the literals array of the function.
+  // This array constructor is used when creating the actual array
+  // literals.
+  bool contains_array_literal_;
 
   // Properties count estimation.
   int expected_property_count_;
@@ -256,6 +271,7 @@ class TemporaryScope BASE_EMBEDDED {
 
 TemporaryScope::TemporaryScope(Parser* parser)
   : materialized_literal_count_(0),
+    contains_array_literal_(false),
     expected_property_count_(0),
     parser_(parser),
     parent_(parser->temp_scope_) {
@@ -695,7 +711,7 @@ Parser::Parser(Handle<Script> script,
 
 bool Parser::PreParseProgram(unibrow::CharacterStream* stream) {
   StatsRateScope timer(&Counters::pre_parse);
-
+  StackGuard guard;
   AssertNoZoneAllocation assert_no_zone_allocation;
   AssertNoAllocation assert_no_allocation;
   NoHandleAllocation no_handle_allocation;
@@ -744,6 +760,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
       result = NEW(FunctionLiteral(no_name, top_scope_,
                                    body.elements(),
                                    temp_scope.materialized_literal_count(),
+                                   temp_scope.contains_array_literal(),
                                    temp_scope.expected_property_count(),
                                    0, 0, source->length(), false));
     } else if (scanner().stack_overflow()) {
@@ -1109,7 +1126,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   const int literals = fun->NumberOfLiterals();
   Handle<Code> code = Handle<Code>(fun->shared()->code());
   Handle<JSFunction> boilerplate =
-      Factory::NewFunctionBoilerplate(name, literals, code);
+      Factory::NewFunctionBoilerplate(name, literals, false, code);
 
   // Copy the function data to the boilerplate. Used by
   // builtins.cc:HandleApiCall to perform argument type checks and to
@@ -1699,13 +1716,10 @@ Expression* Parser::MakeCatchContext(Handle<String> id, VariableProxy* value) {
   Handle<FixedArray> constant_properties = Factory::empty_fixed_array();
   ZoneList<Expression*>* arguments = new ZoneList<Expression*>(1);
   arguments->Add(new Literal(constant_properties));
-  Expression* literal = new CallRuntime(
-      Factory::CreateObjectLiteralBoilerplate_symbol(),
-      Runtime::FunctionForId(Runtime::kCreateObjectLiteralBoilerplate),
-      arguments);
 
-  return new ObjectLiteral(constant_properties, literal,
-                           properties.elements(), literal_index);
+  return new ObjectLiteral(constant_properties,
+                           properties.elements(),
+                           literal_index);
 }
 
 
@@ -2602,7 +2616,11 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
     }
   }
   Expect(Token::RBRACK, CHECK_OK);
-  if (values.elements() == NULL) return NULL;
+
+  // Update the scope information before the pre-parsing bailout.
+  temp_scope_->set_contains_array_literal();
+
+  if (is_pre_parsing_) return NULL;
 
   // Allocate a fixed array with all the literals.
   Handle<FixedArray> literals =
@@ -2618,16 +2636,7 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
     }
   }
 
-  // Construct the expression for calling Runtime::CreateArray
-  // with the literal array as argument.
-  ZoneList<Expression*>* arguments = new ZoneList<Expression*>(1);
-  arguments->Add(NEW(Literal(literals)));
-  Expression* result =
-      NEW(CallRuntime(Factory::CreateArrayLiteral_symbol(),
-                      Runtime::FunctionForId(Runtime::kCreateArrayLiteral),
-                      arguments));
-
-  return NEW(ArrayLiteral(literals, result, values.elements()));
+  return NEW(ArrayLiteral(literals, values.elements()));
 }
 
 
@@ -2736,13 +2745,9 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   // with the literal array as argument.
   ZoneList<Expression*>* arguments = new ZoneList<Expression*>(1);
   arguments->Add(new Literal(constant_properties));
-  Expression* result =
-    new CallRuntime(
-        Factory::CreateObjectLiteralBoilerplate_symbol(),
-        Runtime::FunctionForId(Runtime::kCreateObjectLiteralBoilerplate),
-        arguments);
-  return new ObjectLiteral(constant_properties, result,
-                           properties.elements(), literal_index);
+  return new ObjectLiteral(constant_properties,
+                           properties.elements(),
+                           literal_index);
 }
 
 
@@ -2864,6 +2869,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
 
     int materialized_literal_count;
     int expected_property_count;
+    bool contains_array_literal;
     if (is_lazily_compiled && pre_data() != NULL) {
       FunctionEntry entry = pre_data()->GetFunctionEnd(start_pos);
       int end_pos = entry.end_pos();
@@ -2871,10 +2877,12 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       scanner_.SeekForward(end_pos);
       materialized_literal_count = entry.literal_count();
       expected_property_count = entry.property_count();
+      contains_array_literal = entry.contains_array_literal();
     } else {
       ParseSourceElements(&body, Token::RBRACE, CHECK_OK);
       materialized_literal_count = temp_scope.materialized_literal_count();
       expected_property_count = temp_scope.expected_property_count();
+      contains_array_literal = temp_scope.contains_array_literal();
     }
 
     Expect(Token::RBRACE, CHECK_OK);
@@ -2885,12 +2893,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       entry.set_end_pos(end_pos);
       entry.set_literal_count(materialized_literal_count);
       entry.set_property_count(expected_property_count);
+      entry.set_contains_array_literal(contains_array_literal);
     }
 
     FunctionLiteral *function_literal =
         NEW(FunctionLiteral(name, top_scope_,
                             body.elements(), materialized_literal_count,
-                            expected_property_count,
+                            contains_array_literal, expected_property_count,
                             num_parameters, start_pos, end_pos,
                             function_name->length() > 0));
     if (!is_pre_parsing_) {
@@ -3159,7 +3168,7 @@ unsigned* ScriptDataImpl::Data() {
 
 
 ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
-    v8::Extension* extension) {
+                         v8::Extension* extension) {
   Handle<Script> no_script;
   bool allow_natives_syntax =
       always_allow_natives_syntax ||

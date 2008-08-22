@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="8,00"
+	Version="8.00"
 	Name="v8_process_sample"
 	ProjectGUID="{EF019874-D38A-40E3-B17C-DB5923F0A79C}"
 	RootNamespace="v8_process_sample"

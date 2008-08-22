@@ -237,6 +237,7 @@ class Factory : public AllStatic {
 
   static Handle<JSFunction> NewFunctionBoilerplate(Handle<String> name,
                                                    int number_of_literals,
+                                                   bool contains_array_literal,
                                                    Handle<Code> code);
 
   static Handle<JSFunction> NewFunctionBoilerplate(Handle<String> name);

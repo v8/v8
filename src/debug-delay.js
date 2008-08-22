@@ -172,7 +172,7 @@ BreakPoint.prototype.isTriggered = function(exec_state) {
   if (this.condition()) {
     // If break point has condition try to evaluate it in the top frame.
     try {
-      var mirror = exec_state.GetFrame(0).evaluate(this.condition());
+      var mirror = exec_state.frame(0).evaluate(this.condition());
       // If no sensible mirror or non true value break point not triggered.
       if (!(mirror instanceof ValueMirror) || !%ToBoolean(mirror.value_)) {
         return false;
@@ -394,7 +394,7 @@ Debug.removeListener = function(listener) {
   %RemoveDebugEventListener(listener);
 };
 
-Debug.Break = function(f) {
+Debug.breakExecution = function(f) {
   %Break();
 };
 
@@ -710,14 +710,15 @@ ExecutionState.prototype.prepareStep = function(opt_action, opt_count) {
 }
 
 ExecutionState.prototype.evaluateGlobal = function(source, disable_break) {
-  return %DebugEvaluateGlobal(this.break_id, source, Boolean(disable_break));
+  return MakeMirror(
+      %DebugEvaluateGlobal(this.break_id, source, Boolean(disable_break)));
 };
 
-ExecutionState.prototype.GetFrameCount = function() {
+ExecutionState.prototype.frameCount = function() {
   return %GetFrameCount(this.break_id);
 };
 
-ExecutionState.prototype.GetFrame = function(opt_index) {
+ExecutionState.prototype.frame = function(opt_index) {
   // If no index supplied return the selected frame.
   if (opt_index == null) opt_index = this.selected_frame;
   return new FrameMirror(this.break_id, opt_index);
@@ -729,11 +730,11 @@ ExecutionState.prototype.cframesValue = function(opt_from_index, opt_to_index) {
 
 ExecutionState.prototype.setSelectedFrame = function(index) {
   var i = %ToNumber(index);
-  if (i < 0 || i >= this.GetFrameCount()) throw new Error('Illegal frame index.');
+  if (i < 0 || i >= this.frameCount()) throw new Error('Illegal frame index.');
   this.selected_frame = i;
 };
 
-ExecutionState.prototype.getSelectedFrame = function() {
+ExecutionState.prototype.selectedFrame = function() {
   return this.selected_frame;
 };
 
@@ -754,22 +755,22 @@ function BreakEvent(exec_state, break_points_hit) {
 
 
 BreakEvent.prototype.func = function() {
-  return this.exec_state_.GetFrame(0).func();
+  return this.exec_state_.frame(0).func();
 };
 
 
 BreakEvent.prototype.sourceLine = function() {
-  return this.exec_state_.GetFrame(0).sourceLine();
+  return this.exec_state_.frame(0).sourceLine();
 };
 
 
 BreakEvent.prototype.sourceColumn = function() {
-  return this.exec_state_.GetFrame(0).sourceColumn();
+  return this.exec_state_.frame(0).sourceColumn();
 };
 
 
 BreakEvent.prototype.sourceLineText = function() {
-  return this.exec_state_.GetFrame(0).sourceLineText();
+  return this.exec_state_.frame(0).sourceLineText();
 };
 
 
@@ -797,12 +798,12 @@ BreakEvent.prototype.details = function() {
     details += 'break';
   }
   details += ' in ';
-  details += this.exec_state_.GetFrame(0).invocationText();
+  details += this.exec_state_.frame(0).invocationText();
   details += ' at ';
-  details += this.exec_state_.GetFrame(0).sourceAndPositionText();
+  details += this.exec_state_.frame(0).sourceAndPositionText();
   details += '\n'
   if (this.func().script()) {
-    details += FrameSourceUnderline(this.exec_state_.GetFrame(0));
+    details += FrameSourceUnderline(this.exec_state_.frame(0));
   }
   return details;
 };
@@ -822,7 +823,7 @@ BreakEvent.prototype.toJSONProtocol = function() {
   var o = { seq: next_response_seq++,
             type: "event",
             event: "break",
-            body: { invocationText: this.exec_state_.GetFrame(0).invocationText(),
+            body: { invocationText: this.exec_state_.frame(0).invocationText(),
                   }
           }
 
@@ -876,22 +877,22 @@ ExceptionEvent.prototype.uncaught = function() {
 }
 
 ExceptionEvent.prototype.func = function() {
-  return this.exec_state_.GetFrame(0).func();
+  return this.exec_state_.frame(0).func();
 };
 
 
 ExceptionEvent.prototype.sourceLine = function() {
-  return this.exec_state_.GetFrame(0).sourceLine();
+  return this.exec_state_.frame(0).sourceLine();
 };
 
 
 ExceptionEvent.prototype.sourceColumn = function() {
-  return this.exec_state_.GetFrame(0).sourceColumn();
+  return this.exec_state_.frame(0).sourceColumn();
 };
 
 
 ExceptionEvent.prototype.sourceLineText = function() {
-  return this.exec_state_.GetFrame(0).sourceLineText();
+  return this.exec_state_.frame(0).sourceLineText();
 };
 
 
@@ -906,9 +907,9 @@ ExceptionEvent.prototype.details = function() {
   details += '"';
   details += MakeMirror(this.exception_).toText();
   details += '" at ';
-  details += this.exec_state_.GetFrame(0).sourceAndPositionText();
+  details += this.exec_state_.frame(0).sourceAndPositionText();
   details += '\n';
-  details += FrameSourceUnderline(this.exec_state_.GetFrame(0));
+  details += FrameSourceUnderline(this.exec_state_.frame(0));
 
   return details;
 };
@@ -1201,11 +1202,11 @@ DebugCommandProcessor.prototype.sourceCommandToJSONRequest_ = function(args) {
 
   // Request source arround current source location.
   request.arguments = {};
-  request.arguments.fromLine = this.exec_state_.GetFrame().sourceLine() - before;
+  request.arguments.fromLine = this.exec_state_.frame().sourceLine() - before;
   if (request.arguments.fromLine < 0) {
     request.arguments.fromLine = 0
   }
-  request.arguments.toLine = this.exec_state_.GetFrame().sourceLine() + after + 1;
+  request.arguments.toLine = this.exec_state_.frame().sourceLine() + after + 1;
 
   return request.toJSONProtocol();
 };
@@ -1610,7 +1611,7 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
     var f;
     try {
       // Find the function through a global evaluate.
-      f = this.exec_state_.evaluateGlobal(target);
+      f = this.exec_state_.evaluateGlobal(target).value();
     } catch (e) {
       response.failed('Error: "' + %ToString(e) +
                       '" evaluating "' + target + '"');
@@ -1718,7 +1719,7 @@ DebugCommandProcessor.prototype.clearBreakPointRequest_ = function(request, resp
 
 DebugCommandProcessor.prototype.backtraceRequest_ = function(request, response) {
   // Get the number of frames.
-  var total_frames = this.exec_state_.GetFrameCount();
+  var total_frames = this.exec_state_.frameCount();
 
   // Default frame range to include in backtrace.
   var from_index = 0
@@ -1747,7 +1748,7 @@ DebugCommandProcessor.prototype.backtraceRequest_ = function(request, response) 
   // Create the response body.
   var frames = [];
   for (var i = from_index; i < to_index; i++) {
-    frames.push(this.exec_state_.GetFrame(i));
+    frames.push(this.exec_state_.frame(i));
   }
   response.body = {
     fromFrame: from_index,
@@ -1768,7 +1769,7 @@ DebugCommandProcessor.prototype.frameRequest_ = function(request, response) {
   if (request.arguments && request.arguments.number >= 0) {
     this.exec_state_.setSelectedFrame(request.arguments.number);
   }
-  response.body = this.exec_state_.GetFrame();
+  response.body = this.exec_state_.frame();
 };
 
 
@@ -1799,8 +1800,8 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   // Global evaluate.
   if (global) {
     // Evaluate in the global context.
-    response.body = MakeMirror(
-        this.exec_state_.evaluateGlobal(expression), Boolean(disable_break));
+    response.body =
+        this.exec_state_.evaluateGlobal(expression), Boolean(disable_break);
     return;
   }
 
@@ -1812,16 +1813,16 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   // Check whether a frame was specified.
   if (!IS_UNDEFINED(frame)) {
     var frame_number = %ToNumber(frame);
-    if (frame_number < 0 || frame_number >= this.exec_state_.GetFrameCount()) {
+    if (frame_number < 0 || frame_number >= this.exec_state_.frameCount()) {
       return response.failed('Invalid frame "' + frame + '"');
     }
     // Evaluate in the specified frame.
-    response.body = this.exec_state_.GetFrame(frame_number).evaluate(
+    response.body = this.exec_state_.frame(frame_number).evaluate(
         expression, Boolean(disable_break));
     return;
   } else {
     // Evaluate in the selected frame.
-    response.body = this.exec_state_.GetFrame().evaluate(
+    response.body = this.exec_state_.frame().evaluate(
         expression, Boolean(disable_break));
     return;
   }
@@ -1831,7 +1832,7 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
 DebugCommandProcessor.prototype.sourceRequest_ = function(request, response) {
   var from_line;
   var to_line;
-  var frame = this.exec_state_.GetFrame();
+  var frame = this.exec_state_.frame();
   if (request.arguments) {
     // Pull out arguments.
     from_line = request.arguments.fromLine;
@@ -1839,10 +1840,10 @@ DebugCommandProcessor.prototype.sourceRequest_ = function(request, response) {
 
     if (!IS_UNDEFINED(request.arguments.frame)) {
       var frame_number = %ToNumber(request.arguments.frame);
-      if (frame_number < 0 || frame_number >= this.exec_state_.GetFrameCount()) {
+      if (frame_number < 0 || frame_number >= this.exec_state_.frameCount()) {
         return response.failed('Invalid frame "' + frame + '"');
       }
-      frame = this.exec_state_.GetFrame(frame_number);
+      frame = this.exec_state_.frame(frame_number);
     }
   }
 

@@ -202,7 +202,7 @@ class RelocInfo;
 class Deserializer;
 class MessageLocation;
 class ObjectGroup;
-struct TickSample;
+class TickSample;
 class VirtualMemory;
 class Mutex;
 

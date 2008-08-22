@@ -553,9 +553,11 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     // Set the global context for the global object.
     object->set_global_context(*global_context());
 
-    // Security setup. Set the security token of the global object to
-    // itself.
-    object->set_security_token(*object);
+    // Security setup: Set the security token of the global object to
+    // its global context. This makes the security check between two
+    // different contexts fail by default even in case of global
+    // object reinitialization.
+    object->set_security_token(*global_context());
 
     {  // --- G l o b a l   C o n t e x t ---
       // use the empty function as closure (no scope info)
@@ -766,8 +768,8 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   ASSERT(Top::context()->IsGlobalContext());
   Handle<Context> context =
       Handle<Context>(use_runtime_context
-                          ? Top::context()->runtime_context()
-                          : Top::context());
+                      ? Top::context()->runtime_context()
+                      : Top::context());
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
 
@@ -775,8 +777,8 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   // object as the receiver. Provide no parameters.
   Handle<Object> receiver =
       Handle<Object>(use_runtime_context
-                         ? Top::context()->builtins()
-                         : Top::context()->global());
+                     ? Top::context()->builtins()
+                     : Top::context()->global());
   bool has_pending_exception;
   Handle<Object> result =
       Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);

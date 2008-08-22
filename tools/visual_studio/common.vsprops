@@ -19,7 +19,6 @@
 		Detect64BitPortabilityProblems="false"
 		DebugInformationFormat="3"
 		DisableSpecificWarnings="4355;4800"
-		BufferSecurityCheck="false"
 		EnableFunctionLevelLinking="true"
 	/>
 	<Tool

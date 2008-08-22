@@ -1628,9 +1628,8 @@ Object* Heap::AllocateFunction(Map* function_map,
 
 
 Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
-  // This allocation is odd since allocate an argument object
-  // based on the arguments_boilerplate.
-  // We do this to ensure fast allocation and map sharing.
+  // To get fast allocation and map sharing for arguments objects we
+  // allocate them based on an arguments boilerplate.
 
   // This calls Copy directly rather than using Heap::AllocateRaw so we
   // duplicate the check here.

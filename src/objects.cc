@@ -918,6 +918,10 @@ void JSObject::JSObjectIterateBody(int object_size, ObjectVisitor* v) {
 
 
 Object* JSObject::Copy(PretenureFlag pretenure) {
+  // Never used to copy functions.  If functions need to be copied we
+  // have to be careful to clear the literals array.
+  ASSERT(!IsJSFunction());
+
   // Copy the elements and properties.
   Object* elem = FixedArray::cast(elements())->Copy();
   if (elem->IsFailure()) return elem;
@@ -934,11 +938,6 @@ Object* JSObject::Copy(PretenureFlag pretenure) {
   // Set the new elements and properties.
   JSObject::cast(clone)->set_elements(FixedArray::cast(elem));
   JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
-
-  // NOTE: Copy is only used for copying objects and functions from
-  // boilerplates. This means if we have a function the prototype is
-  // not present.
-  ASSERT(!IsJSFunction() || !JSFunction::cast(clone)->has_prototype());
 
   // Return the new clone.
   return clone;

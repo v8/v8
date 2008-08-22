@@ -263,8 +263,6 @@ void PrettyPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
 
 void PrettyPrinter::VisitObjectLiteral(ObjectLiteral* node) {
   Print("{ ");
-  Visit(node->result());
-  Print(" <- ");
   for (int i = 0; i < node->properties()->length(); i++) {
     if (i != 0) Print(",");
     ObjectLiteral::Property* property = node->properties()->at(i);
@@ -279,8 +277,6 @@ void PrettyPrinter::VisitObjectLiteral(ObjectLiteral* node) {
 
 void PrettyPrinter::VisitArrayLiteral(ArrayLiteral* node) {
   Print("[ ");
-  Visit(node->result());
-  Print(" <- ");
   for (int i = 0; i < node->values()->length(); i++) {
     if (i != 0) Print(",");
     Visit(node->values()->at(i));
@@ -898,7 +894,6 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
 
 void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
   IndentedScope indent("OBJ LITERAL");
-  Visit(node->result());
   for (int i = 0; i < node->properties()->length(); i++) {
     const char* prop_kind = NULL;
     switch (node->properties()->at(i)->kind()) {
@@ -930,7 +925,6 @@ void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
 
 void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
   IndentedScope indent("ARRAY LITERAL");
-  Visit(node->result());
   if (node->values()->length() > 0) {
     IndentedScope indent("VALUES");
     for (int i = 0; i < node->values()->length(); i++) {
