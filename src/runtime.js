@@ -47,7 +47,7 @@ const $String = global.String;
 const $Number = global.Number;
 const $Function = global.Function;
 const $Boolean = global.Boolean;
-const $NaN = %NumberNaN();
+const $NaN = 0/0;
 
 
 // ECMA-262, section 11.9.1, page 55.
@@ -403,7 +403,7 @@ function ToNumber(x) {
   if (IS_NUMBER(x)) return x;
   if (IS_STRING(x)) return %StringToNumber(x);
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
-  if (IS_UNDEFINED(x)) return %NumberNaN();
+  if (IS_UNDEFINED(x)) return $NaN;
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 };
 

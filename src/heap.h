@@ -101,10 +101,6 @@ namespace v8 { namespace internal {
   V(Map, one_word_filler_map)                           \
   V(Map, two_word_filler_map)                           \
   V(Object, nan_value)                                  \
-  V(Object, infinity_value)                             \
-  V(Object, negative_infinity_value)                    \
-  V(Object, number_max_value)                           \
-  V(Object, number_min_value)                           \
   V(Object, undefined_value)                            \
   V(Object, minus_zero_value)                           \
   V(Object, null_value)                                 \

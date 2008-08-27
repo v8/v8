@@ -175,9 +175,6 @@ namespace v8 { namespace internal {
   \
   /* Numbers */ \
   F(NumberIsFinite, 1) \
-  F(NumberMaxValue, 0) \
-  F(NumberMinValue, 0) \
-  F(NumberNaN, 0) \
   \
   /* Globals */ \
   F(CompileString, 2) \

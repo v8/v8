@@ -70,6 +70,7 @@ class ProgressIndicator(object):
       self.remaining -= 1
       self.HasRun(output)
     self.Done()
+    return self.failed == 0
 
 
 def EscapeCommand(command):
@@ -366,7 +367,7 @@ class TestRepository(TestSuite):
 
   def __init__(self, path):
     super(TestRepository, self).__init__(basename(path))
-    self.path = path
+    self.path = abspath(path)
     self.is_loaded = False
     self.config = None
 
@@ -440,7 +441,7 @@ def RunTestCases(all_cases, progress):
     return SKIP in c.outcomes or SLOW in c.outcomes
   cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
   progress = PROGRESS_INDICATORS[progress](cases_to_run)
-  progress.Run()
+  return progress.Run()
 
 
 def BuildRequirements(context, requirements, mode):
@@ -1018,14 +1019,16 @@ def Main():
 
   if len(all_cases) == 0:
     print "No tests to run."
+    return 0
   else:
     try:
-      RunTestCases(all_cases, options.progress)
+      if RunTestCases(all_cases, options.progress):
+        return 0
+      else:
+        return 1
     except KeyboardInterrupt:
       print "Interrupted"
       return 1
-
-  return 0
 
 
 if __name__ == '__main__':

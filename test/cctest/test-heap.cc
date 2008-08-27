@@ -140,10 +140,6 @@ TEST(HeapObjects) {
   CHECK(Heap::nan_value()->IsNumber());
   CHECK(isnan(Heap::nan_value()->Number()));
 
-  // infinit oddball checks
-  CHECK(Heap::infinity_value()->IsNumber());
-  CHECK(!isfinite(Heap::infinity_value()->Number()));
-
   Object* str = Heap::AllocateStringFromAscii(CStrVector("fisk hest "));
   if (!str->IsFailure()) {
     String* s =  String::cast(str);

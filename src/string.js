@@ -29,6 +29,7 @@
 // This file relies on the fact that the following declaration has been made
 // in runtime.js:
 // const $String = global.String;
+// const $NaN = 0/0;
 
 
 // Set the String function and constructor.
@@ -349,7 +350,7 @@ function ApplyReplacementFunction(replace, captures, subject) {
   var pat = ToString(searchString);
   var index = (%_ArgumentsLength() > 1)
       ? ToNumber(%_Arguments(1) /* position */)
-      : %NumberNaN();
+      : $NaN;
   var firstIndex;
   if ($isNaN(index)) {
     firstIndex = sub.length - pat.length;

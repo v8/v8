@@ -309,6 +309,14 @@ enum PropertyType {
 };
 
 
+// Whether to remove map transitions and constant transitions from a
+// DescriptorArray.
+enum TransitionFlag {
+  REMOVE_TRANSITIONS,
+  KEEP_TRANSITIONS
+};
+
+
 // Union used for fast testing of specific double values.
 union DoubleRepresentation {
   double  value;

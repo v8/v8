@@ -278,10 +278,8 @@ Object* Accessors::FunctionSetPrototype(JSObject* object,
   if (function->has_initial_map()) {
     // If the function has allocated the initial map
     // replace it with a copy containing the new prototype.
-    Object* new_map = function->initial_map()->Copy();
+    Object* new_map = function->initial_map()->CopyDropTransitions();
     if (new_map->IsFailure()) return new_map;
-    Object* result = Map::cast(new_map)->EnsureNoMapTransitions();
-    if (result->IsFailure()) return result;
     function->set_initial_map(Map::cast(new_map));
   }
   Object* prototype = function->SetPrototype(value);
@@ -490,14 +488,12 @@ Object* Accessors::ObjectSetPrototype(JSObject* receiver,
   }
 
   // Set the new prototype of the object.
-  Object* new_map = current->map()->Copy();
+  Object* new_map = current->map()->CopyDropTransitions();
   if (new_map->IsFailure()) return new_map;
-  Object* result = Map::cast(new_map)->EnsureNoMapTransitions();
-  if (result->IsFailure()) return result;
   Map::cast(new_map)->set_prototype(value);
   current->set_map(Map::cast(new_map));
 
-  // To be consistant with other Set functions, return the value.
+  // To be consistent with other Set functions, return the value.
   return value;
 }
 

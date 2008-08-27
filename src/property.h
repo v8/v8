@@ -370,10 +370,6 @@ class DescriptorReader: public DescriptorStream {
 
   bool Equals(String* name) { return name->Equals(GetKey()); }
 
-  void ReplaceConstantFunction(JSFunction* value) {
-    descriptors_->ReplaceConstantFunction(pos_, value);
-  }
-
   void Get(Descriptor* desc) {
     descriptors_->Get(pos_, desc);
   }

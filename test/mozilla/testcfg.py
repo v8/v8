@@ -26,9 +26,9 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+import test
 import os
 from os.path import join, exists
-import test
 
 
 EXCLUDED = ['CVS']

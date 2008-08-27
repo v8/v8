@@ -172,6 +172,11 @@ Handle<Map> Factory::CopyMap(Handle<Map> src) {
 }
 
 
+Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(src->CopyDropTransitions(), Map);
+}
+
+
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
   CALL_HEAP_FUNCTION(array->Copy(), FixedArray);
 }
@@ -464,11 +469,11 @@ Handle<DescriptorArray> Factory::CopyAppendProxyDescriptor(
     PropertyAttributes attributes) {
   GC_GREEDY_CHECK();
   CallbacksDescriptor desc(*key, *value, attributes);
-  Object* obj = array->CopyInsert(&desc);
+  Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
   if (obj->IsRetryAfterGC()) {
     CALL_GC(obj);
     CallbacksDescriptor desc(*key, *value, attributes);
-    obj = array->CopyInsert(&desc);
+    obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
     if (obj->IsFailure()) {
       // TODO(1181417): Fix this.
       V8::FatalProcessOutOfMemory("CopyAppendProxyDescriptor");

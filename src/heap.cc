@@ -1112,28 +1112,6 @@ bool Heap::CreateInitialObjects() {
   if (obj->IsFailure()) return false;
   nan_value_ = obj;
 
-  obj = NumberFromDouble(INFINITY, TENURED);
-  if (obj->IsFailure()) return false;
-  infinity_value_ = obj;
-
-  obj = NumberFromDouble(-INFINITY, TENURED);
-  if (obj->IsFailure()) return false;
-  negative_infinity_value_ = obj;
-
-  obj = NumberFromDouble(DBL_MAX, TENURED);
-  if (obj->IsFailure()) return false;
-  number_max_value_ = obj;
-
-  // C++ doesn't provide a constant for the smallest denormalized
-  // double (approx. 5e-324) but only the smallest normalized one
-  // which is somewhat bigger (approx. 2e-308).  So we have to do
-  // this raw conversion hack.
-  uint64_t min_value_bits = 1L;
-  double min_value = *reinterpret_cast<double*>(&min_value_bits);
-  obj = NumberFromDouble(min_value, TENURED);
-  if (obj->IsFailure()) return false;
-  number_min_value_ = obj;
-
   obj = Allocate(oddball_map(), CODE_SPACE);
   if (obj->IsFailure()) return false;
   undefined_value_ = obj;

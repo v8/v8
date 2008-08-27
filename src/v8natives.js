@@ -33,7 +33,7 @@
 // const $Number = global.Number;
 // const $Function = global.Function;
 // const $Array = global.Array;
-// const $NaN = %NumberNaN();
+// const $NaN = 0/0;
 
 
 // ECMA 262 - 15.1.1.1.
@@ -258,10 +258,10 @@ $Object.prototype.constructor = $Object;
 %AddProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
 
 // ECMA-262 section 15.7.3.1.
-%AddProperty($Number, "MAX_VALUE", %NumberMaxValue(), DONT_ENUM | DONT_DELETE | READ_ONLY);
+%AddProperty($Number, "MAX_VALUE", 1.7976931348623157e+308, DONT_ENUM | DONT_DELETE | READ_ONLY);
 
 // ECMA-262 section 15.7.3.2.
-%AddProperty($Number, "MIN_VALUE", %NumberMinValue(), DONT_ENUM | DONT_DELETE | READ_ONLY);
+%AddProperty($Number, "MIN_VALUE", 5e-324, DONT_ENUM | DONT_DELETE | READ_ONLY);
 
 // ECMA-262 section 15.7.3.3.
 %AddProperty($Number, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);

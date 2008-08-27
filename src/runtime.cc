@@ -3262,30 +3262,6 @@ static Object* Runtime_NumberIsFinite(Arguments args) {
 }
 
 
-static Object* Runtime_NumberMaxValue(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-
-  return Heap::number_max_value();
-}
-
-
-static Object* Runtime_NumberMinValue(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-
-  return Heap::number_min_value();
-}
-
-
-static Object* Runtime_NumberNaN(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-
-  return Heap::nan_value();
-}
-
-
 static Object* EvalContext() {
   // The topmost JS frame belongs to the eval function which called
   // the CompileString runtime function. We need to unwind one level

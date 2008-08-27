@@ -1555,8 +1555,18 @@ class DescriptorArray: public FixedArray {
   void ReplaceConstantFunction(int descriptor_number, JSFunction* value);
 
   // Copy the descriptor array, insert a new descriptor and optionally
-  // remove map transitions.
-  Object* CopyInsert(Descriptor* desc, bool remove_map_transitions = false);
+  // remove map transitions.  If the descriptor is already present, it is
+  // replaced.  If a replaced descriptor is a real property (not a transition
+  // or null), its enumeration index is kept as is.
+  // If adding a real property, map transitions must be removed.  If adding
+  // a transition, they must not be removed.  All null descriptors are removed.
+  Object* CopyInsert(Descriptor* descriptor, TransitionFlag transition_flag);
+
+  // Makes a copy of the descriptor array with the descriptor with key name
+  // removed.  If name is the empty string, the descriptor array is copied.
+  // Transitions are removed if TransitionFlag is REMOVE_TRANSITIONS.
+  // All null descriptors are removed.
+  Object* CopyRemove(TransitionFlag remove_transitions, String* name);
 
   // Copy the descriptor array, replace the property index and attributes
   // of the named property, but preserve its enumeration index.
@@ -1565,6 +1575,10 @@ class DescriptorArray: public FixedArray {
   // Copy the descriptor array, removing the property index and attributes
   // of the named property.
   Object* CopyRemove(String* name);
+
+  // Remove all transitions.  Return  a copy of the array with all transitions
+  // removed, or a Failure object if the new array could not be allocated.
+  Object* RemoveTransitions();
 
   // Sort the instance descriptors by the hash codes of their keys.
   void Sort();
@@ -2288,6 +2302,10 @@ class Map: public HeapObject {
   // Returns a copy of the map.
   Object* Copy();
 
+  // Returns a copy of the map, with all transitions dropped from the
+  // instance descriptors.
+  Object* CopyDropTransitions();
+
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
 
@@ -2302,9 +2320,6 @@ class Map: public HeapObject {
 
   // Locate an accessor in the instance descriptor.
   AccessorDescriptor* FindAccessor(String* name);
-
-  // Make sure the instance descriptor has no map transitions
-  Object* EnsureNoMapTransitions();
 
   // Code cache operations.
 

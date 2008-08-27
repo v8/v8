@@ -151,7 +151,11 @@ CCTEST_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'LIBPATH': [abspath('.')]
-    }
+    },
+    'wordsize:64': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
+    },
   },
   'msvc': {
     'all': {
@@ -173,6 +177,10 @@ SAMPLE_FLAGS = {
     'all': {
       'LIBS': ['pthread'],
       'LIBPATH': ['.']
+    },
+    'wordsize:64': {
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
     },
   },
   'msvc': {

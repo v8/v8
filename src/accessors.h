@@ -47,7 +47,7 @@ namespace v8 { namespace internal {
   V(ScriptType)          \
   V(ObjectPrototype)
 
-// Accessors contains all prodefined proxy accessors.
+// Accessors contains all predefined proxy accessors.
 
 class Accessors : public AllStatic {
  public:

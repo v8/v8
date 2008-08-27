@@ -505,6 +505,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
     // Allocate the function map first and then patch the prototype later
     Handle<Map> empty_fm = Factory::CopyMap(fm);
+    empty_fm->set_instance_descriptors(*function_map_descriptors);
     empty_fm->set_prototype(global_context()->object_function()->prototype());
     empty_function->set_map(*empty_fm);
   }
@@ -1247,7 +1248,7 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 
   // Transfer the prototype (new map is needed).
   Handle<Map> old_to_map = Handle<Map>(to->map());
-  Handle<Map> new_to_map = Factory::CopyMap(old_to_map);
+  Handle<Map> new_to_map = Factory::CopyMapDropTransitions(old_to_map);
   new_to_map->set_prototype(from->map()->prototype());
   to->set_map(*new_to_map);
 }
