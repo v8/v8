@@ -379,9 +379,9 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
 
   // Add prototype.
   PropertyAttributes attributes = static_cast<PropertyAttributes>(
-       (make_prototype_enumerable ? 0 : DONT_ENUM)
-       | DONT_DELETE
-       | (make_prototype_read_only ? READ_ONLY : 0));
+      (make_prototype_enumerable ? 0 : DONT_ENUM)
+      | DONT_DELETE
+      | (make_prototype_read_only ? READ_ONLY : 0));
   result =
       Factory::CopyAppendProxyDescriptor(
           result,
@@ -481,8 +481,8 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
     global_context()->set_initial_object_prototype(*prototype);
     SetPrototype(object_fun, prototype);
-    object_function_map->set_instance_descriptors(
-        DescriptorArray::cast(Heap::empty_fixed_array()));
+    object_function_map->
+      set_instance_descriptors(Heap::empty_descriptor_array());
   }
 
   // Allocate the empty function as the prototype for function ECMAScript
@@ -1192,7 +1192,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         }
         case MAP_TRANSITION:
         case CONSTANT_TRANSITION:
-          // Ignore map transitions.
+        case NULL_DESCRIPTOR:
+          // Ignore non-properties.
           break;
         case NORMAL:
           // Do not occur since the from object has fast properties.

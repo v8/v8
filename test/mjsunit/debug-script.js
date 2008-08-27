@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
+// Flags: --expose-debug-as debug --expose-gc
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
@@ -55,7 +55,7 @@ for (i = 0; i < scripts.length; i++) {
 
 // This has to be updated if the number of native and extension scripts change.
 assertEquals(12, native_count);
-assertEquals(5, extension_count);
+assertEquals(1, extension_count);
 assertEquals(2, normal_count);  // This script and mjsunit.js.
 
 // Test a builtins script.
@@ -80,7 +80,7 @@ assertEquals(Debug.ScriptType.Extension, extension_gc_script.type);
 
 // Test a normal script.
 var mjsunit_js_script = Debug.findScript(/mjsunit.js/);
-assertEquals('mjsunit.js', mjsunit_js_script.name);
+assertTrue(/mjsunit.js/.test(mjsunit_js_script.name));
 assertEquals(Debug.ScriptType.Normal, mjsunit_js_script.type);
 
 // Check a nonexistent script.

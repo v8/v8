@@ -25,17 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <v8.h>
 #include <cstdlib>
 #include <cstring>
 #include <cstdio>
 #include "cctest.h"
 
 
-CcTest* CcTest::first_ = NULL;
+CcTest* CcTest::last_ = NULL;
 
 
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name)
-    : callback_(callback), name_(name), prev_(first_) {
+    : callback_(callback), name_(name), prev_(last_) {
   // Find the base name of this test (const_cast required on Windows).
   char *basename = strrchr(const_cast<char *>(file), '/');
   if (!basename) {
@@ -51,15 +52,67 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name)
   if (extension) *extension = 0;
   // Install this test in the list of tests
   file_ = basename;
-  prev_ = first_;
-  first_ = this;
+  prev_ = last_;
+  last_ = this;
 }
 
 
-int main(int argc, char *argv[]) {
-  CcTest* current = CcTest::first();
-  while (current != NULL) {
-    printf("%s/%s\n", current->file(), current->name());
-    current = current->prev();
+static void PrintTestList(CcTest* current) {
+  if (current == NULL) return;
+  PrintTestList(current->prev());
+  printf("%s/%s\n", current->file(), current->name());
+}
+
+
+static int RunMatchingTests(CcTest* current, char* file_or_name) {
+  if (current == NULL) return 0;
+  int run_count = 0;
+  if (strcmp(current->file(), file_or_name) == 0
+      || strcmp(current->name(), file_or_name) == 0) {
+    current->Run();
+    run_count++;
   }
+  return run_count + RunMatchingTests(current->prev(), file_or_name);
+}
+
+
+static int RunMatchingTests(CcTest* current, char* file, char* name) {
+  if (current == NULL) return 0;
+  int run_count = 0;
+  if (strcmp(current->file(), file) == 0
+      && strcmp(current->name(), name) == 0) {
+    current->Run();
+    run_count++;
+  }
+  return run_count + RunMatchingTests(current->prev(), file, name);
+}
+
+
+int main(int argc, char* argv[]) {
+  v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
+  int tests_run = 0;
+  bool print_run_count = true;
+  for (int i = 1; i < argc; i++) {
+    char* arg = argv[i];
+    if (strcmp(arg, "--list") == 0) {
+      PrintTestList(CcTest::last());
+      print_run_count = false;
+    } else {
+      char* arg_copy = strdup(arg);
+      char* testname = strchr(arg_copy, '/');
+      if (testname) {
+        // Split the string in two by nulling the slash and then run
+        // exact matches.
+        *testname = 0;
+        tests_run += RunMatchingTests(CcTest::last(), arg_copy, testname + 1);
+      } else {
+        // Run all tests with the specified file or test name.
+        tests_run += RunMatchingTests(CcTest::last(), arg_copy);
+      }
+      free(arg_copy);
+    }
+  }
+  if (print_run_count && tests_run != 1)
+    printf("Ran %i tests.\n", tests_run);
+  return 0;
 }

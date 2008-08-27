@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --trace-calls --preallocated-stack-trace-memory 1000000
+// Flags: --trace-calls --preallocate-message-memory
 
 /**
  * @fileoverview Check that various regexp constructs work as intended.

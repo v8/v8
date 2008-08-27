@@ -2726,9 +2726,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   int literal_index = temp_scope_->NextMaterializedLiteralIndex();
   if (is_pre_parsing_) return NULL;
 
-  Handle<FixedArray> constant_properties = (number_of_constant_properties == 0)
-      ? Factory::empty_fixed_array()
-      : Factory::NewFixedArray(number_of_constant_properties*2, TENURED);
+  Handle<FixedArray> constant_properties =
+      Factory::NewFixedArray(number_of_constant_properties * 2, TENURED);
   int position = 0;
   for (int i = 0; i < properties.length(); i++) {
     ObjectLiteral::Property* property = properties.at(i);

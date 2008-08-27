@@ -281,10 +281,6 @@ class Factory : public AllStatic {
   SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-  static Handle<DescriptorArray> empty_descriptor_array() {
-    return Handle<DescriptorArray>::cast(empty_fixed_array());
-  }
-
   static Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 
   static Handle<Dictionary> DictionaryAtNumberPut(Handle<Dictionary>,

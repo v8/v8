@@ -861,7 +861,7 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_prototype(null_value());
   map->set_constructor(null_value());
   map->set_instance_size(instance_size);
-  map->set_instance_descriptors(DescriptorArray::cast(empty_fixed_array()));
+  map->set_instance_descriptors(empty_descriptor_array());
   map->set_code_cache(empty_fixed_array());
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
@@ -894,17 +894,20 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   null_value_ = obj;
 
-  // Fix the instance_descriptors for the existing maps.
-  DescriptorArray* empty_descriptors =
-      DescriptorArray::cast(empty_fixed_array());
+  // Allocate the empty descriptor array.  AllocateMap can now be used.
+  obj = AllocateEmptyFixedArray();
+  if (obj->IsFailure()) return false;
+  // There is a check against empty_descriptor_array() in cast().
+  empty_descriptor_array_ = reinterpret_cast<DescriptorArray*>(obj);
 
-  meta_map()->set_instance_descriptors(empty_descriptors);
+  // Fix the instance_descriptors for the existing maps.
+  meta_map()->set_instance_descriptors(empty_descriptor_array());
   meta_map()->set_code_cache(empty_fixed_array());
 
-  fixed_array_map()->set_instance_descriptors(empty_descriptors);
+  fixed_array_map()->set_instance_descriptors(empty_descriptor_array());
   fixed_array_map()->set_code_cache(empty_fixed_array());
 
-  oddball_map()->set_instance_descriptors(empty_descriptors);
+  oddball_map()->set_instance_descriptors(empty_descriptor_array());
   oddball_map()->set_code_cache(empty_fixed_array());
 
   // Fix prototype object for existing maps.
@@ -1004,6 +1007,7 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   shared_function_info_map_ = Map::cast(obj);
 
+  ASSERT(!Heap::InNewSpace(Heap::empty_fixed_array()));
   return true;
 }
 
@@ -1701,7 +1705,7 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
 
   // Allocate the backing storage for the properties.
-  Object* properties = AllocatePropertyStorageForMap(map);
+  Object* properties = AllocateFixedArray(map->unused_property_fields());
   if (properties->IsFailure()) return properties;
 
   // Allocate the JSObject.
@@ -1749,7 +1753,7 @@ Object* Heap::ReinitializeJSGlobalObject(JSFunction* constructor,
   ASSERT(map->instance_size() == object->map()->instance_size());
 
   // Allocate the backing storage for the properties.
-  Object* properties = AllocatePropertyStorageForMap(map);
+  Object* properties = AllocateFixedArray(map->unused_property_fields());
   if (properties->IsFailure()) return properties;
 
   // Reset the map for the object.

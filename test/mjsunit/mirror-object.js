@@ -48,7 +48,7 @@ function testObjectMirror(o, cls_name, ctor_name, hasSpecialProperties) {
   assertTrue(mirror.prototypeObject() instanceof debug.Mirror);
   assertFalse(mirror.hasNamedInterceptor(), "hasNamedInterceptor()");
   assertFalse(mirror.hasIndexedInterceptor(), "hasIndexedInterceptor()");
-  
+
   var names = mirror.propertyNames();
   var properties = mirror.properties()
   assertEquals(names.length, properties.length);
@@ -77,10 +77,11 @@ function testObjectMirror(o, cls_name, ctor_name, hasSpecialProperties) {
   assertEquals('object', fromJSON.type);
   assertEquals(cls_name, fromJSON.className);
   assertEquals('function', fromJSON.constructorFunction.type);
-  assertEquals(ctor_name, fromJSON.constructorFunction.name);
+  if (ctor_name !== undefined)
+    assertEquals(ctor_name, fromJSON.constructorFunction.name);
   assertEquals(void 0, fromJSON.namedInterceptor);
   assertEquals(void 0, fromJSON.indexedInterceptor);
-  
+
   // For array the index properties are seperate from named properties.
   if (!cls_name == 'Array') {
     assertEquals(names.length, fromJSON.properties.length, 'Some properties missing in JSON');
@@ -134,7 +135,7 @@ testObjectMirror({}, 'Object', 'Object');
 testObjectMirror({'a':1,'b':2}, 'Object', 'Object');
 testObjectMirror({'1':void 0,'2':null,'f':function pow(x,y){return Math.pow(x,y);}}, 'Object', 'Object');
 testObjectMirror(new Point(-1.2,2.003), 'Object', 'Point');
-testObjectMirror(this, 'global', 'Object', true);  // Global object has special properties
+testObjectMirror(this, 'global', undefined, true);  // Global object has special properties
 testObjectMirror([], 'Array', 'Array');
 testObjectMirror([1,2], 'Array', 'Array');
 

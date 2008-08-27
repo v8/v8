@@ -1030,8 +1030,7 @@ Object* JSObject::AddFastProperty(String* name,
   } else {
     ASSERT(map()->unused_property_fields() == 0);
 
-    static const int kFastNofProperties = 8;
-    if (properties()->length() > kFastNofProperties) {
+    if (properties()->length() > kMaxFastProperties) {
       Object* obj = NormalizeProperties();
       if (obj->IsFailure()) return obj;
       return AddSlowProperty(name, value, attributes);
@@ -1553,6 +1552,8 @@ Object* JSObject::SetProperty(LookupResult* result,
         // if the value is a function.
         // AddProperty has been extended to do this, in this case.
         return AddFastProperty(name, value, attributes);
+      case NULL_DESCRIPTOR:
+        UNREACHABLE();
       default:
         UNREACHABLE();
     }
@@ -1612,6 +1613,8 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(String* name,
       case INTERCEPTOR:
         return SetPropertyWithInterceptor(name, value, NONE);
       case CONSTANT_TRANSITION:
+      case NULL_DESCRIPTOR:
+        UNREACHABLE();
         break;
     }
   }
@@ -1727,7 +1730,12 @@ PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
       case INTERCEPTOR:
         return result->holder()->
           GetPropertyAttributeWithInterceptor(receiver, name, continue_search);
+      case MAP_TRANSITION:
+      case CONSTANT_TRANSITION:
+      case NULL_DESCRIPTOR:
+        return ABSENT;
       default:
+        UNREACHABLE();
         break;
     }
   }
@@ -1790,8 +1798,14 @@ Object* JSObject::NormalizeProperties() {
         dictionary = Dictionary::cast(result);
         break;
       }
+      case MAP_TRANSITION:
+      case CONSTANT_TRANSITION:
+      case NULL_DESCRIPTOR:
+      case INTERCEPTOR:
+        break;
       default:
-        ASSERT(details.IsTransition());
+      case NORMAL:
+        UNREACHABLE();
         break;
     }
   }
@@ -1800,17 +1814,15 @@ Object* JSObject::NormalizeProperties() {
   int index = map()->instance_descriptors()->NextEnumerationIndex();
   dictionary->SetNextEnumerationIndex(index);
 
-  // Descriptors with type MAP_TRANSITION is ignored.
-
   // Allocate new map.
   obj = map()->Copy();
   if (obj->IsFailure()) return obj;
 
+  // We have now sucessfully allocated all the necessary objects.
+  // Changes can now be made with the guarantee that all of them take effect.
   set_map(Map::cast(obj));
-  map()->
-    set_instance_descriptors(DescriptorArray::cast(Heap::empty_fixed_array()));
+  map()->set_instance_descriptors(Heap::empty_descriptor_array());
 
-  // We have now allocate all the necessary object and change can be applied.
   map()->set_unused_property_fields(0);
   set_properties(dictionary);
 
@@ -2569,20 +2581,33 @@ void FixedArray::CopyTo(int pos, FixedArray* dest, int dest_pos, int len) {
 }
 
 
+#ifdef DEBUG
+bool FixedArray::IsEqualTo(FixedArray* other) {
+  if (length() != other->length()) return false;
+  for (int i = 0 ; i < length(); ++i) {
+    if (get(i) != other->get(i)) return false;
+  }
+  return true;
+}
+#endif
+
+
 Object* DescriptorArray::Allocate(int number_of_descriptors) {
-  // Allocate the descriptor array.
+  if (number_of_descriptors == 0) {
+    return Heap::empty_descriptor_array();
+  }
+  // Allocate the array of keys.
   Object* array = Heap::AllocateFixedArray(ToKeyIndex(number_of_descriptors));
   if (array->IsFailure()) return array;
-  DescriptorArray* result = DescriptorArray::cast(array);
+  // Do not use DescriptorArray::cast on incomplete object.
+  FixedArray* result = FixedArray::cast(array);
 
   // Allocate the content array and set it in the descriptor array.
   array = Heap::AllocateFixedArray(number_of_descriptors << 1);
   if (array->IsFailure()) return array;
   result->set(kContentArrayIndex, array);
-
-  // Initialize the next enumeration index.
-  result->SetNextEnumerationIndex(PropertyDetails::kInitialIndex);
-
+  result->set(kEnumerationIndexIndex,
+              Smi::FromInt(PropertyDetails::kInitialIndex));
   return result;
 }
 
@@ -2594,7 +2619,7 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
     FixedArray::cast(get(kEnumerationIndexIndex))->
       set(kEnumCacheBridgeCacheIndex, new_cache);
   } else {
-    if (length() == 0) return;  // Do nothing for empty descriptor array.
+    if (IsEmpty()) return;  // Do nothing for empty descriptor array.
     FixedArray::cast(bridge_storage)->
       set(kEnumCacheBridgeCacheIndex, new_cache);
     fast_set(FixedArray::cast(bridge_storage),
@@ -2706,7 +2731,6 @@ Object* DescriptorArray::CopyRemove(String* name) {
   // Set the enumeration index in the descriptors and set the enumeration index
   // in the result.
   new_descriptors->SetNextEnumerationIndex(NextEnumerationIndex());
-
   // Write the old content and the descriptor information
   DescriptorWriter w(new_descriptors);
   DescriptorReader r(this);
@@ -2799,6 +2823,19 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
   }
   return kNotFound;
 }
+
+
+#ifdef DEBUG
+bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
+  if (IsEmpty()) return other->IsEmpty();
+  if (other->IsEmpty()) return false;
+  if (length() != other->length()) return false;
+  for (int i = 0; i < length(); ++i) {
+    if (get(i) != other->get(i) && i != kContentArrayIndex) return false;
+  }
+  return GetContentArray()->IsEqualTo(other->GetContentArray());
+}
+#endif
 
 
 static StaticResource<StringInputBuffer> string_input_buffer;
@@ -3775,7 +3812,8 @@ Object* JSFunction::SetPrototype(Object* value) {
 
     map()->set_constructor(value);
     map()->set_non_instance_prototype(true);
-    construct_prototype = *Top::initial_object_prototype();
+    construct_prototype =
+        Top::context()->global_context()->initial_object_prototype();
   } else {
     map()->set_non_instance_prototype(false);
   }
@@ -4210,8 +4248,8 @@ Object* JSObject::SetElementsLength(Object* len) {
       }
       int min = NewElementsCapacity(old_capacity);
       int new_capacity = value > min ? value : min;
-      if (KeepInFastCase(new_capacity) ||
-          new_capacity <= kMaxFastElementsLength) {
+      if (new_capacity <= kMaxFastElementsLength ||
+          !ShouldConvertToSlowElements(new_capacity)) {
         Object* obj = Heap::AllocateFixedArrayWithHoles(new_capacity);
         if (obj->IsFailure()) return obj;
         if (IsJSArray()) JSArray::cast(this)->set_length(smi_length);
@@ -4463,8 +4501,8 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
   if ((index - elms_length) < kMaxGap) {
     // Try allocating extra space.
     int new_capacity = NewElementsCapacity(index+1);
-    if (KeepInFastCase(new_capacity) ||
-        new_capacity <= kMaxFastElementsLength) {
+    if (new_capacity <= kMaxFastElementsLength ||
+        !ShouldConvertToSlowElements(new_capacity)) {
       ASSERT(static_cast<uint32_t>(new_capacity) > index);
       Object* obj = Heap::AllocateFixedArrayWithHoles(new_capacity);
       if (obj->IsFailure()) return obj;
@@ -4519,7 +4557,7 @@ Object* JSObject::SetElement(uint32_t index, Object* value) {
   }
 
   // Attempt to put this object back in fast case.
-  if (ShouldHaveFastElements()) {
+  if (ShouldConvertToFastElements()) {
     uint32_t new_length = 0;
     if (IsJSArray()) {
       CHECK(Array::IndexFromObject(JSArray::cast(this)->length(), &new_length));
@@ -4671,17 +4709,17 @@ bool JSObject::HasDenseElements() {
 }
 
 
-bool JSObject::KeepInFastCase(int new_capacity) {
+bool JSObject::ShouldConvertToSlowElements(int new_capacity) {
   ASSERT(HasFastElements());
   // Keep the array in fast case if the current backing storage is
   // almost filled and if the new capacity is no more than twice the
   // old capacity.
   int elements_length = FixedArray::cast(elements())->length();
-  return HasDenseElements() && ((new_capacity / 2) <= elements_length);
+  return !HasDenseElements() || ((new_capacity / 2) > elements_length);
 }
 
 
-bool JSObject::ShouldHaveFastElements() {
+bool JSObject::ShouldConvertToFastElements() {
   ASSERT(!HasFastElements());
   Dictionary* dictionary = Dictionary::cast(elements());
   // If the elements are sparse, we should not go back to fast case.
@@ -4864,8 +4902,15 @@ bool JSObject::HasRealNamedProperty(String* key) {
       case NORMAL:    // fall through.
       case FIELD:     // fall through.
       case CALLBACKS:  // fall through.
-      case CONSTANT_FUNCTION: return true;
-      default: return false;
+      case CONSTANT_FUNCTION:
+        return true;
+      case INTERCEPTOR:
+      case MAP_TRANSITION:
+      case CONSTANT_TRANSITION:
+      case NULL_DESCRIPTOR:
+        return false;
+      default:
+        UNREACHABLE();
     }
   }
 
@@ -5099,8 +5144,9 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
     }
     ASSERT(!storage || storage->length() >= counter);
   } else {
-    if (storage)
+    if (storage) {
       element_dictionary()->CopyKeysTo(storage, filter);
+    }
     counter = element_dictionary()->NumberOfElementsFilterAttributes(filter);
   }
 
@@ -5506,7 +5552,7 @@ Object* Dictionary::GenerateNewEnumerationIndices() {
 
 
 Object* Dictionary::EnsureCapacity(int n, Key* key) {
-  // Check whether there is enough enumeration indices for adding n elements.
+  // Check whether there are enough enumeration indices to add n elements.
   if (key->IsStringKey() &&
       !PropertyDetails::IsValidIndex(NextEnumerationIndex() + n)) {
     // If not, we generate new indices for the properties.
@@ -5793,9 +5839,10 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
   }
 
   // Allocate the instance descriptor.
-  Object* instance_descriptors =
+  Object* descriptors_unchecked =
       DescriptorArray::Allocate(instance_descriptor_length);
-  if (instance_descriptors->IsFailure()) return instance_descriptors;
+  if (descriptors_unchecked->IsFailure()) return descriptors_unchecked;
+  DescriptorArray* descriptors = DescriptorArray::cast(descriptors_unchecked);
 
   int number_of_allocated_fields = number_of_fields + unused_property_fields;
 
@@ -5804,7 +5851,7 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
   if (fields->IsFailure()) return fields;
 
   // Fill in the instance descriptor and the fields.
-  DescriptorWriter w(DescriptorArray::cast(instance_descriptors));
+  DescriptorWriter w(descriptors);
   int current_offset = 0;
   for (int i = 0; i < capacity; i++) {
     Object* k = KeyAt(i);
@@ -5841,25 +5888,20 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
   }
   ASSERT(current_offset == number_of_fields);
 
-  // Sort the instance descriptors.
-  DescriptorArray::cast(instance_descriptors)->Sort();
-
+  descriptors->Sort();
   // Allocate new map.
   Object* new_map = obj->map()->Copy();
   if (new_map->IsFailure()) return new_map;
 
   // Transform the object.
-  Map::cast(new_map)->
-      set_instance_descriptors(DescriptorArray::cast(instance_descriptors));
-  Map::cast(new_map)->set_unused_property_fields(unused_property_fields);
   obj->set_map(Map::cast(new_map));
+  obj->map()->set_instance_descriptors(descriptors);
+  obj->map()->set_unused_property_fields(unused_property_fields);
+
   obj->set_properties(FixedArray::cast(fields));
   ASSERT(obj->IsJSObject());
 
-  // Transfer next enumeration index from dictionary to instance descriptors.
-  DescriptorArray::cast(instance_descriptors)->
-      SetNextEnumerationIndex(NextEnumerationIndex());
-
+  descriptors->SetNextEnumerationIndex(NextEnumerationIndex());
   // Check it really works.
   ASSERT(obj->HasFastProperties());
   return obj;

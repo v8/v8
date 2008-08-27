@@ -301,8 +301,16 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       // lookup the flag
       Flag* flag = Lookup(name);
       if (flag == NULL) {
-        fprintf(stderr, "Error: unrecognized flag %s\n", arg);
-        return j;
+        if (remove_flags) {
+          // We don't recognize this flag but since we're removing
+          // the flags we recognize we assume that the remaining flags
+          // will be processed somewhere else so this flag might make
+          // sense there.
+          continue;
+        } else {
+          fprintf(stderr, "Error: unrecognized flag %s\n", arg);
+          return j;
+        }
       }
 
       // if we still need a flag value, use the next argument if available

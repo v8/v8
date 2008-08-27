@@ -348,8 +348,11 @@ class DescriptorReader: public DescriptorStream {
   bool IsTransition() {
     PropertyType t = type();
     ASSERT(t != INTERCEPTOR);
-    if (t == MAP_TRANSITION || t == CONSTANT_TRANSITION) return true;
-    return false;
+    return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
+  }
+
+  bool IsNullDescriptor() {
+    return type() == NULL_DESCRIPTOR;
   }
 
   JSFunction* GetConstantFunction() { return JSFunction::cast(GetValue()); }

@@ -40,17 +40,17 @@ class CcTest {
  public:
   typedef void (TestFunction)();
   CcTest(TestFunction* callback, const char* file, const char* name);
+  void Run() { callback_(); }
   static int test_count();
-  static CcTest* first() { return first_; }
+  static CcTest* last() { return last_; }
   CcTest* prev() { return prev_; }
   const char* file() { return file_; }
   const char* name() { return name_; }
-
  private:
   TestFunction* callback_;
   const char* file_;
   const char* name_;
-  static CcTest* first_;
+  static CcTest* last_;
   CcTest* prev_;
 };
 

@@ -1673,6 +1673,14 @@ class EXPORT V8 {
    */
   static void SetFlagsFromString(const char* str, int length);
 
+  /**
+   * Sets v8 flags from command line.
+   * TODO(758124): Describe flags?
+   */
+  static void SetFlagsFromCommandLine(int* argc,
+                                      char** argv,
+                                      bool remove_flags);
+
   /** Get the version string. */
   static const char* GetVersion();
 

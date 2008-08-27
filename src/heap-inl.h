@@ -160,14 +160,6 @@ void Heap::RecordWrite(Address address, int offset) {
 }
 
 
-Object* Heap::AllocatePropertyStorageForMap(Map* map) {
-  if (map->unused_property_fields() > 0) {
-    return AllocateFixedArray(map->unused_property_fields());
-  }
-  return Heap::empty_fixed_array();
-}
-
-
 AllocationSpace Heap::TargetSpace(HeapObject* object) {
   // Heap numbers and sequential strings are promoted to code space, all
   // other object types are promoted to old space.  We do not use

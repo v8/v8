@@ -112,6 +112,7 @@ namespace v8 { namespace internal {
   V(Object, false_value)                                \
   V(String, empty_string)                               \
   V(FixedArray, empty_fixed_array)                      \
+  V(DescriptorArray, empty_descriptor_array)            \
   V(Object, the_hole_value)                             \
   V(Map, neander_map)                                   \
   V(JSObject, message_listeners)                        \
@@ -811,10 +812,6 @@ class Heap : public AllStatic {
   // inlined).
   static inline Object* AllocateRawMap(int size_in_bytes);
 
-  // Allocate storage for JSObject properties.
-  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
-  static inline Object* AllocatePropertyStorageForMap(Map* map);
 
   // Initializes a JSObject based on its map.
   static void InitializeJSObjectFromMap(JSObject* obj,

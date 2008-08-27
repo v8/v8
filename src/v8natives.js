@@ -212,7 +212,8 @@ $Object.prototype.constructor = $Object;
 %AddProperty(global, "execScript", function(expr, lang) {
   // NOTE: We don't care about the character casing.
   if (!lang || /javascript/i.test(lang)) {
-    %CompileString(ToString(expr), false)();
+    var f = %CompileString(ToString(expr), false);
+    f.call(global);
   }
   return null;
 }, DONT_ENUM);

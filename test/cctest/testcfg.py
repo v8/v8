@@ -28,62 +28,57 @@
 import test
 import os
 from os.path import join, dirname
-import re
+import platform
 
 
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+DEBUG_FLAGS = ['--enable-slow-asserts', '--debug-code', '--verify-heap']
 
 
-class MjsunitTestCase(test.TestCase):
+class CcTestCase(test.TestCase):
 
-  def __init__(self, path, file, mode, context, config):
-    super(MjsunitTestCase, self).__init__(context, path)
-    self.file = file
-    self.config = config
+  def __init__(self, path, executable, mode, raw_name, context):
+    super(CcTestCase, self).__init__(context, path)
+    self.executable = executable
     self.mode = mode
-  
+    self.raw_name = raw_name
+
   def GetLabel(self):
-    return "%s %s" % (self.mode, self.GetName())
+    return "%s %s %s" % (self.mode, self.path[-2], self.path[-1])
 
   def GetName(self):
     return self.path[-1]
 
   def GetCommand(self):
-    result = [self.config.context.GetVm(self.mode)]
-    source = open(self.file).read()
-    flags_match = FLAGS_PATTERN.search(source)
-    if flags_match:
-      result += flags_match.group(1).strip().split()
-    framework = join(dirname(self.config.root), 'mjsunit', 'mjsunit.js')
-    result += [framework, self.file]
+    result = [ self.executable, self.raw_name ]
+    if self.mode == 'debug':
+      result += DEBUG_FLAGS
     return result
 
 
-class MjsunitTestConfiguration(test.TestConfiguration):
+class CcTestConfiguration(test.TestConfiguration):
 
   def __init__(self, context, root):
-    super(MjsunitTestConfiguration, self).__init__(context, root)
-  
-  def Ls(self, path):
-    def SelectTest(name):
-      return name.endswith('.js') and name != 'mjsunit.js'
-    return [f[:-3] for f in os.listdir(path) if SelectTest(f)]
-
-  def ListTests(self, current_path, path, mode):
-    mjsunit = [current_path + [t] for t in self.Ls(self.root)]
-    regress = [current_path + ['regress', t] for t in self.Ls(join(self.root, 'regress'))]
-    all_tests = mjsunit + regress
-    result = []
-    for test in all_tests:
-      if self.Contains(path, test):
-        full_name = current_path + test
-        file_path = join(self.root, reduce(join, test[1:], "") + ".js")
-        result.append(MjsunitTestCase(full_name, file_path, mode, self.context, self))
-    return result
+    super(CcTestConfiguration, self).__init__(context, root)
 
   def GetBuildRequirements(self):
-    return ['sample', 'sample=shell']
+    return ['cctests']
+
+  def ListTests(self, current_path, path, mode):
+    executable = join('obj', 'test', mode, 'cctest')
+    if (platform.system() == 'Windows'):
+      executable += '.exe'
+    output = test.Execute([executable, '--list'], self.context)
+    if output.exit_code != 0:
+      print output.stdout
+      print output.stderr
+      return []
+    result = []
+    for raw_test in output.stdout.strip().split():
+      full_path = current_path + raw_test.split('/')
+      if self.Contains(path, full_path):
+        result.append(CcTestCase(full_path, executable, mode, raw_test, self.context))
+    return result
 
 
 def GetConfiguration(context, root):
-  return MjsunitTestConfiguration(context, root)
+  return CcTestConfiguration(context, root)

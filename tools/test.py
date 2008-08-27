@@ -33,6 +33,7 @@ import platform
 import re
 import subprocess
 import sys
+import tempfile
 import time
 import utils
 
@@ -61,7 +62,7 @@ class ProgressIndicator(object):
       case = test.case
       self.AboutToRun(case)
       output = case.Run()
-      if output.HasFailed():
+      if output.UnexpectedOutput():
         self.failed += 1
         self.failed_tests.append(output)
       else:
@@ -91,7 +92,7 @@ class SimpleProgressIndicator(ProgressIndicator):
   def Done(self):
     print
     for failed in self.failed_tests:
-      print "=== %s ===" % failed.test.GetName()
+      print "=== %s ===" % failed.test.GetLabel()
       print "Command: %s" % EscapeCommand(failed.command)
       if failed.output.stderr:
         print "--- stderr ---"
@@ -113,11 +114,11 @@ class SimpleProgressIndicator(ProgressIndicator):
 class VerboseProgressIndicator(SimpleProgressIndicator):
 
   def AboutToRun(self, case):
-    print '%s:' % case.GetName(),
+    print '%s:' % case.GetLabel(),
     sys.stdout.flush()
 
-  def has_run(self, output):
-    if output.HasFailed():
+  def HasRun(self, output):
+    if output.UnexpectedOutput():
       print "FAIL"
     else:
       print "pass"
@@ -128,11 +129,11 @@ class DotsProgressIndicator(SimpleProgressIndicator):
   def AboutToRun(self, case):
     pass
 
-  def has_run(self, output):
+  def HasRun(self, output):
     total = self.succeeded + self.failed
     if (total > 1) and (total % 50 == 1):
       sys.stdout.write('\n')
-    if output.HasFailed():
+    if output.UnexpectedOutput():
       sys.stdout.write('F')
       sys.stdout.flush()
     else:
@@ -147,19 +148,19 @@ class CompactProgressIndicator(ProgressIndicator):
     self.templates = templates
     self.last_status_length = 0
     self.start_time = time.time()
-  
+
   def Starting(self):
     pass
-  
+
   def Done(self):
     self.PrintProgress('Done')
-  
+
   def AboutToRun(self, case):
-    self.PrintProgress(case.GetName())
-  
+    self.PrintProgress(case.GetLabel())
+
   def HasRun(self, output):
-    if output.HasFailed():
-      print "\n--- Failed: %s ---" % str(output.test.GetName())
+    if output.UnexpectedOutput():
+      print "\n--- Failed: %s ---" % str(output.test.GetLabel())
       print "Command: %s" % EscapeCommand(output.command)
       stdout = output.output.stdout.strip()
       if len(stdout):
@@ -200,7 +201,7 @@ class ColorProgressIndicator(CompactProgressIndicator):
       'stderr': "\033[31m%s\033[0m",
     }
     super(ColorProgressIndicator, self).__init__(cases, templates)
-  
+
   def ClearLine(self, last_line_length):
     print "\033[1K\r",
 
@@ -216,7 +217,7 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
       'max_length': 78
     }
     super(MonochromeProgressIndicator, self).__init__(cases, templates)
-  
+
   def ClearLine(self, last_line_length):
     print ("\r" + (" " * last_line_length) + "\r"),
 
@@ -244,12 +245,19 @@ class CommandOutput(object):
 
 class TestCase(object):
 
-  def __init__(self, path):
+  def __init__(self, context, path):
     self.path = path
+    self.context = context
+
+  def IsNegative(self):
+    return False
+
+  def IsFailureOutput(self, output):
+    return output.exit_code != 0
 
   def Run(self):
     command = self.GetCommand()
-    output = Execute(command)
+    output = Execute(command, self.context)
     return TestOutput(self, command, output)
 
 
@@ -260,27 +268,66 @@ class TestOutput(object):
     self.command = command
     self.output = output
 
+  def UnexpectedOutput(self):
+    if self.HasFailed():
+      outcome = FAIL
+    else:
+      outcome = PASS
+    return not outcome in self.test.outcomes
+
   def HasFailed(self):
-    return self.output.exit_code != 0
+    execution_failed = self.test.IsFailureOutput(self.output)
+    if self.test.IsNegative():
+      return not execution_failed
+    else:
+      return execution_failed
 
 
-def Execute(args):
-  if VERBOSE: print " ".join(args)
+MAX_SLEEP_TIME = 0.1
+INITIAL_SLEEP_TIME = 0.0001
+SLEEP_TIME_FACTOR = 1.25
+
+
+def RunProcess(context, **args):
+  if context.verbose: print "#", " ".join(args['args'])
   process = subprocess.Popen(
-    args = args,
-    stdout = subprocess.PIPE,
-    stderr = subprocess.PIPE
+    shell = (platform.system() == 'Windows'),
+    **args
   )
-  exit_code = process.wait()
-  output = process.stdout.read()
-  errors = process.stderr.read()
+  exit_code = None
+  sleep_time = INITIAL_SLEEP_TIME
+  while exit_code is None:
+    exit_code = process.poll()
+    time.sleep(sleep_time)
+    sleep_time = sleep_time * SLEEP_TIME_FACTOR
+    if sleep_time > MAX_SLEEP_TIME:
+      sleep_time = MAX_SLEEP_TIME
+  return (process, exit_code)
+
+
+def Execute(args, context):
+  (fd_out, outname) = tempfile.mkstemp()
+  (fd_err, errname) = tempfile.mkstemp()
+  (process, exit_code) = RunProcess(
+    context,
+    args = args,
+    stdout = fd_out,
+    stderr = fd_err,
+  )
+  os.close(fd_out)
+  os.close(fd_err)
+  output = file(outname).read()
+  errors = file(errname).read()
+  os.unlink(outname)
+  os.unlink(errname)
   return CommandOutput(exit_code, output, errors)
 
 
-def ExecuteNoCapture(args):
-  if VERBOSE: print " ".join(args)
-  process = subprocess.Popen(args = args)
-  exit_code = process.wait()
+def ExecuteNoCapture(args, context):
+  (process, exit_code) = RunProcess(
+    context,
+    args = args,
+  )
   return CommandOutput(exit_code, "", "")
 
 
@@ -296,6 +343,14 @@ class TestConfiguration(object):
   def __init__(self, context, root):
     self.context = context
     self.root = root
+
+  def Contains(self, path, file):
+    if len(path) > len(file):
+      return False
+    for i in xrange(len(path)):
+      if not path[i].match(file[i]):
+        return False
+    return True
 
 
 class TestSuite(object):
@@ -346,7 +401,7 @@ class LiteralTestSuite(TestSuite):
     (name, rest) = CarCdr(path)
     result = [ ]
     for test in self.tests:
-      if not name or name == test.GetName():
+      if not name or name.match(test.GetName()):
         result += test.GetBuildRequirements(rest, context)
     return result
 
@@ -355,29 +410,42 @@ class LiteralTestSuite(TestSuite):
     result = [ ]
     for test in self.tests:
       test_name = test.GetName()
-      if not name or name == test_name:
+      if not name or name.match(test_name):
         full_path = current_path + [test_name]
-        result += test.ListTests(full_path, rest, context, mode)
+        result += test.ListTests(full_path, path, context, mode)
     return result
+
+
+PREFIX = {'debug': '_g', 'release': ''}
 
 
 class Context(object):
 
-  def __init__(self, workspace, buildspace, vm):
+  def __init__(self, workspace, buildspace, verbose, vm, timeout):
     self.workspace = workspace
     self.buildspace = buildspace
-    self.vm = vm
+    self.verbose = verbose
+    self.vm_root = vm
+    self.timeout = timeout
 
+  def GetVm(self, mode):
+    name = self.vm_root + PREFIX[mode]
+    if platform.system() == 'Windows':
+      return name + '.exe'
+    else:
+      return name
 
 def RunTestCases(all_cases, progress):
-  cases_to_run = [ c for c in all_cases if not SKIP in c.outcomes ]
+  def DoSkip(case):
+    return SKIP in c.outcomes or SLOW in c.outcomes
+  cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
   progress = PROGRESS_INDICATORS[progress](cases_to_run)
   progress.Run()
 
 
-def BuildRequirements(workspace, requirements, mode):
-  command_line = ['scons', '-Y', workspace, 'mode=' + ",".join(mode)] + requirements
-  output = ExecuteNoCapture(command_line)
+def BuildRequirements(context, requirements, mode):
+  command_line = ['scons', '-Y', context.workspace, 'mode=' + ",".join(mode)] + requirements
+  output = ExecuteNoCapture(command_line, context)
   return output.exit_code == 0
 
 
@@ -392,6 +460,7 @@ PASS = 'pass'
 OKAY = 'okay'
 TIMEOUT = 'timeout'
 CRASH = 'crash'
+SLOW = 'slow'
 
 
 class Expression(object):
@@ -424,7 +493,7 @@ class Outcome(Expression):
 
   def GetOutcomes(self, env, defs):
     if self.name in defs:
-      return defs[self.name].get_outcomes(env, defs)
+      return defs[self.name].GetOutcomes(env, defs)
     else:
       return ListSet([self.name])
 
@@ -437,7 +506,7 @@ class ListSet(Set):
 
   def __init__(self, elms):
     self.elms = elms
-  
+
   def __str__(self):
     return "ListSet%s" % str(self.elms)
 
@@ -450,7 +519,7 @@ class ListSet(Set):
     if not isinstance(that, ListSet):
       return that.Union(self)
     return ListSet(self.elms + [ x for x in that.elms if x not in self.elms ])
-  
+
   def IsEmpty(self):
     return len(self.elms) == 0
 
@@ -462,7 +531,7 @@ class Everything(Set):
 
   def Union(self, that):
     return self
-  
+
   def IsEmpty(self):
     return False
 
@@ -474,7 +543,7 @@ class Nothing(Set):
 
   def Union(self, that):
     return that
-  
+
   def IsEmpty(self):
     return True
 
@@ -527,7 +596,7 @@ class Tokenizer(object):
     self.tokens = None
 
   def Current(self, length = 1):
-    if not self.has_more(length): return ""
+    if not self.HasMore(length): return ""
     return self.expr[self.index:self.index+length]
 
   def HasMore(self, length = 1):
@@ -540,7 +609,7 @@ class Tokenizer(object):
     self.tokens.append(token)
 
   def SkipSpaces(self):
-    while self.HasMore() and self.current().isspace():
+    while self.HasMore() and self.Current().isspace():
       self.Advance()
 
   def Tokenize(self):
@@ -552,7 +621,7 @@ class Tokenizer(object):
       if self.Current() == '(':
         self.AddToken('(')
         self.Advance()
-      elif self.current() == ')':
+      elif self.Current() == ')':
         self.AddToken(')')
         self.Advance()
       elif self.Current() == '$':
@@ -670,7 +739,7 @@ def ParseLogicalExpression(scan):
 
 def ParseCondition(expr):
   """Parses a logical expression into an Expression object"""
-  tokens = Tokenizer(expr).tokenize()
+  tokens = Tokenizer(expr).Tokenize()
   if not tokens:
     print "Malformed expression: '%s'" % expr
     return None
@@ -705,8 +774,11 @@ class Configuration(object):
       matches = [ r for r in all_rules if r.Contains(case.path) ]
       outcomes = set([])
       for rule in matches:
-        outcomes = outcomes.Union(rule.GetOutcomes(env, self.defs))
+        outcomes = outcomes.union(rule.GetOutcomes(env, self.defs))
         unused_rules.discard(rule)
+      if not outcomes:
+        outcomes = [PASS]
+      case.outcomes = outcomes
       result.append(ClassifiedTest(case, outcomes))
     return (result, list(unused_rules))
 
@@ -727,7 +799,8 @@ class Rule(object):
   """A single rule that specifies the expected outcome for a single
   test."""
 
-  def __init__(self, path, value):
+  def __init__(self, raw_path, path, value):
+    self.raw_path = raw_path
     self.path = path
     self.value = value
 
@@ -735,24 +808,26 @@ class Rule(object):
     set = self.value.GetOutcomes(env, defs)
     assert isinstance(set, ListSet)
     return set.elms
-  
+
   def Contains(self, path):
     if len(self.path) > len(path):
       return False
     for i in xrange(len(self.path)):
-      if path[i] != self.path[i]:
+      if not self.path[i].match(path[i]):
         return False
     return True
 
 
 HEADER_PATTERN = re.compile(r'\[([^]]+)\]')
-RULE_PATTERN = re.compile(r'\s*(%?)([^: ]*)\s*:(.*)')
+RULE_PATTERN = re.compile(r'\s*([^: ]*)\s*:(.*)')
 DEF_PATTERN = re.compile(r'^def\s*(\w+)\s*=(.*)$')
+PREFIX_PATTERN = re.compile(r'^\s*prefix\s+([\w\_\.\-\/]+)$')
 
 
 def ReadConfigurationInto(path, sections, defs):
   current_section = Section(Constant(True))
   sections.append(current_section)
+  prefix = []
   for line in utils.ReadLinesFrom(path):
     header_match = HEADER_PATTERN.match(line)
     if header_match:
@@ -764,12 +839,12 @@ def ReadConfigurationInto(path, sections, defs):
       continue
     rule_match = RULE_PATTERN.match(line)
     if rule_match:
-      path = SplitPath(rule_match.group(2).strip())
-      value_str = rule_match.group(3).strip()
+      path = prefix + SplitPath(rule_match.group(1).strip())
+      value_str = rule_match.group(2).strip()
       value = ParseCondition(value_str)
       if not value:
         return False
-      current_section.AddRule(Rule(path, value))
+      current_section.AddRule(Rule(rule_match.group(1), path, value))
       continue
     def_match = DEF_PATTERN.match(line)
     if def_match:
@@ -778,6 +853,10 @@ def ReadConfigurationInto(path, sections, defs):
       if not value:
         return False
       defs[name] = value
+      continue
+    prefix_match = PREFIX_PATTERN.match(line)
+    if prefix_match:
+      prefix = SplitPath(prefix_match.group(1).strip())
       continue
     print "Malformed line: '%s'." % line
     return False
@@ -800,8 +879,8 @@ def ReadConfiguration(paths):
 
 def BuildOptions():
   result = optparse.OptionParser()
-  result.add_option("-m", "--mode", help="The test mode in which to run",
-      choices=['release', 'debug'])
+  result.add_option("-m", "--mode", help="The test modes in which to run (comma-separated)",
+      default='release')
   result.add_option("-v", "--verbose", help="Verbose output",
       default=False, action="store_true")
   result.add_option("-p", "--progress",
@@ -814,27 +893,31 @@ def BuildOptions():
       default=False, action="store_true")
   result.add_option("--report", help="Print a summary of the tests to be run",
       default=False, action="store_true")
+  result.add_option("-s", "--suite", help="A test suite",
+      default=[], action="append")
+  result.add_option("-t", "--timeout", help="Timeout in seconds",
+      default=60, type="int")
   return result
 
 
 def ProcessOptions(options):
   global VERBOSE
   VERBOSE = options.verbose
-  mode = options.mode
-  if mode == 'all': mode = ['release', 'debug']
-  elif not mode: mode = ['release']
-  else: mode = [mode]
-  options.mode = mode
+  options.mode = options.mode.split(',')
+  for mode in options.mode:
+    if not mode in ['debug', 'release']:
+      print "Unknown mode %s" % mode
+      return False
   return True
 
 
 REPORT_TEMPLATE = """\
 Total: %(total)i tests
- * %(skipped)3d tests will be skipped
- * %(nocrash)3d tests are expected to be flaky but not crash
- * %(pass)3d tests are expected to pass
- * %(fail_ok)3d tests are expected to fail that we won't fix
- * %(fail)3d tests are expected to fail that we should fix\
+ * %(skipped)4d tests will be skipped
+ * %(nocrash)4d tests are expected to be flaky but not crash
+ * %(pass)4d tests are expected to pass
+ * %(fail_ok)4d tests are expected to fail that we won't fix
+ * %(fail)4d tests are expected to fail that we should fix\
 """
 
 def PrintReport(cases):
@@ -853,9 +936,28 @@ def PrintReport(cases):
   }
 
 
+class Pattern(object):
+
+  def __init__(self, pattern):
+    self.pattern = pattern
+    self.compiled = None
+
+  def match(self, str):
+    if not self.compiled:
+      pattern = "^" + self.pattern.replace('*', '.*') + "$"
+      self.compiled = re.compile(pattern)
+    return self.compiled.match(str)
+
+  def __str__(self):
+    return self.pattern
+
+
 def SplitPath(s):
   stripped = [ c.strip() for c in s.split('/') ]
-  return [ s for s in stripped if len(s) > 0 ]
+  return [ Pattern(s) for s in stripped if len(s) > 0 ]
+
+
+BUILT_IN_TESTS = ['mjsunit', 'cctest']
 
 
 def Main():
@@ -869,11 +971,12 @@ def Main():
     return 1
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
-  tests = ['mjsunit']
-  repositories = [TestRepository(join(workspace, 'test', name)) for name in tests]
+  repositories = [TestRepository(join(workspace, 'test', name)) for name in BUILT_IN_TESTS]
+  repositories += [TestRepository(a) for a in options.suite]
+
   root = LiteralTestSuite(repositories)
   if len(args) == 0:
-    paths = [[]]
+    paths = [SplitPath(t) for t in BUILT_IN_TESTS]
   else:
     paths = [ ]
     for arg in args:
@@ -882,36 +985,45 @@ def Main():
 
   # First build the required targets
   buildspace = abspath('.')
-  context = Context(workspace, buildspace, join(buildspace, 'shell'))
+  context = Context(workspace, buildspace, VERBOSE,
+                    join(buildspace, 'shell'),
+                    options.timeout)
   if not options.no_build:
     reqs = [ ]
     for path in paths:
       reqs += root.GetBuildRequirements(path, context)
     reqs = list(set(reqs))
     if len(reqs) > 0:
-      if not BuildRequirements(workspace, reqs, options.mode):
+      if not BuildRequirements(context, reqs, options.mode):
         return 1
 
   # Then list the tests
-  cases = [ ]
+  all_cases = [ ]
+  all_unused = [ ]
   for path in paths:
     for mode in options.mode:
-      cases += root.ListTests([], path, context, mode)
+      env = {
+        'mode': mode
+      }
+      test_list = root.ListTests([], path, context, mode)
+      (cases, unused_rules) = config.ClassifyTests(test_list, env)
+      all_cases += cases
+      all_unused.append(unused_rules)
 
-  env = { }
-  (cases, unused_rules) = config.ClassifyTests(cases, env)
+#  for rule in unused_rules:
+#    print "Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path])
 
-  for rule in unused_rules:
-    print "Rule for '%s' was not used." % "/".join(rule.path)
-    return 0
-  
   if options.report:
-    PrintReport(cases)
-  
-  if len(cases) == 0:
+    PrintReport(all_cases)
+
+  if len(all_cases) == 0:
     print "No tests to run."
   else:
-    RunTestCases(cases, options.progress)
+    try:
+      RunTestCases(all_cases, options.progress)
+    except KeyboardInterrupt:
+      print "Interrupted"
+      return 1
 
   return 0
 

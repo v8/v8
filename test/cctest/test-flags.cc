@@ -124,10 +124,10 @@ TEST(Flags4) {
   SetFlagsToDefault();
   int argc = 3;
   const char* argv[] = { "Test4", "--bool_flag", "--foo" };
-  CHECK_EQ(2, FlagList::SetFlagsFromCommandLine(&argc,
+  CHECK_EQ(0, FlagList::SetFlagsFromCommandLine(&argc,
                                                 const_cast<char **>(argv),
                                                 true));
-  CHECK_EQ(3, argc);
+  CHECK_EQ(2, argc);
 }
 
 

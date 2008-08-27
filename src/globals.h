@@ -304,7 +304,8 @@ enum PropertyType {
   FIELD               = 3,  // only in fast mode
   CALLBACKS           = 4,
   CONSTANT_TRANSITION = 5,  // only in fast mode
-  INTERCEPTOR         = 6
+  INTERCEPTOR         = 6,
+  NULL_DESCRIPTOR     = 7   // only in fast mode
 };
 
 

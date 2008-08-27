@@ -555,8 +555,7 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
 Handle<JSObject> Factory::NewObjectLiteral(int expected_number_of_properties) {
   Handle<Map> map = Handle<Map>(Top::object_function()->initial_map());
   map = Factory::CopyMap(map);
-  map->set_instance_descriptors(
-      DescriptorArray::cast(Heap::empty_fixed_array()));
+  map->set_instance_descriptors(Heap::empty_descriptor_array());
   map->set_unused_property_fields(expected_number_of_properties);
   CALL_HEAP_FUNCTION(Heap::AllocateJSObjectFromMap(*map, TENURED),
                      JSObject);
@@ -704,7 +703,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
     if (parent->IsUndefined()) break;
     obj = Handle<FunctionTemplateInfo>::cast(parent);
   }
-  if (array->length() > 0) {
+  if (!array->IsEmpty()) {
     map->set_instance_descriptors(*array);
   }
 

@@ -87,6 +87,9 @@ void LookupResult::Print() {
     case CONSTANT_TRANSITION:
       PrintF(" -type = constant property transition\n");
       break;
+    case NULL_DESCRIPTOR:
+      PrintF(" =type = null descriptor\n");
+      break;
   }
 }
 

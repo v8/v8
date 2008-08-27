@@ -247,8 +247,7 @@ static Object* Runtime_CreateApiFunction(Arguments args) {
 static Object* Runtime_IsTemplate(Arguments args) {
   ASSERT(args.length() == 1);
   Object* arg = args[0];
-  bool result = arg->IsObjectTemplateInfo()
-      || arg->IsFunctionTemplateInfo();
+  bool result = arg->IsObjectTemplateInfo() || arg->IsFunctionTemplateInfo();
   return Heap::ToBoolean(result);
 }
 
@@ -794,11 +793,12 @@ static Object* Runtime_FunctionSetLength(Arguments args) {
 
 
 static Object* Runtime_FunctionSetPrototype(Arguments args) {
-  HandleScope scope;
+  NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
   CONVERT_CHECKED(JSFunction, fun, args[0]);
-  Accessors::FunctionSetPrototype(fun, args[1], NULL);
+  Object* obj = Accessors::FunctionSetPrototype(fun, args[1], NULL);
+  if (obj->IsFailure()) return obj;
   return args[0];  // return TOS
 }
 
@@ -858,14 +858,12 @@ static Object* Runtime_SetCode(Arguments args) {
 
 static Object* CharCodeAt(String* subject, Object* index) {
   uint32_t i = 0;
-  if (!Array::IndexFromObject(index, &i))
-    return Heap::nan_value();
+  if (!Array::IndexFromObject(index, &i)) return Heap::nan_value();
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
   subject->TryFlatten();
-  if (i >= static_cast<uint32_t>(subject->length()))
-    return Heap::nan_value();
+  if (i >= static_cast<uint32_t>(subject->length())) return Heap::nan_value();
   return Smi::FromInt(subject->Get(i));
 }
 
@@ -1315,12 +1313,13 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
     return *value;
   }
 
+  HandleScope scope;
+
   // Handlify object and value before calling into JavaScript again.
   Handle<JSObject> object_handle = Handle<JSObject>::cast(object);
   Handle<Object> value_handle = value;
 
   // Call-back into JavaScript to convert the key to a string.
-  HandleScope scope;
   bool has_pending_exception = false;
   Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
@@ -1562,8 +1561,7 @@ static Object* Runtime_Typeof(Arguments args) {
   HeapObject* heap_obj = HeapObject::cast(obj);
 
   // typeof an undetectable object is 'undefined'
-  if (heap_obj->map()->is_undetectable())
-      return Heap::undefined_symbol();
+  if (heap_obj->map()->is_undetectable()) return Heap::undefined_symbol();
 
   InstanceType instance_type = heap_obj->map()->instance_type();
   if (instance_type < FIRST_NONSTRING_TYPE) {
@@ -1888,7 +1886,7 @@ static unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping;
 
 template <class Converter>
 static Object* ConvertCase(Arguments args,
-    unibrow::Mapping<Converter, 128> *mapping) {
+                           unibrow::Mapping<Converter, 128>* mapping) {
   NoHandleAllocation ha;
 
   CONVERT_CHECKED(String, s, args[0]);
@@ -1916,11 +1914,9 @@ static Object* ConvertCase(Arguments args,
   Object* o = s->IsAscii()
       ? Heap::AllocateRawAsciiString(length)
       : Heap::AllocateRawTwoByteString(length);
-  if (o->IsFailure())
-    return o;
+  if (o->IsFailure()) return o;
   String* result = String::cast(o);
   bool has_changed_character = false;
-
 
   // Convert all characters to upper case, assuming that they will fit
   // in the buffer
@@ -2047,10 +2043,7 @@ static Object* Runtime_NumberToInteger(Arguments args) {
   ASSERT(args.length() == 1);
 
   Object* obj = args[0];
-
-  if (obj->IsSmi())
-    return obj;
-
+  if (obj->IsSmi()) return obj;
   CONVERT_DOUBLE_CHECKED(number, obj);
   return Heap::NumberFromDouble(DoubleToInteger(number));
 }
@@ -2184,8 +2177,9 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     return Top::Throw(Heap::illegal_argument_symbol());
   }
   FixedArray* fixed_array = FixedArray::cast(array->elements());
-  if (fixed_array->length() < array_length)
+  if (fixed_array->length() < array_length) {
     array_length = fixed_array->length();
+  }
 
   if (array_length == 0) {
     return Heap::empty_string();
@@ -2214,8 +2208,9 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
         return Failure::OutOfMemoryException();
       }
       position += element_length;
-      if (ascii && !element->IsAscii())
+      if (ascii && !element->IsAscii()) {
         ascii = false;
+      }
     } else {
       return Top::Throw(Heap::illegal_argument_symbol());
     }
@@ -2408,17 +2403,15 @@ static Object* Runtime_StringCompare(Arguments args) {
   // A few fast case tests before we flatten.
   if (x == y) return Smi::FromInt(EQUAL);
   if (y->length() == 0) {
-    if (x->length() == 0)
-      return Smi::FromInt(EQUAL);
+    if (x->length() == 0) return Smi::FromInt(EQUAL);
     return Smi::FromInt(GREATER);
   } else if (x->length() == 0) {
     return Smi::FromInt(LESS);
   }
-  {
-    int d = x->Get(0) - y->Get(0);
-    if (d < 0) return Smi::FromInt(LESS);
-    else if (d > 0) return Smi::FromInt(GREATER);
-  }
+
+  int d = x->Get(0) - y->Get(0);
+  if (d < 0) return Smi::FromInt(LESS);
+  else if (d > 0) return Smi::FromInt(GREATER);
 
   x->TryFlatten();
   y->TryFlatten();
@@ -2821,8 +2814,6 @@ static Object* Runtime_LookupContext(Arguments args) {
 }
 
 
-
-
 // A mechanism to return pairs of Object*'s. This is somewhat
 // compiler-dependent as it assumes that a 64-bit value (a long long)
 // is returned via two registers (edx:eax on ia32). Both the ia32 and
@@ -2888,7 +2879,7 @@ static ObjPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   if (throw_error) {
     // The property doesn't exist - throw exception.
     Handle<Object> reference_error =
-      Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
+        Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
     return MakePair(Top::Throw(*reference_error), NULL);
   } else {
     // The property doesn't exist - return undefined
@@ -2913,7 +2904,7 @@ static Object* Runtime_StoreContextSlot(Arguments args) {
 
   Handle<Object> value(args[0]);
   CONVERT_ARG_CHECKED(Context, context, 1);
-  Handle<String> name(String::cast(args[2]));
+  CONVERT_ARG_CHECKED(String, name, 2);
 
   int index;
   PropertyAttributes attributes;
@@ -3473,8 +3464,7 @@ static Object* Runtime_GetArrayKeys(Arguments args) {
   CONVERT_CHECKED(JSArray, raw_array, args[0]);
   Handle<JSArray> array(raw_array);
   CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
-  HeapObject* elements = array->elements();
-  if (elements->IsDictionary()) {
+  if (array->elements()->IsDictionary()) {
     // Create an array and get all the keys into it, then remove all the
     // keys that are not integers in the range 0 to length-1.
     Handle<FixedArray> keys = GetKeysInFixedArrayFor(array);
@@ -3606,14 +3596,15 @@ static Object* DebugLookupResultValue(LookupResult* result) {
     case CONSTANT_FUNCTION:
       return result->GetConstantFunction();
     case CALLBACKS:
-      return Heap::undefined_value();
-    case MAP_TRANSITION:
-      return Heap::undefined_value();
     case INTERCEPTOR:
+    case MAP_TRANSITION:
+    case CONSTANT_TRANSITION:
+    case NULL_DESCRIPTOR:
       return Heap::undefined_value();
     default:
       UNREACHABLE();
   }
+  UNREACHABLE();
   return Heap::undefined_value();
 }
 
@@ -3788,8 +3779,7 @@ static Object* Runtime_DebugNamedInterceptorPropertyValue(Arguments args) {
   CONVERT_ARG_CHECKED(String, name, 1);
 
   PropertyAttributes attributes;
-  Object* result = obj->GetPropertyWithInterceptor(*obj, *name, &attributes);
-  return result;
+  return obj->GetPropertyWithInterceptor(*obj, *name, &attributes);
 }
 
 
@@ -3803,8 +3793,7 @@ static Object* Runtime_DebugIndexedInterceptorElementValue(Arguments args) {
   RUNTIME_ASSERT(obj->HasIndexedInterceptor());
   CONVERT_NUMBER_CHECKED(uint32_t, index, Uint32, args[1]);
 
-  Object* result = obj->GetElementWithInterceptor(*obj, index);
-  return result;
+  return obj->GetElementWithInterceptor(*obj, index);
 }
 
 
@@ -3868,8 +3857,8 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   ASSERT(args.length() == 2);
 
   // Check arguments.
-  Object* result = Runtime_CheckExecutionState(args);
-  if (result->IsFailure()) return result;
+  Object* check = Runtime_CheckExecutionState(args);
+  if (check->IsFailure()) return check;
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
 
   // Find the relevant frame with the requested index.
@@ -4258,8 +4247,8 @@ static Object* Runtime_PrepareStep(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
   // Check arguments.
-  Object* check_result = Runtime_CheckExecutionState(args);
-  if (check_result->IsFailure()) return check_result;
+  Object* check = Runtime_CheckExecutionState(args);
+  if (check->IsFailure()) return check;
   if (!args[1]->IsNumber() || !args[2]->IsNumber()) {
     return Top::Throw(Heap::illegal_argument_symbol());
   }

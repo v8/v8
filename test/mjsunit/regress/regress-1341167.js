@@ -25,25 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
+// Make sure that 'this' is bound to the global object when using
+// execScript.
 
-// Check that the script source for all functions in a script is the same.
-function f() {
-  function h() {
-    assertEquals(Debug.scriptSource(f), Debug.scriptSource(h));
-  }
-  h();
-}
-  
-function g() {
-  function h() {
-    assertEquals(Debug.scriptSource(f), Debug.scriptSource(h));
-  }
-  h();
-}
-
-assertEquals(Debug.scriptSource(f), Debug.scriptSource(g));
-f();
-g();
+var result;
+execScript("result = this");
+assertTrue(result === this);
