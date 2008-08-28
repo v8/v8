@@ -231,11 +231,12 @@ class LookupResult BASE_EMBEDDED {
   bool IsDontEnum() { return details_.IsDontEnum(); }
 
   bool IsValid() { return  lookup_type_ != NOT_FOUND; }
+  bool IsNotFound() { return lookup_type_ == NOT_FOUND; }
 
   // Tells whether the result is a property.
-  // Excluding transitions.
+  // Excluding transitions and the null descriptor.
   bool IsProperty() {
-    return IsValid() && !IsTransitionType();
+    return IsValid() && type() < FIRST_PHANTOM_PROPERTY_TYPE;
   }
 
   bool IsCacheable() { return cacheable_; }

@@ -297,14 +297,18 @@ enum InlineCacheState {
 
 
 // Type of properties.
+// Order of properties is significant.
+// Must fit in the BitField PropertyDetails::TypeField.
+// A copy of this is in mirror-delay.js.
 enum PropertyType {
   NORMAL              = 0,  // only in slow mode
-  MAP_TRANSITION      = 1,  // only in fast mode
+  FIELD               = 1,  // only in fast mode
   CONSTANT_FUNCTION   = 2,  // only in fast mode
-  FIELD               = 3,  // only in fast mode
-  CALLBACKS           = 4,
-  CONSTANT_TRANSITION = 5,  // only in fast mode
-  INTERCEPTOR         = 6,
+  CALLBACKS           = 3,
+  INTERCEPTOR         = 4,  // only in lookup results, not in descriptors.
+  FIRST_PHANTOM_PROPERTY_TYPE = 5,  // All properties before this are real.
+  MAP_TRANSITION      = 5,  // only in fast mode
+  CONSTANT_TRANSITION = 6,  // only in fast mode
   NULL_DESCRIPTOR     = 7   // only in fast mode
 };
 

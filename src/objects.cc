@@ -1507,64 +1507,66 @@ Object* JSObject::SetProperty(LookupResult* result,
     && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
     return SetPropertyWithFailedAccessCheck(result, name, value);
   }
-
-  if (result->IsValid()) {
-    if (!result->IsLoaded()) {
-      return SetLazyProperty(result, name, value, attributes);
+  if (result->IsNotFound() || !result->IsProperty()) {
+    // We could not find a local property so let's check whether there is an
+    // accessor that wants to handle the property.
+    LookupResult accessor_result;
+    LookupCallbackSetterInPrototypes(name, &accessor_result);
+    if (accessor_result.IsValid()) {
+      return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
+                                     name,
+                                     value,
+                                     accessor_result.holder());
     }
-    if (result->IsReadOnly() && !result->IsTransitionType()) return value;
-    switch (result->type()) {
-      case NORMAL:
-        property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
-        return value;
-      case FIELD:
-        properties()->set(result->GetFieldIndex(), value);
-        return value;
-      case MAP_TRANSITION:
-        if (attributes == result->GetAttributes()) {
-          // Only use map transition if attributes matches.
-          return AddFastPropertyUsingMap(result->GetTransitionMap(),
-                                         name,
-                                         value);
-        } else {
-          return AddFastProperty(name, value, attributes);
-        }
-      case CONSTANT_FUNCTION:
-        if (value == result->GetConstantFunction()) return value;
-        // Only replace the function if necessary.
-        return ReplaceConstantFunctionProperty(name, value);
-      case CALLBACKS:
-        return SetPropertyWithCallback(result->GetCallbackObject(),
+  }
+  if (result->IsNotFound()) {
+    return AddProperty(name, value, attributes);
+  }
+  if (!result->IsLoaded()) {
+    return SetLazyProperty(result, name, value, attributes);
+  }
+  if (result->IsReadOnly() && result->IsProperty()) return value;
+  // This is a real property that is not read-only, or it is a
+  // transition or null descriptor and there are no setters in the prototypes.
+  switch (result->type()) {
+    case NORMAL:
+      property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
+      return value;
+    case FIELD:
+      properties()->set(result->GetFieldIndex(), value);
+      return value;
+    case MAP_TRANSITION:
+      if (attributes == result->GetAttributes()) {
+        // Only use map transition if the attributes match.
+        return AddFastPropertyUsingMap(result->GetTransitionMap(),
                                        name,
-                                       value,
-                                       result->holder());
-      case INTERCEPTOR:
-        return SetPropertyWithInterceptor(name, value, attributes);
-      case CONSTANT_TRANSITION:
-        // Replace with a MAP_TRANSITION to a new map with a FIELD, even
-        // if the value is a function.
-        // AddProperty has been extended to do this, in this case.
+                                       value);
+      } else {
         return AddFastProperty(name, value, attributes);
-      case NULL_DESCRIPTOR:
-        UNREACHABLE();
-      default:
-        UNREACHABLE();
-    }
+      }
+    case CONSTANT_FUNCTION:
+      if (value == result->GetConstantFunction()) return value;
+      // Only replace the function if necessary.
+      return ReplaceConstantFunctionProperty(name, value);
+    case CALLBACKS:
+      return SetPropertyWithCallback(result->GetCallbackObject(),
+                                     name,
+                                     value,
+                                     result->holder());
+    case INTERCEPTOR:
+      return SetPropertyWithInterceptor(name, value, attributes);
+    case CONSTANT_TRANSITION:
+      // Replace with a MAP_TRANSITION to a new map with a FIELD, even
+      // if the value is a function.
+      // AddProperty has been extended to do this, in this case.
+      return AddFastProperty(name, value, attributes);
+    case NULL_DESCRIPTOR:
+      UNREACHABLE();
+    default:
+      UNREACHABLE();
   }
-
-  // We could not find a local property so let's check whether there is an
-  // accessor that wants to handle the property.
-  LookupResult accessor_result;
-  LookupCallbackSetterInPrototypes(name, &accessor_result);
-  if (accessor_result.IsValid()) {
-    return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
-                                   name,
-                                   value,
-                                   accessor_result.holder());
-  }
-
-  // The property was not found
-  return AddProperty(name, value, attributes);
+  UNREACHABLE();
+  return value;
 }
 
 
