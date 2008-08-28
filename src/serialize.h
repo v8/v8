@@ -204,7 +204,7 @@ class Serializer: public ObjectVisitor {
 
   HashMap saved_addresses_;
 
-  DISALLOW_EVIL_CONSTRUCTORS(Serializer);
+  DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
 // Helper class to read the bytes of the serialized heap.
@@ -325,7 +325,7 @@ class Deserializer: public ObjectVisitor {
   bool expect_debug_information_;
 #endif
 
-  DISALLOW_EVIL_CONSTRUCTORS(Deserializer);
+  DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };
 
 } }  // namespace v8::internal

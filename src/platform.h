@@ -320,7 +320,7 @@ class Thread: public ThreadHandle {
  private:
   class PlatformData;
   PlatformData* data_;
-  DISALLOW_EVIL_CONSTRUCTORS(Thread);
+  DISALLOW_COPY_AND_ASSIGN(Thread);
 };
 
 
@@ -362,7 +362,7 @@ class ScopedLock {
 
  private:
   Mutex* mutex_;
-  DISALLOW_EVIL_CONSTRUCTORS(ScopedLock);
+  DISALLOW_COPY_AND_ASSIGN(ScopedLock);
 };
 
 

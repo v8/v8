@@ -4170,12 +4170,17 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ mov(r0, Operand(Factory::undefined_value()));
         break;
 
-      case Token::ADD:
+      case Token::ADD: {
+        // Smi check.
+        Label continue_label;
+        __ tst(r0, Operand(kSmiTagMask));
+        __ b(eq, &continue_label);
         __ push(r0);
         __ mov(r0, Operand(0));  // not counting receiver
         __ InvokeBuiltin("TO_NUMBER", 0, CALL_JS);
+        __ bind(&continue_label);
         break;
-
+      }
       default:
         UNREACHABLE();
     }

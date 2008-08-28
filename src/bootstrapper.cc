@@ -95,7 +95,7 @@ class SourceCodeCache BASE_EMBEDDED {
  private:
   ScriptType type_;
   FixedArray* cache_;
-  DISALLOW_EVIL_CONSTRUCTORS(SourceCodeCache);
+  DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
 static SourceCodeCache natives_cache(SCRIPT_TYPE_NATIVE);

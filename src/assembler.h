@@ -329,7 +329,7 @@ class RelocInfoWriter BASE_EMBEDDED {
   byte* pos_;
   byte* last_pc_;
   intptr_t last_data_;
-  DISALLOW_EVIL_CONSTRUCTORS(RelocInfoWriter);
+  DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };
 
 
@@ -388,7 +388,7 @@ class RelocIterator: public Malloced {
   RelocInfo rinfo_;
   bool done_;
   int mode_mask_;
-  DISALLOW_EVIL_CONSTRUCTORS(RelocIterator);
+  DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
 
 

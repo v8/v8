@@ -41,8 +41,8 @@
 #ifdef _WIN32
 typedef int int32_t;
 typedef unsigned int uint32_t;
-typedef unsigned short uint16_t;
-typedef long long int64_t;
+typedef unsigned short uint16_t;  // NOLINT
+typedef long long int64_t;  // NOLINT
 
 // Setup for Windows DLL export/import. When building the V8 DLL the
 // BUILDING_V8_SHARED needs to be defined. When building a program which uses
@@ -486,7 +486,7 @@ class EXPORT Data {
  * compiling it, and stored between compilations.  When script data
  * is given to the compile method compilation will be faster.
  */
-class EXPORT ScriptData {
+class EXPORT ScriptData {  // NOLINT
  public:
   virtual ~ScriptData() { }
   static ScriptData* PreCompile(const char* input, int length);
@@ -730,7 +730,7 @@ class EXPORT String : public Primitive {
   * ExternalStringResource to manage the life cycle of the underlying
   * buffer.
   */
-  class EXPORT ExternalStringResource {
+  class EXPORT ExternalStringResource {  // NOLINT
    public:
     /**
      * Override the destructor to manage the life cycle of the underlying
@@ -755,7 +755,7 @@ class EXPORT String : public Primitive {
   * underlying buffer.
   */
 
-  class EXPORT ExternalAsciiStringResource {
+  class EXPORT ExternalAsciiStringResource {  // NOLINT
    public:
     /**
      * Override the destructor to manage the life cycle of the underlying
@@ -1504,7 +1504,7 @@ class EXPORT TypeSwitch : public Data {
 /**
  * Ignore
  */
-class EXPORT Extension {
+class EXPORT Extension {  // NOLINT
  public:
   Extension(const char* name,
             const char* source = 0,

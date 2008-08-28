@@ -331,7 +331,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           *flag->bool_variable() = !is_bool;
           break;
         case Flag::INT:
-          *flag->int_variable() = strtol(value, &endp, 10);
+          *flag->int_variable() = strtol(value, &endp, 10);  // NOLINT
           break;
         case Flag::FLOAT:
           *flag->float_variable() = strtod(value, &endp);

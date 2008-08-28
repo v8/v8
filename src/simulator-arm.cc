@@ -132,7 +132,7 @@ bool Debugger::GetValue(char* desc, int32_t* value) {
     }
     return true;
   } else {
-    return sscanf(desc, "%i", value) == 1;
+    return sscanf(desc, "%i", value) == 1;  // NOLINT
   }
   return false;
 }
@@ -216,7 +216,7 @@ void Debugger::Debug() {
     } else {
       // Use sscanf to parse the individual parts of the command line. At the
       // moment no command expects more than two parameters.
-      int args = sscanf(line,
+      int args = sscanf(line,  // NOLINT
                         "%" XSTR(COMMAND_SIZE) "s "
                         "%" XSTR(ARG_SIZE) "s "
                         "%" XSTR(ARG_SIZE) "s",

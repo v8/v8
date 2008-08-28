@@ -1294,7 +1294,7 @@ class OldSpaceFreeList BASE_EMBEDDED {
   bool Contains(FreeListNode* node);
 #endif
 
-  DISALLOW_EVIL_CONSTRUCTORS(OldSpaceFreeList);
+  DISALLOW_COPY_AND_ASSIGN(OldSpaceFreeList);
 };
 
 
@@ -1330,7 +1330,7 @@ class MapSpaceFreeList BASE_EMBEDDED {
   // objects.
   AllocationSpace owner_;
 
-  DISALLOW_EVIL_CONSTRUCTORS(MapSpaceFreeList);
+  DISALLOW_COPY_AND_ASSIGN(MapSpaceFreeList);
 };
 
 

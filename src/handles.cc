@@ -215,7 +215,7 @@ Handle<Object> GetProperty(Handle<JSObject> obj,
 
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key) {
-  CALL_HEAP_FUNCTION(Runtime::GetObjectProperty(obj, *key), Object);
+  CALL_HEAP_FUNCTION(Runtime::GetObjectProperty(obj, key), Object);
 }
 
 
@@ -256,22 +256,7 @@ Handle<String> SubString(Handle<String> str, int start, int end) {
 Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,
                           Handle<Object> value) {
-  GC_GREEDY_CHECK();
-  Object* obj = object->SetElement(index, *value);
-  // If you set an element then the object may need to get a new map
-  // which will cause it to grow, which will cause an allocation.
-  // If you know that the object will not grow then perhaps this check
-  // does not apply and you may have to split this method into two
-  // versions.
-  ASSERT(Heap::IsAllocationAllowed());
-  if (obj->IsFailure()) {
-    CALL_GC(obj);
-    obj = object->SetElement(index, *value);
-    if (obj->IsFailure()) {
-      V8::FatalProcessOutOfMemory("Handles");  // TODO(1181417): Fix this.
-    }
-  }
-  return value;
+  CALL_HEAP_FUNCTION(object->SetElement(index, *value), Object);
 }
 
 

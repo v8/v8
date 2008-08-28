@@ -33,8 +33,8 @@
 #ifdef _WIN32
 typedef int int32_t;
 typedef unsigned int uint32_t;
-typedef unsigned short uint16_t;
-typedef long long int64_t;
+typedef unsigned short uint16_t;  // NOLINT
+typedef long long int64_t;  // NOLINT
 
 // Setup for Windows DLL export/import. See v8.h in this directory for
 // information on how to build/use V8 as a DLL.

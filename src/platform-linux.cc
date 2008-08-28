@@ -270,7 +270,7 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 static unsigned  StringToLongLong(char* buffer) {
-  return static_cast<unsigned>(strtoll(buffer, NULL, 16));
+  return static_cast<unsigned>(strtoll(buffer, NULL, 16));  // NOLINT
 }
 
 #endif

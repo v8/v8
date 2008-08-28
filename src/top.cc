@@ -210,7 +210,7 @@ class PreallocatedMemoryThread: public Thread {
   static char* data_;
   static unsigned length_;
 
-  DISALLOW_EVIL_CONSTRUCTORS(PreallocatedMemoryThread);
+  DISALLOW_COPY_AND_ASSIGN(PreallocatedMemoryThread);
 };
 
 PreallocatedMemoryThread* PreallocatedMemoryThread::the_thread_ = NULL;

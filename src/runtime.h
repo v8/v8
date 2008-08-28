@@ -340,7 +340,7 @@ class Runtime : public AllStatic {
                                    Handle<Object> value,
                                    PropertyAttributes attr);
 
-  static Object* GetObjectProperty(Handle<Object> object, Object* key);
+  static Object* GetObjectProperty(Handle<Object> object, Handle<Object> key);
 
   // Helper functions used stubs.
   static void PerformGC(Object* result);

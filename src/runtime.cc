@@ -1207,11 +1207,11 @@ Object* Runtime::GetElementOrCharAt(Handle<Object> object, uint32_t index) {
 }
 
 
-Object* Runtime::GetObjectProperty(Handle<Object> object, Object* key) {
+Object* Runtime::GetObjectProperty(Handle<Object> object, Handle<Object> key) {
+  HandleScope scope;
+
   if (object->IsUndefined() || object->IsNull()) {
-    HandleScope scope;
-    Handle<Object> key_handle(key);
-    Handle<Object> args[2] = { key_handle, object };
+    Handle<Object> args[2] = { key, object };
     Handle<Object> error =
         Factory::NewTypeError("non_object_property_load",
                               HandleVector(args, 2));
@@ -1220,32 +1220,29 @@ Object* Runtime::GetObjectProperty(Handle<Object> object, Object* key) {
 
   // Check if the given key is an array index.
   uint32_t index;
-  if (Array::IndexFromObject(key, &index)) {
-    HandleScope scope;
+  if (Array::IndexFromObject(*key, &index)) {
     return GetElementOrCharAt(object, index);
   }
 
   // Convert the key to a string - possibly by calling back into JavaScript.
-  String* name;
+  Handle<String> name;
   if (key->IsString()) {
-    name = String::cast(key);
+    name = Handle<String>::cast(key);
   } else {
-    HandleScope scope;
     bool has_pending_exception = false;
     Handle<Object> converted =
-        Execution::ToString(Handle<Object>(key), &has_pending_exception);
+        Execution::ToString(key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
-    name = String::cast(*converted);
+    name = Handle<String>::cast(converted);
   }
 
   // Check if the name is trivially convertable to an index and get
   // the element if so.
   if (name->AsArrayIndex(&index)) {
-    HandleScope scope;
     return GetElementOrCharAt(object, index);
   } else {
     PropertyAttributes attr;
-    return object->GetProperty(name, &attr);
+    return object->GetProperty(*name, &attr);
   }
 }
 
@@ -1255,7 +1252,7 @@ static Object* Runtime_GetProperty(Arguments args) {
   ASSERT(args.length() == 2);
 
   Handle<Object> object = args.at<Object>(0);
-  Object* key = args[1];
+  Handle<Object> key = args.at<Object>(1);
 
   return Runtime::GetObjectProperty(object, key);
 }
@@ -1265,10 +1262,10 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
                                    Handle<Object> key,
                                    Handle<Object> value,
                                    PropertyAttributes attr) {
+  HandleScope scope;
+
   if (object->IsUndefined() || object->IsNull()) {
-    HandleScope scope;
-    Handle<Object> obj(object);
-    Handle<Object> args[2] = { key, obj };
+    Handle<Object> args[2] = { key, object };
     Handle<Object> error =
         Factory::NewTypeError("non_object_property_store",
                               HandleVector(args, 2));
@@ -1277,6 +1274,8 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
 
   // If the object isn't a JavaScript object, we ignore the store.
   if (!object->IsJSObject()) return *value;
+
+  Handle<JSObject> js_object = Handle<JSObject>::cast(object);
 
   // Check if the given key is an array index.
   uint32_t index;
@@ -1290,34 +1289,28 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
     // the underlying string if the index is in range.  Since the underlying
     // string does nothing with the assignment then we can ignore such
     // assignments.
-    if (object->IsStringObjectWithCharacterAt(index))
+    if (js_object->IsStringObjectWithCharacterAt(index)) {
       return *value;
+    }
 
-    Object* result = JSObject::cast(*object)->SetElement(index, *value);
-    if (result->IsFailure()) return result;
+    Handle<Object> result = SetElement(js_object, index, value);
+    if (result.is_null()) return Failure::Exception();
     return *value;
   }
 
   if (key->IsString()) {
-    Object* result;
-    if (String::cast(*key)->AsArrayIndex(&index)) {
+    Handle<Object> result;
+    if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
       ASSERT(attr == NONE);
-      result = JSObject::cast(*object)->SetElement(index, *value);
+      result = SetElement(js_object, index, value);
     } else {
-      String::cast(*key)->TryFlatten();
-      result =
-          JSObject::cast(*object)->SetProperty(String::cast(*key), *value,
-                                               attr);
+      Handle<String> key_string = Handle<String>::cast(key);
+      key_string->TryFlatten();
+      result = SetProperty(js_object, key_string, value, attr);
     }
-    if (result->IsFailure()) return result;
+    if (result.is_null()) return Failure::Exception();
     return *value;
   }
-
-  HandleScope scope;
-
-  // Handlify object and value before calling into JavaScript again.
-  Handle<JSObject> object_handle = Handle<JSObject>::cast(object);
-  Handle<Object> value_handle = value;
 
   // Call-back into JavaScript to convert the key to a string.
   bool has_pending_exception = false;
@@ -1327,9 +1320,9 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
 
   if (name->AsArrayIndex(&index)) {
     ASSERT(attr == NONE);
-    return object_handle->SetElement(index, *value_handle);
+    return js_object->SetElement(index, *value);
   } else {
-    return object_handle->SetProperty(*name, *value_handle, attr);
+    return js_object->SetProperty(*name, *value, attr);
   }
 }
 

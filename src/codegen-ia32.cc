@@ -257,8 +257,11 @@ class Ia32CodeGenerator: public CodeGenerator {
       const OverwriteMode overwrite_mode = NO_OVERWRITE);
   void Comparison(Condition cc, bool strict = false);
 
+  // Inline small integer literals. To prevent long attacker-controlled byte
+  // sequences, we only inline small Smi:s.
+  static const int kMaxSmiInlinedBits = 16;
+  bool IsInlineSmi(Literal* literal);
   void SmiComparison(Condition cc,  Handle<Object> value, bool strict = false);
-
   void SmiOperation(Token::Value op,
                     Handle<Object> value,
                     bool reversed,
@@ -1993,6 +1996,7 @@ void Ia32CodeGenerator::SmiOperation(Token::Value op,
 
   // Get the literal value.
   int int_value = Smi::cast(*value)->value();
+  ASSERT(is_intn(int_value, kMaxSmiInlinedBits));
 
   switch (op) {
     case Token::ADD: {
@@ -2357,8 +2361,11 @@ void Ia32CodeGenerator::SmiComparison(Condition cc,
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == equal);
 
+  int int_value = Smi::cast(*value)->value();
+  ASSERT(is_intn(int_value, kMaxSmiInlinedBits));
+
   SmiComparisonDeferred* deferred =
-      new SmiComparisonDeferred(this, cc, strict, Smi::cast(*value)->value());
+      new SmiComparisonDeferred(this, cc, strict, int_value);
   __ pop(eax);
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, deferred->enter(), not_taken);
@@ -2815,6 +2822,7 @@ void Ia32CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
   // body
   __ bind(&loop);
+  CheckStack();  // TODO(1222600): ignore if body contains calls.
   Visit(node->body());
 
   // next
@@ -2832,13 +2840,11 @@ void Ia32CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   __ bind(&entry);
   switch (info) {
     case ALWAYS_TRUE:
-      CheckStack();  // TODO(1222600): ignore if body contains calls.
       __ jmp(&loop);
       break;
     case ALWAYS_FALSE:
       break;
     case DONT_KNOW:
-      CheckStack();  // TODO(1222600): ignore if body contains calls.
       LoadCondition(node->cond(), CodeGenState::LOAD, &loop,
                     node->break_target(), true);
       Branch(true, &loop);
@@ -3426,21 +3432,21 @@ void Ia32CodeGenerator::VisitSlot(Slot* node) {
         break;
 
       case CodeGenState::STORE:
-        // Storing a variable must keep the (new) value on the stack. This
-        // is necessary for compiling assignment expressions.
-        // ecx may be loaded with context; used below in RecordWrite.
-        //
         // Note: We will reach here even with node->var()->mode() ==
         // Variable::CONST because of const declarations which will
         // initialize consts to 'the hole' value and by doing so, end
         // up calling this code.
-        __ mov(eax, TOS);
+        __ pop(eax);
         __ mov(SlotOperand(node, ecx), eax);
         if (node->type() == Slot::CONTEXT) {
           // ecx is loaded with context when calling SlotOperand above.
           int offset = FixedArray::kHeaderSize + node->index() * kPointerSize;
           __ RecordWrite(ecx, offset, eax, ebx);
         }
+        // Storing a variable must keep the (new) value on the stack. This
+        // is necessary for compiling assignment expressions.
+        // ecx may be loaded with context; used below in RecordWrite.
+        __ push(eax);
         break;
     }
   }
@@ -3475,7 +3481,16 @@ void Ia32CodeGenerator::VisitVariableProxy(VariableProxy* proxy_node) {
 
 void Ia32CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
-  __ push(Immediate(node->handle()));
+  if (node->handle()->IsSmi() && !IsInlineSmi(node)) {
+    // To prevent long attacker-controlled byte sequences in code, larger
+    // Smis are loaded in two steps.
+    int bits = reinterpret_cast<int>(*node->handle());
+    __ mov(eax, bits & 0x0000FFFF);
+    __ xor_(eax, bits & 0xFFFF0000);
+    __ push(eax);
+  } else {
+    __ push(Immediate(node->handle()));
+  }
 }
 
 
@@ -3701,6 +3716,13 @@ void Ia32CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 }
 
 
+bool Ia32CodeGenerator::IsInlineSmi(Literal* literal) {
+  if (literal == NULL || !literal->handle()->IsSmi()) return false;
+  int int_value = Smi::cast(*literal->handle())->value();
+  return is_intn(int_value, kMaxSmiInlinedBits);
+}
+
+
 void Ia32CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
 
@@ -3716,7 +3738,7 @@ void Ia32CodeGenerator::VisitAssignment(Assignment* node) {
   } else {
     GetValue(&target);
     Literal* literal = node->value()->AsLiteral();
-    if (literal != NULL && literal->handle()->IsSmi()) {
+    if (IsInlineSmi(literal)) {
       SmiOperation(node->binary_op(), literal->handle(), false, NO_OVERWRITE);
     } else {
       Load(node->value());
@@ -4687,11 +4709,11 @@ void Ia32CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     Literal* lliteral = node->left()->AsLiteral();
     Literal* rliteral = node->right()->AsLiteral();
 
-    if (rliteral != NULL && rliteral->handle()->IsSmi()) {
+    if (IsInlineSmi(rliteral)) {
       Load(node->left());
       SmiOperation(node->op(), rliteral->handle(), false, overwrite_mode);
 
-    } else if (lliteral != NULL && lliteral->handle()->IsSmi()) {
+    } else if (IsInlineSmi(lliteral)) {
       Load(node->right());
       SmiOperation(node->op(), lliteral->handle(), true, overwrite_mode);
 
@@ -4899,12 +4921,12 @@ void Ia32CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
   // Optimize for the case where (at least) one of the expressions
   // is a literal small integer.
-  if (left->AsLiteral() != NULL && left->AsLiteral()->handle()->IsSmi()) {
+  if (IsInlineSmi(left->AsLiteral())) {
     Load(right);
     SmiComparison(ReverseCondition(cc), left->AsLiteral()->handle(), strict);
     return;
   }
-  if (right->AsLiteral() != NULL && right->AsLiteral()->handle()->IsSmi()) {
+  if (IsInlineSmi(right->AsLiteral())) {
     Load(left);
     SmiComparison(cc, right->AsLiteral()->handle(), strict);
     return;

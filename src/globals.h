@@ -33,8 +33,8 @@
 #ifdef WIN32
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
-typedef short int16_t;
-typedef unsigned short uint16_t;
+typedef short int16_t;  // NOLINT
+typedef unsigned short uint16_t;  // NOLINT
 typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef __int64 int64_t;
@@ -96,11 +96,11 @@ const int GB = KB * KB * KB;
 const int kMaxInt = 0x7FFFFFFF;
 const int kMinInt = -kMaxInt - 1;
 
-const int kCharSize     = sizeof(char);
-const int kShortSize    = sizeof(short);
-const int kIntSize      = sizeof(int);
-const int kDoubleSize   = sizeof(double);
-const int kPointerSize  = sizeof(void*);
+const int kCharSize     = sizeof(char);    // NOLINT
+const int kShortSize    = sizeof(short);   // NOLINT
+const int kIntSize      = sizeof(int);     // NOLINT
+const int kDoubleSize   = sizeof(double);  // NOLINT
+const int kPointerSize  = sizeof(void*);   // NOLINT
 
 const int kPointerSizeLog2 = 2;
 
@@ -414,7 +414,7 @@ F FUNCTION_CAST(Address addr) {
 
 // A macro to disallow the evil copy constructor and operator= functions
 // This should be used in the private: declarations for a class
-#define DISALLOW_EVIL_CONSTRUCTORS(TypeName)    \
+#define DISALLOW_COPY_AND_ASSIGN(TypeName)      \
   TypeName(const TypeName&);                    \
   void operator=(const TypeName&)
 
@@ -427,7 +427,7 @@ F FUNCTION_CAST(Address addr) {
 // especially useful for classes containing only static methods.
 #define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName) \
   TypeName();                                    \
-  DISALLOW_EVIL_CONSTRUCTORS(TypeName)
+  DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 
 // Support for tracking C++ memory allocation.  Insert TRACK_MEMORY("Fisk")

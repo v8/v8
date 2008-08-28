@@ -90,7 +90,7 @@ class DeferredCode: public ZoneObject {
 #ifdef DEBUG
   const char* comment_;
 #endif
-  DISALLOW_EVIL_CONSTRUCTORS(DeferredCode);
+  DISALLOW_COPY_AND_ASSIGN(DeferredCode);
 };
 
 

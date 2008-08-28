@@ -72,11 +72,11 @@ class NoAllocationStringAllocator: public StringAllocator {
 
 class FmtElm {
  public:
-  FmtElm(int value) : type_(INT) { data_.u_int_ = value; }
-  FmtElm(const char* value) : type_(C_STR) { data_.u_c_str_ = value; }
-  FmtElm(Object* value) : type_(OBJ) { data_.u_obj_ = value; }
-  FmtElm(Handle<Object> value) : type_(HANDLE) { data_.u_handle_ = value.location(); }
-  FmtElm(void* value) : type_(INT) { data_.u_int_ = reinterpret_cast<int>(value); }
+  FmtElm(int value) : type_(INT) { data_.u_int_ = value; }  // NOLINT
+  FmtElm(const char* value) : type_(C_STR) { data_.u_c_str_ = value; }  // NOLINT
+  FmtElm(Object* value) : type_(OBJ) { data_.u_obj_ = value; }  // NOLINT
+  FmtElm(Handle<Object> value) : type_(HANDLE) { data_.u_handle_ = value.location(); }  // NOLINT
+  FmtElm(void* value) : type_(INT) { data_.u_int_ = reinterpret_cast<int>(value); }  // NOLINT
  private:
   friend class StringStream;
   enum Type { INT, C_STR, OBJ, HANDLE };

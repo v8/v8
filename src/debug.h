@@ -121,7 +121,7 @@ class BreakLocationIterator {
   void SetDebugBreak();
   void ClearDebugBreak();
 
-  DISALLOW_EVIL_CONSTRUCTORS(BreakLocationIterator);
+  DISALLOW_COPY_AND_ASSIGN(BreakLocationIterator);
 };
 
 
@@ -317,7 +317,7 @@ class Debug {
   // Code to call for handling debug break on return.
   static Code* debug_break_return_;
 
-  DISALLOW_EVIL_CONSTRUCTORS(Debug);
+  DISALLOW_COPY_AND_ASSIGN(Debug);
 };
 
 
@@ -422,7 +422,7 @@ class LockingMessageQueue BASE_EMBEDDED {
  private:
   MessageQueue queue_;
   Mutex* lock_;
-  DISALLOW_EVIL_CONSTRUCTORS(LockingMessageQueue);
+  DISALLOW_COPY_AND_ASSIGN(LockingMessageQueue);
 };
 
 
@@ -465,7 +465,7 @@ class DebugMessageThread: public Thread {
   static const int kQueueInitialSize = 4;
   LockingMessageQueue command_queue_;
   LockingMessageQueue message_queue_;
-  DISALLOW_EVIL_CONSTRUCTORS(DebugMessageThread);
+  DISALLOW_COPY_AND_ASSIGN(DebugMessageThread);
 };
 
 
