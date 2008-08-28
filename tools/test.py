@@ -355,6 +355,9 @@ class TestConfiguration(object):
         return False
     return True
 
+  def GetTestStatus(self, sections, defs):
+    pass
+
 
 class TestSuite(object):
 
@@ -393,6 +396,9 @@ class TestRepository(TestSuite):
   def ListTests(self, current_path, path, context, mode):
     return self.GetConfiguration(context).ListTests(current_path, path, mode)
 
+  def GetTestStatus(self, context, sections, defs):
+    self.GetConfiguration(context).GetTestStatus(sections, defs)
+
 
 class LiteralTestSuite(TestSuite):
 
@@ -417,6 +423,10 @@ class LiteralTestSuite(TestSuite):
         full_path = current_path + [test_name]
         result += test.ListTests(full_path, path, context, mode)
     return result
+
+  def GetTestStatus(self, context, sections, defs):
+    for test in self.tests:
+      test.GetTestStatus(context, sections, defs)
 
 
 PREFIX = {'debug': '_g', 'release': ''}
@@ -866,15 +876,6 @@ def ReadConfigurationInto(path, sections, defs):
   return True
 
 
-def ReadConfiguration(paths):
-  sections = [ ]
-  defs = { }
-  for path in paths:
-    if not ReadConfigurationInto(path, sections, defs):
-      return None
-  return Configuration(sections, defs)
-
-
 # ---------------
 # --- M a i n ---
 # ---------------
@@ -889,9 +890,6 @@ def BuildOptions():
   result.add_option("-p", "--progress",
       help="The style of progress indicator (verbose, dots, color, mono)",
       choices=PROGRESS_INDICATORS.keys(), default="mono")
-  result.add_option("-c", "--config",
-      help="Use this test expectation configuration",
-      default=[], action="append")
   result.add_option("--no-build", help="Don't build requirements",
       default=False, action="store_true")
   result.add_option("--report", help="Print a summary of the tests to be run",
@@ -969,9 +967,6 @@ def Main():
   if not ProcessOptions(options):
     parser.print_help()
     return 1
-  config = ReadConfiguration(options.config)
-  if not config:
-    return 1
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
   repositories = [TestRepository(join(workspace, 'test', name)) for name in BUILT_IN_TESTS]
@@ -1000,7 +995,13 @@ def Main():
       if not BuildRequirements(context, reqs, options.mode):
         return 1
 
-  # Then list the tests
+  # Get status for tests
+  sections = [ ]
+  defs = { }
+  root.GetTestStatus(context, sections, defs)
+  config = Configuration(sections, defs)
+
+  # List the tests
   all_cases = [ ]
   all_unused = [ ]
   for path in paths:

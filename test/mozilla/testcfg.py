@@ -120,6 +120,11 @@ class MozillaTestConfiguration(test.TestConfiguration):
   def GetBuildRequirements(self):
     return ['sample', 'sample=shell']
 
+  def GetTestStatus(self, sections, defs):
+    status_file = join(self.root, 'mozilla.status')
+    if exists(status_file):
+      test.ReadConfigurationInto(status_file, sections, defs)
+
 
 def GetConfiguration(context, root):
   return MozillaTestConfiguration(context, root)

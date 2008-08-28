@@ -27,7 +27,7 @@
 
 import test
 import os
-from os.path import join, dirname
+from os.path import join, dirname, exists
 import re
 
 
@@ -41,7 +41,7 @@ class MjsunitTestCase(test.TestCase):
     self.file = file
     self.config = config
     self.mode = mode
-  
+
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
 
@@ -63,7 +63,7 @@ class MjsunitTestConfiguration(test.TestConfiguration):
 
   def __init__(self, context, root):
     super(MjsunitTestConfiguration, self).__init__(context, root)
-  
+
   def Ls(self, path):
     def SelectTest(name):
       return name.endswith('.js') and name != 'mjsunit.js'
@@ -72,17 +72,23 @@ class MjsunitTestConfiguration(test.TestConfiguration):
   def ListTests(self, current_path, path, mode):
     mjsunit = [current_path + [t] for t in self.Ls(self.root)]
     regress = [current_path + ['regress', t] for t in self.Ls(join(self.root, 'regress'))]
-    all_tests = mjsunit + regress
+    bugs = [current_path + ['bugs', t] for t in self.Ls(join(self.root, 'bugs'))]
+    all_tests = mjsunit + regress + bugs
     result = []
     for test in all_tests:
       if self.Contains(path, test):
-        full_name = current_path + test
         file_path = join(self.root, reduce(join, test[1:], "") + ".js")
-        result.append(MjsunitTestCase(full_name, file_path, mode, self.context, self))
+        result.append(MjsunitTestCase(test, file_path, mode, self.context, self))
     return result
 
   def GetBuildRequirements(self):
     return ['sample', 'sample=shell']
+
+  def GetTestStatus(self, sections, defs):
+    status_file = join(self.root, 'mjsunit.status')
+    if exists(status_file):
+      test.ReadConfigurationInto(status_file, sections, defs)
+
 
 
 def GetConfiguration(context, root):
