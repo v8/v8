@@ -366,24 +366,6 @@ function ProcessDebugRequest(exec_state, request, stopping) {
 }
 
 
-// Helper function to check whether the JSON request is a plain break request.
-// This is used form the runtime handling of pending debug requests. If one of
-// the pending requests is a plain break execution should be broken after
-// processing the pending break requests.
-function IsPlainBreakRequest(json_request) {
-  try {
-    // Convert the JSON string to an object.
-    request = %CompileString('(' + json_request + ')', false)();
-
-    // Check for break command without arguments.
-    return request.command && request.command == "break" && !request.arguments;
-  } catch (e) {
-    // If there is a exception parsing the JSON request just return false.
-    return false;
-  }
-}
-
-
 Debug.addListener = function(listener, opt_data) {
   if (!IS_FUNCTION(listener)) throw new Error('Parameters have wrong types.');
   %AddDebugEventListener(listener, opt_data);

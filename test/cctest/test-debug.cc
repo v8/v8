@@ -2776,11 +2776,6 @@ class MessageQueueDebuggerThread : public v8::internal::Thread {
 static void MessageHandler(const uint16_t* message, int length, void *data) {
   static char print_buffer[1000];
   Utf16ToAscii(message, length, print_buffer);
-  if (!strncmp(print_buffer, "request queued", 15)) {
-    // Ignore "request queued" messages before blocking message queue,
-    // by bumping semaphore to let them through.
-    message_queue_barriers.semaphore_1->Signal();
-  }
   if (IsBreakEventMessage(print_buffer)) {
     // Lets test script wait until break occurs to send commands.
     // Signals when a break is reported.
@@ -2878,6 +2873,7 @@ TEST(MessageQueues) {
   CompileRun(source_1);
   message_queue_barriers.barrier_1.Wait();
   message_queue_barriers.barrier_2.Wait();
+  v8::Debug::DebugBreak();
   CompileRun(source_2);
   message_queue_barriers.barrier_3.Wait();
   CompileRun(source_3);
@@ -2909,9 +2905,6 @@ static void ThreadedMessageHandler(const uint16_t* message, int length,
                                    void *data) {
   static char print_buffer[1000];
   Utf16ToAscii(message, length, print_buffer);
-  if (!strncmp(print_buffer, "request queued", 15)) {
-    return;
-  }
   if (IsBreakEventMessage(print_buffer)) {
     threaded_debugging_barriers.barrier_2.Wait();
   }
@@ -2950,22 +2943,19 @@ void DebuggerThread::Run() {
   const int kBufSize = 1000;
   uint16_t buffer[kBufSize];
 
-  const char* command_1 = "{\"seq\":101,"
-      "\"type\":\"request\","
-      "\"command\":\"break\"}";
-  const char* command_2 = "{\"seq\":102,"
+  const char* command_1 = "{\"seq\":102,"
       "\"type\":\"request\","
       "\"command\":\"evaluate\","
       "\"arguments\":{\"expression\":\"bar(false)\"}}";
-  const char* command_3 = "{\"seq\":103,"
+  const char* command_2 = "{\"seq\":103,"
       "\"type\":\"request\","
       "\"command\":\"continue\"}";
 
   threaded_debugging_barriers.barrier_1.Wait();
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_1, buffer));
+  v8::Debug::DebugBreak();
   threaded_debugging_barriers.barrier_2.Wait();
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_1, buffer));
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer));
-  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_3, buffer));
 }
 
 DebuggerThread debugger_thread;
@@ -3010,11 +3000,6 @@ static void BreakpointsMessageHandler(const uint16_t* message,
                                       void *data) {
   static char print_buffer[1000];
   Utf16ToAscii(message, length, print_buffer);
-  if (!strncmp(print_buffer, "request queued", 15)) {
-    printf("%s\n", print_buffer);
-    fflush(stdout);
-    return;
-  }
   printf("%s\n", print_buffer);
   fflush(stdout);
 
@@ -3098,6 +3083,7 @@ void BreakpointsDebuggerThread::Run() {
   // v8 thread initializes, runs source_1
   breakpoints_barriers->barrier_1.Wait();
   // 1:Set breakpoint in cat().
+  v8::Debug::DebugBreak();
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_1, buffer));
   // 2:Set breakpoint in dog()
   v8::Debug::SendCommand(buffer, AsciiToUtf16(command_2, buffer));

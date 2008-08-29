@@ -1423,28 +1423,6 @@ Handle<String> Debugger::ProcessRequest(Handle<Object> exec_state,
 }
 
 
-bool Debugger::IsPlainBreakRequest(Handle<Object> request) {
-  // Get the function IsPlainBreakRequest (defined in debug.js).
-  Handle<JSFunction> process_debug_request =
-    Handle<JSFunction>(JSFunction::cast(
-    Debug::debug_context()->global()->GetProperty(
-        *Factory::LookupAsciiSymbol("IsPlainBreakRequest"))));
-
-  // Call ProcessDebugRequest expect String result.
-  bool caught_exception;
-  const int argc = 1;
-  Object** argv[argc] = { request.location() };
-  Handle<Object> result = Execution::TryCall(process_debug_request,
-                                             Factory::undefined_value(),
-                                             argc, argv,
-                                             &caught_exception);
-  if (caught_exception) {
-    return false;
-  }
-  return *result == Heap::true_value();
-}
-
-
 void Debugger::OnException(Handle<Object> exception, bool uncaught) {
   HandleScope scope;
 
@@ -1785,21 +1763,6 @@ void DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
 }
 
 
-// Compare a two byte string to an null terminated ASCII string.
-bool DebugMessageThread::TwoByteEqualsAscii(Vector<uint16_t> two_byte,
-                                            const char* ascii) {
-  for (int i = 0; i < two_byte.length(); i++) {
-    if (ascii[i] == '\0') {
-      return false;
-    }
-    if (two_byte[i] != static_cast<uint16_t>(ascii[i])) {
-      return false;
-    }
-  }
-  return ascii[two_byte.length()] == '\0';
-}
-
-
 void DebugMessageThread::Run() {
   // Sends debug events to an installed debugger message callback.
   while (true) {
@@ -1857,60 +1820,6 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     PrintLn(try_catch.Exception());
     return;
   }
-
-  // First process all pending commands in the queue. During this processing
-  // each message is checked to see if it is a plain break command. If there is
-  // a plain break request in the queue or if the queue is empty a break event
-  // is sent to the debugger.
-  bool plain_break = false;
-  if (command_queue_.IsEmpty()) {
-    plain_break = true;
-  } else {
-    // Drain queue.
-    while (!command_queue_.IsEmpty()) {
-      command_received_->Wait();
-      Logger::DebugTag("Get command from command_queue, in drain queue loop.");
-      Vector<uint16_t> command = command_queue_.Get();
-      // Support for sending a break command as just "break" instead of an
-      // actual JSON break command.
-      // If break is made into a separate API call, function
-      // TwoByteEqualsASCII can be removed.
-      if (TwoByteEqualsAscii(command, "break")) {
-        plain_break = true;
-        continue;
-      }
-
-      // Get the command as a string object.
-      Handle<String> command_string;
-      if (!command.is_empty()) {
-        command_string = Factory::NewStringFromTwoByte(
-                             Vector<const uint16_t>(
-                                 reinterpret_cast<const uint16_t*>(
-                                     command.start()),
-                                 command.length()));
-      } else {
-        command_string = Handle<String>();
-      }
-
-      // Process the request.
-      Handle<String> message_string = Debugger::ProcessRequest(exec_state,
-                                                                command_string,
-                                                                false);
-      // Convert text result to UTF-16 string and send it.
-      v8::String::Value val(Utils::ToLocal(message_string));
-      Vector<uint16_t> message(reinterpret_cast<uint16_t*>(*val),
-                                message_string->length());
-      SendMessage(message);
-
-      // Check whether one of the commands is a plain break request.
-      if (!plain_break) {
-        plain_break = Debugger::IsPlainBreakRequest(message_string);
-      }
-    }
-  }
-
-  // If this break event is not to go to the debugger just return.
-  if (!plain_break) return;
 
   // Notify the debugger that a debug event has occoured.
   host_running_ = false;
@@ -1998,13 +1907,6 @@ void DebugMessageThread::ProcessCommand(Vector<uint16_t> command) {
   Vector<uint16_t> command_copy = command.Clone();
   Logger::DebugTag("Put command on command_queue.");
   command_queue_.Put(command_copy);
-  // If not in a break schedule a break and send the "request queued" response.
-  if (host_running_) {
-    v8::Debug::DebugBreak();
-    uint16_t buffer[14] = {'r', 'e', 'q', 'u', 'e', 's', 't', ' ',
-        'q', 'u', 'e', 'u', 'e', 'd'};
-    SendMessage(Vector<uint16_t>(buffer, 14));
-  }
   command_received_->Signal();
 }
 
