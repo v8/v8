@@ -394,8 +394,9 @@ class TestSuite(object):
 class TestRepository(TestSuite):
 
   def __init__(self, path):
-    super(TestRepository, self).__init__(basename(path))
-    self.path = abspath(path)
+    normalized_path = abspath(path)
+    super(TestRepository, self).__init__(basename(normalized_path))
+    self.path = normalized_path
     self.is_loaded = False
     self.config = None
 
