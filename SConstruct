@@ -278,8 +278,8 @@ SIMPLE_OPTIONS = {
     'help': 'build using snapshots for faster start-up'
   },
   'library': {
-    'values': ['static', 'shared', 'default'],
-    'default': 'default',
+    'values': ['static', 'shared'],
+    'default': 'static',
     'help': 'the type of library to produce'
   },
   'wordsize': {
@@ -374,10 +374,8 @@ class BuildContext(object):
   def ConfigureObject(self, env, input, **kw):
     if self.options['library'] == 'static':
       return env.StaticObject(input, **kw)
-    elif self.options['library'] == 'shared':
-      return env.SharedObject(input, **kw)
     else:
-      return env.Object(input, **kw)
+      return env.SharedObject(input, **kw)
 
 
 def PostprocessOptions(options):
@@ -428,14 +426,12 @@ def BuildSpecific(env, mode):
   # Link the object files into a library.
   if context.options['library'] == 'static':
     library = env.StaticLibrary(library_name, object_files)
-  elif context.options['library'] == 'shared':
+  else:
     # There seems to be a glitch in the way scons decides where to put
     # PDB files when compiling using MSVC so we specify it manually.
     # This should not affect any other platforms.
     pdb_name = library_name + '.dll.pdb'
     library = env.SharedLibrary(library_name, object_files, PDB=pdb_name)
-  else:
-    library = env.Library(library_name, object_files)
   context.library_targets.append(library)
   
   for sample in context.samples:
