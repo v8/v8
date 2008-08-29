@@ -33,6 +33,7 @@ import os
 from os.path import join, dirname, abspath, basename
 import platform
 import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -260,7 +261,7 @@ class TestCase(object):
 
   def Run(self):
     command = self.GetCommand()
-    output = Execute(command, self.context)
+    output = Execute(command, self.context, self.context.timeout)
     return TestOutput(self, command, output)
 
 
@@ -286,33 +287,54 @@ class TestOutput(object):
       return execution_failed
 
 
+def KillProcessWithID(pid):
+  if platform.system() == 'Windows':
+    os.popen('taskkill /T /F /PID %d' % pid)
+  else:
+    os.kill(pid, signal.SIGTERM)
+
+
 MAX_SLEEP_TIME = 0.1
 INITIAL_SLEEP_TIME = 0.0001
 SLEEP_TIME_FACTOR = 1.25
 
 
-def RunProcess(context, **args):
+def RunProcess(context, timeout, **args):
   if context.verbose: print "#", " ".join(args['args'])
   process = subprocess.Popen(
     shell = (platform.system() == 'Windows'),
     **args
   )
+  # Compute the end time - if the process crosses this limit we
+  # consider it timed out.
+  if timeout is None: end_time = None
+  else: end_time = time.time() + timeout
+  timed_out = False
+  # Repeatedly check the exit code from the process in a
+  # loop and keep track of whether or not it times out.
   exit_code = None
   sleep_time = INITIAL_SLEEP_TIME
   while exit_code is None:
-    exit_code = process.poll()
-    time.sleep(sleep_time)
-    sleep_time = sleep_time * SLEEP_TIME_FACTOR
-    if sleep_time > MAX_SLEEP_TIME:
-      sleep_time = MAX_SLEEP_TIME
-  return (process, exit_code)
+    if (not end_time is None) and (time.time() >= end_time):
+      # Kill the process and wait for it to exit.
+      KillProcessWithID(process.pid)
+      exit_code = process.wait()
+      timed_out = True
+    else:
+      exit_code = process.poll()
+      time.sleep(sleep_time)
+      sleep_time = sleep_time * SLEEP_TIME_FACTOR
+      if sleep_time > MAX_SLEEP_TIME:
+        sleep_time = MAX_SLEEP_TIME
+  return (process, exit_code, timed_out)
 
 
-def Execute(args, context):
+def Execute(args, context, timeout=None):
   (fd_out, outname) = tempfile.mkstemp()
   (fd_err, errname) = tempfile.mkstemp()
-  (process, exit_code) = RunProcess(
+  (process, exit_code, timed_out) = RunProcess(
     context,
+    timeout,
     args = args,
     stdout = fd_out,
     stderr = fd_err,
@@ -326,9 +348,10 @@ def Execute(args, context):
   return CommandOutput(exit_code, output, errors)
 
 
-def ExecuteNoCapture(args, context):
-  (process, exit_code) = RunProcess(
+def ExecuteNoCapture(args, context, timeout=None):
+  (process, exit_code, timed_out) = RunProcess(
     context,
+    timeout,
     args = args,
   )
   return CommandOutput(exit_code, "", "")
