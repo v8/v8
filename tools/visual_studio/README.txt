@@ -53,6 +53,10 @@ building the sample in samples\process.cc. Add either of these (or both) to a
 solution with v8_base, v8, v8_mksnapshot and v8_snapshot set up as described
 above and have them depend on v8_snapshot.
 
+Finally a sample Visual Studio solution file for is provided. This solution file
+includes the two sample projects together with the V8 projects and with the
+dependencies configured as described above.
+
 Python requirements
 -------------------
 When using the Microsoft Visual Studio project files Python version 2.4 or later
