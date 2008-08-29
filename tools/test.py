@@ -96,14 +96,14 @@ class SimpleProgressIndicator(ProgressIndicator):
   def Done(self):
     print
     for failed in self.failed_tests:
-      print "=== %s ===" % failed.test.GetLabel()
-      print "Command: %s" % EscapeCommand(failed.command)
+      print "=== %s (%s) ===" % (failed.test.GetLabel(), "/".join(failed.test.path))
       if failed.output.stderr:
         print "--- stderr ---"
         print failed.output.stderr.strip()
       if failed.output.stdout:
         print "--- stdout ---"
         print failed.output.stdout.strip()
+      print "Command: %s" % EscapeCommand(failed.command)
     if len(self.failed_tests) == 0:
       print "==="
       print "=== All tests succeeded"
@@ -164,7 +164,7 @@ class CompactProgressIndicator(ProgressIndicator):
 
   def HasRun(self, output):
     if output.UnexpectedOutput():
-      print "\n--- Failed: %s ---" % str(output.test.GetLabel())
+      print "=== %s (%s) ===" % (failed.test.GetLabel(), "/".join(failed.test.path))
       print "Command: %s" % EscapeCommand(output.command)
       stdout = output.output.stdout.strip()
       if len(stdout):
@@ -329,6 +329,11 @@ def RunProcess(context, timeout, **args):
   return (process, exit_code, timed_out)
 
 
+def PrintError(str):
+  sys.stderr.write(str)
+  sys.stderr.write('\n')
+
+
 def Execute(args, context, timeout=None):
   (fd_out, outname) = tempfile.mkstemp()
   (fd_err, errname) = tempfile.mkstemp()
@@ -343,8 +348,13 @@ def Execute(args, context, timeout=None):
   os.close(fd_err)
   output = file(outname).read()
   errors = file(errname).read()
-  os.unlink(outname)
-  os.unlink(errname)
+  def CheckedUnlink(name):
+    try:
+      os.unlink(name)
+    except OSError, e:
+      PrintError(str(e))
+  CheckedUnlink(outname)
+  CheckedUnlink(errname)
   return CommandOutput(exit_code, output, errors)
 
 

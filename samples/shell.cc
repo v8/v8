@@ -93,8 +93,11 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
   bool first = true;
   for (int i = 0; i < args.Length(); i++) {
     v8::HandleScope handle_scope;
-    if (first) first = false;
-    else printf(" ");
+    if (first) {
+      first = false;
+    } else {
+      printf(" ");
+    }
     v8::String::AsciiValue str(args[i]);
     printf("%s", *str);
   }
@@ -142,12 +145,12 @@ v8::Handle<v8::String> ReadFile(const char* name) {
   if (file == NULL) return v8::Handle<v8::String>();
 
   fseek(file, 0, SEEK_END);
-  long size = ftell(file);
+  int size = ftell(file);
   rewind(file);
 
   char* chars = new char[size + 1];
   chars[size] = '\0';
-  for (int i = 0; i < size; ) {
+  for (int i = 0; i < size;) {
     int read = fread(&chars[i], 1, size - i, file);
     i += read;
   }

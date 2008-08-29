@@ -102,9 +102,11 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
 
   // Callbacks that access the individual fields of request objects.
   static Handle<Value> GetPath(Local<String> name, const AccessorInfo& info);
-  static Handle<Value> GetReferrer(Local<String> name, const AccessorInfo& info);
+  static Handle<Value> GetReferrer(Local<String> name,
+                                   const AccessorInfo& info);
   static Handle<Value> GetHost(Local<String> name, const AccessorInfo& info);
-  static Handle<Value> GetUserAgent(Local<String> name, const AccessorInfo& info);
+  static Handle<Value> GetUserAgent(Local<String> name,
+                                    const AccessorInfo& info);
 
   // Callbacks that access maps
   static Handle<Value> MapGet(Local<String> name, const AccessorInfo& info);
@@ -551,12 +553,12 @@ Handle<String> ReadFile(const string& name) {
   if (file == NULL) return Handle<String>();
 
   fseek(file, 0, SEEK_END);
-  long size = ftell(file);
+  int size = ftell(file);
   rewind(file);
 
   char* chars = new char[size + 1];
   chars[size] = '\0';
-  for (int i = 0; i < size; ) {
+  for (int i = 0; i < size;) {
     int read = fread(&chars[i], 1, size - i, file);
     i += read;
   }
@@ -588,8 +590,8 @@ bool ProcessEntries(HttpRequestProcessor* processor, int count,
 }
 
 
-void PrintMap(map<string, string>& m) {
-  for (map<string, string>::iterator i = m.begin(); i != m.end(); i++) {
+void PrintMap(map<string, string>* m) {
+  for (map<string, string>::iterator i = m->begin(); i != m->end(); i++) {
     pair<string, string> entry = *i;
     printf("%s: %s\n", entry.first.c_str(), entry.second.c_str());
   }
@@ -618,5 +620,5 @@ int main(int argc, char* argv[]) {
   }
   if (!ProcessEntries(&processor, kSampleSize, kSampleRequests))
     return 1;
-  PrintMap(output);
+  PrintMap(&output);
 }
