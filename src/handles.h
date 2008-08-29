@@ -142,6 +142,8 @@ Handle<Object> GetPrototype(Handle<Object> obj);
 Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
 Handle<Object> DeleteProperty(Handle<JSObject> obj, Handle<String> prop);
 
+Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index);
+
 Handle<JSObject> Copy(Handle<JSObject> obj, PretenureFlag = NOT_TENURED);
 
 // Get the JS object corresponding to the given script; create it

@@ -1175,31 +1175,32 @@ static Object* Runtime_NumberToPrecision(Arguments args) {
 
 // Returns a single character string where first character equals
 // string->Get(index).
-static Object* GetCharAt(String* string, uint32_t index) {
+static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
   if (index < static_cast<uint32_t>(string->length())) {
     string->TryFlatten();
-    return Heap::LookupSingleCharacterStringFromCode(string->Get(index));
+    return LookupSingleCharacterStringFromCode(string->Get(index));
   }
-  return *Execution::CharAt(Handle<String>(string), index);
+  return Execution::CharAt(string, index);
 }
 
 
 Object* Runtime::GetElementOrCharAt(Handle<Object> object, uint32_t index) {
   // Handle [] indexing on Strings
   if (object->IsString()) {
-    Object* result = GetCharAt(String::cast(*object), index);
-    if (!result->IsUndefined()) return result;
+    Handle<Object> result = GetCharAt(Handle<String>::cast(object), index);
+    if (!result->IsUndefined()) return *result;
   }
 
   // Handle [] indexing on String objects
   if (object->IsStringObjectWithCharacterAt(index)) {
-    JSValue* js_value = JSValue::cast(*object);
-    Object* result = GetCharAt(String::cast(js_value->value()), index);
-    if (!result->IsUndefined()) return result;
+    Handle<JSValue> js_value = Handle<JSValue>::cast(object);
+    Handle<Object> result =
+        GetCharAt(Handle<String>(String::cast(js_value->value())), index);
+    if (!result->IsUndefined()) return *result;
   }
 
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    Object* prototype = object->GetPrototype();
+    Handle<Object> prototype = GetPrototype(object);
     return prototype->GetElement(index);
   }
 

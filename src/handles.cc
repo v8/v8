@@ -248,6 +248,11 @@ Handle<Object> DeleteProperty(Handle<JSObject> obj,
 }
 
 
+Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index) {
+  CALL_HEAP_FUNCTION(Heap::LookupSingleCharacterStringFromCode(index), Object);
+}
+
+
 Handle<String> SubString(Handle<String> str, int start, int end) {
   CALL_HEAP_FUNCTION(str->Slice(start, end), String);
 }
