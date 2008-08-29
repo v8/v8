@@ -91,7 +91,7 @@ class MozillaTestConfiguration(test.TestConfiguration):
   def ListTests(self, current_path, path, mode):
     tests = []
     for test_dir in TEST_DIRS:
-      current_root = join(self.root, test_dir)
+      current_root = join(self.root, 'data', test_dir)
       for root, dirs, files in os.walk(current_root):
         for dotted in [x  for x in dirs if x.startswith('.')]:
           dirs.remove(dotted)
@@ -111,6 +111,7 @@ class MozillaTestConfiguration(test.TestConfiguration):
         for file in files:
           if (not file in FRAMEWORK) and file.endswith('.js'):
             full_path = root_path + [file[:-3]]
+            full_path = [x for x in full_path if x != 'data']
             if self.Contains(path, full_path):
               test = MozillaTestCase(join(root, file), full_path, self.context,
                                      mode, framework)

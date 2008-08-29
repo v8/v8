@@ -31,7 +31,7 @@
 # debugging.
 # --------------------------------------------------------------------
 
-prefix mozilla_js_tests
+prefix mozilla
 def FAIL_OK = FAIL, OKAY
 
 
