@@ -25,13 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-/** \mainpage of the V8 API Reference Guide
+/** V8 API Reference Guide
 
-  Add text to introduce,
+V8 is Google's open source JavaScript engine. This set of documents 
+provides reference material generated from the V8 header file, v8.h.
 
-  point back to code.google.com/apis/v8/index.html
+For introductory material see http://code.google.com/apis/v8/
 
-  etc etc etc
+
+
+
+
  */
 #ifndef _V8
 #define _V8
