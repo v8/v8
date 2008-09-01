@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "debug.h"
 #include "execution.h"
 #include "factory.h"
 #include "macro-assembler.h"
@@ -622,6 +623,37 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 Handle<Object> Factory::ToObject(Handle<Object> object,
                                  Handle<Context> global_context) {
   CALL_HEAP_FUNCTION(object->ToObject(*global_context), Object);
+}
+
+
+Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
+  // Get the original code of the function.
+  Handle<Code> code(shared->code());
+
+  // Create a copy of the code before allocating the debug info object to avoid
+  // allocation while setting up the debug info object.
+  Handle<Code> original_code(*Factory::CopyCode(code));
+
+  // Allocate initial fixed array for active break points before allocating the
+  // debug info object to avoid allocation while setting up the debug info
+  // object.
+  Handle<FixedArray> break_points(
+      Factory::NewFixedArray(Debug::kEstimatedNofBreakPointsInFunction));
+
+  // Create and set up the debug info object. Debug info contains function, a
+  // copy of the original code, the executing code and initial fixed array for
+  // active break points.
+  Handle<DebugInfo> debug_info =
+      Handle<DebugInfo>::cast(Factory::NewStruct(DEBUG_INFO_TYPE));
+  debug_info->set_shared(*shared);
+  debug_info->set_original_code(*original_code);
+  debug_info->set_code(*code);
+  debug_info->set_break_points(*break_points);
+
+  // Link debug info to function.
+  shared->set_debug_info(*debug_info);
+
+  return debug_info;
 }
 
 

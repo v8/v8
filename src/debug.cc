@@ -1154,24 +1154,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
   if (!EnsureCompiled(shared)) return false;
 
   // Create the debug info object.
-  Handle<DebugInfo> debug_info =
-      Handle<DebugInfo>::cast(Factory::NewStruct(DEBUG_INFO_TYPE));
-
-  // Get the function original code.
-  Handle<Code> code(shared->code());
-
-  // Debug info contains function, a copy of the original code and the executing
-  // code.
-  debug_info->set_shared(*shared);
-  debug_info->set_original_code(*Factory::CopyCode(code));
-  debug_info->set_code(*code);
-
-  // Link debug info to function.
-  shared->set_debug_info(*debug_info);
-
-  // Initially no active break points.
-  debug_info->set_break_points(
-      *Factory::NewFixedArray(Debug::kEstimatedNofBreakPointsInFunction));
+  Handle<DebugInfo> debug_info = Factory::NewDebugInfo(shared);
 
   // Add debug info to the list.
   DebugInfoListNode* node = new DebugInfoListNode(*debug_info);

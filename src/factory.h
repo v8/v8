@@ -289,6 +289,8 @@ class Factory : public AllStatic {
                                                   uint32_t key,
                                                   Handle<Object> value);
 
+  static Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
+
  private:
   static Handle<JSFunction> NewFunctionHelper(Handle<String> name,
                                               Handle<Object> prototype);
