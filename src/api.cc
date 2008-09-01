@@ -687,13 +687,6 @@ void FunctionTemplate::SetCallHandler(InvocationCallback callback,
 }
 
 
-void FunctionTemplate::SetLookupHandler(LookupCallback handler) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetLookupHandler()")) return;
-  HandleScope scope;
-  Utils::OpenHandle(this)->set_lookup_callback(*FromCData(handler));
-}
-
-
 void FunctionTemplate::AddInstancePropertyAccessor(
       v8::Handle<String> name,
       AccessorGetter getter,

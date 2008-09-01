@@ -25,20 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-/** V8 API Reference Guide
-
-V8 is Google's open source JavaScript engine. 
-
-This set of documents provides reference material generated from the
-V8 header file, include/v8.h.
-
-For other documentation see http://code.google.com/apis/v8/
-
-
-
-
-
+/** \mainpage V8 API Reference Guide
+ *	
+ * V8 is Google's open source JavaScript engine. 
+ *
+ * This set of documents provides reference material generated from the
+ * V8 header file, include/v8.h.
+ *
+ * For other documentation see http://code.google.com/apis/v8/
  */
+
 #ifndef _V8
 #define _V8
 
@@ -1196,12 +1192,11 @@ typedef Handle<Array> (*IndexedPropertyEnumerator)(const AccessorInfo& info);
 
 
 /**
- * TODO(758124): Clarify documentation? Determines whether host
- * objects can read or write an accessor? (What does the default
- * allow? Both or neither?)  If a host object needs access check and
- * the check failed, some properties (accessors created by API) are
- * still accessible.  Such properties have AccessControl to allow read
- * or write.
+ * Access control specifications.
+ *
+ * Some accessors should be accessible across contexts.  These
+ * accessors have an explicit access control parameter which specifies
+ * the kind of cross-context access that should be allowed.
  */
 enum AccessControl {
   DEFAULT         = 0,
@@ -1211,7 +1206,7 @@ enum AccessControl {
 
 
 /**
- * Undocumented security features.
+ * Access type specification.
  */
 enum AccessType {
   ACCESS_GET,
@@ -1220,6 +1215,7 @@ enum AccessType {
   ACCESS_DELETE,
   ACCESS_KEYS
 };
+
 
 typedef bool (*NamedSecurityCallback)(Local<Object> global,
                                       Local<Value> key,
@@ -1233,24 +1229,24 @@ typedef bool (*IndexedSecurityCallback)(Local<Object> global,
 
 
 /**
- * TODO(758124): Make sure this documentation is up to date.
- *
- * A FunctionTemplate is used to create functions at runtime. There can only be
- * ONE function created in an environment.
+ * A FunctionTemplate is used to create functions at runtime. There
+ * can only be one function created from a FunctionTemplate in an
+ * environment.
  *
  * A FunctionTemplate can have properties, these properties are added to the
- * function object which it is created.
+ * function object when it is created.
  *
- * A FunctionTemplate has a corresponding instance template which is used to
- * create object instances when the function used as a constructor. Properties
- * added to the instance template are added to each object instance.
+ * A FunctionTemplate has a corresponding instance template which is
+ * used to create object instances when the function is used as a
+ * constructor. Properties added to the instance template are added to
+ * each object instance.
  *
  * A FunctionTemplate can have a prototype template. The prototype template
  * is used to create the prototype object of the function.
  *
- * Following example illustrates relationship between FunctionTemplate and
- * various pieces:
+ * The following example shows how to use a FunctionTemplate:
  *
+ * \code
  *    v8::Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
  *    t->Set("func_property", v8::Number::New(1));
  *
@@ -1265,67 +1261,81 @@ typedef bool (*IndexedSecurityCallback)(Local<Object> global,
  *
  *    v8::Local<v8::Function> function = t->GetFunction();
  *    v8::Local<v8::Object> instance = function->NewInstance();
+ * \endcode
  *
  * Let's use "function" as the JS variable name of the function object
- * and "instance" for the instance object created above, the following
- * JavaScript statements hold:
+ * and "instance" for the instance object created above.  The function
+ * and the instance will have the following properties:
  *
- *   func_property in function == true
- *   function.func_property == 1
+ * \code
+ *   func_property in function == true;
+ *   function.func_property == 1;
  *
- *   function.prototype.proto_method() invokes 'callback'
- *   function.prototype.proto_const == 2
+ *   function.prototype.proto_method() invokes 'InvokeCallback'
+ *   function.prototype.proto_const == 2;
  *
- *   instance instanceof function == true
- *   instance.instance_accessor calls InstanceAccessorCallback
- *   instance.instance_property == 3
+ *   instance instanceof function == true;
+ *   instance.instance_accessor calls 'InstanceAccessorCallback'
+ *   instance.instance_property == 3;
+ * \endcode
  *
+ * A FunctionTemplate can inherit from another one by calling the
+ * FunctionTemplate::Inherit method.  The following graph illustrates
+ * the semantics of inheritance:
  *
- * Inheritance:
+ * \code
+ *   FunctionTemplate Parent  -> Parent() . prototype -> { }
+ *     ^                                                  ^
+ *     | Inherit(Parent)                                  | .__proto__
+ *     |                                                  |
+ *   FunctionTemplate Child   -> Child()  . prototype -> { }
+ * \endcode
  *
- * A FunctionTemplate can inherit from another one by calling Inherit method.
- * Following graph illustrates the semantic of inheritance:
+ * A FunctionTemplate 'Child' inherits from 'Parent', the prototype
+ * object of the Child() function has __proto__ pointing to the
+ * Parent() function's prototype object. An instance of the Child
+ * function has all properties on Parent's instance templates.
  *
- *  FunctionTemplate Parent  -> Parent() . prototype -> { }
- *    ^                                                  ^
- *    | Inherit(Parent)                                  | .__proto__
- *    |                                                  |
- *  FunctionTemplate Child   -> Child()  . prototype -> { }
+ * Let Parent be the FunctionTemplate initialized in the previous
+ * section and create a Child FunctionTemplate by:
  *
- * A FunctionTemplate 'Child' inherits from 'Parent', the prototype object
- * of Child() function has __proto__ pointing to Parent() function's prototype
- * object. An instance of Child function has all properties on parents'
- * instance templates.
- *
- * Let Parent be the FunctionTemplate initialized in previous section and
- * create a Child function template by:
- *
+ * \code
  *   Local<FunctionTemplate> parent = t;
  *   Local<FunctionTemplate> child = FunctionTemplate::New();
  *   child->Inherit(parent);
  *
  *   Local<Function> child_function = child->GetFunction();
  *   Local<Object> child_instance = child_function->NewInstance();
+ * \endcode
  *
- * The following JS code holds:
+ * The Child function and Child instance will have the following
+ * properties:
+ *
+ * \code
  *   child_func.prototype.__proto__ == function.prototype;
- *   child_instance.instance_accessor calls InstanceAccessorCallback
+ *   child_instance.instance_accessor calls 'InstanceAccessorCallback'
  *   child_instance.instance_property == 3;
+ * \endcode
  */
 class EXPORT FunctionTemplate : public Template {
  public:
   /** Creates a function template.*/
-  static Local<FunctionTemplate> New(InvocationCallback callback = 0,
-                                     Handle<Value> data = Handle<Value>(),
-                                     Handle<Signature> signature =
-                                         Handle<Signature>());
+  static Local<FunctionTemplate> New(
+      InvocationCallback callback = 0,
+      Handle<Value> data = Handle<Value>(),
+      Handle<Signature> signature = Handle<Signature>());
   /** Returns the unique function instance in the current execution context.*/
   Local<Function> GetFunction();
 
+  /**
+   * Set the call-handler callback for a FunctionTemplate.  This
+   * callback is called whenever the function created from this
+   * FunctionTemplate is called.
+   */
   void SetCallHandler(InvocationCallback callback,
                       Handle<Value> data = Handle<Value>());
-  void SetLookupHandler(LookupCallback handler);
 
+  /** Get the InstanceTemplate. */
   Local<ObjectTemplate> InstanceTemplate();
 
   /** Causes the function template to inherit from a parent function template.*/
@@ -1337,19 +1347,31 @@ class EXPORT FunctionTemplate : public Template {
    */
   Local<ObjectTemplate> PrototypeTemplate();
 
+
+  /**
+   * Set the class name of the FunctionTemplate.  This is used for
+   * printing objects created with the function created from the
+   * FunctionTemplate as its constructor.
+   */
   void SetClassName(Handle<String> name);
 
   /**
-   * Determines whether the __proto__ accessor ignores instances of the function template.
-   * Call with a value of true to make the __proto__ accessor ignore instances of the function template.
-   * Call with a value of false to make the __proto__ accessor not ignore instances of the function template.
-   * By default, instances of a function template are not ignored.
-   * TODO(758124): What does "not ignored" mean?
+   * Determines whether the __proto__ accessor ignores instances of
+   * the function template.  If instances of the function template are
+   * ignored, __proto__ skips all instances and instead returns the
+   * next object in the prototype chain.
+   *
+   * Call with a value of true to make the __proto__ accessor ignore
+   * instances of the function template.  Call with a value of false
+   * to make the __proto__ accessor not ignore instances of the
+   * function template.  By default, instances of a function template
+   * are not ignored.
    */
   void SetHiddenPrototype(bool value);
 
   /**
-   * Returns true if the given object is an instance of this function template.
+   * Returns true if the given object is an instance of this function
+   * template.
    */
   bool HasInstance(Handle<Value> object);
 
@@ -1382,23 +1404,42 @@ class EXPORT FunctionTemplate : public Template {
 
 
 /**
- * ObjectTemplate: (TODO(758124): Add comments.)
+ * An ObjectTemplate is used to create objects at runtime.
+ *
+ * Properties added to an ObjectTemplate are added to each object
+ * created from the ObjectTemplate.
  */
 class EXPORT ObjectTemplate : public Template {
  public:
+  /** Creates an ObjectTemplate. */
   static Local<ObjectTemplate> New();
+
   /** Creates a new instance of this template.*/
   Local<Object> NewInstance();
 
   /**
    * Sets an accessor on the object template.
-   * /param name (TODO(758124): Describe)
-   * /param getter (TODO(758124): Describe)
-   * /param setter (TODO(758124): Describe)
-   * /param data ((TODO(758124): Describe)
-   * /param settings settings must be one of:
-   *   DEFAULT = 0, ALL_CAN_READ = 1, or ALL_CAN_WRITE = 2
-   * /param attribute (TODO(758124): Describe)
+   *
+   * Whenever the property with the given name is accessed on objects
+   * created from this ObjectTemplate the getter and setter callbacks
+   * are called instead of getting and setting the property directly
+   * on the JavaScript object.
+   *
+   * \param name The name of the property for which an accessor is added.
+   * \param getter The callback to invoke when getting the property.
+   * \param setter The callback to invoke when setting the property.
+   * \param data A piece of data that will be passed to the getter and setter
+   *   callbacks whenever they are invoked.
+   * \param settings Access control settings for the accessor. This is a bit
+   *   field consisting of one of more of
+   *   DEFAULT = 0, ALL_CAN_READ = 1, or ALL_CAN_WRITE = 2.
+   *   The default is to not allow cross-environment access.
+   *   ALL_CAN_READ means that all cross-environment reads are allowed.
+   *   ALL_CAN_WRITE means that all cross-environment writes are allowed.
+   *   The combination ALL_CAN_READ | ALL_CAN_WRITE can be used to allow all
+   *   cross-environment access.
+   * \param attribute The attributes of the property for which an accessor
+   *   is added.
    */
   void SetAccessor(Handle<String> name,
                    AccessorGetter getter,
@@ -1409,12 +1450,19 @@ class EXPORT ObjectTemplate : public Template {
 
   /**
    * Sets a named property handler on the object template.
-   * /param getter (TODO(758124): Describe)
-   * /param setter (TODO(758124): Describe)
-   * /param query (TODO(758124): Describe)
-   * /param deleter (TODO(758124): Describe)
-   * /param enumerator (TODO(758124): Describe)
-   * /param data (TODO(758124): Describe)
+   *
+   * Whenever a named property is accessed on objects created from
+   * this object template, the provided callback is invoked instead of
+   * accessing the property directly on the JavaScript object.
+   *
+   * \param getter The callback to invoke when getting a property.
+   * \param setter The callback to invoke when setting a property.
+   * \param query The callback to invoke to check is an object has a property.
+   * \param deleter The callback to invoke when deleting a property.
+   * \param enumerator The callback to invoke to enumerate all the named
+   *   properties of an object.
+   * \param data A piece of data that will be passed to the callbacks
+   *   whenever they are invoked.
    */
   void SetNamedPropertyHandler(NamedPropertyGetter getter,
                                NamedPropertySetter setter = 0,
@@ -1425,12 +1473,19 @@ class EXPORT ObjectTemplate : public Template {
 
   /**
    * Sets an indexed property handler on the object template.
-   * /param getter (TODO(758124): Describe)
-   * /param setter (TODO(758124): Describe)
-   * /param query (TODO(758124): Describe)
-   * /param deleter (TODO(758124): Describe)
-   * /param enumerator (TODO(758124): Describe)
-   * /param data (TODO(758124): Describe)
+   *
+   * Whenever an indexed property is accessed on objects created from
+   * this object template, the provided callback is invoked instead of
+   * accessing the property directly on the JavaScript object.
+   *
+   * \param getter The callback to invoke when getting a property.
+   * \param setter The callback to invoke when setting a property.
+   * \param query The callback to invoke to check is an object has a property.
+   * \param deleter The callback to invoke when deleting a property.
+   * \param enumerator The callback to invoke to enumerate all the indexed
+   *   properties of an object.
+   * \param data A piece of data that will be passed to the callbacks
+   *   whenever they are invoked.
    */
   void SetIndexedPropertyHandler(IndexedPropertyGetter getter,
                                  IndexedPropertySetter setter = 0,
@@ -1447,11 +1502,23 @@ class EXPORT ObjectTemplate : public Template {
   void SetCallAsFunctionHandler(InvocationCallback callback,
                                 Handle<Value> data = Handle<Value>());
 
-  /** Make object instances of the template as undetectable.*/
+  /**
+   * Mark object instances of the template as undetectable.
+   *
+   * In many ways, undetectable objects behave as though they are not
+   * there.  They behave like 'undefined' in conditionals and when
+   * printed.  However, properties can be accessed and called as on
+   * normal objects.
+   */
   void MarkAsUndetectable();
 
-  /** TODO(758124): Clarify documentation: Object instances of the
-   * template need access check.*/
+  /**
+   * Sets access check callbacks on the object template.
+   *
+   * When accessing properties on instances of this object template,
+   * the access check callback will be called to determine whether or
+   * not to allow cross-environment access to the properties.
+   */
   void SetAccessCheckCallbacks(NamedSecurityCallback named_handler,
                                IndexedSecurityCallback indexed_handler,
                                Handle<Value> data = Handle<Value>());
@@ -1476,8 +1543,8 @@ class EXPORT ObjectTemplate : public Template {
 
 
 /**
- * A function signature which specifies which receivers and arguments
- * in can legally be called with.
+ * A Signature specifies which receivers and arguments a function can
+ * legally be called with.
  */
 class EXPORT Signature : public Data {
  public:
@@ -1491,8 +1558,8 @@ class EXPORT Signature : public Data {
 
 
 /**
- * A utility for determining the type of objects based on which
- * template they were constructed from.
+ * A utility for determining the type of objects based on the template
+ * they were constructed from.
  */
 class EXPORT TypeSwitch : public Data {
  public:
@@ -1628,10 +1695,10 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
 
 /**
  * Applications can register a callback function which is called
- * before and after a major garbage collection.
- * Allocations are not allowed in the callback function, you therefore.
- * cannot manipulate objects (set or delete properties for example)
- * since it is likely such operations will result in the allocation of objects.
+ * before and after a major garbage collection.  Allocations are not
+ * allowed in the callback function, you therefore cannot manipulate
+ * objects (set or delete properties for example) since it is possible
+ * such operations will result in the allocation of objects.
  */
 typedef void (*GCCallback)();
 
@@ -1642,7 +1709,6 @@ typedef void (*GCCallback)();
  * Applications must provide a callback function which is called to generate
  * a context if a context was not deserialized from the snapshot.
  */
-
 typedef Persistent<Context> (*ContextGenerator)();
 
 
@@ -1651,20 +1717,34 @@ typedef Persistent<Context> (*ContextGenerator)();
  */
 class EXPORT V8 {
  public:
+  /** Set the callback to invoke in case of fatal errors. */
   static void SetFatalErrorHandler(FatalErrorCallback that);
 
-  // TODO(758124): Clarify documentation: Prevent top level from
-  // calling V8::FatalProcessOutOfMemory if HasOutOfMemoryException();
+  /**
+   * Ignore out-of-memory exceptions.
+   *
+   * V8 running out of memory is treated as a fatal error by default.
+   * This means that the fatal error handler is called and that V8 is
+   * terminated.
+   *
+   * IgnoreOutOfMemoryException can be used to not treat a
+   * out-of-memory situation as a fatal error.  This way, the contexts
+   * that did not cause the out of memory problem might be able to
+   * continue execution.
+   */
   static void IgnoreOutOfMemoryException();
 
-  // TODO(758124): Clarify what "dead" means
-  // Check if V8 is dead.
+  /**
+   * Check if V8 is dead and therefore unusable.  This is the case after 
+   * fatal errors such as out-of-memory situations.
+   */
   static bool IsDead();
 
   /**
-   * TODO(758124): Clarify documentation - what is the "ones" in
-   * "existing ones": Adds a message listener, does not overwrite any
-   * existing ones with the same callback function.
+   * Adds a message listener.
+   *
+   * The same message listener can be added more than once and it that
+   * case it will be called more than once for each message.
    */
   static bool AddMessageListener(MessageCallback that,
                                  Handle<Value> data = Handle<Value>());
@@ -1675,14 +1755,12 @@ class EXPORT V8 {
   static void RemoveMessageListeners(MessageCallback that);
 
   /**
-   * Sets v8 flags from a string.
-   * TODO(758124): Describe flags?
+   * Sets V8 flags from a string.
    */
   static void SetFlagsFromString(const char* str, int length);
 
   /**
-   * Sets v8 flags from command line.
-   * TODO(758124): Describe flags?
+   * Sets V8 flags from the command line.
    */
   static void SetFlagsFromCommandLine(int* argc,
                                       char** argv,
@@ -1707,44 +1785,52 @@ class EXPORT V8 {
   static void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback);
 
   /**
-   * Enables the host application to receive a notification before a major 
-   * garbage collection.
-   * Allocations are not allowed in the callback function, you therefore
-   * cannot manipulate objects (set or delete properties for example)
-   * since it is likely such operations will result in the allocation of objects.
+   * Enables the host application to receive a notification before a
+   * major garbage colletion.  Allocations are not allowed in the callback
+   * function,
+   * you therefore cannot manipulate objects (set or delete properties
+   * for example) since it is possible such operations will result in
+   * the allocation of objects.
    */
   static void SetGlobalGCPrologueCallback(GCCallback);
 
   /**
-   * Enables the host application to receive a notification after a major 
-   * garbage collection.
-   * (TODO(758124): is the following true for this one too?)
-   * Allocations are not allowed in the callback function, you therefore
-   * cannot manipulate objects (set or delete properties for example)
-   * since it is likely such operations will result in the allocation of objects.
+   * Enables the host application to receive a notification after a
+   * major garbage collection.  Allocations are not allowed in the callback function,
+   * you therefore cannot manipulate objects (set or delete properties
+   * for example) since it is possible such operations will result in
+   * the allocation of objects.
    */
   static void SetGlobalGCEpilogueCallback(GCCallback);
 
   /**
-   * Allows the host application to group objects together. If one object
-   * in the group is alive, all objects in the group are alive.
-   * After each garbage collection, object groups are removed. It is intended to
-   * be used in the before-garbage-collection callback function to simulate DOM 
-   * tree connections among JavaScript wrapper objects.
+   * Allows the host application to group objects together. If one
+   * object in the group is alive, all objects in the group are alive.
+   * After each garbage collection, object groups are removed. It is intended to be
+   * used in the before-garbage-collection callback function for istance to simulate
+   * DOM tree connections among JS wrapper objects.
    */
   static void AddObjectToGroup(void* id, Persistent<Object> obj);
 
   /**
-   * Initializes from snapshot if possible. Otherwise, attempts to initialize
-   * from scratch.
+   * Initializes from snapshot if possible. Otherwise, attempts to
+   * initialize from scratch.
    */
   static bool Initialize();
 
-
   /**
-   * Adjusts the amount of registered external memory.
-   * Returns the adjusted value.
-   * Used for triggering a global GC earlier than otherwise.
+   * Adjusts the amount of registered external memory.  Used to give
+   * V8 an indication of the amount of externally allocated memory
+   * that is kept alive by JavaScript objects.  V8 uses this to decide
+   * when to perform global garbage collections.  Registering
+   * externally allocated memory will trigger global garbage
+   * collections more often than otherwise in an attempt to garbage
+   * collect the JavaScript objects keeping the externally allocated
+   * memory alive.
+   *
+   * \param change_in_bytes the change in externally allocated memory
+   *   that is kept alive by JavaScript objects.
+   * \returns the adjusted value.
    */
   static int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
 
@@ -1805,6 +1891,14 @@ class EXPORT TryCatch {
    */
   void Reset();
 
+  /**
+   * Set verbosity of the external exception handler.
+   *
+   * By default, exceptions that are caught by an external exception
+   * handler are not reported.  Call SetVerbose with true on an
+   * external exception handler to have exceptions caught by the
+   * handler reported as if they were not caught.
+   */
   void SetVerbose(bool value);
 
  public:
@@ -1839,10 +1933,11 @@ class EXPORT Context {
  public:
   Local<Object> Global();
 
-  static Persistent<Context> New(ExtensionConfiguration* extensions = 0,
-                                 Handle<ObjectTemplate> global_template =
-                                     Handle<ObjectTemplate>(),
-                                 Handle<Value> global_object = Handle<Value>());
+  /** Creates a new context. */
+  static Persistent<Context> New(
+      ExtensionConfiguration* extensions = 0,
+      Handle<ObjectTemplate> global_template = Handle<ObjectTemplate>(),
+      Handle<Value> global_object = Handle<Value>());
 
   /** Returns the last entered context. */
   static Local<Context> GetEntered();
@@ -1862,16 +1957,27 @@ class EXPORT Context {
   /** Returns the security token of this context.*/
   Handle<Value> GetSecurityToken();
 
+  /**
+   * Enter this context.  After entering a context, all code compiled
+   * and run is compiled and run in this context.  If another context
+   * is already entered, this old context is saved so it can be
+   * restored when the new context is exited.
+   */
   void Enter();
+
+  /**
+   * Exit this context.  Exiting the current context restores the
+   * context that was in place when entering the current context.
+   */
   void Exit();
 
-  /** Returns true if the context has experienced an out-of-memory situation.*/
+  /** Returns true if the context has experienced an out of memory situation. */
   bool HasOutOfMemoryException();
 
-  /** Returns true if called from within a context.*/
+  /** Returns true if V8 has a current context. */
   static bool InContext();
 
-  /** Returns true if called from within a security context.*/
+  /** Returns true if V8 has a current security context. */
   static bool InSecurityContext();
 
   /**
@@ -1897,17 +2003,18 @@ class EXPORT Context {
 
 
 /**
- * Multiple threads in V8 are allowed, but only one thread at a time is
- * allowed to use V8.  The definition of 'using V8' includes accessing
- * handles or holding onto object pointers obtained from V8 handles.
- * It is up to the user of V8 to ensure (perhaps with locking) that
- * this constraint is not violated.
+ * Multiple threads in V8 are allowed, but only one thread at a time
+ * is allowed to use V8.  The definition of 'using V8' includes
+ * accessing handles or holding onto object pointers obtained from V8
+ * handles.  It is up to the user of V8 to ensure (perhaps with
+ * locking) that this constraint is not violated.
  *
  * If you wish to start using V8 in a thread you can do this by constructing
  * a v8::Locker object.  After the code using V8 has completed for the
  * current thread you can call the destructor.  This can be combined
  * with C++ scope-based construction as follows:
  *
+ * \code
  * ...
  * {
  *   v8::Locker locker;
@@ -1915,17 +2022,20 @@ class EXPORT Context {
  *   // Code using V8 goes here.
  *   ...
  * } // Destructor called here
+ * \endcode
  *
  * If you wish to stop using V8 in a thread A you can do this by either
  * by destroying the v8::Locker object as above or by constructing a
  * v8::Unlocker object:
  *
+ * \code
  * {
  *   v8::Unlocker unlocker;
  *   ...
  *   // Code not using V8 goes here while V8 can run in another thread.
  *   ...
  * } // Destructor called here.
+ * \endcode
  *
  * The Unlocker object is intended for use in a long-running callback
  * from V8, where you want to release the V8 lock for other threads to
@@ -1941,6 +2051,7 @@ class EXPORT Context {
  * An unlocker will unlock several lockers if it has to and reinstate
  * the correct depth of locking on its destruction. eg.:
  *
+ * \code
  * // V8 not locked.
  * {
  *   v8::Locker locker;
@@ -1957,6 +2068,7 @@ class EXPORT Context {
  *   // V8 still locked (1 level).
  * }
  * // V8 Now no longer locked.
+ * \endcode
  */
 class EXPORT Unlocker {
  public:
@@ -1969,17 +2081,26 @@ class EXPORT Locker {
  public:
   Locker();
   ~Locker();
+
+  /**
+   * Start preemption.
+   *
+   * When preemption is started, a timer is fired every n milli seconds
+   * that will switch between multiple threads that are in contention
+   * for the V8 lock.
+   */
+  static void StartPreemption(int every_n_ms);
+
+  /**
+   * Stop preemption.
+   */
+  static void StopPreemption();
+
 #ifdef DEBUG
   static void AssertIsLocked();
 #else
   static inline void AssertIsLocked() { }
 #endif
-  /*
-   * Fires a timer every n milli seconds that will switch between
-   * multiple threads that are in contention for the V8 lock.
-   */
-  static void StartPreemption(int every_n_ms);
-  static void StopPreemption();
  private:
   bool has_lock_;
   bool top_level_;
@@ -2142,8 +2263,8 @@ void Template::Set(const char* name, v8::Handle<Data> value) {
 
 
 /**
- * \example evaluator.cc
- * A simple evaluator that takes a list of expressions on the
+ * \example shell.cc
+ * A simple shell that takes a list of expressions on the
  * command-line and executes them.
  */
 
