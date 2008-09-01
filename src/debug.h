@@ -28,7 +28,7 @@
 #ifndef V8_DEBUG_H_
 #define V8_DEBUG_H_
 
-#include "../public/debug.h"
+#include "../include/debug.h"
 #include "assembler.h"
 #include "code-stubs.h"
 #include "factory.h"

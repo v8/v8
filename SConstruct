@@ -170,7 +170,7 @@ CCTEST_EXTRA_FLAGS = {
 
 SAMPLE_FLAGS = {
   'all': {
-    'CPPPATH': [join(abspath('.'), 'public')],
+    'CPPPATH': [join(abspath('.'), 'include')],
     'LIBS': ['$LIBRARY'],
   },
   'gcc': {
