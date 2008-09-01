@@ -1786,29 +1786,29 @@ class EXPORT V8 {
 
   /**
    * Enables the host application to receive a notification before a
-   * major garbage colletion.  Allocations are not allowed in the callback
-   * function,
-   * you therefore cannot manipulate objects (set or delete properties
-   * for example) since it is possible such operations will result in
-   * the allocation of objects.
+   * major garbage colletion.  Allocations are not allowed in the
+   * callback function, you therefore cannot manipulate objects (set
+   * or delete properties for example) since it is possible such
+   * operations will result in the allocation of objects.
    */
   static void SetGlobalGCPrologueCallback(GCCallback);
 
   /**
    * Enables the host application to receive a notification after a
-   * major garbage collection.  Allocations are not allowed in the callback function,
-   * you therefore cannot manipulate objects (set or delete properties
-   * for example) since it is possible such operations will result in
-   * the allocation of objects.
+   * major garbage collection.  Allocations are not allowed in the
+   * callback function, you therefore cannot manipulate objects (set
+   * or delete properties for example) since it is possible such
+   * operations will result in the allocation of objects.
    */
   static void SetGlobalGCEpilogueCallback(GCCallback);
 
   /**
    * Allows the host application to group objects together. If one
    * object in the group is alive, all objects in the group are alive.
-   * After each garbage collection, object groups are removed. It is intended to be
-   * used in the before-garbage-collection callback function for istance to simulate
-   * DOM tree connections among JS wrapper objects.
+   * After each garbage collection, object groups are removed. It is
+   * intended to be used in the before-garbage-collection callback
+   * function for istance to simulate DOM tree connections among JS
+   * wrapper objects.
    */
   static void AddObjectToGroup(void* id, Persistent<Object> obj);
 
