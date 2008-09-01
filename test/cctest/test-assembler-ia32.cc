@@ -259,8 +259,11 @@ TEST(AssemblerIa326) {
   __ mulsd(xmm0, xmm1);
   __ subsd(xmm0, xmm1);
   __ divsd(xmm0, xmm1);
-  __ movdbl(Operand(esp, 4), xmm0);
-  __ fld_d(Operand(esp, 4));
+  // Copy xmm0 to st(0) using eight bytes of stack.
+  __ sub(Operand(esp), Immediate(8));
+  __ movdbl(Operand(esp, 0), xmm0);
+  __ fld_d(Operand(esp, 0));
+  __ add(Operand(esp), Immediate(8));
   __ ret(0);
 
   CodeDesc desc;
@@ -295,8 +298,11 @@ TEST(AssemblerIa328) {
   Assembler assm(buffer, sizeof buffer);
   __ mov(eax, Operand(esp, 4));
   __ cvtsi2sd(xmm0, Operand(eax));
-  __ movdbl(Operand(esp, 4), xmm0);
-  __ fld_d(Operand(esp, 4));
+  // Copy xmm0 to st(0) using eight bytes of stack.
+  __ sub(Operand(esp), Immediate(8));
+  __ movdbl(Operand(esp, 0), xmm0);
+  __ fld_d(Operand(esp, 0));
+  __ add(Operand(esp), Immediate(8));
   __ ret(0);
   CodeDesc desc;
   assm.GetCode(&desc);
