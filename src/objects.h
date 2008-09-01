@@ -52,6 +52,7 @@
 //       - Array
 //         - ByteArray
 //         - FixedArray
+//           - DescriptorArray
 //           - HashTable
 //             - Dictionary
 //             - SymbolTable
@@ -135,8 +136,7 @@ class PropertyDetails BASE_EMBEDDED {
   bool IsTransition() {
     PropertyType t = type();
     ASSERT(t != INTERCEPTOR);
-    if (t == MAP_TRANSITION || t == CONSTANT_TRANSITION) return true;
-    return false;
+    return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
   }
 
   PropertyAttributes attributes() { return AttributesField::decode(value_); }
@@ -1095,23 +1095,20 @@ class HeapNumber: public HeapObject {
 class JSObject: public HeapObject {
  public:
   // [properties]: Backing storage for properties.
-  DECL_ACCESSORS(properties, FixedArray)
+  // properties is a FixedArray in the fast case, and a Dictionary in the
+  // slow case.
+  DECL_ACCESSORS(properties, FixedArray)  // Get and set fast properties.
   inline void initialize_properties();
-
-  // [elements]: The elements in the fast case.
-  DECL_ACCESSORS(elements, HeapObject)
-  inline void initialize_elements();
-
-  // Accessors for properties.
   inline bool HasFastProperties();
+  inline Dictionary* property_dictionary();  // Gets slow properties.
 
-  // Do we want to keep the elements in fast case when increasing the
-  // capacity?
-  bool KeepInFastCase(int new_capacity);
-
-  // Accessors for slow properties
-  inline Dictionary* property_dictionary();  // asserts !HasFastProperties
-  inline Dictionary* element_dictionary();  // asserts !HasFastElements
+  // [elements]: The elements (properties with names that are integers).
+  // elements is a FixedArray in the fast case, and a Dictionary in the slow
+  // case.
+  DECL_ACCESSORS(elements, HeapObject)  // Get and set fast elements.
+  inline void initialize_elements();
+  inline bool HasFastElements();
+  inline Dictionary* element_dictionary();  // Gets slow elements.
 
   Object* SetProperty(String* key,
                       Object* value,
@@ -1188,14 +1185,14 @@ class JSObject: public HeapObject {
   // Tests for the fast common case for property enumeration.
   bool IsSimpleEnum();
 
-  // Tells whether the backing storage for elements is fast (FixedArray).
-  inline bool HasFastElements();
-
+  // Do we want to keep the elements in fast case when increasing the
+  // capacity?
+  bool ShouldConvertToSlowElements(int new_capacity);
   // Returns true if the backing storage for the slow-case elements of
   // this object takes up nearly as much space as a fast-case backing
   // storage would.  In that case the JSObject should have fast
   // elements.
-  bool ShouldHaveFastElements();
+  bool ShouldConvertToFastElements();
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
@@ -1370,6 +1367,7 @@ class JSObject: public HeapObject {
 
   static const uint32_t kMaxGap = 1024;
   static const int kMaxFastElementsLength = 5000;
+  static const int kMaxFastProperties = 8;
 
   // Layout description.
   static const int kPropertiesOffset = HeapObject::kSize;
@@ -1477,6 +1475,8 @@ class FixedArray: public Array {
 #ifdef DEBUG
   void FixedArrayPrint();
   void FixedArrayVerify();
+  // Checks if two FixedArrays have identical contents.
+  bool IsEqualTo(FixedArray* other);
 #endif
 
   // Swap two elements.
@@ -1505,14 +1505,15 @@ class FixedArray: public Array {
 //
 class DescriptorArray: public FixedArray {
  public:
+  // Is this the singleton empty_descriptor_array?
+  inline bool IsEmpty();
   // Returns the number of descriptors in the array.
   int number_of_descriptors() {
-    int len = length();
-    return len == 0 ? 0 : len - kFirstIndex;
+    return IsEmpty() ? 0 : length() - kFirstIndex;
   }
 
   int NextEnumerationIndex() {
-    if (length() == 0) return PropertyDetails::kInitialIndex;
+    if (IsEmpty()) return PropertyDetails::kInitialIndex;
     Object* obj = get(kEnumerationIndexIndex);
     if (obj->IsSmi()) {
       return Smi::cast(obj)->value();
@@ -1524,11 +1525,12 @@ class DescriptorArray: public FixedArray {
 
   // Set next enumeration index and flush any enum cache.
   void SetNextEnumerationIndex(int value) {
-    fast_set(this, kEnumerationIndexIndex, Smi::FromInt(value));
+    if (!IsEmpty()) {
+      fast_set(this, kEnumerationIndexIndex, Smi::FromInt(value));
+    }
   }
-
   bool HasEnumCache() {
-    return length() > 0 && !get(kEnumerationIndexIndex)->IsSmi();
+    return !IsEmpty() && !get(kEnumerationIndexIndex)->IsSmi();
   }
 
   Object* GetEnumCache() {
@@ -1553,8 +1555,18 @@ class DescriptorArray: public FixedArray {
   void ReplaceConstantFunction(int descriptor_number, JSFunction* value);
 
   // Copy the descriptor array, insert a new descriptor and optionally
-  // remove map transitions.
-  Object* CopyInsert(Descriptor* desc, bool remove_map_transitions = false);
+  // remove map transitions.  If the descriptor is already present, it is
+  // replaced.  If a replaced descriptor is a real property (not a transition
+  // or null), its enumeration index is kept as is.
+  // If adding a real property, map transitions must be removed.  If adding
+  // a transition, they must not be removed.  All null descriptors are removed.
+  Object* CopyInsert(Descriptor* descriptor, TransitionFlag transition_flag);
+
+  // Makes a copy of the descriptor array with the descriptor with key name
+  // removed.  If name is the empty string, the descriptor array is copied.
+  // Transitions are removed if TransitionFlag is REMOVE_TRANSITIONS.
+  // All null descriptors are removed.
+  Object* CopyRemove(TransitionFlag remove_transitions, String* name);
 
   // Copy the descriptor array, replace the property index and attributes
   // of the named property, but preserve its enumeration index.
@@ -1563,6 +1575,10 @@ class DescriptorArray: public FixedArray {
   // Copy the descriptor array, removing the property index and attributes
   // of the named property.
   Object* CopyRemove(String* name);
+
+  // Remove all transitions.  Return  a copy of the array with all transitions
+  // removed, or a Failure object if the new array could not be allocated.
+  Object* RemoveTransitions();
 
   // Sort the instance descriptors by the hash codes of their keys.
   void Sort();
@@ -1579,6 +1595,9 @@ class DescriptorArray: public FixedArray {
   // with low=0 and high=2.
   int BinarySearch(String* name, int low, int high);
 
+
+  // Allocates a DescriptorArray, but returns the singleton
+  // empty descriptor array object if number_of_descriptors is 0.
   static Object* Allocate(int number_of_descriptors);
 
   // Casting.
@@ -1612,6 +1631,9 @@ class DescriptorArray: public FixedArray {
 
   // Is the descriptor array sorted and without duplicates?
   bool IsSortedNoDuplicates();
+
+  // Are two DescriptorArrays equal?
+  bool IsEqualTo(DescriptorArray* other);
 #endif
 
   // The maximum number of descriptors we want in a descriptor array (should
@@ -2280,6 +2302,10 @@ class Map: public HeapObject {
   // Returns a copy of the map.
   Object* Copy();
 
+  // Returns a copy of the map, with all transitions dropped from the
+  // instance descriptors.
+  Object* CopyDropTransitions();
+
   // Returns the property index for name (only valid for FAST MODE).
   int PropertyIndexFor(String* name);
 
@@ -2294,9 +2320,6 @@ class Map: public HeapObject {
 
   // Locate an accessor in the instance descriptor.
   AccessorDescriptor* FindAccessor(String* name);
-
-  // Make sure the instance descriptor has no map transitions
-  Object* EnsureNoMapTransitions();
 
   // Code cache operations.
 
@@ -2568,6 +2591,14 @@ class JSFunction: public JSObject {
   inline bool IsLoaded();
 
   // [literals]: Fixed array holding the materialized literals.
+  //
+  // If the function contains object, regexp or array literals, the
+  // literals array prefix contains the object, regexp, and array
+  // function to be used when creating these literals.  This is
+  // necessary so that we do not dynamically lookup the object, regexp
+  // or array functions.  Performing a dynamic lookup, we might end up
+  // using the functions from a new context that we should not have
+  // access to.
   DECL_ACCESSORS(literals, FixedArray)
 
   // The initial map for an object created by this constructor.
@@ -2619,6 +2650,12 @@ class JSFunction: public JSObject {
   static const int kContextOffset = kSharedFunctionInfoOffset + kPointerSize;
   static const int kLiteralsOffset = kContextOffset + kPointerSize;
   static const int kSize = kLiteralsOffset + kPointerSize;
+
+  // Layout of the literals array.
+  static const int kLiteralsPrefixSize = 3;
+  static const int kLiteralObjectFunctionIndex = 0;
+  static const int kLiteralRegExpFunctionIndex = 1;
+  static const int kLiteralArrayFunctionIndex = 2;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);

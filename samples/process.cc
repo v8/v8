@@ -26,6 +26,9 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <v8.h>
+
+// To avoid warnings from <map> on windows we disable exceptions.
+#define _HAS_EXCEPTIONS 0
 #include <string>
 #include <map>
 
@@ -59,7 +62,7 @@ class HttpRequestProcessor {
   // Initialize this processor.  The map contains options that control
   // how requests should be processed.
   virtual bool Initialize(map<string, string>* options,
-      map<string, string>* output) = 0;
+                          map<string, string>* output) = 0;
 
   // Process a single request.
   virtual bool Process(HttpRequest* req) = 0;
@@ -75,17 +78,17 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
 
   // Creates a new processor that processes requests by invoking the
   // Process function of the JavaScript script given as an argument.
-  JsHttpRequestProcessor(Handle<String> script) : script_(script) { }
+  explicit JsHttpRequestProcessor(Handle<String> script) : script_(script) { }
   virtual ~JsHttpRequestProcessor();
 
   virtual bool Initialize(map<string, string>* opts,
-      map<string, string>* output);
+                          map<string, string>* output);
   virtual bool Process(HttpRequest* req);
 
  private:
 
-   // Execute the script associated with this processor and extract the
-   // Process function.  Returns true if this succeeded, otherwise false.
+  // Execute the script associated with this processor and extract the
+  // Process function.  Returns true if this succeeded, otherwise false.
   bool ExecuteScript(Handle<String> script);
 
   // Wrap the options and output map in a JavaScript objects and
@@ -99,14 +102,17 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
 
   // Callbacks that access the individual fields of request objects.
   static Handle<Value> GetPath(Local<String> name, const AccessorInfo& info);
-  static Handle<Value> GetReferrer(Local<String> name, const AccessorInfo& info);
+  static Handle<Value> GetReferrer(Local<String> name,
+                                   const AccessorInfo& info);
   static Handle<Value> GetHost(Local<String> name, const AccessorInfo& info);
-  static Handle<Value> GetUserAgent(Local<String> name, const AccessorInfo& info);
+  static Handle<Value> GetUserAgent(Local<String> name,
+                                    const AccessorInfo& info);
 
   // Callbacks that access maps
   static Handle<Value> MapGet(Local<String> name, const AccessorInfo& info);
-  static Handle<Value> MapSet(Local<String> name, Local<Value> value,
-      const AccessorInfo& info);
+  static Handle<Value> MapSet(Local<String> name,
+                              Local<Value> value,
+                              const AccessorInfo& info);
 
   // Utility methods for wrapping C++ objects as JavaScript objects,
   // and going back again.
@@ -139,7 +145,7 @@ static Handle<Value> LogCallback(const Arguments& args) {
 
 // Execute the script and fetch the Process method.
 bool JsHttpRequestProcessor::Initialize(map<string, string>* opts,
-    map<string, string>* output) {
+                                        map<string, string>* output) {
   // Create a handle scope to hold the temporary references.
   HandleScope handle_scope;
 
@@ -220,7 +226,7 @@ bool JsHttpRequestProcessor::ExecuteScript(Handle<String> script) {
 
 
 bool JsHttpRequestProcessor::InstallMaps(map<string, string>* opts,
-    map<string, string>* output) {
+                                         map<string, string>* output) {
   HandleScope handle_scope;
 
   // Wrap the map object in a JavaScript wrapper
@@ -332,7 +338,7 @@ string ObjectToString(Local<Value> value) {
 
 
 Handle<Value> JsHttpRequestProcessor::MapGet(Local<String> name,
-    const AccessorInfo& info) {
+                                             const AccessorInfo& info) {
   // Fetch the map wrapped by this object.
   map<string, string>* obj = UnwrapMap(info.Holder());
 
@@ -352,7 +358,8 @@ Handle<Value> JsHttpRequestProcessor::MapGet(Local<String> name,
 
 
 Handle<Value> JsHttpRequestProcessor::MapSet(Local<String> name,
-    Local<Value> value_obj, const AccessorInfo& info) {
+                                             Local<Value> value_obj,
+                                             const AccessorInfo& info) {
   // Fetch the map wrapped by this object.
   map<string, string>* obj = UnwrapMap(info.Holder());
 
@@ -430,7 +437,7 @@ HttpRequest* JsHttpRequestProcessor::UnwrapRequest(Handle<Object> obj) {
 
 
 Handle<Value> JsHttpRequestProcessor::GetPath(Local<String> name,
-    const AccessorInfo& info) {
+                                              const AccessorInfo& info) {
   // Extract the C++ request object from the JavaScript wrapper.
   HttpRequest* request = UnwrapRequest(info.Holder());
 
@@ -443,7 +450,7 @@ Handle<Value> JsHttpRequestProcessor::GetPath(Local<String> name,
 
 
 Handle<Value> JsHttpRequestProcessor::GetReferrer(Local<String> name,
-    const AccessorInfo& info) {
+                                                  const AccessorInfo& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->Referrer();
   return String::New(path.c_str(), path.length());
@@ -451,7 +458,7 @@ Handle<Value> JsHttpRequestProcessor::GetReferrer(Local<String> name,
 
 
 Handle<Value> JsHttpRequestProcessor::GetHost(Local<String> name,
-    const AccessorInfo& info) {
+                                              const AccessorInfo& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->Host();
   return String::New(path.c_str(), path.length());
@@ -459,7 +466,7 @@ Handle<Value> JsHttpRequestProcessor::GetHost(Local<String> name,
 
 
 Handle<Value> JsHttpRequestProcessor::GetUserAgent(Local<String> name,
-    const AccessorInfo& info) {
+                                                   const AccessorInfo& info) {
   HttpRequest* request = UnwrapRequest(info.Holder());
   const string& path = request->UserAgent();
   return String::New(path.c_str(), path.length());
@@ -496,8 +503,10 @@ void HttpRequestProcessor::Log(const char* event) {
  */
 class StringHttpRequest : public HttpRequest {
  public:
-  StringHttpRequest(const string& path, const string& referrer,
-      const string& host, const string& user_agent);
+  StringHttpRequest(const string& path,
+                    const string& referrer,
+                    const string& host,
+                    const string& user_agent);
   virtual const string& Path() { return path_; }
   virtual const string& Referrer() { return referrer_; }
   virtual const string& Host() { return host_; }
@@ -511,15 +520,19 @@ class StringHttpRequest : public HttpRequest {
 
 
 StringHttpRequest::StringHttpRequest(const string& path,
-    const string& referrer, const string& host, const string& user_agent)
+                                     const string& referrer,
+                                     const string& host,
+                                     const string& user_agent)
     : path_(path),
       referrer_(referrer),
       host_(host),
       user_agent_(user_agent) { }
 
 
-void ParseOptions(int argc, char* argv[], map<string, string>& options,
-		  string* file) {
+void ParseOptions(int argc,
+                  char* argv[],
+                  map<string, string>& options,
+                  string* file) {
   for (int i = 1; i < argc; i++) {
     string arg = argv[i];
     int index = arg.find('=', 0);
@@ -540,12 +553,12 @@ Handle<String> ReadFile(const string& name) {
   if (file == NULL) return Handle<String>();
 
   fseek(file, 0, SEEK_END);
-  long size = ftell(file);
+  int size = ftell(file);
   rewind(file);
 
   char* chars = new char[size + 1];
   chars[size] = '\0';
-  for (int i = 0; i < size; ) {
+  for (int i = 0; i < size;) {
     int read = fread(&chars[i], 1, size - i, file);
     i += read;
   }
@@ -568,7 +581,7 @@ StringHttpRequest kSampleRequests[kSampleSize] = {
 
 
 bool ProcessEntries(HttpRequestProcessor* processor, int count,
-		    StringHttpRequest* reqs) {
+                    StringHttpRequest* reqs) {
   for (int i = 0; i < count; i++) {
     if (!processor->Process(&reqs[i]))
       return false;
@@ -577,8 +590,8 @@ bool ProcessEntries(HttpRequestProcessor* processor, int count,
 }
 
 
-void PrintMap(map<string, string>& m) {
-  for (map<string, string>::iterator i = m.begin(); i != m.end(); i++) {
+void PrintMap(map<string, string>* m) {
+  for (map<string, string>::iterator i = m->begin(); i != m->end(); i++) {
     pair<string, string> entry = *i;
     printf("%s: %s\n", entry.first.c_str(), entry.second.c_str());
   }
@@ -607,5 +620,5 @@ int main(int argc, char* argv[]) {
   }
   if (!ProcessEntries(&processor, kSampleSize, kSampleRequests))
     return 1;
-  PrintMap(output);
+  PrintMap(&output);
 }

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2008 Google Inc. All Rights Reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,23 +25,29 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+function MjsUnitAssertionError(message) {
+  this.message = message;
+}
+
+MjsUnitAssertionError.prototype.toString = function () {
+  return this.message;
+}
+
 /*
  * This file is included in all mini jsunit test cases.  The test
  * framework expects lines that signal failed tests to start with
  * the f-word and ignore all other lines.
  */
 
-// Avoid writing the f-word, since some tests output parts of this code.
-var the_f_word = "Fai" + "lure";
-
 function fail(expected, found, name_opt) {
   var start;
   if (name_opt) {
-    start = the_f_word + " (" + name_opt + "): ";
+    // Fix this when we ditch the old test runner.
+    start = "Fail" + "ure (" + name_opt + "): ";
   } else {
-    start = the_f_word + ":";
+    start = "Fail" + "ure:";
   }
-  print(start + " expected <" + expected + "> found <" + found + ">");
+  throw new MjsUnitAssertionError(start + " expected <" + expected + "> found <" + found + ">");
 }
 
 
@@ -110,10 +116,10 @@ function assertDoesNotThrow(code) {
 
 
 function assertUnreachable(name_opt) {
-  var message = the_f_word + ": unreachable"
+  // Fix this when we ditch the old test runner.
+  var message = "Fail" + "ure: unreachable"
   if (name_opt) {
     message += " - " + name_opt;
   }
-  print(message);
+  throw new MjsUnitAssertionError(message);
 }
-

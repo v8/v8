@@ -352,7 +352,7 @@ BUILTIN_0(HandleApiCall) {
   HandleScope scope;
 
   // TODO(1238487): This is not nice. We need to get rid of this
-  // retarded behavior and start handling API calls in a more direct
+  // kludgy behavior and start handling API calls in a more direct
   // way - maybe compile specialized stubs lazily?.
 #ifdef USE_OLD_CALLING_CONVENTIONS
   Handle<JSFunction> function =

@@ -285,13 +285,11 @@ void UsageComputer::VisitRegExpLiteral(RegExpLiteral* node) {
 
 
 void UsageComputer::VisitObjectLiteral(ObjectLiteral* node) {
-  Read(node->result());
   ReadList(node->properties());
 }
 
 
 void UsageComputer::VisitArrayLiteral(ArrayLiteral* node) {
-  Read(node->result());
   ReadList(node->values());
 }
 

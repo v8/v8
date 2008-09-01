@@ -420,7 +420,7 @@ class HandleScopeImplementer {
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);
 
-  DISALLOW_EVIL_CONSTRUCTORS(HandleScopeImplementer);
+  DISALLOW_COPY_AND_ASSIGN(HandleScopeImplementer);
 };
 
 

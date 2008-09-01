@@ -31,6 +31,14 @@
 namespace v8 { namespace internal {
 
 
+// Zone scopes are in one of two modes.  Either they delete the zone
+// on exit or they do not.
+enum ZoneScopeMode {
+  DELETE_ON_EXIT,
+  DONT_DELETE_ON_EXIT
+};
+
+
 // The Zone supports very fast allocation of small chunks of
 // memory. The chunks cannot be deallocated individually, but instead
 // the Zone supports deallocating all chunks in one fast
@@ -140,6 +148,31 @@ class ZoneList: public List<T, ZoneListAllocationPolicy> {
   // always zero. The capacity must be non-negative.
   explicit ZoneList(int capacity)
       : List<T, ZoneListAllocationPolicy>(capacity) { }
+};
+
+
+// ZoneScopes keep track of the current parsing and compilation
+// nesting and cleans up generated ASTs in the Zone when exiting the
+// outer-most scope.
+class ZoneScope BASE_EMBEDDED {
+ public:
+  explicit ZoneScope(ZoneScopeMode mode) : mode_(mode) {
+    nesting_++;
+  }
+
+  ~ZoneScope() {
+    if (--nesting_ == 0 && mode_ == DELETE_ON_EXIT) Zone::DeleteAll();
+  }
+
+  // For ZoneScopes that do not delete on exit by default, call this
+  // method to request deletion on exit.
+  void DeleteOnExit() {
+    mode_ = DELETE_ON_EXIT;
+  }
+
+ private:
+  ZoneScopeMode mode_;
+  static int nesting_;
 };
 
 

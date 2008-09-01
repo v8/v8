@@ -231,7 +231,7 @@ function MakeError(type, args) {
 Script.prototype.initSourceInfo_ = function () {
   // Just return if initialized.
   if (this.lineEnds_) return;
-  
+
   // Collect all line endings.
   this.lineEnds_ = [];
   for (var i = 0; i < this.source.length; i++) {
@@ -240,7 +240,7 @@ Script.prototype.initSourceInfo_ = function () {
       this.lineEnds_.push(i);
     }
   }
-  
+
   // If the script does not end with a line ending add the final end position
   // as just past the last line ending.
   if (this.lineEnds_[this.lineEnds_.length - 1] != this.source.length - 1) {
@@ -258,7 +258,7 @@ Script.prototype.initSourceInfo_ = function () {
 Script.prototype.locationFromPosition = function (position) {
   // Make sure source info has been initialized.
   this.initSourceInfo_();
-  
+
   var lineCount = this.lineCount();
   var line = -1;
   if (position <= this.lineEnds_[0]) {
@@ -271,9 +271,9 @@ Script.prototype.locationFromPosition = function (position) {
       }
     }
   }
-  
+
   if (line == -1) return null;
-  
+
   // Determine start, end and column.
   var start = line == 0 ? 0 : this.lineEnds_[line - 1] + 1;
   var end = this.lineEnds_[line];
@@ -314,7 +314,7 @@ Script.prototype.locationFromLine = function (opt_line, opt_column, opt_offset_p
   if (!IS_UNDEFINED(opt_line)) {
     line = opt_line - this.line_offset;
   }
-  
+
   // Default is first column. If on the first line add the offset within the
   // resource.
   var column = opt_column || 0;

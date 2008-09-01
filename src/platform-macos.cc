@@ -515,31 +515,37 @@ Semaphore* OS::CreateSemaphore(int count) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
-static ProfileSampler* active_sampler_ = NULL;
+static Sampler* active_sampler_ = NULL;
 
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   USE(info);
   if (signal != SIGPROF) return;
+  if (active_sampler_ == NULL) return;
 
-  // Extracting the sample from the context is extremely machine dependent.
   TickSample sample;
-  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
-  mcontext_t& mcontext = ucontext->uc_mcontext;
+
+  // If profiling, we extract the current pc and sp.
+  if (active_sampler_->IsProfiling()) {
+    // Extracting the sample from the context is extremely machine dependent.
+    ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
+    mcontext_t& mcontext = ucontext->uc_mcontext;
 #if __DARWIN_UNIX03
-  sample.pc = mcontext->__ss.__eip;
-  sample.sp = mcontext->__ss.__esp;
+    sample.pc = mcontext->__ss.__eip;
+    sample.sp = mcontext->__ss.__esp;
 #else  // !__DARWIN_UNIX03
-  sample.pc = mcontext->ss.eip;
-  sample.sp = mcontext->ss.esp;
+    sample.pc = mcontext->ss.eip;
+    sample.sp = mcontext->ss.esp;
 #endif  // __DARWIN_UNIX03
+  }
+
+  // We always sample the VM state.
   sample.state = Logger::state();
 
-  if (active_sampler_ == NULL) return;
   active_sampler_->Tick(&sample);
 }
 
 
-class ProfileSampler::PlatformData  : public Malloced {
+class Sampler::PlatformData : public Malloced {
  public:
   PlatformData() {
     signal_handler_installed_ = false;
@@ -551,19 +557,18 @@ class ProfileSampler::PlatformData  : public Malloced {
 };
 
 
-ProfileSampler::ProfileSampler(int interval) {
+Sampler::Sampler(int interval, bool profiling)
+    : interval_(interval), profiling_(profiling), active_(false) {
   data_ = new PlatformData();
-  interval_ = interval;
-  active_ = false;
 }
 
 
-ProfileSampler::~ProfileSampler() {
+Sampler::~Sampler() {
   delete data_;
 }
 
 
-void ProfileSampler::Start() {
+void Sampler::Start() {
   // There can only be one active sampler at the time on POSIX
   // platforms.
   if (active_sampler_ != NULL) return;
@@ -590,7 +595,7 @@ void ProfileSampler::Start() {
 }
 
 
-void ProfileSampler::Stop() {
+void Sampler::Stop() {
   // Restore old signal handler
   if (data_->signal_handler_installed_) {
     setitimer(ITIMER_PROF, &data_->old_timer_value_, NULL);

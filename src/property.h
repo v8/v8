@@ -231,11 +231,12 @@ class LookupResult BASE_EMBEDDED {
   bool IsDontEnum() { return details_.IsDontEnum(); }
 
   bool IsValid() { return  lookup_type_ != NOT_FOUND; }
+  bool IsNotFound() { return lookup_type_ == NOT_FOUND; }
 
   // Tells whether the result is a property.
-  // Excluding transitions.
+  // Excluding transitions and the null descriptor.
   bool IsProperty() {
-    return IsValid() && !IsTransitionType();
+    return IsValid() && type() < FIRST_PHANTOM_PROPERTY_TYPE;
   }
 
   bool IsCacheable() { return cacheable_; }
@@ -348,8 +349,11 @@ class DescriptorReader: public DescriptorStream {
   bool IsTransition() {
     PropertyType t = type();
     ASSERT(t != INTERCEPTOR);
-    if (t == MAP_TRANSITION || t == CONSTANT_TRANSITION) return true;
-    return false;
+    return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
+  }
+
+  bool IsNullDescriptor() {
+    return type() == NULL_DESCRIPTOR;
   }
 
   JSFunction* GetConstantFunction() { return JSFunction::cast(GetValue()); }
@@ -366,10 +370,6 @@ class DescriptorReader: public DescriptorStream {
   }
 
   bool Equals(String* name) { return name->Equals(GetKey()); }
-
-  void ReplaceConstantFunction(JSFunction* value) {
-    descriptors_->ReplaceConstantFunction(pos_, value);
-  }
 
   void Get(Descriptor* desc) {
     descriptors_->Get(pos_, desc);

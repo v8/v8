@@ -129,6 +129,7 @@ Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
   Handle<JSFunction> function =
       Factory::NewFunctionBoilerplate(node->name(),
                                       node->materialized_literal_count(),
+                                      node->contains_array_literal(),
                                       code);
   CodeGenerator::SetFunctionInfo(function, node->num_parameters(),
                                  node->function_token_position(),

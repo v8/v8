@@ -979,6 +979,13 @@ void FixedArray::set_the_hole(int index) {
 }
 
 
+bool DescriptorArray::IsEmpty() {
+  ASSERT(this == Heap::empty_descriptor_array() ||
+         this->length() > 2);
+  return this == Heap::empty_descriptor_array();
+}
+
+
 void DescriptorArray::fast_swap(FixedArray* array, int first, int second) {
   Object* tmp = array->get(first);
   fast_set(array, first, array->get(second));

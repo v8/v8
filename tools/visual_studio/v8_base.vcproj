@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="Windows-1252"?>
 <VisualStudioProject
 	ProjectType="Visual C++"
-	Version="8,00"
+	Version="8.00"
 	Name="v8_base"
 	ProjectGUID="{EC8B7909-62AF-470D-A75D-E1D89C837142}"
 	RootNamespace="v8_base"
@@ -897,11 +897,11 @@
 			Name="public"
 			>
 			<File
-				RelativePath="..\public\debug.h"
+				RelativePath="..\..\public\debug.h"
 				>
 			</File>
 			<File
-				RelativePath="..\public\v8.h"
+				RelativePath="..\..\public\v8.h"
 				>
 			</File>
 		</Filter>

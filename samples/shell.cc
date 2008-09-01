@@ -28,6 +28,7 @@
 #include <v8.h>
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
 
 
 void RunShell(v8::Handle<v8::Context> context);
@@ -35,18 +36,28 @@ bool ExecuteString(v8::Handle<v8::String> source,
                    v8::Handle<v8::Value> name,
                    bool print_result);
 v8::Handle<v8::Value> Print(const v8::Arguments& args);
+v8::Handle<v8::Value> Load(const v8::Arguments& args);
+v8::Handle<v8::Value> Quit(const v8::Arguments& args);
+v8::Handle<v8::Value> Version(const v8::Arguments& args);
 v8::Handle<v8::String> ReadFile(const char* name);
 void ProcessRuntimeFlags(int argc, char* argv[]);
 
 
 int main(int argc, char* argv[]) {
-  ProcessRuntimeFlags(argc, argv);
+  v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::HandleScope handle_scope;
   // Create a template for the global object.
   v8::Handle<v8::ObjectTemplate> global = v8::ObjectTemplate::New();
   // Bind the global 'print' function to the C++ Print callback.
   global->Set(v8::String::New("print"), v8::FunctionTemplate::New(Print));
-  // Create a new execution environment containing the 'print' function.
+  // Bind the global 'load' function to the C++ Load callback.
+  global->Set(v8::String::New("load"), v8::FunctionTemplate::New(Load));
+  // Bind the 'quit' function
+  global->Set(v8::String::New("quit"), v8::FunctionTemplate::New(Quit));
+  // Bind the 'version' function
+  global->Set(v8::String::New("version"), v8::FunctionTemplate::New(Version));
+  // Create a new execution environment containing the built-in
+  // functions
   v8::Handle<v8::Context> context = v8::Context::New(NULL, global);
   // Enter the newly created execution environment.
   v8::Context::Scope context_scope(context);
@@ -55,9 +66,8 @@ int main(int argc, char* argv[]) {
     const char* str = argv[i];
     if (strcmp(str, "--shell") == 0) {
       run_shell = true;
-    } else if (strcmp(str, "--runtime-flags") == 0) {
-      // Skip the --runtime-flags flag since it was processed earlier.
-      i++;
+    } else if (strncmp(str, "--", 2) == 0) {
+      printf("Warning: unknown flag %s.\n", str);
     } else {
       // Use all other arguments as names of files to load and run.
       v8::HandleScope handle_scope;
@@ -83,13 +93,49 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
   bool first = true;
   for (int i = 0; i < args.Length(); i++) {
     v8::HandleScope handle_scope;
-    if (first) first = false;
-    else printf(" ");
+    if (first) {
+      first = false;
+    } else {
+      printf(" ");
+    }
     v8::String::AsciiValue str(args[i]);
     printf("%s", *str);
   }
   printf("\n");
   return v8::Undefined();
+}
+
+
+// The callback that is invoked by v8 whenever the JavaScript 'load'
+// function is called.  Loads, compiles and executes its argument
+// JavaScript file.
+v8::Handle<v8::Value> Load(const v8::Arguments& args) {
+  for (int i = 0; i < args.Length(); i++) {
+    v8::HandleScope handle_scope;
+    v8::String::AsciiValue file(args[i]);
+    v8::Handle<v8::String> source = ReadFile(*file);
+    if (source.IsEmpty()) {
+      return v8::ThrowException(v8::String::New("Error loading file"));
+    }
+    ExecuteString(source, v8::String::New(*file), false);
+  }
+  return v8::Undefined();
+}
+
+
+// The callback that is invoked by v8 whenever the JavaScript 'quit'
+// function is called.  Quits.
+v8::Handle<v8::Value> Quit(const v8::Arguments& args) {
+  // If not arguments are given args[0] will yield undefined which
+  // converts to the integer value 0.
+  int exit_code = args[0]->Int32Value();
+  exit(exit_code);
+  return v8::Undefined();
+}
+
+
+v8::Handle<v8::Value> Version(const v8::Arguments& args) {
+  return v8::String::New(v8::V8::GetVersion());
 }
 
 
@@ -99,12 +145,12 @@ v8::Handle<v8::String> ReadFile(const char* name) {
   if (file == NULL) return v8::Handle<v8::String>();
 
   fseek(file, 0, SEEK_END);
-  long size = ftell(file);
+  int size = ftell(file);
   rewind(file);
 
   char* chars = new char[size + 1];
   chars[size] = '\0';
-  for (int i = 0; i < size; ) {
+  for (int i = 0; i < size;) {
     int read = fread(&chars[i], 1, size - i, file);
     i += read;
   }
@@ -158,17 +204,6 @@ bool ExecuteString(v8::Handle<v8::String> source,
         printf("%s\n", *str);
       }
       return true;
-    }
-  }
-}
-
-
-// Set the vm flags before using the vm.
-void ProcessRuntimeFlags(int argc, char* argv[]) {
-  for (int i = 1; i < argc; i++) {
-    if (strcmp(argv[i], "--runtime-flags") == 0 && i + 1 < argc) {
-      i++;
-      v8::V8::SetFlagsFromString(argv[i], strlen(argv[i]));
     }
   }
 }

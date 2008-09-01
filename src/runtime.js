@@ -47,7 +47,7 @@ const $String = global.String;
 const $Number = global.Number;
 const $Function = global.Function;
 const $Boolean = global.Boolean;
-const $NaN = %NumberNaN();
+const $NaN = 0/0;
 
 
 // ECMA-262, section 11.9.1, page 55.
@@ -169,11 +169,6 @@ function SUB(x) {
 // ECMA-262, section 11.5.1, page 48.
 function MUL(x) {
   return %NumberMul(%ToNumber(this), %ToNumber(x));
-};
-
-
-function MULNEG(x) {
-  return %NumberUnaryMinus(%NumberMul(%ToNumber(this), %ToNumber(x)));
 };
 
 
@@ -358,7 +353,7 @@ function APPLY_PREPARE(args) {
       %ClassOf(args) != 'Arguments') {
     throw %MakeTypeError('apply_wrong_args', []);
   }
-  
+
   // Return the length which is the number of arguments to copy to the
   // stack. It is guaranteed to be a small integer at this point.
   return length;
@@ -408,7 +403,7 @@ function ToNumber(x) {
   if (IS_NUMBER(x)) return x;
   if (IS_STRING(x)) return %StringToNumber(x);
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
-  if (IS_UNDEFINED(x)) return %NumberNaN();
+  if (IS_UNDEFINED(x)) return $NaN;
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
 };
 

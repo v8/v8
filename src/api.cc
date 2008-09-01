@@ -223,6 +223,11 @@ void V8::SetFlagsFromString(const char* str, int length) {
 }
 
 
+void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
+  i::FlagList::SetFlagsFromCommandLine(argc, argv, remove_flags);
+}
+
+
 v8::Handle<Value> ThrowException(v8::Handle<v8::Value> value) {
   if (IsDeadCheck("v8::ThrowException()")) return v8::Handle<Value>();
   i::Top::ScheduleThrow(*Utils::OpenHandle(*value));
@@ -2098,7 +2103,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.2.3";
+  return "0.2.4";
 }
 
 

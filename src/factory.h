@@ -146,6 +146,8 @@ class Factory : public AllStatic {
 
   static Handle<Map> CopyMap(Handle<Map> map);
 
+  static Handle<Map> CopyMapDropTransitions(Handle<Map> map);
+
   static Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
   // Numbers (eg, literals) are pretenured by the parser.
@@ -237,6 +239,7 @@ class Factory : public AllStatic {
 
   static Handle<JSFunction> NewFunctionBoilerplate(Handle<String> name,
                                                    int number_of_literals,
+                                                   bool contains_array_literal,
                                                    Handle<Code> code);
 
   static Handle<JSFunction> NewFunctionBoilerplate(Handle<String> name);
@@ -279,10 +282,6 @@ class Factory : public AllStatic {
   static Handle<String> name() { return Handle<String>(&Heap::name##_); }
   SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
-
-  static Handle<DescriptorArray> empty_descriptor_array() {
-    return Handle<DescriptorArray>::cast(empty_fixed_array());
-  }
 
   static Handle<SharedFunctionInfo> NewSharedFunctionInfo(Handle<String> name);
 

@@ -532,7 +532,7 @@ class StackFrameIterator BASE_EMBEDDED {
   StackFrame* SingletonFor(StackFrame::Type type, StackFrame::State* state);
 
   friend class StackFrame;
-  DISALLOW_EVIL_CONSTRUCTORS(StackFrameIterator);
+  DISALLOW_COPY_AND_ASSIGN(StackFrameIterator);
 };
 
 

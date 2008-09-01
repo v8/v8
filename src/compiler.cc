@@ -48,28 +48,6 @@ DEFINE_bool(print_scopes, false, "print scopes");
 #endif
 
 
-// Helper class to keep track of compilation nesting and to do proper
-// cleanups of generated ASTs.
-class CompilationTracker BASE_EMBEDDED {
- public:
-  CompilationTracker() {
-    ++nesting_;
-  }
-
-  ~CompilationTracker() {
-    // If we're leaving the top-level compilation, we must make sure
-    // to get rid of all generated ASTs.
-    if (--nesting_ == 0) Zone::DeleteAll();
-  }
-
- private:
-  static int nesting_;
-};
-
-
-int CompilationTracker::nesting_ = 0;
-
-
 static Handle<Code> MakeCode(FunctionLiteral* literal,
                              Handle<Script> script,
                              bool is_eval) {
@@ -108,7 +86,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
                                        Handle<Script> script,
                                        v8::Extension* extension,
                                        ScriptDataImpl* pre_data) {
-  CompilationTracker tracker;
+  ZoneScope zone_scope(DELETE_ON_EXIT);
 
   // Make sure we have an initial stack limit.
   StackGuard guard;
@@ -158,6 +136,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   Handle<JSFunction> fun =
       Factory::NewFunctionBoilerplate(lit->name(),
                                       lit->materialized_literal_count(),
+                                      lit->contains_array_literal(),
                                       code);
 
   CodeGenerator::SetFunctionInfo(fun, lit->scope()->num_parameters(),
@@ -231,7 +210,7 @@ Handle<JSFunction> Compiler::CompileEval(bool is_global,
 
 
 bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared) {
-  CompilationTracker tracker;
+  ZoneScope zone_scope(DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);

@@ -95,7 +95,7 @@ class SourceCodeCache BASE_EMBEDDED {
  private:
   ScriptType type_;
   FixedArray* cache_;
-  DISALLOW_EVIL_CONSTRUCTORS(SourceCodeCache);
+  DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
 };
 
 static SourceCodeCache natives_cache(SCRIPT_TYPE_NATIVE);
@@ -379,9 +379,9 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
 
   // Add prototype.
   PropertyAttributes attributes = static_cast<PropertyAttributes>(
-       (make_prototype_enumerable ? 0 : DONT_ENUM)
-       | DONT_DELETE
-       | (make_prototype_read_only ? READ_ONLY : 0));
+      (make_prototype_enumerable ? 0 : DONT_ENUM)
+      | DONT_DELETE
+      | (make_prototype_read_only ? READ_ONLY : 0));
   result =
       Factory::CopyAppendProxyDescriptor(
           result,
@@ -481,8 +481,8 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
     global_context()->set_initial_object_prototype(*prototype);
     SetPrototype(object_fun, prototype);
-    object_function_map->set_instance_descriptors(
-        DescriptorArray::cast(Heap::empty_fixed_array()));
+    object_function_map->
+      set_instance_descriptors(Heap::empty_descriptor_array());
   }
 
   // Allocate the empty function as the prototype for function ECMAScript
@@ -505,6 +505,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
     // Allocate the function map first and then patch the prototype later
     Handle<Map> empty_fm = Factory::CopyMap(fm);
+    empty_fm->set_instance_descriptors(*function_map_descriptors);
     empty_fm->set_prototype(global_context()->object_function()->prototype());
     empty_function->set_map(*empty_fm);
   }
@@ -553,9 +554,11 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     // Set the global context for the global object.
     object->set_global_context(*global_context());
 
-    // Security setup. Set the security token of the global object to
-    // itself.
-    object->set_security_token(*object);
+    // Security setup: Set the security token of the global object to
+    // its global context. This makes the security check between two
+    // different contexts fail by default even in case of global
+    // object reinitialization.
+    object->set_security_token(*global_context());
 
     {  // --- G l o b a l   C o n t e x t ---
       // use the empty function as closure (no scope info)
@@ -766,8 +769,8 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   ASSERT(Top::context()->IsGlobalContext());
   Handle<Context> context =
       Handle<Context>(use_runtime_context
-                          ? Top::context()->runtime_context()
-                          : Top::context());
+                      ? Top::context()->runtime_context()
+                      : Top::context());
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
 
@@ -775,8 +778,8 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   // object as the receiver. Provide no parameters.
   Handle<Object> receiver =
       Handle<Object>(use_runtime_context
-                         ? Top::context()->builtins()
-                         : Top::context()->global());
+                     ? Top::context()->builtins()
+                     : Top::context()->global());
   bool has_pending_exception;
   Handle<Object> result =
       Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
@@ -1190,7 +1193,8 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
         }
         case MAP_TRANSITION:
         case CONSTANT_TRANSITION:
-          // Ignore map transitions.
+        case NULL_DESCRIPTOR:
+          // Ignore non-properties.
           break;
         case NORMAL:
           // Do not occur since the from object has fast properties.
@@ -1244,7 +1248,7 @@ void Genesis::TransferObject(Handle<JSObject> from, Handle<JSObject> to) {
 
   // Transfer the prototype (new map is needed).
   Handle<Map> old_to_map = Handle<Map>(to->map());
-  Handle<Map> new_to_map = Factory::CopyMap(old_to_map);
+  Handle<Map> new_to_map = Factory::CopyMapDropTransitions(old_to_map);
   new_to_map->set_prototype(from->map()->prototype());
   to->set_map(*new_to_map);
 }

@@ -1424,15 +1424,15 @@ Semaphore* OS::CreateSemaphore(int count) {
 // On win32 we use a sampler thread with high priority to sample the program
 // counter for the profiled thread.
 
-class ProfileSampler::PlatformData : public Malloced {
+class Sampler::PlatformData : public Malloced {
  public:
-  explicit PlatformData(ProfileSampler* sampler) {
+  explicit PlatformData(Sampler* sampler) {
     sampler_ = sampler;
     sampler_thread_ = INVALID_HANDLE_VALUE;
     profiled_thread_ = INVALID_HANDLE_VALUE;
   }
 
-  ProfileSampler* sampler_;
+  Sampler* sampler_;
   HANDLE sampler_thread_;
   HANDLE profiled_thread_;
 
@@ -1443,18 +1443,24 @@ class ProfileSampler::PlatformData : public Malloced {
     memset(&context, 0, sizeof(context));
     // Loop until the sampler is disengaged.
     while (sampler_->IsActive()) {
-      // Pause the profiled thread and get its context.
-      SuspendThread(profiled_thread_);
-      context.ContextFlags = CONTEXT_FULL;
-      GetThreadContext(profiled_thread_, &context);
-      ResumeThread(profiled_thread_);
-
-      // Invoke tick handler with program counter and stack pointer.
       TickSample sample;
-      sample.pc = context.Eip;
-      sample.sp = context.Esp;
+
+      // If profiling, we record the pc and sp of the profiled thread.
+      if (sampler_->IsProfiling()) {
+        // Pause the profiled thread and get its context.
+        SuspendThread(profiled_thread_);
+        context.ContextFlags = CONTEXT_FULL;
+        GetThreadContext(profiled_thread_, &context);
+        ResumeThread(profiled_thread_);
+        // Invoke tick handler with program counter and stack pointer.
+        sample.pc = context.Eip;
+        sample.sp = context.Esp;
+      }
+
+      // We always sample the VM state.
       sample.state = Logger::state();
       sampler_->Tick(&sample);
+
       // Wait until next sampling.
       Sleep(sampler_->interval_);
     }
@@ -1463,51 +1469,54 @@ class ProfileSampler::PlatformData : public Malloced {
 
 
 // Entry point for sampler thread.
-static unsigned int __stdcall ProfileSamplerEntry(void* arg) {
-  ProfileSampler::PlatformData* data =
-      reinterpret_cast<ProfileSampler::PlatformData*>(arg);
+static unsigned int __stdcall SamplerEntry(void* arg) {
+  Sampler::PlatformData* data =
+      reinterpret_cast<Sampler::PlatformData*>(arg);
   data->Runner();
   return 0;
 }
 
 
 // Initialize a profile sampler.
-ProfileSampler::ProfileSampler(int interval) {
+Sampler::Sampler(int interval, bool profiling)
+    : interval_(interval), profiling_(profiling), active_(false) {
   data_ = new PlatformData(this);
-  interval_ = interval;
-  active_ = false;
 }
 
 
-ProfileSampler::~ProfileSampler() {
+Sampler::~Sampler() {
   delete data_;
 }
 
 
 // Start profiling.
-void ProfileSampler::Start() {
-  // Get a handle to the calling thread. This is the thread that we are
-  // going to profile. We need to duplicate the handle because we are
-  // going to use it in the samler thread. using GetThreadHandle() will
-  // not work in this case.
-  BOOL ok = DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
-                            GetCurrentProcess(), &data_->profiled_thread_,
-                            THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME |
-                            THREAD_QUERY_INFORMATION, FALSE, 0);
-  if (!ok) return;
+void Sampler::Start() {
+  // If we are profiling, we need to be able to access the calling
+  // thread.
+  if (IsProfiling()) {
+    // Get a handle to the calling thread. This is the thread that we are
+    // going to profile. We need to duplicate the handle because we are
+    // going to use it in the sampler thread. using GetThreadHandle() will
+    // not work in this case.
+    BOOL ok = DuplicateHandle(GetCurrentProcess(), GetCurrentThread(),
+                              GetCurrentProcess(), &data_->profiled_thread_,
+                              THREAD_GET_CONTEXT | THREAD_SUSPEND_RESUME |
+                              THREAD_QUERY_INFORMATION, FALSE, 0);
+    if (!ok) return;
+  }
 
   // Start sampler thread.
   unsigned int tid;
   active_ = true;
   data_->sampler_thread_ = reinterpret_cast<HANDLE>(
-      _beginthreadex(NULL, 0, ProfileSamplerEntry, data_, 0, &tid));
+      _beginthreadex(NULL, 0, SamplerEntry, data_, 0, &tid));
   // Set thread to high priority to increase sampling accuracy.
   SetThreadPriority(data_->sampler_thread_, THREAD_PRIORITY_TIME_CRITICAL);
 }
 
 
 // Stop profiling.
-void ProfileSampler::Stop() {
+void Sampler::Stop() {
   // Seting active to false triggers termination of the sampler
   // thread.
   active_ = false;

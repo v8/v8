@@ -706,7 +706,7 @@ Object* KeyedLoadIC::Load(State state,
   if (use_ic) set_target(generic_stub());
 
   // Get the property.
-  return Runtime::GetObjectProperty(object, *key);
+  return Runtime::GetObjectProperty(object, key);
 }
 
 
@@ -801,7 +801,9 @@ Object* StoreIC::Store(State state,
   // Check if the given name is an array index.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    SetElement(receiver, index, value);
+    HandleScope scope;
+    Handle<Object> result = SetElement(receiver, index, value);
+    if (result.is_null()) return Failure::Exception();
     return *value;
   }
 
@@ -910,7 +912,9 @@ Object* KeyedStoreIC::Store(State state,
     // Check if the given name is an array index.
     uint32_t index;
     if (name->AsArrayIndex(&index)) {
-      SetElement(receiver, index, value);
+      HandleScope scope;
+      Handle<Object> result = SetElement(receiver, index, value);
+      if (result.is_null()) return Failure::Exception();
       return *value;
     }
 

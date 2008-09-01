@@ -93,11 +93,6 @@ static Object* IllegalOperation() {
 
 static Object* Runtime_CloneObjectLiteralBoilerplate(Arguments args) {
   CONVERT_CHECKED(JSObject, boilerplate, args[0]);
-
-  // Verify that the constructor of the boilerplate is equal to the
-  // object function in the current global context.
-  ASSERT(boilerplate->map()->constructor() ==
-         Top::context()->global_context()->object_function());
   return boilerplate->Copy();
 }
 
@@ -110,9 +105,16 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
   int literals_index = Smi::cast(args[1])->value();
   Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
 
-  // Create the boilerplate object for the function literal
-  Handle<JSObject> boilerplate =
-      Factory::NewJSObject(Top::object_function(), TENURED);
+  // Get the object function from the literals array.  This is the
+  // object function from the context in which the function was
+  // created.  We do not use the object function from the current
+  // global context because this might be the object function from
+  // another context which we should not have access to.
+  const int kObjectFunIndex = JSFunction::kLiteralObjectFunctionIndex;
+  Handle<JSFunction> constructor =
+      Handle<JSFunction>(JSFunction::cast(literals->get(kObjectFunIndex)));
+
+  Handle<JSObject> boilerplate = Factory::NewJSObject(constructor, TENURED);
 
   {  // Add the constant propeties to the boilerplate.
     int length = constant_properties->length();
@@ -150,25 +152,40 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
 
 
 static Object* Runtime_CreateArrayLiteral(Arguments args) {
-  // Takes a FixedArray containing literals and produces
-  // JSArray with the elements matching the literals.
-  ASSERT(args.length() == 1);
-  CONVERT_CHECKED(FixedArray, literals, args[0]);
+  // Takes a FixedArray of elements containing the literal elements of
+  // the array literal and produces JSArray with those elements.
+  // Additionally takes the literals array of the surrounding function
+  // which contains the Array function to use for creating the array
+  // literal.
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(FixedArray, elements, args[0]);
 
-  // Retrieve the array constructor from the global context.
+#ifdef USE_OLD_CALLING_CONVENTIONS
+  ASSERT(args[1]->IsTheHole());
+  // TODO(1332579): Pass in the literals array from the function once
+  // the new calling convention is in place on ARM.  Currently, we
+  // retrieve the array constructor from the global context.  This is
+  // a security problem since the global object might have been
+  // reinitialized and the array constructor from the global context
+  // might be from a context that we are not allowed to access.
   JSFunction* constructor =
       JSFunction::cast(Top::context()->global_context()->array_function());
+#else
+  CONVERT_CHECKED(FixedArray, literals, args[1]);
+  const int kArrayFunIndex = JSFunction::kLiteralArrayFunctionIndex;
+  JSFunction* constructor = JSFunction::cast(literals->get(kArrayFunIndex));
+#endif
 
   // Create the JSArray.
   Object* object = Heap::AllocateJSObject(constructor);
   if (object->IsFailure()) return object;
 
-  // Copy the literals.
-  Object* elements = literals->Copy();
-  if (elements->IsFailure()) return elements;
+  // Copy the elements.
+  Object* content = elements->Copy();
+  if (content->IsFailure()) return content;
 
   // Set the elements.
-  JSArray::cast(object)->SetContent(FixedArray::cast(elements));
+  JSArray::cast(object)->SetContent(FixedArray::cast(content));
   return object;
 }
 
@@ -230,8 +247,7 @@ static Object* Runtime_CreateApiFunction(Arguments args) {
 static Object* Runtime_IsTemplate(Arguments args) {
   ASSERT(args.length() == 1);
   Object* arg = args[0];
-  bool result = arg->IsObjectTemplateInfo()
-      || arg->IsFunctionTemplateInfo();
+  bool result = arg->IsObjectTemplateInfo() || arg->IsFunctionTemplateInfo();
   return Heap::ToBoolean(result);
 }
 
@@ -691,10 +707,20 @@ static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   Handle<String> pattern = args.at<String>(2);
   Handle<String> flags = args.at<String>(3);
 
+  // Get the RegExp function from the literals array.  This is the
+  // RegExp function from the context in which the function was
+  // created.  We do not use the RegExp function from the current
+  // global context because this might be the RegExp function from
+  // another context which we should not have access to.
+  const int kRegexpFunIndex = JSFunction::kLiteralRegExpFunctionIndex;
+  Handle<JSFunction> constructor =
+      Handle<JSFunction>(JSFunction::cast(literals->get(kRegexpFunIndex)));
+
   // Compute the regular expression literal.
   bool has_pending_exception;
   Handle<Object> regexp =
-      RegExpImpl::CreateRegExpLiteral(pattern, flags, &has_pending_exception);
+      RegExpImpl::CreateRegExpLiteral(constructor, pattern, flags,
+                                      &has_pending_exception);
   if (has_pending_exception) {
     ASSERT(Top::has_pending_exception());
     return Failure::Exception();
@@ -767,11 +793,12 @@ static Object* Runtime_FunctionSetLength(Arguments args) {
 
 
 static Object* Runtime_FunctionSetPrototype(Arguments args) {
-  HandleScope scope;
+  NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
   CONVERT_CHECKED(JSFunction, fun, args[0]);
-  Accessors::FunctionSetPrototype(fun, args[1], NULL);
+  Object* obj = Accessors::FunctionSetPrototype(fun, args[1], NULL);
+  if (obj->IsFailure()) return obj;
   return args[0];  // return TOS
 }
 
@@ -807,12 +834,21 @@ static Object* Runtime_SetCode(Arguments args) {
 
     // Make sure we get a fresh copy of the literal vector to avoid
     // cross context contamination.
-    int number_of_literals = fun->literals()->length();
+    int number_of_literals = fun->NumberOfLiterals();
+    Handle<FixedArray> literals =
+        Factory::NewFixedArray(number_of_literals, TENURED);
     if (number_of_literals > 0) {
-      Handle<FixedArray> literals =
-          Factory::NewFixedArray(number_of_literals, TENURED);
-      target->set_literals(*literals);
+      // Insert the object, regexp and array functions in the literals
+      // array prefix.  These are the functions that will be used when
+      // creating object, regexp and array literals.
+      literals->set(JSFunction::kLiteralObjectFunctionIndex,
+                    context->global_context()->object_function());
+      literals->set(JSFunction::kLiteralRegExpFunctionIndex,
+                    context->global_context()->regexp_function());
+      literals->set(JSFunction::kLiteralArrayFunctionIndex,
+                    context->global_context()->array_function());
     }
+    target->set_literals(*literals);
   }
 
   target->set_context(*context);
@@ -822,14 +858,12 @@ static Object* Runtime_SetCode(Arguments args) {
 
 static Object* CharCodeAt(String* subject, Object* index) {
   uint32_t i = 0;
-  if (!Array::IndexFromObject(index, &i))
-    return Heap::nan_value();
+  if (!Array::IndexFromObject(index, &i)) return Heap::nan_value();
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
   subject->TryFlatten();
-  if (i >= static_cast<uint32_t>(subject->length()))
-    return Heap::nan_value();
+  if (i >= static_cast<uint32_t>(subject->length())) return Heap::nan_value();
   return Smi::FromInt(subject->Get(i));
 }
 
@@ -1141,31 +1175,32 @@ static Object* Runtime_NumberToPrecision(Arguments args) {
 
 // Returns a single character string where first character equals
 // string->Get(index).
-static Object* GetCharAt(String* string, uint32_t index) {
+static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
   if (index < static_cast<uint32_t>(string->length())) {
     string->TryFlatten();
-    return Heap::LookupSingleCharacterStringFromCode(string->Get(index));
+    return LookupSingleCharacterStringFromCode(string->Get(index));
   }
-  return *Execution::CharAt(Handle<String>(string), index);
+  return Execution::CharAt(string, index);
 }
 
 
 Object* Runtime::GetElementOrCharAt(Handle<Object> object, uint32_t index) {
   // Handle [] indexing on Strings
   if (object->IsString()) {
-    Object* result = GetCharAt(String::cast(*object), index);
-    if (!result->IsUndefined()) return result;
+    Handle<Object> result = GetCharAt(Handle<String>::cast(object), index);
+    if (!result->IsUndefined()) return *result;
   }
 
   // Handle [] indexing on String objects
   if (object->IsStringObjectWithCharacterAt(index)) {
-    JSValue* js_value = JSValue::cast(*object);
-    Object* result = GetCharAt(String::cast(js_value->value()), index);
-    if (!result->IsUndefined()) return result;
+    Handle<JSValue> js_value = Handle<JSValue>::cast(object);
+    Handle<Object> result =
+        GetCharAt(Handle<String>(String::cast(js_value->value())), index);
+    if (!result->IsUndefined()) return *result;
   }
 
   if (object->IsString() || object->IsNumber() || object->IsBoolean()) {
-    Object* prototype = object->GetPrototype();
+    Handle<Object> prototype = GetPrototype(object);
     return prototype->GetElement(index);
   }
 
@@ -1173,11 +1208,11 @@ Object* Runtime::GetElementOrCharAt(Handle<Object> object, uint32_t index) {
 }
 
 
-Object* Runtime::GetObjectProperty(Handle<Object> object, Object* key) {
+Object* Runtime::GetObjectProperty(Handle<Object> object, Handle<Object> key) {
+  HandleScope scope;
+
   if (object->IsUndefined() || object->IsNull()) {
-    HandleScope scope;
-    Handle<Object> key_handle(key);
-    Handle<Object> args[2] = { key_handle, object };
+    Handle<Object> args[2] = { key, object };
     Handle<Object> error =
         Factory::NewTypeError("non_object_property_load",
                               HandleVector(args, 2));
@@ -1186,32 +1221,29 @@ Object* Runtime::GetObjectProperty(Handle<Object> object, Object* key) {
 
   // Check if the given key is an array index.
   uint32_t index;
-  if (Array::IndexFromObject(key, &index)) {
-    HandleScope scope;
+  if (Array::IndexFromObject(*key, &index)) {
     return GetElementOrCharAt(object, index);
   }
 
   // Convert the key to a string - possibly by calling back into JavaScript.
-  String* name;
+  Handle<String> name;
   if (key->IsString()) {
-    name = String::cast(key);
+    name = Handle<String>::cast(key);
   } else {
-    HandleScope scope;
     bool has_pending_exception = false;
     Handle<Object> converted =
-        Execution::ToString(Handle<Object>(key), &has_pending_exception);
+        Execution::ToString(key, &has_pending_exception);
     if (has_pending_exception) return Failure::Exception();
-    name = String::cast(*converted);
+    name = Handle<String>::cast(converted);
   }
 
   // Check if the name is trivially convertable to an index and get
   // the element if so.
   if (name->AsArrayIndex(&index)) {
-    HandleScope scope;
     return GetElementOrCharAt(object, index);
   } else {
     PropertyAttributes attr;
-    return object->GetProperty(name, &attr);
+    return object->GetProperty(*name, &attr);
   }
 }
 
@@ -1221,7 +1253,7 @@ static Object* Runtime_GetProperty(Arguments args) {
   ASSERT(args.length() == 2);
 
   Handle<Object> object = args.at<Object>(0);
-  Object* key = args[1];
+  Handle<Object> key = args.at<Object>(1);
 
   return Runtime::GetObjectProperty(object, key);
 }
@@ -1231,10 +1263,10 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
                                    Handle<Object> key,
                                    Handle<Object> value,
                                    PropertyAttributes attr) {
+  HandleScope scope;
+
   if (object->IsUndefined() || object->IsNull()) {
-    HandleScope scope;
-    Handle<Object> obj(object);
-    Handle<Object> args[2] = { key, obj };
+    Handle<Object> args[2] = { key, object };
     Handle<Object> error =
         Factory::NewTypeError("non_object_property_store",
                               HandleVector(args, 2));
@@ -1243,6 +1275,8 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
 
   // If the object isn't a JavaScript object, we ignore the store.
   if (!object->IsJSObject()) return *value;
+
+  Handle<JSObject> js_object = Handle<JSObject>::cast(object);
 
   // Check if the given key is an array index.
   uint32_t index;
@@ -1256,35 +1290,30 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
     // the underlying string if the index is in range.  Since the underlying
     // string does nothing with the assignment then we can ignore such
     // assignments.
-    if (object->IsStringObjectWithCharacterAt(index))
+    if (js_object->IsStringObjectWithCharacterAt(index)) {
       return *value;
+    }
 
-    Object* result = JSObject::cast(*object)->SetElement(index, *value);
-    if (result->IsFailure()) return result;
+    Handle<Object> result = SetElement(js_object, index, value);
+    if (result.is_null()) return Failure::Exception();
     return *value;
   }
 
   if (key->IsString()) {
-    Object* result;
-    if (String::cast(*key)->AsArrayIndex(&index)) {
+    Handle<Object> result;
+    if (Handle<String>::cast(key)->AsArrayIndex(&index)) {
       ASSERT(attr == NONE);
-      result = JSObject::cast(*object)->SetElement(index, *value);
+      result = SetElement(js_object, index, value);
     } else {
-      String::cast(*key)->TryFlatten();
-      result =
-          JSObject::cast(*object)->SetProperty(String::cast(*key), *value,
-                                               attr);
+      Handle<String> key_string = Handle<String>::cast(key);
+      key_string->TryFlatten();
+      result = SetProperty(js_object, key_string, value, attr);
     }
-    if (result->IsFailure()) return result;
+    if (result.is_null()) return Failure::Exception();
     return *value;
   }
 
-  // Handlify object and value before calling into JavaScript again.
-  Handle<JSObject> object_handle = Handle<JSObject>::cast(object);
-  Handle<Object> value_handle = value;
-
   // Call-back into JavaScript to convert the key to a string.
-  HandleScope scope;
   bool has_pending_exception = false;
   Handle<Object> converted = Execution::ToString(key, &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
@@ -1292,9 +1321,9 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
 
   if (name->AsArrayIndex(&index)) {
     ASSERT(attr == NONE);
-    return object_handle->SetElement(index, *value_handle);
+    return js_object->SetElement(index, *value);
   } else {
-    return object_handle->SetProperty(*name, *value_handle, attr);
+    return js_object->SetProperty(*name, *value, attr);
   }
 }
 
@@ -1526,8 +1555,7 @@ static Object* Runtime_Typeof(Arguments args) {
   HeapObject* heap_obj = HeapObject::cast(obj);
 
   // typeof an undetectable object is 'undefined'
-  if (heap_obj->map()->is_undetectable())
-      return Heap::undefined_symbol();
+  if (heap_obj->map()->is_undetectable()) return Heap::undefined_symbol();
 
   InstanceType instance_type = heap_obj->map()->instance_type();
   if (instance_type < FIRST_NONSTRING_TYPE) {
@@ -1852,7 +1880,7 @@ static unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping;
 
 template <class Converter>
 static Object* ConvertCase(Arguments args,
-    unibrow::Mapping<Converter, 128> *mapping) {
+                           unibrow::Mapping<Converter, 128>* mapping) {
   NoHandleAllocation ha;
 
   CONVERT_CHECKED(String, s, args[0]);
@@ -1880,11 +1908,9 @@ static Object* ConvertCase(Arguments args,
   Object* o = s->IsAscii()
       ? Heap::AllocateRawAsciiString(length)
       : Heap::AllocateRawTwoByteString(length);
-  if (o->IsFailure())
-    return o;
+  if (o->IsFailure()) return o;
   String* result = String::cast(o);
   bool has_changed_character = false;
-
 
   // Convert all characters to upper case, assuming that they will fit
   // in the buffer
@@ -2011,10 +2037,7 @@ static Object* Runtime_NumberToInteger(Arguments args) {
   ASSERT(args.length() == 1);
 
   Object* obj = args[0];
-
-  if (obj->IsSmi())
-    return obj;
-
+  if (obj->IsSmi()) return obj;
   CONVERT_DOUBLE_CHECKED(number, obj);
   return Heap::NumberFromDouble(DoubleToInteger(number));
 }
@@ -2148,8 +2171,9 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     return Top::Throw(Heap::illegal_argument_symbol());
   }
   FixedArray* fixed_array = FixedArray::cast(array->elements());
-  if (fixed_array->length() < array_length)
+  if (fixed_array->length() < array_length) {
     array_length = fixed_array->length();
+  }
 
   if (array_length == 0) {
     return Heap::empty_string();
@@ -2178,8 +2202,9 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
         return Failure::OutOfMemoryException();
       }
       position += element_length;
-      if (ascii && !element->IsAscii())
+      if (ascii && !element->IsAscii()) {
         ascii = false;
+      }
     } else {
       return Top::Throw(Heap::illegal_argument_symbol());
     }
@@ -2372,17 +2397,15 @@ static Object* Runtime_StringCompare(Arguments args) {
   // A few fast case tests before we flatten.
   if (x == y) return Smi::FromInt(EQUAL);
   if (y->length() == 0) {
-    if (x->length() == 0)
-      return Smi::FromInt(EQUAL);
+    if (x->length() == 0) return Smi::FromInt(EQUAL);
     return Smi::FromInt(GREATER);
   } else if (x->length() == 0) {
     return Smi::FromInt(LESS);
   }
-  {
-    int d = x->Get(0) - y->Get(0);
-    if (d < 0) return Smi::FromInt(LESS);
-    else if (d > 0) return Smi::FromInt(GREATER);
-  }
+
+  int d = x->Get(0) - y->Get(0);
+  if (d < 0) return Smi::FromInt(LESS);
+  else if (d > 0) return Smi::FromInt(GREATER);
 
   x->TryFlatten();
   y->TryFlatten();
@@ -2785,8 +2808,6 @@ static Object* Runtime_LookupContext(Arguments args) {
 }
 
 
-
-
 // A mechanism to return pairs of Object*'s. This is somewhat
 // compiler-dependent as it assumes that a 64-bit value (a long long)
 // is returned via two registers (edx:eax on ia32). Both the ia32 and
@@ -2852,7 +2873,7 @@ static ObjPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   if (throw_error) {
     // The property doesn't exist - throw exception.
     Handle<Object> reference_error =
-      Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
+        Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
     return MakePair(Top::Throw(*reference_error), NULL);
   } else {
     // The property doesn't exist - return undefined
@@ -2877,7 +2898,7 @@ static Object* Runtime_StoreContextSlot(Arguments args) {
 
   Handle<Object> value(args[0]);
   CONVERT_ARG_CHECKED(Context, context, 1);
-  Handle<String> name(String::cast(args[2]));
+  CONVERT_ARG_CHECKED(String, name, 2);
 
   int index;
   PropertyAttributes attributes;
@@ -3235,30 +3256,6 @@ static Object* Runtime_NumberIsFinite(Arguments args) {
 }
 
 
-static Object* Runtime_NumberMaxValue(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-
-  return Heap::number_max_value();
-}
-
-
-static Object* Runtime_NumberMinValue(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-
-  return Heap::number_min_value();
-}
-
-
-static Object* Runtime_NumberNaN(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 0);
-
-  return Heap::nan_value();
-}
-
-
 static Object* EvalContext() {
   // The topmost JS frame belongs to the eval function which called
   // the CompileString runtime function. We need to unwind one level
@@ -3437,8 +3434,7 @@ static Object* Runtime_GetArrayKeys(Arguments args) {
   CONVERT_CHECKED(JSArray, raw_array, args[0]);
   Handle<JSArray> array(raw_array);
   CONVERT_NUMBER_CHECKED(uint32_t, length, Uint32, args[1]);
-  HeapObject* elements = array->elements();
-  if (elements->IsDictionary()) {
+  if (array->elements()->IsDictionary()) {
     // Create an array and get all the keys into it, then remove all the
     // keys that are not integers in the range 0 to length-1.
     Handle<FixedArray> keys = GetKeysInFixedArrayFor(array);
@@ -3570,14 +3566,15 @@ static Object* DebugLookupResultValue(LookupResult* result) {
     case CONSTANT_FUNCTION:
       return result->GetConstantFunction();
     case CALLBACKS:
-      return Heap::undefined_value();
-    case MAP_TRANSITION:
-      return Heap::undefined_value();
     case INTERCEPTOR:
+    case MAP_TRANSITION:
+    case CONSTANT_TRANSITION:
+    case NULL_DESCRIPTOR:
       return Heap::undefined_value();
     default:
       UNREACHABLE();
   }
+  UNREACHABLE();
   return Heap::undefined_value();
 }
 
@@ -3752,8 +3749,7 @@ static Object* Runtime_DebugNamedInterceptorPropertyValue(Arguments args) {
   CONVERT_ARG_CHECKED(String, name, 1);
 
   PropertyAttributes attributes;
-  Object* result = obj->GetPropertyWithInterceptor(*obj, *name, &attributes);
-  return result;
+  return obj->GetPropertyWithInterceptor(*obj, *name, &attributes);
 }
 
 
@@ -3767,8 +3763,7 @@ static Object* Runtime_DebugIndexedInterceptorElementValue(Arguments args) {
   RUNTIME_ASSERT(obj->HasIndexedInterceptor());
   CONVERT_NUMBER_CHECKED(uint32_t, index, Uint32, args[1]);
 
-  Object* result = obj->GetElementWithInterceptor(*obj, index);
-  return result;
+  return obj->GetElementWithInterceptor(*obj, index);
 }
 
 
@@ -3832,8 +3827,8 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   ASSERT(args.length() == 2);
 
   // Check arguments.
-  Object* result = Runtime_CheckExecutionState(args);
-  if (result->IsFailure()) return result;
+  Object* check = Runtime_CheckExecutionState(args);
+  if (check->IsFailure()) return check;
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
 
   // Find the relevant frame with the requested index.
@@ -4222,8 +4217,8 @@ static Object* Runtime_PrepareStep(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
   // Check arguments.
-  Object* check_result = Runtime_CheckExecutionState(args);
-  if (check_result->IsFailure()) return check_result;
+  Object* check = Runtime_CheckExecutionState(args);
+  if (check->IsFailure()) return check;
   if (!args[1]->IsNumber() || !args[2]->IsNumber()) {
     return Top::Throw(Heap::illegal_argument_symbol());
   }

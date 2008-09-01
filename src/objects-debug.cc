@@ -133,6 +133,7 @@ void HeapObject::HeapObjectPrint() {
       JSBuiltinsObject::cast(this)->JSBuiltinsObjectPrint();
       break;
     case JS_VALUE_TYPE:
+      PrintF("Value wrapper around:");
       JSValue::cast(this)->value()->Print();
       break;
     case CODE_TYPE:

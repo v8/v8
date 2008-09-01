@@ -172,6 +172,11 @@ Handle<Map> Factory::CopyMap(Handle<Map> src) {
 }
 
 
+Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
+  CALL_HEAP_FUNCTION(src->CopyDropTransitions(), Map);
+}
+
+
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
   CALL_HEAP_FUNCTION(array->Copy(), FixedArray);
 }
@@ -198,12 +203,21 @@ Handle<JSFunction> Factory::NewFunctionFromBoilerplate(
   Handle<JSFunction> result =
       BaseNewFunctionFromBoilerplate(boilerplate, Top::function_map());
   result->set_context(*context);
-  int number_of_literals = boilerplate->literals()->length();
+  int number_of_literals = boilerplate->NumberOfLiterals();
+  Handle<FixedArray> literals =
+      Factory::NewFixedArray(number_of_literals, TENURED);
   if (number_of_literals > 0) {
-    Handle<FixedArray> literals =
-        Factory::NewFixedArray(number_of_literals, TENURED);
-    result->set_literals(*literals);
+    // Store the object, regexp and array functions in the literals
+    // array prefix.  These functions will be used when creating
+    // object, regexp and array literals in this function.
+    literals->set(JSFunction::kLiteralObjectFunctionIndex,
+                  context->global_context()->object_function());
+    literals->set(JSFunction::kLiteralRegExpFunctionIndex,
+                  context->global_context()->regexp_function());
+    literals->set(JSFunction::kLiteralArrayFunctionIndex,
+                  context->global_context()->array_function());
   }
+  result->set_literals(*literals);
   ASSERT(!result->IsBoilerplate());
   return result;
 }
@@ -370,16 +384,20 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 
 Handle<JSFunction> Factory::NewFunctionBoilerplate(Handle<String> name,
                                                    int number_of_literals,
+                                                   bool contains_array_literal,
                                                    Handle<Code> code) {
   Handle<JSFunction> function = NewFunctionBoilerplate(name);
   function->set_code(*code);
-  if (number_of_literals > 0) {
-    Handle<FixedArray> literals =
-        Factory::NewFixedArray(number_of_literals, TENURED);
-    function->set_literals(*literals);
-  } else {
-    function->set_literals(Heap::empty_fixed_array());
+  int literals_array_size = number_of_literals;
+  // If the function contains object, regexp or array literals,
+  // allocate extra space for a literals array prefix containing the
+  // object, regexp and array constructor functions.
+  if (number_of_literals > 0 || contains_array_literal) {
+    literals_array_size += JSFunction::kLiteralsPrefixSize;
   }
+  Handle<FixedArray> literals =
+      Factory::NewFixedArray(literals_array_size, TENURED);
+  function->set_literals(*literals);
   ASSERT(!function->has_initial_map());
   ASSERT(!function->has_prototype());
   return function;
@@ -451,11 +469,11 @@ Handle<DescriptorArray> Factory::CopyAppendProxyDescriptor(
     PropertyAttributes attributes) {
   GC_GREEDY_CHECK();
   CallbacksDescriptor desc(*key, *value, attributes);
-  Object* obj = array->CopyInsert(&desc);
+  Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
   if (obj->IsRetryAfterGC()) {
     CALL_GC(obj);
     CallbacksDescriptor desc(*key, *value, attributes);
-    obj = array->CopyInsert(&desc);
+    obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
     if (obj->IsFailure()) {
       // TODO(1181417): Fix this.
       V8::FatalProcessOutOfMemory("CopyAppendProxyDescriptor");
@@ -542,8 +560,7 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
 Handle<JSObject> Factory::NewObjectLiteral(int expected_number_of_properties) {
   Handle<Map> map = Handle<Map>(Top::object_function()->initial_map());
   map = Factory::CopyMap(map);
-  map->set_instance_descriptors(
-      DescriptorArray::cast(Heap::empty_fixed_array()));
+  map->set_instance_descriptors(Heap::empty_descriptor_array());
   map->set_unused_property_fields(expected_number_of_properties);
   CALL_HEAP_FUNCTION(Heap::AllocateJSObjectFromMap(*map, TENURED),
                      JSObject);
@@ -691,7 +708,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
     if (parent->IsUndefined()) break;
     obj = Handle<FunctionTemplateInfo>::cast(parent);
   }
-  if (array->length() > 0) {
+  if (!array->IsEmpty()) {
     map->set_instance_descriptors(*array);
   }
 

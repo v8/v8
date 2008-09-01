@@ -108,7 +108,7 @@ class List {
   INLINE(T* NewData(int n))  { return static_cast<T*>(P::New(n * sizeof(T))); }
   INLINE(void DeleteData(T* data))  { P::Delete(data); }
 
-  DISALLOW_EVIL_CONSTRUCTORS(List);
+  DISALLOW_COPY_AND_ASSIGN(List);
 };
 
 

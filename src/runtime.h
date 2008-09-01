@@ -175,9 +175,6 @@ namespace v8 { namespace internal {
   \
   /* Numbers */ \
   F(NumberIsFinite, 1) \
-  F(NumberMaxValue, 0) \
-  F(NumberMinValue, 0) \
-  F(NumberNaN, 0) \
   \
   /* Globals */ \
   F(CompileString, 2) \
@@ -237,7 +234,7 @@ namespace v8 { namespace internal {
   \
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4)\
-  F(CreateArrayLiteral, 1) \
+  F(CreateArrayLiteral, 2) \
   F(CreateObjectLiteralBoilerplate, 3) \
   F(CloneObjectLiteralBoilerplate, 1) \
   \
@@ -343,7 +340,7 @@ class Runtime : public AllStatic {
                                    Handle<Object> value,
                                    PropertyAttributes attr);
 
-  static Object* GetObjectProperty(Handle<Object> object, Object* key);
+  static Object* GetObjectProperty(Handle<Object> object, Handle<Object> key);
 
   // Helper functions used stubs.
   static void PerformGC(Object* result);

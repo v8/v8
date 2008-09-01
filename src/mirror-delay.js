@@ -94,14 +94,17 @@ PropertyKind.Named   = 1;
 PropertyKind.Indexed = 2;
 
 
-// Different types of properties. NOTE value 1 is missing as it is used
-// internally for map transition.
+// A copy of the PropertyType enum from global.h
 PropertyType = {};
-PropertyType.Normal           = 0;
-PropertyType.ConstantFunction = 2;
-PropertyType.Field            = 3;
-PropertyType.Callbacks        = 4;
-PropertyType.Interceptor      = 5;
+PropertyType.Normal             = 0;
+PropertyType.Field              = 1;
+PropertyType.ConstantFunction   = 2;
+PropertyType.Callbacks          = 3;
+PropertyType.Interceptor        = 4;
+PropertyType.MapTransition      = 5;
+PropertyType.ConstantTransition = 6;
+PropertyType.NullDescriptor     = 7;
+
 
 
 // Different attributes for a property.

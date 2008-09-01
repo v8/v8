@@ -144,16 +144,16 @@ class Profiler: public Thread {
 // Ticker used to provide ticks to the profiler and the sliding state
 // window.
 //
-class Ticker: public ProfileSampler {
+class Ticker: public Sampler {
  public:
   explicit Ticker(int interval):
-      ProfileSampler(interval), window_(NULL), profiler_(NULL) {}
+      Sampler(interval, FLAG_prof), window_(NULL), profiler_(NULL) {}
 
   ~Ticker() { if (IsActive()) Stop(); }
 
   void Tick(TickSample* sample) {
     if (profiler_) profiler_->Insert(sample);
-    if (window_) window_->AddState(Logger::state());
+    if (window_) window_->AddState(sample->state);
   }
 
   void SetWindow(SlidingStateWindow* window) {

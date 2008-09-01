@@ -1084,6 +1084,12 @@ class GenericBinaryOpStub : public CodeStub {
       case Token::SUB: return "GenericBinaryOpStub_SUB";
       case Token::MUL: return "GenericBinaryOpStub_MUL";
       case Token::DIV: return "GenericBinaryOpStub_DIV";
+      case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
+      case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
+      case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
+      case Token::SAR: return "GenericBinaryOpStub_SAR";
+      case Token::SHL: return "GenericBinaryOpStub_SHL";
+      case Token::SHR: return "GenericBinaryOpStub_SHR";
       default:         return "GenericBinaryOpStub";
     }
   }
@@ -1175,74 +1181,103 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ bind(&exit);
       break;
     }
+
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR: {
+      Label slow, exit;
+      // tag check
+      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+      ASSERT(kSmiTag == 0);  // adjust code below
+      __ tst(r2, Operand(kSmiTagMask));
+      __ b(ne, &slow);
+      switch (op_) {
+        case Token::BIT_OR:  __ orr(r0, r0, Operand(r1)); break;
+        case Token::BIT_AND: __ and_(r0, r0, Operand(r1)); break;
+        case Token::BIT_XOR: __ eor(r0, r0, Operand(r1)); break;
+        default: UNREACHABLE();
+      }
+      __ b(&exit);
+      __ bind(&slow);
+      __ push(r1);  // restore stack
+      __ push(r0);
+      __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
+      switch (op_) {
+        case Token::BIT_OR:  __ InvokeBuiltin("BIT_OR",  1, JUMP_JS); break;
+        case Token::BIT_AND: __ InvokeBuiltin("BIT_AND", 1, JUMP_JS); break;
+        case Token::BIT_XOR: __ InvokeBuiltin("BIT_XOR", 1, JUMP_JS); break;
+        default: UNREACHABLE();
+      }
+      __ bind(&exit);
+      break;
+    }
+
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR: {
+      Label slow, exit;
+      // tag check
+      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+      ASSERT(kSmiTag == 0);  // adjust code below
+      __ tst(r2, Operand(kSmiTagMask));
+      __ b(ne, &slow);
+      // remove tags from operands (but keep sign)
+      __ mov(r3, Operand(r1, ASR, kSmiTagSize));  // x
+      __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // y
+      // use only the 5 least significant bits of the shift count
+      __ and_(r2, r2, Operand(0x1f));
+      // perform operation
+      switch (op_) {
+        case Token::SAR:
+          __ mov(r3, Operand(r3, ASR, r2));
+          // no checks of result necessary
+          break;
+
+        case Token::SHR:
+          __ mov(r3, Operand(r3, LSR, r2));
+          // check that the *unsigned* result fits in a smi
+          // neither of the two high-order bits can be set:
+          // - 0x80000000: high bit would be lost when smi tagging
+          // - 0x40000000: this number would convert to negative when
+          // smi tagging these two cases can only happen with shifts
+          // by 0 or 1 when handed a valid smi
+          __ and_(r2, r3, Operand(0xc0000000), SetCC);
+          __ b(ne, &slow);
+          break;
+
+        case Token::SHL:
+          __ mov(r3, Operand(r3, LSL, r2));
+          // check that the *signed* result fits in a smi
+          __ add(r2, r3, Operand(0x40000000), SetCC);
+          __ b(mi, &slow);
+          break;
+
+        default: UNREACHABLE();
+      }
+      // tag result and store it in r0
+      ASSERT(kSmiTag == 0);  // adjust code below
+      __ mov(r0, Operand(r3, LSL, kSmiTagSize));
+      __ b(&exit);
+      // slow case
+      __ bind(&slow);
+      __ push(r1);  // restore stack
+      __ push(r0);
+      __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
+      switch (op_) {
+        case Token::SAR: __ InvokeBuiltin("SAR", 1, JUMP_JS); break;
+        case Token::SHR: __ InvokeBuiltin("SHR", 1, JUMP_JS); break;
+        case Token::SHL: __ InvokeBuiltin("SHL", 1, JUMP_JS); break;
+        default: UNREACHABLE();
+      }
+      __ bind(&exit);
+      break;
+    }
+
     default: UNREACHABLE();
   }
   __ Ret();
 }
 
-
-class SmiOpStub : public CodeStub {
- public:
-  SmiOpStub(Token::Value op, bool reversed)
-      : op_(op), reversed_(reversed) {}
-
- private:
-  Token::Value op_;
-  bool reversed_;
-
-  Major MajorKey() { return SmiOp; }
-  int MinorKey() {
-    return (op_ == Token::ADD ? 2 : 0) | (reversed_ ? 1 : 0);
-  }
-  void Generate(MacroAssembler* masm);
-  void GenerateShared(MacroAssembler* masm);
-
-  const char* GetName() { return "SmiOpStub"; }
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("SmiOpStub (token %s), (reversed %s)\n",
-           Token::String(op_), reversed_ ? "true" : "false");
-  }
-#endif
-};
-
-
-void SmiOpStub::Generate(MacroAssembler* masm) {
-  switch (op_) {
-    case Token::ADD: {
-      if (!reversed_) {
-        __ sub(r0, r0, Operand(r1));  // revert optimistic add
-        __ push(r0);
-        __ push(r1);
-        __ mov(r0, Operand(1));  // set number of arguments
-        __ InvokeBuiltin("ADD", 1, JUMP_JS);
-      } else {
-        __ sub(r0, r0, Operand(r1));  // revert optimistic add
-        __ push(r1);  // reversed
-        __ push(r0);
-        __ mov(r0, Operand(1));  // set number of arguments
-        __ InvokeBuiltin("ADD", 1, JUMP_JS);
-      }
-      break;
-    }
-    case Token::SUB: {
-      if (!reversed_) {
-        __ push(r0);
-        __ push(r1);
-        __ mov(r0, Operand(1));  // set number of arguments
-        __ InvokeBuiltin("SUB", 1, JUMP_JS);
-      } else {
-        __ push(r1);
-        __ push(r0);
-        __ mov(r0, Operand(1));  // set number of arguments
-        __ InvokeBuiltin("SUB", 1, JUMP_JS);
-      }
-      break;
-    }
-    default: UNREACHABLE();
-  }
-}
 
 void StackCheckStub::Generate(MacroAssembler* masm) {
   Label within_limit;
@@ -1866,7 +1901,13 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
   switch (op) {
     case Token::ADD:  // fall through.
     case Token::SUB:  // fall through.
-    case Token::MUL: {
+    case Token::MUL:
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR:
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR: {
       __ pop(r0);  // r0 : y
       __ pop(r1);  // r1 : x
       GenericBinaryOpStub stub(op);
@@ -1886,104 +1927,6 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
       break;
     }
 
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR: {
-      Label slow, exit;
-      __ pop(r0);  // get y
-      __ pop(r1);  // get x
-      // tag check
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ tst(r2, Operand(kSmiTagMask));
-      __ b(ne, &slow);
-      switch (op) {
-        case Token::BIT_OR:  __ orr(r0, r0, Operand(r1)); break;
-        case Token::BIT_AND: __ and_(r0, r0, Operand(r1)); break;
-        case Token::BIT_XOR: __ eor(r0, r0, Operand(r1)); break;
-        default: UNREACHABLE();
-      }
-      __ b(&exit);
-      __ bind(&slow);
-      __ push(r1);  // restore stack
-      __ push(r0);
-      __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
-      switch (op) {
-        case Token::BIT_OR:  __ InvokeBuiltin("BIT_OR",  1, CALL_JS); break;
-        case Token::BIT_AND: __ InvokeBuiltin("BIT_AND", 1, CALL_JS); break;
-        case Token::BIT_XOR: __ InvokeBuiltin("BIT_XOR", 1, CALL_JS); break;
-        default: UNREACHABLE();
-      }
-      __ bind(&exit);
-      break;
-    }
-
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR: {
-      Label slow, exit;
-      __ pop(r1);  // get y
-      __ pop(r0);  // get x
-      // tag check
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ tst(r2, Operand(kSmiTagMask));
-      __ b(ne, &slow);
-       // get copies of operands
-      __ mov(r3, Operand(r0));
-      __ mov(r2, Operand(r1));
-      // remove tags from operands (but keep sign)
-      __ mov(r3, Operand(r3, ASR, kSmiTagSize));
-      __ mov(r2, Operand(r2, ASR, kSmiTagSize));
-      // use only the 5 least significant bits of the shift count
-      __ and_(r2, r2, Operand(0x1f));
-      // perform operation
-      switch (op) {
-        case Token::SAR:
-          __ mov(r3, Operand(r3, ASR, r2));
-          // no checks of result necessary
-          break;
-
-        case Token::SHR:
-          __ mov(r3, Operand(r3, LSR, r2));
-          // check that the *unsigned* result fits in a smi
-          // neither of the two high-order bits can be set:
-          // - 0x80000000: high bit would be lost when smi tagging
-          // - 0x40000000: this number would convert to negative when
-          // smi tagging these two cases can only happen with shifts
-          // by 0 or 1 when handed a valid smi
-          __ and_(r2, r3, Operand(0xc0000000), SetCC);
-          __ b(ne, &slow);
-          break;
-
-        case Token::SHL:
-          __ mov(r3, Operand(r3, LSL, r2));
-          // check that the *signed* result fits in a smi
-          __ add(r2, r3, Operand(0x40000000), SetCC);
-          __ b(mi, &slow);
-          break;
-
-        default: UNREACHABLE();
-      }
-      // tag result and store it in r0
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ mov(r0, Operand(r3, LSL, kSmiTagSize));
-      __ b(&exit);
-      // slow case
-      __ bind(&slow);
-      __ push(r0);  // restore stack
-      __ push(r1);
-      __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
-      switch (op) {
-        case Token::SAR: __ InvokeBuiltin("SAR", 1, CALL_JS); break;
-        case Token::SHR: __ InvokeBuiltin("SHR", 1, CALL_JS); break;
-        case Token::SHL: __ InvokeBuiltin("SHL", 1, CALL_JS); break;
-        default: UNREACHABLE();
-      }
-      __ bind(&exit);
-      break;
-    }
-
     case Token::COMMA:
       __ pop(r0);
       // simply discard left value
@@ -1998,6 +1941,82 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
 }
 
 
+class DeferredInlinedSmiOperation: public DeferredCode {
+ public:
+  DeferredInlinedSmiOperation(CodeGenerator* generator, Token::Value op,
+                              int value, bool reversed) :
+      DeferredCode(generator), op_(op), value_(value), reversed_(reversed) {
+    set_comment("[ DeferredInlinedSmiOperation");
+  }
+
+  virtual void Generate() {
+    switch (op_) {
+      case Token::ADD: {
+        if (reversed_) {
+          // revert optimistic add
+          __ sub(r0, r0, Operand(Smi::FromInt(value_)));
+          __ mov(r1, Operand(Smi::FromInt(value_)));  // x
+        } else {
+          // revert optimistic add
+          __ sub(r1, r0, Operand(Smi::FromInt(value_)));
+          __ mov(r0, Operand(Smi::FromInt(value_)));
+        }
+        break;
+      }
+
+      case Token::SUB: {
+        if (reversed_) {
+          // revert optimistic sub
+          __ rsb(r0, r0, Operand(Smi::FromInt(value_)));
+          __ mov(r1, Operand(Smi::FromInt(value_)));
+        } else {
+          __ add(r1, r0, Operand(Smi::FromInt(value_)));
+          __ mov(r0, Operand(Smi::FromInt(value_)));
+        }
+        break;
+      }
+
+      case Token::BIT_OR:
+      case Token::BIT_XOR:
+      case Token::BIT_AND: {
+        if (reversed_) {
+          __ mov(r1, Operand(Smi::FromInt(value_)));
+        } else {
+          __ mov(r1, Operand(r0));
+          __ mov(r0, Operand(Smi::FromInt(value_)));
+        }
+        break;
+      }
+
+      case Token::SHL:
+      case Token::SHR:
+      case Token::SAR: {
+        if (!reversed_) {
+          __ mov(r1, Operand(r0));
+          __ mov(r0, Operand(Smi::FromInt(value_)));
+        } else {
+          UNREACHABLE();  // should have been handled in SmiOperation
+        }
+        break;
+      }
+
+      default:
+        // other cases should have been handled before this point.
+        UNREACHABLE();
+        break;
+    }
+
+    GenericBinaryOpStub igostub(op_);
+    __ CallStub(&igostub);
+  }
+
+ private:
+  Token::Value op_;
+  int value_;
+  bool reversed_;
+};
+
+
 void ArmCodeGenerator::SmiOperation(Token::Value op,
                                     Handle<Object> value,
                                     bool reversed) {
@@ -2010,45 +2029,108 @@ void ArmCodeGenerator::SmiOperation(Token::Value op,
 
   // sp[0] : operand
 
-  ASSERT(value->IsSmi());
+  int int_value = Smi::cast(*value)->value();
 
   Label exit;
   __ pop(r0);
 
   switch (op) {
     case Token::ADD: {
-      Label slow;
+      DeferredCode* deferred =
+        new DeferredInlinedSmiOperation(this, op, int_value, reversed);
 
-      __ mov(r1, Operand(value));
-      __ add(r0, r0, Operand(r1), SetCC);
-      __ b(vs, &slow);
+      __ add(r0, r0, Operand(value), SetCC);
+      __ b(vs, deferred->enter());
       __ tst(r0, Operand(kSmiTagMask));
-      __ b(eq, &exit);
-      __ bind(&slow);
-
-      SmiOpStub stub(Token::ADD, reversed);
-      __ CallStub(&stub);
+      __ b(ne, deferred->enter());
+      __ bind(deferred->exit());
       break;
     }
 
     case Token::SUB: {
-      Label slow;
+      DeferredCode* deferred =
+        new DeferredInlinedSmiOperation(this, op, int_value, reversed);
 
-      __ mov(r1, Operand(value));
       if (!reversed) {
-        __ sub(r2, r0, Operand(r1), SetCC);
+        __ sub(r0, r0, Operand(value), SetCC);
       } else {
-        __ rsb(r2, r0, Operand(r1), SetCC);
+        __ rsb(r0, r0, Operand(value), SetCC);
       }
-      __ b(vs, &slow);
-      __ tst(r2, Operand(kSmiTagMask));
-      __ mov(r0, Operand(r2), LeaveCC, eq);  // conditionally set r0 to result
-      __ b(eq, &exit);
+      __ b(vs, deferred->enter());
+      __ tst(r0, Operand(kSmiTagMask));
+      __ b(ne, deferred->enter());
+      __ bind(deferred->exit());
+      break;
+    }
 
-      __ bind(&slow);
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND: {
+      DeferredCode* deferred =
+        new DeferredInlinedSmiOperation(this, op, int_value, reversed);
+      __ tst(r0, Operand(kSmiTagMask));
+      __ b(ne, deferred->enter());
+      switch (op) {
+        case Token::BIT_OR:  __ orr(r0, r0, Operand(value)); break;
+        case Token::BIT_XOR: __ eor(r0, r0, Operand(value)); break;
+        case Token::BIT_AND: __ and_(r0, r0, Operand(value)); break;
+        default: UNREACHABLE();
+      }
+      __ bind(deferred->exit());
+      break;
+    }
 
-      SmiOpStub stub(Token::SUB, reversed);
-      __ CallStub(&stub);
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR: {
+      if (reversed) {
+        __ mov(ip, Operand(value));
+        __ push(ip);
+        __ push(r0);
+        GenericBinaryOperation(op);
+
+      } else {
+        int shift_value = int_value & 0x1f;  // least significant 5 bits
+        DeferredCode* deferred =
+          new DeferredInlinedSmiOperation(this, op, shift_value, false);
+        __ tst(r0, Operand(kSmiTagMask));
+        __ b(ne, deferred->enter());
+        __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // remove tags
+        switch (op) {
+          case Token::SHL: {
+            __ mov(r2, Operand(r2, LSL, shift_value));
+            // check that the *unsigned* result fits in a smi
+            __ add(r3, r2, Operand(0x40000000), SetCC);
+            __ b(mi, deferred->enter());
+            break;
+          }
+          case Token::SHR: {
+            // LSR by immediate 0 means shifting 32 bits.
+            if (shift_value != 0) {
+              __ mov(r2, Operand(r2, LSR, shift_value));
+            }
+            // check that the *unsigned* result fits in a smi
+            // neither of the two high-order bits can be set:
+            // - 0x80000000: high bit would be lost when smi tagging
+            // - 0x40000000: this number would convert to negative when
+            // smi tagging these two cases can only happen with shifts
+            // by 0 or 1 when handed a valid smi
+            __ and_(r3, r2, Operand(0xc0000000), SetCC);
+            __ b(ne, deferred->enter());
+            break;
+          }
+          case Token::SAR: {
+            if (shift_value != 0) {
+              // ASR by immediate 0 means shifting 32 bits.
+              __ mov(r2, Operand(r2, ASR, shift_value));
+            }
+            break;
+          }
+          default: UNREACHABLE();
+        }
+        __ mov(r0, Operand(r2, LSL, kSmiTagSize));
+        __ bind(deferred->exit());
+      }
       break;
     }
 
@@ -2176,7 +2258,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Slow-case: Non-function called.
   masm->bind(&slow);
   masm->mov(r0, Operand(argc_));  // Setup the number of arguments.
-  masm->InvokeBuiltin("CALL_NON_FUNCTION", 0, JUMP_JS);
+  masm->InvokeBuiltin("CALL_NON_FUNCTION", argc_, JUMP_JS);
 }
 
 
@@ -3354,8 +3436,24 @@ void ArmCodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 
 void ArmCodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   Comment cmnt(masm_, "[ ArrayLiteral");
-  // Load the resulting object.
-  Load(node->result());
+
+  // Call runtime to create the array literal.
+  __ mov(r0, Operand(node->literals()));
+  __ push(r0);
+  // TODO(1332579): The second argument to CreateArrayLiteral is
+  // supposed to be the literals array of the function of this frame.
+  // Until the new ARM calling convention is in place, that function
+  // is not always available.  Therefore, on ARM we pass in the hole
+  // until the new calling convention is in place.
+  __ mov(r0, Operand(Factory::the_hole_value()));
+  __ push(r0);
+  __ CallRuntime(Runtime::kCreateArrayLiteral, 2);
+
+  // Push the resulting array literal on the stack.
+  __ push(r0);
+
+  // Generate code to set the elements in the array that are not
+  // literals.
   for (int i = 0; i < node->values()->length(); i++) {
     Expression* value = node->values()->at(i);
 
@@ -4072,12 +4170,17 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ mov(r0, Operand(Factory::undefined_value()));
         break;
 
-      case Token::ADD:
+      case Token::ADD: {
+        // Smi check.
+        Label continue_label;
+        __ tst(r0, Operand(kSmiTagMask));
+        __ b(eq, &continue_label);
         __ push(r0);
         __ mov(r0, Operand(0));  // not counting receiver
         __ InvokeBuiltin("TO_NUMBER", 0, CALL_JS);
+        __ bind(&continue_label);
         break;
-
+      }
       default:
         UNREACHABLE();
     }
