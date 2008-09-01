@@ -487,8 +487,13 @@ def Build():
 
 # We disable deprecation warnings because we need to be able to use
 # env.Copy without getting warnings for compatibility with older
-# version of scons.
-SetOption('warn', 'no-deprecated')
+# version of scons.  Also, there's a bug in some revisions that
+# doesn't allow this flag to be set, so we swallow any exceptions.
+# Lovely.
+try:
+  SetOption('warn', 'no-deprecated')
+except:
+  pass
 
 
 Build()
