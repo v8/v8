@@ -485,4 +485,10 @@ def Build():
     env.Default('library')
 
 
+# We disable deprecation warnings because we need to be able to use
+# env.Copy without getting warnings for compatibility with older
+# version of scons.
+SetOption('warn', 'no-deprecated')
+
+
 Build()
