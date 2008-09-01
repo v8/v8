@@ -534,7 +534,7 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
       // ProcessDeclarations calls DeclareGlobals indirectly
       ProcessDeclarations(scope->declarations());
 
-      // Bail out if a stack-overflow exception occured when
+      // Bail out if a stack-overflow exception occurred when
       // processing declarations.
       if (HasStackOverflow()) return;
     }
@@ -1843,7 +1843,7 @@ void ArmCodeGenerator::AccessReferenceProperty(
   // TODO(1241834): Make sure that this is sufficient. If there is a chance
   // that reference errors can be thrown below, we must distinguish
   // between the 2 kinds of loads (typeof expression loads must not
-  // throw a reference errror).
+  // throw a reference error).
   bool is_load = (access == CodeGenState::LOAD ||
                   access == CodeGenState::LOAD_TYPEOF_EXPR);
 

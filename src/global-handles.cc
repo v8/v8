@@ -267,7 +267,7 @@ void GlobalHandles::PostGarbageCollectionProcessing() {
   // Process weak global handle callbacks. This must be done after the
   // GC is completely done, because the callbacks may invoke arbitrary
   // API functions.
-  // At the same time deallocate all DESTORYED nodes
+  // At the same time deallocate all DESTROYED nodes
   ASSERT(Heap::gc_state() == Heap::NOT_IN_GC);
   Node** p = &head_;
   while (*p != NULL) {

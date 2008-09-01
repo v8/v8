@@ -282,7 +282,7 @@ void BreakLocationIterator::ClearOneShot() {
 
 void BreakLocationIterator::SetDebugBreak() {
   // If there is already a break point here just return. This might happen if
-  // the same code is flodded with break points twice. Flodding the same
+  // the same code is flooded with break points twice. Flooding the same
   // function twice might happen when stepping in a function with an exception
   // handler as the handler and the function is the same.
   if (IsDebugBreak()) {
@@ -344,7 +344,7 @@ void BreakLocationIterator::PrepareStepIn() {
       rinfo()->set_target_address(stub->entry());
     }
   } else {
-    // Step in through constructs call requires no changs to the running code.
+    // Step in through constructs call requires no changes to the running code.
     ASSERT(is_js_construct_call(rmode()));
   }
 }
@@ -705,7 +705,7 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
   int break_points_hit_count = 0;
   Handle<JSArray> break_points_hit = Factory::NewJSArray(1);
 
-  // If there are multiple break points they are in a Fixedrray.
+  // If there are multiple break points they are in a FixedArray.
   ASSERT(!break_point_objects->IsUndefined());
   if (break_point_objects->IsFixedArray()) {
     Handle<FixedArray> array(FixedArray::cast(*break_point_objects));
@@ -929,7 +929,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
     if (code->is_call_stub()) is_call_target = true;
   }
 
-  // If this is the last break code target step out is the only posibility.
+  // If this is the last break code target step out is the only possibility.
   if (it.IsExit() || step_action == StepOut) {
     // Step out: If there is a JavaScript caller frame, we need to
     // flood it with breakpoints.
@@ -967,7 +967,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
 // is used to have step next and step in only report break back to the debugger
 // if on a different frame or in a different statement. In some situations
 // there will be several break points in the same statement when the code is
-// flodded with one-shot break points. This function helps to perform several
+// flooded with one-shot break points. This function helps to perform several
 // steps before reporting break back to the debugger.
 bool Debug::StepNextContinue(BreakLocationIterator* break_location_iterator,
                              JavaScriptFrame* frame) {
@@ -1107,7 +1107,7 @@ void Debug::ClearStepping() {
 // are used to support stepping.
 void Debug::ClearOneShot() {
   // The current implementation just runs through all the breakpoints. When the
-  // last break point for a function is removed that function is automaticaly
+  // last break point for a function is removed that function is automatically
   // removed from the list.
 
   DebugInfoListNode* node = debug_info_list_;
@@ -1788,10 +1788,10 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
   bool interactive = false;
   switch (event) {
     case v8::Break:
-      interactive = true;  // Break event is always interavtive
+      interactive = true;  // Break event is always interactive
       break;
     case v8::Exception:
-      interactive = true;  // Exception event is always interavtive
+      interactive = true;  // Exception event is always interactive
       break;
     case v8::BeforeCompile:
       break;
@@ -1821,7 +1821,7 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     return;
   }
 
-  // Notify the debugger that a debug event has occoured.
+  // Notify the debugger that a debug event has occurred.
   host_running_ = false;
   SetEventJSONFromEvent(event_data);
 

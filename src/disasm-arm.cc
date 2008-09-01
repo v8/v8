@@ -276,7 +276,7 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
       }
       break;
     }
-    case 'p': {  // 'pu: P and U bits for load and store isntructions
+    case 'p': {  // 'pu: P and U bits for load and store instructions
       ASSERT(format[1] == 'u');
       switch (instr->PUField()) {
         case 0: {

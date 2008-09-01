@@ -584,7 +584,7 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
     } else {
       Comment cmnt(masm_, "[ declarations");
       ProcessDeclarations(scope->declarations());
-      // Bail out if a stack-overflow exception occured when
+      // Bail out if a stack-overflow exception occurred when
       // processing declarations.
       if (HasStackOverflow()) return;
     }
@@ -997,7 +997,7 @@ void Ia32CodeGenerator::AccessReferenceProperty(
   // TODO(1241834): Make sure that this is sufficient. If there is a chance
   // that reference errors can be thrown below, we must distinguish
   // between the 2 kinds of loads (typeof expression loads must not
-  // throw a reference errror).
+  // throw a reference error).
   bool is_load = (access == CodeGenState::LOAD ||
                   access == CodeGenState::LOAD_TYPEOF_EXPR);
 
@@ -1180,7 +1180,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       // eax: y
       // edx: x
       // a) both operands smi and result fits into a smi -> return.
-      // b) at least one of operans non-smi -> non_smi_operands.
+      // b) at least one of operands non-smi -> non_smi_operands.
       // c) result does not fit in a smi -> non_smi_result.
       Label non_smi_operands, non_smi_result;
       // Tag check.
@@ -2212,7 +2212,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
   // TODO(1243847): Use cmov below once CpuFeatures are properly hooked up.
   Label below_lbl, above_lbl;
-  // use edx, eax to convert unsigned to signed comparision
+  // use edx, eax to convert unsigned to signed comparison
   __ j(below, &below_lbl, not_taken);
   __ j(above, &above_lbl, not_taken);
 
@@ -3568,7 +3568,7 @@ class ObjectLiteralDeferred: public DeferredCode {
 
 
 void ObjectLiteralDeferred::Generate() {
-  // If the entry is undefined we call the runtime system to computed
+  // If the entry is undefined we call the runtime system to compute
   // the literal.
 
   // Literal array (0).
@@ -5212,7 +5212,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
     // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
     // correct here, but computed for the other call. Very error
     // prone! FIX THIS.  Actually there are deeper problems with
-    // register saving than this assymetry (see the bug report
+    // register saving than this asymmetry (see the bug report
     // associated with this issue).
     __ PushRegistersFromMemory(kJSCallerSaved);
   }

@@ -1867,7 +1867,7 @@ Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
                                                       &attributes));
     return Utils::ToLocal(result);
   }
-  return Local<Value>();  // No real property was found in protoype chain.
+  return Local<Value>();  // No real property was found in prototype chain.
 }
 
 
