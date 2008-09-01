@@ -731,6 +731,8 @@ bool Parser::PreParseProgram(unibrow::CharacterStream* stream) {
 FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                       unibrow::CharacterStream* stream,
                                       bool in_global_context) {
+  ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
+
   StatsRateScope timer(&Counters::parse);
   Counters::total_parse_size.Increment(source->length());
 
@@ -773,7 +775,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
 
   // If there was a syntax error we have to get rid of the AST
   // and it is not safe to do so before the scope has been deleted.
-  if (result == NULL) Zone::DeleteAll();
+  if (result == NULL) zone_scope.DeleteOnExit();
   return result;
 }
 
@@ -782,6 +784,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    Handle<String> name,
                                    int start_position,
                                    bool is_expression) {
+  ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   StatsRateScope timer(&Counters::parse_lazy);
   Counters::total_parse_size.Increment(source->length());
   SafeStringInputBuffer buffer(source.location());
@@ -819,7 +822,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
   // not safe to do before scope has been deleted.
   if (result == NULL) {
     Top::StackOverflow();
-    Zone::DeleteAll();
+    zone_scope.DeleteOnExit();
   }
   return result;
 }

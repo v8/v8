@@ -37,6 +37,7 @@ Address Zone::limit_ = 0;
 
 bool AssertNoZoneAllocation::allow_allocation_ = true;
 
+int ZoneScope::nesting_ = 0;
 
 // Segments represent chunks of memory: They have starting address
 // (encoded in the this pointer) and a size in bytes. Segments are
