@@ -27,10 +27,12 @@
 
 /** V8 API Reference Guide
 
-V8 is Google's open source JavaScript engine. This set of documents 
-provides reference material generated from the V8 header file, v8.h.
+V8 is Google's open source JavaScript engine. 
 
-For introductory material see http://code.google.com/apis/v8/
+This set of documents provides reference material generated from the
+V8 header file, include/v8.h.
+
+For other documentation see http://code.google.com/apis/v8/
 
 
 
@@ -92,7 +94,7 @@ typedef long long int64_t;  // NOLINT
 #endif  // _WIN32
 
 /**
- * The v8 javascript engine.
+ * The v8 JavaScript engine.
  */
 namespace v8 {
 
@@ -182,7 +184,7 @@ template <class T> class EXPORT_INLINE Handle {
   /**
    * Creates a handle for the contents of the specified handle.  This
    * constructor allows you to pass handles as arguments by value and
-   * assign between handles.  However, if you try to assign between
+   * to assign between handles.  However, if you try to assign between
    * incompatible handles, for instance from a Handle<String> to a
    * Handle<Number> it will cause a compiletime error.  Assigning
    * between compatible handles, for instance assigning a
@@ -282,7 +284,7 @@ template <class T> class EXPORT_INLINE Local : public Handle<T> {
 
 /**
  * An object reference that is independent of any handle scope.  Where
- * a Local handle only lives as long as the HandleScope where it was
+ * a Local handle only lives as long as the HandleScope in which it was
  * allocated, a Persistent handle remains valid until it is explicitly
  * disposed.
  *
@@ -310,12 +312,12 @@ template <class T> class EXPORT_INLINE Persistent : public Handle<T> {
    * Creates a persistent handle for the same storage cell as the
    * specified handle.  This constructor allows you to pass persistent
    * handles as arguments by value and to assign between persistent
-   * handles.  However, if you try to assign between incompatible
+   * handles.  However, attempting to assign between incompatible
    * persistent handles, for instance from a Persistent<String> to a
-   * Persistent<Number> it will cause a compiletime error.  Assigning
+   * Persistent<Number> will cause a compiletime error.  Assigning
    * between compatible persistent handles, for instance assigning a
    * Persistent<String> to a variable declared as Persistent<Value>,
-   * is legal because String is a subclass of Value.
+   * is allowed as String is a subclass of Value.
    */
   template <class S> inline Persistent(Persistent<S> that)
       : Handle<T>(reinterpret_cast<T*>(*that)) {
@@ -338,8 +340,8 @@ template <class T> class EXPORT_INLINE Persistent : public Handle<T> {
   }
 
   /**
-   * Creates a new persistent handle for an existing (local or
-   * persistent) handle.
+   * Creates a new persistent handle for an existing local or
+   * persistent handle.
    */
   static Persistent<T> New(Handle<T> that);
 
@@ -378,13 +380,13 @@ template <class T> class EXPORT_INLINE Persistent : public Handle<T> {
 };
 
 
-/**
+ /**
  * A stack-allocated class that governs a number of local handles.
  * After a handle scope has been created, all local handles will be
  * allocated within that handle scope until either the handle scope is
  * deleted or another handle scope is created.  If there is already a
  * handle scope and a new one is created, all allocations will take
- * place in the new handle scope until that is deleted.  After that,
+ * place in the new handle scope until it is deleted.  After that,
  * new handles will again be allocated in the original handle scope.
  *
  * After the handle scope of a local handle has been deleted the
@@ -445,8 +447,8 @@ class EXPORT HandleScope {
   const Data previous_;
 
   /**
-   * Re-establishes the previous scope state. Should not be called for
-   * any other scope than the current scope and not more than once.
+   * Re-establishes the previous scope state. Should be called only
+   * once, and only for the current scope.
    */
   void RestorePreviousState() {
     if (current_.extensions > 0) DeleteExtensions();
@@ -487,8 +489,8 @@ class EXPORT Data {
 /**
  * Pre-compilation data that can be associated with a script.  This
  * data can be calculated for a script in advance of actually
- * compiling it, and stored between compilations.  When script data
- * is given to the compile method compilation will be faster.
+ * compiling it, and can bestored between compilations.  When script 
+ * data is given to the compile method compilation will be faster.
  */
 class EXPORT ScriptData {  // NOLINT
  public:
@@ -523,7 +525,7 @@ class EXPORT ScriptOrigin {
 
 
 /**
- * A compiled javascript script.
+ * A compiled JavaScript script.
  */
 class EXPORT Script {
  public:
@@ -558,7 +560,7 @@ class EXPORT Message {
 
   // TODO(1241256): Rewrite (or remove) this method.  We don't want to
   // deal with ownership of the returned string and we want to use
-  // javascript data structures exclusively.
+  // JavaScript data structures exclusively.
   char* GetUnderline(char* source_line, char underline_char);
 
   Handle<String> GetScriptResourceName();
@@ -578,7 +580,7 @@ class EXPORT Message {
 
 
 /**
- * The superclass of all javascript values and objects.
+ * The superclass of all JavaScript values and objects.
  */
 class EXPORT Value : public Data {
  public:
@@ -691,7 +693,7 @@ class EXPORT Boolean : public Primitive {
 
 
 /**
- * A javascript string value (ECMA-262, 4.3.17).
+ * A JavaScript string value (ECMA-262, 4.3.17).
  */
 class EXPORT String : public Primitive {
  public:
@@ -699,9 +701,9 @@ class EXPORT String : public Primitive {
 
  /**
   * Write the contents of the string to an external buffer.
-  * If no arguments are given, expects that buffer is large
+  * If no arguments are given, expects the buffer to be large
   * enough to hold the entire string and NULL terminator. Copies
-  * the contents of the string and the NULL terminator into
+  * the contents of the string and the NULL terminator into the
   * buffer.
   *
   * Copies up to length characters into the output buffer.
@@ -730,7 +732,7 @@ class EXPORT String : public Primitive {
   bool IsExternalAscii();
  /**
   * An ExternalStringResource is a wrapper around a two-byte string
-  * buffer that resides outside the V8's heap. Implement an
+  * buffer that resides outside V8's heap. Implement an
   * ExternalStringResource to manage the life cycle of the underlying
   * buffer.
   */
@@ -862,7 +864,7 @@ class EXPORT String : public Primitive {
 
 
 /**
- * A javascript number value (ECMA-262, 4.3.20)
+ * A JavaScript number value (ECMA-262, 4.3.20)
  */
 class EXPORT Number : public Primitive {
  public:
@@ -875,7 +877,7 @@ class EXPORT Number : public Primitive {
 
 
 /**
- * A javascript value representing a signed integer.
+ * A JavaScript value representing a signed integer.
  */
 class EXPORT Integer : public Number {
  public:
@@ -888,7 +890,7 @@ class EXPORT Integer : public Number {
 
 
 /**
- * A javascript value representing a 32-bit signed integer.
+ * A JavaScript value representing a 32-bit signed integer.
  */
 class EXPORT Int32 : public Integer {
  public:
@@ -899,7 +901,7 @@ class EXPORT Int32 : public Integer {
 
 
 /**
- * A javascript value representing a 32-bit unsigned integer.
+ * A JavaScript value representing a 32-bit unsigned integer.
  */
 class EXPORT Uint32 : public Integer {
  public:
@@ -926,7 +928,7 @@ enum PropertyAttribute {
 };
 
 /**
- * A javascript object (ECMA-262, 4.3.3)
+ * A JavaScript object (ECMA-262, 4.3.3)
  */
 class EXPORT Object : public Value {
  public:
@@ -1003,7 +1005,7 @@ class EXPORT Array : public Object {
 
 
 /**
- * A javascript function object (ECMA-262, 15.3).
+ * A JavaScript function object (ECMA-262, 15.3).
  */
 class EXPORT Function : public Object {
  public:
@@ -1019,8 +1021,8 @@ class EXPORT Function : public Object {
 
 
 /**
- * A javascript value that wraps a c++ void*.  This type of value is
- * mainly used to associate c++ data structures with javascript
+ * A JavaScript value that wraps a c++ void*.  This type of value is
+ * mainly used to associate c++ data structures with JavaScript
  * objects.
  */
 class EXPORT External : public Value {
@@ -1055,7 +1057,7 @@ class EXPORT Template : public Data {
 
 /**
  * The argument information given to function call callbacks.  This
- * class provides access to information about context of the call,
+ * class provides access to information about the context of the call,
  * including the receiver, the number and values of arguments, and
  * the holder of the function.
  */
@@ -1439,7 +1441,7 @@ class EXPORT ObjectTemplate : public Template {
   /**
    * Sets the callback to be used when calling instances created from
    * this template as a function.  If no callback is set, instances
-   * behave like normal javascript objects that cannot be called as a
+   * behave like normal JavaScript objects that cannot be called as a
    * function.
    */
   void SetCallAsFunctionHandler(InvocationCallback callback,
@@ -1592,10 +1594,10 @@ typedef void (*MessageCallback)(Handle<Message> message, Handle<Value> data);
 
 
 /**
- * Schedules an exception to be thrown when returning to javascript.  When an
- * exception has been scheduled it is illegal to invoke any javascript
+ * Schedules an exception to be thrown when returning to JavaScript.  When an
+ * exception has been scheduled it is illegal to invoke any JavaScript
  * operation; the caller must return immediately and only after the exception
- * has been handled does it become legal to invoke javascript operations.
+ * has been handled does it become legal to invoke JavaScript operations.
  */
 Handle<Value> EXPORT ThrowException(Handle<Value> exception);
 
@@ -1626,7 +1628,7 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
 
 /**
  * Applications can register a callback function which is called
- * before and after a major Garbage Collection.
+ * before and after a major garbage collection.
  * Allocations are not allowed in the callback function, you therefore.
  * cannot manipulate objects (set or delete properties for example)
  * since it is likely such operations will result in the allocation of objects.
@@ -1638,7 +1640,7 @@ typedef void (*GCCallback)();
 
 /**
  * Applications must provide a callback function which is called to generate
- * a context if a context wasn't deserialized from the snapshot.
+ * a context if a context was not deserialized from the snapshot.
  */
 
 typedef Persistent<Context> (*ContextGenerator)();
@@ -1655,6 +1657,7 @@ class EXPORT V8 {
   // calling V8::FatalProcessOutOfMemory if HasOutOfMemoryException();
   static void IgnoreOutOfMemoryException();
 
+  // TODO(758124): Clarify what "dead" means
   // Check if V8 is dead.
   static bool IsDead();
 
@@ -1704,7 +1707,8 @@ class EXPORT V8 {
   static void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback);
 
   /**
-   * Enables the host application to receive a notification before a major GC.
+   * Enables the host application to receive a notification before a major 
+   * garbage collection.
    * Allocations are not allowed in the callback function, you therefore
    * cannot manipulate objects (set or delete properties for example)
    * since it is likely such operations will result in the allocation of objects.
@@ -1712,7 +1716,8 @@ class EXPORT V8 {
   static void SetGlobalGCPrologueCallback(GCCallback);
 
   /**
-   * Enables the host application to receive a notification after a major GC.
+   * Enables the host application to receive a notification after a major 
+   * garbage collection.
    * (TODO(758124): is the following true for this one too?)
    * Allocations are not allowed in the callback function, you therefore
    * cannot manipulate objects (set or delete properties for example)
@@ -1723,9 +1728,9 @@ class EXPORT V8 {
   /**
    * Allows the host application to group objects together. If one object
    * in the group is alive, all objects in the group are alive.
-   * After each GC, object groups are removed. It is intended to be used
-   * in the before-GC callback function to simulate DOM tree connections
-   * among JS wrapper objects.
+   * After each garbage collection, object groups are removed. It is intended to
+   * be used in the before-garbage-collection callback function to simulate DOM 
+   * tree connections among JavaScript wrapper objects.
    */
   static void AddObjectToGroup(void* id, Persistent<Object> obj);
 
@@ -1737,7 +1742,7 @@ class EXPORT V8 {
 
 
   /**
-   * Adjusts the about of registered external memory.
+   * Adjusts the amount of registered external memory.
    * Returns the adjusted value.
    * Used for triggering a global GC earlier than otherwise.
    */
@@ -1860,7 +1865,7 @@ class EXPORT Context {
   void Enter();
   void Exit();
 
-  /** Returns true if the context has experienced an out of memory situation.*/
+  /** Returns true if the context has experienced an out-of-memory situation.*/
   bool HasOutOfMemoryException();
 
   /** Returns true if called from within a context.*/
@@ -1893,7 +1898,7 @@ class EXPORT Context {
 
 /**
  * Multiple threads in V8 are allowed, but only one thread at a time is
- * allowed to use V8.  The definition of using V8' includes accessing
+ * allowed to use V8.  The definition of 'using V8' includes accessing
  * handles or holding onto object pointers obtained from V8 handles.
  * It is up to the user of V8 to ensure (perhaps with locking) that
  * this constraint is not violated.
@@ -1970,7 +1975,7 @@ class EXPORT Locker {
   static inline void AssertIsLocked() { }
 #endif
   /*
-   * Fires a timer every n ms that will switch between
+   * Fires a timer every n milli seconds that will switch between
    * multiple threads that are in contention for the V8 lock.
    */
   static void StartPreemption(int every_n_ms);
