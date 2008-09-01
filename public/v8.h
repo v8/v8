@@ -400,7 +400,7 @@ class EXPORT HandleScope {
 
   ~HandleScope() {
     // TODO(1245391): In a perfect world, there would be a way of not
-    // having to check for expl icitly closed scopes maybe through
+    // having to check for explicitly closed scopes maybe through
     // subclassing HandleScope?
     if (!is_closed_) RestorePreviousState();
   }

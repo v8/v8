@@ -1,3 +1,38 @@
+2008-09-01: Version 0.2.4
+
+        Included mjsunit JavaScript test suite and C++ unit tests.
+
+        Changed the shell sample to not print the result of executing a
+        script provided on the command line.
+
+        Fixed issue when building samples on Windows using a shared V8
+        library.  Added visibility option on Linux build which makes the
+        generated library 18% smaller.
+
+        Changed build system to accept multiple build modes in one build
+        and generate separate objects, libraries and executables for each
+        mode.
+
+        Removed deferred negation optimization (a * -b => -(a * b)) since
+        this visibly changes operand conversion order.
+
+        Improved parsing performance by introducing stack guard in
+        preparsing.  Without a stack guard preparsing always bails out
+        with stack overflow.
+
+        Changed shell sample to take flags directly from the command-line.
+        Added API call that implements this.
+
+        Added load, quit and version functions to the shell sample so it's
+        easier to run benchmarks and tests.
+
+        Fixed issue with building samples and cctests on 64-bit machines.
+
+        Fixed bug in the runtime system where the prototype chain was not
+        always searched for a setter when setting a property that does not
+        exist locally.
+        
+
 2008-08-14: Version 0.2.3
 
         Improved performance of garbage collection by moving the
