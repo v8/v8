@@ -542,6 +542,9 @@ class EXPORT Script {
   static Local<Script> Compile(Handle<String> source,
                                Handle<Value> file_name);
 
+  /**
+   * Runs the script returning the resulting value.
+   */
   Local<Value> Run();
 };
 
@@ -619,27 +622,27 @@ class EXPORT Value : public Data {
    */
   bool IsArray();
 
-   /**
+  /**
    * Returns true if this value is an object.
    */
   bool IsObject();
 
-   /**
+  /**
    * Returns true if this value is boolean.
    */
   bool IsBoolean();
-
-   /**
+  
+  /**
    * Returns true if this value is a number.
    */
   bool IsNumber();
 
-   /**
+  /**
    * Returns true if this value is external.
    */
   bool IsExternal();
 
-   /**
+  /**
    * Returns true if this value is a 32-bit signed integer.
    */
   bool IsInt32();
@@ -695,43 +698,43 @@ class EXPORT String : public Primitive {
  public:
   int Length();
 
- /**
-  * Write the contents of the string to an external buffer.
-  * If no arguments are given, expects the buffer to be large
-  * enough to hold the entire string and NULL terminator. Copies
-  * the contents of the string and the NULL terminator into the
-  * buffer.
-  *
-  * Copies up to length characters into the output buffer.
-  * Only null-terminates if there is enough space in the buffer.
-  *
-  * \param buffer The buffer into which the string will be copied.
-  * \param start The starting position within the string at which
-  * copying begins.
-  * \param length The number of bytes to copy from the string.
-  * \return The number of characters copied to the buffer
-  * excluding the NULL terminator.
-  */
+  /**
+   * Write the contents of the string to an external buffer.
+   * If no arguments are given, expects the buffer to be large
+   * enough to hold the entire string and NULL terminator. Copies
+   * the contents of the string and the NULL terminator into the
+   * buffer.
+   *
+   * Copies up to length characters into the output buffer.
+   * Only null-terminates if there is enough space in the buffer.
+   *
+   * \param buffer The buffer into which the string will be copied.
+   * \param start The starting position within the string at which
+   * copying begins.
+   * \param length The number of bytes to copy from the string.
+   * \return The number of characters copied to the buffer
+   * excluding the NULL terminator.
+   */
   int Write(uint16_t* buffer, int start = 0, int length = -1);  // UTF-16
   int WriteAscii(char* buffer,
                  int start = 0,
                  int length = -1);  // literally ascii
 
- /**
-  * Returns true if the string is external
-  */
+  /**
+   * Returns true if the string is external
+   */
   bool IsExternal();
 
- /**
-  * Returns true if the string is both external and ascii
-  */
+  /**
+   * Returns true if the string is both external and ascii
+   */
   bool IsExternalAscii();
- /**
-  * An ExternalStringResource is a wrapper around a two-byte string
-  * buffer that resides outside V8's heap. Implement an
-  * ExternalStringResource to manage the life cycle of the underlying
-  * buffer.
-  */
+  /**
+   * An ExternalStringResource is a wrapper around a two-byte string
+   * buffer that resides outside V8's heap. Implement an
+   * ExternalStringResource to manage the life cycle of the underlying
+   * buffer.
+   */
   class EXPORT ExternalStringResource {  // NOLINT
    public:
     /**
@@ -751,11 +754,11 @@ class EXPORT String : public Primitive {
   };
 
   /**
-  * An ExternalAsciiStringResource is a wrapper around an ascii
-  * string buffer that resides outside V8's heap. Implement an
-  * ExternalAsciiStringResource to manage the life cycle of the
-  * underlying buffer.
-  */
+   * An ExternalAsciiStringResource is a wrapper around an ascii
+   * string buffer that resides outside V8's heap. Implement an
+   * ExternalAsciiStringResource to manage the life cycle of the
+   * underlying buffer.
+   */
 
   class EXPORT ExternalAsciiStringResource {  // NOLINT
    public:
@@ -806,24 +809,24 @@ class EXPORT String : public Primitive {
   /** Creates a symbol. Returns one if it exists already.*/
   static Local<String> NewSymbol(const char* data, int length = -1);
 
- /**
-  * Creates a new external string using the data defined in the given
-  * resource. The resource is deleted when the external string is no
-  * longer live on V8's heap. The caller of this function should not
-  * delete or modify the resource. Neither should the underlying buffer be
-  * deallocated or modified except through the destructor of the
-  * external string resource.
-  */
+  /**
+   * Creates a new external string using the data defined in the given
+   * resource. The resource is deleted when the external string is no
+   * longer live on V8's heap. The caller of this function should not
+   * delete or modify the resource. Neither should the underlying buffer be
+   * deallocated or modified except through the destructor of the
+   * external string resource.
+   */
   static Local<String> NewExternal(ExternalStringResource* resource);
 
-   /**
-  * Creates a new external string using the ascii data defined in the given
-  * resource. The resource is deleted when the external string is no
-  * longer live on V8's heap. The caller of this function should not
-  * delete or modify the resource. Neither should the underlying buffer be
-  * deallocated or modified except through the destructor of the
-  * external string resource.
-  */
+  /**
+   * Creates a new external string using the ascii data defined in the given
+   * resource. The resource is deleted when the external string is no
+   * longer live on V8's heap. The caller of this function should not
+   * delete or modify the resource. Neither should the underlying buffer be
+   * deallocated or modified except through the destructor of the
+   * external string resource.
+   */
   static Local<String> NewExternal(ExternalAsciiStringResource* resource);
 
   /** Creates an undetectable string from the supplied ascii or utf-8 data.*/
@@ -1139,7 +1142,7 @@ typedef Handle<Value> (*NamedPropertySetter)(Local<String> property,
 
 /**
  * Returns a non-empty handle if the interceptor intercepts the request.
- * The result is true to indicate the property is found.
+ * The result is true if the property exists and false otherwise.
  */
 typedef Handle<Boolean> (*NamedPropertyQuery)(Local<String> property,
                                               const AccessorInfo& info);
@@ -1147,18 +1150,22 @@ typedef Handle<Boolean> (*NamedPropertyQuery)(Local<String> property,
 
 /**
  * Returns a non-empty handle if the deleter intercepts the request.
- * Otherwise, the return value is the value of deleted expression.
+ * The return value is true if the property could be deleted and false
+ * otherwise.
  */
 typedef Handle<Boolean> (*NamedPropertyDeleter)(Local<String> property,
                                                 const AccessorInfo& info);
 
 /**
- * TODO(758124): Add documentation?
+ * Returns an array containing the names of the properties the named
+ * property getter intercepts.
  */
 typedef Handle<Array> (*NamedPropertyEnumerator)(const AccessorInfo& info);
 
+
 /**
- * TODO(758124): Add documentation?
+ * Returns the value of the property if the getter intercepts the
+ * request.  Otherwise, returns an empty handle.
  */
 typedef Handle<Value> (*IndexedPropertyGetter)(uint32_t index,
                                                const AccessorInfo& info);
@@ -1175,19 +1182,23 @@ typedef Handle<Value> (*IndexedPropertySetter)(uint32_t index,
 
 /**
  * Returns a non-empty handle if the interceptor intercepts the request.
- * The result is true to indicate the property is found.
+ * The result is true if the property exists and false otherwise.
  */
 typedef Handle<Boolean> (*IndexedPropertyQuery)(uint32_t index,
                                                 const AccessorInfo& info);
 
 /**
  * Returns a non-empty handle if the deleter intercepts the request.
- * Otherwise, the return value is the value of deleted expression.
+ * The return value is true if the property could be deleted and false
+ * otherwise.
  */
 typedef Handle<Boolean> (*IndexedPropertyDeleter)(uint32_t index,
                                                   const AccessorInfo& info);
 
-
+/**
+ * Returns an array containing the indices of the properties the
+ * indexed property getter intercepts.
+ */
 typedef Handle<Array> (*IndexedPropertyEnumerator)(const AccessorInfo& info);
 
 
@@ -1217,11 +1228,20 @@ enum AccessType {
 };
 
 
+/**
+ * Returns true if cross-context access should be allowed to the named
+ * property with the given key on the global object.
+ */
 typedef bool (*NamedSecurityCallback)(Local<Object> global,
                                       Local<Value> key,
                                       AccessType type,
                                       Local<Value> data);
 
+
+/**
+ * Returns true if cross-context access should be allowed to the indexed
+ * property with the given index on the global object.
+ */
 typedef bool (*IndexedSecurityCallback)(Local<Object> global,
                                         uint32_t index,
                                         AccessType type,
@@ -1230,8 +1250,8 @@ typedef bool (*IndexedSecurityCallback)(Local<Object> global,
 
 /**
  * A FunctionTemplate is used to create functions at runtime. There
- * can only be one function created from a FunctionTemplate in an
- * environment.
+ * can only be one function created from a FunctionTemplate in a
+ * context.
  *
  * A FunctionTemplate can have properties, these properties are added to the
  * function object when it is created.
@@ -1433,11 +1453,11 @@ class EXPORT ObjectTemplate : public Template {
    * \param settings Access control settings for the accessor. This is a bit
    *   field consisting of one of more of
    *   DEFAULT = 0, ALL_CAN_READ = 1, or ALL_CAN_WRITE = 2.
-   *   The default is to not allow cross-environment access.
-   *   ALL_CAN_READ means that all cross-environment reads are allowed.
-   *   ALL_CAN_WRITE means that all cross-environment writes are allowed.
+   *   The default is to not allow cross-context access.
+   *   ALL_CAN_READ means that all cross-context reads are allowed.
+   *   ALL_CAN_WRITE means that all cross-context writes are allowed.
    *   The combination ALL_CAN_READ | ALL_CAN_WRITE can be used to allow all
-   *   cross-environment access.
+   *   cross-context access.
    * \param attribute The attributes of the property for which an accessor
    *   is added.
    */
@@ -1517,7 +1537,7 @@ class EXPORT ObjectTemplate : public Template {
    *
    * When accessing properties on instances of this object template,
    * the access check callback will be called to determine whether or
-   * not to allow cross-environment access to the properties.
+   * not to allow cross-context access to the properties.
    */
   void SetAccessCheckCallbacks(NamedSecurityCallback named_handler,
                                IndexedSecurityCallback indexed_handler,
