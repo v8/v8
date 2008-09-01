@@ -164,7 +164,7 @@ class CompactProgressIndicator(ProgressIndicator):
 
   def HasRun(self, output):
     if output.UnexpectedOutput():
-      print "=== %s (%s) ===" % (failed.test.GetLabel(), "/".join(failed.test.path))
+      print "=== %s (%s) ===" % (output.test.GetLabel(), "/".join(output.test.path))
       print "Command: %s" % EscapeCommand(output.command)
       stdout = output.output.stdout.strip()
       if len(stdout):
