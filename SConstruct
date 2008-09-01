@@ -63,7 +63,7 @@ LIBRARY_FLAGS = {
       'DIALECTFLAGS': ['/nologo'],
       'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
-      'CXXFLAGS':     ['$CCFLAGS', '/GS-', '/GR-', '/Gy'],
+      'CXXFLAGS':     ['$CCFLAGS', '/GR-', '/Gy'],
       'CPPDEFINES':   ['WIN32', '_CRT_SECURE_NO_DEPRECATE',
           '_CRT_NONSTDC_NO_DEPRECATE', '_USE_32BIT_TIME_T',
           'PCRE_STATIC'],
@@ -79,7 +79,7 @@ LIBRARY_FLAGS = {
     },
     'mode:release': {
       'CCFLAGS':      ['/Ox', '/MT', '/Ob2', '/Oi', '/Oy'],
-      'LINKFLAGS':    ['/OPT:REF']
+      'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF']
     }
   }
 }
