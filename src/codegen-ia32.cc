@@ -3432,21 +3432,21 @@ void Ia32CodeGenerator::VisitSlot(Slot* node) {
         break;
 
       case CodeGenState::STORE:
+        // Storing a variable must keep the (new) value on the stack. This
+        // is necessary for compiling assignment expressions.
+        // ecx may be loaded with context; used below in RecordWrite.
+        //
         // Note: We will reach here even with node->var()->mode() ==
         // Variable::CONST because of const declarations which will
         // initialize consts to 'the hole' value and by doing so, end
         // up calling this code.
-        __ pop(eax);
+        __ mov(eax, TOS);
         __ mov(SlotOperand(node, ecx), eax);
         if (node->type() == Slot::CONTEXT) {
           // ecx is loaded with context when calling SlotOperand above.
           int offset = FixedArray::kHeaderSize + node->index() * kPointerSize;
           __ RecordWrite(ecx, offset, eax, ebx);
         }
-        // Storing a variable must keep the (new) value on the stack. This
-        // is necessary for compiling assignment expressions.
-        // ecx may be loaded with context; used below in RecordWrite.
-        __ push(eax);
         break;
     }
   }
