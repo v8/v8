@@ -42,7 +42,7 @@ POSSIBILITY OF SUCH DAMAGE.
 #ifndef JSRegExp_h
 #define JSRegExp_h
 
-#include "../../../public/v8.h"
+#include "../../../include/v8.h"
 
 // JSCRE is very chatty in debug mode, so in order to keep it slient
 // while still importing v8.h correctly (it contains #ifdef DEBUGs)

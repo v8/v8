@@ -742,7 +742,7 @@ void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
 int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
   // if we emit an unconditional jump/call and if the current position is the
   // target of the unbound label, we can change the binding position of the
-  // unbound label, thereby eliminating an unnessary jump
+  // unbound label, thereby eliminating an unnecessary jump
   bool can_eliminate = false;
   if (jump_elimination_allowed && FLAG_eliminate_jumps &&
       unbound_label_.is_linked() && binding_pos_ == pc_offset()) {

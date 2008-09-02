@@ -48,7 +48,7 @@
 #endif
 
 // Basic includes
-#include "../public/v8.h"
+#include "../include/v8.h"
 #include "globals.h"
 #include "checks.h"
 #include "allocation.h"

@@ -357,7 +357,7 @@ void Builtins::Generate_KeyedLoadIC_DebugBreak(MacroAssembler* masm) {
 
 
 void Builtins::Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm) {
-  // Keyed store IC ont implemented on ARM.
+  // Keyed store IC not implemented on ARM.
 }
 
 

@@ -1713,7 +1713,6 @@ ACCESSORS(FunctionTemplateInfo, instance_template, Object,
           kInstanceTemplateOffset)
 ACCESSORS(FunctionTemplateInfo, class_name, Object, kClassNameOffset)
 ACCESSORS(FunctionTemplateInfo, signature, Object, kSignatureOffset)
-ACCESSORS(FunctionTemplateInfo, lookup_callback, Object, kLookupCallbackOffset)
 ACCESSORS(FunctionTemplateInfo, instance_call_handler, Object,
           kInstanceCallHandlerOffset)
 ACCESSORS(FunctionTemplateInfo, access_check_info, Object,

@@ -462,7 +462,8 @@ Object* Accessors::ObjectSetPrototype(JSObject* receiver,
                                       void*) {
   // Before we can set the prototype we need to be sure
   // prototype cycles are prevented.
-  // It is suficient to validate the receiver is not in the new prototype chain.
+  // It is sufficient to validate that the receiver is not in the new prototype
+  // chain.
 
   // Silently ignore the change if value is not a JSObject or null.
   // SpiderMonkey behaves this way.

@@ -299,11 +299,15 @@ INITIAL_SLEEP_TIME = 0.0001
 SLEEP_TIME_FACTOR = 1.25
 
 
-def RunProcess(context, timeout, **args):
-  if context.verbose: print "#", " ".join(args['args'])
+def RunProcess(context, timeout, args, **rest):
+  if context.verbose: print "#", " ".join(args)
+  popen_args = args
+  if platform.system() == 'Windows':
+    popen_args = '"' + subprocess.list2cmdline(args) + '"'
   process = subprocess.Popen(
     shell = (platform.system() == 'Windows'),
-    **args
+    args = popen_args,
+    **rest
   )
   # Compute the end time - if the process crosses this limit we
   # consider it timed out.
@@ -490,8 +494,10 @@ def RunTestCases(all_cases, progress):
   return progress.Run()
 
 
-def BuildRequirements(context, requirements, mode):
-  command_line = ['scons', '-Y', context.workspace, 'mode=' + ",".join(mode)] + requirements
+def BuildRequirements(context, requirements, mode, scons_flags):
+  command_line = (['scons', '-Y', context.workspace, 'mode=' + ",".join(mode)]
+                  + requirements
+                  + scons_flags)
   output = ExecuteNoCapture(command_line, context)
   return output.exit_code == 0
 
@@ -921,6 +927,8 @@ def BuildOptions():
       default='release')
   result.add_option("-v", "--verbose", help="Verbose output",
       default=False, action="store_true")
+  result.add_option("-S", dest="scons_flags", help="Flag to pass through to scons",
+      default=[], action="append")
   result.add_option("-p", "--progress",
       help="The style of progress indicator (verbose, dots, color, mono)",
       choices=PROGRESS_INDICATORS.keys(), default="mono")
@@ -1026,7 +1034,7 @@ def Main():
       reqs += root.GetBuildRequirements(path, context)
     reqs = list(set(reqs))
     if len(reqs) > 0:
-      if not BuildRequirements(context, reqs, options.mode):
+      if not BuildRequirements(context, reqs, options.mode, options.scons_flags):
         return 1
 
   # Get status for tests
@@ -1041,7 +1049,8 @@ def Main():
   for path in paths:
     for mode in options.mode:
       env = {
-        'mode': mode
+        'mode': mode,
+        'system': platform.system().lower()
       }
       test_list = root.ListTests([], path, context, mode)
       (cases, unused_rules) = config.ClassifyTests(test_list, env)

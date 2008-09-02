@@ -200,7 +200,7 @@ StackGuard::StackGuard() {
 
     thread_local_.initial_jslimit_ = thread_local_.jslimit_ =
         GENERATED_CODE_STACK_LIMIT(kLimitSize);
-    // NOTE: The check for overflow is not safe as there is no guarentee that
+    // NOTE: The check for overflow is not safe as there is no guarantee that
     // the running thread has its stack in all memory up to address 0x00000000.
     thread_local_.initial_climit_ = thread_local_.climit_ =
         reinterpret_cast<uintptr_t>(this) >= kLimitSize ?
@@ -602,7 +602,7 @@ v8::Handle<v8::Value> LoadExtension::Load(const v8::Arguments& args) {
   v8::Handle<v8::Script> code =
       v8::Script::Compile(source, &origin);
 
-  // Run the code if no exception occured during the compilation. In
+  // Run the code if no exception occurred during the compilation. In
   // case of syntax errors, the code is empty and the exception is
   // scheduled and will be thrown when returning to JavaScript.
   if (!code.IsEmpty()) result = code->Run();

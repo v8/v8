@@ -687,13 +687,6 @@ void FunctionTemplate::SetCallHandler(InvocationCallback callback,
 }
 
 
-void FunctionTemplate::SetLookupHandler(LookupCallback handler) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetLookupHandler()")) return;
-  HandleScope scope;
-  Utils::OpenHandle(this)->set_lookup_callback(*FromCData(handler));
-}
-
-
 void FunctionTemplate::AddInstancePropertyAccessor(
       v8::Handle<String> name,
       AccessorGetter getter,
@@ -1867,7 +1860,7 @@ Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
                                                       &attributes));
     return Utils::ToLocal(result);
   }
-  return Local<Value>();  // No real property was found in protoype chain.
+  return Local<Value>();  // No real property was found in prototype chain.
 }
 
 
@@ -2103,7 +2096,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.2.4";
+  return "0.2.5";
 }
 
 

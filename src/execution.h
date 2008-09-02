@@ -229,7 +229,7 @@ class StackLimitCheck BASE_EMBEDDED {
 
 // Support for temporarily postponing interrupts. When the outermost
 // postpone scope is left the interrupts will be re-enabled and any
-// interrupts that occured while in the scope will be taken into
+// interrupts that occurred while in the scope will be taken into
 // account.
 class PostponeInterruptsScope BASE_EMBEDDED {
  public:

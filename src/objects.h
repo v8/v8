@@ -3548,7 +3548,6 @@ class FunctionTemplateInfo: public TemplateInfo {
   DECL_ACCESSORS(instance_template, Object)
   DECL_ACCESSORS(class_name, Object)
   DECL_ACCESSORS(signature, Object)
-  DECL_ACCESSORS(lookup_callback, Object)
   DECL_ACCESSORS(instance_call_handler, Object)
   DECL_ACCESSORS(access_check_info, Object)
   DECL_ACCESSORS(flag, Smi)
@@ -3582,9 +3581,7 @@ class FunctionTemplateInfo: public TemplateInfo {
       kIndexedPropertyHandlerOffset + kPointerSize;
   static const int kClassNameOffset = kInstanceTemplateOffset + kPointerSize;
   static const int kSignatureOffset = kClassNameOffset + kPointerSize;
-  static const int kLookupCallbackOffset = kSignatureOffset + kPointerSize;
-  static const int kInstanceCallHandlerOffset =
-      kLookupCallbackOffset + kPointerSize;
+  static const int kInstanceCallHandlerOffset = kSignatureOffset + kPointerSize;
   static const int kAccessCheckInfoOffset =
       kInstanceCallHandlerOffset + kPointerSize;
   static const int kFlagOffset = kAccessCheckInfoOffset + kPointerSize;

@@ -685,7 +685,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
     global_context()->set_arguments_boilerplate(*result);
     // Note: callee must be added as the first property and
-    //       lenght must be added as the second property.
+    //       length must be added as the second property.
     SetProperty(result, Factory::callee_symbol(), Factory::undefined_value(),
                 DONT_ENUM);
     SetProperty(result, Factory::length_symbol(), Factory::undefined_value(),
@@ -1031,7 +1031,7 @@ bool Genesis::InstallSpecialObjects() {
 
     // Set the security token for the debugger global object to the same as
     // the shell global object to allow calling between these (otherwise
-    // exposing debug global object dosen't make much sense).
+    // exposing debug global object doesn't make much sense).
     debug_global->set_security_token(global->security_token());
   }
 

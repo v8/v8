@@ -200,7 +200,7 @@ BUILTIN_0(ArrayCode) {
     if (__argc__ == 2) return array->SetElementsLength(BUILTIN_ARG(1));
   }
 
-  // Optimize the case where there are no paramaters passed.
+  // Optimize the case where there are no parameters passed.
   if (__argc__ == 1) return array->Initialize(4);
 
   // Take the arguments as elements.
@@ -664,7 +664,7 @@ void Builtins::Setup(bool create_heap_objects) {
 #undef DEF_FUNCTION_PTR_A
 
   // For now we generate builtin adaptor code into a stack-allocated
-  // buffer, before copying it into invididual code objects.
+  // buffer, before copying it into individual code objects.
   byte buffer[4*KB];
 
   // Traverse the list of builtins and generate an adaptor in a

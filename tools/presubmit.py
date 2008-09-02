@@ -150,7 +150,8 @@ class CopyrightProcessor(SourceFileProcessor):
 
   RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', 'SConscript',
       'SConstruct', '.status']
-  FILES_TO_IGNORE = ['pcre_chartables.c', 'config.h']
+  FILES_TO_IGNORE = ['pcre_chartables.c', 'config.h',
+      'earley-boyer.js', 'raytrace.js']
   def IsRelevant(self, name):
     if name in CopyrightProcessor.FILES_TO_IGNORE:
       return False

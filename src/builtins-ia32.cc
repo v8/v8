@@ -837,7 +837,7 @@ void Builtins::Generate_CallIC_DebugBreak(MacroAssembler* masm) {
 
 
 void Builtins::Generate_ConstructCall_DebugBreak(MacroAssembler* masm) {
-  // Register state just before return fron JS function (from codegen-ia32.cc).
+  // Register state just before return from JS function (from codegen-ia32.cc).
   // eax is the actual number of arguments not encoded as a smi see comment
   // above IC call.
   // ----------- S t a t e -------------

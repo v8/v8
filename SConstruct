@@ -63,7 +63,7 @@ LIBRARY_FLAGS = {
       'DIALECTFLAGS': ['/nologo'],
       'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
-      'CXXFLAGS':     ['$CCFLAGS', '/GS-', '/GR-', '/Gy'],
+      'CXXFLAGS':     ['$CCFLAGS', '/GR-', '/Gy'],
       'CPPDEFINES':   ['WIN32', '_CRT_SECURE_NO_DEPRECATE',
           '_CRT_NONSTDC_NO_DEPRECATE', '_USE_32BIT_TIME_T',
           'PCRE_STATIC'],
@@ -79,7 +79,7 @@ LIBRARY_FLAGS = {
     },
     'mode:release': {
       'CCFLAGS':      ['/Ox', '/MT', '/Ob2', '/Oi', '/Oy'],
-      'LINKFLAGS':    ['/OPT:REF']
+      'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF']
     }
   }
 }
@@ -170,7 +170,7 @@ CCTEST_EXTRA_FLAGS = {
 
 SAMPLE_FLAGS = {
   'all': {
-    'CPPPATH': [join(abspath('.'), 'public')],
+    'CPPPATH': [join(abspath('.'), 'include')],
     'LIBS': ['$LIBRARY'],
   },
   'gcc': {
@@ -299,6 +299,7 @@ def GetOptions():
   result = Options()
   result.Add('mode', 'compilation mode (debug, release)', 'release')
   result.Add('sample', 'build sample (shell, process)', '')
+  result.Add('env', 'override environment settings (NAME1:value1,NAME2:value2)', '')
   for (name, option) in SIMPLE_OPTIONS.items():
     help = '%s (%s)' % (name, ", ".join(option['values']))
     result.Add(name, help, option.get('default'))
@@ -336,11 +337,12 @@ def VerifyOptions(env):
 
 class BuildContext(object):
 
-  def __init__(self, options, samples):
+  def __init__(self, options, env_overrides, samples):
     self.library_targets = []
     self.cctest_targets = []
     self.sample_targets = []
     self.options = options
+    self.env_overrides = env_overrides
     self.samples = samples
     self.use_snapshot = (options['snapshot'] == 'on')
     self.flags = None
@@ -387,13 +389,24 @@ def PostprocessOptions(options):
     options['arch'] = options['simulator']
 
 
-def BuildSpecific(env, mode):
+def ParseEnvOverrides(arg):
+  # The environment overrides are in the format NAME1:value1,NAME2:value2
+  overrides = {}
+  for override in arg.split(','):
+    pos = override.find(':')
+    if pos == -1:
+      continue
+    overrides[override[:pos].strip()] = override[pos+1:].strip()
+  return overrides
+
+
+def BuildSpecific(env, mode, env_overrides):
   options = {'mode': mode}
   for option in SIMPLE_OPTIONS:
     options[option] = env[option]
   PostprocessOptions(options)
 
-  context = BuildContext(options, samples=SplitList(env['sample']))
+  context = BuildContext(options, env_overrides, samples=SplitList(env['sample']))
 
   library_flags = context.AddRelevantFlags(os.environ, LIBRARY_FLAGS)
   v8_flags = context.AddRelevantFlags(library_flags, V8_EXTRA_FLAGS)
@@ -437,6 +450,7 @@ def BuildSpecific(env, mode):
   for sample in context.samples:
     sample_env = Environment(LIBRARY=library_name)
     sample_env.Replace(**context.flags['sample'])
+    sample_env['ENV'].update(**context.env_overrides)
     sample_object = sample_env.SConscript(
       join('samples', 'SConscript'),
       build_dir=join('obj', 'sample', sample, target_id),
@@ -464,13 +478,14 @@ def Build():
   env = Environment(options=opts)
   Help(opts.GenerateHelpText(env))
   VerifyOptions(env)
+  env_overrides = ParseEnvOverrides(env['env'])
   
   libraries = []
   cctests = []
   samples = []
   modes = SplitList(env['mode'])
   for mode in modes:
-    context = BuildSpecific(env.Copy(), mode)
+    context = BuildSpecific(env.Copy(), mode, env_overrides)
     libraries += context.library_targets
     cctests += context.cctest_targets
     samples += context.sample_targets
@@ -483,6 +498,17 @@ def Build():
     env.Default('sample')
   else:
     env.Default('library')
+
+
+# We disable deprecation warnings because we need to be able to use
+# env.Copy without getting warnings for compatibility with older
+# version of scons.  Also, there's a bug in some revisions that
+# doesn't allow this flag to be set, so we swallow any exceptions.
+# Lovely.
+try:
+  SetOption('warn', 'no-deprecated')
+except:
+  pass
 
 
 Build()
