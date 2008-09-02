@@ -3440,8 +3440,9 @@ void Ia32CodeGenerator::VisitSlot(Slot* node) {
         // Variable::CONST because of const declarations which will
         // initialize consts to 'the hole' value and by doing so, end
         // up calling this code.
-        __ mov(eax, TOS);
+        __ pop(eax);
         __ mov(SlotOperand(node, ecx), eax);
+        __ push(eax);  // RecordWrite may destroy the value in eax.
         if (node->type() == Slot::CONTEXT) {
           // ecx is loaded with context when calling SlotOperand above.
           int offset = FixedArray::kHeaderSize + node->index() * kPointerSize;

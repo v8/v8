@@ -3238,6 +3238,7 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
         // r2 may be loaded with context; used below in RecordWrite.
         __ pop(r0);
         __ str(r0, SlotOperand(node, r2));
+        __ push(r0);
         if (node->type() == Slot::CONTEXT) {
           // Skip write barrier if the written value is a smi.
           Label exit;
@@ -3249,7 +3250,6 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
           __ RecordWrite(r2, r3, r1);
           __ bind(&exit);
         }
-        __ push(r0);
         break;
       }
     }
