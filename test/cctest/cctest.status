@@ -25,29 +25,10 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+prefix cctest
 
-import platform
-import re
+[ $arch == arm ]
 
-
-# Reads a .list file into an array of strings
-def ReadLinesFrom(name):
-  list = []
-  for line in open(name):
-    if '#' in line:
-      line = line[:line.find('#')]
-    line = line.strip()
-    if len(line) == 0:
-      continue
-    list.append(line)
-  return list
-
-  
-def GuessArchitecture():
-  id = platform.machine()
-  if id.startswith('arm'):
-    return 'arm'
-  elif (not id) or (not re.match('(x|i[3-6])86', id) is None):
-    return 'ia32'
-  else:
-    return None
+test-debug: SKIP
+test-serialize: SKIP
+test-api: SKIP

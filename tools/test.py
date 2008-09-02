@@ -921,6 +921,9 @@ def ReadConfigurationInto(path, sections, defs):
 # ---------------
 
 
+ARCH_GUESS = utils.GuessArchitecture()
+
+
 def BuildOptions():
   result = optparse.OptionParser()
   result.add_option("-m", "--mode", help="The test modes in which to run (comma-separated)",
@@ -940,6 +943,8 @@ def BuildOptions():
       default=[], action="append")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
       default=60, type="int")
+  result.add_option("--arch", help='The architecture to run tests for',
+      default=ARCH_GUESS)
   return result
 
 
@@ -1050,7 +1055,8 @@ def Main():
     for mode in options.mode:
       env = {
         'mode': mode,
-        'system': platform.system().lower()
+        'system': platform.system().lower(),
+        'arch': options.arch
       }
       test_list = root.ListTests([], path, context, mode)
       (cases, unused_rules) = config.ClassifyTests(test_list, env)
