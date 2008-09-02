@@ -490,8 +490,10 @@ def RunTestCases(all_cases, progress):
   return progress.Run()
 
 
-def BuildRequirements(context, requirements, mode):
-  command_line = ['scons', '-Y', context.workspace, 'mode=' + ",".join(mode)] + requirements
+def BuildRequirements(context, requirements, mode, scons_flags):
+  command_line = (['scons', '-Y', context.workspace, 'mode=' + ",".join(mode)]
+                  + requirements
+                  + scons_flags)
   output = ExecuteNoCapture(command_line, context)
   return output.exit_code == 0
 
@@ -921,6 +923,8 @@ def BuildOptions():
       default='release')
   result.add_option("-v", "--verbose", help="Verbose output",
       default=False, action="store_true")
+  result.add_option("-S", dest="scons_flags", help="Flag to pass through to scons",
+      default=[], action="append")
   result.add_option("-p", "--progress",
       help="The style of progress indicator (verbose, dots, color, mono)",
       choices=PROGRESS_INDICATORS.keys(), default="mono")
@@ -1026,7 +1030,7 @@ def Main():
       reqs += root.GetBuildRequirements(path, context)
     reqs = list(set(reqs))
     if len(reqs) > 0:
-      if not BuildRequirements(context, reqs, options.mode):
+      if not BuildRequirements(context, reqs, options.mode, options.scons_flags):
         return 1
 
   # Get status for tests

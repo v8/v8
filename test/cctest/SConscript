@@ -53,6 +53,7 @@ def Build():
   cctest_files = context.GetRelevantSources(SOURCES)
   env = Environment()
   env.Replace(**context.flags['cctest'])
+  env['ENV'].update(**context.env_overrides)
   # There seems to be a glitch in the way scons decides where to put
   # PDB files when compiling using MSVC so we specify it manually.
   # This should not affect any other platforms.
