@@ -1,3 +1,19 @@
+2008-09-02: Version 0.2.5
+
+        Renamed the top level directory 'public' to 'include'.
+
+        Added 'env' option to the SCons build scripts to support
+        overriding the ENV part of the build environment.  This is mostly
+        to support Windows builds in cases where SCons cannot find the
+        correct paths to the Windows SDK, as these paths cannot be passed
+        through shell environment variables.
+
+        Enabled "Buffer Security Check" on for the Windows SCons build and
+        added the linker option /OPT:ICF as an optimization.
+
+        Added the V8 benchmark suite to the repository.
+
+
 2008-09-01: Version 0.2.4
 
         Included mjsunit JavaScript test suite and C++ unit tests.
