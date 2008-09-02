@@ -299,11 +299,15 @@ INITIAL_SLEEP_TIME = 0.0001
 SLEEP_TIME_FACTOR = 1.25
 
 
-def RunProcess(context, timeout, **args):
-  if context.verbose: print "#", " ".join(args['args'])
+def RunProcess(context, timeout, args, **rest):
+  if context.verbose: print "#", " ".join(args)
+  popen_args = args
+  if platform.system() == 'Windows':
+    popen_args = '"' + subprocess.list2cmdline(args) + '"'
   process = subprocess.Popen(
     shell = (platform.system() == 'Windows'),
-    **args
+    args = popen_args,
+    **rest
   )
   # Compute the end time - if the process crosses this limit we
   # consider it timed out.
