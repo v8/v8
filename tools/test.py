@@ -1045,7 +1045,8 @@ def Main():
   for path in paths:
     for mode in options.mode:
       env = {
-        'mode': mode
+        'mode': mode,
+        'system': platform.system().lower()
       }
       test_list = root.ListTests([], path, context, mode)
       (cases, unused_rules) = config.ClassifyTests(test_list, env)

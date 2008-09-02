@@ -69,20 +69,20 @@ js1_5/GC/regress-348532: SLOW
 ##################### FLAKY TESTS #####################
 
 # These tests time out in debug mode but pass in product mode
-js1_5/Regress/regress-280769-3: PASS || ($DEBUG && FAIL)
-js1_5/Regress/regress-203278-1: PASS || ($DEBUG && FAIL)
-js1_5/GC/regress-203278-2: PASS || ($DEBUG && FAIL)
-js1_5/Regress/regress-244470: PASS || ($DEBUG && FAIL)
-ecma_3/RegExp/regress-209067: PASS || ($DEBUG && FAIL)
-js1_5/GC/regress-278725: PASS || ($DEBUG && FAIL)
-js1_5/Regress/regress-360969-03: PASS || ($DEBUG && FAIL)
-js1_5/Regress/regress-360969-04: PASS || ($DEBUG && FAIL)
-js1_5/Regress/regress-360969-05: PASS || ($DEBUG && FAIL)
-js1_5/Regress/regress-360969-06: PASS || ($DEBUG && FAIL)
-js1_5/extensions/regress-365527: PASS || ($DEBUG && FAIL)
+js1_5/Regress/regress-280769-3: PASS || FAIL if $mode == debug
+js1_5/Regress/regress-203278-1: PASS || FAIL if $mode == debug
+js1_5/GC/regress-203278-2: PASS || FAIL if $mode == debug
+js1_5/Regress/regress-244470: PASS || FAIL if $mode == debug
+ecma_3/RegExp/regress-209067: PASS || FAIL if $mode == debug
+js1_5/GC/regress-278725: PASS || FAIL if $mode == debug
+js1_5/Regress/regress-360969-03: PASS || FAIL if $mode == debug
+js1_5/Regress/regress-360969-04: PASS || FAIL if $mode == debug
+js1_5/Regress/regress-360969-05: PASS || FAIL if $mode == debug
+js1_5/Regress/regress-360969-06: PASS || FAIL if $mode == debug
+js1_5/extensions/regress-365527: PASS || FAIL if $mode == debug
 # http://b/issue?id=1206983
-js1_5/Regress/regress-367561-03: PASS || ($DEBUG && FAIL)
-ecma/Date/15.9.5.10-2: PASS || ($DEBUG && FAIL)
+js1_5/Regress/regress-367561-03: PASS || FAIL if $mode == debug
+ecma/Date/15.9.5.10-2: PASS || FAIL if $mode == debug
 
 # These tests create two Date objects just after each other and
 # expects them to match.  Sometimes this happens on the border
@@ -717,6 +717,10 @@ js1_5/decompilation/regress-376564: PASS || FAIL
 js1_5/decompilation/regress-383721: PASS || FAIL
 js1_5/decompilation/regress-406555: PASS || FAIL
 
+[ $system == windows ] 
+
+# This test fails because of the default timer resolution on Windows.
+js1_5/extensions/regress-363258: FAIL_OK
 
 [ $FAST == yes ]
 
