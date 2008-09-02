@@ -905,7 +905,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(not_zero, &false_result);
 
   // JavaScript object => true.
-  __ cmp(ecx, JS_OBJECT_TYPE);
+  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(above_equal, &true_result);
 
   // String value => false iff empty.
@@ -2896,7 +2896,7 @@ void Ia32CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ j(zero, &primitive);
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, JS_OBJECT_TYPE);
+  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(above_equal, &jsobject);
 
   __ bind(&primitive);

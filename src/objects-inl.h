@@ -206,7 +206,7 @@ bool Object::IsException() {
 
 bool Object::IsJSObject() {
   return IsHeapObject()
-    && HeapObject::cast(this)->map()->instance_type() >= JS_OBJECT_TYPE;
+    && HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_OBJECT_TYPE;
 }
 
 

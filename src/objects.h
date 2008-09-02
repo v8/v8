@@ -182,7 +182,7 @@ class PropertyDetails BASE_EMBEDDED {
 // HeapObject::Size, HeapObject::IterateBody, the typeof operator, and
 // Object::IsString.
 //
-// NOTE: Everything following JS_OBJECT_TYPE is considered a
+// NOTE: Everything following JS_VALUE_TYPE is considered a
 // JSObject for GC purposes. The first four entries here have typeof
 // 'object', whereas JS_FUNCTION_TYPE has typeof 'function'.
 #define INSTANCE_TYPE_LIST(V)                   \
@@ -258,10 +258,10 @@ class PropertyDetails BASE_EMBEDDED {
   V(BREAK_POINT_INFO_TYPE)                      \
   V(SCRIPT_TYPE)                                \
                                                 \
+  V(JS_VALUE_TYPE)                              \
   V(JS_OBJECT_TYPE)                             \
   V(JS_GLOBAL_OBJECT_TYPE)                      \
   V(JS_BUILTINS_OBJECT_TYPE)                    \
-  V(JS_VALUE_TYPE)                              \
   V(JS_ARRAY_TYPE)                              \
                                                 \
   V(JS_FUNCTION_TYPE)                           \
@@ -512,10 +512,10 @@ enum InstanceType {
   BREAK_POINT_INFO_TYPE,
   SCRIPT_TYPE,
 
+  JS_VALUE_TYPE,
   JS_OBJECT_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
   JS_BUILTINS_OBJECT_TYPE,
-  JS_VALUE_TYPE,
   JS_ARRAY_TYPE,
 
   JS_FUNCTION_TYPE,
@@ -527,7 +527,7 @@ enum InstanceType {
   // Boundaries for testing the type is a JavaScript "object".  Note that
   // function objects are not counted as objects, even though they are
   // implemented as such; only values whose typeof is "object" are included.
-  FIRST_JS_OBJECT_TYPE = JS_OBJECT_TYPE,
+  FIRST_JS_OBJECT_TYPE = JS_VALUE_TYPE,
   LAST_JS_OBJECT_TYPE = JS_ARRAY_TYPE
 };
 

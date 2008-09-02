@@ -901,17 +901,16 @@ void GetPropertyStub::Generate(MacroAssembler* masm) {
   // Check that the object isn't a smi.
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &slow);
-  // Check that the object is some kind of JS object.
+
+  // Check that the object is some kind of JS object EXCEPT JS Value type.
+  // In the case that the object is a value-wrapper object,
+  // we enter the runtime system to make sure that indexing into string
+  // objects work as intended.
+  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
   __ cmp(r2, Operand(JS_OBJECT_TYPE));
   __ b(lt, &slow);
-
-  // Check if the object is a value-wrapper object. In that case we
-  // enter the runtime system to make sure that indexing into string
-  // objects work as intended.
-  __ cmp(r2, Operand(JS_VALUE_TYPE));
-  __ b(eq, &slow);
 
   // Get the elements array of the object.
   __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
@@ -979,7 +978,7 @@ void SetPropertyStub::Generate(MacroAssembler* masm) {
   __ cmp(r2, Operand(JS_ARRAY_TYPE));
   __ b(eq, &array);
   // Check that the object is some kind of JS object.
-  __ cmp(r2, Operand(JS_OBJECT_TYPE));
+  __ cmp(r2, Operand(FIRST_JS_OBJECT_TYPE));
   __ b(lt, &slow);
 
 
@@ -2692,7 +2691,7 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ b(eq, &primitive);
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ cmp(r1, Operand(JS_OBJECT_TYPE));
+  __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
   __ b(hs, &jsobject);
 
   __ bind(&primitive);

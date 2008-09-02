@@ -223,7 +223,11 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Check that the object isn't a smi.
   __ test(ecx, Immediate(kSmiTagMask));
   __ j(zero, &slow, not_taken);
-  // Check that the object is some kind of JS object.
+  // Check that the object is some kind of JS object EXCEPT JS Value type.
+  // In the case that the object is a value-wrapper object,
+  // we enter the runtime system to make sure that indexing
+  // into string objects work as intended.
+  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
   __ mov(edx, FieldOperand(ecx, HeapObject::kMapOffset));
   __ movzx_b(edx, FieldOperand(edx, Map::kInstanceTypeOffset));
   __ cmp(edx, JS_OBJECT_TYPE);
@@ -232,11 +236,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, &check_string, not_taken);
   __ sar(eax, kSmiTagSize);
-  // Check if the object is a value-wrapper object. In that case we
-  // enter the runtime system to make sure that indexing into string
-  // objects work as intended.
-  __ cmp(edx, JS_VALUE_TYPE);
-  __ j(equal, &slow, not_taken);
   // Get the elements array of the object.
   __ mov(ecx, FieldOperand(ecx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
@@ -300,7 +299,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   __ cmp(ecx, JS_ARRAY_TYPE);
   __ j(equal, &array);
   // Check that the object is some kind of JS object.
-  __ cmp(ecx, JS_OBJECT_TYPE);
+  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(less, &slow, not_taken);
 
 
