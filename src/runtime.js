@@ -267,7 +267,7 @@ function IN(x) {
   if (x == null || (!IS_OBJECT(x) && !IS_FUNCTION(x))) {
     throw %MakeTypeError('invalid_in_operator_use', [this, x]);
   }
-  return %_IsSmi(this) ? %HasElement(x, this) : %HasProperty(x, %ToString(this));
+  return %_IsNonNegativeSmi(this) ? %HasElement(x, this) : %HasProperty(x, %ToString(this));
 };
 
 

@@ -304,6 +304,7 @@ class Ia32CodeGenerator: public CodeGenerator {
   virtual void GenerateSquashFrame(ZoneList<Expression*>* args);
   virtual void GenerateExpandFrame(ZoneList<Expression*>* args);
   virtual void GenerateIsSmi(ZoneList<Expression*>* args);
+  virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   virtual void GenerateIsArray(ZoneList<Expression*>* args);
 
   virtual void GenerateArgumentsLength(ZoneList<Expression*>* args);
@@ -4018,6 +4019,15 @@ void Ia32CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   Load(args->at(0));
   __ pop(eax);
   __ test(eax, Immediate(kSmiTagMask));
+  cc_reg_ = zero;
+}
+
+
+void Ia32CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  __ pop(eax);
+  __ test(eax, Immediate(kSmiTagMask | 0x80000000));
   cc_reg_ = zero;
 }
 

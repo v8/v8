@@ -285,6 +285,7 @@ class ArmCodeGenerator: public CodeGenerator {
   virtual void GenerateSquashFrame(ZoneList<Expression*>* args);
   virtual void GenerateExpandFrame(ZoneList<Expression*>* args);
   virtual void GenerateIsSmi(ZoneList<Expression*>* args);
+  virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   virtual void GenerateIsArray(ZoneList<Expression*>* args);
 
   virtual void GenerateArgumentsLength(ZoneList<Expression*>* args);
@@ -3936,6 +3937,16 @@ void ArmCodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   __ tst(r0, Operand(kSmiTagMask));
   cc_reg_ = eq;
 }
+
+
+void ArmCodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  __ pop(r0);
+  __ tst(r0, Operand(kSmiTagMask | 0x80000000));
+  cc_reg_ = eq;
+}
+
 
 
 // This should generate code that performs a charCodeAt() call or returns
