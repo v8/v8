@@ -246,7 +246,7 @@ bool Object::IsJSFunction() {
 }
 
 
-template <> static inline bool Is<JSFunction>(Object* obj) {
+template <> inline bool Is<JSFunction>(Object* obj) {
   return obj->IsJSFunction();
 }
 
@@ -293,7 +293,7 @@ bool Object::IsJSArray() {
 }
 
 
-template <> static inline bool Is<JSArray>(Object* obj) {
+template <> inline bool Is<JSArray>(Object* obj) {
   return obj->IsJSArray();
 }
 
