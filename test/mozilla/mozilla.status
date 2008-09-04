@@ -750,8 +750,8 @@ js1_5/decompilation/regress-406555: PASS || FAIL
 
 [ $system == windows ] 
 
-# This test fails because of the default timer resolution on Windows.
-js1_5/extensions/regress-363258: FAIL_OK
+# This test is flaky because of the default timer resolution on Windows.
+js1_5/extensions/regress-363258: PASS || FAIL
 
 [ $FAST == yes ]
 
