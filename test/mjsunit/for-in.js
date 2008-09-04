@@ -67,3 +67,11 @@ assertEquals(3, props(a).length);
 
 for (var hest = 'hest' in {}) { }
 assertEquals('hest', hest);
+
+var result = '';
+for (var p in {a : [0], b : 1}) { result += p; }
+assertEquals('ab', result);
+
+var result = '';
+for (var p in {a : {v:1}, b : 1}) { result += p; }
+assertEquals('ab', result);

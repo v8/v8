@@ -2652,7 +2652,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
   ZoneListWrapper<ObjectLiteral::Property> properties =
       factory()->NewList<ObjectLiteral::Property>(4);
-  int number_of_constant_properties = 0;
+  int number_of_boilerplate_properties = 0;
 
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
@@ -2715,9 +2715,12 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
     ObjectLiteral::Property* property =
         NEW(ObjectLiteral::Property(key, value));
+ 
+    // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
     if ((property != NULL) &&
-        property->kind() == ObjectLiteral::Property::CONSTANT) {
-      number_of_constant_properties++;
+        (property->kind() == ObjectLiteral::Property::CONSTANT ||
+         property->kind() == ObjectLiteral::Property::COMPUTED) ) {
+      number_of_boilerplate_properties++;
     }
     properties.Add(property);
 
@@ -2730,17 +2733,26 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   if (is_pre_parsing_) return NULL;
 
   Handle<FixedArray> constant_properties =
-      Factory::NewFixedArray(number_of_constant_properties * 2, TENURED);
+      Factory::NewFixedArray(number_of_boilerplate_properties * 2, TENURED);
   int position = 0;
   for (int i = 0; i < properties.length(); i++) {
     ObjectLiteral::Property* property = properties.at(i);
-    if (property->kind() == ObjectLiteral::Property::CONSTANT) {
-      Handle<Object> key = property->key()->handle();
-      Literal* literal = property->value()->AsLiteral();
-      // Add name, value pair to the fixed array.
-      constant_properties->set(position++, *key);
-      constant_properties->set(position++, *literal->handle());
-    }
+    Handle<Object> key = property->key()->handle();
+    Literal* literal = NULL;
+
+    // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
+    // value for COMPUTED properties, the real value is filled in at
+    // runtime. The enumeration order is maintained.
+    if (property->kind() == ObjectLiteral::Property::CONSTANT)
+      literal = property->value()->AsLiteral();
+    else if (property->kind() == ObjectLiteral::Property::COMPUTED)
+      literal = GetLiteralUndefined();
+    else 
+      continue;
+
+    // Add name, value pair to the fixed array.
+    constant_properties->set(position++, *key);
+    constant_properties->set(position++, *literal->handle());
   }
 
   // Construct the expression for calling Runtime::CreateObjectLiteral
