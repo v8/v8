@@ -124,3 +124,12 @@ l.setUTCMilliseconds();
 l.setUTCMilliseconds(2);
 assertTrue(isNaN(l.getUTCMilliseconds()));
 
+// Test that toLocaleTimeString only returns the time portion of the
+// date without the timezone information.
+function testToLocaleTimeString() {
+  var d = new Date();
+  var s = d.toLocaleTimeString();
+  assertEquals(8, s.length);
+}
+
+testToLocaleTimeString();
