@@ -55,7 +55,8 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['-O2']
     },
     'wordsize:64': {
-      'CCFLAGS':      ['-m32']
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
     },
   },
   'msvc': {
