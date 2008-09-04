@@ -285,6 +285,7 @@ class ArmCodeGenerator: public CodeGenerator {
   virtual void GenerateSquashFrame(ZoneList<Expression*>* args);
   virtual void GenerateExpandFrame(ZoneList<Expression*>* args);
   virtual void GenerateIsSmi(ZoneList<Expression*>* args);
+  virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   virtual void GenerateIsArray(ZoneList<Expression*>* args);
 
   virtual void GenerateArgumentsLength(ZoneList<Expression*>* args);
@@ -901,17 +902,16 @@ void GetPropertyStub::Generate(MacroAssembler* masm) {
   // Check that the object isn't a smi.
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &slow);
-  // Check that the object is some kind of JS object.
+
+  // Check that the object is some kind of JS object EXCEPT JS Value type.
+  // In the case that the object is a value-wrapper object,
+  // we enter the runtime system to make sure that indexing into string
+  // objects work as intended.
+  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
   __ cmp(r2, Operand(JS_OBJECT_TYPE));
   __ b(lt, &slow);
-
-  // Check if the object is a value-wrapper object. In that case we
-  // enter the runtime system to make sure that indexing into string
-  // objects work as intended.
-  __ cmp(r2, Operand(JS_VALUE_TYPE));
-  __ b(eq, &slow);
 
   // Get the elements array of the object.
   __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
@@ -979,7 +979,7 @@ void SetPropertyStub::Generate(MacroAssembler* masm) {
   __ cmp(r2, Operand(JS_ARRAY_TYPE));
   __ b(eq, &array);
   // Check that the object is some kind of JS object.
-  __ cmp(r2, Operand(JS_OBJECT_TYPE));
+  __ cmp(r2, Operand(FIRST_JS_OBJECT_TYPE));
   __ b(lt, &slow);
 
 
@@ -2692,7 +2692,7 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ b(eq, &primitive);
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ cmp(r1, Operand(JS_OBJECT_TYPE));
+  __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
   __ b(hs, &jsobject);
 
   __ bind(&primitive);
@@ -3238,6 +3238,7 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
         // r2 may be loaded with context; used below in RecordWrite.
         __ pop(r0);
         __ str(r0, SlotOperand(node, r2));
+        __ push(r0);
         if (node->type() == Slot::CONTEXT) {
           // Skip write barrier if the written value is a smi.
           Label exit;
@@ -3249,7 +3250,6 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
           __ RecordWrite(r2, r3, r1);
           __ bind(&exit);
         }
-        __ push(r0);
         break;
       }
     }
@@ -3937,6 +3937,16 @@ void ArmCodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   __ tst(r0, Operand(kSmiTagMask));
   cc_reg_ = eq;
 }
+
+
+void ArmCodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  __ pop(r0);
+  __ tst(r0, Operand(kSmiTagMask | 0x80000000));
+  cc_reg_ = eq;
+}
+
 
 
 // This should generate code that performs a charCodeAt() call or returns

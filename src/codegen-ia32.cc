@@ -304,6 +304,7 @@ class Ia32CodeGenerator: public CodeGenerator {
   virtual void GenerateSquashFrame(ZoneList<Expression*>* args);
   virtual void GenerateExpandFrame(ZoneList<Expression*>* args);
   virtual void GenerateIsSmi(ZoneList<Expression*>* args);
+  virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   virtual void GenerateIsArray(ZoneList<Expression*>* args);
 
   virtual void GenerateArgumentsLength(ZoneList<Expression*>* args);
@@ -905,7 +906,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ j(not_zero, &false_result);
 
   // JavaScript object => true.
-  __ cmp(ecx, JS_OBJECT_TYPE);
+  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(above_equal, &true_result);
 
   // String value => false iff empty.
@@ -2896,7 +2897,7 @@ void Ia32CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ j(zero, &primitive);
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, JS_OBJECT_TYPE);
+  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(above_equal, &jsobject);
 
   __ bind(&primitive);
@@ -3440,8 +3441,9 @@ void Ia32CodeGenerator::VisitSlot(Slot* node) {
         // Variable::CONST because of const declarations which will
         // initialize consts to 'the hole' value and by doing so, end
         // up calling this code.
-        __ mov(eax, TOS);
+        __ pop(eax);
         __ mov(SlotOperand(node, ecx), eax);
+        __ push(eax);  // RecordWrite may destroy the value in eax.
         if (node->type() == Slot::CONTEXT) {
           // ecx is loaded with context when calling SlotOperand above.
           int offset = FixedArray::kHeaderSize + node->index() * kPointerSize;
@@ -4017,6 +4019,15 @@ void Ia32CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   Load(args->at(0));
   __ pop(eax);
   __ test(eax, Immediate(kSmiTagMask));
+  cc_reg_ = zero;
+}
+
+
+void Ia32CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  __ pop(eax);
+  __ test(eax, Immediate(kSmiTagMask | 0x80000000));
   cc_reg_ = zero;
 }
 

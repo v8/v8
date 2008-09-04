@@ -156,3 +156,10 @@ assertFalse(-Infinity in a,"-Infinity in a");
 assertFalse(-0 in a,"-0 in a");
 assertFalse(+0 in a,"+0 in a");
 assertTrue('toString' in a, "toString");
+
+// -------------
+// Check negative indices in arrays.
+var a = [];
+assertFalse(-1 in a);
+a[-1] = 43;
+assertTrue(-1 in a);

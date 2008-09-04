@@ -614,6 +614,15 @@ function DateToTimeString() {
 };
 
 
+// ECMA 262 - 15.9.5.7
+function DateToLocaleTimeString() {
+  var t = GetTimeFrom(this);
+  if ($isNaN(t)) return kInvalidDate;
+  var lt = LocalTime(t);
+  return TimeString(lt);
+};
+
+
 // ECMA 262 - 15.9.5.9
 function DateGetTime() {
   return GetTimeFrom(this);
@@ -939,7 +948,7 @@ function SetupDate() {
     toTimeString: DateToTimeString,
     toLocaleString: DateToString,
     toLocaleDateString: DateToDateString,
-    toLocaleTimeString: DateToTimeString,
+    toLocaleTimeString: DateToLocaleTimeString,
     valueOf: DateGetTime,
     getTime: DateGetTime,
     getFullYear: DateGetFullYear,

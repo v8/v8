@@ -295,7 +295,7 @@ void OS::LogSharedLibraryAddresses() {
     int bytes_read = -1;
     do {
       bytes_read++;
-      if (bytes_read > MAP_LENGTH - 1)
+      if (bytes_read >= MAP_LENGTH - 1)
         break;
       int result = read(fd, buffer + bytes_read, 1);
       // A read error means that -1 is returned.

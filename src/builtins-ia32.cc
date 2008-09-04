@@ -282,10 +282,10 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ j(zero, &use_receiver, not_taken);
 
   // If the type of the result (stored in its map) is less than
-  // JS_OBJECT type, it is not an object in the ECMA sense.
+  // FIRST_JS_OBJECT_TYPE, it is not an object in the ECMA sense.
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, JS_OBJECT_TYPE);
+  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(greater_equal, &exit, not_taken);
 
   // Throw away the result of the constructor invocation and use the

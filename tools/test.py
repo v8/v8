@@ -261,8 +261,9 @@ class TestCase(object):
 
   def Run(self):
     command = self.GetCommand()
-    output = Execute(command, self.context, self.context.timeout)
-    return TestOutput(self, command, output)
+    full_command = self.context.processor(command)
+    output = Execute(full_command, self.context, self.context.timeout)
+    return TestOutput(self, full_command, output)
 
 
 class TestOutput(object):
@@ -472,12 +473,13 @@ PREFIX = {'debug': '_g', 'release': ''}
 
 class Context(object):
 
-  def __init__(self, workspace, buildspace, verbose, vm, timeout):
+  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
     self.vm_root = vm
     self.timeout = timeout
+    self.processor = processor
 
   def GetVm(self, mode):
     name = self.vm_root + PREFIX[mode]
@@ -921,6 +923,9 @@ def ReadConfigurationInto(path, sections, defs):
 # ---------------
 
 
+ARCH_GUESS = utils.GuessArchitecture()
+
+
 def BuildOptions():
   result = optparse.OptionParser()
   result.add_option("-m", "--mode", help="The test modes in which to run (comma-separated)",
@@ -940,6 +945,9 @@ def BuildOptions():
       default=[], action="append")
   result.add_option("-t", "--timeout", help="Timeout in seconds",
       default=60, type="int")
+  result.add_option("--arch", help='The architecture to run tests for',
+      default=ARCH_GUESS)
+  result.add_option("--special-command", default=None)
   return result
 
 
@@ -1000,6 +1008,20 @@ def SplitPath(s):
   return [ Pattern(s) for s in stripped if len(s) > 0 ]
 
 
+def GetSpecialCommandProcessor(value):
+  if (not value) or (value.find('@') == -1):
+    def ExpandCommand(args):
+      return args
+    return ExpandCommand
+  else:
+    pos = value.find('@')
+    prefix = value[:pos].split()
+    suffix = value[pos+1:].split()
+    def ExpandCommand(args):
+      return prefix + args + suffix
+    return ExpandCommand
+
+
 BUILT_IN_TESTS = ['mjsunit', 'cctest']
 
 
@@ -1027,7 +1049,8 @@ def Main():
   buildspace = abspath('.')
   context = Context(workspace, buildspace, VERBOSE,
                     join(buildspace, 'shell'),
-                    options.timeout)
+                    options.timeout,
+                    GetSpecialCommandProcessor(options.special_command))
   if not options.no_build:
     reqs = [ ]
     for path in paths:
@@ -1050,7 +1073,8 @@ def Main():
     for mode in options.mode:
       env = {
         'mode': mode,
-        'system': platform.system().lower()
+        'system': platform.system().lower(),
+        'arch': options.arch
       }
       test_list = root.ListTests([], path, context, mode)
       (cases, unused_rules) = config.ClassifyTests(test_list, env)

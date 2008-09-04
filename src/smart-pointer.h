@@ -41,9 +41,9 @@ class SmartPointer {
 
 
   // When the destructor of the scoped pointer is executed the plain pointer
-  // is deleted using delete[].  This implies that you must allocate with
-  // new[...], not new(...).
-  inline ~SmartPointer() { if (p) delete [] p; }
+  // is deleted using DeleteArray.  This implies that you must allocate with
+  // NewArray.
+  inline ~SmartPointer() { if (p) DeleteArray(p); }
 
 
   // Copy constructor removes the pointer from the original to avoid double

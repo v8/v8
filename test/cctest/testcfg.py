@@ -27,7 +27,7 @@
 
 import test
 import os
-from os.path import join, dirname
+from os.path import join, dirname, exists
 import platform
 
 
@@ -78,6 +78,11 @@ class CcTestConfiguration(test.TestConfiguration):
       if self.Contains(path, full_path):
         result.append(CcTestCase(full_path, executable, mode, raw_test, self.context))
     return result
+  
+  def GetTestStatus(self, sections, defs):
+    status_file = join(self.root, 'cctest.status')
+    if exists(status_file):
+      test.ReadConfigurationInto(status_file, sections, defs)
 
 
 def GetConfiguration(context, root):

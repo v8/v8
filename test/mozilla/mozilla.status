@@ -25,6 +25,17 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+# This file is up to date with respect to Mozilla's CVS repository as of
+# 2008-09-02.  If new tests are added to Mozilla's CVS it may need to be
+# updated.
+
+# To get the mozilla tests:
+# cd /path/to/checkout/test/mozilla
+# rm -rf data
+# cvs -d :pserver:anonymous@cvs-mirror.mozilla.org:/cvsroot co -D 2008-09-02 mozilla/js/tests
+# mv mozilla/js/tests data
+# rm -rf mozilla
+
 # --------------------------------------------------------------------
 # If you add a test case to this file, please try to provide
 # an explanation of why the test fails; this may ease future
@@ -322,7 +333,26 @@ ecma_3/extensions/regress-274152: FAIL_OK
 js1_5/Regress/regress-372364: FAIL_OK
 js1_5/Regress/regress-420919: FAIL_OK
 js1_5/Regress/regress-422348: FAIL_OK
+js1_5/Regress/regress-410852: FAIL_OK
 ecma_3/RegExp/regress-375715-04: FAIL_OK
+
+
+# Tests that use uneval.  Non-ECMA.
+js1_5/GC/regress-418128: FAIL_OK
+
+
+# Tests that use __count__.  Non-ECMA.
+js1_5/extensions/regress-434837-01: FAIL_OK
+
+
+# Tests that use the watch method.  Non-ECMA.
+js1_5/extensions/regress-435345-01: FAIL_OK
+
+
+# The spec specifies reverse evaluation order for < and >=.
+# See section 11.8.2 and 11.8.5.
+# We implement the spec here but the test tests the more straigtforward order.
+ecma_3/Operators/order-01: FAIL_OK
 
 
 # Uses Mozilla-specific QName, XML, XMLList and Iterator.
@@ -364,6 +394,7 @@ js1_5/GetSet/getset-002: FAIL_OK
 js1_5/GetSet/regress-353264: FAIL_OK
 js1_5/Regress/regress-361617: FAIL_OK
 js1_5/Regress/regress-362583: FAIL_OK
+js1_5/extensions/regress-356378: FAIL_OK
 
 
 # 'native' *is* a keyword in V8.
@@ -719,8 +750,8 @@ js1_5/decompilation/regress-406555: PASS || FAIL
 
 [ $system == windows ] 
 
-# This test fails because of the default timer resolution on Windows.
-js1_5/extensions/regress-363258: FAIL_OK
+# This test is flaky because of the default timer resolution on Windows.
+js1_5/extensions/regress-363258: PASS || FAIL
 
 [ $FAST == yes ]
 

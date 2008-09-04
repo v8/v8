@@ -2968,9 +2968,9 @@ SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
 }
 
 
-SmartPointer < char >String::ToCString(AllowNullsFlag allow_nulls,
-                                       RobustnessFlag robust_flag,
-                                       int* length_return) {
+SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
+                                     RobustnessFlag robust_flag,
+                                     int* length_return) {
   return ToCString(allow_nulls, robust_flag, 0, -1, length_return);
 }
 

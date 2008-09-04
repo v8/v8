@@ -159,6 +159,7 @@ class CodeGenerator: public Visitor {
   virtual void GenerateSquashFrame(ZoneList<Expression*>* args) = 0;
   virtual void GenerateExpandFrame(ZoneList<Expression*>* args) = 0;
   virtual void GenerateIsSmi(ZoneList<Expression*>* args) = 0;
+  virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) = 0;
   virtual void GenerateIsArray(ZoneList<Expression*>* args) = 0;
 
   // Support for arguments.length and arguments[?].

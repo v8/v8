@@ -32,7 +32,7 @@ import os
 from os.path import join, dirname, abspath
 root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
-import js2c
+import js2c, utils
 
 
 LIBRARY_FLAGS = {
@@ -223,16 +223,6 @@ def GuessOS():
     return None
 
 
-def GuessArchitecture():
-  id = platform.machine()
-  if id.startswith('arm'):
-    return 'arm'
-  elif (not id) or (not re.match('(x|i[3-6])86', id) is None):
-    return 'ia32'
-  else:
-    return None
-
-
 def GuessWordsize():
   if '64' in platform.machine():
     return '64'
@@ -252,7 +242,7 @@ def GuessToolchain(os):
 
 OS_GUESS = GuessOS()
 TOOLCHAIN_GUESS = GuessToolchain(OS_GUESS)
-ARCH_GUESS = GuessArchitecture()
+ARCH_GUESS = utils.GuessArchitecture()
 WORDSIZE_GUESS = GuessWordsize()
 
 

@@ -28,9 +28,35 @@
 prefix mjsunit
 
 # All tests in the bug directory are expected to fail.
-
 bugs: FAIL
 
 # This one fails in debug mode.
-
 regexp-multiline-stack-trace: PASS IF $MODE==RELEASE, FAIL IF $MODE==DEBUG
+
+# This one uses a built-in that's only present in debug mode.
+fuzz-natives: PASS, SKIP IF $MODE==RELEASE
+
+[ $arch == arm ]
+
+#1020483: Debug tests fail on arm
+debug-constructor: FAIL
+debug-continue: FAIL
+debug-backtrace-text: FAIL
+debug-backtrace: FAIL
+debug-evaluate-recursive: FAIL
+debug-changebreakpoint: FAIL
+debug-clearbreakpoint: FAIL
+debug-conditional-breakpoints: FAIL
+debug-enable-disable-breakpoints: FAIL
+debug-evaluate: FAIL
+debug-event-listener: FAIL
+debug-ignore-breakpoints: FAIL
+debug-multiple-breakpoints: FAIL
+# Bug number 1308895. This passes on the ARM simulator, fails on the ARM Linux machine.
+debug-script-breakpoints: PASS || FAIL
+debug-setbreakpoint: FAIL
+debug-step-stub-callfunction: FAIL
+debug-stepin-constructor: FAIL
+debug-step: FAIL
+regress/regress-998565: FAIL
+regress/regress-1081309: FAIL
