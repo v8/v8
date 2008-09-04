@@ -1,3 +1,19 @@
+2008-09-04: Version 0.3.0
+
+        Added support for running tests on the ARM simulator.
+
+        Fixed bug in the 'in' operator where negative indices were not
+        treated correctly.
+
+        Fixed build issues on gcc-4.3.1.
+
+        Changed Date.prototype.toLocaleTimeString to not print the
+        timezone part of the time.
+
+        Renamed debug.h to v8-debug.h to reduce the risk of name conflicts
+        with user code.
+
+
 2008-09-02: Version 0.2.5
 
         Renamed the top level directory 'public' to 'include'.
