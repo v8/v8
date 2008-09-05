@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /** \mainpage V8 API Reference Guide
- *	
- * V8 is Google's open source JavaScript engine. 
+ *
+ * V8 is Google's open source JavaScript engine.
  *
  * This set of documents provides reference material generated from the
  * V8 header file, include/v8.h.
@@ -485,7 +485,7 @@ class EXPORT Data {
 /**
  * Pre-compilation data that can be associated with a script.  This
  * data can be calculated for a script in advance of actually
- * compiling it, and can bestored between compilations.  When script 
+ * compiling it, and can be stored between compilations.  When script
  * data is given to the compile method compilation will be faster.
  */
 class EXPORT ScriptData {  // NOLINT
@@ -631,7 +631,7 @@ class EXPORT Value : public Data {
    * Returns true if this value is boolean.
    */
   bool IsBoolean();
-  
+
   /**
    * Returns true if this value is a number.
    */
@@ -696,7 +696,17 @@ class EXPORT Boolean : public Primitive {
  */
 class EXPORT String : public Primitive {
  public:
+
+  /**
+   * Returns the number of characters in this string.
+   */
   int Length();
+
+  /**
+   * Returns the number of bytes in the UTF-8 encoded
+   * representation of this string.
+   */
+  int Utf8Length();
 
   /**
    * Write the contents of the string to an external buffer.
@@ -716,9 +726,8 @@ class EXPORT String : public Primitive {
    * excluding the NULL terminator.
    */
   int Write(uint16_t* buffer, int start = 0, int length = -1);  // UTF-16
-  int WriteAscii(char* buffer,
-                 int start = 0,
-                 int length = -1);  // literally ascii
+  int WriteAscii(char* buffer, int start = 0, int length = -1);  // ASCII
+  int WriteUtf8(char* buffer, int length = -1); // UTF-8
 
   /**
    * Returns true if the string is external
@@ -1755,7 +1764,7 @@ class EXPORT V8 {
   static void IgnoreOutOfMemoryException();
 
   /**
-   * Check if V8 is dead and therefore unusable.  This is the case after 
+   * Check if V8 is dead and therefore unusable.  This is the case after
    * fatal errors such as out-of-memory situations.
    */
   static bool IsDead();

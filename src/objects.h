@@ -2842,6 +2842,8 @@ class String: public HeapObject {
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
       int* length_output = 0);
 
+  int Utf8Length();
+
   // Return a 16 bit Unicode representation of the string.
   // The string should be nearly flat, otherwise the performance of
   // of this method may be very bad.  Setting robustness_flag to
