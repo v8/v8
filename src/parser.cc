@@ -151,6 +151,13 @@ class Parser {
   Expression* ParseObjectLiteral(bool* ok);
   Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
 
+  // Decide if a property should be the object boilerplate.
+  bool IsBoilerplateProperty(ObjectLiteral::Property* property);
+  // If the property is CONSTANT type, it returns the literal value,
+  // otherwise, it return undefined literal as the placeholder
+  // in the object literal boilerplate.
+  Literal* GetBoilerplateValue(ObjectLiteral::Property* property);
+
   enum FunctionLiteralType {
     EXPRESSION,
     DECLARATION,
@@ -2643,6 +2650,19 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
 }
 
 
+bool Parser::IsBoilerplateProperty(ObjectLiteral::Property* property) {
+  return property != NULL &&
+         property->kind() != ObjectLiteral::Property::PROTOTYPE;
+}
+
+
+Literal* Parser::GetBoilerplateValue(ObjectLiteral::Property* property) {
+  if (property->kind() == ObjectLiteral::Property::CONSTANT)
+    return property->value()->AsLiteral();
+  return GetLiteralUndefined();
+}
+
+
 Expression* Parser::ParseObjectLiteral(bool* ok) {
   // ObjectLiteral ::
   //   '{' (
@@ -2674,6 +2694,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
                 ParseFunctionLiteral(name, kNoPosition, DECLARATION, CHECK_OK);
             ObjectLiteral::Property* property =
                 NEW(ObjectLiteral::Property(is_getter, value));
+            if (IsBoilerplateProperty(property))
+              number_of_boilerplate_properties++;
             properties.Add(property);
             if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
             continue;  // restart the while
@@ -2717,11 +2739,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         NEW(ObjectLiteral::Property(key, value));
 
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
-    if ((property != NULL) &&
-        (property->kind() == ObjectLiteral::Property::CONSTANT ||
-         property->kind() == ObjectLiteral::Property::COMPUTED) ) {
+    if (IsBoilerplateProperty(property))
       number_of_boilerplate_properties++;
-    }
     properties.Add(property);
 
     // TODO(1240767): Consider allowing trailing comma.
@@ -2737,18 +2756,13 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   int position = 0;
   for (int i = 0; i < properties.length(); i++) {
     ObjectLiteral::Property* property = properties.at(i);
-    Handle<Object> key = property->key()->handle();
-    Literal* literal = NULL;
+    if (!IsBoilerplateProperty(property)) continue;
 
     // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
     // value for COMPUTED properties, the real value is filled in at
     // runtime. The enumeration order is maintained.
-    if (property->kind() == ObjectLiteral::Property::CONSTANT)
-      literal = property->value()->AsLiteral();
-    else if (property->kind() == ObjectLiteral::Property::COMPUTED)
-      literal = GetLiteralUndefined();
-    else
-      continue;
+    Handle<Object> key = property->key()->handle();
+    Literal* literal = GetBoilerplateValue(property);
 
     // Add name, value pair to the fixed array.
     constant_properties->set(position++, *key);
