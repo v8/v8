@@ -614,6 +614,7 @@ class Object BASE_EMBEDDED {
   inline bool IsHashTable();
   inline bool IsDictionary();
   inline bool IsSymbolTable();
+  inline bool IsEvalCache();
   inline bool IsPrimitive();
   inline bool IsGlobalObject();
   inline bool IsJSGlobalObject();
@@ -1681,6 +1682,26 @@ class DescriptorArray: public FixedArray {
 // table.  The prefix size indicates an amount of memory in the
 // beginning of the backing storage that can be used for non-element
 // information by subclasses.
+
+// HashTableKey is an abstract superclass keys.
+class HashTableKey {
+ public:
+  // Returns whether the other object matches this key.
+  virtual bool IsMatch(Object* other) = 0;
+  typedef uint32_t (*HashFunction)(Object* obj);
+  // Returns the hash function used for this key.
+  virtual HashFunction GetHashFunction() = 0;
+  // Returns the hash value for this key.
+  virtual uint32_t Hash() = 0;
+  // Returns the key object for storing into the dictionary.
+  // If allocations fails a failure object is returned.
+  virtual Object* GetObject() = 0;
+  virtual bool IsStringKey() = 0;
+  // Required.
+  virtual ~HashTableKey() {}
+};
+
+
 template<int prefix_size, int element_size>
 class HashTable: public FixedArray {
  public:
@@ -1722,24 +1743,6 @@ class HashTable: public FixedArray {
   // Casting.
   static inline HashTable* cast(Object* obj);
 
-  // Key is an abstract superclass keys.
-  class Key {
-   public:
-    // Returns whether the other object matches this key.
-    virtual bool IsMatch(Object* other) = 0;
-    typedef uint32_t (*HashFunction)(Object* obj);
-    // Returns the hash function used for this key.
-    virtual HashFunction GetHashFunction() = 0;
-    // Returns the hash value for this key.
-    virtual uint32_t Hash() = 0;
-    // Returns the key object for storing into the dictionary.
-    // If allocations fails a failure object is returned.
-    virtual Object* GetObject() = 0;
-    virtual bool IsStringKey() = 0;
-    // Required.
-    virtual ~Key() {}
-  };
-
   // Compute the probe offset (quadratic probing).
   INLINE(static uint32_t GetProbeOffset(uint32_t n)) {
     return (n + n * n) >> 1;
@@ -1755,7 +1758,7 @@ class HashTable: public FixedArray {
 
  protected:
   // Find entry for key otherwise return -1.
-  int FindEntry(Key* key);
+  int FindEntry(HashTableKey* key);
 
   // Find the entry at which to insert element with the given key that
   // has the given hash value.
@@ -1788,7 +1791,7 @@ class HashTable: public FixedArray {
   }
 
   // Ensure enough space for n additional elements.
-  Object* EnsureCapacity(int n, Key* key);
+  Object* EnsureCapacity(int n, HashTableKey* key);
 };
 
 
@@ -1809,11 +1812,25 @@ class SymbolTable: public HashTable<0, 1> {
   static inline SymbolTable* cast(Object* obj);
 
  private:
-  Object* LookupKey(Key* key, Object** s);
-  class Utf8Key;   // Key based on utf8 string.
-  class StringKey;  // Key based on String*.
+  Object* LookupKey(HashTableKey* key, Object** s);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SymbolTable);
+};
+
+
+// EvalCache for caching eval'ed string and function.
+//
+// The cache is cleaned up during a mark-compact GC.
+class EvalCache: public HashTable<0, 2> {
+ public:
+  // Find cached value for a string key, otherwise return null.
+  Object* Lookup(String* src);
+  Object* Put(String* src, Object* value);
+
+  static inline EvalCache* cast(Object* obj);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(EvalCache);
 };
 
 
@@ -1924,7 +1941,7 @@ class Dictionary: public DictionaryBase {
   static Object* Allocate(int at_least_space_for);
 
   // Ensure enough space for n additional elements.
-  Object* EnsureCapacity(int n, Key* key);
+  Object* EnsureCapacity(int n, HashTableKey* key);
 
 #ifdef DEBUG
   void Print();
@@ -1939,9 +1956,9 @@ class Dictionary: public DictionaryBase {
 
  private:
   // Generic at put operation.
-  Object* AtPut(Key* key, Object* value);
+  Object* AtPut(HashTableKey* key, Object* value);
 
-  Object* Add(Key* key, Object* value, PropertyDetails details);
+  Object* Add(HashTableKey* key, Object* value, PropertyDetails details);
 
   // Add entry to dictionary.
   void AddEntry(Object* key,
@@ -1962,9 +1979,6 @@ class Dictionary: public DictionaryBase {
 
   static const int kMaxNumberKeyIndex = kPrefixStartIndex;
   static const int kNextEnumnerationIndexIndex = kMaxNumberKeyIndex + 1;
-
-  class NumberKey;  // Key containing uint32_t.
-  class StringKey;  // Key containing String*.
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Dictionary);
 };

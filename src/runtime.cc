@@ -3328,10 +3328,26 @@ static Object* Runtime_CompileString(Arguments args) {
   }
 
   // Compile eval() source.
+  bool is_global_context = context->IsGlobalContext();
   Handle<String> source(String::cast(args[0]));
-  Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(context->IsGlobalContext(), source);
-  if (boilerplate.is_null()) return Failure::Exception();
+  Object* obj = Heap::LookupEvalCache(is_global_context, *source);
+  if (obj->IsFailure()) return obj;
+
+  Handle<JSFunction> boilerplate;
+  if (!obj->IsJSFunction()) {
+    Counters::eval_cache_misses.Increment();
+    boilerplate = Compiler::CompileEval(is_global_context, source);
+    if (boilerplate.is_null()) return Failure::Exception();
+
+    Object* obj =
+        Heap::PutInEvalCache(is_global_context, *source, *boilerplate);
+    if (obj->IsFailure()) return obj;
+
+  } else {
+    Counters::eval_cache_hits.Increment();
+    boilerplate = Handle<JSFunction>(JSFunction::cast(obj));
+  }
+
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
   return *fun;

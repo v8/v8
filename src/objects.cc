@@ -5251,7 +5251,7 @@ int JSObject::GetEnumElementKeys(FixedArray* storage) {
 
 // The NumberKey uses carries the uint32_t as key.
 // This avoids allocation in HasProperty.
-class Dictionary::NumberKey : public Dictionary::Key {
+class NumberKey : public HashTableKey {
  public:
   explicit NumberKey(uint32_t number) {
     number_ = number;
@@ -5297,14 +5297,14 @@ class Dictionary::NumberKey : public Dictionary::Key {
   uint32_t number_;
 };
 
+
 // StringKey simply carries a string object as key.
-class Dictionary::StringKey : public Dictionary::Key {
+class StringKey : public HashTableKey {
  public:
   explicit StringKey(String* string) {
     string_ = string;
   }
 
- private:
   bool IsMatch(Object* other) {
     if (!other->IsString()) return false;
     return string_->Equals(String::cast(other));
@@ -5325,10 +5325,10 @@ class Dictionary::StringKey : public Dictionary::Key {
   String* string_;
 };
 
-// Utf8Key carries a vector of chars as key.
-class SymbolTable::Utf8Key : public SymbolTable::Key {
+// Utf8SymbolKey carries a vector of chars as key.
+class Utf8SymbolKey : public HashTableKey {
  public:
-  explicit Utf8Key(Vector<const char> string)
+  explicit Utf8SymbolKey(Vector<const char> string)
       : string_(string), hash_(0) { }
 
   bool IsMatch(Object* other) {
@@ -5368,10 +5368,10 @@ class SymbolTable::Utf8Key : public SymbolTable::Key {
 };
 
 
-// StringKey carries a string object as key.
-class SymbolTable::StringKey : public SymbolTable::Key {
+// SymbolKey carries a string/symbol object as key.
+class SymbolKey : public HashTableKey {
  public:
-  explicit StringKey(String* string) : string_(string) { }
+  explicit SymbolKey(String* string) : string_(string) { }
 
   HashFunction GetHashFunction() {
     return StringHash;
@@ -5435,7 +5435,7 @@ Object* HashTable<prefix_size, element_size>::Allocate(int at_least_space_for) {
 
 // Find entry for key otherwise return -1.
 template <int prefix_size, int element_size>
-int HashTable<prefix_size, element_size>::FindEntry(Key* key) {
+int HashTable<prefix_size, element_size>::FindEntry(HashTableKey* key) {
   uint32_t nof = NumberOfElements();
   if (nof == 0) return -1;  // Bail out if empty.
 
@@ -5462,7 +5462,8 @@ int HashTable<prefix_size, element_size>::FindEntry(Key* key) {
 
 
 template<int prefix_size, int element_size>
-Object* HashTable<prefix_size, element_size>::EnsureCapacity(int n, Key* key) {
+Object* HashTable<prefix_size, element_size>::EnsureCapacity(
+    int n, HashTableKey* key) {
   int capacity = Capacity();
   int nof = NumberOfElements() + n;
   // Make sure 20% is free
@@ -5520,19 +5521,23 @@ template class HashTable<0, 1>;
 template class HashTable<2, 3>;
 
 
+// Force instantiation of EvalCache's base class
+template class HashTable<0, 2>;
+
+
 Object* SymbolTable::LookupString(String* string, Object** s) {
-  StringKey key(string);
+  SymbolKey key(string);
   return LookupKey(&key, s);
 }
 
 
 Object* SymbolTable::LookupSymbol(Vector<const char> str, Object** s) {
-  Utf8Key key(str);
+  Utf8SymbolKey key(str);
   return LookupKey(&key, s);
 }
 
 
-Object* SymbolTable::LookupKey(Key* key, Object** s) {
+Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
   int entry = FindEntry(key);
 
   // Symbol already in table.
@@ -5560,6 +5565,31 @@ Object* SymbolTable::LookupKey(Key* key, Object** s) {
   table->ElementAdded();
   *s = symbol;
   return table;
+}
+
+
+Object* EvalCache::Lookup(String* src) {
+  StringKey key(src);
+  int entry = FindEntry(&key);
+  if (entry != -1) {
+    return get(EntryToIndex(entry) + 1);
+  } else {
+    return Heap::undefined_value();
+  }
+}
+
+
+Object* EvalCache::Put(String* src, Object* value) {
+  StringKey key(src);
+  Object* obj = EnsureCapacity(1, &key);
+  if (obj->IsFailure()) return obj;
+
+  EvalCache* cache = reinterpret_cast<EvalCache*>(obj);
+  int entry = cache->FindInsertionEntry(src, key.Hash());
+  cache->set(EntryToIndex(entry), src);
+  cache->set(EntryToIndex(entry) + 1, value);
+  cache->ElementAdded();
+  return cache;
 }
 
 
@@ -5625,7 +5655,7 @@ Object* Dictionary::GenerateNewEnumerationIndices() {
 }
 
 
-Object* Dictionary::EnsureCapacity(int n, Key* key) {
+Object* Dictionary::EnsureCapacity(int n, HashTableKey* key) {
   // Check whether there are enough enumeration indices to add n elements.
   if (key->IsStringKey() &&
       !PropertyDetails::IsValidIndex(NextEnumerationIndex() + n)) {
@@ -5681,7 +5711,7 @@ int Dictionary::FindNumberEntry(uint32_t index) {
 }
 
 
-Object* Dictionary::AtPut(Key* key, Object* value) {
+Object* Dictionary::AtPut(HashTableKey* key, Object* value) {
   int entry = FindEntry(key);
 
   // If the entry is present set the value;
@@ -5701,7 +5731,8 @@ Object* Dictionary::AtPut(Key* key, Object* value) {
 }
 
 
-Object* Dictionary::Add(Key* key, Object* value, PropertyDetails details) {
+Object* Dictionary::Add(HashTableKey* key, Object* value,
+                        PropertyDetails details) {
   // Check whether the dictionary should be extended.
   Object* obj = EnsureCapacity(1, key);
   if (obj->IsFailure()) return obj;

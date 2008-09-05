@@ -447,6 +447,10 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
 
 void Heap::MarkCompactPrologue() {
+  // Empty eval caches
+  Heap::eval_cache_global_ = Heap::null_value();
+  Heap::eval_cache_non_global_ = Heap::null_value();
+
   RegExpImpl::OldSpaceCollectionPrologue();
   Top::MarkCompactPrologue();
   ThreadManager::MarkCompactPrologue();
@@ -1203,6 +1207,10 @@ bool Heap::CreateInitialObjects() {
   obj = AllocateFixedArray(Natives::GetBuiltinsCount());
   if (obj->IsFailure()) return false;
   natives_source_cache_ = FixedArray::cast(obj);
+
+  // Initialized eval cache to null value.
+  eval_cache_global_ = null_value();
+  eval_cache_non_global_ = null_value();
 
   return true;
 }
@@ -2268,6 +2276,34 @@ Object* Heap::LookupSymbol(String* string) {
   symbol_table_ = new_table;
   ASSERT(symbol != NULL);
   return symbol;
+}
+
+
+Object* Heap::LookupEvalCache(bool is_global_context, String* src) {
+  Object* cache = is_global_context ?
+      eval_cache_global_ : eval_cache_non_global_;
+  return cache == null_value() ?
+      null_value() : EvalCache::cast(cache)->Lookup(src);
+}
+
+
+Object* Heap::PutInEvalCache(bool is_global_context, String* src,
+                             JSFunction* value) {
+  Object** cache_ptr = is_global_context ?
+      &eval_cache_global_ : &eval_cache_non_global_;
+
+  if (*cache_ptr == null_value()) {
+    Object* obj = EvalCache::Allocate(kInitialEvalCacheSize);
+    if (obj->IsFailure()) return false;
+    *cache_ptr = obj;
+  }
+    
+  Object* new_cache =
+      EvalCache::cast(*cache_ptr)->Put(src, value);
+  if (new_cache->IsFailure()) return new_cache;
+  *cache_ptr = new_cache;
+
+  return value;
 }
 
 

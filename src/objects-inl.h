@@ -314,6 +314,13 @@ bool Object::IsSymbolTable() {
 }
 
 
+bool Object::IsEvalCache() {
+  return IsHashTable() &&
+      (this == Heap::eval_cache_global() || 
+       this == Heap::eval_cache_non_global());
+}
+
+
 bool Object::IsPrimitive() {
   return IsOddball() || IsNumber() || IsString();
 }
@@ -1089,6 +1096,7 @@ CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(Dictionary)
 CAST_ACCESSOR(SymbolTable)
+CAST_ACCESSOR(EvalCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(AsciiString)

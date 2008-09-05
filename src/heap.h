@@ -122,7 +122,9 @@ namespace v8 { namespace internal {
   V(Code, c_entry_debug_break_code)                     \
   V(FixedArray, number_string_cache)                    \
   V(FixedArray, single_character_string_cache)          \
-  V(FixedArray, natives_source_cache)
+  V(FixedArray, natives_source_cache)                   \
+  V(Object, eval_cache_global)                          \
+  V(Object, eval_cache_non_global)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -529,6 +531,28 @@ class Heap : public AllStatic {
   }
   static Object* LookupSymbol(String* str);
 
+  // EvalCache caches function boilerplates for compiled scripts
+  // from 'eval' function.
+  // Source string is used as the key, and compiled function
+  // boilerplate as value. Because the same source has different
+  // compiled code in global or local context, we use separate
+  // caches for global and local contexts.
+  // Caches are cleared before mark-compact/mark-sweep GC's.
+
+  // Finds the function boilerplate of a source string.
+  // It returns a JSFunction object if found in the cache.
+  // The first parameter specifies whether the code is
+  // compiled in a global context.
+  static Object* LookupEvalCache(bool is_global_context, String* src);
+
+  // Put a source string and its compiled function boilerplate
+  // in the eval cache.  The cache may expand, and returns failure
+  // if it cannot expand the cache, otherwise the value is returned.
+  // The first parameter specifies whether the boilerplate is
+  // compiled in a global context. 
+  static Object* PutInEvalCache(bool is_global_context,
+                                String* src, JSFunction* value);
+
   // Compute the matching symbol map for a string if possible.
   // NULL is returned if string is in new space or not flattened.
   static Map* SymbolMapForString(String* str);
@@ -864,6 +888,7 @@ class Heap : public AllStatic {
   static void RebuildRSets(LargeObjectSpace* space);
 
   static const int kInitialSymbolTableSize = 2048;
+  static const int kInitialEvalCacheSize = 64;
 
   friend class Factory;
   friend class DisallowAllocationFailure;
@@ -1164,7 +1189,6 @@ class GCTracer BASE_EMBEDDED {
   // was no previous full GC.
   int previous_marked_count_;
 };
-
 
 } }  // namespace v8::internal
 
