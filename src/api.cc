@@ -1925,53 +1925,6 @@ int String::Length() {
 }
 
 
-int String::Utf8Length() {
-  if (IsDeadCheck("v8::String::Utf8Length()")) return 0;
-  return Utils::OpenHandle(this)->Utf8Length();
-}
-
-
-int String::WriteUtf8(char* buffer, int capacity) {
-  if (IsDeadCheck("v8::String::WriteUtf8()")) return 0;
-  LOG_API("String::WriteUtf8");
-  i::Handle<i::String> str = Utils::OpenHandle(this);
-  write_input_buffer.Reset(0, *str);
-  int len = str->length();
-  // Encode the first K - 3 bytes directly into the buffer since we
-  // know there's room for them.  If no capacity is given we copy all
-  // of them here.
-  int fast_end = capacity - (unibrow::Utf8::kMaxEncodedSize - 1);
-  int i;
-  int pos = 0;
-  for (i = 0; i < len && (capacity == -1 || pos < fast_end); i++) {
-    i::uc32 c = write_input_buffer.GetNext();
-    int written = unibrow::Utf8::Encode(buffer + pos, c);
-    pos += written;
-  }
-  if (i < len) {
-    // For the last characters we need to check the length for each one
-    // because they may be longer than the remaining space in the
-    // buffer.
-    char intermediate[unibrow::Utf8::kMaxEncodedSize];
-    for (; i < len && pos < capacity; i++) {
-      i::uc32 c = write_input_buffer.GetNext();
-      int written = unibrow::Utf8::Encode(intermediate, c);
-      if (pos + written <= capacity) {
-        for (int j = 0; j < written; j++)
-          buffer[pos + j] = intermediate[j];
-        pos += written;
-      } else {
-        // We've reached the end of the buffer
-        break;
-      }
-    }
-  }
-  if (i == len && (capacity == -1 || pos < capacity))
-    buffer[pos++] = '\0';
-  return pos;
-}
-
-
 int String::WriteAscii(char* buffer, int start, int length) {
   if (IsDeadCheck("v8::String::WriteAscii()")) return 0;
   LOG_API("String::WriteAscii");
