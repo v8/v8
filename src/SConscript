@@ -97,7 +97,7 @@ def Abort(message):
 def ConfigureObjectFiles():
   env = Environment()
   env.Replace(**context.flags['v8'])
-  env['ENV'].update(**context.env_overrides)
+  context.ApplyEnvOverrides(env)
   env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)
   env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile $LOGFILE')
 

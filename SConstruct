@@ -30,6 +30,7 @@ import re
 import sys
 import os
 from os.path import join, dirname, abspath
+from types import DictType
 root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
 import js2c, utils
@@ -370,6 +371,14 @@ class BuildContext(object):
     else:
       return env.SharedObject(input, **kw)
 
+  def ApplyEnvOverrides(self, env):
+    if not self.env_overrides:
+      return
+    if type(env['ENV']) == DictType:
+      env['ENV'].update(**self.env_overrides)
+    else:
+      env['ENV'] = self.env_overrides
+
 
 def PostprocessOptions(options):
   # Adjust architecture if the simulator option has been set
@@ -428,6 +437,7 @@ def BuildSpecific(env, mode, env_overrides):
   )
   
   # Link the object files into a library.
+  context.ApplyEnvOverrides(env)
   if context.options['library'] == 'static':
     library = env.StaticLibrary(library_name, object_files)
   else:
