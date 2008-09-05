@@ -2715,7 +2715,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
     ObjectLiteral::Property* property =
         NEW(ObjectLiteral::Property(key, value));
- 
+
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
     if ((property != NULL) &&
         (property->kind() == ObjectLiteral::Property::CONSTANT ||
@@ -2747,7 +2747,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       literal = property->value()->AsLiteral();
     else if (property->kind() == ObjectLiteral::Property::COMPUTED)
       literal = GetLiteralUndefined();
-    else 
+    else
       continue;
 
     // Add name, value pair to the fixed array.
