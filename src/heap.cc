@@ -1530,9 +1530,6 @@ Object* Heap::CreateCode(const CodeDesc& desc,
 #ifdef DEBUG
   code->Verify();
 #endif
-
-  CPU::FlushICache(code->instruction_start(), code->instruction_size());
-
   return code;
 }
 
@@ -1553,9 +1550,6 @@ Object* Heap::CopyCode(Code* code) {
   // Relocate the copy.
   Code* new_code = Code::cast(result);
   new_code->Relocate(new_addr - old_addr);
-
-  CPU::FlushICache(new_code->instruction_start(), new_code->instruction_size());
-
   return new_code;
 }
 
