@@ -1427,7 +1427,7 @@ static const char* js_code_causing_out_of_memory =
 
 // These tests run for a long time and prevent us from running tests
 // that come after them so they cannot run in parallel.
-TEST(OutOfMemory) {
+DISABLED_TEST(OutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
   v8::internal::Snapshot::DisableInternal();
   // Set heap limits.
@@ -1468,7 +1468,7 @@ v8::Handle<Value> ProvokeOutOfMemory(const v8::Arguments& args) {
 }
 
 
-TEST(OutOfMemoryNested) {
+DISABLED_TEST(OutOfMemoryNested) {
   // It's not possible to read a snapshot into a heap with different dimensions.
   v8::internal::Snapshot::DisableInternal();
   // Set heap limits.
