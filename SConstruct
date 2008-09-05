@@ -58,7 +58,7 @@ LIBRARY_FLAGS = {
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
-    },
+    }
   },
   'msvc': {
     'all': {
@@ -97,6 +97,9 @@ V8_EXTRA_FLAGS = {
     'arch:arm': {
       'CPPDEFINES':   ['ARM']
     },
+    'disassembler:on': {
+      'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
+    }
   },
   'msvc': {
     'all': {
@@ -108,6 +111,9 @@ V8_EXTRA_FLAGS = {
     'arch:arm': {
       'CPPDEFINES':   ['ARM']
     },
+    'disassembler:on': {
+      'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
+    }
   }
 }
 
@@ -283,6 +289,11 @@ SIMPLE_OPTIONS = {
     'values': ['arm', 'none'],
     'default': 'none',
     'help': 'build with simulator'
+  },
+  'disassembler': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable the disassembler to inspect generated code'
   }
 }
 
