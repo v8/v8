@@ -316,7 +316,7 @@ bool Object::IsSymbolTable() {
 
 bool Object::IsEvalCache() {
   return IsHashTable() &&
-      (this == Heap::eval_cache_global() || 
+      (this == Heap::eval_cache_global() ||
        this == Heap::eval_cache_non_global());
 }
 

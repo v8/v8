@@ -549,7 +549,7 @@ class Heap : public AllStatic {
   // in the eval cache.  The cache may expand, and returns failure
   // if it cannot expand the cache, otherwise the value is returned.
   // The first parameter specifies whether the boilerplate is
-  // compiled in a global context. 
+  // compiled in a global context.
   static Object* PutInEvalCache(bool is_global_context,
                                 String* src, JSFunction* value);
 

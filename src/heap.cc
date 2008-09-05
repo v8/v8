@@ -2297,7 +2297,7 @@ Object* Heap::PutInEvalCache(bool is_global_context, String* src,
     if (obj->IsFailure()) return false;
     *cache_ptr = obj;
   }
-    
+
   Object* new_cache =
       EvalCache::cast(*cache_ptr)->Put(src, value);
   if (new_cache->IsFailure()) return new_cache;
