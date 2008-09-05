@@ -31,7 +31,14 @@
 #ifndef TEST
 #define TEST(Name)                                                   \
   static void Test##Name();                                          \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name);          \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true);    \
+  static void Test##Name()
+#endif
+
+#ifndef DISABLED_TEST
+#define DISABLED_TEST(Name)                                          \
+  static void Test##Name();                                          \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false);   \
   static void Test##Name()
 #endif
 
@@ -39,17 +46,20 @@
 class CcTest {
  public:
   typedef void (TestFunction)();
-  CcTest(TestFunction* callback, const char* file, const char* name);
+  CcTest(TestFunction* callback, const char* file, const char* name,
+         bool enabled);
   void Run() { callback_(); }
   static int test_count();
   static CcTest* last() { return last_; }
   CcTest* prev() { return prev_; }
   const char* file() { return file_; }
   const char* name() { return name_; }
+  bool enabled() { return enabled_; }
  private:
   TestFunction* callback_;
   const char* file_;
   const char* name_;
+  bool enabled_;
   static CcTest* last_;
   CcTest* prev_;
 };

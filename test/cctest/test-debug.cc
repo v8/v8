@@ -2856,7 +2856,7 @@ void MessageQueueDebuggerThread::Run() {
 MessageQueueDebuggerThread message_queue_debugger_thread;
 
 // This thread runs the v8 engine.
-TEST(MessageQueues) {
+DISABLED_TEST(MessageQueues) {
   // Create a V8 environment
   v8::HandleScope scope;
   DebugLocalContext env;
@@ -2961,7 +2961,7 @@ void DebuggerThread::Run() {
 DebuggerThread debugger_thread;
 V8Thread v8_thread;
 
-TEST(ThreadedDebugging) {
+DISABLED_TEST(ThreadedDebugging) {
   // Create a V8 environment
   threaded_debugging_barriers.Initialize();
 
@@ -3120,7 +3120,7 @@ void BreakpointsDebuggerThread::Run() {
 BreakpointsDebuggerThread breakpoints_debugger_thread;
 BreakpointsV8Thread breakpoints_v8_thread;
 
-TEST(RecursiveBreakpoints) {
+DISABLED_TEST(RecursiveBreakpoints) {
   // Create a V8 environment
   Barriers stack_allocated_breakpoints_barriers;
   stack_allocated_breakpoints_barriers.Initialize();
