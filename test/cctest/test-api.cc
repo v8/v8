@@ -461,10 +461,10 @@ THREADED_TEST(ScriptUsingStringResource) {
     CHECK(source->IsExternal());
     CHECK_EQ(resource,
              static_cast<TestResource*>(source->GetExternalStringResource()));
-    v8::internal::Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+    v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestResource::dispose_count);
   }
-  v8::internal::Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+  v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestResource::dispose_count);
 }
 
@@ -481,10 +481,10 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    v8::internal::Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+    v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  v8::internal::Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+  v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
 
@@ -2455,7 +2455,7 @@ static v8::Handle<Value> ArgumentsTestCallback(const v8::Arguments& args) {
   CHECK_EQ(v8::Integer::New(3), args[2]);
   CHECK_EQ(v8::Undefined(), args[3]);
   v8::HandleScope scope;
-  i::Heap::CollectGarbage(0, i::OLD_SPACE);
+  i::Heap::CollectAllGarbage();
   return v8::Undefined();
 }
 
@@ -4694,7 +4694,7 @@ THREADED_TEST(LockUnlockLock) {
 
 static void EnsureNoSurvivingGlobalObjects() {
   int count = 0;
-  v8::internal::Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+  v8::internal::Heap::CollectAllGarbage();
   v8::internal::HeapIterator it;
   while (it.has_next()) {
     v8::internal::HeapObject* object = it.next();

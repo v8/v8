@@ -931,7 +931,7 @@ Object* JSObject::Copy(PretenureFlag pretenure) {
   // Make the clone.
   Object* clone = (pretenure == NOT_TENURED) ?
       Heap::Allocate(map(), NEW_SPACE) :
-      Heap::Allocate(map(), OLD_SPACE);
+      Heap::Allocate(map(), OLD_POINTER_SPACE);
   if (clone->IsFailure()) return clone;
   JSObject::cast(clone)->CopyBody(this);
 

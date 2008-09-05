@@ -4536,8 +4536,8 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
   // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
   // rid of all the cached script wrappes and the second gets rid of the
   // scripts which is no longer referenced.
-  Heap::CollectGarbage(0, OLD_SPACE);
-  Heap::CollectGarbage(0, OLD_SPACE);
+  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage();
 
   // Get the number of scripts.
   int count;
@@ -4641,7 +4641,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
   ASSERT(args.length() == 3);
 
   // First perform a full GC in order to avoid references from dead objects.
-  Heap::CollectGarbage(0, OLD_SPACE);
+  Heap::CollectAllGarbage();
 
   // Check parameters.
   CONVERT_CHECKED(JSObject, target, args[0]);
@@ -4721,7 +4721,7 @@ static Object* Runtime_DebugConstructedBy(Arguments args) {
   ASSERT(args.length() == 2);
 
   // First perform a full GC in order to avoid dead objects.
-  Heap::CollectGarbage(0, OLD_SPACE);
+  Heap::CollectAllGarbage();
 
   // Check parameters.
   CONVERT_CHECKED(JSFunction, constructor, args[0]);

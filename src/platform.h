@@ -222,7 +222,7 @@ class OS {
 class VirtualMemory {
  public:
   // Reserves virtual memory with size.
-  VirtualMemory(size_t size, void* address_hint = 0);
+  explicit VirtualMemory(size_t size);
   ~VirtualMemory();
 
   // Returns whether the memory has been reserved.

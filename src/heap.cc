@@ -83,7 +83,8 @@ DECLARE_bool(log_gc);
 
 
 NewSpace* Heap::new_space_ = NULL;
-OldSpace* Heap::old_space_ = NULL;
+OldSpace* Heap::old_pointer_space_ = NULL;
+OldSpace* Heap::old_data_space_ = NULL;
 OldSpace* Heap::code_space_ = NULL;
 MapSpace* Heap::map_space_ = NULL;
 LargeObjectSpace* Heap::lo_space_ = NULL;
@@ -127,7 +128,8 @@ int Heap::Capacity() {
   if (!HasBeenSetup()) return 0;
 
   return new_space_->Capacity() +
-      old_space_->Capacity() +
+      old_pointer_space_->Capacity() +
+      old_data_space_->Capacity() +
       code_space_->Capacity() +
       map_space_->Capacity();
 }
@@ -137,7 +139,8 @@ int Heap::Available() {
   if (!HasBeenSetup()) return 0;
 
   return new_space_->Available() +
-      old_space_->Available() +
+      old_pointer_space_->Available() +
+      old_data_space_->Available() +
       code_space_->Available() +
       map_space_->Available();
 }
@@ -145,10 +148,11 @@ int Heap::Available() {
 
 bool Heap::HasBeenSetup() {
   return new_space_ != NULL &&
-      old_space_ != NULL &&
-      code_space_ != NULL &&
-      map_space_ != NULL &&
-      lo_space_ != NULL;
+         old_pointer_space_ != NULL &&
+         old_data_space_ != NULL &&
+         code_space_ != NULL &&
+         map_space_ != NULL &&
+         lo_space_ != NULL;
 }
 
 
@@ -175,13 +179,13 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   // Is there enough space left in OLD to guarantee that a scavenge can
   // succeed?
   //
-  // Note that old_space_->MaxAvailable() undercounts the memory available
+  // Note that MemoryAllocator->MaxAvailable() undercounts the memory available
   // for object promotion. It counts only the bytes that the memory
   // allocator has not yet allocated from the OS and assigned to any space,
   // and does not count available bytes already in the old space or code
   // space.  Undercounting is safe---we may get an unrequested full GC when
   // a scavenge would have succeeded.
-  if (old_space_->MaxAvailable() <= new_space_->Size()) {
+  if (MemoryAllocator::MaxAvailable() <= new_space_->Size()) {
     Counters::gc_compactor_caused_by_oldspace_exhaustion.Increment();
     return MARK_COMPACTOR;
   }
@@ -256,9 +260,8 @@ void Heap::GarbageCollectionPrologue() {
   if (FLAG_gc_verbose) Print();
 
   if (FLAG_print_rset) {
-    // By definition, code space does not have remembered set bits that we
-    // care about.
-    old_space_->PrintRSet();
+    // Not all spaces have remembered set bits that we care about.
+    old_pointer_space_->PrintRSet();
     map_space_->PrintRSet();
     lo_space_->PrintRSet();
   }
@@ -270,11 +273,10 @@ void Heap::GarbageCollectionPrologue() {
 }
 
 int Heap::SizeOfObjects() {
-  return new_space_->Size() +
-      old_space_->Size() +
-      code_space_->Size() +
-      map_space_->Size() +
-      lo_space_->Size();
+  int total = 0;
+  AllSpaces spaces;
+  while (Space* space = spaces.next()) total += space->Size();
+  return total;
 }
 
 void Heap::GarbageCollectionEpilogue() {
@@ -300,6 +302,14 @@ void Heap::GarbageCollectionEpilogue() {
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   ReportStatisticsAfterGC();
 #endif
+}
+
+
+void Heap::CollectAllGarbage() {
+  // Since we are ignoring the return value, the exact choice of space does
+  // not matter, so long as we do not specify NEW_SPACE, which would not
+  // cause a full GC.
+  CollectGarbage(0, OLD_POINTER_SPACE);
 }
 
 
@@ -344,8 +354,10 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
   switch (space) {
     case NEW_SPACE:
       return new_space_->Available() >= requested_size;
-    case OLD_SPACE:
-      return old_space_->Available() >= requested_size;
+    case OLD_POINTER_SPACE:
+      return old_pointer_space_->Available() >= requested_size;
+    case OLD_DATA_SPACE:
+      return old_data_space_->Available() >= requested_size;
     case CODE_SPACE:
       return code_space_->Available() >= requested_size;
     case MAP_SPACE:
@@ -381,7 +393,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
 
     // If we have used the mark-compact collector to collect the new
     // space, and it has not compacted the new space, we force a
-    // separate scavenge collection.  THIS IS A HACK.  It covers the
+    // separate scavenge collection.  This is a hack.  It covers the
     // case where (1) a new space collection was requested, (2) the
     // collector selection policy selected the mark-compact collector,
     // and (3) the mark-compact collector policy selected not to
@@ -483,9 +495,9 @@ static Address promoted_top = NULL;
 
 
 #ifdef DEBUG
-// Visitor class to verify pointers in code space do not point into
+// Visitor class to verify pointers in code or data space do not point into
 // new space.
-class VerifyCodeSpacePointersVisitor: public ObjectVisitor {
+class VerifyNonPointerSpacePointersVisitor: public ObjectVisitor {
  public:
   void VisitPointers(Object** start, Object**end) {
     for (Object** current = start; current < end; current++) {
@@ -500,7 +512,7 @@ class VerifyCodeSpacePointersVisitor: public ObjectVisitor {
 void Heap::Scavenge() {
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {
-    VerifyCodeSpacePointersVisitor v;
+    VerifyNonPointerSpacePointersVisitor v;
     HeapObjectIterator it(code_space_);
     while (it.has_next()) {
       HeapObject* object = it.next();
@@ -560,8 +572,8 @@ void Heap::Scavenge() {
   IterateRoots(&copy_visitor);
 
   // Copy objects reachable from the old generation.  By definition, there
-  // are no intergenerational pointers in code space.
-  IterateRSet(old_space_, &CopyObject);
+  // are no intergenerational pointers in code or data spaces.
+  IterateRSet(old_pointer_space_, &CopyObject);
   IterateRSet(map_space_, &CopyObject);
   lo_space_->IterateRSet(&CopyObject);
 
@@ -694,12 +706,13 @@ int Heap::UpdateRSet(HeapObject* obj) {
 
 
 void Heap::RebuildRSets() {
-  // By definition, we do not care about remembered set bits in code space.
+  // By definition, we do not care about remembered set bits in code or data
+  // spaces.
   map_space_->ClearRSet();
   RebuildRSets(map_space_);
 
-  old_space_->ClearRSet();
-  RebuildRSets(old_space_);
+  old_pointer_space_->ClearRSet();
+  RebuildRSets(old_pointer_space_);
 
   Heap::lo_space_->ClearRSet();
   RebuildRSets(lo_space_);
@@ -767,7 +780,7 @@ void Heap::CopyObject(HeapObject** p) {
 
   // We use the first word (where the map pointer usually is) of a heap
   // object to record the forwarding pointer.  A forwarding pointer can
-  // point to the old space, the code space, or the to space of the new
+  // point to an old space, the code space, or the to space of the new
   // generation.
   MapWord first_word = object->map_word();
 
@@ -802,26 +815,23 @@ void Heap::CopyObject(HeapObject** p) {
   Object* result;
   // If the object should be promoted, we try to copy it to old space.
   if (ShouldBePromoted(object->address(), object_size)) {
-    AllocationSpace target_space = Heap::TargetSpace(object);
-    if (target_space == OLD_SPACE) {
-      result = old_space_->AllocateRaw(object_size);
-    } else {
-      ASSERT(target_space == CODE_SPACE);
-      result = code_space_->AllocateRaw(object_size);
-    }
+    OldSpace* target_space = Heap::TargetSpace(object);
+    ASSERT(target_space == Heap::old_pointer_space_ ||
+           target_space == Heap::old_data_space_);
+    result = target_space->AllocateRaw(object_size);
 
     if (!result->IsFailure()) {
       *p = MigrateObject(p, HeapObject::cast(result), object_size);
-      if (target_space == OLD_SPACE) {
+      if (target_space == Heap::old_pointer_space_) {
         // Record the object's address at the top of the to space, to allow
         // it to be swept by the scavenger.
         promoted_top -= kPointerSize;
         Memory::Object_at(promoted_top) = *p;
       } else {
 #ifdef DEBUG
-        // Objects promoted to the code space should not have pointers to
+        // Objects promoted to the data space should not have pointers to
         // new space.
-        VerifyCodeSpacePointersVisitor v;
+        VerifyNonPointerSpacePointersVisitor v;
         (*p)->Iterate(&v);
 #endif
       }
@@ -890,7 +900,7 @@ bool Heap::CreateInitialMaps() {
   if (obj->IsFailure()) return false;
   empty_fixed_array_ = FixedArray::cast(obj);
 
-  obj = Allocate(oddball_map(), CODE_SPACE);
+  obj = Allocate(oddball_map(), OLD_DATA_SPACE);
   if (obj->IsFailure()) return false;
   null_value_ = obj;
 
@@ -1016,7 +1026,7 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate heap numbers in paged
   // spaces.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
-  AllocationSpace space = (pretenure == TENURED) ? CODE_SPACE : NEW_SPACE;
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   Object* result = AllocateRaw(HeapNumber::kSize, space);
   if (result->IsFailure()) return result;
 
@@ -1042,7 +1052,7 @@ Object* Heap::AllocateHeapNumber(double value) {
 Object* Heap::CreateOddball(Map* map,
                             const char* to_string,
                             Object* to_number) {
-  Object* result = Allocate(map, CODE_SPACE);
+  Object* result = Allocate(map, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
   return Oddball::cast(result)->Initialize(to_string, to_number);
 }
@@ -1112,7 +1122,7 @@ bool Heap::CreateInitialObjects() {
   if (obj->IsFailure()) return false;
   nan_value_ = obj;
 
-  obj = Allocate(oddball_map(), CODE_SPACE);
+  obj = Allocate(oddball_map(), OLD_DATA_SPACE);
   if (obj->IsFailure()) return false;
   undefined_value_ = obj;
   ASSERT(!InNewSpace(undefined_value()));
@@ -1295,7 +1305,8 @@ Object* Heap::NumberFromDouble(double value, PretenureFlag pretenure) {
 Object* Heap::AllocateProxy(Address proxy, PretenureFlag pretenure) {
   // Statically ensure that it is safe to allocate proxies in paged spaces.
   STATIC_ASSERT(Proxy::kSize <= Page::kMaxHeapObjectSize);
-  AllocationSpace space = (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
+  AllocationSpace space =
+      (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   Object* result = Allocate(proxy_map(), space);
   if (result->IsFailure()) return result;
 
@@ -1491,9 +1502,11 @@ Object* Heap:: LookupSingleCharacterStringFromCode(uint16_t code) {
 
 Object* Heap::AllocateByteArray(int length) {
   int size = ByteArray::SizeFor(length);
-  AllocationSpace space = size > MaxHeapObjectSize() ? LO_SPACE : NEW_SPACE;
+  AllocationSpace space =
+      size > MaxHeapObjectSize() ? LO_SPACE : NEW_SPACE;
 
   Object* result = AllocateRaw(size, space);
+
   if (result->IsFailure()) return result;
 
   reinterpret_cast<Array*>(result)->set_map(byte_array_map());
@@ -1510,10 +1523,13 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   int sinfo_size = 0;
   if (sinfo != NULL) sinfo_size = sinfo->Serialize(NULL);
   int obj_size = Code::SizeFor(body_size, sinfo_size);
-  AllocationSpace space =
-      (obj_size > MaxHeapObjectSize()) ? LO_SPACE : CODE_SPACE;
+  Object* result;
+  if (obj_size > MaxHeapObjectSize()) {
+    result = lo_space_->AllocateRawCode(obj_size);
+  } else {
+    result = code_space_->AllocateRaw(obj_size);
+  }
 
-  Object* result = AllocateRaw(obj_size, space);
   if (result->IsFailure()) return result;
 
   // Initialize the object
@@ -1537,9 +1553,13 @@ Object* Heap::CreateCode(const CodeDesc& desc,
 Object* Heap::CopyCode(Code* code) {
   // Allocate an object the same size as the code object.
   int obj_size = code->Size();
-  AllocationSpace space =
-      (obj_size > MaxHeapObjectSize()) ? LO_SPACE : CODE_SPACE;
-  Object* result = AllocateRaw(obj_size, space);
+  Object* result;
+  if (obj_size > MaxHeapObjectSize()) {
+    result = lo_space_->AllocateRawCode(obj_size);
+  } else {
+    result = code_space_->AllocateRaw(obj_size);
+  }
+
   if (result->IsFailure()) return result;
 
   // Copy code object.
@@ -1597,7 +1617,7 @@ Object* Heap::AllocateFunctionPrototype(JSFunction* function) {
 Object* Heap::AllocateFunction(Map* function_map,
                                SharedFunctionInfo* shared,
                                Object* prototype) {
-  Object* result = Allocate(function_map, OLD_SPACE);
+  Object* result = Allocate(function_map, OLD_POINTER_SPACE);
   if (result->IsFailure()) return result;
   return InitializeFunction(JSFunction::cast(result), shared, prototype);
 }
@@ -1681,7 +1701,8 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   if (properties->IsFailure()) return properties;
 
   // Allocate the JSObject.
-  AllocationSpace space = (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
+  AllocationSpace space =
+      (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
   if (map->instance_size() > MaxHeapObjectSize()) space = LO_SPACE;
   Object* obj = Allocate(map, space);
   if (obj->IsFailure()) return obj;
@@ -1906,7 +1927,8 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
   }
 
   // Allocate string.
-  AllocationSpace space = (size > MaxHeapObjectSize()) ? LO_SPACE : CODE_SPACE;
+  AllocationSpace space =
+      (size > MaxHeapObjectSize()) ? LO_SPACE : OLD_DATA_SPACE;
   Object* result = AllocateRaw(size, space);
   if (result->IsFailure()) return result;
 
@@ -1925,7 +1947,7 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
 
 
 Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
-  AllocationSpace space = (pretenure == TENURED) ? CODE_SPACE : NEW_SPACE;
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   int size = AsciiString::SizeFor(length);
   if (size > MaxHeapObjectSize()) {
     space = LO_SPACE;
@@ -1955,7 +1977,7 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
-  AllocationSpace space = (pretenure == TENURED) ? CODE_SPACE : NEW_SPACE;
+  AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
   int size = TwoByteString::SizeFor(length);
   if (size > MaxHeapObjectSize()) {
     space = LO_SPACE;
@@ -1986,7 +2008,7 @@ Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
 
 Object* Heap::AllocateEmptyFixedArray() {
   int size = FixedArray::SizeFor(0);
-  Object* result = AllocateRaw(size, CODE_SPACE);
+  Object* result = AllocateRaw(size, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
   // Initialize the object.
   reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
@@ -2004,7 +2026,8 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   if (size > MaxHeapObjectSize()) {
     result = lo_space_->AllocateRawFixedArray(size);
   } else {
-    AllocationSpace space = (pretenure == TENURED) ? OLD_SPACE : NEW_SPACE;
+    AllocationSpace space =
+        (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
     result = AllocateRaw(size, space);
   }
   if (result->IsFailure()) return result;
@@ -2102,7 +2125,7 @@ STRUCT_LIST(MAKE_CASE)
   }
   int size = map->instance_size();
   AllocationSpace space =
-      (size > MaxHeapObjectSize()) ? LO_SPACE : OLD_SPACE;
+      (size > MaxHeapObjectSize()) ? LO_SPACE : OLD_POINTER_SPACE;
   Object* result = Heap::Allocate(map, space);
   if (result->IsFailure()) return result;
   Struct::cast(result)->InitializeBody(size);
@@ -2115,11 +2138,8 @@ STRUCT_LIST(MAKE_CASE)
 void Heap::Print() {
   if (!HasBeenSetup()) return;
   Top::PrintStack();
-  new_space_->Print();
-  old_space_->Print();
-  code_space_->Print();
-  map_space_->Print();
-  lo_space_->Print();
+  AllSpaces spaces;
+  while (Space* space = spaces.next()) space->Print();
 }
 
 
@@ -2153,8 +2173,10 @@ void Heap::ReportHeapStatistics(const char* title) {
   MemoryAllocator::ReportStatistics();
   PrintF("To space : ");
   new_space_->ReportStatistics();
-  PrintF("Old space : ");
-  old_space_->ReportStatistics();
+  PrintF("Old pointer space : ");
+  old_pointer_space_->ReportStatistics();
+  PrintF("Old data space : ");
+  old_data_space_->ReportStatistics();
   PrintF("Code space : ");
   code_space_->ReportStatistics();
   PrintF("Map space : ");
@@ -2175,7 +2197,8 @@ bool Heap::Contains(Address addr) {
   if (OS::IsOutsideAllocatedSpace(addr)) return false;
   return HasBeenSetup() &&
     (new_space_->ToSpaceContains(addr) ||
-     old_space_->Contains(addr) ||
+     old_pointer_space_->Contains(addr) ||
+     old_data_space_->Contains(addr) ||
      code_space_->Contains(addr) ||
      map_space_->Contains(addr) ||
      lo_space_->SlowContains(addr));
@@ -2194,8 +2217,10 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
   switch (space) {
     case NEW_SPACE:
       return new_space_->ToSpaceContains(addr);
-    case OLD_SPACE:
-      return old_space_->Contains(addr);
+    case OLD_POINTER_SPACE:
+      return old_pointer_space_->Contains(addr);
+    case OLD_DATA_SPACE:
+      return old_data_space_->Contains(addr);
     case CODE_SPACE:
       return code_space_->Contains(addr);
     case MAP_SPACE:
@@ -2215,11 +2240,10 @@ void Heap::Verify() {
   VerifyPointersVisitor visitor;
   Heap::IterateRoots(&visitor);
 
-  Heap::new_space_->Verify();
-  Heap::old_space_->Verify();
-  Heap::code_space_->Verify();
-  Heap::map_space_->Verify();
-  Heap::lo_space_->Verify();
+  AllSpaces spaces;
+  while (Space* space = spaces.next()) {
+    space->Verify();
+  }
 }
 #endif  // DEBUG
 
@@ -2308,7 +2332,7 @@ void Heap::IterateRSetRange(Address object_start,
 
 void Heap::IterateRSet(PagedSpace* space, ObjectSlotCallback copy_object_func) {
   ASSERT(Page::is_rset_in_use());
-  ASSERT(space == old_space_ || space == map_space_);
+  ASSERT(space == old_pointer_space_ || space == map_space_);
 
   PageIterator it(space, PageIterator::PAGES_IN_USE);
   while (it.has_next()) {
@@ -2413,7 +2437,8 @@ bool Heap::ConfigureHeapDefault() {
 
 
 int Heap::PromotedSpaceSize() {
-  return old_space_->Size()
+  return old_pointer_space_->Size()
+      + old_data_space_->Size()
       + code_space_->Size()
       + map_space_->Size()
       + lo_space_->Size();
@@ -2460,23 +2485,33 @@ bool Heap::Setup(bool create_heap_objects) {
   int old_space_size = new_space_start - old_space_start;
   int code_space_size = young_generation_size_ - old_space_size;
 
-  // Initialize new space. It will not contain code.
+  // Initialize new space.
   new_space_ = new NewSpace(initial_semispace_size_,
                             semispace_size_,
-                            NEW_SPACE,
-                            false);
+                            NEW_SPACE);
   if (new_space_ == NULL) return false;
   if (!new_space_->Setup(new_space_start, young_generation_size_)) return false;
 
   // Initialize old space, set the maximum capacity to the old generation
   // size. It will not contain code.
-  old_space_ = new OldSpace(old_generation_size_, OLD_SPACE, false);
-  if (old_space_ == NULL) return false;
-  if (!old_space_->Setup(old_space_start, old_space_size)) return false;
+  old_pointer_space_ =
+      new OldSpace(old_generation_size_, OLD_POINTER_SPACE, NOT_EXECUTABLE);
+  if (old_pointer_space_ == NULL) return false;
+  if (!old_pointer_space_->Setup(old_space_start, old_space_size >> 1)) {
+    return false;
+  }
+  old_data_space_ =
+      new OldSpace(old_generation_size_, OLD_DATA_SPACE, NOT_EXECUTABLE);
+  if (old_data_space_ == NULL) return false;
+  if (!old_data_space_->Setup(old_space_start + (old_space_size >> 1),
+                              old_space_size >> 1)) {
+    return false;
+  }
 
   // Initialize the code space, set its maximum capacity to the old
   // generation size. It needs executable memory.
-  code_space_ = new OldSpace(old_generation_size_, CODE_SPACE, true);
+  code_space_ =
+      new OldSpace(old_generation_size_, CODE_SPACE, EXECUTABLE);
   if (code_space_ == NULL) return false;
   if (!code_space_->Setup(code_space_start, code_space_size)) return false;
 
@@ -2487,8 +2522,10 @@ bool Heap::Setup(bool create_heap_objects) {
   // enough to hold at least a page will cause it to allocate.
   if (!map_space_->Setup(NULL, 0)) return false;
 
-  // The large object space may contain code, so it needs executable memory.
-  lo_space_ = new LargeObjectSpace(LO_SPACE, true);
+  // The large object code space may contain code or data.  We set the memory
+  // to be non-executable here for safety, but this means we need to enable it
+  // explicitly when allocating large code objects.
+  lo_space_ = new LargeObjectSpace(LO_SPACE);
   if (lo_space_ == NULL) return false;
   if (!lo_space_->Setup()) return false;
 
@@ -2517,10 +2554,16 @@ void Heap::TearDown() {
     new_space_ = NULL;
   }
 
-  if (old_space_ != NULL) {
-    old_space_->TearDown();
-    delete old_space_;
-    old_space_ = NULL;
+  if (old_pointer_space_ != NULL) {
+    old_pointer_space_->TearDown();
+    delete old_pointer_space_;
+    old_pointer_space_ = NULL;
+  }
+
+  if (old_data_space_ != NULL) {
+    old_data_space_->TearDown();
+    delete old_data_space_;
+    old_data_space_ = NULL;
   }
 
   if (code_space_ != NULL) {
@@ -2548,7 +2591,8 @@ void Heap::TearDown() {
 void Heap::Shrink() {
   // Try to shrink map, old, and code spaces.
   map_space_->Shrink();
-  old_space_->Shrink();
+  old_pointer_space_->Shrink();
+  old_data_space_->Shrink();
   code_space_->Shrink();
 }
 
@@ -2570,6 +2614,57 @@ void Heap::PrintHandles() {
 }
 
 #endif
+
+
+Space* AllSpaces::next() {
+  switch (counter_++) {
+    case NEW_SPACE:
+      return Heap::new_space();
+    case OLD_POINTER_SPACE:
+      return Heap::old_pointer_space();
+    case OLD_DATA_SPACE:
+      return Heap::old_data_space();
+    case CODE_SPACE:
+      return Heap::code_space();
+    case MAP_SPACE:
+      return Heap::map_space();
+    case LO_SPACE:
+      return Heap::lo_space();
+    default:
+      return NULL;
+  }
+}
+
+
+PagedSpace* PagedSpaces::next() {
+  switch (counter_++) {
+    case OLD_POINTER_SPACE:
+      return Heap::old_pointer_space();
+    case OLD_DATA_SPACE:
+      return Heap::old_data_space();
+    case CODE_SPACE:
+      return Heap::code_space();
+    case MAP_SPACE:
+      return Heap::map_space();
+    default:
+      return NULL;
+  }
+}
+
+
+
+OldSpace* OldSpaces::next() {
+  switch (counter_++) {
+    case OLD_POINTER_SPACE:
+      return Heap::old_pointer_space();
+    case OLD_DATA_SPACE:
+      return Heap::old_data_space();
+    case CODE_SPACE:
+      return Heap::code_space();
+    default:
+      return NULL;
+  }
+}
 
 
 SpaceIterator::SpaceIterator() : current_space_(FIRST_SPACE), iterator_(NULL) {
@@ -2612,8 +2707,11 @@ ObjectIterator* SpaceIterator::CreateIterator() {
     case NEW_SPACE:
       iterator_ = new SemiSpaceIterator(Heap::new_space());
       break;
-    case OLD_SPACE:
-      iterator_ = new HeapObjectIterator(Heap::old_space());
+    case OLD_POINTER_SPACE:
+      iterator_ = new HeapObjectIterator(Heap::old_pointer_space());
+      break;
+    case OLD_DATA_SPACE:
+      iterator_ = new HeapObjectIterator(Heap::old_data_space());
       break;
     case CODE_SPACE:
       iterator_ = new HeapObjectIterator(Heap::code_space());

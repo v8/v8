@@ -227,10 +227,10 @@ void MemoryAllocator::TearDown() {
 
 void* MemoryAllocator::AllocateRawMemory(const size_t requested,
                                          size_t* allocated,
-                                         bool executable) {
+                                         Executability executable) {
   if (size_ + static_cast<int>(requested) > capacity_) return NULL;
 
-  void* mem = OS::Allocate(requested, allocated, executable);
+  void* mem = OS::Allocate(requested, allocated, executable == EXECUTABLE);
   int alloced = *allocated;
   size_ += alloced;
   Counters::memory_allocated.Increment(alloced);
@@ -316,7 +316,7 @@ Page* MemoryAllocator::CommitPages(Address start, size_t size,
   ASSERT(initial_chunk_->address() <= start);
   ASSERT(start + size <= reinterpret_cast<Address>(initial_chunk_->address())
                              + initial_chunk_->size());
-  if (!initial_chunk_->Commit(start, size, owner->executable())) {
+  if (!initial_chunk_->Commit(start, size, owner->executable() == EXECUTABLE)) {
     return Page::FromAddress(NULL);
   }
   Counters::memory_allocated.Increment(size);
@@ -332,7 +332,7 @@ Page* MemoryAllocator::CommitPages(Address start, size_t size,
 
 bool MemoryAllocator::CommitBlock(Address start,
                                   size_t size,
-                                  bool executable) {
+                                  Executability executable) {
   ASSERT(start != NULL);
   ASSERT(size > 0);
   ASSERT(initial_chunk_ != NULL);
@@ -474,7 +474,9 @@ void MemoryAllocator::ReportStatistics() {
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
-PagedSpace::PagedSpace(int max_capacity, AllocationSpace id, bool executable)
+PagedSpace::PagedSpace(int max_capacity,
+                       AllocationSpace id,
+                       Executability executable)
     : Space(id, executable) {
   max_capacity_ = (RoundDown(max_capacity, Page::kPageSize) / Page::kPageSize)
                   * Page::kObjectAreaSize;
@@ -494,8 +496,11 @@ bool PagedSpace::Setup(Address start, size_t size) {
   int num_pages = 0;
   // Try to use the virtual memory range passed to us.  If it is too small to
   // contain at least one page, ignore it and allocate instead.
-  if (PagesInChunk(start, size) > 0) {
-    first_page_ = MemoryAllocator::CommitPages(start, size, this, &num_pages);
+  int pages_in_chunk = PagesInChunk(start, size);
+  if (pages_in_chunk > 0) {
+    first_page_ = MemoryAllocator::CommitPages(RoundUp(start, Page::kPageSize),
+                                               Page::kPageSize * pages_in_chunk,
+                                               this, &num_pages);
   } else {
     int requested_pages = Min(MemoryAllocator::kPagesPerChunk,
                               max_capacity_ / Page::kObjectAreaSize);
@@ -768,15 +773,14 @@ void PagedSpace::Print() { }
 
 NewSpace::NewSpace(int initial_semispace_capacity,
                    int maximum_semispace_capacity,
-                   AllocationSpace id,
-                   bool executable)
-    : Space(id, executable) {
+                   AllocationSpace id)
+    : Space(id, NOT_EXECUTABLE) {
   ASSERT(initial_semispace_capacity <= maximum_semispace_capacity);
   ASSERT(IsPowerOf2(maximum_semispace_capacity));
   maximum_capacity_ = maximum_semispace_capacity;
   capacity_ = initial_semispace_capacity;
-  to_space_ = new SemiSpace(capacity_, maximum_capacity_, id, executable);
-  from_space_ = new SemiSpace(capacity_, maximum_capacity_, id, executable);
+  to_space_ = new SemiSpace(capacity_, maximum_capacity_, id);
+  from_space_ = new SemiSpace(capacity_, maximum_capacity_, id);
 
   // Allocate and setup the histogram arrays if necessary.
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
@@ -940,9 +944,8 @@ void NewSpace::Verify() {
 
 SemiSpace::SemiSpace(int initial_capacity,
                      int maximum_capacity,
-                     AllocationSpace id,
-                     bool executable)
-    : Space(id, executable), capacity_(initial_capacity),
+                     AllocationSpace id)
+    : Space(id, NOT_EXECUTABLE), capacity_(initial_capacity),
       maximum_capacity_(maximum_capacity), start_(NULL), age_mark_(NULL) {
 }
 
@@ -980,6 +983,9 @@ bool SemiSpace::Double() {
 
 #ifdef DEBUG
 void SemiSpace::Print() { }
+
+
+void SemiSpace::Verify() { }
 #endif
 
 
@@ -2190,7 +2196,7 @@ HeapObject* LargeObjectIterator::next() {
 
 LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
                                         size_t* chunk_size,
-                                        bool executable) {
+                                        Executability executable) {
   size_t requested = ChunkSizeFor(size_in_bytes);
   void* mem = MemoryAllocator::AllocateRawMemory(requested,
                                                  chunk_size,
@@ -2216,8 +2222,8 @@ int LargeObjectChunk::ChunkSizeFor(int size_in_bytes) {
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
 
-LargeObjectSpace::LargeObjectSpace(AllocationSpace id, bool executable)
-    : Space(id, executable),
+LargeObjectSpace::LargeObjectSpace(AllocationSpace id)
+    : Space(id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
       first_chunk_(NULL),
       size_(0),
       page_count_(0) {}
@@ -2245,11 +2251,12 @@ void LargeObjectSpace::TearDown() {
 
 
 Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
-                                              int object_size) {
+                                              int object_size,
+                                              Executability executable) {
   ASSERT(0 < object_size && object_size <= requested_size);
   size_t chunk_size;
   LargeObjectChunk* chunk =
-      LargeObjectChunk::New(requested_size, &chunk_size, executable());
+      LargeObjectChunk::New(requested_size, &chunk_size, executable);
   if (chunk == NULL) {
     return Failure::RetryAfterGC(requested_size, identity());
   }
@@ -2280,15 +2287,28 @@ Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
 }
 
 
-Object* LargeObjectSpace::AllocateRaw(int size_in_bytes) {
+Object* LargeObjectSpace::AllocateRawCode(int size_in_bytes) {
   ASSERT(0 < size_in_bytes);
-  return AllocateRawInternal(size_in_bytes, size_in_bytes);
+  return AllocateRawInternal(size_in_bytes,
+                             size_in_bytes,
+                             EXECUTABLE);
 }
 
 
 Object* LargeObjectSpace::AllocateRawFixedArray(int size_in_bytes) {
+  ASSERT(0 < size_in_bytes);
   int extra_rset_bytes = ExtraRSetBytesFor(size_in_bytes);
-  return AllocateRawInternal(size_in_bytes + extra_rset_bytes, size_in_bytes);
+  return AllocateRawInternal(size_in_bytes + extra_rset_bytes,
+                             size_in_bytes,
+                             NOT_EXECUTABLE);
+}
+
+
+Object* LargeObjectSpace::AllocateRaw(int size_in_bytes) {
+  ASSERT(0 < size_in_bytes);
+  return AllocateRawInternal(size_in_bytes,
+                             size_in_bytes,
+                             NOT_EXECUTABLE);
 }
 
 

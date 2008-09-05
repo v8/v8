@@ -1171,9 +1171,8 @@ bool VirtualMemory::IsReserved() {
 }
 
 
-VirtualMemory::VirtualMemory(size_t size, void* address_hint) {
-  address_ =
-      VirtualAlloc(address_hint, size, MEM_RESERVE, PAGE_NOACCESS);
+VirtualMemory::VirtualMemory(size_t size) {
+  address_ = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
   size_ = size;
 }
 

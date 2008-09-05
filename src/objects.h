@@ -3327,6 +3327,8 @@ class Oddball: public HeapObject {
 
 
 // Proxy describes objects pointing from JavaScript to C structures.
+// Since they cannot contain references to JS HeapObjects they can be
+// placed in old_data_space.
 class Proxy: public HeapObject {
  public:
   // [proxy]: field containing the address.

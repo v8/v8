@@ -102,10 +102,10 @@ TEST(Promotion) {
   CHECK(Heap::InSpace(*array, NEW_SPACE));
 
   // Call the m-c collector, so array becomes an old object.
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   // Array now sits in the old space
-  CHECK(Heap::InSpace(*array, OLD_SPACE));
+  CHECK(Heap::InSpace(*array, OLD_POINTER_SPACE));
 }
 
 
@@ -120,7 +120,7 @@ TEST(NoPromotion) {
   v8::HandleScope sc;
 
   // Do a mark compact GC to shrink the heap.
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   // Allocate a big Fixed array in the new space.
   int size = (Heap::MaxHeapObjectSize() - Array::kHeaderSize) / kPointerSize;
@@ -142,7 +142,7 @@ TEST(NoPromotion) {
   }
 
   // Call mark compact GC, and it should pass.
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   // array should not be promoted because the old space is full.
   CHECK(Heap::InSpace(*array, NEW_SPACE));
@@ -154,7 +154,7 @@ TEST(MarkCompactCollector) {
 
   v8::HandleScope sc;
   // call mark-compact when heap is empty
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   // keep allocating garbage in new space until it fails
   const int ARRAY_SIZE = 100;
@@ -190,7 +190,7 @@ TEST(MarkCompactCollector) {
   Top::context()->global()->SetProperty(func_name, function, NONE);
 
   JSObject* obj = JSObject::cast(Heap::AllocateJSObject(function));
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   func_name = String::cast(Heap::LookupAsciiSymbol("theFunction"));
   CHECK(Top::context()->global()->HasLocalProperty(func_name));
@@ -204,7 +204,7 @@ TEST(MarkCompactCollector) {
   String* prop_name = String::cast(Heap::LookupAsciiSymbol("theSlot"));
   obj->SetProperty(prop_name, Smi::FromInt(23), NONE);
 
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   obj_name = String::cast(Heap::LookupAsciiSymbol("theObject"));
   CHECK(Top::context()->global()->HasLocalProperty(obj_name));
@@ -242,7 +242,7 @@ TEST(GCCallback) {
   CHECK_EQ(0, gc_starts);
   CHECK_EQ(gc_ends, gc_starts);
 
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
   CHECK_EQ(1, gc_starts);
   CHECK_EQ(gc_ends, gc_starts);
 }
@@ -292,7 +292,7 @@ TEST(ObjectGroups) {
   GlobalHandles::AddToGroup(reinterpret_cast<void*>(2), g2s1.location());
   GlobalHandles::AddToGroup(reinterpret_cast<void*>(2), g2s2.location());
   // Do a full GC
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   // All object should be alive.
   CHECK_EQ(0, NumberOfWeakCalls);
@@ -308,7 +308,7 @@ TEST(ObjectGroups) {
   GlobalHandles::AddToGroup(reinterpret_cast<void*>(2), g2s1.location());
   GlobalHandles::AddToGroup(reinterpret_cast<void*>(2), g2s2.location());
 
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   // All objects should be gone. 5 global handles in total.
   CHECK_EQ(5, NumberOfWeakCalls);

@@ -618,7 +618,7 @@ static void DebugEventBreakPointCollectGarbage(
       Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
     } else {
       // Mark sweep (and perhaps compact).
-      Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+      Heap::CollectAllGarbage();
     }
   }
 }
@@ -960,7 +960,7 @@ static void CallAndGC(v8::Local<v8::Object> recv, v8::Local<v8::Function> f) {
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+    Heap::CollectAllGarbage();
     f->Call(recv, 0, NULL);
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }

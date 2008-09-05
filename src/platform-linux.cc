@@ -353,8 +353,8 @@ static const int kMmapFd = -1;
 static const int kMmapFdOffset = 0;
 
 
-VirtualMemory::VirtualMemory(size_t size, void* address_hint) {
-  address_ = mmap(address_hint, size, PROT_NONE,
+VirtualMemory::VirtualMemory(size_t size) {
+  address_ = mmap(NULL, size, PROT_NONE,
                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
                   kMmapFd, kMmapFdOffset);
   size_ = size;

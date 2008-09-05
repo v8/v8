@@ -86,14 +86,7 @@ Page* Page::next_page() {
 
 Address Page::AllocationTop() {
   PagedSpace* owner = MemoryAllocator::PageOwner(this);
-  if (Heap::old_space() == owner) {
-    return Heap::old_space()->PageAllocationTop(this);
-  } else if (Heap::code_space() == owner) {
-    return Heap::code_space()->PageAllocationTop(this);
-  } else {
-    ASSERT(Heap::map_space() == owner);
-    return Heap::map_space()->PageAllocationTop(this);
-  }
+  return owner->PageAllocationTop(this);
 }
 
 
@@ -279,24 +272,6 @@ Object* PagedSpace::MCAllocateRaw(int size_in_bytes) {
   if (object != NULL) return object;
 
   return Failure::RetryAfterGC(size_in_bytes, identity());
-}
-
-
-// Allocating during deserialization.  Always roll to the next page in the
-// space, which should be suitably expanded.
-Object* PagedSpace::AllocateForDeserialization(int size_in_bytes) {
-  ASSERT(HasBeenSetup());
-  ASSERT_OBJECT_SIZE(size_in_bytes);
-  HeapObject* object = AllocateLinearly(&allocation_info_, size_in_bytes);
-  if (object != NULL) return object;
-
-  // The space should be pre-expanded.
-  Page* current_page = Page::FromAllocationTop(allocation_info_.top);
-  ASSERT(current_page->next_page()->is_valid());
-  object = AllocateInNextPage(current_page, size_in_bytes);
-
-  ASSERT(object != NULL);
-  return object;
 }
 
 

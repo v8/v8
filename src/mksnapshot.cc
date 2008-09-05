@@ -182,8 +182,8 @@ int main(int argc, char** argv) {
       i::Bootstrapper::NativesSourceLookup(i);
     }
   }
-  // Get rid of unreferenced scripts.
-  i::Heap::CollectGarbage(0, i::OLD_SPACE);
+  // Get rid of unreferenced scripts with a global GC.
+  i::Heap::CollectAllGarbage();
   i::Serializer ser;
   ser.Serialize();
   char* str;

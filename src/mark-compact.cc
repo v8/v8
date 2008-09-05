@@ -73,8 +73,9 @@ MarkCompactCollector::CollectorState MarkCompactCollector::state_ = IDLE;
 // collection.
 int MarkCompactCollector::live_bytes_ = 0;
 int MarkCompactCollector::live_young_objects_ = 0;
-int MarkCompactCollector::live_old_objects_ = 0;
-int MarkCompactCollector::live_immutable_objects_ = 0;
+int MarkCompactCollector::live_old_data_objects_ = 0;
+int MarkCompactCollector::live_old_pointer_objects_ = 0;
+int MarkCompactCollector::live_code_objects_ = 0;
 int MarkCompactCollector::live_map_objects_ = 0;
 int MarkCompactCollector::live_lo_objects_ = 0;
 #endif
@@ -131,14 +132,16 @@ void MarkCompactCollector::Prepare() {
   // because objects do not get promoted out of new space on non-compacting
   // GCs.
   if (!compacting_collection_) {
-    int old_gen_recoverable = Heap::old_space()->Waste()
-                            + Heap::old_space()->AvailableFree()
-                            + Heap::code_space()->Waste()
-                            + Heap::code_space()->AvailableFree();
-    int old_gen_used = old_gen_recoverable
-                     + Heap::old_space()->Size()
-                     + Heap::code_space()->Size();
-    int old_gen_fragmentation = (old_gen_recoverable * 100) / old_gen_used;
+    int old_gen_recoverable = 0;
+    int old_gen_used = 0;
+
+    OldSpaces spaces;
+    while (OldSpace* space = spaces.next()) {
+      old_gen_recoverable += space->Waste() + space->AvailableFree();
+      old_gen_used += space->Size();
+    }
+    int old_gen_fragmentation =
+      static_cast<int>((old_gen_recoverable * 100.0) / old_gen_used);
     if (old_gen_fragmentation > kFragmentationLimit) {
       compacting_collection_ = true;
     }
@@ -154,17 +157,19 @@ void MarkCompactCollector::Prepare() {
   }
 #endif
 
-  Heap::map_space()->PrepareForMarkCompact(compacting_collection_);
-  Heap::old_space()->PrepareForMarkCompact(compacting_collection_);
-  Heap::code_space()->PrepareForMarkCompact(compacting_collection_);
+  PagedSpaces spaces;
+  while (PagedSpace* space = spaces.next()) {
+    space->PrepareForMarkCompact(compacting_collection_);
+  }
 
   Counters::global_objects.Set(0);
 
 #ifdef DEBUG
   live_bytes_ = 0;
   live_young_objects_ = 0;
-  live_old_objects_ = 0;
-  live_immutable_objects_ = 0;
+  live_old_pointer_objects_ = 0;
+  live_old_data_objects_ = 0;
+  live_code_objects_ = 0;
   live_map_objects_ = 0;
   live_lo_objects_ = 0;
 #endif
@@ -575,8 +580,13 @@ void MarkCompactCollector::RefillMarkingStack() {
   ScanOverflowedObjects(&new_it);
   if (marking_stack.is_full()) return;
 
-  HeapObjectIterator old_it(Heap::old_space(), &OverflowObjectSize);
-  ScanOverflowedObjects(&old_it);
+  HeapObjectIterator old_pointer_it(Heap::old_pointer_space(),
+                                    &OverflowObjectSize);
+  ScanOverflowedObjects(&old_pointer_it);
+  if (marking_stack.is_full()) return;
+
+  HeapObjectIterator old_data_it(Heap::old_data_space(), &OverflowObjectSize);
+  ScanOverflowedObjects(&old_data_it);
   if (marking_stack.is_full()) return;
 
   HeapObjectIterator code_it(Heap::code_space(), &OverflowObjectSize);
@@ -683,10 +693,12 @@ void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
   } else if (Heap::map_space()->Contains(obj)) {
     ASSERT(obj->IsMap());
     live_map_objects_++;
-  } else if (Heap::old_space()->Contains(obj)) {
-    live_old_objects_++;
+  } else if (Heap::old_pointer_space()->Contains(obj)) {
+    live_old_pointer_objects_++;
+  } else if (Heap::old_data_space()->Contains(obj)) {
+    live_old_data_objects_++;
   } else if (Heap::code_space()->Contains(obj)) {
-    live_immutable_objects_++;
+    live_code_objects_++;
   } else if (Heap::lo_space()->Contains(obj)) {
     live_lo_objects_++;
   } else {
@@ -704,7 +716,8 @@ static int CountMarkedCallback(HeapObject* obj) {
 
 void MarkCompactCollector::VerifyHeapAfterMarkingPhase() {
   Heap::new_space()->Verify();
-  Heap::old_space()->Verify();
+  Heap::old_pointer_space()->Verify();
+  Heap::old_data_space()->Verify();
   Heap::code_space()->Verify();
   Heap::map_space()->Verify();
 
@@ -721,11 +734,15 @@ void MarkCompactCollector::VerifyHeapAfterMarkingPhase() {
   SemiSpaceIterator new_it(Heap::new_space(), &CountMarkedCallback);
   CHECK_LIVE_OBJECTS(new_it, live_young_objects_);
 
-  HeapObjectIterator old_it(Heap::old_space(), &CountMarkedCallback);
-  CHECK_LIVE_OBJECTS(old_it, live_old_objects_);
+  HeapObjectIterator old_pointer_it(Heap::old_pointer_space(),
+                                    &CountMarkedCallback);
+  CHECK_LIVE_OBJECTS(old_pointer_it, live_old_pointer_objects_);
+
+  HeapObjectIterator old_data_it(Heap::old_data_space(), &CountMarkedCallback);
+  CHECK_LIVE_OBJECTS(old_data_it, live_old_data_objects_);
 
   HeapObjectIterator code_it(Heap::code_space(), &CountMarkedCallback);
-  CHECK_LIVE_OBJECTS(code_it, live_immutable_objects_);
+  CHECK_LIVE_OBJECTS(code_it, live_code_objects_);
 
   HeapObjectIterator map_it(Heap::map_space(), &CountMarkedCallback);
   CHECK_LIVE_OBJECTS(map_it, live_map_objects_);
@@ -807,14 +824,10 @@ void EncodeFreeRegion(Address free_start, int free_size) {
 // Try to promote all objects in new space.  Heap numbers and sequential
 // strings are promoted to the code space, all others to the old space.
 inline Object* MCAllocateFromNewSpace(HeapObject* object, int object_size) {
-  AllocationSpace target_space = Heap::TargetSpace(object);
-  Object* forwarded;
-  if (target_space == OLD_SPACE) {
-    forwarded = Heap::old_space()->MCAllocateRaw(object_size);
-  } else {
-    ASSERT(target_space == CODE_SPACE);
-    forwarded = Heap::code_space()->MCAllocateRaw(object_size);
-  }
+  OldSpace* target_space = Heap::TargetSpace(object);
+  ASSERT(target_space == Heap::old_pointer_space() ||
+         target_space == Heap::old_data_space());
+  Object* forwarded = target_space->MCAllocateRaw(object_size);
 
   if (forwarded->IsFailure()) {
     forwarded = Heap::new_space()->MCAllocateRaw(object_size);
@@ -824,8 +837,14 @@ inline Object* MCAllocateFromNewSpace(HeapObject* object, int object_size) {
 
 
 // Allocation functions for the paged spaces call the space's MCAllocateRaw.
-inline Object* MCAllocateFromOldSpace(HeapObject* object, int object_size) {
-  return Heap::old_space()->MCAllocateRaw(object_size);
+inline Object* MCAllocateFromOldPointerSpace(HeapObject* object,
+                                             int object_size) {
+  return Heap::old_pointer_space()->MCAllocateRaw(object_size);
+}
+
+
+inline Object* MCAllocateFromOldDataSpace(HeapObject* object, int object_size) {
+  return Heap::old_data_space()->MCAllocateRaw(object_size);
 }
 
 
@@ -1058,10 +1077,16 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
 }
 
 
-void MarkCompactCollector::DeallocateOldBlock(Address start,
-                                              int size_in_bytes) {
+void MarkCompactCollector::DeallocateOldPointerBlock(Address start,
+                                                     int size_in_bytes) {
   Heap::ClearRSetRange(start, size_in_bytes);
-  Heap::old_space()->Free(start, size_in_bytes);
+  Heap::old_pointer_space()->Free(start, size_in_bytes);
+}
+
+
+void MarkCompactCollector::DeallocateOldDataBlock(Address start,
+                                                  int size_in_bytes) {
+  Heap::old_data_space()->Free(start, size_in_bytes);
 }
 
 
@@ -1093,9 +1118,13 @@ void MarkCompactCollector::EncodeForwardingAddresses() {
   Heap::new_space()->MCResetRelocationInfo();
 
   // Compute the forwarding pointers in each space.
-  EncodeForwardingAddressesInPagedSpace<MCAllocateFromOldSpace,
+  EncodeForwardingAddressesInPagedSpace<MCAllocateFromOldPointerSpace,
                                         IgnoreNonLiveObject>(
-      Heap::old_space());
+      Heap::old_pointer_space());
+
+  EncodeForwardingAddressesInPagedSpace<MCAllocateFromOldDataSpace,
+                                        IgnoreNonLiveObject>(
+      Heap::old_data_space());
 
   EncodeForwardingAddressesInPagedSpace<MCAllocateFromCodeSpace,
                                         LogNonLiveCodeObject>(
@@ -1115,7 +1144,8 @@ void MarkCompactCollector::EncodeForwardingAddresses() {
   // Write relocation info to the top page, so we can use it later.  This is
   // done after promoting objects from the new space so we get the correct
   // allocation top.
-  Heap::old_space()->MCWriteRelocationInfoToPage();
+  Heap::old_pointer_space()->MCWriteRelocationInfoToPage();
+  Heap::old_data_space()->MCWriteRelocationInfoToPage();
   Heap::code_space()->MCWriteRelocationInfoToPage();
   Heap::map_space()->MCWriteRelocationInfoToPage();
 }
@@ -1129,7 +1159,8 @@ void MarkCompactCollector::SweepSpaces() {
   // the map space last because freeing non-live maps overwrites them and
   // the other spaces rely on possibly non-live maps to get the sizes for
   // non-live objects.
-  SweepSpace(Heap::old_space(), &DeallocateOldBlock);
+  SweepSpace(Heap::old_pointer_space(), &DeallocateOldPointerBlock);
+  SweepSpace(Heap::old_data_space(), &DeallocateOldDataBlock);
   SweepSpace(Heap::code_space(), &DeallocateCodeBlock);
   SweepSpace(Heap::new_space());
   SweepSpace(Heap::map_space(), &DeallocateMapBlock);
@@ -1193,19 +1224,16 @@ static int VerifyMapObject(HeapObject* obj) {
 
 
 void MarkCompactCollector::VerifyHeapAfterEncodingForwardingAddresses() {
-  Heap::new_space()->Verify();
-  Heap::old_space()->Verify();
-  Heap::code_space()->Verify();
-  Heap::map_space()->Verify();
+  AllSpaces spaces;
+  while (Space* space = spaces.next()) space->Verify();
 
   ASSERT(state_ == ENCODE_FORWARDING_ADDRESSES);
   int live_maps = IterateLiveObjects(Heap::map_space(), &VerifyMapObject);
   ASSERT(live_maps == live_map_objects_);
 
   // Verify page headers in paged spaces.
-  VerifyPageHeaders(Heap::old_space());
-  VerifyPageHeaders(Heap::code_space());
-  VerifyPageHeaders(Heap::map_space());
+  PagedSpaces paged_spaces;
+  while (PagedSpace* space = paged_spaces.next()) VerifyPageHeaders(space);
 }
 
 
@@ -1264,7 +1292,8 @@ class UpdatingVisitor: public ObjectVisitor {
       new_addr = Memory::Address_at(f_addr);
 
 #ifdef DEBUG
-      ASSERT(Heap::old_space()->Contains(new_addr) ||
+      ASSERT(Heap::old_pointer_space()->Contains(new_addr) ||
+             Heap::old_data_space()->Contains(new_addr) ||
              Heap::code_space()->Contains(new_addr) ||
              Heap::new_space()->FromSpaceContains(new_addr));
 
@@ -1279,19 +1308,24 @@ class UpdatingVisitor: public ObjectVisitor {
       return;
 
     } else {
-      ASSERT(Heap::old_space()->Contains(obj) ||
+      ASSERT(Heap::old_pointer_space()->Contains(obj) ||
+             Heap::old_data_space()->Contains(obj) ||
              Heap::code_space()->Contains(obj) ||
              Heap::map_space()->Contains(obj));
 
       new_addr = MarkCompactCollector::GetForwardingAddressInOldSpace(obj);
-      ASSERT(Heap::old_space()->Contains(new_addr) ||
+      ASSERT(Heap::old_pointer_space()->Contains(new_addr) ||
+             Heap::old_data_space()->Contains(new_addr) ||
              Heap::code_space()->Contains(new_addr) ||
              Heap::map_space()->Contains(new_addr));
 
 #ifdef DEBUG
-      if (Heap::old_space()->Contains(obj)) {
-        ASSERT(Heap::old_space()->MCSpaceOffsetForAddress(new_addr) <=
-               Heap::old_space()->MCSpaceOffsetForAddress(old_addr));
+      if (Heap::old_pointer_space()->Contains(obj)) {
+        ASSERT(Heap::old_pointer_space()->MCSpaceOffsetForAddress(new_addr) <=
+               Heap::old_pointer_space()->MCSpaceOffsetForAddress(old_addr));
+      } else if (Heap::old_data_space()->Contains(obj)) {
+        ASSERT(Heap::old_data_space()->MCSpaceOffsetForAddress(new_addr) <=
+               Heap::old_data_space()->MCSpaceOffsetForAddress(old_addr));
       } else if (Heap::code_space()->Contains(obj)) {
         ASSERT(Heap::code_space()->MCSpaceOffsetForAddress(new_addr) <=
                Heap::code_space()->MCSpaceOffsetForAddress(old_addr));
@@ -1325,10 +1359,12 @@ void MarkCompactCollector::UpdatePointers() {
 
   int live_maps = IterateLiveObjects(Heap::map_space(),
                                      &UpdatePointersInOldObject);
-  int live_olds = IterateLiveObjects(Heap::old_space(),
-                                     &UpdatePointersInOldObject);
-  int live_immutables = IterateLiveObjects(Heap::code_space(),
-                                           &UpdatePointersInOldObject);
+  int live_pointer_olds = IterateLiveObjects(Heap::old_pointer_space(),
+                                             &UpdatePointersInOldObject);
+  int live_data_olds = IterateLiveObjects(Heap::old_data_space(),
+                                          &UpdatePointersInOldObject);
+  int live_codes = IterateLiveObjects(Heap::code_space(),
+                                      &UpdatePointersInOldObject);
   int live_news = IterateLiveObjects(Heap::new_space(),
                                      &UpdatePointersInNewObject);
 
@@ -1337,14 +1373,16 @@ void MarkCompactCollector::UpdatePointers() {
   while (it.has_next()) UpdatePointersInNewObject(it.next());
 
   USE(live_maps);
-  USE(live_olds);
-  USE(live_immutables);
+  USE(live_pointer_olds);
+  USE(live_data_olds);
+  USE(live_codes);
   USE(live_news);
 
 #ifdef DEBUG
   ASSERT(live_maps == live_map_objects_);
-  ASSERT(live_olds == live_old_objects_);
-  ASSERT(live_immutables == live_immutable_objects_);
+  ASSERT(live_data_olds == live_old_data_objects_);
+  ASSERT(live_pointer_olds == live_old_pointer_objects_);
+  ASSERT(live_codes == live_code_objects_);
   ASSERT(live_news == live_young_objects_);
 
   if (FLAG_verify_global_gc) VerifyHeapAfterUpdatingPointers();
@@ -1457,16 +1495,10 @@ Address MarkCompactCollector::GetForwardingAddressInOldSpace(HeapObject* obj) {
 void MarkCompactCollector::VerifyHeapAfterUpdatingPointers() {
   ASSERT(state_ == UPDATE_POINTERS);
 
-  Heap::new_space()->Verify();
-  Heap::old_space()->Verify();
-  Heap::code_space()->Verify();
-  Heap::map_space()->Verify();
-
-  // We don't have object size info after updating pointers, not much we can
-  // do here.
-  VerifyPageHeaders(Heap::old_space());
-  VerifyPageHeaders(Heap::code_space());
-  VerifyPageHeaders(Heap::map_space());
+  AllSpaces spaces;
+  while (Space* space = spaces.next()) space->Verify();
+  PagedSpaces paged_spaces;
+  while (PagedSpace* space = paged_spaces.next()) VerifyPageHeaders(space);
 }
 #endif
 
@@ -1482,19 +1514,23 @@ void MarkCompactCollector::RelocateObjects() {
   // Relocates objects, always relocate map objects first. Relocating
   // objects in other space relies on map objects to get object size.
   int live_maps = IterateLiveObjects(Heap::map_space(), &RelocateMapObject);
-  int live_olds = IterateLiveObjects(Heap::old_space(), &RelocateOldObject);
-  int live_immutables =
-      IterateLiveObjects(Heap::code_space(), &RelocateCodeObject);
+  int live_pointer_olds = IterateLiveObjects(Heap::old_pointer_space(),
+                                             &RelocateOldPointerObject);
+  int live_data_olds = IterateLiveObjects(Heap::old_data_space(),
+                                          &RelocateOldDataObject);
+  int live_codes = IterateLiveObjects(Heap::code_space(), &RelocateCodeObject);
   int live_news = IterateLiveObjects(Heap::new_space(), &RelocateNewObject);
 
   USE(live_maps);
-  USE(live_olds);
-  USE(live_immutables);
+  USE(live_data_olds);
+  USE(live_pointer_olds);
+  USE(live_codes);
   USE(live_news);
 #ifdef DEBUG
   ASSERT(live_maps == live_map_objects_);
-  ASSERT(live_olds == live_old_objects_);
-  ASSERT(live_immutables == live_immutable_objects_);
+  ASSERT(live_data_olds == live_old_data_objects_);
+  ASSERT(live_pointer_olds == live_old_pointer_objects_);
+  ASSERT(live_codes == live_code_objects_);
   ASSERT(live_news == live_young_objects_);
 #endif
 
@@ -1516,9 +1552,8 @@ void MarkCompactCollector::RelocateObjects() {
   // page-by-page basis after committing the m-c forwarding pointer.
   Page::set_rset_state(Page::IN_USE);
 #endif
-  Heap::map_space()->MCCommitRelocationInfo();
-  Heap::old_space()->MCCommitRelocationInfo();
-  Heap::code_space()->MCCommitRelocationInfo();
+  PagedSpaces spaces;
+  while (PagedSpace* space = spaces.next()) space->MCCommitRelocationInfo();
 
 #ifdef DEBUG
   if (FLAG_verify_global_gc) VerifyHeapAfterRelocatingObjects();
@@ -1563,15 +1598,10 @@ int MarkCompactCollector::RelocateMapObject(HeapObject* obj) {
 }
 
 
-int MarkCompactCollector::RelocateOldObject(HeapObject* obj) {
-  // decode map pointer (forwarded address)
-  MapWord encoding = obj->map_word();
-  Address map_addr = encoding.DecodeMapAddress(Heap::map_space());
-  ASSERT(Heap::map_space()->Contains(map_addr));
-
-  // Get forwarding address before resetting map pointer
-  Address new_addr = GetForwardingAddressInOldSpace(obj);
-
+static inline int RelocateOldObject(HeapObject* obj,
+                                    OldSpace* space,
+                                    Address new_addr,
+                                    Address map_addr) {
   // recover map pointer
   obj->set_map(reinterpret_cast<Map*>(HeapObject::FromAddress(map_addr)));
 
@@ -1580,32 +1610,52 @@ int MarkCompactCollector::RelocateOldObject(HeapObject* obj) {
   int obj_size = obj->Size();
   ASSERT_OBJECT_SIZE(obj_size);
 
+  ASSERT(space->MCSpaceOffsetForAddress(new_addr) <=
+         space->MCSpaceOffsetForAddress(obj->address()));
+
+  space->MCAdjustRelocationEnd(new_addr, obj_size);
+
+#ifdef DEBUG
+  if (FLAG_gc_verbose) {
+    PrintF("relocate %p -> %p\n", obj->address(), new_addr);
+  }
+#endif
+
+  return obj_size;
+}
+
+
+int MarkCompactCollector::RelocateOldNonCodeObject(HeapObject* obj,
+                                                   OldSpace* space) {
+  // decode map pointer (forwarded address)
+  MapWord encoding = obj->map_word();
+  Address map_addr = encoding.DecodeMapAddress(Heap::map_space());
+  ASSERT(Heap::map_space()->Contains(map_addr));
+
+  // Get forwarding address before resetting map pointer
+  Address new_addr = GetForwardingAddressInOldSpace(obj);
+
+  int obj_size = RelocateOldObject(obj, space, new_addr, map_addr);
+
   Address old_addr = obj->address();
-
-  ASSERT(Heap::old_space()->MCSpaceOffsetForAddress(new_addr) <=
-         Heap::old_space()->MCSpaceOffsetForAddress(old_addr));
-
-  Heap::old_space()->MCAdjustRelocationEnd(new_addr, obj_size);
 
   if (new_addr != old_addr) {
     memmove(new_addr, old_addr, obj_size);  // copy contents
   }
 
-  HeapObject* copied_to = HeapObject::FromAddress(new_addr);
-  if (copied_to->IsCode()) {
-    // may also update inline cache target.
-    Code::cast(copied_to)->Relocate(new_addr - old_addr);
-    // Notify the logger that compile code has moved.
-    LOG(CodeMoveEvent(old_addr, new_addr));
-  }
-
-#ifdef DEBUG
-  if (FLAG_gc_verbose) {
-    PrintF("relocate %p -> %p\n", old_addr, new_addr);
-  }
-#endif
+  ASSERT(!HeapObject::FromAddress(new_addr)->IsCode());
 
   return obj_size;
+}
+
+
+int MarkCompactCollector::RelocateOldPointerObject(HeapObject* obj) {
+  return RelocateOldNonCodeObject(obj, Heap::old_pointer_space());
+}
+
+
+int MarkCompactCollector::RelocateOldDataObject(HeapObject* obj) {
+  return RelocateOldNonCodeObject(obj, Heap::old_data_space());
 }
 
 
@@ -1618,26 +1668,15 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
   // Get forwarding address before resetting map pointer
   Address new_addr = GetForwardingAddressInOldSpace(obj);
 
-  // recover map pointer
-  obj->set_map(reinterpret_cast<Map*>(HeapObject::FromAddress(map_addr)));
-
-  // This is a non-map object, it relies on the assumption that the Map space
-  // is compacted before the other spaces (see RelocateObjects).
-  int obj_size = obj->Size();
-  ASSERT_OBJECT_SIZE(obj_size);
-
-  Address old_addr = obj->address();
-
-  ASSERT(Heap::code_space()->MCSpaceOffsetForAddress(new_addr) <=
-         Heap::code_space()->MCSpaceOffsetForAddress(old_addr));
-
-  Heap::code_space()->MCAdjustRelocationEnd(new_addr, obj_size);
+  int obj_size = RelocateOldObject(obj, Heap::code_space(), new_addr, map_addr);
 
   // convert inline cache target to address using old address
   if (obj->IsCode()) {
     // convert target to address first related to old_address
     Code::cast(obj)->ConvertICTargetsFromObjectToAddress();
   }
+
+  Address old_addr = obj->address();
 
   if (new_addr != old_addr) {
     memmove(new_addr, old_addr, obj_size);  // copy contents
@@ -1650,12 +1689,6 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
     // Notify the logger that compile code has moved.
     LOG(CodeMoveEvent(old_addr, new_addr));
   }
-
-#ifdef DEBUG
-  if (FLAG_gc_verbose) {
-    PrintF("relocate %p -> %p\n", old_addr, new_addr);
-  }
-#endif
 
   return obj_size;
 }
@@ -1687,13 +1720,10 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
     ASSERT(Heap::new_space()->FromSpaceOffsetForAddress(new_addr) <=
            Heap::new_space()->ToSpaceOffsetForAddress(old_addr));
   } else {
-    AllocationSpace target_space = Heap::TargetSpace(obj);
-    if (target_space == OLD_SPACE) {
-      Heap::old_space()->MCAdjustRelocationEnd(new_addr, obj_size);
-    } else {
-      ASSERT(target_space == CODE_SPACE);
-      Heap::code_space()->MCAdjustRelocationEnd(new_addr, obj_size);
-    }
+    OldSpace* target_space = Heap::TargetSpace(obj);
+    ASSERT(target_space == Heap::old_pointer_space() ||
+           target_space == Heap::old_data_space());
+    target_space->MCAdjustRelocationEnd(new_addr, obj_size);
   }
 
   // New and old addresses cannot overlap.
@@ -1721,26 +1751,14 @@ void MarkCompactCollector::VerifyHeapAfterRelocatingObjects() {
   ASSERT(state_ == RELOCATE_OBJECTS);
 
   Heap::new_space()->Verify();
-  Heap::old_space()->Verify();
-  Heap::code_space()->Verify();
-  Heap::map_space()->Verify();
-
-  PageIterator old_it(Heap::old_space(), PageIterator::PAGES_IN_USE);
-  while (old_it.has_next()) {
-    Page* p = old_it.next();
-    ASSERT_PAGE_OFFSET(p->Offset(p->AllocationTop()));
-  }
-
-  PageIterator code_it(Heap::code_space(), PageIterator::PAGES_IN_USE);
-  while (code_it.has_next()) {
-    Page* p = code_it.next();
-    ASSERT_PAGE_OFFSET(p->Offset(p->AllocationTop()));
-  }
-
-  PageIterator map_it(Heap::map_space(), PageIterator::PAGES_IN_USE);
-  while (map_it.has_next()) {
-    Page* p = map_it.next();
-    ASSERT_PAGE_OFFSET(p->Offset(p->AllocationTop()));
+  PagedSpaces spaces;
+  while (PagedSpace* space = spaces.next()) {
+    space->Verify();
+    PageIterator it(space, PageIterator::PAGES_IN_USE);
+    while (it.has_next()) {
+      Page* p = it.next();
+      ASSERT_PAGE_OFFSET(p->Offset(p->AllocationTop()));
+    }
   }
 }
 #endif
