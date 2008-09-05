@@ -333,3 +333,43 @@ TEST(DeepAscii) {
     TraverseFirst(flat_string, string, DEEP_ASCII_DEPTH);
   }
 }
+
+
+TEST(Utf8Conversion) {
+  // Smoke test for converting strings to utf-8.
+  InitializeVM();
+  v8::HandleScope handle_scope;
+  // A simple ascii string
+  const char* ascii_string = "abcdef12345";
+  int len = v8::String::New(ascii_string, strlen(ascii_string))->Utf8Length();
+  CHECK_EQ(strlen(ascii_string), len);
+  // A mixed ascii and non-ascii string
+  // U+02E4 -> CB A4
+  // U+0064 -> 64
+  // U+12E4 -> E1 8B A4
+  // U+0030 -> 30
+  // U+3045 -> E3 81 85
+  const uint16_t mixed_string[] = {0x02E4, 0x0064, 0x12E4, 0x0030, 0x3045};
+  // The characters we expect to be output
+  const char as_utf8[11] = {0xCB, 0xA4, 0x64, 0xE1, 0x8B, 0xA4, 0x30,
+      0xE3, 0x81, 0x85, 0x00};
+  // The number of bytes expected to be written for each length
+  const int lengths[12] = {0, 0, 2, 3, 3, 3, 6, 7, 7, 7, 10, 11};
+  v8::Handle<v8::String> mixed = v8::String::New(mixed_string, 5);
+  CHECK_EQ(10, mixed->Utf8Length());
+  // Try encoding the string with all capacities
+  char buffer[11];
+  for (int i = 0; i <= 11; i++) {
+    // Clear the buffer before reusing it
+    for (int j = 0; j < 11; j++)
+      buffer[j] = -1;
+    int written = mixed->WriteUtf8(buffer, i);
+    CHECK_EQ(lengths[i], written);
+    // Check that the contents are correct
+    for (int j = 0; j < lengths[i]; j++)
+      CHECK_EQ(as_utf8[j], buffer[j]);
+    // Check that the rest of the buffer hasn't been touched
+    for (int j = lengths[i]; j < 11; j++)
+      CHECK_EQ(-1, buffer[j]);
+  }
+}

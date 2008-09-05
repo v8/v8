@@ -2915,6 +2915,22 @@ bool String::LooksValid() {
 }
 
 
+int String::Utf8Length() {
+  if (is_ascii()) return length();
+  // Attempt to flatten before accessing the string.  It probably
+  // doesn't make Utf8Length faster, but it is very likely that
+  // the string will be accessed later (for example by WriteUtf8)
+  // so it's still a good idea.
+  TryFlatten();
+  Access<StringInputBuffer> buffer(&string_input_buffer);
+  buffer->Reset(0, this);
+  int result = 0;
+  while (buffer->has_more())
+    result += unibrow::Utf8::Length(buffer->GetNext());
+  return result;
+}
+
+
 SmartPointer<char> String::ToCString(AllowNullsFlag allow_nulls,
                                      RobustnessFlag robust_flag,
                                      int offset,
