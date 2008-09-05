@@ -256,7 +256,11 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
     void* initial) {
   FILE* file = fopen(name, "w+");
   if (file == NULL) return NULL;
-  fwrite(initial, size, 1, file);
+  int result = fwrite(initial, size, 1, file);
+  if (result < 1) {
+    fclose(file);
+    return NULL;
+  }
   void* memory =
       mmap(0, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(file), 0);
   return new PosixMemoryMappedFile(file, memory, size);
@@ -285,11 +289,14 @@ void OS::LogSharedLibraryAddresses() {
     addr_buffer[0] = '0';
     addr_buffer[1] = 'x';
     addr_buffer[10] = 0;
-    read(fd, addr_buffer + 2, 8);
+    int result = read(fd, addr_buffer + 2, 8);
+    if (result < 8) break;
     unsigned start = StringToLongLong(addr_buffer);
-    read(fd, addr_buffer + 2, 1);
-    if (addr_buffer[2] != '-') return;
-    read(fd, addr_buffer + 2, 8);
+    result = read(fd, addr_buffer + 2, 1);
+    if (result < 1) break;
+    if (addr_buffer[2] != '-') break;
+    result = read(fd, addr_buffer + 2, 8);
+    if (result < 8) break;
     unsigned end = StringToLongLong(addr_buffer);
     char buffer[MAP_LENGTH];
     int bytes_read = -1;
@@ -297,9 +304,8 @@ void OS::LogSharedLibraryAddresses() {
       bytes_read++;
       if (bytes_read >= MAP_LENGTH - 1)
         break;
-      int result = read(fd, buffer + bytes_read, 1);
-      // A read error means that -1 is returned.
-      if (result < 1) return;
+      result = read(fd, buffer + bytes_read, 1);
+      if (result < 1) break;
     } while (buffer[bytes_read] != '\n');
     buffer[bytes_read] = 0;
     // There are 56 chars to ignore at this point in the line.
@@ -309,6 +315,7 @@ void OS::LogSharedLibraryAddresses() {
     buffer[bytes_read] = 0;
     LOG(SharedLibraryEvent(buffer + 56, start, end));
   }
+  close(fd);
 #endif
 }
 

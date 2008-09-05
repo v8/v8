@@ -104,7 +104,7 @@ char* ReadLine(const char* prompt) {
   char line_buf[256];
   int offset = 0;
   bool keep_going = true;
-  fprintf(stdout, prompt);
+  fprintf(stdout, "%s", prompt);
   fflush(stdout);
   while (keep_going) {
     if (fgets(line_buf, sizeof(line_buf), stdin) == NULL) {
