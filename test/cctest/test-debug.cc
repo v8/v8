@@ -2751,11 +2751,13 @@ void Barriers::Initialize() {
 }
 
 
-// We match this prefix to a message to decide if it is a break message.
+// We match parts of the message to decide if it is a break message.
 bool IsBreakEventMessage(char *message) {
-  const char* break_template = "{\"type\":\"event\",\"event\":\"break\",";
-  // Is break_template a prefix of the message?
-  return !strncmp(message, break_template, strlen(break_template));
+  const char* type_event = "\"type\":\"event\"";
+  const char* event_break = "\"event\":\"break\"";
+  // Does the message contain both type:event and event:break?
+  return strstr(message, type_event) != NULL &&
+         strstr(message, event_break) != NULL;
 }
 
 
@@ -2856,7 +2858,7 @@ void MessageQueueDebuggerThread::Run() {
 MessageQueueDebuggerThread message_queue_debugger_thread;
 
 // This thread runs the v8 engine.
-DISABLED_TEST(MessageQueues) {
+TEST(MessageQueues) {
   // Create a V8 environment
   v8::HandleScope scope;
   DebugLocalContext env;
@@ -2961,7 +2963,7 @@ void DebuggerThread::Run() {
 DebuggerThread debugger_thread;
 V8Thread v8_thread;
 
-DISABLED_TEST(ThreadedDebugging) {
+TEST(ThreadedDebugging) {
   // Create a V8 environment
   threaded_debugging_barriers.Initialize();
 
@@ -2990,9 +2992,6 @@ class BreakpointsDebuggerThread : public v8::internal::Thread {
 };
 
 
-// We match this prefix to a message to decide if it is a break message.
-const char* break_template = "{\"type\":\"event\",\"event\":\"break\",";
-
 Barriers* breakpoints_barriers;
 
 static void BreakpointsMessageHandler(const uint16_t* message,
@@ -3004,7 +3003,7 @@ static void BreakpointsMessageHandler(const uint16_t* message,
   fflush(stdout);
 
   // Is break_template a prefix of the message?
-  if (!strncmp(print_buffer, break_template, strlen(break_template))) {
+  if (IsBreakEventMessage(print_buffer)) {
     breakpoints_barriers->semaphore_1->Signal();
   }
 }
@@ -3120,7 +3119,7 @@ void BreakpointsDebuggerThread::Run() {
 BreakpointsDebuggerThread breakpoints_debugger_thread;
 BreakpointsV8Thread breakpoints_v8_thread;
 
-DISABLED_TEST(RecursiveBreakpoints) {
+TEST(RecursiveBreakpoints) {
   // Create a V8 environment
   Barriers stack_allocated_breakpoints_barriers;
   stack_allocated_breakpoints_barriers.Initialize();
