@@ -359,10 +359,11 @@ TEST(Utf8Conversion) {
   CHECK_EQ(10, mixed->Utf8Length());
   // Try encoding the string with all capacities
   char buffer[11];
+  const char kNoChar = static_cast<char>(-1);
   for (int i = 0; i <= 11; i++) {
     // Clear the buffer before reusing it
     for (int j = 0; j < 11; j++)
-      buffer[j] = static_cast<char>(-1);
+      buffer[j] = kNoChar;
     int written = mixed->WriteUtf8(buffer, i);
     CHECK_EQ(lengths[i], written);
     // Check that the contents are correct
@@ -370,6 +371,6 @@ TEST(Utf8Conversion) {
       CHECK_EQ(as_utf8[j], static_cast<unsigned char>(buffer[j]));
     // Check that the rest of the buffer hasn't been touched
     for (int j = lengths[i]; j < 11; j++)
-      CHECK_EQ(-1, buffer[j]);
+      CHECK_EQ(kNoChar, buffer[j]);
   }
 }
