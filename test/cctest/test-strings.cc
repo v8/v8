@@ -362,7 +362,7 @@ TEST(Utf8Conversion) {
   for (int i = 0; i <= 11; i++) {
     // Clear the buffer before reusing it
     for (int j = 0; j < 11; j++)
-      buffer[j] = -1;
+      buffer[j] = static_cast<char>(-1);
     int written = mixed->WriteUtf8(buffer, i);
     CHECK_EQ(lengths[i], written);
     // Check that the contents are correct
