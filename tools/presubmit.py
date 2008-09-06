@@ -105,7 +105,7 @@ class SourceFileProcessor(object):
     return True
 
   def IgnoreDir(self, name):
-    return name.startswith('.')
+    return name.startswith('.') or name == 'data'
 
   def IgnoreFile(self, name):
     return name.startswith('.')
