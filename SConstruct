@@ -467,7 +467,7 @@ def BuildSpecific(env, mode, env_overrides):
   for sample in context.samples:
     sample_env = Environment(LIBRARY=library_name)
     sample_env.Replace(**context.flags['sample'])
-    sample_env['ENV'].update(**context.env_overrides)
+    context.ApplyEnvOverrides(sample_env)
     sample_object = sample_env.SConscript(
       join('samples', 'SConscript'),
       build_dir=join('obj', 'sample', sample, target_id),

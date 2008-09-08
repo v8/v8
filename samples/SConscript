@@ -31,6 +31,7 @@ Import('sample context')
 def ConfigureObjectFiles():
   env = Environment()
   env.Replace(**context.flags['sample'])
+  context.ApplyEnvOverrides(env)
   return env.Object(sample + '.cc')
 
 sample_object = ConfigureObjectFiles()
