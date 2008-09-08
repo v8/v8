@@ -740,7 +740,7 @@ class EXPORT String : public Primitive {
    * An ExternalStringResource is a wrapper around a two-byte string
    * buffer that resides outside V8's heap. Implement an
    * ExternalStringResource to manage the life cycle of the underlying
-   * buffer.
+   * buffer.  Note that the string data must be immutable.
    */
   class EXPORT ExternalStringResource {  // NOLINT
    public:
@@ -764,7 +764,11 @@ class EXPORT String : public Primitive {
    * An ExternalAsciiStringResource is a wrapper around an ascii
    * string buffer that resides outside V8's heap. Implement an
    * ExternalAsciiStringResource to manage the life cycle of the
-   * underlying buffer.
+   * underlying buffer.  Note that the string data must be immutable
+   * and that the data must be strict 7-bit ASCII, not Latin1 or
+   * UTF-8, which would require special treatment internally in the
+   * engine and, in the case of UTF-8, do not allow efficient indexing.
+   * Use String::New or convert to 16 bit data for non-ASCII.
    */
 
   class EXPORT ExternalAsciiStringResource {  // NOLINT
