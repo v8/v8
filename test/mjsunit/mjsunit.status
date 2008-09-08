@@ -38,11 +38,13 @@ fuzz-natives: PASS, SKIP IF $MODE==RELEASE
 
 [ $arch == arm ]
 
-#1020483: Debug tests fail on arm
+# 1020483: Debug tests fail on arm
 debug-constructor: FAIL
 debug-continue: FAIL
 debug-backtrace-text: FAIL
 debug-backtrace: FAIL
+# Passes on ARM simulator, fails on ARM hardware.
+debug-breakpoints: PASS || FAIL
 debug-evaluate-recursive: FAIL
 debug-changebreakpoint: FAIL
 debug-clearbreakpoint: FAIL
@@ -52,7 +54,8 @@ debug-evaluate: FAIL
 debug-event-listener: FAIL
 debug-ignore-breakpoints: FAIL
 debug-multiple-breakpoints: FAIL
-# Bug number 1308895. This passes on the ARM simulator, fails on the ARM Linux machine.
+# Bug number 1308895. This passes on the ARM simulator,
+# fails on the ARM Linux machine.
 debug-script-breakpoints: PASS || FAIL
 debug-setbreakpoint: FAIL
 debug-step-stub-callfunction: FAIL
