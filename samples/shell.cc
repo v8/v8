@@ -40,7 +40,6 @@ v8::Handle<v8::Value> Load(const v8::Arguments& args);
 v8::Handle<v8::Value> Quit(const v8::Arguments& args);
 v8::Handle<v8::Value> Version(const v8::Arguments& args);
 v8::Handle<v8::String> ReadFile(const char* name);
-void ProcessRuntimeFlags(int argc, char* argv[]);
 
 
 int main(int argc, char* argv[]) {
