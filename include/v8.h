@@ -2123,11 +2123,11 @@ class EXPORT Locker {
    */
   static void StopPreemption();
 
-#ifdef DEBUG
-  static void AssertIsLocked();
-#else
-  static inline void AssertIsLocked() { }
-#endif
+  /**
+   * Returns whether or not the locker is locked by the current thread.
+   */
+  static bool IsLocked();
+
  private:
   bool has_lock_;
   bool top_level_;

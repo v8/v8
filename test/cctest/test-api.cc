@@ -4563,7 +4563,7 @@ void ApiTestFuzzer::CallTest() {
 
 
 static v8::Handle<Value> ThrowInJS(const v8::Arguments& args) {
-  v8::Locker::AssertIsLocked();
+  CHECK(v8::Locker::IsLocked());
   ApiTestFuzzer::Fuzz();
   v8::Unlocker unlocker;
   const char* code = "throw 7;";
@@ -4586,7 +4586,7 @@ static v8::Handle<Value> ThrowInJS(const v8::Arguments& args) {
 
 
 static v8::Handle<Value> ThrowInJSNoCatch(const v8::Arguments& args) {
-  v8::Locker::AssertIsLocked();
+  CHECK(v8::Locker::IsLocked());
   ApiTestFuzzer::Fuzz();
   v8::Unlocker unlocker;
   const char* code = "throw 7;";
@@ -4604,7 +4604,7 @@ static v8::Handle<Value> ThrowInJSNoCatch(const v8::Arguments& args) {
 // as part of the locking aggregation tests.
 TEST(NestedLockers) {
   v8::Locker locker;
-  v8::Locker::AssertIsLocked();
+  CHECK(v8::Locker::IsLocked());
   v8::HandleScope scope;
   LocalContext env;
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(ThrowInJS);
@@ -4648,7 +4648,7 @@ THREADED_TEST(RecursiveLocking) {
   v8::Locker locker;
   {
     v8::Locker locker2;
-    v8::Locker::AssertIsLocked();
+    CHECK(v8::Locker::IsLocked());
   }
 }
 
