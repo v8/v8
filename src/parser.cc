@@ -1484,7 +1484,7 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   Handle<String> label(static_cast<String**>(NULL));
   Token::Value tok = peek();
   if (!scanner_.has_line_terminator_before_next() &&
-      tok != Token::SEMICOLON && tok != Token::RBRACE) {
+      tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     label = ParseIdentifier(CHECK_OK);
   }
   IterationStatement* target = NULL;
@@ -1512,7 +1512,7 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
   Handle<String> label;
   Token::Value tok = peek();
   if (!scanner_.has_line_terminator_before_next() &&
-      tok != Token::SEMICOLON && tok != Token::RBRACE) {
+      tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     label = ParseIdentifier(CHECK_OK);
   }
   // Parse labelled break statements that target themselves into
