@@ -3959,6 +3959,11 @@ THREADED_TEST(CallAsFunction) {
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(49, value->Int32Value());
 
+  // test special case of call as function
+  value = Script::Compile(v8_str("[obj]['0'](45)"))->Run();
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(45, value->Int32Value());
+
   value = Script::Compile(v8_str("obj.call = Function.prototype.call;"
                                  "obj.call(null, 87)"))->Run();
   CHECK(!try_catch.HasCaught());

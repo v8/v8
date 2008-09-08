@@ -183,6 +183,11 @@ class CallIC: public IC {
                     Handle<Object> object,
                     Handle<String> name);
 
+  // Returns a JSFunction if the object can be called as a function,
+  // and patches the stack to be ready for the call.
+  // Otherwise, it returns the undefined value.
+  Object* TryCallAsFunction(Object* object);
+
   static void Clear(Address address, Code* target);
   friend class IC;
 };
