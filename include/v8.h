@@ -35,8 +35,8 @@
  * For other documentation see http://code.google.com/apis/v8/
  */
 
-#ifndef _V8
-#define _V8
+#ifndef V8_H_
+#define V8_H_
 
 #include <stdio.h>
 
@@ -461,10 +461,8 @@ class EXPORT HandleScope {
   /** Deallocates any extensions used by the current scope.*/
   static void DeleteExtensions();
 
-#ifdef DEBUG
   // Zaps the handles in the half-open interval [start, end).
   static void ZapRange(void** start, void** end);
-#endif
 
   friend class ImplementationUtilities;
 };
@@ -2311,4 +2309,4 @@ void Template::Set(const char* name, v8::Handle<Data> value) {
 #undef TYPE_CHECK
 
 
-#endif  // _V8
+#endif  // V8_H_

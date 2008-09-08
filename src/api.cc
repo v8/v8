@@ -446,14 +446,12 @@ void v8::HandleScope::DeleteExtensions() {
 }
 
 
-#ifdef DEBUG
 void HandleScope::ZapRange(void** start, void** end) {
   if (start == NULL) return;
   for (void** p = start; p < end; p++) {
     *p = reinterpret_cast<void*>(v8::internal::kHandleZapValue);
   }
 }
-#endif
 
 
 void** v8::HandleScope::RawClose(void** value) {
