@@ -752,6 +752,7 @@ js1_5/decompilation/regress-406555: PASS || FAIL
 
 # This test is flaky because of the default timer resolution on Windows.
 js1_5/extensions/regress-363258: PASS || FAIL
+mozilla/js1_5/GC/regress-383269-02: PASS, FLAKY IF $mode == debug
 
 [ $FAST == yes ]
 

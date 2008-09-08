@@ -82,6 +82,9 @@ class MozillaTestCase(test.TestCase):
   def GetName(self):
     return self.path[-1]
 
+  def GetSource(self):
+    return open(self.filename).read()
+
 
 class MozillaTestConfiguration(test.TestConfiguration):
 

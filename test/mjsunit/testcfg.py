@@ -58,6 +58,9 @@ class MjsunitTestCase(test.TestCase):
     result += [framework, self.file]
     return result
 
+  def GetSource(self):
+    return open(self.file).read()
+
 
 class MjsunitTestConfiguration(test.TestConfiguration):
 

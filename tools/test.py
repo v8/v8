@@ -259,6 +259,9 @@ class TestCase(object):
   def IsFailureOutput(self, output):
     return output.exit_code != 0
 
+  def GetSource(self):
+    return "(no source available)"
+
   def Run(self):
     command = self.GetCommand()
     full_command = self.context.processor(command)
@@ -948,6 +951,8 @@ def BuildOptions():
   result.add_option("--arch", help='The architecture to run tests for',
       default=ARCH_GUESS)
   result.add_option("--special-command", default=None)
+  result.add_option("--cat", help="Print the source of the tests",
+      default=False, action="store_true")
   return result
 
 
@@ -1069,6 +1074,7 @@ def Main():
   # List the tests
   all_cases = [ ]
   all_unused = [ ]
+  unclassified_tests = [ ]
   for path in paths:
     for mode in options.mode:
       env = {
@@ -1077,9 +1083,23 @@ def Main():
         'arch': options.arch
       }
       test_list = root.ListTests([], path, context, mode)
+      unclassified_tests += test_list
       (cases, unused_rules) = config.ClassifyTests(test_list, env)
       all_cases += cases
       all_unused.append(unused_rules)
+
+  if options.cat:
+    visited = set()
+    for test in unclassified_tests:
+      key = tuple(test.path)
+      if key in visited:
+        continue
+      visited.add(key)
+      print "--- begin source: %s ---" % test.GetLabel()
+      source = test.GetSource().strip()
+      print source
+      print "--- end source: %s ---" % test.GetLabel()
+    return 0
 
 #  for rule in unused_rules:
 #    print "Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path])
