@@ -1429,7 +1429,7 @@ static const char* js_code_causing_out_of_memory =
 // that come after them so they cannot run in parallel.
 DISABLED_TEST(OutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
-  v8::internal::Snapshot::DisableInternal();
+  if (v8::internal::Snapshot::IsEnabled()) return;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
@@ -1470,7 +1470,7 @@ v8::Handle<Value> ProvokeOutOfMemory(const v8::Arguments& args) {
 
 DISABLED_TEST(OutOfMemoryNested) {
   // It's not possible to read a snapshot into a heap with different dimensions.
-  v8::internal::Snapshot::DisableInternal();
+  if (v8::internal::Snapshot::IsEnabled()) return;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
@@ -1499,7 +1499,7 @@ DISABLED_TEST(OutOfMemoryNested) {
 
 TEST(HugeConsStringOutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
-  v8::internal::Snapshot::DisableInternal();
+  if (v8::internal::Snapshot::IsEnabled()) return;
   v8::HandleScope scope;
   LocalContext context;
   // Set heap limits.
@@ -4716,6 +4716,8 @@ TEST(DontLeakGlobalObjects) {
   // Regression test for issues 1139850 and 1174891.
 
   v8::internal::V8::Initialize(NULL);
+  if (v8::internal::Snapshot::IsEnabled()) return;
+
   EnsureNoSurvivingGlobalObjects();
 
   for (int i = 0; i < 5; i++) {
@@ -4757,6 +4759,7 @@ TEST(DontLeakGlobalObjects) {
 
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
   v8::internal::V8::Initialize(NULL);
+  if (v8::internal::Snapshot::IsEnabled()) return;
 
   const int nof = 2;
   const char* sources[nof] = {

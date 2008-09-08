@@ -53,9 +53,8 @@ for (i = 0; i < scripts.length; i++) {
   }
 }
 
-// This has to be updated if the number of native and extension scripts change.
+// This has to be updated if the number of native scripts change.
 assertEquals(12, native_count);
-assertEquals(1, extension_count);
 assertEquals(2, normal_count);  // This script and mjsunit.js.
 
 // Test a builtins script.
@@ -75,8 +74,10 @@ assertEquals(Debug.ScriptType.Native, debug_delay_script.type);
 
 // Test an extension script.
 var extension_gc_script = Debug.findScript('v8/gc');
-assertEquals('v8/gc', extension_gc_script.name);
-assertEquals(Debug.ScriptType.Extension, extension_gc_script.type);
+if (extension_gc_script) {
+  assertEquals('v8/gc', extension_gc_script.name);
+  assertEquals(Debug.ScriptType.Extension, extension_gc_script.type);
+}
 
 // Test a normal script.
 var mjsunit_js_script = Debug.findScript(/mjsunit.js/);

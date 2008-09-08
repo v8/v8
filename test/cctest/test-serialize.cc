@@ -191,14 +191,14 @@ TEST(SerializeInternal) {
 // bootstrapped heap.
 // (Smoke test.)
 TEST(Serialize) {
-  Snapshot::DisableInternal();
+  if (Snapshot::IsEnabled()) return;
   Serialize();
 }
 
 
 // Test that the heap isn't destroyed after a serialization.
 TEST(SerializeNondestructive) {
-  Snapshot::DisableInternal();
+  if (Snapshot::IsEnabled()) return;
   StatsTable::SetCounterFunction(counter_function);
   v8::HandleScope scope;
   v8::Persistent<v8::Context> env = v8::Context::New();

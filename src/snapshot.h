@@ -37,8 +37,8 @@ class Snapshot {
   // could be found.
   static bool Initialize(const char* snapshot_file = NULL);
 
-  // Disable the use of the internal snapshot.
-  static void DisableInternal() { size_ = 0; }
+  // Returns whether or not the snapshot is enabled.
+  static bool IsEnabled() { return size_ != 0; }
 
   // Write snapshot to the given file. Returns true if snapshot was written
   // successfully.
