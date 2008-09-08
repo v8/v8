@@ -294,6 +294,11 @@ SIMPLE_OPTIONS = {
     'values': ['on', 'off'],
     'default': 'off',
     'help': 'enable the disassembler to inspect generated code'
+  },
+  'sourcesignatures': {
+    'values': ['MD5', 'timestamp'],
+    'default': 'MD5',
+    'help': 'set how the build system detects file changes'
   }
 }
 
@@ -491,6 +496,8 @@ def Build():
   Help(opts.GenerateHelpText(env))
   VerifyOptions(env)
   env_overrides = ParseEnvOverrides(env['env'])
+  
+  SourceSignatures(env['sourcesignatures'])
   
   libraries = []
   cctests = []
