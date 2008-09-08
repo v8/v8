@@ -2309,14 +2309,6 @@ static Object* Runtime_NumberSar(Arguments args) {
 }
 
 
-static Object* Runtime_ObjectEquals(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-
-  return Smi::FromInt(args[0] == args[1] ? EQUAL : NOT_EQUAL);
-}
-
-
 static Object* Runtime_NumberEquals(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -2384,6 +2376,66 @@ static Object* Runtime_NumberCompare(Arguments args) {
   if (x == y) return Smi::FromInt(EQUAL);
   if (isless(x, y)) return Smi::FromInt(LESS);
   return Smi::FromInt(GREATER);
+}
+
+
+// Compare two Smis as if they were converted to strings and then
+// compared lexicographically.
+static Object* Runtime_SmiLexicographicCompare(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+
+  // Arrays for the individual characters of the two Smis.  Smis are
+  // 31 bit integers and 10 decimal digits are therefore enough.
+  static int x_elms[10];
+  static int y_elms[10];
+
+  // Extract the integer values from the Smis.
+  CONVERT_CHECKED(Smi, x, args[0]);
+  CONVERT_CHECKED(Smi, y, args[1]);
+  int x_value = x->value();
+  int y_value = y->value();
+
+  // If the integers are equal so are the string representations.
+  if (x_value == y_value) return Smi::FromInt(EQUAL);
+
+  // If one of the integers are zero the normal integer order is the
+  // same as the lexicographic order of the string representations.
+  if (x_value == 0 || y_value == 0) return Smi::FromInt(x_value - y_value);
+
+  // If only one of the intergers is negative the negative number is
+  // smallest because the char code of '-' is less than the char code
+  // of any digit.  Otherwise, we make both values positive.
+  if (x_value < 0 || y_value < 0) {
+    if (y_value >= 0) return Smi::FromInt(LESS);
+    if (x_value >= 0) return Smi::FromInt(GREATER);
+    x_value = -x_value;
+    y_value = -y_value;
+  }
+
+  // Convert the integers to arrays of their decimal digits.
+  int x_index = 0;
+  int y_index = 0;
+  while (x_value > 0) {
+    x_elms[x_index++] = x_value % 10;
+    x_value /= 10;
+  }
+  while (y_value > 0) {
+    y_elms[y_index++] = y_value % 10;
+    y_value /= 10;
+  }
+
+  // Loop through the arrays of decimal digits finding the first place
+  // where they differ.
+  while (--x_index >= 0 && --y_index >= 0) {
+    int diff = x_elms[x_index] - y_elms[y_index];
+    if (diff != 0) return Smi::FromInt(diff);
+  }
+
+  // If one array is a suffix of the other array, the longest array is
+  // the representation of the largest of the Smis in the
+  // lexicographic ordering.
+  return Smi::FromInt(x_index - y_index);
 }
 
 

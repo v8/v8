@@ -173,6 +173,9 @@ class CodeGenerator: public Visitor {
   // Fast support for charCodeAt(n).
   virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args) = 0;
 
+  // Fast support for object equality testing.
+  virtual void GenerateObjectEquals(ZoneList<Expression*>* args) = 0;
+
  private:
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;

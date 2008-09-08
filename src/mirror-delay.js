@@ -708,7 +708,7 @@ ObjectMirror.prototype.lookupProperty = function(value) {
     // Skip properties which are defined through assessors.
     var property = properties[i];
     if (property.propertyType() != PropertyType.Callbacks) {
-      if (%ObjectEquals(property.value_, value.value_) == 0) {
+      if (%_ObjectEquals(property.value_, value.value_)) {
         return property;
       }
     }
@@ -728,12 +728,12 @@ ObjectMirror.prototype.lookupProperty = function(value) {
 ObjectMirror.prototype.referencedBy = function(opt_max_instances) {
   // Find all objects constructed from this function.
   var result = %DebugReferencedBy(this.value_, Mirror.prototype, opt_max_instances || 0);
-    
+
   // Make mirrors for all the instances found.
   for (var i = 0; i < result.length; i++) {
     result[i] = MakeMirror(result[i]);
   }
-    
+
   return result;
 };
 

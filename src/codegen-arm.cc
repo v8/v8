@@ -295,6 +295,8 @@ class ArmCodeGenerator: public CodeGenerator {
   virtual void GenerateSetValueOf(ZoneList<Expression*>* args);
 
   virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args);
+
+  virtual void GenerateObjectEquals(ZoneList<Expression*>* args);
 };
 
 
@@ -3995,6 +3997,19 @@ void ArmCodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   ArgumentsAccessStub stub(false);
   __ CallStub(&stub);
   __ push(r0);
+}
+
+
+void ArmCodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+
+  // Load the two objects into registers and perform the comparison.
+  Load(args->at(0));
+  Load(args->at(1));
+  __ pop(r0);
+  __ pop(r1);
+  __ cmp(r0, Operand(r1));
+  cc_reg_ = eq;
 }
 
 

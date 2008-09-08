@@ -106,11 +106,11 @@ namespace v8 { namespace internal {
   F(NumberSar, 2) \
   \
   /* Comparisons */ \
-  F(ObjectEquals, 2) \
   F(NumberEquals, 2) \
   F(StringEquals, 2) \
   \
   F(NumberCompare, 3) \
+  F(SmiLexicographicCompare, 2) \
   F(StringCompare, 2) \
   \
   /* Math */ \

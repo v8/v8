@@ -219,8 +219,9 @@ function SmartMove(array, start_i, del_count, len, num_additional_args) {
         // %HasLocalProperty would be the appropriate test.  We follow
         // KJS in consulting the prototype.
         var current = array[j];
-        if (!IS_UNDEFINED(current) || j in array)
+        if (!IS_UNDEFINED(current) || j in array) {
           new_array[j] = current;
+        }
         j++;
       }
       j = start_i + del_count;
@@ -230,8 +231,9 @@ function SmartMove(array, start_i, del_count, len, num_additional_args) {
         // appropriate test.  We follow KJS in consulting the
         // prototype.
         var current = array[j];
-        if (!IS_UNDEFINED(current) || j in array)
+        if (!IS_UNDEFINED(current) || j in array) {
           new_array[j - del_count + num_additional_args] = current;
+        }
         j++;
       }
     } else {
@@ -241,16 +243,18 @@ function SmartMove(array, start_i, del_count, len, num_additional_args) {
           // %HasLocalProperty would be the appropriate test.  We follow
           // KJS in consulting the prototype.
           var current = array[key];
-          if (!IS_UNDEFINED(current) || key in array)
+          if (!IS_UNDEFINED(current) || key in array) {
             new_array[key] = current;
+          }
         } else if (key >= start_i + del_count) {
           // ECMA-262 15.4.4.12 lines 24 and 41.  The spec could also
           // be interpreted such that %HasLocalProperty would be the
           // appropriate test.  We follow KJS in consulting the
           // prototype.
           var current = array[key];
-          if (!IS_UNDEFINED(current) || key in array)
+          if (!IS_UNDEFINED(current) || key in array) {
             new_array[key - del_count + num_additional_args] = current;
+          }
         }
       }
     }
@@ -658,6 +662,9 @@ function ArraySort(comparefn) {
     if (IS_FUNCTION(comparefn)) {
       return comparefn.call(null, x, y);
     }
+    if (%_IsSmi(x) && %_IsSmi(y)) {
+      return %SmiLexicographicCompare(x, y);
+    }
     x = ToString(x);
     y = ToString(y);
     if (x == y) return 0;
@@ -677,7 +684,7 @@ function ArraySort(comparefn) {
       var parent_index = ((child_index + 1) >> 1) - 1;
       var parent_value = this[parent_index], child_value = this[child_index];
       if (Compare(parent_value, child_value) < 0) {
-        this[parent_index] = child_value; 
+        this[parent_index] = child_value;
         this[child_index] = parent_value;
       } else {
         break;

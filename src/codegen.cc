@@ -256,7 +256,9 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
     {&v8::internal::CodeGenerator::GenerateSetValueOf,
      "_SetValueOf"},
     {&v8::internal::CodeGenerator::GenerateFastCharCodeAt,
-     "_FastCharCodeAt"}
+     "_FastCharCodeAt"},
+    {&v8::internal::CodeGenerator::GenerateObjectEquals,
+     "_ObjectEquals"}
   };
   if (node->name()->length() > 0 && node->name()->Get(0) == '_') {
     for (unsigned i = 0;
