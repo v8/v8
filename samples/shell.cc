@@ -65,6 +65,10 @@ int main(int argc, char* argv[]) {
     const char* str = argv[i];
     if (strcmp(str, "--shell") == 0) {
       run_shell = true;
+    } else if (strcmp(str, "-f") == 0) {
+      // Ignore any -f flags for compatibility with the other stand-
+      // alone JavaScript engines.
+      continue;
     } else if (strncmp(str, "--", 2) == 0) {
       printf("Warning: unknown flag %s.\n", str);
     } else {
