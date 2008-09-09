@@ -6,6 +6,22 @@
 	objectVersion = 45;
 	objects = {
 
+/* Begin PBXAggregateTarget section */
+		7BF891930E73098D000BAF8A /* All */ = {
+			isa = PBXAggregateTarget;
+			buildConfigurationList = 7BF8919F0E7309BE000BAF8A /* Build configuration list for PBXAggregateTarget "All" */;
+			buildPhases = (
+			);
+			dependencies = (
+				7BF8919B0E7309AD000BAF8A /* PBXTargetDependency */,
+				7BF891970E73099F000BAF8A /* PBXTargetDependency */,
+				7BF891990E73099F000BAF8A /* PBXTargetDependency */,
+			);
+			name = All;
+			productName = All;
+		};
+/* End PBXAggregateTarget section */
+
 /* Begin PBXBuildFile section */
 		8900116C0E71CA2300F91F35 /* libraries.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8900116B0E71CA2300F91F35 /* libraries.cc */; };
 		893CCE640E71D83700357A03 /* code-stubs.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1110E719B8F00D62E90 /* code-stubs.cc */; };
@@ -86,6 +102,27 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		7BF891960E73099F000BAF8A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8970F2EF0E719FB2006AE7B5;
+			remoteInfo = v8;
+		};
+		7BF891980E73099F000BAF8A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 897F76790E71B4CC007ACF34;
+			remoteInfo = v8_shell;
+		};
+		7BF8919A0E7309AD000BAF8A /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 897FF1BE0E719CB600D62E90;
+			remoteInfo = jscre;
+		};
 		897F76800E71B6AC007ACF34 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
@@ -726,6 +763,7 @@
 			projectDirPath = "";
 			projectRoot = ..;
 			targets = (
+				7BF891930E73098D000BAF8A /* All */,
 				897FF1BE0E719CB600D62E90 /* jscre */,
 				8970F2EF0E719FB2006AE7B5 /* v8 */,
 				897F76790E71B4CC007ACF34 /* v8_shell */,
@@ -745,7 +783,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=`dirname \"${SRCROOT}\"`\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\n\nif [ ! -d \"${V8_GENERATED_SOURCES_DIR}\" ] ; then\n  mkdir \"${V8_GENERATED_SOURCES_DIR}\"\nfi\n\npython \"${V8ROOT}/tools/js2c.py\" \"${V8_GENERATED_SOURCES_DIR}/libraries.cc\" \\\n  \"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\" ${NATIVE_JS_FILES}\n";
+			shellScript = "set -ex\nJS_FILES=\"runtime.js\"\\\n\" v8natives.js\"\\\n\" array.js\"\\\n\" string.js\"\\\n\" uri.js\"\\\n\" math.js\"\\\n\" messages.js\"\\\n\" apinatives.js\"\\\n\" debug-delay.js\"\\\n\" mirror-delay.js\"\\\n\" date-delay.js\"\\\n\" regexp-delay.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nLIBRARIES_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries.cc\"\nLIBRARIES_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/libraries-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${LIBRARIES_CC}.new\" \\\n  \"${LIBRARIES_EMPTY_CC}.new\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_CC}.new\" \"${LIBRARIES_CC}\"\nelse\n  rm \"${LIBRARIES_CC}.new\"\nfi\n\nif ! diff -q \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${LIBRARIES_EMPTY_CC}.new\" \"${LIBRARIES_EMPTY_CC}\"\nelse\n  rm \"${LIBRARIES_EMPTY_CC}.new\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -848,6 +886,21 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		7BF891970E73099F000BAF8A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8970F2EF0E719FB2006AE7B5 /* v8 */;
+			targetProxy = 7BF891960E73099F000BAF8A /* PBXContainerItemProxy */;
+		};
+		7BF891990E73099F000BAF8A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 897F76790E71B4CC007ACF34 /* v8_shell */;
+			targetProxy = 7BF891980E73099F000BAF8A /* PBXContainerItemProxy */;
+		};
+		7BF8919B0E7309AD000BAF8A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 897FF1BE0E719CB600D62E90 /* jscre */;
+			targetProxy = 7BF8919A0E7309AD000BAF8A /* PBXContainerItemProxy */;
+		};
 		897F76810E71B6AC007ACF34 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 897FF1BE0E719CB600D62E90 /* jscre */;
@@ -861,6 +914,20 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		7BF891940E73098D000BAF8A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = All;
+			};
+			name = Debug;
+		};
+		7BF891950E73098D000BAF8A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				PRODUCT_NAME = All;
+			};
+			name = Release;
+		};
 		8915B8690E719336009C4E19 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -965,7 +1032,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				HEADER_SEARCH_PATHS = ../src;
-				INSTALL_PATH = /usr/local/bin;
 				PRODUCT_NAME = v8_shell;
 			};
 			name = Debug;
@@ -974,7 +1040,6 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				HEADER_SEARCH_PATHS = ../src;
-				INSTALL_PATH = /usr/local/bin;
 				PRODUCT_NAME = v8_shell;
 			};
 			name = Release;
@@ -1012,6 +1077,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		7BF8919F0E7309BE000BAF8A /* Build configuration list for PBXAggregateTarget "All" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7BF891940E73098D000BAF8A /* Debug */,
+				7BF891950E73098D000BAF8A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		8915B86B0E719336009C4E19 /* Build configuration list for PBXProject "v8" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
