@@ -190,6 +190,9 @@ SAMPLE_FLAGS = {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
     },
+    'mode:debug': {
+      'CCFLAGS':      ['-g', '-O0']
+    }
   },
   'msvc': {
     'all': {

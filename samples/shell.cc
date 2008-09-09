@@ -40,6 +40,7 @@ v8::Handle<v8::Value> Load(const v8::Arguments& args);
 v8::Handle<v8::Value> Quit(const v8::Arguments& args);
 v8::Handle<v8::Value> Version(const v8::Arguments& args);
 v8::Handle<v8::String> ReadFile(const char* name);
+void ReportException(v8::TryCatch* handler);
 
 
 int main(int argc, char* argv[]) {
@@ -174,7 +175,7 @@ void RunShell(v8::Handle<v8::Context> context) {
     char* str = fgets(buffer, kBufferSize, stdin);
     if (str == NULL) break;
     v8::HandleScope handle_scope;
-    ExecuteString(v8::String::New(str), v8::Undefined(), true);
+    ExecuteString(v8::String::New(str), v8::String::New("(shell)"), true);
   }
   printf("\n");
 }
@@ -189,15 +190,13 @@ bool ExecuteString(v8::Handle<v8::String> source,
   v8::Handle<v8::Script> script = v8::Script::Compile(source, name);
   if (script.IsEmpty()) {
     // Print errors that happened during compilation.
-    v8::String::AsciiValue error(try_catch.Exception());
-    printf("%s\n", *error);
+    ReportException(&try_catch);
     return false;
   } else {
     v8::Handle<v8::Value> result = script->Run();
     if (result.IsEmpty()) {
       // Print errors that happened during execution.
-      v8::String::AsciiValue error(try_catch.Exception());
-      printf("%s\n", *error);
+      ReportException(&try_catch);
       return false;
     } else {
       if (print_result && !result->IsUndefined()) {
@@ -208,5 +207,35 @@ bool ExecuteString(v8::Handle<v8::String> source,
       }
       return true;
     }
+  }
+}
+
+
+void ReportException(v8::TryCatch* try_catch) {
+  v8::HandleScope handle_scope;
+  v8::String::AsciiValue exception(try_catch->Exception());
+  v8::Handle<v8::Message> message = try_catch->Message();
+  if (message.IsEmpty()) {
+    // V8 didn't provide any extra information about this error; just
+    // print the exception.
+    printf("%s\n", *exception);
+  } else {
+    // Print (filename):(line number): (message).
+    v8::String::AsciiValue filename(message->GetScriptResourceName());
+    int linenum = message->GetLineNumber();
+    printf("%s:%i: %s\n", *filename, linenum, *exception);
+    // Print line of source code.
+    v8::String::AsciiValue sourceline(message->GetSourceLine());
+    printf("%s\n", *sourceline);
+    // Print wavy underline (GetUnderline is deprecated).
+    int start = message->GetStartColumn();
+    for (int i = 0; i < start; i++) {
+      printf(" ");
+    }
+    int end = message->GetEndColumn();
+    for (int i = start; i < end; i++) {
+      printf("^");
+    }
+    printf("\n");
   }
 }
