@@ -949,7 +949,9 @@ def BuildOptions():
   result.add_option("-t", "--timeout", help="Timeout in seconds",
       default=60, type="int")
   result.add_option("--arch", help='The architecture to run tests for',
-      default=ARCH_GUESS)
+      default='none')
+  result.add_option("--simulator", help="Run tests with architecture simulator",
+      default='none')
   result.add_option("--special-command", default=None)
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
@@ -964,6 +966,21 @@ def ProcessOptions(options):
     if not mode in ['debug', 'release']:
       print "Unknown mode %s" % mode
       return False
+  if options.simulator != 'none':
+    # Simulator argument was set. Make sure arch and simulator agree.
+    if options.simulator != options.arch:
+      if options.arch == 'none':
+        options.arch = options.simulator
+      else:
+        print "Architecture %s does not match sim %s" %(options.arch, options.simulator)
+        return False
+    # Ensure that the simulator argument is handed down to scons.
+    options.scons_flags.append("simulator=" + options.simulator)
+  else:
+    # If options.arch is not set by the command line and no simulator setting
+    # was found, set the arch to the guess.
+    if options.arch == 'none':
+      options.arch = ARCH_GUESS
   return True
 
 
