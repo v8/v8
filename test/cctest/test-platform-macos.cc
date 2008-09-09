@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google, Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 //
 // Tests of the TokenLock class from lock.h
 

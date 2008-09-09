@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2008 Google Inc.  All rights reserved.
+# Copyright 2008 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -30,7 +30,8 @@
 
 import optparse
 import os
-from os.path import abspath, join, dirname
+from os.path import abspath, join, dirname, basename
+import re
 import sys
 import subprocess
 
@@ -143,19 +144,18 @@ class CppLintProcessor(SourceFileProcessor):
     return process.wait() == 0
 
 
-class CopyrightProcessor(SourceFileProcessor):
+COPYRIGHT_HEADER_PATTERN = re.compile(
+    r'Copyright [\d-]*2008 the V8 project authors. All rights reserved.')
+
+class SourceProcessor(SourceFileProcessor):
   """
   Check that all files include a copyright notice.
   """
 
   RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', 'SConscript',
       'SConstruct', '.status']
-  FILES_TO_IGNORE = ['pcre_chartables.c', 'config.h',
-      'earley-boyer.js', 'raytrace.js']
   def IsRelevant(self, name):
-    if name in CopyrightProcessor.FILES_TO_IGNORE:
-      return False
-    for ext in CopyrightProcessor.RELEVANT_EXTENSIONS:
+    for ext in SourceProcessor.RELEVANT_EXTENSIONS:
       if name.endswith(ext):
         return True
     return False
@@ -163,11 +163,27 @@ class CopyrightProcessor(SourceFileProcessor):
   def GetPathsToSearch(self):
     return ['.']
 
+  def IgnoreDir(self, name):
+    return (super(SourceProcessor, self).IgnoreDir(name)
+              or (name == 'third_party')
+              or (name == 'obj'))
+
+  IGNORE_COPYRIGHTS = ['earley-boyer.js', 'raytrace.js', 'crypto.js']
+  IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js',
+      'html-comments.js']
+
   def ProcessContents(self, name, contents):
-    if not 'Copyright' in contents:
-      print "No copyright in %s." % name
-      return False
-    return True
+    result = True
+    base = basename(name)
+    if not base in SourceProcessor.IGNORE_TABS:
+      if '\t' in contents:
+        print "%s contains tabs" % name
+        result = False
+    if not base in SourceProcessor.IGNORE_COPYRIGHTS:
+      if not COPYRIGHT_HEADER_PATTERN.search(contents):
+        print "%s is missing a correct copyright header." % name
+        result = False
+    return result
 
   def ProcessFiles(self, files):
     success = True
@@ -195,7 +211,7 @@ def Main():
   success = True
   if not options.no_lint:
     success = CppLintProcessor().Run(workspace) and success
-  success = CopyrightProcessor().Run(workspace) and success
+  success = SourceProcessor().Run(workspace) and success
   if success:
     return 0
   else:
