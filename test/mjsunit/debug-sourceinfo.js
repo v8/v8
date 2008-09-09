@@ -47,7 +47,7 @@ var comment_lines = 29;
 
 // This magic number is the length or the first line comment (actually number
 // of characters before 'function a(...'.
-var comment_line_length = 1714;
+var comment_line_length = 1726;
 var start_a = 10 + comment_line_length;
 var start_b = 37 + comment_line_length;
 var start_c = 71 + comment_line_length;
