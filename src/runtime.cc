@@ -3447,7 +3447,7 @@ static Object* Runtime_SetNewFunctionAttributes(Arguments args) {
 // array.  Returns true if the element was pushed on the stack and
 // false otherwise.
 static Object* Runtime_PushIfAbsent(Arguments args) {
-  ASSERT(args.length == 2);
+  ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, array, args[0]);
   CONVERT_CHECKED(JSArray, element, args[1]);
   CHECK(array->HasFastElements());
