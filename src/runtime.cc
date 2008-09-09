@@ -3443,6 +3443,25 @@ static Object* Runtime_SetNewFunctionAttributes(Arguments args) {
 }
 
 
+// Push an array unto an array of arrays if it is not already in the
+// array.  Returns true if the element was pushed on the stack and
+// false otherwise.
+static Object* Runtime_PushIfAbsent(Arguments args) {
+  ASSERT(args.length == 2);
+  CONVERT_CHECKED(JSArray, array, args[0]);
+  CONVERT_CHECKED(JSArray, element, args[1]);
+  CHECK(array->HasFastElements());
+  int length = Smi::cast(array->length())->value();
+  FixedArray* elements = FixedArray::cast(array->elements());
+  for (int i = 0; i < length; i++) {
+    if (elements->get(i) == element) return Heap::false_value();
+  }
+  Object* obj = array->SetFastElement(length, element);
+  if (obj->IsFailure()) return obj;
+  return Heap::true_value();
+}
+
+
 // This will not allocate (flatten the string), but it may run
 // very slowly for very deeply nested ConsStrings.  For debugging use only.
 static Object* Runtime_GlobalPrint(Arguments args) {

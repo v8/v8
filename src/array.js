@@ -111,8 +111,7 @@ function Join(array, length, separator, convert) {
   if (is_array) {
     // If the array is cyclic, return the empty string for already
     // visited arrays.
-    if (Contains(visited_arrays, array)) return '';
-    visited_arrays[visited_arrays.length] = array;
+    if (!%PushIfAbsent(visited_arrays, array)) return '';
   }
 
   // Attempt to convert the elements.
@@ -702,17 +701,17 @@ function ArraySort(comparefn) {
     while (true) {
       var child_index = ((parent_index + 1) << 1) - 1;
       if (child_index >= i) break;
-      var child1_value = this[child_index]; 
+      var child1_value = this[child_index];
       var child2_value = this[child_index + 1];
       var parent_value = this[parent_index];
       if (child_index + 1 >= i || Compare(child1_value, child2_value) > 0) {
         if (Compare(parent_value, child1_value) > 0) break;
-        this[child_index] = parent_value; 
+        this[child_index] = parent_value;
         this[parent_index] = child1_value;
         parent_index = child_index;
       } else {
         if (Compare(parent_value, child2_value) > 0) break;
-        this[child_index + 1] = parent_value; 
+        this[child_index + 1] = parent_value;
         this[parent_index] = child2_value;
         parent_index = child_index + 1;
       }

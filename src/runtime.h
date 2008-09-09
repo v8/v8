@@ -61,6 +61,9 @@ namespace v8 { namespace internal {
   F(LazyCompile, 1) \
   F(SetNewFunctionAttributes, 1) \
   \
+  /* Array join support */ \
+  F(PushIfAbsent, 2) \
+  \
   /* ConsStrings */ \
   F(ConsStringFst, 1) \
   F(ConsStringSnd, 1) \
