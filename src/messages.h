@@ -70,6 +70,7 @@ class MessageLocation {
       : script_(script),
         start_pos_(start_pos),
         end_pos_(end_pos) { }
+  MessageLocation() : start_pos_(-1), end_pos_(-1) { }
 
   Handle<Script> script() const { return script_; }
   int start_pos() const { return start_pos_; }
@@ -89,10 +90,14 @@ class MessageHandler {
   // Report a message (w/o JS heap allocation).
   static void ReportMessage(const char* msg);
 
+  // Returns a message object for the API to use.
+  static Handle<Object> MakeMessageObject(const char* type,
+                                          MessageLocation* loc,
+                                          Vector< Handle<Object> > args,
+                                          Handle<String> stack_trace);
+
   // Report a formatted message (needs JS allocation).
-  static void ReportMessage(const char* type,
-                            MessageLocation* loc,
-                            Vector< Handle<Object> > args);
+  static void ReportMessage(MessageLocation* loc, Handle<Object> message);
 
   static void DefaultMessageReport(const MessageLocation* loc,
                                    Handle<Object> message_obj);

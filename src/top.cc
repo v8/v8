@@ -79,6 +79,7 @@ void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
        block != NULL;
        block = block->next_) {
     VISIT(reinterpret_cast<Object*&>(block->exception_));
+    VISIT(reinterpret_cast<Object*&>(block->message_));
   }
 
   // Iterate over pointers on native execution stack.
@@ -671,39 +672,35 @@ void Top::PrintCurrentStackTrace(FILE* out) {
 }
 
 
+void Top::ComputeLocation(MessageLocation* target) {
+  *target = MessageLocation(empty_script(), -1, -1);
+  StackTraceFrameIterator it;
+  if (!it.done()) {
+    JavaScriptFrame* frame = it.frame();
+    JSFunction* fun = JSFunction::cast(frame->function());
+    Object* script = fun->shared()->script();
+    if (script->IsScript() &&
+        !(Script::cast(script)->source()->IsUndefined())) {
+      int pos = frame->FindCode()->SourcePosition(frame->pc());
+      // Compute the location from the function and the reloc info.
+      Handle<Script> casted_script(Script::cast(script));
+      *target = MessageLocation(casted_script, pos, pos + 1);
+    }
+  }
+}
+
+
 void Top::ReportUncaughtException(Handle<Object> exception,
                                   MessageLocation* location,
                                   Handle<String> stack_trace) {
-  MessageLocation computed_location(empty_script(), -1, -1);
-  if (location == NULL) {
-    location = &computed_location;
-
-    StackTraceFrameIterator it;
-    if (!it.done()) {
-      JavaScriptFrame* frame = it.frame();
-      JSFunction* fun = JSFunction::cast(frame->function());
-      Object* script = fun->shared()->script();
-      if (script->IsScript() &&
-          !(Script::cast(script)->source()->IsUndefined())) {
-        int pos = frame->FindCode()->SourcePosition(frame->pc());
-        // Compute the location from the function and the reloc info.
-        Handle<Script> casted_script(Script::cast(script));
-        computed_location = MessageLocation(casted_script, pos, pos + 1);
-      }
-    }
-  }
+  Handle<Object> message =
+    MessageHandler::MakeMessageObject("uncaught_exception",
+                                      location,
+                                      HandleVector<Object>(&exception, 1),
+                                      stack_trace);
 
   // Report the uncaught exception.
-  MessageHandler::ReportMessage("uncaught_exception",
-                                location,
-                                HandleVector<Object>(&exception, 1));
-
-  // Optionally, report the stack trace separately.
-  if (!stack_trace.is_null()) {
-    MessageHandler::ReportMessage("stack_trace",
-                                  location,
-                                  HandleVector<String>(&stack_trace, 1));
-  }
+  MessageHandler::ReportMessage(location, message);
 }
 
 
@@ -771,12 +768,30 @@ void Top::DoThrow(Object* exception,
     ShouldReportException(&is_caught_externally);
   if (is_rethrow) report_exception = false;
 
+  Handle<Object> message_obj;
+  MessageLocation potential_computed_location;
+  if (is_caught_externally || report_exception) {
+    if (location == NULL) {
+      // If no location was specified we use a computed one instead
+      ComputeLocation(&potential_computed_location);
+      location = &potential_computed_location;
+    }
+    Handle<String> stack_trace;
+    if (FLAG_trace_exception) stack_trace = StackTrace();
+    message_obj = MessageHandler::MakeMessageObject("uncaught_exception",
+        location, HandleVector<Object>(&exception_handle, 1), stack_trace);
+  }
+
   // If the exception is caught externally, we store it in the
   // try/catch handler. The C code can find it later and process it if
   // necessary.
   if (is_caught_externally) {
     thread_local_.try_catch_handler_->exception_ =
       reinterpret_cast<void*>(*exception_handle);
+    if (!message_obj.is_null()) {
+      thread_local_.try_catch_handler_->message_ =
+        reinterpret_cast<void*>(*message_obj);
+    }
   }
 
   // Notify debugger of exception.
@@ -786,9 +801,7 @@ void Top::DoThrow(Object* exception,
     if (message != NULL) {
       MessageHandler::ReportMessage(message);
     } else {
-      Handle<String> stack_trace;
-      if (FLAG_trace_exception) stack_trace = StackTrace();
-      ReportUncaughtException(exception_handle, location, stack_trace);
+      MessageHandler::ReportMessage(location, message_obj);
     }
   }
   thread_local_.external_caught_exception_ = is_caught_externally;

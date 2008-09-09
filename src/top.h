@@ -226,6 +226,10 @@ class Top {
                                       MessageLocation* location,
                                       Handle<String> stack_trace);
 
+  // Attempts to compute the current source location, storing the
+  // result in the target out parameter.
+  static void ComputeLocation(MessageLocation* target);
+
   // Override command line flag.
   static void TraceException(bool flag);
 

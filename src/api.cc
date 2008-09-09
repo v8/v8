@@ -1081,6 +1081,7 @@ Local<Value> Script::Run() {
 v8::TryCatch::TryCatch()
     : next_(i::Top::try_catch_handler()),
       exception_(i::Heap::the_hole_value()),
+      message_(i::Smi::FromInt(0)),
       is_verbose_(false) {
   i::Top::RegisterTryCatchHandler(this);
 }
@@ -1107,8 +1108,19 @@ v8::Local<Value> v8::TryCatch::Exception() {
 }
 
 
+v8::Local<v8::Message> v8::TryCatch::Message() {
+  if (HasCaught() && message_ != i::Smi::FromInt(0)) {
+    i::Object* message = reinterpret_cast<i::Object*>(message_);
+    return v8::Utils::MessageToLocal(i::Handle<i::Object>(message));
+  } else {
+    return v8::Local<v8::Message>();
+  }
+}
+
+
 void v8::TryCatch::Reset() {
   exception_ = i::Heap::the_hole_value();
+  message_ = i::Smi::FromInt(0);
 }
 
 
@@ -1196,15 +1208,80 @@ int Message::GetLineNumber() {
 }
 
 
-Local<Value> Message::GetSourceLine() {
-  ON_BAILOUT("v8::Message::GetSourceLine()", return Local<Value>());
+int Message::GetStartPosition() {
+  if (IsDeadCheck("v8::Message::GetStartPosition()")) return 0;
+  HandleScope scope;
+
+  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
+  return static_cast<int>(GetProperty(data_obj, "startPos")->Number());
+}
+
+
+int Message::GetEndPosition() {
+  if (IsDeadCheck("v8::Message::GetEndPosition()")) return 0;
+  HandleScope scope;
+  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
+  return static_cast<int>(GetProperty(data_obj, "endPos")->Number());
+}
+
+
+int Message::GetStartColumn() {
+  if (IsDeadCheck("v8::Message::GetStartColumn()")) return 0;
+  HandleScope scope;
+  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> start_col_obj = CallV8HeapFunction(
+      "GetPositionInLine",
+      data_obj,
+      &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(0);
+  return static_cast<int>(start_col_obj->Number());
+}
+
+
+int Message::GetEndColumn() {
+  if (IsDeadCheck("v8::Message::GetEndColumn()")) return 0;
+  HandleScope scope;
+  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> start_col_obj = CallV8HeapFunction(
+      "GetPositionInLine",
+      data_obj,
+      &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(0);
+  int start = static_cast<int>(GetProperty(data_obj, "startPos")->Number());
+  int end = static_cast<int>(GetProperty(data_obj, "endPos")->Number());
+  return static_cast<int>(start_col_obj->Number()) + (end - start);
+}
+
+
+v8::Local<v8::String> Message::GetStackTrace() {
+  if (IsDeadCheck("v8::Message::GetStackTrace()"))
+    return v8::Local<v8::String>();
+  HandleScope scope;
+  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
+  i::Handle<i::Object> trace = GetProperty(data_obj, "stackTrace");
+  if (trace->IsString()) {
+    return scope.Close(Utils::ToLocal(i::Handle<i::String>::cast(trace)));
+  } else {
+    return Local<String>();
+  }
+}
+
+
+Local<String> Message::GetSourceLine() {
+  ON_BAILOUT("v8::Message::GetSourceLine()", return Local<String>());
   HandleScope scope;
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> result = CallV8HeapFunction("GetSourceLine",
                                                    Utils::OpenHandle(this),
                                                    &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(Local<v8::Value>());
-  return scope.Close(Utils::ToLocal(result));
+  EXCEPTION_BAILOUT_CHECK(Local<v8::String>());
+  if (result->IsString()) {
+    return scope.Close(Utils::ToLocal(i::Handle<i::String>::cast(result)));
+  } else {
+    return Local<String>();
+  }
 }
 
 

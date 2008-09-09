@@ -537,8 +537,10 @@ bool Debug::CompileDebuggerScript(int index) {
 
   // Check for caught exceptions.
   if (caught_exception) {
-    MessageHandler::ReportMessage("error_loading_debugger", NULL,
-                                  HandleVector<Object>(&result, 1));
+    Handle<Object> message = MessageHandler::MakeMessageObject(
+        "error_loading_debugger", NULL, HandleVector<Object>(&result, 1),
+        Handle<String>());
+    MessageHandler::ReportMessage(NULL, message);
     return false;
   }
 

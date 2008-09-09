@@ -4843,3 +4843,40 @@ THREADED_TEST(Regress54) {
   v8::Handle<v8::Object> result = templ->NewInstance();
   CHECK_EQ(1, result->InternalFieldCount());
 }
+
+
+THREADED_TEST(TryCatchSourceInfo) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::String> source = v8::String::New(
+      "function Foo() {\n"
+      "  return Bar();\n"
+      "}\n"
+      "\n"
+      "function Bar() {\n"
+      "  return Baz();\n"
+      "}\n"
+      "\n"
+      "function Baz() {\n"
+      "  throw 'nirk';\n"
+      "}\n"
+      "\n"
+      "Foo();\n");
+  v8::Handle<v8::Script> script =
+    v8::Script::Compile(source, v8::String::New("test.js"));
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Value> result = script->Run();
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  v8::Handle<v8::Message> message = try_catch.Message();
+  CHECK(!message.IsEmpty());
+  CHECK_EQ(10, message->GetLineNumber());
+  CHECK_EQ(91, message->GetStartPosition());
+  CHECK_EQ(92, message->GetEndPosition());
+  CHECK_EQ(2, message->GetStartColumn());
+  CHECK_EQ(3, message->GetEndColumn());
+  v8::String::AsciiValue line(message->GetSourceLine());
+  CHECK_EQ("  throw 'nirk';", *line);
+  v8::String::AsciiValue name(message->GetScriptResourceName());
+  CHECK_EQ("test.js", *name);
+}

@@ -555,17 +555,18 @@ function GetPositionInLine(message) {
 };
 
 
-function ErrorMessage(type, args, startPos, endPos, script) {
+function ErrorMessage(type, args, startPos, endPos, script, stackTrace) {
   this.startPos = startPos;
   this.endPos = endPos;
   this.type = type;
   this.args = args;
   this.script = script;
+  this.stackTrace = stackTrace;
 };
 
 
-function MakeMessage(type, args, startPos, endPos, script) {
-  return new ErrorMessage(type, args, startPos, endPos, script);
+function MakeMessage(type, args, startPos, endPos, script, stackTrace) {
+  return new ErrorMessage(type, args, startPos, endPos, script, stackTrace);
 };
 
 

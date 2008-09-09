@@ -553,7 +553,7 @@ class EXPORT Script {
 class EXPORT Message {
  public:
   Local<String> Get();
-  Local<Value> GetSourceLine();
+  Local<String> GetSourceLine();
 
   // TODO(1241256): Rewrite (or remove) this method.  We don't want to
   // deal with ownership of the returned string and we want to use
@@ -566,7 +566,40 @@ class EXPORT Message {
   // bindings.
   Handle<Value> GetSourceData();
 
+  /**
+   * Returns the number, 1-based, of the line where the error occurred.
+   */
   int GetLineNumber();
+
+  /**
+   * Returns the index within the script of the first character where
+   * the error occurred.
+   */
+  int GetStartPosition();
+
+  /**
+   * Returns the index within the script of the last character where
+   * the error occurred.
+   */
+  int GetEndPosition();
+
+  /**
+   * Returns the index within the line of the first character where
+   * the error occurred.
+   */
+  int GetStartColumn();
+
+  /**
+   * Returns the index within the line of the last character where
+   * the error occurred.
+   */
+  int GetEndColumn();
+
+  /**
+   * Returns a string stack trace if trace_exceptions is enabled and
+   * one is available.
+   */
+  Local<String> GetStackTrace();
 
   // TODO(1245381): Print to a string instead of on a FILE.
   static void PrintCurrentStackTrace(FILE* out);
@@ -1912,6 +1945,15 @@ class EXPORT TryCatch {
   Local<Value> Exception();
 
   /**
+   * Returns the message associated with this exception.  If there is
+   * no message associated an empty handle is returned.
+   *
+   * The returned handle is valid until this TryCatch block has been
+   * destroyed.
+   */
+  Local<v8::Message> Message();
+
+  /**
    * Clears any exceptions that may have been caught by this try/catch block.
    * After this method has been called, HasCaught() will return false.
    *
@@ -1935,6 +1977,7 @@ class EXPORT TryCatch {
  public:
   TryCatch* next_;
   void* exception_;
+  void* message_;
   bool is_verbose_;
 };
 
