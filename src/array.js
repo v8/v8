@@ -31,15 +31,6 @@
 
 // -------------------------------------------------------------------
 
-// Determines if the array contains the element.
-function Contains(array, element) {
-  var length = array.length;
-  for (var i = 0; i < length; i++) {
-    if (array[i] === element) return true;
-  }
-  return false;
-};
-
 
 // Global list of arrays visited during toString, toLocaleString and
 // join invocations.
