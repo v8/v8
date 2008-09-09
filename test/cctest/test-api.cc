@@ -4825,3 +4825,21 @@ THREADED_TEST(DisposeEnteredContext) {
     inner->Exit();
   }
 }
+
+
+// Regression test for issue 54, object templates with internal fields
+// but no accessors or interceptors did not get their internal field
+// count set on instances.
+THREADED_TEST(Regress54) {
+  v8::HandleScope outer;
+  LocalContext context;
+  static v8::Persistent<v8::ObjectTemplate> templ;
+  if (templ.IsEmpty()) {
+    v8::HandleScope inner;
+    v8::Handle<v8::ObjectTemplate> local = v8::ObjectTemplate::New();
+    local->SetInternalFieldCount(1);
+    templ = v8::Persistent<v8::ObjectTemplate>::New(inner.Close(local));
+  }
+  v8::Handle<v8::Object> result = templ->NewInstance();
+  CHECK_EQ(1, result->InternalFieldCount());
+}

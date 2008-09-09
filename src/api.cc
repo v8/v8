@@ -979,6 +979,12 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
                 "Invalid internal field count")) {
     return;
   }
+  if (value > 0) {
+    // The internal field count is set by the constructor function's
+    // construct code, so we ensure that there is a constructor
+    // function to do the setting.
+    EnsureConstructor(this);
+  }
   Utils::OpenHandle(this)->set_internal_field_count(i::Smi::FromInt(value));
 }
 
