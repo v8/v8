@@ -770,7 +770,7 @@ void Top::DoThrow(Object* exception,
 
   Handle<Object> message_obj;
   MessageLocation potential_computed_location;
-  if (is_caught_externally || report_exception) {
+  if (report_exception) {
     if (location == NULL) {
       // If no location was specified we use a computed one instead
       ComputeLocation(&potential_computed_location);
