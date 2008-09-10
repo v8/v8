@@ -168,7 +168,7 @@ js1_5/extensions/regress-371636: PASS || FAIL
 # Tests depend on GC timings. Inherently flaky.
 js1_5/GC/regress-383269-01: PASS || FAIL
 js1_5/GC/regress-383269-02: PASS || FAIL
-js1_5/Regress/regress-404755.js: PASS || FAIL
+js1_5/Regress/regress-404755: PASS || FAIL
 
 
 ##################### INCOMPATIBLE TESTS #####################
