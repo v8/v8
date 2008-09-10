@@ -3221,7 +3221,8 @@ static Object* Runtime_DebugPrint(Arguments args) {
   }
   args[0]->Print();
 #else
-  PrintF("DebugPrint: %p", args[0]);
+  // ShortPrint is available in release mode. Print is not.
+  args[0]->ShortPrint();
 #endif
   PrintF("\n");
 
