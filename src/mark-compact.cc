@@ -221,15 +221,15 @@ static MarkingStack marking_stack;
 
 
 inline HeapObject* ShortCircuitConsString(Object** p) {
-  // Optimization: If the heap object pointed to by p is a cons string whose
-  // right substring is Heap::empty_string, update it in place to its left
-  // substring.  Return the updated value.
+  // Optimization: If the heap object pointed to by p is a non-symbol
+  // cons string whose right substring is Heap::empty_string, update
+  // it in place to its left substring.  Return the updated value.
   //
   // Here we assume that if we change *p, we replace it with a heap object
   // (ie, the left substring of a cons string is always a heap object).
   //
   // The check performed is:
-  //   object->IsConsString() &&
+  //   object->IsConsString() && !object->IsSymbol() &&
   //   (ConsString::cast(object)->second() == Heap::empty_string())
   // except the maps for the object and its possible substrings might be
   // marked.
@@ -237,7 +237,9 @@ inline HeapObject* ShortCircuitConsString(Object** p) {
   MapWord map_word = object->map_word();
   map_word.ClearMark();
   InstanceType type = map_word.ToMap()->instance_type();
-  if (type >= FIRST_NONSTRING_TYPE) return object;
+  if (type >= FIRST_NONSTRING_TYPE || (type & kIsSymbolMask) != 0) {
+    return object;
+  }
 
   StringRepresentationTag rep =
       static_cast<StringRepresentationTag>(type & kStringRepresentationMask);

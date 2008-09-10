@@ -2556,7 +2556,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
       Consume(Token::STRING);
       Handle<String> symbol =
           factory()->LookupSymbol(scanner_.literal_string(),
-                                scanner_.literal_length());
+                                  scanner_.literal_length());
       result = NEW(Literal(symbol));
       break;
     }
@@ -2708,8 +2708,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       case Token::STRING: {
         Consume(Token::STRING);
         Handle<String> string =
-          factory()->LookupSymbol(scanner_.literal_string(),
-                                  scanner_.literal_length());
+            factory()->LookupSymbol(scanner_.literal_string(),
+                                    scanner_.literal_length());
         uint32_t index;
         if (!string.is_null() && string->AsArrayIndex(&index)) {
           key = NewNumberLiteral(index);
@@ -3032,7 +3032,7 @@ Handle<String> Parser::ParseIdentifier(bool* ok) {
   Expect(Token::IDENTIFIER, ok);
   if (!*ok) return Handle<String>();
   return factory()->LookupSymbol(scanner_.literal_string(),
-                               scanner_.literal_length());
+                                 scanner_.literal_length());
 }
 
 // This function reads an identifier and determines whether or not it

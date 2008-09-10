@@ -1124,8 +1124,7 @@ Object* JSObject::ReplaceConstantFunctionProperty(String* name,
   if (value->IsJSFunction()) {
     JSFunction* function = JSFunction::cast(value);
 
-    Object* new_map =
-      map()->CopyDropTransitions();
+    Object* new_map = map()->CopyDropTransitions();
     if (new_map->IsFailure()) return new_map;
     set_map(Map::cast(new_map));
 
@@ -2646,7 +2645,7 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
   int new_size = number_of_descriptors() - transitions - null_descriptors;
 
   // If key is in descriptor, we replace it in-place when filtering.
-  int index = Search(descriptor->key());
+  int index = Search(descriptor->GetKey());
   const bool inserting = (index == kNotFound);
   const bool replacing = !inserting;
   bool keep_enumeration_index = false;
@@ -2689,7 +2688,7 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
   // and inserting or replacing a descriptor.
   DescriptorWriter w(new_descriptors);
   DescriptorReader r(this);
-  uint32_t descriptor_hash = descriptor->key()->Hash();
+  uint32_t descriptor_hash = descriptor->GetKey()->Hash();
 
   for (; !r.eos(); r.advance()) {
     if (r.GetKey()->Hash() > descriptor_hash ||
@@ -5385,6 +5384,15 @@ class SymbolKey : public HashTableKey {
   uint32_t Hash() { return string_->Hash(); }
 
   Object* GetObject() {
+    // If the string is a cons string, attempt to flatten it so that
+    // symbols will most often be flat strings.
+    if (string_->IsConsString()) {
+      ConsString* cons_string = ConsString::cast(string_);
+      cons_string->TryFlatten();
+      if (cons_string->second() == Heap::empty_string()) {
+        string_ = String::cast(cons_string->first());
+      }
+    }
     // Transform string to symbol if possible.
     Map* map = Heap::SymbolMapForString(string_);
     if (map != NULL) {

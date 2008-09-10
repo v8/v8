@@ -44,8 +44,6 @@ class Descriptor BASE_EMBEDDED {
     return Smi::cast(value)->value();
   }
 
-  String* key() { return key_; }
-
   Object* KeyToSymbol() {
     if (!key_->IsSymbol()) {
       Object* result = Heap::LookupSymbol(key_);
