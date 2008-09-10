@@ -111,6 +111,14 @@ function Join(array, length, separator, convert) {
       return SparseJoin(array, length, convert);
     }
 
+    // Fast case for one-element arrays.
+    if (length == 1) {
+      var e = array[0];
+      if (!IS_UNDEFINED(e) || (0 in array)) {
+        return convert(e);
+      }
+    }
+
     var builder = new StringBuilder();
 
     for (var i = 0; i < length; i++) {
