@@ -1993,11 +1993,19 @@ class EXPORT TryCatch {
    */
   void SetVerbose(bool value);
 
+  /**
+   * Set whether or not this TryCatch should capture a Message object
+   * which holds source information about where the exception
+   * occurred.  True by default.
+   */
+  void SetCaptureMessage(bool value);
+
  public:
   TryCatch* next_;
   void* exception_;
   void* message_;
   bool is_verbose_;
+  bool capture_message_;
 };
 
 

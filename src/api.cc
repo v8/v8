@@ -1082,7 +1082,8 @@ v8::TryCatch::TryCatch()
     : next_(i::Top::try_catch_handler()),
       exception_(i::Heap::the_hole_value()),
       message_(i::Smi::FromInt(0)),
-      is_verbose_(false) {
+      is_verbose_(false),
+      capture_message_(true) {
   i::Top::RegisterTryCatchHandler(this);
 }
 
@@ -1126,6 +1127,11 @@ void v8::TryCatch::Reset() {
 
 void v8::TryCatch::SetVerbose(bool value) {
   is_verbose_ = value;
+}
+
+
+void v8::TryCatch::SetCaptureMessage(bool value) {
+  capture_message_ = value;
 }
 
 

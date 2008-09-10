@@ -4845,6 +4845,21 @@ THREADED_TEST(Regress54) {
 }
 
 
+THREADED_TEST(CatchStackOverflow) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::New(
+    "function f() {"
+    "  return f();"
+    "}"
+    ""
+    "f();"));
+  v8::Handle<v8::Value> result = script->Run();
+  CHECK(result.IsEmpty());
+}
+
+
 THREADED_TEST(TryCatchSourceInfo) {
   v8::HandleScope scope;
   LocalContext context;

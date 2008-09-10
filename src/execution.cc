@@ -130,9 +130,12 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
                                   Object*** args,
                                   bool* caught_exception) {
   // Enter a try-block while executing the JavaScript code. To avoid
-  // duplicate error printing it must be non-verbose.
+  // duplicate error printing it must be non-verbose.  Also, to avoid
+  // creating message objects during stack overflow we shouldn't
+  // capture messages.
   v8::TryCatch catcher;
   catcher.SetVerbose(false);
+  catcher.SetCaptureMessage(false);
 
   Handle<Object> result = Invoke(false, func, receiver, argc, args,
                                  caught_exception);
