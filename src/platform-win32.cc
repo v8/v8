@@ -493,7 +493,12 @@ char* Time::LocalTimezone() {
 
 void OS::Setup() {
   // Seed the random number generator.
-  srand(static_cast<unsigned int>(TimeCurrentMillis()));
+  // Convert the current time to a 64-bit integer first, before converting it
+  // to an unsigned. Going directly can cause an overflow and the seed to be
+  // set to all ones. The seed will be identical for different instances that
+  // call this setup code within the same millisecond.
+  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
+  srand(static_cast<unsigned int>(seed));
 }
 
 
