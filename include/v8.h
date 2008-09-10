@@ -880,6 +880,21 @@ class EXPORT String : public Primitive {
   static Local<String> NewUndetectable(const uint16_t* data, int length = -1);
 
   /**
+   * Converts an object to a utf8-encoded character array.  Useful if
+   * you want to print the object.
+   */
+  class EXPORT Utf8Value {
+   public:
+    explicit Utf8Value(Handle<v8::Value> obj);
+    ~Utf8Value();
+    char* operator*() { return str_; }
+    int length() { return length_; }
+   private:
+    char* str_;
+    int length_;
+  };
+
+  /**
    * Converts an object to an ascii string.
    * Useful if you want to print the object.
    */
@@ -888,8 +903,10 @@ class EXPORT String : public Primitive {
     explicit AsciiValue(Handle<v8::Value> obj);
     ~AsciiValue();
     char* operator*() { return str_; }
+    int length() { return length_; }
    private:
     char* str_;
+    int length_;
   };
 
   /**
@@ -900,8 +917,10 @@ class EXPORT String : public Primitive {
     explicit Value(Handle<v8::Value> obj);
     ~Value();
     uint16_t* operator*() { return str_; }
+    int length() { return length_; }
    private:
     uint16_t* str_;
+    int length_;
   };
 };
 

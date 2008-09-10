@@ -2629,13 +2629,40 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 }
 
 
+String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
+  EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
+  HandleScope scope;
+  TryCatch try_catch;
+  Handle<String> str = obj->ToString();
+  if (str.IsEmpty()) {
+    str_ = NULL;
+    length_ = 0;
+  } else {
+    length_ = str->Utf8Length();
+    str_ = i::NewArray<char>(length_ + 1);
+    str->WriteUtf8(str_);
+  }
+}
+
+
+String::Utf8Value::~Utf8Value() {
+  i::DeleteArray(str_);
+}
+
+
 String::AsciiValue::AsciiValue(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::AsciiValue::AsciiValue()");
   HandleScope scope;
+  TryCatch try_catch;
   Handle<String> str = obj->ToString();
-  int length = str->Length();
-  str_ = i::NewArray<char>(length + 1);
-  str->WriteAscii(str_);
+  if (str.IsEmpty()) {
+    str_ = NULL;
+    length_ = 0;
+  } else {
+    length_ = str->Length();
+    str_ = i::NewArray<char>(length_ + 1);
+    str->WriteAscii(str_);
+  }
 }
 
 
@@ -2647,10 +2674,16 @@ String::AsciiValue::~AsciiValue() {
 String::Value::Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Value::Value()");
   HandleScope scope;
+  TryCatch try_catch;
   Handle<String> str = obj->ToString();
-  int length = str->Length();
-  str_ = i::NewArray<uint16_t>(length + 1);
-  str->Write(str_);
+  if (str.IsEmpty()) {
+    str_ = NULL;
+    length_ = 0;
+  } else {
+    length_ = str->Length();
+    str_ = i::NewArray<uint16_t>(length_ + 1);
+    str->Write(str_);
+  }
 }
 
 

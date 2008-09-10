@@ -74,8 +74,8 @@ void CheckEqualsHelper(const char* file,
                        const char* value_source,
                        v8::Handle<v8::Value> value) {
   if (!expected->Equals(value)) {
-    v8::String::AsciiValue value_str(value);
-    v8::String::AsciiValue expected_str(expected);
+    v8::String::Utf8Value value_str(value);
+    v8::String::Utf8Value expected_str(expected);
     V8_Fatal(file, line,
              "CHECK_EQ(%s, %s) failed\n#   Expected: %s\n#   Found: %s",
              expected_source, value_source, *expected_str, *value_str);
@@ -90,7 +90,7 @@ void CheckNonEqualsHelper(const char* file,
                           const char* value_source,
                           v8::Handle<v8::Value> value) {
   if (unexpected->Equals(value)) {
-    v8::String::AsciiValue value_str(value);
+    v8::String::Utf8Value value_str(value);
     V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %s",
              unexpected_source, value_source, *value_str);
   }

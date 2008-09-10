@@ -148,6 +148,8 @@ function MakeGenericError(constructor, type, args) {
         args[i] = elem.slice(0,20).concat("...");
       }
     }
+  } else if (IS_UNDEFINED(args)) {
+    args = [];
   }
 
   var e = new constructor();
