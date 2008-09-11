@@ -321,7 +321,7 @@ int OS::StackWalk(StackFrame* frames, int frames_size) {
     frames[i].address = addresses[i];
     // Format a text representation of the frame based on the information
     // available.
-    SNPrintF(MutableCStrVector(frames[i].text, 
+    SNPrintF(MutableCStrVector(frames[i].text,
                                kStackWalkMaxTextLen),
              "%s",
              symbols[i]);

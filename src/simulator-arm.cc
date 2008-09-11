@@ -204,10 +204,11 @@ void Debugger::Debug() {
   while (!done) {
     if (last_pc != sim_->get_pc()) {
       disasm::Disassembler dasm;
-      char buffer[256];  // use a reasonably large buffer
-      dasm.InstructionDecode(buffer, sizeof(buffer),
+      // use a reasonably large buffer
+      v8::internal::EmbeddedVector<char, 256> buffer;
+      dasm.InstructionDecode(buffer,
                              reinterpret_cast<byte*>(sim_->get_pc()));
-      PrintF("  0x%x  %s\n", sim_->get_pc(), buffer);
+      PrintF("  0x%x  %s\n", sim_->get_pc(), buffer.start());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -258,7 +259,8 @@ void Debugger::Debug() {
         }
       } else if (strcmp(cmd, "disasm") == 0) {
         disasm::Disassembler dasm;
-        char buffer[256];  // use a reasonably large buffer
+        // use a reasonably large buffer
+        v8::internal::EmbeddedVector<char, 256> buffer;
 
         byte* cur = NULL;
         byte* end = NULL;
@@ -283,8 +285,8 @@ void Debugger::Debug() {
         }
 
         while (cur < end) {
-          dasm.InstructionDecode(buffer, sizeof(buffer), cur);
-          PrintF("  0x%x  %s\n", cur, buffer);
+          dasm.InstructionDecode(buffer, cur);
+          PrintF("  0x%x  %s\n", cur, buffer.start());
           cur += Instr::kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -1341,11 +1343,11 @@ void Simulator::InstructionDecode(Instr* instr) {
   }
   if (FLAG_trace_sim) {
     disasm::Disassembler dasm;
-    char buffer[256];  // use a reasonably large buffer
+    // use a reasonably large buffer
+    v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer,
-                           sizeof(buffer),
                            reinterpret_cast<byte*>(instr));
-    PrintF("  0x%x  %s\n", instr, buffer);
+    PrintF("  0x%x  %s\n", instr, buffer.start());
   }
   if (ConditionallyExecute(instr)) {
     switch (instr->TypeField()) {

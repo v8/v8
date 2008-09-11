@@ -52,10 +52,9 @@ namespace v8i = v8::internal;
 class Decoder {
  public:
   Decoder(const disasm::NameConverter& converter,
-          char* out_buffer, const int out_buffer_size)
+          v8::internal::Vector<char> out_buffer)
     : converter_(converter),
       out_buffer_(out_buffer),
-      out_buffer_size_(out_buffer_size),
       out_buffer_pos_(0) {
     ASSERT(out_buffer_size_ > 0);
     out_buffer_[out_buffer_pos_] = '\0';
@@ -69,8 +68,7 @@ class Decoder {
 
  private:
   const disasm::NameConverter& converter_;
-  char* out_buffer_;
-  const int out_buffer_size_;
+  v8::internal::Vector<char> out_buffer_;
   int out_buffer_pos_;
 
   void PrintChar(const char ch);
@@ -106,7 +104,7 @@ void Decoder::PrintChar(const char ch) {
 // Append the str to the output buffer.
 void Decoder::Print(const char* str) {
   char cur = *str++;
-  while (cur != 0 && (out_buffer_pos_ < (out_buffer_size_-1))) {
+  while (cur != 0 && (out_buffer_pos_ < (out_buffer_.length()-1))) {
     PrintChar(cur);
     cur = *str++;
   }
@@ -159,14 +157,12 @@ void Decoder::PrintShiftRm(Instr* instr) {
       shift_amount = 32;
     }
     out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                         out_buffer_size_ - out_buffer_pos_,
                                          ", %s #%d",
                                          shift_names[shift], shift_amount);
   } else {
     // by register
     int rs = instr->RsField();
     out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                         out_buffer_size_ - out_buffer_pos_,
                                          ", %s ", shift_names[shift]);
     PrintRegister(rs);
   }
@@ -180,7 +176,6 @@ void Decoder::PrintShiftImm(Instr* instr) {
   int immed8 = instr->Immed8Field();
   int imm = (immed8 >> rotate) | (immed8 << (32 - rotate));
   out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                       out_buffer_size_ - out_buffer_pos_,
                                        "#%d", imm);
 }
 
@@ -250,7 +245,6 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
         byte* str =
             reinterpret_cast<byte*>(instr->InstructionBits() & 0x0fffffff);
         out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                             out_buffer_size_ - out_buffer_pos_,
                                              "%s", converter_.NameInCode(str));
         return 3;
       }
@@ -262,7 +256,6 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
         // 'off12: 12-bit offset for load and store instructions
         ASSERT(format[4] == '2');
         out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                             out_buffer_size_ - out_buffer_pos_,
                                              "%d", instr->Offset12Field());
         return 5;
       } else {
@@ -270,7 +263,6 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
         ASSERT(format[3] == '8');
         int offs8 = (instr->ImmedHField() << 4) | instr->ImmedLField();
         out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                             out_buffer_size_ - out_buffer_pos_,
                                              "%d", offs8);
         return 4;
       }
@@ -367,7 +359,6 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
           default:
             out_buffer_pos_ += v8i::OS::SNPrintF(
                 out_buffer_ + out_buffer_pos_,
-                out_buffer_size_ - out_buffer_pos_,
                 "%d",
                 swi);
             break;
@@ -394,7 +385,6 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
       int off = (instr->SImmed24Field() << 2) + 8;
       out_buffer_pos_ += v8i::OS::SNPrintF(
           out_buffer_ + out_buffer_pos_,
-          out_buffer_size_ - out_buffer_pos_,
           "%+d -> %s",
           off,
           converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
@@ -432,7 +422,7 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
 // parsed further.
 void Decoder::Format(Instr* instr, const char* format) {
   char cur = *format++;
-  while ((cur != 0) && (out_buffer_pos_ < (out_buffer_size_ - 1))) {
+  while ((cur != 0) && (out_buffer_pos_ < (out_buffer_.length() - 1))) {
     if (cur == '\'') {  // Single quote is used as the formatting escape.
       format += FormatOption(instr, format);
     } else {
@@ -804,7 +794,6 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   Instr* instr = Instr::At(instr_ptr);
   // Print raw instruction bytes.
   out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                       out_buffer_size_ - out_buffer_pos_,
                                        "%08x       ",
                                        instr->InstructionBits());
   if (instr->ConditionField() == special_condition) {
@@ -922,9 +911,9 @@ Disassembler::Disassembler(const NameConverter& converter)
 Disassembler::~Disassembler() {}
 
 
-int Disassembler::InstructionDecode(char* buffer, const int buffer_size,
+int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
                                     byte* instruction) {
-  assembler::arm::Decoder d(converter_, buffer, buffer_size);
+  assembler::arm::Decoder d(converter_, buffer);
   return d.InstructionDecode(instruction);
 }
 
@@ -942,12 +931,12 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) {
 void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
   Disassembler d;
   for (byte* pc = begin; pc < end;) {
-    char buffer[128];
+    v8::internal::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
     byte* prev_pc = pc;
-    pc += d.InstructionDecode(buffer, sizeof buffer, pc);
+    pc += d.InstructionDecode(buffer, pc);
     fprintf(f, "%p    %08x      %s\n",
-            prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer);
+            prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer.start());
   }
 }
 
