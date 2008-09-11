@@ -948,6 +948,7 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
     ASSERT(var()->mode() != Variable::DYNAMIC);
 
     Label exit;
+    bool may_skip_write = false;
     if (init_state == CONST_INIT) {
       ASSERT(var()->mode() == Variable::CONST);
       // Only the first const initialization must be executed (the slot
@@ -957,6 +958,7 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
       masm->ldr(r2, ArmCodeGenerator::SlotOperand(masm, scope, this, r2));
       masm->cmp(r2, Operand(Factory::the_hole_value()));
       masm->b(ne, &exit);
+      may_skip_write = true;
     }
 
     // We must execute the store.
@@ -981,7 +983,9 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
       masm->mov(r3, Operand(offset));
       masm->RecordWrite(r2, r3, r1);
     }
-    masm->bind(&exit);
+    // If we definitely did not jump over the assignment, we do not need to
+    // bind the exit label.  Doing so can defeat peephole optimization.
+    if (may_skip_write) masm->bind(&exit);
   }
 }
 
