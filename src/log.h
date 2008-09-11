@@ -193,7 +193,7 @@ class Logger {
  private:
 
   // Emits the source code of a regexp. Used by regexp events.
-  static void Logger::LogRegExpSource(Handle<JSValue> regexp);
+  static void LogRegExpSource(Handle<JSValue> regexp);
 
   // Emits a profiler tick event. Used by the profiler thread.
   static void TickEvent(TickSample* sample, bool overflow);
