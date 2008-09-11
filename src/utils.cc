@@ -155,7 +155,7 @@ char* ReadCharsFromFile(const char* filename,
                         int* size,
                         int extra_space,
                         bool verbose) {
-  FILE* file = fopen(filename, "rb");
+  FILE* file = OS::FOpen(filename, "rb");
   if (file == NULL || fseek(file, 0, SEEK_END) != 0) {
     if (verbose) {
       OS::PrintError("Cannot read from file %s.\n", filename);
@@ -220,7 +220,7 @@ int WriteChars(const char* filename,
                const char* str,
                int size,
                bool verbose) {
-  FILE* f = fopen(filename, "wb");
+  FILE* f = OS::FOpen(filename, "wb");
   if (f == NULL) {
     if (verbose) {
       OS::PrintError("Cannot open file %s for reading.\n", filename);
@@ -234,8 +234,7 @@ int WriteChars(const char* filename,
 
 
 StringBuilder::StringBuilder(int size) {
-  buffer_ = NewArray<char>(size);
-  size_ = size;
+  buffer_ = Vector<char>::New(size);
   position_ = 0;
 }
 
@@ -246,7 +245,7 @@ void StringBuilder::AddString(const char* s) {
 
 
 void StringBuilder::AddSubstring(const char* s, int n) {
-  ASSERT(!is_finalized() && position_ + n < size_);
+  ASSERT(!is_finalized() && position_ + n < buffer_.length());
   ASSERT(static_cast<size_t>(n) <= strlen(s));
   memcpy(&buffer_[position_], s, n * kCharSize);
   position_ += n;
@@ -254,14 +253,13 @@ void StringBuilder::AddSubstring(const char* s, int n) {
 
 
 void StringBuilder::AddFormatted(const char* format, ...) {
-  ASSERT(!is_finalized() && position_ < size_);
+  ASSERT(!is_finalized() && position_ < buffer_.length());
   va_list args;
   va_start(args, format);
-  int remaining = size_ - position_;
-  int n = OS::VSNPrintF(&buffer_[position_], remaining, format, args);
+  int n = OS::VSNPrintF(buffer_ + position_, format, args);
   va_end(args);
-  if (n < 0 || n >= remaining) {
-    position_ = size_;
+  if (n < 0 || n >= (buffer_.length() - position_)) {
+    position_ = buffer_.length();
   } else {
     position_ += n;
   }
@@ -276,14 +274,14 @@ void StringBuilder::AddPadding(char c, int count) {
 
 
 char* StringBuilder::Finalize() {
-  ASSERT(!is_finalized() && position_ < size_);
+  ASSERT(!is_finalized() && position_ < buffer_.length());
   buffer_[position_] = '\0';
   // Make sure nobody managed to add a 0-character to the
   // buffer while building the string.
-  ASSERT(strlen(buffer_) == static_cast<size_t>(position_));
+  ASSERT(strlen(buffer_.start()) == static_cast<size_t>(position_));
   position_ = -1;
   ASSERT(is_finalized());
-  return buffer_;
+  return buffer_.start();
 }
 
 } }  // namespace v8::internal

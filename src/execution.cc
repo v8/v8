@@ -587,10 +587,10 @@ v8::Handle<v8::Value> LoadExtension::Load(const v8::Arguments& args) {
     static const size_t kErrorPrefixLength = 25;  // strlen is not constant
     ASSERT(strlen(kErrorPrefix) == kErrorPrefixLength);
     static const int kMaxErrorLength = kMaxPathLength + kErrorPrefixLength;
-    char error_buffer[kMaxErrorLength + 1];
-    OS::SNPrintF(error_buffer, kMaxErrorLength, "%s%s",
-                 kErrorPrefix, file_name_buffer);
-    v8::Handle<v8::String> error = v8::String::New(error_buffer);
+    EmbeddedVector<char, kMaxErrorLength + 1> error_buffer;
+    OS::SNPrintF(error_buffer, "%s%s", kErrorPrefix, file_name_buffer);
+    v8::Handle<v8::String> error =
+        v8::String::New(error_buffer.start(), error_buffer.length());
     v8::ThrowException(v8::Exception::Error(error));
     return result;
   }

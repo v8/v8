@@ -893,9 +893,9 @@ void HeapNumber::HeapNumberPrint(StringStream* accumulator) {
   // buffer that is plenty big enough for any floating point number, then
   // print that using vsnprintf (which may truncate but never allocate if
   // there is no more space in the buffer).
-  char buffer[100];
-  OS::SNPrintF(buffer, sizeof(buffer), "%.16g", Number());
-  accumulator->Add("%s", buffer);
+  EmbeddedVector<char, 100> buffer;
+  OS::SNPrintF(buffer, "%.16g", Number());
+  accumulator->Add("%s", buffer.start());
 }
 
 

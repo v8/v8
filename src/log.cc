@@ -702,7 +702,7 @@ bool Logger::Setup() {
     if (strcmp(FLAG_logfile, "-") == 0) {
       logfile_ = stdout;
     } else {
-      logfile_ = fopen(FLAG_logfile, "w");
+      logfile_ = OS::FOpen(FLAG_logfile, "w");
     }
     mutex_ = OS::CreateMutex();
   }

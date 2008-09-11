@@ -126,6 +126,11 @@ double OS::LocalTimeOffset() {
 }
 
 
+FILE* OS::FOpen(const char* path, const char* mode) {
+  return fopen(path, mode);
+}
+
+
 void OS::Print(const char* format, ...) {
   va_list args;
   va_start(args, format);
@@ -152,23 +157,40 @@ void OS::VPrintError(const char* format, va_list args) {
 }
 
 
-int OS::SNPrintF(char* str, size_t size, const char* format, ...) {
+int OS::SNPrintF(Vector<char> str, const char* format, ...) {
   va_list args;
   va_start(args, format);
-  int result = VSNPrintF(str, size, format, args);
+  int result = VSNPrintF(str, format, args);
   va_end(args);
   return result;
 }
 
 
-int OS::VSNPrintF(char* str, size_t size, const char* format, va_list args) {
-  int n = vsnprintf(str, size, format, args);  // forward to linux.
-  if (n < 0 || static_cast<size_t>(n) >= size) {
-    str[size - 1] = '\0';
+int OS::VSNPrintF(Vector<char> str,
+                  const char* format,
+                  va_list args) {
+  int n = vsnprintf(str.start(), str.length(), format, args);
+  if (n < 0 || n >= str.length()) {
+    str[str.length() - 1] = '\0';
     return -1;
   } else {
     return n;
   }
+}
+
+
+void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
+  strncpy(dest.start(), src, n);
+}
+
+
+void OS::WcsCpy(Vector<wchar_t> dest, const wchar_t* src) {
+  wcscpy(dest.start(), src);
+}
+
+
+char *OS::StrDup(const char* str) {
+  return strdup(str);
 }
 
 
@@ -341,7 +363,9 @@ int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
     frames[i].address = addresses[i];
     // Format a text representation of the frame based on the information
     // available.
-    SNPrintF(frames[i].text, kStackWalkMaxTextLen, "%s", symbols[i]);
+    SNPrintF(MutableCStrVector(frames[i].text, kStackWalkMaxTextLen),
+             "%s",
+             symbols[i]);
     // Make sure line termination is in place.
     frames[i].text[kStackWalkMaxTextLen - 1] = '\0';
   }

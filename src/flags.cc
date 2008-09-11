@@ -134,33 +134,33 @@ static const char* Type2String(Flag::Type type) {
 
 
 static char* ToString(Flag::Type type, FlagValue* variable) {
-  char* value = NULL;
+  Vector<char> value;
   switch (type) {
     case Flag::BOOL:
-      value = NewArray<char>(6);
-      OS::SNPrintF(value, 6, "%s", (variable->b ? "true" : "false"));
+      value = Vector<char>::New(6);
+      OS::SNPrintF(value, "%s", (variable->b ? "true" : "false"));
       break;
     case Flag::INT:
-      value = NewArray<char>(12);
-      OS::SNPrintF(value, 12, "%d", variable->i);
+      value = Vector<char>::New(12);
+      OS::SNPrintF(value, "%d", variable->i);
       break;
     case Flag::FLOAT:
-      value = NewArray<char>(20);
-      OS::SNPrintF(value, 20, "%f", variable->f);
+      value = Vector<char>::New(20);
+      OS::SNPrintF(value, "%f", variable->f);
       break;
     case Flag::STRING:
       if (variable->s) {
         int length = strlen(variable->s) + 1;
-        value = NewArray<char>(length);
-        OS::SNPrintF(value, length, "%s", variable->s);
+        value = Vector<char>::New(length);
+        OS::SNPrintF(value, "%s", variable->s);
       } else {
-        value = NewArray<char>(5);
-        OS::SNPrintF(value, 5, "NULL");
+        value = Vector<char>::New(5);
+        OS::SNPrintF(value, "NULL");
       }
       break;
   }
-  ASSERT(value != NULL);
-  return value;
+  ASSERT(!value.is_empty());
+  return value.start();
 }
 
 
@@ -198,17 +198,17 @@ List<char *>* FlagList::argv() {
   List<char *>* args = new List<char*>(8);
   for (Flag* f = list_; f != NULL; f = f->next()) {
     if (!f->IsDefault()) {
-      char* cmdline_flag;
+      Vector<char> cmdline_flag;
       if (f->type() != Flag::BOOL || *(f->bool_variable())) {
         int length = strlen(f->name()) + 2 + 1;
-        cmdline_flag = NewArray<char>(length);
-        OS::SNPrintF(cmdline_flag, length, "--%s", f->name());
+        cmdline_flag = Vector<char>::New(length);
+        OS::SNPrintF(cmdline_flag, "--%s", f->name());
       } else {
         int length = strlen(f->name()) + 4 + 1;
-        cmdline_flag = NewArray<char>(length);
-        OS::SNPrintF(cmdline_flag, length, "--no%s", f->name());
+        cmdline_flag = Vector<char>::New(length);
+        OS::SNPrintF(cmdline_flag, "--no%s", f->name());
       }
-      args->Add(cmdline_flag);
+      args->Add(cmdline_flag.start());
       if (f->type() != Flag::BOOL) {
         args->Add(f->StringValue());
       }

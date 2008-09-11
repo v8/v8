@@ -77,10 +77,10 @@ static Handle<JSFunction> Compile(const char* source) {
 
 static double Inc(int x) {
   const char* source = "result = %d + 1;";
-  char buffer[512];
-  OS::SNPrintF(buffer, sizeof(buffer), source, x);
+  EmbeddedVector<char, 512> buffer;
+  OS::SNPrintF(buffer, source, x);
 
-  Handle<JSFunction> fun = Compile(buffer);
+  Handle<JSFunction> fun = Compile(buffer.start());
   if (fun.is_null()) return -1;
 
   bool has_pending_exception;

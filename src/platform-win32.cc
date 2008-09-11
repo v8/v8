@@ -156,14 +156,14 @@ int random() {
 // Case-insensitive string comparisons. Use stricmp() on Win32. Usually defined
 // in strings.h.
 int strcasecmp(const char* s1, const char* s2) {
-  return stricmp(s1, s2);
+  return _stricmp(s1, s2);
 }
 
 
 // Case-insensitive bounded string comparisons. Use stricmp() on Win32. Usually
 // defined in strings.h.
 int strncasecmp(const char* s1, const char* s2, int n) {
-  return strnicmp(s1, s2, n);
+  return _strnicmp(s1, s2, n);
 }
 
 namespace v8 { namespace internal {
@@ -341,9 +341,13 @@ void Time::TzSet() {
   }
 
   // Make standard and DST timezone names.
-  _snprintf(std_tz_name_, kTzNameSize, "%S", tzinfo_.StandardName);
+  OS::SNPrintF(Vector<char>(std_tz_name_, kTzNameSize),
+               "%S",
+               tzinfo_.StandardName);
   std_tz_name_[kTzNameSize - 1] = '\0';
-  _snprintf(dst_tz_name_, kTzNameSize, "%S", tzinfo_.DaylightName);
+  OS::SNPrintF(Vector<char>(dst_tz_name_, kTzNameSize),
+               "%S",
+               tzinfo_.DaylightName);
   dst_tz_name_[kTzNameSize - 1] = '\0';
 
   // If OS returned empty string or resource id (like "@tzres.dll,-211")
@@ -351,12 +355,14 @@ void Time::TzSet() {
   // To properly resolve the resource identifier requires a library load,
   // which is not possible in a sandbox.
   if (std_tz_name_[0] == '\0' || std_tz_name_[0] == '@') {
-    _snprintf(std_tz_name_, kTzNameSize - 1, "%s Standard Time",
-              GuessTimezoneNameFromBias(tzinfo_.Bias));
+    OS::SNPrintF(Vector<char>(std_tz_name_, kTzNameSize - 1),
+                 "%s Standard Time",
+                 GuessTimezoneNameFromBias(tzinfo_.Bias));
   }
   if (dst_tz_name_[0] == '\0' || dst_tz_name_[0] == '@') {
-    _snprintf(dst_tz_name_, kTzNameSize - 1, "%s Daylight Time",
-              GuessTimezoneNameFromBias(tzinfo_.Bias));
+    OS::SNPrintF(Vector<char>(dst_tz_name_, kTzNameSize - 1),
+                 "%s Daylight Time",
+                 GuessTimezoneNameFromBias(tzinfo_.Bias));
   }
 
   // Timezone information initialized.
@@ -607,10 +613,19 @@ static void VPrintHelper(FILE* stream, const char* format, va_list args) {
     // It is important to use safe print here in order to avoid
     // overflowing the buffer. We might truncate the output, but this
     // does not crash.
-    static const int kBufferSize = 4096;
-    char buffer[kBufferSize];
-    OS::VSNPrintF(buffer, kBufferSize, format, args);
-    OutputDebugStringA(buffer);
+    EmbeddedVector<char, 4096> buffer;
+    OS::VSNPrintF(buffer, format, args);
+    OutputDebugStringA(buffer.start());
+  }
+}
+
+
+FILE* OS::FOpen(const char* path, const char* mode) {
+  FILE* result;
+  if (fopen_s(&result, path, mode) == 0) {
+    return result;
+  } else {
+    return NULL;
   }
 }
 
@@ -643,28 +658,42 @@ void OS::VPrintError(const char* format, va_list args) {
 }
 
 
-int OS::SNPrintF(char* str, size_t size, const char* format, ...) {
+int OS::SNPrintF(Vector<char> str, const char* format, ...) {
   va_list args;
   va_start(args, format);
-  int result = VSNPrintF(str, size, format, args);
+  int result = VSNPrintF(str, format, args);
   va_end(args);
   return result;
 }
 
 
-int OS::VSNPrintF(char* str, size_t size, const char* format, va_list args) {
-  // Print formated output to string. The _vsnprintf function has been
-  // deprecated in MSVC. We need to define _CRT_NONSTDC_NO_DEPRECATE
-  // during compilation to use it anyway. Usually defined in stdio.h.
-  int n = _vsnprintf(str, size, format, args);
+int OS::VSNPrintF(Vector<char> str, const char* format, va_list args) {
+  int n = _vsnprintf_s(str.start(), str.length(), str.length(), format, args);
   // Make sure to zero-terminate the string if the output was
   // truncated or if there was an error.
-  if (n < 0 || static_cast<size_t>(n) >= size) {
-    str[size - 1] = '\0';
+  if (n < 0 || n >= str.length()) {
+    str[str.length() - 1] = '\0';
     return -1;
   } else {
     return n;
   }
+}
+
+
+void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
+  int result = strncpy_s(dest.start(), dest.length(), src, n);
+  USE(result); ASSERT(result == 0);
+}
+
+
+void OS::WcsCpy(Vector<wchar_t> dest, const wchar_t* src) {
+  int result = wcscpy_s(dest.start(), dest.length(), src);
+  USE(result); ASSERT(result == 0);
+}
+
+
+char *OS::StrDup(const char* str) {
+  return _strdup(str);
 }
 
 
@@ -1132,11 +1161,15 @@ int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
       // Format a text representation of the frame based on the information
       // available.
       if (ok) {
-        SNPrintF(frames[frames_count].text, kStackWalkMaxTextLen, "%s %s:%d:%d",
+        SNPrintF(MutableCStrVector(frames[frames_count].text,
+                                   kStackWalkMaxTextLen),
+                 "%s %s:%d:%d",
                  symbol->Name, Line.FileName, Line.LineNumber,
                  line_displacement);
       } else {
-        SNPrintF(frames[frames_count].text, kStackWalkMaxTextLen, "%s",
+        SNPrintF(MutableCStrVector(frames[frames_count].text,
+                                   kStackWalkMaxTextLen),
+                 "%s",
                  symbol->Name);
       }
       // Make sure line termination is in place.

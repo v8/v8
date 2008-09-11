@@ -106,11 +106,7 @@ void StringStream::Add(const char* format, Vector<FmtElm> elms) {
       continue;
     }
     // Read this formatting directive into a temporary buffer
-    const int kTempSize = 24;
-    char temp_buffer[kTempSize];
-    // Wrap temp buffer in a vector to get bounds checking in debug
-    // mode
-    Vector<char> temp(temp_buffer, kTempSize);
+    EmbeddedVector<char, 24> temp;
     int format_length = 0;
     // Skip over the whole control character sequence until the
     // format element type
@@ -140,14 +136,9 @@ void StringStream::Add(const char* format, Vector<FmtElm> elms) {
     }
     case 'i': case 'd': case 'u': case 'x': case 'c': case 'p': {
       int value = current.data_.u_int_;
-      char formatted[kTempSize];
-#ifdef WIN32
-      // This is not my idea of a good time.
-      _snprintf(formatted, kTempSize, temp.start(), value);
-#else
-      snprintf(formatted, kTempSize, temp.start(), value);
-#endif
-      Add(formatted);
+      EmbeddedVector<char, 24> formatted;
+      OS::SNPrintF(formatted, temp.start(), value);
+      Add(formatted.start());
       break;
     }
     default:

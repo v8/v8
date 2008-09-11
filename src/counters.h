@@ -91,13 +91,13 @@ class StatsCounter BASE_EMBEDDED {
       id_(id) {
     int len = wcslen(name);
     // we prepend the name with 'c:' to indicate that it is a counter.
-    name_ = NewArray<wchar_t>(len+3);
-    wcscpy(name_, L"c:");
-    wcscpy(&name_[2], name);
+    name_ = Vector<wchar_t>::New(len+3);
+    OS::WcsCpy(name_, L"c:");
+    OS::WcsCpy(name_ + 2, name);
   };
 
   ~StatsCounter() {
-    DeleteArray(name_);
+    name_.Dispose();
   }
 
   // Sets the counter to a specific value.
@@ -159,11 +159,11 @@ class StatsCounter BASE_EMBEDDED {
     if (lookup_done_)
       return ptr_;
     lookup_done_ = true;
-    ptr_ = StatsTable::FindLocation(name_);
+    ptr_ = StatsTable::FindLocation(name_.start());
     return ptr_;
   }
 
-  wchar_t* name_;
+  Vector<wchar_t> name_;
   bool lookup_done_;
   int* ptr_;
   int id_;

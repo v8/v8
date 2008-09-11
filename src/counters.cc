@@ -39,9 +39,9 @@ StatsCounterTimer::StatsCounterTimer(const wchar_t* name)
     stop_time_(0) {  // initialize to avoid compiler complaints
   int len = wcslen(name);
   // we prepend the name with 'c.' to indicate that it is a counter.
-  name_ = NewArray<wchar_t>(len+3);
-  wcscpy(name_, L"t:");
-  wcscpy(&name_[2], name);
+  name_ = Vector<wchar_t>::New(len+3);
+  OS::WcsCpy(name_, L"t:");
+  OS::WcsCpy(name_ + 2, name);
 }
 
 // Start the timer.

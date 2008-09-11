@@ -63,20 +63,20 @@ class V8NameConverter: public disasm::NameConverter {
 
 
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
-  static char buffer[128];
+  static v8::internal::EmbeddedVector<char, 128> buffer;
 
   const char* name = Builtins::Lookup(pc);
   if (name != NULL) {
-    OS::SNPrintF(buffer, sizeof buffer, "%s  (%p)", name, pc);
-    return buffer;
+    OS::SNPrintF(buffer, "%s  (%p)", name, pc);
+    return buffer.start();
   }
 
   if (code_ != NULL) {
     int offs = pc - code_->instruction_start();
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->instruction_size()) {
-      OS::SNPrintF(buffer, sizeof buffer, "%d  (%p)", offs, pc);
-      return buffer;
+      OS::SNPrintF(buffer, "%d  (%p)", offs, pc);
+      return buffer.start();
     }
   }
 
@@ -110,8 +110,8 @@ static int DecodeIt(FILE* f,
   AssertNoAllocation no_alloc;
   ExternalReferenceEncoder ref_encoder;
 
-  char decode_buffer[128];
-  char out_buffer[kOutBufferSize];
+  v8::internal::EmbeddedVector<char, 128> decode_buffer;
+  v8::internal::EmbeddedVector<char, kOutBufferSize> out_buffer;
   byte* pc = begin;
   disasm::Disassembler d(converter);
   RelocIterator* it = NULL;
@@ -127,7 +127,6 @@ static int DecodeIt(FILE* f,
     byte* prev_pc = pc;
     if (constants > 0) {
       OS::SNPrintF(decode_buffer,
-                   sizeof(decode_buffer),
                    "%08x       constant",
                    *reinterpret_cast<int32_t*>(pc));
       constants--;
@@ -136,14 +135,13 @@ static int DecodeIt(FILE* f,
       int num_const = d.ConstantPoolSizeAt(pc);
       if (num_const >= 0) {
         OS::SNPrintF(decode_buffer,
-                     sizeof(decode_buffer),
                      "%08x       constant pool begin",
                      *reinterpret_cast<int32_t*>(pc));
         constants = num_const;
         pc += 4;
       } else {
         decode_buffer[0] = '\0';
-        pc += d.InstructionDecode(decode_buffer, sizeof decode_buffer, pc);
+        pc += d.InstructionDecode(decode_buffer, pc);
       }
     }
 
@@ -167,7 +165,7 @@ static int DecodeIt(FILE* f,
       }
     }
 
-    StringBuilder out(out_buffer, sizeof(out_buffer));
+    StringBuilder out(out_buffer.start(), out_buffer.length());
 
     // Comments.
     for (int i = 0; i < comments.length(); i++) {
@@ -182,7 +180,7 @@ static int DecodeIt(FILE* f,
     out.AddFormatted("%p  %4d  ", prev_pc, prev_pc - begin);
 
     // Instruction.
-    out.AddFormatted("%s", decode_buffer);
+    out.AddFormatted("%s", decode_buffer.start());
 
     // Print all the reloc info for this instruction which are not comments.
     for (int i = 0; i < pcs.length(); i++) {

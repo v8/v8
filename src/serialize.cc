@@ -511,12 +511,12 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
   const char* debug_register_format = "Debug::register_address(%i)";
   size_t dr_format_length = strlen(debug_register_format);
   for (int i = 0; i < kNumJSCallerSaved; ++i) {
-    char* name = NewArray<char>(dr_format_length + 1);
-    OS::SNPrintF(name, dr_format_length, debug_register_format, i);
+    Vector<char> name = Vector<char>::New(dr_format_length + 1);
+    OS::SNPrintF(name, debug_register_format, i);
     Add(Debug_Address(Debug::k_register_address, i).address(),
         DEBUG_ADDRESS,
         Debug::k_register_address << kDebugIdShift | i,
-        name);
+        name.start());
   }
 
   // Stat counters
@@ -534,9 +534,10 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
   const char* top_address_format = "Top::get_address_from_id(%i)";
   size_t top_format_length = strlen(top_address_format);
   for (uint16_t i = 0; i < Top::k_top_address_count; ++i) {
-    char* name = NewArray<char>(top_format_length + 1);
-    OS::SNPrintF(name, top_format_length, top_address_format, i);
-    Add(Top::get_address_from_id((Top::AddressId)i), TOP_ADDRESS, i, name);
+    Vector<char> name = Vector<char>::New(top_format_length + 1);
+    const char* chars = name.start();
+    OS::SNPrintF(name, top_address_format, i);
+    Add(Top::get_address_from_id((Top::AddressId)i), TOP_ADDRESS, i, chars);
   }
 
   // Extensions
