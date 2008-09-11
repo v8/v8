@@ -1,4 +1,4 @@
-// Copyright 2007-2008 Google Inc. All Rights Reserved.
+// Copyright 2007-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -191,14 +191,14 @@ TEST(SerializeInternal) {
 // bootstrapped heap.
 // (Smoke test.)
 TEST(Serialize) {
-  Snapshot::DisableInternal();
+  if (Snapshot::IsEnabled()) return;
   Serialize();
 }
 
 
 // Test that the heap isn't destroyed after a serialization.
 TEST(SerializeNondestructive) {
-  Snapshot::DisableInternal();
+  if (Snapshot::IsEnabled()) return;
   StatsTable::SetCounterFunction(counter_function);
   v8::HandleScope scope;
   v8::Persistent<v8::Context> env = v8::Context::New();

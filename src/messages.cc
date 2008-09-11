@@ -1,5 +1,5 @@
 
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -60,8 +60,11 @@ void MessageHandler::ReportMessage(const char* msg) {
 }
 
 
-void MessageHandler::ReportMessage(const char* type, MessageLocation* loc,
-                                   Vector< Handle<Object> > args) {
+Handle<Object> MessageHandler::MakeMessageObject(
+    const char* type,
+    MessageLocation* loc,
+    Vector< Handle<Object> > args,
+    Handle<String> stack_trace) {
   // Build error message object
   HandleScope scope;
   Handle<Object> type_str = Factory::LookupAsciiSymbol(type);
@@ -82,12 +85,16 @@ void MessageHandler::ReportMessage(const char* type, MessageLocation* loc,
   }
   Handle<Object> start_handle(Smi::FromInt(start));
   Handle<Object> end_handle(Smi::FromInt(end));
-  const int argc = 5;
+  Handle<Object> stack_trace_val = stack_trace.is_null()
+    ? Factory::undefined_value()
+    : Handle<Object>::cast(stack_trace);
+  const int argc = 6;
   Object** argv[argc] = { type_str.location(),
                           array.location(),
                           start_handle.location(),
                           end_handle.location(),
-                          script.location() };
+                          script.location(),
+                          stack_trace_val.location() };
 
   bool caught_exception = false;
   Handle<Object> message =
@@ -97,8 +104,13 @@ void MessageHandler::ReportMessage(const char* type, MessageLocation* loc,
   // skip doing the callback. This usually only happens in case of
   // stack overflow exceptions being thrown by the parser when the
   // stack is almost full.
-  if (caught_exception) return;
+  if (caught_exception) return Handle<Object>();
+  return message.EscapeFrom(&scope);
+}
 
+
+void MessageHandler::ReportMessage(MessageLocation* loc,
+                                   Handle<Object> message) {
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
 
   v8::NeanderArray global_listeners(Factory::message_listeners());

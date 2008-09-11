@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -241,7 +241,8 @@ class MarkCompactCollector : public AllStatic {
 
   // Callback functions for deallocating non-live blocks in the old
   // generation.
-  static void DeallocateOldBlock(Address start, int size_in_bytes);
+  static void DeallocateOldPointerBlock(Address start, int size_in_bytes);
+  static void DeallocateOldDataBlock(Address start, int size_in_bytes);
   static void DeallocateCodeBlock(Address start, int size_in_bytes);
   static void DeallocateMapBlock(Address start, int size_in_bytes);
 
@@ -295,9 +296,13 @@ class MarkCompactCollector : public AllStatic {
   static int RelocateMapObject(HeapObject* obj);
 
   // Relocates an old object.
-  static int RelocateOldObject(HeapObject* obj);
+  static int RelocateOldPointerObject(HeapObject* obj);
+  static int RelocateOldDataObject(HeapObject* obj);
 
-  // Relocates an immutable object in the code space.
+  // Helper function.
+  static inline int RelocateOldNonCodeObject(HeapObject* obj, OldSpace* space);
+
+  // Relocates an object in the code space.
   static int RelocateCodeObject(HeapObject* obj);
 
   // Copy a new object.
@@ -322,11 +327,14 @@ class MarkCompactCollector : public AllStatic {
   // Number of live objects in Heap::to_space_.
   static int live_young_objects_;
 
-  // Number of live objects in Heap::old_space_.
-  static int live_old_objects_;
+  // Number of live objects in Heap::old_pointer_space_.
+  static int live_old_pointer_objects_;
+
+  // Number of live objects in Heap::old_data_space_.
+  static int live_old_data_objects_;
 
   // Number of live objects in Heap::code_space_.
-  static int live_immutable_objects_;
+  static int live_code_objects_;
 
   // Number of live objects in Heap::map_space_.
   static int live_map_objects_;

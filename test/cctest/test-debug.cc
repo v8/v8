@@ -1,4 +1,4 @@
-// Copyright 2007-2008 Google Inc. All Rights Reserved.
+// Copyright 2007-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -618,7 +618,7 @@ static void DebugEventBreakPointCollectGarbage(
       Heap::CollectGarbage(0, v8::internal::NEW_SPACE);
     } else {
       // Mark sweep (and perhaps compact).
-      Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+      Heap::CollectAllGarbage();
     }
   }
 }
@@ -960,7 +960,7 @@ static void CallAndGC(v8::Local<v8::Object> recv, v8::Local<v8::Function> f) {
     CHECK_EQ(2 + i * 3, break_point_hit_count);
 
     // Mark sweep (and perhaps compact) and call function.
-    Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+    Heap::CollectAllGarbage();
     f->Call(recv, 0, NULL);
     CHECK_EQ(3 + i * 3, break_point_hit_count);
   }
@@ -2751,11 +2751,13 @@ void Barriers::Initialize() {
 }
 
 
-// We match this prefix to a message to decide if it is a break message.
+// We match parts of the message to decide if it is a break message.
 bool IsBreakEventMessage(char *message) {
-  const char* break_template = "{\"type\":\"event\",\"event\":\"break\",";
-  // Is break_template a prefix of the message?
-  return !strncmp(message, break_template, strlen(break_template));
+  const char* type_event = "\"type\":\"event\"";
+  const char* event_break = "\"event\":\"break\"";
+  // Does the message contain both type:event and event:break?
+  return strstr(message, type_event) != NULL &&
+         strstr(message, event_break) != NULL;
 }
 
 
@@ -2990,9 +2992,6 @@ class BreakpointsDebuggerThread : public v8::internal::Thread {
 };
 
 
-// We match this prefix to a message to decide if it is a break message.
-const char* break_template = "{\"type\":\"event\",\"event\":\"break\",";
-
 Barriers* breakpoints_barriers;
 
 static void BreakpointsMessageHandler(const uint16_t* message,
@@ -3004,7 +3003,7 @@ static void BreakpointsMessageHandler(const uint16_t* message,
   fflush(stdout);
 
   // Is break_template a prefix of the message?
-  if (!strncmp(print_buffer, break_template, strlen(break_template))) {
+  if (IsBreakEventMessage(print_buffer)) {
     breakpoints_barriers->semaphore_1->Signal();
   }
 }

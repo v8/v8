@@ -1,4 +1,4 @@
-// Copyright 2008 Google Inc. All Rights Reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -67,3 +67,20 @@ assertEquals(3, props(a).length);
 
 for (var hest = 'hest' in {}) { }
 assertEquals('hest', hest);
+
+var result = '';
+for (var p in {a : [0], b : 1}) { result += p; }
+assertEquals('ab', result);
+
+var result = '';
+for (var p in {a : {v:1}, b : 1}) { result += p; }
+assertEquals('ab', result);
+
+var result = '';
+for (var p in { get a() {}, b : 1}) { result += p; }
+assertEquals('ab', result);
+
+var result = '';
+for (var p in { get a() {}, set a(x) {}, b : 1}) { result += p; }
+assertEquals('ab', result);
+

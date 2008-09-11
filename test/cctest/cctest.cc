@@ -1,4 +1,4 @@
-// Copyright 2008 Google Inc. All Rights Reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,7 +35,8 @@
 CcTest* CcTest::last_ = NULL;
 
 
-CcTest::CcTest(TestFunction* callback, const char* file, const char* name)
+CcTest::CcTest(TestFunction* callback, const char* file,
+               const char* name, bool enabled)
     : callback_(callback), name_(name), prev_(last_) {
   // Find the base name of this test (const_cast required on Windows).
   char *basename = strrchr(const_cast<char *>(file), '/');
@@ -52,6 +53,7 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name)
   if (extension) *extension = 0;
   // Install this test in the list of tests
   file_ = basename;
+  enabled_ = enabled;
   prev_ = last_;
   last_ = this;
 }
@@ -64,30 +66,6 @@ static void PrintTestList(CcTest* current) {
 }
 
 
-static int RunMatchingTests(CcTest* current, char* file_or_name) {
-  if (current == NULL) return 0;
-  int run_count = 0;
-  if (strcmp(current->file(), file_or_name) == 0
-      || strcmp(current->name(), file_or_name) == 0) {
-    current->Run();
-    run_count++;
-  }
-  return run_count + RunMatchingTests(current->prev(), file_or_name);
-}
-
-
-static int RunMatchingTests(CcTest* current, char* file, char* name) {
-  if (current == NULL) return 0;
-  int run_count = 0;
-  if (strcmp(current->file(), file) == 0
-      && strcmp(current->name(), name) == 0) {
-    current->Run();
-    run_count++;
-  }
-  return run_count + RunMatchingTests(current->prev(), file, name);
-}
-
-
 int main(int argc, char* argv[]) {
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
   int tests_run = 0;
@@ -97,6 +75,7 @@ int main(int argc, char* argv[]) {
     if (strcmp(arg, "--list") == 0) {
       PrintTestList(CcTest::last());
       print_run_count = false;
+
     } else {
       char* arg_copy = strdup(arg);
       char* testname = strchr(arg_copy, '/');
@@ -104,10 +83,32 @@ int main(int argc, char* argv[]) {
         // Split the string in two by nulling the slash and then run
         // exact matches.
         *testname = 0;
-        tests_run += RunMatchingTests(CcTest::last(), arg_copy, testname + 1);
+        char* file = arg_copy;
+        char* name = testname + 1;
+        CcTest* test = CcTest::last();
+        while (test != NULL) {
+          if (test->enabled()
+              && strcmp(test->file(), file) == 0
+              && strcmp(test->name(), name) == 0) {
+            test->Run();
+            tests_run++;
+          }
+          test = test->prev();
+        }
+
       } else {
         // Run all tests with the specified file or test name.
-        tests_run += RunMatchingTests(CcTest::last(), arg_copy);
+        char* file_or_name = arg_copy;
+        CcTest* test = CcTest::last();
+        while (test != NULL) {
+          if (test->enabled()
+              && (strcmp(test->file(), file_or_name) == 0
+                  || strcmp(test->name(), file_or_name) == 0)) {
+            test->Run();
+            tests_run++;
+          }
+          test = test->prev();
+        }
       }
       free(arg_copy);
     }

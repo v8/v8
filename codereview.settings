@@ -1,0 +1,4 @@
+# This file is used by gcl to get repository specific information.
+CODE_REVIEW_SERVER: codereview.chromium.org
+VIEW_VC: http://code.google.com/p/v8/source/detail?r=
+CC_LIST: v8-dev@googlegroups.com

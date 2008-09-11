@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -209,7 +209,7 @@ class Page {
   // 8K bytes per page.
   static const int kPageSizeBits = 13;
 
-  // Page size in bytes.
+  // Page size in bytes.  This must be a multiple of the OS page size.
   static const int kPageSize = 1 << kPageSizeBits;
 
   // Page size mask.
@@ -234,7 +234,7 @@ class Page {
   //---------------------------------------------------------------------------
   // Page header description.
   //
-  // If a page is not in a large object space, the first word,
+  // If a page is not in the large object space, the first word,
   // opaque_header, encodes the next page address (aligned to kPageSize 8K)
   // and the chunk number (0 ~ 8K-1).  Only MemoryAllocator should use
   // opaque_header. The value range of the opaque_header is [0..kPageSize[,
@@ -275,15 +275,21 @@ class Page {
 // Space is the abstract superclass for all allocation spaces.
 class Space : public Malloced {
  public:
-  Space(AllocationSpace id, bool executable)
+  Space(AllocationSpace id, Executability executable)
       : id_(id), executable_(executable) {}
+  virtual ~Space() {}
   // Does the space need executable memory?
-  bool executable() { return executable_; }
+  Executability executable() { return executable_; }
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
+  virtual int Size() = 0;
+#ifdef DEBUG
+  virtual void Verify() = 0;
+  virtual void Print() = 0;
+#endif
  private:
   AllocationSpace id_;
-  bool executable_;
+  Executability executable_;
 };
 
 
@@ -338,7 +344,7 @@ class MemoryAllocator : public AllStatic {
   // the address is not NULL, the size is greater than zero, and that the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
-  static bool CommitBlock(Address start, size_t size, bool executable);
+  static bool CommitBlock(Address start, size_t size, Executability executable);
 
   // Attempts to allocate the requested (non-zero) number of pages from the
   // OS.  Fewer pages might be allocated than requested. If it fails to
@@ -363,11 +369,16 @@ class MemoryAllocator : public AllStatic {
   // but keep track of allocated bytes as part of heap.
   static void* AllocateRawMemory(const size_t requested,
                                  size_t* allocated,
-                                 bool executable);
+                                 Executability executable);
   static void FreeRawMemory(void* buf, size_t length);
 
   // Returns the maximum available bytes of heaps.
   static int Available() { return capacity_ < size_ ? 0 : capacity_ - size_; }
+
+  // Returns maximum available bytes that the old space can have.
+  static int MaxAvailable() {
+    return (Available() / Page::kPageSize) * Page::kObjectAreaSize;
+  }
 
   // Links two pages.
   static inline void SetNextPage(Page* prev, Page* next);
@@ -661,7 +672,7 @@ class PagedSpace : public Space {
   friend class PageIterator;
  public:
   // Creates a space with a maximum capacity, and an id.
-  PagedSpace(int max_capacity, AllocationSpace id, bool executable);
+  PagedSpace(int max_capacity, AllocationSpace id, Executability executable);
 
   virtual ~PagedSpace() {}
 
@@ -695,6 +706,11 @@ class PagedSpace : public Space {
   // Clears remembered sets of pages in this space.
   void ClearRSet();
 
+  // Prepares for a mark-compact GC.
+  virtual void PrepareForMarkCompact(bool will_compact) = 0;
+
+  virtual Address PageAllocationTop(Page* page) = 0;
+
   // Current capacity without growing (Size() + Available() + Waste()).
   int Capacity() { return accounting_stats_.Capacity(); }
 
@@ -702,7 +718,7 @@ class PagedSpace : public Space {
   int Available() { return accounting_stats_.Available(); }
 
   // Allocated bytes in this space.
-  int Size() { return accounting_stats_.Size(); }
+  virtual int Size() { return accounting_stats_.Size(); }
 
   // Wasted bytes due to fragmentation and not recoverable until the
   // next GC of this space.
@@ -723,9 +739,6 @@ class PagedSpace : public Space {
   inline Object* MCAllocateRaw(int size_in_bytes);
 
 
-  // Allocate the requested number of bytes during deserialization.
-  inline Object* AllocateForDeserialization(int size_in_bytes);
-
   // ---------------------------------------------------------------------------
   // Mark-compact collection support functions
 
@@ -741,6 +754,10 @@ class PagedSpace : public Space {
   // of the space.
   int MCSpaceOffsetForAddress(Address addr);
 
+  // Updates the allocation pointer to the relocation top after a mark-compact
+  // collection.
+  virtual void MCCommitRelocationInfo() = 0;
+
   // Releases half of unused pages.
   void Shrink();
 
@@ -749,7 +766,7 @@ class PagedSpace : public Space {
 
 #ifdef DEBUG
   // Print meta info and objects in this space.
-  void Print();
+  virtual void Print();
 
   // Report code object related statistics
   void CollectCodeStatistics();
@@ -869,8 +886,8 @@ class SemiSpace : public Space {
   // addresses.
   SemiSpace(int initial_capacity,
             int maximum_capacity,
-            AllocationSpace id,
-            bool executable);
+            AllocationSpace id);
+  virtual ~SemiSpace() {}
 
   // Sets up the semispace using the given chunk.
   bool Setup(Address start, int size);
@@ -913,8 +930,16 @@ class SemiSpace : public Space {
   // The offset of an address from the begining of the space.
   int SpaceOffsetForAddress(Address addr) { return addr - low(); }
 
+  // If we don't have this here then SemiSpace will be abstract.  However
+  // it should never be called.
+  virtual int Size() {
+    UNREACHABLE();
+    return 0;
+  }
+
 #ifdef DEBUG
-  void Print();
+  virtual void Print();
+  virtual void Verify();
 #endif
 
  private:
@@ -999,8 +1024,8 @@ class NewSpace : public Space {
   // and it must be aligned to its size.
   NewSpace(int initial_semispace_capacity,
            int maximum_semispace_capacity,
-           AllocationSpace id,
-           bool executable);
+           AllocationSpace id);
+  virtual ~NewSpace() {}
 
   // Sets up the new space using the given chunk.
   bool Setup(Address start, int size);
@@ -1032,7 +1057,7 @@ class NewSpace : public Space {
   }
 
   // Return the allocated bytes in the active semispace.
-  int Size() { return top() - bottom(); }
+  virtual int Size() { return top() - bottom(); }
   // Return the current capacity of a semispace.
   int Capacity() { return capacity_; }
   // Return the available bytes without growing in the active semispace.
@@ -1107,9 +1132,9 @@ class NewSpace : public Space {
 
 #ifdef DEBUG
   // Verify the active semispace.
-  void Verify();
+  virtual void Verify();
   // Print the active semispace.
-  void Print() { to_space_->Print(); }
+  virtual void Print() { to_space_->Print(); }
 #endif
 
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
@@ -1341,14 +1366,10 @@ class OldSpace : public PagedSpace {
  public:
   // Creates an old space object with a given maximum capacity.
   // The constructor does not allocate pages from OS.
-  explicit OldSpace(int max_capacity, AllocationSpace id, bool executable)
+  explicit OldSpace(int max_capacity,
+                    AllocationSpace id,
+                    Executability executable)
       : PagedSpace(max_capacity, id, executable), free_list_(id) {
-  }
-
-  // Returns maximum available bytes that the old space can have.
-  int MaxAvailable() {
-    return (MemoryAllocator::Available() / Page::kPageSize)
-           * Page::kObjectAreaSize;
   }
 
   // The bytes available on the free list (ie, not above the linear allocation
@@ -1356,7 +1377,7 @@ class OldSpace : public PagedSpace {
   int AvailableFree() { return free_list_.available(); }
 
   // The top of allocation in a page in this space. Undefined if page is unused.
-  Address PageAllocationTop(Page* page) {
+  virtual Address PageAllocationTop(Page* page) {
     return page == TopPageOf(allocation_info_) ? top() : page->ObjectAreaEnd();
   }
 
@@ -1370,7 +1391,7 @@ class OldSpace : public PagedSpace {
 
   // Prepare for full garbage collection.  Resets the relocation pointer and
   // clears the free list.
-  void PrepareForMarkCompact(bool will_compact);
+  virtual void PrepareForMarkCompact(bool will_compact);
 
   // Adjust the top of relocation pointer to point to the end of the object
   // given by 'address' and 'size_in_bytes'.  Move it to the next page if
@@ -1380,11 +1401,11 @@ class OldSpace : public PagedSpace {
 
   // Updates the allocation pointer to the relocation top after a mark-compact
   // collection.
-  void MCCommitRelocationInfo();
+  virtual void MCCommitRelocationInfo();
 
 #ifdef DEBUG
   // Verify integrity of this space.
-  void Verify();
+  virtual void Verify();
 
   // Reports statistics for the space
   void ReportStatistics();
@@ -1420,14 +1441,10 @@ class MapSpace : public PagedSpace {
  public:
   // Creates a map space object with a maximum capacity.
   explicit MapSpace(int max_capacity, AllocationSpace id)
-      : PagedSpace(max_capacity, id, false), free_list_(id) { }
-
-  // The bytes available on the free list (ie, not above the linear allocation
-  // pointer).
-  int AvailableFree() { return free_list_.available(); }
+      : PagedSpace(max_capacity, id, NOT_EXECUTABLE), free_list_(id) { }
 
   // The top of allocation in a page in this space. Undefined if page is unused.
-  Address PageAllocationTop(Page* page) {
+  virtual Address PageAllocationTop(Page* page) {
     return page == TopPageOf(allocation_info_) ? top()
         : page->ObjectAreaEnd() - kPageExtra;
   }
@@ -1442,15 +1459,15 @@ class MapSpace : public PagedSpace {
   Address PageAddress(int page_index) { return page_addresses_[page_index]; }
 
   // Prepares for a mark-compact GC.
-  void PrepareForMarkCompact(bool will_compact);
+  virtual void PrepareForMarkCompact(bool will_compact);
 
   // Updates the allocation pointer to the relocation top after a mark-compact
   // collection.
-  void MCCommitRelocationInfo();
+  virtual void MCCommitRelocationInfo();
 
 #ifdef DEBUG
   // Verify integrity of this space.
-  void Verify();
+  virtual void Verify();
 
   // Reports statistic info of the space
   void ReportStatistics();
@@ -1490,7 +1507,6 @@ class MapSpace : public PagedSpace {
 // extra padding bytes (Page::kPageSize + Page::kObjectStartOffset).
 // A large object always starts at Page::kObjectStartOffset to a page.
 // Large objects do not move during garbage collections.
-//
 
 // A LargeObjectChunk holds exactly one large object page with exactly one
 // large object.
@@ -1503,7 +1519,7 @@ class LargeObjectChunk {
   // parameter chunk_size.
   static LargeObjectChunk* New(int size_in_bytes,
                                size_t* chunk_size,
-                               bool executable);
+                               Executability executable);
 
   // Interpret a raw address as a large object chunk.
   static LargeObjectChunk* FromAddress(Address address) {
@@ -1553,7 +1569,8 @@ class LargeObjectChunk {
 class LargeObjectSpace : public Space {
   friend class LargeObjectIterator;
  public:
-  explicit LargeObjectSpace(AllocationSpace id, bool executable);
+  explicit LargeObjectSpace(AllocationSpace id);
+  virtual ~LargeObjectSpace() {}
 
   // Initializes internal data structures.
   bool Setup();
@@ -1561,8 +1578,10 @@ class LargeObjectSpace : public Space {
   // Releases internal resources, frees objects in this space.
   void TearDown();
 
-  // Allocates a (non-FixedArray) large object.
+  // Allocates a (non-FixedArray, non-Code) large object.
   Object* AllocateRaw(int size_in_bytes);
+  // Allocates a large Code object.
+  Object* AllocateRawCode(int size_in_bytes);
   // Allocates a large FixedArray.
   Object* AllocateRawFixedArray(int size_in_bytes);
 
@@ -1572,7 +1591,7 @@ class LargeObjectSpace : public Space {
     return LargeObjectChunk::ObjectSizeFor(MemoryAllocator::Available());
   }
 
-  int Size() {
+  virtual int Size() {
     return size_;
   }
 
@@ -1601,8 +1620,8 @@ class LargeObjectSpace : public Space {
   bool IsEmpty() { return first_chunk_ == NULL; }
 
 #ifdef DEBUG
-  void Verify();
-  void Print();
+  virtual void Verify();
+  virtual void Print();
   void ReportStatistics();
   void CollectCodeStatistics();
   // Dump the remembered sets in the space to stdout.
@@ -1619,8 +1638,11 @@ class LargeObjectSpace : public Space {
   int page_count_;  // number of chunks
 
 
-  // Shared implementation of AllocateRaw and AllocateRawFixedArray.
-  Object* AllocateRawInternal(int requested_size, int object_size);
+  // Shared implementation of AllocateRaw, AllocateRawCode and
+  // AllocateRawFixedArray.
+  Object* AllocateRawInternal(int requested_size,
+                              int object_size,
+                              Executability executable);
 
   // Returns the number of extra bytes (rounded up to the nearest full word)
   // required for extra_object_bytes of extra pointers (in bytes).

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -43,8 +43,6 @@ class Descriptor BASE_EMBEDDED {
   static int IndexFromValue(Object* value) {
     return Smi::cast(value)->value();
   }
-
-  String* key() { return key_; }
 
   Object* KeyToSymbol() {
     if (!key_->IsSymbol()) {

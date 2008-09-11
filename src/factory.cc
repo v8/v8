@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -49,7 +49,7 @@ Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors) {
 }
 
 
-// Symbols are created in the old generation (code space).
+// Symbols are created in the old generation (data space).
 Handle<String> Factory::LookupSymbol(Vector<const char> string) {
   CALL_HEAP_FUNCTION(Heap::LookupSymbol(string), String);
 }

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -314,6 +314,8 @@ class Ia32CodeGenerator: public CodeGenerator {
   virtual void GenerateSetValueOf(ZoneList<Expression*>* args);
 
   virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args);
+
+  virtual void GenerateObjectEquals(ZoneList<Expression*>* args);
 };
 
 
@@ -4263,6 +4265,18 @@ void Ia32CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   __ mov(TOS, eax);
 }
 
+
+void Ia32CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 2);
+
+  // Load the two objects into registers and perform the comparison.
+  Load(args->at(0));
+  Load(args->at(1));
+  __ pop(eax);
+  __ pop(ecx);
+  __ cmp(eax, Operand(ecx));
+  cc_reg_ = equal;
+}
 
 
 void Ia32CodeGenerator::VisitCallRuntime(CallRuntime* node) {

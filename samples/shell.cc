@@ -1,4 +1,4 @@
-// Copyright 2008 Google Inc. All Rights Reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -34,13 +34,14 @@
 void RunShell(v8::Handle<v8::Context> context);
 bool ExecuteString(v8::Handle<v8::String> source,
                    v8::Handle<v8::Value> name,
-                   bool print_result);
+                   bool print_result,
+                   bool report_exceptions);
 v8::Handle<v8::Value> Print(const v8::Arguments& args);
 v8::Handle<v8::Value> Load(const v8::Arguments& args);
 v8::Handle<v8::Value> Quit(const v8::Arguments& args);
 v8::Handle<v8::Value> Version(const v8::Arguments& args);
 v8::Handle<v8::String> ReadFile(const char* name);
-void ProcessRuntimeFlags(int argc, char* argv[]);
+void ReportException(v8::TryCatch* handler);
 
 
 int main(int argc, char* argv[]) {
@@ -66,6 +67,10 @@ int main(int argc, char* argv[]) {
     const char* str = argv[i];
     if (strcmp(str, "--shell") == 0) {
       run_shell = true;
+    } else if (strcmp(str, "-f") == 0) {
+      // Ignore any -f flags for compatibility with the other stand-
+      // alone JavaScript engines.
+      continue;
     } else if (strncmp(str, "--", 2) == 0) {
       printf("Warning: unknown flag %s.\n", str);
     } else {
@@ -77,7 +82,7 @@ int main(int argc, char* argv[]) {
         printf("Error reading '%s'\n", str);
         return 1;
       }
-      if (!ExecuteString(source, file_name, false))
+      if (!ExecuteString(source, file_name, false, true))
         return 1;
     }
   }
@@ -98,7 +103,7 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
     } else {
       printf(" ");
     }
-    v8::String::AsciiValue str(args[i]);
+    v8::String::Utf8Value str(args[i]);
     printf("%s", *str);
   }
   printf("\n");
@@ -112,12 +117,14 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
 v8::Handle<v8::Value> Load(const v8::Arguments& args) {
   for (int i = 0; i < args.Length(); i++) {
     v8::HandleScope handle_scope;
-    v8::String::AsciiValue file(args[i]);
+    v8::String::Utf8Value file(args[i]);
     v8::Handle<v8::String> source = ReadFile(*file);
     if (source.IsEmpty()) {
       return v8::ThrowException(v8::String::New("Error loading file"));
     }
-    ExecuteString(source, v8::String::New(*file), false);
+    if (!ExecuteString(source, v8::String::New(*file), false, false)) {
+      return v8::ThrowException(v8::String::New("Error executing  file"));
+    }
   }
   return v8::Undefined();
 }
@@ -171,7 +178,10 @@ void RunShell(v8::Handle<v8::Context> context) {
     char* str = fgets(buffer, kBufferSize, stdin);
     if (str == NULL) break;
     v8::HandleScope handle_scope;
-    ExecuteString(v8::String::New(str), v8::Undefined(), true);
+    ExecuteString(v8::String::New(str),
+                  v8::String::New("(shell)"),
+                  true,
+                  true);
   }
   printf("\n");
 }
@@ -180,30 +190,61 @@ void RunShell(v8::Handle<v8::Context> context) {
 // Executes a string within the current v8 context.
 bool ExecuteString(v8::Handle<v8::String> source,
                    v8::Handle<v8::Value> name,
-                   bool print_result) {
+                   bool print_result,
+                   bool report_exceptions) {
   v8::HandleScope handle_scope;
   v8::TryCatch try_catch;
   v8::Handle<v8::Script> script = v8::Script::Compile(source, name);
   if (script.IsEmpty()) {
     // Print errors that happened during compilation.
-    v8::String::AsciiValue error(try_catch.Exception());
-    printf("%s\n", *error);
+    if (report_exceptions)
+      ReportException(&try_catch);
     return false;
   } else {
     v8::Handle<v8::Value> result = script->Run();
     if (result.IsEmpty()) {
       // Print errors that happened during execution.
-      v8::String::AsciiValue error(try_catch.Exception());
-      printf("%s\n", *error);
+      if (report_exceptions)
+        ReportException(&try_catch);
       return false;
     } else {
       if (print_result && !result->IsUndefined()) {
         // If all went well and the result wasn't undefined then print
         // the returned value.
-        v8::String::AsciiValue str(result);
+        v8::String::Utf8Value str(result);
         printf("%s\n", *str);
       }
       return true;
     }
+  }
+}
+
+
+void ReportException(v8::TryCatch* try_catch) {
+  v8::HandleScope handle_scope;
+  v8::String::Utf8Value exception(try_catch->Exception());
+  v8::Handle<v8::Message> message = try_catch->Message();
+  if (message.IsEmpty()) {
+    // V8 didn't provide any extra information about this error; just
+    // print the exception.
+    printf("%s\n", *exception);
+  } else {
+    // Print (filename):(line number): (message).
+    v8::String::Utf8Value filename(message->GetScriptResourceName());
+    int linenum = message->GetLineNumber();
+    printf("%s:%i: %s\n", *filename, linenum, *exception);
+    // Print line of source code.
+    v8::String::Utf8Value sourceline(message->GetSourceLine());
+    printf("%s\n", *sourceline);
+    // Print wavy underline (GetUnderline is deprecated).
+    int start = message->GetStartColumn();
+    for (int i = 0; i < start; i++) {
+      printf(" ");
+    }
+    int end = message->GetEndColumn();
+    for (int i = start; i < end; i++) {
+      printf("^");
+    }
+    printf("\n");
   }
 }

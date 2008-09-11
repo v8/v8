@@ -1,4 +1,4 @@
-// Copyright 2007-2008 Google Inc. All Rights Reserved.
+// Copyright 2007-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /** \mainpage V8 API Reference Guide
- *	
- * V8 is Google's open source JavaScript engine. 
+ *
+ * V8 is Google's open source JavaScript engine.
  *
  * This set of documents provides reference material generated from the
  * V8 header file, include/v8.h.
@@ -35,8 +35,8 @@
  * For other documentation see http://code.google.com/apis/v8/
  */
 
-#ifndef _V8
-#define _V8
+#ifndef V8_H_
+#define V8_H_
 
 #include <stdio.h>
 
@@ -461,10 +461,8 @@ class EXPORT HandleScope {
   /** Deallocates any extensions used by the current scope.*/
   static void DeleteExtensions();
 
-#ifdef DEBUG
   // Zaps the handles in the half-open interval [start, end).
   static void ZapRange(void** start, void** end);
-#endif
 
   friend class ImplementationUtilities;
 };
@@ -485,7 +483,7 @@ class EXPORT Data {
 /**
  * Pre-compilation data that can be associated with a script.  This
  * data can be calculated for a script in advance of actually
- * compiling it, and can bestored between compilations.  When script 
+ * compiling it, and can be stored between compilations.  When script
  * data is given to the compile method compilation will be faster.
  */
 class EXPORT ScriptData {  // NOLINT
@@ -555,7 +553,7 @@ class EXPORT Script {
 class EXPORT Message {
  public:
   Local<String> Get();
-  Local<Value> GetSourceLine();
+  Local<String> GetSourceLine();
 
   // TODO(1241256): Rewrite (or remove) this method.  We don't want to
   // deal with ownership of the returned string and we want to use
@@ -568,7 +566,34 @@ class EXPORT Message {
   // bindings.
   Handle<Value> GetSourceData();
 
+  /**
+   * Returns the number, 1-based, of the line where the error occurred.
+   */
   int GetLineNumber();
+
+  /**
+   * Returns the index within the script of the first character where
+   * the error occurred.
+   */
+  int GetStartPosition();
+
+  /**
+   * Returns the index within the script of the last character where
+   * the error occurred.
+   */
+  int GetEndPosition();
+
+  /**
+   * Returns the index within the line of the first character where
+   * the error occurred.
+   */
+  int GetStartColumn();
+
+  /**
+   * Returns the index within the line of the last character where
+   * the error occurred.
+   */
+  int GetEndColumn();
 
   // TODO(1245381): Print to a string instead of on a FILE.
   static void PrintCurrentStackTrace(FILE* out);
@@ -631,7 +656,7 @@ class EXPORT Value : public Data {
    * Returns true if this value is boolean.
    */
   bool IsBoolean();
-  
+
   /**
    * Returns true if this value is a number.
    */
@@ -696,7 +721,17 @@ class EXPORT Boolean : public Primitive {
  */
 class EXPORT String : public Primitive {
  public:
+
+  /**
+   * Returns the number of characters in this string.
+   */
   int Length();
+
+  /**
+   * Returns the number of bytes in the UTF-8 encoded
+   * representation of this string.
+   */
+  int Utf8Length();
 
   /**
    * Write the contents of the string to an external buffer.
@@ -716,9 +751,8 @@ class EXPORT String : public Primitive {
    * excluding the NULL terminator.
    */
   int Write(uint16_t* buffer, int start = 0, int length = -1);  // UTF-16
-  int WriteAscii(char* buffer,
-                 int start = 0,
-                 int length = -1);  // literally ascii
+  int WriteAscii(char* buffer, int start = 0, int length = -1);  // ASCII
+  int WriteUtf8(char* buffer, int length = -1); // UTF-8
 
   /**
    * Returns true if the string is external
@@ -733,7 +767,7 @@ class EXPORT String : public Primitive {
    * An ExternalStringResource is a wrapper around a two-byte string
    * buffer that resides outside V8's heap. Implement an
    * ExternalStringResource to manage the life cycle of the underlying
-   * buffer.
+   * buffer.  Note that the string data must be immutable.
    */
   class EXPORT ExternalStringResource {  // NOLINT
    public:
@@ -757,7 +791,11 @@ class EXPORT String : public Primitive {
    * An ExternalAsciiStringResource is a wrapper around an ascii
    * string buffer that resides outside V8's heap. Implement an
    * ExternalAsciiStringResource to manage the life cycle of the
-   * underlying buffer.
+   * underlying buffer.  Note that the string data must be immutable
+   * and that the data must be strict 7-bit ASCII, not Latin1 or
+   * UTF-8, which would require special treatment internally in the
+   * engine and, in the case of UTF-8, do not allow efficient indexing.
+   * Use String::New or convert to 16 bit data for non-ASCII.
    */
 
   class EXPORT ExternalAsciiStringResource {  // NOLINT
@@ -836,6 +874,21 @@ class EXPORT String : public Primitive {
   static Local<String> NewUndetectable(const uint16_t* data, int length = -1);
 
   /**
+   * Converts an object to a utf8-encoded character array.  Useful if
+   * you want to print the object.
+   */
+  class EXPORT Utf8Value {
+   public:
+    explicit Utf8Value(Handle<v8::Value> obj);
+    ~Utf8Value();
+    char* operator*() { return str_; }
+    int length() { return length_; }
+   private:
+    char* str_;
+    int length_;
+  };
+
+  /**
    * Converts an object to an ascii string.
    * Useful if you want to print the object.
    */
@@ -844,8 +897,10 @@ class EXPORT String : public Primitive {
     explicit AsciiValue(Handle<v8::Value> obj);
     ~AsciiValue();
     char* operator*() { return str_; }
+    int length() { return length_; }
    private:
     char* str_;
+    int length_;
   };
 
   /**
@@ -856,8 +911,10 @@ class EXPORT String : public Primitive {
     explicit Value(Handle<v8::Value> obj);
     ~Value();
     uint16_t* operator*() { return str_; }
+    int length() { return length_; }
    private:
     uint16_t* str_;
+    int length_;
   };
 };
 
@@ -1755,7 +1812,7 @@ class EXPORT V8 {
   static void IgnoreOutOfMemoryException();
 
   /**
-   * Check if V8 is dead and therefore unusable.  This is the case after 
+   * Check if V8 is dead and therefore unusable.  This is the case after
    * fatal errors such as out-of-memory situations.
    */
   static bool IsDead();
@@ -1901,6 +1958,15 @@ class EXPORT TryCatch {
   Local<Value> Exception();
 
   /**
+   * Returns the message associated with this exception.  If there is
+   * no message associated an empty handle is returned.
+   *
+   * The returned handle is valid until this TryCatch block has been
+   * destroyed.
+   */
+  Local<v8::Message> Message();
+
+  /**
    * Clears any exceptions that may have been caught by this try/catch block.
    * After this method has been called, HasCaught() will return false.
    *
@@ -1921,10 +1987,19 @@ class EXPORT TryCatch {
    */
   void SetVerbose(bool value);
 
+  /**
+   * Set whether or not this TryCatch should capture a Message object
+   * which holds source information about where the exception
+   * occurred.  True by default.
+   */
+  void SetCaptureMessage(bool value);
+
  public:
   TryCatch* next_;
   void* exception_;
+  void* message_;
   bool is_verbose_;
+  bool capture_message_;
 };
 
 
@@ -2116,11 +2191,11 @@ class EXPORT Locker {
    */
   static void StopPreemption();
 
-#ifdef DEBUG
-  static void AssertIsLocked();
-#else
-  static inline void AssertIsLocked() { }
-#endif
+  /**
+   * Returns whether or not the locker is locked by the current thread.
+   */
+  static bool IsLocked();
+
  private:
   bool has_lock_;
   bool top_level_;
@@ -2302,4 +2377,4 @@ void Template::Set(const char* name, v8::Handle<Data> value) {
 #undef TYPE_CHECK
 
 
-#endif  // _V8
+#endif  // V8_H_

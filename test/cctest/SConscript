@@ -1,4 +1,4 @@
-# Copyright 2008 Google Inc.  All rights reserved.
+# Copyright 2008 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -53,7 +53,7 @@ def Build():
   cctest_files = context.GetRelevantSources(SOURCES)
   env = Environment()
   env.Replace(**context.flags['cctest'])
-  env['ENV'].update(**context.env_overrides)
+  context.ApplyEnvOverrides(env)
   # There seems to be a glitch in the way scons decides where to put
   # PDB files when compiling using MSVC so we specify it manually.
   # This should not affect any other platforms.

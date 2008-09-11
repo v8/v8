@@ -1,4 +1,4 @@
-// Copyright 2006-2007 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -148,6 +148,8 @@ function MakeGenericError(constructor, type, args) {
         args[i] = elem.slice(0,20).concat("...");
       }
     }
+  } else if (IS_UNDEFINED(args)) {
+    args = [];
   }
 
   var e = new constructor();
@@ -555,17 +557,18 @@ function GetPositionInLine(message) {
 };
 
 
-function ErrorMessage(type, args, startPos, endPos, script) {
+function ErrorMessage(type, args, startPos, endPos, script, stackTrace) {
   this.startPos = startPos;
   this.endPos = endPos;
   this.type = type;
   this.args = args;
   this.script = script;
+  this.stackTrace = stackTrace;
 };
 
 
-function MakeMessage(type, args, startPos, endPos, script) {
-  return new ErrorMessage(type, args, startPos, endPos, script);
+function MakeMessage(type, args, startPos, endPos, script, stackTrace) {
+  return new ErrorMessage(type, args, startPos, endPos, script, stackTrace);
 };
 
 

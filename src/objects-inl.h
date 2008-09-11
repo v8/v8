@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -311,6 +311,13 @@ bool Object::IsDictionary() {
 
 bool Object::IsSymbolTable() {
   return IsHashTable() && this == Heap::symbol_table();
+}
+
+
+bool Object::IsEvalCache() {
+  return IsHashTable() &&
+      (this == Heap::eval_cache_global() ||
+       this == Heap::eval_cache_non_global());
 }
 
 
@@ -1089,6 +1096,7 @@ CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(Dictionary)
 CAST_ACCESSOR(SymbolTable)
+CAST_ACCESSOR(EvalCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(AsciiString)

@@ -1,4 +1,4 @@
-// Copyright 2007-2008 Google Inc. All Rights Reserved.
+// Copyright 2007-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -71,6 +71,8 @@ namespace v8 { namespace internal {
   SC(call_normal_stubs, V8.CallNormalStubs)                      \
   SC(call_megamorphic_stubs, V8.CallMegamorphicStubs)            \
   SC(arguments_adaptors, V8.ArgumentsAdaptors)                   \
+  SC(eval_cache_hits, V8.EvalCacheHits)                          \
+  SC(eval_cache_misses, V8.EvalCacheMisses)                      \
   /* Amount of evaled source code. */                            \
   SC(total_eval_size, V8.TotalEvalSize)                          \
   /* Amount of loaded source code. */                            \

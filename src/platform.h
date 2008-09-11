@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -222,7 +222,7 @@ class OS {
 class VirtualMemory {
  public:
   // Reserves virtual memory with size.
-  VirtualMemory(size_t size, void* address_hint = 0);
+  explicit VirtualMemory(size_t size);
   ~VirtualMemory();
 
   // Returns whether the memory has been reserved.

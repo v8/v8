@@ -1,4 +1,4 @@
-# Copyright 2008 Google Inc.  All rights reserved.
+# Copyright 2008 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -97,7 +97,7 @@ def Abort(message):
 def ConfigureObjectFiles():
   env = Environment()
   env.Replace(**context.flags['v8'])
-  env['ENV'].update(**context.env_overrides)
+  context.ApplyEnvOverrides(env)
   env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)
   env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile $LOGFILE')
 

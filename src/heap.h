@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -122,7 +122,9 @@ namespace v8 { namespace internal {
   V(Code, c_entry_debug_break_code)                     \
   V(FixedArray, number_string_cache)                    \
   V(FixedArray, single_character_string_cache)          \
-  V(FixedArray, natives_source_cache)
+  V(FixedArray, natives_source_cache)                   \
+  V(Object, eval_cache_global)                          \
+  V(Object, eval_cache_non_global)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -247,7 +249,8 @@ class Heap : public AllStatic {
   static Address NewSpaceTop() { return new_space_->top(); }
 
   static NewSpace* new_space() { return new_space_; }
-  static OldSpace* old_space() { return old_space_; }
+  static OldSpace* old_pointer_space() { return old_pointer_space_; }
+  static OldSpace* old_data_space() { return old_data_space_; }
   static OldSpace* code_space() { return code_space_; }
   static MapSpace* map_space() { return map_space_; }
   static LargeObjectSpace* lo_space() { return lo_space_; }
@@ -500,18 +503,13 @@ class Heap : public AllStatic {
   static Object* AllocateExternalStringFromTwoByte(
       ExternalTwoByteString::Resource* resource);
 
-  // Allocates an uninitialized object.
+  // Allocates an uninitialized object.  The memory is non-executable if the
+  // hardware and OS allow.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  static inline Object* AllocateRaw(int size_in_bytes, AllocationSpace space);
-
-
-  // Allocate an unitialized object during deserialization.  Performs linear
-  // allocation (ie, guaranteed no free list allocation) and assumes the
-  // spaces are all preexpanded so allocation should not fail.
-  static inline Object* AllocateForDeserialization(int size_in_bytes,
-                                                   AllocationSpace space);
+  static inline Object* AllocateRaw(int size_in_bytes,
+                                    AllocationSpace space);
 
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -533,6 +531,28 @@ class Heap : public AllStatic {
   }
   static Object* LookupSymbol(String* str);
 
+  // EvalCache caches function boilerplates for compiled scripts
+  // from 'eval' function.
+  // Source string is used as the key, and compiled function
+  // boilerplate as value. Because the same source has different
+  // compiled code in global or local context, we use separate
+  // caches for global and local contexts.
+  // Caches are cleared before mark-compact/mark-sweep GC's.
+
+  // Finds the function boilerplate of a source string.
+  // It returns a JSFunction object if found in the cache.
+  // The first parameter specifies whether the code is
+  // compiled in a global context.
+  static Object* LookupEvalCache(bool is_global_context, String* src);
+
+  // Put a source string and its compiled function boilerplate
+  // in the eval cache.  The cache may expand, and returns failure
+  // if it cannot expand the cache, otherwise the value is returned.
+  // The first parameter specifies whether the boilerplate is
+  // compiled in a global context.
+  static Object* PutInEvalCache(bool is_global_context,
+                                String* src, JSFunction* value);
+
   // Compute the matching symbol map for a string if possible.
   // NULL is returned if string is in new space or not flattened.
   static Map* SymbolMapForString(String* str);
@@ -550,6 +570,9 @@ class Heap : public AllStatic {
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.
   static bool CollectGarbage(int required_space, AllocationSpace space);
+
+  // Performs a full garbage collection.
+  static void CollectAllGarbage();
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
@@ -609,7 +632,7 @@ class Heap : public AllStatic {
   static bool InSpace(HeapObject* value, AllocationSpace space);
 
   // Finds out which space an object should get promoted to based on its type.
-  static inline AllocationSpace TargetSpace(HeapObject* object);
+  static inline OldSpace* TargetSpace(HeapObject* object);
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
   static void set_code_stubs(Dictionary* value) { code_stubs_ = value; }
@@ -726,7 +749,8 @@ class Heap : public AllStatic {
   static const int kMaxMapSpaceSize = 8*MB;
 
   static NewSpace* new_space_;
-  static OldSpace* old_space_;
+  static OldSpace* old_pointer_space_;
+  static OldSpace* old_data_space_;
   static OldSpace* code_space_;
   static MapSpace* map_space_;
   static LargeObjectSpace* lo_space_;
@@ -801,11 +825,10 @@ class Heap : public AllStatic {
                                        bool new_object,
                                        PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate an uninitialized object in map space.  The behavior is
-  // identical to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that
-  // (a) it doesn't have to test the allocation space argument and (b) can
-  // reduce code size (since both AllocateRaw and AllocateRawMap are
-  // inlined).
+  // Allocate an uninitialized object in map space.  The behavior is identical
+  // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't
+  // have to test the allocation space argument and (b) can reduce code size
+  // (since both AllocateRaw and AllocateRawMap are inlined).
   static inline Object* AllocateRawMap(int size_in_bytes);
 
 
@@ -865,6 +888,7 @@ class Heap : public AllStatic {
   static void RebuildRSets(LargeObjectSpace* space);
 
   static const int kInitialSymbolTableSize = 2048;
+  static const int kInitialEvalCacheSize = 64;
 
   friend class Factory;
   friend class DisallowAllocationFailure;
@@ -913,9 +937,43 @@ class VerifyPointersAndRSetVisitor: public ObjectVisitor {
 
 
 // Space iterator for iterating over all spaces of the heap.
+// Returns each space in turn, and null when it is done.
+class AllSpaces BASE_EMBEDDED {
+ public:
+  Space* next();
+  AllSpaces() { counter_ = FIRST_SPACE; }
+ private:
+  int counter_;
+};
+
+
+// Space iterator for iterating over all old spaces of the heap: Old pointer
+// space, old data space and code space.
+// Returns each space in turn, and null when it is done.
+class OldSpaces BASE_EMBEDDED {
+ public:
+  OldSpace* next();
+  OldSpaces() { counter_ = OLD_POINTER_SPACE; }
+ private:
+  int counter_;
+};
+
+
+// Space iterator for iterating over all the paged spaces of the heap:
+// Map space, old pointer space, old data space and code space.
+// Returns each space in turn, and null when it is done.
+class PagedSpaces BASE_EMBEDDED {
+ public:
+  PagedSpace* next();
+  PagedSpaces() { counter_ = OLD_POINTER_SPACE; }
+ private:
+  int counter_;
+};
+
+
+// Space iterator for iterating over all spaces of the heap.
 // For each space an object iterator is provided. The deallocation of the
 // returned object iterators is handled by the space iterator.
-
 class SpaceIterator : public Malloced {
  public:
   SpaceIterator();
@@ -1131,7 +1189,6 @@ class GCTracer BASE_EMBEDDED {
   // was no previous full GC.
   int previous_marked_count_;
 };
-
 
 } }  // namespace v8::internal
 

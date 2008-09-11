@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2309,14 +2309,6 @@ static Object* Runtime_NumberSar(Arguments args) {
 }
 
 
-static Object* Runtime_ObjectEquals(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-
-  return Smi::FromInt(args[0] == args[1] ? EQUAL : NOT_EQUAL);
-}
-
-
 static Object* Runtime_NumberEquals(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -2384,6 +2376,66 @@ static Object* Runtime_NumberCompare(Arguments args) {
   if (x == y) return Smi::FromInt(EQUAL);
   if (isless(x, y)) return Smi::FromInt(LESS);
   return Smi::FromInt(GREATER);
+}
+
+
+// Compare two Smis as if they were converted to strings and then
+// compared lexicographically.
+static Object* Runtime_SmiLexicographicCompare(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+
+  // Arrays for the individual characters of the two Smis.  Smis are
+  // 31 bit integers and 10 decimal digits are therefore enough.
+  static int x_elms[10];
+  static int y_elms[10];
+
+  // Extract the integer values from the Smis.
+  CONVERT_CHECKED(Smi, x, args[0]);
+  CONVERT_CHECKED(Smi, y, args[1]);
+  int x_value = x->value();
+  int y_value = y->value();
+
+  // If the integers are equal so are the string representations.
+  if (x_value == y_value) return Smi::FromInt(EQUAL);
+
+  // If one of the integers are zero the normal integer order is the
+  // same as the lexicographic order of the string representations.
+  if (x_value == 0 || y_value == 0) return Smi::FromInt(x_value - y_value);
+
+  // If only one of the intergers is negative the negative number is
+  // smallest because the char code of '-' is less than the char code
+  // of any digit.  Otherwise, we make both values positive.
+  if (x_value < 0 || y_value < 0) {
+    if (y_value >= 0) return Smi::FromInt(LESS);
+    if (x_value >= 0) return Smi::FromInt(GREATER);
+    x_value = -x_value;
+    y_value = -y_value;
+  }
+
+  // Convert the integers to arrays of their decimal digits.
+  int x_index = 0;
+  int y_index = 0;
+  while (x_value > 0) {
+    x_elms[x_index++] = x_value % 10;
+    x_value /= 10;
+  }
+  while (y_value > 0) {
+    y_elms[y_index++] = y_value % 10;
+    y_value /= 10;
+  }
+
+  // Loop through the arrays of decimal digits finding the first place
+  // where they differ.
+  while (--x_index >= 0 && --y_index >= 0) {
+    int diff = x_elms[x_index] - y_elms[y_index];
+    if (diff != 0) return Smi::FromInt(diff);
+  }
+
+  // If one array is a suffix of the other array, the longest array is
+  // the representation of the largest of the Smis in the
+  // lexicographic ordering.
+  return Smi::FromInt(x_index - y_index);
 }
 
 
@@ -3169,7 +3221,8 @@ static Object* Runtime_DebugPrint(Arguments args) {
   }
   args[0]->Print();
 #else
-  PrintF("DebugPrint: %p", args[0]);
+  // ShortPrint is available in release mode. Print is not.
+  args[0]->ShortPrint();
 #endif
   PrintF("\n");
 
@@ -3328,10 +3381,26 @@ static Object* Runtime_CompileString(Arguments args) {
   }
 
   // Compile eval() source.
+  bool is_global_context = context->IsGlobalContext();
   Handle<String> source(String::cast(args[0]));
-  Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(context->IsGlobalContext(), source);
-  if (boilerplate.is_null()) return Failure::Exception();
+  Object* obj = Heap::LookupEvalCache(is_global_context, *source);
+  if (obj->IsFailure()) return obj;
+
+  Handle<JSFunction> boilerplate;
+  if (!obj->IsJSFunction()) {
+    Counters::eval_cache_misses.Increment();
+    boilerplate = Compiler::CompileEval(is_global_context, source);
+    if (boilerplate.is_null()) return Failure::Exception();
+
+    Object* obj =
+        Heap::PutInEvalCache(is_global_context, *source, *boilerplate);
+    if (obj->IsFailure()) return obj;
+
+  } else {
+    Counters::eval_cache_hits.Increment();
+    boilerplate = Handle<JSFunction>(JSFunction::cast(obj));
+  }
+
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
   return *fun;
@@ -3372,6 +3441,25 @@ static Object* Runtime_SetNewFunctionAttributes(Arguments args) {
          Top::function_instance_map()->instance_size());
   func->set_map(*Top::function_instance_map());
   return *func;
+}
+
+
+// Push an array unto an array of arrays if it is not already in the
+// array.  Returns true if the element was pushed on the stack and
+// false otherwise.
+static Object* Runtime_PushIfAbsent(Arguments args) {
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(JSArray, array, args[0]);
+  CONVERT_CHECKED(JSArray, element, args[1]);
+  RUNTIME_ASSERT(array->HasFastElements());
+  int length = Smi::cast(array->length())->value();
+  FixedArray* elements = FixedArray::cast(array->elements());
+  for (int i = 0; i < length; i++) {
+    if (elements->get(i) == element) return Heap::false_value();
+  }
+  Object* obj = array->SetFastElement(length, element);
+  if (obj->IsFailure()) return obj;
+  return Heap::true_value();
 }
 
 
@@ -4536,8 +4624,8 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
   // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
   // rid of all the cached script wrappes and the second gets rid of the
   // scripts which is no longer referenced.
-  Heap::CollectGarbage(0, OLD_SPACE);
-  Heap::CollectGarbage(0, OLD_SPACE);
+  Heap::CollectAllGarbage();
+  Heap::CollectAllGarbage();
 
   // Get the number of scripts.
   int count;
@@ -4641,7 +4729,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
   ASSERT(args.length() == 3);
 
   // First perform a full GC in order to avoid references from dead objects.
-  Heap::CollectGarbage(0, OLD_SPACE);
+  Heap::CollectAllGarbage();
 
   // Check parameters.
   CONVERT_CHECKED(JSObject, target, args[0]);
@@ -4721,7 +4809,7 @@ static Object* Runtime_DebugConstructedBy(Arguments args) {
   ASSERT(args.length() == 2);
 
   // First perform a full GC in order to avoid dead objects.
-  Heap::CollectGarbage(0, OLD_SPACE);
+  Heap::CollectAllGarbage();
 
   // Check parameters.
   CONVERT_CHECKED(JSFunction, constructor, args[0]);

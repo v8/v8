@@ -1,4 +1,4 @@
-// Copyright 2007-2008 Google Inc. All Rights Reserved.
+// Copyright 2007-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -446,14 +446,12 @@ void v8::HandleScope::DeleteExtensions() {
 }
 
 
-#ifdef DEBUG
 void HandleScope::ZapRange(void** start, void** end) {
   if (start == NULL) return;
   for (void** p = start; p < end; p++) {
     *p = reinterpret_cast<void*>(v8::internal::kHandleZapValue);
   }
 }
-#endif
 
 
 void** v8::HandleScope::RawClose(void** value) {
@@ -981,6 +979,12 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
                 "Invalid internal field count")) {
     return;
   }
+  if (value > 0) {
+    // The internal field count is set by the constructor function's
+    // construct code, so we ensure that there is a constructor
+    // function to do the setting.
+    EnsureConstructor(this);
+  }
   Utils::OpenHandle(this)->set_internal_field_count(i::Smi::FromInt(value));
 }
 
@@ -1077,7 +1081,9 @@ Local<Value> Script::Run() {
 v8::TryCatch::TryCatch()
     : next_(i::Top::try_catch_handler()),
       exception_(i::Heap::the_hole_value()),
-      is_verbose_(false) {
+      message_(i::Smi::FromInt(0)),
+      is_verbose_(false),
+      capture_message_(true) {
   i::Top::RegisterTryCatchHandler(this);
 }
 
@@ -1103,13 +1109,29 @@ v8::Local<Value> v8::TryCatch::Exception() {
 }
 
 
+v8::Local<v8::Message> v8::TryCatch::Message() {
+  if (HasCaught() && message_ != i::Smi::FromInt(0)) {
+    i::Object* message = reinterpret_cast<i::Object*>(message_);
+    return v8::Utils::MessageToLocal(i::Handle<i::Object>(message));
+  } else {
+    return v8::Local<v8::Message>();
+  }
+}
+
+
 void v8::TryCatch::Reset() {
   exception_ = i::Heap::the_hole_value();
+  message_ = i::Smi::FromInt(0);
 }
 
 
 void v8::TryCatch::SetVerbose(bool value) {
   is_verbose_ = value;
+}
+
+
+void v8::TryCatch::SetCaptureMessage(bool value) {
+  capture_message_ = value;
 }
 
 
@@ -1192,15 +1214,66 @@ int Message::GetLineNumber() {
 }
 
 
-Local<Value> Message::GetSourceLine() {
-  ON_BAILOUT("v8::Message::GetSourceLine()", return Local<Value>());
+int Message::GetStartPosition() {
+  if (IsDeadCheck("v8::Message::GetStartPosition()")) return 0;
+  HandleScope scope;
+
+  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
+  return static_cast<int>(GetProperty(data_obj, "startPos")->Number());
+}
+
+
+int Message::GetEndPosition() {
+  if (IsDeadCheck("v8::Message::GetEndPosition()")) return 0;
+  HandleScope scope;
+  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
+  return static_cast<int>(GetProperty(data_obj, "endPos")->Number());
+}
+
+
+int Message::GetStartColumn() {
+  if (IsDeadCheck("v8::Message::GetStartColumn()")) return 0;
+  HandleScope scope;
+  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> start_col_obj = CallV8HeapFunction(
+      "GetPositionInLine",
+      data_obj,
+      &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(0);
+  return static_cast<int>(start_col_obj->Number());
+}
+
+
+int Message::GetEndColumn() {
+  if (IsDeadCheck("v8::Message::GetEndColumn()")) return 0;
+  HandleScope scope;
+  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> start_col_obj = CallV8HeapFunction(
+      "GetPositionInLine",
+      data_obj,
+      &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(0);
+  int start = static_cast<int>(GetProperty(data_obj, "startPos")->Number());
+  int end = static_cast<int>(GetProperty(data_obj, "endPos")->Number());
+  return static_cast<int>(start_col_obj->Number()) + (end - start);
+}
+
+
+Local<String> Message::GetSourceLine() {
+  ON_BAILOUT("v8::Message::GetSourceLine()", return Local<String>());
   HandleScope scope;
   EXCEPTION_PREAMBLE();
   i::Handle<i::Object> result = CallV8HeapFunction("GetSourceLine",
                                                    Utils::OpenHandle(this),
                                                    &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(Local<v8::Value>());
-  return scope.Close(Utils::ToLocal(result));
+  EXCEPTION_BAILOUT_CHECK(Local<v8::String>());
+  if (result->IsString()) {
+    return scope.Close(Utils::ToLocal(i::Handle<i::String>::cast(result)));
+  } else {
+    return Local<String>();
+  }
 }
 
 
@@ -1925,6 +1998,53 @@ int String::Length() {
 }
 
 
+int String::Utf8Length() {
+  if (IsDeadCheck("v8::String::Utf8Length()")) return 0;
+  return Utils::OpenHandle(this)->Utf8Length();
+}
+
+
+int String::WriteUtf8(char* buffer, int capacity) {
+  if (IsDeadCheck("v8::String::WriteUtf8()")) return 0;
+  LOG_API("String::WriteUtf8");
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  write_input_buffer.Reset(0, *str);
+  int len = str->length();
+  // Encode the first K - 3 bytes directly into the buffer since we
+  // know there's room for them.  If no capacity is given we copy all
+  // of them here.
+  int fast_end = capacity - (unibrow::Utf8::kMaxEncodedSize - 1);
+  int i;
+  int pos = 0;
+  for (i = 0; i < len && (capacity == -1 || pos < fast_end); i++) {
+    i::uc32 c = write_input_buffer.GetNext();
+    int written = unibrow::Utf8::Encode(buffer + pos, c);
+    pos += written;
+  }
+  if (i < len) {
+    // For the last characters we need to check the length for each one
+    // because they may be longer than the remaining space in the
+    // buffer.
+    char intermediate[unibrow::Utf8::kMaxEncodedSize];
+    for (; i < len && pos < capacity; i++) {
+      i::uc32 c = write_input_buffer.GetNext();
+      int written = unibrow::Utf8::Encode(intermediate, c);
+      if (pos + written <= capacity) {
+        for (int j = 0; j < written; j++)
+          buffer[pos + j] = intermediate[j];
+        pos += written;
+      } else {
+        // We've reached the end of the buffer
+        break;
+      }
+    }
+  }
+  if (i == len && (capacity == -1 || pos < capacity))
+    buffer[pos++] = '\0';
+  return pos;
+}
+
+
 int String::WriteAscii(char* buffer, int start, int length) {
   if (IsDeadCheck("v8::String::WriteAscii()")) return 0;
   LOG_API("String::WriteAscii");
@@ -2096,7 +2216,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.3.0";
+  return "0.3.1";
 }
 
 
@@ -2501,13 +2621,40 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 }
 
 
+String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
+  EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
+  HandleScope scope;
+  TryCatch try_catch;
+  Handle<String> str = obj->ToString();
+  if (str.IsEmpty()) {
+    str_ = NULL;
+    length_ = 0;
+  } else {
+    length_ = str->Utf8Length();
+    str_ = i::NewArray<char>(length_ + 1);
+    str->WriteUtf8(str_);
+  }
+}
+
+
+String::Utf8Value::~Utf8Value() {
+  i::DeleteArray(str_);
+}
+
+
 String::AsciiValue::AsciiValue(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::AsciiValue::AsciiValue()");
   HandleScope scope;
+  TryCatch try_catch;
   Handle<String> str = obj->ToString();
-  int length = str->Length();
-  str_ = i::NewArray<char>(length + 1);
-  str->WriteAscii(str_);
+  if (str.IsEmpty()) {
+    str_ = NULL;
+    length_ = 0;
+  } else {
+    length_ = str->Length();
+    str_ = i::NewArray<char>(length_ + 1);
+    str->WriteAscii(str_);
+  }
 }
 
 
@@ -2519,10 +2666,16 @@ String::AsciiValue::~AsciiValue() {
 String::Value::Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Value::Value()");
   HandleScope scope;
+  TryCatch try_catch;
   Handle<String> str = obj->ToString();
-  int length = str->Length();
-  str_ = i::NewArray<uint16_t>(length + 1);
-  str->Write(str_);
+  if (str.IsEmpty()) {
+    str_ = NULL;
+    length_ = 0;
+  } else {
+    length_ = str->Length();
+    str_ = i::NewArray<uint16_t>(length_ + 1);
+    str->Write(str_);
+  }
 }
 
 

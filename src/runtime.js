@@ -1,4 +1,4 @@
-// Copyright 2006-2007 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -57,13 +57,13 @@ function EQUALS(y) {
   // NOTE: We use iteration instead of recursion, because it is
   // difficult to call EQUALS with the correct setting of 'this' in
   // an efficient way.
-  
+
   while (true) {
-    
+
     if (IS_NUMBER(x)) {
       if (y == null) return 1;  // not equal
       return %NumberEquals(x, %ToNumber(y));
-      
+
     } else if (IS_STRING(x)) {
       if (IS_STRING(y)) return %StringEquals(x, y);
       if (IS_NUMBER(y)) return %NumberEquals(%ToNumber(x), y);
@@ -72,19 +72,25 @@ function EQUALS(y) {
       y = %ToPrimitive(y, NO_HINT);
 
     } else if (IS_BOOLEAN(x)) {
-      if (IS_BOOLEAN(y)) return %ObjectEquals(x, y);
+      if (IS_BOOLEAN(y)) {
+        return %_ObjectEquals(x, y) ? 0 : 1;
+      }
       if (y == null) return 1;  // not equal
       return %NumberEquals(%ToNumber(x), %ToNumber(y));
-      
+
     } else if (x == null) {
       // NOTE: This checks for both null and undefined.
       return (y == null) ? 0 : 1;
-      
+
     } else {
-      if (IS_OBJECT(y)) return %ObjectEquals(x, y);
-      if (IS_FUNCTION(y)) return %ObjectEquals(x, y);
+      if (IS_OBJECT(y)) {
+        return %_ObjectEquals(x, y) ? 0 : 1;
+      }
+      if (IS_FUNCTION(y)) {
+        return %_ObjectEquals(x, y) ? 0 : 1;
+      }
       x = %ToPrimitive(x, NO_HINT);
-      
+
     }
   }
 };
@@ -96,23 +102,23 @@ function STRICT_EQUALS(x) {
     if (!IS_NUMBER(x)) return 1;  // not equal
     return %NumberEquals(this, x);
   }
-  
+
   if (IS_STRING(this)) {
     if (!IS_STRING(x)) return 1;  // not equal
     return %StringEquals(this, x);
   }
-  
+
   if (IS_BOOLEAN(this)) {
     if (!IS_BOOLEAN(x)) return 1;  // not equal
     if (this) return x ? 0 : 1;
     else return x ? 1 : 0;
   }
-  
+
   if (IS_UNDEFINED(this)) {  // both undefined and undetectable
     return IS_UNDEFINED(x) ? 0 : 1;
   }
-  
-  return %ObjectEquals(this, x);
+
+  return %_ObjectEquals(this, x) ? 0 : 1;
 };
 
 
@@ -123,7 +129,7 @@ function COMPARE(x, ncr) {
   if (IS_NUMBER(this) && IS_NUMBER(x)) {
     return %NumberCompare(this, x, ncr);
   }
-  
+
   var a = %ToPrimitive(this, NUMBER_HINT);
   var b = %ToPrimitive(x, NUMBER_HINT);
   if (IS_STRING(a) && IS_STRING(b)) {
@@ -433,7 +439,7 @@ function ToObject(x) {
   if (IS_STRING(x)) return new $String(x);
   if (IS_NUMBER(x)) return new $Number(x);
   if (IS_BOOLEAN(x)) return new $Boolean(x);
-  if (x == null) throw %MakeTypeError('null_to_object');
+  if (x == null) throw %MakeTypeError('null_to_object', []);
   return x;
 };
 

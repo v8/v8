@@ -1,4 +1,4 @@
-// Copyright 2007-2008 Google Inc. All Rights Reserved.
+// Copyright 2007-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -461,10 +461,10 @@ THREADED_TEST(ScriptUsingStringResource) {
     CHECK(source->IsExternal());
     CHECK_EQ(resource,
              static_cast<TestResource*>(source->GetExternalStringResource()));
-    v8::internal::Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+    v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestResource::dispose_count);
   }
-  v8::internal::Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+  v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestResource::dispose_count);
 }
 
@@ -481,10 +481,10 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    v8::internal::Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+    v8::internal::Heap::CollectAllGarbage();
     CHECK_EQ(0, TestAsciiResource::dispose_count);
   }
-  v8::internal::Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+  v8::internal::Heap::CollectAllGarbage();
   CHECK_EQ(1, TestAsciiResource::dispose_count);
 }
 
@@ -1427,9 +1427,9 @@ static const char* js_code_causing_out_of_memory =
 
 // These tests run for a long time and prevent us from running tests
 // that come after them so they cannot run in parallel.
-TEST(OutOfMemory) {
+DISABLED_TEST(OutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
-  v8::internal::Snapshot::DisableInternal();
+  if (v8::internal::Snapshot::IsEnabled()) return;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
@@ -1468,9 +1468,9 @@ v8::Handle<Value> ProvokeOutOfMemory(const v8::Arguments& args) {
 }
 
 
-TEST(OutOfMemoryNested) {
+DISABLED_TEST(OutOfMemoryNested) {
   // It's not possible to read a snapshot into a heap with different dimensions.
-  v8::internal::Snapshot::DisableInternal();
+  if (v8::internal::Snapshot::IsEnabled()) return;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
@@ -1499,7 +1499,7 @@ TEST(OutOfMemoryNested) {
 
 TEST(HugeConsStringOutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
-  v8::internal::Snapshot::DisableInternal();
+  if (v8::internal::Snapshot::IsEnabled()) return;
   v8::HandleScope scope;
   LocalContext context;
   // Set heap limits.
@@ -2455,7 +2455,7 @@ static v8::Handle<Value> ArgumentsTestCallback(const v8::Arguments& args) {
   CHECK_EQ(v8::Integer::New(3), args[2]);
   CHECK_EQ(v8::Undefined(), args[3]);
   v8::HandleScope scope;
-  i::Heap::CollectGarbage(0, i::OLD_SPACE);
+  i::Heap::CollectAllGarbage();
   return v8::Undefined();
 }
 
@@ -3959,6 +3959,11 @@ THREADED_TEST(CallAsFunction) {
   CHECK(!try_catch.HasCaught());
   CHECK_EQ(49, value->Int32Value());
 
+  // test special case of call as function
+  value = Script::Compile(v8_str("[obj]['0'](45)"))->Run();
+  CHECK(!try_catch.HasCaught());
+  CHECK_EQ(45, value->Int32Value());
+
   value = Script::Compile(v8_str("obj.call = Function.prototype.call;"
                                  "obj.call(null, 87)"))->Run();
   CHECK(!try_catch.HasCaught());
@@ -4563,7 +4568,7 @@ void ApiTestFuzzer::CallTest() {
 
 
 static v8::Handle<Value> ThrowInJS(const v8::Arguments& args) {
-  v8::Locker::AssertIsLocked();
+  CHECK(v8::Locker::IsLocked());
   ApiTestFuzzer::Fuzz();
   v8::Unlocker unlocker;
   const char* code = "throw 7;";
@@ -4586,7 +4591,7 @@ static v8::Handle<Value> ThrowInJS(const v8::Arguments& args) {
 
 
 static v8::Handle<Value> ThrowInJSNoCatch(const v8::Arguments& args) {
-  v8::Locker::AssertIsLocked();
+  CHECK(v8::Locker::IsLocked());
   ApiTestFuzzer::Fuzz();
   v8::Unlocker unlocker;
   const char* code = "throw 7;";
@@ -4604,7 +4609,7 @@ static v8::Handle<Value> ThrowInJSNoCatch(const v8::Arguments& args) {
 // as part of the locking aggregation tests.
 TEST(NestedLockers) {
   v8::Locker locker;
-  v8::Locker::AssertIsLocked();
+  CHECK(v8::Locker::IsLocked());
   v8::HandleScope scope;
   LocalContext env;
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(ThrowInJS);
@@ -4648,7 +4653,7 @@ THREADED_TEST(RecursiveLocking) {
   v8::Locker locker;
   {
     v8::Locker locker2;
-    v8::Locker::AssertIsLocked();
+    CHECK(v8::Locker::IsLocked());
   }
 }
 
@@ -4694,7 +4699,7 @@ THREADED_TEST(LockUnlockLock) {
 
 static void EnsureNoSurvivingGlobalObjects() {
   int count = 0;
-  v8::internal::Heap::CollectGarbage(0, v8::internal::OLD_SPACE);
+  v8::internal::Heap::CollectAllGarbage();
   v8::internal::HeapIterator it;
   while (it.has_next()) {
     v8::internal::HeapObject* object = it.next();
@@ -4716,6 +4721,8 @@ TEST(DontLeakGlobalObjects) {
   // Regression test for issues 1139850 and 1174891.
 
   v8::internal::V8::Initialize(NULL);
+  if (v8::internal::Snapshot::IsEnabled()) return;
+
   EnsureNoSurvivingGlobalObjects();
 
   for (int i = 0; i < 5; i++) {
@@ -4757,6 +4764,7 @@ TEST(DontLeakGlobalObjects) {
 
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
   v8::internal::V8::Initialize(NULL);
+  if (v8::internal::Snapshot::IsEnabled()) return;
 
   const int nof = 2;
   const char* sources[nof] = {
@@ -4816,4 +4824,76 @@ THREADED_TEST(DisposeEnteredContext) {
     inner.Clear();
     inner->Exit();
   }
+}
+
+
+// Regression test for issue 54, object templates with internal fields
+// but no accessors or interceptors did not get their internal field
+// count set on instances.
+THREADED_TEST(Regress54) {
+  v8::HandleScope outer;
+  LocalContext context;
+  static v8::Persistent<v8::ObjectTemplate> templ;
+  if (templ.IsEmpty()) {
+    v8::HandleScope inner;
+    v8::Handle<v8::ObjectTemplate> local = v8::ObjectTemplate::New();
+    local->SetInternalFieldCount(1);
+    templ = v8::Persistent<v8::ObjectTemplate>::New(inner.Close(local));
+  }
+  v8::Handle<v8::Object> result = templ->NewInstance();
+  CHECK_EQ(1, result->InternalFieldCount());
+}
+
+
+// If part of the threaded tests, this test makes ThreadingTest fail
+// on mac.
+TEST(CatchStackOverflow) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Script> script = v8::Script::Compile(v8::String::New(
+    "function f() {"
+    "  return f();"
+    "}"
+    ""
+    "f();"));
+  v8::Handle<v8::Value> result = script->Run();
+  CHECK(result.IsEmpty());
+}
+
+
+THREADED_TEST(TryCatchSourceInfo) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::String> source = v8::String::New(
+      "function Foo() {\n"
+      "  return Bar();\n"
+      "}\n"
+      "\n"
+      "function Bar() {\n"
+      "  return Baz();\n"
+      "}\n"
+      "\n"
+      "function Baz() {\n"
+      "  throw 'nirk';\n"
+      "}\n"
+      "\n"
+      "Foo();\n");
+  v8::Handle<v8::Script> script =
+    v8::Script::Compile(source, v8::String::New("test.js"));
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Value> result = script->Run();
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  v8::Handle<v8::Message> message = try_catch.Message();
+  CHECK(!message.IsEmpty());
+  CHECK_EQ(10, message->GetLineNumber());
+  CHECK_EQ(91, message->GetStartPosition());
+  CHECK_EQ(92, message->GetEndPosition());
+  CHECK_EQ(2, message->GetStartColumn());
+  CHECK_EQ(3, message->GetEndColumn());
+  v8::String::AsciiValue line(message->GetSourceLine());
+  CHECK_EQ("  throw 'nirk';", *line);
+  v8::String::AsciiValue name(message->GetScriptResourceName());
+  CHECK_EQ("test.js", *name);
 }

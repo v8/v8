@@ -1,4 +1,4 @@
-// Copyright 2008 Google Inc. All Rights Reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -137,7 +137,7 @@ static Handle<Value> LogCallback(const Arguments& args) {
   if (args.Length() < 1) return v8::Undefined();
   HandleScope scope;
   Handle<Value> arg = args[0];
-  String::AsciiValue value(arg);
+  String::Utf8Value value(arg);
   HttpRequestProcessor::Log(*value);
   return v8::Undefined();
 }
@@ -206,7 +206,7 @@ bool JsHttpRequestProcessor::ExecuteScript(Handle<String> script) {
   // Compile the script and check for errors.
   Handle<Script> compiled_script = Script::Compile(script);
   if (compiled_script.IsEmpty()) {
-    String::AsciiValue error(try_catch.Exception());
+    String::Utf8Value error(try_catch.Exception());
     Log(*error);
     // The script failed to compile; bail out.
     return false;
@@ -216,7 +216,7 @@ bool JsHttpRequestProcessor::ExecuteScript(Handle<String> script) {
   Handle<Value> result = compiled_script->Run();
   if (result.IsEmpty()) {
     // The TryCatch above is still in effect and will have caught the error.
-    String::AsciiValue error(try_catch.Exception());
+    String::Utf8Value error(try_catch.Exception());
     Log(*error);
     // Running the script failed; bail out.
     return false;
@@ -262,7 +262,7 @@ bool JsHttpRequestProcessor::Process(HttpRequest* request) {
   Handle<Value> argv[argc] = { request_obj };
   Handle<Value> result = process_->Call(context_->Global(), argc, argv);
   if (result.IsEmpty()) {
-    String::AsciiValue error(try_catch.Exception());
+    String::Utf8Value error(try_catch.Exception());
     Log(*error);
     return false;
   } else {
@@ -332,8 +332,8 @@ map<string, string>* JsHttpRequestProcessor::UnwrapMap(Handle<Object> obj) {
 // Convert a JavaScript string to a std::string.  To not bother too
 // much with string encodings we just use ascii.
 string ObjectToString(Local<Value> value) {
-  String::AsciiValue ascii_value(value);
-  return string(*ascii_value);
+  String::Utf8Value utf8_value(value);
+  return string(*utf8_value);
 }
 
 

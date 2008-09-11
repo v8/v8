@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -172,6 +172,9 @@ class CodeGenerator: public Visitor {
 
   // Fast support for charCodeAt(n).
   virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args) = 0;
+
+  // Fast support for object equality testing.
+  virtual void GenerateObjectEquals(ZoneList<Expression*>* args) = 0;
 
  private:
   bool is_eval_;  // Tells whether code is generated for eval.

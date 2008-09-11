@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -312,10 +312,11 @@ class Deserializer: public ObjectVisitor {
   bool has_log_;  // The file has log information.
 
   // Resolve caches the following:
-  List<Page*> map_pages_;       // All pages in the map space.
-  List<Page*> old_pages_;       // All pages in the old space.
+  List<Page*> map_pages_;          // All pages in the map space.
+  List<Page*> old_pointer_pages_;  // All pages in the old pointer space.
+  List<Page*> old_data_pages_;     // All pages in the old data space.
   List<Page*> code_pages_;
-  List<Object*> large_objects_;  // All known large objects.
+  List<Object*> large_objects_;    // All known large objects.
   // A list of global handles at deserialization time.
   List<Object**> global_handles_;
 

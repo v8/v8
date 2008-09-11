@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -537,8 +537,10 @@ bool Debug::CompileDebuggerScript(int index) {
 
   // Check for caught exceptions.
   if (caught_exception) {
-    MessageHandler::ReportMessage("error_loading_debugger", NULL,
-                                  HandleVector<Object>(&result, 1));
+    Handle<Object> message = MessageHandler::MakeMessageObject(
+        "error_loading_debugger", NULL, HandleVector<Object>(&result, 1),
+        Handle<String>());
+    MessageHandler::ReportMessage(NULL, message);
     return false;
   }
 

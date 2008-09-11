@@ -1,4 +1,4 @@
-// Copyright 2008 Google Inc. All Rights Reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,13 +30,29 @@
 // Test counter-intuitive default number sorting.
 function TestNumberSort() {
   var a = [ 200, 45, 7 ];
-  // Default sort calls toString on each element and orders
+
+  // Default sort converts each element to string and orders
   // lexicographically.
   a.sort();
   assertArrayEquals([ 200, 45, 7 ], a);
   // Sort numbers by value using a compare functions.
   a.sort(function(x, y) { return x - y; });
   assertArrayEquals([ 7, 45, 200 ], a);
+
+  // Default sort on negative numbers.
+  a = [-12345,-123,-1234,-123456];
+  a.sort();
+  assertArrayEquals([-123,-1234,-12345,-123456], a);
+
+  // Default sort on negative and non-negative numbers.
+  a = [123456,0,-12345,-123,123,1234,-1234,0,12345,-123456];
+  a.sort();
+  assertArrayEquals([-123,-1234,-12345,-123456,0,0,123,1234,12345,123456], a);
+
+  // Default sort on Smis and non-Smis.
+  a = [1000000000, 10000000000, 1000000001, -1000000000, -10000000000, -1000000001];
+  a.sort();
+  assertArrayEquals([-1000000000, -10000000000, -1000000001, 1000000000, 10000000000, 1000000001], a);
 }
 
 TestNumberSort();

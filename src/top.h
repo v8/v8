@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -225,6 +225,10 @@ class Top {
   static void ReportUncaughtException(Handle<Object> exception,
                                       MessageLocation* location,
                                       Handle<String> stack_trace);
+
+  // Attempts to compute the current source location, storing the
+  // result in the target out parameter.
+  static void ComputeLocation(MessageLocation* target);
 
   // Override command line flag.
   static void TraceException(bool flag);

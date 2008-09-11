@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2008 Google Inc.  All rights reserved.
+# Copyright 2008 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -258,6 +258,9 @@ class TestCase(object):
 
   def IsFailureOutput(self, output):
     return output.exit_code != 0
+
+  def GetSource(self):
+    return "(no source available)"
 
   def Run(self):
     command = self.GetCommand()
@@ -946,8 +949,12 @@ def BuildOptions():
   result.add_option("-t", "--timeout", help="Timeout in seconds",
       default=60, type="int")
   result.add_option("--arch", help='The architecture to run tests for',
-      default=ARCH_GUESS)
+      default='none')
+  result.add_option("--simulator", help="Run tests with architecture simulator",
+      default='none')
   result.add_option("--special-command", default=None)
+  result.add_option("--cat", help="Print the source of the tests",
+      default=False, action="store_true")
   return result
 
 
@@ -959,6 +966,21 @@ def ProcessOptions(options):
     if not mode in ['debug', 'release']:
       print "Unknown mode %s" % mode
       return False
+  if options.simulator != 'none':
+    # Simulator argument was set. Make sure arch and simulator agree.
+    if options.simulator != options.arch:
+      if options.arch == 'none':
+        options.arch = options.simulator
+      else:
+        print "Architecture %s does not match sim %s" %(options.arch, options.simulator)
+        return False
+    # Ensure that the simulator argument is handed down to scons.
+    options.scons_flags.append("simulator=" + options.simulator)
+  else:
+    # If options.arch is not set by the command line and no simulator setting
+    # was found, set the arch to the guess.
+    if options.arch == 'none':
+      options.arch = ARCH_GUESS
   return True
 
 
@@ -1069,6 +1091,7 @@ def Main():
   # List the tests
   all_cases = [ ]
   all_unused = [ ]
+  unclassified_tests = [ ]
   for path in paths:
     for mode in options.mode:
       env = {
@@ -1077,9 +1100,23 @@ def Main():
         'arch': options.arch
       }
       test_list = root.ListTests([], path, context, mode)
+      unclassified_tests += test_list
       (cases, unused_rules) = config.ClassifyTests(test_list, env)
       all_cases += cases
       all_unused.append(unused_rules)
+
+  if options.cat:
+    visited = set()
+    for test in unclassified_tests:
+      key = tuple(test.path)
+      if key in visited:
+        continue
+      visited.add(key)
+      print "--- begin source: %s ---" % test.GetLabel()
+      source = test.GetSource().strip()
+      print source
+      print "--- end source: %s ---" % test.GetLabel()
+    return 0
 
 #  for rule in unused_rules:
 #    print "Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path])

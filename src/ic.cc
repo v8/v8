@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -250,6 +250,26 @@ void KeyedStoreIC::Clear(Address address, Code* target) {
 }
 
 
+Object* CallIC::TryCallAsFunction(Object* object) {
+  HandleScope scope;
+  Handle<Object> target(object);
+  Handle<Object> delegate = Execution::GetFunctionDelegate(target);
+
+  if (delegate->IsJSFunction()) {
+    // Patch the receiver and use the delegate as the function to
+    // invoke. This is used for invoking objects as if they were
+    // functions.
+    const int argc = this->target()->arguments_count();
+    StackFrameLocator locator;
+    JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
+    int index = frame->ComputeExpressionsCount() - (argc + 1);
+    frame->SetExpression(index, *target);
+  }
+
+  return *delegate;
+}
+
+
 Object* CallIC::LoadFunction(State state,
                              Handle<Object> object,
                              Handle<String> name) {
@@ -259,11 +279,25 @@ Object* CallIC::LoadFunction(State state,
     return TypeError("non_object_property_call", object, name);
   }
 
+  Object* result = Heap::the_hole_value();
+
+  // Check if the name is trivially convertible to an index and get
+  // the element if so.
+  uint32_t index;
+  if (name->AsArrayIndex(&index)) {
+    result = object->GetElement(index);
+    if (result->IsJSFunction()) return result;
+
+    // Try to find a suitable function delegate for the object at hand.
+    result = TryCallAsFunction(result);
+    if (result->IsJSFunction()) return result;
+
+    // Otherwise, it will fail in the lookup step.
+  }
+
   // Lookup the property in the object.
   LookupResult lookup;
   object->Lookup(*name, &lookup);
-
-  Object* result = Heap::the_hole_value();
 
   if (!lookup.IsValid()) {
     // If the object does not have the requested property, check which
@@ -328,23 +362,9 @@ Object* CallIC::LoadFunction(State state,
   }
 
   // Try to find a suitable function delegate for the object at hand.
-  HandleScope scope;
-  Handle<Object> target(result);
-  Handle<Object> delegate = Execution::GetFunctionDelegate(target);
-
-  if (delegate->IsJSFunction()) {
-    // Patch the receiver and use the delegate as the function to
-    // invoke. This is used for invoking objects as if they were
-    // functions.
-    const int argc = this->target()->arguments_count();
-    StackFrameLocator locator;
-    JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-    int index = frame->ComputeExpressionsCount() - (argc + 1);
-    frame->SetExpression(index, *target);
-    return *delegate;
-  } else {
-    return TypeError("property_not_function", object, name);
-  }
+  result = TryCallAsFunction(result);
+  return result->IsJSFunction() ?
+      result : TypeError("property_not_function", object, name);
 }
 
 

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -182,8 +182,8 @@ int main(int argc, char** argv) {
       i::Bootstrapper::NativesSourceLookup(i);
     }
   }
-  // Get rid of unreferenced scripts.
-  i::Heap::CollectGarbage(0, i::OLD_SPACE);
+  // Get rid of unreferenced scripts with a global GC.
+  i::Heap::CollectAllGarbage();
   i::Serializer ser;
   ser.Serialize();
   char* str;

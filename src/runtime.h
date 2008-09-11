@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -61,6 +61,9 @@ namespace v8 { namespace internal {
   F(LazyCompile, 1) \
   F(SetNewFunctionAttributes, 1) \
   \
+  /* Array join support */ \
+  F(PushIfAbsent, 2) \
+  \
   /* ConsStrings */ \
   F(ConsStringFst, 1) \
   F(ConsStringSnd, 1) \
@@ -106,11 +109,11 @@ namespace v8 { namespace internal {
   F(NumberSar, 2) \
   \
   /* Comparisons */ \
-  F(ObjectEquals, 2) \
   F(NumberEquals, 2) \
   F(StringEquals, 2) \
   \
   F(NumberCompare, 3) \
+  F(SmiLexicographicCompare, 2) \
   F(StringCompare, 2) \
   \
   /* Math */ \

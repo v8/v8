@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -214,16 +214,18 @@ typedef bool (*WeakSlotCallback)(Object** pointer);
 // NOTE: SpaceIterator depends on AllocationSpace enumeration values being
 // consecutive.
 enum AllocationSpace {
-  NEW_SPACE,
-  OLD_SPACE,
-  CODE_SPACE,
-  MAP_SPACE,
-  LO_SPACE,
+  NEW_SPACE,          // Semispaces collected with copying collector.
+  OLD_POINTER_SPACE,  // Must be first of the paged spaces - see PagedSpaces.
+  OLD_DATA_SPACE,     // May not have pointers to new space.
+  CODE_SPACE,         // Also one of the old spaces.  Marked executable.
+  MAP_SPACE,          // Only map objects.
+  LO_SPACE,           // Large objects.
   FIRST_SPACE = NEW_SPACE,
-  LAST_SPACE = LO_SPACE
+  LAST_SPACE = LO_SPACE  // <= 5 (see kSpaceBits and kLOSpacePointer)
 };
 const int kSpaceTagSize = 3;
 const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
+
 
 // A flag that indicates whether objects should be pretenured when
 // allocated (allocated directly into the old generation) or not
@@ -232,6 +234,8 @@ const int kSpaceTagMask = (1 << kSpaceTagSize) - 1;
 enum PretenureFlag { NOT_TENURED, TENURED };
 
 enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
+
+enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
 
 // A CodeDesc describes a buffer holding instructions and relocation

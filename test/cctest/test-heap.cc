@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google, Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 
 #include <stdlib.h>
 
@@ -176,7 +176,8 @@ TEST(Tagging) {
   CHECK(Failure::RetryAfterGC(12, NEW_SPACE)->IsFailure());
   CHECK_EQ(12, Failure::RetryAfterGC(12, NEW_SPACE)->requested());
   CHECK_EQ(NEW_SPACE, Failure::RetryAfterGC(12, NEW_SPACE)->allocation_space());
-  CHECK_EQ(OLD_SPACE, Failure::RetryAfterGC(12, OLD_SPACE)->allocation_space());
+  CHECK_EQ(OLD_POINTER_SPACE,
+           Failure::RetryAfterGC(12, OLD_POINTER_SPACE)->allocation_space());
   CHECK(Failure::Exception()->IsFailure());
   CHECK(Smi::FromInt(Smi::kMinValue)->IsSmi());
   CHECK(Smi::FromInt(Smi::kMaxValue)->IsSmi());
@@ -353,7 +354,7 @@ TEST(WeakGlobalHandlesMark) {
   Handle<Object> h1 = GlobalHandles::Create(i);
   Handle<Object> h2 = GlobalHandles::Create(u);
 
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
   CHECK(Heap::CollectGarbage(0, NEW_SPACE));
   // Make sure the object is promoted.
 
@@ -363,7 +364,7 @@ TEST(WeakGlobalHandlesMark) {
   CHECK(!GlobalHandles::IsNearDeath(h1.location()));
   CHECK(!GlobalHandles::IsNearDeath(h2.location()));
 
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   CHECK((*h1)->IsString());
 
@@ -400,7 +401,7 @@ TEST(DeleteWeakGlobalHandle) {
   CHECK(!WeakPointerCleared);
 
   // Mark-compact treats weak reference properly.
-  CHECK(Heap::CollectGarbage(0, OLD_SPACE));
+  CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
   CHECK(WeakPointerCleared);
 }
@@ -751,11 +752,11 @@ TEST(Iteration) {
   Handle<Object> objs[objs_count];
   int next_objs_index = 0;
 
-  // Allocate a JS array to OLD_SPACE and NEW_SPACE
+  // Allocate a JS array to OLD_POINTER_SPACE and NEW_SPACE
   objs[next_objs_index++] = Factory::NewJSArray(10);
   objs[next_objs_index++] = Factory::NewJSArray(10, TENURED);
 
-  // Allocate a small string to CODE_SPACE and NEW_SPACE
+  // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] =
       Factory::NewStringFromAscii(CStrVector("abcdefghij"));
   objs[next_objs_index++] =

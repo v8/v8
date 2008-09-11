@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -53,12 +53,22 @@ DEFINE_bool(debug_serialization, false,
 // - MAP and OLD spaces: 16 bits of page number, 11 bits of word offset in page
 // - NEW space:          27 bits of word offset
 // - LO space:           27 bits of page number
-// 3 bits to encode the AllocationSpace
+// 3 bits to encode the AllocationSpace (special values for code in LO space)
 // 2 bits identifying this as a HeapObject
 
 const int kSpaceShift = kHeapObjectTagSize;
 const int kSpaceBits = kSpaceTagSize;
 const int kSpaceMask = kSpaceTagMask;
+
+// These value are used instead of space numbers when serializing/
+// deserializing.  They indicate an object that is in large object space, but
+// should be treated specially.
+// Make the pages executable on platforms that support it:
+const int kLOSpaceExecutable = LAST_SPACE + 1;
+// Reserve space for write barrier bits (for objects that can contain
+// references to new space):
+const int kLOSpacePointer = LAST_SPACE + 2;
+
 
 const int kOffsetShift = kSpaceShift + kSpaceBits;
 const int kOffsetBits = 11;
@@ -73,9 +83,28 @@ const int kPageAndOffsetBits = kPageBits + kOffsetBits;
 const int kPageAndOffsetMask = (1 << kPageAndOffsetBits) - 1;
 
 
-static inline AllocationSpace Space(Address addr) {
+static inline AllocationSpace GetSpace(Address addr) {
   const int encoded = reinterpret_cast<int>(addr);
-  return static_cast<AllocationSpace>((encoded >> kSpaceShift) & kSpaceMask);
+  int space_number = ((encoded >> kSpaceShift) & kSpaceMask);
+  if (space_number == kLOSpaceExecutable) space_number = LO_SPACE;
+  else if (space_number == kLOSpacePointer) space_number = LO_SPACE;
+  return static_cast<AllocationSpace>(space_number);
+}
+
+
+static inline bool IsLargeExecutableObject(Address addr) {
+  const int encoded = reinterpret_cast<int>(addr);
+  const int space_number = ((encoded >> kSpaceShift) & kSpaceMask);
+  if (space_number == kLOSpaceExecutable) return true;
+  return false;
+}
+
+
+static inline bool IsLargeFixedArray(Address addr) {
+  const int encoded = reinterpret_cast<int>(addr);
+  const int space_number = ((encoded >> kSpaceShift) & kSpaceMask);
+  if (space_number == kLOSpacePointer) return true;
+  return false;
 }
 
 
@@ -117,18 +146,29 @@ static inline int LargeObjectIndex(Address addr) {
 
 class RelativeAddress {
  public:
-  RelativeAddress(AllocationSpace space, int page_index, int page_offset)
-  : space_(space), page_index_(page_index), page_offset_(page_offset) {}
+  RelativeAddress(AllocationSpace space,
+                  int page_index,
+                  int page_offset)
+  : space_(space), page_index_(page_index), page_offset_(page_offset)  {
+    ASSERT(space <= LAST_SPACE && space >= 0);
+  }
 
   // Return the encoding of 'this' as an Address. Decode with constructor.
   Address Encode() const;
 
-  AllocationSpace space() const { return space_; }
+  AllocationSpace space() const {
+    if (space_ == kLOSpaceExecutable) return LO_SPACE;
+    if (space_ == kLOSpacePointer) return LO_SPACE;
+    return static_cast<AllocationSpace>(space_);
+  }
   int page_index() const { return page_index_; }
   int page_offset() const { return page_offset_; }
 
   bool in_paged_space() const {
-    return space_ == CODE_SPACE || space_ == OLD_SPACE || space_ == MAP_SPACE;
+    return space_ == CODE_SPACE ||
+           space_ == OLD_POINTER_SPACE ||
+           space_ == OLD_DATA_SPACE ||
+           space_ == MAP_SPACE;
   }
 
   void next_address(int offset) { page_offset_ += offset; }
@@ -141,8 +181,18 @@ class RelativeAddress {
   void Verify();
 #endif
 
+  void set_to_large_code_object() {
+    ASSERT(space_ == LO_SPACE);
+    space_ = kLOSpaceExecutable;
+  }
+  void set_to_large_fixed_array() {
+    ASSERT(space_ == LO_SPACE);
+    space_ = kLOSpacePointer;
+  }
+
+
  private:
-  AllocationSpace space_;
+  int space_;
   int page_index_;
   int page_offset_;
 };
@@ -154,7 +204,8 @@ Address RelativeAddress::Encode() const {
   int result = 0;
   switch (space_) {
     case MAP_SPACE:
-    case OLD_SPACE:
+    case OLD_POINTER_SPACE:
+    case OLD_DATA_SPACE:
     case CODE_SPACE:
       ASSERT_EQ(0, page_index_ & ~kPageMask);
       word_offset = page_offset_ >> kObjectAlignmentBits;
@@ -168,6 +219,8 @@ Address RelativeAddress::Encode() const {
       result = word_offset << kPageAndOffsetShift;
       break;
     case LO_SPACE:
+    case kLOSpaceExecutable:
+    case kLOSpacePointer:
       ASSERT_EQ(0, page_offset_);
       ASSERT_EQ(0, page_index_ & ~kPageAndOffsetMask);
       result = page_index_ << kPageAndOffsetShift;
@@ -185,7 +238,8 @@ void RelativeAddress::Verify() {
   ASSERT(page_offset_ >= 0 && page_index_ >= 0);
   switch (space_) {
     case MAP_SPACE:
-    case OLD_SPACE:
+    case OLD_POINTER_SPACE:
+    case OLD_DATA_SPACE:
     case CODE_SPACE:
       ASSERT(Page::kObjectStartOffset <= page_offset_ &&
              page_offset_ <= Page::kPageSize);
@@ -194,11 +248,19 @@ void RelativeAddress::Verify() {
       ASSERT(page_index_ == 0);
       break;
     case LO_SPACE:
+    case kLOSpaceExecutable:
+    case kLOSpacePointer:
       ASSERT(page_offset_ == 0);
       break;
   }
 }
 #endif
+
+enum GCTreatment {
+  DataObject,     // Object that cannot contain a reference to new space.
+  PointerObject,  // Object that can contain a reference to new space.
+  CodeObject      // Object that contains executable code.
+};
 
 // A SimulatedHeapSpace simulates the allocation of objects in a page in
 // the heap. It uses linear allocation - that is, it doesn't simulate the
@@ -222,7 +284,7 @@ class SimulatedHeapSpace {
   // Returns the RelativeAddress where the next
   // object of 'size' bytes will be allocated, and updates 'this' to
   // point to the next free address beyond that object.
-  RelativeAddress Allocate(int size);
+  RelativeAddress Allocate(int size, GCTreatment special_gc_treatment);
 
  private:
   RelativeAddress current_;
@@ -232,7 +294,8 @@ class SimulatedHeapSpace {
 void SimulatedHeapSpace::InitEmptyHeap(AllocationSpace space) {
   switch (space) {
     case MAP_SPACE:
-    case OLD_SPACE:
+    case OLD_POINTER_SPACE:
+    case OLD_DATA_SPACE:
     case CODE_SPACE:
       current_ = RelativeAddress(space, 0, Page::kObjectStartOffset);
       break;
@@ -247,13 +310,16 @@ void SimulatedHeapSpace::InitEmptyHeap(AllocationSpace space) {
 void SimulatedHeapSpace::InitCurrentHeap(AllocationSpace space) {
   switch (space) {
     case MAP_SPACE:
-    case OLD_SPACE:
+    case OLD_POINTER_SPACE:
+    case OLD_DATA_SPACE:
     case CODE_SPACE: {
       PagedSpace* ps;
       if (space == MAP_SPACE) {
         ps = Heap::map_space();
-      } else if (space == OLD_SPACE) {
-        ps = Heap::old_space();
+      } else if (space == OLD_POINTER_SPACE) {
+        ps = Heap::old_pointer_space();
+      } else if (space == OLD_DATA_SPACE) {
+        ps = Heap::old_data_space();
       } else {
         ASSERT(space == CODE_SPACE);
         ps = Heap::code_space();
@@ -266,12 +332,15 @@ void SimulatedHeapSpace::InitCurrentHeap(AllocationSpace space) {
         if (it.next() == top_page) break;
         page_index++;
       }
-      current_ = RelativeAddress(space, page_index, top_page->Offset(top));
+      current_ = RelativeAddress(space,
+                                 page_index,
+                                 top_page->Offset(top));
       break;
     }
     case NEW_SPACE:
-      current_ =
-        RelativeAddress(space, 0, Heap::NewSpaceTop() - Heap::NewSpaceStart());
+      current_ = RelativeAddress(space,
+                                 0,
+                                 Heap::NewSpaceTop() - Heap::NewSpaceStart());
       break;
     case LO_SPACE:
       int page_index = 0;
@@ -284,7 +353,8 @@ void SimulatedHeapSpace::InitCurrentHeap(AllocationSpace space) {
 }
 
 
-RelativeAddress SimulatedHeapSpace::Allocate(int size) {
+RelativeAddress SimulatedHeapSpace::Allocate(int size,
+                                             GCTreatment special_gc_treatment) {
 #ifdef DEBUG
   current_.Verify();
 #endif
@@ -297,6 +367,11 @@ RelativeAddress SimulatedHeapSpace::Allocate(int size) {
   RelativeAddress result = current_;
   if (current_.space() == LO_SPACE) {
     current_.next_page();
+    if (special_gc_treatment == CodeObject) {
+      result.set_to_large_code_object();
+    } else if (special_gc_treatment == PointerObject) {
+      result.set_to_large_fixed_array();
+    }
   } else {
     current_.next_address(alloc_size);
   }
@@ -924,7 +999,10 @@ void Serializer::PutHeader() {
   // and code spaces, because objects in new space will be promoted to them.
   writer_->PutC('S');
   writer_->PutC('[');
-  writer_->PutInt(Heap::old_space()->Size() + Heap::new_space()->Size());
+  writer_->PutInt(Heap::old_pointer_space()->Size() +
+                  Heap::new_space()->Size());
+  writer_->PutC('|');
+  writer_->PutInt(Heap::old_data_space()->Size() + Heap::new_space()->Size());
   writer_->PutC('|');
   writer_->PutInt(Heap::code_space()->Size() + Heap::new_space()->Size());
   writer_->PutC('|');
@@ -1094,16 +1172,24 @@ RelativeAddress Serializer::Allocate(HeapObject* obj) {
   // Find out which AllocationSpace 'obj' is in.
   AllocationSpace s;
   bool found = false;
-  for (int i = 0; !found && i <= LAST_SPACE; i++) {
+  for (int i = FIRST_SPACE; !found && i <= LAST_SPACE; i++) {
     s = static_cast<AllocationSpace>(i);
     found = Heap::InSpace(obj, s);
   }
   CHECK(found);
   if (s == NEW_SPACE) {
-    s = Heap::TargetSpace(obj);
+    Space* space = Heap::TargetSpace(obj);
+    ASSERT(space == Heap::old_pointer_space() ||
+           space == Heap::old_data_space());
+    s = (space == Heap::old_pointer_space()) ?
+        OLD_POINTER_SPACE :
+        OLD_DATA_SPACE;
   }
   int size = obj->Size();
-  return allocator_[s]->Allocate(size);
+  GCTreatment gc_treatment = DataObject;
+  if (obj->IsFixedArray()) gc_treatment = PointerObject;
+  else if (obj->IsCode()) gc_treatment = CodeObject;
+  return allocator_[s]->Allocate(size, gc_treatment);
 }
 
 
@@ -1116,8 +1202,11 @@ static const int kInitArraySize = 32;
 
 Deserializer::Deserializer(const char* str, int len)
   : reader_(str, len),
-    map_pages_(kInitArraySize), old_pages_(kInitArraySize),
-    code_pages_(kInitArraySize), large_objects_(kInitArraySize),
+    map_pages_(kInitArraySize),
+    old_pointer_pages_(kInitArraySize),
+    old_data_pages_(kInitArraySize),
+    code_pages_(kInitArraySize),
+    large_objects_(kInitArraySize),
     global_handles_(4) {
   root_ = true;
   roots_ = 0;
@@ -1281,7 +1370,11 @@ void Deserializer::GetHeader() {
   // during deserialization.
   reader_.ExpectC('S');
   reader_.ExpectC('[');
-  InitPagedSpace(Heap::old_space(), reader_.GetInt(), &old_pages_);
+  InitPagedSpace(Heap::old_pointer_space(),
+                 reader_.GetInt(),
+                 &old_pointer_pages_);
+  reader_.ExpectC('|');
+  InitPagedSpace(Heap::old_data_space(), reader_.GetInt(), &old_data_pages_);
   reader_.ExpectC('|');
   InitPagedSpace(Heap::code_space(), reader_.GetInt(), &code_pages_);
   reader_.ExpectC('|');
@@ -1340,7 +1433,15 @@ Object* Deserializer::GetObject() {
   Address a = GetEncodedAddress();
 
   // Get a raw object of the right size in the right space.
-  Object* o = Heap::AllocateRaw(size, Space(a));
+  AllocationSpace space = GetSpace(a);
+  Object *o;
+  if (IsLargeExecutableObject(a)) {
+    o = Heap::lo_space()->AllocateRawCode(size);
+  } else if (IsLargeFixedArray(a)) {
+    o = Heap::lo_space()->AllocateRawFixedArray(size);
+  } else {
+    o = Heap::AllocateRaw(size, space);
+  }
   ASSERT(!o->IsFailure());
   // Check that the simulation of heap allocation was correct.
   ASSERT(o == Resolve(a));
@@ -1405,18 +1506,20 @@ Object* Deserializer::Resolve(Address encoded) {
   // Encoded addresses of HeapObjects always have 'HeapObject' tags.
   ASSERT(o->IsHeapObject());
 
-  switch (Space(encoded)) {
-    // For Map space and Old space, we cache the known Pages in
-    // map_pages and old_pages respectively. Even though MapSpace
-    // keeps a list of page addresses, we don't rely on it since
-    // GetObject uses AllocateRaw, and that appears not to update
-    // the page list.
+  switch (GetSpace(encoded)) {
+    // For Map space and Old space, we cache the known Pages in map_pages,
+    // old_pointer_pages and old_data_pages. Even though MapSpace keeps a list
+    // of page addresses, we don't rely on it since GetObject uses AllocateRaw,
+    // and that appears not to update the page list.
     case MAP_SPACE:
       return ResolvePaged(PageIndex(encoded), PageOffset(encoded),
                           Heap::map_space(), &map_pages_);
-    case OLD_SPACE:
+    case OLD_POINTER_SPACE:
       return ResolvePaged(PageIndex(encoded), PageOffset(encoded),
-                          Heap::old_space(), &old_pages_);
+                          Heap::old_pointer_space(), &old_pointer_pages_);
+    case OLD_DATA_SPACE:
+      return ResolvePaged(PageIndex(encoded), PageOffset(encoded),
+                          Heap::old_data_space(), &old_data_pages_);
     case CODE_SPACE:
       return ResolvePaged(PageIndex(encoded), PageOffset(encoded),
                           Heap::code_space(), &code_pages_);

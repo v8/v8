@@ -1,4 +1,4 @@
-// Copyright 2008 Google Inc. All Rights Reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef _V8_DEBUG
-#define _V8_DEBUG
+#ifndef V8_DEBUG_H_
+#define V8_DEBUG_H_
 
 #include "v8.h"
 
@@ -140,4 +140,4 @@ class EXPORT Debug {
 #undef EXPORT
 
 
-#endif  // _V8_DEBUG
+#endif  // V8_DEBUG_H_

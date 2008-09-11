@@ -183,7 +183,7 @@
 					<Tool
 						Name="VCCustomBuildTool"
 						Description="Processing js files..."
-						CommandLine=".\js2c.cmd ..\..\src $(IntDir)\DerivedSources&#x0D;&#x0A;"
+						CommandLine=".\js2c.cmd ..\..\src &quot;$(IntDir)\DerivedSources&quot;"
 						AdditionalDependencies="..\..\src\macros.py;..\..\src\runtime.js;..\..\src\v8natives.js;..\..\src\array.js;..\..\src\string.js;..\..\src\uri.js;..\..\src\math.js;..\..\src\messages.js;..\..\src\apinatives.js;..\..\src\debug-delay.js;..\..\src\mirror-delay.js;..\..\src\date-delay.js;..\..\src\regexp-delay.js"
 						Outputs="$(IntDir)\DerivedSources\natives.cc;$(IntDir)\DerivedSources\natives-empty.cc"
 					/>
@@ -194,7 +194,7 @@
 					<Tool
 						Name="VCCustomBuildTool"
 						Description="Processing js files..."
-						CommandLine=".\js2c.cmd ..\..\src $(IntDir)\DerivedSources&#x0D;&#x0A;"
+						CommandLine=".\js2c.cmd ..\..\src &quot;$(IntDir)\DerivedSources&quot;"
 						AdditionalDependencies="..\..\src\macros.py;..\..\src\runtime.js;..\..\src\v8natives.js;..\..\src\array.js;..\..\src\string.js;..\..\src\uri.js;..\..\src\math.js;..\..\src\messages.js;..\..\src\apinatives.js;..\..\src\debug-delay.js;..\..\src\mirror-delay.js;..\..\src\date-delay.js;..\..\src\regexp-delay.js"
 						Outputs="$(IntDir)\DerivedSources\natives.cc;$(IntDir)\DerivedSources\natives-empty.cc"
 					/>

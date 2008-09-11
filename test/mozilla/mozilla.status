@@ -1,4 +1,4 @@
-# Copyright 2008 Google Inc.  All rights reserved.
+# Copyright 2008 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -165,8 +165,10 @@ js1_5/Regress/regress-98901: PASS || FAIL
 js1_5/extensions/regress-371636: PASS || FAIL
 
 
-# Test depends on GC timings. Inherently flaky.
+# Tests depend on GC timings. Inherently flaky.
 js1_5/GC/regress-383269-01: PASS || FAIL
+js1_5/GC/regress-383269-02: PASS || FAIL
+js1_5/Regress/regress-404755: PASS || FAIL
 
 
 ##################### INCOMPATIBLE TESTS #####################
@@ -752,6 +754,7 @@ js1_5/decompilation/regress-406555: PASS || FAIL
 
 # This test is flaky because of the default timer resolution on Windows.
 js1_5/extensions/regress-363258: PASS || FAIL
+mozilla/js1_5/GC/regress-383269-02: PASS, FLAKY IF $mode == debug
 
 [ $FAST == yes ]
 

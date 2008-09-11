@@ -1,4 +1,4 @@
-// Copyright 2007-2008 Google Inc. All Rights Reserved.
+// Copyright 2007-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -256,7 +256,9 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
     {&v8::internal::CodeGenerator::GenerateSetValueOf,
      "_SetValueOf"},
     {&v8::internal::CodeGenerator::GenerateFastCharCodeAt,
-     "_FastCharCodeAt"}
+     "_FastCharCodeAt"},
+    {&v8::internal::CodeGenerator::GenerateObjectEquals,
+     "_ObjectEquals"}
   };
   if (node->name()->length() > 0 && node->name()->Get(0) == '_') {
     for (unsigned i = 0;

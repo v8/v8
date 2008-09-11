@@ -1,4 +1,4 @@
-// Copyright 2008 Google Inc. All Rights Reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -54,11 +54,9 @@ Locker::Locker() : has_lock_(false), top_level_(true) {
 }
 
 
-#ifdef DEBUG
-void Locker::AssertIsLocked() {
-  ASSERT(internal::ThreadManager::IsLockedByCurrentThread());
+bool Locker::IsLocked() {
+  return internal::ThreadManager::IsLockedByCurrentThread();
 }
-#endif
 
 
 Locker::~Locker() {
@@ -282,7 +280,7 @@ static v8::internal::ContextSwitcher* switcher;
 
 
 void ContextSwitcher::StartPreemption(int every_n_ms) {
-  Locker::AssertIsLocked();
+  ASSERT(Locker::IsLocked());
   if (switcher == NULL) {
     switcher = new ContextSwitcher(every_n_ms);
     switcher->Start();
@@ -293,7 +291,7 @@ void ContextSwitcher::StartPreemption(int every_n_ms) {
 
 
 void ContextSwitcher::StopPreemption() {
-  Locker::AssertIsLocked();
+  ASSERT(Locker::IsLocked());
   if (switcher != NULL) {
     switcher->Stop();
     delete(switcher);
@@ -312,7 +310,7 @@ void ContextSwitcher::Run() {
 
 
 void ContextSwitcher::Stop() {
-  Locker::AssertIsLocked();
+  ASSERT(Locker::IsLocked());
   keep_going_ = false;
   preemption_semaphore_->Signal();
   Join();
@@ -325,7 +323,7 @@ void ContextSwitcher::WaitForPreemption() {
 
 
 void ContextSwitcher::PreemptionReceived() {
-  Locker::AssertIsLocked();
+  ASSERT(Locker::IsLocked());
   switcher->preemption_semaphore_->Signal();
 }
 

@@ -1,3 +1,48 @@
+2008-09-11: Version 0.3.1
+
+        Fixed a number of build issues.
+
+        Fixed problem with missing I-cache flusing on ARM.
+
+        Changed space layout in memory management by splitting up
+        code space into old data space and code space.
+
+        Added utf-8 conversion support to the API (issue 57).
+
+        Optimized repeated calls to eval with the same strings.  These
+        repeated calls are common in web applications.
+
+        Added Xcode project file.
+
+        Optimized a couple of Array operation.
+
+        Fixed parser bug by checking for end-of-string when parsing break
+        and continue (issue 35).
+
+        Fixed problem where asian characters were not categorized as
+        letters.
+
+        Fixed bug that disallowed calling functions fetched from an array
+        using a string as an array index (issue 32).
+
+        Fixed bug where the internal field count on object templates were
+        sometimes ignored (issue 54).
+
+        Added -f option to the shell sample for compatibility with other
+        engines (issue 18).
+
+        Added source info to TryCatches in the API.
+
+        Fixed problem where the seed for the random number generator was
+        clipped in a double to unsigned int conversion.
+
+        Fixed bug where cons string symbols were sometimes converted to
+        non-symbol flat strings during GC.
+
+        Fixed bug in error reporting when attempting to convert null to an
+        object.
+        
+        
 2008-09-04: Version 0.3.0
 
         Added support for running tests on the ARM simulator.

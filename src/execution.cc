@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -130,9 +130,12 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
                                   Object*** args,
                                   bool* caught_exception) {
   // Enter a try-block while executing the JavaScript code. To avoid
-  // duplicate error printing it must be non-verbose.
+  // duplicate error printing it must be non-verbose.  Also, to avoid
+  // creating message objects during stack overflow we shouldn't
+  // capture messages.
   v8::TryCatch catcher;
   catcher.SetVerbose(false);
+  catcher.SetCaptureMessage(false);
 
   Handle<Object> result = Invoke(false, func, receiver, argc, args,
                                  caught_exception);
@@ -656,7 +659,7 @@ v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
 
 v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
   // All allocation spaces other than NEW_SPACE have the same effect.
-  Heap::CollectGarbage(0, OLD_SPACE);
+  Heap::CollectGarbage(0, OLD_DATA_SPACE);
   return v8::Undefined();
 }
 

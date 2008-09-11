@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -150,6 +150,13 @@ class Parser {
   Expression* ParseArrayLiteral(bool* ok);
   Expression* ParseObjectLiteral(bool* ok);
   Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
+
+  // Decide if a property should be the object boilerplate.
+  bool IsBoilerplateProperty(ObjectLiteral::Property* property);
+  // If the property is CONSTANT type, it returns the literal value,
+  // otherwise, it return undefined literal as the placeholder
+  // in the object literal boilerplate.
+  Literal* GetBoilerplateValue(ObjectLiteral::Property* property);
 
   enum FunctionLiteralType {
     EXPRESSION,
@@ -1477,7 +1484,7 @@ Statement* Parser::ParseContinueStatement(bool* ok) {
   Handle<String> label(static_cast<String**>(NULL));
   Token::Value tok = peek();
   if (!scanner_.has_line_terminator_before_next() &&
-      tok != Token::SEMICOLON && tok != Token::RBRACE) {
+      tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     label = ParseIdentifier(CHECK_OK);
   }
   IterationStatement* target = NULL;
@@ -1505,7 +1512,7 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
   Handle<String> label;
   Token::Value tok = peek();
   if (!scanner_.has_line_terminator_before_next() &&
-      tok != Token::SEMICOLON && tok != Token::RBRACE) {
+      tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     label = ParseIdentifier(CHECK_OK);
   }
   // Parse labelled break statements that target themselves into
@@ -2549,7 +2556,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
       Consume(Token::STRING);
       Handle<String> symbol =
           factory()->LookupSymbol(scanner_.literal_string(),
-                                scanner_.literal_length());
+                                  scanner_.literal_length());
       result = NEW(Literal(symbol));
       break;
     }
@@ -2643,6 +2650,19 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
 }
 
 
+bool Parser::IsBoilerplateProperty(ObjectLiteral::Property* property) {
+  return property != NULL &&
+         property->kind() != ObjectLiteral::Property::PROTOTYPE;
+}
+
+
+Literal* Parser::GetBoilerplateValue(ObjectLiteral::Property* property) {
+  if (property->kind() == ObjectLiteral::Property::CONSTANT)
+    return property->value()->AsLiteral();
+  return GetLiteralUndefined();
+}
+
+
 Expression* Parser::ParseObjectLiteral(bool* ok) {
   // ObjectLiteral ::
   //   '{' (
@@ -2652,7 +2672,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
   ZoneListWrapper<ObjectLiteral::Property> properties =
       factory()->NewList<ObjectLiteral::Property>(4);
-  int number_of_constant_properties = 0;
+  int number_of_boilerplate_properties = 0;
 
   Expect(Token::LBRACE, CHECK_OK);
   while (peek() != Token::RBRACE) {
@@ -2674,6 +2694,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
                 ParseFunctionLiteral(name, kNoPosition, DECLARATION, CHECK_OK);
             ObjectLiteral::Property* property =
                 NEW(ObjectLiteral::Property(is_getter, value));
+            if (IsBoilerplateProperty(property))
+              number_of_boilerplate_properties++;
             properties.Add(property);
             if (peek() != Token::RBRACE) Expect(Token::COMMA, CHECK_OK);
             continue;  // restart the while
@@ -2686,8 +2708,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
       case Token::STRING: {
         Consume(Token::STRING);
         Handle<String> string =
-          factory()->LookupSymbol(scanner_.literal_string(),
-                                  scanner_.literal_length());
+            factory()->LookupSymbol(scanner_.literal_string(),
+                                    scanner_.literal_length());
         uint32_t index;
         if (!string.is_null() && string->AsArrayIndex(&index)) {
           key = NewNumberLiteral(index);
@@ -2715,10 +2737,10 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
 
     ObjectLiteral::Property* property =
         NEW(ObjectLiteral::Property(key, value));
-    if ((property != NULL) &&
-        property->kind() == ObjectLiteral::Property::CONSTANT) {
-      number_of_constant_properties++;
-    }
+
+    // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
+    if (IsBoilerplateProperty(property))
+      number_of_boilerplate_properties++;
     properties.Add(property);
 
     // TODO(1240767): Consider allowing trailing comma.
@@ -2730,17 +2752,21 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   if (is_pre_parsing_) return NULL;
 
   Handle<FixedArray> constant_properties =
-      Factory::NewFixedArray(number_of_constant_properties * 2, TENURED);
+      Factory::NewFixedArray(number_of_boilerplate_properties * 2, TENURED);
   int position = 0;
   for (int i = 0; i < properties.length(); i++) {
     ObjectLiteral::Property* property = properties.at(i);
-    if (property->kind() == ObjectLiteral::Property::CONSTANT) {
-      Handle<Object> key = property->key()->handle();
-      Literal* literal = property->value()->AsLiteral();
-      // Add name, value pair to the fixed array.
-      constant_properties->set(position++, *key);
-      constant_properties->set(position++, *literal->handle());
-    }
+    if (!IsBoilerplateProperty(property)) continue;
+
+    // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
+    // value for COMPUTED properties, the real value is filled in at
+    // runtime. The enumeration order is maintained.
+    Handle<Object> key = property->key()->handle();
+    Literal* literal = GetBoilerplateValue(property);
+
+    // Add name, value pair to the fixed array.
+    constant_properties->set(position++, *key);
+    constant_properties->set(position++, *literal->handle());
   }
 
   // Construct the expression for calling Runtime::CreateObjectLiteral
@@ -3006,7 +3032,7 @@ Handle<String> Parser::ParseIdentifier(bool* ok) {
   Expect(Token::IDENTIFIER, ok);
   if (!*ok) return Handle<String>();
   return factory()->LookupSymbol(scanner_.literal_string(),
-                               scanner_.literal_length());
+                                 scanner_.literal_length());
 }
 
 // This function reads an identifier and determines whether or not it

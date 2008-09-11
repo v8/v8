@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -44,7 +44,8 @@ int Heap::MaxHeapObjectSize() {
 }
 
 
-Object* Heap::AllocateRaw(int size_in_bytes, AllocationSpace space) {
+Object* Heap::AllocateRaw(int size_in_bytes,
+                          AllocationSpace space) {
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
 #ifdef DEBUG
   if (FLAG_gc_interval >= 0 &&
@@ -60,8 +61,10 @@ Object* Heap::AllocateRaw(int size_in_bytes, AllocationSpace space) {
   }
 
   Object* result;
-  if (OLD_SPACE == space) {
-    result = old_space_->AllocateRaw(size_in_bytes);
+  if (OLD_POINTER_SPACE == space) {
+    result = old_pointer_space_->AllocateRaw(size_in_bytes);
+  } else if (OLD_DATA_SPACE == space) {
+    result = old_data_space_->AllocateRaw(size_in_bytes);
   } else if (CODE_SPACE == space) {
     result = code_space_->AllocateRaw(size_in_bytes);
   } else if (LO_SPACE == space) {
@@ -72,32 +75,6 @@ Object* Heap::AllocateRaw(int size_in_bytes, AllocationSpace space) {
   }
   if (result->IsFailure()) old_gen_exhausted_ = true;
   return result;
-}
-
-
-Object* Heap::AllocateForDeserialization(int size_in_bytes,
-                                         AllocationSpace space) {
-  ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
-  PagedSpace* where;
-
-  switch (space) {
-    case NEW_SPACE:
-      return new_space_->AllocateRaw(size_in_bytes);
-    case LO_SPACE:
-      return lo_space_->AllocateRaw(size_in_bytes);
-    case OLD_SPACE:
-      where = old_space_;
-      break;
-    case CODE_SPACE:
-      where = code_space_;
-      break;
-    case MAP_SPACE:
-      where = map_space_;
-      break;
-  }
-
-  // Only paged spaces fall through.
-  return where->AllocateForDeserialization(size_in_bytes);
 }
 
 
@@ -160,9 +137,9 @@ void Heap::RecordWrite(Address address, int offset) {
 }
 
 
-AllocationSpace Heap::TargetSpace(HeapObject* object) {
-  // Heap numbers and sequential strings are promoted to code space, all
-  // other object types are promoted to old space.  We do not use
+OldSpace* Heap::TargetSpace(HeapObject* object) {
+  // Heap numbers and sequential strings are promoted to old data space, all
+  // other object types are promoted to old pointer space.  We do not use
   // object->IsHeapNumber() and object->IsSeqString() because we already
   // know that object has the heap object tag.
   InstanceType type = object->map()->instance_type();
@@ -171,7 +148,7 @@ AllocationSpace Heap::TargetSpace(HeapObject* object) {
       type != HEAP_NUMBER_TYPE &&
       (type >= FIRST_NONSTRING_TYPE ||
        String::cast(object)->representation_tag() != kSeqStringTag);
-  return has_pointers ? OLD_SPACE : CODE_SPACE;
+  return has_pointers ? old_pointer_space_ : old_data_space_;
 }
 
 

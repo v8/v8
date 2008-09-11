@@ -1,4 +1,4 @@
-# Copyright 2008 Google Inc.  All rights reserved.
+# Copyright 2008 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -30,6 +30,7 @@ import re
 import sys
 import os
 from os.path import join, dirname, abspath
+from types import DictType
 root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
 import js2c, utils
@@ -55,8 +56,9 @@ LIBRARY_FLAGS = {
       'CCFLAGS':      ['-O2']
     },
     'wordsize:64': {
-      'CCFLAGS':      ['-m32']
-    },
+      'CCFLAGS':      ['-m32'],
+      'LINKFLAGS':    ['-m32']
+    }
   },
   'msvc': {
     'all': {
@@ -95,6 +97,9 @@ V8_EXTRA_FLAGS = {
     'arch:arm': {
       'CPPDEFINES':   ['ARM']
     },
+    'disassembler:on': {
+      'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
+    }
   },
   'msvc': {
     'all': {
@@ -106,6 +111,9 @@ V8_EXTRA_FLAGS = {
     'arch:arm': {
       'CPPDEFINES':   ['ARM']
     },
+    'disassembler:on': {
+      'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
+    }
   }
 }
 
@@ -182,6 +190,9 @@ SAMPLE_FLAGS = {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
     },
+    'mode:debug': {
+      'CCFLAGS':      ['-g', '-O0']
+    }
   },
   'msvc': {
     'all': {
@@ -281,6 +292,16 @@ SIMPLE_OPTIONS = {
     'values': ['arm', 'none'],
     'default': 'none',
     'help': 'build with simulator'
+  },
+  'disassembler': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable the disassembler to inspect generated code'
+  },
+  'sourcesignatures': {
+    'values': ['MD5', 'timestamp'],
+    'default': 'MD5',
+    'help': 'set how the build system detects file changes'
   }
 }
 
@@ -369,6 +390,14 @@ class BuildContext(object):
     else:
       return env.SharedObject(input, **kw)
 
+  def ApplyEnvOverrides(self, env):
+    if not self.env_overrides:
+      return
+    if type(env['ENV']) == DictType:
+      env['ENV'].update(**self.env_overrides)
+    else:
+      env['ENV'] = self.env_overrides
+
 
 def PostprocessOptions(options):
   # Adjust architecture if the simulator option has been set
@@ -427,6 +456,7 @@ def BuildSpecific(env, mode, env_overrides):
   )
   
   # Link the object files into a library.
+  context.ApplyEnvOverrides(env)
   if context.options['library'] == 'static':
     library = env.StaticLibrary(library_name, object_files)
   else:
@@ -440,7 +470,7 @@ def BuildSpecific(env, mode, env_overrides):
   for sample in context.samples:
     sample_env = Environment(LIBRARY=library_name)
     sample_env.Replace(**context.flags['sample'])
-    sample_env['ENV'].update(**context.env_overrides)
+    context.ApplyEnvOverrides(sample_env)
     sample_object = sample_env.SConscript(
       join('samples', 'SConscript'),
       build_dir=join('obj', 'sample', sample, target_id),
@@ -469,6 +499,8 @@ def Build():
   Help(opts.GenerateHelpText(env))
   VerifyOptions(env)
   env_overrides = ParseEnvOverrides(env['env'])
+  
+  SourceSignatures(env['sourcesignatures'])
   
   libraries = []
   cctests = []

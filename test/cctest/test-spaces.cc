@@ -1,4 +1,4 @@
-// Copyright 2006-2008 Google Inc. All Rights Reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -101,7 +101,7 @@ TEST(MemoryAllocator) {
   CHECK(Heap::ConfigureHeapDefault());
   CHECK(MemoryAllocator::Setup(Heap::MaxCapacity()));
 
-  OldSpace faked_space(Heap::MaxCapacity(), OLD_SPACE, false);
+  OldSpace faked_space(Heap::MaxCapacity(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
   int total_pages = 0;
   int requested = 2;
   int allocated;
@@ -159,8 +159,7 @@ TEST(NewSpace) {
 
   NewSpace* s = new NewSpace(Heap::InitialSemiSpaceSize(),
                              Heap::SemiSpaceSize(),
-                             NEW_SPACE,
-                             false);
+                             NEW_SPACE);
   CHECK(s != NULL);
 
   void* chunk =
@@ -187,7 +186,9 @@ TEST(OldSpace) {
   CHECK(Heap::ConfigureHeapDefault());
   CHECK(MemoryAllocator::Setup(Heap::MaxCapacity()));
 
-  OldSpace* s = new OldSpace(Heap::OldGenerationSize(), OLD_SPACE, false);
+  OldSpace* s = new OldSpace(Heap::OldGenerationSize(),
+                             OLD_POINTER_SPACE,
+                             NOT_EXECUTABLE);
   CHECK(s != NULL);
 
   void* chunk =
@@ -213,7 +214,7 @@ TEST(LargeObjectSpace) {
   CHECK(Heap::ConfigureHeapDefault());
   MemoryAllocator::Setup(Heap::MaxCapacity());
 
-  LargeObjectSpace* lo = new LargeObjectSpace(LO_SPACE, false);
+  LargeObjectSpace* lo = new LargeObjectSpace(LO_SPACE);
   CHECK(lo != NULL);
 
   CHECK(lo->Setup());
