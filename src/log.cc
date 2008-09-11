@@ -434,7 +434,7 @@ void Logger::RegExpExecEvent(Handle<JSValue> regexp,
 
   fprintf(logfile_, "regexp-run,");
   LogRegExpSource(regexp);
-  fprintf(logfile_, ",0x%08x,%d..%d\n", 
+  fprintf(logfile_, ",0x%08x,%d..%d\n",
       input_string->Hash(), start_index, input_string->length());
 #endif
 }

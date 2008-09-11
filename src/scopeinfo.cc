@@ -484,10 +484,13 @@ int ScopeInfo<Allocator>::FunctionContextSlotIndex(Code* code, String* name) {
   ASSERT(name->IsSymbol());
   if (code->sinfo_size() > 0) {
     Object** p = &Memory::Object_at(code->sinfo_start());
-    if (*p++ == name) {
-      int n;
-      ReadInt(p, &n);  // n = number of context slots
-      return n -1;  // the function context slot is the last entry
+    if (*p == name) {
+      p = ContextEntriesAddr(code);
+      int n;  // number of context slots
+      ReadInt(p, &n);
+      ASSERT(n != 0);
+      // The function context slot is the last entry.
+      return n + Context::MIN_CONTEXT_SLOTS - 1;
     }
   }
   return -1;

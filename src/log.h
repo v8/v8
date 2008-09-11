@@ -54,7 +54,7 @@ namespace v8 { namespace internal {
 // is off.  --log-gc implies --log.
 //
 // --log-regexp
-// Log creation and use of regular expressions, Default is off.  
+// Log creation and use of regular expressions, Default is off.
 // --log-regexp implies --log.
 //
 // --logfile <filename>
