@@ -371,7 +371,7 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 }
 
 void Logger::LogRegExpSource(Handle<JSValue> regexp) {
-  // Prints "/" + re.source + "/" + 
+  // Prints "/" + re.source + "/" +
   //      (re.global?"g":"") + (re.ignorecase?"i":"") + (re.multiline?"m":"")
 
   Handle<Object> source = GetProperty(regexp, "source");
@@ -427,14 +427,15 @@ void Logger::RegExpCompileEvent(Handle<JSValue> regexp) {
 
 void Logger::RegExpExecEvent(Handle<JSValue> regexp,
                              int start_index,
-                             Handle<String> string) {
+                             Handle<String> input_string) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_regexp) return;
   ScopedLock sl(mutex_);
 
   fprintf(logfile_, "regexp-run,");
   LogRegExpSource(regexp);
-  fprintf(logfile_, ",0x%08x,%d..%d\n", string->Hash(), start_index, string->length());
+  fprintf(logfile_, ",0x%08x,%d..%d\n", 
+      input_string->Hash(), start_index, input_string->length());
 #endif
 }
 

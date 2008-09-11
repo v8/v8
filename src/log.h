@@ -40,7 +40,7 @@ namespace v8 { namespace internal {
 //
 // --log-all
 // Log all events to the file, default is off.  This is the same as combining
-// --log-api, --log-code, and --log-gc.
+// --log-api, --log-code, --log-gc, and --log-regexp.
 //
 // --log-api
 // Log API events to the logfile, default is off.  --log-api implies --log.
@@ -52,6 +52,10 @@ namespace v8 { namespace internal {
 // --log-gc
 // Log GC heap samples after each GC that can be processed by hp2ps, default
 // is off.  --log-gc implies --log.
+//
+// --log-regexp
+// Log creation and use of regular expressions, Default is off.  
+// --log-regexp implies --log.
 //
 // --logfile <filename>
 // Specify the name of the logfile, default is "v8.log".
@@ -179,9 +183,9 @@ class Logger {
 
   static void RegExpCompileEvent(Handle<JSValue> regexp);
 
-  static void RegExpExecEvent(Handle<JSValue> regexp, 
-                              int start_index, 
-                              Handle<String> string);
+  static void RegExpExecEvent(Handle<JSValue> regexp,
+                              int start_index,
+                              Handle<String> input_string);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static StateTag state() {
