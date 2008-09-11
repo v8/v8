@@ -445,7 +445,7 @@ class TestAsciiResource: public String::ExternalAsciiStringResource {
 int TestAsciiResource::dispose_count = 0;
 
 
-TEST(ScriptUsingStringResource) {
+THREADED_TEST(ScriptUsingStringResource) {
   TestResource::dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   uint16_t* two_byte_source = AsciiToTwoByteString(c_source);
@@ -469,7 +469,7 @@ TEST(ScriptUsingStringResource) {
 }
 
 
-TEST(ScriptUsingAsciiStringResource) {
+THREADED_TEST(ScriptUsingAsciiStringResource) {
   TestAsciiResource::dispose_count = 0;
   const char* c_source = "1 + 2 * 3";
   {

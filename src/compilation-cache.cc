@@ -86,8 +86,14 @@ static bool HasOrigin(Handle<JSFunction> boilerplate,
 
 static Handle<JSFunction> Lookup(Handle<String> source,
                                  CompilationCache::Entry entry) {
-  Handle<CompilationCacheTable> table = GetTable(entry);
-  Object* result = table->Lookup(*source);
+  // Make sure not to leak the table into the surrounding handle
+  // scope. Otherwise, we risk keeping old tables around even after
+  // having cleared the cache.
+  Object* result;
+  { HandleScope scope;
+    Handle<CompilationCacheTable> table = GetTable(entry);
+    result = table->Lookup(*source);
+  }
   if (result->IsJSFunction()) {
     return Handle<JSFunction>(JSFunction::cast(result));
   } else {
@@ -129,6 +135,7 @@ Handle<JSFunction> CompilationCache::LookupEval(Handle<String> source,
 void CompilationCache::Associate(Handle<String> source,
                                  Entry entry,
                                  Handle<JSFunction> boilerplate) {
+  HandleScope scope;
   ASSERT(boilerplate->IsBoilerplate());
   Handle<CompilationCacheTable> table = GetTable(entry);
   CALL_HEAP_FUNCTION_VOID(table->Put(*source, *boilerplate));
