@@ -109,9 +109,7 @@ class CodeGenState BASE_EMBEDDED {
   enum AccessType {
     UNDEFINED,
     LOAD,
-    LOAD_TYPEOF_EXPR,
-    STORE,
-    INIT_CONST
+    LOAD_TYPEOF_EXPR
   };
 
   CodeGenState()
@@ -181,7 +179,6 @@ class ArmCodeGenerator: public CodeGenerator {
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
   void UnloadReference(Reference* ref);
-  friend class Reference;
 
   // State
   bool has_cc() const  { return cc_reg_ != al; }
@@ -197,21 +194,32 @@ class ArmCodeGenerator: public CodeGenerator {
     return ContextOperand(cp, Context::GLOBAL_INDEX);
   }
 
-  MemOperand ContextOperand(Register context, int index) const {
+  static MemOperand ContextOperand(Register context, int index) {
     return MemOperand(context, Context::SlotOffset(index));
   }
 
-  MemOperand ParameterOperand(int index) const {
+  static MemOperand ParameterOperand(Scope* scope, int index) {
     // index -2 corresponds to the activated closure, -1 corresponds
     // to the receiver
-    ASSERT(-2 <= index && index < scope_->num_parameters());
+    ASSERT(-2 <= index && index < scope->num_parameters());
     int offset = JavaScriptFrameConstants::kParam0Offset - index * kPointerSize;
     return MemOperand(pp, offset);
   }
 
+  MemOperand ParameterOperand(int index) const {
+    return ParameterOperand(scope_, index);
+  }
+
   MemOperand FunctionOperand() const { return ParameterOperand(-2); }
 
-  MemOperand SlotOperand(Slot* slot, Register tmp);
+  static MemOperand SlotOperand(MacroAssembler* masm,
+                                Scope* scope,
+                                Slot* slot,
+                                Register tmp);
+
+  MemOperand SlotOperand(Slot* slot, Register tmp) {
+    return SlotOperand(masm_, scope_, slot, tmp);
+  }
 
   void LoadCondition(Expression* x, CodeGenState::AccessType access,
                      Label* true_target, Label* false_target, bool force_cc);
@@ -227,21 +235,47 @@ class ArmCodeGenerator: public CodeGenerator {
   // through the context chain.
   void LoadTypeofExpression(Expression* x);
 
-  // References
-  void AccessReference(Reference* ref, CodeGenState::AccessType access);
 
-  void GetValue(Reference* ref)  { AccessReference(ref, CodeGenState::LOAD); }
-  void SetValue(Reference* ref)  { AccessReference(ref, CodeGenState::STORE); }
-  void InitConst(Reference* ref)  {
-    AccessReference(ref, CodeGenState::INIT_CONST);
+  // References
+
+  // Generate code to fetch the value of a reference.  The reference is
+  // expected to be on top of the expression stack.  It is left in place and
+  // its value is pushed on top of it.
+  void GetValue(Reference* ref);
+
+  // Generate code to store a value in a reference.  The stored value is
+  // expected on top of the expression stack, with the reference immediately
+  // below it.  The expression stack is left unchanged.
+  void SetValue(Reference* ref) {
+    ASSERT(!has_cc());
+    ASSERT(!ref->is_illegal());
+    ref->expression()->GenerateStoreCode(masm_, scope_, ref, NOT_CONST_INIT);
   }
 
+  // Generate code to store a value in a reference.  The stored value is
+  // expected on top of the expression stack, with the reference immediately
+  // below it.  The expression stack is left unchanged.
+  void InitConst(Reference* ref) {
+    ASSERT(!has_cc());
+    ASSERT(!ref->is_illegal());
+    ref->expression()->GenerateStoreCode(masm_, scope_, ref, CONST_INIT);
+  }
+
+  // Generate code to fetch a value from a property of a reference.  The
+  // reference is expected on top of the expression stack.  It is left in
+  // place and its value is pushed on top of it.
+  void GetReferenceProperty(Expression* key);
+
+  // Generate code to store a value in a property of a reference.  The
+  // stored value is expected on top of the expression stack, with the
+  // reference immediately below it.  The expression stack is left
+  // unchanged.
+  static void SetReferenceProperty(MacroAssembler* masm,
+                                   Reference* ref,
+                                   Expression* key);
+
+
   void ToBoolean(Label* true_target, Label* false_target);
-
-
-  // Access property from the reference (must be at the TOS).
-  void AccessReferenceProperty(Expression* key,
-                               CodeGenState::AccessType access);
 
   void GenericBinaryOperation(Token::Value op);
   void Comparison(Condition cc, bool strict = false);
@@ -297,6 +331,11 @@ class ArmCodeGenerator: public CodeGenerator {
   virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args);
 
   virtual void GenerateObjectEquals(ZoneList<Expression*>* args);
+
+  friend class Reference;
+  friend class Property;
+  friend class VariableProxy;
+  friend class Slot;
 };
 
 
@@ -599,7 +638,10 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
 }
 
 
-MemOperand ArmCodeGenerator::SlotOperand(Slot* slot, Register tmp) {
+MemOperand ArmCodeGenerator::SlotOperand(MacroAssembler* masm,
+                                         Scope* scope,
+                                         Slot* slot,
+                                         Register tmp) {
   // Currently, this assertion will fail if we try to assign to
   // a constant variable that is constant because it is read-only
   // (such as the variable referring to a named function expression).
@@ -612,11 +654,11 @@ MemOperand ArmCodeGenerator::SlotOperand(Slot* slot, Register tmp) {
   int index = slot->index();
   switch (slot->type()) {
     case Slot::PARAMETER:
-      return ParameterOperand(index);
+      return ParameterOperand(scope, index);
 
     case Slot::LOCAL: {
       ASSERT(0 <= index &&
-             index < scope_->num_stack_slots() &&
+             index < scope->num_stack_slots() &&
              index >= 0);
       int local_offset = JavaScriptFrameConstants::kLocal0Offset -
                          index * kPointerSize;
@@ -627,15 +669,15 @@ MemOperand ArmCodeGenerator::SlotOperand(Slot* slot, Register tmp) {
       // Follow the context chain if necessary.
       ASSERT(!tmp.is(cp));  // do not overwrite context register
       Register context = cp;
-      int chain_length = scope_->ContextChainLength(slot->var()->scope());
+      int chain_length = scope->ContextChainLength(slot->var()->scope());
       for (int i = chain_length; i-- > 0;) {
         // Load the closure.
         // (All contexts, even 'with' contexts, have a closure,
         // and it is the same for all contexts inside a function.
         // There is no need to go to the function context first.)
-        __ ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+        masm->ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
         // Load the function context (which is the incoming, outer context).
-        __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
+        masm->ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
         context = tmp;
       }
       // We may have a 'with' context now. Get the function context.
@@ -645,7 +687,7 @@ MemOperand ArmCodeGenerator::SlotOperand(Slot* slot, Register tmp) {
       // cause the function context of a function context is itself. Before
       // deleting this mov we should try to create a counter-example first,
       // though...)
-      __ ldr(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
+      masm->ldr(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
       return ContextOperand(tmp, index);
     }
 
@@ -822,15 +864,125 @@ void ArmCodeGenerator::UnloadReference(Reference* ref) {
 }
 
 
-void ArmCodeGenerator::AccessReference(Reference* ref,
-                                       CodeGenState::AccessType access) {
+void ArmCodeGenerator::GetValue(Reference* ref) {
   ASSERT(!has_cc());
-  ASSERT(ref->type() != Reference::ILLEGAL);
+  ASSERT(!ref->is_illegal());
   CodeGenState* old_state = state_;
-  CodeGenState new_state(access, ref, true_target(), false_target());
+  CodeGenState new_state(CodeGenState::LOAD, ref, true_target(),
+                         false_target());
   state_ = &new_state;
   Visit(ref->expression());
   state_ = old_state;
+}
+
+
+void Property::GenerateStoreCode(MacroAssembler* masm,
+                                 Scope* scope,
+                                 Reference* ref,
+                                 InitState init_state) {
+  Comment cmnt(masm, "[ Store to Property");
+  masm->RecordPosition(position());
+  ArmCodeGenerator::SetReferenceProperty(masm, ref, key());
+}
+
+
+void VariableProxy::GenerateStoreCode(MacroAssembler* masm,
+                                      Scope* scope,
+                                      Reference* ref,
+                                      InitState init_state) {
+  Comment cmnt(masm, "[ Store to VariableProxy");
+  Variable* node = var();
+
+  Expression* expr = node->rewrite();
+  if (expr != NULL) {
+    expr->GenerateStoreCode(masm, scope, ref, init_state);
+  } else {
+    ASSERT(node->is_global());
+    if (node->AsProperty() != NULL) {
+      masm->RecordPosition(node->AsProperty()->position());
+    }
+    ArmCodeGenerator::SetReferenceProperty(masm, ref,
+                                           new Literal(node->name()));
+  }
+}
+
+
+void Slot::GenerateStoreCode(MacroAssembler* masm,
+                             Scope* scope,
+                             Reference* ref,
+                             InitState init_state) {
+  Comment cmnt(masm, "[ Store to Slot");
+
+  if (type() == Slot::LOOKUP) {
+    ASSERT(var()->mode() == Variable::DYNAMIC);
+
+    // For now, just do a runtime call.
+    masm->push(cp);
+    masm->mov(r0, Operand(var()->name()));
+    masm->push(r0);
+
+    if (init_state == CONST_INIT) {
+      // Same as the case for a normal store, but ignores attribute
+      // (e.g. READ_ONLY) of context slot so that we can initialize const
+      // properties (introduced via eval("const foo = (some expr);")). Also,
+      // uses the current function context instead of the top context.
+      //
+      // Note that we must declare the foo upon entry of eval(), via a
+      // context slot declaration, but we cannot initialize it at the same
+      // time, because the const declaration may be at the end of the eval
+      // code (sigh...) and the const variable may have been used before
+      // (where its value is 'undefined'). Thus, we can only do the
+      // initialization when we actually encounter the expression and when
+      // the expression operands are defined and valid, and thus we need the
+      // split into 2 operations: declaration of the context slot followed
+      // by initialization.
+      masm->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+    } else {
+      masm->CallRuntime(Runtime::kStoreContextSlot, 3);
+    }
+    // Storing a variable must keep the (new) value on the expression
+    // stack. This is necessary for compiling assignment expressions.
+    masm->push(r0);
+
+  } else {
+    ASSERT(var()->mode() != Variable::DYNAMIC);
+
+    Label exit;
+    if (init_state == CONST_INIT) {
+      ASSERT(var()->mode() == Variable::CONST);
+      // Only the first const initialization must be executed (the slot
+      // still contains 'the hole' value). When the assignment is executed,
+      // the code is identical to a normal store (see below).
+      Comment cmnt(masm, "[ Init const");
+      masm->ldr(r2, ArmCodeGenerator::SlotOperand(masm, scope, this, r2));
+      masm->cmp(r2, Operand(Factory::the_hole_value()));
+      masm->b(ne, &exit);
+    }
+
+    // We must execute the store.
+    // r2 may be loaded with context; used below in RecordWrite.
+    // Storing a variable must keep the (new) value on the stack. This is
+    // necessary for compiling assignment expressions.
+    //
+    // Note: We will reach here even with var()->mode() == Variable::CONST
+    // because of const declarations which will initialize consts to 'the
+    // hole' value and by doing so, end up calling this code.  r2 may be
+    // loaded with context; used below in RecordWrite.
+    masm->pop(r0);
+    masm->str(r0, ArmCodeGenerator::SlotOperand(masm, scope, this, r2));
+    masm->push(r0);
+
+    if (type() == Slot::CONTEXT) {
+      // Skip write barrier if the written value is a smi.
+      masm->tst(r0, Operand(kSmiTagMask));
+      masm->b(eq, &exit);
+      // r2 is loaded with context when calling SlotOperand above.
+      int offset = FixedArray::kHeaderSize + index() * kPointerSize;
+      masm->mov(r3, Operand(offset));
+      masm->RecordWrite(r2, r3, r1);
+    }
+    masm->bind(&exit);
+  }
 }
 
 
@@ -1836,42 +1988,29 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 #define __  masm_->
 
 
-void ArmCodeGenerator::AccessReferenceProperty(
-    Expression* key,
-    CodeGenState::AccessType access) {
+void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
+  ASSERT(!ref()->is_illegal());
   Reference::Type type = ref()->type();
-  ASSERT(type != Reference::ILLEGAL);
 
-  // TODO(1241834): Make sure that this is sufficient. If there is a chance
-  // that reference errors can be thrown below, we must distinguish
-  // between the 2 kinds of loads (typeof expression loads must not
-  // throw a reference error).
-  bool is_load = (access == CodeGenState::LOAD ||
-                  access == CodeGenState::LOAD_TYPEOF_EXPR);
-
+  // TODO(1241834): Make sure that this it is safe to ignore the distinction
+  // between access types LOAD and LOAD_TYPEOF_EXPR. If there is a chance
+  // that reference errors can be thrown below, we must distinguish between
+  // the two kinds of loads (typeof expression loads must not throw a
+  // reference error).
   if (type == Reference::NAMED) {
     // Compute the name of the property.
     Literal* literal = key->AsLiteral();
     Handle<String> name(String::cast(*literal->handle()));
 
     // Call the appropriate IC code.
-    if (is_load) {
-      // Setup the name register.
-      __ mov(r2, Operand(name));
-      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-      Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
-      if (var != NULL) {
-        ASSERT(var->is_global());
-        __ Call(ic, code_target_context);
-      } else {
-        __ Call(ic, code_target);
-      }
-
+    // Setup the name register.
+    __ mov(r2, Operand(name));
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
+    if (var != NULL) {
+      ASSERT(var->is_global());
+      __ Call(ic, code_target_context);
     } else {
-      __ pop(r0);  // value
-      // Setup the name register.
-      __ mov(r2, Operand(name));
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       __ Call(ic, code_target);
     }
 
@@ -1879,18 +2018,41 @@ void ArmCodeGenerator::AccessReferenceProperty(
     // Access keyed property.
     ASSERT(type == Reference::KEYED);
 
-    if (is_load) {
-      // TODO(1224671): Implement inline caching for keyed loads as on ia32.
-      GetPropertyStub stub;
-      __ CallStub(&stub);
-
-    } else {
-      __ pop(r0);  // value
-      SetPropertyStub stub;
-      __ CallStub(&stub);
-    }
+    // TODO(1224671): Implement inline caching for keyed loads as on ia32.
+    GetPropertyStub stub;
+    __ CallStub(&stub);
   }
   __ push(r0);
+}
+
+
+void ArmCodeGenerator::SetReferenceProperty(MacroAssembler* masm,
+                                            Reference* ref,
+                                            Expression* key) {
+  ASSERT(!ref->is_illegal());
+  Reference::Type type = ref->type();
+
+  if (type == Reference::NAMED) {
+    // Compute the name of the property.
+    Literal* literal = key->AsLiteral();
+    Handle<String> name(String::cast(*literal->handle()));
+
+    // Call the appropriate IC code.
+    masm->pop(r0);  // value
+    // Setup the name register.
+    masm->mov(r2, Operand(name));
+    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+    masm->Call(ic, code_target);
+
+  } else {
+    // Access keyed property.
+    ASSERT(type == Reference::KEYED);
+
+    masm->pop(r0);  // value
+    SetPropertyStub stub;
+    masm->CallStub(&stub);
+  }
+  masm->push(r0);
 }
 
 
@@ -3116,6 +3278,7 @@ void ArmCodeGenerator::VisitConditional(Conditional* node) {
 
 
 void ArmCodeGenerator::VisitSlot(Slot* node) {
+  ASSERT(access() != CodeGenState::UNDEFINED);
   Comment cmnt(masm_, "[ Slot");
 
   if (node->type() == Slot::LOOKUP) {
@@ -3126,161 +3289,54 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
     __ mov(r0, Operand(node->var()->name()));
     __ push(r0);
 
-    switch (access()) {
-      case CodeGenState::UNDEFINED:
-        UNREACHABLE();
-        break;
-
-      case CodeGenState::LOAD:
-        __ CallRuntime(Runtime::kLoadContextSlot, 2);
-        __ push(r0);
-        break;
-
-      case CodeGenState::LOAD_TYPEOF_EXPR:
-        __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
-        __ push(r0);
-        break;
-
-      case CodeGenState::STORE:
-        // Storing a variable must keep the (new) value on the stack. This
-        // is necessary for compiling assignment expressions.
-        __ CallRuntime(Runtime::kStoreContextSlot, 3);
-        __ push(r0);
-        // result (TOS) is the value that was stored
-        break;
-
-      case CodeGenState::INIT_CONST:
-        // Same as STORE but ignores attribute (e.g. READ_ONLY) of
-        // context slot so that we can initialize const properties
-        // (introduced via eval("const foo = (some expr);")). Also,
-        // uses the current function context instead of the top
-        // context.
-        //
-        // Note that we must declare the foo upon entry of eval(),
-        // via a context slot declaration, but we cannot initialize
-        // it at the same time, because the const declaration may
-        // be at the end of the eval code (sigh...) and the const
-        // variable may have been used before (where its value is
-        // 'undefined'). Thus, we can only do the initialization
-        // when we actually encounter the expression and when the
-        // expression operands are defined and valid, and thus we
-        // need the split into 2 operations: declaration of the
-        // context slot followed by initialization.
-        __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-        __ push(r0);
-        break;
+    if (access() == CodeGenState::LOAD) {
+      __ CallRuntime(Runtime::kLoadContextSlot, 2);
+    } else {
+      ASSERT(access() == CodeGenState::LOAD_TYPEOF_EXPR);
+      __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
     }
+    __ push(r0);
 
   } else {
-    // Note: We would like to keep the assert below, but it fires because
-    // of some nasty code in LoadTypeofExpression() which should be removed...
+    // Note: We would like to keep the assert below, but it fires because of
+    // some nasty code in LoadTypeofExpression() which should be removed...
     // ASSERT(node->var()->mode() != Variable::DYNAMIC);
 
-    switch (access()) {
-      case CodeGenState::UNDEFINED:
-        UNREACHABLE();
-        break;
-
-      case CodeGenState::LOAD:  // fall through
-      case CodeGenState::LOAD_TYPEOF_EXPR:
-        // Special handling for locals allocated in registers.
-        __ ldr(r0, SlotOperand(node, r2));
-        __ push(r0);
-        if (node->var()->mode() == Variable::CONST) {
-          // Const slots may contain 'the hole' value (the constant hasn't
-          // been initialized yet) which needs to be converted into the
-          // 'undefined' value.
-          Comment cmnt(masm_, "[ Unhole const");
-          __ pop(r0);
-          __ cmp(r0, Operand(Factory::the_hole_value()));
-          __ mov(r0, Operand(Factory::undefined_value()), LeaveCC, eq);
-          __ push(r0);
-        }
-        break;
-
-      case CodeGenState::INIT_CONST: {
-        ASSERT(node->var()->mode() == Variable::CONST);
-        // Only the first const initialization must be executed (the slot
-        // still contains 'the hole' value). When the assignment is executed,
-        // the code is identical to a normal store (see below).
-        { Comment cmnt(masm_, "[ Init const");
-          Label L;
-          __ ldr(r2, SlotOperand(node, r2));
-          __ cmp(r2, Operand(Factory::the_hole_value()));
-          __ b(ne, &L);
-          // We must execute the store.
-          // r2 may be loaded with context; used below in RecordWrite.
-          __ ldr(r0, MemOperand(sp, 0));
-          __ str(r0, SlotOperand(node, r2));
-          if (node->type() == Slot::CONTEXT) {
-            // Skip write barrier if the written value is a smi.
-            Label exit;
-            __ tst(r0, Operand(kSmiTagMask));
-            __ b(eq, &exit);
-            // r2 is loaded with context when calling SlotOperand above.
-            int offset = FixedArray::kHeaderSize + node->index() * kPointerSize;
-            __ mov(r3, Operand(offset));
-            __ RecordWrite(r2, r3, r1);
-            __ bind(&exit);
-          }
-          __ bind(&L);
-        }
-        break;
-      }
-
-      case CodeGenState::STORE: {
-        // Storing a variable must keep the (new) value on the stack. This
-        // is necessary for compiling assignment expressions.
-        // Special handling for locals allocated in registers.
-        //
-        // Note: We will reach here even with node->var()->mode() ==
-        // Variable::CONST because of const declarations which will
-        // initialize consts to 'the hole' value and by doing so, end
-        // up calling this code.
-        // r2 may be loaded with context; used below in RecordWrite.
-        __ pop(r0);
-        __ str(r0, SlotOperand(node, r2));
-        __ push(r0);
-        if (node->type() == Slot::CONTEXT) {
-          // Skip write barrier if the written value is a smi.
-          Label exit;
-          __ tst(r0, Operand(kSmiTagMask));
-          __ b(eq, &exit);
-          // r2 is loaded with context when calling SlotOperand above.
-          int offset = FixedArray::kHeaderSize + node->index() * kPointerSize;
-          __ mov(r3, Operand(offset));
-          __ RecordWrite(r2, r3, r1);
-          __ bind(&exit);
-        }
-        break;
-      }
+    // Special handling for locals allocated in registers.
+    __ ldr(r0, SlotOperand(node, r2));
+    __ push(r0);
+    if (node->var()->mode() == Variable::CONST) {
+      // Const slots may contain 'the hole' value (the constant hasn't been
+      // initialized yet) which needs to be converted into the 'undefined'
+      // value.
+      Comment cmnt(masm_, "[ Unhole const");
+      __ pop(r0);
+      __ cmp(r0, Operand(Factory::the_hole_value()));
+      __ mov(r0, Operand(Factory::undefined_value()), LeaveCC, eq);
+      __ push(r0);
     }
   }
 }
 
 
-void ArmCodeGenerator::VisitVariableProxy(VariableProxy* proxy_node) {
+void ArmCodeGenerator::VisitVariableProxy(VariableProxy* node) {
   Comment cmnt(masm_, "[ VariableProxy");
-  Variable* node = proxy_node->var();
+  Variable* var_node = node->var();
 
-  Expression* x = node->rewrite();
-  if (x != NULL) {
-    Visit(x);
-    return;
-  }
-
-  ASSERT(node->is_global());
-  if (is_referenced()) {
-    if (node->AsProperty() != NULL) {
-      __ RecordPosition(node->AsProperty()->position());
-    }
-    AccessReferenceProperty(new Literal(node->name()), access());
-
+  Expression* expr = var_node->rewrite();
+  if (expr != NULL) {
+    Visit(expr);
   } else {
-    // All stores are through references.
-    ASSERT(access() != CodeGenState::STORE);
-    Reference property(this, proxy_node);
-    GetValue(&property);
+    ASSERT(var_node->is_global());
+    if (is_referenced()) {
+      if (var_node->AsProperty() != NULL) {
+        __ RecordPosition(var_node->AsProperty()->position());
+      }
+      GetReferenceProperty(new Literal(var_node->name()));
+    } else {
+      Reference property(this, node);
+      GetValue(&property);
+    }
   }
 }
 
@@ -3541,13 +3597,11 @@ void ArmCodeGenerator::VisitThrow(Throw* node) {
 
 void ArmCodeGenerator::VisitProperty(Property* node) {
   Comment cmnt(masm_, "[ Property");
+
   if (is_referenced()) {
     __ RecordPosition(node->position());
-    AccessReferenceProperty(node->key(), access());
-
+    GetReferenceProperty(node->key());
   } else {
-    // All stores are through references.
-    ASSERT(access() != CodeGenState::STORE);
     Reference property(this, node);
     __ RecordPosition(node->position());
     GetValue(&property);
