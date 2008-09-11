@@ -2861,7 +2861,7 @@ class String: public HeapObject {
   // ROBUST_STRING_TRAVERSAL invokes behaviour that is robust  This means it
   // handles unexpected data without causing assert failures and it does not
   // do any heap allocations.  This is useful when printing stack traces.
-  uc16* ToWideCString(RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL);
+  SmartPointer<uc16> ToWideCString(RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL);
 
   // Tells whether the hash code has been computed.
   inline bool HasHashCode();

@@ -31,19 +31,18 @@
 namespace v8 { namespace internal {
 
 
-// A 'scoped pointer' that calls delete[] on its pointer when the
+// A 'scoped array pointer' that calls DeleteArray on its pointer when the
 // destructor is called.
 template<typename T>
 class SmartPointer {
  public:
+
+  // Default constructor. Construct an empty scoped pointer. 
+  inline SmartPointer() : p(NULL) {}
+
+
   // Construct a scoped pointer from a plain one.
-  inline SmartPointer(T* pointer) : p(pointer) {}
-
-
-  // When the destructor of the scoped pointer is executed the plain pointer
-  // is deleted using DeleteArray.  This implies that you must allocate with
-  // NewArray.
-  inline ~SmartPointer() { if (p) DeleteArray(p); }
+  explicit inline SmartPointer(T* pointer) : p(pointer) {}
 
 
   // Copy constructor removes the pointer from the original to avoid double
@@ -53,13 +52,20 @@ class SmartPointer {
   }
 
 
+  // When the destructor of the scoped pointer is executed the plain pointer
+  // is deleted using DeleteArray.  This implies that you must allocate with
+  // NewArray.
+  inline ~SmartPointer() { if (p) DeleteArray(p); }
+
+
   // You can get the underlying pointer out with the * operator.
   inline T* operator*() { return p; }
 
 
-  // You can use -> as if it was a plain pointer.
-  inline T* operator->() { return p; }
-
+  // You can use [n] to index as if it was a plain pointer
+  inline T& operator[](size_t i) {
+    return p[i];
+  }
 
   // We don't have implicit conversion to a T* since that hinders migration:
   // You would not be able to change a method from returning a T* to
@@ -80,9 +86,10 @@ class SmartPointer {
   // the copy constructor it removes the pointer in the original to avoid
   // double freeing.
   inline SmartPointer& operator=(const SmartPointer<T>& rhs) {
-    ASSERT(p == NULL);
-    p = rhs.p;
+    ASSERT(p == NULL);  
+    T* tmp = rhs.p; // swap to handle self-assignment
     const_cast<SmartPointer<T>&>(rhs).p = NULL;
+    p = tmp;
     return *this;
   }
 

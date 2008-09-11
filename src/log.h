@@ -174,6 +174,15 @@ class Logger {
                                  unsigned start,
                                  unsigned end);
 
+  // ==== Events logged by --log-regexp ====
+  // Regexp compilation and execution events.
+
+  static void RegExpCompileEvent(Handle<JSValue> regexp);
+
+  static void RegExpExecEvent(Handle<JSValue> regexp, 
+                              int start_index, 
+                              Handle<String> string);
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static StateTag state() {
     return current_state_ ? current_state_->state() : OTHER;
@@ -182,6 +191,10 @@ class Logger {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
  private:
+
+  // Emits the source code of a regexp. Used by regexp events.
+  static void Logger::LogRegExpSource(Handle<JSValue> regexp);
+
   // Emits a profiler tick event. Used by the profiler thread.
   static void TickEvent(TickSample* sample, bool overflow);
 

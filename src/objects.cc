@@ -3023,11 +3023,11 @@ const uc16* String::GetTwoByteData(unsigned start) {
 }
 
 
-uc16* String::ToWideCString(RobustnessFlag robust_flag) {
+SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
   ASSERT(NativeAllocationChecker::allocation_allowed());
 
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return NULL;
+    return SmartPointer<uc16>();
   }
 
   Access<StringInputBuffer> buffer(&string_input_buffer);
@@ -3041,7 +3041,7 @@ uc16* String::ToWideCString(RobustnessFlag robust_flag) {
     result[i++] = character;
   }
   result[i] = 0;
-  return result;
+  return SmartPointer<uc16>(result);
 }
 
 
