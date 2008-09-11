@@ -45,7 +45,7 @@ LIBRARY_FLAGS = {
       'DIALECTFLAGS': ['-ansi'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS',
           '-fno-strict-aliasing'],
-      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
+      'CXXFLAGS':     ['-fno-rtti', '-fno-exceptions'],
       'LIBS':         ['pthread']
     },
     'mode:debug': {
@@ -454,6 +454,7 @@ def BuildSpecific(env, mode, env_overrides):
   )
   
   # Link the object files into a library.
+  env.Replace(**context.flags['v8'])
   context.ApplyEnvOverrides(env)
   if context.options['library'] == 'static':
     library = env.StaticLibrary(library_name, object_files)
