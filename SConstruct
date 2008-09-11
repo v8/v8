@@ -45,7 +45,7 @@ LIBRARY_FLAGS = {
       'DIALECTFLAGS': ['-ansi'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS',
           '-fno-strict-aliasing'],
-      'CXXFLAGS':     ['-fno-rtti', '-fno-exceptions'],
+      'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
       'LIBS':         ['pthread']
     },
     'mode:debug': {
