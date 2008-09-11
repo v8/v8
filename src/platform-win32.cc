@@ -668,7 +668,7 @@ int OS::SNPrintF(Vector<char> str, const char* format, ...) {
 
 
 int OS::VSNPrintF(Vector<char> str, const char* format, va_list args) {
-  int n = _vsnprintf_s(str.start(), str.length(), str.length(), format, args);
+  int n = _vsnprintf_s(str.start(), str.length(), _TRUNCATE, format, args);
   // Make sure to zero-terminate the string if the output was
   // truncated or if there was an error.
   if (n < 0 || n >= str.length()) {
@@ -682,13 +682,15 @@ int OS::VSNPrintF(Vector<char> str, const char* format, va_list args) {
 
 void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
   int result = strncpy_s(dest.start(), dest.length(), src, n);
-  USE(result); ASSERT(result == 0);
+  USE(result);
+  ASSERT(result == 0);
 }
 
 
 void OS::WcsCpy(Vector<wchar_t> dest, const wchar_t* src) {
   int result = wcscpy_s(dest.start(), dest.length(), src);
-  USE(result); ASSERT(result == 0);
+  USE(result);
+  ASSERT(result == 0);
 }
 
 

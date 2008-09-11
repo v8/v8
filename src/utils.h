@@ -328,12 +328,12 @@ class Vector {
 };
 
 
-template <typename T, int size>
+template <typename T, int kSize>
 class EmbeddedVector : public Vector<T> {
  public:
-  EmbeddedVector() : Vector<T>(buffer_, size) { }
+  EmbeddedVector() : Vector<T>(buffer_, kSize) { }
  private:
-  T buffer_[size];
+  T buffer_[kSize];
 };
 
 
