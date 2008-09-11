@@ -4697,7 +4697,7 @@ THREADED_TEST(LockUnlockLock) {
 }
 
 
-static void EnsureNoSurvivingGlobalObjects() {
+static int GetSurvivingGlobalObjectsCount() {
   int count = 0;
   v8::internal::Heap::CollectAllGarbage();
   v8::internal::HeapIterator it;
@@ -4710,38 +4710,34 @@ static void EnsureNoSurvivingGlobalObjects() {
 #ifdef DEBUG
   if (count > 0) v8::internal::Heap::TracePathToGlobal();
 #endif
-  CHECK_EQ(0, count);
+  return count;
 }
 
 
-// This test assumes that there are zero global objects when the
-// test starts.  This is not going to be true if we are using the
-// API fuzzer.
 TEST(DontLeakGlobalObjects) {
   // Regression test for issues 1139850 and 1174891.
 
-  v8::internal::V8::Initialize(NULL);
-  if (v8::internal::Snapshot::IsEnabled()) return;
+  v8::V8::Initialize();
 
-  EnsureNoSurvivingGlobalObjects();
+  int count = GetSurvivingGlobalObjectsCount();
 
   for (int i = 0; i < 5; i++) {
     { v8::HandleScope scope;
       LocalContext context;
     }
-    EnsureNoSurvivingGlobalObjects();
+    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
 
     { v8::HandleScope scope;
       LocalContext context;
       v8_compile("Date")->Run();
     }
-    EnsureNoSurvivingGlobalObjects();
+    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
 
     { v8::HandleScope scope;
       LocalContext context;
       v8_compile("/aaa/")->Run();
     }
-    EnsureNoSurvivingGlobalObjects();
+    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
 
     { v8::HandleScope scope;
       const char* extension_list[] = { "v8/gc" };
@@ -4749,7 +4745,7 @@ TEST(DontLeakGlobalObjects) {
       LocalContext context(&extensions);
       v8_compile("gc();")->Run();
     }
-    EnsureNoSurvivingGlobalObjects();
+    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
 
     { v8::HandleScope scope;
       const char* extension_list[] = { "v8/print" };
@@ -4757,14 +4753,13 @@ TEST(DontLeakGlobalObjects) {
       LocalContext context(&extensions);
       v8_compile("print('hest');")->Run();
     }
-    EnsureNoSurvivingGlobalObjects();
+    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
   }
 }
 
 
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
-  v8::internal::V8::Initialize(NULL);
-  if (v8::internal::Snapshot::IsEnabled()) return;
+  v8::V8::Initialize();
 
   const int nof = 2;
   const char* sources[nof] = {
