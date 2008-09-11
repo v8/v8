@@ -246,10 +246,5 @@ void ReportException(v8::TryCatch* try_catch) {
       printf("^");
     }
     printf("\n");
-    v8::Handle<v8::String> stack_trace = message->GetStackTrace();
-    if (!stack_trace.IsEmpty()) {
-      v8::String::Utf8Value stack_trace_str(stack_trace);
-      printf("%s\n", *stack_trace_str);
-    }
   }
 }

@@ -595,12 +595,6 @@ class EXPORT Message {
    */
   int GetEndColumn();
 
-  /**
-   * Returns a string stack trace if trace_exceptions is enabled and
-   * one is available.
-   */
-  Local<String> GetStackTrace();
-
   // TODO(1245381): Print to a string instead of on a FILE.
   static void PrintCurrentStackTrace(FILE* out);
 };

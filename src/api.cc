@@ -1261,20 +1261,6 @@ int Message::GetEndColumn() {
 }
 
 
-v8::Local<v8::String> Message::GetStackTrace() {
-  if (IsDeadCheck("v8::Message::GetStackTrace()"))
-    return v8::Local<v8::String>();
-  HandleScope scope;
-  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
-  i::Handle<i::Object> trace = GetProperty(data_obj, "stackTrace");
-  if (trace->IsString()) {
-    return scope.Close(Utils::ToLocal(i::Handle<i::String>::cast(trace)));
-  } else {
-    return Local<String>();
-  }
-}
-
-
 Local<String> Message::GetSourceLine() {
   ON_BAILOUT("v8::Message::GetSourceLine()", return Local<String>());
   HandleScope scope;
