@@ -4845,7 +4845,9 @@ THREADED_TEST(Regress54) {
 }
 
 
-THREADED_TEST(CatchStackOverflow) {
+// If part of the threaded tests, this test makes ThreadingTest fail
+// on mac.
+TEST(CatchStackOverflow) {
   v8::HandleScope scope;
   LocalContext context;
   v8::TryCatch try_catch;
