@@ -56,34 +56,6 @@ DECLARE_bool(gc_greedy);
   }
 
 
-// Don't use the following names: __object__, __failure__.
-#define CALL_HEAP_FUNCTION_VOID(FUNCTION_CALL)                      \
-  GC_GREEDY_CHECK();                                                \
-  Object* __object__ = FUNCTION_CALL;                               \
-  if (__object__->IsFailure()) {                                    \
-    if (__object__->IsRetryAfterGC()) {                             \
-      Failure* __failure__ = Failure::cast(__object__);             \
-      if (!Heap::CollectGarbage(__failure__->requested(),           \
-                                __failure__->allocation_space())) { \
-         /* TODO(1181417): Fix this. */                             \
-         V8::FatalProcessOutOfMemory("Handles");                    \
-      }                                                             \
-      __object__ = FUNCTION_CALL;                                   \
-      if (__object__->IsFailure()) {                                \
-        if (__object__->IsRetryAfterGC()) {                         \
-           /* TODO(1181417): Fix this. */                           \
-           V8::FatalProcessOutOfMemory("Handles");                  \
-        }                                                           \
-        return;                                                     \
-      }                                                             \
-    } else {                                                        \
-      return;                                                       \
-    }                                                               \
-  }
-
-
-
-
 Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray> content,
                                       Handle<JSArray> array) {
   CALL_HEAP_FUNCTION(content->AddKeysFromJSArray(*array), FixedArray);

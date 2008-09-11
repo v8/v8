@@ -5576,7 +5576,7 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
 }
 
 
-Object* EvalCache::Lookup(String* src) {
+Object* CompilationCacheTable::Lookup(String* src) {
   StringKey key(src);
   int entry = FindEntry(&key);
   if (entry != -1) {
@@ -5587,12 +5587,13 @@ Object* EvalCache::Lookup(String* src) {
 }
 
 
-Object* EvalCache::Put(String* src, Object* value) {
+Object* CompilationCacheTable::Put(String* src, Object* value) {
   StringKey key(src);
   Object* obj = EnsureCapacity(1, &key);
   if (obj->IsFailure()) return obj;
 
-  EvalCache* cache = reinterpret_cast<EvalCache*>(obj);
+  CompilationCacheTable* cache =
+      reinterpret_cast<CompilationCacheTable*>(obj);
   int entry = cache->FindInsertionEntry(src, key.Hash());
   cache->set(EntryToIndex(entry), src);
   cache->set(EntryToIndex(entry) + 1, value);

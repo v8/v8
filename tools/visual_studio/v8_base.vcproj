@@ -381,6 +381,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\compilation-cache.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\compilation-cache.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\compiler.cc"
 				>
 			</File>

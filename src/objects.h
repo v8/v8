@@ -614,7 +614,7 @@ class Object BASE_EMBEDDED {
   inline bool IsHashTable();
   inline bool IsDictionary();
   inline bool IsSymbolTable();
-  inline bool IsEvalCache();
+  inline bool IsCompilationCacheTable();
   inline bool IsPrimitive();
   inline bool IsGlobalObject();
   inline bool IsJSGlobalObject();
@@ -1818,19 +1818,16 @@ class SymbolTable: public HashTable<0, 1> {
 };
 
 
-// EvalCache for caching eval'ed string and function.
-//
-// The cache is cleaned up during a mark-compact GC.
-class EvalCache: public HashTable<0, 2> {
+class CompilationCacheTable: public HashTable<0, 2> {
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(String* src);
   Object* Put(String* src, Object* value);
 
-  static inline EvalCache* cast(Object* obj);
+  static inline CompilationCacheTable* cast(Object* obj);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(EvalCache);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);
 };
 
 

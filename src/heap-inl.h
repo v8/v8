@@ -196,6 +196,32 @@ OldSpace* Heap::TargetSpace(HeapObject* object) {
   } while (false)
 
 
+// Don't use the following names: __object__, __failure__.
+#define CALL_HEAP_FUNCTION_VOID(FUNCTION_CALL)                      \
+  GC_GREEDY_CHECK();                                                \
+  Object* __object__ = FUNCTION_CALL;                               \
+  if (__object__->IsFailure()) {                                    \
+    if (__object__->IsRetryAfterGC()) {                             \
+      Failure* __failure__ = Failure::cast(__object__);             \
+      if (!Heap::CollectGarbage(__failure__->requested(),           \
+                                __failure__->allocation_space())) { \
+         /* TODO(1181417): Fix this. */                             \
+         V8::FatalProcessOutOfMemory("Handles");                    \
+      }                                                             \
+      __object__ = FUNCTION_CALL;                                   \
+      if (__object__->IsFailure()) {                                \
+        if (__object__->IsRetryAfterGC()) {                         \
+           /* TODO(1181417): Fix this. */                           \
+           V8::FatalProcessOutOfMemory("Handles");                  \
+        }                                                           \
+        return;                                                     \
+      }                                                             \
+    } else {                                                        \
+      return;                                                       \
+    }                                                               \
+  }
+
+
 #ifdef DEBUG
 
 inline bool Heap::allow_allocation(bool new_state) {

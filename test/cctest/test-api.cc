@@ -4880,7 +4880,7 @@ THREADED_TEST(TryCatchSourceInfo) {
       "\n"
       "Foo();\n");
   v8::Handle<v8::Script> script =
-    v8::Script::Compile(source, v8::String::New("test.js"));
+      v8::Script::Compile(source, v8::String::New("test.js"));
   v8::TryCatch try_catch;
   v8::Handle<v8::Value> result = script->Run();
   CHECK(result.IsEmpty());
@@ -4896,4 +4896,21 @@ THREADED_TEST(TryCatchSourceInfo) {
   CHECK_EQ("  throw 'nirk';", *line);
   v8::String::AsciiValue name(message->GetScriptResourceName());
   CHECK_EQ("test.js", *name);
+}
+
+
+THREADED_TEST(CompilationCache) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::String> source0 = v8::String::New("1234");
+  v8::Handle<v8::String> source1 = v8::String::New("1234");
+  v8::Handle<v8::Script> script0 =
+      v8::Script::Compile(source0, v8::String::New("test.js"));
+  v8::Handle<v8::Script> script1 =
+      v8::Script::Compile(source1, v8::String::New("test.js"));
+  v8::Handle<v8::Script> script2 =
+      v8::Script::Compile(source0);  // different origin
+  CHECK_EQ(1234, script0->Run()->Int32Value());
+  CHECK_EQ(1234, script1->Run()->Int32Value());
+  CHECK_EQ(1234, script2->Run()->Int32Value());
 }

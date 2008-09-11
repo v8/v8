@@ -29,6 +29,7 @@
 
 #include "bootstrapper.h"
 #include "codegen-inl.h"
+#include "compilation-cache.h"
 #include "compiler.h"
 #include "debug.h"
 #include "scopes.h"
@@ -170,26 +171,43 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
 
-  ScriptDataImpl* pre_data = input_pre_data;
-  if (pre_data == NULL && source->length() >= FLAG_min_preparse_length) {
-    Access<SafeStringInputBuffer> buf(&safe_string_input_buffer);
-    buf->Reset(source.location());
-    pre_data = PreParse(buf.value(), extension);
+  // Do a lookup in the compilation cache but not for extensions.
+  Handle<JSFunction> result;
+  if (extension == NULL) {
+    result = CompilationCache::LookupScript(source,
+                                            script_name,
+                                            line_offset,
+                                            column_offset);
   }
 
-  // Create a script object describing the script to be compiled.
-  Handle<Script> script = Factory::NewScript(source);
-  if (!script_name.is_null()) {
-    script->set_name(*script_name);
-    script->set_line_offset(Smi::FromInt(line_offset));
-    script->set_column_offset(Smi::FromInt(column_offset));
+  if (result.is_null()) {
+    // No cache entry found. Do pre-parsing and compile the script.
+    ScriptDataImpl* pre_data = input_pre_data;
+    if (pre_data == NULL && source->length() >= FLAG_min_preparse_length) {
+      Access<SafeStringInputBuffer> buf(&safe_string_input_buffer);
+      buf->Reset(source.location());
+      pre_data = PreParse(buf.value(), extension);
+    }
+
+    // Create a script object describing the script to be compiled.
+    Handle<Script> script = Factory::NewScript(source);
+    if (!script_name.is_null()) {
+      script->set_name(*script_name);
+      script->set_line_offset(Smi::FromInt(line_offset));
+      script->set_column_offset(Smi::FromInt(column_offset));
+    }
+
+    // Compile the function and add it to the cache.
+    result = MakeFunction(true, false, script, extension, pre_data);
+    if (extension == NULL && !result.is_null()) {
+      CompilationCache::Associate(source, CompilationCache::SCRIPT, result);
+    }
+
+    // Get rid of the pre-parsing data (if necessary).
+    if (input_pre_data == NULL && pre_data != NULL) {
+      delete pre_data;
+    }
   }
-
-  Handle<JSFunction> result =
-      MakeFunction(true, false, script, extension, pre_data);
-
-  if (input_pre_data == NULL && pre_data != NULL)
-    delete pre_data;
 
   return result;
 }
@@ -202,10 +220,22 @@ Handle<JSFunction> Compiler::CompileEval(bool is_global,
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
+  CompilationCache::Entry entry = is_global
+      ? CompilationCache::EVAL_GLOBAL
+      : CompilationCache::EVAL_CONTEXTUAL;
 
-  // Create a script object describing the script to be compiled.
-  Handle<Script> script = Factory::NewScript(source);
-  return MakeFunction(is_global, true, script, NULL, NULL);
+  // Do a lookup in the compilation cache; if the entry is not there,
+  // invoke the compiler and add the result to the cache.
+  Handle<JSFunction> result = CompilationCache::LookupEval(source, entry);
+  if (result.is_null()) {
+    // Create a script object describing the script to be compiled.
+    Handle<Script> script = Factory::NewScript(source);
+    result = MakeFunction(is_global, true, script, NULL, NULL);
+    if (!result.is_null()) {
+      CompilationCache::Associate(source, entry, result);
+    }
+  }
+  return result;
 }
 
 

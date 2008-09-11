@@ -71,8 +71,8 @@ namespace v8 { namespace internal {
   SC(call_normal_stubs, V8.CallNormalStubs)                      \
   SC(call_megamorphic_stubs, V8.CallMegamorphicStubs)            \
   SC(arguments_adaptors, V8.ArgumentsAdaptors)                   \
-  SC(eval_cache_hits, V8.EvalCacheHits)                          \
-  SC(eval_cache_misses, V8.EvalCacheMisses)                      \
+  SC(compilation_cache_hits, V8.CompilationCacheHits)            \
+  SC(compilation_cache_misses, V8.CompilationCacheMisses)        \
   /* Amount of evaled source code. */                            \
   SC(total_eval_size, V8.TotalEvalSize)                          \
   /* Amount of loaded source code. */                            \

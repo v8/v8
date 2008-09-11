@@ -3364,6 +3364,7 @@ static Object* Runtime_EvalReceiver(Arguments args) {
 static Object* Runtime_CompileString(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
+  CONVERT_ARG_CHECKED(String, source, 0);
   bool contextual = args[1]->IsTrue();
   RUNTIME_ASSERT(contextual || args[1]->IsFalse());
 
@@ -3380,27 +3381,12 @@ static Object* Runtime_CompileString(Arguments args) {
     context = Handle<Context>(Top::context()->global_context());
   }
 
-  // Compile eval() source.
-  bool is_global_context = context->IsGlobalContext();
-  Handle<String> source(String::cast(args[0]));
-  Object* obj = Heap::LookupEvalCache(is_global_context, *source);
-  if (obj->IsFailure()) return obj;
 
-  Handle<JSFunction> boilerplate;
-  if (!obj->IsJSFunction()) {
-    Counters::eval_cache_misses.Increment();
-    boilerplate = Compiler::CompileEval(is_global_context, source);
-    if (boilerplate.is_null()) return Failure::Exception();
-
-    Object* obj =
-        Heap::PutInEvalCache(is_global_context, *source, *boilerplate);
-    if (obj->IsFailure()) return obj;
-
-  } else {
-    Counters::eval_cache_hits.Increment();
-    boilerplate = Handle<JSFunction>(JSFunction::cast(obj));
-  }
-
+  // Compile source string.
+  bool is_global = context->IsGlobalContext();
+  Handle<JSFunction> boilerplate =
+      Compiler::CompileEval(is_global, source);
+  if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
   return *fun;
