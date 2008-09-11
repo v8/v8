@@ -918,7 +918,6 @@ void VariableProxy::GenerateStoreCode(MacroAssembler* masm,
                                       Scope* scope,
                                       Reference* ref,
                                       InitState init_state) {
-
   Comment cmnt(masm, "[ Store to VariableProxy");
   Variable* node = var();
 
