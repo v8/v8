@@ -621,9 +621,6 @@ Object* Top::PromoteScheduledException() {
 }
 
 
-// TODO(1233523): Get rid of this hackish abstraction once all
-// JavaScript frames have a function associated with them.
-
 // NOTE: The stack trace frame iterator is an iterator that only
 // traverse proper JavaScript frames; that is JavaScript frames that
 // have proper JavaScript functions. This excludes the problematic
