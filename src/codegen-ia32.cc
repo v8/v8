@@ -129,7 +129,7 @@ class CodeGenState BASE_EMBEDDED {
 
   // Create an initial code generator state.  Destroying the initial state
   // leaves the code generator with a NULL state.
-  CodeGenState(Ia32CodeGenerator* owner);
+  explicit CodeGenState(Ia32CodeGenerator* owner);
 
   // Create a code generator state based on a code generator's current
   // state.  The new state has its own access type and pair of branch
