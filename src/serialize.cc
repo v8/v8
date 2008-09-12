@@ -1301,11 +1301,11 @@ void Deserializer::GetFlags() {
   reader_.ExpectC(']');
   has_log_ = false;
   for (int i = 1; i < argc; i++) {
-    if (strcmp("--log-code", argv[i]) == 0) {
+    if (strcmp("--log_code", argv[i]) == 0) {
       has_log_ = true;
-    } else if (strcmp("--nouse-ic", argv[i]) == 0) {
+    } else if (strcmp("--nouse_ic", argv[i]) == 0) {
       FLAG_use_ic = false;
-    } else if (strcmp("--debug-code", argv[i]) == 0) {
+    } else if (strcmp("--debug_code", argv[i]) == 0) {
       FLAG_debug_code = true;
     } else if (strcmp("--nolazy", argv[i]) == 0) {
       FLAG_lazy = false;
