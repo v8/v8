@@ -644,7 +644,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   { Label invoke;
     __ tst(r1, r1);
     __ b(ne, &invoke);
-    //__ stop("Generate_ArgumentsAdaptorTrampoline - non-function call");
+    // __ stop("Generate_ArgumentsAdaptorTrampoline - non-function call");
     __ mov(r2, Operand(0));  // expected arguments is 0 for CALL_NON_FUNCTION
     __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
     __ b(&enough);
