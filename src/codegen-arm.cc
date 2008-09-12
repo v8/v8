@@ -101,8 +101,17 @@ class Reference BASE_EMBEDDED {
 };
 
 
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // Code generation state
+
+// The state is passed down the AST by the code generator.  It is passed
+// implicitly (in a member variable) to the non-static code generator member
+// functions, and explicitly (as an argument) to the static member functions
+// and the AST node member functions.
+//
+// The state is threaded through the call stack.  Constructing a state
+// implicitly pushes it on the owning code generator's stack of states, and
+// destroying one implicitly pops it.
 
 class CodeGenState BASE_EMBEDDED {
  public:
@@ -112,22 +121,26 @@ class CodeGenState BASE_EMBEDDED {
     LOAD_TYPEOF_EXPR
   };
 
-  CodeGenState()
-      : access_(UNDEFINED),
-        ref_(NULL),
-        true_target_(NULL),
-        false_target_(NULL) {
-  }
+  // Create an initial code generator state.  Destroying the initial state
+  // leaves the code generator with a NULL state.
+  CodeGenState(ArmCodeGenerator* owner);
 
-  CodeGenState(AccessType access,
-               Reference* ref,
+  // Create a code generator state based on a code generator's current
+  // state.  The new state has its own access type and pair of branch
+  // labels, and no reference.
+  CodeGenState(ArmCodeGenerator* owner,
+               AccessType access,
                Label* true_target,
-               Label* false_target)
-      : access_(access),
-        ref_(ref),
-        true_target_(true_target),
-        false_target_(false_target) {
-  }
+               Label* false_target);
+
+  // Create a code generator state based on a code generator's current
+  // state.  The new state has an access type of LOAD, its own reference,
+  // and inherits the pair of branch labels of the current state.
+  CodeGenState(ArmCodeGenerator* owner, Reference* ref);
+
+  // Destroy a code generator state and restore the owning code generator's
+  // previous state.
+  ~CodeGenState();
 
   AccessType access() const { return access_; }
   Reference* ref() const { return ref_; }
@@ -135,10 +148,12 @@ class CodeGenState BASE_EMBEDDED {
   Label* false_target() const { return false_target_; }
 
  private:
+  ArmCodeGenerator* owner_;
   AccessType access_;
   Reference* ref_;
   Label* true_target_;
   Label* false_target_;
+  CodeGenState* previous_;
 };
 
 
@@ -152,6 +167,9 @@ class ArmCodeGenerator: public CodeGenerator {
                                bool is_eval);
 
   MacroAssembler* masm()  { return masm_; }
+
+  CodeGenState* state() { return state_; }
+  void set_state(CodeGenState* state) { state_ = state; }
 
  private:
   // Assembler
@@ -243,7 +261,12 @@ class ArmCodeGenerator: public CodeGenerator {
   // Generate code to fetch the value of a reference.  The reference is
   // expected to be on top of the expression stack.  It is left in place and
   // its value is pushed on top of it.
-  void GetValue(Reference* ref);
+  void GetValue(Reference* ref) {
+    ASSERT(!has_cc());
+    ASSERT(!ref->is_illegal());
+    CodeGenState new_state(this, ref);
+    Visit(ref->expression());
+  }
 
   // Generate code to store a value in a reference.  The stored value is
   // expected on top of the expression stack, with the reference immediately
@@ -339,6 +362,51 @@ class ArmCodeGenerator: public CodeGenerator {
   friend class VariableProxy;
   friend class Slot;
 };
+
+
+// -------------------------------------------------------------------------
+// CodeGenState implementation.
+
+CodeGenState::CodeGenState(ArmCodeGenerator* owner)
+    : owner_(owner),
+      access_(UNDEFINED),
+      ref_(NULL),
+      true_target_(NULL),
+      false_target_(NULL),
+      previous_(NULL) {
+  owner_->set_state(this);
+}
+
+
+CodeGenState::CodeGenState(ArmCodeGenerator* owner,
+                           AccessType access,
+                           Label* true_target,
+                           Label* false_target)
+    : owner_(owner),
+      access_(access),
+      ref_(NULL),
+      true_target_(true_target),
+      false_target_(false_target),
+      previous_(owner->state()) {
+  owner_->set_state(this);
+}
+
+
+CodeGenState::CodeGenState(ArmCodeGenerator* owner, Reference* ref)
+    : owner_(owner),
+      access_(LOAD),
+      ref_(ref),
+      true_target_(owner->state()->true_target_),
+      false_target_(owner->state()->false_target_),
+      previous_(owner->state()) {
+  owner_->set_state(this);
+}
+
+
+CodeGenState::~CodeGenState() {
+  ASSERT(owner_->state() == this);
+  owner_->set_state(previous_);
+}
 
 
 // -----------------------------------------------------------------------------
@@ -456,8 +524,7 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
   ZoneList<Statement*>* body = fun->body();
 
   // Initialize state.
-  { CodeGenState state;
-    state_ = &state;
+  { CodeGenState state(this);
     scope_ = scope;
     cc_reg_ = al;
 
@@ -609,8 +676,6 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
 #endif
       VisitStatements(body);
     }
-
-    state_ = NULL;
   }
 
   // exit
@@ -717,11 +782,9 @@ void ArmCodeGenerator::LoadCondition(Expression* x,
          access == CodeGenState::LOAD_TYPEOF_EXPR);
   ASSERT(!has_cc() && !is_referenced());
 
-  CodeGenState* old_state = state_;
-  CodeGenState new_state(access, NULL, true_target, false_target);
-  state_ = &new_state;
-  Visit(x);
-  state_ = old_state;
+  { CodeGenState new_state(this, access, true_target, false_target);
+    Visit(x);
+  }
   if (force_cc && !has_cc()) {
     // Convert the TOS value to a boolean in the condition code register.
     ToBoolean(true_target, false_target);
@@ -869,18 +932,6 @@ void ArmCodeGenerator::UnloadReference(Reference* ref) {
 }
 
 
-void ArmCodeGenerator::GetValue(Reference* ref) {
-  ASSERT(!has_cc());
-  ASSERT(!ref->is_illegal());
-  CodeGenState* old_state = state_;
-  CodeGenState new_state(CodeGenState::LOAD, ref, true_target(),
-                         false_target());
-  state_ = &new_state;
-  Visit(ref->expression());
-  state_ = old_state;
-}
-
-
 void Property::GenerateStoreCode(MacroAssembler* masm,
                                  Scope* scope,
                                  Reference* ref,
@@ -953,7 +1004,6 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
     ASSERT(var()->mode() != Variable::DYNAMIC);
 
     Label exit;
-    bool may_skip_write = false;
     if (init_state == CONST_INIT) {
       ASSERT(var()->mode() == Variable::CONST);
       // Only the first const initialization must be executed (the slot
@@ -963,7 +1013,6 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
       masm->ldr(r2, ArmCodeGenerator::SlotOperand(masm, scope, this, r2));
       masm->cmp(r2, Operand(Factory::the_hole_value()));
       masm->b(ne, &exit);
-      may_skip_write = true;
     }
 
     // We must execute the store.
@@ -983,7 +1032,6 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
       // Skip write barrier if the written value is a smi.
       masm->tst(r0, Operand(kSmiTagMask));
       masm->b(eq, &exit);
-      may_skip_write = true;
       // r2 is loaded with context when calling SlotOperand above.
       int offset = FixedArray::kHeaderSize + index() * kPointerSize;
       masm->mov(r3, Operand(offset));
@@ -991,7 +1039,9 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
     }
     // If we definitely did not jump over the assignment, we do not need to
     // bind the exit label.  Doing so can defeat peephole optimization.
-    if (may_skip_write) masm->bind(&exit);
+    if (init_state == CONST_INIT || type() == Slot::CONTEXT) {
+      masm->bind(&exit);
+    }
   }
 }
 
