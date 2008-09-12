@@ -150,10 +150,10 @@ int main(int argc, char** argv) {
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
-  if (result > 0 || argc != 2 || FLAG_h) {
+  if (result > 0 || argc != 2 || i::FLAG_h) {
     ::printf("Usage: %s [flag] ... outfile\n", argv[0]);
-    i::FlagList::Print(NULL, false);
-    return !FLAG_h;
+    i::FlagList::PrintHelp();
+    return !i::FLAG_h;
   }
 
   v8::V8::SetCounterFunction(counter_callback);
