@@ -44,13 +44,6 @@ typedef unsigned __int64 uint64_t;
 #endif
 
 
-// TODO(1233523): Get rid of this code that conditionally introduces a
-// macro to allow us to check for platforms that use the old
-// non-adapted arguments calling conventions.
-#if defined(ARM) || defined(__arm__) || defined(__thumb__)
-#define USE_OLD_CALLING_CONVENTIONS
-#endif
-
 namespace v8 { namespace internal {
 
 // Support for alternative bool type. This is only enabled if the code is

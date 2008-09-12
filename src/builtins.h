@@ -185,6 +185,7 @@ class Builtins : public AllStatic {
 
   static const char* GetName(JavaScript id) { return javascript_names_[id]; }
   static int GetArgumentsCount(JavaScript id) { return javascript_argc_[id]; }
+  static Handle<Code> GetCode(JavaScript id, bool* resolved);
   static int NumberOfJavaScriptBuiltins() { return id_count; }
 
   // Called from stub-cache.cc.

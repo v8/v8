@@ -319,21 +319,20 @@ void MacroAssembler::FCmp() {
 }
 
 
-void MacroAssembler::EnterFrame(StackFrame::Type type) {
-  ASSERT(type != StackFrame::JAVA_SCRIPT);
+void MacroAssembler::EnterInternalFrame() {
+  int type = StackFrame::INTERNAL;
+
   push(ebp);
   mov(ebp, Operand(esp));
   push(esi);
   push(Immediate(Smi::FromInt(type)));
-  if (type == StackFrame::INTERNAL) {
-    push(Immediate(0));
-  }
+  push(Immediate(0));  // Push an empty code cache slot.
 }
 
 
-void MacroAssembler::ExitFrame(StackFrame::Type type) {
-  ASSERT(type != StackFrame::JAVA_SCRIPT);
+void MacroAssembler::ExitInternalFrame() {
   if (FLAG_debug_code) {
+    StackFrame::Type type = StackFrame::INTERNAL;
     cmp(Operand(ebp, StandardFrameConstants::kMarkerOffset),
         Immediate(Smi::FromInt(type)));
     Check(equal, "stack frame types must match");
@@ -727,24 +726,8 @@ Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
       JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
   mov(edi, FieldOperand(edx, builtins_offset));
 
-  Code* code = Builtins::builtin(Builtins::Illegal);
-  *resolved = false;
 
-  if (Top::security_context() != NULL) {
-    Object* object = Top::security_context_builtins()->javascript_builtin(id);
-    if (object->IsJSFunction()) {
-      Handle<JSFunction> function(JSFunction::cast(object));
-      // Make sure the number of parameters match the formal parameter count.
-      ASSERT(function->shared()->formal_parameter_count() ==
-             Builtins::GetArgumentsCount(id));
-      if (function->is_compiled() || CompileLazy(function, CLEAR_EXCEPTION)) {
-        code = function->code();
-        *resolved = true;
-      }
-    }
-  }
-
-  return Handle<Code>(code);
+  return Builtins::GetCode(id, resolved);
 }
 
 

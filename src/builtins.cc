@@ -155,6 +155,28 @@ bool Builtins::IsArgumentsAdaptorCall(Address pc) {
 }
 
 
+Handle<Code> Builtins::GetCode(JavaScript id, bool* resolved) {
+  Code* code = Builtins::builtin(Builtins::Illegal);
+  *resolved = false;
+
+  if (Top::security_context() != NULL) {
+    Object* object = Top::security_context_builtins()->javascript_builtin(id);
+    if (object->IsJSFunction()) {
+      Handle<JSFunction> function(JSFunction::cast(object));
+      // Make sure the number of parameters match the formal parameter count.
+      ASSERT(function->shared()->formal_parameter_count() ==
+             Builtins::GetArgumentsCount(id));
+      if (function->is_compiled() || CompileLazy(function, CLEAR_EXCEPTION)) {
+        code = function->code();
+        *resolved = true;
+      }
+    }
+  }
+
+  return Handle<Code>(code);
+}
+
+
 BUILTIN_0(Illegal) {
   UNREACHABLE();
 }
@@ -354,13 +376,8 @@ BUILTIN_0(HandleApiCall) {
   // TODO(1238487): This is not nice. We need to get rid of this
   // kludgy behavior and start handling API calls in a more direct
   // way - maybe compile specialized stubs lazily?.
-#ifdef USE_OLD_CALLING_CONVENTIONS
-  Handle<JSFunction> function =
-      Handle<JSFunction>(JSFunction::cast(__argv__[1]));
-#else
   Handle<JSFunction> function =
       Handle<JSFunction>(JSFunction::cast(Builtins::builtin_passed_function));
-#endif
 
   if (is_construct) {
     Handle<FunctionTemplateInfo> desc =

@@ -961,7 +961,6 @@ bool Genesis::InstallNatives() {
 
   InstallNativeFunctions();
 
-#ifndef USE_OLD_CALLING_CONVENTIONS
   // TODO(1240778): Get rid of the JS implementation of
   // Function.prototype.call and simply create a function with the
   // faked formal parameter count (-1) and use the illegal builtin as
@@ -990,7 +989,6 @@ bool Genesis::InstallNatives() {
         Handle<JSFunction>::cast(GetProperty(proto, Factory::apply_symbol()));
     apply->shared()->set_code(Builtins::builtin(Builtins::FunctionApply));
   }
-#endif
 
   // Make sure that the builtins object has fast properties.
   // If the ASSERT below fails, please increase the expected number of

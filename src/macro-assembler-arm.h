@@ -98,20 +98,12 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Activation frames
 
-  void EnterJSFrame(int argc);
-  void ExitJSFrame(ExitJSFlag flag);
+  void EnterInternalFrame();
+  void ExitInternalFrame();
 
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes
-
-  // Helper functions for generating invokes.
-  void InvokePrologue(const ParameterCount& expected,
-                      const ParameterCount& actual,
-                      Handle<Code> code_constant,
-                      Register code_reg,
-                      Label* done,
-                      InvokeFlag flag);
 
   // Invoke the JavaScript function code by either calling or jumping.
   void InvokeCode(Register code,
@@ -130,6 +122,7 @@ class MacroAssembler: public Assembler {
   void InvokeFunction(Register function,
                       const ParameterCount& actual,
                       InvokeFlag flag);
+
 
   // ---------------------------------------------------------------------------
   // Debugger Support
@@ -200,7 +193,11 @@ class MacroAssembler: public Assembler {
 
   // Invoke specified builtin JavaScript function. Adds an entry to
   // the unresolved list if the name does not resolve.
-  void InvokeBuiltin(const char* name, int argc, InvokeJSFlags flags);
+  void InvokeBuiltin(Builtins::JavaScript id, InvokeJSFlags flags);
+
+  // Store the code object for the given builtin in the target register and
+  // setup the function in r1.
+  void GetBuiltinEntry(Register target, Builtins::JavaScript id);
 
   struct Unresolved {
     int pc;
@@ -233,6 +230,18 @@ class MacroAssembler: public Assembler {
   List<Unresolved> unresolved_;
   bool generating_stub_;
   bool allow_stub_calls_;
+
+  // Helper functions for generating invokes.
+  void InvokePrologue(const ParameterCount& expected,
+                      const ParameterCount& actual,
+                      Handle<Code> code_constant,
+                      Register code_reg,
+                      Label* done,
+                      InvokeFlag flag);
+
+  // Get the code for the given builtin. Returns if able to resolve
+  // the function in the 'resolved' flag.
+  Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
 };
 
 

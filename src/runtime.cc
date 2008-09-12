@@ -159,22 +159,9 @@ static Object* Runtime_CreateArrayLiteral(Arguments args) {
   // literal.
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(FixedArray, elements, args[0]);
-
-#ifdef USE_OLD_CALLING_CONVENTIONS
-  ASSERT(args[1]->IsTheHole());
-  // TODO(1332579): Pass in the literals array from the function once
-  // the new calling convention is in place on ARM.  Currently, we
-  // retrieve the array constructor from the global context.  This is
-  // a security problem since the global object might have been
-  // reinitialized and the array constructor from the global context
-  // might be from a context that we are not allowed to access.
-  JSFunction* constructor =
-      JSFunction::cast(Top::context()->global_context()->array_function());
-#else
   CONVERT_CHECKED(FixedArray, literals, args[1]);
   const int kArrayFunIndex = JSFunction::kLiteralArrayFunctionIndex;
   JSFunction* constructor = JSFunction::cast(literals->get(kArrayFunIndex));
-#endif
 
   // Create the JSArray.
   Object* object = Heap::AllocateJSObject(constructor);

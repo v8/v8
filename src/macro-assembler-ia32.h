@@ -88,8 +88,8 @@ class MacroAssembler: public Assembler {
 
   // Enter or exit a stack frame of the given type. Cannot be used to
   // construct or leave JavaScript frames.
-  void EnterFrame(StackFrame::Type type);
-  void ExitFrame(StackFrame::Type type);
+  void EnterInternalFrame();
+  void ExitInternalFrame();
 
 
   // ---------------------------------------------------------------------------
@@ -119,10 +119,6 @@ class MacroAssembler: public Assembler {
 
   // Store the code object for the given builtin in the target register.
   void GetBuiltinEntry(Register target, Builtins::JavaScript id);
-
-  // Get the code for the given builtin. Returns if able to resolve
-  // the function in the 'resolved' flag.
-  Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
 
   // Expression support
   void Set(Register dst, const Immediate& x);
@@ -251,6 +247,10 @@ class MacroAssembler: public Assembler {
                       const Operand& code_operand,
                       Label* done,
                       InvokeFlag flag);
+
+  // Get the code for the given builtin. Returns if able to resolve
+  // the function in the 'resolved' flag.
+  Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
 };
 
 

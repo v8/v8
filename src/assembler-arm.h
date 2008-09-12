@@ -459,6 +459,10 @@ class Assembler : public Malloced {
 
   void sub(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
+  void sub(Register dst, Register src1, Register src2,
+           SBit s = LeaveCC, Condition cond = al) {
+    sub(dst, src1, Operand(src2), s, cond);
+  }
 
   void rsb(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
@@ -476,18 +480,31 @@ class Assembler : public Malloced {
            SBit s = LeaveCC, Condition cond = al);
 
   void tst(Register src1, const Operand& src2, Condition cond = al);
+  void tst(Register src1, Register src2, Condition cond = al) {
+    tst(src1, Operand(src2), cond);
+  }
 
   void teq(Register src1, const Operand& src2, Condition cond = al);
 
   void cmp(Register src1, const Operand& src2, Condition cond = al);
+  void cmp(Register src1, Register src2, Condition cond = al) {
+    cmp(src1, Operand(src2), cond);
+  }
 
   void cmn(Register src1, const Operand& src2, Condition cond = al);
 
   void orr(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);
+  void orr(Register dst, Register src1, Register src2,
+           SBit s = LeaveCC, Condition cond = al) {
+    orr(dst, src1, Operand(src2), s, cond);
+  }
 
   void mov(Register dst, const Operand& src,
            SBit s = LeaveCC, Condition cond = al);
+  void mov(Register dst, Register src, SBit s = LeaveCC, Condition cond = al) {
+    mov(dst, Operand(src), s, cond);
+  }
 
   void bic(Register dst, Register src1, const Operand& src2,
            SBit s = LeaveCC, Condition cond = al);

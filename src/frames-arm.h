@@ -93,8 +93,7 @@ class StackHandlerConstants : public AllStatic {
 
 class EntryFrameConstants : public AllStatic {
  public:
-  static const int kCallerFPOffset      = -2 * kPointerSize;
-  static const int kConstructMarkOffset = -1 * kPointerSize;
+  static const int kCallerFPOffset      = -3 * kPointerSize;
 };
 
 
@@ -110,29 +109,23 @@ class ExitFrameConstants : public AllStatic {
 
   // Let the parameters pointer for exit frames point just below the
   // frame structure on the stack.
-  static const int kPPDisplacement = 4 * kPointerSize;
+  static const int kPPDisplacement = 3 * kPointerSize;
 
   // The caller fields are below the frame pointer on the stack.
-  static const int kCallerPPOffset = +0 * kPointerSize;
-  static const int kCallerFPOffset = +1 * kPointerSize;
-  static const int kCallerPCOffset = +3 * kPointerSize;
+  static const int kCallerFPOffset = +0 * kPointerSize;
+  static const int kCallerPPOffset = +1 * kPointerSize;
+  static const int kCallerPCOffset = +2 * kPointerSize;
 };
 
 
 class StandardFrameConstants : public AllStatic {
  public:
-  static const int kExpressionsOffset = -4 * kPointerSize;
-  static const int kCodeOffset        = -3 * kPointerSize;
-  static const int kContextOffset     = -2 * kPointerSize;
-  static const int kCallerPPOffset    =  0 * kPointerSize;
-  static const int kCallerFPOffset    = +1 * kPointerSize;
-  static const int kCallerPCOffset    = +3 * kPointerSize;
-
-  // TODO(1233523): This is - of course - faked. The ARM port does not
-  // yet pass the callee function in a register, but the
-  // StackFrame::ComputeType code uses the field to figure out if a
-  // frame is a real JavaScript frame or an internal frame.
-  static const int kFunctionOffset = kContextOffset;
+  static const int kExpressionsOffset = -3 * kPointerSize;
+  static const int kMarkerOffset      = -2 * kPointerSize;
+  static const int kContextOffset     = -1 * kPointerSize;
+  static const int kCallerFPOffset    =  0 * kPointerSize;
+  static const int kCallerPCOffset    = +1 * kPointerSize;
+  static const int kCallerSPOffset    = +2 * kPointerSize;
 };
 
 
@@ -140,34 +133,32 @@ class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.
   static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
-  static const int kArgsLengthOffset     = -1 * kPointerSize;
-  // 0 * kPointerSize : StandardFrameConstants::kCallerPPOffset
-  // 1 * kPointersize : StandardFrameConstents::kCallerFPOffset
-  static const int kSPOnExitOffset       = +2 * kPointerSize;
-  // 3 * kPointerSize : StandardFrameConstants::kCallerPCOffset
-  static const int kSavedRegistersOffset = +4 * kPointerSize;
+  static const int kSavedRegistersOffset = +2 * kPointerSize;
+  static const int kFunctionOffset = StandardFrameConstants::kMarkerOffset;
 
   // PP-relative.
   static const int kParam0Offset   = -2 * kPointerSize;
   static const int kReceiverOffset = -1 * kPointerSize;
-  static const int kFunctionOffset =  0 * kPointerSize;
+};
+
+
+class ArgumentsAdaptorFrameConstants : public AllStatic {
+ public:
+  static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
 };
 
 
 class InternalFrameConstants : public AllStatic {
  public:
-  static const int kCodeOffset = StandardFrameConstants::kCodeOffset;
+  static const int kCodeOffset = StandardFrameConstants::kExpressionsOffset;
 };
-
-
-inline Address StandardFrame::caller_pp() const {
-  return Memory::Address_at(fp() + StandardFrameConstants::kCallerPPOffset);
-}
 
 
 inline Object* JavaScriptFrame::function() const {
   const int offset = JavaScriptFrameConstants::kFunctionOffset;
-  return Memory::Object_at(pp() + offset);
+  Object* result = Memory::Object_at(fp() + offset);
+  ASSERT(result->IsJSFunction());
+  return result;
 }
 
 

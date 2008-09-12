@@ -407,17 +407,15 @@ void CallIC::Generate(MacroAssembler* masm,
   //  -- lr: return address
   // -----------------------------------
 
-  // Setup number of arguments for EnterJSFrame.
-  __ mov(r0, Operand(argc));
-  // Get the receiver of the function from the stack into r1.
-  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
-  __ EnterJSFrame(0);
-  __ pop();  // remove the code slot
+  // Get the receiver of the function from the stack.
+  __ ldr(r2, MemOperand(sp, argc * kPointerSize));
+  // Get the name of the function to call from the stack.
+  __ ldr(r1, MemOperand(sp, (argc + 1) * kPointerSize));
+
+  __ EnterInternalFrame();
 
   // Push the receiver and the name of the function.
-  __ ldr(r0, MemOperand(pp, 0));
-  __ mov(r2, Operand(0));  // code slot == 0
-  __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
+  __ stm(db_w, sp, r1.bit() | r2.bit());
 
   // Call the entry.
   __ mov(r0, Operand(2));
@@ -429,7 +427,7 @@ void CallIC::Generate(MacroAssembler* masm,
   // Move result to r1.
   __ mov(r1, Operand(r0));
 
-  __ ExitJSFrame(DO_NOT_RETURN);
+  __ ExitInternalFrame();
 
   // Patch the function on the stack; 1 ~ receiver.
   __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));

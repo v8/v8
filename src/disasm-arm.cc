@@ -56,7 +56,6 @@ class Decoder {
     : converter_(converter),
       out_buffer_(out_buffer),
       out_buffer_pos_(0) {
-    ASSERT(out_buffer_size_ > 0);
     out_buffer_[out_buffer_pos_] = '\0';
   }
 
@@ -96,7 +95,6 @@ class Decoder {
 
 // Append the ch to the output buffer.
 void Decoder::PrintChar(const char ch) {
-  ASSERT(out_buffer_pos_ < out_buffer_size_);
   out_buffer_[out_buffer_pos_++] = ch;
 }
 
@@ -430,7 +428,6 @@ void Decoder::Format(Instr* instr, const char* format) {
     }
     cur = *format++;
   }
-  ASSERT(out_buffer_pos_ < out_buffer_size_);
   out_buffer_[out_buffer_pos_]  = '\0';
 }
 

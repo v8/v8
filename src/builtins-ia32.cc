@@ -54,8 +54,13 @@ DEFINE_bool(inline_new, true, "use fast inline allocation");
 
 
 void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax: number of arguments
+  //  -- edi: constructor function
+  // -----------------------------------
+
   // Enter an internal frame.
-  __ EnterFrame(StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
   // Store a smi-tagged arguments count on the stack.
   __ shl(eax, kSmiTagSize);
@@ -296,7 +301,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Restore the arguments count and exit the internal frame.
   __ bind(&exit);
   __ mov(ebx, Operand(esp, kPointerSize));  // get arguments count
-  __ ExitFrame(StackFrame::INTERNAL);
+  __ ExitInternalFrame();
 
   // Remove caller arguments from the stack and return.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
@@ -318,7 +323,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ xor_(esi, Operand(esi));  // clear esi
 
   // Enter an internal frame.
-  __ EnterFrame(StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
   // Load the previous frame pointer (ebx) to access C arguments
   __ mov(ebx, Operand(ebp, 0));
@@ -362,7 +367,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Exit the JS frame. Notice that this also removes the empty
   // context and the function left on the stack by the code
   // invocation.
-  __ ExitFrame(StackFrame::INTERNAL);
+  __ ExitInternalFrame();
   __ ret(1 * kPointerSize);  // remove receiver
 }
 
@@ -378,7 +383,7 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 
 void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
-  __ EnterFrame(StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
   __ push(Operand(ebp, 4 * kPointerSize));  // push this
   __ push(Operand(ebp, 2 * kPointerSize));  // push arguments
@@ -482,7 +487,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(edi, Operand(ebp, 4 * kPointerSize));
   __ InvokeFunction(edi, actual, CALL_FUNCTION);
 
-  __ ExitFrame(StackFrame::INTERNAL);
+  __ ExitInternalFrame();
   __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 }
 
@@ -586,8 +591,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   }
 
-  // Mark the adaptor frame as special by overwriting the context slot
-  // in the stack with a sentinel.
+  // Call the entry point.
   Label return_site;
   __ bind(&invoke);
   __ call(Operand(edx));
@@ -661,7 +665,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ j(less_equal, &done);
 
     __ bind(&call_to_object);
-    __ EnterFrame(StackFrame::INTERNAL);  // preserves eax, ebx, edi
+    __ EnterInternalFrame();  // preserves eax, ebx, edi
 
     // Store the arguments count on the stack (smi tagged).
     ASSERT(kSmiTag == 0);
@@ -678,7 +682,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ pop(eax);
     __ shr(eax, kSmiTagSize);
 
-    __ ExitFrame(StackFrame::INTERNAL);
+    __ ExitInternalFrame();
     __ jmp(&patch_receiver);
 
     // Use the global object from the called function as the receiver.
@@ -747,7 +751,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ SaveRegistersToMemory(kJSCallerSaved);
 
   // Enter an internal frame.
-  __ EnterFrame(StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
   // Store the registers containing object pointers on the expression stack to
   // make sure that these are correctly updated during GC.
@@ -767,7 +771,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ PopRegistersToMemory(pointer_regs);
 
   // Get rid of the internal frame.
-  __ ExitFrame(StackFrame::INTERNAL);
+  __ ExitInternalFrame();
 
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.

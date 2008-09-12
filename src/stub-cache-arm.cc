@@ -154,25 +154,34 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 
 
 Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
+  // ----------- S t a t e -------------
+  //  -- r1: function
+  //  -- lr: return address
+  // -----------------------------------
+
   HandleScope scope;
 
-  // Enter the JS frame but don't add additional arguments.
-  __ EnterJSFrame(0);
+  // Enter an internal frame.
+  __ EnterInternalFrame();
 
-  // Push the function on the stack and call the runtime function.
-  __ ldr(r0, MemOperand(pp, 0));
-  __ push(r0);
+  // Preserve the function.
+  __ push(r1);
+
+  // Push the function on the stack as the argument to the runtime function.
+  __ push(r1);
   __ CallRuntime(Runtime::kLazyCompile, 1);
 
-  // Move result to r1 and restore number of arguments.
-  __ mov(r1, Operand(r0));
-  __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kArgsLengthOffset));
+  // Calculate the entry point.
+  __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
 
-  __ ExitJSFrame(DO_NOT_RETURN);
+  // Restore saved function.
+  __ pop(r1);
+
+  // Tear down temporary frame.
+  __ ExitInternalFrame();
 
   // Do a tail-call of the compiled function.
-  __ add(r1, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r1);
+  __ Jump(r2);
 
   return GetCodeWithFlags(flags);
 }
@@ -202,30 +211,23 @@ Object* CallStubCompiler::CompileCallField(Object* object,
 
   // Get the properties array of the holder and get the function from the field.
   int offset = index * kPointerSize + Array::kHeaderSize;
-  __ ldr(r3, FieldMemOperand(reg, JSObject::kPropertiesOffset));
-  __ ldr(r3, FieldMemOperand(r3, offset));
+  __ ldr(r1, FieldMemOperand(reg, JSObject::kPropertiesOffset));
+  __ ldr(r1, FieldMemOperand(r1, offset));
 
   // Check that the function really is a function.
-  __ tst(r3, Operand(kSmiTagMask));
+  __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &miss);
   // Get the map.
-  __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
   __ cmp(r2, Operand(JS_FUNCTION_TYPE));
   __ b(ne, &miss);
 
-  // TODO(1233523): remove r0 after changing Jump to InvokeCode
-  // Setup argument length register.
-  __ mov(r0, Operand(argc));
   // Patch the function on the stack; 1 ~ receiver.
-  __ str(r3, MemOperand(sp, (argc + 1) * kPointerSize));
+  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
 
-  // Setup the context and jump to the call code of the function (tail call).
-  __ ldr(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
-  __ ldr(r2, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kCodeOffset));
-  __ add(r2, r2, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(r2);
+  // Invoke the function.
+  __ InvokeFunction(r1, arguments(), JUMP_FUNCTION);
 
   // Handle call cache miss.
   __ bind(&miss);
@@ -330,11 +332,11 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   }
 
   // Get the function and setup the context.
-  __ mov(r3, Operand(Handle<JSFunction>(function)));
-  __ ldr(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
+  __ mov(r1, Operand(Handle<JSFunction>(function)));
+  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   // Patch the function on the stack; 1 ~ receiver.
-  __ str(r3, MemOperand(sp, (argc + 1) * kPointerSize));
+  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
 
   // Jump to the cached code (tail call).
   Handle<Code> code(function->code());

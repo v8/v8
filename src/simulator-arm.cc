@@ -40,8 +40,9 @@ namespace assembler { namespace arm {
 
 using ::v8::internal::Object;
 using ::v8::internal::PrintF;
-using ::v8:: internal::ReadLine;
-using ::v8:: internal::DeleteArray;
+using ::v8::internal::OS;
+using ::v8::internal::ReadLine;
+using ::v8::internal::DeleteArray;
 
 
 DEFINE_bool(trace_sim, false, "trace simulator execution");
@@ -1392,7 +1393,7 @@ void Simulator::InstructionDecode(Instr* instr) {
 }
 
 
-DEFINE_int(stop_sim_at, -1, "Simulator stop after x number of instructions");
+DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions");
 
 
 //
@@ -1400,16 +1401,30 @@ void Simulator::execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the
   // raw PC value and not the one used as input to arithmetic instructions.
   int program_counter = get_pc();
-  while (program_counter != end_sim_pc) {
-    Instr* instr = reinterpret_cast<Instr*>(program_counter);
-    icount_++;
-    if (icount_ == FLAG_stop_sim_at) {
-      Debugger dbg(this);
-      dbg.Debug();
-    } else {
+
+  if (FLAG_stop_sim_at == 0) {
+    // Fast version of the dispatch loop without checking whether the simulator
+    // should be stopping at a particular executed instruction.
+    while (program_counter != end_sim_pc) {
+      Instr* instr = reinterpret_cast<Instr*>(program_counter);
+      icount_++;
       InstructionDecode(instr);
+      program_counter = get_pc();
     }
-    program_counter = get_pc();
+  } else {
+    // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
+    // we reach the particular instuction count.
+    while (program_counter != end_sim_pc) {
+      Instr* instr = reinterpret_cast<Instr*>(program_counter);
+      icount_++;
+      if (icount_ == FLAG_stop_sim_at) {
+        Debugger dbg(this);
+        dbg.Debug();
+      } else {
+        InstructionDecode(instr);
+      }
+      program_counter = get_pc();
+    }
   }
 }
 

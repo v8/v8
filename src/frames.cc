@@ -254,9 +254,6 @@ StackFrame::Type ExitFrame::GetCallerState(State* state) const {
   // Setup the caller state.
   state->sp = pp();
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
-#ifdef USE_OLD_CALLING_CONVENTIONS
-  state->pp = Memory::Address_at(fp() + ExitFrameConstants::kCallerPPOffset);
-#endif
   state->pc_address
       = reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset);
   return ComputeType(state);
@@ -293,9 +290,6 @@ int StandardFrame::ComputeExpressionsCount() const {
 StackFrame::Type StandardFrame::GetCallerState(State* state) const {
   state->sp = caller_sp();
   state->fp = caller_fp();
-#ifdef USE_OLD_CALLING_CONVENTIONS
-  state->pp = caller_pp();
-#endif
   state->pc_address = reinterpret_cast<Address*>(ComputePCAddress(fp()));
   return ComputeType(state);
 }

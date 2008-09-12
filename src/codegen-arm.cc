@@ -202,15 +202,17 @@ class ArmCodeGenerator: public CodeGenerator {
     // index -2 corresponds to the activated closure, -1 corresponds
     // to the receiver
     ASSERT(-2 <= index && index < scope->num_parameters());
-    int offset = JavaScriptFrameConstants::kParam0Offset - index * kPointerSize;
-    return MemOperand(pp, offset);
+    int offset = (1 + scope->num_parameters() - index) * kPointerSize;
+    return MemOperand(fp, offset);
   }
 
   MemOperand ParameterOperand(int index) const {
     return ParameterOperand(scope_, index);
   }
 
-  MemOperand FunctionOperand() const { return ParameterOperand(-2); }
+  MemOperand FunctionOperand() const {
+    return MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset);
+  }
 
   static MemOperand SlotOperand(MacroAssembler* masm,
                                 Scope* scope,
@@ -305,8 +307,8 @@ class ArmCodeGenerator: public CodeGenerator {
   void RecordStatementPosition(Node* node);
 
   // Activation frames
-  void EnterJSFrame(int argc);  // preserves r1
-  void ExitJSFrame(ExitJSFlag flag = RETURN);  // preserves r0-r2
+  void EnterJSFrame();
+  void ExitJSFrame();
 
   virtual void GenerateShiftDownAndTailCall(ZoneList<Expression*>* args);
   virtual void GenerateSetThisFunction(ZoneList<Expression*>* args);
@@ -468,7 +470,7 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
     // cp: callee's context
 
     { Comment cmnt(masm_, "[ enter JS frame");
-      EnterJSFrame(scope->num_parameters());
+      EnterJSFrame();
     }
     // tos: code slot
 #ifdef DEBUG
@@ -526,9 +528,7 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
         Slot* slot = par->slot();
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
           ASSERT(!scope->is_global_scope());  // no parameters in global scope
-          int parameter_offset =
-              JavaScriptFrameConstants::kParam0Offset - i * kPointerSize;
-          __ ldr(r1, MemOperand(pp, parameter_offset));
+          __ ldr(r1, ParameterOperand(i));
           // Loads r2 with context; used below in RecordWrite.
           __ str(r1, SlotOperand(slot, r2));
           // Load the offset into r3.
@@ -629,7 +629,12 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
     __ CallRuntime(Runtime::kTraceExit, 1);
   }
 
+  // Tear down the frame which will restore the caller's frame pointer and the
+  // link register.
   ExitJSFrame();
+
+  __ add(sp, sp, Operand((scope_->num_parameters() + 1) * kPointerSize));
+  __ mov(pc, lr);
 
   // Code generation state must be reset.
   scope_ = NULL;
@@ -978,6 +983,7 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
       // Skip write barrier if the written value is a smi.
       masm->tst(r0, Operand(kSmiTagMask));
       masm->b(eq, &exit);
+      may_skip_write = true;
       // r2 is loaded with context when calling SlotOperand above.
       int offset = FixedArray::kHeaderSize + index() * kPointerSize;
       masm->mov(r3, Operand(offset));
@@ -1281,7 +1287,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ push(r1);
       __ push(r0);
       __ mov(r0, Operand(1));  // set number of arguments
-      __ InvokeBuiltin("ADD", 1, JUMP_JS);
+      __ InvokeBuiltin(Builtins::ADD, JUMP_JS);
       // done
       __ bind(&exit);
       break;
@@ -1304,7 +1310,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ push(r1);
       __ push(r0);
       __ mov(r0, Operand(1));  // set number of arguments
-      __ InvokeBuiltin("SUB", 1, JUMP_JS);
+      __ InvokeBuiltin(Builtins::SUB, JUMP_JS);
       // done
       __ bind(&exit);
       break;
@@ -1334,7 +1340,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ push(r1);
       __ push(r0);
       __ mov(r0, Operand(1));  // set number of arguments
-      __ InvokeBuiltin("MUL", 1, JUMP_JS);
+      __ InvokeBuiltin(Builtins::MUL, JUMP_JS);
       // done
       __ bind(&exit);
       break;
@@ -1361,10 +1367,17 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ push(r0);
       __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
       switch (op_) {
-        case Token::BIT_OR:  __ InvokeBuiltin("BIT_OR",  1, JUMP_JS); break;
-        case Token::BIT_AND: __ InvokeBuiltin("BIT_AND", 1, JUMP_JS); break;
-        case Token::BIT_XOR: __ InvokeBuiltin("BIT_XOR", 1, JUMP_JS); break;
-        default: UNREACHABLE();
+        case Token::BIT_OR:
+          __ InvokeBuiltin(Builtins::BIT_OR, JUMP_JS);
+          break;
+        case Token::BIT_AND:
+          __ InvokeBuiltin(Builtins::BIT_AND, JUMP_JS);
+          break;
+        case Token::BIT_XOR:
+          __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_JS);
+          break;
+        default:
+          UNREACHABLE();
       }
       __ bind(&exit);
       break;
@@ -1422,9 +1435,9 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ push(r0);
       __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
       switch (op_) {
-        case Token::SAR: __ InvokeBuiltin("SAR", 1, JUMP_JS); break;
-        case Token::SHR: __ InvokeBuiltin("SHR", 1, JUMP_JS); break;
-        case Token::SHL: __ InvokeBuiltin("SHL", 1, JUMP_JS); break;
+        case Token::SAR: __ InvokeBuiltin(Builtins::SAR, JUMP_JS); break;
+        case Token::SHR: __ InvokeBuiltin(Builtins::SHR, JUMP_JS); break;
+        case Token::SHL: __ InvokeBuiltin(Builtins::SHL, JUMP_JS); break;
         default: UNREACHABLE();
       }
       __ bind(&exit);
@@ -1480,7 +1493,7 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
   __ bind(&slow);
   __ push(r0);
   __ mov(r0, Operand(0));  // set number of arguments
-  __ InvokeBuiltin("UNARY_MINUS", 0, JUMP_JS);
+  __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_JS);
 
   __ bind(&done);
   masm->StubReturn(1);
@@ -1516,43 +1529,13 @@ void InvokeBuiltinStub::Generate(MacroAssembler* masm) {
   __ push(r0);
   __ mov(r0, Operand(0));  // set number of arguments
   switch (kind_) {
-    case ToNumber: __ InvokeBuiltin("TO_NUMBER", 0, JUMP_JS); break;
-    case Inc:      __ InvokeBuiltin("INC", 0, JUMP_JS);       break;
-    case Dec:      __ InvokeBuiltin("DEC", 0, JUMP_JS);       break;
+    case ToNumber: __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_JS); break;
+    case Inc:      __ InvokeBuiltin(Builtins::INC, JUMP_JS);       break;
+    case Dec:      __ InvokeBuiltin(Builtins::DEC, JUMP_JS);       break;
     default: UNREACHABLE();
   }
   masm->StubReturn(argc_);
 }
-
-
-class JSExitStub : public CodeStub {
- public:
-  enum Kind { Inc, Dec, ToNumber };
-
-  explicit JSExitStub(ExitJSFlag flag) : flag_(flag) { }
-
- private:
-  ExitJSFlag flag_;
-
-  Major MajorKey() { return JSExit; }
-  int MinorKey() { return static_cast<int>(flag_); }
-  void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "JSExitStub"; }
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("JSExitStub flag %d)\n", static_cast<int>(flag_));
-  }
-#endif
-};
-
-
-void JSExitStub::Generate(MacroAssembler* masm) {
-  __ ExitJSFrame(flag_);
-  masm->StubReturn(1);
-}
-
 
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
@@ -1701,7 +1684,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ mov(r3, Operand(Top::context_address()));
   __ ldr(cp, MemOperand(r3));
   __ mov(sp, Operand(fp));  // respect ABI stack constraint
-  __ ldm(ia, sp, pp.bit() | fp.bit() | sp.bit() | pc.bit());
+  __ ldm(ia, sp, fp.bit() | sp.bit() | pc.bit());
 
   // check if we should retry or throw exception
   Label retry;
@@ -1755,13 +1738,13 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // ip = sp + kPointerSize*args_len;
   __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
 
-  // all JS callee-saved are saved and traversed by GC; push in reverse order:
-  // JS callee-saved, caller_pp, caller_fp, sp_on_exit (ip==pp), caller_pc
-  __ stm(db_w, sp, pp.bit() | fp.bit() | ip.bit() | lr.bit());
+  // push in reverse order:
+  // caller_fp, sp_on_exit, caller_pc
+  __ stm(db_w, sp, fp.bit() | ip.bit() | lr.bit());
   __ mov(fp, Operand(sp));  // setup new frame pointer
 
   // Store the current context in top.
-  __ mov(ip, Operand(Top::context_address()));
+  __ mov(ip, Operand(ExternalReference(Top::k_context_address)));
   __ str(cp, MemOperand(ip));
 
   // remember top frame
@@ -1838,33 +1821,40 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Called from C, so do not pop argc and args on exit (preserve sp)
   // No need to save register-passed args
   // Save callee-saved registers (incl. cp, pp, and fp), sp, and lr
-  __ mov(ip, Operand(sp));
-  __ stm(db_w, sp, kCalleeSaved | ip.bit() | lr.bit());
-
-  // Setup frame pointer
-  __ mov(fp, Operand(sp));
-
-  // Add constructor mark.
-  __ mov(ip, Operand(is_construct ? 1 : 0));
-  __ push(ip);
-
-  // Move arguments into registers expected by Builtins::JSEntryTrampoline
-  // preserve r0-r3, set r4, r5-r7 may be clobbered
+  __ stm(db_w, sp, kCalleeSaved | lr.bit());
 
   // Get address of argv, see stm above.
-  __ add(r4, sp, Operand((kNumCalleeSaved + 3)*kPointerSize));
+  // r0: code entry
+  // r1: function
+  // r2: receiver
+  // r3: argc
+  __ add(r4, sp, Operand((kNumCalleeSaved + 1)*kPointerSize));
   __ ldr(r4, MemOperand(r4));  // argv
 
-  // Save copies of the top frame descriptors on the stack.
-  __ mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
-  __ ldr(r6, MemOperand(ip));
-  __ stm(db_w, sp, r6.bit());
+  // Push a frame with special values setup to mark it as an entry frame.
+  // r0: code entry
+  // r1: function
+  // r2: receiver
+  // r3: argc
+  // r4: argv
+  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+  __ mov(r8, Operand(-1));  // Push a bad frame pointer to fail if it is used.
+  __ mov(r7, Operand(~ArgumentsAdaptorFrame::SENTINEL));
+  __ mov(r6, Operand(Smi::FromInt(marker)));
+  __ mov(r5, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  __ ldr(r5, MemOperand(r5));
+  __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | r8.bit());
+
+  // Setup frame pointer for the frame to be pushed.
+  __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
 
   // Call a faked try-block that does the invoke.
   __ bl(&invoke);
 
   // Caught exception: Store result (exception) in the pending
   // exception field in the JSEnv and return a failure sentinel.
+  // Coming in here the fp will be invalid because the PushTryHandler below
+  // sets it to 0 to signal the existence of the JSEntry frame.
   __ mov(ip, Operand(Top::pending_exception_address()));
   __ str(r0, MemOperand(ip));
   __ mov(r0, Operand(Handle<Failure>(Failure::Exception())));
@@ -1872,7 +1862,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Invoke: Link this frame into the handler chain.
   __ bind(&invoke);
-  // Must preserve r0-r3, r5-r7 are available.
+  // Must preserve r0-r4, r5-r7 are available.
   __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
   // If an exception not caught by another handler occurs, this handler returns
   // control to the code after the bl(&invoke) above, which restores all
@@ -1920,18 +1910,18 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   __ bind(&exit);  // r0 holds result
   // Restore the top frame descriptors from the stack.
-  __ ldm(ia_w, sp, r3.bit());
+  __ pop(r3);
   __ mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
   __ str(r3, MemOperand(ip));
 
-  // Remove constructor mark.
-  __ pop();
+  // Reset the stack to the callee saved registers.
+  __ add(sp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
 
-  // Restore callee-saved registers, sp, and return.
+  // Restore callee-saved registers and return.
 #ifdef DEBUG
   if (FLAG_debug_code) __ mov(lr, Operand(pc));
 #endif
-  __ ldm(ia, sp, kCalleeSaved | sp.bit() | pc.bit());
+  __ ldm(ia_w, sp, kCalleeSaved | pc.bit());
 }
 
 
@@ -1958,31 +1948,82 @@ class ArgumentsAccessStub: public CodeStub {
 
 
 void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
-  if (is_length_) {
-    __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kArgsLengthOffset));
-    __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-    __ Ret();
-  } else {
-    // Check that the key is a smi.
-    Label slow;
-    __ tst(r0, Operand(kSmiTagMask));
+  // ----------- S t a t e -------------
+  //  -- r0: formal number of parameters for the calling function
+  //  -- r1: key (if value access)
+  //  -- lr: return address
+  // -----------------------------------
+
+  // Check that the key is a smi for non-length accesses.
+  Label slow;
+  if (!is_length_) {
+    __ tst(r1, Operand(kSmiTagMask));
     __ b(ne, &slow);
+  }
 
-    // Get the actual number of arguments passed and do bounds
-    // check. Use unsigned comparison to get negative check for free.
-    __ ldr(r1, MemOperand(fp, JavaScriptFrameConstants::kArgsLengthOffset));
-    __ cmp(r0, Operand(r1, LSL, kSmiTagSize));
-    __ b(hs, &slow);
+  // Check if the calling frame is an arguments adaptor frame.
+  // r0: formal number of parameters
+  // r1: key (if access)
+  Label adaptor;
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ b(eq, &adaptor);
 
-    // Load the argument directly from the stack and return.
-    __ sub(r1, pp, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
-    __ ldr(r0, MemOperand(r1, JavaScriptFrameConstants::kParam0Offset));
-    __ Ret();
+  static const int kParamDisplacement =
+      StandardFrameConstants::kCallerSPOffset - kPointerSize;
 
-    // Slow-case: Handle non-smi or out-of-bounds access to arguments
-    // by calling the runtime system.
+  if (is_length_) {
+    // Nothing to do: the formal length of parameters has been passed in r0
+    // by the calling function.
+  } else {
+    // Check index against formal parameter count. Use unsigned comparison to
+    // get the negative check for free.
+    // r0: formal number of parameters
+    // r1: index
+    __ cmp(r1, r0);
+    __ b(cs, &slow);
+
+    // Read the argument from the current frame.
+    __ sub(r3, r0, r1);
+    __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+    __ ldr(r0, MemOperand(r3, kParamDisplacement));
+  }
+
+  // Return to the calling function.
+  __ mov(pc, lr);
+
+  // An arguments adaptor frame is present. Find the length or the actual
+  // argument in the calling frame.
+  // r0: formal number of parameters
+  // r1: key
+  // r2: adaptor frame pointer
+  __ bind(&adaptor);
+  // Read the arguments length from the adaptor frame. This is the result if
+  // only accessing the length, otherwise it is used in accessing the value
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+
+  if (!is_length_) {
+    // Check index against actual arguments count. Use unsigned comparison to
+    // get the negative check for free.
+    // r0: actual number of parameter
+    // r1: index
+    // r2: adaptor frame point
+    __ cmp(r1, r0);
+    __ b(cs, &slow);
+
+    // Read the argument from the adaptor frame.
+    __ sub(r3, r0, r1);
+    __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+    __ ldr(r0, MemOperand(r3, kParamDisplacement));
+  }
+
+  // Return to the calling function.
+  __ mov(pc, lr);
+
+  if (!is_length_) {
     __ bind(&slow);
-    __ push(r0);
+    __ push(r1);
     __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
   }
 }
@@ -2085,13 +2126,13 @@ void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
 
     case Token::DIV: {
       __ mov(r0, Operand(1));
-      __ InvokeBuiltin("DIV", 1, CALL_JS);
+      __ InvokeBuiltin(Builtins::DIV, CALL_JS);
       break;
     }
 
     case Token::MOD: {
       __ mov(r0, Operand(1));
-      __ InvokeBuiltin("MOD", 1, CALL_JS);
+      __ InvokeBuiltin(Builtins::MOD, CALL_JS);
       break;
     }
 
@@ -2346,13 +2387,13 @@ void ArmCodeGenerator::Comparison(Condition cc, bool strict) {
   __ push(r1);
 
   // Figure out which native to call and setup the arguments.
-  const char* native;
+  Builtins::JavaScript native;
   int argc;
   if (cc == eq) {
-    native = strict ? "STRICT_EQUALS" : "EQUALS";
+    native = strict ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
     argc = 1;
   } else {
-    native = "COMPARE";
+    native = Builtins::COMPARE;
     int ncr;  // NaN compare result
     if (cc == lt || cc == le) {
       ncr = GREATER;
@@ -2369,7 +2410,7 @@ void ArmCodeGenerator::Comparison(Condition cc, bool strict) {
   // tagged as a small integer.
   __ push(r0);
   __ mov(r0, Operand(argc));
-  __ InvokeBuiltin(native, argc, CALL_JS);
+  __ InvokeBuiltin(native, CALL_JS);
   __ cmp(r0, Operand(0));
   __ b(&exit);
 
@@ -2426,7 +2467,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Slow-case: Non-function called.
   masm->bind(&slow);
   masm->mov(r0, Operand(argc_));  // Setup the number of arguments.
-  masm->InvokeBuiltin("CALL_NON_FUNCTION", argc_, JUMP_JS);
+  masm->InvokeBuiltin(Builtins::CALL_NON_FUNCTION, JUMP_JS);
 }
 
 
@@ -2866,7 +2907,7 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ bind(&primitive);
   __ push(r0);
   __ mov(r0, Operand(0));
-  __ InvokeBuiltin("TO_OBJECT", 0, CALL_JS);
+  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
 
 
   __ bind(&jsobject);
@@ -2960,7 +3001,7 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ push(r0);
   __ push(r3);  // push entry
   __ mov(r0, Operand(1));
-  __ InvokeBuiltin("FILTER_KEY", 1, CALL_JS);
+  __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_JS);
   __ mov(r3, Operand(r0));
 
   // If the property has been removed while iterating, we just skip it.
@@ -3358,7 +3399,7 @@ void ArmCodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   // Retrieve the literal array and check the allocated entry.
 
   // Load the function of this activation.
-  __ ldr(r1, MemOperand(pp, 0));
+  __ ldr(r1, FunctionOperand());
 
   // Load the literals array of the function.
   __ ldr(r1, FieldMemOperand(r1, JSFunction::kLiteralsOffset));
@@ -3431,7 +3472,7 @@ void ArmCodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // Retrieve the literal array and check the allocated entry.
 
   // Load the function of this activation.
-  __ ldr(r1, MemOperand(pp, 0));
+  __ ldr(r1, FunctionOperand());
 
   // Load the literals array of the function.
   __ ldr(r1, FieldMemOperand(r1, JSFunction::kLiteralsOffset));
@@ -3502,12 +3543,9 @@ void ArmCodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   // Call runtime to create the array literal.
   __ mov(r0, Operand(node->literals()));
   __ push(r0);
-  // TODO(1332579): The second argument to CreateArrayLiteral is
-  // supposed to be the literals array of the function of this frame.
-  // Until the new ARM calling convention is in place, that function
-  // is not always available.  Therefore, on ARM we pass in the hole
-  // until the new calling convention is in place.
-  __ mov(r0, Operand(Factory::the_hole_value()));
+  // Load the function of this frame.
+  __ ldr(r0, FunctionOperand());
+  __ ldr(r0, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
   __ push(r0);
   __ CallRuntime(Runtime::kCreateArrayLiteral, 2);
 
@@ -3760,6 +3798,9 @@ void ArmCodeGenerator::VisitCallNew(CallNew* node) {
   // r0: the number of arguments.
   __ mov(r0, Operand(args->length()));
 
+  // Load the function into r1 as per calling convention.
+  __ ldr(r1, MemOperand(sp, (args->length() + 1) * kPointerSize));
+
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   __ RecordPosition(position);
@@ -3772,44 +3813,27 @@ void ArmCodeGenerator::VisitCallNew(CallNew* node) {
 
 
 void ArmCodeGenerator::GenerateSetThisFunction(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  __ ldr(r0, MemOperand(sp, 0));
-  __ str(r0, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
+  __ stop("ArmCodeGenerator::GenerateSetThisFunction - unreachable");
 }
 
 
 void ArmCodeGenerator::GenerateGetThisFunction(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 0);
-  __ ldr(r0, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
-  __ push(r0);
+  __ stop("ArmCodeGenerator::GenerateGetThisFunction - unreachable");
 }
 
 
 void ArmCodeGenerator::GenerateSetThis(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  __ ldr(r0, MemOperand(sp, 0));
-  __ str(r0, MemOperand(pp, JavaScriptFrameConstants::kReceiverOffset));
+  __ stop("ArmCodeGenerator::GenerateSetThis - unreachable");
 }
 
 
 void ArmCodeGenerator::GenerateSetArgumentsLength(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  __ pop(r0);
-  __ mov(r0, Operand(r0, LSR, kSmiTagSize));
-  __ str(r0, MemOperand(fp, JavaScriptFrameConstants::kArgsLengthOffset));
-  __ mov(r0, Operand(Smi::FromInt(0)));  // return a meaningful value
-  __ push(r0);
+  __ stop("ArmCodeGenerator::GenerateSetArgumentsLength - unreachable");
 }
 
 
 void ArmCodeGenerator::GenerateGetArgumentsLength(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-  __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kArgsLengthOffset));
-  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  __ push(r0);
+  __ stop("ArmCodeGenerator::GenerateGetArgumentsLength - unreachable");
 }
 
 
@@ -3863,130 +3887,22 @@ void ArmCodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 
 void ArmCodeGenerator::GenerateTailCallWithArguments(
     ZoneList<Expression*>* args) {
-  // r0 = number of arguments (smi)
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  __ pop(r0);
-  __ mov(r0, Operand(r0, LSR, kSmiTagSize));
-
-  // r1 = new function (previously written to stack)
-  __ ldr(r1, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
-
-  // Reset parameter pointer and frame pointer to previous frame
-  ExitJSFrame(DO_NOT_RETURN);
-
-  // Jump (tail-call) to the function in register r1.
-  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-  __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCodeOffset));
-  __ add(pc, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ stop("ArmCodeGenerator::GenerateTailCallWithArguments - unreachable");
 }
 
 
 void ArmCodeGenerator::GenerateSetArgument(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 3);
-  // r0 = args[i]; r1 = i
-  Comment cmnt(masm_, "[ GenerateSetArgument");
-  Load(args->at(1));  // args[i] (value)
-  Load(args->at(0));  // i
-  __ pop(r1);  // i
-  __ pop(r0);  // value
-#if defined(DEBUG)
-  { Label L;
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(eq, &L);
-    __ stop("SMI expected");
-    __ bind(&L);
-  }
-#endif  // defined(DEBUG)
-  __ add(r2, pp, Operand(JavaScriptFrameConstants::kParam0Offset));
-  __ str(r0,
-         MemOperand(r2, r1, LSL, kPointerSizeLog2 - kSmiTagSize, NegOffset));
-  __ push(r0);
+  __ stop("ArmCodeGenerator::GenerateSetArgument - unreachable");
 }
 
 
 void ArmCodeGenerator::GenerateSquashFrame(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 2);
-  Load(args->at(0));  // old number of arguments
-  Load(args->at(1));  // new number of arguments, r1 > r0
-  __ pop(r0);
-  __ mov(r0, Operand(r0, LSR, kSmiTagSize));
-  __ pop(r1);
-  __ mov(r1, Operand(r1, LSR, kSmiTagSize));
-  // r1 = number of words to move stack.
-  __ sub(r1, r1, Operand(r0));
-  // r2 is source.
-  __ add(r2, fp, Operand(StandardFrameConstants::kCallerPCOffset));
-  // Move down frame pointer fp.
-  __ add(fp, fp, Operand(r1, LSL, kPointerSizeLog2));
-  // r1 is destination.
-  __ add(r1, fp, Operand(StandardFrameConstants::kCallerPCOffset));
-
-  Label move;
-  __ bind(&move);
-  __ ldr(r3, MemOperand(r2, -kPointerSize, PostIndex));
-  __ str(r3, MemOperand(r1, -kPointerSize, PostIndex));
-  __ cmp(r2, Operand(sp));
-  __ b(ne, &move);
-  __ ldr(r3, MemOperand(r2));
-  __ str(r3, MemOperand(r1));
-
-  // Move down stack pointer esp.
-  __ mov(sp, Operand(r1));
-  // Put something GC-able in r0.
-  __ mov(r0, Operand(Smi::FromInt(0)));
-  __ push(r0);
+  __ stop("ArmCodeGenerator::GenerateSquashFrame - unreachable");
 }
 
 
 void ArmCodeGenerator::GenerateExpandFrame(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 2);
-  Load(args->at(1));
-  Load(args->at(0));
-  __ pop(r0);  // new number of arguments
-  __ pop(r1);  // old number of arguments, r1 > r0
-  __ mov(r1, Operand(r1, LSR, kSmiTagSize));
-
-  // r1 = number of words to move stack.
-  __ sub(r1, r1, Operand(r0, LSR, kSmiTagSize));
-  Label end_of_expand_frame;
-  if (FLAG_check_stack) {
-    Label not_too_big;
-    __ sub(r2, sp, Operand(r1, LSL, kPointerSizeLog2));
-    __ mov(ip, Operand(ExternalReference::address_of_stack_guard_limit()));
-    __ ldr(ip, MemOperand(ip));
-    __ cmp(r2, Operand(ip));
-    __ b(gt, &not_too_big);
-    __ mov(r0, Operand(Factory::false_value()));
-    __ b(&end_of_expand_frame);
-    __ bind(&not_too_big);
-  }
-  // r3 is source.
-  __ mov(r3, Operand(sp));
-  // r0 is copy limit + 1 word
-  __ add(r0, fp,
-         Operand(StandardFrameConstants::kCallerPCOffset + kPointerSize));
-  // Move up frame pointer fp.
-  __ sub(fp, fp, Operand(r1, LSL, kPointerSizeLog2));
-  // Move up stack pointer sp.
-  __ sub(sp, sp, Operand(r1, LSL, kPointerSizeLog2));
-  // r1 is destination (r1 = source - r1).
-  __ mov(r2, Operand(0));
-  __ sub(r2, r2, Operand(r1, LSL, kPointerSizeLog2));
-  __ add(r1, r3, Operand(r2));
-
-  Label move;
-  __ bind(&move);
-  __ ldr(r2, MemOperand(r3, kPointerSize, PostIndex));
-  __ str(r2, MemOperand(r1, kPointerSize, PostIndex));
-  __ cmp(r3, Operand(r0));
-  __ b(ne, &move);
-
-  // Put success value in top of stack
-  __ mov(r0, Operand(Factory::true_value()));
-  __ bind(&end_of_expand_frame);
-  __ push(r0);
+  __ stop("ArmCodeGenerator::GenerateExpandFrame - unreachable");
 }
 
 
@@ -4008,7 +3924,6 @@ void ArmCodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 }
 
 
-
 // This should generate code that performs a charCodeAt() call or returns
 // undefined in order to trigger the slow case, Runtime_StringCharCodeAt.
 // It is not yet implemented on ARM, so it always goes to the slow case.
@@ -4019,11 +3934,23 @@ void ArmCodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 }
 
 
-
-// This is used in the implementation of apply on ia32 but it is not
-// used on ARM yet.
 void ArmCodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateIsArray");
+  ASSERT(args->length() == 1);
+  Load(args->at(0));
+  Label answer;
+  // We need the CC bits to come out as not_equal in the case where the
+  // object is a smi.  This can't be done with the usual test opcode so
+  // we use XOR to get the right CC bits.
+  __ pop(r0);
+  __ and_(r1, r0, Operand(kSmiTagMask));
+  __ eor(r1, r1, Operand(kSmiTagMask), SetCC);
+  __ b(ne, &answer);
+  // It is a heap object - get the map.
+  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
+  // Check if the object is a JS array or not.
+  __ cmp(r1, Operand(JS_ARRAY_TYPE));
+  __ bind(&answer);
   cc_reg_ = eq;
 }
 
@@ -4045,11 +3972,11 @@ void ArmCodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 void ArmCodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
-  // Load the key onto the stack and set register r1 to the formal
-  // parameters count for the currently executing function.
+  // Satisfy contract with ArgumentsAccessStub:
+  // Load the key into r1 and the formal parameters count into r0.
   Load(args->at(0));
-  __ pop(r0);
-  __ mov(r1, Operand(Smi::FromInt(scope_->num_parameters())));
+  __ pop(r1);
+  __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
   ArgumentsAccessStub stub(false);
@@ -4073,46 +4000,12 @@ void ArmCodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 
 void ArmCodeGenerator::GenerateShiftDownAndTailCall(
     ZoneList<Expression*>* args) {
-  // r0 = number of arguments
-  ASSERT(args->length() == 1);
-  Load(args->at(0));
-  __ pop(r0);
-  __ mov(r0, Operand(r0, LSR, kSmiTagSize));
-
-  // Get the 'this' function and exit the frame without returning.
-  __ ldr(r1, MemOperand(pp, JavaScriptFrameConstants::kFunctionOffset));
-  ExitJSFrame(DO_NOT_RETURN);
-  // return address in lr
-
-  // Move arguments one element down the stack.
-  Label move;
-  Label moved;
-  __ sub(r2, r0, Operand(0), SetCC);
-  __ b(eq, &moved);
-  __ bind(&move);
-  __ sub(ip, r2, Operand(1));
-  __ ldr(r3, MemOperand(sp, ip, LSL, kPointerSizeLog2));
-  __ str(r3, MemOperand(sp, r2, LSL, kPointerSizeLog2));
-  __ sub(r2, r2, Operand(1), SetCC);
-  __ b(ne, &move);
-  __ bind(&moved);
-
-  // Remove the TOS (copy of last argument)
-  __ pop();
-
-  // Jump (tail-call) to the function in register r1.
-  __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-  __ ldr(r1, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCodeOffset));
-  __ add(pc, r1, Operand(Code::kHeaderSize - kHeapObjectTag));
-
-  return;
+  __ stop("ArmCodeGenerator::GenerateShiftDownAndTailCall - unreachable");
 }
 
 
 void ArmCodeGenerator::VisitCallRuntime(CallRuntime* node) {
-  if (CheckForInlineRuntimeCall(node))
-    return;
+  if (CheckForInlineRuntimeCall(node)) return;
 
   ZoneList<Expression*>* args = node->arguments();
   Comment cmnt(masm_, "[ CallRuntime");
@@ -4167,7 +4060,7 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       Load(property->obj());
       Load(property->key());
       __ mov(r0, Operand(1));  // not counting receiver
-      __ InvokeBuiltin("DELETE", 1, CALL_JS);
+      __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
 
     } else if (variable != NULL) {
       Slot* slot = variable->slot();
@@ -4176,7 +4069,7 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ mov(r0, Operand(variable->name()));
         __ push(r0);
         __ mov(r0, Operand(1));  // not counting receiver
-        __ InvokeBuiltin("DELETE", 1, CALL_JS);
+        __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
         // lookup the context holding the named variable
@@ -4189,7 +4082,7 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ mov(r0, Operand(variable->name()));
         __ push(r0);
         __ mov(r0, Operand(1));  // not counting receiver
-        __ InvokeBuiltin("DELETE", 1, CALL_JS);
+        __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
 
       } else {
         // Default: Result of deleting non-global, not dynamically
@@ -4237,7 +4130,7 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
         __ push(r0);
         __ mov(r0, Operand(0));  // not counting receiver
-        __ InvokeBuiltin("BIT_NOT", 0, CALL_JS);
+        __ InvokeBuiltin(Builtins::BIT_NOT, CALL_JS);
 
         __ b(&continue_label);
         __ bind(&smi_label);
@@ -4260,7 +4153,7 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ b(eq, &continue_label);
         __ push(r0);
         __ mov(r0, Operand(0));  // not counting receiver
-        __ InvokeBuiltin("TO_NUMBER", 0, CALL_JS);
+        __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
         __ bind(&continue_label);
         break;
       }
@@ -4658,13 +4551,13 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
     case Token::IN:
       __ mov(r0, Operand(1));  // not counting receiver
-      __ InvokeBuiltin("IN", 1, CALL_JS);
+      __ InvokeBuiltin(Builtins::IN, CALL_JS);
       __ push(r0);
       break;
 
     case Token::INSTANCEOF:
       __ mov(r0, Operand(1));  // not counting receiver
-      __ InvokeBuiltin("INSTANCE_OF", 1, CALL_JS);
+      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_JS);
       __ push(r0);
       break;
 
@@ -4683,14 +4576,31 @@ void ArmCodeGenerator::RecordStatementPosition(Node* node) {
 }
 
 
-void ArmCodeGenerator::EnterJSFrame(int argc) {
-  __ EnterJSFrame(argc);
+void ArmCodeGenerator::EnterJSFrame() {
+#if defined(DEBUG)
+  { Label done, fail;
+    __ tst(r1, Operand(kSmiTagMask));
+    __ b(eq, &fail);
+    __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+    __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+    __ cmp(r2, Operand(JS_FUNCTION_TYPE));
+    __ b(eq, &done);
+    __ bind(&fail);
+    __ stop("ArmCodeGenerator::EnterJSFrame - r1 not a function");
+    __ bind(&done);
+  }
+#endif  // DEBUG
+
+  __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+  __ add(fp, sp, Operand(2 * kPointerSize));  // Adjust FP to point to saved FP.
 }
 
 
-void ArmCodeGenerator::ExitJSFrame(ExitJSFlag flag) {
-  JSExitStub stub(flag);
-  __ CallJSExitStub(&stub);
+void ArmCodeGenerator::ExitJSFrame() {
+  // Drop the execution stack down to the frame pointer and restore the caller
+  // frame pointer and return address.
+  __ mov(sp, fp);
+  __ ldm(ia_w, sp, fp.bit() | lr.bit());
 }
 
 
