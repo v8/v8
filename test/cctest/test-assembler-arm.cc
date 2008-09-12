@@ -33,14 +33,6 @@
 #include "assembler-arm-inl.h"
 #include "cctest.h"
 
-// The test framework does not accept flags on the command line, so we set them
-namespace v8 { namespace internal {
-  DECLARE_string(natives_file);
-  DECLARE_bool(debug_code);
-  DECLARE_bool(eliminate_jumps);
-  DECLARE_bool(print_jump_elimination);
-} }  // namespace v8::internal
-
 using namespace v8::internal;
 
 
@@ -53,6 +45,7 @@ typedef int (*F3)(void* p, int p1, int p2, int p3, int p4);
 static v8::Persistent<v8::Context> env;
 
 
+// The test framework does not accept flags on the command line, so we set them
 static void InitializeVM() {
   // disable compilation of natives by specifying an empty natives file
   FLAG_natives_file = "";

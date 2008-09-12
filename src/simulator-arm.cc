@@ -1339,7 +1339,7 @@ void Simulator::InstructionDecode(Instr* instr) {
     dbg.Stop(instr);
     return;
   }
-  if (FLAG_trace_sim) {
+  if (::v8::internal::FLAG_trace_sim) {
     disasm::Disassembler dasm;
     // use a reasonably large buffer
     v8::internal::EmbeddedVector<char, 256> buffer;
@@ -1396,7 +1396,7 @@ void Simulator::execute() {
   // raw PC value and not the one used as input to arithmetic instructions.
   int program_counter = get_pc();
 
-  if (FLAG_stop_sim_at == 0) {
+  if (::v8::internal::FLAG_stop_sim_at == 0) {
     // Fast version of the dispatch loop without checking whether the simulator
     // should be stopping at a particular executed instruction.
     while (program_counter != end_sim_pc) {
@@ -1411,7 +1411,7 @@ void Simulator::execute() {
     while (program_counter != end_sim_pc) {
       Instr* instr = reinterpret_cast<Instr*>(program_counter);
       icount_++;
-      if (icount_ == FLAG_stop_sim_at) {
+      if (icount_ == ::v8::internal::FLAG_stop_sim_at) {
         Debugger dbg(this);
         dbg.Debug();
       } else {
