@@ -41,7 +41,6 @@ namespace v8 { namespace internal {
 //       install extensions with lazy compilation enabled. At the
 //       moment, this doesn't work for the extensions in Google3,
 //       and we can only run the tests with --nolazy.
-DECLARE_bool(lazy);
 
 
 // Forward declaration.

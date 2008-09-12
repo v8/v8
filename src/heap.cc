@@ -43,31 +43,6 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-DEFINE_bool(gc_greedy, false, "perform GC prior to some allocations");
-DEFINE_bool(gc_verbose, false, "print stuff during garbage collection");
-DEFINE_bool(heap_stats, false, "report heap statistics before and after GC");
-DEFINE_bool(code_stats, false, "report code statistics after GC");
-DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC");
-DEFINE_bool(print_handles, false, "report handles after GC");
-DEFINE_bool(print_global_handles, false, "report global handles after GC");
-DEFINE_bool(print_rset, false, "print remembered sets before GC");
-#endif
-
-DEFINE_int(new_space_size, 0, "size of (each semispace in) the new generation");
-DEFINE_int(old_space_size, 0, "size of the old generation");
-
-DEFINE_bool(gc_global, false, "always perform global GCs");
-DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations");
-DEFINE_bool(trace_gc, false,
-            "print one trace line following each garbage collection");
-
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-DECLARE_bool(log_gc);
-#endif
-
-
 #define ROOT_ALLOCATION(type, name) type* Heap::name##_;
   ROOT_LIST(ROOT_ALLOCATION)
 #undef ROOT_ALLOCATION

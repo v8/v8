@@ -54,12 +54,6 @@ using ::v8::internal::StepOut;  // From StepAction enum
 // Size of temp buffer for formatting small strings.
 #define SMALL_STRING_BUFFER_SIZE 80
 
-#ifdef DEBUG
-namespace v8 { namespace internal {
-DECLARE_bool(verify_heap);
-} }
-#endif
-
 // --- A d d i t i o n a l   C h e c k   H e l p e r s
 
 

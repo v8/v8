@@ -37,34 +37,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_bool(trace, false, "trace function calls");
-DECLARE_bool(debug_info);
-DECLARE_bool(debug_code);
-
-#ifdef ENABLE_DISASSEMBLER
-DEFINE_bool(print_code, false, "print generated code");
-#endif
-
-#ifdef DEBUG
-DECLARE_bool(gc_greedy);
-DEFINE_bool(trace_codegen, false,
-            "print name of functions for which code is generated");
-DEFINE_bool(print_builtin_code, false, "print generated code for builtins");
-DEFINE_bool(print_source, false, "pretty print source code");
-DEFINE_bool(print_builtin_source, false,
-            "pretty print source code for builtins");
-DEFINE_bool(print_ast, false, "print source AST");
-DEFINE_bool(print_builtin_ast, false, "print source AST for builtins");
-DEFINE_bool(trace_calls, false, "trace calls");
-DEFINE_bool(trace_builtin_calls, false, "trace builtins calls");
-DEFINE_string(stop_at, "", "function name where to insert a breakpoint");
-#endif  // DEBUG
-
-
-DEFINE_bool(check_stack, true,
-            "check stack for overflow, interrupt, breakpoint");
-
-
 class ArmCodeGenerator;
 
 

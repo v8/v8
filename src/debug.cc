@@ -41,12 +41,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_bool(remote_debugging, false, "enable remote debugging");
-DEFINE_bool(trace_debug_json, false, "trace debugging JSON request/response");
-DECLARE_bool(allow_natives_syntax);
-DECLARE_bool(log_debugger);
-
-
 static void PrintLn(v8::Local<v8::Value> value) {
   v8::Local<v8::String> s = value->ToString();
   char* data = NewArray<char>(s->Length() + 1);

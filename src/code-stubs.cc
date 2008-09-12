@@ -34,10 +34,6 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-DEFINE_bool(print_code_stubs, false, "print code stubs");
-#endif
-
 Handle<Code> CodeStub::GetCode() {
   uint32_t key = GetKey();
   int index = Heap::code_stubs()->FindNumberEntry(key);

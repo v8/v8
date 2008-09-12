@@ -38,13 +38,6 @@
 namespace v8 { namespace internal {
 
 #ifdef DEBUG
-DEFINE_bool(trace_ic, false, "trace inline cache state transitions");
-#endif
-DEFINE_bool(use_ic, true, "use inline caching");
-DECLARE_bool(strict);
-
-
-#ifdef DEBUG
 static char TransitionMarkFromState(IC::State state) {
   switch (state) {
     case UNINITIALIZED: return '0';

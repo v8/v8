@@ -34,14 +34,6 @@
 
 using namespace v8::internal;
 
-DEFINE_bool(stack_trace_on_abort, true,
-            "print a stack trace if an assertion failure occurs");
-
-#ifdef DEBUG
-DEFINE_bool(enable_slow_asserts, false,
-            "enable asserts that are slow to execute");
-#endif
-
 static int fatal_error_handler_nesting_depth = 0;
 
 // Contains protection against recursive calls (faults while handling faults).

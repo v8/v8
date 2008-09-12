@@ -912,7 +912,6 @@ Object* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
 }
 
 
-DECLARE_bool(print_code_stubs);
 Object* StubCompiler::GetCodeWithFlags(Code::Flags flags) {
   CodeDesc desc;
   masm_.GetCode(&desc);

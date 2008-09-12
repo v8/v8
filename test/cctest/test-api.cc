@@ -4480,15 +4480,11 @@ void ApiTestFuzzer::Run() {
 }
 
 
-DECLARE_int(prng_seed);
-DEFINE_int(prng_seed, 42, "Seed used for threading test randomness");
-
-
 static unsigned linear_congruential_generator;
 
 
 void ApiTestFuzzer::Setup(PartOfTest part) {
-  linear_congruential_generator = FLAG_prng_seed;
+  linear_congruential_generator = i::FLAG_testing_prng_seed;
   fuzzing_ = true;
   int start = (part == FIRST_PART) ? 0 : (RegisterThreadedTest::count() >> 1);
   int end = (part == FIRST_PART)

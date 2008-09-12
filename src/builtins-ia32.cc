@@ -50,9 +50,6 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 }
 
 
-DEFINE_bool(inline_new, true, "use fast inline allocation");
-
-
 void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax: number of arguments

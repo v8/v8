@@ -41,12 +41,6 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-DEFINE_bool(debug_serialization, false,
-            "write debug information into the snapshot.");
-#endif
-
-
 // Encoding: a RelativeAddress must be able to fit in a pointer:
 // it is encoded as an Address with (from MS to LS bits):
 // 27 bits identifying a word in the space, in one of three formats:
@@ -1021,12 +1015,6 @@ void Serializer::PutHeader() {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  DECLARE_bool(log_code);
-  DECLARE_string(logfile);
-#endif
-
-
 void Serializer::PutLog() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_code) {
@@ -1300,10 +1288,6 @@ void Deserializer::VisitRuntimeEntry(RelocInfo* rinfo) {
   rinfo->set_target_address(target);
 }
 
-
-DECLARE_bool(use_ic);
-DECLARE_bool(debug_code);
-DECLARE_bool(lazy);
 
 void Deserializer::GetFlags() {
   reader_.ExpectC('F');

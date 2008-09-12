@@ -36,11 +36,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_bool(trace_exception, false,
-            "print stack trace when throwing exceptions");
-DEFINE_bool(preallocate_message_memory, false,
-            "preallocate some memory to build stack traces.");
-
 ThreadLocalTop Top::thread_local_;
 Mutex* Top::break_access_ = OS::CreateMutex();
 StackFrame::Id Top::break_frame_id_;

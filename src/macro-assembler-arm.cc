@@ -34,10 +34,6 @@
 
 namespace v8 { namespace internal {
 
-DECLARE_bool(debug_code);
-DECLARE_bool(optimize_locals);
-
-
 // Give alias names to registers
 Register cp = {  8 };  // JavaScript context pointer
 Register pp = { 10 };  // parameter pointer

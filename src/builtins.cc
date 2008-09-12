@@ -34,11 +34,6 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-  DECLARE_bool(print_builtin_code);
-#endif  // DEBUG
-
-
 // ----------------------------------------------------------------------------
 // Support macros for defining builtins in C.
 // ----------------------------------------------------------------------------

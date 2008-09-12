@@ -34,11 +34,6 @@
 #include "top.h"
 #include "cctest.h"
 
-namespace v8 { namespace internal {
-DECLARE_bool(gc_global);
-DECLARE_bool(always_compact);
-} }
-
 using namespace v8::internal;
 
 static v8::Persistent<v8::Context> env;

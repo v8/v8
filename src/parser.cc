@@ -37,10 +37,6 @@
 
 namespace v8 { namespace internal {
 
-DECLARE_bool(lazy);
-DEFINE_bool(allow_natives_syntax, false, "allow natives syntax");
-
-
 class ParserFactory;
 class ParserLog;
 class TemporaryScope;

@@ -2723,11 +2723,6 @@ static Object* Runtime_NewObject(Arguments args) {
 }
 
 
-#ifdef DEBUG
-DEFINE_bool(trace_lazy, false, "trace lazy compilation");
-#endif
-
-
 static Object* Runtime_LazyCompile(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);

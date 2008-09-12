@@ -37,30 +37,6 @@ namespace v8 { namespace internal {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 //
-// Command line flags used by Logger.
-//
-DEFINE_bool(log, false,
-            "Minimal logging (no API, code, GC, suspect, or handles samples).");
-DEFINE_bool(log_all, false, "Log all events to the log file.");
-DEFINE_bool(log_api, false, "Log API events to the log file.");
-DEFINE_bool(log_code, false,
-            "Log code events to the log file without profiling.");
-DEFINE_bool(log_gc, false,
-            "Log heap samples on garbage collection for the hp2ps tool.");
-DEFINE_bool(log_handles, false, "Log global handle events.");
-DEFINE_bool(log_state_changes, false, "Log state changes.");
-DEFINE_bool(log_suspect, false, "Log suspect operations.");
-DEFINE_bool(prof, false,
-            "Log statistical profiling information (implies --log-code).");
-DEFINE_bool(log_regexp, false,
-            "Log regular expression execution.");
-DEFINE_bool(sliding_state_window, false,
-            "Update sliding state window counters.");
-
-DEFINE_string(logfile, "v8.log", "Specify the name of the log file.");
-
-
-//
 // Sliding state window.  Updates counters to keep track of the last
 // window of kBufferSize states.  This is useful to track where we
 // spent our time.

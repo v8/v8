@@ -224,7 +224,6 @@
 		897FF1310E719B8F00D62E90 /* execution.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = execution.h; sourceTree = "<group>"; };
 		897FF1320E719B8F00D62E90 /* factory.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = factory.cc; sourceTree = "<group>"; };
 		897FF1330E719B8F00D62E90 /* factory.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = factory.h; sourceTree = "<group>"; };
-		897FF1340E719B8F00D62E90 /* flags-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "flags-inl.h"; sourceTree = "<group>"; };
 		897FF1350E719B8F00D62E90 /* flags.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = flags.cc; sourceTree = "<group>"; };
 		897FF1360E719B8F00D62E90 /* flags.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = flags.h; sourceTree = "<group>"; };
 		897FF1370E719B8F00D62E90 /* frames-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "frames-arm.cc"; sourceTree = "<group>"; };
@@ -486,7 +485,6 @@
 				897FF1310E719B8F00D62E90 /* execution.h */,
 				897FF1320E719B8F00D62E90 /* factory.cc */,
 				897FF1330E719B8F00D62E90 /* factory.h */,
-				897FF1340E719B8F00D62E90 /* flags-inl.h */,
 				897FF1350E719B8F00D62E90 /* flags.cc */,
 				897FF1360E719B8F00D62E90 /* flags.h */,
 				897FF1370E719B8F00D62E90 /* frames-arm.cc */,

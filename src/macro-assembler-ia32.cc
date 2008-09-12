@@ -35,11 +35,6 @@
 
 namespace v8 { namespace internal {
 
-DECLARE_bool(debug_code);
-DEFINE_bool(native_code_counters, false,
-            "generate extra code for manipulating stats counters");
-
-
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       unresolved_(0),

@@ -35,14 +35,6 @@
 
 namespace v8 { namespace internal {
 
-
-DEFINE_int(max_stack_trace_source_length, 300,
-           "maximum length of function source code printed in a stack trace.");
-
-
-// -------------------------------------------------------------------------
-
-
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
 class StackHandlerIterator BASE_EMBEDDED {

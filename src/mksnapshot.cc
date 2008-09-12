@@ -38,14 +38,6 @@
 #include "platform.h"
 #include "serialize.h"
 
-DEFINE_bool(h, false, "print this message");
-
-namespace v8 { namespace internal {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  DECLARE_bool(log_code);
-#endif
-} }
-
 // use explicit namespace to avoid clashing with types in namespace v8
 namespace i = v8::internal;
 using namespace v8;

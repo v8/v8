@@ -41,10 +41,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_bool(debug_code, false,
-            "generate extra code (comments, assertions) for debugging");
-
-
 // -----------------------------------------------------------------------------
 // Implementation of Register and CRegister
 
@@ -272,11 +268,6 @@ enum {
 };
 
 
-DEFINE_bool(push_pop_elimination, true,
-            "eliminate redundant push/pops in assembly code");
-DEFINE_bool(print_push_pop_elimination, false,
-            "print elimination of redundant push/pops in assembly code");
-
 // add(sp, sp, 4) instruction (aka Pop())
 static const Instr kPopInstruction =
     al | 4 * B21 | 4 | LeaveCC | I | sp.code() * B16 | sp.code() * B12;
@@ -468,10 +459,6 @@ void Assembler::print(Label* L) {
   }
 }
 
-
-DEFINE_bool(eliminate_jumps, true, "eliminate jumps to jumps in assembly code");
-DEFINE_bool(print_jump_elimination, false,
-            "print elimination of jumps to jumps in assembly code");
 
 void Assembler::bind_to(Label* L, int pos) {
   ASSERT(0 <= pos && pos <= pc_offset());  // must have a valid binding position

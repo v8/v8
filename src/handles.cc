@@ -39,12 +39,6 @@
 
 namespace v8 { namespace internal {
 
-DECLARE_bool(allow_natives_syntax);
-
-#ifdef DEBUG
-DECLARE_bool(gc_greedy);
-#endif
-
 #define CALL_GC(RESULT)                                             \
   {                                                                 \
     Failure* __failure__ = Failure::cast(RESULT);                   \

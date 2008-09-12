@@ -33,12 +33,6 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-DECLARE_bool(gc_greedy);
-DECLARE_int(gc_interval);
-#endif
-
-
 int Heap::MaxHeapObjectSize() {
   return Page::kMaxHeapObjectSize;
 }

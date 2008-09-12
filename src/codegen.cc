@@ -34,11 +34,6 @@
 
 namespace v8 { namespace internal {
 
-
-DEFINE_bool(lazy, true, "use lazy compilation");
-DEFINE_bool(debug_info, true, "add debug information to compiled functions");
-
-
 DeferredCode::DeferredCode(CodeGenerator* generator)
   : masm_(generator->masm()),
     generator_(generator),

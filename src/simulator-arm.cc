@@ -45,9 +45,6 @@ using ::v8::internal::ReadLine;
 using ::v8::internal::DeleteArray;
 
 
-DEFINE_bool(trace_sim, false, "trace simulator execution");
-
-
 // The Debugger class is used by the simulator while debugging simulated ARM
 // code.
 class Debugger {
@@ -1391,9 +1388,6 @@ void Simulator::InstructionDecode(Instr* instr) {
     set_register(pc, reinterpret_cast<int32_t>(instr) + Instr::kInstrSize);
   }
 }
-
-
-DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions");
 
 
 //

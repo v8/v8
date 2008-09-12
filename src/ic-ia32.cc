@@ -34,10 +34,6 @@
 
 namespace v8 { namespace internal {
 
-
-DECLARE_bool(debug_code);
-
-
 // ----------------------------------------------------------------------------
 // Static IC stub generators.
 //

@@ -38,17 +38,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_bool(strict, false, "strict error checking");
-DEFINE_int(min_preparse_length, 1024,
-           "Minimum length for automatic enable preparsing");
-DECLARE_bool(debug_info);
-
-#ifdef DEBUG
-DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins");
-DEFINE_bool(print_scopes, false, "print scopes");
-#endif
-
-
 static Handle<Code> MakeCode(FunctionLiteral* literal,
                              Handle<Script> script,
                              bool is_eval) {

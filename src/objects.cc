@@ -43,12 +43,6 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-DEFINE_bool(trace_normalization,
-            false,
-            "prints when objects are turned into dictionaries.");
-#endif
-
 // Getters and setters are stored in a fixed array property.  These are
 // constants for their indices.
 const int kGetterIndex = 0;

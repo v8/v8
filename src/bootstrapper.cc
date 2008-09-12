@@ -39,11 +39,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_string(expose_natives_as, NULL, "expose natives in global object");
-DEFINE_string(expose_debug_as, NULL, "expose debug in global object");
-DEFINE_string(natives_file, NULL, "alternative natives file");  // for debugging
-DEFINE_bool(expose_gc, false, "expose gc extension");  // for debugging
-
 // A SourceCodeCache uses a FixedArray to store pairs of
 // (AsciiString*, JSFunction*), mapping names of native code files
 // (runtime.js, etc.) to precompiled functions. Instead of mapping

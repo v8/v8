@@ -154,8 +154,6 @@ Handle<Object> Execution::TryCall(Handle<JSFunction> func,
 }
 
 
-DEFINE_bool(call_regexp, false, "allow calls to RegExp objects");
-
 Handle<Object> Execution::GetFunctionDelegate(Handle<Object> object) {
   ASSERT(!object->IsJSFunction());
 
