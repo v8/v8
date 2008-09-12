@@ -63,7 +63,6 @@ LIBRARY_FLAGS = {
   'msvc': {
     'all': {
       'DIALECTFLAGS': ['/nologo'],
-      'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
       'CXXFLAGS':     ['$CCFLAGS', '/GR-', '/Gy'],
       'CPPDEFINES':   ['WIN32', '_USE_32BIT_TIME_T', 'PCRE_STATIC'],
