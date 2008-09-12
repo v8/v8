@@ -346,6 +346,8 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 #endif
 }
 
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::LogRegExpSource(Handle<JSValue> regexp) {
   // Prints "/" + re.source + "/" +
   //      (re.global?"g":"") + (re.ignorecase?"i":"") + (re.multiline?"m":"")
@@ -387,6 +389,7 @@ void Logger::LogRegExpSource(Handle<JSValue> regexp) {
     fprintf(logfile_, "m");
   }
 }
+#endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 void Logger::RegExpCompileEvent(Handle<JSValue> regexp) {
