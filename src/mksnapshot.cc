@@ -116,7 +116,7 @@ static int* counter_callback(const wchar_t* name) {
 static int WriteInternalSnapshotToFile(const char* filename,
                                        const char* str,
                                        int size) {
-  FILE* f = fopen(filename, "wb");
+  FILE* f = i::OS::FOpen(filename, "wb");
   if (f == NULL) {
     i::OS::PrintError("Cannot open file %s for reading.\n", filename);
     return 0;
