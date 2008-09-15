@@ -71,7 +71,7 @@ class StatsTable : public AllStatic {
 // The row has a 32bit value for each process/thread in the table and also
 // a name (stored in the table metadata).  Since the storage location can be
 // thread-specific, this class cannot be shared across threads.
-// 
+//
 // This class is designed to be POD initialized.  It will be registered with
 // the counter system on first use.  For example:
 //   StatsCounter c = { L"c:myctr", NULL, false };
