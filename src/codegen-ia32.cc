@@ -320,16 +320,6 @@ class Ia32CodeGenerator: public CodeGenerator {
   void EnterJSFrame();
   void ExitJSFrame();
 
-  virtual void GenerateShiftDownAndTailCall(ZoneList<Expression*>* args);
-  virtual void GenerateSetThisFunction(ZoneList<Expression*>* args);
-  virtual void GenerateGetThisFunction(ZoneList<Expression*>* args);
-  virtual void GenerateSetThis(ZoneList<Expression*>* args);
-  virtual void GenerateGetArgumentsLength(ZoneList<Expression*>* args);
-  virtual void GenerateSetArgumentsLength(ZoneList<Expression*>* args);
-  virtual void GenerateTailCallWithArguments(ZoneList<Expression*>* args);
-  virtual void GenerateSetArgument(ZoneList<Expression*>* args);
-  virtual void GenerateSquashFrame(ZoneList<Expression*>* args);
-  virtual void GenerateExpandFrame(ZoneList<Expression*>* args);
   virtual void GenerateIsSmi(ZoneList<Expression*>* args);
   virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   virtual void GenerateIsArray(ZoneList<Expression*>* args);
@@ -4032,70 +4022,6 @@ void Ia32CodeGenerator::VisitCallNew(CallNew* node) {
   __ call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
           js_construct_call);
   __ mov(TOS, eax);  // discard the function and "push" the newly created object
-}
-
-
-void Ia32CodeGenerator::GenerateSetThisFunction(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateGetThisFunction(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateSetThis(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateSetArgumentsLength(
-    ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateGetArgumentsLength(
-    ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateTailCallWithArguments(
-     ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateSetArgument(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateSquashFrame(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateExpandFrame(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateShiftDownAndTailCall(
-    ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
 }
 
 

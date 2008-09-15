@@ -956,33 +956,37 @@ bool Genesis::InstallNatives() {
 
   InstallNativeFunctions();
 
-  // TODO(1240778): Get rid of the JS implementation of
-  // Function.prototype.call and simply create a function with the
-  // faked formal parameter count (-1) and use the illegal builtin as
-  // the code for it.
-
-  // Find Function.prototype.call and set it's number of formal
-  // parameters to -1 to let the arguments adaptor handle it
-  // specially.
-  { Handle<JSFunction> function =
-        Handle<JSFunction>::cast(GetProperty(Top::global(),
-                                             Factory::function_class_symbol()));
+  // Install Function.prototype.call and apply.
+  { Handle<String> key = Factory::function_class_symbol();
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(GetProperty(Top::global(), key));
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
+
+    // Install the call and the apply functions.
     Handle<JSFunction> call =
-        Handle<JSFunction>::cast(GetProperty(proto, Factory::call_symbol()));
-    call->shared()->set_formal_parameter_count(-1);
+        InstallFunction(proto, "call", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                        Factory::NewJSObject(Top::object_function(), TENURED),
+                        Builtins::FunctionCall,
+                        false);
+    Handle<JSFunction> apply =
+        InstallFunction(proto, "apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                        Factory::NewJSObject(Top::object_function(), TENURED),
+                        Builtins::FunctionApply,
+                        false);
 
     // Make sure that Function.prototype.call appears to be compiled.
     // The code will never be called, but inline caching for call will
     // only work if it appears to be compiled.
-    call->shared()->set_code(Builtins::builtin(Builtins::Illegal));
+    call->shared()->DontAdaptArguments();
     ASSERT(call->is_compiled());
 
-    // Use the specialized builtin for Function.prototype.apply.
-    Handle<JSFunction> apply =
-        Handle<JSFunction>::cast(GetProperty(proto, Factory::apply_symbol()));
-    apply->shared()->set_code(Builtins::builtin(Builtins::FunctionApply));
+    // Set the expected paramters for apply to 2; required by builtin.
+    apply->shared()->set_formal_parameter_count(2);
+
+    // Set the lengths for the functions to satisfy ECMA-262.
+    call->shared()->set_length(1);
+    apply->shared()->set_length(2);
   }
 
   // Make sure that the builtins object has fast properties.

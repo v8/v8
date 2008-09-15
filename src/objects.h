@@ -2464,6 +2464,10 @@ class SharedFunctionInfo: public HeapObject {
   inline int formal_parameter_count();
   inline void set_formal_parameter_count(int value);
 
+  // Set the formal parameter count so the function code will be
+  // called without using argument adaptor frames.
+  inline void DontAdaptArguments();
+
   // [expected_nof_properties]: Expected number of properties for the function.
   inline int expected_nof_properties();
   inline void set_expected_nof_properties(int value);
@@ -2532,6 +2536,9 @@ class SharedFunctionInfo: public HeapObject {
 
   // Casting.
   static inline SharedFunctionInfo* cast(Object* obj);
+
+  // Constants.
+  static const int kDontAdaptArgumentsSentinel = -1;
 
   // Layout description.
   static const int kNameOffset = HeapObject::kSize;

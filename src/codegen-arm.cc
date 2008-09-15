@@ -305,16 +305,6 @@ class ArmCodeGenerator: public CodeGenerator {
   void EnterJSFrame();
   void ExitJSFrame();
 
-  virtual void GenerateShiftDownAndTailCall(ZoneList<Expression*>* args);
-  virtual void GenerateSetThisFunction(ZoneList<Expression*>* args);
-  virtual void GenerateGetThisFunction(ZoneList<Expression*>* args);
-  virtual void GenerateSetThis(ZoneList<Expression*>* args);
-  virtual void GenerateGetArgumentsLength(ZoneList<Expression*>* args);
-  virtual void GenerateSetArgumentsLength(ZoneList<Expression*>* args);
-  virtual void GenerateTailCallWithArguments(ZoneList<Expression*>* args);
-  virtual void GenerateSetArgument(ZoneList<Expression*>* args);
-  virtual void GenerateSquashFrame(ZoneList<Expression*>* args);
-  virtual void GenerateExpandFrame(ZoneList<Expression*>* args);
   virtual void GenerateIsSmi(ZoneList<Expression*>* args);
   virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   virtual void GenerateIsArray(ZoneList<Expression*>* args);
@@ -3834,31 +3824,6 @@ void ArmCodeGenerator::VisitCallNew(CallNew* node) {
 }
 
 
-void ArmCodeGenerator::GenerateSetThisFunction(ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateSetThisFunction - unreachable");
-}
-
-
-void ArmCodeGenerator::GenerateGetThisFunction(ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateGetThisFunction - unreachable");
-}
-
-
-void ArmCodeGenerator::GenerateSetThis(ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateSetThis - unreachable");
-}
-
-
-void ArmCodeGenerator::GenerateSetArgumentsLength(ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateSetArgumentsLength - unreachable");
-}
-
-
-void ArmCodeGenerator::GenerateGetArgumentsLength(ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateGetArgumentsLength - unreachable");
-}
-
-
 void ArmCodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Label leave;
@@ -3904,27 +3869,6 @@ void ArmCodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   // Leave.
   __ bind(&leave);
   __ push(r0);
-}
-
-
-void ArmCodeGenerator::GenerateTailCallWithArguments(
-    ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateTailCallWithArguments - unreachable");
-}
-
-
-void ArmCodeGenerator::GenerateSetArgument(ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateSetArgument - unreachable");
-}
-
-
-void ArmCodeGenerator::GenerateSquashFrame(ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateSquashFrame - unreachable");
-}
-
-
-void ArmCodeGenerator::GenerateExpandFrame(ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateExpandFrame - unreachable");
 }
 
 
@@ -4017,12 +3961,6 @@ void ArmCodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   __ pop(r1);
   __ cmp(r0, Operand(r1));
   cc_reg_ = eq;
-}
-
-
-void ArmCodeGenerator::GenerateShiftDownAndTailCall(
-    ZoneList<Expression*>* args) {
-  __ stop("ArmCodeGenerator::GenerateShiftDownAndTailCall - unreachable");
 }
 
 

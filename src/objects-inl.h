@@ -1782,6 +1782,11 @@ INT_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
 
 
+void SharedFunctionInfo::DontAdaptArguments() {
+  set_formal_parameter_count(kDontAdaptArgumentsSentinel);
+}
+
+
 int SharedFunctionInfo::start_position() {
   return start_position_and_type() >> kStartPositionShift;
 }

@@ -28,10 +28,7 @@
 #ifndef V8_BUILTINS_H_
 #define V8_BUILTINS_H_
 
-
-
 namespace v8 { namespace internal {
-
 
 // Define list of builtins implemented in C.
 #define BUILTIN_LIST_C(V)                          \
@@ -90,6 +87,7 @@ namespace v8 { namespace internal {
   V(KeyedStoreIC_DebugBreak,    KEYED_STORE_IC, DEBUG_BREAK)   \
                                                                \
   /* Uses KeyedLoadIC_Initialize; must be after in list. */    \
+  V(FunctionCall,               BUILTIN, UNINITIALIZED)        \
   V(FunctionApply,              BUILTIN, UNINITIALIZED)
 
 
@@ -219,6 +217,8 @@ class Builtins : public AllStatic {
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);
   static void Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm);
+
+  static void Generate_FunctionCall(MacroAssembler* masm);
   static void Generate_FunctionApply(MacroAssembler* masm);
 
   static void Generate_LoadIC_DebugBreak(MacroAssembler* masm);
@@ -230,7 +230,6 @@ class Builtins : public AllStatic {
   static void Generate_Return_DebugBreakEntry(MacroAssembler* masm);
   static void Generate_StubNoRegisters_DebugBreak(MacroAssembler* masm);
 };
-
 
 } }  // namespace v8::internal
 

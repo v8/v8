@@ -258,6 +258,154 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
+  // 1. Make sure we have at least one argument.
+  // r0: actual number of argument
+  { Label done;
+    __ tst(r0, Operand(r0));
+    __ b(ne, &done);
+    __ mov(r2, Operand(Factory::undefined_value()));
+    __ push(r2);
+    __ add(r0, r0, Operand(1));
+    __ bind(&done);
+  }
+
+  // 2. Get the function to call. Already in r1.
+  // r0: actual number of argument
+  { Label done, non_function, function;
+    __ ldr(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
+    __ tst(r1, Operand(kSmiTagMask));
+    __ b(eq, &non_function);
+    __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+    __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+    __ cmp(r2, Operand(JS_FUNCTION_TYPE));
+    __ b(eq, &function);
+
+    // Non-function called: Clear the function to force exception.
+    __ bind(&non_function);
+    __ mov(r1, Operand(0));
+    __ b(&done);
+
+    // Change the context eagerly because it will be used below to get the
+    // right global object.
+    __ bind(&function);
+    __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+
+    __ bind(&done);
+  }
+
+  // 3. Make sure first argument is an object; convert if necessary.
+  // r0: actual number of arguments
+  // r1: function
+  { Label call_to_object, use_global_receiver, patch_receiver, done;
+    __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
+    __ ldr(r2, MemOperand(r2, -kPointerSize));
+
+    // r0: actual number of arguments
+    // r1: function
+    // r2: first argument
+    __ tst(r2, Operand(kSmiTagMask));
+    __ b(eq, &call_to_object);
+
+    __ mov(r3, Operand(Factory::null_value()));
+    __ cmp(r2, r3);
+    __ b(eq, &use_global_receiver);
+    __ mov(r3, Operand(Factory::undefined_value()));
+    __ cmp(r2, r3);
+    __ b(eq, &use_global_receiver);
+
+    __ ldr(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
+    __ ldrb(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
+    __ cmp(r3, Operand(FIRST_JS_OBJECT_TYPE));
+    __ b(lt, &call_to_object);
+    __ cmp(r3, Operand(LAST_JS_OBJECT_TYPE));
+    __ b(le, &done);
+
+    __ bind(&call_to_object);
+    __ EnterInternalFrame();
+
+    // Store number of arguments and function across the call into the runtime.
+    __ mov(r0, Operand(r0, LSL, kSmiTagSize));
+    __ push(r0);
+    __ push(r1);
+
+    __ push(r2);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
+    __ mov(r2, r0);
+
+    // Restore number of arguments and function.
+    __ pop(r1);
+    __ pop(r0);
+    __ mov(r0, Operand(r0, ASR, kSmiTagSize));
+
+    __ ExitInternalFrame();
+    __ b(&patch_receiver);
+
+    // Use the global object from the called function as the receiver.
+    __ bind(&use_global_receiver);
+    const int kGlobalIndex =
+        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+    __ ldr(r2, FieldMemOperand(cp, kGlobalIndex));
+
+    __ bind(&patch_receiver);
+    __ add(r3, sp, Operand(r0, LSL, kPointerSizeLog2));
+    __ str(r2, MemOperand(r3, -kPointerSize));
+
+    __ bind(&done);
+  }
+
+  // 4. Shift stuff one slot down the stack
+  // r0: actual number of arguments (including call() receiver)
+  // r1: function
+  { Label loop;
+    // Calculate the copy start address (destination). Copy end address is sp.
+    __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
+
+    __ bind(&loop);
+    __ ldr(ip, MemOperand(r2, -kPointerSize));
+    __ str(ip, MemOperand(r2));
+    __ sub(r2, r2, Operand(kPointerSize));
+    __ cmp(r2, sp);
+    __ b(ne, &loop);
+  }
+
+  // 5. Adjust the actual number of arguments and remove the top element.
+  // r0: actual number of arguments (including call() receiver)
+  // r1: function
+  __ sub(r0, r0, Operand(1));
+  __ add(sp, sp, Operand(kPointerSize));
+
+  // 6. Get the code for the function or the non-function builtin.
+  //    If number of expected arguments matches, then call. Otherwise restart
+  //    the arguments adaptor stub.
+  // r0: actual number of arguments
+  // r1: function
+  { Label invoke;
+    __ tst(r1, r1);
+    __ b(ne, &invoke);
+    // __ stop("Generate_ArgumentsAdaptorTrampoline - non-function call");
+    __ mov(r2, Operand(0));  // expected arguments is 0 for CALL_NON_FUNCTION
+    __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
+    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)), code_target);
+
+    __ bind(&invoke);
+    __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+    __ ldr(r2,
+           FieldMemOperand(r3,
+                           SharedFunctionInfo::kFormalParameterCountOffset));
+    __ ldr(r3,
+           MemOperand(r3, SharedFunctionInfo::kCodeOffset - kHeapObjectTag));
+    __ add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
+    __ cmp(r2, r0);  // Check formal and actual parameter counts.
+    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)), code_target, ne);
+
+    // 7. Jump to the code in r3 without checking arguments.
+    ParameterCount expected(0);
+    __ InvokeCode(r3, expected, expected, JUMP_FUNCTION);
+  }
+}
+
+
 void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   const int kIndexOffset    = -5 * kPointerSize;
   const int kLimitOffset    = -4 * kPointerSize;
@@ -418,14 +566,13 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- r3 : code entry to call
   // -----------------------------------
 
-  Label entry, invoke, function_prototype_call;
-  __ bind(&entry);
+  Label invoke, dont_adapt_arguments;
 
   Label enough, too_few;
   __ cmp(r0, Operand(r2));
   __ b(lt, &too_few);
-  __ cmp(r2, Operand(-1));
-  __ b(eq, &function_prototype_call);
+  __ cmp(r2, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
+  __ b(eq, &dont_adapt_arguments);
 
   {  // Enough parameters: actual >= excpected
     __ bind(&enough);
@@ -515,155 +662,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 
   // -------------------------------------------
-  // Function.prototype.call implementation.
+  // Dont adapt arguments.
   // -------------------------------------------
-  // r0: actual number of argument
-  __ bind(&function_prototype_call);
-
-  // 1. Make sure we have at least one argument.
-  // r0: actual number of argument
-  { Label done;
-    __ tst(r0, Operand(r0));
-    __ b(ne, &done);
-    __ mov(r2, Operand(Factory::undefined_value()));
-    __ push(r2);
-    __ add(r0, r0, Operand(1));
-    __ bind(&done);
-  }
-
-  // 2. Get the function to call. Already in r1.
-  // r0: actual number of argument
-  { Label done, non_function, function;
-    __ ldr(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(eq, &non_function);
-    __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-    __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-    __ cmp(r2, Operand(JS_FUNCTION_TYPE));
-    __ b(eq, &function);
-
-    // Non-function called: Clear the function to force exception.
-    __ bind(&non_function);
-    __ mov(r1, Operand(0));
-    __ b(&done);
-
-    // Change the context eagerly because it will be used below to get the
-    // right global object.
-    __ bind(&function);
-    __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-
-    __ bind(&done);
-  }
-
-  // 3. Make sure first argument is an object; convert if necessary.
-  // r0: actual number of arguments
-  // r1: function
-  { Label call_to_object, use_global_receiver, patch_receiver, done;
-    __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
-    __ ldr(r2, MemOperand(r2, -kPointerSize));
-
-    // r0: actual number of arguments
-    // r1: function
-    // r2: first argument
-    __ tst(r2, Operand(kSmiTagMask));
-    __ b(eq, &call_to_object);
-
-    __ mov(r3, Operand(Factory::null_value()));
-    __ cmp(r2, r3);
-    __ b(eq, &use_global_receiver);
-    __ mov(r3, Operand(Factory::undefined_value()));
-    __ cmp(r2, r3);
-    __ b(eq, &use_global_receiver);
-
-    __ ldr(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
-    __ ldrb(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
-    __ cmp(r3, Operand(FIRST_JS_OBJECT_TYPE));
-    __ b(lt, &call_to_object);
-    __ cmp(r3, Operand(LAST_JS_OBJECT_TYPE));
-    __ b(le, &done);
-
-    __ bind(&call_to_object);
-    __ EnterInternalFrame();
-
-    // Store number of arguments and function across the call into the runtime.
-    __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-    __ push(r0);
-    __ push(r1);
-
-    __ push(r2);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
-    __ mov(r2, r0);
-
-    // Restore number of arguments and function.
-    __ pop(r1);
-    __ pop(r0);
-    __ mov(r0, Operand(r0, ASR, kSmiTagSize));
-
-    __ ExitInternalFrame();
-    __ b(&patch_receiver);
-
-    // Use the global object from the called function as the receiver.
-    __ bind(&use_global_receiver);
-    const int kGlobalIndex =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
-    __ ldr(r2, FieldMemOperand(cp, kGlobalIndex));
-
-    __ bind(&patch_receiver);
-    __ add(r3, sp, Operand(r0, LSL, kPointerSizeLog2));
-    __ str(r2, MemOperand(r3, -kPointerSize));
-
-    __ bind(&done);
-  }
-
-  // 4. Shift stuff one slot down the stack
-  // r0: actual number of arguments (including call() receiver)
-  // r1: function
-  { Label loop;
-    // Calculate the copy start address (destination). Copy end address is sp.
-    __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
-
-    __ bind(&loop);
-    __ ldr(ip, MemOperand(r2, -kPointerSize));
-    __ str(ip, MemOperand(r2));
-    __ sub(r2, r2, Operand(kPointerSize));
-    __ cmp(r2, sp);
-    __ b(ne, &loop);
-  }
-
-  // 5. Adjust the actual number of arguments and remove the top element.
-  // r0: actual number of arguments (including call() receiver)
-  // r1: function
-  __ sub(r0, r0, Operand(1));
-  __ add(sp, sp, Operand(kPointerSize));
-
-  // 6. Get the code for the function or the non-function builtin.
-  //    If number of expected arguments matches, then call. Otherwise restart
-  //    the arguments adaptor stub.
-  // r0: actual number of arguments
-  // r1: function
-  { Label invoke;
-    __ tst(r1, r1);
-    __ b(ne, &invoke);
-    // __ stop("Generate_ArgumentsAdaptorTrampoline - non-function call");
-    __ mov(r2, Operand(0));  // expected arguments is 0 for CALL_NON_FUNCTION
-    __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
-    __ b(&enough);
-
-    __ bind(&invoke);
-    __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
-    __ ldr(r2,
-           FieldMemOperand(r3,
-                           SharedFunctionInfo::kFormalParameterCountOffset));
-    __ ldr(r3,
-           MemOperand(r3, SharedFunctionInfo::kCodeOffset - kHeapObjectTag));
-    __ add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ cmp(r2, r0);  // Check formal and actual parameter counts.
-    __ b(ne, &entry);
-
-    // 7. Jump to the code in r3 without checking arguments.
-    ParameterCount expected(0);
-    __ InvokeCode(r3, expected, expected, JUMP_FUNCTION);
-  }
+  __ bind(&dont_adapt_arguments);
+  __ mov(pc, r3);
 }
 
 
