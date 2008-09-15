@@ -67,38 +67,18 @@ class StatsTable : public AllStatic {
 // the StatsTable.  They are designed to be lightweight to create and
 // easy to use.
 //
-// The implementation of the StatsTable is external to this module.
-//
-// Example usage:
-//    {
-//      StatsCounter request_count("RequestCount");
-//      request_count.Increment();
-//    }
-//
 // Internally, a counter represents a value in a row of a StatsTable.
 // The row has a 32bit value for each process/thread in the table and also
 // a name (stored in the table metadata).  Since the storage location can be
 // thread-specific, this class cannot be shared across threads.
-//
-
-// StatsCounter represents a counter in the StatsTable class.
-class StatsCounter BASE_EMBEDDED {
- public:
-  // Create a StatsCounter object.
-  explicit StatsCounter(const wchar_t* name, int id) :
-      lookup_done_(false),
-      ptr_(NULL),
-      id_(id) {
-    int len = wcslen(name);
-    // we prepend the name with 'c:' to indicate that it is a counter.
-    name_ = Vector<wchar_t>::New(len+3);
-    OS::WcsCpy(name_, L"c:");
-    OS::WcsCpy(name_ + 2, name);
-  };
-
-  ~StatsCounter() {
-    name_.Dispose();
-  }
+// 
+// This class is designed to be POD initialized.  It will be registered with
+// the counter system on first use.  For example:
+//   StatsCounter c = { L"c:myctr", NULL, false };
+struct StatsCounter {
+  const wchar_t* name_;
+  int* ptr_;
+  bool lookup_done_;
 
   // Sets the counter to a specific value.
   void Set(int value) {
@@ -144,38 +124,23 @@ class StatsCounter BASE_EMBEDDED {
     return loc;
   }
 
-  int Id() {
-    return id_;
-  }
-
  protected:
-  StatsCounter() :
-      lookup_done_(false),
-      ptr_(NULL) {
-  }
-
   // Returns the cached address of this counter location.
   int* GetPtr() {
     if (lookup_done_)
       return ptr_;
     lookup_done_ = true;
-    ptr_ = StatsTable::FindLocation(name_.start());
+    ptr_ = StatsTable::FindLocation(name_);
     return ptr_;
   }
-
-  Vector<wchar_t> name_;
-  bool lookup_done_;
-  int* ptr_;
-  int id_;
 };
 
-// A StatsCounterTimer is a StatsCounter which keeps a timer during
-// the scope of the StatsCounterTimer.  On destruction, it will record
-// its time measurement.
-class StatsCounterTimer : StatsCounter {
- public:
-  // Constructs and starts the timer.
-  explicit StatsCounterTimer(const wchar_t* name);
+// StatsCounterTimer t = { { L"t:foo", NULL, false }, 0, 0 };
+struct StatsCounterTimer {
+  StatsCounter counter_;
+
+  int64_t start_time_;
+  int64_t stop_time_;
 
   // Start the timer.
   void Start();
@@ -185,31 +150,20 @@ class StatsCounterTimer : StatsCounter {
 
   // Returns true if the timer is running.
   bool Running() {
-    return Enabled() && start_time_ != 0 && stop_time_ == 0;
+    return counter_.Enabled() && start_time_ != 0 && stop_time_ == 0;
   }
-
- private:
-  // Compute the delta between start and stop, in milliseconds.
-  void Record() {
-    int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
-    Increment(milliseconds);
-  }
-
-  int64_t start_time_;
-  int64_t stop_time_;
 };
-
 
 // A StatsRate is a combination of both a timer and a counter so that
 // several statistics can be produced:
 //    min, max, avg, count, total
-class StatsRate BASE_EMBEDDED {
- public:
-  // Constructs and starts the timer.
-  explicit StatsRate(const wchar_t* name, int id) :
-      timer_(name),
-      counter_(name, id) {
-  }
+//
+// For example:
+//   StatsCounter c = { { { L"t:myrate", NULL, false }, 0, 0 },
+//                      { L"c:myrate", NULL, false } };
+struct StatsRate {
+  StatsCounterTimer timer_;
+  StatsCounter counter_;
 
   // Starts the rate timer.
   void Start() {
@@ -223,29 +177,8 @@ class StatsRate BASE_EMBEDDED {
       counter_.Increment();
     }
   }
-
-  // Access to the timer.
-  StatsCounterTimer& timer() { return timer_; }
-
- private:
-  StatsCounterTimer timer_;
-  StatsCounter counter_;
 };
 
-
-// Helper class for scoping a timer.
-class StatsTimerScope BASE_EMBEDDED {
- public:
-  explicit StatsTimerScope(StatsCounterTimer* timer) :
-      timer_(timer) {
-    timer_->Start();
-  }
-  ~StatsTimerScope() {
-    timer_->Stop();
-  }
- private:
-  StatsCounterTimer* timer_;
-};
 
 // Helper class for scoping a rate.
 class StatsRateScope BASE_EMBEDDED {

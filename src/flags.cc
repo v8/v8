@@ -105,37 +105,38 @@ struct Flag {
   // Compare this flag's current value against the default.
   bool IsDefault() const {
     switch (type_) {
-    case TYPE_BOOL:
-      return *bool_variable() == bool_default();
-    case TYPE_INT:
-      return *int_variable() == int_default();
-    case TYPE_FLOAT:
-      return *float_variable() == float_default();
-    case TYPE_STRING:
-      const char* str1 = *string_variable();
-      const char* str2 = string_default();
-      if (str2 == NULL) return str1 == NULL;
-      if (str1 == NULL) return str2 == NULL;
-      return strcmp(str1, str2) == 0;
+      case TYPE_BOOL:
+        return *bool_variable() == bool_default();
+      case TYPE_INT:
+        return *int_variable() == int_default();
+      case TYPE_FLOAT:
+        return *float_variable() == float_default();
+      case TYPE_STRING:
+        const char* str1 = *string_variable();
+        const char* str2 = string_default();
+        if (str2 == NULL) return str1 == NULL;
+        if (str1 == NULL) return str2 == NULL;
+        return strcmp(str1, str2) == 0;
     }
-    return true;  // NOTREACHED
+    UNREACHABLE();
+    return true;
   }
 
   // Set a flag back to it's default value.
   void Reset() {
     switch (type_) {
-    case TYPE_BOOL:
-      *bool_variable() = bool_default();
-      break;
-    case TYPE_INT:
-      *int_variable() = int_default();
-      break;
-    case TYPE_FLOAT:
-      *float_variable() = float_default();
-      break;
-    case TYPE_STRING:
-      *string_variable() = string_default();
-      break;
+      case TYPE_BOOL:
+        *bool_variable() = bool_default();
+        break;
+      case TYPE_INT:
+        *int_variable() = int_default();
+        break;
+      case TYPE_FLOAT:
+        *float_variable() = float_default();
+        break;
+      case TYPE_STRING:
+        *string_variable() = string_default();
+        break;
     }
   }
 };

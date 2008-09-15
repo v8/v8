@@ -34,19 +34,9 @@ namespace v8 { namespace internal {
 
 CounterLookupCallback StatsTable::lookup_function_ = NULL;
 
-StatsCounterTimer::StatsCounterTimer(const wchar_t* name)
-  : start_time_(0),  // initialize to avoid compiler complaints
-    stop_time_(0) {  // initialize to avoid compiler complaints
-  int len = wcslen(name);
-  // we prepend the name with 'c.' to indicate that it is a counter.
-  name_ = Vector<wchar_t>::New(len+3);
-  OS::WcsCpy(name_, L"t:");
-  OS::WcsCpy(name_ + 2, name);
-}
-
 // Start the timer.
 void StatsCounterTimer::Start() {
-  if (!Enabled())
+  if (!counter_.Enabled())
     return;
   stop_time_ = 0;
   start_time_ = OS::Ticks();
@@ -54,10 +44,13 @@ void StatsCounterTimer::Start() {
 
 // Stop the timer and record the results.
 void StatsCounterTimer::Stop() {
-  if (!Enabled())
+  if (!counter_.Enabled())
     return;
   stop_time_ = OS::Ticks();
-  Record();
+
+  // Compute the delta between start and stop, in milliseconds.
+  int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
+  counter_.Increment(milliseconds);
 }
 
 } }  // namespace v8::internal

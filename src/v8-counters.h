@@ -122,11 +122,13 @@ namespace v8 { namespace internal {
 // This file contains all the v8 counters that are in use.
 class Counters : AllStatic {
  public:
-#define SR(name, caption) static StatsRate name;
+#define SR(name, caption) \
+  static StatsRate name;
   STATS_RATE_LIST(SR)
 #undef SR
 
-#define SC(name, caption) static StatsCounter name;
+#define SC(name, caption) \
+  static StatsCounter name;
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
 #undef SC
