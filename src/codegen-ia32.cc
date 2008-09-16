@@ -2917,19 +2917,14 @@ void Ia32CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     Comment cmnt(masm_, "[ case clause");
 
     if (clause->is_default()) {
+      // Continue matching cases. The program will execute the default case's
+      // statements if it does not match any of the cases.
+      __ jmp(&next);
+
       // Bind the default case label, so we can branch to it when we
       // have compared against all other cases.
       ASSERT(default_case.is_unused());  // at most one default clause
-
-      // If the default case is the first (but not only) case, we have
-      // to jump past it for now. Once we're done with the remaining
-      // clauses, we'll branch back here. If it isn't the first case,
-      // we jump past it by avoiding to chain it into the next chain.
-      if (length > 1) {
-        if (i == 0) __ jmp(&next);
-        __ bind(&default_case);
-      }
-
+      __ bind(&default_case);
     } else {
       __ bind(&next);
       next.Unuse();
@@ -2938,11 +2933,16 @@ void Ia32CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
       Load(clause->label());
       Comparison(equal, true);
       Branch(false, &next);
-      // Entering the case statement -> remove the switch value from the stack
-      __ pop(eax);
     }
 
+    // Entering the case statement for the first time. Remove the switch value
+    // from the stack.
+    __ pop(eax);
+
     // Generate code for the body.
+    // This is also the target for the fall through from the previous case's
+    // statements which has to skip over the matching code and the popping of
+    // the switch value.
     __ bind(&fall_through);
     fall_through.Unuse();
     VisitStatements(clause->statements());
@@ -2950,10 +2950,14 @@ void Ia32CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   }
 
   __ bind(&next);
-  // Reached the end of the case statements -> remove the switch value
-  // from the stack
-  __ pop(eax);  // Pop(no_reg)
-  if (default_case.is_bound()) __ jmp(&default_case);
+  // Reached the end of the case statements without matching any of the cases.
+  if (default_case.is_bound()) {
+    // A default case exists -> execute its statements.
+    __ jmp(&default_case);
+  } else {
+    // Remove the switch value from the stack.
+    __ pop(eax);
+  }
 
   __ bind(&fall_through);
   __ bind(node->break_target());
