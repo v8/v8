@@ -2427,13 +2427,21 @@ Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
 }
 
 
-bool Map::IncludedInCodeCache(Code* code) {
+int Map::IndexInCodeCache(Code* code) {
   FixedArray* array = code_cache();
   int len = array->length();
   for (int i = 0; i < len; i += 2) {
-    if (array->get(i+1) == code) return true;
+    if (array->get(i + 1) == code) return i + 1;
   }
-  return false;
+  return -1;
+}
+
+
+void Map::RemoveFromCodeCache(int index) {
+  FixedArray* array = code_cache();
+  ASSERT(array->length() >= index && array->get(index)->IsCode());
+  array->set_undefined(index - 1);  // key
+  array->set_undefined(index);  // code
 }
 
 

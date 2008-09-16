@@ -143,7 +143,8 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
   // the receiver map's code cache.  Therefore, if the current target
   // is in the receiver map's code cache, the inline cache failed due
   // to prototype check failure.
-  if (map->IncludedInCodeCache(target)) {
+  int index = map->IndexInCodeCache(target);
+  if (index >= 0) {
     // For keyed load/store, the most likely cause of cache failure is
     // that the key has changed.  We do not distinguish between
     // prototype and non-prototype failures for keyed access.
@@ -152,11 +153,9 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
       return MONOMORPHIC;
     }
 
-    // Clear the code cache for this map to avoid hitting the same
-    // invalid stub again.  It seems likely that most of the code in
-    // the cache is invalid if one of the stubs is so we flush the
-    // entire code cache.
-    map->ClearCodeCache();
+    // Remove the target from the code cache to avoid hitting the same
+    // invalid stub again.
+    map->RemoveFromCodeCache(index);
 
     return MONOMORPHIC_PROTOTYPE_FAILURE;
   }

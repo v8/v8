@@ -2343,8 +2343,12 @@ class Map: public HeapObject {
   // Returns the found code or undefined if absent.
   Object* FindInCodeCache(String* name, Code::Flags flags);
 
-  // Tells whether code is in the code cache.
-  bool IncludedInCodeCache(Code* code);
+  // Returns the non-negative index of the code object if it is in the
+  // cache and -1 otherwise.
+  int IndexInCodeCache(Code* code);
+
+  // Removes a code object from the code cache at the given index.
+  void RemoveFromCodeCache(int index);
 
   // Dispatched behavior.
   void MapIterateBody(ObjectVisitor* v);
