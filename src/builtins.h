@@ -38,8 +38,8 @@ namespace v8 { namespace internal {
                                                    \
   V(ArrayCode, 0)                                  \
                                                    \
-  V(ArrayPush, 1)                                  \
-  V(ArrayPop, 0)                                   \
+  V(ArrayPush, -1)                                 \
+  V(ArrayPop, -1)                                  \
                                                    \
   V(HandleApiCall, 0)                              \
   V(HandleApiCallAsFunction, 0)

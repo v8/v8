@@ -1783,6 +1783,7 @@ INT_ACCESSORS(SharedFunctionInfo, function_token_position,
 
 
 void SharedFunctionInfo::DontAdaptArguments() {
+  ASSERT(code()->kind() == Code::BUILTIN);
   set_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 

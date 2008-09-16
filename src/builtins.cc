@@ -67,7 +67,7 @@ namespace v8 { namespace internal {
 // and start calling the builtins in a more direct way. Looking at the
 // stack frames for all builtin invocations comes with a pretty
 // significant performance penalty.
-#define BUILTIN_0(name)                                                 \
+#define BUILTIN(name)                                                   \
   static Object* Builtin_##name(int __argc__,                           \
                                 Object** __argv__) {                    \
     Handle<Object> receiver(&__argv__[0]);                              \
@@ -95,19 +95,13 @@ namespace v8 { namespace internal {
     }
 
 
-#define BUILTIN_1(name, a0)     \
-  BUILTIN_0(name)               \
-  Object* a0 = BUILTIN_ARG(1);
-
-
-#define BUILTIN_2(name, a0, a1)  \
-  BUILTIN_1(name, a0)            \
-  Object* a1 = BUILTIN_ARG(2);
-
-
-#define BUILTIN_3(name, a0, a1, a2)  \
-  BUILTIN_2(name, a0, a1)            \
-  Object* a2 = BUILTIN_ARG(3);
+// We're transitioning to a much simpler builtins framework where all
+// builtins are called *without* arguments adaption. For now, only a
+// few of the builtins have been rewritten to support this and they
+// all use the NEW_BUILTIN macro instead of plain old BUILTIN.
+#define NEW_BUILTIN(name)                                               \
+  static Object* Builtin_##name(int __argc__, Object** __argv__) {      \
+    Handle<Object> receiver(&__argv__[0]);
 
 
 // Use an inline function to avoid evaluating the index (n) more than
@@ -172,18 +166,18 @@ Handle<Code> Builtins::GetCode(JavaScript id, bool* resolved) {
 }
 
 
-BUILTIN_0(Illegal) {
+BUILTIN(Illegal) {
   UNREACHABLE();
 }
 BUILTIN_END
 
 
-BUILTIN_0(EmptyFunction) {
+BUILTIN(EmptyFunction) {
 }
 BUILTIN_END
 
 
-BUILTIN_0(ArrayCode) {
+BUILTIN(ArrayCode) {
   JSArray* array;
   if (is_construct) {
     array = JSArray::cast(*receiver);
@@ -241,7 +235,7 @@ BUILTIN_0(ArrayCode) {
 BUILTIN_END
 
 
-BUILTIN_0(ArrayPush) {
+NEW_BUILTIN(ArrayPush) {
   JSArray* array = JSArray::cast(*receiver);
   ASSERT(array->HasFastElements());
 
@@ -280,7 +274,7 @@ BUILTIN_0(ArrayPush) {
 BUILTIN_END
 
 
-BUILTIN_0(ArrayPop) {
+NEW_BUILTIN(ArrayPop) {
   JSArray* array = JSArray::cast(*receiver);
   ASSERT(array->HasFastElements());
   Object* undefined = Heap::undefined_value();
@@ -365,7 +359,7 @@ static inline Object* TypeCheck(int argc,
 }
 
 
-BUILTIN_0(HandleApiCall) {
+BUILTIN(HandleApiCall) {
   HandleScope scope;
 
   // TODO(1238487): This is not nice. We need to get rid of this
@@ -445,7 +439,7 @@ BUILTIN_END
 
 // Handle calls to non-function objects created through the API that
 // support calls.
-BUILTIN_0(HandleApiCallAsFunction) {
+BUILTIN(HandleApiCallAsFunction) {
   // Non-functions are never called as constructors.
   ASSERT(!is_construct);
 

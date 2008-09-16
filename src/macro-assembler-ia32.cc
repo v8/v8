@@ -572,7 +572,16 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       definitely_matches = true;
     } else {
       mov(eax, actual.immediate());
-      mov(ebx, expected.immediate());
+      const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+      if (expected.immediate() == sentinel) {
+        // Don't worry about adapting arguments for builtins that
+        // don't want that done. Skip adaption code by making it look
+        // like we have a match between expected and actual number of
+        // arguments.
+        definitely_matches = true;
+      } else {
+        mov(ebx, expected.immediate());
+      }
     }
   } else {
     if (actual.is_immediate()) {

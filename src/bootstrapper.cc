@@ -291,8 +291,7 @@ class Genesis BASE_EMBEDDED {
 
   void AddSpecialFunction(Handle<JSObject> prototype,
                           const char* name,
-                          Handle<Code> code,
-                          int parameter_count);
+                          Handle<Code> code);
 
   void BuildSpecialFunctionTable();
 
@@ -1266,8 +1265,7 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 
 void Genesis::AddSpecialFunction(Handle<JSObject> prototype,
                                  const char* name,
-                                 Handle<Code> code,
-                                 int parameter_count) {
+                                 Handle<Code> code) {
   Handle<String> key = Factory::LookupAsciiSymbol(name);
   Handle<Object> value = Handle<Object>(prototype->GetProperty(*key));
   if (value->IsJSFunction()) {
@@ -1276,7 +1274,7 @@ void Genesis::AddSpecialFunction(Handle<JSObject> prototype,
                                                         JSObject::kHeaderSize,
                                                         code,
                                                         false);
-    optimized->shared()->set_formal_parameter_count(parameter_count);
+    optimized->shared()->DontAdaptArguments();
     int len = global_context()->special_function_table()->length();
     Handle<FixedArray> new_array = Factory::NewFixedArray(len + 3);
     for (int index = 0; index < len; index++) {
@@ -1301,11 +1299,9 @@ void Genesis::BuildSpecialFunctionTable() {
   Handle<JSObject> prototype =
       Handle<JSObject>(JSObject::cast(function->prototype()));
   AddSpecialFunction(prototype, "pop",
-                     Handle<Code>(Builtins::builtin(Builtins::ArrayPop)),
-                     0);
+                     Handle<Code>(Builtins::builtin(Builtins::ArrayPop)));
   AddSpecialFunction(prototype, "push",
-                     Handle<Code>(Builtins::builtin(Builtins::ArrayPush)),
-                     1);
+                     Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
 }
 
 
