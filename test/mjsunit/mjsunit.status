@@ -62,6 +62,3 @@ debug-step-stub-callfunction: FAIL
 debug-stepin-constructor: FAIL
 debug-step: FAIL
 regress/regress-998565: FAIL
-
-# Issue 67: ARM fails in: Generate_ArgumentsAdaptorTrampoline - non-function call
-call-non-function-call: FAIL

@@ -270,7 +270,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ bind(&done);
   }
 
-  // 2. Get the function to call. Already in r1.
+  // 2. Get the function to call from the stack.
   // r0: actual number of argument
   { Label done, non_function, function;
     __ ldr(r1, MemOperand(sp, r0, LSL, kPointerSizeLog2));
@@ -360,6 +360,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   { Label loop;
     // Calculate the copy start address (destination). Copy end address is sp.
     __ add(r2, sp, Operand(r0, LSL, kPointerSizeLog2));
+    __ add(r2, r2, Operand(kPointerSize));  // copy receiver too
 
     __ bind(&loop);
     __ ldr(ip, MemOperand(r2, -kPointerSize));
@@ -383,7 +384,6 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
   { Label invoke;
     __ tst(r1, r1);
     __ b(ne, &invoke);
-    // __ stop("Generate_ArgumentsAdaptorTrampoline - non-function call");
     __ mov(r2, Operand(0));  // expected arguments is 0 for CALL_NON_FUNCTION
     __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
     __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)), code_target);

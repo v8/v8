@@ -2764,7 +2764,7 @@ void ArmCodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
       // Continue matching cases. The program will execute the default case's
       // statements if it does not match any of the cases.
       __ b(&next);
-      
+
       // Bind the default case label, so we can branch to it when we
       // have compared against all other cases.
       ASSERT(default_case.is_unused());  // at most one default clause
@@ -2802,7 +2802,7 @@ void ArmCodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     // Remove the switch value from the stack.
     __ pop(r0);
   }
-  
+
   __ bind(&fall_through);
   __ bind(node->break_target());
 }
