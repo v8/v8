@@ -32,17 +32,17 @@ namespace v8 { namespace internal {
 
 // Define list of builtins implemented in C.
 #define BUILTIN_LIST_C(V)                          \
-  V(Illegal, 0)                                    \
+  V(Illegal)                                       \
                                                    \
-  V(EmptyFunction, 0)                              \
+  V(EmptyFunction)                                 \
                                                    \
-  V(ArrayCode, 0)                                  \
+  V(ArrayCode)                                     \
                                                    \
-  V(ArrayPush, -1)                                 \
-  V(ArrayPop, -1)                                  \
+  V(ArrayPush)                                     \
+  V(ArrayPop)                                      \
                                                    \
-  V(HandleApiCall, 0)                              \
-  V(HandleApiCallAsFunction, 0)
+  V(HandleApiCall)                                 \
+  V(HandleApiCallAsFunction)
 
 
 // Define list of builtins implemented in assembly.
@@ -141,7 +141,7 @@ class Builtins : public AllStatic {
   static const char* Lookup(byte* pc);
 
   enum Name {
-#define DEF_ENUM_C(name, ignore) name,
+#define DEF_ENUM_C(name) name,
 #define DEF_ENUM_A(name, kind, state) name,
     BUILTIN_LIST_C(DEF_ENUM_C)
     BUILTIN_LIST_A(DEF_ENUM_A)
@@ -151,7 +151,7 @@ class Builtins : public AllStatic {
   };
 
   enum CFunctionId {
-#define DEF_ENUM_C(name, ignore) c_##name,
+#define DEF_ENUM_C(name) c_##name,
     BUILTIN_LIST_C(DEF_ENUM_C)
 #undef DEF_ENUM_C
     cfunction_count
@@ -200,7 +200,6 @@ class Builtins : public AllStatic {
   // function f, we use an Object* array here.
   static Object* builtins_[builtin_count];
   static const char* names_[builtin_count];
-
   static const char* javascript_names_[id_count];
   static int javascript_argc_[id_count];
 
@@ -210,9 +209,7 @@ class Builtins : public AllStatic {
   static int construct_call_pc_offset_;
   static int arguments_adaptor_call_pc_offset_;
 
-  static void Generate_Adaptor(MacroAssembler* masm,
-                               int argc,
-                               CFunctionId id);
+  static void Generate_Adaptor(MacroAssembler* masm, CFunctionId id);
   static void Generate_JSConstructCall(MacroAssembler* masm);
   static void Generate_JSEntryTrampoline(MacroAssembler* masm);
   static void Generate_JSConstructEntryTrampoline(MacroAssembler* masm);

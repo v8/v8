@@ -37,24 +37,15 @@ namespace v8 { namespace internal {
 #define __ masm->
 
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm,
-                                int argc,
-                                CFunctionId id) {
+void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
   // TODO(1238487): Don't pass the function in a static variable.
   __ mov(ip, Operand(ExternalReference::builtin_passed_function()));
   __ str(r1, MemOperand(ip, 0));
 
-  if (argc == -1) {
-    // The actual argument count has already been loaded into register
-    // r0, but JumpToBuiltin expects r0 to contain the number of
-    // arguments including the receiver.
-    __ add(r0, r0, Operand(1));
-  } else {
-    // The number passed in argc excludes the receiver, but
-    // JumpToBuiltin expects r0 to contain the number of arguments
-    // including the receiver.
-    __ mov(r0, Operand(argc + 1));
-  }
+  // The actual argument count has already been loaded into register
+  // r0, but JumpToBuiltin expects r0 to contain the number of
+  // arguments including the receiver.
+  __ add(r0, r0, Operand(1));
   __ JumpToBuiltin(ExternalReference(id));
 }
 

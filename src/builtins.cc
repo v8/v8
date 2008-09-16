@@ -40,16 +40,13 @@ namespace v8 { namespace internal {
 //
 // A builtin function is defined by writing:
 //
-//   BUILTIN_<n>(name, ...)
-//   {
+//   BUILTIN(name) {
 //     ...
 //   }
 //   BUILTIN_END
 //
-// where <n> is the number of arguments (not counting the receiver). The
-// names of the arguments must be listed after the name in the declaration.
-// In the body of the builtin function, the variables 'env' and 'receiver'
-// are visible. The arguments can be accessed through:
+// In the body of the builtin function, the variable 'receiver' is visible.
+// The arguments can be accessed through:
 //
 //   BUILTIN_ARG(0): Receiver (also available as 'receiver')
 //   BUILTIN_ARG(1): First argument
@@ -63,43 +60,10 @@ namespace v8 { namespace internal {
 // ----------------------------------------------------------------------------
 
 
-// TODO(1238487): This is not okay. We need to get rid of this macro
-// and start calling the builtins in a more direct way. Looking at the
-// stack frames for all builtin invocations comes with a pretty
-// significant performance penalty.
+// TODO(1238487): We should consider passing whether or not the
+// builtin was invoked as a constructor as part of the
+// arguments. Maybe we also want to pass the called function?
 #define BUILTIN(name)                                                   \
-  static Object* Builtin_##name(int __argc__,                           \
-                                Object** __argv__) {                    \
-    Handle<Object> receiver(&__argv__[0]);                              \
-    bool is_construct = false;                                          \
-    USE(__argc__);                                                      \
-    USE(__argv__);                                                      \
-    { StackFrameIterator it;                                            \
-      ASSERT(it.frame()->is_exit());                                    \
-      it.Advance();                                                     \
-      StackFrame::Type type = it.frame()->type();                       \
-      if (type == StackFrame::INTERNAL) {                               \
-        InternalFrame* frame = InternalFrame::cast(it.frame());         \
-        is_construct = frame->is_construct_trampoline();                \
-      } else if (type == StackFrame::ARGUMENTS_ADAPTOR) {               \
-        ArgumentsAdaptorFrame* frame =                                  \
-            ArgumentsAdaptorFrame::cast(it.frame());                    \
-        /* __argc__ includes the receiver. */                           \
-        __argc__ = frame->GetProvidedParametersCount() + 1;             \
-        __argv__ = reinterpret_cast<Object**>(frame->pp()) - 1;         \
-        it.Advance();                                                   \
-        is_construct =                                                  \
-            it.frame()->is_internal() &&                                \
-            InternalFrame::cast(it.frame())->is_construct_trampoline(); \
-      }                                                                 \
-    }
-
-
-// We're transitioning to a much simpler builtins framework where all
-// builtins are called *without* arguments adaption. For now, only a
-// few of the builtins have been rewritten to support this and they
-// all use the NEW_BUILTIN macro instead of plain old BUILTIN.
-#define NEW_BUILTIN(name)                                               \
   static Object* Builtin_##name(int __argc__, Object** __argv__) {      \
     Handle<Object> receiver(&__argv__[0]);
 
@@ -119,6 +83,19 @@ static inline Object* __builtin_arg__(int n, int argc, Object** argv) {
 
 #define BUILTIN_END                             \
   return Heap::undefined_value();               \
+}
+
+
+// TODO(1238487): Get rid of this function that determines if the
+// builtin is called as a constructor. This may be a somewhat slow
+// operation due to the stack frame iteration.
+static inline bool CalledAsConstructor() {
+  StackFrameIterator it;
+  ASSERT(it.frame()->is_exit());
+  it.Advance();
+  StackFrame* frame = it.frame();
+  return frame->is_internal() &&
+      InternalFrame::cast(frame)->is_construct_trampoline();
 }
 
 
@@ -179,7 +156,7 @@ BUILTIN_END
 
 BUILTIN(ArrayCode) {
   JSArray* array;
-  if (is_construct) {
+  if (CalledAsConstructor()) {
     array = JSArray::cast(*receiver);
   } else {
     // Allocate the JS Array
@@ -235,7 +212,7 @@ BUILTIN(ArrayCode) {
 BUILTIN_END
 
 
-NEW_BUILTIN(ArrayPush) {
+BUILTIN(ArrayPush) {
   JSArray* array = JSArray::cast(*receiver);
   ASSERT(array->HasFastElements());
 
@@ -274,7 +251,7 @@ NEW_BUILTIN(ArrayPush) {
 BUILTIN_END
 
 
-NEW_BUILTIN(ArrayPop) {
+BUILTIN(ArrayPop) {
   JSArray* array = JSArray::cast(*receiver);
   ASSERT(array->HasFastElements());
   Object* undefined = Heap::undefined_value();
@@ -361,6 +338,7 @@ static inline Object* TypeCheck(int argc,
 
 BUILTIN(HandleApiCall) {
   HandleScope scope;
+  bool is_construct = CalledAsConstructor();
 
   // TODO(1238487): This is not nice. We need to get rid of this
   // kludgy behavior and start handling API calls in a more direct
@@ -441,7 +419,7 @@ BUILTIN_END
 // support calls.
 BUILTIN(HandleApiCallAsFunction) {
   // Non-functions are never called as constructors.
-  ASSERT(!is_construct);
+  ASSERT(!CalledAsConstructor());
 
   // Get the object called.
   JSObject* obj = JSObject::cast(*receiver);
@@ -474,7 +452,7 @@ BUILTIN(HandleApiCallAsFunction) {
         data,
         self,
         callee,
-        is_construct,
+        false,
         reinterpret_cast<void**>(__argv__ - 1),
         __argc__ - 1);
     v8::Handle<v8::Value> value;
@@ -606,7 +584,7 @@ static void Generate_KeyedStoreIC_Initialize(MacroAssembler* masm) {
 Object* Builtins::builtins_[builtin_count] = { NULL, };
 const char* Builtins::names_[builtin_count] = { NULL, };
 
-#define DEF_ENUM_C(name, ignore) FUNCTION_ADDR(Builtin_##name),
+#define DEF_ENUM_C(name) FUNCTION_ADDR(Builtin_##name),
   Address Builtins::c_functions_[cfunction_count] = {
     BUILTIN_LIST_C(DEF_ENUM_C)
   };
@@ -637,16 +615,14 @@ void Builtins::Setup(bool create_heap_objects) {
     const char* s_name;  // name is only used for generating log information.
     int name;
     Code::Flags flags;
-    int argc;
   };
 
-#define DEF_FUNCTION_PTR_C(name, argc)   \
+#define DEF_FUNCTION_PTR_C(name)         \
     { FUNCTION_ADDR(Generate_Adaptor),   \
       FUNCTION_ADDR(Builtin_##name),     \
       #name,                             \
       c_##name,                          \
-      Code::ComputeFlags(Code::BUILTIN), \
-      argc                               \
+      Code::ComputeFlags(Code::BUILTIN)  \
     },
 
 #define DEF_FUNCTION_PTR_A(name, kind, state) \
@@ -654,8 +630,7 @@ void Builtins::Setup(bool create_heap_objects) {
       NULL,                                   \
       #name,                                  \
       name,                                   \
-      Code::ComputeFlags(Code::kind, state),  \
-      -1                                      \
+      Code::ComputeFlags(Code::kind, state)   \
     },
 
   // Define array of pointers to generators and C builtin functions.
@@ -663,7 +638,7 @@ void Builtins::Setup(bool create_heap_objects) {
       BUILTIN_LIST_C(DEF_FUNCTION_PTR_C)
       BUILTIN_LIST_A(DEF_FUNCTION_PTR_A)
       // Terminator:
-      { NULL, NULL, NULL, builtin_count, static_cast<Code::Flags>(0), -1}
+      { NULL, NULL, NULL, builtin_count, static_cast<Code::Flags>(0) }
   };
 
 #undef DEF_FUNCTION_PTR_C
@@ -679,12 +654,12 @@ void Builtins::Setup(bool create_heap_objects) {
     if (create_heap_objects) {
       MacroAssembler masm(buffer, sizeof buffer);
       // Generate the code/adaptor.
-      typedef void (*Generator)(MacroAssembler*, int, int);
+      typedef void (*Generator)(MacroAssembler*, int);
       Generator g = FUNCTION_CAST<Generator>(functions[i].generator);
       // We pass all arguments to the generator, but it may not use all of
       // them.  This works because the first arguments are on top of the
       // stack.
-      g(&masm, functions[i].argc, functions[i].name);
+      g(&masm, functions[i].name);
       // Move the code into the object heap.
       CodeDesc desc;
       masm.GetCode(&desc);

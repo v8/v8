@@ -1138,6 +1138,8 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // builtins.cc:HandleApiCall to perform argument type checks and to
   // find the right native code to call.
   boilerplate->shared()->set_function_data(fun->shared()->function_data());
+  int parameters = fun->shared()->formal_parameter_count();
+  boilerplate->shared()->set_formal_parameter_count(parameters);
 
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas

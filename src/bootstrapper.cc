@@ -486,14 +486,15 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
       Factory::NewFunction(symbol, Factory::null_value());
 
   {  // --- E m p t y ---
-    Handle<Code> call_code =
+    Handle<Code> code =
         Handle<Code>(Builtins::builtin(Builtins::EmptyFunction));
     Handle<String> source = Factory::NewStringFromAscii(CStrVector("() {}"));
 
-    empty_function->set_code(*call_code);
+    empty_function->set_code(*code);
     empty_function->shared()->set_script(*Factory::NewScript(source));
     empty_function->shared()->set_start_position(0);
     empty_function->shared()->set_end_position(source->length());
+    empty_function->shared()->DontAdaptArguments();
     global_context()->function_map()->set_prototype(*empty_function);
     global_context()->function_instance_map()->set_prototype(*empty_function);
 
@@ -580,6 +581,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
         InstallFunction(global, "Array", JS_ARRAY_TYPE, JSArray::kSize,
                         Top::initial_object_prototype(), Builtins::ArrayCode,
                         true);
+    array_function->shared()->DontAdaptArguments();
 
     // This seems a bit hackish, but we need to make sure Array.length
     // is 1.
@@ -709,6 +711,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
       Factory::NewFunction(Factory::empty_symbol(), JS_OBJECT_TYPE,
                            JSObject::kHeaderSize, code, true);
   global_context()->set_call_as_function_delegate(*delegate);
+  delegate->shared()->DontAdaptArguments();
 
   global_context()->set_special_function_table(Heap::empty_fixed_array());
 
