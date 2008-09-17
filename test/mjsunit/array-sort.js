@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test array sort.
 
 // Test counter-intuitive default number sorting.
@@ -49,10 +51,46 @@ function TestNumberSort() {
   a.sort();
   assertArrayEquals([-123,-1234,-12345,-123456,0,0,123,1234,12345,123456], a);
 
+  // Tricky case avoiding integer overflow in Runtime_SmiLexicographicCompare.
+  a = [9, 1000000000].sort();
+  assertArrayEquals([1000000000, 9], a);
+  a = [1000000000, 1].sort();
+  assertArrayEquals([1, 1000000000], a);
+  a = [1000000000, 0].sort();
+  assertArrayEquals([0, 1000000000], a);
+
+  // One string is a prefix of the other.
+  a = [1230, 123].sort();
+  assertArrayEquals([123, 1230], a);
+  a = [1231, 123].sort();
+  assertArrayEquals([123, 1231], a);
+
   // Default sort on Smis and non-Smis.
   a = [1000000000, 10000000000, 1000000001, -1000000000, -10000000000, -1000000001];
   a.sort();
   assertArrayEquals([-1000000000, -10000000000, -1000000001, 1000000000, 10000000000, 1000000001], a);
+
+
+  for (var xb = 1; xb <= 1000 * 1000 * 1000; xb *= 10) {
+    for (var xf = 0; xf <= 9; xf++) {
+      for (var xo = -1; xo <= 1; xo++) {
+        for (var yb = 1; yb <= 1000 * 1000 * 1000; yb *= 10) {
+          for (var yf = 0; yf <= 9; yf++) {
+            for (var yo = -1; yo <= 1; yo++) {
+              var x = xb * xf + xo;
+              var y = yb * yf + yo;
+              if (!%_IsSmi(x)) continue;
+              if (!%_IsSmi(y)) continue;
+              var lex = %SmiLexicographicCompare(x, y);
+              if (lex < 0) lex = -1;
+              if (lex > 0) lex = 1;
+              assertEquals(lex, (x == y) ? 0 : ((x + "") < (y + "") ? -1 : 1), x + " < " + y);
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 TestNumberSort();
