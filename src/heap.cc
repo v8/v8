@@ -2461,11 +2461,11 @@ bool Heap::Setup(bool create_heap_objects) {
   // code space.  Align the pair of semispaces to their size, which must be
   // a power of 2.
   ASSERT(IsPowerOf2(young_generation_size_));
-  Address old_space_start = reinterpret_cast<Address>(chunk);
-  Address new_space_start = RoundUp(old_space_start, young_generation_size_);
-  Address code_space_start = new_space_start + young_generation_size_;
-  int old_space_size = new_space_start - old_space_start;
-  int code_space_size = young_generation_size_ - old_space_size;
+  Address code_space_start = reinterpret_cast<Address>(chunk);
+  Address new_space_start = RoundUp(code_space_start, young_generation_size_);
+  Address old_space_start = new_space_start + young_generation_size_;
+  int code_space_size = new_space_start - code_space_start;
+  int old_space_size = young_generation_size_ - code_space_size;
 
   // Initialize new space.
   new_space_ = new NewSpace(initial_semispace_size_,
