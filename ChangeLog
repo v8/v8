@@ -1,3 +1,31 @@
+2008-09-17: Version 0.3.2
+
+        Generalized the EvalCache into a CompilationCache and enabled it
+        for scripts too.  The current strategy is to retire all entries
+        whenever a mark-sweep collection is started.
+
+        Fixed bug where switch statements containing only a default case
+        would lead to an unbalanced stack (issue 69).
+
+        Fixed bug that made access to the function in a named function
+        expression impossible in certain situations (issue 24).
+
+        Fixed even more build issues.
+
+        Optimized calling conventions on ARM.  The conventions on ARM and
+        IA-32 now match.
+
+        Removed static initializers for flags and counters.
+
+        Improved inline caching behavior for uncommon cases where lazily
+        loading Date and RegExp code could force certain code paths go
+        megamorphic.
+
+        Removed arguments adaption for builtins written in C++.  This
+        makes Array.prototype.push and Array.prototype.pop slightly
+        faster.
+
+
 2008-09-11: Version 0.3.1
 
         Fixed a number of build issues.
