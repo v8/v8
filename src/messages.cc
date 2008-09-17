@@ -46,7 +46,7 @@ void MessageHandler::DefaultMessageReport(const MessageLocation* loc,
   } else {
     HandleScope scope;
     Handle<Object> data(loc->script()->name());
-    SmartPointer<char> data_str = NULL;
+    SmartPointer<char> data_str;
     if (data->IsString())
       data_str = Handle<String>::cast(data)->ToCString(DISALLOW_NULLS);
     PrintF("%s:%i: %s\n", *data_str ? *data_str : "<unknown>",

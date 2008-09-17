@@ -448,8 +448,9 @@ void PrettyPrinter::Print(const char* format, ...) {
   for (;;) {
     va_list arguments;
     va_start(arguments, format);
-    int available = size_ - pos_;
-    int n = OS::VSNPrintF(output_ + pos_, available, format, arguments);
+    int n = OS::VSNPrintF(Vector<char>(output_, size_) + pos_,
+                          format,
+                          arguments);
     va_end(arguments);
 
     if (n >= 0) {
@@ -648,10 +649,10 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
   if (var == NULL) {
     PrintLiteralIndented(info, value, true);
   } else {
-    char buf[256];
-    OS::SNPrintF(buf, sizeof(buf), "%s (mode = %s)", info,
+    EmbeddedVector<char, 256> buf;
+    OS::SNPrintF(buf, "%s (mode = %s)", info,
                  Variable::Mode2String(var->mode()));
-    PrintLiteralIndented(buf, value, true);
+    PrintLiteralIndented(buf.start(), value, true);
   }
 }
 
@@ -1019,10 +1020,10 @@ void AstPrinter::VisitUnaryOperation(UnaryOperation* node) {
 
 
 void AstPrinter::VisitCountOperation(CountOperation* node) {
-  char buf[128];
-  OS::SNPrintF(buf, sizeof(buf), "%s %s", (node->is_prefix() ? "PRE" : "POST"),
+  EmbeddedVector<char, 128> buf;
+  OS::SNPrintF(buf, "%s %s", (node->is_prefix() ? "PRE" : "POST"),
                Token::Name(node->op()));
-  PrintIndentedVisit(buf, node->expression());
+  PrintIndentedVisit(buf.start(), node->expression());
 }
 
 

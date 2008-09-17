@@ -40,20 +40,7 @@
 #include "snapshot.h"
 #include "cctest.h"
 
-namespace v8 { namespace internal {
-
-#ifdef WIN32
-DEFINE_string(serialization_file, "C:\\Windows\\Temp\\serdes",
-              "file in which to serialize heap");
-#else
-DEFINE_string(serialization_file, "/tmp/serdes",
-              "file in which to serialize heap");
-#endif
-DECLARE_bool(debug_serialization);
-}}  // namespace v8::internal
-
 using namespace v8::internal;
-
 
 static int local_counters[256];
 static int counter_count = 0;
@@ -174,7 +161,7 @@ static void Serialize() {
   v8::Persistent<v8::Context> env = v8::Context::New(&extensions);
   env->Enter();
 
-  Snapshot::WriteToFile(FLAG_serialization_file);
+  Snapshot::WriteToFile(FLAG_testing_serialization_file);
 }
 
 
@@ -218,7 +205,7 @@ static void Deserialize() {
 #ifdef DEBUG
   FLAG_debug_serialization = true;
 #endif
-  CHECK(Snapshot::Initialize(FLAG_serialization_file));
+  CHECK(Snapshot::Initialize(FLAG_testing_serialization_file));
 }
 
 

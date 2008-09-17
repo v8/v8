@@ -614,7 +614,7 @@ class Object BASE_EMBEDDED {
   inline bool IsHashTable();
   inline bool IsDictionary();
   inline bool IsSymbolTable();
-  inline bool IsEvalCache();
+  inline bool IsCompilationCacheTable();
   inline bool IsPrimitive();
   inline bool IsGlobalObject();
   inline bool IsJSGlobalObject();
@@ -1818,19 +1818,16 @@ class SymbolTable: public HashTable<0, 1> {
 };
 
 
-// EvalCache for caching eval'ed string and function.
-//
-// The cache is cleaned up during a mark-compact GC.
-class EvalCache: public HashTable<0, 2> {
+class CompilationCacheTable: public HashTable<0, 2> {
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(String* src);
   Object* Put(String* src, Object* value);
 
-  static inline EvalCache* cast(Object* obj);
+  static inline CompilationCacheTable* cast(Object* obj);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(EvalCache);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);
 };
 
 
@@ -2066,6 +2063,7 @@ class Code: public HeapObject {
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* Kind2String(Kind kind);
+  static const char* ICState2String(InlineCacheState state);
   void Disassemble();
 #endif  // ENABLE_DISASSEMBLER
 
@@ -2346,8 +2344,12 @@ class Map: public HeapObject {
   // Returns the found code or undefined if absent.
   Object* FindInCodeCache(String* name, Code::Flags flags);
 
-  // Tells whether code is in the code cache.
-  bool IncludedInCodeCache(Code* code);
+  // Returns the non-negative index of the code object if it is in the
+  // cache and -1 otherwise.
+  int IndexInCodeCache(Code* code);
+
+  // Removes a code object from the code cache at the given index.
+  void RemoveFromCodeCache(int index);
 
   // Dispatched behavior.
   void MapIterateBody(ObjectVisitor* v);
@@ -2467,6 +2469,10 @@ class SharedFunctionInfo: public HeapObject {
   inline int formal_parameter_count();
   inline void set_formal_parameter_count(int value);
 
+  // Set the formal parameter count so the function code will be
+  // called without using argument adaptor frames.
+  inline void DontAdaptArguments();
+
   // [expected_nof_properties]: Expected number of properties for the function.
   inline int expected_nof_properties();
   inline void set_expected_nof_properties(int value);
@@ -2535,6 +2541,9 @@ class SharedFunctionInfo: public HeapObject {
 
   // Casting.
   static inline SharedFunctionInfo* cast(Object* obj);
+
+  // Constants.
+  static const int kDontAdaptArgumentsSentinel = -1;
 
   // Layout description.
   static const int kNameOffset = HeapObject::kSize;
@@ -2864,7 +2873,8 @@ class String: public HeapObject {
   // ROBUST_STRING_TRAVERSAL invokes behaviour that is robust  This means it
   // handles unexpected data without causing assert failures and it does not
   // do any heap allocations.  This is useful when printing stack traces.
-  uc16* ToWideCString(RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL);
+  SmartPointer<uc16> ToWideCString(
+      RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL);
 
   // Tells whether the hash code has been computed.
   inline bool HasHashCode();

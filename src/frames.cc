@@ -35,14 +35,6 @@
 
 namespace v8 { namespace internal {
 
-
-DEFINE_int(max_stack_trace_source_length, 300,
-           "maximum length of function source code printed in a stack trace.");
-
-
-// -------------------------------------------------------------------------
-
-
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
 class StackHandlerIterator BASE_EMBEDDED {
@@ -254,9 +246,6 @@ StackFrame::Type ExitFrame::GetCallerState(State* state) const {
   // Setup the caller state.
   state->sp = pp();
   state->fp = Memory::Address_at(fp() + ExitFrameConstants::kCallerFPOffset);
-#ifdef USE_OLD_CALLING_CONVENTIONS
-  state->pp = Memory::Address_at(fp() + ExitFrameConstants::kCallerPPOffset);
-#endif
   state->pc_address
       = reinterpret_cast<Address*>(fp() + ExitFrameConstants::kCallerPCOffset);
   return ComputeType(state);
@@ -293,9 +282,6 @@ int StandardFrame::ComputeExpressionsCount() const {
 StackFrame::Type StandardFrame::GetCallerState(State* state) const {
   state->sp = caller_sp();
   state->fp = caller_fp();
-#ifdef USE_OLD_CALLING_CONVENTIONS
-  state->pp = caller_pp();
-#endif
   state->pc_address = reinterpret_cast<Address*>(ComputePCAddress(fp()));
   return ComputeType(state);
 }

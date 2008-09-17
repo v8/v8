@@ -38,14 +38,6 @@
 #include "platform.h"
 #include "serialize.h"
 
-DEFINE_bool(h, false, "print this message");
-
-namespace v8 { namespace internal {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  DECLARE_bool(log_code);
-#endif
-} }
-
 // use explicit namespace to avoid clashing with types in namespace v8
 namespace i = v8::internal;
 using namespace v8;
@@ -124,7 +116,7 @@ static int* counter_callback(const wchar_t* name) {
 static int WriteInternalSnapshotToFile(const char* filename,
                                        const char* str,
                                        int size) {
-  FILE* f = fopen(filename, "wb");
+  FILE* f = i::OS::FOpen(filename, "wb");
   if (f == NULL) {
     i::OS::PrintError("Cannot open file %s for reading.\n", filename);
     return 0;
@@ -158,10 +150,10 @@ int main(int argc, char** argv) {
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
-  if (result > 0 || argc != 2 || FLAG_h) {
+  if (result > 0 || argc != 2 || i::FLAG_h) {
     ::printf("Usage: %s [flag] ... outfile\n", argv[0]);
-    i::FlagList::Print(NULL, false);
-    return !FLAG_h;
+    i::FlagList::PrintHelp();
+    return !i::FLAG_h;
   }
 
   v8::V8::SetCounterFunction(counter_callback);

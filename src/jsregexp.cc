@@ -205,6 +205,8 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSValue> re,
   value->set(INTERNAL_INDEX, *internal);
   re->set_value(*value);
 
+  LOG(RegExpCompileEvent(re));
+
   return re;
 }
 
@@ -222,6 +224,8 @@ Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSValue> regexp,
     ByteArray* internal = JsreInternal(regexp);
     const JSRegExp* js_regexp =
         reinterpret_cast<JSRegExp*>(internal->GetDataStartAddress());
+
+    LOG(RegExpExecEvent(regexp, previous_index, subject));
 
     rc = jsRegExpExecute(js_regexp, two_byte_subject,
                        subject->length(),

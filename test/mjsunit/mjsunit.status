@@ -62,6 +62,3 @@ debug-step-stub-callfunction: FAIL
 debug-stepin-constructor: FAIL
 debug-step: FAIL
 regress/regress-998565: FAIL
-regress/regress-1081309: FAIL
-# Call as function does not always work on ARM port yet.
-number-string-index-call: FAIL

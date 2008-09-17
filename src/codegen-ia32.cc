@@ -37,34 +37,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_bool(trace, false, "trace function calls");
-DEFINE_bool(defer_negation, true, "defer negation operation");
-DECLARE_bool(debug_info);
-DECLARE_bool(debug_code);
-
-#ifdef ENABLE_DISASSEMBLER
-DEFINE_bool(print_code, false, "print generated code");
-#endif
-
-#ifdef DEBUG
-DECLARE_bool(gc_greedy);
-DEFINE_bool(trace_codegen, false,
-            "print name of functions for which code is generated");
-DEFINE_bool(print_builtin_code, false, "print generated code for builtins");
-DEFINE_bool(print_source, false, "pretty print source code");
-DEFINE_bool(print_builtin_source, false,
-            "pretty print source code for builtins");
-DEFINE_bool(print_ast, false, "print source AST");
-DEFINE_bool(print_builtin_ast, false, "print source AST for builtins");
-DEFINE_bool(trace_calls, false, "trace calls");
-DEFINE_bool(trace_builtin_calls, false, "trace builtins calls");
-DEFINE_string(stop_at, "", "function name where to insert a breakpoint");
-#endif  // DEBUG
-
-
-DEFINE_bool(check_stack, true,
-            "check stack for overflow, interrupt, breakpoint");
-
 #define TOS (Operand(esp, 0))
 
 
@@ -107,35 +79,46 @@ class Reference BASE_EMBEDDED {
 };
 
 
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // Code generation state
+
+// The state is passed down the AST by the code generator.  It is passed
+// implicitly (in a member variable) to the non-static code generator member
+// functions, and explicitly (as an argument) to the static member functions
+// and the AST node member functions.
+//
+// The state is threaded through the call stack.  Constructing a state
+// implicitly pushes it on the owning code generator's stack of states, and
+// destroying one implicitly pops it.
 
 class CodeGenState BASE_EMBEDDED {
  public:
   enum AccessType {
     UNDEFINED,
     LOAD,
-    LOAD_TYPEOF_EXPR,
-    STORE,
-    INIT_CONST
+    LOAD_TYPEOF_EXPR
   };
 
-  CodeGenState()
-      : access_(UNDEFINED),
-        ref_(NULL),
-        true_target_(NULL),
-        false_target_(NULL) {
-  }
+  // Create an initial code generator state.  Destroying the initial state
+  // leaves the code generator with a NULL state.
+  explicit CodeGenState(Ia32CodeGenerator* owner);
 
-  CodeGenState(AccessType access,
-               Reference* ref,
+  // Create a code generator state based on a code generator's current
+  // state.  The new state has its own access type and pair of branch
+  // labels, and no reference.
+  CodeGenState(Ia32CodeGenerator* owner,
+               AccessType access,
                Label* true_target,
-               Label* false_target)
-      : access_(access),
-        ref_(ref),
-        true_target_(true_target),
-        false_target_(false_target) {
-  }
+               Label* false_target);
+
+  // Create a code generator state based on a code generator's current
+  // state.  The new state has an access type of LOAD, its own reference,
+  // and inherits the pair of branch labels of the current state.
+  CodeGenState(Ia32CodeGenerator* owner, Reference* ref);
+
+  // Destroy a code generator state and restore the owning code generator's
+  // previous state.
+  ~CodeGenState();
 
   AccessType access() const { return access_; }
   Reference* ref() const { return ref_; }
@@ -143,10 +126,12 @@ class CodeGenState BASE_EMBEDDED {
   Label* false_target() const { return false_target_; }
 
  private:
+  Ia32CodeGenerator* owner_;
   AccessType access_;
   Reference* ref_;
   Label* true_target_;
   Label* false_target_;
+  CodeGenState* previous_;
 };
 
 
@@ -160,6 +145,9 @@ class Ia32CodeGenerator: public CodeGenerator {
                                bool is_eval);
 
   MacroAssembler* masm()  { return masm_; }
+
+  CodeGenState* state() { return state_; }
+  void set_state(CodeGenState* state) { state_ = state; }
 
  private:
   // Assembler
@@ -187,7 +175,6 @@ class Ia32CodeGenerator: public CodeGenerator {
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
   void UnloadReference(Reference* ref);
-  friend class Reference;
 
   // State
   bool has_cc() const  { return cc_reg_ >= 0; }
@@ -198,26 +185,39 @@ class Ia32CodeGenerator: public CodeGenerator {
   Label* false_target() const  { return state_->false_target(); }
 
   // Expressions
-  Operand GlobalObject() const  {
+  Operand GlobalObject() const {
     return ContextOperand(esi, Context::GLOBAL_INDEX);
   }
 
-  // Support functions for accessing parameters.
+  // Support functions for accessing parameters.  Static versions can
+  // require some code generator state to be passed in as arguments.
+  static Operand ParameterOperand(Scope* scope, int index) {
+    ASSERT(-2 <= index && index < scope->num_parameters());
+    return Operand(ebp, (1 + scope->num_parameters() - index) * kPointerSize);
+  }
+
   Operand ParameterOperand(int index) const {
-    ASSERT(-2 <= index && index < scope_->num_parameters());
-    return Operand(ebp, (1 + scope_->num_parameters() - index) * kPointerSize);
+    return ParameterOperand(scope_, index);
   }
 
   Operand ReceiverOperand() const { return ParameterOperand(-1); }
+
   Operand FunctionOperand() const {
     return Operand(ebp, JavaScriptFrameConstants::kFunctionOffset);
   }
 
-  Operand ContextOperand(Register context, int index) const {
+  static Operand ContextOperand(Register context, int index) {
     return Operand(context, Context::SlotOffset(index));
   }
 
-  Operand SlotOperand(Slot* slot, Register tmp);
+  static Operand SlotOperand(MacroAssembler* masm,
+                             Scope* scope,
+                             Slot* slot,
+                             Register tmp);
+
+  Operand SlotOperand(Slot* slot, Register tmp) {
+    return SlotOperand(masm_, scope_, slot, tmp);
+  }
 
   void LoadCondition(Expression* x,
                      CodeGenState::AccessType access,
@@ -237,20 +237,47 @@ class Ia32CodeGenerator: public CodeGenerator {
   void LoadTypeofExpression(Expression* x);
 
   // References
-  void AccessReference(Reference* ref, CodeGenState::AccessType access);
 
-  void GetValue(Reference* ref) { AccessReference(ref, CodeGenState::LOAD); }
-  void SetValue(Reference* ref) { AccessReference(ref, CodeGenState::STORE); }
-  void InitConst(Reference* ref) {
-    AccessReference(ref, CodeGenState::INIT_CONST);
+  // Generate code to fetch the value of a reference.  The reference is
+  // expected to be on top of the expression stack.  It is left in place and
+  // its value is pushed on top of it.
+  void GetValue(Reference* ref) {
+    ASSERT(!has_cc());
+    ASSERT(!ref->is_illegal());
+    CodeGenState new_state(this, ref);
+    Visit(ref->expression());
   }
 
+  // Generate code to store a value in a reference.  The stored value is
+  // expected on top of the expression stack, with the reference immediately
+  // below it.  The expression stack is left unchanged.
+  void SetValue(Reference* ref) {
+    ASSERT(!has_cc());
+    ASSERT(!ref->is_illegal());
+    ref->expression()->GenerateStoreCode(masm_, scope_, ref, NOT_CONST_INIT);
+  }
+
+  // Same as SetValue, used to set the initial value of a constant.
+  void InitConst(Reference* ref) {
+    ASSERT(!has_cc());
+    ASSERT(!ref->is_illegal());
+    ref->expression()->GenerateStoreCode(masm_, scope_, ref, CONST_INIT);
+  }
+
+  // Generate code to fetch a value from a property of a reference.  The
+  // reference is expected on top of the expression stack.  It is left in
+  // place and its value is pushed on top of it.
+  void GetReferenceProperty(Expression* key);
+
+  // Generate code to store a value in a property of a reference.  The
+  // stored value is expected on top of the expression stack, with the
+  // reference immediately below it.  The expression stack is left
+  // unchanged.
+  static void SetReferenceProperty(MacroAssembler* masm,
+                                   Reference* ref,
+                                   Expression* key);
+
   void ToBoolean(Label* true_target, Label* false_target);
-
-
-  // Access property from the reference (must be at the TOS).
-  void AccessReferenceProperty(Expression* key,
-                               CodeGenState::AccessType access);
 
   void GenericBinaryOperation(
       Token::Value op,
@@ -293,16 +320,6 @@ class Ia32CodeGenerator: public CodeGenerator {
   void EnterJSFrame();
   void ExitJSFrame();
 
-  virtual void GenerateShiftDownAndTailCall(ZoneList<Expression*>* args);
-  virtual void GenerateSetThisFunction(ZoneList<Expression*>* args);
-  virtual void GenerateGetThisFunction(ZoneList<Expression*>* args);
-  virtual void GenerateSetThis(ZoneList<Expression*>* args);
-  virtual void GenerateGetArgumentsLength(ZoneList<Expression*>* args);
-  virtual void GenerateSetArgumentsLength(ZoneList<Expression*>* args);
-  virtual void GenerateTailCallWithArguments(ZoneList<Expression*>* args);
-  virtual void GenerateSetArgument(ZoneList<Expression*>* args);
-  virtual void GenerateSquashFrame(ZoneList<Expression*>* args);
-  virtual void GenerateExpandFrame(ZoneList<Expression*>* args);
   virtual void GenerateIsSmi(ZoneList<Expression*>* args);
   virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
   virtual void GenerateIsArray(ZoneList<Expression*>* args);
@@ -316,7 +333,57 @@ class Ia32CodeGenerator: public CodeGenerator {
   virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args);
 
   virtual void GenerateObjectEquals(ZoneList<Expression*>* args);
+
+  friend class Reference;
+  friend class Property;
+  friend class VariableProxy;
+  friend class Slot;
 };
+
+
+// -------------------------------------------------------------------------
+// CodeGenState implementation.
+
+CodeGenState::CodeGenState(Ia32CodeGenerator* owner)
+    : owner_(owner),
+      access_(UNDEFINED),
+      ref_(NULL),
+      true_target_(NULL),
+      false_target_(NULL),
+      previous_(NULL) {
+  owner_->set_state(this);
+}
+
+
+CodeGenState::CodeGenState(Ia32CodeGenerator* owner,
+                           AccessType access,
+                           Label* true_target,
+                           Label* false_target)
+    : owner_(owner),
+      access_(access),
+      ref_(NULL),
+      true_target_(true_target),
+      false_target_(false_target),
+      previous_(owner->state()) {
+  owner_->set_state(this);
+}
+
+
+CodeGenState::CodeGenState(Ia32CodeGenerator* owner, Reference* ref)
+    : owner_(owner),
+      access_(LOAD),
+      ref_(ref),
+      true_target_(owner->state()->true_target_),
+      false_target_(owner->state()->false_target_),
+      previous_(owner->state()) {
+  owner_->set_state(this);
+}
+
+
+CodeGenState::~CodeGenState() {
+  ASSERT(owner_->state() == this);
+  owner_->set_state(previous_);
+}
 
 
 // -----------------------------------------------------------------------------
@@ -437,8 +504,7 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
   ZoneList<Statement*>* body = fun->body();
 
   // Initialize state.
-  { CodeGenState state;
-    state_ = &state;
+  { CodeGenState state(this);
     scope_ = scope;
     cc_reg_ = no_condition;
 
@@ -622,8 +688,6 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
         VisitReturnStatement(&statement);
       }
     }
-
-    state_ = NULL;
   }
 
   // Code generation state must be reset.
@@ -633,7 +697,10 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
 }
 
 
-Operand Ia32CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
+Operand Ia32CodeGenerator::SlotOperand(MacroAssembler* masm,
+                                       Scope* scope,
+                                       Slot* slot,
+                                       Register tmp) {
   // Currently, this assertion will fail if we try to assign to
   // a constant variable that is constant because it is read-only
   // (such as the variable referring to a named function expression).
@@ -645,10 +712,10 @@ Operand Ia32CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
   ASSERT(slot != NULL);
   int index = slot->index();
   switch (slot->type()) {
-    case Slot::PARAMETER: return ParameterOperand(index);
+    case Slot::PARAMETER: return ParameterOperand(scope, index);
 
     case Slot::LOCAL: {
-      ASSERT(0 <= index && index < scope_->num_stack_slots());
+      ASSERT(0 <= index && index < scope->num_stack_slots());
       const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
       return Operand(ebp, kLocal0Offset - index * kPointerSize);
     }
@@ -657,15 +724,15 @@ Operand Ia32CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
       // Follow the context chain if necessary.
       ASSERT(!tmp.is(esi));  // do not overwrite context register
       Register context = esi;
-      int chain_length = scope_->ContextChainLength(slot->var()->scope());
+      int chain_length = scope->ContextChainLength(slot->var()->scope());
       for (int i = chain_length; i-- > 0;) {
         // Load the closure.
         // (All contexts, even 'with' contexts, have a closure,
         // and it is the same for all contexts inside a function.
         // There is no need to go to the function context first.)
-        __ mov(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+        masm->mov(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
         // Load the function context (which is the incoming, outer context).
-        __ mov(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
+        masm->mov(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
         context = tmp;
       }
       // We may have a 'with' context now. Get the function context.
@@ -675,7 +742,7 @@ Operand Ia32CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
       // cause the function context of a function context is itself. Before
       // deleting this mov we should try to create a counter-example first,
       // though...)
-      __ mov(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
+      masm->mov(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
       return ContextOperand(tmp, index);
     }
 
@@ -700,11 +767,9 @@ void Ia32CodeGenerator::LoadCondition(Expression* x,
          access == CodeGenState::LOAD_TYPEOF_EXPR);
   ASSERT(!has_cc() && !is_referenced());
 
-  CodeGenState* old_state = state_;
-  CodeGenState new_state(access, NULL, true_target, false_target);
-  state_ = &new_state;
-  Visit(x);
-  state_ = old_state;
+  { CodeGenState new_state(this, access, true_target, false_target);
+    Visit(x);
+  }
   if (force_cc && !has_cc()) {
     ToBoolean(true_target, false_target);
   }
@@ -852,15 +917,109 @@ void Ia32CodeGenerator::UnloadReference(Reference* ref) {
 }
 
 
-void Ia32CodeGenerator::AccessReference(Reference* ref,
-                                        CodeGenState::AccessType access) {
-  ASSERT(!has_cc());
-  ASSERT(ref->type() != Reference::ILLEGAL);
-  CodeGenState* old_state = state_;
-  CodeGenState new_state(access, ref, true_target(), false_target());
-  state_ = &new_state;
-  Visit(ref->expression());
-  state_ = old_state;
+void Property::GenerateStoreCode(MacroAssembler* masm,
+                                 Scope* scope,
+                                 Reference* ref,
+                                 InitState init_state) {
+  Comment cmnt(masm, "[ Store to Property");
+  masm->RecordPosition(position());
+  Ia32CodeGenerator::SetReferenceProperty(masm, ref, key());
+}
+
+
+void VariableProxy::GenerateStoreCode(MacroAssembler* masm,
+                                      Scope* scope,
+                                      Reference* ref,
+                                      InitState init_state) {
+  Comment cmnt(masm, "[ Store to VariableProxy");
+  Variable* node = var();
+
+  Expression* expr = node->rewrite();
+  if (expr != NULL) {
+    expr->GenerateStoreCode(masm, scope, ref, init_state);
+  } else {
+    ASSERT(node->is_global());
+    if (node->AsProperty() != NULL) {
+      masm->RecordPosition(node->AsProperty()->position());
+    }
+    Ia32CodeGenerator::SetReferenceProperty(masm, ref,
+                                            new Literal(node->name()));
+  }
+}
+
+
+void Slot::GenerateStoreCode(MacroAssembler* masm,
+                             Scope* scope,
+                             Reference* ref,
+                             InitState init_state) {
+  Comment cmnt(masm, "[ Store to Slot");
+
+  if (type() == Slot::LOOKUP) {
+    ASSERT(var()->mode() == Variable::DYNAMIC);
+
+    // For now, just do a runtime call.
+    masm->push(Operand(esi));
+    masm->push(Immediate(var()->name()));
+
+    if (init_state == CONST_INIT) {
+      // Same as the case for a normal store, but ignores attribute
+      // (e.g. READ_ONLY) of context slot so that we can initialize const
+      // properties (introduced via eval("const foo = (some expr);")). Also,
+      // uses the current function context instead of the top context.
+      //
+      // Note that we must declare the foo upon entry of eval(), via a
+      // context slot declaration, but we cannot initialize it at the same
+      // time, because the const declaration may be at the end of the eval
+      // code (sigh...) and the const variable may have been used before
+      // (where its value is 'undefined'). Thus, we can only do the
+      // initialization when we actually encounter the expression and when
+      // the expression operands are defined and valid, and thus we need the
+      // split into 2 operations: declaration of the context slot followed
+      // by initialization.
+      masm->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+    } else {
+      masm->CallRuntime(Runtime::kStoreContextSlot, 3);
+    }
+    // Storing a variable must keep the (new) value on the expression
+    // stack. This is necessary for compiling assignment expressions.
+    masm->push(eax);
+
+  } else {
+    ASSERT(var()->mode() != Variable::DYNAMIC);
+
+    Label exit;
+    if (init_state == CONST_INIT) {
+      ASSERT(var()->mode() == Variable::CONST);
+      // Only the first const initialization must be executed (the slot
+      // still contains 'the hole' value). When the assignment is executed,
+      // the code is identical to a normal store (see below).
+      Comment cmnt(masm, "[ Init const");
+      masm->mov(eax, Ia32CodeGenerator::SlotOperand(masm, scope, this, ecx));
+      masm->cmp(eax, Factory::the_hole_value());
+      masm->j(not_equal, &exit);
+    }
+
+    // We must execute the store.
+    // Storing a variable must keep the (new) value on the stack. This is
+    // necessary for compiling assignment expressions.  ecx may be loaded
+    // with context; used below in RecordWrite.
+    //
+    // Note: We will reach here even with node->var()->mode() ==
+    // Variable::CONST because of const declarations which will initialize
+    // consts to 'the hole' value and by doing so, end up calling this
+    // code.
+    masm->pop(eax);
+    masm->mov(Ia32CodeGenerator::SlotOperand(masm, scope, this, ecx), eax);
+    masm->push(eax);  // RecordWrite may destroy the value in eax.
+    if (type() == Slot::CONTEXT) {
+      // ecx is loaded with context when calling SlotOperand above.
+      int offset = FixedArray::kHeaderSize + index() * kPointerSize;
+      masm->RecordWrite(ecx, offset, eax, ebx);
+    }
+    // If we definitely did not jump over the assignment, we do not need to
+    // bind the exit label.  Doing so can defeat peephole optimization.
+    if (init_state == CONST_INIT) masm->bind(&exit);
+  }
 }
 
 
@@ -991,18 +1150,53 @@ void Ia32CodeGenerator::ToBoolean(Label* true_target, Label* false_target) {
 }
 
 
-void Ia32CodeGenerator::AccessReferenceProperty(
-    Expression* key,
-    CodeGenState::AccessType access) {
+void Ia32CodeGenerator::GetReferenceProperty(Expression* key) {
+  ASSERT(!ref()->is_illegal());
   Reference::Type type = ref()->type();
-  ASSERT(type != Reference::ILLEGAL);
 
-  // TODO(1241834): Make sure that this is sufficient. If there is a chance
-  // that reference errors can be thrown below, we must distinguish
-  // between the 2 kinds of loads (typeof expression loads must not
-  // throw a reference error).
-  bool is_load = (access == CodeGenState::LOAD ||
-                  access == CodeGenState::LOAD_TYPEOF_EXPR);
+  // TODO(1241834): Make sure that this it is safe to ignore the distinction
+  // between access types LOAD and LOAD_TYPEOF_EXPR. If there is a chance
+  // that reference errors can be thrown below, we must distinguish between
+  // the two kinds of loads (typeof expression loads must not throw a
+  // reference error).
+  if (type == Reference::NAMED) {
+    // Compute the name of the property.
+    Literal* literal = key->AsLiteral();
+    Handle<String> name(String::cast(*literal->handle()));
+
+    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+    Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
+    // Setup the name register.
+    __ Set(ecx, Immediate(name));
+    if (var != NULL) {
+      ASSERT(var->is_global());
+      __ call(ic, code_target_context);
+    } else {
+      __ call(ic, code_target);
+    }
+  } else {
+    // Access keyed property.
+    ASSERT(type == Reference::KEYED);
+
+    // Call IC code.
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
+    if (var != NULL) {
+      ASSERT(var->is_global());
+      __ call(ic, code_target_context);
+    } else {
+      __ call(ic, code_target);
+    }
+  }
+  __ push(eax);  // IC call leaves result in eax, push it out
+}
+
+
+void Ia32CodeGenerator::SetReferenceProperty(MacroAssembler* masm,
+                                             Reference* ref,
+                                             Expression* key) {
+  ASSERT(!ref->is_illegal());
+  Reference::Type type = ref->type();
 
   if (type == Reference::NAMED) {
     // Compute the name of the property.
@@ -1010,48 +1204,23 @@ void Ia32CodeGenerator::AccessReferenceProperty(
     Handle<String> name(String::cast(*literal->handle()));
 
     // Call the appropriate IC code.
-    if (is_load) {
-      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-      Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
-      // Setup the name register.
-      __ Set(ecx, Immediate(name));
-      if (var != NULL) {
-        ASSERT(var->is_global());
-        __ call(ic, code_target_context);
-      } else {
-        __ call(ic, code_target);
-      }
-    } else {
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      // TODO(1222589): Make the IC grab the values from the stack.
-      __ pop(eax);
-      // Setup the name register.
-      __ Set(ecx, Immediate(name));
-      __ call(ic, code_target);
-    }
+    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+    // TODO(1222589): Make the IC grab the values from the stack.
+    masm->pop(eax);
+    // Setup the name register.
+    masm->Set(ecx, Immediate(name));
+    masm->call(ic, code_target);
   } else {
     // Access keyed property.
     ASSERT(type == Reference::KEYED);
 
-    if (is_load) {
-      // Call IC code.
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-      Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
-      if (var != NULL) {
-        ASSERT(var->is_global());
-        __ call(ic, code_target_context);
-      } else {
-        __ call(ic, code_target);
-      }
-    } else {
-      // Call IC code.
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-      // TODO(1222589): Make the IC grab the values from the stack.
-      __ pop(eax);
-      __ call(ic, code_target);
-    }
+    // Call IC code.
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+    // TODO(1222589): Make the IC grab the values from the stack.
+    masm->pop(eax);
+    masm->call(ic, code_target);
   }
-  __ push(eax);  // IC call leaves result in eax, push it out
+  masm->push(eax);  // IC call leaves result in eax, push it out
 }
 
 
@@ -2748,19 +2917,14 @@ void Ia32CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     Comment cmnt(masm_, "[ case clause");
 
     if (clause->is_default()) {
+      // Continue matching cases. The program will execute the default case's
+      // statements if it does not match any of the cases.
+      __ jmp(&next);
+
       // Bind the default case label, so we can branch to it when we
       // have compared against all other cases.
       ASSERT(default_case.is_unused());  // at most one default clause
-
-      // If the default case is the first (but not only) case, we have
-      // to jump past it for now. Once we're done with the remaining
-      // clauses, we'll branch back here. If it isn't the first case,
-      // we jump past it by avoiding to chain it into the next chain.
-      if (length > 1) {
-        if (i == 0) __ jmp(&next);
-        __ bind(&default_case);
-      }
-
+      __ bind(&default_case);
     } else {
       __ bind(&next);
       next.Unuse();
@@ -2769,11 +2933,16 @@ void Ia32CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
       Load(clause->label());
       Comparison(equal, true);
       Branch(false, &next);
-      // Entering the case statement -> remove the switch value from the stack
-      __ pop(eax);
     }
 
+    // Entering the case statement for the first time. Remove the switch value
+    // from the stack.
+    __ pop(eax);
+
     // Generate code for the body.
+    // This is also the target for the fall through from the previous case's
+    // statements which has to skip over the matching code and the popping of
+    // the switch value.
     __ bind(&fall_through);
     fall_through.Unuse();
     VisitStatements(clause->statements());
@@ -2781,10 +2950,14 @@ void Ia32CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   }
 
   __ bind(&next);
-  // Reached the end of the case statements -> remove the switch value
-  // from the stack
-  __ pop(eax);  // Pop(no_reg)
-  if (default_case.is_bound()) __ jmp(&default_case);
+  // Reached the end of the case statements without matching any of the cases.
+  if (default_case.is_bound()) {
+    // A default case exists -> execute its statements.
+    __ jmp(&default_case);
+  } else {
+    // Remove the switch value from the stack.
+    __ pop(eax);
+  }
 
   __ bind(&fall_through);
   __ bind(node->break_target());
@@ -3325,6 +3498,7 @@ void Ia32CodeGenerator::VisitConditional(Conditional* node) {
 
 
 void Ia32CodeGenerator::VisitSlot(Slot* node) {
+  ASSERT(access() != CodeGenState::UNDEFINED);
   Comment cmnt(masm_, "[ Slot");
 
   if (node->type() == Slot::LOOKUP) {
@@ -3334,151 +3508,56 @@ void Ia32CodeGenerator::VisitSlot(Slot* node) {
     __ push(Operand(esi));
     __ push(Immediate(node->var()->name()));
 
-    switch (access()) {
-      case CodeGenState::UNDEFINED:
-        UNREACHABLE();
-        break;
-
-      case CodeGenState::LOAD:
-        __ CallRuntime(Runtime::kLoadContextSlot, 2);
-        __ push(eax);
-        // result (TOS) is the value that was loaded
-        break;
-
-      case CodeGenState::LOAD_TYPEOF_EXPR:
-        __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
-        __ push(eax);
-        // result (TOS) is the value that was loaded
-        break;
-
-      case CodeGenState::STORE:
-        // Storing a variable must keep the (new) value on the
-        // stack. This is necessary for compiling assignment
-        // expressions.
-        __ CallRuntime(Runtime::kStoreContextSlot, 3);
-        __ push(eax);
-        // result (TOS) is the value that was stored
-        break;
-
-      case CodeGenState::INIT_CONST:
-        // Same as STORE but ignores attribute (e.g. READ_ONLY) of
-        // context slot so that we can initialize const properties
-        // (introduced via eval("const foo = (some expr);")). Also,
-        // uses the current function context instead of the top
-        // context.
-        //
-        // Note that we must declare the foo upon entry of eval(),
-        // via a context slot declaration, but we cannot initialize
-        // it at the same time, because the const declaration may
-        // be at the end of the eval code (sigh...) and the const
-        // variable may have been used before (where its value is
-        // 'undefined'). Thus, we can only do the initialization
-        // when we actually encounter the expression and when the
-        // expression operands are defined and valid, and thus we
-        // need the split into 2 operations: declaration of the
-        // context slot followed by initialization.
-        //
-        __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-        __ push(eax);
-        break;
+    if (access() == CodeGenState::LOAD) {
+      __ CallRuntime(Runtime::kLoadContextSlot, 2);
+    } else {
+      ASSERT(access() == CodeGenState::LOAD_TYPEOF_EXPR);
+      __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
     }
+    __ push(eax);
 
   } else {
-    // Note: We would like to keep the assert below, but it fires because
-    // of some nasty code in LoadTypeofExpression() which should be removed...
+    // Note: We would like to keep the assert below, but it fires because of
+    // some nasty code in LoadTypeofExpression() which should be removed...
     // ASSERT(node->var()->mode() != Variable::DYNAMIC);
 
-    switch (access()) {
-      case CodeGenState::UNDEFINED:
-        UNREACHABLE();
-        break;
-
-      case CodeGenState::LOAD:  // fall through
-      case CodeGenState::LOAD_TYPEOF_EXPR:
-        if (node->var()->mode() == Variable::CONST) {
-          // Const slots may contain 'the hole' value (the constant hasn't
-          // been initialized yet) which needs to be converted into the
-          // 'undefined' value.
-          Comment cmnt(masm_, "[ Load const");
-          Label L;
-          __ mov(eax, SlotOperand(node, ecx));
-          __ cmp(eax, Factory::the_hole_value());
-          __ j(not_equal, &L);
-          __ mov(eax, Factory::undefined_value());
-          __ bind(&L);
-          __ push(eax);
-        } else {
-          __ push(SlotOperand(node, ecx));
-        }
-        break;
-
-      case CodeGenState::INIT_CONST:
-        ASSERT(node->var()->mode() == Variable::CONST);
-        // Only the first const initialization must be executed (the slot
-        // still contains 'the hole' value). When the assignment is executed,
-        // the code is identical to a normal store (see below).
-        { Comment cmnt(masm_, "[ Init const");
-          Label L;
-          __ mov(eax, SlotOperand(node, ecx));
-          __ cmp(eax, Factory::the_hole_value());
-          __ j(not_equal, &L);
-          // We must execute the store.
-          __ mov(eax, TOS);
-          __ mov(SlotOperand(node, ecx), eax);
-          if (node->type() == Slot::CONTEXT) {
-            // ecx is loaded with context when calling SlotOperand above.
-            int offset = FixedArray::kHeaderSize + node->index() * kPointerSize;
-            __ RecordWrite(ecx, offset, eax, ebx);
-          }
-          __ bind(&L);
-        }
-        break;
-
-      case CodeGenState::STORE:
-        // Storing a variable must keep the (new) value on the stack. This
-        // is necessary for compiling assignment expressions.
-        // ecx may be loaded with context; used below in RecordWrite.
-        //
-        // Note: We will reach here even with node->var()->mode() ==
-        // Variable::CONST because of const declarations which will
-        // initialize consts to 'the hole' value and by doing so, end
-        // up calling this code.
-        __ pop(eax);
-        __ mov(SlotOperand(node, ecx), eax);
-        __ push(eax);  // RecordWrite may destroy the value in eax.
-        if (node->type() == Slot::CONTEXT) {
-          // ecx is loaded with context when calling SlotOperand above.
-          int offset = FixedArray::kHeaderSize + node->index() * kPointerSize;
-          __ RecordWrite(ecx, offset, eax, ebx);
-        }
-        break;
+    if (node->var()->mode() == Variable::CONST) {
+      // Const slots may contain 'the hole' value (the constant hasn't been
+      // initialized yet) which needs to be converted into the 'undefined'
+      // value.
+      Comment cmnt(masm_, "[ Load const");
+      Label L;
+      __ mov(eax, SlotOperand(node, ecx));
+      __ cmp(eax, Factory::the_hole_value());
+      __ j(not_equal, &L);
+      __ mov(eax, Factory::undefined_value());
+      __ bind(&L);
+      __ push(eax);
+    } else {
+      __ push(SlotOperand(node, ecx));
     }
   }
 }
 
 
-void Ia32CodeGenerator::VisitVariableProxy(VariableProxy* proxy_node) {
+void Ia32CodeGenerator::VisitVariableProxy(VariableProxy* node) {
   Comment cmnt(masm_, "[ VariableProxy");
-  Variable* node = proxy_node->var();
+  Variable* var_node = node->var();
 
-  Expression* x = node->rewrite();
-  if (x != NULL) {
-    Visit(x);
-    return;
-  }
-
-  ASSERT(node->is_global());
-  if (is_referenced()) {
-    if (node->AsProperty() != NULL) {
-      __ RecordPosition(node->AsProperty()->position());
-    }
-    AccessReferenceProperty(new Literal(node->name()), access());
-
+  Expression* expr = var_node->rewrite();
+  if (expr != NULL) {
+    Visit(expr);
   } else {
-    // All stores are through references.
-    ASSERT(access() != CodeGenState::STORE);
-    Reference property(this, proxy_node);
-    GetValue(&property);
+    ASSERT(var_node->is_global());
+    if (is_referenced()) {
+      if (var_node->AsProperty() != NULL) {
+        __ RecordPosition(var_node->AsProperty()->position());
+      }
+      GetReferenceProperty(new Literal(var_node->name()));
+    } else {
+      Reference property(this, node);
+      GetValue(&property);
+    }
   }
 }
 
@@ -3784,10 +3863,8 @@ void Ia32CodeGenerator::VisitProperty(Property* node) {
 
   if (is_referenced()) {
     __ RecordPosition(node->position());
-    AccessReferenceProperty(node->key(), access());
+    GetReferenceProperty(node->key());
   } else {
-    // All stores are through references.
-    ASSERT(access() != CodeGenState::STORE);
     Reference property(this, node);
     __ RecordPosition(node->position());
     GetValue(&property);
@@ -3949,70 +4026,6 @@ void Ia32CodeGenerator::VisitCallNew(CallNew* node) {
   __ call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
           js_construct_call);
   __ mov(TOS, eax);  // discard the function and "push" the newly created object
-}
-
-
-void Ia32CodeGenerator::GenerateSetThisFunction(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateGetThisFunction(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateSetThis(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateSetArgumentsLength(
-    ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateGetArgumentsLength(
-    ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateTailCallWithArguments(
-     ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateSetArgument(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateSquashFrame(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateExpandFrame(ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
-}
-
-
-void Ia32CodeGenerator::GenerateShiftDownAndTailCall(
-    ZoneList<Expression*>* args) {
-  // Not used on IA-32 anymore. Should go away soon.
-  __ int3();
 }
 
 

@@ -55,6 +55,9 @@ for (i = 0; i < scripts.length; i++) {
 
 // This has to be updated if the number of native scripts change.
 assertEquals(12, native_count);
+// If no snapshot is used, only the 'gc' extension is loaded.
+// If snapshot is used, all extensions are cached in the snapshot.
+assertTrue(extension_count == 1 || extension_count == 5);
 assertEquals(2, normal_count);  // This script and mjsunit.js.
 
 // Test a builtins script.

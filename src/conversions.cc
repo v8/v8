@@ -269,17 +269,26 @@ static double InternalStringToDouble(S* str,
   // Skip leading spaces.
   while ((index < len) && IsSpace(str, index)) index++;
 
-  // Compute sign of result.
+  // Is the string empty?
+  if (index >= len) return empty_string_val;
+
+  // Get the first character.
+  uint16_t first = GetChar(str, index);
+
+  // Numbers can only start with '-', '+', '.', 'I' (Infinity), or a digit.
+  if (first != '-' && first != '+' && first != '.' && first != 'I' &&
+      (first > '9' || first < '0')) {
+    return JUNK_STRING_VALUE;
+  }
+
+  // Compute sign of result based on first character.
   int sign = 1;
-  if (index < len && GetChar(str, index) == '-') {
+  if (first == '-') {
     sign = -1;
     index++;
     // String only containing a '-' are junk chars.
     if (index == len) return JUNK_STRING_VALUE;
   }
-
-  // string is empty?
-  if (index >= len) return empty_string_val;
 
   // do we have a hex number?
   // (since the string is 0-terminated, it's ok to look one char beyond the end)

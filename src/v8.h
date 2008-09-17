@@ -53,7 +53,7 @@
 #include "checks.h"
 #include "allocation.h"
 #include "utils.h"
-#include "flags-inl.h"
+#include "flags.h"
 
 // Objects & heap
 #include "objects.h"

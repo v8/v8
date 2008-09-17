@@ -59,7 +59,7 @@ class Disassembler {
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(char* buffer, const int buffer_size, byte* instruction);
+  int InstructionDecode(v8::internal::Vector<char> buffer, byte* instruction);
 
   // Returns -1 if instruction does not mark the beginning of a constant pool,
   // or the number of entries in the constant pool beginning here.

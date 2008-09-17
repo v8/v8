@@ -164,9 +164,6 @@ class StackFrame BASE_EMBEDDED {
   struct State {
     Address sp;
     Address fp;
-#ifdef USE_OLD_CALLING_CONVENTIONS
-    Address pp;
-#endif
     Address* pc_address;
   };
 
@@ -187,13 +184,9 @@ class StackFrame BASE_EMBEDDED {
   // Compute the stack frame type for the given state.
   static Type ComputeType(State* state);
 
- protected:
-  // TODO(1233523): Once the ARM code uses the new calling
-  // conventions, we should be able to make state_ private again.
-  State state_;
-
  private:
   const StackFrameIterator* iterator_;
+  State state_;
 
   // Get the type and the state of the calling frame.
   virtual Type GetCallerState(State* state) const = 0;
@@ -338,9 +331,6 @@ class StandardFrame: public StackFrame {
   // Accessors.
   inline Address caller_sp() const;
   inline Address caller_fp() const;
-#ifdef USE_OLD_CALLING_CONVENTIONS
-  inline Address caller_pp() const;
-#endif
   inline Address caller_pc() const;
 
   // Computes the address of the PC field in the standard frame given

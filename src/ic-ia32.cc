@@ -34,10 +34,6 @@
 
 namespace v8 { namespace internal {
 
-
-DECLARE_bool(debug_code);
-
-
 // ----------------------------------------------------------------------------
 // Static IC stub generators.
 //
@@ -518,7 +514,7 @@ void CallIC::Generate(MacroAssembler* masm,
   __ mov(ebx, Operand(esp, (argc + 2) * kPointerSize));
 
   // Enter an internal frame.
-  __ EnterFrame(StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
   // Push the receiver and the name of the function.
   __ push(Operand(edx));
@@ -532,7 +528,7 @@ void CallIC::Generate(MacroAssembler* masm,
 
   // Move result to edi and exit the internal frame.
   __ mov(Operand(edi), eax);
-  __ ExitFrame(StackFrame::INTERNAL);
+  __ ExitInternalFrame();
 
   // Invoke the function.
   ParameterCount actual(argc);

@@ -37,25 +37,27 @@ namespace v8 { namespace internal {
 #define __ masm->
 
 
-void Builtins::Generate_Adaptor(MacroAssembler* masm,
-                                int argc,
-                                CFunctionId id) {
-  // argc is the number of arguments excluding the receiver.
-  // JumpToBuiltin expects eax to contain the number of arguments
-  // including the receiver.
-  __ mov(eax, argc + 1);
-  __ mov(Operand::StaticVariable(ExternalReference::builtin_passed_function()),
-         edi);
+void Builtins::Generate_Adaptor(MacroAssembler* masm, CFunctionId id) {
+  // TODO(1238487): Don't pass the function in a static variable.
+  ExternalReference passed = ExternalReference::builtin_passed_function();
+  __ mov(Operand::StaticVariable(passed), edi);
+
+  // The actual argument count has already been loaded into register
+  // eax, but JumpToBuiltin expects eax to contain the number of
+  // arguments including the receiver.
+  __ inc(eax);
   __ JumpToBuiltin(ExternalReference(id));
 }
 
 
-DEFINE_bool(inline_new, true, "use fast inline allocation");
-
-
 void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax: number of arguments
+  //  -- edi: constructor function
+  // -----------------------------------
+
   // Enter an internal frame.
-  __ EnterFrame(StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
   // Store a smi-tagged arguments count on the stack.
   __ shl(eax, kSmiTagSize);
@@ -296,7 +298,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Restore the arguments count and exit the internal frame.
   __ bind(&exit);
   __ mov(ebx, Operand(esp, kPointerSize));  // get arguments count
-  __ ExitFrame(StackFrame::INTERNAL);
+  __ ExitInternalFrame();
 
   // Remove caller arguments from the stack and return.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
@@ -318,7 +320,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ xor_(esi, Operand(esi));  // clear esi
 
   // Enter an internal frame.
-  __ EnterFrame(StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
   // Load the previous frame pointer (ebx) to access C arguments
   __ mov(ebx, Operand(ebp, 0));
@@ -362,7 +364,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Exit the JS frame. Notice that this also removes the empty
   // context and the function left on the stack by the code
   // invocation.
-  __ ExitFrame(StackFrame::INTERNAL);
+  __ ExitInternalFrame();
   __ ret(1 * kPointerSize);  // remove receiver
 }
 
@@ -377,8 +379,137 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 }
 
 
+void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
+  // 1. Make sure we have at least one argument.
+  { Label done;
+    __ test(eax, Operand(eax));
+    __ j(not_zero, &done, taken);
+    __ pop(ebx);
+    __ push(Immediate(Factory::undefined_value()));
+    __ push(ebx);
+    __ inc(eax);
+    __ bind(&done);
+  }
+
+  // 2. Get the function to call from the stack.
+  { Label done, non_function, function;
+    // +1 ~ return address.
+    __ mov(edi, Operand(esp, eax, times_4, +1 * kPointerSize));
+    __ test(edi, Immediate(kSmiTagMask));
+    __ j(zero, &non_function, not_taken);
+    __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));  // get the map
+    __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+    __ cmp(ecx, JS_FUNCTION_TYPE);
+    __ j(equal, &function, taken);
+
+    // Non-function called: Clear the function to force exception.
+    __ bind(&non_function);
+    __ xor_(edi, Operand(edi));
+    __ jmp(&done);
+
+    // Function called: Change context eagerly to get the right global object.
+    __ bind(&function);
+    __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+
+    __ bind(&done);
+  }
+
+  // 3. Make sure first argument is an object; convert if necessary.
+  { Label call_to_object, use_global_receiver, patch_receiver, done;
+    __ mov(ebx, Operand(esp, eax, times_4, 0));
+
+    __ test(ebx, Immediate(kSmiTagMask));
+    __ j(zero, &call_to_object);
+
+    __ cmp(ebx, Factory::null_value());
+    __ j(equal, &use_global_receiver);
+    __ cmp(ebx, Factory::undefined_value());
+    __ j(equal, &use_global_receiver);
+
+    __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
+    __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+    __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+    __ j(less, &call_to_object);
+    __ cmp(ecx, LAST_JS_OBJECT_TYPE);
+    __ j(less_equal, &done);
+
+    __ bind(&call_to_object);
+    __ EnterInternalFrame();  // preserves eax, ebx, edi
+
+    // Store the arguments count on the stack (smi tagged).
+    ASSERT(kSmiTag == 0);
+    __ shl(eax, kSmiTagSize);
+    __ push(eax);
+
+    __ push(edi);  // save edi across the call
+    __ push(ebx);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ mov(Operand(ebx), eax);
+    __ pop(edi);  // restore edi after the call
+
+    // Get the arguments count and untag it.
+    __ pop(eax);
+    __ shr(eax, kSmiTagSize);
+
+    __ ExitInternalFrame();
+    __ jmp(&patch_receiver);
+
+    // Use the global object from the called function as the receiver.
+    __ bind(&use_global_receiver);
+    const int kGlobalIndex =
+        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+    __ mov(ebx, FieldOperand(esi, kGlobalIndex));
+
+    __ bind(&patch_receiver);
+    __ mov(Operand(esp, eax, times_4, 0), ebx);
+
+    __ bind(&done);
+  }
+
+  // 4. Shift stuff one slot down the stack.
+  { Label loop;
+    __ lea(ecx, Operand(eax, +1));  // +1 ~ copy receiver too
+    __ bind(&loop);
+    __ mov(ebx, Operand(esp, ecx, times_4, 0));
+    __ mov(Operand(esp, ecx, times_4, kPointerSize), ebx);
+    __ dec(ecx);
+    __ j(not_zero, &loop);
+  }
+
+  // 5. Remove TOS (copy of last arguments), but keep return address.
+  __ pop(ebx);
+  __ pop(ecx);
+  __ push(ebx);
+  __ dec(eax);
+
+  // 6. Check that function really was a function and get the code to
+  //    call from the function and check that the number of expected
+  //    arguments matches what we're providing.
+  { Label invoke;
+    __ test(edi, Operand(edi));
+    __ j(not_zero, &invoke, taken);
+    __ xor_(ebx, Operand(ebx));
+    __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
+    __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)), code_target);
+
+    __ bind(&invoke);
+    __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+    __ mov(ebx,
+           FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
+    __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
+    __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
+    __ cmp(eax, Operand(ebx));
+    __ j(not_equal, Handle<Code>(builtin(ArgumentsAdaptorTrampoline)));
+  }
+
+  // 7. Jump (tail-call) to the code in register edx without checking arguments.
+  ParameterCount expected(0);
+  __ InvokeCode(Operand(edx), expected, expected, JUMP_FUNCTION);
+}
+
+
 void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
-  __ EnterFrame(StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
   __ push(Operand(ebp, 4 * kPointerSize));  // push this
   __ push(Operand(ebp, 2 * kPointerSize));  // push arguments
@@ -482,7 +613,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(edi, Operand(ebp, 4 * kPointerSize));
   __ InvokeFunction(edi, actual, CALL_FUNCTION);
 
-  __ ExitFrame(StackFrame::INTERNAL);
+  __ ExitInternalFrame();
   __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 }
 
@@ -528,15 +659,14 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   //  -- edx : code entry to call
   // -----------------------------------
 
-  Label entry, invoke, function_prototype_call;
-  __ bind(&entry);
+  Label invoke, dont_adapt_arguments;
   __ IncrementCounter(&Counters::arguments_adaptors, 1);
 
   Label enough, too_few;
   __ cmp(eax, Operand(ebx));
   __ j(less, &too_few);
-  __ cmp(ebx, -1);
-  __ j(equal, &function_prototype_call);
+  __ cmp(ebx, SharedFunctionInfo::kDontAdaptArgumentsSentinel);
+  __ j(equal, &dont_adapt_arguments);
 
   {  // Enough parameters: Actual >= expected.
     __ bind(&enough);
@@ -586,8 +716,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ mov(edi, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   }
 
-  // Mark the adaptor frame as special by overwriting the context slot
-  // in the stack with a sentinel.
+  // Call the entry point.
   Label return_site;
   __ bind(&invoke);
   __ call(Operand(edx));
@@ -603,135 +732,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
 
   // -------------------------------------------
-  // Function.prototype.call implementation.
+  // Dont adapt arguments.
   // -------------------------------------------
-  __ bind(&function_prototype_call);
-
-  // 1. Make sure we have at least one argument.
-  { Label done;
-    __ test(eax, Operand(eax));
-    __ j(not_zero, &done, taken);
-    __ pop(ebx);
-    __ push(Immediate(Factory::undefined_value()));
-    __ push(ebx);
-    __ inc(eax);
-    __ bind(&done);
-  }
-
-  // 2. Get the function to call from the stack.
-  { Label done, non_function, function;
-    // +1 ~ return address.
-    __ mov(edi, Operand(esp, eax, times_4, +1 * kPointerSize));
-    __ test(edi, Immediate(kSmiTagMask));
-    __ j(zero, &non_function, not_taken);
-    __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));  // get the map
-    __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-    __ cmp(ecx, JS_FUNCTION_TYPE);
-    __ j(equal, &function, taken);
-
-    // Non-function called: Clear the function to force exception.
-    __ bind(&non_function);
-    __ xor_(edi, Operand(edi));
-    __ jmp(&done);
-
-    // Function called: Change context eagerly to get the right global object.
-    __ bind(&function);
-    __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-
-    __ bind(&done);
-  }
-
-  // 3. Make sure first argument is an object; convert if necessary.
-  { Label call_to_object, use_global_receiver, patch_receiver, done;
-    __ mov(ebx, Operand(esp, eax, times_4, 0));
-
-    __ test(ebx, Immediate(kSmiTagMask));
-    __ j(zero, &call_to_object);
-
-    __ cmp(ebx, Factory::null_value());
-    __ j(equal, &use_global_receiver);
-    __ cmp(ebx, Factory::undefined_value());
-    __ j(equal, &use_global_receiver);
-
-    __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
-    __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-    __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
-    __ j(less, &call_to_object);
-    __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-    __ j(less_equal, &done);
-
-    __ bind(&call_to_object);
-    __ EnterFrame(StackFrame::INTERNAL);  // preserves eax, ebx, edi
-
-    // Store the arguments count on the stack (smi tagged).
-    ASSERT(kSmiTag == 0);
-    __ shl(eax, kSmiTagSize);
-    __ push(eax);
-
-    __ push(edi);  // save edi across the call
-    __ push(ebx);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-    __ mov(Operand(ebx), eax);
-    __ pop(edi);  // restore edi after the call
-
-    // Get the arguments count and untag it.
-    __ pop(eax);
-    __ shr(eax, kSmiTagSize);
-
-    __ ExitFrame(StackFrame::INTERNAL);
-    __ jmp(&patch_receiver);
-
-    // Use the global object from the called function as the receiver.
-    __ bind(&use_global_receiver);
-    const int kGlobalIndex =
-        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
-    __ mov(ebx, FieldOperand(esi, kGlobalIndex));
-
-    __ bind(&patch_receiver);
-    __ mov(Operand(esp, eax, times_4, 0), ebx);
-
-    __ bind(&done);
-  }
-
-  // 4. Shift stuff one slot down the stack.
-  { Label loop;
-    __ lea(ecx, Operand(eax, +1));  // +1 ~ copy receiver too
-    __ bind(&loop);
-    __ mov(ebx, Operand(esp, ecx, times_4, 0));
-    __ mov(Operand(esp, ecx, times_4, kPointerSize), ebx);
-    __ dec(ecx);
-    __ j(not_zero, &loop);
-  }
-
-  // 5. Remove TOS (copy of last arguments), but keep return address.
-  __ pop(ebx);
-  __ pop(ecx);
-  __ push(ebx);
-  __ dec(eax);
-
-  // 6. Check that function really was a function and get the code to
-  //    call from the function and check that the number of expected
-  //    arguments matches what we're providing.
-  { Label invoke;
-    __ test(edi, Operand(edi));
-    __ j(not_zero, &invoke, taken);
-    __ xor_(ebx, Operand(ebx));
-    __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-    __ jmp(&enough);
-
-    __ bind(&invoke);
-    __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    __ mov(ebx,
-           FieldOperand(edx, SharedFunctionInfo::kFormalParameterCountOffset));
-    __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kCodeOffset));
-    __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
-    __ cmp(eax, Operand(ebx));
-    __ j(not_equal, &entry);
-  }
-
-  // 7. Jump (tail-call) to the code in register edx without checking arguments.
-  ParameterCount expected(0);
-  __ InvokeCode(Operand(edx), expected, expected, JUMP_FUNCTION);
+  __ bind(&dont_adapt_arguments);
+  __ jmp(Operand(edx));
 }
 
 
@@ -747,7 +751,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ SaveRegistersToMemory(kJSCallerSaved);
 
   // Enter an internal frame.
-  __ EnterFrame(StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
   // Store the registers containing object pointers on the expression stack to
   // make sure that these are correctly updated during GC.
@@ -767,7 +771,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ PopRegistersToMemory(pointer_regs);
 
   // Get rid of the internal frame.
-  __ ExitFrame(StackFrame::INTERNAL);
+  __ ExitInternalFrame();
 
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.

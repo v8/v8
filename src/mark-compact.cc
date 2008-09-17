@@ -42,20 +42,7 @@ namespace v8 { namespace internal {
 // TODO(1240833): Fix the heap verification code and turn this into a real
 // flag.
 static const bool FLAG_verify_global_gc = false;
-
-DECLARE_bool(gc_verbose);
 #endif  // DEBUG
-
-DEFINE_bool(always_compact, false, "Perform compaction on every full GC");
-DEFINE_bool(never_compact, false,
-            "Never perform compaction on full GC - testing only");
-
-DEFINE_bool(cleanup_ics_at_gc, true,
-            "Flush inline caches prior to mark compact collection.");
-DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
-            "Flush code caches in maps during mark compact cycle.");
-
-DECLARE_bool(gc_global);
 
 // ----------------------------------------------------------------------------
 // MarkCompactCollector

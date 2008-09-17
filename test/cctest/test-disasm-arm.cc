@@ -51,17 +51,17 @@ static void InitializeVM() {
 
 bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   disasm::Disassembler disasm;
-  char disasm_buffer[128];
+  EmbeddedVector<char, 128> disasm_buffer;
 
-  disasm.InstructionDecode(disasm_buffer, sizeof disasm_buffer, pc);
+  disasm.InstructionDecode(disasm_buffer, pc);
 
-  if (strcmp(compare_string, disasm_buffer) != 0) {
+  if (strcmp(compare_string, disasm_buffer.start()) != 0) {
     fprintf(stderr,
             "expected: \n"
             "%s\n"
             "disassembled: \n"
             "%s\n\n",
-            compare_string, disasm_buffer);
+            compare_string, disasm_buffer.start());
     return false;
   }
   return true;

@@ -32,14 +32,6 @@
 
 namespace v8 { namespace internal {
 
-
-#ifdef DEBUG
-DEFINE_bool(trace_contexts, false, "trace contexts operations");
-#else
-#define FLAG_trace_contexts false
-#endif
-
-
 JSBuiltinsObject* Context::builtins() {
   GlobalObject* object = global();
   if (object->IsJSGlobalObject()) {

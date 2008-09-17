@@ -33,8 +33,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_bool(usage_computation, true, "compute variable usage counts");
-
 // Weight boundaries
 static const int MinWeight = 1;
 static const int MaxWeight = 1000000;

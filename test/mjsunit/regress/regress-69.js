@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// This tests a switch statement with only default clause leaves
+// balanced stack. It should not trigger the break point when --debug_code
+// flag is turned on.
+// See issue: http://code.google.com/p/v8/issues/detail?id=69
 
-#include "counters.h"
-#include "platform.h"
-
-namespace v8 { namespace internal {
-
-CounterLookupCallback StatsTable::lookup_function_ = NULL;
-
-// Start the timer.
-void StatsCounterTimer::Start() {
-  if (!counter_.Enabled())
-    return;
-  stop_time_ = 0;
-  start_time_ = OS::Ticks();
+// Flags: --debug-code --expose-gc
+function unbalanced_switch(a) {
+  try {
+    switch (a) {
+      default: break;
+    }
+  } catch (e) {}
+  gc();
 }
 
-// Stop the timer and record the results.
-void StatsCounterTimer::Stop() {
-  if (!counter_.Enabled())
-    return;
-  stop_time_ = OS::Ticks();
-
-  // Compute the delta between start and stop, in milliseconds.
-  int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
-  counter_.Increment(milliseconds);
-}
-
-} }  // namespace v8::internal
+unbalanced_switch(1);

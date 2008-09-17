@@ -279,6 +279,10 @@ class Vector {
     ASSERT(length == 0 || (length > 0 && data != NULL));
   }
 
+  static Vector<T> New(int length) {
+    return Vector<T>(NewArray<T>(length), length);
+  }
+
   // Returns the length of the vector.
   int length() const { return length_; }
 
@@ -310,6 +314,11 @@ class Vector {
     length_ = 0;
   }
 
+  inline Vector<T> operator+(int offset) {
+    ASSERT(offset < length_);
+    return Vector<T>(start_ + offset, length_ - offset);
+  }
+
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(NULL, 0); }
 
@@ -319,12 +328,26 @@ class Vector {
 };
 
 
+template <typename T, int kSize>
+class EmbeddedVector : public Vector<T> {
+ public:
+  EmbeddedVector() : Vector<T>(buffer_, kSize) { }
+ private:
+  T buffer_[kSize];
+};
+
+
 inline Vector<const char> CStrVector(const char* data) {
   return Vector<const char>(data, strlen(data));
 }
 
 inline Vector<char> MutableCStrVector(char* data) {
   return Vector<char>(data, strlen(data));
+}
+
+inline Vector<char> MutableCStrVector(char* data, int max) {
+  int length = strlen(data);
+  return Vector<char>(data, (length < max) ? length : max);
 }
 
 template <typename T>
@@ -369,11 +392,11 @@ class StringBuilder {
   explicit StringBuilder(int size);
 
   StringBuilder(char* buffer, int size)
-      : buffer_(buffer), size_(size), position_(0) { }
+      : buffer_(buffer, size), position_(0) { }
 
   ~StringBuilder() { if (!is_finalized()) Finalize(); }
 
-  int size() const { return size_; }
+  int size() const { return buffer_.length(); }
 
   // Get the current position in the builder.
   int position() const {
@@ -389,7 +412,7 @@ class StringBuilder {
   // instead.
   void AddCharacter(char c) {
     ASSERT(c != '\0');
-    ASSERT(!is_finalized() && position_ < size_);
+    ASSERT(!is_finalized() && position_ < buffer_.length());
     buffer_[position_++] = c;
   }
 
@@ -412,8 +435,7 @@ class StringBuilder {
   char* Finalize();
 
  private:
-  char* buffer_;
-  int size_;
+  Vector<char> buffer_;
   int position_;
 
   bool is_finalized() const { return position_ < 0; }

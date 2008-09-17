@@ -39,12 +39,6 @@
 
 namespace v8 { namespace internal {
 
-DECLARE_bool(allow_natives_syntax);
-
-#ifdef DEBUG
-DECLARE_bool(gc_greedy);
-#endif
-
 #define CALL_GC(RESULT)                                             \
   {                                                                 \
     Failure* __failure__ = Failure::cast(RESULT);                   \
@@ -54,34 +48,6 @@ DECLARE_bool(gc_greedy);
        V8::FatalProcessOutOfMemory("Handles");                      \
     }                                                               \
   }
-
-
-// Don't use the following names: __object__, __failure__.
-#define CALL_HEAP_FUNCTION_VOID(FUNCTION_CALL)                      \
-  GC_GREEDY_CHECK();                                                \
-  Object* __object__ = FUNCTION_CALL;                               \
-  if (__object__->IsFailure()) {                                    \
-    if (__object__->IsRetryAfterGC()) {                             \
-      Failure* __failure__ = Failure::cast(__object__);             \
-      if (!Heap::CollectGarbage(__failure__->requested(),           \
-                                __failure__->allocation_space())) { \
-         /* TODO(1181417): Fix this. */                             \
-         V8::FatalProcessOutOfMemory("Handles");                    \
-      }                                                             \
-      __object__ = FUNCTION_CALL;                                   \
-      if (__object__->IsFailure()) {                                \
-        if (__object__->IsRetryAfterGC()) {                         \
-           /* TODO(1181417): Fix this. */                           \
-           V8::FatalProcessOutOfMemory("Handles");                  \
-        }                                                           \
-        return;                                                     \
-      }                                                             \
-    } else {                                                        \
-      return;                                                       \
-    }                                                               \
-  }
-
-
 
 
 Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray> content,

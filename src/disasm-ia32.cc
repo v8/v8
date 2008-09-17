@@ -233,11 +233,11 @@ class DisassemblerIA32 {
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(char* buffer, const int buffer_size, byte* instruction);
+  int InstructionDecode(v8::internal::Vector<char> buffer, byte* instruction);
 
  private:
   const NameConverter& converter_;
-  char tmp_buffer_[128];
+  v8::internal::EmbeddedVector<char, 128> tmp_buffer_;
   unsigned int tmp_buffer_pos_;
   bool abort_on_unimplemented_;
 
@@ -307,15 +307,10 @@ class DisassemblerIA32 {
 
 
 void DisassemblerIA32::AppendToBuffer(const char* format, ...) {
-  char* str = tmp_buffer_ + tmp_buffer_pos_;
-  int size = (sizeof tmp_buffer_) - tmp_buffer_pos_;
+  v8::internal::Vector<char> buf = tmp_buffer_ + tmp_buffer_pos_;
   va_list args;
   va_start(args, format);
-#ifdef WIN32
-  int result = _vsnprintf(str, size, format, args);
-#else
-  int result = vsnprintf(str, size, format, args);
-#endif
+  int result = v8::internal::OS::VSNPrintF(buf, format, args);
   va_end(args);
   tmp_buffer_pos_ += result;
 }
@@ -706,8 +701,7 @@ static const char* F0Mnem(byte f0byte) {
 
 
 // Disassembled instruction '*instr' and writes it intro 'out_buffer'.
-int DisassemblerIA32::InstructionDecode(char* out_buffer,
-                                        const int out_buffer_size,
+int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                                         byte* instr) {
   tmp_buffer_pos_ = 0;  // starting to write as position 0
   byte* data = instr;
@@ -1040,20 +1034,17 @@ int DisassemblerIA32::InstructionDecode(char* out_buffer,
   // Instruction bytes.
   for (byte* bp = instr; bp < data; bp++) {
     outp += v8::internal::OS::SNPrintF(out_buffer + outp,
-                                       out_buffer_size - outp,
                                        "%02x",
                                        *bp);
   }
   for (int i = 6 - instr_len; i >= 0; i--) {
     outp += v8::internal::OS::SNPrintF(out_buffer + outp,
-                                       out_buffer_size - outp,
                                        "  ");
   }
 
   outp += v8::internal::OS::SNPrintF(out_buffer + outp,
-                                     out_buffer_size - outp,
                                      " %s",
-                                     tmp_buffer_);
+                                     tmp_buffer_.start());
   return instr_len;
 }
 
@@ -1072,13 +1063,9 @@ static const char* xmm_regs[8] = {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  static char tmp_buffer[32];
-#ifdef WIN32
-  _snprintf(tmp_buffer, sizeof tmp_buffer, "%p", addr);
-#else
-  snprintf(tmp_buffer, sizeof tmp_buffer, "%p", addr);
-#endif
-  return tmp_buffer;
+  static v8::internal::EmbeddedVector<char, 32> tmp_buffer;
+  v8::internal::OS::SNPrintF(tmp_buffer, "%p", addr);
+  return tmp_buffer.start();
 }
 
 
@@ -1120,11 +1107,10 @@ Disassembler::Disassembler(const NameConverter& converter)
 Disassembler::~Disassembler() {}
 
 
-int Disassembler::InstructionDecode(char* buffer,
-                                    const int buffer_size,
+int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
                                     byte* instruction) {
   DisassemblerIA32 d(converter_, false /*do not crash if unimplemented*/);
-  return d.InstructionDecode(buffer, buffer_size, instruction);
+  return d.InstructionDecode(buffer, instruction);
 }
 
 
@@ -1135,10 +1121,10 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
 /*static*/ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
   Disassembler d;
   for (byte* pc = begin; pc < end;) {
-    char buffer[128];
+    v8::internal::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
     byte* prev_pc = pc;
-    pc += d.InstructionDecode(buffer, sizeof buffer, pc);
+    pc += d.InstructionDecode(buffer, pc);
     fprintf(f, "%p", prev_pc);
     fprintf(f, "    ");
 
@@ -1148,7 +1134,7 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
     for (int i = 6 - (pc - prev_pc); i >= 0; i--) {
       fprintf(f, "  ");
     }
-    fprintf(f, "  %s\n", buffer);
+    fprintf(f, "  %s\n", buffer.start());
   }
 }
 

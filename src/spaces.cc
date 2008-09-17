@@ -33,17 +33,6 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-DECLARE_bool(heap_stats);
-DEFINE_bool(collect_heap_spill_statistics, false,
-            "report heap spill statistics along with heap_stats "
-            "(requires heap_stats)");
-#endif
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-DECLARE_bool(log_gc);
-#endif
-
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
 #define ASSERT_SEMISPACE_ALLOCATION_INFO(info, space) \

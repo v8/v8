@@ -37,9 +37,9 @@ SOURCES = {
   'all': [
     'accessors.cc', 'allocation.cc', 'api.cc', 'assembler.cc', 'ast.cc',
     'bootstrapper.cc', 'builtins.cc', 'checks.cc', 'code-stubs.cc',
-    'codegen.cc', 'compiler.cc', 'contexts.cc', 'conversions.cc',
-    'counters.cc', 'dateparser.cc', 'debug.cc', 'disassembler.cc',
-    'execution.cc', 'factory.cc', 'flags.cc', 'frames.cc',
+    'codegen.cc', 'compilation-cache.cc', 'compiler.cc', 'contexts.cc',
+    'conversions.cc', 'counters.cc', 'dateparser.cc', 'debug.cc',
+    'disassembler.cc', 'execution.cc', 'factory.cc', 'flags.cc', 'frames.cc',
     'global-handles.cc', 'handles.cc', 'hashmap.cc', 'heap.cc', 'ic.cc',
     'jsregexp.cc', 'log.cc', 'mark-compact.cc', 'messages.cc', 'objects.cc',
     'parser.cc', 'property.cc', 'rewriter.cc', 'runtime.cc', 'scanner.cc',
@@ -125,7 +125,7 @@ def ConfigureObjectFiles():
 
   source_objs = context.ConfigureObject(env, source_files)
   non_snapshot_files = [jscre_obj, dtoa_obj, source_objs]
-  
+
   # Create snapshot if necessary.
   empty_snapshot_obj = context.ConfigureObject(env, 'snapshot-empty.cc')
   if context.use_snapshot:

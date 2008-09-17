@@ -63,12 +63,9 @@ LIBRARY_FLAGS = {
   'msvc': {
     'all': {
       'DIALECTFLAGS': ['/nologo'],
-      'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
       'CXXFLAGS':     ['$CCFLAGS', '/GR-', '/Gy'],
-      'CPPDEFINES':   ['WIN32', '_CRT_SECURE_NO_DEPRECATE',
-          '_CRT_NONSTDC_NO_DEPRECATE', '_USE_32BIT_TIME_T',
-          'PCRE_STATIC'],
+      'CPPDEFINES':   ['WIN32', '_USE_32BIT_TIME_T', 'PCRE_STATIC'],
       'LINKFLAGS':    ['/NOLOGO', '/MACHINE:X86', '/INCREMENTAL:NO',
           '/NXCOMPAT', '/IGNORE:4221'],
       'ARFLAGS':      ['/NOLOGO'],
@@ -456,6 +453,7 @@ def BuildSpecific(env, mode, env_overrides):
   )
   
   # Link the object files into a library.
+  env.Replace(**context.flags['v8'])
   context.ApplyEnvOverrides(env)
   if context.options['library'] == 'static':
     library = env.StaticLibrary(library_name, object_files)

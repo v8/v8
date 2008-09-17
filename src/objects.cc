@@ -43,12 +43,6 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-DEFINE_bool(trace_normalization,
-            false,
-            "prints when objects are turned into dictionaries.");
-#endif
-
 // Getters and setters are stored in a fixed array property.  These are
 // constants for their indices.
 const int kGetterIndex = 0;
@@ -893,9 +887,9 @@ void HeapNumber::HeapNumberPrint(StringStream* accumulator) {
   // buffer that is plenty big enough for any floating point number, then
   // print that using vsnprintf (which may truncate but never allocate if
   // there is no more space in the buffer).
-  char buffer[100];
-  OS::SNPrintF(buffer, sizeof(buffer), "%.16g", Number());
-  accumulator->Add("%s", buffer);
+  EmbeddedVector<char, 100> buffer;
+  OS::SNPrintF(buffer, "%.16g", Number());
+  accumulator->Add("%s", buffer.start());
 }
 
 
@@ -2433,13 +2427,21 @@ Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
 }
 
 
-bool Map::IncludedInCodeCache(Code* code) {
+int Map::IndexInCodeCache(Code* code) {
   FixedArray* array = code_cache();
   int len = array->length();
   for (int i = 0; i < len; i += 2) {
-    if (array->get(i+1) == code) return true;
+    if (array->get(i + 1) == code) return i + 1;
   }
-  return false;
+  return -1;
+}
+
+
+void Map::RemoveFromCodeCache(int index) {
+  FixedArray* array = code_cache();
+  ASSERT(array->length() >= index && array->get(index)->IsCode());
+  array->set_undefined(index - 1);  // key
+  array->set_undefined(index);  // code
 }
 
 
@@ -3023,11 +3025,11 @@ const uc16* String::GetTwoByteData(unsigned start) {
 }
 
 
-uc16* String::ToWideCString(RobustnessFlag robust_flag) {
+SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
   ASSERT(NativeAllocationChecker::allocation_allowed());
 
   if (robust_flag == ROBUST_STRING_TRAVERSAL && !LooksValid()) {
-    return NULL;
+    return SmartPointer<uc16>();
   }
 
   Access<StringInputBuffer> buffer(&string_input_buffer);
@@ -3041,7 +3043,7 @@ uc16* String::ToWideCString(RobustnessFlag robust_flag) {
     result[i++] = character;
   }
   result[i] = 0;
-  return result;
+  return SmartPointer<uc16>(result);
 }
 
 
@@ -4189,6 +4191,21 @@ const char* Code::Kind2String(Kind kind) {
     case STORE_IC: return "STORE_IC";
     case KEYED_STORE_IC: return "KEYED_STORE_IC";
     case CALL_IC: return "CALL_IC";
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
+
+const char* Code::ICState2String(InlineCacheState state) {
+  switch (state) {
+    case UNINITIALIZED: return "UNINITIALIZED";
+    case PREMONOMORPHIC: return "PREMONOMORPHIC";
+    case MONOMORPHIC: return "MONOMORPHIC";
+    case MONOMORPHIC_PROTOTYPE_FAILURE: return "MONOMORPHIC_PROTOTYPE_FAILURE";
+    case MEGAMORPHIC: return "MEGAMORPHIC";
+    case DEBUG_BREAK: return "DEBUG_BREAK";
+    case DEBUG_PREPARE_STEP_IN: return "DEBUG_PREPARE_STEP_IN";
   }
   UNREACHABLE();
   return NULL;
@@ -5576,7 +5593,7 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
 }
 
 
-Object* EvalCache::Lookup(String* src) {
+Object* CompilationCacheTable::Lookup(String* src) {
   StringKey key(src);
   int entry = FindEntry(&key);
   if (entry != -1) {
@@ -5587,12 +5604,13 @@ Object* EvalCache::Lookup(String* src) {
 }
 
 
-Object* EvalCache::Put(String* src, Object* value) {
+Object* CompilationCacheTable::Put(String* src, Object* value) {
   StringKey key(src);
   Object* obj = EnsureCapacity(1, &key);
   if (obj->IsFailure()) return obj;
 
-  EvalCache* cache = reinterpret_cast<EvalCache*>(obj);
+  CompilationCacheTable* cache =
+      reinterpret_cast<CompilationCacheTable*>(obj);
   int entry = cache->FindInsertionEntry(src, key.Hash());
   cache->set(EntryToIndex(entry), src);
   cache->set(EntryToIndex(entry) + 1, value);

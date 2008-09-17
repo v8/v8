@@ -39,11 +39,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_string(expose_natives_as, NULL, "expose natives in global object");
-DEFINE_string(expose_debug_as, NULL, "expose debug in global object");
-DEFINE_string(natives_file, NULL, "alternative natives file");  // for debugging
-DEFINE_bool(expose_gc, false, "expose gc extension");  // for debugging
-
 // A SourceCodeCache uses a FixedArray to store pairs of
 // (AsciiString*, JSFunction*), mapping names of native code files
 // (runtime.js, etc.) to precompiled functions. Instead of mapping
@@ -296,8 +291,7 @@ class Genesis BASE_EMBEDDED {
 
   void AddSpecialFunction(Handle<JSObject> prototype,
                           const char* name,
-                          Handle<Code> code,
-                          int parameter_count);
+                          Handle<Code> code);
 
   void BuildSpecialFunctionTable();
 
@@ -492,14 +486,15 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
       Factory::NewFunction(symbol, Factory::null_value());
 
   {  // --- E m p t y ---
-    Handle<Code> call_code =
+    Handle<Code> code =
         Handle<Code>(Builtins::builtin(Builtins::EmptyFunction));
     Handle<String> source = Factory::NewStringFromAscii(CStrVector("() {}"));
 
-    empty_function->set_code(*call_code);
+    empty_function->set_code(*code);
     empty_function->shared()->set_script(*Factory::NewScript(source));
     empty_function->shared()->set_start_position(0);
     empty_function->shared()->set_end_position(source->length());
+    empty_function->shared()->DontAdaptArguments();
     global_context()->function_map()->set_prototype(*empty_function);
     global_context()->function_instance_map()->set_prototype(*empty_function);
 
@@ -586,6 +581,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
         InstallFunction(global, "Array", JS_ARRAY_TYPE, JSArray::kSize,
                         Top::initial_object_prototype(), Builtins::ArrayCode,
                         true);
+    array_function->shared()->DontAdaptArguments();
 
     // This seems a bit hackish, but we need to make sure Array.length
     // is 1.
@@ -715,6 +711,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
       Factory::NewFunction(Factory::empty_symbol(), JS_OBJECT_TYPE,
                            JSObject::kHeaderSize, code, true);
   global_context()->set_call_as_function_delegate(*delegate);
+  delegate->shared()->DontAdaptArguments();
 
   global_context()->set_special_function_table(Heap::empty_fixed_array());
 
@@ -961,36 +958,38 @@ bool Genesis::InstallNatives() {
 
   InstallNativeFunctions();
 
-#ifndef USE_OLD_CALLING_CONVENTIONS
-  // TODO(1240778): Get rid of the JS implementation of
-  // Function.prototype.call and simply create a function with the
-  // faked formal parameter count (-1) and use the illegal builtin as
-  // the code for it.
-
-  // Find Function.prototype.call and set it's number of formal
-  // parameters to -1 to let the arguments adaptor handle it
-  // specially.
-  { Handle<JSFunction> function =
-        Handle<JSFunction>::cast(GetProperty(Top::global(),
-                                             Factory::function_class_symbol()));
+  // Install Function.prototype.call and apply.
+  { Handle<String> key = Factory::function_class_symbol();
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(GetProperty(Top::global(), key));
     Handle<JSObject> proto =
         Handle<JSObject>(JSObject::cast(function->instance_prototype()));
+
+    // Install the call and the apply functions.
     Handle<JSFunction> call =
-        Handle<JSFunction>::cast(GetProperty(proto, Factory::call_symbol()));
-    call->shared()->set_formal_parameter_count(-1);
+        InstallFunction(proto, "call", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                        Factory::NewJSObject(Top::object_function(), TENURED),
+                        Builtins::FunctionCall,
+                        false);
+    Handle<JSFunction> apply =
+        InstallFunction(proto, "apply", JS_OBJECT_TYPE, JSObject::kHeaderSize,
+                        Factory::NewJSObject(Top::object_function(), TENURED),
+                        Builtins::FunctionApply,
+                        false);
 
     // Make sure that Function.prototype.call appears to be compiled.
     // The code will never be called, but inline caching for call will
     // only work if it appears to be compiled.
-    call->shared()->set_code(Builtins::builtin(Builtins::Illegal));
+    call->shared()->DontAdaptArguments();
     ASSERT(call->is_compiled());
 
-    // Use the specialized builtin for Function.prototype.apply.
-    Handle<JSFunction> apply =
-        Handle<JSFunction>::cast(GetProperty(proto, Factory::apply_symbol()));
-    apply->shared()->set_code(Builtins::builtin(Builtins::FunctionApply));
+    // Set the expected paramters for apply to 2; required by builtin.
+    apply->shared()->set_formal_parameter_count(2);
+
+    // Set the lengths for the functions to satisfy ECMA-262.
+    call->shared()->set_length(1);
+    apply->shared()->set_length(2);
   }
-#endif
 
   // Make sure that the builtins object has fast properties.
   // If the ASSERT below fails, please increase the expected number of
@@ -1269,8 +1268,7 @@ void Genesis::MakeFunctionInstancePrototypeWritable() {
 
 void Genesis::AddSpecialFunction(Handle<JSObject> prototype,
                                  const char* name,
-                                 Handle<Code> code,
-                                 int parameter_count) {
+                                 Handle<Code> code) {
   Handle<String> key = Factory::LookupAsciiSymbol(name);
   Handle<Object> value = Handle<Object>(prototype->GetProperty(*key));
   if (value->IsJSFunction()) {
@@ -1279,7 +1277,7 @@ void Genesis::AddSpecialFunction(Handle<JSObject> prototype,
                                                         JSObject::kHeaderSize,
                                                         code,
                                                         false);
-    optimized->shared()->set_formal_parameter_count(parameter_count);
+    optimized->shared()->DontAdaptArguments();
     int len = global_context()->special_function_table()->length();
     Handle<FixedArray> new_array = Factory::NewFixedArray(len + 3);
     for (int index = 0; index < len; index++) {
@@ -1304,11 +1302,9 @@ void Genesis::BuildSpecialFunctionTable() {
   Handle<JSObject> prototype =
       Handle<JSObject>(JSObject::cast(function->prototype()));
   AddSpecialFunction(prototype, "pop",
-                     Handle<Code>(Builtins::builtin(Builtins::ArrayPop)),
-                     0);
+                     Handle<Code>(Builtins::builtin(Builtins::ArrayPop)));
   AddSpecialFunction(prototype, "push",
-                     Handle<Code>(Builtins::builtin(Builtins::ArrayPush)),
-                     1);
+                     Handle<Code>(Builtins::builtin(Builtins::ArrayPush)));
 }
 
 

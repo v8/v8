@@ -41,7 +41,6 @@ namespace v8 { namespace internal {
 //       install extensions with lazy compilation enabled. At the
 //       moment, this doesn't work for the extensions in Google3,
 //       and we can only run the tests with --nolazy.
-DECLARE_bool(lazy);
 
 
 // Forward declaration.
@@ -148,16 +147,7 @@ class CodeGenerator: public Visitor {
   // name/value pairs.
   virtual void DeclareGlobals(Handle<FixedArray> pairs) = 0;
 
-  virtual void GenerateShiftDownAndTailCall(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateSetThisFunction(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateGetThisFunction(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateSetThis(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateGetArgumentsLength(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateSetArgumentsLength(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateTailCallWithArguments(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateSetArgument(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateSquashFrame(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateExpandFrame(ZoneList<Expression*>* args) = 0;
+  // Support for type checks.
   virtual void GenerateIsSmi(ZoneList<Expression*>* args) = 0;
   virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) = 0;
   virtual void GenerateIsArray(ZoneList<Expression*>* args) = 0;

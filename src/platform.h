@@ -132,6 +132,8 @@ class OS {
   // Returns the daylight savings offset for the given time.
   static double DaylightSavingsOffset(double time);
 
+  static FILE* FOpen(const char* path, const char* mode);
+
   // Print output to console. This is mostly used for debugging output.
   // On platforms that has standard terminal output, the output
   // should go to stdout.
@@ -198,11 +200,14 @@ class OS {
 
   // Safe formatting print. Ensures that str is always null-terminated.
   // Returns the number of chars written, or -1 if output was truncated.
-  static int SNPrintF(char* str, size_t size, const char* format, ...);
-  static int VSNPrintF(char* str,
-                       size_t size,
+  static int SNPrintF(Vector<char> str, const char* format, ...);
+  static int VSNPrintF(Vector<char> str,
                        const char* format,
                        va_list args);
+
+  static void StrNCpy(Vector<char> dest, const char* src, size_t n);
+  static void WcsCpy(Vector<wchar_t> dest, const wchar_t* src);
+  static char* StrDup(const char* str);
 
   // Support for profiler.  Can do nothing, in which case ticks
   // occuring in shared libraries will not be properly accounted

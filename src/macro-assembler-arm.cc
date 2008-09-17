@@ -34,10 +34,6 @@
 
 namespace v8 { namespace internal {
 
-DECLARE_bool(debug_code);
-DECLARE_bool(optimize_locals);
-
-
 // Give alias names to registers
 Register cp = {  8 };  // JavaScript context pointer
 Register pp = { 10 };  // parameter pointer
@@ -249,94 +245,28 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
 }
 
 
-void MacroAssembler::EnterJSFrame(int argc) {
-  // Generate code entering a JS function called from a JS function
-  // stack: receiver, arguments
-  // r0: number of arguments (not including function, nor receiver)
-  // r1: preserved
-  // sp: stack pointer
-  // fp: frame pointer
-  // cp: callee's context
-  // pp: caller's parameter pointer
-  // lr: return address
+void MacroAssembler::EnterInternalFrame() {
+  // r0-r3: preserved
+  int type = StackFrame::INTERNAL;
 
-  // compute parameter pointer before making changes
-  // ip = sp + kPointerSize*(args_len+1);  // +1 for receiver
-  add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
-  add(ip, ip, Operand(kPointerSize));
-
-  // push extra parameters if we don't have enough
-  // (this can only happen if argc > 0 to begin with)
-  if (argc > 0) {
-    Label loop, done;
-
-    // assume enough arguments to be the most common case
-    sub(r2, r0, Operand(argc), SetCC);  // number of missing arguments
-    b(ge, &done);  // enough arguments
-
-    // not enough arguments
-    mov(r3, Operand(Factory::undefined_value()));
-    bind(&loop);
-    push(r3);
-    add(r2, r2, Operand(1), SetCC);
-    b(lt, &loop);
-
-    bind(&done);
-  }
-
-  mov(r3, Operand(r0));  // args_len to be saved
-  mov(r2, Operand(cp));  // context to be saved
-
-  // push in reverse order: context (r2), args_len (r3), caller_pp, caller_fp,
-  // sp_on_exit (ip == pp, may be patched on exit), return address
-  stm(db_w, sp, r2.bit() | r3.bit() | pp.bit() | fp.bit() |
-      ip.bit() | lr.bit());
-
-  // Setup new frame pointer.
-  add(fp, sp, Operand(-StandardFrameConstants::kContextOffset));
-  mov(pp, Operand(ip));  // setup new parameter pointer
-  mov(r0, Operand(0));  // spare slot to store caller code object during GC
-  push(r0);
-  // r1: preserved
+  stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
+  mov(ip, Operand(Smi::FromInt(type)));
+  push(ip);
+  mov(ip, Operand(0));
+  push(ip);  // Push an empty code cache slot.
+  add(fp, sp, Operand(3 * kPointerSize));  // Adjust FP to point to saved FP.
 }
 
 
-void MacroAssembler::ExitJSFrame(ExitJSFlag flag) {
-  // r0: result
-  // sp: stack pointer
-  // fp: frame pointer
-  // pp: parameter pointer
+void MacroAssembler::ExitInternalFrame() {
+  // r0: preserved
+  // r1: preserved
+  // r2: preserved
 
-  if (flag == DO_NOT_RETURN) {
-    add(r3, fp, Operand(JavaScriptFrameConstants::kSavedRegistersOffset));
-  }
-
-  if (flag == DO_NOT_RETURN) {
-    // restore sp as caller_sp (not as pp)
-    str(r3, MemOperand(fp, JavaScriptFrameConstants::kSPOnExitOffset));
-  }
-
-  if (flag == DO_NOT_RETURN && generating_stub()) {
-    // If we're generating a stub, we need to preserve the link
-    // register to be able to return to the place the stub was called
-    // from.
-    mov(ip, Operand(lr));
-  }
-
-  mov(sp, Operand(fp));  // respect ABI stack constraint
-  ldm(ia, sp, pp.bit() | fp.bit() | sp.bit() |
-      ((flag == RETURN) ? pc.bit() : lr.bit()));
-
-  if (flag == DO_NOT_RETURN && generating_stub()) {
-    // Return to the place where the stub was called without
-    // clobbering the value of the link register.
-    mov(pc, Operand(ip));
-  }
-
-  // r0: result
-  // sp: points to function arg (if return) or to last arg (if no return)
-  // fp: restored frame pointer
-  // pp: restored parameter pointer
+  // Drop the execution stack down to the frame pointer and restore the caller
+  // frame pointer and return address.
+  mov(sp, fp);
+  ldm(ia_w, sp, fp.bit() | lr.bit());
 }
 
 
@@ -346,12 +276,66 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Register code_reg,
                                     Label* done,
                                     InvokeFlag flag) {
-  if (actual.is_immediate()) {
-    mov(r0, Operand(actual.immediate()));  // Push the number of arguments.
-  } else {
-    if (!actual.reg().is(r0)) {
-      mov(r0, Operand(actual.reg()));
+  bool definitely_matches = false;
+  Label regular_invoke;
+
+  // Check whether the expected and actual arguments count match. If not,
+  // setup registers according to contract with ArgumentsAdaptorTrampoline:
+  //  r0: actual arguments count
+  //  r1: function (passed through to callee)
+  //  r2: expected arguments count
+  //  r3: callee code entry
+
+  // The code below is made a lot easier because the calling code already sets
+  // up actual and expected registers according to the contract if values are
+  // passed in registers.
+  ASSERT(actual.is_immediate() || actual.reg().is(r0));
+  ASSERT(expected.is_immediate() || expected.reg().is(r2));
+  ASSERT((!code_constant.is_null() && code_reg.is(no_reg)) || code_reg.is(r3));
+
+  if (expected.is_immediate()) {
+    ASSERT(actual.is_immediate());
+    if (expected.immediate() == actual.immediate()) {
+      definitely_matches = true;
+    } else {
+      mov(r0, Operand(actual.immediate()));
+      const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+      if (expected.immediate() == sentinel) {
+        // Don't worry about adapting arguments for builtins that
+        // don't want that done. Skip adaption code by making it look
+        // like we have a match between expected and actual number of
+        // arguments.
+        definitely_matches = true;
+      } else {
+        mov(r2, Operand(expected.immediate()));
+      }
     }
+  } else {
+    if (actual.is_immediate()) {
+      cmp(expected.reg(), Operand(actual.immediate()));
+      b(eq, &regular_invoke);
+      mov(r0, Operand(actual.immediate()));
+    } else {
+      cmp(expected.reg(), Operand(actual.reg()));
+      b(eq, &regular_invoke);
+    }
+  }
+
+  if (!definitely_matches) {
+    if (!code_constant.is_null()) {
+      mov(r3, Operand(code_constant));
+      add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
+    }
+
+    Handle<Code> adaptor =
+        Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
+    if (flag == CALL_FUNCTION) {
+      Call(adaptor, code_target);
+      b(done);
+    } else {
+      Jump(adaptor, code_target);
+    }
+    bind(&regular_invoke);
   }
 }
 
@@ -402,18 +386,8 @@ void MacroAssembler::InvokeFunction(Register fun,
   // Contract with called JS functions requires that function is passed in r1.
   ASSERT(fun.is(r1));
 
-  Register code_reg = r3;
   Register expected_reg = r2;
-
-  // Make sure that the code and expected registers do not collide with the
-  // actual register being passed in.
-  if (actual.is_reg()) {
-    if (actual.reg().is(code_reg)) {
-      code_reg = r4;
-    } else if (actual.reg().is(expected_reg)) {
-      expected_reg = r4;
-    }
-  }
+  Register code_reg = r3;
 
   ldr(code_reg, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
@@ -507,7 +481,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     mov(r0, Operand(Smi::FromInt(StackHandler::kCodeNotPresent)));  // new TOS
     push(r0);
   } else {
-    // Must preserve r0-r3, r5-r7 are available.
+    // Must preserve r0-r4, r5-r7 are available.
     ASSERT(try_location == IN_JS_ENTRY);
     // The parameter pointer is meaningless here and fp does not point to a JS
     // frame. So we save NULL for both pp and fp. We expect the code throwing an
@@ -688,33 +662,54 @@ void MacroAssembler::JumpToBuiltin(const ExternalReference& builtin) {
 }
 
 
-void MacroAssembler::InvokeBuiltin(const char* name,
-                                   int argc,
-                                   InvokeJSFlags flags) {
-  Handle<String> symbol = Factory::LookupAsciiSymbol(name);
-  Object* object = Top::security_context_builtins()->GetProperty(*symbol);
-  bool unresolved = true;
-  Code* code = Builtins::builtin(Builtins::Illegal);
+Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
+                                            bool* resolved) {
+  // Contract with compiled functions is that the function is passed in r1.
+  int builtins_offset =
+      JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
+  ldr(r1, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  ldr(r1, FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
+  ldr(r1, FieldMemOperand(r1, builtins_offset));
 
-  if (object->IsJSFunction()) {
-    Handle<JSFunction> function(JSFunction::cast(object));
-    if (function->is_compiled() || CompileLazy(function, CLEAR_EXCEPTION)) {
-      code = function->code();
-      unresolved = false;
-    }
-  }
+  return Builtins::GetCode(id, resolved);
+}
+
+
+void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
+                                   InvokeJSFlags flags) {
+  bool resolved;
+  Handle<Code> code = ResolveBuiltin(id, &resolved);
 
   if (flags == CALL_JS) {
-    Call(Handle<Code>(code), code_target);
+    Call(code, code_target);
   } else {
     ASSERT(flags == JUMP_JS);
-    Jump(Handle<Code>(code), code_target);
+    Jump(code, code_target);
   }
 
-  if (unresolved) {
+  if (!resolved) {
+    const char* name = Builtins::GetName(id);
+    int argc = Builtins::GetArgumentsCount(id);
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(false);
+        Bootstrapper::FixupFlagsIsPCRelative::encode(true);
+    Unresolved entry = { pc_offset() - sizeof(Instr), flags, name };
+    unresolved_.Add(entry);
+  }
+}
+
+
+void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
+  bool resolved;
+  Handle<Code> code = ResolveBuiltin(id, &resolved);
+
+  mov(target, Operand(code));
+  if (!resolved) {
+    const char* name = Builtins::GetName(id);
+    int argc = Builtins::GetArgumentsCount(id);
+    uint32_t flags =
+        Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
+        Bootstrapper::FixupFlagsIsPCRelative::encode(true);
     Unresolved entry = { pc_offset() - sizeof(Instr), flags, name };
     unresolved_.Add(entry);
   }

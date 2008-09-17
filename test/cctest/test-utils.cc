@@ -162,17 +162,17 @@ TEST(SNPrintF) {
   int length = strlen(s);
   for (int i = 1; i < length * 2; i++) {
     static const char kMarker = static_cast<char>(42);
-    char* buffer = NewArray<char>(i + 1);
+    Vector<char> buffer = Vector<char>::New(i + 1);
     buffer[i] = kMarker;
-    int n = OS::SNPrintF(buffer, i, "%s", s);
+    int n = OS::SNPrintF(Vector<char>(buffer.start(), i), "%s", s);
     CHECK(n <= i);
     CHECK(n == length || n == -1);
-    CHECK_EQ(0, strncmp(buffer, s, i - 1));
+    CHECK_EQ(0, strncmp(buffer.start(), s, i - 1));
     CHECK_EQ(kMarker, buffer[i]);
     if (i <= length) {
-      CHECK_EQ(i - 1, strlen(buffer));
+      CHECK_EQ(i - 1, strlen(buffer.start()));
     } else {
-      CHECK_EQ(length, strlen(buffer));
+      CHECK_EQ(length, strlen(buffer.start()));
     }
   }
 }

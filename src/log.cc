@@ -37,28 +37,6 @@ namespace v8 { namespace internal {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 //
-// Command line flags used by Logger.
-//
-DEFINE_bool(log, false,
-            "Minimal logging (no API, code, GC, suspect, or handles samples).");
-DEFINE_bool(log_all, false, "Log all events to the log file.");
-DEFINE_bool(log_api, false, "Log API events to the log file.");
-DEFINE_bool(log_code, false,
-            "Log code events to the log file without profiling.");
-DEFINE_bool(log_gc, false,
-            "Log heap samples on garbage collection for the hp2ps tool.");
-DEFINE_bool(log_handles, false, "Log global handle events.");
-DEFINE_bool(log_state_changes, false, "Log state changes.");
-DEFINE_bool(log_suspect, false, "Log suspect operations.");
-DEFINE_bool(prof, false,
-            "Log statistical profiling information (implies --log-code).");
-DEFINE_bool(sliding_state_window, false,
-            "Update sliding state window counters.");
-
-DEFINE_string(logfile, "v8.log", "Specify the name of the log file.");
-
-
-//
 // Sliding state window.  Updates counters to keep track of the last
 // window of kBufferSize states.  This is useful to track where we
 // spent our time.
@@ -368,6 +346,79 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 #endif
 }
 
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+void Logger::LogRegExpSource(Handle<JSValue> regexp) {
+  // Prints "/" + re.source + "/" +
+  //      (re.global?"g":"") + (re.ignorecase?"i":"") + (re.multiline?"m":"")
+
+  Handle<Object> source = GetProperty(regexp, "source");
+  if (!source->IsString()) {
+    fprintf(logfile_, "no source");
+    return;
+  }
+  Handle<String> source_string = Handle<String>::cast(source);
+
+  SmartPointer<uc16> cstring = source_string->ToWideCString();
+  fprintf(logfile_, "/");
+  for (int i = 0, n = source_string->length(); i < n; i++) {
+    uc16 c = cstring[i];
+    if (c < 32 || (c > 126 && c <= 255)) {
+      fprintf(logfile_, "\\x%02x", c);
+    } else if (c > 255) {
+      fprintf(logfile_, "\\u%04x", c);
+    } else {
+      fprintf(logfile_, "%lc", c);
+    }
+  }
+  fprintf(logfile_, "/");
+
+  // global flag
+  Handle<Object> global = GetProperty(regexp, "global");
+  if (global->IsTrue()) {
+    fprintf(logfile_, "g");
+  }
+  // ignorecase flag
+  Handle<Object> ignorecase = GetProperty(regexp, "ignoreCase");
+  if (ignorecase->IsTrue()) {
+    fprintf(logfile_, "i");
+  }
+  // multiline flag
+  Handle<Object> multiline = GetProperty(regexp, "multiline");
+  if (multiline->IsTrue()) {
+    fprintf(logfile_, "m");
+  }
+}
+#endif  // ENABLE_LOGGING_AND_PROFILING
+
+
+void Logger::RegExpCompileEvent(Handle<JSValue> regexp) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL || !FLAG_log_regexp) return;
+  ScopedLock sl(mutex_);
+
+  fprintf(logfile_, "regexp-compile,");
+  LogRegExpSource(regexp);
+  fprintf(logfile_, "\n");
+#endif
+}
+
+
+void Logger::RegExpExecEvent(Handle<JSValue> regexp,
+                             int start_index,
+                             Handle<String> input_string) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL || !FLAG_log_regexp) return;
+  ScopedLock sl(mutex_);
+
+  fprintf(logfile_, "regexp-run,");
+  LogRegExpSource(regexp);
+  fprintf(logfile_, ",0x%08x,%d..%d\n",
+      input_string->Hash(), start_index, input_string->length());
+#endif
+}
+
+
 void Logger::ApiIndexedSecurityCheck(uint32_t index) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_api) return;
@@ -612,6 +663,7 @@ bool Logger::Setup() {
     FLAG_log_gc = true;
     FLAG_log_suspect = true;
     FLAG_log_handles = true;
+    FLAG_log_regexp = true;
   }
 
   // --prof implies --log-code.
@@ -620,7 +672,7 @@ bool Logger::Setup() {
   // Each of the individual log flags implies --log.  Check after
   // checking --log-all and --prof in case they set --log-code.
   if (FLAG_log_api || FLAG_log_code || FLAG_log_gc ||
-      FLAG_log_handles || FLAG_log_suspect) {
+      FLAG_log_handles || FLAG_log_suspect || FLAG_log_regexp) {
     FLAG_log = true;
   }
 
@@ -629,7 +681,7 @@ bool Logger::Setup() {
     if (strcmp(FLAG_logfile, "-") == 0) {
       logfile_ = stdout;
     } else {
-      logfile_ = fopen(FLAG_logfile, "w");
+      logfile_ = OS::FOpen(FLAG_logfile, "w");
     }
     mutex_ = OS::CreateMutex();
   }

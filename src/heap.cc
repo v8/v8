@@ -31,6 +31,7 @@
 #include "api.h"
 #include "bootstrapper.h"
 #include "codegen-inl.h"
+#include "compilation-cache.h"
 #include "debug.h"
 #include "global-handles.h"
 #include "jsregexp.h"
@@ -41,31 +42,6 @@
 #include "v8threads.h"
 
 namespace v8 { namespace internal {
-
-#ifdef DEBUG
-DEFINE_bool(gc_greedy, false, "perform GC prior to some allocations");
-DEFINE_bool(gc_verbose, false, "print stuff during garbage collection");
-DEFINE_bool(heap_stats, false, "report heap statistics before and after GC");
-DEFINE_bool(code_stats, false, "report code statistics after GC");
-DEFINE_bool(verify_heap, false, "verify heap pointers before and after GC");
-DEFINE_bool(print_handles, false, "report handles after GC");
-DEFINE_bool(print_global_handles, false, "report global handles after GC");
-DEFINE_bool(print_rset, false, "print remembered sets before GC");
-#endif
-
-DEFINE_int(new_space_size, 0, "size of (each semispace in) the new generation");
-DEFINE_int(old_space_size, 0, "size of the old generation");
-
-DEFINE_bool(gc_global, false, "always perform global GCs");
-DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations");
-DEFINE_bool(trace_gc, false,
-            "print one trace line following each garbage collection");
-
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-DECLARE_bool(log_gc);
-#endif
-
 
 #define ROOT_ALLOCATION(type, name) type* Heap::name##_;
   ROOT_LIST(ROOT_ALLOCATION)
@@ -447,10 +423,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
 
 void Heap::MarkCompactPrologue() {
-  // Empty eval caches
-  Heap::eval_cache_global_ = Heap::null_value();
-  Heap::eval_cache_non_global_ = Heap::null_value();
-
+  CompilationCache::MarkCompactPrologue();
   RegExpImpl::OldSpaceCollectionPrologue();
   Top::MarkCompactPrologue();
   ThreadManager::MarkCompactPrologue();
@@ -1208,9 +1181,8 @@ bool Heap::CreateInitialObjects() {
   if (obj->IsFailure()) return false;
   natives_source_cache_ = FixedArray::cast(obj);
 
-  // Initialized eval cache to null value.
-  eval_cache_global_ = null_value();
-  eval_cache_non_global_ = null_value();
+  // Initialize compilation cache.
+  CompilationCache::Clear();
 
   return true;
 }
@@ -2279,34 +2251,6 @@ Object* Heap::LookupSymbol(String* string) {
 }
 
 
-Object* Heap::LookupEvalCache(bool is_global_context, String* src) {
-  Object* cache = is_global_context ?
-      eval_cache_global_ : eval_cache_non_global_;
-  return cache == null_value() ?
-      null_value() : EvalCache::cast(cache)->Lookup(src);
-}
-
-
-Object* Heap::PutInEvalCache(bool is_global_context, String* src,
-                             JSFunction* value) {
-  Object** cache_ptr = is_global_context ?
-      &eval_cache_global_ : &eval_cache_non_global_;
-
-  if (*cache_ptr == null_value()) {
-    Object* obj = EvalCache::Allocate(kInitialEvalCacheSize);
-    if (obj->IsFailure()) return false;
-    *cache_ptr = obj;
-  }
-
-  Object* new_cache =
-      EvalCache::cast(*cache_ptr)->Put(src, value);
-  if (new_cache->IsFailure()) return new_cache;
-  *cache_ptr = new_cache;
-
-  return value;
-}
-
-
 #ifdef DEBUG
 void Heap::ZapFromSpace() {
   ASSERT(HAS_HEAP_OBJECT_TAG(kFromSpaceZapValue));
@@ -2417,6 +2361,8 @@ void Heap::IterateStrongRoots(ObjectVisitor* v) {
   SYNCHRONIZE_TAG("top");
   Debug::Iterate(v);
   SYNCHRONIZE_TAG("debug");
+  CompilationCache::Iterate(v);
+  SYNCHRONIZE_TAG("compilationcache");
 
   // Iterate over local handles in handle scopes.
   HandleScopeImplementer::Iterate(v);
@@ -2515,11 +2461,11 @@ bool Heap::Setup(bool create_heap_objects) {
   // code space.  Align the pair of semispaces to their size, which must be
   // a power of 2.
   ASSERT(IsPowerOf2(young_generation_size_));
-  Address old_space_start = reinterpret_cast<Address>(chunk);
-  Address new_space_start = RoundUp(old_space_start, young_generation_size_);
-  Address code_space_start = new_space_start + young_generation_size_;
-  int old_space_size = new_space_start - old_space_start;
-  int code_space_size = young_generation_size_ - old_space_size;
+  Address code_space_start = reinterpret_cast<Address>(chunk);
+  Address new_space_start = RoundUp(code_space_start, young_generation_size_);
+  Address old_space_start = new_space_start + young_generation_size_;
+  int code_space_size = new_space_start - code_space_start;
+  int old_space_size = young_generation_size_ - code_space_size;
 
   // Initialize new space.
   new_space_ = new NewSpace(initial_semispace_size_,

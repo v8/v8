@@ -35,6 +35,8 @@
 #include "stub-cache.h"
 #include "cctest.h"
 
+
+using ::v8::internal::EmbeddedVector;
 using ::v8::internal::Object;
 using ::v8::internal::OS;
 using ::v8::internal::Handle;
@@ -51,12 +53,6 @@ using ::v8::internal::StepOut;  // From StepAction enum
 
 // Size of temp buffer for formatting small strings.
 #define SMALL_STRING_BUFFER_SIZE 80
-
-#ifdef DEBUG
-namespace v8 { namespace internal {
-DECLARE_bool(verify_heap);
-} }
-#endif
 
 // --- A d d i t i o n a l   C h e c k   H e l p e r s
 
@@ -203,33 +199,34 @@ static int SetBreakPoint(v8::Handle<v8::Function> fun, int position) {
 // associated break point number.
 static int SetBreakPointFromJS(const char* function_name,
                                int line, int position) {
-  char buffer[SMALL_STRING_BUFFER_SIZE];
-  OS::SNPrintF(buffer, SMALL_STRING_BUFFER_SIZE,
+  EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
+  OS::SNPrintF(buffer,
                "debug.Debug.setBreakPoint(%s,%d,%d)",
                function_name, line, position);
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
-  return v8::Script::Compile(v8::String::New(buffer))->Run()->Int32Value();
+  v8::Handle<v8::String> str = v8::String::New(buffer.start());
+  return v8::Script::Compile(str)->Run()->Int32Value();
 }
 
 
 // Set a break point in a script using the global Debug object.
 static int SetScriptBreakPointFromJS(const char* script_data,
                                      int line, int column) {
-  char buffer[SMALL_STRING_BUFFER_SIZE];
+  EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
   if (column >= 0) {
     // Column specified set script break point on precise location.
-    OS::SNPrintF(buffer, SMALL_STRING_BUFFER_SIZE,
+    OS::SNPrintF(buffer,
                  "debug.Debug.setScriptBreakPoint(\"%s\",%d,%d)",
                  script_data, line, column);
   } else {
     // Column not specified set script break point on line.
-    OS::SNPrintF(buffer, SMALL_STRING_BUFFER_SIZE,
+    OS::SNPrintF(buffer,
                  "debug.Debug.setScriptBreakPoint(\"%s\",%d)",
                  script_data, line);
   }
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
-
-  return v8::Script::Compile(v8::String::New(buffer))->Run()->Int32Value();
+  v8::Handle<v8::String> str = v8::String::New(buffer.start());
+  return v8::Script::Compile(str)->Run()->Int32Value();
 }
 
 
@@ -242,54 +239,54 @@ static void ClearBreakPoint(int break_point) {
 
 // Clear a break point using the global Debug object.
 static void ClearBreakPointFromJS(int break_point_number) {
-  char buffer[SMALL_STRING_BUFFER_SIZE];
-  OS::SNPrintF(buffer, SMALL_STRING_BUFFER_SIZE,
+  EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
+  OS::SNPrintF(buffer,
                "debug.Debug.clearBreakPoint(%d)",
                break_point_number);
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
-  v8::Script::Compile(v8::String::New(buffer))->Run();
+  v8::Script::Compile(v8::String::New(buffer.start()))->Run();
 }
 
 
 static void EnableScriptBreakPointFromJS(int break_point_number) {
-  char buffer[SMALL_STRING_BUFFER_SIZE];
-  OS::SNPrintF(buffer, SMALL_STRING_BUFFER_SIZE,
+  EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
+  OS::SNPrintF(buffer,
                "debug.Debug.enableScriptBreakPoint(%d)",
                break_point_number);
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
-  v8::Script::Compile(v8::String::New(buffer))->Run();
+  v8::Script::Compile(v8::String::New(buffer.start()))->Run();
 }
 
 
 static void DisableScriptBreakPointFromJS(int break_point_number) {
-  char buffer[SMALL_STRING_BUFFER_SIZE];
-  OS::SNPrintF(buffer, SMALL_STRING_BUFFER_SIZE,
+  EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
+  OS::SNPrintF(buffer,
                "debug.Debug.disableScriptBreakPoint(%d)",
                break_point_number);
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
-  v8::Script::Compile(v8::String::New(buffer))->Run();
+  v8::Script::Compile(v8::String::New(buffer.start()))->Run();
 }
 
 
 static void ChangeScriptBreakPointConditionFromJS(int break_point_number,
                                                   const char* condition) {
-  char buffer[SMALL_STRING_BUFFER_SIZE];
-  OS::SNPrintF(buffer, SMALL_STRING_BUFFER_SIZE,
+  EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
+  OS::SNPrintF(buffer,
                "debug.Debug.changeScriptBreakPointCondition(%d, \"%s\")",
                break_point_number, condition);
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
-  v8::Script::Compile(v8::String::New(buffer))->Run();
+  v8::Script::Compile(v8::String::New(buffer.start()))->Run();
 }
 
 
 static void ChangeScriptBreakPointIgnoreCountFromJS(int break_point_number,
                                                     int ignoreCount) {
-  char buffer[SMALL_STRING_BUFFER_SIZE];
-  OS::SNPrintF(buffer, SMALL_STRING_BUFFER_SIZE,
+  EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
+  OS::SNPrintF(buffer,
                "debug.Debug.changeScriptBreakPointIgnoreCount(%d, %d)",
                break_point_number, ignoreCount);
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
-  v8::Script::Compile(v8::String::New(buffer))->Run();
+  v8::Script::Compile(v8::String::New(buffer.start()))->Run();
 }
 
 

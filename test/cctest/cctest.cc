@@ -44,9 +44,9 @@ CcTest::CcTest(TestFunction* callback, const char* file,
     basename = strrchr(const_cast<char *>(file), '\\');
   }
   if (!basename) {
-    basename = strdup(file);
+    basename = v8::internal::OS::StrDup(file);
   } else {
-    basename = strdup(basename + 1);
+    basename = v8::internal::OS::StrDup(basename + 1);
   }
   // Drop the extension, if there is one.
   char *extension = strrchr(basename, '.');
@@ -77,7 +77,7 @@ int main(int argc, char* argv[]) {
       print_run_count = false;
 
     } else {
-      char* arg_copy = strdup(arg);
+      char* arg_copy = v8::internal::OS::StrDup(arg);
       char* testname = strchr(arg_copy, '/');
       if (testname) {
         // Split the string in two by nulling the slash and then run

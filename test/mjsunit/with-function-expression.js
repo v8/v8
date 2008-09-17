@@ -25,51 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_FLAGS_INL_H_
-#define V8_FLAGS_INL_H_
+var source = "(function x() { with({}) { return '' + x; } })()";
 
-namespace v8 { namespace internal {
+// Don't throw exceptions.
+assertDoesNotThrow(source);
 
-bool* Flag::bool_variable() const  {
-  ASSERT(type_ == BOOL);
-  return &variable_->b;
-}
-
-int* Flag::int_variable() const {
-  ASSERT(type_ == INT);
-  return &variable_->i;
-}
-
-double* Flag::float_variable() const {
-  ASSERT(type_ == FLOAT);
-  return &variable_->f;
-}
-
-const char** Flag::string_variable() const {
-  ASSERT(type_ == STRING);
-  return &variable_->s;
-}
-
-bool Flag::bool_default() const {
-  ASSERT(type_ == BOOL);
-  return default_.b;
-}
-
-int Flag::int_default() const {
-  ASSERT(type_ == INT);
-  return default_.i;
-}
-
-double Flag::float_default() const {
-  ASSERT(type_ == FLOAT);
-  return default_.f;
-}
-
-const char* Flag::string_default() const {
-  ASSERT(type_ == STRING);
-  return default_.s;
-}
-
-} }  // namespace v8::internal
-
-#endif  // V8_FLAGS_INL_H_
+// Check that the return value is a function.  Use regexp to avoid
+// depending on the exact printing of the function.
+var regexp = /function/;
+var res = assertTrue(eval(source).match(regexp) == 'function');

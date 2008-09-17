@@ -41,12 +41,6 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-DEFINE_bool(debug_serialization, false,
-            "write debug information into the snapshot.");
-#endif
-
-
 // Encoding: a RelativeAddress must be able to fit in a pointer:
 // it is encoded as an Address with (from MS to LS bits):
 // 27 bits identifying a word in the space, in one of three formats:
@@ -458,7 +452,7 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
   // Define all entries in the table.
 
   // Builtins
-#define DEF_ENTRY_C(name, ignore) \
+#define DEF_ENTRY_C(name) \
   Add(Builtins::c_function_address(Builtins::c_##name), \
       C_BUILTIN, \
       Builtins::c_##name, \
@@ -467,12 +461,12 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
   BUILTIN_LIST_C(DEF_ENTRY_C)
 #undef DEF_ENTRY_C
 
-#define DEF_ENTRY_C(name, ignore) \
+#define DEF_ENTRY_C(name) \
   Add(Builtins::builtin_address(Builtins::name), \
       BUILTIN, \
       Builtins::name, \
       "Builtins::" #name);
-#define DEF_ENTRY_A(name, kind, state) DEF_ENTRY_C(name, _)
+#define DEF_ENTRY_A(name, kind, state) DEF_ENTRY_C(name)
 
   BUILTIN_LIST_C(DEF_ENTRY_C)
   BUILTIN_LIST_A(DEF_ENTRY_A)
@@ -511,12 +505,12 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
   const char* debug_register_format = "Debug::register_address(%i)";
   size_t dr_format_length = strlen(debug_register_format);
   for (int i = 0; i < kNumJSCallerSaved; ++i) {
-    char* name = NewArray<char>(dr_format_length + 1);
-    OS::SNPrintF(name, dr_format_length, debug_register_format, i);
+    Vector<char> name = Vector<char>::New(dr_format_length + 1);
+    OS::SNPrintF(name, debug_register_format, i);
     Add(Debug_Address(Debug::k_register_address, i).address(),
         DEBUG_ADDRESS,
         Debug::k_register_address << kDebugIdShift | i,
-        name);
+        name.start());
   }
 
   // Stat counters
@@ -534,9 +528,10 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
   const char* top_address_format = "Top::get_address_from_id(%i)";
   size_t top_format_length = strlen(top_address_format);
   for (uint16_t i = 0; i < Top::k_top_address_count; ++i) {
-    char* name = NewArray<char>(top_format_length + 1);
-    OS::SNPrintF(name, top_format_length, top_address_format, i);
-    Add(Top::get_address_from_id((Top::AddressId)i), TOP_ADDRESS, i, name);
+    Vector<char> name = Vector<char>::New(top_format_length + 1);
+    const char* chars = name.start();
+    OS::SNPrintF(name, top_address_format, i);
+    Add(Top::get_address_from_id((Top::AddressId)i), TOP_ADDRESS, i, chars);
   }
 
   // Extensions
@@ -1020,12 +1015,6 @@ void Serializer::PutHeader() {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  DECLARE_bool(log_code);
-  DECLARE_string(logfile);
-#endif
-
-
 void Serializer::PutLog() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_code) {
@@ -1300,10 +1289,6 @@ void Deserializer::VisitRuntimeEntry(RelocInfo* rinfo) {
 }
 
 
-DECLARE_bool(use_ic);
-DECLARE_bool(debug_code);
-DECLARE_bool(lazy);
-
 void Deserializer::GetFlags() {
   reader_.ExpectC('F');
   int argc = reader_.GetInt() + 1;
@@ -1316,11 +1301,11 @@ void Deserializer::GetFlags() {
   reader_.ExpectC(']');
   has_log_ = false;
   for (int i = 1; i < argc; i++) {
-    if (strcmp("--log-code", argv[i]) == 0) {
+    if (strcmp("--log_code", argv[i]) == 0) {
       has_log_ = true;
-    } else if (strcmp("--nouse-ic", argv[i]) == 0) {
+    } else if (strcmp("--nouse_ic", argv[i]) == 0) {
       FLAG_use_ic = false;
-    } else if (strcmp("--debug-code", argv[i]) == 0) {
+    } else if (strcmp("--debug_code", argv[i]) == 0) {
       FLAG_debug_code = true;
     } else if (strcmp("--nolazy", argv[i]) == 0) {
       FLAG_lazy = false;

@@ -140,6 +140,9 @@ class Statement: public Node {
 };
 
 
+class Reference;
+enum InitState { CONST_INIT, NOT_CONST_INIT };
+
 class Expression: public Node {
  public:
   virtual Expression* AsExpression()  { return this; }
@@ -150,6 +153,18 @@ class Expression: public Node {
   // statement. This is used to transform postfix increments to
   // (faster) prefix increments.
   virtual void MarkAsStatement() { /* do nothing */ }
+
+  // Generate code to store into an expression evaluated as the left-hand
+  // side of an assignment.  The code will expect the stored value on top of
+  // the expression stack, and a reference containing the expression
+  // immediately below that.  This function is overridden for expression
+  // types that can be stored into.
+  virtual void GenerateStoreCode(MacroAssembler* masm,
+                                 Scope* scope,
+                                 Reference* ref,
+                                 InitState init_state) {
+    UNREACHABLE();
+  }
 };
 
 
@@ -753,6 +768,14 @@ class VariableProxy: public Expression {
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);
 
+  // Generate code to store into an expression evaluated as the left-hand
+  // side of an assignment.  The code will expect the stored value on top of
+  // the expression stack, and a reference containing the expression
+  // immediately below that.
+  virtual void GenerateStoreCode(MacroAssembler* masm,
+                                 Scope* scope,
+                                 Reference* ref,
+                                 InitState init_state);
  protected:
   Handle<String> name_;
   Variable* var_;  // resolved variable, or NULL
@@ -828,6 +851,14 @@ class Slot: public Expression {
   Type type() const  { return type_; }
   int index() const  { return index_; }
 
+  // Generate code to store into an expression evaluated as the left-hand
+  // side of an assignment.  The code will expect the stored value on top of
+  // the expression stack, and a reference containing the expression
+  // immediately below that.
+  virtual void GenerateStoreCode(MacroAssembler* masm,
+                                 Scope* scope,
+                                 Reference* ref,
+                                 InitState init_state);
  private:
   Variable* var_;
   Type type_;
@@ -855,6 +886,14 @@ class Property: public Expression {
   // during preparsing.
   static Property* this_property() { return &this_property_; }
 
+  // Generate code to store into an expression evaluated as the left-hand
+  // side of an assignment.  The code will expect the stored value on top of
+  // the expression stack, and a reference containing the expression
+  // immediately below that.
+  virtual void GenerateStoreCode(MacroAssembler* masm,
+                                 Scope* scope,
+                                 Reference* ref,
+                                 InitState init_state);
  private:
   Expression* obj_;
   Expression* key_;

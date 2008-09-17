@@ -314,10 +314,8 @@ bool Object::IsSymbolTable() {
 }
 
 
-bool Object::IsEvalCache() {
-  return IsHashTable() &&
-      (this == Heap::eval_cache_global() ||
-       this == Heap::eval_cache_non_global());
+bool Object::IsCompilationCacheTable() {
+  return IsHashTable();
 }
 
 
@@ -1096,7 +1094,7 @@ CAST_ACCESSOR(FixedArray)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(Dictionary)
 CAST_ACCESSOR(SymbolTable)
-CAST_ACCESSOR(EvalCache)
+CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(AsciiString)
@@ -1782,6 +1780,12 @@ INT_ACCESSORS(SharedFunctionInfo, start_position_and_type,
 INT_ACCESSORS(SharedFunctionInfo, end_position, kEndPositionOffset)
 INT_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
+
+
+void SharedFunctionInfo::DontAdaptArguments() {
+  ASSERT(code()->kind() == Code::BUILTIN);
+  set_formal_parameter_count(kDontAdaptArgumentsSentinel);
+}
 
 
 int SharedFunctionInfo::start_position() {

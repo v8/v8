@@ -36,11 +36,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_bool(trace_exception, false,
-            "print stack trace when throwing exceptions");
-DEFINE_bool(preallocate_message_memory, false,
-            "preallocate some memory to build stack traces.");
-
 ThreadLocalTop Top::thread_local_;
 Mutex* Top::break_access_ = OS::CreateMutex();
 StackFrame::Id Top::break_frame_id_;
@@ -124,11 +119,11 @@ class PreallocatedMemoryThread: public Thread {
   // When the thread starts running it will allocate a fixed number of bytes
   // on the stack and publish the location of this memory for others to use.
   void Run() {
-    char local_buffer[16 * 1024];
+    EmbeddedVector<char, 16 * 1024> local_buffer;
 
     // Initialize the buffer with a known good value.
-    strncpy(local_buffer, "Trace data was not generated.\n",
-            sizeof(local_buffer));
+    OS::StrNCpy(local_buffer, "Trace data was not generated.\n",
+                local_buffer.length());
 
     // Publish the local buffer and signal its availability.
     data_ = &local_buffer[0];
@@ -142,8 +137,8 @@ class PreallocatedMemoryThread: public Thread {
 
     // Make sure we access the buffer after the wait to remove all possibility
     // of it being optimized away.
-    strncpy(local_buffer, "PreallocatedMemoryThread shutting down.\n",
-            sizeof(local_buffer));
+    OS::StrNCpy(local_buffer, "PreallocatedMemoryThread shutting down.\n",
+                local_buffer.length());
   }
 
   static char* data() {
@@ -620,9 +615,6 @@ Object* Top::PromoteScheduledException() {
   return ReThrow(thrown);
 }
 
-
-// TODO(1233523): Get rid of this hackish abstraction once all
-// JavaScript frames have a function associated with them.
 
 // NOTE: The stack trace frame iterator is an iterator that only
 // traverse proper JavaScript frames; that is JavaScript frames that

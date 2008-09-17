@@ -826,8 +826,6 @@ void Scope::AllocateNonParameterLocal(Variable* var) {
 }
 
 
-DECLARE_bool(usage_computation);
-
 void Scope::AllocateNonParameterLocals() {
   // Each variable occurs exactly once in the locals_ list; all
   // variables that have no rewrite yet are non-parameter locals.

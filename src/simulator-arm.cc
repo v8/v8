@@ -40,11 +40,9 @@ namespace assembler { namespace arm {
 
 using ::v8::internal::Object;
 using ::v8::internal::PrintF;
-using ::v8:: internal::ReadLine;
-using ::v8:: internal::DeleteArray;
-
-
-DEFINE_bool(trace_sim, false, "trace simulator execution");
+using ::v8::internal::OS;
+using ::v8::internal::ReadLine;
+using ::v8::internal::DeleteArray;
 
 
 // The Debugger class is used by the simulator while debugging simulated ARM
@@ -204,10 +202,11 @@ void Debugger::Debug() {
   while (!done) {
     if (last_pc != sim_->get_pc()) {
       disasm::Disassembler dasm;
-      char buffer[256];  // use a reasonably large buffer
-      dasm.InstructionDecode(buffer, sizeof(buffer),
+      // use a reasonably large buffer
+      v8::internal::EmbeddedVector<char, 256> buffer;
+      dasm.InstructionDecode(buffer,
                              reinterpret_cast<byte*>(sim_->get_pc()));
-      PrintF("  0x%x  %s\n", sim_->get_pc(), buffer);
+      PrintF("  0x%x  %s\n", sim_->get_pc(), buffer.start());
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
@@ -258,7 +257,8 @@ void Debugger::Debug() {
         }
       } else if (strcmp(cmd, "disasm") == 0) {
         disasm::Disassembler dasm;
-        char buffer[256];  // use a reasonably large buffer
+        // use a reasonably large buffer
+        v8::internal::EmbeddedVector<char, 256> buffer;
 
         byte* cur = NULL;
         byte* end = NULL;
@@ -283,8 +283,8 @@ void Debugger::Debug() {
         }
 
         while (cur < end) {
-          dasm.InstructionDecode(buffer, sizeof(buffer), cur);
-          PrintF("  0x%x  %s\n", cur, buffer);
+          dasm.InstructionDecode(buffer, cur);
+          PrintF("  0x%x  %s\n", cur, buffer.start());
           cur += Instr::kInstrSize;
         }
       } else if (strcmp(cmd, "gdb") == 0) {
@@ -1339,13 +1339,13 @@ void Simulator::InstructionDecode(Instr* instr) {
     dbg.Stop(instr);
     return;
   }
-  if (FLAG_trace_sim) {
+  if (::v8::internal::FLAG_trace_sim) {
     disasm::Disassembler dasm;
-    char buffer[256];  // use a reasonably large buffer
+    // use a reasonably large buffer
+    v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer,
-                           sizeof(buffer),
                            reinterpret_cast<byte*>(instr));
-    PrintF("  0x%x  %s\n", instr, buffer);
+    PrintF("  0x%x  %s\n", instr, buffer.start());
   }
   if (ConditionallyExecute(instr)) {
     switch (instr->TypeField()) {
@@ -1390,24 +1390,35 @@ void Simulator::InstructionDecode(Instr* instr) {
 }
 
 
-DEFINE_int(stop_sim_at, -1, "Simulator stop after x number of instructions");
-
-
 //
 void Simulator::execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the
   // raw PC value and not the one used as input to arithmetic instructions.
   int program_counter = get_pc();
-  while (program_counter != end_sim_pc) {
-    Instr* instr = reinterpret_cast<Instr*>(program_counter);
-    icount_++;
-    if (icount_ == FLAG_stop_sim_at) {
-      Debugger dbg(this);
-      dbg.Debug();
-    } else {
+
+  if (::v8::internal::FLAG_stop_sim_at == 0) {
+    // Fast version of the dispatch loop without checking whether the simulator
+    // should be stopping at a particular executed instruction.
+    while (program_counter != end_sim_pc) {
+      Instr* instr = reinterpret_cast<Instr*>(program_counter);
+      icount_++;
       InstructionDecode(instr);
+      program_counter = get_pc();
     }
-    program_counter = get_pc();
+  } else {
+    // FLAG_stop_sim_at is at the non-default value. Stop in the debugger when
+    // we reach the particular instuction count.
+    while (program_counter != end_sim_pc) {
+      Instr* instr = reinterpret_cast<Instr*>(program_counter);
+      icount_++;
+      if (icount_ == ::v8::internal::FLAG_stop_sim_at) {
+        Debugger dbg(this);
+        dbg.Debug();
+      } else {
+        InstructionDecode(instr);
+      }
+      program_counter = get_pc();
+    }
   }
 }
 

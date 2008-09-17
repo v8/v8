@@ -1427,14 +1427,14 @@ static const char* js_code_causing_out_of_memory =
 
 // These tests run for a long time and prevent us from running tests
 // that come after them so they cannot run in parallel.
-DISABLED_TEST(OutOfMemory) {
+TEST(OutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
   if (v8::internal::Snapshot::IsEnabled()) return;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
-  constraints.set_max_old_space_size(2 * K * K);
+  constraints.set_max_old_space_size(4 * K * K);
   v8::SetResourceConstraints(&constraints);
 
   // Execute a script that causes out of memory.
@@ -1468,14 +1468,14 @@ v8::Handle<Value> ProvokeOutOfMemory(const v8::Arguments& args) {
 }
 
 
-DISABLED_TEST(OutOfMemoryNested) {
+TEST(OutOfMemoryNested) {
   // It's not possible to read a snapshot into a heap with different dimensions.
   if (v8::internal::Snapshot::IsEnabled()) return;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
-  constraints.set_max_old_space_size(2 * K * K);
+  constraints.set_max_old_space_size(4 * K * K);
   v8::SetResourceConstraints(&constraints);
 
   v8::HandleScope scope;
@@ -4480,15 +4480,11 @@ void ApiTestFuzzer::Run() {
 }
 
 
-DECLARE_int(prng_seed);
-DEFINE_int(prng_seed, 42, "Seed used for threading test randomness");
-
-
 static unsigned linear_congruential_generator;
 
 
 void ApiTestFuzzer::Setup(PartOfTest part) {
-  linear_congruential_generator = FLAG_prng_seed;
+  linear_congruential_generator = i::FLAG_testing_prng_seed;
   fuzzing_ = true;
   int start = (part == FIRST_PART) ? 0 : (RegisterThreadedTest::count() >> 1);
   int end = (part == FIRST_PART)
@@ -4697,7 +4693,7 @@ THREADED_TEST(LockUnlockLock) {
 }
 
 
-static void EnsureNoSurvivingGlobalObjects() {
+static int GetSurvivingGlobalObjectsCount() {
   int count = 0;
   v8::internal::Heap::CollectAllGarbage();
   v8::internal::HeapIterator it;
@@ -4710,38 +4706,34 @@ static void EnsureNoSurvivingGlobalObjects() {
 #ifdef DEBUG
   if (count > 0) v8::internal::Heap::TracePathToGlobal();
 #endif
-  CHECK_EQ(0, count);
+  return count;
 }
 
 
-// This test assumes that there are zero global objects when the
-// test starts.  This is not going to be true if we are using the
-// API fuzzer.
 TEST(DontLeakGlobalObjects) {
   // Regression test for issues 1139850 and 1174891.
 
-  v8::internal::V8::Initialize(NULL);
-  if (v8::internal::Snapshot::IsEnabled()) return;
+  v8::V8::Initialize();
 
-  EnsureNoSurvivingGlobalObjects();
+  int count = GetSurvivingGlobalObjectsCount();
 
   for (int i = 0; i < 5; i++) {
     { v8::HandleScope scope;
       LocalContext context;
     }
-    EnsureNoSurvivingGlobalObjects();
+    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
 
     { v8::HandleScope scope;
       LocalContext context;
       v8_compile("Date")->Run();
     }
-    EnsureNoSurvivingGlobalObjects();
+    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
 
     { v8::HandleScope scope;
       LocalContext context;
       v8_compile("/aaa/")->Run();
     }
-    EnsureNoSurvivingGlobalObjects();
+    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
 
     { v8::HandleScope scope;
       const char* extension_list[] = { "v8/gc" };
@@ -4749,7 +4741,7 @@ TEST(DontLeakGlobalObjects) {
       LocalContext context(&extensions);
       v8_compile("gc();")->Run();
     }
-    EnsureNoSurvivingGlobalObjects();
+    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
 
     { v8::HandleScope scope;
       const char* extension_list[] = { "v8/print" };
@@ -4757,14 +4749,13 @@ TEST(DontLeakGlobalObjects) {
       LocalContext context(&extensions);
       v8_compile("print('hest');")->Run();
     }
-    EnsureNoSurvivingGlobalObjects();
+    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
   }
 }
 
 
 THREADED_TEST(CheckForCrossContextObjectLiterals) {
-  v8::internal::V8::Initialize(NULL);
-  if (v8::internal::Snapshot::IsEnabled()) return;
+  v8::V8::Initialize();
 
   const int nof = 2;
   const char* sources[nof] = {
@@ -4880,7 +4871,7 @@ THREADED_TEST(TryCatchSourceInfo) {
       "\n"
       "Foo();\n");
   v8::Handle<v8::Script> script =
-    v8::Script::Compile(source, v8::String::New("test.js"));
+      v8::Script::Compile(source, v8::String::New("test.js"));
   v8::TryCatch try_catch;
   v8::Handle<v8::Value> result = script->Run();
   CHECK(result.IsEmpty());
@@ -4896,4 +4887,21 @@ THREADED_TEST(TryCatchSourceInfo) {
   CHECK_EQ("  throw 'nirk';", *line);
   v8::String::AsciiValue name(message->GetScriptResourceName());
   CHECK_EQ("test.js", *name);
+}
+
+
+THREADED_TEST(CompilationCache) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::String> source0 = v8::String::New("1234");
+  v8::Handle<v8::String> source1 = v8::String::New("1234");
+  v8::Handle<v8::Script> script0 =
+      v8::Script::Compile(source0, v8::String::New("test.js"));
+  v8::Handle<v8::Script> script1 =
+      v8::Script::Compile(source1, v8::String::New("test.js"));
+  v8::Handle<v8::Script> script2 =
+      v8::Script::Compile(source0);  // different origin
+  CHECK_EQ(1234, script0->Run()->Int32Value());
+  CHECK_EQ(1234, script1->Run()->Int32Value());
+  CHECK_EQ(1234, script2->Run()->Int32Value());
 }

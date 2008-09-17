@@ -38,13 +38,6 @@
 namespace v8 { namespace internal {
 
 #ifdef DEBUG
-DEFINE_bool(trace_ic, false, "trace inline cache state transitions");
-#endif
-DEFINE_bool(use_ic, true, "use inline caching");
-DECLARE_bool(strict);
-
-
-#ifdef DEBUG
 static char TransitionMarkFromState(IC::State state) {
   switch (state) {
     case UNINITIALIZED: return '0';
@@ -150,7 +143,8 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
   // the receiver map's code cache.  Therefore, if the current target
   // is in the receiver map's code cache, the inline cache failed due
   // to prototype check failure.
-  if (map->IncludedInCodeCache(target)) {
+  int index = map->IndexInCodeCache(target);
+  if (index >= 0) {
     // For keyed load/store, the most likely cause of cache failure is
     // that the key has changed.  We do not distinguish between
     // prototype and non-prototype failures for keyed access.
@@ -159,14 +153,25 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
       return MONOMORPHIC;
     }
 
-    // Clear the code cache for this map to avoid hitting the same
-    // invalid stub again.  It seems likely that most of the code in
-    // the cache is invalid if one of the stubs is so we flush the
-    // entire code cache.
-    map->ClearCodeCache();
+    // Remove the target from the code cache to avoid hitting the same
+    // invalid stub again.
+    map->RemoveFromCodeCache(index);
 
     return MONOMORPHIC_PROTOTYPE_FAILURE;
   }
+
+  // The builtins object is special.  It only changes when JavaScript
+  // builtins are loaded lazily.  It is important to keep inline
+  // caches for the builtins object monomorphic.  Therefore, if we get
+  // an inline cache miss for the builtins object after lazily loading
+  // JavaScript builtins, we clear the code cache and return
+  // uninitialized as the state to force the inline cache back to
+  // monomorphic state.
+  if (receiver->IsJSBuiltinsObject()) {
+    map->ClearCodeCache();
+    return UNINITIALIZED;
+  }
+
   return MONOMORPHIC;
 }
 

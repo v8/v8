@@ -32,10 +32,6 @@
 
 #include "flags.h"
 
-#ifdef DEBUG
-DECLARE_bool(enable_slow_asserts);
-#endif  // DEBUG
-
 extern "C" void V8_Fatal(const char* file, int line, const char* format, ...);
 void API_Fatal(const char* location, const char* format, ...);
 

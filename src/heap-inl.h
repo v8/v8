@@ -33,12 +33,6 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-DECLARE_bool(gc_greedy);
-DECLARE_int(gc_interval);
-#endif
-
-
 int Heap::MaxHeapObjectSize() {
   return Page::kMaxHeapObjectSize;
 }
@@ -194,6 +188,32 @@ OldSpace* Heap::TargetSpace(HeapObject* object) {
     }                                                                        \
     return Handle<TYPE>(TYPE::cast(__object__));                             \
   } while (false)
+
+
+// Don't use the following names: __object__, __failure__.
+#define CALL_HEAP_FUNCTION_VOID(FUNCTION_CALL)                      \
+  GC_GREEDY_CHECK();                                                \
+  Object* __object__ = FUNCTION_CALL;                               \
+  if (__object__->IsFailure()) {                                    \
+    if (__object__->IsRetryAfterGC()) {                             \
+      Failure* __failure__ = Failure::cast(__object__);             \
+      if (!Heap::CollectGarbage(__failure__->requested(),           \
+                                __failure__->allocation_space())) { \
+         /* TODO(1181417): Fix this. */                             \
+         V8::FatalProcessOutOfMemory("Handles");                    \
+      }                                                             \
+      __object__ = FUNCTION_CALL;                                   \
+      if (__object__->IsFailure()) {                                \
+        if (__object__->IsRetryAfterGC()) {                         \
+           /* TODO(1181417): Fix this. */                           \
+           V8::FatalProcessOutOfMemory("Handles");                  \
+        }                                                           \
+        return;                                                     \
+      }                                                             \
+    } else {                                                        \
+      return;                                                       \
+    }                                                               \
+  }
 
 
 #ifdef DEBUG

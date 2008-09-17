@@ -35,11 +35,6 @@
 
 namespace v8 { namespace internal {
 
-DECLARE_bool(debug_code);
-DEFINE_bool(native_code_counters, false,
-            "generate extra code for manipulating stats counters");
-
-
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       unresolved_(0),
@@ -319,21 +314,20 @@ void MacroAssembler::FCmp() {
 }
 
 
-void MacroAssembler::EnterFrame(StackFrame::Type type) {
-  ASSERT(type != StackFrame::JAVA_SCRIPT);
+void MacroAssembler::EnterInternalFrame() {
+  int type = StackFrame::INTERNAL;
+
   push(ebp);
   mov(ebp, Operand(esp));
   push(esi);
   push(Immediate(Smi::FromInt(type)));
-  if (type == StackFrame::INTERNAL) {
-    push(Immediate(0));
-  }
+  push(Immediate(0));  // Push an empty code cache slot.
 }
 
 
-void MacroAssembler::ExitFrame(StackFrame::Type type) {
-  ASSERT(type != StackFrame::JAVA_SCRIPT);
+void MacroAssembler::ExitInternalFrame() {
   if (FLAG_debug_code) {
+    StackFrame::Type type = StackFrame::INTERNAL;
     cmp(Operand(ebp, StandardFrameConstants::kMarkerOffset),
         Immediate(Smi::FromInt(type)));
     Check(equal, "stack frame types must match");
@@ -578,7 +572,16 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       definitely_matches = true;
     } else {
       mov(eax, actual.immediate());
-      mov(ebx, expected.immediate());
+      const int sentinel = SharedFunctionInfo::kDontAdaptArgumentsSentinel;
+      if (expected.immediate() == sentinel) {
+        // Don't worry about adapting arguments for builtins that
+        // don't want that done. Skip adaption code by making it look
+        // like we have a match between expected and actual number of
+        // arguments.
+        definitely_matches = true;
+      } else {
+        mov(ebx, expected.immediate());
+      }
     }
   } else {
     if (actual.is_immediate()) {
@@ -727,24 +730,8 @@ Handle<Code> MacroAssembler::ResolveBuiltin(Builtins::JavaScript id,
       JSBuiltinsObject::kJSBuiltinsOffset + (id * kPointerSize);
   mov(edi, FieldOperand(edx, builtins_offset));
 
-  Code* code = Builtins::builtin(Builtins::Illegal);
-  *resolved = false;
 
-  if (Top::security_context() != NULL) {
-    Object* object = Top::security_context_builtins()->javascript_builtin(id);
-    if (object->IsJSFunction()) {
-      Handle<JSFunction> function(JSFunction::cast(object));
-      // Make sure the number of parameters match the formal parameter count.
-      ASSERT(function->shared()->formal_parameter_count() ==
-             Builtins::GetArgumentsCount(id));
-      if (function->is_compiled() || CompileLazy(function, CLEAR_EXCEPTION)) {
-        code = function->code();
-        *resolved = true;
-      }
-    }
-  }
-
-  return Handle<Code>(code);
+  return Builtins::GetCode(id, resolved);
 }
 
 

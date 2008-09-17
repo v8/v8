@@ -36,22 +36,16 @@ namespace v8 { namespace internal {
 
 StackFrame::Type StackFrame::ComputeType(State* state) {
   ASSERT(state->fp != NULL);
-  if (state->pp == NULL) {
-    if (Memory::Address_at(state->fp +
-                           EntryFrameConstants::kConstructMarkOffset) != 0) {
-      return ENTRY_CONSTRUCT;
-    } else {
-      return ENTRY;
-    }
-  } else if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
+  if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
     return ARGUMENTS_ADAPTOR;
-  } else if (
-      Memory::Object_at(state->fp +
-                        StandardFrameConstants::kFunctionOffset)->IsSmi()) {
-    return INTERNAL;
-  } else {
-    return JAVA_SCRIPT;
   }
+  // The marker and function offsets overlap. If the marker isn't a
+  // smi then the frame is a JavaScript frame -- and the marker is
+  // really the function.
+  const int offset = StandardFrameConstants::kMarkerOffset;
+  Object* marker = Memory::Object_at(state->fp + offset);
+  if (!marker->IsSmi()) return JAVA_SCRIPT;
+  return static_cast<StackFrame::Type>(Smi::cast(marker)->value());
 }
 
 
@@ -69,7 +63,6 @@ StackFrame::Type ExitFrame::GetStateForFramePointer(Address fp, State* state) {
   // Fill in the state.
   state->sp = sp;
   state->fp = fp;
-  state->pp = fp + ExitFrameConstants::kPPDisplacement;
   state->pc_address = reinterpret_cast<Address*>(sp - 1 * kPointerSize);
   return type;
 }
@@ -81,43 +74,49 @@ void ExitFrame::Iterate(ObjectVisitor* v) const {
 
 
 int JavaScriptFrame::GetProvidedParametersCount() const {
-  const int offset = JavaScriptFrameConstants::kArgsLengthOffset;
-  int result = Memory::int_at(fp() + offset);
-  // We never remove extra parameters provided on the stack; we only
-  // fill in undefined values for parameters not provided.
-  ASSERT(0 <= result && result <= ComputeParametersCount());
-  return result;
+  return ComputeParametersCount();
 }
 
 
 Address JavaScriptFrame::GetCallerStackPointer() const {
-  return state_.pp;
+  int arguments;
+  if (Heap::gc_state() != Heap::NOT_IN_GC) {
+    // The arguments for cooked frames are traversed as if they were
+    // expression stack elements of the calling frame. The reason for
+    // this rather strange decision is that we cannot access the
+    // function during mark-compact GCs when the stack is cooked.
+    // In fact accessing heap objects (like function->shared() below)
+    // at all during GC is problematic.
+    arguments = 0;
+  } else {
+    // Compute the number of arguments by getting the number of formal
+    // parameters of the function. We must remember to take the
+    // receiver into account (+1).
+    JSFunction* function = JSFunction::cast(this->function());
+    arguments = function->shared()->formal_parameter_count() + 1;
+  }
+  const int offset = StandardFrameConstants::kCallerSPOffset;
+  return fp() + offset + (arguments * kPointerSize);
 }
 
 
 Address ArgumentsAdaptorFrame::GetCallerStackPointer() const {
-  // Argument adaptor frames aren't used on ARM (yet).
-  UNIMPLEMENTED();
-  return 0;
+  const int arguments = Smi::cast(GetExpression(0))->value();
+  const int offset = StandardFrameConstants::kCallerSPOffset;
+  return fp() + offset + (arguments + 1) * kPointerSize;
 }
 
 
 Address InternalFrame::GetCallerStackPointer() const {
-  return state_.pp;
+  // Internal frames have no arguments. The stack pointer of the
+  // caller is at a fixed offset from the frame pointer.
+  return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
 
 Code* JavaScriptFrame::FindCode() const {
-  const int offset = StandardFrameConstants::kCodeOffset;
-  Object* code = Memory::Object_at(fp() + offset);
-  if (code == NULL) {
-    // The code object isn't set; find it and set it.
-    code = Heap::FindCodeObject(pc());
-    ASSERT(!code->IsFailure());
-    Memory::Object_at(fp() + offset) = code;
-  }
-  ASSERT(code != NULL);
-  return Code::cast(code);
+  JSFunction* function = JSFunction::cast(this->function());
+  return function->shared()->code();
 }
 
 

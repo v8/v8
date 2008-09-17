@@ -727,6 +727,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   }
 
   result->shared()->set_function_data(*obj);
+  result->shared()->DontAdaptArguments();
 
   // Recursively copy parent templates' accessors, 'data' may be modified.
   Handle<DescriptorArray> array =

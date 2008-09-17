@@ -34,9 +34,6 @@
 
 namespace v8 { namespace internal {
 
-DEFINE_bool(preemption, false,
-            "activate a 100ms timer that switches between V8 threads");
-
 bool V8::has_been_setup_ = false;
 bool V8::has_been_disposed_ = false;
 
