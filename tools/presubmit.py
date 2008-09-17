@@ -134,6 +134,12 @@ class CppLintProcessor(SourceFileProcessor):
     return (super(CppLintProcessor, self).IgnoreDir(name)
               or (name == 'third_party'))
 
+  IGNORE_LINT = ['flag-definitions.h']
+  
+  def IgnoreFile(self, name):
+    return (super(CppLintProcessor, self).IgnoreFile(name)
+              or (name in CppLintProcessor.IGNORE_LINT))
+
   def GetPathsToSearch(self):
     return ['src', 'public', 'samples', join('test', 'cctest')]
 
@@ -168,7 +174,8 @@ class SourceProcessor(SourceFileProcessor):
               or (name == 'third_party')
               or (name == 'obj'))
 
-  IGNORE_COPYRIGHTS = ['earley-boyer.js', 'raytrace.js', 'crypto.js']
+  IGNORE_COPYRIGHTS = ['earley-boyer.js', 'raytrace.js', 'crypto.js',
+      'libraries.cc', 'libraries-empty.cc']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js',
       'html-comments.js']
 

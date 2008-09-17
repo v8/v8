@@ -36,11 +36,11 @@ namespace v8 { namespace internal {
 
 // Define all of our flags.
 #define FLAG_MODE_DEFINE
-#include "flags.defs"
+#include "flag-definitions.h"
 
 // Define all of our flags default values.
 #define FLAG_MODE_DEFINE_DEFAULTS
-#include "flags.defs"
+#include "flag-definitions.h"
 
 namespace {
 
@@ -143,7 +143,7 @@ struct Flag {
 
 Flag flags[] = {
 #define FLAG_MODE_META
-#include "flags.defs"
+#include "flag-definitions.h"
 };
 
 const size_t num_flags = sizeof(flags) / sizeof(*flags);

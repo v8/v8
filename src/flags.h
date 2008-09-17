@@ -33,7 +33,7 @@ namespace v8 { namespace internal {
 
 // Declare all of our flags.
 #define FLAG_MODE_DECLARE
-#include "flags.defs"
+#include "flag-definitions.h"
 
 // The global list of all flags.
 class FlagList {
