@@ -1427,14 +1427,14 @@ static const char* js_code_causing_out_of_memory =
 
 // These tests run for a long time and prevent us from running tests
 // that come after them so they cannot run in parallel.
-DISABLED_TEST(OutOfMemory) {
+TEST(OutOfMemory) {
   // It's not possible to read a snapshot into a heap with different dimensions.
   if (v8::internal::Snapshot::IsEnabled()) return;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
-  constraints.set_max_old_space_size(2 * K * K);
+  constraints.set_max_old_space_size(4 * K * K);
   v8::SetResourceConstraints(&constraints);
 
   // Execute a script that causes out of memory.
@@ -1468,14 +1468,14 @@ v8::Handle<Value> ProvokeOutOfMemory(const v8::Arguments& args) {
 }
 
 
-DISABLED_TEST(OutOfMemoryNested) {
+TEST(OutOfMemoryNested) {
   // It's not possible to read a snapshot into a heap with different dimensions.
   if (v8::internal::Snapshot::IsEnabled()) return;
   // Set heap limits.
   static const int K = 1024;
   v8::ResourceConstraints constraints;
   constraints.set_max_young_space_size(256 * K);
-  constraints.set_max_old_space_size(2 * K * K);
+  constraints.set_max_old_space_size(4 * K * K);
   v8::SetResourceConstraints(&constraints);
 
   v8::HandleScope scope;
