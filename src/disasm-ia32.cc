@@ -1063,7 +1063,7 @@ static const char* xmm_regs[8] = {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  v8::internal::EmbeddedVector<char, 32> tmp_buffer;
+  static v8::internal::EmbeddedVector<char, 32> tmp_buffer;
   v8::internal::OS::SNPrintF(tmp_buffer, "%p", addr);
   return tmp_buffer.start();
 }
