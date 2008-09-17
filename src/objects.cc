@@ -4197,6 +4197,21 @@ const char* Code::Kind2String(Kind kind) {
 }
 
 
+const char* Code::ICState2String(InlineCacheState state) {
+  switch (state) {
+    case UNINITIALIZED: return "UNINITIALIZED";
+    case PREMONOMORPHIC: return "PREMONOMORPHIC";
+    case MONOMORPHIC: return "MONOMORPHIC";
+    case MONOMORPHIC_PROTOTYPE_FAILURE: return "MONOMORPHIC_PROTOTYPE_FAILURE";
+    case MEGAMORPHIC: return "MEGAMORPHIC";
+    case DEBUG_BREAK: return "DEBUG_BREAK";
+    case DEBUG_PREPARE_STEP_IN: return "DEBUG_PREPARE_STEP_IN";
+  }
+  UNREACHABLE();
+  return NULL;
+}
+
+
 void Code::Disassemble() {
   PrintF("kind = %s", Kind2String(kind()));
 

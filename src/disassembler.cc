@@ -197,55 +197,72 @@ static int DecodeIt(FILE* f,
         out.AddPadding(' ', kRelocInfoPosition);
       }
 
-      if (is_position(relocinfo.rmode())) {
-        out.AddFormatted("    ;; debug: statement %d", relocinfo.data());
-      } else if (relocinfo.rmode() == embedded_object) {
+      RelocMode rmode = relocinfo.rmode();
+      if (is_position(rmode)) {
+        if (is_statement_position(rmode)) {
+          out.AddFormatted("    ;; debug: statement %d", relocinfo.data());
+        } else {
+          out.AddFormatted("    ;; debug: position %d", relocinfo.data());
+        }
+      } else if (rmode == embedded_object) {
         HeapStringAllocator allocator;
         StringStream accumulator(&allocator);
         relocinfo.target_object()->ShortPrint(&accumulator);
         SmartPointer<char> obj_name = accumulator.ToCString();
         out.AddFormatted("    ;; object: %s", *obj_name);
-      } else if (relocinfo.rmode() == external_reference) {
+      } else if (rmode == external_reference) {
         const char* reference_name =
             ref_encoder.NameOfAddress(*relocinfo.target_reference_address());
         out.AddFormatted("    ;; external reference (%s)", reference_name);
-      } else {
-        out.AddFormatted("    ;; %s",
-                         RelocInfo::RelocModeName(relocinfo.rmode()));
-        if (is_code_target(relocinfo.rmode())) {
-          Code* code = Debug::GetCodeTarget(relocinfo.target_address());
-          Code::Kind kind = code->kind();
-          if (kind == Code::STUB) {
-            // Reverse lookup required as the minor key cannot be retrieved
-            // from the code object.
-            Object* obj = Heap::code_stubs()->SlowReverseLookup(code);
-            if (obj != Heap::undefined_value()) {
-              ASSERT(obj->IsSmi());
-              // Get the STUB key and extract major and minor key.
-              uint32_t key = Smi::cast(obj)->value();
-              uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
-              ASSERT(code->major_key() == CodeStub::MajorKeyFromKey(key));
-              out.AddFormatted(" (%s, %s, ",
-                               Code::Kind2String(kind),
-                               CodeStub::MajorName(code->major_key()));
-              switch (code->major_key()) {
-                case CodeStub::CallFunction:
-                  out.AddFormatted("argc = %d)", minor_key);
-                  break;
-                case CodeStub::Runtime: {
-                  const char* name =
-                      RuntimeStub::GetNameFromMinorKey(minor_key);
-                  out.AddFormatted("%s)", name);
-                  break;
-                }
-                default:
-                  out.AddFormatted("minor: %d)", minor_key);
-              }
-            }
-          } else {
-            out.AddFormatted(" (%s)", Code::Kind2String(kind));
-          }
+      } else if (is_code_target(rmode)) {
+        out.AddFormatted("    ;; code:");
+        if (rmode == js_construct_call) {
+          out.AddFormatted(" constructor,");
         }
+        Code* code = Debug::GetCodeTarget(relocinfo.target_address());
+        Code::Kind kind = code->kind();
+        if (code->is_inline_cache_stub()) {
+          if (rmode == code_target_context) {
+            out.AddFormatted(" contextual,");
+          }
+          InlineCacheState ic_state = code->ic_state();
+          out.AddFormatted(" %s, %s", Code::Kind2String(kind),
+              Code::ICState2String(ic_state));
+          if (kind == Code::CALL_IC) {
+            out.AddFormatted(", argc = %d", code->arguments_count());
+          }
+        } else if (kind == Code::STUB) {
+          // Reverse lookup required as the minor key cannot be retrieved
+          // from the code object.
+          Object* obj = Heap::code_stubs()->SlowReverseLookup(code);
+          if (obj != Heap::undefined_value()) {
+            ASSERT(obj->IsSmi());
+            // Get the STUB key and extract major and minor key.
+            uint32_t key = Smi::cast(obj)->value();
+            uint32_t minor_key = CodeStub::MinorKeyFromKey(key);
+            ASSERT(code->major_key() == CodeStub::MajorKeyFromKey(key));
+            out.AddFormatted(" %s, %s, ",
+                             Code::Kind2String(kind),
+                             CodeStub::MajorName(code->major_key()));
+            switch (code->major_key()) {
+              case CodeStub::CallFunction:
+                out.AddFormatted("argc = %d", minor_key);
+                break;
+              case CodeStub::Runtime: {
+                const char* name =
+                    RuntimeStub::GetNameFromMinorKey(minor_key);
+                out.AddFormatted("%s", name);
+                break;
+              }
+              default:
+                out.AddFormatted("minor: %d", minor_key);
+            }
+          }
+        } else {
+          out.AddFormatted(" %s", Code::Kind2String(kind));
+        }
+      } else {
+        out.AddFormatted("    ;; %s", RelocInfo::RelocModeName(rmode));
       }
     }
     out.AddString("\n");

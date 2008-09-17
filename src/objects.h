@@ -2063,6 +2063,7 @@ class Code: public HeapObject {
 #ifdef ENABLE_DISASSEMBLER
   // Printing
   static const char* Kind2String(Kind kind);
+  static const char* ICState2String(InlineCacheState state);
   void Disassemble();
 #endif  // ENABLE_DISASSEMBLER
 
