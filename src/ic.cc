@@ -61,7 +61,7 @@ void IC::TraceIC(const char* type,
                  State old_state,
                  Code* new_target) {
   if (FLAG_trace_ic) {
-    State new_state = StateFrom(new_target, Heap::undefined_value());
+    State new_state = new_target->ic_state();
     PrintF("[%s (%c->%c) ", type,
            TransitionMarkFromState(old_state),
            TransitionMarkFromState(new_state));
@@ -127,11 +127,16 @@ Address IC::OriginalCodeAddress() {
 }
 
 
-IC::State IC::StateFrom(Code* target, Object* receiver) {
-  IC::State state = target->ic_state();
+IC::State IC::ComputeCacheState(Code* target, Object* receiver,
+                                Object* name, Object** new_target) {
+  // Get the raw state from the target.
+  State target_state = target->ic_state();
 
-  if (state != MONOMORPHIC) return state;
-  if (receiver->IsUndefined() || receiver->IsNull()) return state;
+  // Assume that no new target exists in the cache.
+  *new_target = Heap::undefined_value();
+
+  if (target_state != MONOMORPHIC) return target_state;
+  if (receiver->IsUndefined() || receiver->IsNull()) return target_state;
 
   Map* map = GetCodeCacheMapForObject(receiver);
 
@@ -143,8 +148,14 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
   // the receiver map's code cache.  Therefore, if the current target
   // is in the receiver map's code cache, the inline cache failed due
   // to prototype check failure.
-  int index = map->IndexInCodeCache(target);
-  if (index >= 0) {
+  int index = -1;
+  Object* code = NULL;
+  if (name->IsString()) {
+    code = map->FindIndexInCodeCache(String::cast(name),
+                                     target->flags(),
+                                     &index);
+  }
+  if (index >= 0 && code == target) {
     // For keyed load/store, the most likely cause of cache failure is
     // that the key has changed.  We do not distinguish between
     // prototype and non-prototype failures for keyed access.
@@ -172,6 +183,7 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
     return UNINITIALIZED;
   }
 
+  *new_target = code;
   return MONOMORPHIC;
 }
 
@@ -275,8 +287,7 @@ Object* CallIC::TryCallAsFunction(Object* object) {
 }
 
 
-Object* CallIC::LoadFunction(State state,
-                             Handle<Object> object,
+Object* CallIC::LoadFunction(Handle<Object> object,
                              Handle<String> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
@@ -315,7 +326,7 @@ Object* CallIC::LoadFunction(State state,
 
   // Lookup is valid: Update inline cache and stub cache.
   if (FLAG_use_ic && lookup.IsLoaded()) {
-    UpdateCaches(&lookup, state, object, name);
+    UpdateCaches(&lookup, object, name);
   }
 
   if (lookup.type() == INTERCEPTOR) {
@@ -374,7 +385,6 @@ Object* CallIC::LoadFunction(State state,
 
 
 void CallIC::UpdateCaches(LookupResult* lookup,
-                          State state,
                           Handle<Object> object,
                           Handle<String> name) {
   ASSERT(lookup->IsLoaded());
@@ -383,52 +393,55 @@ void CallIC::UpdateCaches(LookupResult* lookup,
 
   // Compute the number of arguments.
   int argc = target()->arguments_count();
-  Object* code = NULL;
 
-  if (state == UNINITIALIZED) {
-    // This is the first time we execute this inline cache.
-    // Set the target to the pre monomorphic stub to delay
-    // setting the monomorphic state.
-    code = StubCache::ComputeCallPreMonomorphic(argc);
-  } else if (state == MONOMORPHIC) {
-    code = StubCache::ComputeCallMegamorphic(argc);
-  } else {
-    // Compute monomorphic stub.
-    switch (lookup->type()) {
-      case FIELD: {
-        int index = lookup->GetFieldIndex();
-        code = StubCache::ComputeCallField(argc, *name, *object,
-                                           lookup->holder(), index);
-        break;
+  Object* code = Heap::undefined_value();
+  State state = ComputeCacheState(target(), *object, *name, &code);
+
+  switch (state) {
+    case UNINITIALIZED:
+      code = StubCache::ComputeCallPreMonomorphic(argc);
+      break;
+    case MONOMORPHIC:
+      if (code->IsUndefined()) code = StubCache::ComputeCallMegamorphic(argc);
+      break;
+    default:
+      // Compute monomorphic stub.
+      switch (lookup->type()) {
+        case FIELD: {
+          int index = lookup->GetFieldIndex();
+          code = StubCache::ComputeCallField(argc, *name, *object,
+                                             lookup->holder(), index);
+          break;
+        }
+        case CONSTANT_FUNCTION: {
+          // Get the constant function and compute the code stub for this
+          // call; used for rewriting to monomorphic state and making sure
+          // that the code stub is in the stub cache.
+          JSFunction* function = lookup->GetConstantFunction();
+          code = StubCache::ComputeCallConstant(argc, *name, *object,
+                                                lookup->holder(), function);
+          break;
+        }
+        case NORMAL: {
+          // There is only one shared stub for calling normalized
+          // properties. It does not traverse the prototype chain, so the
+          // property must be found in the receiver for the stub to be
+          // applicable.
+          if (!object->IsJSObject()) return;
+          Handle<JSObject> receiver = Handle<JSObject>::cast(object);
+          if (lookup->holder() != *receiver) return;
+          code = StubCache::ComputeCallNormal(argc, *name, *receiver);
+          break;
+        }
+        case INTERCEPTOR: {
+          code = StubCache::ComputeCallInterceptor(argc, *name, *object,
+                                                   lookup->holder());
+          break;
+        }
+        default:
+          return;
       }
-      case CONSTANT_FUNCTION: {
-        // Get the constant function and compute the code stub for this
-        // call; used for rewriting to monomorphic state and making sure
-        // that the code stub is in the stub cache.
-        JSFunction* function = lookup->GetConstantFunction();
-        code = StubCache::ComputeCallConstant(argc, *name, *object,
-                                              lookup->holder(), function);
-        break;
-      }
-      case NORMAL: {
-        // There is only one shared stub for calling normalized
-        // properties. It does not traverse the prototype chain, so the
-        // property must be found in the receiver for the stub to be
-        // applicable.
-        if (!object->IsJSObject()) return;
-        Handle<JSObject> receiver = Handle<JSObject>::cast(object);
-        if (lookup->holder() != *receiver) return;
-        code = StubCache::ComputeCallNormal(argc, *name, *receiver);
-        break;
-      }
-      case INTERCEPTOR: {
-        code = StubCache::ComputeCallInterceptor(argc, *name, *object,
-                                                 lookup->holder());
-        break;
-      }
-      default:
-        return;
-    }
+      break;
   }
 
   // If we're unable to compute the stub (not enough memory left), we
@@ -447,7 +460,7 @@ void CallIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
+Object* LoadIC::Load(Handle<Object> object, Handle<String> name) {
   // If the object is undefined or null it's illegal to try to get any
   // of its properties; throw a TypeError in that case.
   if (object->IsUndefined() || object->IsNull()) {
@@ -520,7 +533,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 
   // Update inline cache and stub cache.
   if (FLAG_use_ic && lookup.IsLoaded()) {
-    UpdateCaches(&lookup, state, object, name);
+    UpdateCaches(&lookup, object, name);
   }
 
   PropertyAttributes attr;
@@ -542,7 +555,6 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
 
 
 void LoadIC::UpdateCaches(LookupResult* lookup,
-                          State state,
                           Handle<Object> object,
                           Handle<String> name) {
   ASSERT(lookup->IsLoaded());
@@ -555,13 +567,15 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
   // Compute the code stub for this load.
-  Object* code = NULL;
+  Object* code = Heap::undefined_value();
+  State state = ComputeCacheState(target(), *object, *name, &code);
+
   if (state == UNINITIALIZED) {
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
     // setting the monomorphic state.
     code = pre_monomorphic_stub();
-  } else {
+  } else if (state != MONOMORPHIC) {
     // Compute monomorphic stub.
     switch (lookup->type()) {
       case FIELD: {
@@ -602,18 +616,20 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
       default:
         return;
     }
-  }
 
-  // If we're unable to compute the stub (not enough memory left), we
-  // simply avoid updating the caches.
-  if (code->IsFailure()) return;
+    // If we're unable to compute the stub (not enough memory left), we
+    // simply avoid updating the caches.
+    if (code->IsFailure()) return;
+  }
 
   // Patch the call site depending on the state of the cache.
   if (state == UNINITIALIZED || state == PREMONOMORPHIC ||
       state == MONOMORPHIC_PROTOTYPE_FAILURE) {
     set_target(Code::cast(code));
-  } else if (state == MONOMORPHIC) {
+  } else if (state == MONOMORPHIC && code->IsUndefined()) {
     set_target(megamorphic_stub());
+  } else if (state == MONOMORPHIC) {
+    set_target(Code::cast(code));
   }
 
 #ifdef DEBUG
@@ -622,8 +638,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-Object* KeyedLoadIC::Load(State state,
-                          Handle<Object> object,
+Object* KeyedLoadIC::Load(Handle<Object> object,
                           Handle<Object> key) {
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
@@ -651,7 +666,7 @@ Object* KeyedLoadIC::Load(State state,
         if (code->IsFailure()) return code;
         set_target(Code::cast(code));
 #ifdef DEBUG
-        TraceIC("KeyedLoadIC", name, state, target());
+        if (FLAG_trace_ic) PrintF("[KeyedLoadIC : +#length /string]\n");
 #endif
         return Smi::FromInt(string->length());
       }
@@ -663,7 +678,7 @@ Object* KeyedLoadIC::Load(State state,
         if (code->IsFailure()) return code;
         set_target(Code::cast(code));
 #ifdef DEBUG
-        TraceIC("KeyedLoadIC", name, state, target());
+        if (FLAG_trace_ic) PrintF("[KeyedLoadIC : +#length /array]\n");
 #endif
         return JSArray::cast(*object)->length();
       }
@@ -676,7 +691,7 @@ Object* KeyedLoadIC::Load(State state,
         if (code->IsFailure()) return code;
         set_target(Code::cast(code));
 #ifdef DEBUG
-        TraceIC("KeyedLoadIC", name, state, target());
+        if (FLAG_trace_ic) PrintF("[KeyedLoadIC : +#prototype /function]\n");
 #endif
         return Accessors::FunctionGetPrototype(*object, 0);
       }
@@ -705,7 +720,7 @@ Object* KeyedLoadIC::Load(State state,
 
     // Update the inline cache.
     if (FLAG_use_ic && lookup.IsLoaded()) {
-      UpdateCaches(&lookup, state, object, name);
+      UpdateCaches(&lookup, object, name);
     }
 
     PropertyAttributes attr;
@@ -735,8 +750,9 @@ Object* KeyedLoadIC::Load(State state,
 }
 
 
-void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
-                               Handle<Object> object, Handle<String> name) {
+void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
+                               Handle<Object> object,
+                               Handle<String> name) {
   ASSERT(lookup->IsLoaded());
   // Bail out if we didn't find a result.
   if (!lookup->IsValid() || !lookup->IsCacheable()) return;
@@ -744,9 +760,11 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
   if (!object->IsJSObject()) return;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
 
-  // Compute the code stub for this load.
-  Object* code = NULL;
+  // Compute the state of the current inline cache.
+  Object* code = Heap::undefined_value();
+  State state = ComputeCacheState(target(), *object, *name, &code);
 
+  // Compute the code stub for this load.
   if (state == UNINITIALIZED) {
     // This is the first time we execute this inline cache.
     // Set the target to the pre monomorphic stub to delay
@@ -809,8 +827,7 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup, State state,
 }
 
 
-Object* StoreIC::Store(State state,
-                       Handle<Object> object,
+Object* StoreIC::Store(Handle<Object> object,
                        Handle<String> name,
                        Handle<Object> value) {
   // If the object is undefined or null it's illegal to try to set any
@@ -838,7 +855,7 @@ Object* StoreIC::Store(State state,
 
   // Update inline cache and stub cache.
   if (FLAG_use_ic && lookup.IsLoaded()) {
-    UpdateCaches(&lookup, state, receiver, name, value);
+    UpdateCaches(&lookup, receiver, name, value);
   }
 
   // Set the property.
@@ -847,7 +864,6 @@ Object* StoreIC::Store(State state,
 
 
 void StoreIC::UpdateCaches(LookupResult* lookup,
-                           State state,
                            Handle<JSObject> receiver,
                            Handle<String> name,
                            Handle<Object> value) {
@@ -864,10 +880,13 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   // current state.
   PropertyType type = lookup->type();
 
+  // Compute the state of the current inline cache.
+  Object* code = Heap::undefined_value();
+  State state = ComputeCacheState(target(), *receiver, *name, &code);
+
   // Compute the code stub for this store; used for rewriting to
   // monomorphic state and making sure that the code stub is in the
   // stub cache.
-  Object* code = NULL;
   switch (type) {
     case FIELD: {
       code = StubCache::ComputeStoreField(*name, *receiver,
@@ -917,8 +936,7 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-Object* KeyedStoreIC::Store(State state,
-                            Handle<Object> object,
+Object* KeyedStoreIC::Store(Handle<Object> object,
                             Handle<Object> key,
                             Handle<Object> value) {
   if (key->IsSymbol()) {
@@ -949,7 +967,7 @@ Object* KeyedStoreIC::Store(State state,
 
     // Update inline cache and stub cache.
     if (FLAG_use_ic && lookup.IsLoaded()) {
-      UpdateCaches(&lookup, state, receiver, name, value);
+      UpdateCaches(&lookup, receiver, name, value);
     }
 
     // Set the property.
@@ -968,7 +986,6 @@ Object* KeyedStoreIC::Store(State state,
 
 
 void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
-                                State state,
                                 Handle<JSObject> receiver,
                                 Handle<String> name,
                                 Handle<Object> value) {
@@ -988,7 +1005,8 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
   // Compute the code stub for this store; used for rewriting to
   // monomorphic state and making sure that the code stub is in the
   // stub cache.
-  Object* code = NULL;
+  Object* code = Heap::undefined_value();
+  State state = ComputeCacheState(target(), *receiver, *name, &code);
 
   switch (type) {
     case FIELD: {
@@ -1046,8 +1064,7 @@ Object* CallIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   CallIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
-  return ic.LoadFunction(state, args.at<Object>(0), args.at<String>(1));
+  return ic.LoadFunction(args.at<Object>(0), args.at<String>(1));
 }
 
 
@@ -1071,8 +1088,7 @@ Object* LoadIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   LoadIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
-  return ic.Load(state, args.at<Object>(0), args.at<String>(1));
+  return ic.Load(args.at<Object>(0), args.at<String>(1));
 }
 
 
@@ -1091,8 +1107,7 @@ Object* KeyedLoadIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
   KeyedLoadIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
-  return ic.Load(state, args.at<Object>(0), args.at<Object>(1));
+  return ic.Load(args.at<Object>(0), args.at<Object>(1));
 }
 
 
@@ -1111,9 +1126,7 @@ Object* StoreIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   StoreIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
-  return ic.Store(state, args.at<Object>(0), args.at<String>(1),
-                  args.at<Object>(2));
+  return ic.Store(args.at<Object>(0), args.at<String>(1), args.at<Object>(2));
 }
 
 
@@ -1132,9 +1145,7 @@ Object* KeyedStoreIC_Miss(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
   KeyedStoreIC ic;
-  IC::State state = IC::StateFrom(ic.target(), args[0]);
-  return ic.Store(state, args.at<Object>(0), args.at<Object>(1),
-                  args.at<Object>(2));
+  return ic.Store(args.at<Object>(0), args.at<Object>(1), args.at<Object>(2));
 }
 
 

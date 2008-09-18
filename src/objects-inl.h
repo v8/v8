@@ -2109,6 +2109,20 @@ void Map::ClearCodeCache() {
 }
 
 
+Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
+  int index;
+  return FindIndexInCodeCache(name, flags, &index);
+}
+
+
+void Map::RemoveFromCodeCache(int index) {
+  FixedArray* array = code_cache();
+  ASSERT(array->length() >= index && array->get(index)->IsCode());
+  array->set_undefined(index - 1);  // key
+  array->set_undefined(index);  // code
+}
+
+
 #undef CAST_ACCESSOR
 #undef INT_ACCESSORS
 #undef SMI_ACCESSORS

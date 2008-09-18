@@ -81,8 +81,12 @@ class IC {
   Code* target() { return GetTargetAtAddress(address()); }
   inline Address address();
 
-  // Compute the current IC state based on the target stub and the receiver.
-  static State StateFrom(Code* target, Object* receiver);
+  // Compute the state of the current inline cache.  If the current
+  // inline cache is monomorphic, this might change the code cache in
+  // the receiver map and it might return a code object from the code
+  // cache in the receiver map that should be used as the new target.
+  static State ComputeCacheState(Code* target, Object* receiver,
+                                 Object* name, Object** new_target);
 
   // Clear the inline cache to initial state.
   static void Clear(Address address);
@@ -161,7 +165,7 @@ class CallIC: public IC {
  public:
   CallIC() : IC(EXTRA_CALL_FRAME) { ASSERT(target()->is_call_stub()); }
 
-  Object* LoadFunction(State state, Handle<Object> object, Handle<String> name);
+  Object* LoadFunction(Handle<Object> object, Handle<String> name);
 
 
   // Code generator routines.
@@ -179,7 +183,6 @@ class CallIC: public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
-                    State state,
                     Handle<Object> object,
                     Handle<String> name);
 
@@ -197,7 +200,7 @@ class LoadIC: public IC {
  public:
   LoadIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_load_stub()); }
 
-  Object* Load(State state, Handle<Object> object, Handle<String> name);
+  Object* Load(Handle<Object> object, Handle<String> name);
 
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm);
@@ -219,7 +222,6 @@ class LoadIC: public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
-                    State state,
                     Handle<Object> object,
                     Handle<String> name);
 
@@ -243,7 +245,7 @@ class KeyedLoadIC: public IC {
  public:
   KeyedLoadIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_keyed_load_stub()); }
 
-  Object* Load(State state, Handle<Object> object, Handle<Object> key);
+  Object* Load(Handle<Object> object, Handle<Object> key);
 
   // Code generator routines.
   static void GenerateMiss(MacroAssembler* masm);
@@ -256,7 +258,6 @@ class KeyedLoadIC: public IC {
 
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
-                    State state,
                     Handle<Object> object,
                     Handle<String> name);
 
@@ -283,8 +284,7 @@ class StoreIC: public IC {
  public:
   StoreIC() : IC(NO_EXTRA_FRAME) { ASSERT(target()->is_store_stub()); }
 
-  Object* Store(State state,
-                Handle<Object> object,
+  Object* Store(Handle<Object> object,
                 Handle<String> name,
                 Handle<Object> value);
 
@@ -299,7 +299,7 @@ class StoreIC: public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupResult* lookup,
-                    State state, Handle<JSObject> receiver,
+                    Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);
 
@@ -320,8 +320,7 @@ class KeyedStoreIC: public IC {
  public:
   KeyedStoreIC() : IC(NO_EXTRA_FRAME) { }
 
-  Object* Store(State state,
-                Handle<Object> object,
+  Object* Store(Handle<Object> object,
                 Handle<Object> name,
                 Handle<Object> value);
 
@@ -335,7 +334,6 @@ class KeyedStoreIC: public IC {
 
   // Update the inline cache.
   void UpdateCaches(LookupResult* lookup,
-                    State state,
                     Handle<JSObject> receiver,
                     Handle<String> name,
                     Handle<Object> value);

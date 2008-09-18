@@ -2342,14 +2342,14 @@ class Map: public HeapObject {
   Object* UpdateCodeCache(String* name, Code* code);
 
   // Returns the found code or undefined if absent.
-  Object* FindInCodeCache(String* name, Code::Flags flags);
+  inline Object* FindInCodeCache(String* name, Code::Flags flags);
 
-  // Returns the non-negative index of the code object if it is in the
-  // cache and -1 otherwise.
-  int IndexInCodeCache(Code* code);
+  // Returns the found code or undefined if absent.  Also returns the
+  // index at which the code was found or -1 if absent.
+  Object* FindIndexInCodeCache(String* name, Code::Flags flags, int* index);
 
   // Removes a code object from the code cache at the given index.
-  void RemoveFromCodeCache(int index);
+  inline void RemoveFromCodeCache(int index);
 
   // Dispatched behavior.
   void MapIterateBody(ObjectVisitor* v);
