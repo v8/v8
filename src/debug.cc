@@ -94,14 +94,16 @@ void BreakLocationIterator::Next() {
     first = false;
     if (RinfoDone()) return;
 
-    // Update the current source position each time a source position is
-    // passed.
+    // Whenever a statement position or (plain) position is passed update the
+    // current value of these.
     if (is_position(rmode())) {
-      position_ = rinfo()->data() - debug_info_->shared()->start_position();
       if (is_statement_position(rmode())) {
         statement_position_ =
             rinfo()->data() - debug_info_->shared()->start_position();
       }
+      // Always update the position as we don't want that to be before the
+      // statement position.
+      position_ = rinfo()->data() - debug_info_->shared()->start_position();
       ASSERT(position_ >= 0);
       ASSERT(statement_position_ >= 0);
     }
@@ -978,7 +980,7 @@ bool Debug::StepNextContinue(BreakLocationIterator* break_location_iterator,
     int current_statement_position =
         break_location_iterator->code()->SourceStatementPosition(frame->pc());
     return thread_local_.last_fp_ == frame->fp() &&
-           thread_local_.last_statement_position_ == current_statement_position;
+        thread_local_.last_statement_position_ == current_statement_position;
   }
 
   // No step next action - don't continue.

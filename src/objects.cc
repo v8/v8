@@ -4133,9 +4133,19 @@ int Code::SourcePosition(Address pc) {
   // source.
   RelocIterator it(this, RelocInfo::kPositionMask);
   while (!it.done()) {
-    if (it.rinfo()->pc() < pc && (pc - it.rinfo()->pc()) < distance) {
-      position = it.rinfo()->data();
-      distance = pc - it.rinfo()->pc();
+    // Only look at positions after the current pc.
+    if (it.rinfo()->pc() < pc) {
+      // Get position and distance.
+      int dist = pc - it.rinfo()->pc();
+      int pos = it.rinfo()->data();
+      // If this position is closer than the current candidate or if it has the
+      // same distance as the current candidate and the position is higher then
+      // this position is the new candidate.
+      if ((dist < distance) ||
+          (dist == distance && pos > position)) {
+        position = pos;
+        distance = dist;
+      }
     }
     it.next();
   }

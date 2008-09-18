@@ -2656,7 +2656,7 @@ void Ia32CodeGenerator::CheckStack() {
 
 void Ia32CodeGenerator::VisitBlock(Block* node) {
   Comment cmnt(masm_, "[ Block");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
   VisitStatements(node->statements());
   __ bind(node->break_target());
@@ -2734,7 +2734,7 @@ void Ia32CodeGenerator::VisitDeclaration(Declaration* node) {
 
 void Ia32CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   Comment cmnt(masm_, "[ ExpressionStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   Expression* expression = node->expression();
   expression->MarkAsStatement();
   Load(expression);
@@ -2755,7 +2755,7 @@ void Ia32CodeGenerator::VisitIfStatement(IfStatement* node) {
   bool has_then_stm = node->HasThenStatement();
   bool has_else_stm = node->HasElseStatement();
 
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   Label exit;
   if (has_then_stm && has_else_stm) {
     Label then;
@@ -2819,7 +2819,7 @@ void Ia32CodeGenerator::CleanStack(int num_bytes) {
 
 void Ia32CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
   Comment cmnt(masm_, "[ ContinueStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
   __ jmp(node->target()->continue_target());
 }
@@ -2827,7 +2827,7 @@ void Ia32CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
 
 void Ia32CodeGenerator::VisitBreakStatement(BreakStatement* node) {
   Comment cmnt(masm_, "[ BreakStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
   __ jmp(node->target()->break_target());
 }
@@ -2835,7 +2835,7 @@ void Ia32CodeGenerator::VisitBreakStatement(BreakStatement* node) {
 
 void Ia32CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   Comment cmnt(masm_, "[ ReturnStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   Load(node->expression());
 
   // Move the function result into eax
@@ -2873,7 +2873,7 @@ void Ia32CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 
 void Ia32CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   Load(node->expression());
   __ CallRuntime(Runtime::kPushContext, 1);
 
@@ -2902,7 +2902,7 @@ void Ia32CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 
 void Ia32CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   Comment cmnt(masm_, "[ SwitchStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
 
   Load(node->tag());
@@ -2966,7 +2966,7 @@ void Ia32CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
 void Ia32CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   Comment cmnt(masm_, "[ LoopStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
 
   // simple condition analysis
@@ -3007,7 +3007,8 @@ void Ia32CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     // Record source position of the statement as this code which is after the
     // code for the body actually belongs to the loop statement and not the
     // body.
-    if (FLAG_debug_info) __ RecordPosition(node->statement_pos());
+    RecordStatementPosition(node);
+    __ RecordPosition(node->statement_pos());
     ASSERT(node->type() == LoopStatement::FOR_LOOP);
     Visit(node->next());
   }
@@ -3034,7 +3035,7 @@ void Ia32CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
 void Ia32CodeGenerator::VisitForInStatement(ForInStatement* node) {
   Comment cmnt(masm_, "[ ForInStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
 
   // We keep stuff on the stack while the body is executing.
   // Record it, so that a break/continue crossing this statement
@@ -3446,7 +3447,7 @@ void Ia32CodeGenerator::VisitTryFinally(TryFinally* node) {
 
 void Ia32CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   __ CallRuntime(Runtime::kDebugBreak, 1);
   __ push(eax);
 }
@@ -3809,7 +3810,7 @@ bool Ia32CodeGenerator::IsInlineSmi(Literal* literal) {
 void Ia32CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
 
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   Reference target(this, node->target());
   if (target.is_illegal()) return;
 
@@ -3877,7 +3878,7 @@ void Ia32CodeGenerator::VisitCall(Call* node) {
 
   ZoneList<Expression*>* args = node->arguments();
 
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
 
   // Check if the function is a variable or a property.
   Expression* function = node->expression();

@@ -673,12 +673,11 @@ class Assembler : public Malloced {
 
   void RecordPosition(int pos);
   void RecordStatementPosition(int pos);
+  void WriteRecordedPositions();
 
   int pc_offset() const  { return pc_ - buffer_; }
+  int last_statement_position() const  { return last_statement_position_; }
   int last_position() const  { return last_position_; }
-  bool last_position_is_statement() const  {
-    return last_position_is_statement_;
-  }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
@@ -725,7 +724,7 @@ class Assembler : public Malloced {
 
   // source position information
   int last_position_;
-  bool last_position_is_statement_;
+  int last_statement_position_;
 
   byte* addr_at(int pos)  { return buffer_ + pos; }
   byte byte_at(int pos)  { return buffer_[pos]; }

@@ -317,7 +317,7 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   last_pc_ = NULL;
   last_bound_pos_ = 0;
   last_position_ = kNoPosition;
-  last_position_is_statement_ = false;
+  last_statement_position_ = kNoPosition;
 }
 
 
@@ -1306,6 +1306,7 @@ void Assembler::call(const Operand& adr) {
 
 
 void Assembler::call(Handle<Code> code,  RelocMode rmode) {
+  WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   ASSERT(is_code_target(rmode));
@@ -1844,6 +1845,7 @@ void Assembler::Print() {
 
 
 void Assembler::RecordJSReturn() {
+  WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   RecordRelocInfo(js_return);
 }
@@ -1859,23 +1861,30 @@ void Assembler::RecordComment(const char* msg) {
 
 void Assembler::RecordPosition(int pos) {
   if (pos == kNoPosition) return;
-  ASSERT(position >= 0);
-  if (pos == last_position_) return;
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(position, pos);
+  ASSERT(pos >= 0);
   last_position_ = pos;
-  last_position_is_statement_ = false;
 }
 
 
 void Assembler::RecordStatementPosition(int pos) {
   if (pos == kNoPosition) return;
-  ASSERT(position >= 0);
-  if (pos == last_position_) return;
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(statement_position, pos);
-  last_position_ = pos;
-  last_position_is_statement_ = true;
+  ASSERT(pos >= 0);
+  last_statement_position_ = pos;
+}
+
+
+void Assembler::WriteRecordedPositions() {
+  if (last_statement_position_ != kNoPosition) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(statement_position, last_statement_position_);
+  }
+  if ((last_position_ != kNoPosition) &&
+      (last_position_ != last_statement_position_)) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(position, last_position_);
+  }
+  last_statement_position_ = kNoPosition;
+  last_position_ = kNoPosition;
 }
 
 

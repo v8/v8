@@ -63,8 +63,8 @@ class DeferredCode: public ZoneObject {
   Label* enter() { return &enter_; }
   Label* exit() { return &exit_; }
 
+  int statement_position() const { return statement_position_; }
   int position() const { return position_; }
-  bool position_is_statement() const { return position_is_statement_; }
 
 #ifdef DEBUG
   void set_comment(const char* comment) { comment_ = comment; }
@@ -84,8 +84,8 @@ class DeferredCode: public ZoneObject {
   CodeGenerator* const generator_;
   Label enter_;
   Label exit_;
+  int statement_position_;
   int position_;
-  bool position_is_statement_;
 #ifdef DEBUG
   const char* comment_;
 #endif

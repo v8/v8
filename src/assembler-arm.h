@@ -645,9 +645,7 @@ class Assembler : public Malloced {
 
   int pc_offset() const { return pc_ - buffer_; }
   int last_position() const { return last_position_; }
-  bool last_position_is_statement() const {
-    return last_position_is_statement_;
-  }
+  int last_statement_position() const { return last_statement_position_; }
 
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
@@ -747,8 +745,8 @@ class Assembler : public Malloced {
   int last_bound_pos_;
 
   // source position information
+  int last_statement_position_;
   int last_position_;
-  bool last_position_is_statement_;
 
   // Code emission
   inline void CheckBuffer();
