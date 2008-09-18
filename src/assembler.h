@@ -158,11 +158,12 @@ enum RelocMode {
   position,  // See comment for kNoPosition above.
   statement_position,  // See comment for kNoPosition above.
   external_reference,  // The address of an external C++ function.
-  // add more as needed
-  no_reloc,  // never recorded
+  internal_reference,  // An address inside the same function.
 
+  // add more as needed
   // Pseudo-types
-  reloc_mode_count,
+  reloc_mode_count, // Must be no greater than 14. See RelocInfoWriter.
+  no_reloc,  // never recorded
   last_code_enum = code_target,
   last_gced_enum = embedded_string
 };
@@ -215,6 +216,10 @@ inline bool is_statement_position(RelocMode mode) {
 
 inline bool is_external_reference(RelocMode mode) {
   return mode == external_reference;
+}
+
+inline bool is_internal_reference(RelocMode mode) { 
+  return mode == internal_reference;
 }
 
 // Relocation information consists of the address (pc) of the datum

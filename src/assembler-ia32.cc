@@ -151,7 +151,8 @@ void Displacement::init(Label* L, Type type) {
 
 
 const int RelocInfo::kApplyMask =
-  RelocInfo::kCodeTargetMask | 1 << runtime_entry | 1 << js_return;
+  RelocInfo::kCodeTargetMask | 1 << runtime_entry |
+    1 << js_return | 1 << internal_reference;
 
 
 void RelocInfo::patch_code(byte* instructions, int instruction_count) {
@@ -1181,6 +1182,7 @@ void Assembler::bind_to(Label* L, int pos) {
     if (disp.type() == Displacement::UNCONDITIONAL_JUMP) {
       ASSERT(byte_at(fixup_pos - 1) == 0xE9);  // jmp expected
     }
+    // relative address, relative to point after address
     int imm32 = pos - (fixup_pos + sizeof(int32_t));
     long_at_put(fixup_pos, imm32);
     disp.next(L);
@@ -1945,6 +1947,11 @@ void Assembler::GrowBuffer() {
     if (rmode == runtime_entry) {
       int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
       *p -= pc_delta;  // relocate entry
+    } else if (rmode == internal_reference) {
+      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
+      if (*p != 0) {  // 0 means uninitialized.
+        *p += pc_delta;
+      }
     }
   }
 
@@ -2011,6 +2018,11 @@ void Assembler::emit_farith(int b1, int b2, int i) {
   EMIT(b2 + i);
 }
 
+void Assembler::dd(uint32_t data, RelocMode reloc_info) {
+  EnsureSpace ensure_space(this);
+  emit(data, reloc_info);
+}
+
 
 void Assembler::RecordRelocInfo(RelocMode rmode, intptr_t data) {
   ASSERT(rmode != no_reloc);
@@ -2024,5 +2036,13 @@ void Assembler::RecordRelocInfo(RelocMode rmode, intptr_t data) {
   reloc_info_writer.Write(&rinfo);
 }
 
+void Assembler::WriteInternalReference(int position, Label &bound_label) {
+  ASSERT(bound_label.is_bound());
+  ASSERT(0 <= position && position + (int)sizeof(uint32_t) <= pc_offset());
+  ASSERT(long_at(position) == 0);  // only initialize once!
+
+  uint32_t label_loc = reinterpret_cast<uint32_t>(addr_at(bound_label.pos()));
+  long_at_put(position, label_loc);
+}
 
 } }  // namespace v8::internal

@@ -280,7 +280,7 @@ class Operand BASE_EMBEDDED {
 //
 // Displacement _data field layout
 //
-// |31.....1|.......0|
+// |31.....1| ......0|
 // [  next  |  type  |
 
 class Displacement BASE_EMBEDDED {
@@ -315,6 +315,7 @@ class Displacement BASE_EMBEDDED {
 
   void init(Label* L, Type type);
 };
+
 
 
 // CpuFeatures keeps track of which features are supported by the target CPU.
@@ -674,6 +675,15 @@ class Assembler : public Malloced {
   void RecordPosition(int pos);
   void RecordStatementPosition(int pos);
   void WriteRecordedPositions();
+
+  // Writes a single word of data in the code stream.
+  // Used for inline tables, e.g., jump-tables.
+  void dd(uint32_t data, RelocMode reloc_info);
+
+  // Writes the absolute address of a bound label at the given position in
+  // the generated code. That positions should have the relocation mode
+  // internal_reference!
+  void WriteInternalReference(int position, Label &bound_label);
 
   int pc_offset() const  { return pc_ - buffer_; }
   int last_statement_position() const  { return last_statement_position_; }

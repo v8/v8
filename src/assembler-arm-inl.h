@@ -50,7 +50,13 @@ Condition NegateCondition(Condition cc) {
 
 
 void RelocInfo::apply(int delta) {
-  // We do not use pc relative addressing on ARM, so there is nothing to do.
+  if (is_internal_reference(rmode_)) {
+    // absolute code pointer inside code object moves with the code object.
+    int32_t* p = reinterpret_cast<int32_t*>(pc_);
+    *p += delta;  // relocate entry
+  }
+  // We do not use pc relative addressing on ARM, so there is
+  // nothing else to do.
 }
 
 

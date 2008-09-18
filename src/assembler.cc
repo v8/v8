@@ -78,7 +78,7 @@ int Label::pos() const {
 // statement_position: [6 bits pc delta] 10,
 //                     [7 bits signed data delta] 1
 //
-// any nondata mode:   00 [4 bits rmode] 11,
+// any nondata mode:   00 [4 bits rmode] 11,  // rmode: 0..13 only
 //                     00 [6 bits pc delta]
 //
 // pc-jump:            00 1111 11,
@@ -429,6 +429,8 @@ const char* RelocInfo::RelocModeName(RelocMode rmode) {
       return "statement position";
     case external_reference:
       return "external reference";
+    case internal_reference:
+      return "internal reference";
     case reloc_mode_count:
       UNREACHABLE();
       return "reloc_mode_count";
@@ -489,6 +491,7 @@ void RelocInfo::Verify() {
     case position:
     case statement_position:
     case external_reference:
+    case internal_reference:
     case no_reloc:
       break;
     case reloc_mode_count:

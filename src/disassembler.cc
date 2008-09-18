@@ -139,6 +139,15 @@ static int DecodeIt(FILE* f,
                      *reinterpret_cast<int32_t*>(pc));
         constants = num_const;
         pc += 4;
+      } else if (it != NULL && !it->done() && it->rinfo()->pc() == pc &&
+          it->rinfo()->rmode() == internal_reference) {
+        // raw pointer embedded in code stream, e.g., jump table
+        byte* ptr = *reinterpret_cast<byte**>(pc);
+        OS::SNPrintF(decode_buffer,
+                     "%08x      jump table entry %4d",
+                     reinterpret_cast<int32_t>(ptr),
+                     ptr - begin);
+        pc += 4;
       } else {
         decode_buffer[0] = '\0';
         pc += d.InstructionDecode(decode_buffer, pc);

@@ -56,6 +56,10 @@ void RelocInfo::apply(int delta) {
     // instruction has been inserted).
     int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
     *p -= delta;  // relocate entry
+  } else if (is_internal_reference(rmode_)) {
+    // absolute code pointer inside code object moves with the code object.
+    int32_t* p = reinterpret_cast<int32_t*>(pc_);
+    *p += delta;  // relocate entry
   }
 }
 
