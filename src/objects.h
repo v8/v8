@@ -1443,6 +1443,7 @@ class FixedArray: public Array {
 
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
+  inline void set_null(int index);
   inline void set_the_hole(int index);
 
   // Setter that skips the write barrier if mode is SKIP_WRITE_BARRIER.

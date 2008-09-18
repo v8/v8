@@ -2379,9 +2379,15 @@ Object* Map::UpdateCodeCache(String* name, Code* code) {
   // First check whether we can update existing code cache without
   // extending it.
   int length = cache->length();
+  int deleted_index = -1;
   for (int i = 0; i < length; i += 2) {
     Object* key = cache->get(i);
+    if (key->IsNull()) {
+      if (deleted_index < 0) deleted_index = i;
+      continue;
+    }
     if (key->IsUndefined()) {
+      if (deleted_index >= 0) i = deleted_index;
       cache->set(i + 0, name);
       cache->set(i + 1, code);
       return this;
@@ -2393,6 +2399,14 @@ Object* Map::UpdateCodeCache(String* name, Code* code) {
         return this;
       }
     }
+  }
+
+  // Reached the end of the code cache.  If there were deleted
+  // elements, reuse the space for the first of them.
+  if (deleted_index >= 0) {
+    cache->set(deleted_index + 0, name);
+    cache->set(deleted_index + 1, code);
+    return this;
   }
 
   // Extend the code cache with some new entries (at least one).
@@ -2415,9 +2429,9 @@ Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
   int length = cache->length();
   for (int i = 0; i < length; i += 2) {
     Object* key = cache->get(i);
-    if (key->IsUndefined()) {
-      return key;
-    }
+    // Skip deleted elements.
+    if (key->IsNull()) continue;
+    if (key->IsUndefined()) return key;
     if (name->Equals(String::cast(key))) {
       Code* code = Code::cast(cache->get(i + 1));
       if (code->flags() == flags) return code;
@@ -2440,8 +2454,11 @@ int Map::IndexInCodeCache(Code* code) {
 void Map::RemoveFromCodeCache(int index) {
   FixedArray* array = code_cache();
   ASSERT(array->length() >= index && array->get(index)->IsCode());
-  array->set_undefined(index - 1);  // key
-  array->set_undefined(index);  // code
+  // Use null instead of undefined for deleted elements to distinguish
+  // deleted elements from unused elements.  This distinction is used
+  // when looking up in the cache and when updating the cache.
+  array->set_null(index - 1);  // key
+  array->set_null(index);  // code
 }
 
 

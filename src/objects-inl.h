@@ -977,6 +977,13 @@ void FixedArray::set_undefined(int index) {
 }
 
 
+void FixedArray::set_null(int index) {
+  ASSERT(index >= 0 && index < this->length());
+  ASSERT(!Heap::InNewSpace(Heap::null_value()));
+  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, Heap::null_value());
+}
+
+
 void FixedArray::set_the_hole(int index) {
   ASSERT(index >= 0 && index < this->length());
   ASSERT(!Heap::InNewSpace(Heap::the_hole_value()));

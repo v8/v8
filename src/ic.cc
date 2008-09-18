@@ -164,11 +164,9 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
   // builtins are loaded lazily.  It is important to keep inline
   // caches for the builtins object monomorphic.  Therefore, if we get
   // an inline cache miss for the builtins object after lazily loading
-  // JavaScript builtins, we clear the code cache and return
-  // uninitialized as the state to force the inline cache back to
-  // monomorphic state.
+  // JavaScript builtins, we return uninitialized as the state to
+  // force the inline cache back to monomorphic state.
   if (receiver->IsJSBuiltinsObject()) {
-    map->ClearCodeCache();
     return UNINITIALIZED;
   }
 
