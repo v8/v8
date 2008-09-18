@@ -3207,6 +3207,7 @@ static Object* Runtime_DebugPrint(Arguments args) {
   args[0]->ShortPrint();
 #endif
   PrintF("\n");
+  Flush();
 
   return args[0];  // return TOS
 }

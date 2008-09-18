@@ -303,10 +303,11 @@ enum PropertyType {
   CONSTANT_FUNCTION   = 2,  // only in fast mode
   CALLBACKS           = 3,
   INTERCEPTOR         = 4,  // only in lookup results, not in descriptors.
-  FIRST_PHANTOM_PROPERTY_TYPE = 5,  // All properties before this are real.
   MAP_TRANSITION      = 5,  // only in fast mode
   CONSTANT_TRANSITION = 6,  // only in fast mode
-  NULL_DESCRIPTOR     = 7   // only in fast mode
+  NULL_DESCRIPTOR     = 7,  // only in fast mode
+  // All properties before MAP_TRANSITION are real.
+  FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION
 };
 
 
