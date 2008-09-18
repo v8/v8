@@ -649,6 +649,9 @@ class Assembler : public Malloced {
     return last_position_is_statement_;
   }
 
+  // Temporary helper function. Used by codegen.cc.
+  int last_statement_position() const { return last_position_; }
+
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
