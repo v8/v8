@@ -162,7 +162,7 @@ enum RelocMode {
 
   // add more as needed
   // Pseudo-types
-  reloc_mode_count, // Must be no greater than 14. See RelocInfoWriter.
+  reloc_mode_count,  // must be no greater than 14 - see RelocInfoWriter
   no_reloc,  // never recorded
   last_code_enum = code_target,
   last_gced_enum = embedded_string
@@ -214,13 +214,16 @@ inline bool is_statement_position(RelocMode mode) {
   return mode == statement_position;
 }
 
+
 inline bool is_external_reference(RelocMode mode) {
   return mode == external_reference;
 }
 
-inline bool is_internal_reference(RelocMode mode) { 
+
+inline bool is_internal_reference(RelocMode mode) {
   return mode == internal_reference;
 }
+
 
 // Relocation information consists of the address (pc) of the datum
 // to which the relocation information applies, the relocation mode

@@ -322,7 +322,7 @@ class Ia32CodeGenerator: public CodeGenerator {
   static const int kFastSwitchMaxOverheadFactor = 5;
 
   // Minimal number of switch cases required before we allow jump-table
-  // optimization. 
+  // optimization.
   static const int kFastSwitchMinCaseCount = 5;
 
   // Create fast switch implementation if all labels are small integers
@@ -2939,34 +2939,35 @@ void Ia32CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 // be populated later when the adresses of the targets are known
 void Ia32CodeGenerator::GenerateFastCaseSwitchJumpTable(
   int min_index, int range, Label *fail_label, Label &table_start) {
-  // Notice: Internal references, used by both the jmp instruction and the
-  // table entries, need to be relocated if the buffer grows. This prevents
-  // the forward use of Labels, since a displacement cannot survive relocation,
-  // and it also cannot safely be distinguished from a real address.
-  // Instead we put in zero-values as placeholders, and fill in the adresses after
-  // the labels have been bound.
+  // Notice: Internal references, used by both the jmp instruction and
+  // the table entries, need to be relocated if the buffer grows. This
+  // prevents the forward use of Labels, since a displacement cannot
+  // survive relocation, and it also cannot safely be distinguished
+  // from a real address.  Instead we put in zero-values as
+  // placeholders, and fill in the adresses after the labels have been
+  // bound.
 
-  __ pop(eax);  // supposed Smi
+  __ pop(eax);  // supposed smi
   // check range of value, if outside [0..length-1] jump to default/end label.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   if (min_index != 0) {
-    __ sub(Operand(eax), Immediate(min_index * 2));  // Smi subtraction
+    __ sub(Operand(eax), Immediate(min_index * 2));  // smi subtraction
   }
-  __ test(eax, Immediate(0x80000000 | kSmiTagMask));  // negative or not Smi
+  __ test(eax, Immediate(0x80000000 | kSmiTagMask));  // negative or not smi
   __ j(not_equal, fail_label, not_taken);
   __ cmp(eax, range * 2);
   __ j(greater_equal, fail_label, not_taken);
 
   __ jmp(Operand(eax, times_2, 0x0, internal_reference));  // 0 is placeholder
   // calculate address to overwrite later with actual address of table.
-  int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t); 
-  
+  int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t);
+
   __ Align(4);
   __ bind(&table_start);
   __ WriteInternalReference(jump_table_ref, table_start);
-  
+
   for (int i = 0; i < range; i++) {
-    __ dd(0x0, internal_reference); // table entry, 0 is placeholder
+    __ dd(0x0, internal_reference);  // table entry, 0 is placeholder
   }
 }
 
@@ -2994,14 +2995,15 @@ void Ia32CodeGenerator::GenerateFastCaseSwitchStatement(
   Label* fail_label = (default_index >= 0 ? &(case_labels[default_index])
                                           : node->break_target());
 
-  // create array of labels to jump to by index.
-  // set default jump targets everywhere
+  // Create array of labels to jump to by index and set default jump
+  // targets everywhere.
   for (int i = 0; i < range; i++) {
     // length => end label
     case_targets[i] = fail_label;
   }
-  // overwrite for values of cases:
-  // (reverse order, so that if same label twice, the first one wins)
+
+  // Overwrite for values of cases:
+  // (reverse order, so that if same label twice, the first one wins).
   for (int i = length-1; i >= 0 ; i--) {
     CaseClause* clause = cases->at(i);
     if (!clause->is_default()) {
@@ -3024,7 +3026,7 @@ void Ia32CodeGenerator::GenerateFastCaseSwitchStatement(
 
   __ bind(node->break_target());
 
-  // all labels bound now, so we can populate the table with the 
+  // All labels bound now, so we can populate the table with the
   // correct addresses.
   PopulateFastCaseSwitchJumpTable(table_start, case_targets, range);
 }
@@ -3034,10 +3036,10 @@ bool Ia32CodeGenerator::TryFastCaseSwitchStatement(SwitchStatement *node) {
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
-  if (length < kFastSwitchMinCaseCount) { 
+  if (length < kFastSwitchMinCaseCount) {
     return false;
   }
-		  
+
   // Test whether fast-case should be used.
   int default_index = -1;
   int min_index = Smi::kMaxValue;
@@ -3065,7 +3067,8 @@ bool Ia32CodeGenerator::TryFastCaseSwitchStatement(SwitchStatement *node) {
       if (smi > max_index) { max_index = smi; }
     }
   }
-  // all labels are Smi.
+
+  // After this all labels are smis.
   int range = max_index - min_index + 1;  // |min..max| inclusive
   if (range / kFastSwitchMaxOverheadFactor > length) {
     return false;  // range of labels is too sparse

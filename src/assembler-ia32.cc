@@ -2018,6 +2018,7 @@ void Assembler::emit_farith(int b1, int b2, int i) {
   EMIT(b2 + i);
 }
 
+
 void Assembler::dd(uint32_t data, RelocMode reloc_info) {
   EnsureSpace ensure_space(this);
   emit(data, reloc_info);
@@ -2036,9 +2037,10 @@ void Assembler::RecordRelocInfo(RelocMode rmode, intptr_t data) {
   reloc_info_writer.Write(&rinfo);
 }
 
-void Assembler::WriteInternalReference(int position, Label &bound_label) {
+void Assembler::WriteInternalReference(int position, const Label& bound_label) {
   ASSERT(bound_label.is_bound());
-  ASSERT(0 <= position && position + (int)sizeof(uint32_t) <= pc_offset());
+  ASSERT(0 <= position);
+  ASSERT(position + static_cast<int>(sizeof(uint32_t)) <= pc_offset());
   ASSERT(long_at(position) == 0);  // only initialize once!
 
   uint32_t label_loc = reinterpret_cast<uint32_t>(addr_at(bound_label.pos()));

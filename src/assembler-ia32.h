@@ -683,7 +683,7 @@ class Assembler : public Malloced {
   // Writes the absolute address of a bound label at the given position in
   // the generated code. That positions should have the relocation mode
   // internal_reference!
-  void WriteInternalReference(int position, Label &bound_label);
+  void WriteInternalReference(int position, const Label& bound_label);
 
   int pc_offset() const  { return pc_ - buffer_; }
   int last_statement_position() const  { return last_statement_position_; }
