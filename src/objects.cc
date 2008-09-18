@@ -2410,24 +2410,38 @@ Object* Map::UpdateCodeCache(String* name, Code* code) {
 }
 
 
-Object* Map::FindIndexInCodeCache(String* name, Code::Flags flags, int* index) {
+Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
   FixedArray* cache = code_cache();
   int length = cache->length();
   for (int i = 0; i < length; i += 2) {
     Object* key = cache->get(i);
     if (key->IsUndefined()) {
-      continue;
+      return key;
     }
     if (name->Equals(String::cast(key))) {
       Code* code = Code::cast(cache->get(i + 1));
-      if (code->flags() == flags) {
-        *index = i + 1;
-        return code;
-      }
+      if (code->flags() == flags) return code;
     }
   }
-  *index = -1;
   return Heap::undefined_value();
+}
+
+
+int Map::IndexInCodeCache(Code* code) {
+  FixedArray* array = code_cache();
+  int len = array->length();
+  for (int i = 0; i < len; i += 2) {
+    if (array->get(i + 1) == code) return i + 1;
+  }
+  return -1;
+}
+
+
+void Map::RemoveFromCodeCache(int index) {
+  FixedArray* array = code_cache();
+  ASSERT(array->length() >= index && array->get(index)->IsCode());
+  array->set_undefined(index - 1);  // key
+  array->set_undefined(index);  // code
 }
 
 
