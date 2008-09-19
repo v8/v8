@@ -911,11 +911,11 @@ static Object* Runtime_StringIndexOf(Arguments args) {
   CONVERT_CHECKED(String, pat, args[1]);
   Object* index = args[2];
 
-  int subject_length = sub->length();
-  int pattern_length = pat->length();
-
   sub->TryFlatten();
   pat->TryFlatten();
+
+  int subject_length = sub->length();
+  int pattern_length = pat->length();
 
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
@@ -934,8 +934,23 @@ static Object* Runtime_StringIndexOf(Arguments args) {
     return Smi::FromInt(-1);
   }
 
-  // For patterns with a length larger than one character we use the KMP
-  // algorithm.
+  // For small searches, KMP is not worth the setup overhead.
+  if (subject_length < 100) {
+    // We know our pattern is at least 2 characters, we cache the first so
+    // the common case of the first character not matching is faster.
+    uint16_t pattern_first_char = pat->Get(0);
+    for (int i = start_index; i + pattern_length <= subject_length; i++) {
+      if (sub->Get(i) != pattern_first_char) continue;
+
+      for (int j = 1; j < pattern_length; j++) {
+        if (pat->Get(j) != sub->Get(j + i)) break;
+        if (j == pattern_length - 1) return Smi::FromInt(i);
+      }
+    }
+    return Smi::FromInt(-1);
+  }
+
+  // For patterns with a larger length we use the KMP algorithm.
   //
   // Compute the 'next' table.
   int* next_table = NewArray<int>(pattern_length);
