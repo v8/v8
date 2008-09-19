@@ -340,6 +340,7 @@ function ApplyReplacementFunction(replace, captures, subject) {
   }
   if (index < 0) index = 0;
   if (index > str.length) index = str.length;
+  if (searchStr.length + index > str.length) return -1;
   return %StringIndexOf(str, searchStr, index);
 }, DONT_ENUM);
 
