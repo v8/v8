@@ -855,13 +855,9 @@ static const char* reg_names[16] = {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  static char tmp_buffer[32];
-#ifdef WIN32
-  _snprintf(tmp_buffer, sizeof tmp_buffer, "%p", addr);
-#else
-  snprintf(tmp_buffer, sizeof tmp_buffer, "%p", addr);
-#endif
-  return tmp_buffer;
+  static v8::internal::EmbeddedVector<char, 32> tmp_buffer;
+  v8::internal::OS::SNPrintF(tmp_buffer, "%p", addr);
+  return tmp_buffer.start();
 }
 
 
