@@ -425,12 +425,6 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Eagerly check for stack-overflow before starting to push the arguments.
   // r0: number of arguments
   Label okay;
-  { Label L;
-    __ mov(r1, Operand(391864 << kSmiTagSize));
-    __ cmp(r0, r1);
-    __ b(cc, &L);
-    __ bind(&L);
-  }
   ExternalReference stack_guard_limit_address =
       ExternalReference::address_of_stack_guard_limit();
   __ mov(r2, Operand(stack_guard_limit_address));
