@@ -151,7 +151,7 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // Cache miss: Jump to runtime.
   __ bind(&miss);
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, code_target);
+  __ Jump(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -187,7 +187,7 @@ void LoadIC::GenerateShortStringLength(MacroAssembler* masm) {
   // Cache miss: Jump to runtime.
   __ bind(&miss);
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, code_target);
+  __ Jump(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -222,7 +222,7 @@ void LoadIC::GenerateMediumStringLength(MacroAssembler* masm) {
   // Cache miss: Jump to runtime.
   __ bind(&miss);
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, code_target);
+  __ Jump(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -256,7 +256,7 @@ void LoadIC::GenerateLongStringLength(MacroAssembler* masm) {
   // Cache miss: Jump to runtime.
   __ bind(&miss);
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, code_target);
+  __ Jump(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -271,7 +271,7 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   // sub-optimal. We should port the fast case code from IA-32.
 
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, code_target);
+  __ Jump(ic, RelocInfo::CODE_TARGET);
 }
 
 

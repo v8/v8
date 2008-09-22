@@ -3999,7 +3999,7 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
                Smi::FromInt(info.NumberOfLocals()));
 
   // Add the source position.
-  if (position != kNoPosition) {
+  if (position != RelocInfo::kNoPosition) {
     details->set(kFrameDetailsSourcePositionIndex, Smi::FromInt(position));
   } else {
     details->set(kFrameDetailsSourcePositionIndex, Heap::undefined_value());
@@ -4146,7 +4146,7 @@ static Object* FindSharedFunctionInfoInScript(Handle<Script> script,
   // these functions.
   bool done = false;
   // The current candidate for the source position:
-  int target_start_position = kNoPosition;
+  int target_start_position = RelocInfo::kNoPosition;
   Handle<SharedFunctionInfo> target;
   // The current candidate for the last function in script:
   Handle<SharedFunctionInfo> last;
@@ -4161,7 +4161,7 @@ static Object* FindSharedFunctionInfoInScript(Handle<Script> script,
           // If the SharedFunctionInfo found has the requested script data and
           // contains the source position it is a candidate.
           int start_position = shared->function_token_position();
-          if (start_position == kNoPosition) {
+          if (start_position == RelocInfo::kNoPosition) {
             start_position = shared->start_position();
           }
           if (start_position <= position &&

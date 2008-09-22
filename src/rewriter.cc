@@ -64,7 +64,8 @@ class Processor: public Visitor {
 
   Expression* SetResult(Expression* value) {
     result_assigned_ = true;
-    return new Assignment(Token::ASSIGN, result_, value, kNoPosition);
+    return new Assignment(Token::ASSIGN, result_, value,
+                          RelocInfo::kNoPosition);
   }
 
   // Node visitors.

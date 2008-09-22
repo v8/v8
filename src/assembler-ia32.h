@@ -183,12 +183,14 @@ class Immediate BASE_EMBEDDED {
   inline explicit Immediate(Handle<Object> handle);
   inline explicit Immediate(Smi* value);
 
-  bool is_zero() const  { return x_ == 0 && rmode_ == no_reloc; }
-  bool is_int8() const  { return -128 <= x_ && x_ < 128 && rmode_ == no_reloc; }
+  bool is_zero() const { return x_ == 0 && rmode_ == RelocInfo::NONE; }
+  bool is_int8() const {
+    return -128 <= x_ && x_ < 128 && rmode_ == RelocInfo::NONE;
+  }
 
  private:
   int x_;
-  RelocMode rmode_;
+  RelocInfo::Mode rmode_;
 
   friend class Assembler;
 };
@@ -211,35 +213,36 @@ class Operand BASE_EMBEDDED {
   INLINE(explicit Operand(Register reg));
 
   // [disp/r]
-  INLINE(explicit Operand(int32_t disp, RelocMode rmode));
+  INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode));
   // disp only must always be relocated
 
   // [base + disp/r]
-  explicit Operand(Register base, int32_t disp, RelocMode rmode = no_reloc);
+  explicit Operand(Register base, int32_t disp,
+                   RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [base + index*scale + disp/r]
   explicit Operand(Register base,
                    Register index,
                    ScaleFactor scale,
                    int32_t disp,
-                   RelocMode rmode = no_reloc);
+                   RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [index*scale + disp/r]
   explicit Operand(Register index,
                    ScaleFactor scale,
                    int32_t disp,
-                   RelocMode rmode = no_reloc);
+                   RelocInfo::Mode rmode = RelocInfo::NONE);
 
   static Operand StaticVariable(const ExternalReference& ext) {
     return Operand(reinterpret_cast<int32_t>(ext.address()),
-                   external_reference);
+                   RelocInfo::EXTERNAL_REFERENCE);
   }
 
   static Operand StaticArray(Register index,
                              ScaleFactor scale,
                              const ExternalReference& arr) {
     return Operand(index, scale, reinterpret_cast<int32_t>(arr.address()),
-                   external_reference);
+                   RelocInfo::EXTERNAL_REFERENCE);
   }
 
   // Returns true if this Operand is a wrapper for the specified register.
@@ -251,13 +254,13 @@ class Operand BASE_EMBEDDED {
   // The number of bytes in buf_.
   unsigned int len_;
   // Only valid if len_ > 4.
-  RelocMode rmode_;
+  RelocInfo::Mode rmode_;
 
   inline void set_modrm(int mod,  // reg == 0
                         Register rm);
   inline void set_sib(ScaleFactor scale, Register index, Register base);
   inline void set_disp8(int8_t disp);
-  inline void set_dispr(int32_t disp, RelocMode rmode);
+  inline void set_dispr(int32_t disp, RelocInfo::Mode rmode);
   inline void set_reg(Register reg) const;
 
   friend class Assembler;
@@ -574,19 +577,19 @@ class Assembler : public Malloced {
 
   // Calls
   void call(Label* L);
-  void call(byte* entry, RelocMode rmode);
+  void call(byte* entry, RelocInfo::Mode rmode);
   void call(const Operand& adr);
-  void call(Handle<Code> code, RelocMode rmode);
+  void call(Handle<Code> code, RelocInfo::Mode rmode);
 
   // Jumps
   void jmp(Label* L);  // unconditional jump to L
-  void jmp(byte* entry, RelocMode rmode);
+  void jmp(byte* entry, RelocInfo::Mode rmode);
   void jmp(const Operand& adr);
-  void jmp(Handle<Code> code, RelocMode rmode);
+  void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
   // Conditional jumps
   void j(Condition cc, Label* L, Hint hint = no_hint);
-  void j(Condition cc, byte* entry, RelocMode rmode, Hint hint = no_hint);
+  void j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint = no_hint);
   void j(Condition cc, Handle<Code> code, Hint hint = no_hint);
 
   // Floating-point operations
@@ -678,7 +681,7 @@ class Assembler : public Malloced {
 
   // Writes a single word of data in the code stream.
   // Used for inline tables, e.g., jump-tables.
-  void dd(uint32_t data, RelocMode reloc_info);
+  void dd(uint32_t data, RelocInfo::Mode reloc_info);
 
   // Writes the absolute address of a bound label at the given position in
   // the generated code. That positions should have the relocation mode
@@ -749,7 +752,7 @@ class Assembler : public Malloced {
   void GrowBuffer();
   inline void emit(uint32_t x);
   inline void emit(Handle<Object> handle);
-  inline void emit(uint32_t x, RelocMode rmode);
+  inline void emit(uint32_t x, RelocInfo::Mode rmode);
   inline void emit(const Immediate& x);
 
   // instruction generation
@@ -777,7 +780,7 @@ class Assembler : public Malloced {
   inline void emit_disp(Label* L, Displacement::Type type);
 
   // record reloc info for current pc_
-  void RecordRelocInfo(RelocMode rmode, intptr_t data = 0);
+  void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
 
   friend class CodePatcher;
   friend class EnsureSpace;

@@ -826,7 +826,7 @@ void ArmCodeGenerator::LoadTypeofExpression(Expression* x) {
     Literal key(variable->name());
     // TODO(1241834): Fetch the position from the variable instead of using
     // no position.
-    Property property(&global, &key, kNoPosition);
+    Property property(&global, &key, RelocInfo::kNoPosition);
     Load(&property);
   } else {
     Load(x, CodeGenState::LOAD_TYPEOF_EXPR);
@@ -1636,7 +1636,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // r5: pointer to builtin function  (C callee-saved)
 
   if (do_gc) {
-    __ Call(FUNCTION_ADDR(Runtime::PerformGC), runtime_entry);  // passing r0
+    // Passing r0.
+    __ Call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
   }
 
   // Call C built-in.
@@ -2066,9 +2067,9 @@ void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
     Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
     if (var != NULL) {
       ASSERT(var->is_global());
-      __ Call(ic, code_target_context);
+      __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     } else {
-      __ Call(ic, code_target);
+      __ Call(ic, RelocInfo::CODE_TARGET);
     }
 
   } else {
@@ -2099,7 +2100,7 @@ void ArmCodeGenerator::SetReferenceProperty(MacroAssembler* masm,
     // Setup the name register.
     masm->mov(r2, Operand(name));
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-    masm->Call(ic, code_target);
+    masm->Call(ic, RelocInfo::CODE_TARGET);
 
   } else {
     // Access keyed property.
@@ -3705,7 +3706,7 @@ void ArmCodeGenerator::VisitCall(Call* node) {
     // Setup the receiver register and call the IC initialization code.
     Handle<Code> stub = ComputeCallInitialize(args->length());
     __ RecordPosition(node->position());
-    __ Call(stub, code_target_context);
+    __ Call(stub, RelocInfo::CODE_TARGET_CONTEXT);
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     // Remove the function from the stack.
     __ pop();
@@ -3752,7 +3753,7 @@ void ArmCodeGenerator::VisitCall(Call* node) {
       // Set the receiver register and call the IC initialization code.
       Handle<Code> stub = ComputeCallInitialize(args->length());
       __ RecordPosition(node->position());
-      __ Call(stub, code_target);
+      __ Call(stub, RelocInfo::CODE_TARGET);
       __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
       // Remove the function from the stack.
@@ -3819,9 +3820,9 @@ void ArmCodeGenerator::VisitCallNew(CallNew* node) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  __ RecordPosition(position);
+  __ RecordPosition(RelocInfo::POSITION);
   __ Call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
-          js_construct_call);
+          RelocInfo::CONSTRUCT_CALL);
 
   // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
   __ str(r0, MemOperand(sp, 0 * kPointerSize));
@@ -3996,7 +3997,7 @@ void ArmCodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
     // Call the JS runtime function.
     Handle<Code> stub = ComputeCallInitialize(args->length());
-    __ Call(stub, code_target);
+    __ Call(stub, RelocInfo::CODE_TARGET);
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     __ pop();
     __ push(r0);
@@ -4534,7 +4535,7 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
 void ArmCodeGenerator::RecordStatementPosition(Node* node) {
   if (FLAG_debug_info) {
     int statement_pos = node->statement_pos();
-    if (statement_pos == kNoPosition) return;
+    if (statement_pos == RelocInfo::kNoPosition) return;
     __ RecordStatementPosition(statement_pos);
   }
 }

@@ -376,7 +376,7 @@ class TestBreakLocationIterator: public v8::internal::BreakLocationIterator {
 // location in the code is the expected debug_break function.
 void CheckDebugBreakFunction(DebugLocalContext* env,
                              const char* source, const char* name,
-                             int position, v8::internal::RelocMode mode,
+                             int position, v8::internal::RelocInfo::Mode mode,
                              Code* debug_break) {
   // Create function and set the break point.
   Handle<v8::internal::JSFunction> fun = v8::Utils::OpenHandle(
@@ -389,7 +389,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   TestBreakLocationIterator it1(Debug::GetDebugInfo(shared));
   it1.FindBreakLocationFromPosition(position);
   CHECK_EQ(mode, it1.it()->rinfo()->rmode());
-  if (mode != v8::internal::js_return) {
+  if (mode != v8::internal::RelocInfo::JS_RETURN) {
     CHECK_EQ(debug_break,
              Debug::GetCodeTarget(it1.it()->rinfo()->target_address()));
   } else {
@@ -406,7 +406,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   TestBreakLocationIterator it2(Debug::GetDebugInfo(shared));
   it2.FindBreakLocationFromPosition(position);
   CHECK_EQ(mode, it2.it()->rinfo()->rmode());
-  if (mode == v8::internal::js_return) {
+  if (mode == v8::internal::RelocInfo::JS_RETURN) {
     // TODO(1240753): Make the test architecture independent or split
     // parts of the debugger into architecture dependent files.
     CHECK_NE(0xE8, *(it2.rinfo()->pc()));
@@ -667,28 +667,25 @@ TEST(DebugStub) {
   v8::HandleScope scope;
   DebugLocalContext env;
 
-  // TODO(1240753): Make the test architecture independent or split
-  // parts of the debugger into architecture dependent files. This
-  // part currently disabled as it is not portable between IA32/ARM.
-  // Ia32 uses js_return ARM uses exit_js_frame.
-#if !defined (__arm__) && !defined(__thumb__)
   CheckDebugBreakFunction(&env,
                           "function f1(){}", "f1",
                           0,
-                          v8::internal::js_return,
+                          v8::internal::RelocInfo::JS_RETURN,
                           NULL);
-#endif
   CheckDebugBreakFunction(&env,
                           "function f2(){x=1;}", "f2",
                           0,
-                          v8::internal::code_target,
+                          v8::internal::RelocInfo::CODE_TARGET,
                           Builtins::builtin(Builtins::StoreIC_DebugBreak));
   CheckDebugBreakFunction(&env,
                           "function f3(){var a=x;}", "f3",
                           0,
-                          v8::internal::code_target_context,
+                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
                           Builtins::builtin(Builtins::LoadIC_DebugBreak));
 
+// TODO(1240753): Make the test architecture independent or split
+// parts of the debugger into architecture dependent files. This
+// part currently disabled as it is not portable between IA32/ARM.
 // Currently on ICs for keyed store/load on ARM.
 #if !defined (__arm__) && !defined(__thumb__)
   CheckDebugBreakFunction(
@@ -696,14 +693,14 @@ TEST(DebugStub) {
       "function f4(){var index='propertyName'; var a={}; a[index] = 'x';}",
       "f4",
       0,
-      v8::internal::code_target,
+      v8::internal::RelocInfo::CODE_TARGET,
       Builtins::builtin(Builtins::KeyedStoreIC_DebugBreak));
   CheckDebugBreakFunction(
       &env,
       "function f5(){var index='propertyName'; var a={}; return a[index];}",
       "f5",
       0,
-      v8::internal::code_target,
+      v8::internal::RelocInfo::CODE_TARGET,
       Builtins::builtin(Builtins::KeyedLoadIC_DebugBreak));
 #endif
 
@@ -716,19 +713,19 @@ TEST(DebugStub) {
   CheckDebugBreakFunction(&env,
                           "function f4_0(){x();}", "f4_0",
                           0,
-                          v8::internal::code_target_context,
+                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
                           *debug_break_0);
 
   CheckDebugBreakFunction(&env,
                           "function f4_1(){x(1);}", "f4_1",
                           0,
-                          v8::internal::code_target_context,
+                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
                           *debug_break_1);
 
   CheckDebugBreakFunction(&env,
                           "function f4_4(){x(1,2,3,4);}", "f4_4",
                           0,
-                          v8::internal::code_target_context,
+                          v8::internal::RelocInfo::CODE_TARGET_CONTEXT,
                           *debug_break_4);
 }
 

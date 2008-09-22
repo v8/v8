@@ -401,7 +401,7 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
   }
 
   Handle<Code> ic(code);
-  __ jmp(ic, code_target);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 }
 
 
@@ -526,7 +526,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   // Handle call cache miss.
   __ bind(&miss);
   Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, code_target);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
   return GetCode(FIELD);
@@ -631,12 +631,13 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   // Jump to the cached code (tail call).
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  __ InvokeCode(code, expected, arguments(), code_target, JUMP_FUNCTION);
+  __ InvokeCode(code, expected, arguments(),
+                RelocInfo::CODE_TARGET, JUMP_FUNCTION);
 
   // Handle call cache miss.
   __ bind(&miss);
   Handle<Code> ic = ComputeCallMiss(arguments().immediate());
-  __ jmp(ic, code_target);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
   return GetCode(CONSTANT_FUNCTION);
@@ -703,7 +704,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   // Handle load cache miss.
   __ bind(&miss);
   Handle<Code> ic = ComputeCallMiss(argc);
-  __ jmp(ic, code_target);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
   return GetCode(INTERCEPTOR);
@@ -734,7 +735,7 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   __ bind(&miss);
   __ mov(Operand(ecx), Immediate(Handle<String>(name)));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
-  __ jmp(ic, code_target);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
   return GetCode(transition == NULL ? FIELD : MAP_TRANSITION);
@@ -791,7 +792,7 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   __ bind(&miss);
   __ mov(Operand(ecx), Immediate(Handle<String>(name)));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
-  __ jmp(ic, code_target);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
   return GetCode(CALLBACKS);
@@ -846,7 +847,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   __ bind(&miss);
   __ mov(Operand(ecx), Immediate(Handle<String>(name)));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
-  __ jmp(ic, code_target);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
   return GetCode(INTERCEPTOR);
@@ -884,7 +885,7 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_store_field, 1);
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
-  __ jmp(ic, code_target);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
   return GetCode(transition == NULL ? FIELD : MAP_TRANSITION);

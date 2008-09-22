@@ -503,7 +503,7 @@ void MacroAssembler::NegativeZeroTest(Register result,
 
 void MacroAssembler::CallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
-  call(stub->GetCode(), code_target);
+  call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -554,7 +554,7 @@ void MacroAssembler::JumpToBuiltin(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(Operand(ebx), Immediate(ext));
   CEntryStub ces;
-  jmp(ces.GetCode(), code_target);
+  jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -613,10 +613,10 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     }
 
     if (flag == CALL_FUNCTION) {
-      call(adaptor, code_target);
+      call(adaptor, RelocInfo::CODE_TARGET);
       jmp(done);
     } else {
-      jmp(adaptor, code_target);
+      jmp(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&invoke);
   }
@@ -642,7 +642,7 @@ void MacroAssembler::InvokeCode(const Operand& code,
 void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
-                                RelocMode rmode,
+                                RelocInfo::Mode rmode,
                                 InvokeFlag flag) {
   Label done;
   Operand dummy(eax);
@@ -683,7 +683,8 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   // arguments match the expected number of arguments. Fake a
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
-  InvokeCode(Handle<Code>(code), expected, expected, code_target, flag);
+  InvokeCode(Handle<Code>(code), expected, expected,
+             RelocInfo::CODE_TARGET, flag);
 
   const char* name = Builtins::GetName(id);
   int argc = Builtins::GetArgumentsCount(id);

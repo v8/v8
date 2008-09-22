@@ -192,21 +192,21 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
 #endif
   Counters::reloc_info_count.Increment();
   ASSERT(rinfo->pc() - last_pc_ >= 0);
-  ASSERT(reloc_mode_count < kMaxRelocModes);
+  ASSERT(RelocInfo::NUMBER_OF_MODES < kMaxRelocModes);
   // Use unsigned delta-encoding for pc.
   uint32_t pc_delta = rinfo->pc() - last_pc_;
-  RelocMode rmode = rinfo->rmode();
+  RelocInfo::Mode rmode = rinfo->rmode();
 
   // The two most common modes are given small tags, and usually fit in a byte.
-  if (rmode == embedded_object) {
+  if (rmode == RelocInfo::EMBEDDED_OBJECT) {
     WriteTaggedPC(pc_delta, kEmbeddedObjectTag);
-  } else if (rmode == code_target) {
+  } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteTaggedPC(pc_delta, kCodeTargetTag);
-  } else if (rmode == position || rmode == statement_position) {
+  } else if (RelocInfo::IsPosition(rmode)) {
     // Use signed delta-encoding for data.
     int32_t data_delta = rinfo->data() - last_data_;
-    int pos_type_tag = rmode == position ? kNonstatementPositionTag
-                                         : kStatementPositionTag;
+    int pos_type_tag = rmode == RelocInfo::POSITION ? kNonstatementPositionTag
+                                                    : kStatementPositionTag;
     // Check if data is small enough to fit in a tagged byte.
     if (is_intn(data_delta, kSmallDataBits)) {
       WriteTaggedPC(pc_delta, kPositionTag);
@@ -218,7 +218,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
       WriteExtraTaggedData(data_delta, pos_type_tag);
       last_data_ = rinfo->data();
     }
-  } else if (rmode == comment) {
+  } else if (RelocInfo::IsComment(rmode)) {
     // Comments are normally not generated, so we use the costly encoding.
     WriteExtraTaggedPC(pc_delta, kPCJumpTag);
     WriteExtraTaggedData(rinfo->data() - last_data_, kCommentTag);
@@ -297,14 +297,14 @@ inline void RelocIterator::ReadTaggedData() {
 }
 
 
-inline RelocMode RelocIterator::DebugInfoModeFromTag(int tag) {
+inline RelocInfo::Mode RelocIterator::DebugInfoModeFromTag(int tag) {
   if (tag == kStatementPositionTag) {
-    return statement_position;
+    return RelocInfo::STATEMENT_POSITION;
   } else if (tag == kNonstatementPositionTag) {
-    return position;
+    return RelocInfo::POSITION;
   } else {
     ASSERT(tag == kCommentTag);
-    return comment;
+    return RelocInfo::COMMENT;
   }
 }
 
@@ -320,14 +320,14 @@ void RelocIterator::next() {
     int tag = AdvanceGetTag();
     if (tag == kEmbeddedObjectTag) {
       ReadTaggedPC();
-      if (SetMode(embedded_object)) return;
+      if (SetMode(RelocInfo::EMBEDDED_OBJECT)) return;
     } else if (tag == kCodeTargetTag) {
       ReadTaggedPC();
       if (*(reinterpret_cast<int**>(rinfo_.pc())) ==
           reinterpret_cast<int*>(0x61)) {
         tag = 0;
       }
-      if (SetMode(code_target)) return;
+      if (SetMode(RelocInfo::CODE_TARGET)) return;
     } else if (tag == kPositionTag) {
       ReadTaggedPC();
       Advance();
@@ -362,7 +362,7 @@ void RelocIterator::next() {
         }
       } else {
         AdvanceReadPC();
-        if (SetMode(static_cast<RelocMode>(extra_tag))) return;
+        if (SetMode(static_cast<RelocInfo::Mode>(extra_tag))) return;
       }
     }
   }
@@ -401,39 +401,37 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
 
 
 #ifdef ENABLE_DISASSEMBLER
-const char* RelocInfo::RelocModeName(RelocMode rmode) {
+const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
   switch (rmode) {
-    case no_reloc:
+    case RelocInfo::NONE:
       return "no reloc";
-    case embedded_object:
+    case RelocInfo::EMBEDDED_OBJECT:
       return "embedded object";
-    case embedded_string:
+    case RelocInfo::EMBEDDED_STRING:
       return "embedded string";
-    case js_construct_call:
+    case RelocInfo::CONSTRUCT_CALL:
       return "code target (js construct call)";
-    case exit_js_frame:
-      return "code target (exit js frame)";
-    case code_target_context:
+    case RelocInfo::CODE_TARGET_CONTEXT:
       return "code target (context)";
-    case code_target:
+    case RelocInfo::CODE_TARGET:
       return "code target";
-    case runtime_entry:
+    case RelocInfo::RUNTIME_ENTRY:
       return "runtime entry";
-    case js_return:
+    case RelocInfo::JS_RETURN:
       return "js return";
-    case comment:
+    case RelocInfo::COMMENT:
       return "comment";
-    case position:
+    case RelocInfo::POSITION:
       return "position";
-    case statement_position:
+    case RelocInfo::STATEMENT_POSITION:
       return "statement position";
-    case external_reference:
+    case RelocInfo::EXTERNAL_REFERENCE:
       return "external reference";
-    case internal_reference:
+    case RelocInfo::INTERNAL_REFERENCE:
       return "internal reference";
-    case reloc_mode_count:
+    case RelocInfo::NUMBER_OF_MODES:
       UNREACHABLE();
-      return "reloc_mode_count";
+      return "number_of_modes";
   }
   return "unknown relocation type";
 }
@@ -441,21 +439,21 @@ const char* RelocInfo::RelocModeName(RelocMode rmode) {
 
 void RelocInfo::Print() {
   PrintF("%p  %s", pc_, RelocModeName(rmode_));
-  if (rmode_ == comment) {
+  if (IsComment(rmode_)) {
     PrintF("  (%s)", data_);
-  } else if (rmode_ == embedded_object) {
+  } else if (rmode_ == EMBEDDED_OBJECT) {
     PrintF("  (");
     target_object()->ShortPrint();
     PrintF(")");
-  } else if (rmode_ == external_reference) {
+  } else if (rmode_ == EXTERNAL_REFERENCE) {
     ExternalReferenceEncoder ref_encoder;
     PrintF(" (%s)  (%p)",
            ref_encoder.NameOfAddress(*target_reference_address()),
            *target_reference_address());
-  } else if (is_code_target(rmode_)) {
+  } else if (IsCodeTarget(rmode_)) {
     Code* code = Debug::GetCodeTarget(target_address());
     PrintF(" (%s)  (%p)", Code::Kind2String(code->kind()), target_address());
-  } else if (is_position(rmode_)) {
+  } else if (IsPosition(rmode_)) {
     PrintF("  (%d)", data());
   }
 
@@ -467,13 +465,12 @@ void RelocInfo::Print() {
 #ifdef DEBUG
 void RelocInfo::Verify() {
   switch (rmode_) {
-    case embedded_object:
+    case EMBEDDED_OBJECT:
       Object::VerifyPointer(target_object());
       break;
-    case js_construct_call:
-    case exit_js_frame:
-    case code_target_context:
-    case code_target: {
+    case CONSTRUCT_CALL:
+    case CODE_TARGET_CONTEXT:
+    case CODE_TARGET: {
       // convert inline target address to code object
       Address addr = target_address();
       ASSERT(addr != NULL);
@@ -484,17 +481,17 @@ void RelocInfo::Verify() {
       ASSERT(code->address() == HeapObject::cast(found)->address());
       break;
     }
-    case embedded_string:
-    case runtime_entry:
-    case js_return:
-    case comment:
-    case position:
-    case statement_position:
-    case external_reference:
-    case internal_reference:
-    case no_reloc:
+    case RelocInfo::EMBEDDED_STRING:
+    case RUNTIME_ENTRY:
+    case JS_RETURN:
+    case COMMENT:
+    case POSITION:
+    case STATEMENT_POSITION:
+    case EXTERNAL_REFERENCE:
+    case INTERNAL_REFERENCE:
+    case NONE:
       break;
-    case reloc_mode_count:
+    case NUMBER_OF_MODES:
       UNREACHABLE();
       break;
   }

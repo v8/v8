@@ -174,7 +174,7 @@ IC::State IC::StateFrom(Code* target, Object* receiver) {
 }
 
 
-RelocMode IC::ComputeMode() {
+RelocInfo::Mode IC::ComputeMode() {
   Address addr = address();
   Code* code = Code::cast(Heap::FindCodeObject(addr));
   for (RelocIterator it(code, RelocInfo::kCodeTargetMask);
@@ -183,7 +183,7 @@ RelocMode IC::ComputeMode() {
     if (info->pc() == addr) return info->rmode();
   }
   UNREACHABLE();
-  return no_reloc;
+  return RelocInfo::NONE;
 }
 
 

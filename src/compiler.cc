@@ -130,7 +130,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
                                       code);
 
   CodeGenerator::SetFunctionInfo(fun, lit->scope()->num_parameters(),
-                                 kNoPosition,
+                                 RelocInfo::kNoPosition,
                                  lit->start_position(), lit->end_position(),
                                  lit->is_expression(), true, script);
 

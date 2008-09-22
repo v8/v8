@@ -104,7 +104,7 @@ class MacroAssembler: public Assembler {
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
-                  RelocMode rmode,
+                  RelocInfo::Mode rmode,
                   InvokeFlag flag);
 
   // Invoke the JavaScript function in the given register. Changes the

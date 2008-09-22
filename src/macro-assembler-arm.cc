@@ -84,7 +84,8 @@ void MacroAssembler::Jump(Register target, Condition cond) {
 }
 
 
-void MacroAssembler::Jump(intptr_t target, RelocMode rmode, Condition cond) {
+void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
+                          Condition cond) {
 #if USE_BX
   mov(ip, Operand(target, rmode), LeaveCC, cond);
   bx(ip, cond);
@@ -94,14 +95,16 @@ void MacroAssembler::Jump(intptr_t target, RelocMode rmode, Condition cond) {
 }
 
 
-void MacroAssembler::Jump(byte* target, RelocMode rmode, Condition cond) {
-  ASSERT(!is_code_target(rmode));
+void MacroAssembler::Jump(byte* target, RelocInfo::Mode rmode,
+                          Condition cond) {
+  ASSERT(!RelocInfo::IsCodeTarget(rmode));
   Jump(reinterpret_cast<intptr_t>(target), rmode, cond);
 }
 
 
-void MacroAssembler::Jump(Handle<Code> code, RelocMode rmode, Condition cond) {
-  ASSERT(is_code_target(rmode));
+void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
+                          Condition cond) {
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
@@ -118,9 +121,10 @@ void MacroAssembler::Call(Register target, Condition cond) {
 }
 
 
-void MacroAssembler::Call(intptr_t target, RelocMode rmode, Condition cond) {
+void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
+                          Condition cond) {
 #if !defined(__arm__)
-  if (rmode == runtime_entry) {
+  if (rmode == RelocInfo::RUNTIME_ENTRY) {
     mov(r2, Operand(target, rmode), LeaveCC, cond);
     // Set lr for return at current pc + 8.
     mov(lr, Operand(pc), LeaveCC, cond);
@@ -148,14 +152,16 @@ void MacroAssembler::Call(intptr_t target, RelocMode rmode, Condition cond) {
 }
 
 
-void MacroAssembler::Call(byte* target, RelocMode rmode, Condition cond) {
-  ASSERT(!is_code_target(rmode));
+void MacroAssembler::Call(byte* target, RelocInfo::Mode rmode,
+                          Condition cond) {
+  ASSERT(!RelocInfo::IsCodeTarget(rmode));
   Call(reinterpret_cast<intptr_t>(target), rmode, cond);
 }
 
 
-void MacroAssembler::Call(Handle<Code> code, RelocMode rmode, Condition cond) {
-  ASSERT(is_code_target(rmode));
+void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
+                          Condition cond) {
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
   Call(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
@@ -330,10 +336,10 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     Handle<Code> adaptor =
         Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
     if (flag == CALL_FUNCTION) {
-      Call(adaptor, code_target);
+      Call(adaptor, RelocInfo::CODE_TARGET);
       b(done);
     } else {
-      Jump(adaptor, code_target);
+      Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&regular_invoke);
   }
@@ -363,7 +369,7 @@ void MacroAssembler::InvokeCode(Register code,
 void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
-                                RelocMode rmode,
+                                RelocInfo::Mode rmode,
                                 InvokeFlag flag) {
   Label done;
 
@@ -603,13 +609,7 @@ void MacroAssembler::CheckAccessGlobal(Register holder_reg,
 
 void MacroAssembler::CallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
-  Call(stub->GetCode(), code_target);
-}
-
-
-void MacroAssembler::CallJSExitStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
-  Call(stub->GetCode(), exit_js_frame);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -658,7 +658,7 @@ void MacroAssembler::JumpToBuiltin(const ExternalReference& builtin) {
 #endif
   mov(r1, Operand(builtin));
   CEntryStub stub;
-  Jump(stub.GetCode(), code_target);
+  Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -681,10 +681,10 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   Handle<Code> code = ResolveBuiltin(id, &resolved);
 
   if (flags == CALL_JS) {
-    Call(code, code_target);
+    Call(code, RelocInfo::CODE_TARGET);
   } else {
     ASSERT(flags == JUMP_JS);
-    Jump(code, code_target);
+    Jump(code, RelocInfo::CODE_TARGET);
   }
 
   if (!resolved) {

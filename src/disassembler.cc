@@ -140,7 +140,7 @@ static int DecodeIt(FILE* f,
         constants = num_const;
         pc += 4;
       } else if (it != NULL && !it->done() && it->rinfo()->pc() == pc &&
-          it->rinfo()->rmode() == internal_reference) {
+          it->rinfo()->rmode() == RelocInfo::INTERNAL_REFERENCE) {
         // raw pointer embedded in code stream, e.g., jump table
         byte* ptr = *reinterpret_cast<byte**>(pc);
         OS::SNPrintF(decode_buffer,
@@ -157,11 +157,11 @@ static int DecodeIt(FILE* f,
     // Collect RelocInfo for this instruction (prev_pc .. pc-1)
     List<const char*> comments(4);
     List<byte*> pcs(1);
-    List<RelocMode> rmodes(1);
+    List<RelocInfo::Mode> rmodes(1);
     List<intptr_t> datas(1);
     if (it != NULL) {
       while (!it->done() && it->rinfo()->pc() < pc) {
-        if (is_comment(it->rinfo()->rmode())) {
+        if (RelocInfo::IsComment(it->rinfo()->rmode())) {
           // For comments just collect the text.
           comments.Add(reinterpret_cast<const char*>(it->rinfo()->data()));
         } else {
@@ -206,32 +206,32 @@ static int DecodeIt(FILE* f,
         out.AddPadding(' ', kRelocInfoPosition);
       }
 
-      RelocMode rmode = relocinfo.rmode();
-      if (is_position(rmode)) {
-        if (is_statement_position(rmode)) {
+      RelocInfo::Mode rmode = relocinfo.rmode();
+      if (RelocInfo::IsPosition(rmode)) {
+        if (RelocInfo::IsStatementPosition(rmode)) {
           out.AddFormatted("    ;; debug: statement %d", relocinfo.data());
         } else {
           out.AddFormatted("    ;; debug: position %d", relocinfo.data());
         }
-      } else if (rmode == embedded_object) {
+      } else if (rmode == RelocInfo::EMBEDDED_OBJECT) {
         HeapStringAllocator allocator;
         StringStream accumulator(&allocator);
         relocinfo.target_object()->ShortPrint(&accumulator);
         SmartPointer<char> obj_name = accumulator.ToCString();
         out.AddFormatted("    ;; object: %s", *obj_name);
-      } else if (rmode == external_reference) {
+      } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
         const char* reference_name =
             ref_encoder.NameOfAddress(*relocinfo.target_reference_address());
         out.AddFormatted("    ;; external reference (%s)", reference_name);
-      } else if (is_code_target(rmode)) {
+      } else if (RelocInfo::IsCodeTarget(rmode)) {
         out.AddFormatted("    ;; code:");
-        if (rmode == js_construct_call) {
+        if (rmode == RelocInfo::CONSTRUCT_CALL) {
           out.AddFormatted(" constructor,");
         }
         Code* code = Debug::GetCodeTarget(relocinfo.target_address());
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {
-          if (rmode == code_target_context) {
+          if (rmode == RelocInfo::CODE_TARGET_CONTEXT) {
             out.AddFormatted(" contextual,");
           }
           InlineCacheState ic_state = code->ic_state();

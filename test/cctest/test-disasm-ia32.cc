@@ -78,7 +78,7 @@ TEST(DisasmIa320) {
 
   // ---- All instructions that I can think of
   __ add(edx, Operand(ebx));
-  __ add(edx, Operand(12, no_reloc));
+  __ add(edx, Operand(12, RelocInfo::NONE));
   __ add(edx, Operand(ebx, 0));
   __ add(edx, Operand(ebx, 16));
   __ add(edx, Operand(ebx, 1999));
@@ -259,9 +259,9 @@ TEST(DisasmIa320) {
   __ call(Operand(ebx, ecx, times_4, 10000));
   __ nop();
   Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-  __ call(ic, code_target);
+  __ call(ic, RelocInfo::CODE_TARGET);
   __ nop();
-  __ call(FUNCTION_ADDR(DummyStaticFunction), runtime_entry);
+  __ call(FUNCTION_ADDR(DummyStaticFunction), RelocInfo::RUNTIME_ENTRY);
   __ nop();
 
   __ jmp(&L1);
@@ -269,7 +269,7 @@ TEST(DisasmIa320) {
   ExternalReference after_break_target =
       ExternalReference(Debug_Address::AfterBreakTarget());
   __ jmp(Operand::StaticVariable(after_break_target));
-  __ jmp(ic, code_target);
+  __ jmp(ic, RelocInfo::CODE_TARGET);
   __ nop();
 
 

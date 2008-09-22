@@ -96,8 +96,8 @@ void BreakLocationIterator::Next() {
 
     // Whenever a statement position or (plain) position is passed update the
     // current value of these.
-    if (is_position(rmode())) {
-      if (is_statement_position(rmode())) {
+    if (RelocInfo::IsPosition(rmode())) {
+      if (RelocInfo::IsStatementPosition(rmode())) {
         statement_position_ =
             rinfo()->data() - debug_info_->shared()->start_position();
       }
@@ -111,10 +111,10 @@ void BreakLocationIterator::Next() {
     // Check for breakable code target. Look in the original code as setting
     // break points can cause the code targets in the running (debugged) code to
     // be of a different kind than in the original code.
-    if (is_code_target(rmode())) {
+    if (RelocInfo::IsCodeTarget(rmode())) {
       Address target = original_rinfo()->target_address();
       Code* code = Debug::GetCodeTarget(target);
-      if (code->is_inline_cache_stub() || is_js_construct_call(rmode())) {
+      if (code->is_inline_cache_stub() || RelocInfo::IsConstructCall(rmode())) {
         break_point_++;
         return;
       }
@@ -135,8 +135,7 @@ void BreakLocationIterator::Next() {
     }
 
     // Check for break at return.
-    // Currently is_exit_js_frame is used on ARM.
-    if (is_js_return(rmode()) || is_exit_js_frame(rmode())) {
+    if (RelocInfo::IsJSReturn(rmode())) {
       // Set the positions to the end of the function.
       if (debug_info_->shared()->HasSourceCode()) {
         position_ = debug_info_->shared()->end_position() -
@@ -285,7 +284,7 @@ void BreakLocationIterator::SetDebugBreak() {
     return;
   }
 
-  if (is_js_return(rmode())) {
+  if (RelocInfo::IsJSReturn(rmode())) {
     // This path is currently only used on IA32 as JSExitFrame on ARM uses a
     // stub.
     // Patch the JS frame exit code with a debug break call. See
@@ -310,7 +309,7 @@ void BreakLocationIterator::SetDebugBreak() {
 
 
 void BreakLocationIterator::ClearDebugBreak() {
-  if (is_js_return(rmode())) {
+  if (RelocInfo::IsJSReturn(rmode())) {
     // Restore the JS frame exit code.
     rinfo()->patch_code(original_rinfo()->pc(),
                         Debug::kIa32JSReturnSequenceLength);
@@ -341,15 +340,14 @@ void BreakLocationIterator::PrepareStepIn() {
     }
   } else {
     // Step in through constructs call requires no changes to the running code.
-    ASSERT(is_js_construct_call(rmode()));
+    ASSERT(RelocInfo::IsConstructCall(rmode()));
   }
 }
 
 
 // Check whether the break point is at a position which will exit the function.
 bool BreakLocationIterator::IsExit() const {
-  // Currently is_exit_js_frame is used on ARM.
-  return (is_js_return(rmode()) || is_exit_js_frame(rmode()));
+  return (RelocInfo::IsJSReturn(rmode()));
 }
 
 
@@ -360,7 +358,7 @@ bool BreakLocationIterator::HasBreakPoint() {
 
 // Check whether there is a debug break at the current position.
 bool BreakLocationIterator::IsDebugBreak() {
-  if (is_js_return(rmode())) {
+  if (RelocInfo::IsJSReturn(rmode())) {
     // This is IA32 specific but works as long as the ARM version
     // still uses a stub for JSExitFrame.
     //
@@ -403,7 +401,7 @@ DebugInfoListNode* Debug::debug_info_list_ = NULL;
 // Threading support.
 void Debug::ThreadInit() {
   thread_local_.last_step_action_ = StepNone;
-  thread_local_.last_statement_position_ = kNoPosition;
+  thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
   thread_local_.step_count_ = 0;
   thread_local_.last_fp_ = 0;
   thread_local_.step_into_fp_ = 0;
@@ -921,7 +919,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
 
   // Compute whether or not the target is a call target.
   bool is_call_target = false;
-  if (is_code_target(it.rinfo()->rmode())) {
+  if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
     Address target = it.rinfo()->target_address();
     Code* code = Debug::GetCodeTarget(target);
     if (code->is_call_stub()) is_call_target = true;
@@ -937,7 +935,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
       JSFunction* function = JSFunction::cast(frames_it.frame()->function());
       FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
     }
-  } else if (!(is_call_target || is_js_construct_call(it.rmode())) ||
+  } else if (!(is_call_target || RelocInfo::IsConstructCall(it.rmode())) ||
              step_action == StepNext || step_action == StepMin) {
     // Step next or step min.
 
@@ -1017,9 +1015,9 @@ bool Debug::IsBreakStub(Code* code) {
 Handle<Code> Debug::FindDebugBreak(RelocInfo* rinfo) {
   // Find the builtin debug break function matching the calling convention
   // used by the call site.
-  RelocMode mode = rinfo->rmode();
+  RelocInfo::Mode mode = rinfo->rmode();
 
-  if (is_code_target(mode)) {
+  if (RelocInfo::IsCodeTarget(mode)) {
     Address target = rinfo->target_address();
     Code* code = Debug::GetCodeTarget(target);
     if (code->is_inline_cache_stub()) {
@@ -1043,14 +1041,10 @@ Handle<Code> Debug::FindDebugBreak(RelocInfo* rinfo) {
         return result;
       }
     }
-    if (is_js_construct_call(mode)) {
+    if (RelocInfo::IsConstructCall(mode)) {
       Handle<Code> result =
           Handle<Code>(Builtins::builtin(Builtins::ConstructCall_DebugBreak));
       return result;
-    }
-    // Currently is_exit_js_frame is used on ARM.
-    if (is_exit_js_frame(mode)) {
-      return Handle<Code>(Builtins::builtin(Builtins::Return_DebugBreak));
     }
     if (code->kind() == Code::STUB) {
       ASSERT(code->major_key() == CodeStub::CallFunction ||
@@ -1132,7 +1126,7 @@ void Debug::ClearStepIn() {
 
 void Debug::ClearStepNext() {
   thread_local_.last_step_action_ = StepNone;
-  thread_local_.last_statement_position_ = kNoPosition;
+  thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
   thread_local_.last_fp_ = 0;
 }
 
@@ -1222,7 +1216,7 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   bool at_js_exit = false;
   RelocIterator it(debug_info->code());
   while (!it.done()) {
-    if (is_js_return(it.rinfo()->rmode())) {
+    if (RelocInfo::IsJSReturn(it.rinfo()->rmode())) {
       at_js_exit = it.rinfo()->pc() == addr - 1;
     }
     it.next();

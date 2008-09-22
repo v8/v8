@@ -130,100 +130,6 @@ class LabelShadow: public Label {
 // -----------------------------------------------------------------------------
 // Relocation information
 
-// The constant kNoPosition is used with the collecting of source positions
-// in the relocation information. Two types of source positions are collected
-// "position" (RelocMode position) and "statement position" (RelocMode
-// statement_position). The "position" is collected at places in the source
-// code which are of interest when making stack traces to pin-point the source
-// location of a stack frame as close as possible. The "statement position" is
-// collected at the beginning at each statement, and is used to indicate
-// possible break locations. kNoPosition is used to indicate an
-// invalid/uninitialized position value.
-static const int kNoPosition = -1;
-
-
-enum RelocMode {
-  // Please note the order is important (see is_code_target, is_gc_reloc_mode).
-  js_construct_call,   // code target that is an exit JavaScript frame stub.
-  exit_js_frame,       // code target that is an exit JavaScript frame stub.
-  code_target_context,  // code target used for contextual loads.
-  code_target,         // code target which is not any of the above.
-  embedded_object,
-  embedded_string,
-
-  // Everything after runtime_entry (inclusive) is not GC'ed.
-  runtime_entry,
-  js_return,  // Marks start of the ExitJSFrame code.
-  comment,
-  position,  // See comment for kNoPosition above.
-  statement_position,  // See comment for kNoPosition above.
-  external_reference,  // The address of an external C++ function.
-  internal_reference,  // An address inside the same function.
-
-  // add more as needed
-  // Pseudo-types
-  reloc_mode_count,  // must be no greater than 14 - see RelocInfoWriter
-  no_reloc,  // never recorded
-  last_code_enum = code_target,
-  last_gced_enum = embedded_string
-};
-
-
-inline int RelocMask(RelocMode mode) {
-  return 1 << mode;
-}
-
-
-inline bool is_js_construct_call(RelocMode mode) {
-  return mode == js_construct_call;
-}
-
-
-inline bool is_exit_js_frame(RelocMode mode) {
-  return mode == exit_js_frame;
-}
-
-
-inline bool is_code_target(RelocMode mode) {
-  return mode <= last_code_enum;
-}
-
-
-// Is the relocation mode affected by GC?
-inline bool is_gc_reloc_mode(RelocMode mode) {
-  return mode <= last_gced_enum;
-}
-
-
-inline bool is_js_return(RelocMode mode) {
-  return mode == js_return;
-}
-
-
-inline bool is_comment(RelocMode mode) {
-  return mode == comment;
-}
-
-
-inline bool is_position(RelocMode mode) {
-  return mode == position || mode == statement_position;
-}
-
-
-inline bool is_statement_position(RelocMode mode) {
-  return mode == statement_position;
-}
-
-
-inline bool is_external_reference(RelocMode mode) {
-  return mode == external_reference;
-}
-
-
-inline bool is_internal_reference(RelocMode mode) {
-  return mode == internal_reference;
-}
-
 
 // Relocation information consists of the address (pc) of the datum
 // to which the relocation information applies, the relocation mode
@@ -234,22 +140,89 @@ inline bool is_internal_reference(RelocMode mode) {
 
 class RelocInfo BASE_EMBEDDED {
  public:
+  // The constant kNoPosition is used with the collecting of source positions
+  // in the relocation information. Two types of source positions are collected
+  // "position" (RelocMode position) and "statement position" (RelocMode
+  // statement_position). The "position" is collected at places in the source
+  // code which are of interest when making stack traces to pin-point the source
+  // location of a stack frame as close as possible. The "statement position" is
+  // collected at the beginning at each statement, and is used to indicate
+  // possible break locations. kNoPosition is used to indicate an
+  // invalid/uninitialized position value.
+  static const int kNoPosition = -1;
+
+  enum Mode {
+    // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
+    CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.
+    CODE_TARGET_CONTEXT,  // code target used for contextual loads.
+    CODE_TARGET,         // code target which is not any of the above.
+    EMBEDDED_OBJECT,
+    EMBEDDED_STRING,
+
+    // Everything after runtime_entry (inclusive) is not GC'ed.
+    RUNTIME_ENTRY,
+    JS_RETURN,  // Marks start of the ExitJSFrame code.
+    COMMENT,
+    POSITION,  // See comment for kNoPosition above.
+    STATEMENT_POSITION,  // See comment for kNoPosition above.
+    EXTERNAL_REFERENCE,  // The address of an external C++ function.
+    INTERNAL_REFERENCE,  // An address inside the same function.
+
+    // add more as needed
+    // Pseudo-types
+    NUMBER_OF_MODES,  // must be no greater than 14 - see RelocInfoWriter
+    NONE,  // never recorded
+    LAST_CODE_ENUM = CODE_TARGET,
+    LAST_GCED_ENUM = EMBEDDED_STRING
+  };
+
+
   RelocInfo() {}
-  RelocInfo(byte* pc, RelocMode rmode, intptr_t data)
+  RelocInfo(byte* pc, Mode rmode, intptr_t data)
       : pc_(pc), rmode_(rmode), data_(data) {
   }
+
+  static inline bool IsConstructCall(Mode mode) {
+    return mode == CONSTRUCT_CALL;
+  }
+  static inline bool IsCodeTarget(Mode mode) {
+    return mode <= LAST_CODE_ENUM;
+  }
+  // Is the relocation mode affected by GC?
+  static inline bool IsGCRelocMode(Mode mode) {
+    return mode <= LAST_GCED_ENUM;
+  }
+  static inline bool IsJSReturn(Mode mode) {
+    return mode == JS_RETURN;
+  }
+  static inline bool IsComment(Mode mode) {
+    return mode == COMMENT;
+  }
+  static inline bool IsPosition(Mode mode) {
+    return mode == POSITION || mode == STATEMENT_POSITION;
+  }
+  static inline bool IsStatementPosition(Mode mode) {
+    return mode == STATEMENT_POSITION;
+  }
+  static inline bool IsExternalReference(Mode mode) {
+    return mode == EXTERNAL_REFERENCE;
+  }
+  static inline bool IsInternalReference(Mode mode) {
+    return mode == INTERNAL_REFERENCE;
+  }
+  static inline int ModeMask(Mode mode) { return 1 << mode; }
 
   // Accessors
   byte* pc() const  { return pc_; }
   void set_pc(byte* pc) { pc_ = pc; }
-  RelocMode rmode() const {  return rmode_; }
+  Mode rmode() const {  return rmode_; }
   intptr_t data() const  { return data_; }
 
   // Apply a relocation by delta bytes
   INLINE(void apply(int delta));
 
   // Read/modify the code target in the branch/call instruction this relocation
-  // applies to; can only be called if this->is_code_target(rmode_)
+  // applies to; can only be called if IsCodeTarget(rmode_)
   INLINE(Address target_address());
   INLINE(void set_target_address(Address target));
   INLINE(Object* target_object());
@@ -278,7 +251,7 @@ class RelocInfo BASE_EMBEDDED {
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing
-  static const char* RelocModeName(RelocMode rmode);
+  static const char* RelocModeName(Mode rmode);
   void Print();
 #endif  // ENABLE_DISASSEMBLER
 #ifdef DEBUG
@@ -286,9 +259,9 @@ class RelocInfo BASE_EMBEDDED {
   void Verify();
 #endif
 
-  static const int kCodeTargetMask = (1 << (last_code_enum + 1)) - 1;
-  static const int kPositionMask = 1 << position | 1 << statement_position;
-  static const int kDebugMask = kPositionMask | 1 << comment;
+  static const int kCodeTargetMask = (1 << (LAST_CODE_ENUM + 1)) - 1;
+  static const int kPositionMask = 1 << POSITION | 1 << STATEMENT_POSITION;
+  static const int kDebugMask = kPositionMask | 1 << COMMENT;
   static const int kApplyMask;  // Modes affected by apply. Depends on arch.
 
  private:
@@ -297,7 +270,7 @@ class RelocInfo BASE_EMBEDDED {
   // referencing the constant pool entry (except when rmode_ ==
   // comment).
   byte* pc_;
-  RelocMode rmode_;
+  Mode rmode_;
   intptr_t data_;
   friend class RelocIterator;
 };
@@ -383,11 +356,11 @@ class RelocIterator: public Malloced {
   int GetPositionTypeTag();
   void ReadTaggedData();
 
-  static RelocMode DebugInfoModeFromTag(int tag);
+  static RelocInfo::Mode DebugInfoModeFromTag(int tag);
 
   // If the given mode is wanted, set it in rinfo_ and return true.
   // Else return false. Used for efficiently skipping unwanted modes.
-  bool SetMode(RelocMode mode) {
+  bool SetMode(RelocInfo::Mode mode) {
     return (mode_mask_ & 1 << mode) ? (rinfo_.rmode_ = mode, true) : false;
   }
 

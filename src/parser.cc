@@ -811,7 +811,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
 
     FunctionLiteralType type = is_expression ? EXPRESSION : DECLARATION;
     bool ok = true;
-    result = ParseFunctionLiteral(name, kNoPosition, type, &ok);
+    result = ParseFunctionLiteral(name, RelocInfo::kNoPosition, type, &ok);
     // Make sure the results agree.
     ASSERT(ok == (result != NULL));
     // The only errors should be stack overflows.
@@ -1148,7 +1148,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
       NEW(FunctionBoilerplateLiteral(boilerplate));
   VariableProxy* var = Declare(name, Variable::VAR, NULL, true, CHECK_OK);
   return NEW(ExpressionStatement(
-                 new Assignment(Token::INIT_VAR, var, lit, kNoPosition)));
+      new Assignment(Token::INIT_VAR, var, lit, RelocInfo::kNoPosition)));
 }
 
 
@@ -2689,7 +2689,8 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
           if (peek() == Token::IDENTIFIER) {
             Handle<String> name = ParseIdentifier(CHECK_OK);
             FunctionLiteral* value =
-                ParseFunctionLiteral(name, kNoPosition, DECLARATION, CHECK_OK);
+                ParseFunctionLiteral(name, RelocInfo::kNoPosition,
+                                     DECLARATION, CHECK_OK);
             ObjectLiteral::Property* property =
                 NEW(ObjectLiteral::Property(is_getter, value));
             if (IsBoilerplateProperty(property))
@@ -2885,7 +2886,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       fproxy->BindTo(fvar);
       body.Add(new ExpressionStatement(
                    new Assignment(Token::INIT_VAR, fproxy,
-                                  NEW(ThisFunction()), kNoPosition)));
+                                  NEW(ThisFunction()),
+                                  RelocInfo::kNoPosition)));
     }
 
     // Determine if the function will be lazily compiled. The mode can

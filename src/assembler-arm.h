@@ -298,7 +298,8 @@ enum LFlag {
 class Operand BASE_EMBEDDED {
  public:
   // immediate
-  INLINE(explicit Operand(int32_t immediate, RelocMode rmode = no_reloc));
+  INLINE(explicit Operand(int32_t immediate,
+         RelocInfo::Mode rmode = RelocInfo::NONE));
   INLINE(explicit Operand(const ExternalReference& f));
   INLINE(explicit Operand(const char* s));
   INLINE(explicit Operand(Object** opp));
@@ -326,7 +327,7 @@ class Operand BASE_EMBEDDED {
   ShiftOp shift_op_;
   int shift_imm_;  // valid if rm_ != no_reg && rs_ == no_reg
   int32_t imm32_;  // valid if rm_ == no_reg
-  RelocMode rmode_;
+  RelocInfo::Mode rmode_;
 
   friend class Assembler;
 };
@@ -772,7 +773,7 @@ class Assembler : public Malloced {
   void next(Label* L);
 
   // Record reloc info for current pc_
-  void RecordRelocInfo(RelocMode rmode, intptr_t data = 0);
+  void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
 
   // Check if is time to emit a constant pool for pending reloc info entries
   void CheckConstPool(bool force_emit, bool require_jump);

@@ -4004,13 +4004,13 @@ void ObjectVisitor::BeginCodeIteration(Code* code) {
 
 
 void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
-  ASSERT(is_code_target(rinfo->rmode()));
+  ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
   VisitPointer(rinfo->target_object_address());
 }
 
 
 void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
-  ASSERT(is_js_return(rinfo->rmode()) && rinfo->is_call_instruction());
+  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) && rinfo->is_call_instruction());
   VisitPointer(rinfo->call_object_address());
 }
 
@@ -4031,7 +4031,9 @@ void Code::ConvertICTargetsFromAddressToObject() {
   }
 
   if (Debug::has_break_points()) {
-    for (RelocIterator it(this, RelocMask(js_return)); !it.done(); it.next()) {
+    for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
+         !it.done();
+         it.next()) {
       if (it.rinfo()->is_call_instruction()) {
         Address addr = it.rinfo()->call_address();
         ASSERT(addr != NULL);
@@ -4049,23 +4051,24 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   v->BeginCodeIteration(this);
 
   int mode_mask = RelocInfo::kCodeTargetMask |
-                  RelocMask(embedded_object) |
-                  RelocMask(external_reference) |
-                  RelocMask(js_return) |
-                  RelocMask(runtime_entry);
+                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
+                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
-    RelocMode rmode = it.rinfo()->rmode();
-    if (rmode == embedded_object) {
+    RelocInfo::Mode rmode = it.rinfo()->rmode();
+    if (rmode == RelocInfo::EMBEDDED_OBJECT) {
       v->VisitPointer(it.rinfo()->target_object_address());
-    } else if (is_code_target(rmode)) {
+    } else if (RelocInfo::IsCodeTarget(rmode)) {
       v->VisitCodeTarget(it.rinfo());
-    } else if (rmode == external_reference) {
+    } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
       v->VisitExternalReference(it.rinfo()->target_reference_address());
     } else if (Debug::has_break_points() &&
-               is_js_return(rmode) && it.rinfo()->is_call_instruction()) {
+               RelocInfo::IsJSReturn(rmode) &&
+               it.rinfo()->is_call_instruction()) {
       v->VisitDebugTarget(it.rinfo());
-    } else if (rmode == runtime_entry) {
+    } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
       v->VisitRuntimeEntry(it.rinfo());
     }
   }
@@ -4090,7 +4093,9 @@ void Code::ConvertICTargetsFromObjectToAddress() {
   }
 
   if (Debug::has_break_points()) {
-    for (RelocIterator it(this, RelocMask(js_return)); !it.done(); it.next()) {
+    for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
+         !it.done();
+         it.next()) {
       if (it.rinfo()->is_call_instruction()) {
         Code* code = reinterpret_cast<Code*>(it.rinfo()->call_object());
         ASSERT((code != NULL) && code->IsHeapObject());
@@ -4130,14 +4135,14 @@ void Code::CopyFrom(const CodeDesc& desc) {
   // unbox handles and relocate
   int delta = instruction_start() - desc.buffer;
   int mode_mask = RelocInfo::kCodeTargetMask |
-                  RelocMask(embedded_object) |
+                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::kApplyMask;
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
-    RelocMode mode = it.rinfo()->rmode();
-    if (mode == embedded_object) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Object** p = reinterpret_cast<Object**>(it.rinfo()->target_object());
       it.rinfo()->set_target_object(*p);
-    } else if (is_code_target(mode)) {
+    } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct
       // pointers to the first instruction in the code object
       Object** p = reinterpret_cast<Object**>(it.rinfo()->target_object());
@@ -4157,7 +4162,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
 // source for this function is found.
 int Code::SourcePosition(Address pc) {
   int distance = kMaxInt;
-  int position = kNoPosition;  // Initially no position found.
+  int position = RelocInfo::kNoPosition;  // Initially no position found.
   // Run through all the relocation info to find the best matching source
   // position. All the code needs to be considered as the sequence of the
   // instructions in the code does not necessarily follow the same order as the
@@ -4194,7 +4199,7 @@ int Code::SourceStatementPosition(Address pc) {
   int statement_position = 0;
   RelocIterator it(this, RelocInfo::kPositionMask);
   while (!it.done()) {
-    if (is_statement_position(it.rinfo()->rmode())) {
+    if (RelocInfo::IsStatementPosition(it.rinfo()->rmode())) {
       int p = it.rinfo()->data();
       if (statement_position < p && p <= position) {
         statement_position = p;

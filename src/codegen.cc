@@ -51,10 +51,10 @@ void CodeGenerator::ProcessDeferred() {
     DeferredCode* code = deferred_.RemoveLast();
     MacroAssembler* masm = code->masm();
     // Record position of deferred code stub.
-    if (code->statement_position() != kNoPosition) {
+    if (code->statement_position() != RelocInfo::kNoPosition) {
       masm->RecordStatementPosition(code->statement_position());
     }
-    if (code->position() != kNoPosition) {
+    if (code->position() != RelocInfo::kNoPosition) {
       masm->RecordPosition(code->position());
     }
     // Bind labels and generate the code.

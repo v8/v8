@@ -77,15 +77,15 @@ class MacroAssembler: public Assembler {
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working
  private:
-  void Jump(intptr_t target, RelocMode rmode, Condition cond = al);
-  void Call(intptr_t target, RelocMode rmode, Condition cond = al);
+  void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
+  void Call(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
  public:
   void Jump(Register target, Condition cond = al);
-  void Jump(byte* target, RelocMode rmode, Condition cond = al);
-  void Jump(Handle<Code> code, RelocMode rmode, Condition cond = al);
+  void Jump(byte* target, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Call(Register target, Condition cond = al);
-  void Call(byte* target, RelocMode rmode, Condition cond = al);
-  void Call(Handle<Code> code, RelocMode rmode, Condition cond = al);
+  void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
+  void Call(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Ret();
 
   // Sets the remembered set bit for [address+offset], where address is the
@@ -114,7 +114,7 @@ class MacroAssembler: public Assembler {
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
-                  RelocMode rmode,
+                  RelocInfo::Mode rmode,
                   InvokeFlag flag);
 
   // Invoke the JavaScript function in the given register. Changes the

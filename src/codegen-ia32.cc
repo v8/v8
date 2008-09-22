@@ -878,7 +878,7 @@ void Ia32CodeGenerator::LoadTypeofExpression(Expression* x) {
     Literal key(variable->name());
     // TODO(1241834): Fetch the position from the variable instead of using
     // no position.
-    Property property(&global, &key, kNoPosition);
+    Property property(&global, &key, RelocInfo::kNoPosition);
     Load(&property);
   } else {
     Load(x, CodeGenState::LOAD_TYPEOF_EXPR);
@@ -1204,9 +1204,9 @@ void Ia32CodeGenerator::GetReferenceProperty(Expression* key) {
     __ Set(ecx, Immediate(name));
     if (var != NULL) {
       ASSERT(var->is_global());
-      __ call(ic, code_target_context);
+      __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     } else {
-      __ call(ic, code_target);
+      __ call(ic, RelocInfo::CODE_TARGET);
     }
   } else {
     // Access keyed property.
@@ -1217,9 +1217,9 @@ void Ia32CodeGenerator::GetReferenceProperty(Expression* key) {
     Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
     if (var != NULL) {
       ASSERT(var->is_global());
-      __ call(ic, code_target_context);
+      __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     } else {
-      __ call(ic, code_target);
+      __ call(ic, RelocInfo::CODE_TARGET);
     }
   }
   __ push(eax);  // IC call leaves result in eax, push it out
@@ -1243,7 +1243,7 @@ void Ia32CodeGenerator::SetReferenceProperty(MacroAssembler* masm,
     masm->pop(eax);
     // Setup the name register.
     masm->Set(ecx, Immediate(name));
-    masm->call(ic, code_target);
+    masm->call(ic, RelocInfo::CODE_TARGET);
   } else {
     // Access keyed property.
     ASSERT(type == Reference::KEYED);
@@ -1252,7 +1252,7 @@ void Ia32CodeGenerator::SetReferenceProperty(MacroAssembler* masm,
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
     // TODO(1222589): Make the IC grab the values from the stack.
     masm->pop(eax);
-    masm->call(ic, code_target);
+    masm->call(ic, RelocInfo::CODE_TARGET);
   }
   masm->push(eax);  // IC call leaves result in eax, push it out
 }
@@ -2628,7 +2628,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   masm->Set(ebx, Immediate(0));
   masm->GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
-  masm->jmp(adaptor, code_target);
+  masm->jmp(adaptor, RelocInfo::CODE_TARGET);
 }
 
 
@@ -2958,7 +2958,8 @@ void Ia32CodeGenerator::GenerateFastCaseSwitchJumpTable(
   __ cmp(eax, range * 2);
   __ j(greater_equal, fail_label, not_taken);
 
-  __ jmp(Operand(eax, times_2, 0x0, internal_reference));  // 0 is placeholder
+  // 0 is placeholder.
+  __ jmp(Operand(eax, times_2, 0x0, RelocInfo::INTERNAL_REFERENCE));
   // calculate address to overwrite later with actual address of table.
   int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t);
 
@@ -2967,7 +2968,7 @@ void Ia32CodeGenerator::GenerateFastCaseSwitchJumpTable(
   __ WriteInternalReference(jump_table_ref, table_start);
 
   for (int i = 0; i < range; i++) {
-    __ dd(0x0, internal_reference);  // table entry, 0 is placeholder
+    __ dd(0x0, RelocInfo::INTERNAL_REFERENCE);  // table entry, 0 is placeholder
   }
 }
 
@@ -3893,7 +3894,7 @@ void Ia32CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           Load(property->value());
           __ pop(eax);
           __ Set(ecx, Immediate(key));
-          __ call(ic, code_target);
+          __ call(ic, RelocInfo::CODE_TARGET);
           __ add(Operand(esp), Immediate(kPointerSize));
           // Ignore result.
           break;
@@ -4094,7 +4095,7 @@ void Ia32CodeGenerator::VisitCall(Call* node) {
     // Setup the receiver register and call the IC initialization code.
     Handle<Code> stub = ComputeCallInitialize(args->length());
     __ RecordPosition(node->position());
-    __ call(stub, code_target_context);
+    __ call(stub, RelocInfo::CODE_TARGET_CONTEXT);
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 
     // Overwrite the function on the stack with the result.
@@ -4138,7 +4139,7 @@ void Ia32CodeGenerator::VisitCall(Call* node) {
       // Call the IC initialization code.
       Handle<Code> stub = ComputeCallInitialize(args->length());
       __ RecordPosition(node->position());
-      __ call(stub, code_target);
+      __ call(stub, RelocInfo::CODE_TARGET);
       __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
 
       // Overwrite the function on the stack with the result.
@@ -4208,7 +4209,7 @@ void Ia32CodeGenerator::VisitCallNew(CallNew* node) {
   // constructor invocation.
   __ RecordPosition(node->position());
   __ call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
-          js_construct_call);
+          RelocInfo::CONSTRUCT_CALL);
   __ mov(TOS, eax);  // discard the function and "push" the newly created object
 }
 
@@ -4503,7 +4504,7 @@ void Ia32CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     // Call the JS runtime function.
     Handle<Code> stub = ComputeCallInitialize(args->length());
     __ Set(eax, Immediate(args->length()));
-    __ call(stub, code_target);
+    __ call(stub, RelocInfo::CODE_TARGET);
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
     __ mov(TOS, eax);
   }
@@ -5163,7 +5164,7 @@ void Ia32CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 void Ia32CodeGenerator::RecordStatementPosition(Node* node) {
   if (FLAG_debug_info) {
     int pos = node->statement_pos();
-    if (pos != kNoPosition) {
+    if (pos != RelocInfo::kNoPosition) {
       __ RecordStatementPosition(pos);
     }
   }
@@ -5254,7 +5255,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 
   if (do_gc) {
     __ mov(Operand(esp, 0 * kPointerSize), eax);  // Result.
-    __ call(FUNCTION_ADDR(Runtime::PerformGC), runtime_entry);
+    __ call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
   }
 
   // Call C function.
