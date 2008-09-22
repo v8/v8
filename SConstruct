@@ -30,7 +30,7 @@ import re
 import sys
 import os
 from os.path import join, dirname, abspath
-from types import DictType
+from types import DictType, StringTypes
 root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
 import js2c, utils
@@ -138,7 +138,7 @@ DTOA_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'WARNINGFLAGS': ['-Werror']
-    }  
+    }
   },
   'msvc': {
     'all': {
@@ -313,7 +313,7 @@ def GetOptions():
   result.Add('mode', 'compilation mode (debug, release)', 'release')
   result.Add('sample', 'build sample (shell, process)', '')
   result.Add('env', 'override environment settings (NAME1:value1,NAME2:value2)', '')
-  for (name, option) in SIMPLE_OPTIONS.items():
+  for (name, option) in SIMPLE_OPTIONS.iteritems():
     help = '%s (%s)' % (name, ", ".join(option['values']))
     result.Add(name, help, option.get('default'))
   return result
@@ -337,7 +337,7 @@ def VerifyOptions(env):
     return False
   if not IsLegal(env, 'sample', ["shell", "process"]):
     return False
-  for (name, option) in SIMPLE_OPTIONS.items():
+  for (name, option) in SIMPLE_OPTIONS.iteritems():
     if (not option.get('default')) and (name not in ARGUMENTS):
       message = ("A value for option %s must be specified (%s)." %
           (name, ", ".join(option['values'])))
@@ -359,7 +359,7 @@ class BuildContext(object):
     self.samples = samples
     self.use_snapshot = (options['snapshot'] == 'on')
     self.flags = None
-  
+
   def AddRelevantFlags(self, initial, flags):
     result = initial.copy()
     self.AppendFlags(result, flags.get('all'))
@@ -369,22 +369,24 @@ class BuildContext(object):
       value = self.options[option]
       self.AppendFlags(result, flags[toolchain].get(option + ':' + value))
     return result
-  
+
   def GetRelevantSources(self, source):
     result = []
     result += source.get('all', [])
-    for (name, value) in self.options.items():
+    for (name, value) in self.options.iteritems():
       result += source.get(name + ':' + value, [])
     return sorted(result)
 
   def AppendFlags(self, options, added):
     if not added:
       return
-    for (key, value) in added.items():
+    for (key, value) in added.iteritems():
       if not key in options:
         options[key] = value
       else:
-        options[key] = options[key] + value
+        prefix = options[key]
+        if isinstance(prefix, StringTypes): prefix = prefix.split()
+        options[key] = prefix + value
 
   def ConfigureObject(self, env, input, **kw):
     if self.options['library'] == 'static':
@@ -433,7 +435,7 @@ def BuildSpecific(env, mode, env_overrides):
   v8_flags = context.AddRelevantFlags(library_flags, V8_EXTRA_FLAGS)
   jscre_flags = context.AddRelevantFlags(library_flags, JSCRE_EXTRA_FLAGS)
   dtoa_flags = context.AddRelevantFlags(library_flags, DTOA_EXTRA_FLAGS)
-  cctest_flags = context.AddRelevantFlags(v8_flags, CCTEST_EXTRA_FLAGS)  
+  cctest_flags = context.AddRelevantFlags(v8_flags, CCTEST_EXTRA_FLAGS)
   sample_flags = context.AddRelevantFlags(os.environ, SAMPLE_FLAGS)
 
   context.flags = {
@@ -443,7 +445,7 @@ def BuildSpecific(env, mode, env_overrides):
     'cctest': cctest_flags,
     'sample': sample_flags
   }
-  
+
   target_id = mode
   suffix = SUFFIXES[target_id]
   library_name = 'v8' + suffix
