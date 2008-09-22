@@ -77,7 +77,7 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['/DEBUG']
     },
     'mode:release': {
-      'CCFLAGS':      ['/Ox', '/MT', '/Ob2', '/Oi', '/Oy'],
+      'CCFLAGS':      ['/Ox', '/MT'],
       'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF']
     }
   }
@@ -187,6 +187,9 @@ SAMPLE_FLAGS = {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
     },
+    'mode:release': {
+      'CCFLAGS':      ['-O2']
+    },
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0']
     }
@@ -199,10 +202,12 @@ SAMPLE_FLAGS = {
       'CPPDEFINES': ['USING_V8_SHARED']
     },
     'mode:release': {
-      'CCFLAGS': ['/MT'],
+      'CCFLAGS':   ['/Ox', '/MT'],
+      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF']
     },
     'mode:debug': {
-      'CCFLAGS': ['/MTd']
+      'CCFLAGS':   ['/Od', '/MTd'],
+      'LINKFLAGS': ['/DEBUG']
     }
   }
 }
