@@ -348,7 +348,7 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
-void Logger::LogRegExpSource(Handle<JSValue> regexp) {
+void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
   // Prints "/" + re.source + "/" +
   //      (re.global?"g":"") + (re.ignorecase?"i":"") + (re.multiline?"m":"")
 
@@ -392,7 +392,7 @@ void Logger::LogRegExpSource(Handle<JSValue> regexp) {
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 
-void Logger::RegExpCompileEvent(Handle<JSValue> regexp) {
+void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_regexp) return;
   ScopedLock sl(mutex_);
@@ -404,7 +404,7 @@ void Logger::RegExpCompileEvent(Handle<JSValue> regexp) {
 }
 
 
-void Logger::RegExpExecEvent(Handle<JSValue> regexp,
+void Logger::RegExpExecEvent(Handle<JSRegExp> regexp,
                              int start_index,
                              Handle<String> input_string) {
 #ifdef ENABLE_LOGGING_AND_PROFILING

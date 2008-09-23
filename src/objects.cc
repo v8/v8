@@ -620,6 +620,10 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JS array[%u]>", static_cast<uint32_t>(length));
       break;
     }
+    case JS_REGEXP_TYPE: {
+      accumulator->Add("<JS RegExp>");
+      break;
+    }
     case JS_FUNCTION_TYPE: {
       Object* fun_name = JSFunction::cast(this)->shared()->name();
       bool printed = false;
@@ -819,6 +823,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_OBJECT_TYPE:
     case JS_VALUE_TYPE:
     case JS_ARRAY_TYPE:
+    case JS_REGEXP_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
       reinterpret_cast<JSObject*>(this)->JSObjectIterateBody(object_size, v);
@@ -861,7 +866,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
 
 
 void HeapObject::IterateStructBody(int object_size, ObjectVisitor* v) {
-  IteratePointers(v, HeapObject::kSize, object_size);
+  IteratePointers(v, HeapObject::kHeaderSize, object_size);
 }
 
 

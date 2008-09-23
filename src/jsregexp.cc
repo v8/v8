@@ -142,7 +142,7 @@ Handle<String> RegExpImpl::StringToTwoByte(Handle<String> pattern) {
 }
 
 
-Handle<Object> RegExpImpl::JsreCompile(Handle<JSValue> re,
+Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
                                        Handle<String> pattern,
                                        Handle<String> flags) {
   JSRegExpIgnoreCaseOption case_option = JSRegExpDoNotIgnoreCase;
@@ -159,10 +159,10 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSValue> re,
   const char* error_message = NULL;
 
   malloc_failure = Failure::Exception();
-  JSRegExp* code = jsRegExpCompile(two_byte_pattern->GetTwoByteData(),
-                                   pattern->length(), case_option,
-                                   multiline_option, &number_of_captures,
-                                   &error_message, &JSREMalloc, &JSREFree);
+  JscreRegExp* code = jsRegExpCompile(two_byte_pattern->GetTwoByteData(),
+                                      pattern->length(), case_option,
+                                      multiline_option, &number_of_captures,
+                                      &error_message, &JSREMalloc, &JSREFree);
 
   if (code == NULL && malloc_failure->IsRetryAfterGC()) {
     // Performs a GC, then retries.
@@ -203,7 +203,8 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSValue> re,
   Handle<FixedArray> value = Factory::NewFixedArray(2);
   value->set(CAPTURE_INDEX, Smi::FromInt(number_of_captures));
   value->set(INTERNAL_INDEX, *internal);
-  re->set_value(*value);
+  re->set_type_tag(JSRegExp::JSCRE);
+  re->set_data(*value);
 
   LOG(RegExpCompileEvent(re));
 
@@ -211,7 +212,7 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSValue> re,
 }
 
 
-Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSValue> regexp,
+Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSRegExp> regexp,
                                         int num_captures,
                                         Handle<String> subject,
                                         int previous_index,
@@ -222,16 +223,17 @@ Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSValue> regexp,
   {
     AssertNoAllocation a;
     ByteArray* internal = JsreInternal(regexp);
-    const JSRegExp* js_regexp =
-        reinterpret_cast<JSRegExp*>(internal->GetDataStartAddress());
+    const JscreRegExp* js_regexp =
+        reinterpret_cast<JscreRegExp*>(internal->GetDataStartAddress());
 
     LOG(RegExpExecEvent(regexp, previous_index, subject));
 
-    rc = jsRegExpExecute(js_regexp, two_byte_subject,
-                       subject->length(),
-                       previous_index,
-                       offsets_vector,
-                       offsets_vector_length);
+    rc = jsRegExpExecute(js_regexp,
+                         two_byte_subject,
+                         subject->length(),
+                         previous_index,
+                         offsets_vector,
+                         offsets_vector_length);
   }
 
   // The KJS JavaScript engine returns null (ie, a failed match) when
@@ -304,7 +306,7 @@ int OffsetsVector::static_offsets_vector_[
     OffsetsVector::kStaticOffsetsVectorSize];
 
 
-Handle<Object> RegExpImpl::JsreExec(Handle<JSValue> regexp,
+Handle<Object> RegExpImpl::JsreExec(Handle<JSRegExp> regexp,
                                     Handle<String> subject,
                                     Handle<Object> index) {
   // Prepare space for the return values.
@@ -325,7 +327,7 @@ Handle<Object> RegExpImpl::JsreExec(Handle<JSValue> regexp,
 }
 
 
-Handle<Object> RegExpImpl::JsreExecGlobal(Handle<JSValue> regexp,
+Handle<Object> RegExpImpl::JsreExecGlobal(Handle<JSRegExp> regexp,
                                           Handle<String> subject) {
   // Prepare space for the return values.
   int num_captures = JsreCapture(regexp);
@@ -370,15 +372,15 @@ Handle<Object> RegExpImpl::JsreExecGlobal(Handle<JSValue> regexp,
 }
 
 
-int RegExpImpl::JsreCapture(Handle<JSValue> re) {
-  Object* value = re->value();
+int RegExpImpl::JsreCapture(Handle<JSRegExp> re) {
+  Object* value = re->data();
   ASSERT(value->IsFixedArray());
   return Smi::cast(FixedArray::cast(value)->get(CAPTURE_INDEX))->value();
 }
 
 
-ByteArray* RegExpImpl::JsreInternal(Handle<JSValue> re) {
-  Object* value = re->value();
+ByteArray* RegExpImpl::JsreInternal(Handle<JSRegExp> re) {
+  Object* value = re->data();
   ASSERT(value->IsFixedArray());
   return ByteArray::cast(FixedArray::cast(value)->get(INTERNAL_INDEX));
 }

@@ -212,8 +212,8 @@ static Object* Runtime_IsConstructCall(Arguments args) {
 static Object* Runtime_RegExpCompile(Arguments args) {
   HandleScope scope;  // create a new handle scope
   ASSERT(args.length() == 3);
-  CONVERT_CHECKED(JSValue, raw_re, args[0]);
-  Handle<JSValue> re(raw_re);
+  CONVERT_CHECKED(JSRegExp, raw_re, args[0]);
+  Handle<JSRegExp> re(raw_re);
   CONVERT_CHECKED(String, raw_pattern, args[1]);
   Handle<String> pattern(raw_pattern);
   CONVERT_CHECKED(String, raw_flags, args[2]);
@@ -665,8 +665,8 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
 static Object* Runtime_RegExpExec(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
-  CONVERT_CHECKED(JSValue, raw_regexp, args[0]);
-  Handle<JSValue> regexp(raw_regexp);
+  CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
+  Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
   Handle<Object> index(args[2]);
@@ -678,8 +678,8 @@ static Object* Runtime_RegExpExec(Arguments args) {
 static Object* Runtime_RegExpExecGlobal(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
-  CONVERT_CHECKED(JSValue, raw_regexp, args[0]);
-  Handle<JSValue> regexp(raw_regexp);
+  CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
+  Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
   return *RegExpImpl::JsreExecGlobal(regexp, subject);

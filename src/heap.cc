@@ -974,15 +974,15 @@ bool Heap::CreateInitialMaps() {
   STRUCT_LIST(ALLOCATE_STRUCT_MAP)
 #undef ALLOCATE_STRUCT_MAP
 
-  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kSize);
+  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
   if (obj->IsFailure()) return false;
   hash_table_map_ = Map::cast(obj);
 
-  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kSize);
+  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
   if (obj->IsFailure()) return false;
   context_map_ = Map::cast(obj);
 
-  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kSize);
+  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
   if (obj->IsFailure()) return false;
   global_context_map_ = Map::cast(obj);
 

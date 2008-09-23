@@ -43,6 +43,7 @@
 //     - HeapObject   (superclass for everything allocated in the heap)
 //       - JSObject
 //         - JSArray
+//         - JSRegExp
 //         - JSFunction
 //         - GlobalObject
 //           - JSGlobalObject
@@ -263,6 +264,7 @@ class PropertyDetails BASE_EMBEDDED {
   V(JS_GLOBAL_OBJECT_TYPE)                      \
   V(JS_BUILTINS_OBJECT_TYPE)                    \
   V(JS_ARRAY_TYPE)                              \
+  V(JS_REGEXP_TYPE)                             \
                                                 \
   V(JS_FUNCTION_TYPE)                           \
 
@@ -517,6 +519,7 @@ enum InstanceType {
   JS_GLOBAL_OBJECT_TYPE,
   JS_BUILTINS_OBJECT_TYPE,
   JS_ARRAY_TYPE,
+  JS_REGEXP_TYPE,
 
   JS_FUNCTION_TYPE,
 
@@ -528,7 +531,7 @@ enum InstanceType {
   // function objects are not counted as objects, even though they are
   // implemented as such; only values whose typeof is "object" are included.
   FIRST_JS_OBJECT_TYPE = JS_VALUE_TYPE,
-  LAST_JS_OBJECT_TYPE = JS_ARRAY_TYPE
+  LAST_JS_OBJECT_TYPE = JS_REGEXP_TYPE
 };
 
 
@@ -611,6 +614,7 @@ class Object BASE_EMBEDDED {
   inline bool IsProxy();
   inline bool IsBoolean();
   inline bool IsJSArray();
+  inline bool IsJSRegExp();
   inline bool IsHashTable();
   inline bool IsDictionary();
   inline bool IsSymbolTable();
@@ -700,7 +704,7 @@ class Object BASE_EMBEDDED {
   static Object* cast(Object* value) { return value; }
 
   // Layout description.
-  static const int kSize = 0;  // Object does not take up any space.
+  static const int kHeaderSize = 0;  // Object does not take up any space.
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Object);
@@ -1042,8 +1046,8 @@ class HeapObject: public Object {
 
   // Layout description.
   // First field in a heap object is map.
-  static const int kMapOffset = Object::kSize;
-  static const int kSize = kMapOffset + kPointerSize;
+  static const int kMapOffset = Object::kHeaderSize;
+  static const int kHeaderSize = kMapOffset + kPointerSize;
 
  protected:
   // helpers for calling an ObjectVisitor to iterate over pointers in the
@@ -1081,7 +1085,7 @@ class HeapNumber: public HeapObject {
 #endif
 
   // Layout description.
-  static const int kValueOffset = HeapObject::kSize;
+  static const int kValueOffset = HeapObject::kHeaderSize;
   static const int kSize = kValueOffset + kDoubleSize;
 
  private:
@@ -1371,7 +1375,7 @@ class JSObject: public HeapObject {
   static const int kMaxFastProperties = 8;
 
   // Layout description.
-  static const int kPropertiesOffset = HeapObject::kSize;
+  static const int kPropertiesOffset = HeapObject::kHeaderSize;
   static const int kElementsOffset = kPropertiesOffset + kPointerSize;
   static const int kHeaderSize = kElementsOffset + kPointerSize;
 
@@ -1423,7 +1427,7 @@ class Array: public HeapObject {
   static inline bool IndexFromObject(Object* object, uint32_t* index);
 
   // Layout descriptor.
-  static const int kLengthOffset = HeapObject::kSize;
+  static const int kLengthOffset = HeapObject::kHeaderSize;
   static const int kHeaderSize = kLengthOffset + kIntSize;
 
  private:
@@ -2180,7 +2184,7 @@ class Code: public HeapObject {
 #endif
 
   // Layout description.
-  static const int kInstructionSizeOffset = HeapObject::kSize;
+  static const int kInstructionSizeOffset = HeapObject::kHeaderSize;
   static const int kRelocationSizeOffset = kInstructionSizeOffset + kIntSize;
   static const int kSInfoSizeOffset = kRelocationSizeOffset + kIntSize;
   static const int kFlagsOffset = kSInfoSizeOffset + kIntSize;
@@ -2360,7 +2364,7 @@ class Map: public HeapObject {
 #endif
 
   // Layout description.
-  static const int kInstanceAttributesOffset = HeapObject::kSize;
+  static const int kInstanceAttributesOffset = HeapObject::kHeaderSize;
   static const int kPrototypeOffset = kInstanceAttributesOffset + kIntSize;
   static const int kConstructorOffset = kPrototypeOffset + kPointerSize;
   static const int kInstanceDescriptorsOffset =
@@ -2435,7 +2439,7 @@ class Script: public Struct {
   void ScriptVerify();
 #endif
 
-  static const int kSourceOffset = HeapObject::kSize;
+  static const int kSourceOffset = HeapObject::kHeaderSize;
   static const int kNameOffset = kSourceOffset + kPointerSize;
   static const int kLineOffsetOffset = kNameOffset + kPointerSize;
   static const int kColumnOffsetOffset = kLineOffsetOffset + kPointerSize;
@@ -2547,7 +2551,7 @@ class SharedFunctionInfo: public HeapObject {
   static const int kDontAdaptArgumentsSentinel = -1;
 
   // Layout description.
-  static const int kNameOffset = HeapObject::kSize;
+  static const int kNameOffset = HeapObject::kHeaderSize;
   static const int kCodeOffset = kNameOffset + kPointerSize;
   static const int kLengthOffset = kCodeOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kIntSize;
@@ -2788,6 +2792,31 @@ class JSValue: public JSObject {
 };
 
 
+// Regular expressions
+class JSRegExp: public JSObject {
+ public:
+  enum Type { JSCRE, INDEX_OF };
+
+  inline Type type_tag();
+  inline void set_type_tag(Type value);
+
+  DECL_ACCESSORS(type, Object)
+  DECL_ACCESSORS(data, Object)
+
+  static inline JSRegExp* cast(Object* obj);
+
+  // Dispatched behavior.
+#ifdef DEBUG
+  void JSRegExpPrint();
+  void JSRegExpVerify();
+#endif
+
+  static const int kTypeOffset = JSObject::kHeaderSize;
+  static const int kDataOffset = kTypeOffset + kIntSize;
+  static const int kSize = kDataOffset + kIntSize;
+};
+
+
 enum AllowNullsFlag {ALLOW_NULLS, DISALLOW_NULLS};
 enum RobustnessFlag {ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL};
 
@@ -2924,7 +2953,7 @@ class String: public HeapObject {
   inline bool IsFlat();
 
   // Layout description.
-  static const int kLengthOffset = HeapObject::kSize;
+  static const int kLengthOffset = HeapObject::kHeaderSize;
   static const int kSize = kLengthOffset + kIntSize;
 
   // Limits on sizes of different types of strings.
@@ -3344,7 +3373,7 @@ class Oddball: public HeapObject {
   Object* Initialize(const char* to_string, Object* to_number);
 
   // Layout description.
-  static const int kToStringOffset = HeapObject::kSize;
+  static const int kToStringOffset = HeapObject::kHeaderSize;
   static const int kToNumberOffset = kToStringOffset + kPointerSize;
   static const int kSize = kToNumberOffset + kPointerSize;
 
@@ -3374,7 +3403,7 @@ class Proxy: public HeapObject {
 
   // Layout description.
 
-  static const int kProxyOffset = HeapObject::kSize;
+  static const int kProxyOffset = HeapObject::kHeaderSize;
   static const int kSize = kProxyOffset + kPointerSize;
 
  private:
@@ -3457,7 +3486,7 @@ class AccessorInfo: public Struct {
   void AccessorInfoVerify();
 #endif
 
-  static const int kGetterOffset = HeapObject::kSize;
+  static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
   static const int kDataOffset = kSetterOffset + kPointerSize;
   static const int kNameOffset = kDataOffset + kPointerSize;
@@ -3487,7 +3516,7 @@ class AccessCheckInfo: public Struct {
   void AccessCheckInfoVerify();
 #endif
 
-  static const int kNamedCallbackOffset   = HeapObject::kSize;
+  static const int kNamedCallbackOffset   = HeapObject::kHeaderSize;
   static const int kIndexedCallbackOffset = kNamedCallbackOffset + kPointerSize;
   static const int kDataOffset = kIndexedCallbackOffset + kPointerSize;
   static const int kSize = kDataOffset + kPointerSize;
@@ -3513,7 +3542,7 @@ class InterceptorInfo: public Struct {
   void InterceptorInfoVerify();
 #endif
 
-  static const int kGetterOffset = HeapObject::kSize;
+  static const int kGetterOffset = HeapObject::kHeaderSize;
   static const int kSetterOffset = kGetterOffset + kPointerSize;
   static const int kQueryOffset = kSetterOffset + kPointerSize;
   static const int kDeleterOffset = kQueryOffset + kPointerSize;
@@ -3538,7 +3567,7 @@ class CallHandlerInfo: public Struct {
   void CallHandlerInfoVerify();
 #endif
 
-  static const int kCallbackOffset = HeapObject::kSize;
+  static const int kCallbackOffset = HeapObject::kHeaderSize;
   static const int kDataOffset = kCallbackOffset + kPointerSize;
   static const int kSize = kDataOffset + kPointerSize;
 
@@ -3556,7 +3585,7 @@ class TemplateInfo: public Struct {
   void TemplateInfoVerify();
 #endif
 
-  static const int kTagOffset          = HeapObject::kSize;
+  static const int kTagOffset          = HeapObject::kHeaderSize;
   static const int kPropertyListOffset = kTagOffset + kPointerSize;
   static const int kHeaderSize         = kPropertyListOffset + kPointerSize;
  protected:
@@ -3657,7 +3686,7 @@ class SignatureInfo: public Struct {
   void SignatureInfoVerify();
 #endif
 
-  static const int kReceiverOffset = Struct::kSize;
+  static const int kReceiverOffset = Struct::kHeaderSize;
   static const int kArgsOffset     = kReceiverOffset + kPointerSize;
   static const int kSize           = kArgsOffset + kPointerSize;
 
@@ -3677,7 +3706,7 @@ class TypeSwitchInfo: public Struct {
   void TypeSwitchInfoVerify();
 #endif
 
-  static const int kTypesOffset = Struct::kSize;
+  static const int kTypesOffset = Struct::kHeaderSize;
   static const int kSize        = kTypesOffset + kPointerSize;
 };
 
@@ -3723,7 +3752,7 @@ class DebugInfo: public Struct {
   void DebugInfoVerify();
 #endif
 
-  static const int kSharedFunctionInfoIndex = Struct::kSize;
+  static const int kSharedFunctionInfoIndex = Struct::kHeaderSize;
   static const int kOriginalCodeIndex = kSharedFunctionInfoIndex + kPointerSize;
   static const int kPatchedCodeIndex = kOriginalCodeIndex + kPointerSize;
   static const int kActiveBreakPointsCountIndex =
@@ -3776,7 +3805,7 @@ class BreakPointInfo: public Struct {
   void BreakPointInfoVerify();
 #endif
 
-  static const int kCodePositionIndex = Struct::kSize;
+  static const int kCodePositionIndex = Struct::kHeaderSize;
   static const int kSourcePositionIndex = kCodePositionIndex + kPointerSize;
   static const int kStatementPositionIndex =
       kSourcePositionIndex + kPointerSize;

@@ -293,6 +293,12 @@ bool Object::IsJSArray() {
 }
 
 
+bool Object::IsJSRegExp() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map()->instance_type() == JS_REGEXP_TYPE;
+}
+
+
 template <> inline bool Is<JSArray>(Object* obj) {
   return obj->IsJSArray();
 }
@@ -487,7 +493,7 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 
 
 Object* HeapObject::GetHeapObjectField(HeapObject* obj, int index) {
-  return READ_FIELD(obj, HeapObject::kSize + kPointerSize * index);
+  return READ_FIELD(obj, HeapObject::kHeaderSize + kPointerSize * index);
 }
 
 
@@ -756,7 +762,7 @@ void HeapObject::CopyBody(JSObject* from) {
   ASSERT(map() == from->map());
   ASSERT(Size() == from->Size());
   int object_size = Size();
-  for (int offset = kSize; offset < object_size;  offset += kPointerSize) {
+  for (int offset = kHeaderSize; offset < object_size;  offset += kPointerSize) {
     Object* value = READ_FIELD(from, offset);
     // Note: WRITE_FIELD does not update the write barrier.
     WRITE_FIELD(this, offset, value);
@@ -848,6 +854,8 @@ int JSObject::GetHeaderSize() {
       return JSValue::kSize;
     case JS_ARRAY_TYPE:
       return JSValue::kSize;
+    case JS_REGEXP_TYPE:
+      return JSValue::kSize;
     case JS_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     default:
@@ -885,7 +893,7 @@ void JSObject::InitializeBody(int object_size) {
 
 
 void Struct::InitializeBody(int object_size) {
-  for (int offset = kSize; offset < object_size; offset += kPointerSize) {
+  for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
     WRITE_FIELD(this, offset, Heap::undefined_value());
   }
 }
@@ -1124,6 +1132,7 @@ CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(JSArray)
+CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(Proxy)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(Struct)
@@ -2003,6 +2012,20 @@ byte* Code::sinfo_start() {
 
 
 ACCESSORS(JSArray, length, Object, kLengthOffset)
+
+
+ACCESSORS(JSRegExp, data, Object, kDataOffset)
+ACCESSORS(JSRegExp, type, Object, kTypeOffset)
+
+
+JSRegExp::Type JSRegExp::type_tag() {
+  return static_cast<JSRegExp::Type>(Smi::cast(type())->value());
+}
+
+
+void JSRegExp::set_type_tag(JSRegExp::Type value) {
+  set_type(Smi::FromInt(value));
+}
 
 
 bool JSObject::HasFastElements() {

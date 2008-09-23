@@ -118,6 +118,7 @@ void HeapObject::HeapObjectPrint() {
       break;
     case JS_OBJECT_TYPE:  // fall through
     case JS_ARRAY_TYPE:
+    case JS_REGEXP_TYPE:
       JSObject::cast(this)->JSObjectPrint();
       break;
     case ODDBALL_TYPE:
@@ -205,6 +206,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify();
+      break;
+    case JS_REGEXP_TYPE:
+      JSRegExp::cast(this)->JSRegExpVerify();
       break;
     case FILLER_TYPE:
       break;
@@ -375,6 +379,7 @@ static const char* TypeToString(InstanceType type) {
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";
     case CODE_TYPE: return "CODE";
     case JS_ARRAY_TYPE: return "JS_ARRAY";
+    case JS_REGEXP_TYPE: return "JS_REGEXP";
     case JS_VALUE_TYPE: return "JS_VALUE";
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
     case JS_BUILTINS_OBJECT_TYPE: return "JS_BUILTINS_OBJECT";
@@ -619,6 +624,13 @@ void JSArray::JSArrayVerify() {
   JSObjectVerify();
   ASSERT(length()->IsNumber() || length()->IsUndefined());
   ASSERT(elements()->IsUndefined() || elements()->IsFixedArray());
+}
+
+
+void JSRegExp::JSRegExpVerify() {
+  JSObjectVerify();
+  ASSERT(type()->IsSmi() || type()->IsUndefined());
+  ASSERT(data()->IsUndefined() || data()->IsFixedArray());
 }
 
 
