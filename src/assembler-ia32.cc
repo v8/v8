@@ -469,7 +469,48 @@ void Assembler::pop(Register dst) {
         }
         return;
       }
+    } else if (instr == 0x6a && dst.is(eax)) {  // push of immediate 8 bit
+      byte imm8 = last_pc_[1];
+      if (imm8 == 0) {
+        // 6a00         push 0x0
+        // 58           pop eax
+        last_pc_[0] = 0x31;
+        last_pc_[1] = 0xc0;
+        // change to
+        // 31c0         xor eax,eax
+        last_pc_ = NULL;
+        return;
+      } else {
+        // 6a00         push 0xXX
+        // 58           pop eax
+        last_pc_[0] = 0xb8;
+        EnsureSpace ensure_space(this);
+        if ((imm8 & 0x80) != 0) {
+          EMIT(0xff);
+          EMIT(0xff);
+          EMIT(0xff);
+          // change to
+          // b8XXffffff   mov eax,0xffffffXX
+        } else {
+          EMIT(0x00);
+          EMIT(0x00);
+          EMIT(0x00);
+          // change to
+          // b8XX000000   mov eax,0x000000XX
+        }
+        last_pc_ = NULL;
+        return;
+      }
+    } else if (instr == 0x68 && dst.is(eax)) {  // push of immediate 32 bit
+      // 68XXXXXXXX   push 0xXXXXXXXX
+      // 58           pop eax
+      last_pc_[0] = 0xb8;
+      last_pc_ = NULL;
+      // change to
+      // b8XXXXXXXX   mov eax,0xXXXXXXXX
+      return;
     }
+
     // Other potential patterns for peephole:
     // 0x712716   102  890424         mov [esp], eax
     // 0x712719   105  8b1424         mov edx, [esp]
