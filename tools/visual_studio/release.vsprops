@@ -12,6 +12,7 @@
 		EnableIntrinsicFunctions="true"
 		FavorSizeOrSpeed="0"
 		OmitFramePointers="true"
+		StringPooling="true"
 	/>
 	<Tool
 		Name="VCLinkerTool"
