@@ -762,7 +762,9 @@ void HeapObject::CopyBody(JSObject* from) {
   ASSERT(map() == from->map());
   ASSERT(Size() == from->Size());
   int object_size = Size();
-  for (int offset = kHeaderSize; offset < object_size;  offset += kPointerSize) {
+  for (int offset = kHeaderSize;
+       offset < object_size;
+       offset += kPointerSize) {
     Object* value = READ_FIELD(from, offset);
     // Note: WRITE_FIELD does not update the write barrier.
     WRITE_FIELD(this, offset, value);
