@@ -65,7 +65,7 @@ Handle<Code> CodeStub::GetCode() {
     // Add unresolved entries in the code to the fixup list.
     Bootstrapper::AddFixup(*code, &masm);
 
-    LOG(CodeCreateEvent(GetName(), *code, ""));
+    LOG(CodeCreateEvent("Stub", *code, GetName()));
     Counters::total_stubs_code_size.Increment(code->instruction_size());
 
 #ifdef DEBUG
