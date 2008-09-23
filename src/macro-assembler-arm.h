@@ -108,7 +108,7 @@ class MacroAssembler: public Assembler {
   void EnterExitFrame(StackFrame::Type type);
 
   // Leave the current exit frame. Expects the return value in r0.
-  void LeaveExitFrame();
+  void LeaveExitFrame(StackFrame::Type type);
 
 
   // ---------------------------------------------------------------------------

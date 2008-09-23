@@ -306,10 +306,27 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   // Compute the argv pointer and keep it in a callee-saved register.
   add(r6, fp, Operand(r4, LSL, kPointerSizeLog2));
   add(r6, r6, Operand(ExitFrameConstants::kPPDisplacement - kPointerSize));
+
+  // Save the state of all registers to the stack from the memory
+  // location. This is needed to allow nested break points.
+  if (type == StackFrame::EXIT_DEBUG) {
+    // Use sp as base to push.
+    CopyRegistersFromMemoryToStack(sp, kJSCallerSaved);
+  }
 }
 
 
-void MacroAssembler::LeaveExitFrame() {
+void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
+  // Restore the memory copy of the registers by digging them out from
+  // the stack. This is needed to allow nested break points.
+  if (type == StackFrame::EXIT_DEBUG) {
+    // This code intentionally clobbers r2 and r3.
+    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
+    const int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
+    add(r3, fp, Operand(kOffset));
+    CopyRegistersFromStackToMemory(r3, r2, kJSCallerSaved);
+  }
+
   // Clear top frame.
   mov(r3, Operand(0));
   mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));

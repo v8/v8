@@ -361,10 +361,46 @@ void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   mov(edi, Operand(eax));
   lea(esi, Operand(ebp, eax, times_4, offset));
+
+  // Save the state of all registers to the stack from the memory
+  // location. This is needed to allow nested break points.
+  if (type == StackFrame::EXIT_DEBUG) {
+    // TODO(1243899): This should be symmetric to
+    // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
+    // correct here, but computed for the other call. Very error
+    // prone! FIX THIS.  Actually there are deeper problems with
+    // register saving than this asymmetry (see the bug report
+    // associated with this issue).
+    PushRegistersFromMemory(kJSCallerSaved);
+  }
+
+  // Reserve space for two arguments: argc and argv.
+  sub(Operand(esp), Immediate(2 * kPointerSize));
+
+  // Get the required frame alignment for the OS.
+  static const int kFrameAlignment = OS::ActivationFrameAlignment();
+  if (kFrameAlignment > 0) {
+    ASSERT(IsPowerOf2(kFrameAlignment));
+    and_(esp, -kFrameAlignment);
+  }
+
+  // Patch the saved entry sp.
+  mov(Operand(ebp, ExitFrameConstants::kSPOffset), esp);
 }
 
 
-void MacroAssembler::LeaveExitFrame() {
+void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
+  // Restore the memory copy of the registers by digging them out from
+  // the stack. This is needed to allow nested break points.
+  if (type == StackFrame::EXIT_DEBUG) {
+    // It's okay to clobber register ebx below because we don't need
+    // the function pointer after this.
+    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
+    int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
+    lea(ebx, Operand(ebp, kOffset));
+    CopyRegistersFromStackToMemory(ebx, ecx, kJSCallerSaved);
+  }
+
   // Get the return address from the stack and restore the frame pointer.
   mov(ecx, Operand(ebp, 1 * kPointerSize));
   mov(ebp, Operand(ebp, 0 * kPointerSize));

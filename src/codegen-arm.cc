@@ -1629,8 +1629,8 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_out_of_memory_exception,
-                              bool do_gc,
-                              bool do_restore) {
+                              StackFrame::Type frame_type,
+                              bool do_gc) {
   // r0: result parameter for PerformGC, if any
   // r4: number of arguments including receiver  (C callee-saved)
   // r5: pointer to builtin function  (C callee-saved)
@@ -1671,22 +1671,12 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ tst(r2, Operand(kFailureTagMask));
   __ b(eq, &failure_returned);
 
-  // Restore the memory copy of the registers by digging them out from
-  // the stack.
-  if (do_restore) {
-    // Ok to clobber r2 and r3.
-    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
-    const int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
-    __ add(r3, fp, Operand(kOffset));
-    __ CopyRegistersFromStackToMemory(r3, r2, kJSCallerSaved);
-  }
-
-  // Exit C frame and return
+  // Exit C frame and return.
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
   // pp: caller's parameter pointer pp  (restored as C callee-saved)
-  __ LeaveExitFrame();
+  __ LeaveExitFrame(frame_type);
 
   // check if we should retry or throw exception
   Label retry;
@@ -1741,17 +1731,9 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // Enter the exit frame that transitions from JavaScript to C++.
   __ EnterExitFrame(frame_type);
 
-  if (is_debug_break) {
-    // Save the state of all registers to the stack from the memory location.
-    // Use sp as base to push.
-    __ CopyRegistersFromMemoryToStack(sp, kJSCallerSaved);
-  }
-
-  // r4: number of arguments
-  // r5: pointer to builtin function  (C callee-saved)
-
-  Label entry;
-  __ bind(&entry);
+  // r4: number of arguments (C callee-saved)
+  // r5: pointer to builtin function (C callee-saved)
+  // r6: pointer to first argument (C callee-saved)
 
   Label throw_out_of_memory_exception;
   Label throw_normal_exception;
@@ -1764,20 +1746,20 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
-               FLAG_gc_greedy,
-               is_debug_break);
+               frame_type,
+               FLAG_gc_greedy);
 #else
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
-               false,
-               is_debug_break);
+               frame_type,
+               false);
 #endif
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
-               true,
-               is_debug_break);
+               frame_type,
+               true);
 
   __ bind(&throw_out_of_memory_exception);
   GenerateThrowOutOfMemory(masm);

@@ -5204,19 +5204,6 @@ void Ia32CodeGenerator::ExitJSFrame() {
 #define __  masm->
 
 
-void CEntryStub::GenerateReserveCParameterSpace(MacroAssembler* masm,
-                                                int num_parameters) {
-  if (num_parameters > 0) {
-    __ sub(Operand(esp), Immediate(num_parameters * kPointerSize));
-  }
-  static const int kFrameAlignment = OS::ActivationFrameAlignment();
-  if (kFrameAlignment > 0) {
-    ASSERT(IsPowerOf2(kFrameAlignment));
-    __ and_(esp, -kFrameAlignment);
-  }
-}
-
-
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
   ExternalReference handler_address(Top::k_handler_address);
@@ -5245,8 +5232,8 @@ void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_out_of_memory_exception,
-                              bool do_gc,
-                              bool do_restore) {
+                              StackFrame::Type frame_type,
+                              bool do_gc) {
   // eax: result parameter for PerformGC, if any
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
@@ -5273,22 +5260,11 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ test(ecx, Immediate(kFailureTagMask));
   __ j(zero, &failure_returned, not_taken);
 
-  // Restore the memory copy of the registers by digging them out from
-  // the stack.
-  if (do_restore) {
-    // Ok to clobber ebx and edi - function pointer and number of arguments not
-    // needed anymore.
-    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
-    int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
-    __ lea(ebx, Operand(ebp, kOffset));
-    __ CopyRegistersFromStackToMemory(ebx, ecx, kJSCallerSaved);
-  }
-
-  // Exit C frame.
-  __ LeaveExitFrame();
+  // Exit the JavaScript to C++ exit frame.
+  __ LeaveExitFrame(frame_type);
   __ ret(0);
 
-  // Handling of Failure.
+  // Handling of failure.
   __ bind(&failure_returned);
 
   Label retry;
@@ -5392,31 +5368,12 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // Enter the exit frame that transitions from JavaScript to C++.
   __ EnterExitFrame(frame_type);
 
-  if (is_debug_break) {
-    // Save the state of all registers to the stack from the memory
-    // location.
-
-    // TODO(1243899): This should be symmetric to
-    // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
-    // correct here, but computed for the other call. Very error
-    // prone! FIX THIS.  Actually there are deeper problems with
-    // register saving than this asymmetry (see the bug report
-    // associated with this issue).
-    __ PushRegistersFromMemory(kJSCallerSaved);
-  }
-
-  // Allocate stack space for 2 arguments (argc, argv).
-  GenerateReserveCParameterSpace(masm, 2);
-  __ mov(Operand(ebp, ExitFrameConstants::kSPOffset), esp);  // save entry sp
-
   // eax: result parameter for PerformGC, if any (setup below)
   // ebx: pointer to builtin function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
   // esp: stack pointer  (restored after C call)
   // edi: number of arguments including receiver (C callee-saved)
-
-  Label entry;
-  __ bind(&entry);
+  // esi: argv pointer (C callee-saved)
 
   Label throw_out_of_memory_exception;
   Label throw_normal_exception;
@@ -5428,20 +5385,21 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   }
   GenerateCore(masm, &throw_normal_exception,
                &throw_out_of_memory_exception,
-               FLAG_gc_greedy,
-               is_debug_break);
+               frame_type,
+               FLAG_gc_greedy);
 #else
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
-               false,
-               is_debug_break);
+               frame_type,
+               false);
 #endif
+
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
-               true,
-               is_debug_break);
+               frame_type,
+               true);
 
   __ bind(&throw_out_of_memory_exception);
   GenerateThrowOutOfMemory(masm);

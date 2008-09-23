@@ -248,10 +248,10 @@ class CEntryStub : public CodeStub {
   void GenerateCore(MacroAssembler* masm,
                     Label* throw_normal_exception,
                     Label* throw_out_of_memory_exception,
-                    bool do_gc, bool do_restore);
+                    StackFrame::Type frame_type,
+                    bool do_gc);
   void GenerateThrowTOS(MacroAssembler* masm);
   void GenerateThrowOutOfMemory(MacroAssembler* masm);
-  void GenerateReserveCParameterSpace(MacroAssembler* masm, int num_parameters);
 
  private:
   Major MajorKey() { return CEntry; }
@@ -272,7 +272,6 @@ class CEntryDebugBreakStub : public CEntryStub {
 
   const char* GetName() { return "CEntryDebugBreakStub"; }
 };
-
 
 
 class JSEntryStub : public CodeStub {
