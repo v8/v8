@@ -264,7 +264,7 @@ void MacroAssembler::EnterInternalFrame() {
 }
 
 
-void MacroAssembler::ExitInternalFrame() {
+void MacroAssembler::LeaveInternalFrame() {
   // r0: preserved
   // r1: preserved
   // r2: preserved
@@ -273,6 +273,58 @@ void MacroAssembler::ExitInternalFrame() {
   // frame pointer and return address.
   mov(sp, fp);
   ldm(ia_w, sp, fp.bit() | lr.bit());
+}
+
+
+void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
+  ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
+  // Compute parameter pointer before making changes and save it as ip
+  // register so that it is restored as sp register on exit, thereby
+  // popping the args.
+
+  // ip = sp + kPointerSize * #args;
+  add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
+
+  // Push in reverse order: caller_fp, sp_on_exit, and caller_pc.
+  stm(db_w, sp, fp.bit() | ip.bit() | lr.bit());
+  mov(fp, Operand(sp));  // setup new frame pointer
+
+  // Push debug marker.
+  mov(ip, Operand(type == StackFrame::EXIT_DEBUG ? 1 : 0));
+  push(ip);
+
+  // Save the frame pointer and the context in top.
+  mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  str(fp, MemOperand(ip));
+  mov(ip, Operand(ExternalReference(Top::k_context_address)));
+  str(cp, MemOperand(ip));
+
+  // Setup argc and the builtin function in callee-saved registers.
+  mov(r4, Operand(r0));
+  mov(r5, Operand(r1));
+
+  // Compute the argv pointer and keep it in a callee-saved register.
+  add(r6, fp, Operand(r4, LSL, kPointerSizeLog2));
+  add(r6, r6, Operand(ExitFrameConstants::kPPDisplacement - kPointerSize));
+}
+
+
+void MacroAssembler::LeaveExitFrame() {
+  // Clear top frame.
+  mov(r3, Operand(0));
+  mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  str(r3, MemOperand(ip));
+
+  // Restore current context from top and clear it in debug mode.
+  mov(ip, Operand(ExternalReference(Top::k_context_address)));
+  ldr(cp, MemOperand(ip));
+  if (kDebug) {
+    str(r3, MemOperand(ip));
+  }
+
+  // Pop the arguments, restore registers, and return.
+  mov(sp, Operand(fp));  // respect ABI stack constraint
+  ldm(ia, sp, fp.bit() | sp.bit() | pc.bit());
 }
 
 

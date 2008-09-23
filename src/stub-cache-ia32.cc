@@ -476,7 +476,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
   __ CallRuntime(Runtime::kLazyCompile, 1);
   __ pop(edi);
 
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
 
   // Do a tail-call of the compiled function.
   __ lea(ecx, FieldOperand(eax, Code::kHeaderSize));
@@ -688,7 +688,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   __ mov(edx, Operand(ebp, (argc + 2) * kPointerSize));  // receiver
 
   // Exit frame.
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
 
   // Check that the function really is a function.
   __ test(edi, Immediate(kSmiTagMask));

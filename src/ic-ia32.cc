@@ -528,7 +528,7 @@ void CallIC::Generate(MacroAssembler* masm,
 
   // Move result to edi and exit the internal frame.
   __ mov(Operand(edi), eax);
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
 
   // Invoke the function.
   ParameterCount actual(argc);

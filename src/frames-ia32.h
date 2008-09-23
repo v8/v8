@@ -81,8 +81,8 @@ class EntryFrameConstants : public AllStatic {
 
 class ExitFrameConstants : public AllStatic {
  public:
-  static const int kDebugMarkOffset = -3 * kPointerSize;
-  static const int kSPOffset        = -2 * kPointerSize;
+  static const int kDebugMarkOffset = -2 * kPointerSize;
+  static const int kSPOffset        = -1 * kPointerSize;
 
   // Let the parameters pointer for exit frames point just below the
   // frame structure on the stack (frame pointer and return address).

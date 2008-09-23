@@ -99,7 +99,16 @@ class MacroAssembler: public Assembler {
   // Activation frames
 
   void EnterInternalFrame();
-  void ExitInternalFrame();
+  void LeaveInternalFrame();
+
+  // Enter specific kind of exit frame; either EXIT or
+  // EXIT_DEBUG. Expects the number of arguments in register r0 and
+  // the builtin function to call in register r1. Exits with argc in
+  // r4, argv in r6, and and the builtin function to call in r5.
+  void EnterExitFrame(StackFrame::Type type);
+
+  // Leave the current exit frame. Expects the return value in r0.
+  void LeaveExitFrame();
 
 
   // ---------------------------------------------------------------------------

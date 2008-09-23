@@ -427,7 +427,7 @@ void CallIC::Generate(MacroAssembler* masm,
   // Move result to r1.
   __ mov(r1, Operand(r0));
 
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
 
   // Patch the function on the stack; 1 ~ receiver.
   __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));

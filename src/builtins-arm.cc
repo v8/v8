@@ -168,7 +168,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // sp[1]: constructor function
   // sp[2]: number of arguments (smi-tagged)
   __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
   __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - 1));
   __ add(sp, sp, Operand(kPointerSize));
   __ mov(pc, Operand(lr));
@@ -240,7 +240,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Exit the JS frame and remove the parameters (except function), and return.
   // Respect ABI stack constraint.
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
   __ mov(pc, lr);
 
   // r0: result
@@ -337,7 +337,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ pop(r0);
     __ mov(r0, Operand(r0, ASR, kSmiTagSize));
 
-    __ ExitInternalFrame();
+    __ LeaveInternalFrame();
     __ b(&patch_receiver);
 
     // Use the global object from the called function as the receiver.
@@ -525,7 +525,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ InvokeFunction(r1, actual, CALL_FUNCTION);
 
   // Tear down the internal frame and remove function, receiver and args.
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
   __ add(sp, sp, Operand(3 * kPointerSize));
   __ mov(pc, lr);
 }

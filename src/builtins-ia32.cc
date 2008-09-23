@@ -297,7 +297,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Restore the arguments count and exit the internal frame.
   __ bind(&exit);
   __ mov(ebx, Operand(esp, kPointerSize));  // get arguments count
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
 
   // Remove caller arguments from the stack and return.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
@@ -363,7 +363,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Exit the JS frame. Notice that this also removes the empty
   // context and the function left on the stack by the code
   // invocation.
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
   __ ret(1 * kPointerSize);  // remove receiver
 }
 
@@ -450,7 +450,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ pop(eax);
     __ shr(eax, kSmiTagSize);
 
-    __ ExitInternalFrame();
+    __ LeaveInternalFrame();
     __ jmp(&patch_receiver);
 
     // Use the global object from the called function as the receiver.
@@ -613,7 +613,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(edi, Operand(ebp, 4 * kPointerSize));
   __ InvokeFunction(edi, actual, CALL_FUNCTION);
 
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
   __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 }
 
@@ -771,7 +771,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ PopRegistersToMemory(pointer_regs);
 
   // Get rid of the internal frame.
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
 
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.

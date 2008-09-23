@@ -325,7 +325,7 @@ void MacroAssembler::EnterInternalFrame() {
 }
 
 
-void MacroAssembler::ExitInternalFrame() {
+void MacroAssembler::LeaveInternalFrame() {
   if (FLAG_debug_code) {
     StackFrame::Type type = StackFrame::INTERNAL;
     cmp(Operand(ebp, StandardFrameConstants::kMarkerOffset),
@@ -333,6 +333,58 @@ void MacroAssembler::ExitInternalFrame() {
     Check(equal, "stack frame types must match");
   }
   leave();
+}
+
+
+void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
+  ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
+
+  // Setup the frame structure on the stack.
+  ASSERT(ExitFrameConstants::kPPDisplacement == +2 * kPointerSize);
+  ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
+  ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
+  push(ebp);
+  mov(ebp, Operand(esp));
+
+  // Reserve room for entry stack pointer and push the debug marker.
+  ASSERT(ExitFrameConstants::kSPOffset  == -1 * kPointerSize);
+  push(Immediate(0));  // saved entry sp, patched before call
+  push(Immediate(type == StackFrame::EXIT_DEBUG ? 1 : 0));
+
+  // Save the frame pointer and the context in top.
+  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
+  ExternalReference context_address(Top::k_context_address);
+  mov(Operand::StaticVariable(c_entry_fp_address), ebp);
+  mov(Operand::StaticVariable(context_address), esi);
+
+  // Setup argc and argv in callee-saved registers.
+  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
+  mov(edi, Operand(eax));
+  lea(esi, Operand(ebp, eax, times_4, offset));
+}
+
+
+void MacroAssembler::LeaveExitFrame() {
+  // Get the return address from the stack and restore the frame pointer.
+  mov(ecx, Operand(ebp, 1 * kPointerSize));
+  mov(ebp, Operand(ebp, 0 * kPointerSize));
+
+  // Pop the arguments and the receiver from the caller stack.
+  lea(esp, Operand(esi, 1 * kPointerSize));
+
+  // Restore current context from top and clear it in debug mode.
+  ExternalReference context_address(Top::k_context_address);
+  mov(esi, Operand::StaticVariable(context_address));
+  if (kDebug) {
+    mov(Operand::StaticVariable(context_address), Immediate(0));
+  }
+
+  // Push the return address to get ready to return.
+  push(ecx);
+
+  // Clear the top frame.
+  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
+  mov(Operand::StaticVariable(c_entry_fp_address), Immediate(0));
 }
 
 

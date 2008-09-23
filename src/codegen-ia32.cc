@@ -5252,6 +5252,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // ebp: frame pointer  (restored after C call)
   // esp: stack pointer  (restored after C call)
   // edi: number of arguments including receiver  (C callee-saved)
+  // esi: pointer to the first argument (C callee-saved)
 
   if (do_gc) {
     __ mov(Operand(esp, 0 * kPointerSize), eax);  // Result.
@@ -5259,12 +5260,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   }
 
   // Call C function.
-  __ lea(eax, Operand(ebp,
-                      edi,
-                      times_4,
-                      StandardFrameConstants::kCallerSPOffset - kPointerSize));
   __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
-  __ mov(Operand(esp, 1 * kPointerSize), eax);  // argv.
+  __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
   __ call(Operand(ebx));
   // Result is in eax or edx:eax - do not destroy these registers!
 
@@ -5276,11 +5273,6 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ test(ecx, Immediate(kFailureTagMask));
   __ j(zero, &failure_returned, not_taken);
 
-  // Restore number of arguments to ecx and clear top frame.
-  __ mov(ecx, Operand(edi));
-  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
-  __ mov(Operand::StaticVariable(c_entry_fp_address), Immediate(0));
-
   // Restore the memory copy of the registers by digging them out from
   // the stack.
   if (do_restore) {
@@ -5289,25 +5281,11 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
     int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
     __ lea(ebx, Operand(ebp, kOffset));
-    __ CopyRegistersFromStackToMemory(ebx, edi, kJSCallerSaved);
+    __ CopyRegistersFromStackToMemory(ebx, ecx, kJSCallerSaved);
   }
 
   // Exit C frame.
-  __ lea(esp, Operand(ebp, -1 * kPointerSize));
-  __ pop(ebx);
-  __ pop(ebp);
-
-  // Restore current context from top and clear it in debug mode.
-  ExternalReference context_address(Top::k_context_address);
-  __ mov(esi, Operand::StaticVariable(context_address));
-  if (kDebug) {
-    __ mov(Operand::StaticVariable(context_address), Immediate(0));
-  }
-
-  // Pop arguments from caller's stack and return.
-  __ pop(ebx);  // Ok to clobber ebx - function pointer not needed anymore.
-  __ lea(esp, Operand(esp, ecx, times_4, 0));
-  __ push(ebx);
+  __ LeaveExitFrame();
   __ ret(0);
 
   // Handling of Failure.
@@ -5407,25 +5385,12 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // this by performing a garbage collection and retrying the
   // builtin once.
 
-  // Enter C frame.
-  // Here we make the following assumptions and use them when setting
-  // up the top-most Frame. Adjust the code if these assumptions
-  // change.
-  ASSERT(ExitFrameConstants::kPPDisplacement == +2 * kPointerSize);
-  ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
-  ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
-  ASSERT(ExitFrameConstants::kSPOffset  == -2 * kPointerSize);
-  __ push(ebp);  // caller fp
-  __ mov(ebp, Operand(esp));  // C entry fp
-  __ push(ebx);  // C function
-  __ push(Immediate(0));  // saved entry sp, set before call
-  __ push(Immediate(is_debug_break ? 1 : 0));
+  StackFrame::Type frame_type = is_debug_break ?
+      StackFrame::EXIT_DEBUG :
+      StackFrame::EXIT;
 
-  // Remember top frame.
-  ExternalReference c_entry_fp(Top::k_c_entry_fp_address);
-  ExternalReference context_address(Top::k_context_address);
-  __ mov(Operand::StaticVariable(c_entry_fp), ebp);
-  __ mov(Operand::StaticVariable(context_address), esi);
+  // Enter the exit frame that transitions from JavaScript to C++.
+  __ EnterExitFrame(frame_type);
 
   if (is_debug_break) {
     // Save the state of all registers to the stack from the memory
@@ -5439,10 +5404,6 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
     // associated with this issue).
     __ PushRegistersFromMemory(kJSCallerSaved);
   }
-
-  // Move number of arguments (argc) into callee-saved register. Note
-  // that edi is only available after remembering the top frame.
-  __ mov(edi, Operand(eax));
 
   // Allocate stack space for 2 arguments (argc, argv).
   GenerateReserveCParameterSpace(masm, 2);

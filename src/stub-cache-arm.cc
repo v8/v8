@@ -178,7 +178,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
   __ pop(r1);
 
   // Tear down temporary frame.
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
 
   // Do a tail-call of the compiled function.
   __ Jump(r2);
