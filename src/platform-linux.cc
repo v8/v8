@@ -195,7 +195,16 @@ char *OS::StrDup(const char* str) {
 }
 
 
-double OS::nan_value() { return NAN; }
+double OS::nan_value() {
+  return NAN;
+}
+
+
+int OS::ActivationFrameAlignment() {
+  // No constraint on Linux.
+  return 0;
+}
+
 
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions

@@ -1206,6 +1206,13 @@ double OS::nan_value() {
   return *reinterpret_cast<const double*>(&nanval);
 }
 
+
+int OS::ActivationFrameAlignment() {
+  // No constraint on Windows.
+  return 0;
+}
+
+
 bool VirtualMemory::IsReserved() {
   return address_ != NULL;
 }

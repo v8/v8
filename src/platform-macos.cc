@@ -300,7 +300,16 @@ void OS::LogSharedLibraryAddresses() {
 }
 
 
-double OS::nan_value() { return NAN; }
+double OS::nan_value() {
+  return NAN;
+}
+
+
+int OS::ActivationFrameAlignment() {
+  // OS X activation frames must be 16 byte-aligned; see "Mac OS X ABI
+  // Function Call Guide".
+  return 16;
+}
 
 
 int OS::StackWalk(StackFrame* frames, int frames_size) {

@@ -5209,11 +5209,11 @@ void CEntryStub::GenerateReserveCParameterSpace(MacroAssembler* masm,
   if (num_parameters > 0) {
     __ sub(Operand(esp), Immediate(num_parameters * kPointerSize));
   }
-  // OS X activation frames are 16 byte-aligned
-  // (see "Mac OS X ABI Function Call Guide").
-  const int kFrameAlignment = 16;
-  ASSERT(IsPowerOf2(kFrameAlignment));
-  __ and_(esp, -kFrameAlignment);
+  static const int kFrameAlignment = OS::ActivationFrameAlignment();
+  if (kFrameAlignment > 0) {
+    ASSERT(IsPowerOf2(kFrameAlignment));
+    __ and_(esp, -kFrameAlignment);
+  }
 }
 
 
