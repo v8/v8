@@ -201,6 +201,9 @@ SAMPLE_FLAGS = {
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
     },
+    'prof:on': {
+      'LINKFLAGS': ['/MAP']
+    },
     'mode:release': {
       'CCFLAGS':   ['/Ox', '/MT', '/GF'],
       'LINKFLAGS': ['/OPT:REF', '/OPT:ICF']
@@ -280,6 +283,11 @@ SIMPLE_OPTIONS = {
     'default': 'off',
     'help': 'build using snapshots for faster start-up'
   },
+  'prof': {
+    'values': ['on', 'off'],
+    'default': 'off',
+    'help': 'enable profiling of build target'
+  },
   'library': {
     'values': ['static', 'shared'],
     'default': 'static',
@@ -337,6 +345,8 @@ def VerifyOptions(env):
     return False
   if not IsLegal(env, 'sample', ["shell", "process"]):
     return False
+  if env['os'] == 'win32' and env['library'] == 'shared' and env['prof'] == 'on':
+    Abort("Profiling on windows only supported for static library.")
   for (name, option) in SIMPLE_OPTIONS.iteritems():
     if (not option.get('default')) and (name not in ARGUMENTS):
       message = ("A value for option %s must be specified (%s)." %
