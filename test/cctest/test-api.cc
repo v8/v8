@@ -3167,6 +3167,38 @@ THREADED_TEST(CrossDomainDelete) {
 }
 
 
+THREADED_TEST(CrossDomainForIn) {
+  v8::HandleScope handle_scope;
+  LocalContext env1;
+  v8::Persistent<Context> env2 = Context::New();
+
+  Local<Value> foo = v8_str("foo");
+  Local<Value> bar = v8_str("bar");
+
+  // Set to the same domain.
+  env1->SetSecurityToken(foo);
+  env2->SetSecurityToken(foo);
+
+  env1->Global()->Set(v8_str("prop"), v8_num(3));
+  env2->Global()->Set(v8_str("env1"), env1->Global());
+
+  // Change env2 to a different domain and set env1's global object
+  // as the __proto__ of an object in env2 and enumerate properties
+  // in for-in. It shouldn't enumerate properties on env1's global
+  // object.
+  env2->SetSecurityToken(bar);
+  {
+    Context::Scope scope_env2(env2);
+    Local<Value> result =
+        CompileRun("(function(){var obj = {'__proto__':env1};"
+                   "for (var p in obj)"
+                   "   if (p == 'prop') return false;"
+                   "return true;})()");
+    CHECK(result->IsTrue());
+  }
+  env2.Dispose();
+}
+
 
 static bool NamedAccessBlocker(Local<v8::Object> global,
                                Local<Value> name,

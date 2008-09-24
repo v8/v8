@@ -332,13 +332,6 @@ v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
 Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object) {
   Handle<FixedArray> content = Factory::empty_fixed_array();
 
-  // Check access rights if required.
-  if (object->IsAccessCheckNeeded() &&
-    !Top::MayNamedAccess(*object, Heap::undefined_value(), v8::ACCESS_KEYS)) {
-    Top::ReportFailedAccessCheck(*object, v8::ACCESS_KEYS);
-    return content;
-  }
-
   JSObject* arguments_boilerplate =
       Top::context()->global_context()->arguments_boilerplate();
   JSFunction* arguments_function =
@@ -351,6 +344,14 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object) {
          *p != Heap::null_value();
          p = Handle<Object>(p->GetPrototype())) {
       Handle<JSObject> current(JSObject::cast(*p));
+
+      // Check access rights if required.
+      if (current->IsAccessCheckNeeded() &&
+        !Top::MayNamedAccess(*current, Heap::undefined_value(),
+                             v8::ACCESS_KEYS)) {
+        Top::ReportFailedAccessCheck(*current, v8::ACCESS_KEYS);
+        break;
+      }
 
       // Compute the property keys.
       content = UnionOfKeys(content, GetEnumPropertyKeys(current));
