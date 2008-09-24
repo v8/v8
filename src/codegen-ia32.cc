@@ -2660,30 +2660,16 @@ void Ia32CodeGenerator::Branch(bool if_true, Label* L) {
 }
 
 
-class StackCheckDeferred: public DeferredCode {
- public:
-  explicit StackCheckDeferred(CodeGenerator* generator)
-      : DeferredCode(generator) {
-    set_comment("[ StackCheckDeferred");
-  }
-  virtual void Generate();
-};
-
-
-void StackCheckDeferred::Generate() {
-  StackCheckStub stub;
-  __ CallStub(&stub);
-}
-
-
 void Ia32CodeGenerator::CheckStack() {
   if (FLAG_check_stack) {
-    StackCheckDeferred* deferred = new StackCheckDeferred(this);
+    Label stack_is_ok;
+    StackCheckStub stub;
     ExternalReference stack_guard_limit =
         ExternalReference::address_of_stack_guard_limit();
     __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
-    __ j(below, deferred->enter(), not_taken);
-    __ bind(deferred->exit());
+    __ j(above_equal, &stack_is_ok, taken);
+    __ CallStub(&stub);
+    __ bind(&stack_is_ok);
   }
 }
 
