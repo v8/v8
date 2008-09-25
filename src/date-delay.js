@@ -35,8 +35,6 @@
 // has the added benefit that the code in this file is isolated from
 // changes to these properties.
 const $Date = global.Date;
-const $floor = $Math_floor;
-const $abs = $Math_abs;
 
 
 // ECMA 262 - 15.9.1.2

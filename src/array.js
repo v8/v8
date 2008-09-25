@@ -31,7 +31,6 @@
 
 // -------------------------------------------------------------------
 
-
 // Global list of arrays visited during toString, toLocaleString and
 // join invocations.
 var visited_arrays = new $Array();
@@ -669,53 +668,33 @@ function ArraySort(comparefn) {
     else return x < y ? -1 : 1;
   };
 
+  function QuickSort(a, from, to) {
+    if (from >= to - 1) return;
+    var pivot_index = $floor($random() * (to - from)) + from;
+    var pivot = a[pivot_index];
+    a[pivot_index] = a[to - 1];
+    a[to - 1] = pivot;
+    var partition = from;
+    for (var i = from; i < to - 1; i++) {
+      var element = a[i];
+      if (Compare(element, pivot) < 0) {
+        a[i] = a[partition];
+        a[partition] = element;
+        partition++;
+      }
+    }
+    a[to - 1] = a[partition];
+    a[partition] = pivot;
+    QuickSort(a, from, partition);
+    QuickSort(a, partition + 1, to);
+  }
+
   var old_length = ToUint32(this.length);
 
   %RemoveArrayHoles(this);
 
   var length = ToUint32(this.length);
-
-  // Bottom-up max-heap construction.
-  for (var i = 1; i < length; ++i) {
-    var child_index = i;
-    while (child_index > 0) {
-      var parent_index = ((child_index + 1) >> 1) - 1;
-      var parent_value = this[parent_index], child_value = this[child_index];
-      if (Compare(parent_value, child_value) < 0) {
-        this[parent_index] = child_value;
-        this[child_index] = parent_value;
-      } else {
-        break;
-      }
-      child_index = parent_index;
-    }
-  }
-
-  // Extract element and create sorted array.
-  for (var i = length - 1; i > 0; --i) {
-    // Put the max element at the back of the array.
-    var t0 = this[0]; this[0] = this[i]; this[i] = t0;
-    // Sift down the new top element.
-    var parent_index = 0;
-    while (true) {
-      var child_index = ((parent_index + 1) << 1) - 1;
-      if (child_index >= i) break;
-      var child1_value = this[child_index];
-      var child2_value = this[child_index + 1];
-      var parent_value = this[parent_index];
-      if (child_index + 1 >= i || Compare(child1_value, child2_value) > 0) {
-        if (Compare(parent_value, child1_value) > 0) break;
-        this[child_index] = parent_value;
-        this[parent_index] = child1_value;
-        parent_index = child_index;
-      } else {
-        if (Compare(parent_value, child2_value) > 0) break;
-        this[child_index + 1] = parent_value;
-        this[parent_index] = child2_value;
-        parent_index = child_index + 1;
-      }
-    }
-  }
+  QuickSort(this, 0, length);
 
   // We only changed the length of the this object (in
   // RemoveArrayHoles) if it was an array.  We are not allowed to set

@@ -118,3 +118,16 @@ function TestObjectSort() {
 }
 
 TestObjectSort();
+
+// Test array sorting with holes in the array.
+function TestArraySortingWithHoles() {
+  var a = [];
+  a[4] = "18";
+  a[10] = "12";
+  a.sort();
+  assertEquals(11, a.length);
+  assertEquals("12", a[0]);
+  assertEquals("18", a[1]);
+}
+
+TestArraySortingWithHoles();

@@ -30,7 +30,9 @@
 // has the added benefit that the code in this file is isolated from
 // changes to these properties.
 const $Infinity = global.Infinity;
-
+const $floor = $Math_floor;
+const $random = $Math_random;
+const $abs = $Math_abs;
 
 // Instance class name can only be set on functions. That is the only
 // purpose for MathConstructor.
