@@ -647,7 +647,7 @@ function ArraySplice(start, delete_count) {
 
 
 function ArraySort(comparefn) {
-  // Standard in-place HeapSort algorithm.
+  // In-place QuickSort algorithm.
 
   function Compare(x,y) {
     if (IS_UNDEFINED(x)) {
@@ -672,21 +672,26 @@ function ArraySort(comparefn) {
     if (from >= to - 1) return;
     var pivot_index = $floor($random() * (to - from)) + from;
     var pivot = a[pivot_index];
-    a[pivot_index] = a[to - 1];
-    a[to - 1] = pivot;
-    var partition = from;
-    for (var i = from; i < to - 1; i++) {
+    var low_end = from;   // Upper bound of the elements lower than pivot.
+    var high_start = to; // Lower bound of the elements greater than pivot.
+    for (var i = from; i < high_start; ) {
       var element = a[i];
-      if (Compare(element, pivot) < 0) {
-        a[i] = a[partition];
-        a[partition] = element;
-        partition++;
+      var order = Compare(element, pivot);
+      if (order < 0) {
+        a[i] = a[low_end];
+        a[low_end] = element;
+        low_end++;
+        i++;
+      } else if (order > 0) {
+        high_start--;
+        a[i] = a[high_start];
+        a[high_start] = element;
+      } else { // order == 0
+        i++;
       }
     }
-    a[to - 1] = a[partition];
-    a[partition] = pivot;
-    QuickSort(a, from, partition);
-    QuickSort(a, partition + 1, to);
+    QuickSort(a, from, low_end);
+    QuickSort(a, high_start, to);
   }
 
   var old_length = ToUint32(this.length);
