@@ -1230,7 +1230,7 @@ DebugCommandProcessor.prototype.scriptsCommandToJSONRequest_ = function(args) {
 DebugCommandProcessor.prototype.responseToText = function(json_response) {
   try {
     // Convert the JSON string to an object.
-    response = %CompileString('(' + json_response + ')', false)();
+    response = %CompileString('(' + json_response + ')', 0, false)();
 
     if (!response.success) {
       return response.message;
@@ -1436,7 +1436,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request,
   try {
     try {
       // Convert the JSON string to an object.
-      request = %CompileString('(' + json_request + ')', false)();
+      request = %CompileString('(' + json_request + ')', 0, false)();
 
       // Create an initial response.
       response = this.createResponse(request);
@@ -1889,7 +1889,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
 DebugCommandProcessor.prototype.isRunning = function(json_response) {
   try {
     // Convert the JSON string to an object.
-    response = %CompileString('(' + json_response + ')', false)();
+    response = %CompileString('(' + json_response + ')', 0, false)();
 
     // Return whether VM should be running after this request.
     return response.running;
