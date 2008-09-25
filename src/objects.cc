@@ -3923,6 +3923,11 @@ Object* JSFunction::SetInstanceClassName(String* name) {
 }
 
 
+Context* JSFunction::GlobalContextFromLiterals(FixedArray* literals) {
+  return Context::cast(literals->get(JSFunction::kLiteralGlobalContextIndex));
+}
+
+
 void Oddball::OddballIterateBody(ObjectVisitor* v) {
   // Assumes all Object* members are contiguously allocated!
   IteratePointers(v, kToStringOffset, kToNumberOffset + kPointerSize);
@@ -5533,12 +5538,12 @@ Object* HashTable<prefix_size, element_size>::EnsureCapacity(
 
   Object* obj = Allocate(nof * 2);
   if (obj->IsFailure()) return obj;
-  HashTable* dict = HashTable::cast(obj);
-  WriteBarrierMode mode = dict->GetWriteBarrierMode();
+  HashTable* table = HashTable::cast(obj);
+  WriteBarrierMode mode = table->GetWriteBarrierMode();
 
   // Copy prefix to new array.
   for (int i = kPrefixStartIndex; i < kPrefixStartIndex + prefix_size; i++) {
-    dict->set(i, get(i), mode);
+    table->set(i, get(i), mode);
   }
   // Rehash the elements.
   uint32_t (*Hash)(Object* key) = key->GetHashFunction();
@@ -5547,14 +5552,14 @@ Object* HashTable<prefix_size, element_size>::EnsureCapacity(
     Object* key = get(from_index);
     if (IsKey(key)) {
       uint32_t insertion_index =
-          EntryToIndex(dict->FindInsertionEntry(key, Hash(key)));
+          EntryToIndex(table->FindInsertionEntry(key, Hash(key)));
       for (int j = 0; j < element_size; j++) {
-        dict->set(insertion_index + j, get(from_index + j), mode);
+        table->set(insertion_index + j, get(from_index + j), mode);
       }
     }
   }
-  dict->SetNumberOfElements(NumberOfElements());
-  return dict;
+  table->SetNumberOfElements(NumberOfElements());
+  return table;
 }
 
 
@@ -5650,6 +5655,70 @@ Object* CompilationCacheTable::Put(String* src, Object* value) {
       reinterpret_cast<CompilationCacheTable*>(obj);
   int entry = cache->FindInsertionEntry(src, key.Hash());
   cache->set(EntryToIndex(entry), src);
+  cache->set(EntryToIndex(entry) + 1, value);
+  cache->ElementAdded();
+  return cache;
+}
+
+
+// SymbolsKey used for HashTable where key is array of symbols.
+class SymbolsKey : public HashTableKey {
+ public:
+  explicit SymbolsKey(FixedArray* symbols) {
+    symbols_ = symbols;
+  }
+
+  bool IsMatch(Object* other) {
+    if (!other->IsFixedArray()) return false;
+    FixedArray* o = FixedArray::cast(other);
+    int len = symbols_->length();
+    if (o->length() != len) return false;
+    for (int i = 0; i < len; i++) {
+      if (o->get(i) != symbols_->get(i)) return false;
+    }
+    return true;
+  }
+
+  uint32_t Hash() { return SymbolsHash(symbols_); }
+
+  HashFunction GetHashFunction() { return SymbolsHash; }
+
+  Object* GetObject() { return symbols_; }
+
+  static uint32_t SymbolsHash(Object* obj) {
+    FixedArray* symbols_ = FixedArray::cast(obj);
+    int len = symbols_->length();
+    uint32_t  hash = 0;
+    for (int i = 0; i < len; i++) {
+      hash ^= String::cast(symbols_->get(i))->Hash();
+    }
+    return hash;
+  }
+
+  bool IsStringKey() { return false; }
+
+  FixedArray* symbols_;
+};
+
+Object* MapCache::Lookup(FixedArray* array) {
+  SymbolsKey key(array);
+  int entry = FindEntry(&key);
+  if (entry != -1) {
+    return get(EntryToIndex(entry) + 1);
+  } else {
+    return Heap::undefined_value();
+  }
+}
+
+
+Object* MapCache::Put(FixedArray* array, Map* value) {
+  SymbolsKey key(array);
+  Object* obj = EnsureCapacity(1, &key);
+  if (obj->IsFailure()) return obj;
+
+  MapCache* cache = reinterpret_cast<MapCache*>(obj);
+  int entry = cache->FindInsertionEntry(array, key.Hash());
+  cache->set(EntryToIndex(entry), array);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();
   return cache;

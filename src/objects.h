@@ -619,6 +619,7 @@ class Object BASE_EMBEDDED {
   inline bool IsDictionary();
   inline bool IsSymbolTable();
   inline bool IsCompilationCacheTable();
+  inline bool IsMapCache();
   inline bool IsPrimitive();
   inline bool IsGlobalObject();
   inline bool IsJSGlobalObject();
@@ -1836,6 +1837,22 @@ class CompilationCacheTable: public HashTable<0, 2> {
 };
 
 
+// MapCache.
+//
+// Maps keys that are a fixed array of symbols to a map.
+// Used for canonicalize maps for object literals.
+class MapCache: public HashTable<0, 2> {
+ public:
+  // Find cached value for a string key, otherwise return null.
+  Object* Lookup(FixedArray* key);
+  Object* Put(FixedArray* key, Map* value);
+  static inline MapCache* cast(Object* obj);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(MapCache);
+};
+
+
 // Dictionary for keeping properties and elements in slow case.
 //
 // One element in the prefix is used for storing non-element
@@ -2671,6 +2688,9 @@ class JSFunction: public JSObject {
   // Returns the number of allocated literals.
   int NumberOfLiterals();
 
+  // Retrieve the global context from a function's literal array.
+  static Context* GlobalContextFromLiterals(FixedArray* literals);
+
   // Layout descriptors.
   static const int kPrototypeOrInitialMapOffset = JSObject::kHeaderSize;
   static const int kSharedFunctionInfoOffset =
@@ -2680,11 +2700,8 @@ class JSFunction: public JSObject {
   static const int kSize = kLiteralsOffset + kPointerSize;
 
   // Layout of the literals array.
-  static const int kLiteralsPrefixSize = 3;
-  static const int kLiteralObjectFunctionIndex = 0;
-  static const int kLiteralRegExpFunctionIndex = 1;
-  static const int kLiteralArrayFunctionIndex = 2;
-
+  static const int kLiteralsPrefixSize = 1;
+  static const int kLiteralGlobalContextIndex = 0;
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);
 };

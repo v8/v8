@@ -3811,7 +3811,8 @@ void Ia32CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 // therefore context dependent.
 class ObjectLiteralDeferred: public DeferredCode {
  public:
-  ObjectLiteralDeferred(CodeGenerator* generator, ObjectLiteral* node)
+  ObjectLiteralDeferred(CodeGenerator* generator,
+                        ObjectLiteral* node)
       : DeferredCode(generator), node_(node) {
     set_comment("[ ObjectLiteralDeferred");
   }
@@ -3838,7 +3839,6 @@ void ObjectLiteralDeferred::Generate() {
 
 void Ia32CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   Comment cmnt(masm_, "[ ObjectLiteral");
-
   ObjectLiteralDeferred* deferred = new ObjectLiteralDeferred(this, node);
 
   // Retrieve the literal array and check the allocated entry.
@@ -3866,6 +3866,7 @@ void Ia32CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   __ CallRuntime(Runtime::kCloneObjectLiteralBoilerplate, 1);
   // Push the new cloned literal object as the result.
   __ push(eax);
+
 
   for (int i = 0; i < node->properties()->length(); i++) {
     ObjectLiteral::Property* property  = node->properties()->at(i);

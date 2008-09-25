@@ -97,6 +97,37 @@ static Object* Runtime_CloneObjectLiteralBoilerplate(Arguments args) {
 }
 
 
+static Handle<Map> ComputeObjectLiteralMap(
+    Handle<Context> context,
+    Handle<FixedArray> constant_properties,
+    bool &is_result_from_cache) {
+  if (FLAG_canonicalize_object_literal_maps) {
+    // First find prefix of consecutive symbol keys.
+    int number_of_properties = constant_properties->length()/2;
+    int number_of_symbol_keys = 0;
+    while ((number_of_symbol_keys < number_of_properties) &&
+           (constant_properties->get(number_of_symbol_keys*2)->IsSymbol())) {
+      number_of_symbol_keys++;
+    }
+    // Based on the number of prefix symbols key we decide whether
+    // to use the map cache in the global context.
+    const int kMaxKeys = 10;
+    if ((number_of_symbol_keys == number_of_properties)
+        && (number_of_symbol_keys < kMaxKeys)) {
+      // Create the fixed array with the key.
+      Handle<FixedArray> keys = Factory::NewFixedArray(number_of_symbol_keys);
+      for (int i = 0; i < number_of_symbol_keys; i++) {
+        keys->set(i, constant_properties->get(i*2));
+      }
+      is_result_from_cache = true;
+      return Factory::ObjectLiteralMapFromCache(context, keys);
+    }
+  }
+  is_result_from_cache = false;
+  return Handle<Map>(context->object_function()->initial_map());
+}
+
+
 static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
@@ -104,21 +135,24 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
   Handle<FixedArray> literals = args.at<FixedArray>(0);
   int literals_index = Smi::cast(args[1])->value();
   Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
+  Handle<Context> context =
+      Handle<Context>(JSFunction::GlobalContextFromLiterals(*literals));
+
+  bool is_result_from_cache;
+  Handle<Map> map = ComputeObjectLiteralMap(context,
+                                            constant_properties,
+                                            is_result_from_cache);
 
   // Get the object function from the literals array.  This is the
   // object function from the context in which the function was
   // created.  We do not use the object function from the current
   // global context because this might be the object function from
   // another context which we should not have access to.
-  const int kObjectFunIndex = JSFunction::kLiteralObjectFunctionIndex;
-  Handle<JSFunction> constructor =
-      Handle<JSFunction>(JSFunction::cast(literals->get(kObjectFunIndex)));
-
-  Handle<JSObject> boilerplate = Factory::NewJSObject(constructor, TENURED);
-
+  Handle<JSObject> boilerplate = Factory::NewJSObjectFromMap(map);
   {  // Add the constant propeties to the boilerplate.
     int length = constant_properties->length();
-    OptimizedObjectForAddingMultipleProperties opt(boilerplate, true);
+    OptimizedObjectForAddingMultipleProperties opt(boilerplate,
+                                                   !is_result_from_cache);
     for (int index = 0; index < length; index +=2) {
       Handle<Object> key(constant_properties->get(index+0));
       Handle<Object> value(constant_properties->get(index+1));
@@ -160,9 +194,8 @@ static Object* Runtime_CreateArrayLiteral(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(FixedArray, elements, args[0]);
   CONVERT_CHECKED(FixedArray, literals, args[1]);
-  const int kArrayFunIndex = JSFunction::kLiteralArrayFunctionIndex;
-  JSFunction* constructor = JSFunction::cast(literals->get(kArrayFunIndex));
-
+  JSFunction* constructor =
+      JSFunction::GlobalContextFromLiterals(literals)->array_function();
   // Create the JSArray.
   Object* object = Heap::AllocateJSObject(constructor);
   if (object->IsFailure()) return object;
@@ -699,10 +732,9 @@ static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   // created.  We do not use the RegExp function from the current
   // global context because this might be the RegExp function from
   // another context which we should not have access to.
-  const int kRegexpFunIndex = JSFunction::kLiteralRegExpFunctionIndex;
   Handle<JSFunction> constructor =
-      Handle<JSFunction>(JSFunction::cast(literals->get(kRegexpFunIndex)));
-
+      Handle<JSFunction>(
+          JSFunction::GlobalContextFromLiterals(*literals)->regexp_function());
   // Compute the regular expression literal.
   bool has_pending_exception;
   Handle<Object> regexp =
@@ -839,12 +871,8 @@ static Object* Runtime_SetCode(Arguments args) {
       // Insert the object, regexp and array functions in the literals
       // array prefix.  These are the functions that will be used when
       // creating object, regexp and array literals.
-      literals->set(JSFunction::kLiteralObjectFunctionIndex,
-                    context->global_context()->object_function());
-      literals->set(JSFunction::kLiteralRegExpFunctionIndex,
-                    context->global_context()->regexp_function());
-      literals->set(JSFunction::kLiteralArrayFunctionIndex,
-                    context->global_context()->array_function());
+      literals->set(JSFunction::kLiteralGlobalContextIndex,
+                    context->global_context());
     }
     target->set_literals(*literals);
   }

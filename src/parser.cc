@@ -2738,8 +2738,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
         NEW(ObjectLiteral::Property(key, value));
 
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
-    if (IsBoilerplateProperty(property))
-      number_of_boilerplate_properties++;
+    if (IsBoilerplateProperty(property)) number_of_boilerplate_properties++;
     properties.Add(property);
 
     // TODO(1240767): Consider allowing trailing comma.

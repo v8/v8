@@ -325,6 +325,11 @@ bool Object::IsCompilationCacheTable() {
 }
 
 
+bool Object::IsMapCache() {
+  return IsHashTable();
+}
+
+
 bool Object::IsPrimitive() {
   return IsOddball() || IsNumber() || IsString();
 }
@@ -1112,6 +1117,7 @@ CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(Dictionary)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(CompilationCacheTable)
+CAST_ACCESSOR(MapCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(AsciiString)
