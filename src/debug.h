@@ -97,11 +97,13 @@ class BreakLocationIterator {
   inline Address pc() { return reloc_iterator_->rinfo()->pc(); }
   inline Code* code() { return debug_info_->code(); }
   inline RelocInfo* rinfo() { return reloc_iterator_->rinfo(); }
-  inline RelocMode rmode() const { return reloc_iterator_->rinfo()->rmode(); }
+  inline RelocInfo::Mode rmode() const {
+    return reloc_iterator_->rinfo()->rmode();
+  }
   inline RelocInfo* original_rinfo() {
     return reloc_iterator_original_->rinfo();
   }
-  inline RelocMode original_rmode() const {
+  inline RelocInfo::Mode original_rmode() const {
     return reloc_iterator_original_->rinfo()->rmode();
   }
 

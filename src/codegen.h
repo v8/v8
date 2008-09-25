@@ -63,8 +63,8 @@ class DeferredCode: public ZoneObject {
   Label* enter() { return &enter_; }
   Label* exit() { return &exit_; }
 
+  int statement_position() const { return statement_position_; }
   int position() const { return position_; }
-  bool position_is_statement() const { return position_is_statement_; }
 
 #ifdef DEBUG
   void set_comment(const char* comment) { comment_ = comment; }
@@ -84,8 +84,8 @@ class DeferredCode: public ZoneObject {
   CodeGenerator* const generator_;
   Label enter_;
   Label exit_;
+  int statement_position_;
   int position_;
-  bool position_is_statement_;
 #ifdef DEBUG
   const char* comment_;
 #endif
@@ -248,10 +248,10 @@ class CEntryStub : public CodeStub {
   void GenerateCore(MacroAssembler* masm,
                     Label* throw_normal_exception,
                     Label* throw_out_of_memory_exception,
-                    bool do_gc, bool do_restore);
+                    StackFrame::Type frame_type,
+                    bool do_gc);
   void GenerateThrowTOS(MacroAssembler* masm);
   void GenerateThrowOutOfMemory(MacroAssembler* masm);
-  void GenerateReserveCParameterSpace(MacroAssembler* masm, int num_parameters);
 
  private:
   Major MajorKey() { return CEntry; }
@@ -272,7 +272,6 @@ class CEntryDebugBreakStub : public CEntryStub {
 
   const char* GetName() { return "CEntryDebugBreakStub"; }
 };
-
 
 
 class JSEntryStub : public CodeStub {

@@ -84,7 +84,8 @@ void MacroAssembler::Jump(Register target, Condition cond) {
 }
 
 
-void MacroAssembler::Jump(intptr_t target, RelocMode rmode, Condition cond) {
+void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
+                          Condition cond) {
 #if USE_BX
   mov(ip, Operand(target, rmode), LeaveCC, cond);
   bx(ip, cond);
@@ -94,14 +95,16 @@ void MacroAssembler::Jump(intptr_t target, RelocMode rmode, Condition cond) {
 }
 
 
-void MacroAssembler::Jump(byte* target, RelocMode rmode, Condition cond) {
-  ASSERT(!is_code_target(rmode));
+void MacroAssembler::Jump(byte* target, RelocInfo::Mode rmode,
+                          Condition cond) {
+  ASSERT(!RelocInfo::IsCodeTarget(rmode));
   Jump(reinterpret_cast<intptr_t>(target), rmode, cond);
 }
 
 
-void MacroAssembler::Jump(Handle<Code> code, RelocMode rmode, Condition cond) {
-  ASSERT(is_code_target(rmode));
+void MacroAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
+                          Condition cond) {
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
   Jump(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
@@ -118,9 +121,10 @@ void MacroAssembler::Call(Register target, Condition cond) {
 }
 
 
-void MacroAssembler::Call(intptr_t target, RelocMode rmode, Condition cond) {
+void MacroAssembler::Call(intptr_t target, RelocInfo::Mode rmode,
+                          Condition cond) {
 #if !defined(__arm__)
-  if (rmode == runtime_entry) {
+  if (rmode == RelocInfo::RUNTIME_ENTRY) {
     mov(r2, Operand(target, rmode), LeaveCC, cond);
     // Set lr for return at current pc + 8.
     mov(lr, Operand(pc), LeaveCC, cond);
@@ -148,14 +152,16 @@ void MacroAssembler::Call(intptr_t target, RelocMode rmode, Condition cond) {
 }
 
 
-void MacroAssembler::Call(byte* target, RelocMode rmode, Condition cond) {
-  ASSERT(!is_code_target(rmode));
+void MacroAssembler::Call(byte* target, RelocInfo::Mode rmode,
+                          Condition cond) {
+  ASSERT(!RelocInfo::IsCodeTarget(rmode));
   Call(reinterpret_cast<intptr_t>(target), rmode, cond);
 }
 
 
-void MacroAssembler::Call(Handle<Code> code, RelocMode rmode, Condition cond) {
-  ASSERT(is_code_target(rmode));
+void MacroAssembler::Call(Handle<Code> code, RelocInfo::Mode rmode,
+                          Condition cond) {
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ARM code, never THUMB code
   Call(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
 }
@@ -258,7 +264,7 @@ void MacroAssembler::EnterInternalFrame() {
 }
 
 
-void MacroAssembler::ExitInternalFrame() {
+void MacroAssembler::LeaveInternalFrame() {
   // r0: preserved
   // r1: preserved
   // r2: preserved
@@ -267,6 +273,75 @@ void MacroAssembler::ExitInternalFrame() {
   // frame pointer and return address.
   mov(sp, fp);
   ldm(ia_w, sp, fp.bit() | lr.bit());
+}
+
+
+void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
+  ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
+  // Compute parameter pointer before making changes and save it as ip
+  // register so that it is restored as sp register on exit, thereby
+  // popping the args.
+
+  // ip = sp + kPointerSize * #args;
+  add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
+
+  // Push in reverse order: caller_fp, sp_on_exit, and caller_pc.
+  stm(db_w, sp, fp.bit() | ip.bit() | lr.bit());
+  mov(fp, Operand(sp));  // setup new frame pointer
+
+  // Push debug marker.
+  mov(ip, Operand(type == StackFrame::EXIT_DEBUG ? 1 : 0));
+  push(ip);
+
+  // Save the frame pointer and the context in top.
+  mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  str(fp, MemOperand(ip));
+  mov(ip, Operand(ExternalReference(Top::k_context_address)));
+  str(cp, MemOperand(ip));
+
+  // Setup argc and the builtin function in callee-saved registers.
+  mov(r4, Operand(r0));
+  mov(r5, Operand(r1));
+
+  // Compute the argv pointer and keep it in a callee-saved register.
+  add(r6, fp, Operand(r4, LSL, kPointerSizeLog2));
+  add(r6, r6, Operand(ExitFrameConstants::kPPDisplacement - kPointerSize));
+
+  // Save the state of all registers to the stack from the memory
+  // location. This is needed to allow nested break points.
+  if (type == StackFrame::EXIT_DEBUG) {
+    // Use sp as base to push.
+    CopyRegistersFromMemoryToStack(sp, kJSCallerSaved);
+  }
+}
+
+
+void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
+  // Restore the memory copy of the registers by digging them out from
+  // the stack. This is needed to allow nested break points.
+  if (type == StackFrame::EXIT_DEBUG) {
+    // This code intentionally clobbers r2 and r3.
+    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
+    const int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
+    add(r3, fp, Operand(kOffset));
+    CopyRegistersFromStackToMemory(r3, r2, kJSCallerSaved);
+  }
+
+  // Clear top frame.
+  mov(r3, Operand(0));
+  mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  str(r3, MemOperand(ip));
+
+  // Restore current context from top and clear it in debug mode.
+  mov(ip, Operand(ExternalReference(Top::k_context_address)));
+  ldr(cp, MemOperand(ip));
+  if (kDebug) {
+    str(r3, MemOperand(ip));
+  }
+
+  // Pop the arguments, restore registers, and return.
+  mov(sp, Operand(fp));  // respect ABI stack constraint
+  ldm(ia, sp, fp.bit() | sp.bit() | pc.bit());
 }
 
 
@@ -330,10 +405,10 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     Handle<Code> adaptor =
         Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
     if (flag == CALL_FUNCTION) {
-      Call(adaptor, code_target);
+      Call(adaptor, RelocInfo::CODE_TARGET);
       b(done);
     } else {
-      Jump(adaptor, code_target);
+      Jump(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&regular_invoke);
   }
@@ -363,7 +438,7 @@ void MacroAssembler::InvokeCode(Register code,
 void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
-                                RelocMode rmode,
+                                RelocInfo::Mode rmode,
                                 InvokeFlag flag) {
   Label done;
 
@@ -603,13 +678,7 @@ void MacroAssembler::CheckAccessGlobal(Register holder_reg,
 
 void MacroAssembler::CallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
-  Call(stub->GetCode(), code_target);
-}
-
-
-void MacroAssembler::CallJSExitStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // stub calls are not allowed in some stubs
-  Call(stub->GetCode(), exit_js_frame);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -658,7 +727,7 @@ void MacroAssembler::JumpToBuiltin(const ExternalReference& builtin) {
 #endif
   mov(r1, Operand(builtin));
   CEntryStub stub;
-  Jump(stub.GetCode(), code_target);
+  Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -681,10 +750,10 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
   Handle<Code> code = ResolveBuiltin(id, &resolved);
 
   if (flags == CALL_JS) {
-    Call(code, code_target);
+    Call(code, RelocInfo::CODE_TARGET);
   } else {
     ASSERT(flags == JUMP_JS);
-    Jump(code, code_target);
+    Jump(code, RelocInfo::CODE_TARGET);
   }
 
   if (!resolved) {

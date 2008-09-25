@@ -201,7 +201,7 @@ $Object.prototype.constructor = $Object;
 %AddProperty(global, "eval", function(x) {
   if (!IS_STRING(x)) return x;
 
-  var f = %CompileString(x, true);
+  var f = %CompileString(x, 0, true);
   if (!IS_FUNCTION(f)) return f;
 
   return f.call(%EvalReceiver(this));
@@ -212,7 +212,7 @@ $Object.prototype.constructor = $Object;
 %AddProperty(global, "execScript", function(expr, lang) {
   // NOTE: We don't care about the character casing.
   if (!lang || /javascript/i.test(lang)) {
-    var f = %CompileString(ToString(expr), false);
+    var f = %CompileString(ToString(expr), 0, false);
     f.call(global);
   }
   return null;
@@ -406,11 +406,13 @@ function NewFunction(arg1) {  // length == 1
     if (p.indexOf(')') != -1) throw MakeSyntaxError('unable_to_parse',[]);
   }
   var body = (n > 0) ? ToString(%_Arguments(n - 1)) : '';
-  var source = '(function anonymous(' + p + ') { ' + body + ' })';
+  var source = '(function(' + p + ') {\n' + body + '\n})';
 
   // The call to SetNewFunctionAttributes will ensure the prototype
   // property of the resulting function is enumerable (ECMA262, 15.3.5.2).
-  return %SetNewFunctionAttributes(%CompileString(source, false)());
+  var f = %CompileString(source, -1, false)();
+  %FunctionSetName(f, "anonymous");
+  return %SetNewFunctionAttributes(f);
 };
 
 %SetCode($Function, NewFunction);

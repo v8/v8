@@ -164,11 +164,11 @@ Operand::Operand(Handle<Object> handle) {
   ASSERT(!Heap::InNewSpace(obj));
   if (obj->IsHeapObject()) {
     imm32_ = reinterpret_cast<intptr_t>(handle.location());
-    rmode_ = embedded_object;
+    rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
     // no relocation needed
     imm32_ =  reinterpret_cast<intptr_t>(obj);
-    rmode_ = no_reloc;
+    rmode_ = RelocInfo::NONE;
   }
 }
 
@@ -320,7 +320,7 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   no_const_pool_before_ = 0;
   last_const_pool_end_ = 0;
   last_bound_pos_ = 0;
-  last_position_ = kNoPosition;
+  last_position_ = RelocInfo::kNoPosition;
   last_position_is_statement_ = false;
 }
 
@@ -588,7 +588,8 @@ void Assembler::addrmod1(Instr instr,
     // immediate
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if ((x.rmode_ != no_reloc && x.rmode_ != external_reference) ||
+    if ((x.rmode_ != RelocInfo::NONE &&
+         x.rmode_ != RelocInfo::EXTERNAL_REFERENCE) ||
         !fits_shifter(x.imm32_, &rotate_imm, &immed_8, &instr)) {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to register ip and change the original instruction to use ip.
@@ -1006,7 +1007,8 @@ void Assembler::msr(SRegisterFieldMask fields, const Operand& src,
     // immediate
     uint32_t rotate_imm;
     uint32_t immed_8;
-    if ((src.rmode_ != no_reloc && src.rmode_ != external_reference)||
+    if ((src.rmode_ != RelocInfo::NONE &&
+         src.rmode_ != RelocInfo::EXTERNAL_REFERENCE)||
         !fits_shifter(src.imm32_, &rotate_imm, &immed_8, NULL)) {
       // immediate operand cannot be encoded, load it first to register ip
       RecordRelocInfo(src.rmode_, src.imm32_);
@@ -1353,17 +1355,17 @@ void Assembler::lea(Register dst,
 void Assembler::RecordComment(const char* msg) {
   if (FLAG_debug_code) {
     CheckBuffer();
-    RecordRelocInfo(comment, reinterpret_cast<intptr_t>(msg));
+    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
 }
 
 
 void Assembler::RecordPosition(int pos) {
-  if (pos == kNoPosition) return;
-  ASSERT(position >= 0);
+  if (pos == RelocInfo::kNoPosition) return;
+  ASSERT(pos >= 0);
   if (pos == last_position_) return;
   CheckBuffer();
-  RecordRelocInfo(position, pos);
+  RecordRelocInfo(RelocInfo::POSITION, pos);
   last_position_ = pos;
   last_position_is_statement_ = false;
 }
@@ -1372,7 +1374,7 @@ void Assembler::RecordPosition(int pos) {
 void Assembler::RecordStatementPosition(int pos) {
   if (pos == last_position_) return;
   CheckBuffer();
-  RecordRelocInfo(statement_position, pos);
+  RecordRelocInfo(RelocInfo::STATEMENT_POSITION, pos);
   last_position_ = pos;
   last_position_is_statement_ = true;
 }
@@ -1420,17 +1422,18 @@ void Assembler::GrowBuffer() {
   // relocate pending relocation entries
   for (int i = 0; i < num_prinfo_; i++) {
     RelocInfo& rinfo = prinfo_[i];
-    ASSERT(rinfo.rmode() != comment && rinfo.rmode() != position);
+    ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
+           rinfo.rmode() != RelocInfo::POSITION);
     rinfo.set_pc(rinfo.pc() + pc_delta);
   }
 }
 
 
-void Assembler::RecordRelocInfo(RelocMode rmode, intptr_t data) {
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   RelocInfo rinfo(pc_, rmode, data);  // we do not try to reuse pool constants
-  if (rmode >= comment && rmode <= statement_position) {
+  if (rmode >= RelocInfo::COMMENT && rmode <= RelocInfo::STATEMENT_POSITION) {
     // adjust code for new modes
-    ASSERT(is_comment(rmode) || is_position(rmode));
+    ASSERT(RelocInfo::IsComment(rmode) || RelocInfo::IsPosition(rmode));
     // these modes do not need an entry in the constant pool
   } else {
     ASSERT(num_prinfo_ < kMaxNumPRInfo);
@@ -1439,9 +1442,9 @@ void Assembler::RecordRelocInfo(RelocMode rmode, intptr_t data) {
     // instruction for which we just recorded relocation info
     BlockConstPoolBefore(pc_offset() + kInstrSize);
   }
-  if (rinfo.rmode() != no_reloc) {
+  if (rinfo.rmode() != RelocInfo::NONE) {
     // Don't record external references unless the heap will be serialized.
-    if (rmode == external_reference &&
+    if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
         !Serializer::enabled() &&
         !FLAG_debug_code) {
       return;
@@ -1520,8 +1523,9 @@ void Assembler::CheckConstPool(bool force_emit, bool require_jump) {
   // Emit constant pool entries
   for (int i = 0; i < num_prinfo_; i++) {
     RelocInfo& rinfo = prinfo_[i];
-    ASSERT(rinfo.rmode() != comment && rinfo.rmode() != position &&
-           rinfo.rmode() != statement_position);
+    ASSERT(rinfo.rmode() != RelocInfo::COMMENT &&
+           rinfo.rmode() != RelocInfo::POSITION &&
+           rinfo.rmode() != RelocInfo::STATEMENT_POSITION);
     Instr instr = instr_at(rinfo.pc());
     // Instruction to patch must be a ldr/str [pc, #offset]
     // P and U set, B and W clear, Rn == pc, offset12 still 0

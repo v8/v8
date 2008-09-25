@@ -1706,7 +1706,7 @@ static void EnterComment(const char* comment, int delta) {
 // with ']'.  RelocIterator 'it' must point to a comment reloc info.
 static void CollectCommentStatistics(RelocIterator* it) {
   ASSERT(!it->done());
-  ASSERT(it->rinfo()->rmode() == comment);
+  ASSERT(it->rinfo()->rmode() == RelocInfo::COMMENT);
   const char* tmp = reinterpret_cast<const char*>(it->rinfo()->data());
   if (tmp[0] != '[') {
     // Not a nested comment; skip
@@ -1723,7 +1723,7 @@ static void CollectCommentStatistics(RelocIterator* it) {
     // All nested comments must be terminated properly, and therefore exit
     // from loop.
     ASSERT(!it->done());
-    if (it->rinfo()->rmode() == comment) {
+    if (it->rinfo()->rmode() == RelocInfo::COMMENT) {
       const char* const txt =
           reinterpret_cast<const char*>(it->rinfo()->data());
       flat_delta += it->rinfo()->pc() - prev_pc;
@@ -1753,7 +1753,7 @@ void PagedSpace::CollectCodeStatistics() {
       int delta = 0;
       const byte* prev_pc = code->instruction_start();
       while (!it.done()) {
-        if (it.rinfo()->rmode() == comment) {
+        if (it.rinfo()->rmode() == RelocInfo::COMMENT) {
           delta += it.rinfo()->pc() - prev_pc;
           CollectCommentStatistics(&it);
           prev_pc = it.rinfo()->pc();

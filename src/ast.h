@@ -101,7 +101,7 @@ typedef ZoneList<Handle<String> > ZoneStringList;
 
 class Node: public ZoneObject {
  public:
-  Node(): statement_pos_(kNoPosition) { }
+  Node(): statement_pos_(RelocInfo::kNoPosition) { }
   virtual ~Node() { }
   virtual void Accept(Visitor* v) = 0;
 
@@ -1167,7 +1167,7 @@ class FunctionLiteral: public Expression {
         start_position_(start_position),
         end_position_(end_position),
         is_expression_(is_expression),
-        function_token_position_(kNoPosition) {
+        function_token_position_(RelocInfo::kNoPosition) {
   }
 
   virtual void Accept(Visitor* v);

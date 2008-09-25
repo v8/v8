@@ -37,8 +37,8 @@ namespace v8 { namespace internal {
 DeferredCode::DeferredCode(CodeGenerator* generator)
   : masm_(generator->masm()),
     generator_(generator),
-    position_(masm_->last_position()),
-    position_is_statement_(masm_->last_position_is_statement()) {
+    statement_position_(masm_->last_statement_position()),
+    position_(masm_->last_position()) {
   generator->AddDeferred(this);
 #ifdef DEBUG
   comment_ = "";
@@ -51,9 +51,10 @@ void CodeGenerator::ProcessDeferred() {
     DeferredCode* code = deferred_.RemoveLast();
     MacroAssembler* masm = code->masm();
     // Record position of deferred code stub.
-    if (code->position_is_statement()) {
-      masm->RecordStatementPosition(code->position());
-    } else {
+    if (code->statement_position() != RelocInfo::kNoPosition) {
+      masm->RecordStatementPosition(code->statement_position());
+    }
+    if (code->position() != RelocInfo::kNoPosition) {
       masm->RecordPosition(code->position());
     }
     // Bind labels and generate the code.

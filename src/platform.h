@@ -217,6 +217,10 @@ class OS {
   // Returns the double constant NAN
   static double nan_value();
 
+  // Returns the activation frame alignment constraint or zero if
+  // the platform doesn't care. Guaranteed to be a power of two.
+  static int ActivationFrameAlignment();
+
  private:
   static const int msPerSecond = 1000;
 

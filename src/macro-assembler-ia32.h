@@ -86,10 +86,19 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Activation frames
 
-  // Enter or exit a stack frame of the given type. Cannot be used to
-  // construct or leave JavaScript frames.
   void EnterInternalFrame();
-  void ExitInternalFrame();
+  void LeaveInternalFrame();
+
+  // Enter specific kind of exit frame; either EXIT or
+  // EXIT_DEBUG. Expects the number of arguments in register eax and
+  // sets up the number of arguments in register edi and the pointer
+  // to the first argument in register esi.
+  void EnterExitFrame(StackFrame::Type type);
+
+  // Leave the current exit frame. Expects the return value in
+  // register eax:edx (untouched) and the pointer to the first
+  // argument in register esi.
+  void LeaveExitFrame(StackFrame::Type type);
 
 
   // ---------------------------------------------------------------------------
@@ -104,7 +113,7 @@ class MacroAssembler: public Assembler {
   void InvokeCode(Handle<Code> code,
                   const ParameterCount& expected,
                   const ParameterCount& actual,
-                  RelocMode rmode,
+                  RelocInfo::Mode rmode,
                   InvokeFlag flag);
 
   // Invoke the JavaScript function in the given register. Changes the
@@ -197,6 +206,10 @@ class MacroAssembler: public Assembler {
 
   // Jump to the builtin routine.
   void JumpToBuiltin(const ExternalReference& ext);
+
+
+  // ---------------------------------------------------------------------------
+  // Utilities
 
   void Ret();
 

@@ -211,12 +211,8 @@ Handle<JSFunction> Factory::NewFunctionFromBoilerplate(
     // Store the object, regexp and array functions in the literals
     // array prefix.  These functions will be used when creating
     // object, regexp and array literals in this function.
-    literals->set(JSFunction::kLiteralObjectFunctionIndex,
-                  context->global_context()->object_function());
-    literals->set(JSFunction::kLiteralRegExpFunctionIndex,
-                  context->global_context()->regexp_function());
-    literals->set(JSFunction::kLiteralArrayFunctionIndex,
-                  context->global_context()->array_function());
+    literals->set(JSFunction::kLiteralGlobalContextIndex,
+                  context->global_context());
   }
   result->set_literals(*literals);
   ASSERT(!result->IsBoilerplate());
@@ -558,6 +554,12 @@ Handle<JSObject> Factory::NewJSObject(Handle<JSFunction> constructor,
 }
 
 
+Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
+  CALL_HEAP_FUNCTION(Heap::AllocateJSObjectFromMap(*map, NOT_TENURED),
+                     JSObject);
+}
+
+
 Handle<JSObject> Factory::NewObjectLiteral(int expected_number_of_properties) {
   Handle<Map> map = Handle<Map>(Top::object_function()->initial_map());
   map = Factory::CopyMap(map);
@@ -746,6 +748,47 @@ Handle<JSFunction> Factory::CreateApiFunction(
   }
 
   return result;
+}
+
+
+Handle<MapCache> Factory::NewMapCache(int at_least_space_for) {
+  CALL_HEAP_FUNCTION(MapCache::Allocate(at_least_space_for), MapCache);
+}
+
+
+static Object* UpdateMapCacheWith(Context* context,
+                                  FixedArray* keys,
+                                  Map* map) {
+  Object* result = MapCache::cast(context->map_cache())->Put(keys, map);
+  if (!result->IsFailure()) context->set_map_cache(MapCache::cast(result));
+  return result;
+}
+
+
+Handle<MapCache> Factory::AddToMapCache(Handle<Context> context,
+                                        Handle<FixedArray> keys,
+                                        Handle<Map> map) {
+  CALL_HEAP_FUNCTION(UpdateMapCacheWith(*context, *keys, *map), MapCache);
+}
+
+
+Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
+                                               Handle<FixedArray> keys) {
+  if (context->map_cache()->IsUndefined()) {
+    // Allocate the new map cache for the global context.
+    Handle<MapCache> new_cache = NewMapCache(24);
+    context->set_map_cache(*new_cache);
+  }
+  // Check to see whether there is a maching element in the cache.
+  Handle<MapCache> cache =
+      Handle<MapCache>(MapCache::cast(context->map_cache()));
+  Handle<Object> result = Handle<Object>(cache->Lookup(*keys));
+  if (result->IsMap()) return Handle<Map>::cast(result);
+  // Create a new map and add it to the cache.
+  Handle<Map> map =
+      CopyMap(Handle<Map>(context->object_function()->initial_map()));
+  AddToMapCache(context, keys, map);
+  return Handle<Map>(map);
 }
 
 

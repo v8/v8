@@ -151,7 +151,8 @@ void Displacement::init(Label* L, Type type) {
 
 
 const int RelocInfo::kApplyMask =
-  RelocInfo::kCodeTargetMask | 1 << runtime_entry | 1 << js_return;
+  RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
+    1 << RelocInfo::JS_RETURN | 1 << RelocInfo::INTERNAL_REFERENCE;
 
 
 void RelocInfo::patch_code(byte* instructions, int instruction_count) {
@@ -170,7 +171,7 @@ void RelocInfo::patch_code_with_call(Address target, int guard_bytes) {
 
   // Patch the code.
   CodePatcher patcher(pc_, code_size);
-  patcher.masm()->call(target, no_reloc);
+  patcher.masm()->call(target, RelocInfo::NONE);
 
   // Add the requested number of int3 instructions after the call.
   for (int i = 0; i < guard_bytes; i++) {
@@ -182,13 +183,13 @@ void RelocInfo::patch_code_with_call(Address target, int guard_bytes) {
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
-Operand::Operand(Register base, int32_t disp, RelocMode rmode) {
+Operand::Operand(Register base, int32_t disp, RelocInfo::Mode rmode) {
   // [base + disp/r]
-  if (disp == 0 && rmode == no_reloc && !base.is(ebp)) {
+  if (disp == 0 && rmode == RelocInfo::NONE && !base.is(ebp)) {
     // [base]
     set_modrm(0, base);
     if (base.is(esp)) set_sib(times_1, esp, base);
-  } else if (is_int8(disp) && rmode == no_reloc) {
+  } else if (is_int8(disp) && rmode == RelocInfo::NONE) {
     // [base + disp8]
     set_modrm(1, base);
     if (base.is(esp)) set_sib(times_1, esp, base);
@@ -206,14 +207,14 @@ Operand::Operand(Register base,
                  Register index,
                  ScaleFactor scale,
                  int32_t disp,
-                 RelocMode rmode) {
+                 RelocInfo::Mode rmode) {
   ASSERT(!index.is(esp));  // illegal addressing mode
   // [base + index*scale + disp/r]
-  if (disp == 0 && rmode == no_reloc && !base.is(ebp)) {
+  if (disp == 0 && rmode == RelocInfo::NONE && !base.is(ebp)) {
     // [base + index*scale]
     set_modrm(0, esp);
     set_sib(scale, index, base);
-  } else if (is_int8(disp) && rmode == no_reloc) {
+  } else if (is_int8(disp) && rmode == RelocInfo::NONE) {
     // [base + index*scale + disp8]
     set_modrm(1, esp);
     set_sib(scale, index, base);
@@ -230,7 +231,7 @@ Operand::Operand(Register base,
 Operand::Operand(Register index,
                  ScaleFactor scale,
                  int32_t disp,
-                 RelocMode rmode) {
+                 RelocInfo::Mode rmode) {
   ASSERT(!index.is(esp));  // illegal addressing mode
   // [index*scale + disp/r]
   set_modrm(0, esp);
@@ -316,8 +317,8 @@ Assembler::Assembler(void* buffer, int buffer_size) {
 
   last_pc_ = NULL;
   last_bound_pos_ = 0;
-  last_position_ = kNoPosition;
-  last_position_is_statement_ = false;
+  last_position_ = RelocInfo::kNoPosition;
+  last_statement_position_ = RelocInfo::kNoPosition;
 }
 
 
@@ -468,7 +469,48 @@ void Assembler::pop(Register dst) {
         }
         return;
       }
+    } else if (instr == 0x6a && dst.is(eax)) {  // push of immediate 8 bit
+      byte imm8 = last_pc_[1];
+      if (imm8 == 0) {
+        // 6a00         push 0x0
+        // 58           pop eax
+        last_pc_[0] = 0x31;
+        last_pc_[1] = 0xc0;
+        // change to
+        // 31c0         xor eax,eax
+        last_pc_ = NULL;
+        return;
+      } else {
+        // 6a00         push 0xXX
+        // 58           pop eax
+        last_pc_[0] = 0xb8;
+        EnsureSpace ensure_space(this);
+        if ((imm8 & 0x80) != 0) {
+          EMIT(0xff);
+          EMIT(0xff);
+          EMIT(0xff);
+          // change to
+          // b8XXffffff   mov eax,0xffffffXX
+        } else {
+          EMIT(0x00);
+          EMIT(0x00);
+          EMIT(0x00);
+          // change to
+          // b8XX000000   mov eax,0x000000XX
+        }
+        last_pc_ = NULL;
+        return;
+      }
+    } else if (instr == 0x68 && dst.is(eax)) {  // push of immediate 32 bit
+      // 68XXXXXXXX   push 0xXXXXXXXX
+      // 58           pop eax
+      last_pc_[0] = 0xb8;
+      last_pc_ = NULL;
+      // change to
+      // b8XXXXXXXX   mov eax,0xXXXXXXXX
+      return;
     }
+
     // Other potential patterns for peephole:
     // 0x712716   102  890424         mov [esp], eax
     // 0x712719   105  8b1424         mov edx, [esp]
@@ -1010,7 +1052,7 @@ void Assembler::test(Register reg, const Immediate& imm) {
   last_pc_ = pc_;
   // Only use test against byte for registers that have a byte
   // variant: eax, ebx, ecx, and edx.
-  if (imm.rmode_ == no_reloc && is_uint8(imm.x_) && reg.code() < 4) {
+  if (imm.rmode_ == RelocInfo::NONE && is_uint8(imm.x_) && reg.code() < 4) {
     uint8_t imm8 = imm.x_;
     if (reg.is(eax)) {
       EMIT(0xA8);
@@ -1181,6 +1223,7 @@ void Assembler::bind_to(Label* L, int pos) {
     if (disp.type() == Displacement::UNCONDITIONAL_JUMP) {
       ASSERT(byte_at(fixup_pos - 1) == 0xE9);  // jmp expected
     }
+    // relative address, relative to point after address
     int imm32 = pos - (fixup_pos + sizeof(int32_t));
     long_at_put(fixup_pos, imm32);
     disp.next(L);
@@ -1288,10 +1331,10 @@ void Assembler::call(Label* L) {
 }
 
 
-void Assembler::call(byte* entry, RelocMode rmode) {
+void Assembler::call(byte* entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  ASSERT(!is_code_target(rmode));
+  ASSERT(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
   emit(entry - (pc_ + sizeof(int32_t)), rmode);
 }
@@ -1305,10 +1348,11 @@ void Assembler::call(const Operand& adr) {
 }
 
 
-void Assembler::call(Handle<Code> code,  RelocMode rmode) {
+void Assembler::call(Handle<Code> code,  RelocInfo::Mode rmode) {
+  WriteRecordedPositions();
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  ASSERT(is_code_target(rmode));
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE8);
   emit(reinterpret_cast<intptr_t>(code.location()), rmode);
 }
@@ -1349,10 +1393,10 @@ void Assembler::jmp(Label* L) {
 }
 
 
-void Assembler::jmp(byte* entry, RelocMode rmode) {
+void Assembler::jmp(byte* entry, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  ASSERT(!is_code_target(rmode));
+  ASSERT(!RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE9);
   emit(entry - (pc_ + sizeof(int32_t)), rmode);
 }
@@ -1366,10 +1410,10 @@ void Assembler::jmp(const Operand& adr) {
 }
 
 
-void Assembler::jmp(Handle<Code> code, RelocMode rmode) {
+void Assembler::jmp(Handle<Code> code, RelocInfo::Mode rmode) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  ASSERT(is_code_target(rmode));
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
   EMIT(0xE9);
   emit(reinterpret_cast<intptr_t>(code.location()), rmode);
 }
@@ -1407,7 +1451,7 @@ void Assembler::j(Condition cc, Label* L, Hint hint) {
 }
 
 
-void Assembler::j(Condition cc, byte* entry, RelocMode rmode, Hint hint) {
+void Assembler::j(Condition cc, byte* entry, RelocInfo::Mode rmode, Hint hint) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   ASSERT((0 <= cc) && (cc < 16));
@@ -1426,7 +1470,7 @@ void Assembler::j(Condition cc, Handle<Code> code, Hint hint) {
   // 0000 1111 1000 tttn #32-bit disp
   EMIT(0x0F);
   EMIT(0x80 | cc);
-  emit(reinterpret_cast<intptr_t>(code.location()), code_target);
+  emit(reinterpret_cast<intptr_t>(code.location()), RelocInfo::CODE_TARGET);
 }
 
 
@@ -1844,38 +1888,46 @@ void Assembler::Print() {
 
 
 void Assembler::RecordJSReturn() {
+  WriteRecordedPositions();
   EnsureSpace ensure_space(this);
-  RecordRelocInfo(js_return);
+  RecordRelocInfo(RelocInfo::JS_RETURN);
 }
 
 
 void Assembler::RecordComment(const char* msg) {
   if (FLAG_debug_code) {
     EnsureSpace ensure_space(this);
-    RecordRelocInfo(comment, reinterpret_cast<intptr_t>(msg));
+    RecordRelocInfo(RelocInfo::COMMENT, reinterpret_cast<intptr_t>(msg));
   }
 }
 
 
 void Assembler::RecordPosition(int pos) {
-  if (pos == kNoPosition) return;
-  ASSERT(position >= 0);
-  if (pos == last_position_) return;
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(position, pos);
+  if (pos == RelocInfo::kNoPosition) return;
+  ASSERT(pos >= 0);
   last_position_ = pos;
-  last_position_is_statement_ = false;
 }
 
 
 void Assembler::RecordStatementPosition(int pos) {
-  if (pos == kNoPosition) return;
-  ASSERT(position >= 0);
-  if (pos == last_position_) return;
-  EnsureSpace ensure_space(this);
-  RecordRelocInfo(statement_position, pos);
-  last_position_ = pos;
-  last_position_is_statement_ = true;
+  if (pos == RelocInfo::kNoPosition) return;
+  ASSERT(pos >= 0);
+  last_statement_position_ = pos;
+}
+
+
+void Assembler::WriteRecordedPositions() {
+  if (last_statement_position_ != RelocInfo::kNoPosition) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::STATEMENT_POSITION, last_statement_position_);
+  }
+  if ((last_position_ != RelocInfo::kNoPosition) &&
+      (last_position_ != last_statement_position_)) {
+    EnsureSpace ensure_space(this);
+    RecordRelocInfo(RelocInfo::POSITION, last_position_);
+  }
+  last_statement_position_ = RelocInfo::kNoPosition;
+  last_position_ = RelocInfo::kNoPosition;
 }
 
 
@@ -1932,10 +1984,15 @@ void Assembler::GrowBuffer() {
 
   // relocate runtime entries
   for (RelocIterator it(desc); !it.done(); it.next()) {
-    RelocMode rmode = it.rinfo()->rmode();
-    if (rmode == runtime_entry) {
+    RelocInfo::Mode rmode = it.rinfo()->rmode();
+    if (rmode == RelocInfo::RUNTIME_ENTRY) {
       int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
       *p -= pc_delta;  // relocate entry
+    } else if (rmode == RelocInfo::INTERNAL_REFERENCE) {
+      int32_t* p = reinterpret_cast<int32_t*>(it.rinfo()->pc());
+      if (*p != 0) {  // 0 means uninitialized.
+        *p += pc_delta;
+      }
     }
   }
 
@@ -1975,7 +2032,7 @@ void Assembler::emit_operand(Register reg, const Operand& adr) {
   adr.set_reg(reg);
   memmove(pc_, adr.buf_, adr.len_);
   pc_ += adr.len_;
-  if (adr.len_ >= sizeof(int32_t) && adr.rmode_ != no_reloc) {
+  if (adr.len_ >= sizeof(int32_t) && adr.rmode_ != RelocInfo::NONE) {
     pc_ -= sizeof(int32_t);  // pc_ must be *at* disp32
     RecordRelocInfo(adr.rmode_);
     pc_ += sizeof(int32_t);
@@ -1987,7 +2044,7 @@ void Assembler::emit_operand(const Operand& adr, Register reg) {
   adr.set_reg(reg);
   memmove(pc_, adr.buf_, adr.len_);
   pc_ += adr.len_;
-  if (adr.len_ >= sizeof(int32_t) && adr.rmode_ != no_reloc) {
+  if (adr.len_ >= sizeof(int32_t) && adr.rmode_ != RelocInfo::NONE) {
     pc_ -= sizeof(int32_t);  // pc_ must be *at* disp32
     RecordRelocInfo(adr.rmode_);
     pc_ += sizeof(int32_t);
@@ -2003,10 +2060,16 @@ void Assembler::emit_farith(int b1, int b2, int i) {
 }
 
 
-void Assembler::RecordRelocInfo(RelocMode rmode, intptr_t data) {
-  ASSERT(rmode != no_reloc);
+void Assembler::dd(uint32_t data, RelocInfo::Mode reloc_info) {
+  EnsureSpace ensure_space(this);
+  emit(data, reloc_info);
+}
+
+
+void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
+  ASSERT(rmode != RelocInfo::NONE);
   // Don't record external references unless the heap will be serialized.
-  if (rmode == external_reference &&
+  if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
       !Serializer::enabled() &&
       !FLAG_debug_code) {
     return;
@@ -2015,5 +2078,14 @@ void Assembler::RecordRelocInfo(RelocMode rmode, intptr_t data) {
   reloc_info_writer.Write(&rinfo);
 }
 
+void Assembler::WriteInternalReference(int position, const Label& bound_label) {
+  ASSERT(bound_label.is_bound());
+  ASSERT(0 <= position);
+  ASSERT(position + static_cast<int>(sizeof(uint32_t)) <= pc_offset());
+  ASSERT(long_at(position) == 0);  // only initialize once!
+
+  uint32_t label_loc = reinterpret_cast<uint32_t>(addr_at(bound_label.pos()));
+  long_at_put(position, label_loc);
+}
 
 } }  // namespace v8::internal

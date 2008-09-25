@@ -266,7 +266,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   // Call the function.
   Label return_site;
-  __ RecordPosition(position);
   ParameterCount actual(eax);
   __ InvokeFunction(edi, actual, CALL_FUNCTION);
   __ bind(&return_site);
@@ -298,7 +297,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Restore the arguments count and exit the internal frame.
   __ bind(&exit);
   __ mov(ebx, Operand(esp, kPointerSize));  // get arguments count
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
 
   // Remove caller arguments from the stack and return.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
@@ -355,7 +354,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Invoke the code.
   if (is_construct) {
     __ call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
-            code_target);
+            RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(eax);
     __ InvokeFunction(edi, actual, CALL_FUNCTION);
@@ -364,7 +363,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Exit the JS frame. Notice that this also removes the empty
   // context and the function left on the stack by the code
   // invocation.
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
   __ ret(1 * kPointerSize);  // remove receiver
 }
 
@@ -451,7 +450,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ pop(eax);
     __ shr(eax, kSmiTagSize);
 
-    __ ExitInternalFrame();
+    __ LeaveInternalFrame();
     __ jmp(&patch_receiver);
 
     // Use the global object from the called function as the receiver.
@@ -490,7 +489,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(not_zero, &invoke, taken);
     __ xor_(ebx, Operand(ebx));
     __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
-    __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)), code_target);
+    __ jmp(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+           RelocInfo::CODE_TARGET);
 
     __ bind(&invoke);
     __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
@@ -592,7 +592,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // Use inline caching to speed up access to arguments.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-  __ call(ic, code_target);
+  __ call(ic, RelocInfo::CODE_TARGET);
 
   // Remove IC arguments from the stack and push the nth argument.
   __ add(Operand(esp), Immediate(2 * kPointerSize));
@@ -613,7 +613,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(edi, Operand(ebp, 4 * kPointerSize));
   __ InvokeFunction(edi, actual, CALL_FUNCTION);
 
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
   __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 }
 
@@ -771,7 +771,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ PopRegistersToMemory(pointer_regs);
 
   // Get rid of the internal frame.
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
 
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.

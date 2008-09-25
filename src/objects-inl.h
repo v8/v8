@@ -293,6 +293,12 @@ bool Object::IsJSArray() {
 }
 
 
+bool Object::IsJSRegExp() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map()->instance_type() == JS_REGEXP_TYPE;
+}
+
+
 template <> inline bool Is<JSArray>(Object* obj) {
   return obj->IsJSArray();
 }
@@ -315,6 +321,11 @@ bool Object::IsSymbolTable() {
 
 
 bool Object::IsCompilationCacheTable() {
+  return IsHashTable();
+}
+
+
+bool Object::IsMapCache() {
   return IsHashTable();
 }
 
@@ -487,7 +498,7 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 
 
 Object* HeapObject::GetHeapObjectField(HeapObject* obj, int index) {
-  return READ_FIELD(obj, HeapObject::kSize + kPointerSize * index);
+  return READ_FIELD(obj, HeapObject::kHeaderSize + kPointerSize * index);
 }
 
 
@@ -756,7 +767,9 @@ void HeapObject::CopyBody(JSObject* from) {
   ASSERT(map() == from->map());
   ASSERT(Size() == from->Size());
   int object_size = Size();
-  for (int offset = kSize; offset < object_size;  offset += kPointerSize) {
+  for (int offset = kHeaderSize;
+       offset < object_size;
+       offset += kPointerSize) {
     Object* value = READ_FIELD(from, offset);
     // Note: WRITE_FIELD does not update the write barrier.
     WRITE_FIELD(this, offset, value);
@@ -848,6 +861,8 @@ int JSObject::GetHeaderSize() {
       return JSValue::kSize;
     case JS_ARRAY_TYPE:
       return JSValue::kSize;
+    case JS_REGEXP_TYPE:
+      return JSValue::kSize;
     case JS_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     default:
@@ -885,7 +900,7 @@ void JSObject::InitializeBody(int object_size) {
 
 
 void Struct::InitializeBody(int object_size) {
-  for (int offset = kSize; offset < object_size; offset += kPointerSize) {
+  for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
     WRITE_FIELD(this, offset, Heap::undefined_value());
   }
 }
@@ -974,6 +989,13 @@ void FixedArray::set_undefined(int index) {
   ASSERT(!Heap::InNewSpace(Heap::undefined_value()));
   WRITE_FIELD(this, kHeaderSize + index * kPointerSize,
               Heap::undefined_value());
+}
+
+
+void FixedArray::set_null(int index) {
+  ASSERT(index >= 0 && index < this->length());
+  ASSERT(!Heap::InNewSpace(Heap::null_value()));
+  WRITE_FIELD(this, kHeaderSize + index * kPointerSize, Heap::null_value());
 }
 
 
@@ -1095,6 +1117,7 @@ CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(Dictionary)
 CAST_ACCESSOR(SymbolTable)
 CAST_ACCESSOR(CompilationCacheTable)
+CAST_ACCESSOR(MapCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
 CAST_ACCESSOR(AsciiString)
@@ -1117,6 +1140,7 @@ CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(JSArray)
+CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(Proxy)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(Struct)
@@ -1191,7 +1215,12 @@ void String::set_length_field(int value) {
 
 
 void String::TryFlatten() {
-  Flatten();
+  // We don't need to flatten strings that are already flat.  Since this code
+  // is inlined, it can be helpful in the flat case to not call out to Flatten.
+  StringRepresentationTag str_type = representation_tag();
+  if (str_type != kSeqStringTag && str_type != kExternalStringTag) {
+    Flatten();
+  }
 }
 
 
@@ -1991,6 +2020,20 @@ byte* Code::sinfo_start() {
 
 
 ACCESSORS(JSArray, length, Object, kLengthOffset)
+
+
+ACCESSORS(JSRegExp, data, Object, kDataOffset)
+ACCESSORS(JSRegExp, type, Object, kTypeOffset)
+
+
+JSRegExp::Type JSRegExp::type_tag() {
+  return static_cast<JSRegExp::Type>(Smi::cast(type())->value());
+}
+
+
+void JSRegExp::set_type_tag(JSRegExp::Type value) {
+  set_type(Smi::FromInt(value));
+}
 
 
 bool JSObject::HasFastElements() {

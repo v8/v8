@@ -309,6 +309,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\assembler.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\ast.cc"
 				>
 			</File>

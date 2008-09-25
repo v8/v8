@@ -332,6 +332,7 @@ function ApplyReplacementFunction(replace, captures, subject) {
 // ECMA-262 section 15.5.4.7
 %AddProperty($String.prototype, "indexOf", function(searchString /* position */) {  // length == 1
   var str = ToString(this);
+  var str_len = str.length;
   var searchStr = ToString(searchString);
   var index = 0;
   if (%_ArgumentsLength() > 1) {
@@ -339,7 +340,8 @@ function ApplyReplacementFunction(replace, captures, subject) {
     index = TO_INTEGER(arg1);
   }
   if (index < 0) index = 0;
-  if (index > str.length) index = str.length;
+  if (index > str_len) index = str_len;
+  if (searchStr.length + index > str_len) return -1;
   return %StringIndexOf(str, searchStr, index);
 }, DONT_ENUM);
 

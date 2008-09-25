@@ -117,7 +117,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // r0: number of arguments
   // r1: constructor function
   Label return_site;
-  __ RecordPosition(position);
   ParameterCount actual(r0);
   __ InvokeFunction(r1, actual, CALL_FUNCTION);
   __ bind(&return_site);
@@ -169,7 +168,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // sp[1]: constructor function
   // sp[2]: number of arguments (smi-tagged)
   __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
   __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - 1));
   __ add(sp, sp, Operand(kPointerSize));
   __ mov(pc, Operand(lr));
@@ -233,7 +232,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   __ mov(r0, Operand(r3));
   if (is_construct) {
     __ Call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
-            code_target);
+            RelocInfo::CODE_TARGET);
   } else {
     ParameterCount actual(r0);
     __ InvokeFunction(r1, actual, CALL_FUNCTION);
@@ -241,7 +240,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
   // Exit the JS frame and remove the parameters (except function), and return.
   // Respect ABI stack constraint.
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
   __ mov(pc, lr);
 
   // r0: result
@@ -338,7 +337,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ pop(r0);
     __ mov(r0, Operand(r0, ASR, kSmiTagSize));
 
-    __ ExitInternalFrame();
+    __ LeaveInternalFrame();
     __ b(&patch_receiver);
 
     // Use the global object from the called function as the receiver.
@@ -386,7 +385,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ b(ne, &invoke);
     __ mov(r2, Operand(0));  // expected arguments is 0 for CALL_NON_FUNCTION
     __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
-    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)), code_target);
+    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+                         RelocInfo::CODE_TARGET);
 
     __ bind(&invoke);
     __ ldr(r3, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
@@ -397,7 +397,8 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
            MemOperand(r3, SharedFunctionInfo::kCodeOffset - kHeapObjectTag));
     __ add(r3, r3, Operand(Code::kHeaderSize - kHeapObjectTag));
     __ cmp(r2, r0);  // Check formal and actual parameter counts.
-    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)), code_target, ne);
+    __ Jump(Handle<Code>(builtin(ArgumentsAdaptorTrampoline)),
+                         RelocInfo::CODE_TARGET, ne);
 
     // 7. Jump to the code in r3 without checking arguments.
     ParameterCount expected(0);
@@ -424,12 +425,6 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Eagerly check for stack-overflow before starting to push the arguments.
   // r0: number of arguments
   Label okay;
-  { Label L;
-    __ mov(r1, Operand(391864 << kSmiTagSize));
-    __ cmp(r0, r1);
-    __ b(cc, &L);
-    __ bind(&L);
-  }
   ExternalReference stack_guard_limit_address =
       ExternalReference::address_of_stack_guard_limit();
   __ mov(r2, Operand(stack_guard_limit_address));
@@ -530,7 +525,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ InvokeFunction(r1, actual, CALL_FUNCTION);
 
   // Tear down the internal frame and remove function, receiver and args.
-  __ ExitInternalFrame();
+  __ LeaveInternalFrame();
   __ add(sp, sp, Operand(3 * kPointerSize));
   __ mov(pc, lr);
 }

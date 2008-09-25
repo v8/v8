@@ -655,7 +655,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
   {  // -- R e g E x p
     // Builtin functions for RegExp.prototype.
     Handle<JSFunction> regexp_fun =
-        InstallFunction(global, "RegExp", JS_VALUE_TYPE, JSValue::kSize,
+        InstallFunction(global, "RegExp", JS_REGEXP_TYPE, JSRegExp::kSize,
                         Top::initial_object_prototype(), Builtins::Illegal,
                         true);
 

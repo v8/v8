@@ -620,6 +620,10 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       accumulator->Add("<JS array[%u]>", static_cast<uint32_t>(length));
       break;
     }
+    case JS_REGEXP_TYPE: {
+      accumulator->Add("<JS RegExp>");
+      break;
+    }
     case JS_FUNCTION_TYPE: {
       Object* fun_name = JSFunction::cast(this)->shared()->name();
       bool printed = false;
@@ -819,6 +823,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_OBJECT_TYPE:
     case JS_VALUE_TYPE:
     case JS_ARRAY_TYPE:
+    case JS_REGEXP_TYPE:
     case JS_FUNCTION_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
       reinterpret_cast<JSObject*>(this)->JSObjectIterateBody(object_size, v);
@@ -861,7 +866,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
 
 
 void HeapObject::IterateStructBody(int object_size, ObjectVisitor* v) {
-  IteratePointers(v, HeapObject::kSize, object_size);
+  IteratePointers(v, HeapObject::kHeaderSize, object_size);
 }
 
 
@@ -2379,9 +2384,15 @@ Object* Map::UpdateCodeCache(String* name, Code* code) {
   // First check whether we can update existing code cache without
   // extending it.
   int length = cache->length();
+  int deleted_index = -1;
   for (int i = 0; i < length; i += 2) {
     Object* key = cache->get(i);
+    if (key->IsNull()) {
+      if (deleted_index < 0) deleted_index = i;
+      continue;
+    }
     if (key->IsUndefined()) {
+      if (deleted_index >= 0) i = deleted_index;
       cache->set(i + 0, name);
       cache->set(i + 1, code);
       return this;
@@ -2393,6 +2404,14 @@ Object* Map::UpdateCodeCache(String* name, Code* code) {
         return this;
       }
     }
+  }
+
+  // Reached the end of the code cache.  If there were deleted
+  // elements, reuse the space for the first of them.
+  if (deleted_index >= 0) {
+    cache->set(deleted_index + 0, name);
+    cache->set(deleted_index + 1, code);
+    return this;
   }
 
   // Extend the code cache with some new entries (at least one).
@@ -2415,9 +2434,9 @@ Object* Map::FindInCodeCache(String* name, Code::Flags flags) {
   int length = cache->length();
   for (int i = 0; i < length; i += 2) {
     Object* key = cache->get(i);
-    if (key->IsUndefined()) {
-      return key;
-    }
+    // Skip deleted elements.
+    if (key->IsNull()) continue;
+    if (key->IsUndefined()) return key;
     if (name->Equals(String::cast(key))) {
       Code* code = Code::cast(cache->get(i + 1));
       if (code->flags() == flags) return code;
@@ -2440,8 +2459,11 @@ int Map::IndexInCodeCache(Code* code) {
 void Map::RemoveFromCodeCache(int index) {
   FixedArray* array = code_cache();
   ASSERT(array->length() >= index && array->get(index)->IsCode());
-  array->set_undefined(index - 1);  // key
-  array->set_undefined(index);  // code
+  // Use null instead of undefined for deleted elements to distinguish
+  // deleted elements from unused elements.  This distinction is used
+  // when looking up in the cache and when updating the cache.
+  array->set_null(index - 1);  // key
+  array->set_null(index);  // code
 }
 
 
@@ -3901,6 +3923,11 @@ Object* JSFunction::SetInstanceClassName(String* name) {
 }
 
 
+Context* JSFunction::GlobalContextFromLiterals(FixedArray* literals) {
+  return Context::cast(literals->get(JSFunction::kLiteralGlobalContextIndex));
+}
+
+
 void Oddball::OddballIterateBody(ObjectVisitor* v) {
   // Assumes all Object* members are contiguously allocated!
   IteratePointers(v, kToStringOffset, kToNumberOffset + kPointerSize);
@@ -3987,13 +4014,13 @@ void ObjectVisitor::BeginCodeIteration(Code* code) {
 
 
 void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
-  ASSERT(is_code_target(rinfo->rmode()));
+  ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
   VisitPointer(rinfo->target_object_address());
 }
 
 
 void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
-  ASSERT(is_js_return(rinfo->rmode()) && rinfo->is_call_instruction());
+  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) && rinfo->is_call_instruction());
   VisitPointer(rinfo->call_object_address());
 }
 
@@ -4014,7 +4041,9 @@ void Code::ConvertICTargetsFromAddressToObject() {
   }
 
   if (Debug::has_break_points()) {
-    for (RelocIterator it(this, RelocMask(js_return)); !it.done(); it.next()) {
+    for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
+         !it.done();
+         it.next()) {
       if (it.rinfo()->is_call_instruction()) {
         Address addr = it.rinfo()->call_address();
         ASSERT(addr != NULL);
@@ -4032,23 +4061,24 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
   v->BeginCodeIteration(this);
 
   int mode_mask = RelocInfo::kCodeTargetMask |
-                  RelocMask(embedded_object) |
-                  RelocMask(external_reference) |
-                  RelocMask(js_return) |
-                  RelocMask(runtime_entry);
+                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
+                  RelocInfo::ModeMask(RelocInfo::JS_RETURN) |
+                  RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
-    RelocMode rmode = it.rinfo()->rmode();
-    if (rmode == embedded_object) {
+    RelocInfo::Mode rmode = it.rinfo()->rmode();
+    if (rmode == RelocInfo::EMBEDDED_OBJECT) {
       v->VisitPointer(it.rinfo()->target_object_address());
-    } else if (is_code_target(rmode)) {
+    } else if (RelocInfo::IsCodeTarget(rmode)) {
       v->VisitCodeTarget(it.rinfo());
-    } else if (rmode == external_reference) {
+    } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
       v->VisitExternalReference(it.rinfo()->target_reference_address());
     } else if (Debug::has_break_points() &&
-               is_js_return(rmode) && it.rinfo()->is_call_instruction()) {
+               RelocInfo::IsJSReturn(rmode) &&
+               it.rinfo()->is_call_instruction()) {
       v->VisitDebugTarget(it.rinfo());
-    } else if (rmode == runtime_entry) {
+    } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
       v->VisitRuntimeEntry(it.rinfo());
     }
   }
@@ -4073,7 +4103,9 @@ void Code::ConvertICTargetsFromObjectToAddress() {
   }
 
   if (Debug::has_break_points()) {
-    for (RelocIterator it(this, RelocMask(js_return)); !it.done(); it.next()) {
+    for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
+         !it.done();
+         it.next()) {
       if (it.rinfo()->is_call_instruction()) {
         Code* code = reinterpret_cast<Code*>(it.rinfo()->call_object());
         ASSERT((code != NULL) && code->IsHeapObject());
@@ -4113,14 +4145,14 @@ void Code::CopyFrom(const CodeDesc& desc) {
   // unbox handles and relocate
   int delta = instruction_start() - desc.buffer;
   int mode_mask = RelocInfo::kCodeTargetMask |
-                  RelocMask(embedded_object) |
+                  RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
                   RelocInfo::kApplyMask;
   for (RelocIterator it(this, mode_mask); !it.done(); it.next()) {
-    RelocMode mode = it.rinfo()->rmode();
-    if (mode == embedded_object) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Object** p = reinterpret_cast<Object**>(it.rinfo()->target_object());
       it.rinfo()->set_target_object(*p);
-    } else if (is_code_target(mode)) {
+    } else if (RelocInfo::IsCodeTarget(mode)) {
       // rewrite code handles in inline cache targets to direct
       // pointers to the first instruction in the code object
       Object** p = reinterpret_cast<Object**>(it.rinfo()->target_object());
@@ -4140,16 +4172,26 @@ void Code::CopyFrom(const CodeDesc& desc) {
 // source for this function is found.
 int Code::SourcePosition(Address pc) {
   int distance = kMaxInt;
-  int position = kNoPosition;  // Initially no position found.
+  int position = RelocInfo::kNoPosition;  // Initially no position found.
   // Run through all the relocation info to find the best matching source
   // position. All the code needs to be considered as the sequence of the
   // instructions in the code does not necessarily follow the same order as the
   // source.
   RelocIterator it(this, RelocInfo::kPositionMask);
   while (!it.done()) {
-    if (it.rinfo()->pc() < pc && (pc - it.rinfo()->pc()) < distance) {
-      position = it.rinfo()->data();
-      distance = pc - it.rinfo()->pc();
+    // Only look at positions after the current pc.
+    if (it.rinfo()->pc() < pc) {
+      // Get position and distance.
+      int dist = pc - it.rinfo()->pc();
+      int pos = it.rinfo()->data();
+      // If this position is closer than the current candidate or if it has the
+      // same distance as the current candidate and the position is higher then
+      // this position is the new candidate.
+      if ((dist < distance) ||
+          (dist == distance && pos > position)) {
+        position = pos;
+        distance = dist;
+      }
     }
     it.next();
   }
@@ -4167,7 +4209,7 @@ int Code::SourceStatementPosition(Address pc) {
   int statement_position = 0;
   RelocIterator it(this, RelocInfo::kPositionMask);
   while (!it.done()) {
-    if (is_statement_position(it.rinfo()->rmode())) {
+    if (RelocInfo::IsStatementPosition(it.rinfo()->rmode())) {
       int p = it.rinfo()->data();
       if (statement_position < p && p <= position) {
         statement_position = p;
@@ -5496,12 +5538,12 @@ Object* HashTable<prefix_size, element_size>::EnsureCapacity(
 
   Object* obj = Allocate(nof * 2);
   if (obj->IsFailure()) return obj;
-  HashTable* dict = HashTable::cast(obj);
-  WriteBarrierMode mode = dict->GetWriteBarrierMode();
+  HashTable* table = HashTable::cast(obj);
+  WriteBarrierMode mode = table->GetWriteBarrierMode();
 
   // Copy prefix to new array.
   for (int i = kPrefixStartIndex; i < kPrefixStartIndex + prefix_size; i++) {
-    dict->set(i, get(i), mode);
+    table->set(i, get(i), mode);
   }
   // Rehash the elements.
   uint32_t (*Hash)(Object* key) = key->GetHashFunction();
@@ -5510,14 +5552,14 @@ Object* HashTable<prefix_size, element_size>::EnsureCapacity(
     Object* key = get(from_index);
     if (IsKey(key)) {
       uint32_t insertion_index =
-          EntryToIndex(dict->FindInsertionEntry(key, Hash(key)));
+          EntryToIndex(table->FindInsertionEntry(key, Hash(key)));
       for (int j = 0; j < element_size; j++) {
-        dict->set(insertion_index + j, get(from_index + j), mode);
+        table->set(insertion_index + j, get(from_index + j), mode);
       }
     }
   }
-  dict->SetNumberOfElements(NumberOfElements());
-  return dict;
+  table->SetNumberOfElements(NumberOfElements());
+  return table;
 }
 
 
@@ -5613,6 +5655,70 @@ Object* CompilationCacheTable::Put(String* src, Object* value) {
       reinterpret_cast<CompilationCacheTable*>(obj);
   int entry = cache->FindInsertionEntry(src, key.Hash());
   cache->set(EntryToIndex(entry), src);
+  cache->set(EntryToIndex(entry) + 1, value);
+  cache->ElementAdded();
+  return cache;
+}
+
+
+// SymbolsKey used for HashTable where key is array of symbols.
+class SymbolsKey : public HashTableKey {
+ public:
+  explicit SymbolsKey(FixedArray* symbols) {
+    symbols_ = symbols;
+  }
+
+  bool IsMatch(Object* other) {
+    if (!other->IsFixedArray()) return false;
+    FixedArray* o = FixedArray::cast(other);
+    int len = symbols_->length();
+    if (o->length() != len) return false;
+    for (int i = 0; i < len; i++) {
+      if (o->get(i) != symbols_->get(i)) return false;
+    }
+    return true;
+  }
+
+  uint32_t Hash() { return SymbolsHash(symbols_); }
+
+  HashFunction GetHashFunction() { return SymbolsHash; }
+
+  Object* GetObject() { return symbols_; }
+
+  static uint32_t SymbolsHash(Object* obj) {
+    FixedArray* symbols_ = FixedArray::cast(obj);
+    int len = symbols_->length();
+    uint32_t  hash = 0;
+    for (int i = 0; i < len; i++) {
+      hash ^= String::cast(symbols_->get(i))->Hash();
+    }
+    return hash;
+  }
+
+  bool IsStringKey() { return false; }
+
+  FixedArray* symbols_;
+};
+
+Object* MapCache::Lookup(FixedArray* array) {
+  SymbolsKey key(array);
+  int entry = FindEntry(&key);
+  if (entry != -1) {
+    return get(EntryToIndex(entry) + 1);
+  } else {
+    return Heap::undefined_value();
+  }
+}
+
+
+Object* MapCache::Put(FixedArray* array, Map* value) {
+  SymbolsKey key(array);
+  Object* obj = EnsureCapacity(1, &key);
+  if (obj->IsFailure()) return obj;
+
+  MapCache* cache = reinterpret_cast<MapCache*>(obj);
+  int entry = cache->FindInsertionEntry(array, key.Hash());
+  cache->set(EntryToIndex(entry), array);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();
   return cache;

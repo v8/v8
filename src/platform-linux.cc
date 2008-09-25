@@ -38,11 +38,12 @@
 // executable. Otherwise, OS raises an exception when executing code
 // in that page.
 #include <sys/types.h>  // mmap & munmap
-#include <sys/mman.h>  // mmap & munmap
-#include <sys/stat.h>  // open
+#include <sys/mman.h>   // mmap & munmap
+#include <sys/stat.h>   // open
 #include <sys/fcntl.h>  // open
-#include <unistd.h>  // getpagesize
-#include <execinfo.h>  // backtrace, backtrace_symbols
+#include <unistd.h>     // getpagesize
+#include <execinfo.h>   // backtrace, backtrace_symbols
+#include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
 
@@ -194,7 +195,16 @@ char *OS::StrDup(const char* str) {
 }
 
 
-double OS::nan_value() { return NAN; }
+double OS::nan_value() {
+  return NAN;
+}
+
+
+int OS::ActivationFrameAlignment() {
+  // No constraint on Linux.
+  return 0;
+}
+
 
 // We keep the lowest and highest addresses mapped as a quick way of
 // determining that pointers are outside the heap (used mostly in assertions
@@ -335,12 +345,13 @@ void OS::LogSharedLibraryAddresses() {
       if (result < 1) break;
     } while (buffer[bytes_read] != '\n');
     buffer[bytes_read] = 0;
-    // There are 56 chars to ignore at this point in the line.
-    if (bytes_read < 56) continue;
     // Ignore mappings that are not executable.
     if (buffer[3] != 'x') continue;
+    char* start_of_path = index(buffer, '/');
+    // There may be no filename in this line.  Skip to next.
+    if (start_of_path == NULL) continue;
     buffer[bytes_read] = 0;
-    LOG(SharedLibraryEvent(buffer + 56, start, end));
+    LOG(SharedLibraryEvent(start_of_path, start, end));
   }
   close(fd);
 #endif

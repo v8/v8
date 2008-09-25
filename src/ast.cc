@@ -146,7 +146,6 @@ ObjectLiteral::Property::Property(bool is_getter, FunctionLiteral* value) {
 }
 
 
-
 void LabelCollector::AddLabel(Label* label) {
   // Add the label to the collector, but discard duplicates.
   int length = labels_->length();

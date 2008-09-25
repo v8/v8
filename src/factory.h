@@ -167,6 +167,10 @@ class Factory : public AllStatic {
   static Handle<JSObject> NewJSObject(Handle<JSFunction> constructor,
                                       PretenureFlag pretenure = NOT_TENURED);
 
+  // JS objects are pretenured when allocated by the bootstrapper and
+  // runtime.
+  static Handle<JSObject> NewJSObjectFromMap(Handle<Map> map);
+
   // Allocate a JS object representing an object literal.  The object is
   // pretenured (allocated directly in the old generation).
   static Handle<JSObject> NewObjectLiteral(int expected_number_of_properties);
@@ -291,6 +295,12 @@ class Factory : public AllStatic {
 
   static Handle<DebugInfo> NewDebugInfo(Handle<SharedFunctionInfo> shared);
 
+
+  // Return a map using the map cache in the global context.
+  // The key the an ordered set of property names.
+  static Handle<Map> ObjectLiteralMapFromCache(Handle<Context> context,
+                                               Handle<FixedArray> keys);
+
  private:
   static Handle<JSFunction> NewFunctionHelper(Handle<String> name,
                                               Handle<Object> prototype);
@@ -302,6 +312,14 @@ class Factory : public AllStatic {
   static Handle<JSFunction> BaseNewFunctionFromBoilerplate(
       Handle<JSFunction> boilerplate,
       Handle<Map> function_map);
+
+  // Create a new map cache.
+  static Handle<MapCache> NewMapCache(int at_least_space_for);
+
+  // Update the map cache in the global context with (keys, map)
+  static Handle<MapCache> AddToMapCache(Handle<Context> context,
+                                        Handle<FixedArray> keys,
+                                        Handle<Map> map);
 };
 
 

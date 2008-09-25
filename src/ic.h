@@ -90,11 +90,13 @@ class IC {
   // Computes the reloc info for this IC. This is a fairly expensive
   // operation as it has to search through the heap to find the code
   // object that contains this IC site.
-  RelocMode ComputeMode();
+  RelocInfo::Mode ComputeMode();
 
   // Returns if this IC is for contextual (no explicit receiver)
   // access to properties.
-  bool is_contextual() { return ComputeMode() == code_target_context; }
+  bool is_contextual() {
+    return ComputeMode() == RelocInfo::CODE_TARGET_CONTEXT;
+  }
 
   // Returns the map to use for caching stubs for a given object.
   // This method should not be called with undefined or null.

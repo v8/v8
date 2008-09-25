@@ -139,7 +139,7 @@ TEST(AssemblerIa322) {
 
   // some relocated stuff here, not executed
   __ mov(eax, Factory::true_value());
-  __ jmp(NULL, runtime_entry);
+  __ jmp(NULL, RelocInfo::RUNTIME_ENTRY);
 
   CodeDesc desc;
   assm.GetCode(&desc);
@@ -228,7 +228,7 @@ TEST(AssemblerIa325) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  __ mov(eax, Operand(reinterpret_cast<intptr_t>(&baz), no_reloc));
+  __ mov(eax, Operand(reinterpret_cast<intptr_t>(&baz), RelocInfo::NONE));
   __ ret(0);
 
   CodeDesc desc;

@@ -30,9 +30,6 @@ prefix mjsunit
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
 
-# This one fails in debug mode.
-regexp-multiline-stack-trace: PASS IF $MODE==RELEASE, FAIL IF $MODE==DEBUG
-
 # This one uses a built-in that's only present in debug mode.
 fuzz-natives: PASS, SKIP IF $MODE==RELEASE
 

@@ -277,7 +277,7 @@ class MarkingVisitor : public ObjectVisitor {
   }
 
   void VisitCodeTarget(RelocInfo* rinfo) {
-    ASSERT(is_code_target(rinfo->rmode()));
+    ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* code = CodeFromDerivedPointer(rinfo->target_address());
     if (FLAG_cleanup_ics_at_gc && code->is_inline_cache_stub()) {
       IC::Clear(rinfo->pc());
@@ -294,7 +294,8 @@ class MarkingVisitor : public ObjectVisitor {
   }
 
   void VisitDebugTarget(RelocInfo* rinfo) {
-    ASSERT(is_js_return(rinfo->rmode()) && rinfo->is_call_instruction());
+    ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) &&
+           rinfo->is_call_instruction());
     HeapObject* code = CodeFromDerivedPointer(rinfo->call_address());
     MarkCompactCollector::MarkObject(code);
     // When compacting we convert the call to a real object pointer.

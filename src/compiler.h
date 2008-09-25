@@ -57,7 +57,9 @@ class Compiler : public AllStatic {
                                     ScriptDataImpl* script_Data);
 
   // Compile a String source within a context for Eval.
-  static Handle<JSFunction> CompileEval(bool is_global, Handle<String> source);
+  static Handle<JSFunction> CompileEval(Handle<String> source,
+                                        int line_offset,
+                                        bool is_global);
 
   // Compile from function info (used for lazy compilation). Returns
   // true on success and false if the compilation resulted in a stack

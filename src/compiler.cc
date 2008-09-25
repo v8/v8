@@ -130,7 +130,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
                                       code);
 
   CodeGenerator::SetFunctionInfo(fun, lit->scope()->num_parameters(),
-                                 kNoPosition,
+                                 RelocInfo::kNoPosition,
                                  lit->start_position(), lit->end_position(),
                                  lit->is_expression(), true, script);
 
@@ -202,8 +202,9 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
 }
 
 
-Handle<JSFunction> Compiler::CompileEval(bool is_global,
-                                         Handle<String> source) {
+Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
+                                         int line_offset,
+                                         bool is_global) {
   Counters::total_eval_size.Increment(source->length());
   Counters::total_compile_size.Increment(source->length());
 
@@ -219,6 +220,7 @@ Handle<JSFunction> Compiler::CompileEval(bool is_global,
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
+    script->set_line_offset(Smi::FromInt(line_offset));
     result = MakeFunction(is_global, true, script, NULL, NULL);
     if (!result.is_null()) {
       CompilationCache::Associate(source, entry, result);

@@ -325,7 +325,7 @@ void MacroAssembler::EnterInternalFrame() {
 }
 
 
-void MacroAssembler::ExitInternalFrame() {
+void MacroAssembler::LeaveInternalFrame() {
   if (FLAG_debug_code) {
     StackFrame::Type type = StackFrame::INTERNAL;
     cmp(Operand(ebp, StandardFrameConstants::kMarkerOffset),
@@ -333,6 +333,94 @@ void MacroAssembler::ExitInternalFrame() {
     Check(equal, "stack frame types must match");
   }
   leave();
+}
+
+
+void MacroAssembler::EnterExitFrame(StackFrame::Type type) {
+  ASSERT(type == StackFrame::EXIT || type == StackFrame::EXIT_DEBUG);
+
+  // Setup the frame structure on the stack.
+  ASSERT(ExitFrameConstants::kPPDisplacement == +2 * kPointerSize);
+  ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
+  ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
+  push(ebp);
+  mov(ebp, Operand(esp));
+
+  // Reserve room for entry stack pointer and push the debug marker.
+  ASSERT(ExitFrameConstants::kSPOffset  == -1 * kPointerSize);
+  push(Immediate(0));  // saved entry sp, patched before call
+  push(Immediate(type == StackFrame::EXIT_DEBUG ? 1 : 0));
+
+  // Save the frame pointer and the context in top.
+  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
+  ExternalReference context_address(Top::k_context_address);
+  mov(Operand::StaticVariable(c_entry_fp_address), ebp);
+  mov(Operand::StaticVariable(context_address), esi);
+
+  // Setup argc and argv in callee-saved registers.
+  int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
+  mov(edi, Operand(eax));
+  lea(esi, Operand(ebp, eax, times_4, offset));
+
+  // Save the state of all registers to the stack from the memory
+  // location. This is needed to allow nested break points.
+  if (type == StackFrame::EXIT_DEBUG) {
+    // TODO(1243899): This should be symmetric to
+    // CopyRegistersFromStackToMemory() but it isn't! esp is assumed
+    // correct here, but computed for the other call. Very error
+    // prone! FIX THIS.  Actually there are deeper problems with
+    // register saving than this asymmetry (see the bug report
+    // associated with this issue).
+    PushRegistersFromMemory(kJSCallerSaved);
+  }
+
+  // Reserve space for two arguments: argc and argv.
+  sub(Operand(esp), Immediate(2 * kPointerSize));
+
+  // Get the required frame alignment for the OS.
+  static const int kFrameAlignment = OS::ActivationFrameAlignment();
+  if (kFrameAlignment > 0) {
+    ASSERT(IsPowerOf2(kFrameAlignment));
+    and_(esp, -kFrameAlignment);
+  }
+
+  // Patch the saved entry sp.
+  mov(Operand(ebp, ExitFrameConstants::kSPOffset), esp);
+}
+
+
+void MacroAssembler::LeaveExitFrame(StackFrame::Type type) {
+  // Restore the memory copy of the registers by digging them out from
+  // the stack. This is needed to allow nested break points.
+  if (type == StackFrame::EXIT_DEBUG) {
+    // It's okay to clobber register ebx below because we don't need
+    // the function pointer after this.
+    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
+    int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
+    lea(ebx, Operand(ebp, kOffset));
+    CopyRegistersFromStackToMemory(ebx, ecx, kJSCallerSaved);
+  }
+
+  // Get the return address from the stack and restore the frame pointer.
+  mov(ecx, Operand(ebp, 1 * kPointerSize));
+  mov(ebp, Operand(ebp, 0 * kPointerSize));
+
+  // Pop the arguments and the receiver from the caller stack.
+  lea(esp, Operand(esi, 1 * kPointerSize));
+
+  // Restore current context from top and clear it in debug mode.
+  ExternalReference context_address(Top::k_context_address);
+  mov(esi, Operand::StaticVariable(context_address));
+  if (kDebug) {
+    mov(Operand::StaticVariable(context_address), Immediate(0));
+  }
+
+  // Push the return address to get ready to return.
+  push(ecx);
+
+  // Clear the top frame.
+  ExternalReference c_entry_fp_address(Top::k_c_entry_fp_address);
+  mov(Operand::StaticVariable(c_entry_fp_address), Immediate(0));
 }
 
 
@@ -503,7 +591,7 @@ void MacroAssembler::NegativeZeroTest(Register result,
 
 void MacroAssembler::CallStub(CodeStub* stub) {
   ASSERT(allow_stub_calls());  // calls are not allowed in some stubs
-  call(stub->GetCode(), code_target);
+  call(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -554,7 +642,7 @@ void MacroAssembler::JumpToBuiltin(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
   mov(Operand(ebx), Immediate(ext));
   CEntryStub ces;
-  jmp(ces.GetCode(), code_target);
+  jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
 
@@ -613,10 +701,10 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     }
 
     if (flag == CALL_FUNCTION) {
-      call(adaptor, code_target);
+      call(adaptor, RelocInfo::CODE_TARGET);
       jmp(done);
     } else {
-      jmp(adaptor, code_target);
+      jmp(adaptor, RelocInfo::CODE_TARGET);
     }
     bind(&invoke);
   }
@@ -642,7 +730,7 @@ void MacroAssembler::InvokeCode(const Operand& code,
 void MacroAssembler::InvokeCode(Handle<Code> code,
                                 const ParameterCount& expected,
                                 const ParameterCount& actual,
-                                RelocMode rmode,
+                                RelocInfo::Mode rmode,
                                 InvokeFlag flag) {
   Label done;
   Operand dummy(eax);
@@ -683,7 +771,8 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   // arguments match the expected number of arguments. Fake a
   // parameter count to avoid emitting code to do the check.
   ParameterCount expected(0);
-  InvokeCode(Handle<Code>(code), expected, expected, code_target, flag);
+  InvokeCode(Handle<Code>(code), expected, expected,
+             RelocInfo::CODE_TARGET, flag);
 
   const char* name = Builtins::GetName(id);
   int argc = Builtins::GetArgumentsCount(id);

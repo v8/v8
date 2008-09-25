@@ -157,6 +157,7 @@ namespace v8 { namespace internal {
   F(FunctionSetLength, 2) \
   F(FunctionSetPrototype, 2) \
   F(FunctionGetName, 1) \
+  F(FunctionSetName, 2) \
   F(FunctionGetSourceCode, 1) \
   F(FunctionGetScript, 1) \
   F(FunctionGetScriptSourcePosition, 1) \
@@ -180,7 +181,7 @@ namespace v8 { namespace internal {
   F(NumberIsFinite, 1) \
   \
   /* Globals */ \
-  F(CompileString, 2) \
+  F(CompileString, 3) \
   F(CompileScript, 4) \
   F(GlobalPrint, 1) \
   \

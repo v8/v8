@@ -826,7 +826,7 @@ void ArmCodeGenerator::LoadTypeofExpression(Expression* x) {
     Literal key(variable->name());
     // TODO(1241834): Fetch the position from the variable instead of using
     // no position.
-    Property property(&global, &key, kNoPosition);
+    Property property(&global, &key, RelocInfo::kNoPosition);
     Load(&property);
   } else {
     Load(x, CodeGenState::LOAD_TYPEOF_EXPR);
@@ -1629,22 +1629,22 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
 void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_out_of_memory_exception,
-                              bool do_gc,
-                              bool do_restore) {
+                              StackFrame::Type frame_type,
+                              bool do_gc) {
   // r0: result parameter for PerformGC, if any
   // r4: number of arguments including receiver  (C callee-saved)
   // r5: pointer to builtin function  (C callee-saved)
+  // r6: pointer to the first argument (C callee-saved)
 
   if (do_gc) {
-    __ Call(FUNCTION_ADDR(Runtime::PerformGC), runtime_entry);  // passing r0
+    // Passing r0.
+    __ Call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
   }
 
   // Call C built-in.
-  // r0 = argc.
+  // r0 = argc, r1 = argv
   __ mov(r0, Operand(r4));
-  // r1 = argv.
-  __ add(r1, fp, Operand(r4, LSL, kPointerSizeLog2));
-  __ add(r1, r1, Operand(ExitFrameConstants::kPPDisplacement - kPointerSize));
+  __ mov(r1, Operand(r6));
 
   // TODO(1242173): To let the GC traverse the return address of the exit
   // frames, we need to know where the return address is. Right now,
@@ -1671,32 +1671,12 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ tst(r2, Operand(kFailureTagMask));
   __ b(eq, &failure_returned);
 
-  // clear top frame
-  __ mov(r3, Operand(0));
-  __ mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
-  __ str(r3, MemOperand(ip));
-
-  // Restore the memory copy of the registers by digging them out from
-  // the stack.
-  if (do_restore) {
-    // Ok to clobber r2 and r3.
-    const int kCallerSavedSize = kNumJSCallerSaved * kPointerSize;
-    const int kOffset = ExitFrameConstants::kDebugMarkOffset - kCallerSavedSize;
-    __ add(r3, fp, Operand(kOffset));
-    __ CopyRegistersFromStackToMemory(r3, r2, kJSCallerSaved);
-  }
-
-  // Exit C frame and return
+  // Exit C frame and return.
   // r0:r1: result
   // sp: stack pointer
   // fp: frame pointer
   // pp: caller's parameter pointer pp  (restored as C callee-saved)
-
-  // Restore current context from top and clear it in debug mode.
-  __ mov(r3, Operand(Top::context_address()));
-  __ ldr(cp, MemOperand(r3));
-  __ mov(sp, Operand(fp));  // respect ABI stack constraint
-  __ ldm(ia, sp, fp.bit() | sp.bit() | pc.bit());
+  __ LeaveExitFrame(frame_type);
 
   // check if we should retry or throw exception
   Label retry;
@@ -1744,47 +1724,16 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // this by performing a garbage collection and retrying the
   // builtin once.
 
-  // Enter C frame
-  // Compute parameter pointer before making changes and save it as ip register
-  // so that it is restored as sp register on exit, thereby popping the args.
-  // ip = sp + kPointerSize*args_len;
-  __ add(ip, sp, Operand(r0, LSL, kPointerSizeLog2));
+  StackFrame::Type frame_type = is_debug_break
+      ? StackFrame::EXIT_DEBUG
+      : StackFrame::EXIT;
 
-  // push in reverse order:
-  // caller_fp, sp_on_exit, caller_pc
-  __ stm(db_w, sp, fp.bit() | ip.bit() | lr.bit());
-  __ mov(fp, Operand(sp));  // setup new frame pointer
+  // Enter the exit frame that transitions from JavaScript to C++.
+  __ EnterExitFrame(frame_type);
 
-  // Store the current context in top.
-  __ mov(ip, Operand(ExternalReference(Top::k_context_address)));
-  __ str(cp, MemOperand(ip));
-
-  // remember top frame
-  __ mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
-  __ str(fp, MemOperand(ip));
-
-  // Push debug marker.
-  __ mov(ip, Operand(is_debug_break ? 1 : 0));
-  __ push(ip);
-
-  if (is_debug_break) {
-    // Save the state of all registers to the stack from the memory location.
-    // Use sp as base to push.
-    __ CopyRegistersFromMemoryToStack(sp, kJSCallerSaved);
-  }
-
-  // move number of arguments (argc) into callee-saved register
-  __ mov(r4, Operand(r0));
-
-  // move pointer to builtin function into callee-saved register
-  __ mov(r5, Operand(r1));
-
-  // r0: result parameter for PerformGC, if any (setup below)
-  // r4: number of arguments
-  // r5: pointer to builtin function  (C callee-saved)
-
-  Label entry;
-  __ bind(&entry);
+  // r4: number of arguments (C callee-saved)
+  // r5: pointer to builtin function (C callee-saved)
+  // r6: pointer to first argument (C callee-saved)
 
   Label throw_out_of_memory_exception;
   Label throw_normal_exception;
@@ -1797,20 +1746,20 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
-               FLAG_gc_greedy,
-               is_debug_break);
+               frame_type,
+               FLAG_gc_greedy);
 #else
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
-               false,
-               is_debug_break);
+               frame_type,
+               false);
 #endif
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
-               true,
-               is_debug_break);
+               frame_type,
+               true);
 
   __ bind(&throw_out_of_memory_exception);
   GenerateThrowOutOfMemory(masm);
@@ -2066,9 +2015,9 @@ void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
     Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
     if (var != NULL) {
       ASSERT(var->is_global());
-      __ Call(ic, code_target_context);
+      __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
     } else {
-      __ Call(ic, code_target);
+      __ Call(ic, RelocInfo::CODE_TARGET);
     }
 
   } else {
@@ -2099,7 +2048,7 @@ void ArmCodeGenerator::SetReferenceProperty(MacroAssembler* masm,
     // Setup the name register.
     masm->mov(r2, Operand(name));
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-    masm->Call(ic, code_target);
+    masm->Call(ic, RelocInfo::CODE_TARGET);
 
   } else {
     // Access keyed property.
@@ -3705,7 +3654,7 @@ void ArmCodeGenerator::VisitCall(Call* node) {
     // Setup the receiver register and call the IC initialization code.
     Handle<Code> stub = ComputeCallInitialize(args->length());
     __ RecordPosition(node->position());
-    __ Call(stub, code_target_context);
+    __ Call(stub, RelocInfo::CODE_TARGET_CONTEXT);
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     // Remove the function from the stack.
     __ pop();
@@ -3752,7 +3701,7 @@ void ArmCodeGenerator::VisitCall(Call* node) {
       // Set the receiver register and call the IC initialization code.
       Handle<Code> stub = ComputeCallInitialize(args->length());
       __ RecordPosition(node->position());
-      __ Call(stub, code_target);
+      __ Call(stub, RelocInfo::CODE_TARGET);
       __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 
       // Remove the function from the stack.
@@ -3819,9 +3768,9 @@ void ArmCodeGenerator::VisitCallNew(CallNew* node) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  __ RecordPosition(position);
+  __ RecordPosition(RelocInfo::POSITION);
   __ Call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
-          js_construct_call);
+          RelocInfo::CONSTRUCT_CALL);
 
   // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
   __ str(r0, MemOperand(sp, 0 * kPointerSize));
@@ -3996,7 +3945,7 @@ void ArmCodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
     // Call the JS runtime function.
     Handle<Code> stub = ComputeCallInitialize(args->length());
-    __ Call(stub, code_target);
+    __ Call(stub, RelocInfo::CODE_TARGET);
     __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     __ pop();
     __ push(r0);
@@ -4534,7 +4483,7 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
 void ArmCodeGenerator::RecordStatementPosition(Node* node) {
   if (FLAG_debug_info) {
     int statement_pos = node->statement_pos();
-    if (statement_pos == kNoPosition) return;
+    if (statement_pos == RelocInfo::kNoPosition) return;
     __ RecordStatementPosition(statement_pos);
   }
 }

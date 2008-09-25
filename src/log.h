@@ -181,9 +181,9 @@ class Logger {
   // ==== Events logged by --log-regexp ====
   // Regexp compilation and execution events.
 
-  static void RegExpCompileEvent(Handle<JSValue> regexp);
+  static void RegExpCompileEvent(Handle<JSRegExp> regexp);
 
-  static void RegExpExecEvent(Handle<JSValue> regexp,
+  static void RegExpExecEvent(Handle<JSRegExp> regexp,
                               int start_index,
                               Handle<String> input_string);
 
@@ -197,7 +197,7 @@ class Logger {
  private:
 
   // Emits the source code of a regexp. Used by regexp events.
-  static void LogRegExpSource(Handle<JSValue> regexp);
+  static void LogRegExpSource(Handle<JSRegExp> regexp);
 
   // Emits a profiler tick event. Used by the profiler thread.
   static void TickEvent(TickSample* sample, bool overflow);

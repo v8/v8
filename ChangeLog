@@ -1,3 +1,27 @@
+2008-09-25: Version 0.3.3
+
+        Improved handling of relocation information to enable more
+        peep-hole optimizations.
+
+        Optimized switch statements where all labels are constant small
+        integers.
+
+        Optimized String.prototype.indexOf for common cases.
+
+        Fixed more build issues (issue 80).
+
+        Fixed a couple of profiler issues.
+
+        Fixed bug where the body of a function created using the Function
+        constructor was not allowed to end with a single-line comment
+        (issue 85).
+
+        Improved handling of object literals by canonicalizing object
+        literal maps.  This will allow JSON objects with the same set of
+        properties to share the same map making inline caching work better
+        for JSON objects.
+        
+
 2008-09-17: Version 0.3.2
 
         Generalized the EvalCache into a CompilationCache and enabled it

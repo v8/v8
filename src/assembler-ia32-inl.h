@@ -48,50 +48,54 @@ Condition NegateCondition(Condition cc) {
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(int delta) {
-  if (rmode_ == runtime_entry || is_code_target(rmode_)) {
+  if (rmode_ == RUNTIME_ENTRY || IsCodeTarget(rmode_)) {
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
     *p -= delta;  // relocate entry
-  } else if (rmode_ == js_return && is_call_instruction()) {
+  } else if (rmode_ == JS_RETURN && is_call_instruction()) {
     // Special handling of js_return when a break point is set (call
     // instruction has been inserted).
     int32_t* p = reinterpret_cast<int32_t*>(pc_ + 1);
     *p -= delta;  // relocate entry
+  } else if (IsInternalReference(rmode_)) {
+    // absolute code pointer inside code object moves with the code object.
+    int32_t* p = reinterpret_cast<int32_t*>(pc_);
+    *p += delta;  // relocate entry
   }
 }
 
 
 Address RelocInfo::target_address() {
-  ASSERT(is_code_target(rmode_) || rmode_ == runtime_entry);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   return Assembler::target_address_at(pc_);
 }
 
 
 void RelocInfo::set_target_address(Address target) {
-  ASSERT(is_code_target(rmode_) || rmode_ == runtime_entry);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   Assembler::set_target_address_at(pc_, target);
 }
 
 
 Object* RelocInfo::target_object() {
-  ASSERT(is_code_target(rmode_) || rmode_ == embedded_object);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return *reinterpret_cast<Object**>(pc_);
 }
 
 
 Object** RelocInfo::target_object_address() {
-  ASSERT(is_code_target(rmode_) || rmode_ == embedded_object);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object**>(pc_);
 }
 
 
 void RelocInfo::set_target_object(Object* target) {
-  ASSERT(is_code_target(rmode_) || rmode_ == embedded_object);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   *reinterpret_cast<Object**>(pc_) = target;
 }
 
 
 Address* RelocInfo::target_reference_address() {
-  ASSERT(rmode_ == external_reference);
+  ASSERT(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   return reinterpret_cast<Address*>(pc_);
 }
 
@@ -133,18 +137,18 @@ bool RelocInfo::is_call_instruction() {
 
 Immediate::Immediate(int x)  {
   x_ = x;
-  rmode_ = no_reloc;
+  rmode_ = RelocInfo::NONE;
 }
 
 
 Immediate::Immediate(const ExternalReference& ext) {
   x_ = reinterpret_cast<int32_t>(ext.address());
-  rmode_ = external_reference;
+  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 Immediate::Immediate(const char* s) {
   x_ = reinterpret_cast<int32_t>(s);
-  rmode_ = embedded_string;
+  rmode_ = RelocInfo::EMBEDDED_STRING;
 }
 
 
@@ -154,18 +158,18 @@ Immediate::Immediate(Handle<Object> handle) {
   ASSERT(!Heap::InNewSpace(obj));
   if (obj->IsHeapObject()) {
     x_ = reinterpret_cast<intptr_t>(handle.location());
-    rmode_ = embedded_object;
+    rmode_ = RelocInfo::EMBEDDED_OBJECT;
   } else {
     // no relocation needed
     x_ =  reinterpret_cast<intptr_t>(obj);
-    rmode_ = no_reloc;
+    rmode_ = RelocInfo::NONE;
   }
 }
 
 
 Immediate::Immediate(Smi* value) {
   x_ = reinterpret_cast<intptr_t>(value);
-  rmode_ = no_reloc;
+  rmode_ = RelocInfo::NONE;
 }
 
 
@@ -180,7 +184,8 @@ void Assembler::emit(Handle<Object> handle) {
   Object* obj = *handle;
   ASSERT(!Heap::InNewSpace(obj));
   if (obj->IsHeapObject()) {
-    emit(reinterpret_cast<intptr_t>(handle.location()), embedded_object);
+    emit(reinterpret_cast<intptr_t>(handle.location()),
+         RelocInfo::EMBEDDED_OBJECT);
   } else {
     // no relocation needed
     emit(reinterpret_cast<intptr_t>(obj));
@@ -188,14 +193,14 @@ void Assembler::emit(Handle<Object> handle) {
 }
 
 
-void Assembler::emit(uint32_t x, RelocMode rmode) {
-  if (rmode != no_reloc) RecordRelocInfo(rmode);
+void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
+  if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
   emit(x);
 }
 
 
 void Assembler::emit(const Immediate& x) {
-  if (x.rmode_ != no_reloc) RecordRelocInfo(x.rmode_);
+  if (x.rmode_ != RelocInfo::NONE) RecordRelocInfo(x.rmode_);
   emit(x.x_);
 }
 
@@ -237,7 +242,7 @@ void Operand::set_modrm(int mod,  // reg == 0
 }
 
 
-void Operand::set_dispr(int32_t disp, RelocMode rmode) {
+void Operand::set_dispr(int32_t disp, RelocInfo::Mode rmode) {
   ASSERT(len_ == 1 || len_ == 2);
   *reinterpret_cast<int32_t*>(&buf_[len_]) = disp;
   len_ += sizeof(int32_t);
@@ -250,7 +255,7 @@ Operand::Operand(Register reg) {
 }
 
 
-Operand::Operand(int32_t disp, RelocMode rmode) {
+Operand::Operand(int32_t disp, RelocInfo::Mode rmode) {
   // [disp/r]
   set_modrm(0, ebp);
   set_dispr(disp, rmode);

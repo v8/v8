@@ -52,6 +52,7 @@ POSSIBILITY OF SUCH DAMAGE.
 typedef uint16_t UChar;
 
 struct JSRegExp;
+typedef struct JSRegExp JscreRegExp;
 
 enum JSRegExpIgnoreCaseOption { JSRegExpDoNotIgnoreCase, JSRegExpIgnoreCase };
 enum JSRegExpMultilineOption { JSRegExpSingleLine, JSRegExpMultiline };

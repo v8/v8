@@ -44,21 +44,21 @@ class RegExpImpl {
   // This function calls the garbage collector if necessary.
   static Handle<String> ToString(Handle<Object> value);
 
-  static Handle<Object> JsreCompile(Handle<JSValue> re,
+  static Handle<Object> JsreCompile(Handle<JSRegExp> re,
                                     Handle<String> pattern,
                                     Handle<String> flags);
 
   // Implements RegExp.prototype.exec(string) function.
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
-  static Handle<Object> JsreExec(Handle<JSValue> regexp,
+  static Handle<Object> JsreExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject,
                                  Handle<Object> index);
 
   // Call RegExp.prototyp.exec(string) in a loop.
   // Used by String.prototype.match and String.prototype.replace.
   // This function calls the garbage collector if necessary.
-  static Handle<Object> JsreExecGlobal(Handle<JSValue> regexp,
+  static Handle<Object> JsreExecGlobal(Handle<JSRegExp> regexp,
                                        Handle<String> subject);
 
   static void NewSpaceCollectionPrologue();
@@ -75,11 +75,11 @@ class RegExpImpl {
   static String* two_byte_cached_string_;
 
   // Returns the caputure from the re.
-  static int JsreCapture(Handle<JSValue> re);
-  static ByteArray* JsreInternal(Handle<JSValue> re);
+  static int JsreCapture(Handle<JSRegExp> re);
+  static ByteArray* JsreInternal(Handle<JSRegExp> re);
 
   // Call jsRegExpExecute once
-  static Handle<Object> JsreExecOnce(Handle<JSValue> regexp,
+  static Handle<Object> JsreExecOnce(Handle<JSRegExp> regexp,
                                      int num_captures,
                                      Handle<String> subject,
                                      int previous_index,

@@ -50,42 +50,48 @@ Condition NegateCondition(Condition cc) {
 
 
 void RelocInfo::apply(int delta) {
-  // We do not use pc relative addressing on ARM, so there is nothing to do.
+  if (RelocInfo::IsInternalReference(rmode_)) {
+    // absolute code pointer inside code object moves with the code object.
+    int32_t* p = reinterpret_cast<int32_t*>(pc_);
+    *p += delta;  // relocate entry
+  }
+  // We do not use pc relative addressing on ARM, so there is
+  // nothing else to do.
 }
 
 
 Address RelocInfo::target_address() {
-  ASSERT(is_code_target(rmode_));
+  ASSERT(IsCodeTarget(rmode_));
   return Assembler::target_address_at(pc_);
 }
 
 
 void RelocInfo::set_target_address(Address target) {
-  ASSERT(is_code_target(rmode_));
+  ASSERT(IsCodeTarget(rmode_));
   Assembler::set_target_address_at(pc_, target);
 }
 
 
 Object* RelocInfo::target_object() {
-  ASSERT(is_code_target(rmode_) || rmode_ == embedded_object);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object*>(Assembler::target_address_at(pc_));
 }
 
 
 Object** RelocInfo::target_object_address() {
-  ASSERT(is_code_target(rmode_) || rmode_ == embedded_object);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   return reinterpret_cast<Object**>(Assembler::target_address_address_at(pc_));
 }
 
 
 void RelocInfo::set_target_object(Object* target) {
-  ASSERT(is_code_target(rmode_) || rmode_ == embedded_object);
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == EMBEDDED_OBJECT);
   Assembler::set_target_address_at(pc_, reinterpret_cast<Address>(target));
 }
 
 
 Address* RelocInfo::target_reference_address() {
-  ASSERT(rmode_ == external_reference);
+  ASSERT(rmode_ == EXTERNAL_REFERENCE);
   return reinterpret_cast<Address*>(pc_);
 }
 
@@ -129,7 +135,7 @@ bool RelocInfo::is_call_instruction() {
 }
 
 
-Operand::Operand(int32_t immediate, RelocMode rmode)  {
+Operand::Operand(int32_t immediate, RelocInfo::Mode rmode)  {
   rm_ = no_reg;
   imm32_ = immediate;
   rmode_ = rmode;
@@ -139,35 +145,35 @@ Operand::Operand(int32_t immediate, RelocMode rmode)  {
 Operand::Operand(const char* s) {
   rm_ = no_reg;
   imm32_ = reinterpret_cast<int32_t>(s);
-  rmode_ = embedded_string;
+  rmode_ = RelocInfo::EMBEDDED_STRING;
 }
 
 
 Operand::Operand(const ExternalReference& f)  {
   rm_ = no_reg;
   imm32_ = reinterpret_cast<int32_t>(f.address());
-  rmode_ = external_reference;
+  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
 
 Operand::Operand(Object** opp) {
   rm_ = no_reg;
   imm32_ = reinterpret_cast<int32_t>(opp);
-  rmode_ = no_reloc;
+  rmode_ = RelocInfo::NONE;
 }
 
 
 Operand::Operand(Context** cpp) {
   rm_ = no_reg;
   imm32_ = reinterpret_cast<int32_t>(cpp);
-  rmode_ = no_reloc;
+  rmode_ = RelocInfo::NONE;
 }
 
 
 Operand::Operand(Smi* value) {
   rm_ = no_reg;
   imm32_ =  reinterpret_cast<intptr_t>(value);
-  rmode_ = no_reloc;
+  rmode_ = RelocInfo::NONE;
 }
 
 

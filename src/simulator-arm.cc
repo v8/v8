@@ -44,6 +44,15 @@ using ::v8::internal::OS;
 using ::v8::internal::ReadLine;
 using ::v8::internal::DeleteArray;
 
+// This macro provides a platform independent use of sscanf. The reason for
+// SScanF not beeing implemented in a platform independent was through
+// ::v8::internal::OS in the same way as SNPrintF is that the Windows C Run-Time
+// Library does not provide vsscanf.
+#ifdef WIN32
+#define SScanF sscanf_s
+#else
+#define SScanF sscanf  // NOLINT
+#endif
 
 // The Debugger class is used by the simulator while debugging simulated ARM
 // code.
@@ -130,7 +139,7 @@ bool Debugger::GetValue(char* desc, int32_t* value) {
     }
     return true;
   } else {
-    return sscanf(desc, "%i", value) == 1;  // NOLINT
+    return SScanF(desc, "%i", value) == 1;
   }
   return false;
 }
@@ -215,7 +224,7 @@ void Debugger::Debug() {
     } else {
       // Use sscanf to parse the individual parts of the command line. At the
       // moment no command expects more than two parameters.
-      int args = sscanf(line,  // NOLINT
+      int args = SScanF(line,
                         "%" XSTR(COMMAND_SIZE) "s "
                         "%" XSTR(ARG_SIZE) "s "
                         "%" XSTR(ARG_SIZE) "s",
