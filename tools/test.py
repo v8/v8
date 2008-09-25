@@ -30,7 +30,7 @@
 import imp
 import optparse
 import os
-from os.path import join, dirname, abspath, basename
+from os.path import join, dirname, abspath, basename, isdir
 import platform
 import re
 import signal
@@ -58,6 +58,17 @@ class ProgressIndicator(object):
     self.remaining = len(self.cases)
     self.total = len(self.cases)
     self.failed_tests = [ ]
+
+  def PrintFailureHeader(self, test):
+    if test.IsNegative():
+      negative_marker = '[negative] '
+    else:
+      negative_marker = ''
+    print "=== %(label)s %(negative)s===" % {
+      'label': test.GetLabel(),
+      'negative': negative_marker
+    }
+    print "Path: %s" % "/".join(test.path)
 
   def Run(self):
     self.Starting()
@@ -96,7 +107,7 @@ class SimpleProgressIndicator(ProgressIndicator):
   def Done(self):
     print
     for failed in self.failed_tests:
-      print "=== %s (%s) ===" % (failed.test.GetLabel(), "/".join(failed.test.path))
+      self.PrintFailureHeader(failed.test)
       if failed.output.stderr:
         print "--- stderr ---"
         print failed.output.stderr.strip()
@@ -164,7 +175,8 @@ class CompactProgressIndicator(ProgressIndicator):
 
   def HasRun(self, output):
     if output.UnexpectedOutput():
-      print "=== %s (%s) ===" % (output.test.GetLabel(), "/".join(output.test.path))
+      self.ClearLine(self.last_status_length)
+      self.PrintFailureHeader(output.test)
       print "Command: %s" % EscapeCommand(output.command)
       stdout = output.output.stdout.strip()
       if len(stdout):
@@ -828,6 +840,7 @@ class Configuration(object):
     all_rules = reduce(list.__add__, [s.rules for s in sections], [])
     unused_rules = set(all_rules)
     result = [ ]
+    all_outcomes = set([])
     for case in cases:
       matches = [ r for r in all_rules if r.Contains(case.path) ]
       outcomes = set([])
@@ -837,8 +850,9 @@ class Configuration(object):
       if not outcomes:
         outcomes = [PASS]
       case.outcomes = outcomes
+      all_outcomes = all_outcomes.union(outcomes)
       result.append(ClassifiedTest(case, outcomes))
-    return (result, list(unused_rules))
+    return (result, list(unused_rules), all_outcomes)
 
 
 class Section(object):
@@ -955,6 +969,8 @@ def BuildOptions():
   result.add_option("--special-command", default=None)
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
+  result.add_option("--warn-unused", help="Report unused rules",
+      default=False, action="store_true")
   return result
 
 
@@ -1047,6 +1063,10 @@ def GetSpecialCommandProcessor(value):
 BUILT_IN_TESTS = ['mjsunit', 'cctest']
 
 
+def GetSuites(test_root):
+  return [ f for f in os.listdir(test_root) if isdir(join(test_root, f)) ]
+
+
 def Main():
   parser = BuildOptions()
   (options, args) = parser.parse_args()
@@ -1055,7 +1075,8 @@ def Main():
     return 1
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
-  repositories = [TestRepository(join(workspace, 'test', name)) for name in BUILT_IN_TESTS]
+  suites = GetSuites(join(workspace, 'test'))
+  repositories = [TestRepository(join(workspace, 'test', name)) for name in suites]
   repositories += [TestRepository(a) for a in options.suite]
 
   root = LiteralTestSuite(repositories)
@@ -1092,6 +1113,7 @@ def Main():
   all_cases = [ ]
   all_unused = [ ]
   unclassified_tests = [ ]
+  globally_unused_rules = None
   for path in paths:
     for mode in options.mode:
       env = {
@@ -1101,7 +1123,11 @@ def Main():
       }
       test_list = root.ListTests([], path, context, mode)
       unclassified_tests += test_list
-      (cases, unused_rules) = config.ClassifyTests(test_list, env)
+      (cases, unused_rules, all_outcomes) = config.ClassifyTests(test_list, env)
+      if globally_unused_rules is None:
+        globally_unused_rules = set(unused_rules)
+      else:
+        globally_unused_rules = globally_unused_rules.intersection(unused_rules)
       all_cases += cases
       all_unused.append(unused_rules)
 
@@ -1118,8 +1144,9 @@ def Main():
       print "--- end source: %s ---" % test.GetLabel()
     return 0
 
-#  for rule in unused_rules:
-#    print "Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path])
+  if options.warn_unused:
+    for rule in globally_unused_rules:
+      print "Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path])
 
   if options.report:
     PrintReport(all_cases)
