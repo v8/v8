@@ -4647,7 +4647,7 @@ var const_earley;
         return ((k = ((args === null)?(7):(args.car))), (BgL_runzd2benchmarkzd2("earley", (1), function() {
             return (test(k));
         }, function(result) {
-            return ((sc_display(result)), (sc_newline()), true);
+            return ((sc_display(result)), (sc_newline()), result == 132);
         })));
     };
 }
@@ -4675,6 +4675,9 @@ SC_ERROR_OUT = SC_DEFAULT_OUT;
 function RunBenchmark(name, count, run, warn) {
   for (var n = 0; n < count; ++n) {
     result = run();
+    if (!warn(result)) {
+      throw new Error("Earley or Boyer did incorrect number of rewrites");
+    }
   }
 }
 
