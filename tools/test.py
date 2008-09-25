@@ -30,7 +30,7 @@
 import imp
 import optparse
 import os
-from os.path import join, dirname, abspath, basename, isdir
+from os.path import join, dirname, abspath, basename, isdir, exists
 import platform
 import re
 import signal
@@ -1064,7 +1064,9 @@ BUILT_IN_TESTS = ['mjsunit', 'cctest']
 
 
 def GetSuites(test_root):
-  return [ f for f in os.listdir(test_root) if isdir(join(test_root, f)) ]
+  def IsSuite(path):
+    return isdir(path) and exists(join(path, 'testcfg.py'))
+  return [ f for f in os.listdir(test_root) if IsSuite(join(test_root, f)) ]
 
 
 def Main():
