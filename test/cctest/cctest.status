@@ -27,6 +27,9 @@
 
 prefix cctest
 
+# TODO(96) fix this flaky test
+test-debug/ThreadedDebugging: PASS || FAIL
+
 [ $arch == arm ]
 
 test-debug: SKIP
