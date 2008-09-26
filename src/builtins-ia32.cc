@@ -517,21 +517,23 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 
   // Eagerly check for stack-overflow before pushing all the arguments
   // to the stack.
-  Label okay;
-  __ lea(ecx, Operand(esp, -3 * kPointerSize));  // receiver, limit, index
-  __ mov(edx, Operand(eax));
-  __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
-  __ sub(ecx, Operand(edx));
-  ExternalReference stack_guard_limit_address =
-      ExternalReference::address_of_stack_guard_limit();
-  __ cmp(ecx, Operand::StaticVariable(stack_guard_limit_address));
-  __ j(greater, &okay, taken);
+  if (FLAG_check_stack) {
+    Label okay;
+    __ lea(ecx, Operand(esp, -3 * kPointerSize));  // receiver, limit, index
+    __ mov(edx, Operand(eax));
+    __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
+    __ sub(ecx, Operand(edx));
+    ExternalReference stack_guard_limit_address =
+        ExternalReference::address_of_stack_guard_limit();
+    __ cmp(ecx, Operand::StaticVariable(stack_guard_limit_address));
+    __ j(greater, &okay, taken);
 
-  // Too bad: Out of stack space.
-  __ push(Operand(ebp, 4 * kPointerSize));  // push this
-  __ push(eax);
-  __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
-  __ bind(&okay);
+    // Too bad: Out of stack space.
+    __ push(Operand(ebp, 4 * kPointerSize));  // push this
+    __ push(eax);
+    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
+    __ bind(&okay);
+  }
 
   // Push current index and limit.
   const int kLimitOffset =
