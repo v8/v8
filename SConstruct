@@ -53,7 +53,7 @@ LIBRARY_FLAGS = {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG']
     },
     'mode:release': {
-      'CCFLAGS':      ['-O2']
+      'CCFLAGS':      ['-O9', '-mtune=nocona', '-march=pentium']
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -188,7 +188,7 @@ SAMPLE_FLAGS = {
       'LINKFLAGS':    ['-m32']
     },
     'mode:release': {
-      'CCFLAGS':      ['-O2']
+      'CCFLAGS':      ['-O2', '-mtune=nocona', '-march=pentium']
     },
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0']

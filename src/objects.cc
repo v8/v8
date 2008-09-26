@@ -1691,7 +1691,7 @@ PropertyAttributes JSObject::GetPropertyAttributeWithInterceptor(
 PropertyAttributes JSObject::GetPropertyAttributeWithReceiver(
       JSObject* receiver,
       String* key) {
-  uint32_t index;
+  uint32_t index = 0;
   if (key->AsArrayIndex(&index)) {
     if (HasElementWithReceiver(receiver, index)) return NONE;
     return ABSENT;
@@ -1738,7 +1738,7 @@ PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
 
 PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
   // Check whether the name is an array index.
-  uint32_t index;
+  uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     if (HasLocalElement(index)) return NONE;
     return ABSENT;
@@ -2010,7 +2010,7 @@ Object* JSObject::DeleteProperty(String* name) {
   // ECMA-262, 3rd, 8.6.2.5
   ASSERT(name->IsString());
 
-  uint32_t index;
+  uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     return DeleteElement(index);
   } else {
