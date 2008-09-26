@@ -515,17 +515,40 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ push(Operand(ebp, 2 * kPointerSize));  // push arguments
   __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
 
-  // Eagerly check for stack-overflow before pushing all the arguments
-  // to the stack.
   if (FLAG_check_stack) {
+    // We need to catch preemptions right here, otherwise an unlucky preemption
+    // could show up as a failed apply.
+    ExternalReference stack_guard_limit =
+        ExternalReference::address_of_stack_guard_limit();
+    Label retry_preemption;
+    Label no_preemption;
+    __ bind(&retry_preemption);
+    __ mov(edi, Operand::StaticVariable(stack_guard_limit));
+    __ cmp(esp, Operand(edi));
+    __ j(above, &no_preemption, taken);
+
+    // Preemption!
+    // Because builtins always remove the receiver from the stack, we
+    // have to fake one to avoid underflowing the stack.
+    __ push(eax);
+    __ push(Immediate(Smi::FromInt(0)));
+
+    // Do call to runtime routine.
+    __ CallRuntime(Runtime::kStackGuard, 1);
+    __ pop(eax);
+    __ jmp(&retry_preemption);
+
+    __ bind(&no_preemption);
+
     Label okay;
-    __ lea(ecx, Operand(esp, -3 * kPointerSize));  // receiver, limit, index
+    // Make ecx the space we have left.
+    __ mov(ecx, Operand(esp));
+    __ sub(ecx, Operand(edi));
+    // Make edx the space we need for the array when it is unrolled onto the
+    // stack.
     __ mov(edx, Operand(eax));
     __ shl(edx, kPointerSizeLog2 - kSmiTagSize);
-    __ sub(ecx, Operand(edx));
-    ExternalReference stack_guard_limit_address =
-        ExternalReference::address_of_stack_guard_limit();
-    __ cmp(ecx, Operand::StaticVariable(stack_guard_limit_address));
+    __ cmp(ecx, Operand(edx));
     __ j(greater, &okay, taken);
 
     // Too bad: Out of stack space.
