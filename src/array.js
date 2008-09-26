@@ -672,6 +672,8 @@ function ArraySort(comparefn) {
     if (from >= to - 1) return;
     var pivot_index = $floor($random() * (to - from)) + from;
     var pivot = a[pivot_index];
+    // Issue 95: Keep the pivot element out of the comparisons to avoid
+    // infinite recursion if comparefn(pivot, pivot) != 0.
     a[pivot_index] = a[to - 1];
     a[to - 1] = pivot;
     var low_end = from;   // Upper bound of the elements lower than pivot.
@@ -692,6 +694,7 @@ function ArraySort(comparefn) {
         i++;
       }
     }
+    // Restore the pivot element to its rightful place.
     a[to - 1] = a[high_start];
     a[high_start] = pivot;
     high_start++;
