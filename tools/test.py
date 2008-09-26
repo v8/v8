@@ -264,9 +264,15 @@ class TestCase(object):
   def __init__(self, context, path):
     self.path = path
     self.context = context
+    self.failed = None
 
   def IsNegative(self):
     return False
+
+  def DidFail(self, output):
+    if self.failed is None:
+      self.failed = self.IsFailureOutput(output)
+    return self.failed
 
   def IsFailureOutput(self, output):
     return output.exit_code != 0
@@ -296,7 +302,7 @@ class TestOutput(object):
     return not outcome in self.test.outcomes
 
   def HasFailed(self):
-    execution_failed = self.test.IsFailureOutput(self.output)
+    execution_failed = self.test.DidFail(self.output)
     if self.test.IsNegative():
       return not execution_failed
     else:
@@ -1060,7 +1066,7 @@ def GetSpecialCommandProcessor(value):
     return ExpandCommand
 
 
-BUILT_IN_TESTS = ['mjsunit', 'cctest']
+BUILT_IN_TESTS = ['mjsunit', 'cctest', 'message']
 
 
 def GetSuites(test_root):
