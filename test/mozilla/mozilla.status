@@ -45,6 +45,7 @@
 prefix mozilla
 def FAIL_OK = FAIL, OKAY
 
+js1_5/Array/regress-360681-01: FAIL
 
 ##################### SKIPPED TESTS #####################
 
