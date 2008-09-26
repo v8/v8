@@ -672,8 +672,10 @@ function ArraySort(comparefn) {
     if (from >= to - 1) return;
     var pivot_index = $floor($random() * (to - from)) + from;
     var pivot = a[pivot_index];
+    a[pivot_index] = a[to - 1];
+    a[to - 1] = pivot;
     var low_end = from;   // Upper bound of the elements lower than pivot.
-    var high_start = to; // Lower bound of the elements greater than pivot.
+    var high_start = to - 1; // Lower bound of the elements greater than pivot.
     for (var i = from; i < high_start; ) {
       var element = a[i];
       var order = Compare(element, pivot);
@@ -690,6 +692,9 @@ function ArraySort(comparefn) {
         i++;
       }
     }
+    a[to - 1] = a[high_start];
+    a[high_start] = pivot;
+    high_start++;
     QuickSort(a, from, low_end);
     QuickSort(a, high_start, to);
   }
