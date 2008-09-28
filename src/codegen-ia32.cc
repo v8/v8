@@ -1127,7 +1127,7 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ sahf();
   __ pop(eax);
   __ j(zero, &false_result);
-  __ jmp(&true_result);
+  // Fall through to |true_result|.
 
   // Return 1/0 for true/false in eax.
   __ bind(&true_result);
@@ -1492,7 +1492,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       __ bind(&slow);
       __ mov(eax, Operand(esp, 1 * kPointerSize));
       __ mov(edx, Operand(esp, 2 * kPointerSize));
-      __ jmp(&call_runtime);
+      // Fall through to |call_runtime|.
       break;
     }
     case Token::BIT_OR:
