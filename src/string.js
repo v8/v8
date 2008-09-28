@@ -331,18 +331,19 @@ function ApplyReplacementFunction(replace, captures, subject) {
 
 // ECMA-262 section 15.5.4.7
 %AddProperty($String.prototype, "indexOf", function(searchString /* position */) {  // length == 1
-  var str = ToString(this);
-  var str_len = str.length;
-  var searchStr = ToString(searchString);
+  var subject_str = ToString(this);
+  var pattern_str = ToString(searchString);
+  var subject_str_len = subject_str.length;
+  var pattern_str_len = pattern_str.length;
   var index = 0;
   if (%_ArgumentsLength() > 1) {
     var arg1 = %_Arguments(1);  // position
     index = TO_INTEGER(arg1);
   }
   if (index < 0) index = 0;
-  if (index > str_len) index = str_len;
-  if (searchStr.length + index > str_len) return -1;
-  return %StringIndexOf(str, searchStr, index);
+  if (index > subject_str_len) index = subject_str_len;
+  if (pattern_str_len + index > subject_str_len) return -1;
+  return %StringIndexOf(subject_str, pattern_str, index);
 }, DONT_ENUM);
 
 
