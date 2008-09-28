@@ -2484,29 +2484,6 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 #define __  masm_->
 
 
-class ComparisonDeferred: public DeferredCode {
- public:
-  ComparisonDeferred(CodeGenerator* generator, Condition cc, bool strict) :
-      DeferredCode(generator), cc_(cc), strict_(strict) {
-    set_comment("[ ComparisonDeferred");
-  }
-  virtual void Generate();
-
- private:
-  Condition cc_;
-  bool strict_;
-};
-
-
-void ComparisonDeferred::Generate() {
-  CompareStub stub(cc_, strict_);
-  // "parameters" setup by calling code in edx and eax
-  __ CallStub(&stub);
-  __ cmp(eax, 0);
-  // "result" is returned in the flags
-}
-
-
 void Ia32CodeGenerator::Comparison(Condition cc, bool strict) {
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == equal);
@@ -2520,14 +2497,27 @@ void Ia32CodeGenerator::Comparison(Condition cc, bool strict) {
     __ pop(eax);
     __ pop(edx);
   }
-  ComparisonDeferred* deferred = new ComparisonDeferred(this, cc, strict);
+
+  Label is_smi, done;
+  CompareStub stub(cc, strict);
+
   __ mov(ecx, Operand(eax));
   __ or_(ecx, Operand(edx));
   __ test(ecx, Immediate(kSmiTagMask));
-  __ j(not_zero, deferred->enter(), not_taken);
+  __ j(zero, &is_smi, taken);
+
+  // When non-smi, call out to the compare stub.  "parameters" setup by
+  // calling code in edx and eax and "result" is returned in the flags.
+  __ CallStub(&stub);
+  __ cmp(eax, 0);
+  __ jmp(&done);
+
   // Test smi equality by pointer comparison.
+  __ bind(&is_smi);
   __ cmp(edx, Operand(eax));
-  __ bind(deferred->exit());
+  // Fall through to |done|.
+
+  __ bind(&done);
   cc_reg_ = cc;
 }
 
