@@ -727,14 +727,6 @@ class Assembler : public Malloced {
   // push-pop elimination
   byte* last_pc_;
 
-  // Jump-to-jump elimination:
-  // The last label to be bound to _binding_pos, if unbound.
-  Label unbound_label_;
-  // The position to which _unbound_label has to be bound, if present.
-  int binding_pos_;
-  // The position before which jumps cannot be eliminated.
-  int last_bound_pos_;
-
   // source position information
   int last_position_;
   int last_statement_position_;

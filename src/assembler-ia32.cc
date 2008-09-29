@@ -316,7 +316,6 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
 
   last_pc_ = NULL;
-  last_bound_pos_ = 0;
   last_position_ = RelocInfo::kNoPosition;
   last_statement_position_ = RelocInfo::kNoPosition;
 }
@@ -335,9 +334,6 @@ Assembler::~Assembler() {
 
 void Assembler::GetCode(CodeDesc* desc) {
   // finalize code
-  if (unbound_label_.is_linked())
-    bind_to(&unbound_label_, binding_pos_);
-
   // (at this point overflow() may be true, but the gap ensures that
   // we are still not overlapping instructions and relocation info)
   ASSERT(pc_ <= reloc_info_writer.pos());  // no overlap
@@ -1229,10 +1225,6 @@ void Assembler::bind_to(Label* L, int pos) {
     disp.next(L);
   }
   L->bind_to(pos);
-
-  // do not eliminate jump instructions before the last bound position
-  if (pos > last_bound_pos_)
-    last_bound_pos_ = pos;
 }
 
 
@@ -1266,49 +1258,6 @@ void Assembler::bind(Label* L) {
   EnsureSpace ensure_space(this);
   last_pc_ = NULL;
   ASSERT(!L->is_bound());  // label can only be bound once
-  if (FLAG_eliminate_jumps) {
-    // Resolve unbound label.
-    if (unbound_label_.is_linked()) {
-      // Unbound label exists => link it with L if same binding
-      // position, otherwise fix it.
-      if (binding_pos_ == pc_offset()) {
-        // Link it to L's list.
-        link_to(L, &unbound_label_);
-      } else {
-        // Otherwise bind unbound label.
-        ASSERT(binding_pos_ < pc_offset());
-        bind_to(&unbound_label_, binding_pos_);
-      }
-    }
-    ASSERT(!unbound_label_.is_linked());
-    // try to eliminate jumps to next instruction
-    const int absolute_jump_size = 5;
-    // Do not remove an already bound jump target.
-    while (last_bound_pos_ < pc_offset() &&
-           reloc_info_writer.last_pc() <= pc_ - absolute_jump_size &&
-           L->is_linked() &&
-           (L->pos() + static_cast<int>(sizeof(int32_t)) == pc_offset()) &&
-           (disp_at(L).type() == Displacement::UNCONDITIONAL_JUMP)) {
-      // Previous instruction is jump jumping immediately after it =>
-      // eliminate it.
-      // jmp expected.
-      ASSERT(byte_at(pc_offset() - absolute_jump_size) == 0xE9);
-      if (FLAG_print_jump_elimination) {
-        PrintF("@ %d jump to next eliminated\n", L->pos());
-      }
-      // Remove first entry from label list.
-      Displacement disp = disp_at(L);
-      disp.next(L);
-      // Eliminate instruction (set code pointers back).
-      pc_ -= absolute_jump_size;
-      // Make sure not to skip relocation information when rewinding.
-      ASSERT(reloc_info_writer.last_pc() <= pc_);
-    }
-    // Delay fixup of L => store it as unbound label.
-    unbound_label_ = *L;
-    binding_pos_ = pc_offset();
-    L->Unuse();
-  }
   bind_to(L, pc_offset());
 }
 
@@ -1376,16 +1325,6 @@ void Assembler::jmp(Label* L) {
       emit(offs - long_size);
     }
   } else {
-    if (FLAG_eliminate_jumps &&
-        unbound_label_.is_linked() &&
-        binding_pos_ == pc_offset()) {
-      // Current position is target of jumps
-      if (FLAG_print_jump_elimination) {
-        PrintF("eliminated jumps/calls to %d from ", binding_pos_);
-        print(&unbound_label_);
-      }
-      link_to(L, &unbound_label_);
-    }
     // 1110 1001 #32-bit disp
     EMIT(0xE9);
     emit_disp(L, Displacement::UNCONDITIONAL_JUMP);
