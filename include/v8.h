@@ -783,6 +783,7 @@ class EXPORT String : public Primitive {
    protected:
     ExternalStringResource() {}
    private:
+    // Disallow copying and assigning.
     ExternalStringResource(const ExternalStringResource&);
     void operator=(const ExternalStringResource&);
   };
@@ -812,6 +813,7 @@ class EXPORT String : public Primitive {
    protected:
     ExternalAsciiStringResource() {}
    private:
+    // Disallow copying and assigning.
     ExternalAsciiStringResource(const ExternalAsciiStringResource&);
     void operator=(const ExternalAsciiStringResource&);
   };
@@ -886,6 +888,10 @@ class EXPORT String : public Primitive {
    private:
     char* str_;
     int length_;
+
+    // Disallow copying and assigning.
+    Utf8Value(const Utf8Value&);
+    void operator=(const Utf8Value&);
   };
 
   /**
@@ -901,6 +907,10 @@ class EXPORT String : public Primitive {
    private:
     char* str_;
     int length_;
+
+    // Disallow copying and assigning.
+    AsciiValue(const AsciiValue&);
+    void operator=(const AsciiValue&);
   };
 
   /**
@@ -915,6 +925,10 @@ class EXPORT String : public Primitive {
    private:
     uint16_t* str_;
     int length_;
+
+    // Disallow copying and assigning.
+    Value(const Value&);
+    void operator=(const Value&);
   };
 };
 
@@ -1679,6 +1693,10 @@ class EXPORT Extension {  // NOLINT
   int dep_count_;
   const char** deps_;
   bool auto_enable_;
+
+  // Disallow copying and assigning.
+  Extension(const Extension&);
+  void operator=(const Extension&);
 };
 
 
@@ -2199,6 +2217,10 @@ class EXPORT Locker {
  private:
   bool has_lock_;
   bool top_level_;
+
+  // Disallow copying and assigning.
+  Locker(const Locker&);
+  void operator=(const Locker&);
 };
 
 
