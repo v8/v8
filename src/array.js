@@ -648,6 +648,7 @@ function ArraySplice(start, delete_count) {
 
 function ArraySort(comparefn) {
   // In-place QuickSort algorithm.
+  // For short (length <= 22) arrays, insertion sort is used for efficiency.
 
   function Compare(x,y) {
     if (IS_UNDEFINED(x)) {
@@ -668,8 +669,43 @@ function ArraySort(comparefn) {
     else return x < y ? -1 : 1;
   };
 
+  function InsertionSort(a, from, to) {
+    for (var i = from + 1; i < to; i++) {
+      var element = a[i];
+      // place element in a[from..i[
+      // binary search
+      var min = from;
+      var max = i;
+      // The search interval is a[min..max[
+      while (min < max) {
+        var mid = min + ((max - min) >> 1);
+        var order = Compare(a[mid], element);
+        if (order == 0) {
+          min = max = mid;
+          break;
+        }
+        if (order < 0) {
+          min = mid + 1;
+        } else {
+          max = mid;
+        }
+      }
+      // place element at position min==max.
+      for (var j = min; j < i; j++) {
+        var tmp = a[j];
+        a[j] = element;
+        element = tmp;
+      }
+      a[i] = element;
+    }
+  }
+  
   function QuickSort(a, from, to) {
-    if (from >= to - 1) return;
+    // Insertion sort is faster for short arrays.
+    if (to - from <= 22) { 
+      InsertionSort(a, from, to);
+      return;
+    }
     var pivot_index = $floor($random() * (to - from)) + from;
     var pivot = a[pivot_index];
     // Issue 95: Keep the pivot element out of the comparisons to avoid
