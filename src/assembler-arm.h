@@ -742,12 +742,7 @@ class Assembler : public Malloced {
   RelocInfo prinfo_[kMaxNumPRInfo];  // the buffer of pending relocation info
   int num_prinfo_;  // number of pending reloc info entries in the buffer
 
-  // Jump-to-jump elimination:
-  // The last label to be bound to _binding_pos, if unbound.
-  Label unbound_label_;
-  // The position to which _unbound_label has to be bound, if present.
-  int binding_pos_;
-  // The position before which jumps cannot be eliminated.
+  // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
 
   // source position information
