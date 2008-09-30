@@ -467,7 +467,7 @@ void Assembler::bind_to(Label* L, int pos) {
 
   // Keep track of the last bound label so we don't eliminate any instructions
   // before a bound label.
-  if (pos > last_bound_pos_)  
+  if (pos > last_bound_pos_)
     last_bound_pos_ = pos;
 }
 
