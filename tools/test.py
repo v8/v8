@@ -97,8 +97,8 @@ class ProgressIndicator(object):
       # If there's an exception we schedule an interruption for any
       # remaining threads.
       self.terminate = True
-      print e
-      return False
+      # ...and then reraise the exception to bail out
+      raise
     self.Done()
     return not self.failed
 
@@ -113,7 +113,9 @@ class ProgressIndicator(object):
       self.AboutToRun(case)
       self.lock.release()
       try:
+        start = time.time()
         output = case.Run()
+        case.duration = (time.time() - start)
       except IOError, e:
         assert self.terminate
         return
@@ -171,14 +173,15 @@ class SimpleProgressIndicator(ProgressIndicator):
 class VerboseProgressIndicator(SimpleProgressIndicator):
 
   def AboutToRun(self, case):
-    print '%s:' % case.GetLabel(),
+    print 'Starting %s...' % case.GetLabel()
     sys.stdout.flush()
 
   def HasRun(self, output):
     if output.UnexpectedOutput():
-      print "FAIL"
+      outcome = 'FAIL'
     else:
-      print "pass"
+      outcome = 'pass'
+    print 'Done running %s: %s' % (output.test.GetLabel(), outcome)
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
@@ -307,9 +310,13 @@ class TestCase(object):
     self.path = path
     self.context = context
     self.failed = None
+    self.duration = None
 
   def IsNegative(self):
     return False
+
+  def CompareTime(self, other):
+    return cmp(other.duration, self.duration)
 
   def DidFail(self, output):
     if self.failed is None:
@@ -1021,6 +1028,8 @@ def BuildOptions():
       default=False, action="store_true")
   result.add_option("-j", help="The number of parallel tasks to run",
       default=1, type="int")
+  result.add_option("--time", help="Print timing information after running",
+      default=False, action="store_true")
   return result
 
 
@@ -1119,6 +1128,11 @@ def GetSuites(test_root):
   return [ f for f in os.listdir(test_root) if IsSuite(join(test_root, f)) ]
 
 
+def FormatTime(d):
+  millis = round(d * 1000) % 1000
+  return time.strftime("%M:%S.", time.gmtime(d)) + ("%03i" % millis)
+
+
 def Main():
   parser = BuildOptions()
   (options, args) = parser.parse_args()
@@ -1205,18 +1219,36 @@ def Main():
   if options.report:
     PrintReport(all_cases)
 
+  result = None
   if len(all_cases) == 0:
     print "No tests to run."
     return 0
   else:
     try:
+      start = time.time()
       if RunTestCases(all_cases, options.progress, options.j):
-        return 0
+        result = 0
       else:
-        return 1
+        result = 1
+      duration = time.time() - start
     except KeyboardInterrupt:
       print "Interrupted"
       return 1
+
+  if options.time:
+    # Write the times to stderr to make it easy to separate from the
+    # test output.
+    print
+    sys.stderr.write("--- Total time: %s ---\n" % FormatTime(duration))
+    timed_tests = [ t.case for t in all_cases if not t.case.duration is None ]
+    timed_tests.sort(lambda a, b: a.CompareTime(b))
+    index = 1
+    for entry in timed_tests[:20]:
+      t = FormatTime(entry.duration)
+      sys.stderr.write("%4i (%s) %s\n" % (index, t, entry.GetLabel()))
+      index += 1
+
+  return result
 
 
 if __name__ == '__main__':
