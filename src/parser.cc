@@ -1598,7 +1598,7 @@ Block* Parser::WithHelper(Expression* obj, ZoneStringList* labels, bool* ok) {
     exit->AddStatement(NEW(WithExitStatement()));
 
     // Return a try-finally statement.
-    TryFinally* wrapper = NEW(TryFinally(body, NULL, exit));
+    TryFinally* wrapper = NEW(TryFinally(body, exit));
     wrapper->set_escaping_labels(collector.labels());
     result->AddStatement(wrapper);
     return result;
@@ -1793,12 +1793,10 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     tok = peek();
   }
 
-  VariableProxy* finally_var = NULL;
   if (tok == Token::FINALLY || !has_catch) {
     Consume(Token::FINALLY);
     // Declare a variable for holding the finally state while
     // executing the finally block.
-    finally_var = top_scope_->NewTemporary(Factory::finally_state_symbol());
     finally_block = ParseBlock(NULL, CHECK_OK);
   }
 
@@ -1823,7 +1821,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       result->set_escaping_labels(collector.labels());
     } else {
       ASSERT(finally_block != NULL);
-      result = NEW(TryFinally(try_block, finally_var, finally_block));
+      result = NEW(TryFinally(try_block, finally_block));
       // Add the labels of the try block and the catch block.
       for (int i = 0; i < collector.labels()->length(); i++) {
         catch_collector.labels()->Add(collector.labels()->at(i));

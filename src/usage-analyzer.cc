@@ -221,11 +221,6 @@ void UsageComputer::VisitTryCatch(TryCatch* node) {
 
 void UsageComputer::VisitTryFinally(TryFinally* node) {
   Visit(node->try_block());
-  Expression* var = node->finally_var();
-  if (var != NULL) {
-    Write(var);
-    Read(var);
-  }
   Visit(node->finally_block());
 }
 

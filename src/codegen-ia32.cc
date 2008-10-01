@@ -3558,38 +3558,22 @@ void Ia32CodeGenerator::VisitTryFinally(TryFinally* node) {
   // --- Finally block ---
   __ bind(&finally_block);
 
-  // We keep a single element on the stack - the (possibly faked)
-  // result - while evaluating the finally block. Record it, so that a
-  // break/continue crossing this statement can restore the stack.
-  const int kFinallyStackSize = 1 * kPointerSize;
-  break_stack_height_ += kFinallyStackSize;
-
-  // Push the state on the stack. If necessary move the state to a
-  // local variable to avoid having extra values on the stack while
-  // evaluating the finally block.
+  // Push the state on the stack.
   __ push(ecx);
-  if (node->finally_var() != NULL) {
-    Reference target(this, node->finally_var());
-    SetValue(&target);
-    ASSERT(target.size() == 0);  // no extra stuff on the stack
-    __ pop(edx);  // remove the extra value that was pushed above
-  }
+
+  // We keep two elements on the stack - the (possibly faked) result
+  // and the state - while evaluating the finally block. Record it, so
+  // that a break/continue crossing this statement can restore the
+  // stack.
+  const int kFinallyStackSize = 2 * kPointerSize;
+  break_stack_height_ += kFinallyStackSize;
 
   // Generate code for the statements in the finally block.
   VisitStatements(node->finally_block()->statements());
 
-  // Get the state from the stack - or the local variable - and
-  // restore the TOS register.
-  if (node->finally_var() != NULL) {
-    Reference target(this, node->finally_var());
-    GetValue(&target);
-  }
+  // Restore state and return value or faked TOS.
   __ pop(ecx);
-
-  // Restore return value or faked TOS.
   __ pop(eax);
-
-  // Record the fact that the result has been removed from the stack.
   break_stack_height_ -= kFinallyStackSize;
 
   // Generate code that jumps to the right destination for all used
