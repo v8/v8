@@ -145,7 +145,6 @@ namespace v8 { namespace internal {
   V(code_symbol, ".code")                                                \
   V(result_symbol, ".result")                                            \
   V(catch_var_symbol, ".catch-var")                                      \
-  V(finally_state_symbol, ".finally-state")                              \
   V(empty_symbol, "")                                                    \
   V(eval_symbol, "eval")                                                 \
   V(function_symbol, "function")                                         \
