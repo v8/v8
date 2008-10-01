@@ -3492,7 +3492,7 @@ void Ia32CodeGenerator::VisitTryFinally(TryFinally* node) {
 
   __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
   // TODO(1222589): remove the reliance of PushTryHandler on a cached TOS
-  __ push(eax);  //
+  __ push(eax);
 
   // Introduce shadow labels for all escapes from the try block,
   // including returns. We should probably try to unify the escaping
@@ -3558,6 +3558,12 @@ void Ia32CodeGenerator::VisitTryFinally(TryFinally* node) {
   // --- Finally block ---
   __ bind(&finally_block);
 
+  // We keep a single element on the stack - the (possibly faked)
+  // result - while evaluating the finally block. Record it, so that a
+  // break/continue crossing this statement can restore the stack.
+  const int kFinallyStackSize = 1 * kPointerSize;
+  break_stack_height_ += kFinallyStackSize;
+
   // Push the state on the stack. If necessary move the state to a
   // local variable to avoid having extra values on the stack while
   // evaluating the finally block.
@@ -3582,6 +3588,9 @@ void Ia32CodeGenerator::VisitTryFinally(TryFinally* node) {
 
   // Restore return value or faked TOS.
   __ pop(eax);
+
+  // Record the fact that the result has been removed from the stack.
+  break_stack_height_ -= kFinallyStackSize;
 
   // Generate code that jumps to the right destination for all used
   // shadow labels.

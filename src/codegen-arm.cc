@@ -3182,6 +3182,12 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
   // --- Finally block ---
   __ bind(&finally_block);
 
+  // We keep a single element on the stack - the (possibly faked)
+  // result - while evaluating the finally block. Record it, so that a
+  // break/continue crossing this statement can restore the stack.
+  const int kFinallyStackSize = 1 * kPointerSize;
+  break_stack_height_ += kFinallyStackSize;
+
   // Push the state on the stack. If necessary move the state to a
   // local variable to avoid having extra values on the stack while
   // evaluating the finally block.
@@ -3203,7 +3209,12 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
   }
   __ pop(r2);
 
-  __ pop(r0);  // Restore value or faked TOS.
+  // Restore return value or faked TOS.
+  __ pop(r0);
+
+  // Record the fact that the result has been removed from the stack.
+  break_stack_height_ -= kFinallyStackSize;
+
   // Generate code that jumps to the right destination for all used
   // shadow labels.
   for (int i = 0; i <= nof_escapes; i++) {

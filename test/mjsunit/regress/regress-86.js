@@ -28,8 +28,9 @@
 var aList = [1, 2, 3];
 var loopCount = 0;
 var leftThroughFinally = false;
+var enteredFinally = false;
 for (x in aList) {
-  leftThroughFinally = false;
+  leftThroughFinally = true;
   try {
     throw "ex1";
   } catch(er1) {
@@ -40,5 +41,6 @@ for (x in aList) {
   }
   leftThroughFinally = false;
 }
-assertEquals(loopCount, 3);
+assertEquals(3, loopCount);
 assertTrue(enteredFinally);
+assertTrue(leftThroughFinally);
