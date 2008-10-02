@@ -650,14 +650,10 @@ function ArraySort(comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 22) arrays, insertion sort is used for efficiency.
 
+  var custom_compare = IS_FUNCTION(comparefn);
+  
   function Compare(x,y) {
-    if (IS_UNDEFINED(x)) {
-      if (IS_UNDEFINED(y)) return 0;
-      return 1;
-    }
-    if (IS_UNDEFINED(y)) return -1;
-
-    if (IS_FUNCTION(comparefn)) {
+    if (custom_compare) {
       return comparefn.call(null, x, y);
     }
     if (%_IsSmi(x) && %_IsSmi(y)) {
@@ -691,15 +687,13 @@ function ArraySort(comparefn) {
         }
       }
       // place element at position min==max.
-      for (var j = min; j < i; j++) {
-        var tmp = a[j];
-        a[j] = element;
-        element = tmp;
+      for (var j = i; j > min; j--) {
+        a[j] = a[j - 1];
       }
-      a[i] = element;
+      a[min] = element;
     }
   }
-  
+
   function QuickSort(a, from, to) {
     // Insertion sort is faster for short arrays.
     if (to - from <= 22) { 
@@ -743,6 +737,18 @@ function ArraySort(comparefn) {
   %RemoveArrayHoles(this);
 
   var length = ToUint32(this.length);
+
+  // Move undefined elements to the end of the array.
+  for (var i = 0; i < length; ) {
+    if (IS_UNDEFINED(this[i])) {
+      length--;
+      this[i] = this[length];
+      this[length] = undefined;
+    } else {
+      i++;
+    }
+  }
+
   QuickSort(this, 0, length);
 
   // We only changed the length of the this object (in
