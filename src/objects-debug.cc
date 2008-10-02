@@ -630,7 +630,19 @@ void JSArray::JSArrayVerify() {
 void JSRegExp::JSRegExpVerify() {
   JSObjectVerify();
   ASSERT(type()->IsSmi() || type()->IsUndefined());
-  ASSERT(data()->IsUndefined() || data()->IsFixedArray());
+  if (type()->IsSmi()) {
+    switch (type_tag()) {
+      case JSRegExp::JSCRE:
+        ASSERT(data()->IsFixedArray());
+        break;
+      default:
+        ASSERT_EQ(JSRegExp::ATOM, type_tag());
+        ASSERT(data()->IsString());
+        break;
+    }
+  } else {
+    ASSERT(data()->IsUndefined());
+  }
 }
 
 

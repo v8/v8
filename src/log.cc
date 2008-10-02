@@ -258,7 +258,7 @@ SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 
 void Logger::Preamble(const char* content) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL) return;
+  if (logfile_ == NULL || !FLAG_log) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "%s", content);
 #endif
@@ -267,7 +267,7 @@ void Logger::Preamble(const char* content) {
 
 void Logger::StringEvent(const char* name, const char* value) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL) return;
+  if (logfile_ == NULL || !FLAG_log) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "%s,\"%s\"\n", name, value);
 #endif
@@ -276,7 +276,7 @@ void Logger::StringEvent(const char* name, const char* value) {
 
 void Logger::IntEvent(const char* name, int value) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL) return;
+  if (logfile_ == NULL || !FLAG_log) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "%s,%d\n", name, value);
 #endif
@@ -360,6 +360,15 @@ void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
   Handle<String> source_string = Handle<String>::cast(source);
 
   SmartPointer<uc16> cstring = source_string->ToWideCString();
+  if (regexp->type()->IsSmi()) {
+    switch (regexp->type_tag()) {
+    case JSRegExp::ATOM:
+      fprintf(logfile_, "a");
+      break;
+    default:
+      break;
+    }
+  }
   fprintf(logfile_, "/");
   for (int i = 0, n = source_string->length(); i < n; i++) {
     uc16 c = cstring[i];
@@ -475,7 +484,7 @@ void Logger::ApiEntryCall(const char* name) {
 
 void Logger::NewEvent(const char* name, void* object, size_t size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL) return;
+  if (logfile_ == NULL || !FLAG_log) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "new,%s,0x%x,%u\n", name,
           reinterpret_cast<unsigned int>(object),
@@ -486,7 +495,7 @@ void Logger::NewEvent(const char* name, void* object, size_t size) {
 
 void Logger::DeleteEvent(const char* name, void* object) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL) return;
+  if (logfile_ == NULL || !FLAG_log) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "delete,%s,0x%x\n", name,
           reinterpret_cast<unsigned int>(object));
@@ -559,7 +568,7 @@ void Logger::CodeDeleteEvent(Address from) {
 
 void Logger::ResourceEvent(const char* name, const char* tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL) return;
+  if (logfile_ == NULL || !FLAG_log) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "%s,%s,", name, tag);
 
@@ -616,7 +625,7 @@ void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
 
 void Logger::DebugTag(const char* call_site_tag) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL) return;
+  if (logfile_ == NULL || !FLAG_log) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "debug-tag,%s\n", call_site_tag);
 #endif
@@ -625,7 +634,7 @@ void Logger::DebugTag(const char* call_site_tag) {
 
 void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL) return;
+  if (logfile_ == NULL || !FLAG_log) return;
   StringBuilder s(parameter.length() + 1);
   for (int i = 0; i < parameter.length(); ++i) {
     s.AddCharacter(static_cast<char>(parameter[i]));
@@ -644,7 +653,7 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::TickEvent(TickSample* sample, bool overflow) {
-  if (logfile_ == NULL) return;
+  if (logfile_ == NULL || !FLAG_log) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "tick,0x%x,0x%x,%d", sample->pc, sample->sp,
           static_cast<int>(sample->state));
@@ -669,15 +678,12 @@ bool Logger::Setup() {
   // --prof implies --log-code.
   if (FLAG_prof) FLAG_log_code = true;
 
-  // Each of the individual log flags implies --log.  Check after
-  // checking --log-all and --prof in case they set --log-code.
-  if (FLAG_log_api || FLAG_log_code || FLAG_log_gc ||
-      FLAG_log_handles || FLAG_log_suspect || FLAG_log_regexp) {
-    FLAG_log = true;
-  }
+  bool open_log_file = FLAG_log || FLAG_log_api || FLAG_log_code
+      || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
+      || FLAG_log_regexp;
 
   // If we're logging anything, we need to open the log file.
-  if (FLAG_log) {
+  if (open_log_file) {
     if (strcmp(FLAG_logfile, "-") == 0) {
       logfile_ = stdout;
     } else {

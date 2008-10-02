@@ -251,7 +251,7 @@ static Object* Runtime_RegExpCompile(Arguments args) {
   Handle<String> pattern(raw_pattern);
   CONVERT_CHECKED(String, raw_flags, args[2]);
   Handle<String> flags(raw_flags);
-  return *RegExpImpl::JsreCompile(re, pattern, flags);
+  return *RegExpImpl::Compile(re, pattern, flags);
 }
 
 
@@ -704,7 +704,7 @@ static Object* Runtime_RegExpExec(Arguments args) {
   Handle<String> subject(raw_subject);
   Handle<Object> index(args[2]);
   ASSERT(index->IsNumber());
-  return *RegExpImpl::JsreExec(regexp, subject, index);
+  return *RegExpImpl::Exec(regexp, subject, index);
 }
 
 
@@ -715,7 +715,7 @@ static Object* Runtime_RegExpExecGlobal(Arguments args) {
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  return *RegExpImpl::JsreExecGlobal(regexp, subject);
+  return *RegExpImpl::ExecGlobal(regexp, subject);
 }
 
 
@@ -942,23 +942,15 @@ static inline void ComputeKMPNextTable(String* pattern, int next_table[]) {
 }
 
 
-static Object* Runtime_StringIndexOf(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 3);
-
-  CONVERT_CHECKED(String, sub, args[0]);
-  CONVERT_CHECKED(String, pat, args[1]);
-  Object* index = args[2];
-
+int Runtime::StringMatchKmp(String* sub, String* pat, int start_index) {
   sub->TryFlatten();
   pat->TryFlatten();
 
   int subject_length = sub->length();
   int pattern_length = pat->length();
 
-  uint32_t start_index;
-  if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
-  if (pattern_length == 0) return Smi::FromInt(start_index);
+  if (start_index > subject_length) return -1;
+  if (pattern_length == 0) return start_index;
 
   // Searching for one specific character is common.  For one
   // character patterns the KMP algorithm is guaranteed to slow down
@@ -967,10 +959,10 @@ static Object* Runtime_StringIndexOf(Arguments args) {
     uint16_t pattern_char = pat->Get(0);
     for (int i = start_index; i < subject_length; i++) {
       if (sub->Get(i) == pattern_char) {
-        return Smi::FromInt(i);
+        return i;
       }
     }
-    return Smi::FromInt(-1);
+    return -1;
   }
 
   // For small searches, KMP is not worth the setup overhead.
@@ -983,10 +975,10 @@ static Object* Runtime_StringIndexOf(Arguments args) {
 
       for (int j = 1; j < pattern_length; j++) {
         if (pat->Get(j) != sub->Get(j + i)) break;
-        if (j == pattern_length - 1) return Smi::FromInt(i);
+        if (j == pattern_length - 1) return i;
       }
     }
-    return Smi::FromInt(-1);
+    return -1;
   }
 
   // For patterns with a larger length we use the KMP algorithm.
@@ -1010,11 +1002,25 @@ static Object* Runtime_StringIndexOf(Arguments args) {
     subject_index++;
     if (pattern_index >= pattern_length) {
       DeleteArray(next_table);
-      return Smi::FromInt(subject_index - pattern_index);
+      return subject_index - pattern_index;
     }
   }
   DeleteArray(next_table);
-  return Smi::FromInt(-1);
+  return -1;
+}
+
+
+static Object* Runtime_StringIndexOf(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+
+  CONVERT_CHECKED(String, sub, args[0]);
+  CONVERT_CHECKED(String, pat, args[1]);
+  Object* index = args[2];
+  uint32_t start_index;
+  if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
+
+  return Smi::FromInt(Runtime::StringMatchKmp(sub, pat, start_index));
 }
 
 

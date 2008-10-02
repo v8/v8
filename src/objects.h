@@ -2813,7 +2813,7 @@ class JSValue: public JSObject {
 // Regular expressions
 class JSRegExp: public JSObject {
  public:
-  enum Type { JSCRE, INDEX_OF };
+  enum Type { JSCRE, ATOM };
 
   inline Type type_tag();
   inline void set_type_tag(Type value);

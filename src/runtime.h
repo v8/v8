@@ -332,6 +332,8 @@ class Runtime : public AllStatic {
   // Get the runtime function with the given name.
   static Function* FunctionForName(const char* name);
 
+  static int StringMatchKmp(String* sub, String* pat, int index);
+
   // TODO(1240886): The following three methods are *not* handle safe,
   // but accept handle arguments. This seems fragile.
 

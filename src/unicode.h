@@ -258,6 +258,9 @@ struct Hyphen {
 struct LineTerminator {
   static bool Is(uchar c);
 };
+struct RegExpSpecialChar {
+  static bool Is(uchar c);
+};
 struct CombiningMark {
   static bool Is(uchar c);
 };

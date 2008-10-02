@@ -44,20 +44,41 @@ class RegExpImpl {
   // This function calls the garbage collector if necessary.
   static Handle<String> ToString(Handle<Object> value);
 
-  static Handle<Object> JsreCompile(Handle<JSRegExp> re,
-                                    Handle<String> pattern,
-                                    Handle<String> flags);
+  static Handle<Object> Compile(Handle<JSRegExp> re,
+                                Handle<String> pattern,
+                                Handle<String> flags);
 
   // Implements RegExp.prototype.exec(string) function.
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
-  static Handle<Object> JsreExec(Handle<JSRegExp> regexp,
-                                 Handle<String> subject,
-                                 Handle<Object> index);
+  static Handle<Object> Exec(Handle<JSRegExp> regexp,
+                             Handle<String> subject,
+                             Handle<Object> index);
 
   // Call RegExp.prototyp.exec(string) in a loop.
   // Used by String.prototype.match and String.prototype.replace.
   // This function calls the garbage collector if necessary.
+  static Handle<Object> ExecGlobal(Handle<JSRegExp> regexp,
+                                   Handle<String> subject);
+
+  static Handle<Object> AtomCompile(Handle<JSRegExp> re,
+                                    Handle<String> pattern);
+
+  static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
+                                 Handle<String> subject,
+                                 Handle<Object> index);
+
+  static Handle<Object> AtomExecGlobal(Handle<JSRegExp> regexp,
+                                       Handle<String> subject);
+
+  static Handle<Object> JsreCompile(Handle<JSRegExp> re,
+                                    Handle<String> pattern,
+                                    Handle<String> flags);
+
+  static Handle<Object> JsreExec(Handle<JSRegExp> regexp,
+                                 Handle<String> subject,
+                                 Handle<Object> index);
+
   static Handle<Object> JsreExecGlobal(Handle<JSRegExp> regexp,
                                        Handle<String> subject);
 
