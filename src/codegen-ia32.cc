@@ -661,21 +661,27 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
       ASSERT(scope->arguments() != NULL);
       ASSERT(scope->arguments_shadow() != NULL);
       Comment cmnt(masm_, "[ store arguments object");
-      {
-        Reference target(this, scope->arguments());
-        if (!arguments_object_saved) {
-          __ push(Operand(ecx));
+      { Reference shadow_ref(this, scope->arguments_shadow());
+        { Reference arguments_ref(this, scope->arguments());
+          // If the newly-allocated arguments object is already on the
+          // stack, we make use of the property that references representing
+          // variables take up no space on the expression stack (ie, it
+          // doesn't matter that the stored value is actually below the
+          // reference).
+          ASSERT(arguments_ref.size() == 0);
+          ASSERT(shadow_ref.size() == 0);
+
+          // If the newly-allocated argument object is not already on the
+          // stack, we rely on the property that loading a
+          // (zero-sized) reference will not clobber the ecx register.
+          if (!arguments_object_saved) {
+            __ push(ecx);
+          }
+          SetValue(&arguments_ref);
         }
-        SetValue(&target);
+        SetValue(&shadow_ref);
       }
-      // The value of arguments must also be stored in .arguments.
-      // TODO(1241813): This code can probably be improved by fusing it with
-      // the code that stores the arguments object above.
-      {
-        Reference target(this, scope->arguments_shadow());
-        Load(scope->arguments());
-        SetValue(&target);
-      }
+      __ pop(eax);  // Value is no longer needed.
     }
 
     // Generate code to 'execute' declarations and initialize

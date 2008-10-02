@@ -576,22 +576,17 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
     if (scope->arguments() != NULL) {
       ASSERT(scope->arguments_shadow() != NULL);
       Comment cmnt(masm_, "[ allocate arguments object");
-      {
-        Reference target(this, scope->arguments());
-        __ ldr(r0, FunctionOperand());
-        __ push(r0);
-        __ CallRuntime(Runtime::kNewArguments, 1);
-        __ push(r0);
-        SetValue(&target);
+      { Reference shadow_ref(this, scope->arguments_shadow());
+        { Reference arguments_ref(this, scope->arguments());
+          __ ldr(r0, FunctionOperand());
+          __ push(r0);
+          __ CallRuntime(Runtime::kNewArguments, 1);
+          __ push(r0);
+          SetValue(&arguments_ref);
+        }
+        SetValue(&shadow_ref);
       }
-      // The value of arguments must also be stored in .arguments.
-      // TODO(1241813): This code can probably be improved by fusing it with
-      // the code that stores the arguments object above.
-      {
-        Reference target(this, scope->arguments_shadow());
-        Load(scope->arguments());
-        SetValue(&target);
-      }
+      __ pop(r0);  // Value is no longer needed.
     }
 
     // Generate code to 'execute' declarations and initialize
