@@ -159,8 +159,7 @@ class Expression: public Node {
   // the expression stack, and a reference containing the expression
   // immediately below that.  This function is overridden for expression
   // types that can be stored into.
-  virtual void GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
+  virtual void GenerateStoreCode(CodeGenerator* cgen,
                                  Reference* ref,
                                  InitState init_state) {
     UNREACHABLE();
@@ -763,8 +762,7 @@ class VariableProxy: public Expression {
   // side of an assignment.  The code will expect the stored value on top of
   // the expression stack, and a reference containing the expression
   // immediately below that.
-  virtual void GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
+  virtual void GenerateStoreCode(CodeGenerator* cgen,
                                  Reference* ref,
                                  InitState init_state);
  protected:
@@ -846,8 +844,7 @@ class Slot: public Expression {
   // side of an assignment.  The code will expect the stored value on top of
   // the expression stack, and a reference containing the expression
   // immediately below that.
-  virtual void GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
+  virtual void GenerateStoreCode(CodeGenerator* cgen,
                                  Reference* ref,
                                  InitState init_state);
  private:
@@ -881,8 +878,7 @@ class Property: public Expression {
   // side of an assignment.  The code will expect the stored value on top of
   // the expression stack, and a reference containing the expression
   // immediately below that.
-  virtual void GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
+  virtual void GenerateStoreCode(CodeGenerator* cgen,
                                  Reference* ref,
                                  InitState init_state);
  private:

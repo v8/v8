@@ -123,6 +123,7 @@ class CodeGenerator: public Visitor {
 
   virtual MacroAssembler* masm() = 0;
 
+  virtual Scope* scope() const = 0;
 
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
   void ProcessDeferred();

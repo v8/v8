@@ -64,7 +64,7 @@ class Reference BASE_EMBEDDED {
 
   Expression* expression() const  { return expression_; }
   Type type() const  { return type_; }
-  void set_type(Type value)  {
+  void set_type(Type value) {
     ASSERT(type_ == ILLEGAL);
     type_ = value;
   }
@@ -144,7 +144,9 @@ class Ia32CodeGenerator: public CodeGenerator {
                                Handle<Script> script,
                                bool is_eval);
 
-  MacroAssembler* masm()  { return masm_; }
+  MacroAssembler* masm() { return masm_; }
+
+  Scope* scope() const { return scope_; }
 
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
@@ -167,7 +169,7 @@ class Ia32CodeGenerator: public CodeGenerator {
   Ia32CodeGenerator(int buffer_size,
                     Handle<Script> script,
                     bool is_eval);
-  virtual ~Ia32CodeGenerator()  { delete masm_; }
+  virtual ~Ia32CodeGenerator() { delete masm_; }
 
   // Main code generation function
   void GenCode(FunctionLiteral* fun);
@@ -191,13 +193,14 @@ class Ia32CodeGenerator: public CodeGenerator {
 
   // Support functions for accessing parameters.  Static versions can
   // require some code generator state to be passed in as arguments.
-  static Operand ParameterOperand(Scope* scope, int index) {
-    ASSERT(-2 <= index && index < scope->num_parameters());
-    return Operand(ebp, (1 + scope->num_parameters() - index) * kPointerSize);
+  static Operand ParameterOperand(const CodeGenerator* cgen, int index) {
+    int num_parameters = cgen->scope()->num_parameters();
+    ASSERT(-2 <= index && index < num_parameters);
+    return Operand(ebp, (1 + num_parameters - index) * kPointerSize);
   }
 
   Operand ParameterOperand(int index) const {
-    return ParameterOperand(scope_, index);
+    return ParameterOperand(this, index);
   }
 
   Operand ReceiverOperand() const { return ParameterOperand(-1); }
@@ -210,13 +213,12 @@ class Ia32CodeGenerator: public CodeGenerator {
     return Operand(context, Context::SlotOffset(index));
   }
 
-  static Operand SlotOperand(MacroAssembler* masm,
-                             Scope* scope,
+  static Operand SlotOperand(CodeGenerator* cgen,
                              Slot* slot,
                              Register tmp);
 
   Operand SlotOperand(Slot* slot, Register tmp) {
-    return SlotOperand(masm_, scope_, slot, tmp);
+    return SlotOperand(this, slot, tmp);
   }
 
   void LoadCondition(Expression* x,
@@ -254,14 +256,14 @@ class Ia32CodeGenerator: public CodeGenerator {
   void SetValue(Reference* ref) {
     ASSERT(!has_cc());
     ASSERT(!ref->is_illegal());
-    ref->expression()->GenerateStoreCode(masm_, scope_, ref, NOT_CONST_INIT);
+    ref->expression()->GenerateStoreCode(this, ref, NOT_CONST_INIT);
   }
 
   // Same as SetValue, used to set the initial value of a constant.
   void InitConst(Reference* ref) {
     ASSERT(!has_cc());
     ASSERT(!ref->is_illegal());
-    ref->expression()->GenerateStoreCode(masm_, scope_, ref, CONST_INIT);
+    ref->expression()->GenerateStoreCode(this, ref, CONST_INIT);
   }
 
   // Generate code to fetch a value from a property of a reference.  The
@@ -273,7 +275,7 @@ class Ia32CodeGenerator: public CodeGenerator {
   // stored value is expected on top of the expression stack, with the
   // reference immediately below it.  The expression stack is left
   // unchanged.
-  static void SetReferenceProperty(MacroAssembler* masm,
+  static void SetReferenceProperty(CodeGenerator* cgen,
                                    Reference* ref,
                                    Expression* key);
 
@@ -423,8 +425,7 @@ CodeGenState::~CodeGenState() {
 // -----------------------------------------------------------------------------
 // Ia32CodeGenerator implementation
 
-#define __  masm_->
-
+#define __ masm_->
 
 Handle<Code> Ia32CodeGenerator::MakeCode(FunctionLiteral* flit,
                                          Handle<Script> script,
@@ -731,8 +732,10 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
 }
 
 
-Operand Ia32CodeGenerator::SlotOperand(MacroAssembler* masm,
-                                       Scope* scope,
+#undef __
+#define __ masm->
+
+Operand Ia32CodeGenerator::SlotOperand(CodeGenerator* cgen,
                                        Slot* slot,
                                        Register tmp) {
   // Currently, this assertion will fail if we try to assign to
@@ -746,27 +749,29 @@ Operand Ia32CodeGenerator::SlotOperand(MacroAssembler* masm,
   ASSERT(slot != NULL);
   int index = slot->index();
   switch (slot->type()) {
-    case Slot::PARAMETER: return ParameterOperand(scope, index);
+    case Slot::PARAMETER: return ParameterOperand(cgen, index);
 
     case Slot::LOCAL: {
-      ASSERT(0 <= index && index < scope->num_stack_slots());
+      ASSERT(0 <= index && index < cgen->scope()->num_stack_slots());
       const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
       return Operand(ebp, kLocal0Offset - index * kPointerSize);
     }
 
     case Slot::CONTEXT: {
+      MacroAssembler* masm = cgen->masm();
       // Follow the context chain if necessary.
       ASSERT(!tmp.is(esi));  // do not overwrite context register
       Register context = esi;
-      int chain_length = scope->ContextChainLength(slot->var()->scope());
+      int chain_length =
+          cgen->scope()->ContextChainLength(slot->var()->scope());
       for (int i = chain_length; i-- > 0;) {
         // Load the closure.
         // (All contexts, even 'with' contexts, have a closure,
         // and it is the same for all contexts inside a function.
         // There is no need to go to the function context first.)
-        masm->mov(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+        __ mov(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
         // Load the function context (which is the incoming, outer context).
-        masm->mov(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
+        __ mov(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
         context = tmp;
       }
       // We may have a 'with' context now. Get the function context.
@@ -776,7 +781,7 @@ Operand Ia32CodeGenerator::SlotOperand(MacroAssembler* masm,
       // cause the function context of a function context is itself. Before
       // deleting this mov we should try to create a counter-example first,
       // though...)
-      masm->mov(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
+      __ mov(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
       return ContextOperand(tmp, index);
     }
 
@@ -786,6 +791,9 @@ Operand Ia32CodeGenerator::SlotOperand(MacroAssembler* masm,
   }
 }
 
+
+#undef __
+#define __ masm_->
 
 // Loads a value on TOS. If it is a boolean value, the result may have been
 // (partially) translated into branches, or it may have set the condition code
@@ -951,49 +959,52 @@ void Ia32CodeGenerator::UnloadReference(Reference* ref) {
 }
 
 
-void Property::GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
+#undef __
+#define __ masm->
+
+void Property::GenerateStoreCode(CodeGenerator* cgen,
                                  Reference* ref,
                                  InitState init_state) {
+  MacroAssembler* masm = cgen->masm();
   Comment cmnt(masm, "[ Store to Property");
-  masm->RecordPosition(position());
-  Ia32CodeGenerator::SetReferenceProperty(masm, ref, key());
+  __ RecordPosition(position());
+  Ia32CodeGenerator::SetReferenceProperty(cgen, ref, key());
 }
 
 
-void VariableProxy::GenerateStoreCode(MacroAssembler* masm,
-                                      Scope* scope,
+void VariableProxy::GenerateStoreCode(CodeGenerator* cgen,
                                       Reference* ref,
                                       InitState init_state) {
+  MacroAssembler* masm = cgen->masm();
   Comment cmnt(masm, "[ Store to VariableProxy");
   Variable* node = var();
 
   Expression* expr = node->rewrite();
   if (expr != NULL) {
-    expr->GenerateStoreCode(masm, scope, ref, init_state);
+    expr->GenerateStoreCode(cgen, ref, init_state);
   } else {
     ASSERT(node->is_global());
     if (node->AsProperty() != NULL) {
-      masm->RecordPosition(node->AsProperty()->position());
+      __ RecordPosition(node->AsProperty()->position());
     }
-    Ia32CodeGenerator::SetReferenceProperty(masm, ref,
-                                            new Literal(node->name()));
+    Expression* key = new Literal(node->name());
+    Ia32CodeGenerator::SetReferenceProperty(cgen, ref, key);
   }
 }
 
 
-void Slot::GenerateStoreCode(MacroAssembler* masm,
-                             Scope* scope,
+void Slot::GenerateStoreCode(CodeGenerator* cgen,
                              Reference* ref,
                              InitState init_state) {
+  MacroAssembler* masm = cgen->masm();
   Comment cmnt(masm, "[ Store to Slot");
 
   if (type() == Slot::LOOKUP) {
     ASSERT(var()->mode() == Variable::DYNAMIC);
 
     // For now, just do a runtime call.
-    masm->push(Operand(esi));
-    masm->push(Immediate(var()->name()));
+    __ push(esi);
+    __ push(Immediate(var()->name()));
 
     if (init_state == CONST_INIT) {
       // Same as the case for a normal store, but ignores attribute
@@ -1010,13 +1021,13 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
       // the expression operands are defined and valid, and thus we need the
       // split into 2 operations: declaration of the context slot followed
       // by initialization.
-      masm->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+      __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
     } else {
-      masm->CallRuntime(Runtime::kStoreContextSlot, 3);
+      __ CallRuntime(Runtime::kStoreContextSlot, 3);
     }
     // Storing a variable must keep the (new) value on the expression
     // stack. This is necessary for compiling assignment expressions.
-    masm->push(eax);
+    __ push(eax);
 
   } else {
     ASSERT(var()->mode() != Variable::DYNAMIC);
@@ -1028,9 +1039,9 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
       // still contains 'the hole' value). When the assignment is executed,
       // the code is identical to a normal store (see below).
       Comment cmnt(masm, "[ Init const");
-      masm->mov(eax, Ia32CodeGenerator::SlotOperand(masm, scope, this, ecx));
-      masm->cmp(eax, Factory::the_hole_value());
-      masm->j(not_equal, &exit);
+      __ mov(eax, Ia32CodeGenerator::SlotOperand(cgen, this, ecx));
+      __ cmp(eax, Factory::the_hole_value());
+      __ j(not_equal, &exit);
     }
 
     // We must execute the store.
@@ -1042,23 +1053,20 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
     // Variable::CONST because of const declarations which will initialize
     // consts to 'the hole' value and by doing so, end up calling this
     // code.
-    masm->pop(eax);
-    masm->mov(Ia32CodeGenerator::SlotOperand(masm, scope, this, ecx), eax);
-    masm->push(eax);  // RecordWrite may destroy the value in eax.
+    __ pop(eax);
+    __ mov(Ia32CodeGenerator::SlotOperand(cgen, this, ecx), eax);
+    __ push(eax);  // RecordWrite may destroy the value in eax.
     if (type() == Slot::CONTEXT) {
       // ecx is loaded with context when calling SlotOperand above.
       int offset = FixedArray::kHeaderSize + index() * kPointerSize;
-      masm->RecordWrite(ecx, offset, eax, ebx);
+      __ RecordWrite(ecx, offset, eax, ebx);
     }
     // If we definitely did not jump over the assignment, we do not need to
     // bind the exit label.  Doing so can defeat peephole optimization.
-    if (init_state == CONST_INIT) masm->bind(&exit);
+    if (init_state == CONST_INIT) __ bind(&exit);
   }
 }
 
-
-#undef __
-#define __  masm->
 
 class ToBooleanStub: public CodeStub {
  public:
@@ -1138,9 +1146,9 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ ret(1 * kPointerSize);
 }
 
-#undef __
-#define __  masm_->
 
+#undef __
+#define __ masm_->
 
 // ECMA-262, section 9.2, page 30: ToBoolean(). Pop the top of stack and
 // convert it to a boolean in the condition code register or jump to
@@ -1226,13 +1234,16 @@ void Ia32CodeGenerator::GetReferenceProperty(Expression* key) {
 }
 
 
-void Ia32CodeGenerator::SetReferenceProperty(MacroAssembler* masm,
+#undef __
+#define __ masm->
+
+void Ia32CodeGenerator::SetReferenceProperty(CodeGenerator* cgen,
                                              Reference* ref,
                                              Expression* key) {
   ASSERT(!ref->is_illegal());
-  Reference::Type type = ref->type();
+  MacroAssembler* masm = cgen->masm();
 
-  if (type == Reference::NAMED) {
+  if (ref->type() == Reference::NAMED) {
     // Compute the name of the property.
     Literal* literal = key->AsLiteral();
     Handle<String> name(String::cast(*literal->handle()));
@@ -1240,26 +1251,22 @@ void Ia32CodeGenerator::SetReferenceProperty(MacroAssembler* masm,
     // Call the appropriate IC code.
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
     // TODO(1222589): Make the IC grab the values from the stack.
-    masm->pop(eax);
+    __ pop(eax);
     // Setup the name register.
-    masm->Set(ecx, Immediate(name));
-    masm->call(ic, RelocInfo::CODE_TARGET);
+    __ Set(ecx, Immediate(name));
+    __ call(ic, RelocInfo::CODE_TARGET);
   } else {
     // Access keyed property.
-    ASSERT(type == Reference::KEYED);
+    ASSERT(ref->type() == Reference::KEYED);
 
     // Call IC code.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
     // TODO(1222589): Make the IC grab the values from the stack.
-    masm->pop(eax);
-    masm->call(ic, RelocInfo::CODE_TARGET);
+    __ pop(eax);
+    __ call(ic, RelocInfo::CODE_TARGET);
   }
-  masm->push(eax);  // IC call leaves result in eax, push it out
+  __ push(eax);  // IC call leaves result in eax, push it out
 }
-
-
-#undef __
-#define __  masm->
 
 
 class FloatingPointHelper : public AllStatic {
@@ -1771,10 +1778,6 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 }
 
 
-#undef __
-#define __  masm->
-
-
 void UnarySubStub::Generate(MacroAssembler* masm) {
   Label undo;
   Label slow;
@@ -1827,7 +1830,7 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
 
   __ bind(&done);
 
-  masm->StubReturn(1);
+  __ StubReturn(1);
 }
 
 
@@ -1926,8 +1929,7 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 
 
 #undef __
-#define __  masm_->
-
+#define __ masm_->
 
 void Ia32CodeGenerator::GenericBinaryOperation(Token::Value op,
                                                OverwriteMode overwrite_mode) {
@@ -2365,7 +2367,7 @@ void Ia32CodeGenerator::SmiOperation(Token::Value op,
 
 
 #undef __
-#define __  masm->
+#define __ masm->
 
 class CompareStub: public CodeStub {
  public:
@@ -2481,8 +2483,7 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 
 
 #undef __
-#define __  masm_->
-
+#define __ masm_->
 
 void Ia32CodeGenerator::Comparison(Condition cc, bool strict) {
   // Strict only makes sense for equality comparisons.
@@ -2592,35 +2593,41 @@ class CallFunctionStub: public CodeStub {
 };
 
 
+#undef __
+#define __ masm->
+
 void CallFunctionStub::Generate(MacroAssembler* masm) {
   Label slow;
 
   // Get the function to call from the stack.
   // +2 ~ receiver, return address
-  masm->mov(edi, Operand(esp, (argc_ + 2) * kPointerSize));
+  __ mov(edi, Operand(esp, (argc_ + 2) * kPointerSize));
 
   // Check that the function really is a JavaScript function.
-  masm->test(edi, Immediate(kSmiTagMask));
-  masm->j(zero, &slow, not_taken);
+  __ test(edi, Immediate(kSmiTagMask));
+  __ j(zero, &slow, not_taken);
   // Get the map.
-  masm->mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));
-  masm->movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  masm->cmp(ecx, JS_FUNCTION_TYPE);
-  masm->j(not_equal, &slow, not_taken);
+  __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ cmp(ecx, JS_FUNCTION_TYPE);
+  __ j(not_equal, &slow, not_taken);
 
   // Fast-case: Just invoke the function.
   ParameterCount actual(argc_);
-  masm->InvokeFunction(edi, actual, JUMP_FUNCTION);
+  __ InvokeFunction(edi, actual, JUMP_FUNCTION);
 
   // Slow-case: Non-function called.
-  masm->bind(&slow);
-  masm->Set(eax, Immediate(argc_));
-  masm->Set(ebx, Immediate(0));
-  masm->GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
+  __ bind(&slow);
+  __ Set(eax, Immediate(argc_));
+  __ Set(ebx, Immediate(0));
+  __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
-  masm->jmp(adaptor, RelocInfo::CODE_TARGET);
+  __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
 
+
+#undef __
+#define __ masm_->
 
 // Call the function just below TOS on the stack with the given
 // arguments. The receiver is the TOS.
@@ -4628,8 +4635,7 @@ class CountOperationDeferred: public DeferredCode {
 
 
 #undef __
-#define __  masm->
-
+#define __ masm->
 
 class RevertToNumberStub: public CodeStub {
  public:
@@ -4733,8 +4739,7 @@ void CounterOpStub::Generate(MacroAssembler* masm) {
 
 
 #undef __
-#define __  masm_->
-
+#define __ masm_->
 
 void CountOperationDeferred::Generate() {
   if (is_postfix_) {
@@ -5171,8 +5176,7 @@ void Ia32CodeGenerator::ExitJSFrame() {
 
 
 #undef __
-#define __  masm->
-
+#define __ masm->
 
 void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
   ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code

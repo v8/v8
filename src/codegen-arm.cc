@@ -58,7 +58,7 @@ class Reference BASE_EMBEDDED {
 
   Expression* expression() const  { return expression_; }
   Type type() const  { return type_; }
-  void set_type(Type value)  {
+  void set_type(Type value) {
     ASSERT(type_ == ILLEGAL);
     type_ = value;
   }
@@ -138,7 +138,9 @@ class ArmCodeGenerator: public CodeGenerator {
                                Handle<Script> script,
                                bool is_eval);
 
-  MacroAssembler* masm()  { return masm_; }
+  MacroAssembler* masm() { return masm_; }
+
+  Scope* scope() const { return scope_; }
 
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
@@ -161,7 +163,7 @@ class ArmCodeGenerator: public CodeGenerator {
                    Handle<Script> script,
                    bool is_eval);
 
-  virtual ~ArmCodeGenerator()  { delete masm_; }
+  virtual ~ArmCodeGenerator() { delete masm_; }
 
   // Main code generation function
   void GenCode(FunctionLiteral* fun);
@@ -188,29 +190,29 @@ class ArmCodeGenerator: public CodeGenerator {
     return MemOperand(context, Context::SlotOffset(index));
   }
 
-  static MemOperand ParameterOperand(Scope* scope, int index) {
+  static MemOperand ParameterOperand(const CodeGenerator* cgen, int index) {
+    int num_parameters = cgen->scope()->num_parameters();
     // index -2 corresponds to the activated closure, -1 corresponds
     // to the receiver
-    ASSERT(-2 <= index && index < scope->num_parameters());
-    int offset = (1 + scope->num_parameters() - index) * kPointerSize;
+    ASSERT(-2 <= index && index < num_parameters);
+    int offset = (1 + num_parameters - index) * kPointerSize;
     return MemOperand(fp, offset);
   }
 
   MemOperand ParameterOperand(int index) const {
-    return ParameterOperand(scope_, index);
+    return ParameterOperand(this, index);
   }
 
   MemOperand FunctionOperand() const {
     return MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset);
   }
 
-  static MemOperand SlotOperand(MacroAssembler* masm,
-                                Scope* scope,
+  static MemOperand SlotOperand(CodeGenerator* cgen,
                                 Slot* slot,
                                 Register tmp);
 
   MemOperand SlotOperand(Slot* slot, Register tmp) {
-    return SlotOperand(masm_, scope_, slot, tmp);
+    return SlotOperand(this, slot, tmp);
   }
 
   void LoadCondition(Expression* x, CodeGenState::AccessType access,
@@ -246,7 +248,7 @@ class ArmCodeGenerator: public CodeGenerator {
   void SetValue(Reference* ref) {
     ASSERT(!has_cc());
     ASSERT(!ref->is_illegal());
-    ref->expression()->GenerateStoreCode(masm_, scope_, ref, NOT_CONST_INIT);
+    ref->expression()->GenerateStoreCode(this, ref, NOT_CONST_INIT);
   }
 
   // Generate code to store a value in a reference.  The stored value is
@@ -255,7 +257,7 @@ class ArmCodeGenerator: public CodeGenerator {
   void InitConst(Reference* ref) {
     ASSERT(!has_cc());
     ASSERT(!ref->is_illegal());
-    ref->expression()->GenerateStoreCode(masm_, scope_, ref, CONST_INIT);
+    ref->expression()->GenerateStoreCode(this, ref, CONST_INIT);
   }
 
   // Generate code to fetch a value from a property of a reference.  The
@@ -267,7 +269,7 @@ class ArmCodeGenerator: public CodeGenerator {
   // stored value is expected on top of the expression stack, with the
   // reference immediately below it.  The expression stack is left
   // unchanged.
-  static void SetReferenceProperty(MacroAssembler* masm,
+  static void SetReferenceProperty(CodeGenerator* cgen,
                                    Reference* ref,
                                    Expression* key);
 
@@ -374,8 +376,7 @@ CodeGenState::~CodeGenState() {
 // -----------------------------------------------------------------------------
 // ArmCodeGenerator implementation
 
-#define __  masm_->
-
+#define __ masm_->
 
 Handle<Code> ArmCodeGenerator::MakeCode(FunctionLiteral* flit,
                                         Handle<Script> script,
@@ -670,8 +671,10 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
 }
 
 
-MemOperand ArmCodeGenerator::SlotOperand(MacroAssembler* masm,
-                                         Scope* scope,
+#undef __
+#define __ masm->
+
+MemOperand ArmCodeGenerator::SlotOperand(CodeGenerator* cgen,
                                          Slot* slot,
                                          Register tmp) {
   // Currently, this assertion will fail if we try to assign to
@@ -686,11 +689,11 @@ MemOperand ArmCodeGenerator::SlotOperand(MacroAssembler* masm,
   int index = slot->index();
   switch (slot->type()) {
     case Slot::PARAMETER:
-      return ParameterOperand(scope, index);
+      return ParameterOperand(cgen, index);
 
     case Slot::LOCAL: {
       ASSERT(0 <= index &&
-             index < scope->num_stack_slots() &&
+             index < cgen->scope()->num_stack_slots() &&
              index >= 0);
       int local_offset = JavaScriptFrameConstants::kLocal0Offset -
                          index * kPointerSize;
@@ -698,18 +701,20 @@ MemOperand ArmCodeGenerator::SlotOperand(MacroAssembler* masm,
     }
 
     case Slot::CONTEXT: {
+      MacroAssembler* masm = cgen->masm();
       // Follow the context chain if necessary.
       ASSERT(!tmp.is(cp));  // do not overwrite context register
       Register context = cp;
-      int chain_length = scope->ContextChainLength(slot->var()->scope());
+      int chain_length =
+          cgen->scope()->ContextChainLength(slot->var()->scope());
       for (int i = chain_length; i-- > 0;) {
         // Load the closure.
         // (All contexts, even 'with' contexts, have a closure,
         // and it is the same for all contexts inside a function.
         // There is no need to go to the function context first.)
-        masm->ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+        __ ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
         // Load the function context (which is the incoming, outer context).
-        masm->ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
+        __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
         context = tmp;
       }
       // We may have a 'with' context now. Get the function context.
@@ -719,7 +724,7 @@ MemOperand ArmCodeGenerator::SlotOperand(MacroAssembler* masm,
       // cause the function context of a function context is itself. Before
       // deleting this mov we should try to create a counter-example first,
       // though...)
-      masm->ldr(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
+      __ ldr(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
       return ContextOperand(tmp, index);
     }
 
@@ -729,6 +734,9 @@ MemOperand ArmCodeGenerator::SlotOperand(MacroAssembler* masm,
   }
 }
 
+
+#undef __
+#define __ masm_->
 
 // Loads a value on the stack. If it is a boolean value, the result may have
 // been (partially) translated into branches, or it may have set the condition
@@ -894,50 +902,53 @@ void ArmCodeGenerator::UnloadReference(Reference* ref) {
 }
 
 
-void Property::GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
+#undef __
+#define __ masm->
+
+void Property::GenerateStoreCode(CodeGenerator* cgen,
                                  Reference* ref,
                                  InitState init_state) {
+  MacroAssembler* masm = cgen->masm();
   Comment cmnt(masm, "[ Store to Property");
-  masm->RecordPosition(position());
-  ArmCodeGenerator::SetReferenceProperty(masm, ref, key());
+  __ RecordPosition(position());
+  ArmCodeGenerator::SetReferenceProperty(cgen, ref, key());
 }
 
 
-void VariableProxy::GenerateStoreCode(MacroAssembler* masm,
-                                      Scope* scope,
+void VariableProxy::GenerateStoreCode(CodeGenerator* cgen,
                                       Reference* ref,
                                       InitState init_state) {
+  MacroAssembler* masm = cgen->masm();
   Comment cmnt(masm, "[ Store to VariableProxy");
   Variable* node = var();
 
   Expression* expr = node->rewrite();
   if (expr != NULL) {
-    expr->GenerateStoreCode(masm, scope, ref, init_state);
+    expr->GenerateStoreCode(cgen, ref, init_state);
   } else {
     ASSERT(node->is_global());
     if (node->AsProperty() != NULL) {
-      masm->RecordPosition(node->AsProperty()->position());
+      __ RecordPosition(node->AsProperty()->position());
     }
-    ArmCodeGenerator::SetReferenceProperty(masm, ref,
-                                           new Literal(node->name()));
+    Expression* key = new Literal(node->name());
+    ArmCodeGenerator::SetReferenceProperty(cgen, ref, key);
   }
 }
 
 
-void Slot::GenerateStoreCode(MacroAssembler* masm,
-                             Scope* scope,
+void Slot::GenerateStoreCode(CodeGenerator* cgen,
                              Reference* ref,
                              InitState init_state) {
+  MacroAssembler* masm = cgen->masm();
   Comment cmnt(masm, "[ Store to Slot");
 
   if (type() == Slot::LOOKUP) {
     ASSERT(var()->mode() == Variable::DYNAMIC);
 
     // For now, just do a runtime call.
-    masm->push(cp);
-    masm->mov(r0, Operand(var()->name()));
-    masm->push(r0);
+    __ push(cp);
+    __ mov(r0, Operand(var()->name()));
+    __ push(r0);
 
     if (init_state == CONST_INIT) {
       // Same as the case for a normal store, but ignores attribute
@@ -954,13 +965,13 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
       // the expression operands are defined and valid, and thus we need the
       // split into 2 operations: declaration of the context slot followed
       // by initialization.
-      masm->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+      __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
     } else {
-      masm->CallRuntime(Runtime::kStoreContextSlot, 3);
+      __ CallRuntime(Runtime::kStoreContextSlot, 3);
     }
     // Storing a variable must keep the (new) value on the expression
     // stack. This is necessary for compiling assignment expressions.
-    masm->push(r0);
+    __ push(r0);
 
   } else {
     ASSERT(var()->mode() != Variable::DYNAMIC);
@@ -972,9 +983,9 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
       // still contains 'the hole' value). When the assignment is executed,
       // the code is identical to a normal store (see below).
       Comment cmnt(masm, "[ Init const");
-      masm->ldr(r2, ArmCodeGenerator::SlotOperand(masm, scope, this, r2));
-      masm->cmp(r2, Operand(Factory::the_hole_value()));
-      masm->b(ne, &exit);
+      __ ldr(r2, ArmCodeGenerator::SlotOperand(cgen, this, r2));
+      __ cmp(r2, Operand(Factory::the_hole_value()));
+      __ b(ne, &exit);
     }
 
     // We must execute the store.
@@ -986,27 +997,30 @@ void Slot::GenerateStoreCode(MacroAssembler* masm,
     // because of const declarations which will initialize consts to 'the
     // hole' value and by doing so, end up calling this code.  r2 may be
     // loaded with context; used below in RecordWrite.
-    masm->pop(r0);
-    masm->str(r0, ArmCodeGenerator::SlotOperand(masm, scope, this, r2));
-    masm->push(r0);
+    __ pop(r0);
+    __ str(r0, ArmCodeGenerator::SlotOperand(cgen, this, r2));
+    __ push(r0);
 
     if (type() == Slot::CONTEXT) {
       // Skip write barrier if the written value is a smi.
-      masm->tst(r0, Operand(kSmiTagMask));
-      masm->b(eq, &exit);
+      __ tst(r0, Operand(kSmiTagMask));
+      __ b(eq, &exit);
       // r2 is loaded with context when calling SlotOperand above.
       int offset = FixedArray::kHeaderSize + index() * kPointerSize;
-      masm->mov(r3, Operand(offset));
-      masm->RecordWrite(r2, r3, r1);
+      __ mov(r3, Operand(offset));
+      __ RecordWrite(r2, r3, r1);
     }
     // If we definitely did not jump over the assignment, we do not need to
     // bind the exit label.  Doing so can defeat peephole optimization.
     if (init_state == CONST_INIT || type() == Slot::CONTEXT) {
-      masm->bind(&exit);
+      __ bind(&exit);
     }
   }
 }
 
+
+#undef __
+#define __ masm_->
 
 // ECMA-262, section 9.2, page 30: ToBoolean(). Convert the given
 // register to a boolean in the condition code register. The code
@@ -1049,8 +1063,7 @@ void ArmCodeGenerator::ToBoolean(Label* true_target,
 
 
 #undef __
-#define __  masm->
-
+#define __ masm->
 
 class GetPropertyStub : public CodeStub {
  public:
@@ -1991,8 +2004,7 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
 
 
 #undef __
-#define __  masm_->
-
+#define __ masm_->
 
 void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
   ASSERT(!ref()->is_illegal());
@@ -2032,13 +2044,16 @@ void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
 }
 
 
-void ArmCodeGenerator::SetReferenceProperty(MacroAssembler* masm,
+#undef __
+#define __ masm->
+
+void ArmCodeGenerator::SetReferenceProperty(CodeGenerator* cgen,
                                             Reference* ref,
                                             Expression* key) {
   ASSERT(!ref->is_illegal());
-  Reference::Type type = ref->type();
+  MacroAssembler* masm = cgen->masm();
 
-  if (type == Reference::NAMED) {
+  if (ref->type() == Reference::NAMED) {
     // Compute the name of the property.
     Literal* literal = key->AsLiteral();
     Handle<String> name(String::cast(*literal->handle()));
@@ -2052,7 +2067,7 @@ void ArmCodeGenerator::SetReferenceProperty(MacroAssembler* masm,
 
   } else {
     // Access keyed property.
-    ASSERT(type == Reference::KEYED);
+    ASSERT(ref->type() == Reference::KEYED);
 
     masm->pop(r0);  // value
     SetPropertyStub stub;
@@ -2061,6 +2076,9 @@ void ArmCodeGenerator::SetReferenceProperty(MacroAssembler* masm,
   masm->push(r0);
 }
 
+
+#undef __
+#define __ masm_->
 
 void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
   // sp[0] : y
