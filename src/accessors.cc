@@ -122,10 +122,11 @@ Object* Accessors::ArraySetLength(JSObject* object, Object* value, void*) {
     } else {
       // This means one of the object's prototypes is a JSArray and
       // the object does not have a 'length' property.
-      return object->AddProperty(Heap::length_symbol(), value, NONE);
+      // Calling SetProperty causes an infinite loop.
+      return object->IgnoreAttributesAndSetLocalProperty(Heap::length_symbol(),
+                                                         value, NONE);
     }
   }
-
   return Top::Throw(*Factory::NewRangeError("invalid_array_length",
                                             HandleVector<Object>(NULL, 0)));
 }

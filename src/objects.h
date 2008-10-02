@@ -1137,7 +1137,8 @@ class JSObject: public HeapObject {
                                      Object* value,
                                      PropertyAttributes attributes);
   Object* IgnoreAttributesAndSetLocalProperty(String* key,
-                                              Object* value);
+                                              Object* value,
+                                              PropertyAttributes attributes);
 
   // Sets a property that currently has lazy loading.
   Object* SetLazyProperty(LookupResult* result,

@@ -137,13 +137,6 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 }
 
 
-void AddProperty(Handle<JSObject> object,
-                 Handle<String> key,
-                 Handle<Object> value,
-                 PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION_VOID(object->AddProperty(*key, *value, attributes));
-}
-
 Handle<Object> SetProperty(Handle<JSObject> object,
                            Handle<String> key,
                            Handle<Object> value,
@@ -156,10 +149,18 @@ Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION(Runtime::SetObjectProperty(object, key, value, attributes),
-                     Object);
+  CALL_HEAP_FUNCTION(
+      Runtime::SetObjectProperty(object, key, value, attributes), Object);
 }
 
+
+Handle<Object> IgnoreAttributesAndSetLocalProperty(Handle<JSObject> object,
+                           Handle<String> key,
+                           Handle<Object> value,
+                           PropertyAttributes attributes) {
+  CALL_HEAP_FUNCTION(object->
+      IgnoreAttributesAndSetLocalProperty(*key, *value, attributes), Object);
+}
 
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,

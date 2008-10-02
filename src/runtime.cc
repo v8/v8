@@ -397,7 +397,7 @@ static Object* Runtime_DeclareGlobals(Arguments args) {
       // of callbacks in the prototype chain (this rules out using
       // SetProperty).  Also, we must use the handle-based version to
       // avoid GC issues.
-      AddProperty(global, name, value, attributes);
+      IgnoreAttributesAndSetLocalProperty(global, name, value, attributes);
     }
   }
   // Done.
@@ -1416,7 +1416,7 @@ static Object* Runtime_IgnoreAttributesAndSetProperty(Arguments args) {
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, name, args[1]);
 
-  return object->IgnoreAttributesAndSetLocalProperty(name, args[2]);
+  return object->IgnoreAttributesAndSetLocalProperty(name, args[2], NONE);
 }
 
 
