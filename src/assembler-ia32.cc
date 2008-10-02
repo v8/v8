@@ -475,6 +475,9 @@ void Assembler::pop(Register dst) {
         // change to
         // 31c0         xor eax,eax
         last_pc_ = NULL;
+        if (FLAG_print_push_pop_elimination) {
+          PrintF("%d push/pop (imm->reg) eliminated\n", pc_offset());
+        }
         return;
       } else {
         // 6a00         push 0xXX
@@ -495,6 +498,9 @@ void Assembler::pop(Register dst) {
           // b8XX000000   mov eax,0x000000XX
         }
         last_pc_ = NULL;
+        if (FLAG_print_push_pop_elimination) {
+          PrintF("%d push/pop (imm->reg) eliminated\n", pc_offset());
+        }
         return;
       }
     } else if (instr == 0x68 && dst.is(eax)) {  // push of immediate 32 bit
@@ -504,6 +510,9 @@ void Assembler::pop(Register dst) {
       last_pc_ = NULL;
       // change to
       // b8XXXXXXXX   mov eax,0xXXXXXXXX
+      if (FLAG_print_push_pop_elimination) {
+        PrintF("%d push/pop (imm->reg) eliminated\n", pc_offset());
+      }
       return;
     }
 
