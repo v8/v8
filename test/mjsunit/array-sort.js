@@ -131,3 +131,12 @@ function TestArraySortingWithHoles() {
 }
 
 TestArraySortingWithHoles();
+
+// Test array sorting with undefined elemeents in the array.
+function TestArraySortingWithUndefined() {
+  var a = [3, void 0, 2];
+  a.sort();
+  assertArrayEquals([ 2, 3, void 0], a);
+}
+
+TestArraySortingWithUndefined();

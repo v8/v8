@@ -743,7 +743,7 @@ function ArraySort(comparefn) {
     if (IS_UNDEFINED(this[i])) {
       length--;
       this[i] = this[length];
-      this[length] = undefined;
+      this[length] = void 0;
     } else {
       i++;
     }
