@@ -77,8 +77,9 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['/DEBUG']
     },
     'mode:release': {
-      'CCFLAGS':      ['/Ox', '/MT', '/GF'],
-      'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF']
+      'CCFLAGS':      ['/O2', '/MT', '/GL'],
+      'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF', '/LTCG'],
+      'ARFLAGS':      ['/LTCG']
     }
   }
 }
@@ -205,8 +206,8 @@ SAMPLE_FLAGS = {
       'LINKFLAGS': ['/MAP']
     },
     'mode:release': {
-      'CCFLAGS':   ['/Ox', '/MT', '/GF'],
-      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF']
+      'CCFLAGS':   ['/O2', '/MT'],
+      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF', '/LTCG']
     },
     'mode:debug': {
       'CCFLAGS':   ['/Od', '/MTd'],
