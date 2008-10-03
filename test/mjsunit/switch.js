@@ -54,7 +54,7 @@ function f2(x) {
       break;
     case 2:
       r = "two";
-      break
+      break;
     case 3:
       r = "three";
       break;
@@ -69,6 +69,13 @@ assertEquals("one", f2(1), "0-1-switch.1");
 assertEquals("default", f2(7), "0-1-switch.2");
 assertEquals("default", f2(-1), "0-1-switch.-1");
 assertEquals("default", f2(NaN), "0-1-switch.NaN");
+assertEquals("default", f2(Math.pow(2,34)), "0-1-switch.largeNum");
+assertEquals("default", f2("0"), "0-1-switch.string");
+assertEquals("default", f2(false), "0-1-switch.bool");
+assertEquals("default", f2(null), "0-1-switch.null");
+assertEquals("default", f2(undefined), "0-1-switch.undef");
+assertEquals("default", f2(new Number(2)), "0-1-switch.undef");
+assertEquals("default", f2({valueOf: function(){return 2; }}), "0-1-switch.obj");
 
 
 function f3(x, c) {
@@ -114,10 +121,10 @@ function f4(x) {
 }
 
 
-assertEquals(3, f4(0), "fallthrough-switch.0")
-assertEquals(3, f4(1), "fallthrough-switch.1")
-assertEquals(3, f4(2), "fallthrough-switch.2")
-assertEquals(5, f4(3), "fallthrough-switch.3")
+assertEquals(3, f4(0), "fallthrough-switch.0");
+assertEquals(3, f4(1), "fallthrough-switch.1");
+assertEquals(3, f4(2), "fallthrough-switch.2");
+assertEquals(5, f4(3), "fallthrough-switch.3");
 
 
 function f5(x) {
@@ -130,14 +137,14 @@ function f5(x) {
   }
 }
 
-assertTrue(f5(-2), "negcase.-2")
-assertFalse(f5(-1), "negcase.-1")
-assertTrue(f5(0), "negcase.-0")
-assertEquals(42, f5(1), "negcase.1")
-assertFalse(f5(2), "negcase.2")
+assertTrue(f5(-2), "negcase.-2");
+assertFalse(f5(-1), "negcase.-1");
+assertTrue(f5(0), "negcase.-0");
+assertEquals(42, f5(1), "negcase.1");
+assertFalse(f5(2), "negcase.2");
 
 function f6(N) {
-  // long enough case that code buffer grows while it is code-generated.
+  // long enough case that code buffer grows during code-generation
   var res = 0;
   for(var i = 0; i < N; i++) {
     switch(i & 0x3f) {

@@ -301,6 +301,15 @@ class ArmCodeGenerator: public CodeGenerator {
   NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
+  // Fast-case switch
+  static const int kFastCaseSwitchMaxOverheadFactor = 10;
+  static const int kFastCaseSwitchMinCaseCount = 5;
+  virtual int FastCaseSwitchMaxOverheadFactor();
+  virtual int FastCaseSwitchMinCaseCount();
+  virtual void GenerateFastCaseSwitchJumpTable(
+      SwitchStatement* node, int min_index, int range, Label *fail_label,
+      SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels);
+
   void RecordStatementPosition(Node* node);
 
   // Activation frames
@@ -1617,12 +1626,58 @@ void ArmCodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 }
 
 
+int ArmCodeGenerator::FastCaseSwitchMaxOverheadFactor() {
+    return kFastCaseSwitchMaxOverheadFactor;
+}
+
+int ArmCodeGenerator::FastCaseSwitchMinCaseCount() {
+    return kFastCaseSwitchMinCaseCount;
+}
+
+
+void ArmCodeGenerator::GenerateFastCaseSwitchJumpTable(
+    SwitchStatement* node, int min_index, int range, Label *fail_label,
+    SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels) {
+
+  ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
+
+  __ pop(r0);
+  if (min_index != 0) {
+    // small positive numbers can be immediate operands.
+    if (min_index < 0) {
+      __ add(r0, r0, Operand(Smi::FromInt(-min_index)));
+    } else {
+      __ sub(r0, r0, Operand(Smi::FromInt(min_index)));
+    }
+  }
+  __ tst(r0, Operand(0x80000000 | kSmiTagMask));
+  __ b(ne, fail_label);
+  __ cmp(r0, Operand(Smi::FromInt(range)));
+  __ b(ge, fail_label);
+  __ add(pc, pc, Operand(r0, LSL, 2 - kSmiTagSize));
+  // One extra instruction offsets the table, so the table's start address is
+  // the pc-register at the above add.
+  __ stop("Unreachable: Switch table alignment");
+
+  // table containing branch operations.
+  for (int i = 0; i < range; i++) {
+    __ b(case_targets[i]);
+  }
+
+  GenerateFastCaseSwitchCases(node, case_labels);
+}
+
+
 void ArmCodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   Comment cmnt(masm_, "[ SwitchStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
 
   Load(node->tag());
+
+  if (TryGenerateFastCaseSwitchStatement(node)) {
+      return;
+  }
 
   Label next, fall_through, default_case;
   ZoneList<CaseClause*>* cases = node->cases();
