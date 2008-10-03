@@ -669,9 +669,6 @@ void KeyedLoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
 }
 
 
-// Defined in ic.cc.
-Object* StoreIC_Miss(Arguments args);
-
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
@@ -687,6 +684,25 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 
   // Cache miss: Jump to runtime.
   Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
+}
+
+
+void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : transition map
+  //  -- esp[0] : return address
+  //  -- esp[4] : receiver
+  // -----------------------------------
+
+  // Move the return address below the arguments.
+  __ pop(ebx);
+  __ push(Operand(esp, 0));
+  __ push(ecx);
+  __ push(eax);
+  __ push(ebx);
+  // Perform tail call to the entry.
+  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_ExtendStorage)), 3);
 }
 
 

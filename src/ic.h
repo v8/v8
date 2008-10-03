@@ -39,6 +39,7 @@ namespace v8 { namespace internal {
   ICU(KeyedLoadIC_Miss)         \
   ICU(CallIC_Miss)              \
   ICU(StoreIC_Miss)             \
+  ICU(StoreIC_ExtendStorage)    \
   ICU(KeyedStoreIC_Miss)        \
   /* Utilities for IC stubs. */ \
   ICU(LoadCallbackProperty)     \
@@ -294,6 +295,7 @@ class StoreIC: public IC {
   static void GenerateInitialize(MacroAssembler* masm);
   static void GenerateMiss(MacroAssembler* masm);
   static void GenerateMegamorphic(MacroAssembler* masm);
+  static void GenerateExtendStorage(MacroAssembler* masm);
 
  private:
   static void Generate(MacroAssembler* masm, const ExternalReference& f);

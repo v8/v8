@@ -539,9 +539,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
 
-// Defined in ic.cc.
-Object* StoreIC_Miss(Arguments args);
-
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0    : value
@@ -557,6 +554,22 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
 
   // Cache miss: Jump to runtime.
   Generate(masm, ExternalReference(IC_Utility(kStoreIC_Miss)));
+}
+
+
+void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r2    : name
+  //  -- lr    : return address
+  //  -- [sp]  : receiver
+  // -----------------------------------
+
+  __ ldr(r3, MemOperand(sp));  // copy receiver
+  __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
+
+  // Perform tail call to the entry.
+  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_ExtendStorage)), 3);
 }
 
 

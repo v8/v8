@@ -561,6 +561,10 @@ static void Generate_StoreIC_Miss(MacroAssembler* masm) {
 }
 
 
+static void Generate_StoreIC_ExtendStorage(MacroAssembler* masm) {
+  StoreIC::GenerateExtendStorage(masm);
+}
+
 static void Generate_StoreIC_Megamorphic(MacroAssembler* masm) {
   StoreIC::GenerateMegamorphic(masm);
 }

@@ -36,7 +36,6 @@
 // changes to these properties.
 const $Date = global.Date;
 
-
 // ECMA 262 - 15.9.1.2
 function Day(time) {
   return $floor(time/msPerDay);
@@ -127,17 +126,6 @@ function EquivalentTime(t) {
   return TimeClip(MakeDate(day, TimeWithinDay(t)));
 }
 
-
-var local_time_offset;
-
-function LocalTimeOffset() {
-  if (IS_UNDEFINED(local_time_offset)) {
-    local_time_offset = %DateLocalTimeOffset();
-  }
-  return local_time_offset;
-}
-
-
 var daylight_cache_time = $NaN;
 var daylight_cache_offset;
 
@@ -170,16 +158,17 @@ function WeekDay(time) {
   return Modulo(Day(time) + 4, 7);
 }
 
+var local_time_offset = %DateLocalTimeOffset();
 
 function LocalTime(time) {
   if ($isNaN(time)) return time;
-  return time + LocalTimeOffset() + DaylightSavingsOffset(time);
+  return time + local_time_offset + DaylightSavingsOffset(time);
 }
 
 
 function UTC(time) {
   if ($isNaN(time)) return time;
-  var tmp = time - LocalTimeOffset();
+  var tmp = time - local_time_offset;
   return tmp - DaylightSavingsOffset(tmp);
 }
 
@@ -530,7 +519,7 @@ function TimeString(time) {
 
 
 function LocalTimezoneString(time) {
-  var timezoneOffset = (LocalTimeOffset() + DaylightSavingsOffset(time)) / msPerMinute;
+  var timezoneOffset = (local_time_offset + DaylightSavingsOffset(time)) / msPerMinute;
   var sign = (timezoneOffset >= 0) ? 1 : -1;
   var hours = $floor((sign * timezoneOffset)/60);
   var min   = $floor((sign * timezoneOffset)%60);

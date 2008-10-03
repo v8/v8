@@ -874,10 +874,8 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
     }
     case MAP_TRANSITION: {
       if (lookup->GetAttributes() != NONE) return;
-      if (receiver->map()->unused_property_fields() == 0) return;
       HandleScope scope;
-      ASSERT(type == MAP_TRANSITION &&
-             (receiver->map()->unused_property_fields() > 0));
+      ASSERT(type == MAP_TRANSITION);
       Handle<Map> transition(lookup->GetTransitionMap());
       int index = transition->PropertyIndexFor(*name);
       code = StubCache::ComputeStoreField(*name, *receiver, index, *transition);
@@ -906,7 +904,8 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
   if (state == UNINITIALIZED || state == MONOMORPHIC_PROTOTYPE_FAILURE) {
     set_target(Code::cast(code));
   } else if (state == MONOMORPHIC) {
-    set_target(megamorphic_stub());
+    // Only move to mega morphic if the target changes.
+    if (target() != Code::cast(code)) set_target(megamorphic_stub());
   }
 
 #ifdef DEBUG
@@ -996,10 +995,8 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
     }
     case MAP_TRANSITION: {
       if (lookup->GetAttributes() == NONE) {
-        if (receiver->map()->unused_property_fields() == 0) return;
         HandleScope scope;
-        ASSERT(type == MAP_TRANSITION &&
-               (receiver->map()->unused_property_fields() > 0));
+        ASSERT(type == MAP_TRANSITION);
         Handle<Map> transition(lookup->GetTransitionMap());
         int index = transition->PropertyIndexFor(*name);
         code = StubCache::ComputeKeyedStoreField(*name, *receiver,
@@ -1112,6 +1109,40 @@ Object* StoreIC_Miss(Arguments args) {
   IC::State state = IC::StateFrom(ic.target(), args[0]);
   return ic.Store(state, args.at<Object>(0), args.at<String>(1),
                   args.at<Object>(2));
+}
+
+
+// Extend storage is called in a store inline cache when
+// it is necessary to extend the properties array of a
+// JSObject.
+Object* StoreIC_ExtendStorage(Arguments args) {
+  NoHandleAllocation na;
+  ASSERT(args.length() == 3);
+
+  // Convert the parameters
+  JSObject* object = JSObject::cast(args[0]);
+  Map* transition = Map::cast(args[1]);
+  Object* value = args[2];
+
+  // Check the object has run out out property space.
+  ASSERT(object->HasFastProperties());
+  ASSERT(object->map()->unused_property_fields() == 0);
+
+  // Expand the properties array.
+  FixedArray* old_storage = object->properties();
+  int new_unused = transition->unused_property_fields();
+  int new_size = old_storage->length() + new_unused + 1;
+  Object* result = old_storage->CopySize(new_size);
+  if (result->IsFailure()) return result;
+  FixedArray* new_storage = FixedArray::cast(result);
+  new_storage->set(old_storage->length(), value);
+
+  // Set the new property value and do the map tranistion.
+  object->set_properties(new_storage);
+  object->set_map(transition);
+
+  // Return the stored value.
+  return value;
 }
 
 
