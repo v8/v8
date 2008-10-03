@@ -1987,7 +1987,7 @@ void Ia32CodeGenerator::GenerateFastCaseSwitchJumpTable(
   int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t);
 
   __ Align(4);
-   Label table_start;
+  Label table_start;
   __ bind(&table_start);
   __ WriteInternalReference(jump_table_ref, table_start);
 
@@ -1996,11 +1996,11 @@ void Ia32CodeGenerator::GenerateFastCaseSwitchJumpTable(
     __ dd(0x0, RelocInfo::INTERNAL_REFERENCE);
   }
 
-   GenerateFastCaseSwitchCases(node, case_labels);
+  GenerateFastCaseSwitchCases(node, case_labels);
 
-   for (int i = 0, entry_pos = table_start.pos();
-        i < range; i++, entry_pos += sizeof(uint32_t)) {
-     __ WriteInternalReference(entry_pos, *case_targets[i]);
+  for (int i = 0, entry_pos = table_start.pos();
+       i < range; i++, entry_pos += sizeof(uint32_t)) {
+    __ WriteInternalReference(entry_pos, *case_targets[i]);
   }
 }
 
