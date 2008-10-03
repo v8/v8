@@ -1608,7 +1608,7 @@ FrameMirror.prototype.invocationText = function() {
     // For constructor frames display new followed by the function name.
     result += 'new ';
     result += func.name() ? func.name() : '[anonymous]';
-  } else   if (this.isDebuggerFrame()) {
+  } else if (this.isDebuggerFrame()) {
     result += '[debugger]';
   } else {
     // If the receiver has a className which is 'global' don't display it.

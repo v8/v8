@@ -3096,8 +3096,8 @@ static Object* RuntimePreempt(Arguments args) {
 
 
 static Object* Runtime_DebugBreak(Arguments args) {
-  // Just continue if breaks are disabled or if we fail to load the debugger.
-  if (Debug::disable_break() || !Debug::Load()) {
+  // Just continue if breaks are disabled.
+  if (Debug::disable_break()) {
     return args[0];
   }
 
@@ -3118,8 +3118,11 @@ static Object* Runtime_DebugBreak(Arguments args) {
   StackGuard::Continue(DEBUGBREAK);
 
   HandleScope scope;
-  SaveBreakFrame save;
-  EnterDebuggerContext enter;
+  // Enter the debugger. Just continue if we fail to enter the debugger.
+  EnterDebugger debugger;
+  if (debugger.FailedToEnter()) {
+    return args[0];
+  }
 
   // Notify the debug event listeners.
   Debugger::OnDebugBreak(Factory::undefined_value());
