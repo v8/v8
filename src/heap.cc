@@ -2338,19 +2338,19 @@ void Heap::IterateRoots(ObjectVisitor* v) {
 
 void Heap::IterateStrongRoots(ObjectVisitor* v) {
 #define ROOT_ITERATE(type, name) \
-  v->VisitPointer(reinterpret_cast<Object**>(&name##_));
+  v->VisitPointer(bit_cast<Object**, type**>(&name##_));
   STRONG_ROOT_LIST(ROOT_ITERATE);
 #undef ROOT_ITERATE
   SYNCHRONIZE_TAG("strong_root_list");
 
 #define STRUCT_MAP_ITERATE(NAME, Name, name) \
-  v->VisitPointer(reinterpret_cast<Object**>(&name##_map_));
+  v->VisitPointer(bit_cast<Object**, Map**>(&name##_map_));
   STRUCT_LIST(STRUCT_MAP_ITERATE);
 #undef STRUCT_MAP_ITERATE
   SYNCHRONIZE_TAG("struct_map");
 
 #define SYMBOL_ITERATE(name, string) \
-  v->VisitPointer(reinterpret_cast<Object**>(&name##_));
+  v->VisitPointer(bit_cast<Object**, String**>(&name##_));
   SYMBOL_LIST(SYMBOL_ITERATE)
 #undef SYMBOL_ITERATE
   SYNCHRONIZE_TAG("symbol");

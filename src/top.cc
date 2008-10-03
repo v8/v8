@@ -65,16 +65,16 @@ char* Top::Iterate(ObjectVisitor* v, char* thread_storage) {
 #define VISIT(field) v->VisitPointer(reinterpret_cast<Object**>(&(field)));
 
 void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
-  VISIT(thread->pending_exception_);
-  VISIT(thread->security_context_);
-  VISIT(thread->context_);
-  VISIT(thread->scheduled_exception_);
+  v->VisitPointer(&(thread->pending_exception_));
+  v->VisitPointer(bit_cast<Object**, Context**>(&(thread->security_context_)));
+  v->VisitPointer(bit_cast<Object**, Context**>(&(thread->context_)));
+  v->VisitPointer(&(thread->scheduled_exception_));
 
   for (v8::TryCatch* block = thread->try_catch_handler_;
        block != NULL;
        block = block->next_) {
-    VISIT(reinterpret_cast<Object*&>(block->exception_));
-    VISIT(reinterpret_cast<Object*&>(block->message_));
+    v->VisitPointer(bit_cast<Object**, void**>(&(block->exception_)));
+    v->VisitPointer(bit_cast<Object**, void**>(&(block->message_)));
   }
 
   // Iterate over pointers on native execution stack.

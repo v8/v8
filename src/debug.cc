@@ -610,7 +610,7 @@ void Debug::Unload() {
 
 
 void Debug::Iterate(ObjectVisitor* v) {
-#define VISIT(field) v->VisitPointer(reinterpret_cast<Object**>(&(field)));
+#define VISIT(field) v->VisitPointer(bit_cast<Object**, Code**>(&(field)));
   VISIT(debug_break_return_entry_);
   VISIT(debug_break_return_);
 #undef VISIT
@@ -1725,7 +1725,7 @@ void DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
       }
       v8::String::Value val(json_event_string);
       Vector<uint16_t> str(reinterpret_cast<uint16_t*>(*val),
-                          json_event_string->Length());
+                           json_event_string->Length());
       SendMessage(str);
     } else {
       SendMessage(Vector<uint16_t>::empty());

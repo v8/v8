@@ -323,8 +323,7 @@ void RelocIterator::next() {
       if (SetMode(RelocInfo::EMBEDDED_OBJECT)) return;
     } else if (tag == kCodeTargetTag) {
       ReadTaggedPC();
-      if (*(reinterpret_cast<int**>(rinfo_.pc())) ==
-          reinterpret_cast<int*>(0x61)) {
+      if (*(reinterpret_cast<int*>(rinfo_.pc())) == 0x61) {
         tag = 0;
       }
       if (SetMode(RelocInfo::CODE_TARGET)) return;
