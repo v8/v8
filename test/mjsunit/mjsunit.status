@@ -51,9 +51,11 @@ debug-evaluate: FAIL
 debug-event-listener: FAIL
 debug-ignore-breakpoints: FAIL
 debug-multiple-breakpoints: FAIL
-# Bug number 1308895. This passes on the ARM simulator,
-# fails on the ARM Linux machine.
+# Bug number 1308895. The tests debug-script-breakpoints and
+# debug-scripts-request passes on the ARM simulator, but fails on the ARM Linux
+# machine.
 debug-script-breakpoints: PASS || FAIL
+debug-scripts-request: PASS || FAIL
 debug-setbreakpoint: FAIL
 debug-step-stub-callfunction: FAIL
 debug-stepin-constructor: FAIL
