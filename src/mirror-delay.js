@@ -338,7 +338,7 @@ Mirror.prototype.toText = function() {
 function ValueMirror(type, value) {
   Mirror.call(this, type);
   this.value_ = value;
-};
+}
 inherits(ValueMirror, Mirror);
 
 
@@ -372,7 +372,7 @@ ValueMirror.prototype.value = function() {
  */
 function UndefinedMirror() {
   ValueMirror.call(this, UNDEFINED_TYPE, void 0);
-};
+}
 inherits(UndefinedMirror, ValueMirror);
 
 
@@ -388,7 +388,7 @@ UndefinedMirror.prototype.toText = function() {
  */
 function NullMirror() {
   ValueMirror.call(this, NULL_TYPE, null);
-};
+}
 inherits(NullMirror, ValueMirror);
 
 
@@ -405,7 +405,7 @@ NullMirror.prototype.toText = function() {
  */
 function BooleanMirror(value) {
   ValueMirror.call(this, BOOLEAN_TYPE, value);
-};
+}
 inherits(BooleanMirror, ValueMirror);
 
 
@@ -428,7 +428,7 @@ BooleanMirror.prototype.toText = function() {
  */
 function NumberMirror(value) {
   ValueMirror.call(this, NUMBER_TYPE, value);
-};
+}
 inherits(NumberMirror, ValueMirror);
 
 
@@ -451,7 +451,7 @@ NumberMirror.prototype.toText = function() {
  */
 function StringMirror(value) {
   ValueMirror.call(this, STRING_TYPE, value);
-};
+}
 inherits(StringMirror, ValueMirror);
 
 
@@ -493,7 +493,7 @@ StringMirror.prototype.toText = function() {
  */
 function ObjectMirror(value, type) {
   ValueMirror.call(this, type || OBJECT_TYPE, value);
-};
+}
 inherits(ObjectMirror, ValueMirror);
 
 
@@ -558,14 +558,14 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
 
   var names = new Array(limit);
   var index = 0;
-  
+
   // Copy names for named properties.
   if (kind & PropertyKind.Named) {
     for (var i = 0; index < limit && i < propertyNames.length; i++) {
       names[index++] = propertyNames[i];
     }
   }
-  
+
   // Copy names for indexed properties.
   if (kind & PropertyKind.Indexed) {
     for (var i = 0; index < limit && i < elementNames.length; i++) {
@@ -614,7 +614,7 @@ ObjectMirror.prototype.interceptorPropertyNames = function(kind, limit) {
   if (this.hasNamedInterceptor() && kind & PropertyKind.Named) {
     namedInterceptorNames = %DebugNamedInterceptorPropertyNames(this.value_);
   }
-  
+
   // Get names for indexed interceptor properties.
   if (this.hasIndexedInterceptor() && kind & PropertyKind.Indexed) {
     indexedInterceptorNames = %DebugIndexedInterceptorElementNames(this.value_);
@@ -646,7 +646,7 @@ ObjectMirror.prototype.interceptorProperties = function(opt_kind, opt_names) {
   var kind = opt_kind || PropertyKind.Named | PropertyKind.Indexed;
   var namedInterceptorProperties;
   var indexedInterceptorProperties;
-  
+
   // Get values for named interceptor properties.
   if (kind & PropertyKind.Named) {
     var names = opt_names || this.interceptorPropertyNames(PropertyKind.Named);
@@ -656,7 +656,7 @@ ObjectMirror.prototype.interceptorProperties = function(opt_kind, opt_names) {
       namedInterceptorProperties[i] = new InterceptorPropertyMirror(this, names[i], value);
     }
   }
-  
+
   // Get values for indexed interceptor properties.
   if (kind & PropertyKind.Indexed) {
     var names = opt_names || this.interceptorPropertyNames(PropertyKind.Indexed);
@@ -805,7 +805,7 @@ ObjectMirror.prototype.toText = function() {
 function FunctionMirror(value) {
   ObjectMirror.call(this, value, FUNCTION_TYPE);
   this.resolved_ = true;
-};
+}
 inherits(FunctionMirror, ObjectMirror);
 
 
@@ -871,12 +871,12 @@ FunctionMirror.prototype.constructedBy = function(opt_max_instances) {
   if (this.resolved()) {
     // Find all objects constructed from this function.
     var result = %DebugConstructedBy(this.value_, opt_max_instances || 0);
-    
+
     // Make mirrors for all the instances found.
     for (var i = 0; i < result.length; i++) {
       result[i] = MakeMirror(result[i]);
     }
-    
+
     return result;
   } else {
     return [];
@@ -918,7 +918,7 @@ function UnresolvedFunctionMirror(value) {
   this.propertyCount_ = 0;
   this.elementCount_ = 0;
   this.resolved_ = false;
-};
+}
 inherits(UnresolvedFunctionMirror, FunctionMirror);
 
 
@@ -960,7 +960,7 @@ UnresolvedFunctionMirror.prototype.propertyNames = function(kind, limit) {
  */
 function ArrayMirror(value) {
   ObjectMirror.call(this, value);
-};
+}
 inherits(ArrayMirror, ObjectMirror);
 
 
@@ -1008,7 +1008,7 @@ ArrayMirror.prototype.fillJSON_ = function(content, details) {
  */
 function DateMirror(value) {
   ObjectMirror.call(this, value);
-};
+}
 inherits(DateMirror, ObjectMirror);
 
 
@@ -1033,7 +1033,7 @@ DateMirror.prototype.toText = function() {
  */
 function RegExpMirror(value) {
   ObjectMirror.call(this, value, REGEXP_TYPE);
-};
+}
 inherits(RegExpMirror, ObjectMirror);
 
 
@@ -1098,7 +1098,7 @@ RegExpMirror.prototype.toText = function() {
  */
 function ErrorMirror(value) {
   ObjectMirror.call(this, value, ERROR_TYPE);
-};
+}
 inherits(ErrorMirror, ObjectMirror);
 
 
@@ -1145,7 +1145,7 @@ function PropertyMirror(mirror, name, value, details) {
   this.name_ = name;
   this.value_ = value;
   this.details_ = details;
-};
+}
 inherits(PropertyMirror, Mirror);
 
 
@@ -1228,7 +1228,7 @@ PropertyMirror.prototype.fillJSON_ = function(content, details) {
  */
 function InterceptorPropertyMirror(mirror, name, value) {
   PropertyMirror.call(this, mirror, name, value, PropertyType.Interceptor);
-};
+}
 inherits(InterceptorPropertyMirror, PropertyMirror);
 
 
@@ -1243,7 +1243,7 @@ function AccessorMirror(getter, setter) {
   Mirror.call(this, ACCESSOR_TYPE);
   this.getter_ = getter;
   this.setter_ = setter;
-};
+}
 inherits(AccessorMirror, Mirror);
 
 
@@ -1334,7 +1334,7 @@ const kFrameDetailsNameValueSize = 2;
 function FrameDetails(break_id, index) {
   this.break_id_ = break_id;
   this.details_ = %GetFrameDetails(break_id, index);
-};
+}
 
 
 FrameDetails.prototype.frameId = function() {
@@ -1440,7 +1440,7 @@ function FrameMirror(break_id, index) {
   this.break_id_ = break_id;
   this.index_ = index;
   this.details_ = new FrameDetails(break_id, index);
-};
+}
 inherits(FrameMirror, Mirror);
 
 
@@ -1641,7 +1641,7 @@ FrameMirror.prototype.invocationText = function() {
       // under which it was looked up.
       if (func.name() && func.name() != property.name()) {
         result += '(aka ' + func.name() + ')';
-      }      
+      }
     } else {
       // The function invoked was not found on the receiver. Use the function
       // name if available for the backtrace.
@@ -1665,7 +1665,7 @@ FrameMirror.prototype.invocationText = function() {
     }
     result += ')';
   }
-  
+
   return result;
 }
 
@@ -1744,7 +1744,7 @@ FrameMirror.prototype.toText = function(opt_locals) {
 function ScriptMirror(script) {
   Mirror.call(this, SCRIPT_TYPE);
   this.script_ = script;
-};
+}
 inherits(ScriptMirror, Mirror);
 
 
@@ -1793,8 +1793,8 @@ ScriptMirror.prototype.fillJSON_ = function(content, details) {
   content.push(MakeJSONPair_('lineCount', NumberToJSON_(this.lineCount())));
   content.push(MakeJSONPair_('scriptType', NumberToJSON_(this.scriptType())));
 }
-  
-  
+
+
 ScriptMirror.prototype.toText = function() {
   var result = '';
   result += this.name();
@@ -1813,27 +1813,27 @@ ScriptMirror.prototype.toText = function() {
 
 function MakeJSONPair_(name, value) {
   return '"' + name + '":' + value;
-};
+}
 
 
 function ArrayToJSONObject_(content) {
   return '{' + content.join(',') + '}';
-};
+}
 
 
 function ArrayToJSONArray_(content) {
   return '[' + content.join(',') + ']';
-};
+}
 
 
 function BooleanToJSON_(value) {
   return String(value); 
-};
+}
 
 
 function NumberToJSON_(value) {
   return String(value); 
-};
+}
 
 
 // Mapping of some control characters to avoid the \uXXXX syntax for most
@@ -1886,7 +1886,7 @@ function StringToJSON_(value) {
 
   // Simple string with no special characters.
   return '"' + value + '"';
-};
+}
 
 
 /**
@@ -1910,7 +1910,7 @@ function DateToISO8601_(value) {
           f(builtins.GetUTCMinutesFrom(value))      + ':' +
           f(builtins.GetUTCSecondsFrom(value))      + '.' +
           g(builtins.GetUTCMillisecondsFrom(value)) + 'Z';
-};
+}
 
 /**
  * Convert a Date to ISO 8601 format. To avoid depending on the Date object
@@ -1921,4 +1921,4 @@ function DateToISO8601_(value) {
  */
 function DateToJSON_(value) {
   return '"' + DateToISO8601_(value) + '"';
-};
+}

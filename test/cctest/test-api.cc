@@ -4937,3 +4937,22 @@ THREADED_TEST(CompilationCache) {
   CHECK_EQ(1234, script1->Run()->Int32Value());
   CHECK_EQ(1234, script2->Run()->Int32Value());
 }
+
+
+static v8::Handle<Value> FunctionNameCallback(const v8::Arguments& args) {
+  ApiTestFuzzer::Fuzz();
+  return v8_num(42);
+}
+
+
+THREADED_TEST(CallbackFunctionName) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> t = ObjectTemplate::New();
+  t->Set(v8_str("asdf"), v8::FunctionTemplate::New(FunctionNameCallback));
+  context->Global()->Set(v8_str("obj"), t->NewInstance());
+  v8::Handle<v8::Value> value = CompileRun("obj.asdf.name");
+  CHECK(value->IsString());
+  v8::String::AsciiValue name(value);
+  CHECK_EQ("asdf", *name);
+}

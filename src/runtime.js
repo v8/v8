@@ -93,7 +93,7 @@ function EQUALS(y) {
 
     }
   }
-};
+}
 
 
 // ECMA-262, section 11.9.4, page 56.
@@ -119,7 +119,7 @@ function STRICT_EQUALS(x) {
   }
 
   return %_ObjectEquals(this, x) ? 0 : 1;
-};
+}
 
 
 // ECMA-262, section 11.8.5, page 53. The 'ncr' parameter is used as
@@ -137,7 +137,7 @@ function COMPARE(x, ncr) {
   } else {
     return %NumberCompare(%ToNumber(a), %ToNumber(b), ncr);
   }
-};
+}
 
 
 
@@ -152,7 +152,7 @@ function ADD(x) {
   if (IS_NUMBER(this) && IS_NUMBER(x)) {
     return %NumberAdd(this, x);
   }
-  
+
   var a = %ToPrimitive(this, NO_HINT);
   var b = %ToPrimitive(x, NO_HINT);
   
@@ -163,43 +163,43 @@ function ADD(x) {
   } else {
     return %NumberAdd(%ToNumber(a), %ToNumber(b));
   }
-};
+}
 
 
 // ECMA-262, section 11.6.2, page 50.
 function SUB(x) {
   return %NumberSub(%ToNumber(this), %ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 11.5.1, page 48.
 function MUL(x) {
   return %NumberMul(%ToNumber(this), %ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 11.5.2, page 49.
 function DIV(x) {
   return %NumberDiv(%ToNumber(this), %ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 11.5.3, page 49.
 function MOD(x) {
   return %NumberMod(%ToNumber(this), %ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 11.4.4, page 47.
 function INC() {
   return %NumberAdd(%ToNumber(this), 1);
-};
+}
 
 
 // ECMA-262, section 11.4.5, page 48.
 function DEC() {
   return %NumberSub(%ToNumber(this), 1);
-};
+}
 
 
 
@@ -211,49 +211,49 @@ function DEC() {
 // ECMA-262, section 11.10, page 57.
 function BIT_OR(x) {
   return %NumberOr(%ToNumber(this), %ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 11.10, page 57.
 function BIT_AND(x) {
   return %NumberAnd(%ToNumber(this), %ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 11.10, page 57.
 function BIT_XOR(x) {
   return %NumberXor(%ToNumber(this), %ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 11.4.7, page 47.
 function UNARY_MINUS() {
   return %NumberUnaryMinus(%ToNumber(this));
-};
+}
 
 
 // ECMA-262, section 11.4.8, page 48.
 function BIT_NOT() {
   return %NumberNot(%ToNumber(this));
-};
+}
 
 
 // ECMA-262, section 11.7.1, page 51.
 function SHL(x) {
   return %NumberShl(%ToNumber(this), %ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 11.7.2, page 51.
 function SAR(x) {
   return %NumberSar(%ToNumber(this), %ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 11.7.3, page 52.
 function SHR(x) {
   return %NumberShr(%ToNumber(this), %ToNumber(x));
-};
+}
 
 
 
@@ -265,7 +265,7 @@ function SHR(x) {
 // ECMA-262, section 11.4.1, page 46.
 function DELETE(key) {
   return %DeleteProperty(%ToObject(this), %ToString(key));
-};
+}
 
 
 // ECMA-262, section 11.8.7, page 54.
@@ -274,7 +274,7 @@ function IN(x) {
     throw %MakeTypeError('invalid_in_operator_use', [this, x]);
   }
   return %_IsNonNegativeSmi(this) ? %HasElement(x, this) : %HasProperty(x, %ToString(this));
-};
+}
 
 
 // ECMA-262, section 11.8.6, page 54.
@@ -297,14 +297,14 @@ function INSTANCE_OF(F) {
 
   // Return whether or not O is in the prototype chain of V.
   return %IsInPrototypeChain(O, V);
-};
+}
 
 
 // Get an array of property keys for the given object. Used in
 // for-in statements.
 function GET_KEYS() {
   return %GetPropertyNames(this);
-};
+}
 
 
 // Filter a given key against an object by checking if the object
@@ -314,7 +314,7 @@ function FILTER_KEY(key) {
   var string = %ToString(key);
   if (%HasProperty(this, string)) return string;
   return null;
-};
+}
 
 
 function CALL_NON_FUNCTION() {
@@ -326,7 +326,7 @@ function CALL_NON_FUNCTION() {
 
   var parameters = %NewArguments(delegate);
   return delegate.apply(callee, parameters);
-};
+}
 
 
 function APPLY_PREPARE(args) {
@@ -363,30 +363,30 @@ function APPLY_PREPARE(args) {
   // Return the length which is the number of arguments to copy to the
   // stack. It is guaranteed to be a small integer at this point.
   return length;
-};
+}
 
 
 function APPLY_OVERFLOW(length) {
   throw %MakeRangeError('apply_overflow', [length]);
-};
+}
 
 
 // Convert the receiver to an object - forward to ToObject.
 function TO_OBJECT() {
   return %ToObject(this);
-};
+}
 
 
 // Convert the receiver to a number - forward to ToNumber.
 function TO_NUMBER() {
   return %ToNumber(this);
-};
+}
 
 
 // Convert the receiver to a string - forward to ToString.
 function TO_STRING() {
   return %ToString(this);
-};
+}
 
 
 /* -------------------------------------
@@ -401,7 +401,7 @@ function ToPrimitive(x, hint) {
   if (x == null) return x;  // check for null, undefined
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
   return (hint == NUMBER_HINT) ? %DefaultNumber(x) : %DefaultString(x);
-};
+}
 
 
 // ECMA-262, section 9.3, page 31.
@@ -411,7 +411,7 @@ function ToNumber(x) {
   if (IS_BOOLEAN(x)) return x ? 1 : 0;
   if (IS_UNDEFINED(x)) return $NaN;
   return (IS_NULL(x)) ? 0 : ToNumber(%DefaultNumber(x));
-};
+}
 
 
 // ECMA-262, section 9.8, page 35.
@@ -421,7 +421,7 @@ function ToString(x) {
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   if (IS_UNDEFINED(x)) return 'undefined';
   return (IS_NULL(x)) ? 'null' : %ToString(%DefaultString(x));
-};
+}
 
 
 // ... where did this come from?
@@ -431,7 +431,7 @@ function ToBoolean(x) {
   if (x == null) return false;
   if (IS_NUMBER(x)) return !((x == 0) || NUMBER_IS_NAN(x));
   return true;
-};
+}
 
 
 // ECMA-262, section 9.9, page 36.
@@ -441,28 +441,28 @@ function ToObject(x) {
   if (IS_BOOLEAN(x)) return new $Boolean(x);
   if (x == null) throw %MakeTypeError('null_to_object', []);
   return x;
-};
+}
 
 
 // ECMA-262, section 9.4, page 34.
 function ToInteger(x) {
   if (%_IsSmi(x)) return x;
   return %NumberToInteger(ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 9.6, page 34.
 function ToUint32(x) {
   if (%_IsSmi(x) && x >= 0) return x;
   return %NumberToJSUint32(ToNumber(x));
-};
+}
 
 
 // ECMA-262, section 9.5, page 34
 function ToInt32(x) {
   if (%_IsSmi(x)) return x;
   return %NumberToJSInt32(ToNumber(x));
-};
+}
 
 
 
@@ -481,7 +481,7 @@ function IsPrimitive(x) {
     // considered a primitive value.
     return IS_NULL(x);
   }
-};
+}
 
 
 // ECMA-262, section 8.6.2.6, page 28.
@@ -497,7 +497,7 @@ function DefaultNumber(x) {
   }
 
   throw %MakeTypeError('cannot_convert_to_primitive', []);
-};
+}
 
 
 // ECMA-262, section 8.6.2.6, page 28.
@@ -513,7 +513,7 @@ function DefaultString(x) {
   }
 
   throw %MakeTypeError('cannot_convert_to_primitive', []);
-};
+}
 
 
 // NOTE: Setting the prototype for Array must take place as early as

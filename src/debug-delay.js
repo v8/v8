@@ -75,7 +75,7 @@ function MakeBreakPoint(source_position, opt_line, opt_column, opt_script_break_
   var break_point = new BreakPoint(source_position, opt_line, opt_column, opt_script_break_point);
   break_points.push(break_point);
   return break_point;
-};
+}
 
 
 // Object representing a break point.
@@ -95,7 +95,7 @@ function BreakPoint(source_position, opt_line, opt_column, opt_script_break_poin
   this.active_ = true;
   this.condition_ = null;
   this.ignoreCount_ = 0;
-};
+}
 
 
 BreakPoint.prototype.number = function() {
@@ -204,7 +204,7 @@ BreakPoint.prototype.isTriggered = function(exec_state) {
 // the break point is triggered and supposed to break execution.
 function IsBreakPointTriggered(break_id, break_point) {
   return break_point.isTriggered(MakeExecutionState(break_id));
-};
+}
 
 
 // Object representing a script break point. The script is referenced by its
@@ -217,7 +217,7 @@ function ScriptBreakPoint(script_name, opt_line, opt_column) {
   this.active_ = true;
   this.condition_ = null;
   this.ignoreCount_ = 0;
-};
+}
 
 
 ScriptBreakPoint.prototype.number = function() {
@@ -354,7 +354,7 @@ function UpdateScriptBreakPoints(script) {
       script_break_points[i].set(script);
     }
   }
-};
+}
 
 
 // Function called from the runtime to handle a debug request receiced from the
@@ -676,12 +676,12 @@ Debug.scripts = function() {
 
 function MakeExecutionState(break_id) {
   return new ExecutionState(break_id);
-};
+}
 
 function ExecutionState(break_id) {
   this.break_id = break_id;
   this.selected_frame = 0;
-};
+}
 
 ExecutionState.prototype.prepareStep = function(opt_action, opt_count) {
   var action = Debug.StepAction.StepIn;
@@ -727,13 +727,13 @@ ExecutionState.prototype.debugCommandProcessor = function(protocol) {
 
 function MakeBreakEvent(exec_state, break_points_hit) {
   return new BreakEvent(exec_state, break_points_hit);
-};
+}
 
 
 function BreakEvent(exec_state, break_points_hit) {
   this.exec_state_ = exec_state;
   this.break_points_hit_ = break_points_hit;
-};
+}
 
 
 BreakEvent.prototype.func = function() {
@@ -846,13 +846,13 @@ BreakEvent.prototype.toJSONProtocol = function() {
 
 function MakeExceptionEvent(exec_state, exception, uncaught) {
   return new ExceptionEvent(exec_state, exception, uncaught);
-};
+}
 
 function ExceptionEvent(exec_state, exception, uncaught) {
   this.exec_state_ = exec_state;
   this.exception_ = exception;
   this.uncaught_ = uncaught;
-};
+}
 
 ExceptionEvent.prototype.uncaught = function() {
   return this.uncaught_;
@@ -931,13 +931,13 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
 
 function MakeCompileEvent(script_source, script_name, script_function) {
   return new CompileEvent(script_source, script_name, script_function);
-};
+}
 
 function CompileEvent(script_source, script_name, script_function) {
   this.scriptSource = script_source;
   this.scriptName = script_name;
   this.scriptFunction = script_function;
-};
+}
 
 CompileEvent.prototype.details = function() {
   var result = "";
@@ -967,11 +967,11 @@ CompileEvent.prototype.debugPrompt = function() {
 
 function MakeNewFunctionEvent(func) {
   return new NewFunctionEvent(func);
-};
+}
 
 function NewFunctionEvent(func) {
   this.func = func;
-};
+}
 
 NewFunctionEvent.prototype.details = function() {
   var result = "";
@@ -1314,7 +1314,7 @@ function SourceUnderline(source_text, position) {
 
   // Return the source line text with the underline beneath.
   return source_text + '\n' + underline;
-};
+}
 
 
 function FrameSourceUnderline(frame) {
@@ -1322,14 +1322,14 @@ function FrameSourceUnderline(frame) {
   if (location) {
     return SourceUnderline(location.sourceText(), location.position - location.start);
   }
-};
+}
 
 
 function RequestPacket(command) {
   this.seq = 0;
   this.type = 'request';
   this.command = command;
-};
+}
 
 
 RequestPacket.prototype.toJSONProtocol = function() {
@@ -1367,7 +1367,7 @@ function ResponsePacket(request) {
   if (request) this.command = request.command;
   this.success = true;
   this.running = false;
-};
+}
 
 
 ResponsePacket.prototype.failed = function(message) {
@@ -1995,7 +1995,7 @@ function SimpleObjectToJSON_(object) {
 
   // Make JSON object representation.
   return '{' + content.join(',') + '}';
-};
+}
 
 /**
  * Convert an array to its JSON representation. This is a VERY simple
@@ -2027,4 +2027,4 @@ function SimpleArrayToJSON_(array) {
   }
   json += ']';
   return json;
-};
+}

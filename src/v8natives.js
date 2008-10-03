@@ -27,6 +27,7 @@
 
 
 // This file relies on the fact that the following declarations have been made
+//
 // in runtime.js:
 // const $Object = global.Object;
 // const $Boolean = global.Boolean;
@@ -34,6 +35,9 @@
 // const $Function = global.Function;
 // const $Array = global.Array;
 // const $NaN = 0/0;
+//
+// in math.js:
+// const $floor = MathFloor
 
 
 // ECMA 262 - 15.1.1.1.
@@ -52,14 +56,14 @@
 function $isNaN(number) {
   var n = ToNumber(number);
   return NUMBER_IS_NAN(n);
-};
+}
 %AddProperty(global, "isNaN", $isNaN, DONT_ENUM);
 
 
 // ECMA 262 - 15.1.5
 function $isFinite(number) {
   return %NumberIsFinite(ToNumber(number));
-};
+}
 %AddProperty(global, "isFinite", $isFinite, DONT_ENUM);
 
 
@@ -75,9 +79,9 @@ function $isFinite(number) {
     if (%_IsSmi(string)) return string;
     if (IS_NUMBER(string)) {
       if (string >= 0.01 && string < 1e9)
-        return $Math_floor(string);
+        return $floor(string);
       if (string <= -0.01 && string > -1e9)
-        return - $Math_floor(-string);
+        return - $floor(-string);
     }
   } else {
     radix = TO_INT32(radix);
@@ -382,7 +386,7 @@ function FunctionSourceString(func) {
   if (source.match(regexp)) source = source.replace(regexp, "$1");
   var name = %FunctionGetName(func);
   return 'function ' + name + source;
-};
+}
 
 
 %AddProperty($Function.prototype, "toString", function() {
@@ -413,6 +417,6 @@ function NewFunction(arg1) {  // length == 1
   var f = %CompileString(source, -1, false)();
   %FunctionSetName(f, "anonymous");
   return %SetNewFunctionAttributes(f);
-};
+}
 
 %SetCode($Function, NewFunction);

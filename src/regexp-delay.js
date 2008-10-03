@@ -101,7 +101,7 @@ function DoConstructRegExp(object, pattern, flags, isConstructorCall) {
 
   // Call internal function to compile the pattern.
   %RegExpCompile(object, pattern, flags);
-};
+}
 
 
 function RegExpConstructor(pattern, flags) {
@@ -114,7 +114,7 @@ function RegExpConstructor(pattern, flags) {
     }
     return new $RegExp(pattern, flags);
   }
-};
+}
 
 
 // Deprecated RegExp.prototype.compile method.  We behave like the constructor
@@ -144,25 +144,26 @@ function DoRegExpExec(regexp, string, index) {
   var matchIndices = %RegExpExec(regexp, string, index);
   if (!IS_NULL(matchIndices)) {
     regExpCaptures = matchIndices;
-    regExpSubject = regexp_input = string;
+    regExpSubject = regExpInput = string;
   }
   return matchIndices;
-};
+}
+
 
 function DoRegExpExecGlobal(regexp, string) {
   // Here, matchIndices is an array of arrays of substring indices.
   var matchIndices = %RegExpExecGlobal(regexp, string);
   if (matchIndices.length != 0) {
     regExpCaptures = matchIndices[matchIndices.length - 1];
-    regExpSubject = regexp_input = string;
+    regExpSubject = regExpInput = string;
   }
   return matchIndices;
-};
+}
 
 
 function RegExpExec(string) {
   if (%_ArgumentsLength() == 0) {
-    string = regexp_input;
+    string = regExpInput;
   }
   var s = ToString(string);
   var length = s.length;
@@ -203,13 +204,13 @@ function RegExpExec(string) {
   result.index = matchIndices[0];
   result.input = s;
   return result;
-};
+}
 
 
 function RegExpTest(string) {
   var result = (%_ArgumentsLength() == 0) ? this.exec() : this.exec(string);
   return result != null;
-};
+}
 
 
 function RegExpToString() {
@@ -225,7 +226,7 @@ function RegExpToString() {
   if (this.multiline)
     result += 'm';
   return result;
-};
+}
 
 
 // Getters for the static properties lastMatch, lastParen, leftContext, and
@@ -234,7 +235,8 @@ function RegExpToString() {
 // of the last successful match.
 function RegExpGetLastMatch() {
   return regExpSubject.slice(regExpCaptures[0], regExpCaptures[1]);
-};
+}
+
 
 function RegExpGetLastParen() {
   var length = regExpCaptures.length;
@@ -244,15 +246,17 @@ function RegExpGetLastParen() {
   // it is empty.
   return regExpSubject.slice(regExpCaptures[length - 2],
                              regExpCaptures[length - 1]);
-};
+}
+
 
 function RegExpGetLeftContext() {
   return regExpSubject.slice(0, regExpCaptures[0]);
-};
+}
+
 
 function RegExpGetRightContext() {
   return regExpSubject.slice(regExpCaptures[1], regExpSubject.length);
-};
+}
 
 
 // The properties $1..$9 are the first nine capturing substrings of the last
@@ -268,7 +272,7 @@ function RegExpMakeCaptureGetter(n) {
     if (matchStart == -1 || matchEnd == -1) return '';
     return regExpSubject.slice(matchStart, matchEnd);
   };
-};
+}
 
 
 // Properties of the builtins object for recording the result of the last
@@ -279,50 +283,54 @@ function RegExpMakeCaptureGetter(n) {
 // the last successful match.
 var regExpCaptures = [0, 0];
 var regExpSubject = '';
+var regExpInput = "";
 
+// -------------------------------------------------------------------
 
-%FunctionSetInstanceClassName($RegExp, 'RegExp');
-%FunctionSetPrototype($RegExp, new $Object());
-%AddProperty($RegExp.prototype, 'constructor', $RegExp, DONT_ENUM);
-%SetCode($RegExp, RegExpConstructor);
+function SetupRegExp() {
+  %FunctionSetInstanceClassName($RegExp, 'RegExp');
+  %FunctionSetPrototype($RegExp, new $Object());
+  %AddProperty($RegExp.prototype, 'constructor', $RegExp, DONT_ENUM);
+  %SetCode($RegExp, RegExpConstructor);
 
-%AddProperty($RegExp.prototype, 'exec', RegExpExec, DONT_ENUM);
-%AddProperty($RegExp.prototype, 'test', RegExpTest, DONT_ENUM);
-%AddProperty($RegExp.prototype, 'toString', RegExpToString, DONT_ENUM);
-%AddProperty($RegExp.prototype, 'compile', CompileRegExp, DONT_ENUM);
+  InstallFunctions($RegExp.prototype, DONT_ENUM, $Array(
+    "exec", RegExpExec,
+    "test", RegExpTest,
+    "toString", RegExpToString,
+    "compile", CompileRegExp
+  ));
 
-// The spec says nothing about the length of exec and test, but
-// SpiderMonkey and KJS have length equal to 0.
-%FunctionSetLength($RegExp.prototype.exec, 0);
-%FunctionSetLength($RegExp.prototype.test, 0);
-// The length of compile is 1 in SpiderMonkey.
-%FunctionSetLength($RegExp.prototype.compile, 1);
+  // The spec says nothing about the length of exec and test, but
+  // SpiderMonkey and KJS have length equal to 0.
+  %FunctionSetLength($RegExp.prototype.exec, 0);
+  %FunctionSetLength($RegExp.prototype.test, 0);
+  // The length of compile is 1 in SpiderMonkey.
+  %FunctionSetLength($RegExp.prototype.compile, 1);
 
-// The properties input, $input, and $_ are aliases for each other.  When this
-// value is set in SpiderMonkey, the value it is set to is coerced to a
-// string.  We mimic that behavior with a slight difference: in SpiderMonkey
-// the value of the expression 'RegExp.input = null' (for instance) is the
-// string "null" (ie, the value after coercion), while in V8 it is the value
-// null (ie, the value before coercion).
-// Getter and setter for the input.
-var regexp_input = "";
-function RegExpGetInput() { return regexp_input; };
-function RegExpSetInput(string) { regexp_input = ToString(string); };
+  // The properties input, $input, and $_ are aliases for each other.  When this
+  // value is set in SpiderMonkey, the value it is set to is coerced to a
+  // string.  We mimic that behavior with a slight difference: in SpiderMonkey
+  // the value of the expression 'RegExp.input = null' (for instance) is the
+  // string "null" (ie, the value after coercion), while in V8 it is the value
+  // null (ie, the value before coercion).
+  // Getter and setter for the input.
+  function RegExpGetInput() { return regExpInput; }
+  function RegExpSetInput(string) { regExpInput = ToString(string); }
 
-%DefineAccessor($RegExp, 'input', GETTER, RegExpGetInput, DONT_DELETE);
-%DefineAccessor($RegExp, 'input', SETTER, RegExpSetInput, DONT_DELETE);
-%DefineAccessor($RegExp, '$_', GETTER, RegExpGetInput, DONT_ENUM | DONT_DELETE);
-%DefineAccessor($RegExp, '$_', SETTER, RegExpSetInput, DONT_ENUM | DONT_DELETE);
-%DefineAccessor($RegExp, '$input', GETTER, RegExpGetInput, DONT_ENUM | DONT_DELETE);
-%DefineAccessor($RegExp, '$input', SETTER, RegExpSetInput, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, 'input', GETTER, RegExpGetInput, DONT_DELETE);
+  %DefineAccessor($RegExp, 'input', SETTER, RegExpSetInput, DONT_DELETE);
+  %DefineAccessor($RegExp, '$_', GETTER, RegExpGetInput, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, '$_', SETTER, RegExpSetInput, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, '$input', GETTER, RegExpGetInput, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, '$input', SETTER, RegExpSetInput, DONT_ENUM | DONT_DELETE);
 
-// The properties multiline and $* are aliases for each other.  When this
-// value is set in SpiderMonkey, the value it is set to is coerced to a
-// boolean.  We mimic that behavior with a slight difference: in SpiderMonkey
-// the value of the expression 'RegExp.multiline = null' (for instance) is the
-// boolean false (ie, the value after coercion), while in V8 it is the value
-// null (ie, the value before coercion).
-(function () {
+  // The properties multiline and $* are aliases for each other.  When this
+  // value is set in SpiderMonkey, the value it is set to is coerced to a
+  // boolean.  We mimic that behavior with a slight difference: in SpiderMonkey
+  // the value of the expression 'RegExp.multiline = null' (for instance) is the
+  // boolean false (ie, the value after coercion), while in V8 it is the value
+  // null (ie, the value before coercion).
+
   // Getter and setter for multiline.
   var multiline = false;
   function RegExpGetMultiline() { return multiline; };
@@ -332,34 +340,34 @@ function RegExpSetInput(string) { regexp_input = ToString(string); };
   %DefineAccessor($RegExp, 'multiline', SETTER, RegExpSetMultiline, DONT_DELETE);
   %DefineAccessor($RegExp, '$*', GETTER, RegExpGetMultiline, DONT_ENUM | DONT_DELETE);
   %DefineAccessor($RegExp, '$*', SETTER, RegExpSetMultiline, DONT_ENUM | DONT_DELETE);
-})();
 
 
-function NoOpSetter(ignored) {};
+  function NoOpSetter(ignored) {}
 
 
-// Static properties set by a successful match.
-%DefineAccessor($RegExp, 'lastMatch', GETTER, RegExpGetLastMatch, DONT_DELETE);
-%DefineAccessor($RegExp, 'lastMatch', SETTER, NoOpSetter, DONT_DELETE);
-%DefineAccessor($RegExp, '$&', GETTER, RegExpGetLastMatch, DONT_ENUM | DONT_DELETE);
-%DefineAccessor($RegExp, '$&', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
-%DefineAccessor($RegExp, 'lastParen', GETTER, RegExpGetLastParen, DONT_DELETE);
-%DefineAccessor($RegExp, 'lastParen', SETTER, NoOpSetter, DONT_DELETE);
-%DefineAccessor($RegExp, '$+', GETTER, RegExpGetLastParen, DONT_ENUM | DONT_DELETE);
-%DefineAccessor($RegExp, '$+', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
-%DefineAccessor($RegExp, 'leftContext', GETTER, RegExpGetLeftContext, DONT_DELETE);
-%DefineAccessor($RegExp, 'leftContext', SETTER, NoOpSetter, DONT_DELETE);
-%DefineAccessor($RegExp, '$`', GETTER, RegExpGetLeftContext, DONT_ENUM | DONT_DELETE);
-%DefineAccessor($RegExp, '$`', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
-%DefineAccessor($RegExp, 'rightContext', GETTER, RegExpGetRightContext, DONT_DELETE);
-%DefineAccessor($RegExp, 'rightContext', SETTER, NoOpSetter, DONT_DELETE);
-%DefineAccessor($RegExp, "$'", GETTER, RegExpGetRightContext, DONT_ENUM | DONT_DELETE);
-%DefineAccessor($RegExp, "$'", SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
+  // Static properties set by a successful match.
+  %DefineAccessor($RegExp, 'lastMatch', GETTER, RegExpGetLastMatch, DONT_DELETE);
+  %DefineAccessor($RegExp, 'lastMatch', SETTER, NoOpSetter, DONT_DELETE);
+  %DefineAccessor($RegExp, '$&', GETTER, RegExpGetLastMatch, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, '$&', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, 'lastParen', GETTER, RegExpGetLastParen, DONT_DELETE);
+  %DefineAccessor($RegExp, 'lastParen', SETTER, NoOpSetter, DONT_DELETE);
+  %DefineAccessor($RegExp, '$+', GETTER, RegExpGetLastParen, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, '$+', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, 'leftContext', GETTER, RegExpGetLeftContext, DONT_DELETE);
+  %DefineAccessor($RegExp, 'leftContext', SETTER, NoOpSetter, DONT_DELETE);
+  %DefineAccessor($RegExp, '$`', GETTER, RegExpGetLeftContext, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, '$`', SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, 'rightContext', GETTER, RegExpGetRightContext, DONT_DELETE);
+  %DefineAccessor($RegExp, 'rightContext', SETTER, NoOpSetter, DONT_DELETE);
+  %DefineAccessor($RegExp, "$'", GETTER, RegExpGetRightContext, DONT_ENUM | DONT_DELETE);
+  %DefineAccessor($RegExp, "$'", SETTER, NoOpSetter, DONT_ENUM | DONT_DELETE);
 
-// A local scope to hide the loop index i.
-(function() {
   for (var i = 1; i < 10; ++i) {
     %DefineAccessor($RegExp, '$' + i, GETTER, RegExpMakeCaptureGetter(i), DONT_DELETE);
     %DefineAccessor($RegExp, '$' + i, SETTER, NoOpSetter, DONT_DELETE);
   }
-})();
+}
+
+
+SetupRegExp();

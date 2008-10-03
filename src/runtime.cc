@@ -135,6 +135,13 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
   Handle<FixedArray> literals = args.at<FixedArray>(0);
   int literals_index = Smi::cast(args[1])->value();
   Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
+
+  // Get the global context from the literals array.  This is the
+  // context in which the function was created and we use the object
+  // function from this context to create the object literal.  We do
+  // not use the object function from the current global context
+  // because this might be the object function from another context
+  // which we should not have access to.
   Handle<Context> context =
       Handle<Context>(JSFunction::GlobalContextFromLiterals(*literals));
 
@@ -143,11 +150,6 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
                                             constant_properties,
                                             is_result_from_cache);
 
-  // Get the object function from the literals array.  This is the
-  // object function from the context in which the function was
-  // created.  We do not use the object function from the current
-  // global context because this might be the object function from
-  // another context which we should not have access to.
   Handle<JSObject> boilerplate = Factory::NewJSObjectFromMap(map);
   {  // Add the constant propeties to the boilerplate.
     int length = constant_properties->length();
@@ -189,8 +191,8 @@ static Object* Runtime_CreateArrayLiteral(Arguments args) {
   // Takes a FixedArray of elements containing the literal elements of
   // the array literal and produces JSArray with those elements.
   // Additionally takes the literals array of the surrounding function
-  // which contains the Array function to use for creating the array
-  // literal.
+  // which contains the context from which to get the Array function
+  // to use for creating the array literal.
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(FixedArray, elements, args[0]);
   CONVERT_CHECKED(FixedArray, literals, args[1]);
@@ -727,11 +729,11 @@ static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   Handle<String> pattern = args.at<String>(2);
   Handle<String> flags = args.at<String>(3);
 
-  // Get the RegExp function from the literals array.  This is the
-  // RegExp function from the context in which the function was
-  // created.  We do not use the RegExp function from the current
-  // global context because this might be the RegExp function from
-  // another context which we should not have access to.
+  // Get the RegExp function from the context in the literals array.
+  // This is the RegExp function from the context in which the
+  // function was created.  We do not use the RegExp function from the
+  // current global context because this might be the RegExp function
+  // from another context which we should not have access to.
   Handle<JSFunction> constructor =
       Handle<JSFunction>(
           JSFunction::GlobalContextFromLiterals(*literals)->regexp_function());
@@ -855,7 +857,7 @@ static Object* Runtime_SetCode(Arguments args) {
     target->set_code(fun->code());
     target->shared()->set_length(fun->shared()->length());
     target->shared()->set_formal_parameter_count(
-                          fun->shared()->formal_parameter_count());
+        fun->shared()->formal_parameter_count());
     // Set the source code of the target function.
     target->shared()->set_script(fun->shared()->script());
     target->shared()->set_start_position(fun->shared()->start_position());

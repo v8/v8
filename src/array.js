@@ -132,13 +132,13 @@ function Join(array, length, separator, convert) {
     // Make sure to pop the visited array no matter what happens.
     if (is_array) visited_arrays.pop();
   }
-};
+}
 
 
 function ConvertToString(e) {
   if (e == null) return '';
   else return ToString(e);
-};
+}
 
 
 function ConvertToLocaleString(e) {
@@ -153,7 +153,7 @@ function ConvertToLocaleString(e) {
     else
       return ToString(e);
   }
-};
+}
 
 
 // This function implements the optimized splice implementation that can use
@@ -196,7 +196,7 @@ function SmartSlice(array, start_i, del_count, len, deleted_elements) {
       }
     }
   }
-};
+}
 
 
 // This function implements the optimized splice implementation that can use
@@ -258,7 +258,7 @@ function SmartMove(array, start_i, del_count, len, num_additional_args) {
   }
   // Move contents of new_array into this array
   %MoveArrayContents(new_array, array);
-};
+}
 
 
 // This is part of the old simple-minded splice.  We are using it either
@@ -274,7 +274,7 @@ function SimpleSlice(array, start_i, del_count, len, deleted_elements) {
     if (!IS_UNDEFINED(current) || index in array)
       deleted_elements[i] = current;
   }
-};
+}
 
 
 function SimpleMove(array, start_i, del_count, len, num_additional_args) {
@@ -314,7 +314,7 @@ function SimpleMove(array, start_i, del_count, len, num_additional_args) {
       }
     }
   }
-};
+}
 
 
 // -------------------------------------------------------------------
@@ -325,7 +325,7 @@ function ArrayToString() {
     throw new $TypeError('Array.prototype.toString is not generic');
   }
   return Join(this, this.length, ',', ConvertToString);
-};
+}
 
 
 function ArrayToLocaleString() {
@@ -333,14 +333,14 @@ function ArrayToLocaleString() {
     throw new $TypeError('Array.prototype.toString is not generic');
   }
   return Join(this, this.length, ',', ConvertToLocaleString);
-};
+}
 
 
 function ArrayJoin(separator) {
   if (IS_UNDEFINED(separator)) separator = ',';
   else separator = ToString(separator);
   return Join(this, ToUint32(this.length), separator, ConvertToString);
-};
+}
 
 
 // Removes the last element from the array and returns it. See
@@ -356,7 +356,7 @@ function ArrayPop() {
   this.length = n;
   delete this[n];
   return value;
-};
+}
 
 
 // Appends the arguments to the end of the array and returns the new
@@ -369,7 +369,7 @@ function ArrayPush() {
   }
   this.length = n + m;
   return this.length;
-};
+}
 
 
 function ArrayConcat(arg1) {  // length == 1
@@ -415,7 +415,7 @@ function ArrayConcat(arg1) {  // length == 1
 
   A.length = n;  // may contain empty arrays
   return A;
-};
+}
 
 
 // For implementing reverse() on large, sparse arrays.
@@ -490,105 +490,105 @@ function ArrayReverse() {
     }
   }
   return this;
-};
+}
 
 
 function ArrayShift() {
   var len = ToUint32(this.length);
-  
+
   if (len === 0) {
     this.length = 0;
     return;
   }
-  
+
   var first = this[0];
-  
+
   if (IS_ARRAY(this))
     SmartMove(this, 0, 1, len, 0);
   else
     SimpleMove(this, 0, 1, len, 0);
-  
+
   this.length = len - 1;
-  
+
   return first;
-};
+}
 
 
 function ArrayUnshift(arg1) {  // length == 1
   var len = ToUint32(this.length);
   var num_arguments = %_ArgumentsLength();
-  
+
   if (IS_ARRAY(this))
     SmartMove(this, 0, 0, len, num_arguments);
   else
     SimpleMove(this, 0, 0, len, num_arguments);
-  
+
   for (var i = 0; i < num_arguments; i++) {
     this[i] = %_Arguments(i);
   }
-  
+
   this.length = len + num_arguments;
-  
+
   return len + num_arguments;
-};
+}
 
 
 function ArraySlice(start, end) {
   var len = ToUint32(this.length);
   var start_i = TO_INTEGER(start);
   var end_i = len;
-  
+
   if (end !== void 0) end_i = TO_INTEGER(end);
-  
+
   if (start_i < 0) {
     start_i += len;
     if (start_i < 0) start_i = 0;
   } else {
     if (start_i > len) start_i = len;
   }
-  
+
   if (end_i < 0) {
     end_i += len;
     if (end_i < 0) end_i = 0;
   } else {
     if (end_i > len) end_i = len;
   }
-  
+
   var result = [];
-  
-  if (end_i < start_i)
-    return result;
-  
-  if (IS_ARRAY(this))
+
+  if (end_i < start_i) return result;
+
+  if (IS_ARRAY(this)) {
     SmartSlice(this, start_i, end_i - start_i, len, result);
-  else 
+  } else {
     SimpleSlice(this, start_i, end_i - start_i, len, result);
-  
+  }
+
   result.length = end_i - start_i;
-  
+
   return result;
-};
+}
 
 
 function ArraySplice(start, delete_count) {
   var num_arguments = %_ArgumentsLength();
-  
+
   // SpiderMonkey and KJS return undefined in the case where no
   // arguments are given instead of using the implicit undefined
   // arguments.  This does not follow ECMA-262, but we do the same for
   // compatibility.
   if (num_arguments == 0) return;
-  
+
   var len = ToUint32(this.length);
   var start_i = TO_INTEGER(start);
-  
+
   if (start_i < 0) {
     start_i += len;
     if (start_i < 0) start_i = 0;
   } else {
     if (start_i > len) start_i = len;
   }
-  
+
   // SpiderMonkey and KJS treat the case where no delete count is
   // given differently from when an undefined delete count is given.
   // This does not follow ECMA-262, but we do the same for
@@ -601,18 +601,18 @@ function ArraySplice(start, delete_count) {
   } else {
     del_count = len - start_i;
   }
-  
+
   var deleted_elements = [];
   deleted_elements.length = del_count;
-  
+
   // Number of elements to add.
   var num_additional_args = 0;
   if (num_arguments > 2) {
     num_additional_args = num_arguments - 2;
   }
-  
+
   var use_simple_splice = true;
-  
+
   if (IS_ARRAY(this) && num_additional_args !== del_count) {
     // If we are only deleting/moving a few things near the end of the
     // array then the simple version is going to be faster, because it
@@ -622,7 +622,7 @@ function ArraySplice(start, delete_count) {
       use_simple_splice = false;
     }
   }
-  
+
   if (use_simple_splice) {
     SimpleSlice(this, start_i, del_count, len, deleted_elements);
     SimpleMove(this, start_i, del_count, len, num_additional_args);
@@ -630,7 +630,7 @@ function ArraySplice(start, delete_count) {
     SmartSlice(this, start_i, del_count, len, deleted_elements);
     SmartMove(this, start_i, del_count, len, num_additional_args);
   }
-  
+
   // Insert the arguments into the resulting array in
   // place of the deleted elements.
   var i = start_i;
@@ -640,10 +640,10 @@ function ArraySplice(start, delete_count) {
     this[i++] = %_Arguments(arguments_index++);
   }
   this.length = len - del_count + num_additional_args;
-  
+
   // Return the deleted elements.
   return deleted_elements;
-};
+}
 
 
 function ArraySort(comparefn) {
@@ -651,7 +651,7 @@ function ArraySort(comparefn) {
   // For short (length <= 22) arrays, insertion sort is used for efficiency.
 
   var custom_compare = IS_FUNCTION(comparefn);
-  
+
   function Compare(x,y) {
     if (custom_compare) {
       return comparefn.call(null, x, y);
@@ -760,13 +760,12 @@ function ArraySort(comparefn) {
   }
 
   return this;
-};
+}
 
 
 // The following functions cannot be made efficient on sparse arrays while
 // preserving the semantics, since the calls to the receiver function can add
 // or delete elements from the array.
-
 function ArrayFilter(f, receiver) {
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
@@ -782,7 +781,7 @@ function ArrayFilter(f, receiver) {
     }
   }
   return result;
-};
+}
 
 
 function ArrayForEach(f, receiver) {
@@ -798,7 +797,7 @@ function ArrayForEach(f, receiver) {
       f.call(receiver, current, i, this);
     }
   }
-};
+}
 
 
 // Executes the function once for each element present in the
@@ -817,7 +816,7 @@ function ArraySome(f, receiver) {
     }
   }
   return false;
-};
+}
 
 
 function ArrayEvery(f, receiver) {
@@ -833,9 +832,9 @@ function ArrayEvery(f, receiver) {
       if (!f.call(receiver, current, i, this)) return false;
     }
   }
-  
+
   return true;
-};
+}
 
 
 function ArrayMap(f, receiver) {
@@ -853,7 +852,7 @@ function ArrayMap(f, receiver) {
     }
   }
   return result;
-};
+}
 
 
 function ArrayIndexOf(element, index) {
@@ -875,7 +874,7 @@ function ArrayIndexOf(element, index) {
     }
   }
   return -1;
-};
+}
 
 
 function ArrayLastIndexOf(element, index) {
@@ -898,51 +897,58 @@ function ArrayLastIndexOf(element, index) {
     }
   }
   return -1;
-};
+}
 
 
 // -------------------------------------------------------------------
 
-function InstallProperties(prototype, attributes, properties) {
-  for (var key in properties) {
-    %AddProperty(prototype, key, properties[key], attributes);
+function InstallFunctions(prototype, attributes, functions) {
+  for (var i = 0; i < functions.length; i += 2) {
+    var key = functions[i];
+    var f = functions[i + 1];
+    %FunctionSetName(f, key);
+    %AddProperty(prototype, key, f, attributes);
   }
-};
+}
 
 
 function UpdateFunctionLengths(lengths) {
   for (var key in lengths) {
     %FunctionSetLength(this[key], lengths[key]);
   }
-};
+}
 
 
 // -------------------------------------------------------------------
 
 function SetupArray() {
-  // Setup non-enumerable properties of the Array.prototype object.
-  InstallProperties($Array.prototype, DONT_ENUM, {
-    constructor: $Array,
-    toString: ArrayToString,
-    toLocaleString: ArrayToLocaleString,
-    join: ArrayJoin,
-    pop: ArrayPop,
-    push: ArrayPush,
-    concat: ArrayConcat,
-    reverse: ArrayReverse,
-    shift: ArrayShift,
-    unshift: ArrayUnshift,
-    slice: ArraySlice,
-    splice: ArraySplice,
-    sort: ArraySort,
-    filter: ArrayFilter,
-    forEach: ArrayForEach,
-    some: ArraySome,
-    every: ArrayEvery,
-    map: ArrayMap,
-    indexOf: ArrayIndexOf,
-    lastIndexOf: ArrayLastIndexOf
-  });
+  // Setup non-enumerable constructor property on the Array.prototype
+  // object.
+  %AddProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
+
+  // Setup non-enumerable functions of the Array.prototype object and
+  // set their names.
+  InstallFunctions($Array.prototype, DONT_ENUM, $Array(
+    "toString", ArrayToString,
+    "toLocaleString", ArrayToLocaleString,
+    "join", ArrayJoin,
+    "pop", ArrayPop,
+    "push", ArrayPush,
+    "concat", ArrayConcat,
+    "reverse", ArrayReverse,
+    "shift", ArrayShift,
+    "unshift", ArrayUnshift,
+    "slice", ArraySlice,
+    "splice", ArraySplice,
+    "sort", ArraySort,
+    "filter", ArrayFilter,
+    "forEach", ArrayForEach,
+    "some", ArraySome,
+    "every", ArrayEvery,
+    "map", ArrayMap,
+    "indexOf", ArrayIndexOf,
+    "lastIndexOf", ArrayLastIndexOf
+  ));
 
   // Manipulate the length of some of the functions to meet
   // expectations set by ECMA-262 or Mozilla.
@@ -956,7 +962,7 @@ function SetupArray() {
     ArrayLastIndexOf: 1,
     ArrayPush: 1
   });
-};
+}
 
 
 SetupArray();
