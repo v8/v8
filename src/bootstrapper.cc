@@ -57,7 +57,7 @@ class SourceCodeCache BASE_EMBEDDED {
   }
 
   void Iterate(ObjectVisitor* v) {
-    v->VisitPointer(reinterpret_cast<Object**>(&cache_));
+    v->VisitPointer(bit_cast<Object**, FixedArray**>(&cache_));
   }
 
 

@@ -2350,7 +2350,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v) {
   SYNCHRONIZE_TAG("struct_map");
 
 #define SYMBOL_ITERATE(name, string) \
-  v->VisitPointer(reinterpret_cast<Object**>(&name##_));
+  v->VisitPointer(bit_cast<Object**, String**>(&name##_));
   SYMBOL_LIST(SYMBOL_ITERATE)
 #undef SYMBOL_ITERATE
   SYNCHRONIZE_TAG("symbol");
