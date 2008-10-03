@@ -233,16 +233,16 @@ class Debug {
   }
 
   // Support for saving/restoring registers when handling debug break calls.
-  static Object** register_address(int r) {
-    return &registers_[r];
+  static Address* register_address(int r) {
+    return reinterpret_cast<Address *>(&registers_[r]);
   }
 
   // Address of the debug break return entry code.
   static Code* debug_break_return_entry() { return debug_break_return_entry_; }
 
   // Support for getting the address of the debug break on return code.
-  static Code** debug_break_return_address() {
-    return &debug_break_return_;
+  static Address* debug_break_return_address() {
+    return reinterpret_cast<Address*>(&debug_break_return_);
   }
 
   static const int kEstimatedNofDebugInfoEntries = 16;

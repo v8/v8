@@ -43,7 +43,8 @@ LIBRARY_FLAGS = {
   'gcc': {
     'all': {
       'DIALECTFLAGS': ['-ansi'],
-      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
+      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS',
+          '-fno-strict-aliasing'],
       'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
       'LIBS':         ['pthread']
     },
@@ -52,7 +53,7 @@ LIBRARY_FLAGS = {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG']
     },
     'mode:release': {
-      'CCFLAGS':      ['-O3']
+      'CCFLAGS':      ['-O9']
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],

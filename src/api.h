@@ -112,7 +112,7 @@ void NeanderObject::set(int offset, v8::internal::Object* value) {
 template <typename T> static inline T ToCData(v8::internal::Object* obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   return reinterpret_cast<T>(
-      reinterpret_cast<intptr_t>(v8::internal::Proxy::cast(obj)->proxy()));
+      reinterpret_cast<int>(v8::internal::Proxy::cast(obj)->proxy()));
 }
 
 
@@ -120,7 +120,7 @@ template <typename T>
 static inline v8::internal::Handle<v8::internal::Object> FromCData(T obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   return v8::internal::Factory::NewProxy(
-      reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(obj)));
+      reinterpret_cast<v8::internal::Address>(reinterpret_cast<int>(obj)));
 }
 
 
