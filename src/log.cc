@@ -677,6 +677,7 @@ bool Logger::Setup() {
 
   // --prof implies --log-code.
   if (FLAG_prof) FLAG_log_code = true;
+  if (FLAG_log_code) FLAG_log = true;
 
   bool open_log_file = FLAG_log || FLAG_log_api || FLAG_log_code
       || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
