@@ -26,6 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+// This file relies on the fact that the following declarations have been made
+// in v8natives.js:
+// const $isNaN = GlobalIsNaN;
+// const $isFinite = GlobalIsFinite;
+
 // -------------------------------------------------------------------
 
 // This file contains date support implemented in JavaScript.

@@ -25,7 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
 // This file relies on the fact that the following declarations have been made
 //
 // in runtime.js:
@@ -39,36 +38,41 @@
 // in math.js:
 // const $floor = MathFloor
 
+const $isNaN = GlobalIsNaN;
+const $isFinite = GlobalIsFinite;
 
-// ECMA 262 - 15.1.1.1.
-%SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE);
-
-
-// ECMA-262 - 15.1.1.2.
-%SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE);
+// ----------------------------------------------------------------------------
 
 
-// ECMA-262 - 15.1.1.3.
-%SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
+// Helper function used to install functions on objects.
+function InstallFunctions(object, attributes, functions) {
+  for (var i = 0; i < functions.length; i += 2) {
+    var key = functions[i];
+    var f = functions[i + 1];
+    %FunctionSetName(f, key);
+    %SetProperty(object, key, f, attributes);
+  }
+}
+
+
+// ----------------------------------------------------------------------------
 
 
 // ECMA 262 - 15.1.4
-function $isNaN(number) {
+function GlobalIsNaN(number) {
   var n = ToNumber(number);
   return NUMBER_IS_NAN(n);
 }
-%SetProperty(global, "isNaN", $isNaN, DONT_ENUM);
 
 
 // ECMA 262 - 15.1.5
-function $isFinite(number) {
+function GlobalIsFinite(number) {
   return %NumberIsFinite(ToNumber(number));
 }
-%SetProperty(global, "isFinite", $isFinite, DONT_ENUM);
 
 
 // ECMA-262 - 15.1.2.2
-%SetProperty(global, "parseInt", function(string, radix) {
+function GlobalParseInt(string, radix) {
   if (radix === void 0) {
     radix = 0;
     // Some people use parseInt instead of Math.floor.  This
@@ -89,13 +93,61 @@ function $isFinite(number) {
       return $NaN;
   }
   return %StringParseInt(ToString(string), radix);
-}, DONT_ENUM);
+}
 
 
 // ECMA-262 - 15.1.2.3
-%SetProperty(global, "parseFloat", function(string) {
+function GlobalParseFloat(string) {
   return %StringParseFloat(ToString(string));
-}, DONT_ENUM);
+}
+
+
+function GlobalEval(x) {
+  if (!IS_STRING(x)) return x;
+
+  var f = %CompileString(x, 0, true);
+  if (!IS_FUNCTION(f)) return f;
+
+  return f.call(%EvalReceiver(this));
+}
+
+
+// execScript for IE compatibility.
+function GlobalExecScript(expr, lang) {
+  // NOTE: We don't care about the character casing.
+  if (!lang || /javascript/i.test(lang)) {
+    var f = %CompileString(ToString(expr), 0, false);
+    f.call(global);
+  }
+  return null;
+}
+
+
+// ----------------------------------------------------------------------------
+
+
+function SetupGlobal() {
+  // ECMA 262 - 15.1.1.1.
+  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE);
+
+  // ECMA-262 - 15.1.1.2.
+  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE);
+
+  // ECMA-262 - 15.1.1.3.
+  %SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
+
+  // Setup non-enumerable function on the global object.
+  InstallFunctions(global, DONT_ENUM, $Array(
+    "isNaN", GlobalIsNaN,
+    "isFinite", GlobalIsFinite,
+    "parseInt", GlobalParseInt,
+    "parseFloat", GlobalParseFloat,
+    "eval", GlobalEval,
+    "execScript", GlobalExecScript
+  ));
+}
+
+SetupGlobal();
 
 
 // ----------------------------------------------------------------------------
@@ -119,49 +171,50 @@ function $isFinite(number) {
 
 $Object.prototype.constructor = $Object;
 
-%SetProperty($Object.prototype, "toString", function() {
+// ECMA-262 - 15.2.4.2
+function ObjectToString() {
   var c = %ClassOf(this);
   // Hide Arguments from the outside.
   if (c === 'Arguments') c  = 'Object';
   return "[object " + c + "]";
-}, DONT_ENUM);
+}
 
 
-// ECMA-262, section 15.2.4.3, page 84.
-%SetProperty($Object.prototype, "toLocaleString", function() {
+// ECMA-262 - 15.2.4.3
+function ObjectToLocaleString() {
   return this.toString();
-}, DONT_ENUM);
+}
 
 
-// ECMA-262, section 15.2.4.4, page 85.
-%SetProperty($Object.prototype, "valueOf", function() {
+// ECMA-262 - 15.2.4.4
+function ObjectValueOf() {
   return this;
-}, DONT_ENUM);
+}
 
 
-// ECMA-262, section 15.2.4.5, page 85.
-%SetProperty($Object.prototype, "hasOwnProperty", function(V) {
+// ECMA-262 - 15.2.4.5
+function ObjectHasOwnProperty(V) {
   return %HasLocalProperty(ToObject(this), ToString(V));
-}, DONT_ENUM);
+}
 
 
-// ECMA-262, section 15.2.4.6, page 85.
-%SetProperty($Object.prototype, "isPrototypeOf", function(V) {
+// ECMA-262 - 15.2.4.6
+function ObjectIsPrototypeOf(V) {
   if (!IS_OBJECT(V) && !IS_FUNCTION(V)) return false;
   return %IsInPrototypeChain(this, V);
-}, DONT_ENUM);
+}
 
 
-// ECMA-262, section 15.2.4.6, page 85.
-%SetProperty($Object.prototype, "propertyIsEnumerable", function(V) {
+// ECMA-262 - 15.2.4.6
+function ObjectPropertyIsEnumerable(V) {
   if (this == null) return false;
   if (!IS_OBJECT(this) && !IS_FUNCTION(this)) return false;
   return %IsPropertyEnumerable(this, ToString(V));
-}, DONT_ENUM);
+}
 
 
 // Extensions for providing property getters and setters.
-%SetProperty($Object.prototype, "__defineGetter__", function(name, fun) {
+function ObjectDefineGetter(name, fun) {
   if (this == null) {
     throw new $TypeError('Object.prototype.__defineGetter__: this is Null');
   }
@@ -169,19 +222,18 @@ $Object.prototype.constructor = $Object;
     throw new $TypeError('Object.prototype.__defineGetter__: Expecting function');
   }
   return %DefineAccessor(ToObject(this), ToString(name), GETTER, fun);
-}, DONT_ENUM);
+}
 
 
-
-%SetProperty($Object.prototype, "__lookupGetter__", function(name) {
+function ObjectLookupGetter(name) {
   if (this == null) {
     throw new $TypeError('Object.prototype.__lookupGetter__: this is Null');
   }
   return %LookupAccessor(ToObject(this), ToString(name), GETTER);
-}, DONT_ENUM);
+}
 
 
-%SetProperty($Object.prototype, "__defineSetter__", function(name, fun) {
+function ObjectDefineSetter(name, fun) {
   if (this == null) {
     throw new $TypeError('Object.prototype.__defineSetter__: this is Null');
   }
@@ -190,15 +242,15 @@ $Object.prototype.constructor = $Object;
         'Object.prototype.__defineSetter__: Expecting function');
   }
   return %DefineAccessor(ToObject(this), ToString(name), SETTER, fun);
-}, DONT_ENUM);
+}
 
 
-%SetProperty($Object.prototype, "__lookupSetter__", function(name) {
+function ObjectLookupSetter(name) {
   if (this == null) {
     throw new $TypeError('Object.prototype.__lookupSetter__: this is Null');
   }
   return %LookupAccessor(ToObject(this), ToString(name), SETTER);
-}, DONT_ENUM);
+}
 
 
 %SetCode($Object, function(x) {
@@ -213,49 +265,59 @@ $Object.prototype.constructor = $Object;
 
 
 // ----------------------------------------------------------------------------
-// Global stuff...
-
-%SetProperty(global, "eval", function(x) {
-  if (!IS_STRING(x)) return x;
-
-  var f = %CompileString(x, 0, true);
-  if (!IS_FUNCTION(f)) return f;
-
-  return f.call(%EvalReceiver(this));
-}, DONT_ENUM);
 
 
-// execScript for IE compatibility.
-%SetProperty(global, "execScript", function(expr, lang) {
-  // NOTE: We don't care about the character casing.
-  if (!lang || /javascript/i.test(lang)) {
-    var f = %CompileString(ToString(expr), 0, false);
-    f.call(global);
-  }
-  return null;
-}, DONT_ENUM);
+function SetupObject() {
+  // Setup non-enumerable functions on the Object.prototype object.
+  InstallFunctions($Object.prototype, DONT_ENUM, $Array(
+    "toString", ObjectToString,
+    "toLocaleString", ObjectToLocaleString,
+    "valueOf", ObjectValueOf,
+    "hasOwnProperty", ObjectHasOwnProperty,
+    "isPrototypeOf", ObjectIsPrototypeOf,
+    "propertyIsEnumerable", ObjectPropertyIsEnumerable,
+    "__defineGetter__", ObjectDefineGetter,
+    "__lookupGetter__", ObjectLookupGetter,
+    "__defineSetter__", ObjectDefineSetter,
+    "__lookupSetter__", ObjectLookupSetter
+  ));
+}
+
+SetupObject();
 
 
 // ----------------------------------------------------------------------------
 // Boolean
 
-%SetProperty($Boolean.prototype, "toString", function() {
+function BooleanToString() {
   // NOTE: Both Boolean objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
   if (!IS_BOOLEAN(this) && %ClassOf(this) !== 'Boolean')
     throw new $TypeError('Boolean.prototype.toString is not generic');
   return ToString(%_ValueOf(this));
-}, DONT_ENUM);
+}
 
 
-%SetProperty($Boolean.prototype, "valueOf", function() {
+function BooleanValueOf() {
   // NOTE: Both Boolean objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
   if (!IS_BOOLEAN(this) && %ClassOf(this) !== 'Boolean')
     throw new $TypeError('Boolean.prototype.valueOf is not generic');
   return %_ValueOf(this);
-}, DONT_ENUM);
+}
 
+
+// ----------------------------------------------------------------------------
+
+
+function SetupBoolean() {
+  InstallFunctions($Boolean.prototype, DONT_ENUM, $Array(
+    "toString", BooleanToString,
+    "valueOf", BooleanValueOf
+  ));
+}
+
+SetupBoolean();
 
 // ----------------------------------------------------------------------------
 // Number
@@ -272,34 +334,8 @@ $Object.prototype.constructor = $Object;
 
 %FunctionSetPrototype($Number, new $Number(0));
 
-%SetProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
-
-// ECMA-262 section 15.7.3.1.
-%SetProperty($Number,
-             "MAX_VALUE",
-             1.7976931348623157e+308,
-             DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-// ECMA-262 section 15.7.3.2.
-%SetProperty($Number, "MIN_VALUE", 5e-324, DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-// ECMA-262 section 15.7.3.3.
-%SetProperty($Number, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-// ECMA-262 section 15.7.3.4.
-%SetProperty($Number,
-             "NEGATIVE_INFINITY",
-             -1/0,
-             DONT_ENUM | DONT_DELETE | READ_ONLY);
-
-// ECMA-262 section 15.7.3.5.
-%SetProperty($Number,
-             "POSITIVE_INFINITY",
-             1/0,
-             DONT_ENUM | DONT_DELETE | READ_ONLY);
-
 // ECMA-262 section 15.7.4.2.
-%SetProperty($Number.prototype, "toString", function(radix) {
+function NumberToString(radix) {
   // NOTE: Both Number objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
   var number = this;
@@ -321,38 +357,38 @@ $Object.prototype.constructor = $Object;
   }
   // Convert the number to a string in the given radix.
   return %NumberToRadixString(number, radix);
-}, DONT_ENUM);
+}
 
 
 // ECMA-262 section 15.7.4.3
-%SetProperty($Number.prototype, "toLocaleString", function() {
+function NumberToLocaleString() {
   return this.toString();
-}, DONT_ENUM);
+}
 
 
 // ECMA-262 section 15.7.4.4
-%SetProperty($Number.prototype, "valueOf", function() {
+function NumberValueOf() {
   // NOTE: Both Number objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
   if (!IS_NUMBER(this) && %ClassOf(this) !== 'Number')
     throw new $TypeError('Number.prototype.valueOf is not generic');
   return %_ValueOf(this);
-}, DONT_ENUM);
+}
 
 
 // ECMA-262 section 15.7.4.5
-%SetProperty($Number.prototype, "toFixed", function(fractionDigits) {
+function NumberToFixed(fractionDigits) {
   var f = TO_INTEGER(fractionDigits);
   if (f < 0 || f > 20) {
     throw new $RangeError("toFixed() digits argument must be between 0 and 20");
   }
   var x = ToNumber(this);
   return %NumberToFixed(x, f);
-}, DONT_ENUM);
+}
 
 
 // ECMA-262 section 15.7.4.6
-%SetProperty($Number.prototype, "toExponential", function(fractionDigits) {
+function NumberToExponential(fractionDigits) {
   var f = -1;
   if (!IS_UNDEFINED(fractionDigits)) {
     f = TO_INTEGER(fractionDigits);
@@ -362,11 +398,11 @@ $Object.prototype.constructor = $Object;
   }
   var x = ToNumber(this);
   return %NumberToExponential(x, f);
-}, DONT_ENUM);
+}
 
 
 // ECMA-262 section 15.7.4.7
-%SetProperty($Number.prototype, "toPrecision", function(precision) {
+function NumberToPrecision(precision) {
   if (IS_UNDEFINED(precision)) return ToString(%_ValueOf(this));
   var p = TO_INTEGER(precision);
   if (p < 1 || p > 21) {
@@ -374,14 +410,58 @@ $Object.prototype.constructor = $Object;
   }
   var x = ToNumber(this);
   return %NumberToPrecision(x, p);
-}, DONT_ENUM);
+}
+
+
+// ----------------------------------------------------------------------------
+
+function SetupNumber() {
+  // Setup the constructor property on the Number prototype object.
+  %SetProperty($Number.prototype, "constructor", $Number, DONT_ENUM);
+
+  // ECMA-262 section 15.7.3.1.
+  %SetProperty($Number,
+               "MAX_VALUE",
+               1.7976931348623157e+308,
+               DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+  // ECMA-262 section 15.7.3.2.
+  %SetProperty($Number, "MIN_VALUE", 5e-324, DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+  // ECMA-262 section 15.7.3.3.
+  %SetProperty($Number, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+  // ECMA-262 section 15.7.3.4.
+  %SetProperty($Number,
+               "NEGATIVE_INFINITY",
+               -1/0,
+               DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+  // ECMA-262 section 15.7.3.5.
+  %SetProperty($Number,
+               "POSITIVE_INFINITY",
+               1/0,
+               DONT_ENUM | DONT_DELETE | READ_ONLY);
+
+  // Setup non-enumerable functions on the Number prototype object.
+  InstallFunctions($Number.prototype, DONT_ENUM, $Array(
+    "toString", NumberToString,
+    "toLocaleString", NumberToLocaleString,
+    "valueOf", NumberValueOf,
+    "toFixed", NumberToFixed,
+    "toExponential", NumberToExponential,
+    "toPrecision", NumberToPrecision
+  ));
+}
+
+SetupNumber();
+
 
 
 // ----------------------------------------------------------------------------
 // Function
 
 $Function.prototype.constructor = $Function;
-
 
 function FunctionSourceString(func) {
   // NOTE: Both Function objects and values can enter here as
@@ -411,9 +491,9 @@ function FunctionSourceString(func) {
 }
 
 
-%SetProperty($Function.prototype, "toString", function() {
+function FunctionToString() {
   return FunctionSourceString(this);
-}, DONT_ENUM);
+}
 
 
 function NewFunction(arg1) {  // length == 1
@@ -442,3 +522,14 @@ function NewFunction(arg1) {  // length == 1
 }
 
 %SetCode($Function, NewFunction);
+
+// ----------------------------------------------------------------------------
+
+function SetupFunction() {
+  InstallFunctions($Function.prototype, DONT_ENUM, $Array(
+    "toString", FunctionToString
+  ));
+}
+
+SetupFunction();
+

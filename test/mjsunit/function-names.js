@@ -42,6 +42,12 @@ var arrayPrototypeFunctions = [
 TestFunctionNames(Array.prototype, arrayPrototypeFunctions);
 
 
+// Boolean prototype functions.
+var booleanPrototypeFunctions = [ "toString", "valueOf" ];
+
+TestFunctionNames(Boolean.prototype, booleanPrototypeFunctions);
+
+
 // Date functions.
 var dateFunctions = ["UTC", "parse", "now"];
 
@@ -65,6 +71,11 @@ var datePrototypeFunctions = [
 TestFunctionNames(Date.prototype, datePrototypeFunctions);
 
 
+// Function.prototype functions.
+var functionPrototypeFunctions = [ "toString", "apply", "call" ];
+
+TestFunctionNames(Function.prototype, functionPrototypeFunctions);
+
 // Math functions.
 var mathFunctions = [
     "random", "abs", "acos", "asin", "atan", "ceil", "cos", "exp", "floor",
@@ -72,6 +83,21 @@ var mathFunctions = [
 
 TestFunctionNames(Math, mathFunctions);
 
+
+// Number.prototype functions.
+var numberPrototypeFunctions = [
+    "toString", "toLocaleString", "valueOf", "toFixed", "toExponential",
+    "toPrecision"];
+
+TestFunctionNames(Number.prototype, numberPrototypeFunctions);
+
+// Object.prototype functions.
+var objectPrototypeFunctions = [
+    "toString", "toLocaleString", "valueOf", "hasOwnProperty", "isPrototypeOf",
+    "propertyIsEnumerable", "__defineGetter__", "__lookupGetter__",
+    "__defineSetter__", "__lookupSetter__"];
+
+TestFunctionNames(Object.prototype, objectPrototypeFunctions);
 
 // RegExp.prototype functions.
 var regExpPrototypeFunctions = ["exec", "test", "toString", "compile"];
@@ -101,6 +127,7 @@ var globalFunctions = [
     "escape", "unescape", "decodeURI", "decodeURIComponent",
     "encodeURI", "encodeURIComponent", "Error", "TypeError",
     "RangeError", "SyntaxError", "ReferenceError", "EvalError",
-    "URIError"];
+    "URIError", "isNaN", "isFinite", "parseInt", "parseFloat",
+    "eval", "execScript"];
 
 TestFunctionNames(this, globalFunctions);

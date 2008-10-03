@@ -902,15 +902,6 @@ function ArrayLastIndexOf(element, index) {
 
 // -------------------------------------------------------------------
 
-function InstallFunctions(prototype, attributes, functions) {
-  for (var i = 0; i < functions.length; i += 2) {
-    var key = functions[i];
-    var f = functions[i + 1];
-    %FunctionSetName(f, key);
-    %SetProperty(prototype, key, f, attributes);
-  }
-}
-
 
 function UpdateFunctionLengths(lengths) {
   for (var key in lengths) {
