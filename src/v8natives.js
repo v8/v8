@@ -166,8 +166,7 @@ $Object.prototype.constructor = $Object;
     throw new $TypeError('Object.prototype.__defineGetter__: this is Null');
   }
   if (!IS_FUNCTION(fun)) {
-    throw new $TypeError(
-	'Object.prototype.__defineGetter__: Expecting function');
+    throw new $TypeError('Object.prototype.__defineGetter__: Expecting function');
   }
   return %DefineAccessor(ToObject(this), ToString(name), GETTER, fun);
 }, DONT_ENUM);

@@ -509,9 +509,9 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
     Object* value = (assign) ? args[1] : Heap::undefined_value();
-    return global->IgnoreAttributesAndSetLocalProperty(*name, 
-						       value, 
-						       attributes);
+    return global->IgnoreAttributesAndSetLocalProperty(*name,
+                                                       value,
+                                                       attributes);
   }
 
   // Determine if this is a redeclaration of something read-only.
@@ -575,9 +575,9 @@ static Object* Runtime_InitializeConstGlobal(Arguments args) {
   LookupResult lookup;
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
-    return global->IgnoreAttributesAndSetLocalProperty(*name, 
-						       *value, 
-						       attributes);
+    return global->IgnoreAttributesAndSetLocalProperty(*name,
+                                                       *value,
+                                                       attributes);
   }
 
   // Determine if this is a redeclaration of something not
