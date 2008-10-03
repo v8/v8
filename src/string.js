@@ -44,22 +44,33 @@
 
 %FunctionSetPrototype($String, new $String());
 
-%AddProperty($String.prototype, "constructor", $String, DONT_ENUM);
-
-%AddProperty($String.prototype, "valueOf", function valueOf() {
-  if (!IS_STRING(this) && %ClassOf(this) !== 'String')
-    throw new $TypeError('String.prototype.valueOf is not generic');
-  return %_ValueOf(this);
-}, DONT_ENUM);
-
-%AddProperty($String.prototype, "toString", function toString() {
+// ECMA-262 section 15.5.4.2
+function StringToString() {
   if (!IS_STRING(this) && %ClassOf(this) !== 'String')
     throw new $TypeError('String.prototype.toString is not generic');
   return %_ValueOf(this);
-}, DONT_ENUM);
+}
+
+
+// ECMA-262 section 15.5.4.3
+function StringValueOf() {
+  if (!IS_STRING(this) && %ClassOf(this) !== 'String')
+    throw new $TypeError('String.prototype.valueOf is not generic');
+  return %_ValueOf(this);
+}
+
+
+// ECMA-262, section 15.5.4.4
+function StringCharAt(pos) {
+  var subject = ToString(this);
+  var index = TO_INTEGER(pos);
+  if (index >= subject.length || index < 0) return "";
+  return %CharFromCode(%StringCharCodeAt(subject, index));
+}
+
 
 // ECMA-262 section 15.5.4.5
-%AddProperty($String.prototype, "charCodeAt", function charCodeAt(pos) {
+function StringCharCodeAt(pos) {
   var fast_answer = %_FastCharCodeAt(this, pos);
   if (%_IsSmi(fast_answer)) {
     return fast_answer;
@@ -67,21 +78,95 @@
   var subject = ToString(this);
   var index = TO_INTEGER(pos);
   return %StringCharCodeAt(subject, index);
-}, DONT_ENUM);
+}
 
 
 // ECMA-262, section 15.5.4.6
-%AddProperty($String.prototype, "concat", function concat() {
+function StringConcat() {
   var len = %_ArgumentsLength();
   var parts = new $Array(len + 1);
   parts[0] = ToString(this);
   for (var i = 0; i < len; i++)
     parts[i + 1] = ToString(%_Arguments(i));
   return parts.join('');
-}, DONT_ENUM);
+}
 
 // Match ES3 and Safari
-%FunctionSetLength($String.prototype.concat, 1);
+%FunctionSetLength(StringConcat, 1);
+
+
+// ECMA-262 section 15.5.4.7
+function StringIndexOf(searchString /* position */) {  // length == 1
+  var subject_str = ToString(this);
+  var pattern_str = ToString(searchString);
+  var subject_str_len = subject_str.length;
+  var pattern_str_len = pattern_str.length;
+  var index = 0;
+  if (%_ArgumentsLength() > 1) {
+    var arg1 = %_Arguments(1);  // position
+    index = TO_INTEGER(arg1);
+  }
+  if (index < 0) index = 0;
+  if (index > subject_str_len) index = subject_str_len;
+  if (pattern_str_len + index > subject_str_len) return -1;
+  return %StringIndexOf(subject_str, pattern_str, index);
+}
+
+
+// ECMA-262 section 15.5.4.8
+function StringLastIndexOf(searchString /* position */) {  // length == 1
+  var sub = ToString(this);
+  var pat = ToString(searchString);
+  var index = (%_ArgumentsLength() > 1)
+      ? ToNumber(%_Arguments(1) /* position */)
+      : $NaN;
+  var firstIndex;
+  if ($isNaN(index)) {
+    firstIndex = sub.length - pat.length;
+  } else {
+    firstIndex = TO_INTEGER(index);
+    if (firstIndex + pat.length > sub.length) {
+      firstIndex = sub.length - pat.length;
+    }
+  }
+  return %StringLastIndexOf(sub, pat, firstIndex);
+}
+
+
+// ECMA-262 section 15.5.4.9
+//
+// This function is implementation specific.  For now, we do not
+// do anything locale specific.
+function StringLocaleCompare(other) {
+  if (%_ArgumentsLength() === 0) return 0;
+
+  var this_str = ToString(this);
+  var other_str = ToString(other);
+  return %StringLocaleCompare(this_str, other_str);
+}
+
+
+// ECMA-262 section 15.5.4.10
+function StringMatch(regexp) {
+  if (!IS_REGEXP(regexp)) regexp = new ORIGINAL_REGEXP(regexp);
+  var subject = ToString(this);
+
+  if (!regexp.global) return regexp.exec(subject);
+  var matches = DoRegExpExecGlobal(regexp, subject);
+
+  // If the regexp did not match, return null.
+  if (matches.length == 0) return null;
+
+  // Build the result array.
+  var result = new $Array(match_string);
+  for (var i = 0; i < matches.length; ++i) {
+    var match = matches[i];
+    var match_string = subject.slice(match[0], match[1]);
+    result[i] = match_string;
+  }
+
+  return result;
+}
 
 
 // SubString is an internal function that returns the sub string of 'string'.
@@ -95,7 +180,7 @@ function SubString(string, start, end) {
 
 
 // ECMA-262, section 15.5.4.11
-%AddProperty($String.prototype, "replace", function replace(search, replace) {
+function StringReplace(search, replace) {
   var subject = ToString(this);
 
   // Delegate to one of the regular expression variants if necessary.
@@ -128,7 +213,7 @@ function SubString(string, start, end) {
   builder.add(SubString(subject, end, subject.length));
 
   return builder.generate();
-}, DONT_ENUM);
+}
 
 
 // Helper function for regular expressions in String.prototype.replace.
@@ -332,82 +417,8 @@ function ApplyReplacementFunction(replace, captures, subject) {
 }
 
 
-// ECMA-262 section 15.5.4.7
-%AddProperty($String.prototype, "indexOf", function indexOf(searchString /* position */) {  // length == 1
-  var subject_str = ToString(this);
-  var pattern_str = ToString(searchString);
-  var subject_str_len = subject_str.length;
-  var pattern_str_len = pattern_str.length;
-  var index = 0;
-  if (%_ArgumentsLength() > 1) {
-    var arg1 = %_Arguments(1);  // position
-    index = TO_INTEGER(arg1);
-  }
-  if (index < 0) index = 0;
-  if (index > subject_str_len) index = subject_str_len;
-  if (pattern_str_len + index > subject_str_len) return -1;
-  return %StringIndexOf(subject_str, pattern_str, index);
-}, DONT_ENUM);
-
-
-// ECMA-262 section 15.5.4.8
-%AddProperty($String.prototype, "lastIndexOf", function lastIndexOf(searchString /* position */) {  // length == 1
-  var sub = ToString(this);
-  var pat = ToString(searchString);
-  var index = (%_ArgumentsLength() > 1)
-      ? ToNumber(%_Arguments(1) /* position */)
-      : $NaN;
-  var firstIndex;
-  if ($isNaN(index)) {
-    firstIndex = sub.length - pat.length;
-  } else {
-    firstIndex = TO_INTEGER(index);
-    if (firstIndex + pat.length > sub.length) {
-      firstIndex = sub.length - pat.length;
-    }
-  }
-  return %StringLastIndexOf(sub, pat, firstIndex);
-}, DONT_ENUM);
-
-
-// ECMA-262 section 15.5.4.9
-//
-// This function is implementation specific.  For now, we do not
-// do anything locale specific.
-%AddProperty($String.prototype, "localeCompare", function localeCompare(other) {
-  if (%_ArgumentsLength() === 0) return 0;
-
-  var this_str = ToString(this);
-  var other_str = ToString(other);
-  return %StringLocaleCompare(this_str, other_str);
-}, DONT_ENUM);
-
-
-// ECMA-262 section 15.5.4.10
-%AddProperty($String.prototype, "match", function match(regexp) {
-  if (!IS_REGEXP(regexp)) regexp = new ORIGINAL_REGEXP(regexp);
-  var subject = ToString(this);
-
-  if (!regexp.global) return regexp.exec(subject);
-  var matches = DoRegExpExecGlobal(regexp, subject);
-
-  // If the regexp did not match, return null.
-  if (matches.length == 0) return null;
-
-  // Build the result array.
-  var result = new $Array(match_string);
-  for (var i = 0; i < matches.length; ++i) {
-    var match = matches[i];
-    var match_string = subject.slice(match[0], match[1]);
-    result[i] = match_string;
-  }
-
-  return result;
-}, DONT_ENUM);
-
-
 // ECMA-262 section 15.5.4.12
-%AddProperty($String.prototype, "search", function search(re) {
+function StringSearch(re) {
   var regexp = new ORIGINAL_REGEXP(re);
   var s = ToString(this);
   var last_idx = regexp.lastIndex; // keep old lastIndex
@@ -418,11 +429,11 @@ function ApplyReplacementFunction(replace, captures, subject) {
     return -1;
   else
     return result.index;
-}, DONT_ENUM);
+}
 
 
 // ECMA-262 section 15.5.4.13
-%AddProperty($String.prototype, "slice", function slice(start, end) {
+function StringSlice(start, end) {
   var s = ToString(this);
   var s_len = s.length;
   var start_i = TO_INTEGER(start);
@@ -453,11 +464,11 @@ function ApplyReplacementFunction(replace, captures, subject) {
     num_c = 0;
 
   return SubString(s, start_i, start_i + num_c);
-}, DONT_ENUM);
+}
 
 
 // ECMA-262 section 15.5.4.14
-%AddProperty($String.prototype, "split", function split(separator, limit) {
+function StringSplit(separator, limit) {
   var subject = ToString(this);
   var result = [];
   var lim = (limit === void 0) ? 0xffffffff : ToUint32(limit);
@@ -518,7 +529,7 @@ function ApplyReplacementFunction(replace, captures, subject) {
 
     startIndex = currentIndex = endIndex;
   }
-}, DONT_ENUM);
+}
 
 
 // ECMA-262 section 15.5.4.14
@@ -549,7 +560,7 @@ function splitMatch(separator, subject, current_index, start_index) {
 
 
 // ECMA-262 section 15.5.4.15
-%AddProperty($String.prototype, "substring", function substring(start, end) {
+function StringSubstring(start, end) {
   var s = ToString(this);
   var s_len = s.length;
   var start_i = TO_INTEGER(start);
@@ -569,11 +580,11 @@ function splitMatch(separator, subject, current_index, start_index) {
   }
 
   return SubString(s, start_i, end_i);
-}, DONT_ENUM);
+}
 
 
 // This is not a part of ECMA-262.
-%AddProperty($String.prototype, "substr", function substr(start, n) {
+function StringSubstr(start, n) {
   var s = ToString(this);
   var len;
 
@@ -607,35 +618,35 @@ function splitMatch(separator, subject, current_index, start_index) {
   if (end > s.length) end = s.length;
 
   return SubString(s, start, end);
-}, DONT_ENUM);
+}
 
 
 // ECMA-262, 15.5.4.16
-%AddProperty($String.prototype, "toLowerCase", function toLowerCase() {
+function StringToLowerCase() {
   return %StringToLowerCase(ToString(this));
-}, DONT_ENUM);
+}
 
 
 // ECMA-262, 15.5.4.17
-%AddProperty($String.prototype, "toLocaleLowerCase", function toLocaleLowerCase() {
+function StringToLocaleLowerCase() {
   return %StringToLowerCase(ToString(this));
-}, DONT_ENUM);
+}
 
 
 // ECMA-262, 15.5.4.18
-%AddProperty($String.prototype, "toUpperCase", function toUpperCase() {
+function StringToUpperCase() {
   return %StringToUpperCase(ToString(this));
-}, DONT_ENUM);
+}
 
 
 // ECMA-262, 15.5.4.19
-%AddProperty($String.prototype, "toLocaleUpperCase", function toLocaleUpperCase() {
+function StringToLocaleUpperCase() {
   return %StringToUpperCase(ToString(this));
-}, DONT_ENUM);
+}
 
 
 // ECMA-262, section 15.5.3.2
-%AddProperty($String, "fromCharCode", function fromCharCode(code) {
+function StringFromCharCode(code) {
   var n = %_ArgumentsLength();
   if (n == 1) return %CharFromCode(ToNumber(code) & 0xffff)
 
@@ -645,18 +656,7 @@ function splitMatch(separator, subject, current_index, start_index) {
   var codes = new $Array(n);
   for (var i = 0; i < n; i++) codes[i] = ToNumber(%_Arguments(i));
   return %StringFromCharCodeArray(codes);
-}, DONT_ENUM);
-
-
-// ECMA-262, section 15.5.4.4
-function charAt(pos) {
-  var subject = ToString(this);
-  var index = TO_INTEGER(pos);
-  if (index >= subject.length || index < 0) return "";
-  return %CharFromCode(%StringCharCodeAt(subject, index));
-};
-
-%AddProperty($String.prototype, "charAt", charAt, DONT_ENUM);
+}
 
 
 // Helper function for very basic XSS protection.
@@ -670,69 +670,69 @@ function HtmlEscape(str) {
 
 // Compatibility support for KJS.
 // Tested by mozilla/js/tests/js1_5/Regress/regress-276103.js.
-%AddProperty($String.prototype, "link", function link(s) {
+function StringLink(s) {
   return "<a href=\"" + HtmlEscape(s) + "\">" + this + "</a>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "anchor", function anchor(name) {
+function StringAnchor(name) {
   return "<a name=\"" + HtmlEscape(name) + "\">" + this + "</a>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "fontcolor", function fontcolor(color) {
+function StringFontcolor(color) {
   return "<font color=\"" + HtmlEscape(color) + "\">" + this + "</font>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "fontsize", function fontsize(size) {
+function StringFontsize(size) {
   return "<font size=\"" + HtmlEscape(size) + "\">" + this + "</font>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "big", function big() {
+function StringBig() {
   return "<big>" + this + "</big>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "blink", function blink() {
+function StringBlink() {
   return "<blink>" + this + "</blink>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "bold", function bold() {
+function StringBold() {
   return "<b>" + this + "</b>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "fixed", function fixed() {
+function StringFixed() {
   return "<tt>" + this + "</tt>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "italics", function italics() {
+function StringItalics() {
   return "<i>" + this + "</i>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "small", function small() {
+function StringSmall() {
   return "<small>" + this + "</small>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "strike", function strike() {
+function StringStrike() {
   return "<strike>" + this + "</strike>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "sub", function sub() {
+function StringSub() {
   return "<sub>" + this + "</sub>";
-}, DONT_ENUM);
+}
 
 
-%AddProperty($String.prototype, "sup", function sup() {
+function StringSup() {
   return "<sup>" + this + "</sup>";
-}, DONT_ENUM);
+}
 
 
 // StringBuilder support.
@@ -778,3 +778,57 @@ StringBuilder.prototype.generate = function() {
 ReplaceResultBuilder.prototype.generate = function() {
   return %StringBuilderConcat(this.elements, this.special_string);
 }
+
+
+// -------------------------------------------------------------------
+
+function SetupString() {
+  // Setup the constructor property on the String prototype object.
+  %AddProperty($String.prototype, "constructor", $String, DONT_ENUM);
+
+
+  // Setup the non-enumerable functions on the String object.
+  InstallFunctions($String, DONT_ENUM, $Array(
+    "fromCharCode", StringFromCharCode
+  ));
+
+
+  // Setup the non-enumerable functions on the String prototype object.
+  InstallFunctions($String.prototype, DONT_ENUM, $Array(
+    "valueOf", StringValueOf,
+    "toString", StringToString,
+    "charAt", StringCharAt,
+    "charCodeAt", StringCharCodeAt,
+    "concat", StringConcat,
+    "indexOf", StringIndexOf,
+    "lastIndexOf", StringLastIndexOf,
+    "localeCompare", StringLocaleCompare,
+    "match", StringMatch,
+    "replace", StringReplace,
+    "search", StringSearch,
+    "slice", StringSlice,
+    "split", StringSplit,
+    "substring", StringSubstring,
+    "substr", StringSubstr,
+    "toLowerCase", StringToLowerCase,
+    "toLocaleLowerCase", StringToLocaleLowerCase,
+    "toUpperCase", StringToUpperCase,
+    "toLocaleUpperCase", StringToLocaleUpperCase,
+    "link", StringLink,
+    "anchor", StringAnchor,
+    "fontcolor", StringFontcolor,
+    "fontsize", StringFontsize,
+    "big", StringBig,
+    "blink", StringBlink,
+    "bold", StringBold,
+    "fixed", StringFixed,
+    "italics", StringItalics,
+    "small", StringSmall,
+    "strike", StringStrike,
+    "sub", StringSub,
+    "sup", StringSup
+  ));
+}
+
+
+SetupString();
