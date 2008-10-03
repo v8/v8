@@ -504,11 +504,14 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
   // there, we add the property and take special precautions to always
   // add it as a local property even in case of callbacks in the
   // prototype chain (this rules out using SetProperty).
+  // We have IgnoreAttributesAndSetLocalProperty for this.
   LookupResult lookup;
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
     Object* value = (assign) ? args[1] : Heap::undefined_value();
-    return global->AddProperty(*name, value, attributes);
+    return global->IgnoreAttributesAndSetLocalProperty(*name, 
+						       value, 
+						       attributes);
   }
 
   // Determine if this is a redeclaration of something read-only.
@@ -568,10 +571,13 @@ static Object* Runtime_InitializeConstGlobal(Arguments args) {
   // there, we add the property and take special precautions to always
   // add it as a local property even in case of callbacks in the
   // prototype chain (this rules out using SetProperty).
+  // We use IgnoreAttributesAndSetLocalProperty instead
   LookupResult lookup;
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
-    return global->AddProperty(*name, *value, attributes);
+    return global->IgnoreAttributesAndSetLocalProperty(*name, 
+						       *value, 
+						       attributes);
   }
 
   // Determine if this is a redeclaration of something not
@@ -1377,23 +1383,6 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
 }
 
 
-static Object* Runtime_AddProperty(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 4);
-
-  CONVERT_CHECKED(JSObject, object, args[0]);
-  CONVERT_CHECKED(String, name, args[1]);
-  RUNTIME_ASSERT(!object->HasLocalProperty(name));
-  CONVERT_CHECKED(Smi, attr_obj, args[3]);
-
-  int attr = attr_obj->value();
-  RUNTIME_ASSERT((attr & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-  PropertyAttributes attributes = static_cast<PropertyAttributes>(attr);
-
-  return object->AddProperty(name, args[2], attributes);
-}
-
-
 static Object* Runtime_SetProperty(Arguments args) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
@@ -1406,10 +1395,11 @@ static Object* Runtime_SetProperty(Arguments args) {
   PropertyAttributes attributes = NONE;
   if (args.length() == 4) {
     CONVERT_CHECKED(Smi, value_obj, args[3]);
-    int value = value_obj->value();
+    int unchecked_value = value_obj->value();
     // Only attribute bits should be set.
-    ASSERT((value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-    attributes = static_cast<PropertyAttributes>(value);
+    RUNTIME_ASSERT(
+        (unchecked_value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
+    attributes = static_cast<PropertyAttributes>(unchecked_value);
   }
   return Runtime::SetObjectProperty(object, key, value, attributes);
 }
@@ -1419,12 +1409,22 @@ static Object* Runtime_SetProperty(Arguments args) {
 // exist, it will be added with attributes NONE.
 static Object* Runtime_IgnoreAttributesAndSetProperty(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 3);
-
+  RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, name, args[1]);
+  // Compute attributes.
+  PropertyAttributes attributes = NONE;
+  if (args.length() == 4) {
+    CONVERT_CHECKED(Smi, value_obj, args[3]);
+    int unchecked_value = value_obj->value();
+    // Only attribute bits should be set.
+    RUNTIME_ASSERT(
+        (unchecked_value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
+    attributes = static_cast<PropertyAttributes>(unchecked_value);
+  }
 
-  return object->IgnoreAttributesAndSetLocalProperty(name, args[2], NONE);
+  return object->
+      IgnoreAttributesAndSetLocalProperty(name, args[2], attributes);
 }
 
 

@@ -290,7 +290,7 @@ var regExpInput = "";
 function SetupRegExp() {
   %FunctionSetInstanceClassName($RegExp, 'RegExp');
   %FunctionSetPrototype($RegExp, new $Object());
-  %AddProperty($RegExp.prototype, 'constructor', $RegExp, DONT_ENUM);
+  %SetProperty($RegExp.prototype, 'constructor', $RegExp, DONT_ENUM);
   %SetCode($RegExp, RegExpConstructor);
 
   InstallFunctions($RegExp.prototype, DONT_ENUM, $Array(

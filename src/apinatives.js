@@ -67,7 +67,7 @@ function InstantiateFunction(data, name) {
     kApiFunctionCache[serialNumber] = fun;
     var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
     fun.prototype = prototype ? Instantiate(prototype) : {};
-    %AddProperty(fun.prototype, "constructor", fun, DONT_ENUM);
+    %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
     var parent = %GetTemplateField(data, kApiParentTemplateOffset);
     if (parent) {
       var parent_fun = Instantiate(parent);

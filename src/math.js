@@ -40,7 +40,7 @@ function MathConstructor() {}
 %FunctionSetInstanceClassName(MathConstructor, 'Math');
 const $Math = new MathConstructor();
 $Math.__proto__ = global.Object.prototype;
-%AddProperty(global, "Math", $Math, DONT_ENUM);
+%SetProperty(global, "Math", $Math, DONT_ENUM);
 
 // ECMA 262 - 15.8.2.1
 function MathAbs(x) {
@@ -126,17 +126,41 @@ function MathTan(x) { return %Math_tan(ToNumber(x)); }
 function SetupMath() {
   // Setup math constants.
   // ECMA-262, section 15.8.1.1.
-  %AddProperty($Math, "E", 2.7182818284590452354, DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "E",
+               2.7182818284590452354,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
   // ECMA-262, section 15.8.1.2.
-  %AddProperty($Math, "LN10", 2.302585092994046, DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "LN10",
+               2.302585092994046,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
   // ECMA-262, section 15.8.1.3.
-  %AddProperty($Math, "LN2", 0.6931471805599453, DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "LN2",
+               0.6931471805599453,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
   // ECMA-262, section 15.8.1.4.
-  %AddProperty($Math, "LOG2E", 1.4426950408889634, DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %AddProperty($Math, "LOG10E", 0.43429448190325176, DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %AddProperty($Math, "PI", 3.1415926535897932, DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %AddProperty($Math, "SQRT1_2", 0.7071067811865476, DONT_ENUM |  DONT_DELETE | READ_ONLY);
-  %AddProperty($Math, "SQRT2", 1.4142135623730951, DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "LOG2E",
+               1.4426950408889634,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "LOG10E",
+               0.43429448190325176,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "PI",
+               3.1415926535897932,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "SQRT1_2",
+               0.7071067811865476,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "SQRT2",
+               1.4142135623730951,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
 
   // Setup non-enumerable functions of the Math object and
   // set their names.

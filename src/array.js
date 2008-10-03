@@ -907,7 +907,7 @@ function InstallFunctions(prototype, attributes, functions) {
     var key = functions[i];
     var f = functions[i + 1];
     %FunctionSetName(f, key);
-    %AddProperty(prototype, key, f, attributes);
+    %SetProperty(prototype, key, f, attributes);
   }
 }
 
@@ -924,7 +924,7 @@ function UpdateFunctionLengths(lengths) {
 function SetupArray() {
   // Setup non-enumerable constructor property on the Array.prototype
   // object.
-  %AddProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
+  %SetProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
 
   // Setup non-enumerable functions of the Array.prototype object and
   // set their names.

@@ -39,7 +39,6 @@ namespace v8 { namespace internal {
 
 #define RUNTIME_FUNCTION_LIST_ALWAYS(F) \
   /* Property access */ \
-  F(AddProperty, 4) \
   F(GetProperty, 2) \
   F(DeleteProperty, 2) \
   F(HasLocalProperty, 2) \
@@ -189,7 +188,7 @@ namespace v8 { namespace internal {
   F(EvalReceiver, 1) \
   \
   F(SetProperty, -1 /* 3 or 4 */) \
-  F(IgnoreAttributesAndSetProperty, 3) \
+  F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */) \
   \
   /* Arrays */ \
   F(RemoveArrayHoles, 1) \

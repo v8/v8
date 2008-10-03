@@ -784,7 +784,7 @@ ReplaceResultBuilder.prototype.generate = function() {
 
 function SetupString() {
   // Setup the constructor property on the String prototype object.
-  %AddProperty($String.prototype, "constructor", $String, DONT_ENUM);
+  %SetProperty($String.prototype, "constructor", $String, DONT_ENUM);
 
 
   // Setup the non-enumerable functions on the String object.

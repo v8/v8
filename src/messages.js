@@ -163,7 +163,7 @@ function MakeGenericError(constructor, type, args) {
  * Setup the Script function and constructor.
  */
 %FunctionSetInstanceClassName(Script, 'Script');
-%AddProperty(Script.prototype, 'constructor', Script, DONT_ENUM);
+%SetProperty(Script.prototype, 'constructor', Script, DONT_ENUM);
 %SetCode(Script, function(x) {
   // Script objects can only be created by the VM.
   throw new $Error("Not supported");
@@ -633,7 +633,7 @@ function DefineError(f) {
   // effects when overwriting the error functions from
   // user code.
   var name = f.name;
-  %AddProperty(global, name, f, DONT_ENUM);
+  %SetProperty(global, name, f, DONT_ENUM);
   this['$' + name] = f;
   // Configure the error function.
   // prototype of 'Error' must be as default: new Object().
@@ -663,7 +663,7 @@ DefineError(function URIError() { });
 // Setup extra properties of the Error.prototype object.
 $Error.prototype.message = '';
 
-%AddProperty($Error.prototype, 'toString', function toString() {
+%SetProperty($Error.prototype, 'toString', function toString() {
   var type = this.type;
   if (type && !this.hasOwnProperty("message")) {
     return this.name + ": " + FormatMessage({ type: type, args: this.arguments });
