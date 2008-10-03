@@ -653,7 +653,7 @@ void Logger::DebugEvent(const char* event_type, Vector<uint16_t> parameter) {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::TickEvent(TickSample* sample, bool overflow) {
-  if (logfile_ == NULL || !FLAG_log) return;
+  if (logfile_ == NULL || !FLAG_prof) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "tick,0x%x,0x%x,%d", sample->pc, sample->sp,
           static_cast<int>(sample->state));
@@ -677,7 +677,6 @@ bool Logger::Setup() {
 
   // --prof implies --log-code.
   if (FLAG_prof) FLAG_log_code = true;
-  if (FLAG_log_code) FLAG_log = true;
 
   bool open_log_file = FLAG_log || FLAG_log_api || FLAG_log_code
       || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
