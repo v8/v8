@@ -4774,14 +4774,6 @@ TEST(DontLeakGlobalObjects) {
       v8_compile("gc();")->Run();
     }
     CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
-
-    { v8::HandleScope scope;
-      const char* extension_list[] = { "v8/print" };
-      v8::ExtensionConfiguration extensions(1, extension_list);
-      LocalContext context(&extensions);
-      v8_compile("print('hest');")->Run();
-    }
-    CHECK_EQ(count, GetSurvivingGlobalObjectsCount());
   }
 }
 

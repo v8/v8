@@ -40,6 +40,51 @@ using namespace v8::internal;
 
 static v8::Persistent<v8::Context> env;
 
+// --- P r i n t   E x t e n s i o n ---
+
+class PrintExtension : public v8::Extension {
+ public:
+  PrintExtension() : v8::Extension("v8/print", kSource) { }
+  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
+      v8::Handle<v8::String> name);
+  static v8::Handle<v8::Value> Print(const v8::Arguments& args);
+ private:
+  static const char* kSource;
+};
+
+
+const char* PrintExtension::kSource = "native function print();";
+
+
+v8::Handle<v8::FunctionTemplate> PrintExtension::GetNativeFunction(
+    v8::Handle<v8::String> str) {
+  return v8::FunctionTemplate::New(PrintExtension::Print);
+}
+
+
+v8::Handle<v8::Value> PrintExtension::Print(const v8::Arguments& args) {
+  for (int i = 0; i < args.Length(); i++) {
+    if (i != 0) printf(" ");
+    v8::HandleScope scope;
+    v8::Handle<v8::Value> arg = args[i];
+    v8::Handle<v8::String> string_obj = arg->ToString();
+    if (string_obj.IsEmpty()) return string_obj;
+    int length = string_obj->Length();
+    uint16_t* string = NewArray<uint16_t>(length + 1);
+    string_obj->Write(string);
+    for (int j = 0; j < length; j++)
+      printf("%lc", string[j]);
+    DeleteArray(string);
+  }
+  printf("\n");
+  return v8::Undefined();
+}
+
+
+static PrintExtension kPrintExtension;
+v8::DeclareExtension kPrintExtensionDeclaration(&kPrintExtension);
+
+
 static void InitializeVM() {
   if (env.IsEmpty()) {
     v8::HandleScope scope;

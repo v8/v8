@@ -537,12 +537,6 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
   // Extensions
   Add(FUNCTION_ADDR(GCExtension::GC), EXTENSION, 1,
       "GCExtension::GC");
-  Add(FUNCTION_ADDR(PrintExtension::Print), EXTENSION, 2,
-      "PrintExtension::Print");
-  Add(FUNCTION_ADDR(LoadExtension::Load), EXTENSION, 3,
-      "LoadExtension::Load");
-  Add(FUNCTION_ADDR(QuitExtension::Quit), EXTENSION, 4,
-      "QuitExtension::Quit");
 
   // Accessors
 #define ACCESSOR_DESCRIPTOR_DECLARATION(name) \

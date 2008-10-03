@@ -154,9 +154,8 @@ static void Serialize() {
   StatsTable::SetCounterFunction(counter_function);
 
   v8::HandleScope scope;
-  const int kExtensionCount = 5;
-  const char* extension_list[kExtensionCount] =
-    { "v8/print", "v8/load", "v8/quit", "v8/version", "v8/gc" };
+  const int kExtensionCount = 1;
+  const char* extension_list[kExtensionCount] = { "v8/gc" };
   v8::ExtensionConfiguration extensions(kExtensionCount, extension_list);
   v8::Persistent<v8::Context> env = v8::Context::New(&extensions);
   env->Enter();
@@ -259,7 +258,7 @@ TEST(DeserializeExtensions) {
   v8::HandleScope scope;
 
   Deserialize();
-  const char* c_source = "print(\"abcd\");";
+  const char* c_source = "gc();";
   v8::Local<v8::String> source = v8::String::New(c_source);
   v8::Local<v8::Script> script = v8::Script::Compile(source);
   v8::Local<v8::Value> value = script->Run();
