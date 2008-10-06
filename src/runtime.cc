@@ -4700,9 +4700,9 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
     Handle<Script> script = Handle<Script>(Script::cast(instances->get(i)));
     // Get the script wrapper in a local handle before calling GetScriptWrapper,
     // because using
-    //   instances->set(i, *GetScriptWr apper(script))
+    //   instances->set(i, *GetScriptWrapper(script))
     // is unsafe as GetScriptWrapper might call GC and the C++ compiler might
-    // already have deferenced the instances handle. 
+    // already have deferenced the instances handle.
     Handle<JSValue> wrapper = GetScriptWrapper(script);
     instances->set(i, *wrapper);
   }
