@@ -177,6 +177,14 @@ class MacroAssembler: public Assembler {
 
 
   // ---------------------------------------------------------------------------
+  // Support functions.
+
+  // Generates code for reporting that an illegal operation has
+  // occurred.
+  void IllegalOperation(int num_arguments);
+
+
+  // ---------------------------------------------------------------------------
   // Runtime calls
 
   // Call a code stub.

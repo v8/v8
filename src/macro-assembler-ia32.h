@@ -180,8 +180,8 @@ class MacroAssembler: public Assembler {
                         Register scratch, Label* then_label);
 
   // Generates code for reporting that an illegal operation has
-  // occurred
-  void IllegalOperation();
+  // occurred.
+  void IllegalOperation(int num_arguments);
 
   // ---------------------------------------------------------------------------
   // Runtime calls

@@ -601,8 +601,11 @@ void MacroAssembler::StubReturn(int argc) {
 }
 
 
-void MacroAssembler::IllegalOperation() {
-  push(Immediate(Factory::undefined_value()));
+void MacroAssembler::IllegalOperation(int num_arguments) {
+  if (num_arguments > 0) {
+    add(Operand(esp), Immediate(num_arguments * kPointerSize));
+  }
+  mov(Operand(eax), Immediate(Factory::undefined_value()));
 }
 
 
@@ -616,7 +619,7 @@ void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
   // constant, we check that the actual number of arguments match the
   // expectation.
   if (f->nargs >= 0 && f->nargs != num_arguments) {
-    IllegalOperation();
+    IllegalOperation(num_arguments);
     return;
   }
 
