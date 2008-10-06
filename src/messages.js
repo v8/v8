@@ -639,8 +639,8 @@ function DefineError(f) {
   // prototype of 'Error' must be as default: new Object().
   if (name != 'Error') %FunctionSetPrototype(f, new $Error());
   %FunctionSetInstanceClassName(f, 'Error');
+  %SetProperty(f.prototype, 'constructor', f, DONT_ENUM);
   f.prototype.name = name;
-  f.prototype.constructor = f;
   %SetCode(f, function(m) {
     if (%IsConstructCall()) {
       if (!IS_UNDEFINED(m)) this.message = ToString(m);
