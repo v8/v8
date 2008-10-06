@@ -260,7 +260,7 @@ namespace v8 { namespace internal {
   \
   /* Declarations and initialization */ \
   F(DeclareGlobals, 3) \
-  F(DeclareContextSlot, 5) \
+  F(DeclareContextSlot, 4) \
   F(InitializeVarGlobal, -1 /* 1 or 2 */) \
   F(InitializeConstGlobal, 2) \
   F(InitializeConstContextSlot, 3) \

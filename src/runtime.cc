@@ -402,22 +402,21 @@ static Object* Runtime_DeclareGlobals(Arguments args) {
       IgnoreAttributesAndSetLocalProperty(global, name, value, attributes);
     }
   }
-  // Done.
+
   return Heap::undefined_value();
 }
 
 
 static Object* Runtime_DeclareContextSlot(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 5);
+  ASSERT(args.length() == 4);
 
-  // args[0] is result (TOS)
-  CONVERT_ARG_CHECKED(Context, context, 1);
-  Handle<String> name(String::cast(args[2]));
+  CONVERT_ARG_CHECKED(Context, context, 0);
+  Handle<String> name(String::cast(args[1]));
   PropertyAttributes mode =
-      static_cast<PropertyAttributes>(Smi::cast(args[3])->value());
+      static_cast<PropertyAttributes>(Smi::cast(args[2])->value());
   ASSERT(mode == READ_ONLY || mode == NONE);
-  Handle<Object> initial_value(args[4]);
+  Handle<Object> initial_value(args[3]);
 
   // Declarations are always done in the function context.
   context = Handle<Context>(context->fcontext());
@@ -456,32 +455,35 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
         SetProperty(context_ext, name, initial_value, mode);
       }
     }
-    return args[0];  // return TOS
-  }
 
-  // The property is not in the function context. It needs to be "declared"
-  // in the function context's extension context, or in the global context.
-  Handle<JSObject> context_ext;
-  if (context->extension() != NULL) {
-    // The function context's extension context exists - use it.
-    context_ext = Handle<JSObject>(context->extension());
   } else {
-    // The function context's extension context does not exists - allocate it.
-    context_ext = Factory::NewJSObject(Top::context_extension_function());
-    // And store it in the extension slot.
-    context->set_extension(*context_ext);
-  }
-  ASSERT(*context_ext != NULL);
+    // The property is not in the function context. It needs to be
+    // "declared" in the function context's extension context, or in the
+    // global context.
+    Handle<JSObject> context_ext;
+    if (context->extension() != NULL) {
+      // The function context's extension context exists - use it.
+      context_ext = Handle<JSObject>(context->extension());
+    } else {
+      // The function context's extension context does not exists - allocate
+      // it.
+      context_ext = Factory::NewJSObject(Top::context_extension_function());
+      // And store it in the extension slot.
+      context->set_extension(*context_ext);
+    }
+    ASSERT(*context_ext != NULL);
 
-  // Declare the property by setting it to the initial value if provided,
-  // or undefined, and use the correct mode (e.g. READ_ONLY attribute for
-  // constant declarations).
-  ASSERT(!context_ext->HasLocalProperty(*name));
-  Handle<Object> value(Heap::undefined_value());
-  if (*initial_value != NULL) value = initial_value;
-  SetProperty(context_ext, name, value, mode);
-  ASSERT(context_ext->GetLocalPropertyAttribute(*name) == mode);
-  return args[0];  // return TOS
+    // Declare the property by setting it to the initial value if provided,
+    // or undefined, and use the correct mode (e.g. READ_ONLY attribute for
+    // constant declarations).
+    ASSERT(!context_ext->HasLocalProperty(*name));
+    Handle<Object> value(Heap::undefined_value());
+    if (*initial_value != NULL) value = initial_value;
+    SetProperty(context_ext, name, value, mode);
+    ASSERT(context_ext->GetLocalPropertyAttribute(*name) == mode);
+  }
+
+  return Heap::undefined_value();
 }
 
 

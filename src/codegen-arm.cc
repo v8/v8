@@ -1442,9 +1442,8 @@ void ArmCodeGenerator::VisitDeclaration(Declaration* node) {
       __ mov(r0, Operand(0));  // no initial value!
       __ push(r0);
     }
-    __ CallRuntime(Runtime::kDeclareContextSlot, 5);
-    __ push(r0);
-
+    __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+    // Ignore the return value (declarations are statements).
     return;
   }
 

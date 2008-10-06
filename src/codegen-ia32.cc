@@ -1735,11 +1735,8 @@ void Ia32CodeGenerator::VisitDeclaration(Declaration* node) {
     } else {
       __ push(Immediate(0));  // no initial value!
     }
-    __ CallRuntime(Runtime::kDeclareContextSlot, 5);
-    // DeclareContextSlot pops the assigned value by accepting an
-    // extra argument and returning the TOS; no need to explicitly
-    // pop here.
-    __ push(eax);
+    __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+    // Ignore the return value (declarations are statements).
     return;
   }
 
