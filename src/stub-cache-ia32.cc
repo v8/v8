@@ -436,10 +436,18 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
   // Perform map transition for the receiver if necessary.
   if (transition != NULL) {
-    // Update the map of the object; no write barrier updating is
-    // needed because the map is never in new space.
-    __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset),
-           Immediate(Handle<Map>(transition)));
+    if (object->map()->unused_property_fields() == 0) {
+      // The properties must be extended before we can store the value.
+      // We jump to a runtime call that extends the propeties array.
+      __ mov(Operand(ecx), Immediate(Handle<Map>(transition)));
+      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_ExtendStorage));
+      __ jmp(ic, RelocInfo::CODE_TARGET);
+    } else {
+      // Update the map of the object; no write barrier updating is
+      // needed because the map is never in new space.
+      __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset),
+             Immediate(Handle<Map>(transition)));
+    }
   }
 
   // Write to the properties array.

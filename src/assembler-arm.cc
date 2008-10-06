@@ -337,10 +337,6 @@ Assembler::~Assembler() {
 
 
 void Assembler::GetCode(CodeDesc* desc) {
-  // finalize code
-  if (unbound_label_.is_linked())
-    bind_to(&unbound_label_, binding_pos_);
-
   // emit constant pool if necessary
   CheckConstPool(true, false);
   ASSERT(num_prinfo_ == 0);
@@ -469,7 +465,8 @@ void Assembler::bind_to(Label* L, int pos) {
   }
   L->bind_to(pos);
 
-  // do not eliminate jump instructions before the last bound position
+  // Keep track of the last bound label so we don't eliminate any instructions
+  // before a bound label.
   if (pos > last_bound_pos_)
     last_bound_pos_ = pos;
 }
@@ -498,45 +495,6 @@ void Assembler::link_to(Label* L, Label* appendix) {
 
 void Assembler::bind(Label* L) {
   ASSERT(!L->is_bound());  // label can only be bound once
-  if (FLAG_eliminate_jumps) {
-    // Resolve unbound label.
-    if (unbound_label_.is_linked()) {
-      // Unbound label exists => link it with L if same binding
-      // position, otherwise fix it.
-      if (binding_pos_ == pc_offset()) {
-        // Link it to L's list.
-        link_to(L, &unbound_label_);
-      } else {
-        // Otherwise bind unbound label.
-        ASSERT(binding_pos_ < pc_offset());
-        bind_to(&unbound_label_, binding_pos_);
-      }
-    }
-    ASSERT(!unbound_label_.is_linked());
-    // Try to eliminate jumps to next instruction.
-    Instr instr;
-    // Do not remove an already bound jump target.
-    while (last_bound_pos_ < pc_offset() &&
-           reloc_info_writer.last_pc() <= pc_ - kInstrSize &&
-           L->is_linked() && L->pos() == pc_offset() - kInstrSize &&
-           (((instr = instr_at(L->pos())) & CondMask) != nv &&  // not blx
-            (instr & 15*B24) == 10*B24)) {  // b<cond>, but not bl<cond>
-      // Previous instruction is b<cond> jumping immediately after it
-      // => eliminate it
-      if (FLAG_print_jump_elimination)
-        PrintF("@ %d jump to next eliminated\n", L->pos());
-      // Remove first entry from label list.
-      next(L);
-      // Eliminate instruction (set code pointers back).
-      pc_ -= kInstrSize;
-      // Make sure not to skip relocation information when rewinding.
-      ASSERT(reloc_info_writer.last_pc() <= pc_);
-    }
-    // delay fixup of L => store it as unbound label
-    unbound_label_ = *L;
-    binding_pos_ = pc_offset();
-    L->Unuse();
-  }
   bind_to(L, pc_offset());
 }
 
@@ -728,30 +686,15 @@ void Assembler::addrmod5(Instr instr, CRegister crd, const MemOperand& x) {
 
 
 int Assembler::branch_offset(Label* L, bool jump_elimination_allowed) {
-  // if we emit an unconditional jump/call and if the current position is the
-  // target of the unbound label, we can change the binding position of the
-  // unbound label, thereby eliminating an unnecessary jump
-  bool can_eliminate = false;
-  if (jump_elimination_allowed && FLAG_eliminate_jumps &&
-      unbound_label_.is_linked() && binding_pos_ == pc_offset()) {
-    can_eliminate = true;
-    if (FLAG_print_jump_elimination) {
-      PrintF("eliminated jumps/calls to %d from ", binding_pos_);
-      print(&unbound_label_);
-    }
-  }
   int target_pos;
   if (L->is_bound()) {
     target_pos = L->pos();
-    if (can_eliminate)
-      binding_pos_ = target_pos;
   } else {
-    if (can_eliminate)
-      link_to(L, &unbound_label_);  // may modify L's link
-    if (L->is_linked())
+    if (L->is_linked()) {
       target_pos = L->pos();  // L's link
-    else
+    } else {
       target_pos = kEndOfChain;
+    }
     L->link_to(pc_offset());
   }
 

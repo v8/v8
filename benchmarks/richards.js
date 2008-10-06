@@ -73,7 +73,7 @@ function runRichards() {
     var msg =
         "Error during execution: queueCount = " + scheduler.queueCount +
         ", holdCount = " + scheduler.holdCount + ".";
-    print(msg);
+    throw new Error(msg);
   }
 }
 

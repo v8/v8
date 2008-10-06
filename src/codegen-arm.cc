@@ -58,7 +58,7 @@ class Reference BASE_EMBEDDED {
 
   Expression* expression() const  { return expression_; }
   Type type() const  { return type_; }
-  void set_type(Type value)  {
+  void set_type(Type value) {
     ASSERT(type_ == ILLEGAL);
     type_ = value;
   }
@@ -138,7 +138,9 @@ class ArmCodeGenerator: public CodeGenerator {
                                Handle<Script> script,
                                bool is_eval);
 
-  MacroAssembler* masm()  { return masm_; }
+  MacroAssembler* masm() { return masm_; }
+
+  Scope* scope() const { return scope_; }
 
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
@@ -161,7 +163,7 @@ class ArmCodeGenerator: public CodeGenerator {
                    Handle<Script> script,
                    bool is_eval);
 
-  virtual ~ArmCodeGenerator()  { delete masm_; }
+  virtual ~ArmCodeGenerator() { delete masm_; }
 
   // Main code generation function
   void GenCode(FunctionLiteral* fun);
@@ -188,29 +190,29 @@ class ArmCodeGenerator: public CodeGenerator {
     return MemOperand(context, Context::SlotOffset(index));
   }
 
-  static MemOperand ParameterOperand(Scope* scope, int index) {
+  static MemOperand ParameterOperand(const CodeGenerator* cgen, int index) {
+    int num_parameters = cgen->scope()->num_parameters();
     // index -2 corresponds to the activated closure, -1 corresponds
     // to the receiver
-    ASSERT(-2 <= index && index < scope->num_parameters());
-    int offset = (1 + scope->num_parameters() - index) * kPointerSize;
+    ASSERT(-2 <= index && index < num_parameters);
+    int offset = (1 + num_parameters - index) * kPointerSize;
     return MemOperand(fp, offset);
   }
 
   MemOperand ParameterOperand(int index) const {
-    return ParameterOperand(scope_, index);
+    return ParameterOperand(this, index);
   }
 
   MemOperand FunctionOperand() const {
     return MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset);
   }
 
-  static MemOperand SlotOperand(MacroAssembler* masm,
-                                Scope* scope,
+  static MemOperand SlotOperand(CodeGenerator* cgen,
                                 Slot* slot,
                                 Register tmp);
 
   MemOperand SlotOperand(Slot* slot, Register tmp) {
-    return SlotOperand(masm_, scope_, slot, tmp);
+    return SlotOperand(this, slot, tmp);
   }
 
   void LoadCondition(Expression* x, CodeGenState::AccessType access,
@@ -246,7 +248,7 @@ class ArmCodeGenerator: public CodeGenerator {
   void SetValue(Reference* ref) {
     ASSERT(!has_cc());
     ASSERT(!ref->is_illegal());
-    ref->expression()->GenerateStoreCode(masm_, scope_, ref, NOT_CONST_INIT);
+    ref->expression()->GenerateStoreCode(this, ref, NOT_CONST_INIT);
   }
 
   // Generate code to store a value in a reference.  The stored value is
@@ -255,7 +257,7 @@ class ArmCodeGenerator: public CodeGenerator {
   void InitConst(Reference* ref) {
     ASSERT(!has_cc());
     ASSERT(!ref->is_illegal());
-    ref->expression()->GenerateStoreCode(masm_, scope_, ref, CONST_INIT);
+    ref->expression()->GenerateStoreCode(this, ref, CONST_INIT);
   }
 
   // Generate code to fetch a value from a property of a reference.  The
@@ -267,7 +269,7 @@ class ArmCodeGenerator: public CodeGenerator {
   // stored value is expected on top of the expression stack, with the
   // reference immediately below it.  The expression stack is left
   // unchanged.
-  static void SetReferenceProperty(MacroAssembler* masm,
+  static void SetReferenceProperty(CodeGenerator* cgen,
                                    Reference* ref,
                                    Expression* key);
 
@@ -298,6 +300,15 @@ class ArmCodeGenerator: public CodeGenerator {
   virtual void Visit##type(type* node);
   NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
+
+  // Fast-case switch
+  static const int kFastCaseSwitchMaxOverheadFactor = 10;
+  static const int kFastCaseSwitchMinCaseCount = 5;
+  virtual int FastCaseSwitchMaxOverheadFactor();
+  virtual int FastCaseSwitchMinCaseCount();
+  virtual void GenerateFastCaseSwitchJumpTable(
+      SwitchStatement* node, int min_index, int range, Label *fail_label,
+      SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels);
 
   void RecordStatementPosition(Node* node);
 
@@ -374,8 +385,7 @@ CodeGenState::~CodeGenState() {
 // -----------------------------------------------------------------------------
 // ArmCodeGenerator implementation
 
-#define __  masm_->
-
+#define __ masm_->
 
 Handle<Code> ArmCodeGenerator::MakeCode(FunctionLiteral* flit,
                                         Handle<Script> script,
@@ -575,22 +585,23 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
     if (scope->arguments() != NULL) {
       ASSERT(scope->arguments_shadow() != NULL);
       Comment cmnt(masm_, "[ allocate arguments object");
-      {
-        Reference target(this, scope->arguments());
-        __ ldr(r0, FunctionOperand());
-        __ push(r0);
-        __ CallRuntime(Runtime::kNewArguments, 1);
-        __ push(r0);
-        SetValue(&target);
+      { Reference shadow_ref(this, scope->arguments_shadow());
+        { Reference arguments_ref(this, scope->arguments());
+          ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+          __ ldr(r2, FunctionOperand());
+          // The receiver is below the arguments, the return address,
+          // and the frame pointer on the stack.
+          const int kReceiverDisplacement = 2 + scope->num_parameters();
+          __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
+          __ mov(r0, Operand(Smi::FromInt(scope->num_parameters())));
+          __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
+          __ CallStub(&stub);
+          __ push(r0);
+          SetValue(&arguments_ref);
+        }
+        SetValue(&shadow_ref);
       }
-      // The value of arguments must also be stored in .arguments.
-      // TODO(1241813): This code can probably be improved by fusing it with
-      // the code that stores the arguments object above.
-      {
-        Reference target(this, scope->arguments_shadow());
-        Load(scope->arguments());
-        SetValue(&target);
-      }
+      __ pop(r0);  // Value is no longer needed.
     }
 
     // Generate code to 'execute' declarations and initialize
@@ -667,66 +678,6 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
   scope_ = NULL;
   ASSERT(!has_cc());
   ASSERT(state_ == NULL);
-}
-
-
-MemOperand ArmCodeGenerator::SlotOperand(MacroAssembler* masm,
-                                         Scope* scope,
-                                         Slot* slot,
-                                         Register tmp) {
-  // Currently, this assertion will fail if we try to assign to
-  // a constant variable that is constant because it is read-only
-  // (such as the variable referring to a named function expression).
-  // We need to implement assignments to read-only variables.
-  // Ideally, we should do this during AST generation (by converting
-  // such assignments into expression statements); however, in general
-  // we may not be able to make the decision until past AST generation,
-  // that is when the entire program is known.
-  ASSERT(slot != NULL);
-  int index = slot->index();
-  switch (slot->type()) {
-    case Slot::PARAMETER:
-      return ParameterOperand(scope, index);
-
-    case Slot::LOCAL: {
-      ASSERT(0 <= index &&
-             index < scope->num_stack_slots() &&
-             index >= 0);
-      int local_offset = JavaScriptFrameConstants::kLocal0Offset -
-                         index * kPointerSize;
-      return MemOperand(fp, local_offset);
-    }
-
-    case Slot::CONTEXT: {
-      // Follow the context chain if necessary.
-      ASSERT(!tmp.is(cp));  // do not overwrite context register
-      Register context = cp;
-      int chain_length = scope->ContextChainLength(slot->var()->scope());
-      for (int i = chain_length; i-- > 0;) {
-        // Load the closure.
-        // (All contexts, even 'with' contexts, have a closure,
-        // and it is the same for all contexts inside a function.
-        // There is no need to go to the function context first.)
-        masm->ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
-        // Load the function context (which is the incoming, outer context).
-        masm->ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
-        context = tmp;
-      }
-      // We may have a 'with' context now. Get the function context.
-      // (In fact this mov may never be the needed, since the scope analysis
-      // may not permit a direct context access in this case and thus we are
-      // always at a function context. However it is safe to dereference be-
-      // cause the function context of a function context is itself. Before
-      // deleting this mov we should try to create a counter-example first,
-      // though...)
-      masm->ldr(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
-      return ContextOperand(tmp, index);
-    }
-
-    default:
-      UNREACHABLE();
-      return MemOperand(r0, 0);
-  }
 }
 
 
@@ -894,120 +845,6 @@ void ArmCodeGenerator::UnloadReference(Reference* ref) {
 }
 
 
-void Property::GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
-                                 Reference* ref,
-                                 InitState init_state) {
-  Comment cmnt(masm, "[ Store to Property");
-  masm->RecordPosition(position());
-  ArmCodeGenerator::SetReferenceProperty(masm, ref, key());
-}
-
-
-void VariableProxy::GenerateStoreCode(MacroAssembler* masm,
-                                      Scope* scope,
-                                      Reference* ref,
-                                      InitState init_state) {
-  Comment cmnt(masm, "[ Store to VariableProxy");
-  Variable* node = var();
-
-  Expression* expr = node->rewrite();
-  if (expr != NULL) {
-    expr->GenerateStoreCode(masm, scope, ref, init_state);
-  } else {
-    ASSERT(node->is_global());
-    if (node->AsProperty() != NULL) {
-      masm->RecordPosition(node->AsProperty()->position());
-    }
-    ArmCodeGenerator::SetReferenceProperty(masm, ref,
-                                           new Literal(node->name()));
-  }
-}
-
-
-void Slot::GenerateStoreCode(MacroAssembler* masm,
-                             Scope* scope,
-                             Reference* ref,
-                             InitState init_state) {
-  Comment cmnt(masm, "[ Store to Slot");
-
-  if (type() == Slot::LOOKUP) {
-    ASSERT(var()->mode() == Variable::DYNAMIC);
-
-    // For now, just do a runtime call.
-    masm->push(cp);
-    masm->mov(r0, Operand(var()->name()));
-    masm->push(r0);
-
-    if (init_state == CONST_INIT) {
-      // Same as the case for a normal store, but ignores attribute
-      // (e.g. READ_ONLY) of context slot so that we can initialize const
-      // properties (introduced via eval("const foo = (some expr);")). Also,
-      // uses the current function context instead of the top context.
-      //
-      // Note that we must declare the foo upon entry of eval(), via a
-      // context slot declaration, but we cannot initialize it at the same
-      // time, because the const declaration may be at the end of the eval
-      // code (sigh...) and the const variable may have been used before
-      // (where its value is 'undefined'). Thus, we can only do the
-      // initialization when we actually encounter the expression and when
-      // the expression operands are defined and valid, and thus we need the
-      // split into 2 operations: declaration of the context slot followed
-      // by initialization.
-      masm->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-    } else {
-      masm->CallRuntime(Runtime::kStoreContextSlot, 3);
-    }
-    // Storing a variable must keep the (new) value on the expression
-    // stack. This is necessary for compiling assignment expressions.
-    masm->push(r0);
-
-  } else {
-    ASSERT(var()->mode() != Variable::DYNAMIC);
-
-    Label exit;
-    if (init_state == CONST_INIT) {
-      ASSERT(var()->mode() == Variable::CONST);
-      // Only the first const initialization must be executed (the slot
-      // still contains 'the hole' value). When the assignment is executed,
-      // the code is identical to a normal store (see below).
-      Comment cmnt(masm, "[ Init const");
-      masm->ldr(r2, ArmCodeGenerator::SlotOperand(masm, scope, this, r2));
-      masm->cmp(r2, Operand(Factory::the_hole_value()));
-      masm->b(ne, &exit);
-    }
-
-    // We must execute the store.
-    // r2 may be loaded with context; used below in RecordWrite.
-    // Storing a variable must keep the (new) value on the stack. This is
-    // necessary for compiling assignment expressions.
-    //
-    // Note: We will reach here even with var()->mode() == Variable::CONST
-    // because of const declarations which will initialize consts to 'the
-    // hole' value and by doing so, end up calling this code.  r2 may be
-    // loaded with context; used below in RecordWrite.
-    masm->pop(r0);
-    masm->str(r0, ArmCodeGenerator::SlotOperand(masm, scope, this, r2));
-    masm->push(r0);
-
-    if (type() == Slot::CONTEXT) {
-      // Skip write barrier if the written value is a smi.
-      masm->tst(r0, Operand(kSmiTagMask));
-      masm->b(eq, &exit);
-      // r2 is loaded with context when calling SlotOperand above.
-      int offset = FixedArray::kHeaderSize + index() * kPointerSize;
-      masm->mov(r3, Operand(offset));
-      masm->RecordWrite(r2, r3, r1);
-    }
-    // If we definitely did not jump over the assignment, we do not need to
-    // bind the exit label.  Doing so can defeat peephole optimization.
-    if (init_state == CONST_INIT || type() == Slot::CONTEXT) {
-      masm->bind(&exit);
-    }
-  }
-}
-
-
 // ECMA-262, section 9.2, page 30: ToBoolean(). Convert the given
 // register to a boolean in the condition code register. The code
 // may jump to 'false_target' in case the register converts to 'false'.
@@ -1048,10 +885,6 @@ void ArmCodeGenerator::ToBoolean(Label* true_target,
 }
 
 
-#undef __
-#define __  masm->
-
-
 class GetPropertyStub : public CodeStub {
  public:
   GetPropertyStub() { }
@@ -1065,61 +898,6 @@ class GetPropertyStub : public CodeStub {
 };
 
 
-void GetPropertyStub::Generate(MacroAssembler* masm) {
-  // sp[0]: key
-  // sp[1]: receiver
-  Label slow, fast;
-  // Get the key and receiver object from the stack.
-  __ ldm(ia, sp, r0.bit() | r1.bit());
-  // Check that the key is a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(ne, &slow);
-  __ mov(r0, Operand(r0, ASR, kSmiTagSize));
-  // Check that the object isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &slow);
-
-  // Check that the object is some kind of JS object EXCEPT JS Value type.
-  // In the case that the object is a value-wrapper object,
-  // we enter the runtime system to make sure that indexing into string
-  // objects work as intended.
-  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
-  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  __ cmp(r2, Operand(JS_OBJECT_TYPE));
-  __ b(lt, &slow);
-
-  // Get the elements array of the object.
-  __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
-  // Check that the object is in fast mode (not dictionary).
-  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ cmp(r3, Operand(Factory::hash_table_map()));
-  __ b(eq, &slow);
-  // Check that the key (index) is within bounds.
-  __ ldr(r3, FieldMemOperand(r1, Array::kLengthOffset));
-  __ cmp(r0, Operand(r3));
-  __ b(lo, &fast);
-
-  // Slow case: Push extra copies of the arguments (2).
-  __ bind(&slow);
-  __ ldm(ia, sp, r0.bit() | r1.bit());
-  __ stm(db_w, sp, r0.bit() | r1.bit());
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(ExternalReference(Runtime::kGetProperty), 2);
-
-  // Fast case: Do the load.
-  __ bind(&fast);
-  __ add(r3, r1, Operand(Array::kHeaderSize - kHeapObjectTag));
-  __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2));
-  __ cmp(r0, Operand(Factory::the_hole_value()));
-  // In case the loaded value is the_hole we have to consult GetProperty
-  // to ensure the prototype chain is searched.
-  __ b(eq, &slow);
-
-  masm->StubReturn(1);
-}
-
-
 class SetPropertyStub : public CodeStub {
  public:
   SetPropertyStub() { }
@@ -1131,116 +909,6 @@ class SetPropertyStub : public CodeStub {
 
   const char* GetName() { return "GetPropertyStub"; }
 };
-
-
-
-void SetPropertyStub::Generate(MacroAssembler* masm) {
-  // r0 : value
-  // sp[0] : key
-  // sp[1] : receiver
-
-  Label slow, fast, array, extra, exit;
-  // Get the key and the object from the stack.
-  __ ldm(ia, sp, r1.bit() | r3.bit());  // r1 = key, r3 = receiver
-  // Check that the key is a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(ne, &slow);
-  // Check that the object isn't a smi.
-  __ tst(r3, Operand(kSmiTagMask));
-  __ b(eq, &slow);
-  // Get the type of the object from its map.
-  __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  // Check if the object is a JS array or not.
-  __ cmp(r2, Operand(JS_ARRAY_TYPE));
-  __ b(eq, &array);
-  // Check that the object is some kind of JS object.
-  __ cmp(r2, Operand(FIRST_JS_OBJECT_TYPE));
-  __ b(lt, &slow);
-
-
-  // Object case: Check key against length in the elements array.
-  __ ldr(r3, FieldMemOperand(r3, JSObject::kElementsOffset));
-  // Check that the object is in fast mode (not dictionary).
-  __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ cmp(r2, Operand(Factory::hash_table_map()));
-  __ b(eq, &slow);
-  // Untag the key (for checking against untagged length in the fixed array).
-  __ mov(r1, Operand(r1, ASR, kSmiTagSize));
-  // Compute address to store into and check array bounds.
-  __ add(r2, r3, Operand(Array::kHeaderSize - kHeapObjectTag));
-  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2));
-  __ ldr(ip, FieldMemOperand(r3, Array::kLengthOffset));
-  __ cmp(r1, Operand(ip));
-  __ b(lo, &fast);
-
-
-  // Slow case: Push extra copies of the arguments (3).
-  __ bind(&slow);
-  __ ldm(ia, sp, r1.bit() | r3.bit());  // r0 == value, r1 == key, r3 == object
-  __ stm(db_w, sp, r0.bit() | r1.bit() | r3.bit());
-  // Do tail-call to runtime routine.
-  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3);
-
-
-  // Extra capacity case: Check if there is extra capacity to
-  // perform the store and update the length. Used for adding one
-  // element to the array by writing to array[array.length].
-  // r0 == value, r1 == key, r2 == elements, r3 == object
-  __ bind(&extra);
-  __ b(ne, &slow);  // do not leave holes in the array
-  __ mov(r1, Operand(r1, ASR, kSmiTagSize));  // untag
-  __ ldr(ip, FieldMemOperand(r2, Array::kLengthOffset));
-  __ cmp(r1, Operand(ip));
-  __ b(hs, &slow);
-  __ mov(r1, Operand(r1, LSL, kSmiTagSize));  // restore tag
-  __ add(r1, r1, Operand(1 << kSmiTagSize));  // and increment
-  __ str(r1, FieldMemOperand(r3, JSArray::kLengthOffset));
-  __ mov(r3, Operand(r2));
-  // NOTE: Computing the address to store into must take the fact
-  // that the key has been incremented into account.
-  int displacement = Array::kHeaderSize - kHeapObjectTag -
-      ((1 << kSmiTagSize) * 2);
-  __ add(r2, r2, Operand(displacement));
-  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ b(&fast);
-
-
-  // Array case: Get the length and the elements array from the JS
-  // array. Check that the array is in fast mode; if it is the
-  // length is always a smi.
-  // r0 == value, r3 == object
-  __ bind(&array);
-  __ ldr(r2, FieldMemOperand(r3, JSObject::kElementsOffset));
-  __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
-  __ cmp(r1, Operand(Factory::hash_table_map()));
-  __ b(eq, &slow);
-
-  // Check the key against the length in the array, compute the
-  // address to store into and fall through to fast case.
-  __ ldr(r1, MemOperand(sp));
-  // r0 == value, r1 == key, r2 == elements, r3 == object.
-  __ ldr(ip, FieldMemOperand(r3, JSArray::kLengthOffset));
-  __ cmp(r1, Operand(ip));
-  __ b(hs, &extra);
-  __ mov(r3, Operand(r2));
-  __ add(r2, r2, Operand(Array::kHeaderSize - kHeapObjectTag));
-  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
-
-
-  // Fast case: Do the store.
-  // r0 == value, r2 == address to store into, r3 == elements
-  __ bind(&fast);
-  __ str(r0, MemOperand(r2));
-  // Skip write barrier if the written value is a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &exit);
-  // Update write barrier for the elements array address.
-  __ sub(r1, r2, Operand(r3));
-  __ RecordWrite(r3, r1, r2);
-  __ bind(&exit);
-  masm->StubReturn(1);
-}
 
 
 class GenericBinaryOpStub : public CodeStub {
@@ -1276,242 +944,6 @@ class GenericBinaryOpStub : public CodeStub {
 };
 
 
-void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
-  // r1 : x
-  // r0 : y
-  // result : r0
-
-  switch (op_) {
-    case Token::ADD: {
-      Label slow, exit;
-      // fast path
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
-      __ add(r0, r1, Operand(r0), SetCC);  // add y optimistically
-      // go slow-path in case of overflow
-      __ b(vs, &slow);
-      // go slow-path in case of non-smi operands
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ tst(r2, Operand(kSmiTagMask));
-      __ b(eq, &exit);
-      // slow path
-      __ bind(&slow);
-      __ sub(r0, r0, Operand(r1));  // revert optimistic add
-      __ push(r1);
-      __ push(r0);
-      __ mov(r0, Operand(1));  // set number of arguments
-      __ InvokeBuiltin(Builtins::ADD, JUMP_JS);
-      // done
-      __ bind(&exit);
-      break;
-    }
-
-    case Token::SUB: {
-      Label slow, exit;
-      // fast path
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
-      __ sub(r3, r1, Operand(r0), SetCC);  // subtract y optimistically
-      // go slow-path in case of overflow
-      __ b(vs, &slow);
-      // go slow-path in case of non-smi operands
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ tst(r2, Operand(kSmiTagMask));
-      __ mov(r0, Operand(r3), LeaveCC, eq);  // conditionally set r0 to result
-      __ b(eq, &exit);
-      // slow path
-      __ bind(&slow);
-      __ push(r1);
-      __ push(r0);
-      __ mov(r0, Operand(1));  // set number of arguments
-      __ InvokeBuiltin(Builtins::SUB, JUMP_JS);
-      // done
-      __ bind(&exit);
-      break;
-    }
-
-    case Token::MUL: {
-      Label slow, exit;
-      // tag check
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ tst(r2, Operand(kSmiTagMask));
-      __ b(ne, &slow);
-      // remove tag from one operand (but keep sign), so that result is smi
-      __ mov(ip, Operand(r0, ASR, kSmiTagSize));
-      // do multiplication
-      __ smull(r3, r2, r1, ip);  // r3 = lower 32 bits of ip*r1
-      // go slow on overflows (overflow bit is not set)
-      __ mov(ip, Operand(r3, ASR, 31));
-      __ cmp(ip, Operand(r2));  // no overflow if higher 33 bits are identical
-      __ b(ne, &slow);
-      // go slow on zero result to handle -0
-      __ tst(r3, Operand(r3));
-      __ mov(r0, Operand(r3), LeaveCC, ne);
-      __ b(ne, &exit);
-      // slow case
-      __ bind(&slow);
-      __ push(r1);
-      __ push(r0);
-      __ mov(r0, Operand(1));  // set number of arguments
-      __ InvokeBuiltin(Builtins::MUL, JUMP_JS);
-      // done
-      __ bind(&exit);
-      break;
-    }
-
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR: {
-      Label slow, exit;
-      // tag check
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ tst(r2, Operand(kSmiTagMask));
-      __ b(ne, &slow);
-      switch (op_) {
-        case Token::BIT_OR:  __ orr(r0, r0, Operand(r1)); break;
-        case Token::BIT_AND: __ and_(r0, r0, Operand(r1)); break;
-        case Token::BIT_XOR: __ eor(r0, r0, Operand(r1)); break;
-        default: UNREACHABLE();
-      }
-      __ b(&exit);
-      __ bind(&slow);
-      __ push(r1);  // restore stack
-      __ push(r0);
-      __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
-      switch (op_) {
-        case Token::BIT_OR:
-          __ InvokeBuiltin(Builtins::BIT_OR, JUMP_JS);
-          break;
-        case Token::BIT_AND:
-          __ InvokeBuiltin(Builtins::BIT_AND, JUMP_JS);
-          break;
-        case Token::BIT_XOR:
-          __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_JS);
-          break;
-        default:
-          UNREACHABLE();
-      }
-      __ bind(&exit);
-      break;
-    }
-
-    case Token::SHL:
-    case Token::SHR:
-    case Token::SAR: {
-      Label slow, exit;
-      // tag check
-      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ tst(r2, Operand(kSmiTagMask));
-      __ b(ne, &slow);
-      // remove tags from operands (but keep sign)
-      __ mov(r3, Operand(r1, ASR, kSmiTagSize));  // x
-      __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // y
-      // use only the 5 least significant bits of the shift count
-      __ and_(r2, r2, Operand(0x1f));
-      // perform operation
-      switch (op_) {
-        case Token::SAR:
-          __ mov(r3, Operand(r3, ASR, r2));
-          // no checks of result necessary
-          break;
-
-        case Token::SHR:
-          __ mov(r3, Operand(r3, LSR, r2));
-          // check that the *unsigned* result fits in a smi
-          // neither of the two high-order bits can be set:
-          // - 0x80000000: high bit would be lost when smi tagging
-          // - 0x40000000: this number would convert to negative when
-          // smi tagging these two cases can only happen with shifts
-          // by 0 or 1 when handed a valid smi
-          __ and_(r2, r3, Operand(0xc0000000), SetCC);
-          __ b(ne, &slow);
-          break;
-
-        case Token::SHL:
-          __ mov(r3, Operand(r3, LSL, r2));
-          // check that the *signed* result fits in a smi
-          __ add(r2, r3, Operand(0x40000000), SetCC);
-          __ b(mi, &slow);
-          break;
-
-        default: UNREACHABLE();
-      }
-      // tag result and store it in r0
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ mov(r0, Operand(r3, LSL, kSmiTagSize));
-      __ b(&exit);
-      // slow case
-      __ bind(&slow);
-      __ push(r1);  // restore stack
-      __ push(r0);
-      __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
-      switch (op_) {
-        case Token::SAR: __ InvokeBuiltin(Builtins::SAR, JUMP_JS); break;
-        case Token::SHR: __ InvokeBuiltin(Builtins::SHR, JUMP_JS); break;
-        case Token::SHL: __ InvokeBuiltin(Builtins::SHL, JUMP_JS); break;
-        default: UNREACHABLE();
-      }
-      __ bind(&exit);
-      break;
-    }
-
-    default: UNREACHABLE();
-  }
-  __ Ret();
-}
-
-
-void StackCheckStub::Generate(MacroAssembler* masm) {
-  Label within_limit;
-  __ mov(ip, Operand(ExternalReference::address_of_stack_guard_limit()));
-  __ ldr(ip, MemOperand(ip));
-  __ cmp(sp, Operand(ip));
-  __ b(hs, &within_limit);
-  // Do tail-call to runtime routine.
-  __ push(r0);
-  __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1);
-  __ bind(&within_limit);
-
-  masm->StubReturn(1);
-}
-
-
-void UnarySubStub::Generate(MacroAssembler* masm) {
-  Label undo;
-  Label slow;
-  Label done;
-
-  // Enter runtime system if the value is not a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(ne, &slow);
-
-  // Enter runtime system if the value of the expression is zero
-  // to make sure that we switch between 0 and -0.
-  __ cmp(r0, Operand(0));
-  __ b(eq, &slow);
-
-  // The value of the expression is a smi that is not zero.  Try
-  // optimistic subtraction '0 - value'.
-  __ rsb(r1, r0, Operand(0), SetCC);
-  __ b(vs, &slow);
-
-  // If result is a smi we are done.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ mov(r0, Operand(r1), LeaveCC, eq);  // conditionally set r0 to result
-  __ b(eq, &done);
-
-  // Enter runtime system.
-  __ bind(&slow);
-  __ push(r0);
-  __ mov(r0, Operand(0));  // set number of arguments
-  __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_JS);
-
-  __ bind(&done);
-  masm->StubReturn(1);
-}
-
-
 class InvokeBuiltinStub : public CodeStub {
  public:
   enum Kind { Inc, Dec, ToNumber };
@@ -1535,463 +967,6 @@ class InvokeBuiltinStub : public CodeStub {
   }
 #endif
 };
-
-
-void InvokeBuiltinStub::Generate(MacroAssembler* masm) {
-  __ push(r0);
-  __ mov(r0, Operand(0));  // set number of arguments
-  switch (kind_) {
-    case ToNumber: __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_JS); break;
-    case Inc:      __ InvokeBuiltin(Builtins::INC, JUMP_JS);       break;
-    case Dec:      __ InvokeBuiltin(Builtins::DEC, JUMP_JS);       break;
-    default: UNREACHABLE();
-  }
-  masm->StubReturn(argc_);
-}
-
-
-void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
-  // r0 holds exception
-  ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
-  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
-  __ ldr(sp, MemOperand(r3));
-  __ pop(r2);  // pop next in chain
-  __ str(r2, MemOperand(r3));
-  // restore parameter- and frame-pointer and pop state.
-  __ ldm(ia_w, sp, r3.bit() | pp.bit() | fp.bit());
-  // Before returning we restore the context from the frame pointer if not NULL.
-  // The frame pointer is NULL in the exception handler of a JS entry frame.
-  __ cmp(fp, Operand(0));
-  // Set cp to NULL if fp is NULL.
-  __ mov(cp, Operand(0), LeaveCC, eq);
-  // Restore cp otherwise.
-  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-  if (kDebug && FLAG_debug_code) __ mov(lr, Operand(pc));
-  __ pop(pc);
-}
-
-
-void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
-  // Fetch top stack handler.
-  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
-  __ ldr(r3, MemOperand(r3));
-
-  // Unwind the handlers until the ENTRY handler is found.
-  Label loop, done;
-  __ bind(&loop);
-  // Load the type of the current stack handler.
-  const int kStateOffset = StackHandlerConstants::kAddressDisplacement +
-      StackHandlerConstants::kStateOffset;
-  __ ldr(r2, MemOperand(r3, kStateOffset));
-  __ cmp(r2, Operand(StackHandler::ENTRY));
-  __ b(eq, &done);
-  // Fetch the next handler in the list.
-  const int kNextOffset =  StackHandlerConstants::kAddressDisplacement +
-      StackHandlerConstants::kNextOffset;
-  __ ldr(r3, MemOperand(r3, kNextOffset));
-  __ jmp(&loop);
-  __ bind(&done);
-
-  // Set the top handler address to next handler past the current ENTRY handler.
-  __ ldr(r0, MemOperand(r3, kNextOffset));
-  __ mov(r2, Operand(ExternalReference(Top::k_handler_address)));
-  __ str(r0, MemOperand(r2));
-
-  // Set external caught exception to false.
-  __ mov(r0, Operand(false));
-  ExternalReference external_caught(Top::k_external_caught_exception_address);
-  __ mov(r2, Operand(external_caught));
-  __ str(r0, MemOperand(r2));
-
-  // Set pending exception and r0 to out of memory exception.
-  Failure* out_of_memory = Failure::OutOfMemoryException();
-  __ mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-  __ mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
-  __ str(r0, MemOperand(r2));
-
-  // Restore the stack to the address of the ENTRY handler
-  __ mov(sp, Operand(r3));
-
-  // restore parameter- and frame-pointer and pop state.
-  __ ldm(ia_w, sp, r3.bit() | pp.bit() | fp.bit());
-  // Before returning we restore the context from the frame pointer if not NULL.
-  // The frame pointer is NULL in the exception handler of a JS entry frame.
-  __ cmp(fp, Operand(0));
-  // Set cp to NULL if fp is NULL.
-  __ mov(cp, Operand(0), LeaveCC, eq);
-  // Restore cp otherwise.
-  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
-  if (kDebug && FLAG_debug_code) __ mov(lr, Operand(pc));
-  __ pop(pc);
-}
-
-
-void CEntryStub::GenerateCore(MacroAssembler* masm,
-                              Label* throw_normal_exception,
-                              Label* throw_out_of_memory_exception,
-                              StackFrame::Type frame_type,
-                              bool do_gc) {
-  // r0: result parameter for PerformGC, if any
-  // r4: number of arguments including receiver  (C callee-saved)
-  // r5: pointer to builtin function  (C callee-saved)
-  // r6: pointer to the first argument (C callee-saved)
-
-  if (do_gc) {
-    // Passing r0.
-    __ Call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
-  }
-
-  // Call C built-in.
-  // r0 = argc, r1 = argv
-  __ mov(r0, Operand(r4));
-  __ mov(r1, Operand(r6));
-
-  // TODO(1242173): To let the GC traverse the return address of the exit
-  // frames, we need to know where the return address is. Right now,
-  // we push it on the stack to be able to find it again, but we never
-  // restore from it in case of changes, which makes it impossible to
-  // support moving the C entry code stub. This should be fixed, but currently
-  // this is OK because the CEntryStub gets generated so early in the V8 boot
-  // sequence that it is not moving ever.
-  __ add(lr, pc, Operand(4));  // compute return address: (pc + 8) + 4
-  __ push(lr);
-#if !defined(__arm__)
-  // Notify the simulator of the transition to C code.
-  __ swi(assembler::arm::call_rt_r5);
-#else /* !defined(__arm__) */
-  __ mov(pc, Operand(r5));
-#endif /* !defined(__arm__) */
-  // result is in r0 or r0:r1 - do not destroy these registers!
-
-  // check for failure result
-  Label failure_returned;
-  ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
-  // Lower 2 bits of r2 are 0 iff r0 has failure tag.
-  __ add(r2, r0, Operand(1));
-  __ tst(r2, Operand(kFailureTagMask));
-  __ b(eq, &failure_returned);
-
-  // Exit C frame and return.
-  // r0:r1: result
-  // sp: stack pointer
-  // fp: frame pointer
-  // pp: caller's parameter pointer pp  (restored as C callee-saved)
-  __ LeaveExitFrame(frame_type);
-
-  // check if we should retry or throw exception
-  Label retry;
-  __ bind(&failure_returned);
-  ASSERT(Failure::RETRY_AFTER_GC == 0);
-  __ tst(r0, Operand(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
-  __ b(eq, &retry);
-
-  Label continue_exception;
-  // If the returned failure is EXCEPTION then promote Top::pending_exception().
-  __ cmp(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
-  __ b(ne, &continue_exception);
-
-  // Retrieve the pending exception and clear the variable.
-  __ mov(ip, Operand(Factory::the_hole_value().location()));
-  __ ldr(r3, MemOperand(ip));
-  __ mov(ip, Operand(Top::pending_exception_address()));
-  __ ldr(r0, MemOperand(ip));
-  __ str(r3, MemOperand(ip));
-
-  __ bind(&continue_exception);
-  // Special handling of out of memory exception.
-  Failure* out_of_memory = Failure::OutOfMemoryException();
-  __ cmp(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-  __ b(eq, throw_out_of_memory_exception);
-
-  // Handle normal exception.
-  __ jmp(throw_normal_exception);
-
-  __ bind(&retry);  // pass last failure (r0) as parameter (r0) when retrying
-}
-
-
-void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
-  // Called from JavaScript; parameters are on stack as if calling JS function
-  // r0: number of arguments including receiver
-  // r1: pointer to builtin function
-  // fp: frame pointer  (restored after C call)
-  // sp: stack pointer  (restored as callee's pp after C call)
-  // cp: current context  (C callee-saved)
-  // pp: caller's parameter pointer pp  (C callee-saved)
-
-  // NOTE: Invocations of builtins may return failure objects
-  // instead of a proper result. The builtin entry handles
-  // this by performing a garbage collection and retrying the
-  // builtin once.
-
-  StackFrame::Type frame_type = is_debug_break
-      ? StackFrame::EXIT_DEBUG
-      : StackFrame::EXIT;
-
-  // Enter the exit frame that transitions from JavaScript to C++.
-  __ EnterExitFrame(frame_type);
-
-  // r4: number of arguments (C callee-saved)
-  // r5: pointer to builtin function (C callee-saved)
-  // r6: pointer to first argument (C callee-saved)
-
-  Label throw_out_of_memory_exception;
-  Label throw_normal_exception;
-
-#ifdef DEBUG
-  if (FLAG_gc_greedy) {
-    Failure* failure = Failure::RetryAfterGC(0, NEW_SPACE);
-    __ mov(r0, Operand(reinterpret_cast<intptr_t>(failure)));
-  }
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_out_of_memory_exception,
-               frame_type,
-               FLAG_gc_greedy);
-#else
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_out_of_memory_exception,
-               frame_type,
-               false);
-#endif
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_out_of_memory_exception,
-               frame_type,
-               true);
-
-  __ bind(&throw_out_of_memory_exception);
-  GenerateThrowOutOfMemory(masm);
-  // control flow for generated will not return.
-
-  __ bind(&throw_normal_exception);
-  GenerateThrowTOS(masm);
-}
-
-
-void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
-  // r0: code entry
-  // r1: function
-  // r2: receiver
-  // r3: argc
-  // [sp+0]: argv
-
-  Label invoke, exit;
-
-  // Called from C, so do not pop argc and args on exit (preserve sp)
-  // No need to save register-passed args
-  // Save callee-saved registers (incl. cp, pp, and fp), sp, and lr
-  __ stm(db_w, sp, kCalleeSaved | lr.bit());
-
-  // Get address of argv, see stm above.
-  // r0: code entry
-  // r1: function
-  // r2: receiver
-  // r3: argc
-  __ add(r4, sp, Operand((kNumCalleeSaved + 1)*kPointerSize));
-  __ ldr(r4, MemOperand(r4));  // argv
-
-  // Push a frame with special values setup to mark it as an entry frame.
-  // r0: code entry
-  // r1: function
-  // r2: receiver
-  // r3: argc
-  // r4: argv
-  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
-  __ mov(r8, Operand(-1));  // Push a bad frame pointer to fail if it is used.
-  __ mov(r7, Operand(~ArgumentsAdaptorFrame::SENTINEL));
-  __ mov(r6, Operand(Smi::FromInt(marker)));
-  __ mov(r5, Operand(ExternalReference(Top::k_c_entry_fp_address)));
-  __ ldr(r5, MemOperand(r5));
-  __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | r8.bit());
-
-  // Setup frame pointer for the frame to be pushed.
-  __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
-
-  // Call a faked try-block that does the invoke.
-  __ bl(&invoke);
-
-  // Caught exception: Store result (exception) in the pending
-  // exception field in the JSEnv and return a failure sentinel.
-  // Coming in here the fp will be invalid because the PushTryHandler below
-  // sets it to 0 to signal the existence of the JSEntry frame.
-  __ mov(ip, Operand(Top::pending_exception_address()));
-  __ str(r0, MemOperand(ip));
-  __ mov(r0, Operand(Handle<Failure>(Failure::Exception())));
-  __ b(&exit);
-
-  // Invoke: Link this frame into the handler chain.
-  __ bind(&invoke);
-  // Must preserve r0-r4, r5-r7 are available.
-  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
-  // If an exception not caught by another handler occurs, this handler returns
-  // control to the code after the bl(&invoke) above, which restores all
-  // kCalleeSaved registers (including cp, pp and fp) to their saved values
-  // before returning a failure to C.
-
-  // Clear any pending exceptions.
-  __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
-  __ ldr(r5, MemOperand(ip));
-  __ mov(ip, Operand(Top::pending_exception_address()));
-  __ str(r5, MemOperand(ip));
-
-  // Invoke the function by calling through JS entry trampoline builtin.
-  // Notice that we cannot store a reference to the trampoline code directly in
-  // this stub, because runtime stubs are not traversed when doing GC.
-
-  // Expected registers by Builtins::JSEntryTrampoline
-  // r0: code entry
-  // r1: function
-  // r2: receiver
-  // r3: argc
-  // r4: argv
-  if (is_construct) {
-    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline);
-    __ mov(ip, Operand(construct_entry));
-  } else {
-    ExternalReference entry(Builtins::JSEntryTrampoline);
-    __ mov(ip, Operand(entry));
-  }
-  __ ldr(ip, MemOperand(ip));  // deref address
-
-  // Branch and link to JSEntryTrampoline
-  __ mov(lr, Operand(pc));
-  __ add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-
-  // Unlink this frame from the handler chain. When reading the
-  // address of the next handler, there is no need to use the address
-  // displacement since the current stack pointer (sp) points directly
-  // to the stack handler.
-  __ ldr(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
-  __ mov(ip, Operand(ExternalReference(Top::k_handler_address)));
-  __ str(r3, MemOperand(ip));
-  // No need to restore registers
-  __ add(sp, sp, Operand(StackHandlerConstants::kSize));
-
-  __ bind(&exit);  // r0 holds result
-  // Restore the top frame descriptors from the stack.
-  __ pop(r3);
-  __ mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
-  __ str(r3, MemOperand(ip));
-
-  // Reset the stack to the callee saved registers.
-  __ add(sp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
-
-  // Restore callee-saved registers and return.
-#ifdef DEBUG
-  if (FLAG_debug_code) __ mov(lr, Operand(pc));
-#endif
-  __ ldm(ia_w, sp, kCalleeSaved | pc.bit());
-}
-
-
-class ArgumentsAccessStub: public CodeStub {
- public:
-  explicit ArgumentsAccessStub(bool is_length) : is_length_(is_length) { }
-
- private:
-  bool is_length_;
-
-  Major MajorKey() { return ArgumentsAccess; }
-  int MinorKey() { return is_length_ ? 1 : 0; }
-  void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "ArgumentsAccessStub"; }
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("ArgumentsAccessStub (is_length %s)\n",
-           is_length_ ? "true" : "false");
-  }
-#endif
-};
-
-
-void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r0: formal number of parameters for the calling function
-  //  -- r1: key (if value access)
-  //  -- lr: return address
-  // -----------------------------------
-
-  // Check that the key is a smi for non-length accesses.
-  Label slow;
-  if (!is_length_) {
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(ne, &slow);
-  }
-
-  // Check if the calling frame is an arguments adaptor frame.
-  // r0: formal number of parameters
-  // r1: key (if access)
-  Label adaptor;
-  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
-  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
-  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
-  __ b(eq, &adaptor);
-
-  static const int kParamDisplacement =
-      StandardFrameConstants::kCallerSPOffset - kPointerSize;
-
-  if (is_length_) {
-    // Nothing to do: the formal length of parameters has been passed in r0
-    // by the calling function.
-  } else {
-    // Check index against formal parameter count. Use unsigned comparison to
-    // get the negative check for free.
-    // r0: formal number of parameters
-    // r1: index
-    __ cmp(r1, r0);
-    __ b(cs, &slow);
-
-    // Read the argument from the current frame.
-    __ sub(r3, r0, r1);
-    __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
-    __ ldr(r0, MemOperand(r3, kParamDisplacement));
-  }
-
-  // Return to the calling function.
-  __ mov(pc, lr);
-
-  // An arguments adaptor frame is present. Find the length or the actual
-  // argument in the calling frame.
-  // r0: formal number of parameters
-  // r1: key
-  // r2: adaptor frame pointer
-  __ bind(&adaptor);
-  // Read the arguments length from the adaptor frame. This is the result if
-  // only accessing the length, otherwise it is used in accessing the value
-  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-
-  if (!is_length_) {
-    // Check index against actual arguments count. Use unsigned comparison to
-    // get the negative check for free.
-    // r0: actual number of parameter
-    // r1: index
-    // r2: adaptor frame point
-    __ cmp(r1, r0);
-    __ b(cs, &slow);
-
-    // Read the argument from the adaptor frame.
-    __ sub(r3, r0, r1);
-    __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
-    __ ldr(r0, MemOperand(r3, kParamDisplacement));
-  }
-
-  // Return to the calling function.
-  __ mov(pc, lr);
-
-  if (!is_length_) {
-    __ bind(&slow);
-    __ push(r1);
-    __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
-  }
-}
-
-
-#undef __
-#define __  masm_->
 
 
 void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
@@ -2029,36 +1004,6 @@ void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
     __ CallStub(&stub);
   }
   __ push(r0);
-}
-
-
-void ArmCodeGenerator::SetReferenceProperty(MacroAssembler* masm,
-                                            Reference* ref,
-                                            Expression* key) {
-  ASSERT(!ref->is_illegal());
-  Reference::Type type = ref->type();
-
-  if (type == Reference::NAMED) {
-    // Compute the name of the property.
-    Literal* literal = key->AsLiteral();
-    Handle<String> name(String::cast(*literal->handle()));
-
-    // Call the appropriate IC code.
-    masm->pop(r0);  // value
-    // Setup the name register.
-    masm->mov(r2, Operand(name));
-    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-    masm->Call(ic, RelocInfo::CODE_TARGET);
-
-  } else {
-    // Access keyed property.
-    ASSERT(type == Reference::KEYED);
-
-    masm->pop(r0);  // value
-    SetPropertyStub stub;
-    masm->CallStub(&stub);
-  }
-  masm->push(r0);
 }
 
 
@@ -2404,34 +1349,6 @@ class CallFunctionStub: public CodeStub {
 };
 
 
-void CallFunctionStub::Generate(MacroAssembler* masm) {
-  Label slow;
-  // Get the function to call from the stack.
-  // function, receiver [, arguments]
-  masm->ldr(r1, MemOperand(sp, (argc_ + 1) * kPointerSize));
-
-  // Check that the function is really a JavaScript function.
-  // r1: pushed function (to be verified)
-  masm->tst(r1, Operand(kSmiTagMask));
-  masm->b(eq, &slow);
-  // Get the map of the function object.
-  masm->ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-  masm->ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-  masm->cmp(r2, Operand(JS_FUNCTION_TYPE));
-  masm->b(ne, &slow);
-
-  // Fast-case: Invoke the function now.
-  // r1: pushed function
-  ParameterCount actual(argc_);
-  masm->InvokeFunction(r1, actual, JUMP_FUNCTION);
-
-  // Slow-case: Non-function called.
-  masm->bind(&slow);
-  masm->mov(r0, Operand(argc_));  // Setup the number of arguments.
-  masm->InvokeBuiltin(Builtins::CALL_NON_FUNCTION, JUMP_JS);
-}
-
-
 // Call the function on the stack with the given arguments.
 void ArmCodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
                                          int position) {
@@ -2693,12 +1610,58 @@ void ArmCodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 }
 
 
+int ArmCodeGenerator::FastCaseSwitchMaxOverheadFactor() {
+    return kFastCaseSwitchMaxOverheadFactor;
+}
+
+int ArmCodeGenerator::FastCaseSwitchMinCaseCount() {
+    return kFastCaseSwitchMinCaseCount;
+}
+
+
+void ArmCodeGenerator::GenerateFastCaseSwitchJumpTable(
+    SwitchStatement* node, int min_index, int range, Label *fail_label,
+    SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels) {
+
+  ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
+
+  __ pop(r0);
+  if (min_index != 0) {
+    // small positive numbers can be immediate operands.
+    if (min_index < 0) {
+      __ add(r0, r0, Operand(Smi::FromInt(-min_index)));
+    } else {
+      __ sub(r0, r0, Operand(Smi::FromInt(min_index)));
+    }
+  }
+  __ tst(r0, Operand(0x80000000 | kSmiTagMask));
+  __ b(ne, fail_label);
+  __ cmp(r0, Operand(Smi::FromInt(range)));
+  __ b(ge, fail_label);
+  __ add(pc, pc, Operand(r0, LSL, 2 - kSmiTagSize));
+  // One extra instruction offsets the table, so the table's start address is
+  // the pc-register at the above add.
+  __ stop("Unreachable: Switch table alignment");
+
+  // table containing branch operations.
+  for (int i = 0; i < range; i++) {
+    __ b(case_targets[i]);
+  }
+
+  GenerateFastCaseSwitchCases(node, case_labels);
+}
+
+
 void ArmCodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   Comment cmnt(masm_, "[ SwitchStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
 
   Load(node->tag());
+
+  if (TryGenerateFastCaseSwitchStatement(node)) {
+      return;
+  }
 
   Label next, fall_through, default_case;
   ZoneList<CaseClause*>* cases = node->cases();
@@ -3182,28 +2145,24 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
   // --- Finally block ---
   __ bind(&finally_block);
 
-  // Push the state on the stack. If necessary move the state to a
-  // local variable to avoid having extra values on the stack while
-  // evaluating the finally block.
+  // Push the state on the stack.
   __ push(r2);
-  if (node->finally_var() != NULL) {
-    Reference target(this, node->finally_var());
-    SetValue(&target);
-    ASSERT(target.size() == 0);  // no extra stuff on the stack
-    __ pop();  // remove the extra avalue that was pushed above
-  }
+
+  // We keep two elements on the stack - the (possibly faked) result
+  // and the state - while evaluating the finally block. Record it, so
+  // that a break/continue crossing this statement can restore the
+  // stack.
+  const int kFinallyStackSize = 2 * kPointerSize;
+  break_stack_height_ += kFinallyStackSize;
 
   // Generate code for the statements in the finally block.
   VisitStatements(node->finally_block()->statements());
 
-  // Get the state from the stack - or the local variable.
-  if (node->finally_var() != NULL) {
-    Reference target(this, node->finally_var());
-    GetValue(&target);
-  }
+  // Restore state and return value or faked TOS.
   __ pop(r2);
+  __ pop(r0);
+  break_stack_height_ -= kFinallyStackSize;
 
-  __ pop(r0);  // Restore value or faked TOS.
   // Generate code that jumps to the right destination for all used
   // shadow labels.
   for (int i = 0; i <= nof_escapes; i++) {
@@ -3882,7 +2841,7 @@ void ArmCodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to the arguments.length.
-  ArgumentsAccessStub stub(true);
+  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
   __ CallStub(&stub);
   __ push(r0);
 }
@@ -3898,7 +2857,7 @@ void ArmCodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
-  ArgumentsAccessStub stub(false);
+  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   __ CallStub(&stub);
   __ push(r0);
 }
@@ -4518,7 +3477,1090 @@ void ArmCodeGenerator::ExitJSFrame() {
 
 
 #undef __
+#define __ masm->
 
+MemOperand ArmCodeGenerator::SlotOperand(CodeGenerator* cgen,
+                                         Slot* slot,
+                                         Register tmp) {
+  // Currently, this assertion will fail if we try to assign to
+  // a constant variable that is constant because it is read-only
+  // (such as the variable referring to a named function expression).
+  // We need to implement assignments to read-only variables.
+  // Ideally, we should do this during AST generation (by converting
+  // such assignments into expression statements); however, in general
+  // we may not be able to make the decision until past AST generation,
+  // that is when the entire program is known.
+  ASSERT(slot != NULL);
+  int index = slot->index();
+  switch (slot->type()) {
+    case Slot::PARAMETER:
+      return ParameterOperand(cgen, index);
+
+    case Slot::LOCAL: {
+      ASSERT(0 <= index &&
+             index < cgen->scope()->num_stack_slots() &&
+             index >= 0);
+      int local_offset = JavaScriptFrameConstants::kLocal0Offset -
+                         index * kPointerSize;
+      return MemOperand(fp, local_offset);
+    }
+
+    case Slot::CONTEXT: {
+      MacroAssembler* masm = cgen->masm();
+      // Follow the context chain if necessary.
+      ASSERT(!tmp.is(cp));  // do not overwrite context register
+      Register context = cp;
+      int chain_length =
+          cgen->scope()->ContextChainLength(slot->var()->scope());
+      for (int i = chain_length; i-- > 0;) {
+        // Load the closure.
+        // (All contexts, even 'with' contexts, have a closure,
+        // and it is the same for all contexts inside a function.
+        // There is no need to go to the function context first.)
+        __ ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+        // Load the function context (which is the incoming, outer context).
+        __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
+        context = tmp;
+      }
+      // We may have a 'with' context now. Get the function context.
+      // (In fact this mov may never be the needed, since the scope analysis
+      // may not permit a direct context access in this case and thus we are
+      // always at a function context. However it is safe to dereference be-
+      // cause the function context of a function context is itself. Before
+      // deleting this mov we should try to create a counter-example first,
+      // though...)
+      __ ldr(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
+      return ContextOperand(tmp, index);
+    }
+
+    default:
+      UNREACHABLE();
+      return MemOperand(r0, 0);
+  }
+}
+
+
+void Property::GenerateStoreCode(CodeGenerator* cgen,
+                                 Reference* ref,
+                                 InitState init_state) {
+  MacroAssembler* masm = cgen->masm();
+  Comment cmnt(masm, "[ Store to Property");
+  __ RecordPosition(position());
+  ArmCodeGenerator::SetReferenceProperty(cgen, ref, key());
+}
+
+
+void VariableProxy::GenerateStoreCode(CodeGenerator* cgen,
+                                      Reference* ref,
+                                      InitState init_state) {
+  MacroAssembler* masm = cgen->masm();
+  Comment cmnt(masm, "[ Store to VariableProxy");
+  Variable* node = var();
+
+  Expression* expr = node->rewrite();
+  if (expr != NULL) {
+    expr->GenerateStoreCode(cgen, ref, init_state);
+  } else {
+    ASSERT(node->is_global());
+    if (node->AsProperty() != NULL) {
+      __ RecordPosition(node->AsProperty()->position());
+    }
+    Expression* key = new Literal(node->name());
+    ArmCodeGenerator::SetReferenceProperty(cgen, ref, key);
+  }
+}
+
+
+void Slot::GenerateStoreCode(CodeGenerator* cgen,
+                             Reference* ref,
+                             InitState init_state) {
+  MacroAssembler* masm = cgen->masm();
+  Comment cmnt(masm, "[ Store to Slot");
+
+  if (type() == Slot::LOOKUP) {
+    ASSERT(var()->mode() == Variable::DYNAMIC);
+
+    // For now, just do a runtime call.
+    __ push(cp);
+    __ mov(r0, Operand(var()->name()));
+    __ push(r0);
+
+    if (init_state == CONST_INIT) {
+      // Same as the case for a normal store, but ignores attribute
+      // (e.g. READ_ONLY) of context slot so that we can initialize const
+      // properties (introduced via eval("const foo = (some expr);")). Also,
+      // uses the current function context instead of the top context.
+      //
+      // Note that we must declare the foo upon entry of eval(), via a
+      // context slot declaration, but we cannot initialize it at the same
+      // time, because the const declaration may be at the end of the eval
+      // code (sigh...) and the const variable may have been used before
+      // (where its value is 'undefined'). Thus, we can only do the
+      // initialization when we actually encounter the expression and when
+      // the expression operands are defined and valid, and thus we need the
+      // split into 2 operations: declaration of the context slot followed
+      // by initialization.
+      __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+    } else {
+      __ CallRuntime(Runtime::kStoreContextSlot, 3);
+    }
+    // Storing a variable must keep the (new) value on the expression
+    // stack. This is necessary for compiling assignment expressions.
+    __ push(r0);
+
+  } else {
+    ASSERT(var()->mode() != Variable::DYNAMIC);
+
+    Label exit;
+    if (init_state == CONST_INIT) {
+      ASSERT(var()->mode() == Variable::CONST);
+      // Only the first const initialization must be executed (the slot
+      // still contains 'the hole' value). When the assignment is executed,
+      // the code is identical to a normal store (see below).
+      Comment cmnt(masm, "[ Init const");
+      __ ldr(r2, ArmCodeGenerator::SlotOperand(cgen, this, r2));
+      __ cmp(r2, Operand(Factory::the_hole_value()));
+      __ b(ne, &exit);
+    }
+
+    // We must execute the store.
+    // r2 may be loaded with context; used below in RecordWrite.
+    // Storing a variable must keep the (new) value on the stack. This is
+    // necessary for compiling assignment expressions.
+    //
+    // Note: We will reach here even with var()->mode() == Variable::CONST
+    // because of const declarations which will initialize consts to 'the
+    // hole' value and by doing so, end up calling this code.  r2 may be
+    // loaded with context; used below in RecordWrite.
+    __ pop(r0);
+    __ str(r0, ArmCodeGenerator::SlotOperand(cgen, this, r2));
+    __ push(r0);
+
+    if (type() == Slot::CONTEXT) {
+      // Skip write barrier if the written value is a smi.
+      __ tst(r0, Operand(kSmiTagMask));
+      __ b(eq, &exit);
+      // r2 is loaded with context when calling SlotOperand above.
+      int offset = FixedArray::kHeaderSize + index() * kPointerSize;
+      __ mov(r3, Operand(offset));
+      __ RecordWrite(r2, r3, r1);
+    }
+    // If we definitely did not jump over the assignment, we do not need to
+    // bind the exit label.  Doing so can defeat peephole optimization.
+    if (init_state == CONST_INIT || type() == Slot::CONTEXT) {
+      __ bind(&exit);
+    }
+  }
+}
+
+
+void GetPropertyStub::Generate(MacroAssembler* masm) {
+  // sp[0]: key
+  // sp[1]: receiver
+  Label slow, fast;
+  // Get the key and receiver object from the stack.
+  __ ldm(ia, sp, r0.bit() | r1.bit());
+  // Check that the key is a smi.
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(ne, &slow);
+  __ mov(r0, Operand(r0, ASR, kSmiTagSize));
+  // Check that the object isn't a smi.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, &slow);
+
+  // Check that the object is some kind of JS object EXCEPT JS Value type.
+  // In the case that the object is a value-wrapper object,
+  // we enter the runtime system to make sure that indexing into string
+  // objects work as intended.
+  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+  __ cmp(r2, Operand(JS_OBJECT_TYPE));
+  __ b(lt, &slow);
+
+  // Get the elements array of the object.
+  __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
+  // Check that the object is in fast mode (not dictionary).
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ cmp(r3, Operand(Factory::hash_table_map()));
+  __ b(eq, &slow);
+  // Check that the key (index) is within bounds.
+  __ ldr(r3, FieldMemOperand(r1, Array::kLengthOffset));
+  __ cmp(r0, Operand(r3));
+  __ b(lo, &fast);
+
+  // Slow case: Push extra copies of the arguments (2).
+  __ bind(&slow);
+  __ ldm(ia, sp, r0.bit() | r1.bit());
+  __ stm(db_w, sp, r0.bit() | r1.bit());
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(ExternalReference(Runtime::kGetProperty), 2);
+
+  // Fast case: Do the load.
+  __ bind(&fast);
+  __ add(r3, r1, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2));
+  __ cmp(r0, Operand(Factory::the_hole_value()));
+  // In case the loaded value is the_hole we have to consult GetProperty
+  // to ensure the prototype chain is searched.
+  __ b(eq, &slow);
+
+  __ StubReturn(1);
+}
+
+
+void SetPropertyStub::Generate(MacroAssembler* masm) {
+  // r0 : value
+  // sp[0] : key
+  // sp[1] : receiver
+
+  Label slow, fast, array, extra, exit;
+  // Get the key and the object from the stack.
+  __ ldm(ia, sp, r1.bit() | r3.bit());  // r1 = key, r3 = receiver
+  // Check that the key is a smi.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(ne, &slow);
+  // Check that the object isn't a smi.
+  __ tst(r3, Operand(kSmiTagMask));
+  __ b(eq, &slow);
+  // Get the type of the object from its map.
+  __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+  // Check if the object is a JS array or not.
+  __ cmp(r2, Operand(JS_ARRAY_TYPE));
+  __ b(eq, &array);
+  // Check that the object is some kind of JS object.
+  __ cmp(r2, Operand(FIRST_JS_OBJECT_TYPE));
+  __ b(lt, &slow);
+
+
+  // Object case: Check key against length in the elements array.
+  __ ldr(r3, FieldMemOperand(r3, JSObject::kElementsOffset));
+  // Check that the object is in fast mode (not dictionary).
+  __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ cmp(r2, Operand(Factory::hash_table_map()));
+  __ b(eq, &slow);
+  // Untag the key (for checking against untagged length in the fixed array).
+  __ mov(r1, Operand(r1, ASR, kSmiTagSize));
+  // Compute address to store into and check array bounds.
+  __ add(r2, r3, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2));
+  __ ldr(ip, FieldMemOperand(r3, Array::kLengthOffset));
+  __ cmp(r1, Operand(ip));
+  __ b(lo, &fast);
+
+
+  // Slow case: Push extra copies of the arguments (3).
+  __ bind(&slow);
+  __ ldm(ia, sp, r1.bit() | r3.bit());  // r0 == value, r1 == key, r3 == object
+  __ stm(db_w, sp, r0.bit() | r1.bit() | r3.bit());
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3);
+
+
+  // Extra capacity case: Check if there is extra capacity to
+  // perform the store and update the length. Used for adding one
+  // element to the array by writing to array[array.length].
+  // r0 == value, r1 == key, r2 == elements, r3 == object
+  __ bind(&extra);
+  __ b(ne, &slow);  // do not leave holes in the array
+  __ mov(r1, Operand(r1, ASR, kSmiTagSize));  // untag
+  __ ldr(ip, FieldMemOperand(r2, Array::kLengthOffset));
+  __ cmp(r1, Operand(ip));
+  __ b(hs, &slow);
+  __ mov(r1, Operand(r1, LSL, kSmiTagSize));  // restore tag
+  __ add(r1, r1, Operand(1 << kSmiTagSize));  // and increment
+  __ str(r1, FieldMemOperand(r3, JSArray::kLengthOffset));
+  __ mov(r3, Operand(r2));
+  // NOTE: Computing the address to store into must take the fact
+  // that the key has been incremented into account.
+  int displacement = Array::kHeaderSize - kHeapObjectTag -
+      ((1 << kSmiTagSize) * 2);
+  __ add(r2, r2, Operand(displacement));
+  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ b(&fast);
+
+
+  // Array case: Get the length and the elements array from the JS
+  // array. Check that the array is in fast mode; if it is the
+  // length is always a smi.
+  // r0 == value, r3 == object
+  __ bind(&array);
+  __ ldr(r2, FieldMemOperand(r3, JSObject::kElementsOffset));
+  __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ cmp(r1, Operand(Factory::hash_table_map()));
+  __ b(eq, &slow);
+
+  // Check the key against the length in the array, compute the
+  // address to store into and fall through to fast case.
+  __ ldr(r1, MemOperand(sp));
+  // r0 == value, r1 == key, r2 == elements, r3 == object.
+  __ ldr(ip, FieldMemOperand(r3, JSArray::kLengthOffset));
+  __ cmp(r1, Operand(ip));
+  __ b(hs, &extra);
+  __ mov(r3, Operand(r2));
+  __ add(r2, r2, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
+
+
+  // Fast case: Do the store.
+  // r0 == value, r2 == address to store into, r3 == elements
+  __ bind(&fast);
+  __ str(r0, MemOperand(r2));
+  // Skip write barrier if the written value is a smi.
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(eq, &exit);
+  // Update write barrier for the elements array address.
+  __ sub(r1, r2, Operand(r3));
+  __ RecordWrite(r3, r1, r2);
+  __ bind(&exit);
+  __ StubReturn(1);
+}
+
+
+void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
+  // r1 : x
+  // r0 : y
+  // result : r0
+
+  switch (op_) {
+    case Token::ADD: {
+      Label slow, exit;
+      // fast path
+      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+      __ add(r0, r1, Operand(r0), SetCC);  // add y optimistically
+      // go slow-path in case of overflow
+      __ b(vs, &slow);
+      // go slow-path in case of non-smi operands
+      ASSERT(kSmiTag == 0);  // adjust code below
+      __ tst(r2, Operand(kSmiTagMask));
+      __ b(eq, &exit);
+      // slow path
+      __ bind(&slow);
+      __ sub(r0, r0, Operand(r1));  // revert optimistic add
+      __ push(r1);
+      __ push(r0);
+      __ mov(r0, Operand(1));  // set number of arguments
+      __ InvokeBuiltin(Builtins::ADD, JUMP_JS);
+      // done
+      __ bind(&exit);
+      break;
+    }
+
+    case Token::SUB: {
+      Label slow, exit;
+      // fast path
+      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+      __ sub(r3, r1, Operand(r0), SetCC);  // subtract y optimistically
+      // go slow-path in case of overflow
+      __ b(vs, &slow);
+      // go slow-path in case of non-smi operands
+      ASSERT(kSmiTag == 0);  // adjust code below
+      __ tst(r2, Operand(kSmiTagMask));
+      __ mov(r0, Operand(r3), LeaveCC, eq);  // conditionally set r0 to result
+      __ b(eq, &exit);
+      // slow path
+      __ bind(&slow);
+      __ push(r1);
+      __ push(r0);
+      __ mov(r0, Operand(1));  // set number of arguments
+      __ InvokeBuiltin(Builtins::SUB, JUMP_JS);
+      // done
+      __ bind(&exit);
+      break;
+    }
+
+    case Token::MUL: {
+      Label slow, exit;
+      // tag check
+      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+      ASSERT(kSmiTag == 0);  // adjust code below
+      __ tst(r2, Operand(kSmiTagMask));
+      __ b(ne, &slow);
+      // remove tag from one operand (but keep sign), so that result is smi
+      __ mov(ip, Operand(r0, ASR, kSmiTagSize));
+      // do multiplication
+      __ smull(r3, r2, r1, ip);  // r3 = lower 32 bits of ip*r1
+      // go slow on overflows (overflow bit is not set)
+      __ mov(ip, Operand(r3, ASR, 31));
+      __ cmp(ip, Operand(r2));  // no overflow if higher 33 bits are identical
+      __ b(ne, &slow);
+      // go slow on zero result to handle -0
+      __ tst(r3, Operand(r3));
+      __ mov(r0, Operand(r3), LeaveCC, ne);
+      __ b(ne, &exit);
+      // slow case
+      __ bind(&slow);
+      __ push(r1);
+      __ push(r0);
+      __ mov(r0, Operand(1));  // set number of arguments
+      __ InvokeBuiltin(Builtins::MUL, JUMP_JS);
+      // done
+      __ bind(&exit);
+      break;
+    }
+
+    case Token::BIT_OR:
+    case Token::BIT_AND:
+    case Token::BIT_XOR: {
+      Label slow, exit;
+      // tag check
+      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+      ASSERT(kSmiTag == 0);  // adjust code below
+      __ tst(r2, Operand(kSmiTagMask));
+      __ b(ne, &slow);
+      switch (op_) {
+        case Token::BIT_OR:  __ orr(r0, r0, Operand(r1)); break;
+        case Token::BIT_AND: __ and_(r0, r0, Operand(r1)); break;
+        case Token::BIT_XOR: __ eor(r0, r0, Operand(r1)); break;
+        default: UNREACHABLE();
+      }
+      __ b(&exit);
+      __ bind(&slow);
+      __ push(r1);  // restore stack
+      __ push(r0);
+      __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
+      switch (op_) {
+        case Token::BIT_OR:
+          __ InvokeBuiltin(Builtins::BIT_OR, JUMP_JS);
+          break;
+        case Token::BIT_AND:
+          __ InvokeBuiltin(Builtins::BIT_AND, JUMP_JS);
+          break;
+        case Token::BIT_XOR:
+          __ InvokeBuiltin(Builtins::BIT_XOR, JUMP_JS);
+          break;
+        default:
+          UNREACHABLE();
+      }
+      __ bind(&exit);
+      break;
+    }
+
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR: {
+      Label slow, exit;
+      // tag check
+      __ orr(r2, r1, Operand(r0));  // r2 = x | y;
+      ASSERT(kSmiTag == 0);  // adjust code below
+      __ tst(r2, Operand(kSmiTagMask));
+      __ b(ne, &slow);
+      // remove tags from operands (but keep sign)
+      __ mov(r3, Operand(r1, ASR, kSmiTagSize));  // x
+      __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // y
+      // use only the 5 least significant bits of the shift count
+      __ and_(r2, r2, Operand(0x1f));
+      // perform operation
+      switch (op_) {
+        case Token::SAR:
+          __ mov(r3, Operand(r3, ASR, r2));
+          // no checks of result necessary
+          break;
+
+        case Token::SHR:
+          __ mov(r3, Operand(r3, LSR, r2));
+          // check that the *unsigned* result fits in a smi
+          // neither of the two high-order bits can be set:
+          // - 0x80000000: high bit would be lost when smi tagging
+          // - 0x40000000: this number would convert to negative when
+          // smi tagging these two cases can only happen with shifts
+          // by 0 or 1 when handed a valid smi
+          __ and_(r2, r3, Operand(0xc0000000), SetCC);
+          __ b(ne, &slow);
+          break;
+
+        case Token::SHL:
+          __ mov(r3, Operand(r3, LSL, r2));
+          // check that the *signed* result fits in a smi
+          __ add(r2, r3, Operand(0x40000000), SetCC);
+          __ b(mi, &slow);
+          break;
+
+        default: UNREACHABLE();
+      }
+      // tag result and store it in r0
+      ASSERT(kSmiTag == 0);  // adjust code below
+      __ mov(r0, Operand(r3, LSL, kSmiTagSize));
+      __ b(&exit);
+      // slow case
+      __ bind(&slow);
+      __ push(r1);  // restore stack
+      __ push(r0);
+      __ mov(r0, Operand(1));  // 1 argument (not counting receiver).
+      switch (op_) {
+        case Token::SAR: __ InvokeBuiltin(Builtins::SAR, JUMP_JS); break;
+        case Token::SHR: __ InvokeBuiltin(Builtins::SHR, JUMP_JS); break;
+        case Token::SHL: __ InvokeBuiltin(Builtins::SHL, JUMP_JS); break;
+        default: UNREACHABLE();
+      }
+      __ bind(&exit);
+      break;
+    }
+
+    default: UNREACHABLE();
+  }
+  __ Ret();
+}
+
+
+void StackCheckStub::Generate(MacroAssembler* masm) {
+  Label within_limit;
+  __ mov(ip, Operand(ExternalReference::address_of_stack_guard_limit()));
+  __ ldr(ip, MemOperand(ip));
+  __ cmp(sp, Operand(ip));
+  __ b(hs, &within_limit);
+  // Do tail-call to runtime routine.
+  __ push(r0);
+  __ TailCallRuntime(ExternalReference(Runtime::kStackGuard), 1);
+  __ bind(&within_limit);
+
+  __ StubReturn(1);
+}
+
+
+void UnarySubStub::Generate(MacroAssembler* masm) {
+  Label undo;
+  Label slow;
+  Label done;
+
+  // Enter runtime system if the value is not a smi.
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(ne, &slow);
+
+  // Enter runtime system if the value of the expression is zero
+  // to make sure that we switch between 0 and -0.
+  __ cmp(r0, Operand(0));
+  __ b(eq, &slow);
+
+  // The value of the expression is a smi that is not zero.  Try
+  // optimistic subtraction '0 - value'.
+  __ rsb(r1, r0, Operand(0), SetCC);
+  __ b(vs, &slow);
+
+  // If result is a smi we are done.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ mov(r0, Operand(r1), LeaveCC, eq);  // conditionally set r0 to result
+  __ b(eq, &done);
+
+  // Enter runtime system.
+  __ bind(&slow);
+  __ push(r0);
+  __ mov(r0, Operand(0));  // set number of arguments
+  __ InvokeBuiltin(Builtins::UNARY_MINUS, JUMP_JS);
+
+  __ bind(&done);
+  __ StubReturn(1);
+}
+
+
+void InvokeBuiltinStub::Generate(MacroAssembler* masm) {
+  __ push(r0);
+  __ mov(r0, Operand(0));  // set number of arguments
+  switch (kind_) {
+    case ToNumber: __ InvokeBuiltin(Builtins::TO_NUMBER, JUMP_JS); break;
+    case Inc:      __ InvokeBuiltin(Builtins::INC, JUMP_JS);       break;
+    case Dec:      __ InvokeBuiltin(Builtins::DEC, JUMP_JS);       break;
+    default: UNREACHABLE();
+  }
+  __ StubReturn(argc_);
+}
+
+
+void CEntryStub::GenerateThrowTOS(MacroAssembler* masm) {
+  // r0 holds exception
+  ASSERT(StackHandlerConstants::kSize == 6 * kPointerSize);  // adjust this code
+  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+  __ ldr(sp, MemOperand(r3));
+  __ pop(r2);  // pop next in chain
+  __ str(r2, MemOperand(r3));
+  // restore parameter- and frame-pointer and pop state.
+  __ ldm(ia_w, sp, r3.bit() | pp.bit() | fp.bit());
+  // Before returning we restore the context from the frame pointer if not NULL.
+  // The frame pointer is NULL in the exception handler of a JS entry frame.
+  __ cmp(fp, Operand(0));
+  // Set cp to NULL if fp is NULL.
+  __ mov(cp, Operand(0), LeaveCC, eq);
+  // Restore cp otherwise.
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+  if (kDebug && FLAG_debug_code) __ mov(lr, Operand(pc));
+  __ pop(pc);
+}
+
+
+void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
+  // Fetch top stack handler.
+  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+  __ ldr(r3, MemOperand(r3));
+
+  // Unwind the handlers until the ENTRY handler is found.
+  Label loop, done;
+  __ bind(&loop);
+  // Load the type of the current stack handler.
+  const int kStateOffset = StackHandlerConstants::kAddressDisplacement +
+      StackHandlerConstants::kStateOffset;
+  __ ldr(r2, MemOperand(r3, kStateOffset));
+  __ cmp(r2, Operand(StackHandler::ENTRY));
+  __ b(eq, &done);
+  // Fetch the next handler in the list.
+  const int kNextOffset =  StackHandlerConstants::kAddressDisplacement +
+      StackHandlerConstants::kNextOffset;
+  __ ldr(r3, MemOperand(r3, kNextOffset));
+  __ jmp(&loop);
+  __ bind(&done);
+
+  // Set the top handler address to next handler past the current ENTRY handler.
+  __ ldr(r0, MemOperand(r3, kNextOffset));
+  __ mov(r2, Operand(ExternalReference(Top::k_handler_address)));
+  __ str(r0, MemOperand(r2));
+
+  // Set external caught exception to false.
+  __ mov(r0, Operand(false));
+  ExternalReference external_caught(Top::k_external_caught_exception_address);
+  __ mov(r2, Operand(external_caught));
+  __ str(r0, MemOperand(r2));
+
+  // Set pending exception and r0 to out of memory exception.
+  Failure* out_of_memory = Failure::OutOfMemoryException();
+  __ mov(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
+  __ mov(r2, Operand(ExternalReference(Top::k_pending_exception_address)));
+  __ str(r0, MemOperand(r2));
+
+  // Restore the stack to the address of the ENTRY handler
+  __ mov(sp, Operand(r3));
+
+  // restore parameter- and frame-pointer and pop state.
+  __ ldm(ia_w, sp, r3.bit() | pp.bit() | fp.bit());
+  // Before returning we restore the context from the frame pointer if not NULL.
+  // The frame pointer is NULL in the exception handler of a JS entry frame.
+  __ cmp(fp, Operand(0));
+  // Set cp to NULL if fp is NULL.
+  __ mov(cp, Operand(0), LeaveCC, eq);
+  // Restore cp otherwise.
+  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+  if (kDebug && FLAG_debug_code) __ mov(lr, Operand(pc));
+  __ pop(pc);
+}
+
+
+void CEntryStub::GenerateCore(MacroAssembler* masm,
+                              Label* throw_normal_exception,
+                              Label* throw_out_of_memory_exception,
+                              StackFrame::Type frame_type,
+                              bool do_gc) {
+  // r0: result parameter for PerformGC, if any
+  // r4: number of arguments including receiver  (C callee-saved)
+  // r5: pointer to builtin function  (C callee-saved)
+  // r6: pointer to the first argument (C callee-saved)
+
+  if (do_gc) {
+    // Passing r0.
+    __ Call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
+  }
+
+  // Call C built-in.
+  // r0 = argc, r1 = argv
+  __ mov(r0, Operand(r4));
+  __ mov(r1, Operand(r6));
+
+  // TODO(1242173): To let the GC traverse the return address of the exit
+  // frames, we need to know where the return address is. Right now,
+  // we push it on the stack to be able to find it again, but we never
+  // restore from it in case of changes, which makes it impossible to
+  // support moving the C entry code stub. This should be fixed, but currently
+  // this is OK because the CEntryStub gets generated so early in the V8 boot
+  // sequence that it is not moving ever.
+  __ add(lr, pc, Operand(4));  // compute return address: (pc + 8) + 4
+  __ push(lr);
+#if !defined(__arm__)
+  // Notify the simulator of the transition to C code.
+  __ swi(assembler::arm::call_rt_r5);
+#else /* !defined(__arm__) */
+  __ mov(pc, Operand(r5));
+#endif /* !defined(__arm__) */
+  // result is in r0 or r0:r1 - do not destroy these registers!
+
+  // check for failure result
+  Label failure_returned;
+  ASSERT(((kFailureTag + 1) & kFailureTagMask) == 0);
+  // Lower 2 bits of r2 are 0 iff r0 has failure tag.
+  __ add(r2, r0, Operand(1));
+  __ tst(r2, Operand(kFailureTagMask));
+  __ b(eq, &failure_returned);
+
+  // Exit C frame and return.
+  // r0:r1: result
+  // sp: stack pointer
+  // fp: frame pointer
+  // pp: caller's parameter pointer pp  (restored as C callee-saved)
+  __ LeaveExitFrame(frame_type);
+
+  // check if we should retry or throw exception
+  Label retry;
+  __ bind(&failure_returned);
+  ASSERT(Failure::RETRY_AFTER_GC == 0);
+  __ tst(r0, Operand(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
+  __ b(eq, &retry);
+
+  Label continue_exception;
+  // If the returned failure is EXCEPTION then promote Top::pending_exception().
+  __ cmp(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
+  __ b(ne, &continue_exception);
+
+  // Retrieve the pending exception and clear the variable.
+  __ mov(ip, Operand(Factory::the_hole_value().location()));
+  __ ldr(r3, MemOperand(ip));
+  __ mov(ip, Operand(Top::pending_exception_address()));
+  __ ldr(r0, MemOperand(ip));
+  __ str(r3, MemOperand(ip));
+
+  __ bind(&continue_exception);
+  // Special handling of out of memory exception.
+  Failure* out_of_memory = Failure::OutOfMemoryException();
+  __ cmp(r0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
+  __ b(eq, throw_out_of_memory_exception);
+
+  // Handle normal exception.
+  __ jmp(throw_normal_exception);
+
+  __ bind(&retry);  // pass last failure (r0) as parameter (r0) when retrying
+}
+
+
+void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
+  // Called from JavaScript; parameters are on stack as if calling JS function
+  // r0: number of arguments including receiver
+  // r1: pointer to builtin function
+  // fp: frame pointer  (restored after C call)
+  // sp: stack pointer  (restored as callee's pp after C call)
+  // cp: current context  (C callee-saved)
+  // pp: caller's parameter pointer pp  (C callee-saved)
+
+  // NOTE: Invocations of builtins may return failure objects
+  // instead of a proper result. The builtin entry handles
+  // this by performing a garbage collection and retrying the
+  // builtin once.
+
+  StackFrame::Type frame_type = is_debug_break
+      ? StackFrame::EXIT_DEBUG
+      : StackFrame::EXIT;
+
+  // Enter the exit frame that transitions from JavaScript to C++.
+  __ EnterExitFrame(frame_type);
+
+  // r4: number of arguments (C callee-saved)
+  // r5: pointer to builtin function (C callee-saved)
+  // r6: pointer to first argument (C callee-saved)
+
+  Label throw_out_of_memory_exception;
+  Label throw_normal_exception;
+
+#ifdef DEBUG
+  if (FLAG_gc_greedy) {
+    Failure* failure = Failure::RetryAfterGC(0, NEW_SPACE);
+    __ mov(r0, Operand(reinterpret_cast<intptr_t>(failure)));
+  }
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_out_of_memory_exception,
+               frame_type,
+               FLAG_gc_greedy);
+#else
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_out_of_memory_exception,
+               frame_type,
+               false);
+#endif
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_out_of_memory_exception,
+               frame_type,
+               true);
+
+  __ bind(&throw_out_of_memory_exception);
+  GenerateThrowOutOfMemory(masm);
+  // control flow for generated will not return.
+
+  __ bind(&throw_normal_exception);
+  GenerateThrowTOS(masm);
+}
+
+
+void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
+  // r0: code entry
+  // r1: function
+  // r2: receiver
+  // r3: argc
+  // [sp+0]: argv
+
+  Label invoke, exit;
+
+  // Called from C, so do not pop argc and args on exit (preserve sp)
+  // No need to save register-passed args
+  // Save callee-saved registers (incl. cp, pp, and fp), sp, and lr
+  __ stm(db_w, sp, kCalleeSaved | lr.bit());
+
+  // Get address of argv, see stm above.
+  // r0: code entry
+  // r1: function
+  // r2: receiver
+  // r3: argc
+  __ add(r4, sp, Operand((kNumCalleeSaved + 1)*kPointerSize));
+  __ ldr(r4, MemOperand(r4));  // argv
+
+  // Push a frame with special values setup to mark it as an entry frame.
+  // r0: code entry
+  // r1: function
+  // r2: receiver
+  // r3: argc
+  // r4: argv
+  int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
+  __ mov(r8, Operand(-1));  // Push a bad frame pointer to fail if it is used.
+  __ mov(r7, Operand(~ArgumentsAdaptorFrame::SENTINEL));
+  __ mov(r6, Operand(Smi::FromInt(marker)));
+  __ mov(r5, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  __ ldr(r5, MemOperand(r5));
+  __ stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | r8.bit());
+
+  // Setup frame pointer for the frame to be pushed.
+  __ add(fp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
+
+  // Call a faked try-block that does the invoke.
+  __ bl(&invoke);
+
+  // Caught exception: Store result (exception) in the pending
+  // exception field in the JSEnv and return a failure sentinel.
+  // Coming in here the fp will be invalid because the PushTryHandler below
+  // sets it to 0 to signal the existence of the JSEntry frame.
+  __ mov(ip, Operand(Top::pending_exception_address()));
+  __ str(r0, MemOperand(ip));
+  __ mov(r0, Operand(Handle<Failure>(Failure::Exception())));
+  __ b(&exit);
+
+  // Invoke: Link this frame into the handler chain.
+  __ bind(&invoke);
+  // Must preserve r0-r4, r5-r7 are available.
+  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER);
+  // If an exception not caught by another handler occurs, this handler returns
+  // control to the code after the bl(&invoke) above, which restores all
+  // kCalleeSaved registers (including cp, pp and fp) to their saved values
+  // before returning a failure to C.
+
+  // Clear any pending exceptions.
+  __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
+  __ ldr(r5, MemOperand(ip));
+  __ mov(ip, Operand(Top::pending_exception_address()));
+  __ str(r5, MemOperand(ip));
+
+  // Invoke the function by calling through JS entry trampoline builtin.
+  // Notice that we cannot store a reference to the trampoline code directly in
+  // this stub, because runtime stubs are not traversed when doing GC.
+
+  // Expected registers by Builtins::JSEntryTrampoline
+  // r0: code entry
+  // r1: function
+  // r2: receiver
+  // r3: argc
+  // r4: argv
+  if (is_construct) {
+    ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline);
+    __ mov(ip, Operand(construct_entry));
+  } else {
+    ExternalReference entry(Builtins::JSEntryTrampoline);
+    __ mov(ip, Operand(entry));
+  }
+  __ ldr(ip, MemOperand(ip));  // deref address
+
+  // Branch and link to JSEntryTrampoline
+  __ mov(lr, Operand(pc));
+  __ add(pc, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
+
+  // Unlink this frame from the handler chain. When reading the
+  // address of the next handler, there is no need to use the address
+  // displacement since the current stack pointer (sp) points directly
+  // to the stack handler.
+  __ ldr(r3, MemOperand(sp, StackHandlerConstants::kNextOffset));
+  __ mov(ip, Operand(ExternalReference(Top::k_handler_address)));
+  __ str(r3, MemOperand(ip));
+  // No need to restore registers
+  __ add(sp, sp, Operand(StackHandlerConstants::kSize));
+
+  __ bind(&exit);  // r0 holds result
+  // Restore the top frame descriptors from the stack.
+  __ pop(r3);
+  __ mov(ip, Operand(ExternalReference(Top::k_c_entry_fp_address)));
+  __ str(r3, MemOperand(ip));
+
+  // Reset the stack to the callee saved registers.
+  __ add(sp, sp, Operand(-EntryFrameConstants::kCallerFPOffset));
+
+  // Restore callee-saved registers and return.
+#ifdef DEBUG
+  if (FLAG_debug_code) __ mov(lr, Operand(pc));
+#endif
+  __ ldm(ia_w, sp, kCalleeSaved | pc.bit());
+}
+
+
+void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0: formal number of parameters for the calling function
+  //  -- r1: key (if value access)
+  //  -- lr: return address
+  // -----------------------------------
+
+  // If we're reading an element we need to check that the key is a smi.
+  Label slow;
+  if (type_ == READ_ELEMENT) {
+    __ tst(r1, Operand(kSmiTagMask));
+    __ b(ne, &slow);
+  }
+
+  // Check if the calling frame is an arguments adaptor frame.
+  // r0: formal number of parameters
+  // r1: key (if access)
+  Label adaptor;
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  if (type_ == NEW_OBJECT) {
+    __ b(ne, &slow);
+  } else {
+    __ b(eq, &adaptor);
+  }
+
+  static const int kParamDisplacement =
+      StandardFrameConstants::kCallerSPOffset - kPointerSize;
+
+  if (type_ == READ_LENGTH) {
+    // Nothing to do: The formal number of parameters has already been
+    // passed in register r0 by calling function. Just return it.
+    __ mov(pc, lr);
+  } else if (type_ == READ_ELEMENT) {
+    // Check index against formal parameter count. Use unsigned comparison to
+    // get the negative check for free.
+    // r0: formal number of parameters
+    // r1: index
+    __ cmp(r1, r0);
+    __ b(cs, &slow);
+
+    // Read the argument from the current frame and return it.
+    __ sub(r3, r0, r1);
+    __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+    __ ldr(r0, MemOperand(r3, kParamDisplacement));
+    __ mov(pc, lr);
+  } else {
+    ASSERT(type_ == NEW_OBJECT);
+    // Do nothing here.
+  }
+
+  // An arguments adaptor frame is present. Find the length or the actual
+  // argument in the calling frame.
+  // r0: formal number of parameters
+  // r1: key
+  // r2: adaptor frame pointer
+  __ bind(&adaptor);
+  // Read the arguments length from the adaptor frame. This is the result if
+  // only accessing the length, otherwise it is used in accessing the value
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+
+  if (type_ == READ_LENGTH) {
+    // Return the length in r0.
+    __ mov(pc, lr);
+  } else if (type_ == READ_ELEMENT) {
+    // Check index against actual arguments count. Use unsigned comparison to
+    // get the negative check for free.
+    // r0: actual number of parameter
+    // r1: index
+    // r2: adaptor frame point
+    __ cmp(r1, r0);
+    __ b(cs, &slow);
+
+    // Read the argument from the adaptor frame and return it.
+    __ sub(r3, r0, r1);
+    __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+    __ ldr(r0, MemOperand(r3, kParamDisplacement));
+    __ mov(pc, lr);
+  } else {
+    ASSERT(type_ == NEW_OBJECT);
+    // Patch the arguments.length and the parameters pointer.
+    __ str(r0, MemOperand(sp, 0 * kPointerSize));
+    __ add(r3, r2, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+    __ add(r3, r3, Operand(kParamDisplacement + 1 * kPointerSize));
+    __ str(r3, MemOperand(sp, 1 * kPointerSize));
+    __ bind(&slow);
+    __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
+  }
+
+  // Return to the calling function.
+  if (type_ == READ_ELEMENT) {
+    __ bind(&slow);
+    __ push(r1);
+    __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
+  }
+}
+
+
+void ArmCodeGenerator::SetReferenceProperty(CodeGenerator* cgen,
+                                            Reference* ref,
+                                            Expression* key) {
+  ASSERT(!ref->is_illegal());
+  MacroAssembler* masm = cgen->masm();
+
+  if (ref->type() == Reference::NAMED) {
+    // Compute the name of the property.
+    Literal* literal = key->AsLiteral();
+    Handle<String> name(String::cast(*literal->handle()));
+
+    // Call the appropriate IC code.
+    __ pop(r0);  // value
+    // Setup the name register.
+    __ mov(r2, Operand(name));
+    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+    __ Call(ic, RelocInfo::CODE_TARGET);
+
+  } else {
+    // Access keyed property.
+    ASSERT(ref->type() == Reference::KEYED);
+
+    __ pop(r0);  // value
+    SetPropertyStub stub;
+    __ CallStub(&stub);
+  }
+  __ push(r0);
+}
+
+
+void CallFunctionStub::Generate(MacroAssembler* masm) {
+  Label slow;
+  // Get the function to call from the stack.
+  // function, receiver [, arguments]
+  __ ldr(r1, MemOperand(sp, (argc_ + 1) * kPointerSize));
+
+  // Check that the function is really a JavaScript function.
+  // r1: pushed function (to be verified)
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, &slow);
+  // Get the map of the function object.
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+  __ cmp(r2, Operand(JS_FUNCTION_TYPE));
+  __ b(ne, &slow);
+
+  // Fast-case: Invoke the function now.
+  // r1: pushed function
+  ParameterCount actual(argc_);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+
+  // Slow-case: Non-function called.
+  __ bind(&slow);
+  __ mov(r0, Operand(argc_));  // Setup the number of arguments.
+  __ InvokeBuiltin(Builtins::CALL_NON_FUNCTION, JUMP_JS);
+}
+
+
+#undef __
 
 // -----------------------------------------------------------------------------
 // CodeGenerator interface

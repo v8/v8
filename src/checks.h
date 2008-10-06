@@ -164,11 +164,18 @@ static inline void CheckEqualsHelper(const char* file,
                                      double expected,
                                      const char* value_source,
                                      double value) {
-  if (expected != value) {
+  // Force values to 64 bit memory to truncate 80 bit precision on IA32.
+  volatile double* exp = new double[1];
+  *exp = expected;
+  volatile double* val = new double[1];
+  *val = value;
+  if (*exp != *val) {
     V8_Fatal(file, line,
              "CHECK_EQ(%s, %s) failed\n#   Expected: %f\n#   Found: %f",
-             expected_source, value_source, expected, value);
+             expected_source, value_source, *exp, *val);
   }
+  delete[] exp;
+  delete[] val;
 }
 
 

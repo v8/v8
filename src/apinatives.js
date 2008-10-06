@@ -34,19 +34,19 @@ function CreateDate(time) {
   var date = new ORIGINAL_DATE();
   date.setTime(time);
   return date;
-};
+}
 
 
 const kApiFunctionCache = {};
 const functionCache = kApiFunctionCache;
 
 
-function Instantiate(data) {
+function Instantiate(data, name) {
   if (!%IsTemplate(data)) return data;
   var tag = %GetTemplateField(data, kApiTagOffset);
   switch (tag) {
     case kFunctionTag:
-      return InstantiateFunction(data);
+      return InstantiateFunction(data, name);
     case kNewObjectTag:
       var Constructor = %GetTemplateField(data, kApiConstructorOffset);
       var result = Constructor ? new (Instantiate(Constructor))() : {};
@@ -55,18 +55,19 @@ function Instantiate(data) {
     default:
       throw 'Unknown API tag <' + tag + '>';
   }
-};
+}
 
 
-function InstantiateFunction(data) {
+function InstantiateFunction(data, name) {
   var serialNumber = %GetTemplateField(data, kApiSerialNumberOffset);
   if (!(serialNumber in kApiFunctionCache)) {
     kApiFunctionCache[serialNumber] = null;
     var fun = %CreateApiFunction(data);
+    if (name) %FunctionSetName(fun, name);
     kApiFunctionCache[serialNumber] = fun;
     var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
     fun.prototype = prototype ? Instantiate(prototype) : {};
-    %AddProperty(fun.prototype, "constructor", fun, DONT_ENUM);
+    %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
     var parent = %GetTemplateField(data, kApiParentTemplateOffset);
     if (parent) {
       var parent_fun = Instantiate(parent);
@@ -75,7 +76,7 @@ function InstantiateFunction(data) {
     ConfigureTemplateInstance(fun, data);
   }
   return kApiFunctionCache[serialNumber];
-};
+}
 
 
 function ConfigureTemplateInstance(obj, data) {
@@ -85,8 +86,8 @@ function ConfigureTemplateInstance(obj, data) {
       var name = properties[i + 1];
       var prop_data = properties[i + 2];
       var attributes = properties[i + 3];
-      var value = Instantiate(prop_data);
+      var value = Instantiate(prop_data, name);
       %SetProperty(obj, name, value, attributes);
     }
   }
-};
+}

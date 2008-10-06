@@ -35,7 +35,7 @@ function URIAddEncodedOctetToBuffer(octet, result, index) {
   result[index++] = hexCharCodeArray[octet >> 4];
   result[index++] = hexCharCodeArray[octet & 0x0F];
   return index;
-};
+}
 
 
 function URIEncodeOctets(octets, result, index) {
@@ -44,7 +44,7 @@ function URIEncodeOctets(octets, result, index) {
   if (octets[2]) index = URIAddEncodedOctetToBuffer(octets[2], result, index);
   if (octets[3]) index = URIAddEncodedOctetToBuffer(octets[3], result, index);
   return index;
-};
+}
 
 
 function URIEncodeSingle(cc, result, index) {
@@ -63,7 +63,7 @@ function URIEncodeSingle(cc, result, index) {
     octets[2] = z + 128;
   }
   return URIEncodeOctets(octets, result, index);
-};
+}
 
 
 function URIEncodePair(cc1 , cc2, result, index) {
@@ -78,7 +78,7 @@ function URIEncodePair(cc1 , cc2, result, index) {
   octets[2] = ((x << 4) | y) + 128;
   octets[3] = z + 128;
   return URIEncodeOctets(octets, result, index);
-};
+}
 
 
 function URIHexCharsToCharCode(ch1, ch2) {
@@ -86,7 +86,7 @@ function URIHexCharsToCharCode(ch1, ch2) {
     throw new $URIError("URI malformed");
   }
   return HexStrToCharCode(ch1 + ch2);
-};
+}
 
 
 function URIDecodeOctets(octets, result, index) {
@@ -111,7 +111,7 @@ function URIDecodeOctets(octets, result, index) {
   var y = octets[0] & 31;
   result[index++] = (y << 6) | z;
   return index;
-};
+}
 
 
 // ECMA-262, section 15.1.3
@@ -137,7 +137,7 @@ function Encode(uri, unescape) {
     }
   }
   return %StringFromCharCodeArray(result);
-};
+}
 
 
 // ECMA-262, section 15.1.3
@@ -177,7 +177,7 @@ function Decode(uri, reserved) {
   }
   result.length = index;
   return %StringFromCharCodeArray(result);
-};
+}
 
 
 // ECMA-262 - 15.1.3.1.
@@ -202,7 +202,7 @@ function URIDecode(uri) {
   };
   var string = ToString(uri);
   return Decode(string, reservedPredicate);
-};
+}
 
 
 // ECMA-262 - 15.1.3.2.
@@ -210,7 +210,7 @@ function URIDecodeComponent(component) {
   function reservedPredicate(cc) { return false; };
   var string = ToString(component);
   return Decode(string, reservedPredicate);
-};
+}
 
 
 // Does the char code correspond to an alpha-numeric char.
@@ -223,7 +223,7 @@ function isAlphaNumeric(cc) {
   if (48 <= cc && cc <= 57) return true;
   
   return false;
-};
+}
 
 
 // ECMA-262 - 15.1.3.3.
@@ -252,7 +252,7 @@ function URIEncode(uri) {
 
   var string = ToString(uri);
   return Encode(string, unescapePredicate);
-};
+}
 
 
 // ECMA-262 - 15.1.3.4
@@ -275,7 +275,7 @@ function URIEncodeComponent(component) {
 
   var string = ToString(component);
   return Encode(string, unescapePredicate);
-};
+}
 
 
 const hexCharArray = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9",
@@ -296,7 +296,7 @@ function HexValueOf(c) {
   if (code >= 97 && code <= 102) return code - 87;
   
   return -1;
-};
+}
 
 
 // Convert a character code to 4-digit hex string representation
@@ -309,7 +309,7 @@ function CharCodeToHex4Str(cc) {
     cc = cc >>> 4;
   }
   return r;
-};
+}
 
 
 // Converts hex string to char code. Not efficient.
@@ -321,7 +321,7 @@ function HexStrToCharCode(s) {
     m = m + 4;
   }
   return r;
-};
+}
 
 
 // Returns true if all digits in string s are valid hex numbers
@@ -335,14 +335,14 @@ function IsValidHex(s) {
     }
   }
   return true;
-};
+}
 
 
 // ECMA-262 - B.2.1.
 function URIEscape(str) {
   var s = ToString(str);
   return %URIEscape(s);
-};
+}
 
 
 // ECMA-262 - B.2.2.
@@ -355,16 +355,17 @@ function URIUnescape(str) {
 // -------------------------------------------------------------------
 
 function SetupURI() {
-  // Setup non-enumerable URI properties of the global object.
-  InstallProperties(global, DONT_ENUM, {
-    escape: URIEscape,
-    unescape: URIUnescape,
-    decodeURI: URIDecode,
-    decodeURIComponent: URIDecodeComponent,
-    encodeURI: URIEncode,
-    encodeURIComponent: URIEncodeComponent
-  });
-};
+  // Setup non-enumerable URI functions on the global object and set
+  // their names.
+  InstallFunctions(global, DONT_ENUM, $Array(
+    "escape", URIEscape,
+    "unescape", URIUnescape,
+    "decodeURI", URIDecode,
+    "decodeURIComponent", URIDecodeComponent,
+    "encodeURI", URIEncode,
+    "encodeURIComponent", URIEncodeComponent
+  ));
+}
 
 SetupURI();
 

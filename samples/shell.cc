@@ -73,6 +73,14 @@ int main(int argc, char* argv[]) {
       continue;
     } else if (strncmp(str, "--", 2) == 0) {
       printf("Warning: unknown flag %s.\n", str);
+    } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
+      // Execute argument given to -e option directly
+      v8::HandleScope handle_scope;
+      v8::Handle<v8::String> file_name = v8::String::New("unnamed");
+      v8::Handle<v8::String> source = v8::String::New(argv[i + 1]);
+      if (!ExecuteString(source, file_name, false, true))
+        return 1;
+      i++;
     } else {
       // Use all other arguments as names of files to load and run.
       v8::HandleScope handle_scope;

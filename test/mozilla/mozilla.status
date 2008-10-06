@@ -45,7 +45,6 @@
 prefix mozilla
 def FAIL_OK = FAIL, OKAY
 
-
 ##################### SKIPPED TESTS #####################
 
 # This test checks that we behave properly in an out-of-memory

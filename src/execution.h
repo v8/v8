@@ -246,39 +246,6 @@ class PostponeInterruptsScope BASE_EMBEDDED {
 };
 
 
-class PrintExtension : public v8::Extension {
- public:
-  PrintExtension() : v8::Extension("v8/print", kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
-      v8::Handle<v8::String> name);
-  static v8::Handle<v8::Value> Print(const v8::Arguments& args);
- private:
-  static const char* kSource;
-};
-
-
-class LoadExtension : public v8::Extension {
- public:
-  LoadExtension() : v8::Extension("v8/load", kSource) { }
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
-      v8::Handle<v8::String> name);
-  static v8::Handle<v8::Value> Load(const v8::Arguments& args);
- private:
-  static const char* kSource;
-};
-
-
-class QuitExtension : public v8::Extension {
- public:
-  QuitExtension() : v8::Extension("v8/quit", kSource) {}
-  virtual v8::Handle<v8::FunctionTemplate> GetNativeFunction(
-      v8::Handle<v8::String> name);
-  static v8::Handle<v8::Value> Quit(const v8::Arguments& args);
- private:
-  static const char* kSource;
-};
-
-
 class GCExtension : public v8::Extension {
  public:
   GCExtension() : v8::Extension("v8/gc", kSource) {}

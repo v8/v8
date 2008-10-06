@@ -30,72 +30,56 @@
 // has the added benefit that the code in this file is isolated from
 // changes to these properties.
 const $Infinity = global.Infinity;
-
+const $floor = MathFloor;
+const $random = MathRandom;
+const $abs = MathAbs;
 
 // Instance class name can only be set on functions. That is the only
 // purpose for MathConstructor.
-function MathConstructor() {};
-%FunctionSetInstanceClassName(MathConstructor, 'Math');  
+function MathConstructor() {}
+%FunctionSetInstanceClassName(MathConstructor, 'Math');
 const $Math = new MathConstructor();
 $Math.__proto__ = global.Object.prototype;
-%AddProperty(global, "Math", $Math, DONT_ENUM);
+%SetProperty(global, "Math", $Math, DONT_ENUM);
 
-
-function $Math_random() { return %Math_random(); }
-%AddProperty($Math, "random", $Math_random, DONT_ENUM);
-
-function $Math_abs(x) {
+// ECMA 262 - 15.8.2.1
+function MathAbs(x) {
   if (%_IsSmi(x)) {
     return x >= 0 ? x : -x;
   } else {
     return %Math_abs(ToNumber(x));
   }
 }
-%AddProperty($Math, "abs", $Math_abs, DONT_ENUM);
 
-function $Math_acos(x) { return %Math_acos(ToNumber(x)); }
-%AddProperty($Math, "acos", $Math_acos, DONT_ENUM);
+// ECMA 262 - 15.8.2.2
+function MathAcos(x) { return %Math_acos(ToNumber(x)); }
 
-function $Math_asin(x) { return %Math_asin(ToNumber(x)); }
-%AddProperty($Math, "asin", $Math_asin, DONT_ENUM);
+// ECMA 262 - 15.8.2.3
+function MathAsin(x) { return %Math_asin(ToNumber(x)); }
 
-function $Math_atan(x) { return %Math_atan(ToNumber(x)); }
-%AddProperty($Math, "atan", $Math_atan, DONT_ENUM);
+// ECMA 262 - 15.8.2.4
+function MathAtan(x) { return %Math_atan(ToNumber(x)); }
 
-function $Math_ceil(x) { return %Math_ceil(ToNumber(x)); }
-%AddProperty($Math, "ceil", $Math_ceil, DONT_ENUM);
+// ECMA 262 - 15.8.2.5
+function MathAtan2(x, y) { return %Math_atan2(ToNumber(x), ToNumber(y)); }
 
-function $Math_cos(x) { return %Math_cos(ToNumber(x)); }
-%AddProperty($Math, "cos", $Math_cos, DONT_ENUM);
+// ECMA 262 - 15.8.2.6
+function MathCeil(x) { return %Math_ceil(ToNumber(x)); }
 
-function $Math_exp(x) { return %Math_exp(ToNumber(x)); }
-%AddProperty($Math, "exp", $Math_exp, DONT_ENUM);
+// ECMA 262 - 15.8.2.7
+function MathCos(x) { return %Math_cos(ToNumber(x)); }
 
-function $Math_floor(x) { return %Math_floor(ToNumber(x)); }
-%AddProperty($Math, "floor", $Math_floor, DONT_ENUM);
+// ECMA 262 - 15.8.2.8
+function MathExp(x) { return %Math_exp(ToNumber(x)); }
 
-function $Math_log(x) { return %Math_log(ToNumber(x)); }
-%AddProperty($Math, "log", $Math_log, DONT_ENUM);
+// ECMA 262 - 15.8.2.9
+function MathFloor(x) { return %Math_floor(ToNumber(x)); }
 
-function $Math_round(x) { return %Math_round(ToNumber(x)); }
-%AddProperty($Math, "round", $Math_round, DONT_ENUM);
+// ECMA 262 - 15.8.2.10
+function MathLog(x) { return %Math_log(ToNumber(x)); }
 
-function $Math_sin(x) { return %Math_sin(ToNumber(x)); }
-%AddProperty($Math, "sin", $Math_sin, DONT_ENUM);
-
-function $Math_sqrt(x) { return %Math_sqrt(ToNumber(x)); }
-%AddProperty($Math, "sqrt", $Math_sqrt, DONT_ENUM);
-
-function $Math_tan(x) { return %Math_tan(ToNumber(x)); }
-%AddProperty($Math, "tan", $Math_tan, DONT_ENUM);
-
-function $Math_atan2(x, y) { return %Math_atan2(ToNumber(x), ToNumber(y)); }
-%AddProperty($Math, "atan2", $Math_atan2, DONT_ENUM);
-
-function $Math_pow(x, y) { return %Math_pow(ToNumber(x), ToNumber(y)); }
-%AddProperty($Math, "pow", $Math_pow, DONT_ENUM);
-
-function $Math_max(arg1, arg2) {  // length == 2
+// ECMA 262 - 15.8.2.11
+function MathMax(arg1, arg2) {  // length == 2
   var r = -$Infinity;
   for (var i = %_ArgumentsLength() - 1; i >= 0; --i) {
     var n = ToNumber(%_Arguments(i));
@@ -105,9 +89,9 @@ function $Math_max(arg1, arg2) {  // length == 2
   }
   return r;
 }
-%AddProperty($Math, "max", $Math_max, DONT_ENUM);
 
-function $Math_min(arg1, arg2) {  // length == 2
+// ECMA 262 - 15.8.2.12
+function MathMin(arg1, arg2) {  // length == 2
   var r = $Infinity;
   for (var i = %_ArgumentsLength() - 1; i >= 0; --i) {
     var n = ToNumber(%_Arguments(i));
@@ -117,21 +101,90 @@ function $Math_min(arg1, arg2) {  // length == 2
   }
   return r;
 }
-%AddProperty($Math, "min", $Math_min, DONT_ENUM);
+
+// ECMA 262 - 15.8.2.13
+function MathPow(x, y) { return %Math_pow(ToNumber(x), ToNumber(y)); }
+
+// ECMA 262 - 15.8.2.14
+function MathRandom() { return %Math_random(); }
+
+// ECMA 262 - 15.8.2.15
+function MathRound(x) { return %Math_round(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.16
+function MathSin(x) { return %Math_sin(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.17
+function MathSqrt(x) { return %Math_sqrt(ToNumber(x)); }
+
+// ECMA 262 - 15.8.2.18
+function MathTan(x) { return %Math_tan(ToNumber(x)); }
 
 
-// ECMA-262, section 15.8.1.1.
-%AddProperty($Math, "E", 2.7182818284590452354, DONT_ENUM |  DONT_DELETE | READ_ONLY);
+// -------------------------------------------------------------------
 
-// ECMA-262, section 15.8.1.2.
-%AddProperty($Math, "LN10", 2.302585092994046, DONT_ENUM |  DONT_DELETE | READ_ONLY);
+function SetupMath() {
+  // Setup math constants.
+  // ECMA-262, section 15.8.1.1.
+  %SetProperty($Math,
+               "E",
+               2.7182818284590452354,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  // ECMA-262, section 15.8.1.2.
+  %SetProperty($Math,
+               "LN10",
+               2.302585092994046,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  // ECMA-262, section 15.8.1.3.
+  %SetProperty($Math,
+               "LN2",
+               0.6931471805599453,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  // ECMA-262, section 15.8.1.4.
+  %SetProperty($Math,
+               "LOG2E",
+               1.4426950408889634,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "LOG10E",
+               0.43429448190325176,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "PI",
+               3.1415926535897932,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "SQRT1_2",
+               0.7071067811865476,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  %SetProperty($Math,
+               "SQRT2",
+               1.4142135623730951,
+               DONT_ENUM |  DONT_DELETE | READ_ONLY);
 
-// ECMA-262, section 15.8.1.3.
-%AddProperty($Math, "LN2", 0.6931471805599453, DONT_ENUM |  DONT_DELETE | READ_ONLY);
+  // Setup non-enumerable functions of the Math object and
+  // set their names.
+  InstallFunctions($Math, DONT_ENUM, $Array(
+    "random", MathRandom,
+    "abs", MathAbs,
+    "acos", MathAcos,
+    "asin", MathAsin,
+    "atan", MathAtan,
+    "ceil", MathCeil,
+    "cos", MathCos,
+    "exp", MathExp,
+    "floor", MathFloor,
+    "log", MathLog,
+    "round", MathRound,
+    "sin", MathSin,
+    "sqrt", MathSqrt,
+    "tan", MathTan,
+    "atan2", MathAtan2,
+    "pow", MathPow,
+    "max", MathMax,
+    "min", MathMin
+  ));
+};
 
-// ECMA-262, section 15.8.1.4.
-%AddProperty($Math, "LOG2E", 1.4426950408889634, DONT_ENUM |  DONT_DELETE | READ_ONLY);
-%AddProperty($Math, "LOG10E", 0.43429448190325176, DONT_ENUM |  DONT_DELETE | READ_ONLY);
-%AddProperty($Math, "PI", 3.1415926535897932, DONT_ENUM |  DONT_DELETE | READ_ONLY);
-%AddProperty($Math, "SQRT1_2", 0.7071067811865476, DONT_ENUM |  DONT_DELETE | READ_ONLY);
-%AddProperty($Math, "SQRT2", 1.4142135623730951, DONT_ENUM |  DONT_DELETE | READ_ONLY);
+
+SetupMath();

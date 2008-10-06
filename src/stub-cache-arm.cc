@@ -416,10 +416,18 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
 
   // Perform map transition for the receiver if necessary.
   if (transition != NULL) {
-    // Update the map of the object; no write barrier updating is
-    // needed because the map is never in new space.
-    __ mov(ip, Operand(Handle<Map>(transition)));
-    __ str(ip, FieldMemOperand(r3, HeapObject::kMapOffset));
+    if (object->map()->unused_property_fields() == 0) {
+      // The properties must be extended before we can store the value.
+      // We jump to a runtime call that extends the propeties array.
+      __ mov(r2, Operand(Handle<Map>(transition)));
+      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_ExtendStorage));
+      __ Jump(ic, RelocInfo::CODE_TARGET);
+    } else {
+      // Update the map of the object; no write barrier updating is
+      // needed because the map is never in new space.
+      __ mov(ip, Operand(Handle<Map>(transition)));
+      __ str(ip, FieldMemOperand(r3, HeapObject::kMapOffset));
+    }
   }
 
   // Write to the properties array.

@@ -88,6 +88,7 @@ class MacroAssembler: public Assembler {
   void Call(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Ret();
 
+
   // Sets the remembered set bit for [address+offset], where address is the
   // address of the heap object 'object'.  The address must be in the first 8K
   // of an allocated page. The 'scratch' register is used in the
@@ -173,6 +174,14 @@ class MacroAssembler: public Assembler {
   // on access to global objects across environments. The holder register
   // is left untouched, whereas both scratch registers are clobbered.
   void CheckAccessGlobal(Register holder_reg, Register scratch, Label* miss);
+
+
+  // ---------------------------------------------------------------------------
+  // Support functions.
+
+  // Generates code for reporting that an illegal operation has
+  // occurred.
+  void IllegalOperation(int num_arguments);
 
 
   // ---------------------------------------------------------------------------

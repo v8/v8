@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// This file was generated at 2008-09-08 11:13:45.862026
+// This file was generated at 2008-10-01 18:05:45.480436
 
 #include "unicode-inl.h"
 #include <cstdlib>
@@ -659,6 +659,20 @@ bool LineTerminator::Is(uchar c) {
   }
 }
 
+// RegExpSpecialChar:    'Rx' in point.properties
+
+static const uint16_t kRegExpSpecialCharTable0Size = 9;
+static const uint16_t kRegExpSpecialCharTable0[9] = { 36, 32808, 43, 46, 63, 32859, 94, 32891, 125 }; // NOLINT
+bool RegExpSpecialChar::Is(uchar c) {
+  int chunk_index = c >> 15;
+  switch (chunk_index) {
+    case 0: return LookupPredicate(kRegExpSpecialCharTable0,
+                                       kRegExpSpecialCharTable0Size,
+                                       c);
+    default: return false;
+  }
+}
+
 // CombiningMark:        point.category in ['Mn', 'Mc']
 
 static const uint16_t kCombiningMarkTable0Size = 214;
@@ -796,7 +810,7 @@ int ToUppercase::Convert(uchar c,
 uchar UnicodeData::kMaxCodePoint = 1114109;
 
 int UnicodeData::GetByteCount() {
-  return 0 + (sizeof(uint16_t) * kUppercaseTable0Size) + (sizeof(uint16_t) * kUppercaseTable1Size) + (sizeof(uint16_t) * kUppercaseTable2Size) + (sizeof(uint16_t) * kUppercaseTable3Size) + (sizeof(uint16_t) * kLowercaseTable0Size) + (sizeof(uint16_t) * kLowercaseTable1Size) + (sizeof(uint16_t) * kLowercaseTable2Size) + (sizeof(uint16_t) * kLowercaseTable3Size) + (sizeof(uint16_t) * kLetterTable0Size) + (sizeof(uint16_t) * kLetterTable1Size) + (sizeof(uint16_t) * kLetterTable2Size) + (sizeof(uint16_t) * kLetterTable3Size) + (sizeof(uint16_t) * kLetterTable4Size) + (sizeof(uint16_t) * kLetterTable5Size) + (sizeof(uint16_t) * kSpaceTable0Size) + (sizeof(uint16_t) * kTitlecaseTable0Size) + (sizeof(uint16_t) * kNumberTable0Size) + (sizeof(uint16_t) * kNumberTable1Size) + (sizeof(uint16_t) * kNumberTable2Size) + (sizeof(uint16_t) * kNumberTable3Size) + (sizeof(uint16_t) * kDecimalDigitTable0Size) + (sizeof(uint16_t) * kDecimalDigitTable1Size) + (sizeof(uint16_t) * kDecimalDigitTable2Size) + (sizeof(uint16_t) * kDecimalDigitTable3Size) + (sizeof(uint16_t) * kIdeographicTable0Size) + (sizeof(uint16_t) * kIdeographicTable1Size) + (sizeof(uint16_t) * kIdeographicTable4Size) + (sizeof(uint16_t) * kIdeographicTable5Size) + (sizeof(uint16_t) * kWhiteSpaceTable0Size) + (sizeof(uint16_t) * kHexDigitTable0Size) + (sizeof(uint16_t) * kHexDigitTable1Size) + (sizeof(uint16_t) * kAsciiHexDigitTable0Size) + (sizeof(uint16_t) * kBidiControlTable0Size) + (sizeof(uint16_t) * kJoinControlTable0Size) + (sizeof(uint16_t) * kDashTable0Size) + (sizeof(uint16_t) * kDashTable1Size) + (sizeof(uint16_t) * kHyphenTable0Size) + (sizeof(uint16_t) * kHyphenTable1Size) + (sizeof(uint16_t) * kLineTerminatorTable0Size) + (sizeof(uint16_t) * kCombiningMarkTable0Size) + (sizeof(uint16_t) * kCombiningMarkTable1Size) + (sizeof(uint16_t) * kCombiningMarkTable2Size) + (sizeof(uint16_t) * kCombiningMarkTable3Size) + (sizeof(uint16_t) * kCombiningMarkTable28Size) + (sizeof(uint16_t) * kConnectorPunctuationTable0Size) + (sizeof(uint16_t) * kConnectorPunctuationTable1Size) + (sizeof(uint16_t) * kToLowercaseTable0Size) + (sizeof(uint16_t) * kToLowercaseTable1Size) + (sizeof(uint16_t) * kToLowercaseTable2Size) + (sizeof(uint16_t) * kToUppercaseTable0Size) + (sizeof(uint16_t) * kToUppercaseTable1Size) + (sizeof(uint16_t) * kToUppercaseTable2Size); // NOLINT
+  return 0 + (sizeof(uint16_t) * kUppercaseTable0Size) + (sizeof(uint16_t) * kUppercaseTable1Size) + (sizeof(uint16_t) * kUppercaseTable2Size) + (sizeof(uint16_t) * kUppercaseTable3Size) + (sizeof(uint16_t) * kLowercaseTable0Size) + (sizeof(uint16_t) * kLowercaseTable1Size) + (sizeof(uint16_t) * kLowercaseTable2Size) + (sizeof(uint16_t) * kLowercaseTable3Size) + (sizeof(uint16_t) * kLetterTable0Size) + (sizeof(uint16_t) * kLetterTable1Size) + (sizeof(uint16_t) * kLetterTable2Size) + (sizeof(uint16_t) * kLetterTable3Size) + (sizeof(uint16_t) * kLetterTable4Size) + (sizeof(uint16_t) * kLetterTable5Size) + (sizeof(uint16_t) * kSpaceTable0Size) + (sizeof(uint16_t) * kTitlecaseTable0Size) + (sizeof(uint16_t) * kNumberTable0Size) + (sizeof(uint16_t) * kNumberTable1Size) + (sizeof(uint16_t) * kNumberTable2Size) + (sizeof(uint16_t) * kNumberTable3Size) + (sizeof(uint16_t) * kDecimalDigitTable0Size) + (sizeof(uint16_t) * kDecimalDigitTable1Size) + (sizeof(uint16_t) * kDecimalDigitTable2Size) + (sizeof(uint16_t) * kDecimalDigitTable3Size) + (sizeof(uint16_t) * kIdeographicTable0Size) + (sizeof(uint16_t) * kIdeographicTable1Size) + (sizeof(uint16_t) * kIdeographicTable4Size) + (sizeof(uint16_t) * kIdeographicTable5Size) + (sizeof(uint16_t) * kWhiteSpaceTable0Size) + (sizeof(uint16_t) * kHexDigitTable0Size) + (sizeof(uint16_t) * kHexDigitTable1Size) + (sizeof(uint16_t) * kAsciiHexDigitTable0Size) + (sizeof(uint16_t) * kBidiControlTable0Size) + (sizeof(uint16_t) * kJoinControlTable0Size) + (sizeof(uint16_t) * kDashTable0Size) + (sizeof(uint16_t) * kDashTable1Size) + (sizeof(uint16_t) * kHyphenTable0Size) + (sizeof(uint16_t) * kHyphenTable1Size) + (sizeof(uint16_t) * kLineTerminatorTable0Size) + (sizeof(uint16_t) * kRegExpSpecialCharTable0Size) + (sizeof(uint16_t) * kCombiningMarkTable0Size) + (sizeof(uint16_t) * kCombiningMarkTable1Size) + (sizeof(uint16_t) * kCombiningMarkTable2Size) + (sizeof(uint16_t) * kCombiningMarkTable3Size) + (sizeof(uint16_t) * kCombiningMarkTable28Size) + (sizeof(uint16_t) * kConnectorPunctuationTable0Size) + (sizeof(uint16_t) * kConnectorPunctuationTable1Size) + (sizeof(uint16_t) * kToLowercaseTable0Size) + (sizeof(uint16_t) * kToLowercaseTable1Size) + (sizeof(uint16_t) * kToLowercaseTable2Size) + (sizeof(uint16_t) * kToUppercaseTable0Size) + (sizeof(uint16_t) * kToUppercaseTable1Size) + (sizeof(uint16_t) * kToUppercaseTable2Size); // NOLINT
 }
 
 }  // namespace unicode

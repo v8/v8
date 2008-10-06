@@ -48,7 +48,7 @@ function GetInstanceName(cons) {
   }
   var s = mapping[first] ? "an " : "a ";
   return s + cons;
-};
+}
 
 
 const kMessages = {
@@ -124,7 +124,7 @@ function FormatString(format, args) {
     result = result.split("%" + i).join(str);
   }
   return result;
-};
+}
 
 
 function ToDetailString(obj) {
@@ -137,7 +137,7 @@ function ToDetailString(obj) {
   } else {
     return ToString(obj);
   }
-};
+}
 
 
 function MakeGenericError(constructor, type, args) {
@@ -156,14 +156,14 @@ function MakeGenericError(constructor, type, args) {
   e.type = type;
   e.arguments = args;
   return e;
-};
+}
 
 
 /**
  * Setup the Script function and constructor.
  */
 %FunctionSetInstanceClassName(Script, 'Script');
-%AddProperty(Script.prototype, 'constructor', Script, DONT_ENUM);
+%SetProperty(Script.prototype, 'constructor', Script, DONT_ENUM);
 %SetCode(Script, function(x) {
   // Script objects can only be created by the VM.
   throw new $Error("Not supported");
@@ -175,7 +175,7 @@ function FormatMessage(message) {
   var format = kMessages[message.type];
   if (!format) return "<unknown message " + message.type + ">";
   return FormatString(format, message.args);
-};
+}
 
 
 function GetLineNumber(message) {
@@ -183,7 +183,7 @@ function GetLineNumber(message) {
   var location = message.script.locationFromPosition(message.startPos);
   if (location == null) return -1;
   return location.line + 1;
-};
+}
 
 
 // Returns the source code line containing the given source
@@ -193,37 +193,37 @@ function GetSourceLine(message) {
   if (location == null) return "";
   location.restrict();
   return location.sourceText();
-};
+}
 
 
 function MakeTypeError(type, args) {
   return MakeGenericError($TypeError, type, args);
-};
+}
 
 
 function MakeRangeError(type, args) {
   return MakeGenericError($RangeError, type, args);
-};
+}
 
 
 function MakeSyntaxError(type, args) {
   return MakeGenericError($SyntaxError, type, args);
-};
+}
 
 
 function MakeReferenceError(type, args) {
   return MakeGenericError($ReferenceError, type, args);
-};
+}
 
 
 function MakeEvalError(type, args) {
   return MakeGenericError($EvalError, type, args);
-};
+}
 
 
 function MakeError(type, args) {
   return MakeGenericError($Error, type, args);
-};
+}
 
 
 /**
@@ -445,7 +445,7 @@ function SourceLocation(script, position, line, column, start, end) {
   this.column = column;
   this.start = start;
   this.end = end;
-};
+}
 
 
 const kLineLengthLimit = 78;
@@ -473,7 +473,7 @@ SourceLocation.prototype.restrict = function (opt_limit, opt_before) {
     // If no before is specified center for small limits and perfer more source
     // before the the position that after for longer limits.
     if (limit <= 20) {
-      before = $Math_floor(limit / 2);
+      before = $floor(limit / 2);
     } else {
       before = limit - 10;
     }
@@ -554,7 +554,7 @@ function GetPositionInLine(message) {
   if (location == null) return -1;
   location.restrict();
   return message.startPos - location.start;
-};
+}
 
 
 function ErrorMessage(type, args, startPos, endPos, script, stackTrace) {
@@ -564,12 +564,12 @@ function ErrorMessage(type, args, startPos, endPos, script, stackTrace) {
   this.args = args;
   this.script = script;
   this.stackTrace = stackTrace;
-};
+}
 
 
 function MakeMessage(type, args, startPos, endPos, script, stackTrace) {
   return new ErrorMessage(type, args, startPos, endPos, script, stackTrace);
-};
+}
 
 
 function GetStackTraceLine(recv, fun, pos, isGlobal) {
@@ -578,7 +578,7 @@ function GetStackTraceLine(recv, fun, pos, isGlobal) {
   } catch (e) {
     return "<error: " + e + ">";
   }
-};
+}
 
 
 function GetFunctionName(fun, recv) {
@@ -589,7 +589,7 @@ function GetFunctionName(fun, recv) {
       return prop;
   }
   return "[anonymous]";
-};
+}
 
 
 function UnsafeGetStackTraceLine(recv, fun, pos, isTopLevel) {
@@ -619,21 +619,21 @@ function UnsafeGetStackTraceLine(recv, fun, pos, isTopLevel) {
     }
   }
   return (result) ? "    at " + result : result;
-};
+}
 
 
 // ----------------------------------------------------------------------------
 // Error implementation
 
-function DefineError(name) {
-  var f = function(msg) {};
+function DefineError(f) {
   // Store the error function in both the global object
   // and the runtime object. The function is fetched
   // from the runtime object when throwing errors from
   // within the runtime system to avoid strange side
   // effects when overwriting the error functions from
   // user code.
-  %AddProperty(global, name, f, DONT_ENUM);
+  var name = f.name;
+  %SetProperty(global, name, f, DONT_ENUM);
   this['$' + name] = f;
   // Configure the error function.
   // prototype of 'Error' must be as default: new Object().
@@ -648,22 +648,22 @@ function DefineError(name) {
       return new f(m);
     }
   });
-};
+}
 
 $Math.__proto__ = global.Object.prototype;
 
-DefineError('Error');
-DefineError('TypeError');
-DefineError('RangeError');
-DefineError('SyntaxError');
-DefineError('ReferenceError');
-DefineError('EvalError');
-DefineError('URIError');
+DefineError(function Error() { });
+DefineError(function TypeError() { });
+DefineError(function RangeError() { });
+DefineError(function SyntaxError() { });
+DefineError(function ReferenceError() { });
+DefineError(function EvalError() { });
+DefineError(function URIError() { });
 
 // Setup extra properties of the Error.prototype object.
 $Error.prototype.message = '';
 
-%AddProperty($Error.prototype, 'toString', function() {
+%SetProperty($Error.prototype, 'toString', function toString() {
   var type = this.type;
   if (type && !this.hasOwnProperty("message")) {
     return this.name + ": " + FormatMessage({ type: type, args: this.arguments });

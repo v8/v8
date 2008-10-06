@@ -41,7 +41,7 @@ function PrintResult(name, result) {
 
 function PrintScore(score) {
   print('----');
-  print('Score: ' + score);
+  print('Score (version ' + BenchmarkSuite.version + '): ' + score);
 }
 
 

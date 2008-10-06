@@ -610,7 +610,7 @@ void Debug::Unload() {
 
 
 void Debug::Iterate(ObjectVisitor* v) {
-#define VISIT(field) v->VisitPointer(reinterpret_cast<Object**>(&(field)));
+#define VISIT(field) v->VisitPointer(bit_cast<Object**, Code**>(&(field)));
   VISIT(debug_break_return_entry_);
   VISIT(debug_break_return_);
 #undef VISIT
@@ -631,8 +631,11 @@ Object* Debug::Break(Arguments args) {
     return Heap::undefined_value();
   }
 
-  SaveBreakFrame save;
-  EnterDebuggerContext enter;
+  // Enter the debugger.
+  EnterDebugger debugger;
+  if (debugger.FailedToEnter()) {
+    return Heap::undefined_value();
+  }
 
   // Postpone interrupt during breakpoint processing.
   PostponeInterruptsScope postpone;
@@ -1415,10 +1418,9 @@ void Debugger::OnException(Handle<Object> exception, bool uncaught) {
     if (!Debug::break_on_exception()) return;
   }
 
-  // Enter the debugger.  Bail out if the debugger cannot be loaded.
-  if (!Debug::Load()) return;
-  SaveBreakFrame save;
-  EnterDebuggerContext enter;
+  // Enter the debugger.
+  EnterDebugger debugger;
+  if (debugger.FailedToEnter()) return;
 
   // Clear all current stepping setup.
   Debug::ClearStepping();
@@ -1479,10 +1481,9 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
   if (compiling_natives()) return;
   if (!EventActive(v8::BeforeCompile)) return;
 
-  // Enter the debugger.  Bail out if the debugger cannot be loaded.
-  if (!Debug::Load()) return;
-  SaveBreakFrame save;
-  EnterDebuggerContext enter;
+  // Enter the debugger.
+  EnterDebugger debugger;
+  if (debugger.FailedToEnter()) return;
 
   // Create the event data object.
   bool caught_exception = false;
@@ -1509,10 +1510,9 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
   // No more to do if not debugging.
   if (!debugger_active()) return;
 
-  // Enter the debugger.  Bail out if the debugger cannot be loaded.
-  if (!Debug::Load()) return;
-  SaveBreakFrame save;
-  EnterDebuggerContext enter;
+  // Enter the debugger.
+  EnterDebugger debugger;
+  if (debugger.FailedToEnter()) return;
 
   // If debugging there might be script break points registered for this
   // script. Make sure that these break points are set.
@@ -1567,10 +1567,9 @@ void Debugger::OnNewFunction(Handle<JSFunction> function) {
   if (compiling_natives()) return;
   if (!Debugger::EventActive(v8::NewFunction)) return;
 
-  // Enter the debugger.  Bail out if the debugger cannot be loaded.
-  if (!Debug::Load()) return;
-  SaveBreakFrame save;
-  EnterDebuggerContext enter;
+  // Enter the debugger.
+  EnterDebugger debugger;
+  if (debugger.FailedToEnter()) return;
 
   // Create the event object.
   bool caught_exception = false;
@@ -1726,7 +1725,7 @@ void DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
       }
       v8::String::Value val(json_event_string);
       Vector<uint16_t> str(reinterpret_cast<uint16_t*>(*val),
-                          json_event_string->Length());
+                           json_event_string->Length());
       SendMessage(str);
     } else {
       SendMessage(Vector<uint16_t>::empty());

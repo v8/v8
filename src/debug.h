@@ -31,6 +31,7 @@
 #include "../include/v8-debug.h"
 #include "assembler.h"
 #include "code-stubs.h"
+#include "execution.h"
 #include "factory.h"
 #include "platform.h"
 #include "string-stream.h"
@@ -232,16 +233,16 @@ class Debug {
   }
 
   // Support for saving/restoring registers when handling debug break calls.
-  static Address* register_address(int r) {
-    return reinterpret_cast<Address *>(&registers_[r]);
+  static Object** register_address(int r) {
+    return &registers_[r];
   }
 
   // Address of the debug break return entry code.
   static Code* debug_break_return_entry() { return debug_break_return_entry_; }
 
   // Support for getting the address of the debug break on return code.
-  static Address* debug_break_return_address() {
-    return reinterpret_cast<Address*>(&debug_break_return_);
+  static Code** debug_break_return_address() {
+    return &debug_break_return_;
   }
 
   static const int kEstimatedNofDebugInfoEntries = 16;
@@ -469,10 +470,15 @@ class DebugMessageThread: public Thread {
 };
 
 
-// Helper class to support saving/restoring the top break frame id.
-class SaveBreakFrame {
+// This class is used for entering the debugger. Create an instance in the stack
+// to enter the debugger. This will set the current break state, make sure the
+// debugger is loaded and switch to the debugger context. If the debugger for
+// some reason could not be entered FailedToEnter will return true.
+class EnterDebugger BASE_EMBEDDED {
  public:
-  SaveBreakFrame() : set_(!it_.done()) {
+  EnterDebugger() : set_(!it_.done()) {
+    // If there is no JavaScript frames on the stack don't switch to new break
+    // and break frame.
     if (set_) {
       // Store the previous break is and frame id.
       break_id_ = Top::break_id();
@@ -481,36 +487,34 @@ class SaveBreakFrame {
       // Create the new break info.
       Top::new_break(it_.frame()->id());
     }
+
+    // Make sure that debugger is loaded and enter the debugger context.
+    load_failed_ = !Debug::Load();
+    if (!load_failed_) {
+      // NOTE the member variable save which saves the previous context before
+      // this change.
+      Top::set_context(*Debug::debug_context());
+      Top::set_security_context(*Debug::debug_context());
+    }
   }
 
-  ~SaveBreakFrame() {
+  ~EnterDebugger() {
     if (set_) {
-      // restore to the previous break state.
+      // Restore to the previous break state.
       Top::set_break(break_frame_id_, break_id_);
     }
   }
+
+  // Check whether the debugger could be entered.
+  inline bool FailedToEnter() { return load_failed_; }
 
  private:
   JavaScriptFrameIterator it_;
   const bool set_;  // Was the break actually set?
   StackFrame::Id break_frame_id_;  // Previous break frame id.
   int break_id_;  // Previous break id.
-};
-
-
-class EnterDebuggerContext BASE_EMBEDDED {
- public:
-  // Enter the debugger by storing the previous top context and setting the
-  // current top context to the debugger context.
-  EnterDebuggerContext()  {
-    // NOTE the member variable save which saves the previous context before
-    // this change.
-    Top::set_context(*Debug::debug_context());
-    Top::set_security_context(*Debug::debug_context());
-  }
-
- private:
-  SaveContext save;
+  bool load_failed_;  // Did the debugger fail to load?
+  SaveContext save_;  // Saves previous context.
 };
 
 

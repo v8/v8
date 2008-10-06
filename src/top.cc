@@ -37,7 +37,7 @@
 namespace v8 { namespace internal {
 
 ThreadLocalTop Top::thread_local_;
-Mutex* Top::break_access_ = OS::CreateMutex();
+Mutex* Top::break_access_;
 StackFrame::Id Top::break_frame_id_;
 int Top::break_count_;
 int Top::break_id_;
@@ -65,16 +65,16 @@ char* Top::Iterate(ObjectVisitor* v, char* thread_storage) {
 #define VISIT(field) v->VisitPointer(reinterpret_cast<Object**>(&(field)));
 
 void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
-  VISIT(thread->pending_exception_);
-  VISIT(thread->security_context_);
-  VISIT(thread->context_);
-  VISIT(thread->scheduled_exception_);
+  v->VisitPointer(&(thread->pending_exception_));
+  v->VisitPointer(bit_cast<Object**, Context**>(&(thread->security_context_)));
+  v->VisitPointer(bit_cast<Object**, Context**>(&(thread->context_)));
+  v->VisitPointer(&(thread->scheduled_exception_));
 
   for (v8::TryCatch* block = thread->try_catch_handler_;
        block != NULL;
        block = block->next_) {
-    VISIT(reinterpret_cast<Object*&>(block->exception_));
-    VISIT(reinterpret_cast<Object*&>(block->message_));
+    v->VisitPointer(bit_cast<Object**, void**>(&(block->exception_)));
+    v->VisitPointer(bit_cast<Object**, void**>(&(block->message_)));
   }
 
   // Iterate over pointers on native execution stack.
@@ -222,6 +222,7 @@ void Top::Initialize() {
 
   InitializeThreadLocal();
 
+  break_access_ = OS::CreateMutex();
   break_frame_id_ = StackFrame::NO_ID;
   break_count_ = 0;
   break_id_ = 0;

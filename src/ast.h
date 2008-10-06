@@ -159,8 +159,7 @@ class Expression: public Node {
   // the expression stack, and a reference containing the expression
   // immediately below that.  This function is overridden for expression
   // types that can be stored into.
-  virtual void GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
+  virtual void GenerateStoreCode(CodeGenerator* cgen,
                                  Reference* ref,
                                  InitState init_state) {
     UNREACHABLE();
@@ -568,24 +567,15 @@ class TryCatch: public TryStatement {
 
 class TryFinally: public TryStatement {
  public:
-  TryFinally(Block* try_block, Expression* finally_var, Block* finally_block)
+  TryFinally(Block* try_block, Block* finally_block)
       : TryStatement(try_block),
-        finally_var_(finally_var),
         finally_block_(finally_block) { }
 
   virtual void Accept(Visitor* v);
 
-  // If the finally block is non-trivial it may be problematic to have
-  // extra stuff on the expression stack while evaluating it. The
-  // finally variable is used to hold the state instead of storing it
-  // on the stack. It may be NULL in which case the state is stored on
-  // the stack.
-  Expression* finally_var() const { return finally_var_; }
-
   Block* finally_block() const { return finally_block_; }
 
  private:
-  Expression* finally_var_;
   Block* finally_block_;
 };
 
@@ -772,8 +762,7 @@ class VariableProxy: public Expression {
   // side of an assignment.  The code will expect the stored value on top of
   // the expression stack, and a reference containing the expression
   // immediately below that.
-  virtual void GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
+  virtual void GenerateStoreCode(CodeGenerator* cgen,
                                  Reference* ref,
                                  InitState init_state);
  protected:
@@ -855,8 +844,7 @@ class Slot: public Expression {
   // side of an assignment.  The code will expect the stored value on top of
   // the expression stack, and a reference containing the expression
   // immediately below that.
-  virtual void GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
+  virtual void GenerateStoreCode(CodeGenerator* cgen,
                                  Reference* ref,
                                  InitState init_state);
  private:
@@ -890,8 +878,7 @@ class Property: public Expression {
   // side of an assignment.  The code will expect the stored value on top of
   // the expression stack, and a reference containing the expression
   // immediately below that.
-  virtual void GenerateStoreCode(MacroAssembler* masm,
-                                 Scope* scope,
+  virtual void GenerateStoreCode(CodeGenerator* cgen,
                                  Reference* ref,
                                  InitState init_state);
  private:

@@ -43,8 +43,7 @@ LIBRARY_FLAGS = {
   'gcc': {
     'all': {
       'DIALECTFLAGS': ['-ansi'],
-      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS',
-          '-fno-strict-aliasing'],
+      'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
       'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
       'LIBS':         ['pthread']
     },
@@ -53,7 +52,7 @@ LIBRARY_FLAGS = {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG']
     },
     'mode:release': {
-      'CCFLAGS':      ['-O2']
+      'CCFLAGS':      ['-O3']
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -77,8 +76,9 @@ LIBRARY_FLAGS = {
       'LINKFLAGS':    ['/DEBUG']
     },
     'mode:release': {
-      'CCFLAGS':      ['/Ox', '/MT', '/GF'],
-      'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF']
+      'CCFLAGS':      ['/O2', '/MT', '/GL'],
+      'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF', '/LTCG'],
+      'ARFLAGS':      ['/LTCG']
     }
   }
 }
@@ -205,8 +205,8 @@ SAMPLE_FLAGS = {
       'LINKFLAGS': ['/MAP']
     },
     'mode:release': {
-      'CCFLAGS':   ['/Ox', '/MT', '/GF'],
-      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF']
+      'CCFLAGS':   ['/O2', '/MT'],
+      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF', '/LTCG']
     },
     'mode:debug': {
       'CCFLAGS':   ['/Od', '/MTd'],

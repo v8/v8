@@ -159,12 +159,8 @@ int main(int argc, char** argv) {
   v8::V8::SetCounterFunction(counter_callback);
   v8::HandleScope scope;
 
-  const int kExtensionCount = 5;
-  const char* extension_list[kExtensionCount] = { "v8/print",
-                                                  "v8/load",
-                                                  "v8/quit",
-                                                  "v8/version",
-                                                  "v8/gc" };
+  const int kExtensionCount = 1;
+  const char* extension_list[kExtensionCount] = { "v8/gc" };
   v8::ExtensionConfiguration extensions(kExtensionCount, extension_list);
   v8::Context::New(&extensions);
 

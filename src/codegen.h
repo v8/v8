@@ -123,6 +123,7 @@ class CodeGenerator: public Visitor {
 
   virtual MacroAssembler* masm() = 0;
 
+  virtual Scope* scope() const = 0;
 
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
   void ProcessDeferred();
@@ -166,6 +167,43 @@ class CodeGenerator: public Visitor {
   // Fast support for object equality testing.
   virtual void GenerateObjectEquals(ZoneList<Expression*>* args) = 0;
 
+
+  // Multiple methods for fast case switch statement support.
+
+  // The limit of the range of a fast-case switch, as a factor of the number
+  // of cases of the switch. Each platform should return a value that
+  // is optimal compared to the default code generated for a switch statement
+  // on that platform.
+  virtual int FastCaseSwitchMaxOverheadFactor() = 0;
+
+  // The minimal number of cases in a switch before the fast-case switch
+  // optimization is enabled. Each platform should return a value that
+  // is optimal compared to the default code generated for a switch statement
+  // on that platform.
+  virtual int FastCaseSwitchMinCaseCount() = 0;
+
+  // Allocate a jump table and create code to jump through it.
+  // Should call GenerateFastCaseSwitchCases to generate the code for
+  // all the cases at the appropriate point.
+  virtual void GenerateFastCaseSwitchJumpTable(
+      SwitchStatement* node, int min_index, int range, Label *fail_label,
+      SmartPointer<Label*> &case_targets, SmartPointer<Label>& case_labels) = 0;
+
+  // Generate the code for cases for the fast case switch.
+  // Called by GenerateFastCaseSwitchJumpTable.
+  virtual void GenerateFastCaseSwitchCases(
+      SwitchStatement* node, SmartPointer<Label> &case_labels);
+
+  // Fast support for constant-Smi switches.
+  virtual void GenerateFastCaseSwitchStatement(
+      SwitchStatement *node, int min_index, int range, int default_index);
+
+  // Fast support for constant-Smi switches. Tests whether switch statement
+  // permits optimization and calls GenerateFastCaseSwitch if it does.
+  // Returns true if the fast-case switch was generated, and false if not.
+  virtual bool TryGenerateFastCaseSwitchStatement(SwitchStatement *node);
+
+
  private:
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;
@@ -173,7 +211,7 @@ class CodeGenerator: public Visitor {
 };
 
 
-// RuntimeStub models code stubs calling entrypoints in the Runtime class.
+// RuntimeStub models code stubs calling entry points in the Runtime class.
 class RuntimeStub : public CodeStub {
  public:
   explicit RuntimeStub(Runtime::FunctionId id, int num_arguments)
@@ -301,6 +339,33 @@ class JSConstructEntryStub : public JSEntryStub {
   int MinorKey() { return 1; }
 
   const char* GetName() { return "JSConstructEntryStub"; }
+};
+
+
+class ArgumentsAccessStub: public CodeStub {
+ public:
+  enum Type {
+    READ_LENGTH,
+    READ_ELEMENT,
+    NEW_OBJECT
+  };
+
+  explicit ArgumentsAccessStub(Type type) : type_(type) { }
+
+ private:
+  Type type_;
+
+  Major MajorKey() { return ArgumentsAccess; }
+  int MinorKey() { return type_; }
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "ArgumentsAccessStub"; }
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("ArgumentsAccessStub (type %d)\n", type_);
+  }
+#endif
 };
 
 

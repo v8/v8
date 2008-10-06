@@ -906,14 +906,14 @@
 			</Filter>
 		</Filter>
 		<Filter
-			Name="public"
+			Name="include"
 			>
 			<File
-				RelativePath="..\..\public\debug.h"
+				RelativePath="..\..\include\debug.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\public\v8.h"
+				RelativePath="..\..\include\v8.h"
 				>
 			</File>
 		</Filter>

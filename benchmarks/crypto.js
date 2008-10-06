@@ -1406,7 +1406,9 @@ function rng_seed_int(x) {
 
 // Mix in the current time (w/milliseconds) into the pool
 function rng_seed_time() {
-  rng_seed_int(new Date().getTime());
+  // Use pre-computed date to avoid making the benchmark 
+  // results dependent on the current date.
+  rng_seed_int(1122926989487);
 }
 
 // Initialize the pool with junk if needed.
@@ -1674,16 +1676,23 @@ coeffValue="3a3e731acd8960b7ff9eb81a7ff93bd1cfa74cbd56987db58b4594fb09c09084db17
 
 setupEngine(am3, 28);
 
-var RSA = new RSAKey();
-var TEXT = "The quick brown fox jumped over the extremely lazy frogs!";
-
-RSA.setPublic(nValue, eValue);
-RSA.setPrivateEx(nValue, eValue, dValue, pValue, qValue, dmp1Value, dmq1Value, coeffValue);
+var TEXT = "The quick brown fox jumped over the extremely lazy frog! " +
+    "Now is the time for all good men to come to the party.";
+var encrypted;
 
 function encrypt() {
-  return RSA.encrypt(TEXT);
+  var RSA = new RSAKey();
+  RSA.setPublic(nValue, eValue);
+  RSA.setPrivateEx(nValue, eValue, dValue, pValue, qValue, dmp1Value, dmq1Value, coeffValue);
+  encrypted = RSA.encrypt(TEXT);
 }
 
 function decrypt() {
-  return RSA.decrypt(TEXT);
+  var RSA = new RSAKey();
+  RSA.setPublic(nValue, eValue);
+  RSA.setPrivateEx(nValue, eValue, dValue, pValue, qValue, dmp1Value, dmq1Value, coeffValue);
+  var decrypted = RSA.decrypt(encrypted);
+  if (decrypted != TEXT) {
+    throw new Error("Crypto operation failed");
+  }
 }

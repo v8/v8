@@ -13,6 +13,8 @@ var RayTrace = new BenchmarkSuite('RayTrace', 932666, [
 ]);
 
 
+var checkNumber;
+
 // Create dummy objects if we're not running in a browser.
 if (typeof document == 'undefined') {
   document = { };
@@ -2669,6 +2671,13 @@ Flog.RayTracer.Color.prototype = {
         return result;
     },
 
+    brightness : function() {
+        var r = Math.floor(this.red*255);
+        var g = Math.floor(this.green*255);
+        var b = Math.floor(this.blue*255);
+        return (r * 77 + g * 150 + b * 29) >> 8;
+    },
+
     toString : function () {
         var r = Math.floor(this.red*255);
         var g = Math.floor(this.green*255);
@@ -3152,11 +3161,15 @@ Flog.RayTracer.Engine.prototype = {
           this.canvas.fillStyle = color.toString();
           this.canvas.fillRect (x * pxW, y * pxH, pxW, pxH);
         } else {
+          if (x ===  y) {
+            checkNumber += color.brightness();
+          }
           // print(x * pxW, y * pxH, pxW, pxH);
         }
     },
 
     renderScene: function(scene, canvas){
+        checkNumber = 0;
         /* Get canvas */
         if (canvas) {
           this.canvas = canvas.getContext("2d");
@@ -3178,6 +3191,9 @@ Flog.RayTracer.Engine.prototype = {
 
             	this.setPixel(x, y, color);
             }
+        }
+        if (checkNumber !== 2321) {
+          throw new Error("Scene rendered incorrectly");
         }
     },
 

@@ -86,21 +86,26 @@ void SetPrototypeProperty(Handle<JSFunction> func, Handle<JSObject> value) {
 }
 
 
-void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
-                                          int estimate) {
+static int ExpectedNofPropertiesFromEstimate(int estimate) {
   // TODO(1231235): We need dynamic feedback to estimate the number
   // of expected properties in an object. The static hack below
   // is barely a solution.
-  shared->set_expected_nof_properties(estimate + 2);
+  if (estimate == 0) return 4;
+  return estimate + 2;
+}
+
+
+void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
+                                          int estimate) {
+  shared->set_expected_nof_properties(
+      ExpectedNofPropertiesFromEstimate(estimate));
 }
 
 
 void SetExpectedNofPropertiesFromEstimate(Handle<JSFunction> func,
                                           int estimate) {
-  // TODO(1231235): We need dynamic feedback to estimate the number
-  // of expected properties in an object. The static hack below
-  // is barely a solution.
-  SetExpectedNofProperties(func, estimate + 2);
+  SetExpectedNofProperties(
+      func, ExpectedNofPropertiesFromEstimate(estimate));
 }
 
 
@@ -137,13 +142,6 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 }
 
 
-void AddProperty(Handle<JSObject> object,
-                 Handle<String> key,
-                 Handle<Object> value,
-                 PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION_VOID(object->AddProperty(*key, *value, attributes));
-}
-
 Handle<Object> SetProperty(Handle<JSObject> object,
                            Handle<String> key,
                            Handle<Object> value,
@@ -156,10 +154,18 @@ Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION(Runtime::SetObjectProperty(object, key, value, attributes),
-                     Object);
+  CALL_HEAP_FUNCTION(
+      Runtime::SetObjectProperty(object, key, value, attributes), Object);
 }
 
+
+Handle<Object> IgnoreAttributesAndSetLocalProperty(Handle<JSObject> object,
+                           Handle<String> key,
+                           Handle<Object> value,
+                           PropertyAttributes attributes) {
+  CALL_HEAP_FUNCTION(object->
+      IgnoreAttributesAndSetLocalProperty(*key, *value, attributes), Object);
+}
 
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,

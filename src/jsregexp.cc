@@ -32,6 +32,7 @@
 #include "jsregexp.h"
 #include "third_party/jscre/pcre.h"
 #include "platform.h"
+#include "runtime.h"
 #include "top.h"
 
 namespace v8 { namespace internal {
@@ -142,6 +143,117 @@ Handle<String> RegExpImpl::StringToTwoByte(Handle<String> pattern) {
 }
 
 
+unibrow::Predicate<unibrow::RegExpSpecialChar, 128> is_reg_exp_special_char;
+
+
+Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
+                                   Handle<String> pattern,
+                                   Handle<String> flags) {
+  bool is_atom = true;
+  for (int i = 0; is_atom && i < flags->length(); i++) {
+    if (flags->Get(i) == 'i')
+      is_atom = false;
+  }
+  for (int i = 0; is_atom && i < pattern->length(); i++) {
+    if (is_reg_exp_special_char.get(pattern->Get(i)))
+      is_atom = false;
+  }
+  Handle<Object> result;
+  if (is_atom) {
+    result = AtomCompile(re, pattern);
+  } else {
+    result = JsreCompile(re, pattern, flags);
+  }
+
+  LOG(RegExpCompileEvent(re));
+  return result;
+}
+
+
+Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
+                                Handle<String> subject,
+                                Handle<Object> index) {
+  switch (regexp->type_tag()) {
+    case JSRegExp::JSCRE:
+      return JsreExec(regexp, subject, index);
+    case JSRegExp::ATOM:
+      return AtomExec(regexp, subject, index);
+    default:
+      UNREACHABLE();
+      return Handle<Object>();
+  }
+}
+
+
+Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
+                                Handle<String> subject) {
+  switch (regexp->type_tag()) {
+    case JSRegExp::JSCRE:
+      return JsreExecGlobal(regexp, subject);
+    case JSRegExp::ATOM:
+      return AtomExecGlobal(regexp, subject);
+    default:
+      UNREACHABLE();
+      return Handle<Object>();
+  }
+}
+
+
+Handle<Object> RegExpImpl::AtomCompile(Handle<JSRegExp> re,
+                                       Handle<String> pattern) {
+  re->set_type_tag(JSRegExp::ATOM);
+  re->set_data(*pattern);
+  return re;
+}
+
+
+Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
+                                    Handle<String> subject,
+                                    Handle<Object> index) {
+  Handle<String> needle(String::cast(re->data()));
+
+  uint32_t start_index;
+  if (!Array::IndexFromObject(*index, &start_index)) {
+    return Handle<Smi>(Smi::FromInt(-1));
+  }
+
+  LOG(RegExpExecEvent(re, start_index, subject));
+  int value = Runtime::StringMatchKmp(*subject, *needle, start_index);
+  if (value == -1) return Factory::null_value();
+  Handle<JSArray> result = Factory::NewJSArray(2);
+  SetElement(result, 0, Handle<Smi>(Smi::FromInt(value)));
+  SetElement(result, 1, Handle<Smi>(Smi::FromInt(value + needle->length())));
+  return result;
+}
+
+
+Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
+                                          Handle<String> subject) {
+  Handle<String> needle(String::cast(re->data()));
+  Handle<JSArray> result = Factory::NewJSArray(1);
+  bool keep_going = true;
+  int index = 0;
+  int match_count = 0;
+  int needle_length = needle->length();
+  while (keep_going) {
+    LOG(RegExpExecEvent(re, index, subject));
+    int value = Runtime::StringMatchKmp(*subject, *needle, index);
+    if (value == -1) break;
+    HandleScope scope;
+    int end = value + needle_length;
+    Handle<JSArray> pair = Factory::NewJSArray(2);
+    SetElement(pair, 0, Handle<Smi>(Smi::FromInt(value)));
+    SetElement(pair, 1, Handle<Smi>(Smi::FromInt(end)));
+    SetElement(result, match_count, pair);
+    match_count++;
+    index = end;
+    if (needle_length == 0)
+      index++;
+  }
+  return result;
+}
+
+
 Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
                                        Handle<String> pattern,
                                        Handle<String> flags) {
@@ -206,8 +318,6 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
   re->set_type_tag(JSRegExp::JSCRE);
   re->set_data(*value);
 
-  LOG(RegExpCompileEvent(re));
-
   return re;
 }
 
@@ -260,7 +370,6 @@ Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSRegExp> regexp,
     SetElement(result, i, Handle<Object>(Smi::FromInt(offsets_vector[i])));
     SetElement(result, i+1, Handle<Object>(Smi::FromInt(offsets_vector[i+1])));
   }
-
   return result;
 }
 

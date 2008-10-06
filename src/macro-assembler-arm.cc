@@ -690,12 +690,24 @@ void MacroAssembler::StubReturn(int argc) {
 }
 
 
+void MacroAssembler::IllegalOperation(int num_arguments) {
+  if (num_arguments > 0) {
+    add(sp, sp, Operand(num_arguments * kPointerSize));
+  }
+  mov(r0, Operand(Factory::undefined_value()));
+}
+
+
 void MacroAssembler::CallRuntime(Runtime::Function* f, int num_arguments) {
   // All parameters are on the stack.  r0 has the return value after call.
 
-  // Either the expected number of arguments is unknown, or the actual
-  // number of arguments match the expectation.
-  ASSERT(f->nargs < 0 || f->nargs == num_arguments);
+  // If the expected number of arguments of the runtime function is
+  // constant, we check that the actual number of arguments match the
+  // expectation.
+  if (f->nargs >= 0 && f->nargs != num_arguments) {
+    IllegalOperation(num_arguments);
+    return;
+  }
 
   Runtime::FunctionId function_id =
       static_cast<Runtime::FunctionId>(f->stub_id);

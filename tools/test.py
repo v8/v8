@@ -27,10 +27,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+
 import imp
 import optparse
 import os
-from os.path import join, dirname, abspath, basename
+from os.path import join, dirname, abspath, basename, isdir, exists
 import platform
 import re
 import signal
@@ -38,7 +39,9 @@ import subprocess
 import sys
 import tempfile
 import time
+import threading
 import utils
+from Queue import Queue, Empty
 
 
 VERBOSE = False
@@ -53,27 +56,79 @@ class ProgressIndicator(object):
 
   def __init__(self, cases):
     self.cases = cases
+    self.queue = Queue(len(cases))
+    for case in cases:
+      self.queue.put_nowait(case)
     self.succeeded = 0
-    self.failed = 0
-    self.remaining = len(self.cases)
-    self.total = len(self.cases)
-    self.failed_tests = [ ]
+    self.remaining = len(cases)
+    self.total = len(cases)
+    self.failed = [ ]
+    self.terminate = False
+    self.lock = threading.Lock()
 
-  def Run(self):
+  def PrintFailureHeader(self, test):
+    if test.IsNegative():
+      negative_marker = '[negative] '
+    else:
+      negative_marker = ''
+    print "=== %(label)s %(negative)s===" % {
+      'label': test.GetLabel(),
+      'negative': negative_marker
+    }
+    print "Path: %s" % "/".join(test.path)
+
+  def Run(self, tasks):
     self.Starting()
-    for test in self.cases:
+    threads = []
+    # Spawn N-1 threads and then use this thread as the last one.
+    # That way -j1 avoids threading altogether which is a nice fallback
+    # in case of threading problems.
+    for i in xrange(tasks - 1):
+      thread = threading.Thread(target=self.RunSingle, args=[])
+      threads.append(thread)
+      thread.start()
+    try:
+      self.RunSingle()
+      # Wait for the remaining threads
+      for thread in threads:
+        # Use a timeout so that signals (ctrl-c) will be processed.
+        thread.join(timeout=10000000)
+    except Exception, e:
+      # If there's an exception we schedule an interruption for any
+      # remaining threads.
+      self.terminate = True
+      # ...and then reraise the exception to bail out
+      raise
+    self.Done()
+    return not self.failed
+
+  def RunSingle(self):
+    while not self.terminate:
+      try:
+        test = self.queue.get_nowait()
+      except Empty:
+        return
       case = test.case
+      self.lock.acquire()
       self.AboutToRun(case)
-      output = case.Run()
+      self.lock.release()
+      try:
+        start = time.time()
+        output = case.Run()
+        case.duration = (time.time() - start)
+      except IOError, e:
+        assert self.terminate
+        return
+      if self.terminate:
+        return
+      self.lock.acquire()
       if output.UnexpectedOutput():
-        self.failed += 1
-        self.failed_tests.append(output)
+        self.failed.append(output)
       else:
         self.succeeded += 1
       self.remaining -= 1
       self.HasRun(output)
-    self.Done()
-    return self.failed == 0
+      self.lock.release()
 
 
 def EscapeCommand(command):
@@ -95,8 +150,8 @@ class SimpleProgressIndicator(ProgressIndicator):
 
   def Done(self):
     print
-    for failed in self.failed_tests:
-      print "=== %s (%s) ===" % (failed.test.GetLabel(), "/".join(failed.test.path))
+    for failed in self.failed:
+      self.PrintFailureHeader(failed.test)
       if failed.output.stderr:
         print "--- stderr ---"
         print failed.output.stderr.strip()
@@ -104,28 +159,29 @@ class SimpleProgressIndicator(ProgressIndicator):
         print "--- stdout ---"
         print failed.output.stdout.strip()
       print "Command: %s" % EscapeCommand(failed.command)
-    if len(self.failed_tests) == 0:
+    if len(self.failed) == 0:
       print "==="
       print "=== All tests succeeded"
       print "==="
     else:
       print
       print "==="
-      print "=== %i tests failed" % len(self.failed_tests)
+      print "=== %i tests failed" % len(self.failed)
       print "==="
 
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
 
   def AboutToRun(self, case):
-    print '%s:' % case.GetLabel(),
+    print 'Starting %s...' % case.GetLabel()
     sys.stdout.flush()
 
   def HasRun(self, output):
     if output.UnexpectedOutput():
-      print "FAIL"
+      outcome = 'FAIL'
     else:
-      print "pass"
+      outcome = 'pass'
+    print 'Done running %s: %s' % (output.test.GetLabel(), outcome)
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
@@ -134,7 +190,7 @@ class DotsProgressIndicator(SimpleProgressIndicator):
     pass
 
   def HasRun(self, output):
-    total = self.succeeded + self.failed
+    total = self.succeeded + len(self.failed)
     if (total > 1) and (total % 50 == 1):
       sys.stdout.write('\n')
     if output.UnexpectedOutput():
@@ -164,7 +220,8 @@ class CompactProgressIndicator(ProgressIndicator):
 
   def HasRun(self, output):
     if output.UnexpectedOutput():
-      print "=== %s (%s) ===" % (output.test.GetLabel(), "/".join(output.test.path))
+      self.ClearLine(self.last_status_length)
+      self.PrintFailureHeader(output.test)
       print "Command: %s" % EscapeCommand(output.command)
       stdout = output.output.stdout.strip()
       if len(stdout):
@@ -185,7 +242,7 @@ class CompactProgressIndicator(ProgressIndicator):
     status = self.templates['status_line'] % {
       'passed': self.succeeded,
       'remaining': (((self.total - self.remaining) * 100) // self.total),
-      'failed': self.failed,
+      'failed': len(self.failed),
       'test': name,
       'mins': int(elapsed) / 60,
       'secs': int(elapsed) % 60
@@ -252,9 +309,19 @@ class TestCase(object):
   def __init__(self, context, path):
     self.path = path
     self.context = context
+    self.failed = None
+    self.duration = None
 
   def IsNegative(self):
     return False
+
+  def CompareTime(self, other):
+    return cmp(other.duration, self.duration)
+
+  def DidFail(self, output):
+    if self.failed is None:
+      self.failed = self.IsFailureOutput(output)
+    return self.failed
 
   def IsFailureOutput(self, output):
     return output.exit_code != 0
@@ -284,7 +351,7 @@ class TestOutput(object):
     return not outcome in self.test.outcomes
 
   def HasFailed(self):
-    execution_failed = self.test.IsFailureOutput(self.output)
+    execution_failed = self.test.DidFail(self.output)
     if self.test.IsNegative():
       return not execution_failed
     else:
@@ -491,12 +558,12 @@ class Context(object):
     else:
       return name
 
-def RunTestCases(all_cases, progress):
+def RunTestCases(all_cases, progress, tasks):
   def DoSkip(case):
     return SKIP in c.outcomes or SLOW in c.outcomes
   cases_to_run = [ c for c in all_cases if not DoSkip(c) ]
   progress = PROGRESS_INDICATORS[progress](cases_to_run)
-  return progress.Run()
+  return progress.Run(tasks)
 
 
 def BuildRequirements(context, requirements, mode, scons_flags):
@@ -828,6 +895,7 @@ class Configuration(object):
     all_rules = reduce(list.__add__, [s.rules for s in sections], [])
     unused_rules = set(all_rules)
     result = [ ]
+    all_outcomes = set([])
     for case in cases:
       matches = [ r for r in all_rules if r.Contains(case.path) ]
       outcomes = set([])
@@ -837,8 +905,9 @@ class Configuration(object):
       if not outcomes:
         outcomes = [PASS]
       case.outcomes = outcomes
+      all_outcomes = all_outcomes.union(outcomes)
       result.append(ClassifiedTest(case, outcomes))
-    return (result, list(unused_rules))
+    return (result, list(unused_rules), all_outcomes)
 
 
 class Section(object):
@@ -955,6 +1024,12 @@ def BuildOptions():
   result.add_option("--special-command", default=None)
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
+  result.add_option("--warn-unused", help="Report unused rules",
+      default=False, action="store_true")
+  result.add_option("-j", help="The number of parallel tasks to run",
+      default=1, type="int")
+  result.add_option("--time", help="Print timing information after running",
+      default=False, action="store_true")
   return result
 
 
@@ -1044,7 +1119,18 @@ def GetSpecialCommandProcessor(value):
     return ExpandCommand
 
 
-BUILT_IN_TESTS = ['mjsunit', 'cctest']
+BUILT_IN_TESTS = ['mjsunit', 'cctest', 'message']
+
+
+def GetSuites(test_root):
+  def IsSuite(path):
+    return isdir(path) and exists(join(path, 'testcfg.py'))
+  return [ f for f in os.listdir(test_root) if IsSuite(join(test_root, f)) ]
+
+
+def FormatTime(d):
+  millis = round(d * 1000) % 1000
+  return time.strftime("%M:%S.", time.gmtime(d)) + ("%03i" % millis)
 
 
 def Main():
@@ -1055,7 +1141,8 @@ def Main():
     return 1
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
-  repositories = [TestRepository(join(workspace, 'test', name)) for name in BUILT_IN_TESTS]
+  suites = GetSuites(join(workspace, 'test'))
+  repositories = [TestRepository(join(workspace, 'test', name)) for name in suites]
   repositories += [TestRepository(a) for a in options.suite]
 
   root = LiteralTestSuite(repositories)
@@ -1073,6 +1160,8 @@ def Main():
                     join(buildspace, 'shell'),
                     options.timeout,
                     GetSpecialCommandProcessor(options.special_command))
+  if options.j != 1:
+    options.scons_flags += ['-j', str(options.j)]
   if not options.no_build:
     reqs = [ ]
     for path in paths:
@@ -1092,6 +1181,7 @@ def Main():
   all_cases = [ ]
   all_unused = [ ]
   unclassified_tests = [ ]
+  globally_unused_rules = None
   for path in paths:
     for mode in options.mode:
       env = {
@@ -1101,7 +1191,11 @@ def Main():
       }
       test_list = root.ListTests([], path, context, mode)
       unclassified_tests += test_list
-      (cases, unused_rules) = config.ClassifyTests(test_list, env)
+      (cases, unused_rules, all_outcomes) = config.ClassifyTests(test_list, env)
+      if globally_unused_rules is None:
+        globally_unused_rules = set(unused_rules)
+      else:
+        globally_unused_rules = globally_unused_rules.intersection(unused_rules)
       all_cases += cases
       all_unused.append(unused_rules)
 
@@ -1118,24 +1212,43 @@ def Main():
       print "--- end source: %s ---" % test.GetLabel()
     return 0
 
-#  for rule in unused_rules:
-#    print "Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path])
+  if options.warn_unused:
+    for rule in globally_unused_rules:
+      print "Rule for '%s' was not used." % '/'.join([str(s) for s in rule.path])
 
   if options.report:
     PrintReport(all_cases)
 
+  result = None
   if len(all_cases) == 0:
     print "No tests to run."
     return 0
   else:
     try:
-      if RunTestCases(all_cases, options.progress):
-        return 0
+      start = time.time()
+      if RunTestCases(all_cases, options.progress, options.j):
+        result = 0
       else:
-        return 1
+        result = 1
+      duration = time.time() - start
     except KeyboardInterrupt:
       print "Interrupted"
       return 1
+
+  if options.time:
+    # Write the times to stderr to make it easy to separate from the
+    # test output.
+    print
+    sys.stderr.write("--- Total time: %s ---\n" % FormatTime(duration))
+    timed_tests = [ t.case for t in all_cases if not t.case.duration is None ]
+    timed_tests.sort(lambda a, b: a.CompareTime(b))
+    index = 1
+    for entry in timed_tests[:20]:
+      t = FormatTime(entry.duration)
+      sys.stderr.write("%4i (%s) %s\n" % (index, t, entry.GetLabel()))
+      index += 1
+
+  return result
 
 
 if __name__ == '__main__':

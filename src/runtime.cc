@@ -135,6 +135,13 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
   Handle<FixedArray> literals = args.at<FixedArray>(0);
   int literals_index = Smi::cast(args[1])->value();
   Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
+
+  // Get the global context from the literals array.  This is the
+  // context in which the function was created and we use the object
+  // function from this context to create the object literal.  We do
+  // not use the object function from the current global context
+  // because this might be the object function from another context
+  // which we should not have access to.
   Handle<Context> context =
       Handle<Context>(JSFunction::GlobalContextFromLiterals(*literals));
 
@@ -143,11 +150,6 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
                                             constant_properties,
                                             is_result_from_cache);
 
-  // Get the object function from the literals array.  This is the
-  // object function from the context in which the function was
-  // created.  We do not use the object function from the current
-  // global context because this might be the object function from
-  // another context which we should not have access to.
   Handle<JSObject> boilerplate = Factory::NewJSObjectFromMap(map);
   {  // Add the constant propeties to the boilerplate.
     int length = constant_properties->length();
@@ -189,8 +191,8 @@ static Object* Runtime_CreateArrayLiteral(Arguments args) {
   // Takes a FixedArray of elements containing the literal elements of
   // the array literal and produces JSArray with those elements.
   // Additionally takes the literals array of the surrounding function
-  // which contains the Array function to use for creating the array
-  // literal.
+  // which contains the context from which to get the Array function
+  // to use for creating the array literal.
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(FixedArray, elements, args[0]);
   CONVERT_CHECKED(FixedArray, literals, args[1]);
@@ -251,7 +253,7 @@ static Object* Runtime_RegExpCompile(Arguments args) {
   Handle<String> pattern(raw_pattern);
   CONVERT_CHECKED(String, raw_flags, args[2]);
   Handle<String> flags(raw_flags);
-  return *RegExpImpl::JsreCompile(re, pattern, flags);
+  return *RegExpImpl::Compile(re, pattern, flags);
 }
 
 
@@ -397,7 +399,7 @@ static Object* Runtime_DeclareGlobals(Arguments args) {
       // of callbacks in the prototype chain (this rules out using
       // SetProperty).  Also, we must use the handle-based version to
       // avoid GC issues.
-      AddProperty(global, name, value, attributes);
+      IgnoreAttributesAndSetLocalProperty(global, name, value, attributes);
     }
   }
   // Done.
@@ -502,11 +504,14 @@ static Object* Runtime_InitializeVarGlobal(Arguments args) {
   // there, we add the property and take special precautions to always
   // add it as a local property even in case of callbacks in the
   // prototype chain (this rules out using SetProperty).
+  // We have IgnoreAttributesAndSetLocalProperty for this.
   LookupResult lookup;
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
     Object* value = (assign) ? args[1] : Heap::undefined_value();
-    return global->AddProperty(*name, value, attributes);
+    return global->IgnoreAttributesAndSetLocalProperty(*name,
+                                                       value,
+                                                       attributes);
   }
 
   // Determine if this is a redeclaration of something read-only.
@@ -566,10 +571,13 @@ static Object* Runtime_InitializeConstGlobal(Arguments args) {
   // there, we add the property and take special precautions to always
   // add it as a local property even in case of callbacks in the
   // prototype chain (this rules out using SetProperty).
+  // We use IgnoreAttributesAndSetLocalProperty instead
   LookupResult lookup;
   global->LocalLookup(*name, &lookup);
   if (!lookup.IsProperty()) {
-    return global->AddProperty(*name, *value, attributes);
+    return global->IgnoreAttributesAndSetLocalProperty(*name,
+                                                       *value,
+                                                       attributes);
   }
 
   // Determine if this is a redeclaration of something not
@@ -704,7 +712,7 @@ static Object* Runtime_RegExpExec(Arguments args) {
   Handle<String> subject(raw_subject);
   Handle<Object> index(args[2]);
   ASSERT(index->IsNumber());
-  return *RegExpImpl::JsreExec(regexp, subject, index);
+  return *RegExpImpl::Exec(regexp, subject, index);
 }
 
 
@@ -715,7 +723,7 @@ static Object* Runtime_RegExpExecGlobal(Arguments args) {
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  return *RegExpImpl::JsreExecGlobal(regexp, subject);
+  return *RegExpImpl::ExecGlobal(regexp, subject);
 }
 
 
@@ -727,11 +735,11 @@ static Object* Runtime_MaterializeRegExpLiteral(Arguments args) {
   Handle<String> pattern = args.at<String>(2);
   Handle<String> flags = args.at<String>(3);
 
-  // Get the RegExp function from the literals array.  This is the
-  // RegExp function from the context in which the function was
-  // created.  We do not use the RegExp function from the current
-  // global context because this might be the RegExp function from
-  // another context which we should not have access to.
+  // Get the RegExp function from the context in the literals array.
+  // This is the RegExp function from the context in which the
+  // function was created.  We do not use the RegExp function from the
+  // current global context because this might be the RegExp function
+  // from another context which we should not have access to.
   Handle<JSFunction> constructor =
       Handle<JSFunction>(
           JSFunction::GlobalContextFromLiterals(*literals)->regexp_function());
@@ -855,7 +863,7 @@ static Object* Runtime_SetCode(Arguments args) {
     target->set_code(fun->code());
     target->shared()->set_length(fun->shared()->length());
     target->shared()->set_formal_parameter_count(
-                          fun->shared()->formal_parameter_count());
+        fun->shared()->formal_parameter_count());
     // Set the source code of the target function.
     target->shared()->set_script(fun->shared()->script());
     target->shared()->set_start_position(fun->shared()->start_position());
@@ -942,23 +950,15 @@ static inline void ComputeKMPNextTable(String* pattern, int next_table[]) {
 }
 
 
-static Object* Runtime_StringIndexOf(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 3);
-
-  CONVERT_CHECKED(String, sub, args[0]);
-  CONVERT_CHECKED(String, pat, args[1]);
-  Object* index = args[2];
-
+int Runtime::StringMatchKmp(String* sub, String* pat, int start_index) {
   sub->TryFlatten();
   pat->TryFlatten();
 
   int subject_length = sub->length();
   int pattern_length = pat->length();
 
-  uint32_t start_index;
-  if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
-  if (pattern_length == 0) return Smi::FromInt(start_index);
+  if (start_index > subject_length) return -1;
+  if (pattern_length == 0) return start_index;
 
   // Searching for one specific character is common.  For one
   // character patterns the KMP algorithm is guaranteed to slow down
@@ -967,10 +967,10 @@ static Object* Runtime_StringIndexOf(Arguments args) {
     uint16_t pattern_char = pat->Get(0);
     for (int i = start_index; i < subject_length; i++) {
       if (sub->Get(i) == pattern_char) {
-        return Smi::FromInt(i);
+        return i;
       }
     }
-    return Smi::FromInt(-1);
+    return -1;
   }
 
   // For small searches, KMP is not worth the setup overhead.
@@ -983,10 +983,10 @@ static Object* Runtime_StringIndexOf(Arguments args) {
 
       for (int j = 1; j < pattern_length; j++) {
         if (pat->Get(j) != sub->Get(j + i)) break;
-        if (j == pattern_length - 1) return Smi::FromInt(i);
+        if (j == pattern_length - 1) return i;
       }
     }
-    return Smi::FromInt(-1);
+    return -1;
   }
 
   // For patterns with a larger length we use the KMP algorithm.
@@ -1010,11 +1010,25 @@ static Object* Runtime_StringIndexOf(Arguments args) {
     subject_index++;
     if (pattern_index >= pattern_length) {
       DeleteArray(next_table);
-      return Smi::FromInt(subject_index - pattern_index);
+      return subject_index - pattern_index;
     }
   }
   DeleteArray(next_table);
-  return Smi::FromInt(-1);
+  return -1;
+}
+
+
+static Object* Runtime_StringIndexOf(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+
+  CONVERT_CHECKED(String, sub, args[0]);
+  CONVERT_CHECKED(String, pat, args[1]);
+  Object* index = args[2];
+  uint32_t start_index;
+  if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
+
+  return Smi::FromInt(Runtime::StringMatchKmp(sub, pat, start_index));
 }
 
 
@@ -1369,23 +1383,6 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
 }
 
 
-static Object* Runtime_AddProperty(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 4);
-
-  CONVERT_CHECKED(JSObject, object, args[0]);
-  CONVERT_CHECKED(String, name, args[1]);
-  RUNTIME_ASSERT(!object->HasLocalProperty(name));
-  CONVERT_CHECKED(Smi, attr_obj, args[3]);
-
-  int attr = attr_obj->value();
-  RUNTIME_ASSERT((attr & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-  PropertyAttributes attributes = static_cast<PropertyAttributes>(attr);
-
-  return object->AddProperty(name, args[2], attributes);
-}
-
-
 static Object* Runtime_SetProperty(Arguments args) {
   NoHandleAllocation ha;
   RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
@@ -1398,10 +1395,11 @@ static Object* Runtime_SetProperty(Arguments args) {
   PropertyAttributes attributes = NONE;
   if (args.length() == 4) {
     CONVERT_CHECKED(Smi, value_obj, args[3]);
-    int value = value_obj->value();
+    int unchecked_value = value_obj->value();
     // Only attribute bits should be set.
-    ASSERT((value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-    attributes = static_cast<PropertyAttributes>(value);
+    RUNTIME_ASSERT(
+        (unchecked_value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
+    attributes = static_cast<PropertyAttributes>(unchecked_value);
   }
   return Runtime::SetObjectProperty(object, key, value, attributes);
 }
@@ -1411,12 +1409,22 @@ static Object* Runtime_SetProperty(Arguments args) {
 // exist, it will be added with attributes NONE.
 static Object* Runtime_IgnoreAttributesAndSetProperty(Arguments args) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 3);
-
+  RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, name, args[1]);
+  // Compute attributes.
+  PropertyAttributes attributes = NONE;
+  if (args.length() == 4) {
+    CONVERT_CHECKED(Smi, value_obj, args[3]);
+    int unchecked_value = value_obj->value();
+    // Only attribute bits should be set.
+    RUNTIME_ASSERT(
+        (unchecked_value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
+    attributes = static_cast<PropertyAttributes>(unchecked_value);
+  }
 
-  return object->IgnoreAttributesAndSetLocalProperty(name, args[2]);
+  return object->
+      IgnoreAttributesAndSetLocalProperty(name, args[2], attributes);
 }
 
 
@@ -2695,6 +2703,9 @@ static Object* Runtime_Math_tan(Arguments args) {
 }
 
 
+// The NewArguments function is only used when constructing the
+// arguments array when calling non-functions from JavaScript in
+// runtime.js:CALL_NON_FUNCTION.
 static Object* Runtime_NewArguments(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -2714,6 +2725,26 @@ static Object* Runtime_NewArguments(Arguments args) {
   ASSERT(array->length() == length);
   for (int i = 0; i < length; i++) {
     array->set(i, frame->GetParameter(i));
+  }
+  return result;
+}
+
+
+static Object* Runtime_NewArgumentsFast(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+
+  JSFunction* callee = JSFunction::cast(args[0]);
+  Object** parameters = reinterpret_cast<Object**>(args[1]);
+  const int length = Smi::cast(args[2])->value();
+
+  Object* result = Heap::AllocateArgumentsObject(callee, length);
+  if (result->IsFailure()) return result;
+  FixedArray* array = FixedArray::cast(JSObject::cast(result)->elements());
+  ASSERT(array->length() == length);
+  FixedArray::WriteBarrierMode mode = array->GetWriteBarrierMode();
+  for (int i = 0; i < length; i++) {
+    array->set(i, *--parameters, mode);
   }
   return result;
 }
@@ -3088,8 +3119,8 @@ static Object* RuntimePreempt(Arguments args) {
 
 
 static Object* Runtime_DebugBreak(Arguments args) {
-  // Just continue if breaks are disabled or if we fail to load the debugger.
-  if (Debug::disable_break() || !Debug::Load()) {
+  // Just continue if breaks are disabled.
+  if (Debug::disable_break()) {
     return args[0];
   }
 
@@ -3110,8 +3141,11 @@ static Object* Runtime_DebugBreak(Arguments args) {
   StackGuard::Continue(DEBUGBREAK);
 
   HandleScope scope;
-  SaveBreakFrame save;
-  EnterDebuggerContext enter;
+  // Enter the debugger. Just continue if we fail to enter the debugger.
+  EnterDebugger debugger;
+  if (debugger.FailedToEnter()) {
+    return args[0];
+  }
 
   // Notify the debug event listeners.
   Debugger::OnDebugBreak(Factory::undefined_value());

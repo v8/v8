@@ -1,3 +1,28 @@
+2008-10-06: Version 0.3.4
+
+        Changed Array.prototype.sort to use quick sort.
+
+        Fixed code generation issue where leaving a finally block with
+        break or continue would accumulate elements on the expression
+        stack (issue 86).
+
+        Made sure that the name accessor on functions returns the expected
+        names for builtin JavaScript functions and C++ callback functions.
+
+        Added fast case code for extending the property storage array of
+        JavaScript objects.
+
+        Ported switch statement optimizations introduced in version 0.3.3
+        to the ARM code generator.
+
+        Allowed GCC to use strict-aliasing rules when compiling.
+
+        Improved performance of arguments object allocation by taking care
+        of arguments adaptor frames in the generated code.
+
+        Updated the V8 benchmark suite to version 2.
+
+
 2008-09-25: Version 0.3.3
 
         Improved handling of relocation information to enable more
