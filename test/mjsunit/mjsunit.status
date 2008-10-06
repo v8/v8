@@ -57,11 +57,7 @@ debug-setbreakpoint: FAIL
 debug-step-stub-callfunction: FAIL
 debug-stepin-constructor: FAIL
 debug-step: FAIL
-regress/regress-998565: FAIL
-
-# Bug number 1308895: These tests pass on the ARM simulator, but
-# fail on the ARM Linux machine.
-debug-script-breakpoints: PASS || FAIL
-debug-scripts-request: PASS || FAIL
+debug-script-breakpoints: FAIL
 debug-breakpoints: PASS || FAIL
 
+regress/regress-998565: FAIL

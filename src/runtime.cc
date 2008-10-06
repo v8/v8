@@ -4697,8 +4697,14 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
 
   // Convert the script objects to proper JS objects.
   for (int i = 0; i < count; i++) {
-    Handle<Script> script(Script::cast(instances->get(i)));
-    instances->set(i, *GetScriptWrapper(script));
+    Handle<Script> script = Handle<Script>(Script::cast(instances->get(i)));
+    // Get the script wrapper in a local handle before calling GetScriptWrapper,
+    // because using
+    //   instances->set(i, *GetScriptWr apper(script))
+    // is unsafe as GetScriptWrapper might call GC and the C++ compiler might
+    // already have deferenced the instances handle. 
+    Handle<JSValue> wrapper = GetScriptWrapper(script);
+    instances->set(i, *wrapper);
   }
 
   // Return result as a JS array.
