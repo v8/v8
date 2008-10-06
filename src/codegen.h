@@ -357,7 +357,11 @@ class ArgumentsAccessStub: public CodeStub {
 
   Major MajorKey() { return ArgumentsAccess; }
   int MinorKey() { return type_; }
+
   void Generate(MacroAssembler* masm);
+  void GenerateReadLength(MacroAssembler* masm);
+  void GenerateReadElement(MacroAssembler* masm);
+  void GenerateNewObject(MacroAssembler* masm);
 
   const char* GetName() { return "ArgumentsAccessStub"; }
 

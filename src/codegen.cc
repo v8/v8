@@ -362,4 +362,13 @@ void RuntimeStub::Generate(MacroAssembler* masm) {
 }
 
 
+void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
+  switch (type_) {
+    case READ_LENGTH: GenerateReadLength(masm); break;
+    case READ_ELEMENT: GenerateReadElement(masm); break;
+    case NEW_OBJECT: GenerateNewObject(masm); break;
+  }
+}
+
+
 } }  // namespace v8::internal

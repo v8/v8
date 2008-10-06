@@ -4795,90 +4795,102 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
 }
 
 
-void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
-  // If we're reading an element we need to check that the key is a smi.
+void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor;
+  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
+  __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
+  __ j(equal, &adaptor);
+
+  // Nothing to do: The formal number of parameters has already been
+  // passed in register eax by calling function. Just return it.
+  __ ret(0);
+
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame and return it.
+  __ bind(&adaptor);
+  __ mov(eax, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ ret(0);
+}
+
+
+void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  // The displacement is used for skipping the frame pointer on the
+  // stack. It is the offset of the last parameter (if any) relative
+  // to the frame pointer.
+  static const int kDisplacement = 1 * kPointerSize;
+
+  // Check that the key is a smi.
   Label slow;
-  if (type_ == READ_ELEMENT) {
-    __ mov(ebx, Operand(esp, 1 * kPointerSize));  // skip return address
-    __ test(ebx, Immediate(kSmiTagMask));
-    __ j(not_zero, &slow, not_taken);
-  }
+  __ mov(ebx, Operand(esp, 1 * kPointerSize));  // skip return address
+  __ test(ebx, Immediate(kSmiTagMask));
+  __ j(not_zero, &slow, not_taken);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor;
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
   __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
-  if (type_ == NEW_OBJECT) {
-    __ j(not_equal, &slow);
-  } else {
-    __ j(equal, &adaptor);
-  }
+  __ j(equal, &adaptor);
 
-  // The displacement is used for skipping the return address on the
-  // stack. It is the offset of the last parameter (if any) relative
-  // to the frame pointer.
-  static const int kDisplacement = 1 * kPointerSize;
+  // Check index against formal parameters count limit passed in
+  // through register eax. Use unsigned comparison to get negative
+  // check for free.
+  __ cmp(ebx, Operand(eax));
+  __ j(above_equal, &slow, not_taken);
+
+  // Read the argument from the stack and return it.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);  // shifting code depends on this
+  __ lea(edx, Operand(ebp, eax, times_2, 0));
+  __ neg(ebx);
+  __ mov(eax, Operand(edx, ebx, times_2, kDisplacement));
+  __ ret(0);
 
-  if (type_ == READ_LENGTH) {
-    // Nothing to do: The formal number of parameters has already been
-    // passed in register eax by calling function. Just return it.
-    __ ret(0);
-  } else if (type_ == READ_ELEMENT) {
-    // Check index against formal parameters count limit passed in
-    // through register eax. Use unsigned comparison to get negative
-    // check for free.
-    __ cmp(ebx, Operand(eax));
-    __ j(above_equal, &slow, not_taken);
-
-    // Read the argument from the stack and return it.
-    __ lea(edx, Operand(ebp, eax, times_2, 0));
-    __ neg(ebx);
-    __ mov(eax, Operand(edx, ebx, times_2, kDisplacement));
-    __ ret(0);
-  } else {
-    ASSERT(type_ == NEW_OBJECT);
-    // Do nothing here.
-  }
-
-  // Arguments adaptor case: Find the length or the actual argument in
-  // the calling frame.
+  // Arguments adaptor case: Check index against actual arguments
+  // limit found in the arguments adaptor frame. Use unsigned
+  // comparison to get negative check for free.
   __ bind(&adaptor);
-  if (type_ == READ_LENGTH) {
-    // Read the arguments length from the adaptor frame and return it.
-    __ mov(eax, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ ret(0);
-  } else if (type_ == READ_ELEMENT) {
-    // Check index against actual arguments limit found in the
-    // arguments adaptor frame. Use unsigned comparison to get
-    // negative check for free.
-    __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ cmp(ebx, Operand(ecx));
-    __ j(above_equal, &slow, not_taken);
+  __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ cmp(ebx, Operand(ecx));
+  __ j(above_equal, &slow, not_taken);
 
-    // Read the argument from the stack and return it.
-    __ lea(edx, Operand(edx, ecx, times_2, 0));
-    __ neg(ebx);
-    __ mov(eax, Operand(edx, ebx, times_2, kDisplacement));
-    __ ret(0);
-  } else {
-    ASSERT(type_ == NEW_OBJECT);
-    // Patch the arguments.length and the parameters pointer.
-    __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-    __ mov(Operand(esp, 1 * kPointerSize), ecx);
-    __ lea(edx, Operand(edx, ecx, times_2, kDisplacement + 1 * kPointerSize));
-    __ mov(Operand(esp, 2 * kPointerSize), edx);
-    __ bind(&slow);
-    __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
-  }
+  // Read the argument from the stack and return it.
+  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);  // shifting code depends on this
+  __ lea(edx, Operand(edx, ecx, times_2, 0));
+  __ neg(ebx);
+  __ mov(eax, Operand(edx, ebx, times_2, kDisplacement));
+  __ ret(0);
 
   // Slow-case: Handle non-smi or out-of-bounds access to arguments
   // by calling the runtime system.
-  if (type_ == READ_ELEMENT) {
-    __ bind(&slow);
-    __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
-  }
+  __ bind(&slow);
+  __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
+}
+
+
+void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  // The displacement is used for skipping the return address and the
+  // frame pointer on the stack. It is the offset of the last
+  // parameter (if any) relative to the frame pointer.
+  static const int kDisplacement = 2 * kPointerSize;
+
+  // Check if the calling frame is an arguments adaptor frame.
+  Label runtime;
+  __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
+  __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
+  __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
+  __ j(not_equal, &runtime);
+
+  // Patch the arguments.length and the parameters pointer.
+  __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ mov(Operand(esp, 1 * kPointerSize), ecx);
+  __ lea(edx, Operand(edx, ecx, times_2, kDisplacement));
+  __ mov(Operand(esp, 2 * kPointerSize), edx);
+
+  // Do the runtime call to allocate the arguments object.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
 }
 
 

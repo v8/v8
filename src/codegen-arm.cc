@@ -4403,102 +4403,96 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 }
 
 
-void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r0: formal number of parameters for the calling function
-  //  -- r1: key (if value access)
-  //  -- lr: return address
-  // -----------------------------------
-
-  // If we're reading an element we need to check that the key is a smi.
-  Label slow;
-  if (type_ == READ_ELEMENT) {
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(ne, &slow);
-  }
-
+void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
   // Check if the calling frame is an arguments adaptor frame.
-  // r0: formal number of parameters
-  // r1: key (if access)
   Label adaptor;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
-  if (type_ == NEW_OBJECT) {
-    __ b(ne, &slow);
-  } else {
-    __ b(eq, &adaptor);
-  }
+  __ b(eq, &adaptor);
 
-  static const int kParamDisplacement =
+  // Nothing to do: The formal number of parameters has already been
+  // passed in register r0 by calling function. Just return it.
+  __ mov(pc, lr);
+
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame and return it.
+  __ bind(&adaptor);
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ mov(pc, lr);
+}
+
+
+void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  // The displacement is the offset of the last parameter (if any)
+  // relative to the frame pointer.
+  static const int kDisplacement =
       StandardFrameConstants::kCallerSPOffset - kPointerSize;
 
-  if (type_ == READ_LENGTH) {
-    // Nothing to do: The formal number of parameters has already been
-    // passed in register r0 by calling function. Just return it.
-    __ mov(pc, lr);
-  } else if (type_ == READ_ELEMENT) {
-    // Check index against formal parameter count. Use unsigned comparison to
-    // get the negative check for free.
-    // r0: formal number of parameters
-    // r1: index
-    __ cmp(r1, r0);
-    __ b(cs, &slow);
+  // Check that the key is a smi.
+  Label slow;
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(ne, &slow);
 
-    // Read the argument from the current frame and return it.
-    __ sub(r3, r0, r1);
-    __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
-    __ ldr(r0, MemOperand(r3, kParamDisplacement));
-    __ mov(pc, lr);
-  } else {
-    ASSERT(type_ == NEW_OBJECT);
-    // Do nothing here.
-  }
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor;
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ b(eq, &adaptor);
 
-  // An arguments adaptor frame is present. Find the length or the actual
-  // argument in the calling frame.
-  // r0: formal number of parameters
-  // r1: key
-  // r2: adaptor frame pointer
+  // Check index against formal parameters count limit passed in
+  // through register eax. Use unsigned comparison to get negative
+  // check for free.
+  __ cmp(r1, r0);
+  __ b(cs, &slow);
+
+  // Read the argument from the stack and return it.
+  __ sub(r3, r0, r1);
+  __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r0, MemOperand(r3, kDisplacement));
+  __ mov(pc, lr);
+
+  // Arguments adaptor case: Check index against actual arguments
+  // limit found in the arguments adaptor frame. Use unsigned
+  // comparison to get negative check for free.
   __ bind(&adaptor);
-  // Read the arguments length from the adaptor frame. This is the result if
-  // only accessing the length, otherwise it is used in accessing the value
   __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ cmp(r1, r0);
+  __ b(cs, &slow);
 
-  if (type_ == READ_LENGTH) {
-    // Return the length in r0.
-    __ mov(pc, lr);
-  } else if (type_ == READ_ELEMENT) {
-    // Check index against actual arguments count. Use unsigned comparison to
-    // get the negative check for free.
-    // r0: actual number of parameter
-    // r1: index
-    // r2: adaptor frame point
-    __ cmp(r1, r0);
-    __ b(cs, &slow);
+  // Read the argument from the adaptor frame and return it.
+  __ sub(r3, r0, r1);
+  __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r0, MemOperand(r3, kDisplacement));
+  __ mov(pc, lr);
 
-    // Read the argument from the adaptor frame and return it.
-    __ sub(r3, r0, r1);
-    __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
-    __ ldr(r0, MemOperand(r3, kParamDisplacement));
-    __ mov(pc, lr);
-  } else {
-    ASSERT(type_ == NEW_OBJECT);
-    // Patch the arguments.length and the parameters pointer.
-    __ str(r0, MemOperand(sp, 0 * kPointerSize));
-    __ add(r3, r2, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
-    __ add(r3, r3, Operand(kParamDisplacement + 1 * kPointerSize));
-    __ str(r3, MemOperand(sp, 1 * kPointerSize));
-    __ bind(&slow);
-    __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
-  }
+  // Slow-case: Handle non-smi or out-of-bounds access to arguments
+  // by calling the runtime system.
+  __ bind(&slow);
+  __ push(r1);
+  __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
+}
 
-  // Return to the calling function.
-  if (type_ == READ_ELEMENT) {
-    __ bind(&slow);
-    __ push(r1);
-    __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
-  }
+
+void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  // Check if the calling frame is an arguments adaptor frame.
+  Label runtime;
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ b(ne, &runtime);
+
+  // Patch the arguments.length and the parameters pointer.
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ str(r0, MemOperand(sp, 0 * kPointerSize));
+  __ add(r3, r2, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r3, r3, Operand(StandardFrameConstants::kCallerSPOffset));
+  __ str(r3, MemOperand(sp, 1 * kPointerSize));
+
+  // Do the runtime call to allocate the arguments object.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
 }
 
 
