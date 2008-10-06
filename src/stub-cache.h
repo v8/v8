@@ -202,7 +202,7 @@ class StubCache : public AllStatic {
     // shift are equal.  Shifting down the length field to get the
     // hash code would effectively throw away two bits of the hash
     // code.
-    ASSERT(kHeapObjectTagSize == kHashShift);
+    ASSERT(kHeapObjectTagSize == String::kHashShift);
     // Compute the hash of the name (use entire length field).
     ASSERT(name->HasHashCode());
     uint32_t field = name->length_field();
