@@ -57,6 +57,7 @@ namespace v8 { namespace internal {
   F(GetCalledFunction, 0) \
   F(GetFunctionDelegate, 1) \
   F(NewArguments, 1) \
+  F(NewArgumentsFast, 3) \
   F(LazyCompile, 1) \
   F(SetNewFunctionAttributes, 1) \
   \

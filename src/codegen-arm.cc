@@ -587,9 +587,15 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
       Comment cmnt(masm_, "[ allocate arguments object");
       { Reference shadow_ref(this, scope->arguments_shadow());
         { Reference arguments_ref(this, scope->arguments());
-          __ ldr(r0, FunctionOperand());
-          __ push(r0);
-          __ CallRuntime(Runtime::kNewArguments, 1);
+          ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+          __ ldr(r2, FunctionOperand());
+          // The receiver is below the arguments, the return address,
+          // and the frame pointer on the stack.
+          const int kReceiverDisplacement = 2 + scope->num_parameters();
+          __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
+          __ mov(r0, Operand(Smi::FromInt(scope->num_parameters())));
+          __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
+          __ CallStub(&stub);
           __ push(r0);
           SetValue(&arguments_ref);
         }
@@ -958,28 +964,6 @@ class InvokeBuiltinStub : public CodeStub {
     PrintF("InvokeBuiltinStub (kind %d, argc, %d)\n",
            static_cast<int>(kind_),
            argc_);
-  }
-#endif
-};
-
-
-class ArgumentsAccessStub: public CodeStub {
- public:
-  explicit ArgumentsAccessStub(bool is_length) : is_length_(is_length) { }
-
- private:
-  bool is_length_;
-
-  Major MajorKey() { return ArgumentsAccess; }
-  int MinorKey() { return is_length_ ? 1 : 0; }
-  void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "ArgumentsAccessStub"; }
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("ArgumentsAccessStub (is_length %s)\n",
-           is_length_ ? "true" : "false");
   }
 #endif
 };
@@ -2857,7 +2841,7 @@ void ArmCodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to the arguments.length.
-  ArgumentsAccessStub stub(true);
+  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
   __ CallStub(&stub);
   __ push(r0);
 }
@@ -2873,7 +2857,7 @@ void ArmCodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
-  ArgumentsAccessStub stub(false);
+  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   __ CallStub(&stub);
   __ push(r0);
 }
@@ -4426,9 +4410,9 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   //  -- lr: return address
   // -----------------------------------
 
-  // Check that the key is a smi for non-length accesses.
+  // If we're reading an element we need to check that the key is a smi.
   Label slow;
-  if (!is_length_) {
+  if (type_ == READ_ELEMENT) {
     __ tst(r1, Operand(kSmiTagMask));
     __ b(ne, &slow);
   }
@@ -4440,15 +4424,20 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
-  __ b(eq, &adaptor);
+  if (type_ == NEW_OBJECT) {
+    __ b(ne, &slow);
+  } else {
+    __ b(eq, &adaptor);
+  }
 
   static const int kParamDisplacement =
       StandardFrameConstants::kCallerSPOffset - kPointerSize;
 
-  if (is_length_) {
-    // Nothing to do: the formal length of parameters has been passed in r0
-    // by the calling function.
-  } else {
+  if (type_ == READ_LENGTH) {
+    // Nothing to do: The formal number of parameters has already been
+    // passed in register r0 by calling function. Just return it.
+    __ mov(pc, lr);
+  } else if (type_ == READ_ELEMENT) {
     // Check index against formal parameter count. Use unsigned comparison to
     // get the negative check for free.
     // r0: formal number of parameters
@@ -4456,14 +4445,15 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
     __ cmp(r1, r0);
     __ b(cs, &slow);
 
-    // Read the argument from the current frame.
+    // Read the argument from the current frame and return it.
     __ sub(r3, r0, r1);
     __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
     __ ldr(r0, MemOperand(r3, kParamDisplacement));
+    __ mov(pc, lr);
+  } else {
+    ASSERT(type_ == NEW_OBJECT);
+    // Do nothing here.
   }
-
-  // Return to the calling function.
-  __ mov(pc, lr);
 
   // An arguments adaptor frame is present. Find the length or the actual
   // argument in the calling frame.
@@ -4475,7 +4465,10 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   // only accessing the length, otherwise it is used in accessing the value
   __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
-  if (!is_length_) {
+  if (type_ == READ_LENGTH) {
+    // Return the length in r0.
+    __ mov(pc, lr);
+  } else if (type_ == READ_ELEMENT) {
     // Check index against actual arguments count. Use unsigned comparison to
     // get the negative check for free.
     // r0: actual number of parameter
@@ -4484,16 +4477,24 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
     __ cmp(r1, r0);
     __ b(cs, &slow);
 
-    // Read the argument from the adaptor frame.
+    // Read the argument from the adaptor frame and return it.
     __ sub(r3, r0, r1);
     __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
     __ ldr(r0, MemOperand(r3, kParamDisplacement));
+    __ mov(pc, lr);
+  } else {
+    ASSERT(type_ == NEW_OBJECT);
+    // Patch the arguments.length and the parameters pointer.
+    __ str(r0, MemOperand(sp, 0 * kPointerSize));
+    __ add(r3, r2, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+    __ add(r3, r3, Operand(kParamDisplacement + 1 * kPointerSize));
+    __ str(r3, MemOperand(sp, 1 * kPointerSize));
+    __ bind(&slow);
+    __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
   }
 
   // Return to the calling function.
-  __ mov(pc, lr);
-
-  if (!is_length_) {
+  if (type_ == READ_ELEMENT) {
     __ bind(&slow);
     __ push(r1);
     __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);

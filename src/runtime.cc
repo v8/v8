@@ -2703,6 +2703,9 @@ static Object* Runtime_Math_tan(Arguments args) {
 }
 
 
+// The NewArguments function is only used when constructing the
+// arguments array when calling non-functions from JavaScript in
+// runtime.js:CALL_NON_FUNCTION.
 static Object* Runtime_NewArguments(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -2722,6 +2725,26 @@ static Object* Runtime_NewArguments(Arguments args) {
   ASSERT(array->length() == length);
   for (int i = 0; i < length; i++) {
     array->set(i, frame->GetParameter(i));
+  }
+  return result;
+}
+
+
+static Object* Runtime_NewArgumentsFast(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 3);
+
+  JSFunction* callee = JSFunction::cast(args[0]);
+  Object** parameters = reinterpret_cast<Object**>(args[1]);
+  const int length = Smi::cast(args[2])->value();
+
+  Object* result = Heap::AllocateArgumentsObject(callee, length);
+  if (result->IsFailure()) return result;
+  FixedArray* array = FixedArray::cast(JSObject::cast(result)->elements());
+  ASSERT(array->length() == length);
+  FixedArray::WriteBarrierMode mode = array->GetWriteBarrierMode();
+  for (int i = 0; i < length; i++) {
+    array->set(i, *--parameters, mode);
   }
   return result;
 }

@@ -342,6 +342,33 @@ class JSConstructEntryStub : public JSEntryStub {
 };
 
 
+class ArgumentsAccessStub: public CodeStub {
+ public:
+  enum Type {
+    READ_LENGTH,
+    READ_ELEMENT,
+    NEW_OBJECT
+  };
+
+  explicit ArgumentsAccessStub(Type type) : type_(type) { }
+
+ private:
+  Type type_;
+
+  Major MajorKey() { return ArgumentsAccess; }
+  int MinorKey() { return type_; }
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "ArgumentsAccessStub"; }
+
+#ifdef DEBUG
+  void Print() {
+    PrintF("ArgumentsAccessStub (type %d)\n", type_);
+  }
+#endif
+};
+
+
 }  // namespace internal
 }  // namespace v8
 

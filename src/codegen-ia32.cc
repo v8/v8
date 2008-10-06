@@ -518,7 +518,6 @@ Ia32CodeGenerator::Ia32CodeGenerator(int buffer_size,
 // edi: caller's parameter pointer
 // esi: callee's context
 
-
 void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
   // Record the position for debugging purposes.
   __ RecordPosition(fun->start_position());
@@ -565,8 +564,12 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
     if (scope->arguments() != NULL) {
       ASSERT(scope->arguments_shadow() != NULL);
       Comment cmnt(masm_, "[ allocate arguments object");
+      ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+      __ lea(eax, ReceiverOperand());
       __ push(FunctionOperand());
-      __ CallRuntime(Runtime::kNewArguments, 1);
+      __ push(eax);
+      __ push(Immediate(Smi::FromInt(scope->num_parameters())));
+      __ CallStub(&stub);
       __ mov(ecx, Operand(eax));
       arguments_object_allocated = true;
     }
@@ -1066,28 +1069,6 @@ const char* GenericBinaryOpStub::GetName() {
   default:         return "GenericBinaryOpStub";
   }
 }
-
-
-class ArgumentsAccessStub: public CodeStub {
- public:
-  explicit ArgumentsAccessStub(bool is_length) : is_length_(is_length) { }
-
- private:
-  bool is_length_;
-
-  Major MajorKey() { return ArgumentsAccess; }
-  int MinorKey() { return is_length_ ? 1 : 0; }
-  void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "ArgumentsAccessStub"; }
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("ArgumentsAccessStub (is_length %s)\n",
-           is_length_ ? "true" : "false");
-  }
-#endif
-};
 
 
 void Ia32CodeGenerator::GenericBinaryOperation(Token::Value op,
@@ -3313,7 +3294,7 @@ void Ia32CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   __ Set(eax, Immediate(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to the arguments.length.
-  ArgumentsAccessStub stub(true);
+  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
   __ CallStub(&stub);
   __ push(eax);
 }
@@ -3376,7 +3357,7 @@ void Ia32CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   __ Set(eax, Immediate(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
-  ArgumentsAccessStub stub(false);
+  ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   __ CallStub(&stub);
   __ mov(TOS, eax);
 }
@@ -4815,9 +4796,9 @@ void UnarySubStub::Generate(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
-  // Check that the key is a smi for non-length access.
+  // If we're reading an element we need to check that the key is a smi.
   Label slow;
-  if (!is_length_) {
+  if (type_ == READ_ELEMENT) {
     __ mov(ebx, Operand(esp, 1 * kPointerSize));  // skip return address
     __ test(ebx, Immediate(kSmiTagMask));
     __ j(not_zero, &slow, not_taken);
@@ -4828,7 +4809,11 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
   __ cmp(ecx, ArgumentsAdaptorFrame::SENTINEL);
-  __ j(equal, &adaptor);
+  if (type_ == NEW_OBJECT) {
+    __ j(not_equal, &slow);
+  } else {
+    __ j(equal, &adaptor);
+  }
 
   // The displacement is used for skipping the return address on the
   // stack. It is the offset of the last parameter (if any) relative
@@ -4836,31 +4821,35 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
   static const int kDisplacement = 1 * kPointerSize;
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);  // shifting code depends on this
 
-  if (is_length_) {
-    // Do nothing. The length is already in register eax.
-  } else {
+  if (type_ == READ_LENGTH) {
+    // Nothing to do: The formal number of parameters has already been
+    // passed in register eax by calling function. Just return it.
+    __ ret(0);
+  } else if (type_ == READ_ELEMENT) {
     // Check index against formal parameters count limit passed in
     // through register eax. Use unsigned comparison to get negative
     // check for free.
     __ cmp(ebx, Operand(eax));
     __ j(above_equal, &slow, not_taken);
 
-    // Read the argument from the stack.
+    // Read the argument from the stack and return it.
     __ lea(edx, Operand(ebp, eax, times_2, 0));
     __ neg(ebx);
     __ mov(eax, Operand(edx, ebx, times_2, kDisplacement));
+    __ ret(0);
+  } else {
+    ASSERT(type_ == NEW_OBJECT);
+    // Do nothing here.
   }
-
-  // Return the length or the argument.
-  __ ret(0);
 
   // Arguments adaptor case: Find the length or the actual argument in
   // the calling frame.
   __ bind(&adaptor);
-  if (is_length_) {
-    // Read the arguments length from the adaptor frame.
+  if (type_ == READ_LENGTH) {
+    // Read the arguments length from the adaptor frame and return it.
     __ mov(eax, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  } else {
+    __ ret(0);
+  } else if (type_ == READ_ELEMENT) {
     // Check index against actual arguments limit found in the
     // arguments adaptor frame. Use unsigned comparison to get
     // negative check for free.
@@ -4868,18 +4857,25 @@ void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
     __ cmp(ebx, Operand(ecx));
     __ j(above_equal, &slow, not_taken);
 
-    // Read the argument from the stack.
+    // Read the argument from the stack and return it.
     __ lea(edx, Operand(edx, ecx, times_2, 0));
     __ neg(ebx);
     __ mov(eax, Operand(edx, ebx, times_2, kDisplacement));
+    __ ret(0);
+  } else {
+    ASSERT(type_ == NEW_OBJECT);
+    // Patch the arguments.length and the parameters pointer.
+    __ mov(ecx, Operand(edx, ArgumentsAdaptorFrameConstants::kLengthOffset));
+    __ mov(Operand(esp, 1 * kPointerSize), ecx);
+    __ lea(edx, Operand(edx, ecx, times_2, kDisplacement + 1 * kPointerSize));
+    __ mov(Operand(esp, 2 * kPointerSize), edx);
+    __ bind(&slow);
+    __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
   }
-
-  // Return the length or the argument.
-  __ ret(0);
 
   // Slow-case: Handle non-smi or out-of-bounds access to arguments
   // by calling the runtime system.
-  if (!is_length_) {
+  if (type_ == READ_ELEMENT) {
     __ bind(&slow);
     __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
   }
