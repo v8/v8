@@ -30,18 +30,20 @@ prefix mjsunit
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
 
-# This one uses a built-in that's only present in debug mode.
-fuzz-natives: PASS, SKIP IF $MODE==RELEASE
+# This one uses a built-in that's only present in debug mode. It takes
+# too long to run in debug mode on ARM.
+fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 
 [ $arch == arm ]
 
-# 1020483: Debug tests fail on arm
+# Slow test: Times out in debug mode.
+try: PASS, SKIP if $mode == debug
+
+# Bug number 1020483: Debug tests fail on ARM.
 debug-constructor: FAIL
 debug-continue: FAIL
 debug-backtrace-text: FAIL
 debug-backtrace: FAIL
-# Passes on ARM simulator, fails on ARM hardware.
-debug-breakpoints: PASS || FAIL
 debug-evaluate-recursive: FAIL
 debug-changebreakpoint: FAIL
 debug-clearbreakpoint: FAIL
@@ -51,13 +53,15 @@ debug-evaluate: FAIL
 debug-event-listener: FAIL
 debug-ignore-breakpoints: FAIL
 debug-multiple-breakpoints: FAIL
-# Bug number 1308895. The tests debug-script-breakpoints and
-# debug-scripts-request passes on the ARM simulator, but fails on the ARM Linux
-# machine.
-debug-script-breakpoints: PASS || FAIL
-debug-scripts-request: PASS || FAIL
 debug-setbreakpoint: FAIL
 debug-step-stub-callfunction: FAIL
 debug-stepin-constructor: FAIL
 debug-step: FAIL
 regress/regress-998565: FAIL
+
+# Bug number 1308895: These tests pass on the ARM simulator, but
+# fail on the ARM Linux machine.
+debug-script-breakpoints: PASS || FAIL
+debug-scripts-request: PASS || FAIL
+debug-breakpoints: PASS || FAIL
+
