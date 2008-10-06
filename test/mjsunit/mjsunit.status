@@ -36,8 +36,9 @@ fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 
 [ $arch == arm ]
 
-# Slow test: Times out in debug mode.
+# Slow tests which times out in debug mode.
 try: PASS, SKIP if $mode == debug
+debug-scripts-request: PASS, SKIP if $mode == debug
 
 # Bug number 1020483: Debug tests fail on ARM.
 debug-constructor: FAIL
