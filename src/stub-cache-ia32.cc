@@ -99,8 +99,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ j(zero, &miss, not_taken);
 
   // Get the map of the receiver and compute the hash.
-  __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ add(scratch, FieldOperand(name, String::kLengthOffset));
+  __ mov(scratch, FieldOperand(name, String::kLengthOffset));
+  __ add(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ xor_(scratch, flags);
   __ and_(scratch, (kPrimaryTableSize - 1) << kHeapObjectTagSize);
 

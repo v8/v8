@@ -2857,8 +2857,8 @@ class String: public HeapObject {
   // that the length field is also used to cache the hash value of
   // strings.  In order to get or set the actual length of the string
   // use the length() and set_length methods.
-  inline int length_field();
-  inline void set_length_field(int value);
+  inline uint32_t length_field();
+  inline void set_length_field(uint32_t value);
 
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
@@ -2930,7 +2930,9 @@ class String: public HeapObject {
   // Returns a hash value used for the property table
   inline uint32_t Hash();
 
-  static uint32_t ComputeHashCode(unibrow::CharacterStream* buffer, int length);
+  static uint32_t ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
+                                            int length);
+
   static bool ComputeArrayIndex(unibrow::CharacterStream* buffer,
                                 uint32_t* index,
                                 int length);
@@ -2981,11 +2983,6 @@ class String: public HeapObject {
   // Max ascii char code.
   static const int kMaxAsciiCharCode = 127;
 
-  // Shift constants for retriving length from length/hash field.
-  static const int kShortLengthShift = 3 * kBitsPerByte;
-  static const int kMediumLengthShift = 2 * kBitsPerByte;
-  static const int kLongLengthShift = 2;
-
   // Mask constant for checking if a string has a computed hash code
   // and if it is an array index.  The least significant bit indicates
   // whether a hash code has been computed.  If the hash code has been
@@ -2993,6 +2990,15 @@ class String: public HeapObject {
   // array index.
   static const int kHashComputedMask = 1;
   static const int kIsArrayIndexMask = 1 << 1;
+  static const int kNofLengthBitFields = 2;
+
+  // Shift constants for retriving length and hash code from
+  // length/hash field.
+  static const int kHashShift = kNofLengthBitFields;
+  static const int kShortLengthShift = 3 * kBitsPerByte;
+  static const int kMediumLengthShift = 2 * kBitsPerByte;
+  static const int kLongLengthShift = kHashShift;
+
 
   // Limit for truncation in short printing.
   static const int kMaxShortPrintLength = 1024;

@@ -341,7 +341,7 @@ class Heap : public AllStatic {
   // Please note this function does not perform a garbage collection.
   static Object* AllocateSymbol(unibrow::CharacterStream* buffer,
                                 int chars,
-                                int hash);
+                                uint32_t length_field);
 
   // Allocates and partially initializes a String.  There are two String
   // encodings: ASCII and two byte.  These functions allocate a string of the

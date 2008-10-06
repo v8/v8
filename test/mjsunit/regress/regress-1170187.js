@@ -35,11 +35,32 @@ Debug = debug.Debug
 listenerCalled = false;
 exception = false;
 
+
+function checkName(name) {
+  assertTrue(name == 'a' || name == 'b' || name == 'c');
+}
+
+
+function checkValue(value) {
+  assertEquals(void 0, value);
+}
+
+
 function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break) {
-      assertEquals('c', exec_state.frame(0).localName(0));
-      assertEquals(void 0, exec_state.frame(0).localValue(0).value());
+      var local0Name = exec_state.frame(0).localName(0);
+      var local1Name = exec_state.frame(0).localName(1);
+      var local2Name = exec_state.frame(0).localName(2);
+      checkName(local0Name);
+      checkName(local1Name);
+      checkName(local2Name);
+      var local0Value = exec_state.frame(0).localValue(0).value();
+      var local1Value = exec_state.frame(0).localValue(1).value();
+      var local2Value = exec_state.frame(0).localValue(2).value();
+      checkValue(local0Value);
+      checkValue(local1Value);
+      checkValue(local2Value);
       listenerCalled = true;
     }
   } catch (e) {

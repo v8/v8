@@ -484,6 +484,12 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_INT_FIELD(p, offset, value) \
   (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
 
+#define READ_UINT32_FIELD(p, offset) \
+  (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_UINT32_FIELD(p, offset, value) \
+  (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)) = value)
+
 #define READ_SHORT_FIELD(p, offset) \
   (*reinterpret_cast<uint16_t*>(FIELD_ADDR(p, offset)))
 
@@ -1204,13 +1210,13 @@ void String::set_length(int value) {
 }
 
 
-int String::length_field() {
-  return READ_INT_FIELD(this, kLengthOffset);
+uint32_t String::length_field() {
+  return READ_UINT32_FIELD(this, kLengthOffset);
 }
 
 
-void String::set_length_field(int value) {
-  WRITE_INT_FIELD(this, kLengthOffset, value);
+void String::set_length_field(uint32_t value) {
+  WRITE_UINT32_FIELD(this, kLengthOffset, value);
 }
 
 
@@ -2070,16 +2076,16 @@ bool String::HasHashCode() {
 
 uint32_t String::Hash() {
   // Fast case: has hash code already been computed?
-  int hash = length_field();
-  if (hash & kHashComputedMask) return hash;
+  uint32_t field = length_field();
+  if (field & kHashComputedMask) return field >> kHashShift;
   // Slow case: compute hash code and set it..
   return ComputeAndSetHash();
 }
 
 
 bool String::AsArrayIndex(uint32_t* index) {
-  int hash = length_field();
-  if ((hash & kHashComputedMask) && !(hash & kIsArrayIndexMask)) return false;
+  uint32_t field = length_field();
+  if ((field & kHashComputedMask) && !(field & kIsArrayIndexMask)) return false;
   return SlowAsArrayIndex(index);
 }
 

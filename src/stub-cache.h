@@ -198,11 +198,16 @@ class StubCache : public AllStatic {
 
   // Computes the hashed offsets for primary and secondary caches.
   static int PrimaryOffset(String* name, Code::Flags flags, Map* map) {
+    // This works well because the heap object tag size and the hash
+    // shift are equal.  Shifting down the length field to get the
+    // hash code would effectively throw away two bits of the hash
+    // code.
+    ASSERT(kHeapObjectTagSize == kHashShift);
     // Compute the hash of the name (use entire length field).
-    uint32_t name_hash = name->length_field();
-    ASSERT(name_hash & String::kHashComputedMask);
+    ASSERT(name->HasHashCode());
+    uint32_t field = name->length_field();
     // Base the offset on a simple combination of name, flags, and map.
-    uint32_t key = (reinterpret_cast<uint32_t>(map) + name_hash) ^ flags;
+    uint32_t key = (reinterpret_cast<uint32_t>(map) + field) ^ flags;
     return key & ((kPrimaryTableSize - 1) << kHeapObjectTagSize);
   }
 

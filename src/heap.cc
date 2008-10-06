@@ -1872,7 +1872,7 @@ Map* Heap::SymbolMapForString(String* string) {
 
 Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
                              int chars,
-                             int hash) {
+                             uint32_t length_field) {
   // Ensure the chars matches the number of characters in the buffer.
   ASSERT(static_cast<unsigned>(chars) == buffer->Length());
   // Determine whether the string is ascii.
@@ -1914,7 +1914,7 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
 
   reinterpret_cast<HeapObject*>(result)->set_map(map);
   // The hash value contains the length of the string.
-  String::cast(result)->set_length_field(hash);
+  String::cast(result)->set_length_field(length_field);
 
   ASSERT_EQ(size, String::cast(result)->Size());
 

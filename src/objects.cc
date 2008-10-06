@@ -3773,14 +3773,14 @@ uint32_t String::ComputeAndSetHash() {
 
   // Compute the hash code.
   StringInputBuffer buffer(this);
-  int hash = ComputeHashCode(&buffer, length());
+  uint32_t field = ComputeLengthAndHashField(&buffer, length());
 
   // Store the hash code in the object.
-  set_length_field(hash);
+  set_length_field(field);
 
   // Check the hash code is there.
   ASSERT(length_field() & kHashComputedMask);
-  return hash;
+  return field >> kHashShift;
 }
 
 
@@ -3825,8 +3825,8 @@ static inline uint32_t HashField(uint32_t hash, bool is_array_index) {
 }
 
 
-uint32_t String::ComputeHashCode(unibrow::CharacterStream* buffer,
-                                 int length) {
+uint32_t String::ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
+                                           int length) {
   // Large string (please note large strings cannot be an array index).
   if (length > kMaxMediumStringSize) return HashField(length, false);
 
@@ -5430,7 +5430,7 @@ class StringKey : public HashTableKey {
 class Utf8SymbolKey : public HashTableKey {
  public:
   explicit Utf8SymbolKey(Vector<const char> string)
-      : string_(string), hash_(0) { }
+      : string_(string), length_field_(0) { }
 
   bool IsMatch(Object* other) {
     if (!other->IsString()) return false;
@@ -5442,19 +5442,19 @@ class Utf8SymbolKey : public HashTableKey {
   }
 
   uint32_t Hash() {
-    if (hash_ != 0) return hash_;
+    if (length_field_ != 0) return length_field_ >> String::kHashShift;
     unibrow::Utf8InputBuffer<> buffer(string_.start(),
                                       static_cast<unsigned>(string_.length()));
     chars_ = buffer.Length();
-    hash_ = String::ComputeHashCode(&buffer, chars_);
-    return hash_;
+    length_field_ = String::ComputeLengthAndHashField(&buffer, chars_);
+    return length_field_ >> String::kHashShift;
   }
 
   Object* GetObject() {
-    if (hash_ == 0) Hash();
+    if (length_field_ == 0) Hash();
     unibrow::Utf8InputBuffer<> buffer(string_.start(),
                                       static_cast<unsigned>(string_.length()));
-    return Heap::AllocateSymbol(&buffer, chars_, hash_);
+    return Heap::AllocateSymbol(&buffer, chars_, length_field_);
   }
 
   static uint32_t StringHash(Object* obj) {
@@ -5464,7 +5464,7 @@ class Utf8SymbolKey : public HashTableKey {
   bool IsStringKey() { return true; }
 
   Vector<const char> string_;
-  uint32_t hash_;
+  uint32_t length_field_;
   int chars_;  // Caches the number of characters when computing the hash code.
 };
 
@@ -5503,7 +5503,9 @@ class SymbolKey : public HashTableKey {
     }
     // Otherwise allocate a new symbol.
     StringInputBuffer buffer(string_);
-    return Heap::AllocateSymbol(&buffer, string_->length(), string_->Hash());
+    return Heap::AllocateSymbol(&buffer,
+                                string_->length(),
+                                string_->length_field());
   }
 
   static uint32_t StringHash(Object* obj) {

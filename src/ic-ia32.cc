@@ -90,6 +90,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
     __ mov(r1, FieldOperand(name, String::kLengthOffset));
+    __ shr(r1, String::kHashShift);
     if (i > 0) __ add(Operand(r1), Immediate(Dictionary::GetProbeOffset(i)));
     __ and_(r1, Operand(r2));
 
