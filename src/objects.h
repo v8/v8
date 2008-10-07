@@ -3138,6 +3138,9 @@ class TwoByteString: public SeqString {
   inline uint16_t TwoByteStringGet(int index);
   inline void TwoByteStringSet(int index, uint16_t value);
 
+  // Get the address of the characters in this string.
+  inline Address GetCharsAddress();
+
   // For regexp code.
   const uint16_t* TwoByteStringGetData(unsigned start);
 

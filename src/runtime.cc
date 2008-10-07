@@ -42,6 +42,7 @@
 #include "runtime.h"
 #include "scopeinfo.h"
 #include "v8threads.h"
+#include "smart-pointer.h"
 
 namespace v8 { namespace internal {
 
@@ -927,110 +928,217 @@ static Object* Runtime_CharFromCode(Arguments args) {
 }
 
 
-static inline void ComputeKMPNextTable(String* pattern, int next_table[]) {
+static Vector<const char> ToAsciiVector(String *string) {
+  ASSERT(string->IsAscii());
+  ASSERT(string->IsFlat());
+
+  int offset = 0;
+  int length = string->length();
+  StringRepresentationTag string_tag = string->representation_tag();
+  if (string_tag == kSlicedStringTag) {
+      SlicedString* sliced = SlicedString::cast(string);
+      offset += sliced->start();
+      string = String::cast(sliced->buffer());
+      string_tag = string->representation_tag();
+  } else if (string_tag == kConsStringTag) {
+      ConsString* cons = ConsString::cast(string);
+      ASSERT(String::cast(cons->second())->length() == 0);
+      string = String::cast(cons->first());
+      string_tag = string->representation_tag();
+  }
+  if (string_tag == kSeqStringTag) {
+    AsciiString* seq = AsciiString::cast(string);
+    char* start = reinterpret_cast<char*>(seq->GetCharsAddress());
+    return Vector<const char>(start + offset, length);
+  }
+  ASSERT(string_tag == kExternalStringTag);
+  ExternalAsciiString* ext = ExternalAsciiString::cast(string);
+  const char* start = ext->resource()->data();
+  return Vector<const char>(start + offset, length);
+}
+
+
+static Vector<const uc16> ToUC16Vector(String *string) {
+  ASSERT(string->IsTwoByteString());
+  ASSERT(string->IsFlat());
+
+  int offset = 0;
+  int length = string->length();
+
+  StringRepresentationTag string_tag = string->representation_tag();
+  if (string_tag == kSlicedStringTag) {
+      SlicedString* sliced = SlicedString::cast(string);
+      offset += sliced->start();
+      string = String::cast(sliced->buffer());
+      string_tag = string->representation_tag();
+  } else if (string_tag == kConsStringTag) {
+      ConsString* cons = ConsString::cast(string);
+      ASSERT(String::cast(cons->second())->length() == 0);
+      string = String::cast(cons->first());
+      string_tag = string->representation_tag();
+  }
+  if (string_tag == kSeqStringTag) {
+    TwoByteString* seq = TwoByteString::cast(string);
+    uc16* start = reinterpret_cast<uc16*>(seq->GetCharsAddress());
+    return Vector<const uc16>(start + offset, length);
+  }
+  ASSERT(string_tag == kExternalStringTag);
+  ExternalTwoByteString* ext = ExternalTwoByteString::cast(string);
+  const uc16* start =
+      reinterpret_cast<const uc16*>(ext->resource()->data());
+  return Vector<const uc16>(start + offset, length);
+}
+
+
+template <typename schar, typename pchar>
+static int SingleCharIndexOf(Vector<const schar> string,
+                             pchar pattern_char,
+                             int start_index) {
+  for (int i = start_index, n = string.length(); i < n; i++) {
+    if (pattern_char == string[i]) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// Trivial string search for shorter strings.
+template <typename pchar, typename schar>
+static int SimpleIndexOf(Vector<const schar> subject,
+                         Vector<const pchar> pattern,
+                         int start_index) {
+  int pattern_length = pattern.length();
+  int subject_length = subject.length();
+  // We know our pattern is at least 2 characters, we cache the first so
+  // the common case of the first character not matching is faster.
+  pchar pattern_first_char = pattern[0];
+  for (int i = start_index, n = subject_length - pattern_length; i <= n; i++) {
+    if (subject[i] != pattern_first_char) continue;
+
+    bool failure = false;
+    for (int j = 1; j < pattern_length; j++) {
+      if (pattern[j] != subject[j+i]) {
+        failure = true;
+        break;
+      }
+    }
+    if (!failure) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// Full KMP pattern match.
+template <typename schar, typename pchar>  // Pattern & subject char types
+static int KMPIndexOf(Vector<const schar> subject,
+                      Vector<const pchar> pattern,
+                      int start_index) {
+  int subject_length = subject.length();
+  int pattern_length = pattern.length();
+  SmartPointer<int> next_table(NewArray<int>(pattern_length));
+
+  // Compute KMP "next" table
   int i = 0;
   int j = -1;
   next_table[0] = -1;
 
-  Access<StringInputBuffer> buffer(&string_input_buffer);
-  buffer->Reset(pattern);
-  int length = pattern->length();
-  uint16_t p = buffer->GetNext();
-  while (i < length - 1) {
-    while (j > -1 && p != pattern->Get(j)) {
+  pchar p = pattern[0];
+  while (i < pattern_length - 1) {
+    while (j > -1 && p != pattern[j]) {
       j = next_table[j];
     }
     i++;
     j++;
-    p = buffer->GetNext();
-    if (p == pattern->Get(j)) {
+    p = pattern[i];
+    if (p == pattern[j]) {
       next_table[i] = next_table[j];
     } else {
       next_table[i] = j;
     }
   }
-}
 
-
-int Runtime::StringMatchKmp(String* sub, String* pat, int start_index) {
-  sub->TryFlatten();
-  pat->TryFlatten();
-
-  int subject_length = sub->length();
-  int pattern_length = pat->length();
-
-  if (start_index > subject_length) return -1;
-  if (pattern_length == 0) return start_index;
-
-  // Searching for one specific character is common.  For one
-  // character patterns the KMP algorithm is guaranteed to slow down
-  // the search, so we just run through the subject string.
-  if (pattern_length == 1) {
-    uint16_t pattern_char = pat->Get(0);
-    for (int i = start_index; i < subject_length; i++) {
-      if (sub->Get(i) == pattern_char) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  // For small searches, KMP is not worth the setup overhead.
-  if (subject_length < 100) {
-    // We know our pattern is at least 2 characters, we cache the first so
-    // the common case of the first character not matching is faster.
-    uint16_t pattern_first_char = pat->Get(0);
-    for (int i = start_index; i + pattern_length <= subject_length; i++) {
-      if (sub->Get(i) != pattern_first_char) continue;
-
-      for (int j = 1; j < pattern_length; j++) {
-        if (pat->Get(j) != sub->Get(j + i)) break;
-        if (j == pattern_length - 1) return i;
-      }
-    }
-    return -1;
-  }
-
-  // For patterns with a larger length we use the KMP algorithm.
-  //
-  // Compute the 'next' table.
-  int* next_table = NewArray<int>(pattern_length);
-  ComputeKMPNextTable(pat, next_table);
   // Search using the 'next' table.
   int pattern_index = 0;
-  // We would like to use StringInputBuffer here, but it does not have
-  // the ability to start anywhere but the first character of a
-  // string.  It would be nice to have efficient forward-seeking
-  // support on StringInputBuffers.
   int subject_index = start_index;
   while (subject_index < subject_length) {
-    uint16_t subject_char = sub->Get(subject_index);
-    while (pattern_index > -1 && pat->Get(pattern_index) != subject_char) {
+    schar subject_char = subject[subject_index];
+    while (pattern_index > -1 && pattern[pattern_index] != subject_char) {
       pattern_index = next_table[pattern_index];
     }
     pattern_index++;
     subject_index++;
     if (pattern_index >= pattern_length) {
-      DeleteArray(next_table);
       return subject_index - pattern_index;
     }
   }
-  DeleteArray(next_table);
   return -1;
+}
+
+// Dispatch to different algorithms for different length of pattern/subject
+template <typename schar, typename pchar>
+static int StringMatchKMP(Vector<const schar> sub,
+                          Vector<const pchar> pat,
+                          int start_index) {
+  // Searching for one specific character is common.  For one
+  // character patterns the KMP algorithm is guaranteed to slow down
+  // the search, so we just run through the subject string.
+  if (pat.length() == 1) {
+    return SingleCharIndexOf(sub, pat[0], start_index);
+  }
+
+  // For small searches, KMP is not worth the setup overhead.
+  if (sub.length() - start_index < 100) {
+    return SimpleIndexOf(sub, pat, start_index);
+  }
+
+  // For patterns with a larger length we use the KMP algorithm.
+  return KMPIndexOf(sub, pat, start_index);
+}
+
+// Perform string match of pattern on subject, starting at start index.
+// Caller must ensure that 0 <= start_index <= sub->length(),
+// and should check that pat->length() + start_index <= sub->length()
+int Runtime::StringMatchKmp(Handle<String> sub,
+                            Handle<String> pat,
+                            int start_index) {
+  ASSERT(0 <= start_index);
+  ASSERT(start_index <= sub->length());
+
+  if (pat->length() == 0) return start_index;
+  FlattenString(sub);
+  FlattenString(pat);
+
+  AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+  // dispatch on type of strings
+  if (pat->is_ascii()) {
+    Vector<const char> pat_vector = ToAsciiVector(*pat);
+    if (sub->is_ascii()) {
+      return StringMatchKMP(ToAsciiVector(*sub), pat_vector, start_index);
+    }
+    return StringMatchKMP(ToUC16Vector(*sub), pat_vector, start_index);
+  }
+  Vector<const uc16> pat_vector = ToUC16Vector(*pat);
+  if (sub->is_ascii()) {
+    return StringMatchKMP(ToAsciiVector(*sub), pat_vector, start_index);
+  }
+  return StringMatchKMP(ToUC16Vector(*sub), pat_vector, start_index);
 }
 
 
 static Object* Runtime_StringIndexOf(Arguments args) {
-  NoHandleAllocation ha;
+  HandleScope scope;  // create a new handle scope
   ASSERT(args.length() == 3);
 
-  CONVERT_CHECKED(String, sub, args[0]);
-  CONVERT_CHECKED(String, pat, args[1]);
+  CONVERT_ARG_CHECKED(String, sub, 0);
+  CONVERT_ARG_CHECKED(String, pat, 1);
+
   Object* index = args[2];
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
 
-  return Smi::FromInt(Runtime::StringMatchKmp(sub, pat, start_index));
+  int position = Runtime::StringMatchKmp(sub, pat, start_index);
+  return Smi::FromInt(position);
 }
 
 

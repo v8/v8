@@ -1354,6 +1354,11 @@ Address AsciiString::GetCharsAddress() {
 }
 
 
+Address TwoByteString::GetCharsAddress() {
+  return FIELD_ADDR(this, kHeaderSize);
+}
+
+
 uint16_t TwoByteString::TwoByteStringGet(int index) {
   ASSERT(index >= 0 && index < length());
   return READ_SHORT_FIELD(this, kHeaderSize + index * kShortSize);

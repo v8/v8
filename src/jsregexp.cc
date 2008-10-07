@@ -218,7 +218,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
   }
 
   LOG(RegExpExecEvent(re, start_index, subject));
-  int value = Runtime::StringMatchKmp(*subject, *needle, start_index);
+  int value = Runtime::StringMatchKmp(subject, needle, start_index);
   if (value == -1) return Factory::null_value();
   Handle<JSArray> result = Factory::NewJSArray(2);
   SetElement(result, 0, Handle<Smi>(Smi::FromInt(value)));
@@ -231,13 +231,16 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
                                           Handle<String> subject) {
   Handle<String> needle(String::cast(re->data()));
   Handle<JSArray> result = Factory::NewJSArray(1);
-  bool keep_going = true;
   int index = 0;
   int match_count = 0;
+  int subject_length = subject->length();
   int needle_length = needle->length();
-  while (keep_going) {
+  while (true) {
     LOG(RegExpExecEvent(re, index, subject));
-    int value = Runtime::StringMatchKmp(*subject, *needle, index);
+    int value = -1;
+    if (index + needle_length <= subject_length) {
+      value = Runtime::StringMatchKmp(subject, needle, index);
+    }
     if (value == -1) break;
     HandleScope scope;
     int end = value + needle_length;
