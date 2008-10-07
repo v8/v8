@@ -411,41 +411,42 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   // checks.
   ASSERT(object->IsJSGlobalObject() || !object->IsAccessCheckNeeded());
 
-  // Get the properties array
-  __ ldr(r1, FieldMemOperand(r3, JSObject::kPropertiesOffset));
-
   // Perform map transition for the receiver if necessary.
-  if (transition != NULL) {
-    if (object->map()->unused_property_fields() == 0) {
-      // The properties must be extended before we can store the value.
-      // We jump to a runtime call that extends the propeties array.
-      __ mov(r2, Operand(Handle<Map>(transition)));
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_ExtendStorage));
-      __ Jump(ic, RelocInfo::CODE_TARGET);
-    } else {
+  if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
+    // The properties must be extended before we can store the value.
+    // We jump to a runtime call that extends the propeties array.
+    __ mov(r2, Operand(Handle<Map>(transition)));
+    // Please note, if we implement keyed store for arm we need
+    // to call the Builtins::KeyedStoreIC_ExtendStorage.
+    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_ExtendStorage));
+    __ Jump(ic, RelocInfo::CODE_TARGET);
+  } else {
+    // Get the properties array
+    __ ldr(r1, FieldMemOperand(r3, JSObject::kPropertiesOffset));
+
+    if (transition != NULL) {
       // Update the map of the object; no write barrier updating is
       // needed because the map is never in new space.
       __ mov(ip, Operand(Handle<Map>(transition)));
       __ str(ip, FieldMemOperand(r3, HeapObject::kMapOffset));
     }
+
+    // Write to the properties array.
+    int offset = index * kPointerSize + Array::kHeaderSize;
+    __ str(r0, FieldMemOperand(r1, offset));
+
+    // Skip updating write barrier if storing a smi.
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, &exit);
+
+    // Update the write barrier for the array address.
+    __ mov(r3, Operand(offset));
+    __ RecordWrite(r1, r3, r2);  // OK to clobber r2, since we return
+
+    // Return the value (register r0).
+    __ bind(&exit);
+    __ Ret();
   }
-
-  // Write to the properties array.
-  int offset = index * kPointerSize + Array::kHeaderSize;
-  __ str(r0, FieldMemOperand(r1, offset));
-
-  // Skip updating write barrier if storing a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &exit);
-
-  // Update the write barrier for the array address.
-  __ mov(r3, Operand(offset));
-  __ RecordWrite(r1, r3, r2);  // OK to clobber r2, since we return
-
-  // Return the value (register r0).
-  __ bind(&exit);
-  __ Ret();
-
   // Handle store cache miss.
   __ bind(&miss);
   __ mov(r2, Operand(Handle<String>(name)));  // restore name

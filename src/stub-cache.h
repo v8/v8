@@ -351,6 +351,7 @@ class StubCompiler BASE_EMBEDDED {
                                             Register scratch2,
                                             Label* miss_label);
   static void GenerateStoreField(MacroAssembler* masm,
+                                 Builtins::Name storage_extend,
                                  JSObject* object,
                                  int index,
                                  Map* transition,

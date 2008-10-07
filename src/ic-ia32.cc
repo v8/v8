@@ -702,7 +702,8 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   __ push(eax);
   __ push(ebx);
   // Perform tail call to the entry.
-  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_ExtendStorage)), 3);
+  __ TailCallRuntime(
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
 }
 
 
@@ -748,6 +749,27 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
   __ TailCallRuntime(f, 3);
 }
 
+
+void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : transition map
+  //  -- esp[0] : return address
+  //  -- esp[4] : key
+  //  -- esp[8] : receiver
+  // -----------------------------------
+
+  // Move the return address below the arguments.
+  __ pop(ebx);
+  __ push(Operand(esp, 1 * kPointerSize));
+  __ push(ecx);
+  __ push(eax);
+  __ push(ebx);
+
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
+}
 
 #undef __
 

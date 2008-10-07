@@ -63,6 +63,7 @@ namespace v8 { namespace internal {
   V(KeyedStoreIC_Miss,          BUILTIN, UNINITIALIZED)        \
                                                                \
   V(StoreIC_ExtendStorage,      BUILTIN, UNINITIALIZED)        \
+  V(KeyedStoreIC_ExtendStorage, BUILTIN, UNINITIALIZED)        \
                                                                \
   V(LoadIC_Initialize,          LOAD_IC, UNINITIALIZED)        \
   V(LoadIC_PreMonomorphic,      LOAD_IC, PREMONOMORPHIC)       \

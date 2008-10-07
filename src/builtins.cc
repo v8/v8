@@ -575,6 +575,11 @@ static void Generate_KeyedStoreIC_Generic(MacroAssembler* masm) {
 }
 
 
+static void Generate_KeyedStoreIC_ExtendStorage(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateExtendStorage(masm);
+}
+
+
 static void Generate_KeyedStoreIC_Miss(MacroAssembler* masm) {
   KeyedStoreIC::GenerateMiss(masm);
 }
