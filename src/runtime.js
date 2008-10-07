@@ -396,8 +396,7 @@ function TO_STRING() {
 function ToPrimitive(x, hint) {
   // Fast case check.
   if (IS_STRING(x)) return x;
-  if ((hint != NUMBER_HINT) && %IsStringClass(x)) return %_ValueOf(x);
-  // Normal behaior.
+  // Normal behavior.
   if (!IS_OBJECT(x) && !IS_FUNCTION(x)) return x;
   if (x == null) return x;  // check for null, undefined
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;
