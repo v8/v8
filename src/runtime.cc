@@ -1053,6 +1053,64 @@ static int SimpleIndexOf(Vector<const schar> subject,
   return -1;
 }
 
+// Maximal length (+1) of suffix that is indexed. Also the size of the
+// maximal bad-character skip.
+static const int kBMHSignificantSuffixLength = 0xff;
+
+// Significant bits taken from characters to use in bad-character
+// skips, to reduce size of the table for Unicode letters.
+static const int kBMHSignificantBitsMask = 0xff;
+
+// Number of elements in bad-char table.
+static const int kBMHBadCharCount = kBMHSignificantBitsMask + 1;
+
+// Simplified Boyer-Moore string matching. Only uses bad-char skipping,
+// and restricts table to a suffix of long strings (also restricting
+// the maximum possible skip-length) in order to reduce space.
+template <typename schar, typename pchar>
+static int BoyerMooreHorspoolIndexOf(Vector<const schar> subject,
+                                     Vector<const pchar> pattern,
+                                     int start_index) {
+  ASSERT(kBMHSignificantSuffixLength < 0x100);  // We can use bytes as skips.
+  static byte bad_char_map[kBMHBadCharCount];
+
+  int m = pattern.length();
+  int n = subject.length();
+  // Cap bad char table to last p chars of pattern. Also max skip value.
+  int p = m < kBMHSignificantSuffixLength ?  m : kBMHSignificantSuffixLength;
+
+  memset(bad_char_map, p, kBMHBadCharCount);
+
+  // Run forwards to populate bad_char_table, so that *last* instance
+  // of character equivalence class is the one registered.
+  // Notice: Doesn't include last character.
+  for (int i = p < m ? m - p : 0; i < m - 1; i++) {
+    pchar c = pattern[i];
+    if (sizeof(schar) == 1 && c > 255) return -1;
+    bad_char_map[c & kBMHSignificantBitsMask] = m - 1 - i;
+  }
+
+  for (int i = start_index + m - 1, j = m - 1; i < n;) {
+    schar c = subject[i];
+    if (c == pattern[j]) {
+      if (j == 0) {
+        return i;
+      }
+      j--;
+      i--;
+    } else {
+      int skip = bad_char_map[c & kBMHSignificantBitsMask];
+      if (skip < (m - j)) {
+        skip = m - j;
+      }
+      i += skip;
+      j = m - 1;
+    }
+  }
+  return -1;
+}
+
+
 // Full KMP pattern match.
 template <typename schar, typename pchar>  // Pattern & subject char types
 static int KMPIndexOf(Vector<const schar> subject,
@@ -1101,35 +1159,40 @@ static int KMPIndexOf(Vector<const schar> subject,
 
 // Dispatch to different algorithms for different length of pattern/subject
 template <typename schar, typename pchar>
-static int StringMatchKMP(Vector<const schar> sub,
-                          Vector<const pchar> pat,
-                          int start_index) {
+static int StringMatchStrategy(Vector<const schar> sub,
+                               Vector<const pchar> pat,
+                               int start_index) {
+  int pattern_length = pat.length();
   // Searching for one specific character is common.  For one
   // character patterns the KMP algorithm is guaranteed to slow down
   // the search, so we just run through the subject string.
-  if (pat.length() == 1) {
+  if (pattern_length == 1) {
     return SingleCharIndexOf(sub, pat[0], start_index);
   }
 
-  // For small searches, KMP is not worth the setup overhead.
-  if (sub.length() - start_index < 100) {
+  // For small searches, a complex sort is not worth the setup overhead.
+  if (sub.length() - start_index < 25) {
     return SimpleIndexOf(sub, pat, start_index);
   }
 
-  // For patterns with a larger length we use the KMP algorithm.
-  return KMPIndexOf(sub, pat, start_index);
+  return BoyerMooreHorspoolIndexOf(sub, pat, start_index);
 }
 
 // Perform string match of pattern on subject, starting at start index.
 // Caller must ensure that 0 <= start_index <= sub->length(),
 // and should check that pat->length() + start_index <= sub->length()
-int Runtime::StringMatchKmp(Handle<String> sub,
-                            Handle<String> pat,
-                            int start_index) {
+int Runtime::StringMatch(Handle<String> sub,
+                         Handle<String> pat,
+                         int start_index) {
   ASSERT(0 <= start_index);
   ASSERT(start_index <= sub->length());
 
-  if (pat->length() == 0) return start_index;
+  int pattern_length = pat->length();
+  if (pattern_length == 0) return start_index;
+
+  int subject_length = sub->length();
+  if (start_index + pattern_length > subject_length) return -1;
+
   FlattenString(sub);
   FlattenString(pat);
 
@@ -1138,15 +1201,15 @@ int Runtime::StringMatchKmp(Handle<String> sub,
   if (pat->is_ascii()) {
     Vector<const char> pat_vector = ToAsciiVector(*pat);
     if (sub->is_ascii()) {
-      return StringMatchKMP(ToAsciiVector(*sub), pat_vector, start_index);
+      return StringMatchStrategy(ToAsciiVector(*sub), pat_vector, start_index);
     }
-    return StringMatchKMP(ToUC16Vector(*sub), pat_vector, start_index);
+    return StringMatchStrategy(ToUC16Vector(*sub), pat_vector, start_index);
   }
   Vector<const uc16> pat_vector = ToUC16Vector(*pat);
   if (sub->is_ascii()) {
-    return StringMatchKMP(ToAsciiVector(*sub), pat_vector, start_index);
+    return StringMatchStrategy(ToAsciiVector(*sub), pat_vector, start_index);
   }
-  return StringMatchKMP(ToUC16Vector(*sub), pat_vector, start_index);
+  return StringMatchStrategy(ToUC16Vector(*sub), pat_vector, start_index);
 }
 
 
@@ -1161,7 +1224,7 @@ static Object* Runtime_StringIndexOf(Arguments args) {
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
 
-  int position = Runtime::StringMatchKmp(sub, pat, start_index);
+  int position = Runtime::StringMatch(sub, pat, start_index);
   return Smi::FromInt(position);
 }
 
