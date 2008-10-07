@@ -754,17 +754,18 @@ void KeyedStoreIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
 void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : value
+  //  -- ecx    : transition map
   //  -- esp[0] : return address
   //  -- esp[4] : key
   //  -- esp[8] : receiver
   // -----------------------------------
 
   // Move the return address below the arguments.
-  __ pop(ecx);
+  __ pop(ebx);
   __ push(Operand(esp, 1 * kPointerSize));
-  __ push(Operand(esp, 1 * kPointerSize));
-  __ push(eax);
   __ push(ecx);
+  __ push(eax);
+  __ push(ebx);
 
   // Do tail-call to runtime routine.
   __ TailCallRuntime(
