@@ -52,19 +52,23 @@ class ArmCodeGenerator;
 
 class Reference BASE_EMBEDDED {
  public:
-  enum Type { ILLEGAL = -1, EMPTY = 0, NAMED = 1, KEYED = 2 };
+  // The values of the types is important, see size().
+  enum Type { ILLEGAL = -1, SLOT = 0, NAMED = 1, KEYED = 2 };
   Reference(ArmCodeGenerator* cgen, Expression* expression);
   ~Reference();
 
-  Expression* expression() const  { return expression_; }
-  Type type() const  { return type_; }
+  Expression* expression() const { return expression_; }
+  Type type() const { return type_; }
   void set_type(Type value) {
     ASSERT(type_ == ILLEGAL);
     type_ = value;
   }
-  int size() const  { return type_; }
+  // The size of the reference or -1 if the reference is illegal.
+  int size() const { return type_; }
 
-  bool is_illegal() const  { return type_ == ILLEGAL; }
+  bool is_illegal() const { return type_ == ILLEGAL; }
+  bool is_slot() const { return type_ == SLOT; }
+  bool is_property() const { return type_ == NAMED || type_ == KEYED; }
 
  private:
   ArmCodeGenerator* cgen_;
@@ -802,33 +806,37 @@ void ArmCodeGenerator::LoadReference(Reference* ref) {
   Variable* var = e->AsVariableProxy()->AsVariable();
 
   if (property != NULL) {
+    // The expression is either a property or a variable proxy that rewrites
+    // to a property.
     Load(property->obj());
-    // Used a named reference if the key is a literal symbol.
-    // We don't use a named reference if they key is a string that can be
-    // legally parsed as an integer.  This is because, otherwise we don't
-    // get into the slow case code that handles [] on String objects.
+    // We use a named reference if the key is a literal symbol, unless it is
+    // a string that can be legally parsed as an integer.  This is because
+    // otherwise we will not get into the slow case code that handles [] on
+    // String objects.
     Literal* literal = property->key()->AsLiteral();
     uint32_t dummy;
-    if (literal != NULL && literal->handle()->IsSymbol() &&
-      !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
+    if (literal != NULL &&
+        literal->handle()->IsSymbol() &&
+        !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
       ref->set_type(Reference::NAMED);
     } else {
       Load(property->key());
       ref->set_type(Reference::KEYED);
     }
   } else if (var != NULL) {
+    // The expression is a variable proxy that does not rewrite to a
+    // property.  Global variables are treated as named property references.
     if (var->is_global()) {
-      // global variable
       LoadGlobal();
       ref->set_type(Reference::NAMED);
     } else {
-      // local variable
-      ref->set_type(Reference::EMPTY);
+      ASSERT(var->slot() != NULL);
+      ref->set_type(Reference::SLOT);
     }
   } else {
+    // Anything else is a runtime error.
     Load(e);
     __ CallRuntime(Runtime::kThrowReferenceError, 1);
-    __ push(r0);
   }
 }
 
@@ -971,14 +979,13 @@ class InvokeBuiltinStub : public CodeStub {
 
 void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
   ASSERT(!ref()->is_illegal());
-  Reference::Type type = ref()->type();
 
   // TODO(1241834): Make sure that this it is safe to ignore the distinction
   // between access types LOAD and LOAD_TYPEOF_EXPR. If there is a chance
   // that reference errors can be thrown below, we must distinguish between
   // the two kinds of loads (typeof expression loads must not throw a
   // reference error).
-  if (type == Reference::NAMED) {
+  if (ref()->type() == Reference::NAMED) {
     // Compute the name of the property.
     Literal* literal = key->AsLiteral();
     Handle<String> name(String::cast(*literal->handle()));
@@ -997,7 +1004,7 @@ void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
 
   } else {
     // Access keyed property.
-    ASSERT(type == Reference::KEYED);
+    ASSERT(ref()->type() == Reference::KEYED);
 
     // TODO(1224671): Implement inline caching for keyed loads as on ia32.
     GetPropertyStub stub;
@@ -1460,9 +1467,13 @@ void ArmCodeGenerator::VisitDeclaration(Declaration* node) {
   if (val != NULL) {
     // Set initial value.
     Reference target(this, node->proxy());
+    ASSERT(target.is_slot());
     Load(val);
     SetValue(&target);
-    // Get rid of the assigned value (declarations are statements).
+    // Get rid of the assigned value (declarations are statements).  It's
+    // safe to pop the value lying on top of the reference before unloading
+    // the reference itself (which preserves the top of stack) because we
+    // know it is a zero-sized reference.
     __ pop();
   }
 }
@@ -1944,16 +1955,27 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
   { Reference each(this, node->each());
     if (!each.is_illegal()) {
       if (each.size() > 0) {
+        // Reference's size is positive.
         __ ldr(r0, MemOperand(sp, kPointerSize * each.size()));
         __ push(r0);
       }
+      // If the reference was to a slot we rely on the convenient property
+      // that it doesn't matter whether a value (eg, r3 pushed above) is
+      // right on top of or right underneath a zero-sized reference.
       SetValue(&each);
       if (each.size() > 0) {
-        __ pop(r0);  // discard the value
+        // It's safe to pop the value lying on top of the reference before
+        // unloading the reference itself (which preserves the top of stack,
+        // ie, now the topmost value of the non-zero sized reference), since
+        // we will discard the top of stack after unloading the reference
+        // anyway.
+        __ pop(r0);
       }
     }
   }
-  __ pop();  // pop the i'th entry pushed above
+  // Discard the i'th entry pushed above or else the remainder of the
+  // reference, whichever is currently on top of the stack.
+  __ pop();
   CheckStack();  // TODO(1222600): ignore if body contains calls.
   __ jmp(&loop);
 
@@ -1981,11 +2003,11 @@ void ArmCodeGenerator::VisitTryCatch(TryCatch* node) {
   // Store the caught exception in the catch variable.
   __ push(r0);
   { Reference ref(this, node->catch_var());
-    // Load the exception to the top of the stack.
-    __ ldr(r0, MemOperand(sp, ref.size() * kPointerSize));
-    __ push(r0);
+    ASSERT(ref.is_slot());
+    // Here we make use of the convenient property that it doesn't matter
+    // whether a value is immediately on top of or underneath a zero-sized
+    // reference.
     SetValue(&ref);
-    __ pop(r0);
   }
 
   // Remove the exception from the stack.

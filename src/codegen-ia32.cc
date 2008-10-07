@@ -58,19 +58,24 @@ enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 
 class Reference BASE_EMBEDDED {
  public:
-  enum Type { ILLEGAL = -1, EMPTY = 0, NAMED = 1, KEYED = 2 };
+  // The values of the types is important, see size().
+  enum Type { ILLEGAL = -1, SLOT = 0, NAMED = 1, KEYED = 2 };
   Reference(Ia32CodeGenerator* cgen, Expression* expression);
   ~Reference();
 
-  Expression* expression() const  { return expression_; }
-  Type type() const  { return type_; }
+  Expression* expression() const { return expression_; }
+  Type type() const { return type_; }
   void set_type(Type value) {
     ASSERT(type_ == ILLEGAL);
     type_ = value;
   }
-  int size() const  { return type_; }
 
-  bool is_illegal() const  { return type_ == ILLEGAL; }
+  // The size of the reference or -1 if the reference is illegal.
+  int size() const { return type_; }
+
+  bool is_illegal() const { return type_ == ILLEGAL; }
+  bool is_slot() const { return type_ == SLOT; }
+  bool is_property() const { return type_ == NAMED || type_ == KEYED; }
 
  private:
   Ia32CodeGenerator* cgen_;
@@ -653,18 +658,18 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
       ASSERT(scope->arguments_shadow() != NULL);
       Comment cmnt(masm_, "[ store arguments object");
       { Reference shadow_ref(this, scope->arguments_shadow());
+        ASSERT(shadow_ref.is_slot());
         { Reference arguments_ref(this, scope->arguments());
+          ASSERT(arguments_ref.is_slot());
           // If the newly-allocated arguments object is already on the
-          // stack, we make use of the property that references representing
-          // variables take up no space on the expression stack (ie, it
-          // doesn't matter that the stored value is actually below the
-          // reference).
-          ASSERT(arguments_ref.size() == 0);
-          ASSERT(shadow_ref.size() == 0);
-
-          // If the newly-allocated argument object is not already on the
-          // stack, we rely on the property that loading a
-          // (zero-sized) reference will not clobber the ecx register.
+          // stack, we make use of the convenient property that references
+          // representing slots take up no space on the expression stack
+          // (ie, it doesn't matter that the stored value is actually below
+          // the reference).
+          //
+          // If the newly-allocated argument object is not already on
+          // the stack, we rely on the property that loading a
+          // zero-sized reference will not clobber the ecx register.
           if (!arguments_object_saved) {
             __ push(ecx);
           }
@@ -845,33 +850,37 @@ void Ia32CodeGenerator::LoadReference(Reference* ref) {
   Variable* var = e->AsVariableProxy()->AsVariable();
 
   if (property != NULL) {
+    // The expression is either a property or a variable proxy that rewrites
+    // to a property.
     Load(property->obj());
-    // Used a named reference if the key is a literal symbol.
-    // We don't use a named reference if they key is a string that can be
-    // legally parsed as an integer.  This is because, otherwise we don't
-    // get into the slow case code that handles [] on String objects.
+    // We use a named reference if the key is a literal symbol, unless it is
+    // a string that can be legally parsed as an integer.  This is because
+    // otherwise we will not get into the slow case code that handles [] on
+    // String objects.
     Literal* literal = property->key()->AsLiteral();
     uint32_t dummy;
-    if (literal != NULL && literal->handle()->IsSymbol() &&
-      !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
+    if (literal != NULL &&
+        literal->handle()->IsSymbol() &&
+        !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
       ref->set_type(Reference::NAMED);
     } else {
       Load(property->key());
       ref->set_type(Reference::KEYED);
     }
   } else if (var != NULL) {
+    // The expression is a variable proxy that does not rewrite to a
+    // property.  Global variables are treated as named property references.
     if (var->is_global()) {
-      // global variable
       LoadGlobal();
       ref->set_type(Reference::NAMED);
     } else {
-      // local variable
-      ref->set_type(Reference::EMPTY);
+      ASSERT(var->slot() != NULL);
+      ref->set_type(Reference::SLOT);
     }
   } else {
+    // Anything else is a runtime error.
     Load(e);
     __ CallRuntime(Runtime::kThrowReferenceError, 1);
-    __ push(eax);
   }
 }
 
@@ -959,14 +968,13 @@ void Ia32CodeGenerator::ToBoolean(Label* true_target, Label* false_target) {
 
 void Ia32CodeGenerator::GetReferenceProperty(Expression* key) {
   ASSERT(!ref()->is_illegal());
-  Reference::Type type = ref()->type();
 
   // TODO(1241834): Make sure that this it is safe to ignore the distinction
   // between access types LOAD and LOAD_TYPEOF_EXPR. If there is a chance
   // that reference errors can be thrown below, we must distinguish between
   // the two kinds of loads (typeof expression loads must not throw a
   // reference error).
-  if (type == Reference::NAMED) {
+  if (ref()->type() == Reference::NAMED) {
     // Compute the name of the property.
     Literal* literal = key->AsLiteral();
     Handle<String> name(String::cast(*literal->handle()));
@@ -983,7 +991,7 @@ void Ia32CodeGenerator::GetReferenceProperty(Expression* key) {
     }
   } else {
     // Access keyed property.
-    ASSERT(type == Reference::KEYED);
+    ASSERT(ref()->type() == Reference::KEYED);
 
     // Call IC code.
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
@@ -1753,9 +1761,13 @@ void Ia32CodeGenerator::VisitDeclaration(Declaration* node) {
   if (val != NULL) {
     // Set initial value.
     Reference target(this, node->proxy());
+    ASSERT(target.is_slot());
     Load(val);
     SetValue(&target);
-    // Get rid of the assigned value (declarations are statements).
+    // Get rid of the assigned value (declarations are statements).  It's
+    // safe to pop the value lying on top of the reference before unloading
+    // the reference itself (which preserves the top of stack) because we
+    // know that it is a zero-sized reference.
     __ pop(eax);  // Pop(no_reg);
   }
 }
@@ -2269,19 +2281,29 @@ void Ia32CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Store the entry in the 'each' expression and take another spin in the loop.
   // edx: i'th entry of the enum cache (or string there of)
-  __ push(Operand(ebx));
+  __ push(ebx);
   { Reference each(this, node->each());
     if (!each.is_illegal()) {
       if (each.size() > 0) {
         __ push(Operand(esp, kPointerSize * each.size()));
       }
+      // If the reference was to a slot we rely on the convenient property
+      // that it doesn't matter whether a value (eg, ebx pushed above) is
+      // right on top of or right underneath a zero-sized reference.
       SetValue(&each);
       if (each.size() > 0) {
+        // It's safe to pop the value lying on top of the reference before
+        // unloading the reference itself (which preserves the top of stack,
+        // ie, now the topmost value of the non-zero sized reference), since
+        // we will discard the top of stack after unloading the reference
+        // anyway.
         __ pop(eax);
       }
     }
   }
-  __ pop(eax);  // pop the i'th entry pushed above
+  // Discard the i'th entry pushed above or else the remainder of the
+  // reference, whichever is currently on top of the stack.
+  __ pop(eax);
   CheckStack();  // TODO(1222600): ignore if body contains calls.
   __ jmp(&loop);
 
@@ -2308,10 +2330,11 @@ void Ia32CodeGenerator::VisitTryCatch(TryCatch* node) {
 
   // Store the caught exception in the catch variable.
   { Reference ref(this, node->catch_var());
-    // Load the exception to the top of the stack.
-    __ push(Operand(esp, ref.size() * kPointerSize));
+    ASSERT(ref.is_slot());
+    // Load the exception to the top of the stack.  Here we make use of the
+    // convenient property that it doesn't matter whether a value is
+    // immediately on top of or underneath a zero-sized reference.
     SetValue(&ref);
-    __ pop(eax);  // pop the pushed exception
   }
 
   // Remove the exception from the stack.
@@ -3051,6 +3074,7 @@ void Ia32CodeGenerator::VisitCall(Call* node) {
       GetValue(&ref);
 
       // Pass receiver to called function.
+      // The reference's size is non-negative.
       __ push(Operand(esp, ref.size() * kPointerSize));
 
       // Call the function.
