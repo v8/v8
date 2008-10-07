@@ -56,6 +56,8 @@ enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 // For properties, we keep either one (named) or two (indexed) values
 // on the execution stack to represent the reference.
 
+enum InitState { CONST_INIT, NOT_CONST_INIT };
+
 class Reference BASE_EMBEDDED {
  public:
   // The values of the types is important, see size().
@@ -77,6 +79,8 @@ class Reference BASE_EMBEDDED {
   bool is_slot() const { return type_ == SLOT; }
   bool is_property() const { return type_ == NAMED || type_ == KEYED; }
 
+  void SetValue(InitState init_state);
+
  private:
   Ia32CodeGenerator* cgen_;
   Expression* expression_;
@@ -87,14 +91,10 @@ class Reference BASE_EMBEDDED {
 // -------------------------------------------------------------------------
 // Code generation state
 
-// The state is passed down the AST by the code generator.  It is passed
-// implicitly (in a member variable) to the non-static code generator member
-// functions, and explicitly (as an argument) to the static member functions
-// and the AST node member functions.
-//
-// The state is threaded through the call stack.  Constructing a state
-// implicitly pushes it on the owning code generator's stack of states, and
-// destroying one implicitly pops it.
+// The state is passed down the AST by the code generator (and back up, in
+// the form of the state of the label pair).  It is threaded through the
+// call stack.  Constructing a state implicitly pushes it on the owning code
+// generator's stack of states, and destroying one implicitly pops it.
 
 class CodeGenState BASE_EMBEDDED {
  public:
@@ -196,16 +196,11 @@ class Ia32CodeGenerator: public CodeGenerator {
     return ContextOperand(esi, Context::GLOBAL_INDEX);
   }
 
-  // Support functions for accessing parameters.  Static versions can
-  // require some code generator state to be passed in as arguments.
-  static Operand ParameterOperand(const CodeGenerator* cgen, int index) {
-    int num_parameters = cgen->scope()->num_parameters();
+  // Support functions for accessing parameters.
+  Operand ParameterOperand(int index) const {
+    int num_parameters = scope()->num_parameters();
     ASSERT(-2 <= index && index < num_parameters);
     return Operand(ebp, (1 + num_parameters - index) * kPointerSize);
-  }
-
-  Operand ParameterOperand(int index) const {
-    return ParameterOperand(this, index);
   }
 
   Operand ReceiverOperand() const { return ParameterOperand(-1); }
@@ -214,17 +209,11 @@ class Ia32CodeGenerator: public CodeGenerator {
     return Operand(ebp, JavaScriptFrameConstants::kFunctionOffset);
   }
 
-  static Operand ContextOperand(Register context, int index) {
+  Operand ContextOperand(Register context, int index) const {
     return Operand(context, Context::SlotOffset(index));
   }
 
-  static Operand SlotOperand(CodeGenerator* cgen,
-                             Slot* slot,
-                             Register tmp);
-
-  Operand SlotOperand(Slot* slot, Register tmp) {
-    return SlotOperand(this, slot, tmp);
-  }
+  Operand SlotOperand(Slot* slot, Register tmp);
 
   void LoadCondition(Expression* x,
                      CodeGenState::AccessType access,
@@ -255,34 +244,10 @@ class Ia32CodeGenerator: public CodeGenerator {
     Visit(ref->expression());
   }
 
-  // Generate code to store a value in a reference.  The stored value is
-  // expected on top of the expression stack, with the reference immediately
-  // below it.  The expression stack is left unchanged.
-  void SetValue(Reference* ref) {
-    ASSERT(!has_cc());
-    ASSERT(!ref->is_illegal());
-    ref->expression()->GenerateStoreCode(this, ref, NOT_CONST_INIT);
-  }
-
-  // Same as SetValue, used to set the initial value of a constant.
-  void InitConst(Reference* ref) {
-    ASSERT(!has_cc());
-    ASSERT(!ref->is_illegal());
-    ref->expression()->GenerateStoreCode(this, ref, CONST_INIT);
-  }
-
   // Generate code to fetch a value from a property of a reference.  The
   // reference is expected on top of the expression stack.  It is left in
   // place and its value is pushed on top of it.
   void GetReferenceProperty(Expression* key);
-
-  // Generate code to store a value in a property of a reference.  The
-  // stored value is expected on top of the expression stack, with the
-  // reference immediately below it.  The expression stack is left
-  // unchanged.
-  static void SetReferenceProperty(CodeGenerator* cgen,
-                                   Reference* ref,
-                                   Expression* key);
 
   void ToBoolean(Label* true_target, Label* false_target);
 
@@ -673,9 +638,9 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
           if (!arguments_object_saved) {
             __ push(ecx);
           }
-          SetValue(&arguments_ref);
+          arguments_ref.SetValue(NOT_CONST_INIT);
         }
-        SetValue(&shadow_ref);
+        shadow_ref.SetValue(NOT_CONST_INIT);
       }
       __ pop(eax);  // Value is no longer needed.
     }
@@ -731,6 +696,60 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
   scope_ = NULL;
   ASSERT(!has_cc());
   ASSERT(state_ == NULL);
+}
+
+
+Operand Ia32CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
+  // Currently, this assertion will fail if we try to assign to
+  // a constant variable that is constant because it is read-only
+  // (such as the variable referring to a named function expression).
+  // We need to implement assignments to read-only variables.
+  // Ideally, we should do this during AST generation (by converting
+  // such assignments into expression statements); however, in general
+  // we may not be able to make the decision until past AST generation,
+  // that is when the entire program is known.
+  ASSERT(slot != NULL);
+  int index = slot->index();
+  switch (slot->type()) {
+    case Slot::PARAMETER:
+      return ParameterOperand(index);
+
+    case Slot::LOCAL: {
+      ASSERT(0 <= index && index < scope()->num_stack_slots());
+      const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
+      return Operand(ebp, kLocal0Offset - index * kPointerSize);
+    }
+
+    case Slot::CONTEXT: {
+      // Follow the context chain if necessary.
+      ASSERT(!tmp.is(esi));  // do not overwrite context register
+      Register context = esi;
+      int chain_length = scope()->ContextChainLength(slot->var()->scope());
+      for (int i = chain_length; i-- > 0;) {
+        // Load the closure.
+        // (All contexts, even 'with' contexts, have a closure,
+        // and it is the same for all contexts inside a function.
+        // There is no need to go to the function context first.)
+        __ mov(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+        // Load the function context (which is the incoming, outer context).
+        __ mov(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
+        context = tmp;
+      }
+      // We may have a 'with' context now. Get the function context.
+      // (In fact this mov may never be the needed, since the scope analysis
+      // may not permit a direct context access in this case and thus we are
+      // always at a function context. However it is safe to dereference be-
+      // cause the function context of a function context is itself. Before
+      // deleting this mov we should try to create a counter-example first,
+      // though...)
+      __ mov(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
+      return ContextOperand(tmp, index);
+    }
+
+    default:
+      UNREACHABLE();
+      return Operand(eax);
+  }
 }
 
 
@@ -1763,7 +1782,7 @@ void Ia32CodeGenerator::VisitDeclaration(Declaration* node) {
     Reference target(this, node->proxy());
     ASSERT(target.is_slot());
     Load(val);
-    SetValue(&target);
+    target.SetValue(NOT_CONST_INIT);
     // Get rid of the assigned value (declarations are statements).  It's
     // safe to pop the value lying on top of the reference before unloading
     // the reference itself (which preserves the top of stack) because we
@@ -2290,7 +2309,7 @@ void Ia32CodeGenerator::VisitForInStatement(ForInStatement* node) {
       // If the reference was to a slot we rely on the convenient property
       // that it doesn't matter whether a value (eg, ebx pushed above) is
       // right on top of or right underneath a zero-sized reference.
-      SetValue(&each);
+      each.SetValue(NOT_CONST_INIT);
       if (each.size() > 0) {
         // It's safe to pop the value lying on top of the reference before
         // unloading the reference itself (which preserves the top of stack,
@@ -2334,7 +2353,7 @@ void Ia32CodeGenerator::VisitTryCatch(TryCatch* node) {
     // Load the exception to the top of the stack.  Here we make use of the
     // convenient property that it doesn't matter whether a value is
     // immediately on top of or underneath a zero-sized reference.
-    SetValue(&ref);
+    ref.SetValue(NOT_CONST_INIT);
   }
 
   // Remove the exception from the stack.
@@ -2944,9 +2963,9 @@ void Ia32CodeGenerator::VisitAssignment(Assignment* node) {
       // Dynamic constant initializations must use the function context
       // and initialize the actual constant declared. Dynamic variable
       // initializations are simply assignments and use SetValue.
-      InitConst(&target);
+      target.SetValue(CONST_INIT);
     } else {
-      SetValue(&target);
+      target.SetValue(NOT_CONST_INIT);
     }
   }
 }
@@ -3687,7 +3706,7 @@ void Ia32CodeGenerator::VisitCountOperation(CountOperation* node) {
     // Store the new value in the target if not const.
     __ bind(deferred->exit());
     __ push(eax);  // Push the new value to TOS
-    if (!is_const) SetValue(&target);
+    if (!is_const) target.SetValue(NOT_CONST_INIT);
   }
 
   // Postfix: Discard the new value and use the old.
@@ -4071,165 +4090,130 @@ void Ia32CodeGenerator::ExitJSFrame() {
 #undef __
 #define __ masm->
 
-Operand Ia32CodeGenerator::SlotOperand(CodeGenerator* cgen,
-                                       Slot* slot,
-                                       Register tmp) {
-  // Currently, this assertion will fail if we try to assign to
-  // a constant variable that is constant because it is read-only
-  // (such as the variable referring to a named function expression).
-  // We need to implement assignments to read-only variables.
-  // Ideally, we should do this during AST generation (by converting
-  // such assignments into expression statements); however, in general
-  // we may not be able to make the decision until past AST generation,
-  // that is when the entire program is known.
-  ASSERT(slot != NULL);
-  int index = slot->index();
-  switch (slot->type()) {
-    case Slot::PARAMETER: return ParameterOperand(cgen, index);
+void Reference::SetValue(InitState init_state) {
+  ASSERT(!is_illegal());
+  ASSERT(!cgen_->has_cc());
+  MacroAssembler* masm = cgen_->masm();
+  switch (type_) {
+    case SLOT: {
+      Comment cmnt(masm, "[ Store to Slot");
+      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+      ASSERT(slot != NULL);
+      if (slot->type() == Slot::LOOKUP) {
+        ASSERT(slot->var()->mode() == Variable::DYNAMIC);
 
-    case Slot::LOCAL: {
-      ASSERT(0 <= index && index < cgen->scope()->num_stack_slots());
-      const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
-      return Operand(ebp, kLocal0Offset - index * kPointerSize);
+        // For now, just do a runtime call.
+        __ push(esi);
+        __ push(Immediate(slot->var()->name()));
+
+        if (init_state == CONST_INIT) {
+          // Same as the case for a normal store, but ignores attribute
+          // (e.g. READ_ONLY) of context slot so that we can initialize
+          // const properties (introduced via eval("const foo = (some
+          // expr);")). Also, uses the current function context instead of
+          // the top context.
+          //
+          // Note that we must declare the foo upon entry of eval(), via a
+          // context slot declaration, but we cannot initialize it at the
+          // same time, because the const declaration may be at the end of
+          // the eval code (sigh...) and the const variable may have been
+          // used before (where its value is 'undefined'). Thus, we can only
+          // do the initialization when we actually encounter the expression
+          // and when the expression operands are defined and valid, and
+          // thus we need the split into 2 operations: declaration of the
+          // context slot followed by initialization.
+          __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+        } else {
+          __ CallRuntime(Runtime::kStoreContextSlot, 3);
+        }
+        // Storing a variable must keep the (new) value on the expression
+        // stack. This is necessary for compiling chained assignment
+        // expressions.
+        __ push(eax);
+
+      } else {
+        ASSERT(slot->var()->mode() != Variable::DYNAMIC);
+
+        Label exit;
+        if (init_state == CONST_INIT) {
+          ASSERT(slot->var()->mode() == Variable::CONST);
+          // Only the first const initialization must be executed (the slot
+          // still contains 'the hole' value). When the assignment is
+          // executed, the code is identical to a normal store (see below).
+          Comment cmnt(masm, "[ Init const");
+          __ mov(eax, cgen_->SlotOperand(slot, ecx));
+          __ cmp(eax, Factory::the_hole_value());
+          __ j(not_equal, &exit);
+        }
+
+        // We must execute the store.  Storing a variable must keep the
+        // (new) value on the stack. This is necessary for compiling
+        // assignment expressions.
+        //
+        // Note: We will reach here even with slot->var()->mode() ==
+        // Variable::CONST because of const declarations which will
+        // initialize consts to 'the hole' value and by doing so, end up
+        // calling this code.
+        __ pop(eax);
+        __ mov(cgen_->SlotOperand(slot, ecx), eax);
+        __ push(eax);  // RecordWrite may destroy the value in eax.
+        if (slot->type() == Slot::CONTEXT) {
+          // ecx is loaded with context when calling SlotOperand above.
+          int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+          __ RecordWrite(ecx, offset, eax, ebx);
+        }
+        // If we definitely did not jump over the assignment, we do not need
+        // to bind the exit label.  Doing so can defeat peephole
+        // optimization.
+        if (init_state == CONST_INIT) __ bind(&exit);
+      }
+      break;
     }
 
-    case Slot::CONTEXT: {
-      MacroAssembler* masm = cgen->masm();
-      // Follow the context chain if necessary.
-      ASSERT(!tmp.is(esi));  // do not overwrite context register
-      Register context = esi;
-      int chain_length =
-          cgen->scope()->ContextChainLength(slot->var()->scope());
-      for (int i = chain_length; i-- > 0;) {
-        // Load the closure.
-        // (All contexts, even 'with' contexts, have a closure,
-        // and it is the same for all contexts inside a function.
-        // There is no need to go to the function context first.)
-        __ mov(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
-        // Load the function context (which is the incoming, outer context).
-        __ mov(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
-        context = tmp;
+    case NAMED: {
+      Comment cmnt(masm, "[ Store to named Property");
+      Property* property = expression_->AsProperty();
+      Handle<String> name;
+      if (property == NULL) {
+        // Global variable reference treated as named property access.
+        VariableProxy* proxy = expression_->AsVariableProxy();
+        ASSERT(proxy->AsVariable() != NULL);
+        ASSERT(proxy->AsVariable()->is_global());
+        name = proxy->name();
+      } else {
+        Literal* raw_name = property->key()->AsLiteral();
+        ASSERT(raw_name != NULL);
+        name = Handle<String>(String::cast(*raw_name->handle()));
+        __ RecordPosition(property->position());
       }
-      // We may have a 'with' context now. Get the function context.
-      // (In fact this mov may never be the needed, since the scope analysis
-      // may not permit a direct context access in this case and thus we are
-      // always at a function context. However it is safe to dereference be-
-      // cause the function context of a function context is itself. Before
-      // deleting this mov we should try to create a counter-example first,
-      // though...)
-      __ mov(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
-      return ContextOperand(tmp, index);
+
+      // Call the appropriate IC code.
+      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      // TODO(1222589): Make the IC grab the values from the stack.
+      __ pop(eax);
+      // Setup the name register.
+      __ mov(ecx, name);
+      __ call(ic, RelocInfo::CODE_TARGET);
+      __ push(eax);  // IC call leaves result in eax, push it out
+      break;
+    }
+
+    case KEYED: {
+      Comment cmnt(masm, "[ Store to keyed Property");
+      Property* property = expression_->AsProperty();
+      ASSERT(property != NULL);
+      __ RecordPosition(property->position());
+      // Call IC code.
+      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      // TODO(1222589): Make the IC grab the values from the stack.
+      __ pop(eax);
+      __ call(ic, RelocInfo::CODE_TARGET);
+      __ push(eax);  // IC call leaves result in eax, push it out
+      break;
     }
 
     default:
       UNREACHABLE();
-      return Operand(eax);
-  }
-}
-
-
-void Property::GenerateStoreCode(CodeGenerator* cgen,
-                                 Reference* ref,
-                                 InitState init_state) {
-  MacroAssembler* masm = cgen->masm();
-  Comment cmnt(masm, "[ Store to Property");
-  __ RecordPosition(position());
-  Ia32CodeGenerator::SetReferenceProperty(cgen, ref, key());
-}
-
-
-void VariableProxy::GenerateStoreCode(CodeGenerator* cgen,
-                                      Reference* ref,
-                                      InitState init_state) {
-  MacroAssembler* masm = cgen->masm();
-  Comment cmnt(masm, "[ Store to VariableProxy");
-  Variable* node = var();
-
-  Expression* expr = node->rewrite();
-  if (expr != NULL) {
-    expr->GenerateStoreCode(cgen, ref, init_state);
-  } else {
-    ASSERT(node->is_global());
-    if (node->AsProperty() != NULL) {
-      __ RecordPosition(node->AsProperty()->position());
-    }
-    Expression* key = new Literal(node->name());
-    Ia32CodeGenerator::SetReferenceProperty(cgen, ref, key);
-  }
-}
-
-
-void Slot::GenerateStoreCode(CodeGenerator* cgen,
-                             Reference* ref,
-                             InitState init_state) {
-  MacroAssembler* masm = cgen->masm();
-  Comment cmnt(masm, "[ Store to Slot");
-
-  if (type() == Slot::LOOKUP) {
-    ASSERT(var()->mode() == Variable::DYNAMIC);
-
-    // For now, just do a runtime call.
-    __ push(esi);
-    __ push(Immediate(var()->name()));
-
-    if (init_state == CONST_INIT) {
-      // Same as the case for a normal store, but ignores attribute
-      // (e.g. READ_ONLY) of context slot so that we can initialize const
-      // properties (introduced via eval("const foo = (some expr);")). Also,
-      // uses the current function context instead of the top context.
-      //
-      // Note that we must declare the foo upon entry of eval(), via a
-      // context slot declaration, but we cannot initialize it at the same
-      // time, because the const declaration may be at the end of the eval
-      // code (sigh...) and the const variable may have been used before
-      // (where its value is 'undefined'). Thus, we can only do the
-      // initialization when we actually encounter the expression and when
-      // the expression operands are defined and valid, and thus we need the
-      // split into 2 operations: declaration of the context slot followed
-      // by initialization.
-      __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-    } else {
-      __ CallRuntime(Runtime::kStoreContextSlot, 3);
-    }
-    // Storing a variable must keep the (new) value on the expression
-    // stack. This is necessary for compiling assignment expressions.
-    __ push(eax);
-
-  } else {
-    ASSERT(var()->mode() != Variable::DYNAMIC);
-
-    Label exit;
-    if (init_state == CONST_INIT) {
-      ASSERT(var()->mode() == Variable::CONST);
-      // Only the first const initialization must be executed (the slot
-      // still contains 'the hole' value). When the assignment is executed,
-      // the code is identical to a normal store (see below).
-      Comment cmnt(masm, "[ Init const");
-      __ mov(eax, Ia32CodeGenerator::SlotOperand(cgen, this, ecx));
-      __ cmp(eax, Factory::the_hole_value());
-      __ j(not_equal, &exit);
-    }
-
-    // We must execute the store.
-    // Storing a variable must keep the (new) value on the stack. This is
-    // necessary for compiling assignment expressions.  ecx may be loaded
-    // with context; used below in RecordWrite.
-    //
-    // Note: We will reach here even with node->var()->mode() ==
-    // Variable::CONST because of const declarations which will initialize
-    // consts to 'the hole' value and by doing so, end up calling this
-    // code.
-    __ pop(eax);
-    __ mov(Ia32CodeGenerator::SlotOperand(cgen, this, ecx), eax);
-    __ push(eax);  // RecordWrite may destroy the value in eax.
-    if (type() == Slot::CONTEXT) {
-      // ecx is loaded with context when calling SlotOperand above.
-      int offset = FixedArray::kHeaderSize + index() * kPointerSize;
-      __ RecordWrite(ecx, offset, eax, ebx);
-    }
-    // If we definitely did not jump over the assignment, we do not need to
-    // bind the exit label.  Doing so can defeat peephole optimization.
-    if (init_state == CONST_INIT) __ bind(&exit);
   }
 }
 
@@ -4288,38 +4272,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ bind(&false_result);
   __ mov(eax, 0);
   __ ret(1 * kPointerSize);
-}
-
-
-void Ia32CodeGenerator::SetReferenceProperty(CodeGenerator* cgen,
-                                             Reference* ref,
-                                             Expression* key) {
-  ASSERT(!ref->is_illegal());
-  MacroAssembler* masm = cgen->masm();
-
-  if (ref->type() == Reference::NAMED) {
-    // Compute the name of the property.
-    Literal* literal = key->AsLiteral();
-    Handle<String> name(String::cast(*literal->handle()));
-
-    // Call the appropriate IC code.
-    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-    // TODO(1222589): Make the IC grab the values from the stack.
-    __ pop(eax);
-    // Setup the name register.
-    __ Set(ecx, Immediate(name));
-    __ call(ic, RelocInfo::CODE_TARGET);
-  } else {
-    // Access keyed property.
-    ASSERT(ref->type() == Reference::KEYED);
-
-    // Call IC code.
-    Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
-    // TODO(1222589): Make the IC grab the values from the stack.
-    __ pop(eax);
-    __ call(ic, RelocInfo::CODE_TARGET);
-  }
-  __ push(eax);  // IC call leaves result in eax, push it out
 }
 
 
