@@ -1085,7 +1085,7 @@ static int BoyerMooreHorspoolIndexOf(Vector<const schar> subject,
   // of character equivalence class is the one registered.
   // Notice: Doesn't include last character.
   for (int i = p < m ? m - p : 0; i < m - 1; i++) {
-    pchar c = pattern[i];
+    uc32 c = pattern[i];
     if (sizeof(schar) == 1 && c > 255) return -1;
     bad_char_map[c & kBMHSignificantBitsMask] = m - 1 - i;
   }
