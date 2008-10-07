@@ -1321,17 +1321,17 @@ StringRepresentationTag String::map_representation_tag(Map* map) {
 
 
 bool String::IsFlat() {
-  String* current = this;
-  while (true) {
-    switch (current->representation_tag()) {
-      case kConsStringTag:
-        return String::cast(ConsString::cast(current)->second())->length() == 0;
-      case kSlicedStringTag:
-        current = String::cast(SlicedString::cast(this)->buffer());
-        break;
-      default:
-        return true;
+  switch (this->representation_tag()) {
+    case kConsStringTag:
+      // Only flattened strings have second part empty.
+      return String::cast(ConsString::cast(this)->second())->length() == 0;
+    case kSlicedStringTag: {
+      String* slice = String::cast(SlicedString::cast(this)->buffer());
+      StringRepresentationTag tag = slice->representation_tag();
+      return tag == kSeqStringTag || tag == kExternalStringTag;
     }
+    default:
+      return true;
   }
 }
 

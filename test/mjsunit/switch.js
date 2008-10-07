@@ -27,7 +27,7 @@
 
 function f0() {
   switch (0) {
-    // switch deliberatly left empty
+    // switch deliberately left empty
   }
 }
 
