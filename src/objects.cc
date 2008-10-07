@@ -137,19 +137,6 @@ void Object::Lookup(String* name, LookupResult* result) {
   } else if (IsBoolean()) {
     holder = global_context->boolean_function()->instance_prototype();
   }
-#ifdef DEBUG
-  // Used to track outstanding bug #1308895.
-  // TODO(1308895) Remove when bug is fixed.
-  if (holder == NULL) {
-    PrintF("\nName being looked up: ");
-    name->Print();
-    PrintF("\nThis (object name is looked up in: ");
-    this->Print();
-    if (IsScript()) {
-      PrintF("IsScript() returns true.\n");
-    }
-  }
-#endif
   ASSERT(holder != NULL);  // cannot handle null or undefined.
   JSObject::cast(holder)->Lookup(name, result);
 }
