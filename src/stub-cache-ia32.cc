@@ -406,6 +406,7 @@ void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
 
 
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
+                                      Builtins::Name storage_extend,
                                       JSObject* object,
                                       int index,
                                       Map* transition,
@@ -431,23 +432,23 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   // checks.
   ASSERT(object->IsJSGlobalObject() || !object->IsAccessCheckNeeded());
 
+  // Perform map transition for the receiver if necessary.
+  if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
+    // The properties must be extended before we can store the value.
+    // We jump to a runtime call that extends the propeties array.
+    __ mov(Operand(ecx), Immediate(Handle<Map>(transition)));
+    Handle<Code> ic(Builtins::builtin(storage_extend));
+    __ jmp(ic, RelocInfo::CODE_TARGET);
+    return;
+  }
+
   // Get the properties array (optimistically).
   __ mov(scratch, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-
-  // Perform map transition for the receiver if necessary.
   if (transition != NULL) {
-    if (object->map()->unused_property_fields() == 0) {
-      // The properties must be extended before we can store the value.
-      // We jump to a runtime call that extends the propeties array.
-      __ mov(Operand(ecx), Immediate(Handle<Map>(transition)));
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_ExtendStorage));
-      __ jmp(ic, RelocInfo::CODE_TARGET);
-    } else {
-      // Update the map of the object; no write barrier updating is
-      // needed because the map is never in new space.
-      __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset),
-             Immediate(Handle<Map>(transition)));
-    }
+    // Update the map of the object; no write barrier updating is
+    // needed because the map is never in new space.
+    __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset),
+           Immediate(Handle<Map>(transition)));
   }
 
   // Write to the properties array.
@@ -737,7 +738,13 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   __ mov(ebx, Operand(esp, 1 * kPointerSize));
 
   // Generate store field code.  Trashes the name register.
-  GenerateStoreField(masm(), object, index, transition, ebx, ecx, edx, &miss);
+  GenerateStoreField(masm(),
+                     Builtins::StoreIC_ExtendStorage,
+                     object,
+                     index,
+                     transition,
+                     ebx, ecx, edx,
+                     &miss);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -887,7 +894,13 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ mov(ebx, Operand(esp, 2 * kPointerSize));
 
   // Generate store field code.  Trashes the name register.
-  GenerateStoreField(masm(), object, index, transition, ebx, ecx, edx, &miss);
+  GenerateStoreField(masm(),
+                     Builtins::KeyedStoreIC_ExtendStorage,
+                     object,
+                     index,
+                     transition,
+                     ebx, ecx, edx,
+                     &miss);
 
   // Handle store cache miss.
   __ bind(&miss);

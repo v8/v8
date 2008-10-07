@@ -1115,7 +1115,7 @@ Object* StoreIC_Miss(Arguments args) {
 // Extend storage is called in a store inline cache when
 // it is necessary to extend the properties array of a
 // JSObject.
-Object* StoreIC_ExtendStorage(Arguments args) {
+Object* SharedStoreIC_ExtendStorage(Arguments args) {
   NoHandleAllocation na;
   ASSERT(args.length() == 3);
 

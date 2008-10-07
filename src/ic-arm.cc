@@ -539,6 +539,9 @@ void KeyedStoreIC::Generate(MacroAssembler* masm,
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 }
 
+void KeyedStoreIC::GenerateExtendStorage(MacroAssembler* masm) {
+}
+
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm) {
   // ----------- S t a t e -------------
@@ -570,7 +573,8 @@ void StoreIC::GenerateExtendStorage(MacroAssembler* masm) {
   __ stm(db_w, sp, r0.bit() | r2.bit() | r3.bit());
 
   // Perform tail call to the entry.
-  __ TailCallRuntime(ExternalReference(IC_Utility(kStoreIC_ExtendStorage)), 3);
+  __ TailCallRuntime(
+      ExternalReference(IC_Utility(kSharedStoreIC_ExtendStorage)), 3);
 }
 
 
