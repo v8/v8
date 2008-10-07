@@ -1815,6 +1815,11 @@ class SymbolTable: public HashTable<0, 1> {
   Object* LookupSymbol(Vector<const char> str, Object** s);
   Object* LookupString(String* key, Object** s);
 
+  // Looks up a symbol that is equal to the given string and returns
+  // true if it is found, assigning the symbol to the given output
+  // parameter.
+  bool LookupSymbolIfExists(String* str, String** symbol);
+
   // Casting.
   static inline SymbolTable* cast(Object* obj);
 
@@ -2839,6 +2844,52 @@ enum AllowNullsFlag {ALLOW_NULLS, DISALLOW_NULLS};
 enum RobustnessFlag {ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL};
 
 
+class StringHasher {
+ public:
+  inline StringHasher(int length);
+
+  // Returns true if the hash of this string can be computed without
+  // looking at the contents.
+  inline bool has_trivial_hash();
+
+  // Add a character to the hash and update the array index calculation.
+  inline void AddCharacter(uc32 c);
+
+  // Adds a character to the hash but does not update the array index
+  // calculation.  This can only be called when it has been verified
+  // that the input is not an array index.
+  inline void AddCharacterNoIndex(uc32 c);
+
+  // Returns the value to store in the hash field of a string with
+  // the given length and contents.
+  uint32_t GetHashField();
+
+  // Returns true if the characters seen so far make up a legal array
+  // index.
+  bool is_array_index() { return is_array_index_; }
+
+  bool is_valid() { return is_valid_; }
+
+  void invalidate() { is_valid_ = false; }
+
+ private:
+
+  uint32_t array_index() {
+    ASSERT(is_array_index());
+    return array_index_;
+  }
+
+  inline uint32_t GetHash();
+
+  int length_;
+  uint32_t raw_running_hash_;
+  uint32_t array_index_;
+  bool is_array_index_;
+  bool is_first_char_;
+  bool is_valid_;
+};
+
+
 // The String abstract class captures JavaScript string values:
 //
 // Ecma-262:
@@ -2980,6 +3031,8 @@ class String: public HeapObject {
   static const int kMaxShortStringSize = 255;
   static const int kMaxMediumStringSize = 65535;
 
+  static const int kMaxArrayIndexSize = 10;
+
   // Max ascii char code.
   static const int kMaxAsciiCharCode = 127;
 
@@ -3024,7 +3077,8 @@ class String: public HeapObject {
                       String* sink,
                       int from,
                       int to,
-                      int sink_offset);
+                      int sink_offset,
+                      StringHasher* hasher);
 
  protected:
   class ReadBlockBuffer {

@@ -2251,6 +2251,16 @@ Object* Heap::LookupSymbol(String* string) {
 }
 
 
+bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
+  if (string->IsSymbol()) {
+    *symbol = string;
+    return true;
+  }
+  SymbolTable* table = SymbolTable::cast(symbol_table_);
+  return table->LookupSymbolIfExists(string, symbol);
+}
+
+
 #ifdef DEBUG
 void Heap::ZapFromSpace() {
   ASSERT(HAS_HEAP_OBJECT_TAG(kFromSpaceZapValue));

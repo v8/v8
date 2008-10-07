@@ -521,12 +521,23 @@ Object* String::Flatten() {
       // cons string is in old space.  It can never get GCed until there is
       // an old space GC.
       PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED : TENURED;
+      int len = length();
       Object* object = IsAscii() ?
-          Heap::AllocateRawAsciiString(length(), tenure) :
-          Heap::AllocateRawTwoByteString(length(), tenure);
+          Heap::AllocateRawAsciiString(len, tenure) :
+          Heap::AllocateRawTwoByteString(len, tenure);
       if (object->IsFailure()) return object;
       String* result = String::cast(object);
-      Flatten(this, result, 0, length(), 0);
+      StringHasher hasher(len);
+      Flatten(this, result, 0, len, 0, &hasher);
+      if (hasher.is_valid()) {
+#ifdef DEBUG
+        result->ComputeAndSetHash();
+        ASSERT(result->length_field() == hasher.GetHashField());
+#else
+        result->set_length_field(hasher.GetHashField());
+#endif
+        Heap::LookupSymbolIfExists(result, &result);
+      }
       cs->set_first(result);
       cs->set_second(Heap::empty_string());
       return this;
@@ -3606,7 +3617,12 @@ Object* SlicedString::SlicedStringFlatten() {
 }
 
 
-void String::Flatten(String* src, String* sink, int f, int t, int so) {
+void String::Flatten(String* src,
+                     String* sink,
+                     int f,
+                     int t,
+                     int so,
+                     StringHasher* hasher) {
   String* source = src;
   int from = f;
   int to = t;
@@ -3621,7 +3637,10 @@ void String::Flatten(String* src, String* sink, int f, int t, int so) {
         buffer->Reset(from, source);
         int j = sink_offset;
         for (int i = from; i < to; i++) {
-          sink->Set(j++, buffer->GetNext());
+          uc32 c = buffer->GetNext();
+          if (hasher->is_valid())
+            hasher->AddCharacter(c);
+          sink->Set(j++, c);
         }
         return;
       }
@@ -3637,10 +3656,10 @@ void String::Flatten(String* src, String* sink, int f, int t, int so) {
         ConsString* cons_string = ConsString::cast(source);
         String* first = String::cast(cons_string->first());
         int boundary = first->length();
-        if (to - boundary > boundary - from) {
+        if (to - boundary >= boundary - from) {
           // Right hand side is longer.  Recurse over left.
           if (from < boundary) {
-            Flatten(first, sink, from, boundary, sink_offset);
+            Flatten(first, sink, from, boundary, sink_offset, hasher);
             sink_offset += boundary - from;
             from = 0;
           } else {
@@ -3649,14 +3668,18 @@ void String::Flatten(String* src, String* sink, int f, int t, int so) {
           to -= boundary;
           source = String::cast(cons_string->second());
         } else {
-          // Left hand side is longer.  Recurse over right.
+          // Left hand side is longer.  Recurse over right.  The hasher
+          // needs us to visit the string from left to right so doing
+          // this invalidates that hash.
+          hasher->invalidate();
           if (to > boundary) {
             String* second = String::cast(cons_string->second());
             Flatten(second,
                     sink,
                     0,
                     to - boundary,
-                    sink_offset + boundary - from);
+                    sink_offset + boundary - from,
+                    hasher);
             to = boundary;
           }
           source = first;
@@ -3812,39 +3835,45 @@ static inline uint32_t HashField(uint32_t hash, bool is_array_index) {
 }
 
 
+uint32_t StringHasher::GetHashField() {
+  ASSERT(is_valid());
+  if (length_ <= String::kMaxShortStringSize) {
+    uint32_t payload;
+    if (is_array_index()) {
+      payload = v8::internal::HashField(array_index(), true);
+    } else {
+      payload = v8::internal::HashField(GetHash(), false);
+    }
+    return (payload & 0x00FFFFFF) | (length_ << String::kShortLengthShift);
+  } else if (length_ <= String::kMaxMediumStringSize) {
+    uint32_t payload = v8::internal::HashField(GetHash(), false);
+    return (payload & 0x0000FFFF) | (length_ << String::kMediumLengthShift);
+  } else {
+    return v8::internal::HashField(length_, false);
+  }
+}
+
+
 uint32_t String::ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
                                            int length) {
-  // Large string (please note large strings cannot be an array index).
-  if (length > kMaxMediumStringSize) return HashField(length, false);
+  StringHasher hasher(length);
 
-  // Note: the Jenkins one-at-a-time hash function
-  uint32_t hash = 0;
-  while (buffer->has_more()) {
-    uc32 r = buffer->GetNext();
-    hash += r;
-    hash += (hash << 10);
-    hash ^= (hash >> 6);
-  }
-  hash += (hash << 3);
-  hash ^= (hash >> 11);
-  hash += (hash << 15);
+  // Very long strings have a trivial hash that doesn't inspect the
+  // string contents.
+  if (hasher.has_trivial_hash())
+    return hasher.GetHashField();
 
-  // Short string.
-  if (length <= kMaxShortStringSize) {
-    // Make hash value consistent with value returned from String::Hash.
-    buffer->Rewind();
-    uint32_t index;
-    hash = HashField(hash, ComputeArrayIndex(buffer, &index, length));
-    hash = (hash & 0x00FFFFFF) | (length << kShortLengthShift);
-    return hash;
-  }
+  // Do the iterative array index computation as long as there is a
+  // chance this is an array index.
+  while (buffer->has_more() && hasher.is_array_index())
+    hasher.AddCharacter(buffer->GetNext());
 
-  // Medium string (please note medium strings cannot be an array index).
-  ASSERT(length <= kMaxMediumStringSize);
-  // Make hash value consistent with value returned from String::Hash.
-  hash = HashField(hash, false);
-  hash = (hash & 0x0000FFFF) | (length << kMediumLengthShift);
-  return hash;
+  // Process the remaining characters without updating the array
+  // index.
+  while (buffer->has_more())
+    hasher.AddCharacterNoIndex(buffer->GetNext());
+
+  return hasher.GetHashField();
 }
 
 
@@ -5627,6 +5656,20 @@ template class HashTable<0, 2>;
 Object* SymbolTable::LookupString(String* string, Object** s) {
   SymbolKey key(string);
   return LookupKey(&key, s);
+}
+
+
+bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
+  SymbolKey key(string);
+  int entry = FindEntry(&key);
+  if (entry == -1) {
+    return false;
+  } else {
+    String* result = String::cast(KeyAt(entry));
+    ASSERT(result->is_symbol());
+    *symbol = result;
+    return true;
+  }
 }
 
 

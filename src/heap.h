@@ -528,6 +528,7 @@ class Heap : public AllStatic {
     return LookupSymbol(CStrVector(str));
   }
   static Object* LookupSymbol(String* str);
+  static bool LookupSymbolIfExists(String* str, String** symbol);
 
   // Compute the matching symbol map for a string if possible.
   // NULL is returned if string is in new space or not flattened.

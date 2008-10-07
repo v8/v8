@@ -2088,6 +2088,65 @@ uint32_t String::Hash() {
 }
 
 
+StringHasher::StringHasher(int length)
+  : length_(length),
+    raw_running_hash_(0),
+    array_index_(0),
+    is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
+    is_first_char_(true),
+    is_valid_(true) { }
+
+
+bool StringHasher::has_trivial_hash() {
+  return length_ > String::kMaxMediumStringSize;
+}
+
+
+void StringHasher::AddCharacter(uc32 c) {
+  // Note: the Jenkins one-at-a-time hash function
+  raw_running_hash_ += c;
+  raw_running_hash_ += (raw_running_hash_ << 10);
+  raw_running_hash_ ^= (raw_running_hash_ >> 6);
+  // Incremental array index computation
+  if (is_array_index_) {
+    if (c < '0' || c > '9') {
+      is_array_index_ = false;
+    } else {
+      int d = c - '0';
+      if (is_first_char_) {
+        is_first_char_ = false;
+        if (c == '0' && length_ > 1) {
+          is_array_index_ = false;
+          return;
+        }
+      }
+      if (array_index_ > 429496729U - ((d + 2) >> 3)) {
+        is_array_index_ = false;
+      } else {
+        array_index_ = array_index_ * 10 + d;
+      }
+    }
+  }
+}
+
+
+void StringHasher::AddCharacterNoIndex(uc32 c) {
+  ASSERT(!is_array_index());
+  raw_running_hash_ += c;
+  raw_running_hash_ += (raw_running_hash_ << 10);
+  raw_running_hash_ ^= (raw_running_hash_ >> 6);
+}
+
+
+uint32_t StringHasher::GetHash() {
+  uint32_t result = raw_running_hash_;
+  result += (result << 3);
+  result ^= (result >> 11);
+  result += (result << 15);
+  return result;
+}
+
+
 bool String::AsArrayIndex(uint32_t* index) {
   uint32_t field = length_field();
   if ((field & kHashComputedMask) && !(field & kIsArrayIndexMask)) return false;
