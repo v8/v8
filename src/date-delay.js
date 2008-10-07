@@ -43,7 +43,7 @@ const $Date = global.Date;
 
 // ECMA 262 - 15.9.1.2
 function Day(time) {
-  return $floor(time/msPerDay);
+  return FLOOR(time/msPerDay);
 }
 
 
@@ -69,9 +69,9 @@ function DaysInYear(year) {
 
 function DayFromYear(year) {
   return 365 * (year-1970)
-      + $floor((year-1969)/4)
-      - $floor((year-1901)/100)
-      + $floor((year-1601)/400);
+      + FLOOR((year-1969)/4)
+      - FLOOR((year-1901)/100)
+      + FLOOR((year-1601)/400);
 }
 
 
@@ -170,6 +170,10 @@ function LocalTime(time) {
   return time + local_time_offset + DaylightSavingsOffset(time);
 }
 
+function LocalTimeNoCheck(time) {
+  return time + local_time_offset + DaylightSavingsOffset(time);
+}
+
 
 function UTC(time) {
   if ($isNaN(time)) return time;
@@ -180,17 +184,17 @@ function UTC(time) {
 
 // ECMA 262 - 15.9.1.10
 function HourFromTime(time) {
-  return Modulo($floor(time / msPerHour), HoursPerDay);
+  return Modulo(FLOOR(time / msPerHour), HoursPerDay);
 }
 
 
 function MinFromTime(time) {
-  return Modulo($floor(time / msPerMinute), MinutesPerHour);
+  return Modulo(FLOOR(time / msPerMinute), MinutesPerHour);
 }
 
 
 function SecFromTime(time) {
-  return Modulo($floor(time / msPerSecond), SecondsPerMinute);
+  return Modulo(FLOOR(time / msPerSecond), SecondsPerMinute);
 }
 
 
@@ -223,12 +227,11 @@ function TimeInYear(year) {
 function ToJulianDay(year, month, date) {
   var jy = (month > 1) ? year : year - 1;
   var jm = (month > 1) ? month + 2 : month + 14;
-  var ja = $floor(0.01*jy);
-  return $floor($floor(365.25*jy) + $floor(30.6001*jm) + date + 1720995) + 2 - ja + $floor(0.25*ja);
+  var ja = FLOOR(0.01*jy);
+  return FLOOR(FLOOR(365.25*jy) + FLOOR(30.6001*jm) + date + 1720995) + 2 - ja + FLOOR(0.25*ja);
 }
 
-
-var four_year_cycle_table;
+var four_year_cycle_table = CalculateDateTable();
 
 
 function CalculateDateTable() {
@@ -261,7 +264,6 @@ function CalculateDateTable() {
 }
 
 
-
 // Constructor for creating objects holding year, month, and date.
 // Introduced to ensure the two return points in FromJulianDay match same map.
 function DayTriplet(year, month, date) {
@@ -279,8 +281,6 @@ function FromJulianDay(julian) {
   // when doing the multiply-to-divide trick.
   if (julian > kDayZeroInJulianDay &&
       (julian - kDayZeroInJulianDay) < 40177) { // 1970 - 2080
-    if (!four_year_cycle_table)
-      four_year_cycle_table = CalculateDateTable();
     var jsimple = (julian - kDayZeroInJulianDay) + 731; // Day 0 is 1st January 1968
     var y = 1968;
     // Divide by 1461 by multiplying with 22967 and shifting down by 25!
@@ -292,18 +292,19 @@ function FromJulianDay(julian) {
                            (four_year_cycle & kMonthMask) >> kMonthShift,
                            four_year_cycle & kDayMask);
   }
-  var jalpha = $floor((julian - 1867216.25) / 36524.25);
-  var jb = julian + 1 + jalpha - $floor(0.25 * jalpha) + 1524;
-  var jc = $floor(6680.0 + ((jb-2439870) - 122.1)/365.25);
-  var jd = $floor(365 * jc + (0.25 * jc));
-  var je = $floor((jb - jd)/30.6001);
+  var jalpha = FLOOR((julian - 1867216.25) / 36524.25);
+  var jb = julian + 1 + jalpha - FLOOR(0.25 * jalpha) + 1524;
+  var jc = FLOOR(6680.0 + ((jb-2439870) - 122.1)/365.25);
+  var jd = FLOOR(365 * jc + (0.25 * jc));
+  var je = FLOOR((jb - jd)/30.6001);
   var m = je - 1;
   if (m > 12) m -= 13;
   var y = jc - 4715;
   if (m > 2) { --y; --m; }
-  var d = jb - jd - $floor(30.6001 * je);
+  var d = jb - jd - FLOOR(30.6001 * je);
   return new DayTriplet(y, m, d);
 }
+
 
 // Compute number of days given a year, month, date.
 // Note that month and date can lie outside the normal range.
@@ -320,7 +321,7 @@ function MakeDay(year, month, date) {
   date = TO_INTEGER(date);
 
   // Overflow months into year.
-  year = year + $floor(month/12);
+  year = year + FLOOR(month/12);
   month = month % 12;
   if (month < 0) {
     month += 12;
@@ -400,7 +401,7 @@ function GetTimeFrom(aDate) {
 function GetMillisecondsFrom(aDate) {
   var t = GetTimeFrom(aDate);
   if ($isNaN(t)) return t;
-  return msFromTime(LocalTime(t));
+  return msFromTime(LocalTimeNoCheck(t));
 }
 
 
@@ -414,7 +415,7 @@ function GetUTCMillisecondsFrom(aDate) {
 function GetSecondsFrom(aDate) {
   var t = GetTimeFrom(aDate);
   if ($isNaN(t)) return t;
-  return SecFromTime(LocalTime(t));
+  return SecFromTime(LocalTimeNoCheck(t));
 }
 
 
@@ -428,7 +429,7 @@ function GetUTCSecondsFrom(aDate) {
 function GetMinutesFrom(aDate) {
   var t = GetTimeFrom(aDate);
   if ($isNaN(t)) return t;
-  return MinFromTime(LocalTime(t));
+  return MinFromTime(LocalTimeNoCheck(t));
 }
 
 
@@ -442,7 +443,7 @@ function GetUTCMinutesFrom(aDate) {
 function GetHoursFrom(aDate) {
   var t = GetTimeFrom(aDate);
   if ($isNaN(t)) return t;
-  return HourFromTime(LocalTime(t));
+  return HourFromTime(LocalTimeNoCheck(t));
 }
 
 
@@ -456,7 +457,7 @@ function GetUTCHoursFrom(aDate) {
 function GetFullYearFrom(aDate) {
   var t = GetTimeFrom(aDate);
   if ($isNaN(t)) return t;
-  return YearFromTime(LocalTime(t));
+  return YearFromTime(LocalTimeNoCheck(t));
 }
 
 
@@ -470,7 +471,7 @@ function GetUTCFullYearFrom(aDate) {
 function GetMonthFrom(aDate) {
   var t = GetTimeFrom(aDate);
   if ($isNaN(t)) return t;
-  return MonthFromTime(LocalTime(t));
+  return MonthFromTime(LocalTimeNoCheck(t));
 }
 
 
@@ -484,7 +485,7 @@ function GetUTCMonthFrom(aDate) {
 function GetDateFrom(aDate) {
   var t = GetTimeFrom(aDate);
   if ($isNaN(t)) return t;
-  return DateFromTime(LocalTime(t));
+  return DateFromTime(LocalTimeNoCheck(t));
 }
 
 
@@ -526,8 +527,8 @@ function TimeString(time) {
 function LocalTimezoneString(time) {
   var timezoneOffset = (local_time_offset + DaylightSavingsOffset(time)) / msPerMinute;
   var sign = (timezoneOffset >= 0) ? 1 : -1;
-  var hours = $floor((sign * timezoneOffset)/60);
-  var min   = $floor((sign * timezoneOffset)%60);
+  var hours = FLOOR((sign * timezoneOffset)/60);
+  var min   = FLOOR((sign * timezoneOffset)%60);
   var gmt = ' GMT' + ((sign == 1) ? '+' : '-') + TwoDigitString(hours) + TwoDigitString(min);
   return gmt + ' (' +  LocalTimezone(time) + ')';
 }
@@ -586,7 +587,7 @@ function DateNow() {
 function DateToString() {
   var t = GetTimeFrom(this);
   if ($isNaN(t)) return kInvalidDate;
-  return DatePrintString(LocalTime(t)) + LocalTimezoneString(t);
+  return DatePrintString(LocalTimeNoCheck(t)) + LocalTimezoneString(t);
 }
 
 
@@ -594,7 +595,7 @@ function DateToString() {
 function DateToDateString() {
   var t = GetTimeFrom(this);
   if ($isNaN(t)) return kInvalidDate;
-  return DateString(LocalTime(t));
+  return DateString(LocalTimeNoCheck(t));
 }
 
 
@@ -602,7 +603,7 @@ function DateToDateString() {
 function DateToTimeString() {
   var t = GetTimeFrom(this);
   if ($isNaN(t)) return kInvalidDate;
-  var lt = LocalTime(t);
+  var lt = LocalTimeNoCheck(t);
   return TimeString(lt) + LocalTimezoneString(lt);
 }
 
@@ -623,7 +624,7 @@ function DateToLocaleDateString() {
 function DateToLocaleTimeString() {
   var t = GetTimeFrom(this);
   if ($isNaN(t)) return kInvalidDate;
-  var lt = LocalTime(t);
+  var lt = LocalTimeNoCheck(t);
   return TimeString(lt);
 }
 
@@ -680,7 +681,7 @@ function DateGetUTCDate() {
 function DateGetDay() {
   var t = GetTimeFrom(this);
   if ($isNaN(t)) return t;
-  return WeekDay(LocalTime(t));
+  return WeekDay(LocalTimeNoCheck(t));
 }
 
 
@@ -744,7 +745,7 @@ function DateGetUTCMilliseconds() {
 function DateGetTimezoneOffset() {
   var t = GetTimeFrom(this);
   if ($isNaN(t)) return t;
-  return (t - LocalTime(t)) / msPerMinute;
+  return (t - LocalTimeNoCheck(t)) / msPerMinute;
 }
 
 
@@ -884,7 +885,7 @@ function DateSetUTCMonth(month, date) {
 // ECMA 262 - 15.9.5.40
 function DateSetFullYear(year, month, date) {
   var t = GetTimeFrom(this);
-  t = $isNaN(t) ? 0 : LocalTime(t);
+  t = $isNaN(t) ? 0 : LocalTimeNoCheck(t);
   year = ToNumber(year);
   var argc = %_ArgumentsLength();
   month = argc < 2 ? MonthFromTime(t) : ToNumber(month);
@@ -924,7 +925,7 @@ function DateToUTCString() {
 function DateGetYear() {
   var t = GetTimeFrom(this);
   if ($isNaN(t)) return $NaN;
-  return YearFromTime(LocalTime(t)) - 1900;
+  return YearFromTime(LocalTimeNoCheck(t)) - 1900;
 }
 
 

@@ -154,6 +154,8 @@ namespace v8 { namespace internal {
   V(object_symbol, "object")                                             \
   V(prototype_symbol, "prototype")                                       \
   V(string_symbol, "string")                                             \
+  V(String_symbol, "String")                                             \
+  V(Date_symbol, "Date")                                                 \
   V(this_symbol, "this")                                                 \
   V(to_string_symbol, "toString")                                        \
   V(char_at_symbol, "CharAt")                                            \

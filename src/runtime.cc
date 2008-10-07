@@ -221,6 +221,30 @@ static Object* Runtime_ClassOf(Arguments args) {
   return JSObject::cast(obj)->class_name();
 }
 
+inline static Object* IsSpecificClassOf(Arguments args, String* name) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  Object* obj = args[0];
+  if (obj->IsJSObject() && (JSObject::cast(obj)->class_name() == name)) {
+    return Heap::true_value();
+  }
+  return Heap::false_value();
+}
+
+static Object* Runtime_IsStringClass(Arguments args) {
+  return IsSpecificClassOf(args, Heap::String_symbol());
+}
+
+
+static Object* Runtime_IsDateClass(Arguments args) {
+  return IsSpecificClassOf(args, Heap::Date_symbol());
+}
+
+
+static Object* Runtime_IsArrayClass(Arguments args) {
+  return IsSpecificClassOf(args, Heap::Array_symbol());
+}
+
 
 static Object* Runtime_IsInPrototypeChain(Arguments args) {
   NoHandleAllocation ha;
@@ -2508,8 +2532,12 @@ static Object* Runtime_StringEquals(Arguments args) {
   int len = x->length();
   if (len != y->length()) return Smi::FromInt(NOT_EQUAL);
   if (len == 0) return Smi::FromInt(EQUAL);
-  // Fast case:  First, middle and last characters.
+
+  // Handle one elment strings.
   if (x->Get(0) != y->Get(0)) return Smi::FromInt(NOT_EQUAL);
+  if (len == 1) return Smi::FromInt(EQUAL);
+
+  // Fast case:  First, middle and last characters.
   if (x->Get(len>>1) != y->Get(len>>1)) return Smi::FromInt(NOT_EQUAL);
   if (x->Get(len - 1) != y->Get(len - 1)) return Smi::FromInt(NOT_EQUAL);
 

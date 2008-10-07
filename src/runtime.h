@@ -164,6 +164,9 @@ namespace v8 { namespace internal {
   F(GetScript, 1) \
   \
   F(ClassOf, 1) \
+  F(IsDateClass, 1) \
+  F(IsStringClass, 1) \
+  F(IsArrayClass, 1) \
   F(SetCode, 2) \
   \
   F(CreateApiFunction, 1) \

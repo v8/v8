@@ -79,10 +79,11 @@ macro IS_STRING(arg)            = (typeof(arg) === 'string');
 macro IS_OBJECT(arg)            = (typeof(arg) === 'object');
 macro IS_BOOLEAN(arg)           = (typeof(arg) === 'boolean');
 macro IS_REGEXP(arg)            = (%ClassOf(arg) === 'RegExp');
-macro IS_ARRAY(arg)             = (%ClassOf(arg) === 'Array');
-macro IS_DATE(arg)              = (%ClassOf(arg) === 'Date');
+macro IS_ARRAY(arg)             = %IsArrayClass(arg);
+macro IS_DATE(arg)              = %IsDateClass(arg);
 macro IS_ERROR(arg)             = (%ClassOf(arg) === 'Error');
 macro IS_SCRIPT(arg)            = (%ClassOf(arg) === 'Script');
+macro FLOOR(arg)                = %Math_floor(arg);
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
