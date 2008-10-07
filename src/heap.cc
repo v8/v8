@@ -1400,6 +1400,10 @@ Object* Heap::AllocateSlicedString(String* buffer, int start, int end) {
 Object* Heap::AllocateSubString(String* buffer, int start, int end) {
   int length = end - start;
 
+  if (length == 1) {
+    return Heap::LookupSingleCharacterStringFromCode(buffer->Get(start));
+  }
+
   // Make an attempt to flatten the buffer to reduce access time.
   buffer->TryFlatten();
 
@@ -1410,9 +1414,19 @@ Object* Heap::AllocateSubString(String* buffer, int start, int end) {
 
   // Copy the characters into the new object.
   String* string_result = String::cast(result);
-  for (int i = 0; i < length; i++) {
-    string_result->Set(i, buffer->Get(start + i));
+  StringHasher hasher(length);
+  int i = 0;
+  for (; i < length && hasher.is_array_index(); i++) {
+    uc32 c = buffer->Get(start + i);
+    hasher.AddCharacter(c);
+    string_result->Set(i, c);
   }
+  for (; i < length; i++) {
+    uc32 c = buffer->Get(start + i);
+    hasher.AddCharacterNoIndex(c);
+    string_result->Set(i, c);
+  }
+  string_result->set_length_field(hasher.GetHashField());
   return result;
 }
 

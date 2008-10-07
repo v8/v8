@@ -3077,8 +3077,7 @@ class String: public HeapObject {
                       String* sink,
                       int from,
                       int to,
-                      int sink_offset,
-                      StringHasher* hasher);
+                      int sink_offset);
 
  protected:
   class ReadBlockBuffer {

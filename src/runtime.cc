@@ -2404,24 +2404,21 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   if (object->IsFailure()) return object;
 
   String* answer = String::cast(object);
-  StringHasher hasher(length);
   for (int i = 0; i < array_length; i++) {
     Object* element = fixed_array->get(i);
     if (element->IsSmi()) {
       int len = Smi::cast(element)->value();
       int pos = len >> 11;
       len &= 0x7ff;
-      String::Flatten(special, answer, pos, pos + len, position, &hasher);
+      String::Flatten(special, answer, pos, pos + len, position);
       position += len;
     } else {
       String* string = String::cast(element);
       int element_length = string->length();
-      String::Flatten(string, answer, 0, element_length, position, &hasher);
+      String::Flatten(string, answer, 0, element_length, position);
       position += element_length;
     }
   }
-  if (hasher.is_valid())
-    answer->set_length_field(hasher.GetHashField());
   return answer;
 }
 

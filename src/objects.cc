@@ -527,17 +527,7 @@ Object* String::Flatten() {
           Heap::AllocateRawTwoByteString(len, tenure);
       if (object->IsFailure()) return object;
       String* result = String::cast(object);
-      StringHasher hasher(len);
-      Flatten(this, result, 0, len, 0, &hasher);
-      if (hasher.is_valid()) {
-#ifdef DEBUG
-        result->ComputeAndSetHash();
-        ASSERT(result->length_field() == hasher.GetHashField());
-#else
-        result->set_length_field(hasher.GetHashField());
-#endif
-        Heap::LookupSymbolIfExists(result, &result);
-      }
+      Flatten(this, result, 0, len, 0);
       cs->set_first(result);
       cs->set_second(Heap::empty_string());
       return this;
@@ -3621,8 +3611,7 @@ void String::Flatten(String* src,
                      String* sink,
                      int f,
                      int t,
-                     int so,
-                     StringHasher* hasher) {
+                     int so) {
   String* source = src;
   int from = f;
   int to = t;
@@ -3638,8 +3627,6 @@ void String::Flatten(String* src,
         int j = sink_offset;
         for (int i = from; i < to; i++) {
           uc32 c = buffer->GetNext();
-          if (hasher->is_valid())
-            hasher->AddCharacter(c);
           sink->Set(j++, c);
         }
         return;
@@ -3659,7 +3646,7 @@ void String::Flatten(String* src,
         if (to - boundary >= boundary - from) {
           // Right hand side is longer.  Recurse over left.
           if (from < boundary) {
-            Flatten(first, sink, from, boundary, sink_offset, hasher);
+            Flatten(first, sink, from, boundary, sink_offset);
             sink_offset += boundary - from;
             from = 0;
           } else {
@@ -3671,15 +3658,13 @@ void String::Flatten(String* src,
           // Left hand side is longer.  Recurse over right.  The hasher
           // needs us to visit the string from left to right so doing
           // this invalidates that hash.
-          hasher->invalidate();
           if (to > boundary) {
             String* second = String::cast(cons_string->second());
             Flatten(second,
                     sink,
                     0,
                     to - boundary,
-                    sink_offset + boundary - from,
-                    hasher);
+                    sink_offset + boundary - from);
             to = boundary;
           }
           source = first;
