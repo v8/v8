@@ -1086,7 +1086,11 @@ static int BoyerMooreHorspoolIndexOf(Vector<const schar> subject,
   // Notice: Doesn't include last character.
   for (int i = p < m ? m - p : 0; i < m - 1; i++) {
     uc32 c = pattern[i];
-    if (sizeof(schar) == 1 && c > 255) return -1;
+    if (sizeof(schar) == 1 &&
+        sizeof(pchar) > 1 &&
+        c > String::kMaxAsciiCharCode) {
+      return -1;
+    }
     bad_char_map[c & kBMHSignificantBitsMask] = m - 1 - i;
   }
 
