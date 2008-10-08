@@ -64,7 +64,7 @@ function TestExceptions() {
                 true, 
                 'string', new String('hest'),
                 {}, [], 
-                F, new F(), 
+                F, new F(),
                 Object, String ];
 
   var exceptions = 0;
@@ -82,6 +82,12 @@ function TestExceptions() {
   }
   assertEquals(10, instanceofs);
   assertEquals(88, exceptions);
+
+  // Make sure to throw an exception if the function prototype
+  // isn't a proper JavaScript object.
+  function G() { }
+  G.prototype = undefined;
+  assertThrows("({} instanceof G)");
 }
 
 TestExceptions();

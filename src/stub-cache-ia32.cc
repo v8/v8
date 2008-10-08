@@ -232,7 +232,6 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                                  Register scratch1,
                                                  Register scratch2,
                                                  Label* miss_label) {
-
   __ TryGetFunctionPrototype(receiver, scratch1, scratch2, miss_label);
   __ mov(eax, Operand(scratch1));
   __ ret(0);

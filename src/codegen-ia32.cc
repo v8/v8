@@ -5304,6 +5304,14 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ mov(edx, Operand(esp, 1 * kPointerSize));  // 1 ~ return address
   __ TryGetFunctionPrototype(edx, ebx, ecx, &slow);
 
+  // Check that the function prototype is a JS object.
+  __ mov(ecx, FieldOperand(ebx, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+  __ j(less, &slow, not_taken);
+  __ cmp(ecx, LAST_JS_OBJECT_TYPE);
+  __ j(greater, &slow, not_taken);
+
   // Register mapping: eax is object map and ebx is function prototype.
   __ mov(ecx, FieldOperand(eax, Map::kPrototypeOffset));
 
