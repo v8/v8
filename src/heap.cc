@@ -733,10 +733,20 @@ HeapObject* Heap::MigrateObject(HeapObject** source_p,
                                 int size) {
   void** src = reinterpret_cast<void**>((*source_p)->address());
   void** dst = reinterpret_cast<void**>(target->address());
-  int counter = size/kPointerSize - 1;
-  do {
-    *dst++ = *src++;
-  } while (counter-- > 0);
+
+  // Use block copying memcpy if the object we're migrating is big
+  // enough to justify the extra call/setup overhead.
+  static const int kBlockCopyLimit = 16 * kPointerSize;
+
+  if (size >= kBlockCopyLimit) {
+    memcpy(dst, src, size);
+  } else {
+    int remaining = size / kPointerSize;
+    do {
+      remaining--;
+      *dst++ = *src++;
+    } while (remaining > 0);
+  }
 
   // Set the forwarding address.
   (*source_p)->set_map_word(MapWord::FromForwardingAddress(target));
