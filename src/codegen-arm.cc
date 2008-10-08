@@ -51,6 +51,7 @@ class ArmCodeGenerator;
 // on the execution stack to represent the reference.
 
 enum InitState { CONST_INIT, NOT_CONST_INIT };
+enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 class Reference BASE_EMBEDDED {
  public:
@@ -72,6 +73,18 @@ class Reference BASE_EMBEDDED {
   bool is_slot() const { return type_ == SLOT; }
   bool is_property() const { return type_ == NAMED || type_ == KEYED; }
 
+  // Return the name.  Only valid for named property references.
+  Handle<String> GetName();
+
+  // Generate code to push the value of the reference on top of the
+  // expression stack.  The reference is expected to be already on top of
+  // the expression stack, and it is left in place with its value above it.
+  void GetValue(TypeofState typeof_state);
+
+  // Generate code to store the value on top of the expression stack in the
+  // reference.  The reference is expected to be immediately below the value
+  // on the expression stack.  The stored value is left in place (with the
+  // reference intact below it) to support chained assignments.
   void SetValue(InitState init_state);
 
  private:
@@ -91,42 +104,29 @@ class Reference BASE_EMBEDDED {
 
 class CodeGenState BASE_EMBEDDED {
  public:
-  enum AccessType {
-    UNDEFINED,
-    LOAD,
-    LOAD_TYPEOF_EXPR
-  };
-
   // Create an initial code generator state.  Destroying the initial state
   // leaves the code generator with a NULL state.
   explicit CodeGenState(ArmCodeGenerator* owner);
 
   // Create a code generator state based on a code generator's current
-  // state.  The new state has its own access type and pair of branch
-  // labels, and no reference.
+  // state.  The new state has its own typeof state and pair of branch
+  // labels.
   CodeGenState(ArmCodeGenerator* owner,
-               AccessType access,
+               TypeofState typeof_state,
                Label* true_target,
                Label* false_target);
-
-  // Create a code generator state based on a code generator's current
-  // state.  The new state has an access type of LOAD, its own reference,
-  // and inherits the pair of branch labels of the current state.
-  CodeGenState(ArmCodeGenerator* owner, Reference* ref);
 
   // Destroy a code generator state and restore the owning code generator's
   // previous state.
   ~CodeGenState();
 
-  AccessType access() const { return access_; }
-  Reference* ref() const { return ref_; }
+  TypeofState typeof_state() const { return typeof_state_; }
   Label* true_target() const { return true_target_; }
   Label* false_target() const { return false_target_; }
 
  private:
   ArmCodeGenerator* owner_;
-  AccessType access_;
-  Reference* ref_;
+  TypeofState typeof_state_;
   Label* true_target_;
   Label* false_target_;
   CodeGenState* previous_;
@@ -178,9 +178,7 @@ class ArmCodeGenerator: public CodeGenerator {
 
   // State
   bool has_cc() const  { return cc_reg_ != al; }
-  CodeGenState::AccessType access() const  { return state_->access(); }
-  Reference* ref() const  { return state_->ref(); }
-  bool is_referenced() const { return state_->ref() != NULL; }
+  TypeofState typeof_state() const { return state_->typeof_state(); }
   Label* true_target() const  { return state_->true_target(); }
   Label* false_target() const  { return state_->false_target(); }
 
@@ -209,11 +207,16 @@ class ArmCodeGenerator: public CodeGenerator {
 
   MemOperand SlotOperand(Slot* slot, Register tmp);
 
-  void LoadCondition(Expression* x, CodeGenState::AccessType access,
-                     Label* true_target, Label* false_target, bool force_cc);
-  void Load(Expression* x,
-            CodeGenState::AccessType access = CodeGenState::LOAD);
+  void LoadCondition(Expression* x,
+                     TypeofState typeof_state,
+                     Label* true_target,
+                     Label* false_target,
+                     bool force_cc);
+  void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
+
+  // Read a value from a slot and leave it on top of the expression stack.
+  void LoadFromSlot(Slot* slot, TypeofState typeof_state);
 
   // Special code for typeof expressions: Unfortunately, we must
   // be careful when loading the expression in 'typeof'
@@ -222,24 +225,6 @@ class ArmCodeGenerator: public CodeGenerator {
   // look like an explicit property access, instead of an access
   // through the context chain.
   void LoadTypeofExpression(Expression* x);
-
-
-  // References
-
-  // Generate code to fetch the value of a reference.  The reference is
-  // expected to be on top of the expression stack.  It is left in place and
-  // its value is pushed on top of it.
-  void GetValue(Reference* ref) {
-    ASSERT(!has_cc());
-    ASSERT(!ref->is_illegal());
-    CodeGenState new_state(this, ref);
-    Visit(ref->expression());
-  }
-
-  // Generate code to fetch a value from a property of a reference.  The
-  // reference is expected on top of the expression stack.  It is left in
-  // place and its value is pushed on top of it.
-  void GetReferenceProperty(Expression* key);
 
   void ToBoolean(Label* true_target, Label* false_target);
 
@@ -309,8 +294,7 @@ class ArmCodeGenerator: public CodeGenerator {
 
 CodeGenState::CodeGenState(ArmCodeGenerator* owner)
     : owner_(owner),
-      access_(UNDEFINED),
-      ref_(NULL),
+      typeof_state_(NOT_INSIDE_TYPEOF),
       true_target_(NULL),
       false_target_(NULL),
       previous_(NULL) {
@@ -319,25 +303,13 @@ CodeGenState::CodeGenState(ArmCodeGenerator* owner)
 
 
 CodeGenState::CodeGenState(ArmCodeGenerator* owner,
-                           AccessType access,
+                           TypeofState typeof_state,
                            Label* true_target,
                            Label* false_target)
     : owner_(owner),
-      access_(access),
-      ref_(NULL),
+      typeof_state_(typeof_state),
       true_target_(true_target),
       false_target_(false_target),
-      previous_(owner->state()) {
-  owner_->set_state(this);
-}
-
-
-CodeGenState::CodeGenState(ArmCodeGenerator* owner, Reference* ref)
-    : owner_(owner),
-      access_(LOAD),
-      ref_(ref),
-      true_target_(owner->state()->true_target_),
-      false_target_(owner->state()->false_target_),
       previous_(owner->state()) {
   owner_->set_state(this);
 }
@@ -708,15 +680,13 @@ MemOperand ArmCodeGenerator::SlotOperand(Slot* slot, Register tmp) {
 // code register and no value is pushed. If the condition code register was set,
 // has_cc() is true and cc_reg_ contains the condition to test for 'true'.
 void ArmCodeGenerator::LoadCondition(Expression* x,
-                                     CodeGenState::AccessType access,
+                                     TypeofState typeof_state,
                                      Label* true_target,
                                      Label* false_target,
                                      bool force_cc) {
-  ASSERT(access == CodeGenState::LOAD ||
-         access == CodeGenState::LOAD_TYPEOF_EXPR);
-  ASSERT(!has_cc() && !is_referenced());
+  ASSERT(!has_cc());
 
-  { CodeGenState new_state(this, access, true_target, false_target);
+  { CodeGenState new_state(this, typeof_state, true_target, false_target);
     Visit(x);
   }
   if (force_cc && !has_cc()) {
@@ -727,13 +697,10 @@ void ArmCodeGenerator::LoadCondition(Expression* x,
 }
 
 
-void ArmCodeGenerator::Load(Expression* x, CodeGenState::AccessType access) {
-  ASSERT(access == CodeGenState::LOAD ||
-         access == CodeGenState::LOAD_TYPEOF_EXPR);
-
+void ArmCodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   Label true_target;
   Label false_target;
-  LoadCondition(x, access, &true_target, &false_target, false);
+  LoadCondition(x, typeof_state, &true_target, &false_target, false);
 
   if (has_cc()) {
     // convert cc_reg_ into a bool
@@ -786,8 +753,8 @@ void ArmCodeGenerator::LoadGlobal() {
 
 
 // TODO(1241834): Get rid of this function in favor of just using Load, now
-// that we have the LOAD_TYPEOF_EXPR access type. => Need to handle
-// global variables w/o reference errors elsewhere.
+// that we have the INSIDE_TYPEOF typeof state. => Need to handle global
+// variables w/o reference errors elsewhere.
 void ArmCodeGenerator::LoadTypeofExpression(Expression* x) {
   Variable* variable = x->AsVariableProxy()->AsVariable();
   if (variable != NULL && !variable->is_this() && variable->is_global()) {
@@ -801,7 +768,7 @@ void ArmCodeGenerator::LoadTypeofExpression(Expression* x) {
     Property property(&global, &key, RelocInfo::kNoPosition);
     Load(&property);
   } else {
-    Load(x, CodeGenState::LOAD_TYPEOF_EXPR);
+    Load(x, INSIDE_TYPEOF);
   }
 }
 
@@ -818,6 +785,7 @@ Reference::~Reference() {
 
 
 void ArmCodeGenerator::LoadReference(Reference* ref) {
+  Comment cmnt(masm_, "[ LoadReference");
   Expression* e = ref->expression();
   Property* property = e->AsProperty();
   Variable* var = e->AsVariableProxy()->AsVariable();
@@ -859,6 +827,7 @@ void ArmCodeGenerator::LoadReference(Reference* ref) {
 
 
 void ArmCodeGenerator::UnloadReference(Reference* ref) {
+  Comment cmnt(masm_, "[ UnloadReference");
   int size = ref->size();
   if (size <= 0) {
     // Do nothing. No popping is necessary.
@@ -992,43 +961,6 @@ class InvokeBuiltinStub : public CodeStub {
   }
 #endif
 };
-
-
-void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
-  ASSERT(!ref()->is_illegal());
-
-  // TODO(1241834): Make sure that this it is safe to ignore the distinction
-  // between access types LOAD and LOAD_TYPEOF_EXPR. If there is a chance
-  // that reference errors can be thrown below, we must distinguish between
-  // the two kinds of loads (typeof expression loads must not throw a
-  // reference error).
-  if (ref()->type() == Reference::NAMED) {
-    // Compute the name of the property.
-    Literal* literal = key->AsLiteral();
-    Handle<String> name(String::cast(*literal->handle()));
-
-    // Call the appropriate IC code.
-    // Setup the name register.
-    __ mov(r2, Operand(name));
-    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-    Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
-    if (var != NULL) {
-      ASSERT(var->is_global());
-      __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-    } else {
-      __ Call(ic, RelocInfo::CODE_TARGET);
-    }
-
-  } else {
-    // Access keyed property.
-    ASSERT(ref()->type() == Reference::KEYED);
-
-    // TODO(1224671): Implement inline caching for keyed loads as on ia32.
-    GetPropertyStub stub;
-    __ CallStub(&stub);
-  }
-  __ push(r0);
-}
 
 
 void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
@@ -1527,7 +1459,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     Label then;
     Label else_;
     // if (cond)
-    LoadCondition(node->condition(), CodeGenState::LOAD, &then, &else_, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
     Branch(false, &else_);
     // then
     __ bind(&then);
@@ -1542,7 +1474,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_else_stm);
     Label then;
     // if (cond)
-    LoadCondition(node->condition(), CodeGenState::LOAD, &then, &exit, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &exit, true);
     Branch(false, &exit);
     // then
     __ bind(&then);
@@ -1553,7 +1485,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_then_stm);
     Label else_;
     // if (!cond)
-    LoadCondition(node->condition(), CodeGenState::LOAD, &exit, &else_, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &else_, true);
     Branch(true, &exit);
     // else
     __ bind(&else_);
@@ -1563,7 +1495,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     Comment cmnt(masm_, "[ If");
     ASSERT(!has_then_stm && !has_else_stm);
     // if (cond)
-    LoadCondition(node->condition(), CodeGenState::LOAD, &exit, &exit, false);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &exit, false);
     if (has_cc()) {
       cc_reg_ = al;
     } else {
@@ -1806,7 +1738,7 @@ void ArmCodeGenerator::VisitLoopStatement(LoopStatement* node) {
     case DONT_KNOW:
       CheckStack();  // TODO(1222600): ignore if body contains calls.
       LoadCondition(node->cond(),
-                    CodeGenState::LOAD,
+                    NOT_INSIDE_TYPEOF,
                     &loop,
                     node->break_target(),
                     true);
@@ -1972,7 +1904,6 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
   { Reference each(this, node->each());
     if (!each.is_illegal()) {
       if (each.size() > 0) {
-        // Reference's size is positive.
         __ ldr(r0, MemOperand(sp, kPointerSize * each.size()));
         __ push(r0);
       }
@@ -2273,46 +2204,42 @@ void ArmCodeGenerator::VisitFunctionBoilerplateLiteral(
 void ArmCodeGenerator::VisitConditional(Conditional* node) {
   Comment cmnt(masm_, "[ Conditional");
   Label then, else_, exit;
-  LoadCondition(node->condition(), CodeGenState::LOAD, &then, &else_, true);
+  LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
   Branch(false, &else_);
   __ bind(&then);
-  Load(node->then_expression(), access());
+  Load(node->then_expression(), typeof_state());
   __ b(&exit);
   __ bind(&else_);
-  Load(node->else_expression(), access());
+  Load(node->else_expression(), typeof_state());
   __ bind(&exit);
 }
 
 
-void ArmCodeGenerator::VisitSlot(Slot* node) {
-  ASSERT(access() != CodeGenState::UNDEFINED);
-  Comment cmnt(masm_, "[ Slot");
-
-  if (node->type() == Slot::LOOKUP) {
-    ASSERT(node->var()->mode() == Variable::DYNAMIC);
+void ArmCodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
+  if (slot->type() == Slot::LOOKUP) {
+    ASSERT(slot->var()->mode() == Variable::DYNAMIC);
 
     // For now, just do a runtime call.
     __ push(cp);
-    __ mov(r0, Operand(node->var()->name()));
+    __ mov(r0, Operand(slot->var()->name()));
     __ push(r0);
 
-    if (access() == CodeGenState::LOAD) {
-      __ CallRuntime(Runtime::kLoadContextSlot, 2);
-    } else {
-      ASSERT(access() == CodeGenState::LOAD_TYPEOF_EXPR);
+    if (typeof_state == INSIDE_TYPEOF) {
       __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    } else {
+      __ CallRuntime(Runtime::kLoadContextSlot, 2);
     }
     __ push(r0);
 
   } else {
     // Note: We would like to keep the assert below, but it fires because of
     // some nasty code in LoadTypeofExpression() which should be removed...
-    // ASSERT(node->var()->mode() != Variable::DYNAMIC);
+    // ASSERT(slot->var()->mode() != Variable::DYNAMIC);
 
     // Special handling for locals allocated in registers.
-    __ ldr(r0, SlotOperand(node, r2));
+    __ ldr(r0, SlotOperand(slot, r2));
     __ push(r0);
-    if (node->var()->mode() == Variable::CONST) {
+    if (slot->var()->mode() == Variable::CONST) {
       // Const slots may contain 'the hole' value (the constant hasn't been
       // initialized yet) which needs to be converted into the 'undefined'
       // value.
@@ -2326,24 +2253,22 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
 }
 
 
+void ArmCodeGenerator::VisitSlot(Slot* node) {
+  Comment cmnt(masm_, "[ Slot");
+  LoadFromSlot(node, typeof_state());
+}
+
+
 void ArmCodeGenerator::VisitVariableProxy(VariableProxy* node) {
   Comment cmnt(masm_, "[ VariableProxy");
-  Variable* var_node = node->var();
-
-  Expression* expr = var_node->rewrite();
+  Variable* var = node->var();
+  Expression* expr = var->rewrite();
   if (expr != NULL) {
     Visit(expr);
   } else {
-    ASSERT(var_node->is_global());
-    if (is_referenced()) {
-      if (var_node->AsProperty() != NULL) {
-        __ RecordPosition(var_node->AsProperty()->position());
-      }
-      GetReferenceProperty(new Literal(var_node->name()));
-    } else {
-      Reference property(this, node);
-      GetValue(&property);
-    }
+    ASSERT(var->is_global());
+    Reference ref(this, node);
+    ref.GetValue(typeof_state());
   }
 }
 
@@ -2556,7 +2481,7 @@ void ArmCodeGenerator::VisitAssignment(Assignment* node) {
     Load(node->value());
 
   } else {
-    GetValue(&target);
+    target.GetValue(NOT_INSIDE_TYPEOF);
     Literal* literal = node->value()->AsLiteral();
     if (literal != NULL && literal->handle()->IsSmi()) {
       SmiOperation(node->binary_op(), literal->handle(), false);
@@ -2601,15 +2526,8 @@ void ArmCodeGenerator::VisitThrow(Throw* node) {
 
 void ArmCodeGenerator::VisitProperty(Property* node) {
   Comment cmnt(masm_, "[ Property");
-
-  if (is_referenced()) {
-    __ RecordPosition(node->position());
-    GetReferenceProperty(node->key());
-  } else {
-    Reference property(this, node);
-    __ RecordPosition(node->position());
-    GetValue(&property);
-  }
+  Reference property(this, node);
+  property.GetValue(typeof_state());
 }
 
 
@@ -2713,7 +2631,7 @@ void ArmCodeGenerator::VisitCall(Call* node) {
 
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
-      GetValue(&ref);  // receiver
+      ref.GetValue(NOT_INSIDE_TYPEOF);  // receiver
 
       // Pass receiver to called function.
       __ ldr(r0, MemOperand(sp, ref.size() * kPointerSize));
@@ -2957,7 +2875,7 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
   if (op == Token::NOT) {
     LoadCondition(node->expression(),
-                  CodeGenState::LOAD,
+                  NOT_INSIDE_TYPEOF,
                   false_target(),
                   true_target(),
                   true);
@@ -3092,7 +3010,7 @@ void ArmCodeGenerator::VisitCountOperation(CountOperation* node) {
 
   { Reference target(this, node->expression());
     if (target.is_illegal()) return;
-    GetValue(&target);
+    target.GetValue(NOT_INSIDE_TYPEOF);
     __ pop(r0);
 
     Label slow, exit;
@@ -3174,7 +3092,7 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   if (op == Token::AND) {
     Label is_true;
     LoadCondition(node->left(),
-                  CodeGenState::LOAD,
+                  NOT_INSIDE_TYPEOF,
                   &is_true,
                   false_target(),
                   false);
@@ -3184,7 +3102,7 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Evaluate right side expression.
       __ bind(&is_true);
       LoadCondition(node->right(),
-                    CodeGenState::LOAD,
+                    NOT_INSIDE_TYPEOF,
                     true_target(),
                     false_target(),
                     false);
@@ -3215,7 +3133,7 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   } else if (op == Token::OR) {
     Label is_false;
     LoadCondition(node->left(),
-                  CodeGenState::LOAD,
+                  NOT_INSIDE_TYPEOF,
                   true_target(),
                   &is_false,
                   false);
@@ -3225,7 +3143,7 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Evaluate right side expression.
       __ bind(&is_false);
       LoadCondition(node->right(),
-                    CodeGenState::LOAD,
+                    NOT_INSIDE_TYPEOF,
                     true_target(),
                     false_target(),
                     false);
@@ -3517,10 +3435,91 @@ void ArmCodeGenerator::ExitJSFrame() {
 #undef __
 #define __ masm->
 
+Handle<String> Reference::GetName() {
+  ASSERT(type_ == NAMED);
+  Property* property = expression_->AsProperty();
+  if (property == NULL) {
+    // Global variable reference treated as a named property reference.
+    VariableProxy* proxy = expression_->AsVariableProxy();
+    ASSERT(proxy->AsVariable() != NULL);
+    ASSERT(proxy->AsVariable()->is_global());
+    return proxy->name();
+  } else {
+    Literal* raw_name = property->key()->AsLiteral();
+    ASSERT(raw_name != NULL);
+    return Handle<String>(String::cast(*raw_name->handle()));
+  }
+}
+
+
+void Reference::GetValue(TypeofState typeof_state) {
+  ASSERT(!is_illegal());
+  ASSERT(!cgen_->has_cc());
+  MacroAssembler* masm = cgen_->masm();
+  Property* property = expression_->AsProperty();
+  if (property != NULL) {
+    __ RecordPosition(property->position());
+  }
+
+  switch (type_) {
+    case SLOT: {
+      Comment cmnt(masm, "[ Load from Slot");
+      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+      ASSERT(slot != NULL);
+      cgen_->LoadFromSlot(slot, typeof_state);
+      break;
+    }
+
+    case NAMED: {
+      // TODO(1241834): Make sure that this it is safe to ignore the
+      // distinction between expressions in a typeof and not in a typeof. If
+      // there is a chance that reference errors can be thrown below, we
+      // must distinguish between the two kinds of loads (typeof expression
+      // loads must not throw a reference error).
+      Comment cmnt(masm, "[ Load from named Property");
+      // Setup the name register.
+      Handle<String> name(GetName());
+      __ mov(r2, Operand(name));
+      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+
+      Variable* var = expression_->AsVariableProxy()->AsVariable();
+      if (var != NULL) {
+        ASSERT(var->is_global());
+        __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+      } else {
+        __ Call(ic, RelocInfo::CODE_TARGET);
+      }
+      __ push(r0);
+      break;
+    }
+
+    case KEYED: {
+      // TODO(1241834): Make sure that this it is safe to ignore the
+      // distinction between expressions in a typeof and not in a typeof.
+      Comment cmnt(masm, "[ Load from keyed Property");
+      ASSERT(property != NULL);
+      // TODO(1224671): Implement inline caching for keyed loads as on ia32.
+      GetPropertyStub stub;
+      __ CallStub(&stub);
+      __ push(r0);
+      break;
+    }
+
+    default:
+      UNREACHABLE();
+  }
+}
+
+
 void Reference::SetValue(InitState init_state) {
   ASSERT(!is_illegal());
   ASSERT(!cgen_->has_cc());
   MacroAssembler* masm = cgen_->masm();
+  Property* property = expression_->AsProperty();
+  if (property != NULL) {
+    __ RecordPosition(property->position());
+  }
+
   switch (type_) {
     case SLOT: {
       Comment cmnt(masm, "[ Store to Slot");
@@ -3606,24 +3605,10 @@ void Reference::SetValue(InitState init_state) {
 
     case NAMED: {
       Comment cmnt(masm, "[ Store to named Property");
-      Property* property = expression_->AsProperty();
-      Handle<String> name;
-      if (property == NULL) {
-        // Global variable reference treated as named property access.
-        VariableProxy* proxy = expression_->AsVariableProxy();
-        ASSERT(proxy->AsVariable() != NULL);
-        ASSERT(proxy->AsVariable()->is_global());
-        name = proxy->name();
-      } else {
-        Literal* raw_name = property->key()->AsLiteral();
-        ASSERT(raw_name != NULL);
-        name = Handle<String>(String::cast(*raw_name->handle()));
-        __ RecordPosition(property->position());
-      }
-
       // Call the appropriate IC code.
       __ pop(r0);  // value
       // Setup the name register.
+      Handle<String> name(GetName());
       __ mov(r2, Operand(name));
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       __ Call(ic, RelocInfo::CODE_TARGET);
