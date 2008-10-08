@@ -232,51 +232,9 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                                  Register scratch1,
                                                  Register scratch2,
                                                  Label* miss_label) {
-  // Check that the receiver isn't a smi.
-  __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss_label, not_taken);
 
-  // Check that the receiver is a function.
-  __ mov(scratch1, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movzx_b(scratch2, FieldOperand(scratch1, Map::kInstanceTypeOffset));
-  __ cmp(scratch2, JS_FUNCTION_TYPE);
-  __ j(not_equal, miss_label, not_taken);
-
-  // Make sure that the function has an instance prototype.
-  Label non_instance;
-  __ movzx_b(scratch2, FieldOperand(scratch1, Map::kBitFieldOffset));
-  __ test(scratch2, Immediate(1 << Map::kHasNonInstancePrototype));
-  __ j(not_zero, &non_instance, not_taken);
-
-  // Get the prototype or initial map from the function.
-  __ mov(scratch1,
-         FieldOperand(receiver, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // If the prototype or initial map is the hole, don't return it and
-  // simply miss the cache instead. This will allow us to allocate a
-  // prototype object on-demand in the runtime system.
-  __ cmp(Operand(scratch1), Immediate(Factory::the_hole_value()));
-  __ j(equal, miss_label, not_taken);
+  __ TryGetFunctionPrototype(receiver, scratch1, scratch2, miss_label);
   __ mov(eax, Operand(scratch1));
-
-  // If the function does not have an initial map, we're done.
-  Label done;
-  __ mov(scratch1, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(scratch2, FieldOperand(scratch1, Map::kInstanceTypeOffset));
-  __ cmp(scratch2, MAP_TYPE);
-  __ j(not_equal, &done);
-
-  // Get the prototype from the initial map.
-  __ mov(eax, FieldOperand(eax, Map::kPrototypeOffset));
-
-  // All done: Return the prototype.
-  __ bind(&done);
-  __ ret(0);
-
-  // Non-instance prototype: Fetch prototype from constructor field
-  // in initial map.
-  __ bind(&non_instance);
-  __ mov(eax, FieldOperand(scratch1, Map::kConstructorOffset));
   __ ret(0);
 }
 

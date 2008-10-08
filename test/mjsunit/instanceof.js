@@ -30,3 +30,58 @@ assertTrue([] instanceof Object);
 
 assertFalse({} instanceof Array);
 assertTrue([] instanceof Array);
+
+function TestChains() {
+  var A = {};
+  var B = {};
+  var C = {};
+  B.__proto__ = A;
+  C.__proto__ = B;
+
+  function F() { }
+  F.prototype = A;
+  assertTrue(C instanceof F);
+  assertTrue(B instanceof F);
+  assertFalse(A instanceof F);
+
+  F.prototype = B;
+  assertTrue(C instanceof F);
+  assertFalse(B instanceof F);
+  assertFalse(A instanceof F);
+
+  F.prototype = C;
+  assertFalse(C instanceof F);
+  assertFalse(B instanceof F);
+  assertFalse(A instanceof F);
+}
+
+TestChains();
+
+
+function TestExceptions() {
+  function F() { }
+  var items = [ 1, new Number(42), 
+                true, 
+                'string', new String('hest'),
+                {}, [], 
+                F, new F(), 
+                Object, String ];
+
+  var exceptions = 0;
+  var instanceofs = 0;
+
+  for (var i = 0; i < items.length; i++) {
+    for (var j = 0; j < items.length; j++) {
+      try {
+        if (items[i] instanceof items[j]) instanceofs++;
+      } catch (e) {
+        assertTrue(e instanceof TypeError);
+        exceptions++;
+      }
+    }
+  }
+  assertEquals(10, instanceofs);
+  assertEquals(88, exceptions);
+}
+
+TestExceptions();

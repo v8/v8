@@ -887,8 +887,6 @@ class GetPropertyStub : public CodeStub {
   Major MajorKey() { return GetProperty; }
   int MinorKey() { return 0; }
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "GetPropertyStub"; }
 };
 
 
@@ -900,8 +898,6 @@ class SetPropertyStub : public CodeStub {
   Major MajorKey() { return SetProperty; }
   int MinorKey() { return 0; }
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "GetPropertyStub"; }
 };
 
 
@@ -950,8 +946,6 @@ class InvokeBuiltinStub : public CodeStub {
   Major MajorKey() { return InvokeBuiltin; }
   int MinorKey() { return (argc_ << 3) | static_cast<int>(kind_); }
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "InvokeBuiltinStub"; }
 
 #ifdef DEBUG
   void Print() {
@@ -1293,8 +1287,6 @@ class CallFunctionStub: public CodeStub {
 
  private:
   int argc_;
-
-  const char* GetName() { return "CallFuntionStub"; }
 
 #if defined(DEBUG)
   void Print() { PrintF("CallFunctionStub (argc %d)\n", argc_); }
@@ -3386,7 +3378,8 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
     case Token::INSTANCEOF:
       __ mov(r0, Operand(1));  // not counting receiver
       __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_JS);
-      __ push(r0);
+      __ tst(r0, Operand(r0));
+      cc_reg_ = eq;
       break;
 
     default:

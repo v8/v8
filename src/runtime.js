@@ -274,7 +274,10 @@ function IN(x) {
 }
 
 
-// ECMA-262, section 11.8.6, page 54.
+// ECMA-262, section 11.8.6, page 54. To make the implementation more
+// efficient, the return value should be zero if the 'this' is an 
+// instance of F, and non-zero if not. This makes it possible to avoid
+// an expensive ToBoolean conversion in the generated code.
 function INSTANCE_OF(F) {
   var V = this;
   if (!IS_FUNCTION(F)) {
@@ -283,7 +286,7 @@ function INSTANCE_OF(F) {
 
   // If V is not an object, return false.
   if (IS_NULL(V) || (!IS_OBJECT(V) && !IS_FUNCTION(V))) {
-    return false;
+    return 1;
   }
 
   // Get the prototype of F; if it is not an object, throw an error.
@@ -293,7 +296,7 @@ function INSTANCE_OF(F) {
   }
 
   // Return whether or not O is in the prototype chain of V.
-  return %IsInPrototypeChain(O, V);
+  return %IsInPrototypeChain(O, V) ? 0 : 1;
 }
 
 

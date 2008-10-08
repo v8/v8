@@ -894,18 +894,8 @@ class ToBooleanStub: public CodeStub {
   void Generate(MacroAssembler* masm);
 
  private:
-
   Major MajorKey() { return ToBoolean; }
-
   int MinorKey() { return 0; }
-
-  const char* GetName() { return "ToBooleanStub"; }
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("ToBooleanStub\n");
-  }
-#endif
 };
 
 
@@ -1476,8 +1466,6 @@ class CompareStub: public CodeStub {
     return (static_cast<int>(cc_) << 1) | (strict_ ? 1 : 0);
   }
 
-  const char* GetName() { return "CompareStub"; }
-
 #ifdef DEBUG
   void Print() {
     PrintF("CompareStub (cc %d), (strict %s)\n",
@@ -1584,8 +1572,6 @@ class CallFunctionStub: public CodeStub {
 
  private:
   int argc_;
-
-  const char* GetName() { return "CallFunctionStub"; }
 
 #ifdef DEBUG
   void Print() { PrintF("CallFunctionStub (args %d)\n", argc_); }
@@ -3521,8 +3507,6 @@ class RevertToNumberStub: public CodeStub {
   int MinorKey() { return is_increment_ ? 1 : 0; }
   void Generate(MacroAssembler* masm);
 
-  const char* GetName() { return "RevertToNumberStub"; }
-
 #ifdef DEBUG
   void Print() {
     PrintF("RevertToNumberStub (is_increment %s)\n",
@@ -3551,8 +3535,6 @@ class CounterOpStub: public CodeStub {
             (is_increment_ ? 1 : 0));
   }
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "CounterOpStub"; }
 
 #ifdef DEBUG
   void Print() {
@@ -3754,6 +3736,18 @@ void Ia32CodeGenerator::VisitThisFunction(ThisFunction* node) {
 }
 
 
+class InstanceofStub: public CodeStub {
+ public:
+  InstanceofStub() { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Major MajorKey() { return Instanceof; }
+  int MinorKey() { return 0; }
+};
+
+
 void Ia32CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   Comment cmnt(masm_, "[ CompareOperation");
 
@@ -3934,8 +3928,10 @@ void Ia32CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     case Token::INSTANCEOF: {
       Load(left);
       Load(right);
-      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
-      __ push(eax);  // push the result
+      InstanceofStub stub;
+      __ CallStub(&stub);
+      __ test(eax, Operand(eax));
+      cc_reg_ = zero;
       return;
     }
     default:
@@ -5286,6 +5282,53 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Restore frame pointer and return.
   __ pop(ebp);
   __ ret(0);
+}
+
+
+void InstanceofStub::Generate(MacroAssembler* masm) {
+  // Get the object - go slow case if it's a smi.
+  Label slow;
+  __ mov(eax, Operand(esp, 2 * kPointerSize));  // 2 ~ return address, function
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(zero, &slow, not_taken);
+
+  // Check that the left hand is a JS object.
+  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));  // ebx - object map
+  __ movzx_b(ecx, FieldOperand(eax, Map::kInstanceTypeOffset));  // ecx - type
+  __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+  __ j(less, &slow, not_taken);
+  __ cmp(ecx, LAST_JS_OBJECT_TYPE);
+  __ j(greater, &slow, not_taken);
+
+  // Get the prototype of the function.
+  __ mov(edx, Operand(esp, 1 * kPointerSize));  // 1 ~ return address
+  __ TryGetFunctionPrototype(edx, ebx, ecx, &slow);
+
+  // Register mapping: eax is object map and ebx is function prototype.
+  __ mov(ecx, FieldOperand(eax, Map::kPrototypeOffset));
+
+  // Loop through the prototype chain looking for the function prototype.
+  Label loop, is_instance, is_not_instance;
+  __ bind(&loop);
+  __ cmp(ecx, Operand(ebx));
+  __ j(equal, &is_instance);
+  __ cmp(Operand(ecx), Immediate(Factory::null_value()));
+  __ j(equal, &is_not_instance);
+  __ mov(ecx, FieldOperand(ecx, HeapObject::kMapOffset));
+  __ mov(ecx, FieldOperand(ecx, Map::kPrototypeOffset));
+  __ jmp(&loop);
+
+  __ bind(&is_instance);
+  __ Set(eax, Immediate(0));
+  __ ret(2 * kPointerSize);
+
+  __ bind(&is_not_instance);
+  __ Set(eax, Immediate(Smi::FromInt(1)));
+  __ ret(2 * kPointerSize);
+
+  // Slow-case: Go through the JavaScript implementation.
+  __ bind(&slow);
+  __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
 }
 
 

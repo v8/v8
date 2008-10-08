@@ -99,8 +99,6 @@ class RecordWriteStub : public CodeStub {
   Register addr_;
   Register scratch_;
 
-  const char* GetName() { return "RecordWriteStub"; }
-
 #ifdef DEBUG
   void Print() {
     PrintF("RecordWriteStub (object reg %d), (addr reg %d), (scratch reg %d)\n",
@@ -586,6 +584,57 @@ void MacroAssembler::NegativeZeroTest(Register result,
   or_(scratch, Operand(op2));
   j(sign, then_label, not_taken);
   bind(&ok);
+}
+
+
+void MacroAssembler::TryGetFunctionPrototype(Register function,
+                                             Register result,
+                                             Register scratch,
+                                             Label* miss) {
+  // Check that the receiver isn't a smi.
+  test(function, Immediate(kSmiTagMask));
+  j(zero, miss, not_taken);
+
+  // Check that the function really is a function.
+  mov(result, FieldOperand(function, HeapObject::kMapOffset));
+  movzx_b(scratch, FieldOperand(result, Map::kInstanceTypeOffset));
+  cmp(scratch, JS_FUNCTION_TYPE);
+  j(not_equal, miss, not_taken);
+
+  // Make sure that the function has an instance prototype.
+  Label non_instance;
+  movzx_b(scratch, FieldOperand(result, Map::kBitFieldOffset));
+  test(scratch, Immediate(1 << Map::kHasNonInstancePrototype));
+  j(not_zero, &non_instance, not_taken);
+
+  // Get the prototype or initial map from the function.
+  mov(result,
+      FieldOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
+
+  // If the prototype or initial map is the hole, don't return it and
+  // simply miss the cache instead. This will allow us to allocate a
+  // prototype object on-demand in the runtime system.
+  cmp(Operand(result), Immediate(Factory::the_hole_value()));
+  j(equal, miss, not_taken);
+
+  // If the function does not have an initial map, we're done.
+  Label done;
+  mov(scratch, FieldOperand(result, HeapObject::kMapOffset));
+  movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  cmp(scratch, MAP_TYPE);
+  j(not_equal, &done);
+
+  // Get the prototype from the initial map.
+  mov(result, FieldOperand(result, Map::kPrototypeOffset));
+  jmp(&done);
+
+  // Non-instance prototype: Fetch prototype from constructor field
+  // in initial map.
+  bind(&non_instance);
+  mov(result, FieldOperand(result, Map::kConstructorOffset));
+
+  // All done.
+  bind(&done);
 }
 
 
