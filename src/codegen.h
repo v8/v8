@@ -93,7 +93,7 @@ class DeferredCode: public ZoneObject {
 };
 
 
-// A superclass for gode generators.  The implementations of methods
+// A superclass for code generators.  The implementations of methods
 // declared in this class are partially in codegen.c and partially in
 // codegen_<arch>.c.
 class CodeGenerator: public Visitor {
