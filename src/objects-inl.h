@@ -211,6 +211,12 @@ bool Object::IsRetryAfterGC() {
 }
 
 
+bool Object::IsOutOfMemoryFailure() {
+  return HAS_FAILURE_TAG(this)
+    && Failure::cast(this)->IsOutOfMemoryException();
+}
+
+
 bool Object::IsException() {
   return this == Failure::Exception();
 }

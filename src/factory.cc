@@ -467,10 +467,12 @@ Handle<DescriptorArray> Factory::CopyAppendProxyDescriptor(
   GC_GREEDY_CHECK();
   CallbacksDescriptor desc(*key, *value, attributes);
   Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
-  if (obj->IsRetryAfterGC()) {
-    CALL_GC(obj);
-    CallbacksDescriptor desc(*key, *value, attributes);
-    obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
+  if (obj->IsFailure()) {
+    if (obj->IsRetryAfterGC()) {
+      CALL_GC(obj);
+      CallbacksDescriptor desc(*key, *value, attributes);
+      obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
+    }
     if (obj->IsFailure()) {
       // TODO(1181417): Fix this.
       V8::FatalProcessOutOfMemory("CopyAppendProxyDescriptor");

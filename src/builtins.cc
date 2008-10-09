@@ -674,10 +674,15 @@ void Builtins::Setup(bool create_heap_objects) {
       masm.GetCode(&desc);
       Code::Flags flags =  functions[i].flags;
       Object* code = Heap::CreateCode(desc, NULL, flags);
-      if (code->IsRetryAfterGC()) {
-        CHECK(Heap::CollectGarbage(Failure::cast(code)->requested(),
-                                   Failure::cast(code)->allocation_space()));
-        code = Heap::CreateCode(desc, NULL, flags);
+      if (code->IsFailure()) {
+        if (code->IsRetryAfterGC()) {
+          CHECK(Heap::CollectGarbage(Failure::cast(code)->requested(),
+                                     Failure::cast(code)->allocation_space()));
+          code = Heap::CreateCode(desc, NULL, flags);
+        }
+        if (code->IsFailure()) {
+          v8::internal::V8::FatalProcessOutOfMemory("CreateCode");
+        }
       }
       // Add any unresolved jumps or calls to the fixup list in the
       // bootstrapper.

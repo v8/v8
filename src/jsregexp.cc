@@ -216,41 +216,14 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
   unsigned number_of_captures;
   const char* error_message = NULL;
 
-  malloc_failure = Failure::Exception();
-  JscreRegExp* code;
+  JscreRegExp* code = NULL;
   FlattenString(pattern);
 
-  if (pattern->IsAsciiRepresentation()) {
-    Vector<const char> contents = pattern->ToAsciiVector();
-    code = jsRegExpCompile(contents.start(),
-                           contents.length(),
-                           case_option,
-                           multiline_option,
-                           &number_of_captures,
-                           &error_message,
-                           &JSREMalloc,
-                           &JSREFree);
-  } else {
-    Vector<const uc16> contents = pattern->ToUC16Vector();
-    code = jsRegExpCompile(contents.start(),
-                           contents.length(),
-                           case_option,
-                           multiline_option,
-                           &number_of_captures,
-                           &error_message,
-                           &JSREMalloc,
-                           &JSREFree);
-  }
+  bool first_time = true;
 
-  if (code == NULL && malloc_failure->IsRetryAfterGC()) {
-    // Performs a GC, then retries.
-    if (!Heap::CollectGarbage(malloc_failure->requested(),
-                              malloc_failure->allocation_space())) {
-      // TODO(1181417): Fix this.
-      V8::FatalProcessOutOfMemory("RegExpImpl::JsreCompile");
-    }
+  while (true) {
+    first_time = false;
     malloc_failure = Failure::Exception();
-
     if (pattern->IsAsciiRepresentation()) {
       Vector<const char> contents = pattern->ToAsciiVector();
       code = jsRegExpCompile(contents.start(),
@@ -272,36 +245,45 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
                              &JSREMalloc,
                              &JSREFree);
     }
-
-    if (code == NULL && malloc_failure->IsRetryAfterGC()) {
-      // TODO(1181417): Fix this.
-      V8::FatalProcessOutOfMemory("RegExpImpl::JsreCompile");
+    if (code == NULL) {
+      if (first_time && malloc_failure->IsRetryAfterGC()) {
+        if (!Heap::CollectGarbage(malloc_failure->requested(),
+                                  malloc_failure->allocation_space())) {
+          // TODO(1181417): Fix this.
+          V8::FatalProcessOutOfMemory("RegExpImpl::JsreCompile");
+        }
+        continue;
+      }
+      if (malloc_failure->IsRetryAfterGC() ||
+          malloc_failure->IsOutOfMemoryFailure()) {
+        // TODO(1181417): Fix this.
+        V8::FatalProcessOutOfMemory("RegExpImpl::JsreCompile");
+      } else {
+        // Throw an exception.
+        Handle<JSArray> array = Factory::NewJSArray(2);
+        SetElement(array, 0, pattern);
+        SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(
+            (error_message == NULL) ? "Unknown regexp error" : error_message)));
+        Handle<Object> regexp_err =
+            Factory::NewSyntaxError("malformed_regexp", array);
+        return Handle<Object>(Top::Throw(*regexp_err));
+      }
     }
+
+    ASSERT(code != NULL);
+
+    // Convert the return address to a ByteArray pointer.
+    Handle<ByteArray> internal(
+        ByteArray::FromDataStartAddress(reinterpret_cast<Address>(code)));
+
+    Handle<FixedArray> value = Factory::NewFixedArray(2);
+    value->set(CAPTURE_INDEX, Smi::FromInt(number_of_captures));
+    value->set(INTERNAL_INDEX, *internal);
+    re->set_type_tag(JSRegExp::JSCRE);
+    re->set_data(*value);
+
+    return re;
   }
-
-  if (error_message != NULL) {
-    // Throw an exception.
-    Handle<JSArray> array = Factory::NewJSArray(2);
-    SetElement(array, 0, pattern);
-    SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(error_message)));
-    Handle<Object> regexp_err =
-        Factory::NewSyntaxError("malformed_regexp", array);
-    return Handle<Object>(Top::Throw(*regexp_err));
-  }
-
-  ASSERT(code != NULL);
-
-  // Convert the return address to a ByteArray pointer.
-  Handle<ByteArray> internal(
-      ByteArray::FromDataStartAddress(reinterpret_cast<Address>(code)));
-
-  Handle<FixedArray> value = Factory::NewFixedArray(2);
-  value->set(CAPTURE_INDEX, Smi::FromInt(number_of_captures));
-  value->set(INTERNAL_INDEX, *internal);
-  re->set_type_tag(JSRegExp::JSCRE);
-  re->set_data(*value);
-
-  return re;
 }
 
 

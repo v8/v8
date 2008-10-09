@@ -128,7 +128,7 @@ void TransformToFastProperties(Handle<JSObject> object,
 
 void FlattenString(Handle<String> string) {
   if (string->IsFlat()) return;
-  CALL_HEAP_FUNCTION_VOID(String::cast(*string)->Flatten());
+  CALL_HEAP_FUNCTION_VOID(string->Flatten());
   ASSERT(string->IsFlat());
 }
 

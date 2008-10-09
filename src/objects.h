@@ -601,6 +601,7 @@ class Object BASE_EMBEDDED {
   inline bool IsByteArray();
   inline bool IsFailure();
   inline bool IsRetryAfterGC();
+  inline bool IsOutOfMemoryFailure();
   inline bool IsException();
   inline bool IsJSObject();
   inline bool IsMap();
