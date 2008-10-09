@@ -964,21 +964,7 @@ Object* JSObject::AddFastProperty(String* name,
     return AddSlowProperty(name, value, attributes);
   }
 
-  // Replace a CONSTANT_TRANSITION flag with a transition.
-  // Do this by removing it, and the standard code for adding a map transition
-  // will then run.
   DescriptorArray* old_descriptors = map()->instance_descriptors();
-  int old_name_index = old_descriptors->Search(name);
-  bool constant_transition = false;  // Only used in assertions.
-  if (old_name_index != DescriptorArray::kNotFound && CONSTANT_TRANSITION ==
-      PropertyDetails(old_descriptors->GetDetails(old_name_index)).type()) {
-    constant_transition = true;
-    Object* r = old_descriptors->CopyRemove(name);
-    if (r->IsFailure()) return r;
-    old_descriptors = DescriptorArray::cast(r);
-    old_name_index = DescriptorArray::kNotFound;
-  }
-
   // Compute the new index for new field.
   int index = map()->NextFreePropertyIndex();
 
@@ -993,64 +979,43 @@ Object* JSObject::AddFastProperty(String* name,
   bool allow_map_transition =
         !old_descriptors->Contains(name) &&
         (Top::context()->global_context()->object_function()->map() != map());
-  ASSERT(allow_map_transition || !constant_transition);
 
-  if (map()->unused_property_fields() > 0) {
-    ASSERT(index < properties()->length());
-    // Allocate a new map for the object.
-    Object* r = map()->Copy();
+  ASSERT(index < properties()->length() ||
+         map()->unused_property_fields() == 0);
+  // Allocate a new map for the object.
+  Object* r = map()->Copy();
+  if (r->IsFailure()) return r;
+  Map* new_map = Map::cast(r);
+  if (allow_map_transition) {
+    // Allocate new instance descriptors for the old map with map transition.
+    MapTransitionDescriptor d(name, Map::cast(new_map), attributes);
+    Object* r = old_descriptors->CopyInsert(&d, KEEP_TRANSITIONS);
     if (r->IsFailure()) return r;
-    Map* new_map = Map::cast(r);
-    if (allow_map_transition) {
-      // Allocate new instance descriptors for the old map with map transition.
-      MapTransitionDescriptor d(name, Map::cast(new_map), attributes);
-      Object* r = old_descriptors->CopyInsert(&d, KEEP_TRANSITIONS);
-      if (r->IsFailure()) return r;
-      old_descriptors = DescriptorArray::cast(r);
-    }
-    // We have now allocated all the necessary objects.
-    // All the changes can be applied at once, so they are atomic.
-    map()->set_instance_descriptors(old_descriptors);
-    new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-    new_map->set_unused_property_fields(map()->unused_property_fields() - 1);
-    set_map(new_map);
-    properties()->set(index, value);
-  } else {
-    ASSERT(map()->unused_property_fields() == 0);
+    old_descriptors = DescriptorArray::cast(r);
+  }
 
+
+  if (map()->unused_property_fields() == 0) {
     if (properties()->length() > kMaxFastProperties) {
       Object* obj = NormalizeProperties();
       if (obj->IsFailure()) return obj;
       return AddSlowProperty(name, value, attributes);
     }
-
-    static const int kExtraFields = 3;
     // Make room for the new value
     Object* values =
-        properties()->CopySize(properties()->length() + kExtraFields);
+        properties()->CopySize(properties()->length() + kFieldsAdded);
     if (values->IsFailure()) return values;
-    FixedArray::cast(values)->set(index, value);
-
-    // Allocate a new map for the object.
-    Object* r = map()->Copy();
-    if (r->IsFailure()) return r;
-    Map* new_map = Map::cast(r);
-
-    if (allow_map_transition) {
-      MapTransitionDescriptor d(name, Map::cast(new_map), attributes);
-      // Allocate new instance descriptors for the old map with map transition.
-      Object* r = old_descriptors->CopyInsert(&d, KEEP_TRANSITIONS);
-      if (r->IsFailure()) return r;
-      old_descriptors = DescriptorArray::cast(r);
-    }
-    // We have now allocated all the necessary objects.
-    // All changes can be done at once, atomically.
-    map()->set_instance_descriptors(old_descriptors);
-    new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-    new_map->set_unused_property_fields(kExtraFields - 1);
-    set_map(new_map);
     set_properties(FixedArray::cast(values));
+    new_map->set_unused_property_fields(kFieldsAdded - 1);
+  } else {
+    new_map->set_unused_property_fields(map()->unused_property_fields() - 1);
   }
+  // We have now allocated all the necessary objects.
+  // All the changes can be applied at once, so they are atomic.
+  map()->set_instance_descriptors(old_descriptors);
+  new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
+  set_map(new_map);
+  properties()->set(index, value);
 
   return value;
 }
@@ -1104,74 +1069,6 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
 }
 
 
-Object* JSObject::ReplaceConstantFunctionProperty(String* name,
-                                                  Object* value) {
-  // There are two situations to handle here:
-  // 1: Replace a constant function with another function.
-  // 2: Replace a constant function with an object.
-  if (value->IsJSFunction()) {
-    JSFunction* function = JSFunction::cast(value);
-
-    Object* new_map = map()->CopyDropTransitions();
-    if (new_map->IsFailure()) return new_map;
-    set_map(Map::cast(new_map));
-
-    // Replace the function entry
-    int index = map()->instance_descriptors()->Search(name);
-    ASSERT(index != DescriptorArray::kNotFound);
-    map()->instance_descriptors()->ReplaceConstantFunction(index, function);
-  } else {
-    // Allocate new instance descriptors with updated property index.
-    int index = map()->NextFreePropertyIndex();
-    Object* new_descriptors =
-        map()->instance_descriptors()->CopyReplace(name, index, NONE);
-    if (new_descriptors->IsFailure()) return new_descriptors;
-
-    if (map()->unused_property_fields() > 0) {
-      ASSERT(index < properties()->length());
-
-      // Allocate a new map for the object.
-      Object* new_map = map()->Copy();
-      if (new_map->IsFailure()) return new_map;
-
-      Map::cast(new_map)->
-        set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-      Map::cast(new_map)->
-        set_unused_property_fields(map()->unused_property_fields()-1);
-      set_map(Map::cast(new_map));
-      properties()->set(index, value);
-    } else {
-      ASSERT(map()->unused_property_fields() == 0);
-      static const int kFastNofProperties = 20;
-      if (properties()->length() > kFastNofProperties) {
-        Object* obj = NormalizeProperties();
-        if (obj->IsFailure()) return obj;
-        return SetProperty(name, value, NONE);
-      }
-
-      static const int kExtraFields = 5;
-      // Make room for the more properties.
-      Object* values =
-          properties()->CopySize(properties()->length() + kExtraFields);
-      if (values->IsFailure()) return values;
-      FixedArray::cast(values)->set(index, value);
-
-      // Allocate a new map for the object.
-      Object* new_map = map()->Copy();
-      if (new_map->IsFailure()) return new_map;
-
-      Map::cast(new_map)->
-        set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-      Map::cast(new_map)->
-        set_unused_property_fields(kExtraFields - 1);
-      set_map(Map::cast(new_map));
-      set_properties(FixedArray::cast(values));
-    }
-  }
-  return value;
-}
-
-
 // Add property in slow mode
 Object* JSObject::AddSlowProperty(String* name,
                                   Object* value,
@@ -1221,6 +1118,103 @@ Object* JSObject::SetPropertyPostInterceptor(String* name,
   // Add real property.
   return AddProperty(name, value, attributes);
 }
+
+
+Object* JSObject::ReplaceSlowProperty(String* name,
+                                       Object* value,
+                                       PropertyAttributes attributes) {
+  Dictionary* dictionary = property_dictionary();
+  PropertyDetails old_details =
+      dictionary->DetailsAt(dictionary->FindStringEntry(name));
+  int new_index = old_details.index();
+  if (old_details.IsTransition()) new_index = 0;
+
+  PropertyDetails new_details(attributes, NORMAL, old_details.index());
+  Object* result =
+      property_dictionary()->SetOrAddStringEntry(name, value, new_details);
+  if (result->IsFailure()) return result;
+  if (property_dictionary() != result) {
+    set_properties(Dictionary::cast(result));
+  }
+  return value;
+}
+
+Object* JSObject::ConvertDescriptorToFieldAndMapTransition(
+    String* name,
+    Object* new_value,
+    PropertyAttributes attributes) {
+  Map* old_map = map();
+  Object* result = ConvertDescriptorToField(name, new_value, attributes);
+  if (result->IsFailure()) return result;
+  // If we get to this point we have succeeded - do not return failure
+  // after this point.  Later stuff is optional.
+  if (!HasFastProperties()) {
+    return result;
+  }
+  // Do not add transitions to the map of "new Object()".
+  if (map() == Top::context()->global_context()->object_function()->map()) {
+    return result;
+  }
+
+  MapTransitionDescriptor transition(name,
+                                     map(),
+                                     attributes);
+  Object* new_descriptors =
+      old_map->instance_descriptors()->
+          CopyInsert(&transition, KEEP_TRANSITIONS);
+  if (new_descriptors->IsFailure()) return result;  // Yes, return _result_.
+  old_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
+  return result;
+}
+
+
+Object* JSObject::ConvertDescriptorToField(String* name,
+                                           Object* new_value,
+                                           PropertyAttributes attributes) {
+  if (map()->unused_property_fields() == 0 &&
+      properties()->length() > kMaxFastProperties) {
+    Object* obj = NormalizeProperties();
+    if (obj->IsFailure()) return obj;
+    return ReplaceSlowProperty(name, new_value, attributes);
+  }
+
+  int index = map()->NextFreePropertyIndex();
+  FieldDescriptor new_field(name, index, attributes);
+  // Make a new DescriptorArray replacing an entry with FieldDescriptor.
+  Object* descriptors_unchecked = map()->instance_descriptors()->
+      CopyInsert(&new_field, REMOVE_TRANSITIONS);
+  if (descriptors_unchecked->IsFailure()) return descriptors_unchecked;
+  DescriptorArray* new_descriptors =
+      DescriptorArray::cast(descriptors_unchecked);
+
+  // Make a new map for the object.
+  Object* new_map_unchecked = map()->Copy();
+  if (new_map_unchecked->IsFailure()) return new_map_unchecked;
+  Map* new_map = Map::cast(new_map_unchecked);
+  new_map->set_instance_descriptors(new_descriptors);
+
+  // Make new properties array if necessary.
+  FixedArray* new_properties = 0;  // Will always be NULL or a valid pointer.
+  int new_unused_property_fields = map()->unused_property_fields() - 1;
+  if (map()->unused_property_fields() == 0) {
+     new_unused_property_fields = kFieldsAdded - 1;
+     Object* new_properties_unchecked =
+        properties()->CopySize(properties()->length() + kFieldsAdded);
+    if (new_properties_unchecked->IsFailure()) return new_properties_unchecked;
+    new_properties = FixedArray::cast(new_properties_unchecked);
+  }
+
+  // Update pointers to commit changes.
+  // Object points to the new map.
+  new_map->set_unused_property_fields(new_unused_property_fields);
+  set_map(new_map);
+  if (new_properties) {
+    set_properties(FixedArray::cast(new_properties));
+  }
+  properties()->set(index, new_value);
+  return new_value;
+}
+
 
 
 Object* JSObject::SetPropertyWithInterceptor(String* name,
@@ -1528,13 +1522,12 @@ Object* JSObject::SetProperty(LookupResult* result,
         return AddFastPropertyUsingMap(result->GetTransitionMap(),
                                        name,
                                        value);
-      } else {
-        return AddFastProperty(name, value, attributes);
       }
+      return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_FUNCTION:
       if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
-      return ReplaceConstantFunctionProperty(name, value);
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case CALLBACKS:
       return SetPropertyWithCallback(result->GetCallbackObject(),
                                      name,
@@ -1545,10 +1538,9 @@ Object* JSObject::SetProperty(LookupResult* result,
     case CONSTANT_TRANSITION:
       // Replace with a MAP_TRANSITION to a new map with a FIELD, even
       // if the value is a function.
-      // AddProperty has been extended to do this, in this case.
-      return AddFastProperty(name, value, attributes);
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case NULL_DESCRIPTOR:
-      UNREACHABLE();
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     default:
       UNREACHABLE();
   }
@@ -1580,33 +1572,14 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
     && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
     return SetPropertyWithFailedAccessCheck(result, name, value);
   }
-  /*
-    REMOVED FROM CLONE
-    if (result->IsNotFound() || !result->IsProperty()) {
-    // We could not find a local property so let's check whether there is an
-    // accessor that wants to handle the property.
-    LookupResult accessor_result;
-    LookupCallbackSetterInPrototypes(name, &accessor_result);
-    if (accessor_result.IsValid()) {
-      return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
-                                     name,
-                                     value,
-                                     accessor_result.holder());
-    }
-    }
-  */
+  // Check for accessor in prototype chain removed here in clone.
   if (result->IsNotFound()) {
     return AddProperty(name, value, attributes);
   }
   if (!result->IsLoaded()) {
     return SetLazyProperty(result, name, value, attributes);
   }
-  /*
-    REMOVED FROM CLONE
-    if (result->IsReadOnly() && result->IsProperty()) return value;
-  */
-  // This is a real property that is not read-only, or it is a
-  // transition or null descriptor and there are no setters in the prototypes.
+  //  Check of IsReadOnly removed from here in clone.
   switch (result->type()) {
     case NORMAL:
       property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
@@ -1621,12 +1594,12 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
                                        name,
                                        value);
       } else {
-        return AddFastProperty(name, value, attributes);
+        return ConvertDescriptorToField(name, value, attributes);
       }
     case CONSTANT_FUNCTION:
       if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
-      return ReplaceConstantFunctionProperty(name, value);
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case CALLBACKS:
       return SetPropertyWithCallback(result->GetCallbackObject(),
                                      name,
@@ -1637,10 +1610,9 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
     case CONSTANT_TRANSITION:
       // Replace with a MAP_TRANSITION to a new map with a FIELD, even
       // if the value is a function.
-      // AddProperty has been extended to do this, in this case.
-      return AddFastProperty(name, value, attributes);
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case NULL_DESCRIPTOR:
-      UNREACHABLE();
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     default:
       UNREACHABLE();
   }
@@ -2663,14 +2635,6 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
 }
 
 
-void DescriptorArray::ReplaceConstantFunction(int descriptor_number,
-                                              JSFunction* value) {
-  ASSERT(!Heap::InNewSpace(value));
-  FixedArray* content_array = GetContentArray();
-  fast_set(content_array, ToValueIndex(descriptor_number), value);
-}
-
-
 Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
                                     TransitionFlag transition_flag) {
   // Transitions are only kept when inserting another transition.
@@ -2764,69 +2728,6 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
     if (r.IsNullDescriptor()) continue;
     if (remove_transitions && r.IsTransition()) continue;
     w.WriteFrom(&r);
-  }
-  ASSERT(w.eos());
-
-  return new_descriptors;
-}
-
-
-Object* DescriptorArray::CopyReplace(String* name,
-                                     int index,
-                                     PropertyAttributes attributes) {
-  // Allocate the new descriptor array.
-  Object* result = DescriptorArray::Allocate(number_of_descriptors());
-  if (result->IsFailure()) return result;
-
-  // Make sure only symbols are added to the instance descriptor.
-  if (!name->IsSymbol()) {
-    Object* result = Heap::LookupSymbol(name);
-    if (result->IsFailure()) return result;
-    name = String::cast(result);
-  }
-
-  DescriptorWriter w(DescriptorArray::cast(result));
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    if (r.Equals(name)) {
-      FieldDescriptor d(name, index, attributes);
-      d.SetEnumerationIndex(r.GetDetails().index());
-      w.Write(&d);
-    } else {
-      w.WriteFrom(&r);
-    }
-  }
-
-  // Copy the next enumeration index.
-  DescriptorArray::cast(result)->
-    SetNextEnumerationIndex(NextEnumerationIndex());
-
-  ASSERT(w.eos());
-  return result;
-}
-
-
-Object* DescriptorArray::CopyRemove(String* name) {
-  if (!name->IsSymbol()) {
-    Object* result = Heap::LookupSymbol(name);
-    if (result->IsFailure()) return result;
-    name = String::cast(result);
-  }
-  ASSERT(name->IsSymbol());
-  Object* result = Allocate(number_of_descriptors() - 1);
-  if (result->IsFailure()) return result;
-  DescriptorArray* new_descriptors = DescriptorArray::cast(result);
-
-  // Set the enumeration index in the descriptors and set the enumeration index
-  // in the result.
-  new_descriptors->SetNextEnumerationIndex(NextEnumerationIndex());
-  // Write the old content and the descriptor information
-  DescriptorWriter w(new_descriptors);
-  DescriptorReader r(this);
-  while (!r.eos()) {
-    if (r.GetKey() != name) {  // Both are symbols; object identity suffices.
-      w.WriteFrom(&r);
-    }
-    r.advance();
   }
   ASSERT(w.eos());
 
