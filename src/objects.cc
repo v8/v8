@@ -4695,7 +4695,6 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
   return SetElement(index, value);
 }
 
-
 Object* JSObject::SetElement(uint32_t index, Object* value) {
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
