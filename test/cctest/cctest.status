@@ -27,7 +27,7 @@
 
 prefix cctest
 
-# TODO(96) fix this flaky test
+# BUG(96): Fix this flaky test.
 test-debug/ThreadedDebugging: PASS || FAIL
 
 [ $arch == arm ]
@@ -35,3 +35,6 @@ test-debug/ThreadedDebugging: PASS || FAIL
 test-debug: SKIP
 test-serialize: SKIP
 test-api: SKIP
+
+# BUG(113): Test seems flaky on ARM.
+test-spaces/LargeObjectSpace: PASS || FAIL
