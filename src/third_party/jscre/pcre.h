@@ -66,15 +66,13 @@ const int JSRegExpErrorInternal = -4;
 typedef void* malloc_t(size_t size);
 typedef void free_t(void* address);
 
-template <typename Char>
-JSRegExp* jsRegExpCompile(const Char* pattern, int patternLength,
+JSRegExp* jsRegExpCompile(const UChar* pattern, int patternLength,
     JSRegExpIgnoreCaseOption, JSRegExpMultilineOption,
     unsigned* numSubpatterns, const char** errorMessage,
     malloc_t* allocate_function, free_t* free_function);
 
-template <typename Char>
 int jsRegExpExecute(const JSRegExp*,
-    const Char* subject, int subjectLength, int startOffset,
+    const UChar* subject, int subjectLength, int startOffset,
     int* offsetsVector, int offsetsVectorLength);
 
 void jsRegExpFree(JSRegExp*);

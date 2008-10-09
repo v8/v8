@@ -1304,9 +1304,26 @@ class JSObject: public HeapObject {
                                       JSFunction* function,
                                       PropertyAttributes attributes);
 
-  // Replace a constant function property on a fast-case object.
-  Object* ReplaceConstantFunctionProperty(String* name,
-                                          Object* value);
+  Object* ReplaceSlowProperty(String* name,
+                              Object* value,
+                              PropertyAttributes attributes);
+
+  // Converts a descriptor of any other type to a real field,
+  // backed by the properties array.  Descriptors of visible
+  // types, such as CONSTANT_FUNCTION, keep their enumeration order.
+  // Converts the descriptor on the original object's map to a
+  // map transition, and the the new field is on the object's new map.
+  Object* ConvertDescriptorToFieldAndMapTransition(
+      String* name,
+      Object* new_value,
+      PropertyAttributes attributes);
+
+  // Converts a descriptor of any other type to a real field,
+  // backed by the properties array.  Descriptors of visible
+  // types, such as CONSTANT_FUNCTION, keep their enumeration order.
+  Object* ConvertDescriptorToField(String* name,
+                                   Object* new_value,
+                                   PropertyAttributes attributes);
 
   // Add a property to a fast-case object.
   Object* AddFastProperty(String* name,
@@ -1378,6 +1395,10 @@ class JSObject: public HeapObject {
   static const uint32_t kMaxGap = 1024;
   static const int kMaxFastElementsLength = 5000;
   static const int kMaxFastProperties = 8;
+  // When extending the backing storage for property values, we increase
+  // its size by more than the 1 entry necessary, so sequentially adding fields
+  // to the same object requires fewer allocations and copies.
+  static const int kFieldsAdded = 3;
 
   // Layout description.
   static const int kPropertiesOffset = HeapObject::kHeaderSize;
@@ -1563,7 +1584,6 @@ class DescriptorArray: public FixedArray {
   inline void Get(int descriptor_number, Descriptor* desc);
   inline void Set(int descriptor_number, Descriptor* desc);
 
-  void ReplaceConstantFunction(int descriptor_number, JSFunction* value);
 
   // Copy the descriptor array, insert a new descriptor and optionally
   // remove map transitions.  If the descriptor is already present, it is
@@ -1572,20 +1592,6 @@ class DescriptorArray: public FixedArray {
   // If adding a real property, map transitions must be removed.  If adding
   // a transition, they must not be removed.  All null descriptors are removed.
   Object* CopyInsert(Descriptor* descriptor, TransitionFlag transition_flag);
-
-  // Makes a copy of the descriptor array with the descriptor with key name
-  // removed.  If name is the empty string, the descriptor array is copied.
-  // Transitions are removed if TransitionFlag is REMOVE_TRANSITIONS.
-  // All null descriptors are removed.
-  Object* CopyRemove(TransitionFlag remove_transitions, String* name);
-
-  // Copy the descriptor array, replace the property index and attributes
-  // of the named property, but preserve its enumeration index.
-  Object* CopyReplace(String* name, int index, PropertyAttributes attributes);
-
-  // Copy the descriptor array, removing the property index and attributes
-  // of the named property.
-  Object* CopyRemove(String* name);
 
   // Remove all transitions.  Return  a copy of the array with all transitions
   // removed, or a Failure object if the new array could not be allocated.

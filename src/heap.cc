@@ -223,6 +223,7 @@ void Heap::ReportStatisticsAfterGC() {
 
 
 void Heap::GarbageCollectionPrologue() {
+  RegExpImpl::NewSpaceCollectionPrologue();
   gc_count_++;
 #ifdef DEBUG
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
@@ -423,6 +424,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
 void Heap::MarkCompactPrologue() {
   CompilationCache::MarkCompactPrologue();
+  RegExpImpl::OldSpaceCollectionPrologue();
   Top::MarkCompactPrologue();
   ThreadManager::MarkCompactPrologue();
 }
