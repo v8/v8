@@ -69,36 +69,38 @@ typedef void* ReturnLocation;
 
 /* Structure for building a chain of data for holding the values of
 the subject pointer at the start of each bracket, used to detect when
-an empty string has been matched by a bracket to break infinite loops. */ 
+an empty string has been matched by a bracket to break infinite loops. */
+template <typename Char>
 struct BracketChainNode {
-    BracketChainNode* previousBracket;
-    const UChar* bracketStart;
+    BracketChainNode<Char>* previousBracket;
+    const Char* bracketStart;
 };
 
+template <typename Char>
 struct MatchFrame {
     ReturnLocation returnLocation;
-    struct MatchFrame* previousFrame;
-    
+    struct MatchFrame<Char>* previousFrame;
+
     /* Function arguments that may change */
     struct {
-        const UChar* subjectPtr;
+        const Char* subjectPtr;
         const unsigned char* instructionPtr;
         int offsetTop;
-        BracketChainNode* bracketChain;
+        BracketChainNode<Char>* bracketChain;
     } args;
-    
-    
+
+
     /* PCRE uses "fake" recursion built off of gotos, thus
      stack-based local variables are not safe to use.  Instead we have to
      store local variables on the current MatchFrame. */
     struct {
         const unsigned char* data;
         const unsigned char* startOfRepeatingBracket;
-        const UChar* subjectPtrAtStartOfInstruction; // Several instrutions stash away a subjectPtr here for later compare
+        const Char* subjectPtrAtStartOfInstruction; // Several instrutions stash away a subjectPtr here for later compare
         const unsigned char* instructionPtrAtStartOfOnce;
-        
+
         int repeatOthercase;
-        
+
         int ctype;
         int fc;
         int fi;
@@ -109,22 +111,23 @@ struct MatchFrame {
         int saveOffset1;
         int saveOffset2;
         int saveOffset3;
-        
-        BracketChainNode bracketChainNode;
+
+        BracketChainNode<Char> bracketChainNode;
     } locals;
 };
 
 /* Structure for passing "static" information around between the functions
 doing traditional NFA matching, so that they are thread-safe. */
 
+template <typename Char>
 struct MatchData {
   int*   offsetVector;         /* Offset vector */
   int    offsetEnd;            /* One past the end */
   int    offsetMax;            /* The maximum usable for return data */
   bool   offsetOverflow;       /* Set if too many extractions */
-  const UChar*  startSubject;         /* Start of the subject string */
-  const UChar*  endSubject;           /* End of the subject string */
-  const UChar*  endMatchPtr;         /* Subject position at end match */
+  const Char*  startSubject;         /* Start of the subject string */
+  const Char*  endSubject;           /* End of the subject string */
+  const Char*  endMatchPtr;         /* Subject position at end match */
   int    endOffsetTop;        /* Highwater mark at end of match */
   bool   multiline;
   bool   ignoreCase;
@@ -155,7 +158,8 @@ Arguments:
   md          pointer to matching data block, if isSubject is true
 */
 
-static void pchars(const UChar* p, int length, bool isSubject, const MatchData& md)
+template <typename Char>
+static void pchars(const Char* p, int length, bool isSubject, const MatchData& md)
 {
     if (isSubject && length > md.endSubject - p)
         length = md.endSubject - p;
@@ -187,10 +191,11 @@ Arguments:
 Returns:      true if matched
 */
 
-static bool matchRef(int offset, const UChar* subjectPtr, int length, const MatchData& md)
+template <typename Char>
+static bool matchRef(int offset, const Char* subjectPtr, int length, const MatchData<Char>& md)
 {
-    const UChar* p = md.startSubject + md.offsetVector[offset];
-    
+    const Char* p = md.startSubject + md.offsetVector[offset];
+
 #ifdef DEBUG
     if (subjectPtr >= md.endSubject)
         printf("matching subject <null>");
@@ -202,19 +207,19 @@ static bool matchRef(int offset, const UChar* subjectPtr, int length, const Matc
     pchars(p, length, false, md);
     printf("\n");
 #endif
-    
+
     /* Always fail if not enough characters left */
-    
+
     if (length > md.endSubject - subjectPtr)
         return false;
-    
+
     /* Separate the caselesss case for speed */
-    
+
     if (md.ignoreCase) {
         while (length-- > 0) {
-            UChar c = *p++;
+            Char c = *p++;
             int othercase = kjs_pcre_ucp_othercase(c);
-            UChar d = *subjectPtr++;
+            Char d = *subjectPtr++;
             if (c != d && othercase != d)
                 return false;
         }
@@ -224,7 +229,7 @@ static bool matchRef(int offset, const UChar* subjectPtr, int length, const Matc
             if (*p++ != *subjectPtr++)
                 return false;
     }
-    
+
     return true;
 }
 
@@ -296,6 +301,7 @@ Returns:       1 if matched          )  these values are >= 0
 
 static const unsigned FRAMES_ON_STACK = 16;
 
+template <typename Char>
 struct MatchStack {
     MatchStack()
         : framesEnd(frames + FRAMES_ON_STACK)
@@ -304,27 +310,27 @@ struct MatchStack {
     {
         ASSERT((sizeof(frames) / sizeof(frames[0])) == FRAMES_ON_STACK);
     }
-    
-    MatchFrame frames[FRAMES_ON_STACK];
-    MatchFrame* framesEnd;
-    MatchFrame* currentFrame;
+
+    MatchFrame<Char> frames[FRAMES_ON_STACK];
+    MatchFrame<Char>* framesEnd;
+    MatchFrame<Char>* currentFrame;
     unsigned size;
-    
+
     inline bool canUseStackBufferForNextFrame()
     {
         return size < FRAMES_ON_STACK;
     }
-    
-    inline MatchFrame* allocateNextFrame()
+
+    inline MatchFrame<Char>* allocateNextFrame()
     {
         if (canUseStackBufferForNextFrame())
             return currentFrame + 1;
-        return new MatchFrame;
+        return new MatchFrame<Char>;
     }
-    
-    inline void pushNewFrame(const unsigned char* instructionPtr, BracketChainNode* bracketChain, ReturnLocation returnLocation)
+
+    inline void pushNewFrame(const unsigned char* instructionPtr, BracketChainNode<Char>* bracketChain, ReturnLocation returnLocation)
     {
-        MatchFrame* newframe = allocateNextFrame();
+        MatchFrame<Char>* newframe = allocateNextFrame();
         newframe->previousFrame = currentFrame;
 
         newframe->args.subjectPtr = currentFrame->args.subjectPtr;
@@ -336,10 +342,10 @@ struct MatchStack {
 
         currentFrame = newframe;
     }
-    
+
     inline void popCurrentFrame()
     {
-        MatchFrame* oldFrame = currentFrame;
+        MatchFrame<Char>* oldFrame = currentFrame;
         currentFrame = currentFrame->previousFrame;
         if (size > FRAMES_ON_STACK)
             delete oldFrame;
@@ -353,7 +359,8 @@ struct MatchStack {
     }
 };
 
-static int matchError(int errorCode, MatchStack& stack)
+template <typename Char>
+static int matchError(int errorCode, MatchStack<Char>& stack)
 {
     stack.popAllFrames();
     return errorCode;
@@ -377,13 +384,14 @@ static inline void getUTF8CharAndIncrementLength(int& c, const unsigned char* su
     }
 }
 
-static inline void startNewGroup(MatchFrame* currentFrame)
+template <typename Char>
+static inline void startNewGroup(MatchFrame<Char>* currentFrame)
 {
     /* At the start of a bracketed group, add the current subject pointer to the
      stack of such pointers, to be re-instated at the end of the group when we hit
      the closing ket. When match() is called in other circumstances, we don't add to
      this stack. */
-    
+
     currentFrame->locals.bracketChainNode.previousBracket = currentFrame->args.bracketChain;
     currentFrame->locals.bracketChainNode.bracketStart = currentFrame->args.subjectPtr;
     currentFrame->args.bracketChain = &currentFrame->locals.bracketChainNode;
@@ -404,14 +412,15 @@ static inline void repeatInformationFromInstructionOffset(short instructionOffse
     maximumRepeats = maximumRepeatsFromInstructionOffset[instructionOffset];
 }
 
-static int match(const UChar* subjectPtr, const unsigned char* instructionPtr, int offsetTop, MatchData& md)
+template <typename Char>
+static int match(const Char* subjectPtr, const unsigned char* instructionPtr, int offsetTop, MatchData<Char>& md)
 {
     bool isMatch = false;
     int min;
     bool minimize = false; /* Initialization not really needed, but some compilers think so. */
     unsigned matchCount = 0;
-    
-    MatchStack stack;
+
+    MatchStack<Char> stack;
 
     /* The opcode jump table. */
 #ifdef USE_COMPUTED_GOTO_FOR_MATCH_OPCODE_LOOP
@@ -419,13 +428,13 @@ static int match(const UChar* subjectPtr, const unsigned char* instructionPtr, i
     static void* opcodeJumpTable[256] = { FOR_EACH_OPCODE(EMIT_JUMP_TABLE_ENTRY) };
 #undef EMIT_JUMP_TABLE_ENTRY
 #endif
-    
+
     /* One-time setup of the opcode jump table. */
 #ifdef USE_COMPUTED_GOTO_FOR_MATCH_OPCODE_LOOP
     for (int i = 255; !opcodeJumpTable[i]; i--)
         opcodeJumpTable[i] = &&CAPTURING_BRACKET;
 #endif
-    
+
 #ifdef USE_COMPUTED_GOTO_FOR_MATCH_RECURSION
     // Shark shows this as a hot line
     // Using a static const here makes this line disappear, but makes later access hotter (not sure why)
@@ -438,20 +447,20 @@ static int match(const UChar* subjectPtr, const unsigned char* instructionPtr, i
     stack.currentFrame->args.offsetTop = offsetTop;
     stack.currentFrame->args.bracketChain = 0;
     startNewGroup(stack.currentFrame);
-    
+
     /* This is where control jumps back to to effect "recursion" */
-    
+
 RECURSE:
     if (++matchCount > matchLimit)
         return matchError(JSRegExpErrorHitLimit, stack);
 
     /* Now start processing the operations. */
-    
+
 #ifndef USE_COMPUTED_GOTO_FOR_MATCH_OPCODE_LOOP
     while (true)
 #endif
     {
-        
+
 #ifdef USE_COMPUTED_GOTO_FOR_MATCH_OPCODE_LOOP
 #define BEGIN_OPCODE(opcode) LABEL_OP_##opcode
 #define NEXT_OPCODE goto *opcodeJumpTable[*stack.currentFrame->args.instructionPtr]
@@ -459,7 +468,7 @@ RECURSE:
 #define BEGIN_OPCODE(opcode) case OP_##opcode
 #define NEXT_OPCODE continue
 #endif
-        
+
 #ifdef USE_COMPUTED_GOTO_FOR_MATCH_OPCODE_LOOP
         NEXT_OPCODE;
 #else
@@ -467,7 +476,7 @@ RECURSE:
 #endif
         {
             /* Non-capturing bracket: optimized */
-                
+
             BEGIN_OPCODE(BRA):
             NON_CAPTURING_BRACKET:
                 DPRINTF(("start bracket 0\n"));
@@ -479,27 +488,27 @@ RECURSE:
                 } while (*stack.currentFrame->args.instructionPtr == OP_ALT);
                 DPRINTF(("bracket 0 failed\n"));
                 RRETURN;
-                
+
             /* Skip over large extraction number data if encountered. */
-                
+
             BEGIN_OPCODE(BRANUMBER):
                 stack.currentFrame->args.instructionPtr += 3;
                 NEXT_OPCODE;
-                
+
             /* End of the pattern. */
-                
+
             BEGIN_OPCODE(END):
                 md.endMatchPtr = stack.currentFrame->args.subjectPtr;          /* Record where we ended */
                 md.endOffsetTop = stack.currentFrame->args.offsetTop;   /* and how many extracts were taken */
                 isMatch = true;
                 RRETURN;
-                
+
             /* Assertion brackets. Check the alternative branches in turn - the
              matching won't pass the KET for an assertion. If any one branch matches,
              the assertion is true. Lookbehind assertions have an OP_REVERSE item at the
              start of each branch to move the current point backwards, so the code at
              this level is identical to the lookahead case. */
-                
+
             BEGIN_OPCODE(ASSERT):
                 do {
                     RECURSIVE_MATCH_STARTNG_NEW_GROUP(6, stack.currentFrame->args.instructionPtr + 1 + LINK_SIZE, NULL);
@@ -509,17 +518,17 @@ RECURSE:
                 } while (*stack.currentFrame->args.instructionPtr == OP_ALT);
                 if (*stack.currentFrame->args.instructionPtr == OP_KET)
                     RRETURN_NO_MATCH;
-                
+
                 /* Continue from after the assertion, updating the offsets high water
                  mark, since extracts may have been taken during the assertion. */
-                
+
                 advanceToEndOfBracket(stack.currentFrame->args.instructionPtr);
                 stack.currentFrame->args.instructionPtr += 1 + LINK_SIZE;
                 stack.currentFrame->args.offsetTop = md.endOffsetTop;
                 NEXT_OPCODE;
-                
+
             /* Negative assertion: all branches must fail to match */
-                
+
             BEGIN_OPCODE(ASSERT_NOT):
                 do {
                     RECURSIVE_MATCH_STARTNG_NEW_GROUP(7, stack.currentFrame->args.instructionPtr + 1 + LINK_SIZE, NULL);
@@ -527,23 +536,23 @@ RECURSE:
                         RRETURN_NO_MATCH;
                     stack.currentFrame->args.instructionPtr += getLinkValue(stack.currentFrame->args.instructionPtr + 1);
                 } while (*stack.currentFrame->args.instructionPtr == OP_ALT);
-                
+
                 stack.currentFrame->args.instructionPtr += 1 + LINK_SIZE;
                 NEXT_OPCODE;
-                
+
             /* An alternation is the end of a branch; scan along to find the end of the
              bracketed group and go to there. */
-                
+
             BEGIN_OPCODE(ALT):
                 advanceToEndOfBracket(stack.currentFrame->args.instructionPtr);
                 NEXT_OPCODE;
-                
+
             /* BRAZERO and BRAMINZERO occur just before a bracket group, indicating
              that it may occur zero times. It may repeat infinitely, or not at all -
              i.e. it could be ()* or ()? in the pattern. Brackets with fixed upper
              repeat limits are compiled as a number of copies, with the optional ones
              preceded by BRAZERO or BRAMINZERO. */
-                
+
             BEGIN_OPCODE(BRAZERO): {
                 stack.currentFrame->locals.startOfRepeatingBracket = stack.currentFrame->args.instructionPtr + 1;
                 RECURSIVE_MATCH_STARTNG_NEW_GROUP(14, stack.currentFrame->locals.startOfRepeatingBracket, stack.currentFrame->args.bracketChain);
@@ -553,7 +562,7 @@ RECURSE:
                 stack.currentFrame->args.instructionPtr = stack.currentFrame->locals.startOfRepeatingBracket + 1 + LINK_SIZE;
                 NEXT_OPCODE;
             }
-                
+
             BEGIN_OPCODE(BRAMINZERO): {
                 stack.currentFrame->locals.startOfRepeatingBracket = stack.currentFrame->args.instructionPtr + 1;
                 advanceToEndOfBracket(stack.currentFrame->locals.startOfRepeatingBracket);
@@ -563,12 +572,12 @@ RECURSE:
                 stack.currentFrame->args.instructionPtr++;
                 NEXT_OPCODE;
             }
-                
+
             /* End of a group, repeated or non-repeating. If we are at the end of
              an assertion "group", stop matching and return 1, but record the
              current high water mark for use by positive assertions. Do this also
              for the "once" (not-backup up) groups. */
-                
+
             BEGIN_OPCODE(KET):
             BEGIN_OPCODE(KETRMIN):
             BEGIN_OPCODE(KETRMAX):
@@ -584,30 +593,30 @@ RECURSE:
                     isMatch = true;
                     RRETURN;
                 }
-                
+
                 /* In all other cases except a conditional group we have to check the
                  group number back at the start and if necessary complete handling an
                  extraction by setting the offsets and bumping the high water mark. */
-                
+
                 stack.currentFrame->locals.number = *stack.currentFrame->locals.instructionPtrAtStartOfOnce - OP_BRA;
-                
+
                 /* For extended extraction brackets (large number), we have to fish out
                  the number from a dummy opcode at the start. */
-                
+
                 if (stack.currentFrame->locals.number > EXTRACT_BASIC_MAX)
                     stack.currentFrame->locals.number = get2ByteValue(stack.currentFrame->locals.instructionPtrAtStartOfOnce + 2 + LINK_SIZE);
                 stack.currentFrame->locals.offset = stack.currentFrame->locals.number << 1;
-                
+
 #ifdef DEBUG
                 printf("end bracket %d", stack.currentFrame->locals.number);
                 printf("\n");
 #endif
-                
+
                 /* Test for a numbered group. This includes groups called as a result
                  of recursion. Note that whole-pattern recursion is coded as a recurse
                  into group 0, so it won't be picked up here. Instead, we catch it when
                  the OP_END is reached. */
-                
+
                 if (stack.currentFrame->locals.number > 0) {
                     if (stack.currentFrame->locals.offset >= md.offsetMax)
                         md.offsetOverflow = true;
@@ -619,21 +628,21 @@ RECURSE:
                             stack.currentFrame->args.offsetTop = stack.currentFrame->locals.offset + 2;
                     }
                 }
-                
+
                 /* For a non-repeating ket, just continue at this level. This also
                  happens for a repeating ket if no characters were matched in the group.
                  This is the forcible breaking of infinite loops as implemented in Perl
                  5.005. If there is an options reset, it will get obeyed in the normal
                  course of events. */
-                
+
                 if (*stack.currentFrame->args.instructionPtr == OP_KET || stack.currentFrame->args.subjectPtr == stack.currentFrame->locals.subjectPtrAtStartOfInstruction) {
                     stack.currentFrame->args.instructionPtr += 1 + LINK_SIZE;
                     NEXT_OPCODE;
                 }
-                
+
                 /* The repeating kets try the rest of the pattern or restart from the
                  preceding bracket, in the appropriate order. */
-                
+
                 if (*stack.currentFrame->args.instructionPtr == OP_KETRMIN) {
                     RECURSIVE_MATCH(16, stack.currentFrame->args.instructionPtr + 1 + LINK_SIZE, stack.currentFrame->args.bracketChain);
                     if (isMatch)
@@ -650,7 +659,7 @@ RECURSE:
                         RRETURN;
                 }
                 RRETURN;
-                
+
             /* Start of subject. */
 
             BEGIN_OPCODE(CIRC):
@@ -682,28 +691,28 @@ RECURSE:
                     RRETURN_NO_MATCH;
                 stack.currentFrame->args.instructionPtr++;
                 NEXT_OPCODE;
-                
+
             /* Word boundary assertions */
-                
+
             BEGIN_OPCODE(NOT_WORD_BOUNDARY):
             BEGIN_OPCODE(WORD_BOUNDARY): {
                 bool currentCharIsWordChar = false;
                 bool previousCharIsWordChar = false;
-                
+
                 if (stack.currentFrame->args.subjectPtr > md.startSubject)
                     previousCharIsWordChar = isWordChar(stack.currentFrame->args.subjectPtr[-1]);
                 if (stack.currentFrame->args.subjectPtr < md.endSubject)
                     currentCharIsWordChar = isWordChar(*stack.currentFrame->args.subjectPtr);
-                
+
                 /* Now see if the situation is what we want */
                 bool wordBoundaryDesired = (*stack.currentFrame->args.instructionPtr++ == OP_WORD_BOUNDARY);
                 if (wordBoundaryDesired ? currentCharIsWordChar == previousCharIsWordChar : currentCharIsWordChar != previousCharIsWordChar)
                     RRETURN_NO_MATCH;
                 NEXT_OPCODE;
             }
-                
+
             /* Match a single character type; inline for speed */
-                
+
             BEGIN_OPCODE(NOT_NEWLINE):
                 if (stack.currentFrame->args.subjectPtr >= md.endSubject)
                     RRETURN_NO_MATCH;
@@ -743,7 +752,7 @@ RECURSE:
                     RRETURN_NO_MATCH;
                 stack.currentFrame->args.instructionPtr++;
                 NEXT_OPCODE;
-                
+
             BEGIN_OPCODE(NOT_WORDCHAR):
                 if (stack.currentFrame->args.subjectPtr >= md.endSubject)
                     RRETURN_NO_MATCH;
@@ -751,7 +760,7 @@ RECURSE:
                     RRETURN_NO_MATCH;
                 stack.currentFrame->args.instructionPtr++;
                 NEXT_OPCODE;
-                
+
             BEGIN_OPCODE(WORDCHAR):
                 if (stack.currentFrame->args.subjectPtr >= md.endSubject)
                     RRETURN_NO_MATCH;
@@ -759,7 +768,7 @@ RECURSE:
                     RRETURN_NO_MATCH;
                 stack.currentFrame->args.instructionPtr++;
                 NEXT_OPCODE;
-                
+
             /* Match a back reference, possibly repeatedly. Look past the end of the
              item to see if there is repeat information following. The code is similar
              to that for character classes, but repeated for efficiency. Then obey
@@ -767,23 +776,23 @@ RECURSE:
              However, if the referenced string is the empty string, always treat
              it as matched, any number of times (otherwise there could be infinite
              loops). */
-                
+
             BEGIN_OPCODE(REF):
                 stack.currentFrame->locals.offset = get2ByteValue(stack.currentFrame->args.instructionPtr + 1) << 1;               /* Doubled ref number */
                 stack.currentFrame->args.instructionPtr += 3;                                 /* Advance past item */
-                
+
                 /* If the reference is unset, set the length to be longer than the amount
                  of subject left; this ensures that every attempt at a match fails. We
                  can't just fail here, because of the possibility of quantifiers with zero
                  minima. */
-                
+
                 if (stack.currentFrame->locals.offset >= stack.currentFrame->args.offsetTop || md.offsetVector[stack.currentFrame->locals.offset] < 0)
                     stack.currentFrame->locals.length = 0;
                 else
                     stack.currentFrame->locals.length = md.offsetVector[stack.currentFrame->locals.offset+1] - md.offsetVector[stack.currentFrame->locals.offset];
-                
+
                 /* Set up for repetition, or handle the non-repeated case */
-                
+
                 switch (*stack.currentFrame->args.instructionPtr) {
                     case OP_CRSTAR:
                     case OP_CRMINSTAR:
@@ -793,7 +802,7 @@ RECURSE:
                     case OP_CRMINQUERY:
                         repeatInformationFromInstructionOffset(*stack.currentFrame->args.instructionPtr++ - OP_CRSTAR, minimize, min, stack.currentFrame->locals.max);
                         break;
-                        
+
                     case OP_CRRANGE:
                     case OP_CRMINRANGE:
                         minimize = (*stack.currentFrame->args.instructionPtr == OP_CRMINRANGE);
@@ -803,36 +812,36 @@ RECURSE:
                             stack.currentFrame->locals.max = INT_MAX;
                         stack.currentFrame->args.instructionPtr += 5;
                         break;
-                    
+
                     default:               /* No repeat follows */
                         if (!matchRef(stack.currentFrame->locals.offset, stack.currentFrame->args.subjectPtr, stack.currentFrame->locals.length, md))
                             RRETURN_NO_MATCH;
                         stack.currentFrame->args.subjectPtr += stack.currentFrame->locals.length;
                         NEXT_OPCODE;
                 }
-                
+
                 /* If the length of the reference is zero, just continue with the
                  main loop. */
-                
+
                 if (stack.currentFrame->locals.length == 0)
                     NEXT_OPCODE;
-                
+
                 /* First, ensure the minimum number of matches are present. */
-                
+
                 for (int i = 1; i <= min; i++) {
                     if (!matchRef(stack.currentFrame->locals.offset, stack.currentFrame->args.subjectPtr, stack.currentFrame->locals.length, md))
                         RRETURN_NO_MATCH;
                     stack.currentFrame->args.subjectPtr += stack.currentFrame->locals.length;
                 }
-                
+
                 /* If min = max, continue at the same level without recursion.
                  They are not both allowed to be zero. */
-                
+
                 if (min == stack.currentFrame->locals.max)
                     NEXT_OPCODE;
-                
+
                 /* If minimizing, keep trying and advancing the pointer */
-                
+
                 if (minimize) {
                     for (stack.currentFrame->locals.fi = min;; stack.currentFrame->locals.fi++) {
                         RECURSIVE_MATCH(20, stack.currentFrame->args.instructionPtr, stack.currentFrame->args.bracketChain);
@@ -844,9 +853,9 @@ RECURSE:
                     }
                     /* Control never reaches here */
                 }
-                
+
                 /* If maximizing, find the longest string and work backwards */
-                
+
                 else {
                     stack.currentFrame->locals.subjectPtrAtStartOfInstruction = stack.currentFrame->args.subjectPtr;
                     for (int i = min; i < stack.currentFrame->locals.max; i++) {
@@ -863,23 +872,23 @@ RECURSE:
                     RRETURN_NO_MATCH;
                 }
                 /* Control never reaches here */
-                
+
             /* Match a bit-mapped character class, possibly repeatedly. This op code is
              used when all the characters in the class have values in the range 0-255,
              and either the matching is caseful, or the characters are in the range
              0-127 when UTF-8 processing is enabled. The only difference between
              OP_CLASS and OP_NCLASS occurs when a data character outside the range is
              encountered.
-             
+
              First, look past the end of the item to see if there is repeat information
              following. Then obey similar code to character type repeats - written out
              again for speed. */
-                
+
             BEGIN_OPCODE(NCLASS):
             BEGIN_OPCODE(CLASS):
                 stack.currentFrame->locals.data = stack.currentFrame->args.instructionPtr + 1;                /* Save for matching */
                 stack.currentFrame->args.instructionPtr += 33;                     /* Advance past the item */
-                
+
                 switch (*stack.currentFrame->args.instructionPtr) {
                     case OP_CRSTAR:
                     case OP_CRMINSTAR:
@@ -889,7 +898,7 @@ RECURSE:
                     case OP_CRMINQUERY:
                         repeatInformationFromInstructionOffset(*stack.currentFrame->args.instructionPtr++ - OP_CRSTAR, minimize, min, stack.currentFrame->locals.max);
                         break;
-                        
+
                     case OP_CRRANGE:
                     case OP_CRMINRANGE:
                         minimize = (*stack.currentFrame->args.instructionPtr == OP_CRMINRANGE);
@@ -899,14 +908,14 @@ RECURSE:
                             stack.currentFrame->locals.max = INT_MAX;
                         stack.currentFrame->args.instructionPtr += 5;
                         break;
-                        
+
                     default:               /* No repeat follows */
                         min = stack.currentFrame->locals.max = 1;
                         break;
                 }
-                
+
                 /* First, ensure the minimum number of matches are present. */
-                
+
                 for (int i = 1; i <= min; i++) {
                     if (stack.currentFrame->args.subjectPtr >= md.endSubject)
                         RRETURN_NO_MATCH;
@@ -919,13 +928,13 @@ RECURSE:
                             RRETURN_NO_MATCH;
                     }
                 }
-                
+
                 /* If max == min we can continue with the main loop without the
                  need to recurse. */
-                
+
                 if (min == stack.currentFrame->locals.max)
-                    NEXT_OPCODE;      
-                
+                    NEXT_OPCODE;
+
                 /* If minimizing, keep testing the rest of the expression and advancing
                  the pointer while it matches the class. */
                 if (minimize) {
@@ -949,7 +958,7 @@ RECURSE:
                 /* If maximizing, find the longest possible run, then work backwards. */
                 else {
                     stack.currentFrame->locals.subjectPtrAtStartOfInstruction = stack.currentFrame->args.subjectPtr;
-                    
+
                     for (int i = min; i < stack.currentFrame->locals.max; i++) {
                         if (stack.currentFrame->args.subjectPtr >= md.endSubject)
                             break;
@@ -970,17 +979,17 @@ RECURSE:
                         if (stack.currentFrame->args.subjectPtr-- == stack.currentFrame->locals.subjectPtrAtStartOfInstruction)
                             break;        /* Stop if tried at original pos */
                     }
-                    
+
                     RRETURN;
                 }
                 /* Control never reaches here */
-                
+
             /* Match an extended character class. */
-                
+
             BEGIN_OPCODE(XCLASS):
                 stack.currentFrame->locals.data = stack.currentFrame->args.instructionPtr + 1 + LINK_SIZE;                /* Save for matching */
                 stack.currentFrame->args.instructionPtr += getLinkValue(stack.currentFrame->args.instructionPtr + 1);                      /* Advance past the item */
-                
+
                 switch (*stack.currentFrame->args.instructionPtr) {
                     case OP_CRSTAR:
                     case OP_CRMINSTAR:
@@ -990,7 +999,7 @@ RECURSE:
                     case OP_CRMINQUERY:
                         repeatInformationFromInstructionOffset(*stack.currentFrame->args.instructionPtr++ - OP_CRSTAR, minimize, min, stack.currentFrame->locals.max);
                         break;
-                        
+
                     case OP_CRRANGE:
                     case OP_CRMINRANGE:
                         minimize = (*stack.currentFrame->args.instructionPtr == OP_CRMINRANGE);
@@ -1000,13 +1009,13 @@ RECURSE:
                             stack.currentFrame->locals.max = INT_MAX;
                         stack.currentFrame->args.instructionPtr += 5;
                         break;
-                        
+
                     default:               /* No repeat follows */
                         min = stack.currentFrame->locals.max = 1;
                 }
-                
+
                 /* First, ensure the minimum number of matches are present. */
-                
+
                 for (int i = 1; i <= min; i++) {
                     if (stack.currentFrame->args.subjectPtr >= md.endSubject)
                         RRETURN_NO_MATCH;
@@ -1014,16 +1023,16 @@ RECURSE:
                     if (!kjs_pcre_xclass(c, stack.currentFrame->locals.data))
                         RRETURN_NO_MATCH;
                 }
-                
+
                 /* If max == min we can continue with the main loop without the
                  need to recurse. */
-                
+
                 if (min == stack.currentFrame->locals.max)
                     NEXT_OPCODE;
-                
+
                 /* If minimizing, keep testing the rest of the expression and advancing
                  the pointer while it matches the class. */
-                
+
                 if (minimize) {
                     for (stack.currentFrame->locals.fi = min;; stack.currentFrame->locals.fi++) {
                         RECURSIVE_MATCH(26, stack.currentFrame->args.instructionPtr, stack.currentFrame->args.bracketChain);
@@ -1037,9 +1046,9 @@ RECURSE:
                     }
                     /* Control never reaches here */
                 }
-                
+
                 /* If maximizing, find the longest possible run, then work backwards. */
-                
+
                 else {
                     stack.currentFrame->locals.subjectPtrAtStartOfInstruction = stack.currentFrame->args.subjectPtr;
                     for (int i = min; i < stack.currentFrame->locals.max; i++) {
@@ -1059,11 +1068,11 @@ RECURSE:
                     }
                     RRETURN;
                 }
-                
+
                 /* Control never reaches here */
-                
+
             /* Match a single character, casefully */
-                
+
             BEGIN_OPCODE(CHAR):
                 stack.currentFrame->locals.length = 1;
                 stack.currentFrame->args.instructionPtr++;
@@ -1074,9 +1083,9 @@ RECURSE:
                 if (stack.currentFrame->locals.fc != *stack.currentFrame->args.subjectPtr++)
                     RRETURN_NO_MATCH;
                 NEXT_OPCODE;
-                
+
             /* Match a single character, caselessly */
-                
+
             BEGIN_OPCODE(CHAR_IGNORING_CASE): {
                 stack.currentFrame->locals.length = 1;
                 stack.currentFrame->args.instructionPtr++;
@@ -1089,9 +1098,9 @@ RECURSE:
                     RRETURN_NO_MATCH;
                 NEXT_OPCODE;
             }
-                
+
             /* Match a single ASCII character. */
-                
+
             BEGIN_OPCODE(ASCII_CHAR):
                 if (md.endSubject == stack.currentFrame->args.subjectPtr)
                     RRETURN_NO_MATCH;
@@ -1100,9 +1109,9 @@ RECURSE:
                 ++stack.currentFrame->args.subjectPtr;
                 stack.currentFrame->args.instructionPtr += 2;
                 NEXT_OPCODE;
-                
+
             /* Match one of two cases of an ASCII letter. */
-                
+
             BEGIN_OPCODE(ASCII_LETTER_IGNORING_CASE):
                 if (md.endSubject == stack.currentFrame->args.subjectPtr)
                     RRETURN_NO_MATCH;
@@ -1111,15 +1120,15 @@ RECURSE:
                 ++stack.currentFrame->args.subjectPtr;
                 stack.currentFrame->args.instructionPtr += 2;
                 NEXT_OPCODE;
-                
+
             /* Match a single character repeatedly; different opcodes share code. */
-                
+
             BEGIN_OPCODE(EXACT):
                 min = stack.currentFrame->locals.max = get2ByteValue(stack.currentFrame->args.instructionPtr + 1);
                 minimize = false;
                 stack.currentFrame->args.instructionPtr += 3;
                 goto REPEATCHAR;
-                
+
             BEGIN_OPCODE(UPTO):
             BEGIN_OPCODE(MINUPTO):
                 min = 0;
@@ -1127,7 +1136,7 @@ RECURSE:
                 minimize = *stack.currentFrame->args.instructionPtr == OP_MINUPTO;
                 stack.currentFrame->args.instructionPtr += 3;
                 goto REPEATCHAR;
-                
+
             BEGIN_OPCODE(STAR):
             BEGIN_OPCODE(MINSTAR):
             BEGIN_OPCODE(PLUS):
@@ -1135,31 +1144,31 @@ RECURSE:
             BEGIN_OPCODE(QUERY):
             BEGIN_OPCODE(MINQUERY):
                 repeatInformationFromInstructionOffset(*stack.currentFrame->args.instructionPtr++ - OP_STAR, minimize, min, stack.currentFrame->locals.max);
-                
+
                 /* Common code for all repeated single-character matches. We can give
                  up quickly if there are fewer than the minimum number of characters left in
                  the subject. */
-                
+
             REPEATCHAR:
-                
+
                 stack.currentFrame->locals.length = 1;
                 getUTF8CharAndIncrementLength(stack.currentFrame->locals.fc, stack.currentFrame->args.instructionPtr, stack.currentFrame->locals.length);
                 if (min * (stack.currentFrame->locals.fc > 0xFFFF ? 2 : 1) > md.endSubject - stack.currentFrame->args.subjectPtr)
                     RRETURN_NO_MATCH;
                 stack.currentFrame->args.instructionPtr += stack.currentFrame->locals.length;
-                
+
                 if (stack.currentFrame->locals.fc <= 0xFFFF) {
                     int othercase = md.ignoreCase ? kjs_pcre_ucp_othercase(stack.currentFrame->locals.fc) : -1;
-                    
+
                     for (int i = 1; i <= min; i++) {
                         if (*stack.currentFrame->args.subjectPtr != stack.currentFrame->locals.fc && *stack.currentFrame->args.subjectPtr != othercase)
                             RRETURN_NO_MATCH;
                         ++stack.currentFrame->args.subjectPtr;
                     }
-                    
+
                     if (min == stack.currentFrame->locals.max)
                         NEXT_OPCODE;
-                    
+
                     if (minimize) {
                         stack.currentFrame->locals.repeatOthercase = othercase;
                         for (stack.currentFrame->locals.fi = min;; stack.currentFrame->locals.fi++) {
@@ -1193,16 +1202,16 @@ RECURSE:
                     /* Control never reaches here */
                 } else {
                     /* No case on surrogate pairs, so no need to bother with "othercase". */
-                    
+
                     for (int i = 1; i <= min; i++) {
                         if (*stack.currentFrame->args.subjectPtr != stack.currentFrame->locals.fc)
                             RRETURN_NO_MATCH;
                         stack.currentFrame->args.subjectPtr += 2;
                     }
-                    
+
                     if (min == stack.currentFrame->locals.max)
                         NEXT_OPCODE;
-                    
+
                     if (minimize) {
                         for (stack.currentFrame->locals.fi = min;; stack.currentFrame->locals.fi++) {
                             RECURSIVE_MATCH(30, stack.currentFrame->args.instructionPtr, stack.currentFrame->args.bracketChain);
@@ -1235,9 +1244,9 @@ RECURSE:
                     /* Control never reaches here */
                 }
                 /* Control never reaches here */
-                
+
             /* Match a negated single one-byte character. */
-                
+
             BEGIN_OPCODE(NOT): {
                 if (stack.currentFrame->args.subjectPtr >= md.endSubject)
                     RRETURN_NO_MATCH;
@@ -1254,20 +1263,20 @@ RECURSE:
                 }
                 NEXT_OPCODE;
             }
-                
+
             /* Match a negated single one-byte character repeatedly. This is almost a
              repeat of the code for a repeated single character, but I haven't found a
              nice way of commoning these up that doesn't require a test of the
              positive/negative option for each character match. Maybe that wouldn't add
              very much to the time taken, but character matching *is* what this is all
              about... */
-                
+
             BEGIN_OPCODE(NOTEXACT):
                 min = stack.currentFrame->locals.max = get2ByteValue(stack.currentFrame->args.instructionPtr + 1);
                 minimize = false;
                 stack.currentFrame->args.instructionPtr += 3;
                 goto REPEATNOTCHAR;
-                
+
             BEGIN_OPCODE(NOTUPTO):
             BEGIN_OPCODE(NOTMINUPTO):
                 min = 0;
@@ -1275,7 +1284,7 @@ RECURSE:
                 minimize = *stack.currentFrame->args.instructionPtr == OP_NOTMINUPTO;
                 stack.currentFrame->args.instructionPtr += 3;
                 goto REPEATNOTCHAR;
-                
+
             BEGIN_OPCODE(NOTSTAR):
             BEGIN_OPCODE(NOTMINSTAR):
             BEGIN_OPCODE(NOTPLUS):
@@ -1283,16 +1292,16 @@ RECURSE:
             BEGIN_OPCODE(NOTQUERY):
             BEGIN_OPCODE(NOTMINQUERY):
                 repeatInformationFromInstructionOffset(*stack.currentFrame->args.instructionPtr++ - OP_NOTSTAR, minimize, min, stack.currentFrame->locals.max);
-                
+
             /* Common code for all repeated single-byte matches. We can give up quickly
              if there are fewer than the minimum number of bytes left in the
              subject. */
-                
+
             REPEATNOTCHAR:
                 if (min > md.endSubject - stack.currentFrame->args.subjectPtr)
                     RRETURN_NO_MATCH;
                 stack.currentFrame->locals.fc = *stack.currentFrame->args.instructionPtr++;
-                
+
                 /* The code is duplicated for the caseless and caseful cases, for speed,
                  since matching characters is likely to be quite common. First, ensure the
                  minimum number of matches are present. If min = max, continue at the same
@@ -1300,13 +1309,13 @@ RECURSE:
                  the expression and advancing one matching character if failing, up to the
                  maximum. Alternatively, if maximizing, find the maximum number of
                  characters and work backwards. */
-                
+
                 DPRINTF(("negative matching %c{%d,%d}\n", stack.currentFrame->locals.fc, min, stack.currentFrame->locals.max));
-                
+
                 if (md.ignoreCase) {
                     if (stack.currentFrame->locals.fc < 128)
                         stack.currentFrame->locals.fc = toLowerCase(stack.currentFrame->locals.fc);
-                    
+
                     for (int i = 1; i <= min; i++) {
                         int d = *stack.currentFrame->args.subjectPtr++;
                         if (d < 128)
@@ -1314,10 +1323,10 @@ RECURSE:
                         if (stack.currentFrame->locals.fc == d)
                             RRETURN_NO_MATCH;
                     }
-                    
+
                     if (min == stack.currentFrame->locals.max)
-                        NEXT_OPCODE;      
-                    
+                        NEXT_OPCODE;
+
                     if (minimize) {
                         for (stack.currentFrame->locals.fi = min;; stack.currentFrame->locals.fi++) {
                             RECURSIVE_MATCH(38, stack.currentFrame->args.instructionPtr, stack.currentFrame->args.bracketChain);
@@ -1331,12 +1340,12 @@ RECURSE:
                         }
                         /* Control never reaches here */
                     }
-                    
+
                     /* Maximize case */
-                    
+
                     else {
                         stack.currentFrame->locals.subjectPtrAtStartOfInstruction = stack.currentFrame->args.subjectPtr;
-                        
+
                         for (int i = min; i < stack.currentFrame->locals.max; i++) {
                             if (stack.currentFrame->args.subjectPtr >= md.endSubject)
                                 break;
@@ -1354,14 +1363,14 @@ RECURSE:
                             if (stack.currentFrame->args.subjectPtr-- == stack.currentFrame->locals.subjectPtrAtStartOfInstruction)
                                 break;        /* Stop if tried at original pos */
                         }
-                        
+
                         RRETURN;
                     }
                     /* Control never reaches here */
                 }
-                
+
                 /* Caseful comparisons */
-                
+
                 else {
                     for (int i = 1; i <= min; i++) {
                         int d = *stack.currentFrame->args.subjectPtr++;
@@ -1371,7 +1380,7 @@ RECURSE:
 
                     if (min == stack.currentFrame->locals.max)
                         NEXT_OPCODE;
-                    
+
                     if (minimize) {
                         for (stack.currentFrame->locals.fi = min;; stack.currentFrame->locals.fi++) {
                             RECURSIVE_MATCH(42, stack.currentFrame->args.instructionPtr, stack.currentFrame->args.bracketChain);
@@ -1383,12 +1392,12 @@ RECURSE:
                         }
                         /* Control never reaches here */
                     }
-                    
+
                     /* Maximize case */
-                    
+
                     else {
                         stack.currentFrame->locals.subjectPtrAtStartOfInstruction = stack.currentFrame->args.subjectPtr;
-                        
+
                         for (int i = min; i < stack.currentFrame->locals.max; i++) {
                             if (stack.currentFrame->args.subjectPtr >= md.endSubject)
                                 break;
@@ -1409,17 +1418,17 @@ RECURSE:
                     }
                 }
                 /* Control never reaches here */
-                
+
             /* Match a single character type repeatedly; several different opcodes
              share code. This is very similar to the code for single characters, but we
              repeat it in the interests of efficiency. */
-                
+
             BEGIN_OPCODE(TYPEEXACT):
                 min = stack.currentFrame->locals.max = get2ByteValue(stack.currentFrame->args.instructionPtr + 1);
                 minimize = true;
                 stack.currentFrame->args.instructionPtr += 3;
                 goto REPEATTYPE;
-                
+
             BEGIN_OPCODE(TYPEUPTO):
             BEGIN_OPCODE(TYPEMINUPTO):
                 min = 0;
@@ -1427,7 +1436,7 @@ RECURSE:
                 minimize = *stack.currentFrame->args.instructionPtr == OP_TYPEMINUPTO;
                 stack.currentFrame->args.instructionPtr += 3;
                 goto REPEATTYPE;
-                
+
             BEGIN_OPCODE(TYPESTAR):
             BEGIN_OPCODE(TYPEMINSTAR):
             BEGIN_OPCODE(TYPEPLUS):
@@ -1435,19 +1444,19 @@ RECURSE:
             BEGIN_OPCODE(TYPEQUERY):
             BEGIN_OPCODE(TYPEMINQUERY):
                 repeatInformationFromInstructionOffset(*stack.currentFrame->args.instructionPtr++ - OP_TYPESTAR, minimize, min, stack.currentFrame->locals.max);
-                
+
                 /* Common code for all repeated single character type matches. Note that
                  in UTF-8 mode, '.' matches a character of any length, but for the other
                  character types, the valid characters are all one-byte long. */
-                
+
             REPEATTYPE:
                 stack.currentFrame->locals.ctype = *stack.currentFrame->args.instructionPtr++;      /* Code for the character type */
-                
+
                 /* First, ensure the minimum number of matches are present. Use inline
                  code for maximizing the speed, and do the type test once at the start
                  (i.e. keep it out of the loop). Also we can test that there are at least
                  the minimum number of characters before we start. */
-                
+
                 if (min > md.endSubject - stack.currentFrame->args.subjectPtr)
                     RRETURN_NO_MATCH;
                 if (min > 0) {
@@ -1459,7 +1468,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_NOT_DIGIT:
                             for (int i = 1; i <= min; i++) {
                                 if (isASCIIDigit(*stack.currentFrame->args.subjectPtr))
@@ -1467,7 +1476,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_DIGIT:
                             for (int i = 1; i <= min; i++) {
                                 if (!isASCIIDigit(*stack.currentFrame->args.subjectPtr))
@@ -1475,7 +1484,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_NOT_WHITESPACE:
                             for (int i = 1; i <= min; i++) {
                                 if (isSpaceChar(*stack.currentFrame->args.subjectPtr))
@@ -1483,7 +1492,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_WHITESPACE:
                             for (int i = 1; i <= min; i++) {
                                 if (!isSpaceChar(*stack.currentFrame->args.subjectPtr))
@@ -1491,7 +1500,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_NOT_WORDCHAR:
                             for (int i = 1; i <= min; i++) {
                                 if (isWordChar(*stack.currentFrame->args.subjectPtr))
@@ -1499,7 +1508,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_WORDCHAR:
                             for (int i = 1; i <= min; i++) {
                                 if (!isWordChar(*stack.currentFrame->args.subjectPtr))
@@ -1507,21 +1516,21 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         default:
                             ASSERT_NOT_REACHED();
                             return matchError(JSRegExpErrorInternal, stack);
                     }  /* End switch(stack.currentFrame->locals.ctype) */
                 }
-                
+
                 /* If min = max, continue at the same level without recursing */
-                
+
                 if (min == stack.currentFrame->locals.max)
-                    NEXT_OPCODE;    
-                
+                    NEXT_OPCODE;
+
                 /* If minimizing, we have to test the rest of the pattern before each
                  subsequent match. */
-                
+
                 if (minimize) {
                     for (stack.currentFrame->locals.fi = min;; stack.currentFrame->locals.fi++) {
                         RECURSIVE_MATCH(48, stack.currentFrame->args.instructionPtr, stack.currentFrame->args.bracketChain);
@@ -1529,44 +1538,44 @@ RECURSE:
                             RRETURN;
                         if (stack.currentFrame->locals.fi >= stack.currentFrame->locals.max || stack.currentFrame->args.subjectPtr >= md.endSubject)
                             RRETURN;
-                        
+
                         int c = *stack.currentFrame->args.subjectPtr++;
                         switch (stack.currentFrame->locals.ctype) {
                             case OP_NOT_NEWLINE:
                                 if (isNewline(c))
                                     RRETURN;
                                 break;
-                                
+
                             case OP_NOT_DIGIT:
                                 if (isASCIIDigit(c))
                                     RRETURN;
                                 break;
-                                
+
                             case OP_DIGIT:
                                 if (!isASCIIDigit(c))
                                     RRETURN;
                                 break;
-                                
+
                             case OP_NOT_WHITESPACE:
                                 if (isSpaceChar(c))
                                     RRETURN;
                                 break;
-                                
+
                             case OP_WHITESPACE:
                                 if (!isSpaceChar(c))
                                     RRETURN;
                                 break;
-                                
+
                             case OP_NOT_WORDCHAR:
                                 if (isWordChar(c))
                                     RRETURN;
                                 break;
-                                
+
                             case OP_WORDCHAR:
                                 if (!isWordChar(c))
                                     RRETURN;
                                 break;
-                                
+
                             default:
                                 ASSERT_NOT_REACHED();
                                 return matchError(JSRegExpErrorInternal, stack);
@@ -1574,13 +1583,13 @@ RECURSE:
                     }
                     /* Control never reaches here */
                 }
-                
+
                 /* If maximizing it is worth using inline code for speed, doing the type
                  test once at the start (i.e. keep it out of the loop). */
-                
+
                 else {
                     stack.currentFrame->locals.subjectPtrAtStartOfInstruction = stack.currentFrame->args.subjectPtr;  /* Remember where we started */
-                    
+
                     switch (stack.currentFrame->locals.ctype) {
                         case OP_NOT_NEWLINE:
                             for (int i = min; i < stack.currentFrame->locals.max; i++) {
@@ -1589,7 +1598,7 @@ RECURSE:
                                 stack.currentFrame->args.subjectPtr++;
                             }
                             break;
-                            
+
                         case OP_NOT_DIGIT:
                             for (int i = min; i < stack.currentFrame->locals.max; i++) {
                                 if (stack.currentFrame->args.subjectPtr >= md.endSubject)
@@ -1600,7 +1609,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_DIGIT:
                             for (int i = min; i < stack.currentFrame->locals.max; i++) {
                                 if (stack.currentFrame->args.subjectPtr >= md.endSubject)
@@ -1611,7 +1620,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_NOT_WHITESPACE:
                             for (int i = min; i < stack.currentFrame->locals.max; i++) {
                                 if (stack.currentFrame->args.subjectPtr >= md.endSubject)
@@ -1622,7 +1631,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_WHITESPACE:
                             for (int i = min; i < stack.currentFrame->locals.max; i++) {
                                 if (stack.currentFrame->args.subjectPtr >= md.endSubject)
@@ -1633,7 +1642,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_NOT_WORDCHAR:
                             for (int i = min; i < stack.currentFrame->locals.max; i++) {
                                 if (stack.currentFrame->args.subjectPtr >= md.endSubject)
@@ -1644,7 +1653,7 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         case OP_WORDCHAR:
                             for (int i = min; i < stack.currentFrame->locals.max; i++) {
                                 if (stack.currentFrame->args.subjectPtr >= md.endSubject)
@@ -1655,14 +1664,14 @@ RECURSE:
                                 ++stack.currentFrame->args.subjectPtr;
                             }
                             break;
-                            
+
                         default:
                             ASSERT_NOT_REACHED();
                             return matchError(JSRegExpErrorInternal, stack);
                     }
-                    
+
                     /* stack.currentFrame->args.subjectPtr is now past the end of the maximum run */
-                    
+
                     for (;;) {
                         RECURSIVE_MATCH(52, stack.currentFrame->args.instructionPtr, stack.currentFrame->args.bracketChain);
                         if (isMatch)
@@ -1670,13 +1679,13 @@ RECURSE:
                         if (stack.currentFrame->args.subjectPtr-- == stack.currentFrame->locals.subjectPtrAtStartOfInstruction)
                             break;        /* Stop if tried at original pos */
                     }
-                    
+
                     /* Get here if we can't make it match with any permitted repetitions */
-                    
+
                     RRETURN;
                 }
                 /* Control never reaches here */
-                
+
             BEGIN_OPCODE(CRMINPLUS):
             BEGIN_OPCODE(CRMINQUERY):
             BEGIN_OPCODE(CRMINRANGE):
@@ -1687,7 +1696,7 @@ RECURSE:
             BEGIN_OPCODE(CRSTAR):
                 ASSERT_NOT_REACHED();
                 return matchError(JSRegExpErrorInternal, stack);
-                
+
 #ifdef USE_COMPUTED_GOTO_FOR_MATCH_OPCODE_LOOP
             CAPTURING_BRACKET:
 #else
@@ -1698,71 +1707,71 @@ RECURSE:
                  mustn't change the current values of the data slot, because they may be set
                  from a previous iteration of this group, and be referred to by a reference
                  inside the group.
-                 
+
                  If the bracket fails to match, we need to restore this value and also the
                  values of the final offsets, in case they were set by a previous iteration of
                  the same bracket.
-                 
+
                  If there isn't enough space in the offset vector, treat this as if it were a
                  non-capturing bracket. Don't worry about setting the flag for the error case
                  here; that is handled in the code for KET. */
-                
+
                 ASSERT(*stack.currentFrame->args.instructionPtr > OP_BRA);
-                
+
                 stack.currentFrame->locals.number = *stack.currentFrame->args.instructionPtr - OP_BRA;
-                
+
                 /* For extended extraction brackets (large number), we have to fish out the
                  number from a dummy opcode at the start. */
-                
+
                 if (stack.currentFrame->locals.number > EXTRACT_BASIC_MAX)
                     stack.currentFrame->locals.number = get2ByteValue(stack.currentFrame->args.instructionPtr + 2 + LINK_SIZE);
                 stack.currentFrame->locals.offset = stack.currentFrame->locals.number << 1;
-                
+
 #ifdef DEBUG
                 printf("start bracket %d subject=", stack.currentFrame->locals.number);
                 pchars(stack.currentFrame->args.subjectPtr, 16, true, md);
                 printf("\n");
 #endif
-                
+
                 if (stack.currentFrame->locals.offset < md.offsetMax) {
                     stack.currentFrame->locals.saveOffset1 = md.offsetVector[stack.currentFrame->locals.offset];
                     stack.currentFrame->locals.saveOffset2 = md.offsetVector[stack.currentFrame->locals.offset + 1];
                     stack.currentFrame->locals.saveOffset3 = md.offsetVector[md.offsetEnd - stack.currentFrame->locals.number];
-                    
+
                     DPRINTF(("saving %d %d %d\n", stack.currentFrame->locals.saveOffset1, stack.currentFrame->locals.saveOffset2, stack.currentFrame->locals.saveOffset3));
                     md.offsetVector[md.offsetEnd - stack.currentFrame->locals.number] = stack.currentFrame->args.subjectPtr - md.startSubject;
-                    
+
                     do {
                         RECURSIVE_MATCH_STARTNG_NEW_GROUP(1, stack.currentFrame->args.instructionPtr + 1 + LINK_SIZE, stack.currentFrame->args.bracketChain);
                         if (isMatch)
                             RRETURN;
                         stack.currentFrame->args.instructionPtr += getLinkValue(stack.currentFrame->args.instructionPtr + 1);
                     } while (*stack.currentFrame->args.instructionPtr == OP_ALT);
-                    
+
                     DPRINTF(("bracket %d failed\n", stack.currentFrame->locals.number));
-                    
+
                     md.offsetVector[stack.currentFrame->locals.offset] = stack.currentFrame->locals.saveOffset1;
                     md.offsetVector[stack.currentFrame->locals.offset + 1] = stack.currentFrame->locals.saveOffset2;
                     md.offsetVector[md.offsetEnd - stack.currentFrame->locals.number] = stack.currentFrame->locals.saveOffset3;
-                    
+
                     RRETURN;
                 }
-                
+
                 /* Insufficient room for saving captured contents */
-                
+
                 goto NON_CAPTURING_BRACKET;
         }
-        
+
         /* Do not stick any code in here without much thought; it is assumed
          that "continue" in the code above comes out to here to repeat the main
          loop. */
-        
+
     } /* End of main loop */
-    
+
     ASSERT_NOT_REACHED();
-    
+
 #ifndef USE_COMPUTED_GOTO_FOR_MATCH_RECURSION
-    
+
 RRETURN_SWITCH:
     switch (stack.currentFrame->returnLocation) {
         case 0: goto RETURN;
@@ -1793,12 +1802,12 @@ RRETURN_SWITCH:
         case 48: goto RRETURN_48;
         case 52: goto RRETURN_52;
     }
-    
+
     ASSERT_NOT_REACHED();
     return matchError(JSRegExpErrorInternal, stack);
-    
+
 #endif
-    
+
 RETURN:
     return isMatch;
 }
@@ -1828,12 +1837,13 @@ Returns:          > 0 => success; value is the number of elements filled in
                  < -1 => some kind of unexpected problem
 */
 
-static void tryFirstByteOptimization(const UChar*& subjectPtr, const UChar* endSubject, int first_byte, bool first_byte_caseless, bool useMultiLineFirstCharOptimization, const UChar* originalSubjectStart)
+template <typename Char>
+static void tryFirstByteOptimization(const Char*& subjectPtr, const Char* endSubject, int first_byte, bool first_byte_caseless, bool useMultiLineFirstCharOptimization, const Char* originalSubjectStart)
 {
     // If first_byte is set, try scanning to the first instance of that byte
     // no need to try and match against any earlier part of the subject string.
     if (first_byte >= 0) {
-        UChar first_char = first_byte;
+        Char first_char = first_byte;
         if (first_byte_caseless)
             while (subjectPtr < endSubject) {
                 int c = *subjectPtr;
@@ -1857,7 +1867,8 @@ static void tryFirstByteOptimization(const UChar*& subjectPtr, const UChar* endS
     }
 }
 
-static bool tryRequiredByteOptimization(const UChar*& subjectPtr, const UChar* endSubject, int req_byte, int req_byte2, bool req_byte_caseless, bool hasFirstByte, const UChar*& reqBytePtr)
+template <typename Char>
+static bool tryRequiredByteOptimization(const Char*& subjectPtr, const Char* endSubject, int req_byte, int req_byte2, bool req_byte_caseless, bool hasFirstByte, const Char*& reqBytePtr)
 {
     /* If req_byte is set, we know that that character must appear in the subject
      for the match to succeed. If the first character is set, req_byte must be
@@ -1866,7 +1877,7 @@ static bool tryRequiredByteOptimization(const UChar*& subjectPtr, const UChar* e
      unlimited repeats that aren't going to match. Writing separate code for
      cased/caseless versions makes it go faster, as does using an autoincrement
      and backing off on a match.
-     
+
      HOWEVER: when the subject string is very, very long, searching to its end can
      take a long time, and give bad performance on quite ordinary patterns. This
      showed up when somebody was matching /^C/ on a 32-megabyte string... so we
@@ -1874,7 +1885,7 @@ static bool tryRequiredByteOptimization(const UChar*& subjectPtr, const UChar* e
     */
 
     if (req_byte >= 0 && endSubject - subjectPtr < REQ_BYTE_MAX) {
-        const UChar* p = subjectPtr + (hasFirstByte ? 1 : 0);
+        const Char* p = subjectPtr + (hasFirstByte ? 1 : 0);
 
         /* We don't need to repeat the search if we haven't yet reached the
          place we found it at last time. */
@@ -1912,30 +1923,31 @@ static bool tryRequiredByteOptimization(const UChar*& subjectPtr, const UChar* e
     return false;
 }
 
+template <typename Char>
 int jsRegExpExecute(const JSRegExp* re,
-                    const UChar* subject, int length, int start_offset, int* offsets,
+                    const Char* subject, int length, int start_offset, int* offsets,
                     int offsetcount)
 {
     ASSERT(re);
     ASSERT(subject);
     ASSERT(offsetcount >= 0);
     ASSERT(offsets || offsetcount == 0);
-    
-    MatchData matchBlock;
+
+    MatchData<Char> matchBlock;
     matchBlock.startSubject = subject;
     matchBlock.endSubject = matchBlock.startSubject + length;
-    const UChar* endSubject = matchBlock.endSubject;
-    
+    const Char* endSubject = matchBlock.endSubject;
+
     matchBlock.multiline = (re->options & MatchAcrossMultipleLinesOption);
     matchBlock.ignoreCase = (re->options & IgnoreCaseOption);
-    
+
     /* If the expression has got more back references than the offsets supplied can
      hold, we get a temporary chunk of working store to use during the matching.
      Otherwise, we can use the vector supplied, rounding down its size to a multiple
      of 3. */
-    
+
     int ocount = offsetcount - (offsetcount % 3);
-    
+
     // FIXME: This is lame that we have to second-guess our caller here.
     // The API should change to either fail-hard when we don't have enough offset space
     // or that we shouldn't ask our callers to pre-allocate in the first place.
@@ -1948,36 +1960,36 @@ int jsRegExpExecute(const JSRegExp* re,
         using_temporary_offsets = true;
     } else
         matchBlock.offsetVector = offsets;
-    
+
     matchBlock.offsetEnd = ocount;
     matchBlock.offsetMax = (2*ocount)/3;
     matchBlock.offsetOverflow = false;
-    
+
     /* Compute the minimum number of offsets that we need to reset each time. Doing
      this makes a huge difference to execution time when there aren't many brackets
      in the pattern. */
-    
+
     int resetcount = 2 + re->top_bracket * 2;
     if (resetcount > offsetcount)
         resetcount = ocount;
-    
+
     /* Reset the working variable associated with each extraction. These should
      never be used unless previously set, but they get saved and restored, and so we
      initialize them to avoid reading uninitialized locations. */
-    
+
     if (matchBlock.offsetVector) {
         int* iptr = matchBlock.offsetVector + ocount;
         int* iend = iptr - resetcount/2 + 1;
         while (--iptr >= iend)
             *iptr = -1;
     }
-    
+
     /* Set up the first character to match, if available. The first_byte value is
      never set for an anchored regular expression, but the anchoring may be forced
      at run time, so we have to test for anchoring. The first char may be unset for
      an unanchored pattern, of course. If there's no first char and the pattern was
      studied, there may be a bitmap of possible first characters. */
-    
+
     bool first_byte_caseless = false;
     int first_byte = -1;
     if (re->options & UseFirstByteOptimizationOption) {
@@ -1985,10 +1997,10 @@ int jsRegExpExecute(const JSRegExp* re,
         if ((first_byte_caseless = (re->first_byte & REQ_IGNORE_CASE)))
             first_byte = toLowerCase(first_byte);
     }
-    
+
     /* For anchored or unanchored matches, there may be a "last known required
      character" set. */
-    
+
     bool req_byte_caseless = false;
     int req_byte = -1;
     int req_byte2 = -1;
@@ -1997,14 +2009,14 @@ int jsRegExpExecute(const JSRegExp* re,
         req_byte_caseless = (re->req_byte & REQ_IGNORE_CASE);
         req_byte2 = flipCase(req_byte);
     }
-    
+
     /* Loop for handling unanchored repeated matching attempts; for anchored regexs
      the loop runs just once. */
-    
-    const UChar* startMatch = subject + start_offset;
-    const UChar* reqBytePtr = startMatch - 1;
+
+    const Char* startMatch = subject + start_offset;
+    const Char* reqBytePtr = startMatch - 1;
     bool useMultiLineFirstCharOptimization = re->options & UseMultiLineFirstByteOptimizationOption;
-    
+
     do {
         /* Reset the maximum number of extractions we might see. */
         if (matchBlock.offsetVector) {
@@ -2013,23 +2025,23 @@ int jsRegExpExecute(const JSRegExp* re,
             while (iptr < iend)
                 *iptr++ = -1;
         }
-        
+
         tryFirstByteOptimization(startMatch, endSubject, first_byte, first_byte_caseless, useMultiLineFirstCharOptimization, matchBlock.startSubject + start_offset);
         if (tryRequiredByteOptimization(startMatch, endSubject, req_byte, req_byte2, req_byte_caseless, first_byte >= 0, reqBytePtr))
             break;
-                
+
         /* When a match occurs, substrings will be set for all internal extractions;
          we just need to set up the whole thing as substring 0 before returning. If
          there were too many extractions, set the return code to zero. In the case
          where we had to get some local store to hold offsets for backreferences, copy
          those back references that we can. In this case there need not be overflow
          if certain parts of the pattern were not used. */
-        
+
         /* The code starts after the JSRegExp block and the capture name table. */
         const unsigned char* start_code = (const unsigned char*)(re + 1);
-        
-        int returnCode = match(startMatch, start_code, 2, matchBlock);
-        
+
+        int returnCode = match<Char>(startMatch, start_code, 2, matchBlock);
+
         /* When the result is no match, advance the pointer to the next character
          and continue. */
         if (returnCode == 0) {
@@ -2042,10 +2054,10 @@ int jsRegExpExecute(const JSRegExp* re,
             DPRINTF((">>>> error: returning %d\n", returnCode));
             return returnCode;
         }
-        
+
         /* We have a match! Copy the offset information from temporary store if
          necessary */
-        
+
         if (using_temporary_offsets) {
             if (offsetcount >= 4) {
                 memcpy(offsets + 2, matchBlock.offsetVector + 2, (offsetcount - 2) * sizeof(int));
@@ -2053,29 +2065,41 @@ int jsRegExpExecute(const JSRegExp* re,
             }
             if (matchBlock.endOffsetTop > offsetcount)
                 matchBlock.offsetOverflow = true;
-            
+
             DPRINTF(("Freeing temporary memory\n"));
             delete [] matchBlock.offsetVector;
         }
-        
+
         returnCode = matchBlock.offsetOverflow ? 0 : matchBlock.endOffsetTop / 2;
-        
+
         if (offsetcount < 2)
             returnCode = 0;
         else {
             offsets[0] = startMatch - matchBlock.startSubject;
             offsets[1] = matchBlock.endMatchPtr - matchBlock.startSubject;
         }
-        
+
         DPRINTF((">>>> returning %d\n", returnCode));
         return returnCode;
     } while (!(re->options & IsAnchoredOption) && startMatch <= endSubject);
-    
+
     if (using_temporary_offsets) {
         DPRINTF(("Freeing temporary memory\n"));
         delete [] matchBlock.offsetVector;
     }
-    
+
     DPRINTF((">>>> returning PCRE_ERROR_NOMATCH\n"));
     return JSRegExpErrorNoMatch;
 }
+
+template
+int jsRegExpExecute<unsigned short>(const JSRegExp* re,
+                                    const unsigned short* subject,
+                                    int length, int start_offset,
+                                    int* offsets, int offsetcount);
+
+template
+int jsRegExpExecute<char>(const JSRegExp* re,
+                          const char* subject,
+                          int length, int start_offset,
+                          int* offsets, int offsetcount);

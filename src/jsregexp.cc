@@ -65,27 +65,6 @@ static void JSREFree(void* p) {
 }
 
 
-String* RegExpImpl::last_ascii_string_ = NULL;
-String* RegExpImpl::two_byte_cached_string_ = NULL;
-
-
-void RegExpImpl::NewSpaceCollectionPrologue() {
-  // The two byte string is always in the old space.  The Ascii string may be
-  // in either place.  If it is in the old space we don't need to do anything.
-  if (Heap::InNewSpace(last_ascii_string_)) {
-    // Invalidate the cache.
-    last_ascii_string_ = NULL;
-    two_byte_cached_string_ = NULL;
-  }
-}
-
-
-void RegExpImpl::OldSpaceCollectionPrologue() {
-  last_ascii_string_ = NULL;
-  two_byte_cached_string_ = NULL;
-}
-
-
 Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
                                                Handle<String> pattern,
                                                Handle<String> flags,
@@ -99,47 +78,6 @@ Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
   Object** argv[2] = { Handle<Object>::cast(pattern).location(),
                        Handle<Object>::cast(flags).location() };
   return Execution::New(constructor, 2, argv, has_pending_exception);
-}
-
-
-// Converts a source string to a 16 bit flat string or a SlicedString containing
-// a 16 bit flat string).
-Handle<String> RegExpImpl::CachedStringToTwoByte(Handle<String> subject) {
-  if (*subject == last_ascii_string_) {
-    ASSERT(two_byte_cached_string_ != NULL);
-    return Handle<String>(String::cast(two_byte_cached_string_));
-  }
-  Handle<String> two_byte_string = StringToTwoByte(subject);
-  last_ascii_string_ = *subject;
-  two_byte_cached_string_ = *two_byte_string;
-  return two_byte_string;
-}
-
-
-// Converts a source string to a 16 bit flat string or a SlicedString containing
-// a 16 bit flat string).
-Handle<String> RegExpImpl::StringToTwoByte(Handle<String> pattern) {
-  if (!pattern->IsFlat()) {
-    FlattenString(pattern);
-  }
-  Handle<String> flat_string(pattern->IsConsString() ?
-    String::cast(ConsString::cast(*pattern)->first()) :
-    *pattern);
-  ASSERT(!flat_string->IsConsString());
-  ASSERT(flat_string->IsSeqString() || flat_string->IsSlicedString() ||
-         flat_string->IsExternalString());
-  if (!flat_string->IsAsciiRepresentation()) {
-    return flat_string;
-  }
-
-  Handle<String> two_byte_string =
-    Factory::NewRawTwoByteString(flat_string->length(), TENURED);
-  static StringInputBuffer convert_to_two_byte_buffer;
-  convert_to_two_byte_buffer.Reset(*flat_string);
-  for (int i = 0; convert_to_two_byte_buffer.has_more(); i++) {
-    two_byte_string->Set(i, convert_to_two_byte_buffer.GetNext());
-  }
-  return two_byte_string;
 }
 
 
@@ -189,7 +127,14 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
                                 Handle<String> subject) {
   switch (regexp->type_tag()) {
     case JSRegExp::JSCRE:
-      return JsreExecGlobal(regexp, subject);
+      FlattenString(subject);
+      if (subject->IsAsciiRepresentation()) {
+        Vector<const char> contents = subject->ToAsciiVector();
+        return JsreExecGlobal(regexp, subject, contents);
+      } else {
+        Vector<const uc16> contents = subject->ToUC16Vector();
+        return JsreExecGlobal(regexp, subject, contents);
+      }
     case JSRegExp::ATOM:
       return AtomExecGlobal(regexp, subject);
     default:
@@ -268,16 +213,34 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
     if (flags->Get(i) == 'm') multiline_option = JSRegExpMultiline;
   }
 
-  Handle<String> two_byte_pattern = StringToTwoByte(pattern);
-
   unsigned number_of_captures;
   const char* error_message = NULL;
 
   malloc_failure = Failure::Exception();
-  JscreRegExp* code = jsRegExpCompile(two_byte_pattern->GetTwoByteData(),
-                                      pattern->length(), case_option,
-                                      multiline_option, &number_of_captures,
-                                      &error_message, &JSREMalloc, &JSREFree);
+  JscreRegExp* code;
+  FlattenString(pattern);
+
+  if (pattern->IsAsciiRepresentation()) {
+    Vector<const char> contents = pattern->ToAsciiVector();
+    code = jsRegExpCompile(contents.start(),
+                           contents.length(),
+                           case_option,
+                           multiline_option,
+                           &number_of_captures,
+                           &error_message,
+                           &JSREMalloc,
+                           &JSREFree);
+  } else {
+    Vector<const uc16> contents = pattern->ToUC16Vector();
+    code = jsRegExpCompile(contents.start(),
+                           contents.length(),
+                           case_option,
+                           multiline_option,
+                           &number_of_captures,
+                           &error_message,
+                           &JSREMalloc,
+                           &JSREFree);
+  }
 
   if (code == NULL && malloc_failure->IsRetryAfterGC()) {
     // Performs a GC, then retries.
@@ -287,10 +250,29 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
       V8::FatalProcessOutOfMemory("RegExpImpl::JsreCompile");
     }
     malloc_failure = Failure::Exception();
-    code = jsRegExpCompile(two_byte_pattern->GetTwoByteData(),
-                           pattern->length(), case_option,
-                           multiline_option, &number_of_captures,
-                           &error_message, &JSREMalloc, &JSREFree);
+
+    if (pattern->IsAsciiRepresentation()) {
+      Vector<const char> contents = pattern->ToAsciiVector();
+      code = jsRegExpCompile(contents.start(),
+                             contents.length(),
+                             case_option,
+                             multiline_option,
+                             &number_of_captures,
+                             &error_message,
+                             &JSREMalloc,
+                             &JSREFree);
+    } else {
+      Vector<const uc16> contents = pattern->ToUC16Vector();
+      code = jsRegExpCompile(contents.start(),
+                             contents.length(),
+                             case_option,
+                             multiline_option,
+                             &number_of_captures,
+                             &error_message,
+                             &JSREMalloc,
+                             &JSREFree);
+    }
+
     if (code == NULL && malloc_failure->IsRetryAfterGC()) {
       // TODO(1181417): Fix this.
       V8::FatalProcessOutOfMemory("RegExpImpl::JsreCompile");
@@ -299,10 +281,8 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
 
   if (error_message != NULL) {
     // Throw an exception.
-    SmartPointer<char> char_pattern =
-        two_byte_pattern->ToCString(DISALLOW_NULLS);
     Handle<JSArray> array = Factory::NewJSArray(2);
-    SetElement(array, 0, Factory::NewStringFromUtf8(CStrVector(*char_pattern)));
+    SetElement(array, 0, pattern);
     SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(error_message)));
     Handle<Object> regexp_err =
         Factory::NewSyntaxError("malformed_regexp", array);
@@ -325,11 +305,12 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
 }
 
 
+template <typename T>
 Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSRegExp> regexp,
                                         int num_captures,
                                         Handle<String> subject,
                                         int previous_index,
-                                        const uc16* two_byte_subject,
+                                        Vector<const T> contents,
                                         int* offsets_vector,
                                         int offsets_vector_length) {
   int rc;
@@ -341,12 +322,12 @@ Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSRegExp> regexp,
 
     LOG(RegExpExecEvent(regexp, previous_index, subject));
 
-    rc = jsRegExpExecute(js_regexp,
-                         two_byte_subject,
-                         subject->length(),
-                         previous_index,
-                         offsets_vector,
-                         offsets_vector_length);
+    rc = jsRegExpExecute<T>(js_regexp,
+                            contents.start(),
+                            contents.length(),
+                            previous_index,
+                            offsets_vector,
+                            offsets_vector_length);
   }
 
   // The KJS JavaScript engine returns null (ie, a failed match) when
@@ -428,19 +409,29 @@ Handle<Object> RegExpImpl::JsreExec(Handle<JSRegExp> regexp,
 
   int previous_index = static_cast<int>(DoubleToInteger(index->Number()));
 
-  Handle<String> subject16 = CachedStringToTwoByte(subject);
-
-  Handle<Object> result(JsreExecOnce(regexp, num_captures, subject,
-                                     previous_index,
-                                     subject16->GetTwoByteData(),
-                                     offsets.vector(), offsets.length()));
-
-  return result;
+  FlattenString(subject);
+  if (subject->IsAsciiRepresentation()) {
+    Vector<const char> contents = subject->ToAsciiVector();
+    Handle<Object> result(JsreExecOnce(regexp, num_captures, subject,
+                                       previous_index,
+                                       contents,
+                                       offsets.vector(), offsets.length()));
+    return result;
+  } else {
+    Vector<const uc16> contents = subject->ToUC16Vector();
+    Handle<Object> result(JsreExecOnce(regexp, num_captures, subject,
+                                       previous_index,
+                                       contents,
+                                       offsets.vector(), offsets.length()));
+    return result;
+  }
 }
 
 
+template <typename T>
 Handle<Object> RegExpImpl::JsreExecGlobal(Handle<JSRegExp> regexp,
-                                          Handle<String> subject) {
+                                          Handle<String> subject,
+                                          Vector<const T> contents) {
   // Prepare space for the return values.
   int num_captures = JsreCapture(regexp);
 
@@ -452,17 +443,19 @@ Handle<Object> RegExpImpl::JsreExecGlobal(Handle<JSRegExp> regexp,
   int i = 0;
   Handle<Object> matches;
 
-  Handle<String> subject16 = CachedStringToTwoByte(subject);
-
   do {
     if (previous_index > subject->length() || previous_index < 0) {
       // Per ECMA-262 15.10.6.2, if the previous index is greater than the
       // string length, there is no match.
       matches = Factory::null_value();
     } else {
-      matches = JsreExecOnce(regexp, num_captures, subject, previous_index,
-                             subject16->GetTwoByteData(),
-                             offsets.vector(), offsets.length());
+      matches = JsreExecOnce<T>(regexp,
+                                num_captures,
+                                subject,
+                                previous_index,
+                                contents,
+                                offsets.vector(),
+                                offsets.length());
 
       if (matches->IsJSArray()) {
         SetElement(result, i, matches);

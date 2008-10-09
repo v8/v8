@@ -79,32 +79,24 @@ class RegExpImpl {
                                  Handle<String> subject,
                                  Handle<Object> index);
 
+  template <typename T>
   static Handle<Object> JsreExecGlobal(Handle<JSRegExp> regexp,
-                                       Handle<String> subject);
-
-  static void NewSpaceCollectionPrologue();
-  static void OldSpaceCollectionPrologue();
+                                       Handle<String> subject,
+                                       Vector<const T> contents);
 
  private:
-  // Converts a source string to a 16 bit flat string.  The string
-  // will be either sequential or it will be a SlicedString backed
-  // by a flat string.
-  static Handle<String> StringToTwoByte(Handle<String> pattern);
-  static Handle<String> CachedStringToTwoByte(Handle<String> pattern);
-
-  static String* last_ascii_string_;
-  static String* two_byte_cached_string_;
 
   // Returns the caputure from the re.
   static int JsreCapture(Handle<JSRegExp> re);
   static ByteArray* JsreInternal(Handle<JSRegExp> re);
 
   // Call jsRegExpExecute once
+  template <typename T>
   static Handle<Object> JsreExecOnce(Handle<JSRegExp> regexp,
                                      int num_captures,
                                      Handle<String> subject,
                                      int previous_index,
-                                     const uc16* utf8_subject,
+                                     Vector<const T> contents,
                                      int* ovector,
                                      int ovector_length);
 
