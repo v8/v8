@@ -63,7 +63,7 @@ class SourceCodeCache BASE_EMBEDDED {
 
   bool Lookup(Vector<const char> name, Handle<JSFunction>* handle) {
     for (int i = 0; i < cache_->length(); i+=2) {
-      AsciiString* str = AsciiString::cast(cache_->get(i));
+      SeqAsciiString* str = SeqAsciiString::cast(cache_->get(i));
       if (str->IsEqualTo(name)) {
         *handle = Handle<JSFunction>(JSFunction::cast(cache_->get(i + 1)));
         return true;
@@ -751,7 +751,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   // function and insert it into the cache.
   if (!cache->Lookup(name, &boilerplate)) {
 #ifdef DEBUG
-    ASSERT(source->IsAscii());
+    ASSERT(source->IsAsciiRepresentation());
 #endif
     Handle<String> script_name = Factory::NewStringFromUtf8(name);
     boilerplate =

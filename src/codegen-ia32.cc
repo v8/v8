@@ -3156,13 +3156,14 @@ void Ia32CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
   // 2-byte string.
   // Load the 2-byte character code.
-  __ movzx_w(eax, FieldOperand(eax, ebx, times_2, TwoByteString::kHeaderSize));
+  __ movzx_w(eax,
+             FieldOperand(eax, ebx, times_2, SeqTwoByteString::kHeaderSize));
   __ jmp(&got_char_code);
 
   // ASCII string.
   __ bind(&ascii_string);
   // Load the byte.
-  __ movzx_b(eax, FieldOperand(eax, ebx, times_1, AsciiString::kHeaderSize));
+  __ movzx_b(eax, FieldOperand(eax, ebx, times_1, SeqAsciiString::kHeaderSize));
 
   __ bind(&got_char_code);
   ASSERT(kSmiTag == 0);

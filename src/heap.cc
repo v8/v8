@@ -931,32 +931,32 @@ bool Heap::CreateInitialMaps() {
   STRING_TYPE_LIST(ALLOCATE_STRING_MAP);
 #undef ALLOCATE_STRING_MAP
 
-  obj = AllocateMap(SHORT_STRING_TYPE, TwoByteString::kHeaderSize);
+  obj = AllocateMap(SHORT_STRING_TYPE, SeqTwoByteString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_short_string_map_ = Map::cast(obj);
   undetectable_short_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(MEDIUM_STRING_TYPE, TwoByteString::kHeaderSize);
+  obj = AllocateMap(MEDIUM_STRING_TYPE, SeqTwoByteString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_medium_string_map_ = Map::cast(obj);
   undetectable_medium_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(LONG_STRING_TYPE, TwoByteString::kHeaderSize);
+  obj = AllocateMap(LONG_STRING_TYPE, SeqTwoByteString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_long_string_map_ = Map::cast(obj);
   undetectable_long_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(SHORT_ASCII_STRING_TYPE, AsciiString::kHeaderSize);
+  obj = AllocateMap(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_short_ascii_string_map_ = Map::cast(obj);
   undetectable_short_ascii_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(MEDIUM_ASCII_STRING_TYPE, AsciiString::kHeaderSize);
+  obj = AllocateMap(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_medium_ascii_string_map_ = Map::cast(obj);
   undetectable_medium_ascii_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(LONG_ASCII_STRING_TYPE, AsciiString::kHeaderSize);
+  obj = AllocateMap(LONG_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_long_ascii_string_map_ = Map::cast(obj);
   undetectable_long_ascii_string_map_->set_is_undetectable();
@@ -1328,7 +1328,8 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 
 Object* Heap::AllocateConsString(String* first, String* second) {
   int length = first->length() + second->length();
-  bool is_ascii = first->is_ascii() && second->is_ascii();
+  bool is_ascii = first->is_ascii_representation()
+      && second->is_ascii_representation();
 
   // If the resulting string is small make a flat string.
   if (length < ConsString::kMinLength) {
@@ -1385,13 +1386,13 @@ Object* Heap::AllocateSlicedString(String* buffer, int start, int end) {
 
   Map* map;
   if (length <= String::kMaxShortStringSize) {
-    map = buffer->is_ascii() ? short_sliced_ascii_string_map()
+    map = buffer->is_ascii_representation() ? short_sliced_ascii_string_map()
       : short_sliced_string_map();
   } else if (length <= String::kMaxMediumStringSize) {
-    map = buffer->is_ascii() ? medium_sliced_ascii_string_map()
+    map = buffer->is_ascii_representation() ? medium_sliced_ascii_string_map()
       : medium_sliced_string_map();
   } else {
-    map = buffer->is_ascii() ? long_sliced_ascii_string_map()
+    map = buffer->is_ascii_representation() ? long_sliced_ascii_string_map()
       : long_sliced_string_map();
   }
 
@@ -1417,7 +1418,7 @@ Object* Heap::AllocateSubString(String* buffer, int start, int end) {
   // Make an attempt to flatten the buffer to reduce access time.
   buffer->TryFlatten();
 
-  Object* result = buffer->is_ascii()
+  Object* result = buffer->is_ascii_representation()
       ? AllocateRawAsciiString(length)
       : AllocateRawTwoByteString(length);
   if (result->IsFailure()) return result;
@@ -1768,9 +1769,9 @@ Object* Heap::AllocateStringFromAscii(Vector<const char> string,
   if (result->IsFailure()) return result;
 
   // Copy the characters into the new object.
-  AsciiString* string_result = AsciiString::cast(result);
+  SeqAsciiString* string_result = SeqAsciiString::cast(result);
   for (int i = 0; i < string.length(); i++) {
-    string_result->AsciiStringSet(i, string[i]);
+    string_result->SeqAsciiStringSet(i, string[i]);
   }
   return result;
 }
@@ -1918,7 +1919,7 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
     } else {
       map = long_ascii_symbol_map();
     }
-    size = AsciiString::SizeFor(chars);
+    size = SeqAsciiString::SizeFor(chars);
   } else {
     if (chars <= String::kMaxShortStringSize) {
       map = short_symbol_map();
@@ -1927,7 +1928,7 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
     } else {
       map = long_symbol_map();
     }
-    size = TwoByteString::SizeFor(chars);
+    size = SeqTwoByteString::SizeFor(chars);
   }
 
   // Allocate string.
@@ -1952,7 +1953,7 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
 
 Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  int size = AsciiString::SizeFor(length);
+  int size = SeqAsciiString::SizeFor(length);
   if (size > MaxHeapObjectSize()) {
     space = LO_SPACE;
   }
@@ -1982,7 +1983,7 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 
 Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  int size = TwoByteString::SizeFor(length);
+  int size = SeqTwoByteString::SizeFor(length);
   if (size > MaxHeapObjectSize()) {
     space = LO_SPACE;
   }

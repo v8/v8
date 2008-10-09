@@ -128,7 +128,7 @@ Handle<String> RegExpImpl::StringToTwoByte(Handle<String> pattern) {
   ASSERT(!flat_string->IsConsString());
   ASSERT(flat_string->IsSeqString() || flat_string->IsSlicedString() ||
          flat_string->IsExternalString());
-  if (!flat_string->IsAscii()) {
+  if (!flat_string->IsAsciiRepresentation()) {
     return flat_string;
   }
 

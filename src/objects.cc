@@ -522,7 +522,7 @@ Object* String::Flatten() {
       // an old space GC.
       PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED : TENURED;
       int len = length();
-      Object* object = IsAscii() ?
+      Object* object = IsAsciiRepresentation() ?
           Heap::AllocateRawAsciiString(len, tenure) :
           Heap::AllocateRawTwoByteString(len, tenure);
       if (object->IsFailure()) return object;
@@ -755,10 +755,11 @@ int HeapObject::SlowSizeFromMap(Map* map) {
   if (instance_type < FIRST_NONSTRING_TYPE
       && (reinterpret_cast<String*>(this)->map_representation_tag(map)
           == kSeqStringTag)) {
-    if (reinterpret_cast<String*>(this)->is_ascii_map(map)) {
-      return reinterpret_cast<AsciiString*>(this)->AsciiStringSize(map);
+    if (reinterpret_cast<String*>(this)->is_ascii_representation_map(map)) {
+      return reinterpret_cast<SeqAsciiString*>(this)->SeqAsciiStringSize(map);
     } else {
-      return reinterpret_cast<TwoByteString*>(this)->TwoByteStringSize(map);
+      SeqTwoByteString* self = reinterpret_cast<SeqTwoByteString*>(this);
+      return self->SeqTwoByteStringSize(map);
     }
   }
 
@@ -2970,7 +2971,7 @@ bool String::LooksValid() {
 
 
 int String::Utf8Length() {
-  if (is_ascii()) return length();
+  if (is_ascii_representation()) return length();
   // Attempt to flatten before accessing the string.  It probably
   // doesn't make Utf8Length faster, but it is very likely that
   // the string will be accessed later (for example by WriteUtf8)
@@ -2982,6 +2983,69 @@ int String::Utf8Length() {
   while (buffer->has_more())
     result += unibrow::Utf8::Length(buffer->GetNext());
   return result;
+}
+
+
+Vector<const char> String::ToAsciiVector() {
+  ASSERT(IsAsciiRepresentation());
+  ASSERT(IsFlat());
+
+  int offset = 0;
+  int length = this->length();
+  StringRepresentationTag string_tag = representation_tag();
+  String* string = this;
+  if (string_tag == kSlicedStringTag) {
+      SlicedString* sliced = SlicedString::cast(string);
+      offset += sliced->start();
+      string = String::cast(sliced->buffer());
+      string_tag = string->representation_tag();
+  } else if (string_tag == kConsStringTag) {
+      ConsString* cons = ConsString::cast(string);
+      ASSERT(String::cast(cons->second())->length() == 0);
+      string = String::cast(cons->first());
+      string_tag = string->representation_tag();
+  }
+  if (string_tag == kSeqStringTag) {
+    SeqAsciiString* seq = SeqAsciiString::cast(string);
+    char* start = reinterpret_cast<char*>(seq->GetCharsAddress());
+    return Vector<const char>(start + offset, length);
+  }
+  ASSERT(string_tag == kExternalStringTag);
+  ExternalAsciiString* ext = ExternalAsciiString::cast(string);
+  const char* start = ext->resource()->data();
+  return Vector<const char>(start + offset, length);
+}
+
+
+Vector<const uc16> String::ToUC16Vector() {
+  ASSERT(IsTwoByteStringRepresentation());
+  ASSERT(IsFlat());
+
+  int offset = 0;
+  int length = this->length();
+  StringRepresentationTag string_tag = representation_tag();
+  String* string = this;
+  if (string_tag == kSlicedStringTag) {
+      SlicedString* sliced = SlicedString::cast(string);
+      offset += sliced->start();
+      string = String::cast(sliced->buffer());
+      string_tag = string->representation_tag();
+  } else if (string_tag == kConsStringTag) {
+      ConsString* cons = ConsString::cast(string);
+      ASSERT(String::cast(cons->second())->length() == 0);
+      string = String::cast(cons->first());
+      string_tag = string->representation_tag();
+  }
+  if (string_tag == kSeqStringTag) {
+    SeqTwoByteString* seq = SeqTwoByteString::cast(string);
+    uc16* start = reinterpret_cast<uc16*>(seq->GetCharsAddress());
+    return Vector<const uc16>(start + offset, length);
+  }
+  ASSERT(string_tag == kExternalStringTag);
+  ExternalTwoByteString* ext = ExternalTwoByteString::cast(string);
+  const uc16* start =
+      reinterpret_cast<const uc16*>(ext->resource()->data());
+  return Vector<const uc16>(start + offset, length);
 }
 
 
@@ -3051,10 +3115,10 @@ const uc16* String::GetTwoByteData() {
 
 
 const uc16* String::GetTwoByteData(unsigned start) {
-  ASSERT(!IsAscii());
+  ASSERT(!IsAsciiRepresentation());
   switch (representation_tag()) {
     case kSeqStringTag:
-      return TwoByteString::cast(this)->TwoByteStringGetData(start);
+      return SeqTwoByteString::cast(this)->SeqTwoByteStringGetData(start);
     case kExternalStringTag:
       return ExternalTwoByteString::cast(this)->
         ExternalTwoByteStringGetData(start);
@@ -3100,13 +3164,13 @@ SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
 }
 
 
-const uc16* TwoByteString::TwoByteStringGetData(unsigned start) {
+const uc16* SeqTwoByteString::SeqTwoByteStringGetData(unsigned start) {
   return reinterpret_cast<uc16*>(
       reinterpret_cast<char*>(this) - kHeapObjectTag + kHeaderSize) + start;
 }
 
 
-void TwoByteString::TwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
+void SeqTwoByteString::SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
                                                      unsigned* offset_ptr,
                                                      unsigned max_chars) {
   unsigned chars_read = 0;
@@ -3139,9 +3203,10 @@ void TwoByteString::TwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
 }
 
 
-const unibrow::byte* AsciiString::AsciiStringReadBlock(unsigned* remaining,
-                                                       unsigned* offset_ptr,
-                                                       unsigned max_chars) {
+const unibrow::byte* SeqAsciiString::SeqAsciiStringReadBlock(
+    unsigned* remaining,
+    unsigned* offset_ptr,
+    unsigned max_chars) {
   // Cast const char* to unibrow::byte* (signedness difference).
   const unibrow::byte* b = reinterpret_cast<unibrow::byte*>(this) -
       kHeapObjectTag + kHeaderSize + *offset_ptr * kCharSize;
@@ -3301,7 +3366,7 @@ void ExternalTwoByteString::ExternalTwoByteStringReadBlockIntoBuffer(
 }
 
 
-void AsciiString::AsciiStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
+void SeqAsciiString::SeqAsciiStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
                                                  unsigned* offset_ptr,
                                                  unsigned max_chars) {
   unsigned capacity = rbb->capacity - rbb->cursor;
@@ -3346,14 +3411,16 @@ const unibrow::byte* String::ReadBlock(String* input,
   }
   switch (input->representation_tag()) {
     case kSeqStringTag:
-      if (input->is_ascii()) {
-        return AsciiString::cast(input)->AsciiStringReadBlock(&rbb->remaining,
-                                                              offset_ptr,
-                                                              max_chars);
+      if (input->is_ascii_representation()) {
+        SeqAsciiString* str = SeqAsciiString::cast(input);
+        return str->SeqAsciiStringReadBlock(&rbb->remaining,
+                                            offset_ptr,
+                                            max_chars);
       } else {
-        TwoByteString::cast(input)->TwoByteStringReadBlockIntoBuffer(rbb,
-                                                                     offset_ptr,
-                                                                     max_chars);
+        SeqTwoByteString* str = SeqTwoByteString::cast(input);
+        str->SeqTwoByteStringReadBlockIntoBuffer(rbb,
+                                                 offset_ptr,
+                                                 max_chars);
         return rbb->util_buffer;
       }
     case kConsStringTag:
@@ -3365,7 +3432,7 @@ const unibrow::byte* String::ReadBlock(String* input,
                                                               offset_ptr,
                                                               max_chars);
     case kExternalStringTag:
-      if (input->is_ascii()) {
+      if (input->is_ascii_representation()) {
         return ExternalAsciiString::cast(input)->ExternalAsciiStringReadBlock(
             &rbb->remaining,
             offset_ptr,
@@ -3409,13 +3476,13 @@ void String::ReadBlockIntoBuffer(String* input,
 
   switch (input->representation_tag()) {
     case kSeqStringTag:
-      if (input->is_ascii()) {
-        AsciiString::cast(input)->AsciiStringReadBlockIntoBuffer(rbb,
+      if (input->is_ascii_representation()) {
+        SeqAsciiString::cast(input)->SeqAsciiStringReadBlockIntoBuffer(rbb,
                                                                  offset_ptr,
                                                                  max_chars);
         return;
       } else {
-        TwoByteString::cast(input)->TwoByteStringReadBlockIntoBuffer(rbb,
+        SeqTwoByteString::cast(input)->SeqTwoByteStringReadBlockIntoBuffer(rbb,
                                                                      offset_ptr,
                                                                      max_chars);
         return;
@@ -3431,7 +3498,7 @@ void String::ReadBlockIntoBuffer(String* input,
                                                                  max_chars);
       return;
     case kExternalStringTag:
-      if (input->is_ascii()) {
+      if (input->is_ascii_representation()) {
          ExternalAsciiString::cast(input)->
              ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
        } else {
@@ -3688,6 +3755,43 @@ uint16_t SlicedString::SlicedStringGet(int index) {
 }
 
 
+template <typename IteratorA, typename IteratorB>
+static inline bool CompareStringContents(IteratorA* ia, IteratorB* ib) {
+  // General slow case check.  We know that the ia and ib iterators
+  // have the same length.
+  while (ia->has_more()) {
+    uc32 ca = ia->GetNext();
+    uc32 cb = ib->GetNext();
+    if (ca != cb)
+      return false;
+  }
+  return true;
+}
+
+
+static StringInputBuffer string_compare_buffer_b;
+
+
+template <typename IteratorA>
+static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
+  if (b->IsFlat()) {
+    if (b->IsAsciiRepresentation()) {
+      VectorIterator<const char> ib(b->ToAsciiVector());
+      return CompareStringContents(ia, &ib);
+    } else {
+      VectorIterator<const uc16> ib(b->ToUC16Vector());
+      return CompareStringContents(ia, &ib);
+    }
+  } else {
+    string_compare_buffer_b.Reset(0, b);
+    return CompareStringContents(ia, &string_compare_buffer_b);
+  }
+}
+
+
+static StringInputBuffer string_compare_buffer_a;
+
+
 bool String::SlowEquals(String* other) {
   // Fast check: negative check with lengths.
   int len = length();
@@ -3700,24 +3804,18 @@ bool String::SlowEquals(String* other) {
     if (Hash() != other->Hash()) return false;
   }
 
-  // Fast case: avoid input buffers for small strings.
-  const int kMaxLenthForFastCaseCheck = 5;
-  for (int i = 0; i < kMaxLenthForFastCaseCheck; i++) {
-    if (Get(i) != other->Get(i)) return false;
-    if (i + 1 == len) return true;
-  }
-
-  // General slow case check.
-  static StringInputBuffer buf1;
-  static StringInputBuffer buf2;
-  buf1.Reset(kMaxLenthForFastCaseCheck, this);
-  buf2.Reset(kMaxLenthForFastCaseCheck, other);
-  while (buf1.has_more()) {
-    if (buf1.GetNext() != buf2.GetNext()) {
-      return false;
+  if (this->IsFlat()) {
+    if (this->IsAsciiRepresentation()) {
+      VectorIterator<const char> buf1(this->ToAsciiVector());
+      return CompareStringContentsPartial(&buf1, other);
+    } else {
+      VectorIterator<const uc16> buf1(this->ToUC16Vector());
+      return CompareStringContentsPartial(&buf1, other);
     }
+  } else {
+    string_compare_buffer_a.Reset(0, this);
+    return CompareStringContentsPartial(&string_compare_buffer_a, other);
   }
-  return true;
 }
 
 

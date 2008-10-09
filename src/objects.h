@@ -61,8 +61,8 @@
 //           - GlobalContext
 //       - String
 //         - SeqString
-//           - AsciiString
-//           - TwoByteString
+//           - SeqAsciiString
+//           - SeqTwoByteString
 //         - ConsString
 //         - SlicedString
 //         - ExternalString
@@ -272,12 +272,12 @@ class PropertyDetails BASE_EMBEDDED {
 // Since string types are not consecutive, this macro is used to
 // iterate over them.
 #define STRING_TYPE_LIST(V)                                                    \
-  V(SHORT_SYMBOL_TYPE, TwoByteString::kHeaderSize, short_symbol)               \
-  V(MEDIUM_SYMBOL_TYPE, TwoByteString::kHeaderSize, medium_symbol)             \
-  V(LONG_SYMBOL_TYPE, TwoByteString::kHeaderSize, long_symbol)                 \
-  V(SHORT_ASCII_SYMBOL_TYPE, AsciiString::kHeaderSize, short_ascii_symbol)     \
-  V(MEDIUM_ASCII_SYMBOL_TYPE, AsciiString::kHeaderSize, medium_ascii_symbol)   \
-  V(LONG_ASCII_SYMBOL_TYPE, AsciiString::kHeaderSize, long_ascii_symbol)       \
+  V(SHORT_SYMBOL_TYPE, SeqTwoByteString::kHeaderSize, short_symbol)            \
+  V(MEDIUM_SYMBOL_TYPE, SeqTwoByteString::kHeaderSize, medium_symbol)          \
+  V(LONG_SYMBOL_TYPE, SeqTwoByteString::kHeaderSize, long_symbol)              \
+  V(SHORT_ASCII_SYMBOL_TYPE, SeqAsciiString::kHeaderSize, short_ascii_symbol)  \
+  V(MEDIUM_ASCII_SYMBOL_TYPE, SeqAsciiString::kHeaderSize, medium_ascii_symbol)\
+  V(LONG_ASCII_SYMBOL_TYPE, SeqAsciiString::kHeaderSize, long_ascii_symbol)    \
   V(SHORT_CONS_SYMBOL_TYPE, ConsString::kSize, short_cons_symbol)              \
   V(MEDIUM_CONS_SYMBOL_TYPE, ConsString::kSize, medium_cons_symbol)            \
   V(LONG_CONS_SYMBOL_TYPE, ConsString::kSize, long_cons_symbol)                \
@@ -314,12 +314,12 @@ class PropertyDetails BASE_EMBEDDED {
   V(LONG_EXTERNAL_ASCII_SYMBOL_TYPE,                                           \
     ExternalAsciiString::kSize,                                                \
     long_external_ascii_symbol)                                                \
-  V(SHORT_STRING_TYPE, TwoByteString::kHeaderSize, short_string)               \
-  V(MEDIUM_STRING_TYPE, TwoByteString::kHeaderSize, medium_string)             \
-  V(LONG_STRING_TYPE, TwoByteString::kHeaderSize, long_string)                 \
-  V(SHORT_ASCII_STRING_TYPE, AsciiString::kHeaderSize, short_ascii_string)     \
-  V(MEDIUM_ASCII_STRING_TYPE, AsciiString::kHeaderSize, medium_ascii_string)   \
-  V(LONG_ASCII_STRING_TYPE, AsciiString::kHeaderSize, long_ascii_string)       \
+  V(SHORT_STRING_TYPE, SeqTwoByteString::kHeaderSize, short_string)            \
+  V(MEDIUM_STRING_TYPE, SeqTwoByteString::kHeaderSize, medium_string)          \
+  V(LONG_STRING_TYPE, SeqTwoByteString::kHeaderSize, long_string)              \
+  V(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize, short_ascii_string)  \
+  V(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize, medium_ascii_string)\
+  V(LONG_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize, long_ascii_string)    \
   V(SHORT_CONS_STRING_TYPE, ConsString::kSize, short_cons_string)              \
   V(MEDIUM_CONS_STRING_TYPE, ConsString::kSize, medium_cons_string)            \
   V(LONG_CONS_STRING_TYPE, ConsString::kSize, long_cons_string)                \
@@ -584,8 +584,10 @@ class Object BASE_EMBEDDED {
   inline bool IsHeapNumber();
   inline bool IsString();
   inline bool IsSeqString();
-  inline bool IsAsciiString();
-  inline bool IsTwoByteString();
+  inline bool IsAsciiStringRepresentation();
+  inline bool IsTwoByteStringRepresentation();
+  inline bool IsSeqAsciiString();
+  inline bool IsSeqTwoByteString();
   inline bool IsConsString();
   inline bool IsSlicedString();
   inline bool IsExternalString();
@@ -2928,12 +2930,15 @@ class String: public HeapObject {
   inline void TryFlatten();
 
   // Is this string an ascii string.
-  inline bool IsAscii();
+  inline bool IsAsciiRepresentation();
 
   // Fast testing routines that assume the receiver is a string and
   // just check whether it is a certain kind of string.
   inline bool StringIsSlicedString();
   inline bool StringIsConsString();
+
+  Vector<const char> ToAsciiVector();
+  Vector<const uc16> ToUC16Vector();
 
   // Mark the string as an undetectable object. It only applies to
   // ascii and two byte string types.
@@ -3005,8 +3010,8 @@ class String: public HeapObject {
   static inline bool is_symbol_map(Map* map);
 
   // True if the string is ASCII.
-  inline bool is_ascii();
-  static inline bool is_ascii_map(Map* map);
+  inline bool is_ascii_representation();
+  static inline bool is_ascii_representation_map(Map* map);
 
   // Get the representation tag.
   inline StringRepresentationTag representation_tag();
@@ -3145,22 +3150,22 @@ class SeqString: public String {
 
 // The AsciiString class captures sequential ascii string objects.
 // Each character in the AsciiString is an ascii character.
-class AsciiString: public SeqString {
+class SeqAsciiString: public SeqString {
  public:
   // Dispatched behavior.
-  inline uint16_t AsciiStringGet(int index);
-  inline void AsciiStringSet(int index, uint16_t value);
+  inline uint16_t SeqAsciiStringGet(int index);
+  inline void SeqAsciiStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
   // Casting
-  static inline AsciiString* cast(Object* obj);
+  static inline SeqAsciiString* cast(Object* obj);
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of an AsciiString
   // instance.
-  inline int AsciiStringSize(Map* map);
+  inline int SeqAsciiStringSize(Map* map);
 
   // Computes the size for an AsciiString instance of a given length.
   static int SizeFor(int length) {
@@ -3171,39 +3176,39 @@ class AsciiString: public SeqString {
   static const int kHeaderSize = String::kSize;
 
   // Support for StringInputBuffer.
-  inline void AsciiStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                             unsigned* offset,
-                                             unsigned chars);
-  inline const unibrow::byte* AsciiStringReadBlock(unsigned* remaining,
-                                                   unsigned* offset,
-                                                   unsigned chars);
+  inline void SeqAsciiStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
+                                                unsigned* offset,
+                                                unsigned chars);
+  inline const unibrow::byte* SeqAsciiStringReadBlock(unsigned* remaining,
+                                                      unsigned* offset,
+                                                      unsigned chars);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AsciiString);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SeqAsciiString);
 };
 
 
 // The TwoByteString class captures sequential unicode string objects.
 // Each character in the TwoByteString is a two-byte uint16_t.
-class TwoByteString: public SeqString {
+class SeqTwoByteString: public SeqString {
  public:
   // Dispatched behavior.
-  inline uint16_t TwoByteStringGet(int index);
-  inline void TwoByteStringSet(int index, uint16_t value);
+  inline uint16_t SeqTwoByteStringGet(int index);
+  inline void SeqTwoByteStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
   // For regexp code.
-  const uint16_t* TwoByteStringGetData(unsigned start);
+  const uint16_t* SeqTwoByteStringGetData(unsigned start);
 
   // Casting
-  static inline TwoByteString* cast(Object* obj);
+  static inline SeqTwoByteString* cast(Object* obj);
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of a TwoByteString
   // instance.
-  inline int TwoByteStringSize(Map* map);
+  inline int SeqTwoByteStringSize(Map* map);
 
   // Computes the size for a TwoByteString instance of a given length.
   static int SizeFor(int length) {
@@ -3214,12 +3219,12 @@ class TwoByteString: public SeqString {
   static const int kHeaderSize = String::kSize;
 
   // Support for StringInputBuffer.
-  inline void TwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                               unsigned* offset_ptr,
-                                               unsigned chars);
+  inline void SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
+                                                  unsigned* offset_ptr,
+                                                  unsigned chars);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TwoByteString);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SeqTwoByteString);
 };
 
 
@@ -3428,6 +3433,19 @@ class SafeStringInputBuffer
       : unibrow::InputBuffer<String, String**, 256>() {}
   inline SafeStringInputBuffer(String** backing)
       : unibrow::InputBuffer<String, String**, 256>(backing) {}
+};
+
+
+template <typename T>
+class VectorIterator {
+ public:
+  VectorIterator(T* d, int l) : data_(Vector<T>(d, l)), index_(0) { }
+  explicit VectorIterator(Vector<T> data) : data_(data), index_(0) { }
+  T GetNext() { return data_[index_++]; }
+  bool has_more() { return index_ < data_.length(); }
+ private:
+  Vector<T> data_;
+  int index_;
 };
 
 

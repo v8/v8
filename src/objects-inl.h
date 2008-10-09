@@ -119,13 +119,25 @@ bool Object::IsSeqString() {
 }
 
 
-bool Object::IsAsciiString() {
-  return IsString() && (String::cast(this)->is_ascii());
+bool Object::IsSeqAsciiString() {
+  return IsSeqString()
+      && String::cast(this)->IsAsciiRepresentation();
 }
 
 
-bool Object::IsTwoByteString() {
-  return IsString() && (!String::cast(this)->is_ascii());
+bool Object::IsSeqTwoByteString() {
+  return IsSeqString()
+      && !String::cast(this)->IsAsciiRepresentation();
+}
+
+
+bool Object::IsAsciiStringRepresentation() {
+  return IsString() && (String::cast(this)->is_ascii_representation());
+}
+
+
+bool Object::IsTwoByteStringRepresentation() {
+  return IsString() && (!String::cast(this)->is_ascii_representation());
 }
 
 
@@ -148,12 +160,12 @@ bool Object::IsExternalString() {
 
 
 bool Object::IsExternalAsciiString() {
-  return IsExternalString() && (String::cast(this)->is_ascii());
+  return IsExternalString() && (String::cast(this)->is_ascii_representation());
 }
 
 
 bool Object::IsExternalTwoByteString() {
-  return IsExternalString() && (!String::cast(this)->is_ascii());
+  return IsExternalString() && (!String::cast(this)->is_ascii_representation());
 }
 
 
@@ -1126,8 +1138,8 @@ CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(MapCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
-CAST_ACCESSOR(AsciiString)
-CAST_ACCESSOR(TwoByteString)
+CAST_ACCESSOR(SeqAsciiString)
+CAST_ACCESSOR(SeqTwoByteString)
 CAST_ACCESSOR(ConsString)
 CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(ExternalString)
@@ -1234,15 +1246,15 @@ uint16_t String::Get(int index) {
   ASSERT(index >= 0 && index < length());
   switch (representation_tag()) {
     case kSeqStringTag:
-      return is_ascii()
-        ? AsciiString::cast(this)->AsciiStringGet(index)
-        : TwoByteString::cast(this)->TwoByteStringGet(index);
+      return is_ascii_representation()
+        ? SeqAsciiString::cast(this)->SeqAsciiStringGet(index)
+        : SeqTwoByteString::cast(this)->SeqTwoByteStringGet(index);
     case kConsStringTag:
       return ConsString::cast(this)->ConsStringGet(index);
     case kSlicedStringTag:
       return SlicedString::cast(this)->SlicedStringGet(index);
     case kExternalStringTag:
-      return is_ascii()
+      return is_ascii_representation()
         ? ExternalAsciiString::cast(this)->ExternalAsciiStringGet(index)
         : ExternalTwoByteString::cast(this)->ExternalTwoByteStringGet(index);
     default:
@@ -1258,14 +1270,14 @@ void String::Set(int index, uint16_t value) {
   ASSERT(index >= 0 && index < length());
   ASSERT(IsSeqString());
 
-  return is_ascii()
-      ? AsciiString::cast(this)->AsciiStringSet(index, value)
-      : TwoByteString::cast(this)->TwoByteStringSet(index, value);
+  return is_ascii_representation()
+      ? SeqAsciiString::cast(this)->SeqAsciiStringSet(index, value)
+      : SeqTwoByteString::cast(this)->SeqTwoByteStringSet(index, value);
 }
 
 
-bool String::IsAscii() {
-  return is_ascii();
+bool String::IsAsciiRepresentation() {
+  return is_ascii_representation();
 }
 
 
@@ -1299,12 +1311,12 @@ bool String::is_symbol_map(Map* map) {
 }
 
 
-bool String::is_ascii() {
-  return is_ascii_map(map());
+bool String::is_ascii_representation() {
+  return is_ascii_representation_map(map());
 }
 
 
-bool String::is_ascii_map(Map* map) {
+bool String::is_ascii_representation_map(Map* map) {
   return (map->instance_type() & kStringEncodingMask) != 0;
 }
 
@@ -1336,42 +1348,42 @@ bool String::IsFlat() {
 }
 
 
-uint16_t AsciiString::AsciiStringGet(int index) {
+uint16_t SeqAsciiString::SeqAsciiStringGet(int index) {
   ASSERT(index >= 0 && index < length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
 }
 
 
-void AsciiString::AsciiStringSet(int index, uint16_t value) {
+void SeqAsciiString::SeqAsciiStringSet(int index, uint16_t value) {
   ASSERT(index >= 0 && index < length() && value <= kMaxAsciiCharCode);
   WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize,
                    static_cast<byte>(value));
 }
 
 
-Address AsciiString::GetCharsAddress() {
+Address SeqAsciiString::GetCharsAddress() {
   return FIELD_ADDR(this, kHeaderSize);
 }
 
 
-Address TwoByteString::GetCharsAddress() {
+Address SeqTwoByteString::GetCharsAddress() {
   return FIELD_ADDR(this, kHeaderSize);
 }
 
 
-uint16_t TwoByteString::TwoByteStringGet(int index) {
+uint16_t SeqTwoByteString::SeqTwoByteStringGet(int index) {
   ASSERT(index >= 0 && index < length());
   return READ_SHORT_FIELD(this, kHeaderSize + index * kShortSize);
 }
 
 
-void TwoByteString::TwoByteStringSet(int index, uint16_t value) {
+void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
   ASSERT(index >= 0 && index < length());
   WRITE_SHORT_FIELD(this, kHeaderSize + index * kShortSize, value);
 }
 
 
-int TwoByteString::TwoByteStringSize(Map* map) {
+int SeqTwoByteString::SeqTwoByteStringSize(Map* map) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
   // Use the map (and not 'this') to compute the size tag, since
@@ -1393,7 +1405,7 @@ int TwoByteString::TwoByteStringSize(Map* map) {
 }
 
 
-int AsciiString::AsciiStringSize(Map* map) {
+int SeqAsciiString::SeqAsciiStringSize(Map* map) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
   // Use the map (and not 'this') to compute the size tag, since

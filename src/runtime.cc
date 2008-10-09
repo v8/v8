@@ -952,68 +952,6 @@ static Object* Runtime_CharFromCode(Arguments args) {
 }
 
 
-static Vector<const char> ToAsciiVector(String *string) {
-  ASSERT(string->IsAscii());
-  ASSERT(string->IsFlat());
-
-  int offset = 0;
-  int length = string->length();
-  StringRepresentationTag string_tag = string->representation_tag();
-  if (string_tag == kSlicedStringTag) {
-      SlicedString* sliced = SlicedString::cast(string);
-      offset += sliced->start();
-      string = String::cast(sliced->buffer());
-      string_tag = string->representation_tag();
-  } else if (string_tag == kConsStringTag) {
-      ConsString* cons = ConsString::cast(string);
-      ASSERT(String::cast(cons->second())->length() == 0);
-      string = String::cast(cons->first());
-      string_tag = string->representation_tag();
-  }
-  if (string_tag == kSeqStringTag) {
-    AsciiString* seq = AsciiString::cast(string);
-    char* start = reinterpret_cast<char*>(seq->GetCharsAddress());
-    return Vector<const char>(start + offset, length);
-  }
-  ASSERT(string_tag == kExternalStringTag);
-  ExternalAsciiString* ext = ExternalAsciiString::cast(string);
-  const char* start = ext->resource()->data();
-  return Vector<const char>(start + offset, length);
-}
-
-
-static Vector<const uc16> ToUC16Vector(String *string) {
-  ASSERT(string->IsTwoByteString());
-  ASSERT(string->IsFlat());
-
-  int offset = 0;
-  int length = string->length();
-
-  StringRepresentationTag string_tag = string->representation_tag();
-  if (string_tag == kSlicedStringTag) {
-      SlicedString* sliced = SlicedString::cast(string);
-      offset += sliced->start();
-      string = String::cast(sliced->buffer());
-      string_tag = string->representation_tag();
-  } else if (string_tag == kConsStringTag) {
-      ConsString* cons = ConsString::cast(string);
-      ASSERT(String::cast(cons->second())->length() == 0);
-      string = String::cast(cons->first());
-      string_tag = string->representation_tag();
-  }
-  if (string_tag == kSeqStringTag) {
-    TwoByteString* seq = TwoByteString::cast(string);
-    uc16* start = reinterpret_cast<uc16*>(seq->GetCharsAddress());
-    return Vector<const uc16>(start + offset, length);
-  }
-  ASSERT(string_tag == kExternalStringTag);
-  ExternalTwoByteString* ext = ExternalTwoByteString::cast(string);
-  const uc16* start =
-      reinterpret_cast<const uc16*>(ext->resource()->data());
-  return Vector<const uc16>(start + offset, length);
-}
-
-
 template <typename schar, typename pchar>
 static int SingleCharIndexOf(Vector<const schar> string,
                              pchar pattern_char,
@@ -1202,18 +1140,18 @@ int Runtime::StringMatch(Handle<String> sub,
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
   // dispatch on type of strings
-  if (pat->is_ascii()) {
-    Vector<const char> pat_vector = ToAsciiVector(*pat);
-    if (sub->is_ascii()) {
-      return StringMatchStrategy(ToAsciiVector(*sub), pat_vector, start_index);
+  if (pat->is_ascii_representation()) {
+    Vector<const char> pat_vector = pat->ToAsciiVector();
+    if (sub->is_ascii_representation()) {
+      return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
     }
-    return StringMatchStrategy(ToUC16Vector(*sub), pat_vector, start_index);
+    return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
   }
-  Vector<const uc16> pat_vector = ToUC16Vector(*pat);
-  if (sub->is_ascii()) {
-    return StringMatchStrategy(ToAsciiVector(*sub), pat_vector, start_index);
+  Vector<const uc16> pat_vector = pat->ToUC16Vector();
+  if (sub->is_ascii_representation()) {
+    return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
   }
-  return StringMatchStrategy(ToUC16Vector(*sub), pat_vector, start_index);
+  return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
 }
 
 
@@ -2155,7 +2093,7 @@ static Object* ConvertCase(Arguments args,
   // character is also ascii.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  Object* o = s->IsAscii()
+  Object* o = s->IsAsciiRepresentation()
       ? Heap::AllocateRawAsciiString(length)
       : Heap::AllocateRawTwoByteString(length);
   if (o->IsFailure()) return o;
@@ -2432,7 +2370,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = special->IsAscii();
+  bool ascii = special->IsAsciiRepresentation();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
@@ -2452,7 +2390,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
         return Failure::OutOfMemoryException();
       }
       position += element_length;
-      if (ascii && !element->IsAscii()) {
+      if (ascii && !element->IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
