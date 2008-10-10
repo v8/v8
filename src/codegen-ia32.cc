@@ -4547,7 +4547,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
 
     // No cigar: Objects aren't strictly equal. Register eax contains
     // a non-smi value so it can't be 0. Just return.
-    ASSERT(kHeapTag != 0);
+    ASSERT(kHeapObjectTag != 0);
     __ bind(&not_strictly_equal);
     __ ret(0);
 
