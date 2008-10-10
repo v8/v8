@@ -65,7 +65,9 @@ class JSCodeEntry(CodeEntry):
     self.size = size
 
   def ToString(self):
-    return self.name + ' ' + self.type
+    name = self.name
+    if name == '': name = '<anonymous>'
+    return self.type + ': ' + name
 
 
 class TickProcessor(object):
