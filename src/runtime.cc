@@ -1453,6 +1453,29 @@ static Object* Runtime_GetProperty(Arguments args) {
 }
 
 
+
+// KeyedStringGetProperty is called from KeyedLoadIC::GenerateGeneric
+static Object* Runtime_KeyedGetProperty(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+
+  Object* receiver = args[0];
+  Object* key = args[1];
+  if (receiver->IsJSObject() &&
+      key->IsString() &&
+      !JSObject::cast(receiver)->HasFastProperties()) {
+    Dictionary* dictionary = JSObject::cast(receiver)->property_dictionary();
+    int entry = dictionary->FindStringEntry(String::cast(key));
+    if ((entry != DescriptorArray::kNotFound)
+        && (dictionary->DetailsAt(entry).type() == NORMAL)) {
+      return dictionary->ValueAt(entry);
+    }
+  }
+  return Runtime::GetObjectProperty(args.at<Object>(0),
+                                    args.at<Object>(1));
+}
+
+
 Object* Runtime::SetObjectProperty(Handle<Object> object,
                                    Handle<Object> key,
                                    Handle<Object> value,

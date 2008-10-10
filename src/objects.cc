@@ -4381,12 +4381,6 @@ Object* JSArray::Initialize(int capacity) {
 }
 
 
-void JSArray::SetContent(FixedArray* storage) {
-  set_length(Smi::FromInt(storage->length()));
-  set_elements(storage);
-}
-
-
 // Computes the new capacity when expanding the elements of a JSObject.
 static int NewElementsCapacity(int old_capacity) {
   // (old_capacity + 50%) + 16

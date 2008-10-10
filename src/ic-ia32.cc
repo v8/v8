@@ -245,7 +245,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1);
-  KeyedLoadIC::Generate(masm, ExternalReference(Runtime::kGetProperty));
+  KeyedLoadIC::Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
   // Check if the key is a symbol that is not an array index.
   __ bind(&check_string);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));

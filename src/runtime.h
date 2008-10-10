@@ -40,6 +40,7 @@ namespace v8 { namespace internal {
 #define RUNTIME_FUNCTION_LIST_ALWAYS(F) \
   /* Property access */ \
   F(GetProperty, 2) \
+  F(KeyedGetProperty, 2) \
   F(DeleteProperty, 2) \
   F(HasLocalProperty, 2) \
   F(HasProperty, 2) \

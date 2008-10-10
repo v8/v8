@@ -2240,6 +2240,12 @@ void Map::ClearCodeCache() {
 }
 
 
+void JSArray::SetContent(FixedArray* storage) {
+  set_length(Smi::FromInt(storage->length()));
+  set_elements(storage);
+}
+
+
 #undef CAST_ACCESSOR
 #undef INT_ACCESSORS
 #undef SMI_ACCESSORS

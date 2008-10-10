@@ -3534,7 +3534,7 @@ class JSArray: public JSObject {
   Object* Initialize(int capacity);
 
   // Set the content of the array to the content of storage.
-  void SetContent(FixedArray* storage);
+  inline void SetContent(FixedArray* storage);
 
   // Support for sorting
   Object* RemoveHoles();
