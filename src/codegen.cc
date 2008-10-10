@@ -27,8 +27,11 @@
 
 #include "v8.h"
 
+#include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
+#include "prettyprinter.h"
+#include "scopeinfo.h"
 #include "runtime.h"
 #include "stub-cache.h"
 
@@ -65,6 +68,97 @@ void CodeGenerator::ProcessDeferred() {
       masm->jmp(code->exit());  // platform independent?
     }
   }
+}
+
+
+// Generate the code. Takes a function literal, generates code for it, assemble
+// all the pieces into a Code object. This function is only to be called by
+// the compiler.cc code.
+Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
+                                     Handle<Script> script,
+                                     bool is_eval) {
+#ifdef ENABLE_DISASSEMBLER
+  bool print_code = FLAG_print_code && !Bootstrapper::IsActive();
+#endif
+
+#ifdef DEBUG
+  bool print_source = false;
+  bool print_ast = false;
+  const char* ftype;
+
+  if (Bootstrapper::IsActive()) {
+    print_source = FLAG_print_builtin_source;
+    print_ast = FLAG_print_builtin_ast;
+    print_code = FLAG_print_builtin_code;
+    ftype = "builtin";
+  } else {
+    print_source = FLAG_print_source;
+    print_ast = FLAG_print_ast;
+    ftype = "user-defined";
+  }
+
+  if (FLAG_trace_codegen || print_source || print_ast) {
+    PrintF("*** Generate code for %s function: ", ftype);
+    flit->name()->ShortPrint();
+    PrintF(" ***\n");
+  }
+
+  if (print_source) {
+    PrintF("--- Source from AST ---\n%s\n", PrettyPrinter().PrintProgram(flit));
+  }
+
+  if (print_ast) {
+    PrintF("--- AST ---\n%s\n", AstPrinter().PrintProgram(flit));
+  }
+#endif  // DEBUG
+
+  // Generate code.
+  const int initial_buffer_size = 4 * KB;
+  CodeGenerator cgen(initial_buffer_size, script, is_eval);
+  cgen.GenCode(flit);
+  if (cgen.HasStackOverflow()) {
+    ASSERT(!Top::has_pending_exception());
+    return Handle<Code>::null();
+  }
+
+  // Process any deferred code.
+  cgen.ProcessDeferred();
+
+  // Allocate and install the code.
+  CodeDesc desc;
+  cgen.masm()->GetCode(&desc);
+  ScopeInfo<> sinfo(flit->scope());
+  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
+  Handle<Code> code = Factory::NewCode(desc, &sinfo, flags);
+
+  // Add unresolved entries in the code to the fixup list.
+  Bootstrapper::AddFixup(*code, cgen.masm());
+
+#ifdef ENABLE_DISASSEMBLER
+  if (print_code) {
+    // Print the source code if available.
+    if (!script->IsUndefined() && !script->source()->IsUndefined()) {
+      PrintF("--- Raw source ---\n");
+      StringInputBuffer stream(String::cast(script->source()));
+      stream.Seek(flit->start_position());
+      // flit->end_position() points to the last character in the stream. We
+      // need to compensate by adding one to calculate the length.
+      int source_len = flit->end_position() - flit->start_position() + 1;
+      for (int i = 0; i < source_len; i++) {
+        if (stream.has_more()) PrintF("%c", stream.GetNext());
+      }
+      PrintF("\n\n");
+    }
+    PrintF("--- Code ---\n");
+    code->Disassemble();
+  }
+#endif  // ENABLE_DISASSEMBLER
+
+  if (!code.is_null()) {
+    Counters::total_compiled_code_size.Increment(code->instruction_size());
+  }
+
+  return code;
 }
 
 

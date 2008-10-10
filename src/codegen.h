@@ -26,12 +26,43 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifndef V8_CODEGEN_H_
+#define V8_CODEGEN_H_
 
 #include "ast.h"
 #include "code-stubs.h"
 #include "runtime.h"
 
-#define V8_CODEGEN_H_
+// Include the declaration of the architecture defined class CodeGenerator.
+// The contract  to the shared code is that the the CodeGenerator is a subclass
+// of Visitor and that the following methods are available publicly:
+// CodeGenerator::MakeCode
+// CodeGenerator::SetFunctionInfo
+// CodeGenerator::AddDeferred
+// CodeGenerator::masm
+//
+// These methods are either used privately by the shared code or implemented as
+// shared code:
+// CodeGenerator::CodeGenerator
+// CodeGenerator::~CodeGenerator
+// CodeGenerator::ProcessDeferred
+// CodeGenerator::GenCode
+// CodeGenerator::BuildBoilerplate
+// CodeGenerator::ComputeCallInitialize
+// CodeGenerator::ProcessDeclarations
+// CodeGenerator::DeclareGlobals
+// CodeGenerator::CheckForInlineRuntimeCall
+// CodeGenerator::GenerateFastCaseSwitchStatement
+// CodeGenerator::GenerateFastCaseSwitchCases
+// CodeGenerator::TryGenerateFastCaseSwitchStatement
+// CodeGenerator::GenerateFastCaseSwitchJumpTable
+// CodeGenerator::FastCaseSwitchMinCaseCount
+// CodeGenerator::FastCaseSwitchMaxOverheadFactor
+
+#if defined(ARM)
+#include "codegen-arm.h"
+#else
+#include "codegen-ia32.h"
+#endif
 
 namespace v8 { namespace internal {
 
@@ -41,10 +72,6 @@ namespace v8 { namespace internal {
 //       install extensions with lazy compilation enabled. At the
 //       moment, this doesn't work for the extensions in Google3,
 //       and we can only run the tests with --nolazy.
-
-
-// Forward declaration.
-class CodeGenerator;
 
 
 // Deferred code objects are small pieces of code that are compiled
@@ -90,124 +117,6 @@ class DeferredCode: public ZoneObject {
   const char* comment_;
 #endif
   DISALLOW_COPY_AND_ASSIGN(DeferredCode);
-};
-
-
-// A superclass for code generators.  The implementations of methods
-// declared in this class are partially in codegen.c and partially in
-// codegen_<arch>.c.
-class CodeGenerator: public Visitor {
- public:
-  CodeGenerator(bool is_eval,
-                Handle<Script> script)
-      : is_eval_(is_eval),
-        script_(script),
-        deferred_(8) { }
-
-
-  // The code generator: Takes a function literal, generates code for it,
-  // and assembles it all into a Code* object. This function should only
-  // be called by compiler.cc.
-  static Handle<Code> MakeCode(FunctionLiteral* fun,
-                               Handle<Script> script,
-                               bool is_eval);
-
-  static void SetFunctionInfo(Handle<JSFunction> fun,
-                              int length,
-                              int function_token_position,
-                              int start_position,
-                              int end_position,
-                              bool is_expression,
-                              bool is_toplevel,
-                              Handle<Script> script);
-
-  virtual MacroAssembler* masm() = 0;
-
-  virtual Scope* scope() const = 0;
-
-  void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
-  void ProcessDeferred();
-
-  // Accessors for is_eval.
-  bool is_eval() { return is_eval_; }
-
-  // Abstract node visitors.
-#define DEF_VISIT(type)                         \
-  virtual void Visit##type(type* node) = 0;
-  NODE_LIST(DEF_VISIT)
-#undef DEF_VISIT
-
- protected:
-  bool CheckForInlineRuntimeCall(CallRuntime* node);
-  Handle<JSFunction> BuildBoilerplate(FunctionLiteral* node);
-  void ProcessDeclarations(ZoneList<Declaration*>* declarations);
-
-  Handle<Code> ComputeCallInitialize(int argc);
-
-  // Declare global variables and functions in the given array of
-  // name/value pairs.
-  virtual void DeclareGlobals(Handle<FixedArray> pairs) = 0;
-
-  // Support for type checks.
-  virtual void GenerateIsSmi(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateIsArray(ZoneList<Expression*>* args) = 0;
-
-  // Support for arguments.length and arguments[?].
-  virtual void GenerateArgumentsLength(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateArgumentsAccess(ZoneList<Expression*>* args) = 0;
-
-  // Support for accessing the value field of an object (used by Date).
-  virtual void GenerateValueOf(ZoneList<Expression*>* args) = 0;
-  virtual void GenerateSetValueOf(ZoneList<Expression*>* args) = 0;
-
-  // Fast support for charCodeAt(n).
-  virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args) = 0;
-
-  // Fast support for object equality testing.
-  virtual void GenerateObjectEquals(ZoneList<Expression*>* args) = 0;
-
-
-  // Multiple methods for fast case switch statement support.
-
-  // The limit of the range of a fast-case switch, as a factor of the number
-  // of cases of the switch. Each platform should return a value that
-  // is optimal compared to the default code generated for a switch statement
-  // on that platform.
-  virtual int FastCaseSwitchMaxOverheadFactor() = 0;
-
-  // The minimal number of cases in a switch before the fast-case switch
-  // optimization is enabled. Each platform should return a value that
-  // is optimal compared to the default code generated for a switch statement
-  // on that platform.
-  virtual int FastCaseSwitchMinCaseCount() = 0;
-
-  // Allocate a jump table and create code to jump through it.
-  // Should call GenerateFastCaseSwitchCases to generate the code for
-  // all the cases at the appropriate point.
-  virtual void GenerateFastCaseSwitchJumpTable(
-      SwitchStatement* node, int min_index, int range, Label *fail_label,
-      SmartPointer<Label*> &case_targets, SmartPointer<Label>& case_labels) = 0;
-
-  // Generate the code for cases for the fast case switch.
-  // Called by GenerateFastCaseSwitchJumpTable.
-  virtual void GenerateFastCaseSwitchCases(
-      SwitchStatement* node, SmartPointer<Label> &case_labels);
-
-  // Fast support for constant-Smi switches.
-  virtual void GenerateFastCaseSwitchStatement(
-      SwitchStatement *node, int min_index, int range, int default_index);
-
-  // Fast support for constant-Smi switches. Tests whether switch statement
-  // permits optimization and calls GenerateFastCaseSwitch if it does.
-  // Returns true if the fast-case switch was generated, and false if not.
-  virtual bool TryGenerateFastCaseSwitchStatement(SwitchStatement *node);
-
-
- private:
-  bool is_eval_;  // Tells whether code is generated for eval.
-  Handle<Script> script_;
-  List<DeferredCode*> deferred_;
 };
 
 

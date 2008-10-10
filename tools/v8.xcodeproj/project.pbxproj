@@ -247,6 +247,8 @@
 		8900116B0E71CA2300F91F35 /* libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libraries.cc; sourceTree = "<group>"; };
 		89495E460E79FC23001F68C3 /* compilation-cache.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "compilation-cache.cc"; sourceTree = "<group>"; };
 		89495E470E79FC23001F68C3 /* compilation-cache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "compilation-cache.h"; sourceTree = "<group>"; };
+		8964482B0E9C00F700E7C516 /* codegen-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "codegen-ia32.h"; sourceTree = "<group>"; };
+		896448BC0E9D530500E7C516 /* codegen-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "codegen-arm.h"; sourceTree = "<group>"; };
 		8970F2F00E719FB2006AE7B5 /* libv8.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libv8.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		897F767A0E71B4CC007ACF34 /* v8_shell */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = v8_shell; sourceTree = BUILT_PRODUCTS_DIR; };
 		897FF0D40E719A8500D62E90 /* v8-debug.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "v8-debug.h"; sourceTree = "<group>"; };
@@ -456,8 +458,8 @@
 		897FF1B50E719C0900D62E90 /* shell.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = shell.cc; sourceTree = "<group>"; };
 		897FF1B60E719C2300D62E90 /* js2c.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = js2c.py; sourceTree = "<group>"; };
 		897FF1B70E719C2E00D62E90 /* macros.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = macros.py; path = ../src/macros.py; sourceTree = "<group>"; };
-		89B12E8D0E7FF2A40080BA62 /* presubmit.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = presubmit.py; sourceTree = "<group>"; };
 		897FF1BF0E719CB600D62E90 /* libjscre.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libjscre.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		89B12E8D0E7FF2A40080BA62 /* presubmit.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = presubmit.py; sourceTree = "<group>"; };
 		89F23C870E78D5B2006B2466 /* libv8-arm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libv8-arm.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89F23C950E78D5B6006B2466 /* v8_shell-arm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "v8_shell-arm"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -579,7 +581,9 @@
 				897FF1120E719B8F00D62E90 /* code-stubs.h */,
 				897FF1130E719B8F00D62E90 /* code.h */,
 				897FF1140E719B8F00D62E90 /* codegen-arm.cc */,
+				896448BC0E9D530500E7C516 /* codegen-arm.h */,
 				897FF1150E719B8F00D62E90 /* codegen-ia32.cc */,
+				8964482B0E9C00F700E7C516 /* codegen-ia32.h */,
 				897FF1160E719B8F00D62E90 /* codegen-inl.h */,
 				897FF1170E719B8F00D62E90 /* codegen.cc */,
 				897FF1180E719B8F00D62E90 /* codegen.h */,

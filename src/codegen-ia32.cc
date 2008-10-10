@@ -30,8 +30,6 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
-#include "prettyprinter.h"
-#include "scopeinfo.h"
 #include "scopes.h"
 #include "runtime.h"
 
@@ -40,288 +38,10 @@ namespace v8 { namespace internal {
 #define TOS (Operand(esp, 0))
 
 
-class Ia32CodeGenerator;
-
-// Mode to overwrite BinaryExpression values.
-enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
-
-
-// -----------------------------------------------------------------------------
-// Reference support
-
-// A reference is a C++ stack-allocated object that keeps an ECMA
-// reference on the execution stack while in scope. For variables
-// the reference is empty, indicating that it isn't necessary to
-// store state on the stack for keeping track of references to those.
-// For properties, we keep either one (named) or two (indexed) values
-// on the execution stack to represent the reference.
-
-enum InitState { CONST_INIT, NOT_CONST_INIT };
-enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
-
-class Reference BASE_EMBEDDED {
- public:
-  // The values of the types is important, see size().
-  enum Type { ILLEGAL = -1, SLOT = 0, NAMED = 1, KEYED = 2 };
-  Reference(Ia32CodeGenerator* cgen, Expression* expression);
-  ~Reference();
-
-  Expression* expression() const { return expression_; }
-  Type type() const { return type_; }
-  void set_type(Type value) {
-    ASSERT(type_ == ILLEGAL);
-    type_ = value;
-  }
-
-  // The size of the reference or -1 if the reference is illegal.
-  int size() const { return type_; }
-
-  bool is_illegal() const { return type_ == ILLEGAL; }
-  bool is_slot() const { return type_ == SLOT; }
-  bool is_property() const { return type_ == NAMED || type_ == KEYED; }
-
-  // Return the name.  Only valid for named property references.
-  Handle<String> GetName();
-
-  // Generate code to push the value of the reference on top of the
-  // expression stack.  The reference is expected to be already on top of
-  // the expression stack, and it is left in place with its value above it.
-  void GetValue(TypeofState typeof_state);
-
-  // Generate code to store the value on top of the expression stack in the
-  // reference.  The reference is expected to be immediately below the value
-  // on the expression stack.  The stored value is left in place (with the
-  // reference intact below it) to support chained assignments.
-  void SetValue(InitState init_state);
-
- private:
-  Ia32CodeGenerator* cgen_;
-  Expression* expression_;
-  Type type_;
-};
-
-
-// -------------------------------------------------------------------------
-// Code generation state
-
-// The state is passed down the AST by the code generator (and back up, in
-// the form of the state of the label pair).  It is threaded through the
-// call stack.  Constructing a state implicitly pushes it on the owning code
-// generator's stack of states, and destroying one implicitly pops it.
-
-class CodeGenState BASE_EMBEDDED {
- public:
-  // Create an initial code generator state.  Destroying the initial state
-  // leaves the code generator with a NULL state.
-  explicit CodeGenState(Ia32CodeGenerator* owner);
-
-  // Create a code generator state based on a code generator's current
-  // state.  The new state has its own typeof state and pair of branch
-  // labels.
-  CodeGenState(Ia32CodeGenerator* owner,
-               TypeofState typeof_state,
-               Label* true_target,
-               Label* false_target);
-
-  // Destroy a code generator state and restore the owning code generator's
-  // previous state.
-  ~CodeGenState();
-
-  TypeofState typeof_state() const { return typeof_state_; }
-  Label* true_target() const { return true_target_; }
-  Label* false_target() const { return false_target_; }
-
- private:
-  Ia32CodeGenerator* owner_;
-  TypeofState typeof_state_;
-  Label* true_target_;
-  Label* false_target_;
-  CodeGenState* previous_;
-};
-
-
-// -----------------------------------------------------------------------------
-// Ia32CodeGenerator
-
-class Ia32CodeGenerator: public CodeGenerator {
- public:
-  static Handle<Code> MakeCode(FunctionLiteral* fun,
-                               Handle<Script> script,
-                               bool is_eval);
-
-  MacroAssembler* masm() { return masm_; }
-
-  Scope* scope() const { return scope_; }
-
-  CodeGenState* state() { return state_; }
-  void set_state(CodeGenState* state) { state_ = state; }
-
- private:
-  // Assembler
-  MacroAssembler* masm_;  // to generate code
-
-  // Code generation state
-  Scope* scope_;
-  Condition cc_reg_;
-  CodeGenState* state_;
-  bool is_inside_try_;
-  int break_stack_height_;
-
-  // Labels
-  Label function_return_;
-
-  // Construction/destruction
-  Ia32CodeGenerator(int buffer_size,
-                    Handle<Script> script,
-                    bool is_eval);
-  virtual ~Ia32CodeGenerator() { delete masm_; }
-
-  // Main code generation function
-  void GenCode(FunctionLiteral* fun);
-
-  // The following are used by class Reference.
-  void LoadReference(Reference* ref);
-  void UnloadReference(Reference* ref);
-
-  // State
-  bool has_cc() const  { return cc_reg_ >= 0; }
-  TypeofState typeof_state() const { return state_->typeof_state(); }
-  Label* true_target() const  { return state_->true_target(); }
-  Label* false_target() const  { return state_->false_target(); }
-
-  // Expressions
-  Operand GlobalObject() const {
-    return ContextOperand(esi, Context::GLOBAL_INDEX);
-  }
-
-  // Support functions for accessing parameters.
-  Operand ParameterOperand(int index) const {
-    int num_parameters = scope()->num_parameters();
-    ASSERT(-2 <= index && index < num_parameters);
-    return Operand(ebp, (1 + num_parameters - index) * kPointerSize);
-  }
-
-  Operand ReceiverOperand() const { return ParameterOperand(-1); }
-
-  Operand FunctionOperand() const {
-    return Operand(ebp, JavaScriptFrameConstants::kFunctionOffset);
-  }
-
-  Operand ContextOperand(Register context, int index) const {
-    return Operand(context, Context::SlotOffset(index));
-  }
-
-  Operand SlotOperand(Slot* slot, Register tmp);
-
-  void LoadCondition(Expression* x,
-                     TypeofState typeof_state,
-                     Label* true_target,
-                     Label* false_target,
-                     bool force_cc);
-  void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
-  void LoadGlobal();
-
-  // Read a value from a slot and leave it on top of the expression stack.
-  void LoadFromSlot(Slot* slot, TypeofState typeof_state);
-
-  // Special code for typeof expressions: Unfortunately, we must
-  // be careful when loading the expression in 'typeof'
-  // expressions. We are not allowed to throw reference errors for
-  // non-existing properties of the global object, so we must make it
-  // look like an explicit property access, instead of an access
-  // through the context chain.
-  void LoadTypeofExpression(Expression* x);
-
-  void ToBoolean(Label* true_target, Label* false_target);
-
-  void GenericBinaryOperation(
-      Token::Value op,
-      const OverwriteMode overwrite_mode = NO_OVERWRITE);
-  void Comparison(Condition cc, bool strict = false);
-
-  // Inline small integer literals. To prevent long attacker-controlled byte
-  // sequences, we only inline small Smi:s.
-  static const int kMaxSmiInlinedBits = 16;
-  bool IsInlineSmi(Literal* literal);
-  void SmiComparison(Condition cc,  Handle<Object> value, bool strict = false);
-  void SmiOperation(Token::Value op,
-                    Handle<Object> value,
-                    bool reversed,
-                    OverwriteMode overwrite_mode);
-
-  void CallWithArguments(ZoneList<Expression*>* arguments, int position);
-
-  // Declare global variables and functions in the given array of
-  // name/value pairs.
-  virtual void DeclareGlobals(Handle<FixedArray> pairs);
-
-  // Instantiate the function boilerplate.
-  void InstantiateBoilerplate(Handle<JSFunction> boilerplate);
-
-  // Control flow
-  void Branch(bool if_true, Label* L);
-  void CheckStack();
-  void CleanStack(int num_bytes);
-
-  // Node visitors
-#define DEF_VISIT(type)                         \
-  virtual void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
-#undef DEF_VISIT
-
-  // Only allow fast-case switch if the range of labels is at most
-  // this factor times the number of case labels.
-  // Value is derived from comparing the size of code generated by the normal
-  // switch code for Smi-labels to the size of a single pointer. If code
-  // quality increases this number should be decreased to match.
-  static const int kFastSwitchMaxOverheadFactor = 5;
-
-  // Minimal number of switch cases required before we allow jump-table
-  // optimization.
-  static const int kFastSwitchMinCaseCount = 5;
-
-  virtual int FastCaseSwitchMaxOverheadFactor();
-  virtual int FastCaseSwitchMinCaseCount();
-
-  // Generate a computed jump with an empty jump table.
-  // Binds a label to the start of the jump table. This table must
-  // be populated later when the addresses of the targets are known.
-  // Used by GenerateFastCaseSwitchStatement.
-  virtual void GenerateFastCaseSwitchJumpTable(
-      SwitchStatement* node, int min_index, int range, Label *fail_label,
-      SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels);
-
-  void RecordStatementPosition(Node* node);
-
-  // Activation frames.
-  void EnterJSFrame();
-  void ExitJSFrame();
-
-  virtual void GenerateIsSmi(ZoneList<Expression*>* args);
-  virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
-  virtual void GenerateIsArray(ZoneList<Expression*>* args);
-
-  virtual void GenerateArgumentsLength(ZoneList<Expression*>* args);
-  virtual void GenerateArgumentsAccess(ZoneList<Expression*>* args);
-
-  virtual void GenerateValueOf(ZoneList<Expression*>* args);
-  virtual void GenerateSetValueOf(ZoneList<Expression*>* args);
-
-  virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args);
-
-  virtual void GenerateObjectEquals(ZoneList<Expression*>* args);
-
-  friend class Reference;
-  friend class Property;
-  friend class VariableProxy;
-  friend class Slot;
-};
-
-
 // -------------------------------------------------------------------------
 // CodeGenState implementation.
 
-CodeGenState::CodeGenState(Ia32CodeGenerator* owner)
+CodeGenState::CodeGenState(CodeGenerator* owner)
     : owner_(owner),
       typeof_state_(NOT_INSIDE_TYPEOF),
       true_target_(NULL),
@@ -331,7 +51,7 @@ CodeGenState::CodeGenState(Ia32CodeGenerator* owner)
 }
 
 
-CodeGenState::CodeGenState(Ia32CodeGenerator* owner,
+CodeGenState::CodeGenState(CodeGenerator* owner,
                            TypeofState typeof_state,
                            Label* true_target,
                            Label* false_target)
@@ -351,98 +71,15 @@ CodeGenState::~CodeGenState() {
 
 
 // -----------------------------------------------------------------------------
-// Ia32CodeGenerator implementation
+// CodeGenerator implementation
 
 #define __ masm_->
 
-Handle<Code> Ia32CodeGenerator::MakeCode(FunctionLiteral* flit,
-                                         Handle<Script> script,
-                                         bool is_eval) {
-#ifdef ENABLE_DISASSEMBLER
-  bool print_code = FLAG_print_code && !Bootstrapper::IsActive();
-#endif
-
-#ifdef DEBUG
-  bool print_source = false;
-  bool print_ast = false;
-  const char* ftype;
-
-  if (Bootstrapper::IsActive()) {
-    print_source = FLAG_print_builtin_source;
-    print_ast = FLAG_print_builtin_ast;
-    print_code = FLAG_print_builtin_code;
-    ftype = "builtin";
-  } else {
-    print_source = FLAG_print_source;
-    print_ast = FLAG_print_ast;
-    ftype = "user-defined";
-  }
-
-  if (FLAG_trace_codegen || print_source || print_ast) {
-    PrintF("*** Generate code for %s function: ", ftype);
-    flit->name()->ShortPrint();
-    PrintF(" ***\n");
-  }
-
-  if (print_source) {
-    PrintF("--- Source from AST ---\n%s\n", PrettyPrinter().PrintProgram(flit));
-  }
-
-  if (print_ast) {
-    PrintF("--- AST ---\n%s\n", AstPrinter().PrintProgram(flit));
-  }
-#endif  // DEBUG
-
-  // Generate code.
-  const int initial_buffer_size = 4 * KB;
-  Ia32CodeGenerator cgen(initial_buffer_size, script, is_eval);
-  cgen.GenCode(flit);
-  if (cgen.HasStackOverflow()) {
-    ASSERT(!Top::has_pending_exception());
-    return Handle<Code>::null();
-  }
-
-  // Process any deferred code.
-  cgen.ProcessDeferred();
-
-  // Allocate and install the code.
-  CodeDesc desc;
-  cgen.masm()->GetCode(&desc);
-  ScopeInfo<> sinfo(flit->scope());
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
-  Handle<Code> code = Factory::NewCode(desc, &sinfo, flags);
-
-  // Add unresolved entries in the code to the fixup list.
-  Bootstrapper::AddFixup(*code, cgen.masm());
-
-#ifdef ENABLE_DISASSEMBLER
-  if (print_code) {
-    // Print the source code if available.
-    if (!script->IsUndefined() && !script->source()->IsUndefined()) {
-      PrintF("--- Raw source ---\n");
-      StringInputBuffer stream(String::cast(script->source()));
-      stream.Seek(flit->start_position());
-      // flit->end_position() points to the last character in the stream. We
-      // need to compensate by adding one to calculate the length.
-      int source_len = flit->end_position() - flit->start_position() + 1;
-      for (int i = 0; i < source_len; i++) {
-        if (stream.has_more()) PrintF("%c", stream.GetNext());
-      }
-      PrintF("\n\n");
-    }
-    PrintF("--- Code ---\n");
-    code->Disassemble();
-  }
-#endif  // ENABLE_DISASSEMBLER
-
-  return code;
-}
-
-
-Ia32CodeGenerator::Ia32CodeGenerator(int buffer_size,
-                                     Handle<Script> script,
-                                     bool is_eval)
-    : CodeGenerator(is_eval, script),
+CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
+                             bool is_eval)
+    : is_eval_(is_eval),
+      script_(script),
+      deferred_(8),
       masm_(new MacroAssembler(NULL, buffer_size)),
       scope_(NULL),
       cc_reg_(no_condition),
@@ -458,7 +95,7 @@ Ia32CodeGenerator::Ia32CodeGenerator(int buffer_size,
 // edi: caller's parameter pointer
 // esi: callee's context
 
-void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
+void CodeGenerator::GenCode(FunctionLiteral* fun) {
   // Record the position for debugging purposes.
   __ RecordPosition(fun->start_position());
 
@@ -669,7 +306,7 @@ void Ia32CodeGenerator::GenCode(FunctionLiteral* fun) {
 }
 
 
-Operand Ia32CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
+Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
   // Currently, this assertion will fail if we try to assign to
   // a constant variable that is constant because it is read-only
   // (such as the variable referring to a named function expression).
@@ -728,11 +365,11 @@ Operand Ia32CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
 // register. If force_cc is set, the value is forced to set the condition code
 // register and no value is pushed. If the condition code register was set,
 // has_cc() is true and cc_reg_ contains the condition to test for 'true'.
-void Ia32CodeGenerator::LoadCondition(Expression* x,
-                                      TypeofState typeof_state,
-                                      Label* true_target,
-                                      Label* false_target,
-                                      bool force_cc) {
+void CodeGenerator::LoadCondition(Expression* x,
+                                  TypeofState typeof_state,
+                                  Label* true_target,
+                                  Label* false_target,
+                                  bool force_cc) {
   ASSERT(!has_cc());
 
   { CodeGenState new_state(this, typeof_state, true_target, false_target);
@@ -745,7 +382,7 @@ void Ia32CodeGenerator::LoadCondition(Expression* x,
 }
 
 
-void Ia32CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
+void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   Label true_target;
   Label false_target;
   LoadCondition(x, typeof_state, &true_target, &false_target, false);
@@ -791,7 +428,7 @@ void Ia32CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
 }
 
 
-void Ia32CodeGenerator::LoadGlobal() {
+void CodeGenerator::LoadGlobal() {
   __ push(GlobalObject());
 }
 
@@ -799,7 +436,7 @@ void Ia32CodeGenerator::LoadGlobal() {
 // TODO(1241834): Get rid of this function in favor of just using Load, now
 // that we have the INSIDE_TYPEOF typeof state. => Need to handle global
 // variables w/o reference errors elsewhere.
-void Ia32CodeGenerator::LoadTypeofExpression(Expression* x) {
+void CodeGenerator::LoadTypeofExpression(Expression* x) {
   Variable* variable = x->AsVariableProxy()->AsVariable();
   if (variable != NULL && !variable->is_this() && variable->is_global()) {
     // NOTE: This is somewhat nasty. We force the compiler to load
@@ -817,7 +454,7 @@ void Ia32CodeGenerator::LoadTypeofExpression(Expression* x) {
 }
 
 
-Reference::Reference(Ia32CodeGenerator* cgen, Expression* expression)
+Reference::Reference(CodeGenerator* cgen, Expression* expression)
     : cgen_(cgen), expression_(expression), type_(ILLEGAL) {
   cgen->LoadReference(this);
 }
@@ -828,7 +465,7 @@ Reference::~Reference() {
 }
 
 
-void Ia32CodeGenerator::LoadReference(Reference* ref) {
+void CodeGenerator::LoadReference(Reference* ref) {
   Comment cmnt(masm_, "[ LoadReference");
   Expression* e = ref->expression();
   Property* property = e->AsProperty();
@@ -870,7 +507,7 @@ void Ia32CodeGenerator::LoadReference(Reference* ref) {
 }
 
 
-void Ia32CodeGenerator::UnloadReference(Reference* ref) {
+void CodeGenerator::UnloadReference(Reference* ref) {
   // Pop a reference from the stack while preserving TOS.
   Comment cmnt(masm_, "[ UnloadReference");
   int size = ref->size();
@@ -902,7 +539,7 @@ class ToBooleanStub: public CodeStub {
 // ECMA-262, section 9.2, page 30: ToBoolean(). Pop the top of stack and
 // convert it to a boolean in the condition code register or jump to
 // 'false_target'/'true_target' as appropriate.
-void Ia32CodeGenerator::ToBoolean(Label* true_target, Label* false_target) {
+void CodeGenerator::ToBoolean(Label* true_target, Label* false_target) {
   Comment cmnt(masm_, "[ ToBoolean");
 
   // The value to convert should be popped from the stack.
@@ -1013,7 +650,7 @@ const char* GenericBinaryOpStub::GetName() {
 }
 
 
-void Ia32CodeGenerator::GenericBinaryOperation(Token::Value op,
+void CodeGenerator::GenericBinaryOperation(Token::Value op,
                                                OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
@@ -1270,7 +907,7 @@ class DeferredInlinedSmiSubReversed: public DeferredCode {
 };
 
 
-void Ia32CodeGenerator::SmiOperation(Token::Value op,
+void CodeGenerator::SmiOperation(Token::Value op,
                                      Handle<Object> value,
                                      bool reversed,
                                      OverwriteMode overwrite_mode) {
@@ -1476,7 +1113,7 @@ class CompareStub: public CodeStub {
 };
 
 
-void Ia32CodeGenerator::Comparison(Condition cc, bool strict) {
+void CodeGenerator::Comparison(Condition cc, bool strict) {
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == equal);
 
@@ -1543,7 +1180,7 @@ void SmiComparisonDeferred::Generate() {
 }
 
 
-void Ia32CodeGenerator::SmiComparison(Condition cc,
+void CodeGenerator::SmiComparison(Condition cc,
                                       Handle<Object> value,
                                       bool strict) {
   // Strict only makes sense for equality comparisons.
@@ -1584,7 +1221,7 @@ class CallFunctionStub: public CodeStub {
 
 // Call the function just below TOS on the stack with the given
 // arguments. The receiver is the TOS.
-void Ia32CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
+void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
                                           int position) {
   // Push the arguments ("left-to-right") on the stack.
   for (int i = 0; i < args->length(); i++) {
@@ -1604,7 +1241,7 @@ void Ia32CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 }
 
 
-void Ia32CodeGenerator::Branch(bool if_true, Label* L) {
+void CodeGenerator::Branch(bool if_true, Label* L) {
   ASSERT(has_cc());
   Condition cc = if_true ? cc_reg_ : NegateCondition(cc_reg_);
   __ j(cc, L);
@@ -1612,7 +1249,7 @@ void Ia32CodeGenerator::Branch(bool if_true, Label* L) {
 }
 
 
-void Ia32CodeGenerator::CheckStack() {
+void CodeGenerator::CheckStack() {
   if (FLAG_check_stack) {
     Label stack_is_ok;
     StackCheckStub stub;
@@ -1626,7 +1263,7 @@ void Ia32CodeGenerator::CheckStack() {
 }
 
 
-void Ia32CodeGenerator::VisitBlock(Block* node) {
+void CodeGenerator::VisitBlock(Block* node) {
   Comment cmnt(masm_, "[ Block");
   RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -1635,7 +1272,7 @@ void Ia32CodeGenerator::VisitBlock(Block* node) {
 }
 
 
-void Ia32CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
+void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   __ push(Immediate(pairs));
   __ push(Operand(esi));
   __ push(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
@@ -1644,7 +1281,7 @@ void Ia32CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void Ia32CodeGenerator::VisitDeclaration(Declaration* node) {
+void CodeGenerator::VisitDeclaration(Declaration* node) {
   Comment cmnt(masm_, "[ Declaration");
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
@@ -1705,7 +1342,7 @@ void Ia32CodeGenerator::VisitDeclaration(Declaration* node) {
 }
 
 
-void Ia32CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
+void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   Comment cmnt(masm_, "[ ExpressionStatement");
   RecordStatementPosition(node);
   Expression* expression = node->expression();
@@ -1715,13 +1352,13 @@ void Ia32CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
 }
 
 
-void Ia32CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
+void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
   Comment cmnt(masm_, "// EmptyStatement");
   // nothing to do
 }
 
 
-void Ia32CodeGenerator::VisitIfStatement(IfStatement* node) {
+void CodeGenerator::VisitIfStatement(IfStatement* node) {
   Comment cmnt(masm_, "[ IfStatement");
   // Generate different code depending on which
   // parts of the if statement are present or not.
@@ -1782,7 +1419,7 @@ void Ia32CodeGenerator::VisitIfStatement(IfStatement* node) {
 }
 
 
-void Ia32CodeGenerator::CleanStack(int num_bytes) {
+void CodeGenerator::CleanStack(int num_bytes) {
   ASSERT(num_bytes >= 0);
   if (num_bytes > 0) {
     __ add(Operand(esp), Immediate(num_bytes));
@@ -1790,7 +1427,7 @@ void Ia32CodeGenerator::CleanStack(int num_bytes) {
 }
 
 
-void Ia32CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
+void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
   Comment cmnt(masm_, "[ ContinueStatement");
   RecordStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
@@ -1798,7 +1435,7 @@ void Ia32CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
 }
 
 
-void Ia32CodeGenerator::VisitBreakStatement(BreakStatement* node) {
+void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
   Comment cmnt(masm_, "[ BreakStatement");
   RecordStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
@@ -1806,7 +1443,7 @@ void Ia32CodeGenerator::VisitBreakStatement(BreakStatement* node) {
 }
 
 
-void Ia32CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
+void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   Comment cmnt(masm_, "[ ReturnStatement");
   RecordStatementPosition(node);
   Load(node->expression());
@@ -1844,7 +1481,7 @@ void Ia32CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 }
 
 
-void Ia32CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
+void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   RecordStatementPosition(node);
   Load(node->expression());
@@ -1864,7 +1501,7 @@ void Ia32CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
 }
 
 
-void Ia32CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
+void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
   Comment cmnt(masm_, "[ WithExitStatement");
   // Pop context.
   __ mov(esi, ContextOperand(esi, Context::PREVIOUS_INDEX));
@@ -1872,16 +1509,16 @@ void Ia32CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
   __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
 }
 
-int Ia32CodeGenerator::FastCaseSwitchMaxOverheadFactor() {
+int CodeGenerator::FastCaseSwitchMaxOverheadFactor() {
     return kFastSwitchMaxOverheadFactor;
 }
 
-int Ia32CodeGenerator::FastCaseSwitchMinCaseCount() {
+int CodeGenerator::FastCaseSwitchMinCaseCount() {
     return kFastSwitchMinCaseCount;
 }
 
 // Generate a computed jump to a switch case.
-void Ia32CodeGenerator::GenerateFastCaseSwitchJumpTable(
+void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     SwitchStatement* node, int min_index, int range, Label *fail_label,
     SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels) {
   // Notice: Internal references, used by both the jmp instruction and
@@ -1927,7 +1564,7 @@ void Ia32CodeGenerator::GenerateFastCaseSwitchJumpTable(
 }
 
 
-void Ia32CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
+void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   Comment cmnt(masm_, "[ SwitchStatement");
   RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -1994,7 +1631,7 @@ void Ia32CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 }
 
 
-void Ia32CodeGenerator::VisitLoopStatement(LoopStatement* node) {
+void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   Comment cmnt(masm_, "[ LoopStatement");
   RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -2063,7 +1700,7 @@ void Ia32CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 }
 
 
-void Ia32CodeGenerator::VisitForInStatement(ForInStatement* node) {
+void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   Comment cmnt(masm_, "[ ForInStatement");
   RecordStatementPosition(node);
 
@@ -2251,7 +1888,7 @@ void Ia32CodeGenerator::VisitForInStatement(ForInStatement* node) {
 }
 
 
-void Ia32CodeGenerator::VisitTryCatch(TryCatch* node) {
+void CodeGenerator::VisitTryCatch(TryCatch* node) {
   Comment cmnt(masm_, "[ TryCatch");
 
   Label try_block, exit;
@@ -2350,7 +1987,7 @@ void Ia32CodeGenerator::VisitTryCatch(TryCatch* node) {
 }
 
 
-void Ia32CodeGenerator::VisitTryFinally(TryFinally* node) {
+void CodeGenerator::VisitTryFinally(TryFinally* node) {
   Comment cmnt(masm_, "[ TryFinally");
 
   // State: Used to keep track of reason for entering the finally
@@ -2479,7 +2116,7 @@ void Ia32CodeGenerator::VisitTryFinally(TryFinally* node) {
 }
 
 
-void Ia32CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
+void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatement");
   RecordStatementPosition(node);
   __ CallRuntime(Runtime::kDebugBreak, 1);
@@ -2487,7 +2124,7 @@ void Ia32CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 }
 
 
-void Ia32CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
 
   // Push the boilerplate on the stack.
@@ -2500,7 +2137,7 @@ void Ia32CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 }
 
 
-void Ia32CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
+void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
@@ -2511,14 +2148,14 @@ void Ia32CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void Ia32CodeGenerator::VisitFunctionBoilerplateLiteral(
+void CodeGenerator::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* node) {
   Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
   InstantiateBoilerplate(node->boilerplate());
 }
 
 
-void Ia32CodeGenerator::VisitConditional(Conditional* node) {
+void CodeGenerator::VisitConditional(Conditional* node) {
   Comment cmnt(masm_, "[ Conditional");
   Label then, else_, exit;
   LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
@@ -2532,7 +2169,7 @@ void Ia32CodeGenerator::VisitConditional(Conditional* node) {
 }
 
 
-void Ia32CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
+void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->mode() == Variable::DYNAMIC);
 
@@ -2570,13 +2207,13 @@ void Ia32CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 }
 
 
-void Ia32CodeGenerator::VisitSlot(Slot* node) {
+void CodeGenerator::VisitSlot(Slot* node) {
   Comment cmnt(masm_, "[ Slot");
   LoadFromSlot(node, typeof_state());
 }
 
 
-void Ia32CodeGenerator::VisitVariableProxy(VariableProxy* node) {
+void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
   Comment cmnt(masm_, "[ VariableProxy");
   Variable* var = node->var();
   Expression* expr = var->rewrite();
@@ -2590,7 +2227,7 @@ void Ia32CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 }
 
 
-void Ia32CodeGenerator::VisitLiteral(Literal* node) {
+void CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
   if (node->handle()->IsSmi() && !IsInlineSmi(node)) {
     // To prevent long attacker-controlled byte sequences in code, larger
@@ -2634,7 +2271,7 @@ void RegExpDeferred::Generate() {
 }
 
 
-void Ia32CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
+void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   Comment cmnt(masm_, "[ RegExp Literal");
   RegExpDeferred* deferred = new RegExpDeferred(this, node);
 
@@ -2694,7 +2331,7 @@ void ObjectLiteralDeferred::Generate() {
 }
 
 
-void Ia32CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
+void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   Comment cmnt(masm_, "[ ObjectLiteral");
   ObjectLiteralDeferred* deferred = new ObjectLiteralDeferred(this, node);
 
@@ -2784,7 +2421,7 @@ void Ia32CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
-void Ia32CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
+void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   // Call runtime to create the array literal.
@@ -2828,14 +2465,14 @@ void Ia32CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 }
 
 
-bool Ia32CodeGenerator::IsInlineSmi(Literal* literal) {
+bool CodeGenerator::IsInlineSmi(Literal* literal) {
   if (literal == NULL || !literal->handle()->IsSmi()) return false;
   int int_value = Smi::cast(*literal->handle())->value();
   return is_intn(int_value, kMaxSmiInlinedBits);
 }
 
 
-void Ia32CodeGenerator::VisitAssignment(Assignment* node) {
+void CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
 
   RecordStatementPosition(node);
@@ -2877,7 +2514,7 @@ void Ia32CodeGenerator::VisitAssignment(Assignment* node) {
 }
 
 
-void Ia32CodeGenerator::VisitThrow(Throw* node) {
+void CodeGenerator::VisitThrow(Throw* node) {
   Comment cmnt(masm_, "[ Throw");
 
   Load(node->exception());
@@ -2887,14 +2524,15 @@ void Ia32CodeGenerator::VisitThrow(Throw* node) {
 }
 
 
-void Ia32CodeGenerator::VisitProperty(Property* node) {
+void CodeGenerator::VisitProperty(Property* node) {
   Comment cmnt(masm_, "[ Property");
+
   Reference property(this, node);
   property.GetValue(typeof_state());
 }
 
 
-void Ia32CodeGenerator::VisitCall(Call* node) {
+void CodeGenerator::VisitCall(Call* node) {
   Comment cmnt(masm_, "[ Call");
 
   ZoneList<Expression*>* args = node->arguments();
@@ -3016,7 +2654,7 @@ void Ia32CodeGenerator::VisitCall(Call* node) {
 }
 
 
-void Ia32CodeGenerator::VisitCallNew(CallNew* node) {
+void CodeGenerator::VisitCallNew(CallNew* node) {
   Comment cmnt(masm_, "[ CallNew");
 
   // According to ECMA-262, section 11.2.2, page 44, the function
@@ -3052,7 +2690,7 @@ void Ia32CodeGenerator::VisitCallNew(CallNew* node) {
 }
 
 
-void Ia32CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
   __ pop(eax);
@@ -3061,7 +2699,7 @@ void Ia32CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 }
 
 
-void Ia32CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
   __ pop(eax);
@@ -3076,7 +2714,7 @@ void Ia32CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 // cons strings where the answer is found in the left hand branch of the
 // cons.  The slow case will flatten the string, which will ensure that
 // the answer is in the left hand side the next time around.
-void Ia32CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
 
   Label slow_case;
@@ -3202,7 +2840,7 @@ void Ia32CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 }
 
 
-void Ia32CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
   Label answer;
@@ -3225,7 +2863,7 @@ void Ia32CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
-void Ia32CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 
   // Seed the result with the formal parameters count, which will be
@@ -3240,7 +2878,7 @@ void Ia32CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 }
 
 
-void Ia32CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Label leave;
   Load(args->at(0));  // Load the object.
@@ -3260,7 +2898,7 @@ void Ia32CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
 }
 
 
-void Ia32CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Label leave;
   Load(args->at(0));  // Load the object.
@@ -3288,7 +2926,7 @@ void Ia32CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 }
 
 
-void Ia32CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
   // Load the key onto the stack and set register eax to the formal
@@ -3303,7 +2941,7 @@ void Ia32CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
 }
 
 
-void Ia32CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
 
   // Load the two objects into registers and perform the comparison.
@@ -3316,7 +2954,7 @@ void Ia32CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 }
 
 
-void Ia32CodeGenerator::VisitCallRuntime(CallRuntime* node) {
+void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) return;
 
   ZoneList<Expression*>* args = node->arguments();
@@ -3350,7 +2988,7 @@ void Ia32CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 }
 
 
-void Ia32CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
+void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
   Comment cmnt(masm_, "[ UnaryOperation");
 
   Token::Value op = node->op();
@@ -3559,7 +3197,7 @@ void CountOperationDeferred::Generate() {
 }
 
 
-void Ia32CodeGenerator::VisitCountOperation(CountOperation* node) {
+void CodeGenerator::VisitCountOperation(CountOperation* node) {
   Comment cmnt(masm_, "[ CountOperation");
 
   bool is_postfix = node->is_postfix();
@@ -3610,7 +3248,7 @@ void Ia32CodeGenerator::VisitCountOperation(CountOperation* node) {
 }
 
 
-void Ia32CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
+void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Token::Value op = node->op();
 
@@ -3732,7 +3370,7 @@ void Ia32CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 }
 
 
-void Ia32CodeGenerator::VisitThisFunction(ThisFunction* node) {
+void CodeGenerator::VisitThisFunction(ThisFunction* node) {
   __ push(FunctionOperand());
 }
 
@@ -3749,7 +3387,7 @@ class InstanceofStub: public CodeStub {
 };
 
 
-void Ia32CodeGenerator::VisitCompareOperation(CompareOperation* node) {
+void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   Comment cmnt(masm_, "[ CompareOperation");
 
   // Get the expressions from the node.
@@ -3958,7 +3596,7 @@ void Ia32CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 }
 
 
-void Ia32CodeGenerator::RecordStatementPosition(Node* node) {
+void CodeGenerator::RecordStatementPosition(Node* node) {
   if (FLAG_debug_info) {
     int pos = node->statement_pos();
     if (pos != RelocInfo::kNoPosition) {
@@ -3968,7 +3606,7 @@ void Ia32CodeGenerator::RecordStatementPosition(Node* node) {
 }
 
 
-void Ia32CodeGenerator::EnterJSFrame() {
+void CodeGenerator::EnterJSFrame() {
   __ push(ebp);
   __ mov(ebp, Operand(esp));
 
@@ -3983,7 +3621,7 @@ void Ia32CodeGenerator::EnterJSFrame() {
 }
 
 
-void Ia32CodeGenerator::ExitJSFrame() {
+void CodeGenerator::ExitJSFrame() {
   // Record the location of the JS exit code for patching when setting
   // break point.
   __ RecordJSReturn();
@@ -5342,22 +4980,5 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
 
 
 #undef __
-
-// -----------------------------------------------------------------------------
-// CodeGenerator interfaces
-
-// MakeCode() is just a wrapper for CodeGenerator::MakeCode()
-// so we don't have to expose the entire CodeGenerator class in
-// the .h file.
-Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* fun,
-                                     Handle<Script> script,
-                                     bool is_eval) {
-  Handle<Code> code = Ia32CodeGenerator::MakeCode(fun, script, is_eval);
-  if (!code.is_null()) {
-    Counters::total_compiled_code_size.Increment(code->instruction_size());
-  }
-  return code;
-}
-
 
 } }  // namespace v8::internal
