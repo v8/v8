@@ -91,26 +91,23 @@ function EQUALS(y) {
 
 // ECMA-262, section 11.9.4, page 56.
 function STRICT_EQUALS(x) {
-  if (IS_NUMBER(this)) {
-    if (!IS_NUMBER(x)) return 1;  // not equal
-    return %NumberEquals(this, x);
-  }
-
   if (IS_STRING(this)) {
     if (!IS_STRING(x)) return 1;  // not equal
     return %StringEquals(this, x);
-  }
+  } 
 
-  if (IS_BOOLEAN(this)) {
-    if (!IS_BOOLEAN(x)) return 1;  // not equal
-    if (this) return x ? 0 : 1;
-    else return x ? 1 : 0;
-  }
+  if (IS_NUMBER(this)) {
+    if (!IS_NUMBER(x)) return 1;  // not equal
+    return %NumberEquals(this, x);
+  } 
 
-  if (IS_UNDEFINED(this)) {  // both undefined and undetectable
+  if (IS_UNDEFINED(this)) {  
+    // Both undefined and undetectable.
     return IS_UNDEFINED(x) ? 0 : 1;
   }
 
+  // Objects, null, booleans and functions are all that's left.
+  // They can all be compared with a simple identity check.
   return %_ObjectEquals(this, x) ? 0 : 1;
 }
 

@@ -1127,9 +1127,8 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
     __ pop(edx);
   }
 
+  // Check for the smi case.
   Label is_smi, done;
-  CompareStub stub(cc, strict);
-
   __ mov(ecx, Operand(eax));
   __ or_(ecx, Operand(edx));
   __ test(ecx, Immediate(kSmiTagMask));
@@ -1137,8 +1136,13 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
 
   // When non-smi, call out to the compare stub.  "parameters" setup by
   // calling code in edx and eax and "result" is returned in the flags.
+  CompareStub stub(cc, strict);
   __ CallStub(&stub);
-  __ cmp(eax, 0);
+  if (cc == equal) {
+    __ test(eax, Operand(eax));
+  } else {
+    __ cmp(eax, 0);
+  }
   __ jmp(&done);
 
   // Test smi equality by pointer comparison.
@@ -4484,6 +4488,73 @@ void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
 
 void CompareStub::Generate(MacroAssembler* masm) {
   Label call_builtin, done;
+
+  // If we're doing a strict equality comparison, we generate code
+  // to do fast comparison for objects and oddballs. Numbers and
+  // strings still go through the usual slow-case code.
+  if (strict_) {
+    Label slow;
+    __ test(eax, Immediate(kSmiTagMask));
+    __ j(zero, &slow);
+
+    // Get the type of the first operand.
+    __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
+    __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+
+    // If the first object is an object, we do pointer comparison.
+    ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
+    Label non_object;
+    __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+    __ j(less, &non_object);
+    __ sub(eax, Operand(edx));
+    __ ret(0);
+
+    // Check for oddballs: true, false, null, undefined.
+    __ bind(&non_object);
+    __ cmp(ecx, ODDBALL_TYPE);
+    __ j(not_equal, &slow);
+
+    // If the oddball isn't undefined, we do pointer comparison. For
+    // the undefined value, we have to be careful and check for
+    // 'undetectable' objects too.
+    Label undefined;
+    __ cmp(Operand(eax), Immediate(Factory::undefined_value()));
+    __ j(equal, &undefined);
+    __ sub(eax, Operand(edx));
+    __ ret(0);
+
+    // Undefined case: If the other operand isn't undefined too, we
+    // have to check if it's 'undetectable'.
+    Label check_undetectable;
+    __ bind(&undefined);
+    __ cmp(Operand(edx), Immediate(Factory::undefined_value()));
+    __ j(not_equal, &check_undetectable);
+    __ Set(eax, Immediate(0));
+    __ ret(0);
+
+    // Check for undetectability of the other operand.
+    Label not_strictly_equal;
+    __ bind(&check_undetectable);
+    __ test(edx, Immediate(kSmiTagMask));
+    __ j(zero, &not_strictly_equal);
+    __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+    __ movzx_b(ecx, FieldOperand(ecx, Map::kBitFieldOffset));
+    __ and_(ecx, 1 << Map::kIsUndetectable);
+    __ cmp(ecx, 1 << Map::kIsUndetectable);
+    __ j(not_equal, &not_strictly_equal);
+    __ Set(eax, Immediate(0));
+    __ ret(0);
+
+    // No cigar: Objects aren't strictly equal. Register eax contains
+    // a non-smi value so it can't be 0. Just return.
+    ASSERT(kHeapTag != 0);
+    __ bind(&not_strictly_equal);
+    __ ret(0);
+
+    // Fall through to the general case.
+    __ bind(&slow);
+  }
+
   // Save the return address (and get it off the stack).
   __ pop(ecx);
 
