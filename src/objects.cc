@@ -3677,10 +3677,10 @@ template <typename IteratorA>
 static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
   if (b->IsFlat()) {
     if (b->IsAsciiRepresentation()) {
-      VectorIterator<const char> ib(b->ToAsciiVector());
+      VectorIterator<char> ib(b->ToAsciiVector());
       return CompareStringContents(ia, &ib);
     } else {
-      VectorIterator<const uc16> ib(b->ToUC16Vector());
+      VectorIterator<uc16> ib(b->ToUC16Vector());
       return CompareStringContents(ia, &ib);
     }
   } else {
@@ -3707,10 +3707,10 @@ bool String::SlowEquals(String* other) {
 
   if (this->IsFlat()) {
     if (this->IsAsciiRepresentation()) {
-      VectorIterator<const char> buf1(this->ToAsciiVector());
+      VectorIterator<char> buf1(this->ToAsciiVector());
       return CompareStringContentsPartial(&buf1, other);
     } else {
-      VectorIterator<const uc16> buf1(this->ToUC16Vector());
+      VectorIterator<uc16> buf1(this->ToUC16Vector());
       return CompareStringContentsPartial(&buf1, other);
     }
   } else {

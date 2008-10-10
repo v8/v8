@@ -3446,12 +3446,12 @@ class SafeStringInputBuffer
 template <typename T>
 class VectorIterator {
  public:
-  VectorIterator(T* d, int l) : data_(Vector<T>(d, l)), index_(0) { }
-  explicit VectorIterator(Vector<T> data) : data_(data), index_(0) { }
+  VectorIterator(T* d, int l) : data_(Vector<const T>(d, l)), index_(0) { }
+  explicit VectorIterator(Vector<const T> data) : data_(data), index_(0) { }
   T GetNext() { return data_[index_++]; }
   bool has_more() { return index_ < data_.length(); }
  private:
-  Vector<T> data_;
+  Vector<const T> data_;
   int index_;
 };
 
