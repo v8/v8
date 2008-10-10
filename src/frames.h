@@ -98,6 +98,7 @@ class StackHandler BASE_EMBEDDED {
   V(EXIT_DEBUG,        ExitDebugFrame)        \
   V(JAVA_SCRIPT,       JavaScriptFrame)       \
   V(INTERNAL,          InternalFrame)         \
+  V(CONSTRUCT,         ConstructFrame)        \
   V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)
 
 
@@ -124,6 +125,7 @@ class StackFrame BASE_EMBEDDED {
   bool is_java_script() const { return type() == JAVA_SCRIPT; }
   bool is_arguments_adaptor() const { return type() == ARGUMENTS_ADAPTOR; }
   bool is_internal() const { return type() == INTERNAL; }
+  bool is_construct() const { return type() == CONSTRUCT; }
   virtual bool is_standard() const { return false; }
 
   // Accessors.
@@ -352,9 +354,9 @@ class StandardFrame: public StackFrame {
   // an arguments adaptor frame.
   static inline bool IsArgumentsAdaptorFrame(Address fp);
 
-  // Determines if the standard frame for the given program counter is
-  // a construct trampoline.
-  static inline bool IsConstructTrampolineFrame(Address pc);
+  // Determines if the standard frame for the given frame pointer is a
+  // construct frame.
+  static inline bool IsConstructFrame(Address fp);
 
  private:
   friend class StackFrame;
@@ -380,9 +382,7 @@ class JavaScriptFrame: public StandardFrame {
   // computed parameters count.
   int GetProvidedParametersCount() const;
 
-  // Check if this frame is a constructor frame invoked through
-  // 'new'. The operation may involve digging through a few stack
-  // frames to account for arguments adaptors.
+  // Check if this frame is a constructor frame invoked through 'new'.
   bool IsConstructor() const;
 
   // Check if this frame has "adapted" arguments in the sense that the
@@ -459,11 +459,6 @@ class InternalFrame: public StandardFrame {
  public:
   virtual Type type() const { return INTERNAL; }
 
-  // Returns if this frame is a special trampoline frame introduced by
-  // the construct trampoline. NOTE: We should consider introducing a
-  // special stack frame type for this.
-  inline bool is_construct_trampoline() const;
-
   // Garbage colletion support.
   virtual void Iterate(ObjectVisitor* v) const;
 
@@ -480,6 +475,26 @@ class InternalFrame: public StandardFrame {
       : StandardFrame(iterator) { }
 
   virtual Address GetCallerStackPointer() const;
+
+ private:
+  friend class StackFrameIterator;
+};
+
+
+// Construct frames are special trampoline frames introduced to handle
+// function invocations through 'new'.
+class ConstructFrame: public InternalFrame {
+ public:
+  virtual Type type() const { return CONSTRUCT; }
+
+  static ConstructFrame* cast(StackFrame* frame) {
+    ASSERT(frame->is_construct());
+    return static_cast<ConstructFrame*>(frame);
+  }
+
+ protected:
+  explicit ConstructFrame(StackFrameIterator* iterator)
+      : InternalFrame(iterator) { }
 
  private:
   friend class StackFrameIterator;

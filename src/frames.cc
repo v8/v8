@@ -311,10 +311,12 @@ int JavaScriptFrame::ComputeParametersCount() const {
 
 
 bool JavaScriptFrame::IsConstructor() const {
-  Address pc = has_adapted_arguments()
-      ? Memory::Address_at(ComputePCAddress(caller_fp()))
-      : caller_pc();
-  return IsConstructTrampolineFrame(pc);
+  Address fp = caller_fp();
+  if (has_adapted_arguments()) {
+    // Skip the arguments adaptor frame and look at the real caller.
+    fp = Memory::Address_at(fp + StandardFrameConstants::kCallerFPOffset);
+  }
+  return IsConstructFrame(fp);
 }
 
 

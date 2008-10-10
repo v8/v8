@@ -145,8 +145,10 @@ inline bool StandardFrame::IsArgumentsAdaptorFrame(Address fp) {
 }
 
 
-inline bool StandardFrame::IsConstructTrampolineFrame(Address pc) {
-  return Builtins::builtin(Builtins::JSConstructCall)->contains(pc);
+inline bool StandardFrame::IsConstructFrame(Address fp) {
+  Object* marker =
+      Memory::Object_at(fp + StandardFrameConstants::kMarkerOffset);
+  return marker == Smi::FromInt(CONSTRUCT);
 }
 
 
@@ -164,15 +166,6 @@ inline void JavaScriptFrame::set_receiver(Object* value) {
 
 inline bool JavaScriptFrame::has_adapted_arguments() const {
   return IsArgumentsAdaptorFrame(caller_fp());
-}
-
-
-inline bool InternalFrame::is_construct_trampoline() const {
-  // TODO(1233795): This doesn't work when the stack frames have been
-  // cooked. We need to find another way of identifying construct
-  // trampoline frames possibly by manipulating the context field like
-  // we do for argument adaptor frames.
-  return IsConstructTrampolineFrame(pc());
 }
 
 

@@ -56,8 +56,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- edi: constructor function
   // -----------------------------------
 
-  // Enter an internal frame.
-  __ EnterInternalFrame();
+  // Enter a construct frame.
+  __ EnterConstructFrame();
 
   // Store a smi-tagged arguments count on the stack.
   __ shl(eax, kSmiTagSize);
@@ -265,10 +265,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ j(greater_equal, &loop);
 
   // Call the function.
-  Label return_site;
   ParameterCount actual(eax);
   __ InvokeFunction(edi, actual, CALL_FUNCTION);
-  __ bind(&return_site);
 
   // Restore context from the frame.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
@@ -294,10 +292,10 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ bind(&use_receiver);
   __ mov(eax, Operand(esp, 0));
 
-  // Restore the arguments count and exit the internal frame.
+  // Restore the arguments count and leave the construct frame.
   __ bind(&exit);
   __ mov(ebx, Operand(esp, kPointerSize));  // get arguments count
-  __ LeaveInternalFrame();
+  __ LeaveConstructFrame();
 
   // Remove caller arguments from the stack and return.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
@@ -305,11 +303,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);
   __ ret(0);
-
-  // Compute the offset from the beginning of the JSConstructCall
-  // builtin code object to the return address after the call.
-  ASSERT(return_site.is_bound());
-  construct_call_pc_offset_ = return_site.pos() + Code::kHeaderSize;
 }
 
 
@@ -662,7 +655,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
 }
 
 
-static void ExitArgumentsAdaptorFrame(MacroAssembler* masm) {
+static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Retrieve the number of arguments from the stack.
   __ mov(ebx, Operand(ebp, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
@@ -742,19 +735,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   }
 
   // Call the entry point.
-  Label return_site;
   __ bind(&invoke);
   __ call(Operand(edx));
-  __ bind(&return_site);
 
-  ExitArgumentsAdaptorFrame(masm);
+  // Leave frame and return.
+  LeaveArgumentsAdaptorFrame(masm);
   __ ret(0);
-
-  // Compute the offset from the beginning of the ArgumentsAdaptorTrampoline
-  // builtin code object to the return address after the call.
-  ASSERT(return_site.is_bound());
-  arguments_adaptor_call_pc_offset_ = return_site.pos() + Code::kHeaderSize;
-
 
   // -------------------------------------------
   // Dont adapt arguments.

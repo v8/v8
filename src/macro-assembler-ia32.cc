@@ -312,9 +312,7 @@ void MacroAssembler::FCmp() {
 }
 
 
-void MacroAssembler::EnterInternalFrame() {
-  int type = StackFrame::INTERNAL;
-
+void MacroAssembler::EnterFrame(StackFrame::Type type) {
   push(ebp);
   mov(ebp, Operand(esp));
   push(esi);
@@ -323,9 +321,8 @@ void MacroAssembler::EnterInternalFrame() {
 }
 
 
-void MacroAssembler::LeaveInternalFrame() {
+void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   if (FLAG_debug_code) {
-    StackFrame::Type type = StackFrame::INTERNAL;
     cmp(Operand(ebp, StandardFrameConstants::kMarkerOffset),
         Immediate(Smi::FromInt(type)));
     Check(equal, "stack frame types must match");

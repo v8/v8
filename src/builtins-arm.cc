@@ -58,8 +58,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  // Enter an internal frame.
-  __ EnterInternalFrame();
+  // Enter a construct frame.
+  __ EnterConstructFrame();
 
   // Preserve the two incoming parameters
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
@@ -116,10 +116,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // Call the function.
   // r0: number of arguments
   // r1: constructor function
-  Label return_site;
   ParameterCount actual(r0);
   __ InvokeFunction(r1, actual, CALL_FUNCTION);
-  __ bind(&return_site);
 
   // Pop the function from the stack.
   // sp[0]: constructor function
@@ -168,15 +166,10 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   // sp[1]: constructor function
   // sp[2]: number of arguments (smi-tagged)
   __ ldr(r1, MemOperand(sp, 2 * kPointerSize));
-  __ LeaveInternalFrame();
+  __ LeaveConstructFrame();
   __ add(sp, sp, Operand(r1, LSL, kPointerSizeLog2 - 1));
   __ add(sp, sp, Operand(kPointerSize));
   __ mov(pc, Operand(lr));
-
-  // Compute the offset from the beginning of the JSConstructCall
-  // builtin code object to the return address after the call.
-  ASSERT(return_site.is_bound());
-  construct_call_pc_offset_ = return_site.pos() + Code::kHeaderSize;
 }
 
 
@@ -539,7 +532,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
 }
 
 
-static void ExitArgumentsAdaptorFrame(MacroAssembler* masm) {
+static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r0 : result being passed through
   // -----------------------------------
@@ -641,19 +634,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   }
 
   // Call the entry point.
-  Label return_site;
   __ bind(&invoke);
-
   __ Call(r3);
-  __ bind(&return_site);
 
-  ExitArgumentsAdaptorFrame(masm);
+  // Exit frame and return.
+  LeaveArgumentsAdaptorFrame(masm);
   __ mov(pc, lr);
-
-  // Compute the offset from the beginning of the ArgumentsAdaptorTrampoline
-  // builtin code object to the return address after the call.
-  ASSERT(return_site.is_bound());
-  arguments_adaptor_call_pc_offset_ = return_site.pos() + Code::kHeaderSize;
 
 
   // -------------------------------------------

@@ -2917,7 +2917,7 @@ static Object* Runtime_NewObject(Arguments args) {
     if (Debug::StepInActive()) {
       StackFrameIterator it;
       it.Advance();
-      ASSERT(InternalFrame::cast(it.frame())->is_construct_trampoline());
+      ASSERT(it.frame()->is_construct());
       it.Advance();
       if (it.frame()->fp() == Debug::step_in_fp()) {
         HandleScope scope;

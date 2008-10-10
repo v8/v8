@@ -94,31 +94,11 @@ static inline bool CalledAsConstructor() {
   ASSERT(it.frame()->is_exit());
   it.Advance();
   StackFrame* frame = it.frame();
-  return frame->is_internal() &&
-      InternalFrame::cast(frame)->is_construct_trampoline();
+  return frame->is_construct();
 }
 
 
 // ----------------------------------------------------------------------------
-
-
-int Builtins::construct_call_pc_offset_ = 0;
-int Builtins::arguments_adaptor_call_pc_offset_ = 0;
-
-
-// Check if the builtin was called in a 'new' call.
-bool Builtins::IsConstructCall(Address pc) {
-  ASSERT(construct_call_pc_offset_ > 0);
-  int offset = pc - builtin(JSConstructCall)->address();
-  return offset == construct_call_pc_offset_;
-}
-
-
-bool Builtins::IsArgumentsAdaptorCall(Address pc) {
-  ASSERT(arguments_adaptor_call_pc_offset_ > 0);
-  int offset = pc - builtin(ArgumentsAdaptorTrampoline)->address();
-  return offset == arguments_adaptor_call_pc_offset_;
-}
 
 
 Handle<Code> Builtins::GetCode(JavaScript id, bool* resolved) {

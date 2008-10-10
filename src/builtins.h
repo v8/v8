@@ -167,9 +167,6 @@ class Builtins : public AllStatic {
     id_count
   };
 
-  static bool IsConstructCall(Address pc);
-  static bool IsArgumentsAdaptorCall(Address pc);
-
   static Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins
     // during the marking phase of mark sweep. See IC::Clear.
@@ -205,12 +202,6 @@ class Builtins : public AllStatic {
   static const char* names_[builtin_count];
   static const char* javascript_names_[id_count];
   static int javascript_argc_[id_count];
-
-  // The offset from the beginning of the JSConstructCall builtin code
-  // object to the return address after the call. Used for determining
-  // if a call is a constructor invocation.
-  static int construct_call_pc_offset_;
-  static int arguments_adaptor_call_pc_offset_;
 
   static void Generate_Adaptor(MacroAssembler* masm, CFunctionId id);
   static void Generate_JSConstructCall(MacroAssembler* masm);
