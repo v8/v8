@@ -2118,7 +2118,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   __ bind(&unlink);
   // Reload sp from the top handler, because some statements that we
   // break from (eg, for...in) may have left stuff on the stack.
-  frame_->Pop(eax);  // preserve the TOS in a register across stack manipulation
+  // Preserve the TOS in a register across stack manipulation.
+  frame_->Pop(eax);
   ExternalReference handler_address(Top::k_handler_address);
   __ mov(edx, Operand::StaticVariable(handler_address));
   const int kNextOffset = StackHandlerConstants::kNextOffset +
@@ -2127,8 +2128,9 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
   frame_->Pop(Operand::StaticVariable(handler_address));
   frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-  // next_sp popped.
-  frame_->Push(eax);  // preserve the TOS in a register across stack manipulation
+  // Next_sp popped.
+  // Preserve the TOS in a register across stack manipulation.
+  frame_->Push(eax);
 
   // --- Finally block ---
   __ bind(&finally_block);
