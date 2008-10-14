@@ -1025,69 +1025,97 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
   }
   // End of Bad Char computation.
 
-  // Compute Good Suffix shift table.
-  bmgs_buffers.init(m);
-
-  bmgs_buffers.shift(m-1) = 1;
-  bmgs_buffers.suffix(m) = m + 1;
-  pchar last_char = pattern[m - 1];
-  int suffix = m + 1;
-  for (int i = m; i > start;) {
-    for (pchar c = pattern[i - 1]; suffix <= m && c != pattern[suffix - 1];) {
-      if (bmgs_buffers.shift(suffix) == len) {
-        bmgs_buffers.shift(suffix) = suffix - i;
-      }
-      suffix = bmgs_buffers.suffix(suffix);
-    }
-    i--;
-    suffix--;
-    bmgs_buffers.suffix(i) = suffix;
-    if (suffix == m) {
-      // no suffix to extend, so we check against last_char only.
-      while (i > start && pattern[i - 1] != last_char) {
-        if (bmgs_buffers.shift(m) == len) {
-          bmgs_buffers.shift(m) = m - i;
-        }
-        i--;
-        bmgs_buffers.suffix(i) = m;
-      }
-      if (i > start) {
-        i--;
-        suffix--;
-        bmgs_buffers.suffix(i) = suffix;
-      }
-    }
-  }
-  if (suffix < m) {
-    for (int i = start; i <= m; i++) {
-      if (bmgs_buffers.shift(i) == len) {
-        bmgs_buffers.shift(i) = suffix - start;
-      }
-      if (i == suffix) {
-        suffix = bmgs_buffers.suffix(suffix);
-      }
-    }
-  }
-  // End of Good Suffix computation.
 
 
+  int badness = 0;  // How bad we are doing without a good-suffix table.
+  int idx;  // No matches found prior to this index.
   // Perform search
-  for (int i = start_index; i <= n - m;) {
+  for (idx = start_index; idx <= n - m;) {
     int j = m - 1;
     schar c;
-    while (j >= 0 && pattern[j] == (c = subject[i + j])) j--;
+    while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
     if (j < 0) {
-      return i;
-    } else if (j < start) {
-      // we have matched more than our tables allow us to be smart about.
-      i += 1;
+      return idx;
     } else {
-      int gs_shift = bmgs_buffers.shift(j + 1);
       int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
-      int bc_shift = j - bc_occ;
-      i += (gs_shift > bc_shift) ? gs_shift : bc_shift;
+      int shift = bc_occ < j ? j - bc_occ : 1;
+      idx += shift;
+      // Badness increases by the number of characters we have
+      // checked, and decreases by the number of characters we
+      // can skip by shifting. It's a measure of how we are doing
+      // compared to reading each character exactly once.
+      badness += (m - j) - shift;
+      if (badness > m) break;
     }
   }
+
+  // If we are not done, we got here because we should build the Good Suffix
+  // table and continue searching.
+  if (idx <= n - m) {
+    // Compute Good Suffix tables.
+    bmgs_buffers.init(m);
+
+    bmgs_buffers.shift(m-1) = 1;
+    bmgs_buffers.suffix(m) = m + 1;
+    pchar last_char = pattern[m - 1];
+    int suffix = m + 1;
+    for (int i = m; i > start;) {
+      for (pchar c = pattern[i - 1]; suffix <= m && c != pattern[suffix - 1];) {
+        if (bmgs_buffers.shift(suffix) == len) {
+          bmgs_buffers.shift(suffix) = suffix - i;
+        }
+        suffix = bmgs_buffers.suffix(suffix);
+      }
+      i--;
+      suffix--;
+      bmgs_buffers.suffix(i) = suffix;
+      if (suffix == m) {
+        // no suffix to extend, so we check against last_char only.
+        while (i > start && pattern[i - 1] != last_char) {
+          if (bmgs_buffers.shift(m) == len) {
+            bmgs_buffers.shift(m) = m - i;
+          }
+          i--;
+          bmgs_buffers.suffix(i) = m;
+        }
+        if (i > start) {
+          i--;
+          suffix--;
+          bmgs_buffers.suffix(i) = suffix;
+        }
+      }
+    }
+    if (suffix < m) {
+      for (int i = start; i <= m; i++) {
+        if (bmgs_buffers.shift(i) == len) {
+          bmgs_buffers.shift(i) = suffix - start;
+        }
+        if (i == suffix) {
+          suffix = bmgs_buffers.suffix(suffix);
+        }
+      }
+    }
+    // End of Good Suffix computation.
+
+    // Continue search from i.
+    do {
+      int j = m - 1;
+      schar c;
+      while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
+      if (j < 0) {
+        return idx;
+      } else if (j < start) {
+        // we have matched more than our tables allow us to be smart about.
+        idx += 1;
+      } else {
+        int gs_shift = bmgs_buffers.shift(j + 1);
+        int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
+        int bc_shift = j - bc_occ;
+        idx += (gs_shift > bc_shift) ? gs_shift : bc_shift;
+      }
+    } while (idx <= n - m);
+  }
+
   return -1;
 }
 
@@ -1116,11 +1144,14 @@ static int SimpleIndexOf(Vector<const schar> subject,
   for (int i = start_index, n = subject_length - pattern_length; i <= n; i++) {
     if (subject[i] != pattern_first_char) continue;
     int j = 1;
-    while (pattern[j] == subject[j+i]) {
-      j++;
-      if (j == pattern_length) {
-        return i;
+    do {
+      if (pattern[j] != subject[j+i]) {
+        break;
       }
+      j++;
+    } while (j < pattern_length);
+    if (j == pattern_length) {
+      return i;
     }
   }
   return -1;
@@ -1136,7 +1167,7 @@ static int StringMatchStrategy(Vector<const schar> sub,
 
   // For small searches, a complex sort is not worth the setup overhead.
   int subject_length = sub.length() - start_index;
-  if (subject_length < 100 || pattern_length < 4) {
+  if (subject_length < 100 || pattern_length < 8) {
     return SimpleIndexOf(sub, pat, start_index);
   }
 
