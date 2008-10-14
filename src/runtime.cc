@@ -1150,28 +1150,47 @@ static int SingleCharIndexOf(Vector<const schar> string,
 }
 
 // Trivial string search for shorter strings.
+// On return, if "complete" is set to true, the return value is the
+// final result of searching for the patter in the subject.
+// If "complete" is set to false, the return value is the index where
+// further checking should start, i.e., it's guaranteed that the pattern
+// does not occur at a position prior to the returned index.
 template <typename pchar, typename schar>
 static int SimpleIndexOf(Vector<const schar> subject,
                          Vector<const pchar> pattern,
-                         int start_index) {
+                         int start_index,
+                         bool &complete) {
   int pattern_length = pattern.length();
   int subject_length = subject.length();
+  // Badness is a count of how many extra times the same character
+  // is checked. We compare it to the index counter, so we start
+  // it at the start_index, and give it a little discount to avoid
+  // very early bail-outs.
+  int badness = start_index - pattern_length;
   // We know our pattern is at least 2 characters, we cache the first so
   // the common case of the first character not matching is faster.
   pchar pattern_first_char = pattern[0];
+
   for (int i = start_index, n = subject_length - pattern_length; i <= n; i++) {
     if (subject[i] != pattern_first_char) continue;
     int j = 1;
     do {
-      if (pattern[j] != subject[j+i]) {
+      if (pattern[j] != subject[i+j]) {
         break;
       }
       j++;
     } while (j < pattern_length);
     if (j == pattern_length) {
+      complete = true;
       return i;
     }
+    badness += j;
+    if (badness > i) {  // More than one extra character on average.
+      complete = false;
+      return (i + 1);  // No matches up to index i+1.
+    }
   }
+  complete = true;
   return -1;
 }
 
@@ -1180,16 +1199,13 @@ template <typename schar, typename pchar>
 static int StringMatchStrategy(Vector<const schar> sub,
                                Vector<const pchar> pat,
                                int start_index) {
-  int pattern_length = pat.length();
-  ASSERT(pattern_length > 1);
+  ASSERT(pat.length() > 1);
 
   // For small searches, a complex sort is not worth the setup overhead.
-  int subject_length = sub.length() - start_index;
-  if (subject_length < 100 || pattern_length < 8) {
-    return SimpleIndexOf(sub, pat, start_index);
-  }
-
-  return BoyerMooreIndexOf(sub, pat, start_index);
+  bool complete;
+  int idx = SimpleIndexOf(sub, pat, start_index, complete);
+  if (complete) return idx;
+  return BoyerMooreIndexOf(sub, pat, idx);
 }
 
 // Perform string match of pattern on subject, starting at start index.
