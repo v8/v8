@@ -952,6 +952,145 @@ static Object* Runtime_CharFromCode(Arguments args) {
 }
 
 
+// Cap on the maximal shift in the Boyer-Moore implementation. By setting a
+// limit, we can fix the size of tables.
+static const int kBMMaxShift = 0xff;
+static const int kBMAlphabetSize = 0x100;  // Reduce alphabet to this size.
+
+// Holds the two buffers used by Boyer-Moore string search's Good Suffix
+// shift. Only allows the last kBMMaxShift characters of the needle
+// to be indexed.
+class BMGoodSuffixBuffers: public AllStatic {
+ public:
+  BMGoodSuffixBuffers() {}
+  inline void init(int needle_length) {
+    ASSERT(needle_length > 1);
+    int start = needle_length < kBMMaxShift ? 0 : needle_length - kBMMaxShift;
+    int len = needle_length - start;
+    biased_suffixes_ = suffixes_ - start;
+    biased_good_suffix_shift_ = good_suffix_shift_ - start;
+    for (int i = 0; i <= len; i++) {
+      good_suffix_shift_[i] = len;
+    }
+  }
+  inline int& suffix(int index) {
+    ASSERT(biased_suffixes_ + index >= suffixes_);
+    return biased_suffixes_[index];
+  }
+  inline int& shift(int index) {
+    ASSERT(biased_good_suffix_shift_ + index >= good_suffix_shift_);
+    return biased_good_suffix_shift_[index];
+  }
+ private:
+  int suffixes_[kBMMaxShift + 1];
+  int good_suffix_shift_[kBMMaxShift + 1];
+  int *biased_suffixes_;
+  int *biased_good_suffix_shift_;
+  DISALLOW_COPY_AND_ASSIGN(BMGoodSuffixBuffers);
+};
+
+// buffers reused by BoyerMoore
+static int bad_char_occurence[kBMAlphabetSize];
+static BMGoodSuffixBuffers bmgs_buffers;
+
+// Restricted Boyer-Moore string matching. Restricts tables to a
+// suffix of long pattern strings and handles only equivalence classes
+// of the full alphabet. This allows us to ensure that tables take only
+// a fixed amount of space.
+template <typename schar, typename pchar>
+static int BoyerMooreIndexOf(Vector<const schar> subject,
+                             Vector<const pchar> pattern,
+                             int start_index) {
+  int m = pattern.length();
+  int n = subject.length();
+
+  // Only preprocess at most kBMMaxShift last characters of pattern.
+  int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
+  int len = m - start;
+
+  // Run forwards to populate bad_char_table, so that *last* instance
+  // of character equivalence class is the one registered.
+  // Notice: Doesn't include last character.
+  for (int i = 0; i < kBMAlphabetSize; i++) {
+    bad_char_occurence[i] = start - 1;
+  }
+  for (int i = start; i < m; i++) {
+    uc32 c = pattern[i];
+    bad_char_occurence[c % kBMAlphabetSize] = i;
+    if (sizeof(schar) == 1 &&
+        sizeof(pchar) > 1 &&
+        c > String::kMaxAsciiCharCode) {
+      return -1;
+    }
+  }
+  // End of Bad Char computation.
+
+  // Compute Good Suffix shift table.
+  bmgs_buffers.init(m);
+
+  bmgs_buffers.shift(m-1) = 1;
+  bmgs_buffers.suffix(m) = m + 1;
+  pchar last_char = pattern[m - 1];
+  int suffix = m + 1;
+  for (int i = m; i > start;) {
+    for (pchar c = pattern[i - 1]; suffix <= m && c != pattern[suffix - 1];) {
+      if (bmgs_buffers.shift(suffix) == len) {
+        bmgs_buffers.shift(suffix) = suffix - i;
+      }
+      suffix = bmgs_buffers.suffix(suffix);
+    }
+    i--;
+    suffix--;
+    bmgs_buffers.suffix(i) = suffix;
+    if (suffix == m) {
+      // no suffix to extend, so we check against last_char only.
+      while (i > start && pattern[i - 1] != last_char) {
+        if (bmgs_buffers.shift(m) == len) {
+          bmgs_buffers.shift(m) = m - i;
+        }
+        i--;
+        bmgs_buffers.suffix(i) = m;
+      }
+      if (i > start) {
+        i--;
+        suffix--;
+        bmgs_buffers.suffix(i) = suffix;
+      }
+    }
+  }
+  if (suffix < m) {
+    for (int i = start; i <= m; i++) {
+      if (bmgs_buffers.shift(i) == len) {
+        bmgs_buffers.shift(i) = suffix - start;
+      }
+      if (i == suffix) {
+        suffix = bmgs_buffers.suffix(suffix);
+      }
+    }
+  }
+  // End of Good Suffix computation.
+
+
+  // Perform search
+  for (int i = start_index; i <= n - m;) {
+    int j = m - 1;
+    schar c;
+    while (j >= 0 && pattern[j] == (c = subject[i + j])) j--;
+    if (j < 0) {
+      return i;
+    } else if (j < start) {
+      // we have matched more than our tables allow us to be smart about.
+      i += 1;
+    } else {
+      int gs_shift = bmgs_buffers.shift(j + 1);
+      int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
+      int bc_shift = j - bc_occ;
+      i += (gs_shift > bc_shift) ? gs_shift : bc_shift;
+    }
+  }
+  return -1;
+}
+
 template <typename schar, typename pchar>
 static int SingleCharIndexOf(Vector<const schar> string,
                              pchar pattern_char,
@@ -976,124 +1115,12 @@ static int SimpleIndexOf(Vector<const schar> subject,
   pchar pattern_first_char = pattern[0];
   for (int i = start_index, n = subject_length - pattern_length; i <= n; i++) {
     if (subject[i] != pattern_first_char) continue;
-
-    bool failure = false;
-    for (int j = 1; j < pattern_length; j++) {
-      if (pattern[j] != subject[j+i]) {
-        failure = true;
-        break;
-      }
-    }
-    if (!failure) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-// Maximal length (+1) of suffix that is indexed. Also the size of the
-// maximal bad-character skip.
-static const int kBMHSignificantSuffixLength = 0xff;
-
-// Significant bits taken from characters to use in bad-character
-// skips, to reduce size of the table for Unicode letters.
-static const int kBMHSignificantBitsMask = 0xff;
-
-// Number of elements in bad-char table.
-static const int kBMHBadCharCount = kBMHSignificantBitsMask + 1;
-
-// Simplified Boyer-Moore string matching. Only uses bad-char skipping,
-// and restricts table to a suffix of long strings (also restricting
-// the maximum possible skip-length) in order to reduce space.
-template <typename schar, typename pchar>
-static int BoyerMooreHorspoolIndexOf(Vector<const schar> subject,
-                                     Vector<const pchar> pattern,
-                                     int start_index) {
-  ASSERT(kBMHSignificantSuffixLength < 0x100);  // We can use bytes as skips.
-  static byte bad_char_map[kBMHBadCharCount];
-
-  int m = pattern.length();
-  int n = subject.length();
-  // Cap bad char table to last p chars of pattern. Also max skip value.
-  int p = m < kBMHSignificantSuffixLength ?  m : kBMHSignificantSuffixLength;
-
-  memset(bad_char_map, p, kBMHBadCharCount);
-
-  // Run forwards to populate bad_char_table, so that *last* instance
-  // of character equivalence class is the one registered.
-  // Notice: Doesn't include last character.
-  for (int i = p < m ? m - p : 0; i < m - 1; i++) {
-    uc32 c = pattern[i];
-    if (sizeof(schar) == 1 &&
-        sizeof(pchar) > 1 &&
-        c > String::kMaxAsciiCharCode) {
-      return -1;
-    }
-    bad_char_map[c & kBMHSignificantBitsMask] = m - 1 - i;
-  }
-
-  for (int i = start_index + m - 1, j = m - 1; i < n;) {
-    schar c = subject[i];
-    if (c == pattern[j]) {
-      if (j == 0) {
+    int j = 1;
+    while (pattern[j] == subject[j+i]) {
+      j++;
+      if (j == pattern_length) {
         return i;
       }
-      j--;
-      i--;
-    } else {
-      int skip = bad_char_map[c & kBMHSignificantBitsMask];
-      if (skip < (m - j)) {
-        skip = m - j;
-      }
-      i += skip;
-      j = m - 1;
-    }
-  }
-  return -1;
-}
-
-
-// Full KMP pattern match.
-template <typename schar, typename pchar>  // Pattern & subject char types
-static int KMPIndexOf(Vector<const schar> subject,
-                      Vector<const pchar> pattern,
-                      int start_index) {
-  int subject_length = subject.length();
-  int pattern_length = pattern.length();
-  SmartPointer<int> next_table(NewArray<int>(pattern_length));
-
-  // Compute KMP "next" table
-  int i = 0;
-  int j = -1;
-  next_table[0] = -1;
-
-  pchar p = pattern[0];
-  while (i < pattern_length - 1) {
-    while (j > -1 && p != pattern[j]) {
-      j = next_table[j];
-    }
-    i++;
-    j++;
-    p = pattern[i];
-    if (p == pattern[j]) {
-      next_table[i] = next_table[j];
-    } else {
-      next_table[i] = j;
-    }
-  }
-
-  // Search using the 'next' table.
-  int pattern_index = 0;
-  int subject_index = start_index;
-  while (subject_index < subject_length) {
-    schar subject_char = subject[subject_index];
-    while (pattern_index > -1 && pattern[pattern_index] != subject_char) {
-      pattern_index = next_table[pattern_index];
-    }
-    pattern_index++;
-    subject_index++;
-    if (pattern_index >= pattern_length) {
-      return subject_index - pattern_index;
     }
   }
   return -1;
@@ -1105,19 +1132,15 @@ static int StringMatchStrategy(Vector<const schar> sub,
                                Vector<const pchar> pat,
                                int start_index) {
   int pattern_length = pat.length();
-  // Searching for one specific character is common.  For one
-  // character patterns the KMP algorithm is guaranteed to slow down
-  // the search, so we just run through the subject string.
-  if (pattern_length == 1) {
-    return SingleCharIndexOf(sub, pat[0], start_index);
-  }
+  ASSERT(pattern_length > 1);
 
   // For small searches, a complex sort is not worth the setup overhead.
-  if (sub.length() - start_index < 25) {
+  int subject_length = sub.length() - start_index;
+  if (subject_length < 100 || pattern_length < 4) {
     return SimpleIndexOf(sub, pat, start_index);
   }
 
-  return BoyerMooreHorspoolIndexOf(sub, pat, start_index);
+  return BoyerMooreIndexOf(sub, pat, start_index);
 }
 
 // Perform string match of pattern on subject, starting at start index.
@@ -1136,6 +1159,17 @@ int Runtime::StringMatch(Handle<String> sub,
   if (start_index + pattern_length > subject_length) return -1;
 
   FlattenString(sub);
+  // Searching for one specific character is common.  For one
+  // character patterns linear search is necessary, so any smart
+  // algorithm is unnecessary overhead.
+  if (pattern_length == 1) {
+    AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+    if (sub->is_ascii_representation()) {
+      return SingleCharIndexOf(sub->ToAsciiVector(), pat->Get(0), start_index);
+    }
+    return SingleCharIndexOf(sub->ToUC16Vector(), pat->Get(0), start_index);
+  }
+
   FlattenString(pat);
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
