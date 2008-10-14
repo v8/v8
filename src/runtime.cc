@@ -993,6 +993,79 @@ class BMGoodSuffixBuffers: public AllStatic {
 static int bad_char_occurence[kBMAlphabetSize];
 static BMGoodSuffixBuffers bmgs_buffers;
 
+// Compute the bad-char table for Boyer-Moore in the static buffer.
+// Return false if the pattern contains non-ASCII characters that cannot be
+// in the searched string.
+template <typename pchar, bool check_ascii>
+static bool BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
+                                          int start) {
+  // Run forwards to populate bad_char_table, so that *last* instance
+  // of character equivalence class is the one registered.
+  // Notice: Doesn't include the last character.
+  for (int i = 0; i < kBMAlphabetSize; i++) {
+    bad_char_occurence[i] = start - 1;
+  }
+  for (int i = start; i < pattern.length(); i++) {
+    uc32 c = pattern[i];
+    bad_char_occurence[c % kBMAlphabetSize] = i;
+    if (check_ascii &&
+        c > String::kMaxAsciiCharCode) {
+      return false;
+    }
+  }
+  return true;
+}
+
+template <typename pchar>
+static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
+                                              int start,
+                                              int len) {
+  int m = pattern.length();
+  // Compute Good Suffix tables.
+  bmgs_buffers.init(m);
+
+  bmgs_buffers.shift(m-1) = 1;
+  bmgs_buffers.suffix(m) = m + 1;
+  pchar last_char = pattern[m - 1];
+  int suffix = m + 1;
+  for (int i = m; i > start;) {
+    for (pchar c = pattern[i - 1]; suffix <= m && c != pattern[suffix - 1];) {
+      if (bmgs_buffers.shift(suffix) == len) {
+        bmgs_buffers.shift(suffix) = suffix - i;
+      }
+      suffix = bmgs_buffers.suffix(suffix);
+    }
+    i--;
+    suffix--;
+    bmgs_buffers.suffix(i) = suffix;
+    if (suffix == m) {
+      // No suffix to extend, so we check against last_char only.
+      while (i > start && pattern[i - 1] != last_char) {
+        if (bmgs_buffers.shift(m) == len) {
+          bmgs_buffers.shift(m) = m - i;
+        }
+        i--;
+        bmgs_buffers.suffix(i) = m;
+      }
+      if (i > start) {
+        i--;
+        suffix--;
+        bmgs_buffers.suffix(i) = suffix;
+      }
+    }
+  }
+  if (suffix < m) {
+    for (int i = start; i <= m; i++) {
+      if (bmgs_buffers.shift(i) == len) {
+        bmgs_buffers.shift(i) = suffix - start;
+      }
+      if (i == suffix) {
+        suffix = bmgs_buffers.suffix(suffix);
+      }
+    }
+  }
+}
+
 // Restricted Boyer-Moore string matching. Restricts tables to a
 // suffix of long pattern strings and handles only equivalence classes
 // of the full alphabet. This allows us to ensure that tables take only
@@ -1008,24 +1081,13 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
   int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
   int len = m - start;
 
-  // Run forwards to populate bad_char_table, so that *last* instance
-  // of character equivalence class is the one registered.
-  // Notice: Doesn't include last character.
-  for (int i = 0; i < kBMAlphabetSize; i++) {
-    bad_char_occurence[i] = start - 1;
-  }
-  for (int i = start; i < m; i++) {
-    uc32 c = pattern[i];
-    bad_char_occurence[c % kBMAlphabetSize] = i;
-    if (sizeof(schar) == 1 &&
-        sizeof(pchar) > 1 &&
-        c > String::kMaxAsciiCharCode) {
+  if (sizeof(pchar) > 1 && sizeof(schar) == 1) {
+    BoyerMoorePopulateBadCharTable<pchar, true>(pattern, start);
+  } else {
+    if (!BoyerMoorePopulateBadCharTable<pchar, false>(pattern, start)) {
       return -1;
     }
   }
-  // End of Bad Char computation.
-
-
 
   int badness = 0;  // How bad we are doing without a good-suffix table.
   int idx;  // No matches found prior to this index.
@@ -1052,51 +1114,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
   // If we are not done, we got here because we should build the Good Suffix
   // table and continue searching.
   if (idx <= n - m) {
-    // Compute Good Suffix tables.
-    bmgs_buffers.init(m);
-
-    bmgs_buffers.shift(m-1) = 1;
-    bmgs_buffers.suffix(m) = m + 1;
-    pchar last_char = pattern[m - 1];
-    int suffix = m + 1;
-    for (int i = m; i > start;) {
-      for (pchar c = pattern[i - 1]; suffix <= m && c != pattern[suffix - 1];) {
-        if (bmgs_buffers.shift(suffix) == len) {
-          bmgs_buffers.shift(suffix) = suffix - i;
-        }
-        suffix = bmgs_buffers.suffix(suffix);
-      }
-      i--;
-      suffix--;
-      bmgs_buffers.suffix(i) = suffix;
-      if (suffix == m) {
-        // no suffix to extend, so we check against last_char only.
-        while (i > start && pattern[i - 1] != last_char) {
-          if (bmgs_buffers.shift(m) == len) {
-            bmgs_buffers.shift(m) = m - i;
-          }
-          i--;
-          bmgs_buffers.suffix(i) = m;
-        }
-        if (i > start) {
-          i--;
-          suffix--;
-          bmgs_buffers.suffix(i) = suffix;
-        }
-      }
-    }
-    if (suffix < m) {
-      for (int i = start; i <= m; i++) {
-        if (bmgs_buffers.shift(i) == len) {
-          bmgs_buffers.shift(i) = suffix - start;
-        }
-        if (i == suffix) {
-          suffix = bmgs_buffers.suffix(suffix);
-        }
-      }
-    }
-    // End of Good Suffix computation.
-
+    BoyerMoorePopulateGoodSuffixTable(pattern, start, len);
     // Continue search from i.
     do {
       int j = m - 1;
