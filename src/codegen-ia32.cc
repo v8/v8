@@ -49,6 +49,37 @@ VirtualFrame::VirtualFrame(CodeGenerator* cgen) {
 }
 
 
+void VirtualFrame::Enter() {
+  Comment cmnt(masm_, "[ Enter JS frame");
+  __ push(ebp);
+  __ mov(ebp, Operand(esp));
+
+  // Store the context and the function in the frame.
+  __ push(esi);
+  __ push(edi);
+
+  // Clear the function slot when generating debug code.
+  if (FLAG_debug_code) {
+    __ Set(edi, Immediate(reinterpret_cast<int>(kZapValue)));
+  }
+}
+
+
+void VirtualFrame::Exit() {
+  Comment cmnt(masm_, "[ Exit JS frame");
+  // Record the location of the JS exit code for patching when setting
+  // break point.
+  __ RecordJSReturn();
+
+  // Avoid using the leave instruction here, because it is too
+  // short. We need the return sequence to be a least the size of a
+  // call instruction to support patching the exit code in the
+  // debugger. See VisitReturnStatement for the full return sequence.
+  __ mov(esp, Operand(ebp));
+  __ pop(ebp);
+}
+
+
 void VirtualFrame::AllocateLocals() {
   if (frame_local_count_ > 0) {
     Comment cmnt(masm_, "[ Allocate space for locals");
@@ -3671,37 +3702,6 @@ void CodeGenerator::RecordStatementPosition(Node* node) {
 }
 
 
-void VirtualFrame::Enter() {
-  Comment cmnt(masm_, "[ Enter JS frame");
-  __ push(ebp);
-  __ mov(ebp, Operand(esp));
-
-  // Store the context and the function in the frame.
-  __ push(esi);
-  __ push(edi);
-
-  // Clear the function slot when generating debug code.
-  if (FLAG_debug_code) {
-    __ Set(edi, Immediate(reinterpret_cast<int>(kZapValue)));
-  }
-}
-
-
-void VirtualFrame::Exit() {
-  Comment cmnt(masm_, "[ Exit JS frame");
-  // Record the location of the JS exit code for patching when setting
-  // break point.
-  __ RecordJSReturn();
-
-  // Avoid using the leave instruction here, because it is too
-  // short. We need the return sequence to be a least the size of a
-  // call instruction to support patching the exit code in the
-  // debugger. See VisitReturnStatement for the full return sequence.
-  __ mov(esp, Operand(ebp));
-  __ pop(ebp);
-}
-
-
 #undef __
 #define __ masm->
 
@@ -3852,7 +3852,7 @@ void Reference::SetValue(InitState init_state) {
         // Variable::CONST because of const declarations which will
         // initialize consts to 'the hole' value and by doing so, end up
         // calling this code.
-        __ pop(eax);
+        frame->Pop(eax);
         __ mov(cgen_->SlotOperand(slot, ecx), eax);
         frame->Push(eax);  // RecordWrite may destroy the value in eax.
         if (slot->type() == Slot::CONTEXT) {
@@ -3874,7 +3874,7 @@ void Reference::SetValue(InitState init_state) {
       Handle<String> name(GetName());
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      __ pop(eax);
+      frame->Pop(eax);
       // Setup the name register.
       __ mov(ecx, name);
       __ call(ic, RelocInfo::CODE_TARGET);
@@ -3890,7 +3890,7 @@ void Reference::SetValue(InitState init_state) {
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      __ pop(eax);
+      frame->Pop(eax);
       __ call(ic, RelocInfo::CODE_TARGET);
       frame->Push(eax);  // IC call leaves result in eax, push it out
       break;
