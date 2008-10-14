@@ -996,8 +996,8 @@ static BMGoodSuffixBuffers bmgs_buffers;
 // Compute the bad-char table for Boyer-Moore in the static buffer.
 // Return false if the pattern contains non-ASCII characters that cannot be
 // in the searched string.
-template <typename pchar, bool check_ascii>
-static bool BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
+template <typename pchar>
+static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
                                           int start) {
   // Run forwards to populate bad_char_table, so that *last* instance
   // of character equivalence class is the one registered.
@@ -1006,14 +1006,8 @@ static bool BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
     bad_char_occurence[i] = start - 1;
   }
   for (int i = start; i < pattern.length(); i++) {
-    uc32 c = pattern[i];
-    bad_char_occurence[c % kBMAlphabetSize] = i;
-    if (check_ascii &&
-        c > String::kMaxAsciiCharCode) {
-      return false;
-    }
+    bad_char_occurence[pattern[i] % kBMAlphabetSize] = i;
   }
-  return true;
 }
 
 template <typename pchar>
@@ -1081,13 +1075,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
   int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
   int len = m - start;
 
-  if (sizeof(pchar) > 1 && sizeof(schar) == 1) {
-    BoyerMoorePopulateBadCharTable<pchar, true>(pattern, start);
-  } else {
-    if (!BoyerMoorePopulateBadCharTable<pchar, false>(pattern, start)) {
-      return -1;
-    }
-  }
+  BoyerMoorePopulateBadCharTable(pattern, start);
 
   int badness = 0;  // How bad we are doing without a good-suffix table.
   int idx;  // No matches found prior to this index.
@@ -1201,6 +1189,17 @@ static int StringMatchStrategy(Vector<const schar> sub,
                                int start_index) {
   ASSERT(pat.length() > 1);
 
+  // We have an ASCII haystack and a non-ASCII needle. Check if there
+  // really is a non-ASCII character in the needle and bail out if there
+  // is.
+  if (sizeof(pchar) > 1 && sizeof(schar) == 1) {
+    for (int i = 0; i < pat.length(); i++) {
+      uc16 c = pat[i];
+      if (c > String::kMaxAsciiCharCode) {
+        return -1;
+      }
+    }
+  }
   // For small searches, a complex sort is not worth the setup overhead.
   bool complete;
   int idx = SimpleIndexOf(sub, pat, start_index, complete);
