@@ -120,27 +120,13 @@ var lipsum = "lorem ipsum per se esse fugiendum. itaque aiunt hanc quasi "
     + "ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi "
     + "consequatur? quis autem vel eum iure reprehenderit, qui in ea "
     + "voluptate velit esse, quam nihil molestiae consequatur, vel illum, "
-    + "qui dolorem eum fugiat, quo voluptas nulla pariatur?\n"
-    + "At vero eos et accusamus et iusto odio dignissimos ducimus, qui "
-    + "blanditiis praesentium voluptatum deleniti atque corrupti, quos "
-    + "dolores et quas molestias excepturi sint, obcaecati cupiditate "
-    + "non provident, similique sunt in culpa, qui officia deserunt "
-    + "mollitia animi, id est laborum et dolorum fuga. et harum quidem "
-    + "rerum facilis est et expedita distinctio. nam libero tempore, "
-    + "cum soluta nobis est eligendi optio, cumque nihil impedit, quo "
-    + "minus id, quod maxime placeat, facere possimus, omnis voluptas "
-    + "assumenda est, omnis dolor repellendus. temporibus autem "
-    + "quibusdam et aut officiis debitis aut rerum necessitatibus "
-    + "saepe eveniet, ut et voluptates repudiandae sint et molestiae "
-    + "non recusandae. itaque earum rerum hic tenetur a sapiente "
-    + "delectus, ut aut reiciendis voluptatibus maiores alias consequatur "
-    + "aut perferendis doloribus asperiores repellat.";
+    + "qui dolorem eum fugiat, quo voluptas nulla pariatur?\n";
 
 assertEquals(893, lipsum.indexOf("lorem ipsum, quia dolor sit, amet"),
         "Lipsum");
 // test a lot of substrings of differing length and start-position.
-for(var i = 255; i < lipsum.length; i += 3) {
-  for(var len = 661; i + len < lipsum.length; len += 4) {
+for(var i = 0; i < lipsum.length; i += 3) {
+  for(var len = 1; i + len < lipsum.length; len += 7) {
     var substring = lipsum.substring(i, i + len);
     var index = -1;
     do {
