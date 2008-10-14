@@ -2166,7 +2166,8 @@ static Object* ConvertCase(Arguments args,
   // We can assume that the string is not empty
   uc32 current = buffer->GetNext();
   while (i < length) {
-    uc32 next = buffer->has_more() ? buffer->GetNext() : 0;
+    bool has_next = buffer->has_more();
+    uc32 next = has_next ? buffer->GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
@@ -2190,12 +2191,21 @@ static Object* ConvertCase(Arguments args,
       // "realloc" it and probably, in the vast majority of cases,
       // extend the existing string to be able to hold the full
       // result.
-      int current_length = i + char_length + mapping->get(next, 0, chars);
+      int next_length = 0;
+      if (has_next) {
+        next_length = mapping->get(next, 0, chars);
+        if (next_length == 0) next_length = 1;
+      }
+      int current_length = i + char_length + next_length;
       while (buffer->has_more()) {
         current = buffer->GetNext();
+        // NOTE: we use 0 as the next character here because, while
+        // the next character may affect what a character converts to,
+        // it does not in any case affect the length of what it convert
+        // to.
         int char_length = mapping->get(current, 0, chars);
         if (char_length == 0) char_length = 1;
-        current += char_length;
+        current_length += char_length;
       }
       length = current_length;
       goto try_convert;
