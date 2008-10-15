@@ -499,10 +499,19 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   Register reg =
       __ CheckMaps(JSObject::cast(object), edx, holder, ebx, ecx, &miss);
 
-  // Get the properties array of the holder and get the function from the field.
-  int offset = index * kPointerSize + Array::kHeaderSize;
-  __ mov(edi, FieldOperand(reg, JSObject::kPropertiesOffset));
-  __ mov(edi, FieldOperand(edi, offset));
+  // Adjust for the number of properties stored in the holder.
+  index -= holder->map()->inobject_properties();
+  if (index < 0) {
+    // Get the property straight out of the holder.
+    int offset = holder->map()->instance_size() + (index * kPointerSize);
+    __ mov(edi, FieldOperand(reg, offset));
+  } else {
+    // Get the properties array of the holder and get the function from
+    // the field.
+    int offset = index * kPointerSize + Array::kHeaderSize;
+    __ mov(edi, FieldOperand(reg, JSObject::kPropertiesOffset));
+    __ mov(edi, FieldOperand(edi, offset));
+  }
 
   // Check that the function really is a function.
   __ test(edi, Immediate(kSmiTagMask));

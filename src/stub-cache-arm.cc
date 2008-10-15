@@ -209,10 +209,19 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   Register reg =
       __ CheckMaps(JSObject::cast(object), r1, holder, r3, r2, &miss);
 
-  // Get the properties array of the holder and get the function from the field.
-  int offset = index * kPointerSize + Array::kHeaderSize;
-  __ ldr(r1, FieldMemOperand(reg, JSObject::kPropertiesOffset));
-  __ ldr(r1, FieldMemOperand(r1, offset));
+  // Adjust for the number of properties stored in the holder.
+  index -= holder->map()->inobject_properties();
+  if (index < 0) {
+    // Get the property straight out of the holder.
+    int offset = holder->map()->instance_size() + (index * kPointerSize);
+    __ ldr(r1, FieldMemOperand(reg, offset));
+  } else {
+    // Get the properties array of the holder and get the function from
+    // the field.
+    int offset = index * kPointerSize + Array::kHeaderSize;
+    __ ldr(r1, FieldMemOperand(reg, JSObject::kPropertiesOffset));
+    __ ldr(r1, FieldMemOperand(r1, offset));
+  }
 
   // Check that the function really is a function.
   __ tst(r1, Operand(kSmiTagMask));
