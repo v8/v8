@@ -317,7 +317,7 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
             key->ShortPrint();
           }
           Add(": ");
-          Object* value = js_object->properties()->get(r.GetFieldIndex());
+          Object* value = js_object->FastPropertyAt(r.GetFieldIndex());
           Add("%o\n", value);
         }
       }

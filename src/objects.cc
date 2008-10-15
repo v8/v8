@@ -366,7 +366,7 @@ Object* Object::GetProperty(Object* receiver,
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? Heap::undefined_value() : value;
     case FIELD:
-      value = holder->properties()->get(result->GetFieldIndex());
+      value = holder->FastPropertyAt(result->GetFieldIndex());
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? Heap::undefined_value() : value;
     case CONSTANT_FUNCTION:
@@ -936,20 +936,16 @@ Object* JSObject::AddFastPropertyUsingMap(Map* new_map,
                                           String* name,
                                           Object* value) {
   int index = new_map->PropertyIndexFor(name);
-  if (map()->unused_property_fields() > 0) {
-    ASSERT(index < properties()->length());
-    properties()->set(index, value);
-  } else {
+  if (map()->unused_property_fields() == 0) {
     ASSERT(map()->unused_property_fields() == 0);
     int new_unused = new_map->unused_property_fields();
     Object* values =
         properties()->CopySize(properties()->length() + new_unused + 1);
     if (values->IsFailure()) return values;
-    FixedArray::cast(values)->set(index, value);
     set_properties(FixedArray::cast(values));
   }
   set_map(new_map);
-  return value;
+  return FastPropertyAtPut(index, value);
 }
 
 
@@ -980,7 +976,8 @@ Object* JSObject::AddFastProperty(String* name,
         !old_descriptors->Contains(name) &&
         (Top::context()->global_context()->object_function()->map() != map());
 
-  ASSERT(index < properties()->length() ||
+  ASSERT(index < map()->inobject_properties() ||
+         (index - map()->inobject_properties()) < properties()->length() ||
          map()->unused_property_fields() == 0);
   // Allocate a new map for the object.
   Object* r = map()->Copy();
@@ -993,7 +990,6 @@ Object* JSObject::AddFastProperty(String* name,
     if (r->IsFailure()) return r;
     old_descriptors = DescriptorArray::cast(r);
   }
-
 
   if (map()->unused_property_fields() == 0) {
     if (properties()->length() > kMaxFastProperties) {
@@ -1015,9 +1011,7 @@ Object* JSObject::AddFastProperty(String* name,
   map()->set_instance_descriptors(old_descriptors);
   new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
   set_map(new_map);
-  properties()->set(index, value);
-
-  return value;
+  return FastPropertyAtPut(index, value);
 }
 
 
@@ -1211,8 +1205,7 @@ Object* JSObject::ConvertDescriptorToField(String* name,
   if (new_properties) {
     set_properties(FixedArray::cast(new_properties));
   }
-  properties()->set(index, new_value);
-  return new_value;
+  return FastPropertyAtPut(index, new_value);
 }
 
 
@@ -1377,7 +1370,7 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
       // Disallow caching for uninitialized constants. These can only
       // occur as fields.
       if (result->IsReadOnly() && result->type() == FIELD &&
-          properties()->get(result->GetFieldIndex())->IsTheHole()) {
+          FastPropertyAt(result->GetFieldIndex())->IsTheHole()) {
         result->DisallowCaching();
       }
       return;
@@ -1514,8 +1507,7 @@ Object* JSObject::SetProperty(LookupResult* result,
       property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
       return value;
     case FIELD:
-      properties()->set(result->GetFieldIndex(), value);
-      return value;
+      return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:
       if (attributes == result->GetAttributes()) {
         // Only use map transition if the attributes match.
@@ -1585,8 +1577,7 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
       property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
       return value;
     case FIELD:
-      properties()->set(result->GetFieldIndex(), value);
-      return value;
+      return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:
       if (attributes == result->GetAttributes()) {
         // Only use map transition if the attributes match.
@@ -1780,7 +1771,7 @@ Object* JSObject::NormalizeProperties() {
       case FIELD: {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
-        Object* value = properties()->get(r.GetFieldIndex());
+        Object* value = FastPropertyAt(r.GetFieldIndex());
         Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
         if (result->IsFailure()) return result;
         dictionary = Dictionary::cast(result);
@@ -2335,7 +2326,7 @@ Object* JSObject::SlowReverseLookup(Object* value) {
          !r.eos();
          r.advance()) {
       if (r.type() == FIELD) {
-        if (properties()->get(r.GetFieldIndex()) == value) {
+        if (FastPropertyAt(r.GetFieldIndex()) == value) {
           return r.GetKey();
         }
       } else if (r.type() == CONSTANT_FUNCTION) {
@@ -2359,6 +2350,7 @@ Object* Map::Copy() {
   // Don't copy descriptors, so map transitions always remain a forest.
   Map::cast(result)->set_instance_descriptors(Heap::empty_descriptor_array());
   // Please note instance_type and instance_size are set when allocated.
+  Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->ClearCodeCache();

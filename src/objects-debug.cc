@@ -263,7 +263,7 @@ void JSObject::PrintProperties() {
       r.GetKey()->StringPrint();
       PrintF(": ");
       if (r.type() == FIELD) {
-        properties()->get(r.GetFieldIndex())->ShortPrint();
+        FastPropertyAt(r.GetFieldIndex())->ShortPrint();
         PrintF(" (field at offset %d)\n", r.GetFieldIndex());
       } else if (r.type() ==  CONSTANT_FUNCTION) {
         r.GetConstantFunction()->ShortPrint();
@@ -313,7 +313,8 @@ void JSObject::JSObjectVerify() {
   VerifyHeapPointer(elements());
   if (HasFastProperties()) {
     CHECK(map()->unused_property_fields() ==
-          (properties()->length() - map()->NextFreePropertyIndex()));
+          (map()->inobject_properties() + properties()->length() -
+           map()->NextFreePropertyIndex()));
   }
 }
 

@@ -1349,6 +1349,11 @@ class JSObject: public HeapObject {
   // Returns failure if allocation failed.
   Object* TransformToFastProperties(int unused_property_fields);
 
+  // Access fast-case object properties at index.
+  inline Object* FastPropertyAt(int index);
+  inline Object* FastPropertyAtPut(int index, Object* value);
+
+
   // initializes the body after properties slot, properties slot is
   // initialized by set_properties
   // Note: this call does not update write barrier, it is caller's
@@ -2254,6 +2259,10 @@ class Map: public HeapObject {
   inline int instance_size();
   inline void set_instance_size(int value);
 
+  // Count of properties allocated in the object.
+  inline int inobject_properties();
+  inline void set_inobject_properties(int value);
+
   // instance type.
   inline InstanceType instance_type();
   inline void set_instance_type(InstanceType value);
@@ -2396,7 +2405,8 @@ class Map: public HeapObject {
 #endif
 
   // Layout description.
-  static const int kInstanceAttributesOffset = HeapObject::kHeaderSize;
+  static const int kInstanceSizesOffset = HeapObject::kHeaderSize;
+  static const int kInstanceAttributesOffset = kInstanceSizesOffset + kIntSize;
   static const int kPrototypeOffset = kInstanceAttributesOffset + kIntSize;
   static const int kConstructorOffset = kPrototypeOffset + kPointerSize;
   static const int kInstanceDescriptorsOffset =
@@ -2404,11 +2414,17 @@ class Map: public HeapObject {
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
   static const int kSize = kCodeCacheOffset + kIntSize;
 
+  // Byte offsets within kInstanceSizesOffset.
+  static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
+  static const int kInObjectPropertiesOffset = kInstanceSizesOffset + 1;
+  // The bytes at positions 2 and 3 are not in use at the moment.
+
+
   // Byte offsets within kInstanceAttributesOffset attributes.
-  static const int kInstanceSizeOffset = kInstanceAttributesOffset + 0;
-  static const int kInstanceTypeOffset = kInstanceAttributesOffset + 1;
-  static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 2;
-  static const int kBitFieldOffset = kInstanceAttributesOffset + 3;
+  static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
+  static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 1;
+  static const int kBitFieldOffset = kInstanceAttributesOffset + 2;
+  // The  byte at position 3 is not in use at the moment.
 
   // Bit positions for bit field.
   static const int kUnused = 0;  // To be used for marking recently used maps.

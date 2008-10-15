@@ -3978,7 +3978,7 @@ static Object* DebugLookupResultValue(LookupResult* result) {
     case FIELD:
       value =
           JSObject::cast(
-              result->holder())->properties()->get(result->GetFieldIndex());
+              result->holder())->FastPropertyAt(result->GetFieldIndex());
       if (value->IsTheHole()) {
         return Heap::undefined_value();
       }

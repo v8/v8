@@ -1161,7 +1161,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           HandleScope inner;
           Handle<String> key = Handle<String>(stream.GetKey());
           int index = stream.GetFieldIndex();
-          Handle<Object> value = Handle<Object>(from->properties()->get(index));
+          Handle<Object> value = Handle<Object>(from->FastPropertyAt(index));
           SetProperty(to, key, value, details.attributes());
           break;
         }

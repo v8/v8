@@ -111,6 +111,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     // edi: constructor
     // eax: initial map
     __ movzx_b(edi, FieldOperand(eax, Map::kInstanceSizeOffset));
+    __ shl(edi, kPointerSizeLog2);
     // Make sure that the maximum heap object size will never cause us
     // problem here, because it is always greater than the maximum
     // instance size that can be represented in a byte.
@@ -163,8 +164,11 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     // ebx: JSObject
     // edi: start of next object
     __ movzx_b(edx, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
+    __ movzx_b(ecx, FieldOperand(eax, Map::kInObjectPropertiesOffset));
+    // Calculate unused properties past the end of the in-object properties.
+    __ sub(edx, Operand(ecx));
     __ test(edx, Operand(edx));
-    // Done if no unused properties are to be allocated.
+    // Done if no extra properties are to be allocated.
     __ j(zero, &allocated);
 
     // Scale the number of elements by pointer size and add the header for

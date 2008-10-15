@@ -898,21 +898,61 @@ int JSObject::GetHeaderSize() {
 
 int JSObject::GetInternalFieldCount() {
   ASSERT(1 << kPointerSizeLog2 == kPointerSize);
-  return (Size() - GetHeaderSize()) >> kPointerSizeLog2;
+  // Make sure to adjust for the number of in-object properties. These
+  // properties do contribute to the size, but are not internal fields.
+  return ((Size() - GetHeaderSize()) >> kPointerSizeLog2) -
+         map()->inobject_properties();
 }
 
 
 Object* JSObject::GetInternalField(int index) {
   ASSERT(index < GetInternalFieldCount() && index >= 0);
+  // Internal objects do follow immediately after the header, whereas in-object
+  // properties are at the end of the object. Therefore there is no need
+  // to adjust the index here.
   return READ_FIELD(this, GetHeaderSize() + (kPointerSize * index));
 }
 
 
 void JSObject::SetInternalField(int index, Object* value) {
   ASSERT(index < GetInternalFieldCount() && index >= 0);
+  // Internal objects do follow immediately after the header, whereas in-object
+  // properties are at the end of the object. Therefore there is no need
+  // to adjust the index here.
   int offset = GetHeaderSize() + (kPointerSize * index);
   WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(this, offset);
+}
+
+
+// Access fast-case object properties at index. The use of these routines
+// is needed to correctly distinguish between properties stored in-object and
+// properties stored in the properties array.
+inline Object* JSObject::FastPropertyAt(int index) {
+  // Adjust for the number of properties stored in the object.
+  index -= map()->inobject_properties();
+  if (index < 0) {
+    int offset = map()->instance_size() + (index * kPointerSize);
+    return READ_FIELD(this, offset);
+  } else {
+    ASSERT(index < properties()->length());
+    return properties()->get(index);
+  }
+}
+
+
+inline Object* JSObject::FastPropertyAtPut(int index, Object* value) {
+  // Adjust for the number of properties stored in the object.
+  index -= map()->inobject_properties();
+  if (index < 0) {
+    int offset = map()->instance_size() + (index * kPointerSize);
+    WRITE_FIELD(this, offset, value);
+    WRITE_BARRIER(this, offset);
+  } else {
+    ASSERT(index < properties()->length());
+    properties()->set(index, value);
+  }
+  return value;
 }
 
 
@@ -1529,7 +1569,12 @@ Address ByteArray::GetDataStartAddress() {
 
 
 int Map::instance_size() {
-  return READ_BYTE_FIELD(this, kInstanceSizeOffset);
+  return READ_BYTE_FIELD(this, kInstanceSizeOffset) << kPointerSizeLog2;
+}
+
+
+int Map::inobject_properties() {
+  return READ_BYTE_FIELD(this, kInObjectPropertiesOffset);
 }
 
 
@@ -1546,8 +1591,16 @@ int HeapObject::SizeFromMap(Map* map) {
 
 
 void Map::set_instance_size(int value) {
+  ASSERT((value & ~(kPointerSize - 1)) == value);
+  value >>= kPointerSizeLog2;
   ASSERT(0 <= value && value < 256);
   WRITE_BYTE_FIELD(this, kInstanceSizeOffset, static_cast<byte>(value));
+}
+
+
+void Map::set_inobject_properties(int value) {
+  ASSERT(0 <= value && value < 256);
+  WRITE_BYTE_FIELD(this, kInObjectPropertiesOffset, static_cast<byte>(value));
 }
 
 

@@ -843,6 +843,7 @@ Object* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_map(meta_map());
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
+  reinterpret_cast<Map*>(result)->set_inobject_properties(0);
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   return result;
 }
@@ -858,6 +859,7 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_prototype(null_value());
   map->set_constructor(null_value());
   map->set_instance_size(instance_size);
+  map->set_inobject_properties(0);
   map->set_instance_descriptors(empty_descriptor_array());
   map->set_code_cache(empty_fixed_array());
   map->set_unused_property_fields(0);
@@ -1661,8 +1663,11 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
 Object* Heap::AllocateInitialMap(JSFunction* fun) {
   ASSERT(!fun->has_initial_map());
 
-  // First create a new map.
-  Object* map_obj = Heap::AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  // First create a new map with the expected number of properties being
+  // allocated in-object.
+  int expected_nof_properties = fun->shared()->expected_nof_properties();
+  Object* map_obj = Heap::AllocateMap(JS_OBJECT_TYPE,
+      JSObject::kHeaderSize + expected_nof_properties * kPointerSize);
   if (map_obj->IsFailure()) return map_obj;
 
   // Fetch or allocate prototype.
@@ -1674,7 +1679,8 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
     if (prototype->IsFailure()) return prototype;
   }
   Map* map = Map::cast(map_obj);
-  map->set_unused_property_fields(fun->shared()->expected_nof_properties());
+  map->set_inobject_properties(expected_nof_properties);
+  map->set_unused_property_fields(expected_nof_properties);
   map->set_prototype(prototype);
   return map;
 }
@@ -1702,7 +1708,8 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
 
   // Allocate the backing storage for the properties.
-  Object* properties = AllocateFixedArray(map->unused_property_fields());
+  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  Object* properties = AllocateFixedArray(prop_size);
   if (properties->IsFailure()) return properties;
 
   // Allocate the JSObject.
@@ -1751,7 +1758,8 @@ Object* Heap::ReinitializeJSGlobalObject(JSFunction* constructor,
   ASSERT(map->instance_size() == object->map()->instance_size());
 
   // Allocate the backing storage for the properties.
-  Object* properties = AllocateFixedArray(map->unused_property_fields());
+  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  Object* properties = AllocateFixedArray(prop_size);
   if (properties->IsFailure()) return properties;
 
   // Reset the map for the object.
