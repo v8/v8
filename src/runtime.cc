@@ -891,10 +891,11 @@ static Object* Runtime_SetCode(Arguments args) {
     target->shared()->set_length(fun->shared()->length());
     target->shared()->set_formal_parameter_count(
         fun->shared()->formal_parameter_count());
-    // Set the source code of the target function.
-    target->shared()->set_script(fun->shared()->script());
-    target->shared()->set_start_position(fun->shared()->start_position());
-    target->shared()->set_end_position(fun->shared()->end_position());
+    // Set the source code of the target function to undefined.
+    // SetCode is only used for built-in constructors like String,
+    // Array, and Object, and some web code
+    // doesn't like seeing source code for constructors.
+    target->shared()->set_script(Heap::undefined_value());
     context = Handle<Context>(fun->context());
 
     // Make sure we get a fresh copy of the literal vector to avoid
