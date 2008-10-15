@@ -707,8 +707,13 @@ bool Logger::Setup() {
               stream.Add("%u", time);
               break;
             }
+            case '%':
+              // %% expands (contracts really) to %.
+              stream.Put('%');
+              break;
             default:
               // All other %'s expand to themselves.
+              stream.Put('%');
               stream.Put(*p);
               break;
           }
