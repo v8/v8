@@ -425,7 +425,7 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
     // face of a transition we can use the old map here because the size of the
     // object and the number of in-object properties is not going to change.
     index -= object->map()->inobject_properties();
-    
+
     if (index >= 0) {
       // Get the properties array
       __ ldr(r1, FieldMemOperand(r3, JSObject::kPropertiesOffset));
@@ -442,11 +442,11 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
       // Set the property straight into the object.
       int offset = object->map()->instance_size() + (index * kPointerSize);
       __ str(r0, FieldMemOperand(r3, offset));
-      
+
       // Skip updating write barrier if storing a smi.
       __ tst(r0, Operand(kSmiTagMask));
       __ b(eq, &exit);
-      
+
       // Update the write barrier for the array address.
       __ mov(r1, Operand(offset));
       __ RecordWrite(r3, r1, r2);
