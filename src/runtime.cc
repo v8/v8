@@ -956,7 +956,11 @@ static Object* Runtime_CharFromCode(Arguments args) {
 // Cap on the maximal shift in the Boyer-Moore implementation. By setting a
 // limit, we can fix the size of tables.
 static const int kBMMaxShift = 0xff;
-static const int kBMAlphabetSize = 0x100;  // Reduce alphabet to this size.
+// Reduce alphabet to this size.
+static const int kBMAlphabetSize = 0x100;
+// For patterns below this length, the skip length of Boyer-Moore is too short
+// to compensate for the algorithmic overhead compared to simple brute force.
+static const int kBMMinPatternLength = 5;
 
 // Holds the two buffers used by Boyer-Moore string search's Good Suffix
 // shift. Only allows the last kBMMaxShift characters of the needle
@@ -995,8 +999,6 @@ static int bad_char_occurence[kBMAlphabetSize];
 static BMGoodSuffixBuffers bmgs_buffers;
 
 // Compute the bad-char table for Boyer-Moore in the static buffer.
-// Return false if the pattern contains non-ASCII characters that cannot be
-// in the searched string.
 template <typename pchar>
 static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
                                           int start) {
@@ -1006,16 +1008,18 @@ static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
   for (int i = 0; i < kBMAlphabetSize; i++) {
     bad_char_occurence[i] = start - 1;
   }
-  for (int i = start; i < pattern.length(); i++) {
-    bad_char_occurence[pattern[i] % kBMAlphabetSize] = i;
+  for (int i = start; i < pattern.length() - 1; i++) {
+    pchar c = pattern[i];
+    int bucket = c % kBMAlphabetSize;
+    bad_char_occurence[bucket] = i;
   }
 }
 
 template <typename pchar>
 static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
-                                              int start,
-                                              int len) {
+                                              int start) {
   int m = pattern.length();
+  int len = m - start;
   // Compute Good Suffix tables.
   bmgs_buffers.init(m);
 
@@ -1061,31 +1065,44 @@ static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
   }
 }
 
-// Restricted Boyer-Moore string matching. Restricts tables to a
+
+// Restricted simplified Boyer-Moore string matching. Restricts tables to a
 // suffix of long pattern strings and handles only equivalence classes
 // of the full alphabet. This allows us to ensure that tables take only
 // a fixed amount of space.
 template <typename schar, typename pchar>
-static int BoyerMooreIndexOf(Vector<const schar> subject,
-                             Vector<const pchar> pattern,
-                             int start_index) {
-  int m = pattern.length();
+static int BoyerMooreSimplified(Vector<const schar> subject,
+                                Vector<const pchar> pattern,
+                                int start_index,
+                                bool& complete) {
   int n = subject.length();
-
+  int m = pattern.length();
   // Only preprocess at most kBMMaxShift last characters of pattern.
   int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
-  int len = m - start;
 
   BoyerMoorePopulateBadCharTable(pattern, start);
 
-  int badness = 0;  // How bad we are doing without a good-suffix table.
+  int badness = -m;  // How bad we are doing without a good-suffix table.
   int idx;  // No matches found prior to this index.
+  pchar last_char = pattern[m - 1];
   // Perform search
   for (idx = start_index; idx <= n - m;) {
     int j = m - 1;
-    schar c;
+    int c;
+    while (last_char != (c = subject[idx + j])) {
+      int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
+      int shift = j - bc_occ;
+      idx += shift;
+      badness += 1 - shift;  // at most zero, so badness cannot increase.
+      if (idx > n - m) {
+        complete = true;
+        return -1;
+      }
+    }
+    j--;
     while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
     if (j < 0) {
+      complete = true;
       return idx;
     } else {
       int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
@@ -1096,40 +1113,66 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
       // can skip by shifting. It's a measure of how we are doing
       // compared to reading each character exactly once.
       badness += (m - j) - shift;
-      if (badness > m) break;
+      if (badness > 0) {
+        complete = false;
+        return idx;
+      }
     }
   }
+  complete = true;
+  return -1;
+}
 
-  // If we are not done, we got here because we should build the Good Suffix
-  // table and continue searching.
-  if (idx <= n - m) {
-    BoyerMoorePopulateGoodSuffixTable(pattern, start, len);
-    // Continue search from i.
-    do {
-      int j = m - 1;
-      schar c;
-      while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
-      if (j < 0) {
-        return idx;
-      } else if (j < start) {
-        // we have matched more than our tables allow us to be smart about.
-        idx += 1;
-      } else {
-        int gs_shift = bmgs_buffers.shift(j + 1);
-        int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
-        int bc_shift = j - bc_occ;
-        idx += (gs_shift > bc_shift) ? gs_shift : bc_shift;
+
+template <typename schar, typename pchar>
+static int BoyerMooreIndexOf(Vector<const schar> subject,
+                             Vector<const pchar> pattern,
+                             int idx) {
+  int n = subject.length();
+  int m = pattern.length();
+  // Only preprocess at most kBMMaxShift last characters of pattern.
+  int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
+
+  // Build the Good Suffix table and continue searching.
+  BoyerMoorePopulateGoodSuffixTable(pattern, start);
+  pchar last_char = pattern[m - 1];
+  // Continue search from i.
+  do {
+    int j = m - 1;
+    schar c;
+    while (last_char != (c = subject[idx + j])) {
+      int shift = j - bad_char_occurence[c % kBMAlphabetSize];
+      idx += shift;
+      if (idx > n - m) {
+        return -1;
       }
-    } while (idx <= n - m);
-  }
+    }
+    while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
+    if (j < 0) {
+      return idx;
+    } else if (j < start) {
+      // we have matched more than our tables allow us to be smart about.
+      idx += 1;
+    } else {
+      int gs_shift = bmgs_buffers.shift(j + 1);       // Good suffix shift.
+      int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
+      int shift = j - bc_occ;                         // Bad-char shift.
+      shift = (gs_shift > shift) ? gs_shift : shift;
+      idx += shift;
+    }
+  } while (idx <= n - m);
 
   return -1;
 }
 
-template <typename schar, typename pchar>
+
+template <typename schar>
 static int SingleCharIndexOf(Vector<const schar> string,
-                             pchar pattern_char,
+                             uc16 pattern_char,
                              int start_index) {
+  if (sizeof(schar) == 1 && pattern_char > String::kMaxAsciiCharCode) {
+    return -1;
+  }
   for (int i = start_index, n = string.length(); i < n; i++) {
     if (pattern_char == string[i]) {
       return i;
@@ -1147,20 +1190,22 @@ static int SingleCharIndexOf(Vector<const schar> string,
 template <typename pchar, typename schar>
 static int SimpleIndexOf(Vector<const schar> subject,
                          Vector<const pchar> pattern,
-                         int start_index,
+                         int idx,
                          bool &complete) {
-  int pattern_length = pattern.length();
-  int subject_length = subject.length();
-  // Badness is a count of how many extra times the same character
-  // is checked. We compare it to the index counter, so we start
-  // it at the start_index, and give it a little discount to avoid
-  // very early bail-outs.
-  int badness = start_index - pattern_length;
+  // Badness is a count of how much work we have done.  When we have
+  // done enough work we decide it's probably worth switching to a better
+  // algorithm.
+  int badness = -10 - (pattern.length() << 2);
   // We know our pattern is at least 2 characters, we cache the first so
   // the common case of the first character not matching is faster.
   pchar pattern_first_char = pattern[0];
 
-  for (int i = start_index, n = subject_length - pattern_length; i <= n; i++) {
+  for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
+    badness++;
+    if (badness > 0) {
+      complete = false;
+      return (i);
+    }
     if (subject[i] != pattern_first_char) continue;
     int j = 1;
     do {
@@ -1168,22 +1213,41 @@ static int SimpleIndexOf(Vector<const schar> subject,
         break;
       }
       j++;
-    } while (j < pattern_length);
-    if (j == pattern_length) {
+    } while (j < pattern.length());
+    if (j == pattern.length()) {
       complete = true;
       return i;
     }
     badness += j;
-    if (badness > i) {  // More than one extra character on average.
-      complete = false;
-      return (i + 1);  // No matches up to index i+1.
-    }
   }
   complete = true;
   return -1;
 }
 
-// Dispatch to different algorithms for different length of pattern/subject
+// Simple indexOf that never bails out. For short patterns only.
+template <typename pchar, typename schar>
+static int SimpleIndexOf(Vector<const schar> subject,
+                         Vector<const pchar> pattern,
+                         int idx) {
+  pchar pattern_first_char = pattern[0];
+  for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
+    if (subject[i] != pattern_first_char) continue;
+    int j = 1;
+    do {
+      if (pattern[j] != subject[i+j]) {
+        break;
+      }
+      j++;
+    } while (j < pattern.length());
+    if (j == pattern.length()) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+
+// Dispatch to different algorithms.
 template <typename schar, typename pchar>
 static int StringMatchStrategy(Vector<const schar> sub,
                                Vector<const pchar> pat,
@@ -1201,9 +1265,17 @@ static int StringMatchStrategy(Vector<const schar> sub,
       }
     }
   }
-  // For small searches, a complex sort is not worth the setup overhead.
+  if (pat.length() < kBMMinPatternLength) {
+    // We don't believe fancy searching can ever be more efficient.
+    // The max shift of Boyer-Moore on a pattern of this length does
+    // not compensate for the overhead.
+    return SimpleIndexOf(sub, pat, start_index);
+  }
+  // Try algorithms in order of increasing setup cost and expected performance.
   bool complete;
   int idx = SimpleIndexOf(sub, pat, start_index, complete);
+  if (complete) return idx;
+  idx = BoyerMooreSimplified(sub, pat, idx, complete);
   if (complete) return idx;
   return BoyerMooreIndexOf(sub, pat, idx);
 }
