@@ -31,6 +31,7 @@
 
 #include "log.h"
 #include "platform.h"
+#include "string-stream.h"
 
 namespace v8 { namespace internal {
 
@@ -686,6 +687,42 @@ bool Logger::Setup() {
   if (open_log_file) {
     if (strcmp(FLAG_logfile, "-") == 0) {
       logfile_ = stdout;
+    } else if (strchr(FLAG_logfile, '%') != NULL) {
+      // If there's a '%' in the log file name we have to expand
+      // placeholders.
+      HeapStringAllocator allocator;
+      StringStream stream(&allocator);
+      for (const char* p = FLAG_logfile; *p; p++) {
+        if (*p == '%') {
+          p++;
+          switch (*p) {
+            case '\0':
+              // If there's a % at the end of the string we back up
+              // one character so we can escape the loop properly.
+              p--;
+              break;
+            case 't': {
+              // %t expands to the current time in milliseconds.
+              uint32_t time = static_cast<uint32_t>(OS::TimeCurrentMillis());
+              stream.Add("%u", time);
+              break;
+            }
+            case '%':
+              // %% expands (contracts really) to %.
+              stream.Put('%');
+              break;
+            default:
+              // All other %'s expand to themselves.
+              stream.Put('%');
+              stream.Put(*p);
+              break;
+          }
+        } else {
+          stream.Put(*p);
+        }
+      }
+      SmartPointer<char> expanded = stream.ToCString();
+      logfile_ = OS::FOpen(*expanded, "w");
     } else {
       logfile_ = OS::FOpen(FLAG_logfile, "w");
     }

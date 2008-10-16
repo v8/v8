@@ -152,7 +152,7 @@
 			</File>
 		</Filter>
 		<File
-			RelativePath="$(OutDir)\mksnapshot.exe"
+			RelativePath="$(OutDir)\v8_mksnapshot.exe"
 			>
 			<FileConfiguration
 				Name="Debug|Win32"

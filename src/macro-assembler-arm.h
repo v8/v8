@@ -99,8 +99,11 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Activation frames
 
-  void EnterInternalFrame();
-  void LeaveInternalFrame();
+  void EnterInternalFrame() { EnterFrame(StackFrame::INTERNAL); }
+  void LeaveInternalFrame() { LeaveFrame(StackFrame::INTERNAL); }
+
+  void EnterConstructFrame() { EnterFrame(StackFrame::CONSTRUCT); }
+  void LeaveConstructFrame() { LeaveFrame(StackFrame::CONSTRUCT); }
 
   // Enter specific kind of exit frame; either EXIT or
   // EXIT_DEBUG. Expects the number of arguments in register r0 and
@@ -260,6 +263,10 @@ class MacroAssembler: public Assembler {
   // Get the code for the given builtin. Returns if able to resolve
   // the function in the 'resolved' flag.
   Handle<Code> ResolveBuiltin(Builtins::JavaScript id, bool* resolved);
+
+  // Activation support.
+  void EnterFrame(StackFrame::Type type);
+  void LeaveFrame(StackFrame::Type type);
 };
 
 

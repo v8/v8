@@ -52,36 +52,31 @@ const $NaN = 0/0;
 
 // ECMA-262, section 11.9.1, page 55.
 function EQUALS(y) {
+  if (IS_STRING(this) && IS_STRING(y)) return %StringEquals(this, y);
   var x = this;
 
   // NOTE: We use iteration instead of recursion, because it is
   // difficult to call EQUALS with the correct setting of 'this' in
   // an efficient way.
-
   while (true) {
-
     if (IS_NUMBER(x)) {
       if (y == null) return 1;  // not equal
       return %NumberEquals(x, %ToNumber(y));
-
     } else if (IS_STRING(x)) {
       if (IS_STRING(y)) return %StringEquals(x, y);
       if (IS_NUMBER(y)) return %NumberEquals(%ToNumber(x), y);
       if (IS_BOOLEAN(y)) return %NumberEquals(%ToNumber(x), %ToNumber(y));
       if (y == null) return 1;  // not equal
       y = %ToPrimitive(y, NO_HINT);
-
     } else if (IS_BOOLEAN(x)) {
       if (IS_BOOLEAN(y)) {
         return %_ObjectEquals(x, y) ? 0 : 1;
       }
       if (y == null) return 1;  // not equal
       return %NumberEquals(%ToNumber(x), %ToNumber(y));
-
     } else if (x == null) {
       // NOTE: This checks for both null and undefined.
       return (y == null) ? 0 : 1;
-
     } else {
       if (IS_OBJECT(y)) {
         return %_ObjectEquals(x, y) ? 0 : 1;
@@ -90,34 +85,29 @@ function EQUALS(y) {
         return %_ObjectEquals(x, y) ? 0 : 1;
       }
       x = %ToPrimitive(x, NO_HINT);
-
     }
   }
 }
 
-
 // ECMA-262, section 11.9.4, page 56.
 function STRICT_EQUALS(x) {
-  if (IS_NUMBER(this)) {
-    if (!IS_NUMBER(x)) return 1;  // not equal
-    return %NumberEquals(this, x);
-  }
-
   if (IS_STRING(this)) {
     if (!IS_STRING(x)) return 1;  // not equal
     return %StringEquals(this, x);
-  }
+  } 
 
-  if (IS_BOOLEAN(this)) {
-    if (!IS_BOOLEAN(x)) return 1;  // not equal
-    if (this) return x ? 0 : 1;
-    else return x ? 1 : 0;
-  }
+  if (IS_NUMBER(this)) {
+    if (!IS_NUMBER(x)) return 1;  // not equal
+    return %NumberEquals(this, x);
+  } 
 
-  if (IS_UNDEFINED(this)) {  // both undefined and undetectable
+  if (IS_UNDEFINED(this)) {  
+    // Both undefined and undetectable.
     return IS_UNDEFINED(x) ? 0 : 1;
   }
 
+  // Objects, null, booleans and functions are all that's left.
+  // They can all be compared with a simple identity check.
   return %_ObjectEquals(this, x) ? 0 : 1;
 }
 
@@ -125,11 +115,15 @@ function STRICT_EQUALS(x) {
 // ECMA-262, section 11.8.5, page 53. The 'ncr' parameter is used as
 // the result when either (or both) the operands are NaN.
 function COMPARE(x, ncr) {
-  // Improve performance for floating point compares
+  // Fast case for numbers and strings.
   if (IS_NUMBER(this) && IS_NUMBER(x)) {
     return %NumberCompare(this, x, ncr);
   }
+  if (IS_STRING(this) && IS_STRING(x)) {
+    return %StringCompare(this, x);
+  }
 
+  // Default implementation.
   var a = %ToPrimitive(this, NUMBER_HINT);
   var b = %ToPrimitive(x, NUMBER_HINT);
   if (IS_STRING(a) && IS_STRING(b)) {
@@ -149,10 +143,10 @@ function COMPARE(x, ncr) {
 // ECMA-262, section 11.6.1, page 50.
 function ADD(x) {
   // Fast case: Check for number operands and do the addition.
-  if (IS_NUMBER(this) && IS_NUMBER(x)) {
-    return %NumberAdd(this, x);
-  }
+  if (IS_NUMBER(this) && IS_NUMBER(x)) return %NumberAdd(this, x);
+  if (IS_STRING(this) && IS_STRING(x)) return %StringAdd(this, x);
 
+  // Default implementation.
   var a = %ToPrimitive(this, NO_HINT);
   var b = %ToPrimitive(x, NO_HINT);
   
@@ -277,7 +271,10 @@ function IN(x) {
 }
 
 
-// ECMA-262, section 11.8.6, page 54.
+// ECMA-262, section 11.8.6, page 54. To make the implementation more
+// efficient, the return value should be zero if the 'this' is an 
+// instance of F, and non-zero if not. This makes it possible to avoid
+// an expensive ToBoolean conversion in the generated code.
 function INSTANCE_OF(F) {
   var V = this;
   if (!IS_FUNCTION(F)) {
@@ -286,7 +283,7 @@ function INSTANCE_OF(F) {
 
   // If V is not an object, return false.
   if (IS_NULL(V) || (!IS_OBJECT(V) && !IS_FUNCTION(V))) {
-    return false;
+    return 1;
   }
 
   // Get the prototype of F; if it is not an object, throw an error.
@@ -296,7 +293,7 @@ function INSTANCE_OF(F) {
   }
 
   // Return whether or not O is in the prototype chain of V.
-  return %IsInPrototypeChain(O, V);
+  return %IsInPrototypeChain(O, V) ? 0 : 1;
 }
 
 
@@ -397,6 +394,9 @@ function TO_STRING() {
 // ECMA-262, section 9.1, page 30. Use null/undefined for no hint,
 // (1) for number hint, and (2) for string hint.
 function ToPrimitive(x, hint) {
+  // Fast case check.
+  if (IS_STRING(x)) return x;
+  // Normal behavior.
   if (!IS_OBJECT(x) && !IS_FUNCTION(x)) return x;
   if (x == null) return x;  // check for null, undefined
   if (hint == NO_HINT) hint = (IS_DATE(x)) ? STRING_HINT : NUMBER_HINT;

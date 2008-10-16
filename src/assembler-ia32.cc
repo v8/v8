@@ -720,6 +720,23 @@ void Assembler::add(Register dst, const Operand& src) {
 
 
 void Assembler::add(const Operand& dst, const Immediate& x) {
+  ASSERT(reloc_info_writer.last_pc() != NULL);
+  if (FLAG_push_pop_elimination && (reloc_info_writer.last_pc() <= last_pc_)) {
+    byte instr = last_pc_[0];
+    if ((instr & 0xf8) == 0x50) {
+      // Last instruction was a push. Check whether this is a pop without a
+      // result.
+      if ((dst.is_reg(esp)) &&
+          (x.x_ == kPointerSize) && (x.rmode_ == RelocInfo::NONE)) {
+        pc_ = last_pc_;
+        last_pc_ = NULL;
+        if (FLAG_print_push_pop_elimination) {
+          PrintF("%d push/pop(noreg) eliminated\n", pc_offset());
+        }
+        return;
+      }
+    }
+  }
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_arith(0, dst, x);

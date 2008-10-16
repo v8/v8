@@ -110,6 +110,8 @@ const char* CodeStub::MajorName(CodeStub::Major major_key) {
       return "RevertToNumber";
     case ToBoolean:
       return "ToBoolean";
+    case Instanceof:
+      return "Instanceof";
     case CounterOp:
       return "CounterOp";
     case ArgumentsAccess:

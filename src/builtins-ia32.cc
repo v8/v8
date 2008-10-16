@@ -56,8 +56,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- edi: constructor function
   // -----------------------------------
 
-  // Enter an internal frame.
-  __ EnterInternalFrame();
+  // Enter a construct frame.
+  __ EnterConstructFrame();
 
   // Store a smi-tagged arguments count on the stack.
   __ shl(eax, kSmiTagSize);
@@ -111,6 +111,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     // edi: constructor
     // eax: initial map
     __ movzx_b(edi, FieldOperand(eax, Map::kInstanceSizeOffset));
+    __ shl(edi, kPointerSizeLog2);
     // Make sure that the maximum heap object size will never cause us
     // problem here, because it is always greater than the maximum
     // instance size that can be represented in a byte.
@@ -163,8 +164,11 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     // ebx: JSObject
     // edi: start of next object
     __ movzx_b(edx, FieldOperand(eax, Map::kUnusedPropertyFieldsOffset));
+    __ movzx_b(ecx, FieldOperand(eax, Map::kInObjectPropertiesOffset));
+    // Calculate unused properties past the end of the in-object properties.
+    __ sub(edx, Operand(ecx));
     __ test(edx, Operand(edx));
-    // Done if no unused properties are to be allocated.
+    // Done if no extra properties are to be allocated.
     __ j(zero, &allocated);
 
     // Scale the number of elements by pointer size and add the header for
@@ -265,10 +269,8 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ j(greater_equal, &loop);
 
   // Call the function.
-  Label return_site;
   ParameterCount actual(eax);
   __ InvokeFunction(edi, actual, CALL_FUNCTION);
-  __ bind(&return_site);
 
   // Restore context from the frame.
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
@@ -294,10 +296,10 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ bind(&use_receiver);
   __ mov(eax, Operand(esp, 0));
 
-  // Restore the arguments count and exit the internal frame.
+  // Restore the arguments count and leave the construct frame.
   __ bind(&exit);
   __ mov(ebx, Operand(esp, kPointerSize));  // get arguments count
-  __ LeaveInternalFrame();
+  __ LeaveConstructFrame();
 
   // Remove caller arguments from the stack and return.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
@@ -305,11 +307,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);
   __ ret(0);
-
-  // Compute the offset from the beginning of the JSConstructCall
-  // builtin code object to the return address after the call.
-  ASSERT(return_site.is_bound());
-  construct_call_pc_offset_ = return_site.pos() + Code::kHeaderSize;
 }
 
 
@@ -662,7 +659,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
 }
 
 
-static void ExitArgumentsAdaptorFrame(MacroAssembler* masm) {
+static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Retrieve the number of arguments from the stack.
   __ mov(ebx, Operand(ebp, ArgumentsAdaptorFrameConstants::kLengthOffset));
 
@@ -742,19 +739,12 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   }
 
   // Call the entry point.
-  Label return_site;
   __ bind(&invoke);
   __ call(Operand(edx));
-  __ bind(&return_site);
 
-  ExitArgumentsAdaptorFrame(masm);
+  // Leave frame and return.
+  LeaveArgumentsAdaptorFrame(masm);
   __ ret(0);
-
-  // Compute the offset from the beginning of the ArgumentsAdaptorTrampoline
-  // builtin code object to the return address after the call.
-  ASSERT(return_site.is_bound());
-  arguments_adaptor_call_pc_offset_ = return_site.pos() + Code::kHeaderSize;
-
 
   // -------------------------------------------
   // Dont adapt arguments.

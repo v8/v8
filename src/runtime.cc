@@ -42,6 +42,7 @@
 #include "runtime.h"
 #include "scopeinfo.h"
 #include "v8threads.h"
+#include "smart-pointer.h"
 
 namespace v8 { namespace internal {
 
@@ -218,6 +219,30 @@ static Object* Runtime_ClassOf(Arguments args) {
   Object* obj = args[0];
   if (!obj->IsJSObject()) return Heap::null_value();
   return JSObject::cast(obj)->class_name();
+}
+
+inline static Object* IsSpecificClassOf(Arguments args, String* name) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  Object* obj = args[0];
+  if (obj->IsJSObject() && (JSObject::cast(obj)->class_name() == name)) {
+    return Heap::true_value();
+  }
+  return Heap::false_value();
+}
+
+static Object* Runtime_IsStringClass(Arguments args) {
+  return IsSpecificClassOf(args, Heap::String_symbol());
+}
+
+
+static Object* Runtime_IsDateClass(Arguments args) {
+  return IsSpecificClassOf(args, Heap::Date_symbol());
+}
+
+
+static Object* Runtime_IsArrayClass(Arguments args) {
+  return IsSpecificClassOf(args, Heap::Array_symbol());
 }
 
 
@@ -402,22 +427,21 @@ static Object* Runtime_DeclareGlobals(Arguments args) {
       IgnoreAttributesAndSetLocalProperty(global, name, value, attributes);
     }
   }
-  // Done.
+
   return Heap::undefined_value();
 }
 
 
 static Object* Runtime_DeclareContextSlot(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 5);
+  ASSERT(args.length() == 4);
 
-  // args[0] is result (TOS)
-  CONVERT_ARG_CHECKED(Context, context, 1);
-  Handle<String> name(String::cast(args[2]));
+  CONVERT_ARG_CHECKED(Context, context, 0);
+  Handle<String> name(String::cast(args[1]));
   PropertyAttributes mode =
-      static_cast<PropertyAttributes>(Smi::cast(args[3])->value());
+      static_cast<PropertyAttributes>(Smi::cast(args[2])->value());
   ASSERT(mode == READ_ONLY || mode == NONE);
-  Handle<Object> initial_value(args[4]);
+  Handle<Object> initial_value(args[3]);
 
   // Declarations are always done in the function context.
   context = Handle<Context>(context->fcontext());
@@ -456,32 +480,35 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
         SetProperty(context_ext, name, initial_value, mode);
       }
     }
-    return args[0];  // return TOS
-  }
 
-  // The property is not in the function context. It needs to be "declared"
-  // in the function context's extension context, or in the global context.
-  Handle<JSObject> context_ext;
-  if (context->extension() != NULL) {
-    // The function context's extension context exists - use it.
-    context_ext = Handle<JSObject>(context->extension());
   } else {
-    // The function context's extension context does not exists - allocate it.
-    context_ext = Factory::NewJSObject(Top::context_extension_function());
-    // And store it in the extension slot.
-    context->set_extension(*context_ext);
-  }
-  ASSERT(*context_ext != NULL);
+    // The property is not in the function context. It needs to be
+    // "declared" in the function context's extension context, or in the
+    // global context.
+    Handle<JSObject> context_ext;
+    if (context->extension() != NULL) {
+      // The function context's extension context exists - use it.
+      context_ext = Handle<JSObject>(context->extension());
+    } else {
+      // The function context's extension context does not exists - allocate
+      // it.
+      context_ext = Factory::NewJSObject(Top::context_extension_function());
+      // And store it in the extension slot.
+      context->set_extension(*context_ext);
+    }
+    ASSERT(*context_ext != NULL);
 
-  // Declare the property by setting it to the initial value if provided,
-  // or undefined, and use the correct mode (e.g. READ_ONLY attribute for
-  // constant declarations).
-  ASSERT(!context_ext->HasLocalProperty(*name));
-  Handle<Object> value(Heap::undefined_value());
-  if (*initial_value != NULL) value = initial_value;
-  SetProperty(context_ext, name, value, mode);
-  ASSERT(context_ext->GetLocalPropertyAttribute(*name) == mode);
-  return args[0];  // return TOS
+    // Declare the property by setting it to the initial value if provided,
+    // or undefined, and use the correct mode (e.g. READ_ONLY attribute for
+    // constant declarations).
+    ASSERT(!context_ext->HasLocalProperty(*name));
+    Handle<Object> value(Heap::undefined_value());
+    if (*initial_value != NULL) value = initial_value;
+    SetProperty(context_ext, name, value, mode);
+    ASSERT(context_ext->GetLocalPropertyAttribute(*name) == mode);
+  }
+
+  return Heap::undefined_value();
 }
 
 
@@ -864,10 +891,11 @@ static Object* Runtime_SetCode(Arguments args) {
     target->shared()->set_length(fun->shared()->length());
     target->shared()->set_formal_parameter_count(
         fun->shared()->formal_parameter_count());
-    // Set the source code of the target function.
-    target->shared()->set_script(fun->shared()->script());
-    target->shared()->set_start_position(fun->shared()->start_position());
-    target->shared()->set_end_position(fun->shared()->end_position());
+    // Set the source code of the target function to undefined.
+    // SetCode is only used for built-in constructors like String,
+    // Array, and Object, and some web code
+    // doesn't like seeing source code for constructors.
+    target->shared()->set_script(Heap::undefined_value());
     context = Handle<Context>(fun->context());
 
     // Make sure we get a fresh copy of the literal vector to avoid
@@ -925,110 +953,320 @@ static Object* Runtime_CharFromCode(Arguments args) {
 }
 
 
-static inline void ComputeKMPNextTable(String* pattern, int next_table[]) {
-  int i = 0;
-  int j = -1;
-  next_table[0] = -1;
+// Cap on the maximal shift in the Boyer-Moore implementation. By setting a
+// limit, we can fix the size of tables.
+static const int kBMMaxShift = 0xff;
+static const int kBMAlphabetSize = 0x100;  // Reduce alphabet to this size.
 
-  Access<StringInputBuffer> buffer(&string_input_buffer);
-  buffer->Reset(pattern);
-  int length = pattern->length();
-  uint16_t p = buffer->GetNext();
-  while (i < length - 1) {
-    while (j > -1 && p != pattern->Get(j)) {
-      j = next_table[j];
+// Holds the two buffers used by Boyer-Moore string search's Good Suffix
+// shift. Only allows the last kBMMaxShift characters of the needle
+// to be indexed.
+class BMGoodSuffixBuffers: public AllStatic {
+ public:
+  BMGoodSuffixBuffers() {}
+  inline void init(int needle_length) {
+    ASSERT(needle_length > 1);
+    int start = needle_length < kBMMaxShift ? 0 : needle_length - kBMMaxShift;
+    int len = needle_length - start;
+    biased_suffixes_ = suffixes_ - start;
+    biased_good_suffix_shift_ = good_suffix_shift_ - start;
+    for (int i = 0; i <= len; i++) {
+      good_suffix_shift_[i] = len;
     }
-    i++;
-    j++;
-    p = buffer->GetNext();
-    if (p == pattern->Get(j)) {
-      next_table[i] = next_table[j];
-    } else {
-      next_table[i] = j;
+  }
+  inline int& suffix(int index) {
+    ASSERT(biased_suffixes_ + index >= suffixes_);
+    return biased_suffixes_[index];
+  }
+  inline int& shift(int index) {
+    ASSERT(biased_good_suffix_shift_ + index >= good_suffix_shift_);
+    return biased_good_suffix_shift_[index];
+  }
+ private:
+  int suffixes_[kBMMaxShift + 1];
+  int good_suffix_shift_[kBMMaxShift + 1];
+  int *biased_suffixes_;
+  int *biased_good_suffix_shift_;
+  DISALLOW_COPY_AND_ASSIGN(BMGoodSuffixBuffers);
+};
+
+// buffers reused by BoyerMoore
+static int bad_char_occurence[kBMAlphabetSize];
+static BMGoodSuffixBuffers bmgs_buffers;
+
+// Compute the bad-char table for Boyer-Moore in the static buffer.
+// Return false if the pattern contains non-ASCII characters that cannot be
+// in the searched string.
+template <typename pchar>
+static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
+                                          int start) {
+  // Run forwards to populate bad_char_table, so that *last* instance
+  // of character equivalence class is the one registered.
+  // Notice: Doesn't include the last character.
+  for (int i = 0; i < kBMAlphabetSize; i++) {
+    bad_char_occurence[i] = start - 1;
+  }
+  for (int i = start; i < pattern.length(); i++) {
+    bad_char_occurence[pattern[i] % kBMAlphabetSize] = i;
+  }
+}
+
+template <typename pchar>
+static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
+                                              int start,
+                                              int len) {
+  int m = pattern.length();
+  // Compute Good Suffix tables.
+  bmgs_buffers.init(m);
+
+  bmgs_buffers.shift(m-1) = 1;
+  bmgs_buffers.suffix(m) = m + 1;
+  pchar last_char = pattern[m - 1];
+  int suffix = m + 1;
+  for (int i = m; i > start;) {
+    for (pchar c = pattern[i - 1]; suffix <= m && c != pattern[suffix - 1];) {
+      if (bmgs_buffers.shift(suffix) == len) {
+        bmgs_buffers.shift(suffix) = suffix - i;
+      }
+      suffix = bmgs_buffers.suffix(suffix);
+    }
+    i--;
+    suffix--;
+    bmgs_buffers.suffix(i) = suffix;
+    if (suffix == m) {
+      // No suffix to extend, so we check against last_char only.
+      while (i > start && pattern[i - 1] != last_char) {
+        if (bmgs_buffers.shift(m) == len) {
+          bmgs_buffers.shift(m) = m - i;
+        }
+        i--;
+        bmgs_buffers.suffix(i) = m;
+      }
+      if (i > start) {
+        i--;
+        suffix--;
+        bmgs_buffers.suffix(i) = suffix;
+      }
+    }
+  }
+  if (suffix < m) {
+    for (int i = start; i <= m; i++) {
+      if (bmgs_buffers.shift(i) == len) {
+        bmgs_buffers.shift(i) = suffix - start;
+      }
+      if (i == suffix) {
+        suffix = bmgs_buffers.suffix(suffix);
+      }
     }
   }
 }
 
+// Restricted Boyer-Moore string matching. Restricts tables to a
+// suffix of long pattern strings and handles only equivalence classes
+// of the full alphabet. This allows us to ensure that tables take only
+// a fixed amount of space.
+template <typename schar, typename pchar>
+static int BoyerMooreIndexOf(Vector<const schar> subject,
+                             Vector<const pchar> pattern,
+                             int start_index) {
+  int m = pattern.length();
+  int n = subject.length();
 
-int Runtime::StringMatchKmp(String* sub, String* pat, int start_index) {
-  sub->TryFlatten();
-  pat->TryFlatten();
+  // Only preprocess at most kBMMaxShift last characters of pattern.
+  int start = m < kBMMaxShift ? 0 : m - kBMMaxShift;
+  int len = m - start;
 
-  int subject_length = sub->length();
+  BoyerMoorePopulateBadCharTable(pattern, start);
+
+  int badness = 0;  // How bad we are doing without a good-suffix table.
+  int idx;  // No matches found prior to this index.
+  // Perform search
+  for (idx = start_index; idx <= n - m;) {
+    int j = m - 1;
+    schar c;
+    while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
+    if (j < 0) {
+      return idx;
+    } else {
+      int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
+      int shift = bc_occ < j ? j - bc_occ : 1;
+      idx += shift;
+      // Badness increases by the number of characters we have
+      // checked, and decreases by the number of characters we
+      // can skip by shifting. It's a measure of how we are doing
+      // compared to reading each character exactly once.
+      badness += (m - j) - shift;
+      if (badness > m) break;
+    }
+  }
+
+  // If we are not done, we got here because we should build the Good Suffix
+  // table and continue searching.
+  if (idx <= n - m) {
+    BoyerMoorePopulateGoodSuffixTable(pattern, start, len);
+    // Continue search from i.
+    do {
+      int j = m - 1;
+      schar c;
+      while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
+      if (j < 0) {
+        return idx;
+      } else if (j < start) {
+        // we have matched more than our tables allow us to be smart about.
+        idx += 1;
+      } else {
+        int gs_shift = bmgs_buffers.shift(j + 1);
+        int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
+        int bc_shift = j - bc_occ;
+        idx += (gs_shift > bc_shift) ? gs_shift : bc_shift;
+      }
+    } while (idx <= n - m);
+  }
+
+  return -1;
+}
+
+template <typename schar, typename pchar>
+static int SingleCharIndexOf(Vector<const schar> string,
+                             pchar pattern_char,
+                             int start_index) {
+  for (int i = start_index, n = string.length(); i < n; i++) {
+    if (pattern_char == string[i]) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+// Trivial string search for shorter strings.
+// On return, if "complete" is set to true, the return value is the
+// final result of searching for the patter in the subject.
+// If "complete" is set to false, the return value is the index where
+// further checking should start, i.e., it's guaranteed that the pattern
+// does not occur at a position prior to the returned index.
+template <typename pchar, typename schar>
+static int SimpleIndexOf(Vector<const schar> subject,
+                         Vector<const pchar> pattern,
+                         int start_index,
+                         bool &complete) {
+  int pattern_length = pattern.length();
+  int subject_length = subject.length();
+  // Badness is a count of how many extra times the same character
+  // is checked. We compare it to the index counter, so we start
+  // it at the start_index, and give it a little discount to avoid
+  // very early bail-outs.
+  int badness = start_index - pattern_length;
+  // We know our pattern is at least 2 characters, we cache the first so
+  // the common case of the first character not matching is faster.
+  pchar pattern_first_char = pattern[0];
+
+  for (int i = start_index, n = subject_length - pattern_length; i <= n; i++) {
+    if (subject[i] != pattern_first_char) continue;
+    int j = 1;
+    do {
+      if (pattern[j] != subject[i+j]) {
+        break;
+      }
+      j++;
+    } while (j < pattern_length);
+    if (j == pattern_length) {
+      complete = true;
+      return i;
+    }
+    badness += j;
+    if (badness > i) {  // More than one extra character on average.
+      complete = false;
+      return (i + 1);  // No matches up to index i+1.
+    }
+  }
+  complete = true;
+  return -1;
+}
+
+// Dispatch to different algorithms for different length of pattern/subject
+template <typename schar, typename pchar>
+static int StringMatchStrategy(Vector<const schar> sub,
+                               Vector<const pchar> pat,
+                               int start_index) {
+  ASSERT(pat.length() > 1);
+
+  // We have an ASCII haystack and a non-ASCII needle. Check if there
+  // really is a non-ASCII character in the needle and bail out if there
+  // is.
+  if (sizeof(pchar) > 1 && sizeof(schar) == 1) {
+    for (int i = 0; i < pat.length(); i++) {
+      uc16 c = pat[i];
+      if (c > String::kMaxAsciiCharCode) {
+        return -1;
+      }
+    }
+  }
+  // For small searches, a complex sort is not worth the setup overhead.
+  bool complete;
+  int idx = SimpleIndexOf(sub, pat, start_index, complete);
+  if (complete) return idx;
+  return BoyerMooreIndexOf(sub, pat, idx);
+}
+
+// Perform string match of pattern on subject, starting at start index.
+// Caller must ensure that 0 <= start_index <= sub->length(),
+// and should check that pat->length() + start_index <= sub->length()
+int Runtime::StringMatch(Handle<String> sub,
+                         Handle<String> pat,
+                         int start_index) {
+  ASSERT(0 <= start_index);
+  ASSERT(start_index <= sub->length());
+
   int pattern_length = pat->length();
-
-  if (start_index > subject_length) return -1;
   if (pattern_length == 0) return start_index;
 
+  int subject_length = sub->length();
+  if (start_index + pattern_length > subject_length) return -1;
+
+  FlattenString(sub);
   // Searching for one specific character is common.  For one
-  // character patterns the KMP algorithm is guaranteed to slow down
-  // the search, so we just run through the subject string.
+  // character patterns linear search is necessary, so any smart
+  // algorithm is unnecessary overhead.
   if (pattern_length == 1) {
-    uint16_t pattern_char = pat->Get(0);
-    for (int i = start_index; i < subject_length; i++) {
-      if (sub->Get(i) == pattern_char) {
-        return i;
-      }
+    AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+    if (sub->is_ascii_representation()) {
+      return SingleCharIndexOf(sub->ToAsciiVector(), pat->Get(0), start_index);
     }
-    return -1;
+    return SingleCharIndexOf(sub->ToUC16Vector(), pat->Get(0), start_index);
   }
 
-  // For small searches, KMP is not worth the setup overhead.
-  if (subject_length < 100) {
-    // We know our pattern is at least 2 characters, we cache the first so
-    // the common case of the first character not matching is faster.
-    uint16_t pattern_first_char = pat->Get(0);
-    for (int i = start_index; i + pattern_length <= subject_length; i++) {
-      if (sub->Get(i) != pattern_first_char) continue;
+  FlattenString(pat);
 
-      for (int j = 1; j < pattern_length; j++) {
-        if (pat->Get(j) != sub->Get(j + i)) break;
-        if (j == pattern_length - 1) return i;
-      }
+  AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
+  // dispatch on type of strings
+  if (pat->is_ascii_representation()) {
+    Vector<const char> pat_vector = pat->ToAsciiVector();
+    if (sub->is_ascii_representation()) {
+      return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
     }
-    return -1;
+    return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
   }
-
-  // For patterns with a larger length we use the KMP algorithm.
-  //
-  // Compute the 'next' table.
-  int* next_table = NewArray<int>(pattern_length);
-  ComputeKMPNextTable(pat, next_table);
-  // Search using the 'next' table.
-  int pattern_index = 0;
-  // We would like to use StringInputBuffer here, but it does not have
-  // the ability to start anywhere but the first character of a
-  // string.  It would be nice to have efficient forward-seeking
-  // support on StringInputBuffers.
-  int subject_index = start_index;
-  while (subject_index < subject_length) {
-    uint16_t subject_char = sub->Get(subject_index);
-    while (pattern_index > -1 && pat->Get(pattern_index) != subject_char) {
-      pattern_index = next_table[pattern_index];
-    }
-    pattern_index++;
-    subject_index++;
-    if (pattern_index >= pattern_length) {
-      DeleteArray(next_table);
-      return subject_index - pattern_index;
-    }
+  Vector<const uc16> pat_vector = pat->ToUC16Vector();
+  if (sub->is_ascii_representation()) {
+    return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
   }
-  DeleteArray(next_table);
-  return -1;
+  return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
 }
 
 
 static Object* Runtime_StringIndexOf(Arguments args) {
-  NoHandleAllocation ha;
+  HandleScope scope;  // create a new handle scope
   ASSERT(args.length() == 3);
 
-  CONVERT_CHECKED(String, sub, args[0]);
-  CONVERT_CHECKED(String, pat, args[1]);
+  CONVERT_ARG_CHECKED(String, sub, 0);
+  CONVERT_ARG_CHECKED(String, pat, 1);
+
   Object* index = args[2];
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
 
-  return Smi::FromInt(Runtime::StringMatchKmp(sub, pat, start_index));
+  int position = Runtime::StringMatch(sub, pat, start_index);
+  return Smi::FromInt(position);
 }
 
 
@@ -1311,6 +1549,29 @@ static Object* Runtime_GetProperty(Arguments args) {
   Handle<Object> key = args.at<Object>(1);
 
   return Runtime::GetObjectProperty(object, key);
+}
+
+
+
+// KeyedStringGetProperty is called from KeyedLoadIC::GenerateGeneric
+static Object* Runtime_KeyedGetProperty(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+
+  Object* receiver = args[0];
+  Object* key = args[1];
+  if (receiver->IsJSObject() &&
+      key->IsString() &&
+      !JSObject::cast(receiver)->HasFastProperties()) {
+    Dictionary* dictionary = JSObject::cast(receiver)->property_dictionary();
+    int entry = dictionary->FindStringEntry(String::cast(key));
+    if ((entry != DescriptorArray::kNotFound)
+        && (dictionary->DetailsAt(entry).type() == NORMAL)) {
+      return dictionary->ValueAt(entry);
+    }
+  }
+  return Runtime::GetObjectProperty(args.at<Object>(0),
+                                    args.at<Object>(1));
 }
 
 
@@ -1954,7 +2215,7 @@ static Object* ConvertCase(Arguments args,
   // character is also ascii.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  Object* o = s->IsAscii()
+  Object* o = s->IsAsciiRepresentation()
       ? Heap::AllocateRawAsciiString(length)
       : Heap::AllocateRawTwoByteString(length);
   if (o->IsFailure()) return o;
@@ -1970,7 +2231,8 @@ static Object* ConvertCase(Arguments args,
   // We can assume that the string is not empty
   uc32 current = buffer->GetNext();
   while (i < length) {
-    uc32 next = buffer->has_more() ? buffer->GetNext() : 0;
+    bool has_next = buffer->has_more();
+    uc32 next = has_next ? buffer->GetNext() : 0;
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
@@ -1994,12 +2256,21 @@ static Object* ConvertCase(Arguments args,
       // "realloc" it and probably, in the vast majority of cases,
       // extend the existing string to be able to hold the full
       // result.
-      int current_length = i + char_length + mapping->get(next, 0, chars);
+      int next_length = 0;
+      if (has_next) {
+        next_length = mapping->get(next, 0, chars);
+        if (next_length == 0) next_length = 1;
+      }
+      int current_length = i + char_length + next_length;
       while (buffer->has_more()) {
         current = buffer->GetNext();
+        // NOTE: we use 0 as the next character here because, while
+        // the next character may affect what a character converts to,
+        // it does not in any case affect the length of what it convert
+        // to.
         int char_length = mapping->get(current, 0, chars);
         if (char_length == 0) char_length = 1;
-        current += char_length;
+        current_length += char_length;
       }
       length = current_length;
       goto try_convert;
@@ -2231,7 +2502,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = special->IsAscii();
+  bool ascii = special->IsAsciiRepresentation();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
@@ -2251,7 +2522,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
         return Failure::OutOfMemoryException();
       }
       position += element_length;
-      if (ascii && !element->IsAscii()) {
+      if (ascii && !element->IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
@@ -2395,8 +2666,12 @@ static Object* Runtime_StringEquals(Arguments args) {
   int len = x->length();
   if (len != y->length()) return Smi::FromInt(NOT_EQUAL);
   if (len == 0) return Smi::FromInt(EQUAL);
-  // Fast case:  First, middle and last characters.
+
+  // Handle one elment strings.
   if (x->Get(0) != y->Get(0)) return Smi::FromInt(NOT_EQUAL);
+  if (len == 1) return Smi::FromInt(EQUAL);
+
+  // Fast case:  First, middle and last characters.
   if (x->Get(len>>1) != y->Get(len>>1)) return Smi::FromInt(NOT_EQUAL);
   if (x->Get(len - 1) != y->Get(len - 1)) return Smi::FromInt(NOT_EQUAL);
 
@@ -2774,7 +3049,7 @@ static Object* Runtime_NewObject(Arguments args) {
     if (Debug::StepInActive()) {
       StackFrameIterator it;
       it.Advance();
-      ASSERT(InternalFrame::cast(it.frame())->is_construct_trampoline());
+      ASSERT(it.frame()->is_construct());
       it.Advance();
       if (it.frame()->fp() == Debug::step_in_fp()) {
         HandleScope scope;
@@ -3704,7 +3979,7 @@ static Object* DebugLookupResultValue(LookupResult* result) {
     case FIELD:
       value =
           JSObject::cast(
-              result->holder())->properties()->get(result->GetFieldIndex());
+              result->holder())->FastPropertyAt(result->GetFieldIndex());
       if (value->IsTheHole()) {
         return Heap::undefined_value();
       }
@@ -4697,8 +4972,14 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
 
   // Convert the script objects to proper JS objects.
   for (int i = 0; i < count; i++) {
-    Handle<Script> script(Script::cast(instances->get(i)));
-    instances->set(i, *GetScriptWrapper(script));
+    Handle<Script> script = Handle<Script>(Script::cast(instances->get(i)));
+    // Get the script wrapper in a local handle before calling GetScriptWrapper,
+    // because using
+    //   instances->set(i, *GetScriptWrapper(script))
+    // is unsafe as GetScriptWrapper might call GC and the C++ compiler might
+    // already have deferenced the instances handle.
+    Handle<JSValue> wrapper = GetScriptWrapper(script);
+    instances->set(i, *wrapper);
   }
 
   // Return result as a JS array.

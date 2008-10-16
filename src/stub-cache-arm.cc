@@ -103,8 +103,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ b(eq, &miss);
 
   // Get the map of the receiver and compute the hash.
-  __ ldr(scratch, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ ldr(ip, FieldMemOperand(name, String::kLengthOffset));
+  __ ldr(scratch, FieldMemOperand(name, String::kLengthOffset));
+  __ ldr(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, Operand(ip));
   __ eor(scratch, scratch, Operand(flags));
   __ and_(scratch,
@@ -145,6 +145,27 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
          FieldMemOperand(prototype, JSFunction::kPrototypeOrInitialMapOffset));
   // Load the prototype from the initial map.
   __ ldr(prototype, FieldMemOperand(prototype, Map::kPrototypeOffset));
+}
+
+
+// Load a fast property out of a holder object (src). In-object properties
+// are loaded directly otherwise the property is loaded from the properties
+// fixed array.
+void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
+                                            Register dst, Register src,
+                                            JSObject* holder, int index) {
+  // Adjust for the number of properties stored in the holder.
+  index -= holder->map()->inobject_properties();
+  if (index < 0) {
+    // Get the property straight out of the holder.
+    int offset = holder->map()->instance_size() + (index * kPointerSize);
+    __ ldr(dst, FieldMemOperand(src, offset));
+  } else {
+    // Calculate the offset into the properties array.
+    int offset = index * kPointerSize + Array::kHeaderSize;
+    __ ldr(dst, FieldMemOperand(src, JSObject::kPropertiesOffset));
+    __ ldr(dst, FieldMemOperand(dst, offset));
+  }
 }
 
 
@@ -208,11 +229,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   // Do the right check and compute the holder register.
   Register reg =
       __ CheckMaps(JSObject::cast(object), r1, holder, r3, r2, &miss);
-
-  // Get the properties array of the holder and get the function from the field.
-  int offset = index * kPointerSize + Array::kHeaderSize;
-  __ ldr(r1, FieldMemOperand(reg, JSObject::kPropertiesOffset));
-  __ ldr(r1, FieldMemOperand(r1, offset));
+  GenerateFastPropertyLoad(masm(), r1, reg, holder, index);
 
   // Check that the function really is a function.
   __ tst(r1, Operand(kSmiTagMask));
@@ -421,8 +438,15 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
     Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_ExtendStorage));
     __ Jump(ic, RelocInfo::CODE_TARGET);
   } else {
-    // Get the properties array
-    __ ldr(r1, FieldMemOperand(r3, JSObject::kPropertiesOffset));
+    // Adjust for the number of properties stored in the object. Even in the
+    // face of a transition we can use the old map here because the size of the
+    // object and the number of in-object properties is not going to change.
+    index -= object->map()->inobject_properties();
+
+    if (index >= 0) {
+      // Get the properties array
+      __ ldr(r1, FieldMemOperand(r3, JSObject::kPropertiesOffset));
+    }
 
     if (transition != NULL) {
       // Update the map of the object; no write barrier updating is
@@ -431,17 +455,31 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
       __ str(ip, FieldMemOperand(r3, HeapObject::kMapOffset));
     }
 
-    // Write to the properties array.
-    int offset = index * kPointerSize + Array::kHeaderSize;
-    __ str(r0, FieldMemOperand(r1, offset));
+    if (index < 0) {
+      // Set the property straight into the object.
+      int offset = object->map()->instance_size() + (index * kPointerSize);
+      __ str(r0, FieldMemOperand(r3, offset));
 
-    // Skip updating write barrier if storing a smi.
-    __ tst(r0, Operand(kSmiTagMask));
-    __ b(eq, &exit);
+      // Skip updating write barrier if storing a smi.
+      __ tst(r0, Operand(kSmiTagMask));
+      __ b(eq, &exit);
 
-    // Update the write barrier for the array address.
-    __ mov(r3, Operand(offset));
-    __ RecordWrite(r1, r3, r2);  // OK to clobber r2, since we return
+      // Update the write barrier for the array address.
+      __ mov(r1, Operand(offset));
+      __ RecordWrite(r3, r1, r2);
+    } else {
+      // Write to the properties array.
+      int offset = index * kPointerSize + Array::kHeaderSize;
+      __ str(r0, FieldMemOperand(r1, offset));
+
+      // Skip updating write barrier if storing a smi.
+      __ tst(r0, Operand(kSmiTagMask));
+      __ b(eq, &exit);
+
+      // Update the write barrier for the array address.
+      __ mov(r3, Operand(offset));
+      __ RecordWrite(r1, r3, r2);  // OK to clobber r2, since we return
+    }
 
     // Return the value (register r0).
     __ bind(&exit);
@@ -589,13 +627,7 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
 
   // Check that the maps haven't changed.
   Register reg = __ CheckMaps(object, r0, holder, r3, r1, &miss);
-
-  // Get the properties array of the holder.
-  __ ldr(r3, FieldMemOperand(reg, JSObject::kPropertiesOffset));
-
-  // Return the value from the properties array.
-  int offset = index * kPointerSize + Array::kHeaderSize;
-  __ ldr(r0, FieldMemOperand(r3, offset));
+  GenerateFastPropertyLoad(masm(), r0, reg, holder, index);
   __ Ret();
 
   // Handle load cache miss.

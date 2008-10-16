@@ -128,7 +128,7 @@ void TransformToFastProperties(Handle<JSObject> object,
 
 void FlattenString(Handle<String> string) {
   if (string->IsFlat()) return;
-  CALL_HEAP_FUNCTION_VOID(String::cast(*string)->Flatten());
+  CALL_HEAP_FUNCTION_VOID(string->Flatten());
   ASSERT(string->IsFlat());
 }
 
@@ -391,13 +391,8 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object) {
 
 Handle<JSArray> GetKeysFor(Handle<JSObject> object) {
   Counters::for_in.Increment();
-
-  Handle<FixedArray> content = GetKeysInFixedArrayFor(object);
-
-  // Allocate the JSArray with the result.
-  Handle<JSArray> obj = Factory::NewJSArray(content->length());
-  Handle<JSArray>::cast(obj)->SetContent(*content);
-  return Handle<JSArray>::cast(obj);
+  Handle<FixedArray> elements = GetKeysInFixedArrayFor(object);
+  return Factory::NewJSArrayWithElements(elements);
 }
 
 

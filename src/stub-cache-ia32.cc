@@ -99,8 +99,8 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ j(zero, &miss, not_taken);
 
   // Get the map of the receiver and compute the hash.
-  __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ add(scratch, FieldOperand(name, String::kLengthOffset));
+  __ mov(scratch, FieldOperand(name, String::kLengthOffset));
+  __ add(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ xor_(scratch, flags);
   __ and_(scratch, (kPrimaryTableSize - 1) << kHeapObjectTagSize);
 
@@ -232,52 +232,30 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                                  Register scratch1,
                                                  Register scratch2,
                                                  Label* miss_label) {
-  // Check that the receiver isn't a smi.
-  __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss_label, not_taken);
-
-  // Check that the receiver is a function.
-  __ mov(scratch1, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movzx_b(scratch2, FieldOperand(scratch1, Map::kInstanceTypeOffset));
-  __ cmp(scratch2, JS_FUNCTION_TYPE);
-  __ j(not_equal, miss_label, not_taken);
-
-  // Make sure that the function has an instance prototype.
-  Label non_instance;
-  __ movzx_b(scratch2, FieldOperand(scratch1, Map::kBitFieldOffset));
-  __ test(scratch2, Immediate(1 << Map::kHasNonInstancePrototype));
-  __ j(not_zero, &non_instance, not_taken);
-
-  // Get the prototype or initial map from the function.
-  __ mov(scratch1,
-         FieldOperand(receiver, JSFunction::kPrototypeOrInitialMapOffset));
-
-  // If the prototype or initial map is the hole, don't return it and
-  // simply miss the cache instead. This will allow us to allocate a
-  // prototype object on-demand in the runtime system.
-  __ cmp(Operand(scratch1), Immediate(Factory::the_hole_value()));
-  __ j(equal, miss_label, not_taken);
+  __ TryGetFunctionPrototype(receiver, scratch1, scratch2, miss_label);
   __ mov(eax, Operand(scratch1));
-
-  // If the function does not have an initial map, we're done.
-  Label done;
-  __ mov(scratch1, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(scratch2, FieldOperand(scratch1, Map::kInstanceTypeOffset));
-  __ cmp(scratch2, MAP_TYPE);
-  __ j(not_equal, &done);
-
-  // Get the prototype from the initial map.
-  __ mov(eax, FieldOperand(eax, Map::kPrototypeOffset));
-
-  // All done: Return the prototype.
-  __ bind(&done);
   __ ret(0);
+}
 
-  // Non-instance prototype: Fetch prototype from constructor field
-  // in initial map.
-  __ bind(&non_instance);
-  __ mov(eax, FieldOperand(scratch1, Map::kConstructorOffset));
-  __ ret(0);
+
+// Load a fast property out of a holder object (src). In-object properties
+// are loaded directly otherwise the property is loaded from the properties
+// fixed array.
+void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
+                              Register dst, Register src,
+                              JSObject* holder, int index) {
+  // Adjust for the number of properties stored in the holder.
+  index -= holder->map()->inobject_properties();
+  if (index < 0) {
+    // Get the property straight out of the holder.
+    int offset = holder->map()->instance_size() + (index * kPointerSize);
+    __ mov(dst, FieldOperand(src, offset));
+  } else {
+    // Calculate the offset into the properties array.
+    int offset = index * kPointerSize + Array::kHeaderSize;
+    __ mov(dst, FieldOperand(src, JSObject::kPropertiesOffset));
+    __ mov(dst, FieldOperand(dst, offset));
+  }
 }
 
 
@@ -297,12 +275,8 @@ void StubCompiler::GenerateLoadField(MacroAssembler* masm,
   Register reg =
       __ CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
 
-  // Get the properties array of the holder.
-  __ mov(scratch1, FieldOperand(reg, JSObject::kPropertiesOffset));
-
-  // Return the value from the properties array.
-  int offset = index * kPointerSize + Array::kHeaderSize;
-  __ mov(eax, FieldOperand(scratch1, offset));
+  // Get the value from the properties.
+  GenerateFastPropertyLoad(masm, eax, reg, holder, index);
   __ ret(0);
 }
 
@@ -442,8 +416,16 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     return;
   }
 
-  // Get the properties array (optimistically).
-  __ mov(scratch, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
+  // Adjust for the number of properties stored in the object. Even in the
+  // face of a transition we can use the old map here because the size of the
+  // object and the number of in-object properties is not going to change.
+  index -= object->map()->inobject_properties();
+
+  if (index >= 0) {
+    // Get the properties array (optimistically).
+    __ mov(scratch, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
+  }
+
   if (transition != NULL) {
     // Update the map of the object; no write barrier updating is
     // needed because the map is never in new space.
@@ -451,14 +433,25 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
            Immediate(Handle<Map>(transition)));
   }
 
-  // Write to the properties array.
-  int offset = index * kPointerSize + Array::kHeaderSize;
-  __ mov(FieldOperand(scratch, offset), eax);
+  if (index < 0) {
+    // Set the property straight into the object.
+    int offset = object->map()->instance_size() + (index * kPointerSize);
+    __ mov(FieldOperand(receiver_reg, offset), eax);
 
-  // Update the write barrier for the array address.
-  // Pass the value being stored in the now unused name_reg.
-  __ mov(name_reg, Operand(eax));
-  __ RecordWrite(scratch, offset, name_reg, receiver_reg);
+    // Update the write barrier for the array address.
+    // Pass the value being stored in the now unused name_reg.
+    __ mov(name_reg, Operand(eax));
+    __ RecordWrite(receiver_reg, offset, name_reg, scratch);
+  } else {
+    // Write to the properties array.
+    int offset = index * kPointerSize + Array::kHeaderSize;
+    __ mov(FieldOperand(scratch, offset), eax);
+
+    // Update the write barrier for the array address.
+    // Pass the value being stored in the now unused name_reg.
+    __ mov(name_reg, Operand(eax));
+    __ RecordWrite(scratch, offset, name_reg, receiver_reg);
+  }
 
   // Return the value (register eax).
   __ ret(0);
@@ -516,10 +509,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   Register reg =
       __ CheckMaps(JSObject::cast(object), edx, holder, ebx, ecx, &miss);
 
-  // Get the properties array of the holder and get the function from the field.
-  int offset = index * kPointerSize + Array::kHeaderSize;
-  __ mov(edi, FieldOperand(reg, JSObject::kPropertiesOffset));
-  __ mov(edi, FieldOperand(edi, offset));
+  GenerateFastPropertyLoad(masm(), edi, reg, holder, index);
 
   // Check that the function really is a function.
   __ test(edi, Immediate(kSmiTagMask));

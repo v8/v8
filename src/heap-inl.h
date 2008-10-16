@@ -183,6 +183,9 @@ OldSpace* Heap::TargetSpace(HeapObject* object) {
           return Handle<TYPE>();                                             \
         }                                                                    \
       } else {                                                               \
+        if (__object__->IsOutOfMemoryFailure()) {                            \
+          v8::internal::V8::FatalProcessOutOfMemory("CALL_HEAP_FUNCTION");   \
+        }                                                                    \
         return Handle<TYPE>();                                               \
       }                                                                      \
     }                                                                        \
@@ -211,7 +214,10 @@ OldSpace* Heap::TargetSpace(HeapObject* object) {
         return;                                                     \
       }                                                             \
     } else {                                                        \
-      return;                                                       \
+      if (__object__->IsOutOfMemoryFailure()) {                     \
+         V8::FatalProcessOutOfMemory("Handles");                    \
+      }                                                             \
+      UNREACHABLE();                                                \
     }                                                               \
   }
 

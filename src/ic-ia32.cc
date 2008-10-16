@@ -90,6 +90,7 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   for (int i = 0; i < kProbes; i++) {
     // Compute the masked index: (hash + i + i * i) & mask.
     __ mov(r1, FieldOperand(name, String::kLengthOffset));
+    __ shr(r1, String::kHashShift);
     if (i > 0) __ add(Operand(r1), Immediate(Dictionary::GetProbeOffset(i)));
     __ and_(r1, Operand(r2));
 
@@ -244,7 +245,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // Slow case: Load name and receiver from stack and jump to runtime.
   __ bind(&slow);
   __ IncrementCounter(&Counters::keyed_load_generic_slow, 1);
-  KeyedLoadIC::Generate(masm, ExternalReference(Runtime::kGetProperty));
+  KeyedLoadIC::Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
   // Check if the key is a symbol that is not an array index.
   __ bind(&check_string);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));

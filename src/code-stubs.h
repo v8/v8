@@ -44,6 +44,7 @@ class CodeStub BASE_EMBEDDED {
     UnarySub,
     RevertToNumber,
     ToBoolean,
+    Instanceof,
     CounterOp,
     ArgumentsAccess,
     Runtime,
@@ -82,7 +83,7 @@ class CodeStub BASE_EMBEDDED {
   virtual int MinorKey() = 0;
 
   // Returns a name for logging/debugging purposes.
-  virtual const char* GetName() = 0;
+  virtual const char* GetName() { return MajorName(MajorKey()); }
 
 #ifdef DEBUG
   virtual void Print() { PrintF("%s\n", GetName()); }

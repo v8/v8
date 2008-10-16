@@ -154,6 +154,8 @@ namespace v8 { namespace internal {
   V(object_symbol, "object")                                             \
   V(prototype_symbol, "prototype")                                       \
   V(string_symbol, "string")                                             \
+  V(String_symbol, "String")                                             \
+  V(Date_symbol, "Date")                                                 \
   V(this_symbol, "this")                                                 \
   V(to_string_symbol, "toString")                                        \
   V(char_at_symbol, "CharAt")                                            \
@@ -341,7 +343,7 @@ class Heap : public AllStatic {
   // Please note this function does not perform a garbage collection.
   static Object* AllocateSymbol(unibrow::CharacterStream* buffer,
                                 int chars,
-                                int hash);
+                                uint32_t length_field);
 
   // Allocates and partially initializes a String.  There are two String
   // encodings: ASCII and two byte.  These functions allocate a string of the
@@ -528,6 +530,7 @@ class Heap : public AllStatic {
     return LookupSymbol(CStrVector(str));
   }
   static Object* LookupSymbol(String* str);
+  static bool LookupSymbolIfExists(String* str, String** symbol);
 
   // Compute the matching symbol map for a string if possible.
   // NULL is returned if string is in new space or not flattened.

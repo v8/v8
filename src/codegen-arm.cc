@@ -30,320 +30,17 @@
 #include "bootstrapper.h"
 #include "codegen-inl.h"
 #include "debug.h"
-#include "prettyprinter.h"
-#include "scopeinfo.h"
 #include "scopes.h"
 #include "runtime.h"
 
 namespace v8 { namespace internal {
 
-class ArmCodeGenerator;
-
-
-// -----------------------------------------------------------------------------
-// Reference support
-
-// A reference is a C++ stack-allocated object that keeps an ECMA
-// reference on the execution stack while in scope. For variables
-// the reference is empty, indicating that it isn't necessary to
-// store state on the stack for keeping track of references to those.
-// For properties, we keep either one (named) or two (indexed) values
-// on the execution stack to represent the reference.
-
-class Reference BASE_EMBEDDED {
- public:
-  enum Type { ILLEGAL = -1, EMPTY = 0, NAMED = 1, KEYED = 2 };
-  Reference(ArmCodeGenerator* cgen, Expression* expression);
-  ~Reference();
-
-  Expression* expression() const  { return expression_; }
-  Type type() const  { return type_; }
-  void set_type(Type value) {
-    ASSERT(type_ == ILLEGAL);
-    type_ = value;
-  }
-  int size() const  { return type_; }
-
-  bool is_illegal() const  { return type_ == ILLEGAL; }
-
- private:
-  ArmCodeGenerator* cgen_;
-  Expression* expression_;
-  Type type_;
-};
-
-
-// -------------------------------------------------------------------------
-// Code generation state
-
-// The state is passed down the AST by the code generator.  It is passed
-// implicitly (in a member variable) to the non-static code generator member
-// functions, and explicitly (as an argument) to the static member functions
-// and the AST node member functions.
-//
-// The state is threaded through the call stack.  Constructing a state
-// implicitly pushes it on the owning code generator's stack of states, and
-// destroying one implicitly pops it.
-
-class CodeGenState BASE_EMBEDDED {
- public:
-  enum AccessType {
-    UNDEFINED,
-    LOAD,
-    LOAD_TYPEOF_EXPR
-  };
-
-  // Create an initial code generator state.  Destroying the initial state
-  // leaves the code generator with a NULL state.
-  explicit CodeGenState(ArmCodeGenerator* owner);
-
-  // Create a code generator state based on a code generator's current
-  // state.  The new state has its own access type and pair of branch
-  // labels, and no reference.
-  CodeGenState(ArmCodeGenerator* owner,
-               AccessType access,
-               Label* true_target,
-               Label* false_target);
-
-  // Create a code generator state based on a code generator's current
-  // state.  The new state has an access type of LOAD, its own reference,
-  // and inherits the pair of branch labels of the current state.
-  CodeGenState(ArmCodeGenerator* owner, Reference* ref);
-
-  // Destroy a code generator state and restore the owning code generator's
-  // previous state.
-  ~CodeGenState();
-
-  AccessType access() const { return access_; }
-  Reference* ref() const { return ref_; }
-  Label* true_target() const { return true_target_; }
-  Label* false_target() const { return false_target_; }
-
- private:
-  ArmCodeGenerator* owner_;
-  AccessType access_;
-  Reference* ref_;
-  Label* true_target_;
-  Label* false_target_;
-  CodeGenState* previous_;
-};
-
-
-// -----------------------------------------------------------------------------
-// ArmCodeGenerator
-
-class ArmCodeGenerator: public CodeGenerator {
- public:
-  static Handle<Code> MakeCode(FunctionLiteral* fun,
-                               Handle<Script> script,
-                               bool is_eval);
-
-  MacroAssembler* masm() { return masm_; }
-
-  Scope* scope() const { return scope_; }
-
-  CodeGenState* state() { return state_; }
-  void set_state(CodeGenState* state) { state_ = state; }
-
- private:
-  // Assembler
-  MacroAssembler* masm_;  // to generate code
-
-  // Code generation state
-  Scope* scope_;
-  Condition cc_reg_;
-  CodeGenState* state_;
-  int break_stack_height_;
-
-  // Labels
-  Label function_return_;
-
-  // Construction/destruction
-  ArmCodeGenerator(int buffer_size,
-                   Handle<Script> script,
-                   bool is_eval);
-
-  virtual ~ArmCodeGenerator() { delete masm_; }
-
-  // Main code generation function
-  void GenCode(FunctionLiteral* fun);
-
-  // The following are used by class Reference.
-  void LoadReference(Reference* ref);
-  void UnloadReference(Reference* ref);
-
-  // State
-  bool has_cc() const  { return cc_reg_ != al; }
-  CodeGenState::AccessType access() const  { return state_->access(); }
-  Reference* ref() const  { return state_->ref(); }
-  bool is_referenced() const { return state_->ref() != NULL; }
-  Label* true_target() const  { return state_->true_target(); }
-  Label* false_target() const  { return state_->false_target(); }
-
-
-  // Expressions
-  MemOperand GlobalObject() const  {
-    return ContextOperand(cp, Context::GLOBAL_INDEX);
-  }
-
-  static MemOperand ContextOperand(Register context, int index) {
-    return MemOperand(context, Context::SlotOffset(index));
-  }
-
-  static MemOperand ParameterOperand(const CodeGenerator* cgen, int index) {
-    int num_parameters = cgen->scope()->num_parameters();
-    // index -2 corresponds to the activated closure, -1 corresponds
-    // to the receiver
-    ASSERT(-2 <= index && index < num_parameters);
-    int offset = (1 + num_parameters - index) * kPointerSize;
-    return MemOperand(fp, offset);
-  }
-
-  MemOperand ParameterOperand(int index) const {
-    return ParameterOperand(this, index);
-  }
-
-  MemOperand FunctionOperand() const {
-    return MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset);
-  }
-
-  static MemOperand SlotOperand(CodeGenerator* cgen,
-                                Slot* slot,
-                                Register tmp);
-
-  MemOperand SlotOperand(Slot* slot, Register tmp) {
-    return SlotOperand(this, slot, tmp);
-  }
-
-  void LoadCondition(Expression* x, CodeGenState::AccessType access,
-                     Label* true_target, Label* false_target, bool force_cc);
-  void Load(Expression* x,
-            CodeGenState::AccessType access = CodeGenState::LOAD);
-  void LoadGlobal();
-
-  // Special code for typeof expressions: Unfortunately, we must
-  // be careful when loading the expression in 'typeof'
-  // expressions. We are not allowed to throw reference errors for
-  // non-existing properties of the global object, so we must make it
-  // look like an explicit property access, instead of an access
-  // through the context chain.
-  void LoadTypeofExpression(Expression* x);
-
-
-  // References
-
-  // Generate code to fetch the value of a reference.  The reference is
-  // expected to be on top of the expression stack.  It is left in place and
-  // its value is pushed on top of it.
-  void GetValue(Reference* ref) {
-    ASSERT(!has_cc());
-    ASSERT(!ref->is_illegal());
-    CodeGenState new_state(this, ref);
-    Visit(ref->expression());
-  }
-
-  // Generate code to store a value in a reference.  The stored value is
-  // expected on top of the expression stack, with the reference immediately
-  // below it.  The expression stack is left unchanged.
-  void SetValue(Reference* ref) {
-    ASSERT(!has_cc());
-    ASSERT(!ref->is_illegal());
-    ref->expression()->GenerateStoreCode(this, ref, NOT_CONST_INIT);
-  }
-
-  // Generate code to store a value in a reference.  The stored value is
-  // expected on top of the expression stack, with the reference immediately
-  // below it.  The expression stack is left unchanged.
-  void InitConst(Reference* ref) {
-    ASSERT(!has_cc());
-    ASSERT(!ref->is_illegal());
-    ref->expression()->GenerateStoreCode(this, ref, CONST_INIT);
-  }
-
-  // Generate code to fetch a value from a property of a reference.  The
-  // reference is expected on top of the expression stack.  It is left in
-  // place and its value is pushed on top of it.
-  void GetReferenceProperty(Expression* key);
-
-  // Generate code to store a value in a property of a reference.  The
-  // stored value is expected on top of the expression stack, with the
-  // reference immediately below it.  The expression stack is left
-  // unchanged.
-  static void SetReferenceProperty(CodeGenerator* cgen,
-                                   Reference* ref,
-                                   Expression* key);
-
-
-  void ToBoolean(Label* true_target, Label* false_target);
-
-  void GenericBinaryOperation(Token::Value op);
-  void Comparison(Condition cc, bool strict = false);
-
-  void SmiOperation(Token::Value op, Handle<Object> value, bool reversed);
-
-  void CallWithArguments(ZoneList<Expression*>* arguments, int position);
-
-  // Declare global variables and functions in the given array of
-  // name/value pairs.
-  virtual void DeclareGlobals(Handle<FixedArray> pairs);
-
-  // Instantiate the function boilerplate.
-  void InstantiateBoilerplate(Handle<JSFunction> boilerplate);
-
-  // Control flow
-  void Branch(bool if_true, Label* L);
-  void CheckStack();
-  void CleanStack(int num_bytes);
-
-  // Node visitors
-#define DEF_VISIT(type)                         \
-  virtual void Visit##type(type* node);
-  NODE_LIST(DEF_VISIT)
-#undef DEF_VISIT
-
-  // Fast-case switch
-  static const int kFastCaseSwitchMaxOverheadFactor = 10;
-  static const int kFastCaseSwitchMinCaseCount = 5;
-  virtual int FastCaseSwitchMaxOverheadFactor();
-  virtual int FastCaseSwitchMinCaseCount();
-  virtual void GenerateFastCaseSwitchJumpTable(
-      SwitchStatement* node, int min_index, int range, Label *fail_label,
-      SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels);
-
-  void RecordStatementPosition(Node* node);
-
-  // Activation frames
-  void EnterJSFrame();
-  void ExitJSFrame();
-
-  virtual void GenerateIsSmi(ZoneList<Expression*>* args);
-  virtual void GenerateIsNonNegativeSmi(ZoneList<Expression*>* args);
-  virtual void GenerateIsArray(ZoneList<Expression*>* args);
-
-  virtual void GenerateArgumentsLength(ZoneList<Expression*>* args);
-  virtual void GenerateArgumentsAccess(ZoneList<Expression*>* args);
-
-  virtual void GenerateValueOf(ZoneList<Expression*>* args);
-  virtual void GenerateSetValueOf(ZoneList<Expression*>* args);
-
-  virtual void GenerateFastCharCodeAt(ZoneList<Expression*>* args);
-
-  virtual void GenerateObjectEquals(ZoneList<Expression*>* args);
-
-  friend class Reference;
-  friend class Property;
-  friend class VariableProxy;
-  friend class Slot;
-};
-
-
 // -------------------------------------------------------------------------
 // CodeGenState implementation.
 
-CodeGenState::CodeGenState(ArmCodeGenerator* owner)
+CodeGenState::CodeGenState(CodeGenerator* owner)
     : owner_(owner),
-      access_(UNDEFINED),
-      ref_(NULL),
+      typeof_state_(NOT_INSIDE_TYPEOF),
       true_target_(NULL),
       false_target_(NULL),
       previous_(NULL) {
@@ -351,26 +48,14 @@ CodeGenState::CodeGenState(ArmCodeGenerator* owner)
 }
 
 
-CodeGenState::CodeGenState(ArmCodeGenerator* owner,
-                           AccessType access,
+CodeGenState::CodeGenState(CodeGenerator* owner,
+                           TypeofState typeof_state,
                            Label* true_target,
                            Label* false_target)
     : owner_(owner),
-      access_(access),
-      ref_(NULL),
+      typeof_state_(typeof_state),
       true_target_(true_target),
       false_target_(false_target),
-      previous_(owner->state()) {
-  owner_->set_state(this);
-}
-
-
-CodeGenState::CodeGenState(ArmCodeGenerator* owner, Reference* ref)
-    : owner_(owner),
-      access_(LOAD),
-      ref_(ref),
-      true_target_(owner->state()->true_target_),
-      false_target_(owner->state()->false_target_),
       previous_(owner->state()) {
   owner_->set_state(this);
 }
@@ -383,98 +68,15 @@ CodeGenState::~CodeGenState() {
 
 
 // -----------------------------------------------------------------------------
-// ArmCodeGenerator implementation
+// CodeGenerator implementation
 
 #define __ masm_->
 
-Handle<Code> ArmCodeGenerator::MakeCode(FunctionLiteral* flit,
-                                        Handle<Script> script,
-                                        bool is_eval) {
-#ifdef ENABLE_DISASSEMBLER
-  bool print_code = FLAG_print_code && !Bootstrapper::IsActive();
-#endif  // ENABLE_DISASSEMBLER
-
-#ifdef DEBUG
-  bool print_source = false;
-  bool print_ast = false;
-  const char* ftype;
-
-  if (Bootstrapper::IsActive()) {
-    print_source = FLAG_print_builtin_source;
-    print_ast = FLAG_print_builtin_ast;
-    print_code = FLAG_print_builtin_code;
-    ftype = "builtin";
-  } else {
-    print_source = FLAG_print_source;
-    print_ast = FLAG_print_ast;
-    ftype = "user-defined";
-  }
-
-  if (FLAG_trace_codegen || print_source || print_ast) {
-    PrintF("*** Generate code for %s function: ", ftype);
-    flit->name()->ShortPrint();
-    PrintF(" ***\n");
-  }
-
-  if (print_source) {
-    PrintF("--- Source from AST ---\n%s\n", PrettyPrinter().PrintProgram(flit));
-  }
-
-  if (print_ast) {
-    PrintF("--- AST ---\n%s\n", AstPrinter().PrintProgram(flit));
-  }
-#endif  // DEBUG
-
-  // Generate code.
-  const int initial_buffer_size = 4 * KB;
-  ArmCodeGenerator cgen(initial_buffer_size, script, is_eval);
-  cgen.GenCode(flit);
-  if (cgen.HasStackOverflow()) {
-    ASSERT(!Top::has_pending_exception());
-    return Handle<Code>::null();
-  }
-
-  // Process any deferred code.
-  cgen.ProcessDeferred();
-
-  // Allocate and install the code.
-  CodeDesc desc;
-  cgen.masm()->GetCode(&desc);
-  ScopeInfo<> sinfo(flit->scope());
-  Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
-  Handle<Code> code = Factory::NewCode(desc, &sinfo, flags);
-
-  // Add unresolved entries in the code to the fixup list.
-  Bootstrapper::AddFixup(*code, cgen.masm());
-
-#ifdef ENABLE_DISASSEMBLER
-  if (print_code) {
-    // Print the source code if available.
-    if (!script->IsUndefined() && !script->source()->IsUndefined()) {
-      PrintF("--- Raw source ---\n");
-      StringInputBuffer stream(String::cast(script->source()));
-      stream.Seek(flit->start_position());
-      // flit->end_position() points to the last character in the stream. We
-      // need to compensate by adding one to calculate the length.
-      int source_len = flit->end_position() - flit->start_position() + 1;
-      for (int i = 0; i < source_len; i++) {
-        if (stream.has_more()) PrintF("%c", stream.GetNext());
-      }
-      PrintF("\n\n");
-    }
-    PrintF("--- Code ---\n");
-    code->Disassemble();
-  }
-#endif  // ENABLE_DISASSEMBLER
-
-  return code;
-}
-
-
-ArmCodeGenerator::ArmCodeGenerator(int buffer_size,
-                                   Handle<Script> script,
-                                   bool is_eval)
-    : CodeGenerator(is_eval, script),
+CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
+                             bool is_eval)
+    : is_eval_(is_eval),
+      script_(script),
+      deferred_(8),
       masm_(new MacroAssembler(NULL, buffer_size)),
       scope_(NULL),
       cc_reg_(al),
@@ -491,7 +93,7 @@ ArmCodeGenerator::ArmCodeGenerator(int buffer_size,
 // pp: caller's parameter pointer
 // cp: callee's context
 
-void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
+void CodeGenerator::GenCode(FunctionLiteral* fun) {
   Scope* scope = fun->scope();
   ZoneList<Statement*>* body = fun->body();
 
@@ -597,9 +199,9 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
           __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
           __ CallStub(&stub);
           __ push(r0);
-          SetValue(&arguments_ref);
+          arguments_ref.SetValue(NOT_CONST_INIT);
         }
-        SetValue(&shadow_ref);
+        shadow_ref.SetValue(NOT_CONST_INIT);
       }
       __ pop(r0);  // Value is no longer needed.
     }
@@ -681,21 +283,73 @@ void ArmCodeGenerator::GenCode(FunctionLiteral* fun) {
 }
 
 
+MemOperand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
+  // Currently, this assertion will fail if we try to assign to
+  // a constant variable that is constant because it is read-only
+  // (such as the variable referring to a named function expression).
+  // We need to implement assignments to read-only variables.
+  // Ideally, we should do this during AST generation (by converting
+  // such assignments into expression statements); however, in general
+  // we may not be able to make the decision until past AST generation,
+  // that is when the entire program is known.
+  ASSERT(slot != NULL);
+  int index = slot->index();
+  switch (slot->type()) {
+    case Slot::PARAMETER:
+      return ParameterOperand(index);
+
+    case Slot::LOCAL: {
+      ASSERT(0 <= index && index < scope()->num_stack_slots());
+      const int kLocalOffset = JavaScriptFrameConstants::kLocal0Offset;
+      return MemOperand(fp, kLocalOffset - index * kPointerSize);
+    }
+
+    case Slot::CONTEXT: {
+      // Follow the context chain if necessary.
+      ASSERT(!tmp.is(cp));  // do not overwrite context register
+      Register context = cp;
+      int chain_length = scope()->ContextChainLength(slot->var()->scope());
+      for (int i = chain_length; i-- > 0;) {
+        // Load the closure.
+        // (All contexts, even 'with' contexts, have a closure,
+        // and it is the same for all contexts inside a function.
+        // There is no need to go to the function context first.)
+        __ ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+        // Load the function context (which is the incoming, outer context).
+        __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
+        context = tmp;
+      }
+      // We may have a 'with' context now. Get the function context.
+      // (In fact this mov may never be the needed, since the scope analysis
+      // may not permit a direct context access in this case and thus we are
+      // always at a function context. However it is safe to dereference be-
+      // cause the function context of a function context is itself. Before
+      // deleting this mov we should try to create a counter-example first,
+      // though...)
+      __ ldr(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
+      return ContextOperand(tmp, index);
+    }
+
+    default:
+      UNREACHABLE();
+      return MemOperand(r0, 0);
+  }
+}
+
+
 // Loads a value on the stack. If it is a boolean value, the result may have
 // been (partially) translated into branches, or it may have set the condition
 // code register. If force_cc is set, the value is forced to set the condition
 // code register and no value is pushed. If the condition code register was set,
 // has_cc() is true and cc_reg_ contains the condition to test for 'true'.
-void ArmCodeGenerator::LoadCondition(Expression* x,
-                                     CodeGenState::AccessType access,
+void CodeGenerator::LoadCondition(Expression* x,
+                                     TypeofState typeof_state,
                                      Label* true_target,
                                      Label* false_target,
                                      bool force_cc) {
-  ASSERT(access == CodeGenState::LOAD ||
-         access == CodeGenState::LOAD_TYPEOF_EXPR);
-  ASSERT(!has_cc() && !is_referenced());
+  ASSERT(!has_cc());
 
-  { CodeGenState new_state(this, access, true_target, false_target);
+  { CodeGenState new_state(this, typeof_state, true_target, false_target);
     Visit(x);
   }
   if (force_cc && !has_cc()) {
@@ -706,13 +360,10 @@ void ArmCodeGenerator::LoadCondition(Expression* x,
 }
 
 
-void ArmCodeGenerator::Load(Expression* x, CodeGenState::AccessType access) {
-  ASSERT(access == CodeGenState::LOAD ||
-         access == CodeGenState::LOAD_TYPEOF_EXPR);
-
+void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   Label true_target;
   Label false_target;
-  LoadCondition(x, access, &true_target, &false_target, false);
+  LoadCondition(x, typeof_state, &true_target, &false_target, false);
 
   if (has_cc()) {
     // convert cc_reg_ into a bool
@@ -758,16 +409,16 @@ void ArmCodeGenerator::Load(Expression* x, CodeGenState::AccessType access) {
 }
 
 
-void ArmCodeGenerator::LoadGlobal() {
+void CodeGenerator::LoadGlobal() {
   __ ldr(r0, GlobalObject());
   __ push(r0);
 }
 
 
 // TODO(1241834): Get rid of this function in favor of just using Load, now
-// that we have the LOAD_TYPEOF_EXPR access type. => Need to handle
-// global variables w/o reference errors elsewhere.
-void ArmCodeGenerator::LoadTypeofExpression(Expression* x) {
+// that we have the INSIDE_TYPEOF typeof state. => Need to handle global
+// variables w/o reference errors elsewhere.
+void CodeGenerator::LoadTypeofExpression(Expression* x) {
   Variable* variable = x->AsVariableProxy()->AsVariable();
   if (variable != NULL && !variable->is_this() && variable->is_global()) {
     // NOTE: This is somewhat nasty. We force the compiler to load
@@ -780,12 +431,12 @@ void ArmCodeGenerator::LoadTypeofExpression(Expression* x) {
     Property property(&global, &key, RelocInfo::kNoPosition);
     Load(&property);
   } else {
-    Load(x, CodeGenState::LOAD_TYPEOF_EXPR);
+    Load(x, INSIDE_TYPEOF);
   }
 }
 
 
-Reference::Reference(ArmCodeGenerator* cgen, Expression* expression)
+Reference::Reference(CodeGenerator* cgen, Expression* expression)
     : cgen_(cgen), expression_(expression), type_(ILLEGAL) {
   cgen->LoadReference(this);
 }
@@ -796,44 +447,52 @@ Reference::~Reference() {
 }
 
 
-void ArmCodeGenerator::LoadReference(Reference* ref) {
+void CodeGenerator::LoadReference(Reference* ref) {
+  Comment cmnt(masm_, "[ LoadReference");
+
   Expression* e = ref->expression();
   Property* property = e->AsProperty();
   Variable* var = e->AsVariableProxy()->AsVariable();
 
   if (property != NULL) {
+    // The expression is either a property or a variable proxy that rewrites
+    // to a property.
     Load(property->obj());
-    // Used a named reference if the key is a literal symbol.
-    // We don't use a named reference if they key is a string that can be
-    // legally parsed as an integer.  This is because, otherwise we don't
-    // get into the slow case code that handles [] on String objects.
+    // We use a named reference if the key is a literal symbol, unless it is
+    // a string that can be legally parsed as an integer.  This is because
+    // otherwise we will not get into the slow case code that handles [] on
+    // String objects.
     Literal* literal = property->key()->AsLiteral();
     uint32_t dummy;
-    if (literal != NULL && literal->handle()->IsSymbol() &&
-      !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
+    if (literal != NULL &&
+        literal->handle()->IsSymbol() &&
+        !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
       ref->set_type(Reference::NAMED);
     } else {
       Load(property->key());
       ref->set_type(Reference::KEYED);
     }
   } else if (var != NULL) {
+    // The expression is a variable proxy that does not rewrite to a
+    // property.  Global variables are treated as named property references.
     if (var->is_global()) {
-      // global variable
       LoadGlobal();
       ref->set_type(Reference::NAMED);
     } else {
-      // local variable
-      ref->set_type(Reference::EMPTY);
+      ASSERT(var->slot() != NULL);
+      ref->set_type(Reference::SLOT);
     }
   } else {
+    // Anything else is a runtime error.
     Load(e);
     __ CallRuntime(Runtime::kThrowReferenceError, 1);
-    __ push(r0);
   }
 }
 
 
-void ArmCodeGenerator::UnloadReference(Reference* ref) {
+void CodeGenerator::UnloadReference(Reference* ref) {
+  Comment cmnt(masm_, "[ UnloadReference");
+
   int size = ref->size();
   if (size <= 0) {
     // Do nothing. No popping is necessary.
@@ -848,7 +507,7 @@ void ArmCodeGenerator::UnloadReference(Reference* ref) {
 // ECMA-262, section 9.2, page 30: ToBoolean(). Convert the given
 // register to a boolean in the condition code register. The code
 // may jump to 'false_target' in case the register converts to 'false'.
-void ArmCodeGenerator::ToBoolean(Label* true_target,
+void CodeGenerator::ToBoolean(Label* true_target,
                                  Label* false_target) {
   // Note: The generated code snippet does not change stack variables.
   //       Only the condition code should be set.
@@ -893,8 +552,6 @@ class GetPropertyStub : public CodeStub {
   Major MajorKey() { return GetProperty; }
   int MinorKey() { return 0; }
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "GetPropertyStub"; }
 };
 
 
@@ -906,8 +563,6 @@ class SetPropertyStub : public CodeStub {
   Major MajorKey() { return SetProperty; }
   int MinorKey() { return 0; }
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "GetPropertyStub"; }
 };
 
 
@@ -957,8 +612,6 @@ class InvokeBuiltinStub : public CodeStub {
   int MinorKey() { return (argc_ << 3) | static_cast<int>(kind_); }
   void Generate(MacroAssembler* masm);
 
-  const char* GetName() { return "InvokeBuiltinStub"; }
-
 #ifdef DEBUG
   void Print() {
     PrintF("InvokeBuiltinStub (kind %d, argc, %d)\n",
@@ -969,45 +622,7 @@ class InvokeBuiltinStub : public CodeStub {
 };
 
 
-void ArmCodeGenerator::GetReferenceProperty(Expression* key) {
-  ASSERT(!ref()->is_illegal());
-  Reference::Type type = ref()->type();
-
-  // TODO(1241834): Make sure that this it is safe to ignore the distinction
-  // between access types LOAD and LOAD_TYPEOF_EXPR. If there is a chance
-  // that reference errors can be thrown below, we must distinguish between
-  // the two kinds of loads (typeof expression loads must not throw a
-  // reference error).
-  if (type == Reference::NAMED) {
-    // Compute the name of the property.
-    Literal* literal = key->AsLiteral();
-    Handle<String> name(String::cast(*literal->handle()));
-
-    // Call the appropriate IC code.
-    // Setup the name register.
-    __ mov(r2, Operand(name));
-    Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-    Variable* var = ref()->expression()->AsVariableProxy()->AsVariable();
-    if (var != NULL) {
-      ASSERT(var->is_global());
-      __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-    } else {
-      __ Call(ic, RelocInfo::CODE_TARGET);
-    }
-
-  } else {
-    // Access keyed property.
-    ASSERT(type == Reference::KEYED);
-
-    // TODO(1224671): Implement inline caching for keyed loads as on ia32.
-    GetPropertyStub stub;
-    __ CallStub(&stub);
-  }
-  __ push(r0);
-}
-
-
-void ArmCodeGenerator::GenericBinaryOperation(Token::Value op) {
+void CodeGenerator::GenericBinaryOperation(Token::Value op) {
   // sp[0] : y
   // sp[1] : x
   // result : r0
@@ -1132,7 +747,7 @@ class DeferredInlinedSmiOperation: public DeferredCode {
 };
 
 
-void ArmCodeGenerator::SmiOperation(Token::Value op,
+void CodeGenerator::SmiOperation(Token::Value op,
                                     Handle<Object> value,
                                     bool reversed) {
   // NOTE: This is an attempt to inline (a bit) more of the code for
@@ -1267,7 +882,7 @@ void ArmCodeGenerator::SmiOperation(Token::Value op,
 }
 
 
-void ArmCodeGenerator::Comparison(Condition cc, bool strict) {
+void CodeGenerator::Comparison(Condition cc, bool strict) {
   // sp[0] : y
   // sp[1] : x
   // result : cc register
@@ -1338,8 +953,6 @@ class CallFunctionStub: public CodeStub {
  private:
   int argc_;
 
-  const char* GetName() { return "CallFuntionStub"; }
-
 #if defined(DEBUG)
   void Print() { PrintF("CallFunctionStub (argc %d)\n", argc_); }
 #endif  // defined(DEBUG)
@@ -1350,7 +963,7 @@ class CallFunctionStub: public CodeStub {
 
 
 // Call the function on the stack with the given arguments.
-void ArmCodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
+void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
                                          int position) {
   // Push the arguments ("left-to-right") on the stack.
   for (int i = 0; i < args->length(); i++) {
@@ -1370,7 +983,7 @@ void ArmCodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 }
 
 
-void ArmCodeGenerator::Branch(bool if_true, Label* L) {
+void CodeGenerator::Branch(bool if_true, Label* L) {
   ASSERT(has_cc());
   Condition cc = if_true ? cc_reg_ : NegateCondition(cc_reg_);
   __ b(cc, L);
@@ -1378,7 +991,7 @@ void ArmCodeGenerator::Branch(bool if_true, Label* L) {
 }
 
 
-void ArmCodeGenerator::CheckStack() {
+void CodeGenerator::CheckStack() {
   if (FLAG_check_stack) {
     Comment cmnt(masm_, "[ check stack");
     StackCheckStub stub;
@@ -1387,7 +1000,7 @@ void ArmCodeGenerator::CheckStack() {
 }
 
 
-void ArmCodeGenerator::VisitBlock(Block* node) {
+void CodeGenerator::VisitBlock(Block* node) {
   Comment cmnt(masm_, "[ Block");
   if (FLAG_debug_info) RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -1396,7 +1009,7 @@ void ArmCodeGenerator::VisitBlock(Block* node) {
 }
 
 
-void ArmCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
+void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   __ mov(r0, Operand(pairs));
   __ push(r0);
   __ push(cp);
@@ -1407,7 +1020,7 @@ void ArmCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 }
 
 
-void ArmCodeGenerator::VisitDeclaration(Declaration* node) {
+void CodeGenerator::VisitDeclaration(Declaration* node) {
   Comment cmnt(masm_, "[ Declaration");
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
@@ -1442,9 +1055,8 @@ void ArmCodeGenerator::VisitDeclaration(Declaration* node) {
       __ mov(r0, Operand(0));  // no initial value!
       __ push(r0);
     }
-    __ CallRuntime(Runtime::kDeclareContextSlot, 5);
-    __ push(r0);
-
+    __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+    // Ignore the return value (declarations are statements).
     return;
   }
 
@@ -1461,15 +1073,19 @@ void ArmCodeGenerator::VisitDeclaration(Declaration* node) {
   if (val != NULL) {
     // Set initial value.
     Reference target(this, node->proxy());
+    ASSERT(target.is_slot());
     Load(val);
-    SetValue(&target);
-    // Get rid of the assigned value (declarations are statements).
+    target.SetValue(NOT_CONST_INIT);
+    // Get rid of the assigned value (declarations are statements).  It's
+    // safe to pop the value lying on top of the reference before unloading
+    // the reference itself (which preserves the top of stack) because we
+    // know it is a zero-sized reference.
     __ pop();
   }
 }
 
 
-void ArmCodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
+void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   Comment cmnt(masm_, "[ ExpressionStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   Expression* expression = node->expression();
@@ -1479,13 +1095,13 @@ void ArmCodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
 }
 
 
-void ArmCodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
+void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
   Comment cmnt(masm_, "// EmptyStatement");
   // nothing to do
 }
 
 
-void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
+void CodeGenerator::VisitIfStatement(IfStatement* node) {
   Comment cmnt(masm_, "[ IfStatement");
   // Generate different code depending on which
   // parts of the if statement are present or not.
@@ -1500,7 +1116,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     Label then;
     Label else_;
     // if (cond)
-    LoadCondition(node->condition(), CodeGenState::LOAD, &then, &else_, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
     Branch(false, &else_);
     // then
     __ bind(&then);
@@ -1515,7 +1131,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_else_stm);
     Label then;
     // if (cond)
-    LoadCondition(node->condition(), CodeGenState::LOAD, &then, &exit, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &exit, true);
     Branch(false, &exit);
     // then
     __ bind(&then);
@@ -1526,7 +1142,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_then_stm);
     Label else_;
     // if (!cond)
-    LoadCondition(node->condition(), CodeGenState::LOAD, &exit, &else_, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &else_, true);
     Branch(true, &exit);
     // else
     __ bind(&else_);
@@ -1536,7 +1152,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
     Comment cmnt(masm_, "[ If");
     ASSERT(!has_then_stm && !has_else_stm);
     // if (cond)
-    LoadCondition(node->condition(), CodeGenState::LOAD, &exit, &exit, false);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &exit, false);
     if (has_cc()) {
       cc_reg_ = al;
     } else {
@@ -1549,7 +1165,7 @@ void ArmCodeGenerator::VisitIfStatement(IfStatement* node) {
 }
 
 
-void ArmCodeGenerator::CleanStack(int num_bytes) {
+void CodeGenerator::CleanStack(int num_bytes) {
   ASSERT(num_bytes >= 0);
   if (num_bytes > 0) {
     __ add(sp, sp, Operand(num_bytes));
@@ -1557,7 +1173,7 @@ void ArmCodeGenerator::CleanStack(int num_bytes) {
 }
 
 
-void ArmCodeGenerator::VisitContinueStatement(ContinueStatement* node) {
+void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
   Comment cmnt(masm_, "[ ContinueStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
@@ -1565,7 +1181,7 @@ void ArmCodeGenerator::VisitContinueStatement(ContinueStatement* node) {
 }
 
 
-void ArmCodeGenerator::VisitBreakStatement(BreakStatement* node) {
+void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
   Comment cmnt(masm_, "[ BreakStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
@@ -1573,7 +1189,7 @@ void ArmCodeGenerator::VisitBreakStatement(BreakStatement* node) {
 }
 
 
-void ArmCodeGenerator::VisitReturnStatement(ReturnStatement* node) {
+void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   Comment cmnt(masm_, "[ ReturnStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   Load(node->expression());
@@ -1584,7 +1200,7 @@ void ArmCodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 }
 
 
-void ArmCodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
+void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   Load(node->expression());
@@ -1601,7 +1217,7 @@ void ArmCodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
 }
 
 
-void ArmCodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
+void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
   Comment cmnt(masm_, "[ WithExitStatement");
   // Pop context.
   __ ldr(cp, ContextOperand(cp, Context::PREVIOUS_INDEX));
@@ -1610,16 +1226,16 @@ void ArmCodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
 }
 
 
-int ArmCodeGenerator::FastCaseSwitchMaxOverheadFactor() {
-    return kFastCaseSwitchMaxOverheadFactor;
+int CodeGenerator::FastCaseSwitchMaxOverheadFactor() {
+    return kFastSwitchMaxOverheadFactor;
 }
 
-int ArmCodeGenerator::FastCaseSwitchMinCaseCount() {
-    return kFastCaseSwitchMinCaseCount;
+int CodeGenerator::FastCaseSwitchMinCaseCount() {
+    return kFastSwitchMinCaseCount;
 }
 
 
-void ArmCodeGenerator::GenerateFastCaseSwitchJumpTable(
+void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     SwitchStatement* node, int min_index, int range, Label *fail_label,
     SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels) {
 
@@ -1652,7 +1268,7 @@ void ArmCodeGenerator::GenerateFastCaseSwitchJumpTable(
 }
 
 
-void ArmCodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
+void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   Comment cmnt(masm_, "[ SwitchStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -1720,7 +1336,7 @@ void ArmCodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 }
 
 
-void ArmCodeGenerator::VisitLoopStatement(LoopStatement* node) {
+void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   Comment cmnt(masm_, "[ LoopStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -1779,7 +1395,7 @@ void ArmCodeGenerator::VisitLoopStatement(LoopStatement* node) {
     case DONT_KNOW:
       CheckStack();  // TODO(1222600): ignore if body contains calls.
       LoadCondition(node->cond(),
-                    CodeGenState::LOAD,
+                    NOT_INSIDE_TYPEOF,
                     &loop,
                     node->break_target(),
                     true);
@@ -1792,7 +1408,7 @@ void ArmCodeGenerator::VisitLoopStatement(LoopStatement* node) {
 }
 
 
-void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
+void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   Comment cmnt(masm_, "[ ForInStatement");
   if (FLAG_debug_info) RecordStatementPosition(node);
 
@@ -1948,13 +1564,23 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
         __ ldr(r0, MemOperand(sp, kPointerSize * each.size()));
         __ push(r0);
       }
-      SetValue(&each);
+      // If the reference was to a slot we rely on the convenient property
+      // that it doesn't matter whether a value (eg, r3 pushed above) is
+      // right on top of or right underneath a zero-sized reference.
+      each.SetValue(NOT_CONST_INIT);
       if (each.size() > 0) {
-        __ pop(r0);  // discard the value
+        // It's safe to pop the value lying on top of the reference before
+        // unloading the reference itself (which preserves the top of stack,
+        // ie, now the topmost value of the non-zero sized reference), since
+        // we will discard the top of stack after unloading the reference
+        // anyway.
+        __ pop(r0);
       }
     }
   }
-  __ pop();  // pop the i'th entry pushed above
+  // Discard the i'th entry pushed above or else the remainder of the
+  // reference, whichever is currently on top of the stack.
+  __ pop();
   CheckStack();  // TODO(1222600): ignore if body contains calls.
   __ jmp(&loop);
 
@@ -1970,7 +1596,7 @@ void ArmCodeGenerator::VisitForInStatement(ForInStatement* node) {
 }
 
 
-void ArmCodeGenerator::VisitTryCatch(TryCatch* node) {
+void CodeGenerator::VisitTryCatch(TryCatch* node) {
   Comment cmnt(masm_, "[ TryCatch");
 
   Label try_block, exit;
@@ -1982,11 +1608,11 @@ void ArmCodeGenerator::VisitTryCatch(TryCatch* node) {
   // Store the caught exception in the catch variable.
   __ push(r0);
   { Reference ref(this, node->catch_var());
-    // Load the exception to the top of the stack.
-    __ ldr(r0, MemOperand(sp, ref.size() * kPointerSize));
-    __ push(r0);
-    SetValue(&ref);
-    __ pop(r0);
+    ASSERT(ref.is_slot());
+    // Here we make use of the convenient property that it doesn't matter
+    // whether a value is immediately on top of or underneath a zero-sized
+    // reference.
+    ref.SetValue(NOT_CONST_INIT);
   }
 
   // Remove the exception from the stack.
@@ -2059,7 +1685,7 @@ void ArmCodeGenerator::VisitTryCatch(TryCatch* node) {
 }
 
 
-void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
+void CodeGenerator::VisitTryFinally(TryFinally* node) {
   Comment cmnt(masm_, "[ TryFinally");
 
   // State: Used to keep track of reason for entering the finally
@@ -2192,7 +1818,7 @@ void ArmCodeGenerator::VisitTryFinally(TryFinally* node) {
 }
 
 
-void ArmCodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
+void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatament");
   if (FLAG_debug_info) RecordStatementPosition(node);
   __ CallRuntime(Runtime::kDebugBreak, 1);
@@ -2200,7 +1826,7 @@ void ArmCodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
 }
 
 
-void ArmCodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
 
   // Push the boilerplate on the stack.
@@ -2214,7 +1840,7 @@ void ArmCodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 }
 
 
-void ArmCodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
+void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
@@ -2225,56 +1851,52 @@ void ArmCodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
 }
 
 
-void ArmCodeGenerator::VisitFunctionBoilerplateLiteral(
+void CodeGenerator::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* node) {
   Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
   InstantiateBoilerplate(node->boilerplate());
 }
 
 
-void ArmCodeGenerator::VisitConditional(Conditional* node) {
+void CodeGenerator::VisitConditional(Conditional* node) {
   Comment cmnt(masm_, "[ Conditional");
   Label then, else_, exit;
-  LoadCondition(node->condition(), CodeGenState::LOAD, &then, &else_, true);
+  LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
   Branch(false, &else_);
   __ bind(&then);
-  Load(node->then_expression(), access());
+  Load(node->then_expression(), typeof_state());
   __ b(&exit);
   __ bind(&else_);
-  Load(node->else_expression(), access());
+  Load(node->else_expression(), typeof_state());
   __ bind(&exit);
 }
 
 
-void ArmCodeGenerator::VisitSlot(Slot* node) {
-  ASSERT(access() != CodeGenState::UNDEFINED);
-  Comment cmnt(masm_, "[ Slot");
-
-  if (node->type() == Slot::LOOKUP) {
-    ASSERT(node->var()->mode() == Variable::DYNAMIC);
+void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
+  if (slot->type() == Slot::LOOKUP) {
+    ASSERT(slot->var()->mode() == Variable::DYNAMIC);
 
     // For now, just do a runtime call.
     __ push(cp);
-    __ mov(r0, Operand(node->var()->name()));
+    __ mov(r0, Operand(slot->var()->name()));
     __ push(r0);
 
-    if (access() == CodeGenState::LOAD) {
-      __ CallRuntime(Runtime::kLoadContextSlot, 2);
-    } else {
-      ASSERT(access() == CodeGenState::LOAD_TYPEOF_EXPR);
+    if (typeof_state == INSIDE_TYPEOF) {
       __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+    } else {
+      __ CallRuntime(Runtime::kLoadContextSlot, 2);
     }
     __ push(r0);
 
   } else {
     // Note: We would like to keep the assert below, but it fires because of
     // some nasty code in LoadTypeofExpression() which should be removed...
-    // ASSERT(node->var()->mode() != Variable::DYNAMIC);
+    // ASSERT(slot->var()->mode() != Variable::DYNAMIC);
 
     // Special handling for locals allocated in registers.
-    __ ldr(r0, SlotOperand(node, r2));
+    __ ldr(r0, SlotOperand(slot, r2));
     __ push(r0);
-    if (node->var()->mode() == Variable::CONST) {
+    if (slot->var()->mode() == Variable::CONST) {
       // Const slots may contain 'the hole' value (the constant hasn't been
       // initialized yet) which needs to be converted into the 'undefined'
       // value.
@@ -2288,36 +1910,35 @@ void ArmCodeGenerator::VisitSlot(Slot* node) {
 }
 
 
-void ArmCodeGenerator::VisitVariableProxy(VariableProxy* node) {
-  Comment cmnt(masm_, "[ VariableProxy");
-  Variable* var_node = node->var();
+void CodeGenerator::VisitSlot(Slot* node) {
+  Comment cmnt(masm_, "[ Slot");
+  LoadFromSlot(node, typeof_state());
+}
 
-  Expression* expr = var_node->rewrite();
+
+void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
+  Comment cmnt(masm_, "[ VariableProxy");
+
+  Variable* var = node->var();
+  Expression* expr = var->rewrite();
   if (expr != NULL) {
     Visit(expr);
   } else {
-    ASSERT(var_node->is_global());
-    if (is_referenced()) {
-      if (var_node->AsProperty() != NULL) {
-        __ RecordPosition(var_node->AsProperty()->position());
-      }
-      GetReferenceProperty(new Literal(var_node->name()));
-    } else {
-      Reference property(this, node);
-      GetValue(&property);
-    }
+    ASSERT(var->is_global());
+    Reference ref(this, node);
+    ref.GetValue(typeof_state());
   }
 }
 
 
-void ArmCodeGenerator::VisitLiteral(Literal* node) {
+void CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
   __ mov(r0, Operand(node->handle()));
   __ push(r0);
 }
 
 
-void ArmCodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
+void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   Comment cmnt(masm_, "[ RexExp Literal");
 
   // Retrieve the literal array and check the allocated entry.
@@ -2388,7 +2009,7 @@ void ObjectLiteralDeferred::Generate() {
 }
 
 
-void ArmCodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
+void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   Comment cmnt(masm_, "[ ObjectLiteral");
 
   ObjectLiteralDeferred* deferred = new ObjectLiteralDeferred(this, node);
@@ -2461,7 +2082,7 @@ void ArmCodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
-void ArmCodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
+void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   // Call runtime to create the array literal.
@@ -2505,7 +2126,7 @@ void ArmCodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 }
 
 
-void ArmCodeGenerator::VisitAssignment(Assignment* node) {
+void CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
   if (FLAG_debug_info) RecordStatementPosition(node);
 
@@ -2518,7 +2139,7 @@ void ArmCodeGenerator::VisitAssignment(Assignment* node) {
     Load(node->value());
 
   } else {
-    GetValue(&target);
+    target.GetValue(NOT_INSIDE_TYPEOF);
     Literal* literal = node->value()->AsLiteral();
     if (literal != NULL && literal->handle()->IsSmi()) {
       SmiOperation(node->binary_op(), literal->handle(), false);
@@ -2543,15 +2164,15 @@ void ArmCodeGenerator::VisitAssignment(Assignment* node) {
       // Dynamic constant initializations must use the function context
       // and initialize the actual constant declared. Dynamic variable
       // initializations are simply assignments and use SetValue.
-      InitConst(&target);
+      target.SetValue(CONST_INIT);
     } else {
-      SetValue(&target);
+      target.SetValue(NOT_CONST_INIT);
     }
   }
 }
 
 
-void ArmCodeGenerator::VisitThrow(Throw* node) {
+void CodeGenerator::VisitThrow(Throw* node) {
   Comment cmnt(masm_, "[ Throw");
 
   Load(node->exception());
@@ -2561,21 +2182,15 @@ void ArmCodeGenerator::VisitThrow(Throw* node) {
 }
 
 
-void ArmCodeGenerator::VisitProperty(Property* node) {
+void CodeGenerator::VisitProperty(Property* node) {
   Comment cmnt(masm_, "[ Property");
 
-  if (is_referenced()) {
-    __ RecordPosition(node->position());
-    GetReferenceProperty(node->key());
-  } else {
-    Reference property(this, node);
-    __ RecordPosition(node->position());
-    GetValue(&property);
-  }
+  Reference property(this, node);
+  property.GetValue(typeof_state());
 }
 
 
-void ArmCodeGenerator::VisitCall(Call* node) {
+void CodeGenerator::VisitCall(Call* node) {
   Comment cmnt(masm_, "[ Call");
 
   ZoneList<Expression*>* args = node->arguments();
@@ -2675,7 +2290,7 @@ void ArmCodeGenerator::VisitCall(Call* node) {
 
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
-      GetValue(&ref);  // receiver
+      ref.GetValue(NOT_INSIDE_TYPEOF);  // receiver
 
       // Pass receiver to called function.
       __ ldr(r0, MemOperand(sp, ref.size() * kPointerSize));
@@ -2701,7 +2316,7 @@ void ArmCodeGenerator::VisitCall(Call* node) {
 }
 
 
-void ArmCodeGenerator::VisitCallNew(CallNew* node) {
+void CodeGenerator::VisitCallNew(CallNew* node) {
   Comment cmnt(masm_, "[ CallNew");
 
   // According to ECMA-262, section 11.2.2, page 44, the function
@@ -2736,7 +2351,7 @@ void ArmCodeGenerator::VisitCallNew(CallNew* node) {
 }
 
 
-void ArmCodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Label leave;
   Load(args->at(0));
@@ -2757,7 +2372,7 @@ void ArmCodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
 }
 
 
-void ArmCodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   Label leave;
   Load(args->at(0));  // Load the object.
@@ -2784,7 +2399,7 @@ void ArmCodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 }
 
 
-void ArmCodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
   __ pop(r0);
@@ -2793,7 +2408,7 @@ void ArmCodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 }
 
 
-void ArmCodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
   __ pop(r0);
@@ -2805,14 +2420,14 @@ void ArmCodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 // This should generate code that performs a charCodeAt() call or returns
 // undefined in order to trigger the slow case, Runtime_StringCharCodeAt.
 // It is not yet implemented on ARM, so it always goes to the slow case.
-void ArmCodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   __ mov(r0, Operand(Factory::undefined_value()));
   __ push(r0);
 }
 
 
-void ArmCodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
   Label answer;
@@ -2833,7 +2448,7 @@ void ArmCodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 }
 
 
-void ArmCodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
 
   // Seed the result with the formal parameters count, which will be used
@@ -2847,7 +2462,7 @@ void ArmCodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 }
 
 
-void ArmCodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
 
   // Satisfy contract with ArgumentsAccessStub:
@@ -2863,7 +2478,7 @@ void ArmCodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
 }
 
 
-void ArmCodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
+void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
 
   // Load the two objects into registers and perform the comparison.
@@ -2876,7 +2491,7 @@ void ArmCodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 }
 
 
-void ArmCodeGenerator::VisitCallRuntime(CallRuntime* node) {
+void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) return;
 
   ZoneList<Expression*>* args = node->arguments();
@@ -2912,14 +2527,14 @@ void ArmCodeGenerator::VisitCallRuntime(CallRuntime* node) {
 }
 
 
-void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
+void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
   Comment cmnt(masm_, "[ UnaryOperation");
 
   Token::Value op = node->op();
 
   if (op == Token::NOT) {
     LoadCondition(node->expression(),
-                  CodeGenState::LOAD,
+                  NOT_INSIDE_TYPEOF,
                   false_target(),
                   true_target(),
                   true);
@@ -3037,7 +2652,7 @@ void ArmCodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-void ArmCodeGenerator::VisitCountOperation(CountOperation* node) {
+void CodeGenerator::VisitCountOperation(CountOperation* node) {
   Comment cmnt(masm_, "[ CountOperation");
 
   bool is_postfix = node->is_postfix();
@@ -3054,7 +2669,7 @@ void ArmCodeGenerator::VisitCountOperation(CountOperation* node) {
 
   { Reference target(this, node->expression());
     if (target.is_illegal()) return;
-    GetValue(&target);
+    target.GetValue(NOT_INSIDE_TYPEOF);
     __ pop(r0);
 
     Label slow, exit;
@@ -3109,7 +2724,7 @@ void ArmCodeGenerator::VisitCountOperation(CountOperation* node) {
     // Store the new value in the target if not const.
     __ bind(&exit);
     __ push(r0);
-    if (!is_const) SetValue(&target);
+    if (!is_const) target.SetValue(NOT_CONST_INIT);
   }
 
   // Postfix: Discard the new value and use the old.
@@ -3117,7 +2732,7 @@ void ArmCodeGenerator::VisitCountOperation(CountOperation* node) {
 }
 
 
-void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
+void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Token::Value op = node->op();
 
@@ -3136,7 +2751,7 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   if (op == Token::AND) {
     Label is_true;
     LoadCondition(node->left(),
-                  CodeGenState::LOAD,
+                  NOT_INSIDE_TYPEOF,
                   &is_true,
                   false_target(),
                   false);
@@ -3146,7 +2761,7 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Evaluate right side expression.
       __ bind(&is_true);
       LoadCondition(node->right(),
-                    CodeGenState::LOAD,
+                    NOT_INSIDE_TYPEOF,
                     true_target(),
                     false_target(),
                     false);
@@ -3177,7 +2792,7 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   } else if (op == Token::OR) {
     Label is_false;
     LoadCondition(node->left(),
-                  CodeGenState::LOAD,
+                  NOT_INSIDE_TYPEOF,
                   true_target(),
                   &is_false,
                   false);
@@ -3187,7 +2802,7 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Evaluate right side expression.
       __ bind(&is_false);
       LoadCondition(node->right(),
-                    CodeGenState::LOAD,
+                    NOT_INSIDE_TYPEOF,
                     true_target(),
                     false_target(),
                     false);
@@ -3239,13 +2854,13 @@ void ArmCodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 }
 
 
-void ArmCodeGenerator::VisitThisFunction(ThisFunction* node) {
+void CodeGenerator::VisitThisFunction(ThisFunction* node) {
   __ ldr(r0, FunctionOperand());
   __ push(r0);
 }
 
 
-void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
+void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   Comment cmnt(masm_, "[ CompareOperation");
 
   // Get the expressions from the node.
@@ -3430,7 +3045,8 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
     case Token::INSTANCEOF:
       __ mov(r0, Operand(1));  // not counting receiver
       __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_JS);
-      __ push(r0);
+      __ tst(r0, Operand(r0));
+      cc_reg_ = eq;
       break;
 
     default:
@@ -3439,7 +3055,7 @@ void ArmCodeGenerator::VisitCompareOperation(CompareOperation* node) {
 }
 
 
-void ArmCodeGenerator::RecordStatementPosition(Node* node) {
+void CodeGenerator::RecordStatementPosition(Node* node) {
   if (FLAG_debug_info) {
     int statement_pos = node->statement_pos();
     if (statement_pos == RelocInfo::kNoPosition) return;
@@ -3448,7 +3064,7 @@ void ArmCodeGenerator::RecordStatementPosition(Node* node) {
 }
 
 
-void ArmCodeGenerator::EnterJSFrame() {
+void CodeGenerator::EnterJSFrame() {
 #if defined(DEBUG)
   { Label done, fail;
     __ tst(r1, Operand(kSmiTagMask));
@@ -3458,7 +3074,7 @@ void ArmCodeGenerator::EnterJSFrame() {
     __ cmp(r2, Operand(JS_FUNCTION_TYPE));
     __ b(eq, &done);
     __ bind(&fail);
-    __ stop("ArmCodeGenerator::EnterJSFrame - r1 not a function");
+    __ stop("CodeGenerator::EnterJSFrame - r1 not a function");
     __ bind(&done);
   }
 #endif  // DEBUG
@@ -3468,7 +3084,7 @@ void ArmCodeGenerator::EnterJSFrame() {
 }
 
 
-void ArmCodeGenerator::ExitJSFrame() {
+void CodeGenerator::ExitJSFrame() {
   // Drop the execution stack down to the frame pointer and restore the caller
   // frame pointer and return address.
   __ mov(sp, fp);
@@ -3479,177 +3095,201 @@ void ArmCodeGenerator::ExitJSFrame() {
 #undef __
 #define __ masm->
 
-MemOperand ArmCodeGenerator::SlotOperand(CodeGenerator* cgen,
-                                         Slot* slot,
-                                         Register tmp) {
-  // Currently, this assertion will fail if we try to assign to
-  // a constant variable that is constant because it is read-only
-  // (such as the variable referring to a named function expression).
-  // We need to implement assignments to read-only variables.
-  // Ideally, we should do this during AST generation (by converting
-  // such assignments into expression statements); however, in general
-  // we may not be able to make the decision until past AST generation,
-  // that is when the entire program is known.
-  ASSERT(slot != NULL);
-  int index = slot->index();
-  switch (slot->type()) {
-    case Slot::PARAMETER:
-      return ParameterOperand(cgen, index);
+Handle<String> Reference::GetName() {
+  ASSERT(type_ == NAMED);
+  Property* property = expression_->AsProperty();
+  if (property == NULL) {
+    // Global variable reference treated as a named property reference.
+    VariableProxy* proxy = expression_->AsVariableProxy();
+    ASSERT(proxy->AsVariable() != NULL);
+    ASSERT(proxy->AsVariable()->is_global());
+    return proxy->name();
+  } else {
+    Literal* raw_name = property->key()->AsLiteral();
+    ASSERT(raw_name != NULL);
+    return Handle<String>(String::cast(*raw_name->handle()));
+  }
+}
 
-    case Slot::LOCAL: {
-      ASSERT(0 <= index &&
-             index < cgen->scope()->num_stack_slots() &&
-             index >= 0);
-      int local_offset = JavaScriptFrameConstants::kLocal0Offset -
-                         index * kPointerSize;
-      return MemOperand(fp, local_offset);
+
+void Reference::GetValue(TypeofState typeof_state) {
+  ASSERT(!is_illegal());
+  ASSERT(!cgen_->has_cc());
+  MacroAssembler* masm = cgen_->masm();
+  Property* property = expression_->AsProperty();
+  if (property != NULL) {
+    __ RecordPosition(property->position());
+  }
+
+  switch (type_) {
+    case SLOT: {
+      Comment cmnt(masm, "[ Load from Slot");
+      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+      ASSERT(slot != NULL);
+      cgen_->LoadFromSlot(slot, typeof_state);
+      break;
     }
 
-    case Slot::CONTEXT: {
-      MacroAssembler* masm = cgen->masm();
-      // Follow the context chain if necessary.
-      ASSERT(!tmp.is(cp));  // do not overwrite context register
-      Register context = cp;
-      int chain_length =
-          cgen->scope()->ContextChainLength(slot->var()->scope());
-      for (int i = chain_length; i-- > 0;) {
-        // Load the closure.
-        // (All contexts, even 'with' contexts, have a closure,
-        // and it is the same for all contexts inside a function.
-        // There is no need to go to the function context first.)
-        __ ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
-        // Load the function context (which is the incoming, outer context).
-        __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
-        context = tmp;
+    case NAMED: {
+      // TODO(1241834): Make sure that this it is safe to ignore the
+      // distinction between expressions in a typeof and not in a typeof. If
+      // there is a chance that reference errors can be thrown below, we
+      // must distinguish between the two kinds of loads (typeof expression
+      // loads must not throw a reference error).
+      Comment cmnt(masm, "[ Load from named Property");
+      // Setup the name register.
+      Handle<String> name(GetName());
+      __ mov(r2, Operand(name));
+      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+
+      Variable* var = expression_->AsVariableProxy()->AsVariable();
+      if (var != NULL) {
+        ASSERT(var->is_global());
+        __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+      } else {
+        __ Call(ic, RelocInfo::CODE_TARGET);
       }
-      // We may have a 'with' context now. Get the function context.
-      // (In fact this mov may never be the needed, since the scope analysis
-      // may not permit a direct context access in this case and thus we are
-      // always at a function context. However it is safe to dereference be-
-      // cause the function context of a function context is itself. Before
-      // deleting this mov we should try to create a counter-example first,
-      // though...)
-      __ ldr(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
-      return ContextOperand(tmp, index);
+      __ push(r0);
+      break;
+    }
+
+    case KEYED: {
+      // TODO(1241834): Make sure that this it is safe to ignore the
+      // distinction between expressions in a typeof and not in a typeof.
+      Comment cmnt(masm, "[ Load from keyed Property");
+      ASSERT(property != NULL);
+      // TODO(1224671): Implement inline caching for keyed loads as on ia32.
+      GetPropertyStub stub;
+      __ CallStub(&stub);
+      __ push(r0);
+      break;
     }
 
     default:
       UNREACHABLE();
-      return MemOperand(r0, 0);
   }
 }
 
 
-void Property::GenerateStoreCode(CodeGenerator* cgen,
-                                 Reference* ref,
-                                 InitState init_state) {
-  MacroAssembler* masm = cgen->masm();
-  Comment cmnt(masm, "[ Store to Property");
-  __ RecordPosition(position());
-  ArmCodeGenerator::SetReferenceProperty(cgen, ref, key());
-}
-
-
-void VariableProxy::GenerateStoreCode(CodeGenerator* cgen,
-                                      Reference* ref,
-                                      InitState init_state) {
-  MacroAssembler* masm = cgen->masm();
-  Comment cmnt(masm, "[ Store to VariableProxy");
-  Variable* node = var();
-
-  Expression* expr = node->rewrite();
-  if (expr != NULL) {
-    expr->GenerateStoreCode(cgen, ref, init_state);
-  } else {
-    ASSERT(node->is_global());
-    if (node->AsProperty() != NULL) {
-      __ RecordPosition(node->AsProperty()->position());
-    }
-    Expression* key = new Literal(node->name());
-    ArmCodeGenerator::SetReferenceProperty(cgen, ref, key);
+void Reference::SetValue(InitState init_state) {
+  ASSERT(!is_illegal());
+  ASSERT(!cgen_->has_cc());
+  MacroAssembler* masm = cgen_->masm();
+  Property* property = expression_->AsProperty();
+  if (property != NULL) {
+    __ RecordPosition(property->position());
   }
-}
 
+  switch (type_) {
+    case SLOT: {
+      Comment cmnt(masm, "[ Store to Slot");
+      Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+      ASSERT(slot != NULL);
+      if (slot->type() == Slot::LOOKUP) {
+        ASSERT(slot->var()->mode() == Variable::DYNAMIC);
 
-void Slot::GenerateStoreCode(CodeGenerator* cgen,
-                             Reference* ref,
-                             InitState init_state) {
-  MacroAssembler* masm = cgen->masm();
-  Comment cmnt(masm, "[ Store to Slot");
+        // For now, just do a runtime call.
+        __ push(cp);
+        __ mov(r0, Operand(slot->var()->name()));
+        __ push(r0);
 
-  if (type() == Slot::LOOKUP) {
-    ASSERT(var()->mode() == Variable::DYNAMIC);
+        if (init_state == CONST_INIT) {
+          // Same as the case for a normal store, but ignores attribute
+          // (e.g. READ_ONLY) of context slot so that we can initialize
+          // const properties (introduced via eval("const foo = (some
+          // expr);")). Also, uses the current function context instead of
+          // the top context.
+          //
+          // Note that we must declare the foo upon entry of eval(), via a
+          // context slot declaration, but we cannot initialize it at the
+          // same time, because the const declaration may be at the end of
+          // the eval code (sigh...) and the const variable may have been
+          // used before (where its value is 'undefined'). Thus, we can only
+          // do the initialization when we actually encounter the expression
+          // and when the expression operands are defined and valid, and
+          // thus we need the split into 2 operations: declaration of the
+          // context slot followed by initialization.
+          __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+        } else {
+          __ CallRuntime(Runtime::kStoreContextSlot, 3);
+        }
+        // Storing a variable must keep the (new) value on the expression
+        // stack. This is necessary for compiling assignment expressions.
+        __ push(r0);
 
-    // For now, just do a runtime call.
-    __ push(cp);
-    __ mov(r0, Operand(var()->name()));
-    __ push(r0);
+      } else {
+        ASSERT(slot->var()->mode() != Variable::DYNAMIC);
 
-    if (init_state == CONST_INIT) {
-      // Same as the case for a normal store, but ignores attribute
-      // (e.g. READ_ONLY) of context slot so that we can initialize const
-      // properties (introduced via eval("const foo = (some expr);")). Also,
-      // uses the current function context instead of the top context.
-      //
-      // Note that we must declare the foo upon entry of eval(), via a
-      // context slot declaration, but we cannot initialize it at the same
-      // time, because the const declaration may be at the end of the eval
-      // code (sigh...) and the const variable may have been used before
-      // (where its value is 'undefined'). Thus, we can only do the
-      // initialization when we actually encounter the expression and when
-      // the expression operands are defined and valid, and thus we need the
-      // split into 2 operations: declaration of the context slot followed
-      // by initialization.
-      __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-    } else {
-      __ CallRuntime(Runtime::kStoreContextSlot, 3);
+        Label exit;
+        if (init_state == CONST_INIT) {
+          ASSERT(slot->var()->mode() == Variable::CONST);
+          // Only the first const initialization must be executed (the slot
+          // still contains 'the hole' value). When the assignment is
+          // executed, the code is identical to a normal store (see below).
+          Comment cmnt(masm, "[ Init const");
+          __ ldr(r2, cgen_->SlotOperand(slot, r2));
+          __ cmp(r2, Operand(Factory::the_hole_value()));
+          __ b(ne, &exit);
+        }
+
+        // We must execute the store.  Storing a variable must keep the
+        // (new) value on the stack. This is necessary for compiling
+        // assignment expressions.
+        //
+        // Note: We will reach here even with slot->var()->mode() ==
+        // Variable::CONST because of const declarations which will
+        // initialize consts to 'the hole' value and by doing so, end up
+        // calling this code.  r2 may be loaded with context; used below in
+        // RecordWrite.
+        __ pop(r0);
+        __ str(r0, cgen_->SlotOperand(slot, r2));
+        __ push(r0);
+        if (slot->type() == Slot::CONTEXT) {
+          // Skip write barrier if the written value is a smi.
+          __ tst(r0, Operand(kSmiTagMask));
+          __ b(eq, &exit);
+          // r2 is loaded with context when calling SlotOperand above.
+          int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+          __ mov(r3, Operand(offset));
+          __ RecordWrite(r2, r3, r1);
+        }
+        // If we definitely did not jump over the assignment, we do not need
+        // to bind the exit label.  Doing so can defeat peephole
+        // optimization.
+        if (init_state == CONST_INIT || slot->type() == Slot::CONTEXT) {
+          __ bind(&exit);
+        }
+      }
+      break;
     }
-    // Storing a variable must keep the (new) value on the expression
-    // stack. This is necessary for compiling assignment expressions.
-    __ push(r0);
 
-  } else {
-    ASSERT(var()->mode() != Variable::DYNAMIC);
-
-    Label exit;
-    if (init_state == CONST_INIT) {
-      ASSERT(var()->mode() == Variable::CONST);
-      // Only the first const initialization must be executed (the slot
-      // still contains 'the hole' value). When the assignment is executed,
-      // the code is identical to a normal store (see below).
-      Comment cmnt(masm, "[ Init const");
-      __ ldr(r2, ArmCodeGenerator::SlotOperand(cgen, this, r2));
-      __ cmp(r2, Operand(Factory::the_hole_value()));
-      __ b(ne, &exit);
+    case NAMED: {
+      Comment cmnt(masm, "[ Store to named Property");
+      // Call the appropriate IC code.
+      __ pop(r0);  // value
+      // Setup the name register.
+      Handle<String> name(GetName());
+      __ mov(r2, Operand(name));
+      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      __ Call(ic, RelocInfo::CODE_TARGET);
+      __ push(r0);
+      break;
     }
 
-    // We must execute the store.
-    // r2 may be loaded with context; used below in RecordWrite.
-    // Storing a variable must keep the (new) value on the stack. This is
-    // necessary for compiling assignment expressions.
-    //
-    // Note: We will reach here even with var()->mode() == Variable::CONST
-    // because of const declarations which will initialize consts to 'the
-    // hole' value and by doing so, end up calling this code.  r2 may be
-    // loaded with context; used below in RecordWrite.
-    __ pop(r0);
-    __ str(r0, ArmCodeGenerator::SlotOperand(cgen, this, r2));
-    __ push(r0);
+    case KEYED: {
+      Comment cmnt(masm, "[ Store to keyed Property");
+      Property* property = expression_->AsProperty();
+      ASSERT(property != NULL);
+      __ RecordPosition(property->position());
+      __ pop(r0);  // value
+      SetPropertyStub stub;
+      __ CallStub(&stub);
+      __ push(r0);
+      break;
+    }
 
-    if (type() == Slot::CONTEXT) {
-      // Skip write barrier if the written value is a smi.
-      __ tst(r0, Operand(kSmiTagMask));
-      __ b(eq, &exit);
-      // r2 is loaded with context when calling SlotOperand above.
-      int offset = FixedArray::kHeaderSize + index() * kPointerSize;
-      __ mov(r3, Operand(offset));
-      __ RecordWrite(r2, r3, r1);
-    }
-    // If we definitely did not jump over the assignment, we do not need to
-    // bind the exit label.  Doing so can defeat peephole optimization.
-    if (init_state == CONST_INIT || type() == Slot::CONTEXT) {
-      __ bind(&exit);
-    }
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -4403,132 +4043,96 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 }
 
 
-void ArgumentsAccessStub::Generate(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r0: formal number of parameters for the calling function
-  //  -- r1: key (if value access)
-  //  -- lr: return address
-  // -----------------------------------
-
-  // If we're reading an element we need to check that the key is a smi.
-  Label slow;
-  if (type_ == READ_ELEMENT) {
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(ne, &slow);
-  }
-
+void ArgumentsAccessStub::GenerateReadLength(MacroAssembler* masm) {
   // Check if the calling frame is an arguments adaptor frame.
-  // r0: formal number of parameters
-  // r1: key (if access)
   Label adaptor;
   __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
   __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
-  if (type_ == NEW_OBJECT) {
-    __ b(ne, &slow);
-  } else {
-    __ b(eq, &adaptor);
-  }
+  __ b(eq, &adaptor);
 
-  static const int kParamDisplacement =
-      StandardFrameConstants::kCallerSPOffset - kPointerSize;
+  // Nothing to do: The formal number of parameters has already been
+  // passed in register r0 by calling function. Just return it.
+  __ mov(pc, lr);
 
-  if (type_ == READ_LENGTH) {
-    // Nothing to do: The formal number of parameters has already been
-    // passed in register r0 by calling function. Just return it.
-    __ mov(pc, lr);
-  } else if (type_ == READ_ELEMENT) {
-    // Check index against formal parameter count. Use unsigned comparison to
-    // get the negative check for free.
-    // r0: formal number of parameters
-    // r1: index
-    __ cmp(r1, r0);
-    __ b(cs, &slow);
-
-    // Read the argument from the current frame and return it.
-    __ sub(r3, r0, r1);
-    __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
-    __ ldr(r0, MemOperand(r3, kParamDisplacement));
-    __ mov(pc, lr);
-  } else {
-    ASSERT(type_ == NEW_OBJECT);
-    // Do nothing here.
-  }
-
-  // An arguments adaptor frame is present. Find the length or the actual
-  // argument in the calling frame.
-  // r0: formal number of parameters
-  // r1: key
-  // r2: adaptor frame pointer
+  // Arguments adaptor case: Read the arguments length from the
+  // adaptor frame and return it.
   __ bind(&adaptor);
-  // Read the arguments length from the adaptor frame. This is the result if
-  // only accessing the length, otherwise it is used in accessing the value
   __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
-
-  if (type_ == READ_LENGTH) {
-    // Return the length in r0.
-    __ mov(pc, lr);
-  } else if (type_ == READ_ELEMENT) {
-    // Check index against actual arguments count. Use unsigned comparison to
-    // get the negative check for free.
-    // r0: actual number of parameter
-    // r1: index
-    // r2: adaptor frame point
-    __ cmp(r1, r0);
-    __ b(cs, &slow);
-
-    // Read the argument from the adaptor frame and return it.
-    __ sub(r3, r0, r1);
-    __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
-    __ ldr(r0, MemOperand(r3, kParamDisplacement));
-    __ mov(pc, lr);
-  } else {
-    ASSERT(type_ == NEW_OBJECT);
-    // Patch the arguments.length and the parameters pointer.
-    __ str(r0, MemOperand(sp, 0 * kPointerSize));
-    __ add(r3, r2, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
-    __ add(r3, r3, Operand(kParamDisplacement + 1 * kPointerSize));
-    __ str(r3, MemOperand(sp, 1 * kPointerSize));
-    __ bind(&slow);
-    __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
-  }
-
-  // Return to the calling function.
-  if (type_ == READ_ELEMENT) {
-    __ bind(&slow);
-    __ push(r1);
-    __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
-  }
+  __ mov(pc, lr);
 }
 
 
-void ArmCodeGenerator::SetReferenceProperty(CodeGenerator* cgen,
-                                            Reference* ref,
-                                            Expression* key) {
-  ASSERT(!ref->is_illegal());
-  MacroAssembler* masm = cgen->masm();
+void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
+  // The displacement is the offset of the last parameter (if any)
+  // relative to the frame pointer.
+  static const int kDisplacement =
+      StandardFrameConstants::kCallerSPOffset - kPointerSize;
 
-  if (ref->type() == Reference::NAMED) {
-    // Compute the name of the property.
-    Literal* literal = key->AsLiteral();
-    Handle<String> name(String::cast(*literal->handle()));
+  // Check that the key is a smi.
+  Label slow;
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(ne, &slow);
 
-    // Call the appropriate IC code.
-    __ pop(r0);  // value
-    // Setup the name register.
-    __ mov(r2, Operand(name));
-    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-    __ Call(ic, RelocInfo::CODE_TARGET);
+  // Check if the calling frame is an arguments adaptor frame.
+  Label adaptor;
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ b(eq, &adaptor);
 
-  } else {
-    // Access keyed property.
-    ASSERT(ref->type() == Reference::KEYED);
+  // Check index against formal parameters count limit passed in
+  // through register eax. Use unsigned comparison to get negative
+  // check for free.
+  __ cmp(r1, r0);
+  __ b(cs, &slow);
 
-    __ pop(r0);  // value
-    SetPropertyStub stub;
-    __ CallStub(&stub);
-  }
-  __ push(r0);
+  // Read the argument from the stack and return it.
+  __ sub(r3, r0, r1);
+  __ add(r3, fp, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r0, MemOperand(r3, kDisplacement));
+  __ mov(pc, lr);
+
+  // Arguments adaptor case: Check index against actual arguments
+  // limit found in the arguments adaptor frame. Use unsigned
+  // comparison to get negative check for free.
+  __ bind(&adaptor);
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ cmp(r1, r0);
+  __ b(cs, &slow);
+
+  // Read the argument from the adaptor frame and return it.
+  __ sub(r3, r0, r1);
+  __ add(r3, r2, Operand(r3, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ ldr(r0, MemOperand(r3, kDisplacement));
+  __ mov(pc, lr);
+
+  // Slow-case: Handle non-smi or out-of-bounds access to arguments
+  // by calling the runtime system.
+  __ bind(&slow);
+  __ push(r1);
+  __ TailCallRuntime(ExternalReference(Runtime::kGetArgumentsProperty), 1);
+}
+
+
+void ArgumentsAccessStub::GenerateNewObject(MacroAssembler* masm) {
+  // Check if the calling frame is an arguments adaptor frame.
+  Label runtime;
+  __ ldr(r2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
+  __ ldr(r3, MemOperand(r2, StandardFrameConstants::kContextOffset));
+  __ cmp(r3, Operand(ArgumentsAdaptorFrame::SENTINEL));
+  __ b(ne, &runtime);
+
+  // Patch the arguments.length and the parameters pointer.
+  __ ldr(r0, MemOperand(r2, ArgumentsAdaptorFrameConstants::kLengthOffset));
+  __ str(r0, MemOperand(sp, 0 * kPointerSize));
+  __ add(r3, r2, Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ add(r3, r3, Operand(StandardFrameConstants::kCallerSPOffset));
+  __ str(r3, MemOperand(sp, 1 * kPointerSize));
+
+  // Do the runtime call to allocate the arguments object.
+  __ bind(&runtime);
+  __ TailCallRuntime(ExternalReference(Runtime::kNewArgumentsFast), 3);
 }
 
 
@@ -4561,22 +4165,5 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
 
 #undef __
-
-// -----------------------------------------------------------------------------
-// CodeGenerator interface
-
-// MakeCode() is just a wrapper for CodeGenerator::MakeCode()
-// so we don't have to expose the entire CodeGenerator class in
-// the .h file.
-Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* fun,
-                                     Handle<Script> script,
-                                     bool is_eval) {
-  Handle<Code> code = ArmCodeGenerator::MakeCode(fun, script, is_eval);
-  if (!code.is_null()) {
-    Counters::total_compiled_code_size.Increment(code->instruction_size());
-  }
-  return code;
-}
-
 
 } }  // namespace v8::internal

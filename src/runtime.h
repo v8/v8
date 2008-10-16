@@ -40,6 +40,7 @@ namespace v8 { namespace internal {
 #define RUNTIME_FUNCTION_LIST_ALWAYS(F) \
   /* Property access */ \
   F(GetProperty, 2) \
+  F(KeyedGetProperty, 2) \
   F(DeleteProperty, 2) \
   F(HasLocalProperty, 2) \
   F(HasProperty, 2) \
@@ -164,6 +165,9 @@ namespace v8 { namespace internal {
   F(GetScript, 1) \
   \
   F(ClassOf, 1) \
+  F(IsDateClass, 1) \
+  F(IsStringClass, 1) \
+  F(IsArrayClass, 1) \
   F(SetCode, 2) \
   \
   F(CreateApiFunction, 1) \
@@ -260,7 +264,7 @@ namespace v8 { namespace internal {
   \
   /* Declarations and initialization */ \
   F(DeclareGlobals, 3) \
-  F(DeclareContextSlot, 5) \
+  F(DeclareContextSlot, 4) \
   F(InitializeVarGlobal, -1 /* 1 or 2 */) \
   F(InitializeConstGlobal, 2) \
   F(InitializeConstContextSlot, 3) \
@@ -332,7 +336,7 @@ class Runtime : public AllStatic {
   // Get the runtime function with the given name.
   static Function* FunctionForName(const char* name);
 
-  static int StringMatchKmp(String* sub, String* pat, int index);
+  static int StringMatch(Handle<String> sub, Handle<String> pat, int index);
 
   // TODO(1240886): The following three methods are *not* handle safe,
   // but accept handle arguments. This seems fragile.

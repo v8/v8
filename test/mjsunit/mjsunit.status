@@ -36,8 +36,9 @@ fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 
 [ $arch == arm ]
 
-# Slow test: Times out in debug mode.
+# Slow tests which times out in debug mode.
 try: PASS, SKIP if $mode == debug
+debug-scripts-request: PASS, SKIP if $mode == debug
 
 # Bug number 1020483: Debug tests fail on ARM.
 debug-constructor: FAIL
@@ -57,11 +58,6 @@ debug-setbreakpoint: FAIL
 debug-step-stub-callfunction: FAIL
 debug-stepin-constructor: FAIL
 debug-step: FAIL
-regress/regress-998565: FAIL
-
-# Bug number 1308895: These tests pass on the ARM simulator, but
-# fail on the ARM Linux machine.
-debug-script-breakpoints: PASS || FAIL
-debug-scripts-request: PASS || FAIL
 debug-breakpoints: PASS || FAIL
 
+regress/regress-998565: FAIL

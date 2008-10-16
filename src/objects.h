@@ -61,8 +61,8 @@
 //           - GlobalContext
 //       - String
 //         - SeqString
-//           - AsciiString
-//           - TwoByteString
+//           - SeqAsciiString
+//           - SeqTwoByteString
 //         - ConsString
 //         - SlicedString
 //         - ExternalString
@@ -272,12 +272,12 @@ class PropertyDetails BASE_EMBEDDED {
 // Since string types are not consecutive, this macro is used to
 // iterate over them.
 #define STRING_TYPE_LIST(V)                                                    \
-  V(SHORT_SYMBOL_TYPE, TwoByteString::kHeaderSize, short_symbol)               \
-  V(MEDIUM_SYMBOL_TYPE, TwoByteString::kHeaderSize, medium_symbol)             \
-  V(LONG_SYMBOL_TYPE, TwoByteString::kHeaderSize, long_symbol)                 \
-  V(SHORT_ASCII_SYMBOL_TYPE, AsciiString::kHeaderSize, short_ascii_symbol)     \
-  V(MEDIUM_ASCII_SYMBOL_TYPE, AsciiString::kHeaderSize, medium_ascii_symbol)   \
-  V(LONG_ASCII_SYMBOL_TYPE, AsciiString::kHeaderSize, long_ascii_symbol)       \
+  V(SHORT_SYMBOL_TYPE, SeqTwoByteString::kHeaderSize, short_symbol)            \
+  V(MEDIUM_SYMBOL_TYPE, SeqTwoByteString::kHeaderSize, medium_symbol)          \
+  V(LONG_SYMBOL_TYPE, SeqTwoByteString::kHeaderSize, long_symbol)              \
+  V(SHORT_ASCII_SYMBOL_TYPE, SeqAsciiString::kHeaderSize, short_ascii_symbol)  \
+  V(MEDIUM_ASCII_SYMBOL_TYPE, SeqAsciiString::kHeaderSize, medium_ascii_symbol)\
+  V(LONG_ASCII_SYMBOL_TYPE, SeqAsciiString::kHeaderSize, long_ascii_symbol)    \
   V(SHORT_CONS_SYMBOL_TYPE, ConsString::kSize, short_cons_symbol)              \
   V(MEDIUM_CONS_SYMBOL_TYPE, ConsString::kSize, medium_cons_symbol)            \
   V(LONG_CONS_SYMBOL_TYPE, ConsString::kSize, long_cons_symbol)                \
@@ -314,12 +314,12 @@ class PropertyDetails BASE_EMBEDDED {
   V(LONG_EXTERNAL_ASCII_SYMBOL_TYPE,                                           \
     ExternalAsciiString::kSize,                                                \
     long_external_ascii_symbol)                                                \
-  V(SHORT_STRING_TYPE, TwoByteString::kHeaderSize, short_string)               \
-  V(MEDIUM_STRING_TYPE, TwoByteString::kHeaderSize, medium_string)             \
-  V(LONG_STRING_TYPE, TwoByteString::kHeaderSize, long_string)                 \
-  V(SHORT_ASCII_STRING_TYPE, AsciiString::kHeaderSize, short_ascii_string)     \
-  V(MEDIUM_ASCII_STRING_TYPE, AsciiString::kHeaderSize, medium_ascii_string)   \
-  V(LONG_ASCII_STRING_TYPE, AsciiString::kHeaderSize, long_ascii_string)       \
+  V(SHORT_STRING_TYPE, SeqTwoByteString::kHeaderSize, short_string)            \
+  V(MEDIUM_STRING_TYPE, SeqTwoByteString::kHeaderSize, medium_string)          \
+  V(LONG_STRING_TYPE, SeqTwoByteString::kHeaderSize, long_string)              \
+  V(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize, short_ascii_string)  \
+  V(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize, medium_ascii_string)\
+  V(LONG_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize, long_ascii_string)    \
   V(SHORT_CONS_STRING_TYPE, ConsString::kSize, short_cons_string)              \
   V(MEDIUM_CONS_STRING_TYPE, ConsString::kSize, medium_cons_string)            \
   V(LONG_CONS_STRING_TYPE, ConsString::kSize, long_cons_string)                \
@@ -584,8 +584,10 @@ class Object BASE_EMBEDDED {
   inline bool IsHeapNumber();
   inline bool IsString();
   inline bool IsSeqString();
-  inline bool IsAsciiString();
-  inline bool IsTwoByteString();
+  inline bool IsAsciiStringRepresentation();
+  inline bool IsTwoByteStringRepresentation();
+  inline bool IsSeqAsciiString();
+  inline bool IsSeqTwoByteString();
   inline bool IsConsString();
   inline bool IsSlicedString();
   inline bool IsExternalString();
@@ -599,6 +601,7 @@ class Object BASE_EMBEDDED {
   inline bool IsByteArray();
   inline bool IsFailure();
   inline bool IsRetryAfterGC();
+  inline bool IsOutOfMemoryFailure();
   inline bool IsException();
   inline bool IsJSObject();
   inline bool IsMap();
@@ -1301,9 +1304,26 @@ class JSObject: public HeapObject {
                                       JSFunction* function,
                                       PropertyAttributes attributes);
 
-  // Replace a constant function property on a fast-case object.
-  Object* ReplaceConstantFunctionProperty(String* name,
-                                          Object* value);
+  Object* ReplaceSlowProperty(String* name,
+                              Object* value,
+                              PropertyAttributes attributes);
+
+  // Converts a descriptor of any other type to a real field,
+  // backed by the properties array.  Descriptors of visible
+  // types, such as CONSTANT_FUNCTION, keep their enumeration order.
+  // Converts the descriptor on the original object's map to a
+  // map transition, and the the new field is on the object's new map.
+  Object* ConvertDescriptorToFieldAndMapTransition(
+      String* name,
+      Object* new_value,
+      PropertyAttributes attributes);
+
+  // Converts a descriptor of any other type to a real field,
+  // backed by the properties array.  Descriptors of visible
+  // types, such as CONSTANT_FUNCTION, keep their enumeration order.
+  Object* ConvertDescriptorToField(String* name,
+                                   Object* new_value,
+                                   PropertyAttributes attributes);
 
   // Add a property to a fast-case object.
   Object* AddFastProperty(String* name,
@@ -1328,6 +1348,11 @@ class JSObject: public HeapObject {
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
   Object* TransformToFastProperties(int unused_property_fields);
+
+  // Access fast-case object properties at index.
+  inline Object* FastPropertyAt(int index);
+  inline Object* FastPropertyAtPut(int index, Object* value);
+
 
   // initializes the body after properties slot, properties slot is
   // initialized by set_properties
@@ -1375,6 +1400,11 @@ class JSObject: public HeapObject {
   static const uint32_t kMaxGap = 1024;
   static const int kMaxFastElementsLength = 5000;
   static const int kMaxFastProperties = 8;
+  static const int kMaxInstanceSize = 255 * kPointerSize;
+  // When extending the backing storage for property values, we increase
+  // its size by more than the 1 entry necessary, so sequentially adding fields
+  // to the same object requires fewer allocations and copies.
+  static const int kFieldsAdded = 3;
 
   // Layout description.
   static const int kPropertiesOffset = HeapObject::kHeaderSize;
@@ -1560,7 +1590,6 @@ class DescriptorArray: public FixedArray {
   inline void Get(int descriptor_number, Descriptor* desc);
   inline void Set(int descriptor_number, Descriptor* desc);
 
-  void ReplaceConstantFunction(int descriptor_number, JSFunction* value);
 
   // Copy the descriptor array, insert a new descriptor and optionally
   // remove map transitions.  If the descriptor is already present, it is
@@ -1569,20 +1598,6 @@ class DescriptorArray: public FixedArray {
   // If adding a real property, map transitions must be removed.  If adding
   // a transition, they must not be removed.  All null descriptors are removed.
   Object* CopyInsert(Descriptor* descriptor, TransitionFlag transition_flag);
-
-  // Makes a copy of the descriptor array with the descriptor with key name
-  // removed.  If name is the empty string, the descriptor array is copied.
-  // Transitions are removed if TransitionFlag is REMOVE_TRANSITIONS.
-  // All null descriptors are removed.
-  Object* CopyRemove(TransitionFlag remove_transitions, String* name);
-
-  // Copy the descriptor array, replace the property index and attributes
-  // of the named property, but preserve its enumeration index.
-  Object* CopyReplace(String* name, int index, PropertyAttributes attributes);
-
-  // Copy the descriptor array, removing the property index and attributes
-  // of the named property.
-  Object* CopyRemove(String* name);
 
   // Remove all transitions.  Return  a copy of the array with all transitions
   // removed, or a Failure object if the new array could not be allocated.
@@ -1814,6 +1829,11 @@ class SymbolTable: public HashTable<0, 1> {
   // pointer *s is set to the symbol found.
   Object* LookupSymbol(Vector<const char> str, Object** s);
   Object* LookupString(String* key, Object** s);
+
+  // Looks up a symbol that is equal to the given string and returns
+  // true if it is found, assigning the symbol to the given output
+  // parameter.
+  bool LookupSymbolIfExists(String* str, String** symbol);
 
   // Casting.
   static inline SymbolTable* cast(Object* obj);
@@ -2240,6 +2260,10 @@ class Map: public HeapObject {
   inline int instance_size();
   inline void set_instance_size(int value);
 
+  // Count of properties allocated in the object.
+  inline int inobject_properties();
+  inline void set_inobject_properties(int value);
+
   // instance type.
   inline InstanceType instance_type();
   inline void set_instance_type(InstanceType value);
@@ -2382,7 +2406,8 @@ class Map: public HeapObject {
 #endif
 
   // Layout description.
-  static const int kInstanceAttributesOffset = HeapObject::kHeaderSize;
+  static const int kInstanceSizesOffset = HeapObject::kHeaderSize;
+  static const int kInstanceAttributesOffset = kInstanceSizesOffset + kIntSize;
   static const int kPrototypeOffset = kInstanceAttributesOffset + kIntSize;
   static const int kConstructorOffset = kPrototypeOffset + kPointerSize;
   static const int kInstanceDescriptorsOffset =
@@ -2390,11 +2415,17 @@ class Map: public HeapObject {
   static const int kCodeCacheOffset = kInstanceDescriptorsOffset + kPointerSize;
   static const int kSize = kCodeCacheOffset + kIntSize;
 
+  // Byte offsets within kInstanceSizesOffset.
+  static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
+  static const int kInObjectPropertiesOffset = kInstanceSizesOffset + 1;
+  // The bytes at positions 2 and 3 are not in use at the moment.
+
+
   // Byte offsets within kInstanceAttributesOffset attributes.
-  static const int kInstanceSizeOffset = kInstanceAttributesOffset + 0;
-  static const int kInstanceTypeOffset = kInstanceAttributesOffset + 1;
-  static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 2;
-  static const int kBitFieldOffset = kInstanceAttributesOffset + 3;
+  static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
+  static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 1;
+  static const int kBitFieldOffset = kInstanceAttributesOffset + 2;
+  // The  byte at position 3 is not in use at the moment.
 
   // Bit positions for bit field.
   static const int kUnused = 0;  // To be used for marking recently used maps.
@@ -2839,6 +2870,52 @@ enum AllowNullsFlag {ALLOW_NULLS, DISALLOW_NULLS};
 enum RobustnessFlag {ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL};
 
 
+class StringHasher {
+ public:
+  inline StringHasher(int length);
+
+  // Returns true if the hash of this string can be computed without
+  // looking at the contents.
+  inline bool has_trivial_hash();
+
+  // Add a character to the hash and update the array index calculation.
+  inline void AddCharacter(uc32 c);
+
+  // Adds a character to the hash but does not update the array index
+  // calculation.  This can only be called when it has been verified
+  // that the input is not an array index.
+  inline void AddCharacterNoIndex(uc32 c);
+
+  // Returns the value to store in the hash field of a string with
+  // the given length and contents.
+  uint32_t GetHashField();
+
+  // Returns true if the characters seen so far make up a legal array
+  // index.
+  bool is_array_index() { return is_array_index_; }
+
+  bool is_valid() { return is_valid_; }
+
+  void invalidate() { is_valid_ = false; }
+
+ private:
+
+  uint32_t array_index() {
+    ASSERT(is_array_index());
+    return array_index_;
+  }
+
+  inline uint32_t GetHash();
+
+  int length_;
+  uint32_t raw_running_hash_;
+  uint32_t array_index_;
+  bool is_array_index_;
+  bool is_first_char_;
+  bool is_valid_;
+};
+
+
 // The String abstract class captures JavaScript string values:
 //
 // Ecma-262:
@@ -2857,8 +2934,8 @@ class String: public HeapObject {
   // that the length field is also used to cache the hash value of
   // strings.  In order to get or set the actual length of the string
   // use the length() and set_length methods.
-  inline int length_field();
-  inline void set_length_field(int value);
+  inline uint32_t length_field();
+  inline void set_length_field(uint32_t value);
 
   // Get and set individual two byte chars in the string.
   inline void Set(int index, uint16_t value);
@@ -2877,12 +2954,15 @@ class String: public HeapObject {
   inline void TryFlatten();
 
   // Is this string an ascii string.
-  inline bool IsAscii();
+  inline bool IsAsciiRepresentation();
 
   // Fast testing routines that assume the receiver is a string and
   // just check whether it is a certain kind of string.
   inline bool StringIsSlicedString();
   inline bool StringIsConsString();
+
+  Vector<const char> ToAsciiVector();
+  Vector<const uc16> ToUC16Vector();
 
   // Mark the string as an undetectable object. It only applies to
   // ascii and two byte string types.
@@ -2930,7 +3010,9 @@ class String: public HeapObject {
   // Returns a hash value used for the property table
   inline uint32_t Hash();
 
-  static uint32_t ComputeHashCode(unibrow::CharacterStream* buffer, int length);
+  static uint32_t ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
+                                            int length);
+
   static bool ComputeArrayIndex(unibrow::CharacterStream* buffer,
                                 uint32_t* index,
                                 int length);
@@ -2952,8 +3034,8 @@ class String: public HeapObject {
   static inline bool is_symbol_map(Map* map);
 
   // True if the string is ASCII.
-  inline bool is_ascii();
-  static inline bool is_ascii_map(Map* map);
+  inline bool is_ascii_representation();
+  static inline bool is_ascii_representation_map(Map* map);
 
   // Get the representation tag.
   inline StringRepresentationTag representation_tag();
@@ -2978,13 +3060,10 @@ class String: public HeapObject {
   static const int kMaxShortStringSize = 255;
   static const int kMaxMediumStringSize = 65535;
 
+  static const int kMaxArrayIndexSize = 10;
+
   // Max ascii char code.
   static const int kMaxAsciiCharCode = 127;
-
-  // Shift constants for retriving length from length/hash field.
-  static const int kShortLengthShift = 3 * kBitsPerByte;
-  static const int kMediumLengthShift = 2 * kBitsPerByte;
-  static const int kLongLengthShift = 2;
 
   // Mask constant for checking if a string has a computed hash code
   // and if it is an array index.  The least significant bit indicates
@@ -2993,6 +3072,15 @@ class String: public HeapObject {
   // array index.
   static const int kHashComputedMask = 1;
   static const int kIsArrayIndexMask = 1 << 1;
+  static const int kNofLengthBitFields = 2;
+
+  // Shift constants for retriving length and hash code from
+  // length/hash field.
+  static const int kHashShift = kNofLengthBitFields;
+  static const int kShortLengthShift = 3 * kBitsPerByte;
+  static const int kMediumLengthShift = 2 * kBitsPerByte;
+  static const int kLongLengthShift = kHashShift;
+
 
   // Limit for truncation in short printing.
   static const int kMaxShortPrintLength = 1024;
@@ -3086,22 +3174,22 @@ class SeqString: public String {
 
 // The AsciiString class captures sequential ascii string objects.
 // Each character in the AsciiString is an ascii character.
-class AsciiString: public SeqString {
+class SeqAsciiString: public SeqString {
  public:
   // Dispatched behavior.
-  inline uint16_t AsciiStringGet(int index);
-  inline void AsciiStringSet(int index, uint16_t value);
+  inline uint16_t SeqAsciiStringGet(int index);
+  inline void SeqAsciiStringSet(int index, uint16_t value);
 
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
   // Casting
-  static inline AsciiString* cast(Object* obj);
+  static inline SeqAsciiString* cast(Object* obj);
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of an AsciiString
   // instance.
-  inline int AsciiStringSize(Map* map);
+  inline int SeqAsciiStringSize(Map* map);
 
   // Computes the size for an AsciiString instance of a given length.
   static int SizeFor(int length) {
@@ -3112,36 +3200,39 @@ class AsciiString: public SeqString {
   static const int kHeaderSize = String::kSize;
 
   // Support for StringInputBuffer.
-  inline void AsciiStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                             unsigned* offset,
-                                             unsigned chars);
-  inline const unibrow::byte* AsciiStringReadBlock(unsigned* remaining,
-                                                   unsigned* offset,
-                                                   unsigned chars);
+  inline void SeqAsciiStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
+                                                unsigned* offset,
+                                                unsigned chars);
+  inline const unibrow::byte* SeqAsciiStringReadBlock(unsigned* remaining,
+                                                      unsigned* offset,
+                                                      unsigned chars);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AsciiString);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SeqAsciiString);
 };
 
 
 // The TwoByteString class captures sequential unicode string objects.
 // Each character in the TwoByteString is a two-byte uint16_t.
-class TwoByteString: public SeqString {
+class SeqTwoByteString: public SeqString {
  public:
   // Dispatched behavior.
-  inline uint16_t TwoByteStringGet(int index);
-  inline void TwoByteStringSet(int index, uint16_t value);
+  inline uint16_t SeqTwoByteStringGet(int index);
+  inline void SeqTwoByteStringSet(int index, uint16_t value);
+
+  // Get the address of the characters in this string.
+  inline Address GetCharsAddress();
 
   // For regexp code.
-  const uint16_t* TwoByteStringGetData(unsigned start);
+  const uint16_t* SeqTwoByteStringGetData(unsigned start);
 
   // Casting
-  static inline TwoByteString* cast(Object* obj);
+  static inline SeqTwoByteString* cast(Object* obj);
 
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of a TwoByteString
   // instance.
-  inline int TwoByteStringSize(Map* map);
+  inline int SeqTwoByteStringSize(Map* map);
 
   // Computes the size for a TwoByteString instance of a given length.
   static int SizeFor(int length) {
@@ -3152,12 +3243,12 @@ class TwoByteString: public SeqString {
   static const int kHeaderSize = String::kSize;
 
   // Support for StringInputBuffer.
-  inline void TwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
-                                               unsigned* offset_ptr,
-                                               unsigned chars);
+  inline void SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
+                                                  unsigned* offset_ptr,
+                                                  unsigned chars);
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TwoByteString);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SeqTwoByteString);
 };
 
 
@@ -3369,6 +3460,19 @@ class SafeStringInputBuffer
 };
 
 
+template <typename T>
+class VectorIterator {
+ public:
+  VectorIterator(T* d, int l) : data_(Vector<const T>(d, l)), index_(0) { }
+  explicit VectorIterator(Vector<const T> data) : data_(data), index_(0) { }
+  T GetNext() { return data_[index_++]; }
+  bool has_more() { return index_ < data_.length(); }
+ private:
+  Vector<const T> data_;
+  int index_;
+};
+
+
 // The Oddball describes objects null, undefined, true, and false.
 class Oddball: public HeapObject {
  public:
@@ -3447,7 +3551,7 @@ class JSArray: public JSObject {
   Object* Initialize(int capacity);
 
   // Set the content of the array to the content of storage.
-  void SetContent(FixedArray* storage);
+  inline void SetContent(FixedArray* storage);
 
   // Support for sorting
   Object* RemoveHoles();

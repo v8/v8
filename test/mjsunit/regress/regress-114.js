@@ -25,69 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-assertTrue({} instanceof Object);
-assertTrue([] instanceof Object);
+// German eszett
+assertEquals("FRIEDRICHSTRASSE 14", "friedrichstra\xDFe 14".toUpperCase());
+assertEquals("XXSSSSSSXX", "xx\xDF\xDF\xDFxx".toUpperCase());
+assertEquals("(SS)", "(\xDF)".toUpperCase());
+assertEquals("SS", "\xDF".toUpperCase());
 
-assertFalse({} instanceof Array);
-assertTrue([] instanceof Array);
+// Turkish dotted upper-case I lower-case converts to two characters
+assertEquals("i\u0307", "\u0130".toLowerCase());
+assertEquals("(i\u0307)", "(\u0130)".toLowerCase());
+assertEquals("xxi\u0307xx", "XX\u0130XX".toLowerCase());
 
-function TestChains() {
-  var A = {};
-  var B = {};
-  var C = {};
-  B.__proto__ = A;
-  C.__proto__ = B;
-
-  function F() { }
-  F.prototype = A;
-  assertTrue(C instanceof F);
-  assertTrue(B instanceof F);
-  assertFalse(A instanceof F);
-
-  F.prototype = B;
-  assertTrue(C instanceof F);
-  assertFalse(B instanceof F);
-  assertFalse(A instanceof F);
-
-  F.prototype = C;
-  assertFalse(C instanceof F);
-  assertFalse(B instanceof F);
-  assertFalse(A instanceof F);
-}
-
-TestChains();
-
-
-function TestExceptions() {
-  function F() { }
-  var items = [ 1, new Number(42), 
-                true, 
-                'string', new String('hest'),
-                {}, [], 
-                F, new F(),
-                Object, String ];
-
-  var exceptions = 0;
-  var instanceofs = 0;
-
-  for (var i = 0; i < items.length; i++) {
-    for (var j = 0; j < items.length; j++) {
-      try {
-        if (items[i] instanceof items[j]) instanceofs++;
-      } catch (e) {
-        assertTrue(e instanceof TypeError);
-        exceptions++;
-      }
-    }
-  }
-  assertEquals(10, instanceofs);
-  assertEquals(88, exceptions);
-
-  // Make sure to throw an exception if the function prototype
-  // isn't a proper JavaScript object.
-  function G() { }
-  G.prototype = undefined;
-  assertThrows("({} instanceof G)");
-}
-
-TestExceptions();
+// Greek small upsilon with dialytika and tonos upper-case converts to three
+// characters
+assertEquals("\u03A5\u0308\u0301", "\u03B0".toUpperCase());
+assertEquals("(\u03A5\u0308\u0301)", "(\u03B0)".toUpperCase());
+assertEquals("XX\u03A5\u0308\u0301XX", "xx\u03B0xx".toUpperCase());

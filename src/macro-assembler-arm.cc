@@ -251,10 +251,8 @@ void MacroAssembler::RecordWrite(Register object, Register offset,
 }
 
 
-void MacroAssembler::EnterInternalFrame() {
+void MacroAssembler::EnterFrame(StackFrame::Type type) {
   // r0-r3: preserved
-  int type = StackFrame::INTERNAL;
-
   stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
   mov(ip, Operand(Smi::FromInt(type)));
   push(ip);
@@ -264,13 +262,13 @@ void MacroAssembler::EnterInternalFrame() {
 }
 
 
-void MacroAssembler::LeaveInternalFrame() {
+void MacroAssembler::LeaveFrame(StackFrame::Type type) {
   // r0: preserved
   // r1: preserved
   // r2: preserved
 
-  // Drop the execution stack down to the frame pointer and restore the caller
-  // frame pointer and return address.
+  // Drop the execution stack down to the frame pointer and restore
+  // the caller frame pointer and return address.
   mov(sp, fp);
   ldm(ia_w, sp, fp.bit() | lr.bit());
 }

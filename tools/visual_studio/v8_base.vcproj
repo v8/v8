@@ -369,7 +369,15 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\codegen-arm.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\codegen-ia32.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\codegen-ia32.h"
 				>
 			</File>
 			<File

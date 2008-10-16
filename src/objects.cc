@@ -137,19 +137,6 @@ void Object::Lookup(String* name, LookupResult* result) {
   } else if (IsBoolean()) {
     holder = global_context->boolean_function()->instance_prototype();
   }
-#ifdef DEBUG
-  // Used to track outstanding bug #1308895.
-  // TODO(1308895) Remove when bug is fixed.
-  if (holder == NULL) {
-    PrintF("\nName being looked up: ");
-    name->Print();
-    PrintF("\nThis (object name is looked up in: ");
-    this->Print();
-    if (IsScript()) {
-      PrintF("IsScript() returns true.\n");
-    }
-  }
-#endif
   ASSERT(holder != NULL);  // cannot handle null or undefined.
   JSObject::cast(holder)->Lookup(name, result);
 }
@@ -379,7 +366,7 @@ Object* Object::GetProperty(Object* receiver,
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? Heap::undefined_value() : value;
     case FIELD:
-      value = holder->properties()->get(result->GetFieldIndex());
+      value = holder->FastPropertyAt(result->GetFieldIndex());
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? Heap::undefined_value() : value;
     case CONSTANT_FUNCTION:
@@ -534,12 +521,13 @@ Object* String::Flatten() {
       // cons string is in old space.  It can never get GCed until there is
       // an old space GC.
       PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED : TENURED;
-      Object* object = IsAscii() ?
-          Heap::AllocateRawAsciiString(length(), tenure) :
-          Heap::AllocateRawTwoByteString(length(), tenure);
+      int len = length();
+      Object* object = IsAsciiRepresentation() ?
+          Heap::AllocateRawAsciiString(len, tenure) :
+          Heap::AllocateRawTwoByteString(len, tenure);
       if (object->IsFailure()) return object;
       String* result = String::cast(object);
-      Flatten(this, result, 0, length(), 0);
+      Flatten(this, result, 0, len, 0);
       cs->set_first(result);
       cs->set_second(Heap::empty_string());
       return this;
@@ -767,10 +755,11 @@ int HeapObject::SlowSizeFromMap(Map* map) {
   if (instance_type < FIRST_NONSTRING_TYPE
       && (reinterpret_cast<String*>(this)->map_representation_tag(map)
           == kSeqStringTag)) {
-    if (reinterpret_cast<String*>(this)->is_ascii_map(map)) {
-      return reinterpret_cast<AsciiString*>(this)->AsciiStringSize(map);
+    if (reinterpret_cast<String*>(this)->is_ascii_representation_map(map)) {
+      return reinterpret_cast<SeqAsciiString*>(this)->SeqAsciiStringSize(map);
     } else {
-      return reinterpret_cast<TwoByteString*>(this)->TwoByteStringSize(map);
+      SeqTwoByteString* self = reinterpret_cast<SeqTwoByteString*>(this);
+      return self->SeqTwoByteStringSize(map);
     }
   }
 
@@ -947,20 +936,16 @@ Object* JSObject::AddFastPropertyUsingMap(Map* new_map,
                                           String* name,
                                           Object* value) {
   int index = new_map->PropertyIndexFor(name);
-  if (map()->unused_property_fields() > 0) {
-    ASSERT(index < properties()->length());
-    properties()->set(index, value);
-  } else {
+  if (map()->unused_property_fields() == 0) {
     ASSERT(map()->unused_property_fields() == 0);
     int new_unused = new_map->unused_property_fields();
     Object* values =
         properties()->CopySize(properties()->length() + new_unused + 1);
     if (values->IsFailure()) return values;
-    FixedArray::cast(values)->set(index, value);
     set_properties(FixedArray::cast(values));
   }
   set_map(new_map);
-  return value;
+  return FastPropertyAtPut(index, value);
 }
 
 
@@ -975,21 +960,7 @@ Object* JSObject::AddFastProperty(String* name,
     return AddSlowProperty(name, value, attributes);
   }
 
-  // Replace a CONSTANT_TRANSITION flag with a transition.
-  // Do this by removing it, and the standard code for adding a map transition
-  // will then run.
   DescriptorArray* old_descriptors = map()->instance_descriptors();
-  int old_name_index = old_descriptors->Search(name);
-  bool constant_transition = false;  // Only used in assertions.
-  if (old_name_index != DescriptorArray::kNotFound && CONSTANT_TRANSITION ==
-      PropertyDetails(old_descriptors->GetDetails(old_name_index)).type()) {
-    constant_transition = true;
-    Object* r = old_descriptors->CopyRemove(name);
-    if (r->IsFailure()) return r;
-    old_descriptors = DescriptorArray::cast(r);
-    old_name_index = DescriptorArray::kNotFound;
-  }
-
   // Compute the new index for new field.
   int index = map()->NextFreePropertyIndex();
 
@@ -1004,66 +975,43 @@ Object* JSObject::AddFastProperty(String* name,
   bool allow_map_transition =
         !old_descriptors->Contains(name) &&
         (Top::context()->global_context()->object_function()->map() != map());
-  ASSERT(allow_map_transition || !constant_transition);
 
-  if (map()->unused_property_fields() > 0) {
-    ASSERT(index < properties()->length());
-    // Allocate a new map for the object.
-    Object* r = map()->Copy();
+  ASSERT(index < map()->inobject_properties() ||
+         (index - map()->inobject_properties()) < properties()->length() ||
+         map()->unused_property_fields() == 0);
+  // Allocate a new map for the object.
+  Object* r = map()->Copy();
+  if (r->IsFailure()) return r;
+  Map* new_map = Map::cast(r);
+  if (allow_map_transition) {
+    // Allocate new instance descriptors for the old map with map transition.
+    MapTransitionDescriptor d(name, Map::cast(new_map), attributes);
+    Object* r = old_descriptors->CopyInsert(&d, KEEP_TRANSITIONS);
     if (r->IsFailure()) return r;
-    Map* new_map = Map::cast(r);
-    if (allow_map_transition) {
-      // Allocate new instance descriptors for the old map with map transition.
-      MapTransitionDescriptor d(name, Map::cast(new_map), attributes);
-      Object* r = old_descriptors->CopyInsert(&d, KEEP_TRANSITIONS);
-      if (r->IsFailure()) return r;
-      old_descriptors = DescriptorArray::cast(r);
-    }
-    // We have now allocated all the necessary objects.
-    // All the changes can be applied at once, so they are atomic.
-    map()->set_instance_descriptors(old_descriptors);
-    new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-    new_map->set_unused_property_fields(map()->unused_property_fields() - 1);
-    set_map(new_map);
-    properties()->set(index, value);
-  } else {
-    ASSERT(map()->unused_property_fields() == 0);
+    old_descriptors = DescriptorArray::cast(r);
+  }
 
+  if (map()->unused_property_fields() == 0) {
     if (properties()->length() > kMaxFastProperties) {
       Object* obj = NormalizeProperties();
       if (obj->IsFailure()) return obj;
       return AddSlowProperty(name, value, attributes);
     }
-
-    static const int kExtraFields = 3;
     // Make room for the new value
     Object* values =
-        properties()->CopySize(properties()->length() + kExtraFields);
+        properties()->CopySize(properties()->length() + kFieldsAdded);
     if (values->IsFailure()) return values;
-    FixedArray::cast(values)->set(index, value);
-
-    // Allocate a new map for the object.
-    Object* r = map()->Copy();
-    if (r->IsFailure()) return r;
-    Map* new_map = Map::cast(r);
-
-    if (allow_map_transition) {
-      MapTransitionDescriptor d(name, Map::cast(new_map), attributes);
-      // Allocate new instance descriptors for the old map with map transition.
-      Object* r = old_descriptors->CopyInsert(&d, KEEP_TRANSITIONS);
-      if (r->IsFailure()) return r;
-      old_descriptors = DescriptorArray::cast(r);
-    }
-    // We have now allocated all the necessary objects.
-    // All changes can be done at once, atomically.
-    map()->set_instance_descriptors(old_descriptors);
-    new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-    new_map->set_unused_property_fields(kExtraFields - 1);
-    set_map(new_map);
     set_properties(FixedArray::cast(values));
+    new_map->set_unused_property_fields(kFieldsAdded - 1);
+  } else {
+    new_map->set_unused_property_fields(map()->unused_property_fields() - 1);
   }
-
-  return value;
+  // We have now allocated all the necessary objects.
+  // All the changes can be applied at once, so they are atomic.
+  map()->set_instance_descriptors(old_descriptors);
+  new_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
+  set_map(new_map);
+  return FastPropertyAtPut(index, value);
 }
 
 
@@ -1112,74 +1060,6 @@ Object* JSObject::AddConstantFunctionProperty(String* name,
   old_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
 
   return function;
-}
-
-
-Object* JSObject::ReplaceConstantFunctionProperty(String* name,
-                                                  Object* value) {
-  // There are two situations to handle here:
-  // 1: Replace a constant function with another function.
-  // 2: Replace a constant function with an object.
-  if (value->IsJSFunction()) {
-    JSFunction* function = JSFunction::cast(value);
-
-    Object* new_map = map()->CopyDropTransitions();
-    if (new_map->IsFailure()) return new_map;
-    set_map(Map::cast(new_map));
-
-    // Replace the function entry
-    int index = map()->instance_descriptors()->Search(name);
-    ASSERT(index != DescriptorArray::kNotFound);
-    map()->instance_descriptors()->ReplaceConstantFunction(index, function);
-  } else {
-    // Allocate new instance descriptors with updated property index.
-    int index = map()->NextFreePropertyIndex();
-    Object* new_descriptors =
-        map()->instance_descriptors()->CopyReplace(name, index, NONE);
-    if (new_descriptors->IsFailure()) return new_descriptors;
-
-    if (map()->unused_property_fields() > 0) {
-      ASSERT(index < properties()->length());
-
-      // Allocate a new map for the object.
-      Object* new_map = map()->Copy();
-      if (new_map->IsFailure()) return new_map;
-
-      Map::cast(new_map)->
-        set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-      Map::cast(new_map)->
-        set_unused_property_fields(map()->unused_property_fields()-1);
-      set_map(Map::cast(new_map));
-      properties()->set(index, value);
-    } else {
-      ASSERT(map()->unused_property_fields() == 0);
-      static const int kFastNofProperties = 20;
-      if (properties()->length() > kFastNofProperties) {
-        Object* obj = NormalizeProperties();
-        if (obj->IsFailure()) return obj;
-        return SetProperty(name, value, NONE);
-      }
-
-      static const int kExtraFields = 5;
-      // Make room for the more properties.
-      Object* values =
-          properties()->CopySize(properties()->length() + kExtraFields);
-      if (values->IsFailure()) return values;
-      FixedArray::cast(values)->set(index, value);
-
-      // Allocate a new map for the object.
-      Object* new_map = map()->Copy();
-      if (new_map->IsFailure()) return new_map;
-
-      Map::cast(new_map)->
-        set_instance_descriptors(DescriptorArray::cast(new_descriptors));
-      Map::cast(new_map)->
-        set_unused_property_fields(kExtraFields - 1);
-      set_map(Map::cast(new_map));
-      set_properties(FixedArray::cast(values));
-    }
-  }
-  return value;
 }
 
 
@@ -1232,6 +1112,102 @@ Object* JSObject::SetPropertyPostInterceptor(String* name,
   // Add real property.
   return AddProperty(name, value, attributes);
 }
+
+
+Object* JSObject::ReplaceSlowProperty(String* name,
+                                       Object* value,
+                                       PropertyAttributes attributes) {
+  Dictionary* dictionary = property_dictionary();
+  PropertyDetails old_details =
+      dictionary->DetailsAt(dictionary->FindStringEntry(name));
+  int new_index = old_details.index();
+  if (old_details.IsTransition()) new_index = 0;
+
+  PropertyDetails new_details(attributes, NORMAL, old_details.index());
+  Object* result =
+      property_dictionary()->SetOrAddStringEntry(name, value, new_details);
+  if (result->IsFailure()) return result;
+  if (property_dictionary() != result) {
+    set_properties(Dictionary::cast(result));
+  }
+  return value;
+}
+
+Object* JSObject::ConvertDescriptorToFieldAndMapTransition(
+    String* name,
+    Object* new_value,
+    PropertyAttributes attributes) {
+  Map* old_map = map();
+  Object* result = ConvertDescriptorToField(name, new_value, attributes);
+  if (result->IsFailure()) return result;
+  // If we get to this point we have succeeded - do not return failure
+  // after this point.  Later stuff is optional.
+  if (!HasFastProperties()) {
+    return result;
+  }
+  // Do not add transitions to the map of "new Object()".
+  if (map() == Top::context()->global_context()->object_function()->map()) {
+    return result;
+  }
+
+  MapTransitionDescriptor transition(name,
+                                     map(),
+                                     attributes);
+  Object* new_descriptors =
+      old_map->instance_descriptors()->
+          CopyInsert(&transition, KEEP_TRANSITIONS);
+  if (new_descriptors->IsFailure()) return result;  // Yes, return _result_.
+  old_map->set_instance_descriptors(DescriptorArray::cast(new_descriptors));
+  return result;
+}
+
+
+Object* JSObject::ConvertDescriptorToField(String* name,
+                                           Object* new_value,
+                                           PropertyAttributes attributes) {
+  if (map()->unused_property_fields() == 0 &&
+      properties()->length() > kMaxFastProperties) {
+    Object* obj = NormalizeProperties();
+    if (obj->IsFailure()) return obj;
+    return ReplaceSlowProperty(name, new_value, attributes);
+  }
+
+  int index = map()->NextFreePropertyIndex();
+  FieldDescriptor new_field(name, index, attributes);
+  // Make a new DescriptorArray replacing an entry with FieldDescriptor.
+  Object* descriptors_unchecked = map()->instance_descriptors()->
+      CopyInsert(&new_field, REMOVE_TRANSITIONS);
+  if (descriptors_unchecked->IsFailure()) return descriptors_unchecked;
+  DescriptorArray* new_descriptors =
+      DescriptorArray::cast(descriptors_unchecked);
+
+  // Make a new map for the object.
+  Object* new_map_unchecked = map()->Copy();
+  if (new_map_unchecked->IsFailure()) return new_map_unchecked;
+  Map* new_map = Map::cast(new_map_unchecked);
+  new_map->set_instance_descriptors(new_descriptors);
+
+  // Make new properties array if necessary.
+  FixedArray* new_properties = 0;  // Will always be NULL or a valid pointer.
+  int new_unused_property_fields = map()->unused_property_fields() - 1;
+  if (map()->unused_property_fields() == 0) {
+     new_unused_property_fields = kFieldsAdded - 1;
+     Object* new_properties_unchecked =
+        properties()->CopySize(properties()->length() + kFieldsAdded);
+    if (new_properties_unchecked->IsFailure()) return new_properties_unchecked;
+    new_properties = FixedArray::cast(new_properties_unchecked);
+  }
+
+  // Update pointers to commit changes.
+  // Object points to the new map.
+  new_map->set_unused_property_fields(new_unused_property_fields);
+  set_map(new_map);
+  if (new_properties) {
+    set_properties(FixedArray::cast(new_properties));
+  }
+  return FastPropertyAtPut(index, new_value);
+}
+
 
 
 Object* JSObject::SetPropertyWithInterceptor(String* name,
@@ -1394,7 +1370,7 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
       // Disallow caching for uninitialized constants. These can only
       // occur as fields.
       if (result->IsReadOnly() && result->type() == FIELD &&
-          properties()->get(result->GetFieldIndex())->IsTheHole()) {
+          FastPropertyAt(result->GetFieldIndex())->IsTheHole()) {
         result->DisallowCaching();
       }
       return;
@@ -1531,21 +1507,19 @@ Object* JSObject::SetProperty(LookupResult* result,
       property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
       return value;
     case FIELD:
-      properties()->set(result->GetFieldIndex(), value);
-      return value;
+      return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:
       if (attributes == result->GetAttributes()) {
         // Only use map transition if the attributes match.
         return AddFastPropertyUsingMap(result->GetTransitionMap(),
                                        name,
                                        value);
-      } else {
-        return AddFastProperty(name, value, attributes);
       }
+      return ConvertDescriptorToField(name, value, attributes);
     case CONSTANT_FUNCTION:
       if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
-      return ReplaceConstantFunctionProperty(name, value);
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case CALLBACKS:
       return SetPropertyWithCallback(result->GetCallbackObject(),
                                      name,
@@ -1556,10 +1530,9 @@ Object* JSObject::SetProperty(LookupResult* result,
     case CONSTANT_TRANSITION:
       // Replace with a MAP_TRANSITION to a new map with a FIELD, even
       // if the value is a function.
-      // AddProperty has been extended to do this, in this case.
-      return AddFastProperty(name, value, attributes);
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case NULL_DESCRIPTOR:
-      UNREACHABLE();
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     default:
       UNREACHABLE();
   }
@@ -1591,40 +1564,20 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
     && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
     return SetPropertyWithFailedAccessCheck(result, name, value);
   }
-  /*
-    REMOVED FROM CLONE
-    if (result->IsNotFound() || !result->IsProperty()) {
-    // We could not find a local property so let's check whether there is an
-    // accessor that wants to handle the property.
-    LookupResult accessor_result;
-    LookupCallbackSetterInPrototypes(name, &accessor_result);
-    if (accessor_result.IsValid()) {
-      return SetPropertyWithCallback(accessor_result.GetCallbackObject(),
-                                     name,
-                                     value,
-                                     accessor_result.holder());
-    }
-    }
-  */
+  // Check for accessor in prototype chain removed here in clone.
   if (result->IsNotFound()) {
     return AddProperty(name, value, attributes);
   }
   if (!result->IsLoaded()) {
     return SetLazyProperty(result, name, value, attributes);
   }
-  /*
-    REMOVED FROM CLONE
-    if (result->IsReadOnly() && result->IsProperty()) return value;
-  */
-  // This is a real property that is not read-only, or it is a
-  // transition or null descriptor and there are no setters in the prototypes.
+  //  Check of IsReadOnly removed from here in clone.
   switch (result->type()) {
     case NORMAL:
       property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
       return value;
     case FIELD:
-      properties()->set(result->GetFieldIndex(), value);
-      return value;
+      return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:
       if (attributes == result->GetAttributes()) {
         // Only use map transition if the attributes match.
@@ -1632,12 +1585,12 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
                                        name,
                                        value);
       } else {
-        return AddFastProperty(name, value, attributes);
+        return ConvertDescriptorToField(name, value, attributes);
       }
     case CONSTANT_FUNCTION:
       if (value == result->GetConstantFunction()) return value;
       // Only replace the function if necessary.
-      return ReplaceConstantFunctionProperty(name, value);
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case CALLBACKS:
       return SetPropertyWithCallback(result->GetCallbackObject(),
                                      name,
@@ -1648,10 +1601,9 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
     case CONSTANT_TRANSITION:
       // Replace with a MAP_TRANSITION to a new map with a FIELD, even
       // if the value is a function.
-      // AddProperty has been extended to do this, in this case.
-      return AddFastProperty(name, value, attributes);
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     case NULL_DESCRIPTOR:
-      UNREACHABLE();
+      return ConvertDescriptorToFieldAndMapTransition(name, value, attributes);
     default:
       UNREACHABLE();
   }
@@ -1819,7 +1771,7 @@ Object* JSObject::NormalizeProperties() {
       case FIELD: {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
-        Object* value = properties()->get(r.GetFieldIndex());
+        Object* value = FastPropertyAt(r.GetFieldIndex());
         Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
         if (result->IsFailure()) return result;
         dictionary = Dictionary::cast(result);
@@ -2374,7 +2326,7 @@ Object* JSObject::SlowReverseLookup(Object* value) {
          !r.eos();
          r.advance()) {
       if (r.type() == FIELD) {
-        if (properties()->get(r.GetFieldIndex()) == value) {
+        if (FastPropertyAt(r.GetFieldIndex()) == value) {
           return r.GetKey();
         }
       } else if (r.type() == CONSTANT_FUNCTION) {
@@ -2398,6 +2350,7 @@ Object* Map::Copy() {
   // Don't copy descriptors, so map transitions always remain a forest.
   Map::cast(result)->set_instance_descriptors(Heap::empty_descriptor_array());
   // Please note instance_type and instance_size are set when allocated.
+  Map::cast(result)->set_inobject_properties(inobject_properties());
   Map::cast(result)->set_unused_property_fields(unused_property_fields());
   Map::cast(result)->set_bit_field(bit_field());
   Map::cast(result)->ClearCodeCache();
@@ -2674,14 +2627,6 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
 }
 
 
-void DescriptorArray::ReplaceConstantFunction(int descriptor_number,
-                                              JSFunction* value) {
-  ASSERT(!Heap::InNewSpace(value));
-  FixedArray* content_array = GetContentArray();
-  fast_set(content_array, ToValueIndex(descriptor_number), value);
-}
-
-
 Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
                                     TransitionFlag transition_flag) {
   // Transitions are only kept when inserting another transition.
@@ -2775,69 +2720,6 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
     if (r.IsNullDescriptor()) continue;
     if (remove_transitions && r.IsTransition()) continue;
     w.WriteFrom(&r);
-  }
-  ASSERT(w.eos());
-
-  return new_descriptors;
-}
-
-
-Object* DescriptorArray::CopyReplace(String* name,
-                                     int index,
-                                     PropertyAttributes attributes) {
-  // Allocate the new descriptor array.
-  Object* result = DescriptorArray::Allocate(number_of_descriptors());
-  if (result->IsFailure()) return result;
-
-  // Make sure only symbols are added to the instance descriptor.
-  if (!name->IsSymbol()) {
-    Object* result = Heap::LookupSymbol(name);
-    if (result->IsFailure()) return result;
-    name = String::cast(result);
-  }
-
-  DescriptorWriter w(DescriptorArray::cast(result));
-  for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    if (r.Equals(name)) {
-      FieldDescriptor d(name, index, attributes);
-      d.SetEnumerationIndex(r.GetDetails().index());
-      w.Write(&d);
-    } else {
-      w.WriteFrom(&r);
-    }
-  }
-
-  // Copy the next enumeration index.
-  DescriptorArray::cast(result)->
-    SetNextEnumerationIndex(NextEnumerationIndex());
-
-  ASSERT(w.eos());
-  return result;
-}
-
-
-Object* DescriptorArray::CopyRemove(String* name) {
-  if (!name->IsSymbol()) {
-    Object* result = Heap::LookupSymbol(name);
-    if (result->IsFailure()) return result;
-    name = String::cast(result);
-  }
-  ASSERT(name->IsSymbol());
-  Object* result = Allocate(number_of_descriptors() - 1);
-  if (result->IsFailure()) return result;
-  DescriptorArray* new_descriptors = DescriptorArray::cast(result);
-
-  // Set the enumeration index in the descriptors and set the enumeration index
-  // in the result.
-  new_descriptors->SetNextEnumerationIndex(NextEnumerationIndex());
-  // Write the old content and the descriptor information
-  DescriptorWriter w(new_descriptors);
-  DescriptorReader r(this);
-  while (!r.eos()) {
-    if (r.GetKey() != name) {  // Both are symbols; object identity suffices.
-      w.WriteFrom(&r);
-    }
-    r.advance();
   }
   ASSERT(w.eos());
 
@@ -2982,7 +2864,7 @@ bool String::LooksValid() {
 
 
 int String::Utf8Length() {
-  if (is_ascii()) return length();
+  if (is_ascii_representation()) return length();
   // Attempt to flatten before accessing the string.  It probably
   // doesn't make Utf8Length faster, but it is very likely that
   // the string will be accessed later (for example by WriteUtf8)
@@ -2994,6 +2876,69 @@ int String::Utf8Length() {
   while (buffer->has_more())
     result += unibrow::Utf8::Length(buffer->GetNext());
   return result;
+}
+
+
+Vector<const char> String::ToAsciiVector() {
+  ASSERT(IsAsciiRepresentation());
+  ASSERT(IsFlat());
+
+  int offset = 0;
+  int length = this->length();
+  StringRepresentationTag string_tag = representation_tag();
+  String* string = this;
+  if (string_tag == kSlicedStringTag) {
+      SlicedString* sliced = SlicedString::cast(string);
+      offset += sliced->start();
+      string = String::cast(sliced->buffer());
+      string_tag = string->representation_tag();
+  } else if (string_tag == kConsStringTag) {
+      ConsString* cons = ConsString::cast(string);
+      ASSERT(String::cast(cons->second())->length() == 0);
+      string = String::cast(cons->first());
+      string_tag = string->representation_tag();
+  }
+  if (string_tag == kSeqStringTag) {
+    SeqAsciiString* seq = SeqAsciiString::cast(string);
+    char* start = reinterpret_cast<char*>(seq->GetCharsAddress());
+    return Vector<const char>(start + offset, length);
+  }
+  ASSERT(string_tag == kExternalStringTag);
+  ExternalAsciiString* ext = ExternalAsciiString::cast(string);
+  const char* start = ext->resource()->data();
+  return Vector<const char>(start + offset, length);
+}
+
+
+Vector<const uc16> String::ToUC16Vector() {
+  ASSERT(IsTwoByteStringRepresentation());
+  ASSERT(IsFlat());
+
+  int offset = 0;
+  int length = this->length();
+  StringRepresentationTag string_tag = representation_tag();
+  String* string = this;
+  if (string_tag == kSlicedStringTag) {
+      SlicedString* sliced = SlicedString::cast(string);
+      offset += sliced->start();
+      string = String::cast(sliced->buffer());
+      string_tag = string->representation_tag();
+  } else if (string_tag == kConsStringTag) {
+      ConsString* cons = ConsString::cast(string);
+      ASSERT(String::cast(cons->second())->length() == 0);
+      string = String::cast(cons->first());
+      string_tag = string->representation_tag();
+  }
+  if (string_tag == kSeqStringTag) {
+    SeqTwoByteString* seq = SeqTwoByteString::cast(string);
+    uc16* start = reinterpret_cast<uc16*>(seq->GetCharsAddress());
+    return Vector<const uc16>(start + offset, length);
+  }
+  ASSERT(string_tag == kExternalStringTag);
+  ExternalTwoByteString* ext = ExternalTwoByteString::cast(string);
+  const uc16* start =
+      reinterpret_cast<const uc16*>(ext->resource()->data());
+  return Vector<const uc16>(start + offset, length);
 }
 
 
@@ -3063,10 +3008,10 @@ const uc16* String::GetTwoByteData() {
 
 
 const uc16* String::GetTwoByteData(unsigned start) {
-  ASSERT(!IsAscii());
+  ASSERT(!IsAsciiRepresentation());
   switch (representation_tag()) {
     case kSeqStringTag:
-      return TwoByteString::cast(this)->TwoByteStringGetData(start);
+      return SeqTwoByteString::cast(this)->SeqTwoByteStringGetData(start);
     case kExternalStringTag:
       return ExternalTwoByteString::cast(this)->
         ExternalTwoByteStringGetData(start);
@@ -3112,13 +3057,13 @@ SmartPointer<uc16> String::ToWideCString(RobustnessFlag robust_flag) {
 }
 
 
-const uc16* TwoByteString::TwoByteStringGetData(unsigned start) {
+const uc16* SeqTwoByteString::SeqTwoByteStringGetData(unsigned start) {
   return reinterpret_cast<uc16*>(
       reinterpret_cast<char*>(this) - kHeapObjectTag + kHeaderSize) + start;
 }
 
 
-void TwoByteString::TwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
+void SeqTwoByteString::SeqTwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
                                                      unsigned* offset_ptr,
                                                      unsigned max_chars) {
   unsigned chars_read = 0;
@@ -3151,9 +3096,10 @@ void TwoByteString::TwoByteStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
 }
 
 
-const unibrow::byte* AsciiString::AsciiStringReadBlock(unsigned* remaining,
-                                                       unsigned* offset_ptr,
-                                                       unsigned max_chars) {
+const unibrow::byte* SeqAsciiString::SeqAsciiStringReadBlock(
+    unsigned* remaining,
+    unsigned* offset_ptr,
+    unsigned max_chars) {
   // Cast const char* to unibrow::byte* (signedness difference).
   const unibrow::byte* b = reinterpret_cast<unibrow::byte*>(this) -
       kHeapObjectTag + kHeaderSize + *offset_ptr * kCharSize;
@@ -3313,7 +3259,7 @@ void ExternalTwoByteString::ExternalTwoByteStringReadBlockIntoBuffer(
 }
 
 
-void AsciiString::AsciiStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
+void SeqAsciiString::SeqAsciiStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
                                                  unsigned* offset_ptr,
                                                  unsigned max_chars) {
   unsigned capacity = rbb->capacity - rbb->cursor;
@@ -3358,14 +3304,16 @@ const unibrow::byte* String::ReadBlock(String* input,
   }
   switch (input->representation_tag()) {
     case kSeqStringTag:
-      if (input->is_ascii()) {
-        return AsciiString::cast(input)->AsciiStringReadBlock(&rbb->remaining,
-                                                              offset_ptr,
-                                                              max_chars);
+      if (input->is_ascii_representation()) {
+        SeqAsciiString* str = SeqAsciiString::cast(input);
+        return str->SeqAsciiStringReadBlock(&rbb->remaining,
+                                            offset_ptr,
+                                            max_chars);
       } else {
-        TwoByteString::cast(input)->TwoByteStringReadBlockIntoBuffer(rbb,
-                                                                     offset_ptr,
-                                                                     max_chars);
+        SeqTwoByteString* str = SeqTwoByteString::cast(input);
+        str->SeqTwoByteStringReadBlockIntoBuffer(rbb,
+                                                 offset_ptr,
+                                                 max_chars);
         return rbb->util_buffer;
       }
     case kConsStringTag:
@@ -3377,7 +3325,7 @@ const unibrow::byte* String::ReadBlock(String* input,
                                                               offset_ptr,
                                                               max_chars);
     case kExternalStringTag:
-      if (input->is_ascii()) {
+      if (input->is_ascii_representation()) {
         return ExternalAsciiString::cast(input)->ExternalAsciiStringReadBlock(
             &rbb->remaining,
             offset_ptr,
@@ -3421,13 +3369,13 @@ void String::ReadBlockIntoBuffer(String* input,
 
   switch (input->representation_tag()) {
     case kSeqStringTag:
-      if (input->is_ascii()) {
-        AsciiString::cast(input)->AsciiStringReadBlockIntoBuffer(rbb,
+      if (input->is_ascii_representation()) {
+        SeqAsciiString::cast(input)->SeqAsciiStringReadBlockIntoBuffer(rbb,
                                                                  offset_ptr,
                                                                  max_chars);
         return;
       } else {
-        TwoByteString::cast(input)->TwoByteStringReadBlockIntoBuffer(rbb,
+        SeqTwoByteString::cast(input)->SeqTwoByteStringReadBlockIntoBuffer(rbb,
                                                                      offset_ptr,
                                                                      max_chars);
         return;
@@ -3443,7 +3391,7 @@ void String::ReadBlockIntoBuffer(String* input,
                                                                  max_chars);
       return;
     case kExternalStringTag:
-      if (input->is_ascii()) {
+      if (input->is_ascii_representation()) {
          ExternalAsciiString::cast(input)->
              ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
        } else {
@@ -3619,7 +3567,11 @@ Object* SlicedString::SlicedStringFlatten() {
 }
 
 
-void String::Flatten(String* src, String* sink, int f, int t, int so) {
+void String::Flatten(String* src,
+                     String* sink,
+                     int f,
+                     int t,
+                     int so) {
   String* source = src;
   int from = f;
   int to = t;
@@ -3634,7 +3586,8 @@ void String::Flatten(String* src, String* sink, int f, int t, int so) {
         buffer->Reset(from, source);
         int j = sink_offset;
         for (int i = from; i < to; i++) {
-          sink->Set(j++, buffer->GetNext());
+          uc32 c = buffer->GetNext();
+          sink->Set(j++, c);
         }
         return;
       }
@@ -3650,7 +3603,7 @@ void String::Flatten(String* src, String* sink, int f, int t, int so) {
         ConsString* cons_string = ConsString::cast(source);
         String* first = String::cast(cons_string->first());
         int boundary = first->length();
-        if (to - boundary > boundary - from) {
+        if (to - boundary >= boundary - from) {
           // Right hand side is longer.  Recurse over left.
           if (from < boundary) {
             Flatten(first, sink, from, boundary, sink_offset);
@@ -3662,7 +3615,9 @@ void String::Flatten(String* src, String* sink, int f, int t, int so) {
           to -= boundary;
           source = String::cast(cons_string->second());
         } else {
-          // Left hand side is longer.  Recurse over right.
+          // Left hand side is longer.  Recurse over right.  The hasher
+          // needs us to visit the string from left to right so doing
+          // this invalidates that hash.
           if (to > boundary) {
             String* second = String::cast(cons_string->second());
             Flatten(second,
@@ -3693,6 +3648,43 @@ uint16_t SlicedString::SlicedStringGet(int index) {
 }
 
 
+template <typename IteratorA, typename IteratorB>
+static inline bool CompareStringContents(IteratorA* ia, IteratorB* ib) {
+  // General slow case check.  We know that the ia and ib iterators
+  // have the same length.
+  while (ia->has_more()) {
+    uc32 ca = ia->GetNext();
+    uc32 cb = ib->GetNext();
+    if (ca != cb)
+      return false;
+  }
+  return true;
+}
+
+
+static StringInputBuffer string_compare_buffer_b;
+
+
+template <typename IteratorA>
+static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
+  if (b->IsFlat()) {
+    if (b->IsAsciiRepresentation()) {
+      VectorIterator<char> ib(b->ToAsciiVector());
+      return CompareStringContents(ia, &ib);
+    } else {
+      VectorIterator<uc16> ib(b->ToUC16Vector());
+      return CompareStringContents(ia, &ib);
+    }
+  } else {
+    string_compare_buffer_b.Reset(0, b);
+    return CompareStringContents(ia, &string_compare_buffer_b);
+  }
+}
+
+
+static StringInputBuffer string_compare_buffer_a;
+
+
 bool String::SlowEquals(String* other) {
   // Fast check: negative check with lengths.
   int len = length();
@@ -3705,24 +3697,18 @@ bool String::SlowEquals(String* other) {
     if (Hash() != other->Hash()) return false;
   }
 
-  // Fast case: avoid input buffers for small strings.
-  const int kMaxLenthForFastCaseCheck = 5;
-  for (int i = 0; i < kMaxLenthForFastCaseCheck; i++) {
-    if (Get(i) != other->Get(i)) return false;
-    if (i + 1 == len) return true;
-  }
-
-  // General slow case check.
-  static StringInputBuffer buf1;
-  static StringInputBuffer buf2;
-  buf1.Reset(kMaxLenthForFastCaseCheck, this);
-  buf2.Reset(kMaxLenthForFastCaseCheck, other);
-  while (buf1.has_more()) {
-    if (buf1.GetNext() != buf2.GetNext()) {
-      return false;
+  if (this->IsFlat()) {
+    if (this->IsAsciiRepresentation()) {
+      VectorIterator<char> buf1(this->ToAsciiVector());
+      return CompareStringContentsPartial(&buf1, other);
+    } else {
+      VectorIterator<uc16> buf1(this->ToUC16Vector());
+      return CompareStringContentsPartial(&buf1, other);
     }
+  } else {
+    string_compare_buffer_a.Reset(0, this);
+    return CompareStringContentsPartial(&string_compare_buffer_a, other);
   }
-  return true;
 }
 
 
@@ -3773,14 +3759,14 @@ uint32_t String::ComputeAndSetHash() {
 
   // Compute the hash code.
   StringInputBuffer buffer(this);
-  int hash = ComputeHashCode(&buffer, length());
+  uint32_t field = ComputeLengthAndHashField(&buffer, length());
 
   // Store the hash code in the object.
-  set_length_field(hash);
+  set_length_field(field);
 
   // Check the hash code is there.
   ASSERT(length_field() & kHashComputedMask);
-  return hash;
+  return field >> kHashShift;
 }
 
 
@@ -3825,39 +3811,45 @@ static inline uint32_t HashField(uint32_t hash, bool is_array_index) {
 }
 
 
-uint32_t String::ComputeHashCode(unibrow::CharacterStream* buffer,
-                                 int length) {
-  // Large string (please note large strings cannot be an array index).
-  if (length > kMaxMediumStringSize) return HashField(length, false);
-
-  // Note: the Jenkins one-at-a-time hash function
-  uint32_t hash = 0;
-  while (buffer->has_more()) {
-    uc32 r = buffer->GetNext();
-    hash += r;
-    hash += (hash << 10);
-    hash ^= (hash >> 6);
+uint32_t StringHasher::GetHashField() {
+  ASSERT(is_valid());
+  if (length_ <= String::kMaxShortStringSize) {
+    uint32_t payload;
+    if (is_array_index()) {
+      payload = v8::internal::HashField(array_index(), true);
+    } else {
+      payload = v8::internal::HashField(GetHash(), false);
+    }
+    return (payload & 0x00FFFFFF) | (length_ << String::kShortLengthShift);
+  } else if (length_ <= String::kMaxMediumStringSize) {
+    uint32_t payload = v8::internal::HashField(GetHash(), false);
+    return (payload & 0x0000FFFF) | (length_ << String::kMediumLengthShift);
+  } else {
+    return v8::internal::HashField(length_, false);
   }
-  hash += (hash << 3);
-  hash ^= (hash >> 11);
-  hash += (hash << 15);
+}
 
-  // Short string.
-  if (length <= kMaxShortStringSize) {
-    // Make hash value consistent with value returned from String::Hash.
-    buffer->Rewind();
-    uint32_t index;
-    hash = HashField(hash, ComputeArrayIndex(buffer, &index, length));
-    hash = (hash & 0x00FFFFFF) | (length << kShortLengthShift);
-    return hash;
-  }
 
-  // Medium string (please note medium strings cannot be an array index).
-  ASSERT(length <= kMaxMediumStringSize);
-  // Make hash value consistent with value returned from String::Hash.
-  hash = HashField(hash, false);
-  hash = (hash & 0x0000FFFF) | (length << kMediumLengthShift);
-  return hash;
+uint32_t String::ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
+                                           int length) {
+  StringHasher hasher(length);
+
+  // Very long strings have a trivial hash that doesn't inspect the
+  // string contents.
+  if (hasher.has_trivial_hash())
+    return hasher.GetHashField();
+
+  // Do the iterative array index computation as long as there is a
+  // chance this is an array index.
+  while (buffer->has_more() && hasher.is_array_index())
+    hasher.AddCharacter(buffer->GetNext());
+
+  // Process the remaining characters without updating the array
+  // index.
+  while (buffer->has_more())
+    hasher.AddCharacterNoIndex(buffer->GetNext());
+
+  return hasher.GetHashField();
 }
 
 
@@ -4381,12 +4373,6 @@ Object* JSArray::Initialize(int capacity) {
 }
 
 
-void JSArray::SetContent(FixedArray* storage) {
-  set_length(Smi::FromInt(storage->length()));
-  set_elements(storage);
-}
-
-
 // Computes the new capacity when expanding the elements of a JSObject.
 static int NewElementsCapacity(int old_capacity) {
   // (old_capacity + 50%) + 16
@@ -4694,7 +4680,6 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
   ASSERT(!HasFastElements());
   return SetElement(index, value);
 }
-
 
 Object* JSObject::SetElement(uint32_t index, Object* value) {
   // Check access rights if needed.
@@ -5430,7 +5415,7 @@ class StringKey : public HashTableKey {
 class Utf8SymbolKey : public HashTableKey {
  public:
   explicit Utf8SymbolKey(Vector<const char> string)
-      : string_(string), hash_(0) { }
+      : string_(string), length_field_(0) { }
 
   bool IsMatch(Object* other) {
     if (!other->IsString()) return false;
@@ -5442,19 +5427,19 @@ class Utf8SymbolKey : public HashTableKey {
   }
 
   uint32_t Hash() {
-    if (hash_ != 0) return hash_;
+    if (length_field_ != 0) return length_field_ >> String::kHashShift;
     unibrow::Utf8InputBuffer<> buffer(string_.start(),
                                       static_cast<unsigned>(string_.length()));
     chars_ = buffer.Length();
-    hash_ = String::ComputeHashCode(&buffer, chars_);
-    return hash_;
+    length_field_ = String::ComputeLengthAndHashField(&buffer, chars_);
+    return length_field_ >> String::kHashShift;
   }
 
   Object* GetObject() {
-    if (hash_ == 0) Hash();
+    if (length_field_ == 0) Hash();
     unibrow::Utf8InputBuffer<> buffer(string_.start(),
                                       static_cast<unsigned>(string_.length()));
-    return Heap::AllocateSymbol(&buffer, chars_, hash_);
+    return Heap::AllocateSymbol(&buffer, chars_, length_field_);
   }
 
   static uint32_t StringHash(Object* obj) {
@@ -5464,7 +5449,7 @@ class Utf8SymbolKey : public HashTableKey {
   bool IsStringKey() { return true; }
 
   Vector<const char> string_;
-  uint32_t hash_;
+  uint32_t length_field_;
   int chars_;  // Caches the number of characters when computing the hash code.
 };
 
@@ -5503,7 +5488,9 @@ class SymbolKey : public HashTableKey {
     }
     // Otherwise allocate a new symbol.
     StringInputBuffer buffer(string_);
-    return Heap::AllocateSymbol(&buffer, string_->length(), string_->Hash());
+    return Heap::AllocateSymbol(&buffer,
+                                string_->length(),
+                                string_->length_field());
   }
 
   static uint32_t StringHash(Object* obj) {
@@ -5638,6 +5625,20 @@ template class HashTable<0, 2>;
 Object* SymbolTable::LookupString(String* string, Object** s) {
   SymbolKey key(string);
   return LookupKey(&key, s);
+}
+
+
+bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
+  SymbolKey key(string);
+  int entry = FindEntry(&key);
+  if (entry == -1) {
+    return false;
+  } else {
+    String* result = String::cast(KeyAt(entry));
+    ASSERT(result->is_symbol());
+    *symbol = result;
+    return true;
+  }
 }
 
 

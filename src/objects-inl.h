@@ -119,13 +119,25 @@ bool Object::IsSeqString() {
 }
 
 
-bool Object::IsAsciiString() {
-  return IsString() && (String::cast(this)->is_ascii());
+bool Object::IsSeqAsciiString() {
+  return IsSeqString()
+      && String::cast(this)->IsAsciiRepresentation();
 }
 
 
-bool Object::IsTwoByteString() {
-  return IsString() && (!String::cast(this)->is_ascii());
+bool Object::IsSeqTwoByteString() {
+  return IsSeqString()
+      && !String::cast(this)->IsAsciiRepresentation();
+}
+
+
+bool Object::IsAsciiStringRepresentation() {
+  return IsString() && (String::cast(this)->is_ascii_representation());
+}
+
+
+bool Object::IsTwoByteStringRepresentation() {
+  return IsString() && (!String::cast(this)->is_ascii_representation());
 }
 
 
@@ -148,12 +160,12 @@ bool Object::IsExternalString() {
 
 
 bool Object::IsExternalAsciiString() {
-  return IsExternalString() && (String::cast(this)->is_ascii());
+  return IsExternalString() && (String::cast(this)->is_ascii_representation());
 }
 
 
 bool Object::IsExternalTwoByteString() {
-  return IsExternalString() && (!String::cast(this)->is_ascii());
+  return IsExternalString() && (!String::cast(this)->is_ascii_representation());
 }
 
 
@@ -196,6 +208,12 @@ bool Object::IsFailure() {
 bool Object::IsRetryAfterGC() {
   return HAS_FAILURE_TAG(this)
     && Failure::cast(this)->type() == Failure::RETRY_AFTER_GC;
+}
+
+
+bool Object::IsOutOfMemoryFailure() {
+  return HAS_FAILURE_TAG(this)
+    && Failure::cast(this)->IsOutOfMemoryException();
 }
 
 
@@ -484,6 +502,12 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_INT_FIELD(p, offset, value) \
   (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
 
+#define READ_UINT32_FIELD(p, offset) \
+  (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)))
+
+#define WRITE_UINT32_FIELD(p, offset, value) \
+  (*reinterpret_cast<uint32_t*>(FIELD_ADDR(p, offset)) = value)
+
 #define READ_SHORT_FIELD(p, offset) \
   (*reinterpret_cast<uint16_t*>(FIELD_ADDR(p, offset)))
 
@@ -603,23 +627,19 @@ Map* MapWord::ToMap() {
 
 
 bool MapWord::IsForwardingAddress() {
-  // This function only works for map words that are heap object pointers.
-  // Since it is a heap object, it has a map.  We use that map's instance
-  // type to detect if this map word is not actually a map (ie, it is a
-  // forwarding address during a scavenge collection).
-  return reinterpret_cast<HeapObject*>(value_)->map()->instance_type() !=
-      MAP_TYPE;
+  return HAS_SMI_TAG(reinterpret_cast<Object*>(value_));
 }
 
 
 MapWord MapWord::FromForwardingAddress(HeapObject* object) {
-  return MapWord(reinterpret_cast<uintptr_t>(object));
+  Address raw = reinterpret_cast<Address>(object) - kHeapObjectTag;
+  return MapWord(reinterpret_cast<uintptr_t>(raw));
 }
 
 
 HeapObject* MapWord::ToForwardingAddress() {
   ASSERT(IsForwardingAddress());
-  return reinterpret_cast<HeapObject*>(value_);
+  return HeapObject::FromAddress(reinterpret_cast<Address>(value_));
 }
 
 
@@ -874,21 +894,61 @@ int JSObject::GetHeaderSize() {
 
 int JSObject::GetInternalFieldCount() {
   ASSERT(1 << kPointerSizeLog2 == kPointerSize);
-  return (Size() - GetHeaderSize()) >> kPointerSizeLog2;
+  // Make sure to adjust for the number of in-object properties. These
+  // properties do contribute to the size, but are not internal fields.
+  return ((Size() - GetHeaderSize()) >> kPointerSizeLog2) -
+         map()->inobject_properties();
 }
 
 
 Object* JSObject::GetInternalField(int index) {
   ASSERT(index < GetInternalFieldCount() && index >= 0);
+  // Internal objects do follow immediately after the header, whereas in-object
+  // properties are at the end of the object. Therefore there is no need
+  // to adjust the index here.
   return READ_FIELD(this, GetHeaderSize() + (kPointerSize * index));
 }
 
 
 void JSObject::SetInternalField(int index, Object* value) {
   ASSERT(index < GetInternalFieldCount() && index >= 0);
+  // Internal objects do follow immediately after the header, whereas in-object
+  // properties are at the end of the object. Therefore there is no need
+  // to adjust the index here.
   int offset = GetHeaderSize() + (kPointerSize * index);
   WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(this, offset);
+}
+
+
+// Access fast-case object properties at index. The use of these routines
+// is needed to correctly distinguish between properties stored in-object and
+// properties stored in the properties array.
+inline Object* JSObject::FastPropertyAt(int index) {
+  // Adjust for the number of properties stored in the object.
+  index -= map()->inobject_properties();
+  if (index < 0) {
+    int offset = map()->instance_size() + (index * kPointerSize);
+    return READ_FIELD(this, offset);
+  } else {
+    ASSERT(index < properties()->length());
+    return properties()->get(index);
+  }
+}
+
+
+inline Object* JSObject::FastPropertyAtPut(int index, Object* value) {
+  // Adjust for the number of properties stored in the object.
+  index -= map()->inobject_properties();
+  if (index < 0) {
+    int offset = map()->instance_size() + (index * kPointerSize);
+    WRITE_FIELD(this, offset, value);
+    WRITE_BARRIER(this, offset);
+  } else {
+    ASSERT(index < properties()->length());
+    properties()->set(index, value);
+  }
+  return value;
 }
 
 
@@ -1120,8 +1180,8 @@ CAST_ACCESSOR(CompilationCacheTable)
 CAST_ACCESSOR(MapCache)
 CAST_ACCESSOR(String)
 CAST_ACCESSOR(SeqString)
-CAST_ACCESSOR(AsciiString)
-CAST_ACCESSOR(TwoByteString)
+CAST_ACCESSOR(SeqAsciiString)
+CAST_ACCESSOR(SeqTwoByteString)
 CAST_ACCESSOR(ConsString)
 CAST_ACCESSOR(SlicedString)
 CAST_ACCESSOR(ExternalString)
@@ -1204,13 +1264,13 @@ void String::set_length(int value) {
 }
 
 
-int String::length_field() {
-  return READ_INT_FIELD(this, kLengthOffset);
+uint32_t String::length_field() {
+  return READ_UINT32_FIELD(this, kLengthOffset);
 }
 
 
-void String::set_length_field(int value) {
-  WRITE_INT_FIELD(this, kLengthOffset, value);
+void String::set_length_field(uint32_t value) {
+  WRITE_UINT32_FIELD(this, kLengthOffset, value);
 }
 
 
@@ -1228,15 +1288,15 @@ uint16_t String::Get(int index) {
   ASSERT(index >= 0 && index < length());
   switch (representation_tag()) {
     case kSeqStringTag:
-      return is_ascii()
-        ? AsciiString::cast(this)->AsciiStringGet(index)
-        : TwoByteString::cast(this)->TwoByteStringGet(index);
+      return is_ascii_representation()
+        ? SeqAsciiString::cast(this)->SeqAsciiStringGet(index)
+        : SeqTwoByteString::cast(this)->SeqTwoByteStringGet(index);
     case kConsStringTag:
       return ConsString::cast(this)->ConsStringGet(index);
     case kSlicedStringTag:
       return SlicedString::cast(this)->SlicedStringGet(index);
     case kExternalStringTag:
-      return is_ascii()
+      return is_ascii_representation()
         ? ExternalAsciiString::cast(this)->ExternalAsciiStringGet(index)
         : ExternalTwoByteString::cast(this)->ExternalTwoByteStringGet(index);
     default:
@@ -1252,14 +1312,14 @@ void String::Set(int index, uint16_t value) {
   ASSERT(index >= 0 && index < length());
   ASSERT(IsSeqString());
 
-  return is_ascii()
-      ? AsciiString::cast(this)->AsciiStringSet(index, value)
-      : TwoByteString::cast(this)->TwoByteStringSet(index, value);
+  return is_ascii_representation()
+      ? SeqAsciiString::cast(this)->SeqAsciiStringSet(index, value)
+      : SeqTwoByteString::cast(this)->SeqTwoByteStringSet(index, value);
 }
 
 
-bool String::IsAscii() {
-  return is_ascii();
+bool String::IsAsciiRepresentation() {
+  return is_ascii_representation();
 }
 
 
@@ -1293,12 +1353,12 @@ bool String::is_symbol_map(Map* map) {
 }
 
 
-bool String::is_ascii() {
-  return is_ascii_map(map());
+bool String::is_ascii_representation() {
+  return is_ascii_representation_map(map());
 }
 
 
-bool String::is_ascii_map(Map* map) {
+bool String::is_ascii_representation_map(Map* map) {
   return (map->instance_type() & kStringEncodingMask) != 0;
 }
 
@@ -1315,52 +1375,57 @@ StringRepresentationTag String::map_representation_tag(Map* map) {
 
 
 bool String::IsFlat() {
-  String* current = this;
-  while (true) {
-    switch (current->representation_tag()) {
-      case kConsStringTag:
-        return String::cast(ConsString::cast(current)->second())->length() == 0;
-      case kSlicedStringTag:
-        current = String::cast(SlicedString::cast(this)->buffer());
-        break;
-      default:
-        return true;
+  switch (this->representation_tag()) {
+    case kConsStringTag:
+      // Only flattened strings have second part empty.
+      return String::cast(ConsString::cast(this)->second())->length() == 0;
+    case kSlicedStringTag: {
+      String* slice = String::cast(SlicedString::cast(this)->buffer());
+      StringRepresentationTag tag = slice->representation_tag();
+      return tag == kSeqStringTag || tag == kExternalStringTag;
     }
+    default:
+      return true;
   }
 }
 
 
-uint16_t AsciiString::AsciiStringGet(int index) {
+uint16_t SeqAsciiString::SeqAsciiStringGet(int index) {
   ASSERT(index >= 0 && index < length());
   return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
 }
 
 
-void AsciiString::AsciiStringSet(int index, uint16_t value) {
+void SeqAsciiString::SeqAsciiStringSet(int index, uint16_t value) {
   ASSERT(index >= 0 && index < length() && value <= kMaxAsciiCharCode);
   WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize,
                    static_cast<byte>(value));
 }
 
 
-Address AsciiString::GetCharsAddress() {
+Address SeqAsciiString::GetCharsAddress() {
   return FIELD_ADDR(this, kHeaderSize);
 }
 
 
-uint16_t TwoByteString::TwoByteStringGet(int index) {
+Address SeqTwoByteString::GetCharsAddress() {
+  return FIELD_ADDR(this, kHeaderSize);
+}
+
+
+uint16_t SeqTwoByteString::SeqTwoByteStringGet(int index) {
   ASSERT(index >= 0 && index < length());
   return READ_SHORT_FIELD(this, kHeaderSize + index * kShortSize);
 }
 
 
-void TwoByteString::TwoByteStringSet(int index, uint16_t value) {
+void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
   ASSERT(index >= 0 && index < length());
   WRITE_SHORT_FIELD(this, kHeaderSize + index * kShortSize, value);
 }
 
 
-int TwoByteString::TwoByteStringSize(Map* map) {
+int SeqTwoByteString::SeqTwoByteStringSize(Map* map) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
   // Use the map (and not 'this') to compute the size tag, since
@@ -1382,7 +1447,7 @@ int TwoByteString::TwoByteStringSize(Map* map) {
 }
 
 
-int AsciiString::AsciiStringSize(Map* map) {
+int SeqAsciiString::SeqAsciiStringSize(Map* map) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
   // Use the map (and not 'this') to compute the size tag, since
@@ -1500,7 +1565,12 @@ Address ByteArray::GetDataStartAddress() {
 
 
 int Map::instance_size() {
-  return READ_BYTE_FIELD(this, kInstanceSizeOffset);
+  return READ_BYTE_FIELD(this, kInstanceSizeOffset) << kPointerSizeLog2;
+}
+
+
+int Map::inobject_properties() {
+  return READ_BYTE_FIELD(this, kInObjectPropertiesOffset);
 }
 
 
@@ -1517,8 +1587,16 @@ int HeapObject::SizeFromMap(Map* map) {
 
 
 void Map::set_instance_size(int value) {
+  ASSERT((value & ~(kPointerSize - 1)) == value);
+  value >>= kPointerSizeLog2;
   ASSERT(0 <= value && value < 256);
   WRITE_BYTE_FIELD(this, kInstanceSizeOffset, static_cast<byte>(value));
+}
+
+
+void Map::set_inobject_properties(int value) {
+  ASSERT(0 <= value && value < 256);
+  WRITE_BYTE_FIELD(this, kInObjectPropertiesOffset, static_cast<byte>(value));
 }
 
 
@@ -2070,16 +2148,75 @@ bool String::HasHashCode() {
 
 uint32_t String::Hash() {
   // Fast case: has hash code already been computed?
-  int hash = length_field();
-  if (hash & kHashComputedMask) return hash;
+  uint32_t field = length_field();
+  if (field & kHashComputedMask) return field >> kHashShift;
   // Slow case: compute hash code and set it..
   return ComputeAndSetHash();
 }
 
 
+StringHasher::StringHasher(int length)
+  : length_(length),
+    raw_running_hash_(0),
+    array_index_(0),
+    is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
+    is_first_char_(true),
+    is_valid_(true) { }
+
+
+bool StringHasher::has_trivial_hash() {
+  return length_ > String::kMaxMediumStringSize;
+}
+
+
+void StringHasher::AddCharacter(uc32 c) {
+  // Note: the Jenkins one-at-a-time hash function
+  raw_running_hash_ += c;
+  raw_running_hash_ += (raw_running_hash_ << 10);
+  raw_running_hash_ ^= (raw_running_hash_ >> 6);
+  // Incremental array index computation
+  if (is_array_index_) {
+    if (c < '0' || c > '9') {
+      is_array_index_ = false;
+    } else {
+      int d = c - '0';
+      if (is_first_char_) {
+        is_first_char_ = false;
+        if (c == '0' && length_ > 1) {
+          is_array_index_ = false;
+          return;
+        }
+      }
+      if (array_index_ > 429496729U - ((d + 2) >> 3)) {
+        is_array_index_ = false;
+      } else {
+        array_index_ = array_index_ * 10 + d;
+      }
+    }
+  }
+}
+
+
+void StringHasher::AddCharacterNoIndex(uc32 c) {
+  ASSERT(!is_array_index());
+  raw_running_hash_ += c;
+  raw_running_hash_ += (raw_running_hash_ << 10);
+  raw_running_hash_ ^= (raw_running_hash_ >> 6);
+}
+
+
+uint32_t StringHasher::GetHash() {
+  uint32_t result = raw_running_hash_;
+  result += (result << 3);
+  result ^= (result >> 11);
+  result += (result << 15);
+  return result;
+}
+
+
 bool String::AsArrayIndex(uint32_t* index) {
-  int hash = length_field();
-  if ((hash & kHashComputedMask) && !(hash & kIsArrayIndexMask)) return false;
+  uint32_t field = length_field();
+  if ((field & kHashComputedMask) && !(field & kIsArrayIndexMask)) return false;
   return SlowAsArrayIndex(index);
 }
 
@@ -2149,6 +2286,12 @@ void Map::ClearCodeCache() {
   //  - MarkCompactCollector::MarkUnmarkedObject
   ASSERT(!Heap::InNewSpace(Heap::empty_fixed_array()));
   WRITE_FIELD(this, kCodeCacheOffset, Heap::empty_fixed_array());
+}
+
+
+void JSArray::SetContent(FixedArray* storage) {
+  set_length(Smi::FromInt(storage->length()));
+  set_elements(storage);
 }
 
 

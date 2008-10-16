@@ -1,3 +1,34 @@
+2008-10-16: Version 0.3.5
+
+        Improved string hash-code distribution by excluding bit-field bits
+        from the hash-code.
+
+        Changed string search algorithm used in indexOf from KMP to
+        Boyer-Moore.
+
+        Improved the generated code for the instanceof operator.
+
+        Improved performance of slow-case string equality checks by
+        specializing the code based on the string representation.
+
+        Improve the handling of out-of-memory situations (issue 70).
+
+        Improved performance of strict equality checks.
+
+        Improved profiler output to make it easier to see anonymous
+        functions.
+
+        Improved performance of slow-case keyed loads.
+
+        Improved property access performance by allocating a number of
+        properties in the front object.
+
+        Changed the toString behavior on the built-in object constructors
+        to print [native code] instead of the actual source.  Some web
+        applications do not like constructors with complex toString
+        results.
+        
+
 2008-10-06: Version 0.3.4
 
         Changed Array.prototype.sort to use quick sort.

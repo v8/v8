@@ -134,9 +134,21 @@ TestArraySortingWithHoles();
 
 // Test array sorting with undefined elemeents in the array.
 function TestArraySortingWithUndefined() {
-  var a = [3, void 0, 2];
+  var a = [ 3, void 0, 2 ];
   a.sort();
-  assertArrayEquals([ 2, 3, void 0], a);
+  assertArrayEquals([ 2, 3, void 0 ], a);
 }
 
 TestArraySortingWithUndefined();
+
+// Test that sorting using an unsound comparison function still gives a
+// sane result, i.e. it terminates without error and retains the elements
+// in the array.
+function TestArraySortingWithUnsoundComparisonFunction() {
+  var a = [ 3, void 0, 2 ];
+  a.sort(function(x, y) { return 1; });
+  a.sort();
+  assertArrayEquals([ 2, 3, void 0 ], a);
+}
+
+TestArraySortingWithUnsoundComparisonFunction();

@@ -733,10 +733,20 @@ HeapObject* Heap::MigrateObject(HeapObject** source_p,
                                 int size) {
   void** src = reinterpret_cast<void**>((*source_p)->address());
   void** dst = reinterpret_cast<void**>(target->address());
-  int counter = size/kPointerSize - 1;
-  do {
-    *dst++ = *src++;
-  } while (counter-- > 0);
+
+  // Use block copying memcpy if the object we're migrating is big
+  // enough to justify the extra call/setup overhead.
+  static const int kBlockCopyLimit = 16 * kPointerSize;
+
+  if (size >= kBlockCopyLimit) {
+    memcpy(dst, src, size);
+  } else {
+    int remaining = size / kPointerSize;
+    do {
+      remaining--;
+      *dst++ = *src++;
+    } while (remaining > 0);
+  }
 
   // Set the forwarding address.
   (*source_p)->set_map_word(MapWord::FromForwardingAddress(target));
@@ -833,6 +843,7 @@ Object* Heap::AllocatePartialMap(InstanceType instance_type,
   reinterpret_cast<Map*>(result)->set_map(meta_map());
   reinterpret_cast<Map*>(result)->set_instance_type(instance_type);
   reinterpret_cast<Map*>(result)->set_instance_size(instance_size);
+  reinterpret_cast<Map*>(result)->set_inobject_properties(0);
   reinterpret_cast<Map*>(result)->set_unused_property_fields(0);
   return result;
 }
@@ -848,6 +859,7 @@ Object* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_prototype(null_value());
   map->set_constructor(null_value());
   map->set_instance_size(instance_size);
+  map->set_inobject_properties(0);
   map->set_instance_descriptors(empty_descriptor_array());
   map->set_code_cache(empty_fixed_array());
   map->set_unused_property_fields(0);
@@ -921,32 +933,32 @@ bool Heap::CreateInitialMaps() {
   STRING_TYPE_LIST(ALLOCATE_STRING_MAP);
 #undef ALLOCATE_STRING_MAP
 
-  obj = AllocateMap(SHORT_STRING_TYPE, TwoByteString::kHeaderSize);
+  obj = AllocateMap(SHORT_STRING_TYPE, SeqTwoByteString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_short_string_map_ = Map::cast(obj);
   undetectable_short_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(MEDIUM_STRING_TYPE, TwoByteString::kHeaderSize);
+  obj = AllocateMap(MEDIUM_STRING_TYPE, SeqTwoByteString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_medium_string_map_ = Map::cast(obj);
   undetectable_medium_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(LONG_STRING_TYPE, TwoByteString::kHeaderSize);
+  obj = AllocateMap(LONG_STRING_TYPE, SeqTwoByteString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_long_string_map_ = Map::cast(obj);
   undetectable_long_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(SHORT_ASCII_STRING_TYPE, AsciiString::kHeaderSize);
+  obj = AllocateMap(SHORT_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_short_ascii_string_map_ = Map::cast(obj);
   undetectable_short_ascii_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(MEDIUM_ASCII_STRING_TYPE, AsciiString::kHeaderSize);
+  obj = AllocateMap(MEDIUM_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_medium_ascii_string_map_ = Map::cast(obj);
   undetectable_medium_ascii_string_map_->set_is_undetectable();
 
-  obj = AllocateMap(LONG_ASCII_STRING_TYPE, AsciiString::kHeaderSize);
+  obj = AllocateMap(LONG_ASCII_STRING_TYPE, SeqAsciiString::kHeaderSize);
   if (obj->IsFailure()) return false;
   undetectable_long_ascii_string_map_ = Map::cast(obj);
   undetectable_long_ascii_string_map_->set_is_undetectable();
@@ -1318,7 +1330,8 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 
 Object* Heap::AllocateConsString(String* first, String* second) {
   int length = first->length() + second->length();
-  bool is_ascii = first->is_ascii() && second->is_ascii();
+  bool is_ascii = first->is_ascii_representation()
+      && second->is_ascii_representation();
 
   // If the resulting string is small make a flat string.
   if (length < ConsString::kMinLength) {
@@ -1375,13 +1388,13 @@ Object* Heap::AllocateSlicedString(String* buffer, int start, int end) {
 
   Map* map;
   if (length <= String::kMaxShortStringSize) {
-    map = buffer->is_ascii() ? short_sliced_ascii_string_map()
+    map = buffer->is_ascii_representation() ? short_sliced_ascii_string_map()
       : short_sliced_string_map();
   } else if (length <= String::kMaxMediumStringSize) {
-    map = buffer->is_ascii() ? medium_sliced_ascii_string_map()
+    map = buffer->is_ascii_representation() ? medium_sliced_ascii_string_map()
       : medium_sliced_string_map();
   } else {
-    map = buffer->is_ascii() ? long_sliced_ascii_string_map()
+    map = buffer->is_ascii_representation() ? long_sliced_ascii_string_map()
       : long_sliced_string_map();
   }
 
@@ -1400,19 +1413,33 @@ Object* Heap::AllocateSlicedString(String* buffer, int start, int end) {
 Object* Heap::AllocateSubString(String* buffer, int start, int end) {
   int length = end - start;
 
+  if (length == 1) {
+    return Heap::LookupSingleCharacterStringFromCode(buffer->Get(start));
+  }
+
   // Make an attempt to flatten the buffer to reduce access time.
   buffer->TryFlatten();
 
-  Object* result = buffer->is_ascii()
+  Object* result = buffer->is_ascii_representation()
       ? AllocateRawAsciiString(length)
       : AllocateRawTwoByteString(length);
   if (result->IsFailure()) return result;
 
   // Copy the characters into the new object.
   String* string_result = String::cast(result);
-  for (int i = 0; i < length; i++) {
-    string_result->Set(i, buffer->Get(start + i));
+  StringHasher hasher(length);
+  int i = 0;
+  for (; i < length && hasher.is_array_index(); i++) {
+    uc32 c = buffer->Get(start + i);
+    hasher.AddCharacter(c);
+    string_result->Set(i, c);
   }
+  for (; i < length; i++) {
+    uc32 c = buffer->Get(start + i);
+    hasher.AddCharacterNoIndex(c);
+    string_result->Set(i, c);
+  }
+  string_result->set_length_field(hasher.GetHashField());
   return result;
 }
 
@@ -1636,8 +1663,17 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
 Object* Heap::AllocateInitialMap(JSFunction* fun) {
   ASSERT(!fun->has_initial_map());
 
-  // First create a new map.
-  Object* map_obj = Heap::AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  // First create a new map with the expected number of properties being
+  // allocated in-object.
+  int expected_nof_properties = fun->shared()->expected_nof_properties();
+  int instance_size = JSObject::kHeaderSize +
+                      expected_nof_properties * kPointerSize;
+  if (instance_size > JSObject::kMaxInstanceSize) {
+    instance_size = JSObject::kMaxInstanceSize;
+    expected_nof_properties = (instance_size - JSObject::kHeaderSize) /
+                              kPointerSize;
+  }
+  Object* map_obj = Heap::AllocateMap(JS_OBJECT_TYPE, instance_size);
   if (map_obj->IsFailure()) return map_obj;
 
   // Fetch or allocate prototype.
@@ -1649,7 +1685,8 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
     if (prototype->IsFailure()) return prototype;
   }
   Map* map = Map::cast(map_obj);
-  map->set_unused_property_fields(fun->shared()->expected_nof_properties());
+  map->set_inobject_properties(expected_nof_properties);
+  map->set_unused_property_fields(expected_nof_properties);
   map->set_prototype(prototype);
   return map;
 }
@@ -1677,7 +1714,8 @@ Object* Heap::AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure) {
   ASSERT(map->instance_type() != JS_FUNCTION_TYPE);
 
   // Allocate the backing storage for the properties.
-  Object* properties = AllocateFixedArray(map->unused_property_fields());
+  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  Object* properties = AllocateFixedArray(prop_size);
   if (properties->IsFailure()) return properties;
 
   // Allocate the JSObject.
@@ -1726,7 +1764,8 @@ Object* Heap::ReinitializeJSGlobalObject(JSFunction* constructor,
   ASSERT(map->instance_size() == object->map()->instance_size());
 
   // Allocate the backing storage for the properties.
-  Object* properties = AllocateFixedArray(map->unused_property_fields());
+  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  Object* properties = AllocateFixedArray(prop_size);
   if (properties->IsFailure()) return properties;
 
   // Reset the map for the object.
@@ -1744,9 +1783,9 @@ Object* Heap::AllocateStringFromAscii(Vector<const char> string,
   if (result->IsFailure()) return result;
 
   // Copy the characters into the new object.
-  AsciiString* string_result = AsciiString::cast(result);
+  SeqAsciiString* string_result = SeqAsciiString::cast(result);
   for (int i = 0; i < string.length(); i++) {
-    string_result->AsciiStringSet(i, string[i]);
+    string_result->SeqAsciiStringSet(i, string[i]);
   }
   return result;
 }
@@ -1872,7 +1911,7 @@ Map* Heap::SymbolMapForString(String* string) {
 
 Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
                              int chars,
-                             int hash) {
+                             uint32_t length_field) {
   // Ensure the chars matches the number of characters in the buffer.
   ASSERT(static_cast<unsigned>(chars) == buffer->Length());
   // Determine whether the string is ascii.
@@ -1894,7 +1933,7 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
     } else {
       map = long_ascii_symbol_map();
     }
-    size = AsciiString::SizeFor(chars);
+    size = SeqAsciiString::SizeFor(chars);
   } else {
     if (chars <= String::kMaxShortStringSize) {
       map = short_symbol_map();
@@ -1903,7 +1942,7 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
     } else {
       map = long_symbol_map();
     }
-    size = TwoByteString::SizeFor(chars);
+    size = SeqTwoByteString::SizeFor(chars);
   }
 
   // Allocate string.
@@ -1914,7 +1953,7 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
 
   reinterpret_cast<HeapObject*>(result)->set_map(map);
   // The hash value contains the length of the string.
-  String::cast(result)->set_length_field(hash);
+  String::cast(result)->set_length_field(length_field);
 
   ASSERT_EQ(size, String::cast(result)->Size());
 
@@ -1928,7 +1967,7 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
 
 Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  int size = AsciiString::SizeFor(length);
+  int size = SeqAsciiString::SizeFor(length);
   if (size > MaxHeapObjectSize()) {
     space = LO_SPACE;
   }
@@ -1958,7 +1997,7 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 
 Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  int size = TwoByteString::SizeFor(length);
+  int size = SeqTwoByteString::SizeFor(length);
   if (size > MaxHeapObjectSize()) {
     space = LO_SPACE;
   }
@@ -2248,6 +2287,16 @@ Object* Heap::LookupSymbol(String* string) {
   symbol_table_ = new_table;
   ASSERT(symbol != NULL);
   return symbol;
+}
+
+
+bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
+  if (string->IsSymbol()) {
+    *symbol = string;
+    return true;
+  }
+  SymbolTable* table = SymbolTable::cast(symbol_table_);
+  return table->LookupSymbolIfExists(string, symbol);
 }
 
 

@@ -2341,6 +2341,33 @@ TEST(ErrorReporting) {
 }
 
 
+static const char* js_code_causing_huge_string_flattening =
+    "var str = 'X';"
+    "for (var i = 0; i < 29; i++) {"
+    "  str = str + str;"
+    "}"
+    "str.match(/X/);";
+
+
+void OOMCallback(const char* location, const char* message) {
+  exit(0);
+}
+
+
+TEST(RegexpOutOfMemory) {
+  // Execute a script that causes out of memory when flattening a string.
+  v8::HandleScope scope;
+  v8::V8::SetFatalErrorHandler(OOMCallback);
+  LocalContext context;
+  Local<Script> script =
+      Script::Compile(String::New(js_code_causing_huge_string_flattening));
+  last_location = NULL;
+  Local<Value> result = script->Run();
+
+  CHECK(false);  // Should not return.
+}
+
+
 static void MissingScriptInfoMessageListener(v8::Handle<v8::Message> message,
                                              v8::Handle<Value> data) {
   CHECK_EQ(v8::Undefined(), data);

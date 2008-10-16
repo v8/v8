@@ -283,10 +283,12 @@ Handle<Object> Factory::NewReferenceError(Handle<String> message) {
 Handle<Object> Factory::NewError(const char* maker, const char* type,
     Vector< Handle<Object> > args) {
   HandleScope scope;
-  Handle<JSArray> array = NewJSArray(args.length());
-  for (int i = 0; i < args.length(); i++)
-    SetElement(array, i, args[i]);
-  Handle<Object> result = NewError(maker, type, array);
+  Handle<FixedArray> array = Factory::NewFixedArray(args.length());
+  for (int i = 0; i < args.length(); i++) {
+    array->set(i, *args[i]);
+  }
+  Handle<JSArray> object = Factory::NewJSArrayWithElements(array);
+  Handle<Object> result = NewError(maker, type, object);
   return result.EscapeFrom(&scope);
 }
 
@@ -467,10 +469,12 @@ Handle<DescriptorArray> Factory::CopyAppendProxyDescriptor(
   GC_GREEDY_CHECK();
   CallbacksDescriptor desc(*key, *value, attributes);
   Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
-  if (obj->IsRetryAfterGC()) {
-    CALL_GC(obj);
-    CallbacksDescriptor desc(*key, *value, attributes);
-    obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
+  if (obj->IsFailure()) {
+    if (obj->IsRetryAfterGC()) {
+      CALL_GC(obj);
+      CallbacksDescriptor desc(*key, *value, attributes);
+      obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
+    }
     if (obj->IsFailure()) {
       // TODO(1181417): Fix this.
       V8::FatalProcessOutOfMemory("CopyAppendProxyDescriptor");

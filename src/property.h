@@ -198,7 +198,6 @@ class LookupResult BASE_EMBEDDED {
     lookup_type_ = NOT_FOUND;
   }
 
-
   JSObject* holder() {
     ASSERT(IsValid());
     return holder_;

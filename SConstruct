@@ -52,7 +52,7 @@ LIBRARY_FLAGS = {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG']
     },
     'mode:release': {
-      'CCFLAGS':      ['-O3']
+      'CCFLAGS':      ['-O3', '-fomit-frame-pointer']
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
