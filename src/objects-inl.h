@@ -627,23 +627,19 @@ Map* MapWord::ToMap() {
 
 
 bool MapWord::IsForwardingAddress() {
-  // This function only works for map words that are heap object pointers.
-  // Since it is a heap object, it has a map.  We use that map's instance
-  // type to detect if this map word is not actually a map (ie, it is a
-  // forwarding address during a scavenge collection).
-  return reinterpret_cast<HeapObject*>(value_)->map()->instance_type() !=
-      MAP_TYPE;
+  return HAS_SMI_TAG(reinterpret_cast<Object*>(value_));
 }
 
 
 MapWord MapWord::FromForwardingAddress(HeapObject* object) {
-  return MapWord(reinterpret_cast<uintptr_t>(object));
+  Address raw = reinterpret_cast<Address>(object) - kHeapObjectTag;
+  return MapWord(reinterpret_cast<uintptr_t>(raw));
 }
 
 
 HeapObject* MapWord::ToForwardingAddress() {
   ASSERT(IsForwardingAddress());
-  return reinterpret_cast<HeapObject*>(value_);
+  return HeapObject::FromAddress(reinterpret_cast<Address>(value_));
 }
 
 
