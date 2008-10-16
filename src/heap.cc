@@ -1666,8 +1666,14 @@ Object* Heap::AllocateInitialMap(JSFunction* fun) {
   // First create a new map with the expected number of properties being
   // allocated in-object.
   int expected_nof_properties = fun->shared()->expected_nof_properties();
-  Object* map_obj = Heap::AllocateMap(JS_OBJECT_TYPE,
-      JSObject::kHeaderSize + expected_nof_properties * kPointerSize);
+  int instance_size = JSObject::kHeaderSize +
+                      expected_nof_properties * kPointerSize;
+  if (instance_size > JSObject::kMaxInstanceSize) {
+    instance_size = JSObject::kMaxInstanceSize;
+    expected_nof_properties = (instance_size - JSObject::kHeaderSize) /
+                              kPointerSize;
+  }
+  Object* map_obj = Heap::AllocateMap(JS_OBJECT_TYPE, instance_size);
   if (map_obj->IsFailure()) return map_obj;
 
   // Fetch or allocate prototype.
