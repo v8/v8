@@ -148,6 +148,27 @@ void StubCompiler::GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
 }
 
 
+// Load a fast property out of a holder object (src). In-object properties
+// are loaded directly otherwise the property is loaded from the properties
+// fixed array.
+void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
+                                            Register dst, Register src,
+                                            JSObject* holder, int index) {
+  // Adjust for the number of properties stored in the holder.
+  index -= holder->map()->inobject_properties();
+  if (index < 0) {
+    // Get the property straight out of the holder.
+    int offset = holder->map()->instance_size() + (index * kPointerSize);
+    __ ldr(dst, FieldMemOperand(src, offset));
+  } else {
+    // Calculate the offset into the properties array.
+    int offset = index * kPointerSize + Array::kHeaderSize;
+    __ ldr(dst, FieldMemOperand(src, JSObject::kPropertiesOffset));
+    __ ldr(dst, FieldMemOperand(dst, offset));
+  }
+}
+
+
 #undef __
 
 #define __ masm()->
@@ -208,20 +229,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   // Do the right check and compute the holder register.
   Register reg =
       __ CheckMaps(JSObject::cast(object), r1, holder, r3, r2, &miss);
-
-  // Adjust for the number of properties stored in the holder.
-  index -= holder->map()->inobject_properties();
-  if (index < 0) {
-    // Get the property straight out of the holder.
-    int offset = holder->map()->instance_size() + (index * kPointerSize);
-    __ ldr(r1, FieldMemOperand(reg, offset));
-  } else {
-    // Get the properties array of the holder and get the function from
-    // the field.
-    int offset = index * kPointerSize + Array::kHeaderSize;
-    __ ldr(r1, FieldMemOperand(reg, JSObject::kPropertiesOffset));
-    __ ldr(r1, FieldMemOperand(r1, offset));
-  }
+  GenerateFastPropertyLoad(masm(), r1, reg, holder, index);
 
   // Check that the function really is a function.
   __ tst(r1, Operand(kSmiTagMask));
@@ -619,20 +627,7 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
 
   // Check that the maps haven't changed.
   Register reg = __ CheckMaps(object, r0, holder, r3, r1, &miss);
-
-  // Adjust for the number of properties stored in the holder.
-  index -= holder->map()->inobject_properties();
-  if (index < 0) {
-    // Get the property straight out of the holder.
-    int offset = holder->map()->instance_size() + (index * kPointerSize);
-    __ ldr(r0, FieldMemOperand(reg, offset));
-  } else {
-    // Get the properties array of the holder.
-    __ ldr(r3, FieldMemOperand(reg, JSObject::kPropertiesOffset));
-    // Return the value from the properties array.
-    int offset = index * kPointerSize + Array::kHeaderSize;
-    __ ldr(r0, FieldMemOperand(r3, offset));
-  }
+  GenerateFastPropertyLoad(masm(), r0, reg, holder, index);
   __ Ret();
 
   // Handle load cache miss.

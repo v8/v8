@@ -301,6 +301,9 @@ class StubCompiler BASE_EMBEDDED {
   static void GenerateLoadGlobalFunctionPrototype(MacroAssembler* masm,
                                                   int index,
                                                   Register prototype);
+  static void GenerateFastPropertyLoad(MacroAssembler* masm,
+                                       Register dst, Register src,
+                                       JSObject* holder, int index);
   static void GenerateLoadField(MacroAssembler* masm,
                                 JSObject* object,
                                 JSObject* holder,
