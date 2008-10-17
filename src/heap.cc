@@ -72,7 +72,7 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
-int Heap::semispace_size_  = 1*MB;
+int Heap::semispace_size_  = 2*MB;
 int Heap::old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 256*KB;
 
