@@ -5344,8 +5344,8 @@ class NumberKey : public HashTableKey {
   }
 
  private:
-  bool IsMatch(Object* other) {
-    return number_ == ToUint32(other);
+  bool IsMatch(Object* number) {
+    return number_ == ToUint32(number);
   }
 
   // Thomas Wang, Integer Hash Functions.
@@ -5391,9 +5391,8 @@ class StringKey : public HashTableKey {
     string_ = string;
   }
 
-  bool IsMatch(Object* other) {
-    if (!other->IsString()) return false;
-    return string_->Equals(String::cast(other));
+  bool IsMatch(Object* string) {
+    return string_->Equals(String::cast(string));
   }
 
   uint32_t Hash() { return StringHash(string_); }
@@ -5417,9 +5416,8 @@ class Utf8SymbolKey : public HashTableKey {
   explicit Utf8SymbolKey(Vector<const char> string)
       : string_(string), length_field_(0) { }
 
-  bool IsMatch(Object* other) {
-    if (!other->IsString()) return false;
-    return String::cast(other)->IsEqualTo(string_);
+  bool IsMatch(Object* string) {
+    return String::cast(string)->IsEqualTo(string_);
   }
 
   HashFunction GetHashFunction() {
@@ -5463,9 +5461,8 @@ class SymbolKey : public HashTableKey {
     return StringHash;
   }
 
-  bool IsMatch(Object* other) {
-    if (!other->IsString()) return false;
-    return String::cast(other)->Equals(string_);
+  bool IsMatch(Object* string) {
+    return String::cast(string)->Equals(string_);
   }
 
   uint32_t Hash() { return string_->Hash(); }
@@ -5712,9 +5709,8 @@ class SymbolsKey : public HashTableKey {
     symbols_ = symbols;
   }
 
-  bool IsMatch(Object* other) {
-    if (!other->IsFixedArray()) return false;
-    FixedArray* o = FixedArray::cast(other);
+  bool IsMatch(Object* symbols) {
+    FixedArray* o = FixedArray::cast(symbols);
     int len = symbols_->length();
     if (o->length() != len) return false;
     for (int i = 0; i < len; i++) {
