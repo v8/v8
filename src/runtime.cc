@@ -965,7 +965,7 @@ static const int kBMMinPatternLength = 5;
 // Holds the two buffers used by Boyer-Moore string search's Good Suffix
 // shift. Only allows the last kBMMaxShift characters of the needle
 // to be indexed.
-class BMGoodSuffixBuffers: public AllStatic {
+class BMGoodSuffixBuffers {
  public:
   BMGoodSuffixBuffers() {}
   inline void init(int needle_length) {
@@ -1005,12 +1005,18 @@ static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
   // Run forwards to populate bad_char_table, so that *last* instance
   // of character equivalence class is the one registered.
   // Notice: Doesn't include the last character.
-  for (int i = 0; i < kBMAlphabetSize; i++) {
-    bad_char_occurence[i] = start - 1;
+  int table_size = (sizeof(pchar) == 1) ? String::kMaxAsciiCharCode + 1
+                                        : kBMAlphabetSize;
+  if (start == 0) {  // All patterns less than kBMMaxShift in length.
+    memset(bad_char_occurence, -1, table_size * sizeof(*bad_char_occurence));
+  } else {
+    for (int i = 0; i < table_size; i++) {
+      bad_char_occurence[i] = start - 1;
+    }
   }
   for (int i = start; i < pattern.length() - 1; i++) {
     pchar c = pattern[i];
-    int bucket = c % kBMAlphabetSize;
+    int bucket = (sizeof(pchar) ==1) ? c : c % kBMAlphabetSize;
     bad_char_occurence[bucket] = i;
   }
 }
@@ -1065,6 +1071,19 @@ static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
   }
 }
 
+template <typename schar, typename pchar>
+static inline int CharOccurence(int char_code) {
+  if (sizeof(schar) == 1) {
+    return bad_char_occurence[char_code];
+  }
+  if (sizeof(pchar) == 1) {
+    if (char_code > String::kMaxAsciiCharCode) {
+      return -1;
+    }
+    return bad_char_occurence[char_code];
+  }
+  return bad_char_occurence[char_code % kBMAlphabetSize];
+}
 
 // Restricted simplified Boyer-Moore string matching. Restricts tables to a
 // suffix of long pattern strings and handles only equivalence classes
@@ -1090,7 +1109,7 @@ static int BoyerMooreSimplified(Vector<const schar> subject,
     int j = m - 1;
     int c;
     while (last_char != (c = subject[idx + j])) {
-      int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
+      int bc_occ = CharOccurence<schar, pchar>(c);
       int shift = j - bc_occ;
       idx += shift;
       badness += 1 - shift;  // at most zero, so badness cannot increase.
@@ -1105,7 +1124,7 @@ static int BoyerMooreSimplified(Vector<const schar> subject,
       complete = true;
       return idx;
     } else {
-      int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
+      int bc_occ = CharOccurence<schar, pchar>(c);
       int shift = bc_occ < j ? j - bc_occ : 1;
       idx += shift;
       // Badness increases by the number of characters we have
@@ -1141,7 +1160,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
     int j = m - 1;
     schar c;
     while (last_char != (c = subject[idx + j])) {
-      int shift = j - bad_char_occurence[c % kBMAlphabetSize];
+      int shift = j - CharOccurence<schar, pchar>(c);
       idx += shift;
       if (idx > n - m) {
         return -1;
@@ -1155,7 +1174,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
       idx += 1;
     } else {
       int gs_shift = bmgs_buffers.shift(j + 1);       // Good suffix shift.
-      int bc_occ = bad_char_occurence[c % kBMAlphabetSize];
+      int bc_occ = CharOccurence<schar, pchar>(c);
       int shift = j - bc_occ;                         // Bad-char shift.
       shift = (gs_shift > shift) ? gs_shift : shift;
       idx += shift;
