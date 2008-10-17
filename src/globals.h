@@ -375,7 +375,6 @@ enum StateTag {
 #define OBJECT_SIZE_ALIGN(value)                                \
   ((value + kObjectAlignmentMask) & ~kObjectAlignmentMask)
 
-
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This
 // corresponds to 'offsetof' (in stddef.h), except that it doesn't

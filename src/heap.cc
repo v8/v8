@@ -57,8 +57,7 @@ namespace v8 { namespace internal {
   SYMBOL_LIST(SYMBOL_ALLOCATION)
 #undef SYMBOL_ALLOCATION
 
-
-NewSpace* Heap::new_space_ = NULL;
+NewSpace Heap::new_space_;
 OldSpace* Heap::old_pointer_space_ = NULL;
 OldSpace* Heap::old_data_space_ = NULL;
 OldSpace* Heap::code_space_ = NULL;
@@ -103,7 +102,7 @@ bool Heap::disallow_allocation_failure_ = false;
 int Heap::Capacity() {
   if (!HasBeenSetup()) return 0;
 
-  return new_space_->Capacity() +
+  return new_space_.Capacity() +
       old_pointer_space_->Capacity() +
       old_data_space_->Capacity() +
       code_space_->Capacity() +
@@ -114,7 +113,7 @@ int Heap::Capacity() {
 int Heap::Available() {
   if (!HasBeenSetup()) return 0;
 
-  return new_space_->Available() +
+  return new_space_.Available() +
       old_pointer_space_->Available() +
       old_data_space_->Available() +
       code_space_->Available() +
@@ -123,8 +122,7 @@ int Heap::Available() {
 
 
 bool Heap::HasBeenSetup() {
-  return new_space_ != NULL &&
-         old_pointer_space_ != NULL &&
+  return old_pointer_space_ != NULL &&
          old_data_space_ != NULL &&
          code_space_ != NULL &&
          map_space_ != NULL &&
@@ -161,7 +159,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   // and does not count available bytes already in the old space or code
   // space.  Undercounting is safe---we may get an unrequested full GC when
   // a scavenge would have succeeded.
-  if (MemoryAllocator::MaxAvailable() <= new_space_->Size()) {
+  if (MemoryAllocator::MaxAvailable() <= new_space_.Size()) {
     Counters::gc_compactor_caused_by_oldspace_exhaustion.Increment();
     return MARK_COMPACTOR;
   }
@@ -179,24 +177,24 @@ void Heap::ReportStatisticsBeforeGC() {
   // compiled with ENABLE_LOGGING_AND_PROFILING and --log-gc is set.  The
   // following logic is used to avoid double logging.
 #if defined(DEBUG) && defined(ENABLE_LOGGING_AND_PROFILING)
-  if (FLAG_heap_stats || FLAG_log_gc) new_space_->CollectStatistics();
+  if (FLAG_heap_stats || FLAG_log_gc) new_space_.CollectStatistics();
   if (FLAG_heap_stats) {
     ReportHeapStatistics("Before GC");
   } else if (FLAG_log_gc) {
-    new_space_->ReportStatistics();
+    new_space_.ReportStatistics();
   }
-  if (FLAG_heap_stats || FLAG_log_gc) new_space_->ClearHistograms();
+  if (FLAG_heap_stats || FLAG_log_gc) new_space_.ClearHistograms();
 #elif defined(DEBUG)
   if (FLAG_heap_stats) {
-    new_space_->CollectStatistics();
+    new_space_.CollectStatistics();
     ReportHeapStatistics("Before GC");
-    new_space_->ClearHistograms();
+    new_space_.ClearHistograms();
   }
 #elif defined(ENABLE_LOGGING_AND_PROFILING)
   if (FLAG_log_gc) {
-    new_space_->CollectStatistics();
-    new_space_->ReportStatistics();
-    new_space_->ClearHistograms();
+    new_space_.CollectStatistics();
+    new_space_.ReportStatistics();
+    new_space_.ClearHistograms();
   }
 #endif
 }
@@ -211,12 +209,12 @@ void Heap::ReportStatisticsAfterGC() {
   if (FLAG_heap_stats) {
     ReportHeapStatistics("After GC");
   } else if (FLAG_log_gc) {
-    new_space_->ReportStatistics();
+    new_space_.ReportStatistics();
   }
 #elif defined(DEBUG)
   if (FLAG_heap_stats) ReportHeapStatistics("After GC");
 #elif defined(ENABLE_LOGGING_AND_PROFILING)
-  if (FLAG_log_gc) new_space_->ReportStatistics();
+  if (FLAG_log_gc) new_space_.ReportStatistics();
 #endif
 }
 #endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
@@ -329,7 +327,7 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_->Available() >= requested_size;
+      return new_space_.Available() >= requested_size;
     case OLD_POINTER_SPACE:
       return old_pointer_space_->Available() >= requested_size;
     case OLD_DATA_SPACE:
@@ -461,7 +459,7 @@ class CopyVisitor: public ObjectVisitor {
 
  private:
   void CopyObject(Object** p) {
-    if (!Heap::InFromSpace(*p)) return;
+    if (!Heap::InNewSpace(*p)) return;
     Heap::CopyObject(reinterpret_cast<HeapObject**>(p));
   }
 };
@@ -510,21 +508,21 @@ void Heap::Scavenge() {
   LOG(ResourceEvent("scavenge", "begin"));
 
   scavenge_count_++;
-  if (new_space_->Capacity() < new_space_->MaximumCapacity() &&
+  if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
       scavenge_count_ > new_space_growth_limit_) {
     // Double the size of the new space, and double the limit.  The next
     // doubling attempt will occur after the current new_space_growth_limit_
     // more collections.
     // TODO(1240712): NewSpace::Double has a return value which is
     // ignored here.
-    new_space_->Double();
+    new_space_.Double();
     new_space_growth_limit_ *= 2;
   }
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
-  new_space_->Flip();
-  new_space_->ResetAllocationInfo();
+  new_space_.Flip();
+  new_space_.ResetAllocationInfo();
 
   // We need to sweep newly copied objects which can be in either the to space
   // or the old space.  For to space objects, we use a mark.  Newly copied
@@ -540,9 +538,9 @@ void Heap::Scavenge() {
   // in size.  Using the new space to record promoted addresses makes the
   // scavenge collector agnostic to the allocation strategy (eg, linear or
   // free-list) used in old space.
-  Address new_mark = new_space_->ToSpaceLow();
-  Address promoted_mark = new_space_->ToSpaceHigh();
-  promoted_top = new_space_->ToSpaceHigh();
+  Address new_mark = new_space_.ToSpaceLow();
+  Address promoted_mark = new_space_.ToSpaceHigh();
+  promoted_top = new_space_.ToSpaceHigh();
 
   CopyVisitor copy_visitor;
   // Copy roots.
@@ -557,15 +555,15 @@ void Heap::Scavenge() {
   bool has_processed_weak_pointers = false;
 
   while (true) {
-    ASSERT(new_mark <= new_space_->top());
+    ASSERT(new_mark <= new_space_.top());
     ASSERT(promoted_mark >= promoted_top);
 
     // Copy objects reachable from newly copied objects.
-    while (new_mark < new_space_->top() || promoted_mark > promoted_top) {
+    while (new_mark < new_space_.top() || promoted_mark > promoted_top) {
       // Sweep newly copied objects in the to space.  The allocation pointer
       // can change during sweeping.
-      Address previous_top = new_space_->top();
-      SemiSpaceIterator new_it(new_space_, new_mark);
+      Address previous_top = new_space_.top();
+      SemiSpaceIterator new_it(new_space(), new_mark);
       while (new_it.has_next()) {
         new_it.next()->Iterate(&copy_visitor);
       }
@@ -591,7 +589,7 @@ void Heap::Scavenge() {
   }
 
   // Set age mark.
-  new_space_->set_age_mark(new_mark);
+  new_space_.set_age_mark(new_mark);
 
   LOG(ResourceEvent("scavenge", "end"));
 
@@ -718,20 +716,20 @@ void Heap::RecordCopiedObject(HeapObject* obj) {
   should_record = should_record || FLAG_log_gc;
 #endif
   if (should_record) {
-    if (new_space_->Contains(obj)) {
-      new_space_->RecordAllocation(obj);
+    if (new_space_.Contains(obj)) {
+      new_space_.RecordAllocation(obj);
     } else {
-      new_space_->RecordPromotion(obj);
+      new_space_.RecordPromotion(obj);
     }
   }
 }
 #endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 
 
-HeapObject* Heap::MigrateObject(HeapObject** source_p,
+HeapObject* Heap::MigrateObject(HeapObject* source,
                                 HeapObject* target,
                                 int size) {
-  void** src = reinterpret_cast<void**>((*source_p)->address());
+  void** src = reinterpret_cast<void**>(source->address());
   void** dst = reinterpret_cast<void**>(target->address());
 
   // Use block copying memcpy if the object we're migrating is big
@@ -749,7 +747,7 @@ HeapObject* Heap::MigrateObject(HeapObject** source_p,
   }
 
   // Set the forwarding address.
-  (*source_p)->set_map_word(MapWord::FromForwardingAddress(target));
+  source->set_map_word(MapWord::FromForwardingAddress(target));
 
   // Update NewSpace stats if necessary.
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
@@ -789,7 +787,7 @@ void Heap::CopyObject(HeapObject** p) {
     *p = object;
     // After patching *p we have to repeat the checks that object is in the
     // active semispace of the young generation and not already copied.
-    if (!InFromSpace(object)) return;
+    if (!InNewSpace(object)) return;
     first_word = object->map_word();
     if (first_word.IsForwardingAddress()) {
       *p = first_word.ToForwardingAddress();
@@ -808,7 +806,7 @@ void Heap::CopyObject(HeapObject** p) {
     result = target_space->AllocateRaw(object_size);
 
     if (!result->IsFailure()) {
-      *p = MigrateObject(p, HeapObject::cast(result), object_size);
+      *p = MigrateObject(object, HeapObject::cast(result), object_size);
       if (target_space == Heap::old_pointer_space_) {
         // Record the object's address at the top of the to space, to allow
         // it to be swept by the scavenger.
@@ -827,10 +825,10 @@ void Heap::CopyObject(HeapObject** p) {
   }
 
   // The object should remain in new space or the old space allocation failed.
-  result = new_space_->AllocateRaw(object_size);
+  result = new_space_.AllocateRaw(object_size);
   // Failed allocation at this point is utterly unexpected.
   ASSERT(!result->IsFailure());
-  *p = MigrateObject(p, HeapObject::cast(result), object_size);
+  *p = MigrateObject(object, HeapObject::cast(result), object_size);
 }
 
 
@@ -1030,7 +1028,7 @@ Object* Heap::AllocateHeapNumber(double value) {
   // allocation in new space.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
-  Object* result = new_space_->AllocateRaw(HeapNumber::kSize);
+  Object* result = new_space_.AllocateRaw(HeapNumber::kSize);
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(heap_number_map());
   HeapNumber::cast(result)->set_value(value);
@@ -2191,7 +2189,7 @@ void Heap::ReportHeapStatistics(const char* title) {
   PrintF("Heap statistics : ");
   MemoryAllocator::ReportStatistics();
   PrintF("To space : ");
-  new_space_->ReportStatistics();
+  new_space_.ReportStatistics();
   PrintF("Old pointer space : ");
   old_pointer_space_->ReportStatistics();
   PrintF("Old data space : ");
@@ -2215,7 +2213,7 @@ bool Heap::Contains(HeapObject* value) {
 bool Heap::Contains(Address addr) {
   if (OS::IsOutsideAllocatedSpace(addr)) return false;
   return HasBeenSetup() &&
-    (new_space_->ToSpaceContains(addr) ||
+    (new_space_.ToSpaceContains(addr) ||
      old_pointer_space_->Contains(addr) ||
      old_data_space_->Contains(addr) ||
      code_space_->Contains(addr) ||
@@ -2235,7 +2233,7 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_->ToSpaceContains(addr);
+      return new_space_.ToSpaceContains(addr);
     case OLD_POINTER_SPACE:
       return old_pointer_space_->Contains(addr);
     case OLD_DATA_SPACE:
@@ -2303,8 +2301,8 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
 #ifdef DEBUG
 void Heap::ZapFromSpace() {
   ASSERT(HAS_HEAP_OBJECT_TAG(kFromSpaceZapValue));
-  for (Address a = new_space_->FromSpaceLow();
-       a < new_space_->FromSpaceHigh();
+  for (Address a = new_space_.FromSpaceLow();
+       a < new_space_.FromSpaceHigh();
        a += kPointerSize) {
     Memory::Address_at(a) = kFromSpaceZapValue;
   }
@@ -2322,29 +2320,21 @@ void Heap::IterateRSetRange(Address object_start,
   // Loop over all the pointers in [object_start, object_end).
   while (object_address < object_end) {
     uint32_t rset_word = Memory::uint32_at(rset_address);
-
     if (rset_word != 0) {
-      // Bits were set.
       uint32_t result_rset = rset_word;
-
-      // Loop over all the bits in the remembered set word.  Though
-      // remembered sets are sparse, faster (eg, binary) search for
-      // set bits does not seem to help much here.
-      for (int bit_offset = 0; bit_offset < kBitsPerInt; bit_offset++) {
-        uint32_t bitmask = 1 << bit_offset;
+      for (uint32_t bitmask = 1; bitmask != 0; bitmask = bitmask << 1) {
         // Do not dereference pointers at or past object_end.
         if ((rset_word & bitmask) != 0 && object_address < object_end) {
           Object** object_p = reinterpret_cast<Object**>(object_address);
-          if (Heap::InFromSpace(*object_p)) {
+          if (Heap::InNewSpace(*object_p)) {
             copy_object_func(reinterpret_cast<HeapObject**>(object_p));
           }
           // If this pointer does not need to be remembered anymore, clear
           // the remembered set bit.
-          if (!Heap::InToSpace(*object_p)) result_rset &= ~bitmask;
+          if (!Heap::InNewSpace(*object_p)) result_rset &= ~bitmask;
         }
         object_address += kPointerSize;
       }
-
       // Update the remembered set if it has changed.
       if (result_rset != rset_word) {
         Memory::uint32_at(rset_address) = result_rset;
@@ -2353,7 +2343,6 @@ void Heap::IterateRSetRange(Address object_start,
       // No bits in the word were set.  This is the common case.
       object_address += kPointerSize * kBitsPerInt;
     }
-
     rset_address += kIntSize;
   }
 }
@@ -2517,11 +2506,7 @@ bool Heap::Setup(bool create_heap_objects) {
   int old_space_size = young_generation_size_ - code_space_size;
 
   // Initialize new space.
-  new_space_ = new NewSpace(initial_semispace_size_,
-                            semispace_size_,
-                            NEW_SPACE);
-  if (new_space_ == NULL) return false;
-  if (!new_space_->Setup(new_space_start, young_generation_size_)) return false;
+  if (!new_space_.Setup(new_space_start, young_generation_size_)) return false;
 
   // Initialize old space, set the maximum capacity to the old generation
   // size. It will not contain code.
@@ -2579,11 +2564,7 @@ bool Heap::Setup(bool create_heap_objects) {
 void Heap::TearDown() {
   GlobalHandles::TearDown();
 
-  if (new_space_ != NULL) {
-    new_space_->TearDown();
-    delete new_space_;
-    new_space_ = NULL;
-  }
+  new_space_.TearDown();
 
   if (old_pointer_space_ != NULL) {
     old_pointer_space_->TearDown();

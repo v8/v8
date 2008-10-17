@@ -878,19 +878,14 @@ class HistogramInfo BASE_EMBEDDED {
 
 class SemiSpace : public Space {
  public:
-  // Creates a space in the young generation. The constructor does not
-  // allocate memory from the OS.  A SemiSpace is given a contiguous chunk of
-  // memory of size 'capacity' when set up, and does not grow or shrink
-  // otherwise.  In the mark-compact collector, the memory region of the from
-  // space is used as the marking stack. It requires contiguous memory
-  // addresses.
-  SemiSpace(int initial_capacity,
-            int maximum_capacity,
-            AllocationSpace id);
-  virtual ~SemiSpace() {}
+  // Constructor.
+  SemiSpace() :Space(NEW_SPACE, NOT_EXECUTABLE) {
+    start_ = NULL;
+    age_mark_ = NULL;
+  }
 
   // Sets up the semispace using the given chunk.
-  bool Setup(Address start, int size);
+  bool Setup(Address start, int initial_capacity, int maximum_capacity);
 
   // Tear down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
@@ -1016,16 +1011,8 @@ class SemiSpaceIterator : public ObjectIterator {
 
 class NewSpace : public Space {
  public:
-  // Create a new space with a given allocation capacity (ie, the capacity of
-  // *one* of the semispaces).  The constructor does not allocate heap memory
-  // from the OS.  When the space is set up, it is given a contiguous chunk of
-  // memory of size 2 * semispace_capacity.  To support fast containment
-  // testing in the new space, the size of this chunk must be a power of two
-  // and it must be aligned to its size.
-  NewSpace(int initial_semispace_capacity,
-           int maximum_semispace_capacity,
-           AllocationSpace id);
-  virtual ~NewSpace() {}
+  // Constructor.
+  NewSpace() : Space(NEW_SPACE, NOT_EXECUTABLE) {}
 
   // Sets up the new space using the given chunk.
   bool Setup(Address start, int size);
@@ -1036,7 +1023,7 @@ class NewSpace : public Space {
 
   // True if the space has been set up but not torn down.
   bool HasBeenSetup() {
-    return to_space_->HasBeenSetup() && from_space_->HasBeenSetup();
+    return to_space_.HasBeenSetup() && from_space_.HasBeenSetup();
   }
 
   // Flip the pair of spaces.
@@ -1069,12 +1056,12 @@ class NewSpace : public Space {
   // Return the address of the allocation pointer in the active semispace.
   Address top() { return allocation_info_.top; }
   // Return the address of the first object in the active semispace.
-  Address bottom() { return to_space_->low(); }
+  Address bottom() { return to_space_.low(); }
 
   // Get the age mark of the inactive semispace.
-  Address age_mark() { return from_space_->age_mark(); }
+  Address age_mark() { return from_space_.age_mark(); }
   // Set the age mark in the active semispace.
-  void set_age_mark(Address mark) { to_space_->set_age_mark(mark); }
+  void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
 
   // The start address of the space and a bit mask. Anding an address in the
   // new space with the mask will result in the start address.
@@ -1105,36 +1092,36 @@ class NewSpace : public Space {
   void MCCommitRelocationInfo();
 
   // Get the extent of the inactive semispace (for use as a marking stack).
-  Address FromSpaceLow() { return from_space_->low(); }
-  Address FromSpaceHigh() { return from_space_->high(); }
+  Address FromSpaceLow() { return from_space_.low(); }
+  Address FromSpaceHigh() { return from_space_.high(); }
 
   // Get the extent of the active semispace (to sweep newly copied objects
   // during a scavenge collection).
-  Address ToSpaceLow() { return to_space_->low(); }
-  Address ToSpaceHigh() { return to_space_->high(); }
+  Address ToSpaceLow() { return to_space_.low(); }
+  Address ToSpaceHigh() { return to_space_.high(); }
 
   // Offsets from the beginning of the semispaces.
   int ToSpaceOffsetForAddress(Address a) {
-    return to_space_->SpaceOffsetForAddress(a);
+    return to_space_.SpaceOffsetForAddress(a);
   }
   int FromSpaceOffsetForAddress(Address a) {
-    return from_space_->SpaceOffsetForAddress(a);
+    return from_space_.SpaceOffsetForAddress(a);
   }
 
   // True if the object is a heap object in the address range of the
   // respective semispace (not necessarily below the allocation pointer of the
   // semispace).
-  bool ToSpaceContains(Object* o) { return to_space_->Contains(o); }
-  bool FromSpaceContains(Object* o) { return from_space_->Contains(o); }
+  bool ToSpaceContains(Object* o) { return to_space_.Contains(o); }
+  bool FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
-  bool ToSpaceContains(Address a) { return to_space_->Contains(a); }
-  bool FromSpaceContains(Address a) { return from_space_->Contains(a); }
+  bool ToSpaceContains(Address a) { return to_space_.Contains(a); }
+  bool FromSpaceContains(Address a) { return from_space_.Contains(a); }
 
 #ifdef DEBUG
   // Verify the active semispace.
   virtual void Verify();
   // Print the active semispace.
-  virtual void Print() { to_space_->Print(); }
+  virtual void Print() { to_space_.Print(); }
 #endif
 
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
@@ -1158,8 +1145,8 @@ class NewSpace : public Space {
   int maximum_capacity_;
 
   // The semispaces.
-  SemiSpace* to_space_;
-  SemiSpace* from_space_;
+  SemiSpace to_space_;
+  SemiSpace from_space_;
 
   // Start address and bit mask for containment testing.
   Address start_;

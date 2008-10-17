@@ -51,7 +51,7 @@ Object* Heap::AllocateRaw(int size_in_bytes,
   Counters::objs_since_last_young.Increment();
 #endif
   if (NEW_SPACE == space) {
-    return new_space_->AllocateRaw(size_in_bytes);
+    return new_space_.AllocateRaw(size_in_bytes);
   }
 
   Object* result;
@@ -100,17 +100,17 @@ Object* Heap::AllocateRawMap(int size_in_bytes) {
 
 
 bool Heap::InNewSpace(Object* object) {
-  return new_space_->Contains(object);
+  return new_space_.Contains(object);
 }
 
 
 bool Heap::InFromSpace(Object* object) {
-  return new_space_->FromSpaceContains(object);
+  return new_space_.FromSpaceContains(object);
 }
 
 
 bool Heap::InToSpace(Object* object) {
-  return new_space_->ToSpaceContains(object);
+  return new_space_.ToSpaceContains(object);
 }
 
 
@@ -118,14 +118,14 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   // An object should be promoted if:
   // - the object has survived a scavenge operation or
   // - to space is already 25% full.
-  return old_address < new_space_->age_mark()
-      || (new_space_->Size() + object_size) >= (new_space_->Capacity() >> 2);
+  return old_address < new_space_.age_mark()
+      || (new_space_.Size() + object_size) >= (new_space_.Capacity() >> 2);
 }
 
 
 void Heap::RecordWrite(Address address, int offset) {
-  if (new_space_->Contains(address)) return;
-  ASSERT(!new_space_->FromSpaceContains(address));
+  if (new_space_.Contains(address)) return;
+  ASSERT(!new_space_.FromSpaceContains(address));
   SLOW_ASSERT(Contains(address + offset));
   Page::SetRSet(address, offset);
 }

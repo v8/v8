@@ -244,11 +244,11 @@ class Heap : public AllStatic {
   // Return the starting address and a mask for the new space.  And-masking an
   // address with the mask will result in the start address of the new space
   // for all addresses in either semispace.
-  static Address NewSpaceStart() { return new_space_->start(); }
-  static uint32_t NewSpaceMask() { return new_space_->mask(); }
-  static Address NewSpaceTop() { return new_space_->top(); }
+  static Address NewSpaceStart() { return new_space_.start(); }
+  static uint32_t NewSpaceMask() { return new_space_.mask(); }
+  static Address NewSpaceTop() { return new_space_.top(); }
 
-  static NewSpace* new_space() { return new_space_; }
+  static NewSpace* new_space() { return &new_space_; }
   static OldSpace* old_pointer_space() { return old_pointer_space_; }
   static OldSpace* old_data_space() { return old_data_space_; }
   static OldSpace* code_space() { return code_space_; }
@@ -256,10 +256,10 @@ class Heap : public AllStatic {
   static LargeObjectSpace* lo_space() { return lo_space_; }
 
   static Address* NewSpaceAllocationTopAddress() {
-    return new_space_->allocation_top_address();
+    return new_space_.allocation_top_address();
   }
   static Address* NewSpaceAllocationLimitAddress() {
-    return new_space_->allocation_limit_address();
+    return new_space_.allocation_limit_address();
   }
 
   // Allocates and initializes a new JavaScript object based on a
@@ -727,7 +727,7 @@ class Heap : public AllStatic {
 
   static const int kMaxMapSpaceSize = 8*MB;
 
-  static NewSpace* new_space_;
+  static NewSpace new_space_;
   static OldSpace* old_pointer_space_;
   static OldSpace* old_data_space_;
   static OldSpace* code_space_;
@@ -839,7 +839,7 @@ class Heap : public AllStatic {
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source
   // object.  Returns the target object.
-  static HeapObject* MigrateObject(HeapObject** source_p,
+  static HeapObject* MigrateObject(HeapObject* source,
                                    HeapObject* target,
                                    int size);
 

@@ -308,7 +308,7 @@ Object* NewSpace::AllocateRawInternal(int size_in_bytes,
   alloc_info->top = new_top;
 #ifdef DEBUG
   SemiSpace* space =
-      (alloc_info == &allocation_info_) ? to_space_ : from_space_;
+      (alloc_info == &allocation_info_) ? &to_space_ : &from_space_;
   ASSERT(space->low() <= alloc_info->top
          && alloc_info->top <= space->high()
          && alloc_info->limit == space->high());
