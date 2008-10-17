@@ -4655,7 +4655,7 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
         JSArray::cast(this)->set_length(Smi::FromInt(index + 1));
       }
     }
-    return this;
+    return value;
   }
 
   // Allow gap in fast case.
@@ -4670,7 +4670,7 @@ Object* JSObject::SetFastElement(uint32_t index, Object* value) {
       SetFastElements(FixedArray::cast(obj));
       if (IsJSArray()) JSArray::cast(this)->set_length(Smi::FromInt(index + 1));
       FixedArray::cast(elements())->set(index, value);
-      return this;
+      return value;
     }
   }
 
