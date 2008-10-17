@@ -165,9 +165,14 @@ namespace v8 { namespace internal {
   F(GetScript, 1) \
   \
   F(ClassOf, 1) \
-  F(IsDateClass, 1) \
-  F(IsStringClass, 1) \
-  F(IsArrayClass, 1) \
+  F(HasDateClass, 1) \
+  F(HasStringClass, 1) \
+  F(HasArrayClass, 1) \
+  F(HasFunctionClass, 1) \
+  F(HasNumberClass, 1) \
+  F(HasBooleanClass, 1) \
+  F(HasArgumentsClass, 1) \
+  F(HasRegExpClass, 1) \
   F(SetCode, 2) \
   \
   F(CreateApiFunction, 1) \

@@ -221,7 +221,7 @@ static Object* Runtime_ClassOf(Arguments args) {
   return JSObject::cast(obj)->class_name();
 }
 
-inline static Object* IsSpecificClassOf(Arguments args, String* name) {
+inline static Object* HasSpecificClassOf(Arguments args, String* name) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   Object* obj = args[0];
@@ -231,18 +231,43 @@ inline static Object* IsSpecificClassOf(Arguments args, String* name) {
   return Heap::false_value();
 }
 
-static Object* Runtime_IsStringClass(Arguments args) {
-  return IsSpecificClassOf(args, Heap::String_symbol());
+static Object* Runtime_HasStringClass(Arguments args) {
+  return HasSpecificClassOf(args, Heap::String_symbol());
 }
 
 
-static Object* Runtime_IsDateClass(Arguments args) {
-  return IsSpecificClassOf(args, Heap::Date_symbol());
+static Object* Runtime_HasDateClass(Arguments args) {
+  return HasSpecificClassOf(args, Heap::Date_symbol());
 }
 
 
-static Object* Runtime_IsArrayClass(Arguments args) {
-  return IsSpecificClassOf(args, Heap::Array_symbol());
+static Object* Runtime_HasArrayClass(Arguments args) {
+  return HasSpecificClassOf(args, Heap::Array_symbol());
+}
+
+
+static Object* Runtime_HasFunctionClass(Arguments args) {
+  return HasSpecificClassOf(args, Heap::function_class_symbol());
+}
+
+
+static Object* Runtime_HasNumberClass(Arguments args) {
+  return HasSpecificClassOf(args, Heap::Number_symbol());
+}
+
+
+static Object* Runtime_HasBooleanClass(Arguments args) {
+  return HasSpecificClassOf(args, Heap::Boolean_symbol());
+}
+
+
+static Object* Runtime_HasArgumentsClass(Arguments args) {
+  return HasSpecificClassOf(args, Heap::Arguments_symbol());
+}
+
+
+static Object* Runtime_HasRegExpClass(Arguments args) {
+  return HasSpecificClassOf(args, Heap::RegExp_symbol());
 }
 
 

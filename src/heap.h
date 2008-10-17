@@ -135,11 +135,13 @@ namespace v8 { namespace internal {
   V(Proto_symbol, "__proto__")                                           \
   V(StringImpl_symbol, "StringImpl")                                     \
   V(arguments_symbol, "arguments")                                       \
+  V(Arguments_symbol, "Arguments")                                       \
   V(arguments_shadow_symbol, ".arguments")                               \
   V(call_symbol, "call")                                                 \
   V(apply_symbol, "apply")                                               \
   V(caller_symbol, "caller")                                             \
   V(boolean_symbol, "boolean")                                           \
+  V(Boolean_symbol, "Boolean")                                           \
   V(callee_symbol, "callee")                                             \
   V(constructor_symbol, "constructor")                                   \
   V(code_symbol, ".code")                                                \
@@ -151,6 +153,8 @@ namespace v8 { namespace internal {
   V(length_symbol, "length")                                             \
   V(name_symbol, "name")                                                 \
   V(number_symbol, "number")                                             \
+  V(Number_symbol, "Number")                                             \
+  V(RegExp_symbol, "RegExp")                                             \
   V(object_symbol, "object")                                             \
   V(prototype_symbol, "prototype")                                       \
   V(string_symbol, "string")                                             \
