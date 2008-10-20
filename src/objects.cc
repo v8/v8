@@ -3646,6 +3646,37 @@ static inline bool CompareStringContents(IteratorA* ia, IteratorB* ib) {
 }
 
 
+// Compares the contents of two strings by reading and comparing
+// int-sized blocks of characters.
+template <typename Char>
+static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
+  // Lint complains about taking sizeof a type rather than a variable.
+  // That's just stupid in this case so I'm turning it off.
+  const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
+  int length = a.length();
+  ASSERT_EQ(length, b.length());
+  int endpoint = length - kStepSize;
+  const Char* pa = a.start();
+  const Char* pb = b.start();
+  int i;
+  // Compare blocks until we reach near the end of the string.
+  for (i = 0; i <= endpoint; i += kStepSize) {
+    uint32_t wa = *reinterpret_cast<const uint32_t*>(pa + i);
+    uint32_t wb = *reinterpret_cast<const uint32_t*>(pb + i);
+    if (wa != wb) {
+      return false;
+    }
+  }
+  // Compare the remaining characters that didn't fit into a block.
+  for (; i < length; i++) {
+    if (a[i] != b[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
 static StringInputBuffer string_compare_buffer_b;
 
 
@@ -3681,13 +3712,46 @@ bool String::SlowEquals(String* other) {
     if (Hash() != other->Hash()) return false;
   }
 
+  if (this->IsSeqAsciiString() && other->IsSeqAsciiString()) {
+    const char* str1 = SeqAsciiString::cast(this)->GetChars();
+    const char* str2 = SeqAsciiString::cast(other)->GetChars();
+    return CompareRawStringContents(Vector<const char>(str1, len),
+                                    Vector<const char>(str2, len));
+  }
+
   if (this->IsFlat()) {
     if (this->IsAsciiRepresentation()) {
-      VectorIterator<char> buf1(this->ToAsciiVector());
-      return CompareStringContentsPartial(&buf1, other);
+      Vector<const char> vec1 = this->ToAsciiVector();
+      if (other->IsFlat()) {
+        if (other->IsAsciiRepresentation()) {
+          Vector<const char> vec2 = other->ToAsciiVector();
+          return CompareRawStringContents(vec1, vec2);
+        } else {
+          VectorIterator<char> buf1(vec1);
+          VectorIterator<uc16> ib(other->ToUC16Vector());
+          return CompareStringContents(&buf1, &ib);
+        }
+      } else {
+        VectorIterator<char> buf1(vec1);
+        string_compare_buffer_b.Reset(0, other);
+        return CompareStringContents(&buf1, &string_compare_buffer_b);
+      }
     } else {
-      VectorIterator<uc16> buf1(this->ToUC16Vector());
-      return CompareStringContentsPartial(&buf1, other);
+      Vector<const uc16> vec1 = this->ToUC16Vector();
+      if (other->IsFlat()) {
+        if (other->IsAsciiRepresentation()) {
+          VectorIterator<uc16> buf1(vec1);
+          VectorIterator<char> ib(other->ToAsciiVector());
+          return CompareStringContents(&buf1, &ib);
+        } else {
+          Vector<const uc16> vec2(other->ToUC16Vector());
+          return CompareRawStringContents(vec1, vec2);
+        }
+      } else {
+        VectorIterator<uc16> buf1(vec1);
+        string_compare_buffer_b.Reset(0, other);
+        return CompareStringContents(&buf1, &string_compare_buffer_b);
+      }
     }
   } else {
     string_compare_buffer_a.Reset(0, this);

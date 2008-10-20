@@ -125,6 +125,12 @@ bool Object::IsSeqAsciiString() {
 }
 
 
+bool String::IsSeqAsciiString() {
+  return (this->representation_tag() == kSeqStringTag)
+    && is_ascii_representation();
+}
+
+
 bool Object::IsSeqTwoByteString() {
   return IsSeqString()
       && !String::cast(this)->IsAsciiRepresentation();
@@ -1405,6 +1411,11 @@ void SeqAsciiString::SeqAsciiStringSet(int index, uint16_t value) {
 
 Address SeqAsciiString::GetCharsAddress() {
   return FIELD_ADDR(this, kHeaderSize);
+}
+
+
+const char* SeqAsciiString::GetChars() {
+  return reinterpret_cast<const char*>(GetCharsAddress());
 }
 
 

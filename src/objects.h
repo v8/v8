@@ -2956,6 +2956,10 @@ class String: public HeapObject {
   // Is this string an ascii string.
   inline bool IsAsciiRepresentation();
 
+  // Specialization of this function from Object that skips the
+  // string check.
+  inline bool IsSeqAsciiString();
+
   // Fast testing routines that assume the receiver is a string and
   // just check whether it is a certain kind of string.
   inline bool StringIsSlicedString();
@@ -3182,6 +3186,8 @@ class SeqAsciiString: public SeqString {
 
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
+
+  inline const char* GetChars();
 
   // Casting
   static inline SeqAsciiString* cast(Object* obj);
