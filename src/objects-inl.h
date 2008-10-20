@@ -2295,6 +2295,12 @@ void JSArray::SetContent(FixedArray* storage) {
 }
 
 
+Object* FixedArray::Copy() {
+  if (length() == 0) return this;
+  return Heap::CopyFixedArray(this);
+}
+
+
 #undef CAST_ACCESSOR
 #undef INT_ACCESSORS
 #undef SMI_ACCESSORS

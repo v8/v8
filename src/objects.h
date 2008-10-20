@@ -1489,7 +1489,7 @@ class FixedArray: public Array {
   inline WriteBarrierMode GetWriteBarrierMode();
 
   // Copy operations.
-  Object* Copy();
+  inline Object* Copy();
   Object* CopySize(int new_length);
 
   // Add the elements of a JSArray to this FixedArray.

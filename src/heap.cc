@@ -2034,6 +2034,43 @@ Object* Heap::AllocateEmptyFixedArray() {
 }
 
 
+Object* Heap::AllocateRawFixedArray(int length) {
+  // Allocate the raw data for a fixed array.
+  int size = FixedArray::SizeFor(length);
+  return (size > MaxHeapObjectSize())
+      ? lo_space_->AllocateRawFixedArray(size)
+      : new_space_.AllocateRaw(size);
+}
+
+
+Object* Heap::CopyFixedArray(FixedArray* src) {
+  int len = src->length();
+  Object* obj = Heap::AllocateRawFixedArray(len);
+  if (obj->IsFailure()) return obj;
+  HeapObject::cast(obj)->set_map(src->map());
+  FixedArray* result = FixedArray::cast(obj);
+  result->set_length(len);
+  FixedArray::WriteBarrierMode mode = result->GetWriteBarrierMode();
+  // Copy the content
+  for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
+  return result;
+}
+
+
+Object* Heap::AllocateFixedArray(int length) {
+  Object* result = AllocateRawFixedArray(length);
+  if (!result->IsFailure()) {
+    // Initialize header.
+    reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
+    FixedArray* array = FixedArray::cast(result);
+    array->set_length(length);
+    // Initialize body.
+    for (int index = 0; index < length; index++) array->set_undefined(index);
+  }
+  return result;
+}
+
+
 Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   ASSERT(empty_fixed_array()->IsFixedArray());
   if (length == 0) return empty_fixed_array();
@@ -2060,18 +2097,16 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
 
 Object* Heap::AllocateFixedArrayWithHoles(int length) {
   if (length == 0) return empty_fixed_array();
-  int size = FixedArray::SizeFor(length);
-  Object* result = size > MaxHeapObjectSize()
-      ? lo_space_->AllocateRawFixedArray(size)
-      : AllocateRaw(size, NEW_SPACE);
-  if (result->IsFailure()) return result;
-
-  // Initialize the object.
-  reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
-  FixedArray* array = FixedArray::cast(result);
-  array->set_length(length);
-  for (int index = 0; index < length; index++) array->set_the_hole(index);
-  return array;
+  Object* result = AllocateRawFixedArray(length);
+  if (!result->IsFailure()) {
+    // Initialize header.
+    reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
+    FixedArray* array = FixedArray::cast(result);
+    array->set_length(length);
+    // Initialize body.
+    for (int index = 0; index < length; index++) array->set_the_hole(index);
+  }
+  return result;
 }
 
 

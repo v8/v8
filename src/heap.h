@@ -379,9 +379,13 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateFixedArray(int length,
-                                    PretenureFlag pretenure = NOT_TENURED);
+  static Object* AllocateFixedArray(int length, PretenureFlag pretenure);
+  // Allocate uninitialized, non-tenured fixed array with length elements.
+  static Object* AllocateFixedArray(int length);
 
+  // Make a copy of src and return it. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  static Object* CopyFixedArray(FixedArray* src);
 
   // Allocates a fixed array initialized with the hole values.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -814,6 +818,8 @@ class Heap : public AllStatic {
   // (since both AllocateRaw and AllocateRawMap are inlined).
   static inline Object* AllocateRawMap(int size_in_bytes);
 
+  // Allocate unitialized fixed array (pretenure == NON_TENURE).
+  static Object* AllocateRawFixedArray(int length);
 
   // Initializes a JSObject based on its map.
   static void InitializeJSObjectFromMap(JSObject* obj,

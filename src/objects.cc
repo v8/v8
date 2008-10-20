@@ -889,13 +889,12 @@ void HeapNumber::HeapNumberPrint(StringStream* accumulator) {
 
 String* JSObject::class_name() {
   if (IsJSFunction()) return Heap::function_class_symbol();
-  // If the constructor is not present "Object" is returned.
-  String* result = Heap::Object_symbol();
   if (map()->constructor()->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(map()->constructor());
     return String::cast(constructor->shared()->instance_class_name());
   }
-  return result;
+  // If the constructor is not present, return "Object".
+  return Heap::Object_symbol();
 }
 
 
@@ -2537,21 +2536,6 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   return result;
 }
 
-
-Object* FixedArray::Copy() {
-  int len = length();
-  if (len == 0) return this;
-  Object* obj = Heap::AllocateFixedArray(len);
-  if (obj->IsFailure()) return obj;
-  FixedArray* result = FixedArray::cast(obj);
-  WriteBarrierMode mode = result->GetWriteBarrierMode();
-  // Copy the content
-  for (int i = 0; i < len; i++) {
-    result->set(i, get(i), mode);
-  }
-  result->set_map(map());
-  return result;
-}
 
 Object* FixedArray::CopySize(int new_length) {
   if (new_length == 0) return Heap::empty_fixed_array();
