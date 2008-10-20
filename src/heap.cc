@@ -3106,12 +3106,13 @@ const char* GCTracer::CollectorString() {
 }
 
 
+#ifdef DEBUG
 bool Heap::GarbageCollectionGreedyCheck() {
   ASSERT(FLAG_gc_greedy);
   if (Bootstrapper::IsActive()) return true;
   if (disallow_allocation_failure()) return true;
   return CollectGarbage(0, NEW_SPACE);
 }
-
+#endif
 
 } }  // namespace v8::internal

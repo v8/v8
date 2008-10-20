@@ -565,8 +565,10 @@ class Heap : public AllStatic {
   // ensure correct callback for weak global handles.
   static void PerformScavenge();
 
+#ifdef DEBUG
   // Utility used with flag gc-greedy.
   static bool GarbageCollectionGreedyCheck();
+#endif
 
   static void SetGlobalGCPrologueCallback(GCCallback callback) {
     global_gc_prologue_callback_ = callback;
