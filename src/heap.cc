@@ -3106,4 +3106,12 @@ const char* GCTracer::CollectorString() {
 }
 
 
+bool Heap::GarbageCollectionGreedyCheck() {
+  ASSERT(FLAG_gc_greedy);
+  if (Bootstrapper::IsActive()) return true;
+  if (disallow_allocation_failure()) return true;
+  return CollectGarbage(0, NEW_SPACE);
+}
+
+
 } }  // namespace v8::internal

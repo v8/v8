@@ -146,11 +146,8 @@ OldSpace* Heap::TargetSpace(HeapObject* object) {
 }
 
 
-#define GC_GREEDY_CHECK()                                     \
-  ASSERT(!FLAG_gc_greedy                                      \
-         || v8::internal::Heap::disallow_allocation_failure() \
-         || v8::internal::Heap::CollectGarbage(0, NEW_SPACE))
-
+#define GC_GREEDY_CHECK() \
+  ASSERT(!FLAG_gc_greedy || v8::internal::Heap::GarbageCollectionGreedyCheck())
 
 // Do not use the identifier __object__ in a call to this macro.
 //

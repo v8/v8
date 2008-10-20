@@ -58,7 +58,7 @@ class Bootstrapper : public AllStatic {
   // Append code that needs fixup at the end of boot strapping.
   static void AddFixup(Code* code, MacroAssembler* masm);
 
-  // Tells wheter boostrapping is active.
+  // Tells whether boostrapping is active.
   static bool IsActive();
 
   // Encoding/decoding support for fixup flags.
