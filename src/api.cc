@@ -2623,6 +2623,11 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
+  if (obj.IsEmpty()) {
+    str_ = NULL;
+    length_ = 0;
+    return;
+  }
   HandleScope scope;
   TryCatch try_catch;
   Handle<String> str = obj->ToString();

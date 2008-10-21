@@ -197,6 +197,7 @@ SAMPLE_FLAGS = {
   'msvc': {
     'all': {
       'CCFLAGS': ['/nologo'],
+      'LINKFLAGS': ['/nologo'],
     },
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
