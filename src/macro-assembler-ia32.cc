@@ -552,8 +552,8 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
   mov(scratch, FieldOperand(scratch, offset));
   mov(scratch, FieldOperand(scratch, GlobalObject::kGlobalContextOffset));
- 
-  // Check the context is a global context. 
+
+  // Check the context is a global context.
   if (FLAG_debug_code) {
     push(scratch);
     // Read the first word and compare to global_context_map.
@@ -571,7 +571,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   // as a temporary register.
   //
   // TODO(119): avoid push(holder_reg)/pop(holder_reg)
-  push(holder_reg); 
+  push(holder_reg);
   // Check that the security token in the calling global object is
   // compatible with the security token in the receiving global
   // object.
@@ -587,14 +587,14 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     mov(holder_reg, FieldOperand(holder_reg, HeapObject::kMapOffset));
     cmp(holder_reg, Factory::global_context_map());
     Check(equal, "JSGlobalObject::global_context should be a global context.");
-    pop(holder_reg); 
+    pop(holder_reg);
   }
 
   int token_offset = Context::kHeaderSize +
                      Context::SECURITY_TOKEN_INDEX * kPointerSize;
   mov(scratch, FieldOperand(scratch, token_offset));
   cmp(scratch, FieldOperand(holder_reg, token_offset));
-  pop(holder_reg); 
+  pop(holder_reg);
   j(not_equal, miss, not_taken);
 
   bind(&same_contexts);

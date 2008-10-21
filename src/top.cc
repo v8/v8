@@ -464,7 +464,7 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
 }
 
 
-enum MayAccessDecision{
+enum MayAccessDecision {
   YES, NO, UNKNOWN
 };
 
@@ -481,7 +481,7 @@ static MayAccessDecision MayAccessPreCheck(JSObject* receiver,
     // Get the global context of current top context.
     // avoid using Top::global_context() because it uses Handle.
     Context* global_context = Top::context()->global()->global_context();
-    if (receiver_context == global_context) return YES; 
+    if (receiver_context == global_context) return YES;
 
     if (Context::cast(receiver_context)->security_token() ==
         global_context->security_token())

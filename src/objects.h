@@ -48,7 +48,7 @@
 //         - GlobalObject
 //           - JSGlobalObject
 //           - JSBuiltinsObject
-//         _ JSGlobalProxy 
+//         _ JSGlobalProxy
 //         - JSValue
 //         - Script
 //       - Array

@@ -1499,7 +1499,7 @@ Object* JSObject::SetProperty(LookupResult* result,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetProperty(result, name, value, attributes);    
+    return JSObject::cast(proto)->SetProperty(result, name, value, attributes);
   }
 
   if (result->IsNotFound() || !result->IsProperty()) {

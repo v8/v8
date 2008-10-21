@@ -543,7 +543,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
         if (!proto_template->IsUndefined()) {
           js_global_template =
               Handle<ObjectTemplateInfo>::cast(proto_template);
-        } 
+        }
       }
 
       if (js_global_template.is_null()) {
@@ -1195,7 +1195,7 @@ bool Genesis::ConfigureGlobalObjects(
   Handle<JSObject> js_global(JSObject::cast(global_context()->global()));
 
   if (!global_proxy_template.IsEmpty()) {
-    // Configure the global proxy object. 
+    // Configure the global proxy object.
     Handle<ObjectTemplateInfo> proxy_data =
         v8::Utils::OpenHandle(*global_proxy_template);
     if (!ConfigureApiObject(global_proxy, proxy_data)) return false;
@@ -1204,7 +1204,7 @@ bool Genesis::ConfigureGlobalObjects(
     Handle<FunctionTemplateInfo> proxy_constructor(
         FunctionTemplateInfo::cast(proxy_data->constructor()));
     if (!proxy_constructor->prototype_template()->IsUndefined()) {
-      Handle<ObjectTemplateInfo> inner_data( 
+      Handle<ObjectTemplateInfo> inner_data(
           ObjectTemplateInfo::cast(proxy_constructor->prototype_template()));
       if (!ConfigureApiObject(js_global, inner_data)) return false;
     }
@@ -1214,7 +1214,7 @@ bool Genesis::ConfigureGlobalObjects(
   return true;
 }
 
- 
+
 bool Genesis::ConfigureApiObject(Handle<JSObject> object,
     Handle<ObjectTemplateInfo> object_template) {
   ASSERT(!object_template.is_null());

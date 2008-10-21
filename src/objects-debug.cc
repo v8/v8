@@ -572,8 +572,8 @@ void JSGlobalProxy::JSGlobalProxyVerify() {
   JSObjectVerify();
   VerifyObjectField(JSGlobalProxy::kContextOffset);
   // Make sure that this object has no properties, elements.
-  CHECK(properties()->length() == 0);
-  CHECK(elements()->length() == 0);
+  CHECK_EQ(0, properties()->length());
+  CHECK_EQ(0, elements()->length());
 }
 
 

@@ -3273,7 +3273,7 @@ TEST(ContextDetachGlobal) {
   // Check that env3 is not accessible from env1
   {
     Local<Value> r = global3->Get(v8_str("prop2"));
-    CHECK(r->IsUndefined());    
+    CHECK(r->IsUndefined());
   }
 
   env2.Dispose();

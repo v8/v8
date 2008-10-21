@@ -2255,7 +2255,7 @@ Persistent<Context> v8::Context::New(
 
     i::Handle<i::FunctionTemplateInfo> proxy_constructor =
       EnsureConstructor(Utils::OpenHandle(*proxy_template));
-    
+
     // Set the global template to be the prototype template
     // of global proxy template.
     proxy_constructor->set_prototype_template(

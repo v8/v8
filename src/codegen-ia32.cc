@@ -529,7 +529,6 @@ void CodeGenerator::LoadGlobalReceiver(Register scratch) {
 // that we have the INSIDE_TYPEOF typeof state. => Need to handle global
 // variables w/o reference errors elsewhere.
 void CodeGenerator::LoadTypeofExpression(Expression* x) {
-
   Variable* variable = x->AsVariableProxy()->AsVariable();
   if (variable != NULL && !variable->is_this() && variable->is_global()) {
     // NOTE: This is somewhat nasty. We force the compiler to load
