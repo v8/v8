@@ -510,6 +510,12 @@ Object* String::Flatten() {
       ASSERT(!ss->buffer()->IsSlicedString());
       Object* ok = String::cast(ss->buffer())->Flatten();
       if (ok->IsFailure()) return ok;
+      // Under certain circumstances (TryFlatten fails in String::Slice)
+      // we can have a cons string under a slice.  In this case we need
+      // to get the flat string out of the cons!
+      if (String::cast(ok)->StringIsConsString()) {
+        ss->set_buffer(ConsString::cast(ok)->first());
+      }
       return this;
     }
     case kConsStringTag: {
