@@ -3301,7 +3301,7 @@ class ConsString: public String {
                                             unsigned chars);
 
 
-  // Minimum lenth for a cons string.
+  // Minimum length for a cons string.
   static const int kMinLength = 13;
 
  private:

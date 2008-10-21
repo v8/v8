@@ -2878,15 +2878,15 @@ Vector<const char> String::ToAsciiVector() {
   StringRepresentationTag string_tag = representation_tag();
   String* string = this;
   if (string_tag == kSlicedStringTag) {
-      SlicedString* sliced = SlicedString::cast(string);
-      offset += sliced->start();
-      string = String::cast(sliced->buffer());
-      string_tag = string->representation_tag();
+    SlicedString* sliced = SlicedString::cast(string);
+    offset += sliced->start();
+    string = String::cast(sliced->buffer());
+    string_tag = string->representation_tag();
   } else if (string_tag == kConsStringTag) {
-      ConsString* cons = ConsString::cast(string);
-      ASSERT(String::cast(cons->second())->length() == 0);
-      string = String::cast(cons->first());
-      string_tag = string->representation_tag();
+    ConsString* cons = ConsString::cast(string);
+    ASSERT(String::cast(cons->second())->length() == 0);
+    string = String::cast(cons->first());
+    string_tag = string->representation_tag();
   }
   if (string_tag == kSeqStringTag) {
     SeqAsciiString* seq = SeqAsciiString::cast(string);
@@ -2909,15 +2909,15 @@ Vector<const uc16> String::ToUC16Vector() {
   StringRepresentationTag string_tag = representation_tag();
   String* string = this;
   if (string_tag == kSlicedStringTag) {
-      SlicedString* sliced = SlicedString::cast(string);
-      offset += sliced->start();
-      string = String::cast(sliced->buffer());
-      string_tag = string->representation_tag();
+    SlicedString* sliced = SlicedString::cast(string);
+    offset += sliced->start();
+    string = String::cast(sliced->buffer());
+    string_tag = string->representation_tag();
   } else if (string_tag == kConsStringTag) {
-      ConsString* cons = ConsString::cast(string);
-      ASSERT(String::cast(cons->second())->length() == 0);
-      string = String::cast(cons->first());
-      string_tag = string->representation_tag();
+    ConsString* cons = ConsString::cast(string);
+    ASSERT(String::cast(cons->second())->length() == 0);
+    string = String::cast(cons->first());
+    string_tag = string->representation_tag();
   }
   if (string_tag == kSeqStringTag) {
     SeqTwoByteString* seq = SeqTwoByteString::cast(string);
