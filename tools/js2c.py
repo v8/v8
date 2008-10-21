@@ -349,8 +349,9 @@ def JS2C(source, target, env):
 def main():
   natives = sys.argv[1]
   natives_empty = sys.argv[2]
-  source_files = sys.argv[3:]
-  JS2C(source_files, [natives, natives_empty], None)
+  type = sys.argv[3]
+  source_files = sys.argv[4:]
+  JS2C(source_files, [natives, natives_empty], { 'TYPE': type })
 
 if __name__ == "__main__":
   main()
