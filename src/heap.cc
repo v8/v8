@@ -445,27 +445,27 @@ Object* Heap::FindCodeObject(Address a) {
 
 
 // Helper class for copying HeapObjects
-class CopyVisitor: public ObjectVisitor {
+class ScavengeVisitor: public ObjectVisitor {
  public:
 
-  void VisitPointer(Object** p) {
-    CopyObject(p);
-  }
+  void VisitPointer(Object** p) { ScavengePointer(p); }
 
   void VisitPointers(Object** start, Object** end) {
     // Copy all HeapObject pointers in [start, end)
-    for (Object** p = start; p < end; p++) CopyObject(p);
+    for (Object** p = start; p < end; p++) ScavengePointer(p);
   }
 
  private:
-  void CopyObject(Object** p) {
-    if (!Heap::InNewSpace(*p)) return;
-    Heap::CopyObject(reinterpret_cast<HeapObject**>(p));
+  void ScavengePointer(Object** p) {
+    Object* object = *p;
+    if (!Heap::InNewSpace(object)) return;
+    Heap::ScavengeObject(reinterpret_cast<HeapObject**>(p),
+                         reinterpret_cast<HeapObject*>(object));
   }
 };
 
 
-// Shared state read by the scavenge collector and set by CopyObject.
+// Shared state read by the scavenge collector and set by ScavengeObject.
 static Address promoted_top = NULL;
 
 
@@ -542,15 +542,15 @@ void Heap::Scavenge() {
   Address promoted_mark = new_space_.ToSpaceHigh();
   promoted_top = new_space_.ToSpaceHigh();
 
-  CopyVisitor copy_visitor;
+  ScavengeVisitor scavenge_visitor;
   // Copy roots.
-  IterateRoots(&copy_visitor);
+  IterateRoots(&scavenge_visitor);
 
   // Copy objects reachable from the old generation.  By definition, there
   // are no intergenerational pointers in code or data spaces.
-  IterateRSet(old_pointer_space_, &CopyObject);
-  IterateRSet(map_space_, &CopyObject);
-  lo_space_->IterateRSet(&CopyObject);
+  IterateRSet(old_pointer_space_, &ScavengePointer);
+  IterateRSet(map_space_, &ScavengePointer);
+  lo_space_->IterateRSet(&ScavengePointer);
 
   bool has_processed_weak_pointers = false;
 
@@ -565,7 +565,7 @@ void Heap::Scavenge() {
       Address previous_top = new_space_.top();
       SemiSpaceIterator new_it(new_space(), new_mark);
       while (new_it.has_next()) {
-        new_it.next()->Iterate(&copy_visitor);
+        new_it.next()->Iterate(&scavenge_visitor);
       }
       new_mark = previous_top;
 
@@ -576,7 +576,7 @@ void Heap::Scavenge() {
            current >= previous_top;
            current -= kPointerSize) {
         HeapObject* object = HeapObject::cast(Memory::Object_at(current));
-        object->Iterate(&copy_visitor);
+        object->Iterate(&scavenge_visitor);
         UpdateRSet(object);
       }
       promoted_mark = previous_top;
@@ -584,7 +584,7 @@ void Heap::Scavenge() {
 
     if (has_processed_weak_pointers) break;  // We are done.
     // Copy objects reachable from weak pointers.
-    GlobalHandles::IterateWeakRoots(&copy_visitor);
+    GlobalHandles::IterateWeakRoots(&scavenge_visitor);
     has_processed_weak_pointers = true;
   }
 
@@ -758,10 +758,9 @@ HeapObject* Heap::MigrateObject(HeapObject* source,
 }
 
 
-void Heap::CopyObject(HeapObject** p) {
-  ASSERT(InFromSpace(*p));
-
-  HeapObject* object = *p;
+// Inlined function.
+void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
+  ASSERT(InFromSpace(object));
 
   // We use the first word (where the map pointer usually is) of a heap
   // object to record the forwarding pointer.  A forwarding pointer can
@@ -776,13 +775,27 @@ void Heap::CopyObject(HeapObject** p) {
     return;
   }
 
-  // Optimization: Bypass ConsString objects where the right-hand side is
-  // Heap::empty_string().  We do not use object->IsConsString because we
-  // already know that object has the heap object tag.
-  InstanceType type = first_word.ToMap()->instance_type();
-  if (type < FIRST_NONSTRING_TYPE &&
-      String::cast(object)->representation_tag() == kConsStringTag &&
-      ConsString::cast(object)->second() == Heap::empty_string()) {
+  // Call the slow part of scavenge object.
+  return ScavengeObjectSlow(p, object);
+}
+
+static inline bool IsShortcutCandidate(HeapObject* object, Map* map) {
+  // A ConString object with Heap::empty_string() as the right side
+  // is a candidate for being shortcut by the scavenger.
+  ASSERT(object->map() == map);
+  return (map->instance_type() < FIRST_NONSTRING_TYPE) &&
+      (String::cast(object)->map_representation_tag(map) == kConsStringTag) &&
+      (ConsString::cast(object)->second() == Heap::empty_string());
+}
+
+
+void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
+  ASSERT(InFromSpace(object));
+  MapWord first_word = object->map_word();
+  ASSERT(!first_word.IsForwardingAddress());
+
+  // Optimization: Bypass flattened ConsString objects.
+  if (IsShortcutCandidate(object, first_word.ToMap())) {
     object = HeapObject::cast(ConsString::cast(object)->first());
     *p = object;
     // After patching *p we have to repeat the checks that object is in the
@@ -793,18 +806,15 @@ void Heap::CopyObject(HeapObject** p) {
       *p = first_word.ToForwardingAddress();
       return;
     }
-    type = first_word.ToMap()->instance_type();
   }
 
   int object_size = object->SizeFromMap(first_word.ToMap());
-  Object* result;
   // If the object should be promoted, we try to copy it to old space.
   if (ShouldBePromoted(object->address(), object_size)) {
     OldSpace* target_space = Heap::TargetSpace(object);
     ASSERT(target_space == Heap::old_pointer_space_ ||
            target_space == Heap::old_data_space_);
-    result = target_space->AllocateRaw(object_size);
-
+    Object* result = target_space->AllocateRaw(object_size);
     if (!result->IsFailure()) {
       *p = MigrateObject(object, HeapObject::cast(result), object_size);
       if (target_space == Heap::old_pointer_space_) {
@@ -825,10 +835,15 @@ void Heap::CopyObject(HeapObject** p) {
   }
 
   // The object should remain in new space or the old space allocation failed.
-  result = new_space_.AllocateRaw(object_size);
+  Object* result = new_space_.AllocateRaw(object_size);
   // Failed allocation at this point is utterly unexpected.
   ASSERT(!result->IsFailure());
   *p = MigrateObject(object, HeapObject::cast(result), object_size);
+}
+
+
+void Heap::ScavengePointer(HeapObject** p) {
+  ScavengeObject(p, *p);
 }
 
 

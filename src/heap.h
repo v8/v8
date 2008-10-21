@@ -684,7 +684,8 @@ class Heap : public AllStatic {
   // necessary, the object might be promoted to an old space.  The caller must
   // ensure the precondition that the object is (a) a heap object and (b) in
   // the heap's from space.
-  static void CopyObject(HeapObject** p);
+  static void ScavengePointer(HeapObject** p);
+  static inline void ScavengeObject(HeapObject** p, HeapObject* object);
 
   // Clear a range of remembered set addresses corresponding to the object
   // area address 'start' with size 'size_in_bytes', eg, when adding blocks
@@ -880,6 +881,9 @@ class Heap : public AllStatic {
 
   // Rebuild remembered set in the large object space.
   static void RebuildRSets(LargeObjectSpace* space);
+
+  // Slow part of scavenge object.
+  static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
