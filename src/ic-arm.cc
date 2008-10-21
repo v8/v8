@@ -366,7 +366,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
 
   // Check for access to global object (unlikely).
-  __ cmp(r0, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ cmp(r0, Operand(JS_GLOBAL_PROXY_TYPE));
   __ b(eq, &global);
 
   // Search the dictionary placing the result in r1.
@@ -392,7 +392,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Global object access: Check access rights.
   __ bind(&global);
-  __ CheckAccessGlobal(r1, r0, &miss);
+  __ CheckAccessGlobalProxy(r1, r0, &miss);
   __ b(&probe);
 
   // Cache miss: Jump to runtime.
@@ -482,7 +482,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
 
   // Check for access to global object (unlikely).
-  __ cmp(r1, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ cmp(r1, Operand(JS_GLOBAL_PROXY_TYPE));
   __ b(eq, &global);
 
 
@@ -492,7 +492,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Global object access: Check access rights.
   __ bind(&global);
-  __ CheckAccessGlobal(r0, r1, &miss);
+  __ CheckAccessGlobalProxy(r0, r1, &miss);
   __ b(&probe);
 
   // Cache miss: Restore receiver from stack and jump to runtime.

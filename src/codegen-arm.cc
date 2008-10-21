@@ -415,6 +415,13 @@ void CodeGenerator::LoadGlobal() {
 }
 
 
+void CodeGenerator::LoadGlobalReceiver(Register s) {
+  __ ldr(s, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ ldr(s, FieldMemOperand(s, GlobalObject::kGlobalReceiverOffset));
+  __ push(s);
+}
+
+
 // TODO(1241834): Get rid of this function in favor of just using Load, now
 // that we have the INSIDE_TYPEOF typeof state. => Need to handle global
 // variables w/o reference errors elsewhere.
@@ -2220,7 +2227,10 @@ void CodeGenerator::VisitCall(Call* node) {
     // Push the name of the function and the receiver onto the stack.
     __ mov(r0, Operand(var->name()));
     __ push(r0);
-    LoadGlobal();
+
+    // TODO(120): use JSGlobalObject for function lookup and inline cache,
+    // and use global proxy as 'this' for invocation.
+    LoadGlobalReceiver(r0);
 
     // Load the arguments.
     for (int i = 0; i < args->length(); i++) Load(args->at(i));
@@ -2308,7 +2318,10 @@ void CodeGenerator::VisitCall(Call* node) {
     // Load the function.
     Load(function);
     // Pass the global object as the receiver.
-    LoadGlobal();
+
+    // TODO(120): use JSGlobalObject for function lookup and inline cache,
+    // and use global proxy as 'this' for invocation.
+    LoadGlobalReceiver(r0);
     // Call the function.
     CallWithArguments(args, node->position());
     __ push(r0);
@@ -2328,7 +2341,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // Compute function to call and use the global object as the
   // receiver.
   Load(node->expression());
-  LoadGlobal();
+  LoadGlobalReceiver(r0);
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = node->arguments();
@@ -2873,12 +2886,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   // inlining a null check instead of calling the (very) general
   // runtime routine for checking equality.
 
-  bool left_is_null =
-    left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
-  bool right_is_null =
-    right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
-
   if (op == Token::EQ || op == Token::EQ_STRICT) {
+    bool left_is_null =
+      left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
+    bool right_is_null =
+      right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
     // The 'null' value is only equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
       Load(left_is_null ? right : left);
