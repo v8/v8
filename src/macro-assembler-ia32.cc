@@ -560,7 +560,7 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
     mov(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
     cmp(scratch, Factory::global_context_map());
     Check(equal, "JSGlobalObject::global_context should be a global context.");
-    pop(scratch); 
+    pop(scratch);
   }
 
   // Check if both contexts are the same.

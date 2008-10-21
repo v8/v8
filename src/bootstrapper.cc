@@ -526,7 +526,6 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
   }
 
   {  // --- G l o b a l ---
-
     // Step 1: create a fresh inner JSGlobalObject
     Handle<JSGlobalObject> object;
     {
