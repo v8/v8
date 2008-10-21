@@ -1503,16 +1503,20 @@ Object* Heap::AllocateExternalStringFromTwoByte(
 }
 
 
-Object* Heap:: LookupSingleCharacterStringFromCode(uint16_t code) {
+Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
   if (code <= String::kMaxAsciiCharCode) {
     Object* value = Heap::single_character_string_cache()->get(code);
     if (value != Heap::undefined_value()) return value;
-    Object* result = Heap::AllocateRawAsciiString(1);
+
+    char buffer[1];
+    buffer[0] = static_cast<char>(code);
+    Object* result = LookupSymbol(Vector<const char>(buffer, 1));
+
     if (result->IsFailure()) return result;
-    String::cast(result)->Set(0, code);
     Heap::single_character_string_cache()->set(code, result);
     return result;
   }
+
   Object* result = Heap::AllocateRawTwoByteString(1);
   if (result->IsFailure()) return result;
   String::cast(result)->Set(0, code);
