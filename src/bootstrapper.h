@@ -46,6 +46,9 @@ class Bootstrapper : public AllStatic {
       v8::Handle<v8::ObjectTemplate> global_template,
       v8::ExtensionConfiguration* extensions);
 
+  // Detach the environment from its outer global object.
+  static void DetachGlobal(Handle<Context> env);
+
   // Traverses the pointers for memory manangment.
   static void Iterate(ObjectVisitor* v);
 

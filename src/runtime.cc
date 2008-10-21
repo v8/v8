@@ -3823,6 +3823,14 @@ static Object* Runtime_EvalReceiver(Arguments args) {
 }
 
 
+static Object* Runtime_GlobalReceiver(Arguments args) {
+  ASSERT(args.length() == 1);
+  Object* global = args[0];
+  if (!global->IsJSGlobalObject()) return Heap::null_value();
+  return JSGlobalObject::cast(global)->global_receiver();
+}
+
+
 static Object* Runtime_CompileString(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
@@ -4116,7 +4124,7 @@ static Object* DebugLookupResultValue(LookupResult* result) {
 }
 
 
-static Object* Runtime_DebugGetLocalPropertyDetails(Arguments args) {
+static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   HandleScope scope;
 
   ASSERT(args.length() == 2);
@@ -4136,7 +4144,7 @@ static Object* Runtime_DebugGetLocalPropertyDetails(Arguments args) {
 
   // Perform standard local lookup on the object.
   LookupResult result;
-  obj->LocalLookup(*name, &result);
+  obj->Lookup(*name, &result);
   if (result.IsProperty()) {
     Handle<Object> value(DebugLookupResultValue(&result));
     Handle<FixedArray> details = Factory::NewFixedArray(2);
@@ -4888,7 +4896,6 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   ASSERT(save != NULL);
   SaveContext savex;
   Top::set_context(*(save->context()));
-  Top::set_security_context(*(save->security_context()));
 
   // Create the (empty) function replacing the function on the stack frame for
   // the purpose of evaluating in the context created below. It is important
@@ -5015,7 +5022,6 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   }
   if (top != NULL) {
     Top::set_context(*top->context());
-    Top::set_security_context(*top->security_context());
   }
 
   // Get the global context now set to the top context from before the

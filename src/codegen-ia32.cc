@@ -519,10 +519,17 @@ void CodeGenerator::LoadGlobal() {
 }
 
 
+void CodeGenerator::LoadGlobalReceiver(Register scratch) {
+  __ mov(scratch, ContextOperand(esi, Context::GLOBAL_INDEX));
+  __ push(FieldOperand(scratch, GlobalObject::kGlobalReceiverOffset));
+}
+
+
 // TODO(1241834): Get rid of this function in favor of just using Load, now
 // that we have the INSIDE_TYPEOF typeof state. => Need to handle global
 // variables w/o reference errors elsewhere.
 void CodeGenerator::LoadTypeofExpression(Expression* x) {
+
   Variable* variable = x->AsVariableProxy()->AsVariable();
   if (variable != NULL && !variable->is_this() && variable->is_global()) {
     // NOTE: This is somewhat nasty. We force the compiler to load
@@ -2650,7 +2657,10 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Push the name of the function and the receiver onto the stack.
     frame_->Push(Immediate(var->name()));
-    LoadGlobal();
+
+    // TODO(120): use JSGlobalObject for function lookup and inline cache,
+    // and use global proxy as 'this' for invocation.
+    LoadGlobalReceiver(eax);
 
     // Load the arguments.
     for (int i = 0; i < args->length(); i++) {
@@ -2736,7 +2746,10 @@ void CodeGenerator::VisitCall(Call* node) {
     Load(function);
 
     // Pass the global object as the receiver.
-    LoadGlobal();
+
+    // TODO(120): use JSGlobalObject for function lookup and inline cache,
+    // and use global proxy as 'this' for invocation.
+    LoadGlobalReceiver(eax);
 
     // Call the function.
     CallWithArguments(args, node->position());
@@ -2756,7 +2769,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // Compute function to call and use the global object as the
   // receiver.
   Load(node->expression());
-  LoadGlobal();
+  LoadGlobalReceiver(eax);
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = node->arguments();
@@ -3496,12 +3509,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   // inlining a null check instead of calling the (very) general
   // runtime routine for checking equality.
 
-  bool left_is_null =
-    left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
-  bool right_is_null =
-    right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
-
   if (op == Token::EQ || op == Token::EQ_STRICT) {
+    bool left_is_null =
+      left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
+    bool right_is_null =
+      right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
     // The 'null' value is only equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
       Load(left_is_null ? right : left);
@@ -3535,7 +3547,6 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       return;
     }
   }
-
 
   // NOTE: To make typeof testing for natives implemented in
   // JavaScript really efficient, we generate special code for

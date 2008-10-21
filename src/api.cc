@@ -412,10 +412,6 @@ void Context::Enter() {
 
   thread_local.SaveContext(i::GlobalHandles::Create(i::Top::context()));
   i::Top::set_context(*env);
-
-  thread_local.SaveSecurityContext(
-      i::GlobalHandles::Create(i::Top::security_context()));
-  i::Top::set_security_context(*env);
 }
 
 
@@ -427,16 +423,10 @@ void Context::Exit() {
     return;
   }
 
-  // Content of 'last_context' and 'last_security_context' could be NULL.
+  // Content of 'last_context' could be NULL.
   i::Handle<i::Object> last_context = thread_local.RestoreContext();
   i::Top::set_context(static_cast<i::Context*>(*last_context));
   i::GlobalHandles::Destroy(last_context.location());
-
-  i::Handle<i::Object> last_security_context =
-      thread_local.RestoreSecurityContext();
-  i::Top::set_security_context(
-      static_cast<i::Context*>(*last_security_context));
-  i::GlobalHandles::Destroy(last_security_context.location());
 }
 
 
@@ -908,7 +898,8 @@ void ObjectTemplate::MarkAsUndetectable() {
 void ObjectTemplate::SetAccessCheckCallbacks(
       NamedSecurityCallback named_callback,
       IndexedSecurityCallback indexed_callback,
-      Handle<Value> data) {
+      Handle<Value> data,
+      bool turned_on_by_default) {
   if (IsDeadCheck("v8::ObjectTemplate::SetAccessCheckCallbacks()")) return;
   HandleScope scope;
   EnsureConstructor(this);
@@ -925,8 +916,8 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
-  cons->set_needs_access_check(true);
   cons->set_access_check_info(*info);
+  cons->set_needs_access_check(turned_on_by_default);
 }
 
 
@@ -1064,9 +1055,9 @@ Local<Value> Script::Run() {
     HandleScope scope;
     i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
     EXCEPTION_PREAMBLE();
-    i::Handle<i::Object> global(i::Top::context()->global());
+    i::Handle<i::Object> receiver(i::Top::context()->global_proxy());
     i::Handle<i::Object> result =
-        i::Execution::Call(fun, global, 0, NULL, &has_pending_exception);
+        i::Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(Local<Value>());
     raw_result = *result;
   }
@@ -1764,7 +1755,7 @@ uint32_t Value::Uint32Value() {
 
 
 bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
-                             v8::PropertyAttribute attribs) {
+                     v8::PropertyAttribute attribs) {
   ON_BAILOUT("v8::Object::Set()", return false);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
@@ -1934,6 +1925,20 @@ Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
     return Utils::ToLocal(result);
   }
   return Local<Value>();  // No real property was found in prototype chain.
+}
+
+
+// Turns on access checks by copying the map and setting the check flag.
+// Because the object gets a new map, existing inline cache caching
+// the old map of this object will fail.
+void v8::Object::TurnOnAccessCheck() {
+  ON_BAILOUT("v8::Object::TurnOnAccessCheck()", return);
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+
+  i::Handle<i::Map> new_map =
+    i::Factory::CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
+  new_map->set_is_access_check_needed();
+  obj->set_map(*new_map);
 }
 
 
@@ -2220,20 +2225,54 @@ const char* v8::V8::GetVersion() {
 }
 
 
-Persistent<Context> v8::Context::New(v8::ExtensionConfiguration* extensions,
-                                     v8::Handle<ObjectTemplate> global_template,
-                                     v8::Handle<Value> global_object) {
+static i::Handle<i::FunctionTemplateInfo>
+    EnsureConstructor(i::Handle<i::ObjectTemplateInfo> templ) {
+  if (templ->constructor()->IsUndefined()) {
+    Local<FunctionTemplate> constructor = FunctionTemplate::New();
+    Utils::OpenHandle(*constructor)->set_instance_template(*templ);
+    templ->set_constructor(*Utils::OpenHandle(*constructor));
+  }
+  return i::Handle<i::FunctionTemplateInfo>(
+    i::FunctionTemplateInfo::cast(templ->constructor()));
+}
+
+
+Persistent<Context> v8::Context::New(
+    v8::ExtensionConfiguration* extensions,
+    v8::Handle<ObjectTemplate> global_template,
+    v8::Handle<Value> global_object) {
   EnsureInitialized("v8::Context::New()");
   LOG_API("Context::New");
   ON_BAILOUT("v8::Context::New()", return Persistent<Context>());
+
   // Make sure that the global_template has a constructor.
-  if (!global_template.IsEmpty() &&
-     Utils::OpenHandle(*global_template)->constructor()->IsUndefined()) {
-    Local<FunctionTemplate> templ = FunctionTemplate::New();
-    Utils::OpenHandle(*templ)->set_instance_template(
+  if (!global_template.IsEmpty()) {
+    i::Handle<i::FunctionTemplateInfo> constructor =
+        EnsureConstructor(Utils::OpenHandle(*global_template));
+
+    // Create a fresh template for global proxy object.
+    Local<ObjectTemplate> proxy_template = ObjectTemplate::New();
+
+    i::Handle<i::FunctionTemplateInfo> proxy_constructor =
+      EnsureConstructor(Utils::OpenHandle(*proxy_template));
+    
+    // Set the global template to be the prototype template
+    // of global proxy template.
+    proxy_constructor->set_prototype_template(
         *Utils::OpenHandle(*global_template));
-    i::Handle<i::FunctionTemplateInfo> constructor = Utils::OpenHandle(*templ);
-    Utils::OpenHandle(*global_template)->set_constructor(*constructor);
+
+    // Migrate security handlers from global_template to proxy_template.
+    if (!constructor->access_check_info()->IsUndefined()) {
+       proxy_constructor->set_access_check_info(
+           constructor->access_check_info());
+       proxy_constructor->set_needs_access_check(true);
+
+       // Remove access check info from global_template.
+       constructor->set_needs_access_check(false);
+       constructor->set_access_check_info(i::Heap::undefined_value());
+    }
+
+    global_template = proxy_template;
   }
 
   i::Handle<i::Context> env = i::Bootstrapper::CreateEnvironment(
@@ -2248,18 +2287,24 @@ Persistent<Context> v8::Context::New(v8::ExtensionConfiguration* extensions,
 
 
 void v8::Context::SetSecurityToken(Handle<Value> token) {
+  if (IsDeadCheck("v8::Context::SetSecurityToken()")) return;
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Handle<i::Object> token_handle = Utils::OpenHandle(*token);
-  // The global object of an environment is always a real global
-  // object with security token and reference to the builtins object.
-  i::JSGlobalObject::cast(env->global())->set_security_token(*token_handle);
+  env->set_security_token(*token_handle);
+}
+
+
+void v8::Context::UseDefaultSecurityToken() {
+  if (IsDeadCheck("v8::Context::UseDefaultSecurityToken()")) return;
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  env->set_security_token(env->global());
 }
 
 
 Handle<Value> v8::Context::GetSecurityToken() {
+  if (IsDeadCheck("v8::Context::GetSecurityToken()")) return Handle<Value>();
   i::Handle<i::Context> env = Utils::OpenHandle(this);
-  i::Object* security_token =
-      i::JSGlobalObject::cast(env->global())->security_token();
+  i::Object* security_token = env->security_token();
   i::Handle<i::Object> token_handle(security_token);
   return Utils::ToLocal(token_handle);
 }
@@ -2273,11 +2318,6 @@ bool Context::HasOutOfMemoryException() {
 
 bool Context::InContext() {
   return i::Top::context() != NULL;
-}
-
-
-bool Context::InSecurityContext() {
-  return i::Top::security_context() != NULL;
 }
 
 
@@ -2297,22 +2337,22 @@ v8::Local<v8::Context> Context::GetCurrent() {
 }
 
 
-v8::Local<v8::Context> Context::GetCurrentSecurityContext() {
-  if (IsDeadCheck("v8::Context::GetCurrentSecurityContext()")) {
-    return Local<Context>();
-  }
-  i::Handle<i::Context> context(i::Top::security_context());
-  return Utils::ToLocal(context);
-}
-
-
 v8::Local<v8::Object> Context::Global() {
   if (IsDeadCheck("v8::Context::Global()")) return Local<v8::Object>();
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  i::Handle<i::JSObject> global(context->global());
-  return Utils::ToLocal(global);
+  i::Handle<i::Object> global(context->global_proxy());
+  return Utils::ToLocal(i::Handle<i::JSObject>::cast(global));
+}
+
+
+void Context::DetachGlobal() {
+  if (IsDeadCheck("v8::Context::DetachGlobal()")) return;
+  i::Object** ctx = reinterpret_cast<i::Object**>(this);
+  i::Handle<i::Context> context =
+      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  i::Bootstrapper::DetachGlobal(context);
 }
 
 

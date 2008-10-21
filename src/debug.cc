@@ -570,7 +570,6 @@ bool Debug::Load() {
   // Use the debugger context.
   SaveContext save;
   Top::set_context(*context);
-  Top::set_security_context(*context);
 
   // Expose the builtins object in the debugger context.
   Handle<String> key = Factory::LookupAsciiSymbol("builtins");

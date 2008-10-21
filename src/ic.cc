@@ -850,6 +850,9 @@ void StoreIC::UpdateCaches(LookupResult* lookup,
                            Handle<String> name,
                            Handle<Object> value) {
   ASSERT(lookup->IsLoaded());
+  // Skip JSGlobalProxy.
+  if (receiver->IsJSGlobalProxy()) return;
+
   // Bail out if we didn't find a result.
   if (!lookup->IsValid() || !lookup->IsCacheable()) return;
 
@@ -956,6 +959,7 @@ Object* KeyedStoreIC::Store(State state,
   // Do not use ICs for objects that require access checks (including
   // the global object).
   bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
+  ASSERT(!(use_ic && object->IsJSGlobalProxy()));
 
   if (use_ic) set_target(generic_stub());
 
@@ -970,6 +974,10 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
                                 Handle<String> name,
                                 Handle<Object> value) {
   ASSERT(lookup->IsLoaded());
+
+  // Skip JSGlobalProxy.
+  if (receiver->IsJSGlobalProxy()) return;
+
   // Bail out if we didn't find a result.
   if (!lookup->IsValid() || !lookup->IsCacheable()) return;
 

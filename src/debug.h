@@ -494,7 +494,6 @@ class EnterDebugger BASE_EMBEDDED {
       // NOTE the member variable save which saves the previous context before
       // this change.
       Top::set_context(*Debug::debug_context());
-      Top::set_security_context(*Debug::debug_context());
     }
   }
 

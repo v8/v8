@@ -1052,6 +1052,12 @@ class EXPORT Object : public Value {
   /** Tests for an index lookup interceptor.*/
   bool HasIndexedLookupInterceptor();
 
+  /**
+   * Turns on access check on the object if the object is an instance of
+   * a template that has access check callbacks. If an object has no
+   * access check info, the object cannot be accessed by anyone.
+   */ 
+  void TurnOnAccessCheck();
 
   static Local<Object> New();
   static Object* Cast(Value* obj);
@@ -1609,10 +1615,15 @@ class EXPORT ObjectTemplate : public Template {
    * When accessing properties on instances of this object template,
    * the access check callback will be called to determine whether or
    * not to allow cross-context access to the properties.
+   * The last parameter specifies whether access checks are turned
+   * on by default on instances. If access checks are off by default,
+   * they can be turned on on individual instances by calling
+   * Object::TurnOnAccessCheck().
    */
   void SetAccessCheckCallbacks(NamedSecurityCallback named_handler,
                                IndexedSecurityCallback indexed_handler,
-                               Handle<Value> data = Handle<Value>());
+                               Handle<Value> data = Handle<Value>(),
+                               bool turned_on_by_default = true);
 
   /**
    * Gets the number of internal fields for objects generated from
@@ -2044,7 +2055,14 @@ class EXPORT ExtensionConfiguration {
  */
 class EXPORT Context {
  public:
+  /** Returns the global object of the context. */
   Local<Object> Global();
+
+  /**
+   * Detaches the global object from its context before
+   * the global object can be reused to create a new context.
+   */
+  void DetachGlobal();
 
   /** Creates a new context. */
   static Persistent<Context> New(
@@ -2058,14 +2076,14 @@ class EXPORT Context {
   /** Returns the context that is on the top of the stack. */
   static Local<Context> GetCurrent();
 
-  /** Returns the security context that is currently used. */
-  static Local<Context> GetCurrentSecurityContext();
-
   /**
    * Sets the security token for the context.  To access an object in
    * another context, the security tokens must match.
    */
   void SetSecurityToken(Handle<Value> token);
+
+  /** Restores the security token to the default value. */
+  void UseDefaultSecurityToken();
 
   /** Returns the security token of this context.*/
   Handle<Value> GetSecurityToken();
@@ -2089,9 +2107,6 @@ class EXPORT Context {
 
   /** Returns true if V8 has a current context. */
   static bool InContext();
-
-  /** Returns true if V8 has a current security context. */
-  static bool InSecurityContext();
 
   /**
    * Stack-allocated class which sets the execution context for all

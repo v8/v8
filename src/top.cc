@@ -66,7 +66,6 @@ char* Top::Iterate(ObjectVisitor* v, char* thread_storage) {
 
 void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   v->VisitPointer(&(thread->pending_exception_));
-  v->VisitPointer(bit_cast<Object**, Context**>(&(thread->security_context_)));
   v->VisitPointer(bit_cast<Object**, Context**>(&(thread->context_)));
   v->VisitPointer(&(thread->scheduled_exception_));
 
@@ -96,7 +95,6 @@ void Top::InitializeThreadLocal() {
   thread_local_.handler_ = 0;
   thread_local_.stack_is_cooked_ = false;
   thread_local_.try_catch_handler_ = NULL;
-  thread_local_.security_context_ = NULL;
   thread_local_.context_ = NULL;
   thread_local_.external_caught_exception_ = false;
   thread_local_.failed_access_check_callback_ = NULL;
@@ -444,7 +442,7 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
   if (!thread_local_.failed_access_check_callback_) return;
 
   ASSERT(receiver->IsAccessCheckNeeded());
-  ASSERT(Top::security_context());
+  ASSERT(Top::context());
   // The callers of this method are not expecting a GC.
   AssertNoAllocation no_gc;
 
@@ -465,23 +463,45 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
     v8::Utils::ToLocal(data));
 }
 
+
+enum MayAccessDecision{
+  YES, NO, UNKNOWN
+};
+
+
+static MayAccessDecision MayAccessPreCheck(JSObject* receiver,
+                                           v8::AccessType type) {
+  // During bootstrapping, callback functions are not enabled yet.
+  if (Bootstrapper::IsActive()) return YES;
+
+  if (receiver->IsJSGlobalProxy()) {
+    Object* receiver_context = JSGlobalProxy::cast(receiver)->context();
+    if (!receiver_context->IsContext()) return NO;
+
+    // Get the global context of current top context.
+    // avoid using Top::global_context() because it uses Handle.
+    Context* global_context = Top::context()->global()->global_context();
+    if (receiver_context == global_context) return YES; 
+
+    if (Context::cast(receiver_context)->security_token() ==
+        global_context->security_token())
+      return YES;
+  }
+
+  return UNKNOWN;
+}
+
+
 bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
   ASSERT(receiver->IsAccessCheckNeeded());
   // Check for compatibility between the security tokens in the
-  // current security context and the accessed object.
-  ASSERT(Top::security_context());
+  // current lexical context and the accessed object.
+  ASSERT(Top::context());
   // The callers of this method are not expecting a GC.
   AssertNoAllocation no_gc;
 
-  // During bootstrapping, callback functions are not enabled yet.
-  if (Bootstrapper::IsActive()) return true;
-
-  if (receiver->IsJSGlobalObject()) {
-    JSGlobalObject* global = JSGlobalObject::cast(receiver);
-    JSGlobalObject* current =
-        JSGlobalObject::cast(Top::security_context()->global());
-    if (current->security_token() == global->security_token()) return true;
-  }
+  MayAccessDecision decision = MayAccessPreCheck(receiver, type);
+  if (decision != UNKNOWN) return decision == YES;
 
   // Get named access check callback
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
@@ -520,20 +540,13 @@ bool Top::MayIndexedAccess(JSObject* receiver,
                            v8::AccessType type) {
   ASSERT(receiver->IsAccessCheckNeeded());
   // Check for compatibility between the security tokens in the
-  // current security context and the accessed object.
-  ASSERT(Top::security_context());
+  // current lexical context and the accessed object.
+  ASSERT(Top::context());
   // The callers of this method are not expecting a GC.
   AssertNoAllocation no_gc;
 
-  // During bootstrapping, callback functions are not enabled yet.
-  if (Bootstrapper::IsActive()) return true;
-
-  if (receiver->IsJSGlobalObject()) {
-    JSGlobalObject* global = JSGlobalObject::cast(receiver);
-    JSGlobalObject* current =
-      JSGlobalObject::cast(Top::security_context()->global());
-    if (current->security_token() == global->security_token()) return true;
-  }
+  MayAccessDecision decision = MayAccessPreCheck(receiver, type);
+  if (decision != UNKNOWN) return decision == YES;
 
   // Get indexed access check callback
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
@@ -570,8 +583,7 @@ Failure* Top::StackOverflow() {
   HandleScope scope;
   Handle<String> key = Factory::stack_overflow_symbol();
   Handle<JSObject> boilerplate =
-      Handle<JSObject>::cast(
-          GetProperty(Top::security_context_builtins(), key));
+      Handle<JSObject>::cast(GetProperty(Top::builtins(), key));
   Handle<Object> exception = Copy(boilerplate);
   // TODO(1240995): To avoid having to call JavaScript code to compute
   // the message for stack overflow exceptions which is very likely to

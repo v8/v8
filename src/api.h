@@ -262,6 +262,8 @@ class Utils {
       OpenHandle(v8::Signature* sig);
   static inline v8::internal::Handle<v8::internal::TypeSwitchInfo>
       OpenHandle(v8::TypeSwitch* that);
+  static inline v8::internal::Handle<v8::internal::Proxy>
+      OpenHandle(v8::External* that);
 };
 
 
@@ -325,6 +327,7 @@ MAKE_OPEN_HANDLE(Script, JSFunction)
 MAKE_OPEN_HANDLE(Function, JSFunction)
 MAKE_OPEN_HANDLE(Message, JSObject)
 MAKE_OPEN_HANDLE(Context, Context)
+MAKE_OPEN_HANDLE(External, Proxy)
 
 #undef MAKE_OPEN_HANDLE
 
@@ -346,8 +349,7 @@ class HandleScopeImplementer {
   HandleScopeImplementer()
       : blocks(0),
         entered_contexts_(0),
-        saved_contexts_(0),
-        saved_security_contexts_(0) {
+        saved_contexts_(0) {
     Initialize();
   }
 
@@ -355,7 +357,6 @@ class HandleScopeImplementer {
     blocks.Initialize(0);
     entered_contexts_.Initialize(0);
     saved_contexts_.Initialize(0);
-    saved_security_contexts_.Initialize(0);
     spare = NULL;
     ignore_out_of_memory = false;
     call_depth = 0;
@@ -391,10 +392,6 @@ class HandleScopeImplementer {
   inline Handle<Object> RestoreContext();
   inline bool HasSavedContexts();
 
-  inline void SaveSecurityContext(Handle<Object> context);
-  inline Handle<Object> RestoreSecurityContext();
-  inline bool HasSavedSecurityContexts();
-
   inline List<void**>* Blocks() { return &blocks; }
 
   inline bool IgnoreOutOfMemory() { return ignore_out_of_memory; }
@@ -408,8 +405,6 @@ class HandleScopeImplementer {
   List<Handle<Object> > entered_contexts_;
   // Used as a stack to keep track of saved contexts.
   List<Handle<Object> > saved_contexts_;
-  // Used as a stack to keep track of saved security contexts.
-  List<Handle<Object> > saved_security_contexts_;
   bool ignore_out_of_memory;
   // This is only used for threading support.
   ImplementationUtilities::HandleScopeData handle_scope_data_;
@@ -439,21 +434,6 @@ Handle<Object> HandleScopeImplementer::RestoreContext() {
 
 bool HandleScopeImplementer::HasSavedContexts() {
   return !saved_contexts_.is_empty();
-}
-
-
-void HandleScopeImplementer::SaveSecurityContext(Handle<Object> context) {
-  saved_security_contexts_.Add(context);
-}
-
-
-Handle<Object> HandleScopeImplementer::RestoreSecurityContext() {
-  return saved_security_contexts_.RemoveLast();
-}
-
-
-bool HandleScopeImplementer::HasSavedSecurityContexts() {
-  return !saved_security_contexts_.is_empty();
 }
 
 

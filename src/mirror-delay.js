@@ -682,7 +682,7 @@ ObjectMirror.prototype.interceptorProperties = function(opt_kind, opt_names) {
 
 
 ObjectMirror.prototype.property = function(name) {
-  var details = %DebugGetLocalPropertyDetails(this.value_, %ToString(name));
+  var details = %DebugGetPropertyDetails(this.value_, %ToString(name));
   if (details) {
     return new PropertyMirror(this, name, details[0], details[1]);
   }
@@ -975,7 +975,7 @@ ArrayMirror.prototype.indexedPropertiesFromRange = function(opt_from_index, opt_
   if (from_index > to_index) return new Array();
   var values = new Array(to_index - from_index + 1);
   for (var i = from_index; i <= to_index; i++) {
-    var details = %DebugGetLocalPropertyDetails(this.value_, %ToString(i));
+    var details = %DebugGetPropertyDetails(this.value_, %ToString(i));
     var value;
     if (details) {
       value = new PropertyMirror(this, i, details[0], details[1]);

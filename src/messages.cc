@@ -137,12 +137,12 @@ Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
   Handle<JSFunction> fun =
       Handle<JSFunction>(
           JSFunction::cast(
-              Top::security_context_builtins()->GetProperty(*fmt_str)));
+              Top::builtins()->GetProperty(*fmt_str)));
   Object** argv[1] = { data.location() };
 
   bool caught_exception;
   Handle<Object> result =
-      Execution::TryCall(fun, Top::security_context_builtins(), 1, argv,
+      Execution::TryCall(fun, Top::builtins(), 1, argv,
                          &caught_exception);
 
   if (caught_exception || !result->IsString()) {

@@ -1055,18 +1055,6 @@ void Serializer::PutContextStack() {
     HandleScopeImplementer::instance()->SaveContext(contexts[i]);
   }
   PutGlobalHandleStack(contexts);
-
-  List<Handle<Object> > security_contexts(2);
-  while (HandleScopeImplementer::instance()->HasSavedSecurityContexts()) {
-    Handle<Object> context =
-      HandleScopeImplementer::instance()->RestoreSecurityContext();
-    security_contexts.Add(context);
-  }
-  for (int i = security_contexts.length() - 1; i >= 0; i--) {
-    Handle<Object> context = security_contexts[i];
-    HandleScopeImplementer::instance()->SaveSecurityContext(context);
-  }
-  PutGlobalHandleStack(security_contexts);
 }
 
 
@@ -1389,12 +1377,6 @@ void Deserializer::GetContextStack() {
   GetGlobalHandleStack(&entered_contexts);
   for (int i = 0; i < entered_contexts.length(); i++) {
     HandleScopeImplementer::instance()->SaveContext(entered_contexts[i]);
-  }
-  List<Handle<Object> > security_contexts(2);
-  GetGlobalHandleStack(&security_contexts);
-  for (int i = 0; i < security_contexts.length(); i++) {
-    HandleScopeImplementer::instance()->
-      SaveSecurityContext(security_contexts[i]);
   }
 }
 

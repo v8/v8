@@ -168,7 +168,9 @@ class MacroAssembler: public Assembler {
   // Generate code for checking access rights - used for security checks
   // on access to global objects across environments. The holder register
   // is left untouched, but the scratch register is clobbered.
-  void CheckAccessGlobal(Register holder_reg, Register scratch, Label* miss);
+  void CheckAccessGlobalProxy(Register holder_reg,
+                              Register scratch,
+                              Label* miss);
 
 
   // ---------------------------------------------------------------------------

@@ -105,8 +105,8 @@ Handle<Code> Builtins::GetCode(JavaScript id, bool* resolved) {
   Code* code = Builtins::builtin(Builtins::Illegal);
   *resolved = false;
 
-  if (Top::security_context() != NULL) {
-    Object* object = Top::security_context_builtins()->javascript_builtin(id);
+  if (Top::context() != NULL) {
+    Object* object = Top::builtins()->javascript_builtin(id);
     if (object->IsJSFunction()) {
       Handle<JSFunction> function(JSFunction::cast(object));
       // Make sure the number of parameters match the formal parameter count.

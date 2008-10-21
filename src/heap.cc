@@ -1764,8 +1764,8 @@ Object* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
-Object* Heap::ReinitializeJSGlobalObject(JSFunction* constructor,
-                                         JSGlobalObject* object) {
+Object* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
+                                        JSGlobalProxy* object) {
   // Allocate initial map if absent.
   if (!constructor->has_initial_map()) {
     Object* initial_map = AllocateInitialMap(constructor);

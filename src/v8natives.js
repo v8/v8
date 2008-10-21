@@ -117,7 +117,7 @@ function GlobalExecScript(expr, lang) {
   // NOTE: We don't care about the character casing.
   if (!lang || /javascript/i.test(lang)) {
     var f = %CompileString(ToString(expr), 0, false);
-    f.call(global);
+    f.call(%GlobalReceiver(global));
   }
   return null;
 }

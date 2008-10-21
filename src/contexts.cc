@@ -60,6 +60,15 @@ Context* Context::global_context() {
 }
 
 
+JSObject* Context::global_proxy() {
+  return global_context()->global_proxy_object();
+}
+
+void Context::set_global_proxy(JSObject* object) {
+  global_context()->set_global_proxy_object(object);
+}
+
+
 Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
                                int* index_, PropertyAttributes* attributes) {
   Handle<Context> context(this);

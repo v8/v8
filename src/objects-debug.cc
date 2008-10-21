@@ -127,6 +127,9 @@ void HeapObject::HeapObjectPrint() {
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionPrint();
       break;
+    case JS_GLOBAL_PROXY_TYPE:
+      JSGlobalProxy::cast(this)->JSGlobalProxyPrint();
+      break;
     case JS_GLOBAL_OBJECT_TYPE:
       JSGlobalObject::cast(this)->JSGlobalObjectPrint();
       break;
@@ -197,6 +200,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionVerify();
+      break;
+    case JS_GLOBAL_PROXY_TYPE:
+      JSGlobalProxy::cast(this)->JSGlobalProxyVerify();
       break;
     case JS_GLOBAL_OBJECT_TYPE:
       JSGlobalObject::cast(this)->JSGlobalObjectVerify();
@@ -551,9 +557,31 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
 }
 
 
+void JSGlobalProxy::JSGlobalProxyPrint() {
+  PrintF("global_proxy");
+  JSObjectPrint();
+  PrintF("context : ");
+  context()->ShortPrint();
+  PrintF("\n");
+}
+
+
+void JSGlobalProxy::JSGlobalProxyVerify() {
+  CHECK(IsJSGlobalProxy());
+  JSObjectVerify();
+  VerifyObjectField(JSGlobalProxy::kContextOffset);
+  // Make sure that this object has no properties, elements.
+  CHECK(properties()->length() == 0);
+  CHECK(elements()->length() == 0);
+}
+
+
 void JSGlobalObject::JSGlobalObjectPrint() {
   PrintF("global ");
   JSObjectPrint();
+  PrintF("global context : ");
+  global_context()->ShortPrint();
+  PrintF("\n");
 }
 
 

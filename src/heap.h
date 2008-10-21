@@ -280,12 +280,12 @@ class Heap : public AllStatic {
   // Please note this does not perform a garbage collection.
   static Object* AllocateFunctionPrototype(JSFunction* function);
 
-  // Reinitialize a JSGlobalObject based on a constructor.  The JSObject
+  // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the
-  // constructor.  The JSObject is reinitialized and behaves as an
+  // constructor.  The object is reinitialized and behaves as an
   // object that has been freshly allocated using the constructor.
-  static Object* ReinitializeJSGlobalObject(JSFunction* constructor,
-                                            JSGlobalObject* global);
+  static Object* ReinitializeJSGlobalProxy(JSFunction* constructor,
+                                           JSGlobalProxy* global);
 
   // Allocates and initializes a new JavaScript object based on a map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
