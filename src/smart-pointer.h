@@ -86,11 +86,16 @@ class SmartPointer {
   // the copy constructor it removes the pointer in the original to avoid
   // double freeing.
   inline SmartPointer& operator=(const SmartPointer<T>& rhs) {
-    ASSERT(p == NULL);
+    ASSERT(is_empty());
     T* tmp = rhs.p;  // swap to handle self-assignment
     const_cast<SmartPointer<T>&>(rhs).p = NULL;
     p = tmp;
     return *this;
+  }
+
+
+  inline bool is_empty() {
+    return p == NULL;
   }
 
 

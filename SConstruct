@@ -216,6 +216,16 @@ SAMPLE_FLAGS = {
 }
 
 
+D8_FLAGS = {
+  'gcc': {
+    'console:readline': {
+      'LIBS': ['readline']
+    }
+  },
+  'msvc': { }
+}
+
+
 SUFFIXES = {
   'release': '',
   'debug': '_g'
@@ -312,6 +322,11 @@ SIMPLE_OPTIONS = {
     'values': ['MD5', 'timestamp'],
     'default': 'MD5',
     'help': 'set how the build system detects file changes'
+  },
+  'console': {
+    'values': ['dumb', 'readline'],
+    'default': 'dumb',
+    'help': 'the console to use for the d8 shell'
   }
 }
 
@@ -364,6 +379,7 @@ class BuildContext(object):
     self.library_targets = []
     self.cctest_targets = []
     self.sample_targets = []
+    self.d8_targets = []
     self.options = options
     self.env_overrides = env_overrides
     self.samples = samples
@@ -447,13 +463,15 @@ def BuildSpecific(env, mode, env_overrides):
   dtoa_flags = context.AddRelevantFlags(library_flags, DTOA_EXTRA_FLAGS)
   cctest_flags = context.AddRelevantFlags(v8_flags, CCTEST_EXTRA_FLAGS)
   sample_flags = context.AddRelevantFlags(os.environ, SAMPLE_FLAGS)
+  d8_flags = context.AddRelevantFlags(library_flags, D8_FLAGS)
 
   context.flags = {
     'v8': v8_flags,
     'jscre': jscre_flags,
     'dtoa': dtoa_flags,
     'cctest': cctest_flags,
-    'sample': sample_flags
+    'sample': sample_flags,
+    'd8': d8_flags
   }
 
   target_id = mode
@@ -462,13 +480,13 @@ def BuildSpecific(env, mode, env_overrides):
   env['LIBRARY'] = library_name
 
   # Build the object files by invoking SCons recursively.  
-  object_files = env.SConscript(
+  (object_files, shell_files) = env.SConscript(
     join('src', 'SConscript'),
     build_dir=join('obj', target_id),
     exports='context',
     duplicate=False
   )
-  
+
   # Link the object files into a library.
   env.Replace(**context.flags['v8'])
   context.ApplyEnvOverrides(env)
@@ -482,6 +500,11 @@ def BuildSpecific(env, mode, env_overrides):
     library = env.SharedLibrary(library_name, object_files, PDB=pdb_name)
   context.library_targets.append(library)
   
+  d8_env = Environment()
+  d8_env.Replace(**context.flags['d8'])
+  shell = d8_env.Program('d8' + suffix, object_files + shell_files)
+  context.d8_targets.append(shell)
+
   for sample in context.samples:
     sample_env = Environment(LIBRARY=library_name)
     sample_env.Replace(**context.flags['sample'])
@@ -514,22 +537,25 @@ def Build():
   Help(opts.GenerateHelpText(env))
   VerifyOptions(env)
   env_overrides = ParseEnvOverrides(env['env'])
-  
+
   SourceSignatures(env['sourcesignatures'])
-  
+
   libraries = []
   cctests = []
   samples = []
+  d8s = []
   modes = SplitList(env['mode'])
   for mode in modes:
     context = BuildSpecific(env.Copy(), mode, env_overrides)
     libraries += context.library_targets
     cctests += context.cctest_targets
     samples += context.sample_targets
+    d8s += context.d8_targets
 
   env.Alias('library', libraries)
   env.Alias('cctests', cctests)
   env.Alias('sample', samples)
+  env.Alias('d8', d8s)
   
   if env['sample']:
     env.Default('sample')

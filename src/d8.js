@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,38 +25,46 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_NATIVES_H_
-#define V8_NATIVES_H_
-
-namespace v8 { namespace internal {
-
-typedef bool (*NativeSourceCallback)(Vector<const char> name,
-                                     Vector<const char> source,
-                                     int index);
-
-enum NativeType {
-  CORE, D8
+// How crappy is it that I have to implement completely basic stuff
+// like this myself?  Answer: very.
+String.prototype.startsWith = function (str) {
+  if (str.length > this.length)
+    return false;
+  return this.substr(0, str.length) == str;
 };
 
-template <NativeType type>
-class NativesCollection {
- public:
-  // Number of built-in scripts.
-  static int GetBuiltinsCount();
-  // Number of delayed/lazy loading scripts.
-  static int GetDelayCount();
+function ToInspectableObject(obj) {
+  if (!obj && typeof obj === 'object') {
+    return void 0;
+  } else {
+    return Object(obj);
+  }
+}
 
-  // These are used to access built-in scripts.
-  // The delayed script has an index in the interval [0, GetDelayCount()).
-  // The non-delayed script has an index in the interval
-  // [GetDelayCount(), GetNativesCount()).
-  static int GetIndex(const char* name);
-  static Vector<const char> GetScriptSource(int index);
-  static Vector<const char> GetScriptName(int index);
-};
-
-typedef NativesCollection<CORE> Natives;
-
-} }  // namespace v8::internal
-
-#endif  // V8_NATIVES_H_
+function GetCompletions(global, last, full) {
+  var full_tokens = full.split();
+  full = full_tokens.pop();
+  var parts = full.split('.');
+  parts.pop();
+  var current = global;
+  for (var i = 0; i < parts.length; i++) {
+    var part = parts[i];
+    var next = current[part];
+    if (!next)
+      return [];
+    current = next;
+  }
+  var result = [];
+  current = ToInspectableObject(current);
+  while (typeof current !== 'undefined') {
+    var mirror = new $debug.ObjectMirror(current);
+    var properties = mirror.properties();
+    for (var i = 0; i < properties.length; i++) {
+      var name = properties[i].name();
+      if (typeof name === 'string' && name.startsWith(last))
+        result.push(name);
+    }
+    current = ToInspectableObject(current.__proto__);
+  }
+  return result;
+}

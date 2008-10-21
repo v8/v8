@@ -64,6 +64,16 @@ SOURCES = {
 }
 
 
+D8_FILES = {
+  'all': [
+    'd8.cc'
+  ],
+  'console:readline': [
+    'd8-readline.cc'
+  ]
+}
+
+
 LIBRARY_FILES = '''
 runtime.js
 v8natives.js
@@ -104,11 +114,16 @@ def ConfigureObjectFiles():
   # Build the standard platform-independent source files.
   source_files = context.GetRelevantSources(SOURCES)
 
+  d8_files = context.GetRelevantSources(D8_FILES)
+  d8_js = env.JS2C('d8-js.cc', 'd8.js', TYPE='D8')
+  d8_js_obj = context.ConfigureObject(env, d8_js, CPPPATH=['.'])
+  d8_objs = [context.ConfigureObject(env, [d8_files]), d8_js_obj]
+
   # Combine the JavaScript library files into a single C++ file and
   # compile it.
   library_files = [s for s in LIBRARY_FILES]
   library_files.append('macros.py')
-  libraries_src, libraries_empty_src = env.JS2C(['libraries.cc', 'libraries-empty.cc'], library_files)
+  libraries_src, libraries_empty_src = env.JS2C(['libraries.cc', 'libraries-empty.cc'], library_files, TYPE='CORE')
   libraries_obj = context.ConfigureObject(env, libraries_src, CPPPATH=['.'])
 
   # Build JSCRE.
@@ -137,8 +152,9 @@ def ConfigureObjectFiles():
   else:
     snapshot_obj = empty_snapshot_obj
 
-  return [non_snapshot_files, libraries_obj, snapshot_obj]
+  library_objs = [non_snapshot_files, libraries_obj, snapshot_obj]
+  return (library_objs, d8_objs)
 
 
-library_objects = ConfigureObjectFiles()
-Return('library_objects')
+(library_objs, d8_objs) = ConfigureObjectFiles()
+Return('library_objs d8_objs')
