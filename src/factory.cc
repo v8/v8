@@ -683,7 +683,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   }
 
   int instance_size = kPointerSize * internal_field_count;
-  InstanceType type;
+  InstanceType type = JS_OBJECT_TYPE;  // initialize to a valid value
   switch (instance_type) {
     case JavaScriptObject:
       type = JS_OBJECT_TYPE;
