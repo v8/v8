@@ -2790,38 +2790,14 @@ static Object* Runtime_StringEquals(Arguments args) {
   CONVERT_CHECKED(String, x, args[0]);
   CONVERT_CHECKED(String, y, args[1]);
 
-  // This is very similar to String::Equals(String*) but that version
-  // requires flattened strings as input, whereas we flatten the
-  // strings only if the fast cases fail.  Note that this may fail,
-  // requiring a GC.  String::Equals(String*) returns a bool and has
-  // no way to signal a failure.
-  if (y == x) return Smi::FromInt(EQUAL);
-  if (x->IsSymbol() && y->IsSymbol()) return Smi::FromInt(NOT_EQUAL);
-  // Compare contents
-  int len = x->length();
-  if (len != y->length()) return Smi::FromInt(NOT_EQUAL);
-  if (len == 0) return Smi::FromInt(EQUAL);
-
-  // Handle one elment strings.
-  if (x->Get(0) != y->Get(0)) return Smi::FromInt(NOT_EQUAL);
-  if (len == 1) return Smi::FromInt(EQUAL);
-
-  // Fast case:  First, middle and last characters.
-  if (x->Get(len>>1) != y->Get(len>>1)) return Smi::FromInt(NOT_EQUAL);
-  if (x->Get(len - 1) != y->Get(len - 1)) return Smi::FromInt(NOT_EQUAL);
-
-  x->TryFlatten();
-  y->TryFlatten();
-
-  static StringInputBuffer buf1;
-  static StringInputBuffer buf2;
-  buf1.Reset(x);
-  buf2.Reset(y);
-  while (buf1.has_more()) {
-    if (buf1.GetNext() != buf2.GetNext())
-      return Smi::FromInt(NOT_EQUAL);
-  }
-  return Smi::FromInt(EQUAL);
+  bool not_equal = !x->Equals(y);
+  // This is slightly convoluted because the value that signifies
+  // equality is 0 and inequality is 1 so we have to negate the result
+  // from String::Equals.
+  ASSERT(not_equal == 0 || not_equal == 1);
+  STATIC_CHECK(EQUAL == 0);
+  STATIC_CHECK(NOT_EQUAL == 1);
+  return Smi::FromInt(not_equal);
 }
 
 
