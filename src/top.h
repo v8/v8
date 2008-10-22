@@ -294,10 +294,16 @@ class Top {
 };
 
 
+// TODO(122): If the GCC version is 4.2.0 or higher an additional field is added
+// to this class as a workarround for a bug in the generated code found with
+// GCC 4.2.3.
 class SaveContext BASE_EMBEDDED {
  public:
   SaveContext() :
       context_(Top::context()),
+#if __GNUC_VERSION__ >= 40200
+      dummy_(Top::context()),
+#endif
       prev_(Top::save_context()) {
     Top::set_save_context(this);
   }
@@ -312,6 +318,9 @@ class SaveContext BASE_EMBEDDED {
 
  private:
   Handle<Context> context_;
+#if __GNUC_VERSION__ >= 40200
+  Handle<Context> dummy_;
+#endif
   SaveContext* prev_;
 };
 
