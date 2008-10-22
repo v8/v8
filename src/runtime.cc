@@ -3133,8 +3133,9 @@ static Object* Runtime_NewArguments(Arguments args) {
   if (result->IsFailure()) return result;
   FixedArray* array = FixedArray::cast(JSObject::cast(result)->elements());
   ASSERT(array->length() == length);
+  FixedArray::WriteBarrierMode mode = array->GetWriteBarrierMode();
   for (int i = 0; i < length; i++) {
-    array->set(i, frame->GetParameter(i));
+    array->set(i, frame->GetParameter(i), mode);
   }
   return result;
 }
@@ -4865,8 +4866,9 @@ static Handle<Object> GetArgumentsObject(JavaScriptFrame* frame,
   Handle<Object> arguments = Factory::NewArgumentsObject(function, length);
   FixedArray* array = FixedArray::cast(JSObject::cast(*arguments)->elements());
   ASSERT(array->length() == length);
+  FixedArray::WriteBarrierMode mode = array->GetWriteBarrierMode();
   for (int i = 0; i < length; i++) {
-    array->set(i, frame->GetParameter(i));
+    array->set(i, frame->GetParameter(i), mode);
   }
   return arguments;
 }

@@ -1779,13 +1779,13 @@ Object* Heap::CopyJSObject(JSObject* source) {
   FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.
   if (elements->length()> 0) {
-    Object* elem = Heap::CopyFixedArray(elements);
+    Object* elem = CopyFixedArray(elements);
     if (elem->IsFailure()) return elem;
     JSObject::cast(clone)->set_elements(FixedArray::cast(elem));
   }
   // Update properties if necessary.
   if (properties->length() > 0) {
-    Object* prop = Heap::CopyFixedArray(properties);
+    Object* prop = CopyFixedArray(properties);
     if (prop->IsFailure()) return prop;
     JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
   }
@@ -2107,7 +2107,8 @@ Object* Heap::CopyFixedArray(FixedArray* src) {
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
   // Copy the content
-  for (int i = 0; i < len; i++) result->set(i, src->get(i));
+  FixedArray::WriteBarrierMode mode = result->GetWriteBarrierMode();
+  for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
   return result;
 }
 
