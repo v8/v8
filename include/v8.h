@@ -327,6 +327,10 @@ template <class T> class EXPORT_INLINE Persistent : public Handle<T> {
 
   template <class S> inline Persistent(S* that) : Handle<T>(that) { }
 
+  /**
+   * "Casts" a plain handle which is known to be a persistent handle
+   * to a persistent handle.
+   */
   template <class S> explicit inline Persistent(Handle<S> that)
       : Handle<T>(*that) { }
 
@@ -1056,7 +1060,7 @@ class EXPORT Object : public Value {
    * Turns on access check on the object if the object is an instance of
    * a template that has access check callbacks. If an object has no
    * access check info, the object cannot be accessed by anyone.
-   */ 
+   */
   void TurnOnAccessCheck();
 
   static Local<Object> New();

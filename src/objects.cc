@@ -3727,6 +3727,19 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
   int endpoint = length - kStepSize;
   const Char* pa = a.start();
   const Char* pb = b.start();
+#ifndef CAN_READ_UNALIGNED
+  // If this architecture isn't comfortable reading unaligned ints
+  // then we have to check that the strings are alingned and fall back
+  // to the standard comparison if they are not.
+  const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
+  uint32_t pa_addr = reinterpret_cast<uint32_t>(pa);
+  uint32_t pb_addr = reinterpret_cast<uint32_t>(pb);
+  if ((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask) != 0) {
+    VectorIterator<Char> ia(a);
+    VectorIterator<Char> ib(b);
+    return CompareStringContents(&ia, &ib);
+  }
+#endif
   int i;
   // Compare blocks until we reach near the end of the string.
   for (i = 0; i <= endpoint; i += kStepSize) {

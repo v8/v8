@@ -73,6 +73,9 @@ typedef byte* Address;
 typedef uint16_t uc16;
 typedef signed int uc32;
 
+#ifndef ARM
+#define CAN_READ_UNALIGNED 1
+#endif
 
 // -----------------------------------------------------------------------------
 // Constants

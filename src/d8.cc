@@ -237,11 +237,10 @@ void Shell::Initialize() {
 
   // Install the debugger object in the utility scope
   i::Debug::Load();
-  i::JSObject* raw_debug = i::Debug::debug_context()->global();
-  i::JSGlobalObject* debug = i::JSGlobalObject::cast(raw_debug);
-  debug->set_security_token(i::Heap::undefined_value());
+  i::Debug::debug_context()->set_security_token(i::Heap::undefined_value());
+  i::JSObject* debug = i::Debug::debug_context()->global();
   utility_context_->Global()->Set(String::New("$debug"),
-                                  Utils::ToLocal(&raw_debug));
+                                  Utils::ToLocal(&debug));
 
   // Run the d8 shell utility script in the utility context
   int source_index = i::NativesCollection<i::D8>::GetIndex("d8");
