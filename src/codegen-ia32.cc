@@ -2000,9 +2000,13 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // TODO(1222589): remove the reliance of PushTryHandler on a cached TOS
   frame_->Push(eax);  //
 
-  // Introduce shadow labels for all escapes from the try block,
-  // including returns. We should probably try to unify the escaping
-  // labels and the return label.
+  // Shadow the labels for all escapes from the try block, including
+  // returns.  During shadowing, the original label is hidden as the
+  // LabelShadow and operations on the original actually affect the
+  // shadowing label.
+  //
+  // We should probably try to unify the escaping labels and the return
+  // label.
   int nof_escapes = node->escaping_labels()->length();
   List<LabelShadow*> shadows(1 + nof_escapes);
   shadows.Add(new LabelShadow(&function_return_));
@@ -2017,6 +2021,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   is_inside_try_ = was_inside_try;
 
   // Stop the introduced shadowing and count the number of required unlinks.
+  // After shadowing stops, the original labels are unshadowed and the
+  // LabelShadows represent the formerly shadowing labels.
   int nof_unlinks = 0;
   for (int i = 0; i <= nof_escapes; i++) {
     shadows[i]->StopShadowing();
@@ -2042,7 +2048,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // next_sp popped.
   if (nof_unlinks > 0) __ jmp(&exit);
 
-  // Generate unlink code for all used shadow labels.
+  // Generate unlink code for the (formerly) shadowing labels that have been
+  // jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       // Unlink from try chain; be careful not to destroy the TOS.
@@ -2058,7 +2065,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       frame_->Pop(Operand::StaticVariable(handler_address));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
       // next_sp popped.
-      __ jmp(shadows[i]->shadowed());
+      __ jmp(shadows[i]->original_label());
     }
   }
 
@@ -2091,9 +2098,13 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // TODO(1222589): remove the reliance of PushTryHandler on a cached TOS
   frame_->Push(eax);
 
-  // Introduce shadow labels for all escapes from the try block,
-  // including returns. We should probably try to unify the escaping
-  // labels and the return label.
+  // Shadow the labels for all escapes from the try block, including
+  // returns.  During shadowing, the original label is hidden as the
+  // LabelShadow and operations on the original actually affect the
+  // shadowing label.
+  //
+  // We should probably try to unify the escaping labels and the return
+  // label.
   int nof_escapes = node->escaping_labels()->length();
   List<LabelShadow*> shadows(1 + nof_escapes);
   shadows.Add(new LabelShadow(&function_return_));
@@ -2107,8 +2118,9 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   VisitStatements(node->try_block()->statements());
   is_inside_try_ = was_inside_try;
 
-  // Stop the introduced shadowing and count the number of required
-  // unlinks.
+  // Stop the introduced shadowing and count the number of required unlinks.
+  // After shadowing stops, the original labels are unshadowed and the
+  // LabelShadows represent the formerly shadowing labels.
   int nof_unlinks = 0;
   for (int i = 0; i <= nof_escapes; i++) {
     shadows[i]->StopShadowing();
@@ -2120,15 +2132,17 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   __ Set(ecx, Immediate(Smi::FromInt(FALLING)));
   if (nof_unlinks > 0) __ jmp(&unlink);
 
-  // Generate code that sets the state for all used shadow labels.
+  // Generate code to set the state for the (formerly) shadowing labels that
+  // have been jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       __ bind(shadows[i]);
-      if (shadows[i]->shadowed() == &function_return_) {
-        // Materialize the return value on the stack.
+      if (shadows[i]->original_label() == &function_return_) {
+        // If this label shadowed the function return, materialize the
+        // return value on the stack.
         frame_->Push(eax);
       } else {
-        // Fake TOS for break and continue.
+        // Fake TOS for labels that shadowed breaks and continues.
         frame_->Push(Immediate(Factory::undefined_value()));
       }
       __ Set(ecx, Immediate(Smi::FromInt(JUMPING + i)));
@@ -2175,12 +2189,12 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   frame_->Pop(eax);
   break_stack_height_ -= kFinallyStackSize;
 
-  // Generate code that jumps to the right destination for all used
-  // shadow labels.
+  // Generate code to jump to the right destination for all used (formerly)
+  // shadowing labels.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_bound()) {
       __ cmp(Operand(ecx), Immediate(Smi::FromInt(JUMPING + i)));
-      __ j(equal, shadows[i]->shadowed());
+      __ j(equal, shadows[i]->original_label());
     }
   }
 
