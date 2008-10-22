@@ -169,6 +169,17 @@ BenchmarkSuite.prototype.NotifyResult = function() {
 }
 
 
+// Notifies the runner that running a benchmark resulted in an error.
+BenchmarkSuite.prototype.NotifyError = function(error) {
+  if (this.runner.NotifyError) {
+    this.runner.NotifyError(this.name, error);
+  }
+  if (this.runner.NotifyStep) {
+    this.runner.NotifyStep(this.name);
+  }
+}
+
+
 // Runs a single benchmark for at least a second and computes the
 // average time it takes to run a single iteration.
 BenchmarkSuite.prototype.RunSingle = function(benchmark) {
@@ -195,7 +206,12 @@ BenchmarkSuite.prototype.RunStep = function(runner) {
   var suite = this;
   function RunNext() {
     if (index < length) {
-      suite.RunSingle(suite.benchmarks[index++]);
+      try {
+        suite.RunSingle(suite.benchmarks[index++]);
+      } catch (e) {
+        suite.NotifyError(e);
+        return null;
+      }
       return RunNext;
     }
     suite.NotifyResult();

@@ -63,6 +63,8 @@ div.run {
 <script type="text/javascript">
 var completed = 0;
 var benchmarks = BenchmarkSuite.CountBenchmarks();
+var success = true;
+
 function ShowProgress(name) {
   var status = document.getElementById("status");
   var percentage = ((++completed) / benchmarks) * 100;
@@ -77,14 +79,23 @@ function AddResult(name, result) {
 }
 
 
+function AddError(name, error) {
+  AddResult(name, '<b>error</b>');
+  success = false;
+}
+
+
 function AddScore(score) {
   var status = document.getElementById("status");
-  status.innerHTML = "Score: " + score;
+  if (success) {
+    status.innerHTML = "Score: " + score;
+  }
 }
 
 
 function Run() {
   BenchmarkSuite.RunSuites({ NotifyStep: ShowProgress,
+                             NotifyError: AddError,
                              NotifyResult: AddResult,
                              NotifyScore: AddScore }); 
 }
