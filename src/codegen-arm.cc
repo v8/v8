@@ -3909,7 +3909,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
 #ifdef DEBUG
   if (FLAG_gc_greedy) {
-    Failure* failure = Failure::RetryAfterGC(0, NEW_SPACE);
+    Failure* failure = Failure::RetryAfterGC(0);
     __ mov(r0, Operand(reinterpret_cast<intptr_t>(failure)));
   }
   GenerateCore(masm,

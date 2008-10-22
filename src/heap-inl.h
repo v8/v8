@@ -146,6 +146,25 @@ OldSpace* Heap::TargetSpace(HeapObject* object) {
 }
 
 
+void Heap::CopyBlock(Object** dst, Object** src, int byte_size) {
+  ASSERT(IsAligned(byte_size, kPointerSize));
+
+  // Use block copying memcpy if the segment we're copying is
+  // enough to justify the extra call/setup overhead.
+  static const int kBlockCopyLimit = 16 * kPointerSize;
+
+  if (byte_size >= kBlockCopyLimit) {
+    memcpy(dst, src, byte_size);
+  } else {
+    int remaining = byte_size / kPointerSize;
+    do {
+      remaining--;
+      *dst++ = *src++;
+    } while (remaining > 0);
+  }
+}
+
+
 #define GC_GREEDY_CHECK() \
   ASSERT(!FLAG_gc_greedy || v8::internal::Heap::GarbageCollectionGreedyCheck())
 

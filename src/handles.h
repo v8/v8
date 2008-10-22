@@ -144,7 +144,7 @@ Handle<Object> DeleteProperty(Handle<JSObject> obj, Handle<String> prop);
 
 Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index);
 
-Handle<JSObject> Copy(Handle<JSObject> obj, PretenureFlag = NOT_TENURED);
+Handle<JSObject> Copy(Handle<JSObject> obj);
 
 // Get the JS object corresponding to the given script; create it
 // if none exists.

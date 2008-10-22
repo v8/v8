@@ -726,25 +726,14 @@ void Heap::RecordCopiedObject(HeapObject* obj) {
 #endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 
 
+
 HeapObject* Heap::MigrateObject(HeapObject* source,
                                 HeapObject* target,
                                 int size) {
-  void** src = reinterpret_cast<void**>(source->address());
-  void** dst = reinterpret_cast<void**>(target->address());
-
-  // Use block copying memcpy if the object we're migrating is big
-  // enough to justify the extra call/setup overhead.
-  static const int kBlockCopyLimit = 16 * kPointerSize;
-
-  if (size >= kBlockCopyLimit) {
-    memcpy(dst, src, size);
-  } else {
-    int remaining = size / kPointerSize;
-    do {
-      remaining--;
-      *dst++ = *src++;
-    } while (remaining > 0);
-  }
+  // Copy the content of source to target.
+  CopyBlock(reinterpret_cast<Object**>(target->address()),
+            reinterpret_cast<Object**>(source->address()),
+            size);
 
   // Set the forwarding address.
   source->set_map_word(MapWord::FromForwardingAddress(target));
@@ -1589,8 +1578,9 @@ Object* Heap::CopyCode(Code* code) {
   // Copy code object.
   Address old_addr = code->address();
   Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
-  memcpy(new_addr, old_addr, obj_size);
-
+  CopyBlock(reinterpret_cast<Object**>(new_addr),
+            reinterpret_cast<Object**>(old_addr),
+            obj_size);
   // Relocate the copy.
   Code* new_code = Code::cast(result);
   new_code->Relocate(new_addr - old_addr);
@@ -1657,7 +1647,7 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
 
   JSObject* boilerplate =
       Top::context()->global_context()->arguments_boilerplate();
-  Object* result = boilerplate->Copy();
+  Object* result = CopyJSObject(boilerplate);
   if (result->IsFailure()) return result;
 
   Object* obj = JSObject::cast(result)->properties();
@@ -1761,6 +1751,42 @@ Object* Heap::AllocateJSObject(JSFunction* constructor,
   }
   // Allocate the object based on the constructors initial map.
   return AllocateJSObjectFromMap(constructor->initial_map(), pretenure);
+}
+
+
+Object* Heap::CopyJSObject(JSObject* source) {
+  // Never used to copy functions.  If functions need to be copied we
+  // have to be careful to clear the literals array.
+  ASSERT(!source->IsJSFunction());
+
+  // Make the clone.
+  Map* map = source->map();
+  int object_size = map->instance_size();
+  Object* clone = new_space_.AllocateRaw(object_size);
+  if (clone->IsFailure()) return clone;
+  ASSERT(Heap::InNewSpace(clone));
+
+  // Copy the content.
+  CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(clone)->address()),
+            reinterpret_cast<Object**>(source->address()),
+            object_size);
+
+  FixedArray* elements = FixedArray::cast(source->elements());
+  FixedArray* properties = FixedArray::cast(source->properties());
+  // Update elements if necessary.
+  if (elements->length()> 0) {
+    Object* elem = Heap::CopyFixedArray(elements);
+    if (elem->IsFailure()) return elem;
+    JSObject::cast(clone)->set_elements(FixedArray::cast(elem));
+  }
+  // Update properties if necessary.
+  if (properties->length() > 0) {
+    Object* prop = Heap::CopyFixedArray(properties);
+    if (prop->IsFailure()) return prop;
+    JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
+  }
+  // Return the new clone.
+  return clone;
 }
 
 
@@ -2064,14 +2090,20 @@ Object* Heap::AllocateRawFixedArray(int length) {
 
 Object* Heap::CopyFixedArray(FixedArray* src) {
   int len = src->length();
-  Object* obj = Heap::AllocateRawFixedArray(len);
+  Object* obj = AllocateRawFixedArray(len);
   if (obj->IsFailure()) return obj;
+  if (Heap::InNewSpace(obj)) {
+    HeapObject* dst = HeapObject::cast(obj);
+    CopyBlock(reinterpret_cast<Object**>(dst->address()),
+              reinterpret_cast<Object**>(src->address()),
+              FixedArray::SizeFor(len));
+    return obj;
+  }
   HeapObject::cast(obj)->set_map(src->map());
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
-  FixedArray::WriteBarrierMode mode = result->GetWriteBarrierMode();
   // Copy the content
-  for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
+  for (int i = 0; i < len; i++) result->set(i, src->get(i));
   return result;
 }
 

@@ -237,8 +237,8 @@ Handle<Object> SetElement(Handle<JSObject> object,
 }
 
 
-Handle<JSObject> Copy(Handle<JSObject> obj, PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(obj->Copy(pretenure), JSObject);
+Handle<JSObject> Copy(Handle<JSObject> obj) {
+  CALL_HEAP_FUNCTION(Heap::CopyJSObject(*obj), JSObject);
 }
 
 

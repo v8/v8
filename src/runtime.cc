@@ -94,7 +94,7 @@ static Object* IllegalOperation() {
 
 static Object* Runtime_CloneObjectLiteralBoilerplate(Arguments args) {
   CONVERT_CHECKED(JSObject, boilerplate, args[0]);
-  return boilerplate->Copy();
+  return Heap::CopyJSObject(boilerplate);
 }
 
 

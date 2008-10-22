@@ -664,7 +664,7 @@ TEST(JSObjectCopy) {
   obj->SetElement(1, second);
 
   // Make the clone.
-  JSObject* clone = JSObject::cast(obj->Copy());
+  JSObject* clone = JSObject::cast(Heap::CopyJSObject(obj));
   CHECK(clone != obj);
 
   CHECK_EQ(obj->GetElement(0), clone->GetElement(0));

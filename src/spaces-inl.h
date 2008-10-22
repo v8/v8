@@ -300,9 +300,7 @@ int LargeObjectSpace::ExtraRSetBytesFor(int object_size) {
 Object* NewSpace::AllocateRawInternal(int size_in_bytes,
                                       AllocationInfo* alloc_info) {
   Address new_top = alloc_info->top + size_in_bytes;
-  if (new_top > alloc_info->limit) {
-    return Failure::RetryAfterGC(size_in_bytes, identity());
-  }
+  if (new_top > alloc_info->limit) return Failure::RetryAfterGC(size_in_bytes);
 
   Object* obj = HeapObject::FromAddress(alloc_info->top);
   alloc_info->top = new_top;

@@ -274,6 +274,11 @@ class Heap : public AllStatic {
   static Object* AllocateJSObject(JSFunction* constructor,
                                   PretenureFlag pretenure = NOT_TENURED);
 
+  // Returns a deep copy of the JavaScript object.
+  // Properties and elements are copied too.
+  // Returns failure if allocation failed.
+  static Object* CopyJSObject(JSObject* source);
+
   // Allocates the function prototype.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
@@ -884,6 +889,9 @@ class Heap : public AllStatic {
 
   // Slow part of scavenge object.
   static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
+
+  // Copy memory from src to dst.
+  inline static void CopyBlock(Object** dst, Object** src, int byte_size);
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;

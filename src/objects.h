@@ -812,6 +812,7 @@ class Failure: public Object {
   inline bool IsOutOfMemoryException() const;
 
   static Failure* RetryAfterGC(int requested_bytes, AllocationSpace space);
+  static inline Failure* RetryAfterGC(int requested_bytes);  // NEW_SPACE
   static inline Failure* Exception();
   static inline Failure* InternalError();
   static inline Failure* OutOfMemoryException();
@@ -995,10 +996,6 @@ class HeapObject: public Object {
   // This method only applies to struct objects.  Iterates over all the fields
   // of this struct.
   void IterateStructBody(int object_size, ObjectVisitor* v);
-
-  // Copy the body from the 'from' object to this.
-  // Please note the two object must have the same map prior to the call.
-  inline void CopyBody(JSObject* from);
 
   // Returns the heap object's size in bytes
   inline int Size();
@@ -1252,11 +1249,6 @@ class JSObject: public HeapObject {
   inline int GetInternalFieldCount();
   inline Object* GetInternalField(int index);
   inline void SetInternalField(int index, Object* value);
-
-  // Returns a deep copy of the JavaScript object.
-  // Properties and elements are copied too.
-  // Returns failure if allocation failed.
-  Object* Copy(PretenureFlag pretenure = NOT_TENURED);
 
   // Lookup a property.  If found, the result is valid and has
   // detailed information.

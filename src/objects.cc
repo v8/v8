@@ -910,33 +910,6 @@ void JSObject::JSObjectIterateBody(int object_size, ObjectVisitor* v) {
 }
 
 
-Object* JSObject::Copy(PretenureFlag pretenure) {
-  // Never used to copy functions.  If functions need to be copied we
-  // have to be careful to clear the literals array.
-  ASSERT(!IsJSFunction());
-
-  // Copy the elements and properties.
-  Object* elem = FixedArray::cast(elements())->Copy();
-  if (elem->IsFailure()) return elem;
-  Object* prop = properties()->Copy();
-  if (prop->IsFailure()) return prop;
-
-  // Make the clone.
-  Object* clone = (pretenure == NOT_TENURED) ?
-      Heap::Allocate(map(), NEW_SPACE) :
-      Heap::Allocate(map(), OLD_POINTER_SPACE);
-  if (clone->IsFailure()) return clone;
-  JSObject::cast(clone)->CopyBody(this);
-
-  // Set the new elements and properties.
-  JSObject::cast(clone)->set_elements(FixedArray::cast(elem));
-  JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
-
-  // Return the new clone.
-  return clone;
-}
-
-
 Object* JSObject::AddFastPropertyUsingMap(Map* new_map,
                                           String* name,
                                           Object* value) {

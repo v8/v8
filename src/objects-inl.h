@@ -595,6 +595,17 @@ int Failure::value() const {
 }
 
 
+Failure* Failure::RetryAfterGC(int requested_bytes) {
+  int requested = requested_bytes >> kObjectAlignmentBits;
+  int value = (requested << kSpaceTagSize) | NEW_SPACE;
+  ASSERT(value >> kSpaceTagSize == requested);
+  ASSERT(Smi::IsValid(value));
+  ASSERT(value == ((value << kFailureTypeTagSize) >> kFailureTypeTagSize));
+  ASSERT(Smi::IsValid(value << kFailureTypeTagSize));
+  return Construct(RETRY_AFTER_GC, value);
+}
+
+
 Failure* Failure::Construct(Type type, int value) {
   int info = (value << kFailureTypeTagSize) | type;
   ASSERT(Smi::IsValid(info));  // Same validation check as in Smi
@@ -791,21 +802,6 @@ void HeapObject::IteratePointer(ObjectVisitor* v, int offset) {
 }
 
 
-void HeapObject::CopyBody(JSObject* from) {
-  ASSERT(map() == from->map());
-  ASSERT(Size() == from->Size());
-  int object_size = Size();
-  for (int offset = kHeaderSize;
-       offset < object_size;
-       offset += kPointerSize) {
-    Object* value = READ_FIELD(from, offset);
-    // Note: WRITE_FIELD does not update the write barrier.
-    WRITE_FIELD(this, offset, value);
-    WRITE_BARRIER(this, offset);
-  }
-}
-
-
 bool HeapObject::IsMarked() {
   return map_word().IsMarked();
 }
@@ -963,15 +959,17 @@ inline Object* JSObject::FastPropertyAtPut(int index, Object* value) {
 
 
 void JSObject::InitializeBody(int object_size) {
+  Object* value = Heap::undefined_value();
   for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
-    WRITE_FIELD(this, offset, Heap::undefined_value());
+    WRITE_FIELD(this, offset, value);
   }
 }
 
 
 void Struct::InitializeBody(int object_size) {
+  Object* value = Heap::undefined_value();
   for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
-    WRITE_FIELD(this, offset, Heap::undefined_value());
+    WRITE_FIELD(this, offset, value);
   }
 }
 
