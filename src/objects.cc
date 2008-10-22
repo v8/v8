@@ -529,12 +529,33 @@ Object* String::Flatten() {
       // an old space GC.
       PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED : TENURED;
       int len = length();
-      Object* object = IsAsciiRepresentation() ?
-          Heap::AllocateRawAsciiString(len, tenure) :
-          Heap::AllocateRawTwoByteString(len, tenure);
-      if (object->IsFailure()) return object;
-      String* result = String::cast(object);
-      Flatten(this, result, 0, len, 0);
+      Object* object;
+      String* result;
+      if (IsAsciiRepresentation()) {
+        object = Heap::AllocateRawAsciiString(len, tenure);
+        if (object->IsFailure()) return object;
+        result = String::cast(object);
+        String* first = String::cast(cs->first());
+        int first_length = first->length();
+        char* dest = SeqAsciiString::cast(result)->GetChars();
+        WriteToFlat(first, dest, 0, first_length);
+        WriteToFlat(String::cast(cs->second()),
+                    dest + first_length,
+                    0,
+                    len - first_length);
+      } else {
+        object = Heap::AllocateRawTwoByteString(len, tenure);
+        if (object->IsFailure()) return object;
+        result = String::cast(object);
+        uc16* dest = SeqTwoByteString::cast(result)->GetChars();
+        String* first = String::cast(cs->first());
+        int first_length = first->length();
+        WriteToFlat(first, dest, 0, first_length);
+        WriteToFlat(String::cast(cs->second()),
+                    dest + first_length,
+                    0,
+                    len - first_length);
+      }
       cs->set_first(result);
       cs->set_second(Heap::empty_string());
       return this;
@@ -2922,7 +2943,7 @@ Vector<const char> String::ToAsciiVector() {
   }
   if (string_tag == kSeqStringTag) {
     SeqAsciiString* seq = SeqAsciiString::cast(string);
-    char* start = reinterpret_cast<char*>(seq->GetCharsAddress());
+    char* start = seq->GetChars();
     return Vector<const char>(start + offset, length);
   }
   ASSERT(string_tag == kExternalStringTag);
@@ -2953,8 +2974,7 @@ Vector<const uc16> String::ToUC16Vector() {
   }
   if (string_tag == kSeqStringTag) {
     SeqTwoByteString* seq = SeqTwoByteString::cast(string);
-    uc16* start = reinterpret_cast<uc16*>(seq->GetCharsAddress());
-    return Vector<const uc16>(start + offset, length);
+    return Vector<const uc16>(seq->GetChars() + offset, length);
   }
   ASSERT(string_tag == kExternalStringTag);
   ExternalTwoByteString* ext = ExternalTwoByteString::cast(string);
@@ -3122,7 +3142,6 @@ const unibrow::byte* SeqAsciiString::SeqAsciiStringReadBlock(
     unsigned* remaining,
     unsigned* offset_ptr,
     unsigned max_chars) {
-  // Cast const char* to unibrow::byte* (signedness difference).
   const unibrow::byte* b = reinterpret_cast<unibrow::byte*>(this) -
       kHeapObjectTag + kHeaderSize + *offset_ptr * kCharSize;
   *remaining = max_chars;
@@ -3589,47 +3608,62 @@ Object* SlicedString::SlicedStringFlatten() {
 }
 
 
-void String::Flatten(String* src,
-                     String* sink,
-                     int f,
-                     int t,
-                     int so) {
+template <typename sinkchar>
+void String::WriteToFlat(String* src,
+                         sinkchar* sink,
+                         int f,
+                         int t) {
   String* source = src;
   int from = f;
   int to = t;
-  int sink_offset = so;
   while (true) {
     ASSERT(0 <= from && from <= to && to <= source->length());
-    ASSERT(0 <= sink_offset && sink_offset < sink->length());
-    switch (source->representation_tag()) {
-      case kSeqStringTag:
-      case kExternalStringTag: {
-        Access<StringInputBuffer> buffer(&string_input_buffer);
-        buffer->Reset(from, source);
-        int j = sink_offset;
-        for (int i = from; i < to; i++) {
-          uc32 c = buffer->GetNext();
-          sink->Set(j++, c);
-        }
+    switch (source->full_representation_tag()) {
+      case kAsciiStringTag | kExternalStringTag: {
+        CopyChars(sink,
+                  ExternalAsciiString::cast(source)->resource()->data() + from,
+                  to - from);
         return;
       }
-      case kSlicedStringTag: {
+      case kTwoByteStringTag | kExternalStringTag: {
+        const uc16* data =
+            ExternalTwoByteString::cast(source)->resource()->data();
+        CopyChars(sink,
+                  data + from,
+                  to - from);
+        return;
+      }
+      case kAsciiStringTag | kSeqStringTag: {
+        CopyChars(sink,
+                  SeqAsciiString::cast(source)->GetChars() + from,
+                  to - from);
+        return;
+      }
+      case kTwoByteStringTag | kSeqStringTag: {
+        CopyChars(sink,
+                  SeqTwoByteString::cast(source)->GetChars() + from,
+                  to - from);
+        return;
+      }
+      case kAsciiStringTag | kSlicedStringTag:
+      case kTwoByteStringTag | kSlicedStringTag: {
         SlicedString* sliced_string = SlicedString::cast(source);
         int start = sliced_string->start();
         from += start;
         to += start;
         source = String::cast(sliced_string->buffer());
+        break;
       }
-      break;
-      case kConsStringTag: {
+      case kAsciiStringTag | kConsStringTag:
+      case kTwoByteStringTag | kConsStringTag: {
         ConsString* cons_string = ConsString::cast(source);
         String* first = String::cast(cons_string->first());
         int boundary = first->length();
         if (to - boundary >= boundary - from) {
           // Right hand side is longer.  Recurse over left.
           if (from < boundary) {
-            Flatten(first, sink, from, boundary, sink_offset);
-            sink_offset += boundary - from;
+            WriteToFlat(first, sink, from, boundary);
+            sink += boundary - from;
             from = 0;
           } else {
             from -= boundary;
@@ -3637,22 +3671,19 @@ void String::Flatten(String* src,
           to -= boundary;
           source = String::cast(cons_string->second());
         } else {
-          // Left hand side is longer.  Recurse over right.  The hasher
-          // needs us to visit the string from left to right so doing
-          // this invalidates that hash.
+          // Left hand side is longer.  Recurse over right.
           if (to > boundary) {
             String* second = String::cast(cons_string->second());
-            Flatten(second,
-                    sink,
-                    0,
-                    to - boundary,
-                    sink_offset + boundary - from);
+            WriteToFlat(second,
+                        sink + boundary - from,
+                        0,
+                        to - boundary);
             to = boundary;
           }
           source = first;
         }
+        break;
       }
-      break;
     }
   }
 }

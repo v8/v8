@@ -443,6 +443,15 @@ class StringBuilder {
   DISALLOW_IMPLICIT_CONSTRUCTORS(StringBuilder);
 };
 
+
+// Copy from ASCII/16bit chars to ASCII/16bit chars.
+template <typename sourcechar, typename sinkchar>
+static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
+  while (chars--) {
+    *dest++ = *src++;
+  }
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_UTILS_H_

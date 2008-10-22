@@ -2591,6 +2591,30 @@ static Object* Runtime_StringAdd(Arguments args) {
 }
 
 
+template<typename sinkchar>
+static inline void StringBuilderConcatHelper(String* special,
+                                             sinkchar* sink,
+                                             FixedArray* fixed_array,
+                                             int array_length) {
+  int position = 0;
+  for (int i = 0; i < array_length; i++) {
+    Object* element = fixed_array->get(i);
+    if (element->IsSmi()) {
+      int len = Smi::cast(element)->value();
+      int pos = len >> 11;
+      len &= 0x7ff;
+      String::WriteToFlat(special, sink + position, pos, pos + len);
+      position += len;
+    } else {
+      String* string = String::cast(element);
+      int element_length = string->length();
+      String::WriteToFlat(string, sink + position, 0, element_length);
+      position += element_length;
+    }
+  }
+}
+
+
 static Object* Runtime_StringBuilderConcat(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -2647,32 +2671,27 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   }
 
   int length = position;
-  position = 0;
   Object* object;
+
   if (ascii) {
     object = Heap::AllocateRawAsciiString(length);
+    if (object->IsFailure()) return object;
+    SeqAsciiString* answer = SeqAsciiString::cast(object);
+    StringBuilderConcatHelper(special,
+                              answer->GetChars(),
+                              fixed_array,
+                              array_length);
+    return answer;
   } else {
     object = Heap::AllocateRawTwoByteString(length);
+    if (object->IsFailure()) return object;
+    SeqTwoByteString* answer = SeqTwoByteString::cast(object);
+    StringBuilderConcatHelper(special,
+                              answer->GetChars(),
+                              fixed_array,
+                              array_length);
+    return answer;
   }
-  if (object->IsFailure()) return object;
-
-  String* answer = String::cast(object);
-  for (int i = 0; i < array_length; i++) {
-    Object* element = fixed_array->get(i);
-    if (element->IsSmi()) {
-      int len = Smi::cast(element)->value();
-      int pos = len >> 11;
-      len &= 0x7ff;
-      String::Flatten(special, answer, pos, pos + len, position);
-      position += len;
-    } else {
-      String* string = String::cast(element);
-      int element_length = string->length();
-      String::Flatten(string, answer, 0, element_length, position);
-      position += element_length;
-    }
-  }
-  return answer;
 }
 
 

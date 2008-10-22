@@ -3071,6 +3071,8 @@ class String: public HeapObject {
 
   // Get the representation tag.
   inline StringRepresentationTag representation_tag();
+  // Get the representation and ASCII tag.
+  inline int full_representation_tag();
   static inline StringRepresentationTag map_representation_tag(Map* map);
 
   // For use during stack traces.  Performs rudimentary sanity check.
@@ -3096,6 +3098,9 @@ class String: public HeapObject {
 
   // Max ascii char code.
   static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
+
+  // Minimum lenth for a cons or sliced string.
+  static const int kMinNonFlatLength = 13;
 
   // Mask constant for checking if a string has a computed hash code
   // and if it is an array index.  The least significant bit indicates
@@ -3134,11 +3139,11 @@ class String: public HeapObject {
                                         unsigned* offset);
 
   // Helper function for flattening strings.
-  static void Flatten(String* source,
-                      String* sink,
-                      int from,
-                      int to,
-                      int sink_offset);
+  template <typename sinkchar>
+  static void WriteToFlat(String* source,
+                          sinkchar* sink,
+                          int from,
+                          int to);
 
  protected:
   class ReadBlockBuffer {
@@ -3215,7 +3220,7 @@ class SeqAsciiString: public SeqString {
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
 
-  inline const char* GetChars();
+  inline char* GetChars();
 
   // Casting
   static inline SeqAsciiString* cast(Object* obj);
@@ -3256,6 +3261,8 @@ class SeqTwoByteString: public SeqString {
 
   // Get the address of the characters in this string.
   inline Address GetCharsAddress();
+
+  inline uc16* GetChars();
 
   // For regexp code.
   const uint16_t* SeqTwoByteStringGetData(unsigned start);
@@ -3328,7 +3335,6 @@ class ConsString: public String {
                                             unsigned* offset_ptr,
                                             unsigned chars);
 
-
   // Minimum length for a cons string.
   static const int kMinLength = 13;
 
@@ -3375,9 +3381,6 @@ class SlicedString: public String {
   inline void SlicedStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
                                               unsigned* offset_ptr,
                                               unsigned chars);
-
-  // Minimum lenth for a sliced string.
-  static const int kMinLength = 13;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SlicedString);

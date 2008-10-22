@@ -1372,6 +1372,12 @@ bool String::is_ascii_representation_map(Map* map) {
 }
 
 
+int String::full_representation_tag() {
+  return map()->instance_type() &
+         (kStringRepresentationMask | kStringEncodingMask);
+}
+
+
 StringRepresentationTag String::representation_tag() {
   return map_representation_tag(map());
 }
@@ -1417,13 +1423,18 @@ Address SeqAsciiString::GetCharsAddress() {
 }
 
 
-const char* SeqAsciiString::GetChars() {
-  return reinterpret_cast<const char*>(GetCharsAddress());
+char* SeqAsciiString::GetChars() {
+  return reinterpret_cast<char*>(GetCharsAddress());
 }
 
 
 Address SeqTwoByteString::GetCharsAddress() {
   return FIELD_ADDR(this, kHeaderSize);
+}
+
+
+uc16* SeqTwoByteString::GetChars() {
+  return reinterpret_cast<uc16*>(FIELD_ADDR(this, kHeaderSize));
 }
 
 

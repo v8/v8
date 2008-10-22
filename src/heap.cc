@@ -1331,29 +1331,33 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 
 
 Object* Heap::AllocateConsString(String* first, String* second) {
-  int length = first->length() + second->length();
+  int first_length = first->length();
+  int second_length = second->length();
+  int length = first_length + second_length;
   bool is_ascii = first->is_ascii_representation()
       && second->is_ascii_representation();
 
   // If the resulting string is small make a flat string.
-  if (length < ConsString::kMinLength) {
-    Object* result = is_ascii
-        ? AllocateRawAsciiString(length)
-        : AllocateRawTwoByteString(length);
-    if (result->IsFailure()) return result;
-    // Copy the characters into the new object.
-    String* string_result = String::cast(result);
-    int first_length = first->length();
-    // Copy the content of the first string.
-    for (int i = 0; i < first_length; i++) {
-      string_result->Set(i, first->Get(i));
+  if (length < String::kMinNonFlatLength) {
+    ASSERT(first->IsFlat());
+    ASSERT(second->IsFlat());
+    if (is_ascii) {
+      Object* result = AllocateRawAsciiString(length);
+      if (result->IsFailure()) return result;
+      // Copy the characters into the new object.
+      char* dest = SeqAsciiString::cast(result)->GetChars();
+      String::WriteToFlat(first, dest, 0, first_length);
+      String::WriteToFlat(second, dest + first_length, 0, second_length);
+      return result;
+    } else {
+      Object* result = AllocateRawTwoByteString(length);
+      if (result->IsFailure()) return result;
+      // Copy the characters into the new object.
+      uc16* dest = SeqTwoByteString::cast(result)->GetChars();
+      String::WriteToFlat(first, dest, 0, first_length);
+      String::WriteToFlat(second, dest + first_length, 0, second_length);
+      return result;
     }
-    int second_length = second->length();
-    // Copy the content of the first string.
-    for (int i = 0; i < second_length; i++) {
-      string_result->Set(first_length + i, second->Get(i));
-    }
-    return result;
   }
 
   Map* map;
@@ -1384,7 +1388,7 @@ Object* Heap::AllocateSlicedString(String* buffer, int start, int end) {
   int length = end - start;
 
   // If the resulting string is small make a sub string.
-  if (end - start <= SlicedString::kMinLength) {
+  if (end - start <= String::kMinNonFlatLength) {
     return Heap::AllocateSubString(buffer, start, end);
   }
 
