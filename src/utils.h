@@ -448,7 +448,7 @@ class StringBuilder {
 template <typename sourcechar, typename sinkchar>
 static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
   while (chars--) {
-    *dest++ = *src++;
+    *dest++ = static_cast<sinkchar>(*src++);
   }
 }
 
