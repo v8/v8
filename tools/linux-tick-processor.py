@@ -30,13 +30,18 @@
 # Usage: process-ticks.py <logfile>
 # Where <logfile> is the log file name (eg, v8.log).
 
-import os, re, sys, tickprocessor, getopt;
+import subprocess, re, sys, tickprocessor, getopt
 
 class LinuxTickProcessor(tickprocessor.TickProcessor):
 
   def ParseVMSymbols(self, filename, start, end):
     """Extract symbols and add them to the cpp entries."""
-    pipe = os.popen('nm -n %s | c++filt' % filename, 'r')
+    # Extra both dynamic and non-dynamic symbols.
+    command = 'nm -C -n "%s"; nm -C -n -D "%s"' % (filename, filename)
+    process = subprocess.Popen(command, shell=True,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.STDOUT)
+    pipe = process.stdout
     try:
       for line in pipe:
         row = re.match('^([0-9a-fA-F]{8}) . (.*)$', line)

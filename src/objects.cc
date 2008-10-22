@@ -3924,7 +3924,10 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
 
 
 static inline uint32_t HashField(uint32_t hash, bool is_array_index) {
-  return (hash << String::kLongLengthShift) | (is_array_index ? 3 : 1);
+  uint32_t result =
+      (hash << String::kLongLengthShift) | String::kHashComputedMask;
+  if (is_array_index) result |= String::kIsArrayIndexMask;
+  return result;
 }
 
 
@@ -6067,13 +6070,13 @@ void Dictionary::UpdateMaxNumberKey(uint32_t key) {
   // Check if this index is high enough that we should require slow
   // elements.
   if (key > kRequiresSlowElementsLimit) {
-    set(kPrefixStartIndex, Smi::FromInt(kRequiresSlowElementsMask));
+    set(kMaxNumberKeyIndex, Smi::FromInt(kRequiresSlowElementsMask));
     return;
   }
   // Update max key value.
-  Object* max_index_object = get(kPrefixStartIndex);
+  Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi() || max_number_key() < key) {
-    set(kPrefixStartIndex, Smi::FromInt(key << kRequiresSlowElementsTagSize));
+    set(kMaxNumberKeyIndex, Smi::FromInt(key << kRequiresSlowElementsTagSize));
   }
 }
 

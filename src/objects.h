@@ -1966,11 +1966,11 @@ class Dictionary: public DictionaryBase {
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
-    fast_set(this, kNextEnumnerationIndexIndex, Smi::FromInt(index));
+    fast_set(this, kNextEnumerationIndexIndex, Smi::FromInt(index));
   }
 
   int NextEnumerationIndex() {
-    return Smi::cast(get(kNextEnumnerationIndexIndex))->value();
+    return Smi::cast(get(kNextEnumerationIndexIndex))->value();
   }
 
   // Returns a new array for dictionary usage. Might return Failure.
@@ -2014,7 +2014,7 @@ class Dictionary: public DictionaryBase {
   Object* GenerateNewEnumerationIndices();
 
   static const int kMaxNumberKeyIndex = kPrefixStartIndex;
-  static const int kNextEnumnerationIndexIndex = kMaxNumberKeyIndex + 1;
+  static const int kNextEnumerationIndexIndex = kMaxNumberKeyIndex + 1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Dictionary);
 };

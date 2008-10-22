@@ -1160,7 +1160,7 @@ void DescriptorArray::Swap(int first, int second) {
 
 
 bool Dictionary::requires_slow_elements() {
-  Object* max_index_object = get(kPrefixStartIndex);
+  Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return false;
   return 0 !=
       (Smi::cast(max_index_object)->value() & kRequiresSlowElementsMask);
@@ -1169,7 +1169,7 @@ bool Dictionary::requires_slow_elements() {
 
 uint32_t Dictionary::max_number_key() {
   ASSERT(!requires_slow_elements());
-  Object* max_index_object = get(kPrefixStartIndex);
+  Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return 0;
   uint32_t value = static_cast<uint32_t>(Smi::cast(max_index_object)->value());
   return value >> kRequiresSlowElementsTagSize;
