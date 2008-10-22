@@ -2689,6 +2689,11 @@ String::Utf8Value::~Utf8Value() {
 
 String::AsciiValue::AsciiValue(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::AsciiValue::AsciiValue()");
+  if (obj.IsEmpty()) {
+    str_ = NULL;
+    length_ = 0;
+    return;
+  }
   HandleScope scope;
   TryCatch try_catch;
   Handle<String> str = obj->ToString();
@@ -2710,6 +2715,11 @@ String::AsciiValue::~AsciiValue() {
 
 String::Value::Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Value::Value()");
+  if (obj.IsEmpty()) {
+    str_ = NULL;
+    length_ = 0;
+    return;
+  }
   HandleScope scope;
   TryCatch try_catch;
   Handle<String> str = obj->ToString();
