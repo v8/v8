@@ -288,10 +288,11 @@ class CodeGenerator: public Visitor {
 
   void GenericBinaryOperation(Token::Value op,
       const OverwriteMode overwrite_mode = NO_OVERWRITE);
+
   void Comparison(Condition cc, bool strict = false);
 
   // Inline small integer literals. To prevent long attacker-controlled byte
-  // sequences, we only inline small Smi:s.
+  // sequences, we only inline small Smis.
   static const int kMaxSmiInlinedBits = 16;
   bool IsInlineSmi(Literal* literal);
   void SmiComparison(Condition cc,  Handle<Object> value, bool strict = false);

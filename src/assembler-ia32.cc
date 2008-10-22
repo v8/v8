@@ -428,12 +428,24 @@ void Assembler::pop(Register dst) {
     // relocation information generated between the last instruction and this
     // pop instruction.
     byte instr = last_pc_[0];
-    if (instr == (0x50 | dst.code())) {
-      pc_ = last_pc_;
-      last_pc_ = NULL;
-      if (FLAG_print_push_pop_elimination) {
-        PrintF("%d push/pop (same reg) eliminated\n", pc_offset());
+    if ((instr & ~0x7) == 0x50) {
+      int push_reg_code = instr & 0x7;
+      if (push_reg_code == dst.code()) {
+        pc_ = last_pc_;
+        if (FLAG_print_push_pop_elimination) {
+          PrintF("%d push/pop (same reg) eliminated\n", pc_offset());
+        }
+      } else {
+        // Convert 'push src; pop dst' to 'mov dst, src'.
+        last_pc_[0] = 0x8b;
+        Register src = { push_reg_code };
+        EnsureSpace ensure_space(this);
+        emit_operand(dst, Operand(src));
+        if (FLAG_print_push_pop_elimination) {
+          PrintF("%d push/pop (reg->reg) eliminated\n", pc_offset());
+        }
       }
+      last_pc_ = NULL;
       return;
     } else if (instr == 0xff) {  // push of an operand, convert to a move
       byte op1 = last_pc_[1];
@@ -2042,6 +2054,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   RelocInfo rinfo(pc_, rmode, data);
   reloc_info_writer.Write(&rinfo);
 }
+
 
 void Assembler::WriteInternalReference(int position, const Label& bound_label) {
   ASSERT(bound_label.is_bound());
