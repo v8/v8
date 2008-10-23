@@ -166,6 +166,9 @@ class PropertyDetails BASE_EMBEDDED {
   uint32_t value_;
 };
 
+// Setter that skips the write barrier if mode is SKIP_WRITE_BARRIER.
+enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
+
 // All Maps have a field instance_type containing a InstanceType.
 // It describes the type of the instances.
 //
@@ -555,9 +558,10 @@ enum CompareResult {
   inline void set_##name(bool value);  \
 
 
-#define DECL_ACCESSORS(name, type)  \
-  inline type* name();                 \
-  inline void set_##name(type* value);
+#define DECL_ACCESSORS(name, type)    \
+  inline type* name();                \
+  inline void set_##name(type* value, \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
 
 
 class StringStream;
@@ -1041,6 +1045,9 @@ class HeapObject: public Object {
   // Casting.
   static inline HeapObject* cast(Object* obj);
 
+  // Return the write barrier mode for this.
+  inline WriteBarrierMode GetWriteBarrierMode();
+
   // Dispatched behavior.
   void HeapObjectShortPrint(StringStream* accumulator);
 #ifdef DEBUG
@@ -1355,6 +1362,11 @@ class JSObject: public HeapObject {
   inline Object* FastPropertyAt(int index);
   inline Object* FastPropertyAtPut(int index, Object* value);
 
+  // Access to set in object properties.
+  inline Object* InObjectPropertyAtPut(int index,
+                                       Object* value,
+                                       WriteBarrierMode mode
+                                       = UPDATE_WRITE_BARRIER);
 
   // initializes the body after properties slot, properties slot is
   // initialized by set_properties
@@ -1479,16 +1491,13 @@ class FixedArray: public Array {
   inline Object* get(int index);
   inline void set(int index, Object* value);
 
+  // Setter with barrier mode.
+  inline void set(int index, Object* value, WriteBarrierMode mode);
+
   // Setters for frequently used oddballs located in old space.
   inline void set_undefined(int index);
   inline void set_null(int index);
   inline void set_the_hole(int index);
-
-  // Setter that skips the write barrier if mode is SKIP_WRITE_BARRIER.
-  enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
-  inline void set(int index, Object* value, WriteBarrierMode mode);
-  // Return the write barrier mode for this.
-  inline WriteBarrierMode GetWriteBarrierMode();
 
   // Copy operations.
   inline Object* Copy();

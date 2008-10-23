@@ -3136,7 +3136,7 @@ static Object* Runtime_NewArguments(Arguments args) {
   if (result->IsFailure()) return result;
   FixedArray* array = FixedArray::cast(JSObject::cast(result)->elements());
   ASSERT(array->length() == length);
-  FixedArray::WriteBarrierMode mode = array->GetWriteBarrierMode();
+  WriteBarrierMode mode = array->GetWriteBarrierMode();
   for (int i = 0; i < length; i++) {
     array->set(i, frame->GetParameter(i), mode);
   }
@@ -3156,7 +3156,7 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
   if (result->IsFailure()) return result;
   FixedArray* array = FixedArray::cast(JSObject::cast(result)->elements());
   ASSERT(array->length() == length);
-  FixedArray::WriteBarrierMode mode = array->GetWriteBarrierMode();
+  WriteBarrierMode mode = array->GetWriteBarrierMode();
   for (int i = 0; i < length; i++) {
     array->set(i, *--parameters, mode);
   }
@@ -4051,7 +4051,9 @@ static Object* Runtime_GetArrayKeys(Arguments args) {
   } else {
     Handle<FixedArray> single_interval = Factory::NewFixedArray(2);
     // -1 means start of array.
-    single_interval->set(0, Smi::FromInt(-1));
+    single_interval->set(0,
+                         Smi::FromInt(-1),
+                         SKIP_WRITE_BARRIER);
     Handle<Object> length_object =
         Factory::NewNumber(static_cast<double>(length));
     single_interval->set(1, *length_object);
@@ -4901,7 +4903,7 @@ static Handle<Object> GetArgumentsObject(JavaScriptFrame* frame,
   Handle<Object> arguments = Factory::NewArgumentsObject(function, length);
   FixedArray* array = FixedArray::cast(JSObject::cast(*arguments)->elements());
   ASSERT(array->length() == length);
-  FixedArray::WriteBarrierMode mode = array->GetWriteBarrierMode();
+  WriteBarrierMode mode = array->GetWriteBarrierMode();
   for (int i = 0; i < length; i++) {
     array->set(i, frame->GetParameter(i), mode);
   }

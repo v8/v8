@@ -739,25 +739,46 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     Handle<JSObject> prototype =
         Handle<JSObject>(
             JSObject::cast(global_context()->object_function()->prototype()));
-    Handle<JSFunction> function =
-        Factory::NewFunctionWithPrototype(symbol, JS_OBJECT_TYPE,
-                                          JSObject::kHeaderSize, prototype,
-                                          code, true);
-    function->shared()->set_instance_class_name(*symbol);
 
+    Handle<JSFunction> function =
+        Factory::NewFunctionWithPrototype(symbol,
+                                          JS_OBJECT_TYPE,
+                                          JSObject::kHeaderSize,
+                                          prototype,
+                                          code,
+                                          false);
+    ASSERT(!function->has_initial_map());
+    function->shared()->set_instance_class_name(*symbol);
+    function->shared()->set_expected_nof_properties(2);
     Handle<JSObject> result = Factory::NewJSObject(function);
 
     global_context()->set_arguments_boilerplate(*result);
     // Note: callee must be added as the first property and
     //       length must be added as the second property.
-    SetProperty(result, Factory::callee_symbol(), Factory::undefined_value(),
+    SetProperty(result, Factory::callee_symbol(),
+                Factory::undefined_value(),
                 DONT_ENUM);
-    SetProperty(result, Factory::length_symbol(), Factory::undefined_value(),
+    SetProperty(result, Factory::length_symbol(),
+                Factory::undefined_value(),
                 DONT_ENUM);
+
+#ifdef DEBUG
+    LookupResult lookup;
+    result->LocalLookup(Heap::callee_symbol(), &lookup);
+    ASSERT(lookup.IsValid() && (lookup.type() == FIELD));
+    ASSERT(lookup.GetFieldIndex() == Heap::arguments_callee_index);
+
+    result->LocalLookup(Heap::length_symbol(), &lookup);
+    ASSERT(lookup.IsValid() && (lookup.type() == FIELD));
+    ASSERT(lookup.GetFieldIndex() == Heap::arguments_length_index);
+
+    ASSERT(result->map()->inobject_properties() > Heap::arguments_callee_index);
+    ASSERT(result->map()->inobject_properties() > Heap::arguments_length_index);
 
     // Check the state of the object.
     ASSERT(result->HasFastProperties());
     ASSERT(result->HasFastElements());
+#endif
   }
 
   {  // --- context extension

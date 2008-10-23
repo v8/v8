@@ -1242,7 +1242,7 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
   int hash;
   if (number->IsSmi()) {
     hash = smi_get_hash(Smi::cast(number));
-    number_string_cache_->set(hash * 2, number, FixedArray::SKIP_WRITE_BARRIER);
+    number_string_cache_->set(hash * 2, number, SKIP_WRITE_BARRIER);
   } else {
     hash = double_get_hash(number->Number());
     number_string_cache_->set(hash * 2, number);
@@ -1655,17 +1655,34 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
 
   JSObject* boilerplate =
       Top::context()->global_context()->arguments_boilerplate();
-  Object* result = CopyJSObject(boilerplate);
+
+  // Make the clone.
+  Map* map = boilerplate->map();
+  int object_size = map->instance_size();
+  Object* result = new_space_.AllocateRaw(object_size);
   if (result->IsFailure()) return result;
+  ASSERT(Heap::InNewSpace(result));
 
-  Object* obj = JSObject::cast(result)->properties();
-  FixedArray::cast(obj)->set(arguments_callee_index, callee);
-  FixedArray::cast(obj)->set(arguments_length_index, Smi::FromInt(length));
+  // Copy the content.
+  CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(result)->address()),
+            reinterpret_cast<Object**>(boilerplate->address()),
+            object_size);
 
-  // Allocate the fixed array.
-  obj = Heap::AllocateFixedArray(length);
-  if (obj->IsFailure()) return obj;
-  JSObject::cast(result)->set_elements(FixedArray::cast(obj));
+  // Set the two properties.
+  JSObject::cast(result)->InObjectPropertyAtPut(arguments_callee_index,
+                                                callee,
+                                                SKIP_WRITE_BARRIER);
+  JSObject::cast(result)->InObjectPropertyAtPut(arguments_length_index,
+                                                Smi::FromInt(length),
+                                                SKIP_WRITE_BARRIER);
+
+  // Allocate the elements if needed.
+  if (length > 0) {
+    // Allocate the fixed array.
+    Object* obj = Heap::AllocateFixedArray(length);
+    if (obj->IsFailure()) return obj;
+    JSObject::cast(result)->set_elements(FixedArray::cast(obj));
+  }
 
   // Check the state of the object
   ASSERT(JSObject::cast(result)->HasFastProperties());
@@ -2111,7 +2128,7 @@ Object* Heap::CopyFixedArray(FixedArray* src) {
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
   // Copy the content
-  FixedArray::WriteBarrierMode mode = result->GetWriteBarrierMode();
+  WriteBarrierMode mode = result->GetWriteBarrierMode();
   for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
   return result;
 }
@@ -2124,8 +2141,11 @@ Object* Heap::AllocateFixedArray(int length) {
     reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
     FixedArray* array = FixedArray::cast(result);
     array->set_length(length);
+    Object* value = undefined_value();
     // Initialize body.
-    for (int index = 0; index < length; index++) array->set_undefined(index);
+    for (int index = 0; index < length; index++) {
+      array->set(index, value, SKIP_WRITE_BARRIER);
+    }
   }
   return result;
 }
@@ -2150,7 +2170,10 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
-  for (int index = 0; index < length; index++) array->set_undefined(index);
+  Object* value = undefined_value();
+  for (int index = 0; index < length; index++) {
+    array->set(index, value, SKIP_WRITE_BARRIER);
+  }
   return array;
 }
 
@@ -2164,7 +2187,10 @@ Object* Heap::AllocateFixedArrayWithHoles(int length) {
     FixedArray* array = FixedArray::cast(result);
     array->set_length(length);
     // Initialize body.
-    for (int index = 0; index < length; index++) array->set_the_hole(index);
+    Object* value = the_hole_value();
+    for (int index = 0; index < length; index++)  {
+      array->set(index, value, SKIP_WRITE_BARRIER);
+    }
   }
   return result;
 }

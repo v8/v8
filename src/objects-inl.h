@@ -66,10 +66,11 @@ Smi* PropertyDetails::AsSmi() {
 
 #define ACCESSORS(holder, name, type, offset)                           \
   type* holder::name() { return type::cast(READ_FIELD(this, offset)); } \
-  void holder::set_##name(type* value) {                                \
+  void holder::set_##name(type* value, WriteBarrierMode mode) {         \
     WRITE_FIELD(this, offset, value);                                   \
-    WRITE_BARRIER(this, offset);                                        \
+    CONDITIONAL_WRITE_BARRIER(this, offset, mode);                      \
   }
+
 
 
 #define SMI_ACCESSORS(holder, name, offset)             \
@@ -505,8 +506,20 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_FIELD(p, offset, value) \
   (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
 
+
 #define WRITE_BARRIER(object, offset) \
   Heap::RecordWrite(object->address(), offset);
+
+// CONITIONAL_WRITE_BARRIER must be issued after the actual
+// write due to the assert validating the written value.
+#define CONDITIONAL_WRITE_BARRIER(object, offset, mode) \
+  if (mode == UPDATE_WRITE_BARRIER) { \
+    Heap::RecordWrite(object->address(), offset); \
+  } else { \
+    ASSERT(mode == SKIP_WRITE_BARRIER); \
+    ASSERT(Heap::InNewSpace(object) || \
+           !Heap::InNewSpace(READ_FIELD(object, offset))); \
+  }
 
 #define READ_DOUBLE_FIELD(p, offset) \
   (*reinterpret_cast<double*>(FIELD_ADDR(p, offset)))
@@ -940,7 +953,7 @@ void JSObject::SetInternalField(int index, Object* value) {
 // Access fast-case object properties at index. The use of these routines
 // is needed to correctly distinguish between properties stored in-object and
 // properties stored in the properties array.
-inline Object* JSObject::FastPropertyAt(int index) {
+Object* JSObject::FastPropertyAt(int index) {
   // Adjust for the number of properties stored in the object.
   index -= map()->inobject_properties();
   if (index < 0) {
@@ -953,7 +966,7 @@ inline Object* JSObject::FastPropertyAt(int index) {
 }
 
 
-inline Object* JSObject::FastPropertyAtPut(int index, Object* value) {
+Object* JSObject::FastPropertyAtPut(int index, Object* value) {
   // Adjust for the number of properties stored in the object.
   index -= map()->inobject_properties();
   if (index < 0) {
@@ -966,6 +979,20 @@ inline Object* JSObject::FastPropertyAtPut(int index, Object* value) {
   }
   return value;
 }
+
+
+Object* JSObject::InObjectPropertyAtPut(int index,
+                                        Object* value,
+                                        WriteBarrierMode mode) {
+  // Adjust for the number of properties stored in the object.
+  index -= map()->inobject_properties();
+  ASSERT(index < 0);
+  int offset = map()->instance_size() + (index * kPointerSize);
+  WRITE_FIELD(this, offset, value);
+  CONDITIONAL_WRITE_BARRIER(this, offset, mode);
+  return value;
+}
+
 
 
 void JSObject::InitializeBody(int object_size) {
@@ -1035,7 +1062,7 @@ void FixedArray::set(int index, Object* value) {
 }
 
 
-FixedArray::WriteBarrierMode FixedArray::GetWriteBarrierMode() {
+WriteBarrierMode HeapObject::GetWriteBarrierMode() {
   if (Heap::InNewSpace(this)) return SKIP_WRITE_BARRIER;
   return UPDATE_WRITE_BARRIER;
 }
@@ -1043,16 +1070,11 @@ FixedArray::WriteBarrierMode FixedArray::GetWriteBarrierMode() {
 
 void FixedArray::set(int index,
                      Object* value,
-                     FixedArray::WriteBarrierMode mode) {
+                     WriteBarrierMode mode) {
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
-  if (mode == UPDATE_WRITE_BARRIER) {
-    WRITE_BARRIER(this, offset);
-  } else {
-    ASSERT(mode == SKIP_WRITE_BARRIER);
-    ASSERT(Heap::InNewSpace(this) || !Heap::InNewSpace(value));
-  }
+  CONDITIONAL_WRITE_BARRIER(this, offset, mode);
 }
 
 
@@ -1805,10 +1827,10 @@ Object* Map::prototype() {
 }
 
 
-void Map::set_prototype(Object* value) {
+void Map::set_prototype(Object* value, WriteBarrierMode mode) {
   ASSERT(value->IsNull() || value->IsJSObject());
   WRITE_FIELD(this, kPrototypeOffset, value);
-  WRITE_BARRIER(this, kPrototypeOffset);
+  CONDITIONAL_WRITE_BARRIER(this, kPrototypeOffset, mode);
 }
 
 
@@ -1949,9 +1971,9 @@ Code* SharedFunctionInfo::code() {
 }
 
 
-void SharedFunctionInfo::set_code(Code* value) {
+void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kCodeOffset, value);
-  WRITE_BARRIER(this, kCodeOffset);
+  CONDITIONAL_WRITE_BARRIER(this, kCodeOffset, mode);
 }
 
 
@@ -2348,6 +2370,7 @@ Object* FixedArray::Copy() {
 #undef READ_FIELD
 #undef WRITE_FIELD
 #undef WRITE_BARRIER
+#undef CONDITIONAL_WRITE_BARRIER
 #undef READ_MEMADDR_FIELD
 #undef WRITE_MEMADDR_FIELD
 #undef READ_DOUBLE_FIELD

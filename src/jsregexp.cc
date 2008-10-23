@@ -222,8 +222,12 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
   if (value == -1) return Factory::null_value();
 
   Handle<FixedArray> array = Factory::NewFixedArray(2);
-  array->set(0, Smi::FromInt(value));
-  array->set(1, Smi::FromInt(value + needle->length()));
+  array->set(0,
+             Smi::FromInt(value),
+             SKIP_WRITE_BARRIER);
+  array->set(1,
+             Smi::FromInt(value + needle->length()),
+             SKIP_WRITE_BARRIER);
   return Factory::NewJSArrayWithElements(array);
 }
 
@@ -247,8 +251,12 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
     int end = value + needle_length;
 
     Handle<FixedArray> array = Factory::NewFixedArray(2);
-    array->set(0, Smi::FromInt(value));
-    array->set(1, Smi::FromInt(end));
+    array->set(0,
+               Smi::FromInt(value),
+               SKIP_WRITE_BARRIER);
+    array->set(1,
+               Smi::FromInt(end),
+               SKIP_WRITE_BARRIER);
     Handle<JSArray> pair = Factory::NewJSArrayWithElements(array);
     SetElement(result, match_count, pair);
     match_count++;
@@ -372,8 +380,12 @@ Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSRegExp> regexp,
   Handle<FixedArray> array = Factory::NewFixedArray(2 * (num_captures+1));
   // The captures come in (start, end+1) pairs.
   for (int i = 0; i < 2 * (num_captures+1); i += 2) {
-    array->set(i, Smi::FromInt(offsets_vector[i]));
-    array->set(i+1, Smi::FromInt(offsets_vector[i+1]));
+    array->set(i,
+               Smi::FromInt(offsets_vector[i]),
+               SKIP_WRITE_BARRIER);
+    array->set(i+1,
+               Smi::FromInt(offsets_vector[i+1]),
+               SKIP_WRITE_BARRIER);
   }
   return Factory::NewJSArrayWithElements(array);
 }
