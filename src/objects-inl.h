@@ -510,7 +510,7 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_BARRIER(object, offset) \
   Heap::RecordWrite(object->address(), offset);
 
-// CONITIONAL_WRITE_BARRIER must be issued after the actual
+// CONDITIONAL_WRITE_BARRIER must be issued after the actual
 // write due to the assert validating the written value.
 #define CONDITIONAL_WRITE_BARRIER(object, offset, mode) \
   if (mode == UPDATE_WRITE_BARRIER) { \
@@ -1534,9 +1534,9 @@ Object* ConsString::first() {
 }
 
 
-void ConsString::set_first(Object* value) {
+void ConsString::set_first(Object* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kFirstOffset, value);
-  WRITE_BARRIER(this, kFirstOffset);
+  CONDITIONAL_WRITE_BARRIER(this, kFirstOffset, mode);
 }
 
 
@@ -1545,9 +1545,9 @@ Object* ConsString::second() {
 }
 
 
-void ConsString::set_second(Object* value) {
+void ConsString::set_second(Object* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
-  WRITE_BARRIER(this, kSecondOffset);
+  CONDITIONAL_WRITE_BARRIER(this, kSecondOffset, mode);
 }
 
 
@@ -2071,6 +2071,11 @@ bool JSFunction::is_compiled() {
 }
 
 
+int JSFunction::NumberOfLiterals() {
+  return literals()->length();
+}
+
+
 Object* JSBuiltinsObject::javascript_builtin(Builtins::JavaScript id) {
   ASSERT(0 <= id && id < kJSBuiltinsCount);
   return READ_FIELD(this, kJSBuiltinsOffset + (id * kPointerSize));
@@ -2351,7 +2356,7 @@ void Map::ClearCodeCache() {
 
 
 void JSArray::SetContent(FixedArray* storage) {
-  set_length(Smi::FromInt(storage->length()));
+  set_length(Smi::FromInt(storage->length()), SKIP_WRITE_BARRIER);
   set_elements(storage);
 }
 

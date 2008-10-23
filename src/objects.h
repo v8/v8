@@ -1601,7 +1601,6 @@ class DescriptorArray: public FixedArray {
   inline void Get(int descriptor_number, Descriptor* desc);
   inline void Set(int descriptor_number, Descriptor* desc);
 
-
   // Copy the descriptor array, insert a new descriptor and optionally
   // remove map transitions.  If the descriptor is already present, it is
   // replaced.  If a replaced descriptor is a real property (not a transition
@@ -2750,7 +2749,7 @@ class JSFunction: public JSObject {
 #endif
 
   // Returns the number of allocated literals.
-  int NumberOfLiterals();
+  inline int NumberOfLiterals();
 
   // Retrieve the global context from a function's literal array.
   static Context* GlobalContextFromLiterals(FixedArray* literals);
@@ -3347,11 +3346,13 @@ class ConsString: public String {
  public:
   // First object of the cons cell.
   inline Object* first();
-  inline void set_first(Object* first);
+  inline void set_first(Object* first,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Second object of the cons cell.
   inline Object* second();
-  inline void set_second(Object* second);
+  inline void set_second(Object* second,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
   uint16_t ConsStringGet(int index);

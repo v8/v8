@@ -1378,12 +1378,11 @@ Object* Heap::AllocateConsString(String* first, String* second) {
 
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
-
+  ASSERT(InNewSpace(result));
   ConsString* cons_string = ConsString::cast(result);
-  cons_string->set_first(first);
-  cons_string->set_second(second);
+  cons_string->set_first(first, SKIP_WRITE_BARRIER);
+  cons_string->set_second(second, SKIP_WRITE_BARRIER);
   cons_string->set_length(length);
-
   return result;
 }
 
@@ -1615,7 +1614,7 @@ Object* Heap::InitializeFunction(JSFunction* function,
   function->set_shared(shared);
   function->set_prototype_or_initial_map(prototype);
   function->set_context(undefined_value());
-  function->set_literals(empty_fixed_array());
+  function->set_literals(empty_fixed_array(), SKIP_WRITE_BARRIER);
   return function;
 }
 
@@ -1675,14 +1674,6 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
   JSObject::cast(result)->InObjectPropertyAtPut(arguments_length_index,
                                                 Smi::FromInt(length),
                                                 SKIP_WRITE_BARRIER);
-
-  // Allocate the elements if needed.
-  if (length > 0) {
-    // Allocate the fixed array.
-    Object* obj = Heap::AllocateFixedArray(length);
-    if (obj->IsFailure()) return obj;
-    JSObject::cast(result)->set_elements(FixedArray::cast(obj));
-  }
 
   // Check the state of the object
   ASSERT(JSObject::cast(result)->HasFastProperties());

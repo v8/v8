@@ -2580,14 +2580,15 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   if (obj->IsFailure()) return obj;
   // Fill in the content
   FixedArray* result = FixedArray::cast(obj);
+  WriteBarrierMode mode = result->GetWriteBarrierMode();
   for (int i = 0; i < len0; i++) {
-    result->set(i, get(i));
+    result->set(i, get(i), mode);
   }
   // Fill in the extra keys.
   int index = 0;
   for (int y = 0; y < len1; y++) {
     if (!HasKey(this, other->get(y))) {
-      result->set(len0 + index, other->get(y));
+      result->set(len0 + index, other->get(y), mode);
       index++;
     }
   }
@@ -2601,14 +2602,14 @@ Object* FixedArray::CopySize(int new_length) {
   Object* obj = Heap::AllocateFixedArray(new_length);
   if (obj->IsFailure()) return obj;
   FixedArray* result = FixedArray::cast(obj);
-  WriteBarrierMode mode = result->GetWriteBarrierMode();
   // Copy the content
   int len = length();
   if (new_length < len) len = new_length;
+  result->set_map(map());
+  WriteBarrierMode mode = result->GetWriteBarrierMode();
   for (int i = 0; i < len; i++) {
     result->set(i, get(i), mode);
   }
-  result->set_map(map());
   return result;
 }
 
@@ -4044,11 +4045,6 @@ void String::PrintOn(FILE* file) {
 void Map::MapIterateBody(ObjectVisitor* v) {
   // Assumes all Object* members are contiguously allocated!
   IteratePointers(v, kPrototypeOffset, kCodeCacheOffset + kPointerSize);
-}
-
-
-int JSFunction::NumberOfLiterals() {
-  return literals()->length();
 }
 
 
@@ -5974,7 +5970,7 @@ Object* LookupCache::Put(Map* map, String* name, int value) {
   int entry = cache->FindInsertionEntry(k, key.Hash());
   int index = EntryToIndex(entry);
   cache->set(index, k);
-  cache->set(index + 1, Smi::FromInt(value));
+  cache->set(index + 1, Smi::FromInt(value), SKIP_WRITE_BARRIER);
   cache->ElementAdded();
   return cache;
 }

@@ -928,7 +928,7 @@ static Object* Runtime_SetCode(Arguments args) {
       literals->set(JSFunction::kLiteralGlobalContextIndex,
                     context->global_context());
     }
-    target->set_literals(*literals);
+    target->set_literals(*literals, SKIP_WRITE_BARRIER);
   }
 
   target->set_context(*context);
@@ -3134,11 +3134,16 @@ static Object* Runtime_NewArguments(Arguments args) {
   const int length = frame->GetProvidedParametersCount();
   Object* result = Heap::AllocateArgumentsObject(callee, length);
   if (result->IsFailure()) return result;
-  FixedArray* array = FixedArray::cast(JSObject::cast(result)->elements());
-  ASSERT(array->length() == length);
-  WriteBarrierMode mode = array->GetWriteBarrierMode();
-  for (int i = 0; i < length; i++) {
-    array->set(i, frame->GetParameter(i), mode);
+  if (length > 0) {
+    Object* obj =  Heap::AllocateFixedArray(length);
+    if (obj->IsFailure()) return obj;
+    FixedArray* array = FixedArray::cast(obj);
+    ASSERT(array->length() == length);
+    WriteBarrierMode mode = array->GetWriteBarrierMode();
+    for (int i = 0; i < length; i++) {
+      array->set(i, frame->GetParameter(i), mode);
+    }
+    JSObject::cast(result)->set_elements(array);
   }
   return result;
 }
@@ -3154,11 +3159,22 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
 
   Object* result = Heap::AllocateArgumentsObject(callee, length);
   if (result->IsFailure()) return result;
-  FixedArray* array = FixedArray::cast(JSObject::cast(result)->elements());
-  ASSERT(array->length() == length);
-  WriteBarrierMode mode = array->GetWriteBarrierMode();
-  for (int i = 0; i < length; i++) {
-    array->set(i, *--parameters, mode);
+  ASSERT(Heap::InNewSpace(result));
+
+  // Allocate the elements if needed.
+  if (length > 0) {
+    // Allocate the fixed array.
+    Object* obj = Heap::AllocateRawFixedArray(length);
+    if (obj->IsFailure()) return obj;
+    reinterpret_cast<Array*>(obj)->set_map(Heap::fixed_array_map());
+    FixedArray* array = FixedArray::cast(obj);
+    array->set_length(length);
+    WriteBarrierMode mode = array->GetWriteBarrierMode();
+    for (int i = 0; i < length; i++) {
+      array->set(i, *--parameters, mode);
+    }
+    JSObject::cast(result)->set_elements(FixedArray::cast(obj),
+                                         SKIP_WRITE_BARRIER);
   }
   return result;
 }
@@ -3366,10 +3382,17 @@ static Object* ComputeContextSlotReceiver(Object* holder) {
   // If the "property" we were looking for is a local variable or an
   // argument in a context, the receiver is the global object; see
   // ECMA-262, 3rd., 10.1.6 and 10.2.3.
-  HeapObject* object = HeapObject::cast(holder);
-  Context* top = Top::context();
-  if (holder->IsContext()) return top->global()->global_receiver();
+  // Contexts and global objects are most common.
+  if (holder->IsContext()) {
+    return Context::cast(holder)->global()->global_receiver();
+  }
+  if (holder->IsGlobalObject()) {
+    // If the holder is a global object, we have to be careful to wrap
+    // it in its proxy if necessary.
+    return GlobalObject::cast(holder)->global_receiver();
+  }
 
+  Context* top = Top::context();
   // TODO(125): Find a better - and faster way - of checking for
   // arguments and context extension objects. This kinda sucks.
   JSFunction* context_extension_function =
@@ -3386,13 +3409,7 @@ static Object* ComputeContextSlotReceiver(Object* holder) {
     return Top::context()->global()->global_receiver();
   }
 
-  // If the holder is a global object, we have to be careful to wrap
-  // it in its proxy if necessary.
-  if (object->IsGlobalObject()) {
-    return GlobalObject::cast(object)->global_receiver();
-  } else {
-    return object;
-  }
+  return holder;
 }
 
 
@@ -4900,13 +4917,13 @@ static Handle<Object> GetArgumentsObject(JavaScriptFrame* frame,
   }
 
   const int length = frame->GetProvidedParametersCount();
-  Handle<Object> arguments = Factory::NewArgumentsObject(function, length);
-  FixedArray* array = FixedArray::cast(JSObject::cast(*arguments)->elements());
-  ASSERT(array->length() == length);
+  Handle<JSObject> arguments = Factory::NewArgumentsObject(function, length);
+  Handle<FixedArray> array = Factory::NewFixedArray(length);
   WriteBarrierMode mode = array->GetWriteBarrierMode();
   for (int i = 0; i < length; i++) {
     array->set(i, frame->GetParameter(i), mode);
   }
+  arguments->set_elements(*array);
   return arguments;
 }
 
