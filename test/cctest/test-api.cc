@@ -5057,8 +5057,7 @@ THREADED_TEST(PropertyEnumeration) {
       "var proto = {x: 1, y: 2, z: 3};"
       "var x = { __proto__: proto, w: 0, z: 1 };"
       "result[3] = x;"
-      "result;"
-  ))->Run();
+      "result;"))->Run();
   v8::Handle<v8::Array> elms = v8::Handle<v8::Array>::Cast(obj);
   CHECK_EQ(4, elms->Length());
   int elmc0 = 0;
