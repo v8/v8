@@ -1,3 +1,31 @@
+2008-10-23: Version 0.4.0
+
+        Split the global object into two parts: The state holding global
+        object and the global object proxy.
+
+        Fixed bug that affected the value of an assignment to an element
+        in certain cases (issue 116).
+
+        Added GetPropertyNames functionality (issue 33) and extra Date
+        functions (issue 77) to the API.
+
+        Changed WeakReferenceCallback to take a Persistent<Value> instead
+        of a Persistent<Object> (issue 101).
+
+        Fixed issues with message reporting for exceptions in try-finally
+        blocks (issues 73 and 75).
+
+        Optimized flattening of strings and string equality checking. 
+
+        Improved Boyer-Moore implementation for faster indexOf operations.
+
+        Added development shell (d8) which includes counters and
+        completion support.
+
+        Fixed problem with the receiver passed to functions called from
+        eval (issue 124).
+
+
 2008-10-16: Version 0.3.5
 
         Improved string hash-code distribution by excluding bit-field bits
