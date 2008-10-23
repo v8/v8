@@ -3719,36 +3719,33 @@ static inline bool CompareStringContents(IteratorA* ia, IteratorB* ib) {
 // int-sized blocks of characters.
 template <typename Char>
 static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
-  // Lint complains about taking sizeof a type rather than a variable.
-  // That's just stupid in this case so I'm turning it off.
-  const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
   int length = a.length();
   ASSERT_EQ(length, b.length());
-  int endpoint = length - kStepSize;
   const Char* pa = a.start();
   const Char* pb = b.start();
+  int i = 0;
 #ifndef CAN_READ_UNALIGNED
   // If this architecture isn't comfortable reading unaligned ints
-  // then we have to check that the strings are alingned and fall back
-  // to the standard comparison if they are not.
+  // then we have to check that the strings are aligned before
+  // comparing them blockwise.
   const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
   uint32_t pa_addr = reinterpret_cast<uint32_t>(pa);
   uint32_t pb_addr = reinterpret_cast<uint32_t>(pb);
-  if ((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask) != 0) {
-    VectorIterator<Char> ia(a);
-    VectorIterator<Char> ib(b);
-    return CompareStringContents(&ia, &ib);
+  if ((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask) == 0) {
+#endif
+    const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
+    int endpoint = length - kStepSize;
+    // Compare blocks until we reach near the end of the string.
+    for (; i <= endpoint; i += kStepSize) {
+      uint32_t wa = *reinterpret_cast<const uint32_t*>(pa + i);
+      uint32_t wb = *reinterpret_cast<const uint32_t*>(pb + i);
+      if (wa != wb) {
+        return false;
+      }
+    }
+#ifndef CAN_READ_UNALIGNED
   }
 #endif
-  int i;
-  // Compare blocks until we reach near the end of the string.
-  for (i = 0; i <= endpoint; i += kStepSize) {
-    uint32_t wa = *reinterpret_cast<const uint32_t*>(pa + i);
-    uint32_t wb = *reinterpret_cast<const uint32_t*>(pb + i);
-    if (wa != wb) {
-      return false;
-    }
-  }
   // Compare the remaining characters that didn't fit into a block.
   for (; i < length; i++) {
     if (a[i] != b[i]) {

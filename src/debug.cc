@@ -451,7 +451,7 @@ Code* Debug::debug_break_return_entry_ = NULL;
 Code* Debug::debug_break_return_ = NULL;
 
 
-void Debug::HandleWeakDebugInfo(v8::Persistent<v8::Object> obj, void* data) {
+void Debug::HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data) {
   DebugInfoListNode* node = reinterpret_cast<DebugInfoListNode*>(data);
   RemoveDebugInfo(node->debug_info());
 #ifdef DEBUG

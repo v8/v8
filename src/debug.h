@@ -248,7 +248,7 @@ class Debug {
   static const int kEstimatedNofDebugInfoEntries = 16;
   static const int kEstimatedNofBreakPointsInFunction = 16;
 
-  static void HandleWeakDebugInfo(v8::Persistent<v8::Object> obj, void* data);
+  static void HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data);
 
   friend class Debugger;
   friend Handle<FixedArray> GetDebuggedFunctions();  // Found in test-debug.cc

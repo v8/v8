@@ -1084,12 +1084,12 @@ v8::TryCatch::~TryCatch() {
 }
 
 
-bool v8::TryCatch::HasCaught() {
+bool v8::TryCatch::HasCaught() const {
   return !reinterpret_cast<i::Object*>(exception_)->IsTheHole();
 }
 
 
-v8::Local<Value> v8::TryCatch::Exception() {
+v8::Local<Value> v8::TryCatch::Exception() const {
   if (HasCaught()) {
     // Check for out of memory exception.
     i::Object* exception = reinterpret_cast<i::Object*>(exception_);
@@ -1100,7 +1100,7 @@ v8::Local<Value> v8::TryCatch::Exception() {
 }
 
 
-v8::Local<v8::Message> v8::TryCatch::Message() {
+v8::Local<v8::Message> v8::TryCatch::Message() const {
   if (HasCaught() && message_ != i::Smi::FromInt(0)) {
     i::Object* message = reinterpret_cast<i::Object*>(message_);
     return v8::Utils::MessageToLocal(i::Handle<i::Object>(message));
@@ -1139,7 +1139,7 @@ Local<String> Message::Get() {
 }
 
 
-v8::Handle<String> Message::GetScriptResourceName() {
+v8::Handle<Value> Message::GetScriptResourceName() {
   if (IsDeadCheck("v8::Message::GetScriptResourceName()")) {
     return Local<String>();
   }
@@ -1150,21 +1150,9 @@ v8::Handle<String> Message::GetScriptResourceName() {
   i::Handle<i::JSValue> script =
       i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
   i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name());
-  if (!resource_name->IsString()) {
-    return Local<String>();
-  }
-  Local<String> result =
-      Utils::ToLocal(i::Handle<i::String>::cast(resource_name));
-  return scope.Close(result);
+  return scope.Close(Utils::ToLocal(resource_name));
 }
 
-
-// TODO(1240903): Remove this when no longer used in WebKit V8 bindings.
-Handle<Value> Message::GetSourceData() {
-  Handle<String> data = GetScriptResourceName();
-  if (data.IsEmpty()) return v8::Undefined();
-  return data;
-}
 
 static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                i::Handle<i::Object> recv,
@@ -1268,53 +1256,6 @@ Local<String> Message::GetSourceLine() {
 }
 
 
-char* Message::GetUnderline(char* source_line, char underline_char) {
-  if (IsDeadCheck("v8::Message::GetUnderline()")) return 0;
-  HandleScope scope;
-
-  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
-  int start_pos = static_cast<int>(GetProperty(data_obj, "startPos")->Number());
-  int end_pos = static_cast<int>(GetProperty(data_obj, "endPos")->Number());
-  EXCEPTION_PREAMBLE();
-  i::Handle<i::Object> start_col_obj = CallV8HeapFunction(
-      "GetPositionInLine",
-      data_obj,
-      &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(0);
-  int start_col = static_cast<int>(start_col_obj->Number());
-  int end_col = start_col + (end_pos - start_pos);
-
-  // Any tabs before or between the selected columns have to be
-  // expanded into spaces.  We assume that a tab character advances
-  // the cursor up until the next 8-character boundary and at least
-  // one character.
-  int real_start_col = 0;
-  for (int i = 0; i < start_col; i++) {
-    real_start_col++;
-    if (source_line[i] == '\t') {
-      real_start_col++;
-      while (real_start_col % 8 != 0)
-        real_start_col++;
-    }
-  }
-  int real_end_col = real_start_col;
-  for (int i = start_col; i < end_col; i++) {
-    real_end_col++;
-    if (source_line[i] == '\t') {
-      while (real_end_col % 8 != 0)
-        real_end_col++;
-    }
-  }
-  char* result = i::NewArray<char>(real_end_col + 1);
-  for (int i = 0; i < real_start_col; i++)
-    result[i] = ' ';
-  for (int i = real_start_col; i < real_end_col; i++)
-    result[i] = underline_char;
-  result[real_end_col] = '\0';
-  return result;
-}
-
-
 void Message::PrintCurrentStackTrace(FILE* out) {
   if (IsDeadCheck("v8::Message::PrintCurrentStackTrace()")) return;
   i::Top::PrintCurrentStackTrace(out);
@@ -1398,6 +1339,13 @@ bool Value::IsInt32() {
     return i::FastI2D(i::FastD2I(value)) == value;
   }
   return false;
+}
+
+
+bool Value::IsDate() {
+  if (IsDeadCheck("v8::Value::IsDate()")) return false;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->HasSpecificClassOf(i::Heap::Date_symbol());
 }
 
 
@@ -1558,6 +1506,16 @@ v8::Array* v8::Array::Cast(Value* that) {
            "v8::Array::Cast()",
            "Could not convert to array");
   return static_cast<v8::Array*>(that);
+}
+
+
+v8::Date* v8::Date::Cast(v8::Value* that) {
+  if (IsDeadCheck("v8::Date::Cast()")) return 0;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->HasSpecificClassOf(i::Heap::Date_symbol()),
+           "v8::Date::Cast()",
+           "Could not convert to date");
+  return static_cast<v8::Date*>(that);
 }
 
 
@@ -2462,7 +2420,7 @@ i::Handle<i::String> NewExternalAsciiStringHandle(
 }
 
 
-static void DisposeExternalString(v8::Persistent<v8::Object> obj,
+static void DisposeExternalString(v8::Persistent<v8::Value> obj,
                                   void* parameter) {
   v8::String::ExternalStringResource* resource =
     reinterpret_cast<v8::String::ExternalStringResource*>(parameter);
@@ -2473,7 +2431,7 @@ static void DisposeExternalString(v8::Persistent<v8::Object> obj,
 }
 
 
-static void DisposeExternalAsciiString(v8::Persistent<v8::Object> obj,
+static void DisposeExternalAsciiString(v8::Persistent<v8::Value> obj,
                                        void* parameter) {
   v8::String::ExternalAsciiStringResource* resource =
     reinterpret_cast<v8::String::ExternalAsciiStringResource*>(parameter);
@@ -2531,6 +2489,15 @@ Local<v8::Value> v8::Date::New(double time) {
       i::Execution::NewDate(time, &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK(Local<v8::Value>());
   return Utils::ToLocal(obj);
+}
+
+
+double v8::Date::NumberValue() {
+  if (IsDeadCheck("v8::Date::NumberValue()")) return 0;
+  LOG_API("Date::NumberValue");
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
+  return jsvalue->value()->Number();
 }
 
 

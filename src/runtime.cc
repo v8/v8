@@ -221,53 +221,46 @@ static Object* Runtime_ClassOf(Arguments args) {
   return JSObject::cast(obj)->class_name();
 }
 
-inline static Object* HasSpecificClassOf(Arguments args, String* name) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-  Object* obj = args[0];
-  if (obj->IsJSObject() && (JSObject::cast(obj)->class_name() == name)) {
-    return Heap::true_value();
-  }
-  return Heap::false_value();
-}
 
 static Object* Runtime_HasStringClass(Arguments args) {
-  return HasSpecificClassOf(args, Heap::String_symbol());
+  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::String_symbol()));
 }
 
 
 static Object* Runtime_HasDateClass(Arguments args) {
-  return HasSpecificClassOf(args, Heap::Date_symbol());
+  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Date_symbol()));
 }
 
 
 static Object* Runtime_HasArrayClass(Arguments args) {
-  return HasSpecificClassOf(args, Heap::Array_symbol());
+  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Array_symbol()));
 }
 
 
 static Object* Runtime_HasFunctionClass(Arguments args) {
-  return HasSpecificClassOf(args, Heap::function_class_symbol());
+  return Heap::ToBoolean(
+             args[0]->HasSpecificClassOf(Heap::function_class_symbol()));
 }
 
 
 static Object* Runtime_HasNumberClass(Arguments args) {
-  return HasSpecificClassOf(args, Heap::Number_symbol());
+  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Number_symbol()));
 }
 
 
 static Object* Runtime_HasBooleanClass(Arguments args) {
-  return HasSpecificClassOf(args, Heap::Boolean_symbol());
+  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Boolean_symbol()));
 }
 
 
 static Object* Runtime_HasArgumentsClass(Arguments args) {
-  return HasSpecificClassOf(args, Heap::Arguments_symbol());
+  return Heap::ToBoolean(
+             args[0]->HasSpecificClassOf(Heap::Arguments_symbol()));
 }
 
 
 static Object* Runtime_HasRegExpClass(Arguments args) {
-  return HasSpecificClassOf(args, Heap::RegExp_symbol());
+  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::RegExp_symbol()));
 }
 
 

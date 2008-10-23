@@ -475,6 +475,11 @@ Object* Object::ToSmi() {
 }
 
 
+bool Object::HasSpecificClassOf(String* name) {
+  return this->IsJSObject() && (JSObject::cast(this)->class_name() == name);
+}
+
+
 Object* Object::GetElement(uint32_t index) {
   return GetElementWithReceiver(this, index);
 }

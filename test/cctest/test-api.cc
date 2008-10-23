@@ -1219,7 +1219,7 @@ bool message_received;
 static void check_message(v8::Handle<v8::Message> message,
                           v8::Handle<Value> data) {
   CHECK_EQ(5.76, data->NumberValue());
-  CHECK_EQ(6.75, message->GetSourceData()->NumberValue());
+  CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
   message_received = true;
 }
 
@@ -2365,8 +2365,8 @@ TEST(RegexpOutOfMemory) {
 static void MissingScriptInfoMessageListener(v8::Handle<v8::Message> message,
                                              v8::Handle<Value> data) {
   CHECK_EQ(v8::Undefined(), data);
-  CHECK(message->GetScriptResourceName().IsEmpty());
-  CHECK_EQ(v8::Undefined(), message->GetSourceData());
+  CHECK(message->GetScriptResourceName()->IsUndefined());
+  CHECK_EQ(v8::Undefined(), message->GetScriptResourceName());
   message->GetLineNumber();
   message->GetSourceLine();
 }
@@ -2410,7 +2410,7 @@ class Whammy {
   v8::Persistent<Script> script_;
 };
 
-static void HandleWeakReference(v8::Persistent<v8::Object> obj, void* data) {
+static void HandleWeakReference(v8::Persistent<v8::Value> obj, void* data) {
   Snorkel* snorkel = reinterpret_cast<Snorkel*>(data);
   delete snorkel;
   obj.ClearWeak();
@@ -5023,4 +5023,13 @@ THREADED_TEST(CallbackFunctionName) {
   CHECK(value->IsString());
   v8::String::AsciiValue name(value);
   CHECK_EQ("asdf", *name);
+}
+
+
+THREADED_TEST(DateAccess) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::Value> date = v8::Date::New(1224744689038.0);
+  CHECK(date->IsDate());
+  CHECK_EQ(1224744689038.0, v8::Handle<v8::Date>::Cast(date)->NumberValue());
 }

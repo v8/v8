@@ -248,7 +248,7 @@ Handle<JSObject> Copy(Handle<JSObject> obj) {
 // collector will call the weak callback on the global handle
 // associated with the wrapper and get rid of both the wrapper and the
 // handle.
-static void ClearWrapperCache(Persistent<v8::Object> handle, void*) {
+static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
   Handle<Object> cache = Utils::OpenHandle(*handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Proxy* proxy = Script::cast(wrapper->value())->wrapper();

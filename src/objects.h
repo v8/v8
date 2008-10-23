@@ -657,6 +657,8 @@ class Object BASE_EMBEDDED {
   // Extract the number.
   inline double Number();
 
+  inline bool HasSpecificClassOf(String* name);
+
   Object* ToObject();             // ECMA-262 9.9.
   Object* ToBoolean();            // ECMA-262 9.2.
 
