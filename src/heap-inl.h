@@ -51,7 +51,7 @@ Object* Heap::AllocateRaw(int size_in_bytes,
   Counters::objs_since_last_young.Increment();
 #endif
   if (NEW_SPACE == space) {
-    return new_space_->AllocateRaw(size_in_bytes);
+    return new_space_.AllocateRaw(size_in_bytes);
   }
 
   Object* result;
@@ -100,17 +100,17 @@ Object* Heap::AllocateRawMap(int size_in_bytes) {
 
 
 bool Heap::InNewSpace(Object* object) {
-  return new_space_->Contains(object);
+  return new_space_.Contains(object);
 }
 
 
 bool Heap::InFromSpace(Object* object) {
-  return new_space_->FromSpaceContains(object);
+  return new_space_.FromSpaceContains(object);
 }
 
 
 bool Heap::InToSpace(Object* object) {
-  return new_space_->ToSpaceContains(object);
+  return new_space_.ToSpaceContains(object);
 }
 
 
@@ -118,14 +118,14 @@ bool Heap::ShouldBePromoted(Address old_address, int object_size) {
   // An object should be promoted if:
   // - the object has survived a scavenge operation or
   // - to space is already 25% full.
-  return old_address < new_space_->age_mark()
-      || (new_space_->Size() + object_size) >= (new_space_->Capacity() >> 2);
+  return old_address < new_space_.age_mark()
+      || (new_space_.Size() + object_size) >= (new_space_.Capacity() >> 2);
 }
 
 
 void Heap::RecordWrite(Address address, int offset) {
-  if (new_space_->Contains(address)) return;
-  ASSERT(!new_space_->FromSpaceContains(address));
+  if (new_space_.Contains(address)) return;
+  ASSERT(!new_space_.FromSpaceContains(address));
   SLOW_ASSERT(Contains(address + offset));
   Page::SetRSet(address, offset);
 }
@@ -146,11 +146,47 @@ OldSpace* Heap::TargetSpace(HeapObject* object) {
 }
 
 
-#define GC_GREEDY_CHECK()                                     \
-  ASSERT(!FLAG_gc_greedy                                      \
-         || v8::internal::Heap::disallow_allocation_failure() \
-         || v8::internal::Heap::CollectGarbage(0, NEW_SPACE))
+void Heap::CopyBlock(Object** dst, Object** src, int byte_size) {
+  ASSERT(IsAligned(byte_size, kPointerSize));
 
+  // Use block copying memcpy if the segment we're copying is
+  // enough to justify the extra call/setup overhead.
+  static const int kBlockCopyLimit = 16 * kPointerSize;
+
+  if (byte_size >= kBlockCopyLimit) {
+    memcpy(dst, src, byte_size);
+  } else {
+    int remaining = byte_size / kPointerSize;
+    do {
+      remaining--;
+      *dst++ = *src++;
+    } while (remaining > 0);
+  }
+}
+
+
+Object* Heap::GetKeyedLookupCache() {
+  if (keyed_lookup_cache()->IsUndefined()) {
+    Object* obj = LookupCache::Allocate(4);
+    if (obj->IsFailure()) return obj;
+    keyed_lookup_cache_ = obj;
+  }
+  return keyed_lookup_cache();
+}
+
+
+void Heap::SetKeyedLookupCache(LookupCache* cache) {
+  keyed_lookup_cache_ = cache;
+}
+
+
+void Heap::ClearKeyedLookupCache() {
+  keyed_lookup_cache_ = undefined_value();
+}
+
+
+#define GC_GREEDY_CHECK() \
+  ASSERT(!FLAG_gc_greedy || v8::internal::Heap::GarbageCollectionGreedyCheck())
 
 // Do not use the identifier __object__ in a call to this macro.
 //

@@ -57,8 +57,7 @@ namespace v8 { namespace internal {
   SYMBOL_LIST(SYMBOL_ALLOCATION)
 #undef SYMBOL_ALLOCATION
 
-
-NewSpace* Heap::new_space_ = NULL;
+NewSpace Heap::new_space_;
 OldSpace* Heap::old_pointer_space_ = NULL;
 OldSpace* Heap::old_data_space_ = NULL;
 OldSpace* Heap::code_space_ = NULL;
@@ -73,7 +72,7 @@ int Heap::amount_of_external_allocated_memory_at_last_global_gc_ = 0;
 
 // semispace_size_ should be a power of 2 and old_generation_size_ should be
 // a multiple of Page::kPageSize.
-int Heap::semispace_size_  = 1*MB;
+int Heap::semispace_size_  = 2*MB;
 int Heap::old_generation_size_ = 512*MB;
 int Heap::initial_semispace_size_ = 256*KB;
 
@@ -103,7 +102,7 @@ bool Heap::disallow_allocation_failure_ = false;
 int Heap::Capacity() {
   if (!HasBeenSetup()) return 0;
 
-  return new_space_->Capacity() +
+  return new_space_.Capacity() +
       old_pointer_space_->Capacity() +
       old_data_space_->Capacity() +
       code_space_->Capacity() +
@@ -114,7 +113,7 @@ int Heap::Capacity() {
 int Heap::Available() {
   if (!HasBeenSetup()) return 0;
 
-  return new_space_->Available() +
+  return new_space_.Available() +
       old_pointer_space_->Available() +
       old_data_space_->Available() +
       code_space_->Available() +
@@ -123,8 +122,7 @@ int Heap::Available() {
 
 
 bool Heap::HasBeenSetup() {
-  return new_space_ != NULL &&
-         old_pointer_space_ != NULL &&
+  return old_pointer_space_ != NULL &&
          old_data_space_ != NULL &&
          code_space_ != NULL &&
          map_space_ != NULL &&
@@ -161,7 +159,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   // and does not count available bytes already in the old space or code
   // space.  Undercounting is safe---we may get an unrequested full GC when
   // a scavenge would have succeeded.
-  if (MemoryAllocator::MaxAvailable() <= new_space_->Size()) {
+  if (MemoryAllocator::MaxAvailable() <= new_space_.Size()) {
     Counters::gc_compactor_caused_by_oldspace_exhaustion.Increment();
     return MARK_COMPACTOR;
   }
@@ -179,24 +177,24 @@ void Heap::ReportStatisticsBeforeGC() {
   // compiled with ENABLE_LOGGING_AND_PROFILING and --log-gc is set.  The
   // following logic is used to avoid double logging.
 #if defined(DEBUG) && defined(ENABLE_LOGGING_AND_PROFILING)
-  if (FLAG_heap_stats || FLAG_log_gc) new_space_->CollectStatistics();
+  if (FLAG_heap_stats || FLAG_log_gc) new_space_.CollectStatistics();
   if (FLAG_heap_stats) {
     ReportHeapStatistics("Before GC");
   } else if (FLAG_log_gc) {
-    new_space_->ReportStatistics();
+    new_space_.ReportStatistics();
   }
-  if (FLAG_heap_stats || FLAG_log_gc) new_space_->ClearHistograms();
+  if (FLAG_heap_stats || FLAG_log_gc) new_space_.ClearHistograms();
 #elif defined(DEBUG)
   if (FLAG_heap_stats) {
-    new_space_->CollectStatistics();
+    new_space_.CollectStatistics();
     ReportHeapStatistics("Before GC");
-    new_space_->ClearHistograms();
+    new_space_.ClearHistograms();
   }
 #elif defined(ENABLE_LOGGING_AND_PROFILING)
   if (FLAG_log_gc) {
-    new_space_->CollectStatistics();
-    new_space_->ReportStatistics();
-    new_space_->ClearHistograms();
+    new_space_.CollectStatistics();
+    new_space_.ReportStatistics();
+    new_space_.ClearHistograms();
   }
 #endif
 }
@@ -211,12 +209,12 @@ void Heap::ReportStatisticsAfterGC() {
   if (FLAG_heap_stats) {
     ReportHeapStatistics("After GC");
   } else if (FLAG_log_gc) {
-    new_space_->ReportStatistics();
+    new_space_.ReportStatistics();
   }
 #elif defined(DEBUG)
   if (FLAG_heap_stats) ReportHeapStatistics("After GC");
 #elif defined(ENABLE_LOGGING_AND_PROFILING)
-  if (FLAG_log_gc) new_space_->ReportStatistics();
+  if (FLAG_log_gc) new_space_.ReportStatistics();
 #endif
 }
 #endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
@@ -329,7 +327,7 @@ bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_->Available() >= requested_size;
+      return new_space_.Available() >= requested_size;
     case OLD_POINTER_SPACE:
       return old_pointer_space_->Available() >= requested_size;
     case OLD_DATA_SPACE:
@@ -423,6 +421,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
 
 void Heap::MarkCompactPrologue() {
+  ClearKeyedLookupCache();
   CompilationCache::MarkCompactPrologue();
   RegExpImpl::OldSpaceCollectionPrologue();
   Top::MarkCompactPrologue();
@@ -447,27 +446,27 @@ Object* Heap::FindCodeObject(Address a) {
 
 
 // Helper class for copying HeapObjects
-class CopyVisitor: public ObjectVisitor {
+class ScavengeVisitor: public ObjectVisitor {
  public:
 
-  void VisitPointer(Object** p) {
-    CopyObject(p);
-  }
+  void VisitPointer(Object** p) { ScavengePointer(p); }
 
   void VisitPointers(Object** start, Object** end) {
     // Copy all HeapObject pointers in [start, end)
-    for (Object** p = start; p < end; p++) CopyObject(p);
+    for (Object** p = start; p < end; p++) ScavengePointer(p);
   }
 
  private:
-  void CopyObject(Object** p) {
-    if (!Heap::InFromSpace(*p)) return;
-    Heap::CopyObject(reinterpret_cast<HeapObject**>(p));
+  void ScavengePointer(Object** p) {
+    Object* object = *p;
+    if (!Heap::InNewSpace(object)) return;
+    Heap::ScavengeObject(reinterpret_cast<HeapObject**>(p),
+                         reinterpret_cast<HeapObject*>(object));
   }
 };
 
 
-// Shared state read by the scavenge collector and set by CopyObject.
+// Shared state read by the scavenge collector and set by ScavengeObject.
 static Address promoted_top = NULL;
 
 
@@ -510,21 +509,21 @@ void Heap::Scavenge() {
   LOG(ResourceEvent("scavenge", "begin"));
 
   scavenge_count_++;
-  if (new_space_->Capacity() < new_space_->MaximumCapacity() &&
+  if (new_space_.Capacity() < new_space_.MaximumCapacity() &&
       scavenge_count_ > new_space_growth_limit_) {
     // Double the size of the new space, and double the limit.  The next
     // doubling attempt will occur after the current new_space_growth_limit_
     // more collections.
     // TODO(1240712): NewSpace::Double has a return value which is
     // ignored here.
-    new_space_->Double();
+    new_space_.Double();
     new_space_growth_limit_ *= 2;
   }
 
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
-  new_space_->Flip();
-  new_space_->ResetAllocationInfo();
+  new_space_.Flip();
+  new_space_.ResetAllocationInfo();
 
   // We need to sweep newly copied objects which can be in either the to space
   // or the old space.  For to space objects, we use a mark.  Newly copied
@@ -540,34 +539,34 @@ void Heap::Scavenge() {
   // in size.  Using the new space to record promoted addresses makes the
   // scavenge collector agnostic to the allocation strategy (eg, linear or
   // free-list) used in old space.
-  Address new_mark = new_space_->ToSpaceLow();
-  Address promoted_mark = new_space_->ToSpaceHigh();
-  promoted_top = new_space_->ToSpaceHigh();
+  Address new_mark = new_space_.ToSpaceLow();
+  Address promoted_mark = new_space_.ToSpaceHigh();
+  promoted_top = new_space_.ToSpaceHigh();
 
-  CopyVisitor copy_visitor;
+  ScavengeVisitor scavenge_visitor;
   // Copy roots.
-  IterateRoots(&copy_visitor);
+  IterateRoots(&scavenge_visitor);
 
   // Copy objects reachable from the old generation.  By definition, there
   // are no intergenerational pointers in code or data spaces.
-  IterateRSet(old_pointer_space_, &CopyObject);
-  IterateRSet(map_space_, &CopyObject);
-  lo_space_->IterateRSet(&CopyObject);
+  IterateRSet(old_pointer_space_, &ScavengePointer);
+  IterateRSet(map_space_, &ScavengePointer);
+  lo_space_->IterateRSet(&ScavengePointer);
 
   bool has_processed_weak_pointers = false;
 
   while (true) {
-    ASSERT(new_mark <= new_space_->top());
+    ASSERT(new_mark <= new_space_.top());
     ASSERT(promoted_mark >= promoted_top);
 
     // Copy objects reachable from newly copied objects.
-    while (new_mark < new_space_->top() || promoted_mark > promoted_top) {
+    while (new_mark < new_space_.top() || promoted_mark > promoted_top) {
       // Sweep newly copied objects in the to space.  The allocation pointer
       // can change during sweeping.
-      Address previous_top = new_space_->top();
-      SemiSpaceIterator new_it(new_space_, new_mark);
+      Address previous_top = new_space_.top();
+      SemiSpaceIterator new_it(new_space(), new_mark);
       while (new_it.has_next()) {
-        new_it.next()->Iterate(&copy_visitor);
+        new_it.next()->Iterate(&scavenge_visitor);
       }
       new_mark = previous_top;
 
@@ -578,7 +577,7 @@ void Heap::Scavenge() {
            current >= previous_top;
            current -= kPointerSize) {
         HeapObject* object = HeapObject::cast(Memory::Object_at(current));
-        object->Iterate(&copy_visitor);
+        object->Iterate(&scavenge_visitor);
         UpdateRSet(object);
       }
       promoted_mark = previous_top;
@@ -586,12 +585,12 @@ void Heap::Scavenge() {
 
     if (has_processed_weak_pointers) break;  // We are done.
     // Copy objects reachable from weak pointers.
-    GlobalHandles::IterateWeakRoots(&copy_visitor);
+    GlobalHandles::IterateWeakRoots(&scavenge_visitor);
     has_processed_weak_pointers = true;
   }
 
   // Set age mark.
-  new_space_->set_age_mark(new_mark);
+  new_space_.set_age_mark(new_mark);
 
   LOG(ResourceEvent("scavenge", "end"));
 
@@ -718,38 +717,27 @@ void Heap::RecordCopiedObject(HeapObject* obj) {
   should_record = should_record || FLAG_log_gc;
 #endif
   if (should_record) {
-    if (new_space_->Contains(obj)) {
-      new_space_->RecordAllocation(obj);
+    if (new_space_.Contains(obj)) {
+      new_space_.RecordAllocation(obj);
     } else {
-      new_space_->RecordPromotion(obj);
+      new_space_.RecordPromotion(obj);
     }
   }
 }
 #endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 
 
-HeapObject* Heap::MigrateObject(HeapObject** source_p,
+
+HeapObject* Heap::MigrateObject(HeapObject* source,
                                 HeapObject* target,
                                 int size) {
-  void** src = reinterpret_cast<void**>((*source_p)->address());
-  void** dst = reinterpret_cast<void**>(target->address());
-
-  // Use block copying memcpy if the object we're migrating is big
-  // enough to justify the extra call/setup overhead.
-  static const int kBlockCopyLimit = 16 * kPointerSize;
-
-  if (size >= kBlockCopyLimit) {
-    memcpy(dst, src, size);
-  } else {
-    int remaining = size / kPointerSize;
-    do {
-      remaining--;
-      *dst++ = *src++;
-    } while (remaining > 0);
-  }
+  // Copy the content of source to target.
+  CopyBlock(reinterpret_cast<Object**>(target->address()),
+            reinterpret_cast<Object**>(source->address()),
+            size);
 
   // Set the forwarding address.
-  (*source_p)->set_map_word(MapWord::FromForwardingAddress(target));
+  source->set_map_word(MapWord::FromForwardingAddress(target));
 
   // Update NewSpace stats if necessary.
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
@@ -760,10 +748,9 @@ HeapObject* Heap::MigrateObject(HeapObject** source_p,
 }
 
 
-void Heap::CopyObject(HeapObject** p) {
-  ASSERT(InFromSpace(*p));
-
-  HeapObject* object = *p;
+// Inlined function.
+void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
+  ASSERT(InFromSpace(object));
 
   // We use the first word (where the map pointer usually is) of a heap
   // object to record the forwarding pointer.  A forwarding pointer can
@@ -778,37 +765,48 @@ void Heap::CopyObject(HeapObject** p) {
     return;
   }
 
-  // Optimization: Bypass ConsString objects where the right-hand side is
-  // Heap::empty_string().  We do not use object->IsConsString because we
-  // already know that object has the heap object tag.
-  InstanceType type = first_word.ToMap()->instance_type();
-  if (type < FIRST_NONSTRING_TYPE &&
-      String::cast(object)->representation_tag() == kConsStringTag &&
-      ConsString::cast(object)->second() == Heap::empty_string()) {
+  // Call the slow part of scavenge object.
+  return ScavengeObjectSlow(p, object);
+}
+
+static inline bool IsShortcutCandidate(HeapObject* object, Map* map) {
+  // A ConString object with Heap::empty_string() as the right side
+  // is a candidate for being shortcut by the scavenger.
+  ASSERT(object->map() == map);
+  return (map->instance_type() < FIRST_NONSTRING_TYPE) &&
+      (String::cast(object)->map_representation_tag(map) == kConsStringTag) &&
+      (ConsString::cast(object)->second() == Heap::empty_string());
+}
+
+
+void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
+  ASSERT(InFromSpace(object));
+  MapWord first_word = object->map_word();
+  ASSERT(!first_word.IsForwardingAddress());
+
+  // Optimization: Bypass flattened ConsString objects.
+  if (IsShortcutCandidate(object, first_word.ToMap())) {
     object = HeapObject::cast(ConsString::cast(object)->first());
     *p = object;
     // After patching *p we have to repeat the checks that object is in the
     // active semispace of the young generation and not already copied.
-    if (!InFromSpace(object)) return;
+    if (!InNewSpace(object)) return;
     first_word = object->map_word();
     if (first_word.IsForwardingAddress()) {
       *p = first_word.ToForwardingAddress();
       return;
     }
-    type = first_word.ToMap()->instance_type();
   }
 
   int object_size = object->SizeFromMap(first_word.ToMap());
-  Object* result;
   // If the object should be promoted, we try to copy it to old space.
   if (ShouldBePromoted(object->address(), object_size)) {
     OldSpace* target_space = Heap::TargetSpace(object);
     ASSERT(target_space == Heap::old_pointer_space_ ||
            target_space == Heap::old_data_space_);
-    result = target_space->AllocateRaw(object_size);
-
+    Object* result = target_space->AllocateRaw(object_size);
     if (!result->IsFailure()) {
-      *p = MigrateObject(p, HeapObject::cast(result), object_size);
+      *p = MigrateObject(object, HeapObject::cast(result), object_size);
       if (target_space == Heap::old_pointer_space_) {
         // Record the object's address at the top of the to space, to allow
         // it to be swept by the scavenger.
@@ -827,10 +825,15 @@ void Heap::CopyObject(HeapObject** p) {
   }
 
   // The object should remain in new space or the old space allocation failed.
-  result = new_space_->AllocateRaw(object_size);
+  Object* result = new_space_.AllocateRaw(object_size);
   // Failed allocation at this point is utterly unexpected.
   ASSERT(!result->IsFailure());
-  *p = MigrateObject(p, HeapObject::cast(result), object_size);
+  *p = MigrateObject(object, HeapObject::cast(result), object_size);
+}
+
+
+void Heap::ScavengePointer(HeapObject** p) {
+  ScavengeObject(p, *p);
 }
 
 
@@ -1030,7 +1033,7 @@ Object* Heap::AllocateHeapNumber(double value) {
   // allocation in new space.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
   ASSERT(allocation_allowed_ && gc_state_ == NOT_IN_GC);
-  Object* result = new_space_->AllocateRaw(HeapNumber::kSize);
+  Object* result = new_space_.AllocateRaw(HeapNumber::kSize);
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(heap_number_map());
   HeapNumber::cast(result)->set_value(value);
@@ -1193,6 +1196,9 @@ bool Heap::CreateInitialObjects() {
   if (obj->IsFailure()) return false;
   natives_source_cache_ = FixedArray::cast(obj);
 
+  // Initialize keyed lookup cache.
+  ClearKeyedLookupCache();
+
   // Initialize compilation cache.
   CompilationCache::Clear();
 
@@ -1236,7 +1242,7 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
   int hash;
   if (number->IsSmi()) {
     hash = smi_get_hash(Smi::cast(number));
-    number_string_cache_->set(hash * 2, number, FixedArray::SKIP_WRITE_BARRIER);
+    number_string_cache_->set(hash * 2, number, SKIP_WRITE_BARRIER);
   } else {
     hash = double_get_hash(number->Number());
     number_string_cache_->set(hash * 2, number);
@@ -1329,29 +1335,33 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 
 
 Object* Heap::AllocateConsString(String* first, String* second) {
-  int length = first->length() + second->length();
+  int first_length = first->length();
+  int second_length = second->length();
+  int length = first_length + second_length;
   bool is_ascii = first->is_ascii_representation()
       && second->is_ascii_representation();
 
   // If the resulting string is small make a flat string.
-  if (length < ConsString::kMinLength) {
-    Object* result = is_ascii
-        ? AllocateRawAsciiString(length)
-        : AllocateRawTwoByteString(length);
-    if (result->IsFailure()) return result;
-    // Copy the characters into the new object.
-    String* string_result = String::cast(result);
-    int first_length = first->length();
-    // Copy the content of the first string.
-    for (int i = 0; i < first_length; i++) {
-      string_result->Set(i, first->Get(i));
+  if (length < String::kMinNonFlatLength) {
+    ASSERT(first->IsFlat());
+    ASSERT(second->IsFlat());
+    if (is_ascii) {
+      Object* result = AllocateRawAsciiString(length);
+      if (result->IsFailure()) return result;
+      // Copy the characters into the new object.
+      char* dest = SeqAsciiString::cast(result)->GetChars();
+      String::WriteToFlat(first, dest, 0, first_length);
+      String::WriteToFlat(second, dest + first_length, 0, second_length);
+      return result;
+    } else {
+      Object* result = AllocateRawTwoByteString(length);
+      if (result->IsFailure()) return result;
+      // Copy the characters into the new object.
+      uc16* dest = SeqTwoByteString::cast(result)->GetChars();
+      String::WriteToFlat(first, dest, 0, first_length);
+      String::WriteToFlat(second, dest + first_length, 0, second_length);
+      return result;
     }
-    int second_length = second->length();
-    // Copy the content of the first string.
-    for (int i = 0; i < second_length; i++) {
-      string_result->Set(first_length + i, second->Get(i));
-    }
-    return result;
   }
 
   Map* map;
@@ -1382,7 +1392,7 @@ Object* Heap::AllocateSlicedString(String* buffer, int start, int end) {
   int length = end - start;
 
   // If the resulting string is small make a sub string.
-  if (end - start <= SlicedString::kMinLength) {
+  if (end - start <= String::kMinNonFlatLength) {
     return Heap::AllocateSubString(buffer, start, end);
   }
 
@@ -1490,16 +1500,20 @@ Object* Heap::AllocateExternalStringFromTwoByte(
 }
 
 
-Object* Heap:: LookupSingleCharacterStringFromCode(uint16_t code) {
+Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
   if (code <= String::kMaxAsciiCharCode) {
     Object* value = Heap::single_character_string_cache()->get(code);
     if (value != Heap::undefined_value()) return value;
-    Object* result = Heap::AllocateRawAsciiString(1);
+
+    char buffer[1];
+    buffer[0] = static_cast<char>(code);
+    Object* result = LookupSymbol(Vector<const char>(buffer, 1));
+
     if (result->IsFailure()) return result;
-    String::cast(result)->Set(0, code);
     Heap::single_character_string_cache()->set(code, result);
     return result;
   }
+
   Object* result = Heap::AllocateRawTwoByteString(1);
   if (result->IsFailure()) return result;
   String::cast(result)->Set(0, code);
@@ -1572,8 +1586,9 @@ Object* Heap::CopyCode(Code* code) {
   // Copy code object.
   Address old_addr = code->address();
   Address new_addr = reinterpret_cast<HeapObject*>(result)->address();
-  memcpy(new_addr, old_addr, obj_size);
-
+  CopyBlock(reinterpret_cast<Object**>(new_addr),
+            reinterpret_cast<Object**>(old_addr),
+            obj_size);
   // Relocate the copy.
   Code* new_code = Code::cast(result);
   new_code->Relocate(new_addr - old_addr);
@@ -1640,17 +1655,34 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
 
   JSObject* boilerplate =
       Top::context()->global_context()->arguments_boilerplate();
-  Object* result = boilerplate->Copy();
+
+  // Make the clone.
+  Map* map = boilerplate->map();
+  int object_size = map->instance_size();
+  Object* result = new_space_.AllocateRaw(object_size);
   if (result->IsFailure()) return result;
+  ASSERT(Heap::InNewSpace(result));
 
-  Object* obj = JSObject::cast(result)->properties();
-  FixedArray::cast(obj)->set(arguments_callee_index, callee);
-  FixedArray::cast(obj)->set(arguments_length_index, Smi::FromInt(length));
+  // Copy the content.
+  CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(result)->address()),
+            reinterpret_cast<Object**>(boilerplate->address()),
+            object_size);
 
-  // Allocate the fixed array.
-  obj = Heap::AllocateFixedArray(length);
-  if (obj->IsFailure()) return obj;
-  JSObject::cast(result)->set_elements(FixedArray::cast(obj));
+  // Set the two properties.
+  JSObject::cast(result)->InObjectPropertyAtPut(arguments_callee_index,
+                                                callee,
+                                                SKIP_WRITE_BARRIER);
+  JSObject::cast(result)->InObjectPropertyAtPut(arguments_length_index,
+                                                Smi::FromInt(length),
+                                                SKIP_WRITE_BARRIER);
+
+  // Allocate the elements if needed.
+  if (length > 0) {
+    // Allocate the fixed array.
+    Object* obj = Heap::AllocateFixedArray(length);
+    if (obj->IsFailure()) return obj;
+    JSObject::cast(result)->set_elements(FixedArray::cast(obj));
+  }
 
   // Check the state of the object
   ASSERT(JSObject::cast(result)->HasFastProperties());
@@ -1747,8 +1779,44 @@ Object* Heap::AllocateJSObject(JSFunction* constructor,
 }
 
 
-Object* Heap::ReinitializeJSGlobalObject(JSFunction* constructor,
-                                         JSGlobalObject* object) {
+Object* Heap::CopyJSObject(JSObject* source) {
+  // Never used to copy functions.  If functions need to be copied we
+  // have to be careful to clear the literals array.
+  ASSERT(!source->IsJSFunction());
+
+  // Make the clone.
+  Map* map = source->map();
+  int object_size = map->instance_size();
+  Object* clone = new_space_.AllocateRaw(object_size);
+  if (clone->IsFailure()) return clone;
+  ASSERT(Heap::InNewSpace(clone));
+
+  // Copy the content.
+  CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(clone)->address()),
+            reinterpret_cast<Object**>(source->address()),
+            object_size);
+
+  FixedArray* elements = FixedArray::cast(source->elements());
+  FixedArray* properties = FixedArray::cast(source->properties());
+  // Update elements if necessary.
+  if (elements->length()> 0) {
+    Object* elem = CopyFixedArray(elements);
+    if (elem->IsFailure()) return elem;
+    JSObject::cast(clone)->set_elements(FixedArray::cast(elem));
+  }
+  // Update properties if necessary.
+  if (properties->length() > 0) {
+    Object* prop = CopyFixedArray(properties);
+    if (prop->IsFailure()) return prop;
+    JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
+  }
+  // Return the new clone.
+  return clone;
+}
+
+
+Object* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
+                                        JSGlobalProxy* object) {
   // Allocate initial map if absent.
   if (!constructor->has_initial_map()) {
     Object* initial_map = AllocateInitialMap(constructor);
@@ -2036,6 +2104,53 @@ Object* Heap::AllocateEmptyFixedArray() {
 }
 
 
+Object* Heap::AllocateRawFixedArray(int length) {
+  // Allocate the raw data for a fixed array.
+  int size = FixedArray::SizeFor(length);
+  return (size > MaxHeapObjectSize())
+      ? lo_space_->AllocateRawFixedArray(size)
+      : new_space_.AllocateRaw(size);
+}
+
+
+Object* Heap::CopyFixedArray(FixedArray* src) {
+  int len = src->length();
+  Object* obj = AllocateRawFixedArray(len);
+  if (obj->IsFailure()) return obj;
+  if (Heap::InNewSpace(obj)) {
+    HeapObject* dst = HeapObject::cast(obj);
+    CopyBlock(reinterpret_cast<Object**>(dst->address()),
+              reinterpret_cast<Object**>(src->address()),
+              FixedArray::SizeFor(len));
+    return obj;
+  }
+  HeapObject::cast(obj)->set_map(src->map());
+  FixedArray* result = FixedArray::cast(obj);
+  result->set_length(len);
+  // Copy the content
+  WriteBarrierMode mode = result->GetWriteBarrierMode();
+  for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
+  return result;
+}
+
+
+Object* Heap::AllocateFixedArray(int length) {
+  Object* result = AllocateRawFixedArray(length);
+  if (!result->IsFailure()) {
+    // Initialize header.
+    reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
+    FixedArray* array = FixedArray::cast(result);
+    array->set_length(length);
+    Object* value = undefined_value();
+    // Initialize body.
+    for (int index = 0; index < length; index++) {
+      array->set(index, value, SKIP_WRITE_BARRIER);
+    }
+  }
+  return result;
+}
+
+
 Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   ASSERT(empty_fixed_array()->IsFixedArray());
   if (length == 0) return empty_fixed_array();
@@ -2055,25 +2170,29 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
-  for (int index = 0; index < length; index++) array->set_undefined(index);
+  Object* value = undefined_value();
+  for (int index = 0; index < length; index++) {
+    array->set(index, value, SKIP_WRITE_BARRIER);
+  }
   return array;
 }
 
 
 Object* Heap::AllocateFixedArrayWithHoles(int length) {
   if (length == 0) return empty_fixed_array();
-  int size = FixedArray::SizeFor(length);
-  Object* result = size > MaxHeapObjectSize()
-      ? lo_space_->AllocateRawFixedArray(size)
-      : AllocateRaw(size, NEW_SPACE);
-  if (result->IsFailure()) return result;
-
-  // Initialize the object.
-  reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
-  FixedArray* array = FixedArray::cast(result);
-  array->set_length(length);
-  for (int index = 0; index < length; index++) array->set_the_hole(index);
-  return array;
+  Object* result = AllocateRawFixedArray(length);
+  if (!result->IsFailure()) {
+    // Initialize header.
+    reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
+    FixedArray* array = FixedArray::cast(result);
+    array->set_length(length);
+    // Initialize body.
+    Object* value = the_hole_value();
+    for (int index = 0; index < length; index++)  {
+      array->set(index, value, SKIP_WRITE_BARRIER);
+    }
+  }
+  return result;
 }
 
 
@@ -2191,7 +2310,7 @@ void Heap::ReportHeapStatistics(const char* title) {
   PrintF("Heap statistics : ");
   MemoryAllocator::ReportStatistics();
   PrintF("To space : ");
-  new_space_->ReportStatistics();
+  new_space_.ReportStatistics();
   PrintF("Old pointer space : ");
   old_pointer_space_->ReportStatistics();
   PrintF("Old data space : ");
@@ -2215,7 +2334,7 @@ bool Heap::Contains(HeapObject* value) {
 bool Heap::Contains(Address addr) {
   if (OS::IsOutsideAllocatedSpace(addr)) return false;
   return HasBeenSetup() &&
-    (new_space_->ToSpaceContains(addr) ||
+    (new_space_.ToSpaceContains(addr) ||
      old_pointer_space_->Contains(addr) ||
      old_data_space_->Contains(addr) ||
      code_space_->Contains(addr) ||
@@ -2235,7 +2354,7 @@ bool Heap::InSpace(Address addr, AllocationSpace space) {
 
   switch (space) {
     case NEW_SPACE:
-      return new_space_->ToSpaceContains(addr);
+      return new_space_.ToSpaceContains(addr);
     case OLD_POINTER_SPACE:
       return old_pointer_space_->Contains(addr);
     case OLD_DATA_SPACE:
@@ -2303,8 +2422,8 @@ bool Heap::LookupSymbolIfExists(String* string, String** symbol) {
 #ifdef DEBUG
 void Heap::ZapFromSpace() {
   ASSERT(HAS_HEAP_OBJECT_TAG(kFromSpaceZapValue));
-  for (Address a = new_space_->FromSpaceLow();
-       a < new_space_->FromSpaceHigh();
+  for (Address a = new_space_.FromSpaceLow();
+       a < new_space_.FromSpaceHigh();
        a += kPointerSize) {
     Memory::Address_at(a) = kFromSpaceZapValue;
   }
@@ -2322,29 +2441,21 @@ void Heap::IterateRSetRange(Address object_start,
   // Loop over all the pointers in [object_start, object_end).
   while (object_address < object_end) {
     uint32_t rset_word = Memory::uint32_at(rset_address);
-
     if (rset_word != 0) {
-      // Bits were set.
       uint32_t result_rset = rset_word;
-
-      // Loop over all the bits in the remembered set word.  Though
-      // remembered sets are sparse, faster (eg, binary) search for
-      // set bits does not seem to help much here.
-      for (int bit_offset = 0; bit_offset < kBitsPerInt; bit_offset++) {
-        uint32_t bitmask = 1 << bit_offset;
+      for (uint32_t bitmask = 1; bitmask != 0; bitmask = bitmask << 1) {
         // Do not dereference pointers at or past object_end.
         if ((rset_word & bitmask) != 0 && object_address < object_end) {
           Object** object_p = reinterpret_cast<Object**>(object_address);
-          if (Heap::InFromSpace(*object_p)) {
+          if (Heap::InNewSpace(*object_p)) {
             copy_object_func(reinterpret_cast<HeapObject**>(object_p));
           }
           // If this pointer does not need to be remembered anymore, clear
           // the remembered set bit.
-          if (!Heap::InToSpace(*object_p)) result_rset &= ~bitmask;
+          if (!Heap::InNewSpace(*object_p)) result_rset &= ~bitmask;
         }
         object_address += kPointerSize;
       }
-
       // Update the remembered set if it has changed.
       if (result_rset != rset_word) {
         Memory::uint32_at(rset_address) = result_rset;
@@ -2353,7 +2464,6 @@ void Heap::IterateRSetRange(Address object_start,
       // No bits in the word were set.  This is the common case.
       object_address += kPointerSize * kBitsPerInt;
     }
-
     rset_address += kIntSize;
   }
 }
@@ -2517,11 +2627,7 @@ bool Heap::Setup(bool create_heap_objects) {
   int old_space_size = young_generation_size_ - code_space_size;
 
   // Initialize new space.
-  new_space_ = new NewSpace(initial_semispace_size_,
-                            semispace_size_,
-                            NEW_SPACE);
-  if (new_space_ == NULL) return false;
-  if (!new_space_->Setup(new_space_start, young_generation_size_)) return false;
+  if (!new_space_.Setup(new_space_start, young_generation_size_)) return false;
 
   // Initialize old space, set the maximum capacity to the old generation
   // size. It will not contain code.
@@ -2579,11 +2685,7 @@ bool Heap::Setup(bool create_heap_objects) {
 void Heap::TearDown() {
   GlobalHandles::TearDown();
 
-  if (new_space_ != NULL) {
-    new_space_->TearDown();
-    delete new_space_;
-    new_space_ = NULL;
-  }
+  new_space_.TearDown();
 
   if (old_pointer_space_ != NULL) {
     old_pointer_space_->TearDown();
@@ -3089,5 +3191,14 @@ const char* GCTracer::CollectorString() {
   return "Unknown GC";
 }
 
+
+#ifdef DEBUG
+bool Heap::GarbageCollectionGreedyCheck() {
+  ASSERT(FLAG_gc_greedy);
+  if (Bootstrapper::IsActive()) return true;
+  if (disallow_allocation_failure()) return true;
+  return CollectGarbage(0, NEW_SPACE);
+}
+#endif
 
 } }  // namespace v8::internal

@@ -345,9 +345,10 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
 }
 
 
-void CodeGenerator::GenerateFastCaseSwitchStatement(
-    SwitchStatement *node, int min_index, int range, int default_index) {
-
+void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
+                                                    int min_index,
+                                                    int range,
+                                                    int default_index) {
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
@@ -357,8 +358,8 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(
   // Label per switch case
   SmartPointer<Label> case_labels(NewArray<Label>(length));
 
-  Label* fail_label = (default_index >= 0 ? &(case_labels[default_index])
-                                          : node->break_target());
+  Label* fail_label = default_index >= 0 ? &(case_labels[default_index])
+                                         : node->break_target();
 
   // Populate array of label pointers for each number in the range.
   // Initally put the failure label everywhere.
@@ -378,18 +379,23 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(
     }
   }
 
-  GenerateFastCaseSwitchJumpTable(node, min_index, range, fail_label,
-                                  case_targets, case_labels);
+  GenerateFastCaseSwitchJumpTable(node,
+                                  min_index,
+                                  range,
+                                  fail_label,
+                                  Vector<Label*>(*case_targets, range),
+                                  Vector<Label>(*case_labels, length));
 }
 
-void CodeGenerator::GenerateFastCaseSwitchCases(
-    SwitchStatement* node, SmartPointer<Label> &case_labels) {
 
+void CodeGenerator::GenerateFastCaseSwitchCases(
+    SwitchStatement* node,
+    Vector<Label> case_labels) {
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
   for (int i = 0; i < length; i++) {
-    Comment cmnt(masm(), "[ case clause");
+    Comment cmnt(masm(), "[ Case clause");
     masm()->bind(&(case_labels[i]));
     VisitStatements(cases->at(i)->statements());
   }

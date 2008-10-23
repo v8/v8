@@ -56,6 +56,8 @@ enum ContextLookupFlags {
 // Array.prototype.{push,pop}.
 
 #define GLOBAL_CONTEXT_FIELDS(V) \
+  V(GLOBAL_PROXY_INDEX, JSObject, global_proxy_object) \
+  V(SECURITY_TOKEN_INDEX, Object, security_token) \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function) \
   V(NUMBER_FUNCTION_INDEX, JSFunction, number_function) \
   V(STRING_FUNCTION_INDEX, JSFunction, string_function) \
@@ -172,7 +174,9 @@ class Context: public FixedArray {
     MIN_CONTEXT_SLOTS,
 
     // These slots are only in global contexts.
-    ARGUMENTS_BOILERPLATE_INDEX = MIN_CONTEXT_SLOTS,
+    GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
+    SECURITY_TOKEN_INDEX,
+    ARGUMENTS_BOILERPLATE_INDEX,
     JS_ARRAY_MAP_INDEX,
     FUNCTION_MAP_INDEX,
     FUNCTION_INSTANCE_MAP_INDEX,
@@ -235,6 +239,10 @@ class Context: public FixedArray {
     return reinterpret_cast<GlobalObject*>(get(GLOBAL_INDEX));
   }
   void set_global(GlobalObject* global) { set(GLOBAL_INDEX, global); }
+
+  // Returns a JSGlobalProxy object or null.
+  JSObject* global_proxy();
+  void set_global_proxy(JSObject* global);
 
   // The builtins object.
   JSBuiltinsObject* builtins();

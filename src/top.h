@@ -42,7 +42,6 @@ class SaveContext;  // Forward decleration.
 
 class ThreadLocalTop BASE_EMBEDDED {
  public:
-  Context* security_context_;
   // The context where the current execution method is created and for variable
   // lookups.
   Context* context_;
@@ -54,6 +53,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   bool external_caught_exception_;
   v8::TryCatch* try_catch_handler_;
   SaveContext* save_context_;
+  v8::TryCatch* catcher_;
 
   // Stack.
   Address c_entry_fp_;  // the frame pointer of the top c entry frame
@@ -70,12 +70,11 @@ class ThreadLocalTop BASE_EMBEDDED {
 };
 
 #define TOP_ADDRESS_LIST(C) \
-  C(handler_address)                    \
+  C(handler_address)                   \
   C(c_entry_fp_address)                \
   C(context_address)                   \
   C(pending_exception_address)         \
-  C(external_caught_exception_address) \
-  C(security_context_address)
+  C(external_caught_exception_address)
 
 class Top {
  public:
@@ -87,18 +86,6 @@ class Top {
   };
 
   static Address get_address_from_id(AddressId id);
-
-  // Access to the security context from which JS execution started.
-  // In a browser world, it is the JS context of the frame which initiated
-  // JavaScript execution.
-  static Context* security_context() { return thread_local_.security_context_; }
-  static void set_security_context(Context* context) {
-    ASSERT(context == NULL || context->IsGlobalContext());
-    thread_local_.security_context_ = context;
-  }
-  static Context** security_context_address() {
-    return &thread_local_.security_context_;
-  }
 
   // Access to top context (where the current function object was created).
   static Context* context() { return thread_local_.context_; }
@@ -155,6 +142,12 @@ class Top {
   }
   static void clear_scheduled_exception() {
     thread_local_.scheduled_exception_ = Heap::the_hole_value();
+  }
+
+  static void setup_external_caught() {
+    thread_local_.external_caught_exception_ =
+        (thread_local_.catcher_ != NULL) &&
+        (Top::thread_local_.try_catch_handler_ == Top::thread_local_.catcher_);
   }
 
   // Tells whether the current context has experienced an out of memory
@@ -219,8 +212,7 @@ class Top {
   static Object* PromoteScheduledException();
   static void DoThrow(Object* exception,
                       MessageLocation* location,
-                      const char* message,
-                      bool is_rethrow);
+                      const char* message);
   static bool ShouldReportException(bool* is_caught_externally);
   static void ReportUncaughtException(Handle<Object> exception,
                                       MessageLocation* location,
@@ -243,17 +235,21 @@ class Top {
   static void Iterate(ObjectVisitor* v, ThreadLocalTop* t);
   static char* Iterate(ObjectVisitor* v, char* t);
 
-  static Handle<JSObject> global() {
-    return Handle<JSObject>(context()->global());
+  // Returns the global object of the current context. It could be
+  // a builtin object, or a js global object.
+  static Handle<GlobalObject> global() {
+    return Handle<GlobalObject>(context()->global());
   }
+
+  // Returns the global proxy object of the current context.
+  static Object* global_proxy() {
+    return context()->global_proxy();
+  }
+
   static Handle<Context> global_context();
 
   static Handle<JSBuiltinsObject> builtins() {
     return Handle<JSBuiltinsObject>(thread_local_.context_->builtins());
-  }
-  static Handle<JSBuiltinsObject> security_context_builtins() {
-    return Handle<JSBuiltinsObject>(
-        thread_local_.security_context_->builtins());
   }
 
   static Object* LookupSpecialFunction(JSObject* receiver,
@@ -304,28 +300,33 @@ class Top {
 };
 
 
+// TODO(122): If the GCC version is 4.2.0 or higher an additional field is added
+// to this class as a workarround for a bug in the generated code found with
+// GCC 4.2.3.
 class SaveContext BASE_EMBEDDED {
  public:
   SaveContext() :
       context_(Top::context()),
-      security_context_(Top::security_context()),
+#if __GNUC_VERSION__ >= 40200
+      dummy_(Top::context()),
+#endif
       prev_(Top::save_context()) {
     Top::set_save_context(this);
   }
 
   ~SaveContext() {
     Top::set_context(*context_);
-    Top::set_security_context(*security_context_);
     Top::set_save_context(prev_);
   }
 
   Handle<Context> context() { return context_; }
-  Handle<Context> security_context() { return security_context_; }
   SaveContext* prev() { return prev_; }
 
  private:
   Handle<Context> context_;
-  Handle<Context> security_context_;
+#if __GNUC_VERSION__ >= 40200
+  Handle<Context> dummy_;
+#endif
   SaveContext* prev_;
 };
 
@@ -334,19 +335,16 @@ class AssertNoContextChange BASE_EMBEDDED {
 #ifdef DEBUG
  public:
   AssertNoContextChange() :
-      context_(Top::context()),
-      security_context_(Top::security_context()) {
+      context_(Top::context()) {
   }
 
   ~AssertNoContextChange() {
     ASSERT(Top::context() == *context_);
-    ASSERT(Top::security_context() == *security_context_);
   }
 
  private:
   HandleScope scope_;
   Handle<Context> context_;
-  Handle<Context> security_context_;
 #else
  public:
   AssertNoContextChange() { }

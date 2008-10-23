@@ -73,6 +73,9 @@ typedef byte* Address;
 typedef uint16_t uc16;
 typedef signed int uc32;
 
+#ifndef ARM
+#define CAN_READ_UNALIGNED 1
+#endif
 
 // -----------------------------------------------------------------------------
 // Constants
@@ -374,7 +377,6 @@ enum StateTag {
 // OBJECT_SIZE_ALIGN returns the value aligned HeapObject size
 #define OBJECT_SIZE_ALIGN(value)                                \
   ((value + kObjectAlignmentMask) & ~kObjectAlignmentMask)
-
 
 // The expression OFFSET_OF(type, field) computes the byte-offset
 // of the specified field relative to the containing type. This

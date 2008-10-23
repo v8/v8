@@ -46,6 +46,9 @@ class Bootstrapper : public AllStatic {
       v8::Handle<v8::ObjectTemplate> global_template,
       v8::ExtensionConfiguration* extensions);
 
+  // Detach the environment from its outer global object.
+  static void DetachGlobal(Handle<Context> env);
+
   // Traverses the pointers for memory manangment.
   static void Iterate(ObjectVisitor* v);
 
@@ -58,7 +61,7 @@ class Bootstrapper : public AllStatic {
   // Append code that needs fixup at the end of boot strapping.
   static void AddFixup(Code* code, MacroAssembler* masm);
 
-  // Tells wheter boostrapping is active.
+  // Tells whether boostrapping is active.
   static bool IsActive();
 
   // Encoding/decoding support for fixup flags.

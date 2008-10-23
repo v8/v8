@@ -34,7 +34,12 @@ typedef bool (*NativeSourceCallback)(Vector<const char> name,
                                      Vector<const char> source,
                                      int index);
 
-class Natives {
+enum NativeType {
+  CORE, D8
+};
+
+template <NativeType type>
+class NativesCollection {
  public:
   // Number of built-in scripts.
   static int GetBuiltinsCount();
@@ -49,6 +54,8 @@ class Natives {
   static Vector<const char> GetScriptSource(int index);
   static Vector<const char> GetScriptName(int index);
 };
+
+typedef NativesCollection<CORE> Natives;
 
 } }  // namespace v8::internal
 

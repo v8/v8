@@ -117,7 +117,7 @@ function GlobalExecScript(expr, lang) {
   // NOTE: We don't care about the character casing.
   if (!lang || /javascript/i.test(lang)) {
     var f = %CompileString(ToString(expr), 0, false);
-    f.call(global);
+    f.call(%GlobalReceiver(global));
   }
   return null;
 }
@@ -292,7 +292,7 @@ SetupObject();
 function BooleanToString() {
   // NOTE: Both Boolean objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
-  if (!IS_BOOLEAN(this) && %ClassOf(this) !== 'Boolean')
+  if (!IS_BOOLEAN(this) && !%HasBooleanClass(this))
     throw new $TypeError('Boolean.prototype.toString is not generic');
   return ToString(%_ValueOf(this));
 }
@@ -301,7 +301,7 @@ function BooleanToString() {
 function BooleanValueOf() {
   // NOTE: Both Boolean objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
-  if (!IS_BOOLEAN(this) && %ClassOf(this) !== 'Boolean')
+  if (!IS_BOOLEAN(this) && !%HasBooleanClass(this))
     throw new $TypeError('Boolean.prototype.valueOf is not generic');
   return %_ValueOf(this);
 }
@@ -340,7 +340,7 @@ function NumberToString(radix) {
   // 'this'. This is not as dictated by ECMA-262.
   var number = this;
   if (!IS_NUMBER(this)) {
-    if (%ClassOf(this) !== 'Number')
+    if (!%HasNumberClass(this))
       throw new $TypeError('Number.prototype.toString is not generic');
     // Get the value of this number in case it's an object.
     number = %_ValueOf(this);
@@ -370,7 +370,7 @@ function NumberToLocaleString() {
 function NumberValueOf() {
   // NOTE: Both Number objects and values can enter here as
   // 'this'. This is not as dictated by ECMA-262.
-  if (!IS_NUMBER(this) && %ClassOf(this) !== 'Number')
+  if (!IS_NUMBER(this) && !%HasNumberClass(this))
     throw new $TypeError('Number.prototype.valueOf is not generic');
   return %_ValueOf(this);
 }
@@ -466,7 +466,7 @@ $Function.prototype.constructor = $Function;
 function FunctionSourceString(func) {
   // NOTE: Both Function objects and values can enter here as
   // 'func'. This is not as dictated by ECMA-262.
-  if (!IS_FUNCTION(func) && %ClassOf(func) != 'Function')
+  if (!IS_FUNCTION(func) && !%HasFunctionClass(func))
     throw new $TypeError('Function.prototype.toString is not generic');
 
   var source = %FunctionGetSourceCode(func);

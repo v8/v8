@@ -207,7 +207,7 @@ void MarkCompactCollector::Finish() {
 static MarkingStack marking_stack;
 
 
-inline HeapObject* ShortCircuitConsString(Object** p) {
+static inline HeapObject* ShortCircuitConsString(Object** p) {
   // Optimization: If the heap object pointed to by p is a non-symbol
   // cons string whose right substring is Heap::empty_string, update
   // it in place to its left substring.  Return the updated value.

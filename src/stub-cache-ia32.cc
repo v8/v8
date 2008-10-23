@@ -398,13 +398,13 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   __ j(not_equal, miss_label, not_taken);
 
   // Perform global security token check if needed.
-  if (object->IsJSGlobalObject()) {
-    __ CheckAccessGlobal(receiver_reg, scratch, miss_label);
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(receiver_reg, scratch, miss_label);
   }
 
   // Stub never generated for non-global objects that require access
   // checks.
-  ASSERT(object->IsJSGlobalObject() || !object->IsAccessCheckNeeded());
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
   // Perform map transition for the receiver if necessary.
   if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
@@ -773,13 +773,13 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   __ j(not_equal, &miss, not_taken);
 
   // Perform global security token check if needed.
-  if (object->IsJSGlobalObject()) {
-    __ CheckAccessGlobal(ebx, edx, &miss);
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(ebx, edx, &miss);
   }
 
   // Stub never generated for non-global objects that require access
   // checks.
-  ASSERT(object->IsJSGlobalObject() || !object->IsAccessCheckNeeded());
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
   __ pop(ebx);  // remove the return address
   __ push(Operand(esp, 0));  // receiver
@@ -829,13 +829,13 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   __ j(not_equal, &miss, not_taken);
 
   // Perform global security token check if needed.
-  if (receiver->IsJSGlobalObject()) {
-    __ CheckAccessGlobal(ebx, edx, &miss);
+  if (receiver->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(ebx, edx, &miss);
   }
 
   // Stub never generated for non-global objects that require access
   // checks.
-  ASSERT(receiver->IsJSGlobalObject() || !receiver->IsAccessCheckNeeded());
+  ASSERT(receiver->IsJSGlobalProxy() || !receiver->IsAccessCheckNeeded());
 
   __ pop(ebx);  // remove the return address
   __ push(Operand(esp, 0));  // receiver

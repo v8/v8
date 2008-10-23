@@ -128,7 +128,7 @@ class Data;
  * \param object the weak global object to be reclaimed by the garbage collector
  * \param parameter the value passed in when making the weak global object
  */
-typedef void (*WeakReferenceCallback)(Persistent<Object> object,
+typedef void (*WeakReferenceCallback)(Persistent<Value> object,
                                       void* parameter);
 
 
@@ -327,6 +327,10 @@ template <class T> class EXPORT_INLINE Persistent : public Handle<T> {
 
   template <class S> inline Persistent(S* that) : Handle<T>(that) { }
 
+  /**
+   * "Casts" a plain handle which is known to be a persistent handle
+   * to a persistent handle.
+   */
   template <class S> explicit inline Persistent(Handle<S> that)
       : Handle<T>(*that) { }
 
@@ -508,9 +512,9 @@ class EXPORT ScriptOrigin {
       : resource_name_(resource_name),
         resource_line_offset_(resource_line_offset),
         resource_column_offset_(resource_column_offset) { }
-  inline Handle<Value> ResourceName();
-  inline Handle<Integer> ResourceLineOffset();
-  inline Handle<Integer> ResourceColumnOffset();
+  inline Handle<Value> ResourceName() const;
+  inline Handle<Integer> ResourceLineOffset() const;
+  inline Handle<Integer> ResourceColumnOffset() const;
  private:
   Handle<Value> resource_name_;
   Handle<Integer> resource_line_offset_;
@@ -555,16 +559,7 @@ class EXPORT Message {
   Local<String> Get();
   Local<String> GetSourceLine();
 
-  // TODO(1241256): Rewrite (or remove) this method.  We don't want to
-  // deal with ownership of the returned string and we want to use
-  // JavaScript data structures exclusively.
-  char* GetUnderline(char* source_line, char underline_char);
-
-  Handle<String> GetScriptResourceName();
-
-  // TODO(1240903): Remove this when no longer used in WebKit V8
-  // bindings.
-  Handle<Value> GetSourceData();
+  Handle<Value> GetScriptResourceName();
 
   /**
    * Returns the number, 1-based, of the line where the error occurred.
@@ -671,6 +666,11 @@ class EXPORT Value : public Data {
    * Returns true if this value is a 32-bit signed integer.
    */
   bool IsInt32();
+
+  /**
+   * Returns true if this value is a Date.
+   */
+  bool IsDate();
 
   Local<Boolean> ToBoolean();
   Local<Number> ToNumber();
@@ -987,6 +987,14 @@ class EXPORT Uint32 : public Integer {
 class EXPORT Date : public Value {
  public:
   static Local<Value> New(double time);
+
+  /**
+   * A specialization of Value::NumberValue that is more efficient
+   * because we know the structure of this object.
+   */
+  double NumberValue();
+
+  static Date* Cast(v8::Value* obj);
 };
 
 
@@ -1013,6 +1021,14 @@ class EXPORT Object : public Value {
   bool Delete(Handle<String> key);
   bool Has(uint32_t index);
   bool Delete(uint32_t index);
+
+  /**
+   * Returns an array containing the names of the enumerable properties
+   * of this object, including properties from prototype objects.  The
+   * array returned by this method contains the same values as would
+   * be enumerated by a for-in statement over this object.
+   */
+  Local<Array> GetPropertyNames();
 
   /**
    * Get the prototype object.  This does not skip objects marked to
@@ -1052,6 +1068,12 @@ class EXPORT Object : public Value {
   /** Tests for an index lookup interceptor.*/
   bool HasIndexedLookupInterceptor();
 
+  /**
+   * Turns on access check on the object if the object is an instance of
+   * a template that has access check callbacks. If an object has no
+   * access check info, the object cannot be accessed by anyone.
+   */
+  void TurnOnAccessCheck();
 
   static Local<Object> New();
   static Object* Cast(Value* obj);
@@ -1609,10 +1631,15 @@ class EXPORT ObjectTemplate : public Template {
    * When accessing properties on instances of this object template,
    * the access check callback will be called to determine whether or
    * not to allow cross-context access to the properties.
+   * The last parameter specifies whether access checks are turned
+   * on by default on instances. If access checks are off by default,
+   * they can be turned on on individual instances by calling
+   * Object::TurnOnAccessCheck().
    */
   void SetAccessCheckCallbacks(NamedSecurityCallback named_handler,
                                IndexedSecurityCallback indexed_handler,
-                               Handle<Value> data = Handle<Value>());
+                               Handle<Value> data = Handle<Value>(),
+                               bool turned_on_by_default = true);
 
   /**
    * Gets the number of internal fields for objects generated from
@@ -1730,11 +1757,11 @@ Handle<Boolean> EXPORT False();
 class EXPORT ResourceConstraints {
  public:
   ResourceConstraints();
-  int max_young_space_size() { return max_young_space_size_; }
+  int max_young_space_size() const { return max_young_space_size_; }
   void set_max_young_space_size(int value) { max_young_space_size_ = value; }
-  int max_old_space_size() { return max_old_space_size_; }
+  int max_old_space_size() const { return max_old_space_size_; }
   void set_max_old_space_size(int value) { max_old_space_size_ = value; }
-  uint32_t* stack_limit() { return stack_limit_; }
+  uint32_t* stack_limit() const { return stack_limit_; }
   void set_stack_limit(uint32_t* value) { stack_limit_ = value; }
  private:
   int max_young_space_size_;
@@ -1965,7 +1992,7 @@ class EXPORT TryCatch {
   /**
    * Returns true if an exception has been caught by this try/catch block.
    */
-  bool HasCaught();
+  bool HasCaught() const;
 
   /**
    * Returns the exception caught by this try/catch block.  If no exception has
@@ -1973,7 +2000,7 @@ class EXPORT TryCatch {
    *
    * The returned handle is valid until this TryCatch block has been destroyed.
    */
-  Local<Value> Exception();
+  Local<Value> Exception() const;
 
   /**
    * Returns the message associated with this exception.  If there is
@@ -1982,7 +2009,7 @@ class EXPORT TryCatch {
    * The returned handle is valid until this TryCatch block has been
    * destroyed.
    */
-  Local<v8::Message> Message();
+  Local<v8::Message> Message() const;
 
   /**
    * Clears any exceptions that may have been caught by this try/catch block.
@@ -2044,7 +2071,14 @@ class EXPORT ExtensionConfiguration {
  */
 class EXPORT Context {
  public:
+  /** Returns the global object of the context. */
   Local<Object> Global();
+
+  /**
+   * Detaches the global object from its context before
+   * the global object can be reused to create a new context.
+   */
+  void DetachGlobal();
 
   /** Creates a new context. */
   static Persistent<Context> New(
@@ -2058,14 +2092,14 @@ class EXPORT Context {
   /** Returns the context that is on the top of the stack. */
   static Local<Context> GetCurrent();
 
-  /** Returns the security context that is currently used. */
-  static Local<Context> GetCurrentSecurityContext();
-
   /**
    * Sets the security token for the context.  To access an object in
    * another context, the security tokens must match.
    */
   void SetSecurityToken(Handle<Value> token);
+
+  /** Restores the security token to the default value. */
+  void UseDefaultSecurityToken();
 
   /** Returns the security token of this context.*/
   Handle<Value> GetSecurityToken();
@@ -2089,9 +2123,6 @@ class EXPORT Context {
 
   /** Returns true if V8 has a current context. */
   static bool InContext();
-
-  /** Returns true if V8 has a current security context. */
-  static bool InSecurityContext();
 
   /**
    * Stack-allocated class which sets the execution context for all
@@ -2354,17 +2385,17 @@ Local<T> HandleScope::Close(Handle<T> value) {
   return Local<T>(reinterpret_cast<T*>(after));
 }
 
-Handle<Value> ScriptOrigin::ResourceName() {
+Handle<Value> ScriptOrigin::ResourceName() const {
   return resource_name_;
 }
 
 
-Handle<Integer> ScriptOrigin::ResourceLineOffset() {
+Handle<Integer> ScriptOrigin::ResourceLineOffset() const {
   return resource_line_offset_;
 }
 
 
-Handle<Integer> ScriptOrigin::ResourceColumnOffset() {
+Handle<Integer> ScriptOrigin::ResourceColumnOffset() const {
   return resource_column_offset_;
 }
 

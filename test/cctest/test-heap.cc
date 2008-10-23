@@ -306,7 +306,7 @@ TEST(GlobalHandles) {
 
 static bool WeakPointerCleared = false;
 
-static void TestWeakGlobalHandleCallback(v8::Persistent<v8::Object> handle,
+static void TestWeakGlobalHandleCallback(v8::Persistent<v8::Value> handle,
                                          void* id) {
   USE(handle);
   if (1234 == reinterpret_cast<int>(id)) WeakPointerCleared = true;
@@ -377,7 +377,7 @@ TEST(WeakGlobalHandlesMark) {
 }
 
 static void TestDeleteWeakGlobalHandleCallback(
-    v8::Persistent<v8::Object> handle,
+    v8::Persistent<v8::Value> handle,
     void* id) {
   if (1234 == reinterpret_cast<int>(id)) WeakPointerCleared = true;
   handle.Dispose();
@@ -664,7 +664,7 @@ TEST(JSObjectCopy) {
   obj->SetElement(1, second);
 
   // Make the clone.
-  JSObject* clone = JSObject::cast(obj->Copy());
+  JSObject* clone = JSObject::cast(Heap::CopyJSObject(obj));
   CHECK(clone != obj);
 
   CHECK_EQ(obj->GetElement(0), clone->GetElement(0));

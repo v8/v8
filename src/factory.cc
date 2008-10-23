@@ -79,6 +79,8 @@ Handle<String> Factory::NewRawTwoByteString(int length,
 
 Handle<String> Factory::NewConsString(Handle<String> first,
                                       Handle<String> second) {
+  if (first->length() == 0) return second;
+  if (second->length() == 0) return first;
   CALL_HEAP_FUNCTION(Heap::AllocateConsString(*first, *second), String);
 }
 
@@ -312,7 +314,7 @@ Handle<Object> Factory::NewError(const char* maker,
   Handle<JSFunction> fun =
       Handle<JSFunction>(
           JSFunction::cast(
-              Top::security_context_builtins()->GetProperty(*make_str)));
+              Top::builtins()->GetProperty(*make_str)));
   Handle<Object> type_obj = Factory::LookupAsciiSymbol(type);
   Object** argv[2] = { type_obj.location(),
                        Handle<Object>::cast(args).location() };
@@ -321,7 +323,7 @@ Handle<Object> Factory::NewError(const char* maker,
   // running the factory method, use the exception as the result.
   bool caught_exception;
   Handle<Object> result = Execution::TryCall(fun,
-                                             Top::security_context_builtins(),
+                                             Top::builtins(),
                                              2,
                                              argv,
                                              &caught_exception);
@@ -340,14 +342,14 @@ Handle<Object> Factory::NewError(const char* constructor,
   Handle<JSFunction> fun =
       Handle<JSFunction>(
           JSFunction::cast(
-              Top::security_context_builtins()->GetProperty(*constr)));
+              Top::builtins()->GetProperty(*constr)));
   Object** argv[1] = { Handle<Object>::cast(message).location() };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
   bool caught_exception;
   Handle<Object> result = Execution::TryCall(fun,
-                                             Top::security_context_builtins(),
+                                             Top::builtins(),
                                              1,
                                              argv,
                                              &caught_exception);
@@ -670,8 +672,7 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<Object> callee,
 
 
 Handle<JSFunction> Factory::CreateApiFunction(
-    Handle<FunctionTemplateInfo> obj,
-    bool is_global) {
+    Handle<FunctionTemplateInfo> obj, ApiInstanceType instance_type) {
   Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::HandleApiCall));
 
   int internal_field_count = 0;
@@ -684,13 +685,24 @@ Handle<JSFunction> Factory::CreateApiFunction(
   }
 
   int instance_size = kPointerSize * internal_field_count;
-  if (is_global) {
-    instance_size += JSGlobalObject::kSize;
-  } else {
-    instance_size += JSObject::kHeaderSize;
+  InstanceType type = JS_OBJECT_TYPE;  // initialize to a valid value
+  switch (instance_type) {
+    case JavaScriptObject:
+      type = JS_OBJECT_TYPE;
+      instance_size += JSObject::kHeaderSize;
+      break;
+    case InnerGlobalObject:
+      type = JS_GLOBAL_OBJECT_TYPE;
+      instance_size += JSGlobalObject::kSize;
+      break;
+    case OuterGlobalObject:
+      type = JS_GLOBAL_PROXY_TYPE;
+      instance_size += JSGlobalProxy::kSize;
+      break;
+    default:
+      ASSERT(false);
+      break;
   }
-
-  InstanceType type = is_global ? JS_GLOBAL_OBJECT_TYPE : JS_OBJECT_TYPE;
 
   Handle<JSFunction> result =
       Factory::NewFunction(Factory::empty_symbol(), type, instance_size,
@@ -716,7 +728,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
 
   // Mark as needs_access_check if needed.
   if (obj->needs_access_check()) {
-    map->set_needs_access_check();
+    map->set_is_access_check_needed();
   }
 
   // Set interceptor information in the map.

@@ -265,8 +265,15 @@ class Factory : public AllStatic {
       Handle<Object> value,
       PropertyAttributes attributes);
 
-  static Handle<JSFunction> CreateApiFunction(Handle<FunctionTemplateInfo> data,
-                                              bool is_global = false);
+  enum ApiInstanceType {
+    JavaScriptObject,
+    InnerGlobalObject,
+    OuterGlobalObject
+  };
+
+  static Handle<JSFunction> CreateApiFunction(
+      Handle<FunctionTemplateInfo> data,
+      ApiInstanceType type = JavaScriptObject);
 
   static Handle<JSFunction> InstallMembers(Handle<JSFunction> function);
 

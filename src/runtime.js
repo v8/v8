@@ -352,8 +352,8 @@ function APPLY_PREPARE(args) {
 
   // Make sure the arguments list has the right type.
   if (args != null &&
-      %ClassOf(args) != 'Array' &&
-      %ClassOf(args) != 'Arguments') {
+      !%HasArrayClass(args) &&
+      !%HasArgumentsClass(args)) {
     throw %MakeTypeError('apply_wrong_args', []);
   }
 

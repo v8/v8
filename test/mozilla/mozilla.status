@@ -170,6 +170,12 @@ js1_5/GC/regress-383269-02: PASS || FAIL
 js1_5/Regress/regress-404755: PASS || FAIL
 
 
+# Test that depends on timer resolution. Fails every now and then
+# if we're unlucky enough to get a context switch at a bad time.
+js1_5/extensions/regress-363258: PASS || FAIL
+
+
+
 ##################### INCOMPATIBLE TESTS #####################
 
 # This section is for tests that fail in both V8 and KJS.  Thus they
@@ -749,11 +755,6 @@ js1_5/decompilation/regress-376564: PASS || FAIL
 js1_5/decompilation/regress-383721: PASS || FAIL
 js1_5/decompilation/regress-406555: PASS || FAIL
 
-[ $system == windows ] 
-
-# This test is flaky because of the default timer resolution on Windows.
-js1_5/extensions/regress-363258: PASS || FAIL
-mozilla/js1_5/GC/regress-383269-02: PASS, FLAKY IF $mode == debug
 
 [ $FAST == yes ]
 
@@ -762,6 +763,7 @@ mozilla/js1_5/GC/regress-383269-02: PASS, FLAKY IF $mode == debug
 
 js1_5/Regress/regress-312588: SKIP
 js1_5/Regress/regress-271716-n: SKIP
+
 
 [ $FAST == yes && $ARCH == arm ]
 

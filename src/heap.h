@@ -122,7 +122,8 @@ namespace v8 { namespace internal {
   V(Code, c_entry_debug_break_code)                     \
   V(FixedArray, number_string_cache)                    \
   V(FixedArray, single_character_string_cache)          \
-  V(FixedArray, natives_source_cache)
+  V(FixedArray, natives_source_cache)                   \
+  V(Object, keyed_lookup_cache)
 
 
 #define ROOT_LIST(V)                                  \
@@ -135,11 +136,13 @@ namespace v8 { namespace internal {
   V(Proto_symbol, "__proto__")                                           \
   V(StringImpl_symbol, "StringImpl")                                     \
   V(arguments_symbol, "arguments")                                       \
+  V(Arguments_symbol, "Arguments")                                       \
   V(arguments_shadow_symbol, ".arguments")                               \
   V(call_symbol, "call")                                                 \
   V(apply_symbol, "apply")                                               \
   V(caller_symbol, "caller")                                             \
   V(boolean_symbol, "boolean")                                           \
+  V(Boolean_symbol, "Boolean")                                           \
   V(callee_symbol, "callee")                                             \
   V(constructor_symbol, "constructor")                                   \
   V(code_symbol, ".code")                                                \
@@ -151,6 +154,8 @@ namespace v8 { namespace internal {
   V(length_symbol, "length")                                             \
   V(name_symbol, "name")                                                 \
   V(number_symbol, "number")                                             \
+  V(Number_symbol, "Number")                                             \
+  V(RegExp_symbol, "RegExp")                                             \
   V(object_symbol, "object")                                             \
   V(prototype_symbol, "prototype")                                       \
   V(string_symbol, "string")                                             \
@@ -244,11 +249,11 @@ class Heap : public AllStatic {
   // Return the starting address and a mask for the new space.  And-masking an
   // address with the mask will result in the start address of the new space
   // for all addresses in either semispace.
-  static Address NewSpaceStart() { return new_space_->start(); }
-  static uint32_t NewSpaceMask() { return new_space_->mask(); }
-  static Address NewSpaceTop() { return new_space_->top(); }
+  static Address NewSpaceStart() { return new_space_.start(); }
+  static uint32_t NewSpaceMask() { return new_space_.mask(); }
+  static Address NewSpaceTop() { return new_space_.top(); }
 
-  static NewSpace* new_space() { return new_space_; }
+  static NewSpace* new_space() { return &new_space_; }
   static OldSpace* old_pointer_space() { return old_pointer_space_; }
   static OldSpace* old_data_space() { return old_data_space_; }
   static OldSpace* code_space() { return code_space_; }
@@ -256,10 +261,10 @@ class Heap : public AllStatic {
   static LargeObjectSpace* lo_space() { return lo_space_; }
 
   static Address* NewSpaceAllocationTopAddress() {
-    return new_space_->allocation_top_address();
+    return new_space_.allocation_top_address();
   }
   static Address* NewSpaceAllocationLimitAddress() {
-    return new_space_->allocation_limit_address();
+    return new_space_.allocation_limit_address();
   }
 
   // Allocates and initializes a new JavaScript object based on a
@@ -270,18 +275,23 @@ class Heap : public AllStatic {
   static Object* AllocateJSObject(JSFunction* constructor,
                                   PretenureFlag pretenure = NOT_TENURED);
 
+  // Returns a deep copy of the JavaScript object.
+  // Properties and elements are copied too.
+  // Returns failure if allocation failed.
+  static Object* CopyJSObject(JSObject* source);
+
   // Allocates the function prototype.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
   static Object* AllocateFunctionPrototype(JSFunction* function);
 
-  // Reinitialize a JSGlobalObject based on a constructor.  The JSObject
+  // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the
-  // constructor.  The JSObject is reinitialized and behaves as an
+  // constructor.  The object is reinitialized and behaves as an
   // object that has been freshly allocated using the constructor.
-  static Object* ReinitializeJSGlobalObject(JSFunction* constructor,
-                                            JSGlobalObject* global);
+  static Object* ReinitializeJSGlobalProxy(JSFunction* constructor,
+                                           JSGlobalProxy* global);
 
   // Allocates and initializes a new JavaScript object based on a map.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -375,9 +385,13 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateFixedArray(int length,
-                                    PretenureFlag pretenure = NOT_TENURED);
+  static Object* AllocateFixedArray(int length, PretenureFlag pretenure);
+  // Allocate uninitialized, non-tenured fixed array with length elements.
+  static Object* AllocateFixedArray(int length);
 
+  // Make a copy of src and return it. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  static Object* CopyFixedArray(FixedArray* src);
 
   // Allocates a fixed array initialized with the hole values.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -557,6 +571,11 @@ class Heap : public AllStatic {
   // ensure correct callback for weak global handles.
   static void PerformScavenge();
 
+#ifdef DEBUG
+  // Utility used with flag gc-greedy.
+  static bool GarbageCollectionGreedyCheck();
+#endif
+
   static void SetGlobalGCPrologueCallback(GCCallback callback) {
     global_gc_prologue_callback_ = callback;
   }
@@ -621,6 +640,11 @@ class Heap : public AllStatic {
     non_monomorphic_cache_ = value;
   }
 
+  // Gets, sets and clears the lookup cache used for keyed access.
+  static inline Object* GetKeyedLookupCache();
+  static inline void SetKeyedLookupCache(LookupCache* cache);
+  static inline void ClearKeyedLookupCache();
+
 #ifdef DEBUG
   static void Print();
   static void PrintHandles();
@@ -671,7 +695,8 @@ class Heap : public AllStatic {
   // necessary, the object might be promoted to an old space.  The caller must
   // ensure the precondition that the object is (a) a heap object and (b) in
   // the heap's from space.
-  static void CopyObject(HeapObject** p);
+  static void ScavengePointer(HeapObject** p);
+  static inline void ScavengeObject(HeapObject** p, HeapObject* object);
 
   // Clear a range of remembered set addresses corresponding to the object
   // area address 'start' with size 'size_in_bytes', eg, when adding blocks
@@ -727,7 +752,7 @@ class Heap : public AllStatic {
 
   static const int kMaxMapSpaceSize = 8*MB;
 
-  static NewSpace* new_space_;
+  static NewSpace new_space_;
   static OldSpace* old_pointer_space_;
   static OldSpace* old_data_space_;
   static OldSpace* code_space_;
@@ -810,6 +835,8 @@ class Heap : public AllStatic {
   // (since both AllocateRaw and AllocateRawMap are inlined).
   static inline Object* AllocateRawMap(int size_in_bytes);
 
+  // Allocate unitialized fixed array (pretenure == NON_TENURE).
+  static Object* AllocateRawFixedArray(int length);
 
   // Initializes a JSObject based on its map.
   static void InitializeJSObjectFromMap(JSObject* obj,
@@ -839,7 +866,7 @@ class Heap : public AllStatic {
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source
   // object.  Returns the target object.
-  static HeapObject* MigrateObject(HeapObject** source_p,
+  static HeapObject* MigrateObject(HeapObject* source,
                                    HeapObject* target,
                                    int size);
 
@@ -865,6 +892,12 @@ class Heap : public AllStatic {
 
   // Rebuild remembered set in the large object space.
   static void RebuildRSets(LargeObjectSpace* space);
+
+  // Slow part of scavenge object.
+  static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
+
+  // Copy memory from src to dst.
+  inline static void CopyBlock(Object** dst, Object** src, int byte_size);
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;

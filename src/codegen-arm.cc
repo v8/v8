@@ -415,6 +415,13 @@ void CodeGenerator::LoadGlobal() {
 }
 
 
+void CodeGenerator::LoadGlobalReceiver(Register s) {
+  __ ldr(s, ContextOperand(cp, Context::GLOBAL_INDEX));
+  __ ldr(s, FieldMemOperand(s, GlobalObject::kGlobalReceiverOffset));
+  __ push(s);
+}
+
+
 // TODO(1241834): Get rid of this function in favor of just using Load, now
 // that we have the INSIDE_TYPEOF typeof state. => Need to handle global
 // variables w/o reference errors elsewhere.
@@ -1236,8 +1243,12 @@ int CodeGenerator::FastCaseSwitchMinCaseCount() {
 
 
 void CodeGenerator::GenerateFastCaseSwitchJumpTable(
-    SwitchStatement* node, int min_index, int range, Label *fail_label,
-    SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels) {
+    SwitchStatement* node,
+    int min_index,
+    int range,
+    Label* fail_label,
+    Vector<Label*> case_targets,
+    Vector<Label> case_labels) {
 
   ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
 
@@ -1627,9 +1638,13 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
   __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER);
 
-  // Introduce shadow labels for all escapes from the try block,
-  // including returns. We should probably try to unify the escaping
-  // labels and the return label.
+  // Shadow the labels for all escapes from the try block, including
+  // returns. During shadowing, the original label is hidden as the
+  // LabelShadow and operations on the original actually affect the
+  // shadowing label.
+  //
+  // We should probably try to unify the escaping labels and the return
+  // label.
   int nof_escapes = node->escaping_labels()->length();
   List<LabelShadow*> shadows(1 + nof_escapes);
   shadows.Add(new LabelShadow(&function_return_));
@@ -1642,6 +1657,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   __ pop(r0);  // Discard the result.
 
   // Stop the introduced shadowing and count the number of required unlinks.
+  // After shadowing stops, the original labels are unshadowed and the
+  // LabelShadows represent the formerly shadowing labels.
   int nof_unlinks = 0;
   for (int i = 0; i <= nof_escapes; i++) {
     shadows[i]->StopShadowing();
@@ -1660,7 +1677,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // Code slot popped.
   if (nof_unlinks > 0) __ b(&exit);
 
-  // Generate unlink code for all used shadow labels.
+  // Generate unlink code for the (formerly) shadowing labels that have been
+  // jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       // Unlink from try chain;
@@ -1677,7 +1695,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       __ add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
       // Code slot popped.
 
-      __ b(shadows[i]->shadowed());
+      __ b(shadows[i]->original_label());
     }
   }
 
@@ -1708,9 +1726,12 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
   __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
 
-  // Introduce shadow labels for all escapes from the try block,
-  // including returns. We should probably try to unify the escaping
-  // labels and the return label.
+  // Shadow the labels for all escapes from the try block, including
+  // returns.  Shadowing hides the original label as the LabelShadow and
+  // operations on the original actually affect the shadowing label.
+  //
+  // We should probably try to unify the escaping labels and the return
+  // label.
   int nof_escapes = node->escaping_labels()->length();
   List<LabelShadow*> shadows(1 + nof_escapes);
   shadows.Add(new LabelShadow(&function_return_));
@@ -1721,8 +1742,9 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // Generate code for the statements in the try block.
   VisitStatements(node->try_block()->statements());
 
-  // Stop the introduced shadowing and count the number of required
-  // unlinks.
+  // Stop the introduced shadowing and count the number of required unlinks.
+  // After shadowing stops, the original labels are unshadowed and the
+  // LabelShadows represent the formerly shadowing labels.
   int nof_unlinks = 0;
   for (int i = 0; i <= nof_escapes; i++) {
     shadows[i]->StopShadowing();
@@ -1735,14 +1757,17 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   __ mov(r2, Operand(Smi::FromInt(FALLING)));
   if (nof_unlinks > 0) __ b(&unlink);
 
-  // Generate code that sets the state for all used shadow labels.
+  // Generate code to set the state for the (formerly) shadowing labels that
+  // have been jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       __ bind(shadows[i]);
-      if (shadows[i]->shadowed() == &function_return_) {
-        __ push(r0);  // Materialize the return value on the stack
+      if (shadows[i]->original_label() == &function_return_) {
+        // If this label shadowed the function return, materialize the
+        // return value on the stack.
+        __ push(r0);
       } else {
-        // Fake TOS for break and continue (not return).
+        // Fake TOS for labels that shadowed breaks and continues.
         __ mov(r0, Operand(Factory::undefined_value()));
         __ push(r0);
       }
@@ -1789,18 +1814,18 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   __ pop(r0);
   break_stack_height_ -= kFinallyStackSize;
 
-  // Generate code that jumps to the right destination for all used
-  // shadow labels.
+  // Generate code to jump to the right destination for all used (formerly)
+  // shadowing labels.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_bound()) {
       __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
-      if (shadows[i]->shadowed() != &function_return_) {
+      if (shadows[i]->original_label() != &function_return_) {
         Label next;
         __ b(ne, &next);
-        __ b(shadows[i]->shadowed());
+        __ b(shadows[i]->original_label());
         __ bind(&next);
       } else {
-        __ b(eq, shadows[i]->shadowed());
+        __ b(eq, shadows[i]->original_label());
       }
     }
   }
@@ -2220,7 +2245,10 @@ void CodeGenerator::VisitCall(Call* node) {
     // Push the name of the function and the receiver onto the stack.
     __ mov(r0, Operand(var->name()));
     __ push(r0);
-    LoadGlobal();
+
+    // TODO(120): use JSGlobalObject for function lookup and inline cache,
+    // and use global proxy as 'this' for invocation.
+    LoadGlobalReceiver(r0);
 
     // Load the arguments.
     for (int i = 0; i < args->length(); i++) Load(args->at(i));
@@ -2308,7 +2336,10 @@ void CodeGenerator::VisitCall(Call* node) {
     // Load the function.
     Load(function);
     // Pass the global object as the receiver.
-    LoadGlobal();
+
+    // TODO(120): use JSGlobalObject for function lookup and inline cache,
+    // and use global proxy as 'this' for invocation.
+    LoadGlobalReceiver(r0);
     // Call the function.
     CallWithArguments(args, node->position());
     __ push(r0);
@@ -2328,7 +2359,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // Compute function to call and use the global object as the
   // receiver.
   Load(node->expression());
-  LoadGlobal();
+  LoadGlobalReceiver(r0);
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = node->arguments();
@@ -2873,12 +2904,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   // inlining a null check instead of calling the (very) general
   // runtime routine for checking equality.
 
-  bool left_is_null =
-    left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
-  bool right_is_null =
-    right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
-
   if (op == Token::EQ || op == Token::EQ_STRICT) {
+    bool left_is_null =
+      left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
+    bool right_is_null =
+      right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
     // The 'null' value is only equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
       Load(left_is_null ? right : left);
@@ -3897,7 +3927,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
 #ifdef DEBUG
   if (FLAG_gc_greedy) {
-    Failure* failure = Failure::RetryAfterGC(0, NEW_SPACE);
+    Failure* failure = Failure::RetryAfterGC(0);
     __ mov(r0, Operand(reinterpret_cast<intptr_t>(failure)));
   }
   GenerateCore(masm,

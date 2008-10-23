@@ -878,14 +878,14 @@ void Serializer::InitializeAllocators() {
 }
 
 
-bool Serializer::IsVisited(HeapObject *obj) {
+bool Serializer::IsVisited(HeapObject* obj) {
   HashMap::Entry* entry =
     saved_addresses_.Lookup(obj, HeapObjectHash(obj), false);
   return entry != NULL;
 }
 
 
-Address Serializer::GetSavedAddress(HeapObject *obj) {
+Address Serializer::GetSavedAddress(HeapObject* obj) {
   HashMap::Entry* entry
   = saved_addresses_.Lookup(obj, HeapObjectHash(obj), false);
   ASSERT(entry != NULL);
@@ -1055,18 +1055,6 @@ void Serializer::PutContextStack() {
     HandleScopeImplementer::instance()->SaveContext(contexts[i]);
   }
   PutGlobalHandleStack(contexts);
-
-  List<Handle<Object> > security_contexts(2);
-  while (HandleScopeImplementer::instance()->HasSavedSecurityContexts()) {
-    Handle<Object> context =
-      HandleScopeImplementer::instance()->RestoreSecurityContext();
-    security_contexts.Add(context);
-  }
-  for (int i = security_contexts.length() - 1; i >= 0; i--) {
-    Handle<Object> context = security_contexts[i];
-    HandleScopeImplementer::instance()->SaveSecurityContext(context);
-  }
-  PutGlobalHandleStack(security_contexts);
 }
 
 
@@ -1390,12 +1378,6 @@ void Deserializer::GetContextStack() {
   for (int i = 0; i < entered_contexts.length(); i++) {
     HandleScopeImplementer::instance()->SaveContext(entered_contexts[i]);
   }
-  List<Handle<Object> > security_contexts(2);
-  GetGlobalHandleStack(&security_contexts);
-  for (int i = 0; i < security_contexts.length(); i++) {
-    HandleScopeImplementer::instance()->
-      SaveSecurityContext(security_contexts[i]);
-  }
 }
 
 
@@ -1413,7 +1395,7 @@ Object* Deserializer::GetObject() {
 
   // Get a raw object of the right size in the right space.
   AllocationSpace space = GetSpace(a);
-  Object *o;
+  Object* o;
   if (IsLargeExecutableObject(a)) {
     o = Heap::lo_space()->AllocateRawCode(size);
   } else if (IsLargeFixedArray(a)) {
@@ -1471,7 +1453,7 @@ static inline Object* ResolvePaged(int page_index,
 
 
 template<typename T>
-void ConcatReversed(List<T> * target, const List<T> & source) {
+void ConcatReversed(List<T>* target, const List<T>& source) {
   for (int i = source.length() - 1; i >= 0; i--) {
     target->Add(source[i]);
   }

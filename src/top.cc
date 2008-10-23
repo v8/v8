@@ -66,7 +66,6 @@ char* Top::Iterate(ObjectVisitor* v, char* thread_storage) {
 
 void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   v->VisitPointer(&(thread->pending_exception_));
-  v->VisitPointer(bit_cast<Object**, Context**>(&(thread->security_context_)));
   v->VisitPointer(bit_cast<Object**, Context**>(&(thread->context_)));
   v->VisitPointer(&(thread->scheduled_exception_));
 
@@ -96,13 +95,13 @@ void Top::InitializeThreadLocal() {
   thread_local_.handler_ = 0;
   thread_local_.stack_is_cooked_ = false;
   thread_local_.try_catch_handler_ = NULL;
-  thread_local_.security_context_ = NULL;
   thread_local_.context_ = NULL;
   thread_local_.external_caught_exception_ = false;
   thread_local_.failed_access_check_callback_ = NULL;
   clear_pending_exception();
   clear_scheduled_exception();
   thread_local_.save_context_ = NULL;
+  thread_local_.catcher_ = NULL;
 }
 
 
@@ -444,7 +443,7 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
   if (!thread_local_.failed_access_check_callback_) return;
 
   ASSERT(receiver->IsAccessCheckNeeded());
-  ASSERT(Top::security_context());
+  ASSERT(Top::context());
   // The callers of this method are not expecting a GC.
   AssertNoAllocation no_gc;
 
@@ -465,23 +464,45 @@ void Top::ReportFailedAccessCheck(JSObject* receiver, v8::AccessType type) {
     v8::Utils::ToLocal(data));
 }
 
+
+enum MayAccessDecision {
+  YES, NO, UNKNOWN
+};
+
+
+static MayAccessDecision MayAccessPreCheck(JSObject* receiver,
+                                           v8::AccessType type) {
+  // During bootstrapping, callback functions are not enabled yet.
+  if (Bootstrapper::IsActive()) return YES;
+
+  if (receiver->IsJSGlobalProxy()) {
+    Object* receiver_context = JSGlobalProxy::cast(receiver)->context();
+    if (!receiver_context->IsContext()) return NO;
+
+    // Get the global context of current top context.
+    // avoid using Top::global_context() because it uses Handle.
+    Context* global_context = Top::context()->global()->global_context();
+    if (receiver_context == global_context) return YES;
+
+    if (Context::cast(receiver_context)->security_token() ==
+        global_context->security_token())
+      return YES;
+  }
+
+  return UNKNOWN;
+}
+
+
 bool Top::MayNamedAccess(JSObject* receiver, Object* key, v8::AccessType type) {
   ASSERT(receiver->IsAccessCheckNeeded());
   // Check for compatibility between the security tokens in the
-  // current security context and the accessed object.
-  ASSERT(Top::security_context());
+  // current lexical context and the accessed object.
+  ASSERT(Top::context());
   // The callers of this method are not expecting a GC.
   AssertNoAllocation no_gc;
 
-  // During bootstrapping, callback functions are not enabled yet.
-  if (Bootstrapper::IsActive()) return true;
-
-  if (receiver->IsJSGlobalObject()) {
-    JSGlobalObject* global = JSGlobalObject::cast(receiver);
-    JSGlobalObject* current =
-        JSGlobalObject::cast(Top::security_context()->global());
-    if (current->security_token() == global->security_token()) return true;
-  }
+  MayAccessDecision decision = MayAccessPreCheck(receiver, type);
+  if (decision != UNKNOWN) return decision == YES;
 
   // Get named access check callback
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
@@ -520,20 +541,13 @@ bool Top::MayIndexedAccess(JSObject* receiver,
                            v8::AccessType type) {
   ASSERT(receiver->IsAccessCheckNeeded());
   // Check for compatibility between the security tokens in the
-  // current security context and the accessed object.
-  ASSERT(Top::security_context());
+  // current lexical context and the accessed object.
+  ASSERT(Top::context());
   // The callers of this method are not expecting a GC.
   AssertNoAllocation no_gc;
 
-  // During bootstrapping, callback functions are not enabled yet.
-  if (Bootstrapper::IsActive()) return true;
-
-  if (receiver->IsJSGlobalObject()) {
-    JSGlobalObject* global = JSGlobalObject::cast(receiver);
-    JSGlobalObject* current =
-      JSGlobalObject::cast(Top::security_context()->global());
-    if (current->security_token() == global->security_token()) return true;
-  }
+  MayAccessDecision decision = MayAccessPreCheck(receiver, type);
+  if (decision != UNKNOWN) return decision == YES;
 
   // Get indexed access check callback
   JSFunction* constructor = JSFunction::cast(receiver->map()->constructor());
@@ -570,8 +584,7 @@ Failure* Top::StackOverflow() {
   HandleScope scope;
   Handle<String> key = Factory::stack_overflow_symbol();
   Handle<JSObject> boilerplate =
-      Handle<JSObject>::cast(
-          GetProperty(Top::security_context_builtins(), key));
+      Handle<JSObject>::cast(GetProperty(Top::builtins(), key));
   Handle<Object> exception = Copy(boilerplate);
   // TODO(1240995): To avoid having to call JavaScript code to compute
   // the message for stack overflow exceptions which is very likely to
@@ -582,19 +595,20 @@ Failure* Top::StackOverflow() {
   // reworked.
   static const char* kMessage =
       "Uncaught RangeError: Maximum call stack size exceeded";
-  DoThrow(*exception, NULL, kMessage, false);
+  DoThrow(*exception, NULL, kMessage);
   return Failure::Exception();
 }
 
 
 Failure* Top::Throw(Object* exception, MessageLocation* location) {
-  DoThrow(exception, location, NULL, false);
+  DoThrow(exception, location, NULL);
   return Failure::Exception();
 }
 
 
 Failure* Top::ReThrow(Object* exception, MessageLocation* location) {
-  DoThrow(exception, location, NULL, true);
+  // Set the exception beeing re-thrown.
+  set_pending_exception(exception);
   return Failure::Exception();
 }
 
@@ -712,21 +726,16 @@ bool Top::ShouldReportException(bool* is_caught_externally) {
   // the handler is at a higher address than the external address it
   // means that it is below it on the stack.
 
-  // Find the top-most try-catch or try-finally handler.
-  while (handler != NULL && handler->is_entry()) {
-    handler = handler->next();
-  }
-
-  // The exception has been externally caught if and only if there is
-  // an external handler which is above any JavaScript try-catch or
-  // try-finally handlers.
-  *is_caught_externally = has_external_handler &&
-      (handler == NULL || handler->address() > external_handler_address);
-
   // Find the top-most try-catch handler.
   while (handler != NULL && !handler->is_try_catch()) {
     handler = handler->next();
   }
+
+  // The exception has been externally caught if and only if there is
+  // an external handler which is above any JavaScript try-catch but NOT
+  // try-finally handlers.
+  *is_caught_externally = has_external_handler &&
+      (handler == NULL || handler->address() > external_handler_address);
 
   // If we have a try-catch handler then the exception is caught in
   // JavaScript code.
@@ -748,23 +757,23 @@ bool Top::ShouldReportException(bool* is_caught_externally) {
 
 void Top::DoThrow(Object* exception,
                   MessageLocation* location,
-                  const char* message,
-                  bool is_rethrow) {
+                  const char* message) {
   ASSERT(!has_pending_exception());
-  ASSERT(!external_caught_exception());
 
   HandleScope scope;
   Handle<Object> exception_handle(exception);
 
+  // Determine reporting and whether the exception is caught externally.
   bool is_caught_externally = false;
   bool report_exception = (exception != Failure::OutOfMemoryException()) &&
-    ShouldReportException(&is_caught_externally);
-  if (is_rethrow) report_exception = false;
+      ShouldReportException(&is_caught_externally);
 
+  // Generate the message.
   Handle<Object> message_obj;
   MessageLocation potential_computed_location;
   bool try_catch_needs_message =
-    is_caught_externally && thread_local_.try_catch_handler_->capture_message_;
+      is_caught_externally &&
+      thread_local_.try_catch_handler_->capture_message_;
   if (report_exception || try_catch_needs_message) {
     if (location == NULL) {
       // If no location was specified we use a computed one instead
@@ -780,7 +789,9 @@ void Top::DoThrow(Object* exception,
   // If the exception is caught externally, we store it in the
   // try/catch handler. The C code can find it later and process it if
   // necessary.
+  thread_local_.catcher_ = NULL;
   if (is_caught_externally) {
+    thread_local_.catcher_ = thread_local_.try_catch_handler_;
     thread_local_.try_catch_handler_->exception_ =
       reinterpret_cast<void*>(*exception_handle);
     if (!message_obj.is_null()) {
@@ -799,7 +810,7 @@ void Top::DoThrow(Object* exception,
       MessageHandler::ReportMessage(location, message_obj);
     }
   }
-  thread_local_.external_caught_exception_ = is_caught_externally;
+
   // NOTE: Notifying the debugger or reporting the exception may have caused
   // new exceptions. For now, we just ignore that and set the pending exception
   // to the original one.

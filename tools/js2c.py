@@ -200,25 +200,30 @@ namespace internal {
 
 %(source_lines)s\
 
-  int Natives::GetBuiltinsCount() {
+  template <>
+  int NativesCollection<%(type)s>::GetBuiltinsCount() {
     return %(builtin_count)i;
   }
 
-  int Natives::GetDelayCount() {
+  template <>
+  int NativesCollection<%(type)s>::GetDelayCount() {
     return %(delay_count)i;
   }
 
-  int Natives::GetIndex(const char* name) {
+  template <>
+  int NativesCollection<%(type)s>::GetIndex(const char* name) {
 %(get_index_cases)s\
     return -1;
   }
 
-  Vector<const char> Natives::GetScriptSource(int index) {
+  template <>
+  Vector<const char> NativesCollection<%(type)s>::GetScriptSource(int index) {
 %(get_script_source_cases)s\
     return Vector<const char>("", 0);
   }
 
-  Vector<const char> Natives::GetScriptName(int index) {
+  template <>
+  Vector<const char> NativesCollection<%(type)s>::GetScriptName(int index) {
 %(get_script_name_cases)s\
     return Vector<const char>("", 0);
   }
@@ -323,25 +328,30 @@ def JS2C(source, target, env):
     'source_lines': "\n".join(source_lines),
     'get_index_cases': "".join(get_index_cases),
     'get_script_source_cases': "".join(get_script_source_cases),
-    'get_script_name_cases': "".join(get_script_name_cases)
+    'get_script_name_cases': "".join(get_script_name_cases),
+    'type': env['TYPE']
   })
   output.close()
-  output = open(str(target[1]), "w")
-  output.write(HEADER_TEMPLATE % {
-    'builtin_count': len(ids) + len(delay_ids),
-    'delay_count': len(delay_ids),
-    'source_lines': "\n".join(source_lines_empty),
-    'get_index_cases': "".join(get_index_cases),
-    'get_script_source_cases': "".join(get_script_source_cases),
-    'get_script_name_cases': "".join(get_script_name_cases)
-  })
-  output.close()
+
+  if len(target) > 1:
+    output = open(str(target[1]), "w")
+    output.write(HEADER_TEMPLATE % {
+      'builtin_count': len(ids) + len(delay_ids),
+      'delay_count': len(delay_ids),
+      'source_lines': "\n".join(source_lines_empty),
+      'get_index_cases': "".join(get_index_cases),
+      'get_script_source_cases': "".join(get_script_source_cases),
+      'get_script_name_cases': "".join(get_script_name_cases),
+      'type': env['TYPE']
+    })
+    output.close()
 
 def main():
   natives = sys.argv[1]
   natives_empty = sys.argv[2]
-  source_files = sys.argv[3:]
-  JS2C(source_files, [natives, natives_empty], None)
+  type = sys.argv[3]
+  source_files = sys.argv[4:]
+  JS2C(source_files, [natives, natives_empty], { 'TYPE': type })
 
 if __name__ == "__main__":
   main()

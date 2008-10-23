@@ -271,6 +271,7 @@ class CodeGenerator: public Visitor {
                      bool force_cc);
   void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
+  void LoadGlobalReceiver(Register scratch);
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
@@ -287,10 +288,11 @@ class CodeGenerator: public Visitor {
 
   void GenericBinaryOperation(Token::Value op,
       const OverwriteMode overwrite_mode = NO_OVERWRITE);
+
   void Comparison(Condition cc, bool strict = false);
 
   // Inline small integer literals. To prevent long attacker-controlled byte
-  // sequences, we only inline small Smi:s.
+  // sequences, we only inline small Smis.
   static const int kMaxSmiInlinedBits = 16;
   bool IsInlineSmi(Literal* literal);
   void SmiComparison(Condition cc,  Handle<Object> value, bool strict = false);
@@ -367,24 +369,28 @@ class CodeGenerator: public Visitor {
   // Allocate a jump table and create code to jump through it.
   // Should call GenerateFastCaseSwitchCases to generate the code for
   // all the cases at the appropriate point.
-  void GenerateFastCaseSwitchJumpTable(SwitchStatement* node, int min_index,
-                                       int range, Label *fail_label,
-                                       SmartPointer<Label*> &case_targets,
-                                       SmartPointer<Label>& case_labels);
+  void GenerateFastCaseSwitchJumpTable(SwitchStatement* node,
+                                       int min_index,
+                                       int range,
+                                       Label* fail_label,
+                                       Vector<Label*> case_targets,
+                                       Vector<Label> case_labels);
 
   // Generate the code for cases for the fast case switch.
   // Called by GenerateFastCaseSwitchJumpTable.
   void GenerateFastCaseSwitchCases(SwitchStatement* node,
-                                   SmartPointer<Label> &case_labels);
+                                   Vector<Label> case_labels);
 
   // Fast support for constant-Smi switches.
-  void GenerateFastCaseSwitchStatement(SwitchStatement *node, int min_index,
-                                       int range, int default_index);
+  void GenerateFastCaseSwitchStatement(SwitchStatement* node,
+                                       int min_index,
+                                       int range,
+                                       int default_index);
 
   // Fast support for constant-Smi switches. Tests whether switch statement
   // permits optimization and calls GenerateFastCaseSwitch if it does.
   // Returns true if the fast-case switch was generated, and false if not.
-  bool TryGenerateFastCaseSwitchStatement(SwitchStatement *node);
+  bool TryGenerateFastCaseSwitchStatement(SwitchStatement* node);
 
 
   // Bottle-neck interface to call the Assembler to generate the statement

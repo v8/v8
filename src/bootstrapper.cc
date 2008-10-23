@@ -275,7 +275,9 @@ class Genesis BASE_EMBEDDED {
   bool InstallExtension(const char* name);
   bool InstallExtension(v8::RegisteredExtension* current);
   bool InstallSpecialObjects();
-  bool ConfigureGlobalObject(v8::Handle<v8::ObjectTemplate> global_template);
+  bool ConfigureApiObject(Handle<JSObject> object,
+                          Handle<ObjectTemplateInfo> object_template);
+  bool ConfigureGlobalObjects(v8::Handle<v8::ObjectTemplate> global_template);
 
   // Migrates all properties from the 'from' object to the 'to'
   // object and overrides the prototype in 'to' with the one from
@@ -337,10 +339,29 @@ Handle<Context> Bootstrapper::CreateEnvironment(
 }
 
 
+static void SetObjectPrototype(Handle<JSObject> object, Handle<Object> proto) {
+  // object.__proto__ = proto;
+  Handle<Map> old_to_map = Handle<Map>(object->map());
+  Handle<Map> new_to_map = Factory::CopyMapDropTransitions(old_to_map);
+  new_to_map->set_prototype(*proto);
+  object->set_map(*new_to_map);
+}
+
+
+void Bootstrapper::DetachGlobal(Handle<Context> env) {
+  JSGlobalProxy::cast(env->global_proxy())->set_context(*Factory::null_value());
+  SetObjectPrototype(Handle<JSObject>(env->global_proxy()),
+                     Factory::null_value());
+  env->set_global_proxy(env->global());
+  env->global()->set_global_receiver(env->global());
+}
+
+
 Genesis::~Genesis() {
   ASSERT(current_ == this);
   current_ = previous_;
 }
+
 
 static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
                                           const char* name,
@@ -431,7 +452,6 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
   global_context_ =
       Handle<Context>::cast(
           GlobalHandles::Create(*Factory::NewGlobalContext()));
-  Top::set_security_context(*global_context());
   Top::set_context(*global_context());
 
   // Allocate the message listeners object.
@@ -506,54 +526,99 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
   }
 
   {  // --- G l o b a l ---
-    Handle<String> global_name = Factory::LookupAsciiSymbol("global");
-    Handle<JSFunction> global_function;
-
-    if (global_template.IsEmpty()) {
-      Handle<String> name = Handle<String>(Heap::empty_symbol());
-      Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
-      global_function = Factory::NewFunction(name, JS_GLOBAL_OBJECT_TYPE,
-                                             JSGlobalObject::kSize, code, true);
-      // Change the constructor property of the prototype of the
-      // hidden global function to refer to the Object function.
-      Handle<JSObject> prototype =
-          Handle<JSObject>(
-              JSObject::cast(global_function->instance_prototype()));
-      SetProperty(prototype, Factory::constructor_symbol(),
-                  Top::object_function(), NONE);
-    } else {
-      Handle<ObjectTemplateInfo> data = v8::Utils::OpenHandle(*global_template);
-      Handle<FunctionTemplateInfo> global_constructor =
-          Handle<FunctionTemplateInfo>(
-              FunctionTemplateInfo::cast(data->constructor()));
-      global_function = Factory::CreateApiFunction(global_constructor, true);
-    }
-
-    SetExpectedNofProperties(global_function, 100);
-    global_function->shared()->set_instance_class_name(*global_name);
-    global_function->initial_map()->set_needs_access_check();
-
+    // Step 1: create a fresh inner JSGlobalObject
     Handle<JSGlobalObject> object;
-    if (global_object.location() != NULL) {
-      ASSERT(global_object->IsJSGlobalObject());
-      object =
-          ReinitializeJSGlobalObject(
-              global_function,
-              Handle<JSGlobalObject>::cast(global_object));
-    } else {
-      object =
-          Handle<JSGlobalObject>::cast(Factory::NewJSObject(global_function,
-                                                            TENURED));
+    {
+      Handle<JSFunction> js_global_function;
+      Handle<ObjectTemplateInfo> js_global_template;
+      if (!global_template.IsEmpty()) {
+        // Get prototype template of the global_template
+        Handle<ObjectTemplateInfo> data =
+            v8::Utils::OpenHandle(*global_template);
+        Handle<FunctionTemplateInfo> global_constructor =
+            Handle<FunctionTemplateInfo>(
+                FunctionTemplateInfo::cast(data->constructor()));
+        Handle<Object> proto_template(global_constructor->prototype_template());
+        if (!proto_template->IsUndefined()) {
+          js_global_template =
+              Handle<ObjectTemplateInfo>::cast(proto_template);
+        }
+      }
+
+      if (js_global_template.is_null()) {
+        Handle<String> name = Handle<String>(Heap::empty_symbol());
+        Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
+        js_global_function =
+            Factory::NewFunction(name, JS_GLOBAL_OBJECT_TYPE,
+                                 JSGlobalObject::kSize, code, true);
+        // Change the constructor property of the prototype of the
+        // hidden global function to refer to the Object function.
+        Handle<JSObject> prototype =
+            Handle<JSObject>(
+                JSObject::cast(js_global_function->instance_prototype()));
+        SetProperty(prototype, Factory::constructor_symbol(),
+                    Top::object_function(), NONE);
+      } else {
+        Handle<FunctionTemplateInfo> js_global_constructor(
+            FunctionTemplateInfo::cast(js_global_template->constructor()));
+        js_global_function =
+            Factory::CreateApiFunction(js_global_constructor,
+                                       Factory::InnerGlobalObject);
+      }
+
+      js_global_function->initial_map()->set_is_hidden_prototype();
+      SetExpectedNofProperties(js_global_function, 100);
+      object = Handle<JSGlobalObject>::cast(
+          Factory::NewJSObject(js_global_function, TENURED));
     }
 
     // Set the global context for the global object.
     object->set_global_context(*global_context());
 
-    // Security setup: Set the security token of the global object to
-    // its global context. This makes the security check between two
-    // different contexts fail by default even in case of global
-    // object reinitialization.
-    object->set_security_token(*global_context());
+    // Step 2: create or re-initialize the global proxy object.
+    Handle<JSGlobalProxy> global_proxy;
+    {
+      Handle<JSFunction> global_proxy_function;
+      if (global_template.IsEmpty()) {
+        Handle<String> name = Handle<String>(Heap::empty_symbol());
+        Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
+        global_proxy_function =
+            Factory::NewFunction(name, JS_GLOBAL_PROXY_TYPE,
+                                 JSGlobalProxy::kSize, code, true);
+      } else {
+        Handle<ObjectTemplateInfo> data =
+            v8::Utils::OpenHandle(*global_template);
+        Handle<FunctionTemplateInfo> global_constructor(
+                FunctionTemplateInfo::cast(data->constructor()));
+        global_proxy_function =
+            Factory::CreateApiFunction(global_constructor,
+                                       Factory::OuterGlobalObject);
+      }
+
+      Handle<String> global_name = Factory::LookupAsciiSymbol("global");
+      global_proxy_function->shared()->set_instance_class_name(*global_name);
+      global_proxy_function->initial_map()->set_is_access_check_needed();
+
+      // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
+
+      if (global_object.location() != NULL) {
+        ASSERT(global_object->IsJSGlobalProxy());
+        global_proxy =
+            ReinitializeJSGlobalProxy(
+                global_proxy_function,
+                Handle<JSGlobalProxy>::cast(global_object));
+      } else {
+        global_proxy = Handle<JSGlobalProxy>::cast(
+            Factory::NewJSObject(global_proxy_function, TENURED));
+      }
+
+      // Security setup: Set the security token of the global object to
+      // its the inner global. This makes the security check between two
+      // different contexts fail by default even in case of global
+      // object reinitialization.
+      object->set_global_receiver(*global_proxy);
+      global_proxy->set_context(*global_context());
+    }
 
     {  // --- G l o b a l   C o n t e x t ---
       // use the empty function as closure (no scope info)
@@ -564,6 +629,9 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
       // set extension and global object
       global_context()->set_extension(*object);
       global_context()->set_global(*object);
+      global_context()->set_global_proxy(*global_proxy);
+      // use inner global object as security token by default
+      global_context()->set_security_token(*object);
     }
 
     Handle<JSObject> global = Handle<JSObject>(global_context()->global());
@@ -671,25 +739,46 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     Handle<JSObject> prototype =
         Handle<JSObject>(
             JSObject::cast(global_context()->object_function()->prototype()));
-    Handle<JSFunction> function =
-        Factory::NewFunctionWithPrototype(symbol, JS_OBJECT_TYPE,
-                                          JSObject::kHeaderSize, prototype,
-                                          code, true);
-    function->shared()->set_instance_class_name(*symbol);
 
+    Handle<JSFunction> function =
+        Factory::NewFunctionWithPrototype(symbol,
+                                          JS_OBJECT_TYPE,
+                                          JSObject::kHeaderSize,
+                                          prototype,
+                                          code,
+                                          false);
+    ASSERT(!function->has_initial_map());
+    function->shared()->set_instance_class_name(*symbol);
+    function->shared()->set_expected_nof_properties(2);
     Handle<JSObject> result = Factory::NewJSObject(function);
 
     global_context()->set_arguments_boilerplate(*result);
     // Note: callee must be added as the first property and
     //       length must be added as the second property.
-    SetProperty(result, Factory::callee_symbol(), Factory::undefined_value(),
+    SetProperty(result, Factory::callee_symbol(),
+                Factory::undefined_value(),
                 DONT_ENUM);
-    SetProperty(result, Factory::length_symbol(), Factory::undefined_value(),
+    SetProperty(result, Factory::length_symbol(),
+                Factory::undefined_value(),
                 DONT_ENUM);
+
+#ifdef DEBUG
+    LookupResult lookup;
+    result->LocalLookup(Heap::callee_symbol(), &lookup);
+    ASSERT(lookup.IsValid() && (lookup.type() == FIELD));
+    ASSERT(lookup.GetFieldIndex() == Heap::arguments_callee_index);
+
+    result->LocalLookup(Heap::length_symbol(), &lookup);
+    ASSERT(lookup.IsValid() && (lookup.type() == FIELD));
+    ASSERT(lookup.GetFieldIndex() == Heap::arguments_length_index);
+
+    ASSERT(result->map()->inobject_properties() > Heap::arguments_callee_index);
+    ASSERT(result->map()->inobject_properties() > Heap::arguments_length_index);
 
     // Check the state of the object.
     ASSERT(result->HasFastProperties());
     ASSERT(result->HasFastElements());
+#endif
   }
 
   {  // --- context extension
@@ -835,6 +924,7 @@ bool Genesis::InstallNatives() {
                                                           TENURED));
   builtins->set_builtins(*builtins);
   builtins->set_global_context(*global_context());
+  builtins->set_global_receiver(*builtins);
 
   // Setup the 'global' properties of the builtins object. The
   // 'global' property that refers to the global object is the only
@@ -932,13 +1022,11 @@ bool Genesis::InstallNatives() {
     SetupLazy(Handle<JSFunction>(global_context()->date_function()),
               Natives::GetIndex("date"),
               Top::global_context(),
-              Handle<Context>(Top::context()->runtime_context()),
-              Handle<Context>(Top::security_context()));
+              Handle<Context>(Top::context()->runtime_context()));
     SetupLazy(Handle<JSFunction>(global_context()->regexp_function()),
               Natives::GetIndex("regexp"),
               Top::global_context(),
-              Handle<Context>(Top::context()->runtime_context()),
-              Handle<Context>(Top::security_context()));
+              Handle<Context>(Top::context()->runtime_context()));
 
   } else if (strlen(FLAG_natives_file) != 0) {
     // Otherwise install natives from natives file if file exists and
@@ -1004,14 +1092,14 @@ bool Genesis::InstallNatives() {
 
 bool Genesis::InstallSpecialObjects() {
   HandleScope scope;
-  Handle<JSGlobalObject> global(
+  Handle<JSGlobalObject> js_global(
       JSGlobalObject::cast(global_context()->global()));
   // Expose the natives in global if a name for it is specified.
   if (FLAG_expose_natives_as != NULL && strlen(FLAG_expose_natives_as) != 0) {
     Handle<String> natives_string =
         Factory::LookupAsciiSymbol(FLAG_expose_natives_as);
-    SetProperty(global, natives_string,
-                Handle<JSObject>(global->builtins()), DONT_ENUM);
+    SetProperty(js_global, natives_string,
+                Handle<JSObject>(js_global->builtins()), DONT_ENUM);
   }
 
   // Expose the debug global object in global if a name for it is specified.
@@ -1020,18 +1108,16 @@ bool Genesis::InstallSpecialObjects() {
     // debugger but without tanking the whole context.
     if (!Debug::Load())
       return true;
-    Handle<JSGlobalObject> debug_global =
-        Handle<JSGlobalObject>(
-            JSGlobalObject::cast(Debug::debug_context()->global()));
+    // Set the security token for the debugger context to the same as
+    // the shell global context to allow calling between these (otherwise
+    // exposing debug global object doesn't make much sense).
+    Debug::debug_context()->set_security_token(
+        global_context()->security_token());
+
     Handle<String> debug_string =
         Factory::LookupAsciiSymbol(FLAG_expose_debug_as);
-    SetProperty(global, debug_string,
-                Handle<JSObject>(debug_global), DONT_ENUM);
-
-    // Set the security token for the debugger global object to the same as
-    // the shell global object to allow calling between these (otherwise
-    // exposing debug global object doesn't make much sense).
-    debug_global->set_security_token(global->security_token());
+    SetProperty(js_global, debug_string,
+        Handle<Object>(Debug::debug_context()->global_proxy()), DONT_ENUM);
   }
 
   return true;
@@ -1122,21 +1208,48 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
 }
 
 
-bool Genesis::ConfigureGlobalObject(
-    v8::Handle<v8::ObjectTemplate> global_template) {
-  Handle<JSObject> global = Handle<JSObject>(global_context()->global());
-  if (!global_template.IsEmpty()) {
-    Handle<ObjectTemplateInfo> data = v8::Utils::OpenHandle(*global_template);
-    bool pending_exception = false;
-    Handle<JSObject> obj =
-        Execution::InstantiateObject(data, &pending_exception);
-    if (pending_exception) {
-      ASSERT(Top::has_pending_exception());
-      Top::clear_pending_exception();
-      return false;
+bool Genesis::ConfigureGlobalObjects(
+    v8::Handle<v8::ObjectTemplate> global_proxy_template) {
+  Handle<JSObject> global_proxy(
+      JSObject::cast(global_context()->global_proxy()));
+  Handle<JSObject> js_global(JSObject::cast(global_context()->global()));
+
+  if (!global_proxy_template.IsEmpty()) {
+    // Configure the global proxy object.
+    Handle<ObjectTemplateInfo> proxy_data =
+        v8::Utils::OpenHandle(*global_proxy_template);
+    if (!ConfigureApiObject(global_proxy, proxy_data)) return false;
+
+    // Configure the inner global object.
+    Handle<FunctionTemplateInfo> proxy_constructor(
+        FunctionTemplateInfo::cast(proxy_data->constructor()));
+    if (!proxy_constructor->prototype_template()->IsUndefined()) {
+      Handle<ObjectTemplateInfo> inner_data(
+          ObjectTemplateInfo::cast(proxy_constructor->prototype_template()));
+      if (!ConfigureApiObject(js_global, inner_data)) return false;
     }
-    TransferObject(obj, global);
   }
+
+  SetObjectPrototype(global_proxy, js_global);
+  return true;
+}
+
+
+bool Genesis::ConfigureApiObject(Handle<JSObject> object,
+    Handle<ObjectTemplateInfo> object_template) {
+  ASSERT(!object_template.is_null());
+  ASSERT(object->IsInstanceOf(
+      FunctionTemplateInfo::cast(object_template->constructor())));
+
+  bool pending_exception = false;
+  Handle<JSObject> obj =
+      Execution::InstantiateObject(object_template, &pending_exception);
+  if (pending_exception) {
+    ASSERT(Top::has_pending_exception());
+    Top::clear_pending_exception();
+    return false;
+  }
+  TransferObject(obj, object);
   return true;
 }
 
@@ -1331,7 +1444,8 @@ Genesis::Genesis(Handle<Object> global_object,
 
   MakeFunctionInstancePrototypeWritable();
   BuildSpecialFunctionTable();
-  if (!ConfigureGlobalObject(global_template)) return;
+
+  if (!ConfigureGlobalObjects(global_template)) return;
 
   if (!InstallExtensions(extensions)) return;
 

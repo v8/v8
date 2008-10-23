@@ -48,7 +48,7 @@ namespace v8 { namespace internal {
 // unknown pc location. Assembler::bind() is used to bind a label to the
 // current pc. A label can be bound only once.
 
-class Label : public ZoneObject {  // ShadowLables are dynamically allocated.
+class Label : public ZoneObject {  // LabelShadows are dynamically allocated.
  public:
   INLINE(Label())                 { Unuse(); }
   INLINE(~Label())                { ASSERT(!is_linked()); }
@@ -87,17 +87,19 @@ class Label : public ZoneObject {  // ShadowLables are dynamically allocated.
 };
 
 
-// A LabelShadow is a label that temporarily shadows another label. It
-// is used to catch linking and binding of labels in certain scopes,
-// e.g. try blocks. LabelShadows are themselves labels which can be
-// used (only) after they are not shadowing anymore.
-class LabelShadow: public Label {
+// A LabelShadow represents a label that is temporarily shadowed by another
+// label (represented by the original label during shadowing). They are used
+// to catch jumps to labels in certain contexts, e.g. try blocks.  After
+// shadowing ends, the formerly shadowed label is again represented by the
+// original label and the LabelShadow can be used as a label in its own
+// right, representing the formerly shadowing label.
+class LabelShadow : public Label {
  public:
-  explicit LabelShadow(Label* shadowed) {
-    ASSERT(shadowed != NULL);
-    shadowed_ = shadowed;
-    shadowed_pos_ = shadowed->pos_;
-    shadowed->Unuse();
+  explicit LabelShadow(Label* original) {
+    ASSERT(original != NULL);
+    original_label_ = original;
+    original_pos_ = original->pos_;
+    original->Unuse();
 #ifdef DEBUG
     is_shadowing_ = true;
 #endif
@@ -109,18 +111,23 @@ class LabelShadow: public Label {
 
   void StopShadowing() {
     ASSERT(is_shadowing_ && is_unused());
-    pos_ = shadowed_->pos_;
-    shadowed_->pos_ = shadowed_pos_;
+    pos_ = original_label_->pos_;
+    original_label_->pos_ = original_pos_;
 #ifdef DEBUG
     is_shadowing_ = false;
 #endif
   }
 
-  Label* shadowed() const { return shadowed_; }
+  Label* original_label() const { return original_label_; }
 
  private:
-  Label* shadowed_;
-  int shadowed_pos_;
+  // During shadowing, the currently shadowing label.  After shadowing, the
+  // label that was shadowed.
+  Label* original_label_;
+
+  // During shadowing, the saved state of the original label.
+  int original_pos_;
+
 #ifdef DEBUG
   bool is_shadowing_;
 #endif

@@ -36,9 +36,9 @@ namespace v8 { namespace internal {
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
 #define ASSERT_SEMISPACE_ALLOCATION_INFO(info, space) \
-  ASSERT((space)->low() <= (info).top                 \
-         && (info).top <= (space)->high()             \
-         && (info).limit == (space)->high())
+  ASSERT((space).low() <= (info).top                 \
+         && (info).top <= (space).high()             \
+         && (info).limit == (space).high())
 
 
 // ----------------------------------------------------------------------------
@@ -760,16 +760,19 @@ void PagedSpace::Print() { }
 // -----------------------------------------------------------------------------
 // NewSpace implementation
 
-NewSpace::NewSpace(int initial_semispace_capacity,
-                   int maximum_semispace_capacity,
-                   AllocationSpace id)
-    : Space(id, NOT_EXECUTABLE) {
+
+bool NewSpace::Setup(Address start, int size) {
+  // Setup new space based on the preallocated memory block defined by
+  // start and size. The provided space is divided into two semi-spaces.
+  // To support fast containment testing in the new space, the size of
+  // this chunk must be a power of two and it must be aligned to its size.
+  int initial_semispace_capacity = Heap::InitialSemiSpaceSize();
+  int maximum_semispace_capacity = Heap::SemiSpaceSize();
+
   ASSERT(initial_semispace_capacity <= maximum_semispace_capacity);
   ASSERT(IsPowerOf2(maximum_semispace_capacity));
   maximum_capacity_ = maximum_semispace_capacity;
   capacity_ = initial_semispace_capacity;
-  to_space_ = new SemiSpace(capacity_, maximum_capacity_, id);
-  from_space_ = new SemiSpace(capacity_, maximum_capacity_, id);
 
   // Allocate and setup the histogram arrays if necessary.
 #if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
@@ -781,19 +784,16 @@ NewSpace::NewSpace(int initial_semispace_capacity,
   INSTANCE_TYPE_LIST(SET_NAME)
 #undef SET_NAME
 #endif
-}
 
-
-bool NewSpace::Setup(Address start, int size) {
   ASSERT(size == 2 * maximum_capacity_);
   ASSERT(IsAddressAligned(start, size, 0));
 
-  if (to_space_ == NULL
-      || !to_space_->Setup(start, maximum_capacity_)) {
+  if (!to_space_.Setup(start, capacity_, maximum_capacity_)) {
     return false;
   }
-  if (from_space_ == NULL
-      || !from_space_->Setup(start + maximum_capacity_, maximum_capacity_)) {
+  if (!from_space_.Setup(start + maximum_capacity_,
+                         capacity_,
+                         maximum_capacity_)) {
     return false;
   }
 
@@ -802,8 +802,8 @@ bool NewSpace::Setup(Address start, int size) {
   object_mask_ = address_mask_ | kHeapObjectTag;
   object_expected_ = reinterpret_cast<uint32_t>(start) | kHeapObjectTag;
 
-  allocation_info_.top = to_space_->low();
-  allocation_info_.limit = to_space_->high();
+  allocation_info_.top = to_space_.low();
+  allocation_info_.limit = to_space_.high();
   mc_forwarding_info_.top = NULL;
   mc_forwarding_info_.limit = NULL;
 
@@ -831,22 +831,13 @@ void NewSpace::TearDown() {
   mc_forwarding_info_.top = NULL;
   mc_forwarding_info_.limit = NULL;
 
-  if (to_space_ != NULL) {
-    to_space_->TearDown();
-    delete to_space_;
-    to_space_ = NULL;
-  }
-
-  if (from_space_ != NULL) {
-    from_space_->TearDown();
-    delete from_space_;
-    from_space_ = NULL;
-  }
+  to_space_.TearDown();
+  from_space_.TearDown();
 }
 
 
 void NewSpace::Flip() {
-  SemiSpace* tmp = from_space_;
+  SemiSpace tmp = from_space_;
   from_space_ = to_space_;
   to_space_ = tmp;
 }
@@ -857,24 +848,24 @@ bool NewSpace::Double() {
   // TODO(1240712): Failure to double the from space can result in
   // semispaces of different sizes.  In the event of that failure, the
   // to space doubling should be rolled back before returning false.
-  if (!to_space_->Double() || !from_space_->Double()) return false;
+  if (!to_space_.Double() || !from_space_.Double()) return false;
   capacity_ *= 2;
-  allocation_info_.limit = to_space_->high();
+  allocation_info_.limit = to_space_.high();
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
   return true;
 }
 
 
 void NewSpace::ResetAllocationInfo() {
-  allocation_info_.top = to_space_->low();
-  allocation_info_.limit = to_space_->high();
+  allocation_info_.top = to_space_.low();
+  allocation_info_.limit = to_space_.high();
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 
 void NewSpace::MCResetRelocationInfo() {
-  mc_forwarding_info_.top = from_space_->low();
-  mc_forwarding_info_.limit = from_space_->high();
+  mc_forwarding_info_.top = from_space_.low();
+  mc_forwarding_info_.limit = from_space_.high();
   ASSERT_SEMISPACE_ALLOCATION_INFO(mc_forwarding_info_, from_space_);
 }
 
@@ -883,7 +874,7 @@ void NewSpace::MCCommitRelocationInfo() {
   // Assumes that the spaces have been flipped so that mc_forwarding_info_ is
   // valid allocation info for the to space.
   allocation_info_.top = mc_forwarding_info_.top;
-  allocation_info_.limit = to_space_->high();
+  allocation_info_.limit = to_space_.high();
   ASSERT_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
@@ -897,7 +888,7 @@ void NewSpace::Verify() {
 
   // There should be objects packed in from the low address up to the
   // allocation pointer.
-  Address current = to_space_->low();
+  Address current = to_space_.low();
   while (current < top()) {
     HeapObject* object = HeapObject::FromAddress(current);
 
@@ -931,22 +922,24 @@ void NewSpace::Verify() {
 // -----------------------------------------------------------------------------
 // SemiSpace implementation
 
-SemiSpace::SemiSpace(int initial_capacity,
-                     int maximum_capacity,
-                     AllocationSpace id)
-    : Space(id, NOT_EXECUTABLE), capacity_(initial_capacity),
-      maximum_capacity_(maximum_capacity), start_(NULL), age_mark_(NULL) {
-}
+bool SemiSpace::Setup(Address start,
+                      int initial_capacity,
+                      int maximum_capacity) {
+  // Creates a space in the young generation. The constructor does not
+  // allocate memory from the OS.  A SemiSpace is given a contiguous chunk of
+  // memory of size 'capacity' when set up, and does not grow or shrink
+  // otherwise.  In the mark-compact collector, the memory region of the from
+  // space is used as the marking stack. It requires contiguous memory
+  // addresses.
+  capacity_ = initial_capacity;
+  maximum_capacity_ = maximum_capacity;
 
-
-bool SemiSpace::Setup(Address start, int size) {
-  ASSERT(size == maximum_capacity_);
   if (!MemoryAllocator::CommitBlock(start, capacity_, executable())) {
     return false;
   }
 
   start_ = start;
-  address_mask_ = ~(size - 1);
+  address_mask_ = ~(maximum_capacity - 1);
   object_mask_ = address_mask_ | kHeapObjectTag;
   object_expected_ = reinterpret_cast<uint32_t>(start) | kHeapObjectTag;
 
@@ -1002,7 +995,7 @@ void SemiSpaceIterator::Initialize(NewSpace* space, Address start,
   ASSERT(space->ToSpaceContains(start));
   ASSERT(space->ToSpaceLow() <= end
          && end <= space->ToSpaceHigh());
-  space_ = space->to_space_;
+  space_ = &space->to_space_;
   current_ = start;
   limit_ = end;
   size_func_ = size_func;

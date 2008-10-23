@@ -191,7 +191,11 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
               "file in which to serialize heap")
 #endif
 
+//
+// Dev shell flags
+//
 
+DEFINE_bool(dump_counters, false, "Dump counters on exit")
 
 //
 // Debug only flags
@@ -301,7 +305,6 @@ DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(print_code, false, "print generated code")
-
 
 // Cleanup...
 #undef FLAG_FULL

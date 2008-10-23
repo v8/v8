@@ -987,13 +987,9 @@ THREADED_TEST(PropertyHandlerInPrototype) {
 }
 
 
-v8::Handle<Value> pre_post_global;
-
 static v8::Handle<Value> PrePropertyHandlerGet(Local<String> key,
                                                const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  CHECK(info.This()->Equals(pre_post_global));
-  CHECK(info.Holder()->Equals(pre_post_global));
   if (v8_str("pre")->Equals(key)) {
     return v8_str("PrePropertyHandler: pre");
   }
@@ -1018,7 +1014,6 @@ THREADED_TEST(PrePropertyHandler) {
                                                     0,
                                                     PrePropertyHandlerHas);
   LocalContext env(NULL, desc->InstanceTemplate());
-  pre_post_global = env->Global();
   Script::Compile(v8_str(
       "var pre = 'Object: pre'; var on = 'Object: on';"))->Run();
   v8::Handle<Value> result_pre = Script::Compile(v8_str("pre"))->Run();
@@ -1165,12 +1160,11 @@ THREADED_TEST(FunctionPrototype) {
 
 THREADED_TEST(InternalFields) {
   v8::HandleScope scope;
+  LocalContext env;
+
   Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New();
   Local<v8::ObjectTemplate> instance_templ = templ->InstanceTemplate();
   instance_templ->SetInternalFieldCount(1);
-  LocalContext env(0, instance_templ);
-  CHECK_EQ(1, env->Global()->InternalFieldCount());
-
   Local<v8::Object> obj = templ->GetFunction()->NewInstance();
   CHECK_EQ(1, obj->InternalFieldCount());
   CHECK(obj->GetInternalField(0)->IsUndefined());
@@ -1225,7 +1219,7 @@ bool message_received;
 static void check_message(v8::Handle<v8::Message> message,
                           v8::Handle<Value> data) {
   CHECK_EQ(5.76, data->NumberValue());
-  CHECK_EQ(6.75, message->GetSourceData()->NumberValue());
+  CHECK_EQ(6.75, message->GetScriptResourceName()->NumberValue());
   message_received = true;
 }
 
@@ -2371,8 +2365,8 @@ TEST(RegexpOutOfMemory) {
 static void MissingScriptInfoMessageListener(v8::Handle<v8::Message> message,
                                              v8::Handle<Value> data) {
   CHECK_EQ(v8::Undefined(), data);
-  CHECK(message->GetScriptResourceName().IsEmpty());
-  CHECK_EQ(v8::Undefined(), message->GetSourceData());
+  CHECK(message->GetScriptResourceName()->IsUndefined());
+  CHECK_EQ(v8::Undefined(), message->GetScriptResourceName());
   message->GetLineNumber();
   message->GetSourceLine();
 }
@@ -2416,7 +2410,7 @@ class Whammy {
   v8::Persistent<Script> script_;
 };
 
-static void HandleWeakReference(v8::Persistent<v8::Object> obj, void* data) {
+static void HandleWeakReference(v8::Persistent<v8::Value> obj, void* data) {
   Snorkel* snorkel = reinterpret_cast<Snorkel*>(data);
   delete snorkel;
   obj.ClearWeak();
@@ -3061,7 +3055,7 @@ THREADED_TEST(SecurityChecks) {
   CHECK(spy->IsFunction());
 
   // Create another function accessing global objects.
-  Script::Compile(v8_str("spy2=function(){return new Array();}"))->Run();
+  Script::Compile(v8_str("spy2=function(){return new this.Array();}"))->Run();
   Local<Value> spy2 = env1->Global()->Get(v8_str("spy2"));
   CHECK(spy2->IsFunction());
 
@@ -3074,13 +3068,9 @@ THREADED_TEST(SecurityChecks) {
     CHECK(result->IsFunction());
   }
 
-  // Change env2 to a new domain and invoke spy on env2. It should be blocked
-  // by security check.
   {
     env2->SetSecurityToken(bar);
     Context::Scope scope_env2(env2);
-    Local<Value> result = Function::Cast(*spy)->Call(env2->Global(), 0, NULL);
-    CHECK(result->IsUndefined());
 
     // Call cross_domain_call, it should throw an exception
     v8::TryCatch try_catch;
@@ -3227,11 +3217,75 @@ THREADED_TEST(CrossDomainForIn) {
 }
 
 
+TEST(ContextDetachGlobal) {
+  v8::HandleScope handle_scope;
+  LocalContext env1;
+  v8::Persistent<Context> env2 = Context::New();
+
+  Local<v8::Object> global1 = env1->Global();
+
+  Local<Value> foo = v8_str("foo");
+
+  // Set to the same domain.
+  env1->SetSecurityToken(foo);
+  env2->SetSecurityToken(foo);
+
+  // Enter env2
+  env2->Enter();
+
+  // Create a function in env1
+  Local<v8::Object> global2 = env2->Global();
+  global2->Set(v8_str("prop"), v8::Integer::New(1));
+  CompileRun("function getProp() {return prop;}");
+
+  env1->Global()->Set(v8_str("getProp"),
+                      global2->Get(v8_str("getProp")));
+
+  // Detach env1's global, and reuse the global object of env1
+  env2->Exit();
+  env2->DetachGlobal();
+  // env2 has a new global object.
+  CHECK(!env2->Global()->Equals(global2));
+
+  v8::Persistent<Context> env3 =
+      Context::New(0, v8::Handle<v8::ObjectTemplate>(), global2);
+  env3->SetSecurityToken(v8_str("bar"));
+  env3->Enter();
+
+  Local<v8::Object> global3 = env3->Global();
+  CHECK_EQ(global2, global3);
+  CHECK(global3->Get(v8_str("prop"))->IsUndefined());
+  CHECK(global3->Get(v8_str("getProp"))->IsUndefined());
+  global3->Set(v8_str("prop"), v8::Integer::New(-1));
+  global3->Set(v8_str("prop2"), v8::Integer::New(2));
+  env3->Exit();
+
+  // Call getProp in env1, and it should return the value 1
+  {
+    Local<Value> get_prop = global1->Get(v8_str("getProp"));
+    CHECK(get_prop->IsFunction());
+    v8::TryCatch try_catch;
+    Local<Value> r = Function::Cast(*get_prop)->Call(global1, 0, NULL);
+    CHECK(!try_catch.HasCaught());
+    CHECK_EQ(1, r->Int32Value());
+  }
+
+  // Check that env3 is not accessible from env1
+  {
+    Local<Value> r = global3->Get(v8_str("prop2"));
+    CHECK(r->IsUndefined());
+  }
+
+  env2.Dispose();
+  env3.Dispose();
+}
+
+
 static bool NamedAccessBlocker(Local<v8::Object> global,
                                Local<Value> name,
                                v8::AccessType type,
                                Local<Value> data) {
-  return Context::GetCurrentSecurityContext()->Global()->Equals(global);
+  return Context::GetCurrent()->Global()->Equals(global);
 }
 
 
@@ -3239,7 +3293,7 @@ static bool IndexedAccessBlocker(Local<v8::Object> global,
                                  uint32_t key,
                                  v8::AccessType type,
                                  Local<Value> data) {
-  return Context::GetCurrentSecurityContext()->Global()->Equals(global);
+  return Context::GetCurrent()->Global()->Equals(global);
 }
 
 
@@ -3252,7 +3306,7 @@ static v8::Handle<Value> EchoGetter(Local<String> name,
 
 static void EchoSetter(Local<String> name,
                        Local<Value> value,
-                       const AccessorInfo& info) {
+                       const AccessorInfo&) {
   if (value->IsNumber())
     g_echo_value = value->Int32Value();
 }
@@ -3265,9 +3319,8 @@ static v8::Handle<Value> UnreachableGetter(Local<String> name,
 }
 
 
-static void UnreachableSetter(Local<String> name,
-                              Local<Value> value,
-                              const AccessorInfo& info) {
+static void UnreachableSetter(Local<String>, Local<Value>,
+                              const AccessorInfo&) {
   CHECK(false);  // This function should nto be called.
 }
 
@@ -3546,15 +3599,14 @@ THREADED_TEST(AccessControlFlatten) {
 }
 
 
-static v8::Handle<Value> AccessControlNamedGetter(Local<String> name,
-                                                  const AccessorInfo& info) {
+static v8::Handle<Value> AccessControlNamedGetter(
+    Local<String>, const AccessorInfo&) {
   return v8::Integer::New(42);
 }
 
 
-static v8::Handle<Value> AccessControlNamedSetter(Local<String> key,
-                                                  Local<Value> value,
-                                                  const AccessorInfo&) {
+static v8::Handle<Value> AccessControlNamedSetter(
+    Local<String>, Local<Value> value, const AccessorInfo&) {
   return value;
 }
 
@@ -3566,9 +3618,8 @@ static v8::Handle<Value> AccessControlIndexedGetter(
 }
 
 
-static v8::Handle<Value> AccessControlIndexedSetter(uint32_t index,
-                                                    Local<Value> value,
-                                                    const AccessorInfo&) {
+static v8::Handle<Value> AccessControlIndexedSetter(
+    uint32_t, Local<Value> value, const AccessorInfo&) {
   return value;
 }
 
@@ -3727,9 +3778,7 @@ static int shadow_y_setter_call_count;
 static int shadow_y_getter_call_count;
 
 
-static void ShadowYSetter(Local<String> name,
-                          Local<Value> value,
-                          const AccessorInfo& info) {
+static void ShadowYSetter(Local<String>, Local<Value>, const AccessorInfo&) {
   shadow_y_setter_call_count++;
   shadow_y = 42;
 }
@@ -4145,9 +4194,7 @@ THREADED_TEST(InterceptorLoadIC) {
 
 
 static v8::Handle<Value> InterceptorStoreICSetter(
-      Local<String> key,
-      Local<Value> value,
-      const AccessorInfo&) {
+    Local<String> key, Local<Value> value, const AccessorInfo&) {
   CHECK(v8_str("x")->Equals(key));
   CHECK_EQ(42, value->Int32Value());
   return value;
@@ -4292,9 +4339,7 @@ THREADED_TEST(InterceptorICGetterExceptions) {
 static int interceptor_ic_exception_set_count = 0;
 
 static v8::Handle<Value> InterceptorICExceptionSetter(
-      Local<String> key,
-      Local<Value> value,
-      const AccessorInfo&) {
+      Local<String> key, Local<Value> value, const AccessorInfo&) {
   ApiTestFuzzer::Fuzz();
   if (++interceptor_ic_exception_set_count > 20) {
     return v8::ThrowException(v8_num(42));
@@ -4774,6 +4819,10 @@ TEST(DontLeakGlobalObjects) {
 
   v8::V8::Initialize();
 
+  // TODO(121): when running "cctest test-api", the initial count is 2,
+  // after second GC, the counter drops to 1. Needs to figure out why
+  // one GC is not enough to collect all garbage.
+  GetSurvivingGlobalObjectsCount();
   int count = GetSurvivingGlobalObjectsCount();
 
   for (int i = 0; i < 5; i++) {
@@ -4974,4 +5023,53 @@ THREADED_TEST(CallbackFunctionName) {
   CHECK(value->IsString());
   v8::String::AsciiValue name(value);
   CHECK_EQ("asdf", *name);
+}
+
+
+THREADED_TEST(DateAccess) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::Value> date = v8::Date::New(1224744689038.0);
+  CHECK(date->IsDate());
+  CHECK_EQ(1224744689038.0, v8::Handle<v8::Date>::Cast(date)->NumberValue());
+}
+
+
+void CheckProperties(v8::Handle<v8::Value> val, int elmc, const char* elmv[]) {
+  v8::Handle<v8::Object> obj = v8::Handle<v8::Object>::Cast(val);
+  v8::Handle<v8::Array> props = obj->GetPropertyNames();
+  CHECK_EQ(elmc, props->Length());
+  for (int i = 0; i < elmc; i++) {
+    v8::String::Utf8Value elm(props->Get(v8::Integer::New(i)));
+    CHECK_EQ(elmv[i], *elm);
+  }
+}
+
+
+THREADED_TEST(PropertyEnumeration) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::Value> obj = v8::Script::Compile(v8::String::New(
+      "var result = [];"
+      "result[0] = {};"
+      "result[1] = {a: 1, b: 2};"
+      "result[2] = [1, 2, 3];"
+      "var proto = {x: 1, y: 2, z: 3};"
+      "var x = { __proto__: proto, w: 0, z: 1 };"
+      "result[3] = x;"
+      "result;"))->Run();
+  v8::Handle<v8::Array> elms = v8::Handle<v8::Array>::Cast(obj);
+  CHECK_EQ(4, elms->Length());
+  int elmc0 = 0;
+  const char** elmv0 = NULL;
+  CheckProperties(elms->Get(v8::Integer::New(0)), elmc0, elmv0);
+  int elmc1 = 2;
+  const char* elmv1[] = {"a", "b"};
+  CheckProperties(elms->Get(v8::Integer::New(1)), elmc1, elmv1);
+  int elmc2 = 3;
+  const char* elmv2[] = {"0", "1", "2"};
+  CheckProperties(elms->Get(v8::Integer::New(2)), elmc2, elmv2);
+  int elmc3 = 4;
+  const char* elmv3[] = {"w", "z", "x", "y"};
+  CheckProperties(elms->Get(v8::Integer::New(3)), elmc3, elmv3);
 }

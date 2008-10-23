@@ -519,6 +519,12 @@ void CodeGenerator::LoadGlobal() {
 }
 
 
+void CodeGenerator::LoadGlobalReceiver(Register scratch) {
+  __ mov(scratch, GlobalObject());
+  frame_->Push(FieldOperand(scratch, GlobalObject::kGlobalReceiverOffset));
+}
+
+
 // TODO(1241834): Get rid of this function in favor of just using Load, now
 // that we have the INSIDE_TYPEOF typeof state. => Need to handle global
 // variables w/o reference errors elsewhere.
@@ -686,34 +692,50 @@ class FloatingPointHelper : public AllStatic {
 };
 
 
+// Flag that indicates whether or not the code for dealing with smis
+// is inlined or should be dealt with in the stub.
+enum GenericBinaryFlags {
+  SMI_CODE_IN_STUB,
+  SMI_CODE_INLINED
+};
+
+
 class GenericBinaryOpStub: public CodeStub {
  public:
-  GenericBinaryOpStub(Token::Value op, OverwriteMode mode)
-      : op_(op), mode_(mode) { }
+  GenericBinaryOpStub(Token::Value op,
+                      OverwriteMode mode,
+                      GenericBinaryFlags flags)
+      : op_(op), mode_(mode), flags_(flags) { }
+
+  void GenerateSmiCode(MacroAssembler* masm, Label* slow);
 
  private:
   Token::Value op_;
   OverwriteMode mode_;
+  GenericBinaryFlags flags_;
 
   const char* GetName();
 
 #ifdef DEBUG
   void Print() {
-    PrintF("GenericBinaryOpStub (op %s), (mode %d)\n",
+    PrintF("GenericBinaryOpStub (op %s), (mode %d, flags %d)\n",
            Token::String(op_),
-           static_cast<int>(mode_));
+           static_cast<int>(mode_),
+           static_cast<int>(flags_));
   }
 #endif
 
-  // Minor key encoding in 16 bits OOOOOOOOOOOOOOMM.
+  // Minor key encoding in 16 bits FOOOOOOOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
-  class OpBits: public BitField<Token::Value, 2, 14> {};
+  class OpBits: public BitField<Token::Value, 2, 13> {};
+  class FlagBits: public BitField<GenericBinaryFlags, 15, 1> {};
 
   Major MajorKey() { return GenericBinaryOp; }
   int MinorKey() {
     // Encode the parameters in a unique 16 bit value.
     return OpBits::encode(op_) |
-           ModeBits::encode(mode_);
+        ModeBits::encode(mode_) |
+        FlagBits::encode(flags_);
   }
   void Generate(MacroAssembler* masm);
 };
@@ -736,115 +758,84 @@ const char* GenericBinaryOpStub::GetName() {
 }
 
 
+class DeferredInlineBinaryOperation: public DeferredCode {
+ public:
+  DeferredInlineBinaryOperation(CodeGenerator* generator,
+                                Token::Value op,
+                                OverwriteMode mode,
+                                GenericBinaryFlags flags)
+      : DeferredCode(generator), stub_(op, mode, flags) { }
+
+  void GenerateInlineCode() {
+    stub_.GenerateSmiCode(masm(), enter());
+  }
+
+  virtual void Generate() {
+    __ push(ebx);
+    __ CallStub(&stub_);
+    // We must preserve the eax value here, because it will be written
+    // to the top-of-stack element when getting back to the fast case
+    // code. See comment in GenericBinaryOperation where
+    // deferred->exit() is bound.
+    __ push(eax);
+  }
+
+ private:
+  GenericBinaryOpStub stub_;
+};
+
+
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
-                                               OverwriteMode overwrite_mode) {
+                                           OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
+
+  if (op == Token::COMMA) {
+    // Simply discard left value.
+    frame_->Pop(eax);
+    frame_->Pop();
+    frame_->Push(eax);
+    return;
+  }
+
+  // For now, we keep the old behavior and only inline the smi code
+  // for the bitwise operations.
+  GenericBinaryFlags flags;
   switch (op) {
-    case Token::ADD:
-    case Token::SUB:
-    case Token::MUL:
-    case Token::DIV:
-    case Token::MOD: {
-      GenericBinaryOpStub stub(op, overwrite_mode);
-      __ CallStub(&stub);
-      frame_->Push(eax);
-      break;
-    }
     case Token::BIT_OR:
     case Token::BIT_AND:
-    case Token::BIT_XOR: {
-      Label slow, exit;
-      frame_->Pop(eax);  // get y
-      frame_->Pop(edx);  // get x
-      __ mov(ecx, Operand(edx));  // Prepare smi check.
-      // tag check
-      __ or_(ecx, Operand(eax));  // ecx = x | y;
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ test(ecx, Immediate(kSmiTagMask));
-      __ j(not_zero, &slow, taken);
-      switch (op) {
-        case Token::BIT_OR:  __ or_(eax, Operand(edx)); break;
-        case Token::BIT_AND: __ and_(eax, Operand(edx)); break;
-        case Token::BIT_XOR: __ xor_(eax, Operand(edx)); break;
-        default: UNREACHABLE();
-      }
-      __ jmp(&exit);
-      __ bind(&slow);
-      frame_->Push(edx);  // restore stack slots
-      frame_->Push(eax);
-      GenericBinaryOpStub stub(op, overwrite_mode);
-      __ CallStub(&stub);
-      __ bind(&exit);
-      frame_->Push(eax);  // push the result to the stack
-      break;
-    }
+    case Token::BIT_XOR:
     case Token::SHL:
     case Token::SHR:
-    case Token::SAR: {
-      Label slow, exit;
-      frame_->Pop(edx);  // get y
-      frame_->Pop(eax);  // get x
-      // tag check
-      __ mov(ecx, Operand(edx));
-      __ or_(ecx, Operand(eax));  // ecx = x | y;
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ test(ecx, Immediate(kSmiTagMask));
-      __ j(not_zero, &slow, not_taken);
-      // get copies of operands
-      __ mov(ebx, Operand(eax));
-      __ mov(ecx, Operand(edx));
-      // remove tags from operands (but keep sign)
-      __ sar(ebx, kSmiTagSize);
-      __ sar(ecx, kSmiTagSize);
-      // perform operation
-      switch (op) {
-        case Token::SAR:
-          __ sar(ebx);
-          // no checks of result necessary
-          break;
-        case Token::SHR:
-          __ shr(ebx);
-          // Check that the *unsigned* result fits in a smi.
-          // neither of the two high-order bits can be set:
-          // - 0x80000000: high bit would be lost when smi tagging.
-          // - 0x40000000: this number would convert to negative when
-          // smi tagging these two cases can only happen with shifts
-          // by 0 or 1 when handed a valid smi.
-          __ test(ebx, Immediate(0xc0000000));
-          __ j(not_zero, &slow, not_taken);
-          break;
-        case Token::SHL:
-          __ shl(ebx);
-          // Check that the *signed* result fits in a smi.
-          __ lea(ecx, Operand(ebx, 0x40000000));
-          __ test(ecx, Immediate(0x80000000));
-          __ j(not_zero, &slow, not_taken);
-          break;
-        default: UNREACHABLE();
-      }
-      // tag result and store it in TOS (eax)
-      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(ebx, times_2, kSmiTag));
-      __ jmp(&exit);
-      // slow case
-      __ bind(&slow);
-      frame_->Push(eax);  // restore stack
-      frame_->Push(edx);
-        GenericBinaryOpStub stub(op, overwrite_mode);
-      __ CallStub(&stub);
-      __ bind(&exit);
-      frame_->Push(eax);
+    case Token::SAR:
+      flags = SMI_CODE_INLINED;
       break;
-    }
-    case Token::COMMA: {
-      // simply discard left value
-      frame_->Pop(eax);
-      frame_->Pop();
-      frame_->Push(eax);
+
+    default:
+      flags = SMI_CODE_IN_STUB;
       break;
-    }
-    default: UNREACHABLE();
+  }
+
+  if (flags == SMI_CODE_INLINED) {
+    // Create a new deferred code for the slow-case part.
+    DeferredInlineBinaryOperation* deferred =
+        new DeferredInlineBinaryOperation(this, op, overwrite_mode, flags);
+    // Fetch the operands from the stack.
+    frame_->Pop(ebx);  // get y
+    __ mov(eax, frame_->Top());  // get x
+    // Generate the inline part of the code.
+    deferred->GenerateInlineCode();
+    // Put result back on the stack. It seems somewhat weird to let
+    // the deferred code jump back before the assignment to the frame
+    // top, but this is just to let the peephole optimizer get rid of
+    // more code.
+    __ bind(deferred->exit());
+    __ mov(frame_->Top(), eax);
+  } else {
+    // Call the stub and push the result to the stack.
+    GenericBinaryOpStub stub(op, overwrite_mode, flags);
+    __ CallStub(&stub);
+    frame_->Push(eax);
   }
 }
 
@@ -861,7 +852,7 @@ class DeferredInlinedSmiOperation: public DeferredCode {
   virtual void Generate() {
     __ push(eax);
     __ push(Immediate(Smi::FromInt(value_)));
-    GenericBinaryOpStub igostub(op_, overwrite_mode_);
+    GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
     __ CallStub(&igostub);
   }
 
@@ -884,7 +875,7 @@ class DeferredInlinedSmiOperationReversed: public DeferredCode {
   virtual void Generate() {
     __ push(Immediate(Smi::FromInt(value_)));
     __ push(eax);
-    GenericBinaryOpStub igostub(op_, overwrite_mode_);
+    GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
     __ CallStub(&igostub);
   }
 
@@ -909,7 +900,7 @@ class DeferredInlinedSmiAdd: public DeferredCode {
     __ sub(Operand(eax), immediate);
     __ push(eax);
     __ push(immediate);
-    GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_);
+    GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
     __ CallStub(&igostub);
   }
 
@@ -933,7 +924,7 @@ class DeferredInlinedSmiAddReversed: public DeferredCode {
     __ sub(Operand(eax), immediate);
     __ push(immediate);
     __ push(eax);
-    GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_);
+    GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
     __ CallStub(&igostub);
   }
 
@@ -957,7 +948,7 @@ class DeferredInlinedSmiSub: public DeferredCode {
     __ add(Operand(eax), immediate);
     __ push(eax);
     __ push(immediate);
-    GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_);
+    GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
     __ CallStub(&igostub);
   }
 
@@ -983,7 +974,7 @@ class DeferredInlinedSmiSubReversed: public DeferredCode {
     __ add(eax, Operand(tos_reg_));
     __ push(eax);
     __ push(tos_reg_);
-    GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_);
+    GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
     __ CallStub(&igostub);
   }
 
@@ -1608,8 +1599,12 @@ int CodeGenerator::FastCaseSwitchMinCaseCount() {
 
 // Generate a computed jump to a switch case.
 void CodeGenerator::GenerateFastCaseSwitchJumpTable(
-    SwitchStatement* node, int min_index, int range, Label *fail_label,
-    SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels) {
+    SwitchStatement* node,
+    int min_index,
+    int range,
+    Label* fail_label,
+    Vector<Label*> case_targets,
+    Vector<Label> case_labels) {
   // Notice: Internal references, used by both the jmp instruction and
   // the table entries, need to be relocated if the buffer grows. This
   // prevents the forward use of Labels, since a displacement cannot
@@ -2009,9 +2004,13 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // TODO(1222589): remove the reliance of PushTryHandler on a cached TOS
   frame_->Push(eax);  //
 
-  // Introduce shadow labels for all escapes from the try block,
-  // including returns. We should probably try to unify the escaping
-  // labels and the return label.
+  // Shadow the labels for all escapes from the try block, including
+  // returns.  During shadowing, the original label is hidden as the
+  // LabelShadow and operations on the original actually affect the
+  // shadowing label.
+  //
+  // We should probably try to unify the escaping labels and the return
+  // label.
   int nof_escapes = node->escaping_labels()->length();
   List<LabelShadow*> shadows(1 + nof_escapes);
   shadows.Add(new LabelShadow(&function_return_));
@@ -2026,6 +2025,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   is_inside_try_ = was_inside_try;
 
   // Stop the introduced shadowing and count the number of required unlinks.
+  // After shadowing stops, the original labels are unshadowed and the
+  // LabelShadows represent the formerly shadowing labels.
   int nof_unlinks = 0;
   for (int i = 0; i <= nof_escapes; i++) {
     shadows[i]->StopShadowing();
@@ -2051,7 +2052,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // next_sp popped.
   if (nof_unlinks > 0) __ jmp(&exit);
 
-  // Generate unlink code for all used shadow labels.
+  // Generate unlink code for the (formerly) shadowing labels that have been
+  // jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       // Unlink from try chain; be careful not to destroy the TOS.
@@ -2067,7 +2069,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       frame_->Pop(Operand::StaticVariable(handler_address));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
       // next_sp popped.
-      __ jmp(shadows[i]->shadowed());
+      __ jmp(shadows[i]->original_label());
     }
   }
 
@@ -2100,9 +2102,13 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // TODO(1222589): remove the reliance of PushTryHandler on a cached TOS
   frame_->Push(eax);
 
-  // Introduce shadow labels for all escapes from the try block,
-  // including returns. We should probably try to unify the escaping
-  // labels and the return label.
+  // Shadow the labels for all escapes from the try block, including
+  // returns.  During shadowing, the original label is hidden as the
+  // LabelShadow and operations on the original actually affect the
+  // shadowing label.
+  //
+  // We should probably try to unify the escaping labels and the return
+  // label.
   int nof_escapes = node->escaping_labels()->length();
   List<LabelShadow*> shadows(1 + nof_escapes);
   shadows.Add(new LabelShadow(&function_return_));
@@ -2116,8 +2122,9 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   VisitStatements(node->try_block()->statements());
   is_inside_try_ = was_inside_try;
 
-  // Stop the introduced shadowing and count the number of required
-  // unlinks.
+  // Stop the introduced shadowing and count the number of required unlinks.
+  // After shadowing stops, the original labels are unshadowed and the
+  // LabelShadows represent the formerly shadowing labels.
   int nof_unlinks = 0;
   for (int i = 0; i <= nof_escapes; i++) {
     shadows[i]->StopShadowing();
@@ -2129,15 +2136,17 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   __ Set(ecx, Immediate(Smi::FromInt(FALLING)));
   if (nof_unlinks > 0) __ jmp(&unlink);
 
-  // Generate code that sets the state for all used shadow labels.
+  // Generate code to set the state for the (formerly) shadowing labels that
+  // have been jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       __ bind(shadows[i]);
-      if (shadows[i]->shadowed() == &function_return_) {
-        // Materialize the return value on the stack.
+      if (shadows[i]->original_label() == &function_return_) {
+        // If this label shadowed the function return, materialize the
+        // return value on the stack.
         frame_->Push(eax);
       } else {
-        // Fake TOS for break and continue.
+        // Fake TOS for labels that shadowed breaks and continues.
         frame_->Push(Immediate(Factory::undefined_value()));
       }
       __ Set(ecx, Immediate(Smi::FromInt(JUMPING + i)));
@@ -2184,12 +2193,12 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   frame_->Pop(eax);
   break_stack_height_ -= kFinallyStackSize;
 
-  // Generate code that jumps to the right destination for all used
-  // shadow labels.
+  // Generate code to jump to the right destination for all used (formerly)
+  // shadowing labels.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_bound()) {
       __ cmp(Operand(ecx), Immediate(Smi::FromInt(JUMPING + i)));
-      __ j(equal, shadows[i]->shadowed());
+      __ j(equal, shadows[i]->original_label());
     }
   }
 
@@ -2650,7 +2659,10 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Push the name of the function and the receiver onto the stack.
     frame_->Push(Immediate(var->name()));
-    LoadGlobal();
+
+    // TODO(120): use JSGlobalObject for function lookup and inline cache,
+    // and use global proxy as 'this' for invocation.
+    LoadGlobalReceiver(eax);
 
     // Load the arguments.
     for (int i = 0; i < args->length(); i++) {
@@ -2736,7 +2748,10 @@ void CodeGenerator::VisitCall(Call* node) {
     Load(function);
 
     // Pass the global object as the receiver.
-    LoadGlobal();
+
+    // TODO(120): use JSGlobalObject for function lookup and inline cache,
+    // and use global proxy as 'this' for invocation.
+    LoadGlobalReceiver(eax);
 
     // Call the function.
     CallWithArguments(args, node->position());
@@ -2756,7 +2771,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // Compute function to call and use the global object as the
   // receiver.
   Load(node->expression());
-  LoadGlobal();
+  LoadGlobalReceiver(eax);
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = node->arguments();
@@ -3496,12 +3511,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   // inlining a null check instead of calling the (very) general
   // runtime routine for checking equality.
 
-  bool left_is_null =
-    left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
-  bool right_is_null =
-    right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
-
   if (op == Token::EQ || op == Token::EQ_STRICT) {
+    bool left_is_null =
+      left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
+    bool right_is_null =
+      right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
     // The 'null' value is only equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
       Load(left_is_null ? right : left);
@@ -3535,7 +3549,6 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       return;
     }
   }
-
 
   // NOTE: To make typeof testing for natives implemented in
   // JavaScript really efficient, we generate special code for
@@ -3959,182 +3972,172 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
-void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
-  Label call_runtime;
-  __ mov(eax, Operand(esp, 1 * kPointerSize));  // Get y.
-  __ mov(edx, Operand(esp, 2 * kPointerSize));  // Get x.
+void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
+  // Perform fast-case smi code for the operation (eax <op> ebx) and
+  // leave result in register eax.
 
-  // 1. Smi case.
+  // Prepare the smi check of both operands by or'ing them together
+  // before checking against the smi mask.
+  __ mov(ecx, Operand(ebx));
+  __ or_(ecx, Operand(eax));
+
   switch (op_) {
-    case Token::ADD: {
-      // eax: y.
-      // edx: x.
-      Label revert;
-      __ mov(ecx, Operand(eax));
-      __ or_(ecx, Operand(edx));  // ecx = x | y.
-      __ add(eax, Operand(edx));  // Add y optimistically.
-      // Go slow-path in case of overflow.
-      __ j(overflow, &revert, not_taken);
-      // Go slow-path in case of non-smi operands.
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ test(ecx, Immediate(kSmiTagMask));
-      __ j(not_zero, &revert, not_taken);
-      __ ret(2 * kPointerSize);  // Remove all operands.
-
-      // Revert optimistic add.
-      __ bind(&revert);
-      __ sub(eax, Operand(edx));
+    case Token::ADD:
+      __ add(eax, Operand(ebx));  // add optimistically
+      __ j(overflow, slow, not_taken);
       break;
-    }
-    case Token::SUB: {
-      // eax: y.
-      // edx: x.
-      Label revert;
-      __ mov(ecx, Operand(edx));
-      __ or_(ecx, Operand(eax));  // ecx = x | y.
-      __ sub(edx, Operand(eax));  // Subtract y optimistically.
-      // Go slow-path in case of overflow.
-      __ j(overflow, &revert, not_taken);
-      // Go slow-path in case of non-smi operands.
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ test(ecx, Immediate(kSmiTagMask));
-      __ j(not_zero, &revert, not_taken);
-      __ mov(eax, Operand(edx));
-      __ ret(2 * kPointerSize);  // Remove all operands.
 
-      // Revert optimistic sub.
-      __ bind(&revert);
-      __ add(edx, Operand(eax));
+    case Token::SUB:
+      __ sub(eax, Operand(ebx));  // subtract optimistically
+      __ j(overflow, slow, not_taken);
       break;
-    }
-    case Token::MUL: {
-      // eax: y
-      // edx: x
-      // a) both operands smi and result fits into a smi -> return.
-      // b) at least one of operands non-smi -> non_smi_operands.
-      // c) result does not fit in a smi -> non_smi_result.
-      Label non_smi_operands, non_smi_result;
-      // Tag check.
-      __ mov(ecx, Operand(edx));
-      __ or_(ecx, Operand(eax));  // ecx = x | y.
-      ASSERT(kSmiTag == 0);  // Adjust code below.
-      __ test(ecx, Immediate(kSmiTagMask));
-      // Jump if not both smi; check if float numbers.
-      __ j(not_zero, &non_smi_operands, not_taken);
 
-      // Get copies of operands.
-      __ mov(ebx, Operand(eax));
-      __ mov(ecx, Operand(edx));
-      // If the smi tag is 0 we can just leave the tag on one operand.
-      ASSERT(kSmiTag == 0);  // adjust code below
-      // Remove tag from one of the operands (but keep sign).
-      __ sar(ecx, kSmiTagSize);
-      // Do multiplication.
-      __ imul(eax, Operand(ecx));  // Multiplication of Smis; result in eax.
-      // Go slow on overflows.
-      __ j(overflow, &non_smi_result, not_taken);
-      // ...but operands OK for float arithmetic.
-
-      // If the result is +0 we may need to check if the result should
-      // really be -0. Welcome to the -0 fan club.
-      __ NegativeZeroTest(eax, ebx, edx, ecx, &non_smi_result);
-
-      __ ret(2 * kPointerSize);
-
-      __ bind(&non_smi_result);
-      // TODO(1243132): Do not check float operands here.
-      __ bind(&non_smi_operands);
-      __ mov(eax, Operand(esp, 1 * kPointerSize));
-      __ mov(edx, Operand(esp, 2 * kPointerSize));
+    case Token::DIV:
+    case Token::MOD:
+      // Sign extend eax into edx:eax.
+      __ cdq();
+      // Check for 0 divisor.
+      __ test(ebx, Operand(ebx));
+      __ j(zero, slow, not_taken);
       break;
-    }
-    case Token::DIV: {
-      // eax: y
-      // edx: x
-      Label non_smi_operands, non_smi_result, division_by_zero;
-      __ mov(ebx, Operand(eax));  // Get y
-      __ mov(eax, Operand(edx));  // Get x
 
-      __ cdq();  // Sign extend eax into edx:eax.
-      // Tag check.
-      __ mov(ecx, Operand(ebx));
-      __ or_(ecx, Operand(eax));  // ecx = x | y.
-      ASSERT(kSmiTag == 0);  // Adjust code below.
-      __ test(ecx, Immediate(kSmiTagMask));
-      // Jump if not both smi; check if float numbers.
-      __ j(not_zero, &non_smi_operands, not_taken);
-      __ test(ebx, Operand(ebx));  // Check for 0 divisor.
-      __ j(zero, &division_by_zero, not_taken);
-
-      __ idiv(ebx);
-      // Check for the corner case of dividing the most negative smi by -1.
-      // (We cannot use the overflow flag, since it is not set by idiv.)
-      ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-      __ cmp(eax, 0x40000000);
-      __ j(equal, &non_smi_result);
-      // If the result is +0 we may need to check if the result should
-      // really be -0. Welcome to the -0 fan club.
-      __ NegativeZeroTest(eax, ecx, &non_smi_result);  // Use ecx = x | y.
-      __ test(edx, Operand(edx));
-      // Use floats if there's a remainder.
-      __ j(not_zero, &non_smi_result, not_taken);
-      __ shl(eax, kSmiTagSize);
-      __ ret(2 * kPointerSize);  // Remove all operands.
-
-      __ bind(&division_by_zero);
-      __ mov(eax, Operand(esp, 1 * kPointerSize));
-      __ mov(edx, Operand(esp, 2 * kPointerSize));
-      __ jmp(&call_runtime);  // Division by zero must go through runtime.
-
-      __ bind(&non_smi_result);
-      // TODO(1243132): Do not check float operands here.
-      __ bind(&non_smi_operands);
-      __ mov(eax, Operand(esp, 1 * kPointerSize));
-      __ mov(edx, Operand(esp, 2 * kPointerSize));
+    default:
+      // Fall-through to smi check.
       break;
-    }
-    case Token::MOD: {
-      Label slow;
-      __ mov(ebx, Operand(eax));  // get y
-      __ mov(eax, Operand(edx));  // get x
-      __ cdq();  // sign extend eax into edx:eax
-      // tag check
-      __ mov(ecx, Operand(ebx));
-      __ or_(ecx, Operand(eax));  // ecx = x | y;
-      ASSERT(kSmiTag == 0);  // adjust code below
-      __ test(ecx, Immediate(kSmiTagMask));
-      __ j(not_zero, &slow, not_taken);
-      __ test(ebx, Operand(ebx));  // test for y == 0
-      __ j(zero, &slow);
-
-      // Fast case: Do integer division and use remainder.
-      __ idiv(ebx);
-      __ NegativeZeroTest(edx, ecx, &slow);  // use ecx = x | y
-      __ mov(eax, Operand(edx));
-      __ ret(2 * kPointerSize);
-
-      // Slow case: Call runtime operator implementation.
-      __ bind(&slow);
-      __ mov(eax, Operand(esp, 1 * kPointerSize));
-      __ mov(edx, Operand(esp, 2 * kPointerSize));
-      // Fall through to |call_runtime|.
-      break;
-    }
-    case Token::BIT_OR:
-    case Token::BIT_AND:
-    case Token::BIT_XOR:
-    case Token::SAR:
-    case Token::SHL:
-    case Token::SHR: {
-      // Smi-case for bitops should already have been inlined.
-      break;
-    }
-    default: {
-      UNREACHABLE();
-    }
   }
 
-  // 2. Floating point case.
+  // Perform the actual smi check.
+  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
+  __ test(ecx, Immediate(kSmiTagMask));
+  __ j(not_zero, slow, not_taken);
+
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+      // Do nothing here.
+      break;
+
+    case Token::MUL:
+      // If the smi tag is 0 we can just leave the tag on one operand.
+      ASSERT(kSmiTag == 0);  // adjust code below if not the case
+      // Remove tag from one of the operands (but keep sign).
+      __ sar(eax, kSmiTagSize);
+      // Do multiplication.
+      __ imul(eax, Operand(ebx));  // multiplication of smis; result in eax
+      // Go slow on overflows.
+      __ j(overflow, slow, not_taken);
+      // Check for negative zero result.
+      __ NegativeZeroTest(eax, ecx, slow);  // use ecx = x | y
+      break;
+
+    case Token::DIV:
+      // Divide edx:eax by ebx.
+      __ idiv(ebx);
+      // Check for the corner case of dividing the most negative smi
+      // by -1. We cannot use the overflow flag, since it is not set
+      // by idiv instruction.
+      ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+      __ cmp(eax, 0x40000000);
+      __ j(equal, slow);
+      // Check for negative zero result.
+      __ NegativeZeroTest(eax, ecx, slow);  // use ecx = x | y
+      // Check that the remainder is zero.
+      __ test(edx, Operand(edx));
+      __ j(not_zero, slow);
+      // Tag the result and store it in register eax.
+      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+      __ lea(eax, Operand(eax, times_2, kSmiTag));
+      break;
+
+    case Token::MOD:
+      // Divide edx:eax by ebx.
+      __ idiv(ebx);
+      // Check for negative zero result.
+      __ NegativeZeroTest(edx, ecx, slow);  // use ecx = x | y
+      // Move remainder to register eax.
+      __ mov(eax, Operand(edx));
+      break;
+
+    case Token::BIT_OR:
+      __ or_(eax, Operand(ebx));
+      break;
+
+    case Token::BIT_AND:
+      __ and_(eax, Operand(ebx));
+      break;
+
+    case Token::BIT_XOR:
+      __ xor_(eax, Operand(ebx));
+      break;
+
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR:
+      // Move the second operand into register ecx.
+      __ mov(ecx, Operand(ebx));
+      // Remove tags from operands (but keep sign).
+      __ sar(eax, kSmiTagSize);
+      __ sar(ecx, kSmiTagSize);
+      // Perform the operation.
+      switch (op_) {
+        case Token::SAR:
+          __ sar(eax);
+          // No checks of result necessary
+          break;
+        case Token::SHR:
+          __ shr(eax);
+          // Check that the *unsigned* result fits in a smi.
+          // Neither of the two high-order bits can be set:
+          // - 0x80000000: high bit would be lost when smi tagging.
+          // - 0x40000000: this number would convert to negative when
+          // Smi tagging these two cases can only happen with shifts
+          // by 0 or 1 when handed a valid smi.
+          __ test(eax, Immediate(0xc0000000));
+          __ j(not_zero, slow, not_taken);
+          break;
+        case Token::SHL:
+          __ shl(eax);
+          // Check that the *signed* result fits in a smi.
+          __ lea(ecx, Operand(eax, 0x40000000));
+          __ test(ecx, Immediate(0x80000000));
+          __ j(not_zero, slow, not_taken);
+          break;
+        default:
+          UNREACHABLE();
+      }
+      // Tag the result and store it in register eax.
+      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+      __ lea(eax, Operand(eax, times_2, kSmiTag));
+      break;
+
+    default:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
+void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
+  Label call_runtime;
+
+  if (flags_ == SMI_CODE_IN_STUB) {
+    // The fast case smi code wasn't inlined in the stub caller
+    // code. Generate it here to speed up common operations.
+    Label slow;
+    __ mov(ebx, Operand(esp, 1 * kPointerSize));  // get y
+    __ mov(eax, Operand(esp, 2 * kPointerSize));  // get x
+    GenerateSmiCode(masm, &slow);
+    __ ret(2 * kPointerSize);  // remove both operands
+
+    // Too bad. The fast case smi code didn't succeed.
+    __ bind(&slow);
+  }
+
+  // Setup registers.
+  __ mov(eax, Operand(esp, 1 * kPointerSize));  // get y
+  __ mov(edx, Operand(esp, 2 * kPointerSize));  // get x
+
+  // Floating point case.
   switch (op_) {
     case Token::ADD:
     case Token::SUB:
@@ -4276,7 +4279,8 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
     default: UNREACHABLE(); break;
   }
 
-  // 3. If all else fails, use the runtime system to get the correct result.
+  // If all else fails, use the runtime system to get the correct
+  // result.
   __ bind(&call_runtime);
   switch (op_) {
     case Token::ADD:
@@ -4951,7 +4955,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
 #ifdef DEBUG
   if (FLAG_gc_greedy) {
-    Failure* failure = Failure::RetryAfterGC(0, NEW_SPACE);
+    Failure* failure = Failure::RetryAfterGC(0);
     __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
   }
   GenerateCore(masm, &throw_normal_exception,

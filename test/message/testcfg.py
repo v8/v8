@@ -97,8 +97,9 @@ class MessageTestConfiguration(test.TestConfiguration):
 
   def ListTests(self, current_path, path, mode):
     mjsunit = [current_path + [t] for t in self.Ls(self.root)]
+    regress = [current_path + ['regress', t] for t in self.Ls(join(self.root, 'regress'))]
     bugs = [current_path + ['bugs', t] for t in self.Ls(join(self.root, 'bugs'))]
-    all_tests = mjsunit + bugs
+    all_tests = mjsunit + regress + bugs
     result = []
     for test in all_tests:
       if self.Contains(path, test):

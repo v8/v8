@@ -420,19 +420,10 @@ void StringStream::PrintSecurityTokenIfChanged(Object* f) {
       Add("(Function context is outside heap)\n");
       return;
     }
-    GlobalObject* global = context->global();
-    if (!Heap::Contains(global)) {
-      Add("(Function context global is outside heap)\n");
-      return;
-    }
-    if (global->IsJSGlobalObject()) {
-      Object* token = JSGlobalObject::cast(global)->security_token();
-      if (token != current_security_token) {
-        Add("Security context: %o\n", token);
-        current_security_token = token;
-      }
-    } else {
-      Add("(No security context)\n");
+    Object* token = context->global_context()->security_token();
+    if (token != current_security_token) {
+      Add("Security context: %o\n", token);
+      current_security_token = token;
     }
   } else {
     Add("(Function context is corrupt)\n");

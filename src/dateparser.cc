@@ -149,9 +149,15 @@ bool DateParser::DayComposer::Write(FixedArray* output) {
 
   if (!Smi::IsValid(year) || !IsMonth(month) || !IsDay(day)) return false;
 
-  output->set(YEAR, Smi::FromInt(year));
-  output->set(MONTH, Smi::FromInt(month - 1));  // 0-based
-  output->set(DAY, Smi::FromInt(day));
+  output->set(YEAR,
+              Smi::FromInt(year),
+              SKIP_WRITE_BARRIER);
+  output->set(MONTH,
+              Smi::FromInt(month - 1),
+              SKIP_WRITE_BARRIER);  // 0-based
+  output->set(DAY,
+              Smi::FromInt(day),
+              SKIP_WRITE_BARRIER);
   return true;
 }
 
@@ -174,9 +180,15 @@ bool DateParser::TimeComposer::Write(FixedArray* output) {
 
   if (!IsHour(hour) || !IsMinute(minute) || !IsSecond(second)) return false;
 
-  output->set(HOUR, Smi::FromInt(hour));
-  output->set(MINUTE, Smi::FromInt(minute));
-  output->set(SECOND, Smi::FromInt(second));
+  output->set(HOUR,
+              Smi::FromInt(hour),
+              SKIP_WRITE_BARRIER);
+  output->set(MINUTE,
+              Smi::FromInt(minute),
+              SKIP_WRITE_BARRIER);
+  output->set(SECOND,
+              Smi::FromInt(second),
+              SKIP_WRITE_BARRIER);
   return true;
 }
 
@@ -187,9 +199,13 @@ bool DateParser::TimeZoneComposer::Write(FixedArray* output) {
     if (minute_ == kNone) minute_ = 0;
     int total_seconds = sign_ * (hour_ * 3600 + minute_ * 60);
     if (!Smi::IsValid(total_seconds)) return false;
-    output->set(UTC_OFFSET, Smi::FromInt(total_seconds));
+    output->set(UTC_OFFSET,
+                Smi::FromInt(total_seconds),
+                SKIP_WRITE_BARRIER);
   } else {
-    output->set(UTC_OFFSET, Heap::null_value());
+    output->set(UTC_OFFSET,
+                Heap::null_value(),
+                SKIP_WRITE_BARRIER);
   }
   return true;
 }

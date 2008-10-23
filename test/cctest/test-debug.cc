@@ -41,7 +41,7 @@ using ::v8::internal::Object;
 using ::v8::internal::OS;
 using ::v8::internal::Handle;
 using ::v8::internal::Heap;
-using ::v8::internal::JSGlobalObject;
+using ::v8::internal::JSGlobalProxy;
 using ::v8::internal::Code;
 using ::v8::internal::Debug;
 using ::v8::internal::Debugger;
@@ -137,14 +137,15 @@ class DebugLocalContext {
   void ExposeDebug() {
     // Expose the debug context global object in the global object for testing.
     Debug::Load();
-    Handle<JSGlobalObject> global(Handle<JSGlobalObject>::cast(
+    Debug::debug_context()->set_security_token(
+        v8::Utils::OpenHandle(*context_)->security_token());
+
+    Handle<JSGlobalProxy> global(Handle<JSGlobalProxy>::cast(
         v8::Utils::OpenHandle(*context_->Global())));
-    Handle<JSGlobalObject> debug_global(JSGlobalObject::cast(
-        Debug::debug_context()->global()));
-    debug_global->set_security_token(global->security_token());
     Handle<v8::internal::String> debug_string =
         v8::internal::Factory::LookupAsciiSymbol("debug");
-    SetProperty(global, debug_string, debug_global, DONT_ENUM);
+    SetProperty(global, debug_string,
+        Handle<Object>(Debug::debug_context()->global_proxy()), DONT_ENUM);
   }
  private:
   v8::Persistent<v8::Context> context_;
@@ -225,8 +226,13 @@ static int SetScriptBreakPointFromJS(const char* script_data,
                  script_data, line);
   }
   buffer[SMALL_STRING_BUFFER_SIZE - 1] = '\0';
-  v8::Handle<v8::String> str = v8::String::New(buffer.start());
-  return v8::Script::Compile(str)->Run()->Int32Value();
+  {
+    v8::TryCatch try_catch;
+    v8::Handle<v8::String> str = v8::String::New(buffer.start());
+    v8::Handle<v8::Value> value = v8::Script::Compile(str)->Run();
+    ASSERT(!try_catch.HasCaught());
+    return value->Int32Value();
+  }
 }
 
 
