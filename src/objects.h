@@ -535,6 +535,7 @@ enum InstanceType {
   // Pseudo-types
   FIRST_NONSTRING_TYPE = MAP_TYPE,
   FIRST_TYPE = 0x0,
+  INVALID_TYPE = FIRST_TYPE - 1,
   LAST_TYPE = JS_FUNCTION_TYPE,
   // Boundaries for testing the type is a JavaScript "object".  Note that
   // function objects are not counted as objects, even though they are

@@ -685,7 +685,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   }
 
   int instance_size = kPointerSize * internal_field_count;
-  InstanceType type = JS_OBJECT_TYPE;  // initialize to a valid value
+  InstanceType type = INVALID_TYPE;
   switch (instance_type) {
     case JavaScriptObject:
       type = JS_OBJECT_TYPE;
@@ -700,9 +700,9 @@ Handle<JSFunction> Factory::CreateApiFunction(
       instance_size += JSGlobalProxy::kSize;
       break;
     default:
-      ASSERT(false);
       break;
   }
+  ASSERT(type != INVALID_TYPE);
 
   Handle<JSFunction> result =
       Factory::NewFunction(Factory::empty_symbol(), type, instance_size,
