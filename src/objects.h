@@ -2811,6 +2811,9 @@ class GlobalObject: public JSObject {
   // [global receiver]: the global receiver object of the context
   DECL_ACCESSORS(global_receiver, JSObject)
 
+  // Casting.
+  static inline GlobalObject* cast(Object* obj);
+
   // Layout description.
   static const int kBuiltinsOffset = JSObject::kHeaderSize;
   static const int kGlobalContextOffset = kBuiltinsOffset + kPointerSize;

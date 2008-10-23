@@ -467,7 +467,7 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = DONT_FOLLOW_CHAINS;
-  Handle<Object> context_obj =
+  Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes);
 
   if (attributes != ABSENT) {
@@ -487,14 +487,14 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
         // The variable or constant context slot should always be in
         // the function context; not in any outer context nor in the
         // arguments object.
-        ASSERT(context_obj.is_identical_to(context));
+        ASSERT(holder.is_identical_to(context));
         if (((attributes & READ_ONLY) == 0) ||
             context->get(index)->IsTheHole()) {
           context->set(index, *initial_value);
         }
       } else {
         // Slow case: The property is not in the FixedArray part of the context.
-        Handle<JSObject> context_ext = Handle<JSObject>::cast(context_obj);
+        Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
         SetProperty(context_ext, name, initial_value, mode);
       }
     }
@@ -695,7 +695,7 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = DONT_FOLLOW_CHAINS;
-  Handle<Object> context_obj =
+  Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes);
 
   // The property should always be present. It is always declared
@@ -707,7 +707,7 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
   if (index >= 0) {
     // The constant context slot should always be in the function
     // context; not in any outer context nor in the arguments object.
-    ASSERT(context_obj.is_identical_to(context));
+    ASSERT(holder.is_identical_to(context));
     if (context->get(index)->IsTheHole()) {
       context->set(index, *value);
     }
@@ -715,7 +715,7 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
   }
 
   // Otherwise, the slot must be in a JS object extension.
-  Handle<JSObject> context_ext(JSObject::cast(*context_obj));
+  Handle<JSObject> context_ext(JSObject::cast(*holder));
 
   // We must initialize the value only if it wasn't initialized
   // before, e.g. for const declarations in a loop. The property has
@@ -3328,12 +3328,12 @@ static Object* Runtime_LookupContext(Arguments args) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = FOLLOW_CHAINS;
-  Handle<Object> context_obj =
+  Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes);
 
-  if (index < 0 && *context_obj != NULL) {
-    ASSERT(context_obj->IsJSObject());
-    return *context_obj;
+  if (index < 0 && *holder != NULL) {
+    ASSERT(holder->IsJSObject());
+    return *holder;
   }
 
   // No intermediate context found. Use global object by default.
@@ -3362,6 +3362,40 @@ static Object* Unhole(Object* x, PropertyAttributes attributes) {
 }
 
 
+static Object* ComputeContextSlotReceiver(Object* holder) {
+  // If the "property" we were looking for is a local variable or an
+  // argument in a context, the receiver is the global object; see
+  // ECMA-262, 3rd., 10.1.6 and 10.2.3.
+  HeapObject* object = HeapObject::cast(holder);
+  Context* top = Top::context();
+  if (holder->IsContext()) return top->global()->global_receiver();
+
+  // TODO(125): Find a better - and faster way - of checking for
+  // arguments and context extension objects. This kinda sucks.
+  JSFunction* context_extension_function =
+      top->global_context()->context_extension_function();
+  JSObject* arguments_boilerplate =
+      top->global_context()->arguments_boilerplate();
+  JSFunction* arguments_function =
+      JSFunction::cast(arguments_boilerplate->map()->constructor());
+  // If the holder is an arguments object or a context extension then the
+  // receiver is also the global object;
+  Object* constructor = HeapObject::cast(holder)->map()->constructor();
+  if (constructor == context_extension_function ||
+      constructor == arguments_function) {
+    return Top::context()->global()->global_receiver();
+  }
+
+  // If the holder is a global object, we have to be careful to wrap
+  // it in its proxy if necessary.
+  if (object->IsGlobalObject()) {
+    return GlobalObject::cast(object)->global_receiver();
+  } else {
+    return object;
+  }
+}
+
+
 static ObjPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   HandleScope scope;
   ASSERT(args.length() == 2);
@@ -3373,34 +3407,32 @@ static ObjPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = FOLLOW_CHAINS;
-  Handle<Object> context_obj =
+  Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes);
 
   if (index >= 0) {
-    if (context_obj->IsContext()) {
-      // The context is an Execution context, and the "property" we were looking
-      // for is a local variable in that context. According to ECMA-262, 3rd.,
-      // 10.1.6 and 10.2.3, the receiver is the global object.
-      return MakePair(
-          Unhole(Handle<Context>::cast(context_obj)->get(index), attributes),
-          Top::context()->global());
+    Handle<Object> receiver =
+        Handle<Object>(ComputeContextSlotReceiver(*holder));
+    Handle<Object> value;
+    if (holder->IsContext()) {
+      value = Handle<Object>(Context::cast(*holder)->get(index));
     } else {
-      return MakePair(
-          Unhole(Handle<JSObject>::cast(context_obj)->GetElement(index),
-                 attributes),
-          *context_obj);
+      // Arguments object.
+      value = Handle<Object>(JSObject::cast(*holder)->GetElement(index));
     }
+    return MakePair(Unhole(*value, attributes), *receiver);
   }
 
-  if (*context_obj != NULL) {
-    ASSERT(Handle<JSObject>::cast(context_obj)->HasProperty(*name));
-    // Note: As of 5/29/2008, GetProperty does the "unholing" and so this call
-    // here is redundant. We left it anyway, to be explicit; also it's not clear
-    // why GetProperty should do the unholing in the first place.
+  if (*holder != NULL) {
+    ASSERT(Handle<JSObject>::cast(holder)->HasProperty(*name));
+    // Note: As of 5/29/2008, GetProperty does the "unholing" and so
+    // this call here is redundant. We left it anyway, to be explicit;
+    // also it's not clear why GetProperty should do the unholing in
+    // the first place.
     return MakePair(
-        Unhole(Handle<JSObject>::cast(context_obj)->GetProperty(*name),
+        Unhole(Handle<JSObject>::cast(holder)->GetProperty(*name),
                attributes),
-        *context_obj);
+        ComputeContextSlotReceiver(*holder));
   }
 
   if (throw_error) {
@@ -3436,19 +3468,19 @@ static Object* Runtime_StoreContextSlot(Arguments args) {
   int index;
   PropertyAttributes attributes;
   ContextLookupFlags flags = FOLLOW_CHAINS;
-  Handle<Object> context_obj =
+  Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes);
 
   if (index >= 0) {
-    if (context_obj->IsContext()) {
+    if (holder->IsContext()) {
       // Ignore if read_only variable.
       if ((attributes & READ_ONLY) == 0) {
-        Handle<Context>::cast(context_obj)->set(index, *value);
+        Handle<Context>::cast(holder)->set(index, *value);
       }
     } else {
       ASSERT((attributes & READ_ONLY) == 0);
       Object* result =
-          Handle<JSObject>::cast(context_obj)->SetElement(index, *value);
+          Handle<JSObject>::cast(holder)->SetElement(index, *value);
       USE(result);
       ASSERT(!result->IsFailure());
     }
@@ -3459,9 +3491,9 @@ static Object* Runtime_StoreContextSlot(Arguments args) {
   // It is either in an JSObject extension context or it was not found.
   Handle<JSObject> context_ext;
 
-  if (*context_obj != NULL) {
+  if (*holder != NULL) {
     // The property exists in the extension context.
-    context_ext = Handle<JSObject>::cast(context_obj);
+    context_ext = Handle<JSObject>::cast(holder);
   } else {
     // The property was not found. It needs to be stored in the global context.
     ASSERT(attributes == ABSENT);

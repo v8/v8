@@ -35,7 +35,7 @@ assertEquals("[object global]", eval("var f; this.toString()"));
 assertEquals("[object global]", eval("var f; toString()"));
 
 
-function F() {
+function F(f) {
   assertEquals("[object global]", this.toString());
   assertEquals("[object global]", toString());
 
@@ -44,6 +44,11 @@ function F() {
 
   assertEquals("[object global]", eval("var f; this.toString()"));
   assertEquals("[object global]", eval("var f; toString()"));
+
+  assertEquals("[object global]", eval("f()"));
+
+  // Receiver should be the arguments object here.
+  assertEquals("[object Object]", eval("arguments[0]()"));
 }
 
-F();
+F(Object.prototype.toString);
