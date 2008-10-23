@@ -96,15 +96,26 @@ Handle<Object> MessageHandler::MakeMessageObject(
                           script.location(),
                           stack_trace_val.location() };
 
+  // Setup a catch handler to catch exceptions in creating the message. This
+  // handler is non-verbose to avoid calling MakeMessage recursively in case of
+  // an exception.
+  v8::TryCatch catcher;
+  catcher.SetVerbose(false);
+  catcher.SetCaptureMessage(false);
+
+  // Format the message.
   bool caught_exception = false;
   Handle<Object> message =
-      Execution::TryCall(fun, Factory::undefined_value(), argc, argv,
-                         &caught_exception);
-  // If creating the message (in JS code) resulted in an exception, we
-  // skip doing the callback. This usually only happens in case of
-  // stack overflow exceptions being thrown by the parser when the
-  // stack is almost full.
-  if (caught_exception) return Handle<Object>();
+      Execution::Call(fun, Factory::undefined_value(), argc, argv,
+                      &caught_exception);
+  if (caught_exception) {
+    // If creating the message (in JS code) resulted in an exception, we
+    // skip doing the callback. This usually only happens in case of
+    // stack overflow exceptions being thrown by the parser when the
+    // stack is almost full.
+    if (caught_exception) return Handle<Object>();
+  }
+
   return message.EscapeFrom(&scope);
 }
 

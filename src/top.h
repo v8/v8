@@ -205,8 +205,7 @@ class Top {
   static Object* PromoteScheduledException();
   static void DoThrow(Object* exception,
                       MessageLocation* location,
-                      const char* message,
-                      bool is_rethrow);
+                      const char* message);
   static bool ShouldReportException(bool* is_caught_externally);
   static void ReportUncaughtException(Handle<Object> exception,
                                       MessageLocation* location,
