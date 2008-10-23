@@ -53,6 +53,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   bool external_caught_exception_;
   v8::TryCatch* try_catch_handler_;
   SaveContext* save_context_;
+  v8::TryCatch* catcher_;
 
   // Stack.
   Address c_entry_fp_;  // the frame pointer of the top c entry frame
@@ -141,6 +142,12 @@ class Top {
   }
   static void clear_scheduled_exception() {
     thread_local_.scheduled_exception_ = Heap::the_hole_value();
+  }
+
+  static void setup_external_caught() {
+    thread_local_.external_caught_exception_ =
+        (thread_local_.catcher_ != NULL) &&
+        (Top::thread_local_.try_catch_handler_ == Top::thread_local_.catcher_);
   }
 
   // Tells whether the current context has experienced an out of memory
