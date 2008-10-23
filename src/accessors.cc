@@ -382,11 +382,12 @@ Object* Accessors::FunctionGetArguments(Object* object, void*) {
     // mirror for the right frame.
     const int length = frame->GetProvidedParametersCount();
     Handle<JSObject> arguments = Factory::NewArgumentsObject(function, length);
+    Handle<FixedArray> array = Factory::NewFixedArray(length);
 
     // Copy the parameters to the arguments object.
-    FixedArray* array = FixedArray::cast(arguments->elements());
     ASSERT(array->length() == length);
     for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
+    arguments->set_elements(*array);
 
     // Return the freshly allocated arguments object.
     return *arguments;
