@@ -447,7 +447,20 @@ class StringBuilder {
 // Copy from ASCII/16bit chars to ASCII/16bit chars.
 template <typename sourcechar, typename sinkchar>
 static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
-  while (chars--) {
+  sinkchar* limit = dest + chars;
+#ifdef CAN_READ_UNALIGNED
+  if (sizeof(*dest) == sizeof(*src)) {
+    // Number of characters in a uint32_t.
+    static const int kStepSize = sizeof(uint32_t) / sizeof(*dest);  // NOLINT
+    while (dest <= limit - kStepSize) {
+      *reinterpret_cast<uint32_t*>(dest) =
+          *reinterpret_cast<const uint32_t*>(src);
+      dest += kStepSize;
+      src += kStepSize;
+    }
+  }
+#endif
+  while (dest < limit) {
     *dest++ = static_cast<sinkchar>(*src++);
   }
 }
