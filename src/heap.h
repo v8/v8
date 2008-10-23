@@ -122,7 +122,8 @@ namespace v8 { namespace internal {
   V(Code, c_entry_debug_break_code)                     \
   V(FixedArray, number_string_cache)                    \
   V(FixedArray, single_character_string_cache)          \
-  V(FixedArray, natives_source_cache)
+  V(FixedArray, natives_source_cache)                   \
+  V(Object, keyed_lookup_cache)
 
 
 #define ROOT_LIST(V)                                  \
@@ -638,6 +639,11 @@ class Heap : public AllStatic {
   static void set_non_monomorphic_cache(Dictionary* value) {
     non_monomorphic_cache_ = value;
   }
+
+  // Gets, sets and clears the lookup cache used for keyed access.
+  static inline Object* GetKeyedLookupCache();
+  static inline void SetKeyedLookupCache(LookupCache* cache);
+  static inline void ClearKeyedLookupCache();
 
 #ifdef DEBUG
   static void Print();

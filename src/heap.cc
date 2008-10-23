@@ -421,6 +421,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
 
 
 void Heap::MarkCompactPrologue() {
+  ClearKeyedLookupCache();
   CompilationCache::MarkCompactPrologue();
   RegExpImpl::OldSpaceCollectionPrologue();
   Top::MarkCompactPrologue();
@@ -1194,6 +1195,9 @@ bool Heap::CreateInitialObjects() {
   obj = AllocateFixedArray(Natives::GetBuiltinsCount());
   if (obj->IsFailure()) return false;
   natives_source_cache_ = FixedArray::cast(obj);
+
+  // Initialize keyed lookup cache.
+  ClearKeyedLookupCache();
 
   // Initialize compilation cache.
   CompilationCache::Clear();

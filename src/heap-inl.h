@@ -165,6 +165,26 @@ void Heap::CopyBlock(Object** dst, Object** src, int byte_size) {
 }
 
 
+Object* Heap::GetKeyedLookupCache() {
+  if (keyed_lookup_cache()->IsUndefined()) {
+    Object* obj = LookupCache::Allocate(4);
+    if (obj->IsFailure()) return obj;
+    keyed_lookup_cache_ = obj;
+  }
+  return keyed_lookup_cache();
+}
+
+
+void Heap::SetKeyedLookupCache(LookupCache* cache) {
+  keyed_lookup_cache_ = cache;
+}
+
+
+void Heap::ClearKeyedLookupCache() {
+  keyed_lookup_cache_ = undefined_value();
+}
+
+
 #define GC_GREEDY_CHECK() \
   ASSERT(!FLAG_gc_greedy || v8::internal::Heap::GarbageCollectionGreedyCheck())
 

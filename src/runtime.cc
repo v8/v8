@@ -113,8 +113,8 @@ static Handle<Map> ComputeObjectLiteralMap(
     // Based on the number of prefix symbols key we decide whether
     // to use the map cache in the global context.
     const int kMaxKeys = 10;
-    if ((number_of_symbol_keys == number_of_properties)
-        && (number_of_symbol_keys < kMaxKeys)) {
+    if ((number_of_symbol_keys == number_of_properties) &&
+        (number_of_symbol_keys < kMaxKeys)) {
       // Create the fixed array with the key.
       Handle<FixedArray> keys = Factory::NewFixedArray(number_of_symbol_keys);
       for (int i = 0; i < number_of_symbol_keys; i++) {
@@ -1669,23 +1669,57 @@ static Object* Runtime_GetProperty(Arguments args) {
 
 
 
-// KeyedStringGetProperty is called from KeyedLoadIC::GenerateGeneric
+// KeyedStringGetProperty is called from KeyedLoadIC::GenerateGeneric.
 static Object* Runtime_KeyedGetProperty(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
 
-  Object* receiver = args[0];
-  Object* key = args[1];
-  if (receiver->IsJSObject() &&
-      key->IsString() &&
-      !JSObject::cast(receiver)->HasFastProperties()) {
-    Dictionary* dictionary = JSObject::cast(receiver)->property_dictionary();
-    int entry = dictionary->FindStringEntry(String::cast(key));
-    if ((entry != DescriptorArray::kNotFound)
-        && (dictionary->DetailsAt(entry).type() == NORMAL)) {
-      return dictionary->ValueAt(entry);
+  // Fast cases for getting named properties of the receiver JSObject
+  // itself. The global proxy objects has to be excluded since
+  // LocalLookup on the global proxy object can return a valid result
+  // eventhough the global proxy object never has properties.  This is
+  // the case because the global proxy object forwards everything to
+  // its hidden prototype including local lookups.
+  if (args[0]->IsJSObject() &&
+      !args[0]->IsJSGlobalProxy() &&
+      args[1]->IsString()) {
+    JSObject* receiver = JSObject::cast(args[0]);
+    String* key = String::cast(args[1]);
+    if (receiver->HasFastProperties()) {
+      // Attempt to use lookup cache.
+      Object* obj = Heap::GetKeyedLookupCache();
+      if (obj->IsFailure()) return obj;
+      LookupCache* cache = LookupCache::cast(obj);
+      Map* receiver_map = receiver->map();
+      int offset = cache->Lookup(receiver_map, key);
+      if (offset != LookupCache::kNotFound) {
+        Object* value = receiver->FastPropertyAt(offset);
+        return value->IsTheHole() ? Heap::undefined_value() : value;
+      }
+      // Lookup cache miss.  Perform lookup and update the cache if
+      // appropriate.
+      LookupResult result;
+      receiver->LocalLookup(key, &result);
+      if (result.IsProperty() && result.IsLoaded() && result.type() == FIELD) {
+        int offset = result.GetFieldIndex();
+        Object* obj = cache->Put(receiver_map, key, offset);
+        if (obj->IsFailure()) return obj;
+        Heap::SetKeyedLookupCache(LookupCache::cast(obj));
+        Object* value = receiver->FastPropertyAt(offset);
+        return value->IsTheHole() ? Heap::undefined_value() : value;
+      }
+    } else {
+      // Attempt dictionary lookup.
+      Dictionary* dictionary = receiver->property_dictionary();
+      int entry = dictionary->FindStringEntry(key);
+      if ((entry != DescriptorArray::kNotFound) &&
+          (dictionary->DetailsAt(entry).type() == NORMAL)) {
+        return dictionary->ValueAt(entry);
+      }
     }
   }
+
+  // Fall back to GetObjectProperty.
   return Runtime::GetObjectProperty(args.at<Object>(0),
                                     args.at<Object>(1));
 }

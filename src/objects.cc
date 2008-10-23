@@ -5490,9 +5490,7 @@ int JSObject::GetEnumElementKeys(FixedArray* storage) {
 // This avoids allocation in HasProperty.
 class NumberKey : public HashTableKey {
  public:
-  explicit NumberKey(uint32_t number) {
-    number_ = number;
-  }
+  explicit NumberKey(uint32_t number) : number_(number) { }
 
  private:
   bool IsMatch(Object* number) {
@@ -5538,9 +5536,7 @@ class NumberKey : public HashTableKey {
 // StringKey simply carries a string object as key.
 class StringKey : public HashTableKey {
  public:
-  explicit StringKey(String* string) {
-    string_ = string;
-  }
+  explicit StringKey(String* string) : string_(string) { }
 
   bool IsMatch(Object* string) {
     return string_->Equals(String::cast(string));
@@ -5830,11 +5826,8 @@ Object* SymbolTable::LookupKey(HashTableKey* key, Object** s) {
 Object* CompilationCacheTable::Lookup(String* src) {
   StringKey key(src);
   int entry = FindEntry(&key);
-  if (entry != -1) {
-    return get(EntryToIndex(entry) + 1);
-  } else {
-    return Heap::undefined_value();
-  }
+  if (entry == -1) return Heap::undefined_value();
+  return get(EntryToIndex(entry) + 1);
 }
 
 
@@ -5856,9 +5849,7 @@ Object* CompilationCacheTable::Put(String* src, Object* value) {
 // SymbolsKey used for HashTable where key is array of symbols.
 class SymbolsKey : public HashTableKey {
  public:
-  explicit SymbolsKey(FixedArray* symbols) {
-    symbols_ = symbols;
-  }
+  explicit SymbolsKey(FixedArray* symbols) : symbols_(symbols) { }
 
   bool IsMatch(Object* symbols) {
     FixedArray* o = FixedArray::cast(symbols);
@@ -5877,28 +5868,78 @@ class SymbolsKey : public HashTableKey {
   Object* GetObject() { return symbols_; }
 
   static uint32_t SymbolsHash(Object* obj) {
-    FixedArray* symbols_ = FixedArray::cast(obj);
-    int len = symbols_->length();
-    uint32_t  hash = 0;
+    FixedArray* symbols = FixedArray::cast(obj);
+    int len = symbols->length();
+    uint32_t hash = 0;
     for (int i = 0; i < len; i++) {
-      hash ^= String::cast(symbols_->get(i))->Hash();
+      hash ^= String::cast(symbols->get(i))->Hash();
     }
     return hash;
   }
 
   bool IsStringKey() { return false; }
 
+ private:
   FixedArray* symbols_;
 };
+
+
+// MapNameKeys are used as keys in lookup caches.
+class MapNameKey : public HashTableKey {
+ public:
+  MapNameKey(Map* map, String* name)
+    : map_(map), name_(name) { }
+
+  bool IsMatch(Object* other) {
+    if (!other->IsFixedArray()) return false;
+    FixedArray* pair = FixedArray::cast(other);
+    Map* map = Map::cast(pair->get(0));
+    if (map != map_) return false;
+    String* name = String::cast(pair->get(1));
+    return name->Equals(name_);
+  }
+
+  typedef uint32_t (*HashFunction)(Object* obj);
+
+  virtual HashFunction GetHashFunction() { return MapNameHash; }
+
+  static uint32_t MapNameHashHelper(Map* map, String* name) {
+    return reinterpret_cast<uint32_t>(map) ^ name->Hash();
+  }
+
+  static uint32_t MapNameHash(Object* obj) {
+    FixedArray* pair = FixedArray::cast(obj);
+    Map* map = Map::cast(pair->get(0));
+    String* name = String::cast(pair->get(1));
+    return MapNameHashHelper(map, name);
+  }
+
+  virtual uint32_t Hash() {
+    return MapNameHashHelper(map_, name_);
+  }
+
+  virtual Object* GetObject() {
+    Object* obj = Heap::AllocateFixedArray(2);
+    if (obj->IsFailure()) return obj;
+    FixedArray* pair = FixedArray::cast(obj);
+    pair->set(0, map_);
+    pair->set(1, name_);
+    return pair;
+  }
+
+  virtual bool IsStringKey() { return false; }
+
+ private:
+  Map* map_;
+  String* name_;
+};
+
 
 Object* MapCache::Lookup(FixedArray* array) {
   SymbolsKey key(array);
   int entry = FindEntry(&key);
-  if (entry != -1) {
-    return get(EntryToIndex(entry) + 1);
-  } else {
-    return Heap::undefined_value();
-  }
+  if (entry == -1) return Heap::undefined_value();
+  return get(EntryToIndex(entry) + 1);
 }
 
 
@@ -5916,6 +5957,31 @@ Object* MapCache::Put(FixedArray* array, Map* value) {
 }
 
 
+int LookupCache::Lookup(Map* map, String* name) {
+  MapNameKey key(map, name);
+  int entry = FindEntry(&key);
+  if (entry == -1) return kNotFound;
+  return Smi::cast(get(EntryToIndex(entry) + 1))->value();
+}
+
+
+Object* LookupCache::Put(Map* map, String* name, int value) {
+  MapNameKey key(map, name);
+  Object* obj = EnsureCapacity(1, &key);
+  if (obj->IsFailure()) return obj;
+  Object* k = key.GetObject();
+  if (k->IsFailure()) return k;
+
+  LookupCache* cache = reinterpret_cast<LookupCache*>(obj);
+  int entry = cache->FindInsertionEntry(k, key.Hash());
+  int index = EntryToIndex(entry);
+  cache->set(index, k);
+  cache->set(index + 1, Smi::FromInt(value));
+  cache->ElementAdded();
+  return cache;
+}
+
+
 Object* Dictionary::Allocate(int at_least_space_for) {
   Object* obj = DictionaryBase::Allocate(at_least_space_for);
   // Initialize the next enumeration index.
@@ -5925,6 +5991,7 @@ Object* Dictionary::Allocate(int at_least_space_for) {
   }
   return obj;
 }
+
 
 Object* Dictionary::GenerateNewEnumerationIndices() {
   int length = NumberOfElements();
