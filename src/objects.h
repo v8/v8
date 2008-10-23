@@ -3099,7 +3099,7 @@ class String: public HeapObject {
   // Max ascii char code.
   static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
 
-  // Minimum lenth for a cons or sliced string.
+  // Minimum length for a cons or sliced string.
   static const int kMinNonFlatLength = 13;
 
   // Mask constant for checking if a string has a computed hash code
@@ -3111,13 +3111,16 @@ class String: public HeapObject {
   static const int kIsArrayIndexMask = 1 << 1;
   static const int kNofLengthBitFields = 2;
 
+  // Array index strings this short can keep their index in the hash
+  // field.
+  static const int kMaxCachedArrayIndexLength = 6;
+
   // Shift constants for retriving length and hash code from
   // length/hash field.
   static const int kHashShift = kNofLengthBitFields;
   static const int kShortLengthShift = 3 * kBitsPerByte;
   static const int kMediumLengthShift = 2 * kBitsPerByte;
   static const int kLongLengthShift = kHashShift;
-
 
   // Limit for truncation in short printing.
   static const int kMaxShortPrintLength = 1024;

@@ -3903,7 +3903,7 @@ uint32_t String::ComputeAndSetHash() {
 bool String::ComputeArrayIndex(unibrow::CharacterStream* buffer,
                                uint32_t* index,
                                int length) {
-  if (length == 0) return false;
+  if (length == 0 || length > kMaxArrayIndexSize) return false;
   uc32 ch = buffer->GetNext();
 
   // If the string begins with a '0' character, it must only consist
@@ -3931,8 +3931,16 @@ bool String::ComputeArrayIndex(unibrow::CharacterStream* buffer,
 
 
 bool String::SlowAsArrayIndex(uint32_t* index) {
-  StringInputBuffer buffer(this);
-  return ComputeArrayIndex(&buffer, index, length());
+  if (length() <= kMaxCachedArrayIndexLength) {
+    Hash();  // force computation of hash code
+    uint32_t field = length_field();
+    if ((field & kIsArrayIndexMask) == 0) return false;
+    *index = (field & ((1 << kShortLengthShift) - 1)) >> kLongLengthShift;
+    return true;
+  } else {
+    StringInputBuffer buffer(this);
+    return ComputeArrayIndex(&buffer, index, length());
+  }
 }
 
 
@@ -3969,18 +3977,21 @@ uint32_t String::ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
 
   // Very long strings have a trivial hash that doesn't inspect the
   // string contents.
-  if (hasher.has_trivial_hash())
+  if (hasher.has_trivial_hash()) {
     return hasher.GetHashField();
+  }
 
   // Do the iterative array index computation as long as there is a
   // chance this is an array index.
-  while (buffer->has_more() && hasher.is_array_index())
+  while (buffer->has_more() && hasher.is_array_index()) {
     hasher.AddCharacter(buffer->GetNext());
+  }
 
   // Process the remaining characters without updating the array
   // index.
-  while (buffer->has_more())
+  while (buffer->has_more()) {
     hasher.AddCharacterNoIndex(buffer->GetNext());
+  }
 
   return hasher.GetHashField();
 }

@@ -212,7 +212,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
-  Label slow, fast, check_string;
+  Label slow, fast, check_string, index_int, index_string;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
   __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
@@ -234,6 +234,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ j(not_zero, &check_string, not_taken);
   __ sar(eax, kSmiTagSize);
   // Get the elements array of the object.
+  __ bind(&index_int);
   __ mov(ecx, FieldOperand(ecx, JSObject::kElementsOffset));
   // Check that the object is in fast mode (not dictionary).
   __ cmp(FieldOperand(ecx, HeapObject::kMapOffset),
@@ -248,18 +249,28 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   KeyedLoadIC::Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
   // Check if the key is a symbol that is not an array index.
   __ bind(&check_string);
+  __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
+  __ test(ebx, Immediate(String::kIsArrayIndexMask));
+  __ j(not_zero, &index_string, not_taken);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ test(ebx, Immediate(kIsSymbolMask));
-  __ j(zero, &slow, not_taken);
-  __ mov(ebx, FieldOperand(eax, String::kLengthOffset));
-  __ test(ebx, Immediate(String::kIsArrayIndexMask));
   __ j(not_zero, &slow, not_taken);
   // Probe the dictionary leaving result in ecx.
   GenerateDictionaryLoad(masm, &slow, ebx, ecx, edx, eax);
   __ mov(eax, Operand(ecx));
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
+  // Array index string: If short enough use cache in length/hash field (ebx).
+  __ bind(&index_string);
+  const int kLengthFieldLimit =
+      (String::kMaxCachedArrayIndexLength + 1) << String::kShortLengthShift;
+  __ cmp(ebx, kLengthFieldLimit);
+  __ j(above_equal, &slow);
+  __ mov(eax, Operand(ebx));
+  __ and_(eax, (1 << String::kShortLengthShift) - 1);
+  __ shr(eax, String::kLongLengthShift);
+  __ jmp(&index_int);
   // Fast case: Do the load.
   __ bind(&fast);
   __ mov(eax, Operand(ecx, eax, times_4, Array::kHeaderSize - kHeapObjectTag));

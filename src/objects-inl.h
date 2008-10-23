@@ -2176,7 +2176,7 @@ uint32_t String::Hash() {
   // Fast case: has hash code already been computed?
   uint32_t field = length_field();
   if (field & kHashComputedMask) return field >> kHashShift;
-  // Slow case: compute hash code and set it..
+  // Slow case: compute hash code and set it.
   return ComputeAndSetHash();
 }
 
@@ -2196,11 +2196,12 @@ bool StringHasher::has_trivial_hash() {
 
 
 void StringHasher::AddCharacter(uc32 c) {
-  // Note: the Jenkins one-at-a-time hash function
+  // Use the Jenkins one-at-a-time hash function to update the hash
+  // for the given character.
   raw_running_hash_ += c;
   raw_running_hash_ += (raw_running_hash_ << 10);
   raw_running_hash_ ^= (raw_running_hash_ >> 6);
-  // Incremental array index computation
+  // Incremental array index computation.
   if (is_array_index_) {
     if (c < '0' || c > '9') {
       is_array_index_ = false;
