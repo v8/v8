@@ -1243,8 +1243,12 @@ int CodeGenerator::FastCaseSwitchMinCaseCount() {
 
 
 void CodeGenerator::GenerateFastCaseSwitchJumpTable(
-    SwitchStatement* node, int min_index, int range, Label *fail_label,
-    SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels) {
+    SwitchStatement* node,
+    int min_index,
+    int range,
+    Label* fail_label,
+    Vector<Label*> case_targets,
+    Vector<Label> case_labels) {
 
   ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
 

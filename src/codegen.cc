@@ -379,14 +379,18 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
     }
   }
 
-  GenerateFastCaseSwitchJumpTable(node, min_index, range, fail_label,
-                                  case_targets, case_labels);
+  GenerateFastCaseSwitchJumpTable(node,
+                                  min_index,
+                                  range,
+                                  fail_label,
+                                  Vector<Label*>(*case_targets, range),
+                                  Vector<Label>(*case_labels, length));
 }
 
 
 void CodeGenerator::GenerateFastCaseSwitchCases(
     SwitchStatement* node,
-    SmartPointer<Label>& case_labels) {
+    Vector<Label> case_labels) {
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 

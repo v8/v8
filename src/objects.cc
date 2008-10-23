@@ -2417,7 +2417,7 @@ Object* Map::Copy() {
 
 
 Object* Map::CopyDropTransitions() {
-  Object *new_map = Copy();
+  Object* new_map = Copy();
   if (new_map->IsFailure()) return new_map;
   Object* descriptors = instance_descriptors()->RemoveTransitions();
   if (descriptors->IsFailure()) return descriptors;

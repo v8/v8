@@ -154,9 +154,9 @@ class Serializer: public ObjectVisitor {
 
   virtual void VisitPointers(Object** start, Object** end);
 
-  bool IsVisited(HeapObject *obj);
+  bool IsVisited(HeapObject* obj);
 
-  Address GetSavedAddress(HeapObject *obj);
+  Address GetSavedAddress(HeapObject* obj);
 
   void SaveAddress(HeapObject* obj, Address addr);
 

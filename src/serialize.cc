@@ -878,14 +878,14 @@ void Serializer::InitializeAllocators() {
 }
 
 
-bool Serializer::IsVisited(HeapObject *obj) {
+bool Serializer::IsVisited(HeapObject* obj) {
   HashMap::Entry* entry =
     saved_addresses_.Lookup(obj, HeapObjectHash(obj), false);
   return entry != NULL;
 }
 
 
-Address Serializer::GetSavedAddress(HeapObject *obj) {
+Address Serializer::GetSavedAddress(HeapObject* obj) {
   HashMap::Entry* entry
   = saved_addresses_.Lookup(obj, HeapObjectHash(obj), false);
   ASSERT(entry != NULL);
@@ -1395,7 +1395,7 @@ Object* Deserializer::GetObject() {
 
   // Get a raw object of the right size in the right space.
   AllocationSpace space = GetSpace(a);
-  Object *o;
+  Object* o;
   if (IsLargeExecutableObject(a)) {
     o = Heap::lo_space()->AllocateRawCode(size);
   } else if (IsLargeFixedArray(a)) {
@@ -1453,7 +1453,7 @@ static inline Object* ResolvePaged(int page_index,
 
 
 template<typename T>
-void ConcatReversed(List<T> * target, const List<T> & source) {
+void ConcatReversed(List<T>* target, const List<T>& source) {
   for (int i = source.length() - 1; i >= 0; i--) {
     target->Add(source[i]);
   }

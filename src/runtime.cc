@@ -101,7 +101,7 @@ static Object* Runtime_CloneObjectLiteralBoilerplate(Arguments args) {
 static Handle<Map> ComputeObjectLiteralMap(
     Handle<Context> context,
     Handle<FixedArray> constant_properties,
-    bool &is_result_from_cache) {
+    bool* is_result_from_cache) {
   if (FLAG_canonicalize_object_literal_maps) {
     // First find prefix of consecutive symbol keys.
     int number_of_properties = constant_properties->length()/2;
@@ -120,11 +120,11 @@ static Handle<Map> ComputeObjectLiteralMap(
       for (int i = 0; i < number_of_symbol_keys; i++) {
         keys->set(i, constant_properties->get(i*2));
       }
-      is_result_from_cache = true;
+      *is_result_from_cache = true;
       return Factory::ObjectLiteralMapFromCache(context, keys);
     }
   }
-  is_result_from_cache = false;
+  *is_result_from_cache = false;
   return Handle<Map>(context->object_function()->initial_map());
 }
 
@@ -149,7 +149,7 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
   bool is_result_from_cache;
   Handle<Map> map = ComputeObjectLiteralMap(context,
                                             constant_properties,
-                                            is_result_from_cache);
+                                            &is_result_from_cache);
 
   Handle<JSObject> boilerplate = Factory::NewJSObjectFromMap(map);
   {  // Add the constant propeties to the boilerplate.
@@ -1014,8 +1014,8 @@ class BMGoodSuffixBuffers {
  private:
   int suffixes_[kBMMaxShift + 1];
   int good_suffix_shift_[kBMMaxShift + 1];
-  int *biased_suffixes_;
-  int *biased_good_suffix_shift_;
+  int* biased_suffixes_;
+  int* biased_good_suffix_shift_;
   DISALLOW_COPY_AND_ASSIGN(BMGoodSuffixBuffers);
 };
 
@@ -1118,7 +1118,7 @@ template <typename schar, typename pchar>
 static int BoyerMooreSimplified(Vector<const schar> subject,
                                 Vector<const pchar> pattern,
                                 int start_index,
-                                bool& complete) {
+                                bool* complete) {
   int n = subject.length();
   int m = pattern.length();
   // Only preprocess at most kBMMaxShift last characters of pattern.
@@ -1139,14 +1139,14 @@ static int BoyerMooreSimplified(Vector<const schar> subject,
       idx += shift;
       badness += 1 - shift;  // at most zero, so badness cannot increase.
       if (idx > n - m) {
-        complete = true;
+        *complete = true;
         return -1;
       }
     }
     j--;
     while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
     if (j < 0) {
-      complete = true;
+      *complete = true;
       return idx;
     } else {
       int bc_occ = CharOccurence<schar, pchar>(c);
@@ -1158,12 +1158,12 @@ static int BoyerMooreSimplified(Vector<const schar> subject,
       // compared to reading each character exactly once.
       badness += (m - j) - shift;
       if (badness > 0) {
-        complete = false;
+        *complete = false;
         return idx;
       }
     }
   }
-  complete = true;
+  *complete = true;
   return -1;
 }
 
@@ -1235,7 +1235,7 @@ template <typename pchar, typename schar>
 static int SimpleIndexOf(Vector<const schar> subject,
                          Vector<const pchar> pattern,
                          int idx,
-                         bool &complete) {
+                         bool* complete) {
   // Badness is a count of how much work we have done.  When we have
   // done enough work we decide it's probably worth switching to a better
   // algorithm.
@@ -1247,7 +1247,7 @@ static int SimpleIndexOf(Vector<const schar> subject,
   for (int i = idx, n = subject.length() - pattern.length(); i <= n; i++) {
     badness++;
     if (badness > 0) {
-      complete = false;
+      *complete = false;
       return (i);
     }
     if (subject[i] != pattern_first_char) continue;
@@ -1259,12 +1259,12 @@ static int SimpleIndexOf(Vector<const schar> subject,
       j++;
     } while (j < pattern.length());
     if (j == pattern.length()) {
-      complete = true;
+      *complete = true;
       return i;
     }
     badness += j;
   }
-  complete = true;
+  *complete = true;
   return -1;
 }
 
@@ -1317,9 +1317,9 @@ static int StringMatchStrategy(Vector<const schar> sub,
   }
   // Try algorithms in order of increasing setup cost and expected performance.
   bool complete;
-  int idx = SimpleIndexOf(sub, pat, start_index, complete);
+  int idx = SimpleIndexOf(sub, pat, start_index, &complete);
   if (complete) return idx;
-  idx = BoyerMooreSimplified(sub, pat, idx, complete);
+  idx = BoyerMooreSimplified(sub, pat, idx, &complete);
   if (complete) return idx;
   return BoyerMooreIndexOf(sub, pat, idx);
 }

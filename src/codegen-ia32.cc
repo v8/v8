@@ -1599,8 +1599,12 @@ int CodeGenerator::FastCaseSwitchMinCaseCount() {
 
 // Generate a computed jump to a switch case.
 void CodeGenerator::GenerateFastCaseSwitchJumpTable(
-    SwitchStatement* node, int min_index, int range, Label *fail_label,
-    SmartPointer<Label*> &case_targets, SmartPointer<Label> &case_labels) {
+    SwitchStatement* node,
+    int min_index,
+    int range,
+    Label* fail_label,
+    Vector<Label*> case_targets,
+    Vector<Label> case_labels) {
   // Notice: Internal references, used by both the jmp instruction and
   // the table entries, need to be relocated if the buffer grows. This
   // prevents the forward use of Labels, since a displacement cannot

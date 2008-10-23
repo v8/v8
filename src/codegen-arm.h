@@ -312,24 +312,28 @@ class CodeGenerator: public Visitor {
   // Allocate a jump table and create code to jump through it.
   // Should call GenerateFastCaseSwitchCases to generate the code for
   // all the cases at the appropriate point.
-  void GenerateFastCaseSwitchJumpTable(SwitchStatement* node, int min_index,
-                                       int range, Label *fail_label,
-                                       SmartPointer<Label*> &case_targets,
-                                       SmartPointer<Label>& case_labels);
+  void GenerateFastCaseSwitchJumpTable(SwitchStatement* node,
+                                       int min_index,
+                                       int range,
+                                       Label* fail_label,
+                                       Vector<Label*> case_targets,
+                                       Vector<Label> case_labels);
 
   // Generate the code for cases for the fast case switch.
   // Called by GenerateFastCaseSwitchJumpTable.
   void GenerateFastCaseSwitchCases(SwitchStatement* node,
-                                   SmartPointer<Label> &case_labels);
+                                   Vector<Label> case_labels);
 
   // Fast support for constant-Smi switches.
-  void GenerateFastCaseSwitchStatement(SwitchStatement *node, int min_index,
-                                       int range, int default_index);
+  void GenerateFastCaseSwitchStatement(SwitchStatement* node,
+                                       int min_index,
+                                       int range,
+                                       int default_index);
 
   // Fast support for constant-Smi switches. Tests whether switch statement
   // permits optimization and calls GenerateFastCaseSwitch if it does.
   // Returns true if the fast-case switch was generated, and false if not.
-  bool TryGenerateFastCaseSwitchStatement(SwitchStatement *node);
+  bool TryGenerateFastCaseSwitchStatement(SwitchStatement* node);
 
 
   // Bottle-neck interface to call the Assembler to generate the statement

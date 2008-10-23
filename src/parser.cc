@@ -2921,7 +2921,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
       entry.set_contains_array_literal(contains_array_literal);
     }
 
-    FunctionLiteral *function_literal =
+    FunctionLiteral* function_literal =
         NEW(FunctionLiteral(name, top_scope_,
                             body.elements(), materialized_literal_count,
                             contains_array_literal, expected_property_count,
