@@ -1750,6 +1750,20 @@ Local<Value> v8::Object::GetPrototype() {
 }
 
 
+Local<Array> v8::Object::GetPropertyNames() {
+  ON_BAILOUT("v8::Object::GetPropertyNames()", return Local<v8::Array>());
+  v8::HandleScope scope;
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::FixedArray> value = i::GetKeysInFixedArrayFor(self);
+  // Because we use caching to speed up enumeration it is important
+  // to never change the result of the basic enumeration function so
+  // we clone the result.
+  i::Handle<i::FixedArray> elms = i::Factory::CopyFixedArray(value);
+  i::Handle<i::JSArray> result = i::Factory::NewJSArrayWithElements(elms);
+  return scope.Close(Utils::ToLocal(result));
+}
+
+
 Local<String> v8::Object::ObjectProtoToString() {
   ON_BAILOUT("v8::Object::ObjectProtoToString()", return Local<v8::String>());
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);

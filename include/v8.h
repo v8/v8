@@ -1023,6 +1023,14 @@ class EXPORT Object : public Value {
   bool Delete(uint32_t index);
 
   /**
+   * Returns an array containing the names of the enumerable properties
+   * of this object, including properties from prototype objects.  The
+   * array returned by this method contains the same values as would
+   * be enumerated by a for-in statement over this object.
+   */
+  Local<Array> GetPropertyNames();
+
+  /**
    * Get the prototype object.  This does not skip objects marked to
    * be skipped by __proto__ and it does not consult the security
    * handler.

@@ -5033,3 +5033,44 @@ THREADED_TEST(DateAccess) {
   CHECK(date->IsDate());
   CHECK_EQ(1224744689038.0, v8::Handle<v8::Date>::Cast(date)->NumberValue());
 }
+
+
+void CheckProperties(v8::Handle<v8::Value> val, int elmc, const char* elmv[]) {
+  v8::Handle<v8::Object> obj = v8::Handle<v8::Object>::Cast(val);
+  v8::Handle<v8::Array> props = obj->GetPropertyNames();
+  CHECK_EQ(elmc, props->Length());
+  for (int i = 0; i < elmc; i++) {
+    v8::String::Utf8Value elm(props->Get(v8::Integer::New(i)));
+    CHECK_EQ(elmv[i], *elm);
+  }
+}
+
+
+THREADED_TEST(PropertyEnumeration) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::Handle<v8::Value> obj = v8::Script::Compile(v8::String::New(
+      "var result = [];"
+      "result[0] = {};"
+      "result[1] = {a: 1, b: 2};"
+      "result[2] = [1, 2, 3];"
+      "var proto = {x: 1, y: 2, z: 3};"
+      "var x = { __proto__: proto, w: 0, z: 1 };"
+      "result[3] = x;"
+      "result;"
+  ))->Run();
+  v8::Handle<v8::Array> elms = v8::Handle<v8::Array>::Cast(obj);
+  CHECK_EQ(4, elms->Length());
+  int elmc0 = 0;
+  const char** elmv0 = NULL;
+  CheckProperties(elms->Get(v8::Integer::New(0)), elmc0, elmv0);
+  int elmc1 = 2;
+  const char* elmv1[] = {"a", "b"};
+  CheckProperties(elms->Get(v8::Integer::New(1)), elmc1, elmv1);
+  int elmc2 = 3;
+  const char* elmv2[] = {"0", "1", "2"};
+  CheckProperties(elms->Get(v8::Integer::New(2)), elmc2, elmv2);
+  int elmc3 = 4;
+  const char* elmv3[] = {"w", "z", "x", "y"};
+  CheckProperties(elms->Get(v8::Integer::New(3)), elmc3, elmv3);
+}
