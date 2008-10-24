@@ -28,6 +28,8 @@
 #include <map>
 #include <string>
 
+#include <stdlib.h>
+
 #include "v8.h"
 
 #include "api.h"
