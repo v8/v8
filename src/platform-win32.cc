@@ -153,13 +153,6 @@ int random() {
 }
 
 
-// Case-insensitive string comparisons. Use stricmp() on Win32. Usually defined
-// in strings.h.
-int strcasecmp(const char* s1, const char* s2) {
-  return _stricmp(s1, s2);
-}
-
-
 // Case-insensitive bounded string comparisons. Use stricmp() on Win32. Usually
 // defined in strings.h.
 int strncasecmp(const char* s1, const char* s2, int n) {
