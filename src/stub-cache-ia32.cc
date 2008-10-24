@@ -478,6 +478,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
   __ CallRuntime(Runtime::kLazyCompile, 1);
   __ pop(edi);
 
+  // Tear down temporary frame.
   __ LeaveInternalFrame();
 
   // Do a tail-call of the compiled function.
@@ -518,6 +519,10 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ cmp(ebx, JS_FUNCTION_TYPE);
   __ j(not_equal, &miss, not_taken);
+
+  if (object->IsGlobalObject()) {
+    // TODO(120): Patch receiver with the global proxy.
+  }
 
   // Invoke the function.
   __ InvokeFunction(edi, arguments(), JUMP_FUNCTION);
@@ -627,6 +632,10 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   __ mov(Operand(edi), Immediate(Handle<JSFunction>(function)));
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
+  if (object->IsGlobalObject()) {
+    // TODO(120): Patch receiver with the global proxy.
+  }
+
   // Jump to the cached code (tail call).
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
@@ -696,6 +705,10 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ cmp(ebx, JS_FUNCTION_TYPE);
   __ j(not_equal, &miss, not_taken);
+
+  if (object->IsGlobalObject()) {
+    // TODO(120): Patch receiver with the global proxy.
+  }
 
   // Invoke the function.
   __ InvokeFunction(edi, arguments(), JUMP_FUNCTION);

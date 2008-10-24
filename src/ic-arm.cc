@@ -365,7 +365,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
 
-  // Check for access to global object (unlikely).
+  // Check for access to global proxy.
   __ cmp(r0, Operand(JS_GLOBAL_PROXY_TYPE));
   __ b(eq, &global);
 
@@ -383,8 +383,8 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ cmp(r0, Operand(JS_FUNCTION_TYPE));
   __ b(ne, &miss);
 
-  // Patch the function on the stack; 1 ~ receiver.
-  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
+  // TODO(120): Check for access to global object. Needs patching of
+  // receiver but no security check.
 
   // Invoke the function.
   ParameterCount actual(argc);
@@ -425,13 +425,12 @@ void CallIC::Generate(MacroAssembler* masm,
   CEntryStub stub;
   __ CallStub(&stub);
 
-  // Move result to r1.
+  // Move result to r1 and leave the internal frame.
   __ mov(r1, Operand(r0));
-
   __ LeaveInternalFrame();
 
-  // Patch the function on the stack; 1 ~ receiver.
-  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
+  // TODO(120): Check for access to to global object. Needs patching
+  // of receiver but no security check.
 
   // Invoke the function.
   ParameterCount actual(argc);
@@ -484,7 +483,6 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // Check for access to global object (unlikely).
   __ cmp(r1, Operand(JS_GLOBAL_PROXY_TYPE));
   __ b(eq, &global);
-
 
   __ bind(&probe);
   GenerateDictionaryLoad(masm, &done, &miss, r1, r0);

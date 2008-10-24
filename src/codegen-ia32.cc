@@ -2660,8 +2660,8 @@ void CodeGenerator::VisitCall(Call* node) {
     // Push the name of the function and the receiver onto the stack.
     frame_->Push(Immediate(var->name()));
 
-    // TODO(120): use JSGlobalObject for function lookup and inline cache,
-    // and use global proxy as 'this' for invocation.
+    // TODO(120): Use global object for function lookup and inline
+    // cache, and use global proxy as 'this' for invocation.
     LoadGlobalReceiver(eax);
 
     // Load the arguments.
@@ -2747,10 +2747,7 @@ void CodeGenerator::VisitCall(Call* node) {
     // Load the function.
     Load(function);
 
-    // Pass the global object as the receiver.
-
-    // TODO(120): use JSGlobalObject for function lookup and inline cache,
-    // and use global proxy as 'this' for invocation.
+    // Pass the global proxy as the receiver.
     LoadGlobalReceiver(eax);
 
     // Call the function.
@@ -2769,9 +2766,10 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // evaluated.
 
   // Compute function to call and use the global object as the
-  // receiver.
+  // receiver. There is no need to use the global proxy here because
+  // it will always be replaced with a newly allocated object.
   Load(node->expression());
-  LoadGlobalReceiver(eax);
+  LoadGlobal();
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = node->arguments();

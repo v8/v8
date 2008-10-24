@@ -240,8 +240,9 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ cmp(r2, Operand(JS_FUNCTION_TYPE));
   __ b(ne, &miss);
 
-  // Patch the function on the stack; 1 ~ receiver.
-  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
+  if (object->IsGlobalObject()) {
+    // TODO(120): Patch receiver with the global proxy.
+  }
 
   // Invoke the function.
   __ InvokeFunction(r1, arguments(), JUMP_FUNCTION);
@@ -352,8 +353,9 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   __ mov(r1, Operand(Handle<JSFunction>(function)));
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
-  // Patch the function on the stack; 1 ~ receiver.
-  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
+  if (object->IsGlobalObject()) {
+    // TODO(120): Patch receiver with the global proxy.
+  }
 
   // Jump to the cached code (tail call).
   Handle<Code> code(function->code());

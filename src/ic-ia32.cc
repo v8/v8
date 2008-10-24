@@ -479,7 +479,7 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
 
-  // Check for access to global object.
+  // Check for access to global proxy.
   __ cmp(eax, JS_GLOBAL_PROXY_TYPE);
   __ j(equal, &global, not_taken);
 
@@ -498,11 +498,14 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ cmp(edx, JS_FUNCTION_TYPE);
   __ j(not_equal, &miss, not_taken);
 
+  // TODO(120): Check for access to global object. Needs patching of
+  // receiver but no security check.
+
   // Invoke the function.
   ParameterCount actual(argc);
   __ InvokeFunction(edi, actual, JUMP_FUNCTION);
 
-  // Global object access: Check access rights.
+  // Global object proxy access: Check access rights.
   __ bind(&global);
   __ CheckAccessGlobalProxy(edx, eax, &miss);
   __ jmp(&probe);
@@ -541,6 +544,9 @@ void CallIC::Generate(MacroAssembler* masm,
   // Move result to edi and exit the internal frame.
   __ mov(Operand(edi), eax);
   __ LeaveInternalFrame();
+
+  // TODO(120): Check for access to to global object. Needs patching
+  // of receiver but no security check.
 
   // Invoke the function.
   ParameterCount actual(argc);
