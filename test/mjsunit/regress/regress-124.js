@@ -49,6 +49,9 @@ function F(f) {
 
   // Receiver should be the arguments object here.
   assertEquals("[object Object]", eval("arguments[0]()"));
+  with (arguments) {
+    assertEquals("[object Object]", toString());
+  }
 }
 
 F(Object.prototype.toString);

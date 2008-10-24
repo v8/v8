@@ -220,23 +220,24 @@ class Context: public FixedArray {
   JSFunction* closure() { return JSFunction::cast(get(CLOSURE_INDEX)); }
   void set_closure(JSFunction* closure) { set(CLOSURE_INDEX, closure); }
 
-  Context* fcontext() {
-    return reinterpret_cast<Context*>(get(FCONTEXT_INDEX));
-  }
+  Context* fcontext() { return Context::cast(get(FCONTEXT_INDEX)); }
   void set_fcontext(Context* context) { set(FCONTEXT_INDEX, context); }
 
   Context* previous() {
-    return reinterpret_cast<Context*>(get(PREVIOUS_INDEX));
+    Object* result = unchecked_previous();
+    ASSERT(IsBootstrappingOrContext(result));
+    return reinterpret_cast<Context*>(result);
   }
   void set_previous(Context* context) { set(PREVIOUS_INDEX, context); }
 
-  JSObject* extension() {
-    return reinterpret_cast<JSObject*>(get(EXTENSION_INDEX));
-  }
+  bool has_extension() { return unchecked_extension() != NULL; }
+  JSObject* extension() { return JSObject::cast(unchecked_extension()); }
   void set_extension(JSObject* object) { set(EXTENSION_INDEX, object); }
 
   GlobalObject* global() {
-    return reinterpret_cast<GlobalObject*>(get(GLOBAL_INDEX));
+    Object* result = get(GLOBAL_INDEX);
+    ASSERT(IsBootstrappingOrGlobalObject(result));
+    return reinterpret_cast<GlobalObject*>(result);
   }
   void set_global(GlobalObject* global) { set(GLOBAL_INDEX, global); }
 
@@ -251,7 +252,7 @@ class Context: public FixedArray {
   Context* global_context();
 
   // Tells if this is a function context (as opposed to a 'with' context).
-  bool is_function_context() { return previous() == NULL; }
+  bool is_function_context() { return unchecked_previous() == NULL; }
 
   // Tells whether the global context is marked with out of memory.
   bool has_out_of_memory() {
@@ -293,7 +294,7 @@ class Context: public FixedArray {
   //    and the name is the property name, and the property exists.
   //    attributes != ABSENT.
   //
-  // 4) index_ < 0 && result.deref() == NULL:
+  // 4) index_ < 0 && result.is_null():
   //    there was no context found with the corresponding property.
   //    attributes == ABSENT.
   Handle<Object> Lookup(Handle<String> name, ContextLookupFlags flags,
@@ -303,6 +304,17 @@ class Context: public FixedArray {
   static int SlotOffset(int index) {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;
   }
+
+ private:
+  // Unchecked access to the slots.
+  Object* unchecked_previous() { return get(PREVIOUS_INDEX); }
+  Object* unchecked_extension() { return get(EXTENSION_INDEX); }
+
+#ifdef DEBUG
+  // Bootstrapping-aware type checks.
+  static bool IsBootstrappingOrContext(Object* object);
+  static bool IsBootstrappingOrGlobalObject(Object* object);
+#endif
 };
 
 } }  // namespace v8::internal

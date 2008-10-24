@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "bootstrapper.h"
 #include "debug.h"
 #include "scopeinfo.h"
 
@@ -99,19 +100,19 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     }
 
     // check extension/with object
-    Handle<JSObject> context_ext(context->extension());
-    if (*context_ext != NULL) {
+    if (context->has_extension()) {
+      Handle<JSObject> extension = Handle<JSObject>(context->extension());
       if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0) {
-        *attributes = context_ext->GetLocalPropertyAttribute(*name);
+        *attributes = extension->GetLocalPropertyAttribute(*name);
       } else {
-        *attributes = context_ext->GetPropertyAttribute(*name);
+        *attributes = extension->GetPropertyAttribute(*name);
       }
       if (*attributes != ABSENT) {
         // property found
         if (FLAG_trace_contexts) {
-          PrintF("=> found property in context object %p\n", *context_ext);
+          PrintF("=> found property in context object %p\n", *extension);
         }
-        return context_ext;
+        return extension;
       }
     }
 
@@ -184,11 +185,10 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     // proceed with enclosing context
     if (context->IsGlobalContext()) {
       follow_context_chain = false;
-    } else if (context->previous() != NULL) {
-      context = Handle<Context>(context->previous());
-    } else {
-      ASSERT(context->is_function_context());
+    } else if (context->is_function_context()) {
       context = Handle<Context>(Context::cast(context->closure()->context()));
+    } else {
+      context = Handle<Context>(context->previous());
     }
   } while (follow_context_chain);
 
@@ -196,8 +196,23 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
   if (FLAG_trace_contexts) {
     PrintF("=> no property/slot found\n");
   }
-  return Handle<Object>(reinterpret_cast<JSObject*>(NULL));
+  return Handle<Object>::null();
 }
 
+
+#ifdef DEBUG
+bool Context::IsBootstrappingOrContext(Object* object) {
+  // During bootstrapping we allow all objects to pass as
+  // contexts. This is necessary to fix circular dependencies.
+  return Bootstrapper::IsActive() || object->IsContext();
+}
+
+
+bool Context::IsBootstrappingOrGlobalObject(Object* object) {
+  // During bootstrapping we allow all objects to pass as global
+  // objects. This is necessary to fix circular dependencies.
+  return Bootstrapper::IsActive() || object->IsGlobalObject();
+}
+#endif
 
 } }  // namespace v8::internal
