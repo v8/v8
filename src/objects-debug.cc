@@ -327,6 +327,7 @@ void JSObject::JSObjectVerify() {
 
 static const char* TypeToString(InstanceType type) {
   switch (type) {
+    case INVALID_TYPE: return "INVALID";
     case MAP_TYPE: return "MAP";
     case HEAP_NUMBER_TYPE: return "HEAP_NUMBER";
     case SHORT_SYMBOL_TYPE:
