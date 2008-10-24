@@ -53,7 +53,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   bool external_caught_exception_;
   v8::TryCatch* try_catch_handler_;
   SaveContext* save_context_;
-  v8::TryCatch* catcher_;
+  // Flag indicating that the try_catch_handler_ contains an exception to be
+  // caught.
+  bool pending_external_caught_exception_;
 
   // Stack.
   Address c_entry_fp_;  // the frame pointer of the top c entry frame
@@ -144,10 +146,20 @@ class Top {
     thread_local_.scheduled_exception_ = Heap::the_hole_value();
   }
 
-  static void setup_external_caught() {
-    thread_local_.external_caught_exception_ =
-        (thread_local_.catcher_ != NULL) &&
-        (Top::thread_local_.try_catch_handler_ == Top::thread_local_.catcher_);
+  // Propagate the external caught exception flag. If there is no external
+  // caught exception always clear the TryCatch handler as it might contain
+  // an exception object from a throw which was bypassed by a finally block
+  // doing an explicit return/break/continue.
+  static void propagate_external_caught() {
+    if (has_pending_exception()) {
+      thread_local_.external_caught_exception_ =
+          thread_local_.pending_external_caught_exception_;
+    } else {
+      if (thread_local_.try_catch_handler_ != NULL) {
+        thread_local_.try_catch_handler_->Reset();
+      }
+    }
+    thread_local_.pending_external_caught_exception_ = false;
   }
 
   // Tells whether the current context has experienced an out of memory

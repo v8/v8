@@ -26,13 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // This is a test of making an API call after an exception thrown in JavaScript
-// has been swallowed by a return in the finally block.
-function foo()
-{
+// has been bypassed by a return in the finally block.
+function foo() {
   try {
     throw "bar";
-  }
-  finally {
+  } finally {
     return "baz";
   }
 }
