@@ -3581,10 +3581,10 @@ static Object* RuntimePreempt(Arguments args) {
 }
 
 
-static Object* Runtime_DebugBreak(Arguments args) {
+static Object* DebugBreakHelper() {
   // Just continue if breaks are disabled.
   if (Debug::disable_break()) {
-    return args[0];
+    return Heap::undefined_value();
   }
 
   // Don't break in system functions. If the current function is
@@ -3596,7 +3596,7 @@ static Object* Runtime_DebugBreak(Arguments args) {
   if (fun->IsJSFunction()) {
     GlobalObject* global = JSFunction::cast(fun)->context()->global();
     if (global->IsJSBuiltinsObject() || Debug::IsDebugGlobal(global)) {
-      return args[0];
+      return Heap::undefined_value();
     }
   }
 
@@ -3607,14 +3607,20 @@ static Object* Runtime_DebugBreak(Arguments args) {
   // Enter the debugger. Just continue if we fail to enter the debugger.
   EnterDebugger debugger;
   if (debugger.FailedToEnter()) {
-    return args[0];
+    return Heap::undefined_value();
   }
 
   // Notify the debug event listeners.
   Debugger::OnDebugBreak(Factory::undefined_value());
 
   // Return to continue execution.
-  return args[0];
+  return Heap::undefined_value();
+}
+
+
+static Object* Runtime_DebugBreak(Arguments args) {
+  ASSERT(args.length() == 0);
+  return DebugBreakHelper();
 }
 
 
@@ -3626,7 +3632,7 @@ static Object* Runtime_StackGuard(Arguments args) {
 
   // If not real stack overflow the stack guard was used to interrupt
   // execution for another purpose.
-  if (StackGuard::IsDebugBreak()) Runtime_DebugBreak(args);
+  if (StackGuard::IsDebugBreak()) DebugBreakHelper();
   if (StackGuard::IsPreempted()) RuntimePreempt(args);
   if (StackGuard::IsInterrupted()) {
     // interrupt
@@ -3724,9 +3730,10 @@ static void PrintTransition(Object* result) {
 
 
 static Object* Runtime_TraceEnter(Arguments args) {
+  ASSERT(args.length() == 0);
   NoHandleAllocation ha;
   PrintTransition(NULL);
-  return args[0];  // return TOS
+  return Heap::undefined_value();
 }
 
 
@@ -3765,10 +3772,10 @@ static Object* Runtime_DebugPrint(Arguments args) {
 
 
 static Object* Runtime_DebugTrace(Arguments args) {
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 0);
   NoHandleAllocation ha;
   Top::PrintStack();
-  return args[0];  // return TOS
+  return Heap::undefined_value();
 }
 
 

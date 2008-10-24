@@ -226,9 +226,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     if (FLAG_trace) {
       // Push a valid value as the parameter. The runtime call only uses
       // it as the return value to indicate non-failure.
-      __ mov(r0, Operand(Smi::FromInt(0)));
-      __ push(r0);
-      __ CallRuntime(Runtime::kTraceEnter, 1);
+      __ CallRuntime(Runtime::kTraceEnter, 0);
     }
     CheckStack();
 
@@ -242,11 +240,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       bool should_trace =
           is_builtin ? FLAG_trace_builtin_calls : FLAG_trace_calls;
       if (should_trace) {
-        // Push a valid value as the parameter. The runtime call only uses
-        // it as the return value to indicate non-failure.
-        __ mov(r0, Operand(Smi::FromInt(0)));
-        __ push(r0);
-        __ CallRuntime(Runtime::kDebugTrace, 1);
+        __ CallRuntime(Runtime::kDebugTrace, 0);
       }
 #endif
       VisitStatements(body);
@@ -1846,8 +1840,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatament");
   if (FLAG_debug_info) RecordStatementPosition(node);
-  __ CallRuntime(Runtime::kDebugBreak, 1);
-  __ push(r0);
+  __ CallRuntime(Runtime::kDebugBreak, 0);
+  // Ignore the return value.
 }
 
 

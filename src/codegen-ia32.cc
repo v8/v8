@@ -356,8 +356,8 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     }
 
     if (FLAG_trace) {
-      __ CallRuntime(Runtime::kTraceEnter, 1);
-      frame_->Push(eax);
+      __ CallRuntime(Runtime::kTraceEnter, 0);
+      // Ignore the return value.
     }
     CheckStack();
 
@@ -371,8 +371,8 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       bool should_trace =
           is_builtin ? FLAG_trace_builtin_calls : FLAG_trace_calls;
       if (should_trace) {
-        __ CallRuntime(Runtime::kDebugTrace, 1);
-        frame_->Push(eax);
+        __ CallRuntime(Runtime::kDebugTrace, 0);
+        // Ignore the return value.
       }
 #endif
       VisitStatements(body);
@@ -2218,8 +2218,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatement");
   RecordStatementPosition(node);
-  __ CallRuntime(Runtime::kDebugBreak, 1);
-  frame_->Push(eax);
+  __ CallRuntime(Runtime::kDebugBreak, 0);
+  // Ignore the return value.
 }
 
 
