@@ -181,7 +181,7 @@ class Logger {
   // ==== Events logged by --log-regexp ====
   // Regexp compilation and execution events.
 
-  static void RegExpCompileEvent(Handle<JSRegExp> regexp);
+  static void RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache);
 
   static void RegExpExecEvent(Handle<JSRegExp> regexp,
                               int start_index,

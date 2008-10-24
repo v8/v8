@@ -222,13 +222,13 @@ class CompactProgressIndicator(ProgressIndicator):
     if output.UnexpectedOutput():
       self.ClearLine(self.last_status_length)
       self.PrintFailureHeader(output.test)
-      print "Command: %s" % EscapeCommand(output.command)
       stdout = output.output.stdout.strip()
       if len(stdout):
         print self.templates['stdout'] % stdout
       stderr = output.output.stderr.strip()
       if len(stderr):
         print self.templates['stderr'] % stderr
+      print "Command: %s" % EscapeCommand(output.command)
 
   def Truncate(self, str, length):
     if length and (len(str) > (length - 3)):

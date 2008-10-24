@@ -62,7 +62,8 @@ class RegExpImpl {
                                    Handle<String> subject);
 
   static Handle<Object> AtomCompile(Handle<JSRegExp> re,
-                                    Handle<String> pattern);
+                                    Handle<String> pattern,
+                                    JSRegExp::Flags flags);
 
   static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject,
@@ -73,7 +74,7 @@ class RegExpImpl {
 
   static Handle<Object> JsreCompile(Handle<JSRegExp> re,
                                     Handle<String> pattern,
-                                    Handle<String> flags);
+                                    JSRegExp::Flags flags);
 
   static Handle<Object> JsreExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject,

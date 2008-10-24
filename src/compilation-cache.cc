@@ -32,7 +32,7 @@
 namespace v8 { namespace internal {
 
 enum {
-  NUMBER_OF_ENTRY_KINDS = CompilationCache::EVAL_CONTEXTUAL + 1
+  NUMBER_OF_ENTRY_KINDS = CompilationCache::LAST_ENTRY + 1
 };
 
 
@@ -132,13 +132,36 @@ Handle<JSFunction> CompilationCache::LookupEval(Handle<String> source,
 }
 
 
-void CompilationCache::Associate(Handle<String> source,
-                                 Entry entry,
-                                 Handle<JSFunction> boilerplate) {
+void CompilationCache::PutFunction(Handle<String> source,
+                                   Entry entry,
+                                   Handle<JSFunction> boilerplate) {
   HandleScope scope;
   ASSERT(boilerplate->IsBoilerplate());
   Handle<CompilationCacheTable> table = GetTable(entry);
   CALL_HEAP_FUNCTION_VOID(table->Put(*source, *boilerplate));
+}
+
+
+Handle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
+                                                  JSRegExp::Flags flags) {
+  Handle<CompilationCacheTable> table = GetTable(REGEXP);
+  Object* result = table->LookupRegExp(*source, flags);
+  if (result->IsFixedArray()) {
+    Counters::regexp_cache_hits.Increment();
+    return Handle<FixedArray>(FixedArray::cast(result));
+  } else {
+    Counters::regexp_cache_misses.Increment();
+    return Handle<FixedArray>();
+  }
+}
+
+
+void CompilationCache::PutRegExp(Handle<String> source,
+                                 JSRegExp::Flags flags,
+                                 Handle<FixedArray> data) {
+  HandleScope scope;
+  Handle<CompilationCacheTable> table = GetTable(REGEXP);
+  CALL_HEAP_FUNCTION_VOID(table->PutRegExp(*source, flags, *data));
 }
 
 

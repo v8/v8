@@ -2166,16 +2166,19 @@ ACCESSORS(JSArray, length, Object, kLengthOffset)
 
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
-ACCESSORS(JSRegExp, type, Object, kTypeOffset)
 
 
-JSRegExp::Type JSRegExp::type_tag() {
-  return static_cast<JSRegExp::Type>(Smi::cast(type())->value());
+JSRegExp::Type JSRegExp::TypeTag() {
+  Object* data = this->data();
+  if (data->IsUndefined()) return JSRegExp::NOT_COMPILED;
+  Smi* smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
+  return static_cast<JSRegExp::Type>(smi->value());
 }
 
 
-void JSRegExp::set_type_tag(JSRegExp::Type value) {
-  set_type(Smi::FromInt(value));
+Object* JSRegExp::DataAt(int index) {
+  ASSERT(TypeTag() != NOT_COMPILED);
+  return FixedArray::cast(data())->get(index);
 }
 
 

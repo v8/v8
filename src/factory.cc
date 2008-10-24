@@ -808,6 +808,20 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
 }
 
 
+void Factory::SetRegExpData(Handle<JSRegExp> regexp,
+                            JSRegExp::Type type,
+                            Handle<String> source,
+                            JSRegExp::Flags flags,
+                            Handle<Object> data) {
+  Handle<FixedArray> store = NewFixedArray(JSRegExp::kDataSize);
+  store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
+  store->set(JSRegExp::kSourceIndex, *source);
+  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags.value()));
+  store->set(JSRegExp::kAtomPatternIndex, *data);
+  regexp->set_data(*store);
+}
+
+
 void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
                                 Handle<JSObject> instance,
                                 bool* pending_exception) {

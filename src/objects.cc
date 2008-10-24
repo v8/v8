@@ -5551,6 +5551,46 @@ class StringKey : public HashTableKey {
   String* string_;
 };
 
+// RegExpKey carries the source and flags of a regular expression as key.
+class RegExpKey : public HashTableKey {
+ public:
+  RegExpKey(String* string, JSRegExp::Flags flags)
+    : string_(string),
+      flags_(Smi::FromInt(flags.value())) { }
+
+  bool IsMatch(Object* obj) {
+    FixedArray* val = FixedArray::cast(obj);
+    return string_->Equals(String::cast(val->get(JSRegExp::kSourceIndex)))
+        && (flags_ == val->get(JSRegExp::kFlagsIndex));
+  }
+
+  uint32_t Hash() { return RegExpHash(string_, flags_); }
+
+  HashFunction GetHashFunction() { return RegExpObjectHash; }
+
+  Object* GetObject() {
+    // Plain hash maps, which is where regexp keys are used, don't
+    // use this function.
+    UNREACHABLE();
+    return NULL;
+  }
+
+  static uint32_t RegExpObjectHash(Object* obj) {
+    FixedArray* val = FixedArray::cast(obj);
+    return RegExpHash(String::cast(val->get(JSRegExp::kSourceIndex)),
+                      Smi::cast(val->get(JSRegExp::kFlagsIndex)));
+  }
+
+  static uint32_t RegExpHash(String* string, Smi* flags) {
+    return string->Hash() + flags->value();
+  }
+
+  bool IsStringKey() { return false; }
+
+  String* string_;
+  Smi* flags_;
+};
+
 // Utf8SymbolKey carries a vector of chars as key.
 class Utf8SymbolKey : public HashTableKey {
  public:
@@ -5825,6 +5865,15 @@ Object* CompilationCacheTable::Lookup(String* src) {
 }
 
 
+Object* CompilationCacheTable::LookupRegExp(String* src,
+                                            JSRegExp::Flags flags) {
+  RegExpKey key(src, flags);
+  int entry = FindEntry(&key);
+  if (entry == -1) return Heap::undefined_value();
+  return get(EntryToIndex(entry) + 1);
+}
+
+
 Object* CompilationCacheTable::Put(String* src, Object* value) {
   StringKey key(src);
   Object* obj = EnsureCapacity(1, &key);
@@ -5834,6 +5883,23 @@ Object* CompilationCacheTable::Put(String* src, Object* value) {
       reinterpret_cast<CompilationCacheTable*>(obj);
   int entry = cache->FindInsertionEntry(src, key.Hash());
   cache->set(EntryToIndex(entry), src);
+  cache->set(EntryToIndex(entry) + 1, value);
+  cache->ElementAdded();
+  return cache;
+}
+
+
+Object* CompilationCacheTable::PutRegExp(String* src,
+                                         JSRegExp::Flags flags,
+                                         FixedArray* value) {
+  RegExpKey key(src, flags);
+  Object* obj = EnsureCapacity(1, &key);
+  if (obj->IsFailure()) return obj;
+
+  CompilationCacheTable* cache =
+      reinterpret_cast<CompilationCacheTable*>(obj);
+  int entry = cache->FindInsertionEntry(value, key.Hash());
+  cache->set(EntryToIndex(entry), value);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();
   return cache;

@@ -1856,19 +1856,6 @@ class SymbolTable: public HashTable<0, 1> {
 };
 
 
-class CompilationCacheTable: public HashTable<0, 2> {
- public:
-  // Find cached value for a string key, otherwise return null.
-  Object* Lookup(String* src);
-  Object* Put(String* src, Object* value);
-
-  static inline CompilationCacheTable* cast(Object* obj);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);
-};
-
-
 // MapCache.
 //
 // Maps keys that are a fixed array of symbols to a map.
@@ -2907,17 +2894,27 @@ class JSValue: public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSValue);
 };
 
-
 // Regular expressions
 class JSRegExp: public JSObject {
  public:
-  enum Type { JSCRE, ATOM };
+  enum Type { NOT_COMPILED, JSCRE, ATOM };
+  enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
 
-  inline Type type_tag();
-  inline void set_type_tag(Type value);
+  class Flags {
+   public:
+    explicit Flags(uint32_t value) : value_(value) { }
+    bool is_global() { return (value_ & GLOBAL) != 0; }
+    bool is_ignore_case() { return (value_ & IGNORE_CASE) != 0; }
+    bool is_multiline() { return (value_ & MULTILINE) != 0; }
+    uint32_t value() { return value_; }
+   private:
+    uint32_t value_;
+  };
 
-  DECL_ACCESSORS(type, Object)
   DECL_ACCESSORS(data, Object)
+
+  inline Type TypeTag();
+  inline Object* DataAt(int index);
 
   static inline JSRegExp* cast(Object* obj);
 
@@ -2927,9 +2924,32 @@ class JSRegExp: public JSObject {
   void JSRegExpVerify();
 #endif
 
-  static const int kTypeOffset = JSObject::kHeaderSize;
-  static const int kDataOffset = kTypeOffset + kIntSize;
+  static const int kDataOffset = JSObject::kHeaderSize;
   static const int kSize = kDataOffset + kIntSize;
+
+  static const int kTagIndex = 0;
+  static const int kSourceIndex = kTagIndex + 1;
+  static const int kFlagsIndex = kSourceIndex + 1;
+  // These two are the same since the same entry is shared for
+  // different purposes in different types of regexps.
+  static const int kAtomPatternIndex = kFlagsIndex + 1;
+  static const int kJscreDataIndex = kFlagsIndex + 1;
+  static const int kDataSize = kAtomPatternIndex + 1;
+};
+
+
+class CompilationCacheTable: public HashTable<0, 2> {
+ public:
+  // Find cached value for a string key, otherwise return null.
+  Object* Lookup(String* src);
+  Object* LookupRegExp(String* source, JSRegExp::Flags flags);
+  Object* Put(String* src, Object* value);
+  Object* PutRegExp(String* src, JSRegExp::Flags flags, FixedArray* value);
+
+  static inline CompilationCacheTable* cast(Object* obj);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);
 };
 
 
