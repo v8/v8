@@ -2877,6 +2877,14 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
 }
 
 
+int DescriptorArray::LinearSearch(String* name, int len) {
+  for (int number = 0; number < len; number++) {
+    if (name->Equals(GetKey(number))) return number;
+  }
+  return kNotFound;
+}
+
+
 #ifdef DEBUG
 bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
   if (IsEmpty()) return other->IsEmpty();

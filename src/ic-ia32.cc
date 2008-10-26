@@ -206,6 +206,18 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
 }
 
 
+#ifdef DEBUG
+// For use in assert below.
+static int TenToThe(int exponent) {
+  ASSERT(exponent <= 9);
+  ASSERT(exponent >= 1);
+  int answer = 10;
+  for (int i = 1; i < exponent; i++) answer *= 10;
+  return answer;
+}
+#endif
+
+
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- esp[0] : return address
@@ -262,6 +274,11 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
   // Array index string: If short enough use cache in length/hash field (ebx).
+  // We assert that there are enough bits in an int32_t after the hash shift
+  // bits have been subtracted to allow space for the length and the cached
+  // array index.
+  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+             (1 << (String::kShortLengthShift - String::kHashShift)));
   __ bind(&index_string);
   const int kLengthFieldLimit =
       (String::kMaxCachedArrayIndexLength + 1) << String::kShortLengthShift;

@@ -1130,10 +1130,7 @@ int DescriptorArray::Search(String* name) {
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
   if (name->IsSymbol() && nof < kMaxElementsForLinearSearch) {
-    for (int number = 0; number < nof; number++) {
-      if (name == GetKey(number)) return number;
-    }
-    return kNotFound;
+    return LinearSearch(name, nof);
   }
 
   // Slow case: perform binary search.

@@ -1629,6 +1629,10 @@ class DescriptorArray: public FixedArray {
   // with low=0 and high=2.
   int BinarySearch(String* name, int low, int high);
 
+  // Perform a linear search in the instance descriptors represented
+  // by this fixed array.  len is the number of descriptor indeces that are
+  // valid.  Does not require the descriptors to be sorted.
+  int LinearSearch(String* name, int len);
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.

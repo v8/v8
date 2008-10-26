@@ -1936,17 +1936,17 @@ Map* Heap::SymbolMapForString(String* string) {
   }
 
   if (map == short_sliced_string_map()) return short_sliced_symbol_map();
-  if (map == medium_sliced_string_map()) return short_sliced_symbol_map();
-  if (map == long_sliced_string_map()) return short_sliced_symbol_map();
+  if (map == medium_sliced_string_map()) return medium_sliced_symbol_map();
+  if (map == long_sliced_string_map()) return long_sliced_symbol_map();
 
   if (map == short_sliced_ascii_string_map()) {
     return short_sliced_ascii_symbol_map();
   }
   if (map == medium_sliced_ascii_string_map()) {
-    return short_sliced_ascii_symbol_map();
+    return medium_sliced_ascii_symbol_map();
   }
   if (map == long_sliced_ascii_string_map()) {
-    return short_sliced_ascii_symbol_map();
+    return long_sliced_ascii_symbol_map();
   }
 
   if (map == short_external_string_map()) return short_external_string_map();

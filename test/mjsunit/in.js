@@ -81,18 +81,12 @@ assertFalse(NaN in a);
 assertFalse(Infinity in a);
 assertFalse(-Infinity in a);
 
-/*****
- * NOTE: Two of the tests below are disabled due to a bug in V8.
- * Fast case (non-dictionary) sparse arrays do not work as advertised.
- *
- */
-
 var a = [];
 a[1] = 2;
-//assertFalse(0 in a);
+assertFalse(0 in a);
 assertTrue(1 in a);
 assertFalse(2 in a);
-//assertFalse('0' in a); 
+assertFalse('0' in a); 
 assertTrue('1' in a);
 assertFalse('2' in a);
 assertTrue('toString' in a, "toString");
