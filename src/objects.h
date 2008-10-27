@@ -626,6 +626,7 @@ class Object BASE_EMBEDDED {
   inline bool IsOddball();
   inline bool IsSharedFunctionInfo();
   inline bool IsJSValue();
+  inline bool IsStringWrapper();
   inline bool IsProxy();
   inline bool IsBoolean();
   inline bool IsJSArray();

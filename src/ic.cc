@@ -453,8 +453,17 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
   }
 
   if (FLAG_use_ic) {
-    // Use specialized code for getting the length of strings.
-    if (object->IsString() && name->Equals(Heap::length_symbol())) {
+    // Use specialized code for getting the length of strings and
+    // string wrapper objects.  The length property of string wrapper
+    // objects is read-only and therefore always returns the length of
+    // the underlying string value.  See ECMA-262 15.5.5.1.
+    if ((object->IsString() || object->IsStringWrapper()) &&
+        name->Equals(Heap::length_symbol())) {
+      HandleScope scope;
+      // Get the string if we have a string wrapper object.
+      if (object->IsJSValue()) {
+        object = Handle<Object>(Handle<JSValue>::cast(object)->value());
+      }
 #ifdef DEBUG
       if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
 #endif

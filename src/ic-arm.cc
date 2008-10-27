@@ -157,6 +157,28 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 }
 
 
+// Generate code to check if an object is a string.  If the object is
+// a string, the map's instance type is left in the scratch1 register.
+static void GenerateStringCheck(MacroAssembler* masm,
+                                Register receiver,
+                                Register scratch1,
+                                Register scratch2,
+                                Label* smi,
+                                Label* non_string_object) {
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Operand(kSmiTagMask));
+  __ b(eq, smi);
+
+  // Check that the object is a string.
+  __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+  __ and_(scratch2, scratch1, Operand(kIsNotStringMask));
+  // The cast is to resolve the overload for the argument of 0x0.
+  __ cmp(scratch2, Operand(static_cast<int32_t>(kStringTag)));
+  __ b(ne, non_string_object);
+}
+
+
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
@@ -164,29 +186,32 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   //  -- [sp]  : receiver
   // -----------------------------------
 
-  Label miss;
+  Label miss, load_length, check_wrapper;
 
   __ ldr(r0, MemOperand(sp, 0));
 
-  // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  // Check if the object is a string.
+  GenerateStringCheck(masm, r0, r1, r3, &miss, &check_wrapper);
 
-  // Check that the object is a string.
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ and_(r3, r1, Operand(kIsNotStringMask));
-  // The cast is to resolve the overload for the argument of 0x0.
-  __ cmp(r3, Operand(static_cast<int32_t>(kStringTag)));
-  __ b(ne, &miss);
-
+  // Load length directly from the string.
+  __ bind(&load_length);
   __ and_(r1, r1, Operand(kStringSizeMask));
   __ add(r1, r1, Operand(String::kHashShift));
-  // Load length directly from the string.
   __ ldr(r0, FieldMemOperand(r0, String::kLengthOffset));
   __ mov(r0, Operand(r0, LSR, r1));
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
   __ Ret();
+
+  // Check if the object is a JSValue wrapper.
+  __ bind(&check_wrapper);
+  __ cmp(r0, Operand(JS_VALUE_TYPE));
+  __ b(ne, &miss);
+
+  // Check if the wrapped value is a string and load the length
+  // directly if it is.
+  __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
+  GenerateStringCheck(masm, r0, r1, r3, &miss, &miss);
+  __ b(&load_length);
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);

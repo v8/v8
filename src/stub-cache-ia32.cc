@@ -159,31 +159,55 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
 }
 
 
-void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
-                                            Register receiver,
-                                            Register scratch,
-                                            Label* miss_label) {
-  // Check that the receiver isn't a smi.
+// Generate code to check if an object is a string.  If the object is
+// a string, the map's instance type is left in the scratch register.
+static void GenerateStringCheck(MacroAssembler* masm,
+                                Register receiver,
+                                Register scratch,
+                                Label* smi,
+                                Label* non_string_object) {
+  // Check that the object isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss_label, not_taken);
+  __ j(zero, smi, not_taken);
 
   // Check that the object is a string.
   __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   ASSERT(kNotStringTag != 0);
   __ test(scratch, Immediate(kNotStringTag));
-  __ j(not_zero, miss_label, not_taken);
+  __ j(not_zero, non_string_object, not_taken);
+}
 
-  __ and_(scratch, kStringSizeMask);
+
+void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
+                                            Register receiver,
+                                            Register scratch,
+                                            Label* miss) {
+  Label load_length, check_wrapper;
+
+  // Check if the object is a string.
+  GenerateStringCheck(masm, receiver, scratch, miss, &check_wrapper);
 
   // Load length directly from the string.
+  __ bind(&load_length);
+  __ and_(scratch, kStringSizeMask);
   __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
-
   // ecx is also the receiver.
   __ lea(ecx, Operand(scratch, String::kLongLengthShift));
   __ shr(eax);  // ecx is implicit shift register.
   __ shl(eax, kSmiTagSize);
   __ ret(0);
+
+  // Check if the object is a JSValue wrapper.
+  __ bind(&check_wrapper);
+  __ cmp(receiver, JS_VALUE_TYPE);
+  __ j(not_equal, miss, not_taken);
+
+  // Check if the wrapped value is a string and load the length
+  // directly if it is.
+  __ mov(receiver, FieldOperand(receiver, JSValue::kValueOffset));
+  GenerateStringCheck(masm, receiver, scratch, miss, miss);
+  __ jmp(&load_length);
 }
 
 

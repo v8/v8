@@ -301,6 +301,11 @@ bool Object::IsJSValue() {
 }
 
 
+bool Object::IsStringWrapper() {
+  return IsJSValue() && JSValue::cast(this)->value()->IsString();
+}
+
+
 bool Object::IsProxy() {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() == PROXY_TYPE;
