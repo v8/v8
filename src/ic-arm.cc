@@ -174,9 +174,9 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // Check that the object is a string.
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ and_(r1, r1, Operand(kIsNotStringMask));
+  __ and_(r3, r1, Operand(kIsNotStringMask));
   // The cast is to resolve the overload for the argument of 0x0.
-  __ cmp(r1, Operand(static_cast<int32_t>(kStringTag)));
+  __ cmp(r3, Operand(static_cast<int32_t>(kStringTag)));
   __ b(ne, &miss);
 
   __ and_(r1, r1, Operand(kStringSizeMask));
