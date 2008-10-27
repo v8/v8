@@ -61,3 +61,7 @@ debug-step: FAIL
 debug-breakpoints: PASS || FAIL
 
 regress/regress-998565: FAIL
+
+# Bug number 130 http://code.google.com/p/v8/issues/detail?id=130
+# Fails on ARM.
+string-compare-alignment: FAIL
