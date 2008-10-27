@@ -99,10 +99,7 @@ class Descriptor BASE_EMBEDDED {
   friend class DescriptorArray;
 };
 
-// A pointer from a map to the new map that is created by adding
-// a named property.  These are key to the speed and functioning of V8.
-// The two maps should always have the same prototype, since
-// MapSpace::CreateBackPointers depends on this.
+
 class MapTransitionDescriptor: public Descriptor {
  public:
   MapTransitionDescriptor(String* key, Map* map, PropertyAttributes attributes)

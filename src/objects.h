@@ -1042,11 +1042,7 @@ class HeapObject: public Object {
   // object is overflowed (ie, partially restore the map pointer).
   inline void ClearOverflow();
 
-  // Returns the field at offset in obj, as a read/write Object* reference.
-  // Does no checking, and is safe to use during GC, while maps are invalid.
-  // Does not update remembered sets, so should only be assigned to
-  // during marking GC.
-  static inline Object* &RawField(HeapObject* obj, int offset);
+  static inline Object* GetHeapObjectField(HeapObject* obj, int index);
 
   // Casting.
   static inline HeapObject* cast(Object* obj);
@@ -2426,17 +2422,6 @@ class Map: public HeapObject {
   // Removes a code object from the code cache at the given index.
   void RemoveFromCodeCache(int index);
 
-  // For every transition in this map, makes the transition's
-  // target's prototype pointer point back to this map.
-  // This is undone in MarkCompactCollector::ClearNonLiveTransitions().
-  void CreateBackPointers();
-
-  // Set all map transitions from this map to dead maps to null.
-  // Also, restore the original prototype on the targets of these
-  // transitions, so that we do not process this map again while
-  // following back pointers.
-  void ClearNonLiveTransitions(Object* real_prototype);
-
   // Dispatched behavior.
   void MapIterateBody(ObjectVisitor* v);
 #ifdef DEBUG
@@ -2821,7 +2806,7 @@ class GlobalObject: public JSObject {
   // [builtins]: the object holding the runtime routines written in JS.
   DECL_ACCESSORS(builtins, JSBuiltinsObject)
 
-  // [global context]: the global context corresponding to this global object.
+  // [global context]: the global context corresponding to this global objet.
   DECL_ACCESSORS(global_context, Context)
 
   // [global receiver]: the global receiver object of the context

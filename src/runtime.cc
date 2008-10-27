@@ -320,19 +320,9 @@ static Object* Runtime_IsTemplate(Arguments args) {
 static Object* Runtime_GetTemplateField(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(HeapObject, templ, args[0]);
+  RUNTIME_ASSERT(templ->IsStruct());
   CONVERT_CHECKED(Smi, field, args[1]);
-  int index = field->value();
-  int offset = index * kPointerSize + HeapObject::kHeaderSize;
-  InstanceType type = templ->map()->instance_type();
-  RUNTIME_ASSERT(type ==  FUNCTION_TEMPLATE_INFO_TYPE ||
-                 type ==  OBJECT_TEMPLATE_INFO_TYPE);
-  RUNTIME_ASSERT(offset > 0);
-  if (type ==  FUNCTION_TEMPLATE_INFO_TYPE) {
-    RUNTIME_ASSERT(offset < FunctionTemplateInfo::kSize);
-  } else {
-    RUNTIME_ASSERT(offset < ObjectTemplateInfo::kSize);
-  }
-  return HeapObject::RawField(templ, offset);
+  return HeapObject::GetHeapObjectField(templ, field->value());
 }
 
 
