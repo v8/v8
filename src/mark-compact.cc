@@ -78,6 +78,8 @@ void MarkCompactCollector::CollectGarbage(GCTracer* tracer) {
 
   MarkLiveObjects();
 
+  if (FLAG_collect_maps) ClearNonLiveTransitions();
+
   SweepLargeObjectSpace();
 
   if (compacting_collection_) {
@@ -135,6 +137,7 @@ void MarkCompactCollector::Prepare() {
   }
 
   if (FLAG_never_compact) compacting_collection_ = false;
+  if (FLAG_collect_maps) CreateBackPointers();
 
 #ifdef DEBUG
   if (compacting_collection_) {
@@ -322,9 +325,13 @@ class MarkingVisitor : public ObjectVisitor {
 
   // Visit an unmarked object.
   void VisitUnmarkedObject(HeapObject* obj) {
-    ASSERT(Heap::Contains(obj));
 #ifdef DEBUG
+    ASSERT(Heap::Contains(obj));
     MarkCompactCollector::UpdateLiveObjectCount(obj);
+    ASSERT(!obj->IsMarked());
+    // ASSERT(!obj->IsMap());  // Some maps are processed here.
+    // Their map transitions will be followed.  If we do a test
+    // here to treat maps separately, will there be a performance impact?
 #endif
     Map* map = obj->map();
     obj->SetMark();
@@ -425,14 +432,99 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
   ASSERT(!object->IsMarked());
   if (object->IsJSGlobalObject()) Counters::global_objects.Increment();
 
-  if (FLAG_cleanup_caches_in_maps_at_gc && object->IsMap()) {
-    Map::cast(object)->ClearCodeCache();
-  }
-
-  object->SetMark();
   tracer_->increment_marked_count();
   ASSERT(Heap::Contains(object));
-  marking_stack.Push(object);
+  if (object->IsMap()) {
+    if (FLAG_cleanup_caches_in_maps_at_gc) {
+      Map::cast(object)->ClearCodeCache();
+    }
+    object->SetMark();
+    if (FLAG_collect_maps) {
+      MarkMapContents(reinterpret_cast<Map*>(object));
+    } else {
+      marking_stack.Push(object);
+    }
+  } else {
+    object->SetMark();
+    marking_stack.Push(object);
+  }
+}
+
+
+void MarkCompactCollector::MarkMapContents(Map* map) {
+  MarkDescriptorArray(reinterpret_cast<DescriptorArray*>(
+      HeapObject::RawField(map, Map::kInstanceDescriptorsOffset)));
+
+  // Mark the Object* fields of the Map.
+  // Since the descriptor array has been marked already, it is fine
+  // that one of these fields contains a pointer to it.
+  MarkingVisitor visitor;  // Has no state or contents.
+  visitor.VisitPointers(&HeapObject::RawField(map, Map::kPrototypeOffset),
+                        &HeapObject::RawField(map, Map::kSize));
+}
+
+
+void MarkCompactCollector::MarkDescriptorArray(
+    DescriptorArray *descriptors) {
+  if (descriptors->IsMarked()) return;
+  // Empty descriptor array is marked as a root before any maps are marked.
+  ASSERT(descriptors != Heap::empty_descriptor_array());
+
+  tracer_->increment_marked_count();
+#ifdef DEBUG
+  UpdateLiveObjectCount(descriptors);
+#endif
+  descriptors->SetMark();
+
+  FixedArray* contents = reinterpret_cast<FixedArray*>(
+      descriptors->get(DescriptorArray::kContentArrayIndex));
+  ASSERT(contents->IsHeapObject());
+  ASSERT(!contents->IsMarked());
+  ASSERT(contents->IsFixedArray());
+  ASSERT(contents->length() >= 2);
+  tracer_->increment_marked_count();
+#ifdef DEBUG
+  UpdateLiveObjectCount(contents);
+#endif
+  contents->SetMark();
+  // Contents contains (value, details) pairs.  If the details say
+  // that the type of descriptor is MAP_TRANSITION, CONSTANT_TRANSITION,
+  // or NULL_DESCRIPTOR, we don't mark the value as live.  Only for
+  // type MAP_TRANSITION is the value a Object* (a Map*).
+  for (int i = 0; i < contents->length(); i += 2) {
+    // If the pair (value, details) at index i, i+1 is not
+    // a transition or null descriptor, mark the value.
+    PropertyDetails details(Smi::cast(contents->get(i + 1)));
+    if (details.type() < FIRST_PHANTOM_PROPERTY_TYPE) {
+      HeapObject* object = reinterpret_cast<HeapObject*>(contents->get(i));
+      if (object->IsHeapObject() && !object->IsMarked()) {
+        tracer_->increment_marked_count();
+#ifdef DEBUG
+        UpdateLiveObjectCount(object);
+#endif
+        object->SetMark();
+        marking_stack.Push(object);
+      }
+    }
+  }
+  // The DescriptorArray descriptors contains a pointer to its contents array,
+  // but the contents array is already marked.
+  marking_stack.Push(descriptors);
+}
+
+
+void MarkCompactCollector::CreateBackPointers() {
+  HeapObjectIterator iterator(Heap::map_space());
+  while (iterator.has_next()) {
+    Object* next_object = iterator.next();
+    if (next_object->IsMap()) {  // Could also be ByteArray on free list.
+      Map* map = Map::cast(next_object);
+      if (map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
+          map->instance_type() <= LAST_JS_OBJECT_TYPE) {
+        map->CreateBackPointers();
+      }
+    }
+  }
 }
 
 
@@ -675,6 +767,13 @@ void MarkCompactCollector::MarkLiveObjects() {
 }
 
 
+static int CountMarkedCallback(HeapObject* obj) {
+  MapWord map_word = obj->map_word();
+  map_word.ClearMark();
+  return obj->SizeFromMap(map_word.ToMap());
+}
+
+
 #ifdef DEBUG
 void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
   live_bytes_ += obj->Size();
@@ -694,13 +793,6 @@ void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
   } else {
     UNREACHABLE();
   }
-}
-
-
-static int CountMarkedCallback(HeapObject* obj) {
-  MapWord map_word = obj->map_word();
-  map_word.ClearMark();
-  return obj->SizeFromMap(map_word.ToMap());
 }
 
 
@@ -755,6 +847,63 @@ void MarkCompactCollector::SweepLargeObjectSpace() {
   Heap::lo_space()->FreeUnmarkedObjects();
 }
 
+// Safe to use during marking phase only.
+bool MarkCompactCollector::SafeIsMap(HeapObject* object) {
+  MapWord metamap = object->map_word();
+  metamap.ClearMark();
+  return metamap.ToMap()->instance_type() == MAP_TYPE;
+}
+
+void MarkCompactCollector::ClearNonLiveTransitions() {
+  HeapObjectIterator map_iterator(Heap::map_space(), &CountMarkedCallback);
+  // Iterate over the map space, setting map transitions that go from
+  // a marked map to an unmarked map to null transitions.  At the same time,
+  // set all the prototype fields of maps back to their original value,
+  // dropping the back pointers temporarily stored in the prototype field.
+  // Setting the prototype field requires following the linked list of
+  // back pointers, reversing them all at once.  This allows us to find
+  // those maps with map transitions that need to be nulled, and only
+  // scan the descriptor arrays of those maps, not all maps.
+  // All of these actions are carried out only on maps of JSObects
+  // and related subtypes.
+  while (map_iterator.has_next()) {
+    Map* map = reinterpret_cast<Map*>(map_iterator.next());
+    if (!map->IsMarked() && map->IsByteArray()) continue;
+
+    ASSERT(SafeIsMap(map));
+    // Only JSObject and subtypes have map transitions and back pointers.
+    if (map->instance_type() < FIRST_JS_OBJECT_TYPE) continue;
+    if (map->instance_type() > LAST_JS_OBJECT_TYPE) continue;
+    // Follow the chain of back pointers to find the prototype.
+    Map* current = map;
+    while (SafeIsMap(current)) {
+      current = reinterpret_cast<Map*>(current->prototype());
+      ASSERT(current->IsHeapObject());
+    }
+    Object* real_prototype = current;
+
+    // Follow back pointers, setting them to prototype,
+    // clearing map transitions when necessary.
+    current = map;
+    bool on_dead_path = !current->IsMarked();
+    Object *next;
+    while (SafeIsMap(current)) {
+      next = current->prototype();
+      // There should never be a dead map above a live map.
+      ASSERT(on_dead_path || current->IsMarked());
+
+      // A live map above a dead map indicates a dead transition.
+      // This test will always be false on the first iteration.
+      if (on_dead_path && current->IsMarked()) {
+        on_dead_path = false;
+        current->ClearNonLiveTransitions(real_prototype);
+      }
+      HeapObject::RawField(current, Map::kPrototypeOffset) =
+          real_prototype;
+      current = reinterpret_cast<Map*>(next);
+    }
+  }
+}
 
 // -------------------------------------------------------------------------
 // Phase 2: Encode forwarding addresses.

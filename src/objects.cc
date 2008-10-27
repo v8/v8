@@ -333,7 +333,7 @@ Object* Object::GetProperty(Object* receiver,
       // Check if we're allowed to read from the current object. Note
       // that even though we may not actually end up loading the named
       // property from the current object, we still check that we have
-      // access to the it.
+      // access to it.
       JSObject* checked = JSObject::cast(current);
       if (!Top::MayNamedAccess(checked, name, v8::ACCESS_GET)) {
         return checked->GetPropertyWithFailedAccessCheck(receiver,
@@ -4050,6 +4050,67 @@ void String::PrintOn(FILE* file) {
 }
 
 
+void Map::CreateBackPointers() {
+  DescriptorArray* descriptors = instance_descriptors();
+  for (DescriptorReader r(descriptors); !r.eos(); r.advance()) {
+    if (r.type() == MAP_TRANSITION) {
+      // Get target.
+      Map* target = Map::cast(r.GetValue());
+#ifdef DEBUG
+      // Verify target.
+      Object* source_prototype = prototype();
+      Object* target_prototype = target->prototype();
+      ASSERT(source_prototype->IsJSObject() ||
+             source_prototype->IsMap() ||
+             source_prototype->IsNull());
+      ASSERT(target_prototype->IsJSObject() ||
+             target_prototype->IsNull());
+      ASSERT(source_prototype->IsMap() ||
+          source_prototype == target_prototype);
+#endif
+      // Point target back to source.  set_prototype() will not let us set
+      // the prototype to a map, as we do here.
+      RawField(target, kPrototypeOffset) = this;
+    }
+  }
+}
+
+
+void Map::ClearNonLiveTransitions(Object* real_prototype) {
+  // Live DescriptorArray objects will be marked, so we must use
+  // low-level accessors to get and modify their data.
+  DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
+      RawField(this, Map::kInstanceDescriptorsOffset));
+  if (d == Heap::empty_descriptor_array()) return;
+  Smi* NullDescriptorDetails =
+    PropertyDetails(NONE, NULL_DESCRIPTOR).AsSmi();
+  FixedArray* contents = reinterpret_cast<FixedArray*>(
+      d->get(DescriptorArray::kContentArrayIndex));
+  ASSERT(contents->length() >= 2);
+  for (int i = 0; i < contents->length(); i += 2) {
+    // If the pair (value, details) is a map transition,
+    // check if the target is live.  If not, null the descriptor.
+    // Also drop the back pointer for that map transition, so that this
+    // map is not reached again by following a back pointer from a
+    // non-live object.
+    PropertyDetails details(Smi::cast(contents->get(i + 1)));
+    if (details.type() == MAP_TRANSITION) {
+      Map* target = reinterpret_cast<Map*>(contents->get(i));
+      ASSERT(target->IsHeapObject());
+      if (!target->IsMarked()) {
+        ASSERT(target->IsMap());
+        contents->set(i + 1, NullDescriptorDetails, SKIP_WRITE_BARRIER);
+        contents->set(i, Heap::null_value(), SKIP_WRITE_BARRIER);
+        ASSERT(target->prototype() == this ||
+               target->prototype() == real_prototype);
+        // Getter prototype() is read-only, set_prototype() has side effects.
+        RawField(target, Map::kPrototypeOffset) = real_prototype;
+      }
+    }
+  }
+}
+
+
 void Map::MapIterateBody(ObjectVisitor* v) {
   // Assumes all Object* members are contiguously allocated!
   IteratePointers(v, kPrototypeOffset, kCodeCacheOffset + kPointerSize);
@@ -6728,4 +6789,6 @@ int BreakPointInfo::GetBreakPointCount() {
 }
 
 
+const int FunctionTemplateInfo::kSize;
+const int ObjectTemplateInfo::kSize;
 } }  // namespace v8::internal
