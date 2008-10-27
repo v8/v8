@@ -225,7 +225,6 @@ class CodeGenerator: public Visitor {
                      bool force_cc);
   void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
-  void LoadGlobalReceiver(Register scratch);
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);

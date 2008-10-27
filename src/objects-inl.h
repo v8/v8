@@ -365,25 +365,23 @@ bool Object::IsPrimitive() {
 }
 
 
-bool Object::IsJSGlobalProxy() {
-  bool result = IsHeapObject() &&
-                (HeapObject::cast(this)->map()->instance_type() ==
-                 JS_GLOBAL_PROXY_TYPE);
-  ASSERT(!result || IsAccessCheckNeeded());
-  return result;
-}
-
-
 bool Object::IsGlobalObject() {
-  if (!IsHeapObject()) return false;
-
-  InstanceType type =  HeapObject::cast(this)->map()->instance_type();
-  return type == JS_GLOBAL_OBJECT_TYPE ||
-         type == JS_BUILTINS_OBJECT_TYPE;
+  return IsHeapObject() &&
+      ((HeapObject::cast(this)->map()->instance_type() ==
+        JS_GLOBAL_OBJECT_TYPE) ||
+       (HeapObject::cast(this)->map()->instance_type() ==
+        JS_BUILTINS_OBJECT_TYPE));
 }
 
 
 bool Object::IsJSGlobalObject() {
+#ifdef DEBUG
+  if (IsHeapObject() &&
+      (HeapObject::cast(this)->map()->instance_type() ==
+       JS_GLOBAL_OBJECT_TYPE)) {
+    ASSERT(IsAccessCheckNeeded());
+  }
+#endif
   return IsHeapObject() &&
       (HeapObject::cast(this)->map()->instance_type() ==
        JS_GLOBAL_OBJECT_TYPE);
@@ -405,7 +403,7 @@ bool Object::IsUndetectableObject() {
 
 bool Object::IsAccessCheckNeeded() {
   return IsHeapObject()
-    && HeapObject::cast(this)->map()->is_access_check_needed();
+    && HeapObject::cast(this)->map()->needs_access_check();
 }
 
 
@@ -473,11 +471,6 @@ Object* Object::ToSmi() {
     }
   }
   return Failure::Exception();
-}
-
-
-bool Object::HasSpecificClassOf(String* name) {
-  return this->IsJSObject() && (JSObject::cast(this)->class_name() == name);
 }
 
 
@@ -877,7 +870,7 @@ void HeapNumber::set_value(double value) {
 
 
 ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
-ACCESSORS(JSObject, elements, FixedArray, kElementsOffset)
+ACCESSORS(JSObject, elements, HeapObject, kElementsOffset)
 
 
 void JSObject::initialize_properties() {
@@ -898,8 +891,6 @@ ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
 int JSObject::GetHeaderSize() {
   switch (map()->instance_type()) {
-    case JS_GLOBAL_PROXY_TYPE:
-      return JSGlobalProxy::kSize;
     case JS_GLOBAL_OBJECT_TYPE:
       return JSGlobalObject::kSize;
     case JS_BUILTINS_OBJECT_TYPE:
@@ -1235,7 +1226,6 @@ CAST_ACCESSOR(SharedFunctionInfo)
 CAST_ACCESSOR(Map)
 CAST_ACCESSOR(JSFunction)
 CAST_ACCESSOR(GlobalObject)
-CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSBuiltinsObject)
 CAST_ACCESSOR(Code)
@@ -1841,9 +1831,8 @@ ACCESSORS(JSFunction, literals, FixedArray, kLiteralsOffset)
 
 ACCESSORS(GlobalObject, builtins, JSBuiltinsObject, kBuiltinsOffset)
 ACCESSORS(GlobalObject, global_context, Context, kGlobalContextOffset)
-ACCESSORS(GlobalObject, global_receiver, JSObject, kGlobalReceiverOffset)
 
-ACCESSORS(JSGlobalProxy, context, Object, kContextOffset)
+ACCESSORS(JSGlobalObject, security_token, Object, kSecurityTokenOffset)
 
 ACCESSORS(AccessorInfo, getter, Object, kGetterOffset)
 ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)

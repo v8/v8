@@ -48,7 +48,6 @@
 //         - GlobalObject
 //           - JSGlobalObject
 //           - JSBuiltinsObject
-//         _ JSGlobalProxy
 //         - JSValue
 //         - Script
 //       - Array
@@ -270,7 +269,6 @@ enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
   V(JS_OBJECT_TYPE)                             \
   V(JS_GLOBAL_OBJECT_TYPE)                      \
   V(JS_BUILTINS_OBJECT_TYPE)                    \
-  V(JS_GLOBAL_PROXY_TYPE)                       \
   V(JS_ARRAY_TYPE)                              \
   V(JS_REGEXP_TYPE)                             \
                                                 \
@@ -526,7 +524,6 @@ enum InstanceType {
   JS_OBJECT_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
   JS_BUILTINS_OBJECT_TYPE,
-  JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
   JS_REGEXP_TYPE,
 
@@ -639,7 +636,6 @@ class Object BASE_EMBEDDED {
   inline bool IsGlobalObject();
   inline bool IsJSGlobalObject();
   inline bool IsJSBuiltinsObject();
-  inline bool IsJSGlobalProxy();
   inline bool IsUndetectableObject();
   inline bool IsAccessCheckNeeded();
 
@@ -661,8 +657,6 @@ class Object BASE_EMBEDDED {
 
   // Extract the number.
   inline double Number();
-
-  inline bool HasSpecificClassOf(String* name);
 
   Object* ToObject();             // ECMA-262 9.9.
   Object* ToBoolean();            // ECMA-262 9.2.
@@ -1129,7 +1123,7 @@ class JSObject: public HeapObject {
   // [elements]: The elements (properties with names that are integers).
   // elements is a FixedArray in the fast case, and a Dictionary in the slow
   // case.
-  DECL_ACCESSORS(elements, FixedArray)  // Get and set fast elements.
+  DECL_ACCESSORS(elements, HeapObject)  // Get and set fast elements.
   inline void initialize_elements();
   inline bool HasFastElements();
   inline Dictionary* element_dictionary();  // Gets slow elements.
@@ -2361,12 +2355,12 @@ class Map: public HeapObject {
 
   // Tells whether the instance needs security checks when accessing its
   // properties.
-  inline void set_is_access_check_needed() {
-    set_bit_field(bit_field() | (1 << kIsAccessCheckNeeded));
+  inline void set_needs_access_check() {
+    set_bit_field(bit_field() | (1 << kNeedsAccessCheck));
   }
 
-  inline bool is_access_check_needed() {
-    return ((1 << kIsAccessCheckNeeded) & bit_field()) != 0;
+  inline bool needs_access_check() {
+    return ((1 << kNeedsAccessCheck) & bit_field()) != 0;
   }
 
   // [prototype]: implicit prototype object.
@@ -2458,7 +2452,7 @@ class Map: public HeapObject {
   static const int kHasIndexedInterceptor = 4;
   static const int kIsUndetectable = 5;
   static const int kHasInstanceCallHandler = 6;
-  static const int kIsAccessCheckNeeded = 7;
+  static const int kNeedsAccessCheck = 7;
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
 };
@@ -2762,39 +2756,6 @@ class JSFunction: public JSObject {
 };
 
 
-// JSGlobalProxy's prototype must be a JSGlobalObject or null,
-// and the prototype is hidden. JSGlobalProxy always delegates
-// property accesses to its prototype if the prototype is not null.
-//
-// A JSGlobalProxy can be reinitialized which will preserve its identity.
-//
-// Accessing a JSGlobalProxy requires security check.
-
-class JSGlobalProxy : public JSObject {
- public:
-  // [context]: the owner global context of this proxy object.
-  // It is null value if this object is not used by any context.
-  DECL_ACCESSORS(context, Object)
-
-  // Casting.
-  static inline JSGlobalProxy* cast(Object* obj);
-
-  // Dispatched behavior.
-#ifdef DEBUG
-  void JSGlobalProxyPrint();
-  void JSGlobalProxyVerify();
-#endif
-
-  // Layout description.
-  static const int kContextOffset = JSObject::kHeaderSize;
-  static const int kSize = kContextOffset + kPointerSize;
-
- private:
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
-};
-
-
 // Forward declaration.
 class JSBuiltinsObject;
 
@@ -2808,17 +2769,13 @@ class GlobalObject: public JSObject {
   // [global context]: the global context corresponding to this global objet.
   DECL_ACCESSORS(global_context, Context)
 
-  // [global receiver]: the global receiver object of the context
-  DECL_ACCESSORS(global_receiver, JSObject)
-
   // Casting.
   static inline GlobalObject* cast(Object* obj);
 
   // Layout description.
   static const int kBuiltinsOffset = JSObject::kHeaderSize;
   static const int kGlobalContextOffset = kBuiltinsOffset + kPointerSize;
-  static const int kGlobalReceiverOffset = kGlobalContextOffset + kPointerSize;
-  static const int kHeaderSize = kGlobalReceiverOffset + kPointerSize;
+  static const int kHeaderSize = kGlobalContextOffset + kPointerSize;
 
  private:
   friend class AGCCVersionRequiresThisClassToHaveAFriendSoHereItIs;
@@ -2830,6 +2787,10 @@ class GlobalObject: public JSObject {
 // JavaScript global object.
 class JSGlobalObject: public GlobalObject {
  public:
+  // [security token]: the object being used for security check when accessing
+  // global properties.
+  DECL_ACCESSORS(security_token, Object)
+
   // Casting.
   static inline JSGlobalObject* cast(Object* obj);
 
@@ -2840,7 +2801,8 @@ class JSGlobalObject: public GlobalObject {
 #endif
 
   // Layout description.
-  static const int kSize = GlobalObject::kHeaderSize;
+  static const int kSecurityTokenOffset = GlobalObject::kHeaderSize;
+  static const int kSize = kSecurityTokenOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalObject);
@@ -3160,7 +3122,7 @@ class String: public HeapObject {
   static const int kMaxArrayIndexSize = 10;
 
   // Max ascii char code.
-  static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
+  static const int kMaxAsciiCharCode = 127;
 
   // Minimum length for a cons or sliced string.
   static const int kMinNonFlatLength = 13;

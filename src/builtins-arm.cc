@@ -333,12 +333,11 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ LeaveInternalFrame();
     __ b(&patch_receiver);
 
-    // Use the global receiver object from the called function as the receiver.
+    // Use the global object from the called function as the receiver.
     __ bind(&use_global_receiver);
     const int kGlobalIndex =
         Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
     __ ldr(r2, FieldMemOperand(cp, kGlobalIndex));
-    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
     __ add(r3, sp, Operand(r0, LSL, kPointerSizeLog2));
@@ -473,12 +472,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
   __ b(&push_receiver);
 
-  // Use the current global receiver object as the receiver.
+  // Use the current global object as the receiver.
   __ bind(&use_global_receiver);
-  const int kGlobalOffset =
-      Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
-  __ ldr(r0, FieldMemOperand(cp, kGlobalOffset));
-  __ ldr(r0, FieldMemOperand(r0, GlobalObject::kGlobalReceiverOffset));
+  __ ldr(r0, FieldMemOperand(cp, Context::kHeaderSize +
+                             Context::GLOBAL_INDEX * kPointerSize));
 
   // Push the receiver.
   // r0: receiver

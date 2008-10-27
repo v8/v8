@@ -450,12 +450,11 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ LeaveInternalFrame();
     __ jmp(&patch_receiver);
 
-    // Use the global receiver object from the called function as the receiver.
+    // Use the global object from the called function as the receiver.
     __ bind(&use_global_receiver);
     const int kGlobalIndex =
         Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
     __ mov(ebx, FieldOperand(esi, kGlobalIndex));
-    __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 
     __ bind(&patch_receiver);
     __ mov(Operand(esp, eax, times_4, 0), ebx);
@@ -594,12 +593,11 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(ebx, Operand(eax));
   __ jmp(&push_receiver);
 
-  // Use the current global receiver object as the receiver.
+  // Use the current global object as the receiver.
   __ bind(&use_global_receiver);
   const int kGlobalOffset =
       Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
   __ mov(ebx, FieldOperand(esi, kGlobalOffset));
-  __ mov(ebx, FieldOperand(ebx, GlobalObject::kGlobalReceiverOffset));
 
   // Push the receiver.
   __ bind(&push_receiver);

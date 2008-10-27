@@ -221,46 +221,53 @@ static Object* Runtime_ClassOf(Arguments args) {
   return JSObject::cast(obj)->class_name();
 }
 
+inline static Object* HasSpecificClassOf(Arguments args, String* name) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  Object* obj = args[0];
+  if (obj->IsJSObject() && (JSObject::cast(obj)->class_name() == name)) {
+    return Heap::true_value();
+  }
+  return Heap::false_value();
+}
 
 static Object* Runtime_HasStringClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::String_symbol()));
+  return HasSpecificClassOf(args, Heap::String_symbol());
 }
 
 
 static Object* Runtime_HasDateClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Date_symbol()));
+  return HasSpecificClassOf(args, Heap::Date_symbol());
 }
 
 
 static Object* Runtime_HasArrayClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Array_symbol()));
+  return HasSpecificClassOf(args, Heap::Array_symbol());
 }
 
 
 static Object* Runtime_HasFunctionClass(Arguments args) {
-  return Heap::ToBoolean(
-             args[0]->HasSpecificClassOf(Heap::function_class_symbol()));
+  return HasSpecificClassOf(args, Heap::function_class_symbol());
 }
 
 
 static Object* Runtime_HasNumberClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Number_symbol()));
+  return HasSpecificClassOf(args, Heap::Number_symbol());
 }
 
 
 static Object* Runtime_HasBooleanClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::Boolean_symbol()));
+  return HasSpecificClassOf(args, Heap::Boolean_symbol());
 }
 
 
 static Object* Runtime_HasArgumentsClass(Arguments args) {
-  return Heap::ToBoolean(
-             args[0]->HasSpecificClassOf(Heap::Arguments_symbol()));
+  return HasSpecificClassOf(args, Heap::Arguments_symbol());
 }
 
 
 static Object* Runtime_HasRegExpClass(Arguments args) {
-  return Heap::ToBoolean(args[0]->HasSpecificClassOf(Heap::RegExp_symbol()));
+  return HasSpecificClassOf(args, Heap::RegExp_symbol());
 }
 
 
@@ -1674,7 +1681,6 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
   // the case because the global proxy object forwards everything to
   // its hidden prototype including local lookups.
   if (args[0]->IsJSObject() &&
-      !args[0]->IsJSGlobalProxy() &&
       args[1]->IsString()) {
     JSObject* receiver = JSObject::cast(args[0]);
     String* key = String::cast(args[1]);
@@ -3393,7 +3399,7 @@ static JSObject* ComputeReceiverForNonGlobal(JSObject* holder) {
   // Fall back to using the global object as the receiver if the
   // property turns out to be a local variable allocated in a context
   // extension object - introduced via eval.
-  return top->global()->global_receiver();
+  return top->global();
 }
 
 
@@ -3420,7 +3426,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
     // If the "property" we were looking for is a local variable or an
     // argument in a context, the receiver is the global object; see
     // ECMA-262, 3rd., 10.1.6 and 10.2.3.
-    JSObject* receiver = Top::context()->global()->global_receiver();
+    JSObject* receiver = Top::context()->global();
     Object* value = (holder->IsContext())
         ? Context::cast(*holder)->get(index)
         : JSObject::cast(*holder)->GetElement(index);
@@ -3432,7 +3438,7 @@ static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
     JSObject* object = JSObject::cast(*holder);
     ASSERT(object->HasProperty(*name));
     JSObject* receiver = (object->IsGlobalObject())
-        ? GlobalObject::cast(object)->global_receiver()
+        ? GlobalObject::cast(object)
         : ComputeReceiverForNonGlobal(object);
     // No need to unhole the value here. This is taken care of by the
     // GetProperty function.
@@ -3890,14 +3896,6 @@ static Object* Runtime_EvalReceiver(Arguments args) {
 }
 
 
-static Object* Runtime_GlobalReceiver(Arguments args) {
-  ASSERT(args.length() == 1);
-  Object* global = args[0];
-  if (!global->IsJSGlobalObject()) return Heap::null_value();
-  return JSGlobalObject::cast(global)->global_receiver();
-}
-
-
 static Object* Runtime_CompileString(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 3);
@@ -4193,7 +4191,7 @@ static Object* DebugLookupResultValue(LookupResult* result) {
 }
 
 
-static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
+static Object* Runtime_DebugGetLocalPropertyDetails(Arguments args) {
   HandleScope scope;
 
   ASSERT(args.length() == 2);
@@ -4213,7 +4211,7 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
 
   // Perform standard local lookup on the object.
   LookupResult result;
-  obj->Lookup(*name, &result);
+  obj->LocalLookup(*name, &result);
   if (result.IsProperty()) {
     Handle<Object> value(DebugLookupResultValue(&result));
     Handle<FixedArray> details = Factory::NewFixedArray(2);
@@ -4966,6 +4964,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   ASSERT(save != NULL);
   SaveContext savex;
   Top::set_context(*(save->context()));
+  Top::set_security_context(*(save->security_context()));
 
   // Create the (empty) function replacing the function on the stack frame for
   // the purpose of evaluating in the context created below. It is important
@@ -5092,6 +5091,7 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   }
   if (top != NULL) {
     Top::set_context(*top->context());
+    Top::set_security_context(*top->security_context());
   }
 
   // Get the global context now set to the top context from before the

@@ -496,8 +496,8 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
 
-  // Check for access to global proxy.
-  __ cmp(eax, JS_GLOBAL_PROXY_TYPE);
+  // Check for access to global object.
+  __ cmp(eax, JS_GLOBAL_OBJECT_TYPE);
   __ j(equal, &global, not_taken);
 
   // Search the dictionary placing the result in edx.
@@ -515,16 +515,13 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ cmp(edx, JS_FUNCTION_TYPE);
   __ j(not_equal, &miss, not_taken);
 
-  // TODO(120): Check for access to global object. Needs patching of
-  // receiver but no security check.
-
   // Invoke the function.
   ParameterCount actual(argc);
   __ InvokeFunction(edi, actual, JUMP_FUNCTION);
 
-  // Global object proxy access: Check access rights.
+  // Global object access: Check access rights.
   __ bind(&global);
-  __ CheckAccessGlobalProxy(edx, eax, &miss);
+  __ CheckAccessGlobal(edx, eax, &miss);
   __ jmp(&probe);
 
   // Cache miss: Jump to runtime.
@@ -561,9 +558,6 @@ void CallIC::Generate(MacroAssembler* masm,
   // Move result to edi and exit the internal frame.
   __ mov(Operand(edi), eax);
   __ LeaveInternalFrame();
-
-  // TODO(120): Check for access to to global object. Needs patching
-  // of receiver but no security check.
 
   // Invoke the function.
   ParameterCount actual(argc);
@@ -617,7 +611,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
 
   // Check for access to global object (unlikely).
-  __ cmp(edx, JS_GLOBAL_PROXY_TYPE);
+  __ cmp(edx, JS_GLOBAL_OBJECT_TYPE);
   __ j(equal, &global, not_taken);
 
   // Search the dictionary placing the result in eax.
@@ -627,7 +621,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   // Global object access: Check access rights.
   __ bind(&global);
-  __ CheckAccessGlobalProxy(eax, edx, &miss);
+  __ CheckAccessGlobal(eax, edx, &miss);
   __ jmp(&probe);
 
   // Cache miss: Restore receiver from stack and jump to runtime.

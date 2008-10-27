@@ -412,6 +412,10 @@ void Context::Enter() {
 
   thread_local.SaveContext(i::GlobalHandles::Create(i::Top::context()));
   i::Top::set_context(*env);
+
+  thread_local.SaveSecurityContext(
+      i::GlobalHandles::Create(i::Top::security_context()));
+  i::Top::set_security_context(*env);
 }
 
 
@@ -423,10 +427,16 @@ void Context::Exit() {
     return;
   }
 
-  // Content of 'last_context' could be NULL.
+  // Content of 'last_context' and 'last_security_context' could be NULL.
   i::Handle<i::Object> last_context = thread_local.RestoreContext();
   i::Top::set_context(static_cast<i::Context*>(*last_context));
   i::GlobalHandles::Destroy(last_context.location());
+
+  i::Handle<i::Object> last_security_context =
+      thread_local.RestoreSecurityContext();
+  i::Top::set_security_context(
+      static_cast<i::Context*>(*last_security_context));
+  i::GlobalHandles::Destroy(last_security_context.location());
 }
 
 
@@ -898,8 +908,7 @@ void ObjectTemplate::MarkAsUndetectable() {
 void ObjectTemplate::SetAccessCheckCallbacks(
       NamedSecurityCallback named_callback,
       IndexedSecurityCallback indexed_callback,
-      Handle<Value> data,
-      bool turned_on_by_default) {
+      Handle<Value> data) {
   if (IsDeadCheck("v8::ObjectTemplate::SetAccessCheckCallbacks()")) return;
   HandleScope scope;
   EnsureConstructor(this);
@@ -916,8 +925,8 @@ void ObjectTemplate::SetAccessCheckCallbacks(
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
   i::Handle<i::FunctionTemplateInfo> cons(constructor);
+  cons->set_needs_access_check(true);
   cons->set_access_check_info(*info);
-  cons->set_needs_access_check(turned_on_by_default);
 }
 
 
@@ -1055,9 +1064,9 @@ Local<Value> Script::Run() {
     HandleScope scope;
     i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
     EXCEPTION_PREAMBLE();
-    i::Handle<i::Object> receiver(i::Top::context()->global_proxy());
+    i::Handle<i::Object> global(i::Top::context()->global());
     i::Handle<i::Object> result =
-        i::Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
+        i::Execution::Call(fun, global, 0, NULL, &has_pending_exception);
     EXCEPTION_BAILOUT_CHECK(Local<Value>());
     raw_result = *result;
   }
@@ -1084,12 +1093,12 @@ v8::TryCatch::~TryCatch() {
 }
 
 
-bool v8::TryCatch::HasCaught() const {
+bool v8::TryCatch::HasCaught() {
   return !reinterpret_cast<i::Object*>(exception_)->IsTheHole();
 }
 
 
-v8::Local<Value> v8::TryCatch::Exception() const {
+v8::Local<Value> v8::TryCatch::Exception() {
   if (HasCaught()) {
     // Check for out of memory exception.
     i::Object* exception = reinterpret_cast<i::Object*>(exception_);
@@ -1100,7 +1109,7 @@ v8::Local<Value> v8::TryCatch::Exception() const {
 }
 
 
-v8::Local<v8::Message> v8::TryCatch::Message() const {
+v8::Local<v8::Message> v8::TryCatch::Message() {
   if (HasCaught() && message_ != i::Smi::FromInt(0)) {
     i::Object* message = reinterpret_cast<i::Object*>(message_);
     return v8::Utils::MessageToLocal(i::Handle<i::Object>(message));
@@ -1139,7 +1148,7 @@ Local<String> Message::Get() {
 }
 
 
-v8::Handle<Value> Message::GetScriptResourceName() {
+v8::Handle<String> Message::GetScriptResourceName() {
   if (IsDeadCheck("v8::Message::GetScriptResourceName()")) {
     return Local<String>();
   }
@@ -1150,9 +1159,21 @@ v8::Handle<Value> Message::GetScriptResourceName() {
   i::Handle<i::JSValue> script =
       i::Handle<i::JSValue>::cast(GetProperty(obj, "script"));
   i::Handle<i::Object> resource_name(i::Script::cast(script->value())->name());
-  return scope.Close(Utils::ToLocal(resource_name));
+  if (!resource_name->IsString()) {
+    return Local<String>();
+  }
+  Local<String> result =
+      Utils::ToLocal(i::Handle<i::String>::cast(resource_name));
+  return scope.Close(result);
 }
 
+
+// TODO(1240903): Remove this when no longer used in WebKit V8 bindings.
+Handle<Value> Message::GetSourceData() {
+  Handle<String> data = GetScriptResourceName();
+  if (data.IsEmpty()) return v8::Undefined();
+  return data;
+}
 
 static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                i::Handle<i::Object> recv,
@@ -1256,6 +1277,53 @@ Local<String> Message::GetSourceLine() {
 }
 
 
+char* Message::GetUnderline(char* source_line, char underline_char) {
+  if (IsDeadCheck("v8::Message::GetUnderline()")) return 0;
+  HandleScope scope;
+
+  i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
+  int start_pos = static_cast<int>(GetProperty(data_obj, "startPos")->Number());
+  int end_pos = static_cast<int>(GetProperty(data_obj, "endPos")->Number());
+  EXCEPTION_PREAMBLE();
+  i::Handle<i::Object> start_col_obj = CallV8HeapFunction(
+      "GetPositionInLine",
+      data_obj,
+      &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(0);
+  int start_col = static_cast<int>(start_col_obj->Number());
+  int end_col = start_col + (end_pos - start_pos);
+
+  // Any tabs before or between the selected columns have to be
+  // expanded into spaces.  We assume that a tab character advances
+  // the cursor up until the next 8-character boundary and at least
+  // one character.
+  int real_start_col = 0;
+  for (int i = 0; i < start_col; i++) {
+    real_start_col++;
+    if (source_line[i] == '\t') {
+      real_start_col++;
+      while (real_start_col % 8 != 0)
+        real_start_col++;
+    }
+  }
+  int real_end_col = real_start_col;
+  for (int i = start_col; i < end_col; i++) {
+    real_end_col++;
+    if (source_line[i] == '\t') {
+      while (real_end_col % 8 != 0)
+        real_end_col++;
+    }
+  }
+  char* result = i::NewArray<char>(real_end_col + 1);
+  for (int i = 0; i < real_start_col; i++)
+    result[i] = ' ';
+  for (int i = real_start_col; i < real_end_col; i++)
+    result[i] = underline_char;
+  result[real_end_col] = '\0';
+  return result;
+}
+
+
 void Message::PrintCurrentStackTrace(FILE* out) {
   if (IsDeadCheck("v8::Message::PrintCurrentStackTrace()")) return;
   i::Top::PrintCurrentStackTrace(out);
@@ -1339,13 +1407,6 @@ bool Value::IsInt32() {
     return i::FastI2D(i::FastD2I(value)) == value;
   }
   return false;
-}
-
-
-bool Value::IsDate() {
-  if (IsDeadCheck("v8::Value::IsDate()")) return false;
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->HasSpecificClassOf(i::Heap::Date_symbol());
 }
 
 
@@ -1506,16 +1567,6 @@ v8::Array* v8::Array::Cast(Value* that) {
            "v8::Array::Cast()",
            "Could not convert to array");
   return static_cast<v8::Array*>(that);
-}
-
-
-v8::Date* v8::Date::Cast(v8::Value* that) {
-  if (IsDeadCheck("v8::Date::Cast()")) return 0;
-  i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->HasSpecificClassOf(i::Heap::Date_symbol()),
-           "v8::Date::Cast()",
-           "Could not convert to date");
-  return static_cast<v8::Date*>(that);
 }
 
 
@@ -1713,7 +1764,7 @@ uint32_t Value::Uint32Value() {
 
 
 bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
-                     v8::PropertyAttribute attribs) {
+                             v8::PropertyAttribute attribs) {
   ON_BAILOUT("v8::Object::Set()", return false);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
@@ -1747,20 +1798,6 @@ Local<Value> v8::Object::GetPrototype() {
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> result = i::GetPrototype(self);
   return Utils::ToLocal(result);
-}
-
-
-Local<Array> v8::Object::GetPropertyNames() {
-  ON_BAILOUT("v8::Object::GetPropertyNames()", return Local<v8::Array>());
-  v8::HandleScope scope;
-  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  i::Handle<i::FixedArray> value = i::GetKeysInFixedArrayFor(self);
-  // Because we use caching to speed up enumeration it is important
-  // to never change the result of the basic enumeration function so
-  // we clone the result.
-  i::Handle<i::FixedArray> elms = i::Factory::CopyFixedArray(value);
-  i::Handle<i::JSArray> result = i::Factory::NewJSArrayWithElements(elms);
-  return scope.Close(Utils::ToLocal(result));
 }
 
 
@@ -1897,20 +1934,6 @@ Handle<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
     return Utils::ToLocal(result);
   }
   return Local<Value>();  // No real property was found in prototype chain.
-}
-
-
-// Turns on access checks by copying the map and setting the check flag.
-// Because the object gets a new map, existing inline cache caching
-// the old map of this object will fail.
-void v8::Object::TurnOnAccessCheck() {
-  ON_BAILOUT("v8::Object::TurnOnAccessCheck()", return);
-  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
-
-  i::Handle<i::Map> new_map =
-    i::Factory::CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
-  new_map->set_is_access_check_needed();
-  obj->set_map(*new_map);
 }
 
 
@@ -2193,58 +2216,24 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.4.1 (candidate)";
+  return "0.3.6";
 }
 
 
-static i::Handle<i::FunctionTemplateInfo>
-    EnsureConstructor(i::Handle<i::ObjectTemplateInfo> templ) {
-  if (templ->constructor()->IsUndefined()) {
-    Local<FunctionTemplate> constructor = FunctionTemplate::New();
-    Utils::OpenHandle(*constructor)->set_instance_template(*templ);
-    templ->set_constructor(*Utils::OpenHandle(*constructor));
-  }
-  return i::Handle<i::FunctionTemplateInfo>(
-    i::FunctionTemplateInfo::cast(templ->constructor()));
-}
-
-
-Persistent<Context> v8::Context::New(
-    v8::ExtensionConfiguration* extensions,
-    v8::Handle<ObjectTemplate> global_template,
-    v8::Handle<Value> global_object) {
+Persistent<Context> v8::Context::New(v8::ExtensionConfiguration* extensions,
+                                     v8::Handle<ObjectTemplate> global_template,
+                                     v8::Handle<Value> global_object) {
   EnsureInitialized("v8::Context::New()");
   LOG_API("Context::New");
   ON_BAILOUT("v8::Context::New()", return Persistent<Context>());
-
   // Make sure that the global_template has a constructor.
-  if (!global_template.IsEmpty()) {
-    i::Handle<i::FunctionTemplateInfo> constructor =
-        EnsureConstructor(Utils::OpenHandle(*global_template));
-
-    // Create a fresh template for global proxy object.
-    Local<ObjectTemplate> proxy_template = ObjectTemplate::New();
-
-    i::Handle<i::FunctionTemplateInfo> proxy_constructor =
-      EnsureConstructor(Utils::OpenHandle(*proxy_template));
-
-    // Set the global template to be the prototype template
-    // of global proxy template.
-    proxy_constructor->set_prototype_template(
+  if (!global_template.IsEmpty() &&
+     Utils::OpenHandle(*global_template)->constructor()->IsUndefined()) {
+    Local<FunctionTemplate> templ = FunctionTemplate::New();
+    Utils::OpenHandle(*templ)->set_instance_template(
         *Utils::OpenHandle(*global_template));
-
-    // Migrate security handlers from global_template to proxy_template.
-    if (!constructor->access_check_info()->IsUndefined()) {
-       proxy_constructor->set_access_check_info(
-           constructor->access_check_info());
-       proxy_constructor->set_needs_access_check(true);
-
-       // Remove access check info from global_template.
-       constructor->set_needs_access_check(false);
-       constructor->set_access_check_info(i::Heap::undefined_value());
-    }
-
-    global_template = proxy_template;
+    i::Handle<i::FunctionTemplateInfo> constructor = Utils::OpenHandle(*templ);
+    Utils::OpenHandle(*global_template)->set_constructor(*constructor);
   }
 
   i::Handle<i::Context> env = i::Bootstrapper::CreateEnvironment(
@@ -2259,24 +2248,18 @@ Persistent<Context> v8::Context::New(
 
 
 void v8::Context::SetSecurityToken(Handle<Value> token) {
-  if (IsDeadCheck("v8::Context::SetSecurityToken()")) return;
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Handle<i::Object> token_handle = Utils::OpenHandle(*token);
-  env->set_security_token(*token_handle);
-}
-
-
-void v8::Context::UseDefaultSecurityToken() {
-  if (IsDeadCheck("v8::Context::UseDefaultSecurityToken()")) return;
-  i::Handle<i::Context> env = Utils::OpenHandle(this);
-  env->set_security_token(env->global());
+  // The global object of an environment is always a real global
+  // object with security token and reference to the builtins object.
+  i::JSGlobalObject::cast(env->global())->set_security_token(*token_handle);
 }
 
 
 Handle<Value> v8::Context::GetSecurityToken() {
-  if (IsDeadCheck("v8::Context::GetSecurityToken()")) return Handle<Value>();
   i::Handle<i::Context> env = Utils::OpenHandle(this);
-  i::Object* security_token = env->security_token();
+  i::Object* security_token =
+      i::JSGlobalObject::cast(env->global())->security_token();
   i::Handle<i::Object> token_handle(security_token);
   return Utils::ToLocal(token_handle);
 }
@@ -2290,6 +2273,11 @@ bool Context::HasOutOfMemoryException() {
 
 bool Context::InContext() {
   return i::Top::context() != NULL;
+}
+
+
+bool Context::InSecurityContext() {
+  return i::Top::security_context() != NULL;
 }
 
 
@@ -2309,22 +2297,22 @@ v8::Local<v8::Context> Context::GetCurrent() {
 }
 
 
+v8::Local<v8::Context> Context::GetCurrentSecurityContext() {
+  if (IsDeadCheck("v8::Context::GetCurrentSecurityContext()")) {
+    return Local<Context>();
+  }
+  i::Handle<i::Context> context(i::Top::security_context());
+  return Utils::ToLocal(context);
+}
+
+
 v8::Local<v8::Object> Context::Global() {
   if (IsDeadCheck("v8::Context::Global()")) return Local<v8::Object>();
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  i::Handle<i::Object> global(context->global_proxy());
-  return Utils::ToLocal(i::Handle<i::JSObject>::cast(global));
-}
-
-
-void Context::DetachGlobal() {
-  if (IsDeadCheck("v8::Context::DetachGlobal()")) return;
-  i::Object** ctx = reinterpret_cast<i::Object**>(this);
-  i::Handle<i::Context> context =
-      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  i::Bootstrapper::DetachGlobal(context);
+  i::Handle<i::JSObject> global(context->global());
+  return Utils::ToLocal(global);
 }
 
 
@@ -2434,7 +2422,7 @@ i::Handle<i::String> NewExternalAsciiStringHandle(
 }
 
 
-static void DisposeExternalString(v8::Persistent<v8::Value> obj,
+static void DisposeExternalString(v8::Persistent<v8::Object> obj,
                                   void* parameter) {
   v8::String::ExternalStringResource* resource =
     reinterpret_cast<v8::String::ExternalStringResource*>(parameter);
@@ -2445,7 +2433,7 @@ static void DisposeExternalString(v8::Persistent<v8::Value> obj,
 }
 
 
-static void DisposeExternalAsciiString(v8::Persistent<v8::Value> obj,
+static void DisposeExternalAsciiString(v8::Persistent<v8::Object> obj,
                                        void* parameter) {
   v8::String::ExternalAsciiStringResource* resource =
     reinterpret_cast<v8::String::ExternalAsciiStringResource*>(parameter);
@@ -2503,15 +2491,6 @@ Local<v8::Value> v8::Date::New(double time) {
       i::Execution::NewDate(time, &has_pending_exception);
   EXCEPTION_BAILOUT_CHECK(Local<v8::Value>());
   return Utils::ToLocal(obj);
-}
-
-
-double v8::Date::NumberValue() {
-  if (IsDeadCheck("v8::Date::NumberValue()")) return 0;
-  LOG_API("Date::NumberValue");
-  i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
-  return jsvalue->value()->Number();
 }
 
 

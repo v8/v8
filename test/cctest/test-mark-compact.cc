@@ -244,7 +244,7 @@ TEST(GCCallback) {
 
 
 static int NumberOfWeakCalls = 0;
-static void WeakPointerCallback(v8::Persistent<v8::Value> handle, void* id) {
+static void WeakPointerCallback(v8::Persistent<v8::Object> handle, void* id) {
   NumberOfWeakCalls++;
 }
 

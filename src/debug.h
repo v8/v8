@@ -248,7 +248,7 @@ class Debug {
   static const int kEstimatedNofDebugInfoEntries = 16;
   static const int kEstimatedNofBreakPointsInFunction = 16;
 
-  static void HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data);
+  static void HandleWeakDebugInfo(v8::Persistent<v8::Object> obj, void* data);
 
   friend class Debugger;
   friend Handle<FixedArray> GetDebuggedFunctions();  // Found in test-debug.cc
@@ -494,6 +494,7 @@ class EnterDebugger BASE_EMBEDDED {
       // NOTE the member variable save which saves the previous context before
       // this change.
       Top::set_context(*Debug::debug_context());
+      Top::set_security_context(*Debug::debug_context());
     }
   }
 

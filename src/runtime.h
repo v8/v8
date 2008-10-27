@@ -196,7 +196,6 @@ namespace v8 { namespace internal {
   \
   /* Eval */ \
   F(EvalReceiver, 1) \
-  F(GlobalReceiver, 1) \
   \
   F(SetProperty, -1 /* 3 or 4 */) \
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */) \
@@ -215,7 +214,7 @@ namespace v8 { namespace internal {
   F(AddDebugEventListener, 2) \
   F(RemoveDebugEventListener, 1) \
   F(Break, 0) \
-  F(DebugGetPropertyDetails, 2) \
+  F(DebugGetLocalPropertyDetails, 2) \
   F(DebugGetProperty, 2) \
   F(DebugLocalPropertyNames, 1) \
   F(DebugLocalElementNames, 1) \

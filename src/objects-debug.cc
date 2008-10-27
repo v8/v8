@@ -127,9 +127,6 @@ void HeapObject::HeapObjectPrint() {
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionPrint();
       break;
-    case JS_GLOBAL_PROXY_TYPE:
-      JSGlobalProxy::cast(this)->JSGlobalProxyPrint();
-      break;
     case JS_GLOBAL_OBJECT_TYPE:
       JSGlobalObject::cast(this)->JSGlobalObjectPrint();
       break;
@@ -200,9 +197,6 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_FUNCTION_TYPE:
       JSFunction::cast(this)->JSFunctionVerify();
-      break;
-    case JS_GLOBAL_PROXY_TYPE:
-      JSGlobalProxy::cast(this)->JSGlobalProxyVerify();
       break;
     case JS_GLOBAL_OBJECT_TYPE:
       JSGlobalObject::cast(this)->JSGlobalObjectVerify();
@@ -391,7 +385,6 @@ static const char* TypeToString(InstanceType type) {
     case JS_VALUE_TYPE: return "JS_VALUE";
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
     case JS_BUILTINS_OBJECT_TYPE: return "JS_BUILTINS_OBJECT";
-    case JS_GLOBAL_PROXY_TYPE: return "JS_GLOBAL_PROXY";
     case PROXY_TYPE: return "PROXY";
     case SMI_TYPE: return "SMI";
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
@@ -559,31 +552,9 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
 }
 
 
-void JSGlobalProxy::JSGlobalProxyPrint() {
-  PrintF("global_proxy");
-  JSObjectPrint();
-  PrintF("context : ");
-  context()->ShortPrint();
-  PrintF("\n");
-}
-
-
-void JSGlobalProxy::JSGlobalProxyVerify() {
-  CHECK(IsJSGlobalProxy());
-  JSObjectVerify();
-  VerifyObjectField(JSGlobalProxy::kContextOffset);
-  // Make sure that this object has no properties, elements.
-  CHECK_EQ(0, properties()->length());
-  CHECK_EQ(0, elements()->length());
-}
-
-
 void JSGlobalObject::JSGlobalObjectPrint() {
   PrintF("global ");
   JSObjectPrint();
-  PrintF("global context : ");
-  global_context()->ShortPrint();
-  PrintF("\n");
 }
 
 

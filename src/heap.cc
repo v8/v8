@@ -1806,8 +1806,8 @@ Object* Heap::CopyJSObject(JSObject* source) {
 }
 
 
-Object* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
-                                        JSGlobalProxy* object) {
+Object* Heap::ReinitializeJSGlobalObject(JSFunction* constructor,
+                                         JSGlobalObject* object) {
   // Allocate initial map if absent.
   if (!constructor->has_initial_map()) {
     Object* initial_map = AllocateInitialMap(constructor);

@@ -593,7 +593,7 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
 
     // Only global objects and objects that do not require access
     // checks are allowed in stubs.
-    ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+    ASSERT(object->IsJSGlobalObject() || !object->IsAccessCheckNeeded());
 
     // Get the map of the current object.
     ldr(scratch, FieldMemOperand(reg, HeapObject::kMapOffset));
@@ -605,8 +605,8 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
     // Check access rights to the global object.  This has to happen
     // after the map check so that we know that the object is
     // actually a global object.
-    if (object->IsJSGlobalProxy()) {
-      CheckAccessGlobalProxy(reg, scratch, miss);
+    if (object->IsJSGlobalObject()) {
+      CheckAccessGlobal(reg, scratch, miss);
       // Restore scratch register to be the map of the object.  In the
       // new space case below, we load the prototype from the map in
       // the scratch register.
@@ -639,85 +639,38 @@ Register MacroAssembler::CheckMaps(JSObject* object, Register object_reg,
   // Perform security check for access to the global object and return
   // the holder register.
   ASSERT(object == holder);
-  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
-  if (object->IsJSGlobalProxy()) {
-    CheckAccessGlobalProxy(reg, scratch, miss);
+  ASSERT(object->IsJSGlobalObject() || !object->IsAccessCheckNeeded());
+  if (object->IsJSGlobalObject()) {
+    CheckAccessGlobal(reg, scratch, miss);
   }
   return reg;
 }
 
 
-void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
-                                            Register scratch,
-                                            Label* miss) {
-  Label same_contexts;
-
+void MacroAssembler::CheckAccessGlobal(Register holder_reg,
+                                       Register scratch,
+                                       Label* miss) {
   ASSERT(!holder_reg.is(scratch));
-  ASSERT(!holder_reg.is(ip));
-  ASSERT(!scratch.is(ip));
 
-  // Load current lexical context from the stack frame.
-  ldr(scratch, MemOperand(fp, StandardFrameConstants::kContextOffset));
-  // In debug mode, make sure the lexical context is set.
+  // Load the security context.
+  mov(scratch, Operand(Top::security_context_address()));
+  ldr(scratch, MemOperand(scratch));
+  // In debug mode, make sure the security context is set.
   if (kDebug) {
     cmp(scratch, Operand(0));
-    Check(ne, "we should not have an empty lexical context");
+    Check(ne, "we should not have an empty security context");
   }
 
-  // Load the global context of the current context.
+  // Load the global object of the security context.
   int offset = Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
   ldr(scratch, FieldMemOperand(scratch, offset));
-  ldr(scratch, FieldMemOperand(scratch, GlobalObject::kGlobalContextOffset));
-
-  // Check the context is a global context.
-  if (FLAG_debug_code) {
-    // TODO(119): avoid push(holder_reg)/pop(holder_reg)
-    // Cannot use ip as a temporary in this verification code. Due to the fact
-    // that ip is clobbered as part of cmp with an object Operand.
-    push(holder_reg);  // Temporarily save holder on the stack.
-    // Read the first word and compare to the global_context_map.
-    ldr(holder_reg, FieldMemOperand(scratch, HeapObject::kMapOffset));
-    cmp(holder_reg, Operand(Factory::global_context_map()));
-    Check(eq, "JSGlobalObject::global_context should be a global context.");
-    pop(holder_reg);  // Restore holder.
-  }
-
-  // Check if both contexts are the same.
-  ldr(ip, FieldMemOperand(holder_reg, JSGlobalProxy::kContextOffset));
-  cmp(scratch, Operand(ip));
-  b(eq, &same_contexts);
-
-  // Check the context is a global context.
-  if (FLAG_debug_code) {
-    // TODO(119): avoid push(holder_reg)/pop(holder_reg)
-    // Cannot use ip as a temporary in this verification code. Due to the fact
-    // that ip is clobbered as part of cmp with an object Operand.
-    push(holder_reg);  // Temporarily save holder on the stack.
-    mov(holder_reg, ip);  // Move ip to its holding place.
-    cmp(holder_reg, Operand(Factory::null_value()));
-    Check(ne, "JSGlobalProxy::context() should not be null.");
-
-    ldr(holder_reg, FieldMemOperand(holder_reg, HeapObject::kMapOffset));
-    cmp(holder_reg, Operand(Factory::global_context_map()));
-    Check(eq, "JSGlobalObject::global_context should be a global context.");
-    // Restore ip is not needed. ip is reloaded below.
-    pop(holder_reg);  // Restore holder.
-    // Restore ip to holder's context.
-    ldr(ip, FieldMemOperand(holder_reg, JSGlobalProxy::kContextOffset));
-  }
-
   // Check that the security token in the calling global object is
   // compatible with the security token in the receiving global
   // object.
-  int token_offset = Context::kHeaderSize +
-                     Context::SECURITY_TOKEN_INDEX * kPointerSize;
-
-  ldr(scratch, FieldMemOperand(scratch, token_offset));
-  ldr(ip, FieldMemOperand(ip, token_offset));
+  ldr(scratch, FieldMemOperand(scratch, JSGlobalObject::kSecurityTokenOffset));
+  ldr(ip, FieldMemOperand(holder_reg, JSGlobalObject::kSecurityTokenOffset));
   cmp(scratch, Operand(ip));
   b(ne, miss);
-
-  bind(&same_contexts);
 }
 
 

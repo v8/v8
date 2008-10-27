@@ -288,7 +288,6 @@ Object* JSObject::SetLazyProperty(LookupResult* result,
                                   String* name,
                                   Object* value,
                                   PropertyAttributes attributes) {
-  ASSERT(!IsJSGlobalProxy());
   HandleScope scope;
   Handle<JSObject> this_handle(this);
   Handle<String> name_handle(name);
@@ -658,7 +657,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
       break;
     }
     // All other JSObjects are rather similar to each other (JSObject,
-    // JSGlobalProxy, JSGlobalObject, JSUndetectableObject, JSValue).
+    // JSGlobalObject, JSUndetectableObject, JSValue).
     default: {
       Object* constructor = map()->constructor();
       bool printed = false;
@@ -666,7 +665,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
           !Heap::Contains(HeapObject::cast(constructor))) {
         accumulator->Add("!!!INVALID CONSTRUCTOR!!!");
       } else {
-        bool global_object = IsJSGlobalProxy();
+        bool global_object = IsJSGlobalObject();
         if (constructor->IsJSFunction()) {
           if (!Heap::Contains(JSFunction::cast(constructor)->shared())) {
             accumulator->Add("!!!INVALID SHARED ON CONSTRUCTOR!!!");
@@ -678,7 +677,7 @@ void JSObject::JSObjectShortPrint(StringStream* accumulator) {
               if (str->length() > 0) {
                 bool vowel = AnWord(str);
                 accumulator->Add("<%sa%s ",
-                       global_object ? "Global Object: " : "",
+                       global_object ? "JS Global Object: " : "",
                        vowel ? "n" : "");
                 accumulator->Put(str);
                 accumulator->Put('>');
@@ -842,8 +841,9 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:
     case JS_FUNCTION_TYPE:
-    case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
+      reinterpret_cast<JSObject*>(this)->JSObjectIterateBody(object_size, v);
+      break;
     case JS_BUILTINS_OBJECT_TYPE:
       reinterpret_cast<JSObject*>(this)->JSObjectIterateBody(object_size, v);
       break;
@@ -1079,7 +1079,6 @@ Object* JSObject::AddSlowProperty(String* name,
 Object* JSObject::AddProperty(String* name,
                               Object* value,
                               PropertyAttributes attributes) {
-  ASSERT(!IsJSGlobalProxy());
   if (HasFastProperties()) {
     // Ensure the descriptor array does not get too big.
     if (map()->instance_descriptors()->number_of_descriptors() <
@@ -1363,13 +1362,6 @@ void JSObject::LookupInDescriptor(String* name, LookupResult* result) {
 
 void JSObject::LocalLookupRealNamedProperty(String* name,
                                             LookupResult* result) {
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return result->NotFound();
-    ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->LocalLookupRealNamedProperty(name, result);
-  }
-
   if (HasFastProperties()) {
     LookupInDescriptor(name, result);
     if (result->IsValid()) {
@@ -1488,14 +1480,6 @@ Object* JSObject::SetProperty(LookupResult* result,
     && !Top::MayNamedAccess(this, name, v8::ACCESS_SET)) {
     return SetPropertyWithFailedAccessCheck(result, name, value);
   }
-
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return value;
-    ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetProperty(result, name, value, attributes);
-  }
-
   if (result->IsNotFound() || !result->IsProperty()) {
     // We could not find a local property so let's check whether there is an
     // accessor that wants to handle the property.
@@ -1988,20 +1972,6 @@ Object* JSObject::DeleteElementWithInterceptor(uint32_t index) {
 
 
 Object* JSObject::DeleteElement(uint32_t index) {
-  // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !Top::MayIndexedAccess(this, index, v8::ACCESS_DELETE)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_DELETE);
-    return Heap::false_value();
-  }
-
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return Heap::false_value();
-    ASSERT(proto->IsJSGlobalObject());
-    return JSGlobalObject::cast(proto)->DeleteElement(index);
-  }
-
   if (HasIndexedInterceptor()) {
     return DeleteElementWithInterceptor(index);
   }
@@ -2024,9 +1994,6 @@ Object* JSObject::DeleteElement(uint32_t index) {
 
 
 Object* JSObject::DeleteProperty(String* name) {
-  // ECMA-262, 3rd, 8.6.2.5
-  ASSERT(name->IsString());
-
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !Top::MayNamedAccess(this, name, v8::ACCESS_DELETE)) {
@@ -2034,12 +2001,8 @@ Object* JSObject::DeleteProperty(String* name) {
     return Heap::false_value();
   }
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return Heap::false_value();
-    ASSERT(proto->IsJSGlobalObject());
-    return JSGlobalObject::cast(proto)->DeleteProperty(name);
-  }
+  // ECMA-262, 3rd, 8.6.2.5
+  ASSERT(name->IsString());
 
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
@@ -2222,16 +2185,9 @@ AccessorDescriptor* Map::FindAccessor(String* name) {
 void JSObject::LocalLookup(String* name, LookupResult* result) {
   ASSERT(name->IsString());
 
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return result->NotFound();
-    ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->LocalLookup(name, result);
-  }
-
   // Do not use inline caching if the object is a non-global object
   // that requires access checks.
-  if (!IsJSGlobalProxy() && IsAccessCheckNeeded()) {
+  if (!IsJSGlobalObject() && IsAccessCheckNeeded()) {
     result->DisallowCaching();
   }
 
@@ -2318,21 +2274,6 @@ Object* JSObject::DefineGetterSetter(String* name,
 
 Object* JSObject::DefineAccessor(String* name, bool is_getter, JSFunction* fun,
                                  PropertyAttributes attributes) {
-  // Check access rights if needed.
-  if (IsAccessCheckNeeded() &&
-      !Top::MayNamedAccess(this, name, v8::ACCESS_HAS)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
-    return Heap::undefined_value();
-  }
-
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return this;
-    ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->DefineAccessor(name, is_getter,
-                                                 fun, attributes);
-  }
-
   Object* array = DefineGetterSetter(name, attributes);
   if (array->IsFailure() || array->IsUndefined()) return array;
   FixedArray::cast(array)->set(is_getter ? 0 : 1, fun);
@@ -3729,33 +3670,36 @@ static inline bool CompareStringContents(IteratorA* ia, IteratorB* ib) {
 // int-sized blocks of characters.
 template <typename Char>
 static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
+  // Lint complains about taking sizeof a type rather than a variable.
+  // That's just stupid in this case so I'm turning it off.
+  const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
   int length = a.length();
   ASSERT_EQ(length, b.length());
+  int endpoint = length - kStepSize;
   const Char* pa = a.start();
   const Char* pb = b.start();
-  int i = 0;
 #ifndef CAN_READ_UNALIGNED
   // If this architecture isn't comfortable reading unaligned ints
-  // then we have to check that the strings are aligned before
-  // comparing them blockwise.
+  // then we have to check that the strings are alingned and fall back
+  // to the standard comparison if they are not.
   const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
   uint32_t pa_addr = reinterpret_cast<uint32_t>(pa);
   uint32_t pb_addr = reinterpret_cast<uint32_t>(pb);
-  if ((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask) == 0) {
-#endif
-    const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
-    int endpoint = length - kStepSize;
-    // Compare blocks until we reach near the end of the string.
-    for (; i <= endpoint; i += kStepSize) {
-      uint32_t wa = *reinterpret_cast<const uint32_t*>(pa + i);
-      uint32_t wb = *reinterpret_cast<const uint32_t*>(pb + i);
-      if (wa != wb) {
-        return false;
-      }
-    }
-#ifndef CAN_READ_UNALIGNED
+  if ((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask) != 0) {
+    VectorIterator<Char> ia(a);
+    VectorIterator<Char> ib(b);
+    return CompareStringContents(&ia, &ib);
   }
 #endif
+  int i;
+  // Compare blocks until we reach near the end of the string.
+  for (i = 0; i <= endpoint; i += kStepSize) {
+    uint32_t wa = *reinterpret_cast<const uint32_t*>(pa + i);
+    uint32_t wb = *reinterpret_cast<const uint32_t*>(pb + i);
+    if (wa != wb) {
+      return false;
+    }
+  }
   // Compare the remaining characters that didn't fit into a block.
   for (; i < length; i++) {
     if (a[i] != b[i]) {
@@ -4837,13 +4781,6 @@ Object* JSObject::SetElement(uint32_t index, Object* value) {
       !Top::MayIndexedAccess(this, index, v8::ACCESS_SET)) {
     Top::ReportFailedAccessCheck(this, v8::ACCESS_SET);
     return value;
-  }
-
-  if (IsJSGlobalProxy()) {
-    Object* proto = GetPrototype();
-    if (proto->IsNull()) return value;
-    ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetElement(index, value);
   }
 
   // Check for lookup interceptor

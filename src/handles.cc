@@ -62,11 +62,11 @@ Handle<FixedArray> UnionOfKeys(Handle<FixedArray> first,
 }
 
 
-Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
+Handle<JSGlobalObject> ReinitializeJSGlobalObject(
     Handle<JSFunction> constructor,
-    Handle<JSGlobalProxy> global) {
-  CALL_HEAP_FUNCTION(Heap::ReinitializeJSGlobalProxy(*constructor, *global),
-                     JSGlobalProxy);
+    Handle<JSGlobalObject> global) {
+  CALL_HEAP_FUNCTION(Heap::ReinitializeJSGlobalObject(*constructor, *global),
+                     JSGlobalObject);
 }
 
 
@@ -248,7 +248,7 @@ Handle<JSObject> Copy(Handle<JSObject> obj) {
 // collector will call the weak callback on the global handle
 // associated with the wrapper and get rid of both the wrapper and the
 // handle.
-static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
+static void ClearWrapperCache(Persistent<v8::Object> handle, void*) {
   Handle<Object> cache = Utils::OpenHandle(*handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Proxy* proxy = Script::cast(wrapper->value())->wrapper();
@@ -485,6 +485,7 @@ void LoadLazy(Handle<JSFunction> fun, bool* pending_exception) {
   ASSERT(index >= 0);
   Handle<Context> compile_context(Context::cast(info->get(1)));
   Handle<Context> function_context(Context::cast(info->get(2)));
+  Handle<Context> security_context(Context::cast(info->get(3)));
   Handle<Object> receiver(compile_context->global()->builtins());
 
   Vector<const char> name = Natives::GetScriptName(index);
@@ -519,6 +520,7 @@ void LoadLazy(Handle<JSFunction> fun, bool* pending_exception) {
   if (!Debug::debug_context().is_null() &&
       Top::context() == *Debug::debug_context()) {
     Top::set_context(*compile_context);
+    Top::set_security_context(*security_context);
   }
 
   // Reset the lazy load data before running the script to make sure
@@ -538,11 +540,13 @@ void LoadLazy(Handle<JSFunction> fun, bool* pending_exception) {
 void SetupLazy(Handle<JSFunction> fun,
                int index,
                Handle<Context> compile_context,
-               Handle<Context> function_context) {
-  Handle<FixedArray> arr = Factory::NewFixedArray(3);
+               Handle<Context> function_context,
+               Handle<Context> security_context) {
+  Handle<FixedArray> arr = Factory::NewFixedArray(4);
   arr->set(0, Smi::FromInt(index));
   arr->set(1, *compile_context);  // Compile in this context
   arr->set(2, *function_context);  // Set function context to this
+  arr->set(3, *security_context);  // Receiver for call
   fun->shared()->set_lazy_load_data(*arr);
 }
 

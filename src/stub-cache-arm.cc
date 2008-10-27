@@ -240,9 +240,8 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ cmp(r2, Operand(JS_FUNCTION_TYPE));
   __ b(ne, &miss);
 
-  if (object->IsGlobalObject()) {
-    // TODO(120): Patch receiver with the global proxy.
-  }
+  // Patch the function on the stack; 1 ~ receiver.
+  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
 
   // Invoke the function.
   __ InvokeFunction(r1, arguments(), JUMP_FUNCTION);
@@ -353,9 +352,8 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   __ mov(r1, Operand(Handle<JSFunction>(function)));
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
-  if (object->IsGlobalObject()) {
-    // TODO(120): Patch receiver with the global proxy.
-  }
+  // Patch the function on the stack; 1 ~ receiver.
+  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
 
   // Jump to the cached code (tail call).
   Handle<Code> code(function->code());
@@ -422,13 +420,13 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   __ b(ne, &miss);
 
   // Perform global security token check if needed.
-  if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(r3, r1, &miss);
+  if (object->IsJSGlobalObject()) {
+    __ CheckAccessGlobal(r3, r1, &miss);
   }
 
   // Stub never generated for non-global objects that require access
   // checks.
-  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+  ASSERT(object->IsJSGlobalObject() || !object->IsAccessCheckNeeded());
 
   // Perform map transition for the receiver if necessary.
   if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
@@ -524,13 +522,13 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   __ b(ne, &miss);
 
   // Perform global security token check if needed.
-  if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(r3, r1, &miss);
+  if (object->IsJSGlobalObject()) {
+    __ CheckAccessGlobal(r3, r1, &miss);
   }
 
   // Stub never generated for non-global objects that require access
   // checks.
-  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+  ASSERT(object->IsJSGlobalObject() || !object->IsAccessCheckNeeded());
 
   __ ldr(ip, MemOperand(sp));  // receiver
   __ push(ip);
@@ -580,13 +578,13 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   __ b(ne, &miss);
 
   // Perform global security token check if needed.
-  if (receiver->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(r3, r1, &miss);
+  if (receiver->IsJSGlobalObject()) {
+    __ CheckAccessGlobal(r3, r1, &miss);
   }
 
   // Stub never generated for non-global objects that require access
   // checks.
-  ASSERT(receiver->IsJSGlobalProxy() || !receiver->IsAccessCheckNeeded());
+  ASSERT(receiver->IsJSGlobalObject() || !receiver->IsAccessCheckNeeded());
 
   __ ldr(ip, MemOperand(sp));  // receiver
   __ push(ip);

@@ -42,6 +42,7 @@ class SaveContext;  // Forward decleration.
 
 class ThreadLocalTop BASE_EMBEDDED {
  public:
+  Context* security_context_;
   // The context where the current execution method is created and for variable
   // lookups.
   Context* context_;
@@ -72,11 +73,12 @@ class ThreadLocalTop BASE_EMBEDDED {
 };
 
 #define TOP_ADDRESS_LIST(C) \
-  C(handler_address)                   \
+  C(handler_address)                    \
   C(c_entry_fp_address)                \
   C(context_address)                   \
   C(pending_exception_address)         \
-  C(external_caught_exception_address)
+  C(external_caught_exception_address) \
+  C(security_context_address)
 
 class Top {
  public:
@@ -88,6 +90,18 @@ class Top {
   };
 
   static Address get_address_from_id(AddressId id);
+
+  // Access to the security context from which JS execution started.
+  // In a browser world, it is the JS context of the frame which initiated
+  // JavaScript execution.
+  static Context* security_context() { return thread_local_.security_context_; }
+  static void set_security_context(Context* context) {
+    ASSERT(context == NULL || context->IsGlobalContext());
+    thread_local_.security_context_ = context;
+  }
+  static Context** security_context_address() {
+    return &thread_local_.security_context_;
+  }
 
   // Access to top context (where the current function object was created).
   static Context* context() { return thread_local_.context_; }
@@ -243,21 +257,17 @@ class Top {
   static void Iterate(ObjectVisitor* v, ThreadLocalTop* t);
   static char* Iterate(ObjectVisitor* v, char* t);
 
-  // Returns the global object of the current context. It could be
-  // a builtin object, or a js global object.
-  static Handle<GlobalObject> global() {
-    return Handle<GlobalObject>(context()->global());
+  static Handle<JSObject> global() {
+    return Handle<JSObject>(context()->global());
   }
-
-  // Returns the global proxy object of the current context.
-  static Object* global_proxy() {
-    return context()->global_proxy();
-  }
-
   static Handle<Context> global_context();
 
   static Handle<JSBuiltinsObject> builtins() {
     return Handle<JSBuiltinsObject>(thread_local_.context_->builtins());
+  }
+  static Handle<JSBuiltinsObject> security_context_builtins() {
+    return Handle<JSBuiltinsObject>(
+        thread_local_.security_context_->builtins());
   }
 
   static Object* LookupSpecialFunction(JSObject* receiver,
@@ -315,26 +325,24 @@ class SaveContext BASE_EMBEDDED {
  public:
   SaveContext() :
       context_(Top::context()),
-#if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
-      dummy_(Top::context()),
-#endif
+      security_context_(Top::security_context()),
       prev_(Top::save_context()) {
     Top::set_save_context(this);
   }
 
   ~SaveContext() {
     Top::set_context(*context_);
+    Top::set_security_context(*security_context_);
     Top::set_save_context(prev_);
   }
 
   Handle<Context> context() { return context_; }
+  Handle<Context> security_context() { return security_context_; }
   SaveContext* prev() { return prev_; }
 
  private:
   Handle<Context> context_;
-#if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
-  Handle<Context> dummy_;
-#endif
+  Handle<Context> security_context_;
   SaveContext* prev_;
 };
 
@@ -343,16 +351,19 @@ class AssertNoContextChange BASE_EMBEDDED {
 #ifdef DEBUG
  public:
   AssertNoContextChange() :
-      context_(Top::context()) {
+      context_(Top::context()),
+      security_context_(Top::security_context()) {
   }
 
   ~AssertNoContextChange() {
     ASSERT(Top::context() == *context_);
+    ASSERT(Top::security_context() == *security_context_);
   }
 
  private:
   HandleScope scope_;
   Handle<Context> context_;
+  Handle<Context> security_context_;
 #else
  public:
   AssertNoContextChange() { }

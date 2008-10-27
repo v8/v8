@@ -183,9 +183,9 @@ void SetExpectedNofPropertiesFromEstimate(Handle<JSFunction> func,
                                           int estimate);
 
 
-Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
+Handle<JSGlobalObject> ReinitializeJSGlobalObject(
     Handle<JSFunction> constructor,
-    Handle<JSGlobalProxy> global);
+    Handle<JSGlobalObject> global);
 
 Handle<Object> SetPrototype(Handle<JSFunction> function,
                             Handle<Object> prototype);
@@ -202,7 +202,8 @@ bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
 void SetupLazy(Handle<JSFunction> fun,
                int index,
                Handle<Context> compile_context,
-               Handle<Context> function_context);
+               Handle<Context> function_context,
+               Handle<Context> security_context);
 void LoadLazy(Handle<JSFunction> fun, bool* pending_exception);
 
 class NoHandleAllocation BASE_EMBEDDED {
