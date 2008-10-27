@@ -802,19 +802,7 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadShortStringLength(String* name) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadMediumStringLength(String* name) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadLongStringLength(String* name) {
+Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   UNIMPLEMENTED();
   return Heap::undefined_value();
 }

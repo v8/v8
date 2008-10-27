@@ -156,7 +156,7 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateShortStringLength(MacroAssembler* masm) {
+void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -171,86 +171,19 @@ void LoadIC::GenerateShortStringLength(MacroAssembler* masm) {
   __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
-  // Check that the object is a short string.
+  // Check that the object is a string.
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ and_(r1, r1, Operand(kIsNotStringMask | kStringSizeMask));
+  __ and_(r1, r1, Operand(kIsNotStringMask));
   // The cast is to resolve the overload for the argument of 0x0.
-  __ cmp(r1, Operand(static_cast<int32_t>(kStringTag | kShortStringTag)));
+  __ cmp(r1, Operand(static_cast<int32_t>(kStringTag)));
   __ b(ne, &miss);
 
+  __ and_(r1, r1, Operand(kStringSizeMask));
+  __ add(r1, r1, Operand(String::kHashShift));
   // Load length directly from the string.
   __ ldr(r0, FieldMemOperand(r0, String::kLengthOffset));
-  __ mov(r0, Operand(r0, LSR, String::kShortLengthShift));
-  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  __ Ret();
-
-  // Cache miss: Jump to runtime.
-  __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
-}
-
-
-void LoadIC::GenerateMediumStringLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r2    : name
-  //  -- lr    : return address
-  //  -- [sp]  : receiver
-  // -----------------------------------
-
-  Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
-
-  // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
-
-  // Check that the object is a medium string.
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ and_(r1, r1, Operand(kIsNotStringMask | kStringSizeMask));
-  __ cmp(r1, Operand(kStringTag | kMediumStringTag));
-  __ b(ne, &miss);
-
-  // Load length directly from the string.
-  __ ldr(r0, FieldMemOperand(r0, String::kLengthOffset));
-  __ mov(r0, Operand(r0, LSR, String::kMediumLengthShift));
-  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  __ Ret();
-
-  // Cache miss: Jump to runtime.
-  __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
-}
-
-
-void LoadIC::GenerateLongStringLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r2    : name
-  //  -- lr    : return address
-  //  -- [sp]  : receiver
-  // -----------------------------------
-
-  Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
-  // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
-
-  // Check that the object is a long string.
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ and_(r1, r1, Operand(kIsNotStringMask | kStringSizeMask));
-  __ cmp(r1, Operand(kStringTag | kLongStringTag));
-  __ b(ne, &miss);
-
-  // Load length directly from the string.
-  __ ldr(r0, FieldMemOperand(r0, String::kLengthOffset));
-  __ mov(r0, Operand(r0, LSR, String::kLongLengthShift));
+  __ mov(r0, Operand(r0, LSR, r1));
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
   __ Ret();
 
