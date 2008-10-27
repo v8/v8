@@ -144,6 +144,8 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
 ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
                          v8::Extension* extension);
 
+RegExpTree* ParseRegExp(unibrow::CharacterStream* stream,
+                        Handle<String>* error);
 
 // Support for doing lazy compilation. The script is the script containing full
 // source of the script where the function is declared. The start_position and

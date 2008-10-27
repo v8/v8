@@ -182,6 +182,7 @@ class Object;
 class OldSpace;
 class Property;
 class Proxy;
+class RegExpTree;
 class Scope;
 template<class Allocator = FreeStoreAllocationPolicy> class ScopeInfo;
 class Script;

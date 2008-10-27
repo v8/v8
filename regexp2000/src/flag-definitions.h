@@ -264,6 +264,8 @@ DEFINE_bool(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
 
+DEFINE_bool(trace_regexps, false, "trace regexp execution")
+
 //
 // Logging and profiling only flags
 //

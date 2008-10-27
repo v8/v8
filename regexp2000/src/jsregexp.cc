@@ -27,6 +27,7 @@
 
 #include "v8.h"
 
+#include "ast.h"
 #include "execution.h"
 #include "factory.h"
 #include "jsregexp.h"
@@ -35,6 +36,8 @@
 #include "runtime.h"
 #include "top.h"
 #include "compilation-cache.h"
+#include "string-stream.h"
+#include <set>
 
 namespace v8 { namespace internal {
 
@@ -537,5 +540,477 @@ ByteArray* RegExpImpl::JsreInternal(Handle<JSRegExp> re) {
   FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
   return ByteArray::cast(value->get(INTERNAL_INDEX));
 }
+
+
+// -------------------------------------------------------------------
+// New regular expression engine
+
+
+template <typename Char> class ExecutionState;
+
+
+template <typename Char>
+class DotPrinter {
+ public:
+  DotPrinter() : stream_(&alloc_) { }
+  void PrintNode(RegExpNode<Char>* node);
+  void Visit(RegExpNode<Char>* node);
+  StringStream* stream() { return &stream_; }
+ private:
+  HeapStringAllocator alloc_;
+  StringStream stream_;
+  std::set<RegExpNode<Char>*> seen_;
+};
+
+
+template <typename Char>
+class RegExpCompiler: public RegExpVisitor {
+ public:
+   RegExpCompiler() { }
+   RegExpNode<Char>* Compile(RegExpTree* tree, RegExpNode<Char>* rest) {
+     return static_cast<RegExpNode<Char>*>(tree->Accept(this, rest));
+   }
+#define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*, void*);
+  FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CASE)
+#undef MAKE_CASE
+};
+
+
+template <typename Char>
+class RegExpNode: public ZoneObject {
+ public:
+  virtual ~RegExpNode() { }
+  virtual void EmitDot(DotPrinter<Char>* out);
+  virtual bool Step(ExecutionState<Char>* state) = 0;
+};
+
+
+template <typename Char>
+class SeqRegExpNode: public RegExpNode<Char> {
+ public:
+  SeqRegExpNode(RegExpNode<Char>* next) : next_(next) { }
+  RegExpNode<Char>* next() { return next_; }
+ private:
+  RegExpNode<Char>* next_;
+};
+
+
+template <typename Char>
+class EndNode: public RegExpNode<Char> {
+ public:
+  virtual void EmitDot(DotPrinter<Char>* out);
+  virtual bool Step(ExecutionState<Char>* state);
+};
+
+
+template <typename Char>
+class AtomNode: public SeqRegExpNode<Char> {
+ public:
+  AtomNode(Vector<const uc16> data, RegExpNode<Char>* next)
+    : SeqRegExpNode<Char>(next),
+      data_(data) { }
+  virtual void EmitDot(DotPrinter<Char>* out);
+  virtual bool Step(ExecutionState<Char>* state);
+  Vector<const uc16> data() { return data_; }
+ private:
+  Vector<const uc16> data_;
+};
+
+
+template <typename Char>
+class CharacterClassNode: public SeqRegExpNode<Char> {
+ public:
+  CharacterClassNode(ZoneList<CharacterRange>* ranges, RegExpNode<Char>* next)
+    : SeqRegExpNode<Char>(next),
+      ranges_(ranges) { }
+  virtual void EmitDot(DotPrinter<Char>* out);
+  virtual bool Step(ExecutionState<Char>* state);
+  ZoneList<CharacterRange>* ranges() { return ranges_; }
+ private:
+  ZoneList<CharacterRange>* ranges_;
+};
+
+
+template <typename Char>
+class ChoiceNode: public RegExpNode<Char> {
+ public:
+  ChoiceNode(ZoneList<RegExpNode<Char>*>* choices) : choices_(choices) { }
+  virtual void EmitDot(DotPrinter<Char>* out);
+  virtual bool Step(ExecutionState<Char>* state);
+  ZoneList<RegExpNode<Char>*>* choices() { return choices_; }
+ private:
+  ZoneList<RegExpNode<Char>*>* choices_;
+};
+
+
+// -------------------------------------------------------------------
+// Dot/dotty output
+
+
+template <typename Char>
+void DotPrinter<Char>::PrintNode(RegExpNode<Char>* node) {
+  stream()->Add("digraph G {\n");
+  Visit(node);
+  stream()->Add("}\n");
+  printf("%s", *(stream()->ToCString()));
+}
+
+
+template <typename Char>
+void DotPrinter<Char>::Visit(RegExpNode<Char>* node) {
+  if (seen_.find(node) != seen_.end())
+    return;
+  seen_.insert(node);
+  node->EmitDot(this);
+}
+
+
+template <typename Char>
+void RegExpNode<Char>::EmitDot(DotPrinter<Char>* out) {
+  UNIMPLEMENTED();
+}
+
+
+template <typename Char>
+void ChoiceNode<Char>::EmitDot(DotPrinter<Char>* out) {
+  out->stream()->Add("n%p [label=\"?\"];\n", this);
+  for (int i = 0; i < choices()->length(); i++) {
+    out->stream()->Add("n%p -> n%p [label=\"%i\"];\n", this, choices()->at(i), i);
+    out->Visit(choices()->at(i));
+  }
+}
+
+
+template <typename Char>
+void AtomNode<Char>::EmitDot(DotPrinter<Char>* out) {
+  out->stream()->Add("n%p [label=\"'%w'\"];\n", this, data());
+  out->stream()->Add("n%p -> n%p;\n", this, this->next());
+  out->Visit(this->next());
+}
+
+
+template <typename Char>
+void EndNode<Char>::EmitDot(DotPrinter<Char>* out) {
+  out->stream()->Add("n%p [style=bold, label=\"done\"];\n", this);
+}
+
+
+template <typename Char>
+void CharacterClassNode<Char>::EmitDot(DotPrinter<Char>* out) {
+  out->stream()->Add("n%p [label=\"[...]\"];\n", this);
+  out->stream()->Add("n%p -> n%p;\n", this, this->next());
+  out->Visit(this->next());
+}
+
+
+// -------------------------------------------------------------------
+// Tree to graph conversion
+
+
+template <typename Char>
+void* RegExpCompiler<Char>::VisitAtom(RegExpAtom* that, void* rest) {
+  return new AtomNode<Char>(that->data(),
+                            static_cast<RegExpNode<Char>*>(rest));
+}
+
+
+template <typename Char>
+void* RegExpCompiler<Char>::VisitCharacterClass(RegExpCharacterClass* that,
+                                                void* rest) {
+  return new CharacterClassNode<Char>(that->ranges(),
+                                      static_cast<RegExpNode<Char>*>(rest));
+}
+
+
+template <typename Char>
+void* RegExpCompiler<Char>::VisitDisjunction(RegExpDisjunction* that,
+                                             void* rest_ptr) {
+  RegExpNode<Char>* rest = static_cast<RegExpNode<Char>*>(rest_ptr);
+  ZoneList<RegExpTree*>* children = that->nodes();
+  int length = children->length();
+  ZoneList<RegExpNode<Char>*>* choices
+      = new ZoneList<RegExpNode<Char>*>(length);
+  for (int i = 0; i < length; i++)
+    choices->Add(Compile(children->at(i), rest));
+  return new ChoiceNode<Char>(choices);
+}
+
+
+template <typename Char>
+void* RegExpCompiler<Char>::VisitQuantifier(RegExpQuantifier* that,
+                                            void* rest_ptr) {
+  RegExpNode<Char>* rest = static_cast<RegExpNode<Char>*>(rest_ptr);
+  if (that->max() >= RegExpQuantifier::kInfinity) {
+    // Don't try to count the number of iterations if the max it too
+    // large.
+    if (that->min() != 0) {
+      UNIMPLEMENTED();
+    }
+    ZoneList<RegExpNode<Char>*>* loop_choices
+        = new ZoneList<RegExpNode<Char>*>(2);
+    RegExpNode<Char>* loop_node = new ChoiceNode<Char>(loop_choices);
+    RegExpNode<Char>* body_node = Compile(that->body(), loop_node);
+    if (that->is_greedy()) {
+      loop_choices->Add(body_node);
+      loop_choices->Add(rest);
+    } else {
+      loop_choices->Add(rest);
+      loop_choices->Add(body_node);
+    }
+    return loop_node;
+  } else {
+    UNIMPLEMENTED();
+    return NULL;
+  }
+}
+
+
+template <typename Char>
+void* RegExpCompiler<Char>::VisitAssertion(RegExpAssertion* that,
+                                           void* rest) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+template <typename Char>
+void* RegExpCompiler<Char>::VisitCapture(RegExpCapture* that, void* rest) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+template <typename Char>
+void* RegExpCompiler<Char>::VisitLookahead(RegExpLookahead* that,
+                                           void* rest) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+template <typename Char>
+void* RegExpCompiler<Char>::VisitEmpty(RegExpEmpty* that, void* rest) {
+  return rest;
+}
+
+
+template <typename Char>
+void* RegExpCompiler<Char>::VisitAlternative(RegExpAlternative* that,
+                                             void* rest) {
+  ZoneList<RegExpTree*>* children = that->nodes();
+  RegExpNode<Char>* current = static_cast<RegExpNode<Char>*>(rest);
+  for (int i = children->length() - 1; i >= 0; i--) {
+    current = Compile(children->at(i), current);
+  }
+  return current;
+}
+
+
+// -------------------------------------------------------------------
+// Execution
+
+
+template <typename Char>
+class ExecutionState {
+ public:
+  ExecutionState(RegExpNode<Char>* start, Vector<Char> input)
+    : current_(start),
+      input_(input),
+      pos_(0),
+      backtrack_stack_(8),
+      is_done_(false) { }
+
+  class BacktrackState {
+   public:
+    BacktrackState(ChoiceNode<Char>* choice, int next, int pos)
+      : choice_(choice),
+        next_(next),
+        pos_(pos) { }
+    ChoiceNode<Char>* choice() { return choice_; }
+    int next() { return next_; }
+    void set_next(int value) { next_ = value; }
+    int pos() { return pos_; }
+   private:
+    ChoiceNode<Char>* choice_;
+    int next_;
+    int pos_;
+  };
+
+  // Execute a single step, returning true if it succeeded
+  inline bool Step() { return current()->Step(this); }
+
+  // Stores the given choice node and the execution state on the
+  // backtrack stack.
+  void SaveBacktrack(ChoiceNode<Char>* choice);
+
+  // Reverts to the next unused backtrack if there is one.  Returns
+  // false exactly if there was no backtrack to restore.
+  bool Backtrack();
+
+  Char current_char() { return input()[pos()]; }
+
+  void Advance(int delta, RegExpNode<Char>* next) {
+    pos_ += delta;
+    current_ = next;
+  }
+
+  bool AtEnd() { return pos_ >= input_.length(); }
+
+  bool is_done() { return is_done_; }
+  void set_done() { is_done_ = true; }
+
+  List<BacktrackState>* backtrack_stack() { return &backtrack_stack_; }
+  RegExpNode<Char>* current() { return current_; }
+  void set_current(RegExpNode<Char>* value) { current_ = value; }
+  Vector<Char> input() { return input_; }
+  int pos() { return pos_; }
+ private:
+  RegExpNode<Char>* current_;
+  Vector<Char> input_;
+  int pos_;
+  List<BacktrackState> backtrack_stack_;
+  bool is_done_;
+};
+
+
+template <typename Char>
+void ExecutionState<Char>::SaveBacktrack(ChoiceNode<Char>* choice) {
+  ASSERT(choice->choices()->length() > 1);
+  if (FLAG_trace_regexps) {
+    PrintF("Setting up backtrack on level %i for choice %p\n",
+           backtrack_stack()->length(),
+           choice);
+  }
+  backtrack_stack()->Add(BacktrackState(choice, 1, pos_));
+}
+
+
+template <typename Char>
+bool ExecutionState<Char>::Backtrack() {
+  if (backtrack_stack()->is_empty()) return false;
+  BacktrackState& top = backtrack_stack()->at(backtrack_stack()->length() - 1);
+  ZoneList<RegExpNode<Char>*>* choices = top.choice()->choices();
+  int next_index = top.next();
+  current_ = choices->at(next_index);
+  pos_ = top.pos();
+  if (FLAG_trace_regexps) {
+    PrintF("Backtracking to %p[%i] on level %i\n",
+           top.choice(),
+           next_index,
+           backtrack_stack()->length() - 1);
+  }
+  if (next_index == choices->length() - 1) {
+    if (FLAG_trace_regexps)
+      PrintF("Popping backtrack on level %i\n",
+             backtrack_stack()->length() - 1);
+    // If this was the last alternative we're done with this backtrack
+    // state and can pop it off the stack.
+    backtrack_stack()->RemoveLast();
+  } else {
+    if (FLAG_trace_regexps)
+      PrintF("Advancing backtrack on level %i\n",
+             backtrack_stack()->length() - 1);
+    // Otherwise we set the next choice to visit if this one fails.
+    top.set_next(next_index + 1);
+  }
+  return true;
+}
+
+
+template <typename Char>
+bool ChoiceNode<Char>::Step(ExecutionState<Char>* state) {
+  state->SaveBacktrack(this);
+  state->set_current(this->choices()->at(0));
+  return true;
+}
+
+
+template <typename Char>
+bool AtomNode<Char>::Step(ExecutionState<Char>* state) {
+  Vector<const uc16> data = this->data();
+  int length = data.length();
+  Vector<Char> input = state->input();
+  int p = state->pos();
+  if (p + length > input.length())
+    return false;
+  for (int i = 0; i < length; i++, p++) {
+    if (data[i] != input[p])
+      return false;
+  }
+  state->Advance(length, this->next());
+  return true;
+}
+
+
+template <typename Char>
+bool CharacterClassNode<Char>::Step(ExecutionState<Char>* state) {
+  if (state->AtEnd()) return false;
+  ZoneList<CharacterRange>* ranges = this->ranges();
+  unsigned current = state->current_char();
+  for (int i = 0; i < ranges->length(); i++) {
+    CharacterRange& range = ranges->at(i);
+    if (range.is_character_class()) {
+      switch (range.from()) {
+        case '.':
+          state->Advance(1, this->next());
+          return true;
+        default:
+          UNIMPLEMENTED();
+      }
+    } else {
+      if (range.from() <= current && current <= range.to()) {
+        state->Advance(1, this->next());
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+
+template <typename Char>
+bool EndNode<Char>::Step(ExecutionState<Char>* state) {
+  state->set_done();
+  return false;
+}
+
+
+template <typename Char>
+bool RegExpEngine::Execute(RegExpNode<Char>* start, Vector<Char> input) {
+  ExecutionState<Char> state(start, input);
+  if (FLAG_trace_regexps) {
+    PrintF("Beginning regexp execution\n");
+  }
+  while (state.Step() || (!state.is_done() && state.Backtrack()))
+    ;
+  if (FLAG_trace_regexps) {
+    PrintF("Matching %s\n", state.is_done() ? "succeeded" : "failed");
+  }
+  return state.is_done();
+}
+
+
+template <typename Char>
+RegExpNode<Char>* RegExpEngine::Compile(RegExpTree* regexp) {
+  RegExpNode<Char>* end = new EndNode<Char>();
+  RegExpCompiler<Char> compiler;
+  return compiler.Compile(regexp, end);
+}
+
+
+template
+RegExpNode<const char>* RegExpEngine::Compile<const char>(RegExpTree* regexp);
+
+template
+RegExpNode<const uc16>* RegExpEngine::Compile<const uc16>(RegExpTree* regexp);
+
+template
+bool RegExpEngine::Execute<const char>(RegExpNode<const char>* start,
+                                       Vector<const char> input);
+
+template
+bool RegExpEngine::Execute<const uc16>(RegExpNode<const uc16>* start,
+                                       Vector<const uc16> input);
+
 
 }}  // namespace v8::internal

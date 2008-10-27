@@ -29,6 +29,7 @@
 
 #include "ast.h"
 #include "scopes.h"
+#include "string-stream.h"
 
 namespace v8 { namespace internal {
 
@@ -176,6 +177,167 @@ void Visitor::VisitExpressions(ZoneList<Expression*>* expressions) {
     Expression* expression = expressions->at(i);
     if (expression != NULL) Visit(expression);
   }
+}
+
+
+// ----------------------------------------------------------------------------
+// Regular expressions
+
+#define MAKE_ACCEPT(Name)                                            \
+  void* RegExp##Name::Accept(RegExpVisitor* visitor, void* data) {   \
+    return visitor->Visit##Name(this, data);                         \
+  }
+FOR_EACH_REG_EXP_NODE_TYPE(MAKE_ACCEPT)
+#undef MAKE_ACCEPT
+
+
+RegExpEmpty RegExpEmpty::kInstance;
+
+
+// Convert regular expression trees to a simple sexp representation.
+// This representation should be different from the input grammar
+// in as many cases as possible, to make it more difficult for incorrect
+// parses to look as correct ones which is likely if the input and
+// output formats are alike.
+class RegExpUnparser: public RegExpVisitor {
+ public:
+  RegExpUnparser();
+  void VisitCharacterRange(CharacterRange that);
+  SmartPointer<char> ToString() { return stream_.ToCString(); }
+#define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*, void* data);
+  FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CASE)
+#undef MAKE_CASE
+ private:
+  StringStream* stream() { return &stream_; }
+  HeapStringAllocator alloc_;
+  StringStream stream_;
+};
+
+
+RegExpUnparser::RegExpUnparser() : stream_(&alloc_) {
+}
+
+
+void* RegExpUnparser::VisitDisjunction(RegExpDisjunction* that, void* data) {
+  stream()->Add("(|");
+  for (int i = 0; i <  that->nodes()->length(); i++) {
+    stream()->Add(" ");
+    that->nodes()->at(i)->Accept(this, data);
+  }
+  stream()->Add(")");
+  return NULL;
+}
+
+
+void* RegExpUnparser::VisitAlternative(RegExpAlternative* that, void* data) {
+  stream()->Add("(:");
+  for (int i = 0; i <  that->nodes()->length(); i++) {
+    stream()->Add(" ");
+    that->nodes()->at(i)->Accept(this, data);
+  }
+  stream()->Add(")");
+  return NULL;
+}
+
+
+void RegExpUnparser::VisitCharacterRange(CharacterRange that) {
+  if (that.is_character_class()) {
+    stream()->Add("&%c", that.from());
+  } else if (that.IsSingleton()) {
+    stream()->Add("%c", that.from());
+  } else {
+    stream()->Add("%c-%c", that.from(), that.to());
+  }
+}
+
+
+
+void* RegExpUnparser::VisitCharacterClass(RegExpCharacterClass* that,
+                                          void* data) {
+  if (that->is_negated())
+    stream()->Add("^");
+  stream()->Add("[");
+  for (int i = 0; i < that->ranges()->length(); i++) {
+    if (i > 0) stream()->Add(" ");
+    VisitCharacterRange(that->ranges()->at(i));
+  }
+  stream()->Add("]");
+  return NULL;
+}
+
+
+void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
+  switch (that->type()) {
+    case RegExpAssertion::START_OF_INPUT:
+      stream()->Add("@^i");
+      break;
+    case RegExpAssertion::END_OF_INPUT:
+      stream()->Add("@$i");
+      break;
+    case RegExpAssertion::START_OF_LINE:
+      stream()->Add("@^l");
+      break;
+    case RegExpAssertion::END_OF_LINE:
+      stream()->Add("@$l");
+       break;
+    case RegExpAssertion::BOUNDARY:
+      stream()->Add("@b");
+      break;
+    case RegExpAssertion::NON_BOUNDARY:
+      stream()->Add("@B");
+      break;
+  }
+  return NULL;
+}
+
+
+void* RegExpUnparser::VisitAtom(RegExpAtom* that, void* data) {
+  stream()->Add("'%w'", that->data());
+  return NULL;
+}
+
+
+void* RegExpUnparser::VisitQuantifier(RegExpQuantifier* that, void* data) {
+  stream()->Add("(# %i ", that->min());
+  if (that->max() == RegExpQuantifier::kInfinity) {
+    stream()->Add("- ");
+  } else {
+    stream()->Add("%i ", that->max());
+  }
+  stream()->Add(that->is_greedy() ? "g " : "n ");
+  that->body()->Accept(this, data);
+  stream()->Add(")");
+  return NULL;
+}
+
+
+void* RegExpUnparser::VisitCapture(RegExpCapture* that, void* data) {
+  stream()->Add("(^ ");
+  that->body()->Accept(this, data);
+  stream()->Add(")");
+  return NULL;
+}
+
+
+void* RegExpUnparser::VisitLookahead(RegExpLookahead* that, void* data) {
+  stream()->Add("(-> ");
+  stream()->Add(that->is_positive() ? "+ " : "- ");
+  that->body()->Accept(this, data);
+  stream()->Add(")");
+  return NULL;
+}
+
+
+void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
+  stream()->Put('%');
+  return NULL;
+}
+
+
+SmartPointer<char> RegExpTree::ToString() {
+  RegExpUnparser unparser;
+  Accept(&unparser, NULL);
+  return unparser.ToString();
 }
 
 

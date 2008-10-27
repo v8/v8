@@ -34,6 +34,7 @@
 #include "runtime.h"
 #include "parser.h"
 #include "scopes.h"
+#include "string-stream.h"
 
 namespace v8 { namespace internal {
 
@@ -224,6 +225,51 @@ class Parser {
   friend class TargetScope;
   friend class LexicalScope;
   friend class TemporaryScope;
+};
+
+
+class RegExpParser {
+ public:
+  RegExpParser(unibrow::CharacterStream* in, Handle<String>* error);
+  RegExpTree* ParsePattern(bool* ok);
+  RegExpTree* ParseDisjunction(bool* ok);
+  RegExpTree* ParseAlternative(bool* ok);
+  RegExpTree* ParseTerm(bool* ok);
+  RegExpTree* ParseAtom(bool* ok);
+  RegExpTree* ParseGroup(bool* ok);
+  RegExpTree* ParseCharacterClass(bool* ok);
+
+  // Parses a {...,...} quantifier and stores the range in the given
+  // out parameters.
+  void* ParseIntervalQuantifier(int* min_out, int* max_out, bool* ok);
+
+  // Parses and returns a single escaped character.  The character
+  // must not be 'b' or 'B' since they are usually handle specially.
+  uc32 ParseCharacterEscape(bool* ok);
+
+  uc32 ParseHexEscape(int length);
+
+  uc32 ParseControlEscape(bool* ok);
+  uc32 ParseOctalLiteral(bool* ok);
+
+  CharacterRange ParseClassAtom(bool* ok);
+  RegExpTree* ReportError(Vector<const char> message, bool* ok);
+  void Advance();
+  void Advance(int dist);
+  static const uc32 kEndMarker = unibrow::Utf8::kBadChar;
+ private:
+  uc32 current() { return current_; }
+  uc32 next() { return next_; }
+  bool has_more() { return has_more_; }
+  bool has_next() { return has_next_; }
+  unibrow::CharacterStream* in() { return in_; }
+  uc32 current_;
+  uc32 next_;
+  bool has_more_;
+  bool has_next_;
+  int captures_seen_;
+  unibrow::CharacterStream* in_;
+  Handle<String>* error_;
 };
 
 
@@ -3162,6 +3208,514 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 
 
 // ----------------------------------------------------------------------------
+// Regular expressions.
+
+RegExpParser::RegExpParser(unibrow::CharacterStream* in, Handle<String>* error)
+  : current_(kEndMarker),
+    next_(kEndMarker),
+    has_more_(true),
+    has_next_(true),
+    captures_seen_(0),
+    in_(in),
+    error_(error) {
+  Advance(2);
+}
+
+void RegExpParser::Advance() {
+  current_ = next_;
+  has_more_ = has_next_;
+  if (in()->has_more()) {
+    next_ = in()->GetNext();
+  } else {
+    next_ = kEndMarker;
+    has_next_ = false;
+  }
+}
+
+void RegExpParser::Advance(int dist) {
+  for (int i = 0; i < dist; i++)
+    Advance();
+}
+
+RegExpTree* RegExpParser::ReportError(Vector<const char> message, bool* ok) {
+  *ok = false;
+  *error_ = Factory::NewStringFromAscii(message, NOT_TENURED);
+  return NULL;
+}
+
+// Pattern ::
+//   Disjunction
+RegExpTree* RegExpParser::ParsePattern(bool* ok) {
+  return ParseDisjunction(ok);
+}
+
+// Disjunction ::
+//   Alternative
+//   Alternative | Disjunction
+RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
+  RegExpTree* first = ParseAlternative(CHECK_OK);
+  if (current() == '|') {
+    ZoneList<RegExpTree*>* nodes = new ZoneList<RegExpTree*>(2);
+    nodes->Add(first);
+    while (current() == '|') {
+      Advance();
+      RegExpTree* next = ParseAlternative(CHECK_OK);
+      nodes->Add(next);
+    }
+    return new RegExpDisjunction(nodes);
+  } else {
+    return first;
+  }
+}
+
+static bool IsAlternativeTerminator(uc32 c) {
+  return c == '|' || c == ')' || c == RegExpParser::kEndMarker;
+}
+
+// Alternative ::
+//   [empty]
+//   Alternative Term
+RegExpTree* RegExpParser::ParseAlternative(bool* ok) {
+  if (!IsAlternativeTerminator(current())) {
+    RegExpTree* first = ParseTerm(CHECK_OK);
+    if (!IsAlternativeTerminator(current())) {
+      ZoneList<RegExpTree*>* nodes = new ZoneList<RegExpTree*>(2);
+      nodes->Add(first);
+      while (!IsAlternativeTerminator(current())) {
+        RegExpTree* next = ParseTerm(CHECK_OK);
+        nodes->Add(next);
+      }
+      return new RegExpAlternative(nodes);
+    } else {
+      return first;
+    }
+  } else {
+    return RegExpEmpty::GetInstance();
+  }
+}
+
+
+class SourceCharacter {
+ public:
+  static bool Is(uc32 c) {
+    switch (c) {
+      // case ']': case '}':
+      // In spidermonkey and jsc these are treated as source characters
+      // so we do too.
+      case '^': case '$': case '\\': case '.': case '*': case '+':
+      case '?': case '(': case ')': case '[': case '{': case '|':
+      case RegExpParser::kEndMarker:
+        return false;
+      default:
+        return true;
+    }
+  }
+};
+
+
+static unibrow::Predicate<SourceCharacter> source_character;
+
+
+static inline bool IsSourceCharacter(uc32 c) {
+  return source_character.get(c);
+}
+
+
+static bool IsSpecialEscape(uc32 c) {
+  switch (c) {
+    case 'b': case 'B': case 'd': case 'D': case 's': case 'S':
+    case 'w': case 'W':
+      return true;
+    default:
+      return false;
+  }
+}
+
+
+// Term ::
+//   Assertion
+//   Atom
+//   Atom Quantifier
+RegExpTree* RegExpParser::ParseTerm(bool* ok) {
+  RegExpTree* atom = NULL;
+  switch (current()) {
+    // Assertion ::
+    //   ^
+    //   $
+    //   \ b
+    //   \ B
+    case '^':
+      Advance();
+      // Make the type of assertion dependent on multi/nonmultiline.
+      return new RegExpAssertion(RegExpAssertion::START_OF_INPUT);
+    case '$':
+      Advance();
+      // Make the type of assertion dependent on multi/nonmultiline.
+      return new RegExpAssertion(RegExpAssertion::END_OF_INPUT);
+    case '.':
+      Advance();
+      atom = new RegExpCharacterClass(CharacterRange::CharacterClass('.'));
+      break;
+    case '(':
+      atom = ParseGroup(CHECK_OK);
+      break;
+    case '[':
+      atom = ParseCharacterClass(CHECK_OK);
+      break;
+    // Atom ::
+    //   \ AtomEscape
+    case '\\':
+      if (has_next()) {
+        switch (next()) {
+          case 'b':
+            Advance(2);
+            return new RegExpAssertion(RegExpAssertion::BOUNDARY);
+          case 'B':
+            Advance(2);
+            return new RegExpAssertion(RegExpAssertion::NON_BOUNDARY);
+          // AtomEscape ::
+          //   CharacterClassEscape
+          //
+          // CharacterClassEscape :: one of
+          //   d D s S w W
+          case 'd': case 'D': case 's': case 'S': case 'w': case 'W': {
+            uc32 c = next();
+            Advance(2);
+            atom = new RegExpCharacterClass(CharacterRange::CharacterClass(c));
+            goto has_read_atom;
+          }
+          // TODO: backreferences
+          default:
+            break;
+        }
+      }
+      // All other escapes fall through to the default case since
+      // they correspond to single characters that can be
+      // represented within atoms.
+    default: {
+      atom = ParseAtom(CHECK_OK);
+      break;
+    }
+  }
+ has_read_atom:
+  int min;
+  int max;
+  switch (current()) {
+    // QuantifierPrefix ::
+    //   *
+    //   +
+    //   ?
+    case '*':
+      min = 0;
+      max = RegExpQuantifier::kInfinity;
+      Advance();
+      break;
+    case '+':
+      min = 1;
+      max = RegExpQuantifier::kInfinity;
+      Advance();
+      break;
+    case '?':
+      min = 0;
+      max = 1;
+      Advance();
+      break;
+    case '{':
+      ParseIntervalQuantifier(&min, &max, CHECK_OK);
+      break;
+    default:
+      return atom;
+  }
+  bool is_greedy = true;
+  if (current() == '?') {
+    is_greedy = false;
+    Advance();
+  }
+  return new RegExpQuantifier(min, max, is_greedy, atom);
+}
+
+
+// QuantifierPrefix ::
+//   { DecimalDigits }
+//   { DecimalDigits , }
+//   { DecimalDigits , DecimalDigits }
+void* RegExpParser::ParseIntervalQuantifier(int* min_out,
+                                            int* max_out,
+                                            bool* ok) {
+  ASSERT_EQ(current(), '{');
+  static const char* kInvalidQuantifier = "Invalid quantifier";
+  Advance();
+  int min = 0;
+  if (!IsDecimalDigit(current())) {
+    // JSC allows {} and {,} as quantifiers (and { and } and all
+    // sorts of crazy stuff) but my puny human brain has been unable
+    // to figure out what they mean exactly, if anything.  For now
+    // we follow the spec and report a syntax error.
+    ReportError(CStrVector(kInvalidQuantifier), CHECK_OK);
+  }
+  while (IsDecimalDigit(current())) {
+    min = 10 * min + (current() - '0');
+    Advance();
+  }
+  int max = 0;
+  if (current() == '}') {
+    max = min;
+    Advance();
+  } else if (current() == ',') {
+    Advance();
+    if (current() == '}') {
+      max = RegExpQuantifier::kInfinity;
+      Advance();
+    } else {
+      while (IsDecimalDigit(current())) {
+        max = 10 * max + (current() - '0');
+        Advance();
+      }
+      if (current() != '}') {
+        ReportError(CStrVector(kInvalidQuantifier), CHECK_OK);
+      }
+      Advance();
+    }
+  } else {
+    ReportError(CStrVector(kInvalidQuantifier), CHECK_OK);
+  }
+  *min_out = min;
+  *max_out = max;
+  return NULL;
+}
+
+
+RegExpTree* RegExpParser::ParseAtom(bool* ok) {
+  ASSERT(current() == '\\' || IsSourceCharacter(current()));
+  ZoneList<uc16>* buf = new ZoneList<uc16>(4);
+  while (true) {
+    if (IsSourceCharacter(current())) {
+      buf->Add(current());
+      Advance();
+    } else if (current() == '\\') {
+      if (!has_next()) {
+        ReportError(CStrVector("\\ at end of pattern"), CHECK_OK);
+      } else if (IsSpecialEscape(next())) {
+        // If the next thing we see is a special escape we stop
+        // reading this atom.
+        break;
+      } else {
+        uc32 escape = ParseCharacterEscape(CHECK_OK);
+        buf->Add(escape);
+      }
+    } else {
+      break;
+    }
+  }
+  return new RegExpAtom(buf->ToConstVector());
+}
+
+
+uc32 RegExpParser::ParseControlEscape(bool* ok) {
+  ASSERT(current() == 'c');
+  Advance();
+  if (!has_more()) {
+    ReportError(CStrVector("\\c at end of pattern"), ok);
+    return '\0';
+  } else {
+    uc32 letter = current();
+    if (!('a' <= letter && letter <= 'z') &&
+        !('A' <= letter && letter <= 'Z')) {
+      ReportError(CStrVector("Illegal control letter"), ok);
+      return '\0';
+    }
+    Advance();
+    return letter & ((1 << 5) - 1);
+  }
+}
+
+
+uc32 RegExpParser::ParseOctalLiteral(bool* ok) {
+  ASSERT('0' <= current() && current() <= '7');
+  // Here we're really supposed to break out after the first digit
+  // if it is '0' but the other implementations don't do that so
+  // neither do we.  Is this deviation from the spec error prone?
+  // Yes, it's probably as error prone as it's possible to get.  Isn't
+  // JavaScript wonderful?
+  uc32 value = 0;
+  while ('0' <= current() && current() <= '7') {
+    int next = (8 * value) + (current() - '0');
+    if (next >= 256) {
+      break;
+    } else {
+      value = next;
+      Advance();
+    }
+  }
+  return value;
+}
+
+
+uc32 RegExpParser::ParseHexEscape(int length) {
+  uc32 value = 0;
+  for (int i = 0; i < length; i++) {
+    int d = HexValue(current());
+    if (d < 0)
+      return value;
+    value = value * 16 + d;
+    Advance();
+  }
+
+  return value;
+}
+
+
+uc32 RegExpParser::ParseCharacterEscape(bool* ok) {
+  ASSERT(current() == '\\');
+  ASSERT(has_next() && !IsSpecialEscape(next()));
+  Advance();
+  ASSERT(current() != 'b' && current() != 'B');
+  switch (current()) {
+    // ControlEscape :: one of
+    //   f n r t v
+    case 'f':
+      Advance();
+      return '\f';
+    case 'n':
+      Advance();
+      return '\n';
+    case 'r':
+      Advance();
+      return '\r';
+    case 't':
+      Advance();
+      return '\t';
+    case 'v':
+      Advance();
+      return '\v';
+    case 'c':
+      return ParseControlEscape(ok);
+    case '0': case '1': case '2': case '3': case '4': case '5':
+    case '6': case '7':
+      // We're really supposed to read this as a decimal integer
+      // literal which is base 10 but for whatever reason the other
+      // implementations read base 8.  It's hard to believe that the
+      // spec was written by some ofthe same people that wrote the
+      // other implementations...
+      return ParseOctalLiteral(ok);
+    case 'x':
+      Advance();
+      return ParseHexEscape(2);
+    case 'A': case 'Z': {
+      uc32 result = current();
+      Advance();
+      return result;
+    }
+    default: {
+      ASSERT(!Scanner::kIsIdentifierPart.get(current()));
+      uc32 result = current();
+      Advance();
+      return result;
+    }
+  }
+  return 0;
+}
+
+
+RegExpTree* RegExpParser::ParseGroup(bool* ok) {
+  ASSERT_EQ(current(), '(');
+  char type = '(';
+  Advance();
+  if (current() == '?') {
+    switch (next()) {
+      case ':': case '=': case '!':
+        type = next();
+        Advance(2);
+        break;
+      default:
+        ReportError(CStrVector("Invalid group"), CHECK_OK);
+        break;
+    }
+  }
+  RegExpTree* body = ParseDisjunction(CHECK_OK);
+  if (current() != ')') {
+    ReportError(CStrVector("Unterminated group"), CHECK_OK);
+  }
+  Advance();
+  if (type == '(') {
+    captures_seen_++;
+    return new RegExpCapture(body);
+  } else if (type == ':') {
+    return body;
+  } else {
+    ASSERT(type == '=' || type == '!');
+    bool is_positive = (type == '=');
+    return new RegExpLookahead(body, is_positive);
+  }
+}
+
+
+CharacterRange RegExpParser::ParseClassAtom(bool* ok) {
+  uc32 first = current();
+  if (first == '\\') {
+    switch (next()) {
+      case 'b':
+        Advance(2);
+        return CharacterRange::Singleton('\b');
+      case 'w': case 'W': case 'd': case 'D': case 's': case 'S': {
+        uc32 c = next();
+        Advance(2);
+        return CharacterRange::CharacterClass(c);
+      }
+      default:
+        uc32 c = ParseCharacterEscape(CHECK_OK);
+        return CharacterRange::Singleton(c);
+    }
+  } else {
+    Advance();
+    return CharacterRange::Singleton(first);
+  }
+}
+
+
+RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
+  static const char* kUnterminated = "Unterminated character class";
+  static const char* kIllegal = "Illegal character class";
+
+  ASSERT_EQ(current(), '[');
+  Advance();
+  bool is_negated = false;
+  if (current() == '^') {
+    is_negated = true;
+    Advance();
+  }
+  ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
+  while (has_more() && current() != ']') {
+    if (current() == '-') {
+      Advance();
+      ranges->Add(CharacterRange::Singleton('-'));
+    } else {
+      CharacterRange first = ParseClassAtom(CHECK_OK);
+      if (!first.is_character_class() && current() == '-') {
+        Advance();
+        CharacterRange next = ParseClassAtom(CHECK_OK);
+        if (next.is_character_class()) {
+          return ReportError(CStrVector(kIllegal), CHECK_OK);
+        }
+        ranges->Add(CharacterRange::Range(first.from(), next.to()));
+      } else {
+        ranges->Add(first);
+      }
+    }
+  }
+  if (!has_more()) {
+    return ReportError(CStrVector(kUnterminated), CHECK_OK);
+  }
+  Advance();
+  if (ranges->length() == 0) {
+    return RegExpEmpty::GetInstance();
+  } else {
+    return new RegExpCharacterClass(ranges, is_negated);
+  }
+}
+
+
+// ----------------------------------------------------------------------------
 // The Parser interface.
 
 // MakeAST() is just a wrapper for the corresponding Parser calls
@@ -3206,6 +3760,23 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
   // the expected 50% too large.
   Vector<unsigned> store = parser.recorder()->store()->ToVector().Clone();
   return new ScriptDataImpl(store);
+}
+
+
+RegExpTree* ParseRegExp(unibrow::CharacterStream* stream,
+                        Handle<String>* error) {
+  ASSERT(error->is_null());
+  RegExpParser parser(stream, error);
+  bool ok = true;
+  RegExpTree* result = parser.ParsePattern(&ok);
+  if (!ok) {
+    ASSERT(result == NULL);
+    ASSERT(!error->is_null());
+  } else {
+    ASSERT(result != NULL);
+    ASSERT(error->is_null());
+  }
+  return result;
 }
 
 

@@ -46,6 +46,7 @@ namespace v8 { namespace internal {
 template <typename T, class P>
 class List {
  public:
+
   INLINE(explicit List(int capacity)) { Initialize(capacity); }
   INLINE(~List()) { DeleteData(data_); }
 
@@ -66,6 +67,8 @@ class List {
   INLINE(int length() const) { return length_; }
 
   Vector<T> ToVector() { return Vector<T>(data_, length_); }
+
+  Vector<const T> ToConstVector() { return Vector<const T>(data_, length_); }
 
   // Adds a copy of the given 'element' to the end of the list,
   // expanding the list if necessary.

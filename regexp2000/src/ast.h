@@ -1181,6 +1181,203 @@ class ThisFunction: public Expression {
 
 
 // ----------------------------------------------------------------------------
+// Regular expressions
+
+
+#define FOR_EACH_REG_EXP_NODE_TYPE(VISIT)                            \
+  VISIT(Disjunction)                                                 \
+  VISIT(Alternative)                                                 \
+  VISIT(Assertion)                                                   \
+  VISIT(CharacterClass)                                              \
+  VISIT(Atom)                                                        \
+  VISIT(Quantifier)                                                  \
+  VISIT(Capture)                                                     \
+  VISIT(Lookahead)                                                   \
+  VISIT(Empty)
+
+
+class RegExpVisitor;
+template <typename Char> class RegExpNode;
+#define FORWARD_DECLARE(Name) class RegExp##Name;
+FOR_EACH_REG_EXP_NODE_TYPE(FORWARD_DECLARE)
+#undef FORWARD_DECLARE
+
+
+class RegExpTree: public ZoneObject {
+ public:
+  virtual ~RegExpTree() { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data) = 0;
+  SmartPointer<char> ToString();
+};
+
+
+class RegExpDisjunction: public RegExpTree {
+ public:
+  RegExpDisjunction(ZoneList<RegExpTree*>* nodes) : nodes_(nodes) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  ZoneList<RegExpTree*>* nodes() { return nodes_; }
+ private:
+  ZoneList<RegExpTree*>* nodes_;
+};
+
+
+class RegExpAlternative: public RegExpTree {
+ public:
+  RegExpAlternative(ZoneList<RegExpTree*>* nodes) : nodes_(nodes) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  ZoneList<RegExpTree*>* nodes() { return nodes_; }
+ private:
+  ZoneList<RegExpTree*>* nodes_;
+};
+
+
+class RegExpAssertion: public RegExpTree {
+ public:
+  enum Type {
+    START_OF_LINE, START_OF_INPUT, END_OF_LINE, END_OF_INPUT,
+    BOUNDARY, NON_BOUNDARY
+  };
+  RegExpAssertion(Type type) : type_(type) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  Type type() { return type_; }
+ private:
+  Type type_;
+};
+
+
+class CharacterRange {
+ public:
+  // For compatibility with the CHECK_OK macro
+  CharacterRange(void* null) { ASSERT_EQ(NULL, null); }
+  CharacterRange(uc32 from, uc32 to, bool is_character_class)
+    : from_(from),
+      to_(to),
+      is_character_class_(is_character_class) {
+    // Assert that truncating doesn't throw away information.
+    ASSERT_EQ(from, from_);
+    ASSERT_EQ(to_, to);
+  }
+  static inline CharacterRange CharacterClass(uc32 tag) {
+    return CharacterRange(tag, tag, true);
+  }
+  static inline CharacterRange Singleton(uc32 value) {
+    return CharacterRange(value, value, false);
+  }
+  static inline CharacterRange Range(uc32 from, uc32 to) {
+    return CharacterRange(from, to, false);
+  }
+  unsigned from() { return from_; }
+  unsigned to() { return to_; }
+  bool is_character_class() { return is_character_class_; }
+  bool IsSingleton() { return (from_ == to_) && !is_character_class(); }
+ private:
+  unsigned from_ : 16;
+  unsigned to_ : 16;
+  bool is_character_class_ : 1;
+};
+
+
+STATIC_CHECK(sizeof(CharacterRange) == 2 * sizeof(int));
+
+
+class RegExpCharacterClass: public RegExpTree {
+ public:
+  RegExpCharacterClass(CharacterRange range)
+    : ranges_(new ZoneList<CharacterRange>(1)),
+      is_negated_(false) {
+    ranges_->Add(range);
+  }
+  RegExpCharacterClass(ZoneList<CharacterRange>* ranges, bool is_negated)
+    : ranges_(ranges),
+      is_negated_(is_negated) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  ZoneList<CharacterRange>* ranges() { return ranges_; }
+  bool is_negated() { return is_negated_; }
+ private:
+  ZoneList<CharacterRange>* ranges_;
+  bool is_negated_;
+};
+
+
+class RegExpAtom: public RegExpTree {
+ public:
+  RegExpAtom(Vector<const uc16> data) : data_(data) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  Vector<const uc16> data() { return data_; }
+ private:
+  Vector<const uc16> data_;
+};
+
+
+class RegExpQuantifier: public RegExpTree {
+ public:
+  RegExpQuantifier(int min, int max, bool is_greedy, RegExpTree* body)
+    : min_(min),
+      max_(max),
+      is_greedy_(is_greedy),
+      body_(body) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  int min() { return min_; }
+  int max() { return max_; }
+  bool is_greedy() { return is_greedy_; }
+  RegExpTree* body() { return body_; }
+  // We just use a very large integer value as infinity because 1^31
+  // is infinite in practice.
+  static const int kInfinity = (1 << 31);
+ private:
+  int min_;
+  int max_;
+  bool is_greedy_;
+  RegExpTree* body_;
+};
+
+
+class RegExpCapture: public RegExpTree {
+ public:
+   RegExpCapture(RegExpTree* body)
+    : body_(body) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  RegExpTree* body() { return body_; }
+ private:
+  RegExpTree* body_;
+};
+
+
+class RegExpLookahead: public RegExpTree {
+ public:
+  RegExpLookahead(RegExpTree* body, bool is_positive)
+    : body_(body),
+      is_positive_(is_positive) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  RegExpTree* body() { return body_; }
+  bool is_positive() { return is_positive_; }
+ private:
+  RegExpTree* body_;
+  bool is_positive_;
+};
+
+
+class RegExpEmpty: public RegExpTree {
+ public:
+  RegExpEmpty() { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  static RegExpEmpty* GetInstance() { return &kInstance; }
+ private:
+  static RegExpEmpty kInstance;
+};
+
+
+class RegExpVisitor BASE_EMBEDDED {
+ public:
+  virtual ~RegExpVisitor() { }
+#define MAKE_CASE(Name)                                              \
+  virtual void* Visit##Name(RegExp##Name*, void* data) = 0;
+  FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CASE)
+#undef MAKE_CASE
+};
+
+
+// ----------------------------------------------------------------------------
 // Basic visitor
 // - leaf node visitors are abstract.
 

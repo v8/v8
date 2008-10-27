@@ -125,6 +125,19 @@ class RegExpImpl {
 };
 
 
+template <typename Char> class RegExpNode;
+
+
+class RegExpEngine: public AllStatic {
+ public:
+  template <typename Char>
+  static RegExpNode<Char>* Compile(RegExpTree* regexp);
+
+  template <typename Char>
+  static bool Execute(RegExpNode<Char>* start, Vector<Char> input);
+};
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_JSREGEXP_H_
