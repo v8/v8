@@ -37,6 +37,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_cctest", "v8_cctest.vcpr
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{AD933CE2-1303-448E-89C8-60B1FDD18EC3}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "d8", "d8.vcproj", "{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}"
+	ProjectSection(ProjectDependencies) = postProject
+		{C0334F9A-1168-4101-9DD8-C30FB252D435} = {C0334F9A-1168-4101-9DD8-C30FB252D435}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -51,6 +56,10 @@ Global
 		{2DE20FFA-6F5E-48D9-84D8-09B044A5B119}.Debug|Win32.Build.0 = Debug|Win32
 		{2DE20FFA-6F5E-48D9-84D8-09B044A5B119}.Release|Win32.ActiveCfg = Release|Win32
 		{2DE20FFA-6F5E-48D9-84D8-09B044A5B119}.Release|Win32.Build.0 = Release|Win32
+		{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}.Debug|Win32.ActiveCfg = Debug|Win32
+		{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}.Debug|Win32.Build.0 = Debug|Win32
+		{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}.Release|Win32.ActiveCfg = Release|Win32
+		{7E4C7D2D-A4B9-40B9-8192-22654E626F6C}.Release|Win32.Build.0 = Release|Win32
 		{865575D0-37E2-405E-8CBA-5F6C485B5A26}.Debug|Win32.ActiveCfg = Debug|Win32
 		{865575D0-37E2-405E-8CBA-5F6C485B5A26}.Debug|Win32.Build.0 = Debug|Win32
 		{865575D0-37E2-405E-8CBA-5F6C485B5A26}.Release|Win32.ActiveCfg = Release|Win32
