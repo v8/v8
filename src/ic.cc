@@ -459,14 +459,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
       if (FLAG_trace_ic) PrintF("[LoadIC : +#length /string]\n");
 #endif
       Code* target = NULL;
-      if (object->IsShortString()) {
-        target = Builtins::builtin(Builtins::LoadIC_ShortStringLength);
-      } else if (object->IsMediumString()) {
-        target = Builtins::builtin(Builtins::LoadIC_MediumStringLength);
-      } else {
-        ASSERT(object->IsLongString());
-        target  = Builtins::builtin(Builtins::LoadIC_LongStringLength);
-      }
+      target = Builtins::builtin(Builtins::LoadIC_StringLength);
       set_target(target);
       StubCache::Set(*name, HeapObject::cast(*object)->map(), target);
       return Smi::FromInt(String::cast(*object)->length());
@@ -637,15 +630,7 @@ Object* KeyedLoadIC::Load(State state,
       if (object->IsString() && name->Equals(Heap::length_symbol())) {
         Handle<String> string = Handle<String>::cast(object);
         Object* code = NULL;
-        if (string->IsShortString()) {
-          code = StubCache::ComputeKeyedLoadShortStringLength(*name, *string);
-        } else if (string->IsMediumString()) {
-          code =
-              StubCache::ComputeKeyedLoadMediumStringLength(*name, *string);
-        } else {
-          ASSERT(string->IsLongString());
-          code = StubCache::ComputeKeyedLoadLongStringLength(*name, *string);
-        }
+        code = StubCache::ComputeKeyedLoadStringLength(*name, *string);
         if (code->IsFailure()) return code;
         set_target(Code::cast(code));
 #ifdef DEBUG

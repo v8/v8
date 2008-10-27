@@ -1271,36 +1271,22 @@ bool String::Equals(String* other) {
 int String::length() {
   uint32_t len = READ_INT_FIELD(this, kLengthOffset);
 
-  switch (size_tag()) {
-    case kShortStringTag:
-      return  len >> kShortLengthShift;
-    case kMediumStringTag:
-      return len >> kMediumLengthShift;
-    case kLongStringTag:
-      return len >> kLongLengthShift;
-    default:
-      break;
-  }
-  UNREACHABLE();
-  return 0;
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
+  return len >> (size_tag() + kLongLengthShift);
 }
 
 
 void String::set_length(int value) {
-  switch (size_tag()) {
-    case kShortStringTag:
-      WRITE_INT_FIELD(this, kLengthOffset, value << kShortLengthShift);
-      break;
-    case kMediumStringTag:
-      WRITE_INT_FIELD(this, kLengthOffset, value << kMediumLengthShift);
-      break;
-    case kLongStringTag:
-      WRITE_INT_FIELD(this, kLengthOffset, value << kLongLengthShift);
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
+  WRITE_INT_FIELD(this,
+                  kLengthOffset,
+                  value << (size_tag() + kLongLengthShift));
 }
 
 
@@ -1484,21 +1470,14 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
 int SeqTwoByteString::SeqTwoByteStringSize(Map* map) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
   // Use the map (and not 'this') to compute the size tag, since
   // TwoByteStringSize is called during GC when maps are encoded.
-  switch (map_size_tag(map)) {
-    case kShortStringTag:
-      length = length >> kShortLengthShift;
-      break;
-    case kMediumStringTag:
-      length = length >> kMediumLengthShift;
-      break;
-    case kLongStringTag:
-      length = length >> kLongLengthShift;
-      break;
-    default:
-      break;
-  }
+  length >>= map_size_tag(map) + kLongLengthShift;
+
   return SizeFor(length);
 }
 
@@ -1506,21 +1485,13 @@ int SeqTwoByteString::SeqTwoByteStringSize(Map* map) {
 int SeqAsciiString::SeqAsciiStringSize(Map* map) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
   // Use the map (and not 'this') to compute the size tag, since
   // AsciiStringSize is called during GC when maps are encoded.
-  switch (map_size_tag(map)) {
-    case kShortStringTag:
-      length = length >> kShortLengthShift;
-      break;
-    case kMediumStringTag:
-      length = length >> kMediumLengthShift;
-      break;
-    case kLongStringTag:
-      length = length >> kLongLengthShift;
-      break;
-    default:
-      break;
-  }
+  length >>= map_size_tag(map) + kLongLengthShift;
 
   return SizeFor(length);
 }

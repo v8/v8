@@ -465,18 +465,8 @@ static void Generate_LoadIC_ArrayLength(MacroAssembler* masm) {
 }
 
 
-static void Generate_LoadIC_ShortStringLength(MacroAssembler* masm) {
-  LoadIC::GenerateShortStringLength(masm);
-}
-
-
-static void Generate_LoadIC_MediumStringLength(MacroAssembler* masm) {
-  LoadIC::GenerateMediumStringLength(masm);
-}
-
-
-static void Generate_LoadIC_LongStringLength(MacroAssembler* masm) {
-  LoadIC::GenerateLongStringLength(masm);
+static void Generate_LoadIC_StringLength(MacroAssembler* masm) {
+  LoadIC::GenerateStringLength(masm);
 }
 
 

@@ -263,48 +263,14 @@ Object* StubCache::ComputeKeyedLoadArrayLength(String* name,
 }
 
 
-Object* StubCache::ComputeKeyedLoadShortStringLength(String* name,
-                                                     String* receiver) {
+Object* StubCache::ComputeKeyedLoadStringLength(String* name,
+                                                String* receiver) {
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CALLBACKS);
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     KeyedLoadStubCompiler compiler;
-    code = compiler.CompileLoadShortStringLength(name);
-    if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent("KeyedLoadIC", Code::cast(code), name));
-    Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
-    if (result->IsFailure()) return result;
-  }
-  return code;
-}
-
-
-Object* StubCache::ComputeKeyedLoadMediumStringLength(String* name,
-                                                      String* receiver) {
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CALLBACKS);
-  Object* code = receiver->map()->FindInCodeCache(name, flags);
-  if (code->IsUndefined()) {
-    KeyedLoadStubCompiler compiler;
-    code = compiler.CompileLoadMediumStringLength(name);
-    if (code->IsFailure()) return code;
-    LOG(CodeCreateEvent("KeyedLoadIC", Code::cast(code), name));
-    Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
-    if (result->IsFailure()) return result;
-  }
-  return code;
-}
-
-
-Object* StubCache::ComputeKeyedLoadLongStringLength(String* name,
-                                                    String* receiver) {
-  Code::Flags flags =
-      Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, CALLBACKS);
-  Object* code = receiver->map()->FindInCodeCache(name, flags);
-  if (code->IsUndefined()) {
-    KeyedLoadStubCompiler compiler;
-    code = compiler.CompileLoadLongStringLength(name);
+    code = compiler.CompileLoadStringLength(name);
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent("KeyedLoadIC", Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));

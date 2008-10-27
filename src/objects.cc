@@ -3968,10 +3968,12 @@ uint32_t StringHasher::GetHashField() {
     } else {
       payload = v8::internal::HashField(GetHash(), false);
     }
-    return (payload & 0x00FFFFFF) | (length_ << String::kShortLengthShift);
+    return (payload & ((1 << String::kShortLengthShift) - 1)) |
+           (length_ << String::kShortLengthShift);
   } else if (length_ <= String::kMaxMediumStringSize) {
     uint32_t payload = v8::internal::HashField(GetHash(), false);
-    return (payload & 0x0000FFFF) | (length_ << String::kMediumLengthShift);
+    return (payload & ((1 << String::kMediumLengthShift) - 1)) |
+           (length_ << String::kMediumLengthShift);
   } else {
     return v8::internal::HashField(length_, false);
   }
