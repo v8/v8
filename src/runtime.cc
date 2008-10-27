@@ -327,8 +327,11 @@ static Object* Runtime_GetTemplateField(Arguments args) {
   RUNTIME_ASSERT(type ==  FUNCTION_TEMPLATE_INFO_TYPE ||
                  type ==  OBJECT_TEMPLATE_INFO_TYPE);
   RUNTIME_ASSERT(offset > 0);
-  RUNTIME_ASSERT(offset < ((type ==  FUNCTION_TEMPLATE_INFO_TYPE) ?
-      FunctionTemplateInfo::kSize : ObjectTemplateInfo::kSize));
+  if (type ==  FUNCTION_TEMPLATE_INFO_TYPE) {
+    RUNTIME_ASSERT(offset < FunctionTemplateInfo::kSize);
+  } else {
+    RUNTIME_ASSERT(offset < ObjectTemplateInfo::kSize);
+  }
   return HeapObject::RawField(templ, offset);
 }
 

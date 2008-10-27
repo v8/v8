@@ -6789,6 +6789,4 @@ int BreakPointInfo::GetBreakPointCount() {
 }
 
 
-const int FunctionTemplateInfo::kSize;
-const int ObjectTemplateInfo::kSize;
 } }  // namespace v8::internal
