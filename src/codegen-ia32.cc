@@ -2660,9 +2660,10 @@ void CodeGenerator::VisitCall(Call* node) {
     // Push the name of the function and the receiver onto the stack.
     frame_->Push(Immediate(var->name()));
 
-    // TODO(120): Use global object for function lookup and inline
-    // cache, and use global proxy as 'this' for invocation.
-    LoadGlobalReceiver(eax);
+    // Pass the global object as the receiver and let the IC stub
+    // patch the stack to use the global proxy as 'this' in the
+    // invoked function.
+    LoadGlobal();
 
     // Load the arguments.
     for (int i = 0; i < args->length(); i++) {

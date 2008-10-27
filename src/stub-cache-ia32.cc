@@ -480,8 +480,11 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ cmp(ebx, JS_FUNCTION_TYPE);
   __ j(not_equal, &miss, not_taken);
 
+  // Patch the receiver on the stack with the global proxy if
+  // necessary.
   if (object->IsGlobalObject()) {
-    // TODO(120): Patch receiver with the global proxy.
+    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
+    __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
   }
 
   // Invoke the function.
@@ -517,10 +520,21 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     __ j(zero, &miss, not_taken);
   }
 
+  // Make sure that it's okay not to patch the on stack receiver
+  // unless we're doing a receiver map check.
+  ASSERT(!object->IsGlobalObject() || check == RECEIVER_MAP_CHECK);
+
   switch (check) {
     case RECEIVER_MAP_CHECK:
       // Check that the maps haven't changed.
       __ CheckMaps(JSObject::cast(object), edx, holder, ebx, ecx, &miss);
+
+      // Patch the receiver on the stack with the global proxy if
+      // necessary.
+      if (object->IsGlobalObject()) {
+        __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
+        __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
+      }
       break;
 
     case STRING_CHECK:
@@ -592,10 +606,6 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   __ mov(Operand(edi), Immediate(Handle<JSFunction>(function)));
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
-  if (object->IsGlobalObject()) {
-    // TODO(120): Patch receiver with the global proxy.
-  }
-
   // Jump to the cached code (tail call).
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
@@ -626,6 +636,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
 
   // Get the receiver from the stack.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
   __ j(zero, &miss, not_taken);
@@ -666,8 +677,11 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   __ cmp(ebx, JS_FUNCTION_TYPE);
   __ j(not_equal, &miss, not_taken);
 
+  // Patch the receiver on the stack with the global proxy if
+  // necessary.
   if (object->IsGlobalObject()) {
-    // TODO(120): Patch receiver with the global proxy.
+    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
+    __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
   }
 
   // Invoke the function.

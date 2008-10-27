@@ -44,8 +44,7 @@ namespace v8 { namespace internal {
 
 // Helper function used from LoadIC/CallIC GenerateNormal.
 static void GenerateDictionaryLoad(MacroAssembler* masm,
-                                   Label* done_label,
-                                   Label* miss_label,
+                                   Label* miss,
                                    Register t0,
                                    Register t1) {
   // Register use:
@@ -61,6 +60,8 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   //
   // r2 - holds the name of the property and is unchanges.
 
+  Label done;
+
   // Check for the absence of an interceptor.
   // Load the map into t0.
   __ ldr(t0, FieldMemOperand(t1, JSObject::kMapOffset));
@@ -68,14 +69,14 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   __ ldr(t0, FieldMemOperand(t1, Map::kInstanceAttributesOffset));
   __ tst(t0, Operand(1 << (Map::kHasNamedInterceptor + (3 * 8))));
   // Jump to miss if the interceptor bit is set.
-  __ b(ne, miss_label);
+  __ b(ne, miss);
 
 
   // Check that the properties array is a dictionary.
   __ ldr(t0, FieldMemOperand(t1, JSObject::kPropertiesOffset));
   __ ldr(r3, FieldMemOperand(t0, HeapObject::kMapOffset));
   __ cmp(r3, Operand(Factory::hash_table_map()));
-  __ b(ne, miss_label);
+  __ b(ne, miss);
 
   // Compute the capacity mask.
   const int kCapacityOffset =
@@ -107,17 +108,17 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
     __ ldr(ip, FieldMemOperand(t1, kElementsStartOffset));
     __ cmp(r2, Operand(ip));
     if (i != kProbes - 1) {
-      __ b(eq, done_label);
+      __ b(eq, &done);
     } else {
-      __ b(ne, miss_label);
+      __ b(ne, miss);
     }
   }
 
   // Check that the value is a normal property.
-  __ bind(done_label);  // t1 == t0 + 4*index
+  __ bind(&done);  // t1 == t0 + 4*index
   __ ldr(r3, FieldMemOperand(t1, kElementsStartOffset + 2 * kPointerSize));
   __ tst(r3, Operand(PropertyDetails::TypeField::mask() << kSmiTagSize));
-  __ b(ne, miss_label);
+  __ b(ne, miss);
 
   // Get the value at the masked, scaled index and return.
   __ ldr(t1, FieldMemOperand(t1, kElementsStartOffset + 1 * kPointerSize));
@@ -273,12 +274,42 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 }
 
 
+static void GenerateNormalHelper(MacroAssembler* masm,
+                                 int argc,
+                                 bool is_global_object,
+                                 Label* miss) {
+  // Search dictionary - put result in register r1.
+  GenerateDictionaryLoad(masm, miss, r0, r1);
+
+  // Check that the value isn't a smi.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, miss);
+
+  // Check that the value is a JSFunction.
+  __ ldr(r0, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
+  __ cmp(r0, Operand(JS_FUNCTION_TYPE));
+  __ b(ne, miss);
+
+  // Patch the receiver with the global proxy if necessary.
+  if (is_global_object) {
+    __ ldr(r2, MemOperand(sp, argc * kPointerSize));
+    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+    __ str(r2, MemOperand(sp, argc * kPointerSize));
+  }
+
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+}
+
+
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   //  -- lr: return address
   // -----------------------------------
 
-  Label miss, probe, done, global;
+  Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack into r1.
   __ ldr(r1, MemOperand(sp, argc * kPointerSize));
@@ -298,35 +329,28 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
 
-  // Check for access to global proxy.
+  // Check for access to global object.
+  __ cmp(r0, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ b(eq, &global_object);
+  __ cmp(r0, Operand(JS_BUILTINS_OBJECT_TYPE));
+  __ b(ne, &non_global_object);
+
+  // Accessing global object: Load and invoke.
+  __ bind(&global_object);
+  GenerateNormalHelper(masm, argc, true, &miss);
+
+  // Accessing non-global object: Check for access to global proxy.
+  Label global_proxy, invoke;
+  __ bind(&non_global_object);
   __ cmp(r0, Operand(JS_GLOBAL_PROXY_TYPE));
-  __ b(eq, &global);
-
-  // Search the dictionary placing the result in r1.
-  __ bind(&probe);
-  GenerateDictionaryLoad(masm, &done, &miss, r0, r1);
-
-  // Check that the value isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &miss);
-
-  // Check that the value is a JSFunction.
-  __ ldr(r0, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
-  __ cmp(r0, Operand(JS_FUNCTION_TYPE));
-  __ b(ne, &miss);
-
-  // TODO(120): Check for access to global object. Needs patching of
-  // receiver but no security check.
-
-  // Invoke the function.
-  ParameterCount actual(argc);
-  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+  __ b(eq, &global_proxy);
+  __ bind(&invoke);
+  GenerateNormalHelper(masm, argc, false, &miss);
 
   // Global object access: Check access rights.
-  __ bind(&global);
+  __ bind(&global_proxy);
   __ CheckAccessGlobalProxy(r1, r0, &miss);
-  __ b(&probe);
+  __ b(&invoke);
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
@@ -362,11 +386,26 @@ void CallIC::Generate(MacroAssembler* masm,
   __ mov(r1, Operand(r0));
   __ LeaveInternalFrame();
 
-  // TODO(120): Check for access to to global object. Needs patching
-  // of receiver but no security check.
+  // Check if the receiver is a global object of some sort.
+  Label invoke, global;
+  __ ldr(r2, MemOperand(sp, argc * kPointerSize));  // receiver
+  __ tst(r2, Operand(kSmiTagMask));
+  __ b(eq, &invoke);
+  __ ldr(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ ldrb(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
+  __ cmp(r3, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ b(eq, &global);
+  __ cmp(r3, Operand(JS_BUILTINS_OBJECT_TYPE));
+  __ b(ne, &invoke);
+
+  // Patch the receiver on the stack.
+  __ bind(&global);
+  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+  __ str(r2, MemOperand(sp, argc * kPointerSize));
 
   // Invoke the function.
   ParameterCount actual(argc);
+  __ bind(&invoke);
   __ InvokeFunction(r1, actual, JUMP_FUNCTION);
 }
 
@@ -398,7 +437,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- [sp]  : receiver
   // -----------------------------------
 
-  Label miss, probe, done, global;
+  Label miss, probe, global;
 
   __ ldr(r0, MemOperand(sp, 0));
   // Check that the receiver isn't a smi.
@@ -418,7 +457,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   __ b(eq, &global);
 
   __ bind(&probe);
-  GenerateDictionaryLoad(masm, &done, &miss, r1, r0);
+  GenerateDictionaryLoad(masm, &miss, r1, r0);
   __ Ret();
 
   // Global object access: Check access rights.
