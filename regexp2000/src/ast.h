@@ -1213,7 +1213,7 @@ class RegExpTree: public ZoneObject {
 
 class RegExpDisjunction: public RegExpTree {
  public:
-  RegExpDisjunction(ZoneList<RegExpTree*>* nodes) : nodes_(nodes) { }
+  explicit RegExpDisjunction(ZoneList<RegExpTree*>* nodes) : nodes_(nodes) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   ZoneList<RegExpTree*>* nodes() { return nodes_; }
  private:
@@ -1223,7 +1223,7 @@ class RegExpDisjunction: public RegExpTree {
 
 class RegExpAlternative: public RegExpTree {
  public:
-  RegExpAlternative(ZoneList<RegExpTree*>* nodes) : nodes_(nodes) { }
+  explicit RegExpAlternative(ZoneList<RegExpTree*>* nodes) : nodes_(nodes) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   ZoneList<RegExpTree*>* nodes() { return nodes_; }
  private:
@@ -1237,7 +1237,7 @@ class RegExpAssertion: public RegExpTree {
     START_OF_LINE, START_OF_INPUT, END_OF_LINE, END_OF_INPUT,
     BOUNDARY, NON_BOUNDARY
   };
-  RegExpAssertion(Type type) : type_(type) { }
+  explicit RegExpAssertion(Type type) : type_(type) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   Type type() { return type_; }
  private:
@@ -1248,7 +1248,7 @@ class RegExpAssertion: public RegExpTree {
 class CharacterRange {
  public:
   // For compatibility with the CHECK_OK macro
-  CharacterRange(void* null) { ASSERT_EQ(NULL, null); }
+  CharacterRange(void* null) { ASSERT_EQ(NULL, null); }  //NOLINT
   CharacterRange(uc32 from, uc32 to, bool is_character_class)
     : from_(from),
       to_(to),
@@ -1277,12 +1277,12 @@ class CharacterRange {
 };
 
 
-STATIC_CHECK(sizeof(CharacterRange) == 2 * sizeof(int));
+STATIC_CHECK(sizeof(CharacterRange) == 2 * sizeof(int));  // NOLINT
 
 
 class RegExpCharacterClass: public RegExpTree {
  public:
-  RegExpCharacterClass(CharacterRange range)
+  explicit RegExpCharacterClass(CharacterRange range)
     : ranges_(new ZoneList<CharacterRange>(1)),
       is_negated_(false) {
     ranges_->Add(range);
@@ -1301,7 +1301,7 @@ class RegExpCharacterClass: public RegExpTree {
 
 class RegExpAtom: public RegExpTree {
  public:
-  RegExpAtom(Vector<const uc16> data) : data_(data) { }
+  explicit RegExpAtom(Vector<const uc16> data) : data_(data) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   Vector<const uc16> data() { return data_; }
  private:
@@ -1334,7 +1334,7 @@ class RegExpQuantifier: public RegExpTree {
 
 class RegExpCapture: public RegExpTree {
  public:
-   RegExpCapture(RegExpTree* body)
+  explicit RegExpCapture(RegExpTree* body)
     : body_(body) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   RegExpTree* body() { return body_; }

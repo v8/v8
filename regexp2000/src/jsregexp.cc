@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <set>
+
 #include "v8.h"
 
 #include "ast.h"
@@ -37,7 +39,7 @@
 #include "top.h"
 #include "compilation-cache.h"
 #include "string-stream.h"
-#include <set>
+
 
 namespace v8 { namespace internal {
 
@@ -566,10 +568,10 @@ class DotPrinter {
 template <typename Char>
 class RegExpCompiler: public RegExpVisitor {
  public:
-   RegExpCompiler() { }
-   RegExpNode<Char>* Compile(RegExpTree* tree, RegExpNode<Char>* rest) {
-     return static_cast<RegExpNode<Char>*>(tree->Accept(this, rest));
-   }
+  RegExpCompiler() { }
+  RegExpNode<Char>* Compile(RegExpTree* tree, RegExpNode<Char>* rest) {
+    return static_cast<RegExpNode<Char>*>(tree->Accept(this, rest));
+  }
 #define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*, void*);
   FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
@@ -588,7 +590,7 @@ class RegExpNode: public ZoneObject {
 template <typename Char>
 class SeqRegExpNode: public RegExpNode<Char> {
  public:
-  SeqRegExpNode(RegExpNode<Char>* next) : next_(next) { }
+  explicit SeqRegExpNode(RegExpNode<Char>* next) : next_(next) { }
   RegExpNode<Char>* next() { return next_; }
  private:
   RegExpNode<Char>* next_;
@@ -634,7 +636,8 @@ class CharacterClassNode: public SeqRegExpNode<Char> {
 template <typename Char>
 class ChoiceNode: public RegExpNode<Char> {
  public:
-  ChoiceNode(ZoneList<RegExpNode<Char>*>* choices) : choices_(choices) { }
+  explicit ChoiceNode(ZoneList<RegExpNode<Char>*>* choices)
+    : choices_(choices) { }
   virtual void EmitDot(DotPrinter<Char>* out);
   virtual bool Step(ExecutionState<Char>* state);
   ZoneList<RegExpNode<Char>*>* choices() { return choices_; }
@@ -675,7 +678,10 @@ template <typename Char>
 void ChoiceNode<Char>::EmitDot(DotPrinter<Char>* out) {
   out->stream()->Add("n%p [label=\"?\"];\n", this);
   for (int i = 0; i < choices()->length(); i++) {
-    out->stream()->Add("n%p -> n%p [label=\"%i\"];\n", this, choices()->at(i), i);
+    out->stream()->Add("n%p -> n%p [label=\"%i\"];\n",
+                       this,
+                       choices()->at(i),
+                       i);
     out->Visit(choices()->at(i));
   }
 }
