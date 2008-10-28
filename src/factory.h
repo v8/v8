@@ -41,6 +41,7 @@ class Factory : public AllStatic {
   static Handle<FixedArray> NewFixedArray(
       int size,
       PretenureFlag pretenure = NOT_TENURED);
+  static Handle<Dictionary> NewDictionary(int at_least_space_for);
 
   static Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors);
 

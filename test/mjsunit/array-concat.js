@@ -67,6 +67,14 @@ while (pos = poses.shift()) {
   assertEquals("undefined", typeof(a[123]));
   assertEquals("baz", c[123]);
 
+  // If the element of prototype is shadowed, the element on the instance
+  // should be copied, but not the one on the prototype.
+  Array.prototype[123] = 'baz';
+  a[123] = 'xyz';
+  assertEquals('xyz', a[123]);
+  c = a.concat(b);
+  assertEquals('xyz', c[123]);
+
   // Non-numeric properties on the prototype or the array shouldn't get
   // copied.
   Array.prototype.moe = 'joe';

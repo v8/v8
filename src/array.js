@@ -373,48 +373,15 @@ function ArrayPush() {
 
 
 function ArrayConcat(arg1) {  // length == 1
-  var arg_number = 0, arg_count = %_ArgumentsLength();
-  var n = 0;
-
-  var A = $Array(1 + arg_count);
-  var E = this;
-
-  while (true) {
-    if (IS_ARRAY(E)) {
-      // This is an array of intervals or an array of keys.  Keys are
-      // represented by non-negative integers.  Intervals are represented by
-      // negative integers, followed by positive counts.  The interval start
-      // is determined by subtracting the entry from -1.  There may also be
-      // undefined entries in the array which should be skipped.
-      var intervals = %GetArrayKeys(E, E.length);
-      var length = intervals.length;
-      for (var k = 0; k < length; k++) {
-        var key = intervals[k];
-        if (key < 0) {
-          var j = -1 - key;
-          var limit = j + intervals[++k];
-          for (; j < limit; j++) {
-            if (j in E) {
-              A[n + j] = E[j];
-            }
-          }
-        } else {
-          // The case where key is undefined also ends here.
-          if (!IS_UNDEFINED(key)) {
-            A[n + key] = E[key];
-          }
-        }
-      }
-      n += E.length;
-    } else {
-      A[n++] = E;
-    }
-    if (arg_number == arg_count) break;
-    E = %_Arguments(arg_number++);
+  // TODO: can we just use arguments?
+  var arg_count = %_ArgumentsLength();
+  var arrays = new $Array(1 + arg_count);
+  arrays[0] = this;
+  for (var i = 0; i < arg_count; i++) {
+    arrays[i + 1] = %_Arguments(i);
   }
 
-  A.length = n;  // may contain empty arrays
-  return A;
+  return %ArrayConcat(arrays);
 }
 
 

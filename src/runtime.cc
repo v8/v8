@@ -3987,6 +3987,237 @@ static Object* Runtime_PushIfAbsent(Arguments args) {
 }
 
 
+/**
+ * A simple visitor visits every element of Array's.
+ * The backend storage can be a fixed array for fast elements case,
+ * or a dictionary for sparse array. Since Dictionary is a subtype
+ * of FixedArray, the class can be used by both fast and slow cases.
+ * The second parameter of the constructor, fast_elements, specifies
+ * whether the storage is a FixedArray or Dictionary.
+ */
+class ArrayConcatVisitor {
+ public:
+  ArrayConcatVisitor(Handle<FixedArray> storage, bool fast_elements)
+    : storage_(storage), fast_elements_(fast_elements), index_offset_(0) { }
+
+  void visit(uint32_t i, Handle<Object> elm) {
+    uint32_t index = i + index_offset_;
+
+    if (fast_elements_) {
+      ASSERT(index < static_cast<uint32_t>(storage_->length()));
+      storage_->set(index, *elm);
+
+    } else {
+      Handle<Dictionary> dict = Handle<Dictionary>::cast(storage_);
+      Handle<Dictionary> result =
+          Factory::DictionaryAtNumberPut(dict, index, elm);
+      if (!result.is_identical_to(dict))
+        storage_ = result;
+    }
+  }
+
+  void increase_index_offset(uint32_t delta) {
+    index_offset_ += delta;
+  }
+
+ private:
+  Handle<FixedArray> storage_;
+  bool fast_elements_;
+  uint32_t index_offset_;
+};
+
+
+/**
+ * A helper function that visits elements of a JSObject. Only elements
+ * whose index between 0 and range (exclusive) are visited.
+ *
+ * If the third parameter, visitor, is not NULL, the visitor is called
+ * with parameters, 'visitor_index_offset + element index' and the element.
+ *
+ * It returns the number of visisted elements.
+ */
+static uint32_t IterateElements(Handle<JSObject> receiver,
+                                uint32_t range,
+                                ArrayConcatVisitor* visitor) {
+  uint32_t num_of_elements = 0;
+
+  if (receiver->HasFastElements()) {
+    Handle<FixedArray> elements(FixedArray::cast(receiver->elements()));
+    uint32_t len = elements->length();
+    if (range < len) len = range;
+
+    for (uint32_t j = 0; j < len; j++) {
+      Handle<Object> e(elements->get(j));
+      if (!e->IsTheHole()) {
+        num_of_elements++;
+        if (visitor)
+          visitor->visit(j, e);
+      }
+    }
+
+  } else {
+    Handle<Dictionary> dict(receiver->element_dictionary());
+    uint32_t capacity = dict->Capacity();
+    for (uint32_t j = 0; j < capacity; j++) {
+      Handle<Object> k(dict->KeyAt(j));
+      if (dict->IsKey(*k)) {
+        ASSERT(k->IsNumber());
+        uint32_t index = static_cast<uint32_t>(k->Number());
+        if (index < range) {
+          num_of_elements++;
+          if (visitor) {
+            visitor->visit(index,
+                           Handle<Object>(dict->ValueAt(j)));
+          }
+        }
+      }
+    }
+  }
+
+  return num_of_elements;
+}
+
+
+/**
+ * A helper function that visits elements of an Array object, and elements
+ * on its prototypes.
+ *
+ * Elements on prototypes are visited first, and only elements whose indices
+ * less than Array length are visited.
+ *
+ * If a ArrayConcatVisitor object is given, the visitor is called with 
+ * parameters, element's index + visitor_index_offset and the element.
+ */
+static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
+                                                 ArrayConcatVisitor* visitor) {
+  uint32_t range = static_cast<uint32_t>(array->length()->Number());
+  Handle<Object> obj = array;
+
+  static const int kEstimatedPrototypes = 3;
+  List< Handle<JSObject> > objects(kEstimatedPrototypes);
+
+  // Visit prototype first. If an element on the prototype is shadowed by
+  // the inheritor using the same index, the ArrayConcatVisitor visits
+  // the prototype element before the shadowing element.
+  // The visitor can simply overwrite the old value by new value using
+  // the same index.  This follows Array::concat semantics.
+  while(!obj->IsNull()) {
+    objects.Add(obj);
+    obj = Handle<Object>(obj->GetPrototype());
+  }
+
+  uint32_t nof_elements = 0;
+  for (int i = objects.length() - 1; i >= 0; i--) {
+    Handle<JSObject> obj = objects[i];
+    nof_elements +=
+        IterateElements(Handle<JSObject>::cast(obj), range, visitor);
+  }
+
+  return nof_elements; 
+}
+
+
+/**
+ * A helper function of Runtime_ArrayConcat.
+ *
+ * The first argument is an Array of Arrays and objects. It is the same as
+ * the arguments array of Array::concat JS function.
+ *
+ * If an argument is an Array object, the function visits array elements.
+ * If an argument is not an Array object, the function visits the object
+ * as if it is an one-element array.
+ */
+static uint32_t IterateArguments(Handle<JSArray> arguments,
+                                 ArrayConcatVisitor* visitor) {
+  uint32_t visited_elements = 0;
+  uint32_t num_of_args = static_cast<uint32_t>(arguments->length()->Number());
+
+  for (uint32_t i = 0; i < num_of_args; i++) {
+    Handle<Object> obj(arguments->GetElement(i));
+    if (obj->IsJSArray()) {
+      Handle<JSArray> array = Handle<JSArray>::cast(obj);
+      uint32_t len = static_cast<uint32_t>(array->length()->Number());
+      uint32_t nof_elements =
+          IterateArrayAndPrototypeElements(array, visitor);
+      // Total elements of array and its prototype chain can be more than
+      // the array length, but ArrayConcat can only concatenate at most
+      // the array length number of elements.
+      visited_elements += (nof_elements > len) ? len : nof_elements;
+      if (visitor) visitor->increase_index_offset(len);
+
+    } else {
+      if (visitor) {
+        visitor->visit(0, obj);
+        visitor->increase_index_offset(1);
+      }
+      visited_elements++;
+    }       
+  }
+  return visited_elements;
+}
+
+
+/**
+ * Array::concat implementation.
+ * See ECMAScript 262, 15.4.4.4.
+ */
+static Object* Runtime_ArrayConcat(Arguments args) {
+  ASSERT(args.length() == 1);
+  HandleScope handle_scope;
+
+  CONVERT_CHECKED(JSArray, arg_arrays, args[0]);
+  Handle<JSArray> arguments(arg_arrays);
+
+  // Pass 1: estimate the number of elements of the result
+  // (it could be more than real numbers if prototype has elements).
+  uint32_t result_length = 0;
+  uint32_t num_of_args = static_cast<uint32_t>(arguments->length()->Number());
+
+  { AssertNoAllocation nogc;
+    for (uint32_t i = 0; i < num_of_args; i++) {
+      Object* obj = arguments->GetElement(i);
+      if (obj->IsJSArray()) {
+        result_length +=
+            static_cast<uint32_t>(JSArray::cast(obj)->length()->Number());
+      } else {
+        result_length++;
+      }
+    }
+  }
+
+  // Allocate an empty array, will set length and content later.
+  Handle<JSArray> result = Factory::NewJSArray(0);
+
+  uint32_t estimate_nof_elements = IterateArguments(arguments, NULL);
+  // If estimated number of elements is more than half of length,
+  // A fixed array (fast case) is more time & space-efficient than a dictionary.
+  bool fast_case = (estimate_nof_elements * 2) >= result_length;
+
+  Handle<FixedArray> storage;
+  if (fast_case) {
+    storage = Factory::NewFixedArray(result_length);
+
+  } else {
+    // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
+    uint32_t at_least_space_for = estimate_nof_elements +
+                                  (estimate_nof_elements >> 2);
+    storage = Handle<FixedArray>::cast(
+                  Factory::NewDictionary(at_least_space_for));
+  }
+
+  Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
+
+  ArrayConcatVisitor visitor(storage, fast_case);
+
+  IterateArguments(arguments, &visitor);
+
+  result->set_length(*len);
+  result->set_elements(*storage);
+
+  return *result;
+}
+
+
 // This will not allocate (flatten the string), but it may run
 // very slowly for very deeply nested ConsStrings.  For debugging use only.
 static Object* Runtime_GlobalPrint(Arguments args) {
