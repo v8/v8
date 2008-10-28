@@ -230,7 +230,13 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
 
 v8::Handle<Value> ThrowException(v8::Handle<v8::Value> value) {
   if (IsDeadCheck("v8::ThrowException()")) return v8::Handle<Value>();
-  i::Top::ScheduleThrow(*Utils::OpenHandle(*value));
+  // If we're passed an empty handle, we throw an undefined exception
+  // to deal more gracefully with out of memory situations.
+  if (value.IsEmpty()) {
+    i::Top::ScheduleThrow(i::Heap::undefined_value());
+  } else {
+    i::Top::ScheduleThrow(*Utils::OpenHandle(*value));
+  }
   return v8::Undefined();
 }
 
@@ -2216,7 +2222,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.3.6";
+  return "0.3.7";
 }
 
 

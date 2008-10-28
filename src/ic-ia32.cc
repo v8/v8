@@ -138,7 +138,7 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateShortStringLength(MacroAssembler* masm) {
+void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
   //  -- esp[0] : return address
@@ -149,41 +149,7 @@ void LoadIC::GenerateShortStringLength(MacroAssembler* masm) {
 
   __ mov(eax, Operand(esp, kPointerSize));
 
-  StubCompiler::GenerateLoadShortStringLength(masm, eax, edx, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
-}
-
-
-void LoadIC::GenerateMediumStringLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- esp[0] : return address
-  //  -- esp[4] : receiver
-  // -----------------------------------
-
-  Label miss;
-
-  __ mov(eax, Operand(esp, kPointerSize));
-
-  StubCompiler::GenerateLoadMediumStringLength(masm, eax, edx, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
-}
-
-
-void LoadIC::GenerateLongStringLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- esp[0] : return address
-  //  -- esp[4] : receiver
-  // -----------------------------------
-
-  Label miss;
-
-  __ mov(eax, Operand(esp, kPointerSize));
-
-  StubCompiler::GenerateLoadLongStringLength(masm, eax, edx, &miss);
+  StubCompiler::GenerateLoadStringLength(masm, eax, edx, &miss);
   __ bind(&miss);
   StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
