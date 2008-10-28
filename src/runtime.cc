@@ -4102,7 +4102,7 @@ static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
   // The visitor can simply overwrite the old value by new value using
   // the same index.  This follows Array::concat semantics.
   while (!obj->IsNull()) {
-    objects.Add(obj);
+    objects.Add(Handle<JSObject>::cast(obj));
     obj = Handle<Object>(obj->GetPrototype());
   }
 
