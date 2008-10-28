@@ -259,7 +259,7 @@ SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 
 void Logger::Preamble(const char* content) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL || !FLAG_log) return;
+  if (logfile_ == NULL || !FLAG_log_code) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "%s", content);
 #endif
