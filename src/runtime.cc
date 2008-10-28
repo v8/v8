@@ -3994,15 +3994,22 @@ static Object* Runtime_PushIfAbsent(Arguments args) {
  * of FixedArray, the class can be used by both fast and slow cases.
  * The second parameter of the constructor, fast_elements, specifies
  * whether the storage is a FixedArray or Dictionary.
+ *
+ * An index limit is used to deal with the situation that a result array
+ * length overflows 32-bit non-negative integer.
  */
 class ArrayConcatVisitor {
  public:
-  ArrayConcatVisitor(Handle<FixedArray> storage, bool fast_elements)
-    : storage_(storage), fast_elements_(fast_elements), index_offset_(0) { }
+  ArrayConcatVisitor(Handle<FixedArray> storage,
+                     uint32_t index_limit,
+                     bool fast_elements) :
+      storage_(storage), index_limit_(index_limit),
+      fast_elements_(fast_elements), index_offset_(0) { }
 
   void visit(uint32_t i, Handle<Object> elm) {
     uint32_t index = i + index_offset_;
-
+    if (index >= index_limit_) return;
+ 
     if (fast_elements_) {
       ASSERT(index < static_cast<uint32_t>(storage_->length()));
       storage_->set(index, *elm);
@@ -4022,6 +4029,7 @@ class ArrayConcatVisitor {
 
  private:
   Handle<FixedArray> storage_;
+  uint32_t index_limit_;
   bool fast_elements_;
   uint32_t index_offset_;
 };
@@ -4126,6 +4134,10 @@ static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
  * If an argument is an Array object, the function visits array elements.
  * If an argument is not an Array object, the function visits the object
  * as if it is an one-element array.
+ *
+ * If the result array index overflows 32-bit integer, the rounded non-negative
+ * number is used as new length. For example, if one array length is 2^32 - 1,
+ * second array length is 1, the concatenated array length is 0.
  */
 static uint32_t IterateArguments(Handle<JSArray> arguments,
                                  ArrayConcatVisitor* visitor) {
@@ -4207,7 +4219,7 @@ static Object* Runtime_ArrayConcat(Arguments args) {
 
   Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
 
-  ArrayConcatVisitor visitor(storage, fast_case);
+  ArrayConcatVisitor visitor(storage, result_length, fast_case);
 
   IterateArguments(arguments, &visitor);
 
