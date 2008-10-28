@@ -83,7 +83,7 @@ class StaticType BASE_EMBEDDED {
     kind_ = other->kind_;
   }
 
-  static char* Type2String(StaticType* type);
+  static const char* Type2String(StaticType* type);
 
   // LIKELY_SMI accessors
   void SetAsLikelySmi() {

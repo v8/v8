@@ -88,7 +88,7 @@ void UseCount::Print() {
 // Implementation StaticType.
 
 
-char* StaticType::Type2String(StaticType* type) {
+const char* StaticType::Type2String(StaticType* type) {
   switch (type->kind_) {
     case UNKNOWN:
       return "UNKNOWN";
