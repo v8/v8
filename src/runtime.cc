@@ -4085,7 +4085,7 @@ static uint32_t IterateElements(Handle<JSObject> receiver,
  * Elements on prototypes are visited first, and only elements whose indices
  * less than Array length are visited.
  *
- * If a ArrayConcatVisitor object is given, the visitor is called with 
+ * If a ArrayConcatVisitor object is given, the visitor is called with
  * parameters, element's index + visitor_index_offset and the element.
  */
 static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
@@ -4101,7 +4101,7 @@ static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
   // the prototype element before the shadowing element.
   // The visitor can simply overwrite the old value by new value using
   // the same index.  This follows Array::concat semantics.
-  while(!obj->IsNull()) {
+  while (!obj->IsNull()) {
     objects.Add(obj);
     obj = Handle<Object>(obj->GetPrototype());
   }
@@ -4113,7 +4113,7 @@ static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
         IterateElements(Handle<JSObject>::cast(obj), range, visitor);
   }
 
-  return nof_elements; 
+  return nof_elements;
 }
 
 
@@ -4151,7 +4151,7 @@ static uint32_t IterateArguments(Handle<JSArray> arguments,
         visitor->increase_index_offset(1);
       }
       visited_elements++;
-    }       
+    }
   }
   return visited_elements;
 }
