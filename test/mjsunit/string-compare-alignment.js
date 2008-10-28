@@ -25,33 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-assertEquals("[object global]", this.toString());
-assertEquals("[object global]", toString());
+// Test that we can compare two strings that are not 4-byte aligned.
+// This situation can arise with sliced strings.  This tests for an ARM bug
+// that was fixed in r554.
 
-assertEquals("[object global]", eval("this.toString()"));
-assertEquals("[object global]", eval("toString()"));
+var base = "Now is the time for all good men to come to the aid of the party. " + 
+           "Now is the time for all good men to come to the aid of the party."
+var s1 = base.substring(0, 64);
+var s2 = base.substring(66, 130);
 
-assertEquals("[object global]", eval("var f; this.toString()"));
-assertEquals("[object global]", eval("var f; toString()"));
+var o = new Object();
+o[s1] = 1;
+o[s2] = 2;
 
+var first_time = true;
 
-function F(f) {
-  assertEquals("[object global]", this.toString());
-  assertEquals("[object global]", toString());
-
-  assertEquals("[object global]", eval("this.toString()"));
-  assertEquals("[object global]", eval("toString()"));
-
-  assertEquals("[object global]", eval("var f; this.toString()"));
-  assertEquals("[object global]", eval("var f; toString()"));
-
-  assertEquals("[object global]", eval("f()"));
-
-  // Receiver should be the arguments object here.
-  assertEquals("[object Object]", eval("arguments[0]()"));
-  with (arguments) {
-    assertEquals("[object Object]", toString());
-  }
+for (var x in o) {
+  assertTrue(o[x] == 2, "expect 2");
+  assertTrue(first_time, "once only");
+  first_time = false;
 }
-
-F(Object.prototype.toString);

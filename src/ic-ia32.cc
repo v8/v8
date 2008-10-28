@@ -138,7 +138,7 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateShortStringLength(MacroAssembler* masm) {
+void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- ecx    : name
   //  -- esp[0] : return address
@@ -149,41 +149,7 @@ void LoadIC::GenerateShortStringLength(MacroAssembler* masm) {
 
   __ mov(eax, Operand(esp, kPointerSize));
 
-  StubCompiler::GenerateLoadShortStringLength(masm, eax, edx, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
-}
-
-
-void LoadIC::GenerateMediumStringLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- esp[0] : return address
-  //  -- esp[4] : receiver
-  // -----------------------------------
-
-  Label miss;
-
-  __ mov(eax, Operand(esp, kPointerSize));
-
-  StubCompiler::GenerateLoadMediumStringLength(masm, eax, edx, &miss);
-  __ bind(&miss);
-  StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
-}
-
-
-void LoadIC::GenerateLongStringLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- ecx    : name
-  //  -- esp[0] : return address
-  //  -- esp[4] : receiver
-  // -----------------------------------
-
-  Label miss;
-
-  __ mov(eax, Operand(esp, kPointerSize));
-
-  StubCompiler::GenerateLoadLongStringLength(masm, eax, edx, &miss);
+  StubCompiler::GenerateLoadStringLength(masm, eax, edx, &miss);
   __ bind(&miss);
   StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
@@ -204,6 +170,18 @@ void LoadIC::GenerateFunctionPrototype(MacroAssembler* masm) {
   __ bind(&miss);
   StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
 }
+
+
+#ifdef DEBUG
+// For use in assert below.
+static int TenToThe(int exponent) {
+  ASSERT(exponent <= 9);
+  ASSERT(exponent >= 1);
+  int answer = 10;
+  for (int i = 1; i < exponent; i++) answer *= 10;
+  return answer;
+}
+#endif
 
 
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
@@ -262,6 +240,11 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
   // Array index string: If short enough use cache in length/hash field (ebx).
+  // We assert that there are enough bits in an int32_t after the hash shift
+  // bits have been subtracted to allow space for the length and the cached
+  // array index.
+  ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
+             (1 << (String::kShortLengthShift - String::kHashShift)));
   __ bind(&index_string);
   const int kLengthFieldLimit =
       (String::kMaxCachedArrayIndexLength + 1) << String::kShortLengthShift;
@@ -455,11 +438,42 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 }
 
 
+static void GenerateNormalHelper(MacroAssembler* masm,
+                                 int argc,
+                                 bool is_global_object,
+                                 Label* miss) {
+  // Search dictionary - put result in register edx.
+  GenerateDictionaryLoad(masm, miss, eax, edx, ebx, ecx);
+
+  // Move the result to register edi and check that it isn't a smi.
+  __ mov(edi, Operand(edx));
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, miss, not_taken);
+
+  // Check that the value is a JavaScript function.
+  __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ movzx_b(edx, FieldOperand(edx, Map::kInstanceTypeOffset));
+  __ cmp(edx, JS_FUNCTION_TYPE);
+  __ j(not_equal, miss, not_taken);
+
+  // Patch the receiver with the global proxy if necessary.
+  if (is_global_object) {
+    __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
+    __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
+  }
+
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(edi, actual, JUMP_FUNCTION);
+}
+
+
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   // -----------------------------------
 
-  Label miss, probe, global;
+  Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack; 1 ~ return address.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
@@ -480,32 +494,27 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
 
   // Check for access to global object.
+  __ cmp(eax, JS_GLOBAL_OBJECT_TYPE);
+  __ j(equal, &global_object);
+  __ cmp(eax, JS_BUILTINS_OBJECT_TYPE);
+  __ j(not_equal, &non_global_object);
+
+  // Accessing global object: Load and invoke.
+  __ bind(&global_object);
+  GenerateNormalHelper(masm, argc, true, &miss);
+
+  // Accessing non-global object: Check for access to global proxy.
+  Label global_proxy, invoke;
+  __ bind(&non_global_object);
   __ cmp(eax, JS_GLOBAL_PROXY_TYPE);
-  __ j(equal, &global, not_taken);
+  __ j(equal, &global_proxy, not_taken);
+  __ bind(&invoke);
+  GenerateNormalHelper(masm, argc, false, &miss);
 
-  // Search the dictionary placing the result in edx.
-  __ bind(&probe);
-  GenerateDictionaryLoad(masm, &miss, eax, edx, ebx, ecx);
-
-  // Move the result to register edi and check that it isn't a smi.
-  __ mov(edi, Operand(edx));
-  __ test(edx, Immediate(kSmiTagMask));
-  __ j(zero, &miss, not_taken);
-
-  // Check that the value is a JavaScript function.
-  __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(edx, FieldOperand(edx, Map::kInstanceTypeOffset));
-  __ cmp(edx, JS_FUNCTION_TYPE);
-  __ j(not_equal, &miss, not_taken);
-
-  // Invoke the function.
-  ParameterCount actual(argc);
-  __ InvokeFunction(edi, actual, JUMP_FUNCTION);
-
-  // Global object access: Check access rights.
-  __ bind(&global);
+  // Global object proxy access: Check access rights.
+  __ bind(&global_proxy);
   __ CheckAccessGlobalProxy(edx, eax, &miss);
-  __ jmp(&probe);
+  __ jmp(&invoke);
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
@@ -542,8 +551,26 @@ void CallIC::Generate(MacroAssembler* masm,
   __ mov(Operand(edi), eax);
   __ LeaveInternalFrame();
 
+  // Check if the receiver is a global object of some sort.
+  Label invoke, global;
+  __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));  // receiver
+  __ test(edx, Immediate(kSmiTagMask));
+  __ j(zero, &invoke, not_taken);
+  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  __ cmp(ecx, JS_GLOBAL_OBJECT_TYPE);
+  __ j(equal, &global);
+  __ cmp(ecx, JS_BUILTINS_OBJECT_TYPE);
+  __ j(not_equal, &invoke);
+
+  // Patch the receiver on the stack.
+  __ bind(&global);
+  __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
+  __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
+
   // Invoke the function.
   ParameterCount actual(argc);
+  __ bind(&invoke);
   __ InvokeFunction(edi, actual, JUMP_FUNCTION);
 }
 

@@ -806,7 +806,7 @@ void Top::DoThrow(Object* exception,
   if (report_exception) {
     if (message != NULL) {
       MessageHandler::ReportMessage(message);
-    } else {
+    } else if (!message_obj.is_null()) {
       MessageHandler::ReportMessage(location, message_obj);
     }
   }

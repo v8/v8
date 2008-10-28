@@ -220,15 +220,15 @@ Object* CallStubCompiler::CompileCallField(Object* object,
 
   const int argc = arguments().immediate();
 
-  // Get the receiver of the function from the stack into r1.
-  __ ldr(r1, MemOperand(sp, argc * kPointerSize));
+  // Get the receiver of the function from the stack into r0.
+  __ ldr(r0, MemOperand(sp, argc * kPointerSize));
   // Check that the receiver isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
+  __ tst(r0, Operand(kSmiTagMask));
   __ b(eq, &miss);
 
   // Do the right check and compute the holder register.
   Register reg =
-      __ CheckMaps(JSObject::cast(object), r1, holder, r3, r2, &miss);
+      __ CheckMaps(JSObject::cast(object), r0, holder, r3, r2, &miss);
   GenerateFastPropertyLoad(masm(), r1, reg, holder, index);
 
   // Check that the function really is a function.
@@ -240,8 +240,12 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ cmp(r2, Operand(JS_FUNCTION_TYPE));
   __ b(ne, &miss);
 
-  // Patch the function on the stack; 1 ~ receiver.
-  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
+  // Patch the receiver on the stack with the global proxy if
+  // necessary.
+  if (object->IsGlobalObject()) {
+    __ ldr(r3, FieldMemOperand(r0, GlobalObject::kGlobalReceiverOffset));
+    __ str(r3, MemOperand(sp, argc * kPointerSize));
+  }
 
   // Invoke the function.
   __ InvokeFunction(r1, arguments(), JUMP_FUNCTION);
@@ -277,10 +281,21 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     __ b(eq, &miss);
   }
 
+  // Make sure that it's okay not to patch the on stack receiver
+  // unless we're doing a receiver map check.
+  ASSERT(!object->IsGlobalObject() || check == RECEIVER_MAP_CHECK);
+
   switch (check) {
     case RECEIVER_MAP_CHECK:
       // Check that the maps haven't changed.
       __ CheckMaps(JSObject::cast(object), r1, holder, r3, r2, &miss);
+
+      // Patch the receiver on the stack with the global proxy if
+      // necessary.
+      if (object->IsGlobalObject()) {
+        __ ldr(r3, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
+        __ str(r3, MemOperand(sp, argc * kPointerSize));
+      }
       break;
 
     case STRING_CHECK:
@@ -351,9 +366,6 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   // Get the function and setup the context.
   __ mov(r1, Operand(Handle<JSFunction>(function)));
   __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-
-  // Patch the function on the stack; 1 ~ receiver.
-  __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
 
   // Jump to the cached code (tail call).
   Handle<Code> code(function->code());
@@ -800,19 +812,7 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadShortStringLength(String* name) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadMediumStringLength(String* name) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadLongStringLength(String* name) {
+Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   UNIMPLEMENTED();
   return Heap::undefined_value();
 }

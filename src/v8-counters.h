@@ -73,6 +73,8 @@ namespace v8 { namespace internal {
   SC(arguments_adaptors, V8.ArgumentsAdaptors)                   \
   SC(compilation_cache_hits, V8.CompilationCacheHits)            \
   SC(compilation_cache_misses, V8.CompilationCacheMisses)        \
+  SC(regexp_cache_hits, V8.RegExpCacheHits)                      \
+  SC(regexp_cache_misses, V8.RegExpCacheMisses)                  \
   /* Amount of evaled source code. */                            \
   SC(total_eval_size, V8.TotalEvalSize)                          \
   /* Amount of loaded source code. */                            \

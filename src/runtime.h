@@ -277,10 +277,10 @@ namespace v8 { namespace internal {
   \
   /* Debugging */ \
   F(DebugPrint, 1) \
-  F(DebugTrace, 1) \
-  F(TraceEnter, 1) \
+  F(DebugTrace, 0) \
+  F(TraceEnter, 0) \
   F(TraceExit, 1) \
-  F(DebugBreak, 1) \
+  F(DebugBreak, 0) \
   F(FunctionGetAssemblerCode, 1) \
   F(Abort, 2) \
   \

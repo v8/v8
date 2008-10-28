@@ -524,7 +524,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<String> key =
         SymbolFromString(Handle<String>(String::cast(entry->name())));
     // Check if a descriptor with this name already exists before writing.
-    if (result->BinarySearch(*key, 0, descriptor_count - 1) ==
+    if (result->LinearSearch(*key, descriptor_count) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
       w.Write(&desc);
@@ -685,7 +685,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
   }
 
   int instance_size = kPointerSize * internal_field_count;
-  InstanceType type = JS_OBJECT_TYPE;  // initialize to a valid value
+  InstanceType type = INVALID_TYPE;
   switch (instance_type) {
     case JavaScriptObject:
       type = JS_OBJECT_TYPE;
@@ -700,9 +700,9 @@ Handle<JSFunction> Factory::CreateApiFunction(
       instance_size += JSGlobalProxy::kSize;
       break;
     default:
-      ASSERT(false);
       break;
   }
+  ASSERT(type != INVALID_TYPE);
 
   Handle<JSFunction> result =
       Factory::NewFunction(Factory::empty_symbol(), type, instance_size,
@@ -805,6 +805,20 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
       CopyMap(Handle<Map>(context->object_function()->initial_map()));
   AddToMapCache(context, keys, map);
   return Handle<Map>(map);
+}
+
+
+void Factory::SetRegExpData(Handle<JSRegExp> regexp,
+                            JSRegExp::Type type,
+                            Handle<String> source,
+                            JSRegExp::Flags flags,
+                            Handle<Object> data) {
+  Handle<FixedArray> store = NewFixedArray(JSRegExp::kDataSize);
+  store->set(JSRegExp::kTagIndex, Smi::FromInt(type));
+  store->set(JSRegExp::kSourceIndex, *source);
+  store->set(JSRegExp::kFlagsIndex, Smi::FromInt(flags.value()));
+  store->set(JSRegExp::kAtomPatternIndex, *data);
+  regexp->set_data(*store);
 }
 
 

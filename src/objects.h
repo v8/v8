@@ -395,29 +395,30 @@ const uint32_t kIsNotStringMask = 0x80;
 const uint32_t kStringTag = 0x0;
 const uint32_t kNotStringTag = 0x80;
 
-// If bit 7 is clear, bits 5 and 6 are the string's size (short, medium, or
-// long).
-const uint32_t kStringSizeMask = 0x60;
-const uint32_t kShortStringTag = 0x0;
-const uint32_t kMediumStringTag = 0x20;
-const uint32_t kLongStringTag = 0x40;
-
-// If bit 7 is clear, bit 4 indicates that the string is a symbol (if set) or
+// If bit 7 is clear, bit 5 indicates that the string is a symbol (if set) or
 // not (if cleared).
-const uint32_t kIsSymbolMask = 0x10;
+const uint32_t kIsSymbolMask = 0x20;
 const uint32_t kNotSymbolTag = 0x0;
-const uint32_t kSymbolTag = 0x10;
+const uint32_t kSymbolTag = 0x20;
 
-// If bit 7 is clear, and the string representation is a sequential string,
-// then bit 3 indicates whether the string consists of two-byte characters or
-// one-byte characters.
-const uint32_t kStringEncodingMask = 0x8;
+// If bit 7 is clear, bits 3 and 4 are the string's size (short, medium or
+// long).  These values are very special in that they are also used to shift
+// the length field to get the length, removing the hash value.  This avoids
+// using if or switch when getting the length of a string.
+const uint32_t kStringSizeMask = 0x18;
+const uint32_t kShortStringTag = 0x18;
+const uint32_t kMediumStringTag = 0x10;
+const uint32_t kLongStringTag = 0x00;
+
+// If bit 7 is clear then bit 2 indicates whether the string consists of
+// two-byte characters or one-byte characters.
+const uint32_t kStringEncodingMask = 0x4;
 const uint32_t kTwoByteStringTag = 0x0;
-const uint32_t kAsciiStringTag = 0x8;
+const uint32_t kAsciiStringTag = 0x4;
 
-// If bit 7 is clear, the low-order 3 bits indicate the representation
+// If bit 7 is clear, the low-order 2 bits indicate the representation
 // of the string.
-const uint32_t kStringRepresentationMask = 0x07;
+const uint32_t kStringRepresentationMask = 0x03;
 enum StringRepresentationTag {
   kSeqStringTag = 0x0,
   kConsStringTag = 0x1,
@@ -535,6 +536,7 @@ enum InstanceType {
   // Pseudo-types
   FIRST_NONSTRING_TYPE = MAP_TYPE,
   FIRST_TYPE = 0x0,
+  INVALID_TYPE = FIRST_TYPE - 1,
   LAST_TYPE = JS_FUNCTION_TYPE,
   // Boundaries for testing the type is a JavaScript "object".  Note that
   // function objects are not counted as objects, even though they are
@@ -624,6 +626,7 @@ class Object BASE_EMBEDDED {
   inline bool IsOddball();
   inline bool IsSharedFunctionInfo();
   inline bool IsJSValue();
+  inline bool IsStringWrapper();
   inline bool IsProxy();
   inline bool IsBoolean();
   inline bool IsJSArray();
@@ -1601,7 +1604,6 @@ class DescriptorArray: public FixedArray {
   inline void Get(int descriptor_number, Descriptor* desc);
   inline void Set(int descriptor_number, Descriptor* desc);
 
-
   // Copy the descriptor array, insert a new descriptor and optionally
   // remove map transitions.  If the descriptor is already present, it is
   // replaced.  If a replaced descriptor is a real property (not a transition
@@ -1629,6 +1631,10 @@ class DescriptorArray: public FixedArray {
   // with low=0 and high=2.
   int BinarySearch(String* name, int low, int high);
 
+  // Perform a linear search in the instance descriptors represented
+  // by this fixed array.  len is the number of descriptor indeces that are
+  // valid.  Does not require the descriptors to be sorted.
+  int LinearSearch(String* name, int len);
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
@@ -1853,19 +1859,6 @@ class SymbolTable: public HashTable<0, 1> {
   Object* LookupKey(HashTableKey* key, Object** s);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(SymbolTable);
-};
-
-
-class CompilationCacheTable: public HashTable<0, 2> {
- public:
-  // Find cached value for a string key, otherwise return null.
-  Object* Lookup(String* src);
-  Object* Put(String* src, Object* value);
-
-  static inline CompilationCacheTable* cast(Object* obj);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);
 };
 
 
@@ -2750,7 +2743,7 @@ class JSFunction: public JSObject {
 #endif
 
   // Returns the number of allocated literals.
-  int NumberOfLiterals();
+  inline int NumberOfLiterals();
 
   // Retrieve the global context from a function's literal array.
   static Context* GlobalContextFromLiterals(FixedArray* literals);
@@ -2907,17 +2900,27 @@ class JSValue: public JSObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSValue);
 };
 
-
 // Regular expressions
 class JSRegExp: public JSObject {
  public:
-  enum Type { JSCRE, ATOM };
+  enum Type { NOT_COMPILED, JSCRE, ATOM };
+  enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
 
-  inline Type type_tag();
-  inline void set_type_tag(Type value);
+  class Flags {
+   public:
+    explicit Flags(uint32_t value) : value_(value) { }
+    bool is_global() { return (value_ & GLOBAL) != 0; }
+    bool is_ignore_case() { return (value_ & IGNORE_CASE) != 0; }
+    bool is_multiline() { return (value_ & MULTILINE) != 0; }
+    uint32_t value() { return value_; }
+   private:
+    uint32_t value_;
+  };
 
-  DECL_ACCESSORS(type, Object)
   DECL_ACCESSORS(data, Object)
+
+  inline Type TypeTag();
+  inline Object* DataAt(int index);
 
   static inline JSRegExp* cast(Object* obj);
 
@@ -2927,9 +2930,32 @@ class JSRegExp: public JSObject {
   void JSRegExpVerify();
 #endif
 
-  static const int kTypeOffset = JSObject::kHeaderSize;
-  static const int kDataOffset = kTypeOffset + kIntSize;
+  static const int kDataOffset = JSObject::kHeaderSize;
   static const int kSize = kDataOffset + kIntSize;
+
+  static const int kTagIndex = 0;
+  static const int kSourceIndex = kTagIndex + 1;
+  static const int kFlagsIndex = kSourceIndex + 1;
+  // These two are the same since the same entry is shared for
+  // different purposes in different types of regexps.
+  static const int kAtomPatternIndex = kFlagsIndex + 1;
+  static const int kJscreDataIndex = kFlagsIndex + 1;
+  static const int kDataSize = kAtomPatternIndex + 1;
+};
+
+
+class CompilationCacheTable: public HashTable<0, 2> {
+ public:
+  // Find cached value for a string key, otherwise return null.
+  Object* Lookup(String* src);
+  Object* LookupRegExp(String* source, JSRegExp::Flags flags);
+  Object* Put(String* src, Object* value);
+  Object* PutRegExp(String* src, JSRegExp::Flags flags, FixedArray* value);
+
+  static inline CompilationCacheTable* cast(Object* obj);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheTable);
 };
 
 
@@ -3130,8 +3156,8 @@ class String: public HeapObject {
   static const int kSize = kLengthOffset + kIntSize;
 
   // Limits on sizes of different types of strings.
-  static const int kMaxShortStringSize = 255;
-  static const int kMaxMediumStringSize = 65535;
+  static const int kMaxShortStringSize = 63;
+  static const int kMaxMediumStringSize = 16383;
 
   static const int kMaxArrayIndexSize = 10;
 
@@ -3152,14 +3178,14 @@ class String: public HeapObject {
 
   // Array index strings this short can keep their index in the hash
   // field.
-  static const int kMaxCachedArrayIndexLength = 6;
+  static const int kMaxCachedArrayIndexLength = 7;
 
   // Shift constants for retriving length and hash code from
   // length/hash field.
   static const int kHashShift = kNofLengthBitFields;
-  static const int kShortLengthShift = 3 * kBitsPerByte;
-  static const int kMediumLengthShift = 2 * kBitsPerByte;
-  static const int kLongLengthShift = kHashShift;
+  static const int kShortLengthShift = kHashShift + kShortStringTag;
+  static const int kMediumLengthShift = kHashShift + kMediumStringTag;
+  static const int kLongLengthShift = kHashShift + kLongStringTag;
 
   // Limit for truncation in short printing.
   static const int kMaxShortPrintLength = 1024;
@@ -3347,11 +3373,13 @@ class ConsString: public String {
  public:
   // First object of the cons cell.
   inline Object* first();
-  inline void set_first(Object* first);
+  inline void set_first(Object* first,
+                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Second object of the cons cell.
   inline Object* second();
-  inline void set_second(Object* second);
+  inline void set_second(Object* second,
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
   uint16_t ConsStringGet(int index);

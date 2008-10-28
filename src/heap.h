@@ -741,6 +741,9 @@ class Heap : public AllStatic {
     return amount_of_external_allocated_memory_;
   }
 
+  // Allocate unitialized fixed array (pretenure == NON_TENURE).
+  static Object* AllocateRawFixedArray(int length);
+
  private:
   static int semispace_size_;
   static int initial_semispace_size_;
@@ -834,9 +837,6 @@ class Heap : public AllStatic {
   // have to test the allocation space argument and (b) can reduce code size
   // (since both AllocateRaw and AllocateRawMap are inlined).
   static inline Object* AllocateRawMap(int size_in_bytes);
-
-  // Allocate unitialized fixed array (pretenure == NON_TENURE).
-  static Object* AllocateRawFixedArray(int length);
 
   // Initializes a JSObject based on its map.
   static void InitializeJSObjectFromMap(JSObject* obj,

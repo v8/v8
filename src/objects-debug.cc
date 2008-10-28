@@ -327,6 +327,7 @@ void JSObject::JSObjectVerify() {
 
 static const char* TypeToString(InstanceType type) {
   switch (type) {
+    case INVALID_TYPE: return "INVALID";
     case MAP_TYPE: return "MAP";
     case HEAP_NUMBER_TYPE: return "HEAP_NUMBER";
     case SHORT_SYMBOL_TYPE:
@@ -659,19 +660,22 @@ void JSArray::JSArrayVerify() {
 
 void JSRegExp::JSRegExpVerify() {
   JSObjectVerify();
-  ASSERT(type()->IsSmi() || type()->IsUndefined());
-  if (type()->IsSmi()) {
-    switch (type_tag()) {
-      case JSRegExp::JSCRE:
-        ASSERT(data()->IsFixedArray());
-        break;
-      default:
-        ASSERT_EQ(JSRegExp::ATOM, type_tag());
-        ASSERT(data()->IsString());
-        break;
+  ASSERT(data()->IsUndefined() || data()->IsFixedArray());
+  switch (TypeTag()) {
+    case JSRegExp::ATOM: {
+      FixedArray* arr = FixedArray::cast(data());
+      ASSERT(arr->get(JSRegExp::kAtomPatternIndex)->IsString());
+      break;
     }
-  } else {
-    ASSERT(data()->IsUndefined());
+    case JSRegExp::JSCRE: {
+      FixedArray* arr = FixedArray::cast(data());
+      ASSERT(arr->get(JSRegExp::kJscreDataIndex)->IsFixedArray());
+      break;
+    }
+    default:
+      ASSERT_EQ(JSRegExp::NOT_COMPILED, TypeTag());
+      ASSERT(data()->IsUndefined());
+      break;
   }
 }
 

@@ -2139,7 +2139,7 @@ bool JSObject::ReferencesObject(Object* obj) {
     }
 
     // Check the context extension if any.
-    if (context->extension() != NULL) {
+    if (context->has_extension()) {
       return context->extension()->ReferencesObject(obj);
     }
   }
@@ -2580,14 +2580,15 @@ Object* FixedArray::UnionOfKeys(FixedArray* other) {
   if (obj->IsFailure()) return obj;
   // Fill in the content
   FixedArray* result = FixedArray::cast(obj);
+  WriteBarrierMode mode = result->GetWriteBarrierMode();
   for (int i = 0; i < len0; i++) {
-    result->set(i, get(i));
+    result->set(i, get(i), mode);
   }
   // Fill in the extra keys.
   int index = 0;
   for (int y = 0; y < len1; y++) {
     if (!HasKey(this, other->get(y))) {
-      result->set(len0 + index, other->get(y));
+      result->set(len0 + index, other->get(y), mode);
       index++;
     }
   }
@@ -2601,14 +2602,14 @@ Object* FixedArray::CopySize(int new_length) {
   Object* obj = Heap::AllocateFixedArray(new_length);
   if (obj->IsFailure()) return obj;
   FixedArray* result = FixedArray::cast(obj);
-  WriteBarrierMode mode = result->GetWriteBarrierMode();
   // Copy the content
   int len = length();
   if (new_length < len) len = new_length;
+  result->set_map(map());
+  WriteBarrierMode mode = result->GetWriteBarrierMode();
   for (int i = 0; i < len; i++) {
     result->set(i, get(i), mode);
   }
-  result->set_map(map());
   return result;
 }
 
@@ -2871,6 +2872,14 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
       if (GetKey(mid)->Equals(name)) return mid;
     }
     break;
+  }
+  return kNotFound;
+}
+
+
+int DescriptorArray::LinearSearch(String* name, int len) {
+  for (int number = 0; number < len; number++) {
+    if (name->Equals(GetKey(number))) return number;
   }
   return kNotFound;
 }
@@ -3959,10 +3968,12 @@ uint32_t StringHasher::GetHashField() {
     } else {
       payload = v8::internal::HashField(GetHash(), false);
     }
-    return (payload & 0x00FFFFFF) | (length_ << String::kShortLengthShift);
+    return (payload & ((1 << String::kShortLengthShift) - 1)) |
+           (length_ << String::kShortLengthShift);
   } else if (length_ <= String::kMaxMediumStringSize) {
     uint32_t payload = v8::internal::HashField(GetHash(), false);
-    return (payload & 0x0000FFFF) | (length_ << String::kMediumLengthShift);
+    return (payload & ((1 << String::kMediumLengthShift) - 1)) |
+           (length_ << String::kMediumLengthShift);
   } else {
     return v8::internal::HashField(length_, false);
   }
@@ -4044,11 +4055,6 @@ void String::PrintOn(FILE* file) {
 void Map::MapIterateBody(ObjectVisitor* v) {
   // Assumes all Object* members are contiguously allocated!
   IteratePointers(v, kPrototypeOffset, kCodeCacheOffset + kPointerSize);
-}
-
-
-int JSFunction::NumberOfLiterals() {
-  return literals()->length();
 }
 
 
@@ -5555,6 +5561,46 @@ class StringKey : public HashTableKey {
   String* string_;
 };
 
+// RegExpKey carries the source and flags of a regular expression as key.
+class RegExpKey : public HashTableKey {
+ public:
+  RegExpKey(String* string, JSRegExp::Flags flags)
+    : string_(string),
+      flags_(Smi::FromInt(flags.value())) { }
+
+  bool IsMatch(Object* obj) {
+    FixedArray* val = FixedArray::cast(obj);
+    return string_->Equals(String::cast(val->get(JSRegExp::kSourceIndex)))
+        && (flags_ == val->get(JSRegExp::kFlagsIndex));
+  }
+
+  uint32_t Hash() { return RegExpHash(string_, flags_); }
+
+  HashFunction GetHashFunction() { return RegExpObjectHash; }
+
+  Object* GetObject() {
+    // Plain hash maps, which is where regexp keys are used, don't
+    // use this function.
+    UNREACHABLE();
+    return NULL;
+  }
+
+  static uint32_t RegExpObjectHash(Object* obj) {
+    FixedArray* val = FixedArray::cast(obj);
+    return RegExpHash(String::cast(val->get(JSRegExp::kSourceIndex)),
+                      Smi::cast(val->get(JSRegExp::kFlagsIndex)));
+  }
+
+  static uint32_t RegExpHash(String* string, Smi* flags) {
+    return string->Hash() + flags->value();
+  }
+
+  bool IsStringKey() { return false; }
+
+  String* string_;
+  Smi* flags_;
+};
+
 // Utf8SymbolKey carries a vector of chars as key.
 class Utf8SymbolKey : public HashTableKey {
  public:
@@ -5829,6 +5875,15 @@ Object* CompilationCacheTable::Lookup(String* src) {
 }
 
 
+Object* CompilationCacheTable::LookupRegExp(String* src,
+                                            JSRegExp::Flags flags) {
+  RegExpKey key(src, flags);
+  int entry = FindEntry(&key);
+  if (entry == -1) return Heap::undefined_value();
+  return get(EntryToIndex(entry) + 1);
+}
+
+
 Object* CompilationCacheTable::Put(String* src, Object* value) {
   StringKey key(src);
   Object* obj = EnsureCapacity(1, &key);
@@ -5838,6 +5893,23 @@ Object* CompilationCacheTable::Put(String* src, Object* value) {
       reinterpret_cast<CompilationCacheTable*>(obj);
   int entry = cache->FindInsertionEntry(src, key.Hash());
   cache->set(EntryToIndex(entry), src);
+  cache->set(EntryToIndex(entry) + 1, value);
+  cache->ElementAdded();
+  return cache;
+}
+
+
+Object* CompilationCacheTable::PutRegExp(String* src,
+                                         JSRegExp::Flags flags,
+                                         FixedArray* value) {
+  RegExpKey key(src, flags);
+  Object* obj = EnsureCapacity(1, &key);
+  if (obj->IsFailure()) return obj;
+
+  CompilationCacheTable* cache =
+      reinterpret_cast<CompilationCacheTable*>(obj);
+  int entry = cache->FindInsertionEntry(value, key.Hash());
+  cache->set(EntryToIndex(entry), value);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();
   return cache;
@@ -5974,7 +6046,7 @@ Object* LookupCache::Put(Map* map, String* name, int value) {
   int entry = cache->FindInsertionEntry(k, key.Hash());
   int index = EntryToIndex(entry);
   cache->set(index, k);
-  cache->set(index + 1, Smi::FromInt(value));
+  cache->set(index + 1, Smi::FromInt(value), SKIP_WRITE_BARRIER);
   cache->ElementAdded();
   return cache;
 }

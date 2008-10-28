@@ -377,14 +377,12 @@ void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
     return;
   }
 
-  if (regexp->type()->IsSmi()) {
-    switch (regexp->type_tag()) {
+  switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
       fprintf(logfile_, "a");
       break;
     default:
       break;
-    }
   }
   fprintf(logfile_, "/");
   LogString(Handle<String>::cast(source));
@@ -409,14 +407,14 @@ void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 
-void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp) {
+void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_regexp) return;
   ScopedLock sl(mutex_);
 
   fprintf(logfile_, "regexp-compile,");
   LogRegExpSource(regexp);
-  fprintf(logfile_, "\n");
+  fprintf(logfile_, in_cache ? ",hit\n" : ",miss\n");
 #endif
 }
 

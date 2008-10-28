@@ -226,9 +226,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     if (FLAG_trace) {
       // Push a valid value as the parameter. The runtime call only uses
       // it as the return value to indicate non-failure.
-      __ mov(r0, Operand(Smi::FromInt(0)));
-      __ push(r0);
-      __ CallRuntime(Runtime::kTraceEnter, 1);
+      __ CallRuntime(Runtime::kTraceEnter, 0);
     }
     CheckStack();
 
@@ -242,11 +240,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       bool should_trace =
           is_builtin ? FLAG_trace_builtin_calls : FLAG_trace_calls;
       if (should_trace) {
-        // Push a valid value as the parameter. The runtime call only uses
-        // it as the return value to indicate non-failure.
-        __ mov(r0, Operand(Smi::FromInt(0)));
-        __ push(r0);
-        __ CallRuntime(Runtime::kDebugTrace, 1);
+        __ CallRuntime(Runtime::kDebugTrace, 0);
       }
 #endif
       VisitStatements(body);
@@ -1846,8 +1840,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatament");
   if (FLAG_debug_info) RecordStatementPosition(node);
-  __ CallRuntime(Runtime::kDebugBreak, 1);
-  __ push(r0);
+  __ CallRuntime(Runtime::kDebugBreak, 0);
+  // Ignore the return value.
 }
 
 
@@ -2246,9 +2240,10 @@ void CodeGenerator::VisitCall(Call* node) {
     __ mov(r0, Operand(var->name()));
     __ push(r0);
 
-    // TODO(120): use JSGlobalObject for function lookup and inline cache,
-    // and use global proxy as 'this' for invocation.
-    LoadGlobalReceiver(r0);
+    // Pass the global object as the receiver and let the IC stub
+    // patch the stack to use the global proxy as 'this' in the
+    // invoked function.
+    LoadGlobal();
 
     // Load the arguments.
     for (int i = 0; i < args->length(); i++) Load(args->at(i));
@@ -2335,11 +2330,10 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Load the function.
     Load(function);
-    // Pass the global object as the receiver.
 
-    // TODO(120): use JSGlobalObject for function lookup and inline cache,
-    // and use global proxy as 'this' for invocation.
+    // Pass the global proxy as the receiver.
     LoadGlobalReceiver(r0);
+
     // Call the function.
     CallWithArguments(args, node->position());
     __ push(r0);
@@ -2357,9 +2351,10 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // evaluated.
 
   // Compute function to call and use the global object as the
-  // receiver.
+  // receiver. There is no need to use the global proxy here because
+  // it will always be replaced with a newly allocated object.
   Load(node->expression());
-  LoadGlobalReceiver(r0);
+  LoadGlobal();
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = node->arguments();

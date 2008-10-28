@@ -42,7 +42,9 @@ class CompilationCache {
   enum Entry {
     SCRIPT,
     EVAL_GLOBAL,
-    EVAL_CONTEXTUAL
+    EVAL_CONTEXTUAL,
+    REGEXP,
+    LAST_ENTRY = REGEXP
   };
 
   // Finds the script function boilerplate for a source
@@ -59,11 +61,22 @@ class CompilationCache {
   static Handle<JSFunction> LookupEval(Handle<String> source,
                                        Entry entry);
 
+  // Returns the regexp data associated with the given regexp if it
+  // is in cache, otherwise an empty handle.
+  static Handle<FixedArray> LookupRegExp(Handle<String> source,
+                                         JSRegExp::Flags flags);
+
+  // Associate the (source, flags) pair to the given regexp data.
+  // This may overwrite an existing mapping.
+  static void PutRegExp(Handle<String> source,
+                        JSRegExp::Flags flags,
+                        Handle<FixedArray> data);
+
   // Associate the (source, kind) pair to the boilerplate. This may
   // overwrite an existing mapping.
-  static void Associate(Handle<String> source,
-                        Entry entry,
-                        Handle<JSFunction> boilerplate);
+  static void PutFunction(Handle<String> source,
+                          Entry entry,
+                          Handle<JSFunction> boilerplate);
 
   // Clear the cache - also used to initialize the cache at startup.
   static void Clear();

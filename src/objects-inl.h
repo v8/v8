@@ -301,6 +301,11 @@ bool Object::IsJSValue() {
 }
 
 
+bool Object::IsStringWrapper() {
+  return IsJSValue() && JSValue::cast(this)->value()->IsString();
+}
+
+
 bool Object::IsProxy() {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() == PROXY_TYPE;
@@ -510,7 +515,7 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
 #define WRITE_BARRIER(object, offset) \
   Heap::RecordWrite(object->address(), offset);
 
-// CONITIONAL_WRITE_BARRIER must be issued after the actual
+// CONDITIONAL_WRITE_BARRIER must be issued after the actual
 // write due to the assert validating the written value.
 #define CONDITIONAL_WRITE_BARRIER(object, offset, mode) \
   if (mode == UPDATE_WRITE_BARRIER) { \
@@ -1130,10 +1135,7 @@ int DescriptorArray::Search(String* name) {
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
   if (name->IsSymbol() && nof < kMaxElementsForLinearSearch) {
-    for (int number = 0; number < nof; number++) {
-      if (name == GetKey(number)) return number;
-    }
-    return kNotFound;
+    return LinearSearch(name, nof);
   }
 
   // Slow case: perform binary search.
@@ -1274,36 +1276,22 @@ bool String::Equals(String* other) {
 int String::length() {
   uint32_t len = READ_INT_FIELD(this, kLengthOffset);
 
-  switch (size_tag()) {
-    case kShortStringTag:
-      return  len >> kShortLengthShift;
-    case kMediumStringTag:
-      return len >> kMediumLengthShift;
-    case kLongStringTag:
-      return len >> kLongLengthShift;
-    default:
-      break;
-  }
-  UNREACHABLE();
-  return 0;
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
+  return len >> (size_tag() + kLongLengthShift);
 }
 
 
 void String::set_length(int value) {
-  switch (size_tag()) {
-    case kShortStringTag:
-      WRITE_INT_FIELD(this, kLengthOffset, value << kShortLengthShift);
-      break;
-    case kMediumStringTag:
-      WRITE_INT_FIELD(this, kLengthOffset, value << kMediumLengthShift);
-      break;
-    case kLongStringTag:
-      WRITE_INT_FIELD(this, kLengthOffset, value << kLongLengthShift);
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
+  WRITE_INT_FIELD(this,
+                  kLengthOffset,
+                  value << (size_tag() + kLongLengthShift));
 }
 
 
@@ -1487,21 +1475,14 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
 int SeqTwoByteString::SeqTwoByteStringSize(Map* map) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
   // Use the map (and not 'this') to compute the size tag, since
   // TwoByteStringSize is called during GC when maps are encoded.
-  switch (map_size_tag(map)) {
-    case kShortStringTag:
-      length = length >> kShortLengthShift;
-      break;
-    case kMediumStringTag:
-      length = length >> kMediumLengthShift;
-      break;
-    case kLongStringTag:
-      length = length >> kLongLengthShift;
-      break;
-    default:
-      break;
-  }
+  length >>= map_size_tag(map) + kLongLengthShift;
+
   return SizeFor(length);
 }
 
@@ -1509,21 +1490,13 @@ int SeqTwoByteString::SeqTwoByteStringSize(Map* map) {
 int SeqAsciiString::SeqAsciiStringSize(Map* map) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
   // Use the map (and not 'this') to compute the size tag, since
   // AsciiStringSize is called during GC when maps are encoded.
-  switch (map_size_tag(map)) {
-    case kShortStringTag:
-      length = length >> kShortLengthShift;
-      break;
-    case kMediumStringTag:
-      length = length >> kMediumLengthShift;
-      break;
-    case kLongStringTag:
-      length = length >> kLongLengthShift;
-      break;
-    default:
-      break;
-  }
+  length >>= map_size_tag(map) + kLongLengthShift;
 
   return SizeFor(length);
 }
@@ -1534,9 +1507,9 @@ Object* ConsString::first() {
 }
 
 
-void ConsString::set_first(Object* value) {
+void ConsString::set_first(Object* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kFirstOffset, value);
-  WRITE_BARRIER(this, kFirstOffset);
+  CONDITIONAL_WRITE_BARRIER(this, kFirstOffset, mode);
 }
 
 
@@ -1545,9 +1518,9 @@ Object* ConsString::second() {
 }
 
 
-void ConsString::set_second(Object* value) {
+void ConsString::set_second(Object* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
-  WRITE_BARRIER(this, kSecondOffset);
+  CONDITIONAL_WRITE_BARRIER(this, kSecondOffset, mode);
 }
 
 
@@ -2071,6 +2044,11 @@ bool JSFunction::is_compiled() {
 }
 
 
+int JSFunction::NumberOfLiterals() {
+  return literals()->length();
+}
+
+
 Object* JSBuiltinsObject::javascript_builtin(Builtins::JavaScript id) {
   ASSERT(0 <= id && id < kJSBuiltinsCount);
   return READ_FIELD(this, kJSBuiltinsOffset + (id * kPointerSize));
@@ -2161,16 +2139,19 @@ ACCESSORS(JSArray, length, Object, kLengthOffset)
 
 
 ACCESSORS(JSRegExp, data, Object, kDataOffset)
-ACCESSORS(JSRegExp, type, Object, kTypeOffset)
 
 
-JSRegExp::Type JSRegExp::type_tag() {
-  return static_cast<JSRegExp::Type>(Smi::cast(type())->value());
+JSRegExp::Type JSRegExp::TypeTag() {
+  Object* data = this->data();
+  if (data->IsUndefined()) return JSRegExp::NOT_COMPILED;
+  Smi* smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
+  return static_cast<JSRegExp::Type>(smi->value());
 }
 
 
-void JSRegExp::set_type_tag(JSRegExp::Type value) {
-  set_type(Smi::FromInt(value));
+Object* JSRegExp::DataAt(int index) {
+  ASSERT(TypeTag() != NOT_COMPILED);
+  return FixedArray::cast(data())->get(index);
 }
 
 
@@ -2351,7 +2332,7 @@ void Map::ClearCodeCache() {
 
 
 void JSArray::SetContent(FixedArray* storage) {
-  set_length(Smi::FromInt(storage->length()));
+  set_length(Smi::FromInt(storage->length()), SKIP_WRITE_BARRIER);
   set_elements(storage);
 }
 

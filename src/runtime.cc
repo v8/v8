@@ -504,7 +504,7 @@ static Object* Runtime_DeclareContextSlot(Arguments args) {
     // "declared" in the function context's extension context, or in the
     // global context.
     Handle<JSObject> context_ext;
-    if (context->extension() != NULL) {
+    if (context->has_extension()) {
       // The function context's extension context exists - use it.
       context_ext = Handle<JSObject>(context->extension());
     } else {
@@ -928,7 +928,7 @@ static Object* Runtime_SetCode(Arguments args) {
       literals->set(JSFunction::kLiteralGlobalContextIndex,
                     context->global_context());
     }
-    target->set_literals(*literals);
+    target->set_literals(*literals, SKIP_WRITE_BARRIER);
   }
 
   target->set_context(*context);
@@ -3134,11 +3134,16 @@ static Object* Runtime_NewArguments(Arguments args) {
   const int length = frame->GetProvidedParametersCount();
   Object* result = Heap::AllocateArgumentsObject(callee, length);
   if (result->IsFailure()) return result;
-  FixedArray* array = FixedArray::cast(JSObject::cast(result)->elements());
-  ASSERT(array->length() == length);
-  WriteBarrierMode mode = array->GetWriteBarrierMode();
-  for (int i = 0; i < length; i++) {
-    array->set(i, frame->GetParameter(i), mode);
+  if (length > 0) {
+    Object* obj =  Heap::AllocateFixedArray(length);
+    if (obj->IsFailure()) return obj;
+    FixedArray* array = FixedArray::cast(obj);
+    ASSERT(array->length() == length);
+    WriteBarrierMode mode = array->GetWriteBarrierMode();
+    for (int i = 0; i < length; i++) {
+      array->set(i, frame->GetParameter(i), mode);
+    }
+    JSObject::cast(result)->set_elements(array);
   }
   return result;
 }
@@ -3154,11 +3159,22 @@ static Object* Runtime_NewArgumentsFast(Arguments args) {
 
   Object* result = Heap::AllocateArgumentsObject(callee, length);
   if (result->IsFailure()) return result;
-  FixedArray* array = FixedArray::cast(JSObject::cast(result)->elements());
-  ASSERT(array->length() == length);
-  WriteBarrierMode mode = array->GetWriteBarrierMode();
-  for (int i = 0; i < length; i++) {
-    array->set(i, *--parameters, mode);
+  ASSERT(Heap::InNewSpace(result));
+
+  // Allocate the elements if needed.
+  if (length > 0) {
+    // Allocate the fixed array.
+    Object* obj = Heap::AllocateRawFixedArray(length);
+    if (obj->IsFailure()) return obj;
+    reinterpret_cast<Array*>(obj)->set_map(Heap::fixed_array_map());
+    FixedArray* array = FixedArray::cast(obj);
+    array->set_length(length);
+    WriteBarrierMode mode = array->GetWriteBarrierMode();
+    for (int i = 0; i < length; i++) {
+      array->set(i, *--parameters, mode);
+    }
+    JSObject::cast(result)->set_elements(FixedArray::cast(obj),
+                                         SKIP_WRITE_BARRIER);
   }
   return result;
 }
@@ -3331,7 +3347,7 @@ static Object* Runtime_LookupContext(Arguments args) {
   Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes);
 
-  if (index < 0 && *holder != NULL) {
+  if (index < 0 && !holder.is_null()) {
     ASSERT(holder->IsJSObject());
     return *holder;
   }
@@ -3348,61 +3364,48 @@ static Object* Runtime_LookupContext(Arguments args) {
 // compiler to do the right thing.
 //
 // TODO(1236026): This is a non-portable hack that should be removed.
-typedef uint64_t ObjPair;
-ObjPair MakePair(Object* x, Object* y) {
+typedef uint64_t ObjectPair;
+static inline ObjectPair MakePair(Object* x, Object* y) {
   return reinterpret_cast<uint32_t>(x) |
-         (reinterpret_cast<ObjPair>(y) << 32);
+      (reinterpret_cast<ObjectPair>(y) << 32);
 }
 
 
-static Object* Unhole(Object* x, PropertyAttributes attributes) {
+static inline Object* Unhole(Object* x, PropertyAttributes attributes) {
   ASSERT(!x->IsTheHole() || (attributes & READ_ONLY) != 0);
   USE(attributes);
   return x->IsTheHole() ? Heap::undefined_value() : x;
 }
 
 
-static Object* ComputeContextSlotReceiver(Object* holder) {
-  // If the "property" we were looking for is a local variable or an
-  // argument in a context, the receiver is the global object; see
-  // ECMA-262, 3rd., 10.1.6 and 10.2.3.
-  HeapObject* object = HeapObject::cast(holder);
+static JSObject* ComputeReceiverForNonGlobal(JSObject* holder) {
+  ASSERT(!holder->IsGlobalObject());
   Context* top = Top::context();
-  if (holder->IsContext()) return top->global()->global_receiver();
-
-  // TODO(125): Find a better - and faster way - of checking for
-  // arguments and context extension objects. This kinda sucks.
+  // Get the context extension function.
   JSFunction* context_extension_function =
       top->global_context()->context_extension_function();
-  JSObject* arguments_boilerplate =
-      top->global_context()->arguments_boilerplate();
-  JSFunction* arguments_function =
-      JSFunction::cast(arguments_boilerplate->map()->constructor());
-  // If the holder is an arguments object or a context extension then the
-  // receiver is also the global object;
-  Object* constructor = HeapObject::cast(holder)->map()->constructor();
-  if (constructor == context_extension_function ||
-      constructor == arguments_function) {
-    return Top::context()->global()->global_receiver();
-  }
-
-  // If the holder is a global object, we have to be careful to wrap
-  // it in its proxy if necessary.
-  if (object->IsGlobalObject()) {
-    return GlobalObject::cast(object)->global_receiver();
-  } else {
-    return object;
-  }
+  // If the holder isn't a context extension object, we just return it
+  // as the receiver. This allows arguments objects to be used as
+  // receivers, but only if they are put in the context scope chain
+  // explicitly via a with-statement.
+  Object* constructor = holder->map()->constructor();
+  if (constructor != context_extension_function) return holder;
+  // Fall back to using the global object as the receiver if the
+  // property turns out to be a local variable allocated in a context
+  // extension object - introduced via eval.
+  return top->global()->global_receiver();
 }
 
 
-static ObjPair LoadContextSlotHelper(Arguments args, bool throw_error) {
+static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   HandleScope scope;
   ASSERT(args.length() == 2);
 
-  if (!args[0]->IsContext()) return MakePair(IllegalOperation(), NULL);
+  if (!args[0]->IsContext() || !args[1]->IsString()) {
+    return MakePair(IllegalOperation(), NULL);
+  }
   Handle<Context> context = args.at<Context>(0);
-  Handle<String> name(String::cast(args[1]));
+  Handle<String> name = args.at<String>(1);
 
   int index;
   PropertyAttributes attributes;
@@ -3410,29 +3413,31 @@ static ObjPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes);
 
+  // If the index is non-negative, the slot has been found in a local
+  // variable or a parameter. Read it from the context object or the
+  // arguments object.
   if (index >= 0) {
-    Handle<Object> receiver =
-        Handle<Object>(ComputeContextSlotReceiver(*holder));
-    Handle<Object> value;
-    if (holder->IsContext()) {
-      value = Handle<Object>(Context::cast(*holder)->get(index));
-    } else {
-      // Arguments object.
-      value = Handle<Object>(JSObject::cast(*holder)->GetElement(index));
-    }
-    return MakePair(Unhole(*value, attributes), *receiver);
+    // If the "property" we were looking for is a local variable or an
+    // argument in a context, the receiver is the global object; see
+    // ECMA-262, 3rd., 10.1.6 and 10.2.3.
+    JSObject* receiver = Top::context()->global()->global_receiver();
+    Object* value = (holder->IsContext())
+        ? Context::cast(*holder)->get(index)
+        : JSObject::cast(*holder)->GetElement(index);
+    return MakePair(Unhole(value, attributes), receiver);
   }
 
-  if (*holder != NULL) {
-    ASSERT(Handle<JSObject>::cast(holder)->HasProperty(*name));
-    // Note: As of 5/29/2008, GetProperty does the "unholing" and so
-    // this call here is redundant. We left it anyway, to be explicit;
-    // also it's not clear why GetProperty should do the unholing in
-    // the first place.
-    return MakePair(
-        Unhole(Handle<JSObject>::cast(holder)->GetProperty(*name),
-               attributes),
-        ComputeContextSlotReceiver(*holder));
+  // If the holder is found, we read the property from it.
+  if (!holder.is_null() && holder->IsJSObject()) {
+    JSObject* object = JSObject::cast(*holder);
+    ASSERT(object->HasProperty(*name));
+    JSObject* receiver = (object->IsGlobalObject())
+        ? GlobalObject::cast(object)->global_receiver()
+        : ComputeReceiverForNonGlobal(object);
+    // No need to unhole the value here. This is taken care of by the
+    // GetProperty function.
+    Object* value = object->GetProperty(*name);
+    return MakePair(value, receiver);
   }
 
   if (throw_error) {
@@ -3447,12 +3452,12 @@ static ObjPair LoadContextSlotHelper(Arguments args, bool throw_error) {
 }
 
 
-static ObjPair Runtime_LoadContextSlot(Arguments args) {
+static ObjectPair Runtime_LoadContextSlot(Arguments args) {
   return LoadContextSlotHelper(args, true);
 }
 
 
-static ObjPair Runtime_LoadContextSlotNoReferenceError(Arguments args) {
+static ObjectPair Runtime_LoadContextSlotNoReferenceError(Arguments args) {
   return LoadContextSlotHelper(args, false);
 }
 
@@ -3491,7 +3496,7 @@ static Object* Runtime_StoreContextSlot(Arguments args) {
   // It is either in an JSObject extension context or it was not found.
   Handle<JSObject> context_ext;
 
-  if (*holder != NULL) {
+  if (!holder.is_null()) {
     // The property exists in the extension context.
     context_ext = Handle<JSObject>::cast(holder);
   } else {
@@ -3564,10 +3569,10 @@ static Object* RuntimePreempt(Arguments args) {
 }
 
 
-static Object* Runtime_DebugBreak(Arguments args) {
+static Object* DebugBreakHelper() {
   // Just continue if breaks are disabled.
   if (Debug::disable_break()) {
-    return args[0];
+    return Heap::undefined_value();
   }
 
   // Don't break in system functions. If the current function is
@@ -3579,7 +3584,7 @@ static Object* Runtime_DebugBreak(Arguments args) {
   if (fun->IsJSFunction()) {
     GlobalObject* global = JSFunction::cast(fun)->context()->global();
     if (global->IsJSBuiltinsObject() || Debug::IsDebugGlobal(global)) {
-      return args[0];
+      return Heap::undefined_value();
     }
   }
 
@@ -3590,14 +3595,20 @@ static Object* Runtime_DebugBreak(Arguments args) {
   // Enter the debugger. Just continue if we fail to enter the debugger.
   EnterDebugger debugger;
   if (debugger.FailedToEnter()) {
-    return args[0];
+    return Heap::undefined_value();
   }
 
   // Notify the debug event listeners.
   Debugger::OnDebugBreak(Factory::undefined_value());
 
   // Return to continue execution.
-  return args[0];
+  return Heap::undefined_value();
+}
+
+
+static Object* Runtime_DebugBreak(Arguments args) {
+  ASSERT(args.length() == 0);
+  return DebugBreakHelper();
 }
 
 
@@ -3609,7 +3620,7 @@ static Object* Runtime_StackGuard(Arguments args) {
 
   // If not real stack overflow the stack guard was used to interrupt
   // execution for another purpose.
-  if (StackGuard::IsDebugBreak()) Runtime_DebugBreak(args);
+  if (StackGuard::IsDebugBreak()) DebugBreakHelper();
   if (StackGuard::IsPreempted()) RuntimePreempt(args);
   if (StackGuard::IsInterrupted()) {
     // interrupt
@@ -3707,9 +3718,10 @@ static void PrintTransition(Object* result) {
 
 
 static Object* Runtime_TraceEnter(Arguments args) {
+  ASSERT(args.length() == 0);
   NoHandleAllocation ha;
   PrintTransition(NULL);
-  return args[0];  // return TOS
+  return Heap::undefined_value();
 }
 
 
@@ -3748,10 +3760,10 @@ static Object* Runtime_DebugPrint(Arguments args) {
 
 
 static Object* Runtime_DebugTrace(Arguments args) {
-  ASSERT(args.length() == 1);
+  ASSERT(args.length() == 0);
   NoHandleAllocation ha;
   Top::PrintStack();
-  return args[0];  // return TOS
+  return Heap::undefined_value();
 }
 
 
@@ -4484,7 +4496,7 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
       Handle<String> name = info.LocalName(i);
       // Traverse the context chain to the function context as all local
       // variables stored in the context will be on the function context.
-      while (context->previous() != NULL) {
+      while (!context->is_function_context()) {
         context = Handle<Context>(context->previous());
       }
       ASSERT(context->is_function_context());
@@ -4900,13 +4912,13 @@ static Handle<Object> GetArgumentsObject(JavaScriptFrame* frame,
   }
 
   const int length = frame->GetProvidedParametersCount();
-  Handle<Object> arguments = Factory::NewArgumentsObject(function, length);
-  FixedArray* array = FixedArray::cast(JSObject::cast(*arguments)->elements());
-  ASSERT(array->length() == length);
+  Handle<JSObject> arguments = Factory::NewArgumentsObject(function, length);
+  Handle<FixedArray> array = Factory::NewFixedArray(length);
   WriteBarrierMode mode = array->GetWriteBarrierMode();
   for (int i = 0; i < length; i++) {
     array->set(i, frame->GetParameter(i), mode);
   }
+  arguments->set_elements(*array);
   return arguments;
 }
 
@@ -5000,7 +5012,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   }
   // Finally copy any properties from the function context extension. This will
   // be variables introduced by eval.
-  if (function_context->extension() != NULL &&
+  if (function_context->has_extension() &&
       !function_context->IsGlobalContext()) {
     Handle<JSObject> ext(JSObject::cast(function_context->extension()));
     Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext);

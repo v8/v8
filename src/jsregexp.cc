@@ -30,10 +30,20 @@
 #include "execution.h"
 #include "factory.h"
 #include "jsregexp.h"
-#include "third_party/jscre/pcre.h"
 #include "platform.h"
 #include "runtime.h"
 #include "top.h"
+#include "compilation-cache.h"
+
+// Including pcre.h undefines DEBUG to avoid getting debug output from
+// the JSCRE implementation. Make sure to redefine it in debug mode
+// after having included the header file.
+#ifdef DEBUG
+#include "third_party/jscre/pcre.h"
+#define DEBUG
+#else
+#include "third_party/jscre/pcre.h"
+#endif
 
 namespace v8 { namespace internal {
 
@@ -143,29 +153,59 @@ Handle<String> RegExpImpl::StringToTwoByte(Handle<String> pattern) {
 }
 
 
+static JSRegExp::Flags RegExpFlagsFromString(Handle<String> str) {
+  int flags = JSRegExp::NONE;
+  for (int i = 0; i < str->length(); i++) {
+    switch (str->Get(i)) {
+      case 'i':
+        flags |= JSRegExp::IGNORE_CASE;
+        break;
+      case 'g':
+        flags |= JSRegExp::GLOBAL;
+        break;
+      case 'm':
+        flags |= JSRegExp::MULTILINE;
+        break;
+    }
+  }
+  return JSRegExp::Flags(flags);
+}
+
+
 unibrow::Predicate<unibrow::RegExpSpecialChar, 128> is_reg_exp_special_char;
 
 
 Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                    Handle<String> pattern,
-                                   Handle<String> flags) {
-  bool is_atom = true;
-  for (int i = 0; is_atom && i < flags->length(); i++) {
-    if (flags->Get(i) == 'i')
-      is_atom = false;
-  }
-  for (int i = 0; is_atom && i < pattern->length(); i++) {
-    if (is_reg_exp_special_char.get(pattern->Get(i)))
-      is_atom = false;
-  }
+                                   Handle<String> flag_str) {
+  JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
+  Handle<FixedArray> cached = CompilationCache::LookupRegExp(pattern, flags);
+  bool in_cache = !cached.is_null();
   Handle<Object> result;
-  if (is_atom) {
-    result = AtomCompile(re, pattern);
+  if (in_cache) {
+    re->set_data(*cached);
+    result = re;
   } else {
-    result = JsreCompile(re, pattern, flags);
+    bool is_atom = !flags.is_ignore_case();
+    for (int i = 0; is_atom && i < pattern->length(); i++) {
+      if (is_reg_exp_special_char.get(pattern->Get(i)))
+        is_atom = false;
+    }
+    if (is_atom) {
+      result = AtomCompile(re, pattern, flags);
+    } else {
+      result = JsreCompile(re, pattern, flags);
+    }
+    Object* data = re->data();
+    if (data->IsFixedArray()) {
+      // If compilation succeeded then the data is set on the regexp
+      // and we can store it in the cache.
+      Handle<FixedArray> data(FixedArray::cast(re->data()));
+      CompilationCache::PutRegExp(pattern, flags, data);
+    }
   }
 
-  LOG(RegExpCompileEvent(re));
+  LOG(RegExpCompileEvent(re, in_cache));
   return result;
 }
 
@@ -173,7 +213,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
 Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
                                 Handle<String> subject,
                                 Handle<Object> index) {
-  switch (regexp->type_tag()) {
+  switch (regexp->TypeTag()) {
     case JSRegExp::JSCRE:
       return JsreExec(regexp, subject, index);
     case JSRegExp::ATOM:
@@ -187,7 +227,7 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
 
 Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
                                 Handle<String> subject) {
-  switch (regexp->type_tag()) {
+  switch (regexp->TypeTag()) {
     case JSRegExp::JSCRE:
       return JsreExecGlobal(regexp, subject);
     case JSRegExp::ATOM:
@@ -200,9 +240,9 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
 
 
 Handle<Object> RegExpImpl::AtomCompile(Handle<JSRegExp> re,
-                                       Handle<String> pattern) {
-  re->set_type_tag(JSRegExp::ATOM);
-  re->set_data(*pattern);
+                                       Handle<String> pattern,
+                                       JSRegExp::Flags flags) {
+  Factory::SetRegExpData(re, JSRegExp::ATOM, pattern, flags, pattern);
   return re;
 }
 
@@ -210,7 +250,7 @@ Handle<Object> RegExpImpl::AtomCompile(Handle<JSRegExp> re,
 Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                     Handle<String> subject,
                                     Handle<Object> index) {
-  Handle<String> needle(String::cast(re->data()));
+  Handle<String> needle(String::cast(re->DataAt(JSRegExp::kAtomPatternIndex)));
 
   uint32_t start_index;
   if (!Array::IndexFromObject(*index, &start_index)) {
@@ -234,7 +274,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
 
 Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
                                           Handle<String> subject) {
-  Handle<String> needle(String::cast(re->data()));
+  Handle<String> needle(String::cast(re->DataAt(JSRegExp::kAtomPatternIndex)));
   Handle<JSArray> result = Factory::NewJSArray(1);
   int index = 0;
   int match_count = 0;
@@ -269,14 +309,13 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
 
 Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
                                        Handle<String> pattern,
-                                       Handle<String> flags) {
-  JSRegExpIgnoreCaseOption case_option = JSRegExpDoNotIgnoreCase;
-  JSRegExpMultilineOption multiline_option = JSRegExpSingleLine;
-  FlattenString(flags);
-  for (int i = 0; i < flags->length(); i++) {
-    if (flags->Get(i) == 'i') case_option = JSRegExpIgnoreCase;
-    if (flags->Get(i) == 'm') multiline_option = JSRegExpMultiline;
-  }
+                                       JSRegExp::Flags flags) {
+  JSRegExpIgnoreCaseOption case_option = flags.is_ignore_case()
+    ? JSRegExpIgnoreCase
+    : JSRegExpDoNotIgnoreCase;
+  JSRegExpMultilineOption multiline_option = flags.is_multiline()
+    ? JSRegExpMultiline
+    : JSRegExpSingleLine;
 
   Handle<String> two_byte_pattern = StringToTwoByte(pattern);
 
@@ -328,8 +367,7 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
     Handle<FixedArray> value = Factory::NewFixedArray(2);
     value->set(CAPTURE_INDEX, Smi::FromInt(number_of_captures));
     value->set(INTERNAL_INDEX, *internal);
-    re->set_type_tag(JSRegExp::JSCRE);
-    re->set_data(*value);
+    Factory::SetRegExpData(re, JSRegExp::JSCRE, pattern, flags, value);
 
     return re;
   }
@@ -499,16 +537,14 @@ Handle<Object> RegExpImpl::JsreExecGlobal(Handle<JSRegExp> regexp,
 
 
 int RegExpImpl::JsreCapture(Handle<JSRegExp> re) {
-  Object* value = re->data();
-  ASSERT(value->IsFixedArray());
-  return Smi::cast(FixedArray::cast(value)->get(CAPTURE_INDEX))->value();
+  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
+  return Smi::cast(value->get(CAPTURE_INDEX))->value();
 }
 
 
 ByteArray* RegExpImpl::JsreInternal(Handle<JSRegExp> re) {
-  Object* value = re->data();
-  ASSERT(value->IsFixedArray());
-  return ByteArray::cast(FixedArray::cast(value)->get(INTERNAL_INDEX));
+  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
+  return ByteArray::cast(value->get(INTERNAL_INDEX));
 }
 
 }}  // namespace v8::internal

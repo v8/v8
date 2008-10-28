@@ -98,14 +98,8 @@ class StubCache : public AllStatic {
 
   static Object* ComputeKeyedLoadArrayLength(String* name, JSArray* receiver);
 
-  static Object* ComputeKeyedLoadShortStringLength(String* name,
-                                                   String* receiver);
-
-  static Object* ComputeKeyedLoadMediumStringLength(String* name,
-                                                    String* receiver);
-
-  static Object* ComputeKeyedLoadLongStringLength(String* name,
-                                                  String* receiver);
+  static Object* ComputeKeyedLoadStringLength(String* name,
+                                              String* receiver);
 
   static Object* ComputeKeyedLoadFunctionPrototype(String* name,
                                                    JSFunction* receiver);
@@ -341,18 +335,10 @@ class StubCompiler BASE_EMBEDDED {
                                       Register receiver,
                                       Register scratch,
                                       Label* miss_label);
-  static void GenerateLoadShortStringLength(MacroAssembler* masm,
-                                            Register receiver,
-                                            Register scratch,
-                                            Label* miss_label);
-  static void GenerateLoadMediumStringLength(MacroAssembler* masm,
-                                             Register receiver,
-                                             Register scratch,
-                                             Label* miss_label);
-  static void GenerateLoadLongStringLength(MacroAssembler* masm,
-                                           Register receiver,
-                                           Register scratch,
-                                           Label* miss_label);
+  static void GenerateLoadStringLength(MacroAssembler* masm,
+                                       Register receiver,
+                                       Register scratch,
+                                       Label* miss_label);
   static void GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,
@@ -415,9 +401,7 @@ class KeyedLoadStubCompiler: public StubCompiler {
                                  JSObject* holder,
                                  String* name);
   Object* CompileLoadArrayLength(String* name);
-  Object* CompileLoadShortStringLength(String* name);
-  Object* CompileLoadMediumStringLength(String* name);
-  Object* CompileLoadLongStringLength(String* name);
+  Object* CompileLoadStringLength(String* name);
   Object* CompileLoadFunctionPrototype(String* name);
 
  private:

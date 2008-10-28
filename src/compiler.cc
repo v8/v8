@@ -189,7 +189,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
     // Compile the function and add it to the cache.
     result = MakeFunction(true, false, script, extension, pre_data);
     if (extension == NULL && !result.is_null()) {
-      CompilationCache::Associate(source, CompilationCache::SCRIPT, result);
+      CompilationCache::PutFunction(source, CompilationCache::SCRIPT, result);
     }
 
     // Get rid of the pre-parsing data (if necessary).
@@ -223,7 +223,7 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
     script->set_line_offset(Smi::FromInt(line_offset));
     result = MakeFunction(is_global, true, script, NULL, NULL);
     if (!result.is_null()) {
-      CompilationCache::Associate(source, entry, result);
+      CompilationCache::PutFunction(source, entry, result);
     }
   }
   return result;

@@ -69,9 +69,7 @@ namespace v8 { namespace internal {
   V(LoadIC_PreMonomorphic,      LOAD_IC, PREMONOMORPHIC)       \
   V(LoadIC_Normal,              LOAD_IC, MONOMORPHIC)          \
   V(LoadIC_ArrayLength,         LOAD_IC, MONOMORPHIC)          \
-  V(LoadIC_ShortStringLength,   LOAD_IC, MONOMORPHIC)          \
-  V(LoadIC_MediumStringLength,  LOAD_IC, MONOMORPHIC)          \
-  V(LoadIC_LongStringLength,    LOAD_IC, MONOMORPHIC)          \
+  V(LoadIC_StringLength,        LOAD_IC, MONOMORPHIC)          \
   V(LoadIC_FunctionPrototype,   LOAD_IC, MONOMORPHIC)          \
   V(LoadIC_Megamorphic,         LOAD_IC, MEGAMORPHIC)          \
   V(LoadIC_DebugBreak,          LOAD_IC, DEBUG_BREAK)          \

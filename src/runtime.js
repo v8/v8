@@ -78,12 +78,15 @@ function EQUALS(y) {
       // NOTE: This checks for both null and undefined.
       return (y == null) ? 0 : 1;
     } else {
+      // x is not a number, boolean, null or undefined.
+      if (y == null) return 1;  // not equal
       if (IS_OBJECT(y)) {
         return %_ObjectEquals(x, y) ? 0 : 1;
       }
       if (IS_FUNCTION(y)) {
         return %_ObjectEquals(x, y) ? 0 : 1;
       }
+
       x = %ToPrimitive(x, NO_HINT);
     }
   }

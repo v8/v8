@@ -159,71 +159,55 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
 }
 
 
-void StubCompiler::GenerateLoadShortStringLength(MacroAssembler* masm,
-                                                 Register receiver,
-                                                 Register scratch,
-                                                 Label* miss_label) {
-  // Check that the receiver isn't a smi.
+// Generate code to check if an object is a string.  If the object is
+// a string, the map's instance type is left in the scratch register.
+static void GenerateStringCheck(MacroAssembler* masm,
+                                Register receiver,
+                                Register scratch,
+                                Label* smi,
+                                Label* non_string_object) {
+  // Check that the object isn't a smi.
   __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss_label, not_taken);
+  __ j(zero, smi, not_taken);
 
-  // Check that the object is a short string.
+  // Check that the object is a string.
   __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ and_(scratch, kIsNotStringMask | kStringSizeMask);
-  __ cmp(scratch, kStringTag | kShortStringTag);
-  __ j(not_equal, miss_label, not_taken);
-
-  // Load length directly from the string.
-  __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
-  __ shr(eax, String::kShortLengthShift);
-  __ shl(eax, kSmiTagSize);
-  __ ret(0);
-}
-
-void StubCompiler::GenerateLoadMediumStringLength(MacroAssembler* masm,
-                                                  Register receiver,
-                                                  Register scratch,
-                                                  Label* miss_label) {
-  // Check that the receiver isn't a smi.
-  __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss_label, not_taken);
-
-  // Check that the object is a short string.
-  __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ and_(scratch, kIsNotStringMask | kStringSizeMask);
-  __ cmp(scratch, kStringTag | kMediumStringTag);
-  __ j(not_equal, miss_label, not_taken);
-
-  // Load length directly from the string.
-  __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
-  __ shr(eax, String::kMediumLengthShift);
-  __ shl(eax, kSmiTagSize);
-  __ ret(0);
+  ASSERT(kNotStringTag != 0);
+  __ test(scratch, Immediate(kNotStringTag));
+  __ j(not_zero, non_string_object, not_taken);
 }
 
 
-void StubCompiler::GenerateLoadLongStringLength(MacroAssembler* masm,
-                                                Register receiver,
-                                                Register scratch,
-                                                Label* miss_label) {
-  // Check that the receiver isn't a smi.
-  __ test(receiver, Immediate(kSmiTagMask));
-  __ j(zero, miss_label, not_taken);
+void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
+                                            Register receiver,
+                                            Register scratch,
+                                            Label* miss) {
+  Label load_length, check_wrapper;
 
-  // Check that the object is a short string.
-  __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ and_(scratch, kIsNotStringMask | kStringSizeMask);
-  __ cmp(scratch, kStringTag | kLongStringTag);
-  __ j(not_equal, miss_label, not_taken);
+  // Check if the object is a string.
+  GenerateStringCheck(masm, receiver, scratch, miss, &check_wrapper);
 
   // Load length directly from the string.
+  __ bind(&load_length);
+  __ and_(scratch, kStringSizeMask);
   __ mov(eax, FieldOperand(receiver, String::kLengthOffset));
-  __ shr(eax, String::kLongLengthShift);
+  // ecx is also the receiver.
+  __ lea(ecx, Operand(scratch, String::kLongLengthShift));
+  __ shr(eax);  // ecx is implicit shift register.
   __ shl(eax, kSmiTagSize);
   __ ret(0);
+
+  // Check if the object is a JSValue wrapper.
+  __ bind(&check_wrapper);
+  __ cmp(receiver, JS_VALUE_TYPE);
+  __ j(not_equal, miss, not_taken);
+
+  // Check if the wrapped value is a string and load the length
+  // directly if it is.
+  __ mov(receiver, FieldOperand(receiver, JSValue::kValueOffset));
+  GenerateStringCheck(masm, receiver, scratch, miss, miss);
+  __ jmp(&load_length);
 }
 
 
@@ -478,6 +462,7 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
   __ CallRuntime(Runtime::kLazyCompile, 1);
   __ pop(edi);
 
+  // Tear down temporary frame.
   __ LeaveInternalFrame();
 
   // Do a tail-call of the compiled function.
@@ -519,6 +504,13 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   __ cmp(ebx, JS_FUNCTION_TYPE);
   __ j(not_equal, &miss, not_taken);
 
+  // Patch the receiver on the stack with the global proxy if
+  // necessary.
+  if (object->IsGlobalObject()) {
+    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
+    __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
+  }
+
   // Invoke the function.
   __ InvokeFunction(edi, arguments(), JUMP_FUNCTION);
 
@@ -552,10 +544,21 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
     __ j(zero, &miss, not_taken);
   }
 
+  // Make sure that it's okay not to patch the on stack receiver
+  // unless we're doing a receiver map check.
+  ASSERT(!object->IsGlobalObject() || check == RECEIVER_MAP_CHECK);
+
   switch (check) {
     case RECEIVER_MAP_CHECK:
       // Check that the maps haven't changed.
       __ CheckMaps(JSObject::cast(object), edx, holder, ebx, ecx, &miss);
+
+      // Patch the receiver on the stack with the global proxy if
+      // necessary.
+      if (object->IsGlobalObject()) {
+        __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
+        __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
+      }
       break;
 
     case STRING_CHECK:
@@ -657,6 +660,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
 
   // Get the receiver from the stack.
   __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
+
   // Check that the receiver isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
   __ j(zero, &miss, not_taken);
@@ -696,6 +700,13 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ cmp(ebx, JS_FUNCTION_TYPE);
   __ j(not_equal, &miss, not_taken);
+
+  // Patch the receiver on the stack with the global proxy if
+  // necessary.
+  if (object->IsGlobalObject()) {
+    __ mov(edx, FieldOperand(edx, GlobalObject::kGlobalReceiverOffset));
+    __ mov(Operand(esp, (argc + 1) * kPointerSize), edx);
+  }
 
   // Invoke the function.
   __ InvokeFunction(edi, arguments(), JUMP_FUNCTION);
@@ -1140,7 +1151,7 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
 }
 
 
-Object* KeyedLoadStubCompiler::CompileLoadShortStringLength(String* name) {
+Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   // ----------- S t a t e -------------
   //  -- esp[0] : return address
   //  -- esp[4] : name
@@ -1157,61 +1168,7 @@ Object* KeyedLoadStubCompiler::CompileLoadShortStringLength(String* name) {
   __ cmp(Operand(eax), Immediate(Handle<String>(name)));
   __ j(not_equal, &miss, not_taken);
 
-  GenerateLoadShortStringLength(masm(), ecx, edx, &miss);
-  __ bind(&miss);
-  __ DecrementCounter(&Counters::keyed_load_string_length, 1);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(CALLBACKS);
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadMediumStringLength(String* name) {
-  // ----------- S t a t e -------------
-  //  -- esp[0] : return address
-  //  -- esp[4] : name
-  //  -- esp[8] : receiver
-  // -----------------------------------
-  HandleScope scope;
-  Label miss;
-
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
-  __ IncrementCounter(&Counters::keyed_load_string_length, 1);
-
-  // Check that the name has not changed.
-  __ cmp(Operand(eax), Immediate(Handle<String>(name)));
-  __ j(not_equal, &miss, not_taken);
-
-  GenerateLoadMediumStringLength(masm(), ecx, edx, &miss);
-  __ bind(&miss);
-  __ DecrementCounter(&Counters::keyed_load_string_length, 1);
-  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
-
-  // Return the generated code.
-  return GetCode(CALLBACKS);
-}
-
-
-Object* KeyedLoadStubCompiler::CompileLoadLongStringLength(String* name) {
-  // ----------- S t a t e -------------
-  //  -- esp[0] : return address
-  //  -- esp[4] : name
-  //  -- esp[8] : receiver
-  // -----------------------------------
-  HandleScope scope;
-  Label miss;
-
-  __ mov(eax, (Operand(esp, kPointerSize)));
-  __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
-  __ IncrementCounter(&Counters::keyed_load_string_length, 1);
-
-  // Check that the name has not changed.
-  __ cmp(Operand(eax), Immediate(Handle<String>(name)));
-  __ j(not_equal, &miss, not_taken);
-
-  GenerateLoadLongStringLength(masm(), ecx, edx, &miss);
+  GenerateLoadStringLength(masm(), ecx, edx, &miss);
   __ bind(&miss);
   __ DecrementCounter(&Counters::keyed_load_string_length, 1);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
