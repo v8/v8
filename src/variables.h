@@ -61,6 +61,48 @@ class UseCount BASE_EMBEDDED {
 };
 
 
+// Variables and AST expression nodes can track their "type" to enable
+// optimizations and removal of redundant checks when generating code.
+
+class StaticType BASE_EMBEDDED {
+ public:
+  enum Kind {
+    UNKNOWN,
+    LIKELY_SMI
+  };
+
+  StaticType() : kind_(UNKNOWN) {}
+
+  bool Is(Kind kind) const { return kind_ == kind; }
+
+  bool IsKnown() const { return !Is(UNKNOWN); }
+  bool IsUnknown() const { return Is(UNKNOWN); }
+  bool IsLikelySmi() const { return Is(LIKELY_SMI); }
+
+  void CopyFrom(StaticType* other) {
+    kind_ = other->kind_;
+  }
+
+  static char* Type2String(StaticType* type);
+
+  // LIKELY_SMI accessors
+  void SetAsLikelySmi() {
+    kind_ = LIKELY_SMI;
+  }
+
+  void SetAsLikelySmiIfUnknown() {
+    if (IsUnknown()) {
+      SetAsLikelySmi();
+    }
+  }
+
+ private:
+  Kind kind_;
+
+  DISALLOW_COPY_AND_ASSIGN(StaticType);
+};
+
+
 // The AST refers to variables via VariableProxies - placeholders for the actual
 // variables. Variables themselves are never directly referred to from the AST,
 // they are maintained by scopes, and referred to from VariableProxies and Slots
@@ -114,6 +156,8 @@ class Variable: public ZoneObject {
   Expression* rewrite() const  { return rewrite_; }
   Slot* slot() const;
 
+  StaticType* type() { return &type_; }
+
  private:
   Variable(Scope* scope, Handle<String> name, Mode mode, bool is_valid_LHS,
       bool is_this);
@@ -128,6 +172,9 @@ class Variable: public ZoneObject {
   bool is_accessed_from_inner_scope_;  // set by variable resolver
   UseCount var_uses_;  // uses of the variable value
   UseCount obj_uses_;  // uses of the object the variable points to
+
+  // Static type information
+  StaticType type_;
 
   // Code generation.
   // rewrite_ is usually a Slot or a Property, but maybe any expression.

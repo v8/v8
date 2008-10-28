@@ -175,7 +175,8 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
       cc_reg_(no_condition),
       state_(NULL),
       is_inside_try_(false),
-      break_stack_height_(0) {
+      break_stack_height_(0),
+      loop_nesting_(0) {
 }
 
 
@@ -786,6 +787,7 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
+                                           StaticType* type,
                                            OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
@@ -808,11 +810,19 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     case Token::SHL:
     case Token::SHR:
     case Token::SAR:
-      flags = SMI_CODE_INLINED;
+      // Bit operations always assume they likely operate on Smis. Still only
+      // generate the inline Smi check code if this operation is part of a loop.
+      flags = (loop_nesting() > 0)
+              ? SMI_CODE_INLINED
+              : SMI_CODE_IN_STUB;
       break;
 
     default:
-      flags = SMI_CODE_IN_STUB;
+      // By default only inline the Smi check code for likely smis if this
+      // operation is part of a loop.
+      flags = ((loop_nesting() > 0) && type->IsLikelySmi())
+              ? SMI_CODE_INLINED
+              : SMI_CODE_IN_STUB;
       break;
   }
 
@@ -985,6 +995,7 @@ class DeferredInlinedSmiSubReversed: public DeferredCode {
 
 
 void CodeGenerator::SmiOperation(Token::Value op,
+                                 StaticType* type,
                                  Handle<Object> value,
                                  bool reversed,
                                  OverwriteMode overwrite_mode) {
@@ -1046,7 +1057,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Pop(eax);
         frame_->Push(Immediate(value));
         frame_->Push(eax);
-        GenericBinaryOperation(op, overwrite_mode);
+        GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
@@ -1068,7 +1079,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Pop(eax);
         frame_->Push(Immediate(value));
         frame_->Push(eax);
-        GenericBinaryOperation(op, overwrite_mode);
+        GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
@@ -1096,7 +1107,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Pop(eax);
         frame_->Push(Immediate(value));
         frame_->Push(eax);
-        GenericBinaryOperation(op, overwrite_mode);
+        GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
@@ -1155,7 +1166,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Push(Immediate(value));
         frame_->Push(eax);
       }
-      GenericBinaryOperation(op, overwrite_mode);
+      GenericBinaryOperation(op, type, overwrite_mode);
       break;
     }
   }
@@ -1747,6 +1758,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     __ jmp(&entry);
   }
 
+  IncrementLoopNesting();
+
   // body
   __ bind(&loop);
   CheckStack();  // TODO(1222600): ignore if body contains calls.
@@ -1778,6 +1791,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       Branch(true, &loop);
       break;
   }
+
+  DecrementLoopNesting();
 
   // exit
   __ bind(node->break_target());
@@ -2587,10 +2602,11 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     target.GetValue(NOT_INSIDE_TYPEOF);
     Literal* literal = node->value()->AsLiteral();
     if (IsInlineSmi(literal)) {
-      SmiOperation(node->binary_op(), literal->handle(), false, NO_OVERWRITE);
+      SmiOperation(node->binary_op(), node->type(), literal->handle(), false,
+                   NO_OVERWRITE);
     } else {
       Load(node->value());
-      GenericBinaryOperation(node->binary_op());
+      GenericBinaryOperation(node->binary_op(), node->type());
     }
   }
 
@@ -3452,16 +3468,16 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
     if (IsInlineSmi(rliteral)) {
       Load(node->left());
-      SmiOperation(node->op(), rliteral->handle(), false, overwrite_mode);
-
+      SmiOperation(node->op(), node->type(), rliteral->handle(), false,
+                   overwrite_mode);
     } else if (IsInlineSmi(lliteral)) {
       Load(node->right());
-      SmiOperation(node->op(), lliteral->handle(), true, overwrite_mode);
-
+      SmiOperation(node->op(), node->type(), lliteral->handle(), true,
+                   overwrite_mode);
     } else {
       Load(node->left());
       Load(node->right());
-      GenericBinaryOperation(node->op(), overwrite_mode);
+      GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
     }
   }
 }

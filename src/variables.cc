@@ -85,6 +85,23 @@ void UseCount::Print() {
 
 
 // ----------------------------------------------------------------------------
+// Implementation StaticType.
+
+
+char* StaticType::Type2String(StaticType* type) {
+  switch (type->kind_) {
+    case UNKNOWN:
+      return "UNKNOWN";
+    case LIKELY_SMI:
+      return "LIKELY_SMI";
+    default:
+      UNREACHABLE();
+  }
+  return "UNREACHABLE";
+}
+
+
+// ----------------------------------------------------------------------------
 // Implementation Variable.
 
 

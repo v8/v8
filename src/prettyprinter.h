@@ -101,7 +101,8 @@ class AstPrinter: public PrettyPrinter {
   void PrintLiteralIndented(const char* info, Handle<Object> value, bool quote);
   void PrintLiteralWithModeIndented(const char* info,
                                     Variable* var,
-                                    Handle<Object> value);
+                                    Handle<Object> value,
+                                    StaticType* type);
   void PrintLabelsIndented(const char* info, ZoneStringList* labels);
 
   void inc_indent() { indent_++; }

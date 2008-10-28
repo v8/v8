@@ -65,6 +65,9 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
   }
 #endif
 
+  // Optimize the AST.
+  Rewriter::Optimize(literal);
+
   // Generate code and return it.
   Handle<Code> result = CodeGenerator::MakeCode(literal, script, is_eval);
   return result;

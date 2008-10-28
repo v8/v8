@@ -150,6 +150,12 @@ class Expression: public Node {
   // statement. This is used to transform postfix increments to
   // (faster) prefix increments.
   virtual void MarkAsStatement() { /* do nothing */ }
+
+  // Static type information for this expression.
+  StaticType* type() { return &type_; }
+
+ private:
+  StaticType type_;
 };
 
 
