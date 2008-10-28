@@ -4009,7 +4009,7 @@ class ArrayConcatVisitor {
   void visit(uint32_t i, Handle<Object> elm) {
     uint32_t index = i + index_offset_;
     if (index >= index_limit_) return;
- 
+
     if (fast_elements_) {
       ASSERT(index < static_cast<uint32_t>(storage_->length()));
       storage_->set(index, *elm);
