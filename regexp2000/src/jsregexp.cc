@@ -795,6 +795,14 @@ void* RegExpCompiler<Char>::VisitLookahead(RegExpLookahead* that,
 
 
 template <typename Char>
+void* RegExpCompiler<Char>::VisitBackreference(RegExpBackreference* that,
+                                               void* rest) {
+  UNIMPLEMENTED();
+  return NULL;
+}
+
+
+template <typename Char>
 void* RegExpCompiler<Char>::VisitEmpty(RegExpEmpty* that, void* rest) {
   return rest;
 }

@@ -328,6 +328,13 @@ void* RegExpUnparser::VisitLookahead(RegExpLookahead* that, void* data) {
 }
 
 
+void* RegExpUnparser::VisitBackreference(RegExpBackreference* that,
+                                         void* data) {
+  stream()->Add("(<- %i)", that->index());
+  return NULL;
+}
+
+
 void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
   stream()->Put('%');
   return NULL;

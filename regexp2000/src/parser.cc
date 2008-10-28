@@ -252,6 +252,12 @@ class RegExpParser {
   uc32 ParseControlEscape(bool* ok);
   uc32 ParseOctalLiteral(bool* ok);
 
+  // Tries to parse the input as a backreference.  If successful it
+  // stores the result in the output parameter and returns true.  If
+  // it fails it will push back the characters read so the same characters
+  // can be reparsed.
+  bool ParseBackreferenceIndex(int* index_out);
+
   CharacterRange ParseClassAtom(bool* ok);
   RegExpTree* ReportError(Vector<const char> message, bool* ok);
   void Advance();
@@ -270,6 +276,9 @@ class RegExpParser {
   int captures_seen_;
   unibrow::CharacterStream* in_;
   Handle<String>* error_;
+  static const int kMaxPushback = 5;
+  int pushback_count_;
+  uc32 pushback_buffer_[kMaxPushback];
 };
 
 
@@ -3208,7 +3217,8 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 
 
 // ----------------------------------------------------------------------------
-// Regular expressions.
+// Regular expressions
+
 
 RegExpParser::RegExpParser(unibrow::CharacterStream* in, Handle<String>* error)
   : current_(kEndMarker),
@@ -3217,14 +3227,20 @@ RegExpParser::RegExpParser(unibrow::CharacterStream* in, Handle<String>* error)
     has_next_(true),
     captures_seen_(0),
     in_(in),
-    error_(error) {
+    error_(error),
+    pushback_count_(0) {
   Advance(2);
 }
+
 
 void RegExpParser::Advance() {
   current_ = next_;
   has_more_ = has_next_;
-  if (in()->has_more()) {
+  if (pushback_count_ > 0) {
+    pushback_count_--;
+    next_ = pushback_buffer_[pushback_count_];
+    has_next_ = true;
+  } else if (in()->has_more()) {
     next_ = in()->GetNext();
   } else {
     next_ = kEndMarker;
@@ -3232,10 +3248,12 @@ void RegExpParser::Advance() {
   }
 }
 
+
 void RegExpParser::Advance(int dist) {
   for (int i = 0; i < dist; i++)
     Advance();
 }
+
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message, bool* ok) {
   *ok = false;
@@ -3243,11 +3261,13 @@ RegExpTree* RegExpParser::ReportError(Vector<const char> message, bool* ok) {
   return NULL;
 }
 
+
 // Pattern ::
 //   Disjunction
 RegExpTree* RegExpParser::ParsePattern(bool* ok) {
   return ParseDisjunction(ok);
 }
+
 
 // Disjunction ::
 //   Alternative
@@ -3268,9 +3288,11 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
   }
 }
 
+
 static bool IsAlternativeTerminator(uc32 c) {
   return c == '|' || c == ')' || c == RegExpParser::kEndMarker;
 }
+
 
 // Alternative ::
 //   [empty]
@@ -3332,6 +3354,52 @@ static bool IsSpecialEscape(uc32 c) {
 }
 
 
+bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
+  ASSERT_EQ('\\', current());
+  ASSERT('1' <= next() && next() <= '9');
+  ASSERT_EQ(0, pushback_count_);
+  if (captures_seen_ == 0)
+    return false;
+  int value = next() - '0';
+  if (value > captures_seen_)
+    return false;
+  static const int kMaxChars = kMaxPushback - 2;
+  EmbeddedVector<uc32, kMaxChars> chars_seen;
+  chars_seen[0] = next();
+  int char_count = 1;
+  Advance(2);
+  while (true) {
+    uc32 c = current();
+    if (IsDecimalDigit(c)) {
+      int next_value = 10 * value + (c - '0');
+      // To avoid reading past the end of the stack-allocated pushback
+      // buffers we only read kMaxChars before giving up.
+      if (next_value > captures_seen_ || char_count > kMaxChars) {
+        // If we give up we have to push the characters we read back
+        // onto the pushback buffer in the reverse order.
+        pushback_buffer_[0] = current();
+        for (int i = 0; i < char_count; i++)
+          pushback_buffer_[i + 1] = chars_seen[char_count - i - 1];
+        pushback_buffer_[char_count + 1] = '\\';
+        pushback_count_ = char_count + 2;
+        // Then, once we've filled up the buffer, we read the two
+        // first characters into the lookahead.  This is a roundabout
+        // way of doing it but makes the code simpler.
+        Advance(2);
+        return false;
+      } else {
+        value = next_value;
+        chars_seen[char_count++] = current();
+        Advance();
+      }
+    } else {
+      *index_out = value;
+      return true;
+    }
+  }
+}
+
+
 // Term ::
 //   Assertion
 //   Atom
@@ -3384,15 +3452,27 @@ RegExpTree* RegExpParser::ParseTerm(bool* ok) {
             atom = new RegExpCharacterClass(CharacterRange::CharacterClass(c));
             goto has_read_atom;
           }
-          // Todo backreferences
+          case '1': case '2': case '3': case '4': case '5': case '6':
+          case '7': case '8': case '9': {
+            int index = 0;
+            if (ParseBackreferenceIndex(&index)) {
+              atom = new RegExpBackreference(index);
+              goto has_read_atom;
+            } else {
+              // If this is not a backreference we go to the atom parser
+              // which will read it as an octal escape.
+              goto parse_atom;
+            }
+          }
           default:
-            break;
+            goto parse_atom;
         }
       }
       // All other escapes fall through to the default case since
       // they correspond to single characters that can be
       // represented within atoms.
     default: {
+     parse_atom:
       atom = ParseAtom(CHECK_OK);
       break;
     }
@@ -3405,6 +3485,7 @@ RegExpTree* RegExpParser::ParseTerm(bool* ok) {
     //   *
     //   +
     //   ?
+    //   {
     case '*':
       min = 0;
       max = RegExpQuantifier::kInfinity;

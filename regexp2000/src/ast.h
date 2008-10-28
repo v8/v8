@@ -1193,6 +1193,7 @@ class ThisFunction: public Expression {
   VISIT(Quantifier)                                                  \
   VISIT(Capture)                                                     \
   VISIT(Lookahead)                                                   \
+  VISIT(Backreference)                                               \
   VISIT(Empty)
 
 
@@ -1354,6 +1355,16 @@ class RegExpLookahead: public RegExpTree {
  private:
   RegExpTree* body_;
   bool is_positive_;
+};
+
+
+class RegExpBackreference: public RegExpTree {
+ public:
+  explicit RegExpBackreference(int index) : index_(index) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  int index() { return index_; }
+ private:
+  int index_;
 };
 
 
