@@ -382,7 +382,7 @@ bool Object::IsJSGlobalProxy() {
 bool Object::IsGlobalObject() {
   if (!IsHeapObject()) return false;
 
-  InstanceType type =  HeapObject::cast(this)->map()->instance_type();
+  InstanceType type = HeapObject::cast(this)->map()->instance_type();
   return type == JS_GLOBAL_OBJECT_TYPE ||
          type == JS_BUILTINS_OBJECT_TYPE;
 }
