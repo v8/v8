@@ -185,7 +185,8 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
                                             Label* miss) {
   Label load_length, check_wrapper;
 
-  // Check if the object is a string.
+  // Check if the object is a string leaving the instance type in the
+  // scratch register.
   GenerateStringCheck(masm, receiver, scratch, miss, &check_wrapper);
 
   // Load length directly from the string.
@@ -200,7 +201,7 @@ void StubCompiler::GenerateLoadStringLength(MacroAssembler* masm,
 
   // Check if the object is a JSValue wrapper.
   __ bind(&check_wrapper);
-  __ cmp(receiver, JS_VALUE_TYPE);
+  __ cmp(scratch, JS_VALUE_TYPE);
   __ j(not_equal, miss, not_taken);
 
   // Check if the wrapped value is a string and load the length
