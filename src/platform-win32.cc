@@ -781,9 +781,10 @@ void OS::Sleep(int milliseconds) {
 
 
 void OS::Abort() {
-  // Redirect to windows specific abort to ensure
-  // collaboration with sandboxing.
-  __debugbreak();
+  // Make the MSVCRT do a silent abort.
+  _set_abort_behavior(0, _WRITE_ABORT_MSG);
+  _set_abort_behavior(0, _CALL_REPORTFAULT);
+  abort();
 }
 
 
