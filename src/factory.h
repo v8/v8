@@ -37,10 +37,14 @@ namespace v8 { namespace internal {
 
 class Factory : public AllStatic {
  public:
-  // Allocate a new fixed array.
+  // Allocate a new fixed array with undefined entries.
   static Handle<FixedArray> NewFixedArray(
       int size,
       PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocate a new fixed array with non-existing entries (the hole).
+  static Handle<FixedArray> NewFixedArrayWithHoles(int size);
+
   static Handle<Dictionary> NewDictionary(int at_least_space_for);
 
   static Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors);

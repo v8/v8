@@ -1975,9 +1975,6 @@ class Dictionary: public DictionaryBase {
   // Fill in details for properties into storage.
   void CopyKeysTo(FixedArray* storage);
 
-  // Returns the value at entry.
-  static int ValueIndexFor(int entry) { return EntryToIndex(entry)+1; }
-
   // For transforming properties of a JSObject.
   Object* TransformPropertiesToFastFor(JSObject* obj,
                                        int unused_property_fields);

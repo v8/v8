@@ -42,6 +42,12 @@ Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
 }
 
 
+Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size) {
+  ASSERT(0 <= size);
+  CALL_HEAP_FUNCTION(Heap::AllocateFixedArrayWithHoles(size), FixedArray);
+}
+
+
 Handle<Dictionary> Factory::NewDictionary(int at_least_space_for) {
   ASSERT(0 <= at_least_space_for);
   CALL_HEAP_FUNCTION(Dictionary::Allocate(at_least_space_for), Dictionary);

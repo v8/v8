@@ -107,3 +107,14 @@ c = a.concat('Hello');
 assertEquals(1, c.length);
 assertEquals("Hello", c[0]);
 assertEquals("Hello", c.toString());
+
+// Check that concat preserves holes.
+var holey = [void 0,'a',,'c'].concat(['d',,'f',[0,,2],void 0])
+assertEquals(9, holey.length);  // hole in embedded array is ignored
+for (var i = 0; i < holey.length; i++) {
+  if (i == 2 || i == 5) {
+    assertFalse(i in holey);
+  } else {
+    assertTrue(i in holey);
+  }
+}

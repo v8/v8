@@ -4128,16 +4128,17 @@ static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
 /**
  * A helper function of Runtime_ArrayConcat.
  *
- * The first argument is an Array of Arrays and objects. It is the same as
- * the arguments array of Array::concat JS function.
+ * The first argument is an Array of arrays and objects. It is the
+ * same as the arguments array of Array::concat JS function.
  *
- * If an argument is an Array object, the function visits array elements.
- * If an argument is not an Array object, the function visits the object
- * as if it is an one-element array.
+ * If an argument is an Array object, the function visits array
+ * elements.  If an argument is not an Array object, the function
+ * visits the object as if it is an one-element array.
  *
- * If the result array index overflows 32-bit integer, the rounded non-negative
- * number is used as new length. For example, if one array length is 2^32 - 1,
- * second array length is 1, the concatenated array length is 0.
+ * If the result array index overflows 32-bit integer, the rounded
+ * non-negative number is used as new length. For example, if one
+ * array length is 2^32 - 1, second array length is 1, the
+ * concatenated array length is 0.
  */
 static uint32_t IterateArguments(Handle<JSArray> arguments,
                                  ArrayConcatVisitor* visitor) {
@@ -4201,13 +4202,16 @@ static Object* Runtime_ArrayConcat(Arguments args) {
   Handle<JSArray> result = Factory::NewJSArray(0);
 
   uint32_t estimate_nof_elements = IterateArguments(arguments, NULL);
-  // If estimated number of elements is more than half of length,
-  // A fixed array (fast case) is more time & space-efficient than a dictionary.
+  // If estimated number of elements is more than half of length, a
+  // fixed array (fast case) is more time and space-efficient than a
+  // dictionary.
   bool fast_case = (estimate_nof_elements * 2) >= result_length;
 
   Handle<FixedArray> storage;
   if (fast_case) {
-    storage = Factory::NewFixedArray(result_length);
+    // The backing storage array must have non-existing elements to
+    // preserve holes across concat operations.
+    storage = Factory::NewFixedArrayWithHoles(result_length);
 
   } else {
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
