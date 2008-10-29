@@ -5780,9 +5780,15 @@ Runtime::Function* Runtime::FunctionForName(const char* name) {
 
 void Runtime::PerformGC(Object* result) {
   Failure* failure = Failure::cast(result);
-  // Try to do a garbage collection; ignore it if it fails. The C
-  // entry stub will throw an out-of-memory exception in that case.
-  Heap::CollectGarbage(failure->requested(), failure->allocation_space());
+  if (failure->IsRetryAfterGC()) {
+    // Try to do a garbage collection; ignore it if it fails. The C
+    // entry stub will throw an out-of-memory exception in that case.
+    Heap::CollectGarbage(failure->requested(), failure->allocation_space());
+  } else {
+    // Handle last resort GC and make sure to allow future allocations
+    // to grow the heap without causing GCs (if possible).
+    Heap::CollectAllGarbage();
+  }
 }
 
 

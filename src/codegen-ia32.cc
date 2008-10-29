@@ -4955,7 +4955,8 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   Label throw_out_of_memory_exception;
   Label throw_normal_exception;
 
-#ifdef DEBUG
+  // Call into the runtime system. Collect garbage before the call if
+  // running with --gc-greedy set.
   if (FLAG_gc_greedy) {
     Failure* failure = Failure::RetryAfterGC(0);
     __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
@@ -4964,14 +4965,17 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_out_of_memory_exception,
                frame_type,
                FLAG_gc_greedy);
-#else
+
+  // Do space-specific GC and retry runtime call.
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               false);
-#endif
+               true);
 
+  // Do full GC and retry runtime call one final time.
+  Failure* failure = Failure::InternalError();
+  __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
