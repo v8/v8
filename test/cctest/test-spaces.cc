@@ -207,13 +207,10 @@ TEST(OldSpace) {
 
 
 TEST(LargeObjectSpace) {
-  CHECK(Heap::ConfigureHeapDefault());
-  MemoryAllocator::Setup(Heap::MaxCapacity());
+  CHECK(Heap::Setup(false));
 
-  LargeObjectSpace* lo = new LargeObjectSpace(LO_SPACE);
+  LargeObjectSpace* lo = Heap::lo_space();
   CHECK(lo != NULL);
-
-  CHECK(lo->Setup());
 
   Map* faked_map = reinterpret_cast<Map*>(HeapObject::FromAddress(0));
   int lo_size = Page::kPageSize;
