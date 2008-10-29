@@ -64,7 +64,12 @@ OldSpace* Heap::code_space_ = NULL;
 MapSpace* Heap::map_space_ = NULL;
 LargeObjectSpace* Heap::lo_space_ = NULL;
 
-int Heap::promoted_space_limit_ = 0;
+static const int kMinimumPromotionLimit = 2*MB;
+static const int kMinimumAllocationLimit = 8*MB;
+
+int Heap::old_gen_promotion_limit_ = kMinimumPromotionLimit;
+int Heap::old_gen_allocation_limit_ = kMinimumAllocationLimit;
+
 int Heap::old_gen_exhausted_ = false;
 
 int Heap::amount_of_external_allocated_memory_ = 0;
@@ -138,8 +143,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   }
 
   // Is enough data promoted to justify a global GC?
-  if (PromotedSpaceSize() + PromotedExternalMemorySize()
-      > promoted_space_limit_) {
+  if (OldGenerationPromotionLimitReached()) {
     Counters::gc_compactor_caused_by_promoted_data.Increment();
     return MARK_COMPACTOR;
   }
@@ -360,9 +364,11 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   if (collector == MARK_COMPACTOR) {
     MarkCompact(tracer);
 
-    int promoted_space_size = PromotedSpaceSize();
-    promoted_space_limit_ =
-        promoted_space_size + Max(2 * MB, (promoted_space_size/100) * 35);
+    int old_gen_size = PromotedSpaceSize();
+    old_gen_promotion_limit_ =
+        old_gen_size + Max(kMinimumPromotionLimit, old_gen_size / 3);
+    old_gen_allocation_limit_ =
+        old_gen_size + Max(kMinimumAllocationLimit, old_gen_size / 3);
     old_gen_exhausted_ = false;
 
     // If we have used the mark-compact collector to collect the new
@@ -2291,7 +2297,8 @@ void Heap::ReportHeapStatistics(const char* title) {
   PrintF(">>>>>> =============== %s (%d) =============== >>>>>>\n",
          title, gc_count_);
   PrintF("mark-compact GC : %d\n", mc_count_);
-  PrintF("promoted_space_limit_ %d\n", promoted_space_limit_);
+  PrintF("old_gen_promotion_limit_ %d\n", old_gen_promotion_limit_);
+  PrintF("old_gen_allocation_limit_ %d\n", old_gen_allocation_limit_);
 
   PrintF("\n");
   PrintF("Number of handles : %d\n", HandleScope::NumberOfHandles());
