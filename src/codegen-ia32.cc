@@ -800,8 +800,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     return;
   }
 
-  // For now, we keep the old behavior and only inline the smi code
-  // for the bitwise operations.
+  // Set the flags based on the operation, type and loop nesting level.
   GenericBinaryFlags flags;
   switch (op) {
     case Token::BIT_OR:
