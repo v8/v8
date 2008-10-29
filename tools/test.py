@@ -411,7 +411,7 @@ def RunProcess(context, timeout, args, **rest):
   prev_error_mode = SEM_INVALID_VALUE;
   if platform.system() == 'Windows':
     popen_args = '"' + subprocess.list2cmdline(args) + '"'
-    if context.supress_dialogs:
+    if context.suppress_dialogs:
       # Try to change the error mode to avoid dialogs on fatal errors.
       Win32SetErrorMode(SEM_NOGPFAULTERRORBOX)
   process = subprocess.Popen(
@@ -419,7 +419,7 @@ def RunProcess(context, timeout, args, **rest):
     args = popen_args,
     **rest
   )
-  if platform.system() == 'Windows' and context.supress_dialogs and prev_error_mode != SEM_INVALID_VALUE:
+  if platform.system() == 'Windows' and context.suppress_dialogs and prev_error_mode != SEM_INVALID_VALUE:
     Win32SetErrorMode(prev_error_mode)
   # Compute the end time - if the process crosses this limit we
   # consider it timed out.
@@ -584,14 +584,14 @@ PREFIX = {'debug': '_g', 'release': ''}
 
 class Context(object):
 
-  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, supress_dialogs):
+  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
     self.vm_root = vm
     self.timeout = timeout
     self.processor = processor
-    self.supress_dialogs = supress_dialogs
+    self.suppress_dialogs = suppress_dialogs
 
   def GetVm(self, mode):
     name = self.vm_root + PREFIX[mode]
@@ -1072,11 +1072,10 @@ def BuildOptions():
       default=1, type="int")
   result.add_option("--time", help="Print timing information after running",
       default=False, action="store_true")
-  if platform.system() == 'Windows':
-    result.add_option("--supress-dialogs", help="Supress Windows dialogs for crashing tests",
-        dest="supress_dialogs", default=True, action="store_true")
-    result.add_option("--no-supress-dialogs", help="Display Windows dialogs for crashing tests",
-        dest="supress_dialogs", action="store_false")
+  result.add_option("--suppress-dialogs", help="Suppress Windows dialogs for crashing tests",
+        dest="suppress_dialogs", default=True, action="store_true")
+  result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
+        dest="suppress_dialogs", action="store_false")
   return result
 
 
@@ -1207,7 +1206,7 @@ def Main():
                     join(buildspace, 'shell'),
                     options.timeout,
                     GetSpecialCommandProcessor(options.special_command), 
-                    options.supress_dialogs)
+                    options.suppress_dialogs)
   if options.j != 1:
     options.scons_flags += ['-j', str(options.j)]
   if not options.no_build:
