@@ -41,26 +41,26 @@ try: PASS, SKIP if $mode == debug
 debug-scripts-request: PASS, SKIP if $mode == debug
 
 # Bug number 1020483: Debug tests fail on ARM.
-debug-constructor: CRASH
-debug-continue: CRASH
+debug-constructor: CRASH, FAIL if $mode == debug
+debug-continue: CRASH, FAIL if $mode == debug
 debug-backtrace-text: FAIL
-debug-backtrace: CRASH
-debug-evaluate-recursive: CRASH
-debug-changebreakpoint: CRASH
-debug-clearbreakpoint: CRASH
-debug-conditional-breakpoints: CRASH
-debug-enable-disable-breakpoints: CRASH
-debug-evaluate: CRASH
-debug-event-listener: CRASH
-debug-ignore-breakpoints: CRASH
-debug-multiple-breakpoints: CRASH
-debug-setbreakpoint: CRASH
+debug-backtrace: CRASH, FAIL if $mode == debug
+debug-evaluate-recursive: CRASH, FAIL if $mode == debug
+debug-changebreakpoint: CRASH, FAIL if $mode == debug
+debug-clearbreakpoint: CRASH, FAIL if $mode == debug
+debug-conditional-breakpoints: CRASH, FAIL if $mode == debug
+debug-enable-disable-breakpoints: CRASH, FAIL if $mode == debug
+debug-evaluate: CRASH, FAIL if $mode == debug
+debug-event-listener: CRASH, FAIL if $mode == debug
+debug-ignore-breakpoints: CRASH, FAIL if $mode == debug
+debug-multiple-breakpoints: CRASH, FAIL if $mode == debug
+debug-setbreakpoint: CRASH, FAIL if $mode == debug
 debug-step-stub-callfunction: CRASH
-debug-stepin-constructor: CRASH
-debug-step: CRASH
+debug-stepin-constructor: CRASH, FAIL if $mode == debug
+debug-step: CRASH, FAIL if $mode == debug
 debug-breakpoints: PASS || FAIL
 
-regress/regress-998565: CRASH
+regress/regress-998565: CRASH, FAIL if $mode == debug
 
 # Bug number 130 http://code.google.com/p/v8/issues/detail?id=130
 # Fails on real ARM hardware but not on the simulator.
