@@ -517,6 +517,19 @@ function DateString(time) {
 }
 
 
+var LongWeekDays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+var LongMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+
+function LongDateString(time) {
+  var YMD = FromJulianDay(Day(time) + kDayZeroInJulianDay);
+  return LongWeekDays[WeekDay(time)] + ', '
+      + LongMonths[YMD.month] + ' '
+      + TwoDigitString(YMD.date) + ', '
+      + YMD.year;
+}
+
+
 function TimeString(time) {
   return TwoDigitString(HourFromTime(time)) + ':'
       + TwoDigitString(MinFromTime(time)) + ':'
@@ -616,7 +629,9 @@ function DateToLocaleString() {
 
 // ECMA 262 - 15.9.5.6
 function DateToLocaleDateString() {
-  return DateToDateString.call(this);
+  var t = GetTimeFrom(this);
+  if ($isNaN(t)) return kInvalidDate;
+  return LongDateString(LocalTimeNoCheck(t));
 }
 
 
