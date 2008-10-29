@@ -193,7 +193,7 @@ ecma/String/15.5.4.12-4: FAIL_OK
 # unicode version converts it to itself.
 ecma/String/15.5.4.12-5: FAIL_OK
 
-# Creates a linked list of arrays until we run out of memory.
+# Creates a linked list of arrays until we run out of memory or timeout.
 js1_5/Regress/regress-312588: FAIL_OK
 
 

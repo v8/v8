@@ -314,8 +314,9 @@ PROGRESS_INDICATORS = {
 
 class CommandOutput(object):
 
-  def __init__(self, exit_code, stdout, stderr):
+  def __init__(self, exit_code, timed_out, stdout, stderr):
     self.exit_code = exit_code
+    self.timed_out = timed_out
     self.stdout = stdout
     self.stderr = stderr
 
@@ -372,7 +373,11 @@ class TestOutput(object):
     if platform.system() == 'Windows':
       return 0x80000000 & self.output.exit_code and not (0x3FFFFF00 & self.output.exit_code)
     else:
-      return False
+      # Timed out tests will have exit_code -signal.SIGTERM.
+      if self.output.timed_out:
+        return False
+      return self.output.exit_code < 0 and \
+             self.output.exit_code != -signal.SIGABRT
 
   def HasFailed(self):
     execution_failed = self.test.DidFail(self.output)
@@ -471,7 +476,7 @@ def Execute(args, context, timeout=None):
       PrintError(str(e))
   CheckedUnlink(outname)
   CheckedUnlink(errname)
-  return CommandOutput(exit_code, output, errors)
+  return CommandOutput(exit_code, timed_out, output, errors)
 
 
 def ExecuteNoCapture(args, context, timeout=None):
@@ -480,7 +485,7 @@ def ExecuteNoCapture(args, context, timeout=None):
     timeout,
     args = args,
   )
-  return CommandOutput(exit_code, "", "")
+  return CommandOutput(exit_code, False, "", "")
 
 
 def CarCdr(path):
