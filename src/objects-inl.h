@@ -557,8 +557,8 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
   (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)) = value)
 
 
-Object* HeapObject::GetHeapObjectField(HeapObject* obj, int index) {
-  return READ_FIELD(obj, HeapObject::kHeaderSize + kPointerSize * index);
+Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
+  return &READ_FIELD(obj, byte_offset);
 }
 
 
