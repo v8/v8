@@ -71,8 +71,7 @@ static const RegExpTestCase kCases[1] = { RegExpTestCase() };
 #endif
 
 
-static void ExpectParse(const char* input,
-                        const char* expected) {
+static SmartPointer<char> Parse(const char* input) {
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
@@ -81,97 +80,107 @@ static void ExpectParse(const char* input,
   CHECK(node != NULL);
   CHECK(error.is_null());
   SmartPointer<char> output = node->ToString();
-  CHECK_EQ(expected, *output);
+  return output;
 }
+
+
+#define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, *Parse(input))
 
 
 TEST(Parser) {
   V8::Initialize(NULL);
-  ExpectParse("abc", "'abc'");
-  ExpectParse("", "%");
-  ExpectParse("abc|def", "(| 'abc' 'def')");
-  ExpectParse("abc|def|ghi", "(| 'abc' 'def' 'ghi')");
-  ExpectParse("\\w\\W\\s\\S\\d\\D", "(: [&w] [&W] [&s] [&S] [&d] [&D])");
-  ExpectParse("^xxx$", "(: @^i 'xxx' @$i)");
-  ExpectParse("ab\\b\\w\\bcd", "(: 'ab' @b [&w] @b 'cd')");
-  ExpectParse("\\w|\\s|.", "(| [&w] [&s] [&.])");
-  ExpectParse("a*", "(# 0 - g 'a')");
-  ExpectParse("a*?", "(# 0 - n 'a')");
-  ExpectParse("abc+", "(# 1 - g 'abc')");
-  ExpectParse("abc+?", "(# 1 - n 'abc')");
-  ExpectParse("xyz?", "(# 0 1 g 'xyz')");
-  ExpectParse("xyz??", "(# 0 1 n 'xyz')");
-  ExpectParse("xyz{0,1}", "(# 0 1 g 'xyz')");
-  ExpectParse("xyz{0,1}?", "(# 0 1 n 'xyz')");
-  ExpectParse("xyz{93}", "(# 93 93 g 'xyz')");
-  ExpectParse("xyz{93}?", "(# 93 93 n 'xyz')");
-  ExpectParse("xyz{1,32}", "(# 1 32 g 'xyz')");
-  ExpectParse("xyz{1,32}?", "(# 1 32 n 'xyz')");
-  ExpectParse("xyz{1,}", "(# 1 - g 'xyz')");
-  ExpectParse("xyz{1,}?", "(# 1 - n 'xyz')");
-  ExpectParse("a\\fb\\nc\\rd\\te\\vf", "'a\fb\nc\rd\te\vf'");
-  ExpectParse("a\\nb\\bc", "(: 'a\nb' @b 'c')");
-  ExpectParse("(?:foo)", "'foo'");
-  ExpectParse("(?: foo )", "' foo '");
-  ExpectParse("(foo|bar|baz)", "(^ (| 'foo' 'bar' 'baz'))");
-  ExpectParse("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
-  ExpectParse("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
-  ExpectParse("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
-  ExpectParse("()", "(^ %)");
-  ExpectParse("(?=)", "(-> + %)");
-  ExpectParse("[]", "%");
-  ExpectParse("[x]", "[x]");
-  ExpectParse("[xyz]", "[x y z]");
-  ExpectParse("[a-zA-Z0-9]", "[a-z A-Z 0-9]");
-  ExpectParse("[-123]", "[- 1 2 3]");
-  ExpectParse("[^123]", "^[1 2 3]");
-  ExpectParse("]", "']'");
-  ExpectParse("}", "'}'");
-  ExpectParse("[a-b-c]", "[a-b - c]");
-  ExpectParse("[\\w]", "[&w]");
-  ExpectParse("[x\\wz]", "[x &w z]");
-  ExpectParse("[\\w-z]", "[&w - z]");
-  ExpectParse("[\\w-\\d]", "[&w - &d]");
-  ExpectParse("\\cj\\cJ\\ci\\cI\\ck\\cK", "'\n\n\t\t\v\v'");
-  ExpectParse("[a\\]c]", "[a ] c]");
-  ExpectParse("\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ", "'[]{}()%^# '");
-  ExpectParse("[\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ]", "[[ ] { } ( ) % ^ #  ]");
-  ExpectParse("\\0", "'\0'");
-  ExpectParse("\\11", "'\t'");
-  ExpectParse("\\11a", "'\ta'");
-  ExpectParse("\\011", "'\t'");
-  ExpectParse("\\00011", "'\t'");
-  ExpectParse("\\118", "'\t8'");
-  ExpectParse("\\111", "'I'");
-  ExpectParse("\\1111", "'I1'");
-  ExpectParse("(.)(.)(.)\\1", "(: (^ [&.]) (^ [&.]) (^ [&.]) (<- 1))");
-  ExpectParse("(.)(.)(.)\\2", "(: (^ [&.]) (^ [&.]) (^ [&.]) (<- 2))");
-  ExpectParse("(.)(.)(.)\\3", "(: (^ [&.]) (^ [&.]) (^ [&.]) (<- 3))");
-  ExpectParse("(.)(.)(.)\\4", "(: (^ [&.]) (^ [&.]) (^ [&.]) '\x04')");
-  ExpectParse("(.)(.)(.)\\1*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
+  CHECK_PARSE_EQ("abc", "'abc'");
+  CHECK_PARSE_EQ("", "%");
+  CHECK_PARSE_EQ("abc|def", "(| 'abc' 'def')");
+  CHECK_PARSE_EQ("abc|def|ghi", "(| 'abc' 'def' 'ghi')");
+  CHECK_PARSE_EQ("\\w\\W\\s\\S\\d\\D", "(: [&w] [&W] [&s] [&S] [&d] [&D])");
+  CHECK_PARSE_EQ("^xxx$", "(: @^i 'xxx' @$i)");
+  CHECK_PARSE_EQ("ab\\b\\w\\bcd", "(: 'ab' @b [&w] @b 'cd')");
+  CHECK_PARSE_EQ("\\w|\\s|.", "(| [&w] [&s] [&.])");
+  CHECK_PARSE_EQ("a*", "(# 0 - g 'a')");
+  CHECK_PARSE_EQ("a*?", "(# 0 - n 'a')");
+  CHECK_PARSE_EQ("abc+", "(# 1 - g 'abc')");
+  CHECK_PARSE_EQ("abc+?", "(# 1 - n 'abc')");
+  CHECK_PARSE_EQ("xyz?", "(# 0 1 g 'xyz')");
+  CHECK_PARSE_EQ("xyz??", "(# 0 1 n 'xyz')");
+  CHECK_PARSE_EQ("xyz{0,1}", "(# 0 1 g 'xyz')");
+  CHECK_PARSE_EQ("xyz{0,1}?", "(# 0 1 n 'xyz')");
+  CHECK_PARSE_EQ("xyz{93}", "(# 93 93 g 'xyz')");
+  CHECK_PARSE_EQ("xyz{93}?", "(# 93 93 n 'xyz')");
+  CHECK_PARSE_EQ("xyz{1,32}", "(# 1 32 g 'xyz')");
+  CHECK_PARSE_EQ("xyz{1,32}?", "(# 1 32 n 'xyz')");
+  CHECK_PARSE_EQ("xyz{1,}", "(# 1 - g 'xyz')");
+  CHECK_PARSE_EQ("xyz{1,}?", "(# 1 - n 'xyz')");
+  CHECK_PARSE_EQ("a\\fb\\nc\\rd\\te\\vf", "'a\fb\nc\rd\te\vf'");
+  CHECK_PARSE_EQ("a\\nb\\bc", "(: 'a\nb' @b 'c')");
+  CHECK_PARSE_EQ("(?:foo)", "'foo'");
+  CHECK_PARSE_EQ("(?: foo )", "' foo '");
+  CHECK_PARSE_EQ("(foo|bar|baz)", "(^ (| 'foo' 'bar' 'baz'))");
+  CHECK_PARSE_EQ("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
+  CHECK_PARSE_EQ("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
+  CHECK_PARSE_EQ("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
+  CHECK_PARSE_EQ("()", "(^ %)");
+  CHECK_PARSE_EQ("(?=)", "(-> + %)");
+  CHECK_PARSE_EQ("[]", "%");
+  CHECK_PARSE_EQ("[x]", "[x]");
+  CHECK_PARSE_EQ("[xyz]", "[x y z]");
+  CHECK_PARSE_EQ("[a-zA-Z0-9]", "[a-z A-Z 0-9]");
+  CHECK_PARSE_EQ("[-123]", "[- 1 2 3]");
+  CHECK_PARSE_EQ("[^123]", "^[1 2 3]");
+  CHECK_PARSE_EQ("]", "']'");
+  CHECK_PARSE_EQ("}", "'}'");
+  CHECK_PARSE_EQ("[a-b-c]", "[a-b - c]");
+  CHECK_PARSE_EQ("[\\w]", "[&w]");
+  CHECK_PARSE_EQ("[x\\wz]", "[x &w z]");
+  CHECK_PARSE_EQ("[\\w-z]", "[&w - z]");
+  CHECK_PARSE_EQ("[\\w-\\d]", "[&w - &d]");
+  CHECK_PARSE_EQ("\\cj\\cJ\\ci\\cI\\ck\\cK", "'\n\n\t\t\v\v'");
+  CHECK_PARSE_EQ("\\c!", "'c!'");
+  CHECK_PARSE_EQ("\\c_", "'c_'");
+  CHECK_PARSE_EQ("\\c~", "'c~'");
+  CHECK_PARSE_EQ("[a\\]c]", "[a ] c]");
+  CHECK_PARSE_EQ("\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ", "'[]{}()%^# '");
+  CHECK_PARSE_EQ("[\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ]", "[[ ] { } ( ) % ^ #  ]");
+  CHECK_PARSE_EQ("\\0", "'\0'");
+  CHECK_PARSE_EQ("\\8", "'8'");
+  CHECK_PARSE_EQ("\\9", "'9'");
+  CHECK_PARSE_EQ("\\11", "'\t'");
+  CHECK_PARSE_EQ("\\11a", "'\ta'");
+  CHECK_PARSE_EQ("\\011", "'\t'");
+  CHECK_PARSE_EQ("\\00011", "'\00011'");
+  CHECK_PARSE_EQ("\\118", "'\t8'");
+  CHECK_PARSE_EQ("\\111", "'I'");
+  CHECK_PARSE_EQ("\\1111", "'I1'");
+  CHECK_PARSE_EQ("(.)(.)(.)\\1", "(: (^ [&.]) (^ [&.]) (^ [&.]) (<- 1))");
+  CHECK_PARSE_EQ("(.)(.)(.)\\2", "(: (^ [&.]) (^ [&.]) (^ [&.]) (<- 2))");
+  CHECK_PARSE_EQ("(.)(.)(.)\\3", "(: (^ [&.]) (^ [&.]) (^ [&.]) (<- 3))");
+  CHECK_PARSE_EQ("(.)(.)(.)\\4", "(: (^ [&.]) (^ [&.]) (^ [&.]) '\x04')");
+  CHECK_PARSE_EQ("(.)(.)(.)\\1*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
                                " (# 0 - g (<- 1)))");
-  ExpectParse("(.)(.)(.)\\2*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
+  CHECK_PARSE_EQ("(.)(.)(.)\\2*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
                                " (# 0 - g (<- 2)))");
-  ExpectParse("(.)(.)(.)\\3*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
+  CHECK_PARSE_EQ("(.)(.)(.)\\3*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
                                " (# 0 - g (<- 3)))");
-  ExpectParse("(.)(.)(.)\\4*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
+  CHECK_PARSE_EQ("(.)(.)(.)\\4*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
                                " (# 0 - g '\x04'))");
-  ExpectParse("(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)\\10",
+  CHECK_PARSE_EQ("(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)\\10",
               "(: (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.])"
               " (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) (<- 10))");
-  ExpectParse("(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)\\11",
+  CHECK_PARSE_EQ("(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)\\11",
               "(: (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.])"
               " (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) '\x09')");
-  ExpectParse("[\\0]", "[\0]");
-  ExpectParse("[\\11]", "[\t]");
-  ExpectParse("[\\11a]", "[\t a]");
-  ExpectParse("[\\011]", "[\t]");
-  ExpectParse("[\\00011]", "[\t]");
-  ExpectParse("[\\118]", "[\t 8]");
-  ExpectParse("[\\111]", "[I]");
-  ExpectParse("[\\1111]", "[I 1]");
-  ExpectParse("\\x34", "'\x34'");
-  ExpectParse("\\x3z", "'\x03z'");
+  CHECK_PARSE_EQ("[\\0]", "[\0]");
+  CHECK_PARSE_EQ("[\\11]", "[\t]");
+  CHECK_PARSE_EQ("[\\11a]", "[\t a]");
+  CHECK_PARSE_EQ("[\\011]", "[\t]");
+  CHECK_PARSE_EQ("[\\00011]", "[\000 1 1]");
+  CHECK_PARSE_EQ("[\\118]", "[\t 8]");
+  CHECK_PARSE_EQ("[\\111]", "[I]");
+  CHECK_PARSE_EQ("[\\1111]", "[I 1]");
+  CHECK_PARSE_EQ("\\x34", "'\x34'");
+  CHECK_PARSE_EQ("\\x3z", "'x3z'");
+  CHECK_PARSE_EQ("\\u0034", "'\x34'");
+  CHECK_PARSE_EQ("\\u003z", "'u003z'");
 }
 
 
@@ -213,8 +222,6 @@ TEST(Errors) {
   ExpectError("[a-\\w]", kIllegalCharacterClass);
   const char* kEndControl = "\\c at end of pattern";
   ExpectError("\\c", kEndControl);
-  const char* kIllegalControl = "Illegal control letter";
-  ExpectError("\\c!", kIllegalControl);
 }
 
 

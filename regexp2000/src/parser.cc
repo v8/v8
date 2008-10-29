@@ -230,7 +230,9 @@ class Parser {
 
 class RegExpParser {
  public:
-  RegExpParser(unibrow::CharacterStream* in, Handle<String>* error);
+  RegExpParser(unibrow::CharacterStream* in,
+               Handle<String>* error,
+               bool multiline_mode);
   RegExpTree* ParsePattern(bool* ok);
   RegExpTree* ParseDisjunction(bool* ok);
   RegExpTree* ParseAlternative(bool* ok);
@@ -247,7 +249,9 @@ class RegExpParser {
   // must not be 'b' or 'B' since they are usually handle specially.
   uc32 ParseCharacterEscape(bool* ok);
 
-  uc32 ParseHexEscape(int length);
+  // Checks whether the following is a length-digit hexadecimal number,
+  // and sets the value if it is.
+  bool ParseHexEscape(int length, uc32* value);
 
   uc32 ParseControlEscape(bool* ok);
   uc32 ParseOctalLiteral(bool* ok);
@@ -262,6 +266,14 @@ class RegExpParser {
   RegExpTree* ReportError(Vector<const char> message, bool* ok);
   void Advance();
   void Advance(int dist);
+  // Pushes a read character (or potentially some other character) back
+  // on the input stream. After pushing it back, it becomes the character
+  // returned by current(). There is a limited amount of push-back buffer.
+  // A function using PushBack should check that it doesn't push back more
+  // than kMaxPushback characters, and it should not push back more characters
+  // than it has read, or that it knows had been read prior to calling it.
+  void PushBack(uc32 character);
+  bool CanPushBack();
   static const uc32 kEndMarker = unibrow::Utf8::kBadChar;
  private:
   uc32 current() { return current_; }
@@ -273,6 +285,7 @@ class RegExpParser {
   uc32 next_;
   bool has_more_;
   bool has_next_;
+  bool multiline_mode_;
   int captures_seen_;
   unibrow::CharacterStream* in_;
   Handle<String>* error_;
@@ -3220,11 +3233,14 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 // Regular expressions
 
 
-RegExpParser::RegExpParser(unibrow::CharacterStream* in, Handle<String>* error)
+RegExpParser::RegExpParser(unibrow::CharacterStream* in,
+                           Handle<String>* error,
+                           bool multiline_mode)
   : current_(kEndMarker),
     next_(kEndMarker),
     has_more_(true),
     has_next_(true),
+    multiline_mode_(multiline_mode),
     captures_seen_(0),
     in_(in),
     error_(error),
@@ -3252,6 +3268,26 @@ void RegExpParser::Advance() {
 void RegExpParser::Advance(int dist) {
   for (int i = 0; i < dist; i++)
     Advance();
+}
+
+
+void RegExpParser::PushBack(uc32 character) {
+  if (has_next_) {
+    ASSERT(pushback_count_ < kMaxPushback);
+    pushback_buffer_[pushback_count_] = next_;
+    pushback_count_++;
+  }
+  if (has_more_) {
+    next_ = current_;
+    has_next_ = true;
+  }
+  current_ = character;
+  has_more_ = true;
+}
+
+
+bool RegExpParser::CanPushBack() {
+  return (pushback_count_ < kMaxPushback);
 }
 
 
@@ -3358,6 +3394,11 @@ bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
   ASSERT_EQ('\\', current());
   ASSERT('1' <= next() && next() <= '9');
   ASSERT_EQ(0, pushback_count_);
+  // Try to parse a decimal literal that is less than then number
+  // of previously encountered left capturing parentheses.
+  // This is a not according the the ECMAScript specification. According to
+  // that, one must accept values up to the total number of left capturing
+  // parentheses in the entire input, even if they are meaningless.
   if (captures_seen_ == 0)
     return false;
   int value = next() - '0';
@@ -3377,21 +3418,15 @@ bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
       if (next_value > captures_seen_ || char_count > kMaxChars) {
         // If we give up we have to push the characters we read back
         // onto the pushback buffer in the reverse order.
-        pushback_buffer_[0] = current();
-        for (int i = 0; i < char_count; i++)
-          pushback_buffer_[i + 1] = chars_seen[char_count - i - 1];
-        pushback_buffer_[char_count + 1] = '\\';
-        pushback_count_ = char_count + 2;
-        // Then, once we've filled up the buffer, we read the two
-        // first characters into the lookahead.  This is a roundabout
-        // way of doing it but makes the code simpler.
-        Advance(2);
+        for (int i = 0; i < char_count; i++) {
+          PushBack(chars_seen[char_count - i - 1]);
+        }
+        PushBack('\\');
         return false;
-      } else {
-        value = next_value;
-        chars_seen[char_count++] = current();
-        Advance();
       }
+      value = next_value;
+      chars_seen[char_count++] = current();
+      Advance();
     } else {
       *index_out = value;
       return true;
@@ -3414,12 +3449,14 @@ RegExpTree* RegExpParser::ParseTerm(bool* ok) {
     //   \ B
     case '^':
       Advance();
-      // Make the type of assertion dependent on multi/nonmultiline.
-      return new RegExpAssertion(RegExpAssertion::START_OF_INPUT);
+      return new RegExpAssertion(
+          multiline_mode_ ? RegExpAssertion::START_OF_LINE
+                          : RegExpAssertion::START_OF_INPUT);
     case '$':
       Advance();
-      // Make the type of assertion dependent on multi/nonmultiline.
-      return new RegExpAssertion(RegExpAssertion::END_OF_INPUT);
+      return new RegExpAssertion(
+          multiline_mode_ ? RegExpAssertion::END_OF_LINE
+                          : RegExpAssertion::END_OF_INPUT);
     case '.':
       Advance();
       atom = new RegExpCharacterClass(CharacterRange::CharacterClass('.'));
@@ -3460,7 +3497,7 @@ RegExpTree* RegExpParser::ParseTerm(bool* ok) {
               goto has_read_atom;
             } else {
               // If this is not a backreference we go to the atom parser
-              // which will read it as an octal escape.
+              // which will read it as an octal escape or identity escape.
               goto parse_atom;
             }
           }
@@ -3591,6 +3628,8 @@ RegExpTree* RegExpParser::ParseAtom(bool* ok) {
   return new RegExpAtom(buf->ToConstVector());
 }
 
+// Upper and lower case letters differ by one bit.
+STATIC_CHECK('a'^'A' == 0x20);
 
 uc32 RegExpParser::ParseControlEscape(bool* ok) {
   ASSERT(current() == 'c');
@@ -3598,51 +3637,61 @@ uc32 RegExpParser::ParseControlEscape(bool* ok) {
   if (!has_more()) {
     ReportError(CStrVector("\\c at end of pattern"), ok);
     return '\0';
-  } else {
-    uc32 letter = current();
-    if (!('a' <= letter && letter <= 'z') &&
-        !('A' <= letter && letter <= 'Z')) {
-      ReportError(CStrVector("Illegal control letter"), ok);
-      return '\0';
-    }
-    Advance();
-    return letter & ((1 << 5) - 1);
   }
+  uc32 letter = current() & ~(0x20);  // Collapse upper and lower case letters.
+  if (letter < 'A' || 'Z' < letter) {
+    // Non-spec error-correction: "\c" followed by non-control letter is
+    // interpreted as an IdentityEscape.
+    return 'c';
+  }
+  Advance();
+  return letter & 0x1f;  // Remainder modulo 32, per specification.
 }
 
 
 uc32 RegExpParser::ParseOctalLiteral(bool* ok) {
   ASSERT('0' <= current() && current() <= '7');
-  // Here we're really supposed to break out after the first digit
-  // if it is '0' but the other implementations don't do that so
-  // neither do we.  Is this deviation from the spec error prone?
-  // Yes, it's probably as error prone as it's possible to get.  Isn't
-  // JavaScript wonderful?
-  uc32 value = 0;
-  while ('0' <= current() && current() <= '7') {
-    int next = (8 * value) + (current() - '0');
-    if (next >= 256) {
-      break;
-    } else {
-      value = next;
+  // For compatibility with some other browsers (not all), we parse
+  // up to three octal digits with a value below 256.
+  uc32 value = current() - '0';
+  Advance();
+  if ('0' <= current() && current() <= '7') {
+    value = value * 8 + current() - '0';
+    Advance();
+    if (value < 32 && '0' <= current() && current() <= '7') {
+      value = value * 8 + current() - '0';
       Advance();
     }
   }
   return value;
 }
 
-
-uc32 RegExpParser::ParseHexEscape(int length) {
-  uc32 value = 0;
-  for (int i = 0; i < length; i++) {
-    int d = HexValue(current());
-    if (d < 0)
-      return value;
-    value = value * 16 + d;
+bool RegExpParser::ParseHexEscape(int length, uc32 *value) {
+  static const int kMaxChars = kMaxPushback;
+  EmbeddedVector<uc32, kMaxChars> chars_seen;
+  ASSERT(length <= kMaxChars);
+  uc32 val = 0;
+  bool done = false;
+  for (int i = 0; !done; i++) {
+    uc32 c = current();
+    int d = HexValue(c);
+    if (d < 0) {
+      while (i > 0) {
+        i--;
+        PushBack(chars_seen[i]);
+      }
+      return false;
+    }
+    val = val * 16 + d;
     Advance();
+    if (i < length - 1) {
+      chars_seen[i] = c;
+    } else {
+      done = true;
+    }
   }
-
-  return value;
+  *value = val;
+  return true;
 }
 
 
@@ -3670,25 +3719,39 @@ uc32 RegExpParser::ParseCharacterEscape(bool* ok) {
       Advance();
       return '\v';
     case 'c':
+      // Spec mandates that next character is ASCII letter.
+      // If not, we error-correct by interpreting "\c" as "c".
       return ParseControlEscape(ok);
     case '0': case '1': case '2': case '3': case '4': case '5':
     case '6': case '7':
-      // We're really supposed to read this as a decimal integer
-      // literal which is base 10 but for whatever reason the other
-      // implementations read base 8.  It's hard to believe that the
-      // spec was written by some ofthe same people that wrote the
-      // other implementations...
+      // For compatibility, we interpret a decimal escape that isn't
+      // a back reference (and therefore either \0 or not valid according
+      // to the specification) as a 1..3 digit octal character code.
       return ParseOctalLiteral(ok);
-    case 'x':
+    case 'x': {
       Advance();
-      return ParseHexEscape(2);
-    case 'A': case 'Z': {
-      uc32 result = current();
+      uc32 value;
+      if (ParseHexEscape(2, &value)) {
+        return value;
+      }
+      // If \x is not followed by a two-digit hexadecimal, treat it
+      // as an identity escape.
+      return 'x';
+    }
+    case 'u': {
       Advance();
-      return result;
+      uc32 value;
+      if (ParseHexEscape(4, &value)) {
+        return value;
+      }
+      // If \u is not followed by a four-digit hexadecimal, treat it
+      // as an identity escape.
+      return 'u';
     }
     default: {
-      ASSERT(!Scanner::kIsIdentifierPart.get(current()));
+      // Extended identity escape. We accept any character that hasn't
+      // been matched by a more specific case, not just the subset required
+      // by the ECMAScript specification.
       uc32 result = current();
       Advance();
       return result;
@@ -3847,7 +3910,7 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
 RegExpTree* ParseRegExp(unibrow::CharacterStream* stream,
                         Handle<String>* error) {
   ASSERT(error->is_null());
-  RegExpParser parser(stream, error);
+  RegExpParser parser(stream, error, false);  // Get multiline flag somehow
   bool ok = true;
   RegExpTree* result = parser.ParsePattern(&ok);
   if (!ok) {
