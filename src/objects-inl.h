@@ -371,11 +371,11 @@ bool Object::IsPrimitive() {
 
 
 bool Object::IsGlobalObject() {
-  return IsHeapObject() &&
-      ((HeapObject::cast(this)->map()->instance_type() ==
-        JS_GLOBAL_OBJECT_TYPE) ||
-       (HeapObject::cast(this)->map()->instance_type() ==
-        JS_BUILTINS_OBJECT_TYPE));
+  if (!IsHeapObject()) return false;
+
+  InstanceType type = HeapObject::cast(this)->map()->instance_type();
+  return type == JS_GLOBAL_OBJECT_TYPE ||
+         type == JS_BUILTINS_OBJECT_TYPE;
 }
 
 
@@ -550,8 +550,8 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
   (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)) = value)
 
 
-Object* HeapObject::GetHeapObjectField(HeapObject* obj, int index) {
-  return READ_FIELD(obj, HeapObject::kHeaderSize + kPointerSize * index);
+Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
+  return &READ_FIELD(obj, byte_offset);
 }
 
 

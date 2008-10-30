@@ -3125,3 +3125,38 @@ TEST(RecursiveBreakpoints) {
   breakpoints_v8_thread.Join();
   breakpoints_debugger_thread.Join();
 }
+
+
+static void DummyDebugEventListener(v8::DebugEvent event,
+                                    v8::Handle<v8::Object> exec_state,
+                                    v8::Handle<v8::Object> event_data,
+                                    v8::Handle<v8::Value> data) {
+}
+
+
+TEST(AddDebugEventListenerOnUninitializedVM) {
+  v8::Debug::AddDebugEventListener(DummyDebugEventListener);
+}
+
+
+static void DummyMessageHandler(const uint16_t* message,
+                                int length, void *data) {
+}
+
+
+TEST(SetMessageHandlerOnUninitializedVM) {
+  v8::Debug::SetMessageHandler(DummyMessageHandler);
+}
+
+
+TEST(DebugBreakOnUninitializedVM) {
+  v8::Debug::DebugBreak();
+}
+
+
+TEST(SendCommandToUninitializedVM) {
+  const char* dummy_command = "{}";
+  uint16_t dummy_buffer[80];
+  int dummy_length = AsciiToUtf16(dummy_command, dummy_buffer);
+  v8::Debug::SendCommand(dummy_buffer, dummy_length);
+}

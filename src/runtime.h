@@ -64,6 +64,7 @@ namespace v8 { namespace internal {
   \
   /* Array join support */ \
   F(PushIfAbsent, 2) \
+  F(ArrayConcat, 1) \
   \
   /* ConsStrings */ \
   F(ConsStringFst, 1) \

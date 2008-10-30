@@ -101,6 +101,8 @@ namespace v8 { namespace internal {
      V8.GCCompactorCausedByOldspaceExhaustion)                      \
   SC(gc_compactor_caused_by_weak_handles,                           \
      V8.GCCompactorCausedByWeakHandles)                             \
+  SC(gc_last_resort_from_js, V8.GCLastResortFromJS)                 \
+  SC(gc_last_resort_from_handles, V8.GCLastResortFromHandles)       \
   /* How is the generic keyed-load stub used? */                    \
   SC(keyed_load_generic_smi, V8.KeyedLoadGenericSmi)                \
   SC(keyed_load_generic_symbol, V8.KeyedLoadGenericSymbol)          \

@@ -2222,7 +2222,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.3.7";
+  return "0.3.8";
 }
 
 
@@ -2779,8 +2779,8 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 
 bool Debug::AddDebugEventListener(DebugEventCallback that, Handle<Value> data) {
-  EnsureInitialized("v8::V8::AddDebugEventListener()");
-  ON_BAILOUT("v8::V8::AddDebugEventListener()", return false);
+  EnsureInitialized("v8::Debug::AddDebugEventListener()");
+  ON_BAILOUT("v8::Debug::AddDebugEventListener()", return false);
   HandleScope scope;
   NeanderArray listeners(i::Factory::debug_event_listeners());
   NeanderObject obj(2);
@@ -2796,7 +2796,7 @@ bool Debug::AddDebugEventListener(DebugEventCallback that, Handle<Value> data) {
 
 bool Debug::AddDebugEventListener(v8::Handle<v8::Function> that,
                                   Handle<Value> data) {
-  ON_BAILOUT("v8::V8::AddDebugEventListener()", return false);
+  ON_BAILOUT("v8::Debug::AddDebugEventListener()", return false);
   HandleScope scope;
   NeanderArray listeners(i::Factory::debug_event_listeners());
   NeanderObject obj(2);
@@ -2811,8 +2811,8 @@ bool Debug::AddDebugEventListener(v8::Handle<v8::Function> that,
 
 
 void Debug::RemoveDebugEventListener(DebugEventCallback that) {
-  EnsureInitialized("v8::V8::RemoveDebugEventListener()");
-  ON_BAILOUT("v8::V8::RemoveDebugEventListener()", return);
+  EnsureInitialized("v8::Debug::RemoveDebugEventListener()");
+  ON_BAILOUT("v8::Debug::RemoveDebugEventListener()", return);
   HandleScope scope;
   NeanderArray listeners(i::Factory::debug_event_listeners());
   for (int i = 0; i < listeners.length(); i++) {
@@ -2832,7 +2832,7 @@ void Debug::RemoveDebugEventListener(DebugEventCallback that) {
 
 
 void Debug::RemoveDebugEventListener(v8::Handle<v8::Function> that) {
-  ON_BAILOUT("v8::V8::RemoveDebugEventListener()", return);
+  ON_BAILOUT("v8::Debug::RemoveDebugEventListener()", return);
   HandleScope scope;
   NeanderArray listeners(i::Factory::debug_event_listeners());
   for (int i = 0; i < listeners.length(); i++) {
@@ -2854,16 +2854,19 @@ void Debug::RemoveDebugEventListener(v8::Handle<v8::Function> that) {
 
 
 void Debug::DebugBreak() {
+  if (!i::V8::HasBeenSetup()) return;
   i::StackGuard::DebugBreak();
 }
 
 
 void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
+  EnsureInitialized("v8::Debug::SetMessageHandler");
   i::Debugger::SetMessageHandler(handler, data);
 }
 
 
 void Debug::SendCommand(const uint16_t* command, int length) {
+  if (!i::V8::HasBeenSetup()) return;
   i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length));
 }
 

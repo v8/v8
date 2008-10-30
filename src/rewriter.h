@@ -44,6 +44,7 @@ namespace v8 { namespace internal {
 class Rewriter {
  public:
   static bool Process(FunctionLiteral* function);
+  static void Optimize(FunctionLiteral* function);
 };
 
 

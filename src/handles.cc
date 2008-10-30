@@ -39,16 +39,6 @@
 
 namespace v8 { namespace internal {
 
-#define CALL_GC(RESULT)                                             \
-  {                                                                 \
-    Failure* __failure__ = Failure::cast(RESULT);                   \
-    if (!Heap::CollectGarbage(__failure__->requested(),             \
-                              __failure__->allocation_space())) {   \
-       /* TODO(1181417): Fix this. */                               \
-       V8::FatalProcessOutOfMemory("Handles");                      \
-    }                                                               \
-  }
-
 
 Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray> content,
                                       Handle<JSArray> array) {
@@ -281,10 +271,6 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   script->wrapper()->set_proxy(reinterpret_cast<Address>(handle.location()));
   return result;
 }
-
-
-#undef CALL_HEAP_FUNCTION
-#undef CALL_GC
 
 
 // Compute the property keys from the interceptor.
