@@ -452,6 +452,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
   return function;
 }
 
+
 Handle<Code> Factory::NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
                               Code::Flags flags) {
   CALL_HEAP_FUNCTION(Heap::CreateCode(desc, sinfo, flags), Code);
@@ -463,41 +464,25 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
 }
 
 
-#define CALL_GC(RETRY)                                                     \
-  do {                                                                     \
-    if (!Heap::CollectGarbage(Failure::cast(RETRY)->requested(),           \
-                              Failure::cast(RETRY)->allocation_space())) { \
-      /* TODO(1181417): Fix this. */                                       \
-      V8::FatalProcessOutOfMemory("Factory CALL_GC");                      \
-    }                                                                      \
-  } while (false)
+static inline Object* DoCopyInsert(DescriptorArray* array,
+                                   String* key,
+                                   Object* value,
+                                   PropertyAttributes attributes) {
+  CallbacksDescriptor desc(key, value, attributes);
+  Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
+  return obj;
+}
 
 
-// Allocate the new array. We cannot use the CALL_HEAP_FUNCTION macro here,
-// because the stack-allocated CallbacksDescriptor instance is not GC safe.
+// Allocate the new array.
 Handle<DescriptorArray> Factory::CopyAppendProxyDescriptor(
     Handle<DescriptorArray> array,
     Handle<String> key,
     Handle<Object> value,
     PropertyAttributes attributes) {
-  GC_GREEDY_CHECK();
-  CallbacksDescriptor desc(*key, *value, attributes);
-  Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
-  if (obj->IsFailure()) {
-    if (obj->IsRetryAfterGC()) {
-      CALL_GC(obj);
-      CallbacksDescriptor desc(*key, *value, attributes);
-      obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
-    }
-    if (obj->IsFailure()) {
-      // TODO(1181417): Fix this.
-      V8::FatalProcessOutOfMemory("CopyAppendProxyDescriptor");
-    }
-  }
-  return Handle<DescriptorArray>(DescriptorArray::cast(obj));
+  CALL_HEAP_FUNCTION(DoCopyInsert(*array, *key, *value, attributes),
+                     DescriptorArray);
 }
-
-#undef CALL_GC
 
 
 Handle<String> Factory::SymbolFromString(Handle<String> value) {

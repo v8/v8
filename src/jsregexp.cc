@@ -307,15 +307,55 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
 }
 
 
-Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
-                                       Handle<String> pattern,
-                                       JSRegExp::Flags flags) {
+static inline Object* DoCompile(String* pattern,
+                                JSRegExp::Flags flags,
+                                unsigned* number_of_captures,
+                                const char** error_message,
+                                JscreRegExp** code) {
   JSRegExpIgnoreCaseOption case_option = flags.is_ignore_case()
     ? JSRegExpIgnoreCase
     : JSRegExpDoNotIgnoreCase;
   JSRegExpMultilineOption multiline_option = flags.is_multiline()
     ? JSRegExpMultiline
     : JSRegExpSingleLine;
+  *error_message = NULL;
+  malloc_failure = Failure::Exception();
+  *code = jsRegExpCompile(pattern->GetTwoByteData(),
+                          pattern->length(),
+                          case_option,
+                          multiline_option,
+                          number_of_captures,
+                          error_message,
+                          &JSREMalloc,
+                          &JSREFree);
+  if (code == NULL && (malloc_failure->IsRetryAfterGC() ||
+                       malloc_failure->IsOutOfMemoryFailure())) {
+    return malloc_failure;
+  } else {
+    // It doesn't matter which object we return here, we just need to return
+    // a non-failure to indicate to the GC-retry code that there was no
+    // allocation failure.
+    return pattern;
+  }
+}
+
+
+void CompileWithRetryAfterGC(Handle<String> pattern,
+                             JSRegExp::Flags flags,
+                             unsigned* number_of_captures,
+                             const char** error_message,
+                             JscreRegExp** code) {
+  CALL_HEAP_FUNCTION_VOID(DoCompile(*pattern,
+                                    flags,
+                                    number_of_captures,
+                                    error_message,
+                                    code));
+}
+
+
+Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
+                                       Handle<String> pattern,
+                                       JSRegExp::Flags flags) {
 
   Handle<String> two_byte_pattern = StringToTwoByte(pattern);
 
@@ -325,52 +365,33 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
   JscreRegExp* code = NULL;
   FlattenString(pattern);
 
-  bool first_time = true;
+  CompileWithRetryAfterGC(two_byte_pattern,
+                          flags,
+                          &number_of_captures,
+                          &error_message,
+                          &code);
 
-  while (true) {
-    malloc_failure = Failure::Exception();
-    code = jsRegExpCompile(two_byte_pattern->GetTwoByteData(),
-                           pattern->length(), case_option,
-                           multiline_option, &number_of_captures,
-                           &error_message, &JSREMalloc, &JSREFree);
-    if (code == NULL) {
-      if (first_time && malloc_failure->IsRetryAfterGC()) {
-        first_time = false;
-        if (!Heap::CollectGarbage(malloc_failure->requested(),
-                                  malloc_failure->allocation_space())) {
-          // TODO(1181417): Fix this.
-          V8::FatalProcessOutOfMemory("RegExpImpl::JsreCompile");
-        }
-        continue;
-      }
-      if (malloc_failure->IsRetryAfterGC() ||
-          malloc_failure->IsOutOfMemoryFailure()) {
-        // TODO(1181417): Fix this.
-        V8::FatalProcessOutOfMemory("RegExpImpl::JsreCompile");
-      } else {
-        // Throw an exception.
-        Handle<JSArray> array = Factory::NewJSArray(2);
-        SetElement(array, 0, pattern);
-        SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(
-            (error_message == NULL) ? "Unknown regexp error" : error_message)));
-        Handle<Object> regexp_err =
-            Factory::NewSyntaxError("malformed_regexp", array);
-        return Handle<Object>(Top::Throw(*regexp_err));
-      }
-    }
-
-    ASSERT(code != NULL);
-    // Convert the return address to a ByteArray pointer.
-    Handle<ByteArray> internal(
-        ByteArray::FromDataStartAddress(reinterpret_cast<Address>(code)));
-
-    Handle<FixedArray> value = Factory::NewFixedArray(2);
-    value->set(CAPTURE_INDEX, Smi::FromInt(number_of_captures));
-    value->set(INTERNAL_INDEX, *internal);
-    Factory::SetRegExpData(re, JSRegExp::JSCRE, pattern, flags, value);
-
-    return re;
+  if (code == NULL) {
+    // Throw an exception.
+    Handle<JSArray> array = Factory::NewJSArray(2);
+    SetElement(array, 0, pattern);
+    SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(
+        (error_message == NULL) ? "Unknown regexp error" : error_message)));
+    Handle<Object> regexp_err =
+        Factory::NewSyntaxError("malformed_regexp", array);
+    return Handle<Object>(Top::Throw(*regexp_err));
   }
+
+  // Convert the return address to a ByteArray pointer.
+  Handle<ByteArray> internal(
+      ByteArray::FromDataStartAddress(reinterpret_cast<Address>(code)));
+
+  Handle<FixedArray> value = Factory::NewFixedArray(2);
+  value->set(CAPTURE_INDEX, Smi::FromInt(number_of_captures));
+  value->set(INTERNAL_INDEX, *internal);
+  Factory::SetRegExpData(re, JSRegExp::JSCRE, pattern, flags, value);
+
+  return re;
 }
 
 
