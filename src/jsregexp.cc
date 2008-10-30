@@ -328,7 +328,7 @@ static inline Object* DoCompile(String* pattern,
                           error_message,
                           &JSREMalloc,
                           &JSREFree);
-  if (code == NULL && (malloc_failure->IsRetryAfterGC() ||
+  if (*code == NULL && (malloc_failure->IsRetryAfterGC() ||
                        malloc_failure->IsOutOfMemoryFailure())) {
     return malloc_failure;
   } else {
