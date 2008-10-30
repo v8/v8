@@ -126,6 +126,117 @@ class RegExpImpl {
 
 
 template <typename Char> class RegExpNode;
+class CharacterClassAllocator;
+
+
+class CharacterClass {
+ public:
+
+  enum Type { EMPTY = 0, FIELD = 1, RANGES = 2, UNION = 3 };
+
+  // A closed range from and including 'from', to and including 'to'.
+  class Range {
+   public:
+    Range() : from_(0), to_(0) { }
+    Range(uc16 from, uc16 to) : from_(from), to_(to) { ASSERT(from <= to); }
+    uc16 from() { return from_; }
+    uc16 to() { return to_; }
+   private:
+    uc16 from_;
+    uc16 to_;
+  };
+
+  CharacterClass() : type_(EMPTY) { }
+
+  explicit CharacterClass(Type type) : type_(type) { }
+
+  bool Contains(uc16 c);
+
+  // Returns a character class with a single bit set
+  static inline CharacterClass SingletonField(uc16 chr);
+
+  // Returns a bitfield character class with a closed range set.  The
+  // range must fit within one field, that is, fit between two adjacent
+  // kFieldMax-aligned boundaries.
+  static inline CharacterClass RangeField(Range range);
+
+  static inline CharacterClass Union(CharacterClass* left,
+                                     CharacterClass* right);
+
+  // Initializes an empty charclass as a bitfield containing the
+  // specified ranges.
+  void InitializeFieldFrom(Vector<Range> ranges);
+
+  // Initializes this character class to be the specified ranges.
+  // This class must be empty.
+  void InitializeRangesFrom(Vector<Range> ranges,
+                            CharacterClassAllocator* alloc);
+
+  // Creates a new character class containing the specified ranges
+  // and allocating any sub-classes using the specified allocator.
+  static CharacterClass Ranges(Vector<Range> boundaries,
+                               CharacterClassAllocator* alloc);
+
+  // Returns one of the built-in character classes such as '\w' or
+  // '\S'.
+  static CharacterClass* GetCharacterClass(uc16 tag);
+
+  inline void write_nibble(int index, byte value);
+  inline byte read_nibble(int index);
+
+  static inline unsigned segment_of(uc16 value);
+  static inline uc16 segment_start(unsigned segment);
+
+ private:
+  static const int kCharSize = 16;
+  static const int kFieldSegmentIndexWidth = 10;
+  static const int kFieldWidth = kCharSize - kFieldSegmentIndexWidth;
+  static const int kFieldMax = (1 << kFieldWidth);
+  static const int kSegmentMask = (1 << kFieldWidth) - 1;
+  static const int kNibbleCount = kFieldMax / 4;
+  STATIC_ASSERT(kFieldMax == 8 * sizeof(uint64_t));
+
+  Type type() { return type_; }
+
+  static inline uint64_t long_bit(int index) {
+    return static_cast<uint64_t>(1) << index;
+  }
+
+  Type type_: 2;
+  unsigned segment_ : 10;
+  unsigned count_ : 4;
+  union {
+    // These have the same type to make it easier to change one without
+    // touching the other.
+    uint64_t u_field;
+    uint64_t u_ranges;
+    struct {
+      CharacterClass* left;
+      CharacterClass* right;
+    } u_union;
+  } data_;
+};
+
+
+STATIC_ASSERT(sizeof(CharacterClass) == 3 * kIntSize);
+
+
+class CharacterClassAllocator {
+ public:
+  virtual CharacterClass* Allocate() = 0;
+  virtual ~CharacterClassAllocator() { }
+};
+
+
+template <int kCount>
+class StaticCharacterClassAllocator: public CharacterClassAllocator {
+ public:
+  StaticCharacterClassAllocator() : used_(0) { }
+  virtual CharacterClass* Allocate();
+ private:
+  int used_;
+  CharacterClass preallocated_[kCount];
+};
 
 
 class RegExpEngine: public AllStatic {

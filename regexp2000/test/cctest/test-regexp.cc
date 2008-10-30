@@ -26,13 +26,15 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+#include <stdlib.h>
+
 #include "v8.h"
 
 #include "cctest.h"
 #include "zone-inl.h"
 #include "parser.h"
 #include "ast.h"
-#include "jsregexp.h"
+#include "jsregexp-inl.h"
 
 
 using namespace v8::internal;
@@ -268,5 +270,157 @@ TEST(Fuzz) {
 }
 
 
-// "123456789abcdb".match(/(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)(\11)/)
-// 123456789abcdb,1,2,3,4,5,6,7,8,9,a,b,c,d,b
+TEST(SingletonField) {
+  // Test all bits from 0 to 256
+  for (int i = 0; i < 256; i++) {
+    CharacterClass entry = CharacterClass::SingletonField(i);
+    for (int j = 0; j < 256; j++) {
+      CHECK_EQ(i == j, entry.Contains(j));
+    }
+  }
+  // Test upwards through the data range
+  static const uint32_t kMax = 1 << 16;
+  for (uint32_t i = 0; i < kMax; i = 1 + static_cast<uint32_t>(i * 1.2)) {
+    CharacterClass entry = CharacterClass::SingletonField(i);
+    for (uint32_t j = 0; j < kMax; j = 1 + static_cast<uint32_t>(j * 1.2)) {
+      CHECK_EQ(i == j, entry.Contains(j));
+    }
+  }
+}
+
+
+TEST(RangeField) {
+  // Test bitfields containing a single range.
+  for (int i = 256; i < 320; i++) {
+    for (int j = i; j < 320; j++) {
+      CharacterClass::Range range(i, j);
+      CharacterClass entry = CharacterClass::RangeField(range);
+      for (int k = 256; k < 320; k++) {
+        CHECK_EQ(i <= k && k <= j, entry.Contains(k));
+      }
+    }
+  }
+}
+
+
+static void TestBuiltins(CharacterClass klass, bool (pred)(uc16)) {
+  for (int i = 0; i < (1 << 16); i++)
+    CHECK_EQ(pred(i), klass.Contains(i));
+}
+
+
+static bool IsDigit(uc16 c) {
+  return ('0' <= c && c <= '9');
+}
+
+
+static bool IsWhiteSpace(uc16 c) {
+  switch (c) {
+    case 0x09: case 0x0B: case 0x0C: case 0x20: case 0xA0:
+      return true;
+    default:
+      return unibrow::Space::Is(c);
+  }
+}
+
+
+static bool IsWord(uc16 c) {
+  return ('a' <= c && c <= 'z')
+      || ('A' <= c && c <= 'Z')
+      || ('0' <= c && c <= '9')
+      || (c == '_');
+}
+
+
+TEST(Builtins) {
+  TestBuiltins(*CharacterClass::GetCharacterClass('d'), IsDigit);
+  TestBuiltins(*CharacterClass::GetCharacterClass('s'), IsWhiteSpace);
+  TestBuiltins(*CharacterClass::GetCharacterClass('w'), IsWord);
+}
+
+
+TEST(SimpleRanges) {
+  // Test range classes containing a single range.
+  for (int i = 365; i < 730; i += 3) {
+    for (int j = i; j < 1095; j += 3) {
+      EmbeddedVector<CharacterClass::Range, 1> entries;
+      entries[0] = CharacterClass::Range(i, j);
+      CharacterClass klass = CharacterClass::Ranges(entries, NULL);
+      for (int k = 0; k < 1095; k += 3) {
+        CHECK_EQ(i <= k && k <= j, klass.Contains(k));
+      }
+    }
+  }
+}
+
+
+static unsigned PseudoRandom(int i, int j) {
+  return (~((i * 781) ^ (j * 329)));
+}
+
+
+// Generates pseudo-random character-class with kCount pseudo-random
+// ranges set.
+template <int kCount>
+class SimpleRangeGenerator {
+ public:
+  SimpleRangeGenerator() : i_(0) { }
+
+  // Returns the next character class and sets the ranges vector.  The
+  // returned value will not have any ranges that extend beyond the 'max'
+  // value.
+  CharacterClass Next(int max) {
+    for (int j = 0; j < 2 * kCount; j++) {
+      entries_[j] = PseudoRandom(i_, j) % max;
+    }
+    i_++;
+    qsort(entries_.start(), 2 * kCount, sizeof(uc16), Compare);
+    for (int j = 0; j < kCount; j++) {
+      ranges_[j] = CharacterClass::Range(entries_[2 * j],
+                                         entries_[2 * j + 1]);
+    }
+    return CharacterClass::Ranges(ranges_, NULL);
+  }
+
+  // Returns the ranges of the last range that was returned.  Note that
+  // the returned vector will be clobbered the next time Next() is called.
+  Vector<CharacterClass::Range> ranges() { return ranges_; }
+ private:
+
+  static int Compare(const void* a, const void* b) {
+    return *static_cast<const uc16*>(a) - *static_cast<const uc16*>(b);
+  }
+
+  int i_;
+  EmbeddedVector<uc16, 2 * kCount> entries_;
+  EmbeddedVector<CharacterClass::Range, kCount> ranges_;
+};
+
+
+TEST(LessSimpleRanges) {
+  // Tests range character classes containing 3 pseudo-random ranges.
+  SimpleRangeGenerator<3> gen;
+  for (int i = 0; i < 1024; i++) {
+    CharacterClass klass = gen.Next(256);
+    Vector<CharacterClass::Range> entries = gen.ranges();
+    for (int j = 0; j < 256; j++) {
+      bool is_on = false;
+      for (int k = 0; !is_on && k < 3; k++)
+        is_on = (entries[k].from() <= j && j <= entries[k].to());
+      CHECK_EQ(is_on, klass.Contains(j));
+    }
+  }
+}
+
+
+TEST(Unions) {
+  SimpleRangeGenerator<3> gen1;
+  SimpleRangeGenerator<3> gen2;
+  for (int i = 0; i < 1024; i++) {
+    CharacterClass klass1 = gen1.Next(256);
+    CharacterClass klass2 = gen2.Next(256);
+    CharacterClass uhnion = CharacterClass::Union(&klass1, &klass2);
+    for (int j = 0; j < 256; j++)
+      CHECK_EQ(klass1.Contains(j) || klass2.Contains(j), uhnion.Contains(j));
+  }
+}

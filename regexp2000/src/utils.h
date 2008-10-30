@@ -283,6 +283,15 @@ class Vector {
     return Vector<T>(NewArray<T>(length), length);
   }
 
+  // Returns a vector using the same backing storage as this one,
+  // spanning from and including 'from', to but not including 'to'.
+  Vector<T> SubVector(int from, int to) {
+    ASSERT(from < length_);
+    ASSERT(to <= length_);
+    ASSERT(from < to);
+    return Vector<T>(start() + from, to - from);
+  }
+
   // Returns the length of the vector.
   int length() const { return length_; }
 
@@ -297,6 +306,10 @@ class Vector {
     ASSERT(0 <= index && index < length_);
     return start_[index];
   }
+
+  T& first() { return start_[0]; }
+
+  T& last() { return start_[length_ - 1]; }
 
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {

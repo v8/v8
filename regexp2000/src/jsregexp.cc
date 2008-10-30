@@ -32,7 +32,7 @@
 #include "ast.h"
 #include "execution.h"
 #include "factory.h"
-#include "jsregexp.h"
+#include "jsregexp-inl.h"
 #include "platform.h"
 #include "runtime.h"
 #include "top.h"
@@ -825,6 +825,224 @@ void* RegExpCompiler<Char>::VisitAlternative(RegExpAlternative* that,
     current = Compile(children->at(i), current);
   }
   return current;
+}
+
+
+bool CharacterClass::Contains(uc16 c) {
+  switch (type()) {
+    case FIELD: {
+      int offset = segment_start(segment_);
+      if (c < offset) return false;
+      int index = c - offset;
+      if (index >= CharacterClass::kFieldMax) return false;
+      return (data_.u_field & long_bit(index)) != 0;
+    }
+    case RANGES: {
+      int offset = segment_start(segment_);
+      if (c < offset) return false;
+      bool is_on = false;
+      unsigned i = 0;
+      while (i < count_) {
+        int delta = 0;
+        int nibble = read_nibble(i);
+        int bit_offset = 0;
+        while ((nibble & 0x8) == 0) {
+          delta |= nibble << bit_offset;
+          bit_offset += 3;
+          nibble = read_nibble(++i);
+        }
+        delta |= (nibble & 0x7) << bit_offset;
+        i++;
+        offset += delta;
+        if (c < offset)
+          return is_on;
+        is_on = !is_on;
+      }
+      return false;
+    }
+    case UNION: {
+      return data_.u_union.left->Contains(c)
+          || data_.u_union.right->Contains(c);
+    }
+    default:
+      UNREACHABLE();
+      return false;
+  }
+}
+
+
+template <int kCount>
+CharacterClass* StaticCharacterClassAllocator<kCount>::Allocate() {
+  ASSERT(used_ < kCount);
+  CharacterClass* result = &preallocated_[used_];
+  used_++;
+  return result;
+}
+
+
+class StaticCharacterClasses {
+ public:
+  StaticCharacterClasses();
+  CharacterClass* GetClass(uc16 tag);
+  static StaticCharacterClasses* instance_;
+ private:
+  StaticCharacterClassAllocator<5> static_allocator_;
+  CharacterClass digit_;
+  CharacterClass whitespace_;
+  CharacterClass word_;
+};
+
+
+StaticCharacterClasses* StaticCharacterClasses::instance_ = NULL;
+
+
+StaticCharacterClasses::StaticCharacterClasses() {
+#define MAKE_CLASS(Name)\
+  CharacterClass::Ranges(Vector<CharacterClass::Range>(k##Name##Ranges,\
+                                                       k##Name##RangeCount), \
+                         &static_allocator_)
+
+  const int kDigitRangeCount = 1;
+  CharacterClass::Range kDigitRanges[kDigitRangeCount] = {
+    CharacterClass::Range('0', '9')
+  };
+  digit_ = MAKE_CLASS(Digit);
+
+  const int kWhiteSpaceRangeCount = 10;
+  CharacterClass::Range kWhiteSpaceRanges[kWhiteSpaceRangeCount] = {
+  CharacterClass::Range(0x0009, 0x0009), CharacterClass::Range(0x000B, 0x000C),
+  CharacterClass::Range(0x0020, 0x0020), CharacterClass::Range(0x00A0, 0x00A0),
+  CharacterClass::Range(0x1680, 0x1680), CharacterClass::Range(0x180E, 0x180E),
+  CharacterClass::Range(0x2000, 0x200A), CharacterClass::Range(0x202F, 0x202F),
+  CharacterClass::Range(0x205F, 0x205F), CharacterClass::Range(0x3000, 0x3000)
+  };
+  whitespace_ = MAKE_CLASS(WhiteSpace);
+
+  const int kWordRangeCount = 4;
+  static CharacterClass::Range kWordRanges[kWordRangeCount] = {
+    CharacterClass::Range('0', '9'), CharacterClass::Range('A', 'Z'),
+    CharacterClass::Range('_', '_'), CharacterClass::Range('a', 'z')
+  };
+  word_ = MAKE_CLASS(Word);
+
+#undef MAKE_CLASS
+}
+
+
+CharacterClass* StaticCharacterClasses::GetClass(uc16 tag) {
+  switch (tag) {
+    case 'd':
+      return &digit_;
+    case 's':
+      return &whitespace_;
+    case 'w':
+      return &word_;
+    default:
+      UNREACHABLE();
+      return NULL;
+  }
+}
+
+
+CharacterClass* CharacterClass::GetCharacterClass(uc16 tag) {
+  if (StaticCharacterClasses::instance_ == NULL)
+    StaticCharacterClasses::instance_ = new StaticCharacterClasses();
+  return StaticCharacterClasses::instance_->GetClass(tag);
+}
+
+
+CharacterClass CharacterClass::Ranges(Vector<Range> boundaries,
+                                      CharacterClassAllocator* alloc) {
+  CharacterClass result;
+  result.InitializeRangesFrom(boundaries, alloc);
+  return result;
+}
+
+
+void CharacterClass::InitializeFieldFrom(Vector<Range> boundaries) {
+  ASSERT(boundaries.length() > 0);
+  ASSERT_EQ(EMPTY, type_);
+  type_ = FIELD;
+  segment_ = segment_of(boundaries.first().from());
+  ASSERT_EQ(static_cast<int>(segment_),
+            static_cast<int>(segment_of(boundaries.last().to())));
+  data_.u_field = 0;
+  for (int i = 0; i < boundaries.length(); i++) {
+    int start = boundaries[i].from();
+    int end = boundaries[i].to();
+    // Mask in the range
+    uint64_t t0 = ~static_cast<uint64_t>(0) >> (63 - (end & kSegmentMask));
+    uint64_t t1 = ~static_cast<uint64_t>(0) << (start & kSegmentMask);
+    data_.u_field |= (t0 & t1);
+  }
+}
+
+
+void CharacterClass::InitializeRangesFrom(Vector<Range> boundaries,
+                                          CharacterClassAllocator* alloc) {
+  ASSERT(boundaries.length() > 0);
+  ASSERT_EQ(EMPTY, type_);
+  int start_segment = segment_of(boundaries.first().from());
+  int end_segment = segment_of(boundaries.last().to());
+  if (start_segment == end_segment) {
+    InitializeFieldFrom(boundaries);
+    return;
+  }
+  type_ = RANGES;
+  segment_ = start_segment;
+  data_.u_ranges = 0;
+  int offset = 0;
+  uc16 last_boundary = segment_start(segment_);
+  int i;
+  for (i = 0; i < boundaries.length(); i++) {
+    Range current = boundaries[i];
+    ASSERT(last_boundary <= current.from());
+    int word = current.from() - last_boundary;
+    // We have to repeat the write operation to write both the delta
+    // from the last range to the start of this one, and the delta
+    // from the start to the end of this range.
+    for (int j = 0; j < 2; j++) {
+      do {
+        if (offset >= 16)
+          goto overflow;
+        byte nibble = (word & 0x7);
+        int next_word = word >> 3;
+        if (next_word == 0)
+          nibble |= 0x8;
+        write_nibble(offset, nibble);
+        word = next_word;
+        offset++;
+      } while (word > 0);
+      word = current.to() - current.from() + 1;
+    }
+    count_ = offset;
+    last_boundary = current.to() + 1;
+    continue;
+   overflow:
+    CharacterClass* left = alloc->Allocate();
+    ASSERT(i > 0);
+    if (segment_of(boundaries[i-1].to()) == segment_) {
+      // If what we've written so far fits within a single segment we
+      // can fit it into a bitfield.  Scan forward to see if any more
+      // ranges can be included.
+      while (i < boundaries.length()
+          && segment_of(boundaries[i].to()) == segment_)
+        i++;
+      ASSERT(i < boundaries.length());
+      left->InitializeFieldFrom(boundaries.SubVector(0, i));
+    } else {
+      // Otherwise we copy the work we've done so far into the left
+      // heap-allocated charclass.
+      *left = *this;
+    }
+    CharacterClass* right = alloc->Allocate();
+    right->InitializeRangesFrom(boundaries.SubVector(i, boundaries.length()),
+                                alloc);
+    type_ = UNION;
+    data_.u_union.left = left;
+    data_.u_union.right = right;
+    return;
+  }
 }
 
 
