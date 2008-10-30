@@ -593,17 +593,21 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
       UNCLASSIFIED,
       5,
       "Heap::NewSpaceStart()");
-  Add(ExternalReference::new_space_allocation_limit_address().address(),
+  Add(ExternalReference::heap_always_allocate_scope_depth().address(),
       UNCLASSIFIED,
       6,
+      "Heap::always_allocate_scope_depth()");
+  Add(ExternalReference::new_space_allocation_limit_address().address(),
+      UNCLASSIFIED,
+      7,
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address().address(),
       UNCLASSIFIED,
-      7,
+      8,
       "Heap::NewSpaceAllocationTopAddress()");
   Add(ExternalReference::debug_step_in_fp_address().address(),
       UNCLASSIFIED,
-      8,
+      9,
       "Debug::step_in_fp_addr()");
 }
 
@@ -1401,7 +1405,10 @@ Object* Deserializer::GetObject() {
   } else if (IsLargeFixedArray(a)) {
     o = Heap::lo_space()->AllocateRawFixedArray(size);
   } else {
-    o = Heap::AllocateRaw(size, space);
+    AllocationSpace retry_space = (space == NEW_SPACE)
+        ? Heap::TargetSpaceId(type)
+        : space;
+    o = Heap::AllocateRaw(size, space, retry_space);
   }
   ASSERT(!o->IsFailure());
   // Check that the simulation of heap allocation was correct.

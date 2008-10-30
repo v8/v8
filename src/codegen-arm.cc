@@ -3812,7 +3812,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_out_of_memory_exception,
                               StackFrame::Type frame_type,
-                              bool do_gc) {
+                              bool do_gc,
+                              bool always_allocate) {
   // r0: result parameter for PerformGC, if any
   // r4: number of arguments including receiver  (C callee-saved)
   // r5: pointer to builtin function  (C callee-saved)
@@ -3821,6 +3822,15 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   if (do_gc) {
     // Passing r0.
     __ Call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
+  }
+
+  ExternalReference scope_depth =
+      ExternalReference::heap_always_allocate_scope_depth();
+  if (always_allocate) {
+    __ mov(r0, Operand(scope_depth));
+    __ ldr(r1, MemOperand(r0));
+    __ add(r1, r1, Operand(1));
+    __ str(r1, MemOperand(r0));
   }
 
   // Call C built-in.
@@ -3843,7 +3853,15 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 #else /* !defined(__arm__) */
   __ mov(pc, Operand(r5));
 #endif /* !defined(__arm__) */
-  // result is in r0 or r0:r1 - do not destroy these registers!
+
+  if (always_allocate) {
+    // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
+    // though (contain the result).
+    __ mov(r2, Operand(scope_depth));
+    __ ldr(r3, MemOperand(r2));
+    __ sub(r3, r3, Operand(1));
+    __ str(r3, MemOperand(r2));
+  }
 
   // check for failure result
   Label failure_returned;
@@ -3929,14 +3947,16 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   GenerateCore(masm, &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               FLAG_gc_greedy);
+               FLAG_gc_greedy,
+               false);
 
   // Do space-specific GC and retry runtime call.
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               true);
+               true,
+               false);
 
   // Do full GC and retry runtime call one final time.
   Failure* failure = Failure::InternalError();
@@ -3945,6 +3965,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
+               true,
                true);
 
   __ bind(&throw_out_of_memory_exception);

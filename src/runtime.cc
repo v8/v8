@@ -5787,6 +5787,7 @@ void Runtime::PerformGC(Object* result) {
   } else {
     // Handle last resort GC and make sure to allow future allocations
     // to grow the heap without causing GCs (if possible).
+    Counters::gc_last_resort_from_js.Increment();
     Heap::CollectAllGarbage();
   }
 }

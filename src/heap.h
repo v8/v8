@@ -260,6 +260,11 @@ class Heap : public AllStatic {
   static MapSpace* map_space() { return map_space_; }
   static LargeObjectSpace* lo_space() { return lo_space_; }
 
+  static bool always_allocate() { return always_allocate_scope_depth_ != 0; }
+  static Address always_allocate_scope_depth_address() {
+    return reinterpret_cast<Address>(&always_allocate_scope_depth_);
+  }
+
   static Address* NewSpaceAllocationTopAddress() {
     return new_space_.allocation_top_address();
   }
@@ -523,7 +528,8 @@ class Heap : public AllStatic {
   // failed.
   // Please note this function does not perform a garbage collection.
   static inline Object* AllocateRaw(int size_in_bytes,
-                                    AllocationSpace space);
+                                    AllocationSpace space,
+                                    AllocationSpace retry_space);
 
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -631,6 +637,7 @@ class Heap : public AllStatic {
 
   // Finds out which space an object should get promoted to based on its type.
   static inline OldSpace* TargetSpace(HeapObject* object);
+  static inline AllocationSpace TargetSpaceId(InstanceType type);
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
   static void set_code_stubs(Dictionary* value) { code_stubs_ = value; }
@@ -766,6 +773,8 @@ class Heap : public AllStatic {
 
   static int new_space_growth_limit_;
   static int scavenge_count_;
+
+  static int always_allocate_scope_depth_;
 
   static const int kMaxMapSpaceSize = 8*MB;
 
@@ -925,6 +934,25 @@ class Heap : public AllStatic {
 
   friend class Factory;
   friend class DisallowAllocationFailure;
+  friend class AlwaysAllocateScope;
+};
+
+
+class AlwaysAllocateScope {
+ public:
+  AlwaysAllocateScope() {
+    // We shouldn't hit any nested scopes, because that requires
+    // non-handle code to call handle code. The code still works but
+    // performance will degrade, so we want to catch this situation
+    // in debug mode.
+    ASSERT(Heap::always_allocate_scope_depth_ == 0);
+    Heap::always_allocate_scope_depth_++;
+  }
+
+  ~AlwaysAllocateScope() {
+    Heap::always_allocate_scope_depth_--;
+    ASSERT(Heap::always_allocate_scope_depth_ == 0);
+  }
 };
 
 

@@ -96,6 +96,8 @@ Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 int Heap::mc_count_ = 0;
 int Heap::gc_count_ = 0;
 
+int Heap::always_allocate_scope_depth_ = 0;
+
 #ifdef DEBUG
 bool Heap::allocation_allowed_ = true;
 
@@ -1025,7 +1027,7 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   // spaces.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  Object* result = AllocateRaw(HeapNumber::kSize, space);
+  Object* result = AllocateRaw(HeapNumber::kSize, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
   HeapObject::cast(result)->set_map(heap_number_map());
@@ -1035,6 +1037,8 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateHeapNumber(double value) {
+  // Use general version, if we're forced to always allocate.
+  if (always_allocate()) return AllocateHeapNumber(value, NOT_TENURED);
   // This version of AllocateHeapNumber is optimized for
   // allocation in new space.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
@@ -1531,7 +1535,7 @@ Object* Heap::AllocateByteArray(int length) {
   AllocationSpace space =
       size > MaxHeapObjectSize() ? LO_SPACE : NEW_SPACE;
 
-  Object* result = AllocateRaw(size, space);
+  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
 
   if (result->IsFailure()) return result;
 
@@ -1604,7 +1608,9 @@ Object* Heap::CopyCode(Code* code) {
 Object* Heap::Allocate(Map* map, AllocationSpace space) {
   ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(map->instance_type() != MAP_TYPE);
-  Object* result = AllocateRaw(map->instance_size(), space);
+  Object* result = AllocateRaw(map->instance_size(),
+                               space,
+                               TargetSpaceId(map->instance_type()));
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(map);
   return result;
@@ -1664,19 +1670,19 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
   // Make the clone.
   Map* map = boilerplate->map();
   int object_size = map->instance_size();
-  Object* result = new_space_.AllocateRaw(object_size);
+  Object* result = AllocateRaw(object_size, NEW_SPACE, OLD_POINTER_SPACE);
   if (result->IsFailure()) return result;
-  ASSERT(Heap::InNewSpace(result));
 
-  // Copy the content.
+  // Copy the content. The arguments boilerplate doesn't have any
+  // fields that point to new space so it's safe to skip the write
+  // barrier here.
   CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(result)->address()),
             reinterpret_cast<Object**>(boilerplate->address()),
             object_size);
 
   // Set the two properties.
   JSObject::cast(result)->InObjectPropertyAtPut(arguments_callee_index,
-                                                callee,
-                                                SKIP_WRITE_BARRIER);
+                                                callee);
   JSObject::cast(result)->InObjectPropertyAtPut(arguments_length_index,
                                                 Smi::FromInt(length),
                                                 SKIP_WRITE_BARRIER);
@@ -1784,14 +1790,33 @@ Object* Heap::CopyJSObject(JSObject* source) {
   // Make the clone.
   Map* map = source->map();
   int object_size = map->instance_size();
-  Object* clone = new_space_.AllocateRaw(object_size);
-  if (clone->IsFailure()) return clone;
-  ASSERT(Heap::InNewSpace(clone));
+  Object* clone;
 
-  // Copy the content.
-  CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(clone)->address()),
-            reinterpret_cast<Object**>(source->address()),
-            object_size);
+  // If we're forced to always allocate, we use the general allocation
+  // functions which may leave us with an object in old space.
+  if (always_allocate()) {
+    clone = AllocateRaw(object_size, NEW_SPACE, OLD_POINTER_SPACE);
+    if (clone->IsFailure()) return clone;
+    Address clone_address = HeapObject::cast(clone)->address();
+    CopyBlock(reinterpret_cast<Object**>(clone_address),
+              reinterpret_cast<Object**>(source->address()),
+              object_size);
+    // Update write barrier for all fields that lie beyond the header.
+    for (int offset = JSObject::kHeaderSize;
+         offset < object_size;
+         offset += kPointerSize) {
+      RecordWrite(clone_address, offset);
+    }
+  } else {
+    clone = new_space_.AllocateRaw(object_size);
+    if (clone->IsFailure()) return clone;
+    ASSERT(Heap::InNewSpace(clone));
+    // Since we know the clone is allocated in new space, we can copy
+    // the contents without worring about updating the write barrier.
+    CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(clone)->address()),
+              reinterpret_cast<Object**>(source->address()),
+              object_size);
+  }
 
   FixedArray* elements = FixedArray::cast(source->elements());
   FixedArray* properties = FixedArray::cast(source->properties());
@@ -2013,7 +2038,7 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
   // Allocate string.
   AllocationSpace space =
       (size > MaxHeapObjectSize()) ? LO_SPACE : OLD_DATA_SPACE;
-  Object* result = AllocateRaw(size, space);
+  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
   reinterpret_cast<HeapObject*>(result)->set_map(map);
@@ -2039,7 +2064,7 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 
   // Use AllocateRaw rather than Allocate because the object's size cannot be
   // determined from the map.
-  Object* result = AllocateRaw(size, space);
+  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
   // Determine the map based on the string's length.
@@ -2069,7 +2094,7 @@ Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
 
   // Use AllocateRaw rather than Allocate because the object's size cannot be
   // determined from the map.
-  Object* result = AllocateRaw(size, space);
+  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
   // Determine the map based on the string's length.
@@ -2092,7 +2117,7 @@ Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
 
 Object* Heap::AllocateEmptyFixedArray() {
   int size = FixedArray::SizeFor(0);
-  Object* result = AllocateRaw(size, OLD_DATA_SPACE);
+  Object* result = AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
   // Initialize the object.
   reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
@@ -2102,6 +2127,8 @@ Object* Heap::AllocateEmptyFixedArray() {
 
 
 Object* Heap::AllocateRawFixedArray(int length) {
+  // Use the general function if we're forced to always allocate.
+  if (always_allocate()) return AllocateFixedArray(length, NOT_TENURED);
   // Allocate the raw data for a fixed array.
   int size = FixedArray::SizeFor(length);
   return (size > MaxHeapObjectSize())
@@ -2159,7 +2186,7 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   } else {
     AllocationSpace space =
         (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-    result = AllocateRaw(size, space);
+    result = AllocateRaw(size, space, OLD_POINTER_SPACE);
   }
   if (result->IsFailure()) return result;
 
