@@ -1530,8 +1530,14 @@ HeapObject* OldSpace::SlowAllocateRaw(int size_in_bytes) {
     return HeapObject::cast(result);
   }
 
-  // Free list allocation failed and there is no next page.  Try to expand
-  // the space and allocate in the new next page.
+  // Free list allocation failed and there is no next page.  Fail if we have
+  // hit the old generation size limit that should cause a garbage
+  // collection.
+  if (!Heap::always_allocate() && Heap::OldGenerationAllocationLimitReached()) {
+    return NULL;
+  }
+
+  // Try to expand the space and allocate in the new next page.
   ASSERT(!current_page->next_page()->is_valid());
   if (Expand(current_page)) {
     return AllocateInNextPage(current_page, size_in_bytes);
@@ -2009,8 +2015,14 @@ HeapObject* MapSpace::SlowAllocateRaw(int size_in_bytes) {
     }
   }
 
-  // Free list allocation failed and there is no next page.  Try to expand
-  // the space and allocate in the new next page.
+  // Free list allocation failed and there is no next page.  Fail if we have
+  // hit the old generation size limit that should cause a garbage
+  // collection.
+  if (!Heap::always_allocate() && Heap::OldGenerationAllocationLimitReached()) {
+    return NULL;
+  }
+
+  // Try to expand the space and allocate in the new next page.
   ASSERT(!current_page->next_page()->is_valid());
   if (Expand(current_page)) {
     return AllocateInNextPage(current_page, size_in_bytes);
@@ -2236,6 +2248,13 @@ Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
                                               int object_size,
                                               Executability executable) {
   ASSERT(0 < object_size && object_size <= requested_size);
+
+  // Check if we want to force a GC before growing the old space further.
+  // If so, fail the allocation.
+  if (!Heap::always_allocate() && Heap::OldGenerationAllocationLimitReached()) {
+    return Failure::RetryAfterGC(requested_size, identity());
+  }
+
   size_t chunk_size;
   LargeObjectChunk* chunk =
       LargeObjectChunk::New(requested_size, &chunk_size, executable);

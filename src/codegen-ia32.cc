@@ -175,7 +175,8 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
       cc_reg_(no_condition),
       state_(NULL),
       is_inside_try_(false),
-      break_stack_height_(0) {
+      break_stack_height_(0),
+      loop_nesting_(0) {
 }
 
 
@@ -786,6 +787,7 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
+                                           StaticType* type,
                                            OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
@@ -798,8 +800,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     return;
   }
 
-  // For now, we keep the old behavior and only inline the smi code
-  // for the bitwise operations.
+  // Set the flags based on the operation, type and loop nesting level.
   GenericBinaryFlags flags;
   switch (op) {
     case Token::BIT_OR:
@@ -808,11 +809,19 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     case Token::SHL:
     case Token::SHR:
     case Token::SAR:
-      flags = SMI_CODE_INLINED;
+      // Bit operations always assume they likely operate on Smis. Still only
+      // generate the inline Smi check code if this operation is part of a loop.
+      flags = (loop_nesting() > 0)
+              ? SMI_CODE_INLINED
+              : SMI_CODE_IN_STUB;
       break;
 
     default:
-      flags = SMI_CODE_IN_STUB;
+      // By default only inline the Smi check code for likely smis if this
+      // operation is part of a loop.
+      flags = ((loop_nesting() > 0) && type->IsLikelySmi())
+              ? SMI_CODE_INLINED
+              : SMI_CODE_IN_STUB;
       break;
   }
 
@@ -985,6 +994,7 @@ class DeferredInlinedSmiSubReversed: public DeferredCode {
 
 
 void CodeGenerator::SmiOperation(Token::Value op,
+                                 StaticType* type,
                                  Handle<Object> value,
                                  bool reversed,
                                  OverwriteMode overwrite_mode) {
@@ -1046,7 +1056,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Pop(eax);
         frame_->Push(Immediate(value));
         frame_->Push(eax);
-        GenericBinaryOperation(op, overwrite_mode);
+        GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
@@ -1068,7 +1078,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Pop(eax);
         frame_->Push(Immediate(value));
         frame_->Push(eax);
-        GenericBinaryOperation(op, overwrite_mode);
+        GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
@@ -1096,7 +1106,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Pop(eax);
         frame_->Push(Immediate(value));
         frame_->Push(eax);
-        GenericBinaryOperation(op, overwrite_mode);
+        GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
@@ -1155,7 +1165,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Push(Immediate(value));
         frame_->Push(eax);
       }
-      GenericBinaryOperation(op, overwrite_mode);
+      GenericBinaryOperation(op, type, overwrite_mode);
       break;
     }
   }
@@ -1747,6 +1757,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     __ jmp(&entry);
   }
 
+  IncrementLoopNesting();
+
   // body
   __ bind(&loop);
   CheckStack();  // TODO(1222600): ignore if body contains calls.
@@ -1778,6 +1790,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       Branch(true, &loop);
       break;
   }
+
+  DecrementLoopNesting();
 
   // exit
   __ bind(node->break_target());
@@ -2587,10 +2601,11 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     target.GetValue(NOT_INSIDE_TYPEOF);
     Literal* literal = node->value()->AsLiteral();
     if (IsInlineSmi(literal)) {
-      SmiOperation(node->binary_op(), literal->handle(), false, NO_OVERWRITE);
+      SmiOperation(node->binary_op(), node->type(), literal->handle(), false,
+                   NO_OVERWRITE);
     } else {
       Load(node->value());
-      GenericBinaryOperation(node->binary_op());
+      GenericBinaryOperation(node->binary_op(), node->type());
     }
   }
 
@@ -3452,16 +3467,16 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
     if (IsInlineSmi(rliteral)) {
       Load(node->left());
-      SmiOperation(node->op(), rliteral->handle(), false, overwrite_mode);
-
+      SmiOperation(node->op(), node->type(), rliteral->handle(), false,
+                   overwrite_mode);
     } else if (IsInlineSmi(lliteral)) {
       Load(node->right());
-      SmiOperation(node->op(), lliteral->handle(), true, overwrite_mode);
-
+      SmiOperation(node->op(), node->type(), lliteral->handle(), true,
+                   overwrite_mode);
     } else {
       Load(node->left());
       Load(node->right());
-      GenericBinaryOperation(node->op(), overwrite_mode);
+      GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
     }
   }
 }
@@ -4794,7 +4809,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_out_of_memory_exception,
                               StackFrame::Type frame_type,
-                              bool do_gc) {
+                              bool do_gc,
+                              bool always_allocate_scope) {
   // eax: result parameter for PerformGC, if any
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
@@ -4807,11 +4823,21 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     __ call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
   }
 
+  ExternalReference scope_depth =
+      ExternalReference::heap_always_allocate_scope_depth();
+  if (always_allocate_scope) {
+    __ inc(Operand::StaticVariable(scope_depth));
+  }
+
   // Call C function.
   __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
   __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
   __ call(Operand(ebx));
   // Result is in eax or edx:eax - do not destroy these registers!
+
+  if (always_allocate_scope) {
+    __ dec(Operand::StaticVariable(scope_depth));
+  }
 
   // Check for failure result.
   Label failure_returned;
@@ -4939,7 +4965,8 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   Label throw_out_of_memory_exception;
   Label throw_normal_exception;
 
-#ifdef DEBUG
+  // Call into the runtime system. Collect garbage before the call if
+  // running with --gc-greedy set.
   if (FLAG_gc_greedy) {
     Failure* failure = Failure::RetryAfterGC(0);
     __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
@@ -4947,19 +4974,25 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   GenerateCore(masm, &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               FLAG_gc_greedy);
-#else
-  GenerateCore(masm,
-               &throw_normal_exception,
-               &throw_out_of_memory_exception,
-               frame_type,
+               FLAG_gc_greedy,
                false);
-#endif
 
+  // Do space-specific GC and retry runtime call.
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
+               true,
+               false);
+
+  // Do full GC and retry runtime call one final time.
+  Failure* failure = Failure::InternalError();
+  __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
+  GenerateCore(masm,
+               &throw_normal_exception,
+               &throw_out_of_memory_exception,
+               frame_type,
+               true,
                true);
 
   __ bind(&throw_out_of_memory_exception);

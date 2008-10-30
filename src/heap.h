@@ -260,6 +260,11 @@ class Heap : public AllStatic {
   static MapSpace* map_space() { return map_space_; }
   static LargeObjectSpace* lo_space() { return lo_space_; }
 
+  static bool always_allocate() { return always_allocate_scope_depth_ != 0; }
+  static Address always_allocate_scope_depth_address() {
+    return reinterpret_cast<Address>(&always_allocate_scope_depth_);
+  }
+
   static Address* NewSpaceAllocationTopAddress() {
     return new_space_.allocation_top_address();
   }
@@ -523,7 +528,8 @@ class Heap : public AllStatic {
   // failed.
   // Please note this function does not perform a garbage collection.
   static inline Object* AllocateRaw(int size_in_bytes,
-                                    AllocationSpace space);
+                                    AllocationSpace space,
+                                    AllocationSpace retry_space);
 
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -631,6 +637,7 @@ class Heap : public AllStatic {
 
   // Finds out which space an object should get promoted to based on its type.
   static inline OldSpace* TargetSpace(HeapObject* object);
+  static inline AllocationSpace TargetSpaceId(InstanceType type);
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
   static void set_code_stubs(Dictionary* value) { code_stubs_ = value; }
@@ -744,6 +751,20 @@ class Heap : public AllStatic {
   // Allocate unitialized fixed array (pretenure == NON_TENURE).
   static Object* AllocateRawFixedArray(int length);
 
+  // True if we have reached the allocation limit in the old generation that
+  // should force the next GC (caused normally) to be a full one.
+  static bool OldGenerationPromotionLimitReached() {
+    return (PromotedSpaceSize() + PromotedExternalMemorySize())
+           > old_gen_promotion_limit_;
+  }
+
+  // True if we have reached the allocation limit in the old generation that
+  // should artificially cause a GC right now.
+  static bool OldGenerationAllocationLimitReached() {
+    return (PromotedSpaceSize() + PromotedExternalMemorySize())
+           > old_gen_allocation_limit_;
+  }
+
  private:
   static int semispace_size_;
   static int initial_semispace_size_;
@@ -752,6 +773,8 @@ class Heap : public AllStatic {
 
   static int new_space_growth_limit_;
   static int scavenge_count_;
+
+  static int always_allocate_scope_depth_;
 
   static const int kMaxMapSpaceSize = 8*MB;
 
@@ -785,8 +808,15 @@ class Heap : public AllStatic {
   static bool disallow_allocation_failure_;
 #endif  // DEBUG
 
-  // Promotion limit that trigger a global GC
-  static int promoted_space_limit_;
+  // Limit that triggers a global GC on the next (normally caused) GC.  This
+  // is checked when we have already decided to do a GC to help determine
+  // which collector to invoke.
+  static int old_gen_promotion_limit_;
+
+  // Limit that triggers a global GC as soon as is reasonable.  This is
+  // checked before expanding a paged space in the old generation and on
+  // every allocation in large object space.
+  static int old_gen_allocation_limit_;
 
   // The amount of external memory registered through the API kept alive
   // by global handles
@@ -904,6 +934,25 @@ class Heap : public AllStatic {
 
   friend class Factory;
   friend class DisallowAllocationFailure;
+  friend class AlwaysAllocateScope;
+};
+
+
+class AlwaysAllocateScope {
+ public:
+  AlwaysAllocateScope() {
+    // We shouldn't hit any nested scopes, because that requires
+    // non-handle code to call handle code. The code still works but
+    // performance will degrade, so we want to catch this situation
+    // in debug mode.
+    ASSERT(Heap::always_allocate_scope_depth_ == 0);
+    Heap::always_allocate_scope_depth_++;
+  }
+
+  ~AlwaysAllocateScope() {
+    Heap::always_allocate_scope_depth_--;
+    ASSERT(Heap::always_allocate_scope_depth_ == 0);
+  }
 };
 
 

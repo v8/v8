@@ -190,7 +190,8 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
 
   __ ldr(r0, MemOperand(sp, 0));
 
-  // Check if the object is a string.
+  // Check if the object is a string leaving the instance type in the
+  // r1 register.
   GenerateStringCheck(masm, r0, r1, r3, &miss, &check_wrapper);
 
   // Load length directly from the string.
@@ -204,7 +205,7 @@ void LoadIC::GenerateStringLength(MacroAssembler* masm) {
 
   // Check if the object is a JSValue wrapper.
   __ bind(&check_wrapper);
-  __ cmp(r0, Operand(JS_VALUE_TYPE));
+  __ cmp(r1, Operand(JS_VALUE_TYPE));
   __ b(ne, &miss);
 
   // Check if the wrapped value is a string and load the length

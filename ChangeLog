@@ -1,3 +1,20 @@
+2008-10-30: Version 0.4.2
+
+        Improved performance of Array.prototype.concat by moving the
+        implementation to C++ (issue 123).
+
+        Fixed heap growth policy to avoid growing old space to its maximum
+        capacity before doing a garbage collection and fixed issue that
+        would lead to artificial out of memory situations (issue 129).
+
+        Fixed Date.prototype.toLocaleDateString to return the date in the
+        same format as WebKit.
+
+        Added missing initialization checks to debugger API.
+
+        Added removing of unused maps during GC.
+
+
 2008-10-28: Version 0.4.1
 
         Added caching of RegExp data in compilation cache.

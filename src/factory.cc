@@ -42,6 +42,18 @@ Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
 }
 
 
+Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size) {
+  ASSERT(0 <= size);
+  CALL_HEAP_FUNCTION(Heap::AllocateFixedArrayWithHoles(size), FixedArray);
+}
+
+
+Handle<Dictionary> Factory::NewDictionary(int at_least_space_for) {
+  ASSERT(0 <= at_least_space_for);
+  CALL_HEAP_FUNCTION(Dictionary::Allocate(at_least_space_for), Dictionary);
+}
+
+
 Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors) {
   ASSERT(0 <= number_of_descriptors);
   CALL_HEAP_FUNCTION(DescriptorArray::Allocate(number_of_descriptors),
@@ -138,8 +150,8 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_name(Heap::undefined_value());
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
-  script->set_wrapper(*Factory::NewProxy(0, TENURED));
   script->set_type(Smi::FromInt(SCRIPT_TYPE_NORMAL));
+  script->set_wrapper(*Factory::NewProxy(0, TENURED));
   return script;
 }
 
@@ -440,6 +452,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
   return function;
 }
 
+
 Handle<Code> Factory::NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
                               Code::Flags flags) {
   CALL_HEAP_FUNCTION(Heap::CreateCode(desc, sinfo, flags), Code);
@@ -451,41 +464,25 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
 }
 
 
-#define CALL_GC(RETRY)                                                     \
-  do {                                                                     \
-    if (!Heap::CollectGarbage(Failure::cast(RETRY)->requested(),           \
-                              Failure::cast(RETRY)->allocation_space())) { \
-      /* TODO(1181417): Fix this. */                                       \
-      V8::FatalProcessOutOfMemory("Factory CALL_GC");                      \
-    }                                                                      \
-  } while (false)
+static inline Object* DoCopyInsert(DescriptorArray* array,
+                                   String* key,
+                                   Object* value,
+                                   PropertyAttributes attributes) {
+  CallbacksDescriptor desc(key, value, attributes);
+  Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
+  return obj;
+}
 
 
-// Allocate the new array. We cannot use the CALL_HEAP_FUNCTION macro here,
-// because the stack-allocated CallbacksDescriptor instance is not GC safe.
+// Allocate the new array.
 Handle<DescriptorArray> Factory::CopyAppendProxyDescriptor(
     Handle<DescriptorArray> array,
     Handle<String> key,
     Handle<Object> value,
     PropertyAttributes attributes) {
-  GC_GREEDY_CHECK();
-  CallbacksDescriptor desc(*key, *value, attributes);
-  Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
-  if (obj->IsFailure()) {
-    if (obj->IsRetryAfterGC()) {
-      CALL_GC(obj);
-      CallbacksDescriptor desc(*key, *value, attributes);
-      obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
-    }
-    if (obj->IsFailure()) {
-      // TODO(1181417): Fix this.
-      V8::FatalProcessOutOfMemory("CopyAppendProxyDescriptor");
-    }
-  }
-  return Handle<DescriptorArray>(DescriptorArray::cast(obj));
+  CALL_HEAP_FUNCTION(DoCopyInsert(*array, *key, *value, attributes),
+                     DescriptorArray);
 }
-
-#undef CALL_GC
 
 
 Handle<String> Factory::SymbolFromString(Handle<String> value) {

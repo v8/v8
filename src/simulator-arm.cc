@@ -428,6 +428,104 @@ int32_t Simulator::get_pc() const {
 }
 
 
+// The ARM cannot do unaligned reads and writes.  On some ARM platforms an
+// interrupt is caused.  On others it does a funky rotation thing.  For now we
+// simply disallow unaligned reads, but at some point we may want to move to
+// emulating the rotate behaviour.  Note that simulator runs have the runtime
+// system running directly on the host system and only generated code is
+// executed in the simulator.  Since the host is typically IA32 we will not
+// get the correct ARM-like behaviour on unaligned accesses.
+
+int Simulator::ReadW(int32_t addr, Instr* instr) {
+  if ((addr & 3) == 0) {
+    intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
+    return *ptr;
+  }
+  PrintF("Unaligned read at %x\n", addr);
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
+void Simulator::WriteW(int32_t addr, int value, Instr* instr) {
+  if ((addr & 3) == 0) {
+    intptr_t* ptr = reinterpret_cast<intptr_t*>(addr);
+    *ptr = value;
+    return;
+  }
+  PrintF("Unaligned write at %x, pc=%p\n", addr, instr);
+  UNIMPLEMENTED();
+}
+
+
+uint16_t Simulator::ReadHU(int32_t addr, Instr* instr) {
+  if ((addr & 1) == 0) {
+    uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
+    return *ptr;
+  }
+  PrintF("Unaligned read at %x, pc=%p\n", addr, instr);
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
+int16_t Simulator::ReadH(int32_t addr, Instr* instr) {
+  if ((addr & 1) == 0) {
+    int16_t* ptr = reinterpret_cast<int16_t*>(addr);
+    return *ptr;
+  }
+  PrintF("Unaligned read at %x\n", addr);
+  UNIMPLEMENTED();
+  return 0;
+}
+
+
+void Simulator::WriteH(int32_t addr, uint16_t value, Instr* instr) {
+  if ((addr & 1) == 0) {
+    uint16_t* ptr = reinterpret_cast<uint16_t*>(addr);
+    *ptr = value;
+    return;
+  }
+  PrintF("Unaligned write at %x, pc=%p\n", addr, instr);
+  UNIMPLEMENTED();
+}
+
+
+void Simulator::WriteH(int32_t addr, int16_t value, Instr* instr) {
+  if ((addr & 1) == 0) {
+    int16_t* ptr = reinterpret_cast<int16_t*>(addr);
+    *ptr = value;
+    return;
+  }
+  PrintF("Unaligned write at %x, pc=%p\n", addr, instr);
+  UNIMPLEMENTED();
+}
+
+
+uint8_t Simulator::ReadBU(int32_t addr) {
+  uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
+  return *ptr;
+}
+
+
+int8_t Simulator::ReadB(int32_t addr) {
+  int8_t* ptr = reinterpret_cast<int8_t*>(addr);
+  return *ptr;
+}
+
+
+void Simulator::WriteB(int32_t addr, uint8_t value) {
+  uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
+  *ptr = value;
+}
+
+
+void Simulator::WriteB(int32_t addr, int8_t value) {
+  int8_t* ptr = reinterpret_cast<int8_t*>(addr);
+  *ptr = value;
+}
+
+
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit() const {
   // Leave a safety margin of 256 bytes to prevent overrunning the stack when
@@ -953,30 +1051,27 @@ void Simulator::DecodeType01(Instr* instr) {
       }
       if (instr->HasH()) {
         if (instr->HasSign()) {
-          int16_t* haddr = reinterpret_cast<int16_t*>(addr);
           if (instr->HasL()) {
-            int16_t val = *haddr;
+            int16_t val = ReadH(addr, instr);
             set_register(rd, val);
           } else {
             int16_t val = get_register(rd);
-            *haddr = val;
+            WriteH(addr, val, instr);
           }
         } else {
-          uint16_t* haddr = reinterpret_cast<uint16_t*>(addr);
           if (instr->HasL()) {
-            uint16_t val = *haddr;
+            uint16_t val = ReadHU(addr, instr);
             set_register(rd, val);
           } else {
             uint16_t val = get_register(rd);
-            *haddr = val;
+            WriteH(addr, val, instr);
           }
         }
       } else {
         // signed byte loads
         ASSERT(instr->HasSign());
         ASSERT(instr->HasL());
-        int8_t* baddr = reinterpret_cast<int8_t*>(addr);
-        int8_t val = *baddr;
+        int8_t val = ReadB(addr);
         set_register(rd, val);
       }
       return;
@@ -1231,20 +1326,18 @@ void Simulator::DecodeType2(Instr* instr) {
     }
   }
   if (instr->HasB()) {
-    byte* baddr = reinterpret_cast<byte*>(addr);
     if (instr->HasL()) {
-      byte val = *baddr;
+      byte val = ReadBU(addr);
       set_register(rd, val);
     } else {
       byte val = get_register(rd);
-      *baddr = val;
+      WriteB(addr, val);
     }
   } else {
-    intptr_t* iaddr = reinterpret_cast<intptr_t*>(addr);
     if (instr->HasL()) {
-      set_register(rd, *iaddr);
+      set_register(rd, ReadW(addr, instr));
     } else {
-      *iaddr = get_register(rd);
+      WriteW(addr, get_register(rd), instr);
     }
   }
 }
@@ -1292,11 +1385,10 @@ void Simulator::DecodeType3(Instr* instr) {
   if (instr->HasB()) {
     UNIMPLEMENTED();
   } else {
-    intptr_t* iaddr = reinterpret_cast<intptr_t*>(addr);
     if (instr->HasL()) {
-      set_register(rd, *iaddr);
+      set_register(rd, ReadW(addr, instr));
     } else {
-      *iaddr = get_register(rd);
+      WriteW(addr, get_register(rd), instr);
     }
   }
 }

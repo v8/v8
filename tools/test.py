@@ -63,6 +63,7 @@ class ProgressIndicator(object):
     self.remaining = len(cases)
     self.total = len(cases)
     self.failed = [ ]
+    self.crashed = 0
     self.terminate = False
     self.lock = threading.Lock()
 
@@ -124,6 +125,8 @@ class ProgressIndicator(object):
       self.lock.acquire()
       if output.UnexpectedOutput():
         self.failed.append(output)
+        if output.HasCrashed():
+          self.crashed += 1
       else:
         self.succeeded += 1
       self.remaining -= 1
@@ -159,6 +162,8 @@ class SimpleProgressIndicator(ProgressIndicator):
         print "--- stdout ---"
         print failed.output.stdout.strip()
       print "Command: %s" % EscapeCommand(failed.command)
+      if failed.HasCrashed():
+        print "--- CRASHED ---"      
     if len(self.failed) == 0:
       print "==="
       print "=== All tests succeeded"
@@ -167,6 +172,8 @@ class SimpleProgressIndicator(ProgressIndicator):
       print
       print "==="
       print "=== %i tests failed" % len(self.failed)
+      if self.crashed > 0:
+        print "=== %i tests CRASHED" % self.crashed
       print "==="
 
 
@@ -178,7 +185,10 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
 
   def HasRun(self, output):
     if output.UnexpectedOutput():
-      outcome = 'FAIL'
+      if output.HasCrashed():
+        outcome = 'CRASH'
+      else:
+        outcome = 'FAIL'
     else:
       outcome = 'pass'
     print 'Done running %s: %s' % (output.test.GetLabel(), outcome)
@@ -194,8 +204,12 @@ class DotsProgressIndicator(SimpleProgressIndicator):
     if (total > 1) and (total % 50 == 1):
       sys.stdout.write('\n')
     if output.UnexpectedOutput():
-      sys.stdout.write('F')
-      sys.stdout.flush()
+      if output.HasCrashed():
+        sys.stdout.write('C')
+        sys.stdout.flush()
+      else:
+        sys.stdout.write('F')
+        sys.stdout.flush()
     else:
       sys.stdout.write('.')
       sys.stdout.flush()
@@ -229,6 +243,8 @@ class CompactProgressIndicator(ProgressIndicator):
       if len(stderr):
         print self.templates['stderr'] % stderr
       print "Command: %s" % EscapeCommand(output.command)
+      if output.HasCrashed():
+        print "--- CRASHED ---"      
 
   def Truncate(self, str, length):
     if length and (len(str) > (length - 3)):
@@ -298,8 +314,9 @@ PROGRESS_INDICATORS = {
 
 class CommandOutput(object):
 
-  def __init__(self, exit_code, stdout, stderr):
+  def __init__(self, exit_code, timed_out, stdout, stderr):
     self.exit_code = exit_code
+    self.timed_out = timed_out
     self.stdout = stdout
     self.stderr = stderr
 
@@ -344,11 +361,23 @@ class TestOutput(object):
     self.output = output
 
   def UnexpectedOutput(self):
-    if self.HasFailed():
+    if self.HasCrashed():
+      outcome = CRASH
+    elif self.HasFailed():
       outcome = FAIL
     else:
       outcome = PASS
     return not outcome in self.test.outcomes
+
+  def HasCrashed(self):
+    if platform.system() == 'Windows':
+      return 0x80000000 & self.output.exit_code and not (0x3FFFFF00 & self.output.exit_code)
+    else:
+      # Timed out tests will have exit_code -signal.SIGTERM.
+      if self.output.timed_out:
+        return False
+      return self.output.exit_code < 0 and \
+             self.output.exit_code != -signal.SIGABRT
 
   def HasFailed(self):
     execution_failed = self.test.DidFail(self.output)
@@ -369,17 +398,34 @@ MAX_SLEEP_TIME = 0.1
 INITIAL_SLEEP_TIME = 0.0001
 SLEEP_TIME_FACTOR = 1.25
 
+SEM_INVALID_VALUE = -1
+SEM_NOGPFAULTERRORBOX = 0x0002 # Microsoft Platform SDK WinBase.h
 
+def Win32SetErrorMode(mode):
+  prev_error_mode = SEM_INVALID_VALUE
+  try:
+    import ctypes
+    prev_error_mode = ctypes.windll.kernel32.SetErrorMode(mode);
+  except ImportError:
+    pass
+  return prev_error_mode
+  
 def RunProcess(context, timeout, args, **rest):
   if context.verbose: print "#", " ".join(args)
   popen_args = args
+  prev_error_mode = SEM_INVALID_VALUE;
   if platform.system() == 'Windows':
     popen_args = '"' + subprocess.list2cmdline(args) + '"'
+    if context.suppress_dialogs:
+      # Try to change the error mode to avoid dialogs on fatal errors.
+      Win32SetErrorMode(SEM_NOGPFAULTERRORBOX)
   process = subprocess.Popen(
     shell = (platform.system() == 'Windows'),
     args = popen_args,
     **rest
   )
+  if platform.system() == 'Windows' and context.suppress_dialogs and prev_error_mode != SEM_INVALID_VALUE:
+    Win32SetErrorMode(prev_error_mode)
   # Compute the end time - if the process crosses this limit we
   # consider it timed out.
   if timeout is None: end_time = None
@@ -430,7 +476,7 @@ def Execute(args, context, timeout=None):
       PrintError(str(e))
   CheckedUnlink(outname)
   CheckedUnlink(errname)
-  return CommandOutput(exit_code, output, errors)
+  return CommandOutput(exit_code, timed_out, output, errors)
 
 
 def ExecuteNoCapture(args, context, timeout=None):
@@ -439,7 +485,7 @@ def ExecuteNoCapture(args, context, timeout=None):
     timeout,
     args = args,
   )
-  return CommandOutput(exit_code, "", "")
+  return CommandOutput(exit_code, False, "", "")
 
 
 def CarCdr(path):
@@ -543,13 +589,14 @@ PREFIX = {'debug': '_g', 'release': ''}
 
 class Context(object):
 
-  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor):
+  def __init__(self, workspace, buildspace, verbose, vm, timeout, processor, suppress_dialogs):
     self.workspace = workspace
     self.buildspace = buildspace
     self.verbose = verbose
     self.vm_root = vm
     self.timeout = timeout
     self.processor = processor
+    self.suppress_dialogs = suppress_dialogs
 
   def GetVm(self, mode):
     name = self.vm_root + PREFIX[mode]
@@ -1030,6 +1077,10 @@ def BuildOptions():
       default=1, type="int")
   result.add_option("--time", help="Print timing information after running",
       default=False, action="store_true")
+  result.add_option("--suppress-dialogs", help="Suppress Windows dialogs for crashing tests",
+        dest="suppress_dialogs", default=True, action="store_true")
+  result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
+        dest="suppress_dialogs", action="store_false")
   return result
 
 
@@ -1159,7 +1210,8 @@ def Main():
   context = Context(workspace, buildspace, VERBOSE,
                     join(buildspace, 'shell'),
                     options.timeout,
-                    GetSpecialCommandProcessor(options.special_command))
+                    GetSpecialCommandProcessor(options.special_command), 
+                    options.suppress_dialogs)
   if options.j != 1:
     options.scons_flags += ['-j', str(options.j)]
   if not options.no_build:

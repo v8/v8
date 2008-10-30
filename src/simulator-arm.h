@@ -147,6 +147,21 @@ class Simulator {
   void HandleRList(Instr* instr, bool load);
   void SoftwareInterrupt(Instr* instr);
 
+  // Read and write memory.
+  inline uint8_t ReadBU(int32_t addr);
+  inline int8_t ReadB(int32_t addr);
+  inline void WriteB(int32_t addr, uint8_t value);
+  inline void WriteB(int32_t addr, int8_t value);
+
+  inline uint16_t ReadHU(int32_t addr, Instr* instr);
+  inline int16_t ReadH(int32_t addr, Instr* instr);
+  // Note: Overloaded on the sign of the value.
+  inline void WriteH(int32_t addr, uint16_t value, Instr* instr);
+  inline void WriteH(int32_t addr, int16_t value, Instr* instr);
+
+  inline int ReadW(int32_t addr, Instr* instr);
+  inline void WriteW(int32_t addr, int value, Instr* instr);
+
   // Executing is handled based on the instruction type.
   void DecodeType01(Instr* instr);  // both type 0 and type 1 rolled into one
   void DecodeType2(Instr* instr);

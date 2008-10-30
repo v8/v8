@@ -564,6 +564,10 @@ ExternalReference ExternalReference::new_space_allocation_top_address() {
   return ExternalReference(Heap::NewSpaceAllocationTopAddress());
 }
 
+ExternalReference ExternalReference::heap_always_allocate_scope_depth() {
+  return ExternalReference(Heap::always_allocate_scope_depth_address());
+}
+
 ExternalReference ExternalReference::new_space_allocation_limit_address() {
   return ExternalReference(Heap::NewSpaceAllocationLimitAddress());
 }
