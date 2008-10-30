@@ -1677,6 +1677,20 @@ bool Map::has_non_instance_prototype() {
 }
 
 
+void Map::set_is_access_check_needed(bool access_check_needed) {
+  if (access_check_needed) {
+    set_bit_field(bit_field() | (1 << kIsAccessCheckNeeded));
+  } else {
+    set_bit_field(bit_field() & ~(1 << kIsAccessCheckNeeded));
+  }
+}
+
+
+bool Map::is_access_check_needed() {
+  return ((1 << kIsAccessCheckNeeded) & bit_field()) != 0;
+}
+
+
 Code::Flags Code::flags() {
   return static_cast<Flags>(READ_INT_FIELD(this, kFlagsOffset));
 }
@@ -2295,6 +2309,16 @@ bool AccessorInfo::all_can_write() {
 
 void AccessorInfo::set_all_can_write(bool value) {
   set_flag(BooleanBit::set(flag(), kAllCanWriteBit, value));
+}
+
+
+bool AccessorInfo::prohibits_overwriting() {
+  return BooleanBit::get(flag(), kProhibitsOverwritingBit);
+}
+
+
+void AccessorInfo::set_prohibits_overwriting(bool value) {
+  set_flag(BooleanBit::set(flag(), kProhibitsOverwritingBit, value));
 }
 
 

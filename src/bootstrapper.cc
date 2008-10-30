@@ -597,7 +597,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
       Handle<String> global_name = Factory::LookupAsciiSymbol("global");
       global_proxy_function->shared()->set_instance_class_name(*global_name);
-      global_proxy_function->initial_map()->set_is_access_check_needed();
+      global_proxy_function->initial_map()->set_is_access_check_needed(true);
 
       // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
 

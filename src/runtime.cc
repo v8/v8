@@ -336,6 +336,23 @@ static Object* Runtime_GetTemplateField(Arguments args) {
 }
 
 
+static Object* Runtime_DisableAccessChecks(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(HeapObject, object, args[0]);
+  bool needs_access_checks = object->map()->is_access_check_needed();
+  object->map()->set_is_access_check_needed(false);
+  return needs_access_checks ? Heap::true_value() : Heap::false_value();
+}
+
+
+static Object* Runtime_EnableAccessChecks(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(HeapObject, object, args[0]);
+  object->map()->set_is_access_check_needed(true);
+  return Heap::undefined_value();
+}
+
+
 static Object* ThrowRedeclarationError(const char* type, Handle<String> name) {
   HandleScope scope;
   Handle<Object> type_handle = Factory::NewStringFromAscii(CStrVector(type));

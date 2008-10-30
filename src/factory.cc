@@ -725,7 +725,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
 
   // Mark as needs_access_check if needed.
   if (obj->needs_access_check()) {
-    map->set_is_access_check_needed();
+    map->set_is_access_check_needed(true);
   }
 
   // Set interceptor information in the map.

@@ -5075,3 +5075,80 @@ THREADED_TEST(PropertyEnumeration) {
   const char* elmv3[] = {"w", "z", "x", "y"};
   CheckProperties(elms->Get(v8::Integer::New(3)), elmc3, elmv3);
 }
+
+
+static v8::Handle<Value> AccessorProhibitsOverwritingGetter(
+    Local<String> name,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8::True();
+}
+
+
+THREADED_TEST(AccessorProhibitsOverwriting) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessor(v8_str("x"),
+                     AccessorProhibitsOverwritingGetter,
+                     0,
+                     v8::Handle<Value>(),
+                     v8::PROHIBITS_OVERWRITING,
+                     v8::ReadOnly);
+  Local<v8::Object> instance = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), instance);
+  Local<Value> value = CompileRun(
+      "obj.__defineGetter__('x', function() { return false; });"
+      "obj.x");
+  CHECK(value->BooleanValue());
+  value = CompileRun(
+      "var setter_called = false;"
+      "obj.__defineSetter__('x', function() { setter_called = true; });"
+      "obj.x = 42;"
+      "setter_called");
+  CHECK(!value->BooleanValue());
+  value = CompileRun(
+      "obj2 = {};"
+      "obj2.__proto__ = obj;"
+      "obj2.__defineGetter__('x', function() { return false; });"
+      "obj2.x");
+  CHECK(value->BooleanValue());
+  value = CompileRun(
+      "var setter_called = false;"
+      "obj2 = {};"
+      "obj2.__proto__ = obj;"
+      "obj2.__defineSetter__('x', function() { setter_called = true; });"
+      "obj2.x = 42;"
+      "setter_called");
+  CHECK(!value->BooleanValue());
+}
+
+
+static bool NamedSetAccessBlocker(Local<v8::Object> obj,
+                                  Local<Value> name,
+                                  v8::AccessType type,
+                                  Local<Value> data) {
+  return type != v8::ACCESS_SET;
+}
+
+
+static bool IndexedSetAccessBlocker(Local<v8::Object> obj,
+                                    uint32_t key,
+                                    v8::AccessType type,
+                                    Local<Value> data) {
+  return type != v8::ACCESS_SET;
+}
+
+
+THREADED_TEST(DisableAccessChecksWhileConfiguring) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessCheckCallbacks(NamedSetAccessBlocker,
+                                 IndexedSetAccessBlocker);
+  templ->Set(v8_str("x"), v8::True());
+  Local<v8::Object> instance = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), instance);
+  Local<Value> value = CompileRun("obj.x");
+  CHECK(value->BooleanValue());
+}

@@ -701,6 +701,7 @@ void FunctionTemplate::AddInstancePropertyAccessor(
   obj->set_name(*Utils::OpenHandle(*name));
   if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
   if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
+  if (settings & PROHIBITS_OVERWRITING) obj->set_prohibits_overwriting(true);
   obj->set_property_attributes(static_cast<PropertyAttributes>(attributes));
 
   i::Handle<i::Object> list(Utils::OpenHandle(this)->property_accessors());
@@ -1915,7 +1916,7 @@ void v8::Object::TurnOnAccessCheck() {
 
   i::Handle<i::Map> new_map =
     i::Factory::CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
-  new_map->set_is_access_check_needed();
+  new_map->set_is_access_check_needed(true);
   obj->set_map(*new_map);
 }
 
