@@ -3439,8 +3439,8 @@ static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
 
   // If the holder is found, we read the property from it.
   if (!holder.is_null() && holder->IsJSObject()) {
+    ASSERT(Handle<JSObject>::cast(holder)->HasProperty(*name));
     JSObject* object = JSObject::cast(*holder);
-    ASSERT(object->HasProperty(*name));
     JSObject* receiver = (object->IsGlobalObject())
         ? GlobalObject::cast(object)->global_receiver()
         : ComputeReceiverForNonGlobal(object);
