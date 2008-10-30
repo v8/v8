@@ -356,7 +356,6 @@ void CompileWithRetryAfterGC(Handle<String> pattern,
 Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
                                        Handle<String> pattern,
                                        JSRegExp::Flags flags) {
-
   Handle<String> two_byte_pattern = StringToTwoByte(pattern);
 
   unsigned number_of_captures;
