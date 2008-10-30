@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,29 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_REWRITER_H_
-#define V8_REWRITER_H_
+// Test that we can compare two strings that are not 4-byte aligned.
+// This situation can arise with sliced strings.  This tests for an ARM bug
+// that was fixed in r554.
 
-namespace v8 { namespace internal {
+var base = "Now is the time for all good men to come to the aid of the party. " + 
+           "Now is the time for all good men to come to the aid of the party."
+var s1 = base.substring(0, 64);
+var s2 = base.substring(66, 130);
 
+var o = new Object();
+o[s1] = 1;
+o[s2] = 2;
 
-// Currently, the rewriter takes function literals (only top-level)
-// and rewrites them to return the value of the last expression in
-// them.
-//
-// The rewriter adds a (hidden) variable, called .result, to the
-// activation, and tries to figure out where it needs to store into
-// this variable. If the variable is ever used, we conclude by adding
-// a return statement that returns the variable to the body of the
-// given function.
+var first_time = true;
 
-class Rewriter {
- public:
-  static bool Process(FunctionLiteral* function);
-  static void Optimize(FunctionLiteral* function);
-};
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_REWRITER_H_
+for (var x in o) {
+  assertTrue(o[x] == 2, "expect 2");
+  assertTrue(first_time, "once only");
+  first_time = false;
+}

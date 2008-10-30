@@ -155,6 +155,17 @@ class MarkCompactCollector : public AllStatic {
      if (!obj->IsMarked()) MarkUnmarkedObject(obj);
   }
 
+  // Creates back pointers for all map transitions, stores them in
+  // the prototype field.  The original prototype pointers are restored
+  // in ClearNonLiveTransitions().  All JSObject maps
+  // connected by map transitions have the same prototype object, which
+  // is why we can use this field temporarily for back pointers.
+  static void CreateBackPointers();
+
+  // Mark a Map and its DescriptorArray together, skipping transitions.
+  static void MarkMapContents(Map* map);
+  static void MarkDescriptorArray(DescriptorArray* descriptors);
+
   // Mark the heap roots and all objects reachable from them.
   static void ProcessRoots(RootMarkingVisitor* visitor);
 
@@ -193,6 +204,13 @@ class MarkCompactCollector : public AllStatic {
   // We sweep the large object space in the same way whether we are
   // compacting or not, because the large object space is never compacted.
   static void SweepLargeObjectSpace();
+
+  // Test whether a (possibly marked) object is a Map.
+  static inline bool SafeIsMap(HeapObject* object);
+
+    // Map transitions from a live map to a dead map must be killed.
+  // We replace them with a null descriptor, with the same key.
+  static void ClearNonLiveTransitions();
 
   // --------------------------------------------------------------------------
   // Phase 2: functions related to computing and encoding forwarding pointers

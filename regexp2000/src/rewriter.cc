@@ -34,6 +34,441 @@
 namespace v8 { namespace internal {
 
 
+class AstOptimizer: public Visitor {
+ public:
+  explicit AstOptimizer() {
+  }
+
+  void Optimize(ZoneList<Statement*>* statements);
+
+ private:
+  // Helpers
+  void OptimizeArguments(ZoneList<Expression*>* arguments);
+
+  // Node visitors.
+#define DEF_VISIT(type) \
+  virtual void Visit##type(type* node);
+  NODE_LIST(DEF_VISIT)
+#undef DEF_VISIT
+
+  DISALLOW_COPY_AND_ASSIGN(AstOptimizer);
+};
+
+
+void AstOptimizer::Optimize(ZoneList<Statement*>* statements) {
+  int len = statements->length();
+  for (int i = 0; i < len; i++) {
+    Visit(statements->at(i));
+  }
+}
+
+
+void AstOptimizer::OptimizeArguments(ZoneList<Expression*>* arguments) {
+  for (int i = 0; i < arguments->length(); i++) {
+    Visit(arguments->at(i));
+  }
+}
+
+
+void AstOptimizer::VisitBlock(Block* node) {
+  Optimize(node->statements());
+}
+
+
+void AstOptimizer::VisitExpressionStatement(ExpressionStatement* node) {
+  Visit(node->expression());
+}
+
+
+void AstOptimizer::VisitIfStatement(IfStatement* node) {
+  Visit(node->condition());
+  Visit(node->then_statement());
+  if (node->HasElseStatement()) {
+    Visit(node->else_statement());
+  }
+}
+
+
+
+
+void AstOptimizer::VisitLoopStatement(LoopStatement* node) {
+  if (node->init() != NULL) {
+    Visit(node->init());
+  }
+  if (node->cond() != NULL) {
+    Visit(node->cond());
+  }
+  if (node->body() != NULL) {
+    Visit(node->body());
+  }
+  if (node->next() != NULL) {
+    Visit(node->next());
+  }
+}
+
+
+void AstOptimizer::VisitForInStatement(ForInStatement* node) {
+  Visit(node->each());
+  Visit(node->enumerable());
+  Visit(node->body());
+}
+
+
+void AstOptimizer::VisitTryCatch(TryCatch* node) {
+  Visit(node->try_block());
+  Visit(node->catch_var());
+  Visit(node->catch_block());
+}
+
+
+void AstOptimizer::VisitTryFinally(TryFinally* node) {
+  Visit(node->try_block());
+  Visit(node->finally_block());
+}
+
+
+void AstOptimizer::VisitSwitchStatement(SwitchStatement* node) {
+  Visit(node->tag());
+  for (int i = 0; i < node->cases()->length(); i++) {
+    CaseClause* clause = node->cases()->at(i);
+    if (!clause->is_default()) {
+      Visit(clause->label());
+    }
+    Optimize(clause->statements());
+  }
+}
+
+
+void AstOptimizer::VisitContinueStatement(ContinueStatement* node) {
+  USE(node);
+}
+
+
+void AstOptimizer::VisitBreakStatement(BreakStatement* node) {
+  USE(node);
+}
+
+
+void AstOptimizer::VisitDeclaration(Declaration* node) {
+  // Will not be reached by the current optimizations.
+  USE(node);
+}
+
+
+void AstOptimizer::VisitEmptyStatement(EmptyStatement* node) {
+  USE(node);
+}
+
+
+void AstOptimizer::VisitReturnStatement(ReturnStatement* node) {
+  Visit(node->expression());
+}
+
+
+void AstOptimizer::VisitWithEnterStatement(WithEnterStatement* node) {
+  Visit(node->expression());
+}
+
+
+void AstOptimizer::VisitWithExitStatement(WithExitStatement* node) {
+  USE(node);
+}
+
+
+void AstOptimizer::VisitDebuggerStatement(DebuggerStatement* node) {
+  USE(node);
+}
+
+
+void AstOptimizer::VisitFunctionLiteral(FunctionLiteral* node) {
+  USE(node);
+}
+
+
+void AstOptimizer::VisitFunctionBoilerplateLiteral(
+    FunctionBoilerplateLiteral* node) {
+  USE(node);
+}
+
+
+void AstOptimizer::VisitConditional(Conditional* node) {
+  Visit(node->condition());
+  Visit(node->then_expression());
+  Visit(node->else_expression());
+}
+
+
+void AstOptimizer::VisitSlot(Slot* node) {
+  USE(node);
+}
+
+
+void AstOptimizer::VisitVariableProxy(VariableProxy* node) {
+  Variable* var = node->AsVariable();
+  if (var != NULL) {
+    if (var->type()->IsKnown()) {
+      node->type()->CopyFrom(var->type());
+    } else if (node->type()->IsLikelySmi()) {
+      var->type()->SetAsLikelySmi();
+    }
+  }
+}
+
+
+void AstOptimizer::VisitLiteral(Literal* node) {
+  Handle<Object> literal = node->handle();
+  if (literal->IsSmi()) {
+    node->type()->SetAsLikelySmi();
+  }
+}
+
+
+void AstOptimizer::VisitRegExpLiteral(RegExpLiteral* node) {
+  USE(node);
+}
+
+
+void AstOptimizer::VisitArrayLiteral(ArrayLiteral* node) {
+  for (int i = 0; i < node->values()->length(); i++) {
+    Visit(node->values()->at(i));
+  }
+}
+
+
+void AstOptimizer::VisitObjectLiteral(ObjectLiteral* node) {
+  for (int i = 0; i < node->properties()->length(); i++) {
+    Visit(node->properties()->at(i)->key());
+    Visit(node->properties()->at(i)->value());
+  }
+}
+
+
+void AstOptimizer::VisitAssignment(Assignment* node) {
+  switch (node->op()) {
+    case Token::INIT_VAR:
+    case Token::INIT_CONST:
+    case Token::ASSIGN:
+      // No type can be infered from the general assignment.
+      break;
+    case Token::ASSIGN_BIT_OR:
+    case Token::ASSIGN_BIT_XOR:
+    case Token::ASSIGN_BIT_AND:
+    case Token::ASSIGN_SHL:
+    case Token::ASSIGN_SAR:
+    case Token::ASSIGN_SHR:
+      node->type()->SetAsLikelySmiIfUnknown();
+      node->target()->type()->SetAsLikelySmiIfUnknown();
+      node->value()->type()->SetAsLikelySmiIfUnknown();
+      break;
+    case Token::ASSIGN_ADD:
+    case Token::ASSIGN_SUB:
+    case Token::ASSIGN_MUL:
+    case Token::ASSIGN_DIV:
+    case Token::ASSIGN_MOD:
+      if (node->type()->IsLikelySmi()) {
+        node->target()->type()->SetAsLikelySmiIfUnknown();
+        node->value()->type()->SetAsLikelySmiIfUnknown();
+      }
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+
+  Visit(node->target());
+  Visit(node->value());
+
+  switch (node->op()) {
+    case Token::INIT_VAR:
+    case Token::INIT_CONST:
+    case Token::ASSIGN:
+      // Pure assigment copies the type from the value.
+      node->type()->CopyFrom(node->value()->type());
+      break;
+    case Token::ASSIGN_BIT_OR:
+    case Token::ASSIGN_BIT_XOR:
+    case Token::ASSIGN_BIT_AND:
+    case Token::ASSIGN_SHL:
+    case Token::ASSIGN_SAR:
+    case Token::ASSIGN_SHR:
+      // Should have been setup above already.
+      break;
+    case Token::ASSIGN_ADD:
+    case Token::ASSIGN_SUB:
+    case Token::ASSIGN_MUL:
+    case Token::ASSIGN_DIV:
+    case Token::ASSIGN_MOD:
+      if (node->type()->IsUnknown()) {
+        if (node->target()->type()->IsLikelySmi() ||
+            node->value()->type()->IsLikelySmi()) {
+          node->type()->SetAsLikelySmi();
+        }
+      }
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+
+  // Since this is an assignment. We have to propagate this node's type to the
+  // variable.
+  VariableProxy* proxy = node->target()->AsVariableProxy();
+  if (proxy != NULL) {
+    Variable* var = proxy->AsVariable();
+    if (var != NULL) {
+      StaticType* var_type = var->type();
+      if (var_type->IsUnknown()) {
+        var_type->CopyFrom(node->type());
+      } else if (var_type->IsLikelySmi()) {
+        // We do not reset likely types to Unknown.
+      }
+    }
+  }
+}
+
+
+void AstOptimizer::VisitThrow(Throw* node) {
+  Visit(node->exception());
+}
+
+
+void AstOptimizer::VisitProperty(Property* node) {
+  Visit(node->obj());
+  Visit(node->key());
+}
+
+
+void AstOptimizer::VisitCall(Call* node) {
+  Visit(node->expression());
+  OptimizeArguments(node->arguments());
+}
+
+
+void AstOptimizer::VisitCallNew(CallNew* node) {
+  Visit(node->expression());
+  OptimizeArguments(node->arguments());
+}
+
+
+void AstOptimizer::VisitCallRuntime(CallRuntime* node) {
+  OptimizeArguments(node->arguments());
+}
+
+
+void AstOptimizer::VisitUnaryOperation(UnaryOperation* node) {
+  Visit(node->expression());
+}
+
+
+void AstOptimizer::VisitCountOperation(CountOperation* node) {
+  // Count operations assume that they work on Smis.
+  node->type()->SetAsLikelySmiIfUnknown();
+  node->expression()->type()->SetAsLikelySmiIfUnknown();
+  Visit(node->expression());
+}
+
+
+void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
+  // Depending on the operation we can propagate this node's type down the
+  // AST nodes.
+  switch (node->op()) {
+    case Token::COMMA:
+    case Token::OR:
+    case Token::AND:
+      break;
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND:
+    case Token::SHL:
+    case Token::SAR:
+    case Token::SHR:
+      node->type()->SetAsLikelySmiIfUnknown();
+      node->left()->type()->SetAsLikelySmiIfUnknown();
+      node->right()->type()->SetAsLikelySmiIfUnknown();
+      break;
+    case Token::ADD:
+    case Token::SUB:
+    case Token::MUL:
+    case Token::DIV:
+    case Token::MOD:
+      if (node->type()->IsLikelySmi()) {
+        node->left()->type()->SetAsLikelySmiIfUnknown();
+        node->right()->type()->SetAsLikelySmiIfUnknown();
+      }
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+
+  Visit(node->left());
+  Visit(node->right());
+
+  // After visiting the operand nodes we have to check if this node's type
+  // can be updated. If it does, then we can push that information down
+  // towards the leafs again if the new information is an upgrade over the
+  // previous type of the operand nodes.
+  if (node->type()->IsUnknown()) {
+    if (node->left()->type()->IsLikelySmi() ||
+        node->right()->type()->IsLikelySmi()) {
+      node->type()->SetAsLikelySmi();
+    }
+    if (node->type()->IsLikelySmi()) {
+      // The type of this node changed to LIKELY_SMI. Propagate this knowlege
+      // down through the nodes.
+      if (node->left()->type()->IsUnknown()) {
+        node->left()->type()->SetAsLikelySmi();
+        Visit(node->left());
+      }
+      if (node->right()->type()->IsUnknown()) {
+        node->right()->type()->SetAsLikelySmi();
+        Visit(node->right());
+      }
+    }
+  }
+}
+
+
+void AstOptimizer::VisitCompareOperation(CompareOperation* node) {
+  if (node->type()->IsKnown()) {
+    // Propagate useful information down towards the leafs.
+    node->left()->type()->SetAsLikelySmiIfUnknown();
+    node->right()->type()->SetAsLikelySmiIfUnknown();
+  }
+
+  Visit(node->left());
+  Visit(node->right());
+
+  // After visiting the operand nodes we have to check if this node's type
+  // can be updated. If it does, then we can push that information down
+  // towards the leafs again if the new information is an upgrade over the
+  // previous type of the operand nodes.
+  if (node->type()->IsUnknown()) {
+    if (node->left()->type()->IsLikelySmi() ||
+        node->right()->type()->IsLikelySmi()) {
+      node->type()->SetAsLikelySmi();
+    }
+    if (node->type()->IsLikelySmi()) {
+      // The type of this node changed to LIKELY_SMI. Propagate this knowlege
+      // down through the nodes.
+      if (node->left()->type()->IsUnknown()) {
+        node->left()->type()->SetAsLikelySmi();
+        Visit(node->left());
+      }
+      if (node->right()->type()->IsUnknown()) {
+        node->right()->type()->SetAsLikelySmi();
+        Visit(node->right());
+      }
+    }
+  }
+}
+
+
+void AstOptimizer::VisitThisFunction(ThisFunction* node) {
+  USE(node);
+}
+
+
 class Processor: public Visitor {
  public:
   explicit Processor(VariableProxy* result)
@@ -323,6 +758,20 @@ bool Rewriter::Process(FunctionLiteral* function) {
 
   if (processor.result_assigned()) body->Add(new ReturnStatement(result));
   return true;
+}
+
+
+void Rewriter::Optimize(FunctionLiteral* function) {
+  ZoneList<Statement*>* body = function->body();
+  if (body->is_empty()) return;
+
+  if (FLAG_optimize_ast) {
+    Scope* scope = function->scope();
+    if (!scope->is_global_scope()) {
+      AstOptimizer optimizer;
+      optimizer.Optimize(body);
+    }
+  }
 }
 
 

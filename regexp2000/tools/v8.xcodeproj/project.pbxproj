@@ -245,6 +245,7 @@
 
 /* Begin PBXFileReference section */
 		8900116B0E71CA2300F91F35 /* libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libraries.cc; sourceTree = "<group>"; };
+		89471C7F0EB23EE400B6874B /* flag-definitions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "flag-definitions.h"; sourceTree = "<group>"; };
 		89495E460E79FC23001F68C3 /* compilation-cache.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "compilation-cache.cc"; sourceTree = "<group>"; };
 		89495E470E79FC23001F68C3 /* compilation-cache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "compilation-cache.h"; sourceTree = "<group>"; };
 		8964482B0E9C00F700E7C516 /* codegen-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "codegen-ia32.h"; sourceTree = "<group>"; };
@@ -616,6 +617,7 @@
 				897FF1310E719B8F00D62E90 /* execution.h */,
 				897FF1320E719B8F00D62E90 /* factory.cc */,
 				897FF1330E719B8F00D62E90 /* factory.h */,
+				89471C7F0EB23EE400B6874B /* flag-definitions.h */,
 				897FF1350E719B8F00D62E90 /* flags.cc */,
 				897FF1360E719B8F00D62E90 /* flags.h */,
 				897FF1370E719B8F00D62E90 /* frames-arm.cc */,

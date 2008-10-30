@@ -744,6 +744,20 @@ class Heap : public AllStatic {
   // Allocate unitialized fixed array (pretenure == NON_TENURE).
   static Object* AllocateRawFixedArray(int length);
 
+  // True if we have reached the allocation limit in the old generation that
+  // should force the next GC (caused normally) to be a full one.
+  static bool OldGenerationPromotionLimitReached() {
+    return (PromotedSpaceSize() + PromotedExternalMemorySize())
+           > old_gen_promotion_limit_;
+  }
+
+  // True if we have reached the allocation limit in the old generation that
+  // should artificially cause a GC right now.
+  static bool OldGenerationAllocationLimitReached() {
+    return (PromotedSpaceSize() + PromotedExternalMemorySize())
+           > old_gen_allocation_limit_;
+  }
+
  private:
   static int semispace_size_;
   static int initial_semispace_size_;
@@ -785,8 +799,15 @@ class Heap : public AllStatic {
   static bool disallow_allocation_failure_;
 #endif  // DEBUG
 
-  // Promotion limit that trigger a global GC
-  static int promoted_space_limit_;
+  // Limit that triggers a global GC on the next (normally caused) GC.  This
+  // is checked when we have already decided to do a GC to help determine
+  // which collector to invoke.
+  static int old_gen_promotion_limit_;
+
+  // Limit that triggers a global GC as soon as is reasonable.  This is
+  // checked before expanding a paged space in the old generation and on
+  // every allocation in large object space.
+  static int old_gen_allocation_limit_;
 
   // The amount of external memory registered through the API kept alive
   // by global handles

@@ -301,6 +301,11 @@ bool Object::IsJSValue() {
 }
 
 
+bool Object::IsStringWrapper() {
+  return IsJSValue() && JSValue::cast(this)->value()->IsString();
+}
+
+
 bool Object::IsProxy() {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() == PROXY_TYPE;
@@ -377,7 +382,7 @@ bool Object::IsJSGlobalProxy() {
 bool Object::IsGlobalObject() {
   if (!IsHeapObject()) return false;
 
-  InstanceType type =  HeapObject::cast(this)->map()->instance_type();
+  InstanceType type = HeapObject::cast(this)->map()->instance_type();
   return type == JS_GLOBAL_OBJECT_TYPE ||
          type == JS_BUILTINS_OBJECT_TYPE;
 }
@@ -552,8 +557,8 @@ Object* Object::GetProperty(String* key, PropertyAttributes* attributes) {
   (*reinterpret_cast<byte*>(FIELD_ADDR(p, offset)) = value)
 
 
-Object* HeapObject::GetHeapObjectField(HeapObject* obj, int index) {
-  return READ_FIELD(obj, HeapObject::kHeaderSize + kPointerSize * index);
+Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
+  return &READ_FIELD(obj, byte_offset);
 }
 
 
@@ -1271,36 +1276,22 @@ bool String::Equals(String* other) {
 int String::length() {
   uint32_t len = READ_INT_FIELD(this, kLengthOffset);
 
-  switch (size_tag()) {
-    case kShortStringTag:
-      return  len >> kShortLengthShift;
-    case kMediumStringTag:
-      return len >> kMediumLengthShift;
-    case kLongStringTag:
-      return len >> kLongLengthShift;
-    default:
-      break;
-  }
-  UNREACHABLE();
-  return 0;
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
+  return len >> (size_tag() + kLongLengthShift);
 }
 
 
 void String::set_length(int value) {
-  switch (size_tag()) {
-    case kShortStringTag:
-      WRITE_INT_FIELD(this, kLengthOffset, value << kShortLengthShift);
-      break;
-    case kMediumStringTag:
-      WRITE_INT_FIELD(this, kLengthOffset, value << kMediumLengthShift);
-      break;
-    case kLongStringTag:
-      WRITE_INT_FIELD(this, kLengthOffset, value << kLongLengthShift);
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
+  WRITE_INT_FIELD(this,
+                  kLengthOffset,
+                  value << (size_tag() + kLongLengthShift));
 }
 
 
@@ -1484,21 +1475,14 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
 int SeqTwoByteString::SeqTwoByteStringSize(Map* map) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
   // Use the map (and not 'this') to compute the size tag, since
   // TwoByteStringSize is called during GC when maps are encoded.
-  switch (map_size_tag(map)) {
-    case kShortStringTag:
-      length = length >> kShortLengthShift;
-      break;
-    case kMediumStringTag:
-      length = length >> kMediumLengthShift;
-      break;
-    case kLongStringTag:
-      length = length >> kLongLengthShift;
-      break;
-    default:
-      break;
-  }
+  length >>= map_size_tag(map) + kLongLengthShift;
+
   return SizeFor(length);
 }
 
@@ -1506,21 +1490,13 @@ int SeqTwoByteString::SeqTwoByteStringSize(Map* map) {
 int SeqAsciiString::SeqAsciiStringSize(Map* map) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
+  ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
+  ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
+  ASSERT(kLongStringTag == 0);
+
   // Use the map (and not 'this') to compute the size tag, since
   // AsciiStringSize is called during GC when maps are encoded.
-  switch (map_size_tag(map)) {
-    case kShortStringTag:
-      length = length >> kShortLengthShift;
-      break;
-    case kMediumStringTag:
-      length = length >> kMediumLengthShift;
-      break;
-    case kLongStringTag:
-      length = length >> kLongLengthShift;
-      break;
-    default:
-      break;
-  }
+  length >>= map_size_tag(map) + kLongLengthShift;
 
   return SizeFor(length);
 }

@@ -175,7 +175,8 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
       cc_reg_(no_condition),
       state_(NULL),
       is_inside_try_(false),
-      break_stack_height_(0) {
+      break_stack_height_(0),
+      loop_nesting_(0) {
 }
 
 
@@ -786,6 +787,7 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
+                                           StaticType* type,
                                            OverwriteMode overwrite_mode) {
   Comment cmnt(masm_, "[ BinaryOperation");
   Comment cmnt_token(masm_, Token::String(op));
@@ -798,8 +800,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     return;
   }
 
-  // For now, we keep the old behavior and only inline the smi code
-  // for the bitwise operations.
+  // Set the flags based on the operation, type and loop nesting level.
   GenericBinaryFlags flags;
   switch (op) {
     case Token::BIT_OR:
@@ -808,11 +809,19 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     case Token::SHL:
     case Token::SHR:
     case Token::SAR:
-      flags = SMI_CODE_INLINED;
+      // Bit operations always assume they likely operate on Smis. Still only
+      // generate the inline Smi check code if this operation is part of a loop.
+      flags = (loop_nesting() > 0)
+              ? SMI_CODE_INLINED
+              : SMI_CODE_IN_STUB;
       break;
 
     default:
-      flags = SMI_CODE_IN_STUB;
+      // By default only inline the Smi check code for likely smis if this
+      // operation is part of a loop.
+      flags = ((loop_nesting() > 0) && type->IsLikelySmi())
+              ? SMI_CODE_INLINED
+              : SMI_CODE_IN_STUB;
       break;
   }
 
@@ -985,6 +994,7 @@ class DeferredInlinedSmiSubReversed: public DeferredCode {
 
 
 void CodeGenerator::SmiOperation(Token::Value op,
+                                 StaticType* type,
                                  Handle<Object> value,
                                  bool reversed,
                                  OverwriteMode overwrite_mode) {
@@ -1046,7 +1056,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Pop(eax);
         frame_->Push(Immediate(value));
         frame_->Push(eax);
-        GenericBinaryOperation(op, overwrite_mode);
+        GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
@@ -1068,7 +1078,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Pop(eax);
         frame_->Push(Immediate(value));
         frame_->Push(eax);
-        GenericBinaryOperation(op, overwrite_mode);
+        GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
@@ -1096,7 +1106,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Pop(eax);
         frame_->Push(Immediate(value));
         frame_->Push(eax);
-        GenericBinaryOperation(op, overwrite_mode);
+        GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
@@ -1155,7 +1165,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Push(Immediate(value));
         frame_->Push(eax);
       }
-      GenericBinaryOperation(op, overwrite_mode);
+      GenericBinaryOperation(op, type, overwrite_mode);
       break;
     }
   }
@@ -1747,6 +1757,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     __ jmp(&entry);
   }
 
+  IncrementLoopNesting();
+
   // body
   __ bind(&loop);
   CheckStack();  // TODO(1222600): ignore if body contains calls.
@@ -1778,6 +1790,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       Branch(true, &loop);
       break;
   }
+
+  DecrementLoopNesting();
 
   // exit
   __ bind(node->break_target());
@@ -2587,10 +2601,11 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     target.GetValue(NOT_INSIDE_TYPEOF);
     Literal* literal = node->value()->AsLiteral();
     if (IsInlineSmi(literal)) {
-      SmiOperation(node->binary_op(), literal->handle(), false, NO_OVERWRITE);
+      SmiOperation(node->binary_op(), node->type(), literal->handle(), false,
+                   NO_OVERWRITE);
     } else {
       Load(node->value());
-      GenericBinaryOperation(node->binary_op());
+      GenericBinaryOperation(node->binary_op(), node->type());
     }
   }
 
@@ -2660,9 +2675,10 @@ void CodeGenerator::VisitCall(Call* node) {
     // Push the name of the function and the receiver onto the stack.
     frame_->Push(Immediate(var->name()));
 
-    // TODO(120): Use global object for function lookup and inline
-    // cache, and use global proxy as 'this' for invocation.
-    LoadGlobalReceiver(eax);
+    // Pass the global object as the receiver and let the IC stub
+    // patch the stack to use the global proxy as 'this' in the
+    // invoked function.
+    LoadGlobal();
 
     // Load the arguments.
     for (int i = 0; i < args->length(); i++) {
@@ -2849,38 +2865,26 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ sar(ebx, kSmiTagSize);
 
   __ bind(&try_again_with_new_string);
-  // Get the type of the heap object into ecx.
+  // Get the type of the heap object into edi.
   __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(edx, Map::kInstanceTypeOffset));
+  __ movzx_b(edi, FieldOperand(edx, Map::kInstanceTypeOffset));
   // We don't handle non-strings.
-  __ test(ecx, Immediate(kIsNotStringMask));
+  __ test(edi, Immediate(kIsNotStringMask));
   __ j(not_zero, &slow_case, not_taken);
 
+  // Here we make assumptions about the tag values and the shifts needed.
+  // See the comment in objects.h.
+  ASSERT(kLongStringTag == 0);
+  ASSERT(kMediumStringTag + String::kLongLengthShift ==
+             String::kMediumLengthShift);
+  ASSERT(kShortStringTag + String::kLongLengthShift ==
+             String::kShortLengthShift);
+  __ mov(ecx, Operand(edi));
+  __ and_(ecx, kStringSizeMask);
+  __ add(Operand(ecx), Immediate(String::kLongLengthShift));
   // Get the length field.
   __ mov(edx, FieldOperand(eax, String::kLengthOffset));
-  Label long_string;
-  Label medium_string;
-  Label string_length_shifted;
-  // The code assumes the tags are disjoint.
-  ASSERT((kLongStringTag & kMediumStringTag) == 0);
-  ASSERT(kShortStringTag == 0);
-  __ test(ecx, Immediate(kLongStringTag));
-  __ j(not_zero, &long_string, not_taken);
-  __ test(ecx, Immediate(kMediumStringTag));
-  __ j(not_zero, &medium_string, taken);
-  // Short string.
-  __ shr(edx, String::kShortLengthShift);
-  __ jmp(&string_length_shifted);
-
-  // Medium string.
-  __ bind(&medium_string);
-  __ shr(edx, String::kMediumLengthShift - String::kLongLengthShift);
-  // Fall through to long string.
-  __ bind(&long_string);
-  __ shr(edx, String::kLongLengthShift);
-
-  __ bind(&string_length_shifted);
-  ASSERT(kSmiTag == 0);
+  __ shr(edx);  // ecx is implicit operand.
   // edx is now the length of the string.
 
   // Check for index out of range.
@@ -2889,11 +2893,11 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
   // We need special handling for non-flat strings.
   ASSERT(kSeqStringTag == 0);
-  __ test(ecx, Immediate(kStringRepresentationMask));
+  __ test(edi, Immediate(kStringRepresentationMask));
   __ j(not_zero, &not_a_flat_string, not_taken);
 
   // Check for 1-byte or 2-byte string.
-  __ test(ecx, Immediate(kStringEncodingMask));
+  __ test(edi, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string, taken);
 
   // 2-byte string.
@@ -2913,11 +2917,10 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   frame_->Push(eax);
   __ jmp(&end);
 
-
   // Handle non-flat strings.
   __ bind(&not_a_flat_string);
-  __ and_(ecx, kStringRepresentationMask);
-  __ cmp(ecx, kConsStringTag);
+  __ and_(edi, kStringRepresentationMask);
+  __ cmp(edi, kConsStringTag);
   __ j(not_equal, &not_a_cons_string_either, not_taken);
 
   // ConsString.
@@ -2926,7 +2929,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   __ jmp(&try_again_with_new_string);
 
   __ bind(&not_a_cons_string_either);
-  __ cmp(ecx, kSlicedStringTag);
+  __ cmp(edi, kSlicedStringTag);
   __ j(not_equal, &slow_case, not_taken);
 
   // SlicedString.
@@ -3464,16 +3467,16 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
     if (IsInlineSmi(rliteral)) {
       Load(node->left());
-      SmiOperation(node->op(), rliteral->handle(), false, overwrite_mode);
-
+      SmiOperation(node->op(), node->type(), rliteral->handle(), false,
+                   overwrite_mode);
     } else if (IsInlineSmi(lliteral)) {
       Load(node->right());
-      SmiOperation(node->op(), lliteral->handle(), true, overwrite_mode);
-
+      SmiOperation(node->op(), node->type(), lliteral->handle(), true,
+                   overwrite_mode);
     } else {
       Load(node->left());
       Load(node->right());
-      GenericBinaryOperation(node->op(), overwrite_mode);
+      GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
     }
   }
 }
@@ -4951,7 +4954,8 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   Label throw_out_of_memory_exception;
   Label throw_normal_exception;
 
-#ifdef DEBUG
+  // Call into the runtime system. Collect garbage before the call if
+  // running with --gc-greedy set.
   if (FLAG_gc_greedy) {
     Failure* failure = Failure::RetryAfterGC(0);
     __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
@@ -4960,14 +4964,17 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_out_of_memory_exception,
                frame_type,
                FLAG_gc_greedy);
-#else
+
+  // Do space-specific GC and retry runtime call.
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               false);
-#endif
+               true);
 
+  // Do full GC and retry runtime call one final time.
+  Failure* failure = Failure::InternalError();
+  __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,

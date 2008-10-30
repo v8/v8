@@ -67,6 +67,14 @@ while (pos = poses.shift()) {
   assertEquals("undefined", typeof(a[123]));
   assertEquals("baz", c[123]);
 
+  // If the element of prototype is shadowed, the element on the instance
+  // should be copied, but not the one on the prototype.
+  Array.prototype[123] = 'baz';
+  a[123] = 'xyz';
+  assertEquals('xyz', a[123]);
+  c = a.concat(b);
+  assertEquals('xyz', c[123]);
+
   // Non-numeric properties on the prototype or the array shouldn't get
   // copied.
   Array.prototype.moe = 'joe';
@@ -99,3 +107,14 @@ c = a.concat('Hello');
 assertEquals(1, c.length);
 assertEquals("Hello", c[0]);
 assertEquals("Hello", c.toString());
+
+// Check that concat preserves holes.
+var holey = [void 0,'a',,'c'].concat(['d',,'f',[0,,2],void 0])
+assertEquals(9, holey.length);  // hole in embedded array is ignored
+for (var i = 0; i < holey.length; i++) {
+  if (i == 2 || i == 5) {
+    assertFalse(i in holey);
+  } else {
+    assertTrue(i in holey);
+  }
+}

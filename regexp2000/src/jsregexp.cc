@@ -33,13 +33,21 @@
 #include "execution.h"
 #include "factory.h"
 #include "jsregexp.h"
-#include "third_party/jscre/pcre.h"
 #include "platform.h"
 #include "runtime.h"
 #include "top.h"
 #include "compilation-cache.h"
 #include "string-stream.h"
 
+// Including pcre.h undefines DEBUG to avoid getting debug output from
+// the JSCRE implementation. Make sure to redefine it in debug mode
+// after having included the header file.
+#ifdef DEBUG
+#include "third_party/jscre/pcre.h"
+#define DEBUG
+#else
+#include "third_party/jscre/pcre.h"
+#endif
 
 namespace v8 { namespace internal {
 

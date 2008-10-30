@@ -1,3 +1,16 @@
+2008-10-28: Version 0.4.1
+
+        Added caching of RegExp data in compilation cache.
+
+        Added Visual Studio project file for d8 shell.
+
+        Fixed function call performance regression introduced in version
+        0.4.0 when splitting the global object in two parts (issue 120).
+
+        Fixed issue 131 by checking for empty handles before throwing and
+        reporting exceptions.
+
+
 2008-10-23: Version 0.4.0
 
         Split the global object into two parts: The state holding global

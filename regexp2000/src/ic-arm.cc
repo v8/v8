@@ -44,8 +44,7 @@ namespace v8 { namespace internal {
 
 // Helper function used from LoadIC/CallIC GenerateNormal.
 static void GenerateDictionaryLoad(MacroAssembler* masm,
-                                   Label* done_label,
-                                   Label* miss_label,
+                                   Label* miss,
                                    Register t0,
                                    Register t1) {
   // Register use:
@@ -61,6 +60,8 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   //
   // r2 - holds the name of the property and is unchanges.
 
+  Label done;
+
   // Check for the absence of an interceptor.
   // Load the map into t0.
   __ ldr(t0, FieldMemOperand(t1, JSObject::kMapOffset));
@@ -68,14 +69,14 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   __ ldr(t0, FieldMemOperand(t1, Map::kInstanceAttributesOffset));
   __ tst(t0, Operand(1 << (Map::kHasNamedInterceptor + (3 * 8))));
   // Jump to miss if the interceptor bit is set.
-  __ b(ne, miss_label);
+  __ b(ne, miss);
 
 
   // Check that the properties array is a dictionary.
   __ ldr(t0, FieldMemOperand(t1, JSObject::kPropertiesOffset));
   __ ldr(r3, FieldMemOperand(t0, HeapObject::kMapOffset));
   __ cmp(r3, Operand(Factory::hash_table_map()));
-  __ b(ne, miss_label);
+  __ b(ne, miss);
 
   // Compute the capacity mask.
   const int kCapacityOffset =
@@ -107,17 +108,17 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
     __ ldr(ip, FieldMemOperand(t1, kElementsStartOffset));
     __ cmp(r2, Operand(ip));
     if (i != kProbes - 1) {
-      __ b(eq, done_label);
+      __ b(eq, &done);
     } else {
-      __ b(ne, miss_label);
+      __ b(ne, miss);
     }
   }
 
   // Check that the value is a normal property.
-  __ bind(done_label);  // t1 == t0 + 4*index
+  __ bind(&done);  // t1 == t0 + 4*index
   __ ldr(r3, FieldMemOperand(t1, kElementsStartOffset + 2 * kPointerSize));
   __ tst(r3, Operand(PropertyDetails::TypeField::mask() << kSmiTagSize));
-  __ b(ne, miss_label);
+  __ b(ne, miss);
 
   // Get the value at the masked, scaled index and return.
   __ ldr(t1, FieldMemOperand(t1, kElementsStartOffset + 1 * kPointerSize));
@@ -156,103 +157,62 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 }
 
 
-void LoadIC::GenerateShortStringLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r2    : name
-  //  -- lr    : return address
-  //  -- [sp]  : receiver
-  // -----------------------------------
-
-  Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
-
+// Generate code to check if an object is a string.  If the object is
+// a string, the map's instance type is left in the scratch1 register.
+static void GenerateStringCheck(MacroAssembler* masm,
+                                Register receiver,
+                                Register scratch1,
+                                Register scratch2,
+                                Label* smi,
+                                Label* non_string_object) {
   // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
+  __ tst(receiver, Operand(kSmiTagMask));
+  __ b(eq, smi);
 
-  // Check that the object is a short string.
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ and_(r1, r1, Operand(kIsNotStringMask | kStringSizeMask));
+  // Check that the object is a string.
+  __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+  __ and_(scratch2, scratch1, Operand(kIsNotStringMask));
   // The cast is to resolve the overload for the argument of 0x0.
-  __ cmp(r1, Operand(static_cast<int32_t>(kStringTag | kShortStringTag)));
-  __ b(ne, &miss);
-
-  // Load length directly from the string.
-  __ ldr(r0, FieldMemOperand(r0, String::kLengthOffset));
-  __ mov(r0, Operand(r0, LSR, String::kShortLengthShift));
-  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  __ Ret();
-
-  // Cache miss: Jump to runtime.
-  __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  __ cmp(scratch2, Operand(static_cast<int32_t>(kStringTag)));
+  __ b(ne, non_string_object);
 }
 
 
-void LoadIC::GenerateMediumStringLength(MacroAssembler* masm) {
+void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
 
-  Label miss;
+  Label miss, load_length, check_wrapper;
 
   __ ldr(r0, MemOperand(sp, 0));
 
-  // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
-
-  // Check that the object is a medium string.
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ and_(r1, r1, Operand(kIsNotStringMask | kStringSizeMask));
-  __ cmp(r1, Operand(kStringTag | kMediumStringTag));
-  __ b(ne, &miss);
+  // Check if the object is a string leaving the instance type in the
+  // r1 register.
+  GenerateStringCheck(masm, r0, r1, r3, &miss, &check_wrapper);
 
   // Load length directly from the string.
+  __ bind(&load_length);
+  __ and_(r1, r1, Operand(kStringSizeMask));
+  __ add(r1, r1, Operand(String::kHashShift));
   __ ldr(r0, FieldMemOperand(r0, String::kLengthOffset));
-  __ mov(r0, Operand(r0, LSR, String::kMediumLengthShift));
+  __ mov(r0, Operand(r0, LSR, r1));
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
   __ Ret();
 
-  // Cache miss: Jump to runtime.
-  __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
-}
-
-
-void LoadIC::GenerateLongStringLength(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- r2    : name
-  //  -- lr    : return address
-  //  -- [sp]  : receiver
-  // -----------------------------------
-
-  Label miss;
-
-  __ ldr(r0, MemOperand(sp, 0));
-  // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
-
-  // Check that the object is a long string.
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
-  __ and_(r1, r1, Operand(kIsNotStringMask | kStringSizeMask));
-  __ cmp(r1, Operand(kStringTag | kLongStringTag));
+  // Check if the object is a JSValue wrapper.
+  __ bind(&check_wrapper);
+  __ cmp(r1, Operand(JS_VALUE_TYPE));
   __ b(ne, &miss);
 
-  // Load length directly from the string.
-  __ ldr(r0, FieldMemOperand(r0, String::kLengthOffset));
-  __ mov(r0, Operand(r0, LSR, String::kLongLengthShift));
-  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  __ Ret();
+  // Check if the wrapped value is a string and load the length
+  // directly if it is.
+  __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
+  GenerateStringCheck(masm, r0, r1, r3, &miss, &miss);
+  __ b(&load_length);
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
@@ -340,12 +300,42 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
 }
 
 
+static void GenerateNormalHelper(MacroAssembler* masm,
+                                 int argc,
+                                 bool is_global_object,
+                                 Label* miss) {
+  // Search dictionary - put result in register r1.
+  GenerateDictionaryLoad(masm, miss, r0, r1);
+
+  // Check that the value isn't a smi.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, miss);
+
+  // Check that the value is a JSFunction.
+  __ ldr(r0, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
+  __ cmp(r0, Operand(JS_FUNCTION_TYPE));
+  __ b(ne, miss);
+
+  // Patch the receiver with the global proxy if necessary.
+  if (is_global_object) {
+    __ ldr(r2, MemOperand(sp, argc * kPointerSize));
+    __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+    __ str(r2, MemOperand(sp, argc * kPointerSize));
+  }
+
+  // Invoke the function.
+  ParameterCount actual(argc);
+  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+}
+
+
 void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   //  -- lr: return address
   // -----------------------------------
 
-  Label miss, probe, done, global;
+  Label miss, global_object, non_global_object;
 
   // Get the receiver of the function from the stack into r1.
   __ ldr(r1, MemOperand(sp, argc * kPointerSize));
@@ -365,35 +355,28 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   // If this assert fails, we have to check upper bound too.
   ASSERT(LAST_TYPE == JS_FUNCTION_TYPE);
 
-  // Check for access to global proxy.
+  // Check for access to global object.
+  __ cmp(r0, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ b(eq, &global_object);
+  __ cmp(r0, Operand(JS_BUILTINS_OBJECT_TYPE));
+  __ b(ne, &non_global_object);
+
+  // Accessing global object: Load and invoke.
+  __ bind(&global_object);
+  GenerateNormalHelper(masm, argc, true, &miss);
+
+  // Accessing non-global object: Check for access to global proxy.
+  Label global_proxy, invoke;
+  __ bind(&non_global_object);
   __ cmp(r0, Operand(JS_GLOBAL_PROXY_TYPE));
-  __ b(eq, &global);
-
-  // Search the dictionary placing the result in r1.
-  __ bind(&probe);
-  GenerateDictionaryLoad(masm, &done, &miss, r0, r1);
-
-  // Check that the value isn't a smi.
-  __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &miss);
-
-  // Check that the value is a JSFunction.
-  __ ldr(r0, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
-  __ cmp(r0, Operand(JS_FUNCTION_TYPE));
-  __ b(ne, &miss);
-
-  // TODO(120): Check for access to global object. Needs patching of
-  // receiver but no security check.
-
-  // Invoke the function.
-  ParameterCount actual(argc);
-  __ InvokeFunction(r1, actual, JUMP_FUNCTION);
+  __ b(eq, &global_proxy);
+  __ bind(&invoke);
+  GenerateNormalHelper(masm, argc, false, &miss);
 
   // Global object access: Check access rights.
-  __ bind(&global);
+  __ bind(&global_proxy);
   __ CheckAccessGlobalProxy(r1, r0, &miss);
-  __ b(&probe);
+  __ b(&invoke);
 
   // Cache miss: Jump to runtime.
   __ bind(&miss);
@@ -429,11 +412,26 @@ void CallIC::Generate(MacroAssembler* masm,
   __ mov(r1, Operand(r0));
   __ LeaveInternalFrame();
 
-  // TODO(120): Check for access to to global object. Needs patching
-  // of receiver but no security check.
+  // Check if the receiver is a global object of some sort.
+  Label invoke, global;
+  __ ldr(r2, MemOperand(sp, argc * kPointerSize));  // receiver
+  __ tst(r2, Operand(kSmiTagMask));
+  __ b(eq, &invoke);
+  __ ldr(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ ldrb(r3, FieldMemOperand(r3, Map::kInstanceTypeOffset));
+  __ cmp(r3, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ b(eq, &global);
+  __ cmp(r3, Operand(JS_BUILTINS_OBJECT_TYPE));
+  __ b(ne, &invoke);
+
+  // Patch the receiver on the stack.
+  __ bind(&global);
+  __ ldr(r2, FieldMemOperand(r2, GlobalObject::kGlobalReceiverOffset));
+  __ str(r2, MemOperand(sp, argc * kPointerSize));
 
   // Invoke the function.
   ParameterCount actual(argc);
+  __ bind(&invoke);
   __ InvokeFunction(r1, actual, JUMP_FUNCTION);
 }
 
@@ -465,7 +463,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   //  -- [sp]  : receiver
   // -----------------------------------
 
-  Label miss, probe, done, global;
+  Label miss, probe, global;
 
   __ ldr(r0, MemOperand(sp, 0));
   // Check that the receiver isn't a smi.
@@ -485,7 +483,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   __ b(eq, &global);
 
   __ bind(&probe);
-  GenerateDictionaryLoad(masm, &done, &miss, r1, r0);
+  GenerateDictionaryLoad(masm, &miss, r1, r0);
   __ Ret();
 
   // Global object access: Check access rights.

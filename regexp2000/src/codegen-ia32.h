@@ -238,6 +238,11 @@ class CodeGenerator: public Visitor {
   Label* true_target() const  { return state_->true_target(); }
   Label* false_target() const  { return state_->false_target(); }
 
+  // Track loop nesting level.
+  int loop_nesting() const { return loop_nesting_; }
+  void IncrementLoopNesting() { loop_nesting_++; }
+  void DecrementLoopNesting() { loop_nesting_--; }
+
 
   // Node visitors.
 #define DEF_VISIT(type) \
@@ -287,6 +292,7 @@ class CodeGenerator: public Visitor {
   void ToBoolean(Label* true_target, Label* false_target);
 
   void GenericBinaryOperation(Token::Value op,
+      StaticType* type,
       const OverwriteMode overwrite_mode = NO_OVERWRITE);
 
   void Comparison(Condition cc, bool strict = false);
@@ -297,6 +303,7 @@ class CodeGenerator: public Visitor {
   bool IsInlineSmi(Literal* literal);
   void SmiComparison(Condition cc,  Handle<Object> value, bool strict = false);
   void SmiOperation(Token::Value op,
+                    StaticType* type,
                     Handle<Object> value,
                     bool reversed,
                     OverwriteMode overwrite_mode);
@@ -412,6 +419,7 @@ class CodeGenerator: public Visitor {
   CodeGenState* state_;
   bool is_inside_try_;
   int break_stack_height_;
+  int loop_nesting_;
 
   // Labels
   Label function_return_;

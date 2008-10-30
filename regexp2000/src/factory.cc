@@ -42,6 +42,18 @@ Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
 }
 
 
+Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size) {
+  ASSERT(0 <= size);
+  CALL_HEAP_FUNCTION(Heap::AllocateFixedArrayWithHoles(size), FixedArray);
+}
+
+
+Handle<Dictionary> Factory::NewDictionary(int at_least_space_for) {
+  ASSERT(0 <= at_least_space_for);
+  CALL_HEAP_FUNCTION(Dictionary::Allocate(at_least_space_for), Dictionary);
+}
+
+
 Handle<DescriptorArray> Factory::NewDescriptorArray(int number_of_descriptors) {
   ASSERT(0 <= number_of_descriptors);
   CALL_HEAP_FUNCTION(DescriptorArray::Allocate(number_of_descriptors),
@@ -138,8 +150,8 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_name(Heap::undefined_value());
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
-  script->set_wrapper(*Factory::NewProxy(0, TENURED));
   script->set_type(Smi::FromInt(SCRIPT_TYPE_NORMAL));
+  script->set_wrapper(*Factory::NewProxy(0, TENURED));
   return script;
 }
 

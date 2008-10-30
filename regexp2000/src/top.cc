@@ -101,7 +101,7 @@ void Top::InitializeThreadLocal() {
   clear_pending_exception();
   clear_scheduled_exception();
   thread_local_.save_context_ = NULL;
-  thread_local_.pending_external_caught_exception_ = false;
+  thread_local_.catcher_ = NULL;
 }
 
 
@@ -607,7 +607,7 @@ Failure* Top::Throw(Object* exception, MessageLocation* location) {
 
 
 Failure* Top::ReThrow(Object* exception, MessageLocation* location) {
-  // Set the exception being re-thrown.
+  // Set the exception beeing re-thrown.
   set_pending_exception(exception);
   return Failure::Exception();
 }
@@ -789,8 +789,9 @@ void Top::DoThrow(Object* exception,
   // If the exception is caught externally, we store it in the
   // try/catch handler. The C code can find it later and process it if
   // necessary.
-  thread_local_.pending_external_caught_exception_ = is_caught_externally;
+  thread_local_.catcher_ = NULL;
   if (is_caught_externally) {
+    thread_local_.catcher_ = thread_local_.try_catch_handler_;
     thread_local_.try_catch_handler_->exception_ =
       reinterpret_cast<void*>(*exception_handle);
     if (!message_obj.is_null()) {
@@ -805,7 +806,7 @@ void Top::DoThrow(Object* exception,
   if (report_exception) {
     if (message != NULL) {
       MessageHandler::ReportMessage(message);
-    } else {
+    } else if (!message_obj.is_null()) {
       MessageHandler::ReportMessage(location, message_obj);
     }
   }
