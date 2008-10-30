@@ -222,16 +222,12 @@ void Heap::ClearKeyedLookupCache() {
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0");      \
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) return RETURN_EMPTY;               \
-    if (!Heap::CollectGarbage(                                            \
-            Failure::cast(__object__)->requested(),                       \
-            Failure::cast(__object__)->allocation_space())) {             \
-      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1");      \
-      return RETURN_EMPTY;                                                \
-    }                                                                     \
+    Heap::CollectGarbage(Failure::cast(__object__)->requested(),          \
+                         Failure::cast(__object__)->allocation_space());  \
     __object__ = FUNCTION_CALL;                                           \
     if (!__object__->IsFailure()) return RETURN_VALUE;                    \
     if (__object__->IsOutOfMemoryFailure()) {                             \
-      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_2");      \
+      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1");      \
     }                                                                     \
     if (!__object__->IsRetryAfterGC()) return RETURN_EMPTY;               \
     Counters::gc_last_resort_from_handles.Increment();                    \
@@ -243,7 +239,7 @@ void Heap::ClearKeyedLookupCache() {
     if (!__object__->IsFailure()) return RETURN_VALUE;                    \
     if (__object__->IsOutOfMemoryFailure()) {                             \
       /* TODO(1181417): Fix this. */                                      \
-      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_3");      \
+      v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_2");      \
     }                                                                     \
     ASSERT(!__object__->IsRetryAfterGC());                                \
     return RETURN_EMPTY;                                                  \
