@@ -106,6 +106,11 @@ var knownProblems = {
   "SetScriptBreakPoint": true,
   "ChangeBreakOnException": true,
   "PrepareStep": true,
+
+  // Calling disable/enable access checks may interfere with the
+  // the rest of the tests.
+  "DisableAccessChecks": true,
+  "EnableAccessChecks": true,
   
   // These functions should not be callable as runtime functions.
   "NewContext": true,

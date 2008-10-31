@@ -1401,6 +1401,7 @@ static Object* Runtime_StringIndexOf(Arguments args) {
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
 
+  RUNTIME_ASSERT(start_index <= static_cast<uint32_t>(sub->length()));
   int position = Runtime::StringMatch(sub, pat, start_index);
   return Smi::FromInt(position);
 }
