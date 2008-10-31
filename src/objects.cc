@@ -288,10 +288,11 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
       case NORMAL:
       case FIELD:
       case CONSTANT_FUNCTION: {
+        if (!continue_search) break;
         // Search ALL_CAN_READ accessors in prototype chain.
         LookupResult r;
         result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
-        if (r.IsValid() && continue_search) {
+        if (r.IsValid()) {
           return GetPropertyAttributeWithFailedAccessCheck(receiver,
                                                            &r,
                                                            name,
@@ -304,8 +305,12 @@ PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
         // If the object has an interceptor, try real named properties.
         // No access check in GetPropertyAttributeWithInterceptor.
         LookupResult r;
-        result->holder()->LookupRealNamedProperty(name, &r);
-        if (r.IsValid() && continue_search) {
+        if (continue_search) {
+          result->holder()->LookupRealNamedProperty(name, &r);
+        } else {
+          result->holder()->LocalLookupRealNamedProperty(name, &r);
+        }
+        if (r.IsValid()) {
           return GetPropertyAttributeWithFailedAccessCheck(receiver,
                                                            &r,
                                                            name,
