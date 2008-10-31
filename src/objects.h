@@ -1453,6 +1453,11 @@ class JSObject: public HeapObject {
   PropertyAttributes GetPropertyAttributeWithInterceptor(JSObject* receiver,
                                                          String* name,
                                                          bool continue_search);
+  PropertyAttributes GetPropertyAttributeWithFailedAccessCheck(
+      Object* receiver,
+      LookupResult* result,
+      String* name,
+      bool continue_search);
   PropertyAttributes GetPropertyAttribute(JSObject* receiver,
                                           LookupResult* result,
                                           String* name,

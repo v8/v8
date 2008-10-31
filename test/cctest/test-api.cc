@@ -3186,6 +3186,41 @@ THREADED_TEST(CrossDomainDelete) {
 }
 
 
+THREADED_TEST(CrossDomainIsPropertyEnumerable) {
+  v8::HandleScope handle_scope;
+  LocalContext env1;
+  v8::Persistent<Context> env2 = Context::New();
+
+  Local<Value> foo = v8_str("foo");
+  Local<Value> bar = v8_str("bar");
+
+  // Set to the same domain.
+  env1->SetSecurityToken(foo);
+  env2->SetSecurityToken(foo);
+
+  env1->Global()->Set(v8_str("prop"), v8_num(3));
+  env2->Global()->Set(v8_str("env1"), env1->Global());
+
+  // env1.prop is enumerable in env2.
+  Local<String> test = v8_str("propertyIsEnumerable.call(env1, 'prop')");
+  {
+    Context::Scope scope_env2(env2);
+    Local<Value> result = Script::Compile(test)->Run();
+    CHECK(result->IsTrue());
+  }
+
+  // Change env2 to a different domain and test again.
+  env2->SetSecurityToken(bar);
+  {
+    Context::Scope scope_env2(env2);
+    Local<Value> result = Script::Compile(test)->Run();
+    CHECK(result->IsFalse());
+  }
+
+  env2.Dispose();
+}
+
+
 THREADED_TEST(CrossDomainForIn) {
   v8::HandleScope handle_scope;
   LocalContext env1;
@@ -3342,7 +3377,7 @@ THREADED_TEST(AccessControl) {
       v8::AccessControl(v8::ALL_CAN_READ | v8::ALL_CAN_WRITE));
 
   // Add an accessor that is not accessible by cross-domain JS code.
-  global_template->SetAccessor(v8_str("blocked_access_prop"),
+  global_template->SetAccessor(v8_str("blocked_prop"),
                                UnreachableGetter, UnreachableSetter,
                                v8::Handle<Value>(),
                                v8::DEFAULT);
@@ -3368,6 +3403,9 @@ THREADED_TEST(AccessControl) {
   value = v8_compile("other.blocked_prop")->Run();
   CHECK(value->IsUndefined());
 
+  value = v8_compile("propertyIsEnumerable.call(other, 'blocked_prop')")->Run();
+  CHECK(value->IsFalse());
+
   // Access accessible property
   value = v8_compile("other.accessible_prop = 3")->Run();
   CHECK(value->IsNumber());
@@ -3376,6 +3414,21 @@ THREADED_TEST(AccessControl) {
   value = v8_compile("other.accessible_prop")->Run();
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
+
+  value =
+    v8_compile("propertyIsEnumerable.call(other, 'accessible_prop')")->Run();
+  CHECK(value->IsTrue());
+
+  // Enumeration doesn't enumerate accessors from inaccessible objects in
+  // the prototype chain even if the accessors are in themselves accessible.
+  Local<Value> result =
+      CompileRun("(function(){var obj = {'__proto__':other};"
+                 "for (var p in obj)"
+                 "   if (p == 'accessible_prop' || p == 'blocked_prop') {"
+                 "     return false;"
+                 "   }"
+                 "return true;})()");
+  CHECK(result->IsTrue());
 
   context1->Exit();
   context0->Exit();

@@ -1933,10 +1933,8 @@ static Object* Runtime_IsPropertyEnumerable(Arguments args) {
     return Heap::ToBoolean(object->HasElement(index));
   }
 
-  LookupResult result;
-  object->LocalLookup(key, &result);
-  if (!result.IsProperty()) return Heap::false_value();
-  return Heap::ToBoolean(!result.IsDontEnum());
+  PropertyAttributes att = object->GetLocalPropertyAttribute(key);
+  return Heap::ToBoolean(att != ABSENT && att != DONT_ENUM);
 }
 
 
