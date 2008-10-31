@@ -474,37 +474,44 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   Label false_target;
   LoadCondition(x, typeof_state, &true_target, &false_target, false);
 
-  // Materialize boolean values on the stack frame if necessary.
   if (has_cc()) {
-    // The value we want is in the cc register.  Since complicated
-    // conditions can require more than one test, there may also be branches
-    // to true_target and false_target.
-    Label loaded;
-    __ j(cc_reg_, &true_target);
-    __ bind(&false_target);
+    // convert cc_reg_ into a bool
+
+    Label loaded, materialize_true;
+    __ j(cc_reg_, &materialize_true);
     frame_->Push(Immediate(Factory::false_value()));
     __ jmp(&loaded);
-    __ bind(&true_target);
+    __ bind(&materialize_true);
     frame_->Push(Immediate(Factory::true_value()));
     __ bind(&loaded);
     cc_reg_ = no_condition;
-  } else {
-    // Optimization of boolean-valued expressions whose value is statically
-    // known may have generated an unconditional jump to either of the
-    // targets (but not both) and failed to leave a value in either the cc
-    // register or on top of the frame.
-    ASSERT(!(true_target.is_linked() && false_target.is_linked()));
+  }
 
+  if (true_target.is_linked() || false_target.is_linked()) {
+    // we have at least one condition value
+    // that has been "translated" into a branch,
+    // thus it needs to be loaded explicitly again
+    Label loaded;
+    __ jmp(&loaded);  // don't lose current TOS
+    bool both = true_target.is_linked() && false_target.is_linked();
+    // reincarnate "true", if necessary
     if (true_target.is_linked()) {
       __ bind(&true_target);
       frame_->Push(Immediate(Factory::true_value()));
     }
-
+    // if both "true" and "false" need to be reincarnated,
+    // jump across code for "false"
+    if (both)
+      __ jmp(&loaded);
+    // reincarnate "false", if necessary
     if (false_target.is_linked()) {
       __ bind(&false_target);
       frame_->Push(Immediate(Factory::false_value()));
     }
+    // everything is loaded at this point
+    __ bind(&loaded);
   }
+  ASSERT(!has_cc());
 }
 
 
