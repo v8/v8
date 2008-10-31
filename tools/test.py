@@ -886,7 +886,7 @@ def ParseOperatorExpression(scan):
 def ParseConditionalExpression(scan):
   left = ParseOperatorExpression(scan)
   if not left: return None
-  while scan.HasMore() and (scan.Current() == 'IF'):
+  while scan.HasMore() and (scan.Current() == 'if'):
     scan.Advance()
     right = ParseOperatorExpression(scan)
     if not right:
