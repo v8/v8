@@ -190,6 +190,19 @@ void Visitor::VisitExpressions(ZoneList<Expression*>* expressions) {
 FOR_EACH_REG_EXP_NODE_TYPE(MAKE_ACCEPT)
 #undef MAKE_ACCEPT
 
+#define MAKE_CONVERSION(Name)                                        \
+  RegExp##Name* RegExpTree::As##Name() {                             \
+    return NULL;                                                     \
+  }
+  FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CONVERSION)
+#undef MAKE_CONVERSION
+
+#define MAKE_CONVERSION(Name)                                       \
+  RegExp##Name* RegExp##Name::As##Name() {                          \
+    return this;                                                    \
+  }
+FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CONVERSION)
+#undef MAKE_CONVERSION
 
 RegExpEmpty RegExpEmpty::kInstance;
 

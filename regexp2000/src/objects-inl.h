@@ -2149,6 +2149,22 @@ JSRegExp::Type JSRegExp::TypeTag() {
 }
 
 
+JSRegExp::Flags JSRegExp::GetFlags() {
+  ASSERT(this->data()->IsFixedArray());
+  Object* data = this->data();
+  Smi* smi = Smi::cast(FixedArray::cast(data)->get(kFlagsIndex));
+  return Flags(smi->value());
+}
+
+
+String* JSRegExp::Pattern() {
+  ASSERT(this->data()->IsFixedArray());
+  Object* data = this->data();
+  String* pattern= String::cast(FixedArray::cast(data)->get(kSourceIndex));
+  return pattern;
+}
+
+
 Object* JSRegExp::DataAt(int index) {
   ASSERT(TypeTag() != NOT_COMPILED);
   return FixedArray::cast(data())->get(index);

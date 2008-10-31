@@ -2915,6 +2915,10 @@ class JSValue: public JSObject {
 // Regular expressions
 class JSRegExp: public JSObject {
  public:
+  // Meaning of Type:
+  // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
+  // JSCRE: A complex RegExp for JSCRE
+  // ATOM: A simple string to match against using an indexOf operation.
   enum Type { NOT_COMPILED, JSCRE, ATOM };
   enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
 
@@ -2932,6 +2936,8 @@ class JSRegExp: public JSObject {
   DECL_ACCESSORS(data, Object)
 
   inline Type TypeTag();
+  inline Flags GetFlags();
+  inline String* Pattern();
   inline Object* DataAt(int index);
 
   static inline JSRegExp* cast(Object* obj);

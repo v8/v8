@@ -61,10 +61,19 @@ class RegExpImpl {
   static Handle<Object> ExecGlobal(Handle<JSRegExp> regexp,
                                    Handle<String> subject);
 
-  static Handle<Object> AtomCompile(Handle<JSRegExp> re,
+  // Stores an uncompiled RegExp pattern in the JSRegExp object.
+  // It will be compiled by JSCRE when first executed.
+  static Handle<Object> JsrePrepare(Handle<JSRegExp> re,
                                     Handle<String> pattern,
                                     JSRegExp::Flags flags);
 
+  // Compile the pattern using JSCRE and store the result in the
+  // JSRegExp object.
+  static Handle<Object> JsreCompile(Handle<JSRegExp> re);
+
+  static Handle<Object> AtomCompile(Handle<JSRegExp> re,
+                                    Handle<String> pattern,
+                                    JSRegExp::Flags flags);
   static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject,
                                  Handle<Object> index);
@@ -76,6 +85,7 @@ class RegExpImpl {
                                     Handle<String> pattern,
                                     JSRegExp::Flags flags);
 
+  // Execute a compiled JSCRE pattern.
   static Handle<Object> JsreExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject,
                                  Handle<Object> index);
@@ -194,7 +204,7 @@ class CharacterClass {
   static const int kFieldMax = (1 << kFieldWidth);
   static const int kSegmentMask = (1 << kFieldWidth) - 1;
   static const int kNibbleCount = kFieldMax / 4;
-  STATIC_ASSERT(kFieldMax == 8 * sizeof(uint64_t));
+  STATIC_CHECK(kFieldMax == 8 * sizeof(uint64_t));
 
   Type type() { return type_; }
 
@@ -218,7 +228,7 @@ class CharacterClass {
 };
 
 
-STATIC_ASSERT(sizeof(CharacterClass) == 3 * kIntSize);
+STATIC_CHECK(sizeof(CharacterClass) == 3 * kIntSize);
 
 
 class CharacterClassAllocator {

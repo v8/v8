@@ -38,6 +38,7 @@
 #include "top.h"
 #include "compilation-cache.h"
 #include "string-stream.h"
+#include "parser.h"
 
 // Including pcre.h undefines DEBUG to avoid getting debug output from
 // the JSCRE implementation. Make sure to redefine it in debug mode
@@ -176,7 +177,16 @@ static JSRegExp::Flags RegExpFlagsFromString(Handle<String> str) {
 }
 
 
-unibrow::Predicate<unibrow::RegExpSpecialChar, 128> is_reg_exp_special_char;
+static inline Handle<Object> CreateRegExpException(Handle<JSRegExp> re,
+                                                   Handle<String> pattern,
+                                                   Handle<String> error_text,
+                                                   const char* message) {
+  Handle<JSArray> array = Factory::NewJSArray(2);
+  SetElement(array, 0, pattern);
+  SetElement(array, 1, error_text);
+  Handle<Object> regexp_err = Factory::NewSyntaxError(message, array);
+  return Handle<Object>(Top::Throw(*regexp_err));
+}
 
 
 Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
@@ -190,15 +200,21 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     re->set_data(*cached);
     result = re;
   } else {
-    bool is_atom = !flags.is_ignore_case();
-    for (int i = 0; is_atom && i < pattern->length(); i++) {
-      if (is_reg_exp_special_char.get(pattern->Get(i)))
-        is_atom = false;
+    SafeStringInputBuffer buffer(pattern.location());
+    Handle<String> error_text;
+    RegExpTree* ast = ParseRegExp(&buffer, &error_text);
+    if (!error_text.is_null()) {
+      // Throw an exception if we fail to parse the pattern.
+      return CreateRegExpException(re, pattern, error_text, "malformed_regexp");
     }
-    if (is_atom) {
-      result = AtomCompile(re, pattern, flags);
+    RegExpAtom* atom = ast->AsAtom();
+    if (atom != NULL && !flags.is_ignore_case()) {
+      Vector<const uc16> atom_pattern = atom->data();
+      // Test if pattern equals atom_pattern and reuse pattern if it does.
+      Handle<String> atom_string = Factory::NewStringFromTwoByte(atom_pattern);
+      result = AtomCompile(re, atom_string, flags);
     } else {
-      result = JsreCompile(re, pattern, flags);
+      result = JsrePrepare(re, pattern, flags);
     }
     Object* data = re->data();
     if (data->IsFixedArray()) {
@@ -311,9 +327,22 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
 }
 
 
-Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re,
-                                       Handle<String> pattern,
-                                       JSRegExp::Flags flags) {
+Handle<Object>RegExpImpl::JsrePrepare(Handle<JSRegExp> re,
+                                      Handle<String> pattern,
+                                      JSRegExp::Flags flags) {
+  Handle<Object> value(Heap::undefined_value());
+  Factory::SetRegExpData(re, JSRegExp::JSCRE, pattern, flags, value);
+  return re;
+}
+
+
+Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re) {
+  ASSERT_EQ(re->TypeTag(), JSRegExp::JSCRE);
+  ASSERT(re->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined());
+
+  Handle<String> pattern(re->Pattern());
+  JSRegExp::Flags flags = re->GetFlags();
+
   JSRegExpIgnoreCaseOption case_option = flags.is_ignore_case()
     ? JSRegExpIgnoreCase
     : JSRegExpDoNotIgnoreCase;
@@ -477,6 +506,13 @@ int OffsetsVector::static_offsets_vector_[
 Handle<Object> RegExpImpl::JsreExec(Handle<JSRegExp> regexp,
                                     Handle<String> subject,
                                     Handle<Object> index) {
+  ASSERT_EQ(regexp->TypeTag(), JSRegExp::JSCRE);
+  if (regexp->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined()) {
+    Handle<Object> compile_result = JsreCompile(regexp);
+    if (compile_result->IsException()) return compile_result;
+  }
+  ASSERT(regexp->DataAt(JSRegExp::kJscreDataIndex)->IsFixedArray());
+
   // Prepare space for the return values.
   int num_captures = JsreCapture(regexp);
 
@@ -497,6 +533,13 @@ Handle<Object> RegExpImpl::JsreExec(Handle<JSRegExp> regexp,
 
 Handle<Object> RegExpImpl::JsreExecGlobal(Handle<JSRegExp> regexp,
                                           Handle<String> subject) {
+  ASSERT_EQ(regexp->TypeTag(), JSRegExp::JSCRE);
+  if (regexp->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined()) {
+    Handle<Object> compile_result = JsreCompile(regexp);
+    if (compile_result->IsException()) return compile_result;
+  }
+  ASSERT(regexp->DataAt(JSRegExp::kJscreDataIndex)->IsFixedArray());
+
   // Prepare space for the return values.
   int num_captures = JsreCapture(regexp);
 
@@ -898,7 +941,7 @@ StaticCharacterClasses* StaticCharacterClasses::instance_ = NULL;
 
 StaticCharacterClasses::StaticCharacterClasses() {
 #define MAKE_CLASS(Name)\
-  CharacterClass::Ranges(Vector<CharacterClass::Range>(k##Name##Ranges,\
+  CharacterClass::Ranges(Vector<CharacterClass::Range>(k##Name##Ranges, \
                                                        k##Name##RangeCount), \
                          &static_allocator_)
 

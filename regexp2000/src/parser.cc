@@ -3820,6 +3820,7 @@ CharacterRange RegExpParser::ParseClassAtom(bool* ok) {
 RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
   static const char* kUnterminated = "Unterminated character class";
   static const char* kIllegal = "Illegal character class";
+  static const char* kRangeOutOfOrder = "Range out of order in character class";
 
   ASSERT_EQ(current(), '[');
   Advance();
@@ -3840,6 +3841,9 @@ RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
         CharacterRange next = ParseClassAtom(CHECK_OK);
         if (next.is_character_class()) {
           return ReportError(CStrVector(kIllegal), CHECK_OK);
+        }
+        if (first.from() > next.to()) {
+          return ReportError(CStrVector(kRangeOutOfOrder), CHECK_OK);
         }
         ranges->Add(CharacterRange::Range(first.from(), next.to()));
       } else {
