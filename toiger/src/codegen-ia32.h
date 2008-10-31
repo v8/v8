@@ -43,61 +43,6 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 
 // -------------------------------------------------------------------------
-// Virtual frame
-
-class VirtualFrame BASE_EMBEDDED {
- public:
-  explicit VirtualFrame(CodeGenerator* cgen);
-
-  void Enter();
-  void Exit();
-
-  void AllocateLocals();
-
-  Operand Top() const { return Operand(esp, 0); }
-
-  Operand Element(int index) const {
-    return Operand(esp, index * kPointerSize);
-  }
-
-  Operand Local(int index) const {
-    ASSERT(0 <= index && index < frame_local_count_);
-    return Operand(ebp, kLocal0Offset - index * kPointerSize);
-  }
-
-  Operand Function() const { return Operand(ebp, kFunctionOffset); }
-
-  Operand Context() const { return Operand(ebp, kContextOffset); }
-
-  Operand Parameter(int index) const {
-    ASSERT(-1 <= index && index < parameter_count_);
-    return Operand(ebp, (1 + parameter_count_ - index) * kPointerSize);
-  }
-
-  Operand Receiver() const { return Parameter(-1); }
-
-  inline void Drop(int count);
-
-  inline void Pop();
-  inline void Pop(Register reg);
-  inline void Pop(Operand operand);
-
-  inline void Push(Register reg);
-  inline void Push(Operand operand);
-  inline void Push(Immediate immediate);
-
- private:
-  static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
-  static const int kFunctionOffset = JavaScriptFrameConstants::kFunctionOffset;
-  static const int kContextOffset = StandardFrameConstants::kContextOffset;
-
-  MacroAssembler* masm_;
-  int frame_local_count_;
-  int parameter_count_;
-};
-
-
-// -------------------------------------------------------------------------
 // Reference support
 
 // A reference is a C++ stack-allocated object that keeps an ECMA
@@ -153,9 +98,12 @@ class Reference BASE_EMBEDDED {
 // Code generation state
 
 // The state is passed down the AST by the code generator (and back up, in
-// the form of the state of the label pair).  It is threaded through the
-// call stack.  Constructing a state implicitly pushes it on the owning code
-// generator's stack of states, and destroying one implicitly pops it.
+// the form of the state of the jump target pair).  It is threaded through
+// the call stack.  Constructing a state implicitly pushes it on the owning
+// code generator's stack of states, and destroying one implicitly pops it.
+//
+// The code generator state is only used for expressions, so statements have
+// the initial state.
 
 class CodeGenState BASE_EMBEDDED {
  public:
@@ -164,26 +112,37 @@ class CodeGenState BASE_EMBEDDED {
   explicit CodeGenState(CodeGenerator* owner);
 
   // Create a code generator state based on a code generator's current
-  // state.  The new state has its own access type and pair of branch
-  // labels, and no reference.
+  // state.  The new state may or may not be inside a typeof, and has its
+  // own pair of branch targets.
   CodeGenState(CodeGenerator* owner,
                TypeofState typeof_state,
-               Label* true_target,
-               Label* false_target);
+               JumpTarget* true_target,
+               JumpTarget* false_target);
 
   // Destroy a code generator state and restore the owning code generator's
   // previous state.
   ~CodeGenState();
 
+  // Accessors for the state.
   TypeofState typeof_state() const { return typeof_state_; }
-  Label* true_target() const { return true_target_; }
-  Label* false_target() const { return false_target_; }
+  JumpTarget* true_target() const { return true_target_; }
+  JumpTarget* false_target() const { return false_target_; }
 
  private:
+  // The owning code generator.
   CodeGenerator* owner_;
+
+  // A flag indicating whether we are compiling the immediate subexpression
+  // of a typeof expression.
   TypeofState typeof_state_;
-  Label* true_target_;
-  Label* false_target_;
+
+  // A pair of jump targets in case the expression has a control-flow
+  // effect.
+  JumpTarget* true_target_;
+  JumpTarget* false_target_;
+
+  // The previous state of the owning code generator, restored when
+  // this state is destroyed.
   CodeGenState* previous_;
 };
 
@@ -215,6 +174,13 @@ class CodeGenerator: public Visitor {
 
   VirtualFrame* frame() const { return frame_; }
 
+  void set_frame(VirtualFrame* frame) { frame_ = frame; }
+
+  void delete_frame() {
+    delete frame_;
+    frame_ = NULL;
+  }
+
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
 
@@ -235,8 +201,8 @@ class CodeGenerator: public Visitor {
   // State
   bool has_cc() const  { return cc_reg_ >= 0; }
   TypeofState typeof_state() const { return state_->typeof_state(); }
-  Label* true_target() const  { return state_->true_target(); }
-  Label* false_target() const  { return state_->false_target(); }
+  JumpTarget* true_target() const  { return state_->true_target(); }
+  JumpTarget* false_target() const  { return state_->false_target(); }
 
   // Track loop nesting level.
   int loop_nesting() const { return loop_nesting_; }
@@ -245,6 +211,8 @@ class CodeGenerator: public Visitor {
 
 
   // Node visitors.
+  void VisitStatements(ZoneList<Statement*>* statements);
+
 #define DEF_VISIT(type) \
   void Visit##type(type* node);
   NODE_LIST(DEF_VISIT)
@@ -271,8 +239,8 @@ class CodeGenerator: public Visitor {
 
   void LoadCondition(Expression* x,
                      TypeofState typeof_state,
-                     Label* true_target,
-                     Label* false_target,
+                     JumpTarget* true_target,
+                     JumpTarget* false_target,
                      bool force_cc);
   void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
@@ -289,7 +257,7 @@ class CodeGenerator: public Visitor {
   // through the context chain.
   void LoadTypeofExpression(Expression* x);
 
-  void ToBoolean(Label* true_target, Label* false_target);
+  void ToBoolean(JumpTarget* true_target, JumpTarget* false_target);
 
   void GenericBinaryOperation(Token::Value op,
       StaticType* type,
@@ -311,7 +279,7 @@ class CodeGenerator: public Visitor {
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
 
   // Control flow
-  void Branch(bool if_true, Label* L);
+  void Branch(bool if_true, JumpTarget* target);
   void CheckStack();
   void CleanStack(int num_bytes);
 
@@ -379,14 +347,15 @@ class CodeGenerator: public Visitor {
   void GenerateFastCaseSwitchJumpTable(SwitchStatement* node,
                                        int min_index,
                                        int range,
-                                       Label* fail_label,
-                                       Vector<Label*> case_targets,
-                                       Vector<Label> case_labels);
+                                       JumpTarget* fail_label,
+                                       Vector<JumpTarget*> case_targets,
+                                       Vector<JumpTarget> case_labels);
 
   // Generate the code for cases for the fast case switch.
   // Called by GenerateFastCaseSwitchJumpTable.
   void GenerateFastCaseSwitchCases(SwitchStatement* node,
-                                   Vector<Label> case_labels);
+                                   Vector<JumpTarget> case_labels,
+                                   JumpTarget* table_start);
 
   // Fast support for constant-Smi switches.
   void GenerateFastCaseSwitchStatement(SwitchStatement* node,
@@ -421,10 +390,17 @@ class CodeGenerator: public Visitor {
   int break_stack_height_;
   int loop_nesting_;
 
-  // Labels
-  Label function_return_;
+  // Jump targets.
+  // The target of the return from the function.
+  JumpTarget function_return_;
+
+  // True if the function return is shadowed (ie, jumping to the target
+  // function_return_ does not jump to the true function return, but rather
+  // to some unlinking code).
+  bool function_return_is_shadowed_;
 
   friend class VirtualFrame;
+  friend class JumpTarget;
   friend class Reference;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);

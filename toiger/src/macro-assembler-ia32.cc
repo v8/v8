@@ -35,6 +35,269 @@
 
 namespace v8 { namespace internal {
 
+// -------------------------------------------------------------------------
+// VirtualFrame implementation.
+
+#define __ masm_->
+
+VirtualFrame::VirtualFrame(CodeGenerator* cgen) {
+  ASSERT(cgen->scope() != NULL);
+
+  masm_ = cgen->masm();
+  frame_local_count_ = cgen->scope()->num_stack_slots();
+  parameter_count_ = cgen->scope()->num_parameters();
+  height_ = 0;
+}
+
+
+VirtualFrame::VirtualFrame(VirtualFrame* original) {
+  ASSERT(original != NULL);
+
+  masm_ = original->masm_;
+  frame_local_count_ = original->frame_local_count_;
+  parameter_count_ = original->parameter_count_;
+  height_ = original->height_;
+}
+
+
+void VirtualFrame::Forget(int count) {
+  ASSERT(count >= 0);
+  ASSERT(height_ >= count);
+  height_ -= count;
+}
+
+
+void VirtualFrame::MergeTo(VirtualFrame* expected) {
+  ASSERT(masm_ == expected->masm_);
+  ASSERT(frame_local_count_ == expected->frame_local_count_);
+  ASSERT(parameter_count_ == expected->parameter_count_);
+  ASSERT(height_ == expected->height_);
+}
+
+
+void VirtualFrame::Enter() {
+  Comment cmnt(masm_, "[ Enter JS frame");
+  __ push(ebp);
+  __ mov(ebp, Operand(esp));
+
+  // Store the context and the function in the frame.
+  __ push(esi);
+  __ push(edi);
+
+  // Clear the function slot when generating debug code.
+  if (FLAG_debug_code) {
+    __ Set(edi, Immediate(reinterpret_cast<int>(kZapValue)));
+  }
+}
+
+
+void VirtualFrame::Exit() {
+  Comment cmnt(masm_, "[ Exit JS frame");
+  // Record the location of the JS exit code for patching when setting
+  // break point.
+  __ RecordJSReturn();
+
+  // Avoid using the leave instruction here, because it is too
+  // short. We need the return sequence to be a least the size of a
+  // call instruction to support patching the exit code in the
+  // debugger. See VisitReturnStatement for the full return sequence.
+  __ mov(esp, Operand(ebp));
+  __ pop(ebp);
+}
+
+
+void VirtualFrame::AllocateLocals() {
+  if (frame_local_count_ > 0) {
+    Comment cmnt(masm_, "[ Allocate space for locals");
+    __ Set(eax, Immediate(Factory::undefined_value()));
+    for (int i = 0; i < frame_local_count_; i++) {
+      __ push(eax);
+    }
+  }
+}
+
+
+// -------------------------------------------------------------------------
+// JumpTarget implementation.
+
+JumpTarget::JumpTarget(CodeGenerator* cgen) {
+  ASSERT(cgen != NULL);
+  expected_frame_ = NULL;
+  code_generator_ = cgen;
+  masm_ = cgen->masm();
+}
+
+
+JumpTarget::JumpTarget()
+    : expected_frame_(NULL),
+      code_generator_(NULL),
+      masm_(NULL) {
+}
+
+
+void JumpTarget::set_code_generator(CodeGenerator* cgen) {
+  ASSERT(cgen != NULL);
+  ASSERT(code_generator_ == NULL);
+  code_generator_ = cgen;
+  masm_ = cgen->masm();
+}
+
+
+bool JumpTarget::IsActualFunctionReturn() {
+  return (this == &code_generator_->function_return_ &&
+          !code_generator_->function_return_is_shadowed_);
+}
+
+
+void JumpTarget::Jump() {
+  // Precondition: there is a current frame.  There may or may not be an
+  // expected frame at the label.
+  ASSERT(code_generator_ != NULL);
+  ASSERT(masm_ != NULL);
+
+  VirtualFrame* current_frame = code_generator_->frame();
+  ASSERT(current_frame != NULL);
+
+  if (expected_frame_ == NULL) {
+    expected_frame_ = current_frame;
+    code_generator_->set_frame(NULL);
+    // The frame at the actual function return will always have height
+    // zero.
+    if (IsActualFunctionReturn()) expected_frame_->height_ = 0;
+  } else {
+    // No code needs to be emitted to merge to the expected frame at the
+    // actual function return.
+    if (!IsActualFunctionReturn()) current_frame->MergeTo(expected_frame_);
+    code_generator_->delete_frame();
+  }
+
+  __ jmp(&label_);
+  // Postcondition: there is no current frame but there is an expected frame
+  // at the label.
+}
+
+
+void JumpTarget::Branch(Condition cc, Hint hint) {
+  // Precondition: there is a current frame.  There may or may not be an
+  // expected frame at the label.
+  ASSERT(code_generator_ != NULL);
+  ASSERT(masm_ != NULL);
+
+  VirtualFrame* current_frame = code_generator_->frame();
+  ASSERT(current_frame != NULL);
+
+  if (expected_frame_ == NULL) {
+    expected_frame_ = new VirtualFrame(current_frame);
+    // The frame at the actual function return will always have height
+    // zero.
+    if (IsActualFunctionReturn()) expected_frame_->height_ = 0;
+  } else {
+    // No code needs to be emitted to merge to the expected frame at the
+    // actual function return.
+    if (!IsActualFunctionReturn()) current_frame->MergeTo(expected_frame_);
+  }
+
+  __ j(cc, &label_, hint);
+  // Postcondition: there is both a current frame and an expected frame at
+  // the label and they match.
+}
+
+
+void JumpTarget::Call() {
+  // Precondition: there is a current frame, and there is no expected frame
+  // at the label.
+  ASSERT(code_generator_ != NULL);
+  ASSERT(masm_ != NULL);
+  ASSERT(!IsActualFunctionReturn());
+
+  VirtualFrame* current_frame = code_generator_->frame();
+  ASSERT(current_frame != NULL);
+  ASSERT(expected_frame_ == NULL);
+
+  expected_frame_ = new VirtualFrame(current_frame);
+  // Adjust the expected frame's height to account for the return address
+  // pushed by the call instruction.
+  expected_frame_->height_++;
+
+  __ call(&label_);
+
+  // Postcondition: there is both a current frame and an expected frame at
+  // the label.  The current frame is one shorter than the one at the label
+  // (which contains the 'return address', ie, the eip register and possibly
+  // cs register).
+}
+
+
+void JumpTarget::Bind() {
+  ASSERT(code_generator_ != NULL);
+  ASSERT(masm_ != NULL);
+
+  // Precondition: there is either a current frame or an expected frame at
+  // the label (and possibly both).  The label is unbound.
+  VirtualFrame* current_frame = code_generator_->frame();
+  ASSERT(current_frame != NULL || expected_frame_ != NULL);
+  ASSERT(!label_.is_bound());
+
+  if (expected_frame_ == NULL) {
+    expected_frame_ = new VirtualFrame(current_frame);
+    // The frame at the actual function return will always have height
+    // zero.
+    if (IsActualFunctionReturn()) expected_frame_->height_ = 0;
+  } else if (current_frame == NULL) {
+    code_generator_->set_frame(new VirtualFrame(expected_frame_));
+  } else {
+    // No code needs to be emitted to merge to the expected frame at the
+    // actual function return.
+    if (!IsActualFunctionReturn()) current_frame->MergeTo(expected_frame_);
+  }
+
+  __ bind(&label_);
+  // Postcondition: there is both a current frame and an expected frame at
+  // the label and they match.  The label is bound.
+}
+
+
+// -------------------------------------------------------------------------
+// ShadowTarget implementation.
+
+ShadowTarget::ShadowTarget(JumpTarget* original) {
+  ASSERT(original != NULL);
+  original_target_ = original;
+  original_pos_ = original->label()->pos_;
+  original_expected_frame_ = original->expected_frame();
+
+  // We do not call Unuse() on the orginal jump target, because we do not
+  // want to delete the expected frame.
+  original->label()->pos_ = 0;
+  original->set_expected_frame(NULL);
+#ifdef DEBUG
+  is_shadowing_ = true;
+#endif
+}
+
+
+void ShadowTarget::StopShadowing() {
+  ASSERT(is_shadowing_);
+  ASSERT(is_unused());
+
+  set_code_generator(original_target_->code_generator());
+  label_.pos_ = original_target_->label()->pos_;
+  expected_frame_ = original_target_->expected_frame();
+
+  original_target_->label()->pos_ = original_pos_;
+  original_target_->set_expected_frame(original_expected_frame_);
+
+#ifdef DEBUG
+  is_shadowing_ = false;
+#endif
+}
+
+#undef __
+
+
+// -------------------------------------------------------------------------
+// MacroAssembler implementation.
+
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       unresolved_(0),
@@ -110,8 +373,7 @@ class RecordWriteStub : public CodeStub {
   // scratch) OOOOAAAASSSS.
   class ScratchBits: public BitField<uint32_t, 0, 4> {};
   class AddressBits: public BitField<uint32_t, 4, 4> {};
-  class ObjectBits: public BitField<uint32_t, 8, 4> {
-};
+  class ObjectBits: public BitField<uint32_t, 8, 4> {};
 
   Major MajorKey() { return RecordWrite; }
 

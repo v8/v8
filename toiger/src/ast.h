@@ -89,6 +89,9 @@ namespace v8 { namespace internal {
   V(ThisFunction)
 
 
+// Forward declarations
+class TargetCollector;
+
 #define DEF_FORWARD_DECLARATION(type) class type;
 NODE_LIST(DEF_FORWARD_DECLARATION)
 #undef DEF_FORWARD_DECLARATION
@@ -115,7 +118,7 @@ class Node: public ZoneObject {
   virtual VariableProxy* AsVariableProxy() { return NULL; }
   virtual Property* AsProperty() { return NULL; }
   virtual Call* AsCall() { return NULL; }
-  virtual LabelCollector* AsLabelCollector() { return NULL; }
+  virtual TargetCollector* AsTargetCollector() { return NULL; }
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
   virtual IterationStatement* AsIterationStatement() { return NULL; }
   virtual UnaryOperation* AsUnaryOperation() { return NULL; }
@@ -189,7 +192,7 @@ class BreakableStatement: public Statement {
   virtual BreakableStatement* AsBreakableStatement() { return this; }
 
   // Code generation
-  Label* break_target() { return &break_target_; }
+  JumpTarget* break_target() { return &break_target_; }
 
   // Used during code generation for restoring the stack when a
   // break/continue crosses a statement that keeps stuff on the stack.
@@ -208,7 +211,7 @@ class BreakableStatement: public Statement {
  private:
   ZoneStringList* labels_;
   Type type_;
-  Label break_target_;
+  JumpTarget break_target_;
   int break_stack_height_;
 };
 
@@ -265,7 +268,7 @@ class IterationStatement: public BreakableStatement {
   Statement* body() const { return body_; }
 
   // Code generation
-  Label* continue_target()  { return &continue_target_; }
+  JumpTarget* continue_target()  { return &continue_target_; }
 
  protected:
   explicit IterationStatement(ZoneStringList* labels)
@@ -277,7 +280,7 @@ class IterationStatement: public BreakableStatement {
 
  private:
   Statement* body_;
-  Label continue_target_;
+  JumpTarget continue_target_;
 };
 
 
@@ -497,43 +500,45 @@ class IfStatement: public Statement {
 };
 
 
-// NOTE: LabelCollectors are represented as nodes to fit in the target
+// NOTE: TargetCollectors are represented as nodes to fit in the target
 // stack in the compiler; this should probably be reworked.
-class LabelCollector: public Node {
+class TargetCollector: public Node {
  public:
-  explicit LabelCollector(ZoneList<Label*>* labels) : labels_(labels) { }
+  explicit TargetCollector(ZoneList<JumpTarget*>* targets)
+      : targets_(targets) {
+  }
 
-  // Adds a label to the collector. The collector stores a pointer not
-  // a copy of the label to make binding work, so make sure not to
-  // pass in references to something on the stack.
-  void AddLabel(Label* label);
+  // Adds a jump target to the collector. The collector stores a pointer not
+  // a copy of the target to make binding work, so make sure not to pass in
+  // references to something on the stack.
+  void AddTarget(JumpTarget* target);
 
-  // Virtual behaviour. LabelCollectors are never part of the AST.
+  // Virtual behaviour. TargetCollectors are never part of the AST.
   virtual void Accept(Visitor* v) { UNREACHABLE(); }
-  virtual LabelCollector* AsLabelCollector() { return this; }
+  virtual TargetCollector* AsTargetCollector() { return this; }
 
-  ZoneList<Label*>* labels() { return labels_; }
+  ZoneList<JumpTarget*>* targets() { return targets_; }
 
  private:
-  ZoneList<Label*>* labels_;
+  ZoneList<JumpTarget*>* targets_;
 };
 
 
 class TryStatement: public Statement {
  public:
   explicit TryStatement(Block* try_block)
-      : try_block_(try_block), escaping_labels_(NULL) { }
+      : try_block_(try_block), escaping_targets_(NULL) { }
 
-  void set_escaping_labels(ZoneList<Label*>* labels) {
-    escaping_labels_ = labels;
+  void set_escaping_targets(ZoneList<JumpTarget*>* targets) {
+    escaping_targets_ = targets;
   }
 
   Block* try_block() const { return try_block_; }
-  ZoneList<Label*>* escaping_labels() const { return escaping_labels_; }
+  ZoneList<JumpTarget*>* escaping_targets() const { return escaping_targets_; }
 
  private:
   Block* try_block_;
-  ZoneList<Label*>* escaping_labels_;
+  ZoneList<JumpTarget*>* escaping_targets_;
 };
 
 

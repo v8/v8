@@ -169,7 +169,6 @@ class IterationStatement;
 class JSArray;
 class JSFunction;
 class JSObject;
-class LabelCollector;
 class LargeObjectSpace;
 template <typename T, class P = FreeStoreAllocationPolicy> class List;
 class LookupResult;

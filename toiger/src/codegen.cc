@@ -352,14 +352,17 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
-  // Label pointer per number in range
-  SmartPointer<Label*> case_targets(NewArray<Label*>(range));
+  // JumpTarget pointer per number in range.
+  SmartPointer<JumpTarget*> case_targets(NewArray<JumpTarget*>(range));
 
-  // Label per switch case
-  SmartPointer<Label> case_labels(NewArray<Label>(length));
+  // JumpTarget per switch case.
+  SmartPointer<JumpTarget> case_labels(NewArray<JumpTarget>(length));
+  for (int i = 0; i < length; i++) {
+    case_labels[i].set_code_generator(this);
+  }
 
-  Label* fail_label = default_index >= 0 ? &(case_labels[default_index])
-                                         : node->break_target();
+  JumpTarget* fail_label = default_index >= 0 ? &(case_labels[default_index])
+                                              : node->break_target();
 
   // Populate array of label pointers for each number in the range.
   // Initally put the failure label everywhere.
@@ -383,24 +386,35 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
                                   min_index,
                                   range,
                                   fail_label,
-                                  Vector<Label*>(*case_targets, range),
-                                  Vector<Label>(*case_labels, length));
+                                  Vector<JumpTarget*>(*case_targets, range),
+                                  Vector<JumpTarget>(*case_labels, length));
 }
 
 
 void CodeGenerator::GenerateFastCaseSwitchCases(
     SwitchStatement* node,
-    Vector<Label> case_labels) {
+    Vector<JumpTarget> case_labels,
+    JumpTarget* table_start) {
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
   for (int i = 0; i < length; i++) {
     Comment cmnt(masm(), "[ Case clause");
-    masm()->bind(&(case_labels[i]));
+    case_labels[i].Bind();
     VisitStatements(cases->at(i)->statements());
+
+    // All of the labels match the same expected frame as the table start.
+    // If control flow cannot fall off the end of the case statement, we
+    // pick up the expected frame from the table start.  Otherwise we have
+    // to generate merge code to match the next label.
+    if (frame_ == NULL) {
+      frame_ = new VirtualFrame(table_start->expected_frame());
+    } else {
+      frame_->MergeTo(table_start->expected_frame());
+    }
   }
 
-  masm()->bind(node->break_target());
+  node->break_target()->Bind();
 }
 
 
