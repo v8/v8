@@ -1934,7 +1934,7 @@ static Object* Runtime_IsPropertyEnumerable(Arguments args) {
   }
 
   PropertyAttributes att = object->GetLocalPropertyAttribute(key);
-  return Heap::ToBoolean(att != ABSENT && att != DONT_ENUM);
+  return Heap::ToBoolean(att != ABSENT && (att & DONT_ENUM) == 0);
 }
 
 

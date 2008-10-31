@@ -1027,6 +1027,15 @@ THREADED_TEST(PrePropertyHandler) {
 }
 
 
+THREADED_TEST(UndefinedIsNotEnumerable) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::Handle<Value> result = Script::Compile(v8_str(
+      "this.propertyIsEnumerable(undefined)"))->Run();
+  CHECK(result->IsFalse());
+}
+
+
 v8::Handle<Script> call_recursively_script;
 static const int kTargetRecursionDepth = 300;  // near maximum
 
