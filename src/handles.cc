@@ -217,8 +217,7 @@ Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index) {
 
 
 Handle<String> SubString(Handle<String> str, int start, int end) {
-  StringShape shape(*str);
-  CALL_HEAP_FUNCTION(str->Slice(shape, start, end), String);
+  CALL_HEAP_FUNCTION(str->Slice(StringShape(*str), start, end), String);
 }
 
 
