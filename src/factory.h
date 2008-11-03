@@ -98,11 +98,16 @@ class Factory : public AllStatic {
 
   // Create a new cons string object which consists of a pair of strings.
   static Handle<String> NewConsString(Handle<String> first,
-                                      Handle<String> second);
+                                      StringShape first_shape,
+                                      Handle<String> second,
+                                      StringShape second_shape);
 
   // Create a new sliced string object which represents a substring of a
   // backing string.
-  static Handle<String> NewStringSlice(Handle<String> str, int begin, int end);
+  static Handle<String> NewStringSlice(Handle<String> str,
+                                       StringShape shape,
+                                       int begin,
+                                       int end);
 
   // Creates a new external String object.  There are two String encodings
   // in the system: ASCII and two byte.  Unlike other String types, it does

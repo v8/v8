@@ -45,7 +45,7 @@ class Descriptor BASE_EMBEDDED {
   }
 
   Object* KeyToSymbol() {
-    if (!key_->IsSymbol()) {
+    if (!StringShape(key_).IsSymbol()) {
       Object* result = Heap::LookupSymbol(key_);
       if (result->IsFailure()) return result;
       key_ = String::cast(result);

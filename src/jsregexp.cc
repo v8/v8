@@ -129,34 +129,37 @@ Handle<String> RegExpImpl::CachedStringToTwoByte(Handle<String> subject) {
 // Converts a source string to a 16 bit flat string or a SlicedString containing
 // a 16 bit flat string).
 Handle<String> RegExpImpl::StringToTwoByte(Handle<String> pattern) {
-  if (!pattern->IsFlat()) {
+  StringShape shape(*pattern);
+  if (!pattern->IsFlat(shape)) {
     FlattenString(pattern);
   }
-  Handle<String> flat_string(pattern->IsConsString() ?
+  Handle<String> flat_string(shape.IsCons() ?
     String::cast(ConsString::cast(*pattern)->first()) :
     *pattern);
-  ASSERT(!flat_string->IsConsString());
-  ASSERT(flat_string->IsSeqString() || flat_string->IsSlicedString() ||
-         flat_string->IsExternalString());
-  if (!flat_string->IsAsciiRepresentation()) {
+  ASSERT(flat_string->IsString());
+  StringShape flat_shape(*flat_string);
+  ASSERT(!flat_shape.IsCons());
+  ASSERT(flat_shape.IsSequential() ||
+         flat_shape.IsSliced() ||
+         flat_shape.IsExternal());
+  if (!flat_shape.IsAsciiRepresentation()) {
     return flat_string;
   }
 
+  int len = flat_string->length(flat_shape);
   Handle<String> two_byte_string =
-    Factory::NewRawTwoByteString(flat_string->length(), TENURED);
-  static StringInputBuffer convert_to_two_byte_buffer;
-  convert_to_two_byte_buffer.Reset(*flat_string);
-  for (int i = 0; convert_to_two_byte_buffer.has_more(); i++) {
-    two_byte_string->Set(i, convert_to_two_byte_buffer.GetNext());
-  }
+    Factory::NewRawTwoByteString(len, TENURED);
+  uc16* dest = SeqTwoByteString::cast(*two_byte_string)->GetChars();
+  String::WriteToFlat(*flat_string, flat_shape, dest, 0, len);
   return two_byte_string;
 }
 
 
 static JSRegExp::Flags RegExpFlagsFromString(Handle<String> str) {
   int flags = JSRegExp::NONE;
-  for (int i = 0; i < str->length(); i++) {
-    switch (str->Get(i)) {
+  StringShape shape(*str);
+  for (int i = 0; i < str->length(shape); i++) {
+    switch (str->Get(shape, i)) {
       case 'i':
         flags |= JSRegExp::IGNORE_CASE;
         break;
@@ -182,13 +185,14 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   Handle<FixedArray> cached = CompilationCache::LookupRegExp(pattern, flags);
   bool in_cache = !cached.is_null();
   Handle<Object> result;
+  StringShape shape(*pattern);
   if (in_cache) {
     re->set_data(*cached);
     result = re;
   } else {
     bool is_atom = !flags.is_ignore_case();
-    for (int i = 0; is_atom && i < pattern->length(); i++) {
-      if (is_reg_exp_special_char.get(pattern->Get(i)))
+    for (int i = 0; is_atom && i < pattern->length(shape); i++) {
+      if (is_reg_exp_special_char.get(pattern->Get(shape, i)))
         is_atom = false;
     }
     if (is_atom) {

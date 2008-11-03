@@ -595,20 +595,16 @@ class Object BASE_EMBEDDED {
   inline bool IsHeapObject();
   inline bool IsHeapNumber();
   inline bool IsString();
+  inline bool IsSymbol();
   inline bool IsSeqString();
-  inline bool IsAsciiStringRepresentation();
-  inline bool IsTwoByteStringRepresentation();
-  inline bool IsSeqAsciiString();
-  inline bool IsSeqTwoByteString();
-  inline bool IsConsString();
   inline bool IsSlicedString();
   inline bool IsExternalString();
-  inline bool IsExternalAsciiString();
+  inline bool IsConsString();
   inline bool IsExternalTwoByteString();
-  inline bool IsShortString();
-  inline bool IsMediumString();
-  inline bool IsLongString();
-  inline bool IsSymbol();
+  inline bool IsExternalAsciiString();
+  inline bool IsSeqTwoByteString();
+  inline bool IsSeqAsciiString();
+
   inline bool IsNumber();
   inline bool IsByteArray();
   inline bool IsFailure();
@@ -3022,6 +3018,53 @@ class StringHasher {
 };
 
 
+// The characteristics of a string are stored in its map.  Retrieving these
+// few bits of information is moderately expensive, involving two memory
+// loads where the second is dependent on the first.  To improve efficiency
+// the shape of the string is given its own class so that it can be retrieved
+// once and used for several string operations.  A StringShape is small enough
+// to be passed by value and is immutable, but be aware that flattening a
+// string can potentially alter its shape.
+//
+// Most of the methods designed to interrogate a string as to its exact nature
+// have been made into methods on StringShape in order to encourage the use of
+// StringShape.  The String class has both a length() and a length(StringShape)
+// operation.  The former is simpler to type, but the latter is faster if you
+// need the StringShape for some other operation immediately before or after.
+class StringShape BASE_EMBEDDED {
+ public:
+  inline explicit StringShape(String* s);
+  inline explicit StringShape(Map* s);
+  inline explicit StringShape(InstanceType t);
+  inline bool IsAsciiRepresentation();
+  inline bool IsTwoByteRepresentation();
+  inline bool IsSequential();
+  inline bool IsExternal();
+  inline bool IsCons();
+  inline bool IsSliced();
+  inline bool IsExternalAscii();
+  inline bool IsExternalTwoByte();
+  inline bool IsSequentialAscii();
+  inline bool IsSequentialTwoByte();
+  inline bool IsSymbol();
+  inline StringRepresentationTag representation_tag();
+  inline uint32_t full_representation_tag();
+  inline uint32_t size_tag();
+#ifdef DEBUG
+  inline uint32_t type() { return type_; }
+  inline void invalidate() { valid_ = false; }
+  inline bool valid() { return valid_; }
+#else
+  inline void invalidate() { }
+#endif
+ private:
+  uint32_t type_;
+#ifdef DEBUG
+  bool valid_;
+#endif
+};
+
+
 // The String abstract class captures JavaScript string values:
 //
 // Ecma-262:
@@ -3033,6 +3076,9 @@ class StringHasher {
 class String: public HeapObject {
  public:
   // Get and set the length of the string.
+  // Fast version.
+  inline int length(StringShape shape);
+  // Easy version.
   inline int length();
   inline void set_length(int value);
 
@@ -3044,32 +3090,20 @@ class String: public HeapObject {
   inline void set_length_field(uint32_t value);
 
   // Get and set individual two byte chars in the string.
-  inline void Set(int index, uint16_t value);
+  inline void Set(StringShape shape, int index, uint16_t value);
   // Get individual two byte char in the string.  Repeated calls
   // to this method are not efficient unless the string is flat.
-  inline uint16_t Get(int index);
+  inline uint16_t Get(StringShape shape, int index);
 
   // Flatten the top level ConsString that is hiding behind this
   // string.  This is a no-op unless the string is a ConsString or a
   // SlicedString.  Flatten mutates the ConsString and might return a
   // failure.
-  Object* Flatten();
+  Object* Flatten(StringShape shape);
   // Try to flatten the string.  Do not allow handling of allocation
   // failures.  After calling TryFlatten, the string could still be a
   // ConsString.
-  inline void TryFlatten();
-
-  // Is this string an ascii string.
-  inline bool IsAsciiRepresentation();
-
-  // Specialization of this function from Object that skips the
-  // string check.
-  inline bool IsSeqAsciiString();
-
-  // Fast testing routines that assume the receiver is a string and
-  // just check whether it is a certain kind of string.
-  inline bool StringIsSlicedString();
-  inline bool StringIsConsString();
+  inline void TryFlatten(StringShape shape);
 
   Vector<const char> ToAsciiVector();
   Vector<const uc16> ToUC16Vector();
@@ -3079,7 +3113,7 @@ class String: public HeapObject {
   bool MarkAsUndetectable();
 
   // Slice the string and return a substring.
-  Object* Slice(int from, int to);
+  Object* Slice(StringShape shape, int from, int to);
 
   // String equality operations.
   inline bool Equals(String* other);
@@ -3135,24 +3169,6 @@ class String: public HeapObject {
 
   void PrintOn(FILE* out);
 
-  // Get the size tag.
-  inline uint32_t size_tag();
-  static inline uint32_t map_size_tag(Map* map);
-
-  // True if the string is a symbol.
-  inline bool is_symbol();
-  static inline bool is_symbol_map(Map* map);
-
-  // True if the string is ASCII.
-  inline bool is_ascii_representation();
-  static inline bool is_ascii_representation_map(Map* map);
-
-  // Get the representation tag.
-  inline StringRepresentationTag representation_tag();
-  // Get the representation and ASCII tag.
-  inline int full_representation_tag();
-  static inline StringRepresentationTag map_representation_tag(Map* map);
-
   // For use during stack traces.  Performs rudimentary sanity check.
   bool LooksValid();
 
@@ -3162,7 +3178,7 @@ class String: public HeapObject {
   void StringPrint();
   void StringVerify();
 #endif
-  inline bool IsFlat();
+  inline bool IsFlat(StringShape shape);
 
   // Layout description.
   static const int kLengthOffset = HeapObject::kHeaderSize;
@@ -3222,6 +3238,7 @@ class String: public HeapObject {
   // Helper function for flattening strings.
   template <typename sinkchar>
   static void WriteToFlat(String* source,
+                          StringShape shape,
                           sinkchar* sink,
                           int from,
                           int to);
@@ -3262,7 +3279,9 @@ class String: public HeapObject {
  private:
   // Slow case of String::Equals.  This implementation works on any strings
   // but it is most efficient on strings that are almost flat.
-  bool SlowEquals(String* other);
+  bool SlowEquals(StringShape this_shape,
+                  String* other,
+                  StringShape other_shape);
 
   // Slow case of AsArrayIndex.
   bool SlowAsArrayIndex(uint32_t* index);
@@ -3309,7 +3328,7 @@ class SeqAsciiString: public SeqString {
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of an AsciiString
   // instance.
-  inline int SeqAsciiStringSize(Map* map);
+  inline int SeqAsciiStringSize(StringShape shape);
 
   // Computes the size for an AsciiString instance of a given length.
   static int SizeFor(int length) {
@@ -3354,7 +3373,7 @@ class SeqTwoByteString: public SeqString {
   // Garbage collection support.  This method is called by the
   // garbage collector to compute the actual size of a TwoByteString
   // instance.
-  inline int SeqTwoByteStringSize(Map* map);
+  inline int SeqTwoByteStringSize(StringShape shape);
 
   // Computes the size for a TwoByteString instance of a given length.
   static int SizeFor(int length) {
@@ -3384,14 +3403,20 @@ class SeqTwoByteString: public SeqString {
 // values in a left-to-right depth-first traversal of the tree.
 class ConsString: public String {
  public:
-  // First object of the cons cell.
-  inline Object* first();
-  inline void set_first(Object* first,
+  // First string of the cons cell.
+  inline String* first();
+  // Doesn't check that the result is a string, even in debug mode.  This is
+  // useful during GC where the mark bits confuse the checks.
+  inline Object* unchecked_first();
+  inline void set_first(String* first,
                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
-  // Second object of the cons cell.
-  inline Object* second();
-  inline void set_second(Object* second,
+  // Second string of the cons cell.
+  inline String* second();
+  // Doesn't check that the result is a string, even in debug mode.  This is
+  // useful during GC where the mark bits confuse the checks.
+  inline Object* unchecked_second();
+  inline void set_second(String* second,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Dispatched behavior.
@@ -3433,8 +3458,8 @@ class ConsString: public String {
 class SlicedString: public String {
  public:
   // The underlying string buffer.
-  inline Object* buffer();
-  inline void set_buffer(Object* buffer);
+  inline String* buffer();
+  inline void set_buffer(String* buffer);
 
   // The start index of the slice.
   inline int start();

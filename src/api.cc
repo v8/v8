@@ -2036,7 +2036,7 @@ int String::WriteAscii(char* buffer, int start, int length) {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlatten();
+  str->TryFlatten(i::StringShape(*str));
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2061,7 +2061,7 @@ int String::Write(uint16_t* buffer, int start, int length) {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlatten();
+  str->TryFlatten(i::StringShape(*str));
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2079,14 +2079,16 @@ int String::Write(uint16_t* buffer, int start, int length) {
 bool v8::String::IsExternal() {
   EnsureInitialized("v8::String::IsExternal()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  return str->IsExternalTwoByteString();
+  i::StringShape shape(*str);
+  return shape.IsExternalTwoByte();
 }
 
 
 bool v8::String::IsExternalAscii() {
   EnsureInitialized("v8::String::IsExternalAscii()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  return str->IsExternalAsciiString();
+  i::StringShape shape(*str);
+  return shape.IsExternalAscii();
 }
 
 

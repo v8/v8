@@ -465,19 +465,20 @@ void JSValue::JSValueVerify() {
 
 
 void String::StringPrint() {
-  if (IsSymbol()) {
+  StringShape shape(this);
+  if (shape.IsSymbol()) {
     PrintF("#");
-  } else if (IsConsString()) {
+  } else if (shape.IsCons()) {
     PrintF("c\"");
   } else {
     PrintF("\"");
   }
 
   for (int i = 0; i < length(); i++) {
-    PrintF("%c", Get(i));
+    PrintF("%c", Get(shape, i));
   }
 
-  if (!IsSymbol()) PrintF("\"");
+  if (!shape.IsSymbol()) PrintF("\"");
 }
 
 

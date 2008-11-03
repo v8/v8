@@ -840,7 +840,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   // function and insert it into the cache.
   if (!cache->Lookup(name, &boilerplate)) {
 #ifdef DEBUG
-    ASSERT(source->IsAsciiRepresentation());
+    ASSERT(StringShape(*source).IsAsciiRepresentation());
 #endif
     Handle<String> script_name = Factory::NewStringFromUtf8(name);
     boilerplate =
