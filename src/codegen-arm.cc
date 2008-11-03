@@ -1261,9 +1261,15 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   __ bind(&is_smi);
 
   if (min_index != 0) {
-    // small positive numbers can be immediate operands.
+    // Small positive numbers can be immediate operands.
     if (min_index < 0) {
-      __ add(r0, r0, Operand(Smi::FromInt(-min_index)));
+      // If min_index is Smi::kMinValue, -min_index is not a Smi.
+      if (Smi::IsValid(-min_index)) {
+        __ add(r0, r0, Operand(Smi::FromInt(-min_index)));
+      } else {
+        __ add(r0, r0, Operand(Smi::FromInt(-min_index - 1)));
+        __ add(r0, r0, Operand(Smi::FromInt(1)));
+      }
     } else {
       __ sub(r0, r0, Operand(Smi::FromInt(min_index)));
     }
@@ -1277,7 +1283,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // the pc-register at the above add.
   __ stop("Unreachable: Switch table alignment");
 
-  // table containing branch operations.
+  // Table containing branch operations.
   for (int i = 0; i < range; i++) {
     __ b(case_targets[i]);
   }
