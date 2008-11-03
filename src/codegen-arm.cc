@@ -1247,6 +1247,19 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
 
   __ pop(r0);
+
+  // Test for a Smi value in a HeapNumber.
+  Label is_smi;
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(eq, &is_smi);
+  __ ldr(r1, MemOperand(r0, HeapObject::kMapOffset - kHeapObjectTag));
+  __ ldrb(r1, MemOperand(r1, Map::kInstanceTypeOffset - kHeapObjectTag));
+  __ cmp(r1, Operand(HEAP_NUMBER_TYPE));
+  __ b(ne, fail_label);
+  __ push(r0);
+  __ CallRuntime(Runtime::kNumberToSmi, 1);
+  __ bind(&is_smi);
+
   if (min_index != 0) {
     // small positive numbers can be immediate operands.
     if (min_index < 0) {

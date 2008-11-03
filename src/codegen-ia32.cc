@@ -1623,9 +1623,24 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // placeholders, and fill in the addresses after the labels have been
   // bound.
 
-  frame_->Pop(eax);  // supposed smi
+  frame_->Pop(eax);  // supposed Smi
   // check range of value, if outside [0..length-1] jump to default/end label.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+
+  // Test whether input is a HeapNumber that is really a Smi
+  Label is_smi;
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(equal, &is_smi);
+  // It's a heap object, not a Smi or a Failure
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  __ cmp(ebx, HEAP_NUMBER_TYPE);
+  __ j(not_equal, fail_label);
+  // eax points to a heap number.
+  __ push(eax);
+  __ CallRuntime(Runtime::kNumberToSmi, 1);
+  __ bind(&is_smi);
+
   if (min_index != 0) {
     __ sub(Operand(eax), Immediate(min_index << kSmiTagSize));
   }

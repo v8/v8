@@ -2587,6 +2587,26 @@ static Object* Runtime_NumberToJSInt32(Arguments args) {
 }
 
 
+// Converts a Number to a Smi, if possible. Returns NaN if the number is not
+// a small integer.
+static Object* Runtime_NumberToSmi(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  Object* obj = args[0];
+  if (obj->IsSmi()) {
+    return obj;
+  }
+  if (obj->IsHeapNumber()) {
+    double value = HeapNumber::cast(obj)->value();
+    int int_value = FastD2I(value);
+    if (value == FastI2D(int_value) && Smi::IsValid(int_value)) {
+      return Smi::FromInt(int_value);
+    }
+  }
+  return Heap::nan_value();
+}
+
 static Object* Runtime_NumberAdd(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
