@@ -1391,6 +1391,7 @@ static Object* Runtime_StringIndexOf(Arguments args) {
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
 
+  RUNTIME_ASSERT(start_index <= static_cast<uint32_t>(sub->length()));
   int position = Runtime::StringMatch(sub, pat, start_index);
   return Smi::FromInt(position);
 }
@@ -2543,6 +2544,26 @@ static Object* Runtime_NumberToJSInt32(Arguments args) {
   return Heap::NumberFromInt32(DoubleToInt32(number));
 }
 
+
+// Converts a Number to a Smi, if possible. Returns NaN if the number is not
+// a small integer.
+static Object* Runtime_NumberToSmi(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  Object* obj = args[0];
+  if (obj->IsSmi()) {
+    return obj;
+  }
+  if (obj->IsHeapNumber()) {
+    double value = HeapNumber::cast(obj)->value();
+    int int_value = FastD2I(value);
+    if (value == FastI2D(int_value) && Smi::IsValid(int_value)) {
+      return Smi::FromInt(int_value);
+    }
+  }
+  return Heap::nan_value();
+}
 
 static Object* Runtime_NumberAdd(Arguments args) {
   NoHandleAllocation ha;
