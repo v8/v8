@@ -185,31 +185,22 @@ bool Object::IsSlicedString() {
 
 
 StringShape::StringShape(String* str)
-  : type_(str->map()->instance_type())
-#ifdef DEBUG
-    , valid_(true)
-#endif  // def DEBUG
-  {
+  : type_(str->map()->instance_type()) {
+  set_valid();
   ASSERT((type_ & kIsNotStringMask) == kStringTag);
 }
 
 
 StringShape::StringShape(Map* map)
-  : type_(map->instance_type())
-#ifdef DEBUG
-    , valid_(true)
-#endif  // def DEBUG
-  {
+  : type_(map->instance_type()) {
+  set_valid();
   ASSERT((type_ & kIsNotStringMask) == kStringTag);
 }
 
 
 StringShape::StringShape(InstanceType t)
-  : type_(static_cast<uint32_t>(t))
-#ifdef DEBUG
-    , valid_(true)
-#endif  // def DEBUG
-  {
+  : type_(static_cast<uint32_t>(t)) {
+  set_valid();
   ASSERT((type_ & kIsNotStringMask) == kStringTag);
 }
 

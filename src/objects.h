@@ -3060,7 +3060,10 @@ class StringShape BASE_EMBEDDED {
  private:
   uint32_t type_;
 #ifdef DEBUG
+  inline void set_valid() { valid_ = true; }
   bool valid_;
+#else
+  inline void set_valid() { }
 #endif
 };
 

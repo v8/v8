@@ -2258,7 +2258,8 @@ static inline int Unescape(String* source,
                            int length,
                            int* step) {
   uint16_t character = source->Get(shape, i);
-  int32_t hi, lo;
+  int32_t hi = 0;
+  int32_t lo = 0;
   if (character == '%' &&
       i <= length - 6 &&
       source->Get(shape, i + 1) == 'u' &&
