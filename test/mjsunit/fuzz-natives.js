@@ -107,6 +107,9 @@ var knownProblems = {
   "ChangeBreakOnException": true,
   "PrepareStep": true,
 
+  // Too slow.
+  "DebugReferencedBy": true,
+
   // Calling disable/enable access checks may interfere with the
   // the rest of the tests.
   "DisableAccessChecks": true,
