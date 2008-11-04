@@ -27,6 +27,7 @@
 
 
 #include <stdlib.h>
+#include <set>
 
 #include "v8.h"
 
@@ -65,14 +66,6 @@ class RegExpTestCase {
 };
 
 
-#ifdef USE_FUZZ_TEST_DATA
-#include "regexp-test-data.cc"
-#else
-static const int kCaseCount = 0;
-static const RegExpTestCase kCases[1] = { RegExpTestCase() };
-#endif
-
-
 static SmartPointer<char> Parse(const char* input) {
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
@@ -95,10 +88,9 @@ TEST(Parser) {
   CHECK_PARSE_EQ("", "%");
   CHECK_PARSE_EQ("abc|def", "(| 'abc' 'def')");
   CHECK_PARSE_EQ("abc|def|ghi", "(| 'abc' 'def' 'ghi')");
-  CHECK_PARSE_EQ("\\w\\W\\s\\S\\d\\D", "(: [&w] [&W] [&s] [&S] [&d] [&D])");
   CHECK_PARSE_EQ("^xxx$", "(: @^i 'xxx' @$i)");
-  CHECK_PARSE_EQ("ab\\b\\w\\bcd", "(: 'ab' @b [&w] @b 'cd')");
-  CHECK_PARSE_EQ("\\w|\\s|.", "(| [&w] [&s] [&.])");
+  CHECK_PARSE_EQ("ab\\b\\d\\bcd", "(: 'ab' @b [0-9] @b 'cd')");
+  CHECK_PARSE_EQ("\\w|\\d", "(| [0-9 A-Z _ a-z] [0-9])");
   CHECK_PARSE_EQ("a*", "(# 0 - g 'a')");
   CHECK_PARSE_EQ("a*?", "(# 0 - n 'a')");
   CHECK_PARSE_EQ("abc+", "(# 1 - g 'abc')");
@@ -132,10 +124,10 @@ TEST(Parser) {
   CHECK_PARSE_EQ("]", "']'");
   CHECK_PARSE_EQ("}", "'}'");
   CHECK_PARSE_EQ("[a-b-c]", "[a-b - c]");
-  CHECK_PARSE_EQ("[\\w]", "[&w]");
-  CHECK_PARSE_EQ("[x\\wz]", "[x &w z]");
-  CHECK_PARSE_EQ("[\\w-z]", "[&w - z]");
-  CHECK_PARSE_EQ("[\\w-\\d]", "[&w - &d]");
+  CHECK_PARSE_EQ("[\\d]", "[0-9]");
+  CHECK_PARSE_EQ("[x\\dz]", "[x 0-9 z]");
+  CHECK_PARSE_EQ("[\\d-z]", "[0-9 - z]");
+  CHECK_PARSE_EQ("[\\d-\\d]", "[0-9 - 0-9]");
   CHECK_PARSE_EQ("\\cj\\cJ\\ci\\cI\\ck\\cK", "'\n\n\t\t\v\v'");
   CHECK_PARSE_EQ("\\c!", "'c!'");
   CHECK_PARSE_EQ("\\c_", "'c_'");
@@ -153,24 +145,24 @@ TEST(Parser) {
   CHECK_PARSE_EQ("\\118", "'\t8'");
   CHECK_PARSE_EQ("\\111", "'I'");
   CHECK_PARSE_EQ("\\1111", "'I1'");
-  CHECK_PARSE_EQ("(.)(.)(.)\\1", "(: (^ [&.]) (^ [&.]) (^ [&.]) (<- 1))");
-  CHECK_PARSE_EQ("(.)(.)(.)\\2", "(: (^ [&.]) (^ [&.]) (^ [&.]) (<- 2))");
-  CHECK_PARSE_EQ("(.)(.)(.)\\3", "(: (^ [&.]) (^ [&.]) (^ [&.]) (<- 3))");
-  CHECK_PARSE_EQ("(.)(.)(.)\\4", "(: (^ [&.]) (^ [&.]) (^ [&.]) '\x04')");
-  CHECK_PARSE_EQ("(.)(.)(.)\\1*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
+  CHECK_PARSE_EQ("(x)(x)(x)\\1", "(: (^ 'x') (^ 'x') (^ 'x') (<- 1))");
+  CHECK_PARSE_EQ("(x)(x)(x)\\2", "(: (^ 'x') (^ 'x') (^ 'x') (<- 2))");
+  CHECK_PARSE_EQ("(x)(x)(x)\\3", "(: (^ 'x') (^ 'x') (^ 'x') (<- 3))");
+  CHECK_PARSE_EQ("(x)(x)(x)\\4", "(: (^ 'x') (^ 'x') (^ 'x') '\x04')");
+  CHECK_PARSE_EQ("(x)(x)(x)\\1*", "(: (^ 'x') (^ 'x') (^ 'x')"
                                " (# 0 - g (<- 1)))");
-  CHECK_PARSE_EQ("(.)(.)(.)\\2*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
+  CHECK_PARSE_EQ("(x)(x)(x)\\2*", "(: (^ 'x') (^ 'x') (^ 'x')"
                                " (# 0 - g (<- 2)))");
-  CHECK_PARSE_EQ("(.)(.)(.)\\3*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
+  CHECK_PARSE_EQ("(x)(x)(x)\\3*", "(: (^ 'x') (^ 'x') (^ 'x')"
                                " (# 0 - g (<- 3)))");
-  CHECK_PARSE_EQ("(.)(.)(.)\\4*", "(: (^ [&.]) (^ [&.]) (^ [&.])"
+  CHECK_PARSE_EQ("(x)(x)(x)\\4*", "(: (^ 'x') (^ 'x') (^ 'x')"
                                " (# 0 - g '\x04'))");
-  CHECK_PARSE_EQ("(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)\\10",
-              "(: (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.])"
-              " (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) (<- 10))");
-  CHECK_PARSE_EQ("(.)(.)(.)(.)(.)(.)(.)(.)(.)(.)\\11",
-              "(: (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.])"
-              " (^ [&.]) (^ [&.]) (^ [&.]) (^ [&.]) '\x09')");
+  CHECK_PARSE_EQ("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\10",
+              "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
+              " (^ 'x') (^ 'x') (^ 'x') (^ 'x') (<- 10))");
+  CHECK_PARSE_EQ("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\11",
+              "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
+              " (^ 'x') (^ 'x') (^ 'x') (^ 'x') '\x09')");
   CHECK_PARSE_EQ("[\\0]", "[\0]");
   CHECK_PARSE_EQ("[\\11]", "[\t]");
   CHECK_PARSE_EQ("[\\11a]", "[\t a]");
@@ -227,8 +219,77 @@ TEST(Errors) {
 }
 
 
+static bool IsDigit(uc16 c) {
+  return ('0' <= c && c <= '9');
+}
+
+
+static bool NotDigit(uc16 c) {
+  return !IsDigit(c);
+}
+
+
+static bool IsWhiteSpace(uc16 c) {
+  switch (c) {
+    case 0x09: case 0x0B: case 0x0C: case 0x20: case 0xA0:
+      return true;
+    default:
+      return unibrow::Space::Is(c);
+  }
+}
+
+
+static bool NotWhiteSpace(uc16 c) {
+  return !IsWhiteSpace(c);
+}
+
+
+static bool IsWord(uc16 c) {
+  return ('a' <= c && c <= 'z')
+      || ('A' <= c && c <= 'Z')
+      || ('0' <= c && c <= '9')
+      || (c == '_');
+}
+
+
+static bool NotWord(uc16 c) {
+  return !IsWord(c);
+}
+
+
+static bool Dot(uc16 c) {
+  return true;
+}
+
+
+static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
+  ZoneScope scope(DELETE_ON_EXIT);
+  ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
+  CharacterRange::AddClassEscape(c, ranges);
+  for (unsigned i = 0; i < (1 << 16); i++) {
+    bool in_class = false;
+    for (int j = 0; !in_class && j < ranges->length(); j++) {
+      CharacterRange& range = ranges->at(j);
+      in_class = (range.from() <= i && i <= range.to());
+    }
+    CHECK_EQ(pred(i), in_class);
+  }
+}
+
+
+TEST(CharacterClassEscapes) {
+  TestCharacterClassEscapes('.', Dot);
+  TestCharacterClassEscapes('d', IsDigit);
+  TestCharacterClassEscapes('D', NotDigit);
+  TestCharacterClassEscapes('s', IsWhiteSpace);
+  TestCharacterClassEscapes('S', NotWhiteSpace);
+  TestCharacterClassEscapes('w', IsWord);
+  TestCharacterClassEscapes('W', NotWord);
+}
+
+
 static void Execute(bool expected, const char* input, const char* str) {
-  v8::HandleScope scops;
+  v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
   Handle<String> error;
@@ -249,178 +310,123 @@ TEST(Execution) {
 }
 
 
-TEST(Fuzz) {
-  V8::Initialize(NULL);
-  for (int i = 0; i < kCaseCount; i++) {
-    const RegExpTestCase* c = &kCases[i];
-    v8::HandleScope scope;
-    printf("%s\n", c->pattern());
-    unibrow::Utf8InputBuffer<> buffer(c->pattern(), strlen(c->pattern()));
-    ZoneScope zone_scope(DELETE_ON_EXIT);
-    Handle<String> error;
-    RegExpTree* node = v8::internal::ParseRegExp(&buffer, &error);
-    if (c->expect_error()) {
-      CHECK(node == NULL);
-      CHECK(!error.is_null());
-    } else {
-      CHECK(node != NULL);
-      CHECK(error.is_null());
-    }
-  }
-}
-
-
-TEST(SingletonField) {
-  // Test all bits from 0 to 256
-  for (int i = 0; i < 256; i++) {
-    CharacterClass entry = CharacterClass::SingletonField(i);
-    for (int j = 0; j < 256; j++) {
-      CHECK_EQ(i == j, entry.Contains(j));
-    }
-  }
-  // Test upwards through the data range
-  static const uint32_t kMax = 1 << 16;
-  for (uint32_t i = 0; i < kMax; i = 1 + static_cast<uint32_t>(i * 1.2)) {
-    CharacterClass entry = CharacterClass::SingletonField(i);
-    for (uint32_t j = 0; j < kMax; j = 1 + static_cast<uint32_t>(j * 1.2)) {
-      CHECK_EQ(i == j, entry.Contains(j));
-    }
-  }
-}
-
-
-TEST(RangeField) {
-  // Test bitfields containing a single range.
-  for (int i = 256; i < 320; i++) {
-    for (int j = i; j < 320; j++) {
-      CharacterClass::Range range(i, j);
-      CharacterClass entry = CharacterClass::RangeField(range);
-      for (int k = 256; k < 320; k++) {
-        CHECK_EQ(i <= k && k <= j, entry.Contains(k));
-      }
-    }
-  }
-}
-
-
-static void TestBuiltins(CharacterClass klass, bool (pred)(uc16)) {
-  for (int i = 0; i < (1 << 16); i++)
-    CHECK_EQ(pred(i), klass.Contains(i));
-}
-
-
-static bool IsDigit(uc16 c) {
-  return ('0' <= c && c <= '9');
-}
-
-
-static bool IsWhiteSpace(uc16 c) {
-  switch (c) {
-    case 0x09: case 0x0B: case 0x0C: case 0x20: case 0xA0:
-      return true;
-    default:
-      return unibrow::Space::Is(c);
-  }
-}
-
-
-static bool IsWord(uc16 c) {
-  return ('a' <= c && c <= 'z')
-      || ('A' <= c && c <= 'Z')
-      || ('0' <= c && c <= '9')
-      || (c == '_');
-}
-
-
-TEST(Builtins) {
-  TestBuiltins(*CharacterClass::GetCharacterClass('d'), IsDigit);
-  TestBuiltins(*CharacterClass::GetCharacterClass('s'), IsWhiteSpace);
-  TestBuiltins(*CharacterClass::GetCharacterClass('w'), IsWord);
-}
-
-
-TEST(SimpleRanges) {
-  // Test range classes containing a single range.
-  for (int i = 365; i < 730; i += 3) {
-    for (int j = i; j < 1095; j += 3) {
-      EmbeddedVector<CharacterClass::Range, 1> entries;
-      entries[0] = CharacterClass::Range(i, j);
-      CharacterClass klass = CharacterClass::Ranges(entries, NULL);
-      for (int k = 0; k < 1095; k += 3) {
-        CHECK_EQ(i <= k && k <= j, klass.Contains(k));
-      }
-    }
-  }
-}
-
-
-static unsigned PseudoRandom(int i, int j) {
-  return (~((i * 781) ^ (j * 329)));
-}
-
-
-// Generates pseudo-random character-class with kCount pseudo-random
-// ranges set.
-template <int kCount>
-class SimpleRangeGenerator {
+class TestConfig {
  public:
-  SimpleRangeGenerator() : i_(0) { }
-
-  // Returns the next character class and sets the ranges vector.  The
-  // returned value will not have any ranges that extend beyond the 'max'
-  // value.
-  CharacterClass Next(int max) {
-    for (int j = 0; j < 2 * kCount; j++) {
-      entries_[j] = PseudoRandom(i_, j) % max;
-    }
-    i_++;
-    qsort(entries_.start(), 2 * kCount, sizeof(uc16), Compare);
-    for (int j = 0; j < kCount; j++) {
-      ranges_[j] = CharacterClass::Range(entries_[2 * j],
-                                         entries_[2 * j + 1]);
-    }
-    return CharacterClass::Ranges(ranges_, NULL);
+  typedef int Key;
+  typedef int Value;
+  static const int kNoKey;
+  static const int kNoValue;
+  static inline int Compare(int a, int b) {
+    if (a < b) return -1;
+    else if (a > b) return 1;
+    else return 0;
   }
-
-  // Returns the ranges of the last range that was returned.  Note that
-  // the returned vector will be clobbered the next time Next() is called.
-  Vector<CharacterClass::Range> ranges() { return ranges_; }
- private:
-
-  static int Compare(const void* a, const void* b) {
-    return *static_cast<const uc16*>(a) - *static_cast<const uc16*>(b);
-  }
-
-  int i_;
-  EmbeddedVector<uc16, 2 * kCount> entries_;
-  EmbeddedVector<CharacterClass::Range, kCount> ranges_;
 };
 
 
-TEST(LessSimpleRanges) {
-  // Tests range character classes containing 3 pseudo-random ranges.
-  SimpleRangeGenerator<3> gen;
-  for (int i = 0; i < 1024; i++) {
-    CharacterClass klass = gen.Next(256);
-    Vector<CharacterClass::Range> entries = gen.ranges();
-    for (int j = 0; j < 256; j++) {
-      bool is_on = false;
-      for (int k = 0; !is_on && k < 3; k++)
-        is_on = (entries[k].from() <= j && j <= entries[k].to());
-      CHECK_EQ(is_on, klass.Contains(j));
+const int TestConfig::kNoKey = 0;
+const int TestConfig::kNoValue = 0;
+
+
+static int PseudoRandom(int i, int j) {
+  return ~(~((i * 781) ^ (j * 329)));
+}
+
+
+TEST(SplayTreeSimple) {
+  static const int kLimit = 1000;
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  ZoneSplayTree<TestConfig> tree;
+  std::set<int> seen;
+#define CHECK_MAPS_EQUAL() do {                                      \
+    for (int k = 0; k < kLimit; k++)                                 \
+      CHECK_EQ(seen.find(k) != seen.end(), tree.Find(k, &loc));      \
+  } while (false)
+  for (int i = 0; i < 50; i++) {
+    for (int j = 0; j < 50; j++) {
+      int next = PseudoRandom(i, j) % kLimit;
+      if (seen.find(next) != seen.end()) {
+        // We've already seen this one.  Check the value and remove
+        // it.
+        ZoneSplayTree<TestConfig>::Locator loc;
+        CHECK(tree.Find(next, &loc));
+        CHECK_EQ(next, loc.key());
+        CHECK_EQ(3 * next, loc.value());
+        tree.Remove(next);
+        seen.erase(next);
+        CHECK_MAPS_EQUAL();
+      } else {
+        // Check that it wasn't there already and then add it.
+        ZoneSplayTree<TestConfig>::Locator loc;
+        CHECK(!tree.Find(next, &loc));
+        CHECK(tree.Insert(next, &loc));
+        CHECK_EQ(next, loc.key());
+        loc.set_value(3 * next);
+        seen.insert(next);
+        CHECK_MAPS_EQUAL();
+      }
+      int val = PseudoRandom(j, i) % kLimit;
+      for (int k = val; k >= 0; k--) {
+        if (seen.find(val) != seen.end()) {
+          ZoneSplayTree<TestConfig>::Locator loc;
+          CHECK(tree.FindGreatestLessThan(val, &loc));
+          CHECK_EQ(loc.key(), val);
+          break;
+        }
+      }
+      val = PseudoRandom(i + j, i - j) % kLimit;
+      for (int k = val; k < kLimit; k++) {
+        if (seen.find(val) != seen.end()) {
+          ZoneSplayTree<TestConfig>::Locator loc;
+          CHECK(tree.FindLeastGreaterThan(val, &loc));
+          CHECK_EQ(loc.key(), val);
+          break;
+        }
+      }
     }
   }
 }
 
 
-TEST(Unions) {
-  SimpleRangeGenerator<3> gen1;
-  SimpleRangeGenerator<3> gen2;
-  for (int i = 0; i < 1024; i++) {
-    CharacterClass klass1 = gen1.Next(256);
-    CharacterClass klass2 = gen2.Next(256);
-    CharacterClass uhnion = CharacterClass::Union(&klass1, &klass2);
-    for (int j = 0; j < 256; j++)
-      CHECK_EQ(klass1.Contains(j) || klass2.Contains(j), uhnion.Contains(j));
+static int CompareChars(const void* ap, const void* bp) {
+  uc16 a = *static_cast<const uc16*>(ap);
+  uc16 b = *static_cast<const uc16*>(bp);
+  if (a < b) return -1;
+  else if (a > b) return 1;
+  else return 0;
+}
+
+
+TEST(DispatchTableConstruction) {
+  // Initialize test data.
+  static const int kLimit = 1000;
+  static const int kRangeCount = 8;
+  static const int kRangeSize = 16;
+  uc16 ranges[kRangeCount][2 * kRangeSize];
+  for (int i = 0; i < kRangeCount; i++) {
+    uc16* range = ranges[i];
+    for (int j = 0; j < 2 * kRangeSize; j++) {
+      range[j] = PseudoRandom(i + 25, j + 87) % kLimit;
+    }
+    qsort(range, 2 * kRangeSize, sizeof(uc16), CompareChars);
+  }
+  // Enter test data into dispatch table.
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  DispatchTable table;
+  for (int i = 0; i < kRangeCount; i++) {
+    uc16* range = ranges[i];
+    for (int j = 0; j < 2 * kRangeSize; j += 2)
+      table.AddRange(CharacterRange(range[j], range[j + 1]), i);
+  }
+  // Check that the table looks as we would expect
+  for (int p = 0; p < kLimit; p++) {
+    OutSet outs = table.Get(p);
+    for (int j = 0; j < kRangeCount; j++) {
+      uc16* range = ranges[j];
+      bool is_on = false;
+      for (int k = 0; !is_on && (k < 2 * kRangeSize); k += 2)
+        is_on = (range[k] <= p && p <= range[k + 1]);
+      CHECK_EQ(is_on, outs.Get(j));
+    }
   }
 }

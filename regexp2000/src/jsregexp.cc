@@ -692,8 +692,10 @@ class ChoiceNode: public RegExpNode<Char> {
   virtual void EmitDot(DotPrinter<Char>* out);
   virtual bool Step(ExecutionState<Char>* state);
   ZoneList<RegExpNode<Char>*>* choices() { return choices_; }
+  DispatchTable* table() { return table_; }
  private:
   ZoneList<RegExpNode<Char>*>* choices_;
+  DispatchTable table_;
 };
 
 
@@ -871,221 +873,211 @@ void* RegExpCompiler<Char>::VisitAlternative(RegExpAlternative* that,
 }
 
 
-bool CharacterClass::Contains(uc16 c) {
-  switch (type()) {
-    case FIELD: {
-      int offset = segment_start(segment_);
-      if (c < offset) return false;
-      int index = c - offset;
-      if (index >= CharacterClass::kFieldMax) return false;
-      return (data_.u_field & long_bit(index)) != 0;
-    }
-    case RANGES: {
-      int offset = segment_start(segment_);
-      if (c < offset) return false;
-      bool is_on = false;
-      unsigned i = 0;
-      while (i < count_) {
-        int delta = 0;
-        int nibble = read_nibble(i);
-        int bit_offset = 0;
-        while ((nibble & 0x8) == 0) {
-          delta |= nibble << bit_offset;
-          bit_offset += 3;
-          nibble = read_nibble(++i);
-        }
-        delta |= (nibble & 0x7) << bit_offset;
-        i++;
-        offset += delta;
-        if (c < offset)
-          return is_on;
-        is_on = !is_on;
-      }
-      return false;
-    }
-    case UNION: {
-      return data_.u_union.left->Contains(c)
-          || data_.u_union.right->Contains(c);
-    }
-    default:
-      UNREACHABLE();
-      return false;
-  }
-}
-
-
-template <int kCount>
-CharacterClass* StaticCharacterClassAllocator<kCount>::Allocate() {
-  ASSERT(used_ < kCount);
-  CharacterClass* result = &preallocated_[used_];
-  used_++;
-  return result;
-}
-
-
-class StaticCharacterClasses {
- public:
-  StaticCharacterClasses();
-  CharacterClass* GetClass(uc16 tag);
-  static StaticCharacterClasses* instance_;
- private:
-  StaticCharacterClassAllocator<5> static_allocator_;
-  CharacterClass digit_;
-  CharacterClass whitespace_;
-  CharacterClass word_;
+static const int kSpaceRangeCount = 20;
+static const uc16 kSpaceRanges[kSpaceRangeCount] = {
+  0x0009, 0x0009, 0x000B, 0x000C, 0x0020, 0x0020, 0x00A0, 0x00A0,
+  0x1680, 0x1680, 0x180E, 0x180E, 0x2000, 0x200A, 0x202F, 0x202F,
+  0x205F, 0x205F, 0x3000, 0x3000
 };
 
 
-StaticCharacterClasses* StaticCharacterClasses::instance_ = NULL;
+static const int kWordRangeCount = 8;
+static const uc16 kWordRanges[kWordRangeCount] = {
+  '0', '9', 'A', 'Z', '_', '_', 'a', 'z'
+};
 
 
-StaticCharacterClasses::StaticCharacterClasses() {
-#define MAKE_CLASS(Name)\
-  CharacterClass::Ranges(Vector<CharacterClass::Range>(k##Name##Ranges, \
-                                                       k##Name##RangeCount), \
-                         &static_allocator_)
+static const int kDigitRangeCount = 2;
+static const uc16 kDigitRanges[kDigitRangeCount] = {
+  '0', '9'
+};
 
-  const int kDigitRangeCount = 1;
-  CharacterClass::Range kDigitRanges[kDigitRangeCount] = {
-    CharacterClass::Range('0', '9')
-  };
-  digit_ = MAKE_CLASS(Digit);
 
-  const int kWhiteSpaceRangeCount = 10;
-  CharacterClass::Range kWhiteSpaceRanges[kWhiteSpaceRangeCount] = {
-  CharacterClass::Range(0x0009, 0x0009), CharacterClass::Range(0x000B, 0x000C),
-  CharacterClass::Range(0x0020, 0x0020), CharacterClass::Range(0x00A0, 0x00A0),
-  CharacterClass::Range(0x1680, 0x1680), CharacterClass::Range(0x180E, 0x180E),
-  CharacterClass::Range(0x2000, 0x200A), CharacterClass::Range(0x202F, 0x202F),
-  CharacterClass::Range(0x205F, 0x205F), CharacterClass::Range(0x3000, 0x3000)
-  };
-  whitespace_ = MAKE_CLASS(WhiteSpace);
-
-  const int kWordRangeCount = 4;
-  static CharacterClass::Range kWordRanges[kWordRangeCount] = {
-    CharacterClass::Range('0', '9'), CharacterClass::Range('A', 'Z'),
-    CharacterClass::Range('_', '_'), CharacterClass::Range('a', 'z')
-  };
-  word_ = MAKE_CLASS(Word);
-
-#undef MAKE_CLASS
+static void AddClass(const uc16* elmv,
+                     int elmc,
+                     ZoneList<CharacterRange>* ranges) {
+  for (int i = 0; i < elmc; i += 2) {
+    ASSERT(elmv[i] <= elmv[i + 1]);
+    ranges->Add(CharacterRange(elmv[i], elmv[i + 1]));
+  }
 }
 
 
-CharacterClass* StaticCharacterClasses::GetClass(uc16 tag) {
-  switch (tag) {
-    case 'd':
-      return &digit_;
+static void AddClassNegated(const uc16 *elmv,
+                            int elmc,
+                            ZoneList<CharacterRange>* ranges) {
+  ASSERT(elmv[0] != 0x0000);
+  ASSERT(elmv[elmc-1] != 0xFFFF);
+  uc16 last = 0x0000;
+  for (int i = 0; i < elmc; i += 2) {
+    ASSERT(last <= elmv[i] - 1);
+    ASSERT(elmv[i] <= elmv[i + 1]);
+    ranges->Add(CharacterRange(last, elmv[i] - 1));
+    last = elmv[i + 1] + 1;
+  }
+  ranges->Add(CharacterRange(last, 0xFFFF));
+}
+
+
+void CharacterRange::AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges) {
+  switch (type) {
     case 's':
-      return &whitespace_;
+      AddClass(kSpaceRanges, kSpaceRangeCount, ranges);
+      break;
+    case 'S':
+      AddClassNegated(kSpaceRanges, kSpaceRangeCount, ranges);
+      break;
     case 'w':
-      return &word_;
+      AddClass(kWordRanges, kWordRangeCount, ranges);
+      break;
+    case 'W':
+      AddClassNegated(kWordRanges, kWordRangeCount, ranges);
+      break;
+    case 'd':
+      AddClass(kDigitRanges, kDigitRangeCount, ranges);
+      break;
+    case 'D':
+      AddClassNegated(kDigitRanges, kDigitRangeCount, ranges);
+      break;
+    case '.':
+      ranges->Add(CharacterRange(0x0000, 0xFFFF));
+      break;
     default:
       UNREACHABLE();
-      return NULL;
   }
 }
 
 
-CharacterClass* CharacterClass::GetCharacterClass(uc16 tag) {
-  if (StaticCharacterClasses::instance_ == NULL)
-    StaticCharacterClasses::instance_ = new StaticCharacterClasses();
-  return StaticCharacterClasses::instance_->GetClass(tag);
-}
+// -------------------------------------------------------------------
+// Splay tree
 
 
-CharacterClass CharacterClass::Ranges(Vector<Range> boundaries,
-                                      CharacterClassAllocator* alloc) {
-  CharacterClass result;
-  result.InitializeRangesFrom(boundaries, alloc);
-  return result;
-}
-
-
-void CharacterClass::InitializeFieldFrom(Vector<Range> boundaries) {
-  ASSERT(boundaries.length() > 0);
-  ASSERT_EQ(EMPTY, type_);
-  type_ = FIELD;
-  segment_ = segment_of(boundaries.first().from());
-  ASSERT_EQ(static_cast<int>(segment_),
-            static_cast<int>(segment_of(boundaries.last().to())));
-  data_.u_field = 0;
-  for (int i = 0; i < boundaries.length(); i++) {
-    int start = boundaries[i].from();
-    int end = boundaries[i].to();
-    // Mask in the range
-    uint64_t t0 = ~static_cast<uint64_t>(0) >> (63 - (end & kSegmentMask));
-    uint64_t t1 = ~static_cast<uint64_t>(0) << (start & kSegmentMask);
-    data_.u_field |= (t0 & t1);
+void OutSet::Set(unsigned value) {
+  if (value < kFirstLimit) {
+    first_ |= (1 << value);
+  } else {
+    if (remaining_ == NULL)
+      remaining_ = new ZoneList<unsigned>(1);
+    if (remaining_->is_empty() || !remaining_->Contains(value))
+      remaining_->Add(value);
   }
 }
 
 
-void CharacterClass::InitializeRangesFrom(Vector<Range> boundaries,
-                                          CharacterClassAllocator* alloc) {
-  ASSERT(boundaries.length() > 0);
-  ASSERT_EQ(EMPTY, type_);
-  int start_segment = segment_of(boundaries.first().from());
-  int end_segment = segment_of(boundaries.last().to());
-  if (start_segment == end_segment) {
-    InitializeFieldFrom(boundaries);
+bool OutSet::Get(unsigned value) {
+  if (value < kFirstLimit) {
+    return (first_ & (1 << value)) != 0;
+  } else if (remaining_ == NULL) {
+    return false;
+  } else {
+    return remaining_->Contains(value);
+  }
+}
+
+
+OutSet OutSet::Clone() {
+  if (remaining_ == NULL) {
+    return OutSet(first_, NULL);
+  } else {
+    int length = remaining_->length();
+    ZoneList<unsigned>* clone = new ZoneList<unsigned>(length);
+    for (int i = 0; i < length; i++)
+      clone->Add(remaining_->at(i));
+    return OutSet(first_, clone);
+  }
+}
+
+
+const uc16 DispatchTable::Config::kNoKey = unibrow::Utf8::kBadChar;
+const DispatchTable::Entry DispatchTable::Config::kNoValue;
+
+
+void DispatchTable::AddRange(CharacterRange full_range, int value) {
+  CharacterRange current = full_range;
+  if (tree()->is_empty()) {
+    // If this is the first range we just insert into the table.
+    ZoneSplayTree<Config>::Locator loc;
+    ASSERT_RESULT(tree()->Insert(current.from(), &loc));
+    loc.set_value(Entry(current.from(), current.to(), value));
     return;
   }
-  type_ = RANGES;
-  segment_ = start_segment;
-  data_.u_ranges = 0;
-  int offset = 0;
-  uc16 last_boundary = segment_start(segment_);
-  int i;
-  for (i = 0; i < boundaries.length(); i++) {
-    Range current = boundaries[i];
-    ASSERT(last_boundary <= current.from());
-    int word = current.from() - last_boundary;
-    // We have to repeat the write operation to write both the delta
-    // from the last range to the start of this one, and the delta
-    // from the start to the end of this range.
-    for (int j = 0; j < 2; j++) {
-      do {
-        if (offset >= 16)
-          goto overflow;
-        byte nibble = (word & 0x7);
-        int next_word = word >> 3;
-        if (next_word == 0)
-          nibble |= 0x8;
-        write_nibble(offset, nibble);
-        word = next_word;
-        offset++;
-      } while (word > 0);
-      word = current.to() - current.from() + 1;
+  // First see if there is a range to the left of this one that
+  // overlaps.
+  ZoneSplayTree<Config>::Locator loc;
+  if (tree()->FindGreatestLessThan(current.from(), &loc)) {
+    Entry* entry = &loc.value();
+    // If we've found a range that overlaps with this one, and it
+    // starts strictly to the left of this one, we have to fix it
+    // because the following code only handles ranges that start on
+    // or after the start point of the range we're adding.
+    if (entry->from() < current.from() && entry->to() >= current.from()) {
+      // Snap the overlapping range in half around the start point of
+      // the range we're adding.
+      CharacterRange left(entry->from(), current.from() - 1);
+      CharacterRange right(current.from(), entry->to());
+      // The left part of the overlapping range doesn't overlap.
+      // Truncate the whole entry to be just the left part.
+      entry->set_to(left.to());
+      // The right part is the one that overlaps.  We add this part
+      // to the map and let the next step deal with merging it with
+      // the range we're adding.
+      ZoneSplayTree<Config>::Locator loc;
+      ASSERT_RESULT(tree()->Insert(right.from(), &loc));
+      loc.set_value(Entry(right.from(),
+                          right.to(),
+                          entry->out_set().Clone()));
     }
-    count_ = offset;
-    last_boundary = current.to() + 1;
-    continue;
-   overflow:
-    CharacterClass* left = alloc->Allocate();
-    ASSERT(i > 0);
-    if (segment_of(boundaries[i-1].to()) == segment_) {
-      // If what we've written so far fits within a single segment we
-      // can fit it into a bitfield.  Scan forward to see if any more
-      // ranges can be included.
-      while (i < boundaries.length()
-          && segment_of(boundaries[i].to()) == segment_)
-        i++;
-      ASSERT(i < boundaries.length());
-      left->InitializeFieldFrom(boundaries.SubVector(0, i));
+  }
+  while (current.is_valid()) {
+    if (tree()->FindLeastGreaterThan(current.from(), &loc) &&
+        (loc.value().from() <= current.to())) {
+      Entry* entry = &loc.value();
+      // We have overlap.  If there is space between the start point of
+      // the range we're adding and where the overlapping range starts
+      // then we have to add a range covering just that space.
+      if (current.from() < entry->from()) {
+        ZoneSplayTree<Config>::Locator ins;
+        ASSERT_RESULT(tree()->Insert(current.from(), &ins));
+        ins.set_value(Entry(current.from(), entry->from() - 1, value));
+        current.set_from(entry->from());
+      }
+      ASSERT_EQ(current.from(), entry->from());
+      // If the overlapping range extends beyond the one we want to add
+      // we have to snap the right part off and add it separately.
+      if (entry->to() > current.to()) {
+        ZoneSplayTree<Config>::Locator ins;
+        ASSERT_RESULT(tree()->Insert(current.to() + 1, &ins));
+        ins.set_value(Entry(current.to() + 1,
+                            entry->to(),
+                            entry->out_set().Clone()));
+        entry->set_to(current.to());
+      }
+      ASSERT(entry->to() <= current.to());
+      // The overlapping range is now completely contained by the range
+      // we're adding so we can just update it and move the start point
+      // of the range we're adding just past it.
+      entry->AddValue(value);
+      current.set_from(entry->to() + 1);
     } else {
-      // Otherwise we copy the work we've done so far into the left
-      // heap-allocated charclass.
-      *left = *this;
+      // There is no overlap so we can just add the range
+      ZoneSplayTree<Config>::Locator ins;
+      ASSERT_RESULT(tree()->Insert(current.from(), &ins));
+      ins.set_value(Entry(current.from(), current.to(), value));
+      break;
     }
-    CharacterClass* right = alloc->Allocate();
-    right->InitializeRangesFrom(boundaries.SubVector(i, boundaries.length()),
-                                alloc);
-    type_ = UNION;
-    data_.u_union.left = left;
-    data_.u_union.right = right;
-    return;
   }
+}
+
+
+OutSet DispatchTable::Get(uc16 value) {
+  ZoneSplayTree<Config>::Locator loc;
+  if (!tree()->FindGreatestLessThan(value, &loc))
+    return OutSet::empty();
+  Entry* entry = &loc.value();
+  if (value <= entry->to())
+    return entry->out_set();
+  else
+    return OutSet::empty();
 }
 
 
@@ -1232,19 +1224,9 @@ bool CharacterClassNode<Char>::Step(ExecutionState<Char>* state) {
   unsigned current = state->current_char();
   for (int i = 0; i < ranges->length(); i++) {
     CharacterRange& range = ranges->at(i);
-    if (range.is_character_class()) {
-      switch (range.from()) {
-        case '.':
-          state->Advance(1, this->next());
-          return true;
-        default:
-          UNIMPLEMENTED();
-      }
-    } else {
-      if (range.from() <= current && current <= range.to()) {
-        state->Advance(1, this->next());
-        return true;
-      }
+    if (range.from() <= current && current <= range.to()) {
+      state->Advance(1, this->next());
+      return true;
     }
   }
   return false;

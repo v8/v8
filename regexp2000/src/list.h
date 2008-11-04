@@ -95,6 +95,8 @@ class List {
   // Drops all but the first 'pos' elements from the list.
   INLINE(void Rewind(int pos));
 
+  bool Contains(T& elm);
+
   // Iterate through all list entries, starting at index 0.
   void Iterate(void (*callback)(T* x));
 

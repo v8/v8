@@ -90,6 +90,16 @@ void List<T, P>::Iterate(void (*callback)(T* x)) {
 
 
 template<typename T, class P>
+bool List<T, P>::Contains(T& elm) {
+  for (int i = 0; i < length_; i++) {
+    if (data_[i] == elm)
+      return true;
+  }
+  return false;
+}
+
+
+template<typename T, class P>
 void List<T, P>::Sort(int (*cmp)(const T* x, const T* y)) {
   qsort(data_,
         length_,

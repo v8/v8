@@ -136,116 +136,181 @@ class RegExpImpl {
 
 
 template <typename Char> class RegExpNode;
-class CharacterClassAllocator;
 
 
-class CharacterClass {
+class CharacterRange {
  public:
+  // For compatibility with the CHECK_OK macro
+  CharacterRange(void* null) { ASSERT_EQ(NULL, null); }  //NOLINT
+  CharacterRange(uc16 from, uc16 to)
+    : from_(from),
+      to_(to) {
+  }
+  static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges);
+  static inline CharacterRange Singleton(uc16 value) {
+    return CharacterRange(value, value);
+  }
+  static inline CharacterRange Range(uc16 from, uc16 to) {
+    ASSERT(from <= to);
+    return CharacterRange(from, to);
+  }
+  uc16 from() { return from_; }
+  void set_from(uc16 value) { from_ = value; }
+  uc16 to() { return to_; }
+  void set_to(uc16 value) { to_ = value; }
+  bool is_valid() { return from_ <= to_; }
+  bool IsSingleton() { return (from_ == to_); }
+ private:
+  uc16 from_;
+  uc16 to_;
+};
 
-  enum Type { EMPTY = 0, FIELD = 1, RANGES = 2, UNION = 3 };
 
-  // A closed range from and including 'from', to and including 'to'.
-  class Range {
+// A zone splay tree.  The config type parameter encapsulates the
+// different configurations of a concrete splay tree:
+//
+//   typedef Key: the key type
+//   typedef Value: the value type
+//   static const kNoKey: the dummy key used when no key is set
+//   static const kNoValue: the dummy value used to initialize nodes
+//   int (Compare)(Key& a, Key& b) -> {-1, 0, 1}: comparison function
+//
+template <typename Config>
+class ZoneSplayTree : public ZoneObject {
+ public:
+  typedef typename Config::Key Key;
+  typedef typename Config::Value Value;
+
+  class Locator;
+
+  ZoneSplayTree() : root_(NULL) { }
+
+  // Inserts the given key in this tree with the given value.  Returns
+  // true if a node was inserted, otherwise false.  If found the locator
+  // is enabled and provides access to the mapping for the key.
+  bool Insert(const Key& key, Locator* locator);
+
+  // Looks up the key in this tree and returns true if it was found,
+  // otherwise false.  If the node is found the locator is enabled and
+  // provides access to the mapping for the key.
+  bool Find(const Key& key, Locator* locator);
+
+  // Finds the mapping with the greatest key less than or equal to the
+  // given key.
+  bool FindGreatestLessThan(const Key& key, Locator* locator);
+
+  // Find the mapping with the greatest key in this tree.
+  bool FindGreatest(Locator* locator);
+
+  // Finds the mapping with the least key greater than or equal to the
+  // given key.
+  bool FindLeastGreaterThan(const Key& key, Locator* locator);
+
+  // Find the mapping with the least key in this tree.
+  bool FindLeast(Locator* locator);
+
+  // Remove the node with the given key from the tree.
+  bool Remove(const Key& key);
+
+  bool is_empty() { return root_ == NULL; }
+
+  // Perform the splay operation for the given key. Moves the node with
+  // the given key to the top of the tree.  If no node has the given
+  // key, the last node on the search path is moved to the top of the
+  // tree.
+  void Splay(const Key& key);
+
+  class Node : public ZoneObject {
    public:
-    Range() : from_(0), to_(0) { }
-    Range(uc16 from, uc16 to) : from_(from), to_(to) { ASSERT(from <= to); }
+    Node(const Key& key, const Value& value)
+      : key_(key),
+        value_(value),
+        left_(NULL),
+        right_(NULL) { }
+   private:
+    friend class ZoneSplayTree;
+    friend class Locator;
+    Key key_;
+    Value value_;
+    Node* left_;
+    Node* right_;
+  };
+
+  // A locator provides access to a node in the tree without actually
+  // exposing the node.
+  class Locator {
+   public:
+    Locator() : node_(NULL) { }
+    const Key& key() { return node_->key_; }
+    Value& value() { return node_->value_; }
+    void set_value(const Value& value) { node_->value_ = value; }
+    inline void bind(Node* node) { node_ = node; }
+   private:
+    Node* node_;
+  };
+
+ private:
+  Node* root_;
+};
+
+
+// A set of unsigned integers that behaves especially well on small
+// integers (< 32).  May do zone-allocation.
+class OutSet {
+ public:
+  OutSet() : first_(0), remaining_(NULL) { }
+  explicit inline OutSet(unsigned value);
+  static inline OutSet empty() { return OutSet(); }
+  void Set(unsigned value);
+  bool Get(unsigned value);
+  OutSet Clone();
+ private:
+  OutSet(uint32_t first, ZoneList<unsigned>* remaining)
+    : first_(first), remaining_(remaining) { }
+  static const unsigned kFirstLimit = 32;
+  uint32_t first_;
+  ZoneList<unsigned>* remaining_;
+};
+
+
+// A mapping from integers, specified as ranges, to a set of integers.
+// Used for mapping character ranges to choices.
+class DispatchTable {
+ public:
+  class Entry {
+   public:
+    Entry()
+      : from_(0), to_(0) { }
+    Entry(uc16 from, uc16 to, OutSet out_set)
+      : from_(from), to_(to), out_set_(out_set) { }
+    inline Entry(uc16 from, uc16 to, unsigned value);
     uc16 from() { return from_; }
     uc16 to() { return to_; }
+    void set_to(uc16 value) { to_ = value; }
+    void AddValue(int value) { out_set_.Set(value); }
+    OutSet out_set() { return out_set_; }
    private:
     uc16 from_;
     uc16 to_;
+    OutSet out_set_;
   };
-
-  CharacterClass() : type_(EMPTY) { }
-
-  explicit CharacterClass(Type type) : type_(type) { }
-
-  bool Contains(uc16 c);
-
-  // Returns a character class with a single bit set
-  static inline CharacterClass SingletonField(uc16 chr);
-
-  // Returns a bitfield character class with a closed range set.  The
-  // range must fit within one field, that is, fit between two adjacent
-  // kFieldMax-aligned boundaries.
-  static inline CharacterClass RangeField(Range range);
-
-  static inline CharacterClass Union(CharacterClass* left,
-                                     CharacterClass* right);
-
-  // Initializes an empty charclass as a bitfield containing the
-  // specified ranges.
-  void InitializeFieldFrom(Vector<Range> ranges);
-
-  // Initializes this character class to be the specified ranges.
-  // This class must be empty.
-  void InitializeRangesFrom(Vector<Range> ranges,
-                            CharacterClassAllocator* alloc);
-
-  // Creates a new character class containing the specified ranges
-  // and allocating any sub-classes using the specified allocator.
-  static CharacterClass Ranges(Vector<Range> boundaries,
-                               CharacterClassAllocator* alloc);
-
-  // Returns one of the built-in character classes such as '\w' or
-  // '\S'.
-  static CharacterClass* GetCharacterClass(uc16 tag);
-
-  inline void write_nibble(int index, byte value);
-  inline byte read_nibble(int index);
-
-  static inline unsigned segment_of(uc16 value);
-  static inline uc16 segment_start(unsigned segment);
-
+  class Config {
+   public:
+    typedef uc16 Key;
+    typedef Entry Value;
+    static const uc16 kNoKey;
+    static const Entry kNoValue;
+    static inline int Compare(uc16 a, uc16 b) {
+      if (a == b) return 0;
+      else if (a < b) return -1;
+      else return 1;
+    }
+  };
+  void AddRange(CharacterRange range, int value);
+  OutSet Get(uc16 value);
  private:
-  static const int kCharSize = 16;
-  static const int kFieldSegmentIndexWidth = 10;
-  static const int kFieldWidth = kCharSize - kFieldSegmentIndexWidth;
-  static const int kFieldMax = (1 << kFieldWidth);
-  static const int kSegmentMask = (1 << kFieldWidth) - 1;
-  static const int kNibbleCount = kFieldMax / 4;
-  STATIC_CHECK(kFieldMax == 8 * sizeof(uint64_t));
-
-  Type type() { return type_; }
-
-  static inline uint64_t long_bit(int index) {
-    return static_cast<uint64_t>(1) << index;
-  }
-
-  Type type_: 2;
-  unsigned segment_ : 10;
-  unsigned count_ : 4;
-  union {
-    // These have the same type to make it easier to change one without
-    // touching the other.
-    uint64_t u_field;
-    uint64_t u_ranges;
-    struct {
-      CharacterClass* left;
-      CharacterClass* right;
-    } u_union;
-  } data_;
-};
-
-
-STATIC_CHECK(sizeof(CharacterClass) == 3 * kIntSize);
-
-
-class CharacterClassAllocator {
- public:
-  virtual CharacterClass* Allocate() = 0;
-  virtual ~CharacterClassAllocator() { }
-};
-
-
-template <int kCount>
-class StaticCharacterClassAllocator: public CharacterClassAllocator {
- public:
-  StaticCharacterClassAllocator() : used_(0) { }
-  virtual CharacterClass* Allocate();
- private:
-  int used_;
-  CharacterClass preallocated_[kCount];
+  ZoneSplayTree<Config>* tree() { return &tree_; }
+  ZoneSplayTree<Config> tree_;
 };
 
 

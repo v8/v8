@@ -254,9 +254,7 @@ void* RegExpUnparser::VisitAlternative(RegExpAlternative* that, void* data) {
 
 
 void RegExpUnparser::VisitCharacterRange(CharacterRange that) {
-  if (that.is_character_class()) {
-    stream()->Add("&%c", that.from());
-  } else if (that.IsSingleton()) {
+  if (that.IsSingleton()) {
     stream()->Add("%c", that.from());
   } else {
     stream()->Add("%c-%c", that.from(), that.to());

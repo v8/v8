@@ -34,6 +34,7 @@
 #include "token.h"
 #include "variables.h"
 #include "macro-assembler.h"
+#include "jsregexp.h"
 
 namespace v8 { namespace internal {
 
@@ -1258,48 +1259,8 @@ class RegExpAssertion: public RegExpTree {
 };
 
 
-class CharacterRange {
- public:
-  // For compatibility with the CHECK_OK macro
-  CharacterRange(void* null) { ASSERT_EQ(NULL, null); }  //NOLINT
-  CharacterRange(uc32 from, uc32 to, bool is_character_class)
-    : from_(from),
-      to_(to),
-      is_character_class_(is_character_class) {
-    // Assert that truncating doesn't throw away information.
-    ASSERT_EQ(from, from_);
-    ASSERT_EQ(to_, to);
-  }
-  static inline CharacterRange CharacterClass(uc32 tag) {
-    return CharacterRange(tag, tag, true);
-  }
-  static inline CharacterRange Singleton(uc32 value) {
-    return CharacterRange(value, value, false);
-  }
-  static inline CharacterRange Range(uc32 from, uc32 to) {
-    return CharacterRange(from, to, false);
-  }
-  unsigned from() { return from_; }
-  unsigned to() { return to_; }
-  bool is_character_class() { return is_character_class_; }
-  bool IsSingleton() { return (from_ == to_) && !is_character_class(); }
- private:
-  unsigned from_ : 16;
-  unsigned to_ : 16;
-  bool is_character_class_ : 1;
-};
-
-
-STATIC_CHECK(sizeof(CharacterRange) == 2 * sizeof(int));  // NOLINT
-
-
 class RegExpCharacterClass: public RegExpTree {
  public:
-  explicit RegExpCharacterClass(CharacterRange range)
-    : ranges_(new ZoneList<CharacterRange>(1)),
-      is_negated_(false) {
-    ranges_->Add(range);
-  }
   RegExpCharacterClass(ZoneList<CharacterRange>* ranges, bool is_negated)
     : ranges_(ranges),
       is_negated_(is_negated) { }

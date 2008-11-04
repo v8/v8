@@ -237,12 +237,14 @@ template <int> class StaticAssertionHelper { };
 // The ASSERT macro is equivalent to CHECK except that it only
 // generates code in debug builds.  Ditto STATIC_ASSERT.
 #ifdef DEBUG
+#define ASSERT_RESULT(expr)  CHECK(expr)
 #define ASSERT(condition)    CHECK(condition)
 #define ASSERT_EQ(v1, v2)    CHECK_EQ(v1, v2)
 #define ASSERT_NE(v1, v2)   CHECK_NE(v1, v2)
 #define STATIC_ASSERT(test)  STATIC_CHECK(test)
 #define SLOW_ASSERT(condition) if (FLAG_enable_slow_asserts) CHECK(condition)
 #else
+#define ASSERT_RESULT(expr)     (expr)
 #define ASSERT(condition)      ((void) 0)
 #define ASSERT_EQ(v1, v2)      ((void) 0)
 #define ASSERT_NE(v1, v2)     ((void) 0)

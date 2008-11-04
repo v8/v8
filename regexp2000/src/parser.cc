@@ -262,7 +262,9 @@ class RegExpParser {
   // can be reparsed.
   bool ParseBackreferenceIndex(int* index_out);
 
-  CharacterRange ParseClassAtom(bool* ok);
+  CharacterRange ParseClassAtom(bool* is_char_class,
+                                ZoneList<CharacterRange>* ranges,
+                                bool* ok);
   RegExpTree* ReportError(Vector<const char> message, bool* ok);
   void Advance();
   void Advance(int dist);
@@ -3457,10 +3459,13 @@ RegExpTree* RegExpParser::ParseTerm(bool* ok) {
       return new RegExpAssertion(
           multiline_mode_ ? RegExpAssertion::END_OF_LINE
                           : RegExpAssertion::END_OF_INPUT);
-    case '.':
+    case '.': {
       Advance();
-      atom = new RegExpCharacterClass(CharacterRange::CharacterClass('.'));
+      ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
+      CharacterRange::AddClassEscape('.', ranges);
+      atom = new RegExpCharacterClass(ranges, false);
       break;
+    }
     case '(':
       atom = ParseGroup(CHECK_OK);
       break;
@@ -3485,8 +3490,10 @@ RegExpTree* RegExpParser::ParseTerm(bool* ok) {
           //   d D s S w W
           case 'd': case 'D': case 's': case 'S': case 'w': case 'W': {
             uc32 c = next();
+            ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
+            CharacterRange::AddClassEscape(c, ranges);
             Advance(2);
-            atom = new RegExpCharacterClass(CharacterRange::CharacterClass(c));
+            atom = new RegExpCharacterClass(ranges, false);
             goto has_read_atom;
           }
           case '1': case '2': case '3': case '4': case '5': case '6':
@@ -3794,7 +3801,10 @@ RegExpTree* RegExpParser::ParseGroup(bool* ok) {
 }
 
 
-CharacterRange RegExpParser::ParseClassAtom(bool* ok) {
+CharacterRange RegExpParser::ParseClassAtom(bool* is_char_class,
+                                            ZoneList<CharacterRange>* ranges,
+                                            bool* ok) {
+  ASSERT_EQ(false, *is_char_class);
   uc32 first = current();
   if (first == '\\') {
     switch (next()) {
@@ -3802,9 +3812,11 @@ CharacterRange RegExpParser::ParseClassAtom(bool* ok) {
         Advance(2);
         return CharacterRange::Singleton('\b');
       case 'w': case 'W': case 'd': case 'D': case 's': case 'S': {
+        *is_char_class = true;
         uc32 c = next();
+        CharacterRange::AddClassEscape(c, ranges);
         Advance(2);
-        return CharacterRange::CharacterClass(c);
+        return NULL;
       }
       default:
         uc32 c = ParseCharacterEscape(CHECK_OK);
@@ -3835,19 +3847,22 @@ RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
       Advance();
       ranges->Add(CharacterRange::Singleton('-'));
     } else {
-      CharacterRange first = ParseClassAtom(CHECK_OK);
-      if (!first.is_character_class() && current() == '-') {
-        Advance();
-        CharacterRange next = ParseClassAtom(CHECK_OK);
-        if (next.is_character_class()) {
-          return ReportError(CStrVector(kIllegal), CHECK_OK);
+      bool is_char_class = false;
+      CharacterRange first = ParseClassAtom(&is_char_class, ranges, CHECK_OK);
+      if (!is_char_class) {
+        if (current() == '-') {
+          Advance();
+          CharacterRange next = ParseClassAtom(&is_char_class, ranges, CHECK_OK);
+          if (is_char_class) {
+            return ReportError(CStrVector(kIllegal), CHECK_OK);
+          }
+          if (first.from() > next.to()) {
+            return ReportError(CStrVector(kRangeOutOfOrder), CHECK_OK);
+          }
+          ranges->Add(CharacterRange::Range(first.from(), next.to()));
+        } else {
+          ranges->Add(first);
         }
-        if (first.from() > next.to()) {
-          return ReportError(CStrVector(kRangeOutOfOrder), CHECK_OK);
-        }
-        ranges->Add(CharacterRange::Range(first.from(), next.to()));
-      } else {
-        ranges->Add(first);
       }
     }
   }
