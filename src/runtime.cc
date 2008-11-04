@@ -296,7 +296,9 @@ static Object* Runtime_RegExpCompile(Arguments args) {
   Handle<String> pattern(raw_pattern);
   CONVERT_CHECKED(String, raw_flags, args[2]);
   Handle<String> flags(raw_flags);
-  return *RegExpImpl::Compile(re, pattern, flags);
+  Handle<Object> result = RegExpImpl::Compile(re, pattern, flags);
+  if (result.is_null()) return Failure::Exception();
+  return *result;
 }
 
 
@@ -5396,6 +5398,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   Handle<Object> evaluation_function =
       Execution::Call(compiled_function, receiver, 0, NULL,
                       &has_pending_exception);
+  if (has_pending_exception) return Failure::Exception();
 
   Handle<Object> arguments = GetArgumentsObject(frame, function, code, &sinfo,
                                                 function_context);
@@ -5407,6 +5410,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   Handle<Object> result =
       Execution::Call(Handle<JSFunction>::cast(evaluation_function), receiver,
                       argc, argv, &has_pending_exception);
+  if (has_pending_exception) return Failure::Exception();
   return *result;
 }
 
@@ -5452,6 +5456,7 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   Handle<Object> result =
     Execution::Call(compiled_function, receiver, 0, NULL,
                     &has_pending_exception);
+  if (has_pending_exception) return Failure::Exception();
   return *result;
 }
 

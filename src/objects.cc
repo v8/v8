@@ -199,11 +199,11 @@ Object* Object::GetPropertyWithCallback(Object* receiver,
       Handle<JSFunction> fun(JSFunction::cast(getter));
       Handle<Object> self(receiver);
       bool has_pending_exception;
-      Object* result =
-          *Execution::Call(fun, self, 0, NULL, &has_pending_exception);
+      Handle<Object> result =
+          Execution::Call(fun, self, 0, NULL, &has_pending_exception);
       // Check for pending exception and return the result.
       if (has_pending_exception) return Failure::Exception();
-      return result;
+      return *result;
     }
     // Getter is not a function.
     return Heap::undefined_value();

@@ -4044,7 +4044,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // sets it to 0 to signal the existence of the JSEntry frame.
   __ mov(ip, Operand(Top::pending_exception_address()));
   __ str(r0, MemOperand(ip));
-  __ mov(r0, Operand(Handle<Failure>(Failure::Exception())));
+  __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);
 
   // Invoke: Link this frame into the handler chain.
