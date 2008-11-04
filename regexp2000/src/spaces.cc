@@ -1533,7 +1533,7 @@ HeapObject* OldSpace::SlowAllocateRaw(int size_in_bytes) {
   // Free list allocation failed and there is no next page.  Fail if we have
   // hit the old generation size limit that should cause a garbage
   // collection.
-  if (Heap::OldGenerationAllocationLimitReached()) {
+  if (!Heap::always_allocate() && Heap::OldGenerationAllocationLimitReached()) {
     return NULL;
   }
 
@@ -2018,7 +2018,7 @@ HeapObject* MapSpace::SlowAllocateRaw(int size_in_bytes) {
   // Free list allocation failed and there is no next page.  Fail if we have
   // hit the old generation size limit that should cause a garbage
   // collection.
-  if (Heap::OldGenerationAllocationLimitReached()) {
+  if (!Heap::always_allocate() && Heap::OldGenerationAllocationLimitReached()) {
     return NULL;
   }
 
@@ -2251,7 +2251,7 @@ Object* LargeObjectSpace::AllocateRawInternal(int requested_size,
 
   // Check if we want to force a GC before growing the old space further.
   // If so, fail the allocation.
-  if (Heap::OldGenerationAllocationLimitReached()) {
+  if (!Heap::always_allocate() && Heap::OldGenerationAllocationLimitReached()) {
     return Failure::RetryAfterGC(requested_size, identity());
   }
 

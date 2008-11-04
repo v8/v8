@@ -144,6 +144,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\test\cctest\test-alloc.cc"
+			>
+		</File>
+		<File
 			RelativePath="..\..\test\cctest\test-api.cc"
 			>
 		</File>

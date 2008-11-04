@@ -96,6 +96,8 @@ Heap::HeapState Heap::gc_state_ = NOT_IN_GC;
 int Heap::mc_count_ = 0;
 int Heap::gc_count_ = 0;
 
+int Heap::always_allocate_scope_depth_ = 0;
+
 #ifdef DEBUG
 bool Heap::allocation_allowed_ = true;
 
@@ -775,13 +777,15 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
   return ScavengeObjectSlow(p, object);
 }
 
+
 static inline bool IsShortcutCandidate(HeapObject* object, Map* map) {
-  // A ConString object with Heap::empty_string() as the right side
+  // A ConsString object with Heap::empty_string() as the right side
   // is a candidate for being shortcut by the scavenger.
   ASSERT(object->map() == map);
-  return (map->instance_type() < FIRST_NONSTRING_TYPE) &&
-      (String::cast(object)->map_representation_tag(map) == kConsStringTag) &&
-      (ConsString::cast(object)->second() == Heap::empty_string());
+  if (map->instance_type() >= FIRST_NONSTRING_TYPE) return false;
+  StringShape shape(map);
+  return (shape.representation_tag() == kConsStringTag) &&
+         (ConsString::cast(object)->unchecked_second() == Heap::empty_string());
 }
 
 
@@ -792,7 +796,7 @@ void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
 
   // Optimization: Bypass flattened ConsString objects.
   if (IsShortcutCandidate(object, first_word.ToMap())) {
-    object = HeapObject::cast(ConsString::cast(object)->first());
+    object = HeapObject::cast(ConsString::cast(object)->unchecked_first());
     *p = object;
     // After patching *p we have to repeat the checks that object is in the
     // active semispace of the young generation and not already copied.
@@ -1025,7 +1029,7 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
   // spaces.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
   AllocationSpace space = (pretenure == TENURED) ? OLD_DATA_SPACE : NEW_SPACE;
-  Object* result = AllocateRaw(HeapNumber::kSize, space);
+  Object* result = AllocateRaw(HeapNumber::kSize, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
   HeapObject::cast(result)->set_map(heap_number_map());
@@ -1035,6 +1039,8 @@ Object* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
 
 
 Object* Heap::AllocateHeapNumber(double value) {
+  // Use general version, if we're forced to always allocate.
+  if (always_allocate()) return AllocateHeapNumber(value, NOT_TENURED);
   // This version of AllocateHeapNumber is optimized for
   // allocation in new space.
   STATIC_ASSERT(HeapNumber::kSize <= Page::kMaxHeapObjectSize);
@@ -1340,32 +1346,43 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 }
 
 
-Object* Heap::AllocateConsString(String* first, String* second) {
-  int first_length = first->length();
-  int second_length = second->length();
+Object* Heap::AllocateConsString(String* first,
+                                 StringShape first_shape,
+                                 String* second,
+                                 StringShape second_shape) {
+  int first_length = first->length(first_shape);
+  int second_length = second->length(second_shape);
   int length = first_length + second_length;
-  bool is_ascii = first->is_ascii_representation()
-      && second->is_ascii_representation();
+  bool is_ascii = first_shape.IsAsciiRepresentation()
+      && second_shape.IsAsciiRepresentation();
 
   // If the resulting string is small make a flat string.
   if (length < String::kMinNonFlatLength) {
-    ASSERT(first->IsFlat());
-    ASSERT(second->IsFlat());
+    ASSERT(first->IsFlat(first_shape));
+    ASSERT(second->IsFlat(second_shape));
     if (is_ascii) {
       Object* result = AllocateRawAsciiString(length);
       if (result->IsFailure()) return result;
       // Copy the characters into the new object.
       char* dest = SeqAsciiString::cast(result)->GetChars();
-      String::WriteToFlat(first, dest, 0, first_length);
-      String::WriteToFlat(second, dest + first_length, 0, second_length);
+      String::WriteToFlat(first, first_shape, dest, 0, first_length);
+      String::WriteToFlat(second,
+                          second_shape,
+                          dest + first_length,
+                          0,
+                          second_length);
       return result;
     } else {
       Object* result = AllocateRawTwoByteString(length);
       if (result->IsFailure()) return result;
       // Copy the characters into the new object.
       uc16* dest = SeqTwoByteString::cast(result)->GetChars();
-      String::WriteToFlat(first, dest, 0, first_length);
-      String::WriteToFlat(second, dest + first_length, 0, second_length);
+      String::WriteToFlat(first, first_shape, dest, 0, first_length);
+      String::WriteToFlat(second,
+                          second_shape,
+                          dest + first_length,
+                          0,
+                          second_length);
       return result;
     }
   }
@@ -1393,24 +1410,30 @@ Object* Heap::AllocateConsString(String* first, String* second) {
 }
 
 
-Object* Heap::AllocateSlicedString(String* buffer, int start, int end) {
+Object* Heap::AllocateSlicedString(String* buffer,
+                                   StringShape buffer_shape,
+                                   int start,
+                                   int end) {
   int length = end - start;
 
   // If the resulting string is small make a sub string.
   if (end - start <= String::kMinNonFlatLength) {
-    return Heap::AllocateSubString(buffer, start, end);
+    return Heap::AllocateSubString(buffer, buffer_shape, start, end);
   }
 
   Map* map;
   if (length <= String::kMaxShortStringSize) {
-    map = buffer->is_ascii_representation() ? short_sliced_ascii_string_map()
-      : short_sliced_string_map();
+    map = buffer_shape.IsAsciiRepresentation() ?
+      short_sliced_ascii_string_map() :
+      short_sliced_string_map();
   } else if (length <= String::kMaxMediumStringSize) {
-    map = buffer->is_ascii_representation() ? medium_sliced_ascii_string_map()
-      : medium_sliced_string_map();
+    map = buffer_shape.IsAsciiRepresentation() ?
+      medium_sliced_ascii_string_map() :
+      medium_sliced_string_map();
   } else {
-    map = buffer->is_ascii_representation() ? long_sliced_ascii_string_map()
-      : long_sliced_string_map();
+    map = buffer_shape.IsAsciiRepresentation() ?
+      long_sliced_ascii_string_map() :
+      long_sliced_string_map();
   }
 
   Object* result = Allocate(map, NEW_SPACE);
@@ -1425,34 +1448,42 @@ Object* Heap::AllocateSlicedString(String* buffer, int start, int end) {
 }
 
 
-Object* Heap::AllocateSubString(String* buffer, int start, int end) {
+Object* Heap::AllocateSubString(String* buffer,
+                                StringShape buffer_shape,
+                                int start,
+                                int end) {
   int length = end - start;
 
   if (length == 1) {
-    return Heap::LookupSingleCharacterStringFromCode(buffer->Get(start));
+    return Heap::LookupSingleCharacterStringFromCode(
+        buffer->Get(buffer_shape, start));
   }
 
   // Make an attempt to flatten the buffer to reduce access time.
-  buffer->TryFlatten();
+  if (!buffer->IsFlat(buffer_shape)) {
+    buffer->TryFlatten(buffer_shape);
+    buffer_shape = StringShape(buffer);
+  }
 
-  Object* result = buffer->is_ascii_representation()
+  Object* result = buffer_shape.IsAsciiRepresentation()
       ? AllocateRawAsciiString(length)
       : AllocateRawTwoByteString(length);
   if (result->IsFailure()) return result;
 
   // Copy the characters into the new object.
   String* string_result = String::cast(result);
+  StringShape result_shape(string_result);
   StringHasher hasher(length);
   int i = 0;
   for (; i < length && hasher.is_array_index(); i++) {
-    uc32 c = buffer->Get(start + i);
+    uc32 c = buffer->Get(buffer_shape, start + i);
     hasher.AddCharacter(c);
-    string_result->Set(i, c);
+    string_result->Set(result_shape, i, c);
   }
   for (; i < length; i++) {
-    uc32 c = buffer->Get(start + i);
+    uc32 c = buffer->Get(buffer_shape, start + i);
     hasher.AddCharacterNoIndex(c);
-    string_result->Set(i, c);
+    string_result->Set(result_shape, i, c);
   }
   string_result->set_length_field(hasher.GetHashField());
   return result;
@@ -1521,8 +1552,9 @@ Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
 
   Object* result = Heap::AllocateRawTwoByteString(1);
   if (result->IsFailure()) return result;
-  String::cast(result)->Set(0, code);
-  return result;
+  String* answer = String::cast(result);
+  answer->Set(StringShape(answer), 0, code);
+  return answer;
 }
 
 
@@ -1531,7 +1563,7 @@ Object* Heap::AllocateByteArray(int length) {
   AllocationSpace space =
       size > MaxHeapObjectSize() ? LO_SPACE : NEW_SPACE;
 
-  Object* result = AllocateRaw(size, space);
+  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
 
   if (result->IsFailure()) return result;
 
@@ -1604,7 +1636,9 @@ Object* Heap::CopyCode(Code* code) {
 Object* Heap::Allocate(Map* map, AllocationSpace space) {
   ASSERT(gc_state_ == NOT_IN_GC);
   ASSERT(map->instance_type() != MAP_TYPE);
-  Object* result = AllocateRaw(map->instance_size(), space);
+  Object* result = AllocateRaw(map->instance_size(),
+                               space,
+                               TargetSpaceId(map->instance_type()));
   if (result->IsFailure()) return result;
   HeapObject::cast(result)->set_map(map);
   return result;
@@ -1664,19 +1698,19 @@ Object* Heap::AllocateArgumentsObject(Object* callee, int length) {
   // Make the clone.
   Map* map = boilerplate->map();
   int object_size = map->instance_size();
-  Object* result = new_space_.AllocateRaw(object_size);
+  Object* result = AllocateRaw(object_size, NEW_SPACE, OLD_POINTER_SPACE);
   if (result->IsFailure()) return result;
-  ASSERT(Heap::InNewSpace(result));
 
-  // Copy the content.
+  // Copy the content. The arguments boilerplate doesn't have any
+  // fields that point to new space so it's safe to skip the write
+  // barrier here.
   CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(result)->address()),
             reinterpret_cast<Object**>(boilerplate->address()),
             object_size);
 
   // Set the two properties.
   JSObject::cast(result)->InObjectPropertyAtPut(arguments_callee_index,
-                                                callee,
-                                                SKIP_WRITE_BARRIER);
+                                                callee);
   JSObject::cast(result)->InObjectPropertyAtPut(arguments_length_index,
                                                 Smi::FromInt(length),
                                                 SKIP_WRITE_BARRIER);
@@ -1784,14 +1818,33 @@ Object* Heap::CopyJSObject(JSObject* source) {
   // Make the clone.
   Map* map = source->map();
   int object_size = map->instance_size();
-  Object* clone = new_space_.AllocateRaw(object_size);
-  if (clone->IsFailure()) return clone;
-  ASSERT(Heap::InNewSpace(clone));
+  Object* clone;
 
-  // Copy the content.
-  CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(clone)->address()),
-            reinterpret_cast<Object**>(source->address()),
-            object_size);
+  // If we're forced to always allocate, we use the general allocation
+  // functions which may leave us with an object in old space.
+  if (always_allocate()) {
+    clone = AllocateRaw(object_size, NEW_SPACE, OLD_POINTER_SPACE);
+    if (clone->IsFailure()) return clone;
+    Address clone_address = HeapObject::cast(clone)->address();
+    CopyBlock(reinterpret_cast<Object**>(clone_address),
+              reinterpret_cast<Object**>(source->address()),
+              object_size);
+    // Update write barrier for all fields that lie beyond the header.
+    for (int offset = JSObject::kHeaderSize;
+         offset < object_size;
+         offset += kPointerSize) {
+      RecordWrite(clone_address, offset);
+    }
+  } else {
+    clone = new_space_.AllocateRaw(object_size);
+    if (clone->IsFailure()) return clone;
+    ASSERT(Heap::InNewSpace(clone));
+    // Since we know the clone is allocated in new space, we can copy
+    // the contents without worring about updating the write barrier.
+    CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(clone)->address()),
+              reinterpret_cast<Object**>(source->address()),
+              object_size);
+  }
 
   FixedArray* elements = FixedArray::cast(source->elements());
   FixedArray* properties = FixedArray::cast(source->properties());
@@ -1880,9 +1933,10 @@ Object* Heap::AllocateStringFromUtf8(Vector<const char> string,
   // Convert and copy the characters into the new object.
   String* string_result = String::cast(result);
   decoder->Reset(string.start(), string.length());
+  StringShape result_shape(string_result);
   for (int i = 0; i < chars; i++) {
     uc32 r = decoder->GetNext();
-    string_result->Set(i, r);
+    string_result->Set(result_shape, i, r);
   }
   return result;
 }
@@ -1905,8 +1959,9 @@ Object* Heap::AllocateStringFromTwoByte(Vector<const uc16> string,
   // Copy the characters into the new object, which may be either ASCII or
   // UTF-16.
   String* string_result = String::cast(result);
+  StringShape result_shape(string_result);
   for (int i = 0; i < string.length(); i++) {
-    string_result->Set(i, string[i]);
+    string_result->Set(result_shape, i, string[i]);
   }
   return result;
 }
@@ -2013,20 +2068,22 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
   // Allocate string.
   AllocationSpace space =
       (size > MaxHeapObjectSize()) ? LO_SPACE : OLD_DATA_SPACE;
-  Object* result = AllocateRaw(size, space);
+  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
   reinterpret_cast<HeapObject*>(result)->set_map(map);
   // The hash value contains the length of the string.
-  String::cast(result)->set_length_field(length_field);
+  String* answer = String::cast(result);
+  StringShape answer_shape(answer);
+  answer->set_length_field(length_field);
 
-  ASSERT_EQ(size, String::cast(result)->Size());
+  ASSERT_EQ(size, answer->Size());
 
   // Fill in the characters.
   for (int i = 0; i < chars; i++) {
-    String::cast(result)->Set(i, buffer->GetNext());
+    answer->Set(answer_shape, i, buffer->GetNext());
   }
-  return result;
+  return answer;
 }
 
 
@@ -2039,7 +2096,7 @@ Object* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
 
   // Use AllocateRaw rather than Allocate because the object's size cannot be
   // determined from the map.
-  Object* result = AllocateRaw(size, space);
+  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
   // Determine the map based on the string's length.
@@ -2069,7 +2126,7 @@ Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
 
   // Use AllocateRaw rather than Allocate because the object's size cannot be
   // determined from the map.
-  Object* result = AllocateRaw(size, space);
+  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
   // Determine the map based on the string's length.
@@ -2092,7 +2149,7 @@ Object* Heap::AllocateRawTwoByteString(int length, PretenureFlag pretenure) {
 
 Object* Heap::AllocateEmptyFixedArray() {
   int size = FixedArray::SizeFor(0);
-  Object* result = AllocateRaw(size, OLD_DATA_SPACE);
+  Object* result = AllocateRaw(size, OLD_DATA_SPACE, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
   // Initialize the object.
   reinterpret_cast<Array*>(result)->set_map(fixed_array_map());
@@ -2102,6 +2159,8 @@ Object* Heap::AllocateEmptyFixedArray() {
 
 
 Object* Heap::AllocateRawFixedArray(int length) {
+  // Use the general function if we're forced to always allocate.
+  if (always_allocate()) return AllocateFixedArray(length, NOT_TENURED);
   // Allocate the raw data for a fixed array.
   int size = FixedArray::SizeFor(length);
   return (size > MaxHeapObjectSize())
@@ -2159,7 +2218,7 @@ Object* Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
   } else {
     AllocationSpace space =
         (pretenure == TENURED) ? OLD_POINTER_SPACE : NEW_SPACE;
-    result = AllocateRaw(size, space);
+    result = AllocateRaw(size, space, OLD_POINTER_SPACE);
   }
   if (result->IsFailure()) return result;
 

@@ -29,7 +29,7 @@ import test
 import os
 from os.path import join, dirname, exists
 import platform
-
+import utils
 
 DEBUG_FLAGS = ['--enable-slow-asserts', '--debug-code', '--verify-heap']
 
@@ -65,7 +65,7 @@ class CcTestConfiguration(test.TestConfiguration):
 
   def ListTests(self, current_path, path, mode):
     executable = join('obj', 'test', mode, 'cctest')
-    if (platform.system() == 'Windows'):
+    if utils.IsWindows():
       executable += '.exe'
     output = test.Execute([executable, '--list'], self.context)
     if output.exit_code != 0:

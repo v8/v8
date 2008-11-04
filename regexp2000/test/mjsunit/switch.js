@@ -224,4 +224,46 @@ assertEquals(2016, f6(64), "largeSwitch.64");
 assertEquals(4032, f6(128), "largeSwitch.128");
 assertEquals(4222, f6(148), "largeSwitch.148"); 
  
- 
+
+function f7(value) {
+  switch (value) {
+  case 0: return "0";
+  case -0: return "-0";
+  case 1: case 2: case 3: case 4:  // Dummy fillers.
+  }
+  switch (value) {
+  case 0x3fffffff: return "MaxSmi";
+  case 0x3ffffffe:
+  case 0x3ffffffd:
+  case 0x3ffffffc:
+  case 0x3ffffffb:
+  case 0x3ffffffa:  // Dummy fillers
+  }
+  switch (value) {
+  case -0x40000000: return "MinSmi";
+  case -0x3fffffff:
+  case -0x3ffffffe:
+  case -0x3ffffffd:
+  case -0x3ffffffc:
+  case -0x3ffffffb:  // Dummy fillers
+  }
+  switch (value) {
+  case 10: return "A";
+  case 11:
+  case 12:
+  case 13:
+  case 14: 
+  case 15:  // Dummy fillers
+  }
+  return "default";
+}
+
+
+assertEquals("default", f7(0.1), "0-1-switch.double-0.1");
+assertEquals("0", f7(-0), "0-1-switch.double-neg0");
+assertEquals("MaxSmi", f7((1<<30)-1), "0-1-switch.maxsmi");
+assertEquals("MinSmi", f7(-(1<<30)), "0-1-switch.minsmi");
+assertEquals("default", f7(1<<30), "0-1-switch.maxsmi++");
+assertEquals("default", f7(-(1<<30)-1), "0-1-switch.minsmi--");
+assertEquals("A", f7((170/16)-(170%16/16)), "0-1-switch.heapnum");
+

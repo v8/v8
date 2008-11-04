@@ -90,15 +90,24 @@ Handle<String> Factory::NewRawTwoByteString(int length,
 
 
 Handle<String> Factory::NewConsString(Handle<String> first,
-                                      Handle<String> second) {
-  if (first->length() == 0) return second;
-  if (second->length() == 0) return first;
-  CALL_HEAP_FUNCTION(Heap::AllocateConsString(*first, *second), String);
+                                      StringShape first_shape,
+                                      Handle<String> second,
+                                      StringShape second_shape) {
+  if (first->length(first_shape) == 0) return second;
+  if (second->length(second_shape) == 0) return first;
+  CALL_HEAP_FUNCTION(Heap::AllocateConsString(*first,
+                                              first_shape,
+                                              *second,
+                                              second_shape),
+                     String);
 }
 
 
-Handle<String> Factory::NewStringSlice(Handle<String> str, int begin, int end) {
-  CALL_HEAP_FUNCTION(str->Slice(begin, end), String);
+Handle<String> Factory::NewStringSlice(Handle<String> str,
+                                       StringShape shape,
+                                       int begin,
+                                       int end) {
+  CALL_HEAP_FUNCTION(str->Slice(shape, begin, end), String);
 }
 
 
@@ -452,6 +461,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
   return function;
 }
 
+
 Handle<Code> Factory::NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
                               Code::Flags flags) {
   CALL_HEAP_FUNCTION(Heap::CreateCode(desc, sinfo, flags), Code);
@@ -463,41 +473,25 @@ Handle<Code> Factory::CopyCode(Handle<Code> code) {
 }
 
 
-#define CALL_GC(RETRY)                                                     \
-  do {                                                                     \
-    if (!Heap::CollectGarbage(Failure::cast(RETRY)->requested(),           \
-                              Failure::cast(RETRY)->allocation_space())) { \
-      /* TODO(1181417): Fix this. */                                       \
-      V8::FatalProcessOutOfMemory("Factory CALL_GC");                      \
-    }                                                                      \
-  } while (false)
+static inline Object* DoCopyInsert(DescriptorArray* array,
+                                   String* key,
+                                   Object* value,
+                                   PropertyAttributes attributes) {
+  CallbacksDescriptor desc(key, value, attributes);
+  Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
+  return obj;
+}
 
 
-// Allocate the new array. We cannot use the CALL_HEAP_FUNCTION macro here,
-// because the stack-allocated CallbacksDescriptor instance is not GC safe.
+// Allocate the new array.
 Handle<DescriptorArray> Factory::CopyAppendProxyDescriptor(
     Handle<DescriptorArray> array,
     Handle<String> key,
     Handle<Object> value,
     PropertyAttributes attributes) {
-  GC_GREEDY_CHECK();
-  CallbacksDescriptor desc(*key, *value, attributes);
-  Object* obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
-  if (obj->IsFailure()) {
-    if (obj->IsRetryAfterGC()) {
-      CALL_GC(obj);
-      CallbacksDescriptor desc(*key, *value, attributes);
-      obj = array->CopyInsert(&desc, REMOVE_TRANSITIONS);
-    }
-    if (obj->IsFailure()) {
-      // TODO(1181417): Fix this.
-      V8::FatalProcessOutOfMemory("CopyAppendProxyDescriptor");
-    }
-  }
-  return Handle<DescriptorArray>(DescriptorArray::cast(obj));
+  CALL_HEAP_FUNCTION(DoCopyInsert(*array, *key, *value, attributes),
+                     DescriptorArray);
 }
-
-#undef CALL_GC
 
 
 Handle<String> Factory::SymbolFromString(Handle<String> value) {
@@ -740,7 +734,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
 
   // Mark as needs_access_check if needed.
   if (obj->needs_access_check()) {
-    map->set_is_access_check_needed();
+    map->set_is_access_check_needed(true);
   }
 
   // Set interceptor information in the map.

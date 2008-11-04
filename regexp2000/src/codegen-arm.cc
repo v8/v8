@@ -1247,10 +1247,29 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
 
   __ pop(r0);
+
+  // Test for a Smi value in a HeapNumber.
+  Label is_smi;
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(eq, &is_smi);
+  __ ldr(r1, MemOperand(r0, HeapObject::kMapOffset - kHeapObjectTag));
+  __ ldrb(r1, MemOperand(r1, Map::kInstanceTypeOffset - kHeapObjectTag));
+  __ cmp(r1, Operand(HEAP_NUMBER_TYPE));
+  __ b(ne, fail_label);
+  __ push(r0);
+  __ CallRuntime(Runtime::kNumberToSmi, 1);
+  __ bind(&is_smi);
+
   if (min_index != 0) {
-    // small positive numbers can be immediate operands.
+    // Small positive numbers can be immediate operands.
     if (min_index < 0) {
-      __ add(r0, r0, Operand(Smi::FromInt(-min_index)));
+      // If min_index is Smi::kMinValue, -min_index is not a Smi.
+      if (Smi::IsValid(-min_index)) {
+        __ add(r0, r0, Operand(Smi::FromInt(-min_index)));
+      } else {
+        __ add(r0, r0, Operand(Smi::FromInt(-min_index - 1)));
+        __ add(r0, r0, Operand(Smi::FromInt(1)));
+      }
     } else {
       __ sub(r0, r0, Operand(Smi::FromInt(min_index)));
     }
@@ -1264,7 +1283,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // the pc-register at the above add.
   __ stop("Unreachable: Switch table alignment");
 
-  // table containing branch operations.
+  // Table containing branch operations.
   for (int i = 0; i < range; i++) {
     __ b(case_targets[i]);
   }
@@ -3812,7 +3831,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_out_of_memory_exception,
                               StackFrame::Type frame_type,
-                              bool do_gc) {
+                              bool do_gc,
+                              bool always_allocate) {
   // r0: result parameter for PerformGC, if any
   // r4: number of arguments including receiver  (C callee-saved)
   // r5: pointer to builtin function  (C callee-saved)
@@ -3821,6 +3841,15 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   if (do_gc) {
     // Passing r0.
     __ Call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
+  }
+
+  ExternalReference scope_depth =
+      ExternalReference::heap_always_allocate_scope_depth();
+  if (always_allocate) {
+    __ mov(r0, Operand(scope_depth));
+    __ ldr(r1, MemOperand(r0));
+    __ add(r1, r1, Operand(1));
+    __ str(r1, MemOperand(r0));
   }
 
   // Call C built-in.
@@ -3843,7 +3872,15 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
 #else /* !defined(__arm__) */
   __ mov(pc, Operand(r5));
 #endif /* !defined(__arm__) */
-  // result is in r0 or r0:r1 - do not destroy these registers!
+
+  if (always_allocate) {
+    // It's okay to clobber r2 and r3 here. Don't mess with r0 and r1
+    // though (contain the result).
+    __ mov(r2, Operand(scope_depth));
+    __ ldr(r3, MemOperand(r2));
+    __ sub(r3, r3, Operand(1));
+    __ str(r3, MemOperand(r2));
+  }
 
   // check for failure result
   Label failure_returned;
@@ -3929,14 +3966,16 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   GenerateCore(masm, &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               FLAG_gc_greedy);
+               FLAG_gc_greedy,
+               false);
 
   // Do space-specific GC and retry runtime call.
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               true);
+               true,
+               false);
 
   // Do full GC and retry runtime call one final time.
   Failure* failure = Failure::InternalError();
@@ -3945,6 +3984,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
+               true,
                true);
 
   __ bind(&throw_out_of_memory_exception);

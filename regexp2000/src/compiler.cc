@@ -157,8 +157,9 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
                                      int line_offset, int column_offset,
                                      v8::Extension* extension,
                                      ScriptDataImpl* input_pre_data) {
-  Counters::total_load_size.Increment(source->length());
-  Counters::total_compile_size.Increment(source->length());
+  int source_length = source->length();
+  Counters::total_load_size.Increment(source_length);
+  Counters::total_compile_size.Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);
@@ -175,7 +176,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
   if (result.is_null()) {
     // No cache entry found. Do pre-parsing and compile the script.
     ScriptDataImpl* pre_data = input_pre_data;
-    if (pre_data == NULL && source->length() >= FLAG_min_preparse_length) {
+    if (pre_data == NULL && source_length >= FLAG_min_preparse_length) {
       Access<SafeStringInputBuffer> buf(&safe_string_input_buffer);
       buf->Reset(source.location());
       pre_data = PreParse(buf.value(), extension);
@@ -208,8 +209,10 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
 Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
                                          int line_offset,
                                          bool is_global) {
-  Counters::total_eval_size.Increment(source->length());
-  Counters::total_compile_size.Increment(source->length());
+  StringShape source_shape(*source);
+  int source_length = source->length(source_shape);
+  Counters::total_eval_size.Increment(source_length);
+  Counters::total_compile_size.Increment(source_length);
 
   // The VM is in the COMPILER state until exiting this function.
   VMState state(COMPILER);

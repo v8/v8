@@ -196,7 +196,8 @@ class CEntryStub : public CodeStub {
                     Label* throw_normal_exception,
                     Label* throw_out_of_memory_exception,
                     StackFrame::Type frame_type,
-                    bool do_gc);
+                    bool do_gc,
+                    bool always_allocate_scope);
   void GenerateThrowTOS(MacroAssembler* masm);
   void GenerateThrowOutOfMemory(MacroAssembler* masm);
 

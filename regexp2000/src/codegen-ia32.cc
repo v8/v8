@@ -1623,9 +1623,24 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // placeholders, and fill in the addresses after the labels have been
   // bound.
 
-  frame_->Pop(eax);  // supposed smi
+  frame_->Pop(eax);  // supposed Smi
   // check range of value, if outside [0..length-1] jump to default/end label.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+
+  // Test whether input is a HeapNumber that is really a Smi
+  Label is_smi;
+  __ test(eax, Immediate(kSmiTagMask));
+  __ j(equal, &is_smi);
+  // It's a heap object, not a Smi or a Failure
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  __ cmp(ebx, HEAP_NUMBER_TYPE);
+  __ j(not_equal, fail_label);
+  // eax points to a heap number.
+  __ push(eax);
+  __ CallRuntime(Runtime::kNumberToSmi, 1);
+  __ bind(&is_smi);
+
   if (min_index != 0) {
     __ sub(Operand(eax), Immediate(min_index << kSmiTagSize));
   }
@@ -4809,7 +4824,8 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
                               Label* throw_normal_exception,
                               Label* throw_out_of_memory_exception,
                               StackFrame::Type frame_type,
-                              bool do_gc) {
+                              bool do_gc,
+                              bool always_allocate_scope) {
   // eax: result parameter for PerformGC, if any
   // ebx: pointer to C function  (C callee-saved)
   // ebp: frame pointer  (restored after C call)
@@ -4822,11 +4838,21 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     __ call(FUNCTION_ADDR(Runtime::PerformGC), RelocInfo::RUNTIME_ENTRY);
   }
 
+  ExternalReference scope_depth =
+      ExternalReference::heap_always_allocate_scope_depth();
+  if (always_allocate_scope) {
+    __ inc(Operand::StaticVariable(scope_depth));
+  }
+
   // Call C function.
   __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
   __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
   __ call(Operand(ebx));
   // Result is in eax or edx:eax - do not destroy these registers!
+
+  if (always_allocate_scope) {
+    __ dec(Operand::StaticVariable(scope_depth));
+  }
 
   // Check for failure result.
   Label failure_returned;
@@ -4963,14 +4989,16 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   GenerateCore(masm, &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               FLAG_gc_greedy);
+               FLAG_gc_greedy,
+               false);
 
   // Do space-specific GC and retry runtime call.
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
-               true);
+               true,
+               false);
 
   // Do full GC and retry runtime call one final time.
   Failure* failure = Failure::InternalError();
@@ -4979,6 +5007,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
                &throw_normal_exception,
                &throw_out_of_memory_exception,
                frame_type,
+               true,
                true);
 
   __ bind(&throw_out_of_memory_exception);

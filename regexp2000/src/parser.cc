@@ -807,10 +807,11 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
   ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
 
   StatsRateScope timer(&Counters::parse);
-  Counters::total_parse_size.Increment(source->length());
+  StringShape shape(*source);
+  Counters::total_parse_size.Increment(source->length(shape));
 
   // Initialize parser state.
-  source->TryFlatten();
+  source->TryFlatten(shape);
   scanner_.Init(source, stream, 0);
   ASSERT(target_stack_ == NULL);
 
@@ -837,7 +838,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                    temp_scope.materialized_literal_count(),
                                    temp_scope.contains_array_literal(),
                                    temp_scope.expected_property_count(),
-                                   0, 0, source->length(), false));
+                                   0, 0, source->length(shape), false));
     } else if (scanner().stack_overflow()) {
       Top::StackOverflow();
     }
@@ -859,11 +860,12 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    bool is_expression) {
   ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   StatsRateScope timer(&Counters::parse_lazy);
-  Counters::total_parse_size.Increment(source->length());
+  StringShape shape(*source);
+  source->TryFlatten(shape);
+  Counters::total_parse_size.Increment(source->length(shape));
   SafeStringInputBuffer buffer(source.location());
 
   // Initialize parser state.
-  source->TryFlatten();
   scanner_.Init(source, &buffer, start_position);
   ASSERT(target_stack_ == NULL);
   mode_ = PARSE_EAGERLY;

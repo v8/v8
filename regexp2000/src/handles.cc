@@ -117,9 +117,10 @@ void TransformToFastProperties(Handle<JSObject> object,
 
 
 void FlattenString(Handle<String> string) {
-  if (string->IsFlat()) return;
-  CALL_HEAP_FUNCTION_VOID(string->Flatten());
-  ASSERT(string->IsFlat());
+  StringShape shape(*string);
+  if (string->IsFlat(shape)) return;
+  CALL_HEAP_FUNCTION_VOID(string->Flatten(shape));
+  ASSERT(string->IsFlat(StringShape(*string)));
 }
 
 
@@ -216,7 +217,7 @@ Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index) {
 
 
 Handle<String> SubString(Handle<String> str, int start, int end) {
-  CALL_HEAP_FUNCTION(str->Slice(start, end), String);
+  CALL_HEAP_FUNCTION(str->Slice(StringShape(*str), start, end), String);
 }
 
 
