@@ -757,7 +757,6 @@ class Assembler : public Malloced {
   void emit_arith(int sel, Operand dst, const Immediate& x);
 
   void emit_operand(Register reg, const Operand& adr);
-  void emit_operand(const Operand& adr, Register reg);
 
   void emit_farith(int b1, int b2, int i);
 
