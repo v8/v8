@@ -152,8 +152,6 @@ void MarkCompactCollector::Prepare() {
     space->PrepareForMarkCompact(compacting_collection_);
   }
 
-  Counters::global_objects.Set(0);
-
 #ifdef DEBUG
   live_bytes_ = 0;
   live_young_objects_ = 0;
@@ -327,12 +325,10 @@ class MarkingVisitor : public ObjectVisitor {
   void VisitUnmarkedObject(HeapObject* obj) {
 #ifdef DEBUG
     ASSERT(Heap::Contains(obj));
-    MarkCompactCollector::UpdateLiveObjectCount(obj);
     ASSERT(!obj->IsMarked());
 #endif
     Map* map = obj->map();
-    obj->SetMark();
-    MarkCompactCollector::tracer()->increment_marked_count();
+    MarkCompactCollector::SetMark(obj);
     // Mark the map pointer and the body.
     MarkCompactCollector::MarkObject(map);
     obj->IterateBody(map->instance_type(), obj->SizeFromMap(map), this);
@@ -380,13 +376,9 @@ class RootMarkingVisitor : public ObjectVisitor {
     HeapObject* object = ShortCircuitConsString(p);
     if (object->IsMarked()) return;
 
-#ifdef DEBUG
-    MarkCompactCollector::UpdateLiveObjectCount(object);
-#endif
     Map* map = object->map();
     // Mark the object.
-    object->SetMark();
-    MarkCompactCollector::tracer()->increment_marked_count();
+    MarkCompactCollector::SetMark(object);
     // Mark the map pointer and body, and push them on the marking stack.
     MarkCompactCollector::MarkObject(map);
     object->IterateBody(map->instance_type(), object->SizeFromMap(map),
@@ -423,20 +415,14 @@ class SymbolTableCleaner : public ObjectVisitor {
 
 
 void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
-#ifdef DEBUG
-  UpdateLiveObjectCount(object);
-#endif
   ASSERT(!object->IsMarked());
-  if (object->IsJSGlobalObject()) Counters::global_objects.Increment();
-
-  tracer_->increment_marked_count();
   ASSERT(Heap::Contains(object));
   if (object->IsMap()) {
     Map* map = Map::cast(object);
     if (FLAG_cleanup_caches_in_maps_at_gc) {
       map->ClearCodeCache();
     }
-    map->SetMark();
+    SetMark(map);
     if (FLAG_collect_maps &&
         map->instance_type() >= FIRST_JS_OBJECT_TYPE &&
         map->instance_type() <= JS_FUNCTION_TYPE) {
@@ -445,7 +431,7 @@ void MarkCompactCollector::MarkUnmarkedObject(HeapObject* object) {
       marking_stack.Push(map);
     }
   } else {
-    object->SetMark();
+    SetMark(object);
     marking_stack.Push(object);
   }
 }
@@ -469,12 +455,7 @@ void MarkCompactCollector::MarkDescriptorArray(
   if (descriptors->IsMarked()) return;
   // Empty descriptor array is marked as a root before any maps are marked.
   ASSERT(descriptors != Heap::empty_descriptor_array());
-
-  tracer_->increment_marked_count();
-#ifdef DEBUG
-  UpdateLiveObjectCount(descriptors);
-#endif
-  descriptors->SetMark();
+  SetMark(descriptors);
 
   FixedArray* contents = reinterpret_cast<FixedArray*>(
       descriptors->get(DescriptorArray::kContentArrayIndex));
@@ -482,11 +463,7 @@ void MarkCompactCollector::MarkDescriptorArray(
   ASSERT(!contents->IsMarked());
   ASSERT(contents->IsFixedArray());
   ASSERT(contents->length() >= 2);
-  tracer_->increment_marked_count();
-#ifdef DEBUG
-  UpdateLiveObjectCount(contents);
-#endif
-  contents->SetMark();
+  SetMark(contents);
   // Contents contains (value, details) pairs.  If the details say
   // that the type of descriptor is MAP_TRANSITION, CONSTANT_TRANSITION,
   // or NULL_DESCRIPTOR, we don't mark the value as live.  Only for
@@ -498,11 +475,7 @@ void MarkCompactCollector::MarkDescriptorArray(
     if (details.type() < FIRST_PHANTOM_PROPERTY_TYPE) {
       HeapObject* object = reinterpret_cast<HeapObject*>(contents->get(i));
       if (object->IsHeapObject() && !object->IsMarked()) {
-        tracer_->increment_marked_count();
-#ifdef DEBUG
-        UpdateLiveObjectCount(object);
-#endif
-        object->SetMark();
+        SetMark(object);
         marking_stack.Push(object);
       }
     }
@@ -578,13 +551,9 @@ void MarkCompactCollector::ProcessRoots(RootMarkingVisitor* visitor) {
   SymbolTable* symbol_table = SymbolTable::cast(Heap::symbol_table());
   // 1. Mark the prefix of the symbol table gray.
   symbol_table->IteratePrefix(visitor);
-#ifdef DEBUG
-  UpdateLiveObjectCount(symbol_table);
-#endif
   // 2. Mark the symbol table black (ie, do not push it on the marking stack
   // or mark it overflowed).
-  symbol_table->SetMark();
-  tracer_->increment_marked_count();
+  SetMark(symbol_table);
 
   // There may be overflowed objects in the heap.  Visit them now.
   while (marking_stack.overflowed()) {

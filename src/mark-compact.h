@@ -152,7 +152,15 @@ class MarkCompactCollector : public AllStatic {
   static void MarkUnmarkedObject(HeapObject* obj);
 
   static inline void MarkObject(HeapObject* obj) {
-     if (!obj->IsMarked()) MarkUnmarkedObject(obj);
+    if (!obj->IsMarked()) MarkUnmarkedObject(obj);
+  }
+
+  static inline void SetMark(HeapObject* obj) {
+    tracer_->increment_marked_count();
+#ifdef DEBUG
+    UpdateLiveObjectCount(obj);
+#endif
+    obj->SetMark();
   }
 
   // Creates back pointers for all map transitions, stores them in
