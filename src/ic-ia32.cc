@@ -538,8 +538,8 @@ void CallIC::Generate(MacroAssembler* masm,
   __ EnterInternalFrame();
 
   // Push the receiver and the name of the function.
-  __ push(Operand(edx));
-  __ push(Operand(ebx));
+  __ push(edx);
+  __ push(ebx);
 
   // Call the entry.
   CEntryStub stub;
