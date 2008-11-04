@@ -55,7 +55,8 @@ static inline int GetChar(const char* str, int index) {
 
 
 static inline int GetChar(String* str, int index) {
-  return str->Get(index);
+  StringShape shape(str);
+  return str->Get(shape, index);
 }
 
 
@@ -75,15 +76,18 @@ static inline const char* GetCString(const char* str, int index) {
 
 
 static inline const char* GetCString(String* str, int index) {
-  char* result = NewArray<char>(str->length() + 1);
-  for (int i = index; i < str->length(); i++) {
-    if (str->Get(i) <= 127) {
-      result[i - index] = static_cast<char>(str->Get(i));
+  StringShape shape(str);
+  int length = str->length(shape);
+  char* result = NewArray<char>(length + 1);
+  for (int i = index; i < length; i++) {
+    uc16 c = str->Get(shape, i);
+    if (c <= 127) {
+      result[i - index] = static_cast<char>(c);
     } else {
       result[i - index] = 127;  // Force number parsing to fail.
     }
   }
-  result[str->length() - index] = '\0';
+  result[length - index] = '\0';
   return result;
 }
 
@@ -104,7 +108,8 @@ static inline bool IsSpace(const char* str, int index) {
 
 
 static inline bool IsSpace(String* str, int index) {
-  return Scanner::kIsWhiteSpace.get(str->Get(index));
+  StringShape shape(str);
+  return Scanner::kIsWhiteSpace.get(str->Get(shape, index));
 }
 
 
@@ -116,12 +121,16 @@ static inline bool SubStringEquals(const char* str,
 
 
 static inline bool SubStringEquals(String* str, int index, const char* other) {
+  StringShape shape(str);
   HandleScope scope;
-  int len = strlen(other);
-  int end = index + len < str->length() ? index + len : str->length();
+  int str_length = str->length(shape);
+  int other_length = strlen(other);
+  int end = index + other_length < str_length ?
+            index + other_length :
+            str_length;
   Handle<String> slice =
-      Factory::NewStringSlice(Handle<String>(str), index, end);
-  return slice->IsEqualTo(Vector<const char>(other, len));
+      Factory::NewStringSlice(Handle<String>(str), shape, index, end);
+  return slice->IsEqualTo(Vector<const char>(other, other_length));
 }
 
 

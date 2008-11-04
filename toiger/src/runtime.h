@@ -66,10 +66,6 @@ namespace v8 { namespace internal {
   F(PushIfAbsent, 2) \
   F(ArrayConcat, 1) \
   \
-  /* ConsStrings */ \
-  F(ConsStringFst, 1) \
-  F(ConsStringSnd, 1) \
-  \
   /* Conversions */ \
   F(ToBool, 1) \
   F(Typeof, 1) \
@@ -88,6 +84,7 @@ namespace v8 { namespace internal {
   F(NumberToInteger, 1) \
   F(NumberToJSUint32, 1) \
   F(NumberToJSInt32, 1) \
+  F(NumberToSmi, 1) \
   \
   /* Arithmetic operations */ \
   F(NumberAdd, 2) \

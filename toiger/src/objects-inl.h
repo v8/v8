@@ -114,85 +114,168 @@ bool Object::IsString() {
 }
 
 
-bool Object::IsSeqString() {
-  return IsString()
-    && (String::cast(this)->representation_tag() == kSeqStringTag);
-}
-
-
-bool Object::IsSeqAsciiString() {
-  return IsSeqString()
-      && String::cast(this)->IsAsciiRepresentation();
-}
-
-
-bool String::IsSeqAsciiString() {
-  return (this->representation_tag() == kSeqStringTag)
-    && is_ascii_representation();
-}
-
-
-bool Object::IsSeqTwoByteString() {
-  return IsSeqString()
-      && !String::cast(this)->IsAsciiRepresentation();
-}
-
-
-bool Object::IsAsciiStringRepresentation() {
-  return IsString() && (String::cast(this)->is_ascii_representation());
-}
-
-
-bool Object::IsTwoByteStringRepresentation() {
-  return IsString() && (!String::cast(this)->is_ascii_representation());
+bool Object::IsSymbol() {
+  if (!this->IsHeapObject()) return false;
+  uint32_t type = HeapObject::cast(this)->map()->instance_type();
+  return (type & (kIsNotStringMask | kIsSymbolMask)) ==
+         (kStringTag | kSymbolTag);
 }
 
 
 bool Object::IsConsString() {
-  return IsString()
-    && (String::cast(this)->representation_tag() == kConsStringTag);
+  if (!this->IsHeapObject()) return false;
+  uint32_t type = HeapObject::cast(this)->map()->instance_type();
+  return (type & (kIsNotStringMask | kStringRepresentationMask)) ==
+         (kStringTag | kConsStringTag);
 }
 
 
-bool Object::IsSlicedString() {
-  return IsString()
-    && (String::cast(this)->representation_tag() == kSlicedStringTag);
+#ifdef DEBUG
+// These are for cast checks.  If you need one of these in release
+// mode you should consider using a StringShape before moving it out
+// of the ifdef
+
+bool Object::IsSeqString() {
+  if (!IsString()) return false;
+  return StringShape(String::cast(this)).IsSequential();
+}
+
+
+bool Object::IsSeqAsciiString() {
+  if (!IsString()) return false;
+  StringShape shape(String::cast(this));
+  return shape.IsSequential() && shape.IsAsciiRepresentation();
+}
+
+
+bool Object::IsSeqTwoByteString() {
+  if (!IsString()) return false;
+  StringShape shape(String::cast(this));
+  return shape.IsSequential() && shape.IsTwoByteRepresentation();
 }
 
 
 bool Object::IsExternalString() {
-  return IsString()
-    && (String::cast(this)->representation_tag() == kExternalStringTag);
+  if (!IsString()) return false;
+  return StringShape(String::cast(this)).IsExternal();
 }
 
 
 bool Object::IsExternalAsciiString() {
-  return IsExternalString() && (String::cast(this)->is_ascii_representation());
+  if (!IsString()) return false;
+  StringShape shape(String::cast(this));
+  return shape.IsExternal() && shape.IsAsciiRepresentation();
 }
 
 
 bool Object::IsExternalTwoByteString() {
-  return IsExternalString() && (!String::cast(this)->is_ascii_representation());
+  if (!IsString()) return false;
+  StringShape shape(String::cast(this));
+  return shape.IsExternal() && shape.IsTwoByteRepresentation();
 }
 
 
-bool Object::IsShortString() {
-  return IsString() && (String::cast(this)->size_tag() == kShortStringTag);
+bool Object::IsSlicedString() {
+  if (!IsString()) return false;
+  return StringShape(String::cast(this)).IsSliced();
 }
 
 
-bool Object::IsMediumString() {
-  return IsString() && (String::cast(this)->size_tag() == kMediumStringTag);
+#endif  // DEBUG
+
+
+StringShape::StringShape(String* str)
+  : type_(str->map()->instance_type()) {
+  set_valid();
+  ASSERT((type_ & kIsNotStringMask) == kStringTag);
 }
 
 
-bool Object::IsLongString() {
-  return IsString() && (String::cast(this)->size_tag() == kLongStringTag);
+StringShape::StringShape(Map* map)
+  : type_(map->instance_type()) {
+  set_valid();
+  ASSERT((type_ & kIsNotStringMask) == kStringTag);
 }
 
 
-bool Object::IsSymbol() {
-  return IsString() && (String::cast(this)->is_symbol());
+StringShape::StringShape(InstanceType t)
+  : type_(static_cast<uint32_t>(t)) {
+  set_valid();
+  ASSERT((type_ & kIsNotStringMask) == kStringTag);
+}
+
+
+bool StringShape::IsSymbol() {
+  ASSERT(valid());
+  return (type_ & kIsSymbolMask) == kSymbolTag;
+}
+
+
+bool StringShape::IsAsciiRepresentation() {
+  return (type_ & kStringEncodingMask) == kAsciiStringTag;
+}
+
+
+bool StringShape::IsTwoByteRepresentation() {
+  return (type_ & kStringEncodingMask) == kTwoByteStringTag;
+}
+
+
+bool StringShape::IsCons() {
+  return (type_ & kStringRepresentationMask) == kConsStringTag;
+}
+
+
+bool StringShape::IsSliced() {
+  return (type_ & kStringRepresentationMask) == kSlicedStringTag;
+}
+
+
+bool StringShape::IsExternal() {
+  return (type_ & kStringRepresentationMask) == kExternalStringTag;
+}
+
+
+bool StringShape::IsSequential() {
+  return (type_ & kStringRepresentationMask) == kSeqStringTag;
+}
+
+
+StringRepresentationTag StringShape::representation_tag() {
+  uint32_t tag = (type_ & kStringRepresentationMask);
+  return static_cast<StringRepresentationTag>(tag);
+}
+
+
+uint32_t StringShape::full_representation_tag() {
+  return (type_ & (kStringRepresentationMask | kStringEncodingMask));
+}
+
+
+uint32_t StringShape::size_tag() {
+  return (type_ & kStringSizeMask);
+}
+
+
+bool StringShape::IsSequentialAscii() {
+  return full_representation_tag() == (kSeqStringTag | kAsciiStringTag);
+}
+
+
+bool StringShape::IsSequentialTwoByte() {
+  return (type_ & (kStringRepresentationMask | kStringEncodingMask)) ==
+         (kSeqStringTag | kTwoByteStringTag);
+}
+
+
+bool StringShape::IsExternalAscii() {
+  return full_representation_tag() == (kExternalStringTag | kAsciiStringTag);
+}
+
+
+bool StringShape::IsExternalTwoByte() {
+  return (type_ & (kStringRepresentationMask | kStringEncodingMask)) ==
+         (kExternalStringTag | kTwoByteStringTag);
 }
 
 
@@ -1128,13 +1211,15 @@ void DescriptorArray::fast_swap(FixedArray* array, int first, int second) {
 int DescriptorArray::Search(String* name) {
   SLOW_ASSERT(IsSortedNoDuplicates());
 
+  StringShape shape(name);
+
   // Check for empty descriptor array.
   int nof = number_of_descriptors();
   if (nof == 0) return kNotFound;
 
   // Fast case: do linear search for small arrays.
   const int kMaxElementsForLinearSearch = 8;
-  if (name->IsSymbol() && nof < kMaxElementsForLinearSearch) {
+  if (shape.IsSymbol() && nof < kMaxElementsForLinearSearch) {
     return LinearSearch(name, nof);
   }
 
@@ -1268,19 +1353,27 @@ INT_ACCESSORS(Array, length, kLengthOffset)
 
 bool String::Equals(String* other) {
   if (other == this) return true;
-  if (IsSymbol() && other->IsSymbol()) return false;
-  return SlowEquals(other);
+  StringShape this_shape(this);
+  StringShape other_shape(other);
+  if (this_shape.IsSymbol() && other_shape.IsSymbol()) return false;
+  return SlowEquals(this_shape, other, other_shape);
 }
 
 
-int String::length() {
+int String::length(StringShape shape) {
+  ASSERT(shape.type() == StringShape(this).type());
   uint32_t len = READ_INT_FIELD(this, kLengthOffset);
 
   ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
   ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
   ASSERT(kLongStringTag == 0);
 
-  return len >> (size_tag() + kLongLengthShift);
+  return len >> (shape.size_tag() + kLongLengthShift);
+}
+
+
+int String::length() {
+  return length(StringShape(this));
 }
 
 
@@ -1289,9 +1382,10 @@ void String::set_length(int value) {
   ASSERT(kMediumStringTag + kLongLengthShift == kMediumLengthShift);
   ASSERT(kLongStringTag == 0);
 
+  StringShape shape(this);
   WRITE_INT_FIELD(this,
                   kLengthOffset,
-                  value << (size_tag() + kLongLengthShift));
+                  value << (shape.size_tag() + kLongLengthShift));
 }
 
 
@@ -1305,31 +1399,34 @@ void String::set_length_field(uint32_t value) {
 }
 
 
-void String::TryFlatten() {
+void String::TryFlatten(StringShape shape) {
+  ASSERT(shape.type() == StringShape(this).type());
   // We don't need to flatten strings that are already flat.  Since this code
   // is inlined, it can be helpful in the flat case to not call out to Flatten.
-  StringRepresentationTag str_type = representation_tag();
-  if (str_type != kSeqStringTag && str_type != kExternalStringTag) {
-    Flatten();
+  if (!IsFlat(shape)) {
+    Flatten(shape);
   }
 }
 
 
-uint16_t String::Get(int index) {
-  ASSERT(index >= 0 && index < length());
-  switch (representation_tag()) {
-    case kSeqStringTag:
-      return is_ascii_representation()
-        ? SeqAsciiString::cast(this)->SeqAsciiStringGet(index)
-        : SeqTwoByteString::cast(this)->SeqTwoByteStringGet(index);
-    case kConsStringTag:
+uint16_t String::Get(StringShape shape, int index) {
+  ASSERT(shape.type() == StringShape(this).type());
+  ASSERT(index >= 0 && index < length(shape));
+  switch (shape.full_representation_tag()) {
+    case kSeqStringTag | kAsciiStringTag:
+      return SeqAsciiString::cast(this)->SeqAsciiStringGet(index);
+    case kSeqStringTag | kTwoByteStringTag:
+      return SeqTwoByteString::cast(this)->SeqTwoByteStringGet(index);
+    case kConsStringTag | kAsciiStringTag:
+    case kConsStringTag | kTwoByteStringTag:
       return ConsString::cast(this)->ConsStringGet(index);
-    case kSlicedStringTag:
+    case kSlicedStringTag | kAsciiStringTag:
+    case kSlicedStringTag | kTwoByteStringTag:
       return SlicedString::cast(this)->SlicedStringGet(index);
-    case kExternalStringTag:
-      return is_ascii_representation()
-        ? ExternalAsciiString::cast(this)->ExternalAsciiStringGet(index)
-        : ExternalTwoByteString::cast(this)->ExternalTwoByteStringGet(index);
+    case kExternalStringTag | kAsciiStringTag:
+      return ExternalAsciiString::cast(this)->ExternalAsciiStringGet(index);
+    case kExternalStringTag | kTwoByteStringTag:
+      return ExternalTwoByteString::cast(this)->ExternalTwoByteStringGet(index);
     default:
       break;
   }
@@ -1339,86 +1436,29 @@ uint16_t String::Get(int index) {
 }
 
 
-void String::Set(int index, uint16_t value) {
-  ASSERT(index >= 0 && index < length());
-  ASSERT(IsSeqString());
+void String::Set(StringShape shape, int index, uint16_t value) {
+  ASSERT(shape.type() == StringShape(this).type());
+  ASSERT(shape.type() == StringShape(this).type());
+  ASSERT(index >= 0 && index < length(shape));
+  ASSERT(shape.IsSequential());
 
-  return is_ascii_representation()
+  return shape.IsAsciiRepresentation()
       ? SeqAsciiString::cast(this)->SeqAsciiStringSet(index, value)
       : SeqTwoByteString::cast(this)->SeqTwoByteStringSet(index, value);
 }
 
 
-bool String::IsAsciiRepresentation() {
-  return is_ascii_representation();
-}
-
-
-bool String::StringIsConsString() {
-  return representation_tag() == kConsStringTag;
-}
-
-
-bool String::StringIsSlicedString() {
-  return representation_tag() == kSlicedStringTag;
-}
-
-
-uint32_t String::size_tag() {
-  return map_size_tag(map());
-}
-
-
-uint32_t String::map_size_tag(Map* map) {
-  return map->instance_type() & kStringSizeMask;
-}
-
-
-bool String::is_symbol() {
-  return is_symbol_map(map());
-}
-
-
-bool String::is_symbol_map(Map* map) {
-  return (map->instance_type() & kIsSymbolMask) != 0;
-}
-
-
-bool String::is_ascii_representation() {
-  return is_ascii_representation_map(map());
-}
-
-
-bool String::is_ascii_representation_map(Map* map) {
-  return (map->instance_type() & kStringEncodingMask) != 0;
-}
-
-
-int String::full_representation_tag() {
-  return map()->instance_type() &
-         (kStringRepresentationMask | kStringEncodingMask);
-}
-
-
-StringRepresentationTag String::representation_tag() {
-  return map_representation_tag(map());
-}
-
-
-StringRepresentationTag String::map_representation_tag(Map* map) {
-  uint32_t tag = map->instance_type() & kStringRepresentationMask;
-  return static_cast<StringRepresentationTag>(tag);
-}
-
-
-bool String::IsFlat() {
-  switch (this->representation_tag()) {
-    case kConsStringTag:
+bool String::IsFlat(StringShape shape) {
+  ASSERT(shape.type() == StringShape(this).type());
+  switch (shape.representation_tag()) {
+    case kConsStringTag: {
+      String* second = ConsString::cast(this)->second();
       // Only flattened strings have second part empty.
-      return String::cast(ConsString::cast(this)->second())->length() == 0;
+      return second->length() == 0;
+    }
     case kSlicedStringTag: {
-      String* slice = String::cast(SlicedString::cast(this)->buffer());
-      StringRepresentationTag tag = slice->representation_tag();
+      StringShape slice_shape = StringShape(SlicedString::cast(this)->buffer());
+      StringRepresentationTag tag = slice_shape.representation_tag();
       return tag == kSeqStringTag || tag == kExternalStringTag;
     }
     default:
@@ -1472,7 +1512,7 @@ void SeqTwoByteString::SeqTwoByteStringSet(int index, uint16_t value) {
 }
 
 
-int SeqTwoByteString::SeqTwoByteStringSize(Map* map) {
+int SeqTwoByteString::SeqTwoByteStringSize(StringShape shape) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
   ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
@@ -1481,13 +1521,13 @@ int SeqTwoByteString::SeqTwoByteStringSize(Map* map) {
 
   // Use the map (and not 'this') to compute the size tag, since
   // TwoByteStringSize is called during GC when maps are encoded.
-  length >>= map_size_tag(map) + kLongLengthShift;
+  length >>= shape.size_tag() + kLongLengthShift;
 
   return SizeFor(length);
 }
 
 
-int SeqAsciiString::SeqAsciiStringSize(Map* map) {
+int SeqAsciiString::SeqAsciiStringSize(StringShape shape) {
   uint32_t length = READ_INT_FIELD(this, kLengthOffset);
 
   ASSERT(kShortStringTag + kLongLengthShift == kShortLengthShift);
@@ -1496,40 +1536,50 @@ int SeqAsciiString::SeqAsciiStringSize(Map* map) {
 
   // Use the map (and not 'this') to compute the size tag, since
   // AsciiStringSize is called during GC when maps are encoded.
-  length >>= map_size_tag(map) + kLongLengthShift;
+  length >>= shape.size_tag() + kLongLengthShift;
 
   return SizeFor(length);
 }
 
 
-Object* ConsString::first() {
+String* ConsString::first() {
+  return String::cast(READ_FIELD(this, kFirstOffset));
+}
+
+
+Object* ConsString::unchecked_first() {
   return READ_FIELD(this, kFirstOffset);
 }
 
 
-void ConsString::set_first(Object* value, WriteBarrierMode mode) {
+void ConsString::set_first(String* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kFirstOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kFirstOffset, mode);
 }
 
 
-Object* ConsString::second() {
+String* ConsString::second() {
+  return String::cast(READ_FIELD(this, kSecondOffset));
+}
+
+
+Object* ConsString::unchecked_second() {
   return READ_FIELD(this, kSecondOffset);
 }
 
 
-void ConsString::set_second(Object* value, WriteBarrierMode mode) {
+void ConsString::set_second(String* value, WriteBarrierMode mode) {
   WRITE_FIELD(this, kSecondOffset, value);
   CONDITIONAL_WRITE_BARRIER(this, kSecondOffset, mode);
 }
 
 
-Object* SlicedString::buffer() {
-  return READ_FIELD(this, kBufferOffset);
+String* SlicedString::buffer() {
+  return String::cast(READ_FIELD(this, kBufferOffset));
 }
 
 
-void SlicedString::set_buffer(Object* buffer) {
+void SlicedString::set_buffer(String* buffer) {
   WRITE_FIELD(this, kBufferOffset, buffer);
   WRITE_BARRIER(this, kBufferOffset);
 }

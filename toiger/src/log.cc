@@ -350,11 +350,12 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 void Logger::LogString(Handle<String> str) {
-  int len = str->length();
+  StringShape shape(*str);
+  int len = str->length(shape);
   if (len > 256)
     len = 256;
   for (int i = 0; i < len; i++) {
-    uc32 c = str->Get(i);
+    uc32 c = str->Get(shape, i);
     if (c < 32 || (c > 126 && c <= 255)) {
       fprintf(logfile_, "\\x%02x", c);
     } else if (c > 255) {
@@ -430,7 +431,8 @@ void Logger::RegExpExecEvent(Handle<JSRegExp> regexp,
   LogRegExpSource(regexp);
   fprintf(logfile_, ",");
   LogString(input_string);
-  fprintf(logfile_, ",%d..%d\n", start_index, input_string->length());
+  StringShape shape(*input_string);
+  fprintf(logfile_, ",%d..%d\n", start_index, input_string->length(shape));
 #endif
 }
 

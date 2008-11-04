@@ -494,7 +494,10 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateConsString(String* first, String* second);
+  static Object* AllocateConsString(String* first,
+                                    StringShape first_shape,
+                                    String* second,
+                                    StringShape second_shape);
 
   // Allocates a new sliced string object which is a slice of an underlying
   // string buffer stretching from the index start (inclusive) to the index
@@ -502,7 +505,10 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateSlicedString(String* buffer, int start, int end);
+  static Object* AllocateSlicedString(String* buffer,
+                                      StringShape buffer_shape,
+                                      int start,
+                                      int end);
 
   // Allocates a new sub string object which is a substring of an underlying
   // string buffer stretching from the index start (inclusive) to the index
@@ -510,7 +516,10 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this does not perform a garbage collection.
-  static Object* AllocateSubString(String* buffer, int start, int end);
+  static Object* AllocateSubString(String* buffer,
+                                   StringShape buffer_shape,
+                                   int start,
+                                   int end);
 
   // Allocate a new external string object, which is backed by a string
   // resource that resides outside the V8 heap.

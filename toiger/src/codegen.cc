@@ -330,12 +330,14 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
     {&v8::internal::CodeGenerator::GenerateObjectEquals,
      "_ObjectEquals"}
   };
-  if (node->name()->length() > 0 && node->name()->Get(0) == '_') {
+  Handle<String> name = node->name();
+  StringShape shape(*name);
+  if (name->length(shape) > 0 && name->Get(shape, 0) == '_') {
     for (unsigned i = 0;
          i < sizeof(kInlineRuntimeLUT) / sizeof(InlineRuntimeLUT);
          i++) {
       const InlineRuntimeLUT* entry = kInlineRuntimeLUT + i;
-      if (node->name()->IsEqualTo(CStrVector(entry->name))) {
+      if (name->IsEqualTo(CStrVector(entry->name))) {
         ((*this).*(entry->method))(args);
         return true;
       }

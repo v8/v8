@@ -62,7 +62,8 @@ static void InitializeBuildingBlocks(
         building_blocks[i] =
             Factory::NewStringFromTwoByte(Vector<const uc16>(buf, len));
         for (int j = 0; j < len; j++) {
-          CHECK_EQ(buf[j], building_blocks[i]->Get(j));
+          StringShape shape(*building_blocks[i]);
+          CHECK_EQ(buf[j], building_blocks[i]->Get(shape, j));
         }
         break;
       }
@@ -74,7 +75,8 @@ static void InitializeBuildingBlocks(
         building_blocks[i] =
             Factory::NewStringFromAscii(Vector<const char>(buf, len));
         for (int j = 0; j < len; j++) {
-          CHECK_EQ(buf[j], building_blocks[i]->Get(j));
+          StringShape shape(*building_blocks[i]);
+          CHECK_EQ(buf[j], building_blocks[i]->Get(shape, j));
         }
         break;
       }
@@ -99,7 +101,8 @@ static void InitializeBuildingBlocks(
         Resource* resource = new Resource(Vector<const uc16>(buf, len));
         building_blocks[i] = Factory::NewExternalStringFromTwoByte(resource);
         for (int j = 0; j < len; j++) {
-          CHECK_EQ(buf[j], building_blocks[i]->Get(j));
+          StringShape shape(*building_blocks[i]);
+          CHECK_EQ(buf[j], building_blocks[i]->Get(shape, j));
         }
         break;
       }
@@ -111,7 +114,8 @@ static void InitializeBuildingBlocks(
         building_blocks[i] =
             Factory::NewStringFromAscii(Vector<const char>(buf, len));
         for (int j = 0; j < len; j++) {
-          CHECK_EQ(buf[j], building_blocks[i]->Get(j));
+          StringShape shape(*building_blocks[i]);
+          CHECK_EQ(buf[j], building_blocks[i]->Get(shape, j));
         }
         break;
       }
@@ -125,9 +129,11 @@ static Handle<String> ConstructLeft(
     int depth) {
   Handle<String> answer = Factory::NewStringFromAscii(CStrVector(""));
   for (int i = 0; i < depth; i++) {
-    answer =
-        Factory::NewConsString(answer,
-                               building_blocks[i % NUMBER_OF_BUILDING_BLOCKS]);
+    answer = Factory::NewConsString(
+        answer,
+        StringShape(*answer),
+        building_blocks[i % NUMBER_OF_BUILDING_BLOCKS],
+        StringShape(*building_blocks[i % NUMBER_OF_BUILDING_BLOCKS]));
   }
   return answer;
 }
@@ -138,9 +144,11 @@ static Handle<String> ConstructRight(
     int depth) {
   Handle<String> answer = Factory::NewStringFromAscii(CStrVector(""));
   for (int i = depth - 1; i >= 0; i--) {
-    answer =
-        Factory::NewConsString(building_blocks[i % NUMBER_OF_BUILDING_BLOCKS],
-                               answer);
+    answer = Factory::NewConsString(
+        building_blocks[i % NUMBER_OF_BUILDING_BLOCKS],
+        StringShape(*building_blocks[i % NUMBER_OF_BUILDING_BLOCKS]),
+        answer,
+        StringShape(*answer));
   }
   return answer;
 }
@@ -157,11 +165,19 @@ static Handle<String> ConstructBalancedHelper(
   if (to - from == 2) {
     return Factory::NewConsString(
         building_blocks[from % NUMBER_OF_BUILDING_BLOCKS],
-        building_blocks[(from+1) % NUMBER_OF_BUILDING_BLOCKS]);
+        StringShape(*building_blocks[from % NUMBER_OF_BUILDING_BLOCKS]),
+        building_blocks[(from+1) % NUMBER_OF_BUILDING_BLOCKS],
+        StringShape(*building_blocks[(from+1) % NUMBER_OF_BUILDING_BLOCKS]));
   }
+  Handle<String> part1 =
+    ConstructBalancedHelper(building_blocks, from, from + ((to - from) / 2));
+  Handle<String> part2 =
+    ConstructBalancedHelper(building_blocks, from + ((to - from) / 2), to);
   return Factory::NewConsString(
-    ConstructBalancedHelper(building_blocks, from, from + ((to - from) / 2)),
-    ConstructBalancedHelper(building_blocks, from + ((to - from) / 2), to));
+      part1,
+      StringShape(*part1),
+      part2,
+      StringShape(*part2));
 }
 
 
@@ -199,8 +215,10 @@ static void TraverseFirst(Handle<String> s1, Handle<String> s2, int chars) {
     CHECK_EQ(c, buffer2.GetNext());
     i++;
   }
-  s1->Get(s1->length() - 1);
-  s2->Get(s2->length() - 1);
+  StringShape shape1(*s1);
+  StringShape shape2(*s2);
+  s1->Get(shape1, s1->length(shape1) - 1);
+  s2->Get(shape2, s2->length(shape2) - 1);
 }
 
 
@@ -233,10 +251,12 @@ TEST(Traverse) {
   printf("7\n");
   Handle<String> right_deep_slice =
       Factory::NewStringSlice(left_deep_asymmetric,
+                              StringShape(*left_deep_asymmetric),
                               left_deep_asymmetric->length() - 1050,
                               left_deep_asymmetric->length() - 50);
   Handle<String> left_deep_slice =
       Factory::NewStringSlice(right_deep_asymmetric,
+                              StringShape(*right_deep_asymmetric),
                               right_deep_asymmetric->length() - 1050,
                               right_deep_asymmetric->length() - 50);
   printf("8\n");
@@ -262,7 +282,10 @@ TEST(Traverse) {
 static Handle<String> SliceOf(Handle<String> underlying) {
   int start = gen() % underlying->length();
   int end = start + gen() % (underlying->length() - start);
-  return Factory::NewStringSlice(underlying, start, end);
+  return Factory::NewStringSlice(underlying,
+                                 StringShape(*underlying),
+                                 start,
+                                 end);
 }
 
 
@@ -280,11 +303,19 @@ static Handle<String> ConstructSliceTree(
     Handle<String> rhs = building_blocks[(from+1) % NUMBER_OF_BUILDING_BLOCKS];
     if (gen() % 2 == 0)
       rhs = SliceOf(rhs);
-    return Factory::NewConsString(lhs, rhs);
+    return Factory::NewConsString(lhs,
+                                  StringShape(*lhs),
+                                  rhs,
+                                  StringShape(*rhs));
   }
-  Handle<String> branch = Factory::NewConsString(
-    ConstructBalancedHelper(building_blocks, from, from + ((to - from) / 2)),
-    ConstructBalancedHelper(building_blocks, from + ((to - from) / 2), to));
+  Handle<String> part1 =
+    ConstructBalancedHelper(building_blocks, from, from + ((to - from) / 2));
+  Handle<String> part2 =
+    ConstructBalancedHelper(building_blocks, from + ((to - from) / 2), to);
+  Handle<String> branch = Factory::NewConsString(part1,
+                                                 StringShape(*part1),
+                                                 part2,
+                                                 StringShape(*part2));
   if (gen() % 2 == 0)
     return branch;
   return(SliceOf(branch));
@@ -324,9 +355,15 @@ TEST(DeepAscii) {
       Factory::NewStringFromAscii(Vector<const char>(foo, DEEP_ASCII_DEPTH));
   Handle<String> foo_string = Factory::NewStringFromAscii(CStrVector("foo"));
   for (int i = 0; i < DEEP_ASCII_DEPTH; i += 10) {
-    string = Factory::NewConsString(string, foo_string);
+    string = Factory::NewConsString(string,
+                                    StringShape(*string),
+                                    foo_string,
+                                    StringShape(*foo_string));
   }
-  Handle<String> flat_string = Factory::NewConsString(string, foo_string);
+  Handle<String> flat_string = Factory::NewConsString(string,
+                                                      StringShape(*string),
+                                                      foo_string,
+                                                      StringShape(*foo_string));
   FlattenString(flat_string);
 
   for (int i = 0; i < 500; i++) {

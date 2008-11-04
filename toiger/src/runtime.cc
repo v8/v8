@@ -969,9 +969,12 @@ static Object* CharCodeAt(String* subject, Object* index) {
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
-  subject->TryFlatten();
-  if (i >= static_cast<uint32_t>(subject->length())) return Heap::nan_value();
-  return Smi::FromInt(subject->Get(i));
+  StringShape shape(subject);
+  subject->TryFlatten(shape);  // shape no longer valid!
+  if (i >= static_cast<uint32_t>(subject->length(StringShape(subject)))) {
+    return Heap::nan_value();
+  }
+  return Smi::FromInt(subject->Get(StringShape(subject), i));
 }
 
 
@@ -1351,39 +1354,51 @@ int Runtime::StringMatch(Handle<String> sub,
                          Handle<String> pat,
                          int start_index) {
   ASSERT(0 <= start_index);
-  ASSERT(start_index <= sub->length());
+  StringShape sub_shape(*sub);
+  StringShape pat_shape(*pat);
+  ASSERT(start_index <= sub->length(sub_shape));
 
-  int pattern_length = pat->length();
+  int pattern_length = pat->length(pat_shape);
   if (pattern_length == 0) return start_index;
 
-  int subject_length = sub->length();
+  int subject_length = sub->length(sub_shape);
   if (start_index + pattern_length > subject_length) return -1;
 
-  FlattenString(sub);
+  if (!sub->IsFlat(sub_shape)) {
+    FlattenString(sub);
+    sub_shape = StringShape(*sub);
+  }
   // Searching for one specific character is common.  For one
   // character patterns linear search is necessary, so any smart
   // algorithm is unnecessary overhead.
   if (pattern_length == 1) {
     AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-    if (sub->is_ascii_representation()) {
-      return SingleCharIndexOf(sub->ToAsciiVector(), pat->Get(0), start_index);
+    if (sub_shape.IsAsciiRepresentation()) {
+      return SingleCharIndexOf(sub->ToAsciiVector(),
+                               pat->Get(pat_shape, 0),
+                               start_index);
     }
-    return SingleCharIndexOf(sub->ToUC16Vector(), pat->Get(0), start_index);
+    return SingleCharIndexOf(sub->ToUC16Vector(),
+                             pat->Get(pat_shape, 0),
+                             start_index);
   }
 
-  FlattenString(pat);
+  if (!pat->IsFlat(pat_shape)) {
+    FlattenString(pat);
+    pat_shape = StringShape(*pat);
+  }
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
   // dispatch on type of strings
-  if (pat->is_ascii_representation()) {
+  if (pat_shape.IsAsciiRepresentation()) {
     Vector<const char> pat_vector = pat->ToAsciiVector();
-    if (sub->is_ascii_representation()) {
+    if (sub_shape.IsAsciiRepresentation()) {
       return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
     }
     return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
   }
   Vector<const uc16> pat_vector = pat->ToUC16Vector();
-  if (sub->is_ascii_representation()) {
+  if (sub_shape.IsAsciiRepresentation()) {
     return StringMatchStrategy(sub->ToAsciiVector(), pat_vector, start_index);
   }
   return StringMatchStrategy(sub->ToUC16Vector(), pat_vector, start_index);
@@ -1415,14 +1430,17 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   CONVERT_CHECKED(String, pat, args[1]);
   Object* index = args[2];
 
-  sub->TryFlatten();
-  pat->TryFlatten();
+  sub->TryFlatten(StringShape(sub));
+  pat->TryFlatten(StringShape(pat));
+
+  StringShape sub_shape(sub);
+  StringShape pat_shape(pat);
 
   uint32_t start_index;
   if (!Array::IndexFromObject(index, &start_index)) return Smi::FromInt(-1);
 
-  uint32_t pattern_length = pat->length();
-  uint32_t sub_length = sub->length();
+  uint32_t pattern_length = pat->length(pat_shape);
+  uint32_t sub_length = sub->length(sub_shape);
 
   if (start_index + pattern_length > sub_length) {
     start_index = sub_length - pattern_length;
@@ -1431,7 +1449,7 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   for (int i = start_index; i >= 0; i--) {
     bool found = true;
     for (uint32_t j = 0; j < pattern_length; j++) {
-      if (sub->Get(i + j) != pat->Get(j)) {
+      if (sub->Get(sub_shape, i + j) != pat->Get(pat_shape, j)) {
         found = false;
         break;
       }
@@ -1451,8 +1469,10 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
   CONVERT_CHECKED(String, str2, args[1]);
 
   if (str1 == str2) return Smi::FromInt(0);  // Equal.
-  int str1_length = str1->length();
-  int str2_length = str2->length();
+  StringShape shape1(str1);
+  StringShape shape2(str2);
+  int str1_length = str1->length(shape1);
+  int str2_length = str2->length(shape2);
 
   // Decide trivial cases without flattening.
   if (str1_length == 0) {
@@ -1467,11 +1487,11 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
   // No need to flatten if we are going to find the answer on the first
   // character.  At this point we know there is at least one character
   // in each string, due to the trivial case handling above.
-  int d = str1->Get(0) - str2->Get(0);
+  int d = str1->Get(shape1, 0) - str2->Get(shape2, 0);
   if (d != 0) return Smi::FromInt(d);
 
-  str1->TryFlatten();
-  str2->TryFlatten();
+  str1->TryFlatten(shape1);  // Shapes are no longer valid now!
+  str2->TryFlatten(shape2);
 
   static StringInputBuffer buf1;
   static StringInputBuffer buf2;
@@ -1500,10 +1520,12 @@ static Object* Runtime_StringSlice(Arguments args) {
   int start = FastD2I(from_number);
   int end = FastD2I(to_number);
 
+  StringShape shape(value);
+
   RUNTIME_ASSERT(end >= start);
   RUNTIME_ASSERT(start >= 0);
-  RUNTIME_ASSERT(end <= value->length());
-  return value->Slice(start, end);
+  RUNTIME_ASSERT(end <= value->length(shape));
+  return value->Slice(shape, start, end);
 }
 
 
@@ -1606,9 +1628,11 @@ static Object* Runtime_NumberToPrecision(Arguments args) {
 // Returns a single character string where first character equals
 // string->Get(index).
 static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
-  if (index < static_cast<uint32_t>(string->length())) {
-    string->TryFlatten();
-    return LookupSingleCharacterStringFromCode(string->Get(index));
+  StringShape shape(*string);
+  if (index < static_cast<uint32_t>(string->length(shape))) {
+    string->TryFlatten(shape);  // Invalidates shape!
+    return LookupSingleCharacterStringFromCode(
+        string->Get(StringShape(*string), index));
   }
   return Execution::CharAt(string, index);
 }
@@ -1793,7 +1817,7 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
       result = SetElement(js_object, index, value);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
-      key_string->TryFlatten();
+      key_string->TryFlatten(StringShape(*key_string));
       result = SetProperty(js_object, key_string, value, attr);
     }
     if (result.is_null()) return Failure::Exception();
@@ -1884,7 +1908,8 @@ static Object* Runtime_HasLocalProperty(Arguments args) {
     uint32_t index;
     if (key->AsArrayIndex(&index)) {
       String* string = String::cast(args[0]);
-      if (index < static_cast<uint32_t>(string->length()))
+      StringShape shape(string);
+      if (index < static_cast<uint32_t>(string->length(shape)))
         return Heap::true_value();
     }
   }
@@ -1933,10 +1958,8 @@ static Object* Runtime_IsPropertyEnumerable(Arguments args) {
     return Heap::ToBoolean(object->HasElement(index));
   }
 
-  LookupResult result;
-  object->LocalLookup(key, &result);
-  if (!result.IsProperty()) return Heap::false_value();
-  return Heap::ToBoolean(!result.IsDontEnum());
+  PropertyAttributes att = object->GetLocalPropertyAttribute(key);
+  return Heap::ToBoolean(att != ABSENT && (att & DONT_ENUM) == 0);
 }
 
 
@@ -2067,7 +2090,7 @@ static Object* Runtime_StringToNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, subject, args[0]);
-  subject->TryFlatten();
+  subject->TryFlatten(StringShape(subject));
   return Heap::NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
 }
 
@@ -2097,10 +2120,11 @@ static Object* Runtime_StringFromCharCodeArray(Arguments args) {
 
   if (object->IsFailure()) return object;
   String* result = String::cast(object);
+  StringShape result_shape(result);
   for (int i = 0; i < length; i++) {
     Object* element = codes->GetElement(i);
     CONVERT_NUMBER_CHECKED(int, chr, Int32, element);
-    result->Set(i, chr & 0xffff);
+    result->Set(result_shape, i, chr & 0xffff);
   }
   return result;
 }
@@ -2149,7 +2173,7 @@ static Object* Runtime_URIEscape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlatten();
+  source->TryFlatten(StringShape(source));
 
   int escaped_length = 0;
   int length = source->length();
@@ -2179,27 +2203,28 @@ static Object* Runtime_URIEscape(Arguments args) {
   Object* o = Heap::AllocateRawAsciiString(escaped_length);
   if (o->IsFailure()) return o;
   String* destination = String::cast(o);
+  StringShape dshape(destination);
   int dest_position = 0;
 
   Access<StringInputBuffer> buffer(&string_input_buffer);
   buffer->Rewind();
   while (buffer->has_more()) {
-    uint16_t character = buffer->GetNext();
-    if (character >= 256) {
-      destination->Set(dest_position, '%');
-      destination->Set(dest_position+1, 'u');
-      destination->Set(dest_position+2, hex_chars[character >> 12]);
-      destination->Set(dest_position+3, hex_chars[(character >> 8) & 0xf]);
-      destination->Set(dest_position+4, hex_chars[(character >> 4) & 0xf]);
-      destination->Set(dest_position+5, hex_chars[character & 0xf]);
+    uint16_t chr = buffer->GetNext();
+    if (chr >= 256) {
+      destination->Set(dshape, dest_position, '%');
+      destination->Set(dshape, dest_position+1, 'u');
+      destination->Set(dshape, dest_position+2, hex_chars[chr >> 12]);
+      destination->Set(dshape, dest_position+3, hex_chars[(chr >> 8) & 0xf]);
+      destination->Set(dshape, dest_position+4, hex_chars[(chr >> 4) & 0xf]);
+      destination->Set(dshape, dest_position+5, hex_chars[chr & 0xf]);
       dest_position += 6;
-    } else if (IsNotEscaped(character)) {
-      destination->Set(dest_position, character);
+    } else if (IsNotEscaped(chr)) {
+      destination->Set(dshape, dest_position, chr);
       dest_position++;
     } else {
-      destination->Set(dest_position, '%');
-      destination->Set(dest_position+1, hex_chars[character >> 4]);
-      destination->Set(dest_position+2, hex_chars[character & 0xf]);
+      destination->Set(dshape, dest_position, '%');
+      destination->Set(dshape, dest_position+1, hex_chars[chr >> 4]);
+      destination->Set(dshape, dest_position+2, hex_chars[chr & 0xf]);
       dest_position += 3;
     }
   }
@@ -2227,19 +2252,27 @@ static inline int TwoDigitHex(uint16_t character1, uint16_t character2) {
 }
 
 
-static inline int Unescape(String* source, int i, int length, int* step) {
-  uint16_t character = source->Get(i);
-  int32_t hi, lo;
+static inline int Unescape(String* source,
+                           StringShape shape,
+                           int i,
+                           int length,
+                           int* step) {
+  uint16_t character = source->Get(shape, i);
+  int32_t hi = 0;
+  int32_t lo = 0;
   if (character == '%' &&
       i <= length - 6 &&
-      source->Get(i + 1) == 'u' &&
-      (hi = TwoDigitHex(source->Get(i + 2), source->Get(i + 3))) != -1 &&
-      (lo = TwoDigitHex(source->Get(i + 4), source->Get(i + 5))) != -1) {
+      source->Get(shape, i + 1) == 'u' &&
+      (hi = TwoDigitHex(source->Get(shape, i + 2),
+                        source->Get(shape, i + 3))) != -1 &&
+      (lo = TwoDigitHex(source->Get(shape, i + 4),
+                        source->Get(shape, i + 5))) != -1) {
     *step = 6;
     return (hi << 8) + lo;
   } else if (character == '%' &&
       i <= length - 3 &&
-      (lo = TwoDigitHex(source->Get(i + 1), source->Get(i + 2))) != -1) {
+      (lo = TwoDigitHex(source->Get(shape, i + 1),
+                        source->Get(shape, i + 2))) != -1) {
     *step = 3;
     return lo;
   } else {
@@ -2254,15 +2287,21 @@ static Object* Runtime_URIUnescape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlatten();
+  source->TryFlatten(StringShape(source));
+  StringShape source_shape(source);
 
   bool ascii = true;
-  int length = source->length();
+  int length = source->length(source_shape);
 
   int unescaped_length = 0;
   for (int i = 0; i < length; unescaped_length++) {
     int step;
-    if (Unescape(source, i, length, &step) > String::kMaxAsciiCharCode)
+    if (Unescape(source,
+                 source_shape,
+                 i,
+                 length,
+                 &step) >
+        String::kMaxAsciiCharCode)
       ascii = false;
     i += step;
   }
@@ -2276,11 +2315,14 @@ static Object* Runtime_URIUnescape(Arguments args) {
               Heap::AllocateRawTwoByteString(unescaped_length);
   if (o->IsFailure()) return o;
   String* destination = String::cast(o);
+  StringShape destination_shape(destination);
 
   int dest_position = 0;
   for (int i = 0; i < length; dest_position++) {
     int step;
-    destination->Set(dest_position, Unescape(source, i, length, &step));
+    destination->Set(destination_shape,
+                     dest_position,
+                     Unescape(source, source_shape, i, length, &step));
     i += step;
   }
   return destination;
@@ -2294,31 +2336,33 @@ static Object* Runtime_StringParseInt(Arguments args) {
   CONVERT_DOUBLE_CHECKED(n, args[1]);
   int radix = FastD2I(n);
 
-  s->TryFlatten();
+  s->TryFlatten(StringShape(s));
 
-  int len = s->length();
+  StringShape shape(s);
+
+  int len = s->length(shape);
   int i;
 
   // Skip leading white space.
-  for (i = 0; i < len && Scanner::kIsWhiteSpace.get(s->Get(i)); i++) ;
+  for (i = 0; i < len && Scanner::kIsWhiteSpace.get(s->Get(shape, i)); i++) ;
   if (i == len) return Heap::nan_value();
 
   // Compute the sign (default to +).
   int sign = 1;
-  if (s->Get(i) == '-') {
+  if (s->Get(shape, i) == '-') {
     sign = -1;
     i++;
-  } else if (s->Get(i) == '+') {
+  } else if (s->Get(shape, i) == '+') {
     i++;
   }
 
   // Compute the radix if 0.
   if (radix == 0) {
     radix = 10;
-    if (i < len && s->Get(i) == '0') {
+    if (i < len && s->Get(shape, i) == '0') {
       radix = 8;
       if (i + 1 < len) {
-        int c = s->Get(i + 1);
+        int c = s->Get(shape, i + 1);
         if (c == 'x' || c == 'X') {
           radix = 16;
           i += 2;
@@ -2327,8 +2371,8 @@ static Object* Runtime_StringParseInt(Arguments args) {
     }
   } else if (radix == 16) {
     // Allow 0x or 0X prefix if radix is 16.
-    if (i + 1 < len && s->Get(i) == '0') {
-      int c = s->Get(i + 1);
+    if (i + 1 < len && s->Get(shape, i) == '0') {
+      int c = s->Get(shape, i + 1);
       if (c == 'x' || c == 'X') i += 2;
     }
   }
@@ -2365,12 +2409,14 @@ static Object* ConvertCase(Arguments args,
   NoHandleAllocation ha;
 
   CONVERT_CHECKED(String, s, args[0]);
-  int raw_string_length = s->length();
+  s->TryFlatten(StringShape(s));
+  StringShape shape(s);
+
+  int raw_string_length = s->length(shape);
   // Assume that the string is not empty; we need this assumption later
   if (raw_string_length == 0) return s;
   int length = raw_string_length;
 
-  s->TryFlatten();
 
   // We try this twice, once with the assumption that the result is
   // no longer than the input and, if that assumption breaks, again
@@ -2386,11 +2432,12 @@ static Object* ConvertCase(Arguments args,
   // character is also ascii.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
-  Object* o = s->IsAsciiRepresentation()
+  Object* o = shape.IsAsciiRepresentation()
       ? Heap::AllocateRawAsciiString(length)
       : Heap::AllocateRawTwoByteString(length);
   if (o->IsFailure()) return o;
   String* result = String::cast(o);
+  StringShape result_shape(result);
   bool has_changed_character = false;
 
   // Convert all characters to upper case, assuming that they will fit
@@ -2407,12 +2454,12 @@ static Object* ConvertCase(Arguments args,
     int char_length = mapping->get(current, next, chars);
     if (char_length == 0) {
       // The case conversion of this character is the character itself.
-      result->Set(i, current);
+      result->Set(result_shape, i, current);
       i++;
     } else if (char_length == 1) {
       // Common case: converting the letter resulted in one character.
       ASSERT(static_cast<uc32>(chars[0]) != current);
-      result->Set(i, chars[0]);
+      result->Set(result_shape, i, chars[0]);
       has_changed_character = true;
       i++;
     } else if (length == raw_string_length) {
@@ -2447,7 +2494,7 @@ static Object* ConvertCase(Arguments args,
       goto try_convert;
     } else {
       for (int j = 0; j < char_length; j++) {
-        result->Set(i, chars[j]);
+        result->Set(result_shape, i, chars[j]);
         i++;
       }
       has_changed_character = true;
@@ -2473,22 +2520,6 @@ static Object* Runtime_StringToLowerCase(Arguments args) {
 
 static Object* Runtime_StringToUpperCase(Arguments args) {
   return ConvertCase<unibrow::ToUppercase>(args, &to_upper_mapping);
-}
-
-
-static Object* Runtime_ConsStringFst(Arguments args) {
-  NoHandleAllocation ha;
-
-  CONVERT_CHECKED(ConsString, str, args[0]);
-  return str->first();
-}
-
-
-static Object* Runtime_ConsStringSnd(Arguments args) {
-  NoHandleAllocation ha;
-
-  CONVERT_CHECKED(ConsString, str, args[0]);
-  return str->second();
 }
 
 
@@ -2555,6 +2586,26 @@ static Object* Runtime_NumberToJSInt32(Arguments args) {
   return Heap::NumberFromInt32(DoubleToInt32(number));
 }
 
+
+// Converts a Number to a Smi, if possible. Returns NaN if the number is not
+// a small integer.
+static Object* Runtime_NumberToSmi(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  Object* obj = args[0];
+  if (obj->IsSmi()) {
+    return obj;
+  }
+  if (obj->IsHeapNumber()) {
+    double value = HeapNumber::cast(obj)->value();
+    int int_value = FastD2I(value);
+    if (value == FastI2D(int_value) && Smi::IsValid(int_value)) {
+      return Smi::FromInt(int_value);
+    }
+  }
+  return Heap::nan_value();
+}
 
 static Object* Runtime_NumberAdd(Arguments args) {
   NoHandleAllocation ha;
@@ -2631,8 +2682,10 @@ static Object* Runtime_StringAdd(Arguments args) {
 
   CONVERT_CHECKED(String, str1, args[0]);
   CONVERT_CHECKED(String, str2, args[1]);
-  int len1 = str1->length();
-  int len2 = str2->length();
+  StringShape shape1(str1);
+  StringShape shape2(str2);
+  int len1 = str1->length(shape1);
+  int len2 = str2->length(shape2);
   if (len1 == 0) return str2;
   if (len2 == 0) return str1;
   int length_sum = len1 + len2;
@@ -2642,12 +2695,13 @@ static Object* Runtime_StringAdd(Arguments args) {
     Top::context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
-  return Heap::AllocateConsString(str1, str2);
+  return Heap::AllocateConsString(str1, shape1, str2, shape2);
 }
 
 
 template<typename sinkchar>
 static inline void StringBuilderConcatHelper(String* special,
+                                             StringShape special_shape,
                                              sinkchar* sink,
                                              FixedArray* fixed_array,
                                              int array_length) {
@@ -2658,12 +2712,17 @@ static inline void StringBuilderConcatHelper(String* special,
       int len = Smi::cast(element)->value();
       int pos = len >> 11;
       len &= 0x7ff;
-      String::WriteToFlat(special, sink + position, pos, pos + len);
+      String::WriteToFlat(special,
+                          special_shape,
+                          sink + position,
+                          pos,
+                          pos + len);
       position += len;
     } else {
       String* string = String::cast(element);
-      int element_length = string->length();
-      String::WriteToFlat(string, sink + position, 0, element_length);
+      StringShape shape(string);
+      int element_length = string->length(shape);
+      String::WriteToFlat(string, shape, sink + position, 0, element_length);
       position += element_length;
     }
   }
@@ -2675,7 +2734,8 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, array, args[0]);
   CONVERT_CHECKED(String, special, args[1]);
-  int special_length = special->length();
+  StringShape special_shape(special);
+  int special_length = special->length(special_shape);
   Object* smi_array_length = array->length();
   if (!smi_array_length->IsSmi()) {
     Top::context()->mark_out_of_memory();
@@ -2697,7 +2757,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (first->IsString()) return first;
   }
 
-  bool ascii = special->IsAsciiRepresentation();
+  bool ascii = special_shape.IsAsciiRepresentation();
   int position = 0;
   for (int i = 0; i < array_length; i++) {
     Object* elt = fixed_array->get(i);
@@ -2711,13 +2771,14 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
       position += len;
     } else if (elt->IsString()) {
       String* element = String::cast(elt);
-      int element_length = element->length();
+      StringShape element_shape(element);
+      int element_length = element->length(element_shape);
       if (!Smi::IsValid(element_length + position)) {
         Top::context()->mark_out_of_memory();
         return Failure::OutOfMemoryException();
       }
       position += element_length;
-      if (ascii && !element->IsAsciiRepresentation()) {
+      if (ascii && !element_shape.IsAsciiRepresentation()) {
         ascii = false;
       }
     } else {
@@ -2733,6 +2794,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (object->IsFailure()) return object;
     SeqAsciiString* answer = SeqAsciiString::cast(object);
     StringBuilderConcatHelper(special,
+                              special_shape,
                               answer->GetChars(),
                               fixed_array,
                               array_length);
@@ -2742,6 +2804,7 @@ static Object* Runtime_StringBuilderConcat(Arguments args) {
     if (object->IsFailure()) return object;
     SeqTwoByteString* answer = SeqTwoByteString::cast(object);
     StringBuilderConcatHelper(special,
+                              special_shape,
                               answer->GetChars(),
                               fixed_array,
                               array_length);
@@ -2936,21 +2999,24 @@ static Object* Runtime_StringCompare(Arguments args) {
   CONVERT_CHECKED(String, x, args[0]);
   CONVERT_CHECKED(String, y, args[1]);
 
+  StringShape x_shape(x);
+  StringShape y_shape(y);
+
   // A few fast case tests before we flatten.
   if (x == y) return Smi::FromInt(EQUAL);
-  if (y->length() == 0) {
-    if (x->length() == 0) return Smi::FromInt(EQUAL);
+  if (y->length(y_shape) == 0) {
+    if (x->length(x_shape) == 0) return Smi::FromInt(EQUAL);
     return Smi::FromInt(GREATER);
-  } else if (x->length() == 0) {
+  } else if (x->length(x_shape) == 0) {
     return Smi::FromInt(LESS);
   }
 
-  int d = x->Get(0) - y->Get(0);
+  int d = x->Get(x_shape, 0) - y->Get(y_shape, 0);
   if (d < 0) return Smi::FromInt(LESS);
   else if (d > 0) return Smi::FromInt(GREATER);
 
-  x->TryFlatten();
-  y->TryFlatten();
+  x->TryFlatten(x_shape);  // Shapes are no longer valid!
+  y->TryFlatten(y_shape);
 
   static StringInputBuffer bufx;
   static StringInputBuffer bufy;

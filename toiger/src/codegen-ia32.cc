@@ -1589,9 +1589,24 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // placeholders, and fill in the addresses after the labels have been
   // bound.
 
-  frame_->Pop(eax);  // supposed smi
+  frame_->Pop(eax);  // supposed Smi
   // check range of value, if outside [0..length-1] jump to default/end label.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+
+  // Test whether input is a HeapNumber that is really a Smi
+  JumpTarget is_smi(this);
+  __ test(eax, Immediate(kSmiTagMask));
+  is_smi.Branch(equal);
+  // It's a heap object, not a Smi or a Failure
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  __ cmp(ebx, HEAP_NUMBER_TYPE);
+  fail_label->Branch(not_equal);
+  // eax points to a heap number.
+  __ push(eax);
+  __ CallRuntime(Runtime::kNumberToSmi, 1);
+  is_smi.Bind();
+
   if (min_index != 0) {
     __ sub(Operand(eax), Immediate(min_index << kSmiTagSize));
   }
@@ -2119,13 +2134,13 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   frame_->PushTryHandler(TRY_CATCH_HANDLER);
   int handler_height = frame_->height();
 
-  // Shadow the labels for all escapes from the try block, including
-  // returns.  During shadowing, the original label is hidden as the
-  // LabelShadow and operations on the original actually affect the
-  // shadowing label.
+  // Shadow the jump targets for all escapes from the try block, including
+  // returns.  During shadowing, the original target is hidden as the
+  // ShadowTarget and operations on the original actually affect the
+  // shadowing target.
   //
-  // We should probably try to unify the escaping labels and the return
-  // label.
+  // We should probably try to unify the escaping targets and the return
+  // target.
   int nof_escapes = node->escaping_targets()->length();
   List<ShadowTarget*> shadows(1 + nof_escapes);
   shadows.Add(new ShadowTarget(&function_return_));
@@ -2142,8 +2157,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   is_inside_try_ = was_inside_try;
 
   // Stop the introduced shadowing and count the number of required unlinks.
-  // After shadowing stops, the original labels are unshadowed and the
-  // LabelShadows represent the formerly shadowing labels.
+  // After shadowing stops, the original targets are unshadowed and the
+  // ShadowTargets represent the formerly shadowing targets.
   int nof_unlinks = 0;
   for (int i = 0; i <= nof_escapes; i++) {
     shadows[i]->StopShadowing();
@@ -2174,7 +2189,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
     }
   }
 
-  // Generate unlink code for the (formerly) shadowing labels that have been
+  // Generate unlink code for the (formerly) shadowing targets that have been
   // jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
@@ -2228,13 +2243,13 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   frame_->PushTryHandler(TRY_FINALLY_HANDLER);
   int handler_height = frame_->height();
 
-  // Shadow the labels for all escapes from the try block, including
-  // returns.  During shadowing, the original label is hidden as the
-  // LabelShadow and operations on the original actually affect the
-  // shadowing label.
+  // Shadow the jump targets for all escapes from the try block, including
+  // returns.  During shadowing, the original target is hidden as the
+  // ShadowTarget and operations on the original actually affect the
+  // shadowing target.
   //
-  // We should probably try to unify the escaping labels and the return
-  // label.
+  // We should probably try to unify the escaping targets and the return
+  // target.
   int nof_escapes = node->escaping_targets()->length();
   List<ShadowTarget*> shadows(1 + nof_escapes);
   shadows.Add(new ShadowTarget(&function_return_));
@@ -2251,8 +2266,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   is_inside_try_ = was_inside_try;
 
   // Stop the introduced shadowing and count the number of required unlinks.
-  // After shadowing stops, the original labels are unshadowed and the
-  // LabelShadows represent the formerly shadowing labels.
+  // After shadowing stops, the original targets are unshadowed and the
+  // ShadowTargets represent the formerly shadowing targets.
   int nof_unlinks = 0;
   for (int i = 0; i <= nof_escapes; i++) {
     shadows[i]->StopShadowing();
@@ -2270,17 +2285,17 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     }
   }
 
-  // Generate code to set the state for the (formerly) shadowing labels that
+  // Generate code to set the state for the (formerly) shadowing targets that
   // have been jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       shadows[i]->Bind();
       if (shadows[i]->original_target() == &function_return_) {
-        // If this label shadowed the function return, materialize the
+        // If this target shadowed the function return, materialize the
         // return value on the stack.
         frame_->Push(eax);
       } else {
-        // Fake TOS for labels that shadowed breaks and continues.
+        // Fake TOS for targets that shadowed breaks and continues.
         frame_->Push(Immediate(Factory::undefined_value()));
       }
       __ Set(ecx, Immediate(Smi::FromInt(JUMPING + i)));
@@ -2330,7 +2345,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     frame_->Pop(eax);
 
     // Generate code to jump to the right destination for all used
-    // (formerly) shadowing labels.
+    // (formerly) shadowing targets.
     for (int i = 0; i <= nof_escapes; i++) {
       if (shadows[i]->is_bound()) {
         __ cmp(Operand(ecx), Immediate(Smi::FromInt(JUMPING + i)));

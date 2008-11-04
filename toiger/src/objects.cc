@@ -475,25 +475,26 @@ Failure* Failure::RetryAfterGC(int requested_bytes, AllocationSpace space) {
 // We don't use the BBC's overcorrect "an historic occasion" though if
 // you speak a dialect you may well say "an 'istoric occasion".
 static bool AnWord(String* str) {
-  if (str->length() == 0) return false;  // a nothing
-  int c0 = str->Get(0);
-  int c1 = str->length() > 1 ? str->Get(1) : 0;
+  StringShape shape(str);
+  if (str->length(shape) == 0) return false;  // A nothing.
+  int c0 = str->Get(shape, 0);
+  int c1 = str->length(shape) > 1 ? str->Get(shape, 1) : 0;
   if (c0 == 'U') {
     if (c1 > 'Z') {
-      return true;  // an Umpire, but a UTF8String, a U
+      return true;  // An Umpire, but a UTF8String, a U.
     }
   } else if (c0 == 'A' || c0 == 'E' || c0 == 'I' || c0 == 'O') {
-    return true;   // an Ape, an ABCBook
+    return true;    // An Ape, an ABCBook.
   } else if ((c1 == 0 || (c1 >= 'A' && c1 <= 'Z')) &&
            (c0 == 'F' || c0 == 'H' || c0 == 'M' || c0 == 'N' || c0 == 'R' ||
             c0 == 'S' || c0 == 'X')) {
-    return true;   // an MP3File, an M
+    return true;    // An MP3File, an M.
   }
   return false;
 }
 
 
-Object* String::Flatten() {
+Object* String::Flatten(StringShape shape) {
 #ifdef DEBUG
   // Do not attempt to flatten in debug mode when allocation is not
   // allowed.  This is to avoid an assertion failure when allocating.
@@ -502,44 +503,48 @@ Object* String::Flatten() {
   if (!Heap::IsAllocationAllowed()) return this;
 #endif
 
-  switch (representation_tag()) {
+  switch (shape.representation_tag()) {
     case kSlicedStringTag: {
       SlicedString* ss = SlicedString::cast(this);
       // The SlicedString constructor should ensure that there are no
       // SlicedStrings that are constructed directly on top of other
       // SlicedStrings.
-      ASSERT(!ss->buffer()->IsSlicedString());
-      Object* ok = String::cast(ss->buffer())->Flatten();
+      String* buf = ss->buffer();
+      ASSERT(!buf->IsSlicedString());
+      Object* ok = buf->Flatten(StringShape(buf));
       if (ok->IsFailure()) return ok;
       // Under certain circumstances (TryFlatten fails in String::Slice)
       // we can have a cons string under a slice.  In this case we need
       // to get the flat string out of the cons!
-      if (String::cast(ok)->StringIsConsString()) {
+      if (StringShape(String::cast(ok)).IsCons()) {
         ss->set_buffer(ConsString::cast(ok)->first());
       }
       return this;
     }
     case kConsStringTag: {
       ConsString* cs = ConsString::cast(this);
-      if (String::cast(cs->second())->length() == 0) {
+      if (cs->second()->length() == 0) {
         return this;
       }
       // There's little point in putting the flat string in new space if the
       // cons string is in old space.  It can never get GCed until there is
       // an old space GC.
       PretenureFlag tenure = Heap::InNewSpace(this) ? NOT_TENURED : TENURED;
-      int len = length();
+      int len = length(shape);
       Object* object;
       String* result;
-      if (IsAsciiRepresentation()) {
+      if (shape.IsAsciiRepresentation()) {
         object = Heap::AllocateRawAsciiString(len, tenure);
         if (object->IsFailure()) return object;
         result = String::cast(object);
-        String* first = String::cast(cs->first());
-        int first_length = first->length();
+        String* first = cs->first();
+        StringShape first_shape(first);
+        int first_length = first->length(first_shape);
         char* dest = SeqAsciiString::cast(result)->GetChars();
-        WriteToFlat(first, dest, 0, first_length);
-        WriteToFlat(String::cast(cs->second()),
+        WriteToFlat(first, first_shape, dest, 0, first_length);
+        String* second = cs->second();
+        WriteToFlat(second,
+                    StringShape(second),
                     dest + first_length,
                     0,
                     len - first_length);
@@ -548,10 +553,13 @@ Object* String::Flatten() {
         if (object->IsFailure()) return object;
         result = String::cast(object);
         uc16* dest = SeqTwoByteString::cast(result)->GetChars();
-        String* first = String::cast(cs->first());
-        int first_length = first->length();
-        WriteToFlat(first, dest, 0, first_length);
-        WriteToFlat(String::cast(cs->second()),
+        String* first = cs->first();
+        StringShape first_shape(first);
+        int first_length = first->length(first_shape);
+        WriteToFlat(first, first_shape, dest, 0, first_length);
+        String* second = cs->second();
+        WriteToFlat(second,
+                    StringShape(second),
                     dest + first_length,
                     0,
                     len - first_length);
@@ -567,7 +575,8 @@ Object* String::Flatten() {
 
 
 void String::StringShortPrint(StringStream* accumulator) {
-  int len = length();
+  StringShape shape(this);
+  int len = length(shape);
   if (len > kMaxMediumStringSize) {
     accumulator->Add("<Very long string[%u]>", len);
     return;
@@ -595,7 +604,7 @@ void String::StringShortPrint(StringStream* accumulator) {
   }
   buf.Reset(this);
   if (ascii) {
-    accumulator->Add("<String[%u]: ", length());
+    accumulator->Add("<String[%u]: ", length(shape));
     for (int i = 0; i < len; i++) {
       accumulator->Put(buf.GetNext());
     }
@@ -603,7 +612,7 @@ void String::StringShortPrint(StringStream* accumulator) {
   } else {
     // Backslash indicates that the string contains control
     // characters and that backslashes are therefore escaped.
-    accumulator->Add("<String[%u]\\: ", length());
+    accumulator->Add("<String[%u]\\: ", length(shape));
     for (int i = 0; i < len; i++) {
       int c = buf.GetNext();
       if (c == '\n') {
@@ -781,13 +790,13 @@ int HeapObject::SlowSizeFromMap(Map* map) {
   InstanceType instance_type = map->instance_type();
 
   if (instance_type < FIRST_NONSTRING_TYPE
-      && (reinterpret_cast<String*>(this)->map_representation_tag(map)
-          == kSeqStringTag)) {
-    if (reinterpret_cast<String*>(this)->is_ascii_representation_map(map)) {
-      return reinterpret_cast<SeqAsciiString*>(this)->SeqAsciiStringSize(map);
+      && (StringShape(instance_type).IsSequential())) {
+    StringShape shape(instance_type);
+    if (shape.IsAsciiRepresentation()) {
+      return reinterpret_cast<SeqAsciiString*>(this)->SeqAsciiStringSize(shape);
     } else {
       SeqTwoByteString* self = reinterpret_cast<SeqTwoByteString*>(this);
-      return self->SeqTwoByteStringSize(map);
+      return self->SeqTwoByteStringSize(shape);
     }
   }
 
@@ -2289,7 +2298,7 @@ Object* JSObject::DefineGetterSetter(String* name,
   }
 
   // TryFlatten before operating on the string.
-  name->TryFlatten();
+  name->TryFlatten(StringShape(name));
 
   // Make sure name is not an index.
   uint32_t index;
@@ -2928,27 +2937,21 @@ static StaticResource<StringInputBuffer> string_input_buffer;
 
 
 bool String::LooksValid() {
-  if (!Heap::Contains(this))
-    return false;
-  switch (representation_tag()) {
-    case kSeqStringTag:
-    case kConsStringTag:
-    case kSlicedStringTag:
-    case kExternalStringTag:
-      return true;
-    default:
-      return false;
-  }
+  if (!Heap::Contains(this)) return false;
+  return true;
 }
 
 
 int String::Utf8Length() {
-  if (is_ascii_representation()) return length();
+  StringShape shape(this);
+  if (shape.IsAsciiRepresentation()) return length(shape);
   // Attempt to flatten before accessing the string.  It probably
   // doesn't make Utf8Length faster, but it is very likely that
   // the string will be accessed later (for example by WriteUtf8)
   // so it's still a good idea.
-  TryFlatten();
+  if (!IsFlat(shape)) {
+    TryFlatten(shape);  // shape is now no longer valid.
+  }
   Access<StringInputBuffer> buffer(&string_input_buffer);
   buffer->Reset(0, this);
   int result = 0;
@@ -2959,23 +2962,26 @@ int String::Utf8Length() {
 
 
 Vector<const char> String::ToAsciiVector() {
-  ASSERT(IsAsciiRepresentation());
-  ASSERT(IsFlat());
+  StringShape shape(this);
+  ASSERT(shape.IsAsciiRepresentation());
+  ASSERT(IsFlat(shape));
 
   int offset = 0;
-  int length = this->length();
-  StringRepresentationTag string_tag = representation_tag();
+  int length = this->length(shape);
+  StringRepresentationTag string_tag = shape.representation_tag();
   String* string = this;
   if (string_tag == kSlicedStringTag) {
     SlicedString* sliced = SlicedString::cast(string);
     offset += sliced->start();
-    string = String::cast(sliced->buffer());
-    string_tag = string->representation_tag();
+    string = sliced->buffer();
+    shape = StringShape(string);
+    string_tag = shape.representation_tag();
   } else if (string_tag == kConsStringTag) {
     ConsString* cons = ConsString::cast(string);
-    ASSERT(String::cast(cons->second())->length() == 0);
-    string = String::cast(cons->first());
-    string_tag = string->representation_tag();
+    ASSERT(cons->second()->length(StringShape(cons->second())) == 0);
+    string = cons->first();
+    shape = StringShape(string);
+    string_tag = shape.representation_tag();
   }
   if (string_tag == kSeqStringTag) {
     SeqAsciiString* seq = SeqAsciiString::cast(string);
@@ -2990,23 +2996,26 @@ Vector<const char> String::ToAsciiVector() {
 
 
 Vector<const uc16> String::ToUC16Vector() {
-  ASSERT(IsTwoByteStringRepresentation());
-  ASSERT(IsFlat());
+  StringShape shape(this);
+  ASSERT(shape.IsTwoByteRepresentation());
+  ASSERT(IsFlat(shape));
 
   int offset = 0;
-  int length = this->length();
-  StringRepresentationTag string_tag = representation_tag();
+  int length = this->length(shape);
+  StringRepresentationTag string_tag = shape.representation_tag();
   String* string = this;
   if (string_tag == kSlicedStringTag) {
     SlicedString* sliced = SlicedString::cast(string);
     offset += sliced->start();
     string = String::cast(sliced->buffer());
-    string_tag = string->representation_tag();
+    shape = StringShape(string);
+    string_tag = shape.representation_tag();
   } else if (string_tag == kConsStringTag) {
     ConsString* cons = ConsString::cast(string);
-    ASSERT(String::cast(cons->second())->length() == 0);
-    string = String::cast(cons->first());
-    string_tag = string->representation_tag();
+    ASSERT(cons->second()->length(StringShape(cons->second())) == 0);
+    string = cons->first();
+    shape = StringShape(string);
+    string_tag = shape.representation_tag();
   }
   if (string_tag == kSeqStringTag) {
     SeqTwoByteString* seq = SeqTwoByteString::cast(string);
@@ -3086,8 +3095,9 @@ const uc16* String::GetTwoByteData() {
 
 
 const uc16* String::GetTwoByteData(unsigned start) {
-  ASSERT(!IsAsciiRepresentation());
-  switch (representation_tag()) {
+  StringShape shape(this);
+  ASSERT(!shape.IsAsciiRepresentation());
+  switch (shape.representation_tag()) {
     case kSeqStringTag:
       return SeqTwoByteString::cast(this)->SeqTwoByteStringGetData(start);
     case kExternalStringTag:
@@ -3095,12 +3105,12 @@ const uc16* String::GetTwoByteData(unsigned start) {
         ExternalTwoByteStringGetData(start);
     case kSlicedStringTag: {
       SlicedString* sliced_string = SlicedString::cast(this);
-      String* buffer = String::cast(sliced_string->buffer());
-      if (buffer->StringIsConsString()) {
-        ConsString* cons_string = ConsString::cast(buffer);
+      String* buffer = sliced_string->buffer();
+      if (StringShape(buffer).IsCons()) {
+        ConsString* cs = ConsString::cast(buffer);
         // Flattened string.
-        ASSERT(String::cast(cons_string->second())->length() == 0);
-        buffer = String::cast(cons_string->first());
+        ASSERT(cs->second()->length(StringShape(cs->second())) == 0);
+        buffer = cs->first();
       }
       return buffer->GetTwoByteData(start + sliced_string->start());
     }
@@ -3201,8 +3211,9 @@ const unibrow::byte* ConsString::ConsStringReadBlock(ReadBlockBuffer* rbb,
   int offset_correction = 0;
 
   while (true) {
-    String* left = String::cast(current->first());
-    unsigned left_length = (unsigned)left->length();
+    String* left = current->first();
+    StringShape left_shape(left);
+    unsigned left_length = (unsigned)left->length(left_shape);
     if (left_length > offset &&
         (max_chars <= left_length - offset ||
          (rbb->capacity <= left_length - offset &&
@@ -3214,7 +3225,7 @@ const unibrow::byte* ConsString::ConsStringReadBlock(ReadBlockBuffer* rbb,
       // the point where we switch to the -IntoBuffer routines (below) in order
       // to maximize the chances of delegating a big chunk of work to the
       // efficient *AsciiStringReadBlock routines.
-      if (left->StringIsConsString()) {
+      if (left_shape.IsCons()) {
         current = ConsString::cast(left);
         continue;
       } else {
@@ -3226,10 +3237,10 @@ const unibrow::byte* ConsString::ConsStringReadBlock(ReadBlockBuffer* rbb,
     } else if (left_length <= offset) {
       // Right hand side only - iterate unless we have reached the bottom of
       // the cons tree.
-      String* right = String::cast(current->second());
+      String* right = current->second();
       offset -= left_length;
       offset_correction += left_length;
-      if (right->StringIsConsString()) {
+      if (StringShape(right).IsCons()) {
         current = ConsString::cast(right);
         continue;
       } else {
@@ -3261,7 +3272,7 @@ const unibrow::byte* ConsString::ConsStringReadBlock(ReadBlockBuffer* rbb,
 const unibrow::byte* SlicedString::SlicedStringReadBlock(ReadBlockBuffer* rbb,
                                                          unsigned* offset_ptr,
                                                          unsigned max_chars) {
-  String* backing = String::cast(buffer());
+  String* backing = buffer();
   unsigned offset = start() + *offset_ptr;
   unsigned length = backing->length();
   if (max_chars > length - offset) {
@@ -3379,9 +3390,10 @@ const unibrow::byte* String::ReadBlock(String* input,
     rbb->remaining = 0;
     return NULL;
   }
-  switch (input->representation_tag()) {
+  StringShape shape(input);
+  switch (shape.representation_tag()) {
     case kSeqStringTag:
-      if (input->is_ascii_representation()) {
+      if (shape.IsAsciiRepresentation()) {
         SeqAsciiString* str = SeqAsciiString::cast(input);
         return str->SeqAsciiStringReadBlock(&rbb->remaining,
                                             offset_ptr,
@@ -3402,7 +3414,7 @@ const unibrow::byte* String::ReadBlock(String* input,
                                                               offset_ptr,
                                                               max_chars);
     case kExternalStringTag:
-      if (input->is_ascii_representation()) {
+      if (shape.IsAsciiRepresentation()) {
         return ExternalAsciiString::cast(input)->ExternalAsciiStringReadBlock(
             &rbb->remaining,
             offset_ptr,
@@ -3441,12 +3453,13 @@ void String::ReadBlockIntoBuffer(String* input,
                                  ReadBlockBuffer* rbb,
                                  unsigned* offset_ptr,
                                  unsigned max_chars) {
-  ASSERT(*offset_ptr <= (unsigned)input->length());
+  StringShape shape(input);
+  ASSERT(*offset_ptr <= (unsigned)input->length(shape));
   if (max_chars == 0) return;
 
-  switch (input->representation_tag()) {
+  switch (shape.representation_tag()) {
     case kSeqStringTag:
-      if (input->is_ascii_representation()) {
+      if (shape.IsAsciiRepresentation()) {
         SeqAsciiString::cast(input)->SeqAsciiStringReadBlockIntoBuffer(rbb,
                                                                  offset_ptr,
                                                                  max_chars);
@@ -3468,7 +3481,7 @@ void String::ReadBlockIntoBuffer(String* input,
                                                                  max_chars);
       return;
     case kExternalStringTag:
-      if (input->is_ascii_representation()) {
+      if (shape.IsAsciiRepresentation()) {
          ExternalAsciiString::cast(input)->
              ExternalAsciiStringReadBlockIntoBuffer(rbb, offset_ptr, max_chars);
        } else {
@@ -3492,11 +3505,12 @@ const unibrow::byte* String::ReadBlock(String* input,
                                        unsigned capacity,
                                        unsigned* remaining,
                                        unsigned* offset_ptr) {
-  ASSERT(*offset_ptr <= (unsigned)input->length());
-  unsigned chars = input->length() - *offset_ptr;
+  StringShape shape(input);
+  ASSERT(*offset_ptr <= (unsigned)input->length(shape));
+  unsigned chars = input->length(shape) - *offset_ptr;
   ReadBlockBuffer rbb(util_buffer, 0, capacity, 0);
   const unibrow::byte* answer = ReadBlock(input, &rbb, offset_ptr, chars);
-  ASSERT(rbb.remaining <= static_cast<unsigned>(input->length()));
+  ASSERT(rbb.remaining <= static_cast<unsigned>(input->length(shape)));
   *remaining = rbb.remaining;
   return answer;
 }
@@ -3507,13 +3521,14 @@ const unibrow::byte* String::ReadBlock(String** raw_input,
                                        unsigned capacity,
                                        unsigned* remaining,
                                        unsigned* offset_ptr) {
+  StringShape shape(*raw_input);
   Handle<String> input(raw_input);
-  ASSERT(*offset_ptr <= (unsigned)input->length());
-  unsigned chars = input->length() - *offset_ptr;
+  ASSERT(*offset_ptr <= (unsigned)input->length(shape));
+  unsigned chars = input->length(shape) - *offset_ptr;
   if (chars > capacity) chars = capacity;
   ReadBlockBuffer rbb(util_buffer, 0, capacity, 0);
   ReadBlockIntoBuffer(*input, &rbb, offset_ptr, chars);
-  ASSERT(rbb.remaining <= static_cast<unsigned>(input->length()));
+  ASSERT(rbb.remaining <= static_cast<unsigned>(input->length(shape)));
   *remaining = rbb.remaining;
   return rbb.util_buffer;
 }
@@ -3532,13 +3547,14 @@ void ConsString::ConsStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
   int offset_correction = 0;
 
   while (true) {
-    String* left = String::cast(current->first());
-    unsigned left_length = (unsigned)left->length();
+    String* left = current->first();
+    StringShape left_shape(left);
+    unsigned left_length = (unsigned)left->length(left_shape);
     if (left_length > offset &&
       max_chars <= left_length - offset) {
       // Left hand side only - iterate unless we have reached the bottom of
       // the cons tree.
-      if (left->StringIsConsString()) {
+      if (left_shape.IsCons()) {
         current = ConsString::cast(left);
         continue;
       } else {
@@ -3551,8 +3567,8 @@ void ConsString::ConsStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
       // the cons tree.
       offset -= left_length;
       offset_correction += left_length;
-      String* right = String::cast(current->second());
-      if (right->StringIsConsString()) {
+      String* right = current->second();
+      if (StringShape(right).IsCons()) {
         current = ConsString::cast(right);
         continue;
       } else {
@@ -3584,7 +3600,7 @@ void ConsString::ConsStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
 void SlicedString::SlicedStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
                                                    unsigned* offset_ptr,
                                                    unsigned max_chars) {
-  String* backing = String::cast(buffer());
+  String* backing = buffer();
   unsigned offset = start() + *offset_ptr;
   unsigned length = backing->length();
   if (max_chars > length - offset) {
@@ -3604,24 +3620,29 @@ uint16_t ConsString::ConsStringGet(int index) {
   ASSERT(index >= 0 && index < this->length());
 
   // Check for a flattened cons string
-  if (String::cast(second())->length() == 0) {
-    return String::cast(first())->Get(index);
+  if (second()->length() == 0) {
+    String* left = first();
+    return left->Get(StringShape(left), index);
   }
 
   String* string = String::cast(this);
+  StringShape shape(string);
 
   while (true) {
-    if (string->StringIsConsString()) {
+    if (shape.IsCons()) {
       ConsString* cons_string = ConsString::cast(string);
-      String* left = String::cast(cons_string->first());
-      if (left->length() > index) {
+      String* left = cons_string->first();
+      StringShape left_shape(left);
+      if (left->length(left_shape) > index) {
         string = left;
+        shape = left_shape;
       } else {
-        index -= left->length();
-        string = String::cast(cons_string->second());
+        index -= left->length(left_shape);
+        string = cons_string->second();
+        shape = StringShape(string);
       }
     } else {
-      return string->Get(index);
+      return string->Get(shape, index);
     }
   }
 
@@ -3635,9 +3656,10 @@ Object* SlicedString::SlicedStringFlatten() {
   // SlicedStrings that are constructed directly on top of other
   // SlicedStrings.
   String* buf = String::cast(buffer());
-  ASSERT(!buf->StringIsSlicedString());
-  if (buf->StringIsConsString()) {
-    Object* ok = buf->Flatten();
+  StringShape buf_shape(buf);
+  ASSERT(!buf_shape.IsSliced());
+  if (buf_shape.IsCons()) {
+    Object* ok = buf->Flatten(buf_shape);
     if (ok->IsFailure()) return ok;
   }
   return this;
@@ -3646,15 +3668,17 @@ Object* SlicedString::SlicedStringFlatten() {
 
 template <typename sinkchar>
 void String::WriteToFlat(String* src,
+                         StringShape src_shape,
                          sinkchar* sink,
                          int f,
                          int t) {
   String* source = src;
+  StringShape shape = src_shape;
   int from = f;
   int to = t;
   while (true) {
-    ASSERT(0 <= from && from <= to && to <= source->length());
-    switch (source->full_representation_tag()) {
+    ASSERT(0 <= from && from <= to && to <= source->length(shape));
+    switch (shape.full_representation_tag()) {
       case kAsciiStringTag | kExternalStringTag: {
         CopyChars(sink,
                   ExternalAsciiString::cast(source)->resource()->data() + from,
@@ -3688,35 +3712,40 @@ void String::WriteToFlat(String* src,
         from += start;
         to += start;
         source = String::cast(sliced_string->buffer());
+        shape = StringShape(source);
         break;
       }
       case kAsciiStringTag | kConsStringTag:
       case kTwoByteStringTag | kConsStringTag: {
         ConsString* cons_string = ConsString::cast(source);
-        String* first = String::cast(cons_string->first());
-        int boundary = first->length();
+        String* first = cons_string->first();
+        StringShape first_shape(first);
+        int boundary = first->length(first_shape);
         if (to - boundary >= boundary - from) {
           // Right hand side is longer.  Recurse over left.
           if (from < boundary) {
-            WriteToFlat(first, sink, from, boundary);
+            WriteToFlat(first, first_shape, sink, from, boundary);
             sink += boundary - from;
             from = 0;
           } else {
             from -= boundary;
           }
           to -= boundary;
-          source = String::cast(cons_string->second());
+          source = cons_string->second();
+          shape = StringShape(source);
         } else {
           // Left hand side is longer.  Recurse over right.
           if (to > boundary) {
-            String* second = String::cast(cons_string->second());
+            String* second = cons_string->second();
             WriteToFlat(second,
+                        StringShape(second),
                         sink + boundary - from,
                         0,
                         to - boundary);
             to = boundary;
           }
           source = first;
+          shape = first_shape;
         }
         break;
       }
@@ -3733,7 +3762,8 @@ void SlicedString::SlicedStringIterateBody(ObjectVisitor* v) {
 uint16_t SlicedString::SlicedStringGet(int index) {
   ASSERT(index >= 0 && index < this->length());
   // Delegate to the buffer string.
-  return String::cast(buffer())->Get(start() + index);
+  String* underlying = buffer();
+  return underlying->Get(StringShape(underlying), start() + index);
 }
 
 
@@ -3797,8 +3827,9 @@ static StringInputBuffer string_compare_buffer_b;
 
 template <typename IteratorA>
 static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
-  if (b->IsFlat()) {
-    if (b->IsAsciiRepresentation()) {
+  StringShape b_shape(b);
+  if (b->IsFlat(b_shape)) {
+    if (b_shape.IsAsciiRepresentation()) {
       VectorIterator<char> ib(b->ToAsciiVector());
       return CompareStringContents(ia, &ib);
     } else {
@@ -3815,10 +3846,12 @@ static inline bool CompareStringContentsPartial(IteratorA* ia, String* b) {
 static StringInputBuffer string_compare_buffer_a;
 
 
-bool String::SlowEquals(String* other) {
+bool String::SlowEquals(StringShape this_shape,
+                        String* other,
+                        StringShape other_shape) {
   // Fast check: negative check with lengths.
-  int len = length();
-  if (len != other->length()) return false;
+  int len = length(this_shape);
+  if (len != other->length(other_shape)) return false;
   if (len == 0) return true;
 
   // Fast check: if hash code is computed for both strings
@@ -3827,18 +3860,18 @@ bool String::SlowEquals(String* other) {
     if (Hash() != other->Hash()) return false;
   }
 
-  if (this->IsSeqAsciiString() && other->IsSeqAsciiString()) {
+  if (this_shape.IsSequentialAscii() && other_shape.IsSequentialAscii()) {
     const char* str1 = SeqAsciiString::cast(this)->GetChars();
     const char* str2 = SeqAsciiString::cast(other)->GetChars();
     return CompareRawStringContents(Vector<const char>(str1, len),
                                     Vector<const char>(str2, len));
   }
 
-  if (this->IsFlat()) {
-    if (this->IsAsciiRepresentation()) {
+  if (this->IsFlat(this_shape)) {
+    if (this_shape.IsAsciiRepresentation()) {
       Vector<const char> vec1 = this->ToAsciiVector();
-      if (other->IsFlat()) {
-        if (other->IsAsciiRepresentation()) {
+      if (other->IsFlat(other_shape)) {
+        if (other_shape.IsAsciiRepresentation()) {
           Vector<const char> vec2 = other->ToAsciiVector();
           return CompareRawStringContents(vec1, vec2);
         } else {
@@ -3853,8 +3886,8 @@ bool String::SlowEquals(String* other) {
       }
     } else {
       Vector<const uc16> vec1 = this->ToUC16Vector();
-      if (other->IsFlat()) {
-        if (other->IsAsciiRepresentation()) {
+      if (other->IsFlat(other_shape)) {
+        if (other_shape.IsAsciiRepresentation()) {
           VectorIterator<uc16> buf1(vec1);
           VectorIterator<char> ib(other->ToAsciiVector());
           return CompareStringContents(&buf1, &ib);
@@ -3876,7 +3909,8 @@ bool String::SlowEquals(String* other) {
 
 
 bool String::MarkAsUndetectable() {
-  if (this->IsSymbol()) return false;
+  StringShape shape(this);
+  if (shape.IsSymbol()) return false;
 
   Map* map = this->map();
   if (map == Heap::short_string_map()) {
@@ -3904,13 +3938,14 @@ bool String::MarkAsUndetectable() {
 
 
 bool String::IsEqualTo(Vector<const char> str) {
-  int slen = length();
+  StringShape this_shape(this);
+  int slen = length(this_shape);
   Access<Scanner::Utf8Decoder> decoder(Scanner::utf8_decoder());
   decoder->Reset(str.start(), str.length());
   int i;
   for (i = 0; i < slen && decoder->has_more(); i++) {
     uc32 r = decoder->GetNext();
-    if (Get(i) != r) return false;
+    if (Get(this_shape, i) != r) return false;
   }
   return i == slen && !decoder->has_more();
 }
@@ -3964,7 +3999,8 @@ bool String::ComputeArrayIndex(unibrow::CharacterStream* buffer,
 
 
 bool String::SlowAsArrayIndex(uint32_t* index) {
-  if (length() <= kMaxCachedArrayIndexLength) {
+  StringShape shape(this);
+  if (length(shape) <= kMaxCachedArrayIndexLength) {
     Hash();  // force computation of hash code
     uint32_t field = length_field();
     if ((field & kIsArrayIndexMask) == 0) return false;
@@ -3972,7 +4008,7 @@ bool String::SlowAsArrayIndex(uint32_t* index) {
     return true;
   } else {
     StringInputBuffer buffer(this);
-    return ComputeArrayIndex(&buffer, index, length());
+    return ComputeArrayIndex(&buffer, index, length(shape));
   }
 }
 
@@ -4032,20 +4068,21 @@ uint32_t String::ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
 }
 
 
-Object* String::Slice(int start, int end) {
-  if (start == 0 && end == length()) return this;
-  int representation = representation_tag();
-  if (representation == kSlicedStringTag) {
+Object* String::Slice(StringShape shape, int start, int end) {
+  if (start == 0 && end == length(shape)) return this;
+  if (shape.representation_tag() == kSlicedStringTag) {
     // Translate slices of a SlicedString into slices of the
     // underlying string buffer.
     SlicedString* str = SlicedString::cast(this);
-    return Heap::AllocateSlicedString(String::cast(str->buffer()),
+    String* buf = str->buffer();
+    return Heap::AllocateSlicedString(buf,
+                                      StringShape(buf),
                                       str->start() + start,
                                       str->start() + end);
   }
-  Object* answer = Heap::AllocateSlicedString(this, start, end);
-  if (answer->IsFailure()) {
-    return answer;
+  Object* result = Heap::AllocateSlicedString(this, shape, start, end);
+  if (result->IsFailure()) {
+    return result;
   }
   // Due to the way we retry after GC on allocation failure we are not allowed
   // to fail on allocation after this point.  This is the one-allocation rule.
@@ -4057,12 +4094,15 @@ Object* String::Slice(int start, int end) {
   // will succeed often enough to avoid the problem.  We only have to do this
   // if Heap::AllocateSlicedString actually returned a SlicedString.  It will
   // return flat strings for small slices for efficiency reasons.
-  if (String::cast(answer)->StringIsSlicedString() &&
-      representation == kConsStringTag) {
-    TryFlatten();
+  String* answer = String::cast(result);
+  StringShape answer_shape(answer);
+  if (answer_shape.IsSliced() &&
+      shape.representation_tag() == kConsStringTag) {
+    TryFlatten(shape);
     // If the flatten succeeded we might as well make the sliced string point
     // to the flat string rather than the cons string.
-    if (String::cast(ConsString::cast(this)->second())->length() == 0) {
+    String* second = ConsString::cast(this)->second();
+    if (second->length(StringShape(second)) == 0) {
       SlicedString::cast(answer)->set_buffer(ConsString::cast(this)->first());
     }
   }
@@ -4071,9 +4111,10 @@ Object* String::Slice(int start, int end) {
 
 
 void String::PrintOn(FILE* file) {
-  int length = this->length();
+  StringShape shape(this);
+  int length = this->length(shape);
   for (int i = 0; i < length; i++) {
-    fprintf(file, "%c", Get(i));
+    fprintf(file, "%c", Get(shape, i));
   }
 }
 
@@ -5558,12 +5599,13 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
     Object* val = JSValue::cast(this)->value();
     if (val->IsString()) {
       String* str = String::cast(val);
+      StringShape shape(str);
       if (storage) {
-        for (int i = 0; i < str->length(); i++) {
+        for (int i = 0; i < str->length(shape); i++) {
           storage->set(counter + i, Smi::FromInt(i), SKIP_WRITE_BARRIER);
         }
       }
-      counter += str->length();
+      counter += str->length(shape);
     }
   }
   ASSERT(!storage || storage->length() == counter);
@@ -5748,11 +5790,12 @@ class SymbolKey : public HashTableKey {
   Object* GetObject() {
     // If the string is a cons string, attempt to flatten it so that
     // symbols will most often be flat strings.
-    if (string_->IsConsString()) {
+    StringShape shape(string_);
+    if (shape.IsCons()) {
       ConsString* cons_string = ConsString::cast(string_);
-      cons_string->TryFlatten();
+      cons_string->TryFlatten(shape);
       if (cons_string->second() == Heap::empty_string()) {
-        string_ = String::cast(cons_string->first());
+        string_ = cons_string->first();
       }
     }
     // Transform string to symbol if possible.
@@ -5910,7 +5953,7 @@ bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
     return false;
   } else {
     String* result = String::cast(KeyAt(entry));
-    ASSERT(result->is_symbol());
+    ASSERT(StringShape(result).IsSymbol());
     *symbol = result;
     return true;
   }

@@ -238,25 +238,6 @@ def Abort(message):
   sys.exit(1)
 
 
-def GuessOS():
-  id = platform.system()
-  if id == 'Linux':
-    return 'linux'
-  elif id == 'Darwin':
-    return 'macos'
-  elif id == 'Windows':
-    return 'win32'
-  else:
-    return None
-
-
-def GuessWordsize():
-  if '64' in platform.machine():
-    return '64'
-  else:
-    return '32'
-
-
 def GuessToolchain(os):
   tools = Environment()['TOOLS']
   if 'gcc' in tools:
@@ -267,10 +248,10 @@ def GuessToolchain(os):
     return None
 
 
-OS_GUESS = GuessOS()
+OS_GUESS = utils.GuessOS()
 TOOLCHAIN_GUESS = GuessToolchain(OS_GUESS)
 ARCH_GUESS = utils.GuessArchitecture()
-WORDSIZE_GUESS = GuessWordsize()
+WORDSIZE_GUESS = utils.GuessWordsize()
 
 
 SIMPLE_OPTIONS = {
