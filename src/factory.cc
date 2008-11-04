@@ -90,15 +90,24 @@ Handle<String> Factory::NewRawTwoByteString(int length,
 
 
 Handle<String> Factory::NewConsString(Handle<String> first,
-                                      Handle<String> second) {
-  if (first->length() == 0) return second;
-  if (second->length() == 0) return first;
-  CALL_HEAP_FUNCTION(Heap::AllocateConsString(*first, *second), String);
+                                      StringShape first_shape,
+                                      Handle<String> second,
+                                      StringShape second_shape) {
+  if (first->length(first_shape) == 0) return second;
+  if (second->length(second_shape) == 0) return first;
+  CALL_HEAP_FUNCTION(Heap::AllocateConsString(*first,
+                                              first_shape,
+                                              *second,
+                                              second_shape),
+                     String);
 }
 
 
-Handle<String> Factory::NewStringSlice(Handle<String> str, int begin, int end) {
-  CALL_HEAP_FUNCTION(str->Slice(begin, end), String);
+Handle<String> Factory::NewStringSlice(Handle<String> str,
+                                       StringShape shape,
+                                       int begin,
+                                       int end) {
+  CALL_HEAP_FUNCTION(str->Slice(shape, begin, end), String);
 }
 
 
@@ -725,7 +734,7 @@ Handle<JSFunction> Factory::CreateApiFunction(
 
   // Mark as needs_access_check if needed.
   if (obj->needs_access_check()) {
-    map->set_is_access_check_needed();
+    map->set_is_access_check_needed(true);
   }
 
   // Set interceptor information in the map.

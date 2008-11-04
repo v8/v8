@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "v8.h"
+#include "accessors.h"
 #include "top.h"
 
 #include "cctest.h"
@@ -87,16 +88,59 @@ static Object* AllocateAfterFailures() {
   return Smi::FromInt(42);
 }
 
+
 static Handle<Object> Test() {
   CALL_HEAP_FUNCTION(AllocateAfterFailures(), Object);
 }
 
 
-TEST(Stress) {
+TEST(StressHandles) {
   v8::Persistent<v8::Context> env = v8::Context::New();
   v8::HandleScope scope;
   env->Enter();
   Handle<Object> o = Test();
   CHECK(o->IsSmi() && Smi::cast(*o)->value() == 42);
+  env->Exit();
+}
+
+
+static Object* TestAccessorGet(Object* object, void*) {
+  return AllocateAfterFailures();
+}
+
+
+const AccessorDescriptor kDescriptor = {
+  TestAccessorGet,
+  0,
+  0
+};
+
+
+TEST(StressJS) {
+  v8::Persistent<v8::Context> env = v8::Context::New();
+  v8::HandleScope scope;
+  env->Enter();
+  Handle<JSFunction> function =
+      Factory::NewFunction(Factory::function_symbol(), Factory::null_value());
+  // Force the creation of an initial map and set the code to
+  // something empty.
+  Factory::NewJSObject(function);
+  function->set_code(Builtins::builtin(Builtins::EmptyFunction));
+  // Patch the map to have an accessor for "get".
+  Handle<Map> map(function->initial_map());
+  Handle<DescriptorArray> instance_descriptors(map->instance_descriptors());
+  Handle<Proxy> proxy = Factory::NewProxy(&kDescriptor);
+  instance_descriptors = Factory::CopyAppendProxyDescriptor(
+      instance_descriptors,
+      Factory::NewStringFromAscii(Vector<const char>("get", 3)),
+      proxy,
+      static_cast<PropertyAttributes>(0));
+  map->set_instance_descriptors(*instance_descriptors);
+  // Add the Foo constructor the global object.
+  env->Global()->Set(v8::String::New("Foo"), v8::Utils::ToLocal(function));
+  // Call the accessor through JavaScript.
+  v8::Handle<v8::Value> result =
+      v8::Script::Compile(v8::String::New("(new Foo).get"))->Run();
+  CHECK_EQ(42, result->Int32Value());
   env->Exit();
 }

@@ -701,6 +701,7 @@ void FunctionTemplate::AddInstancePropertyAccessor(
   obj->set_name(*Utils::OpenHandle(*name));
   if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
   if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
+  if (settings & PROHIBITS_OVERWRITING) obj->set_prohibits_overwriting(true);
   obj->set_property_attributes(static_cast<PropertyAttributes>(attributes));
 
   i::Handle<i::Object> list(Utils::OpenHandle(this)->property_accessors());
@@ -1915,7 +1916,7 @@ void v8::Object::TurnOnAccessCheck() {
 
   i::Handle<i::Map> new_map =
     i::Factory::CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
-  new_map->set_is_access_check_needed();
+  new_map->set_is_access_check_needed(true);
   obj->set_map(*new_map);
 }
 
@@ -2035,7 +2036,7 @@ int String::WriteAscii(char* buffer, int start, int length) {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlatten();
+  str->TryFlatten(i::StringShape(*str));
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2060,7 +2061,7 @@ int String::Write(uint16_t* buffer, int start, int length) {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlatten();
+  str->TryFlatten(i::StringShape(*str));
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2078,14 +2079,16 @@ int String::Write(uint16_t* buffer, int start, int length) {
 bool v8::String::IsExternal() {
   EnsureInitialized("v8::String::IsExternal()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  return str->IsExternalTwoByteString();
+  i::StringShape shape(*str);
+  return shape.IsExternalTwoByte();
 }
 
 
 bool v8::String::IsExternalAscii() {
   EnsureInitialized("v8::String::IsExternalAscii()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  return str->IsExternalAsciiString();
+  i::StringShape shape(*str);
+  return shape.IsExternalAscii();
 }
 
 
@@ -2199,7 +2202,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.4.2.1";
+  return "0.4.3";
 }
 
 

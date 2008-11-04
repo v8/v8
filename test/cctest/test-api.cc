@@ -1027,6 +1027,15 @@ THREADED_TEST(PrePropertyHandler) {
 }
 
 
+THREADED_TEST(UndefinedIsNotEnumerable) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::Handle<Value> result = Script::Compile(v8_str(
+      "this.propertyIsEnumerable(undefined)"))->Run();
+  CHECK(result->IsFalse());
+}
+
+
 v8::Handle<Script> call_recursively_script;
 static const int kTargetRecursionDepth = 300;  // near maximum
 
@@ -3186,6 +3195,41 @@ THREADED_TEST(CrossDomainDelete) {
 }
 
 
+THREADED_TEST(CrossDomainIsPropertyEnumerable) {
+  v8::HandleScope handle_scope;
+  LocalContext env1;
+  v8::Persistent<Context> env2 = Context::New();
+
+  Local<Value> foo = v8_str("foo");
+  Local<Value> bar = v8_str("bar");
+
+  // Set to the same domain.
+  env1->SetSecurityToken(foo);
+  env2->SetSecurityToken(foo);
+
+  env1->Global()->Set(v8_str("prop"), v8_num(3));
+  env2->Global()->Set(v8_str("env1"), env1->Global());
+
+  // env1.prop is enumerable in env2.
+  Local<String> test = v8_str("propertyIsEnumerable.call(env1, 'prop')");
+  {
+    Context::Scope scope_env2(env2);
+    Local<Value> result = Script::Compile(test)->Run();
+    CHECK(result->IsTrue());
+  }
+
+  // Change env2 to a different domain and test again.
+  env2->SetSecurityToken(bar);
+  {
+    Context::Scope scope_env2(env2);
+    Local<Value> result = Script::Compile(test)->Run();
+    CHECK(result->IsFalse());
+  }
+
+  env2.Dispose();
+}
+
+
 THREADED_TEST(CrossDomainForIn) {
   v8::HandleScope handle_scope;
   LocalContext env1;
@@ -3342,7 +3386,7 @@ THREADED_TEST(AccessControl) {
       v8::AccessControl(v8::ALL_CAN_READ | v8::ALL_CAN_WRITE));
 
   // Add an accessor that is not accessible by cross-domain JS code.
-  global_template->SetAccessor(v8_str("blocked_access_prop"),
+  global_template->SetAccessor(v8_str("blocked_prop"),
                                UnreachableGetter, UnreachableSetter,
                                v8::Handle<Value>(),
                                v8::DEFAULT);
@@ -3368,6 +3412,9 @@ THREADED_TEST(AccessControl) {
   value = v8_compile("other.blocked_prop")->Run();
   CHECK(value->IsUndefined());
 
+  value = v8_compile("propertyIsEnumerable.call(other, 'blocked_prop')")->Run();
+  CHECK(value->IsFalse());
+
   // Access accessible property
   value = v8_compile("other.accessible_prop = 3")->Run();
   CHECK(value->IsNumber());
@@ -3376,6 +3423,21 @@ THREADED_TEST(AccessControl) {
   value = v8_compile("other.accessible_prop")->Run();
   CHECK(value->IsNumber());
   CHECK_EQ(3, value->Int32Value());
+
+  value =
+    v8_compile("propertyIsEnumerable.call(other, 'accessible_prop')")->Run();
+  CHECK(value->IsTrue());
+
+  // Enumeration doesn't enumerate accessors from inaccessible objects in
+  // the prototype chain even if the accessors are in themselves accessible.
+  Local<Value> result =
+      CompileRun("(function(){var obj = {'__proto__':other};"
+                 "for (var p in obj)"
+                 "   if (p == 'accessible_prop' || p == 'blocked_prop') {"
+                 "     return false;"
+                 "   }"
+                 "return true;})()");
+  CHECK(result->IsTrue());
 
   context1->Exit();
   context0->Exit();
@@ -5074,4 +5136,81 @@ THREADED_TEST(PropertyEnumeration) {
   int elmc3 = 4;
   const char* elmv3[] = {"w", "z", "x", "y"};
   CheckProperties(elms->Get(v8::Integer::New(3)), elmc3, elmv3);
+}
+
+
+static v8::Handle<Value> AccessorProhibitsOverwritingGetter(
+    Local<String> name,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  return v8::True();
+}
+
+
+THREADED_TEST(AccessorProhibitsOverwriting) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessor(v8_str("x"),
+                     AccessorProhibitsOverwritingGetter,
+                     0,
+                     v8::Handle<Value>(),
+                     v8::PROHIBITS_OVERWRITING,
+                     v8::ReadOnly);
+  Local<v8::Object> instance = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), instance);
+  Local<Value> value = CompileRun(
+      "obj.__defineGetter__('x', function() { return false; });"
+      "obj.x");
+  CHECK(value->BooleanValue());
+  value = CompileRun(
+      "var setter_called = false;"
+      "obj.__defineSetter__('x', function() { setter_called = true; });"
+      "obj.x = 42;"
+      "setter_called");
+  CHECK(!value->BooleanValue());
+  value = CompileRun(
+      "obj2 = {};"
+      "obj2.__proto__ = obj;"
+      "obj2.__defineGetter__('x', function() { return false; });"
+      "obj2.x");
+  CHECK(value->BooleanValue());
+  value = CompileRun(
+      "var setter_called = false;"
+      "obj2 = {};"
+      "obj2.__proto__ = obj;"
+      "obj2.__defineSetter__('x', function() { setter_called = true; });"
+      "obj2.x = 42;"
+      "setter_called");
+  CHECK(!value->BooleanValue());
+}
+
+
+static bool NamedSetAccessBlocker(Local<v8::Object> obj,
+                                  Local<Value> name,
+                                  v8::AccessType type,
+                                  Local<Value> data) {
+  return type != v8::ACCESS_SET;
+}
+
+
+static bool IndexedSetAccessBlocker(Local<v8::Object> obj,
+                                    uint32_t key,
+                                    v8::AccessType type,
+                                    Local<Value> data) {
+  return type != v8::ACCESS_SET;
+}
+
+
+THREADED_TEST(DisableAccessChecksWhileConfiguring) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessCheckCallbacks(NamedSetAccessBlocker,
+                                 IndexedSetAccessBlocker);
+  templ->Set(v8_str("x"), v8::True());
+  Local<v8::Object> instance = templ->NewInstance();
+  context->Global()->Set(v8_str("obj"), instance);
+  Local<Value> value = CompileRun("obj.x");
+  CHECK(value->BooleanValue());
 }

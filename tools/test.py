@@ -370,7 +370,7 @@ class TestOutput(object):
     return not outcome in self.test.outcomes
 
   def HasCrashed(self):
-    if platform.system() == 'Windows':
+    if utils.IsWindows():
       return 0x80000000 & self.output.exit_code and not (0x3FFFFF00 & self.output.exit_code)
     else:
       # Timed out tests will have exit_code -signal.SIGTERM.
@@ -388,7 +388,7 @@ class TestOutput(object):
 
 
 def KillProcessWithID(pid):
-  if platform.system() == 'Windows':
+  if utils.IsWindows():
     os.popen('taskkill /T /F /PID %d' % pid)
   else:
     os.kill(pid, signal.SIGTERM)
@@ -414,17 +414,17 @@ def RunProcess(context, timeout, args, **rest):
   if context.verbose: print "#", " ".join(args)
   popen_args = args
   prev_error_mode = SEM_INVALID_VALUE;
-  if platform.system() == 'Windows':
+  if utils.IsWindows():
     popen_args = '"' + subprocess.list2cmdline(args) + '"'
     if context.suppress_dialogs:
       # Try to change the error mode to avoid dialogs on fatal errors.
       Win32SetErrorMode(SEM_NOGPFAULTERRORBOX)
   process = subprocess.Popen(
-    shell = (platform.system() == 'Windows'),
+    shell = utils.IsWindows(),
     args = popen_args,
     **rest
   )
-  if platform.system() == 'Windows' and context.suppress_dialogs and prev_error_mode != SEM_INVALID_VALUE:
+  if utils.IsWindows() and context.suppress_dialogs and prev_error_mode != SEM_INVALID_VALUE:
     Win32SetErrorMode(prev_error_mode)
   # Compute the end time - if the process crosses this limit we
   # consider it timed out.
@@ -600,7 +600,7 @@ class Context(object):
 
   def GetVm(self, mode):
     name = self.vm_root + PREFIX[mode]
-    if platform.system() == 'Windows':
+    if utils.IsWindows():
       return name + '.exe'
     else:
       return name
@@ -886,7 +886,7 @@ def ParseOperatorExpression(scan):
 def ParseConditionalExpression(scan):
   left = ParseOperatorExpression(scan)
   if not left: return None
-  while scan.HasMore() and (scan.Current() == 'IF'):
+  while scan.HasMore() and (scan.Current() == 'if'):
     scan.Advance()
     right = ParseOperatorExpression(scan)
     if not right:
@@ -918,6 +918,9 @@ def ParseCondition(expr):
   scan = Scanner(tokens)
   ast = ParseLogicalExpression(scan)
   if not ast:
+    print "Malformed expression: '%s'" % expr
+    return None
+  if scan.HasMore():
     print "Malformed expression: '%s'" % expr
     return None
   return ast
@@ -1238,7 +1241,7 @@ def Main():
     for mode in options.mode:
       env = {
         'mode': mode,
-        'system': platform.system().lower(),
+        'system': utils.GuessOS(),
         'arch': options.arch
       }
       test_list = root.ListTests([], path, context, mode)

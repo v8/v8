@@ -597,7 +597,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
       Handle<String> global_name = Factory::LookupAsciiSymbol("global");
       global_proxy_function->shared()->set_instance_class_name(*global_name);
-      global_proxy_function->initial_map()->set_is_access_check_needed();
+      global_proxy_function->initial_map()->set_is_access_check_needed(true);
 
       // Set global_proxy.__proto__ to js_global after ConfigureGlobalObjects
 
@@ -840,7 +840,7 @@ bool Genesis::CompileScriptCached(Vector<const char> name,
   // function and insert it into the cache.
   if (!cache->Lookup(name, &boilerplate)) {
 #ifdef DEBUG
-    ASSERT(source->IsAsciiRepresentation());
+    ASSERT(StringShape(*source).IsAsciiRepresentation());
 #endif
     Handle<String> script_name = Factory::NewStringFromUtf8(name);
     boilerplate =
