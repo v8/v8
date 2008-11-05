@@ -38,6 +38,10 @@
 // If both are defined in Google3, then we are building an optimized v8 with
 // assertions enabled.
 #undef NDEBUG
+#elif !defined(DEBUG) && !defined(NDEBUG)
+// If neither is defined in Google3, then we are building a debug v8. Mark it
+// as such.
+#define DEBUG
 #endif
 #endif  // defined(GOOGLE3)
 

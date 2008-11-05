@@ -210,7 +210,8 @@ void Debugger::Debug() {
 
   while (!done) {
     if (last_pc != sim_->get_pc()) {
-      disasm::Disassembler dasm;
+      disasm::NameConverter converter;
+      disasm::Disassembler dasm(converter);
       // use a reasonably large buffer
       v8::internal::EmbeddedVector<char, 256> buffer;
       dasm.InstructionDecode(buffer,
@@ -265,7 +266,8 @@ void Debugger::Debug() {
           PrintF("printobject value\n");
         }
       } else if (strcmp(cmd, "disasm") == 0) {
-        disasm::Disassembler dasm;
+        disasm::NameConverter converter;
+        disasm::Disassembler dasm(converter);
         // use a reasonably large buffer
         v8::internal::EmbeddedVector<char, 256> buffer;
 
@@ -1441,7 +1443,8 @@ void Simulator::InstructionDecode(Instr* instr) {
     return;
   }
   if (::v8::internal::FLAG_trace_sim) {
-    disasm::Disassembler dasm;
+    disasm::NameConverter converter;
+    disasm::Disassembler dasm(converter);
     // use a reasonably large buffer
     v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer,

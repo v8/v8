@@ -25,6 +25,28 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// A Disassembler object is used to disassemble a block of code instruction by
+// instruction. The default implementation of the NameConverter object can be
+// overriden to modify register names or to do symbol lookup on addresses.
+//
+// The example below will disassemble a block of code and print it to stdout.
+//
+//   NameConverter converter;
+//   Disassembler d(converter);
+//   for (byte* pc = begin; pc < end;) {
+//     char buffer[128];
+//     buffer[0] = '\0';
+//     byte* prev_pc = pc;
+//     pc += d.InstructionDecode(buffer, sizeof buffer, pc);
+//     printf("%p    %08x      %s\n",
+//            prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer);
+//   }
+//
+// The Disassembler class also has a convenience method to disassemble a block
+// of code into a FILE*, meaning that the above functionality could also be
+// achieved by just calling Disassembler::Disassemble(stdout, begin, end);
+
+
 #include <assert.h>
 #include <stdio.h>
 #include <stdarg.h>
@@ -38,6 +60,7 @@
 #include "disasm.h"
 #include "macro-assembler.h"
 #include "platform.h"
+
 
 namespace assembler { namespace arm {
 
@@ -66,31 +89,47 @@ class Decoder {
   int InstructionDecode(byte* instruction);
 
  private:
-  const disasm::NameConverter& converter_;
-  v8::internal::Vector<char> out_buffer_;
-  int out_buffer_pos_;
-
+  // Bottleneck functions to print into the out_buffer.
   void PrintChar(const char ch);
   void Print(const char* str);
 
+  // Printing of common values.
   void PrintRegister(int reg);
   void PrintCondition(Instr* instr);
   void PrintShiftRm(Instr* instr);
   void PrintShiftImm(Instr* instr);
+  void PrintPU(Instr* instr);
+  void PrintSoftwareInterrupt(SoftwareInterruptCodes swi);
 
+  // Handle formatting of instructions and their options.
+  int FormatRegister(Instr* instr, const char* option);
   int FormatOption(Instr* instr, const char* option);
   void Format(Instr* instr, const char* format);
   void Unknown(Instr* instr);
 
-  void DecodeType0(Instr* instr);
-  void DecodeType1(Instr* instr);
+  // Each of these functions decodes one particular instruction type, a 3-bit
+  // field in the instruction encoding.
+  // Types 0 and 1 are combined as they are largely the same except for the way
+  // they interpret the shifter operand.
+  void DecodeType01(Instr* instr);
   void DecodeType2(Instr* instr);
   void DecodeType3(Instr* instr);
   void DecodeType4(Instr* instr);
   void DecodeType5(Instr* instr);
   void DecodeType6(Instr* instr);
   void DecodeType7(Instr* instr);
+
+  const disasm::NameConverter& converter_;
+  v8::internal::Vector<char> out_buffer_;
+  int out_buffer_pos_;
+
+  DISALLOW_COPY_AND_ASSIGN(Decoder);
 };
+
+
+// Support for assertions in the Decoder formatting functions.
+#define STRING_STARTS_WITH(string, compare_string) \
+  (strncmp(string, compare_string, strlen(compare_string)) == 0)
 
 
 // Append the ch to the output buffer.
@@ -102,7 +141,7 @@ void Decoder::PrintChar(const char ch) {
 // Append the str to the output buffer.
 void Decoder::Print(const char* str) {
   char cur = *str++;
-  while (cur != 0 && (out_buffer_pos_ < (out_buffer_.length()-1))) {
+  while (cur != '\0' && (out_buffer_pos_ < (out_buffer_.length() - 1))) {
     PrintChar(cur);
     cur = *str++;
   }
@@ -110,9 +149,11 @@ void Decoder::Print(const char* str) {
 }
 
 
-static const char* cond_names[16] = {
-"eq", "ne", "cs" , "cc" , "mi" , "pl" , "vs" , "vc" ,
-"hi", "ls", "ge", "lt", "gt", "le", "", "invalid",
+// These condition names are defined in a way to match the native disassembler
+// formatting. See for example the command "objdump -d <binary file>".
+static const char* cond_names[max_condition] = {
+  "eq", "ne", "cs" , "cc" , "mi" , "pl" , "vs" , "vc" ,
+  "hi", "ls", "ge", "lt", "gt", "le", "", "invalid",
 };
 
 
@@ -128,7 +169,9 @@ void Decoder::PrintRegister(int reg) {
 }
 
 
-static const char* shift_names[4] = {
+// These shift names are defined in a way to match the native disassembler
+// formatting. See for example the command "objdump -d <binary file>".
+static const char* shift_names[max_shift] = {
   "lsl", "lsr", "asr", "ror"
 };
 
@@ -178,6 +221,100 @@ void Decoder::PrintShiftImm(Instr* instr) {
 }
 
 
+// Print PU formatting to reduce complexity of FormatOption.
+void Decoder::PrintPU(Instr* instr) {
+  switch (instr->PUField()) {
+    case 0: {
+      Print("da");
+      break;
+    }
+    case 1: {
+      Print("ia");
+      break;
+    }
+    case 2: {
+      Print("db");
+      break;
+    }
+    case 3: {
+      Print("ib");
+      break;
+    }
+    default: {
+      UNREACHABLE();
+      break;
+    }
+  }
+}
+
+
+// Print SoftwareInterrupt codes. Factoring this out reduces the complexity of
+// the FormatOption method.
+void Decoder::PrintSoftwareInterrupt(SoftwareInterruptCodes swi) {
+  switch (swi) {
+    case call_rt_r5:
+      Print("call_rt_r5");
+      return;
+    case call_rt_r2:
+      Print("call_rt_r2");
+      return;
+    case break_point:
+      Print("break_point");
+      return;
+    default:
+      out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                           "%d",
+                                           swi);
+      return;
+  }
+}
+
+
+// Handle all register based formatting in this function to reduce the
+// complexity of FormatOption.
+int Decoder::FormatRegister(Instr* instr, const char* format) {
+  ASSERT(format[0] == 'r');
+  if (format[1] == 'n') {  // 'rn: Rn register
+    int reg = instr->RnField();
+    PrintRegister(reg);
+    return 2;
+  } else if (format[1] == 'd') {  // 'rd: Rd register
+    int reg = instr->RdField();
+    PrintRegister(reg);
+    return 2;
+  } else if (format[1] == 's') {  // 'rs: Rs register
+    int reg = instr->RsField();
+    PrintRegister(reg);
+    return 2;
+  } else if (format[1] == 'm') {  // 'rm: Rm register
+    int reg = instr->RmField();
+    PrintRegister(reg);
+    return 2;
+  } else if (format[1] == 'l') {
+    // 'rlist: register list for load and store multiple instructions
+    ASSERT(STRING_STARTS_WITH(format, "rlist"));
+    int rlist = instr->RlistField();
+    int reg = 0;
+    Print("{");
+    // Print register list in ascending order, by scanning the bit mask.
+    while (rlist != 0) {
+      if ((rlist & 1) != 0) {
+        PrintRegister(reg);
+        if ((rlist >> 1) != 0) {
+          Print(", ");
+        }
+      }
+      reg++;
+      rlist >>= 1;
+    }
+    Print("}");
+    return 5;
+  }
+  UNREACHABLE();
+  return -1;
+}
+
+
 // FormatOption takes a formatting string and interprets it based on
 // the current instructions. The format string points to the first
 // character of the option string (the option escape has already been
@@ -192,20 +329,17 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
         Print("la");
       }
       return 1;
-      break;
     }
     case 'b': {  // 'b: byte loads or stores
       if (instr->HasB()) {
         Print("b");
       }
       return 1;
-      break;
     }
     case 'c': {  // 'cond: conditional execution
-      ASSERT((format[1] == 'o') && (format[2] == 'n') && (format[3] =='d'));
+      ASSERT(STRING_STARTS_WITH(format, "cond"));
       PrintCondition(instr);
       return 4;
-      break;
     }
     case 'h': {  // 'h: halfword operation for extra loads and stores
       if (instr->HasH()) {
@@ -214,172 +348,89 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
         Print("b");
       }
       return 1;
-      break;
-    }
-    case 'i': {  // 'imm: immediate value for data processing instructions
-      ASSERT((format[1] == 'm') && (format[2] == 'm'));
-      PrintShiftImm(instr);
-      return 3;
-      break;
     }
     case 'l': {  // 'l: branch and link
       if (instr->HasLink()) {
         Print("l");
       }
       return 1;
-      break;
     }
-    case 'm': {  // 'msg: for simulator break instructions
-      if (format[1] == 'e') {
-        ASSERT((format[2] == 'm') && (format[3] == 'o') && (format[4] == 'p'));
+    case 'm': {
+      if (format[1] == 'e') {  // 'memop: load/store instructions
+        ASSERT(STRING_STARTS_WITH(format, "memop"));
         if (instr->HasL()) {
           Print("ldr");
         } else {
           Print("str");
         }
         return 5;
-      } else {
-        ASSERT(format[1] == 's' && format[2] == 'g');
-        byte* str =
-            reinterpret_cast<byte*>(instr->InstructionBits() & 0x0fffffff);
-        out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                             "%s", converter_.NameInCode(str));
-        return 3;
       }
-      break;
+      // 'msg: for simulator break instructions
+      ASSERT(STRING_STARTS_WITH(format, "msg"));
+      byte* str =
+          reinterpret_cast<byte*>(instr->InstructionBits() & 0x0fffffff);
+      out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                           "%s", converter_.NameInCode(str));
+      return 3;
     }
     case 'o': {
-      ASSERT(format[1] == 'f' && format[2] == 'f');
       if (format[3] == '1') {
         // 'off12: 12-bit offset for load and store instructions
-        ASSERT(format[4] == '2');
+        ASSERT(STRING_STARTS_WITH(format, "off12"));
         out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
                                              "%d", instr->Offset12Field());
         return 5;
-      } else {
-        // 'off8: 8-bit offset for extra load and store instructions
-        ASSERT(format[3] == '8');
-        int offs8 = (instr->ImmedHField() << 4) | instr->ImmedLField();
-        out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
-                                             "%d", offs8);
-        return 4;
       }
-      break;
+      // 'off8: 8-bit offset for extra load and store instructions
+      ASSERT(STRING_STARTS_WITH(format, "off8"));
+      int offs8 = (instr->ImmedHField() << 4) | instr->ImmedLField();
+      out_buffer_pos_ += v8i::OS::SNPrintF(out_buffer_ + out_buffer_pos_,
+                                           "%d", offs8);
+      return 4;
     }
     case 'p': {  // 'pu: P and U bits for load and store instructions
-      ASSERT(format[1] == 'u');
-      switch (instr->PUField()) {
-        case 0: {
-          Print("da");
-          break;
-        }
-        case 1: {
-          Print("ia");
-          break;
-        }
-        case 2: {
-          Print("db");
-          break;
-        }
-        case 3: {
-          Print("ib");
-          break;
-        }
-        default: {
-          UNREACHABLE();
-          break;
-        }
-      }
+      ASSERT(STRING_STARTS_WITH(format, "pu"));
+      PrintPU(instr);
       return 2;
-      break;
     }
     case 'r': {
-      if (format[1] == 'n') {  // 'rn: Rn register
-        int reg = instr->RnField();
-        PrintRegister(reg);
-        return 2;
-      } else if (format[1] == 'd') {  // 'rd: Rd register
-        int reg = instr->RdField();
-        PrintRegister(reg);
-        return 2;
-      } else if (format[1] == 's') {  // 'rs: Rs register
-        int reg = instr->RsField();
-        PrintRegister(reg);
-        return 2;
-      } else if (format[1] == 'm') {  // 'rm: Rm register
-        int reg = instr->RmField();
-        PrintRegister(reg);
-        return 2;
-      } else if (format[1] == 'l') {
-        // 'rlist: register list for load and store multiple instructions
-        ASSERT(format[2] == 'i' && format[3] == 's' && format[4] == 't');
-        int rlist = instr->RlistField();
-        int reg = 0;
-        Print("{");
-        while (rlist != 0) {
-          if ((rlist & 1) != 0) {
-            PrintRegister(reg);
-            if ((rlist >> 1) != 0) {
-              Print(", ");
-            }
-          }
-          reg++;
-          rlist >>= 1;
-        }
-        Print("}");
-        return 5;
-      } else {
-        UNREACHABLE();
-      }
-      UNREACHABLE();
-      return -1;
-      break;
+      return FormatRegister(instr, format);
     }
     case 's': {
-      if (format[1] == 'h') {  // 'shift_rm: register shift operands
-        ASSERT(format[2] == 'i' && format[3] == 'f' && format[4] == 't'
-               && format[5] == '_' && format[6] == 'r' && format[7] == 'm');
-        PrintShiftRm(instr);
-        return 8;
-      } else if (format[1] == 'w') {
-        ASSERT(format[2] == 'i');
-        SoftwareInterruptCodes swi = instr->SwiField();
-        switch (swi) {
-          case call_rt_r5:
-            Print("call_rt_r5");
-            break;
-          case call_rt_r2:
-            Print("call_rt_r2");
-            break;
-          case break_point:
-            Print("break_point");
-            break;
-          default:
-            out_buffer_pos_ += v8i::OS::SNPrintF(
-                out_buffer_ + out_buffer_pos_,
-                "%d",
-                swi);
-            break;
+      if (format[1] == 'h') {  // 'shift_op or 'shift_rm
+        if (format[6] == 'o') {  // 'shift_op
+          ASSERT(STRING_STARTS_WITH(format, "shift_op"));
+          if (instr->TypeField() == 0) {
+            PrintShiftRm(instr);
+          } else {
+            ASSERT(instr->TypeField() == 1);
+            PrintShiftImm(instr);
+          }
+          return 8;
+        } else {  // 'shift_rm
+          ASSERT(STRING_STARTS_WITH(format, "shift_rm"));
+          PrintShiftRm(instr);
+          return 8;
         }
+      } else if (format[1] == 'w') {  // 'swi
+        ASSERT(STRING_STARTS_WITH(format, "swi"));
+        PrintSoftwareInterrupt(instr->SwiField());
         return 3;
       } else if (format[1] == 'i') {  // 'sign: signed extra loads and stores
-        ASSERT(format[2] == 'g' && format[3] == 'n');
+        ASSERT(STRING_STARTS_WITH(format, "sign"));
         if (instr->HasSign()) {
           Print("s");
         }
         return 4;
-        break;
-      } else {  // 's: S field of data processing instructions
-        if (instr->HasS()) {
-          Print("s");
-        }
-        return 1;
       }
-      break;
+      // 's: S field of data processing instructions
+      if (instr->HasS()) {
+        Print("s");
+      }
+      return 1;
     }
     case 't': {  // 'target: target of branch instructions
-      ASSERT(format[1] == 'a' && format[2] == 'r' && format[3] == 'g'
-             && format[4] == 'e' && format[5] == 't');
+      ASSERT(STRING_STARTS_WITH(format, "target"));
       int off = (instr->SImmed24Field() << 2) + 8;
       out_buffer_pos_ += v8i::OS::SNPrintF(
           out_buffer_ + out_buffer_pos_,
@@ -387,7 +438,6 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
           off,
           converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
       return 6;
-      break;
     }
     case 'u': {  // 'u: signed or unsigned multiplies
       if (instr->Bit(22) == 0) {
@@ -396,14 +446,12 @@ int Decoder::FormatOption(Instr* instr, const char* format) {
         Print("s");
       }
       return 1;
-      break;
     }
     case 'w': {  // 'w: W field of load and store instructions
       if (instr->HasW()) {
         Print("!");
       }
       return 1;
-      break;
     }
     default: {
       UNREACHABLE();
@@ -439,8 +487,9 @@ void Decoder::Unknown(Instr* instr) {
 }
 
 
-void Decoder::DecodeType0(Instr* instr) {
-  if (instr->IsSpecialType0()) {
+void Decoder::DecodeType01(Instr* instr) {
+  int type = instr->TypeField();
+  if ((type == 0) && instr->IsSpecialType0()) {
     // multiply instruction or extra loads and stores
     if (instr->Bits(7, 4) == 9) {
       if (instr->Bit(24) == 0) {
@@ -503,87 +552,83 @@ void Decoder::DecodeType0(Instr* instr) {
   } else {
     switch (instr->OpcodeField()) {
       case AND: {
-        Format(instr, "and'cond's 'rd, 'rn, 'shift_rm");
+        Format(instr, "and'cond's 'rd, 'rn, 'shift_op");
         break;
       }
       case EOR: {
-        Format(instr, "eor'cond's 'rd, 'rn, 'shift_rm");
+        Format(instr, "eor'cond's 'rd, 'rn, 'shift_op");
         break;
       }
       case SUB: {
-        Format(instr, "sub'cond's 'rd, 'rn, 'shift_rm");
+        Format(instr, "sub'cond's 'rd, 'rn, 'shift_op");
         break;
       }
       case RSB: {
-        Format(instr, "rsb'cond's 'rd, 'rn, 'shift_rm");
+        Format(instr, "rsb'cond's 'rd, 'rn, 'shift_op");
         break;
       }
       case ADD: {
-        Format(instr, "add'cond's 'rd, 'rn, 'shift_rm");
+        Format(instr, "add'cond's 'rd, 'rn, 'shift_op");
         break;
       }
       case ADC: {
-        Format(instr, "adc'cond's 'rd, 'rn, 'shift_rm");
+        Format(instr, "adc'cond's 'rd, 'rn, 'shift_op");
         break;
       }
       case SBC: {
-        Format(instr, "sbc'cond's 'rd, 'rn, 'shift_rm");
+        Format(instr, "sbc'cond's 'rd, 'rn, 'shift_op");
         break;
       }
       case RSC: {
-        Format(instr, "rsc'cond's 'rd, 'rn, 'shift_rm");
+        Format(instr, "rsc'cond's 'rd, 'rn, 'shift_op");
         break;
       }
       case TST: {
         if (instr->HasS()) {
-          Format(instr, "tst'cond 'rn, 'shift_rm");
+          Format(instr, "tst'cond 'rn, 'shift_op");
         } else {
           Unknown(instr);  // not used by V8
-          return;
         }
         break;
       }
       case TEQ: {
         if (instr->HasS()) {
-          Format(instr, "teq'cond 'rn, 'shift_rm");
+          Format(instr, "teq'cond 'rn, 'shift_op");
         } else {
           Unknown(instr);  // not used by V8
-          return;
         }
         break;
       }
       case CMP: {
         if (instr->HasS()) {
-          Format(instr, "cmp'cond 'rn, 'shift_rm");
+          Format(instr, "cmp'cond 'rn, 'shift_op");
         } else {
           Unknown(instr);  // not used by V8
-          return;
         }
         break;
       }
       case CMN: {
         if (instr->HasS()) {
-          Format(instr, "cmn'cond 'rn, 'shift_rm");
+          Format(instr, "cmn'cond 'rn, 'shift_op");
         } else {
           Unknown(instr);  // not used by V8
-          return;
         }
         break;
       }
       case ORR: {
-        Format(instr, "orr'cond's 'rd, 'rn, 'shift_rm");
+        Format(instr, "orr'cond's 'rd, 'rn, 'shift_op");
         break;
       }
       case MOV: {
-        Format(instr, "mov'cond's 'rd, 'shift_rm");
+        Format(instr, "mov'cond's 'rd, 'shift_op");
         break;
       }
       case BIC: {
-        Format(instr, "bic'cond's 'rd, 'rn, 'shift_rm");
+        Format(instr, "bic'cond's 'rd, 'rn, 'shift_op");
         break;
       }
       case MVN: {
-        Format(instr, "mvn'cond's 'rd, 'shift_rm");
+        Format(instr, "mvn'cond's 'rd, 'shift_op");
         break;
       }
       default: {
@@ -596,107 +641,11 @@ void Decoder::DecodeType0(Instr* instr) {
 }
 
 
-void Decoder::DecodeType1(Instr* instr) {
-  switch (instr->OpcodeField()) {
-    case AND: {
-      Format(instr, "and'cond's 'rd, 'rn, 'imm");
-      break;
-    }
-    case EOR: {
-      Format(instr, "eor'cond's 'rd, 'rn, 'imm");
-      break;
-    }
-    case SUB: {
-      Format(instr, "sub'cond's 'rd, 'rn, 'imm");
-      break;
-    }
-    case RSB: {
-      Format(instr, "rsb'cond's 'rd, 'rn, 'imm");
-      break;
-    }
-    case ADD: {
-      Format(instr, "add'cond's 'rd, 'rn, 'imm");
-      break;
-    }
-    case ADC: {
-      Format(instr, "adc'cond's 'rd, 'rn, 'imm");
-      break;
-    }
-    case SBC: {
-      Format(instr, "sbc'cond's 'rd, 'rn, 'imm");
-      break;
-    }
-    case RSC: {
-      Format(instr, "rsc'cond's 'rd, 'rn, 'imm");
-      break;
-    }
-    case TST: {
-      if (instr->HasS()) {
-        Format(instr, "tst'cond 'rn, 'imm");
-      } else {
-        Unknown(instr);  // not used by V8
-        return;
-      }
-      break;
-    }
-    case TEQ: {
-      if (instr->HasS()) {
-        Format(instr, "teq'cond 'rn, 'imm");
-      } else {
-        Unknown(instr);  // not used by V8
-        return;
-      }
-      break;
-    }
-    case CMP: {
-      if (instr->HasS()) {
-        Format(instr, "cmp'cond 'rn, 'imm");
-      } else {
-        Unknown(instr);  // not used by V8
-        return;
-      }
-      break;
-    }
-    case CMN: {
-      if (instr->HasS()) {
-        Format(instr, "cmn'cond 'rn, 'imm");
-      } else {
-        Unknown(instr);  // not used by V8
-        return;
-      }
-      break;
-    }
-    case ORR: {
-      Format(instr, "orr'cond's 'rd, 'rn, 'imm");
-      break;
-    }
-    case MOV: {
-      Format(instr, "mov'cond's 'rd, 'imm");
-      break;
-    }
-    case BIC: {
-      Format(instr, "bic'cond's 'rd, 'rn, 'imm");
-      break;
-    }
-    case MVN: {
-      Format(instr, "mvn'cond's 'rd, 'imm");
-      break;
-    }
-    default: {
-      // The Opcode field is a 4-bit field.
-      UNREACHABLE();
-      break;
-    }
-  }
-}
-
-
 void Decoder::DecodeType2(Instr* instr) {
   switch (instr->PUField()) {
     case 0: {
       if (instr->HasW()) {
         Unknown(instr);  // not used in V8
-        return;
       }
       Format(instr, "'memop'cond'b 'rd, ['rn], #-'off12");
       break;
@@ -704,7 +653,6 @@ void Decoder::DecodeType2(Instr* instr) {
     case 1: {
       if (instr->HasW()) {
         Unknown(instr);  // not used in V8
-        return;
       }
       Format(instr, "'memop'cond'b 'rd, ['rn], #+'off12");
       break;
@@ -798,12 +746,9 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
     return Instr::kInstrSize;
   }
   switch (instr->TypeField()) {
-    case 0: {
-      DecodeType0(instr);
-      break;
-    }
+    case 0:
     case 1: {
-      DecodeType1(instr);
+      DecodeType01(instr);
       break;
     }
     case 2: {
@@ -848,8 +793,15 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 
 namespace disasm {
 
-static const char* reg_names[16] = {
-  "r0", "r1", "r2" , "r3" , "r4" , "r5" , "r6" , "r7" ,
+namespace v8i = v8::internal;
+
+
+static const int kMaxRegisters = 16;
+
+// These register names are defined in a way to match the native disassembler
+// formatting. See for example the command "objdump -d <binary file>".
+static const char* reg_names[kMaxRegisters] = {
+  "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
   "r8", "r9", "sl", "fp", "ip", "sp", "lr", "pc",
 };
 
@@ -868,7 +820,7 @@ const char* NameConverter::NameOfConstant(byte* addr) const {
 
 const char* NameConverter::NameOfCPURegister(int reg) const {
   const char* result;
-  if ((0 <= reg) && (reg < 16)) {
+  if ((0 <= reg) && (reg < kMaxRegisters)) {
     result = reg_names[reg];
   } else {
     result = "noreg";
@@ -891,11 +843,6 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 
 //------------------------------------------------------------------------------
-
-static NameConverter defaultConverter;
-
-Disassembler::Disassembler() : converter_(defaultConverter) {}
-
 
 Disassembler::Disassembler(const NameConverter& converter)
     : converter_(converter) {}
@@ -922,7 +869,8 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) {
 
 
 void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
-  Disassembler d;
+  NameConverter converter;
+  Disassembler d(converter);
   for (byte* pc = begin; pc < end;) {
     v8::internal::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
