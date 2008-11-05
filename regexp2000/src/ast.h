@@ -1298,9 +1298,9 @@ class RegExpQuantifier: public RegExpTree {
   int max() { return max_; }
   bool is_greedy() { return is_greedy_; }
   RegExpTree* body() { return body_; }
-  // We just use a very large integer value as infinity because 1^31
+  // We just use a very large integer value as infinity because 2^30
   // is infinite in practice.
-  static const int kInfinity = (1 << 31);
+  static const int kInfinity = (1 << 30);
  private:
   int min_;
   int max_;
@@ -1311,13 +1311,15 @@ class RegExpQuantifier: public RegExpTree {
 
 class RegExpCapture: public RegExpTree {
  public:
-  explicit RegExpCapture(RegExpTree* body)
-    : body_(body) { }
+  explicit RegExpCapture(RegExpTree* body, int index)
+    : body_(body), index_(index) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpCapture* AsCapture();
   RegExpTree* body() { return body_; }
+  int index() { return index_; }
  private:
   RegExpTree* body_;
+  int index_;
 };
 
 

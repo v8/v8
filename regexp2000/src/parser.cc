@@ -228,6 +228,195 @@ class Parser {
 };
 
 
+template <typename T, int initial_size>
+class BufferedZoneList {
+ public:
+
+  BufferedZoneList() :
+    list_(NULL), last_(NULL) {}
+
+  // Adds element at end of list. This element is buffered and can
+  // be read using last() or removed using RemoveLast until a new Add or until
+  // RemoveLast or GetList has been called.
+  void Add(T* value) {
+    if (last_ != NULL) {
+      if (list_ == NULL) {
+        list_ = new ZoneList<T*>(initial_size);
+      }
+      list_->Add(last_);
+    }
+    last_ = value;
+  }
+
+  T* last() {
+    ASSERT(last_ != NULL);
+    return last_;
+  }
+
+  T* RemoveLast() {
+    ASSERT(last_ != NULL);
+    T* result = last_;
+    last_ = NULL;
+    return result;
+  }
+
+  void Clear() {
+    list_ = NULL;
+    last_ = NULL;
+  }
+
+  int length() {
+    int length = (list_ == NULL) ? 0 : list_->length();
+    return length + ((last_ == NULL) ? 0 : 1);
+  }
+
+  ZoneList<T*>* GetList() {
+    if (list_ == NULL) {
+      list_ = new ZoneList<T*>(initial_size);
+    }
+    if (last_ != NULL) {
+      list_->Add(last_);
+      last_ = NULL;
+    }
+    return list_;
+  }
+
+ private:
+  ZoneList<T*>* list_;
+  T* last_;
+};
+
+// Accumulates RegExp atoms and assertions into lists of terms and alternatives.
+class RegExpBuilder {
+ public:
+  RegExpBuilder();
+  void AddCharacter(uc16 character);
+  void AddAtom(RegExpTree* tree);
+  void AddAssertion(RegExpTree* tree);
+  void NewAlternative();  // '|'
+  void AddQuantifierToAtom(int min, int max, bool is_greedy);
+  RegExpTree* ToRegExp();
+ private:
+  void FlushCharacters();
+  bool FlushTerms();
+  ZoneList<uc16>* characters_;
+  BufferedZoneList<RegExpTree, 2> terms_;
+  BufferedZoneList<RegExpTree, 2> alternatives_;
+#ifdef DEBUG
+  enum {ADD_NONE, ADD_CHAR, ADD_TERM, ADD_ASSERT, ADD_ATOM} last_added_;
+#define LAST(x) last_added_ = x;
+#else
+#define LAST(x)
+#endif
+};
+
+
+RegExpBuilder::RegExpBuilder() : characters_(NULL), terms_(), alternatives_()
+#ifdef DEBUG
+  , last_added_(ADD_NONE)
+#endif
+  {}
+
+
+void RegExpBuilder::FlushCharacters() {
+  if (characters_ != NULL) {
+    RegExpTree* atom = new RegExpAtom(characters_->ToConstVector());
+    characters_ = NULL;
+    terms_.Add(atom);
+    LAST(ADD_ATOM);
+  }
+}
+
+
+void RegExpBuilder::AddCharacter(uc16 c) {
+  if (characters_ == NULL) {
+    characters_ = new ZoneList<uc16>(4);
+  }
+  characters_->Add(c);
+  LAST(ADD_CHAR);
+}
+
+
+void RegExpBuilder::AddAtom(RegExpTree* atom) {
+  FlushCharacters();
+  terms_.Add(atom);
+  LAST(ADD_ATOM);
+}
+
+
+void RegExpBuilder::AddAssertion(RegExpTree* assert) {
+  FlushCharacters();
+  terms_.Add(assert);
+  LAST(ADD_ASSERT);
+}
+
+
+void RegExpBuilder::NewAlternative() {
+  if (!FlushTerms()) {
+    alternatives_.Add(RegExpEmpty::GetInstance());
+  }
+}
+
+
+bool RegExpBuilder::FlushTerms() {
+  FlushCharacters();
+  int num_terms = terms_.length();
+  if (num_terms == 0) {
+    return false;
+  }
+  RegExpTree* alternative;
+  if (num_terms == 1) {
+    alternative = terms_.last();
+  } else {
+    alternative = new RegExpAlternative(terms_.GetList());
+  }
+  alternatives_.Add(alternative);
+  terms_.Clear();
+  LAST(ADD_NONE);
+  return true;
+}
+
+
+RegExpTree* RegExpBuilder::ToRegExp() {
+  FlushTerms();
+  int num_alternatives = alternatives_.length();
+  if (num_alternatives == 0) {
+    return RegExpEmpty::GetInstance();
+  }
+  if (num_alternatives == 1) {
+    return alternatives_.last();
+  }
+  return new RegExpDisjunction(alternatives_.GetList());
+}
+
+
+void RegExpBuilder::AddQuantifierToAtom(int min, int max, bool is_greedy) {
+  RegExpTree* atom;
+  if (characters_ != NULL) {
+    ASSERT(last_added_ == ADD_CHAR);
+    // Last atom was character.
+    Vector<const uc16> char_vector = characters_->ToConstVector();
+    int num_chars = char_vector.length();
+    if (num_chars > 1) {
+      Vector<const uc16> prefix = char_vector.SubVector(0, num_chars - 1);
+      terms_.Add(new RegExpAtom(prefix));
+      char_vector = char_vector.SubVector(num_chars - 1, num_chars);
+    }
+    characters_ = NULL;
+    atom = new RegExpAtom(char_vector);
+  } else if (terms_.length() > 0) {
+    ASSERT(last_added_ == ADD_ATOM);
+    atom = terms_.RemoveLast();
+  } else {
+    // Only call immediately after adding an atom or character!
+    UNREACHABLE();
+    return;
+  }
+  terms_.Add(new RegExpQuantifier(min, max, is_greedy, atom));
+  LAST(ADD_TERM);
+}
+
+
 class RegExpParser {
  public:
   RegExpParser(unibrow::CharacterStream* in,
@@ -235,9 +424,6 @@ class RegExpParser {
                bool multiline_mode);
   RegExpTree* ParsePattern(bool* ok);
   RegExpTree* ParseDisjunction(bool* ok);
-  RegExpTree* ParseAlternative(bool* ok);
-  RegExpTree* ParseTerm(bool* ok);
-  RegExpTree* ParseAtom(bool* ok);
   RegExpTree* ParseGroup(bool* ok);
   RegExpTree* ParseCharacterClass(bool* ok);
 
@@ -247,14 +433,14 @@ class RegExpParser {
 
   // Parses and returns a single escaped character.  The character
   // must not be 'b' or 'B' since they are usually handle specially.
-  uc32 ParseCharacterEscape(bool* ok);
+  uc32 ParseClassCharacterEscape(bool* ok);
 
   // Checks whether the following is a length-digit hexadecimal number,
   // and sets the value if it is.
   bool ParseHexEscape(int length, uc32* value);
 
-  uc32 ParseControlEscape(bool* ok);
-  uc32 ParseOctalLiteral(bool* ok);
+  uc32 ParseControlLetterEscape(bool* ok);
+  uc32 ParseOctalLiteral();
 
   // Tries to parse the input as a backreference.  If successful it
   // stores the result in the output parameter and returns true.  If
@@ -273,9 +459,12 @@ class RegExpParser {
   // returned by current(). There is a limited amount of push-back buffer.
   // A function using PushBack should check that it doesn't push back more
   // than kMaxPushback characters, and it should not push back more characters
-  // than it has read, or that it knows had been read prior to calling it.
+  // than it has read.
   void PushBack(uc32 character);
   bool CanPushBack();
+
+  bool HasCharacterEscapes();
+
   static const uc32 kEndMarker = unibrow::Utf8::kBadChar;
  private:
   uc32 current() { return current_; }
@@ -288,12 +477,13 @@ class RegExpParser {
   bool has_more_;
   bool has_next_;
   bool multiline_mode_;
-  int captures_seen_;
+  int captures_started_;
   unibrow::CharacterStream* in_;
   Handle<String>* error_;
   static const int kMaxPushback = 5;
   int pushback_count_;
   uc32 pushback_buffer_[kMaxPushback];
+  bool has_character_escapes_;
 };
 
 
@@ -3245,10 +3435,11 @@ RegExpParser::RegExpParser(unibrow::CharacterStream* in,
     has_more_(true),
     has_next_(true),
     multiline_mode_(multiline_mode),
-    captures_seen_(0),
+    captures_started_(0),
     in_(in),
     error_(error),
-    pushback_count_(0) {
+    pushback_count_(0),
+    has_character_escapes_(false) {
   Advance(2);
 }
 
@@ -3259,7 +3450,6 @@ void RegExpParser::Advance() {
   if (pushback_count_ > 0) {
     pushback_count_--;
     next_ = pushback_buffer_[pushback_count_];
-    has_next_ = true;
   } else if (in()->has_more()) {
     next_ = in()->GetNext();
   } else {
@@ -3281,10 +3471,10 @@ void RegExpParser::PushBack(uc32 character) {
     pushback_buffer_[pushback_count_] = next_;
     pushback_count_++;
   }
-  if (has_more_) {
-    next_ = current_;
-    has_next_ = true;
-  }
+
+  next_ = current_;
+  has_next_ = has_more_;
+
   current_ = character;
   has_more_ = true;
 }
@@ -3294,6 +3484,12 @@ bool RegExpParser::CanPushBack() {
   return (pushback_count_ < kMaxPushback);
 }
 
+// Reports whether the parsed string atoms contain any characters that were
+// escaped in the original pattern. If not, all atoms are proper substrings
+// of the original pattern.
+bool RegExpParser::HasCharacterEscapes() {
+  return has_character_escapes_;
+}
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message, bool* ok) {
   *ok = false;
@@ -3305,57 +3501,228 @@ RegExpTree* RegExpParser::ReportError(Vector<const char> message, bool* ok) {
 // Pattern ::
 //   Disjunction
 RegExpTree* RegExpParser::ParsePattern(bool* ok) {
-  return ParseDisjunction(ok);
+  RegExpTree* result = ParseDisjunction(CHECK_OK);
+  if (has_more()) {
+    ReportError(CStrVector("Unmatched ')'"), CHECK_OK);
+  }
+  return result;
 }
 
 
 // Disjunction ::
 //   Alternative
 //   Alternative | Disjunction
-RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
-  RegExpTree* first = ParseAlternative(CHECK_OK);
-  if (current() == '|') {
-    ZoneList<RegExpTree*>* nodes = new ZoneList<RegExpTree*>(2);
-    nodes->Add(first);
-    while (current() == '|') {
-      Advance();
-      RegExpTree* next = ParseAlternative(CHECK_OK);
-      nodes->Add(next);
-    }
-    return new RegExpDisjunction(nodes);
-  } else {
-    return first;
-  }
-}
-
-
-static bool IsAlternativeTerminator(uc32 c) {
-  return c == '|' || c == ')' || c == RegExpParser::kEndMarker;
-}
-
-
 // Alternative ::
 //   [empty]
-//   Alternative Term
-RegExpTree* RegExpParser::ParseAlternative(bool* ok) {
-  if (!IsAlternativeTerminator(current())) {
-    RegExpTree* first = ParseTerm(CHECK_OK);
-    if (!IsAlternativeTerminator(current())) {
-      ZoneList<RegExpTree*>* nodes = new ZoneList<RegExpTree*>(2);
-      nodes->Add(first);
-      while (!IsAlternativeTerminator(current())) {
-        RegExpTree* next = ParseTerm(CHECK_OK);
-        nodes->Add(next);
-      }
-      return new RegExpAlternative(nodes);
-    } else {
-      return first;
+//   Term Alternative
+// Term ::
+//   Assertion
+//   Atom
+//   Atom Quantifier
+RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
+  RegExpBuilder builder;
+  while (true) {
+    switch (current()) {
+    case kEndMarker:
+    case ')':
+      return builder.ToRegExp();
+    case '|':
+      Advance();
+      builder.NewAlternative();
+      continue;
+    case '*':
+    case '+':
+    case '?':
+    case '{':
+      ReportError(CStrVector("Nothing to repeat."), CHECK_OK);
+    case '^': {
+      Advance();
+      RegExpAssertion::Type type =
+          multiline_mode_ ? RegExpAssertion::START_OF_LINE :
+                            RegExpAssertion::START_OF_INPUT;
+      builder.AddAssertion(new RegExpAssertion(type));
+      continue;
     }
-  } else {
-    return RegExpEmpty::GetInstance();
+    case '$': {
+      Advance();
+      RegExpAssertion::Type type =
+          multiline_mode_ ? RegExpAssertion::END_OF_LINE :
+                            RegExpAssertion::END_OF_INPUT;
+      builder.AddAssertion(new RegExpAssertion(type));
+      continue;
+    }
+    case '.': {
+      Advance();
+      // everything except \x0a, \x0d, \u2028 and \u2029
+      ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
+      CharacterRange::AddClassEscape('.', ranges);
+      RegExpTree* atom = new RegExpCharacterClass(ranges, false);
+      builder.AddAtom(atom);
+      break;
+    }
+    case '(': {
+      RegExpTree* atom = ParseGroup(CHECK_OK);
+      builder.AddAtom(atom);
+      break;
+    }
+    case '[': {
+      RegExpTree* atom = ParseCharacterClass(CHECK_OK);
+      builder.AddAtom(atom);
+      break;
+    }
+    // Atom ::
+    //   \ AtomEscape
+    case '\\':
+      switch (next()) {
+      case kEndMarker:
+        ReportError(CStrVector("\\ at end of pattern"), CHECK_OK);
+      case 'b':
+        Advance(2);
+        builder.AddAssertion(
+            new RegExpAssertion(RegExpAssertion::BOUNDARY));
+        continue;
+      case 'B':
+        Advance(2);
+        builder.AddAssertion(
+            new RegExpAssertion(RegExpAssertion::NON_BOUNDARY));
+        continue;
+        // AtomEscape ::
+        //   CharacterClassEscape
+        //
+        // CharacterClassEscape :: one of
+        //   d D s S w W
+      case 'd': case 'D': case 's': case 'S': case 'w': case 'W': {
+        uc32 c = next();
+        Advance(2);
+        ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
+        CharacterRange::AddClassEscape(c, ranges);
+        RegExpTree* atom = new RegExpCharacterClass(ranges, false);
+        builder.AddAtom(atom);
+        goto has_read_atom;  // Avoid setting has_character_escapes_.
+      }
+      case '1': case '2': case '3': case '4': case '5': case '6':
+      case '7': case '8': case '9': {
+        int index = 0;
+        if (ParseBackreferenceIndex(&index)) {
+          RegExpTree* atom = new RegExpBackreference(index);
+          builder.AddAtom(atom);
+          goto has_read_atom;  // Avoid setting has_character_escapes_.
+        }
+        uc32 first_digit = next();
+        if (first_digit == '8' || first_digit == '9') {
+          // Treat as identity escape
+          builder.AddCharacter(first_digit);
+          Advance(2);
+          break;
+        }
+      }
+      // FALLTHROUGH
+      case '0': {
+        Advance();
+        uc32 octal = ParseOctalLiteral();
+        builder.AddCharacter(octal);
+        break;
+      }
+      // ControlEscape :: one of
+      //   f n r t v
+      case 'f':
+        Advance(2);
+        builder.AddCharacter('\f');
+        break;
+      case 'n':
+        Advance(2);
+        builder.AddCharacter('\n');
+        break;
+      case 'r':
+        Advance(2);
+        builder.AddCharacter('\r');
+        break;
+      case 't':
+        Advance(2);
+        builder.AddCharacter('\t');
+        break;
+      case 'v':
+        Advance(2);
+        builder.AddCharacter('\v');
+        break;
+      case 'c': {
+        Advance(2);
+        uc32 control = ParseControlLetterEscape(ok);
+        builder.AddCharacter(control);
+        break;
+      }
+      case 'x': {
+        Advance(2);
+        uc32 value;
+        if (ParseHexEscape(2, &value)) {
+          builder.AddCharacter(value);
+        } else {
+          builder.AddCharacter('x');
+        }
+        break;
+      }
+      case 'u': {
+        Advance(2);
+        uc32 value;
+        if (ParseHexEscape(4, &value)) {
+          builder.AddCharacter(value);
+        } else {
+          builder.AddCharacter('u');
+        }
+        break;
+      }
+      default:
+        // Identity escape.
+        builder.AddCharacter(next());
+        Advance(2);
+        break;
+      }
+      has_character_escapes_ = true;
+      break;
+    default:
+      builder.AddCharacter(current());
+      Advance();
+      break;
+    }  // end switch(current())
+
+    has_read_atom:
+    int min;
+    int max;
+    switch (current()) {
+    // QuantifierPrefix ::
+    //   *
+    //   +
+    //   ?
+    //   {
+    case '*':
+      min = 0;
+      max = RegExpQuantifier::kInfinity;
+      Advance();
+      break;
+    case '+':
+      min = 1;
+      max = RegExpQuantifier::kInfinity;
+      Advance();
+      break;
+    case '?':
+      min = 0;
+      max = 1;
+      Advance();
+      break;
+    case '{':
+      ParseIntervalQuantifier(&min, &max, CHECK_OK);
+      break;
+    default:
+      continue;
+    }
+    bool is_greedy = true;
+    if (current() == '?') {
+      is_greedy = false;
+      Advance();
+    }
+    builder.AddQuantifierToAtom(min, max, is_greedy);
   }
 }
-
 
 class SourceCharacter {
  public:
@@ -3382,31 +3749,34 @@ static inline bool IsSourceCharacter(uc32 c) {
   return source_character.get(c);
 }
 
-
-static bool IsSpecialEscape(uc32 c) {
+#ifdef DEBUG
+// Currently only used in an ASSERT.
+static bool IsSpecialClassEscape(uc32 c) {
   switch (c) {
-    case 'b': case 'B': case 'd': case 'D': case 's': case 'S':
+    case 'd': case 'D':
+    case 's': case 'S':
     case 'w': case 'W':
       return true;
     default:
       return false;
   }
 }
+#endif
 
 
 bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
   ASSERT_EQ('\\', current());
   ASSERT('1' <= next() && next() <= '9');
   ASSERT_EQ(0, pushback_count_);
-  // Try to parse a decimal literal that is less than then number
+  // Try to parse a decimal literal that is no greater than the number
   // of previously encountered left capturing parentheses.
   // This is a not according the the ECMAScript specification. According to
   // that, one must accept values up to the total number of left capturing
   // parentheses in the entire input, even if they are meaningless.
-  if (captures_seen_ == 0)
+  if (captures_started_ == 0)
     return false;
   int value = next() - '0';
-  if (value > captures_seen_)
+  if (value > captures_started_)
     return false;
   static const int kMaxChars = kMaxPushback - 2;
   EmbeddedVector<uc32, kMaxChars> chars_seen;
@@ -3416,10 +3786,10 @@ bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
   while (true) {
     uc32 c = current();
     if (IsDecimalDigit(c)) {
-      int next_value = 10 * value + (c - '0');
+      value = 10 * value + (c - '0');
       // To avoid reading past the end of the stack-allocated pushback
       // buffers we only read kMaxChars before giving up.
-      if (next_value > captures_seen_ || char_count > kMaxChars) {
+      if (value > captures_started_ || char_count > kMaxChars) {
         // If we give up we have to push the characters we read back
         // onto the pushback buffer in the reverse order.
         for (int i = 0; i < char_count; i++) {
@@ -3428,137 +3798,14 @@ bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
         PushBack('\\');
         return false;
       }
-      value = next_value;
       chars_seen[char_count++] = current();
       Advance();
     } else {
-      *index_out = value;
-      return true;
-    }
-  }
-}
-
-
-// Term ::
-//   Assertion
-//   Atom
-//   Atom Quantifier
-RegExpTree* RegExpParser::ParseTerm(bool* ok) {
-  RegExpTree* atom = NULL;
-  switch (current()) {
-    // Assertion ::
-    //   ^
-    //   $
-    //   \ b
-    //   \ B
-    case '^':
-      Advance();
-      return new RegExpAssertion(
-          multiline_mode_ ? RegExpAssertion::START_OF_LINE
-                          : RegExpAssertion::START_OF_INPUT);
-    case '$':
-      Advance();
-      return new RegExpAssertion(
-          multiline_mode_ ? RegExpAssertion::END_OF_LINE
-                          : RegExpAssertion::END_OF_INPUT);
-    case '.': {
-      Advance();
-      ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
-      CharacterRange::AddClassEscape('.', ranges);
-      atom = new RegExpCharacterClass(ranges, false);
-      break;
-    }
-    case '(':
-      atom = ParseGroup(CHECK_OK);
-      break;
-    case '[':
-      atom = ParseCharacterClass(CHECK_OK);
-      break;
-    // Atom ::
-    //   \ AtomEscape
-    case '\\':
-      if (has_next()) {
-        switch (next()) {
-          case 'b':
-            Advance(2);
-            return new RegExpAssertion(RegExpAssertion::BOUNDARY);
-          case 'B':
-            Advance(2);
-            return new RegExpAssertion(RegExpAssertion::NON_BOUNDARY);
-          // AtomEscape ::
-          //   CharacterClassEscape
-          //
-          // CharacterClassEscape :: one of
-          //   d D s S w W
-          case 'd': case 'D': case 's': case 'S': case 'w': case 'W': {
-            uc32 c = next();
-            ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
-            CharacterRange::AddClassEscape(c, ranges);
-            Advance(2);
-            atom = new RegExpCharacterClass(ranges, false);
-            goto has_read_atom;
-          }
-          case '1': case '2': case '3': case '4': case '5': case '6':
-          case '7': case '8': case '9': {
-            int index = 0;
-            if (ParseBackreferenceIndex(&index)) {
-              atom = new RegExpBackreference(index);
-              goto has_read_atom;
-            } else {
-              // If this is not a backreference we go to the atom parser
-              // which will read it as an octal escape or identity escape.
-              goto parse_atom;
-            }
-          }
-          default:
-            goto parse_atom;
-        }
-      }
-      // All other escapes fall through to the default case since
-      // they correspond to single characters that can be
-      // represented within atoms.
-    default: {
-     parse_atom:
-      atom = ParseAtom(CHECK_OK);
       break;
     }
   }
- has_read_atom:
-  int min;
-  int max;
-  switch (current()) {
-    // QuantifierPrefix ::
-    //   *
-    //   +
-    //   ?
-    //   {
-    case '*':
-      min = 0;
-      max = RegExpQuantifier::kInfinity;
-      Advance();
-      break;
-    case '+':
-      min = 1;
-      max = RegExpQuantifier::kInfinity;
-      Advance();
-      break;
-    case '?':
-      min = 0;
-      max = 1;
-      Advance();
-      break;
-    case '{':
-      ParseIntervalQuantifier(&min, &max, CHECK_OK);
-      break;
-    default:
-      return atom;
-  }
-  bool is_greedy = true;
-  if (current() == '?') {
-    is_greedy = false;
-    Advance();
-  }
-  return new RegExpQuantifier(min, max, is_greedy, atom);
+  *index_out = value;
+  return true;
 }
 
 
@@ -3612,37 +3859,10 @@ void* RegExpParser::ParseIntervalQuantifier(int* min_out,
 }
 
 
-RegExpTree* RegExpParser::ParseAtom(bool* ok) {
-  ASSERT(current() == '\\' || IsSourceCharacter(current()));
-  ZoneList<uc16>* buf = new ZoneList<uc16>(4);
-  while (true) {
-    if (IsSourceCharacter(current())) {
-      buf->Add(current());
-      Advance();
-    } else if (current() == '\\') {
-      if (!has_next()) {
-        ReportError(CStrVector("\\ at end of pattern"), CHECK_OK);
-      } else if (IsSpecialEscape(next())) {
-        // If the next thing we see is a special escape we stop
-        // reading this atom.
-        break;
-      } else {
-        uc32 escape = ParseCharacterEscape(CHECK_OK);
-        buf->Add(escape);
-      }
-    } else {
-      break;
-    }
-  }
-  return new RegExpAtom(buf->ToConstVector());
-}
-
 // Upper and lower case letters differ by one bit.
 STATIC_CHECK('a'^'A' == 0x20);
 
-uc32 RegExpParser::ParseControlEscape(bool* ok) {
-  ASSERT(current() == 'c');
-  Advance();
+uc32 RegExpParser::ParseControlLetterEscape(bool* ok) {
   if (!has_more()) {
     ReportError(CStrVector("\\c at end of pattern"), ok);
     return '\0';
@@ -3650,7 +3870,7 @@ uc32 RegExpParser::ParseControlEscape(bool* ok) {
   uc32 letter = current() & ~(0x20);  // Collapse upper and lower case letters.
   if (letter < 'A' || 'Z' < letter) {
     // Non-spec error-correction: "\c" followed by non-control letter is
-    // interpreted as an IdentityEscape.
+    // interpreted as an IdentityEscape of 'c'.
     return 'c';
   }
   Advance();
@@ -3658,7 +3878,7 @@ uc32 RegExpParser::ParseControlEscape(bool* ok) {
 }
 
 
-uc32 RegExpParser::ParseOctalLiteral(bool* ok) {
+uc32 RegExpParser::ParseOctalLiteral() {
   ASSERT('0' <= current() && current() <= '7');
   // For compatibility with some other browsers (not all), we parse
   // up to three octal digits with a value below 256.
@@ -3674,6 +3894,7 @@ uc32 RegExpParser::ParseOctalLiteral(bool* ok) {
   }
   return value;
 }
+
 
 bool RegExpParser::ParseHexEscape(int length, uc32 *value) {
   static const int kMaxChars = kMaxPushback;
@@ -3704,11 +3925,10 @@ bool RegExpParser::ParseHexEscape(int length, uc32 *value) {
 }
 
 
-uc32 RegExpParser::ParseCharacterEscape(bool* ok) {
+uc32 RegExpParser::ParseClassCharacterEscape(bool* ok) {
   ASSERT(current() == '\\');
-  ASSERT(has_next() && !IsSpecialEscape(next()));
+  ASSERT(has_next() && !IsSpecialClassEscape(next()));
   Advance();
-  ASSERT(current() != 'b' && current() != 'B');
   switch (current()) {
     // ControlEscape :: one of
     //   f n r t v
@@ -3728,15 +3948,13 @@ uc32 RegExpParser::ParseCharacterEscape(bool* ok) {
       Advance();
       return '\v';
     case 'c':
-      // Spec mandates that next character is ASCII letter.
-      // If not, we error-correct by interpreting "\c" as "c".
-      return ParseControlEscape(ok);
+      return ParseControlLetterEscape(ok);
     case '0': case '1': case '2': case '3': case '4': case '5':
     case '6': case '7':
       // For compatibility, we interpret a decimal escape that isn't
       // a back reference (and therefore either \0 or not valid according
       // to the specification) as a 1..3 digit octal character code.
-      return ParseOctalLiteral(ok);
+      return ParseOctalLiteral();
     case 'x': {
       Advance();
       uc32 value;
@@ -3784,15 +4002,17 @@ RegExpTree* RegExpParser::ParseGroup(bool* ok) {
         ReportError(CStrVector("Invalid group"), CHECK_OK);
         break;
     }
+  } else {
+    captures_started_++;
   }
+  int capture_index = captures_started_;
   RegExpTree* body = ParseDisjunction(CHECK_OK);
   if (current() != ')') {
     ReportError(CStrVector("Unterminated group"), CHECK_OK);
   }
   Advance();
   if (type == '(') {
-    captures_seen_++;
-    return new RegExpCapture(body);
+    return new RegExpCapture(body, capture_index);
   } else if (type == ':') {
     return body;
   } else {
@@ -3810,9 +4030,6 @@ CharacterRange RegExpParser::ParseClassAtom(bool* is_char_class,
   uc32 first = current();
   if (first == '\\') {
     switch (next()) {
-      case 'b':
-        Advance(2);
-        return CharacterRange::Singleton('\b');
       case 'w': case 'W': case 'd': case 'D': case 's': case 'S': {
         *is_char_class = true;
         uc32 c = next();
@@ -3821,7 +4038,7 @@ CharacterRange RegExpParser::ParseClassAtom(bool* is_char_class,
         return NULL;
       }
       default:
-        uc32 c = ParseCharacterEscape(CHECK_OK);
+        uc32 c = ParseClassCharacterEscape(CHECK_OK);
         return CharacterRange::Singleton(c);
     }
   } else {
@@ -3854,7 +4071,8 @@ RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
       if (!is_char_class) {
         if (current() == '-') {
           Advance();
-          CharacterRange next = ParseClassAtom(&is_char_class, ranges, CHECK_OK);
+          CharacterRange next =
+              ParseClassAtom(&is_char_class, ranges, CHECK_OK);
           if (is_char_class) {
             return ReportError(CStrVector(kIllegal), CHECK_OK);
           }
@@ -3929,7 +4147,8 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
 
 
 RegExpTree* ParseRegExp(unibrow::CharacterStream* stream,
-                        Handle<String>* error) {
+                        Handle<String>* error,
+                        bool* has_character_escapes) {
   ASSERT(error->is_null());
   RegExpParser parser(stream, error, false);  // Get multiline flag somehow
   bool ok = true;
@@ -3940,6 +4159,9 @@ RegExpTree* ParseRegExp(unibrow::CharacterStream* stream,
   } else {
     ASSERT(result != NULL);
     ASSERT(error->is_null());
+  }
+  if (ok && has_character_escapes != NULL) {
+    *has_character_escapes = parser.HasCharacterEscapes();
   }
   return result;
 }

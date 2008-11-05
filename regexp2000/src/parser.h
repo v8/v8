@@ -145,7 +145,9 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
                          v8::Extension* extension);
 
 RegExpTree* ParseRegExp(unibrow::CharacterStream* stream,
-                        Handle<String>* error);
+                        Handle<String>* error,
+                        bool* has_character_escapes);
+
 
 // Support for doing lazy compilation. The script is the script containing full
 // source of the script where the function is declared. The start_position and

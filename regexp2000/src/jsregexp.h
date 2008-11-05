@@ -73,7 +73,8 @@ class RegExpImpl {
 
   static Handle<Object> AtomCompile(Handle<JSRegExp> re,
                                     Handle<String> pattern,
-                                    JSRegExp::Flags flags);
+                                    JSRegExp::Flags flags,
+                                    Handle<String> match_pattern);
   static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject,
                                  Handle<Object> index);
@@ -301,9 +302,12 @@ class DispatchTable {
     static const uc16 kNoKey;
     static const Entry kNoValue;
     static inline int Compare(uc16 a, uc16 b) {
-      if (a == b) return 0;
-      else if (a < b) return -1;
-      else return 1;
+      if (a == b)
+        return 0;
+      else if (a < b)
+        return -1;
+      else
+        return 1;
     }
   };
   void AddRange(CharacterRange range, int value);

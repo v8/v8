@@ -204,19 +204,24 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     re->set_data(*cached);
     result = re;
   } else {
-    SafeStringInputBuffer buffer(pattern.location());
+     SafeStringInputBuffer buffer(pattern.location());
     Handle<String> error_text;
-    RegExpTree* ast = ParseRegExp(&buffer, &error_text);
+    bool has_escapes;
+    RegExpTree* ast = ParseRegExp(&buffer, &error_text, &has_escapes);
     if (!error_text.is_null()) {
       // Throw an exception if we fail to parse the pattern.
       return CreateRegExpException(re, pattern, error_text, "malformed_regexp");
     }
     RegExpAtom* atom = ast->AsAtom();
     if (atom != NULL && !flags.is_ignore_case()) {
-      Vector<const uc16> atom_pattern = atom->data();
-      // Test if pattern equals atom_pattern and reuse pattern if it does.
-      Handle<String> atom_string = Factory::NewStringFromTwoByte(atom_pattern);
-      result = AtomCompile(re, atom_string, flags);
+      if (has_escapes) {
+        Vector<const uc16> atom_pattern = atom->data();
+        Handle<String> atom_string =
+            Factory::NewStringFromTwoByte(atom_pattern);
+        result = AtomCompile(re, pattern, flags, atom_string);
+      } else {
+        result = AtomCompile(re, pattern, flags, pattern);
+      }
     } else {
       result = JsrePrepare(re, pattern, flags);
     }
@@ -265,8 +270,9 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
 
 Handle<Object> RegExpImpl::AtomCompile(Handle<JSRegExp> re,
                                        Handle<String> pattern,
-                                       JSRegExp::Flags flags) {
-  Factory::SetRegExpData(re, JSRegExp::ATOM, pattern, flags, pattern);
+                                       JSRegExp::Flags flags,
+                                       Handle<String> match_pattern) {
+  Factory::SetRegExpData(re, JSRegExp::ATOM, pattern, flags, match_pattern);
   return re;
 }
 
@@ -943,7 +949,8 @@ static void AddClassNegated(const uc16 *elmv,
 }
 
 
-void CharacterRange::AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges) {
+void CharacterRange::AddClassEscape(uc16 type,
+                                    ZoneList<CharacterRange>* ranges) {
   switch (type) {
     case 's':
       AddClass(kSpaceRanges, kSpaceRangeCount, ranges);

@@ -71,16 +71,29 @@ static SmartPointer<char> Parse(const char* input) {
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
   Handle<String> error;
-  RegExpTree* node = v8::internal::ParseRegExp(&buffer, &error);
+  RegExpTree* node = v8::internal::ParseRegExp(&buffer, &error, NULL);
   CHECK(node != NULL);
   CHECK(error.is_null());
   SmartPointer<char> output = node->ToString();
   return output;
 }
 
+static bool ParseEscapes(const char* input) {
+  v8::HandleScope scope;
+  unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  Handle<String> error;
+  bool has_escapes;
+  RegExpTree* node = v8::internal::ParseRegExp(&buffer, &error, &has_escapes);
+  CHECK(node != NULL);
+  CHECK(error.is_null());
+  return has_escapes;
+}
+
 
 #define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, *Parse(input))
-
+#define CHECK_ESCAPES(input, has_escapes) CHECK_EQ(has_escapes, \
+                                                   ParseEscapes(input));
 
 TEST(Parser) {
   V8::Initialize(NULL);
@@ -93,18 +106,18 @@ TEST(Parser) {
   CHECK_PARSE_EQ("\\w|\\d", "(| [0-9 A-Z _ a-z] [0-9])");
   CHECK_PARSE_EQ("a*", "(# 0 - g 'a')");
   CHECK_PARSE_EQ("a*?", "(# 0 - n 'a')");
-  CHECK_PARSE_EQ("abc+", "(# 1 - g 'abc')");
-  CHECK_PARSE_EQ("abc+?", "(# 1 - n 'abc')");
-  CHECK_PARSE_EQ("xyz?", "(# 0 1 g 'xyz')");
-  CHECK_PARSE_EQ("xyz??", "(# 0 1 n 'xyz')");
-  CHECK_PARSE_EQ("xyz{0,1}", "(# 0 1 g 'xyz')");
-  CHECK_PARSE_EQ("xyz{0,1}?", "(# 0 1 n 'xyz')");
-  CHECK_PARSE_EQ("xyz{93}", "(# 93 93 g 'xyz')");
-  CHECK_PARSE_EQ("xyz{93}?", "(# 93 93 n 'xyz')");
-  CHECK_PARSE_EQ("xyz{1,32}", "(# 1 32 g 'xyz')");
-  CHECK_PARSE_EQ("xyz{1,32}?", "(# 1 32 n 'xyz')");
-  CHECK_PARSE_EQ("xyz{1,}", "(# 1 - g 'xyz')");
-  CHECK_PARSE_EQ("xyz{1,}?", "(# 1 - n 'xyz')");
+  CHECK_PARSE_EQ("abc+", "(: 'ab' (# 1 - g 'c'))");
+  CHECK_PARSE_EQ("abc+?", "(: 'ab' (# 1 - n 'c'))");
+  CHECK_PARSE_EQ("xyz?", "(: 'xy' (# 0 1 g 'z'))");
+  CHECK_PARSE_EQ("xyz??", "(: 'xy' (# 0 1 n 'z'))");
+  CHECK_PARSE_EQ("xyz{0,1}", "(: 'xy' (# 0 1 g 'z'))");
+  CHECK_PARSE_EQ("xyz{0,1}?", "(: 'xy' (# 0 1 n 'z'))");
+  CHECK_PARSE_EQ("xyz{93}", "(: 'xy' (# 93 93 g 'z'))");
+  CHECK_PARSE_EQ("xyz{93}?", "(: 'xy' (# 93 93 n 'z'))");
+  CHECK_PARSE_EQ("xyz{1,32}", "(: 'xy' (# 1 32 g 'z'))");
+  CHECK_PARSE_EQ("xyz{1,32}?", "(: 'xy' (# 1 32 n 'z'))");
+  CHECK_PARSE_EQ("xyz{1,}", "(: 'xy' (# 1 - g 'z'))");
+  CHECK_PARSE_EQ("xyz{1,}?", "(: 'xy' (# 1 - n 'z'))");
   CHECK_PARSE_EQ("a\\fb\\nc\\rd\\te\\vf", "'a\fb\nc\rd\te\vf'");
   CHECK_PARSE_EQ("a\\nb\\bc", "(: 'a\nb' @b 'c')");
   CHECK_PARSE_EQ("(?:foo)", "'foo'");
@@ -163,6 +176,10 @@ TEST(Parser) {
   CHECK_PARSE_EQ("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\11",
               "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
               " (^ 'x') (^ 'x') (^ 'x') (^ 'x') '\x09')");
+  CHECK_PARSE_EQ("(a)\\1", "(: (^ 'a') (<- 1))");
+  CHECK_PARSE_EQ("(a\\1)", "(^ (: 'a' (<- 1)))");
+  CHECK_PARSE_EQ("(\\1a)", "(^ (: (<- 1) 'a'))");
+  CHECK_PARSE_EQ("\\1(a)", "(: '\x01' (^ 'a'))");
   CHECK_PARSE_EQ("[\\0]", "[\0]");
   CHECK_PARSE_EQ("[\\11]", "[\t]");
   CHECK_PARSE_EQ("[\\11a]", "[\t a]");
@@ -172,9 +189,52 @@ TEST(Parser) {
   CHECK_PARSE_EQ("[\\111]", "[I]");
   CHECK_PARSE_EQ("[\\1111]", "[I 1]");
   CHECK_PARSE_EQ("\\x34", "'\x34'");
+  CHECK_PARSE_EQ("\\x60", "'\x60'");
   CHECK_PARSE_EQ("\\x3z", "'x3z'");
   CHECK_PARSE_EQ("\\u0034", "'\x34'");
   CHECK_PARSE_EQ("\\u003z", "'u003z'");
+
+  CHECK_ESCAPES("a", false);
+  CHECK_ESCAPES("a|b", false);
+  CHECK_ESCAPES("a\\n", true);
+  CHECK_ESCAPES("^a", false);
+  CHECK_ESCAPES("a$", false);
+  CHECK_ESCAPES("a\\b!", false);
+  CHECK_ESCAPES("a\\Bb", false);
+  CHECK_ESCAPES("a*", false);
+  CHECK_ESCAPES("a*?", false);
+  CHECK_ESCAPES("a?", false);
+  CHECK_ESCAPES("a??", false);
+  CHECK_ESCAPES("a{0,1}?", false);
+  CHECK_ESCAPES("a{1,1}?", false);
+  CHECK_ESCAPES("a{1,2}?", false);
+  CHECK_ESCAPES("a+?", false);
+  CHECK_ESCAPES("(a)", false);
+  CHECK_ESCAPES("(a)\\1", false);
+  CHECK_ESCAPES("(\\1a)", false);
+  CHECK_ESCAPES("\\1(a)", true);
+  CHECK_ESCAPES("a\\s", false);
+  CHECK_ESCAPES("a\\S", false);
+  CHECK_ESCAPES("a\\d", false);
+  CHECK_ESCAPES("a\\D", false);
+  CHECK_ESCAPES("a\\w", false);
+  CHECK_ESCAPES("a\\W", false);
+  CHECK_ESCAPES("a.", false);
+  CHECK_ESCAPES("a\\q", true);
+  CHECK_ESCAPES("a[a]", false);
+  CHECK_ESCAPES("a[^a]", false);
+  CHECK_ESCAPES("a[a-z]", false);
+  CHECK_ESCAPES("a[\\q]", false);
+  CHECK_ESCAPES("a(?:b)", false);
+  CHECK_ESCAPES("a(?=b)", false);
+  CHECK_ESCAPES("a(?!b)", false);
+  CHECK_ESCAPES("\\x60", true);
+  CHECK_ESCAPES("\\u0060", true);
+  CHECK_ESCAPES("\\cA", true);
+  CHECK_ESCAPES("\\q", true);
+  CHECK_ESCAPES("\\1112", true);
+  CHECK_ESCAPES("\\0", true);
+  CHECK_ESCAPES("(a)\\1", false);
 }
 
 
@@ -184,7 +244,7 @@ static void ExpectError(const char* input,
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
   Handle<String> error;
-  RegExpTree* node = v8::internal::ParseRegExp(&buffer, &error);
+  RegExpTree* node = v8::internal::ParseRegExp(&buffer, &error, NULL);
   CHECK(node == NULL);
   CHECK(!error.is_null());
   SmartPointer<char> str = error->ToCString(ALLOW_NULLS);
@@ -293,7 +353,7 @@ static void Execute(bool expected, const char* input, const char* str) {
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
   Handle<String> error;
-  RegExpTree* tree = v8::internal::ParseRegExp(&buffer, &error);
+  RegExpTree* tree = v8::internal::ParseRegExp(&buffer, &error, NULL);
   CHECK(tree != NULL);
   CHECK(error.is_null());
   RegExpNode<const char>* node = RegExpEngine::Compile<const char>(tree);
@@ -317,9 +377,12 @@ class TestConfig {
   static const int kNoKey;
   static const int kNoValue;
   static inline int Compare(int a, int b) {
-    if (a < b) return -1;
-    else if (a > b) return 1;
-    else return 0;
+    if (a < b)
+      return -1;
+    else if (a > b)
+      return 1;
+    else
+      return 0;
   }
 };
 
@@ -391,9 +454,12 @@ TEST(SplayTreeSimple) {
 static int CompareChars(const void* ap, const void* bp) {
   uc16 a = *static_cast<const uc16*>(ap);
   uc16 b = *static_cast<const uc16*>(bp);
-  if (a < b) return -1;
-  else if (a > b) return 1;
-  else return 0;
+  if (a < b)
+    return -1;
+  else if (a > b)
+    return 1;
+  else
+    return 0;
 }
 
 

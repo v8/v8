@@ -90,7 +90,7 @@ void List<T, P>::Iterate(void (*callback)(T* x)) {
 
 
 template<typename T, class P>
-bool List<T, P>::Contains(T& elm) {
+bool List<T, P>::Contains(const T& elm) {
   for (int i = 0; i < length_; i++) {
     if (data_[i] == elm)
       return true;
