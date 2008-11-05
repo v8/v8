@@ -180,6 +180,8 @@ namespace v8 { namespace internal {
   F(CreateApiFunction, 1) \
   F(IsTemplate, 1) \
   F(GetTemplateField, 2) \
+  F(DisableAccessChecks, 1) \
+  F(EnableAccessChecks, 1) \
   \
   /* Dates */ \
   F(DateCurrentTime, 0) \

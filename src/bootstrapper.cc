@@ -531,7 +531,7 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
 
     SetExpectedNofProperties(global_function, 100);
     global_function->shared()->set_instance_class_name(*global_name);
-    global_function->initial_map()->set_needs_access_check();
+    global_function->initial_map()->set_is_access_check_needed(true);
 
     Handle<JSGlobalObject> object;
     if (global_object.location() != NULL) {

@@ -711,6 +711,7 @@ void FunctionTemplate::AddInstancePropertyAccessor(
   obj->set_name(*Utils::OpenHandle(*name));
   if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
   if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
+  if (settings & PROHIBITS_OVERWRITING) obj->set_prohibits_overwriting(true);
   obj->set_property_attributes(static_cast<PropertyAttributes>(attributes));
 
   i::Handle<i::Object> list(Utils::OpenHandle(this)->property_accessors());
@@ -2222,7 +2223,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.3.8.2";
+  return "0.3.9";
 }
 
 

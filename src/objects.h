@@ -1274,6 +1274,7 @@ class JSObject: public HeapObject {
   void LookupRealNamedProperty(String* name, LookupResult* result);
   void LookupRealNamedPropertyInPrototypes(String* name, LookupResult* result);
   void LookupCallbackSetterInPrototypes(String* name, LookupResult* result);
+  void LookupCallback(String* name, LookupResult* result);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -2358,13 +2359,8 @@ class Map: public HeapObject {
 
   // Tells whether the instance needs security checks when accessing its
   // properties.
-  inline void set_needs_access_check() {
-    set_bit_field(bit_field() | (1 << kNeedsAccessCheck));
-  }
-
-  inline bool needs_access_check() {
-    return ((1 << kNeedsAccessCheck) & bit_field()) != 0;
-  }
+  inline void set_is_access_check_needed(bool access_check_needed);
+  inline bool is_access_check_needed();
 
   // [prototype]: implicit prototype object.
   DECL_ACCESSORS(prototype, Object)
@@ -2466,7 +2462,7 @@ class Map: public HeapObject {
   static const int kHasIndexedInterceptor = 4;
   static const int kIsUndetectable = 5;
   static const int kHasInstanceCallHandler = 6;
-  static const int kNeedsAccessCheck = 7;
+  static const int kIsAccessCheckNeeded = 7;
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Map);
 };
@@ -3679,6 +3675,9 @@ class AccessorInfo: public Struct {
   inline bool all_can_write();
   inline void set_all_can_write(bool value);
 
+  inline bool prohibits_overwriting();
+  inline void set_prohibits_overwriting(bool value);
+
   inline PropertyAttributes property_attributes();
   inline void set_property_attributes(PropertyAttributes attributes);
 
@@ -3698,9 +3697,10 @@ class AccessorInfo: public Struct {
 
  private:
   // Bit positions in flag.
-  static const int kAllCanReadBit  = 0;
+  static const int kAllCanReadBit = 0;
   static const int kAllCanWriteBit = 1;
-  class AttributesField: public BitField<PropertyAttributes, 2, 3> {};
+  static const int kProhibitsOverwritingBit = 2;
+  class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
 };

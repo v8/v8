@@ -2213,9 +2213,19 @@ void JSObject::Lookup(String* name, LookupResult* result) {
        current != Heap::null_value();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookup(name, result);
-    if (result->IsValid() && !result->IsTransitionType()) {
-      return;
-    }
+    if (result->IsValid() && !result->IsTransitionType()) return;
+  }
+  result->NotFound();
+}
+
+
+// Search object and it's prototype chain for callback properties.
+void JSObject::LookupCallback(String* name, LookupResult* result) {
+  for (Object* current = this;
+       current != Heap::null_value();
+       current = JSObject::cast(current)->GetPrototype()) {
+    JSObject::cast(current)->LocalLookupRealNamedProperty(name, result);
+    if (result->IsValid() && result->type() == CALLBACKS) return;
   }
   result->NotFound();
 }
@@ -2240,6 +2250,22 @@ Object* JSObject::DefineGetterSetter(String* name,
   // Make sure name is not an index.
   uint32_t index;
   if (name->AsArrayIndex(&index)) return Heap::undefined_value();
+
+  // Check if there is an API defined callback object which prohibits
+  // callback overwriting in this object or it's prototype chain.
+  // This mechanism is needed for instance in a browser setting, where
+  // certain accessors such as window.location should not be allowed
+  // to be overwriten because allowing overwriting could potentially
+  // cause security problems.
+  LookupResult callback_result;
+  LookupCallback(name, &callback_result);
+  if (callback_result.IsValid()) {
+    Object* obj = callback_result.GetCallbackObject();
+    if (obj->IsAccessorInfo() &&
+        AccessorInfo::cast(obj)->prohibits_overwriting()) {
+      return Heap::undefined_value();
+    }
+  }
 
   // Lookup the name.
   LookupResult result;

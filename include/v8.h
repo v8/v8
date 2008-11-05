@@ -1282,11 +1282,18 @@ typedef Handle<Array> (*IndexedPropertyEnumerator)(const AccessorInfo& info);
  * Some accessors should be accessible across contexts.  These
  * accessors have an explicit access control parameter which specifies
  * the kind of cross-context access that should be allowed.
+ *
+ * Additionally, for security, accessors can prohibit overwriting by
+ * accessors defined in JavaScript.  For objects that have such
+ * accessors either locally or in their prototype chain it is not
+ * possible to overwrite the accessor by using __defineGetter__ or
+ * __defineSetter__ from JavaScript code.
  */
 enum AccessControl {
-  DEFAULT         = 0,
-  ALL_CAN_READ    = 1,
-  ALL_CAN_WRITE   = 2
+  DEFAULT               = 0,
+  ALL_CAN_READ          = 1,
+  ALL_CAN_WRITE         = 1 << 1,
+  PROHIBITS_OVERWRITING = 1 << 2
 };
 
 

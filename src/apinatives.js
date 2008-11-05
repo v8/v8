@@ -82,12 +82,18 @@ function InstantiateFunction(data, name) {
 function ConfigureTemplateInstance(obj, data) {
   var properties = %GetTemplateField(data, kApiPropertyListOffset);
   if (properties) {
-    for (var i = 0; i < properties[0]; i += 3) {
-      var name = properties[i + 1];
-      var prop_data = properties[i + 2];
-      var attributes = properties[i + 3];
-      var value = Instantiate(prop_data, name);
-      %SetProperty(obj, name, value, attributes);
+    // Disable access checks while instantiating the object.
+    var requires_access_checks = %DisableAccessChecks(obj);
+    try {
+      for (var i = 0; i < properties[0]; i += 3) {
+        var name = properties[i + 1];
+        var prop_data = properties[i + 2];
+        var attributes = properties[i + 3];
+        var value = Instantiate(prop_data, name);
+        %SetProperty(obj, name, value, attributes);
+      }
+    } finally {
+      if (requires_access_checks) %EnableAccessChecks(obj);
     }
   }
 }
