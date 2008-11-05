@@ -495,9 +495,7 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   static Object* AllocateConsString(String* first,
-                                    StringShape first_shape,
-                                    String* second,
-                                    StringShape second_shape);
+                                    String* second);
 
   // Allocates a new sliced string object which is a slice of an underlying
   // string buffer stretching from the index start (inclusive) to the index
@@ -506,7 +504,6 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   static Object* AllocateSlicedString(String* buffer,
-                                      StringShape buffer_shape,
                                       int start,
                                       int end);
 
