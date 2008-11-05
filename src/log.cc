@@ -431,8 +431,7 @@ void Logger::RegExpExecEvent(Handle<JSRegExp> regexp,
   LogRegExpSource(regexp);
   fprintf(logfile_, ",");
   LogString(input_string);
-  StringShape shape(*input_string);
-  fprintf(logfile_, ",%d..%d\n", start_index, input_string->length(shape));
+  fprintf(logfile_, ",%d..%d\n", start_index, input_string->length());
 #endif
 }
 

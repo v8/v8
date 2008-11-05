@@ -783,8 +783,7 @@ static inline bool IsShortcutCandidate(HeapObject* object, Map* map) {
   // is a candidate for being shortcut by the scavenger.
   ASSERT(object->map() == map);
   if (map->instance_type() >= FIRST_NONSTRING_TYPE) return false;
-  StringShape shape(map);
-  return (shape.representation_tag() == kConsStringTag) &&
+  return (StringShape(map).representation_tag() == kConsStringTag) &&
          (ConsString::cast(object)->unchecked_second() == Heap::empty_string());
 }
 
@@ -1347,9 +1346,9 @@ Object* Heap::AllocateSharedFunctionInfo(Object* name) {
 
 
 Object* Heap::AllocateConsString(String* first,
-                                 StringShape first_shape,
-                                 String* second,
-                                 StringShape second_shape) {
+                                 String* second) {
+  StringShape first_shape(first);
+  StringShape second_shape(second);
   int first_length = first->length(first_shape);
   int second_length = second->length(second_shape);
   int length = first_length + second_length;
@@ -1411,9 +1410,9 @@ Object* Heap::AllocateConsString(String* first,
 
 
 Object* Heap::AllocateSlicedString(String* buffer,
-                                   StringShape buffer_shape,
                                    int start,
                                    int end) {
+  StringShape buffer_shape(buffer);
   int length = end - start;
 
   // If the resulting string is small make a sub string.

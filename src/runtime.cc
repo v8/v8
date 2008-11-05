@@ -971,12 +971,12 @@ static Object* CharCodeAt(String* subject, Object* index) {
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
+  subject->TryFlatten(StringShape(subject));
   StringShape shape(subject);
-  subject->TryFlatten(shape);  // shape no longer valid!
-  if (i >= static_cast<uint32_t>(subject->length(StringShape(subject)))) {
+  if (i >= static_cast<uint32_t>(subject->length(shape))) {
     return Heap::nan_value();
   }
-  return Smi::FromInt(subject->Get(StringShape(subject), i));
+  return Smi::FromInt(subject->Get(shape, i));
 }
 
 
@@ -1357,10 +1357,9 @@ int Runtime::StringMatch(Handle<String> sub,
                          int start_index) {
   ASSERT(0 <= start_index);
   StringShape sub_shape(*sub);
-  StringShape pat_shape(*pat);
   ASSERT(start_index <= sub->length(sub_shape));
 
-  int pattern_length = pat->length(pat_shape);
+  int pattern_length = pat->length();
   if (pattern_length == 0) return start_index;
 
   int subject_length = sub->length(sub_shape);
@@ -1370,6 +1369,7 @@ int Runtime::StringMatch(Handle<String> sub,
     FlattenString(sub);
     sub_shape = StringShape(*sub);
   }
+  StringShape pat_shape(*pat);
   // Searching for one specific character is common.  For one
   // character patterns linear search is necessary, so any smart
   // algorithm is unnecessary overhead.
@@ -1388,6 +1388,7 @@ int Runtime::StringMatch(Handle<String> sub,
   if (!pat->IsFlat(pat_shape)) {
     FlattenString(pat);
     pat_shape = StringShape(*pat);
+    sub_shape = StringShape(*sub);
   }
 
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
@@ -1522,12 +1523,10 @@ static Object* Runtime_StringSlice(Arguments args) {
   int start = FastD2I(from_number);
   int end = FastD2I(to_number);
 
-  StringShape shape(value);
-
   RUNTIME_ASSERT(end >= start);
   RUNTIME_ASSERT(start >= 0);
-  RUNTIME_ASSERT(end <= value->length(shape));
-  return value->Slice(shape, start, end);
+  RUNTIME_ASSERT(end <= value->length());
+  return value->Slice(start, end);
 }
 
 
@@ -1910,8 +1909,7 @@ static Object* Runtime_HasLocalProperty(Arguments args) {
     uint32_t index;
     if (key->AsArrayIndex(&index)) {
       String* string = String::cast(args[0]);
-      StringShape shape(string);
-      if (index < static_cast<uint32_t>(string->length(shape)))
+      if (index < static_cast<uint32_t>(string->length()))
         return Heap::true_value();
     }
   }
@@ -2684,10 +2682,8 @@ static Object* Runtime_StringAdd(Arguments args) {
 
   CONVERT_CHECKED(String, str1, args[0]);
   CONVERT_CHECKED(String, str2, args[1]);
-  StringShape shape1(str1);
-  StringShape shape2(str2);
-  int len1 = str1->length(shape1);
-  int len2 = str2->length(shape2);
+  int len1 = str1->length();
+  int len2 = str2->length();
   if (len1 == 0) return str2;
   if (len2 == 0) return str1;
   int length_sum = len1 + len2;
@@ -2697,7 +2693,7 @@ static Object* Runtime_StringAdd(Arguments args) {
     Top::context()->mark_out_of_memory();
     return Failure::OutOfMemoryException();
   }
-  return Heap::AllocateConsString(str1, shape1, str2, shape2);
+  return Heap::AllocateConsString(str1, str2);
 }
 
 

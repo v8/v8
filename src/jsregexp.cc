@@ -132,6 +132,7 @@ Handle<String> RegExpImpl::StringToTwoByte(Handle<String> pattern) {
   StringShape shape(*pattern);
   if (!pattern->IsFlat(shape)) {
     FlattenString(pattern);
+    shape = StringShape(*pattern);
   }
   Handle<String> flat_string(shape.IsCons() ?
     String::cast(ConsString::cast(*pattern)->first()) :
