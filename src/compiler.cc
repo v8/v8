@@ -66,7 +66,11 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 #endif
 
   // Optimize the AST.
-  Rewriter::Optimize(literal);
+  if (!Rewriter::Optimize(literal)) {
+    // Signal a stack overflow by returning a null handle.  The stack
+    // overflow exception will be thrown by the caller.
+    return Handle<Code>::null();
+  }
 
   // Generate code and return it.
   Handle<Code> result = CodeGenerator::MakeCode(literal, script, is_eval);
