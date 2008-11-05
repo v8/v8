@@ -113,7 +113,6 @@ class Logger {
   // snapshot.
   static void Preamble(const char* content);
 
-  // ==== Events that are always logged. ====
   // Emits an event with a string value -> (name, value).
   static void StringEvent(const char* name, const char* value);
 
