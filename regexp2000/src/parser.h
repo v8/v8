@@ -144,9 +144,8 @@ FunctionLiteral* MakeAST(bool compile_in_global_context,
 ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
                          v8::Extension* extension);
 
-RegExpTree* ParseRegExp(unibrow::CharacterStream* stream,
-                        Handle<String>* error,
-                        bool* has_character_escapes);
+
+bool ParseRegExp(unibrow::CharacterStream* stream, RegExpParseResult* result);
 
 
 // Support for doing lazy compilation. The script is the script containing full

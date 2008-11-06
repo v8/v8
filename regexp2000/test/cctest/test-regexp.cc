@@ -43,40 +43,15 @@
 using namespace v8::internal;
 
 
-class RegExpTestCase {
- public:
-  RegExpTestCase()
-    : pattern_(NULL),
-      flags_(NULL),
-      input_(NULL),
-      compile_error_(NULL) { }
-  RegExpTestCase(const char* pattern,
-                 const char* flags,
-                 const char* input,
-                 const char* compile_error)
-    : pattern_(pattern),
-      flags_(flags),
-      input_(input),
-      compile_error_(compile_error) { }
-  const char* pattern() const { return pattern_; }
-  bool expect_error() const { return compile_error_ != NULL; }
- private:
-  const char* pattern_;
-  const char* flags_;
-  const char* input_;
-  const char* compile_error_;
-};
-
-
 static SmartPointer<char> Parse(const char* input) {
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  Handle<String> error;
-  RegExpTree* node = v8::internal::ParseRegExp(&buffer, &error, NULL);
-  CHECK(node != NULL);
-  CHECK(error.is_null());
-  SmartPointer<char> output = node->ToString();
+  RegExpParseResult result;
+  CHECK(v8::internal::ParseRegExp(&buffer, &result));
+  CHECK(result.tree != NULL);
+  CHECK(result.error.is_null());
+  SmartPointer<char> output = result.tree->ToString();
   return output;
 }
 
@@ -84,12 +59,11 @@ static bool ParseEscapes(const char* input) {
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  Handle<String> error;
-  bool has_escapes;
-  RegExpTree* node = v8::internal::ParseRegExp(&buffer, &error, &has_escapes);
-  CHECK(node != NULL);
-  CHECK(error.is_null());
-  return has_escapes;
+  RegExpParseResult result;
+  CHECK(v8::internal::ParseRegExp(&buffer, &result));
+  CHECK(result.tree != NULL);
+  CHECK(result.error.is_null());
+  return result.has_character_escapes;
 }
 
 
@@ -245,11 +219,11 @@ static void ExpectError(const char* input,
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  Handle<String> error;
-  RegExpTree* node = v8::internal::ParseRegExp(&buffer, &error, NULL);
-  CHECK(node == NULL);
-  CHECK(!error.is_null());
-  SmartPointer<char> str = error->ToCString(ALLOW_NULLS);
+  RegExpParseResult result;
+  CHECK_EQ(false, v8::internal::ParseRegExp(&buffer, &result));
+  CHECK(result.tree == NULL);
+  CHECK(!result.error.is_null());
+  SmartPointer<char> str = result.error->ToCString(ALLOW_NULLS);
   CHECK_EQ(expected, *str);
 }
 
@@ -350,25 +324,28 @@ TEST(CharacterClassEscapes) {
 }
 
 
-static void Execute(bool expected, const char* input, const char* str) {
+static void Execute(const char* input,
+                    const char* str,
+                    bool dot_output = false) {
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  Handle<String> error;
-  RegExpTree* tree = v8::internal::ParseRegExp(&buffer, &error, NULL);
-  CHECK(tree != NULL);
-  CHECK(error.is_null());
-  RegExpNode<const char>* node = RegExpEngine::Compile<const char>(tree);
-  bool outcome = RegExpEngine::Execute(node, CStrVector(str));
-  CHECK_EQ(outcome, expected);
+  RegExpParseResult result;
+  if (!v8::internal::ParseRegExp(&buffer, &result))
+    return;
+  RegExpNode* node = RegExpEngine::Compile(&result);
+  if (dot_output) {
+    RegExpEngine::DotPrint(input, node);
+    exit(0);
+  }
 }
 
 
 TEST(Execution) {
   V8::Initialize(NULL);
-  Execute(true, ".*?(?:a[bc]d|e[fg]h)", "xxxabbegh");
-  Execute(true, ".*?(?:a[bc]d|e[fg]h)", "xxxabbefh");
-  Execute(false, ".*?(?:a[bc]d|e[fg]h)", "xxxabbefd");
+  Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbegh");
+  Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbefh");
+  Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbefd");
 }
 
 
@@ -502,7 +479,6 @@ TEST(DispatchTableConstruction) {
 
 TEST(Assembler) {
   V8::Initialize(NULL);
-
   byte codes[1024];
   Re2kAssembler assembler(Vector<byte>(codes, 1024));
 #define __ assembler.
@@ -541,6 +517,3 @@ TEST(Assembler) {
   CHECK_EQ(3, captures[0]);
   CHECK_EQ(5, captures[1]);
 }
-
-
-

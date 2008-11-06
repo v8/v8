@@ -204,17 +204,18 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     re->set_data(*cached);
     result = re;
   } else {
-     SafeStringInputBuffer buffer(pattern.location());
-    Handle<String> error_text;
-    bool has_escapes;
-    RegExpTree* ast = ParseRegExp(&buffer, &error_text, &has_escapes);
-    if (!error_text.is_null()) {
+    SafeStringInputBuffer buffer(pattern.location());
+    RegExpParseResult parse_result;
+    if (!ParseRegExp(&buffer, &parse_result)) {
       // Throw an exception if we fail to parse the pattern.
-      return CreateRegExpException(re, pattern, error_text, "malformed_regexp");
+      return CreateRegExpException(re,
+                                   pattern,
+                                   parse_result.error,
+                                   "malformed_regexp");
     }
-    RegExpAtom* atom = ast->AsAtom();
+    RegExpAtom* atom = parse_result.tree->AsAtom();
     if (atom != NULL && !flags.is_ignore_case()) {
-      if (has_escapes) {
+      if (parse_result.has_character_escapes) {
         Vector<const uc16> atom_pattern = atom->data();
         Handle<String> atom_string =
             Factory::NewStringFromTwoByte(atom_pattern);
@@ -629,121 +630,266 @@ ByteArray* RegExpImpl::JsreInternal(Handle<JSRegExp> re) {
 // New regular expression engine
 
 
-template <typename Char> class ExecutionState;
+class ExecutionState;
 
 
-template <typename Char>
 class DotPrinter {
  public:
   DotPrinter() : stream_(&alloc_) { }
-  void PrintNode(RegExpNode<Char>* node);
-  void Visit(RegExpNode<Char>* node);
+  void PrintNode(const char* label, RegExpNode* node);
+  void Visit(RegExpNode* node);
   StringStream* stream() { return &stream_; }
  private:
   HeapStringAllocator alloc_;
   StringStream stream_;
-  std::set<RegExpNode<Char>*> seen_;
+  std::set<RegExpNode*> seen_;
 };
 
 
-template <typename Char>
-class RegExpCompiler: public RegExpVisitor {
+class RegExpCompiler {
  public:
-  RegExpCompiler() { }
-  RegExpNode<Char>* Compile(RegExpTree* tree, RegExpNode<Char>* rest) {
-    return static_cast<RegExpNode<Char>*>(tree->Accept(this, rest));
+  explicit RegExpCompiler(int capture_count)
+    : next_register_(2 * capture_count) { }
+
+  RegExpNode* Compile(RegExpTree* tree,
+                      RegExpNode* on_success,
+                      RegExpNode* on_failure) {
+    return tree->ToNode(this, on_success, on_failure);
   }
-#define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*, void*);
-  FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CASE)
-#undef MAKE_CASE
+
+  int AllocateRegister() { return next_register_++; }
+
+ private:
+  int next_register_;
 };
 
 
-template <typename Char>
 class RegExpNode: public ZoneObject {
  public:
   virtual ~RegExpNode() { }
-  virtual void EmitDot(DotPrinter<Char>* out);
-  virtual bool Step(ExecutionState<Char>* state) = 0;
+  virtual void EmitDot(DotPrinter* out);
 };
 
 
-template <typename Char>
-class SeqRegExpNode: public RegExpNode<Char> {
+class SeqRegExpNode: public RegExpNode {
  public:
-  explicit SeqRegExpNode(RegExpNode<Char>* next) : next_(next) { }
-  RegExpNode<Char>* next() { return next_; }
+  explicit SeqRegExpNode(RegExpNode* on_success)
+    : on_success_(on_success) { }
+  RegExpNode* on_success() { return on_success_; }
  private:
-  RegExpNode<Char>* next_;
+  RegExpNode* on_success_;
 };
 
 
-template <typename Char>
-class EndNode: public RegExpNode<Char> {
+class EndNode: public RegExpNode {
  public:
-  virtual void EmitDot(DotPrinter<Char>* out);
-  virtual bool Step(ExecutionState<Char>* state);
+  enum Action { ACCEPT, BACKTRACK };
+  virtual void EmitDot(DotPrinter* out);
+  static EndNode* GetAccept() { return &kAccept; }
+  static EndNode* GetBacktrack() { return &kBacktrack; }
+ private:
+  explicit EndNode(Action action) : action_(action) { }
+  Action action_;
+  static EndNode kAccept;
+  static EndNode kBacktrack;
 };
 
 
-template <typename Char>
-class AtomNode: public SeqRegExpNode<Char> {
+EndNode EndNode::kAccept(ACCEPT);
+EndNode EndNode::kBacktrack(BACKTRACK);
+
+
+class AtomNode: public SeqRegExpNode {
  public:
-  AtomNode(Vector<const uc16> data, RegExpNode<Char>* next)
-    : SeqRegExpNode<Char>(next),
+  AtomNode(Vector<const uc16> data,
+           RegExpNode* on_success,
+           RegExpNode* on_failure)
+    : SeqRegExpNode(on_success),
+      on_failure_(on_failure),
       data_(data) { }
-  virtual void EmitDot(DotPrinter<Char>* out);
-  virtual bool Step(ExecutionState<Char>* state);
+  virtual void EmitDot(DotPrinter* out);
   Vector<const uc16> data() { return data_; }
+  RegExpNode* on_failure() { return on_failure_; }
  private:
+  RegExpNode* on_failure_;
   Vector<const uc16> data_;
 };
 
 
-template <typename Char>
-class CharacterClassNode: public SeqRegExpNode<Char> {
+class BackreferenceNode: public SeqRegExpNode {
  public:
-  CharacterClassNode(ZoneList<CharacterRange>* ranges, RegExpNode<Char>* next)
-    : SeqRegExpNode<Char>(next),
-      ranges_(ranges) { }
-  virtual void EmitDot(DotPrinter<Char>* out);
-  virtual bool Step(ExecutionState<Char>* state);
-  ZoneList<CharacterRange>* ranges() { return ranges_; }
+  BackreferenceNode(int start_reg,
+                    int end_reg,
+                    RegExpNode* on_success,
+                    RegExpNode* on_failure)
+    : SeqRegExpNode(on_success),
+      on_failure_(on_failure),
+      start_reg_(start_reg),
+      end_reg_(end_reg) { }
+  virtual void EmitDot(DotPrinter* out);
+  RegExpNode* on_failure() { return on_failure_; }
+  int start_register() { return start_reg_; }
+  int end_register() { return end_reg_; }
  private:
+  RegExpNode* on_failure_;
+  int start_reg_;
+  int end_reg_;
+};
+
+
+class CharacterClassNode: public SeqRegExpNode {
+ public:
+  CharacterClassNode(ZoneList<CharacterRange>* ranges,
+                     RegExpNode* on_success,
+                     RegExpNode* on_failure)
+    : SeqRegExpNode(on_success),
+      on_failure_(on_failure),
+      ranges_(ranges) { }
+  virtual void EmitDot(DotPrinter* out);
+  ZoneList<CharacterRange>* ranges() { return ranges_; }
+  RegExpNode* on_failure() { return on_failure_; }
+ private:
+  RegExpNode* on_failure_;
   ZoneList<CharacterRange>* ranges_;
 };
 
 
-template <typename Char>
-class ChoiceNode: public RegExpNode<Char> {
+class Guard: public ZoneObject {
  public:
-  explicit ChoiceNode(ZoneList<RegExpNode<Char>*>* choices)
-    : choices_(choices) { }
-  virtual void EmitDot(DotPrinter<Char>* out);
-  virtual bool Step(ExecutionState<Char>* state);
-  ZoneList<RegExpNode<Char>*>* choices() { return choices_; }
-  DispatchTable* table() { return table_; }
+  enum Relation { LT, GEQ };
+  Guard(int reg, Relation op, int value)
+    : reg_(reg),
+      op_(op),
+      value_(value) { }
+  int reg() { return reg_; }
+  Relation op() { return op_; }
+  int value() { return value_; }
  private:
-  ZoneList<RegExpNode<Char>*>* choices_;
+  int reg_;
+  Relation op_;
+  int value_;
+};
+
+
+class GuardedAlternative {
+ public:
+  explicit GuardedAlternative(RegExpNode* node) : node_(node), guards_(NULL) { }
+  void AddGuard(Guard* guard);
+  RegExpNode* node() { return node_; }
+  ZoneList<Guard*>* guards() { return guards_; }
+ private:
+  RegExpNode* node_;
+  ZoneList<Guard*>* guards_;
+};
+
+
+void GuardedAlternative::AddGuard(Guard* guard) {
+  if (guards_ == NULL)
+    guards_ = new ZoneList<Guard*>(1);
+  guards_->Add(guard);
+}
+
+
+class ChoiceNode: public RegExpNode {
+ public:
+  explicit ChoiceNode(int expected_size, RegExpNode* on_failure)
+    : on_failure_(on_failure),
+      choices_(new ZoneList<GuardedAlternative>(expected_size)) { }
+  virtual void EmitDot(DotPrinter* out);
+  void AddChild(GuardedAlternative node) { choices()->Add(node); }
+  ZoneList<GuardedAlternative>* choices() { return choices_; }
+  DispatchTable* table() { return &table_; }
+  RegExpNode* on_failure() { return on_failure_; }
+ private:
+  RegExpNode* on_failure_;
+  ZoneList<GuardedAlternative>* choices_;
   DispatchTable table_;
+};
+
+
+class ActionNode: public SeqRegExpNode {
+ public:
+  enum Type {
+    STORE_REGISTER,
+    INCREMENT_REGISTER,
+    STORE_POSITION,
+    BEGIN_SUBMATCH,
+    ESCAPE_SUBMATCH,
+    END_SUBMATCH
+  };
+  static ActionNode* StoreRegister(int reg, int val, RegExpNode* on_success) {
+    ActionNode* result = new ActionNode(STORE_REGISTER, on_success);
+    result->data_.u_store_register.reg_ = reg;
+    result->data_.u_store_register.value_ = val;
+    return result;
+  }
+  static ActionNode* IncrementRegister(int reg, RegExpNode* on_success) {
+    ActionNode* result = new ActionNode(INCREMENT_REGISTER, on_success);
+    result->data_.u_increment_register.reg_ = reg;
+    return result;
+  }
+  static ActionNode* StorePosition(int reg, RegExpNode* on_success) {
+    ActionNode* result = new ActionNode(STORE_POSITION, on_success);
+    result->data_.u_store_position.reg_ = reg;
+    return result;
+  }
+  static ActionNode* BeginSubmatch(RegExpNode* on_success) {
+    return new ActionNode(BEGIN_SUBMATCH, on_success);
+  }
+  static ActionNode* EscapeSubmatch(RegExpNode* on_success) {
+    return new ActionNode(ESCAPE_SUBMATCH, on_success);
+  }
+  static ActionNode* EndSubmatch(RegExpNode* on_success) {
+    return new ActionNode(END_SUBMATCH, on_success);
+  }
+  virtual void EmitDot(DotPrinter* out);
+  Type type() { return type_; }
+ private:
+  ActionNode(Type type, RegExpNode* on_success)
+    : SeqRegExpNode(on_success),
+      type_(type) { }
+  Type type_;
+  union {
+    struct {
+      int reg_;
+      int value_;
+    } u_store_register;
+    struct {
+      int reg_;
+    } u_increment_register;
+    struct {
+      int reg_;
+    } u_store_position;
+  } data_;
 };
 
 
 // -------------------------------------------------------------------
 // Dot/dotty output
 
-
-template <typename Char>
-void DotPrinter<Char>::PrintNode(RegExpNode<Char>* node) {
-  stream()->Add("digraph G {\n");
+void DotPrinter::PrintNode(const char* label, RegExpNode* node) {
+  stream()->Add("digraph G {\n  graph [label=\"");
+  for (int i = 0; label[i]; i++) {
+    switch (label[i]) {
+      case '\\':
+        stream()->Add("\\\\");
+        break;
+      case '"':
+        stream()->Add("\"");
+        break;
+      default:
+        stream()->Put(label[i]);
+        break;
+    }
+  }
+  stream()->Add("\"]; \n");
   Visit(node);
   stream()->Add("}\n");
   printf("%s", *(stream()->ToCString()));
 }
 
 
-template <typename Char>
-void DotPrinter<Char>::Visit(RegExpNode<Char>* node) {
+void DotPrinter::Visit(RegExpNode* node) {
   if (seen_.find(node) != seen_.end())
     return;
   seen_.insert(node);
@@ -751,44 +897,114 @@ void DotPrinter<Char>::Visit(RegExpNode<Char>* node) {
 }
 
 
-template <typename Char>
-void RegExpNode<Char>::EmitDot(DotPrinter<Char>* out) {
+void RegExpNode::EmitDot(DotPrinter* out) {
   UNIMPLEMENTED();
 }
 
 
-template <typename Char>
-void ChoiceNode<Char>::EmitDot(DotPrinter<Char>* out) {
-  out->stream()->Add("n%p [label=\"?\"];\n", this);
+static void PrintOnFailure(DotPrinter* out,
+                           RegExpNode* from,
+                           RegExpNode* on_failure) {
+  if (on_failure == EndNode::GetBacktrack()) return;
+  out->stream()->Add("  n%p -> n%p [style=dotted];\n", from, on_failure);
+  out->Visit(on_failure);
+}
+
+
+void ChoiceNode::EmitDot(DotPrinter* out) {
+  out->stream()->Add("  n%p [label=\"?\", shape=circle];\n", this);
+  PrintOnFailure(out, this, this->on_failure());
   for (int i = 0; i < choices()->length(); i++) {
-    out->stream()->Add("n%p -> n%p [label=\"%i\"];\n",
+    GuardedAlternative alt = choices()->at(i);
+    out->stream()->Add("  n%p -> n%p [label=\"%i",
                        this,
-                       choices()->at(i),
+                       alt.node(),
                        i);
-    out->Visit(choices()->at(i));
+    if (alt.guards() != NULL) {
+      out->stream()->Add(" [");
+      for (int j = 0; j < alt.guards()->length(); j++) {
+        if (j > 0) out->stream()->Add(" ");
+        Guard* guard = alt.guards()->at(j);
+        switch (guard->op()) {
+          case Guard::GEQ:
+            out->stream()->Add("$%i &#8805; %i", guard->reg(), guard->value());
+            break;
+          case Guard::LT:
+            out->stream()->Add("$%i < %i", guard->reg(), guard->value());
+            break;
+        }
+      }
+      out->stream()->Add("]");
+    }
+    out->stream()->Add("\"];\n");
+    out->Visit(choices()->at(i).node());
   }
 }
 
 
-template <typename Char>
-void AtomNode<Char>::EmitDot(DotPrinter<Char>* out) {
-  out->stream()->Add("n%p [label=\"'%w'\"];\n", this, data());
-  out->stream()->Add("n%p -> n%p;\n", this, this->next());
-  out->Visit(this->next());
+void AtomNode::EmitDot(DotPrinter* out) {
+  out->stream()->Add("  n%p [label=\"'%w'\", shape=doubleoctagon];\n",
+                     this,
+                     data());
+  out->stream()->Add("  n%p -> n%p;\n", this, this->on_success());
+  out->Visit(this->on_success());
+  PrintOnFailure(out, this, this->on_failure());
 }
 
 
-template <typename Char>
-void EndNode<Char>::EmitDot(DotPrinter<Char>* out) {
-  out->stream()->Add("n%p [style=bold, label=\"done\"];\n", this);
+void BackreferenceNode::EmitDot(DotPrinter* out) {
+  out->stream()->Add("  n%p [label=\"$%i..$%i\", shape=doubleoctagon];\n",
+                     this,
+                     start_register(),
+                     end_register());
+  out->stream()->Add("  n%p -> n%p;\n", this, this->on_success());
+  out->Visit(this->on_success());
+  PrintOnFailure(out, this, this->on_failure());
 }
 
 
-template <typename Char>
-void CharacterClassNode<Char>::EmitDot(DotPrinter<Char>* out) {
-  out->stream()->Add("n%p [label=\"[...]\"];\n", this);
-  out->stream()->Add("n%p -> n%p;\n", this, this->next());
-  out->Visit(this->next());
+void EndNode::EmitDot(DotPrinter* out) {
+  out->stream()->Add("  n%p [style=bold, shape=point];\n", this);
+}
+
+
+void CharacterClassNode::EmitDot(DotPrinter* out) {
+  out->stream()->Add("  n%p [label=\"[...]\"];\n", this);
+  out->stream()->Add("  n%p -> n%p;\n", this, this->on_success());
+  out->Visit(this->on_success());
+  PrintOnFailure(out, this, this->on_failure());
+}
+
+
+void ActionNode::EmitDot(DotPrinter* out) {
+  out->stream()->Add("  n%p [", this);
+  switch (type()) {
+    case STORE_REGISTER:
+      out->stream()->Add("label=\"$%i:=%i\", shape=box",
+                         data_.u_store_register.reg_,
+                         data_.u_store_register.value_);
+      break;
+    case INCREMENT_REGISTER:
+      out->stream()->Add("label=\"$%i++\", shape=box",
+                         data_.u_increment_register.reg_);
+      break;
+    case STORE_POSITION:
+      out->stream()->Add("label=\"$%i:=$pos\", shape=box",
+                         data_.u_store_position.reg_);
+      break;
+    case BEGIN_SUBMATCH:
+      out->stream()->Add("label=\"begin\", shape=septagon");
+      break;
+    case ESCAPE_SUBMATCH:
+      out->stream()->Add("label=\"escape\", shape=septagon");
+      break;
+    case END_SUBMATCH:
+      out->stream()->Add("label=\"end\", shape=septagon");
+      break;
+  }
+  out->stream()->Add("];\n");
+  out->stream()->Add("  n%p -> n%p;\n", this, this->on_success());
+  out->Visit(this->on_success());
 }
 
 
@@ -796,108 +1012,146 @@ void CharacterClassNode<Char>::EmitDot(DotPrinter<Char>* out) {
 // Tree to graph conversion
 
 
-template <typename Char>
-void* RegExpCompiler<Char>::VisitAtom(RegExpAtom* that, void* rest) {
-  return new AtomNode<Char>(that->data(),
-                            static_cast<RegExpNode<Char>*>(rest));
+RegExpNode* RegExpAtom::ToNode(RegExpCompiler* compiler,
+                               RegExpNode* on_success,
+                               RegExpNode* on_failure) {
+  return new AtomNode(data(), on_success, on_failure);
 }
 
 
-template <typename Char>
-void* RegExpCompiler<Char>::VisitCharacterClass(RegExpCharacterClass* that,
-                                                void* rest) {
-  return new CharacterClassNode<Char>(that->ranges(),
-                                      static_cast<RegExpNode<Char>*>(rest));
+RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
+                                         RegExpNode* on_success,
+                                         RegExpNode* on_failure) {
+  return new CharacterClassNode(ranges(), on_success, on_failure);
 }
 
 
-template <typename Char>
-void* RegExpCompiler<Char>::VisitDisjunction(RegExpDisjunction* that,
-                                             void* rest_ptr) {
-  RegExpNode<Char>* rest = static_cast<RegExpNode<Char>*>(rest_ptr);
-  ZoneList<RegExpTree*>* children = that->nodes();
+RegExpNode* RegExpDisjunction::ToNode(RegExpCompiler* compiler,
+                                      RegExpNode* on_success,
+                                      RegExpNode* on_failure) {
+  ZoneList<RegExpTree*>* children = nodes();
   int length = children->length();
-  ZoneList<RegExpNode<Char>*>* choices
-      = new ZoneList<RegExpNode<Char>*>(length);
-  for (int i = 0; i < length; i++)
-    choices->Add(Compile(children->at(i), rest));
-  return new ChoiceNode<Char>(choices);
+  ChoiceNode* result = new ChoiceNode(length, on_failure);
+  for (int i = 0; i < length; i++) {
+    GuardedAlternative child(compiler->Compile(children->at(i),
+                                               on_success,
+                                               on_failure));
+    result->AddChild(child);
+  }
+  return result;
 }
 
 
-template <typename Char>
-void* RegExpCompiler<Char>::VisitQuantifier(RegExpQuantifier* that,
-                                            void* rest_ptr) {
-  RegExpNode<Char>* rest = static_cast<RegExpNode<Char>*>(rest_ptr);
-  if (that->max() >= RegExpQuantifier::kInfinity) {
-    // Don't try to count the number of iterations if the max it too
-    // large.
-    if (that->min() != 0) {
-      UNIMPLEMENTED();
-    }
-    ZoneList<RegExpNode<Char>*>* loop_choices
-        = new ZoneList<RegExpNode<Char>*>(2);
-    RegExpNode<Char>* loop_node = new ChoiceNode<Char>(loop_choices);
-    RegExpNode<Char>* body_node = Compile(that->body(), loop_node);
-    if (that->is_greedy()) {
-      loop_choices->Add(body_node);
-      loop_choices->Add(rest);
-    } else {
-      loop_choices->Add(rest);
-      loop_choices->Add(body_node);
-    }
-    return loop_node;
+RegExpNode* RegExpQuantifier::ToNode(RegExpCompiler* compiler,
+                                     RegExpNode* on_success,
+                                     RegExpNode* on_failure) {
+  // x{f, t} becomes this:
+  //
+  //             (r++)<-.
+  //               |     `
+  //               |     (x)
+  //               v     ^
+  //      (r=0)-->(?)---/ [if r < t]
+  //               |
+  //   [if r >= f] \----> ...
+  //
+  //
+  // TODO(someone): clear captures on repetition and handle empty
+  //   matches.
+  bool has_min = min() > 0;
+  bool has_max = max() < RegExpQuantifier::kInfinity;
+  bool needs_counter = has_min || has_max;
+  int reg = needs_counter ? compiler->AllocateRegister() : -1;
+  ChoiceNode* center = new ChoiceNode(2, on_failure);
+  RegExpNode* loop_return = needs_counter
+      ? static_cast<RegExpNode*>(ActionNode::IncrementRegister(reg, center))
+      : static_cast<RegExpNode*>(center);
+  RegExpNode* body_node = compiler->Compile(body(), loop_return, on_failure);
+  GuardedAlternative body_alt(body_node);
+  if (has_max) {
+    Guard* body_guard = new Guard(reg, Guard::LT, max());
+    body_alt.AddGuard(body_guard);
+  }
+  GuardedAlternative rest_alt(on_success);
+  if (has_min) {
+    Guard* rest_guard = new Guard(reg, Guard::GEQ, min());
+    rest_alt.AddGuard(rest_guard);
+  }
+  if (is_greedy()) {
+    center->AddChild(body_alt);
+    center->AddChild(rest_alt);
   } else {
-    UNIMPLEMENTED();
-    return NULL;
+    center->AddChild(rest_alt);
+    center->AddChild(body_alt);
+  }
+  if (needs_counter) {
+    return ActionNode::StoreRegister(reg, 0, center);
+  } else {
+    return center;
   }
 }
 
 
-template <typename Char>
-void* RegExpCompiler<Char>::VisitAssertion(RegExpAssertion* that,
-                                           void* rest) {
-  UNIMPLEMENTED();
-  return NULL;
+RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
+                                    RegExpNode* on_success,
+                                    RegExpNode* on_failure) {
+  // TODO(self): implement assertions.
+  return on_success;
 }
 
 
-template <typename Char>
-void* RegExpCompiler<Char>::VisitCapture(RegExpCapture* that, void* rest) {
-  UNIMPLEMENTED();
-  return NULL;
+RegExpNode* RegExpBackreference::ToNode(RegExpCompiler* compiler,
+                                        RegExpNode* on_success,
+                                        RegExpNode* on_failure) {
+  return new BackreferenceNode(RegExpCapture::StartRegister(index()),
+                               RegExpCapture::EndRegister(index()),
+                               on_success,
+                               on_failure);
 }
 
 
-template <typename Char>
-void* RegExpCompiler<Char>::VisitLookahead(RegExpLookahead* that,
-                                           void* rest) {
-  UNIMPLEMENTED();
-  return NULL;
+RegExpNode* RegExpEmpty::ToNode(RegExpCompiler* compiler,
+                                RegExpNode* on_success,
+                                RegExpNode* on_failure) {
+  return on_success;
 }
 
 
-template <typename Char>
-void* RegExpCompiler<Char>::VisitBackreference(RegExpBackreference* that,
-                                               void* rest) {
-  UNIMPLEMENTED();
-  return NULL;
+RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
+                                    RegExpNode* on_success,
+                                    RegExpNode* on_failure) {
+  if (is_positive()) {
+    RegExpNode* proceed = ActionNode::EndSubmatch(on_success);
+    RegExpNode* escape = ActionNode::EscapeSubmatch(on_failure);
+    RegExpNode* body_node = compiler->Compile(body(), proceed, escape);
+    return ActionNode::BeginSubmatch(body_node);
+  } else {
+    RegExpNode* failed = ActionNode::EscapeSubmatch(on_success);
+    RegExpNode* succeeded = ActionNode::EndSubmatch(on_failure);
+    RegExpNode* body_node = compiler->Compile(body(), succeeded, failed);
+    return ActionNode::BeginSubmatch(body_node);
+  }
 }
 
 
-template <typename Char>
-void* RegExpCompiler<Char>::VisitEmpty(RegExpEmpty* that, void* rest) {
-  return rest;
+RegExpNode* RegExpCapture::ToNode(RegExpCompiler* compiler,
+                                  RegExpNode* on_success,
+                                  RegExpNode* on_failure) {
+  int start_reg = RegExpCapture::StartRegister(index());
+  int end_reg = RegExpCapture::EndRegister(index());
+  RegExpNode* store_end = ActionNode::StorePosition(end_reg, on_success);
+  RegExpNode* body_node = compiler->Compile(body(), store_end, on_failure);
+  return ActionNode::StorePosition(start_reg, body_node);
 }
 
 
-template <typename Char>
-void* RegExpCompiler<Char>::VisitAlternative(RegExpAlternative* that,
-                                             void* rest) {
-  ZoneList<RegExpTree*>* children = that->nodes();
-  RegExpNode<Char>* current = static_cast<RegExpNode<Char>*>(rest);
+RegExpNode* RegExpAlternative::ToNode(RegExpCompiler* compiler,
+                                      RegExpNode* on_success,
+                                      RegExpNode* on_failure) {
+  ZoneList<RegExpTree*>* children = nodes();
+  RegExpNode* current = on_success;
   for (int i = children->length() - 1; i >= 0; i--) {
-    current = Compile(children->at(i), current);
+    current = compiler->Compile(children->at(i), current, on_failure);
   }
   return current;
 }
@@ -1112,201 +1366,19 @@ OutSet DispatchTable::Get(uc16 value) {
 }
 
 
-// -------------------------------------------------------------------
-// Execution
-
-
-template <typename Char>
-class ExecutionState {
- public:
-  ExecutionState(RegExpNode<Char>* start, Vector<Char> input)
-    : current_(start),
-      input_(input),
-      pos_(0),
-      backtrack_stack_(8),
-      is_done_(false) { }
-
-  class BacktrackState {
-   public:
-    BacktrackState(ChoiceNode<Char>* choice, int next, int pos)
-      : choice_(choice),
-        next_(next),
-        pos_(pos) { }
-    ChoiceNode<Char>* choice() { return choice_; }
-    int next() { return next_; }
-    void set_next(int value) { next_ = value; }
-    int pos() { return pos_; }
-   private:
-    ChoiceNode<Char>* choice_;
-    int next_;
-    int pos_;
-  };
-
-  // Execute a single step, returning true if it succeeded
-  inline bool Step() { return current()->Step(this); }
-
-  // Stores the given choice node and the execution state on the
-  // backtrack stack.
-  void SaveBacktrack(ChoiceNode<Char>* choice);
-
-  // Reverts to the next unused backtrack if there is one.  Returns
-  // false exactly if there was no backtrack to restore.
-  bool Backtrack();
-
-  Char current_char() { return input()[pos()]; }
-
-  void Advance(int delta, RegExpNode<Char>* next) {
-    pos_ += delta;
-    current_ = next;
-  }
-
-  bool AtEnd() { return pos_ >= input_.length(); }
-
-  bool is_done() { return is_done_; }
-  void set_done() { is_done_ = true; }
-
-  List<BacktrackState>* backtrack_stack() { return &backtrack_stack_; }
-  RegExpNode<Char>* current() { return current_; }
-  void set_current(RegExpNode<Char>* value) { current_ = value; }
-  Vector<Char> input() { return input_; }
-  int pos() { return pos_; }
- private:
-  RegExpNode<Char>* current_;
-  Vector<Char> input_;
-  int pos_;
-  List<BacktrackState> backtrack_stack_;
-  bool is_done_;
-};
-
-
-template <typename Char>
-void ExecutionState<Char>::SaveBacktrack(ChoiceNode<Char>* choice) {
-  ASSERT(choice->choices()->length() > 1);
-  if (FLAG_trace_regexps) {
-    PrintF("Setting up backtrack on level %i for choice %p\n",
-           backtrack_stack()->length(),
-           choice);
-  }
-  backtrack_stack()->Add(BacktrackState(choice, 1, pos_));
+void RegExpEngine::DotPrint(const char* label, RegExpNode* node) {
+  DotPrinter printer;
+  printer.PrintNode(label, node);
 }
 
 
-template <typename Char>
-bool ExecutionState<Char>::Backtrack() {
-  if (backtrack_stack()->is_empty()) return false;
-  BacktrackState& top = backtrack_stack()->at(backtrack_stack()->length() - 1);
-  ZoneList<RegExpNode<Char>*>* choices = top.choice()->choices();
-  int next_index = top.next();
-  current_ = choices->at(next_index);
-  pos_ = top.pos();
-  if (FLAG_trace_regexps) {
-    PrintF("Backtracking to %p[%i] on level %i\n",
-           top.choice(),
-           next_index,
-           backtrack_stack()->length() - 1);
-  }
-  if (next_index == choices->length() - 1) {
-    if (FLAG_trace_regexps)
-      PrintF("Popping backtrack on level %i\n",
-             backtrack_stack()->length() - 1);
-    // If this was the last alternative we're done with this backtrack
-    // state and can pop it off the stack.
-    backtrack_stack()->RemoveLast();
-  } else {
-    if (FLAG_trace_regexps)
-      PrintF("Advancing backtrack on level %i\n",
-             backtrack_stack()->length() - 1);
-    // Otherwise we set the next choice to visit if this one fails.
-    top.set_next(next_index + 1);
-  }
-  return true;
+RegExpNode* RegExpEngine::Compile(RegExpParseResult* input) {
+  RegExpCompiler compiler(input->capture_count);
+  RegExpNode* node = compiler.Compile(input->tree,
+                                      EndNode::GetAccept(),
+                                      EndNode::GetBacktrack());
+  return node;
 }
-
-
-template <typename Char>
-bool ChoiceNode<Char>::Step(ExecutionState<Char>* state) {
-  state->SaveBacktrack(this);
-  state->set_current(this->choices()->at(0));
-  return true;
-}
-
-
-template <typename Char>
-bool AtomNode<Char>::Step(ExecutionState<Char>* state) {
-  Vector<const uc16> data = this->data();
-  int length = data.length();
-  Vector<Char> input = state->input();
-  int p = state->pos();
-  if (p + length > input.length())
-    return false;
-  for (int i = 0; i < length; i++, p++) {
-    if (data[i] != input[p])
-      return false;
-  }
-  state->Advance(length, this->next());
-  return true;
-}
-
-
-template <typename Char>
-bool CharacterClassNode<Char>::Step(ExecutionState<Char>* state) {
-  if (state->AtEnd()) return false;
-  ZoneList<CharacterRange>* ranges = this->ranges();
-  unsigned current = state->current_char();
-  for (int i = 0; i < ranges->length(); i++) {
-    CharacterRange& range = ranges->at(i);
-    if (range.from() <= current && current <= range.to()) {
-      state->Advance(1, this->next());
-      return true;
-    }
-  }
-  return false;
-}
-
-
-template <typename Char>
-bool EndNode<Char>::Step(ExecutionState<Char>* state) {
-  state->set_done();
-  return false;
-}
-
-
-template <typename Char>
-bool RegExpEngine::Execute(RegExpNode<Char>* start, Vector<Char> input) {
-  ExecutionState<Char> state(start, input);
-  if (FLAG_trace_regexps) {
-    PrintF("Beginning regexp execution\n");
-  }
-  while (state.Step() || (!state.is_done() && state.Backtrack()))
-    ;
-  if (FLAG_trace_regexps) {
-    PrintF("Matching %s\n", state.is_done() ? "succeeded" : "failed");
-  }
-  return state.is_done();
-}
-
-
-template <typename Char>
-RegExpNode<Char>* RegExpEngine::Compile(RegExpTree* regexp) {
-  RegExpNode<Char>* end = new EndNode<Char>();
-  RegExpCompiler<Char> compiler;
-  return compiler.Compile(regexp, end);
-}
-
-
-template
-RegExpNode<const char>* RegExpEngine::Compile<const char>(RegExpTree* regexp);
-
-template
-RegExpNode<const uc16>* RegExpEngine::Compile<const uc16>(RegExpTree* regexp);
-
-template
-bool RegExpEngine::Execute<const char>(RegExpNode<const char>* start,
-                                       Vector<const char> input);
-
-template
-bool RegExpEngine::Execute<const uc16>(RegExpNode<const uc16>* start,
-                                       Vector<const uc16> input);
 
 
 }}  // namespace v8::internal

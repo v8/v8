@@ -136,9 +136,6 @@ class RegExpImpl {
 };
 
 
-template <typename Char> class RegExpNode;
-
-
 class CharacterRange {
  public:
   // For compatibility with the CHECK_OK macro
@@ -318,13 +315,18 @@ class DispatchTable {
 };
 
 
+struct RegExpParseResult {
+  RegExpTree* tree;
+  bool has_character_escapes;
+  Handle<String> error;
+  int capture_count;
+};
+
+
 class RegExpEngine: public AllStatic {
  public:
-  template <typename Char>
-  static RegExpNode<Char>* Compile(RegExpTree* regexp);
-
-  template <typename Char>
-  static bool Execute(RegExpNode<Char>* start, Vector<Char> input);
+  static RegExpNode* Compile(RegExpParseResult* input);
+  static void DotPrint(const char* label, RegExpNode* node);
 };
 
 

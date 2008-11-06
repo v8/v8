@@ -465,6 +465,8 @@ class RegExpParser {
 
   bool HasCharacterEscapes();
 
+  int captures_started() { return captures_started_; }
+
   static const uc32 kEndMarker = unibrow::Utf8::kBadChar;
  private:
   uc32 current() { return current_; }
@@ -4146,24 +4148,24 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
 }
 
 
-RegExpTree* ParseRegExp(unibrow::CharacterStream* stream,
-                        Handle<String>* error,
-                        bool* has_character_escapes) {
-  ASSERT(error->is_null());
-  RegExpParser parser(stream, error, false);  // Get multiline flag somehow
+bool ParseRegExp(unibrow::CharacterStream* stream, RegExpParseResult* result) {
+  ASSERT(result != NULL);
+  // Get multiline flag somehow
+  RegExpParser parser(stream, &result->error, false);
   bool ok = true;
-  RegExpTree* result = parser.ParsePattern(&ok);
+  result->tree = parser.ParsePattern(&ok);
   if (!ok) {
-    ASSERT(result == NULL);
-    ASSERT(!error->is_null());
+    ASSERT(result->tree == NULL);
+    ASSERT(!result->error.is_null());
   } else {
-    ASSERT(result != NULL);
-    ASSERT(error->is_null());
+    ASSERT(result->tree != NULL);
+    ASSERT(result->error.is_null());
   }
-  if (ok && has_character_escapes != NULL) {
-    *has_character_escapes = parser.HasCharacterEscapes();
+  if (ok) {
+    result->has_character_escapes = parser.HasCharacterEscapes();
+    result->capture_count = parser.captures_started();
   }
-  return result;
+  return ok;
 }
 
 
