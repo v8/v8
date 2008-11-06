@@ -35,18 +35,19 @@ Import('context')
 
 SOURCES = {
   'all': [
-    'accessors.cc', 'allocation.cc', 'api.cc', 'assembler.cc', 'ast.cc',
-    'bootstrapper.cc', 'builtins.cc', 'checks.cc', 'code-stubs.cc',
-    'codegen.cc', 'compilation-cache.cc', 'compiler.cc', 'contexts.cc',
-    'conversions.cc', 'counters.cc', 'dateparser.cc', 'debug.cc',
-    'disassembler.cc', 'execution.cc', 'factory.cc', 'flags.cc', 'frames.cc',
-    'global-handles.cc', 'handles.cc', 'hashmap.cc', 'heap.cc', 'ic.cc',
-    'jsregexp.cc', 'log.cc', 'mark-compact.cc', 'messages.cc', 'objects.cc',
-    'parser.cc', 'property.cc', 'rewriter.cc', 'runtime.cc', 'scanner.cc',
-    'scopeinfo.cc', 'scopes.cc', 'serialize.cc', 'snapshot-common.cc',
-    'spaces.cc', 'string-stream.cc', 'stub-cache.cc', 'token.cc', 'top.cc',
-    'unicode.cc', 'usage-analyzer.cc', 'utils.cc', 'v8-counters.cc',
-    'v8.cc', 'v8threads.cc', 'variables.cc', 'zone.cc'
+    'accessors.cc', 'allocation.cc', 'api.cc', 'assembler.cc',
+    'assembler-re2k.cc', 'ast.cc', 'bootstrapper.cc', 'builtins.cc',
+    'checks.cc', 'code-stubs.cc', 'codegen.cc', 'compilation-cache.cc',
+    'compiler.cc', 'contexts.cc', 'conversions.cc', 'counters.cc',
+    'dateparser.cc', 'debug.cc', 'disassembler.cc', 'execution.cc',
+    'factory.cc', 'flags.cc', 'frames.cc', 'global-handles.cc', 'handles.cc',
+    'hashmap.cc', 'heap.cc', 'ic.cc', 'interpreter-re2k.cc', 'jsregexp.cc',
+    'log.cc', 'mark-compact.cc', 'messages.cc', 'objects.cc', 'parser.cc',
+    'property.cc', 'regexp-codegen-re2k.cc', 'rewriter.cc', 'runtime.cc',
+    'scanner.cc', 'scopeinfo.cc', 'scopes.cc', 'serialize.cc',
+    'snapshot-common.cc', 'spaces.cc', 'string-stream.cc', 'stub-cache.cc',
+    'token.cc', 'top.cc', 'unicode.cc', 'usage-analyzer.cc', 'utils.cc',
+    'v8-counters.cc', 'v8.cc', 'v8threads.cc', 'variables.cc', 'zone.cc'
   ],
   'arch:arm':  ['assembler-arm.cc', 'builtins-arm.cc', 'codegen-arm.cc',
       'cpu-arm.cc', 'disasm-arm.cc', 'frames-arm.cc', 'ic-arm.cc',

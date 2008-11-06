@@ -478,6 +478,61 @@ static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
   }
 }
 
+
+static inline int Load16(const byte* pc) {
+#ifdef CAN_READ_UNALIGNED
+  return *reinterpret_cast<const uint16_t*>(pc);
+#else
+  uint32_t word;
+  word  = pc[1];
+  word |= pc[0] << 8;
+  return word;
+#endif
+}
+
+
+static inline int Load32(const byte* pc) {
+#ifdef CAN_READ_UNALIGNED
+  return *reinterpret_cast<const uint32_t*>(pc);
+#else
+  uint32_t word;
+  word  = pc[3];
+  word |= pc[2] << 8;
+  word |= pc[1] << 16;
+  word |= pc[0] << 24;
+  return word;
+#endif
+}
+
+
+static inline void Store16(byte* pc, uint16_t value) {
+#ifdef CAN_READ_UNALIGNED
+  *reinterpret_cast<uint16_t*>(pc) = value;
+#else
+  uint16_t word;
+  pc[1] = value;
+  pc[0] = value >> 8;
+#endif
+}
+
+
+static inline void Store32(byte* pc, uint32_t value) {
+#ifdef CAN_READ_UNALIGNED
+  *reinterpret_cast<uint32_t*>(pc) = value;
+#else
+  uint32_t word;
+  pc[3] = value;
+  pc[2] = value >> 8;
+  pc[1] = value >> 16;
+  pc[0] = value >> 24;
+  return word;
+#endif
+}
+
+
+
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_UTILS_H_

@@ -36,6 +36,8 @@
 #include "parser.h"
 #include "ast.h"
 #include "jsregexp-inl.h"
+#include "assembler-re2k.h"
+#include "interpreter-re2k.h"
 
 
 using namespace v8::internal;
@@ -496,3 +498,49 @@ TEST(DispatchTableConstruction) {
     }
   }
 }
+
+
+TEST(Assembler) {
+  V8::Initialize(NULL);
+
+  byte codes[1024];
+  Re2kAssembler assembler(Vector<byte>(codes, 1024));
+#define __ assembler.
+  Label advance;
+  Label look_for_foo;
+  __ GoTo(&look_for_foo);
+  __ Bind(&advance);
+  __ AdvanceCP();
+  __ Bind(&look_for_foo);
+  __ FailIfWithin(3);
+  __ LoadCurrentChar(0);
+  __ CheckChar('f', &advance);
+  __ LoadCurrentChar(1);
+  __ CheckChar('o', &advance);
+  __ LoadCurrentChar(2);
+  __ CheckChar('o', &advance);
+  __ SetCapture(0);
+  __ SetCapture(1, 2);
+  __ Succeed();
+
+  v8::HandleScope scope;
+  Handle<ByteArray> array = Factory::NewByteArray(assembler.length());
+  assembler.Copy(array->GetDataStartAddress());
+  int captures[2];
+
+  Handle<String> f1 = Factory::NewStringFromAscii(CStrVector("Now is the time"));
+  CHECK(!Re2kInterpreter::Match(*array, *f1, captures, 0));
+
+  Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));
+  CHECK(Re2kInterpreter::Match(*array, *f2, captures, 0));
+  CHECK_EQ(0, captures[0]);
+  CHECK_EQ(2, captures[1]);
+
+  Handle<String> f3 = Factory::NewStringFromAscii(CStrVector("tomfoolery"));
+  CHECK(Re2kInterpreter::Match(*array, *f3, captures, 0));
+  CHECK_EQ(3, captures[0]);
+  CHECK_EQ(5, captures[1]);
+}
+
+
+

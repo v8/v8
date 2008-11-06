@@ -294,7 +294,6 @@ Assembler::Assembler(void* buffer, int buffer_size) {
     }
     buffer_size_ = buffer_size;
     own_buffer_ = true;
-
   } else {
     // use externally provided buffer instead
     ASSERT(buffer_size > 0);
