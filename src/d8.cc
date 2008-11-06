@@ -318,6 +318,9 @@ void Shell::RunShell() {
 
 int Shell::Main(int argc, char* argv[]) {
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
+  if (i::FLAG_help) {
+    return 1;
+  }
   Initialize();
   bool run_shell = (argc == 1);
   Context::Scope context_scope(evaluation_context_);
