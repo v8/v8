@@ -5227,7 +5227,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // exception field in the JSEnv and return a failure sentinel.
   ExternalReference pending_exception(Top::k_pending_exception_address);
   __ mov(Operand::StaticVariable(pending_exception), eax);
-  __ mov(eax, Handle<Failure>(Failure::Exception()));
+  __ mov(eax, reinterpret_cast<int32_t>(Failure::Exception()));
   __ jmp(&exit);
 
   // Invoke: Link this frame into the handler chain.

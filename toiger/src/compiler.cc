@@ -66,7 +66,11 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 #endif
 
   // Optimize the AST.
-  Rewriter::Optimize(literal);
+  if (!Rewriter::Optimize(literal)) {
+    // Signal a stack overflow by returning a null handle.  The stack
+    // overflow exception will be thrown by the caller.
+    return Handle<Code>::null();
+  }
 
   // Generate code and return it.
   Handle<Code> result = CodeGenerator::MakeCode(literal, script, is_eval);
@@ -209,8 +213,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
 Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
                                          int line_offset,
                                          bool is_global) {
-  StringShape source_shape(*source);
-  int source_length = source->length(source_shape);
+  int source_length = source->length();
   Counters::total_eval_size.Increment(source_length);
   Counters::total_compile_size.Increment(source_length);
 

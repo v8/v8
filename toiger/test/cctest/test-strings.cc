@@ -215,10 +215,8 @@ static void TraverseFirst(Handle<String> s1, Handle<String> s2, int chars) {
     CHECK_EQ(c, buffer2.GetNext());
     i++;
   }
-  StringShape shape1(*s1);
-  StringShape shape2(*s2);
-  s1->Get(shape1, s1->length(shape1) - 1);
-  s2->Get(shape2, s2->length(shape2) - 1);
+  s1->Get(StringShape(*s1), s1->length() - 1);
+  s2->Get(StringShape(*s2), s2->length() - 1);
 }
 
 
@@ -251,12 +249,10 @@ TEST(Traverse) {
   printf("7\n");
   Handle<String> right_deep_slice =
       Factory::NewStringSlice(left_deep_asymmetric,
-                              StringShape(*left_deep_asymmetric),
                               left_deep_asymmetric->length() - 1050,
                               left_deep_asymmetric->length() - 50);
   Handle<String> left_deep_slice =
       Factory::NewStringSlice(right_deep_asymmetric,
-                              StringShape(*right_deep_asymmetric),
                               right_deep_asymmetric->length() - 1050,
                               right_deep_asymmetric->length() - 50);
   printf("8\n");
@@ -283,7 +279,6 @@ static Handle<String> SliceOf(Handle<String> underlying) {
   int start = gen() % underlying->length();
   int end = start + gen() % (underlying->length() - start);
   return Factory::NewStringSlice(underlying,
-                                 StringShape(*underlying),
                                  start,
                                  end);
 }

@@ -3019,7 +3019,9 @@ class StringHasher {
 // the shape of the string is given its own class so that it can be retrieved
 // once and used for several string operations.  A StringShape is small enough
 // to be passed by value and is immutable, but be aware that flattening a
-// string can potentially alter its shape.
+// string can potentially alter its shape.  Also be aware that a GC caused by
+// something else can alter the shape of a string due to ConsString
+// shortcutting.
 //
 // Most of the methods designed to interrogate a string as to its exact nature
 // have been made into methods on StringShape in order to encourage the use of
@@ -3111,7 +3113,7 @@ class String: public HeapObject {
   bool MarkAsUndetectable();
 
   // Slice the string and return a substring.
-  Object* Slice(StringShape shape, int from, int to);
+  Object* Slice(int from, int to);
 
   // String equality operations.
   inline bool Equals(String* other);
@@ -3465,9 +3467,6 @@ class SlicedString: public String {
 
   // Dispatched behavior.
   uint16_t SlicedStringGet(int index);
-
-  // Flatten any ConsString hiding behind this SlicedString.
-  Object* SlicedStringFlatten();
 
   // Casting.
   static inline SlicedString* cast(Object* obj);

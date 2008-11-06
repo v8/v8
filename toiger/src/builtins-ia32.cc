@@ -657,7 +657,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   // arguments and the receiver.
   ASSERT(kSmiTagSize == 1);
   __ lea(ecx, Operand(eax, eax, times_1, kSmiTag));
-  __ push(Operand(ecx));
+  __ push(ecx);
 }
 
 

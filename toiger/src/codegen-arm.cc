@@ -35,6 +35,20 @@
 
 namespace v8 { namespace internal {
 
+#define __ masm_->
+
+// -------------------------------------------------------------------------
+// VirtualFrame implementation.
+
+VirtualFrame::VirtualFrame(CodeGenerator* cgen) {
+  ASSERT(cgen->scope() != NULL);
+
+  masm_ = cgen->masm();
+  frame_local_count_ = cgen->scope()->num_stack_slots();
+  parameter_count_ = cgen->scope()->num_parameters();
+}
+
+
 // -------------------------------------------------------------------------
 // CodeGenState implementation.
 
@@ -67,10 +81,8 @@ CodeGenState::~CodeGenState() {
 }
 
 
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // CodeGenerator implementation
-
-#define __ masm_->
 
 CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
                              bool is_eval)
@@ -79,6 +91,7 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
       deferred_(8),
       masm_(new MacroAssembler(NULL, buffer_size)),
       scope_(NULL),
+      frame_(NULL),
       cc_reg_(al),
       state_(NULL),
       break_stack_height_(0) {
@@ -94,13 +107,17 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
 // cp: callee's context
 
 void CodeGenerator::GenCode(FunctionLiteral* fun) {
-  Scope* scope = fun->scope();
   ZoneList<Statement*>* body = fun->body();
 
   // Initialize state.
-  { CodeGenState state(this);
-    scope_ = scope;
-    cc_reg_ = al;
+  ASSERT(scope_ == NULL);
+  scope_ = fun->scope();
+  ASSERT(frame_ == NULL);
+  VirtualFrame virtual_frame(this);
+  frame_ = &virtual_frame;
+  cc_reg_ = al;
+  {
+    CodeGenState state(this);
 
     // Entry
     // stack: function, receiver, arguments, return address
@@ -122,19 +139,19 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
 #endif
 
     // Allocate space for locals and initialize them.
-    if (scope->num_stack_slots() > 0) {
+    if (scope_->num_stack_slots() > 0) {
       Comment cmnt(masm_, "[ allocate space for locals");
       // Initialize stack slots with 'undefined' value.
       __ mov(ip, Operand(Factory::undefined_value()));
-      for (int i = 0; i < scope->num_stack_slots(); i++) {
+      for (int i = 0; i < scope_->num_stack_slots(); i++) {
         __ push(ip);
       }
     }
 
-    if (scope->num_heap_slots() > 0) {
+    if (scope_->num_heap_slots() > 0) {
       // Allocate local context.
       // Get outer context and create a new context based on it.
-      __ ldr(r0, FunctionOperand());
+      __ ldr(r0, frame_->Function());
       __ push(r0);
       __ CallRuntime(Runtime::kNewContext, 1);  // r0 holds the result
 
@@ -146,7 +163,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         __ bind(&verified_true);
       }
       // Update context local.
-      __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+      __ str(cp, frame_->Context());
     }
 
     // TODO(1241774): Improve this code!!!
@@ -164,12 +181,12 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       // order: such a parameter is copied repeatedly into the same
       // context location and thus the last value is what is seen inside
       // the function.
-      for (int i = 0; i < scope->num_parameters(); i++) {
-        Variable* par = scope->parameter(i);
+      for (int i = 0; i < scope_->num_parameters(); i++) {
+        Variable* par = scope_->parameter(i);
         Slot* slot = par->slot();
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
-          ASSERT(!scope->is_global_scope());  // no parameters in global scope
-          __ ldr(r1, ParameterOperand(i));
+          ASSERT(!scope_->is_global_scope());  // no parameters in global scope
+          __ ldr(r1, frame_->Parameter(i));
           // Loads r2 with context; used below in RecordWrite.
           __ str(r1, SlotOperand(slot, r2));
           // Load the offset into r3.
@@ -184,18 +201,18 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // Store the arguments object.
     // This must happen after context initialization because
     // the arguments array may be stored in the context!
-    if (scope->arguments() != NULL) {
-      ASSERT(scope->arguments_shadow() != NULL);
+    if (scope_->arguments() != NULL) {
+      ASSERT(scope_->arguments_shadow() != NULL);
       Comment cmnt(masm_, "[ allocate arguments object");
-      { Reference shadow_ref(this, scope->arguments_shadow());
-        { Reference arguments_ref(this, scope->arguments());
+      { Reference shadow_ref(this, scope_->arguments_shadow());
+        { Reference arguments_ref(this, scope_->arguments());
           ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
-          __ ldr(r2, FunctionOperand());
+          __ ldr(r2, frame_->Function());
           // The receiver is below the arguments, the return address,
           // and the frame pointer on the stack.
-          const int kReceiverDisplacement = 2 + scope->num_parameters();
+          const int kReceiverDisplacement = 2 + scope_->num_parameters();
           __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
-          __ mov(r0, Operand(Smi::FromInt(scope->num_parameters())));
+          __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
           __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
           __ CallStub(&stub);
           __ push(r0);
@@ -210,13 +227,13 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // functions (source elements). In case of an illegal
     // redeclaration we need to handle that instead of processing the
     // declarations.
-    if (scope->HasIllegalRedeclaration()) {
+    if (scope_->HasIllegalRedeclaration()) {
       Comment cmnt(masm_, "[ illegal redeclarations");
-      scope->VisitIllegalRedeclaration(this);
+      scope_->VisitIllegalRedeclaration(this);
     } else {
       Comment cmnt(masm_, "[ declarations");
       // ProcessDeclarations calls DeclareGlobals indirectly
-      ProcessDeclarations(scope->declarations());
+      ProcessDeclarations(scope_->declarations());
 
       // Bail out if a stack-overflow exception occurred when
       // processing declarations.
@@ -233,7 +250,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // Compile the body of the function in a vanilla state. Don't
     // bother compiling all the code if the scope has an illegal
     // redeclaration.
-    if (!scope->HasIllegalRedeclaration()) {
+    if (!scope_->HasIllegalRedeclaration()) {
       Comment cmnt(masm_, "[ function body");
 #ifdef DEBUG
       bool is_builtin = Bootstrapper::IsActive();
@@ -272,6 +289,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
 
   // Code generation state must be reset.
   scope_ = NULL;
+  frame_ = NULL;
   ASSERT(!has_cc());
   ASSERT(state_ == NULL);
 }
@@ -290,13 +308,10 @@ MemOperand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
   int index = slot->index();
   switch (slot->type()) {
     case Slot::PARAMETER:
-      return ParameterOperand(index);
+      return frame_->Parameter(index);
 
-    case Slot::LOCAL: {
-      ASSERT(0 <= index && index < scope()->num_stack_slots());
-      const int kLocalOffset = JavaScriptFrameConstants::kLocal0Offset;
-      return MemOperand(fp, kLocalOffset - index * kPointerSize);
-    }
+    case Slot::LOCAL:
+      return frame_->Local(index);
 
     case Slot::CONTEXT: {
       // Follow the context chain if necessary.
@@ -979,7 +994,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   __ CallStub(&call_function);
 
   // Restore context and pop function from the stack.
-  __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ ldr(cp, frame_->Context());
   __ pop();  // discard the TOS
 }
 
@@ -1214,7 +1229,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
     __ bind(&verified_true);
   }
   // Update context local.
-  __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ str(cp, frame_->Context());
 }
 
 
@@ -1223,7 +1238,7 @@ void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
   // Pop context.
   __ ldr(cp, ContextOperand(cp, Context::PREVIOUS_INDEX));
   // Update context local.
-  __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+  __ str(cp, frame_->Context());
 }
 
 
@@ -1324,7 +1339,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     } else {
       __ bind(&next);
       next.Unuse();
-      __ ldr(r0, MemOperand(sp, 0));
+      __ ldr(r0, frame_->Top());
       __ push(r0);  // duplicate TOS
       Load(clause->label());
       Comparison(eq, true);
@@ -1543,29 +1558,29 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // sp[2] : array or enum cache
   // sp[3] : 0 or map
   // sp[4] : enumerable
-  __ ldr(r0, MemOperand(sp, 0 * kPointerSize));  // load the current count
-  __ ldr(r1, MemOperand(sp, 1 * kPointerSize));  // load the length
+  __ ldr(r0, frame_->Element(0));  // load the current count
+  __ ldr(r1, frame_->Element(1));  // load the length
   __ cmp(r0, Operand(r1));  // compare to the array length
   __ b(hs, &cleanup);
 
-  __ ldr(r0, MemOperand(sp, 0 * kPointerSize));
+  __ ldr(r0, frame_->Element(0));
 
   // Get the i'th entry of the array.
-  __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
+  __ ldr(r2, frame_->Element(2));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ ldr(r3, MemOperand(r2, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
 
   // Get Map or 0.
-  __ ldr(r2, MemOperand(sp, 3 * kPointerSize));
+  __ ldr(r2, frame_->Element(3));
   // Check if this (still) matches the map of the enumerable.
   // If not, we have to filter the key.
-  __ ldr(r1, MemOperand(sp, 4 * kPointerSize));
+  __ ldr(r1, frame_->Element(4));
   __ ldr(r1, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ cmp(r1, Operand(r2));
   __ b(eq, &end_del_check);
 
   // Convert the entry to a string (or null if it isn't a property anymore).
-  __ ldr(r0, MemOperand(sp, 4 * kPointerSize));  // push enumerable
+  __ ldr(r0, frame_->Element(4));  // push enumerable
   __ push(r0);
   __ push(r3);  // push entry
   __ mov(r0, Operand(1));
@@ -1585,7 +1600,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   { Reference each(this, node->each());
     if (!each.is_illegal()) {
       if (each.size() > 0) {
-        __ ldr(r0, MemOperand(sp, kPointerSize * each.size()));
+        __ ldr(r0, frame_->Element(each.size()));
         __ push(r0);
       }
       // If the reference was to a slot we rely on the convenient property
@@ -1680,9 +1695,10 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
   // Unlink from try chain.
   // TOS contains code slot
-  const int kNextOffset = StackHandlerConstants::kNextOffset +
-      StackHandlerConstants::kAddressDisplacement;
-  __ ldr(r1, MemOperand(sp, kNextOffset));  // read next_sp
+  const int kNextIndex = (StackHandlerConstants::kNextOffset
+                          + StackHandlerConstants::kAddressDisplacement)
+                       / kPointerSize;
+  __ ldr(r1, frame_->Element(kNextIndex));  // read next_sp
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
   __ str(r1, MemOperand(r3));
   ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
@@ -1702,7 +1718,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
       __ ldr(sp, MemOperand(r3));
 
-      __ ldr(r1, MemOperand(sp, kNextOffset));
+      __ ldr(r1, frame_->Element(kNextIndex));
       __ str(r1, MemOperand(r3));
       ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
       __ add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
@@ -1797,9 +1813,10 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // break from (eg, for...in) may have left stuff on the stack.
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
   __ ldr(sp, MemOperand(r3));
-  const int kNextOffset = StackHandlerConstants::kNextOffset +
-      StackHandlerConstants::kAddressDisplacement;
-  __ ldr(r1, MemOperand(sp, kNextOffset));
+  const int kNextIndex = (StackHandlerConstants::kNextOffset
+                          + StackHandlerConstants::kAddressDisplacement)
+                       / kPointerSize;
+  __ ldr(r1, frame_->Element(kNextIndex));
   __ str(r1, MemOperand(r3));
   ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
   __ add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
@@ -1982,7 +1999,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   // Retrieve the literal array and check the allocated entry.
 
   // Load the function of this activation.
-  __ ldr(r1, FunctionOperand());
+  __ ldr(r1, frame_->Function());
 
   // Load the literals array of the function.
   __ ldr(r1, FieldMemOperand(r1, JSFunction::kLiteralsOffset));
@@ -2055,7 +2072,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // Retrieve the literal array and check the allocated entry.
 
   // Load the function of this activation.
-  __ ldr(r1, FunctionOperand());
+  __ ldr(r1, frame_->Function());
 
   // Load the literals array of the function.
   __ ldr(r1, FieldMemOperand(r1, JSFunction::kLiteralsOffset));
@@ -2092,7 +2109,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         Load(value);
         __ CallRuntime(Runtime::kSetProperty, 3);
         // restore r0
-        __ ldr(r0, MemOperand(sp, 0));
+        __ ldr(r0, frame_->Top());
         break;
       }
       case ObjectLiteral::Property::SETTER: {
@@ -2102,7 +2119,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         __ push(r0);
         Load(value);
         __ CallRuntime(Runtime::kDefineAccessor, 4);
-        __ ldr(r0, MemOperand(sp, 0));
+        __ ldr(r0, frame_->Top());
         break;
       }
       case ObjectLiteral::Property::GETTER: {
@@ -2112,7 +2129,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         __ push(r0);
         Load(value);
         __ CallRuntime(Runtime::kDefineAccessor, 4);
-        __ ldr(r0, MemOperand(sp, 0));
+        __ ldr(r0, frame_->Top());
         break;
       }
     }
@@ -2127,7 +2144,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   __ mov(r0, Operand(node->literals()));
   __ push(r0);
   // Load the function of this frame.
-  __ ldr(r0, FunctionOperand());
+  __ ldr(r0, frame_->Function());
   __ ldr(r0, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
   __ push(r0);
   __ CallRuntime(Runtime::kCreateArrayLiteral, 2);
@@ -2148,7 +2165,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
       __ pop(r0);
 
       // Fetch the object literal
-      __ ldr(r1, MemOperand(sp, 0));
+      __ ldr(r1, frame_->Top());
         // Get the elements array.
       __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
 
@@ -2271,7 +2288,7 @@ void CodeGenerator::VisitCall(Call* node) {
     Handle<Code> stub = ComputeCallInitialize(args->length());
     __ RecordPosition(node->position());
     __ Call(stub, RelocInfo::CODE_TARGET_CONTEXT);
-    __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ ldr(cp, frame_->Context());
     // Remove the function from the stack.
     __ pop();
     __ push(r0);
@@ -2318,7 +2335,7 @@ void CodeGenerator::VisitCall(Call* node) {
       Handle<Code> stub = ComputeCallInitialize(args->length());
       __ RecordPosition(node->position());
       __ Call(stub, RelocInfo::CODE_TARGET);
-      __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+      __ ldr(cp, frame_->Context());
 
       // Remove the function from the stack.
       __ pop();
@@ -2335,7 +2352,7 @@ void CodeGenerator::VisitCall(Call* node) {
       ref.GetValue(NOT_INSIDE_TYPEOF);  // receiver
 
       // Pass receiver to called function.
-      __ ldr(r0, MemOperand(sp, ref.size() * kPointerSize));
+      __ ldr(r0, frame_->Element(ref.size()));
       __ push(r0);
       // Call the function.
       CallWithArguments(args, node->position());
@@ -2383,7 +2400,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   __ mov(r0, Operand(args->length()));
 
   // Load the function into r1 as per calling convention.
-  __ ldr(r1, MemOperand(sp, (args->length() + 1) * kPointerSize));
+  __ ldr(r1, frame_->Element(args->length() + 1));
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
@@ -2392,7 +2409,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
           RelocInfo::CONSTRUCT_CALL);
 
   // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
-  __ str(r0, MemOperand(sp, 0 * kPointerSize));
+  __ str(r0, frame_->Top());
 }
 
 
@@ -2565,7 +2582,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     // Call the JS runtime function.
     Handle<Code> stub = ComputeCallInitialize(args->length());
     __ Call(stub, RelocInfo::CODE_TARGET);
-    __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
+    __ ldr(cp, frame_->Context());
     __ pop();
     __ push(r0);
   }
@@ -2727,7 +2744,9 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     __ b(ne, &slow);
 
     // Postfix: Store the old value as the result.
-    if (is_postfix) __ str(r0, MemOperand(sp, target.size() * kPointerSize));
+    if (is_postfix) {
+      __ str(r0, frame_->Element(target.size()));
+    }
 
     // Perform optimistic increment/decrement.
     if (is_increment) {
@@ -2754,7 +2773,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       InvokeBuiltinStub stub(InvokeBuiltinStub::ToNumber, 2);
       __ CallStub(&stub);
       // Store to result (on the stack).
-      __ str(r0, MemOperand(sp, target.size() * kPointerSize));
+      __ str(r0, frame_->Element(target.size()));
     }
 
     // Compute the new value by calling the right JavaScript native.
@@ -2814,7 +2833,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     } else {
       Label pop_and_continue, exit;
 
-      __ ldr(r0, MemOperand(sp, 0));  // dup the stack top
+      __ ldr(r0, frame_->Top());  // dup the stack top
       __ push(r0);
       // Avoid popping the result if it converts to 'false' using the
       // standard ToBoolean() conversion as described in ECMA-262,
@@ -2855,7 +2874,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     } else {
       Label pop_and_continue, exit;
 
-      __ ldr(r0, MemOperand(sp, 0));
+      __ ldr(r0, frame_->Top());
       __ push(r0);
       // Avoid popping the result if it converts to 'true' using the
       // standard ToBoolean() conversion as described in ECMA-262,
@@ -2900,7 +2919,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
 
 void CodeGenerator::VisitThisFunction(ThisFunction* node) {
-  __ ldr(r0, FunctionOperand());
+  __ ldr(r0, frame_->Function());
   __ push(r0);
 }
 
@@ -4044,7 +4063,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // sets it to 0 to signal the existence of the JSEntry frame.
   __ mov(ip, Operand(Top::pending_exception_address()));
   __ str(r0, MemOperand(ip));
-  __ mov(r0, Operand(Handle<Failure>(Failure::Exception())));
+  __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);
 
   // Invoke: Link this frame into the handler chain.

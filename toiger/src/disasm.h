@@ -49,9 +49,6 @@ class NameConverter {
 // A generic Disassembler interface
 class Disassembler {
  public:
-  // Uses default NameConverter.
-  Disassembler();
-
   // Caller deallocates converter.
   explicit Disassembler(const NameConverter& converter);
 
@@ -70,6 +67,8 @@ class Disassembler {
   static void Disassemble(FILE* f, byte* begin, byte* end);
  private:
   const NameConverter& converter_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Disassembler);
 };
 
 }  // namespace disasm

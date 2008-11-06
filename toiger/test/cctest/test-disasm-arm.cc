@@ -50,7 +50,8 @@ static void InitializeVM() {
 
 
 bool DisassembleAndCompare(byte* pc, const char* compare_string) {
-  disasm::Disassembler disasm;
+  disasm::NameConverter converter;
+  disasm::Disassembler disasm(converter);
   EmbeddedVector<char, 128> disasm_buffer;
 
   disasm.InstructionDecode(disasm_buffer, pc);
@@ -68,6 +69,9 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 }
 
 
+// Setup V8 to a state where we can at least run the assembler and
+// disassembler. Declare the variables and allocate the data structures used
+// in the rest of the macros.
 #define SETUP() \
   InitializeVM(); \
   Serializer::disable(); \
@@ -77,6 +81,10 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   bool failure = false;
 
 
+// This macro assembles one instruction using the preallocated assembler and
+// disassembles the generated instruction, comparing the output to the expected
+// value. If the comparison fails an error message is printed, but the test
+// continues to run until the end.
 #define COMPARE(asm_, compare_string) \
   { \
     int pc_offset = assm.pc_offset(); \
@@ -86,8 +94,10 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
   }
 
 
-#define OUTPUT() \
-  if (failure) { \
+// Verify that all invocations of the COMPARE macro passed successfully.
+// Exit with a failure if at least one of the tests failed.
+#define VERIFY_RUN() \
+if (failure) { \
     V8_Fatal(__FILE__, __LINE__, "ARM Disassembler tests failed.\n"); \
   }
 
@@ -239,7 +249,7 @@ TEST(Type0) {
   COMPARE(mvn(r5, Operand(r4), SetCC, cc),
           "31f05004       mvnccs r5, r4");
 
-  OUTPUT();
+  VERIFY_RUN();
 }
 
 
@@ -268,5 +278,5 @@ TEST(Type1) {
   COMPARE(eor(r4, r1, Operand(0x10000000), SetCC, cc),
           "32314201       eorccs r4, r1, #268435456");
 
-  OUTPUT();
+  VERIFY_RUN();
 }

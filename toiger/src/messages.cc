@@ -108,13 +108,12 @@ Handle<Object> MessageHandler::MakeMessageObject(
   Handle<Object> message =
       Execution::Call(fun, Factory::undefined_value(), argc, argv,
                       &caught_exception);
-  if (caught_exception) {
-    // If creating the message (in JS code) resulted in an exception, we
-    // skip doing the callback. This usually only happens in case of
-    // stack overflow exceptions being thrown by the parser when the
-    // stack is almost full.
-    if (caught_exception) return Handle<Object>();
-  }
+
+  // If creating the message (in JS code) resulted in an exception, we
+  // skip doing the callback. This usually only happens in case of
+  // stack overflow exceptions being thrown by the parser when the
+  // stack is almost full.
+  if (caught_exception) return Handle<Object>();
 
   return message.EscapeFrom(&scope);
 }

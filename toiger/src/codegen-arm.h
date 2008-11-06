@@ -38,8 +38,50 @@ class DeferredCode;
 // Mode to overwrite BinaryExpression values.
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 
+enum InitState { CONST_INIT, NOT_CONST_INIT };
+enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
-// -----------------------------------------------------------------------------
+
+// -------------------------------------------------------------------------
+// Virtual frame
+
+class VirtualFrame BASE_EMBEDDED {
+ public:
+  explicit VirtualFrame(CodeGenerator* cgen);
+
+  MemOperand Top() const { return MemOperand(sp, 0); }
+
+  MemOperand Element(int index) const {
+    return MemOperand(sp, index * kPointerSize);
+  }
+
+  MemOperand Local(int index) const {
+    ASSERT(0 <= index && index < frame_local_count_);
+    return MemOperand(fp, kLocal0Offset - index * kPointerSize);
+  }
+
+  MemOperand Function() const { return MemOperand(fp, kFunctionOffset); }
+
+  MemOperand Context() const { return MemOperand(fp, kContextOffset); }
+
+  MemOperand Parameter(int index) const {
+    // Index -1 corresponds to the receiver.
+    ASSERT(-1 <= index && index <= parameter_count_);
+    return MemOperand(fp, (1 + parameter_count_ - index) * kPointerSize);
+  }
+
+ private:
+  static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
+  static const int kFunctionOffset = JavaScriptFrameConstants::kFunctionOffset;
+  static const int kContextOffset = StandardFrameConstants::kContextOffset;
+
+  MacroAssembler* masm_;
+  int frame_local_count_;
+  int parameter_count_;
+};
+
+
+// -------------------------------------------------------------------------
 // Reference support
 
 // A reference is a C++ stack-allocated object that keeps an ECMA
@@ -48,9 +90,6 @@ enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 // store state on the stack for keeping track of references to those.
 // For properties, we keep either one (named) or two (indexed) values
 // on the execution stack to represent the reference.
-
-enum InitState { CONST_INIT, NOT_CONST_INIT };
-enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 class Reference BASE_EMBEDDED {
  public:
@@ -133,7 +172,7 @@ class CodeGenState BASE_EMBEDDED {
 };
 
 
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // CodeGenerator
 
 class CodeGenerator: public Visitor {
@@ -192,20 +231,6 @@ class CodeGenerator: public Visitor {
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
   void UnloadReference(Reference* ref);
-
-  // Support functions for accessing parameters and other operands.
-  MemOperand ParameterOperand(int index) const {
-    int num_parameters = scope()->num_parameters();
-    // index -2 corresponds to the activated closure, -1 corresponds
-    // to the receiver
-    ASSERT(-2 <= index && index < num_parameters);
-    int offset = (1 + num_parameters - index) * kPointerSize;
-    return MemOperand(fp, offset);
-  }
-
-  MemOperand FunctionOperand() const {
-    return MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset);
-  }
 
   MemOperand ContextOperand(Register context, int index) const {
     return MemOperand(context, Context::SlotOffset(index));
@@ -355,6 +380,7 @@ class CodeGenerator: public Visitor {
 
   // Code generation state
   Scope* scope_;
+  VirtualFrame* frame_;
   Condition cc_reg_;
   CodeGenState* state_;
   bool is_inside_try_;
@@ -363,10 +389,8 @@ class CodeGenerator: public Visitor {
   // Labels
   Label function_return_;
 
+  friend class VirtualFrame;
   friend class Reference;
-  friend class Property;
-  friend class VariableProxy;
-  friend class Slot;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };
