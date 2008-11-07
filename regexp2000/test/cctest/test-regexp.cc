@@ -213,6 +213,9 @@ TEST(Parser) {
   CHECK_ESCAPES("(a)\\1", false);
 }
 
+TEST(ParserRegression) {
+  CHECK_PARSE_EQ("[A-Z$-][x]", "(: [A-Z $ -] [x])");
+}
 
 static void ExpectError(const char* input,
                         const char* expected) {

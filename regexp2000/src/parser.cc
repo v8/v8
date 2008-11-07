@@ -4064,27 +4064,27 @@ RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
   }
   ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
   while (has_more() && current() != ']') {
-    if (current() == '-') {
-      Advance();
-      ranges->Add(CharacterRange::Singleton('-'));
-    } else {
-      bool is_char_class = false;
-      CharacterRange first = ParseClassAtom(&is_char_class, ranges, CHECK_OK);
-      if (!is_char_class) {
-        if (current() == '-') {
-          Advance();
-          CharacterRange next =
-              ParseClassAtom(&is_char_class, ranges, CHECK_OK);
-          if (is_char_class) {
-            return ReportError(CStrVector(kIllegal), CHECK_OK);
-          }
-          if (first.from() > next.to()) {
-            return ReportError(CStrVector(kRangeOutOfOrder), CHECK_OK);
-          }
-          ranges->Add(CharacterRange::Range(first.from(), next.to()));
-        } else {
+    bool is_char_class = false;
+    CharacterRange first = ParseClassAtom(&is_char_class, ranges, CHECK_OK);
+    if (!is_char_class) {
+      if (current() == '-') {
+        Advance();
+        if (current() == ']') {
           ranges->Add(first);
+          ranges->Add(CharacterRange::Singleton('-'));
+          break;
         }
+        CharacterRange next =
+            ParseClassAtom(&is_char_class, ranges, CHECK_OK);
+        if (is_char_class) {
+          return ReportError(CStrVector(kIllegal), CHECK_OK);
+        }
+        if (first.from() > next.to()) {
+          return ReportError(CStrVector(kRangeOutOfOrder), CHECK_OK);
+        }
+        ranges->Add(CharacterRange::Range(first.from(), next.to()));
+      } else {
+        ranges->Add(first);
       }
     }
   }

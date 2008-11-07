@@ -814,6 +814,7 @@ class ActionNode: public SeqRegExpNode {
     STORE_REGISTER,
     INCREMENT_REGISTER,
     STORE_POSITION,
+    RESTORE_POSITION,
     BEGIN_SUBMATCH,
     ESCAPE_SUBMATCH,
     END_SUBMATCH
@@ -831,7 +832,12 @@ class ActionNode: public SeqRegExpNode {
   }
   static ActionNode* StorePosition(int reg, RegExpNode* on_success) {
     ActionNode* result = new ActionNode(STORE_POSITION, on_success);
-    result->data_.u_store_position.reg_ = reg;
+    result->data_.u_position_register.reg_ = reg;
+    return result;
+  }
+  static ActionNode* RestorePosition(int reg, RegExpNode* on_success) {
+    ActionNode* result = new ActionNode(RESTORE_POSITION, on_success);
+    result->data_.u_position_register.reg_ = reg;
     return result;
   }
   static ActionNode* BeginSubmatch(RegExpNode* on_success) {
@@ -860,7 +866,7 @@ class ActionNode: public SeqRegExpNode {
     } u_increment_register;
     struct {
       int reg_;
-    } u_store_position;
+    } u_position_register;
   } data_;
 };
 
@@ -991,7 +997,11 @@ void ActionNode::EmitDot(DotPrinter* out) {
       break;
     case STORE_POSITION:
       out->stream()->Add("label=\"$%i:=$pos\", shape=box",
-                         data_.u_store_position.reg_);
+                         data_.u_position_register.reg_);
+      break;
+    case RESTORE_POSITION:
+      out->stream()->Add("label=\"$pos:=$%i\", shape=box",
+                         data_.u_position_register.reg_);
       break;
     case BEGIN_SUBMATCH:
       out->stream()->Add("label=\"begin\", shape=septagon");
@@ -1062,20 +1072,20 @@ RegExpNode* RegExpQuantifier::ToNode(RegExpCompiler* compiler,
   bool has_min = min() > 0;
   bool has_max = max() < RegExpQuantifier::kInfinity;
   bool needs_counter = has_min || has_max;
-  int reg = needs_counter ? compiler->AllocateRegister() : -1;
+  int reg_ctr = needs_counter ? compiler->AllocateRegister() : -1;
   ChoiceNode* center = new ChoiceNode(2, on_failure);
   RegExpNode* loop_return = needs_counter
-      ? static_cast<RegExpNode*>(ActionNode::IncrementRegister(reg, center))
+      ? static_cast<RegExpNode*>(ActionNode::IncrementRegister(reg_ctr, center))
       : static_cast<RegExpNode*>(center);
   RegExpNode* body_node = compiler->Compile(body(), loop_return, on_failure);
   GuardedAlternative body_alt(body_node);
   if (has_max) {
-    Guard* body_guard = new Guard(reg, Guard::LT, max());
+    Guard* body_guard = new Guard(reg_ctr, Guard::LT, max());
     body_alt.AddGuard(body_guard);
   }
   GuardedAlternative rest_alt(on_success);
   if (has_min) {
-    Guard* rest_guard = new Guard(reg, Guard::GEQ, min());
+    Guard* rest_guard = new Guard(reg_ctr, Guard::GEQ, min());
     rest_alt.AddGuard(rest_guard);
   }
   if (is_greedy()) {
@@ -1086,7 +1096,7 @@ RegExpNode* RegExpQuantifier::ToNode(RegExpCompiler* compiler,
     center->AddChild(body_alt);
   }
   if (needs_counter) {
-    return ActionNode::StoreRegister(reg, 0, center);
+    return ActionNode::StoreRegister(reg_ctr, 0, center);
   } else {
     return center;
   }
@@ -1122,15 +1132,42 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
                                     RegExpNode* on_success,
                                     RegExpNode* on_failure) {
   if (is_positive()) {
-    RegExpNode* proceed = ActionNode::EndSubmatch(on_success);
-    RegExpNode* escape = ActionNode::EscapeSubmatch(on_failure);
-    RegExpNode* body_node = compiler->Compile(body(), proceed, escape);
-    return ActionNode::BeginSubmatch(body_node);
+    int position_register = compiler->AllocateRegister();
+    // begin submatch scope
+    // $reg = $pos
+    // if [body]
+    // then
+    //   $pos = $reg
+    //   escape submatch scope (drop all backtracks created in scope)
+    //   succeed
+    // else
+    //   end submatch scope (nothing to clean up, just exit the scope)
+    //   fail
+    return ActionNode::BeginSubmatch(ActionNode::StorePosition(
+        position_register, compiler->Compile(body(),
+            ActionNode::RestorePosition(position_register,
+                ActionNode::EscapeSubmatch(on_success)),
+            ActionNode::EndSubmatch(on_failure))));
   } else {
-    RegExpNode* failed = ActionNode::EscapeSubmatch(on_success);
-    RegExpNode* succeeded = ActionNode::EndSubmatch(on_failure);
-    RegExpNode* body_node = compiler->Compile(body(), succeeded, failed);
-    return ActionNode::BeginSubmatch(body_node);
+    // begin submatch scope
+    // try
+    // first if (body)
+    //       then
+    //         escape submatch scope
+    //         fail
+    //       else
+    //         backtrack
+    // second
+    //       end submatch scope
+    //       succeed
+    ChoiceNode* try_node =
+        new ChoiceNode(1, ActionNode::EndSubmatch(on_success));
+    RegExpNode* body_node = compiler->Compile(body(),
+        ActionNode::EscapeSubmatch(on_failure),
+        EndNode::GetBacktrack());
+    GuardedAlternative body_alt(body_node);
+    try_node->AddChild(body_alt);
+    return ActionNode::BeginSubmatch(try_node);
   }
 }
 
