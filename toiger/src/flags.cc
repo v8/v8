@@ -317,7 +317,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           // sense there.
           continue;
         } else {
-          fprintf(stderr, "Error: unrecognized flag %s\n", arg);
+          fprintf(stderr, "Error: unrecognized flag %s\n"
+                  "Try --help for options\n", arg);
           return j;
         }
       }
@@ -327,7 +328,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
         if (i < *argc) {
           value = argv[i++];
         } else {
-          fprintf(stderr, "Error: missing value for flag %s of type %s\n",
+          fprintf(stderr, "Error: missing value for flag %s of type %s\n"
+                  "Try --help for options\n",
                   arg, Type2String(flag->type()));
           return j;
         }
@@ -354,7 +356,8 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       if ((flag->type() == Flag::TYPE_BOOL && value != NULL) ||
           (flag->type() != Flag::TYPE_BOOL && is_bool) ||
           *endp != '\0') {
-        fprintf(stderr, "Error: illegal value for flag %s of type %s\n",
+        fprintf(stderr, "Error: illegal value for flag %s of type %s\n"
+                "Try --help for options\n",
                 arg, Type2String(flag->type()));
         return j;
       }
@@ -376,6 +379,9 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
     *argc = j;
   }
 
+  if (FLAG_help) {
+    PrintHelp();
+  }
   // parsed all flags successfully
   return 0;
 }
@@ -447,10 +453,22 @@ void FlagList::ResetAllFlags() {
 
 // static
 void FlagList::PrintHelp() {
+  printf("Usage:\n");
+  printf("  shell [options] -e string\n");
+  printf("    execute string in V8\n");
+  printf("  shell [options] file1 file2 ... filek\n");
+  printf("    run JavaScript scripts in file1, file2, ..., filek\n");
+  printf("  shell [options]\n");
+  printf("  shell [options] --shell\n");
+  printf("    run an interactive JavaScript shell");
+  printf("  d8 [options] file\n");
+  printf("  d8 [options]\n");
+  printf("    run the new debugging shell\n\n");
+  printf("Options:\n");
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* f = &flags[i];
     char* value = ToString(f);
-    printf("  --%s (%s)  type: %s  default: %s\n",
+    printf("  --%s (%s)\n        type: %s  default: %s\n",
            f->name(), f->comment(), Type2String(f->type()), value);
     DeleteArray(value);
   }

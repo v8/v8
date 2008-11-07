@@ -200,6 +200,7 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
 // Dev shell flags
 //
 
+DEFINE_bool(help, false, "Print usage message, including flags, on console")
 DEFINE_bool(dump_counters, false, "Dump counters on exit")
 
 //

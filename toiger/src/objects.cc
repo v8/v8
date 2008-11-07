@@ -266,6 +266,70 @@ Object* JSObject::GetPropertyWithFailedAccessCheck(Object* receiver,
 }
 
 
+PropertyAttributes JSObject::GetPropertyAttributeWithFailedAccessCheck(
+    Object* receiver,
+    LookupResult* result,
+    String* name,
+    bool continue_search) {
+  if (result->IsValid()) {
+    switch (result->type()) {
+      case CALLBACKS: {
+        // Only allow API accessors.
+        Object* obj = result->GetCallbackObject();
+        if (obj->IsAccessorInfo()) {
+          AccessorInfo* info = AccessorInfo::cast(obj);
+          if (info->all_can_read()) {
+            return result->GetAttributes();
+          }
+        }
+        break;
+      }
+
+      case NORMAL:
+      case FIELD:
+      case CONSTANT_FUNCTION: {
+        if (!continue_search) break;
+        // Search ALL_CAN_READ accessors in prototype chain.
+        LookupResult r;
+        result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
+        if (r.IsValid()) {
+          return GetPropertyAttributeWithFailedAccessCheck(receiver,
+                                                           &r,
+                                                           name,
+                                                           continue_search);
+        }
+        break;
+      }
+
+      case INTERCEPTOR: {
+        // If the object has an interceptor, try real named properties.
+        // No access check in GetPropertyAttributeWithInterceptor.
+        LookupResult r;
+        if (continue_search) {
+          result->holder()->LookupRealNamedProperty(name, &r);
+        } else {
+          result->holder()->LocalLookupRealNamedProperty(name, &r);
+        }
+        if (r.IsValid()) {
+          return GetPropertyAttributeWithFailedAccessCheck(receiver,
+                                                           &r,
+                                                           name,
+                                                           continue_search);
+        }
+        break;
+      }
+
+      default: {
+        break;
+      }
+    }
+  }
+
+  Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
+  return ABSENT;
+}
+
+
 Object* JSObject::GetLazyProperty(Object* receiver,
                                   LookupResult* result,
                                   String* name,
@@ -1729,8 +1793,10 @@ PropertyAttributes JSObject::GetPropertyAttribute(JSObject* receiver,
   // Check access rights if needed.
   if (IsAccessCheckNeeded() &&
       !Top::MayNamedAccess(this, name, v8::ACCESS_HAS)) {
-    Top::ReportFailedAccessCheck(this, v8::ACCESS_HAS);
-    return ABSENT;
+    return GetPropertyAttributeWithFailedAccessCheck(receiver,
+                                                     result,
+                                                     name,
+                                                     continue_search);
   }
   if (result->IsValid()) {
     switch (result->type()) {

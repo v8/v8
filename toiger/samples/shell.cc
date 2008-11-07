@@ -72,7 +72,7 @@ int main(int argc, char* argv[]) {
       // alone JavaScript engines.
       continue;
     } else if (strncmp(str, "--", 2) == 0) {
-      printf("Warning: unknown flag %s.\n", str);
+      printf("Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
       // Execute argument given to -e option directly
       v8::HandleScope handle_scope;
