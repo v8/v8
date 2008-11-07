@@ -45,15 +45,20 @@ SOURCES = {
     'parser.cc', 'property.cc', 'rewriter.cc', 'runtime.cc', 'scanner.cc',
     'scopeinfo.cc', 'scopes.cc', 'serialize.cc', 'snapshot-common.cc',
     'spaces.cc', 'string-stream.cc', 'stub-cache.cc', 'token.cc', 'top.cc',
-    'unicode.cc', 'usage-analyzer.cc', 'utils.cc', 'v8-counters.cc',
-    'v8.cc', 'v8threads.cc', 'variables.cc', 'zone.cc'
+    'unicode.cc', 'usage-analyzer.cc', 'utils.cc', 'v8-counters.cc', 'v8.cc',
+    'v8threads.cc', 'variables.cc', 'zone.cc'
   ],
-  'arch:arm':  ['assembler-arm.cc', 'builtins-arm.cc', 'codegen-arm.cc',
-      'cpu-arm.cc', 'disasm-arm.cc', 'frames-arm.cc', 'ic-arm.cc',
-      'macro-assembler-arm.cc', 'stub-cache-arm.cc'],
-  'arch:ia32': ['assembler-ia32.cc', 'builtins-ia32.cc', 'codegen-ia32.cc',
-      'cpu-ia32.cc', 'disasm-ia32.cc', 'frames-ia32.cc', 'ic-ia32.cc',
-      'macro-assembler-ia32.cc', 'stub-cache-ia32.cc'],
+  'arch:arm': [
+    'assembler-arm.cc', 'builtins-arm.cc', 'codegen-arm.cc', 'cpu-arm.cc',
+    'disasm-arm.cc', 'frames-arm.cc', 'ic-arm.cc', 'jump-target-arm.cc',
+    'macro-assembler-arm.cc', 'stub-cache-arm.cc', 'virtual-frame-arm.cc'
+  ],
+  'arch:ia32': [
+    'assembler-ia32.cc', 'builtins-ia32.cc', 'codegen-ia32.cc',
+    'cpu-ia32.cc', 'disasm-ia32.cc', 'frames-ia32.cc', 'ic-ia32.cc',
+    'jump-target-ia32.cc', 'macro-assembler-ia32.cc', 'stub-cache-ia32.cc',
+    'virtual-frame-ia32.cc'
+  ],
   'simulator:arm': ['simulator-arm.cc'],
   'os:linux':  ['platform-linux.cc'],
   'os:macos':  ['platform-macos.cc'],

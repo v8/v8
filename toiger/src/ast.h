@@ -34,6 +34,7 @@
 #include "token.h"
 #include "variables.h"
 #include "macro-assembler.h"
+#include "jump-target.h"
 
 namespace v8 { namespace internal {
 

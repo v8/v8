@@ -32,6 +32,7 @@
 #include "debug.h"
 #include "scopes.h"
 #include "runtime.h"
+#include "virtual-frame-ia32-inl.h"
 
 namespace v8 { namespace internal {
 

@@ -43,45 +43,6 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 
 // -------------------------------------------------------------------------
-// Virtual frame
-
-class VirtualFrame BASE_EMBEDDED {
- public:
-  explicit VirtualFrame(CodeGenerator* cgen);
-
-  MemOperand Top() const { return MemOperand(sp, 0); }
-
-  MemOperand Element(int index) const {
-    return MemOperand(sp, index * kPointerSize);
-  }
-
-  MemOperand Local(int index) const {
-    ASSERT(0 <= index && index < frame_local_count_);
-    return MemOperand(fp, kLocal0Offset - index * kPointerSize);
-  }
-
-  MemOperand Function() const { return MemOperand(fp, kFunctionOffset); }
-
-  MemOperand Context() const { return MemOperand(fp, kContextOffset); }
-
-  MemOperand Parameter(int index) const {
-    // Index -1 corresponds to the receiver.
-    ASSERT(-1 <= index && index <= parameter_count_);
-    return MemOperand(fp, (1 + parameter_count_ - index) * kPointerSize);
-  }
-
- private:
-  static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
-  static const int kFunctionOffset = JavaScriptFrameConstants::kFunctionOffset;
-  static const int kContextOffset = StandardFrameConstants::kContextOffset;
-
-  MacroAssembler* masm_;
-  int frame_local_count_;
-  int parameter_count_;
-};
-
-
-// -------------------------------------------------------------------------
 // Reference support
 
 // A reference is a C++ stack-allocated object that keeps an ECMA
@@ -152,22 +113,22 @@ class CodeGenState BASE_EMBEDDED {
   // labels.
   CodeGenState(CodeGenerator* owner,
                TypeofState typeof_state,
-               Label* true_target,
-               Label* false_target);
+               JumpTarget* true_target,
+               JumpTarget* false_target);
 
   // Destroy a code generator state and restore the owning code generator's
   // previous state.
   ~CodeGenState();
 
   TypeofState typeof_state() const { return typeof_state_; }
-  Label* true_target() const { return true_target_; }
-  Label* false_target() const { return false_target_; }
+  JumpTarget* true_target() const { return true_target_; }
+  JumpTarget* false_target() const { return false_target_; }
 
  private:
   CodeGenerator* owner_;
   TypeofState typeof_state_;
-  Label* true_target_;
-  Label* false_target_;
+  JumpTarget* true_target_;
+  JumpTarget* false_target_;
   CodeGenState* previous_;
 };
 
@@ -215,8 +176,8 @@ class CodeGenerator: public Visitor {
   // State
   bool has_cc() const  { return cc_reg_ != al; }
   TypeofState typeof_state() const { return state_->typeof_state(); }
-  Label* true_target() const  { return state_->true_target(); }
-  Label* false_target() const  { return state_->false_target(); }
+  JumpTarget* true_target() const  { return state_->true_target(); }
+  JumpTarget* false_target() const  { return state_->false_target(); }
 
 
   // Node visitors.
@@ -245,8 +206,8 @@ class CodeGenerator: public Visitor {
 
   void LoadCondition(Expression* x,
                      TypeofState typeof_state,
-                     Label* true_target,
-                     Label* false_target,
+                     JumpTarget* true_target,
+                     JumpTarget* false_target,
                      bool force_cc);
   void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
@@ -263,7 +224,7 @@ class CodeGenerator: public Visitor {
   // through the context chain.
   void LoadTypeofExpression(Expression* x);
 
-  void ToBoolean(Label* true_target, Label* false_target);
+  void ToBoolean(JumpTarget* true_target, JumpTarget* false_target);
 
   void GenericBinaryOperation(Token::Value op);
   void Comparison(Condition cc, bool strict = false);
@@ -273,7 +234,7 @@ class CodeGenerator: public Visitor {
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
 
   // Control flow
-  void Branch(bool if_true, Label* L);
+  void Branch(bool if_true, JumpTarget* target);
   void CheckStack();
   void CleanStack(int num_bytes);
 
@@ -340,14 +301,15 @@ class CodeGenerator: public Visitor {
   void GenerateFastCaseSwitchJumpTable(SwitchStatement* node,
                                        int min_index,
                                        int range,
-                                       Label* fail_label,
-                                       Vector<Label*> case_targets,
-                                       Vector<Label> case_labels);
+                                       JumpTarget* fail_label,
+                                       Vector<JumpTarget*> case_targets,
+                                       Vector<JumpTarget> case_labels);
 
   // Generate the code for cases for the fast case switch.
   // Called by GenerateFastCaseSwitchJumpTable.
   void GenerateFastCaseSwitchCases(SwitchStatement* node,
-                                   Vector<Label> case_labels);
+                                   Vector<JumpTarget> case_labels,
+                                   JumpTarget* table_start);
 
   // Fast support for constant-Smi switches.
   void GenerateFastCaseSwitchStatement(SwitchStatement* node,
@@ -386,8 +348,8 @@ class CodeGenerator: public Visitor {
   bool is_inside_try_;
   int break_stack_height_;
 
-  // Labels
-  Label function_return_;
+  // Jump targets
+  JumpTarget function_return_;
 
   friend class VirtualFrame;
   friend class Reference;
