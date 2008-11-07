@@ -285,14 +285,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\assembler-arm-inl.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\assembler-arm.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\assembler-ia32-inl.h"
 				>
 			</File>
@@ -366,10 +358,6 @@
 			</File>
 			<File
 				RelativePath="..\..\src\code.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\codegen-arm.h"
 				>
 			</File>
 			<File
@@ -493,14 +481,6 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\frames-arm-inl.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\frames-arm.h"
-				>
-			</File>
-			<File
 				RelativePath="..\..\src\frames-ia32-inl.h"
 				>
 			</File>
@@ -610,10 +590,6 @@
 			</File>
 			<File
 				RelativePath="..\..\src\log.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\macro-assembler-arm.h"
 				>
 			</File>
 			<File
