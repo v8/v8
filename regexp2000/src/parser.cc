@@ -3862,7 +3862,7 @@ void* RegExpParser::ParseIntervalQuantifier(int* min_out,
 
 
 // Upper and lower case letters differ by one bit.
-STATIC_CHECK('a'^'A' == 0x20);
+STATIC_CHECK(('a' ^ 'A') == 0x20);
 
 uc32 RegExpParser::ParseControlLetterEscape(bool* ok) {
   if (!has_more()) {

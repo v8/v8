@@ -131,7 +131,7 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
       ASSERT_EQ(FmtElm::LC_STR, current.type_);
       Vector<const uc16> value = *current.data_.u_lc_str_;
       for (int i = 0; i < value.length(); i++)
-        Put(value[i]);
+        Put(static_cast<char>(value[i]));
       break;
     }
     case 'o': {
