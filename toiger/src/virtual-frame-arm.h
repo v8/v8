@@ -56,6 +56,18 @@ class VirtualFrame {
   // the expected one.
   void MergeTo(VirtualFrame* expected);
 
+  // Emit code for the physical JS entry and exit frame sequences.  After
+  // calling Enter, the virtual frame is ready for use; and after calling
+  // Exit it should not be used.  Note that Enter does not allocate space in
+  // the physical frame for storing frame-allocated locals.
+  void Enter();
+  void Exit();
+
+  // Allocate and initialize the frame-allocated locals.  The number of
+  // locals is known from the frame's code generator's state (specifically
+  // its scope).  As a side effect, code may be emitted.
+  void AllocateLocals();
+
   // The current top of the expression stack as an assembly operand.
   MemOperand Top() const { return MemOperand(sp, 0); }
 
@@ -82,6 +94,22 @@ class VirtualFrame {
     ASSERT(-1 <= index && index <= parameter_count_);
     return MemOperand(fp, (1 + parameter_count_ - index) * kPointerSize);
   }
+
+  // Drop a number of elements from the top of the expression stack.  May
+  // emit code to effect the physical frame.
+  inline void Drop(int count);
+
+  // Pop and discard an element from the top of the expression stack.
+  // Specifically does not clobber any registers excepting possibly the
+  // stack pointer.
+  inline void Pop();
+
+  // Pop and save an element from the top of the expression stack.  May emit
+  // code.
+  inline void Pop(Register reg);
+
+  // Push an element on top of the expression stack.  May emit code.
+  inline void Push(Register reg);
 
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;

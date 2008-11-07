@@ -66,8 +66,8 @@ class Reference BASE_EMBEDDED {
     type_ = value;
   }
 
-  // The size of the reference or -1 if the reference is illegal.
-  int size() const { return type_; }
+  // The size the reference takes up on the stack.
+  int size() const { return (type_ == ILLEGAL) ? 0 : type_; }
 
   bool is_illegal() const { return type_ == ILLEGAL; }
   bool is_slot() const { return type_ == SLOT; }
@@ -155,6 +155,8 @@ class CodeGenerator: public Visitor {
 
   // Accessors
   MacroAssembler* masm() { return masm_; }
+
+  VirtualFrame* frame() const { return frame_; }
 
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
@@ -327,11 +329,6 @@ class CodeGenerator: public Visitor {
   // position. This allows us to easily control whether statement positions
   // should be generated or not.
   void RecordStatementPosition(Node* node);
-
-  // Activation frames.
-  void EnterJSFrame();
-  void ExitJSFrame();
-
 
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;

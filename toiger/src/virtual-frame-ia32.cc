@@ -110,7 +110,6 @@ void VirtualFrame::AllocateLocals() {
   }
 }
 
-
 #undef __
 
 } }  // namespace v8::internal

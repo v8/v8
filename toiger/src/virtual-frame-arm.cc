@@ -27,6 +27,8 @@
 
 #include "v8.h"
 
+#include "codegen.h"
+#include "codegen-inl.h"
 #include "virtual-frame.h"
 
 namespace v8 { namespace internal {
@@ -34,7 +36,16 @@ namespace v8 { namespace internal {
 // -------------------------------------------------------------------------
 // VirtualFrame implementation.
 
-// Virtual frames are currently stubbed out on ARM.  They are alwasy NULL.
+#define __ masm_->
+
+VirtualFrame::VirtualFrame(CodeGenerator* cgen) {
+  ASSERT(cgen->scope() != NULL);
+
+  masm_ = cgen->masm();
+  frame_local_count_ = cgen->scope()->num_stack_slots();
+  parameter_count_ = cgen->scope()->num_parameters();
+}
+
 
 VirtualFrame::VirtualFrame(VirtualFrame* original) {
   ASSERT(original == NULL);
@@ -45,5 +56,49 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   ASSERT(expected == NULL);
 }
 
+
+void VirtualFrame::Enter() {
+  Comment cmnt(masm_, "[ Enter JS frame");
+#ifdef DEBUG
+  { Label done, fail;
+    __ tst(r1, Operand(kSmiTagMask));
+    __ b(eq, &fail);
+    __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+    __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+    __ cmp(r2, Operand(JS_FUNCTION_TYPE));
+    __ b(eq, &done);
+    __ bind(&fail);
+    __ stop("CodeGenerator::EnterJSFrame - r1 not a function");
+    __ bind(&done);
+  }
+#endif  // DEBUG
+
+  __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
+  // Adjust FP to point to saved FP.
+  __ add(fp, sp, Operand(2 * kPointerSize));
+}
+
+
+void VirtualFrame::Exit() {
+  Comment cmnt(masm_, "[ Exit JS frame");
+  // Drop the execution stack down to the frame pointer and restore the caller
+  // frame pointer and return address.
+  __ mov(sp, fp);
+  __ ldm(ia_w, sp, fp.bit() | lr.bit());
+}
+
+
+void VirtualFrame::AllocateLocals() {
+  if (frame_local_count_ > 0) {
+    Comment cmnt(masm_, "[ Allocate space for locals");
+      // Initialize stack slots with 'undefined' value.
+    __ mov(ip, Operand(Factory::undefined_value()));
+    for (int i = 0; i < frame_local_count_; i++) {
+      __ push(ip);
+    }
+  }
+}
+
+#undef __
 
 } }  // namespace v8::internal
