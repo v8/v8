@@ -495,8 +495,8 @@ TEST(Assembler) {
   __ CheckChar('o', &advance);
   __ LoadCurrentChar(2);
   __ CheckChar('o', &advance);
-  __ SetCapture(0);
-  __ SetCapture(1, 2);
+  __ SetRegister(0);
+  __ SetRegister(1, 2);
   __ Succeed();
 
   v8::HandleScope scope;
@@ -504,7 +504,8 @@ TEST(Assembler) {
   assembler.Copy(array->GetDataStartAddress());
   int captures[2];
 
-  Handle<String> f1 = Factory::NewStringFromAscii(CStrVector("Now is the time"));
+  Handle<String> f1 =
+      Factory::NewStringFromAscii(CStrVector("Now is the time"));
   CHECK(!Re2kInterpreter::Match(*array, *f1, captures, 0));
 
   Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));

@@ -39,7 +39,10 @@ namespace v8 { namespace internal {
 
 
 template <typename Char>
-static bool RawMatch(const byte* code_base, Vector<const Char> subject, int* captures, int current) {
+static bool RawMatch(const byte* code_base,
+                     Vector<const Char> subject,
+                     int* registers,
+                     int current) {
   const byte* pc = code_base;
   int backtrack_stack[1000];
   int backtrack_stack_space = 1000;
@@ -64,15 +67,15 @@ static bool RawMatch(const byte* code_base, Vector<const Char> subject, int* cap
         *backtrack_sp++ = Load32(pc + 1);
         pc += 5;
         break;
-      case BC_PUSH_CAPTURE:
+      case BC_PUSH_REGISTER:
         if (--backtrack_stack_space < 0) {
           return false;  // No match on backtrack stack overflow.
         }
-        *backtrack_sp++ = captures[pc[1]];
+        *backtrack_sp++ = registers[pc[1]];
         pc += 2;
         break;
-      case BC_SET_CAPTURE:
-        captures[pc[1]] = current + Load32(pc + 2);
+      case BC_SET_REGISTER:
+        registers[pc[1]] = current + Load32(pc + 2);
         pc += 6;
         break;
       case BC_POP_CP:
@@ -86,10 +89,10 @@ static bool RawMatch(const byte* code_base, Vector<const Char> subject, int* cap
         --backtrack_sp;
         pc = code_base + *backtrack_sp;
         break;
-      case BC_POP_CAPTURE:
+      case BC_POP_REGISTER:
         backtrack_stack_space++;
         --backtrack_sp;
-        captures[pc[1]] = *backtrack_sp;
+        registers[pc[1]] = *backtrack_sp;
         pc += 2;
         break;
       case BC_FAIL:
@@ -157,6 +160,48 @@ static bool RawMatch(const byte* code_base, Vector<const Char> subject, int* cap
         }
         break;
       }
+      case BC_CHECK_REGISTER_EQ:
+        if (registers[pc[1]] == Load16(pc + 2)) {
+          pc = code_base + Load32(pc + 4);
+        } else {
+          pc += 8;
+        }
+        break;
+      case BC_CHECK_REGISTER_LE:
+        if (registers[pc[1]] <= Load16(pc + 2)) {
+          pc = code_base + Load32(pc + 4);
+        } else {
+          pc += 8;
+        }
+        break;
+      case BC_CHECK_REGISTER_LT:
+        if (registers[pc[1]] < Load16(pc + 2)) {
+          pc = code_base + Load32(pc + 4);
+        } else {
+          pc += 8;
+        }
+        break;
+      case BC_CHECK_REGISTER_GE:
+        if (registers[pc[1]] >= Load16(pc + 2)) {
+          pc = code_base + Load32(pc + 4);
+        } else {
+          pc += 8;
+        }
+        break;
+      case BC_CHECK_REGISTER_GT:
+        if (registers[pc[1]] > Load16(pc + 2)) {
+          pc = code_base + Load32(pc + 4);
+        } else {
+          pc += 8;
+        }
+        break;
+      case BC_CHECK_REGISTER_NE:
+        if (registers[pc[1]] != Load16(pc + 2)) {
+          pc = code_base + Load32(pc + 4);
+        } else {
+          pc += 8;
+        }
+        break;
       case BC_CHECK_BACKREF:
       case BC_CHECK_NOT_BACKREF:
       case BC_CHECK_BITMAP:
@@ -169,14 +214,23 @@ static bool RawMatch(const byte* code_base, Vector<const Char> subject, int* cap
 }
 
 
-bool Re2kInterpreter::Match(ByteArray* code_array, String* subject, int* captures, int start_position) {
+bool Re2kInterpreter::Match(ByteArray* code_array,
+                            String* subject,
+                            int* registers,
+                            int start_position) {
   const byte* code_base = code_array->GetDataStartAddress();
   StringShape shape(subject);
   ASSERT(subject->IsFlat(shape));
   if (shape.IsAsciiRepresentation()) {
-    return RawMatch(code_base, subject->ToAsciiVector(), captures, start_position);
+    return RawMatch(code_base,
+                    subject->ToAsciiVector(),
+                    registers,
+                    start_position);
   } else {
-    return RawMatch(code_base, subject->ToUC16Vector(), captures, start_position);
+    return RawMatch(code_base,
+                    subject->ToUC16Vector(),
+                    registers,
+                    start_position);
   }
 }
 

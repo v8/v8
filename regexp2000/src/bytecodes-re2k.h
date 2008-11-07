@@ -32,35 +32,39 @@
 namespace v8 { namespace internal {
 
 #define BYTECODE_ITERATOR(V)    \
-V(BREAK,                   0, 1) /* break offset32                          */ \
-V(PUSH_CP,                 1, 5) /* push_cp offset32                        */ \
-V(PUSH_BT,                 2, 5) /* push_bt address32                       */ \
-V(PUSH_CAPTURE,            3, 2) /* push_capture capture_index              */ \
-V(SET_CAPTURE,             4, 6) /* set_capture capture_index offset32      */ \
-V(POP_CP,                  5, 1) /* pop_cp                                  */ \
-V(POP_BT,                  6, 1) /* pop_bt                                  */ \
-V(POP_CAPTURE,             7, 2) /* pop_capture capture_index               */ \
-V(FAIL,                    8, 1) /* fail                                    */ \
-V(FAIL_IF_WITHIN,          9, 5) /* fail distance32                         */ \
-V(SUCCEED,                10, 1) /* succeed                                 */ \
-V(ADVANCE_CP,             11, 5) /* advance_cp offset32                     */ \
-V(GOTO,                   12, 5) /* goto address32                          */ \
-V(LOAD_CURRENT_CHAR,      13, 5) /* load offset32                           */ \
-V(CHECK_CHAR,             14, 7) /* check_char uc16 address32               */ \
-V(CHECK_NOT_CHAR,         15, 7) /* check_not_char uc16 address32           */ \
-V(CHECK_RANGE,            16, 9) /* check_range uc16 uc16 address32         */ \
-V(CHECK_NOT_RANGE,        17, 9) /* check_not_range uc16 uc16 address32     */ \
-V(CHECK_BACKREF,          18, 9) /* check_backref offset32 capture_idx ad...*/ \
-V(CHECK_NOT_BACKREF,      19, 9) /* check_not_backref offset32 capture_id...*/ \
-V(CHECK_BITMAP,           20,13) /* check_bitmap uc16 uc16 addr32           */ \
-V(CHECK_NOT_BITMAP,       21,13) /* check_not_bitmap uc16 uc16 addr32       */
+V(BREAK,              0, 1) /* break                                        */ \
+V(PUSH_CP,            1, 5) /* push_cp offset32                             */ \
+V(PUSH_BT,            2, 5) /* push_bt addr32                               */ \
+V(PUSH_REGISTER,      3, 2) /* push_register register_index                 */ \
+V(SET_REGISTER,       4, 6) /* set_register register_index offset32         */ \
+V(POP_CP,             5, 1) /* pop_cp                                       */ \
+V(POP_BT,             6, 1) /* pop_bt                                       */ \
+V(POP_REGISTER,       7, 2) /* pop_register register_index                  */ \
+V(FAIL,               8, 1) /* fail                                         */ \
+V(FAIL_IF_WITHIN,     9, 5) /* fail distance32                              */ \
+V(SUCCEED,           10, 1) /* succeed                                      */ \
+V(ADVANCE_CP,        11, 5) /* advance_cp offset32                          */ \
+V(GOTO,              12, 5) /* goto addr32                                  */ \
+V(LOAD_CURRENT_CHAR, 13, 5) /* load offset32                                */ \
+V(CHECK_CHAR,        14, 7) /* check_char uc16 addr32                       */ \
+V(CHECK_NOT_CHAR,    15, 7) /* check_not_char uc16 addr32                   */ \
+V(CHECK_RANGE,       16, 9) /* check_range uc16 uc16 addr32                 */ \
+V(CHECK_NOT_RANGE,   17, 9) /* check_not_range uc16 uc16 addr32             */ \
+V(CHECK_BACKREF,     18, 9) /* check_backref offset32 capture_idx addr32    */ \
+V(CHECK_NOT_BACKREF, 19, 9) /* check_not_backref offset32 capture_idx addr32*/ \
+V(CHECK_BITMAP,      20, 13) /* check_bitmap uc16 uc16 addr32               */ \
+V(CHECK_NOT_BITMAP,  21, 13) /* check_not_bitmap uc16 uc16 addr32           */ \
+V(CHECK_REGISTER_EQ, 22, 8) /* check_reg_eq register_index value16 addr32   */ \
+V(CHECK_REGISTER_LE, 23, 8) /* check_reg_le register_index value16 addr32   */ \
+V(CHECK_REGISTER_LT, 24, 8) /* check_reg_lt register_index value16 addr32   */ \
+V(CHECK_REGISTER_GE, 25, 8) /* check_reg_ge register_index value16 addr32   */ \
+V(CHECK_REGISTER_GT, 26, 8) /* check_reg_gt register_index value16 addr32   */ \
+V(CHECK_REGISTER_NE, 27, 8) /* check_reg_ne register_index value16 addr32   */
 
 #define DECLARE_BYTECODES(name, code, length) \
   static const int BC_##name = code;
 BYTECODE_ITERATOR(DECLARE_BYTECODES)
 #undef DECLARE_BYTECODES
-
-
 } }
 
 #endif  // V8_BYTECODES_IA32_H_

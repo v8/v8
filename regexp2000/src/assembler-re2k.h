@@ -23,7 +23,7 @@ class Re2kAssembler {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Re2kAssembler(Vector<byte>);
+  explicit Re2kAssembler(Vector<byte>);
   ~Re2kAssembler();
 
   // CP = current position in source.
@@ -32,12 +32,12 @@ class Re2kAssembler {
   // Stack.
   void PushCurrentPosition(int cp_offset = 0);
   void PushBacktrack(Label* l);
-  void PushCapture(int index);
-  void SetCapture(int index, int cp_offset = 0);
+  void PushRegister(int index);
+  void SetRegister(int index, int cp_offset = 0);
 
   void PopCurrentPosition();
   void PopBacktrack();
-  void PopCapture(int index);
+  void PopRegister(int index);
 
   void Fail();
   void FailIfWithin(int distance_from_end);
@@ -68,9 +68,19 @@ class Re2kAssembler {
 
   // Checks current position (plus optional offset) for a match against a
   // previous capture.  Advances current position by the length of the capture
-  // iff it matches.
+  // iff it matches.  The capture is stored in a given register and the
+  // the register after.
   void CheckBackref(int capture_index, Label* on_mismatch, int cp_offset = 0);
   void CheckNotBackref(int capture_index, Label* on_match, int cp_offset = 0);
+
+  // Checks a register for equal, less than or equal, less than, greater than
+  // or equal, greater than, not equal.
+  void CheckRegisterEq(int reg_index, uint16_t vs, Label* on_equal);
+  void CheckRegisterLe(int reg_index, uint16_t vs, Label* on_less_equal);
+  void CheckRegisterLt(int reg_index, uint16_t vs, Label* on_less_than);
+  void CheckRegisterGe(int reg_index, uint16_t vs, Label* on_greater_equal);
+  void CheckRegisterGt(int reg_index, uint16_t vs, Label* on_greater_than);
+  void CheckRegisterNe(int reg_index, uint16_t vs, Label* on_not_equal);
 
   // Code and bitmap emission.
   inline void Emit32(uint32_t x);
@@ -87,6 +97,10 @@ class Re2kAssembler {
   // The buffer into which code and relocation info are generated.
   Vector<byte> buffer_;
 
+  inline void CheckRegister(int byte_code,
+                            int reg_index,
+                            uint16_t vs,
+                            Label* on_true);
   // Code generation.
   int pc_;  // The program counter; moves forward.
 

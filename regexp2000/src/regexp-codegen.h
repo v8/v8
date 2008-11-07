@@ -93,7 +93,7 @@ class RegexpCodeGenerator {
   // Check the current character for a match with a character class.  Take
   // one of the actions depending on whether there is a match.
   virtual void CheckCharacters(
-      Vector<uc16> string,
+      Vector<uc16> str,
       int fail_action,
       int offset,
       Label* state = NULL) = 0;        // Used by kGotoLabel on failure.

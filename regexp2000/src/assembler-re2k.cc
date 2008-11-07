@@ -64,17 +64,17 @@ void Re2kAssembler::PushBacktrack(Label* l) {
 }
 
 
-void Re2kAssembler::PushCapture(int index) {
+void Re2kAssembler::PushRegister(int index) {
   ASSERT(index >= 0);
-  Emit(BC_PUSH_CAPTURE);
+  Emit(BC_PUSH_REGISTER);
   Emit(index);
 }
 
 
-void Re2kAssembler::SetCapture(int index, int cp_offset) {
+void Re2kAssembler::SetRegister(int index, int cp_offset) {
   ASSERT(cp_offset >= 0);
   ASSERT(index >= 0);
-  Emit(BC_SET_CAPTURE);
+  Emit(BC_SET_REGISTER);
   Emit(index);
   Emit32(cp_offset);
 }
@@ -90,8 +90,8 @@ void Re2kAssembler::PopBacktrack() {
 }
 
 
-void Re2kAssembler::PopCapture(int index) {
-  Emit(BC_POP_CAPTURE);
+void Re2kAssembler::PopRegister(int index) {
+  Emit(BC_POP_REGISTER);
   Emit(index);
 }
 
@@ -174,7 +174,9 @@ void Re2kAssembler::CheckNotRange(uc16 start, uc16 end, Label* on_match) {
 }
 
 
-void Re2kAssembler::CheckBackref(int capture_index, Label* on_mismatch, int cp_offset) {
+void Re2kAssembler::CheckBackref(int capture_index,
+                                 Label* on_mismatch,
+                                 int cp_offset) {
   Emit(BC_CHECK_BACKREF);
   Emit32(cp_offset);
   Emit(capture_index);
@@ -182,11 +184,66 @@ void Re2kAssembler::CheckBackref(int capture_index, Label* on_mismatch, int cp_o
 }
 
 
-void Re2kAssembler::CheckNotBackref(int capture_index, Label* on_match, int cp_offset) {
+void Re2kAssembler::CheckNotBackref(int capture_index,
+                                    Label* on_match,
+                                    int cp_offset) {
   Emit(BC_CHECK_NOT_BACKREF);
   Emit32(cp_offset);
   Emit(capture_index);
   EmitOrLink(on_match);
+}
+
+
+void Re2kAssembler::CheckRegister(int byte_code,
+                                  int reg_index,
+                                  uint16_t vs,
+                                  Label* on_true) {
+  Emit(byte_code);
+  Emit(reg_index);
+  Emit16(vs);
+  EmitOrLink(on_true);
+}
+
+
+void Re2kAssembler::CheckRegisterEq(int reg_index,
+                                    uint16_t vs,
+                                    Label* on_equal) {
+  CheckRegister(BC_CHECK_REGISTER_EQ, reg_index, vs, on_equal);
+}
+
+
+void Re2kAssembler::CheckRegisterLe(int reg_index,
+                                    uint16_t vs,
+                                    Label* on_less_than_equal) {
+  CheckRegister(BC_CHECK_REGISTER_LE, reg_index, vs, on_less_than_equal);
+}
+
+
+void Re2kAssembler::CheckRegisterLt(int reg_index,
+                                    uint16_t vs,
+                                    Label* on_less_than) {
+  CheckRegister(BC_CHECK_REGISTER_LT, reg_index, vs, on_less_than);
+}
+
+
+void Re2kAssembler::CheckRegisterGe(int reg_index,
+                                    uint16_t vs,
+                                    Label* on_greater_than_equal) {
+  CheckRegister(BC_CHECK_REGISTER_GE, reg_index, vs, on_greater_than_equal);
+}
+
+
+void Re2kAssembler::CheckRegisterGt(int reg_index,
+                                    uint16_t vs,
+                                    Label* on_greater_than) {
+  CheckRegister(BC_CHECK_REGISTER_GT, reg_index, vs, on_greater_than);
+}
+
+
+void Re2kAssembler::CheckRegisterNe(int reg_index,
+                                    uint16_t vs,
+                                    Label* on_not_equal) {
+  CheckRegister(BC_CHECK_REGISTER_NE, reg_index, vs, on_not_equal);
 }
 
 
