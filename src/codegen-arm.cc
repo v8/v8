@@ -3862,9 +3862,9 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   // Stack layout at this point. See also PushTryHandler
   // r3, sp ->   next handler
   //             state (ENTRY)
-  //             pp 
+  //             pp
   //             fp
-  //             lr 
+  //             lr
 
   // Discard ENTRY state (r2 is not used), and restore parameter-
   // and frame-pointer and pop state.
