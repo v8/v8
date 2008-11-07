@@ -25,9 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-#include "ast.h"
-#include "bytecodes-re2k.h"
-#include "regexp-codegen.h"
+#ifndef V8_REGEXP_MACRO_ASSEMBLER_RE2K_H_
+#define V8_REGEXP_MACRO_ASSEMBLER_RE2K_H_
 
+namespace v8 { namespace internal {
 
+} }  // namespace v8::internal
+
+#endif  // V8_REGEXP_MACRO_ASSEMBLER_RE2K_H_

@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_REGEXP_CODEGEN_H_
-#define V8_REGEXP_CODEGEN_H_
+#ifndef V8_REGEXP_MACRO_ASSEMBLER_H_
+#define V8_REGEXP_MACRO_ASSEMBLER_H_
 
 namespace v8 { namespace internal {
 
@@ -63,16 +63,16 @@ static const int kFailure                      = 0x100;
 
 
 template <typename SubjectChar>
-class RegexpCodeGenerator {
+class RegexpMacroAssembler {
  public:
-  RegexpCodeGenerator() { }
-  virtual ~RegexpCodeGenerator() { }
+  RegexpMacroAssembler() { }
+  virtual ~RegexpMacroAssembler() { }
   virtual void Bind(Label* label) = 0;
   // Writes the current position in the subject string into the given index of
   // the captures array.  The old value is pushed to the stack.
-  virtual void WriteCaptureInfo(int index) = 0;
+  virtual void WriteCurrentPositionToRegister(int index) = 0;
   // Pops the the given index of the capture array from the stack.
-  virtual void PopCaptureInfo(int index) = 0;
+  virtual void PopRegister(int index) = 0;
   // Pushes the current position in the subject string onto the stack for later
   // retrieval.
   virtual void PushCurrentPosition() = 0;
@@ -112,4 +112,4 @@ class RegexpCodeGenerator {
 
 } }  // namespace v8::internal
 
-#endif  // V8_REGEXP_CODEGEN_H_
+#endif  // V8_REGEXP_MACRO_ASSEMBLER_H_

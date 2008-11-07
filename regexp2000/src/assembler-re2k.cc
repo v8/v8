@@ -31,7 +31,6 @@
 #include "v8.h"
 #include "ast.h"
 #include "bytecodes-re2k.h"
-#include "regexp-codegen.h"
 #include "assembler-re2k.h"
 
 #include "assembler-re2k-inl.h"
@@ -71,12 +70,20 @@ void Re2kAssembler::PushRegister(int index) {
 }
 
 
-void Re2kAssembler::SetRegister(int index, int cp_offset) {
+void Re2kAssembler::SetRegisterToCurrentPosition(int index, int cp_offset) {
   ASSERT(cp_offset >= 0);
+  ASSERT(index >= 0);
+  Emit(BC_SET_REGISTER_TO_CP);
+  Emit(index);
+  Emit32(cp_offset);
+}
+
+
+void Re2kAssembler::SetRegister(int index, int value) {
   ASSERT(index >= 0);
   Emit(BC_SET_REGISTER);
   Emit(index);
-  Emit32(cp_offset);
+  Emit32(value);
 }
 
 
@@ -98,6 +105,11 @@ void Re2kAssembler::PopRegister(int index) {
 
 void Re2kAssembler::Fail() {
   Emit(BC_FAIL);
+}
+
+
+void Re2kAssembler::Break() {
+  Emit(BC_BREAK);
 }
 
 
@@ -158,6 +170,18 @@ void Re2kAssembler::CheckNotChar(uc16 c, Label* on_match) {
 }
 
 
+void Re2kAssembler::CheckEnd(Label* on_not_end) {
+  Emit(BC_CHECK_END);
+  EmitOrLink(on_not_end);
+}
+
+
+void Re2kAssembler::CheckNotEnd(Label* on_end) {
+  Emit(BC_CHECK_NOT_END);
+  EmitOrLink(on_end);
+}
+
+
 void Re2kAssembler::CheckRange(uc16 start, uc16 end, Label* on_mismatch) {
   Emit(BC_CHECK_RANGE);
   Emit16(start);
@@ -205,20 +229,6 @@ void Re2kAssembler::CheckRegister(int byte_code,
 }
 
 
-void Re2kAssembler::CheckRegisterEq(int reg_index,
-                                    uint16_t vs,
-                                    Label* on_equal) {
-  CheckRegister(BC_CHECK_REGISTER_EQ, reg_index, vs, on_equal);
-}
-
-
-void Re2kAssembler::CheckRegisterLe(int reg_index,
-                                    uint16_t vs,
-                                    Label* on_less_than_equal) {
-  CheckRegister(BC_CHECK_REGISTER_LE, reg_index, vs, on_less_than_equal);
-}
-
-
 void Re2kAssembler::CheckRegisterLt(int reg_index,
                                     uint16_t vs,
                                     Label* on_less_than) {
@@ -230,20 +240,6 @@ void Re2kAssembler::CheckRegisterGe(int reg_index,
                                     uint16_t vs,
                                     Label* on_greater_than_equal) {
   CheckRegister(BC_CHECK_REGISTER_GE, reg_index, vs, on_greater_than_equal);
-}
-
-
-void Re2kAssembler::CheckRegisterGt(int reg_index,
-                                    uint16_t vs,
-                                    Label* on_greater_than) {
-  CheckRegister(BC_CHECK_REGISTER_GT, reg_index, vs, on_greater_than);
-}
-
-
-void Re2kAssembler::CheckRegisterNe(int reg_index,
-                                    uint16_t vs,
-                                    Label* on_not_equal) {
-  CheckRegister(BC_CHECK_REGISTER_NE, reg_index, vs, on_not_equal);
 }
 
 

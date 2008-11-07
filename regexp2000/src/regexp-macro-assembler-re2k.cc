@@ -25,46 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A light-weight assembler for the Regexp2000 byte code.
-
-
 #include "v8.h"
 #include "ast.h"
 #include "bytecodes-re2k.h"
-#include "assembler-re2k.h"
+#include "regexp-macro-assembler.h"
+#include "regexp-macro-assembler-re2k.h"
 
 
-namespace v8 { namespace internal {
-
-
-void Re2kAssembler::Emit(uint32_t byte) {
-  buffer_[pc_++] = byte;
-}
-
-
-void Re2kAssembler::Emit16(uint32_t word) {
-  Store16(buffer_.start() + pc_, word);
-  pc_ += 2;
-}
-
-
-void Re2kAssembler::Emit32(uint32_t word) {
-  Store32(buffer_.start() + pc_, word);
-  pc_ += 4;
-}
-
-
-void Re2kAssembler::EmitOrLink(Label* l) {
-    if (l->is_bound()) {
-      Emit32(l->pos());
-    } else {
-      int pos = 0;
-      if (l->is_linked()) {
-        pos = l->pos();
-      }
-      l->link_to(pc_);
-      Emit32(pos);
-    }
-  }
-
-} }  // namespace v8::internal

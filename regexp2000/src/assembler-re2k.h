@@ -33,7 +33,8 @@ class Re2kAssembler {
   void PushCurrentPosition(int cp_offset = 0);
   void PushBacktrack(Label* l);
   void PushRegister(int index);
-  void SetRegister(int index, int cp_offset = 0);
+  void SetRegisterToCurrentPosition(int index, int cp_offset = 0);
+  void SetRegister(int index, int value);
 
   void PopCurrentPosition();
   void PopBacktrack();
@@ -42,6 +43,8 @@ class Re2kAssembler {
   void Fail();
   void FailIfWithin(int distance_from_end);
   void Succeed();
+
+  void Break();  // This instruction will cause a fatal VM error if hit.
 
   void Bind(Label* l);  // binds an unbound label L to the current code position
 
@@ -56,10 +59,13 @@ class Re2kAssembler {
   void CheckChar(uc16 c, Label* on_mismatch);
   void CheckNotChar(uc16 c, Label* on_match);
 
+  // Checks current char register against the magic end-of-input symbol.
+  void CheckEnd(Label* on_not_end);
+  void CheckNotEnd(Label* on_end);
+
   // Checks current char register against a range.
   void CheckRange(uc16 start, uc16 end, Label* on_mismatch);
   void CheckNotRange(uc16 start, uc16 end, Label* on_match);
-
 
   // Checks that the current char is in the range and that the corresponding bit
   // is set in the bitmap.
@@ -75,12 +81,8 @@ class Re2kAssembler {
 
   // Checks a register for equal, less than or equal, less than, greater than
   // or equal, greater than, not equal.
-  void CheckRegisterEq(int reg_index, uint16_t vs, Label* on_equal);
-  void CheckRegisterLe(int reg_index, uint16_t vs, Label* on_less_equal);
   void CheckRegisterLt(int reg_index, uint16_t vs, Label* on_less_than);
   void CheckRegisterGe(int reg_index, uint16_t vs, Label* on_greater_equal);
-  void CheckRegisterGt(int reg_index, uint16_t vs, Label* on_greater_than);
-  void CheckRegisterNe(int reg_index, uint16_t vs, Label* on_not_equal);
 
   // Code and bitmap emission.
   inline void Emit32(uint32_t x);

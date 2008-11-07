@@ -270,6 +270,7 @@ DEFINE_bool(collect_heap_spill_statistics, false,
             "(requires heap_stats)")
 
 DEFINE_bool(trace_regexps, false, "trace regexp execution")
+DEFINE_bool(trace_regexp_bytecodes, false, "trace regexp bytecode executon")
 
 //
 // Logging and profiling only flags

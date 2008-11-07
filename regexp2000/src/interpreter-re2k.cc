@@ -38,6 +38,20 @@
 namespace v8 { namespace internal {
 
 
+#ifdef DEBUG
+# define BYTECODE(name) break;                                            \
+                        case BC_##name:                                   \
+                          if (FLAG_trace_regexp_bytecodes) {              \
+                            PrintF("pc = %d, current = %d, bc = "         \
+                                    #name "\n", pc - code_base, current); \
+                          }
+#else
+# define BYTECODE(name) break;                                            \
+                        case BC_##name:
+#endif
+
+
+
 template <typename Char>
 static bool RawMatch(const byte* code_base,
                      Vector<const Char> subject,
@@ -48,71 +62,69 @@ static bool RawMatch(const byte* code_base,
   int backtrack_stack_space = 1000;
   int* backtrack_sp = backtrack_stack;
   int current_char = -1;
+#ifdef DEBUG
+  if (FLAG_trace_regexp_bytecodes) {
+    PrintF("\n\nStart bytecode interpreter\n\n");
+  }
+#endif
   while (true) {
     switch (*pc) {
-      case BC_BREAK:
+      BYTECODE(BREAK)
         UNREACHABLE();
         return false;
-      case BC_PUSH_CP:
+      BYTECODE(PUSH_CP)
         if (--backtrack_stack_space < 0) {
           return false;  // No match on backtrack stack overflow.
         }
         *backtrack_sp++ = current + Load32(pc + 1);
         pc += 5;
-        break;
-      case BC_PUSH_BT:
+      BYTECODE(PUSH_BT)
         if (--backtrack_stack_space < 0) {
           return false;  // No match on backtrack stack overflow.
         }
         *backtrack_sp++ = Load32(pc + 1);
         pc += 5;
-        break;
-      case BC_PUSH_REGISTER:
+      BYTECODE(PUSH_REGISTER)
         if (--backtrack_stack_space < 0) {
           return false;  // No match on backtrack stack overflow.
         }
         *backtrack_sp++ = registers[pc[1]];
         pc += 2;
-        break;
-      case BC_SET_REGISTER:
+      BYTECODE(SET_REGISTER)
+        registers[pc[1]] = Load32(pc + 2);
+        pc += 6;
+      BYTECODE(SET_REGISTER_TO_CP)
         registers[pc[1]] = current + Load32(pc + 2);
         pc += 6;
-        break;
-      case BC_POP_CP:
+      BYTECODE(POP_CP)
         backtrack_stack_space++;
         --backtrack_sp;
         current = *backtrack_sp;
         pc += 1;
-        break;
-      case BC_POP_BT:
+      BYTECODE(POP_BT)
         backtrack_stack_space++;
         --backtrack_sp;
         pc = code_base + *backtrack_sp;
-        break;
-      case BC_POP_REGISTER:
+      BYTECODE(POP_REGISTER)
         backtrack_stack_space++;
         --backtrack_sp;
         registers[pc[1]] = *backtrack_sp;
         pc += 2;
-        break;
-      case BC_FAIL:
+      BYTECODE(FAIL)
         return false;
-      case BC_FAIL_IF_WITHIN:
+      BYTECODE(FAIL_IF_WITHIN)
         if (current + Load32(pc + 1) >= subject.length()) {
           return false;
         }
         pc += 5;
-        break;
-      case BC_SUCCEED:
+      BYTECODE(SUCCEED)
         return true;
-      case BC_ADVANCE_CP:
+      BYTECODE(ADVANCE_CP)
         current += Load32(pc + 1);
         pc += 5;
-        break;
-      case BC_GOTO:
+      BYTECODE(GOTO)
         pc = code_base + Load32(pc + 1);
-        break;
-      case BC_LOAD_CURRENT_CHAR: {
+      BYTECODE(LOAD_CURRENT_CHAR) {
         int pos = current + Load32(pc + 1);
         if (pos >= subject.length()) {
           current_char = -1;
@@ -120,27 +132,38 @@ static bool RawMatch(const byte* code_base,
           current_char = subject[pos];
         }
         pc += 5;
-        break;
       }
-      case BC_CHECK_CHAR: {
+      BYTECODE(CHECK_CHAR) {
         int c = Load16(pc + 1);
         if (c != current_char) {
           pc = code_base + Load32(pc + 3);
         } else {
           pc += 7;
         }
-        break;
       }
-      case BC_CHECK_NOT_CHAR: {
+      BYTECODE(CHECK_NOT_CHAR) {
         int c = Load16(pc + 1);
-        if (c == current_char || current_char == -1) {
+        if (c == current_char) {
           pc = code_base + Load32(pc + 3);
         } else {
           pc += 7;
         }
-        break;
       }
-      case BC_CHECK_RANGE: {
+      BYTECODE(CHECK_END) {
+        if (current_char != -1) {
+          pc = code_base + Load32(pc + 1);
+        } else {
+          pc += 5;
+        }
+      }
+      BYTECODE(CHECK_NOT_END) {
+        if (current_char == -1) {
+          pc = code_base + Load32(pc + 1);
+        } else {
+          pc += 5;
+        }
+      }
+      BYTECODE(CHECK_RANGE) {
         int start = Load16(pc + 1);
         int end = Load16(pc + 3);
         if (current_char >= start && current_char <= end) {
@@ -148,9 +171,8 @@ static bool RawMatch(const byte* code_base,
         } else {
           pc += 9;
         }
-        break;
       }
-      case BC_CHECK_NOT_RANGE: {
+      BYTECODE(CHECK_NOT_RANGE) {
         int start = Load16(pc + 1);
         int end = Load16(pc + 3);
         if (current_char < start || current_char > end || current_char == -1) {
@@ -158,54 +180,28 @@ static bool RawMatch(const byte* code_base,
         } else {
           pc += 9;
         }
-        break;
       }
-      case BC_CHECK_REGISTER_EQ:
-        if (registers[pc[1]] == Load16(pc + 2)) {
-          pc = code_base + Load32(pc + 4);
-        } else {
-          pc += 8;
-        }
-        break;
-      case BC_CHECK_REGISTER_LE:
-        if (registers[pc[1]] <= Load16(pc + 2)) {
-          pc = code_base + Load32(pc + 4);
-        } else {
-          pc += 8;
-        }
-        break;
-      case BC_CHECK_REGISTER_LT:
+      BYTECODE(CHECK_REGISTER_LT)
         if (registers[pc[1]] < Load16(pc + 2)) {
           pc = code_base + Load32(pc + 4);
         } else {
           pc += 8;
         }
-        break;
-      case BC_CHECK_REGISTER_GE:
+      BYTECODE(CHECK_REGISTER_GE)
         if (registers[pc[1]] >= Load16(pc + 2)) {
           pc = code_base + Load32(pc + 4);
         } else {
           pc += 8;
         }
-        break;
-      case BC_CHECK_REGISTER_GT:
-        if (registers[pc[1]] > Load16(pc + 2)) {
-          pc = code_base + Load32(pc + 4);
-        } else {
-          pc += 8;
-        }
-        break;
-      case BC_CHECK_REGISTER_NE:
-        if (registers[pc[1]] != Load16(pc + 2)) {
-          pc = code_base + Load32(pc + 4);
-        } else {
-          pc += 8;
-        }
-        break;
-      case BC_CHECK_BACKREF:
-      case BC_CHECK_NOT_BACKREF:
-      case BC_CHECK_BITMAP:
-      case BC_CHECK_NOT_BITMAP:
+      BYTECODE(CHECK_BACKREF)
+        UNREACHABLE();
+      BYTECODE(CHECK_NOT_BACKREF)
+        UNREACHABLE();
+      BYTECODE(CHECK_BITMAP)
+        UNREACHABLE();
+      BYTECODE(CHECK_NOT_BITMAP)
+        UNREACHABLE();
+        break;  // Last one doesn't have break in macro.
       default:
         UNREACHABLE();
         break;

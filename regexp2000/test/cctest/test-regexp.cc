@@ -495,8 +495,8 @@ TEST(Assembler) {
   __ CheckChar('o', &advance);
   __ LoadCurrentChar(2);
   __ CheckChar('o', &advance);
-  __ SetRegister(0);
-  __ SetRegister(1, 2);
+  __ SetRegisterToCurrentPosition(0);
+  __ SetRegisterToCurrentPosition(1, 2);
   __ Succeed();
 
   v8::HandleScope scope;
@@ -517,4 +517,87 @@ TEST(Assembler) {
   CHECK(Re2kInterpreter::Match(*array, *f3, captures, 0));
   CHECK_EQ(3, captures[0]);
   CHECK_EQ(5, captures[1]);
+}
+
+
+TEST(Assembler2) {
+  V8::Initialize(NULL);
+  byte codes[1024];
+  Re2kAssembler assembler(Vector<byte>(codes, 1024));
+#define __ assembler.
+  // /^.*foo/
+  Label more_dots;
+  Label unwind_dot;
+  Label failure;
+  Label foo;
+  Label foo_failed;
+  Label dot_match;
+  // ^
+  __ PushCurrentPosition();
+  __ PushRegister(0);
+  __ SetRegisterToCurrentPosition(0);
+  __ PushBacktrack(&failure);
+  __ GoTo(&dot_match);
+  // .*
+  __ Bind(&more_dots);
+  __ AdvanceCP();
+  __ Bind(&dot_match);
+  __ PushCurrentPosition();
+  __ PushBacktrack(&unwind_dot);
+  __ LoadCurrentChar();
+  __ CheckNotEnd(&foo);
+  __ CheckChar('\n', &more_dots);
+  // foo
+  __ Bind(&foo);
+  __ CheckChar('f', &foo_failed);
+  __ LoadCurrentChar(1);
+  __ CheckChar('o', &foo_failed);
+  __ LoadCurrentChar(2);
+  __ CheckChar('o', &foo_failed);
+  __ SetRegisterToCurrentPosition(1, 2);
+  __ Succeed();
+  __ Break();
+
+  __ Bind(&foo_failed);
+  __ PopBacktrack();
+  __ Break();
+
+  __ Bind(&unwind_dot);
+  __ PopCurrentPosition();
+  __ LoadCurrentChar();
+  __ GoTo(&foo);
+
+  __ Bind(&failure);
+  __ PopRegister(0);
+  __ PopCurrentPosition();
+  __ Fail();
+
+  v8::HandleScope scope;
+  Handle<ByteArray> array = Factory::NewByteArray(assembler.length());
+  assembler.Copy(array->GetDataStartAddress());
+  int captures[2];
+
+  Handle<String> f1 =
+      Factory::NewStringFromAscii(CStrVector("Now is the time"));
+  CHECK(!Re2kInterpreter::Match(*array, *f1, captures, 0));
+
+  Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));
+  CHECK(Re2kInterpreter::Match(*array, *f2, captures, 0));
+  CHECK_EQ(0, captures[0]);
+  CHECK_EQ(2, captures[1]);
+
+  Handle<String> f3 = Factory::NewStringFromAscii(CStrVector("tomfoolery"));
+  CHECK(Re2kInterpreter::Match(*array, *f3, captures, 0));
+  CHECK_EQ(0, captures[0]);
+  CHECK_EQ(5, captures[1]);
+
+  Handle<String> f4 =
+      Factory::NewStringFromAscii(CStrVector("football buffoonery"));
+  CHECK(Re2kInterpreter::Match(*array, *f4, captures, 0));
+  CHECK_EQ(0, captures[0]);
+  CHECK_EQ(14, captures[1]);
+
+  Handle<String> f5 =
+      Factory::NewStringFromAscii(CStrVector("walking\nbarefoot"));
+  CHECK(!Re2kInterpreter::Match(*array, *f5, captures, 0));
 }
