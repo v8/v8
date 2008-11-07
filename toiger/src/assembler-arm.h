@@ -211,6 +211,12 @@ inline Condition ReverseCondition(Condition cc) {
 }
 
 
+// Branch hints are not used on the ARM.  They are defined so that they can
+// appear in shared function signatures, but will be ignored in ARM
+// implementations.
+enum Hint { no_hint };
+
+
 // The pc store offset may be 8 or 12 depending on the processor implementation.
 int PcStoreOffset();
 

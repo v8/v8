@@ -60,12 +60,6 @@ void JumpTarget::set_code_generator(CodeGenerator* cgen) {
 }
 
 
-bool JumpTarget::IsActualFunctionReturn() {
-  return (this == &code_generator_->function_return_ &&
-          !code_generator_->function_return_is_shadowed_);
-}
-
-
 void JumpTarget::Jump() {
   // Precondition: there is a current frame.  There may or may not be an
   // expected frame at the label.
@@ -80,11 +74,15 @@ void JumpTarget::Jump() {
     code_generator_->set_frame(NULL);
     // The frame at the actual function return will always have height
     // zero.
-    if (IsActualFunctionReturn()) expected_frame_->height_ = 0;
+    if (code_generator_->IsActualFunctionReturn(this)) {
+      expected_frame_->height_ = 0;
+    }
   } else {
     // No code needs to be emitted to merge to the expected frame at the
     // actual function return.
-    if (!IsActualFunctionReturn()) current_frame->MergeTo(expected_frame_);
+    if (!code_generator_->IsActualFunctionReturn(this)) {
+      current_frame->MergeTo(expected_frame_);
+    }
     code_generator_->delete_frame();
   }
 
@@ -107,11 +105,15 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
     expected_frame_ = new VirtualFrame(current_frame);
     // The frame at the actual function return will always have height
     // zero.
-    if (IsActualFunctionReturn()) expected_frame_->height_ = 0;
+    if (code_generator_->IsActualFunctionReturn(this)) {
+      expected_frame_->height_ = 0;
+    }
   } else {
     // No code needs to be emitted to merge to the expected frame at the
     // actual function return.
-    if (!IsActualFunctionReturn()) current_frame->MergeTo(expected_frame_);
+    if (!code_generator_->IsActualFunctionReturn(this)) {
+      current_frame->MergeTo(expected_frame_);
+    }
   }
 
   __ j(cc, &label_, hint);
@@ -125,7 +127,7 @@ void JumpTarget::Call() {
   // at the label.
   ASSERT(code_generator_ != NULL);
   ASSERT(masm_ != NULL);
-  ASSERT(!IsActualFunctionReturn());
+  ASSERT(!code_generator_->IsActualFunctionReturn(this));
 
   VirtualFrame* current_frame = code_generator_->frame();
   ASSERT(current_frame != NULL);
@@ -159,13 +161,17 @@ void JumpTarget::Bind() {
     expected_frame_ = new VirtualFrame(current_frame);
     // The frame at the actual function return will always have height
     // zero.
-    if (IsActualFunctionReturn()) expected_frame_->height_ = 0;
+    if (code_generator_->IsActualFunctionReturn(this)) {
+      expected_frame_->height_ = 0;
+    }
   } else if (current_frame == NULL) {
     code_generator_->set_frame(new VirtualFrame(expected_frame_));
   } else {
     // No code needs to be emitted to merge to the expected frame at the
     // actual function return.
-    if (!IsActualFunctionReturn()) current_frame->MergeTo(expected_frame_);
+    if (!code_generator_->IsActualFunctionReturn(this)) {
+      current_frame->MergeTo(expected_frame_);
+    }
   }
 
   __ bind(&label_);

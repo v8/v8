@@ -374,6 +374,10 @@ class CodeGenerator: public Visitor {
   // should be generated or not.
   void RecordStatementPosition(Node* node);
 
+  // Is the given jump target the actual (ie, non-shadowed) function return
+  // target?
+  bool IsActualFunctionReturn(JumpTarget* target);
+
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;
   List<DeferredCode*> deferred_;

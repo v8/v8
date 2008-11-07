@@ -64,7 +64,7 @@ void JumpTarget::Jump() {
   __ b(&label_);
 }
 
-void JumpTarget::Branch(Condition cc) {
+void JumpTarget::Branch(Condition cc, Hint ignored) {
   __ b(cc, &label_);
 }
 
