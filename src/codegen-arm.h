@@ -49,6 +49,11 @@ class VirtualFrame BASE_EMBEDDED {
  public:
   explicit VirtualFrame(CodeGenerator* cgen);
 
+  void Enter();
+  void Exit();
+
+  void AllocateLocals();
+
   MemOperand Top() const { return MemOperand(sp, 0); }
 
   MemOperand Element(int index) const {
@@ -69,6 +74,13 @@ class VirtualFrame BASE_EMBEDDED {
     ASSERT(-1 <= index && index <= parameter_count_);
     return MemOperand(fp, (1 + parameter_count_ - index) * kPointerSize);
   }
+
+  inline void Drop(int count);
+
+  inline void Pop();
+  inline void Pop(Register reg);
+
+  inline void Push(Register reg);
 
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
@@ -194,6 +206,8 @@ class CodeGenerator: public Visitor {
 
   // Accessors
   MacroAssembler* masm() { return masm_; }
+
+  VirtualFrame* frame() const { return frame_; }
 
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
@@ -365,11 +379,6 @@ class CodeGenerator: public Visitor {
   // position. This allows us to easily control whether statement positions
   // should be generated or not.
   void RecordStatementPosition(Node* node);
-
-  // Activation frames.
-  void EnterJSFrame();
-  void ExitJSFrame();
-
 
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;
