@@ -569,9 +569,7 @@ void CodeGenerator::UnloadReference(Reference* ref) {
   // Pop a reference from the stack while preserving TOS.
   Comment cmnt(masm_, "[ UnloadReference");
   int size = ref->size();
-  if (size <= 0) {
-    // Do nothing. No popping is necessary.
-  } else {
+  if (size > 0) {
     frame_->Pop(r0);
     frame_->Drop(size);
     frame_->Push(r0);

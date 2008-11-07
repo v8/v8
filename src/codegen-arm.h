@@ -117,8 +117,8 @@ class Reference BASE_EMBEDDED {
     type_ = value;
   }
 
-  // The size of the reference or -1 if the reference is illegal.
-  int size() const { return type_; }
+  // The size the reference takes up on the stack.
+  int size() const { return (type_ == ILLEGAL) ? 0 : type_; }
 
   bool is_illegal() const { return type_ == ILLEGAL; }
   bool is_slot() const { return type_ == SLOT; }
