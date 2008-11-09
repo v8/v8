@@ -1095,7 +1095,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ j(not_zero, deferred->enter(), not_taken);
         // tag result and store it in TOS (eax)
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ lea(eax, Operand(ebx, times_2, kSmiTag));
+        __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
         __ bind(deferred->exit());
         frame_->Push(eax);
       }
@@ -1124,7 +1124,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ j(not_zero, deferred->enter(), not_taken);
         // tag result and store it in TOS (eax)
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ lea(eax, Operand(ebx, times_2, kSmiTag));
+        __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
         __ bind(deferred->exit());
         frame_->Push(eax);
       }
@@ -1651,7 +1651,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   __ j(greater_equal, fail_label, not_taken);
 
   // 0 is placeholder.
-  __ jmp(Operand(eax, times_2, 0x0, RelocInfo::INTERNAL_REFERENCE));
+  __ jmp(Operand(eax, eax, times_1, 0x0, RelocInfo::INTERNAL_REFERENCE));
   // calculate address to overwrite later with actual address of table.
   int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t);
 
@@ -4062,7 +4062,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       __ j(not_zero, slow);
       // Tag the result and store it in register eax.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, times_2, kSmiTag));
+      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
       break;
 
     case Token::MOD:
@@ -4123,7 +4123,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       }
       // Tag the result and store it in register eax.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, times_2, kSmiTag));
+      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
       break;
 
     default:
@@ -4250,7 +4250,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 
       // Tag smi result and return.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, times_2, kSmiTag));
+      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
       __ ret(2 * kPointerSize);
 
       // All ops except SHR return a signed int32 that we load in a HeapNumber.
