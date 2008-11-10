@@ -4283,7 +4283,10 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Slow-case: Non-function called.
   __ bind(&slow);
   __ mov(r0, Operand(argc_));  // Setup the number of arguments.
-  __ InvokeBuiltin(Builtins::CALL_NON_FUNCTION, JUMP_JS);
+  __ mov(r2, Operand(0));
+  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
+  __ Jump(Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline)),
+          RelocInfo::CODE_TARGET);
 }
 
 
