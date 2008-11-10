@@ -48,7 +48,7 @@ namespace {
 // to the actual flag, default value, comment, etc.  This is designed to be POD
 // initialized as to avoid requiring static constructors.
 struct Flag {
-  enum FlagType { TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_ARGS };
+  enum FlagType { TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING };
 
   FlagType type_;           // What type of flag, bool, int, or string.
   const char* name_;        // Name of the flag, ex "my_flag".
@@ -82,11 +82,6 @@ struct Flag {
     return reinterpret_cast<const char**>(valptr_);
   }
 
-  JSArguments* args_variable() const {
-    ASSERT(type_ == TYPE_ARGS);
-    return reinterpret_cast<JSArguments*>(valptr_);
-  }
-
   bool bool_default() const {
     ASSERT(type_ == TYPE_BOOL);
     return *reinterpret_cast<const bool*>(defptr_);
@@ -107,11 +102,6 @@ struct Flag {
     return *reinterpret_cast<const char* const *>(defptr_);
   }
 
-  JSArguments args_default() const {
-    ASSERT(type_ == TYPE_ARGS);
-    return *reinterpret_cast<const JSArguments*>(defptr_);
-  }
-
   // Compare this flag's current value against the default.
   bool IsDefault() const {
     switch (type_) {
@@ -121,15 +111,12 @@ struct Flag {
         return *int_variable() == int_default();
       case TYPE_FLOAT:
         return *float_variable() == float_default();
-      case TYPE_STRING: {
+      case TYPE_STRING:
         const char* str1 = *string_variable();
         const char* str2 = string_default();
         if (str2 == NULL) return str1 == NULL;
         if (str1 == NULL) return str2 == NULL;
         return strcmp(str1, str2) == 0;
-      }
-      case TYPE_ARGS:
-        return args_variable()->argc() == 0;
     }
     UNREACHABLE();
     return true;
@@ -149,9 +136,6 @@ struct Flag {
         break;
       case TYPE_STRING:
         *string_variable() = string_default();
-        break;
-      case TYPE_ARGS:
-        *args_variable() = args_default();
         break;
     }
   }
@@ -173,7 +157,6 @@ static const char* Type2String(Flag::FlagType type) {
     case Flag::TYPE_INT: return "int";
     case Flag::TYPE_FLOAT: return "float";
     case Flag::TYPE_STRING: return "string";
-    case Flag::TYPE_ARGS: return "arguments";
   }
   UNREACHABLE();
   return NULL;
@@ -195,7 +178,7 @@ static char* ToString(Flag* flag) {
       value = Vector<char>::New(20);
       OS::SNPrintF(value, "%f", *flag->float_variable());
       break;
-    case Flag::TYPE_STRING: {
+    case Flag::TYPE_STRING:
       const char* str = *flag->string_variable();
       if (str) {
         int length = strlen(str) + 1;
@@ -206,26 +189,6 @@ static char* ToString(Flag* flag) {
         OS::SNPrintF(value, "NULL");
       }
       break;
-    }
-    case Flag::TYPE_ARGS: {
-      JSArguments args = *flag->args_variable();
-      if (args.argc() == 0) {
-        value = Vector<char>::New(0);
-        break;
-      }
-      int len = args.argc() - 1;
-      for (int i = 0; i < args.argc(); i++) {
-        len += strlen(args[i]);
-      }
-      value = Vector<char>::New(len);
-      for (int i = 0; i < args.argc(); i++) {
-        if (i > 0) {
-          OS::SNPrintF(value, " ");
-        }
-        OS::SNPrintF(value, "%s", args[i]);
-      }
-      break;
-    }
   }
   ASSERT(!value.is_empty());
   return value.start();
@@ -276,14 +239,8 @@ static void SplitArgument(const char* arg,
   if (*arg == '-') {
     // find the begin of the flag name
     arg++;  // remove 1st '-'
-    if (*arg == '-') {
+    if (*arg == '-')
       arg++;  // remove 2nd '-'
-      if (arg[0] == '\0') {
-        const char* kJSArgumentsFlagName = "js_arguments";
-        *name = kJSArgumentsFlagName;
-        return;
-      }
-    }
     if (arg[0] == 'n' && arg[1] == 'o') {
       arg += 2;  // remove "no"
       *is_bool = true;
@@ -367,9 +324,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       }
 
       // if we still need a flag value, use the next argument if available
-      if (flag->type() != Flag::TYPE_BOOL &&
-          flag->type() != Flag::TYPE_ARGS &&
-          value == NULL) {
+      if (flag->type() != Flag::TYPE_BOOL && value == NULL) {
         if (i < *argc) {
           value = argv[i++];
         } else {
@@ -394,19 +349,6 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
           break;
         case Flag::TYPE_STRING:
           *flag->string_variable() = value;
-          break;
-        case Flag::TYPE_ARGS:
-          int start_pos = (value == NULL) ? i : i - 1;
-          int js_argc = *argc - start_pos;
-          const char** js_argv = new const char*[js_argc];
-          if (value != NULL) {
-            js_argv[0] = value;
-          }
-          for (int k = i; k < *argc; k++) {
-            js_argv[k - start_pos] = argv[k];
-          }
-          *flag->args_variable() = JSArguments(js_argc, js_argv);
-          i = *argc;  // Consume all arguments
           break;
       }
 
@@ -531,19 +473,5 @@ void FlagList::PrintHelp() {
     DeleteArray(value);
   }
 }
-
-JSArguments::JSArguments()
-    : argc_(0), argv_(NULL) {}
-JSArguments::JSArguments(int argc, const char** argv)
-    : argc_(argc), argv_(argv) {}
-int JSArguments::argc() const { return argc_; }
-const char** JSArguments::argv() { return argv_; }
-const char*& JSArguments::operator[](int idx) { return argv_[idx]; }
-JSArguments& JSArguments::operator=(JSArguments args) {
-    argc_ = args.argc_;
-    argv_ = args.argv_;
-    return *this;
-}
-
 
 } }  // namespace v8::internal
