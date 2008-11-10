@@ -235,6 +235,19 @@ void Shell::Initialize() {
   utility_context_->SetSecurityToken(Undefined());
   Context::Scope utility_scope(utility_context_);
 
+  i::JSArguments js_args = i::FLAG_js_arguments;
+  i::Handle<i::FixedArray> arguments_array =
+      i::Factory::NewFixedArray(js_args.argc());
+  for (int j = 0; j < js_args.argc(); j++) {
+    i::Handle<i::String> arg =
+        i::Factory::NewStringFromUtf8(i::CStrVector(js_args[j]));
+    arguments_array->set(j, *arg);
+  }
+  i::Handle<i::JSArray> arguments_jsarray =
+      i::Factory::NewJSArrayWithElements(arguments_array);
+  global_template->Set(String::New("arguments"),
+                       Utils::ToLocal(arguments_jsarray));
+
   // Install the debugger object in the utility scope
   i::Debug::Load();
   i::Debug::debug_context()->set_security_token(i::Heap::undefined_value());

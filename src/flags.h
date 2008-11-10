@@ -35,6 +35,7 @@ namespace v8 { namespace internal {
 #define FLAG_MODE_DECLARE
 #include "flag-definitions.h"
 
+
 // The global list of all flags.
 class FlagList {
  public:
@@ -50,7 +51,7 @@ class FlagList {
   // set, the flags and associated values are removed from (argc,
   // argv). Returns 0 if no error occurred. Otherwise, returns the argv
   // index > 0 for the argument where an error occurred. In that case,
-  // (argc, argv) will remain unchanged indepdendent of the remove_flags
+  // (argc, argv) will remain unchanged independent of the remove_flags
   // value, and no assumptions about flag settings should be made.
   //
   // The following syntax for flags is accepted (both '-' and '--' are ok):
@@ -59,6 +60,7 @@ class FlagList {
   //   --noflag      (bool flags only)
   //   --flag=value  (non-bool flags only, no spaces around '=')
   //   --flag value  (non-bool flags only)
+  //   --            (equivalent to --js_arguments, captures all remaining args)
   static int SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags);
 
   // Set the flag values by parsing the string str. Splits string into argc
