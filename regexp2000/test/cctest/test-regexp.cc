@@ -610,5 +610,5 @@ TEST(Assembler2) {
 
 
 TEST(Graph) {
-  Execute("(a|b|c|\\w|\\s)", "", true);
+  Execute("(a|b|c*|\\w|\\s)", "", true);
 }

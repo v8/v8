@@ -1545,6 +1545,21 @@ void Analysis::VisitEnd(EndNode* that) {
 }
 
 
+class AddDispatchRange {
+ public:
+  AddDispatchRange(Analysis* analysis) : analysis_(analysis) { }
+  void Call(uc32 from, DispatchTable::Entry entry);
+ private:
+  Analysis* analysis_;
+};
+
+
+void AddDispatchRange::Call(uc32 from, DispatchTable::Entry entry) {
+  CharacterRange range(from, entry.to());
+  analysis_->table()->AddRange(range, analysis_->choice_index());
+}
+
+
 void Analysis::VisitChoice(ChoiceNode* node) {
   if (node->visited()) return;
   node->set_visited(true);
@@ -1556,6 +1571,9 @@ void Analysis::VisitChoice(ChoiceNode* node) {
     data.Analyze(choices->at(i).node());
   }
   node->set_visited(false);
+  if (table() != NULL) {
+    data.table()->ForEach(AddDispatchRange(this));
+  }
 }
 
 

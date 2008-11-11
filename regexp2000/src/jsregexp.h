@@ -324,6 +324,9 @@ class DispatchTable {
   void AddRange(CharacterRange range, int value);
   OutSet Get(uc16 value);
   void Dump();
+
+  template <typename Callback>
+  void ForEach(Callback callback) { return tree()->ForEach(callback); }
  private:
   ZoneSplayTree<Config>* tree() { return &tree_; }
   ZoneSplayTree<Config> tree_;
