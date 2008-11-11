@@ -728,7 +728,7 @@ bool Logger::Setup() {
           stream.Put(*p);
         }
       }
-      SmartPointer<char> expanded = stream.ToCString();
+      SmartPointer<const char> expanded = stream.ToCString();
       logfile_ = OS::FOpen(*expanded, "w");
     } else {
       logfile_ = OS::FOpen(FLAG_logfile, "w");
