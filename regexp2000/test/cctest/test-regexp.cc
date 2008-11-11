@@ -337,10 +337,13 @@ static void Execute(const char* input,
   if (!v8::internal::ParseRegExp(&buffer, &result))
     return;
   RegExpNode* node = RegExpEngine::Compile(&result);
+  USE(node);
+#ifdef DEBUG
   if (dot_output) {
     RegExpEngine::DotPrint(input, node);
     exit(0);
   }
+#endif // DEBUG
 }
 
 

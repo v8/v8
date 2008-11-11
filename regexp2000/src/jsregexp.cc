@@ -914,6 +914,9 @@ FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
 // Dot/dotty output
 
 
+#ifdef DEBUG
+
+
 class DotPrinter: public NodeVisitor {
  public:
   DotPrinter() : stream_(&alloc_) { }
@@ -960,9 +963,6 @@ void DotPrinter::Visit(RegExpNode* node) {
   seen_.insert(node);
   node->Accept(this);
 }
-
-
-#ifdef DEBUG
 
 
 void DotPrinter::PrintOnFailure(RegExpNode* from, RegExpNode* on_failure) {
@@ -1072,6 +1072,45 @@ void DotPrinter::VisitAction(ActionNode* that) {
   stream()->Add("];\n");
   stream()->Add("  n%p -> n%p;\n", that, that->on_success());
   Visit(that->on_success());
+}
+
+
+class DispatchTableDumper {
+ public:
+  DispatchTableDumper(StringStream* stream) : stream_(stream) { }
+  void Call(uc16 key, DispatchTable::Entry entry);
+  StringStream* stream() { return stream_; }
+ private:
+  StringStream* stream_;
+};
+
+
+void DispatchTableDumper::Call(uc16 key, DispatchTable::Entry entry) {
+  stream()->Add("[%k-%k]: {", key, entry.to());
+  OutSet set = entry.out_set();
+  bool first = true;
+  for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
+    if (set.Get(i)) {
+      if (first) first = false;
+      else stream()->Add(", ");
+      stream()->Add("%i", i);
+    }
+  }
+  stream()->Add("}\n");
+}
+
+
+void DispatchTable::Dump() {
+  HeapStringAllocator alloc;
+  StringStream stream(&alloc);
+  tree()->ForEach(DispatchTableDumper(&stream));
+  OS::PrintError("%s", *stream.ToCString());
+}
+
+
+void RegExpEngine::DotPrint(const char* label, RegExpNode* node) {
+  DotPrinter printer;
+  printer.PrintNode(label, node);
 }
 
 
@@ -1451,45 +1490,6 @@ void DispatchTable::AddRange(CharacterRange full_range, int value) {
 }
 
 
-#ifdef DEBUG
-
-
-class DispatchTableDumper {
- public:
-  DispatchTableDumper(StringStream* stream) : stream_(stream) { }
-  void Call(uc16 key, DispatchTable::Entry entry);
-  StringStream* stream() { return stream_; }
- private:
-  StringStream* stream_;
-};
-
-
-void DispatchTableDumper::Call(uc16 key, DispatchTable::Entry entry) {
-  stream()->Add("[%k-%k]: {", key, entry.to());
-  OutSet set = entry.out_set();
-  bool first = true;
-  for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
-    if (set.Get(i)) {
-      if (first) first = false;
-      else stream()->Add(", ");
-      stream()->Add("%i", i);
-    }
-  }
-  stream()->Add("}\n");
-}
-
-
-void DispatchTable::Dump() {
-  HeapStringAllocator alloc;
-  StringStream stream(&alloc);
-  tree()->ForEach(DispatchTableDumper(&stream));
-  OS::PrintError("%s", *stream.ToCString());
-}
-
-
-#endif
-
-
 OutSet DispatchTable::Get(uc16 value) {
   ZoneSplayTree<Config>::Locator loc;
   if (!tree()->FindGreatestLessThan(value, &loc))
@@ -1602,12 +1602,6 @@ RegExpNode* RegExpCompiler::Compile(RegExpTree* tree,
   Analysis analysis(this);
   analysis.Analyze(node);
   return node;
-}
-
-
-void RegExpEngine::DotPrint(const char* label, RegExpNode* node) {
-  DotPrinter printer;
-  printer.PrintNode(label, node);
 }
 
 
