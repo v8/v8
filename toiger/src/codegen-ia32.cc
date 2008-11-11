@@ -32,7 +32,6 @@
 #include "debug.h"
 #include "scopes.h"
 #include "runtime.h"
-#include "virtual-frame-ia32-inl.h"
 
 namespace v8 { namespace internal {
 
@@ -156,7 +155,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     }
 
     // Allocate space for locals and initialize them.
-    frame_->AllocateLocals();
+    frame_->AllocateStackSlots(scope_->num_stack_slots());
 
     if (scope_->num_heap_slots() > 0) {
       Comment cmnt(masm_, "[ allocate local context");
@@ -247,7 +246,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         }
         shadow_ref.SetValue(NOT_CONST_INIT);
       }
-      frame_->Pop();  // Value is no longer needed.
+      frame_->Drop();  // Value is no longer needed.
     }
 
     // Generate code to 'execute' declarations and initialize functions
@@ -720,7 +719,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
   if (op == Token::COMMA) {
     // Simply discard left value.
     frame_->Pop(eax);
-    frame_->Pop();
+    frame_->Drop();
     frame_->Push(eax);
     return;
   }
@@ -1364,7 +1363,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // safe to pop the value lying on top of the reference before unloading
     // the reference itself (which preserves the top of stack) because we
     // know that it is a zero-sized reference.
-    frame_->Pop();
+    frame_->Drop();
   }
 }
 
@@ -1376,7 +1375,7 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   expression->MarkAsStatement();
   Load(expression);
   // Remove the lingering expression result from the top of stack.
-  frame_->Pop();
+  frame_->Drop();
 }
 
 
@@ -1465,7 +1464,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
       } else {
         // No cc value set up, that means the boolean was pushed.
         // Pop it again, since it is not going to be used.
-        frame_->Pop();
+        frame_->Drop();
       }
     }
   }
@@ -1684,7 +1683,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
       Branch(false, &next_test);
 
       // Before entering the body, remove the switch value from the stack.
-      frame_->Pop();
+      frame_->Drop();
 
       // Label the body so that fall through is enabled.
       if (i > 0 && cases->at(i - 1)->is_default()) {
@@ -1709,7 +1708,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
   // The final test removes the switch value.
   next_test.Bind();
-  frame_->Pop();
+  frame_->Drop();
 
   // If there is a default clause, compile it.
   if (default_clause != NULL) {
@@ -2021,31 +2020,31 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Condition.
   entry.Bind();
 
-  __ mov(eax, frame_->Element(0));  // load the current count
-  __ cmp(eax, frame_->Element(1));  // compare to the array length
+  __ mov(eax, frame_->ElementAt(0));  // load the current count
+  __ cmp(eax, frame_->ElementAt(1));  // compare to the array length
   cleanup.Branch(above_equal);
 
   // Get the i'th entry of the array.
-  __ mov(edx, frame_->Element(2));
+  __ mov(edx, frame_->ElementAt(2));
   __ mov(ebx, Operand(edx, eax, times_2,
                       FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Get the expected map from the stack or a zero map in the
   // permanent slow case eax: current iteration count ebx: i'th entry
   // of the enum cache
-  __ mov(edx, frame_->Element(3));
+  __ mov(edx, frame_->ElementAt(3));
   // Check if the expected map still matches that of the enumerable.
   // If not, we have to filter the key.
   // eax: current iteration count
   // ebx: i'th entry of the enum cache
   // edx: expected map value
-  __ mov(ecx, frame_->Element(4));
+  __ mov(ecx, frame_->ElementAt(4));
   __ mov(ecx, FieldOperand(ecx, HeapObject::kMapOffset));
   __ cmp(ecx, Operand(edx));
   end_del_check.Branch(equal);
 
   // Convert the entry to a string (or null if it isn't a property anymore).
-  frame_->Push(frame_->Element(4));  // push enumerable
+  frame_->Push(frame_->ElementAt(4));  // push enumerable
   frame_->Push(ebx);  // push entry
   frame_->InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION, 2);
   __ mov(ebx, Operand(eax));
@@ -2061,7 +2060,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   { Reference each(this, node->each());
     if (!each.is_illegal()) {
       if (each.size() > 0) {
-        frame_->Push(frame_->Element(each.size()));
+        frame_->Push(frame_->ElementAt(each.size()));
       }
       // If the reference was to a slot we rely on the convenient property
       // that it doesn't matter whether a value (eg, ebx pushed above) is
@@ -2073,13 +2072,13 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
         // ie, now the topmost value of the non-zero sized reference), since
         // we will discard the top of stack after unloading the reference
         // anyway.
-        frame_->Pop();
+        frame_->Drop();
       }
     }
   }
   // Discard the i'th entry pushed above or else the remainder of the
   // reference, whichever is currently on top of the stack.
-  frame_->Pop();
+  frame_->Drop();
 
   // Body.
   CheckStack();  // TODO(1222600): ignore if body contains calls.
@@ -2124,7 +2123,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   }
 
   // Remove the exception from the stack.
-  frame_->Pop();
+  frame_->Drop();
 
   VisitStatements(node->catch_block()->statements());
   if (frame_ != NULL) {
@@ -2646,7 +2645,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           frame_->Pop(eax);
           __ Set(ecx, Immediate(key));
           frame_->CallCode(ic, RelocInfo::CODE_TARGET, 0);
-          frame_->Pop();
+          frame_->Drop();
           // Ignore result.
           break;
         }
@@ -2911,7 +2910,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Pass receiver to called function.
       // The reference's size is non-negative.
-      frame_->Push(frame_->Element(ref.size()));
+      frame_->Push(frame_->ElementAt(ref.size()));
 
       // Call the function.
       CallWithArguments(args, node->position());
@@ -2962,7 +2961,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
   // Load the function into temporary function slot as per calling
   // convention.
-  __ mov(edi, frame_->Element(args->length() + 1));
+  __ mov(edi, frame_->ElementAt(args->length() + 1));
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
@@ -3174,7 +3173,7 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   JumpTarget leave(this);
   Load(args->at(0));  // Load the object.
   Load(args->at(1));  // Load the value.
-  __ mov(eax, frame_->Element(1));
+  __ mov(eax, frame_->ElementAt(1));
   __ mov(ecx, frame_->Top());
   // if (object->IsSmi()) return object.
   __ test(eax, Immediate(kSmiTagMask));
@@ -3192,7 +3191,7 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   // Leave.
   leave.Bind();
   __ mov(ecx, frame_->Top());
-  frame_->Pop();
+  frame_->Drop();
   __ mov(frame_->Top(), ecx);
 }
 
@@ -3507,7 +3506,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
     // Postfix: Store the old value as the result.
     if (is_postfix) {
-      __ mov(frame_->Element(target.size()), eax);
+      __ mov(frame_->ElementAt(target.size()), eax);
     }
 
     // Perform optimistic increment/decrement.
@@ -3532,7 +3531,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
   // Postfix: Discard the new value and use the old.
   if (is_postfix) {
-    frame_->Pop();
+    frame_->Drop();
   }
 }
 
@@ -3589,7 +3588,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
       // Pop the result of evaluating the first part.
       pop_and_continue.Bind();
-      frame_->Pop();
+      frame_->Drop();
 
       // Evaluate right side expression.
       is_true.Bind();
@@ -3632,7 +3631,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
       // Pop the result of evaluating the first part.
       pop_and_continue.Bind();
-      frame_->Pop();
+      frame_->Drop();
 
       // Evaluate right side expression.
       is_false.Bind();

@@ -33,6 +33,21 @@
 namespace v8 { namespace internal {
 
 // -------------------------------------------------------------------------
+// Virtual frame elements
+//
+// The internal elements of the virtual frames.  Elements are (currently) of
+// only one kind, in-memory.  Their actual location is given by their
+// position in the virtual frame.
+
+class Element BASE_EMBEDDED {
+ public:
+  Element() {}
+
+  bool matches(const Element& other) { return true; }
+};
+
+
+// -------------------------------------------------------------------------
 // Virtual frames
 //
 // The virtual frame is an abstraction of the physical stack frame.  It
@@ -52,12 +67,15 @@ class VirtualFrame : public Malloced {
   explicit VirtualFrame(VirtualFrame* original);
 
   // The height of the virtual expression stack.  Always non-negative.
-  int height() const { return height_; }
+  int height() const {
+    return virtual_stack_pointer_ - expression_base_index() + 1;
+  }
 
-  // Forget elements from the top of the expression stack.  This is
-  // used when the stack pointer is manually lowered to pop values
-  // left by statements (eg, for...in, try...finally) that have been
-  // escaped from.
+  // Add extra in-memory elements to the top of the frame without generating
+  // code.
+  void Adjust(int count);
+
+  // Forget frame elements without generating code.
   void Forget(int count);
 
   // Make this virtual frame have a state identical to an expected virtual
@@ -75,19 +93,20 @@ class VirtualFrame : public Malloced {
   // Allocate and initialize the frame-allocated locals.  The number of
   // locals is known from the frame's code generator's state (specifically
   // its scope).  As a side effect, code may be emitted.
-  void AllocateLocals();
+  void AllocateStackSlots(int count);
 
   // The current top of the expression stack as an assembly operand.
   Operand Top() const { return Operand(esp, 0); }
 
   // An element of the expression stack as an assembly operand.
-  Operand Element(int index) const {
+  Operand ElementAt(int index) const {
     return Operand(esp, index * kPointerSize);
   }
 
   // A frame-allocated local as an assembly operand.
   Operand Local(int index) const {
-    ASSERT(0 <= index && index < frame_local_count_);
+    ASSERT(0 <= index);
+    ASSERT(index < local_count_);
     return Operand(ebp, kLocal0Offset - index * kPointerSize);
   }
 
@@ -99,7 +118,8 @@ class VirtualFrame : public Malloced {
 
   // A parameter as an assembly operand.
   Operand Parameter(int index) const {
-    ASSERT(-1 <= index && index < parameter_count_);
+    ASSERT(-1 <= index);
+    ASSERT(index < parameter_count_);
     return Operand(ebp, (1 + parameter_count_ - index) * kPointerSize);
   }
 
@@ -107,47 +127,44 @@ class VirtualFrame : public Malloced {
   Operand Receiver() const { return Parameter(-1); }
 
   // Push a try-catch or try-finally handler on top of the virtual frame.
-  inline void PushTryHandler(HandlerType type);
+  void PushTryHandler(HandlerType type);
 
   // Call a code stub, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.
-  inline void CallStub(CodeStub* stub, int frame_arg_count);
+  void CallStub(CodeStub* stub, int frame_arg_count);
 
   // Call the runtime, given the number of arguments expected on (and
   // removed from) the top of the physical frame.
-  inline void CallRuntime(Runtime::Function* f, int frame_arg_count);
-  inline void CallRuntime(Runtime::FunctionId id, int frame_arg_count);
+  void CallRuntime(Runtime::Function* f, int frame_arg_count);
+  void CallRuntime(Runtime::FunctionId id, int frame_arg_count);
 
   // Invoke a builtin, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.
-  inline void InvokeBuiltin(Builtins::JavaScript id,
-                            InvokeFlag flag,
-                            int frame_arg_count);
+  void InvokeBuiltin(Builtins::JavaScript id,
+                     InvokeFlag flag,
+                     int frame_arg_count);
 
   // Call into a JS code object, given the number of arguments it expects on
   // (and removes from) the top of the physical frame.
-  inline void CallCode(Handle<Code> ic,
-                       RelocInfo::Mode rmode,
-                       int frame_arg_count);
+  void CallCode(Handle<Code> ic, RelocInfo::Mode rmode, int frame_arg_count);
 
   // Drop a number of elements from the top of the expression stack.  May
-  // emit code to effect the physical frame.
-  inline void Drop(int count);
+  // emit code to affect the physical frame.  Does not clobber any registers
+  // excepting possibly the stack pointer.
+  void Drop(int count);
 
-  // Pop and discard an element from the top of the expression stack.
-  // Specifically does not clobber any registers excepting possibly the
-  // stack pointer.
-  inline void Pop();
+  // Drop one element.
+  void Drop();
 
   // Pop and save an element from the top of the expression stack.  May emit
   // code.
-  inline void Pop(Register reg);
-  inline void Pop(Operand operand);
+  void Pop(Register reg);
+  void Pop(Operand operand);
 
   // Push an element on top of the expression stack.  May emit code.
-  inline void Push(Register reg);
-  inline void Push(Operand operand);
-  inline void Push(Immediate immediate);
+  void Push(Register reg);
+  void Push(Operand operand);
+  void Push(Immediate immediate);
 
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
@@ -158,12 +175,37 @@ class VirtualFrame : public Malloced {
 
   MacroAssembler* masm_;
 
-  // The number of frame-allocated locals and parameters respectively.
-  int parameter_count_;
-  int frame_local_count_;
+  List<Element> elements_;
 
-  // The height of the expression stack.
-  int height_;
+  // The virtual stack pointer is the index of the top element of the stack.
+  int virtual_stack_pointer_;
+
+  int virtual_frame_pointer_;
+
+  int parameter_count_;
+  int local_count_;
+
+  // The index of the first parameter.  The receiver lies below the first
+  // parameter.
+  int param0_index() const { return 1; }
+
+  // The index of the first local.  Between the parameters and the locals
+  // lie the return address, the saved frame pointer, the context, and the
+  // function.
+  int local0_index() const { return param0_index() + parameter_count_ + 4; }
+
+  // The index of the base of the expression stack.
+  int expression_base_index() const { return local0_index() + local_count_; }
+
+  void AddElement(const Element& element) {
+    virtual_stack_pointer_++;
+    elements_.Add(element);
+  }
+
+  Element RemoveElement() {
+    virtual_stack_pointer_--;
+    return elements_.RemoveLast();
+  }
 
   // The JumpTarget class explicitly sets the height_ field of the expected
   // frame at the actual return target.
