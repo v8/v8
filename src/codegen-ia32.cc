@@ -1041,7 +1041,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       } else {
         deferred = new DeferredInlinedSmiSubReversed(this, edx, overwrite_mode);
         __ mov(edx, Operand(eax));
-        __ mov(Operand(eax), Immediate(value));
+        __ mov(eax, Immediate(value));
         __ sub(eax, Operand(edx));
       }
       __ j(overflow, deferred->enter(), not_taken);
@@ -1265,7 +1265,7 @@ void SmiComparisonDeferred::Generate() {
   CompareStub stub(cc_, strict_);
   // Setup parameters and call stub.
   __ mov(edx, Operand(eax));
-  __ mov(Operand(eax), Immediate(Smi::FromInt(value_)));
+  __ Set(eax, Immediate(Smi::FromInt(value_)));
   __ CallStub(&stub);
   __ cmp(eax, 0);
   // "result" is returned in the flags
@@ -4984,7 +4984,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // running with --gc-greedy set.
   if (FLAG_gc_greedy) {
     Failure* failure = Failure::RetryAfterGC(0);
-    __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
+    __ mov(eax, Immediate(reinterpret_cast<int32_t>(failure)));
   }
   GenerateCore(masm, &throw_normal_exception,
                &throw_out_of_memory_exception,
@@ -5002,7 +5002,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
   // Do full GC and retry runtime call one final time.
   Failure* failure = Failure::InternalError();
-  __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
+  __ mov(eax, Immediate(reinterpret_cast<int32_t>(failure)));
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
@@ -5068,10 +5068,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // stub, because the builtin stubs may not have been generated yet.
   if (is_construct) {
     ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline);
-    __ mov(Operand(edx), Immediate(construct_entry));
+    __ mov(edx, Immediate(construct_entry));
   } else {
     ExternalReference entry(Builtins::JSEntryTrampoline);
-    __ mov(Operand(edx), Immediate(entry));
+    __ mov(edx, Immediate(entry));
   }
   __ mov(edx, Operand(edx, 0));  // deref address
   __ lea(edx, FieldOperand(edx, Code::kHeaderSize));

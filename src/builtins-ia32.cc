@@ -129,7 +129,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     // ebx: JSObject
     // edi: start of next object
     __ mov(Operand(ebx, JSObject::kMapOffset), eax);
-    __ mov(Operand(ecx), Factory::empty_fixed_array());
+    __ mov(ecx, Factory::empty_fixed_array());
     __ mov(Operand(ebx, JSObject::kPropertiesOffset), ecx);
     __ mov(Operand(ebx, JSObject::kElementsOffset), ecx);
     // Set extra fields in the newly allocated object.
@@ -137,7 +137,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     // ebx: JSObject
     // edi: start of next object
     { Label loop, entry;
-      __ mov(Operand(edx), Factory::undefined_value());
+      __ mov(edx, Factory::undefined_value());
       __ lea(ecx, Operand(ebx, JSObject::kHeaderSize));
       __ jmp(&entry);
       __ bind(&loop);
@@ -198,7 +198,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
     // edi: FixedArray
     // ecx: start of next object
     { Label loop, entry;
-      __ mov(Operand(edx), Factory::undefined_value());
+      __ mov(edx, Factory::undefined_value());
       __ lea(eax, Operand(edi, FixedArray::kHeaderSize));
       __ jmp(&entry);
       __ bind(&loop);
@@ -440,7 +440,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ push(edi);  // save edi across the call
     __ push(ebx);
     __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-    __ mov(Operand(ebx), eax);
+    __ mov(ebx, eax);
     __ pop(edi);  // restore edi after the call
 
     // Get the arguments count and untag it.
@@ -778,7 +778,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
   __ Set(eax, Immediate(0));  // no arguments
-  __ mov(Operand(ebx), Immediate(ExternalReference::debug_break()));
+  __ mov(ebx, Immediate(ExternalReference::debug_break()));
 
   CEntryDebugBreakStub ceb;
   __ CallStub(&ceb);

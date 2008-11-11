@@ -453,8 +453,10 @@ class Assembler : public Malloced {
   void mov_w(const Operand& dst, Register src);
 
   void mov(Register dst, int32_t imm32);
+  void mov(Register dst, const Immediate& x);
   void mov(Register dst, Handle<Object> handle);
   void mov(Register dst, const Operand& src);
+  void mov(Register dst, Register src);
   void mov(const Operand& dst, const Immediate& x);
   void mov(const Operand& dst, Handle<Object> handle);
   void mov(const Operand& dst, Register src);
