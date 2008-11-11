@@ -51,6 +51,7 @@
 #include "third_party/jscre/pcre.h"
 #endif
 
+
 namespace v8 { namespace internal {
 
 
@@ -634,19 +635,6 @@ ByteArray* RegExpImpl::JsreInternal(Handle<JSRegExp> re) {
 class ExecutionState;
 
 
-class DotPrinter {
- public:
-  DotPrinter() : stream_(&alloc_) { }
-  void PrintNode(const char* label, RegExpNode* node);
-  void Visit(RegExpNode* node);
-  StringStream* stream() { return &stream_; }
- private:
-  HeapStringAllocator alloc_;
-  StringStream stream_;
-  std::set<RegExpNode*> seen_;
-};
-
-
 class RegExpCompiler {
  public:
   explicit RegExpCompiler(int capture_count)
@@ -654,9 +642,7 @@ class RegExpCompiler {
 
   RegExpNode* Compile(RegExpTree* tree,
                       RegExpNode* on_success,
-                      RegExpNode* on_failure) {
-    return tree->ToNode(this, on_success, on_failure);
-  }
+                      RegExpNode* on_failure);
 
   int AllocateRegister() { return next_register_++; }
 
@@ -665,10 +651,19 @@ class RegExpCompiler {
 };
 
 
+#define FOR_EACH_NODE_TYPE(VISIT)                                    \
+  VISIT(End)                                                         \
+  VISIT(Atom)                                                        \
+  VISIT(Action)                                                      \
+  VISIT(Choice)                                                      \
+  VISIT(Backreference)                                               \
+  VISIT(CharacterClass)
+
+
 class RegExpNode: public ZoneObject {
  public:
   virtual ~RegExpNode() { }
-  virtual void EmitDot(DotPrinter* out);
+  virtual void Accept(NodeVisitor* visitor) = 0;
 };
 
 
@@ -685,7 +680,7 @@ class SeqRegExpNode: public RegExpNode {
 class EndNode: public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK };
-  virtual void EmitDot(DotPrinter* out);
+  virtual void Accept(NodeVisitor* visitor);
   static EndNode* GetAccept() { return &kAccept; }
   static EndNode* GetBacktrack() { return &kBacktrack; }
  private:
@@ -708,7 +703,7 @@ class AtomNode: public SeqRegExpNode {
     : SeqRegExpNode(on_success),
       on_failure_(on_failure),
       data_(data) { }
-  virtual void EmitDot(DotPrinter* out);
+  virtual void Accept(NodeVisitor* visitor);
   Vector<const uc16> data() { return data_; }
   RegExpNode* on_failure() { return on_failure_; }
  private:
@@ -727,7 +722,7 @@ class BackreferenceNode: public SeqRegExpNode {
       on_failure_(on_failure),
       start_reg_(start_reg),
       end_reg_(end_reg) { }
-  virtual void EmitDot(DotPrinter* out);
+  virtual void Accept(NodeVisitor* visitor);
   RegExpNode* on_failure() { return on_failure_; }
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
@@ -746,7 +741,7 @@ class CharacterClassNode: public SeqRegExpNode {
     : SeqRegExpNode(on_success),
       on_failure_(on_failure),
       ranges_(ranges) { }
-  virtual void EmitDot(DotPrinter* out);
+  virtual void Accept(NodeVisitor* visitor);
   ZoneList<CharacterRange>* ranges() { return ranges_; }
   RegExpNode* on_failure() { return on_failure_; }
  private:
@@ -795,16 +790,20 @@ class ChoiceNode: public RegExpNode {
  public:
   explicit ChoiceNode(int expected_size, RegExpNode* on_failure)
     : on_failure_(on_failure),
-      choices_(new ZoneList<GuardedAlternative>(expected_size)) { }
-  virtual void EmitDot(DotPrinter* out);
+      choices_(new ZoneList<GuardedAlternative>(expected_size)),
+      visited_(false) { }
+  virtual void Accept(NodeVisitor* visitor);
   void AddChild(GuardedAlternative node) { choices()->Add(node); }
   ZoneList<GuardedAlternative>* choices() { return choices_; }
   DispatchTable* table() { return &table_; }
   RegExpNode* on_failure() { return on_failure_; }
+  bool visited() { return visited_; }
+  void set_visited(bool value) { visited_ = value; }
  private:
   RegExpNode* on_failure_;
   ZoneList<GuardedAlternative>* choices_;
   DispatchTable table_;
+  bool visited_;
 };
 
 
@@ -819,60 +818,119 @@ class ActionNode: public SeqRegExpNode {
     ESCAPE_SUBMATCH,
     END_SUBMATCH
   };
-  static ActionNode* StoreRegister(int reg, int val, RegExpNode* on_success) {
-    ActionNode* result = new ActionNode(STORE_REGISTER, on_success);
-    result->data_.u_store_register.reg_ = reg;
-    result->data_.u_store_register.value_ = val;
-    return result;
-  }
-  static ActionNode* IncrementRegister(int reg, RegExpNode* on_success) {
-    ActionNode* result = new ActionNode(INCREMENT_REGISTER, on_success);
-    result->data_.u_increment_register.reg_ = reg;
-    return result;
-  }
-  static ActionNode* StorePosition(int reg, RegExpNode* on_success) {
-    ActionNode* result = new ActionNode(STORE_POSITION, on_success);
-    result->data_.u_position_register.reg_ = reg;
-    return result;
-  }
-  static ActionNode* RestorePosition(int reg, RegExpNode* on_success) {
-    ActionNode* result = new ActionNode(RESTORE_POSITION, on_success);
-    result->data_.u_position_register.reg_ = reg;
-    return result;
-  }
-  static ActionNode* BeginSubmatch(RegExpNode* on_success) {
-    return new ActionNode(BEGIN_SUBMATCH, on_success);
-  }
-  static ActionNode* EscapeSubmatch(RegExpNode* on_success) {
-    return new ActionNode(ESCAPE_SUBMATCH, on_success);
-  }
-  static ActionNode* EndSubmatch(RegExpNode* on_success) {
-    return new ActionNode(END_SUBMATCH, on_success);
-  }
-  virtual void EmitDot(DotPrinter* out);
-  Type type() { return type_; }
- private:
-  ActionNode(Type type, RegExpNode* on_success)
-    : SeqRegExpNode(on_success),
-      type_(type) { }
-  Type type_;
+  static ActionNode* StoreRegister(int reg, int val, RegExpNode* on_success);
+  static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
+  static ActionNode* StorePosition(int reg, RegExpNode* on_success);
+  static ActionNode* RestorePosition(int reg, RegExpNode* on_success);
+  static ActionNode* BeginSubmatch(RegExpNode* on_success);
+  static ActionNode* EscapeSubmatch(RegExpNode* on_success);
+  static ActionNode* EndSubmatch(RegExpNode* on_success);
+  virtual void Accept(NodeVisitor* visitor);
+  Type type;
   union {
     struct {
-      int reg_;
-      int value_;
+      int reg;
+      int value;
     } u_store_register;
     struct {
-      int reg_;
+      int reg;
     } u_increment_register;
     struct {
-      int reg_;
+      int reg;
     } u_position_register;
-  } data_;
+  } data;
+ private:
+  ActionNode(Type _type, RegExpNode* on_success)
+    : SeqRegExpNode(on_success),
+      type(_type) { }
 };
+
+
+ActionNode* ActionNode::StoreRegister(int reg,
+                                      int val,
+                                      RegExpNode* on_success) {
+  ActionNode* result = new ActionNode(STORE_REGISTER, on_success);
+  result->data.u_store_register.reg = reg;
+  result->data.u_store_register.value = val;
+  return result;
+}
+
+
+ActionNode* ActionNode::IncrementRegister(int reg, RegExpNode* on_success) {
+  ActionNode* result = new ActionNode(INCREMENT_REGISTER, on_success);
+  result->data.u_increment_register.reg = reg;
+  return result;
+}
+
+
+ActionNode* ActionNode::StorePosition(int reg, RegExpNode* on_success) {
+  ActionNode* result = new ActionNode(STORE_POSITION, on_success);
+  result->data.u_position_register.reg = reg;
+  return result;
+}
+
+
+ActionNode* ActionNode::RestorePosition(int reg, RegExpNode* on_success) {
+  ActionNode* result = new ActionNode(RESTORE_POSITION, on_success);
+  result->data.u_position_register.reg = reg;
+  return result;
+}
+
+
+ActionNode* ActionNode::BeginSubmatch(RegExpNode* on_success) {
+  return new ActionNode(BEGIN_SUBMATCH, on_success);
+}
+
+
+ActionNode* ActionNode::EscapeSubmatch(RegExpNode* on_success) {
+  return new ActionNode(ESCAPE_SUBMATCH, on_success);
+}
+
+
+ActionNode* ActionNode::EndSubmatch(RegExpNode* on_success) {
+  return new ActionNode(END_SUBMATCH, on_success);
+}
+
+
+class NodeVisitor {
+ public:
+  virtual ~NodeVisitor() { }
+#define DECLARE_VISIT(Type)                                          \
+  virtual void Visit##Type(Type##Node* that) = 0;
+FOR_EACH_NODE_TYPE(DECLARE_VISIT)
+#undef DECLARE_VISIT
+};
+
+
+#define DEFINE_ACCEPT(Type)                                          \
+  void Type##Node::Accept(NodeVisitor* visitor) {                    \
+    visitor->Visit##Type(this);                                      \
+  }
+FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
+#undef DEFINE_ACCEPT
 
 
 // -------------------------------------------------------------------
 // Dot/dotty output
+
+
+class DotPrinter: public NodeVisitor {
+ public:
+  DotPrinter() : stream_(&alloc_) { }
+  void PrintNode(const char* label, RegExpNode* node);
+  void Visit(RegExpNode* node);
+  void PrintOnFailure(RegExpNode* from, RegExpNode* on_failure);
+  StringStream* stream() { return &stream_; }
+#define DECLARE_VISIT(Type)                                          \
+  virtual void Visit##Type(Type##Node* that);
+FOR_EACH_NODE_TYPE(DECLARE_VISIT)
+#undef DECLARE_VISIT
+ private:
+  HeapStringAllocator alloc_;
+  StringStream stream_;
+  std::set<RegExpNode*> seen_;
+};
+
 
 void DotPrinter::PrintNode(const char* label, RegExpNode* node) {
   stream()->Add("digraph G {\n  graph [label=\"");
@@ -900,123 +958,124 @@ void DotPrinter::Visit(RegExpNode* node) {
   if (seen_.find(node) != seen_.end())
     return;
   seen_.insert(node);
-  node->EmitDot(this);
+  node->Accept(this);
 }
 
 
-void RegExpNode::EmitDot(DotPrinter* out) {
-  UNIMPLEMENTED();
-}
+#ifdef DEBUG
 
 
-static void PrintOnFailure(DotPrinter* out,
-                           RegExpNode* from,
-                           RegExpNode* on_failure) {
+void DotPrinter::PrintOnFailure(RegExpNode* from, RegExpNode* on_failure) {
   if (on_failure == EndNode::GetBacktrack()) return;
-  out->stream()->Add("  n%p -> n%p [style=dotted];\n", from, on_failure);
-  out->Visit(on_failure);
+  stream()->Add("  n%p -> n%p [style=dotted];\n", from, on_failure);
+  Visit(on_failure);
 }
 
 
-void ChoiceNode::EmitDot(DotPrinter* out) {
-  out->stream()->Add("  n%p [label=\"?\", shape=circle];\n", this);
-  PrintOnFailure(out, this, this->on_failure());
-  for (int i = 0; i < choices()->length(); i++) {
-    GuardedAlternative alt = choices()->at(i);
-    out->stream()->Add("  n%p -> n%p [label=\"%i",
-                       this,
+void DotPrinter::VisitChoice(ChoiceNode* that) {
+  stream()->Add("  n%p [label=\"? (%p)\"];\n", that, that);
+  PrintOnFailure(that, that->on_failure());
+  for (int i = 0; i < that->choices()->length(); i++) {
+    GuardedAlternative alt = that->choices()->at(i);
+    stream()->Add("  n%p -> n%p [label=\"%i",
+                       that,
                        alt.node(),
                        i);
     if (alt.guards() != NULL) {
-      out->stream()->Add(" [");
+      stream()->Add(" [");
       for (int j = 0; j < alt.guards()->length(); j++) {
-        if (j > 0) out->stream()->Add(" ");
+        if (j > 0) stream()->Add(" ");
         Guard* guard = alt.guards()->at(j);
         switch (guard->op()) {
           case Guard::GEQ:
-            out->stream()->Add("$%i &#8805; %i", guard->reg(), guard->value());
+            stream()->Add("$%i &#8805; %i", guard->reg(), guard->value());
             break;
           case Guard::LT:
-            out->stream()->Add("$%i < %i", guard->reg(), guard->value());
+            stream()->Add("$%i < %i", guard->reg(), guard->value());
             break;
         }
       }
-      out->stream()->Add("]");
+      stream()->Add("]");
     }
-    out->stream()->Add("\"];\n");
-    out->Visit(choices()->at(i).node());
+    stream()->Add("\"];\n");
+    that->choices()->at(i).node()->Accept(this);
   }
+  OS::PrintError("--- %p ---\n", static_cast<void*>(this));
+  that->table()->Dump();
 }
 
 
-void AtomNode::EmitDot(DotPrinter* out) {
-  out->stream()->Add("  n%p [label=\"'%w'\", shape=doubleoctagon];\n",
-                     this,
-                     data());
-  out->stream()->Add("  n%p -> n%p;\n", this, this->on_success());
-  out->Visit(this->on_success());
-  PrintOnFailure(out, this, this->on_failure());
+void DotPrinter::VisitAtom(AtomNode* that) {
+  stream()->Add("  n%p [label=\"'%w'\", shape=doubleoctagon];\n",
+                that,
+                that->data());
+  stream()->Add("  n%p -> n%p;\n", that, that->on_success());
+  Visit(that->on_success());
+  PrintOnFailure(that, that->on_failure());
 }
 
 
-void BackreferenceNode::EmitDot(DotPrinter* out) {
-  out->stream()->Add("  n%p [label=\"$%i..$%i\", shape=doubleoctagon];\n",
-                     this,
-                     start_register(),
-                     end_register());
-  out->stream()->Add("  n%p -> n%p;\n", this, this->on_success());
-  out->Visit(this->on_success());
-  PrintOnFailure(out, this, this->on_failure());
+void DotPrinter::VisitBackreference(BackreferenceNode* that) {
+  stream()->Add("  n%p [label=\"$%i..$%i\", shape=doubleoctagon];\n",
+                that,
+                that->start_register(),
+                that->end_register());
+  stream()->Add("  n%p -> n%p;\n", that, that->on_success());
+  Visit(that->on_success());
+  PrintOnFailure(that, that->on_failure());
 }
 
 
-void EndNode::EmitDot(DotPrinter* out) {
-  out->stream()->Add("  n%p [style=bold, shape=point];\n", this);
+void DotPrinter::VisitEnd(EndNode* that) {
+  stream()->Add("  n%p [style=bold, shape=point];\n", that);
 }
 
 
-void CharacterClassNode::EmitDot(DotPrinter* out) {
-  out->stream()->Add("  n%p [label=\"[...]\"];\n", this);
-  out->stream()->Add("  n%p -> n%p;\n", this, this->on_success());
-  out->Visit(this->on_success());
-  PrintOnFailure(out, this, this->on_failure());
+void DotPrinter::VisitCharacterClass(CharacterClassNode* that) {
+  stream()->Add("  n%p [label=\"[...]\"];\n", that);
+  stream()->Add("  n%p -> n%p;\n", that, that->on_success());
+  Visit(that->on_success());
+  PrintOnFailure(that, that->on_failure());
 }
 
 
-void ActionNode::EmitDot(DotPrinter* out) {
-  out->stream()->Add("  n%p [", this);
-  switch (type()) {
-    case STORE_REGISTER:
-      out->stream()->Add("label=\"$%i:=%i\", shape=box",
-                         data_.u_store_register.reg_,
-                         data_.u_store_register.value_);
+void DotPrinter::VisitAction(ActionNode* that) {
+  stream()->Add("  n%p [", that);
+  switch (that->type) {
+    case ActionNode::STORE_REGISTER:
+      stream()->Add("label=\"$%i:=%i\", shape=box",
+                    that->data.u_store_register.reg,
+                    that->data.u_store_register.value);
       break;
-    case INCREMENT_REGISTER:
-      out->stream()->Add("label=\"$%i++\", shape=box",
-                         data_.u_increment_register.reg_);
+    case ActionNode::INCREMENT_REGISTER:
+      stream()->Add("label=\"$%i++\", shape=box",
+                    that->data.u_increment_register.reg);
       break;
-    case STORE_POSITION:
-      out->stream()->Add("label=\"$%i:=$pos\", shape=box",
-                         data_.u_position_register.reg_);
+    case ActionNode::STORE_POSITION:
+      stream()->Add("label=\"$%i:=$pos\", shape=box",
+                    that->data.u_position_register.reg);
       break;
-    case RESTORE_POSITION:
-      out->stream()->Add("label=\"$pos:=$%i\", shape=box",
-                         data_.u_position_register.reg_);
+    case ActionNode::RESTORE_POSITION:
+      stream()->Add("label=\"$pos:=$%i\", shape=box",
+                    that->data.u_position_register.reg);
       break;
-    case BEGIN_SUBMATCH:
-      out->stream()->Add("label=\"begin\", shape=septagon");
+    case ActionNode::BEGIN_SUBMATCH:
+      stream()->Add("label=\"begin\", shape=septagon");
       break;
-    case ESCAPE_SUBMATCH:
-      out->stream()->Add("label=\"escape\", shape=septagon");
+    case ActionNode::ESCAPE_SUBMATCH:
+      stream()->Add("label=\"escape\", shape=septagon");
       break;
-    case END_SUBMATCH:
-      out->stream()->Add("label=\"end\", shape=septagon");
+    case ActionNode::END_SUBMATCH:
+      stream()->Add("label=\"end\", shape=septagon");
       break;
   }
-  out->stream()->Add("];\n");
-  out->stream()->Add("  n%p -> n%p;\n", this, this->on_success());
-  out->Visit(this->on_success());
+  stream()->Add("];\n");
+  stream()->Add("  n%p -> n%p;\n", that, that->on_success());
+  Visit(that->on_success());
 }
+
+
+#endif // DEBUG
 
 
 // -------------------------------------------------------------------
@@ -1392,6 +1451,45 @@ void DispatchTable::AddRange(CharacterRange full_range, int value) {
 }
 
 
+#ifdef DEBUG
+
+
+class DispatchTableDumper {
+ public:
+  DispatchTableDumper(StringStream* stream) : stream_(stream) { }
+  void Call(uc16 key, DispatchTable::Entry entry);
+  StringStream* stream() { return stream_; }
+ private:
+  StringStream* stream_;
+};
+
+
+void DispatchTableDumper::Call(uc16 key, DispatchTable::Entry entry) {
+  stream()->Add("[%k-%k]: {", key, entry.to());
+  OutSet set = entry.out_set();
+  bool first = true;
+  for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
+    if (set.Get(i)) {
+      if (first) first = false;
+      else stream()->Add(", ");
+      stream()->Add("%i", i);
+    }
+  }
+  stream()->Add("}\n");
+}
+
+
+void DispatchTable::Dump() {
+  HeapStringAllocator alloc;
+  StringStream stream(&alloc);
+  tree()->ForEach(DispatchTableDumper(&stream));
+  OS::PrintError("%s", *stream.ToCString());
+}
+
+
+#endif
+
+
 OutSet DispatchTable::Get(uc16 value) {
   ZoneSplayTree<Config>::Locator loc;
   if (!tree()->FindGreatestLessThan(value, &loc))
@@ -1401,6 +1499,109 @@ OutSet DispatchTable::Get(uc16 value) {
     return entry->out_set();
   else
     return OutSet::empty();
+}
+
+
+// -------------------------------------------------------------------
+// Analysis
+
+
+class Analysis: public NodeVisitor {
+ public:
+  Analysis(RegExpCompiler* compiler)
+    : compiler_(compiler),
+      table_(NULL),
+      choice_index_(-1) { }
+  DispatchTable* table() { return table_; }
+  RegExpCompiler* compiler() { return compiler_; }
+  int choice_index() { return choice_index_; }
+  void Analyze(RegExpNode* node) { node->Accept(this); }
+#define DECLARE_VISIT(Type)                                          \
+  virtual void Visit##Type(Type##Node* that);
+FOR_EACH_NODE_TYPE(DECLARE_VISIT)
+#undef DECLARE_VISIT
+ protected:
+  Analysis(Analysis* prev) { *this = *prev; }
+  RegExpCompiler* compiler_;
+  DispatchTable *table_;
+  int choice_index_;
+};
+
+
+// A subclass of analysis data that allows fields to be set.  Anyone
+// who needs to create new analysis data creates an instance of this
+// class, configures it, and then passes it on as an AnalysisData
+// which doesn't allow its fields to be changed.
+class AnalysisBuilder: public Analysis {
+ public:
+  AnalysisBuilder(Analysis* prev) : Analysis(prev) { }
+  void set_table(DispatchTable* value) { table_ = value; }
+  void set_choice_index(int value) { choice_index_ = value; }
+};
+
+
+void Analysis::VisitEnd(EndNode* that) {
+  // nothing to do
+}
+
+
+void Analysis::VisitChoice(ChoiceNode* node) {
+  if (node->visited()) return;
+  node->set_visited(true);
+  ZoneList<GuardedAlternative>* choices = node->choices();
+  AnalysisBuilder data(this);
+  data.set_table(node->table());
+  for (int i = 0; i < choices->length(); i++) {
+    data.set_choice_index(i);
+    data.Analyze(choices->at(i).node());
+  }
+  node->set_visited(false);
+}
+
+
+void Analysis::VisitBackreference(BackreferenceNode* that) {
+  UNIMPLEMENTED();
+}
+
+
+void Analysis::VisitCharacterClass(CharacterClassNode* that) {
+  if (table() != NULL) {
+    int index = choice_index();
+    ZoneList<CharacterRange>* ranges = that->ranges();
+    for (int i = 0; i < ranges->length(); i++) {
+      CharacterRange range = ranges->at(i);
+      table()->AddRange(range, index);
+    }
+  }
+  AnalysisBuilder outgoing(this);
+  outgoing.set_table(NULL);
+  outgoing.Analyze(that->on_success());
+}
+
+
+void Analysis::VisitAtom(AtomNode* that) {
+  if (table() != NULL) {
+    uc16 c = that->data()[0];
+    table()->AddRange(CharacterRange(c, c), choice_index());
+  }
+  AnalysisBuilder outgoing(this);
+  outgoing.set_table(NULL);
+  outgoing.Analyze(that->on_success());
+}
+
+
+void Analysis::VisitAction(ActionNode* that) {
+  Analyze(that->on_success());
+}
+
+
+RegExpNode* RegExpCompiler::Compile(RegExpTree* tree,
+                                    RegExpNode* on_success,
+                                    RegExpNode* on_failure) {
+  RegExpNode* node = tree->ToNode(this, on_success, on_failure);
+  Analysis analysis(this);
+  analysis.Analyze(node);
+  return node;
 }
 
 

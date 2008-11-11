@@ -164,6 +164,10 @@ class CharacterRange {
 };
 
 
+template <typename Node, class Callback>
+static void DoForEach(Node* node, Callback callback);
+
+
 // A zone splay tree.  The config type parameter encapsulates the
 // different configurations of a concrete splay tree:
 //
@@ -225,6 +229,10 @@ class ZoneSplayTree : public ZoneObject {
         value_(value),
         left_(NULL),
         right_(NULL) { }
+     Key key() { return key_; }
+     Value value() { return value_; }
+     Node* left() { return left_; }
+     Node* right() { return right_; }
    private:
     friend class ZoneSplayTree;
     friend class Locator;
@@ -238,6 +246,7 @@ class ZoneSplayTree : public ZoneObject {
   // exposing the node.
   class Locator {
    public:
+    Locator(Node* node) : node_(node) { }
     Locator() : node_(NULL) { }
     const Key& key() { return node_->key_; }
     Value& value() { return node_->value_; }
@@ -246,6 +255,11 @@ class ZoneSplayTree : public ZoneObject {
    private:
     Node* node_;
   };
+
+  template <class Callback>
+  void ForEach(Callback c) {
+    DoForEach<typename ZoneSplayTree<Config>::Node, Callback>(root_, c);
+  }
 
  private:
   Node* root_;
@@ -262,10 +276,10 @@ class OutSet {
   void Set(unsigned value);
   bool Get(unsigned value);
   OutSet Clone();
+  static const unsigned kFirstLimit = 32;
  private:
   OutSet(uint32_t first, ZoneList<unsigned>* remaining)
     : first_(first), remaining_(remaining) { }
-  static const unsigned kFirstLimit = 32;
   uint32_t first_;
   ZoneList<unsigned>* remaining_;
 };
@@ -309,6 +323,7 @@ class DispatchTable {
   };
   void AddRange(CharacterRange range, int value);
   OutSet Get(uc16 value);
+  void Dump();
  private:
   ZoneSplayTree<Config>* tree() { return &tree_; }
   ZoneSplayTree<Config> tree_;

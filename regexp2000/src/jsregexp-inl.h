@@ -244,6 +244,15 @@ void ZoneSplayTree<C>::Splay(const Key& key) {
 }
 
 
+template <typename Node, class Callback>
+static void DoForEach(Node* node, Callback callback) {
+  if (node == NULL) return;
+  DoForEach<Node, Callback>(node->left(), callback);
+  callback.Call(node->key(), node->value());
+  DoForEach<Node, Callback>(node->right(), callback);
+}
+
+
 OutSet::OutSet(unsigned value)
   : first_(0),
     remaining_(NULL) {

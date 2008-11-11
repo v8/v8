@@ -140,7 +140,17 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
       PrintObject(obj);
       break;
     }
-    case 'i': case 'd': case 'u': case 'x': case 'c': case 'p': {
+    case 'k': {
+      ASSERT_EQ(FmtElm::INT, current.type_);
+      int value = current.data_.u_int_;
+      if (0x20 <= value && value <= 0xFF) {
+        Put(value);
+      } else {
+        Add("\\x%X", value);
+      }
+      break;
+    }
+    case 'i': case 'd': case 'u': case 'x': case 'c': case 'p': case 'X': {
       int value = current.data_.u_int_;
       EmbeddedVector<char, 24> formatted;
       int length = OS::SNPrintF(formatted, temp.start(), value);

@@ -178,6 +178,7 @@ class Map;
 class MapSpace;
 class MarkCompactCollector;
 class NewSpace;
+class NodeVisitor;
 class Object;
 class OldSpace;
 class Property;

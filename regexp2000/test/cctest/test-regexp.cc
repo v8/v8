@@ -604,3 +604,8 @@ TEST(Assembler2) {
       Factory::NewStringFromAscii(CStrVector("walking\nbarefoot"));
   CHECK(!Re2kInterpreter::Match(*array, *f5, captures, 0));
 }
+
+
+TEST(Graph) {
+  Execute("(a|b|c|\\w|\\s)", "", true);
+}
