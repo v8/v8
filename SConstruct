@@ -106,7 +106,10 @@ V8_EXTRA_FLAGS = {
       'CPPDEFINES':   ['BUILDING_V8_SHARED']
     },
     'arch:arm': {
-      'CPPDEFINES':   ['ARM']
+      'CPPDEFINES':   ['ARM'],
+      # /wd4996 is to silence the warning about sscanf
+      # used by the arm simulator.
+      'WARNINGFLAGS': ['/wd4996']
     },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
