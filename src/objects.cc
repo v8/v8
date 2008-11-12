@@ -3848,7 +3848,7 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
   const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
   uint32_t pa_addr = reinterpret_cast<uint32_t>(pa);
   uint32_t pb_addr = reinterpret_cast<uint32_t>(pb);
-  if ((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask) == 0) {
+  if (((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask)) == 0) {
 #endif
     const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
     int endpoint = length - kStepSize;
