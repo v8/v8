@@ -35,8 +35,8 @@ namespace v8 { namespace internal {
 
 class Re2kInterpreter {
  public:
-  static bool Match(ByteArray* code,
-                    String* subject,
+  static bool Match(Handle<ByteArray> code,
+                    Handle<String> subject,
                     int* captures,
                     int start_position);
 };

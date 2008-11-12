@@ -34,78 +34,88 @@ namespace v8 { namespace internal {
 struct DisjunctDecisionRow {
   RegExpCharacterClass cc;
   Label* on_match;
-  int actions;
 };
 
 
-// Actions.  These are things that can be specified to happen on a
-// match or failure when generating code.
-static const int kNoAction                      = 0x00;
-// Pop the current position in the subject from the backtracking stack.
-static const int kPopCurrentPosition            = 0x01;
-// Push the current position in the subject onto the backtracking stack.
-static const int kPushCurrentPosition           = 0x04;
-// As above, but in CheckCharacter and CheckCharacterClass which take an
-// offset, the offset is added to the current position first.
-static const int kPushCurrentPositionPlusOffset = 0x06;
-// Pop a new state from the stack and go to it.
-static const int kBacktrack                     = 0x08;
-// Goto the label that is given in another argument.
-static const int kGotoLabel                     = 0x10;
-// Advance current position (by the offset + 1).
-static const int kAdvanceCurrentPosition        = 0x20;
-// Push the label that is given in another argument onto the backtrack stack.
-static const int kPushBacktrackState            = 0x40;
-// The entire regexp has succeeded.
-static const int kSuccess                       = 0x80;
-// The entire regexp has failed to match.
-static const int kFailure                      = 0x100;
-
-
-template <typename SubjectChar>
-class RegexpMacroAssembler {
+class RegExpMacroAssembler {
  public:
-  RegexpMacroAssembler() { }
-  virtual ~RegexpMacroAssembler() { }
+  RegExpMacroAssembler() { }
+  virtual ~RegExpMacroAssembler();
   virtual void Bind(Label* label) = 0;
-  // Writes the current position in the subject string into the given index of
-  // the captures array.  The old value is pushed to the stack.
-  virtual void WriteCurrentPositionToRegister(int index) = 0;
-  // Pops the the given index of the capture array from the stack.
-  virtual void PopRegister(int index) = 0;
-  // Pushes the current position in the subject string onto the stack for later
-  // retrieval.
-  virtual void PushCurrentPosition() = 0;
-  // Pops the current position in the subject string.
+  virtual void EmitOrLink(Label* label) = 0;
+  virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.
   virtual void PopCurrentPosition() = 0;
-  // Check the current character for a match with a character class.  Take
-  // one of the actions depending on whether there is a match.
-  virtual void AdvanceCurrentPosition(int by) = 0;
-  // Looks at the next character from the subject and performs the corresponding
-  // action according to whether it matches.  Success_action can only be one of
-  // kAdvanceCurrentPosition or kNoAction.
+  virtual void PushCurrentPosition() = 0;
+  virtual void Backtrack() = 0;
+  virtual void GoTo(Label* label) = 0;
+  virtual void PushBacktrack(Label* label) = 0;
+  virtual void Succeed() = 0;
+  virtual void Fail() = 0;
+  virtual void PopRegister(int register_index) = 0;
+  virtual void PushRegister(int register_index) = 0;
+  virtual void AdvanceRegister(int reg, int by) = 0;  // r[reg] += by.
+  virtual void WriteCurrentPositionToRegister(int reg) = 0;
+  virtual void SetRegister(int register_index, int to) = 0;
+  // Looks at the next character from the subject and if it doesn't match
+  // then goto the on_failure label.  End of input never matches.  If the
+  // label is NULL then we should pop a backtrack address off the stack and
+  // go to that.
   virtual void CheckCharacterClass(
       RegExpCharacterClass* cclass,
-      int success_action,
-      int fail_action,
-      int offset,                      // Offset from current subject position.
-      Label* fail_state = NULL) = 0;   // Used by kGotoLabel on failure.
-  // Check the current character for a match with a character class.  Take
-  // one of the actions depending on whether there is a match.
+      int cp_offset,
+      Label* on_failure) = 0;
+  // Check the current character for a match with a literal string.  If we
+  // fail to match then goto the on_failure label.  End of input always
+  // matches.  If the label is NULL then we should pop a backtrack address off
+  // the stack abnd go to that.
   virtual void CheckCharacters(
-      Vector<uc16> str,
-      int fail_action,
-      int offset,
-      Label* state = NULL) = 0;        // Used by kGotoLabel on failure.
-  // Perform an action unconditionally.
-  virtual void Action(
-      int action,
-      Label* state = NULL) = 0;
-  // Peek at the next character and find out which of the disjunct character
-  // classes it is in.  Perform the corresponding actions on the corresponding
-  // label.
-  virtual void DisjunctCharacterPeekDispatch(
-      Vector<DisjunctDecisionRow> outcomes) = 0;
+      Vector<const uc16> str,
+      int cp_offset,
+      Label* on_failure) = 0;
+  // Check the current input position against a register.  If the register is
+  // equal to the current position then go to the label.  If the label is NULL
+  // then backtrack instead.
+  virtual void CheckCurrentPosition(
+      int register_index,
+      Label* on_equal) = 0;
+  // Check the current character against a bitmap.  The range of the current
+  // character must be from start to start + length_of_bitmap_in_bits.
+  virtual void CheckBitmap(
+      uc16 start,           // The bitmap is indexed from this character.
+      Label* bitmap,        // Where the bitmap is emitted.
+      Label* on_zero) = 0;  // Where to go if the bit is 0.  Fall through on 1.
+  // Dispatch after looking the current character up in a 2-bits-per-entry
+  // map.  The destinations vector has up to 4 labels.
+  virtual void DispatchHalfNibbleMap(
+      uc16 start,
+      Label* half_nibble_map,
+      const Vector<Label*>& destinations) = 0;
+  // Dispatch after looking the current character up in a byte map.  The
+  // destinations vector has up to 256 labels.
+  virtual void DispatchByteMap(
+      uc16 start,
+      Label* byte_map,
+      const Vector<Label*>& destinations) = 0;
+  // Dispatch after looking the high byte of the current character up in a byte
+  // map.  The destinations vector has up to 256 labels.
+  virtual void DispatchHighByteMap(
+      byte start,
+      Label* byte_map,
+      const Vector<Label*>& destinations) = 0;
+  // Check whether a register is < a given constant and go to a label if it is.
+  // Backtracks instead if the label is NULL.
+  virtual void IfRegisterLT(int reg, int comparand, Label* if_lt) = 0;
+  // Check whether a register is >= a given constant and go to a label if it
+  // is.  Backtracks instead if the label is NULL.
+  virtual void IfRegisterGE(int reg, int comparand, Label* if_ge) = 0;
+
+  enum Re2kImplementation {
+    kIA32Implementation,
+    kARMImplementation,
+    kBytecodeImplementation};
+
+  virtual Re2kImplementation Implementation() = 0;
+  virtual Handle<Object> GetCode() = 0;
  private:
 };
 

@@ -97,13 +97,13 @@ class RegExpImpl {
   static void NewSpaceCollectionPrologue();
   static void OldSpaceCollectionPrologue();
 
- private:
   // Converts a source string to a 16 bit flat string.  The string
   // will be either sequential or it will be a SlicedString backed
   // by a flat string.
   static Handle<String> StringToTwoByte(Handle<String> pattern);
   static Handle<String> CachedStringToTwoByte(Handle<String> pattern);
 
+ private:
   static String* last_ascii_string_;
   static String* two_byte_cached_string_;
 
@@ -246,7 +246,7 @@ class ZoneSplayTree : public ZoneObject {
   // exposing the node.
   class Locator {
    public:
-    Locator(Node* node) : node_(node) { }
+    explicit Locator(Node* node) : node_(node) { }
     Locator() : node_(NULL) { }
     const Key& key() { return node_->key_; }
     Value& value() { return node_->value_; }
@@ -359,6 +359,22 @@ class RegExpEngine: public AllStatic {
  public:
   static RegExpNode* Compile(RegExpParseResult* input);
   static void DotPrint(const char* label, RegExpNode* node);
+};
+
+
+class RegExpCompiler;
+
+
+class RegExpNode: public ZoneObject {
+ public:
+  virtual ~RegExpNode() { }
+  virtual void Accept(NodeVisitor* visitor) = 0;
+  // Generates a goto to this node or actually generates the code at this point.
+  void GoTo(RegExpCompiler* compiler);
+  void EmitAddress(RegExpCompiler* compiler);
+  virtual void Emit(RegExpCompiler* compiler) = 0;
+ private:
+  Label label;
 };
 
 

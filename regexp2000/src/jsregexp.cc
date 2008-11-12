@@ -40,6 +40,7 @@
 #include "compilation-cache.h"
 #include "string-stream.h"
 #include "parser.h"
+#include "regexp-macro-assembler.h"
 
 // Including pcre.h undefines DEBUG to avoid getting debug output from
 // the JSCRE implementation. Make sure to redefine it in debug mode
@@ -632,13 +633,15 @@ ByteArray* RegExpImpl::JsreInternal(Handle<JSRegExp> re) {
 // New regular expression engine
 
 
-class ExecutionState;
+class RegExpCompiler;
+class DotPrinter;
 
 
 class RegExpCompiler {
  public:
   explicit RegExpCompiler(int capture_count)
-    : next_register_(2 * capture_count) { }
+    : next_register_(2 * capture_count),
+      work_list_(NULL) { }
 
   RegExpNode* Compile(RegExpTree* tree,
                       RegExpNode* on_success,
@@ -646,9 +649,46 @@ class RegExpCompiler {
 
   int AllocateRegister() { return next_register_++; }
 
+  Handle<FixedArray> Assemble(RegExpMacroAssembler* assembler,
+                              RegExpNode* start);
+
+  inline void AddWork(RegExpNode* node) { work_list_->Add(node); }
+
+  static const int kImplementationOffset = 0;
+  static const int kNumberOfRegistersOffset = 0;
+  static const int kCodeOffset = 1;
+
+  RegExpMacroAssembler* macro_assembler() {
+    return macro_assembler_;
+  }
  private:
   int next_register_;
+  List<RegExpNode*>* work_list_;
+  RegExpMacroAssembler* macro_assembler_;
 };
+
+
+Handle<FixedArray> RegExpCompiler::Assemble(
+    RegExpMacroAssembler* macro_assembler,
+    RegExpNode* start) {
+  macro_assembler_ = macro_assembler;
+  List <RegExpNode*> work_list(0);
+  work_list_ = &work_list;
+  start->GoTo(this);
+  while (!work_list.is_empty()) {
+    work_list.RemoveLast()->Emit(this);
+  }
+  Handle<FixedArray> array = Factory::NewFixedArray(3);
+  array->set(kImplementationOffset,
+             Smi::FromInt(macro_assembler->Implementation()),
+             SKIP_WRITE_BARRIER);
+  array->set(kNumberOfRegistersOffset,
+             Smi::FromInt(next_register_),
+             SKIP_WRITE_BARRIER);
+  Handle<Object> code = macro_assembler->GetCode();
+  work_list_ = NULL;
+  return array;
+}
 
 
 #define FOR_EACH_NODE_TYPE(VISIT)                                    \
@@ -660,11 +700,18 @@ class RegExpCompiler {
   VISIT(CharacterClass)
 
 
-class RegExpNode: public ZoneObject {
- public:
-  virtual ~RegExpNode() { }
-  virtual void Accept(NodeVisitor* visitor) = 0;
-};
+void RegExpNode::GoTo(RegExpCompiler* compiler) {
+  if (label.is_bound()) {
+    compiler->macro_assembler()->GoTo(&label);
+  } else {
+    Emit(compiler);
+  }
+}
+
+
+void RegExpNode::EmitAddress(RegExpCompiler* compiler) {
+  compiler->macro_assembler()->EmitOrLink(&label);
+}
 
 
 class SeqRegExpNode: public RegExpNode {
@@ -672,6 +719,7 @@ class SeqRegExpNode: public RegExpNode {
   explicit SeqRegExpNode(RegExpNode* on_success)
     : on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
+  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
  private:
   RegExpNode* on_success_;
 };
@@ -683,6 +731,7 @@ class EndNode: public RegExpNode {
   virtual void Accept(NodeVisitor* visitor);
   static EndNode* GetAccept() { return &kAccept; }
   static EndNode* GetBacktrack() { return &kBacktrack; }
+  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
  private:
   explicit EndNode(Action action) : action_(action) { }
   Action action_;
@@ -706,6 +755,7 @@ class AtomNode: public SeqRegExpNode {
   virtual void Accept(NodeVisitor* visitor);
   Vector<const uc16> data() { return data_; }
   RegExpNode* on_failure() { return on_failure_; }
+  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
  private:
   RegExpNode* on_failure_;
   Vector<const uc16> data_;
@@ -726,6 +776,7 @@ class BackreferenceNode: public SeqRegExpNode {
   RegExpNode* on_failure() { return on_failure_; }
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
+  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
  private:
   RegExpNode* on_failure_;
   int start_reg_;
@@ -742,11 +793,12 @@ class CharacterClassNode: public SeqRegExpNode {
     : SeqRegExpNode(on_success),
       on_failure_(on_failure),
       ranges_(ranges),
-      is_negated_(is_negated ){ }
+      is_negated_(is_negated ) { }
   virtual void Accept(NodeVisitor* visitor);
   ZoneList<CharacterRange>* ranges() { return ranges_; }
   bool is_negated() { return is_negated_; }
   RegExpNode* on_failure() { return on_failure_; }
+  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
   static void AddInverseToTable(List<CharacterRange> ranges,
                                 DispatchTable* table,
                                 int index);
@@ -804,6 +856,7 @@ class ChoiceNode: public RegExpNode {
   ZoneList<GuardedAlternative>* choices() { return choices_; }
   DispatchTable* table() { return &table_; }
   RegExpNode* on_failure() { return on_failure_; }
+  virtual void Emit(RegExpCompiler* compiler);
   bool visited() { return visited_; }
   void set_visited(bool value) { visited_ = value; }
  private:
@@ -833,7 +886,8 @@ class ActionNode: public SeqRegExpNode {
   static ActionNode* EscapeSubmatch(RegExpNode* on_success);
   static ActionNode* EndSubmatch(RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
-  Type type;
+  virtual void Emit(RegExpCompiler* compiler);
+ private:
   union {
     struct {
       int reg;
@@ -845,11 +899,12 @@ class ActionNode: public SeqRegExpNode {
     struct {
       int reg;
     } u_position_register;
-  } data;
- private:
-  ActionNode(Type _type, RegExpNode* on_success)
+  } data_;
+  ActionNode(Type type, RegExpNode* on_success)
     : SeqRegExpNode(on_success),
-      type(_type) { }
+      type_(type) { }
+  Type type_;
+  friend class DotPrinter;
 };
 
 
@@ -857,29 +912,29 @@ ActionNode* ActionNode::StoreRegister(int reg,
                                       int val,
                                       RegExpNode* on_success) {
   ActionNode* result = new ActionNode(STORE_REGISTER, on_success);
-  result->data.u_store_register.reg = reg;
-  result->data.u_store_register.value = val;
+  result->data_.u_store_register.reg = reg;
+  result->data_.u_store_register.value = val;
   return result;
 }
 
 
 ActionNode* ActionNode::IncrementRegister(int reg, RegExpNode* on_success) {
   ActionNode* result = new ActionNode(INCREMENT_REGISTER, on_success);
-  result->data.u_increment_register.reg = reg;
+  result->data_.u_increment_register.reg = reg;
   return result;
 }
 
 
 ActionNode* ActionNode::StorePosition(int reg, RegExpNode* on_success) {
   ActionNode* result = new ActionNode(STORE_POSITION, on_success);
-  result->data.u_position_register.reg = reg;
+  result->data_.u_position_register.reg = reg;
   return result;
 }
 
 
 ActionNode* ActionNode::RestorePosition(int reg, RegExpNode* on_success) {
   ActionNode* result = new ActionNode(RESTORE_POSITION, on_success);
-  result->data.u_position_register.reg = reg;
+  result->data_.u_position_register.reg = reg;
   return result;
 }
 
@@ -915,6 +970,48 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
   }
 FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
 #undef DEFINE_ACCEPT
+
+
+// -------------------------------------------------------------------
+// Emit code.
+
+
+void ChoiceNode::Emit(RegExpCompiler* compiler) {
+  // TODO(erikcorry): Implement this.
+  UNREACHABLE();
+}
+
+
+void ActionNode::Emit(RegExpCompiler* compiler) {
+  RegExpMacroAssembler* macro = compiler->macro_assembler();
+  switch (type_) {
+    case STORE_REGISTER:
+      macro->SetRegister(data_.u_store_register.reg,
+                         data_.u_store_register.value);
+      break;
+    case INCREMENT_REGISTER:
+      macro->AdvanceRegister(data_.u_increment_register.reg, 1);
+      break;
+    case STORE_POSITION:
+      macro->PushCurrentPosition();
+      break;
+    case RESTORE_POSITION:
+      macro->PopCurrentPosition();
+      break;
+    case BEGIN_SUBMATCH:
+      // TODO(erikcorry): Implement this.
+      UNREACHABLE();
+      break;
+    case ESCAPE_SUBMATCH:
+      // TODO(erikcorry): Implement this.
+      UNREACHABLE();
+      break;
+    case END_SUBMATCH:
+      // TODO(erikcorry): Implement this.
+      UNREACHABLE();
+      break;
+  }
+}
 
 
 // -------------------------------------------------------------------
@@ -1048,23 +1145,23 @@ void DotPrinter::VisitCharacterClass(CharacterClassNode* that) {
 
 void DotPrinter::VisitAction(ActionNode* that) {
   stream()->Add("  n%p [", that);
-  switch (that->type) {
+  switch (that->type_) {
     case ActionNode::STORE_REGISTER:
       stream()->Add("label=\"$%i:=%i\", shape=box",
-                    that->data.u_store_register.reg,
-                    that->data.u_store_register.value);
+                    that->data_.u_store_register.reg,
+                    that->data_.u_store_register.value);
       break;
     case ActionNode::INCREMENT_REGISTER:
       stream()->Add("label=\"$%i++\", shape=box",
-                    that->data.u_increment_register.reg);
+                    that->data_.u_increment_register.reg);
       break;
     case ActionNode::STORE_POSITION:
       stream()->Add("label=\"$%i:=$pos\", shape=box",
-                    that->data.u_position_register.reg);
+                    that->data_.u_position_register.reg);
       break;
     case ActionNode::RESTORE_POSITION:
       stream()->Add("label=\"$pos:=$%i\", shape=box",
-                    that->data.u_position_register.reg);
+                    that->data_.u_position_register.reg);
       break;
     case ActionNode::BEGIN_SUBMATCH:
       stream()->Add("label=\"begin\", shape=septagon");
@@ -1084,7 +1181,7 @@ void DotPrinter::VisitAction(ActionNode* that) {
 
 class DispatchTableDumper {
  public:
-  DispatchTableDumper(StringStream* stream) : stream_(stream) { }
+  explicit DispatchTableDumper(StringStream* stream) : stream_(stream) { }
   void Call(uc16 key, DispatchTable::Entry entry);
   StringStream* stream() { return stream_; }
  private:
@@ -1098,8 +1195,11 @@ void DispatchTableDumper::Call(uc16 key, DispatchTable::Entry entry) {
   bool first = true;
   for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
     if (set->Get(i)) {
-      if (first) first = false;
-      else stream()->Add(", ");
+      if (first) {
+        first = false;
+      } else {
+        stream()->Add(", ");
+      }
       stream()->Add("%i", i);
     }
   }
@@ -1121,7 +1221,7 @@ void RegExpEngine::DotPrint(const char* label, RegExpNode* node) {
 }
 
 
-#endif // DEBUG
+#endif  // DEBUG
 
 
 // -------------------------------------------------------------------
@@ -1528,7 +1628,7 @@ OutSet* DispatchTable::Get(uc16 value) {
 
 class Analysis: public NodeVisitor {
  public:
-  Analysis(RegExpCompiler* compiler)
+  explicit Analysis(RegExpCompiler* compiler)
     : compiler_(compiler),
       table_(NULL),
       choice_index_(-1) { }
@@ -1541,7 +1641,7 @@ class Analysis: public NodeVisitor {
 FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 #undef DECLARE_VISIT
  protected:
-  Analysis(Analysis* prev) { *this = *prev; }
+  explicit Analysis(Analysis* prev) { *this = *prev; }
   RegExpCompiler* compiler_;
   DispatchTable *table_;
   int choice_index_;
@@ -1554,7 +1654,7 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 // which doesn't allow its fields to be changed.
 class AnalysisBuilder: public Analysis {
  public:
-  AnalysisBuilder(Analysis* prev) : Analysis(prev) { }
+  explicit AnalysisBuilder(Analysis* prev) : Analysis(prev) { }
   void set_table(DispatchTable* value) { table_ = value; }
   void set_choice_index(int value) { choice_index_ = value; }
 };
@@ -1567,7 +1667,7 @@ void Analysis::VisitEnd(EndNode* that) {
 
 class AddDispatchRange {
  public:
-  AddDispatchRange(Analysis* analysis) : analysis_(analysis) { }
+  explicit AddDispatchRange(Analysis* analysis) : analysis_(analysis) { }
   void Call(uc32 from, DispatchTable::Entry entry);
  private:
   Analysis* analysis_;
@@ -1649,6 +1749,10 @@ RegExpNode* RegExpEngine::Compile(RegExpParseResult* input) {
                                       EndNode::GetAccept(),
                                       EndNode::GetBacktrack());
   return node;
+}
+
+
+RegExpMacroAssembler::~RegExpMacroAssembler() {
 }
 
 

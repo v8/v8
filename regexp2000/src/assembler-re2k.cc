@@ -87,6 +87,14 @@ void Re2kAssembler::SetRegister(int index, int value) {
 }
 
 
+void Re2kAssembler::AdvanceRegister(int index, int by) {
+  ASSERT(index >= 0);
+  Emit(BC_ADVANCE_REGISTER);
+  Emit(index);
+  Emit32(by);
+}
+
+
 void Re2kAssembler::PopCurrentPosition() {
   Emit(BC_POP_CP);
 }
@@ -110,12 +118,6 @@ void Re2kAssembler::Fail() {
 
 void Re2kAssembler::Break() {
   Emit(BC_BREAK);
-}
-
-
-void Re2kAssembler::FailIfWithin(int distance_from_end) {
-  Emit(BC_FAIL_IF_WITHIN);
-  Emit32(distance_from_end);
 }
 
 
@@ -150,9 +152,10 @@ void Re2kAssembler::GoTo(Label* l) {
 }
 
 
-void Re2kAssembler::LoadCurrentChar(int cp_offset) {
+void Re2kAssembler::LoadCurrentChar(int cp_offset, Label* on_end) {
   Emit(BC_LOAD_CURRENT_CHAR);
   Emit32(cp_offset);
+  EmitOrLink(on_end);
 }
 
 
@@ -170,19 +173,10 @@ void Re2kAssembler::CheckNotChar(uc16 c, Label* on_match) {
 }
 
 
-void Re2kAssembler::CheckEnd(Label* on_not_end) {
-  Emit(BC_CHECK_END);
-  EmitOrLink(on_not_end);
-}
-
-
-void Re2kAssembler::CheckNotEnd(Label* on_end) {
-  Emit(BC_CHECK_NOT_END);
-  EmitOrLink(on_end);
-}
-
-
 void Re2kAssembler::CheckRange(uc16 start, uc16 end, Label* on_mismatch) {
+  if (start == end) {
+    CheckChar(start, on_mismatch);
+  }
   Emit(BC_CHECK_RANGE);
   Emit16(start);
   Emit16(end);
@@ -199,22 +193,11 @@ void Re2kAssembler::CheckNotRange(uc16 start, uc16 end, Label* on_match) {
 
 
 void Re2kAssembler::CheckBackref(int capture_index,
-                                 Label* on_mismatch,
-                                 int cp_offset) {
+                                 Label* on_mismatch) {
   Emit(BC_CHECK_BACKREF);
-  Emit32(cp_offset);
+  Emit32(0);
   Emit(capture_index);
   EmitOrLink(on_mismatch);
-}
-
-
-void Re2kAssembler::CheckNotBackref(int capture_index,
-                                    Label* on_match,
-                                    int cp_offset) {
-  Emit(BC_CHECK_NOT_BACKREF);
-  Emit32(cp_offset);
-  Emit(capture_index);
-  EmitOrLink(on_match);
 }
 
 
@@ -229,17 +212,67 @@ void Re2kAssembler::CheckRegister(int byte_code,
 }
 
 
-void Re2kAssembler::CheckRegisterLt(int reg_index,
+void Re2kAssembler::CheckRegisterLT(int reg_index,
                                     uint16_t vs,
                                     Label* on_less_than) {
   CheckRegister(BC_CHECK_REGISTER_LT, reg_index, vs, on_less_than);
 }
 
 
-void Re2kAssembler::CheckRegisterGe(int reg_index,
+void Re2kAssembler::CheckRegisterGE(int reg_index,
                                     uint16_t vs,
                                     Label* on_greater_than_equal) {
   CheckRegister(BC_CHECK_REGISTER_GE, reg_index, vs, on_greater_than_equal);
+}
+
+
+void Re2kAssembler::LookupMap1(uc16 start, Label* bit_map, Label* on_zero) {
+  Emit(BC_LOOKUP_MAP1);
+  Emit16(start);
+  EmitOrLink(bit_map);
+  EmitOrLink(on_zero);
+}
+
+
+void Re2kAssembler::LookupMap2(uc16 start,
+                               Label* half_nibble_map,
+                               const Vector<Label*>& table) {
+  Emit(BC_LOOKUP_MAP2);
+  Emit16(start);
+  EmitOrLink(half_nibble_map);
+  ASSERT(table.length() > 0);
+  ASSERT(table.length() <= 4);
+  for (int i = 0; i < table.length(); i++) {
+    EmitOrLink(table[i]);
+  }
+}
+
+
+void Re2kAssembler::LookupMap8(uc16 start,
+                               Label* byte_map,
+                               const Vector<Label*>& table) {
+  Emit(BC_LOOKUP_MAP8);
+  Emit16(start);
+  EmitOrLink(byte_map);
+  ASSERT(table.length() > 0);
+  ASSERT(table.length() <= 256);
+  for (int i = 0; i < table.length(); i++) {
+    EmitOrLink(table[i]);
+  }
+}
+
+
+void Re2kAssembler::LookupHighMap8(byte start,
+                                   Label* byte_map,
+                                   const Vector<Label*>& table) {
+  Emit(BC_LOOKUP_HI_MAP8);
+  Emit(start);
+  EmitOrLink(byte_map);
+  ASSERT(table.length() > 0);
+  ASSERT(table.length() <= 256);
+  for (int i = 0; i < table.length(); i++) {
+    EmitOrLink(table[i]);
+  }
 }
 
 

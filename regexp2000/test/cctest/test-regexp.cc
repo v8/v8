@@ -37,6 +37,8 @@
 #include "ast.h"
 #include "jsregexp-inl.h"
 #include "assembler-re2k.h"
+#include "regexp-macro-assembler.h"
+#include "regexp-macro-assembler-re2k.h"
 #include "interpreter-re2k.h"
 
 
@@ -343,7 +345,7 @@ static void Execute(const char* input,
     RegExpEngine::DotPrint(input, node);
     exit(0);
   }
-#endif // DEBUG
+#endif  // DEBUG
 }
 
 
@@ -490,20 +492,22 @@ TEST(Assembler) {
 #define __ assembler.
   Label advance;
   Label look_for_foo;
+  Label fail;
   __ GoTo(&look_for_foo);
   __ Bind(&advance);
-  __ AdvanceCP();
+  __ AdvanceCP(1);
   __ Bind(&look_for_foo);
-  __ FailIfWithin(3);
-  __ LoadCurrentChar(0);
+  __ LoadCurrentChar(0, &fail);
   __ CheckChar('f', &advance);
-  __ LoadCurrentChar(1);
+  __ LoadCurrentChar(1, &fail);
   __ CheckChar('o', &advance);
-  __ LoadCurrentChar(2);
+  __ LoadCurrentChar(2, &fail);
   __ CheckChar('o', &advance);
   __ SetRegisterToCurrentPosition(0);
   __ SetRegisterToCurrentPosition(1, 2);
   __ Succeed();
+  __ Bind(&fail);
+  __ Fail();
 
   v8::HandleScope scope;
   Handle<ByteArray> array = Factory::NewByteArray(assembler.length());
@@ -512,15 +516,15 @@ TEST(Assembler) {
 
   Handle<String> f1 =
       Factory::NewStringFromAscii(CStrVector("Now is the time"));
-  CHECK(!Re2kInterpreter::Match(*array, *f1, captures, 0));
+  CHECK(!Re2kInterpreter::Match(array, f1, captures, 0));
 
   Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));
-  CHECK(Re2kInterpreter::Match(*array, *f2, captures, 0));
+  CHECK(Re2kInterpreter::Match(array, f2, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(2, captures[1]);
 
   Handle<String> f3 = Factory::NewStringFromAscii(CStrVector("tomfoolery"));
-  CHECK(Re2kInterpreter::Match(*array, *f3, captures, 0));
+  CHECK(Re2kInterpreter::Match(array, f3, captures, 0));
   CHECK_EQ(3, captures[0]);
   CHECK_EQ(5, captures[1]);
 }
@@ -546,19 +550,18 @@ TEST(Assembler2) {
   __ GoTo(&dot_match);
   // .*
   __ Bind(&more_dots);
-  __ AdvanceCP();
+  __ AdvanceCP(1);
   __ Bind(&dot_match);
   __ PushCurrentPosition();
   __ PushBacktrack(&unwind_dot);
-  __ LoadCurrentChar();
-  __ CheckNotEnd(&foo);
+  __ LoadCurrentChar(0, &foo);
   __ CheckChar('\n', &more_dots);
   // foo
   __ Bind(&foo);
   __ CheckChar('f', &foo_failed);
-  __ LoadCurrentChar(1);
+  __ LoadCurrentChar(1, &foo_failed);
   __ CheckChar('o', &foo_failed);
-  __ LoadCurrentChar(2);
+  __ LoadCurrentChar(2, &foo_failed);
   __ CheckChar('o', &foo_failed);
   __ SetRegisterToCurrentPosition(1, 2);
   __ Succeed();
@@ -570,7 +573,7 @@ TEST(Assembler2) {
 
   __ Bind(&unwind_dot);
   __ PopCurrentPosition();
-  __ LoadCurrentChar();
+  __ LoadCurrentChar(0, &foo_failed);
   __ GoTo(&foo);
 
   __ Bind(&failure);
@@ -585,27 +588,88 @@ TEST(Assembler2) {
 
   Handle<String> f1 =
       Factory::NewStringFromAscii(CStrVector("Now is the time"));
-  CHECK(!Re2kInterpreter::Match(*array, *f1, captures, 0));
+  CHECK(!Re2kInterpreter::Match(array, f1, captures, 0));
 
   Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));
-  CHECK(Re2kInterpreter::Match(*array, *f2, captures, 0));
+  CHECK(Re2kInterpreter::Match(array, f2, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(2, captures[1]);
 
   Handle<String> f3 = Factory::NewStringFromAscii(CStrVector("tomfoolery"));
-  CHECK(Re2kInterpreter::Match(*array, *f3, captures, 0));
+  CHECK(Re2kInterpreter::Match(array, f3, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(5, captures[1]);
 
   Handle<String> f4 =
       Factory::NewStringFromAscii(CStrVector("football buffoonery"));
-  CHECK(Re2kInterpreter::Match(*array, *f4, captures, 0));
+  CHECK(Re2kInterpreter::Match(array, f4, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(14, captures[1]);
 
   Handle<String> f5 =
       Factory::NewStringFromAscii(CStrVector("walking\nbarefoot"));
-  CHECK(!Re2kInterpreter::Match(*array, *f5, captures, 0));
+  CHECK(!Re2kInterpreter::Match(array, f5, captures, 0));
+}
+
+
+TEST(MacroAssembler) {
+  V8::Initialize(NULL);
+  byte codes[1024];
+  Re2kAssembler assembler(Vector<byte>(codes, 1024));
+  RegExpMacroAssemblerRe2k m(&assembler);
+  // ^f(o)o.
+  Label fail, fail2, start;
+  uc16 foo_chars[3];
+  foo_chars[0] = 'f';
+  foo_chars[1] = 'o';
+  foo_chars[2] = 'o';
+  Vector<const uc16> foo(foo_chars, 3);
+  m.SetRegister(4, 42);
+  m.PushRegister(4);
+  m.AdvanceRegister(4, 42);
+  m.GoTo(&start);
+  m.Fail();
+  m.Bind(&start);
+  m.PushBacktrack(&fail2);
+  m.CheckCharacters(foo, 0, &fail);
+  m.WriteCurrentPositionToRegister(0);
+  m.PushCurrentPosition();
+  m.AdvanceCurrentPosition(3);
+  m.WriteCurrentPositionToRegister(1);
+  m.PopCurrentPosition();
+  m.AdvanceCurrentPosition(1);
+  m.WriteCurrentPositionToRegister(2);
+  m.AdvanceCurrentPosition(1);
+  m.WriteCurrentPositionToRegister(3);
+  m.Succeed();
+
+  m.Bind(&fail);
+  m.Backtrack();
+  m.Succeed();
+
+  m.Bind(&fail2);
+  m.PopRegister(0);
+  m.Fail();
+
+  v8::HandleScope scope;
+
+  Handle<ByteArray> array = Factory::NewByteArray(assembler.length());
+  assembler.Copy(array->GetDataStartAddress());
+  int captures[5];
+
+  Handle<String> f1 =
+      Factory::NewStringFromAscii(CStrVector("foobar"));
+  CHECK(Re2kInterpreter::Match(array, f1, captures, 0));
+  CHECK_EQ(0, captures[0]);
+  CHECK_EQ(3, captures[1]);
+  CHECK_EQ(1, captures[2]);
+  CHECK_EQ(2, captures[3]);
+  CHECK_EQ(84, captures[4]);
+
+  Handle<String> f2 =
+      Factory::NewStringFromAscii(CStrVector("barfoo"));
+  CHECK(!Re2kInterpreter::Match(array, f2, captures, 0));
+  CHECK_EQ(42, captures[0]);
 }
 
 

@@ -38,25 +38,25 @@ V(PUSH_BT,            2, 5) /* push_bt addr32                               */ \
 V(PUSH_REGISTER,      3, 2) /* push_register register_index                 */ \
 V(SET_REGISTER_TO_CP, 4, 6) /* set_register_to_cp register_index offset32   */ \
 V(SET_REGISTER,       5, 6) /* set_register register_index value32          */ \
-V(POP_CP,             6, 1) /* pop_cp                                       */ \
-V(POP_BT,             7, 1) /* pop_bt                                       */ \
-V(POP_REGISTER,       8, 2) /* pop_register register_index                  */ \
-V(FAIL,               9, 1) /* fail                                         */ \
-V(FAIL_IF_WITHIN,    10, 5) /* fail distance32                              */ \
+V(ADVANCE_REGISTER,   6, 6) /* advance_register register_index value32      */ \
+V(POP_CP,             7, 1) /* pop_cp                                       */ \
+V(POP_BT,             8, 1) /* pop_bt                                       */ \
+V(POP_REGISTER,       9, 2) /* pop_register register_index                  */ \
+V(FAIL,              10, 1) /* fail                                         */ \
 V(SUCCEED,           11, 1) /* succeed                                      */ \
 V(ADVANCE_CP,        12, 5) /* advance_cp offset32                          */ \
 V(GOTO,              13, 5) /* goto addr32                                  */ \
-V(LOAD_CURRENT_CHAR, 14, 5) /* load offset32                                */ \
+V(LOAD_CURRENT_CHAR, 14, 9) /* load offset32 addr32                         */ \
 V(CHECK_CHAR,        15, 7) /* check_char uc16 addr32                       */ \
 V(CHECK_NOT_CHAR,    16, 7) /* check_not_char uc16 addr32                   */ \
-V(CHECK_END,         17, 7) /* check_end addr32                             */ \
-V(CHECK_NOT_END,     18, 7) /* check_not_end addr32                         */ \
-V(CHECK_RANGE,       19, 9) /* check_range uc16 uc16 addr32                 */ \
-V(CHECK_NOT_RANGE,   20, 9) /* check_not_range uc16 uc16 addr32             */ \
-V(CHECK_BACKREF,     21, 9) /* check_backref offset32 capture_idx addr32    */ \
-V(CHECK_NOT_BACKREF, 22, 9) /* check_not_backref offset32 capture_idx addr32*/ \
-V(CHECK_BITMAP,      23, 13) /* check_bitmap uc16 uc16 addr32               */ \
-V(CHECK_NOT_BITMAP,  24, 13) /* check_not_bitmap uc16 uc16 addr32           */ \
+V(CHECK_RANGE,       17, 9) /* check_range uc16 uc16 addr32                 */ \
+V(CHECK_NOT_RANGE,   18, 9) /* check_not_range uc16 uc16 addr32             */ \
+V(CHECK_BACKREF,     19, 9) /* check_backref offset32 capture_idx addr32    */ \
+V(CHECK_NOT_BACKREF, 20, 9) /* check_not_backref offset32 capture_idx addr32*/ \
+V(LOOKUP_MAP1,       21, 11) /* l_map1 start16 bit_map_addr32 addr32        */ \
+V(LOOKUP_MAP2,       22, 99) /* l_map2 start16 half_nibble_map_addr32*      */ \
+V(LOOKUP_MAP8,       23, 99) /* l_map8 start16 byte_map addr32*             */ \
+V(LOOKUP_HI_MAP8,    24, 99) /* l_himap8 start8 byte_map_addr32 addr32*     */ \
 V(CHECK_REGISTER_LT, 25, 8) /* check_reg_lt register_index value16 addr32   */ \
 V(CHECK_REGISTER_GE, 26, 8) /* check_reg_ge register_index value16 addr32   */ \
 

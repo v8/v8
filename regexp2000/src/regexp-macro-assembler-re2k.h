@@ -30,6 +30,58 @@
 
 namespace v8 { namespace internal {
 
+
+class RegExpMacroAssemblerRe2k: public RegExpMacroAssembler {
+ public:
+  explicit RegExpMacroAssemblerRe2k(Re2kAssembler* assembler)
+    : assembler_(assembler) {
+  }
+  virtual ~RegExpMacroAssemblerRe2k();
+  virtual void Bind(Label* label);
+  virtual void EmitOrLink(Label* label);
+  virtual void AdvanceCurrentPosition(int by);  // Signed cp change.
+  virtual void PopCurrentPosition();
+  virtual void PushCurrentPosition();
+  virtual void Backtrack();
+  virtual void GoTo(Label* label);
+  virtual void PushBacktrack(Label* label);
+  virtual void Succeed();
+  virtual void Fail();
+  virtual void PopRegister(int register_index);
+  virtual void PushRegister(int register_index);
+  virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
+  virtual void SetRegister(int register_index, int to);
+  virtual void WriteCurrentPositionToRegister(int reg);
+  virtual void CheckCharacterClass(
+      RegExpCharacterClass* cclass,
+      int cp_offset,
+      Label* on_failure);
+  virtual void CheckCharacters(
+      Vector<const uc16> str,
+      int cp_offset,
+      Label* on_failure);
+  virtual void CheckCurrentPosition(
+      int register_index,
+      Label* on_equal);
+  virtual void CheckBitmap(uc16 start, Label* bitmap, Label* on_zero);
+  virtual void DispatchHalfNibbleMap(uc16 start,
+                                     Label* half_nibble_map,
+                                     const Vector<Label*>& destinations);
+  virtual void DispatchByteMap(uc16 start,
+                               Label* byte_map,
+                               const Vector<Label*>& destinations);
+  virtual void DispatchHighByteMap(byte start,
+                                   Label* byte_map,
+                                   const Vector<Label*>& destinations);
+  virtual void IfRegisterLT(int register_index, int comparand, Label* if_lt);
+  virtual void IfRegisterGE(int register_index, int comparand, Label* if_ge);
+
+  virtual Re2kImplementation Implementation();
+  virtual Handle<Object> GetCode();
+ private:
+  Re2kAssembler* assembler_;
+};
+
 } }  // namespace v8::internal
 
 #endif  // V8_REGEXP_MACRO_ASSEMBLER_RE2K_H_

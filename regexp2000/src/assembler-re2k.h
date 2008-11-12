@@ -35,54 +35,67 @@ class Re2kAssembler {
   void PushRegister(int index);
   void SetRegisterToCurrentPosition(int index, int cp_offset = 0);
   void SetRegister(int index, int value);
+  void AdvanceRegister(int index, int by);
 
   void PopCurrentPosition();
   void PopBacktrack();
   void PopRegister(int index);
 
   void Fail();
-  void FailIfWithin(int distance_from_end);
   void Succeed();
 
   void Break();  // This instruction will cause a fatal VM error if hit.
 
-  void Bind(Label* l);  // binds an unbound label L to the current code position
+  void Bind(Label* l);  // Binds an unbound label L to the current code posn.
 
-  void AdvanceCP(int cp_offset = 1);
+  void AdvanceCP(int by);
 
   void GoTo(Label* l);
 
-  // Loads current char into a register.
-  void LoadCurrentChar(int cp_offset = 0);
+  // Loads current char into a machine register.  Jumps to the label if we
+  // reached the end of the subject string.  Fall through otherwise.
+  void LoadCurrentChar(int cp_offset, Label* on_end);
 
   // Checks current char register against a singleton.
   void CheckChar(uc16 c, Label* on_mismatch);
   void CheckNotChar(uc16 c, Label* on_match);
 
-  // Checks current char register against the magic end-of-input symbol.
-  void CheckEnd(Label* on_not_end);
-  void CheckNotEnd(Label* on_end);
-
   // Checks current char register against a range.
   void CheckRange(uc16 start, uc16 end, Label* on_mismatch);
   void CheckNotRange(uc16 start, uc16 end, Label* on_match);
 
-  // Checks that the current char is in the range and that the corresponding bit
-  // is set in the bitmap.
-  void CheckBitmap(uc16 start, uc16 end, const byte* bits, Label* on_mismatch);
-  void CheckNotBitmap(uc16 start, uc16 end, const byte* bits, Label* on_match);
-
   // Checks current position (plus optional offset) for a match against a
   // previous capture.  Advances current position by the length of the capture
   // iff it matches.  The capture is stored in a given register and the
-  // the register after.
-  void CheckBackref(int capture_index, Label* on_mismatch, int cp_offset = 0);
-  void CheckNotBackref(int capture_index, Label* on_match, int cp_offset = 0);
+  // the register after.  If a register contains -1 then the other register
+  // mush always contain -1 and the on_mismatch label will never be called.
+  void CheckBackref(int capture_index, Label* on_mismatch);
 
-  // Checks a register for equal, less than or equal, less than, greater than
-  // or equal, greater than, not equal.
-  void CheckRegisterLt(int reg_index, uint16_t vs, Label* on_less_than);
-  void CheckRegisterGe(int reg_index, uint16_t vs, Label* on_greater_equal);
+  // Checks a register for strictly-less-than or greater-than-or-equal.
+  void CheckRegisterLT(int reg_index, uint16_t vs, Label* on_less_than);
+  void CheckRegisterGE(int reg_index, uint16_t vs, Label* on_greater_equal);
+
+  // Subtracts a 16 bit value from the current character, uses the result to
+  // look up in a bit array, uses the result of that decide whether to fall
+  // though (on 1) or jump to the on_zero label (on 0).
+  void LookupMap1(uc16 start, Label* bit_map, Label* on_zero);
+
+  // Subtracts a 16 bit value from the current character, uses the result to
+  // look up in a 2-bit array, uses the result of that to look up in a label
+  // table and jumps to the label.
+  void LookupMap2(uc16 start,
+                  Label* half_nibble_map,
+                  const Vector<Label*>& table);
+
+  // Subtracts a 16 bit value from the current character, uses the result to
+  // look up in a byte array, uses the result of that to look up in a label
+  // array and jumps to the label.
+  void LookupMap8(uc16 start, Label* byte_map, const Vector<Label*>& table);
+
+  // Takes the high byte of the current character, uses the result to
+  // look up in a byte array, uses the result of that to look up in a label
+  // array and jumps to the label.
+  void LookupHighMap8(byte start, Label* byte_map, const Vector<Label*>& table);
 
   // Code and bitmap emission.
   inline void Emit32(uint32_t x);
@@ -93,6 +106,7 @@ class Re2kAssembler {
   int length();
   void Copy(Address a);
 
+  inline void EmitOrLink(Label* l);
  private:
   // Don't use this.
   Re2kAssembler() { UNREACHABLE(); }
@@ -108,8 +122,6 @@ class Re2kAssembler {
 
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
-
-  inline void EmitOrLink(Label* l);
 };
 
 
