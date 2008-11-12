@@ -3522,54 +3522,47 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   Expression* right = node->right();
   Token::Value op = node->op();
 
-  // NOTE: To make null checks efficient, we check if either left or
-  // right is the literal 'null'. If so, we optimize the code by
-  // inlining a null check instead of calling the (very) general
-  // runtime routine for checking equality.
-
+  // To make null checks efficient, we check if either left or right is the
+  // literal 'null'. If so, we optimize the code by inlining a null check
+  // instead of calling the (very) general runtime routine for checking
+  // equality.
   if (op == Token::EQ || op == Token::EQ_STRICT) {
     bool left_is_null =
-      left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
+        left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
     bool right_is_null =
-      right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
-    // The 'null' value is only equal to 'null' or 'undefined'.
+        right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
+    // The 'null' value can only be equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
       Load(left_is_null ? right : left);
-      Label exit, undetectable;
       frame_->Pop(eax);
       __ cmp(eax, Factory::null_value());
 
-      // The 'null' value is only equal to 'undefined' if using
-      // non-strict comparisons.
+      // The 'null' value is only equal to 'undefined' if using non-strict
+      // comparisons.
       if (op != Token::EQ_STRICT) {
-        __ j(equal, &exit);
+        __ j(equal, true_target());
+
         __ cmp(eax, Factory::undefined_value());
+        __ j(equal, true_target());
 
-        // NOTE: it can be an undetectable object.
-        __ j(equal, &exit);
         __ test(eax, Immediate(kSmiTagMask));
+        __ j(equal, false_target());
 
-        __ j(not_equal, &undetectable);
-        __ jmp(false_target());
-
-        __ bind(&undetectable);
-        __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-        __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
-        __ and_(ecx, 1 << Map::kIsUndetectable);
-        __ cmp(ecx, 1 << Map::kIsUndetectable);
+        // It can be an undetectable object.
+        __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
+        __ movzx_b(eax, FieldOperand(eax, Map::kBitFieldOffset));
+        __ and_(eax, 1 << Map::kIsUndetectable);
+        __ cmp(eax, 1 << Map::kIsUndetectable);
       }
-
-      __ bind(&exit);
 
       cc_reg_ = equal;
       return;
     }
   }
 
-  // NOTE: To make typeof testing for natives implemented in
-  // JavaScript really efficient, we generate special code for
-  // expressions of the form: 'typeof <expression> == <string>'.
-
+  // To make typeof testing for natives implemented in JavaScript really
+  // efficient, we generate special code for expressions of the form:
+  // 'typeof <expression> == <string>'.
   UnaryOperation* operation = left->AsUnaryOperation();
   if ((op == Token::EQ || op == Token::EQ_STRICT) &&
       (operation != NULL && operation->op() == Token::TYPEOF) &&
@@ -3577,7 +3570,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
        right->AsLiteral()->handle()->IsString())) {
     Handle<String> check(String::cast(*right->AsLiteral()->handle()));
 
-    // Load the operand, move it to register edx, and restore TOS.
+    // Load the operand and move it to register edx.
     LoadTypeofExpression(operation->expression());
     frame_->Pop(edx);
 
@@ -3594,7 +3587,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
       __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
 
-      // NOTE: it might be an undetectable string object
+      // It can be an undetectable string object.
       __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
       __ and_(ecx, 1 << Map::kIsUndetectable);
       __ cmp(ecx, 1 << Map::kIsUndetectable);
@@ -3617,7 +3610,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ test(edx, Immediate(kSmiTagMask));
       __ j(zero, false_target());
 
-      // NOTE: it can be an undetectable object.
+      // It can be an undetectable object.
       __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
       __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
       __ and_(ecx, 1 << Map::kIsUndetectable);
@@ -3641,7 +3634,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ cmp(edx, Factory::null_value());
       __ j(equal, true_target());
 
-      // NOTE: it might be an undetectable object
+      // It can be an undetectable object.
       __ movzx_b(edx, FieldOperand(ecx, Map::kBitFieldOffset));
       __ and_(edx, 1 << Map::kIsUndetectable);
       __ cmp(edx, 1 << Map::kIsUndetectable);
@@ -3654,8 +3647,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       cc_reg_ = less_equal;
 
     } else {
-      // Uncommon case: Typeof testing against a string literal that
-      // is never returned from the typeof operator.
+      // Uncommon case: typeof testing against a string literal that is
+      // never returned from the typeof operator.
       __ jmp(false_target());
     }
     return;
