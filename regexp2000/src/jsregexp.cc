@@ -1567,7 +1567,8 @@ void DispatchTable::AddRange(CharacterRange full_range, int value) {
   }
   while (current.is_valid()) {
     if (tree()->FindLeastGreaterThan(current.from(), &loc) &&
-        (loc.value().from() <= current.to())) {
+        (loc.value().from() <= current.to()) &&
+        (loc.value().to() >= current.from())) {
       Entry* entry = &loc.value();
       // We have overlap.  If there is space between the start point of
       // the range we're adding and where the overlapping range starts
@@ -1596,6 +1597,11 @@ void DispatchTable::AddRange(CharacterRange full_range, int value) {
       // we're adding so we can just update it and move the start point
       // of the range we're adding just past it.
       entry->AddValue(value);
+      // Bail out if the last interval ended at 0xFFFF since otherwise
+      // adding 1 will wrap around to 0.
+      if (entry->to() == 0xFFFF)
+        break;
+      ASSERT(entry->to() + 1 > current.from());
       current.set_from(entry->to() + 1);
     } else {
       // There is no overlap so we can just add the range
@@ -1736,10 +1742,7 @@ void Analysis::VisitAction(ActionNode* that) {
 RegExpNode* RegExpCompiler::Compile(RegExpTree* tree,
                                     RegExpNode* on_success,
                                     RegExpNode* on_failure) {
-  RegExpNode* node = tree->ToNode(this, on_success, on_failure);
-  Analysis analysis(this);
-  analysis.Analyze(node);
-  return node;
+  return tree->ToNode(this, on_success, on_failure);
 }
 
 
@@ -1748,6 +1751,8 @@ RegExpNode* RegExpEngine::Compile(RegExpParseResult* input) {
   RegExpNode* node = compiler.Compile(input->tree,
                                       EndNode::GetAccept(),
                                       EndNode::GetBacktrack());
+  Analysis analysis(&compiler);
+  analysis.Analyze(node);
   return node;
 }
 

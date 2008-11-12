@@ -287,7 +287,7 @@ class OutSet: public ZoneObject {
   ZoneList<OutSet*>* successors() { return successors_; }
 
   OutSet(uint32_t first, ZoneList<unsigned>* remaining)
-    : first_(first), remaining_(remaining) { }
+    : first_(first), remaining_(remaining), successors_(NULL) { }
   uint32_t first_;
   ZoneList<unsigned>* remaining_;
   ZoneList<OutSet*>* successors_;
@@ -301,7 +301,7 @@ class DispatchTable {
   class Entry {
    public:
     Entry()
-      : from_(0), to_(0) { }
+      : from_(0), to_(0), out_set_(NULL) { }
     Entry(uc16 from, uc16 to, OutSet* out_set)
       : from_(from), to_(to), out_set_(out_set) { }
     uc16 from() { return from_; }

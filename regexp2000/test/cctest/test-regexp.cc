@@ -351,9 +351,9 @@ static void Execute(const char* input,
 
 TEST(Execution) {
   V8::Initialize(NULL);
-  // Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbegh");
-  // Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbefh");
-  // Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbefd");
+  Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbegh");
+  Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbefh");
+  Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbefd");
 }
 
 
@@ -690,5 +690,5 @@ TEST(AddInverseToTable) {
 
 
 TEST(Graph) {
-  Execute("([^a]|\\w)", "", true);
+  Execute(".*?a", "", true);
 }
