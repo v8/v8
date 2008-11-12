@@ -268,20 +268,29 @@ class ZoneSplayTree : public ZoneObject {
 
 // A set of unsigned integers that behaves especially well on small
 // integers (< 32).  May do zone-allocation.
-class OutSet {
+class OutSet: public ZoneObject {
  public:
-  OutSet() : first_(0), remaining_(NULL) { }
-  explicit inline OutSet(unsigned value);
-  static inline OutSet empty() { return OutSet(); }
-  void Set(unsigned value);
+  OutSet() : first_(0), remaining_(NULL), successors_(NULL) { }
+  OutSet* Extend(unsigned value);
   bool Get(unsigned value);
-  OutSet Clone();
   static const unsigned kFirstLimit = 32;
  private:
+
+  // Destructively set a value in this set.  In most cases you want
+  // to use Extend instead to ensure that only one instance exists
+  // that contains the same values.
+  void Set(unsigned value);
+
+  // The successors are a list of sets that contain the same values
+  // as this set and the one more value that is not present in this
+  // set.
+  ZoneList<OutSet*>* successors() { return successors_; }
+
   OutSet(uint32_t first, ZoneList<unsigned>* remaining)
     : first_(first), remaining_(remaining) { }
   uint32_t first_;
   ZoneList<unsigned>* remaining_;
+  ZoneList<OutSet*>* successors_;
 };
 
 
@@ -293,19 +302,19 @@ class DispatchTable {
    public:
     Entry()
       : from_(0), to_(0) { }
-    Entry(uc16 from, uc16 to, OutSet out_set)
+    Entry(uc16 from, uc16 to, OutSet* out_set)
       : from_(from), to_(to), out_set_(out_set) { }
-    inline Entry(uc16 from, uc16 to, unsigned value);
     uc16 from() { return from_; }
     uc16 to() { return to_; }
     void set_to(uc16 value) { to_ = value; }
-    void AddValue(int value) { out_set_.Set(value); }
-    OutSet out_set() { return out_set_; }
+    void AddValue(int value) { out_set_ = out_set_->Extend(value); }
+    OutSet* out_set() { return out_set_; }
    private:
     uc16 from_;
     uc16 to_;
-    OutSet out_set_;
+    OutSet* out_set_;
   };
+
   class Config {
    public:
     typedef uc16 Key;
@@ -321,13 +330,18 @@ class DispatchTable {
         return 1;
     }
   };
+
   void AddRange(CharacterRange range, int value);
-  OutSet Get(uc16 value);
+  OutSet* Get(uc16 value);
   void Dump();
 
   template <typename Callback>
   void ForEach(Callback callback) { return tree()->ForEach(callback); }
  private:
+  // There can't be a static empty set since it allocates its
+  // successors in a zone and caches them.
+  OutSet* empty() { return &empty_; }
+  OutSet empty_;
   ZoneSplayTree<Config>* tree() { return &tree_; }
   ZoneSplayTree<Config> tree_;
 };

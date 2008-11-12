@@ -253,19 +253,6 @@ static void DoForEach(Node* node, Callback callback) {
 }
 
 
-OutSet::OutSet(unsigned value)
-  : first_(0),
-    remaining_(NULL) {
-  Set(value);
-}
-
-
-DispatchTable::Entry::Entry(uc16 from, uc16 to, unsigned value)
-  : from_(from),
-    to_(to),
-    out_set_(value) { }
-
-
 }  // namespace internal
 }  // namespace v8
 

@@ -736,17 +736,24 @@ class BackreferenceNode: public SeqRegExpNode {
 class CharacterClassNode: public SeqRegExpNode {
  public:
   CharacterClassNode(ZoneList<CharacterRange>* ranges,
+                     bool is_negated,
                      RegExpNode* on_success,
                      RegExpNode* on_failure)
     : SeqRegExpNode(on_success),
       on_failure_(on_failure),
-      ranges_(ranges) { }
+      ranges_(ranges),
+      is_negated_(is_negated ){ }
   virtual void Accept(NodeVisitor* visitor);
   ZoneList<CharacterRange>* ranges() { return ranges_; }
+  bool is_negated() { return is_negated_; }
   RegExpNode* on_failure() { return on_failure_; }
+  static void AddInverseToTable(List<CharacterRange> ranges,
+                                DispatchTable* table,
+                                int index);
  private:
   RegExpNode* on_failure_;
   ZoneList<CharacterRange>* ranges_;
+  bool is_negated_;
 };
 
 
@@ -1087,10 +1094,10 @@ class DispatchTableDumper {
 
 void DispatchTableDumper::Call(uc16 key, DispatchTable::Entry entry) {
   stream()->Add("[%k-%k]: {", key, entry.to());
-  OutSet set = entry.out_set();
+  OutSet* set = entry.out_set();
   bool first = true;
   for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
-    if (set.Get(i)) {
+    if (set->Get(i)) {
       if (first) first = false;
       else stream()->Add(", ");
       stream()->Add("%i", i);
@@ -1131,7 +1138,10 @@ RegExpNode* RegExpAtom::ToNode(RegExpCompiler* compiler,
 RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
                                          RegExpNode* on_success,
                                          RegExpNode* on_failure) {
-  return new CharacterClassNode(ranges(), on_success, on_failure);
+  return new CharacterClassNode(ranges(),
+                                is_negated(),
+                                on_success,
+                                on_failure);
 }
 
 
@@ -1373,6 +1383,25 @@ void CharacterRange::AddClassEscape(uc16 type,
 // Splay tree
 
 
+OutSet* OutSet::Extend(unsigned value) {
+  if (Get(value))
+    return this;
+  if (successors() != NULL) {
+    for (int i = 0; i < successors()->length(); i++) {
+      OutSet* successor = successors()->at(i);
+      if (successor->Get(value))
+        return successor;
+    }
+  } else {
+    successors_ = new ZoneList<OutSet*>(2);
+  }
+  OutSet* result = new OutSet(first_, remaining_);
+  result->Set(value);
+  successors()->Add(result);
+  return result;
+}
+
+
 void OutSet::Set(unsigned value) {
   if (value < kFirstLimit) {
     first_ |= (1 << value);
@@ -1396,19 +1425,6 @@ bool OutSet::Get(unsigned value) {
 }
 
 
-OutSet OutSet::Clone() {
-  if (remaining_ == NULL) {
-    return OutSet(first_, NULL);
-  } else {
-    int length = remaining_->length();
-    ZoneList<unsigned>* clone = new ZoneList<unsigned>(length);
-    for (int i = 0; i < length; i++)
-      clone->Add(remaining_->at(i));
-    return OutSet(first_, clone);
-  }
-}
-
-
 const uc16 DispatchTable::Config::kNoKey = unibrow::Utf8::kBadChar;
 const DispatchTable::Entry DispatchTable::Config::kNoValue;
 
@@ -1419,7 +1435,7 @@ void DispatchTable::AddRange(CharacterRange full_range, int value) {
     // If this is the first range we just insert into the table.
     ZoneSplayTree<Config>::Locator loc;
     ASSERT_RESULT(tree()->Insert(current.from(), &loc));
-    loc.set_value(Entry(current.from(), current.to(), value));
+    loc.set_value(Entry(current.from(), current.to(), empty()->Extend(value)));
     return;
   }
   // First see if there is a range to the left of this one that
@@ -1446,7 +1462,7 @@ void DispatchTable::AddRange(CharacterRange full_range, int value) {
       ASSERT_RESULT(tree()->Insert(right.from(), &loc));
       loc.set_value(Entry(right.from(),
                           right.to(),
-                          entry->out_set().Clone()));
+                          entry->out_set()));
     }
   }
   while (current.is_valid()) {
@@ -1459,7 +1475,9 @@ void DispatchTable::AddRange(CharacterRange full_range, int value) {
       if (current.from() < entry->from()) {
         ZoneSplayTree<Config>::Locator ins;
         ASSERT_RESULT(tree()->Insert(current.from(), &ins));
-        ins.set_value(Entry(current.from(), entry->from() - 1, value));
+        ins.set_value(Entry(current.from(),
+                            entry->from() - 1,
+                            empty()->Extend(value)));
         current.set_from(entry->from());
       }
       ASSERT_EQ(current.from(), entry->from());
@@ -1470,7 +1488,7 @@ void DispatchTable::AddRange(CharacterRange full_range, int value) {
         ASSERT_RESULT(tree()->Insert(current.to() + 1, &ins));
         ins.set_value(Entry(current.to() + 1,
                             entry->to(),
-                            entry->out_set().Clone()));
+                            entry->out_set()));
         entry->set_to(current.to());
       }
       ASSERT(entry->to() <= current.to());
@@ -1483,22 +1501,24 @@ void DispatchTable::AddRange(CharacterRange full_range, int value) {
       // There is no overlap so we can just add the range
       ZoneSplayTree<Config>::Locator ins;
       ASSERT_RESULT(tree()->Insert(current.from(), &ins));
-      ins.set_value(Entry(current.from(), current.to(), value));
+      ins.set_value(Entry(current.from(),
+                          current.to(),
+                          empty()->Extend(value)));
       break;
     }
   }
 }
 
 
-OutSet DispatchTable::Get(uc16 value) {
+OutSet* DispatchTable::Get(uc16 value) {
   ZoneSplayTree<Config>::Locator loc;
   if (!tree()->FindGreatestLessThan(value, &loc))
-    return OutSet::empty();
+    return empty();
   Entry* entry = &loc.value();
   if (value <= entry->to())
     return entry->out_set();
   else
-    return OutSet::empty();
+    return empty();
 }
 
 
