@@ -253,7 +253,30 @@ void Top::TearDown() {
 }
 
 
+// There are cases where the C stack is separated from JS stack (ARM simulator).
+// To figure out the order of top-most JS try-catch handler and the top-most C
+// try-catch handler, the C try-catch handler keeps a reference to the top-most
+// JS try_catch handler when it was created.
+//
+// Here is a picture to explain the idea:
+//   Top::thread_local_.handler_       Top::thread_local_.try_catch_handler_
+//
+//             |                                         |
+//             v                                         v
+//
+//      | JS handler  |                        | C try_catch handler |
+//      |    next     |--+           +-------- |    js_handler_      |
+//                       |           |         |      next_          |--+
+//                       |           |                                  |
+//      | JS handler  |--+ <---------+                                  |
+//      |    next     |
+//
+// If the top-most JS try-catch handler is not equal to
+// Top::thread_local_.try_catch_handler_.js_handler_, it means the JS handler
+// is on the top. Otherwise, it means the C try-catch handler is on the top.
+//
 void Top::RegisterTryCatchHandler(v8::TryCatch* that) {
+  that->js_handler_ = thread_local_.handler_;  // casted to void*
   thread_local_.try_catch_handler_ = that;
 }
 
@@ -719,8 +742,7 @@ bool Top::ShouldReportException(bool* is_caught_externally) {
   // address of the external handler so we can compare the address to
   // determine which one is closer to the top of the stack.
   bool has_external_handler = (thread_local_.try_catch_handler_ != NULL);
-  Address external_handler_address =
-      reinterpret_cast<Address>(thread_local_.try_catch_handler_);
+  v8::TryCatch* try_catch = thread_local_.try_catch_handler_;
 
   // NOTE: The stack is assumed to grown towards lower addresses. If
   // the handler is at a higher address than the external address it
@@ -732,10 +754,12 @@ bool Top::ShouldReportException(bool* is_caught_externally) {
   }
 
   // The exception has been externally caught if and only if there is
-  // an external handler which is above any JavaScript try-catch but NOT
-  // try-finally handlers.
+  // an external handler which is on top of the top-most try-catch
+  // handler.
+  //
+  // See comments in RegisterTryCatchHandler for details.
   *is_caught_externally = has_external_handler &&
-      (handler == NULL || handler->address() > external_handler_address);
+      (handler == NULL || handler == try_catch->js_handler_);
 
   // If we have a try-catch handler then the exception is caught in
   // JavaScript code.
@@ -745,7 +769,7 @@ bool Top::ShouldReportException(bool* is_caught_externally) {
   // exception if it isn't caught by JavaScript code.
   if (!has_external_handler) return is_uncaught_by_js;
 
-  if (is_uncaught_by_js || handler->address() > external_handler_address) {
+  if (is_uncaught_by_js || handler == try_catch->js_handler_) {
     // Only report the exception if the external handler is verbose.
     return thread_local_.try_catch_handler_->is_verbose_;
   } else {
