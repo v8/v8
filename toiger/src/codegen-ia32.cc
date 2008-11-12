@@ -964,7 +964,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       } else {
         deferred = new DeferredInlinedSmiSubReversed(this, edx, overwrite_mode);
         __ mov(edx, Operand(eax));
-        __ mov(Operand(eax), Immediate(value));
+        __ mov(eax, Immediate(value));
         __ sub(eax, Operand(edx));
       }
       __ j(overflow, deferred->enter(), not_taken);
@@ -1018,7 +1018,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ j(not_zero, deferred->enter(), not_taken);
         // tag result and store it in TOS (eax)
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ lea(eax, Operand(ebx, times_2, kSmiTag));
+        __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
         __ bind(deferred->exit());
         frame_->Push(eax);
       }
@@ -1047,7 +1047,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ j(not_zero, deferred->enter(), not_taken);
         // tag result and store it in TOS (eax)
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ lea(eax, Operand(ebx, times_2, kSmiTag));
+        __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
         __ bind(deferred->exit());
         frame_->Push(eax);
       }
@@ -1189,7 +1189,7 @@ void SmiComparisonDeferred::Generate() {
   CompareStub stub(cc_, strict_);
   // Setup parameters and call stub.
   __ mov(edx, Operand(eax));
-  __ mov(Operand(eax), Immediate(Smi::FromInt(value_)));
+  __ Set(eax, Immediate(Smi::FromInt(value_)));
   __ CallStub(&stub);
   __ cmp(eax, 0);
   // "result" is returned in the flags
@@ -1619,7 +1619,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   fail_label->Branch(greater_equal, not_taken);
 
   // 0 is placeholder.
-  __ jmp(Operand(eax, times_2, 0x0, RelocInfo::INTERNAL_REFERENCE));
+  __ jmp(Operand(eax, eax, times_1, 0x0, RelocInfo::INTERNAL_REFERENCE));
   // calculate address to overwrite later with actual address of table.
   int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t);
 
@@ -4250,7 +4250,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       __ j(not_zero, slow);
       // Tag the result and store it in register eax.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, times_2, kSmiTag));
+      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
       break;
 
     case Token::MOD:
@@ -4311,7 +4311,7 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
       }
       // Tag the result and store it in register eax.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, times_2, kSmiTag));
+      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
       break;
 
     default:
@@ -4438,7 +4438,7 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
 
       // Tag smi result and return.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, times_2, kSmiTag));
+      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
       __ ret(2 * kPointerSize);
 
       // All ops except SHR return a signed int32 that we load in a HeapNumber.
@@ -5172,7 +5172,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
   // running with --gc-greedy set.
   if (FLAG_gc_greedy) {
     Failure* failure = Failure::RetryAfterGC(0);
-    __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
+    __ mov(eax, Immediate(reinterpret_cast<int32_t>(failure)));
   }
   GenerateCore(masm, &throw_normal_exception,
                &throw_out_of_memory_exception,
@@ -5190,7 +5190,7 @@ void CEntryStub::GenerateBody(MacroAssembler* masm, bool is_debug_break) {
 
   // Do full GC and retry runtime call one final time.
   Failure* failure = Failure::InternalError();
-  __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(failure)));
+  __ mov(eax, Immediate(reinterpret_cast<int32_t>(failure)));
   GenerateCore(masm,
                &throw_normal_exception,
                &throw_out_of_memory_exception,
@@ -5256,10 +5256,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // stub, because the builtin stubs may not have been generated yet.
   if (is_construct) {
     ExternalReference construct_entry(Builtins::JSConstructEntryTrampoline);
-    __ mov(Operand(edx), Immediate(construct_entry));
+    __ mov(edx, Immediate(construct_entry));
   } else {
     ExternalReference entry(Builtins::JSEntryTrampoline);
-    __ mov(Operand(edx), Immediate(entry));
+    __ mov(edx, Immediate(entry));
   }
   __ mov(edx, Operand(edx, 0));  // deref address
   __ lea(edx, FieldOperand(edx, Code::kHeaderSize));

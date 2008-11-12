@@ -395,7 +395,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the propeties array.
-    __ mov(Operand(ecx), Immediate(Handle<Map>(transition)));
+    __ mov(ecx, Immediate(Handle<Map>(transition)));
     Handle<Code> ic(Builtins::builtin(storage_extend));
     __ jmp(ic, RelocInfo::CODE_TARGET);
     return;
@@ -628,7 +628,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   }
 
   // Get the function and setup the context.
-  __ mov(Operand(edi), Immediate(Handle<JSFunction>(function)));
+  __ mov(edi, Immediate(Handle<JSFunction>(function)));
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).
@@ -681,14 +681,14 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   // Perform call.
   ExternalReference load_interceptor =
       ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ mov(Operand(eax), Immediate(3));
-  __ mov(Operand(ebx), Immediate(load_interceptor));
+  __ mov(eax, Immediate(3));
+  __ mov(ebx, Immediate(load_interceptor));
 
   CEntryStub stub;
   __ CallStub(&stub);
 
   // Move result to edi and restore receiver.
-  __ mov(Operand(edi), eax);
+  __ mov(edi, eax);
   __ mov(edx, Operand(ebp, (argc + 2) * kPointerSize));  // receiver
 
   // Exit frame.
@@ -750,7 +750,7 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
 
   // Handle store cache miss.
   __ bind(&miss);
-  __ mov(Operand(ecx), Immediate(Handle<String>(name)));  // restore name
+  __ mov(ecx, Immediate(Handle<String>(name)));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
@@ -807,7 +807,7 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 
   // Handle store cache miss.
   __ bind(&miss);
-  __ mov(Operand(ecx), Immediate(Handle<String>(name)));  // restore name
+  __ mov(ecx, Immediate(Handle<String>(name)));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 
@@ -862,7 +862,7 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 
   // Handle store cache miss.
   __ bind(&miss);
-  __ mov(Operand(ecx), Immediate(Handle<String>(name)));  // restore name
+  __ mov(ecx, Immediate(Handle<String>(name)));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
   __ jmp(ic, RelocInfo::CODE_TARGET);
 

@@ -543,12 +543,12 @@ void CallIC::Generate(MacroAssembler* masm,
 
   // Call the entry.
   CEntryStub stub;
-  __ mov(Operand(eax), Immediate(2));
-  __ mov(Operand(ebx), Immediate(f));
+  __ mov(eax, Immediate(2));
+  __ mov(ebx, Immediate(f));
   __ CallStub(&stub);
 
   // Move result to edi and exit the internal frame.
-  __ mov(Operand(edi), eax);
+  __ mov(edi, eax);
   __ LeaveInternalFrame();
 
   // Check if the receiver is a global object of some sort.

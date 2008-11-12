@@ -1371,35 +1371,6 @@ Handle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
 }
 
 
-Handle<String> Debugger::ProcessRequest(Handle<Object> exec_state,
-                                        Handle<Object> request,
-                                        bool stopped) {
-  // Get the function ProcessDebugRequest (declared in debug.js).
-  Handle<JSFunction> process_denbug_request =
-    Handle<JSFunction>(JSFunction::cast(
-    Debug::debug_context()->global()->GetProperty(
-        *Factory::LookupAsciiSymbol("ProcessDebugRequest"))));
-
-  // Call ProcessDebugRequest expect String result. The ProcessDebugRequest
-  // will never throw an exception (see debug.js).
-  bool caught_exception;
-  const int argc = 3;
-  Object** argv[argc] = { exec_state.location(),
-                          request.location(),
-                          stopped ? Factory::true_value().location() :
-                                    Factory::false_value().location()};
-  Handle<Object> result = Execution::TryCall(process_denbug_request,
-                                             Factory::undefined_value(),
-                                             argc, argv,
-                                             &caught_exception);
-  if (caught_exception) {
-    return Factory::empty_symbol();
-  }
-
-  return Handle<String>::cast(result);
-}
-
-
 void Debugger::OnException(Handle<Object> exception, bool uncaught) {
   HandleScope scope;
 

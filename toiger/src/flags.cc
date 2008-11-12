@@ -31,6 +31,9 @@
 #include "v8.h"
 
 #include "platform.h"
+#include "smart-pointer.h"
+#include "string-stream.h"
+
 
 namespace v8 { namespace internal {
 
@@ -48,7 +51,7 @@ namespace {
 // to the actual flag, default value, comment, etc.  This is designed to be POD
 // initialized as to avoid requiring static constructors.
 struct Flag {
-  enum FlagType { TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING };
+  enum FlagType { TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING, TYPE_ARGS };
 
   FlagType type_;           // What type of flag, bool, int, or string.
   const char* name_;        // Name of the flag, ex "my_flag".
@@ -82,6 +85,11 @@ struct Flag {
     return reinterpret_cast<const char**>(valptr_);
   }
 
+  JSArguments* args_variable() const {
+    ASSERT(type_ == TYPE_ARGS);
+    return reinterpret_cast<JSArguments*>(valptr_);
+  }
+
   bool bool_default() const {
     ASSERT(type_ == TYPE_BOOL);
     return *reinterpret_cast<const bool*>(defptr_);
@@ -102,6 +110,11 @@ struct Flag {
     return *reinterpret_cast<const char* const *>(defptr_);
   }
 
+  JSArguments args_default() const {
+    ASSERT(type_ == TYPE_ARGS);
+    return *reinterpret_cast<const JSArguments*>(defptr_);
+  }
+
   // Compare this flag's current value against the default.
   bool IsDefault() const {
     switch (type_) {
@@ -111,12 +124,15 @@ struct Flag {
         return *int_variable() == int_default();
       case TYPE_FLOAT:
         return *float_variable() == float_default();
-      case TYPE_STRING:
+      case TYPE_STRING: {
         const char* str1 = *string_variable();
         const char* str2 = string_default();
         if (str2 == NULL) return str1 == NULL;
         if (str1 == NULL) return str2 == NULL;
         return strcmp(str1, str2) == 0;
+      }
+      case TYPE_ARGS:
+        return args_variable()->argc() == 0;
     }
     UNREACHABLE();
     return true;
@@ -136,6 +152,9 @@ struct Flag {
         break;
       case TYPE_STRING:
         *string_variable() = string_default();
+        break;
+      case TYPE_ARGS:
+        *args_variable() = args_default();
         break;
     }
   }
@@ -157,67 +176,81 @@ static const char* Type2String(Flag::FlagType type) {
     case Flag::TYPE_INT: return "int";
     case Flag::TYPE_FLOAT: return "float";
     case Flag::TYPE_STRING: return "string";
+    case Flag::TYPE_ARGS: return "arguments";
   }
   UNREACHABLE();
   return NULL;
 }
 
 
-static char* ToString(Flag* flag) {
-  Vector<char> value;
+static SmartPointer<const char> ToString(Flag* flag) {
+  HeapStringAllocator string_allocator;
+  StringStream buffer(&string_allocator);
   switch (flag->type()) {
     case Flag::TYPE_BOOL:
-      value = Vector<char>::New(6);
-      OS::SNPrintF(value, "%s", (*flag->bool_variable() ? "true" : "false"));
+      buffer.Add("%s", (*flag->bool_variable() ? "true" : "false"));
       break;
     case Flag::TYPE_INT:
-      value = Vector<char>::New(12);
-      OS::SNPrintF(value, "%d", *flag->int_variable());
+      buffer.Add("%d", *flag->int_variable());
       break;
     case Flag::TYPE_FLOAT:
-      value = Vector<char>::New(20);
-      OS::SNPrintF(value, "%f", *flag->float_variable());
+      buffer.Add("%f", FmtElm(*flag->float_variable()));
       break;
-    case Flag::TYPE_STRING:
+    case Flag::TYPE_STRING: {
       const char* str = *flag->string_variable();
-      if (str) {
-        int length = strlen(str) + 1;
-        value = Vector<char>::New(length);
-        OS::SNPrintF(value, "%s", str);
-      } else {
-        value = Vector<char>::New(5);
-        OS::SNPrintF(value, "NULL");
+      buffer.Add("%s", str ? str : "NULL");
+      break;
+    }
+    case Flag::TYPE_ARGS: {
+      JSArguments args = *flag->args_variable();
+      if (args.argc() > 0) {
+        buffer.Add("%s",  args[0]);
+        for (int i = 1; i < args.argc(); i++) {
+          buffer.Add(" %s", args[i]);
+        }
       }
       break;
+    }
   }
-  ASSERT(!value.is_empty());
-  return value.start();
+  return buffer.ToCString();
 }
 
 
 // static
-List<char *>* FlagList::argv() {
-  List<char *>* args = new List<char*>(8);
+List<const char*>* FlagList::argv() {
+  List<const char*>* args = new List<const char*>(8);
+  Flag* args_flag = NULL;
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* f = &flags[i];
     if (!f->IsDefault()) {
-      Vector<char> cmdline_flag;
-      if (f->type() != Flag::TYPE_BOOL || *(f->bool_variable())) {
-        int length = strlen(f->name()) + 2 + 1;
-        cmdline_flag = Vector<char>::New(length);
-        OS::SNPrintF(cmdline_flag, "--%s", f->name());
-      } else {
-        int length = strlen(f->name()) + 4 + 1;
-        cmdline_flag = Vector<char>::New(length);
-        OS::SNPrintF(cmdline_flag, "--no%s", f->name());
+      if (f->type() == Flag::TYPE_ARGS) {
+        ASSERT(args_flag == NULL);
+        args_flag = f;  // Must be last in arguments.
+        continue;
       }
-      args->Add(cmdline_flag.start());
+      HeapStringAllocator string_allocator;
+      StringStream buffer(&string_allocator);
+      if (f->type() != Flag::TYPE_BOOL || *(f->bool_variable())) {
+        buffer.Add("--%s", f->name());
+      } else {
+        buffer.Add("--no%s", f->name());
+      }
+      args->Add(buffer.ToCString().Detach());
       if (f->type() != Flag::TYPE_BOOL) {
-        args->Add(ToString(f));
+        args->Add(ToString(f).Detach());
       }
     }
   }
-
+  if (args_flag != NULL) {
+    HeapStringAllocator string_allocator;
+    StringStream buffer(&string_allocator);
+    buffer.Add("--%s", args_flag->name());
+    args->Add(buffer.ToCString().Detach());
+    JSArguments jsargs = *args_flag->args_variable();
+    for (int j = 0; j < jsargs.argc(); j++) {
+      args->Add(OS::StrDup(jsargs[j]));
+    }
+  }
   return args;
 }
 
@@ -239,8 +272,14 @@ static void SplitArgument(const char* arg,
   if (*arg == '-') {
     // find the begin of the flag name
     arg++;  // remove 1st '-'
-    if (*arg == '-')
+    if (*arg == '-') {
       arg++;  // remove 2nd '-'
+      if (arg[0] == '\0') {
+        const char* kJSArgumentsFlagName = "js_arguments";
+        *name = kJSArgumentsFlagName;
+        return;
+      }
+    }
     if (arg[0] == 'n' && arg[1] == 'o') {
       arg += 2;  // remove "no"
       *is_bool = true;
@@ -324,7 +363,9 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       }
 
       // if we still need a flag value, use the next argument if available
-      if (flag->type() != Flag::TYPE_BOOL && value == NULL) {
+      if (flag->type() != Flag::TYPE_BOOL &&
+          flag->type() != Flag::TYPE_ARGS &&
+          value == NULL) {
         if (i < *argc) {
           value = argv[i++];
         } else {
@@ -350,6 +391,20 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
         case Flag::TYPE_STRING:
           *flag->string_variable() = value;
           break;
+        case Flag::TYPE_ARGS: {
+          int start_pos = (value == NULL) ? i : i - 1;
+          int js_argc = *argc - start_pos;
+          const char** js_argv = NewArray<const char*>(js_argc);
+          if (value != NULL) {
+            js_argv[0] = value;
+          }
+          for (int k = i; k < *argc; k++) {
+            js_argv[k - start_pos] = argv[k];
+          }
+          *flag->args_variable() = JSArguments(js_argc, js_argv);
+          i = *argc;  // Consume all arguments
+          break;
+        }
       }
 
       // handle errors
@@ -363,9 +418,11 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
       }
 
       // remove the flag & value from the command
-      if (remove_flags)
-        while (j < i)
+      if (remove_flags) {
+        while (j < i) {
           argv[j++] = NULL;
+        }
+      }
     }
   }
 
@@ -467,11 +524,24 @@ void FlagList::PrintHelp() {
   printf("Options:\n");
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* f = &flags[i];
-    char* value = ToString(f);
+    SmartPointer<const char> value = ToString(f);
     printf("  --%s (%s)\n        type: %s  default: %s\n",
-           f->name(), f->comment(), Type2String(f->type()), value);
-    DeleteArray(value);
+           f->name(), f->comment(), Type2String(f->type()), *value);
   }
 }
+
+JSArguments::JSArguments()
+    : argc_(0), argv_(NULL) {}
+JSArguments::JSArguments(int argc, const char** argv)
+    : argc_(argc), argv_(argv) {}
+int JSArguments::argc() const { return argc_; }
+const char** JSArguments::argv() { return argv_; }
+const char*& JSArguments::operator[](int idx) { return argv_[idx]; }
+JSArguments& JSArguments::operator=(JSArguments args) {
+    argc_ = args.argc_;
+    argv_ = args.argv_;
+    return *this;
+}
+
 
 } }  // namespace v8::internal

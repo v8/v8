@@ -597,6 +597,14 @@ void Assembler::mov(Register dst, int32_t imm32) {
 }
 
 
+void Assembler::mov(Register dst, const Immediate& x) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xB8 | dst.code());
+  emit(x);
+}
+
+
 void Assembler::mov(Register dst, Handle<Object> handle) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -610,6 +618,14 @@ void Assembler::mov(Register dst, const Operand& src) {
   last_pc_ = pc_;
   EMIT(0x8B);
   emit_operand(dst, src);
+}
+
+
+void Assembler::mov(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x89);
+  EMIT(0xC0 | src.code() << 3 | dst.code());
 }
 
 

@@ -3799,8 +3799,16 @@ void CEntryStub::GenerateThrowOutOfMemory(MacroAssembler* masm) {
   // Restore the stack to the address of the ENTRY handler
   __ mov(sp, Operand(r3));
 
-  // restore parameter- and frame-pointer and pop state.
-  __ ldm(ia_w, sp, r3.bit() | pp.bit() | fp.bit());
+  // Stack layout at this point. See also PushTryHandler
+  // r3, sp ->   next handler
+  //             state (ENTRY)
+  //             pp
+  //             fp
+  //             lr
+
+  // Discard ENTRY state (r2 is not used), and restore parameter-
+  // and frame-pointer and pop state.
+  __ ldm(ia_w, sp, r2.bit() | r3.bit() | pp.bit() | fp.bit());
   // Before returning we restore the context from the frame pointer if not NULL.
   // The frame pointer is NULL in the exception handler of a JS entry frame.
   __ cmp(fp, Operand(0));
@@ -4215,7 +4223,10 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Slow-case: Non-function called.
   __ bind(&slow);
   __ mov(r0, Operand(argc_));  // Setup the number of arguments.
-  __ InvokeBuiltin(Builtins::CALL_NON_FUNCTION, JUMP_JS);
+  __ mov(r2, Operand(0));
+  __ GetBuiltinEntry(r3, Builtins::CALL_NON_FUNCTION);
+  __ Jump(Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline)),
+          RelocInfo::CODE_TARGET);
 }
 
 

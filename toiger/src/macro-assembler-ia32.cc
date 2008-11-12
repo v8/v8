@@ -295,7 +295,7 @@ void MacroAssembler::Set(Register dst, const Immediate& x) {
   if (x.is_zero()) {
     xor_(dst, Operand(dst));  // shorter than mov
   } else {
-    mov(Operand(dst), x);
+    mov(dst, x);
   }
 }
 
@@ -697,7 +697,7 @@ void MacroAssembler::IllegalOperation(int num_arguments) {
   if (num_arguments > 0) {
     add(Operand(esp), Immediate(num_arguments * kPointerSize));
   }
-  mov(Operand(eax), Immediate(Factory::undefined_value()));
+  mov(eax, Immediate(Factory::undefined_value()));
 }
 
 
@@ -728,14 +728,14 @@ void MacroAssembler::TailCallRuntime(const ExternalReference& ext,
   // arguments passed in because it is constant. At some point we
   // should remove this need and make the runtime routine entry code
   // smarter.
-  mov(Operand(eax), Immediate(num_arguments));
+  Set(eax, Immediate(num_arguments));
   JumpToBuiltin(ext);
 }
 
 
 void MacroAssembler::JumpToBuiltin(const ExternalReference& ext) {
   // Set the entry point and jump to the C entry runtime stub.
-  mov(Operand(ebx), Immediate(ext));
+  mov(ebx, Immediate(ext));
   CEntryStub ces;
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
@@ -789,7 +789,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     Handle<Code> adaptor =
         Handle<Code>(Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline));
     if (!code_constant.is_null()) {
-      mov(Operand(edx), Immediate(code_constant));
+      mov(edx, Immediate(code_constant));
       add(Operand(edx), Immediate(Code::kHeaderSize - kHeapObjectTag));
     } else if (!code_operand.is_reg(edx)) {
       mov(edx, code_operand);
@@ -875,7 +875,8 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(true);
+        Bootstrapper::FixupFlagsIsPCRelative::encode(true) |
+        Bootstrapper::FixupFlagsUseCodeObject::encode(false);
     Unresolved entry = { pc_offset() - sizeof(int32_t), flags, name };
     unresolved_.Add(entry);
   }
@@ -893,7 +894,8 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
   if (!resolved) {
     uint32_t flags =
         Bootstrapper::FixupFlagsArgumentsCount::encode(argc) |
-        Bootstrapper::FixupFlagsIsPCRelative::encode(false);
+        Bootstrapper::FixupFlagsIsPCRelative::encode(false) |
+        Bootstrapper::FixupFlagsUseCodeObject::encode(true);
     Unresolved entry = { pc_offset() - sizeof(int32_t), flags, name };
     unresolved_.Add(entry);
   }

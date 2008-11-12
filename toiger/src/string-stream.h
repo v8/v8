@@ -73,16 +73,18 @@ class NoAllocationStringAllocator: public StringAllocator {
 class FmtElm {
  public:
   FmtElm(int value) : type_(INT) { data_.u_int_ = value; }  // NOLINT
+  explicit FmtElm(double value) : type_(DOUBLE) { data_.u_double_ = value; }  // NOLINT
   FmtElm(const char* value) : type_(C_STR) { data_.u_c_str_ = value; }  // NOLINT
   FmtElm(Object* value) : type_(OBJ) { data_.u_obj_ = value; }  // NOLINT
   FmtElm(Handle<Object> value) : type_(HANDLE) { data_.u_handle_ = value.location(); }  // NOLINT
   FmtElm(void* value) : type_(INT) { data_.u_int_ = reinterpret_cast<int>(value); }  // NOLINT
  private:
   friend class StringStream;
-  enum Type { INT, C_STR, OBJ, HANDLE };
+  enum Type { INT, DOUBLE, C_STR, OBJ, HANDLE };
   Type type_;
   union {
     int u_int_;
+    double u_double_;
     const char* u_c_str_;
     Object* u_obj_;
     Object** u_handle_;
@@ -116,7 +118,7 @@ class StringStream {
   void OutputToStdOut();
   void Log();
   Handle<String> ToString();
-  SmartPointer<char> ToCString();
+  SmartPointer<const char> ToCString();
 
   // Object printing support.
   void PrintName(Object* o);
