@@ -438,18 +438,6 @@ TEST(SplayTreeSimple) {
 }
 
 
-static int CompareChars(const void* ap, const void* bp) {
-  uc16 a = *static_cast<const uc16*>(ap);
-  uc16 b = *static_cast<const uc16*>(bp);
-  if (a < b)
-    return -1;
-  else if (a > b)
-    return 1;
-  else
-    return 0;
-}
-
-
 TEST(DispatchTableConstruction) {
   // Initialize test data.
   static const int kLimit = 1000;
@@ -457,11 +445,14 @@ TEST(DispatchTableConstruction) {
   static const int kRangeSize = 16;
   uc16 ranges[kRangeCount][2 * kRangeSize];
   for (int i = 0; i < kRangeCount; i++) {
-    uc16* range = ranges[i];
+    Vector<uc16> range(ranges[i], 2 * kRangeSize);
     for (int j = 0; j < 2 * kRangeSize; j++) {
       range[j] = PseudoRandom(i + 25, j + 87) % kLimit;
     }
-    qsort(range, 2 * kRangeSize, sizeof(uc16), CompareChars);
+    range.Sort();
+    for (int j = 1; j < 2 * kRangeSize; j++) {
+      CHECK(range[j-1] <= range[j]);
+    }
   }
   // Enter test data into dispatch table.
   ZoneScope zone_scope(DELETE_ON_EXIT);
@@ -676,19 +667,37 @@ TEST(MacroAssembler) {
 TEST(AddInverseToTable) {
   static const int kLimit = 1000;
   static const int kRangeCount = 16;
-  ZoneScope zone_scope(DELETE_ON_EXIT);
-  ZoneList<CharacterRange>* range = new ZoneList<CharacterRange>(kRangeCount);
-  for (int i = 0; i < kRangeCount; i++) {
-    int from = PseudoRandom(87, i + 25) % kLimit;
-    int to = PseudoRandom(i + 87, 25) % (kLimit / 20);
-    if (to > kLimit) to = kLimit;
-    range->Add(CharacterRange(from, to));
+  for (int t = 0; t < 10; t++) {
+    ZoneScope zone_scope(DELETE_ON_EXIT);
+    ZoneList<CharacterRange>* ranges =
+        new ZoneList<CharacterRange>(kRangeCount);
+    for (int i = 0; i < kRangeCount; i++) {
+      int from = PseudoRandom(t + 87, i + 25) % kLimit;
+      int to = from + (PseudoRandom(i + 87, t + 25) % (kLimit / 20));
+      if (to > kLimit) to = kLimit;
+      ranges->Add(CharacterRange(from, to));
+    }
+    DispatchTable table;
+    CharacterClassNode::AddInverseToTable(ranges, &table, 0);
+    for (int i = 0; i < kLimit; i++) {
+      bool is_on = false;
+      for (int j = 0; !is_on && j < kRangeCount; j++)
+        is_on = ranges->at(j).Contains(i);
+      OutSet* set = table.Get(i);
+      CHECK_EQ(is_on, set->Get(0) == false);
+    }
   }
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  ZoneList<CharacterRange>* ranges =
+          new ZoneList<CharacterRange>(1);
+  ranges->Add(CharacterRange(0xFFF0, 0xFFFE));
   DispatchTable table;
-  // CharacterClassNode::AddInverseToTable(range, &table, 0);
+  CharacterClassNode::AddInverseToTable(ranges, &table, 0);
+  CHECK(!table.Get(0xFFFE)->Get(0));
+  CHECK(table.Get(0xFFFF)->Get(0));
 }
 
 
 TEST(Graph) {
-  Execute(".*?a", "", true);
+  Execute(".*?[^a]|b", "", true);
 }

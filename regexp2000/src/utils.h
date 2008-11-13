@@ -83,6 +83,23 @@ static inline T RoundUp(T x, int m) {
 }
 
 
+template <typename T>
+static int Spaceship(const T& a, const T& b) {
+  if (a == b)
+    return 0;
+  else if (a < b)
+    return -1;
+  else
+    return 1;
+}
+
+
+template <typename T>
+static int PointerSpaceship(const T* a, const T* b) {
+  return Spaceship<T>(*a, *b);
+}
+
+
 // Returns the smallest power of two which is >= x. If you pass in a
 // number that is already a power of two, it is returned as is.
 uint32_t RoundUpToPowerOf2(uint32_t x);
@@ -316,6 +333,18 @@ class Vector {
     T* result = NewArray<T>(length_);
     for (int i = 0; i < length_; i++) result[i] = start_[i];
     return Vector<T>(result, length_);
+  }
+
+  void Sort(int (*cmp)(const T*, const T*)) {
+    typedef int (*RawComparer)(const void*, const void*);
+    qsort(start(),
+          length(),
+          sizeof(T),
+          reinterpret_cast<RawComparer>(cmp));
+  }
+
+  void Sort() {
+    Sort(PointerSpaceship<T>);
   }
 
   // Releases the array underlying this vector. Once disposed the

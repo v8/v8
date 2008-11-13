@@ -102,6 +102,7 @@ class List {
 
   // Sort all list entries (using QuickSort)
   void Sort(int (*cmp)(const T* x, const T* y));
+  void Sort();
 
   INLINE(void Initialize(int capacity));
 

@@ -152,9 +152,10 @@ class CharacterRange {
     ASSERT(from <= to);
     return CharacterRange(from, to);
   }
-  uc16 from() { return from_; }
+  bool Contains(uc16 i) { return from_ <= i && i <= to_; }
+  uc16 from() const { return from_; }
   void set_from(uc16 value) { from_ = value; }
-  uc16 to() { return to_; }
+  uc16 to() const { return to_; }
   void set_to(uc16 value) { to_ = value; }
   bool is_valid() { return from_ <= to_; }
   bool IsSingleton() { return (from_ == to_); }
@@ -347,6 +348,211 @@ class DispatchTable {
 };
 
 
+#define FOR_EACH_NODE_TYPE(VISIT)                                    \
+  VISIT(End)                                                         \
+  VISIT(Atom)                                                        \
+  VISIT(Action)                                                      \
+  VISIT(Choice)                                                      \
+  VISIT(Backreference)                                               \
+  VISIT(CharacterClass)
+
+
+class RegExpNode: public ZoneObject {
+ public:
+  virtual ~RegExpNode() { }
+  virtual void Accept(NodeVisitor* visitor) = 0;
+  // Generates a goto to this node or actually generates the code at this point.
+  void GoTo(RegExpCompiler* compiler);
+  void EmitAddress(RegExpCompiler* compiler);
+  virtual void Emit(RegExpCompiler* compiler) = 0;
+ private:
+  Label label;
+};
+
+
+class SeqRegExpNode: public RegExpNode {
+ public:
+  explicit SeqRegExpNode(RegExpNode* on_success)
+    : on_success_(on_success) { }
+  RegExpNode* on_success() { return on_success_; }
+  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
+ private:
+  RegExpNode* on_success_;
+};
+
+
+class ActionNode: public SeqRegExpNode {
+ public:
+  enum Type {
+    STORE_REGISTER,
+    INCREMENT_REGISTER,
+    STORE_POSITION,
+    RESTORE_POSITION,
+    BEGIN_SUBMATCH,
+    ESCAPE_SUBMATCH,
+    END_SUBMATCH
+  };
+  static ActionNode* StoreRegister(int reg, int val, RegExpNode* on_success);
+  static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
+  static ActionNode* StorePosition(int reg, RegExpNode* on_success);
+  static ActionNode* RestorePosition(int reg, RegExpNode* on_success);
+  static ActionNode* BeginSubmatch(RegExpNode* on_success);
+  static ActionNode* EscapeSubmatch(RegExpNode* on_success);
+  static ActionNode* EndSubmatch(RegExpNode* on_success);
+  virtual void Accept(NodeVisitor* visitor);
+  virtual void Emit(RegExpCompiler* compiler);
+ private:
+  union {
+    struct {
+      int reg;
+      int value;
+    } u_store_register;
+    struct {
+      int reg;
+    } u_increment_register;
+    struct {
+      int reg;
+    } u_position_register;
+  } data_;
+  ActionNode(Type type, RegExpNode* on_success)
+    : SeqRegExpNode(on_success),
+      type_(type) { }
+  Type type_;
+  friend class DotPrinter;
+};
+
+
+class AtomNode: public SeqRegExpNode {
+ public:
+  AtomNode(Vector<const uc16> data,
+           RegExpNode* on_success,
+           RegExpNode* on_failure)
+    : SeqRegExpNode(on_success),
+      on_failure_(on_failure),
+      data_(data) { }
+  virtual void Accept(NodeVisitor* visitor);
+  Vector<const uc16> data() { return data_; }
+  RegExpNode* on_failure() { return on_failure_; }
+  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
+ private:
+  RegExpNode* on_failure_;
+  Vector<const uc16> data_;
+};
+
+
+class BackreferenceNode: public SeqRegExpNode {
+ public:
+  BackreferenceNode(int start_reg,
+                    int end_reg,
+                    RegExpNode* on_success,
+                    RegExpNode* on_failure)
+    : SeqRegExpNode(on_success),
+      on_failure_(on_failure),
+      start_reg_(start_reg),
+      end_reg_(end_reg) { }
+  virtual void Accept(NodeVisitor* visitor);
+  RegExpNode* on_failure() { return on_failure_; }
+  int start_register() { return start_reg_; }
+  int end_register() { return end_reg_; }
+  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
+ private:
+  RegExpNode* on_failure_;
+  int start_reg_;
+  int end_reg_;
+};
+
+
+class CharacterClassNode: public SeqRegExpNode {
+ public:
+  CharacterClassNode(ZoneList<CharacterRange>* ranges,
+                     bool is_negated,
+                     RegExpNode* on_success,
+                     RegExpNode* on_failure)
+    : SeqRegExpNode(on_success),
+      on_failure_(on_failure),
+      ranges_(ranges),
+      is_negated_(is_negated ) { }
+  virtual void Accept(NodeVisitor* visitor);
+  ZoneList<CharacterRange>* ranges() { return ranges_; }
+  bool is_negated() { return is_negated_; }
+  RegExpNode* on_failure() { return on_failure_; }
+  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
+  static void AddInverseToTable(ZoneList<CharacterRange>* ranges,
+                                DispatchTable* table,
+                                int index);
+ private:
+  RegExpNode* on_failure_;
+  ZoneList<CharacterRange>* ranges_;
+  bool is_negated_;
+};
+
+
+class EndNode: public RegExpNode {
+ public:
+  enum Action { ACCEPT, BACKTRACK };
+  virtual void Accept(NodeVisitor* visitor);
+  static EndNode* GetAccept() { return &kAccept; }
+  static EndNode* GetBacktrack() { return &kBacktrack; }
+  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
+ private:
+  explicit EndNode(Action action) : action_(action) { }
+  Action action_;
+  static EndNode kAccept;
+  static EndNode kBacktrack;
+};
+
+
+class Guard: public ZoneObject {
+ public:
+  enum Relation { LT, GEQ };
+  Guard(int reg, Relation op, int value)
+    : reg_(reg),
+      op_(op),
+      value_(value) { }
+  int reg() { return reg_; }
+  Relation op() { return op_; }
+  int value() { return value_; }
+ private:
+  int reg_;
+  Relation op_;
+  int value_;
+};
+
+
+class GuardedAlternative {
+ public:
+  explicit GuardedAlternative(RegExpNode* node) : node_(node), guards_(NULL) { }
+  void AddGuard(Guard* guard);
+  RegExpNode* node() { return node_; }
+  ZoneList<Guard*>* guards() { return guards_; }
+ private:
+  RegExpNode* node_;
+  ZoneList<Guard*>* guards_;
+};
+
+
+class ChoiceNode: public RegExpNode {
+ public:
+  explicit ChoiceNode(int expected_size, RegExpNode* on_failure)
+    : on_failure_(on_failure),
+      choices_(new ZoneList<GuardedAlternative>(expected_size)),
+      visited_(false) { }
+  virtual void Accept(NodeVisitor* visitor);
+  void AddChild(GuardedAlternative node) { choices()->Add(node); }
+  ZoneList<GuardedAlternative>* choices() { return choices_; }
+  DispatchTable* table() { return &table_; }
+  RegExpNode* on_failure() { return on_failure_; }
+  virtual void Emit(RegExpCompiler* compiler);
+  bool visited() { return visited_; }
+  void set_visited(bool value) { visited_ = value; }
+ private:
+  RegExpNode* on_failure_;
+  ZoneList<GuardedAlternative>* choices_;
+  DispatchTable table_;
+  bool visited_;
+};
+
+
 struct RegExpParseResult {
   RegExpTree* tree;
   bool has_character_escapes;
@@ -363,19 +569,6 @@ class RegExpEngine: public AllStatic {
 
 
 class RegExpCompiler;
-
-
-class RegExpNode: public ZoneObject {
- public:
-  virtual ~RegExpNode() { }
-  virtual void Accept(NodeVisitor* visitor) = 0;
-  // Generates a goto to this node or actually generates the code at this point.
-  void GoTo(RegExpCompiler* compiler);
-  void EmitAddress(RegExpCompiler* compiler);
-  virtual void Emit(RegExpCompiler* compiler) = 0;
- private:
-  Label label;
-};
 
 
 } }  // namespace v8::internal

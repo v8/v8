@@ -101,14 +101,17 @@ bool List<T, P>::Contains(const T& elm) {
 
 template<typename T, class P>
 void List<T, P>::Sort(int (*cmp)(const T* x, const T* y)) {
-  qsort(data_,
-        length_,
-        sizeof(T),
-        reinterpret_cast<int (*)(const void*, const void*)>(cmp));
+  ToVector().Sort(cmp);
 #ifdef DEBUG
   for (int i = 1; i < length_; i++)
     ASSERT(cmp(&data_[i - 1], &data_[i]) <= 0);
 #endif
+}
+
+
+template<typename T, class P>
+void List<T, P>::Sort() {
+  Sort(PointerSpaceship<T>);
 }
 
 
