@@ -105,7 +105,6 @@ class Factory : public AllStatic {
   // Create a new sliced string object which represents a substring of a
   // backing string.
   static Handle<String> NewStringSlice(Handle<String> str,
-                                       StringShape shape,
                                        int begin,
                                        int end);
 

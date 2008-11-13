@@ -157,6 +157,13 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
       Add(Vector<const char>(formatted.start(), length));
       break;
     }
+    case 'f': case 'g': case 'G': case 'e': case 'E': {
+      double value = current.data_.u_double_;
+      EmbeddedVector<char, 28> formatted;
+      OS::SNPrintF(formatted, temp.start(), value);
+      Add(formatted.start());
+      break;
+    }
     default:
       UNREACHABLE();
       break;
@@ -226,11 +233,11 @@ void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
 }
 
 
-SmartPointer<char> StringStream::ToCString() {
+SmartPointer<const char> StringStream::ToCString() {
   char* str = NewArray<char>(length_ + 1);
   memcpy(str, buffer_, length_);
   str[length_] = '\0';
-  return SmartPointer<char>(str);
+  return SmartPointer<const char>(str);
 }
 
 

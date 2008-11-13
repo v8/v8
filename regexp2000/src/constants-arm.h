@@ -33,62 +33,74 @@ namespace assembler { namespace arm {
 // Defines constants and accessor classes to assemble, disassemble and
 // simulate ARM instructions.
 //
+// Section references in the code refer to the "ARM Architecture Reference
+// Manual" from July 2005 (available at http://www.arm.com/miscPDFs/14128.pdf)
+//
 // Constants for specific fields are defined in their respective named enums.
 // General constants are in an anonymous enum in class Instr.
 
 typedef unsigned char byte;
 
+// Values for the condition field as defined in section A3.2
 enum Condition {
   no_condition = -1,
-  EQ =  0,
-  NE =  1,
-  CS =  2,
-  CC =  3,
-  MI =  4,
-  PL =  5,
-  VS =  6,
-  VC =  7,
-  HI =  8,
-  LS =  9,
-  GE = 10,
-  LT = 11,
-  GT = 12,
-  LE = 13,
-  AL = 14,
-  special_condition = 15
+  EQ =  0,  // equal
+  NE =  1,  // not equal
+  CS =  2,  // carry set/unsigned higher or same
+  CC =  3,  // carry clear/unsigned lower
+  MI =  4,  // minus/negative
+  PL =  5,  // plus/positive or zero
+  VS =  6,  // overflow
+  VC =  7,  // no overflow
+  HI =  8,  // unsigned higher
+  LS =  9,  // unsigned lower or same
+  GE = 10,  // signed greater than or equal
+  LT = 11,  // signed less than
+  GT = 12,  // signed greater than
+  LE = 13,  // signed less than or equal
+  AL = 14,  // always (unconditional)
+  special_condition = 15,  // special condition (refer to section A3.2.1)
+  max_condition = 16
 };
 
 
+// Opcodes for Data-processing instructions (instructions with a type 0 and 1)
+// as defined in section A3.4
 enum Opcode {
   no_operand = -1,
-  AND =  0,
-  EOR =  1,
-  SUB =  2,
-  RSB =  3,
-  ADD =  4,
-  ADC =  5,
-  SBC =  6,
-  RSC =  7,
-  TST =  8,
-  TEQ =  9,
-  CMP = 10,
-  CMN = 11,
-  ORR = 12,
-  MOV = 13,
-  BIC = 14,
-  MVN = 15
+  AND =  0,  // Logical AND
+  EOR =  1,  // Logical Exclusive OR
+  SUB =  2,  // Subtract
+  RSB =  3,  // Reverse Subtract
+  ADD =  4,  // Add
+  ADC =  5,  // Add with Carry
+  SBC =  6,  // Subtract with Carry
+  RSC =  7,  // Reverse Subtract with Carry
+  TST =  8,  // Test
+  TEQ =  9,  // Test Equivalence
+  CMP = 10,  // Compare
+  CMN = 11,  // Compare Negated
+  ORR = 12,  // Logical (inclusive) OR
+  MOV = 13,  // Move
+  BIC = 14,  // Bit Clear
+  MVN = 15,  // Move Not
+  max_operand = 16
 };
 
 
+// Shifter types for Data-processing operands as defined in section A5.1.2.
 enum Shift {
   no_shift = -1,
-  LSL = 0,
-  LSR = 1,
-  ASR = 2,
-  ROR = 3
+  LSL = 0,  // Logical shift left
+  LSR = 1,  // Logical shift right
+  ASR = 2,  // Arithmetic shift right
+  ROR = 3,  // Rotate right
+  max_shift = 4
 };
 
 
+// Special Software Interrupt codes when used in the presence of the ARM
+// simulator.
 enum SoftwareInterruptCodes {
   // transition to C code
   call_rt_r5 = 0x10,
@@ -102,7 +114,17 @@ typedef int32_t instr_t;
 
 
 // The class Instr enables access to individual fields defined in the ARM
-// architecture.
+// architecture instruction set encoding as described in figure A3-1.
+//
+// Example: Test whether the instruction at ptr does set the condition code
+// bits.
+//
+// bool InstructionSetsConditionCodes(byte* ptr) {
+//   Instr *instr = Instr::At(ptr);
+//   int type = instr->TypeField();
+//   return ((type == 0) || (type == 1)) && instr->HasS();
+// }
+//
 class Instr {
  public:
   enum {
@@ -110,25 +132,29 @@ class Instr {
     kPCReadOffset = 8
   };
 
-  // Get the raw instruction bits
+  // Get the raw instruction bits.
   inline instr_t InstructionBits() const {
     return *reinterpret_cast<const instr_t*>(this);
   }
 
+  // Set the raw instruction bits to value.
   inline void SetInstructionBits(instr_t value) {
     *reinterpret_cast<instr_t*>(this) = value;
   }
 
+  // Read one particular bit out of the instruction bits.
   inline int Bit(int nr) const {
     return (InstructionBits() >> nr) & 1;
   }
 
+  // Read a bit field out of the instruction bits.
   inline int Bits(int hi, int lo) const {
     return (InstructionBits() >> lo) & ((2 << (hi - lo)) - 1);
   }
 
 
   // Accessors for the different named fields used in the ARM encoding.
+  // The naming of these accessor corresponds to figure A3-1.
   // Generally applicable fields
   inline Condition ConditionField() const {
     return static_cast<Condition>(Bits(31, 28));

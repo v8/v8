@@ -1216,7 +1216,7 @@ class RegExpTree: public ZoneObject {
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
                              RegExpNode* on_failure) = 0;
-  SmartPointer<char> ToString();
+  SmartPointer<const char> ToString();
 #define MAKE_ASTYPE(Name)  virtual RegExp##Name* As##Name();
   FOR_EACH_REG_EXP_NODE_TYPE(MAKE_ASTYPE)
 #undef MAKE_ASTYPE

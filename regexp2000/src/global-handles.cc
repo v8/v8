@@ -96,6 +96,7 @@ class GlobalHandles::Node : public Malloced {
   // Make this handle weak.
   void MakeWeak(void* parameter, WeakReferenceCallback callback) {
     LOG(HandleEvent("GlobalHandle::MakeWeak", handle().location()));
+    ASSERT(state_ != DESTROYED);
     if (state_ != WEAK && !IsNearDeath()) {
       GlobalHandles::number_of_weak_handles_++;
       if (object_->IsJSGlobalObject()) {
@@ -109,6 +110,7 @@ class GlobalHandles::Node : public Malloced {
 
   void ClearWeakness() {
     LOG(HandleEvent("GlobalHandle::ClearWeakness", handle().location()));
+    ASSERT(state_ != DESTROYED);
     if (state_ == WEAK || IsNearDeath()) {
       GlobalHandles::number_of_weak_handles_--;
       if (object_->IsJSGlobalObject()) {

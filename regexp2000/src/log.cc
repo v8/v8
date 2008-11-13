@@ -431,8 +431,7 @@ void Logger::RegExpExecEvent(Handle<JSRegExp> regexp,
   LogRegExpSource(regexp);
   fprintf(logfile_, ",");
   LogString(input_string);
-  StringShape shape(*input_string);
-  fprintf(logfile_, ",%d..%d\n", start_index, input_string->length(shape));
+  fprintf(logfile_, ",%d..%d\n", start_index, input_string->length());
 #endif
 }
 
@@ -729,7 +728,7 @@ bool Logger::Setup() {
           stream.Put(*p);
         }
       }
-      SmartPointer<char> expanded = stream.ToCString();
+      SmartPointer<const char> expanded = stream.ToCString();
       logfile_ = OS::FOpen(*expanded, "w");
     } else {
       logfile_ = OS::FOpen(FLAG_logfile, "w");

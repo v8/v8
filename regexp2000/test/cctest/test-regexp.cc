@@ -45,7 +45,7 @@
 using namespace v8::internal;
 
 
-static SmartPointer<char> Parse(const char* input) {
+static SmartPointer<const char> Parse(const char* input) {
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
@@ -53,7 +53,7 @@ static SmartPointer<char> Parse(const char* input) {
   CHECK(v8::internal::ParseRegExp(&buffer, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
-  SmartPointer<char> output = result.tree->ToString();
+  SmartPointer<const char> output = result.tree->ToString();
   return output;
 }
 

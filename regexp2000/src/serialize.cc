@@ -966,7 +966,7 @@ class GlobalHandlesRetriever: public ObjectVisitor {
 
 void Serializer::PutFlags() {
   writer_->PutC('F');
-  List<char*>* argv = FlagList::argv();
+  List<const char*>* argv = FlagList::argv();
   writer_->PutInt(argv->length());
   writer_->PutC('[');
   for (int i = 0; i < argv->length(); i++) {

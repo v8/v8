@@ -43,14 +43,15 @@ class FlagList {
   // argv array passed to the main function, e.g.
   // ("--prof", "--log-file", "v8.prof", "--nolazy").
   //
-  // The caller is responsible for disposing the list.
-  static List<char *>* argv();
+  // The caller is responsible for disposing the list, as well
+  // as every element of it.
+  static List<const char*>* argv();
 
   // Set the flag values by parsing the command line. If remove_flags is
   // set, the flags and associated values are removed from (argc,
   // argv). Returns 0 if no error occurred. Otherwise, returns the argv
   // index > 0 for the argument where an error occurred. In that case,
-  // (argc, argv) will remain unchanged indepdendent of the remove_flags
+  // (argc, argv) will remain unchanged independent of the remove_flags
   // value, and no assumptions about flag settings should be made.
   //
   // The following syntax for flags is accepted (both '-' and '--' are ok):
@@ -59,6 +60,7 @@ class FlagList {
   //   --noflag      (bool flags only)
   //   --flag=value  (non-bool flags only, no spaces around '=')
   //   --flag value  (non-bool flags only)
+  //   --            (equivalent to --js_arguments, captures all remaining args)
   static int SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags);
 
   // Set the flag values by parsing the string str. Splits string into argc

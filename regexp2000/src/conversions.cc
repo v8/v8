@@ -121,15 +121,14 @@ static inline bool SubStringEquals(const char* str,
 
 
 static inline bool SubStringEquals(String* str, int index, const char* other) {
-  StringShape shape(str);
   HandleScope scope;
-  int str_length = str->length(shape);
+  int str_length = str->length();
   int other_length = strlen(other);
   int end = index + other_length < str_length ?
             index + other_length :
             str_length;
   Handle<String> slice =
-      Factory::NewStringSlice(Handle<String>(str), shape, index, end);
+      Factory::NewStringSlice(Handle<String>(str), index, end);
   return slice->IsEqualTo(Vector<const char>(other, other_length));
 }
 

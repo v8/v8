@@ -82,8 +82,8 @@ enum DebugEvent {
 /**
  * Debug event callback function.
  *
- * \param event the debug event from which occoured (from the DebugEvent
- *              enumeration)
+ * \param event the type of the debug event that triggered the callback
+ *   (enum DebugEvent)
  * \param exec_state execution state (JavaScript object)
  * \param event_data event specific data (JavaScript object)
  * \param data value passed by the user to AddDebugEventListener
@@ -121,9 +121,6 @@ class EXPORT Debug {
 
   // Remove a JavaScript debug event listener.
   static void RemoveDebugEventListener(v8::Handle<v8::Function> that);
-
-  // Generate a stack dump.
-  static void StackDump();
 
   // Break execution of JavaScript.
   static void DebugBreak();

@@ -1,3 +1,20 @@
+2008-11-04: Version 0.4.3
+
+        Added support for API accessors that prohibit overwriting by
+        accessors defined in JavaScript code by using __defineGetter__ and
+        __defineSetter__.
+
+        Improved handling of conditionals in test status files.
+
+        Introduced access control in propertyIsEnumerable.
+
+        Improved performance of some string operations by caching
+        information about the type of the string between operations.
+
+        Fixed bug in fast-case code for switch statements that only have
+        integer labels.
+        
+
 2008-10-30: Version 0.4.2
 
         Improved performance of Array.prototype.concat by moving the

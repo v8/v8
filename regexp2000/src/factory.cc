@@ -95,19 +95,14 @@ Handle<String> Factory::NewConsString(Handle<String> first,
                                       StringShape second_shape) {
   if (first->length(first_shape) == 0) return second;
   if (second->length(second_shape) == 0) return first;
-  CALL_HEAP_FUNCTION(Heap::AllocateConsString(*first,
-                                              first_shape,
-                                              *second,
-                                              second_shape),
-                     String);
+  CALL_HEAP_FUNCTION(Heap::AllocateConsString(*first, *second), String);
 }
 
 
 Handle<String> Factory::NewStringSlice(Handle<String> str,
-                                       StringShape shape,
                                        int begin,
                                        int end) {
-  CALL_HEAP_FUNCTION(str->Slice(shape, begin, end), String);
+  CALL_HEAP_FUNCTION(str->Slice(begin, end), String);
 }
 
 

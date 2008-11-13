@@ -453,8 +453,10 @@ class Assembler : public Malloced {
   void mov_w(const Operand& dst, Register src);
 
   void mov(Register dst, int32_t imm32);
+  void mov(Register dst, const Immediate& x);
   void mov(Register dst, Handle<Object> handle);
   void mov(Register dst, const Operand& src);
+  void mov(Register dst, Register src);
   void mov(const Operand& dst, const Immediate& x);
   void mov(const Operand& dst, Handle<Object> handle);
   void mov(const Operand& dst, Register src);
@@ -757,7 +759,6 @@ class Assembler : public Malloced {
   void emit_arith(int sel, Operand dst, const Immediate& x);
 
   void emit_operand(Register reg, const Operand& adr);
-  void emit_operand(const Operand& adr, Register reg);
 
   void emit_farith(int b1, int b2, int i);
 

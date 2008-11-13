@@ -1095,11 +1095,6 @@ const char* NameConverter::NameInCode(byte* addr) const {
 
 //------------------------------------------------------------------------------
 
-static NameConverter defaultConverter;
-
-Disassembler::Disassembler() : converter_(defaultConverter) {}
-
-
 Disassembler::Disassembler(const NameConverter& converter)
     : converter_(converter) {}
 
@@ -1119,7 +1114,8 @@ int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
 
 
 /*static*/ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end) {
-  Disassembler d;
+  NameConverter converter;
+  Disassembler d(converter);
   for (byte* pc = begin; pc < end;) {
     v8::internal::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';

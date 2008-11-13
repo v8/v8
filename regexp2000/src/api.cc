@@ -1081,7 +1081,8 @@ v8::TryCatch::TryCatch()
       exception_(i::Heap::the_hole_value()),
       message_(i::Smi::FromInt(0)),
       is_verbose_(false),
-      capture_message_(true) {
+      capture_message_(true),
+      js_handler_(NULL) {
   i::Top::RegisterTryCatchHandler(this);
 }
 
@@ -2202,7 +2203,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.4.3 (candidate)";
+  return "0.4.4 (candidate)";
 }
 
 

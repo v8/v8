@@ -140,6 +140,7 @@ Handle<String> RegExpImpl::StringToTwoByte(Handle<String> pattern) {
   StringShape shape(*pattern);
   if (!pattern->IsFlat(shape)) {
     FlattenString(pattern);
+    shape = StringShape(*pattern);
   }
   Handle<String> flat_string(shape.IsCons() ?
     String::cast(ConsString::cast(*pattern)->first()) :
@@ -425,7 +426,8 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re) {
         (error_message == NULL) ? "Unknown regexp error" : error_message)));
     Handle<Object> regexp_err =
         Factory::NewSyntaxError("malformed_regexp", array);
-    return Handle<Object>(Top::Throw(*regexp_err));
+    Top::Throw(*regexp_err);
+    return Handle<Object>();
   }
 
   // Convert the return address to a ByteArray pointer.

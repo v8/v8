@@ -69,10 +69,27 @@
 #error No mode supplied when including flags.defs
 #endif
 
+#ifdef FLAG_MODE_DECLARE
+// Structure used to hold a collection of arguments to the JavaScript code.
+struct JSArguments {
+public:
+  JSArguments();
+  JSArguments(int argc, const char** argv);
+  int argc() const;
+  const char** argv();
+  const char*& operator[](int idx);
+  JSArguments& operator=(JSArguments args);
+private:
+  int argc_;
+  const char** argv_;
+};
+#endif
+
 #define DEFINE_bool(nam, def, cmt) FLAG(BOOL, bool, nam, def, cmt)
 #define DEFINE_int(nam, def, cmt) FLAG(INT, int, nam, def, cmt)
 #define DEFINE_float(nam, def, cmt) FLAG(FLOAT, double, nam, def, cmt)
 #define DEFINE_string(nam, def, cmt) FLAG(STRING, const char*, nam, def, cmt)
+#define DEFINE_args(nam, def, cmt) FLAG(ARGS, JSArguments, nam, def, cmt)
 
 //
 // Flags in all modes.
@@ -200,7 +217,10 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
 // Dev shell flags
 //
 
+DEFINE_bool(help, false, "Print usage message, including flags, on console")
 DEFINE_bool(dump_counters, false, "Dump counters on exit")
+DEFINE_args(js_arguments, JSArguments(),
+            "Pass all remaining arguments to the script. Alias for \"--\".")
 
 //
 // Debug only flags

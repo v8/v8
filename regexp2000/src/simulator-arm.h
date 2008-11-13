@@ -54,7 +54,7 @@
 // When running with the simulator transition into simulated execution at this
 // point.
 #define CALL_GENERATED_CODE(entry, p0, p1, p2, p3, p4) \
-  assembler::arm::Simulator::current()->call((int32_t)entry, (int32_t)p0, \
+  assembler::arm::Simulator::current()->Call((int32_t)entry, (int32_t)p0, \
     (int32_t)p1, (int32_t)p2, (int32_t)p3, (int32_t)p4)
 
 // The simulator has its own stack. Thus it has a different stack limit from
@@ -103,12 +103,12 @@ class Simulator {
   uintptr_t StackLimit() const;
 
   // Executes ARM instructions until the PC reaches end_sim_pc.
-  void execute();
+  void Execute();
 
   // V8 generally calls into generated code with 5 parameters. This is a
   // convenience funtion, which sets up the simulator state and grabs the
   // result on return.
-  v8::internal::Object* call(int32_t entry, int32_t p0, int32_t p1,
+  v8::internal::Object* Call(int32_t entry, int32_t p0, int32_t p1,
                              int32_t p2, int32_t p3, int32_t p4);
 
  private:

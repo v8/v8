@@ -199,11 +199,11 @@ Object* Object::GetPropertyWithCallback(Object* receiver,
       Handle<JSFunction> fun(JSFunction::cast(getter));
       Handle<Object> self(receiver);
       bool has_pending_exception;
-      Object* result =
-          *Execution::Call(fun, self, 0, NULL, &has_pending_exception);
+      Handle<Object> result =
+          Execution::Call(fun, self, 0, NULL, &has_pending_exception);
       // Check for pending exception and return the result.
       if (has_pending_exception) return Failure::Exception();
-      return result;
+      return *result;
     }
     // Getter is not a function.
     return Heap::undefined_value();
@@ -3717,21 +3717,6 @@ uint16_t ConsString::ConsStringGet(int index) {
 }
 
 
-Object* SlicedString::SlicedStringFlatten() {
-  // The SlicedString constructor should ensure that there are no
-  // SlicedStrings that are constructed directly on top of other
-  // SlicedStrings.
-  String* buf = String::cast(buffer());
-  StringShape buf_shape(buf);
-  ASSERT(!buf_shape.IsSliced());
-  if (buf_shape.IsCons()) {
-    Object* ok = buf->Flatten(buf_shape);
-    if (ok->IsFailure()) return ok;
-  }
-  return this;
-}
-
-
 template <typename sinkchar>
 void String::WriteToFlat(String* src,
                          StringShape src_shape,
@@ -3863,7 +3848,7 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
   const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
   uint32_t pa_addr = reinterpret_cast<uint32_t>(pa);
   uint32_t pb_addr = reinterpret_cast<uint32_t>(pb);
-  if ((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask) == 0) {
+  if (((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask)) == 0) {
 #endif
     const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
     int endpoint = length - kStepSize;
@@ -3975,8 +3960,7 @@ bool String::SlowEquals(StringShape this_shape,
 
 
 bool String::MarkAsUndetectable() {
-  StringShape shape(this);
-  if (shape.IsSymbol()) return false;
+  if (StringShape(this).IsSymbol()) return false;
 
   Map* map = this->map();
   if (map == Heap::short_string_map()) {
@@ -4134,7 +4118,8 @@ uint32_t String::ComputeLengthAndHashField(unibrow::CharacterStream* buffer,
 }
 
 
-Object* String::Slice(StringShape shape, int start, int end) {
+Object* String::Slice(int start, int end) {
+  StringShape shape(this);
   if (start == 0 && end == length(shape)) return this;
   if (shape.representation_tag() == kSlicedStringTag) {
     // Translate slices of a SlicedString into slices of the
@@ -4142,11 +4127,10 @@ Object* String::Slice(StringShape shape, int start, int end) {
     SlicedString* str = SlicedString::cast(this);
     String* buf = str->buffer();
     return Heap::AllocateSlicedString(buf,
-                                      StringShape(buf),
                                       str->start() + start,
                                       str->start() + end);
   }
-  Object* result = Heap::AllocateSlicedString(this, shape, start, end);
+  Object* result = Heap::AllocateSlicedString(this, start, end);
   if (result->IsFailure()) {
     return result;
   }

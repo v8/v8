@@ -1052,8 +1052,8 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    bool is_expression) {
   ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   StatsRateScope timer(&Counters::parse_lazy);
+  source->TryFlatten(StringShape(*source));
   StringShape shape(*source);
-  source->TryFlatten(shape);
   Counters::total_parse_size.Increment(source->length(shape));
   SafeStringInputBuffer buffer(source.location());
 
