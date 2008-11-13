@@ -3239,9 +3239,15 @@ void Reference::GetValue(TypeofState typeof_state) {
       // distinction between expressions in a typeof and not in a typeof.
       Comment cmnt(masm, "[ Load from keyed Property");
       ASSERT(property != NULL);
-      // TODO(1224671): Implement inline caching for keyed loads as on ia32.
-      GetPropertyStub stub;
-      __ CallStub(&stub);
+      Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+
+      Variable* var = expression_->AsVariableProxy()->AsVariable();
+      if (var != NULL) {
+        ASSERT(var->is_global());
+        __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+      } else {
+        __ Call(ic, RelocInfo::CODE_TARGET);
+      }
       frame->Push(r0);
       break;
     }
@@ -3363,9 +3369,12 @@ void Reference::SetValue(InitState init_state) {
       Property* property = expression_->AsProperty();
       ASSERT(property != NULL);
       __ RecordPosition(property->position());
+
+      // Call IC code.
+      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      // TODO(1222589): Make the IC grab the values from the stack.
       frame->Pop(r0);  // value
-      SetPropertyStub stub;
-      __ CallStub(&stub);
+      __ Call(ic, RelocInfo::CODE_TARGET);
       frame->Push(r0);
       break;
     }
