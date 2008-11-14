@@ -288,7 +288,7 @@ static Object* Runtime_IsConstructCall(Arguments args) {
 
 
 static Object* Runtime_RegExpCompile(Arguments args) {
-  HandleScope scope;  // create a new handle scope
+  HandleScope scope;
   ASSERT(args.length() == 3);
   CONVERT_CHECKED(JSRegExp, raw_re, args[0]);
   Handle<JSRegExp> re(raw_re);

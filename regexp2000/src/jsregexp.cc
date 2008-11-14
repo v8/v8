@@ -184,15 +184,15 @@ static JSRegExp::Flags RegExpFlagsFromString(Handle<String> str) {
 }
 
 
-static inline Handle<Object> CreateRegExpException(Handle<JSRegExp> re,
-                                                   Handle<String> pattern,
-                                                   Handle<String> error_text,
-                                                   const char* message) {
+static inline void ThrowRegExpException(Handle<JSRegExp> re,
+                                        Handle<String> pattern,
+                                        Handle<String> error_text,
+                                        const char* message) {
   Handle<JSArray> array = Factory::NewJSArray(2);
   SetElement(array, 0, pattern);
   SetElement(array, 1, error_text);
   Handle<Object> regexp_err = Factory::NewSyntaxError(message, array);
-  return Handle<Object>(Top::Throw(*regexp_err));
+  Top::Throw(*regexp_err);
 }
 
 
@@ -212,10 +212,11 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     RegExpParseResult parse_result;
     if (!ParseRegExp(&buffer, &parse_result)) {
       // Throw an exception if we fail to parse the pattern.
-      return CreateRegExpException(re,
-                                   pattern,
-                                   parse_result.error,
-                                   "malformed_regexp");
+      ThrowRegExpException(re,
+                           pattern,
+                           parse_result.error,
+                           "malformed_regexp");
+      return Handle<Object>();
     }
     RegExpAtom* atom = parse_result.tree->AsAtom();
     if (atom != NULL && !flags.is_ignore_case()) {
