@@ -174,6 +174,7 @@ TEST(Parser) {
   CHECK_PARSE_EQ("\\x3z", "'x3z'");
   CHECK_PARSE_EQ("\\u0034", "'\x34'");
   CHECK_PARSE_EQ("\\u003z", "'u003z'");
+  CHECK_PARSE_EQ("foo[z]*", "(: 'foo' (# 0 - g [z]))");
 
   CHECK_ESCAPES("a", false);
   CHECK_ESCAPES("a|b", false);
@@ -219,7 +220,7 @@ TEST(Parser) {
 }
 
 TEST(ParserRegression) {
-  CHECK_PARSE_EQ("[A-Z$-][x]", "(: [A-Z $ -] [x])");
+  CHECK_PARSE_EQ("[A-Z$-][x]", "(! [A-Z $ -] [x])");
 }
 
 static void ExpectError(const char* input,
@@ -707,5 +708,5 @@ TEST(AddInverseToTable) {
 
 
 TEST(Graph) {
-  Execute("a|(b|c)|d", "", true);
+  Execute("fo[ob]ar|[ba]z|x[yz]*", "", true);
 }

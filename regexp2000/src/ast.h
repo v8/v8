@@ -1191,24 +1191,6 @@ class ThisFunction: public Expression {
 // Regular expressions
 
 
-#define FOR_EACH_REG_EXP_NODE_TYPE(VISIT)                            \
-  VISIT(Disjunction)                                                 \
-  VISIT(Alternative)                                                 \
-  VISIT(Assertion)                                                   \
-  VISIT(CharacterClass)                                              \
-  VISIT(Atom)                                                        \
-  VISIT(Quantifier)                                                  \
-  VISIT(Capture)                                                     \
-  VISIT(Lookahead)                                                   \
-  VISIT(Backreference)                                               \
-  VISIT(Empty)
-
-
-#define FORWARD_DECLARE(Name) class RegExp##Name;
-FOR_EACH_REG_EXP_NODE_TYPE(FORWARD_DECLARE)
-#undef FORWARD_DECLARE
-
-
 class RegExpTree: public ZoneObject {
  public:
   virtual ~RegExpTree() { }
@@ -1216,9 +1198,11 @@ class RegExpTree: public ZoneObject {
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
                              RegExpNode* on_failure) = 0;
+  virtual bool IsTextElement() { return false; }
+  virtual void AppendToText(RegExpText* text);
   SmartPointer<const char> ToString();
 #define MAKE_ASTYPE(Name)  virtual RegExp##Name* As##Name();
-  FOR_EACH_REG_EXP_NODE_TYPE(MAKE_ASTYPE)
+  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_ASTYPE)
 #undef MAKE_ASTYPE
 };
 
@@ -1249,6 +1233,23 @@ class RegExpAlternative: public RegExpTree {
   ZoneList<RegExpTree*>* nodes() { return nodes_; }
  private:
   ZoneList<RegExpTree*>* nodes_;
+};
+
+
+class RegExpText: public RegExpTree {
+ public:
+  RegExpText() : elements_(2) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  virtual RegExpText* AsText();
+  virtual bool IsTextElement() { return true; }
+  virtual void AppendToText(RegExpText* text);
+  void AddElement(TextElement elm) { elements_.Add(elm); }
+  ZoneList<TextElement>* elements() { return &elements_; }
+ private:
+  ZoneList<TextElement> elements_;
 };
 
 
@@ -1285,6 +1286,8 @@ class RegExpCharacterClass: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpCharacterClass* AsCharacterClass();
+  virtual bool IsTextElement() { return true; }
+  virtual void AppendToText(RegExpText* text);
   ZoneList<CharacterRange>* ranges() { return ranges_; }
   bool is_negated() { return is_negated_; }
  private:
@@ -1301,6 +1304,8 @@ class RegExpAtom: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpAtom* AsAtom();
+  virtual bool IsTextElement() { return true; }
+  virtual void AppendToText(RegExpText* text);
   Vector<const uc16> data() { return data_; }
  private:
   Vector<const uc16> data_;
@@ -1426,7 +1431,7 @@ class RegExpVisitor BASE_EMBEDDED {
   virtual ~RegExpVisitor() { }
 #define MAKE_CASE(Name)                                              \
   virtual void* Visit##Name(RegExp##Name*, void* data) = 0;
-  FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CASE)
+  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
 };
 

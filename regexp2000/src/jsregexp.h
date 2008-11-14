@@ -191,6 +191,9 @@ class CharacterRange {
     ASSERT(from <= to);
     return CharacterRange(from, to);
   }
+  static inline CharacterRange Everything() {
+    return CharacterRange(0, 0xFFFF);
+  }
   bool Contains(uc16 i) { return from_ <= i && i <= to_; }
   uc16 from() const { return from_; }
   void set_from(uc16 value) { from_ = value; }
@@ -389,11 +392,44 @@ class DispatchTable {
 
 #define FOR_EACH_NODE_TYPE(VISIT)                                    \
   VISIT(End)                                                         \
-  VISIT(Atom)                                                        \
   VISIT(Action)                                                      \
   VISIT(Choice)                                                      \
   VISIT(Backreference)                                               \
-  VISIT(CharacterClass)
+  VISIT(Text)
+
+
+#define FOR_EACH_REG_EXP_TREE_TYPE(VISIT)                            \
+  VISIT(Disjunction)                                                 \
+  VISIT(Alternative)                                                 \
+  VISIT(Assertion)                                                   \
+  VISIT(CharacterClass)                                              \
+  VISIT(Atom)                                                        \
+  VISIT(Quantifier)                                                  \
+  VISIT(Capture)                                                     \
+  VISIT(Lookahead)                                                   \
+  VISIT(Backreference)                                               \
+  VISIT(Empty)                                                       \
+  VISIT(Text)
+
+
+#define FORWARD_DECLARE(Name) class RegExp##Name;
+FOR_EACH_REG_EXP_TREE_TYPE(FORWARD_DECLARE)
+#undef FORWARD_DECLARE
+
+
+class TextElement {
+ public:
+  enum Type {UNINITIALIZED, ATOM, CHAR_CLASS};
+  TextElement() : type(UNINITIALIZED) { }
+  TextElement(Type t) : type(t) { }
+  static TextElement Atom(RegExpAtom* atom);
+  static TextElement CharClass(RegExpCharacterClass* char_class);
+  Type type;
+  union {
+    RegExpAtom* u_atom;
+    RegExpCharacterClass* u_char_class;
+  } data;
+};
 
 
 class NodeInfo {
@@ -486,21 +522,21 @@ class ActionNode: public SeqRegExpNode {
 };
 
 
-class AtomNode: public SeqRegExpNode {
+class TextNode: public SeqRegExpNode {
  public:
-  AtomNode(Vector<const uc16> data,
+  TextNode(ZoneList<TextElement>* elms,
            RegExpNode* on_success,
            RegExpNode* on_failure)
     : SeqRegExpNode(on_success),
       on_failure_(on_failure),
-      data_(data) { }
+      elms_(elms) { }
   virtual void Accept(NodeVisitor* visitor);
-  Vector<const uc16> data() { return data_; }
-  RegExpNode* on_failure() { return on_failure_; }
   virtual bool Emit(RegExpCompiler* compiler) { return false; }
+  RegExpNode* on_failure() { return on_failure_; }
+  ZoneList<TextElement>* elements() { return elms_; }
  private:
   RegExpNode* on_failure_;
-  Vector<const uc16> data_;
+  ZoneList<TextElement>* elms_;
 };
 
 
@@ -523,31 +559,6 @@ class BackreferenceNode: public SeqRegExpNode {
   RegExpNode* on_failure_;
   int start_reg_;
   int end_reg_;
-};
-
-
-class CharacterClassNode: public SeqRegExpNode {
- public:
-  CharacterClassNode(ZoneList<CharacterRange>* ranges,
-                     bool is_negated,
-                     RegExpNode* on_success,
-                     RegExpNode* on_failure)
-    : SeqRegExpNode(on_success),
-      on_failure_(on_failure),
-      ranges_(ranges),
-      is_negated_(is_negated ) { }
-  virtual void Accept(NodeVisitor* visitor);
-  ZoneList<CharacterRange>* ranges() { return ranges_; }
-  bool is_negated() { return is_negated_; }
-  RegExpNode* on_failure() { return on_failure_; }
-  virtual bool Emit(RegExpCompiler* compiler) { return false; }
-  static void AddInverseToTable(ZoneList<CharacterRange>* ranges,
-                                DispatchTable* table,
-                                int index);
- private:
-  RegExpNode* on_failure_;
-  ZoneList<CharacterRange>* ranges_;
-  bool is_negated_;
 };
 
 

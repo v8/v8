@@ -256,8 +256,26 @@ class BufferedZoneList {
   T* RemoveLast() {
     ASSERT(last_ != NULL);
     T* result = last_;
-    last_ = NULL;
+    if (list_ != NULL && list_->length() > 0)
+      last_ = list_->RemoveLast();
+    else
+      last_ = NULL;
     return result;
+  }
+
+  T* Get(int i) {
+    ASSERT(0 <= i && i < length());
+    if (list_ == NULL) {
+      ASSERT_EQ(0, i);
+      return last_;
+    } else {
+      if (i == list_->length()) {
+        ASSERT(last_ != NULL);
+        return last_;
+      } else {
+        return list_->at(i);
+      }
+    }
   }
 
   void Clear() {
@@ -294,17 +312,19 @@ class RegExpBuilder {
   // "Adds" an empty expression. Does nothing except consume a
   // following quantifier
   void AddEmpty();
-  void AddAtom(RegExpTree* tree);
+  void AddTerm(RegExpTree* tree);
   void AddAssertion(RegExpTree* tree);
   void NewAlternative();  // '|'
   void AddQuantifierToAtom(int min, int max, bool is_greedy);
   RegExpTree* ToRegExp();
  private:
   void FlushCharacters();
+  void FlushText();
   bool FlushTerms();
   bool pending_empty_;
   ZoneList<uc16>* characters_;
   BufferedZoneList<RegExpTree, 2> terms_;
+  BufferedZoneList<RegExpTree, 2> text_;
   BufferedZoneList<RegExpTree, 2> alternatives_;
 #ifdef DEBUG
   enum {ADD_NONE, ADD_CHAR, ADD_TERM, ADD_ASSERT, ADD_ATOM} last_added_;
@@ -328,9 +348,26 @@ void RegExpBuilder::FlushCharacters() {
   if (characters_ != NULL) {
     RegExpTree* atom = new RegExpAtom(characters_->ToConstVector());
     characters_ = NULL;
-    terms_.Add(atom);
+    text_.Add(atom);
     LAST(ADD_ATOM);
   }
+}
+
+
+void RegExpBuilder::FlushText() {
+  FlushCharacters();
+  int num_text = text_.length();
+  if (num_text == 0) {
+    return;
+  } else if (num_text == 1) {
+    terms_.Add(text_.last());
+  } else {
+    RegExpText* text = new RegExpText();
+    for (int i = 0; i < num_text; i++)
+      text_.Get(i)->AppendToText(text);
+    terms_.Add(text);
+  }
+  text_.Clear();
 }
 
 
@@ -349,15 +386,20 @@ void RegExpBuilder::AddEmpty() {
 }
 
 
-void RegExpBuilder::AddAtom(RegExpTree* atom) {
-  FlushCharacters();
-  terms_.Add(atom);
+void RegExpBuilder::AddTerm(RegExpTree* term) {
+  if (term->IsTextElement()) {
+    FlushCharacters();
+    text_.Add(term);
+  } else {
+    FlushText();
+    terms_.Add(term);
+  }
   LAST(ADD_ATOM);
 }
 
 
 void RegExpBuilder::AddAssertion(RegExpTree* assert) {
-  FlushCharacters();
+  FlushText();
   terms_.Add(assert);
   LAST(ADD_ASSERT);
 }
@@ -371,7 +413,7 @@ void RegExpBuilder::NewAlternative() {
 
 
 bool RegExpBuilder::FlushTerms() {
-  FlushCharacters();
+  FlushText();
   int num_terms = terms_.length();
   if (num_terms == 0) {
     return false;
@@ -415,11 +457,16 @@ void RegExpBuilder::AddQuantifierToAtom(int min, int max, bool is_greedy) {
     int num_chars = char_vector.length();
     if (num_chars > 1) {
       Vector<const uc16> prefix = char_vector.SubVector(0, num_chars - 1);
-      terms_.Add(new RegExpAtom(prefix));
+      text_.Add(new RegExpAtom(prefix));
       char_vector = char_vector.SubVector(num_chars - 1, num_chars);
     }
     characters_ = NULL;
     atom = new RegExpAtom(char_vector);
+    FlushText();
+  } else if (text_.length() > 0) {
+    ASSERT(last_added_ == ADD_ATOM);
+    atom = text_.RemoveLast();
+    FlushText();
   } else if (terms_.length() > 0) {
     ASSERT(last_added_ == ADD_ATOM);
     atom = terms_.RemoveLast();
@@ -3585,17 +3632,17 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
       ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
       CharacterRange::AddClassEscape('.', ranges);
       RegExpTree* atom = new RegExpCharacterClass(ranges, false);
-      builder.AddAtom(atom);
+      builder.AddTerm(atom);
       break;
     }
     case '(': {
       RegExpTree* atom = ParseGroup(CHECK_OK);
-      builder.AddAtom(atom);
+      builder.AddTerm(atom);
       break;
     }
     case '[': {
       RegExpTree* atom = ParseCharacterClass(CHECK_OK);
-      builder.AddAtom(atom);
+      builder.AddTerm(atom);
       break;
     }
     // Atom ::
@@ -3625,7 +3672,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
         ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
         CharacterRange::AddClassEscape(c, ranges);
         RegExpTree* atom = new RegExpCharacterClass(ranges, false);
-        builder.AddAtom(atom);
+        builder.AddTerm(atom);
         goto has_read_atom;  // Avoid setting has_character_escapes_.
       }
       case '1': case '2': case '3': case '4': case '5': case '6':
@@ -3639,7 +3686,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
             goto has_read_atom;
           }
           RegExpTree* atom = new RegExpBackreference(capture);
-          builder.AddAtom(atom);
+          builder.AddTerm(atom);
           goto has_read_atom;  // Avoid setting has_character_escapes_.
         }
         uc32 first_digit = next();

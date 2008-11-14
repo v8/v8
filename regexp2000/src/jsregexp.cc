@@ -788,6 +788,42 @@ Handle<ByteArray> RegExpImpl::Re2kCode(Handle<JSRegExp> re) {
 // New regular expression engine
 
 
+void RegExpTree::AppendToText(RegExpText* text) {
+  UNREACHABLE();
+}
+
+
+void RegExpAtom::AppendToText(RegExpText* text) {
+  text->AddElement(TextElement::Atom(this));
+}
+
+
+void RegExpCharacterClass::AppendToText(RegExpText* text) {
+  text->AddElement(TextElement::CharClass(this));
+}
+
+
+void RegExpText::AppendToText(RegExpText* text) {
+  for (int i = 0; i < elements()->length(); i++)
+    text->AddElement(elements()->at(i));
+}
+
+
+TextElement TextElement::Atom(RegExpAtom* atom) {
+  TextElement result = TextElement(ATOM);
+  result.data.u_atom = atom;
+  return result;
+}
+
+
+TextElement TextElement::CharClass(
+      RegExpCharacterClass* char_class) {
+  TextElement result = TextElement(CHAR_CLASS);
+  result.data.u_char_class = char_class;
+  return result;
+}
+
+
 class RegExpCompiler {
  public:
   explicit RegExpCompiler(int capture_count);
@@ -1136,7 +1172,7 @@ class TableEntryHeaderPrinter {
     } else {
       stream()->Add("|");
     }
-    stream()->Add("{%k-%k|{", from, from, entry.to());
+    stream()->Add("{\\%k-\\%k|{", from, entry.to());
     OutSet* out_set = entry.out_set();
     int priority = 0;
     for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
@@ -1170,10 +1206,33 @@ void DotPrinter::VisitChoice(ChoiceNode* that) {
 }
 
 
-void DotPrinter::VisitAtom(AtomNode* that) {
-  stream()->Add("  n%p [label=\"'%w'\", shape=doubleoctagon];\n",
-                that,
-                that->data());
+void DotPrinter::VisitText(TextNode* that) {
+  stream()->Add("  n%p [label=\"", that);
+  for (int i = 0; i < that->elements()->length(); i++) {
+    if (i > 0) stream()->Add(" ");
+    TextElement elm = that->elements()->at(i);
+    switch (elm.type) {
+      case TextElement::ATOM: {
+        stream()->Add("'%w'", elm.data.u_atom->data());
+        break;
+      }
+      case TextElement::CHAR_CLASS: {
+        RegExpCharacterClass* node = elm.data.u_char_class;
+        stream()->Add("[");
+        if (node->is_negated())
+          stream()->Add("^");
+        for (int j = 0; j < node->ranges()->length(); j++) {
+          CharacterRange range = node->ranges()->at(j);
+          stream()->Add("%k-%k", range.from(), range.to());
+        }
+        stream()->Add("]");
+        break;
+      }
+      default:
+        UNREACHABLE();
+    }
+  }
+  stream()->Add("\", shape=box, peripheries=2];\n");
   stream()->Add("  n%p -> n%p;\n", that, that->on_success());
   Visit(that->on_success());
   PrintOnFailure(that, that->on_failure());
@@ -1196,39 +1255,24 @@ void DotPrinter::VisitEnd(EndNode* that) {
 }
 
 
-void DotPrinter::VisitCharacterClass(CharacterClassNode* that) {
-  stream()->Add("  n%p [label=\"[", that);
-  if (that->is_negated())
-    stream()->Add("^");
-  for (int i = 0; i < that->ranges()->length(); i++) {
-    CharacterRange range = that->ranges()->at(i);
-    stream()->Add("%k-%k", range.from(), range.to());
-  }
-  stream()->Add("]\"];\n");
-  stream()->Add("  n%p -> n%p;\n", that, that->on_success());
-  Visit(that->on_success());
-  PrintOnFailure(that, that->on_failure());
-}
-
-
 void DotPrinter::VisitAction(ActionNode* that) {
   stream()->Add("  n%p [", that);
   switch (that->type_) {
     case ActionNode::STORE_REGISTER:
-      stream()->Add("label=\"$%i:=%i\", shape=box",
+      stream()->Add("label=\"$%i:=%i\", shape=octagon",
                     that->data_.u_store_register.reg,
                     that->data_.u_store_register.value);
       break;
     case ActionNode::INCREMENT_REGISTER:
-      stream()->Add("label=\"$%i++\", shape=box",
+      stream()->Add("label=\"$%i++\", shape=octagon",
                     that->data_.u_increment_register.reg);
       break;
     case ActionNode::STORE_POSITION:
-      stream()->Add("label=\"$%i:=$pos\", shape=box",
+      stream()->Add("label=\"$%i:=$pos\", shape=octagon",
                     that->data_.u_position_register.reg);
       break;
     case ActionNode::RESTORE_POSITION:
-      stream()->Add("label=\"$pos:=$%i\", shape=box",
+      stream()->Add("label=\"$pos:=$%i\", shape=octagon",
                     that->data_.u_position_register.reg);
       break;
     case ActionNode::BEGIN_SUBMATCH:
@@ -1300,17 +1344,25 @@ void RegExpEngine::DotPrint(const char* label, RegExpNode* node) {
 RegExpNode* RegExpAtom::ToNode(RegExpCompiler* compiler,
                                RegExpNode* on_success,
                                RegExpNode* on_failure) {
-  return new AtomNode(data(), on_success, on_failure);
+  ZoneList<TextElement>* elms = new ZoneList<TextElement>(1);
+  elms->Add(TextElement::Atom(this));
+  return new TextNode(elms, on_success, on_failure);
+}
+
+
+RegExpNode* RegExpText::ToNode(RegExpCompiler* compiler,
+                               RegExpNode* on_success,
+                               RegExpNode* on_failure) {
+  return new TextNode(elements(), on_success, on_failure);
 }
 
 
 RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
                                          RegExpNode* on_success,
                                          RegExpNode* on_failure) {
-  return new CharacterClassNode(ranges(),
-                                is_negated(),
-                                on_success,
-                                on_failure);
+  ZoneList<TextElement>* elms = new ZoneList<TextElement>(1);
+  elms->Add(TextElement::CharClass(this));
+  return new TextNode(elms, on_success, on_failure);
 }
 
 
@@ -1566,7 +1618,7 @@ void CharacterRange::AddClassEscape(uc16 type,
       AddClassNegated(kDigitRanges, kDigitRangeCount, ranges);
       break;
     case '.':
-      ranges->Add(CharacterRange(0x0000, 0xFFFF));
+      ranges->Add(CharacterRange::Everything());
       break;
     default:
       UNREACHABLE();
@@ -1742,7 +1794,7 @@ void Analysis::VisitEnd(EndNode* that) {
 }
 
 
-void Analysis::VisitAtom(AtomNode* that) {
+void Analysis::VisitText(TextNode* that) {
   EnsureAnalyzed(that->on_success());
   EnsureAnalyzed(that->on_failure());
 }
@@ -1778,18 +1830,12 @@ void Analysis::VisitBackreference(BackreferenceNode* that) {
 }
 
 
-void Analysis::VisitCharacterClass(CharacterClassNode* that) {
-  EnsureAnalyzed(that->on_success());
-  EnsureAnalyzed(that->on_failure());
-}
-
-
 // -------------------------------------------------------------------
 // Dispatch table construction
 
 
 void DispatchTableConstructor::VisitEnd(EndNode* that) {
-  // nothing to do
+  AddRange(CharacterRange::Everything());
 }
 
 
@@ -1866,21 +1912,29 @@ void DispatchTableConstructor::AddInverse(ZoneList<CharacterRange>* ranges) {
 }
 
 
-void DispatchTableConstructor::VisitCharacterClass(CharacterClassNode* that) {
-  ZoneList<CharacterRange>* ranges = that->ranges();
-  if (that->is_negated()) {
-    AddInverse(ranges);
-  } else {
-    for (int i = 0; i < ranges->length(); i++) {
-      AddRange(ranges->at(i));
+void DispatchTableConstructor::VisitText(TextNode* that) {
+  TextElement elm = that->elements()->at(0);
+  switch (elm.type) {
+    case TextElement::ATOM: {
+      uc16 c = elm.data.u_atom->data()[0];
+      AddRange(CharacterRange(c, c));
+      break;
+    }
+    case TextElement::CHAR_CLASS: {
+      RegExpCharacterClass* tree = elm.data.u_char_class;
+      ZoneList<CharacterRange>* ranges = tree->ranges();
+      if (tree->is_negated()) {
+        AddInverse(ranges);
+      } else {
+        for (int i = 0; i < ranges->length(); i++)
+          AddRange(ranges->at(i));
+      }
+      break;
+    }
+    default: {
+      UNIMPLEMENTED();
     }
   }
-}
-
-
-void DispatchTableConstructor::VisitAtom(AtomNode* that) {
-  uc16 c = that->data()[0];
-  AddRange(CharacterRange(c, c));
 }
 
 

@@ -187,21 +187,21 @@ void Visitor::VisitExpressions(ZoneList<Expression*>* expressions) {
   void* RegExp##Name::Accept(RegExpVisitor* visitor, void* data) {   \
     return visitor->Visit##Name(this, data);                         \
   }
-FOR_EACH_REG_EXP_NODE_TYPE(MAKE_ACCEPT)
+FOR_EACH_REG_EXP_TREE_TYPE(MAKE_ACCEPT)
 #undef MAKE_ACCEPT
 
 #define MAKE_CONVERSION(Name)                                        \
   RegExp##Name* RegExpTree::As##Name() {                             \
     return NULL;                                                     \
   }
-  FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CONVERSION)
+  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CONVERSION)
 #undef MAKE_CONVERSION
 
 #define MAKE_CONVERSION(Name)                                       \
   RegExp##Name* RegExp##Name::As##Name() {                          \
     return this;                                                    \
   }
-FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CONVERSION)
+FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CONVERSION)
 #undef MAKE_CONVERSION
 
 RegExpEmpty RegExpEmpty::kInstance;
@@ -218,7 +218,7 @@ class RegExpUnparser: public RegExpVisitor {
   void VisitCharacterRange(CharacterRange that);
   SmartPointer<const char> ToString() { return stream_.ToCString(); }
 #define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*, void* data);
-  FOR_EACH_REG_EXP_NODE_TYPE(MAKE_CASE)
+  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
  private:
   StringStream* stream() { return &stream_; }
@@ -304,6 +304,21 @@ void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
 
 void* RegExpUnparser::VisitAtom(RegExpAtom* that, void* data) {
   stream()->Add("'%w'", that->data());
+  return NULL;
+}
+
+
+void* RegExpUnparser::VisitText(RegExpText* that, void* data) {
+  if (that->elements()->length() == 1) {
+    that->elements()->at(0).data.u_atom->Accept(this, data);
+  } else {
+    stream()->Add("(!");
+    for (int i = 0; i < that->elements()->length(); i++) {
+      stream()->Add(" ");
+      that->elements()->at(i).data.u_atom->Accept(this, data);
+    }
+    stream()->Add(")");
+  }
   return NULL;
 }
 
