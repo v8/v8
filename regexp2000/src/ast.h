@@ -1274,6 +1274,11 @@ class RegExpCharacterClass: public RegExpTree {
   RegExpCharacterClass(ZoneList<CharacterRange>* ranges, bool is_negated)
     : ranges_(ranges),
       is_negated_(is_negated) { }
+  RegExpCharacterClass(uc16 type)
+    : ranges_(new ZoneList<CharacterRange>(2)),
+      is_negated_(false) {
+    CharacterRange::AddClassEscape(type, ranges_);
+  }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
@@ -1312,6 +1317,13 @@ class RegExpQuantifier: public RegExpTree {
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
+  static RegExpNode* ToNode(int min,
+                            int max,
+                            bool is_greedy,
+                            RegExpTree* body,
+                            RegExpCompiler* compiler,
+                            RegExpNode* on_success,
+                            RegExpNode* on_failure);
   virtual RegExpQuantifier* AsQuantifier();
   int min() { return min_; }
   int max() { return max_; }
@@ -1336,11 +1348,16 @@ class RegExpCapture: public RegExpTree {
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
+  static RegExpNode* ToNode(RegExpTree* body,
+                            int index,
+                            RegExpCompiler* compiler,
+                            RegExpNode* on_success,
+                            RegExpNode* on_failure);
   virtual RegExpCapture* AsCapture();
   RegExpTree* body() { return body_; }
   int index() { return index_; }
-  static int StartRegister(int index) { return (index - 1) * 2; }
-  static int EndRegister(int index) { return (index - 1) * 2 + 1; }
+  static int StartRegister(int index) { return index * 2; }
+  static int EndRegister(int index) { return index * 2 + 1; }
  private:
   RegExpTree* body_;
   int index_;

@@ -635,7 +635,6 @@ ByteArray* RegExpImpl::JsreInternal(Handle<JSRegExp> re) {
 // New regular expression engine
 
 
-class RegExpCompiler;
 class DotPrinter;
 
 
@@ -644,10 +643,6 @@ class RegExpCompiler {
   explicit RegExpCompiler(int capture_count)
     : next_register_(2 * capture_count),
       work_list_(NULL) { }
-
-  RegExpNode* Compile(RegExpTree* tree,
-                      RegExpNode* on_success,
-                      RegExpNode* on_failure);
 
   int AllocateRegister() { return next_register_++; }
 
@@ -914,7 +909,7 @@ void DotPrinter::VisitChoice(ChoiceNode* that) {
     stream()->Add("\"];\n");
     that->choices()->at(i).node()->Accept(this);
   }
-  OS::PrintError("--- %p ---\n", static_cast<void*>(this));
+  OS::PrintError("--- %p ---\n", static_cast<void*>(that));
   that->table()->Dump();
 }
 
@@ -946,7 +941,14 @@ void DotPrinter::VisitEnd(EndNode* that) {
 
 
 void DotPrinter::VisitCharacterClass(CharacterClassNode* that) {
-  stream()->Add("  n%p [label=\"[...]\"];\n", that);
+  stream()->Add("  n%p [label=\"[", that);
+  if (that->is_negated())
+    stream()->Add("^");
+  for (int i = 0; i < that->ranges()->length(); i++) {
+    CharacterRange range = that->ranges()->at(i);
+    stream()->Add("%k-%k", range.from(), range.to());
+  }
+  stream()->Add("]\"];\n");
   stream()->Add("  n%p -> n%p;\n", that, that->on_success());
   Visit(that->on_success());
   PrintOnFailure(that, that->on_failure());
@@ -1062,9 +1064,9 @@ RegExpNode* RegExpDisjunction::ToNode(RegExpCompiler* compiler,
   int length = children->length();
   ChoiceNode* result = new ChoiceNode(length, on_failure);
   for (int i = 0; i < length; i++) {
-    GuardedAlternative child(compiler->Compile(children->at(i),
-                                               on_success,
-                                               on_failure));
+    GuardedAlternative child(children->at(i)->ToNode(compiler,
+                                                     on_success,
+                                                     on_failure));
     result->AddChild(child);
   }
   return result;
@@ -1072,6 +1074,23 @@ RegExpNode* RegExpDisjunction::ToNode(RegExpCompiler* compiler,
 
 
 RegExpNode* RegExpQuantifier::ToNode(RegExpCompiler* compiler,
+                                     RegExpNode* on_success,
+                                     RegExpNode* on_failure) {
+  return ToNode(min(),
+                max(),
+                is_greedy(),
+                body(),
+                compiler,
+                on_success,
+                on_failure);
+}
+
+
+RegExpNode* RegExpQuantifier::ToNode(int min,
+                                     int max,
+                                     bool is_greedy,
+                                     RegExpTree* body,
+                                     RegExpCompiler* compiler,
                                      RegExpNode* on_success,
                                      RegExpNode* on_failure) {
   // x{f, t} becomes this:
@@ -1087,26 +1106,26 @@ RegExpNode* RegExpQuantifier::ToNode(RegExpCompiler* compiler,
   //
   // TODO(someone): clear captures on repetition and handle empty
   //   matches.
-  bool has_min = min() > 0;
-  bool has_max = max() < RegExpQuantifier::kInfinity;
+  bool has_min = min > 0;
+  bool has_max = max < RegExpQuantifier::kInfinity;
   bool needs_counter = has_min || has_max;
   int reg_ctr = needs_counter ? compiler->AllocateRegister() : -1;
   ChoiceNode* center = new ChoiceNode(2, on_failure);
   RegExpNode* loop_return = needs_counter
       ? static_cast<RegExpNode*>(ActionNode::IncrementRegister(reg_ctr, center))
       : static_cast<RegExpNode*>(center);
-  RegExpNode* body_node = compiler->Compile(body(), loop_return, on_failure);
+  RegExpNode* body_node = body->ToNode(compiler, loop_return, on_failure);
   GuardedAlternative body_alt(body_node);
   if (has_max) {
-    Guard* body_guard = new Guard(reg_ctr, Guard::LT, max());
+    Guard* body_guard = new Guard(reg_ctr, Guard::LT, max);
     body_alt.AddGuard(body_guard);
   }
   GuardedAlternative rest_alt(on_success);
   if (has_min) {
-    Guard* rest_guard = new Guard(reg_ctr, Guard::GEQ, min());
+    Guard* rest_guard = new Guard(reg_ctr, Guard::GEQ, min);
     rest_alt.AddGuard(rest_guard);
   }
-  if (is_greedy()) {
+  if (is_greedy) {
     center->AddChild(body_alt);
     center->AddChild(rest_alt);
   } else {
@@ -1162,7 +1181,7 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
     //   end submatch scope (nothing to clean up, just exit the scope)
     //   fail
     return ActionNode::BeginSubmatch(ActionNode::StorePosition(
-        position_register, compiler->Compile(body(),
+        position_register, body()->ToNode(compiler,
             ActionNode::RestorePosition(position_register,
                 ActionNode::EscapeSubmatch(on_success)),
             ActionNode::EndSubmatch(on_failure))));
@@ -1180,7 +1199,7 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
     //       succeed
     ChoiceNode* try_node =
         new ChoiceNode(1, ActionNode::EndSubmatch(on_success));
-    RegExpNode* body_node = compiler->Compile(body(),
+    RegExpNode* body_node = body()->ToNode(compiler,
         ActionNode::EscapeSubmatch(on_failure),
         EndNode::GetBacktrack());
     GuardedAlternative body_alt(body_node);
@@ -1193,10 +1212,19 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
 RegExpNode* RegExpCapture::ToNode(RegExpCompiler* compiler,
                                   RegExpNode* on_success,
                                   RegExpNode* on_failure) {
-  int start_reg = RegExpCapture::StartRegister(index());
-  int end_reg = RegExpCapture::EndRegister(index());
+  return ToNode(body(), index(), compiler, on_success, on_failure);
+}
+
+
+RegExpNode* RegExpCapture::ToNode(RegExpTree* body,
+                                  int index,
+                                  RegExpCompiler* compiler,
+                                  RegExpNode* on_success,
+                                  RegExpNode* on_failure) {
+  int start_reg = RegExpCapture::StartRegister(index);
+  int end_reg = RegExpCapture::EndRegister(index);
   RegExpNode* store_end = ActionNode::StorePosition(end_reg, on_success);
-  RegExpNode* body_node = compiler->Compile(body(), store_end, on_failure);
+  RegExpNode* body_node = body->ToNode(compiler, store_end, on_failure);
   return ActionNode::StorePosition(start_reg, body_node);
 }
 
@@ -1207,7 +1235,7 @@ RegExpNode* RegExpAlternative::ToNode(RegExpCompiler* compiler,
   ZoneList<RegExpTree*>* children = nodes();
   RegExpNode* current = on_success;
   for (int i = children->length() - 1; i >= 0; i--) {
-    current = compiler->Compile(children->at(i), current, on_failure);
+    current = children->at(i)->ToNode(compiler, current, on_failure);
   }
   return current;
 }
@@ -1581,18 +1609,26 @@ void Analysis::VisitAction(ActionNode* that) {
 }
 
 
-RegExpNode* RegExpCompiler::Compile(RegExpTree* tree,
-                                    RegExpNode* on_success,
-                                    RegExpNode* on_failure) {
-  return tree->ToNode(this, on_success, on_failure);
-}
-
-
 RegExpNode* RegExpEngine::Compile(RegExpParseResult* input) {
   RegExpCompiler compiler(input->capture_count);
-  RegExpNode* node = compiler.Compile(input->tree,
-                                      EndNode::GetAccept(),
-                                      EndNode::GetBacktrack());
+  // Wrap the body of the regexp in capture #0.
+  RegExpNode* captured_body = RegExpCapture::ToNode(input->tree,
+                                                    0,
+                                                    &compiler,
+                                                    EndNode::GetAccept(),
+                                                    EndNode::GetBacktrack());
+  // Add a .*? at the beginning, outside the body capture.
+  // Note: We could choose to not add this if the regexp is anchored at
+  //   the start of the input but I'm not sure how best to do that and
+  //   since we don't even handle ^ yet I'm saving that optimization for
+  //   later.
+  RegExpNode* node = RegExpQuantifier::ToNode(0,
+                                              RegExpQuantifier::kInfinity,
+                                              false,
+                                              new RegExpCharacterClass('.'),
+                                              &compiler,
+                                              captured_body,
+                                              EndNode::GetBacktrack());
   Analysis analysis(&compiler);
   analysis.Analyze(node);
   return node;

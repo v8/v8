@@ -699,5 +699,5 @@ TEST(AddInverseToTable) {
 
 
 TEST(Graph) {
-  Execute(".*?[^a]|b", "", true);
+  Execute("a|(b|c)|d", "", true);
 }
