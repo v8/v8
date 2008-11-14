@@ -205,7 +205,7 @@ class CharacterRange {
 
 
 template <typename Node, class Callback>
-static void DoForEach(Node* node, Callback callback);
+static void DoForEach(Node* node, Callback* callback);
 
 
 // A zone splay tree.  The config type parameter encapsulates the
@@ -297,7 +297,7 @@ class ZoneSplayTree : public ZoneObject {
   };
 
   template <class Callback>
-  void ForEach(Callback c) {
+  void ForEach(Callback* c) {
     DoForEach<typename ZoneSplayTree<Config>::Node, Callback>(root_, c);
   }
 
@@ -376,7 +376,7 @@ class DispatchTable {
   void Dump();
 
   template <typename Callback>
-  void ForEach(Callback callback) { return tree()->ForEach(callback); }
+  void ForEach(Callback* callback) { return tree()->ForEach(callback); }
  private:
   // There can't be a static empty set since it allocates its
   // successors in a zone and caches them.
@@ -396,6 +396,23 @@ class DispatchTable {
   VISIT(CharacterClass)
 
 
+class NodeInfo {
+ public:
+  NodeInfo()
+    : being_analyzed(false),
+      been_analyzed(false),
+      propagate_word(false),
+      propagate_line(false) { }
+  bool being_analyzed: 1;
+  bool been_analyzed: 1;
+  bool propagate_word: 1;
+  bool propagate_line: 1;
+};
+
+
+STATIC_CHECK(sizeof(NodeInfo) <= sizeof(int));  // NOLINT
+
+
 class RegExpNode: public ZoneObject {
  public:
   virtual ~RegExpNode() { }
@@ -405,11 +422,15 @@ class RegExpNode: public ZoneObject {
   // false for failure.
   bool GoTo(RegExpCompiler* compiler);
   void EmitAddress(RegExpCompiler* compiler);
+
   // Until the implementation is complete we will return true for success and
   // false for failure.
   virtual bool Emit(RegExpCompiler* compiler) = 0;
+  NodeInfo* info() { return &info_; }
+  virtual bool IsBacktrack() { return false; }
  private:
   Label label;
+  NodeInfo info_;
 };
 
 
@@ -533,15 +554,12 @@ class CharacterClassNode: public SeqRegExpNode {
 class EndNode: public RegExpNode {
  public:
   enum Action { ACCEPT, BACKTRACK };
-  virtual void Accept(NodeVisitor* visitor);
-  static EndNode* GetAccept() { return &kAccept; }
-  static EndNode* GetBacktrack() { return &kBacktrack; }
-  virtual bool Emit(RegExpCompiler* compiler);
- private:
   explicit EndNode(Action action) : action_(action) { }
+  virtual void Accept(NodeVisitor* visitor);
+  virtual bool Emit(RegExpCompiler* compiler);
+  virtual bool IsBacktrack() { return action_ == BACKTRACK; }
+ private:
   Action action_;
-  static EndNode kAccept;
-  static EndNode kBacktrack;
 };
 
 
@@ -578,21 +596,76 @@ class ChoiceNode: public RegExpNode {
  public:
   explicit ChoiceNode(int expected_size, RegExpNode* on_failure)
     : on_failure_(on_failure),
-      choices_(new ZoneList<GuardedAlternative>(expected_size)),
-      visited_(false) { }
+      alternatives_(new ZoneList<GuardedAlternative>(expected_size)),
+      table_calculated_(false),
+      being_calculated_(false) { }
   virtual void Accept(NodeVisitor* visitor);
-  void AddChild(GuardedAlternative node) { choices()->Add(node); }
-  ZoneList<GuardedAlternative>* choices() { return choices_; }
+  void AddAlternative(GuardedAlternative node) { alternatives()->Add(node); }
+  ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
   DispatchTable* table() { return &table_; }
   RegExpNode* on_failure() { return on_failure_; }
   virtual bool Emit(RegExpCompiler* compiler);
-  bool visited() { return visited_; }
-  void set_visited(bool value) { visited_ = value; }
+  bool table_calculated() { return table_calculated_; }
+  void set_table_calculated(bool b) { table_calculated_ = b; }
+  bool being_calculated() { return being_calculated_; }
+  void set_being_calculated(bool b) { being_calculated_ = b; }
  private:
   RegExpNode* on_failure_;
-  ZoneList<GuardedAlternative>* choices_;
+  ZoneList<GuardedAlternative>* alternatives_;
   DispatchTable table_;
-  bool visited_;
+  bool table_calculated_;
+  bool being_calculated_;
+};
+
+
+class NodeVisitor {
+ public:
+  virtual ~NodeVisitor() { }
+#define DECLARE_VISIT(Type)                                          \
+  virtual void Visit##Type(Type##Node* that) = 0;
+FOR_EACH_NODE_TYPE(DECLARE_VISIT)
+#undef DECLARE_VISIT
+};
+
+
+// Node visitor used to add the start set of the alternatives to the
+// dispatch table of a choice node.
+class DispatchTableConstructor: public NodeVisitor {
+ public:
+  explicit DispatchTableConstructor(DispatchTable* table)
+    : table_(table),
+      choice_index_(-1) { }
+
+  void BuildTable(ChoiceNode* node);
+
+  void AddRange(CharacterRange range) {
+    table()->AddRange(range, choice_index_);
+  }
+
+  void AddInverse(ZoneList<CharacterRange>* ranges);
+
+#define DECLARE_VISIT(Type)                                          \
+  virtual void Visit##Type(Type##Node* that);
+FOR_EACH_NODE_TYPE(DECLARE_VISIT)
+#undef DECLARE_VISIT
+
+  DispatchTable* table() { return table_; }
+  void set_choice_index(int value) { choice_index_ = value; }
+
+ protected:
+  DispatchTable *table_;
+  int choice_index_;
+};
+
+
+class Analysis: public NodeVisitor {
+ public:
+  void EnsureAnalyzed(RegExpNode* node);
+
+#define DECLARE_VISIT(Type)                                          \
+  virtual void Visit##Type(Type##Node* that);
+FOR_EACH_NODE_TYPE(DECLARE_VISIT)
+#undef DECLARE_VISIT
 };
 
 
@@ -611,9 +684,6 @@ class RegExpEngine: public AllStatic {
                                     bool ignore_case);
   static void DotPrint(const char* label, RegExpNode* node);
 };
-
-
-class RegExpCompiler;
 
 
 } }  // namespace v8::internal

@@ -245,10 +245,10 @@ void ZoneSplayTree<C>::Splay(const Key& key) {
 
 
 template <typename Node, class Callback>
-static void DoForEach(Node* node, Callback callback) {
+static void DoForEach(Node* node, Callback* callback) {
   if (node == NULL) return;
   DoForEach<Node, Callback>(node->left(), callback);
-  callback.Call(node->key(), node->value());
+  callback->Call(node->key(), node->value());
   DoForEach<Node, Callback>(node->right(), callback);
 }
 

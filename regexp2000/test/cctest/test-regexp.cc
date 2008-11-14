@@ -679,7 +679,9 @@ TEST(AddInverseToTable) {
       ranges->Add(CharacterRange(from, to));
     }
     DispatchTable table;
-    CharacterClassNode::AddInverseToTable(ranges, &table, 0);
+    DispatchTableConstructor cons(&table);
+    cons.set_choice_index(0);
+    cons.AddInverse(ranges);
     for (int i = 0; i < kLimit; i++) {
       bool is_on = false;
       for (int j = 0; !is_on && j < kRangeCount; j++)
@@ -693,7 +695,9 @@ TEST(AddInverseToTable) {
           new ZoneList<CharacterRange>(1);
   ranges->Add(CharacterRange(0xFFF0, 0xFFFE));
   DispatchTable table;
-  CharacterClassNode::AddInverseToTable(ranges, &table, 0);
+  DispatchTableConstructor cons(&table);
+  cons.set_choice_index(0);
+  cons.AddInverse(ranges);
   CHECK(!table.Get(0xFFFE)->Get(0));
   CHECK(table.Get(0xFFFF)->Get(0));
 }

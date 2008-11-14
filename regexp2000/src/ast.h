@@ -1225,15 +1225,16 @@ class RegExpTree: public ZoneObject {
 
 class RegExpDisjunction: public RegExpTree {
  public:
-  explicit RegExpDisjunction(ZoneList<RegExpTree*>* nodes) : nodes_(nodes) { }
+  explicit RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
+    : alternatives_(alternatives) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpDisjunction* AsDisjunction();
-  ZoneList<RegExpTree*>* nodes() { return nodes_; }
+  ZoneList<RegExpTree*>* alternatives() { return alternatives_; }
  private:
-  ZoneList<RegExpTree*>* nodes_;
+  ZoneList<RegExpTree*>* alternatives_;
 };
 
 
@@ -1274,7 +1275,7 @@ class RegExpCharacterClass: public RegExpTree {
   RegExpCharacterClass(ZoneList<CharacterRange>* ranges, bool is_negated)
     : ranges_(ranges),
       is_negated_(is_negated) { }
-  RegExpCharacterClass(uc16 type)
+  explicit RegExpCharacterClass(uc16 type)
     : ranges_(new ZoneList<CharacterRange>(2)),
       is_negated_(false) {
     CharacterRange::AddClassEscape(type, ranges_);

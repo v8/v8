@@ -788,14 +788,9 @@ Handle<ByteArray> RegExpImpl::Re2kCode(Handle<JSRegExp> re) {
 // New regular expression engine
 
 
-class DotPrinter;
-
-
 class RegExpCompiler {
  public:
-  explicit RegExpCompiler(int capture_count)
-    : next_register_(2 * capture_count),
-      work_list_(NULL) { }
+  explicit RegExpCompiler(int capture_count);
 
   int AllocateRegister() { return next_register_++; }
 
@@ -806,10 +801,17 @@ class RegExpCompiler {
 
   inline void AddWork(RegExpNode* node) { work_list_->Add(node); }
 
-  RegExpMacroAssembler* macro_assembler() {
-    return macro_assembler_;
-  }
+  static const int kImplementationOffset = 0;
+  static const int kNumberOfRegistersOffset = 0;
+  static const int kCodeOffset = 1;
+
+  RegExpMacroAssembler* macro_assembler() { return macro_assembler_; }
+  EndNode* accept() { return accept_; }
+  EndNode* backtrack() { return backtrack_; }
+
  private:
+  EndNode* accept_;
+  EndNode* backtrack_;
   int next_register_;
   List<RegExpNode*>* work_list_;
   RegExpMacroAssembler* macro_assembler_;
@@ -818,6 +820,14 @@ class RegExpCompiler {
 
 // Attempts to compile the regexp using a Regexp2000 code generator.  Returns
 // a fixed array or a null handle depending on whether it succeeded.
+RegExpCompiler::RegExpCompiler(int capture_count)
+  : next_register_(2 * capture_count),
+    work_list_(NULL) {
+  accept_ = new EndNode(EndNode::ACCEPT);
+  backtrack_ = new EndNode(EndNode::BACKTRACK);
+}
+
+
 Handle<FixedArray> RegExpCompiler::Assemble(
     RegExpMacroAssembler* macro_assembler,
     RegExpNode* start,
@@ -869,10 +879,6 @@ bool RegExpNode::GoTo(RegExpCompiler* compiler) {
 void RegExpNode::EmitAddress(RegExpCompiler* compiler) {
   compiler->macro_assembler()->EmitOrLink(&label);
 }
-
-
-EndNode EndNode::kAccept(ACCEPT);
-EndNode EndNode::kBacktrack(BACKTRACK);
 
 
 bool EndNode::Emit(RegExpCompiler* compiler) {
@@ -939,16 +945,6 @@ ActionNode* ActionNode::EscapeSubmatch(RegExpNode* on_success) {
 ActionNode* ActionNode::EndSubmatch(RegExpNode* on_success) {
   return new ActionNode(END_SUBMATCH, on_success);
 }
-
-
-class NodeVisitor {
- public:
-  virtual ~NodeVisitor() { }
-#define DECLARE_VISIT(Type)                                          \
-  virtual void Visit##Type(Type##Node* that) = 0;
-FOR_EACH_NODE_TYPE(DECLARE_VISIT)
-#undef DECLARE_VISIT
-};
 
 
 #define DEFINE_ACCEPT(Type)                                          \
@@ -1043,7 +1039,7 @@ void DotPrinter::PrintNode(const char* label, RegExpNode* node) {
         break;
     }
   }
-  stream()->Add("\"]; \n");
+  stream()->Add("\"];\n");
   Visit(node);
   stream()->Add("}\n");
   printf("%s", *(stream()->ToCString()));
@@ -1059,42 +1055,77 @@ void DotPrinter::Visit(RegExpNode* node) {
 
 
 void DotPrinter::PrintOnFailure(RegExpNode* from, RegExpNode* on_failure) {
-  if (on_failure == EndNode::GetBacktrack()) return;
+  if (on_failure->IsBacktrack()) return;
   stream()->Add("  n%p -> n%p [style=dotted];\n", from, on_failure);
   Visit(on_failure);
 }
 
 
-void DotPrinter::VisitChoice(ChoiceNode* that) {
-  stream()->Add("  n%p [label=\"? (%p)\"];\n", that, that);
-  PrintOnFailure(that, that->on_failure());
-  for (int i = 0; i < that->choices()->length(); i++) {
-    GuardedAlternative alt = that->choices()->at(i);
-    stream()->Add("  n%p -> n%p [label=\"%i",
-                       that,
-                       alt.node(),
-                       i);
-    if (alt.guards() != NULL) {
-      stream()->Add(" [");
-      for (int j = 0; j < alt.guards()->length(); j++) {
-        if (j > 0) stream()->Add(" ");
-        Guard* guard = alt.guards()->at(j);
-        switch (guard->op()) {
-          case Guard::GEQ:
-            stream()->Add("$%i &#8805; %i", guard->reg(), guard->value());
-            break;
-          case Guard::LT:
-            stream()->Add("$%i < %i", guard->reg(), guard->value());
-            break;
-        }
+class TableEntryBodyPrinter {
+ public:
+  TableEntryBodyPrinter(StringStream* stream, ChoiceNode* choice)
+    : stream_(stream), choice_(choice) { }
+  void Call(uc16 from, DispatchTable::Entry entry) {
+    OutSet* out_set = entry.out_set();
+    for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
+      if (out_set->Get(i)) {
+        stream()->Add("    n%p:s%io%i -> n%p;\n",
+                      choice(),
+                      from,
+                      i,
+                      choice()->alternatives()->at(i).node());
       }
-      stream()->Add("]");
     }
-    stream()->Add("\"];\n");
-    that->choices()->at(i).node()->Accept(this);
   }
-  OS::PrintError("--- %p ---\n", static_cast<void*>(that));
-  that->table()->Dump();
+ private:
+  StringStream* stream() { return stream_; }
+  ChoiceNode* choice() { return choice_; }
+  StringStream* stream_;
+  ChoiceNode* choice_;
+};
+
+
+class TableEntryHeaderPrinter {
+ public:
+  explicit TableEntryHeaderPrinter(StringStream* stream)
+    : first_(true), stream_(stream) { }
+  void Call(uc16 from, DispatchTable::Entry entry) {
+    if (first_) {
+      first_ = false;
+    } else {
+      stream()->Add("|");
+    }
+    stream()->Add("{%k-%k|{", from, from, entry.to());
+    OutSet* out_set = entry.out_set();
+    int priority = 0;
+    for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
+      if (out_set->Get(i)) {
+        if (priority > 0) stream()->Add("|");
+        stream()->Add("<s%io%i> %i", from, i, priority);
+        priority++;
+      }
+    }
+    stream()->Add("}}");
+  }
+ private:
+  bool first_;
+  StringStream* stream() { return stream_; }
+  StringStream* stream_;
+};
+
+
+void DotPrinter::VisitChoice(ChoiceNode* that) {
+  stream()->Add("  n%p [shape=Mrecord, label=\"", that);
+  TableEntryHeaderPrinter header_printer(stream());
+  that->table()->ForEach(&header_printer);
+  stream()->Add("\"]\n", that);
+  TableEntryBodyPrinter body_printer(stream(), that);
+  that->table()->ForEach(&body_printer);
+  PrintOnFailure(that, that->on_failure());
+  for (int i = 0; i < that->alternatives()->length(); i++) {
+    GuardedAlternative alt = that->alternatives()->at(i);
+    alt.node()->Accept(this);
+  }
 }
 
 
@@ -1206,7 +1237,8 @@ void DispatchTableDumper::Call(uc16 key, DispatchTable::Entry entry) {
 void DispatchTable::Dump() {
   HeapStringAllocator alloc;
   StringStream stream(&alloc);
-  tree()->ForEach(DispatchTableDumper(&stream));
+  DispatchTableDumper dumper(&stream);
+  tree()->ForEach(&dumper);
   OS::PrintError("%s", *stream.ToCString());
 }
 
@@ -1244,14 +1276,14 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
 RegExpNode* RegExpDisjunction::ToNode(RegExpCompiler* compiler,
                                       RegExpNode* on_success,
                                       RegExpNode* on_failure) {
-  ZoneList<RegExpTree*>* children = nodes();
-  int length = children->length();
+  ZoneList<RegExpTree*>* alternatives = this->alternatives();
+  int length = alternatives->length();
   ChoiceNode* result = new ChoiceNode(length, on_failure);
   for (int i = 0; i < length; i++) {
-    GuardedAlternative child(children->at(i)->ToNode(compiler,
-                                                     on_success,
-                                                     on_failure));
-    result->AddChild(child);
+    GuardedAlternative alternative(alternatives->at(i)->ToNode(compiler,
+                                                               on_success,
+                                                               on_failure));
+    result->AddAlternative(alternative);
   }
   return result;
 }
@@ -1310,11 +1342,11 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
     rest_alt.AddGuard(rest_guard);
   }
   if (is_greedy) {
-    center->AddChild(body_alt);
-    center->AddChild(rest_alt);
+    center->AddAlternative(body_alt);
+    center->AddAlternative(rest_alt);
   } else {
-    center->AddChild(rest_alt);
-    center->AddChild(body_alt);
+    center->AddAlternative(rest_alt);
+    center->AddAlternative(body_alt);
   }
   if (needs_counter) {
     return ActionNode::StoreRegister(reg_ctr, 0, center);
@@ -1385,9 +1417,9 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
         new ChoiceNode(1, ActionNode::EndSubmatch(on_success));
     RegExpNode* body_node = body()->ToNode(compiler,
         ActionNode::EscapeSubmatch(on_failure),
-        EndNode::GetBacktrack());
+        compiler->backtrack());
     GuardedAlternative body_alt(body_node);
-    try_node->AddChild(body_alt);
+    try_node->AddAlternative(body_alt);
     return ActionNode::BeginSubmatch(try_node);
   }
 }
@@ -1654,38 +1686,14 @@ OutSet* DispatchTable::Get(uc16 value) {
 // Analysis
 
 
-class Analysis: public NodeVisitor {
- public:
-  explicit Analysis(RegExpCompiler* compiler)
-    : compiler_(compiler),
-      table_(NULL),
-      choice_index_(-1) { }
-  DispatchTable* table() { return table_; }
-  RegExpCompiler* compiler() { return compiler_; }
-  int choice_index() { return choice_index_; }
-  void Analyze(RegExpNode* node) { node->Accept(this); }
-#define DECLARE_VISIT(Type)                                          \
-  virtual void Visit##Type(Type##Node* that);
-FOR_EACH_NODE_TYPE(DECLARE_VISIT)
-#undef DECLARE_VISIT
- protected:
-  explicit Analysis(Analysis* prev) { *this = *prev; }
-  RegExpCompiler* compiler_;
-  DispatchTable *table_;
-  int choice_index_;
-};
-
-
-// A subclass of analysis data that allows fields to be set.  Anyone
-// who needs to create new analysis data creates an instance of this
-// class, configures it, and then passes it on as an AnalysisData
-// which doesn't allow its fields to be changed.
-class AnalysisBuilder: public Analysis {
- public:
-  explicit AnalysisBuilder(Analysis* prev) : Analysis(prev) { }
-  void set_table(DispatchTable* value) { table_ = value; }
-  void set_choice_index(int value) { choice_index_ = value; }
-};
+void Analysis::EnsureAnalyzed(RegExpNode* that) {
+  if (that->info()->been_analyzed || that->info()->being_analyzed)
+    return;
+  that->info()->being_analyzed = true;
+  that->Accept(this);
+  that->info()->being_analyzed = false;
+  that->info()->been_analyzed = true;
+}
 
 
 void Analysis::VisitEnd(EndNode* that) {
@@ -1693,39 +1701,100 @@ void Analysis::VisitEnd(EndNode* that) {
 }
 
 
+void Analysis::VisitAtom(AtomNode* that) {
+  EnsureAnalyzed(that->on_success());
+  EnsureAnalyzed(that->on_failure());
+}
+
+
+void Analysis::VisitAction(ActionNode* that) {
+  RegExpNode* next = that->on_success();
+  EnsureAnalyzed(next);
+  that->info()->propagate_line = next->info()->propagate_line;
+  that->info()->propagate_word = next->info()->propagate_word;
+}
+
+
+void Analysis::VisitChoice(ChoiceNode* that) {
+  NodeInfo* info = that->info();
+  for (int i = 0; i < that->alternatives()->length(); i++) {
+    RegExpNode* node = that->alternatives()->at(i).node();
+    EnsureAnalyzed(node);
+    info->propagate_line |= node->info()->propagate_line;
+    info->propagate_word |= node->info()->propagate_word;
+  }
+  if (!that->table_calculated()) {
+    DispatchTableConstructor cons(that->table());
+    cons.BuildTable(that);
+  }
+  EnsureAnalyzed(that->on_failure());
+}
+
+
+void Analysis::VisitBackreference(BackreferenceNode* that) {
+  EnsureAnalyzed(that->on_success());
+  EnsureAnalyzed(that->on_failure());
+}
+
+
+void Analysis::VisitCharacterClass(CharacterClassNode* that) {
+  EnsureAnalyzed(that->on_success());
+  EnsureAnalyzed(that->on_failure());
+}
+
+
+// -------------------------------------------------------------------
+// Dispatch table construction
+
+
+void DispatchTableConstructor::VisitEnd(EndNode* that) {
+  // nothing to do
+}
+
+
+void DispatchTableConstructor::BuildTable(ChoiceNode* node) {
+  ASSERT(!node->table_calculated());
+  node->set_being_calculated(true);
+  ZoneList<GuardedAlternative>* alternatives = node->alternatives();
+  for (int i = 0; i < alternatives->length(); i++) {
+    set_choice_index(i);
+    alternatives->at(i).node()->Accept(this);
+  }
+  node->set_being_calculated(false);
+  node->set_table_calculated(true);
+}
+
+
 class AddDispatchRange {
  public:
-  explicit AddDispatchRange(Analysis* analysis) : analysis_(analysis) { }
+  explicit AddDispatchRange(DispatchTableConstructor* constructor)
+    : constructor_(constructor) { }
   void Call(uc32 from, DispatchTable::Entry entry);
  private:
-  Analysis* analysis_;
+  DispatchTableConstructor* constructor_;
 };
 
 
 void AddDispatchRange::Call(uc32 from, DispatchTable::Entry entry) {
   CharacterRange range(from, entry.to());
-  analysis_->table()->AddRange(range, analysis_->choice_index());
+  constructor_->AddRange(range);
 }
 
 
-void Analysis::VisitChoice(ChoiceNode* node) {
-  if (node->visited()) return;
-  node->set_visited(true);
-  ZoneList<GuardedAlternative>* choices = node->choices();
-  AnalysisBuilder data(this);
-  data.set_table(node->table());
-  for (int i = 0; i < choices->length(); i++) {
-    data.set_choice_index(i);
-    data.Analyze(choices->at(i).node());
+void DispatchTableConstructor::VisitChoice(ChoiceNode* node) {
+  if (node->being_calculated())
+    return;
+  if (!node->table_calculated()) {
+    DispatchTableConstructor constructor(node->table());
+    constructor.BuildTable(node);
   }
-  node->set_visited(false);
-  if (table() != NULL) {
-    data.table()->ForEach(AddDispatchRange(this));
-  }
+  ASSERT(node->table_calculated());
+  AddDispatchRange adder(this);
+  node->table()->ForEach(&adder);
 }
 
 
-void Analysis::VisitBackreference(BackreferenceNode* that) {
+void DispatchTableConstructor::VisitBackreference(BackreferenceNode* that) {
   UNIMPLEMENTED();
 }
 
@@ -1737,15 +1806,13 @@ static int CompareRangeByFrom(const CharacterRange* a,
 }
 
 
-void CharacterClassNode::AddInverseToTable(ZoneList<CharacterRange>* ranges,
-                                           DispatchTable* table,
-                                           int index) {
+void DispatchTableConstructor::AddInverse(ZoneList<CharacterRange>* ranges) {
   ranges->Sort(CompareRangeByFrom);
   uc16 last = 0;
   for (int i = 0; i < ranges->length(); i++) {
     CharacterRange range = ranges->at(i);
     if (last < range.from())
-      table->AddRange(CharacterRange(last, range.from() - 1), index);
+      AddRange(CharacterRange(last, range.from() - 1));
     if (range.to() >= last) {
       if (range.to() == 0xFFFF) {
         return;
@@ -1754,42 +1821,30 @@ void CharacterClassNode::AddInverseToTable(ZoneList<CharacterRange>* ranges,
       }
     }
   }
-  table->AddRange(CharacterRange(last, 0xFFFF), index);
+  AddRange(CharacterRange(last, 0xFFFF));
 }
 
 
-void Analysis::VisitCharacterClass(CharacterClassNode* that) {
-  if (table() != NULL) {
-    int index = choice_index();
-    ZoneList<CharacterRange>* ranges = that->ranges();
-    if (that->is_negated()) {
-      CharacterClassNode::AddInverseToTable(ranges, table(), index);
-    } else {
-      for (int i = 0; i < ranges->length(); i++) {
-        CharacterRange range = ranges->at(i);
-        table()->AddRange(range, index);
-      }
+void DispatchTableConstructor::VisitCharacterClass(CharacterClassNode* that) {
+  ZoneList<CharacterRange>* ranges = that->ranges();
+  if (that->is_negated()) {
+    AddInverse(ranges);
+  } else {
+    for (int i = 0; i < ranges->length(); i++) {
+      AddRange(ranges->at(i));
     }
   }
-  AnalysisBuilder outgoing(this);
-  outgoing.set_table(NULL);
-  outgoing.Analyze(that->on_success());
 }
 
 
-void Analysis::VisitAtom(AtomNode* that) {
-  if (table() != NULL) {
-    uc16 c = that->data()[0];
-    table()->AddRange(CharacterRange(c, c), choice_index());
-  }
-  AnalysisBuilder outgoing(this);
-  outgoing.set_table(NULL);
-  outgoing.Analyze(that->on_success());
+void DispatchTableConstructor::VisitAtom(AtomNode* that) {
+  uc16 c = that->data()[0];
+  AddRange(CharacterRange(c, c));
 }
 
 
-void Analysis::VisitAction(ActionNode* that) {
-  Analyze(that->on_success());
+void DispatchTableConstructor::VisitAction(ActionNode* that) {
+  that->on_success()->Accept(this);
 }
 
 
@@ -1801,8 +1856,8 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
   RegExpNode* captured_body = RegExpCapture::ToNode(input->tree,
                                                     0,
                                                     &compiler,
-                                                    EndNode::GetAccept(),
-                                                    EndNode::GetBacktrack());
+                                                    compiler.accept(),
+                                                    compiler.backtrack());
   // Add a .*? at the beginning, outside the body capture.
   // Note: We could choose to not add this if the regexp is anchored at
   //   the start of the input but I'm not sure how best to do that and
@@ -1814,10 +1869,10 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
                                               new RegExpCharacterClass('.'),
                                               &compiler,
                                               captured_body,
-                                              EndNode::GetBacktrack());
+                                              compiler.backtrack());
   if (node_return != NULL) *node_return = node;
-  Analysis analysis(&compiler);
-  analysis.Analyze(node);
+  Analysis analysis;
+  analysis.EnsureAnalyzed(node);
   byte codes[10240];
   Re2kAssembler assembler(Vector<byte>(codes, 1024));
   RegExpMacroAssemblerRe2k macro_assembler(&assembler);

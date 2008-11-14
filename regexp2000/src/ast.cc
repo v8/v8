@@ -233,9 +233,9 @@ RegExpUnparser::RegExpUnparser() : stream_(&alloc_) {
 
 void* RegExpUnparser::VisitDisjunction(RegExpDisjunction* that, void* data) {
   stream()->Add("(|");
-  for (int i = 0; i <  that->nodes()->length(); i++) {
+  for (int i = 0; i <  that->alternatives()->length(); i++) {
     stream()->Add(" ");
-    that->nodes()->at(i)->Accept(this, data);
+    that->alternatives()->at(i)->Accept(this, data);
   }
   stream()->Add(")");
   return NULL;

@@ -233,6 +233,14 @@ void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
 }
 
 
+void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
+                       FmtElm arg2, FmtElm arg3) {
+  const char argc = 4;
+  FmtElm argv[argc] = { arg0, arg1, arg2, arg3 };
+  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
+}
+
+
 SmartPointer<const char> StringStream::ToCString() {
   char* str = NewArray<char>(length_ + 1);
   memcpy(str, buffer_, length_);

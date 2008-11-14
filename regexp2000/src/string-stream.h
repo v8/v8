@@ -116,6 +116,11 @@ class StringStream {
   void Add(const char* format, FmtElm arg0);
   void Add(const char* format, FmtElm arg0, FmtElm arg1);
   void Add(const char* format, FmtElm arg0, FmtElm arg1, FmtElm arg2);
+  void Add(const char* format,
+           FmtElm arg0,
+           FmtElm arg1,
+           FmtElm arg2,
+           FmtElm arg3);
 
   // Getting the message out.
   void OutputToStdOut();
