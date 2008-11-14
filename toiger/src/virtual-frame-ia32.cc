@@ -40,7 +40,7 @@ namespace v8 { namespace internal {
 
 VirtualFrame::VirtualFrame(CodeGenerator* cgen)
     : masm_(cgen->masm()),
-      elements_(cgen->scope()->num_parameters() + 5),
+      elements_(0),
       virtual_stack_pointer_(-1),
       virtual_frame_pointer_(-1),
       parameter_count_(cgen->scope()->num_parameters()),
@@ -186,9 +186,9 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 }
 
 
-void VirtualFrame::CallCode(Handle<Code> code,
-                            RelocInfo::Mode rmode,
-                            int frame_arg_count) {
+void VirtualFrame::CallCodeObject(Handle<Code> code,
+                                  RelocInfo::Mode rmode,
+                                  int frame_arg_count) {
   ASSERT(height() >= frame_arg_count);
   Forget(frame_arg_count);
   __ call(code, rmode);

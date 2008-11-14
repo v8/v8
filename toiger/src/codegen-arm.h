@@ -158,6 +158,13 @@ class CodeGenerator: public Visitor {
 
   VirtualFrame* frame() const { return frame_; }
 
+  void set_frame(VirtualFrame* frame) { frame_ = frame; }
+
+  void delete_frame() {
+    delete frame_;
+    frame_ = NULL;
+  }
+
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
 
@@ -183,6 +190,8 @@ class CodeGenerator: public Visitor {
 
 
   // Node visitors.
+  void VisitStatements(ZoneList<Statement*>* statements);
+
 #define DEF_VISIT(type) \
   void Visit##type(type* node);
   NODE_LIST(DEF_VISIT)

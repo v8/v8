@@ -66,7 +66,7 @@ class VirtualFrame : public Malloced {
   // with an identical state.
   explicit VirtualFrame(VirtualFrame* original);
 
-  // The height of the virtual expression stack.  Always non-negative.
+  // The height of the virtual expression stack.
   int height() const {
     return virtual_stack_pointer_ - expression_base_index() + 1;
   }
@@ -104,7 +104,7 @@ class VirtualFrame : public Malloced {
   }
 
   // A frame-allocated local as an assembly operand.
-  Operand Local(int index) const {
+  Operand LocalAt(int index) const {
     ASSERT(0 <= index);
     ASSERT(index < local_count_);
     return Operand(ebp, kLocal0Offset - index * kPointerSize);
@@ -117,14 +117,14 @@ class VirtualFrame : public Malloced {
   Operand Context() const { return Operand(ebp, kContextOffset); }
 
   // A parameter as an assembly operand.
-  Operand Parameter(int index) const {
-    ASSERT(-1 <= index);
+  Operand ParameterAt(int index) const {
+    ASSERT(-1 <= index);  // -1 is the receiver.
     ASSERT(index < parameter_count_);
     return Operand(ebp, (1 + parameter_count_ - index) * kPointerSize);
   }
 
   // The receiver frame slot.
-  Operand Receiver() const { return Parameter(-1); }
+  Operand Receiver() const { return ParameterAt(-1); }
 
   // Push a try-catch or try-finally handler on top of the virtual frame.
   void PushTryHandler(HandlerType type);
@@ -146,7 +146,9 @@ class VirtualFrame : public Malloced {
 
   // Call into a JS code object, given the number of arguments it expects on
   // (and removes from) the top of the physical frame.
-  void CallCode(Handle<Code> ic, RelocInfo::Mode rmode, int frame_arg_count);
+  void CallCodeObject(Handle<Code> ic,
+                      RelocInfo::Mode rmode,
+                      int frame_arg_count);
 
   // Drop a number of elements from the top of the expression stack.  May
   // emit code to affect the physical frame.  Does not clobber any registers
@@ -206,10 +208,6 @@ class VirtualFrame : public Malloced {
     virtual_stack_pointer_--;
     return elements_.RemoveLast();
   }
-
-  // The JumpTarget class explicitly sets the height_ field of the expected
-  // frame at the actual return target.
-  friend class JumpTarget;
 };
 
 

@@ -37,11 +37,10 @@ namespace v8 { namespace internal {
 
 #define __ masm_->
 
-JumpTarget::JumpTarget(CodeGenerator* cgen) {
-  ASSERT(cgen != NULL);
-  expected_frame_ = NULL;
-  code_generator_ = cgen;
-  masm_ = cgen->masm();
+JumpTarget::JumpTarget(CodeGenerator* cgen)
+    : expected_frame_(NULL),
+      code_generator_(cgen),
+      masm_(cgen->masm()) {
 }
 
 
@@ -61,15 +60,91 @@ void JumpTarget::set_code_generator(CodeGenerator* cgen) {
 
 
 void JumpTarget::Jump() {
+  // Precondition: there is a current frame.  There may or may not be an
+  // expected frame at the label.
+  ASSERT(code_generator_ != NULL);
+
+  VirtualFrame* current_frame = code_generator_->frame();
+  ASSERT(current_frame != NULL);
+
+  if (expected_frame_ == NULL) {
+    expected_frame_ = current_frame;
+    code_generator_->set_frame(NULL);
+  } else {
+    current_frame->MergeTo(expected_frame_);
+    code_generator_->delete_frame();
+  }
+
   __ b(&label_);
+  // Postcondition: there is no current frame but there is an expected frame
+  // at the label.
 }
+
 
 void JumpTarget::Branch(Condition cc, Hint ignored) {
+  // Precondition: there is a current frame.  There may or may not be an
+  // expected frame at the label.
+  ASSERT(code_generator_ != NULL);
+  ASSERT(masm_ != NULL);
+
+  VirtualFrame* current_frame = code_generator_->frame();
+  ASSERT(current_frame != NULL);
+
+  if (expected_frame_ == NULL) {
+    expected_frame_ = new VirtualFrame(current_frame);
+  } else {
+    current_frame->MergeTo(expected_frame_);
+  }
+
   __ b(cc, &label_);
+  // Postcondition: there is both a current frame and an expected frame at
+  // the label and they match.
 }
 
+
+void JumpTarget::Call() {
+  // Precondition: there is a current frame, and there is no expected frame
+  // at the label.
+  ASSERT(code_generator_ != NULL);
+  ASSERT(masm_ != NULL);
+
+  VirtualFrame* current_frame = code_generator_->frame();
+  ASSERT(current_frame != NULL);
+  ASSERT(expected_frame_ == NULL);
+
+  expected_frame_ = new VirtualFrame(current_frame);
+   // Adjust the expected frame's height to account for the return address
+  // pushed by the call instruction.
+  expected_frame_->Adjust(1);
+
+  __ bl(&label_);
+  // Postcondition: there is both a current frame and an expected frame at
+  // the label.  The current frame is one shorter than the one at the label
+  // (which contains the return address in memory).
+}
+
+
 void JumpTarget::Bind() {
+  // Precondition: there is either a current frame or an expected frame at
+  // the label (and possibly both).  The label is unbound.
+  ASSERT(code_generator_ != NULL);
+  ASSERT(masm_ != NULL);
+
+  VirtualFrame* current_frame = code_generator_->frame();
+  ASSERT(current_frame != NULL || expected_frame_ != NULL);
+  ASSERT(!label_.is_bound());
+
+  if (expected_frame_ == NULL) {
+    expected_frame_ = new VirtualFrame(current_frame);
+  } else if (current_frame == NULL) {
+    code_generator_->set_frame(new VirtualFrame(expected_frame_));
+  } else {
+    current_frame->MergeTo(expected_frame_);
+  }
+
   __ bind(&label_);
+  // Postcondition: there is both a current frame and an expected frame at
+  // the label and they match.  The label is bound.
 }
 
 

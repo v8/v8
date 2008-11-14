@@ -38,22 +38,60 @@ namespace v8 { namespace internal {
 
 #define __ masm_->
 
-VirtualFrame::VirtualFrame(CodeGenerator* cgen) {
-  ASSERT(cgen->scope() != NULL);
-
-  masm_ = cgen->masm();
-  frame_local_count_ = cgen->scope()->num_stack_slots();
-  parameter_count_ = cgen->scope()->num_parameters();
+VirtualFrame::VirtualFrame(CodeGenerator* cgen)
+    : masm_(cgen->masm()),
+      elements_(0),
+      virtual_stack_pointer_(-1),
+      virtual_frame_pointer_(-1),
+      parameter_count_(cgen->scope()->num_parameters()),
+      local_count_(0) {
+  // The virtual frame contains a receiver and the parameters (all in
+  // memory) when it is created.
+  Adjust(parameter_count_ + 1);
 }
 
 
-VirtualFrame::VirtualFrame(VirtualFrame* original) {
-  ASSERT(original == NULL);
+VirtualFrame::VirtualFrame(VirtualFrame* original)
+    : masm_(original->masm_),
+      elements_(original->elements_.length()),
+      virtual_stack_pointer_(original->virtual_stack_pointer_),
+      virtual_frame_pointer_(original->virtual_frame_pointer_),
+      parameter_count_(original->parameter_count_),
+      local_count_(original->local_count_) {
+  // Copy all the elements.
+  for (int i = 0; i <= virtual_stack_pointer_; i++) {
+    elements_.Add(original->elements_[i]);
+  }
+}
+
+
+void VirtualFrame::Adjust(int count) {
+  ASSERT(count >= 0);
+  for (int i = 0; i < count; i++) {
+    AddElement(Element());
+  }
+}
+
+
+void VirtualFrame::Forget(int count) {
+  ASSERT(count >= 0);
+  ASSERT(virtual_stack_pointer_ >= count);
+  for (int i = 0; i < count; i++) {
+    RemoveElement();
+  }
 }
 
 
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
-  ASSERT(expected == NULL);
+  ASSERT(masm_ == expected->masm_);
+  ASSERT(elements_.length() == expected->elements_.length());
+  ASSERT(virtual_frame_pointer_ == expected->virtual_frame_pointer_);
+  ASSERT(virtual_stack_pointer_ == expected->virtual_stack_pointer_);
+  ASSERT(parameter_count_ == expected->parameter_count_);
+  ASSERT(local_count_ == expected->local_count_);
+  for (int i = 0; i <= virtual_stack_pointer_; i++) {
+    ASSERT(elements_[i].matches(expected->elements_[i]));
+  }
 }
 
 
@@ -73,8 +111,10 @@ void VirtualFrame::Enter() {
   }
 #endif  // DEBUG
 
+  Adjust(4);
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
   // Adjust FP to point to saved FP.
+  virtual_frame_pointer_ = virtual_stack_pointer_ - 1;
   __ add(fp, sp, Operand(2 * kPointerSize));
 }
 
@@ -88,16 +128,91 @@ void VirtualFrame::Exit() {
 }
 
 
-void VirtualFrame::AllocateLocals() {
-  if (frame_local_count_ > 0) {
+void VirtualFrame::AllocateStackSlots(int count) {
+  ASSERT(height() == 0);
+  local_count_ = count;
+  Adjust(count);
+  if (count > 0) {
     Comment cmnt(masm_, "[ Allocate space for locals");
       // Initialize stack slots with 'undefined' value.
     __ mov(ip, Operand(Factory::undefined_value()));
-    for (int i = 0; i < frame_local_count_; i++) {
+    for (int i = 0; i < count; i++) {
       __ push(ip);
     }
   }
 }
+
+
+void VirtualFrame::PushTryHandler(HandlerType type) {
+  // Grow the expression stack by handler size less one (the return address
+  // is already pushed by a call instruction).
+  Adjust(kHandlerSize - 1);
+  __ PushTryHandler(IN_JAVASCRIPT, type);
+}
+
+
+void VirtualFrame::CallStub(CodeStub* stub, int frame_arg_count) {
+  ASSERT(height() >= frame_arg_count);
+  Forget(frame_arg_count);
+  __ CallStub(stub);
+}
+
+
+void VirtualFrame::CallRuntime(Runtime::Function* f, int frame_arg_count) {
+  ASSERT(height() >= frame_arg_count);
+  Forget(frame_arg_count);
+  __ CallRuntime(f, frame_arg_count);
+}
+
+
+void VirtualFrame::CallRuntime(Runtime::FunctionId id, int frame_arg_count) {
+  ASSERT(height() >= frame_arg_count);
+  Forget(frame_arg_count);
+  __ CallRuntime(id, frame_arg_count);
+}
+
+
+void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
+                                 InvokeJSFlags flags,
+                                 int frame_arg_count) {
+  ASSERT(height() >= frame_arg_count);
+  Forget(frame_arg_count);
+  __ InvokeBuiltin(id, flags);
+}
+
+
+void VirtualFrame::CallCodeObject(Handle<Code> code,
+                                  RelocInfo::Mode rmode,
+                                  int frame_arg_count) {
+  ASSERT(height() >= frame_arg_count);
+  Forget(frame_arg_count);
+  __ Call(code, rmode);
+}
+
+
+void VirtualFrame::Drop(int count) {
+  ASSERT(height() >= count);
+  Forget(count);
+  if (count > 0) {
+    __ add(sp, sp, Operand(count * kPointerSize));
+  }
+}
+
+
+void VirtualFrame::Drop() { Drop(1); }
+
+
+void VirtualFrame::Pop(Register reg) {
+  Forget(1);
+  __ pop(reg);
+}
+
+
+void VirtualFrame::Push(Register reg) {
+  Adjust(1);
+  __ push(reg);
+}
+
 
 #undef __
 

@@ -37,11 +37,10 @@ namespace v8 { namespace internal {
 
 #define __ masm_->
 
-JumpTarget::JumpTarget(CodeGenerator* cgen) {
-  ASSERT(cgen != NULL);
-  expected_frame_ = NULL;
-  code_generator_ = cgen;
-  masm_ = cgen->masm();
+JumpTarget::JumpTarget(CodeGenerator* cgen)
+    : expected_frame_(NULL),
+      code_generator_(cgen),
+      masm_(cgen->masm()) {
 }
 
 
@@ -64,7 +63,6 @@ void JumpTarget::Jump() {
   // Precondition: there is a current frame.  There may or may not be an
   // expected frame at the label.
   ASSERT(code_generator_ != NULL);
-  ASSERT(masm_ != NULL);
 
   VirtualFrame* current_frame = code_generator_->frame();
   ASSERT(current_frame != NULL);
@@ -139,20 +137,18 @@ void JumpTarget::Call() {
   expected_frame_->Adjust(1);
 
   __ call(&label_);
-
   // Postcondition: there is both a current frame and an expected frame at
   // the label.  The current frame is one shorter than the one at the label
-  // (which contains the 'return address', ie, the eip register and possibly
-  // cs register).
+  // (which contains the return address in memory).
 }
 
 
 void JumpTarget::Bind() {
+  // Precondition: there is either a current frame or an expected frame at
+  // the label (and possibly both).  The label is unbound.
   ASSERT(code_generator_ != NULL);
   ASSERT(masm_ != NULL);
 
-  // Precondition: there is either a current frame or an expected frame at
-  // the label (and possibly both).  The label is unbound.
   VirtualFrame* current_frame = code_generator_->frame();
   ASSERT(current_frame != NULL || expected_frame_ != NULL);
   ASSERT(!label_.is_bound());
