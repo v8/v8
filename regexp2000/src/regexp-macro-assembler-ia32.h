@@ -133,6 +133,10 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler<SubjectChar> {
   // Read a character from input at the given offset from the current
   // position.
   void ReadChar(Register destination, int offset);
+
+  template <typename T>
+  void LoadConstantBufferAddress(Register reg, ArraySlice<T>* buffer);
+
   // Read the current character into the destination register.
   void ReadCurrentChar(Register destination);
 
@@ -145,7 +149,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler<SubjectChar> {
   int num_registers_;
   bool ignore_case_;
 };
-
 }}
 
 #endif /* REGEXP_MACRO_ASSEMBLER_IA32_H_ */

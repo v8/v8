@@ -62,10 +62,10 @@ namespace v8 { namespace internal {
  */
 
 RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32()
- : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
-   constants_(kRegExpConstantsSize),
-   num_registers_(0),
-   ignore_case(false) {}
+  : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
+    constants_(kRegExpConstantsSize),
+    num_registers_(0),
+    ignore_case(false) {}
 
 
 RegExpMacroAssemblerIA32::~RegExpMacroAssemblerIA32() {
@@ -108,11 +108,11 @@ void RegExpMacroAssemblerIA32::CheckBitmap(uc16 start,
                                            Label* on_zero) {
   ReadCurrentChar(eax);
   __ sub(eax, start);
-  __ cmp(eax, 64); // FIXME: 64 = length_of_bitmap_in_bits.
+  __ cmp(eax, 64);  // FIXME: 64 = length_of_bitmap_in_bits.
   BranchOrBacktrack(greater_equal, on_zero);
   __ mov(ebx, eax);
   __ shr(ebx, 3);
-  // TODO: Where is the bitmap stored? Pass the bitmap as argument instead.
+  // TODO(lrn): Where is the bitmap stored? Pass the bitmap as argument instead.
   // __ mov(ecx, position_of_bitmap);
   __ movzx_b(ebx, Operand(ecx, ebx, times_1, 0));
   __ and_(eax, (1<<3)-1);
@@ -144,8 +144,8 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<uc16> str,
   BranchOrBacktrack(greater_equal, on_failure);
 
   if (str.length() <= kMaxInlineStringTests || ignore_case()) {
-    // TODO: make proper loop if str.length is large but ignore_case is true;
-    for(int i = 0; i < str.length(); i++) {
+    // TODO(lrn): make loop if str.length is large but ignore_case is true;
+    for (int i = 0; i < str.length(); i++) {
       ReadChar(eax, i);
       if (ignore_case()) {
         Canonicalize(eax);
@@ -167,7 +167,7 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<uc16> str,
     if (sizeof(SubjectChar) == 1) {
       __ rep_cmpsb();
     } else {
-      ASSERT(sizeof(SubjectChar)==2);
+      ASSERT(sizeof(SubjectChar) == 2);
       __ rep_cmpsw();
     }
     __ mov(esi, ebx);
@@ -201,7 +201,7 @@ void RegExpMacroAssemblerIA32::DispatchHalfNibbleMap(
 
   __ mov(ebx, eax);
   __ shr(eax, 2);
-  __ movzx_b(eax, Operand(ecx, eax)); // FIXME: ecx holds address of map
+  __ movzx_b(eax, Operand(ecx, eax));  // FIXME: ecx holds address of map
   Label got_nybble;
   Label high_bits;
   __ and_(ebx, 0x03);
@@ -263,7 +263,7 @@ void RegExpMacroAssemblerIA32::DispatchHighByteMap(
   __ cmp(eax, destinations.length() - start);
   __ j(greater_equal, &fallthrough);
 
-  // TODO jumptable: jump to destinations[eax]
+  // TODO(lrn) jumptable: jump to destinations[eax]
   __ bind(&fallthrough);
 }
 
@@ -283,7 +283,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode() {
 }
 
 
-void RegExpMacroAssemblerIA32::GoTo(Label &to) {
+void RegExpMacroAssemblerIA32::GoTo(Label* to) {
   __ jmp(to);
 }
 
@@ -398,7 +398,7 @@ void RegExpMacroAssemblerIA32::Canonicalize(Register reg) {
     return;
   }
   ASSERT(sizeof(SubjectChar) == 2);
-  // TODO: Use some tables.
+  // TODO(lrn): Use some tables.
 }
 
 
@@ -427,10 +427,10 @@ void RegExpMacroAssemblerIA32::ReadCurrentChar(Register destination) {
 }
 
 
-template <typename T>
-void LoadConstantBufferAddress(Register reg, ArraySlice<T>& buffer) {
-  __ mov(reg, buffer.array());
-  __ add(reg, buffer.base_offset());
+void RegExpMacroAssemblerIA32::LoadConstantBufferAddress(
+    Register reg, ArraySlice<T>* buffer) {
+  __ mov(reg, buffer->array());
+  __ add(reg, buffer->base_offset());
 }
 
 #undef __

@@ -106,7 +106,8 @@ TEST(Parser) {
   CHECK_PARSE_EQ("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
   CHECK_PARSE_EQ("()", "(^ %)");
   CHECK_PARSE_EQ("(?=)", "(-> + %)");
-  CHECK_PARSE_EQ("[]", "%");
+  CHECK_PARSE_EQ("[]", "^[\x00-\uffff]");
+  CHECK_PARSE_EQ("[^]", "[\x00-\uffff]");
   CHECK_PARSE_EQ("[x]", "[x]");
   CHECK_PARSE_EQ("[xyz]", "[x y z]");
   CHECK_PARSE_EQ("[a-zA-Z0-9]", "[a-z A-Z 0-9]");
@@ -155,9 +156,11 @@ TEST(Parser) {
               "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
               " (^ 'x') (^ 'x') (^ 'x') (^ 'x') '\x09')");
   CHECK_PARSE_EQ("(a)\\1", "(: (^ 'a') (<- 1))");
-  CHECK_PARSE_EQ("(a\\1)", "(^ (: 'a' (<- 1)))");
-  CHECK_PARSE_EQ("(\\1a)", "(^ (: (<- 1) 'a'))");
+  CHECK_PARSE_EQ("(a\\1)", "(^ 'a')");
+  CHECK_PARSE_EQ("(\\1a)", "(^ 'a')");
   CHECK_PARSE_EQ("\\1(a)", "(: '\x01' (^ 'a'))");
+  CHECK_PARSE_EQ("(?!(a))\\1", "(-> - (^ 'a'))");
+  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(-> - (: '\x01' (^ 'a') (<- 1)))");
   CHECK_PARSE_EQ("[\\0]", "[\0]");
   CHECK_PARSE_EQ("[\\11]", "[\t]");
   CHECK_PARSE_EQ("[\\11a]", "[\t a]");

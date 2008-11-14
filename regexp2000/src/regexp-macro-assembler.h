@@ -123,7 +123,7 @@ class RegExpMacroAssembler {
 
 template <typename T>
 struct ArraySlice {
-public:
+ public:
   ArraySlice(Handle<ByteArray> array, size_t offset)
     : array_(array), offset_(offset) {}
   Handle<ByteArray> array() { return array_; }
@@ -139,15 +139,15 @@ public:
   T& operator[](int idx) {
     return reinterpret_cast<T*>(array_->GetDataStartAddress() + offset)[idx];
   }
-private:
-  const Handle<ByteArray> array_;
-  const size_t offset_;
+ private:
+  Handle<ByteArray> array_;
+  size_t offset_;
 };
 
 
 class ByteArrayProvider {
  public:
-  ByteArrayProvider(int initial_size);
+  explicit ByteArrayProvider(int initial_size);
   // Provides a place to put "size" elements of type T. The information
   // can be stored in the provided ByteArray at the "offset". The offset is
   // aligned to an "align"-boundary

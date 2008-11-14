@@ -291,6 +291,9 @@ class RegExpBuilder {
  public:
   RegExpBuilder();
   void AddCharacter(uc16 character);
+  // "Adds" an empty expression. Does nothing except consume a
+  // following quantifier
+  void AddEmpty();
   void AddAtom(RegExpTree* tree);
   void AddAssertion(RegExpTree* tree);
   void NewAlternative();  // '|'
@@ -299,6 +302,7 @@ class RegExpBuilder {
  private:
   void FlushCharacters();
   bool FlushTerms();
+  bool pending_empty_;
   ZoneList<uc16>* characters_;
   BufferedZoneList<RegExpTree, 2> terms_;
   BufferedZoneList<RegExpTree, 2> alternatives_;
@@ -311,7 +315,8 @@ class RegExpBuilder {
 };
 
 
-RegExpBuilder::RegExpBuilder() : characters_(NULL), terms_(), alternatives_()
+RegExpBuilder::RegExpBuilder()
+  : pending_empty_(false), characters_(NULL), terms_(), alternatives_()
 #ifdef DEBUG
   , last_added_(ADD_NONE)
 #endif
@@ -319,6 +324,7 @@ RegExpBuilder::RegExpBuilder() : characters_(NULL), terms_(), alternatives_()
 
 
 void RegExpBuilder::FlushCharacters() {
+  pending_empty_ = false;
   if (characters_ != NULL) {
     RegExpTree* atom = new RegExpAtom(characters_->ToConstVector());
     characters_ = NULL;
@@ -329,11 +335,17 @@ void RegExpBuilder::FlushCharacters() {
 
 
 void RegExpBuilder::AddCharacter(uc16 c) {
+  pending_empty_ = false;
   if (characters_ == NULL) {
     characters_ = new ZoneList<uc16>(4);
   }
   characters_->Add(c);
   LAST(ADD_CHAR);
+}
+
+
+void RegExpBuilder::AddEmpty() {
+  pending_empty_ = true;
 }
 
 
@@ -391,6 +403,10 @@ RegExpTree* RegExpBuilder::ToRegExp() {
 
 
 void RegExpBuilder::AddQuantifierToAtom(int min, int max, bool is_greedy) {
+  if (pending_empty_) {
+    pending_empty_ = false;
+    return;
+  }
   RegExpTree* atom;
   if (characters_ != NULL) {
     ASSERT(last_added_ == ADD_CHAR);
@@ -465,7 +481,7 @@ class RegExpParser {
 
   bool HasCharacterEscapes();
 
-  int captures_started() { return captures_started_; }
+  int captures_started() { return captures_ == NULL ? 0 : captures_->length(); }
 
   static const uc32 kEndMarker = unibrow::Utf8::kBadChar;
  private:
@@ -479,13 +495,13 @@ class RegExpParser {
   bool has_more_;
   bool has_next_;
   bool multiline_mode_;
-  int captures_started_;
   unibrow::CharacterStream* in_;
   Handle<String>* error_;
   static const int kMaxPushback = 5;
   int pushback_count_;
   uc32 pushback_buffer_[kMaxPushback];
   bool has_character_escapes_;
+  ZoneList<RegExpCapture*>* captures_;
 };
 
 
@@ -3437,11 +3453,11 @@ RegExpParser::RegExpParser(unibrow::CharacterStream* in,
     has_more_(true),
     has_next_(true),
     multiline_mode_(multiline_mode),
-    captures_started_(0),
     in_(in),
     error_(error),
     pushback_count_(0),
-    has_character_escapes_(false) {
+    has_character_escapes_(false),
+    captures_(NULL) {
   Advance(2);
 }
 
@@ -3523,15 +3539,25 @@ RegExpTree* RegExpParser::ParsePattern(bool* ok) {
 //   Atom Quantifier
 RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
   RegExpBuilder builder;
+  int capture_start_index = captures_started();
   while (true) {
     switch (current()) {
     case kEndMarker:
     case ')':
       return builder.ToRegExp();
-    case '|':
+    case '|': {
       Advance();
       builder.NewAlternative();
+      int capture_new_alt_start_index = captures_started();
+      for (int i = capture_start_index; i < capture_new_alt_start_index; i++) {
+        RegExpCapture* capture = captures_->at(i);
+        if (capture->available() == CAPTURE_AVAILABLE) {
+          capture->set_available(CAPTURE_UNREACHABLE);
+        }
+      }
+      capture_start_index = capture_new_alt_start_index;
       continue;
+    }
     case '*':
     case '+':
     case '?':
@@ -3606,7 +3632,13 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
       case '7': case '8': case '9': {
         int index = 0;
         if (ParseBackreferenceIndex(&index)) {
-          RegExpTree* atom = new RegExpBackreference(index);
+          RegExpCapture* capture = captures_->at(index - 1);
+          if (capture == NULL || capture->available() != CAPTURE_AVAILABLE) {
+            // Prepare to ignore a following quantifier
+            builder.AddEmpty();
+            goto has_read_atom;
+          }
+          RegExpTree* atom = new RegExpBackreference(capture);
           builder.AddAtom(atom);
           goto has_read_atom;  // Avoid setting has_character_escapes_.
         }
@@ -3775,10 +3807,10 @@ bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
   // This is a not according the the ECMAScript specification. According to
   // that, one must accept values up to the total number of left capturing
   // parentheses in the entire input, even if they are meaningless.
-  if (captures_started_ == 0)
+  if (captures_ == NULL)
     return false;
   int value = next() - '0';
-  if (value > captures_started_)
+  if (value > captures_->length())
     return false;
   static const int kMaxChars = kMaxPushback - 2;
   EmbeddedVector<uc32, kMaxChars> chars_seen;
@@ -3791,7 +3823,7 @@ bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
       value = 10 * value + (c - '0');
       // To avoid reading past the end of the stack-allocated pushback
       // buffers we only read kMaxChars before giving up.
-      if (value > captures_started_ || char_count > kMaxChars) {
+      if (value > captures_->length() || char_count > kMaxChars) {
         // If we give up we have to push the characters we read back
         // onto the pushback buffer in the reverse order.
         for (int i = 0; i < char_count; i++) {
@@ -4005,16 +4037,42 @@ RegExpTree* RegExpParser::ParseGroup(bool* ok) {
         break;
     }
   } else {
-    captures_started_++;
+    if (captures_ == NULL) {
+      captures_ = new ZoneList<RegExpCapture*>(2);
+    }
+    captures_->Add(NULL);
   }
-  int capture_index = captures_started_;
+  int capture_index = captures_started();
   RegExpTree* body = ParseDisjunction(CHECK_OK);
   if (current() != ')') {
     ReportError(CStrVector("Unterminated group"), CHECK_OK);
   }
   Advance();
+
+  int end_capture_index = captures_started();
+  if (type == '!') {
+    // Captures inside a negative lookahead are never available outside it.
+    for (int i = capture_index; i < end_capture_index; i++) {
+      RegExpCapture* capture = captures_->at(i);
+      ASSERT(capture != NULL);
+      capture->set_available(CAPTURE_PERMANENTLY_UNREACHABLE);
+    }
+  } else {
+    // Captures temporarily unavailable because they are in different
+    // alternatives are all available after the disjunction.
+    for (int i = capture_index; i < end_capture_index; i++) {
+      RegExpCapture* capture = captures_->at(i);
+      ASSERT(capture != NULL);
+      if (capture->available() == CAPTURE_UNREACHABLE) {
+        capture->set_available(CAPTURE_AVAILABLE);
+      }
+    }
+  }
+
   if (type == '(') {
-    return new RegExpCapture(body, capture_index);
+    RegExpCapture* capture = new RegExpCapture(body, capture_index);
+    captures_->at(capture_index - 1) = capture;
+    return capture;
   } else if (type == ':') {
     return body;
   } else {
@@ -4093,10 +4151,10 @@ RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
   }
   Advance();
   if (ranges->length() == 0) {
-    return RegExpEmpty::GetInstance();
-  } else {
-    return new RegExpCharacterClass(ranges, is_negated);
+    ranges->Add(CharacterRange::Range(0, 0xffff));
+    is_negated = !is_negated;
   }
+  return new RegExpCharacterClass(ranges, is_negated);
 }
 
 

@@ -32,9 +32,9 @@ namespace v8 { namespace internal {
 
 
 ByteArrayProvider::ByteArrayProvider(int initial_size)
- : byte_array_size_(initial_size),
-   current_byte_array_(NULL),
-   current_byte_array_free_offset_(initial_size) {}
+  : byte_array_size_(initial_size),
+    current_byte_array_(NULL),
+    current_byte_array_free_offset_(initial_size) {}
 
 
 template <typename T>
@@ -58,5 +58,4 @@ ArraySlice<T> ByteArrayProvider::GetBuffer(int size) {
   current_byte_array_free_offset_ = free_offset + size;
   return ArraySlice<T>(current_byte_array_, free_offset);
 }
-
 }}

@@ -1876,15 +1876,16 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
   byte codes[10240];
   Re2kAssembler assembler(Vector<byte>(codes, 1024));
   RegExpMacroAssemblerRe2k macro_assembler(&assembler);
-  return compiler.Assemble(&macro_assembler, node, input->capture_count, ignore_case);
+  return compiler.Assemble(&macro_assembler,
+                           node,
+                           input->capture_count,
+                           ignore_case);
 }
 
 RegExpMacroAssembler::RegExpMacroAssembler() {
-
 }
 
 RegExpMacroAssembler::~RegExpMacroAssembler() {
-
 }
 
 

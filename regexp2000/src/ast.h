@@ -1341,10 +1341,13 @@ class RegExpQuantifier: public RegExpTree {
 };
 
 
+enum CaptureAvailability {
+    CAPTURE_AVAILABLE, CAPTURE_UNREACHABLE, CAPTURE_PERMANENTLY_UNREACHABLE };
+
 class RegExpCapture: public RegExpTree {
  public:
   explicit RegExpCapture(RegExpTree* body, int index)
-    : body_(body), index_(index) { }
+    : body_(body), index_(index), available_(CAPTURE_AVAILABLE) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
@@ -1357,11 +1360,16 @@ class RegExpCapture: public RegExpTree {
   virtual RegExpCapture* AsCapture();
   RegExpTree* body() { return body_; }
   int index() { return index_; }
+  inline CaptureAvailability available() { return available_; }
+  inline void set_available(CaptureAvailability availability) {
+    available_ = availability;
+  }
   static int StartRegister(int index) { return index * 2; }
   static int EndRegister(int index) { return index * 2 + 1; }
  private:
   RegExpTree* body_;
   int index_;
+  CaptureAvailability available_;
 };
 
 
@@ -1385,15 +1393,17 @@ class RegExpLookahead: public RegExpTree {
 
 class RegExpBackreference: public RegExpTree {
  public:
-  explicit RegExpBackreference(int index) : index_(index) { }
+  explicit RegExpBackreference(RegExpCapture* capture)
+    : capture_(capture) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpBackreference* AsBackreference();
-  int index() { return index_; }
+  int index() { return capture_->index(); }
+  RegExpCapture* capture() { return capture_; }
  private:
-  int index_;
+  RegExpCapture* capture_;
 };
 
 
