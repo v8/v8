@@ -421,7 +421,7 @@ class RegExpNode: public ZoneObject {
   // Until the implementation is complete we will return true for success and
   // false for failure.
   bool GoTo(RegExpCompiler* compiler);
-  void EmitAddress(RegExpCompiler* compiler);
+  Label* label();
 
   // Until the implementation is complete we will return true for success and
   // false for failure.
@@ -429,7 +429,7 @@ class RegExpNode: public ZoneObject {
   NodeInfo* info() { return &info_; }
   virtual bool IsBacktrack() { return false; }
  private:
-  Label label;
+  Label label_;
   NodeInfo info_;
 };
 
@@ -610,6 +610,9 @@ class ChoiceNode: public RegExpNode {
   bool being_calculated() { return being_calculated_; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
  private:
+  void GenerateGuard(RegExpCompiler* compiler,
+                     Guard *guard,
+                     Label* on_failure);
   RegExpNode* on_failure_;
   ZoneList<GuardedAlternative>* alternatives_;
   DispatchTable table_;

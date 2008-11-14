@@ -867,8 +867,8 @@ Handle<FixedArray> RegExpCompiler::Assemble(
 
 
 bool RegExpNode::GoTo(RegExpCompiler* compiler) {
-  if (label.is_bound()) {
-    compiler->macro_assembler()->GoTo(&label);
+  if (label_.is_bound()) {
+    compiler->macro_assembler()->GoTo(&label_);
     return true;
   } else {
     return Emit(compiler);
@@ -876,8 +876,8 @@ bool RegExpNode::GoTo(RegExpCompiler* compiler) {
 }
 
 
-void RegExpNode::EmitAddress(RegExpCompiler* compiler) {
-  compiler->macro_assembler()->EmitOrLink(&label);
+Label* RegExpNode::label() {
+  return &label_;
 }
 
 
@@ -959,9 +959,50 @@ FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
 // Emit code.
 
 
+void ChoiceNode::GenerateGuard(RegExpCompiler* compiler,
+                               Guard *guard,
+                               Label* on_failure) {
+
+}
+
+
 bool ChoiceNode::Emit(RegExpCompiler* compiler) {
-  // TODO(erikcorry): Implement this.
-  return false;
+  int choice_count = alternatives_->length();
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  // For now we just call all choices one after the other.  The idea ultimately
+  // is to use the Dispatch table to try only the relevant ones.
+  for (int i = 0; i < choice_count; i++) {
+    GuardedAlternative alternative = (*alternatives_)[i];
+    Label after;
+    Label* next_alternative;
+    if (i < choice_count - 1) {
+      next_alternative = &after;
+    } else {
+      next_alternative = on_failure_->label();
+    }
+    ZoneList<Guard*>* guards = alternative.guards();
+    if (guards != NULL) {
+      int guard_count = guards->length();
+      for (int j = 0; j < guard_count; j++) {
+        GenerateGuard(compiler, (*guards)[i], next_alternative);
+      }
+    }
+    macro_assembler->PushBacktrack(next_alternative);
+    if (!alternative.node()->Emit(compiler)) {
+      after.Unuse();
+      if (next_alternative != &after) {
+        next_alternative->Unuse();
+      }
+      return false;
+    }
+    if (i < choice_count - 1) {
+      macro_assembler->Bind(&after);
+    } else {
+      after.Unuse();
+    }
+  }
+  compiler->AddWork(on_failure_);
+  return true;
 }
 
 
