@@ -39,7 +39,7 @@ struct DisjunctDecisionRow {
 
 class RegExpMacroAssembler {
  public:
-  RegExpMacroAssembler() { }
+  RegExpMacroAssembler();
   virtual ~RegExpMacroAssembler();
   virtual void Bind(Label* label) = 0;
   virtual void EmitOrLink(Label* label) = 0;
@@ -116,9 +116,48 @@ class RegExpMacroAssembler {
 
   virtual Re2kImplementation Implementation() = 0;
   virtual Handle<Object> GetCode() = 0;
+
  private:
 };
 
+
+template <typename T>
+struct ArraySlice {
+public:
+  ArraySlice(Handle<ByteArray> array, size_t offset)
+    : array_(array), offset_(offset) {}
+  Handle<ByteArray> array() { return array_; }
+  // Offset in the byte array data.
+  size_t offset() { return offset_; }
+  // Offset from the ByteArray pointer.
+  size_t base_offset() {
+    return kHeaderSize - kHeapObjectTag + offset;
+  }
+  T* operator*() {
+    return reinterpret_cast<T*>(array_->GetDataStartAddress() + offset);
+  }
+  T& operator[](int idx) {
+    return reinterpret_cast<T*>(array_->getDataStartAddress() + offset)[idx];
+  }
+private:
+  const Handle<ByteArray> array_;
+  const size_t offset_;
+};
+
+
+class ByteArrayProvider {
+ public:
+  ByteArrayProvider(int initial_size);
+  // Provides a place to put "size" elements of type T. The information
+  // can be stored in the provided ByteArray at the "offset". The offset is
+  // aligned to an "align"-boundary
+  template <typename T>
+  ArraySlice<T> GetBuffer(int size, int align);
+ private:
+  const int byte_array_size_;
+  Handle<ByteArray> current_byte_array_;
+  int current_byte_array_free_offset_;
+};
 
 } }  // namespace v8::internal
 

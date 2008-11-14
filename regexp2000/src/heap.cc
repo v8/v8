@@ -1557,6 +1557,24 @@ Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
 }
 
 
+Object* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
+  if (pretenure == NOT_TENURED) {
+    return AllocateByteArray(length);
+  }
+  int size = ByteArray::SizeFor(length);
+  AllocationSpace space =
+      size > MaxHeapObjectSize() ? LO_SPACE : OLD_DATA_SPACE;
+
+  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
+
+  if (result->IsFailure()) return result;
+
+  reinterpret_cast<Array*>(result)->set_map(byte_array_map());
+  reinterpret_cast<Array*>(result)->set_length(length);
+  return result;
+}
+
+
 Object* Heap::AllocateByteArray(int length) {
   int size = ByteArray::SizeFor(length);
   AllocationSpace space =

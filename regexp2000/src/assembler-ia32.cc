@@ -545,6 +545,22 @@ void Assembler::pop(const Operand& dst) {
 }
 
 
+void Assembler::enter(const Immediate& size) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xC8);
+  emit_w(size);
+  EMIT(0);
+}
+
+
+void Assembler::leave() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xC9);
+}
+
+
 void Assembler::mov_b(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -826,6 +842,23 @@ void Assembler::cmp(const Operand& op, const Immediate& imm) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   emit_arith(7, op, imm);
+}
+
+
+void Assembler::rep_cmpsb() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xFC);  // CLD to ensure forward operation
+  EMIT(0xF3);  // REP
+  EMIT(0xA6);  // CMPSB
+}
+
+void Assembler::rep_cmpsw() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xFC);  // CLD to ensure forward operation
+  EMIT(0xF3);  // REP
+  EMIT(0xA7);  // CMPSW
 }
 
 
@@ -1170,6 +1203,15 @@ void Assembler::xor_(const Operand& dst, const Immediate& x) {
 }
 
 
+void Assembler::bt(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x0F);
+  EMIT(0xA3);
+  emit_operand(src, dst);
+}
+
+
 void Assembler::bts(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1220,13 +1262,6 @@ void Assembler::ret(int imm16) {
     EMIT(imm16 & 0xFF);
     EMIT((imm16 >> 8) & 0xFF);
   }
-}
-
-
-void Assembler::leave() {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  EMIT(0xC9);
 }
 
 

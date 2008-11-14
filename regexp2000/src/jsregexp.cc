@@ -1635,8 +1635,12 @@ RegExpNode* RegExpEngine::Compile(RegExpParseResult* input) {
   return node;
 }
 
+RegExpMacroAssembler::RegExpMacroAssembler() {
+
+}
 
 RegExpMacroAssembler::~RegExpMacroAssembler() {
+
 }
 
 

@@ -383,7 +383,13 @@ class Heap : public AllStatic {
   // Allocate a byte array of the specified length
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
-  // Please not this does not perform a garbage collection.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocateByteArray(int length, PretenureFlag pretenure);
+
+  // Allocate a non-tenured byte array of the specified length
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
   static Object* AllocateByteArray(int length);
 
   // Allocates a fixed array initialized with undefined values

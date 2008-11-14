@@ -205,6 +205,14 @@ void Assembler::emit(const Immediate& x) {
 }
 
 
+void Assembler::emit_w(const Immediate& x) {
+  ASSERT(x.rmode_ == RelocInfo::NONE);
+  uint16_t value = static_cast<uint16_t>(x.x_);
+  reinterpret_cast<uint16_t*>(pc_)[0] = value;
+  pc_ += sizeof(uint16_t);
+}
+
+
 Address Assembler::target_address_at(Address pc) {
   return pc + sizeof(int32_t) + *reinterpret_cast<int32_t*>(pc);
 }
