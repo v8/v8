@@ -131,13 +131,13 @@ public:
   size_t offset() { return offset_; }
   // Offset from the ByteArray pointer.
   size_t base_offset() {
-    return kHeaderSize - kHeapObjectTag + offset;
+    return ByteArray::kHeaderSize - kHeapObjectTag + offset;
   }
   T* operator*() {
     return reinterpret_cast<T*>(array_->GetDataStartAddress() + offset);
   }
   T& operator[](int idx) {
-    return reinterpret_cast<T*>(array_->getDataStartAddress() + offset)[idx];
+    return reinterpret_cast<T*>(array_->GetDataStartAddress() + offset)[idx];
   }
 private:
   const Handle<ByteArray> array_;
