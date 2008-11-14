@@ -706,8 +706,11 @@ Handle<JSFunction> Factory::CreateApiFunction(
   ASSERT(type != INVALID_TYPE);
 
   Handle<JSFunction> result =
-      Factory::NewFunction(Factory::empty_symbol(), type, instance_size,
-                           code, true);
+      Factory::NewFunction(Factory::empty_symbol(),
+                           type,
+                           instance_size,
+                           code,
+                           true);
   // Set class name.
   Handle<Object> class_name = Handle<Object>(obj->class_name());
   if (class_name->IsString()) {

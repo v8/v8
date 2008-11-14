@@ -63,13 +63,21 @@ class RegExpImpl {
 
   // Stores an uncompiled RegExp pattern in the JSRegExp object.
   // It will be compiled by JSCRE when first executed.
-  static Handle<Object> JsrePrepare(Handle<JSRegExp> re,
+  static Handle<Object> JscrePrepare(Handle<JSRegExp> re,
+                                     Handle<String> pattern,
+                                     JSRegExp::Flags flags);
+
+  // Stores a compiled RegExp pattern in the JSRegExp object.
+  // The pattern is compiled by Regexp2000.
+  static Handle<Object> Re2kPrepare(Handle<JSRegExp> re,
                                     Handle<String> pattern,
-                                    JSRegExp::Flags flags);
+                                    JSRegExp::Flags flags,
+                                    Handle<FixedArray> re2k_data);
+
 
   // Compile the pattern using JSCRE and store the result in the
   // JSRegExp object.
-  static Handle<Object> JsreCompile(Handle<JSRegExp> re);
+  static Handle<Object> JscreCompile(Handle<JSRegExp> re);
 
   static Handle<Object> AtomCompile(Handle<JSRegExp> re,
                                     Handle<String> pattern,
@@ -82,16 +90,24 @@ class RegExpImpl {
   static Handle<Object> AtomExecGlobal(Handle<JSRegExp> regexp,
                                        Handle<String> subject);
 
-  static Handle<Object> JsreCompile(Handle<JSRegExp> re,
-                                    Handle<String> pattern,
-                                    JSRegExp::Flags flags);
+  static Handle<Object> JscreCompile(Handle<JSRegExp> re,
+                                     Handle<String> pattern,
+                                     JSRegExp::Flags flags);
 
   // Execute a compiled JSCRE pattern.
-  static Handle<Object> JsreExec(Handle<JSRegExp> regexp,
+  static Handle<Object> JscreExec(Handle<JSRegExp> regexp,
+                                  Handle<String> subject,
+                                  Handle<Object> index);
+
+  // Execute a Regexp2000 bytecode pattern.
+  static Handle<Object> Re2kExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject,
                                  Handle<Object> index);
 
-  static Handle<Object> JsreExecGlobal(Handle<JSRegExp> regexp,
+  static Handle<Object> JscreExecGlobal(Handle<JSRegExp> regexp,
+                                        Handle<String> subject);
+
+  static Handle<Object> Re2kExecGlobal(Handle<JSRegExp> regexp,
                                        Handle<String> subject);
 
   static void NewSpaceCollectionPrologue();
@@ -103,16 +119,37 @@ class RegExpImpl {
   static Handle<String> StringToTwoByte(Handle<String> pattern);
   static Handle<String> CachedStringToTwoByte(Handle<String> pattern);
 
+  static const int kRe2kImplementationIndex = 0;
+  static const int kRe2kNumberOfCapturesIndex = 1;
+  static const int kRe2kNumberOfRegistersIndex = 2;
+  static const int kRe2kCodeIndex = 3;
+  static const int kRe2kDataLength = 4;
+
+  static const int kJscreNumberOfCapturesIndex = 0;
+  static const int kJscreInternalIndex = 1;
+  static const int kJscreDataLength = 2;
+
  private:
   static String* last_ascii_string_;
   static String* two_byte_cached_string_;
 
-  // Returns the caputure from the re.
-  static int JsreCapture(Handle<JSRegExp> re);
-  static ByteArray* JsreInternal(Handle<JSRegExp> re);
+  static int JscreNumberOfCaptures(Handle<JSRegExp> re);
+  static ByteArray* JscreInternal(Handle<JSRegExp> re);
+
+  static int Re2kNumberOfCaptures(Handle<JSRegExp> re);
+  static int Re2kNumberOfRegisters(Handle<JSRegExp> re);
+  static Handle<ByteArray> Re2kCode(Handle<JSRegExp> re);
 
   // Call jsRegExpExecute once
-  static Handle<Object> JsreExecOnce(Handle<JSRegExp> regexp,
+  static Handle<Object> JscreExecOnce(Handle<JSRegExp> regexp,
+                                      int num_captures,
+                                      Handle<String> subject,
+                                      int previous_index,
+                                      const uc16* utf8_subject,
+                                      int* ovector,
+                                      int ovector_length);
+
+  static Handle<Object> Re2kExecOnce(Handle<JSRegExp> regexp,
                                      int num_captures,
                                      Handle<String> subject,
                                      int previous_index,
@@ -122,8 +159,10 @@ class RegExpImpl {
 
   // Set the subject cache.  The previous string buffer is not deleted, so the
   // caller should ensure that it doesn't leak.
-  static void SetSubjectCache(String* subject, char* utf8_subject,
-                              int uft8_length, int character_position,
+  static void SetSubjectCache(String* subject,
+                              char* utf8_subject,
+                              int uft8_length,
+                              int character_position,
                               int utf8_position);
 
   // A one element cache of the last utf8_subject string and its length.  The
@@ -362,9 +401,13 @@ class RegExpNode: public ZoneObject {
   virtual ~RegExpNode() { }
   virtual void Accept(NodeVisitor* visitor) = 0;
   // Generates a goto to this node or actually generates the code at this point.
-  void GoTo(RegExpCompiler* compiler);
+  // Until the implementation is complete we will return true for success and
+  // false for failure.
+  bool GoTo(RegExpCompiler* compiler);
   void EmitAddress(RegExpCompiler* compiler);
-  virtual void Emit(RegExpCompiler* compiler) = 0;
+  // Until the implementation is complete we will return true for success and
+  // false for failure.
+  virtual bool Emit(RegExpCompiler* compiler) = 0;
  private:
   Label label;
 };
@@ -375,7 +418,7 @@ class SeqRegExpNode: public RegExpNode {
   explicit SeqRegExpNode(RegExpNode* on_success)
     : on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
-  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
+  virtual bool Emit(RegExpCompiler* compiler) { return false; }
  private:
   RegExpNode* on_success_;
 };
@@ -400,7 +443,7 @@ class ActionNode: public SeqRegExpNode {
   static ActionNode* EscapeSubmatch(RegExpNode* on_success);
   static ActionNode* EndSubmatch(RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
-  virtual void Emit(RegExpCompiler* compiler);
+  virtual bool Emit(RegExpCompiler* compiler);
  private:
   union {
     struct {
@@ -433,7 +476,7 @@ class AtomNode: public SeqRegExpNode {
   virtual void Accept(NodeVisitor* visitor);
   Vector<const uc16> data() { return data_; }
   RegExpNode* on_failure() { return on_failure_; }
-  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
+  virtual bool Emit(RegExpCompiler* compiler) { return false; }
  private:
   RegExpNode* on_failure_;
   Vector<const uc16> data_;
@@ -454,7 +497,7 @@ class BackreferenceNode: public SeqRegExpNode {
   RegExpNode* on_failure() { return on_failure_; }
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
-  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
+  virtual bool Emit(RegExpCompiler* compiler) { return false; }
  private:
   RegExpNode* on_failure_;
   int start_reg_;
@@ -476,7 +519,7 @@ class CharacterClassNode: public SeqRegExpNode {
   ZoneList<CharacterRange>* ranges() { return ranges_; }
   bool is_negated() { return is_negated_; }
   RegExpNode* on_failure() { return on_failure_; }
-  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
+  virtual bool Emit(RegExpCompiler* compiler) { return false; }
   static void AddInverseToTable(ZoneList<CharacterRange>* ranges,
                                 DispatchTable* table,
                                 int index);
@@ -493,7 +536,7 @@ class EndNode: public RegExpNode {
   virtual void Accept(NodeVisitor* visitor);
   static EndNode* GetAccept() { return &kAccept; }
   static EndNode* GetBacktrack() { return &kBacktrack; }
-  virtual void Emit(RegExpCompiler* compiler) { UNREACHABLE(); }
+  virtual bool Emit(RegExpCompiler* compiler);
  private:
   explicit EndNode(Action action) : action_(action) { }
   Action action_;
@@ -542,7 +585,7 @@ class ChoiceNode: public RegExpNode {
   ZoneList<GuardedAlternative>* choices() { return choices_; }
   DispatchTable* table() { return &table_; }
   RegExpNode* on_failure() { return on_failure_; }
-  virtual void Emit(RegExpCompiler* compiler);
+  virtual bool Emit(RegExpCompiler* compiler);
   bool visited() { return visited_; }
   void set_visited(bool value) { visited_ = value; }
  private:
@@ -563,7 +606,9 @@ struct RegExpParseResult {
 
 class RegExpEngine: public AllStatic {
  public:
-  static RegExpNode* Compile(RegExpParseResult* input);
+  static Handle<FixedArray> Compile(RegExpParseResult* input,
+                                    RegExpNode** node_return,
+                                    bool ignore_case);
   static void DotPrint(const char* label, RegExpNode* node);
 };
 

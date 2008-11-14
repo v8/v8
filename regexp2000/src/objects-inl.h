@@ -1142,6 +1142,13 @@ Object* FixedArray::get(int index) {
 }
 
 
+void FixedArray::set(int index, Smi* value) {
+  ASSERT(reinterpret_cast<Object*>(value)->IsSmi());
+  int offset = kHeaderSize + index * kPointerSize;
+  WRITE_FIELD(this, offset, value);
+}
+
+
 void FixedArray::set(int index, Object* value) {
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;

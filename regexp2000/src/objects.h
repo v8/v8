@@ -1498,9 +1498,12 @@ class FixedArray: public Array {
 
   // Setter and getter for elements.
   inline Object* get(int index);
+  // Setter that uses write barrier.
   inline void set(int index, Object* value);
 
-  // Setter with barrier mode.
+  // Setter that doesn't need write barrier).
+  inline void set(int index, Smi* value);
+  // Setter with explicit barrier mode.
   inline void set(int index, Object* value, WriteBarrierMode mode);
 
   // Setters for frequently used oddballs located in old space.
@@ -2916,7 +2919,9 @@ class JSRegExp: public JSObject {
   // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
   // JSCRE: A complex RegExp for JSCRE
   // ATOM: A simple string to match against using an indexOf operation.
-  enum Type { NOT_COMPILED, JSCRE, ATOM };
+  // RE2K: Compiled with RegExp2000.
+  // RE2K_NATIVE: Compiled to native code with RegExp2000.
+  enum Type { NOT_COMPILED, JSCRE, ATOM, RE2K, RE2K_NATIVE };
   enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
 
   class Flags {
@@ -2951,10 +2956,11 @@ class JSRegExp: public JSObject {
   static const int kTagIndex = 0;
   static const int kSourceIndex = kTagIndex + 1;
   static const int kFlagsIndex = kSourceIndex + 1;
-  // These two are the same since the same entry is shared for
+  // These three are the same since the same entry is shared for
   // different purposes in different types of regexps.
   static const int kAtomPatternIndex = kFlagsIndex + 1;
   static const int kJscreDataIndex = kFlagsIndex + 1;
+  static const int kRe2kDataIndex = kFlagsIndex + 1;
   static const int kDataSize = kAtomPatternIndex + 1;
 };
 

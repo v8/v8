@@ -338,7 +338,8 @@ static void Execute(const char* input,
   RegExpParseResult result;
   if (!v8::internal::ParseRegExp(&buffer, &result))
     return;
-  RegExpNode* node = RegExpEngine::Compile(&result);
+  RegExpNode* node = NULL;
+  RegExpEngine::Compile(&result, &node, false);
   USE(node);
 #ifdef DEBUG
   if (dot_output) {

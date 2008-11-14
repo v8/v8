@@ -40,7 +40,10 @@
 #include "compilation-cache.h"
 #include "string-stream.h"
 #include "parser.h"
+#include "assembler-re2k.h"
 #include "regexp-macro-assembler.h"
+#include "regexp-macro-assembler-re2k.h"
+#include "interpreter-re2k.h"
 
 // Including pcre.h undefines DEBUG to avoid getting debug output from
 // the JSCRE implementation. Make sure to redefine it in debug mode
@@ -55,9 +58,6 @@
 
 namespace v8 { namespace internal {
 
-
-#define CAPTURE_INDEX 0
-#define INTERNAL_INDEX 1
 
 static Failure* malloc_failure;
 
@@ -229,7 +229,16 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
         result = AtomCompile(re, pattern, flags, pattern);
       }
     } else {
-      result = JsrePrepare(re, pattern, flags);
+      RegExpNode* node = NULL;
+      Handle<FixedArray> re2k_data =
+          RegExpEngine::Compile(&parse_result,
+                                &node,
+                                flags.is_ignore_case());
+      if (re2k_data.is_null()) {
+        result = JscrePrepare(re, pattern, flags);
+      } else {
+        result = Re2kPrepare(re, pattern, flags, re2k_data);
+      }
     }
     Object* data = re->data();
     if (data->IsFixedArray()) {
@@ -250,9 +259,11 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
                                 Handle<Object> index) {
   switch (regexp->TypeTag()) {
     case JSRegExp::JSCRE:
-      return JsreExec(regexp, subject, index);
+      return JscreExec(regexp, subject, index);
     case JSRegExp::ATOM:
       return AtomExec(regexp, subject, index);
+    case JSRegExp::RE2K:
+      return Re2kExec(regexp, subject, index);
     default:
       UNREACHABLE();
       return Handle<Object>();
@@ -264,9 +275,11 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
                                 Handle<String> subject) {
   switch (regexp->TypeTag()) {
     case JSRegExp::JSCRE:
-      return JsreExecGlobal(regexp, subject);
+      return JscreExecGlobal(regexp, subject);
     case JSRegExp::ATOM:
       return AtomExecGlobal(regexp, subject);
+    case JSRegExp::RE2K:
+      return Re2kExecGlobal(regexp, subject);
     default:
       UNREACHABLE();
       return Handle<Object>();
@@ -298,12 +311,8 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
   if (value == -1) return Factory::null_value();
 
   Handle<FixedArray> array = Factory::NewFixedArray(2);
-  array->set(0,
-             Smi::FromInt(value),
-             SKIP_WRITE_BARRIER);
-  array->set(1,
-             Smi::FromInt(value + needle->length()),
-             SKIP_WRITE_BARRIER);
+  array->set(0, Smi::FromInt(value));
+  array->set(1, Smi::FromInt(value + needle->length()));
   return Factory::NewJSArrayWithElements(array);
 }
 
@@ -327,12 +336,8 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
     int end = value + needle_length;
 
     Handle<FixedArray> array = Factory::NewFixedArray(2);
-    array->set(0,
-               Smi::FromInt(value),
-               SKIP_WRITE_BARRIER);
-    array->set(1,
-               Smi::FromInt(end),
-               SKIP_WRITE_BARRIER);
+    array->set(0, Smi::FromInt(value));
+    array->set(1, Smi::FromInt(end));
     Handle<JSArray> pair = Factory::NewJSArrayWithElements(array);
     SetElement(result, match_count, pair);
     match_count++;
@@ -343,11 +348,20 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
 }
 
 
-Handle<Object>RegExpImpl::JsrePrepare(Handle<JSRegExp> re,
-                                      Handle<String> pattern,
-                                      JSRegExp::Flags flags) {
+Handle<Object>RegExpImpl::JscrePrepare(Handle<JSRegExp> re,
+                                       Handle<String> pattern,
+                                       JSRegExp::Flags flags) {
   Handle<Object> value(Heap::undefined_value());
   Factory::SetRegExpData(re, JSRegExp::JSCRE, pattern, flags, value);
+  return re;
+}
+
+
+Handle<Object>RegExpImpl::Re2kPrepare(Handle<JSRegExp> re,
+                                      Handle<String> pattern,
+                                      JSRegExp::Flags flags,
+                                      Handle<FixedArray> re2k_data) {
+  Factory::SetRegExpData(re, JSRegExp::RE2K, pattern, flags, re2k_data);
   return re;
 }
 
@@ -398,7 +412,7 @@ void CompileWithRetryAfterGC(Handle<String> pattern,
 }
 
 
-Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re) {
+Handle<Object> RegExpImpl::JscreCompile(Handle<JSRegExp> re) {
   ASSERT_EQ(re->TypeTag(), JSRegExp::JSCRE);
   ASSERT(re->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined());
 
@@ -435,26 +449,65 @@ Handle<Object> RegExpImpl::JsreCompile(Handle<JSRegExp> re) {
   Handle<ByteArray> internal(
       ByteArray::FromDataStartAddress(reinterpret_cast<Address>(code)));
 
-  Handle<FixedArray> value = Factory::NewFixedArray(2);
-  value->set(CAPTURE_INDEX, Smi::FromInt(number_of_captures));
-  value->set(INTERNAL_INDEX, *internal);
+  Handle<FixedArray> value = Factory::NewFixedArray(kJscreDataLength);
+  value->set(kJscreNumberOfCapturesIndex, Smi::FromInt(number_of_captures));
+  value->set(kJscreInternalIndex, *internal);
   Factory::SetRegExpData(re, JSRegExp::JSCRE, pattern, flags, value);
 
   return re;
 }
 
 
-Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSRegExp> regexp,
+Handle<Object> RegExpImpl::Re2kExecOnce(Handle<JSRegExp> regexp,
                                         int num_captures,
                                         Handle<String> subject,
                                         int previous_index,
                                         const uc16* two_byte_subject,
                                         int* offsets_vector,
                                         int offsets_vector_length) {
+  bool rc;
+  {
+    for (int i = (num_captures + 1) * 2 - 1; i >= 0; i--) {
+      offsets_vector[i] = -1;
+    }
+
+    AssertNoAllocation a;
+
+    LOG(RegExpExecEvent(regexp, previous_index, subject));
+
+    Handle<ByteArray> byte_codes = Re2kCode(regexp);
+
+    rc = Re2kInterpreter::Match(byte_codes,
+                                subject,
+                                offsets_vector,
+                                previous_index);
+  }
+
+  if (!rc) {
+    return Factory::null_value();
+  }
+
+  Handle<FixedArray> array = Factory::NewFixedArray(2 * (num_captures+1));
+  // The captures come in (start, end+1) pairs.
+  for (int i = 0; i < 2 * (num_captures+1); i += 2) {
+    array->set(i, Smi::FromInt(offsets_vector[i]));
+    array->set(i+1, Smi::FromInt(offsets_vector[i+1]));
+  }
+  return Factory::NewJSArrayWithElements(array);
+}
+
+
+Handle<Object> RegExpImpl::JscreExecOnce(Handle<JSRegExp> regexp,
+                                         int num_captures,
+                                         Handle<String> subject,
+                                         int previous_index,
+                                         const uc16* two_byte_subject,
+                                         int* offsets_vector,
+                                         int offsets_vector_length) {
   int rc;
   {
     AssertNoAllocation a;
-    ByteArray* internal = JsreInternal(regexp);
+    ByteArray* internal = JscreInternal(regexp);
     const JscreRegExp* js_regexp =
         reinterpret_cast<JscreRegExp*>(internal->GetDataStartAddress());
 
@@ -488,12 +541,8 @@ Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSRegExp> regexp,
   Handle<FixedArray> array = Factory::NewFixedArray(2 * (num_captures+1));
   // The captures come in (start, end+1) pairs.
   for (int i = 0; i < 2 * (num_captures+1); i += 2) {
-    array->set(i,
-               Smi::FromInt(offsets_vector[i]),
-               SKIP_WRITE_BARRIER);
-    array->set(i+1,
-               Smi::FromInt(offsets_vector[i+1]),
-               SKIP_WRITE_BARRIER);
+    array->set(i, Smi::FromInt(offsets_vector[i]));
+    array->set(i+1, Smi::FromInt(offsets_vector[i+1]));
   }
   return Factory::NewJSArrayWithElements(array);
 }
@@ -501,8 +550,8 @@ Handle<Object> RegExpImpl::JsreExecOnce(Handle<JSRegExp> regexp,
 
 class OffsetsVector {
  public:
-  inline OffsetsVector(int num_captures) {
-    offsets_vector_length_ = (num_captures + 1) * 3;
+  inline OffsetsVector(int num_registers) :
+    offsets_vector_length_(num_registers) {
     if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
       vector_ = NewArray<int>(offsets_vector_length_);
     } else {
@@ -531,7 +580,7 @@ class OffsetsVector {
  private:
   int* vector_;
   int offsets_vector_length_;
-  static const int kStaticOffsetsVectorSize = 30;
+  static const int kStaticOffsetsVectorSize = 50;
   static int static_offsets_vector_[kStaticOffsetsVectorSize];
 };
 
@@ -540,47 +589,71 @@ int OffsetsVector::static_offsets_vector_[
     OffsetsVector::kStaticOffsetsVectorSize];
 
 
-Handle<Object> RegExpImpl::JsreExec(Handle<JSRegExp> regexp,
+Handle<Object> RegExpImpl::Re2kExec(Handle<JSRegExp> regexp,
                                     Handle<String> subject,
                                     Handle<Object> index) {
-  ASSERT_EQ(regexp->TypeTag(), JSRegExp::JSCRE);
-  if (regexp->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined()) {
-    Handle<Object> compile_result = JsreCompile(regexp);
-    if (compile_result->IsException()) return compile_result;
-  }
-  ASSERT(regexp->DataAt(JSRegExp::kJscreDataIndex)->IsFixedArray());
+  ASSERT_EQ(regexp->TypeTag(), JSRegExp::RE2K);
+  ASSERT(!regexp->DataAt(JSRegExp::kRe2kDataIndex)->IsUndefined());
 
   // Prepare space for the return values.
-  int num_captures = JsreCapture(regexp);
+  int number_of_registers = Re2kNumberOfRegisters(regexp);
+  OffsetsVector offsets(number_of_registers);
 
-  OffsetsVector offsets(num_captures);
+  int num_captures = Re2kNumberOfCaptures(regexp);
 
   int previous_index = static_cast<int>(DoubleToInteger(index->Number()));
 
   Handle<String> subject16 = CachedStringToTwoByte(subject);
 
-  Handle<Object> result(JsreExecOnce(regexp, num_captures, subject,
+  Handle<Object> result(Re2kExecOnce(regexp,
+                                     num_captures,
+                                     subject,
                                      previous_index,
                                      subject16->GetTwoByteData(),
-                                     offsets.vector(), offsets.length()));
+                                     offsets.vector(),
+                                     offsets.length()));
+  return result;
+}
+
+
+Handle<Object> RegExpImpl::JscreExec(Handle<JSRegExp> regexp,
+                                     Handle<String> subject,
+                                     Handle<Object> index) {
+  ASSERT_EQ(regexp->TypeTag(), JSRegExp::JSCRE);
+  if (regexp->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined()) {
+    Handle<Object> compile_result = JscreCompile(regexp);
+    if (compile_result->IsException()) return compile_result;
+  }
+  ASSERT(regexp->DataAt(JSRegExp::kJscreDataIndex)->IsFixedArray());
+
+  int num_captures = JscreNumberOfCaptures(regexp);
+
+  OffsetsVector offsets((num_captures + 1) * 3);
+
+  int previous_index = static_cast<int>(DoubleToInteger(index->Number()));
+
+  Handle<String> subject16 = CachedStringToTwoByte(subject);
+
+  Handle<Object> result(JscreExecOnce(regexp,
+                                      num_captures,
+                                      subject,
+                                      previous_index,
+                                      subject16->GetTwoByteData(),
+                                      offsets.vector(),
+                                      offsets.length()));
 
   return result;
 }
 
 
-Handle<Object> RegExpImpl::JsreExecGlobal(Handle<JSRegExp> regexp,
+Handle<Object> RegExpImpl::Re2kExecGlobal(Handle<JSRegExp> regexp,
                                           Handle<String> subject) {
-  ASSERT_EQ(regexp->TypeTag(), JSRegExp::JSCRE);
-  if (regexp->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined()) {
-    Handle<Object> compile_result = JsreCompile(regexp);
-    if (compile_result->IsException()) return compile_result;
-  }
-  ASSERT(regexp->DataAt(JSRegExp::kJscreDataIndex)->IsFixedArray());
+  ASSERT_EQ(regexp->TypeTag(), JSRegExp::RE2K);
+  ASSERT(!regexp->DataAt(JSRegExp::kRe2kDataIndex)->IsUndefined());
 
   // Prepare space for the return values.
-  int num_captures = JsreCapture(regexp);
-
-  OffsetsVector offsets(num_captures);
+  int number_of_registers = Re2kNumberOfRegisters(regexp);
+  OffsetsVector offsets(number_of_registers);
 
   int previous_index = 0;
 
@@ -596,9 +669,13 @@ Handle<Object> RegExpImpl::JsreExecGlobal(Handle<JSRegExp> regexp,
       // string length, there is no match.
       matches = Factory::null_value();
     } else {
-      matches = JsreExecOnce(regexp, num_captures, subject, previous_index,
+      matches = Re2kExecOnce(regexp,
+                             Re2kNumberOfCaptures(regexp),
+                             subject,
+                             previous_index,
                              subject16->GetTwoByteData(),
-                             offsets.vector(), offsets.length());
+                             offsets.vector(),
+                             offsets.length());
 
       if (matches->IsJSArray()) {
         SetElement(result, i, matches);
@@ -620,15 +697,90 @@ Handle<Object> RegExpImpl::JsreExecGlobal(Handle<JSRegExp> regexp,
 }
 
 
-int RegExpImpl::JsreCapture(Handle<JSRegExp> re) {
-  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
-  return Smi::cast(value->get(CAPTURE_INDEX))->value();
+Handle<Object> RegExpImpl::JscreExecGlobal(Handle<JSRegExp> regexp,
+                                           Handle<String> subject) {
+  ASSERT_EQ(regexp->TypeTag(), JSRegExp::JSCRE);
+  if (regexp->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined()) {
+    Handle<Object> compile_result = JscreCompile(regexp);
+    if (compile_result->IsException()) return compile_result;
+  }
+  ASSERT(regexp->DataAt(JSRegExp::kJscreDataIndex)->IsFixedArray());
+
+  // Prepare space for the return values.
+  int num_captures = JscreNumberOfCaptures(regexp);
+
+  OffsetsVector offsets((num_captures + 1) * 3);
+
+  int previous_index = 0;
+
+  Handle<JSArray> result = Factory::NewJSArray(0);
+  int i = 0;
+  Handle<Object> matches;
+
+  Handle<String> subject16 = CachedStringToTwoByte(subject);
+
+  do {
+    if (previous_index > subject->length() || previous_index < 0) {
+      // Per ECMA-262 15.10.6.2, if the previous index is greater than the
+      // string length, there is no match.
+      matches = Factory::null_value();
+    } else {
+      matches = JscreExecOnce(regexp,
+                              num_captures,
+                              subject,
+                              previous_index,
+                              subject16->GetTwoByteData(),
+                              offsets.vector(),
+                              offsets.length());
+
+      if (matches->IsJSArray()) {
+        SetElement(result, i, matches);
+        i++;
+        previous_index = offsets.vector()[1];
+        if (offsets.vector()[0] == offsets.vector()[1]) {
+          previous_index++;
+        }
+      }
+    }
+  } while (matches->IsJSArray());
+
+  // If we exited the loop with an exception, throw it.
+  if (matches->IsNull()) {  // Exited loop normally.
+    return result;
+  } else {  // Exited loop with the exception in matches.
+    return matches;
+  }
 }
 
 
-ByteArray* RegExpImpl::JsreInternal(Handle<JSRegExp> re) {
+int RegExpImpl::JscreNumberOfCaptures(Handle<JSRegExp> re) {
   FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
-  return ByteArray::cast(value->get(INTERNAL_INDEX));
+  return Smi::cast(value->get(kJscreNumberOfCapturesIndex))->
+      value();
+}
+
+
+ByteArray* RegExpImpl::JscreInternal(Handle<JSRegExp> re) {
+  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
+  return ByteArray::cast(value->get(kJscreInternalIndex));
+}
+
+
+int RegExpImpl::Re2kNumberOfCaptures(Handle<JSRegExp> re) {
+  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kRe2kDataIndex));
+  return Smi::cast(value->get(kRe2kNumberOfCapturesIndex))->value();
+}
+
+
+int RegExpImpl::Re2kNumberOfRegisters(Handle<JSRegExp> re) {
+  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kRe2kDataIndex));
+  return Smi::cast(value->get(kRe2kNumberOfRegistersIndex))->value();
+}
+
+
+Handle<ByteArray> RegExpImpl::Re2kCode(Handle<JSRegExp> re) {
+  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kRe2kDataIndex));
+  return Handle<ByteArray>(ByteArray::cast(value->get(kRe2kCodeIndex)));
 }
 
 
@@ -648,13 +800,11 @@ class RegExpCompiler {
   int AllocateRegister() { return next_register_++; }
 
   Handle<FixedArray> Assemble(RegExpMacroAssembler* assembler,
-                              RegExpNode* start);
+                              RegExpNode* start,
+                              int capture_count,
+                              bool case_independent);
 
   inline void AddWork(RegExpNode* node) { work_list_->Add(node); }
-
-  static const int kImplementationOffset = 0;
-  static const int kNumberOfRegistersOffset = 0;
-  static const int kCodeOffset = 1;
 
   RegExpMacroAssembler* macro_assembler() {
     return macro_assembler_;
@@ -666,34 +816,52 @@ class RegExpCompiler {
 };
 
 
+// Attempts to compile the regexp using a Regexp2000 code generator.  Returns
+// a fixed array or a null handle depending on whether it succeeded.
 Handle<FixedArray> RegExpCompiler::Assemble(
     RegExpMacroAssembler* macro_assembler,
-    RegExpNode* start) {
+    RegExpNode* start,
+    int capture_count,
+    bool case_independent) {
+  if (case_independent) return Handle<FixedArray>::null();
   macro_assembler_ = macro_assembler;
   List <RegExpNode*> work_list(0);
   work_list_ = &work_list;
-  start->GoTo(this);
-  while (!work_list.is_empty()) {
-    work_list.RemoveLast()->Emit(this);
+  Label fail;
+  macro_assembler->PushBacktrack(&fail);
+  if (!start->GoTo(this)) {
+    fail.Unuse();
+    return Handle<FixedArray>::null();
   }
-  Handle<FixedArray> array = Factory::NewFixedArray(3);
-  array->set(kImplementationOffset,
-             Smi::FromInt(macro_assembler->Implementation()),
-             SKIP_WRITE_BARRIER);
-  array->set(kNumberOfRegistersOffset,
-             Smi::FromInt(next_register_),
-             SKIP_WRITE_BARRIER);
+  while (!work_list.is_empty()) {
+    if (!work_list.RemoveLast()->Emit(this)) {
+      fail.Unuse();
+      return Handle<FixedArray>::null();
+    }
+  }
+  macro_assembler->Bind(&fail);
+  macro_assembler->Fail();
+  Handle<FixedArray> array =
+      Factory::NewFixedArray(RegExpImpl::kRe2kDataLength);
+  array->set(RegExpImpl::kRe2kImplementationIndex,
+             Smi::FromInt(macro_assembler->Implementation()));
+  array->set(RegExpImpl::kRe2kNumberOfRegistersIndex,
+             Smi::FromInt(next_register_));
+  array->set(RegExpImpl::kRe2kNumberOfCapturesIndex,
+             Smi::FromInt(capture_count));
   Handle<Object> code = macro_assembler->GetCode();
+  array->set(RegExpImpl::kRe2kCodeIndex, *code);
   work_list_ = NULL;
   return array;
 }
 
 
-void RegExpNode::GoTo(RegExpCompiler* compiler) {
+bool RegExpNode::GoTo(RegExpCompiler* compiler) {
   if (label.is_bound()) {
     compiler->macro_assembler()->GoTo(&label);
+    return true;
   } else {
-    Emit(compiler);
+    return Emit(compiler);
   }
 }
 
@@ -705,6 +873,19 @@ void RegExpNode::EmitAddress(RegExpCompiler* compiler) {
 
 EndNode EndNode::kAccept(ACCEPT);
 EndNode EndNode::kBacktrack(BACKTRACK);
+
+
+bool EndNode::Emit(RegExpCompiler* compiler) {
+  switch (action_) {
+    case ACCEPT:
+      compiler->macro_assembler()->Succeed();
+      return true;
+    case BACKTRACK:
+      compiler->macro_assembler()->Backtrack();
+      return true;
+  }
+  return false;
+}
 
 
 void GuardedAlternative::AddGuard(Guard* guard) {
@@ -782,13 +963,13 @@ FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
 // Emit code.
 
 
-void ChoiceNode::Emit(RegExpCompiler* compiler) {
+bool ChoiceNode::Emit(RegExpCompiler* compiler) {
   // TODO(erikcorry): Implement this.
-  UNREACHABLE();
+  return false;
 }
 
 
-void ActionNode::Emit(RegExpCompiler* compiler) {
+bool ActionNode::Emit(RegExpCompiler* compiler) {
   RegExpMacroAssembler* macro = compiler->macro_assembler();
   switch (type_) {
     case STORE_REGISTER:
@@ -806,17 +987,19 @@ void ActionNode::Emit(RegExpCompiler* compiler) {
       break;
     case BEGIN_SUBMATCH:
       // TODO(erikcorry): Implement this.
-      UNREACHABLE();
-      break;
+      return false;
     case ESCAPE_SUBMATCH:
       // TODO(erikcorry): Implement this.
-      UNREACHABLE();
-      break;
+      return false;
     case END_SUBMATCH:
       // TODO(erikcorry): Implement this.
+      return false;
+    default:
       UNREACHABLE();
-      break;
+      return false;
   }
+  compiler->AddWork(on_success());
+  return true;
 }
 
 
@@ -1610,7 +1793,9 @@ void Analysis::VisitAction(ActionNode* that) {
 }
 
 
-RegExpNode* RegExpEngine::Compile(RegExpParseResult* input) {
+Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
+                                         RegExpNode** node_return,
+                                         bool ignore_case) {
   RegExpCompiler compiler(input->capture_count);
   // Wrap the body of the regexp in capture #0.
   RegExpNode* captured_body = RegExpCapture::ToNode(input->tree,
@@ -1630,9 +1815,13 @@ RegExpNode* RegExpEngine::Compile(RegExpParseResult* input) {
                                               &compiler,
                                               captured_body,
                                               EndNode::GetBacktrack());
+  if (node_return != NULL) *node_return = node;
   Analysis analysis(&compiler);
   analysis.Analyze(node);
-  return node;
+  byte codes[10240];
+  Re2kAssembler assembler(Vector<byte>(codes, 1024));
+  RegExpMacroAssemblerRe2k macro_assembler(&assembler);
+  return compiler.Assemble(&macro_assembler, node, input->capture_count, ignore_case);
 }
 
 RegExpMacroAssembler::RegExpMacroAssembler() {
