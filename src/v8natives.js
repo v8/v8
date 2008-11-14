@@ -106,8 +106,8 @@ function GlobalEval(x) {
   if (!IS_STRING(x)) return x;
 
   if (this !== %GlobalReceiver(global)) {
-    throw $EvalError('The "this" object passed to eval ' + 
-                     'must be the global object from which eval originated');
+    throw new $EvalError('The "this" object passed to eval must ' + 
+                         'be the global object from which eval originated');
   }
   
   var f = %CompileString(x, 0, true);
