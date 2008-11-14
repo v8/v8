@@ -339,6 +339,10 @@ class CodeGenerator: public Visitor {
   // should be generated or not.
   void RecordStatementPosition(Node* node);
 
+  // Is the given jump target the actual (ie, non-shadowed) function return
+  // target?
+  bool IsActualFunctionReturn(JumpTarget* target);
+
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;
   List<DeferredCode*> deferred_;
@@ -357,7 +361,13 @@ class CodeGenerator: public Visitor {
   // Jump targets
   JumpTarget function_return_;
 
+  // True if the function return is shadowed (ie, jumping to the target
+  // function_return_ does not jump to the true function return, but rather
+  // to some unlinking code).
+  bool function_return_is_shadowed_;
+
   friend class VirtualFrame;
+  friend class JumpTarget;
   friend class Reference;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);

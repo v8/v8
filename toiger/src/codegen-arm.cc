@@ -82,7 +82,8 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
       frame_(NULL),
       cc_reg_(al),
       state_(NULL),
-      break_stack_height_(0) {
+      break_stack_height_(0),
+      function_return_is_shadowed_(false) {
 }
 
 
@@ -103,6 +104,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   set_frame(new VirtualFrame(this));
   cc_reg_ = al;
   function_return_.set_code_generator(this);
+  function_return_is_shadowed_ = false;
   {
     CodeGenState state(this);
 
@@ -267,6 +269,8 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   }
 
   // Code generation state must be reset.
+  ASSERT(!function_return_is_shadowed_);
+  function_return_.Unuse();
   scope_ = NULL;
   frame_ = NULL;
   ASSERT(!has_cc());
@@ -1819,6 +1823,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   for (int i = 0; i < nof_escapes; i++) {
     shadows.Add(new ShadowTarget(node->escaping_targets()->at(i)));
   }
+  bool function_return_was_shadowed = function_return_is_shadowed_;
+  function_return_is_shadowed_ = true;
 
   // Generate code for the statements in the try block.
   VisitStatements(node->try_block()->statements());
@@ -1834,6 +1840,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
     shadows[i]->StopShadowing();
     if (shadows[i]->is_linked()) nof_unlinks++;
   }
+  function_return_is_shadowed_ = function_return_was_shadowed;
 
   const int kNextIndex = (StackHandlerConstants::kNextOffset
                           + StackHandlerConstants::kAddressDisplacement)
@@ -1916,6 +1923,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   for (int i = 0; i < nof_escapes; i++) {
     shadows.Add(new ShadowTarget(node->escaping_targets()->at(i)));
   }
+  bool function_return_was_shadowed = function_return_is_shadowed_;
+  function_return_is_shadowed_ = true;
 
   // Generate code for the statements in the try block.
   VisitStatements(node->try_block()->statements());
@@ -1928,6 +1937,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     shadows[i]->StopShadowing();
     if (shadows[i]->is_linked()) nof_unlinks++;
   }
+  function_return_is_shadowed_ = function_return_was_shadowed;
 
   // If we can fall off the end of the try block, set the state on the stack
   // to FALLING.
@@ -3312,6 +3322,11 @@ void CodeGenerator::RecordStatementPosition(Node* node) {
     if (statement_pos == RelocInfo::kNoPosition) return;
     __ RecordStatementPosition(statement_pos);
   }
+}
+
+
+bool CodeGenerator::IsActualFunctionReturn(JumpTarget* target) {
+  return (target == &function_return_ && !function_return_is_shadowed_);
 }
 
 

@@ -70,8 +70,16 @@ void JumpTarget::Jump() {
   if (expected_frame_ == NULL) {
     expected_frame_ = current_frame;
     code_generator_->set_frame(NULL);
+    // The frame at the actual function return will always have height zero.
+    if (code_generator_->IsActualFunctionReturn(this)) {
+      expected_frame_->Forget(expected_frame_->height());
+    }
   } else {
-    current_frame->MergeTo(expected_frame_);
+    // No code needs to be emitted to merge to the expected frame at the
+    // actual function return.
+    if (!code_generator_->IsActualFunctionReturn(this)) {
+      current_frame->MergeTo(expected_frame_);
+    }
     code_generator_->delete_frame();
   }
 
@@ -92,8 +100,16 @@ void JumpTarget::Branch(Condition cc, Hint ignored) {
 
   if (expected_frame_ == NULL) {
     expected_frame_ = new VirtualFrame(current_frame);
+    // The frame at the actual function return will always have height zero.
+    if (code_generator_->IsActualFunctionReturn(this)) {
+      expected_frame_->Forget(expected_frame_->height());
+    }
   } else {
-    current_frame->MergeTo(expected_frame_);
+    // No code needs to be emitted to merge to the expected frame at the
+    // actual function return.
+    if (!code_generator_->IsActualFunctionReturn(this)) {
+      current_frame->MergeTo(expected_frame_);
+    }
   }
 
   __ b(cc, &label_);
@@ -107,6 +123,7 @@ void JumpTarget::Call() {
   // at the label.
   ASSERT(code_generator_ != NULL);
   ASSERT(masm_ != NULL);
+  ASSERT(!code_generator_->IsActualFunctionReturn(this));
 
   VirtualFrame* current_frame = code_generator_->frame();
   ASSERT(current_frame != NULL);
@@ -136,10 +153,18 @@ void JumpTarget::Bind() {
 
   if (expected_frame_ == NULL) {
     expected_frame_ = new VirtualFrame(current_frame);
+    // The frame at the actual function return will always have height zero.
+    if (code_generator_->IsActualFunctionReturn(this)) {
+      expected_frame_->Forget(expected_frame_->height());
+    }
   } else if (current_frame == NULL) {
     code_generator_->set_frame(new VirtualFrame(expected_frame_));
   } else {
-    current_frame->MergeTo(expected_frame_);
+    // No code needs to be emitted to merge to the expected frame at the
+    // actual function return.
+    if (!code_generator_->IsActualFunctionReturn(this)) {
+      current_frame->MergeTo(expected_frame_);
+    }
   }
 
   __ bind(&label_);
