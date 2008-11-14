@@ -169,6 +169,141 @@ void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
 }
 
 
+void StubCompiler::GenerateLoadField(MacroAssembler* masm,
+                                     JSObject* object,
+                                     JSObject* holder,
+                                     Register receiver,
+                                     Register scratch1,
+                                     Register scratch2,
+                                     int index,
+                                     Label* miss_label) {
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Operand(kSmiTagMask));
+  __ b(eq, miss_label);
+
+  // Check that the maps haven't changed.
+  Register reg =
+      __ CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
+  GenerateFastPropertyLoad(masm, r0, reg, holder, index);
+  __ Ret();
+}
+
+
+void StubCompiler::GenerateLoadConstant(MacroAssembler* masm,
+                                        JSObject* object,
+                                        JSObject* holder,
+                                        Register receiver,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Object* value,
+                                        Label* miss_label) {
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Operand(kSmiTagMask));
+  __ b(eq, miss_label);
+
+  // Check that the maps haven't changed.
+  Register reg =
+      __ CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
+
+  // Return the constant value.
+  __ mov(r0, Operand(Handle<Object>(value)));
+  __ Ret();
+}
+
+
+void StubCompiler::GenerateLoadCallback(MacroAssembler* masm,
+                                        JSObject* object,
+                                        JSObject* holder,
+                                        Register receiver,
+                                        Register name,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        AccessorInfo* callback,
+                                        Label* miss_label) {
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Operand(kSmiTagMask));
+  __ b(eq, miss_label);
+
+  // Check that the maps haven't changed.
+  Register reg =
+      __ CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
+
+  // Push the arguments on the JS stack of the caller.
+  __ push(receiver);  // receiver
+  __ mov(ip, Operand(Handle<AccessorInfo>(callback)));  // callback data
+  __ push(ip);
+  __ push(name);  // name
+  __ push(reg);  // holder
+
+  // Do tail-call to the runtime system.
+  ExternalReference load_callback_property =
+      ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
+  __ TailCallRuntime(load_callback_property, 4);
+}
+
+
+void StubCompiler::GenerateLoadInterceptor(MacroAssembler* masm,
+                                           JSObject* object,
+                                           JSObject* holder,
+                                           Register receiver,
+                                           Register name,
+                                           Register scratch1,
+                                           Register scratch2,
+                                           Label* miss_label) {
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Operand(kSmiTagMask));
+  __ b(eq, miss_label);
+
+  // Check that the maps haven't changed.
+  Register reg =
+      __ CheckMaps(object, receiver, holder, scratch1, scratch2, miss_label);
+
+  // Push the arguments on the JS stack of the caller.
+  __ push(receiver);  // receiver
+  __ push(reg);  // holder
+  __ push(name);  // name
+
+  // Do tail-call to the runtime system.
+  ExternalReference load_ic_property =
+      ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
+  __ TailCallRuntime(load_ic_property, 3);
+}
+
+
+void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
+                                           Register receiver,
+                                           Register scratch,
+                                           Label* miss_label) {
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Operand(kSmiTagMask));
+  __ b(eq, miss_label);
+
+  // Check that the object is a JS array.
+  __ ldr(scratch, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ cmp(scratch, Operand(JS_ARRAY_TYPE));
+  __ b(ne, miss_label);
+
+  // Load length directly from the JS array.
+  __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
+  __ Ret();
+}
+
+
+void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
+  ASSERT(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
+  Code* code = NULL;
+  if (kind == Code::LOAD_IC) {
+    code = Builtins::builtin(Builtins::LoadIC_Miss);
+  } else {
+    code = Builtins::builtin(Builtins::KeyedLoadIC_Miss);
+  }
+
+  Handle<Code> ic(code);
+  __ Jump(ic, RelocInfo::CODE_TARGET);
+}
+
+
 #undef __
 
 #define __ masm()->
@@ -633,20 +768,9 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
 
   __ ldr(r0, MemOperand(sp, 0));
 
-  // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
-
-  // Check that the maps haven't changed.
-  Register reg = __ CheckMaps(object, r0, holder, r3, r1, &miss);
-  GenerateFastPropertyLoad(masm(), r0, reg, holder, index);
-  __ Ret();
-
-  // Handle load cache miss.
+  GenerateLoadField(masm(), object, holder, r0, r3, r1, index, &miss);
   __ bind(&miss);
-  __ ldr(r0, MemOperand(sp));  // restore receiver
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
   return GetCode(FIELD);
@@ -666,29 +790,9 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
   Label miss;
 
   __ ldr(r0, MemOperand(sp, 0));
-  // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
-
-  // Check that the maps haven't changed.
-  Register reg = __ CheckMaps(object, r0, holder, r3, r1, &miss);
-
-  // Push the arguments on the JS stack of the caller.
-  __ push(r0);  // receiver
-  __ mov(ip, Operand(Handle<AccessorInfo>(callback)));  // callback data
-  __ push(ip);
-  __ push(r2);  // name
-  __ push(reg);  // holder
-
-  // Do tail-call to the runtime system.
-  ExternalReference load_callback_property =
-      ExternalReference(IC_Utility(IC::kLoadCallbackProperty));
-  __ TailCallRuntime(load_callback_property, 4);
-
-  // Handle load cache miss.
+  GenerateLoadCallback(masm(), object, holder, r0, r2, r3, r1, callback, &miss);
   __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
   return GetCode(CALLBACKS);
@@ -708,21 +812,10 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
   Label miss;
 
   __ ldr(r0, MemOperand(sp, 0));
-  // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
 
-  // Check that the maps haven't changed.
-  Register reg = __ CheckMaps(object, r0, holder, r3, r1, &miss);
-
-  // Return the constant value.
-  __ mov(r0, Operand(Handle<Object>(value)));
-  __ Ret();
-
-  // Handle load cache miss.
+  GenerateLoadConstant(masm(), object, holder, r0, r3, r1, value, &miss);
   __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
   return GetCode(CONSTANT_FUNCTION);
@@ -742,27 +835,10 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
   Label miss;
 
   __ ldr(r0, MemOperand(sp, 0));
-  // Check that the receiver isn't a smi.
-  __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &miss);
 
-  // Check that the maps haven't changed.
-  Register reg = __ CheckMaps(object, r0, holder, r3, r1, &miss);
-
-  // Push the arguments on the JS stack of the caller.
-  __ push(r0);  // receiver
-  __ push(reg);  // holder
-  __ push(r2);  // name
-
-  // Do tail-call to the runtime system.
-  ExternalReference load_ic_property =
-      ExternalReference(IC_Utility(IC::kLoadInterceptorProperty));
-  __ TailCallRuntime(load_ic_property, 3);
-
-  // Handle load cache miss.
+  GenerateLoadInterceptor(masm(), object, holder, r0, r2, r3, r1, &miss);
   __ bind(&miss);
-  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Miss));
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
   return GetCode(INTERCEPTOR);
@@ -775,8 +851,25 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
                                                 JSObject* receiver,
                                                 JSObject* holder,
                                                 int index) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- sp[0] : key
+  //  -- sp[4] : receiver
+  // -----------------------------------
+  HandleScope scope;
+  Label miss;
+
+  __ ldr(r2, MemOperand(sp, 0));
+  __ ldr(r0, MemOperand(sp, kPointerSize));
+
+  __ cmp(r2, Operand(Handle<String>(name)));
+  __ b(ne, &miss);
+
+  GenerateLoadField(masm(), receiver, holder, r0, r3, r1, index, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(FIELD);
 }
 
 
@@ -784,8 +877,26 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
                                                    JSObject* receiver,
                                                    JSObject* holder,
                                                    AccessorInfo* callback) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- sp[0] : key
+  //  -- sp[4] : receiver
+  // -----------------------------------
+  HandleScope scope;
+  Label miss;
+
+  __ ldr(r2, MemOperand(sp, 0));
+  __ ldr(r0, MemOperand(sp, kPointerSize));
+
+  __ cmp(r2, Operand(Handle<String>(name)));
+  __ b(ne, &miss);
+
+  GenerateLoadCallback(masm(), receiver, holder, r0, r2, r3,
+                       r1, callback, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(CALLBACKS);
 }
 
 
@@ -793,45 +904,126 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
                                                    JSObject* receiver,
                                                    JSObject* holder,
                                                    Object* value) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- sp[0] : key
+  //  -- sp[4] : receiver
+  // -----------------------------------
+  HandleScope scope;
+  Label miss;
+
+  // Check the key is the cached one
+  __ ldr(r2, MemOperand(sp, 0));
+  __ ldr(r0, MemOperand(sp, kPointerSize));
+
+  __ cmp(r2, Operand(Handle<String>(name)));
+  __ b(ne, &miss);
+
+  GenerateLoadConstant(masm(), receiver, holder, r0, r3, r1, value, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  // Return the generated code.
+  return GetCode(CONSTANT_FUNCTION);
 }
 
 
 Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
                                                       JSObject* holder,
                                                       String* name) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- sp[0] : key
+  //  -- sp[4] : receiver
+  // -----------------------------------
+  HandleScope scope;
+  Label miss;
+
+  // Check the key is the cached one
+  __ ldr(r2, MemOperand(sp, 0));
+  __ ldr(r0, MemOperand(sp, kPointerSize));
+
+  __ cmp(r2, Operand(Handle<String>(name)));
+  __ b(ne, &miss);
+
+  GenerateLoadInterceptor(masm(), receiver, holder, r0, r2, r3, r1, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(INTERCEPTOR);
 }
 
 
 Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- sp[0] : key
+  //  -- sp[4] : receiver
+  // -----------------------------------
+  HandleScope scope;
+  Label miss;
+
+  // Check the key is the cached one
+  __ ldr(r2, MemOperand(sp, 0));
+  __ ldr(r0, MemOperand(sp, kPointerSize));
+
+  __ cmp(r2, Operand(Handle<String>(name)));
+  __ b(ne, &miss);
+
+  GenerateLoadArrayLength(masm(), r0, r3, &miss);
+  __ bind(&miss);
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(CALLBACKS);
 }
 
 
+// TODO(1224671): implement the fast case.
 Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- sp[0] : key
+  //  -- sp[4] : receiver
+  // -----------------------------------
+  HandleScope scope;
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(CALLBACKS);
 }
 
 
+// TODO(1224671): implement the fast case.
 Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
+  // ----------- S t a t e -------------
+  //  -- lr    : return address
+  //  -- sp[0] : key
+  //  -- sp[4] : receiver
+  // -----------------------------------
+  HandleScope scope;
+  GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
+
+  return GetCode(CALLBACKS);
 }
 
 
+// TODO(1224671): implement the fast case.
 Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                   int index,
                                                   Map* transition,
                                                   String* name) {
-  UNIMPLEMENTED();
-  return Heap::undefined_value();
-}
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r2    : name
+  //  -- lr    : return address
+  //  -- [sp]  : receiver
+  // -----------------------------------
+  HandleScope scope;
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
+  __ Jump(ic, RelocInfo::CODE_TARGET);
 
+  // Return the generated code.
+  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION);
+}
 
 
 #undef __
