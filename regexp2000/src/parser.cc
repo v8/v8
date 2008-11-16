@@ -312,7 +312,7 @@ class RegExpBuilder {
   // "Adds" an empty expression. Does nothing except consume a
   // following quantifier
   void AddEmpty();
-  void AddTerm(RegExpTree* tree);
+  void AddAtom(RegExpTree* tree);
   void AddAssertion(RegExpTree* tree);
   void NewAlternative();  // '|'
   void AddQuantifierToAtom(int min, int max, bool is_greedy);
@@ -386,7 +386,7 @@ void RegExpBuilder::AddEmpty() {
 }
 
 
-void RegExpBuilder::AddTerm(RegExpTree* term) {
+void RegExpBuilder::AddAtom(RegExpTree* term) {
   if (term->IsTextElement()) {
     FlushCharacters();
     text_.Add(term);
@@ -3632,17 +3632,17 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
       ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
       CharacterRange::AddClassEscape('.', ranges);
       RegExpTree* atom = new RegExpCharacterClass(ranges, false);
-      builder.AddTerm(atom);
+      builder.AddAtom(atom);
       break;
     }
     case '(': {
       RegExpTree* atom = ParseGroup(CHECK_OK);
-      builder.AddTerm(atom);
+      builder.AddAtom(atom);
       break;
     }
     case '[': {
       RegExpTree* atom = ParseCharacterClass(CHECK_OK);
-      builder.AddTerm(atom);
+      builder.AddAtom(atom);
       break;
     }
     // Atom ::
@@ -3672,7 +3672,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
         ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
         CharacterRange::AddClassEscape(c, ranges);
         RegExpTree* atom = new RegExpCharacterClass(ranges, false);
-        builder.AddTerm(atom);
+        builder.AddAtom(atom);
         goto has_read_atom;  // Avoid setting has_character_escapes_.
       }
       case '1': case '2': case '3': case '4': case '5': case '6':
@@ -3686,7 +3686,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
             goto has_read_atom;
           }
           RegExpTree* atom = new RegExpBackreference(capture);
-          builder.AddTerm(atom);
+          builder.AddAtom(atom);
           goto has_read_atom;  // Avoid setting has_character_escapes_.
         }
         uc32 first_digit = next();
