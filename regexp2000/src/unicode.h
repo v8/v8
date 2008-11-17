@@ -44,7 +44,7 @@ typedef unsigned char byte;
  * The max length of the result of converting the case of a single
  * character.
  */
-static const int kMaxCaseConvertedSize = 3;
+static const int kMaxMappingSize = 4;
 
 template <class T, int size = 256>
 class Predicate {
@@ -85,7 +85,7 @@ class Mapping {
       : code_point_(code_point),
         offset_(offset) { }
     uchar code_point_ : 21;
-    signed offset_ : 11;
+    signed offset_ : 21;
   };
   static const int kSize = size;
   static const int kMask = kSize - 1;
@@ -222,43 +222,13 @@ struct Letter {
 struct Space {
   static bool Is(uchar c);
 };
-struct Titlecase {
-  static bool Is(uchar c);
-};
 struct Number {
-  static bool Is(uchar c);
-};
-struct DecimalDigit {
-  static bool Is(uchar c);
-};
-struct Ideographic {
   static bool Is(uchar c);
 };
 struct WhiteSpace {
   static bool Is(uchar c);
 };
-struct HexDigit {
-  static bool Is(uchar c);
-};
-struct AsciiHexDigit {
-  static bool Is(uchar c);
-};
-struct BidiControl {
-  static bool Is(uchar c);
-};
-struct JoinControl {
-  static bool Is(uchar c);
-};
-struct Dash {
-  static bool Is(uchar c);
-};
-struct Hyphen {
-  static bool Is(uchar c);
-};
 struct LineTerminator {
-  static bool Is(uchar c);
-};
-struct RegExpSpecialChar {
   static bool Is(uchar c);
 };
 struct CombiningMark {
@@ -274,6 +244,18 @@ struct ToLowercase {
                      bool* allow_caching_ptr);
 };
 struct ToUppercase {
+  static int Convert(uchar c,
+                     uchar n,
+                     uchar* result,
+                     bool* allow_caching_ptr);
+};
+struct Ecma262Canonicalize {
+  static int Convert(uchar c,
+                     uchar n,
+                     uchar* result,
+                     bool* allow_caching_ptr);
+};
+struct Ecma262UnCanonicalize {
   static int Convert(uchar c,
                      uchar n,
                      uchar* result,

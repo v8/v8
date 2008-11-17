@@ -707,6 +707,53 @@ TEST(AddInverseToTable) {
 }
 
 
+static uc32 canonicalize(uc32 c) {
+  unibrow::uchar canon[unibrow::kMaxMappingSize];
+  int count = unibrow::Ecma262Canonicalize::Convert(c, '\0', canon, NULL);
+  if (count == 0) {
+    return c;
+  } else {
+    CHECK_EQ(1, count);
+    return canon[0];
+  }
+}
+
+
+TEST(LatinCanonicalize) {
+  unibrow::Mapping<unibrow::Ecma262UnCanonicalize> un_canonicalize;
+  for (char lower = 'a'; lower <= 'z'; lower++) {
+    char upper = lower + ('A' - 'a');
+    CHECK_EQ(canonicalize(lower), canonicalize(upper));
+    unibrow::uchar uncanon[unibrow::kMaxMappingSize];
+    int length = un_canonicalize.get(lower, '\0', uncanon);
+    CHECK_EQ(2, length);
+    CHECK_EQ(upper, uncanon[0]);
+    CHECK_EQ(lower, uncanon[1]);
+  }
+  for (uc32 c = 128; c < (1 << 21); c++) {
+    // These exceptions are caused by a known bug in the implementation.
+    if (c != 0x026B && c != 0x027D)
+      CHECK(canonicalize(c) >= 128);
+  }
+  unibrow::Mapping<unibrow::ToUppercase> to_upper;
+  for (uc32 c = 0; c < (1 << 21); c++) {
+    if (c == 0x026B || c == 0x027D) continue;
+    unibrow::uchar upper[unibrow::kMaxMappingSize];
+    int length = to_upper.get(c, '\0', upper);
+    if (length == 0) {
+      length = 1;
+      upper[0] = c;
+    }
+    uc32 u = upper[0];
+    if (length > 1 || (c >= 128 && u < 128))
+      u = c;
+    if (u != canonicalize(c))
+      printf("%x\n", c);
+    CHECK_EQ(u, canonicalize(c));
+  }
+}
+
+
 TEST(Graph) {
   Execute("fo[ob]ar|[ba]z|x[yz]*", "", true);
 }
