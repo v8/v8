@@ -41,8 +41,8 @@ try: PASS, SKIP if $mode == debug
 debug-scripts-request: PASS, SKIP if $mode == debug
 
 # Bug number 1020483: Debug tests fail on ARM.
-debug-constructor: FAIL
-debug-continue: FAIL
+debug-constructor: CRASH, FAIL
+debug-continue: CRASH, FAIL
 debug-backtrace: FAIL
 debug-evaluate-recursive: CRASH, FAIL if $mode == debug
 debug-changebreakpoint: CRASH, FAIL if $mode == debug
@@ -53,7 +53,7 @@ debug-ignore-breakpoints: CRASH, FAIL if $mode == debug
 debug-multiple-breakpoints: CRASH, FAIL if $mode == debug
 debug-setbreakpoint: CRASH, FAIL if $mode == debug
 debug-step-stub-callfunction: CRASH
-debug-stepin-constructor: FAIL
+debug-stepin-constructor: CRASH, FAIL
 debug-step: CRASH, FAIL if $mode == debug
 debug-breakpoints: PASS || FAIL
 
