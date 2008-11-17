@@ -5806,9 +5806,7 @@ class Utf8SymbolKey : public HashTableKey {
 
   Object* GetObject() {
     if (length_field_ == 0) Hash();
-    unibrow::Utf8InputBuffer<> buffer(string_.start(),
-                                      static_cast<unsigned>(string_.length()));
-    return Heap::AllocateSymbol(&buffer, chars_, length_field_);
+    return Heap::AllocateSymbol(string_, chars_, length_field_);
   }
 
   static uint32_t StringHash(Object* obj) {
@@ -5857,9 +5855,9 @@ class SymbolKey : public HashTableKey {
     }
     // Otherwise allocate a new symbol.
     StringInputBuffer buffer(string_);
-    return Heap::AllocateSymbol(&buffer,
-                                string_->length(),
-                                string_->length_field());
+    return Heap::AllocateInternalSymbol(&buffer,
+                                        string_->length(),
+                                        string_->length_field());
   }
 
   static uint32_t StringHash(Object* obj) {

@@ -5222,3 +5222,45 @@ THREADED_TEST(DisableAccessChecksWhileConfiguring) {
   Local<Value> value = CompileRun("obj.x");
   CHECK(value->BooleanValue());
 }
+
+
+static String::ExternalStringResource* SymbolCallback(const char* chars,
+                                                      size_t length) {
+  uint16_t* buffer = i::NewArray<uint16_t>(length + 1);
+  for (size_t i = 0; i < length; i++) {
+    buffer[i] = chars[i];
+  }
+  buffer[length] = '\0';
+  return new TestResource(buffer);
+}
+
+
+static v8::Handle<Value> ExternalSymbolGetter(Local<String> name,
+                                              const AccessorInfo& info) {
+  CHECK(name->IsExternal());
+  return v8::True();
+}
+
+
+static void ExternalSymbolSetter(Local<String> name,
+                                 Local<Value> value,
+                                 const AccessorInfo&) {
+  CHECK(name->IsExternal());
+}
+
+
+THREADED_TEST(ExternalSymbols) {
+  TestResource::dispose_count = 0;
+  v8::V8::SetExternalSymbolCallback(SymbolCallback);
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessor(v8_str("x"), ExternalSymbolGetter, ExternalSymbolSetter);
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+  Local<Value> value = CompileRun("var o = { x: 42 }; o.x");
+  CHECK_EQ(42, value->Int32Value());
+  value = CompileRun("obj.x");
+  CHECK_EQ(true, value->BooleanValue());
+  value = CompileRun("obj.x = 42");
+  v8::V8::SetExternalSymbolCallback(NULL);
+}

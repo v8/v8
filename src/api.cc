@@ -2652,6 +2652,12 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 }
 
 
+void V8::SetExternalSymbolCallback(ExternalSymbolCallback callback) {
+  if (IsDeadCheck("v8::V8::SetExternalSymbolCallback()")) return;
+  i::Heap::SetExternalSymbolCallback(callback);
+}
+
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
   if (obj.IsEmpty()) {
