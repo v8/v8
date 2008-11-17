@@ -998,7 +998,6 @@ FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
 void ChoiceNode::GenerateGuard(RegExpCompiler* compiler,
                                Guard *guard,
                                Label* on_failure) {
-
 }
 
 

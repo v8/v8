@@ -421,7 +421,7 @@ class TextElement {
  public:
   enum Type {UNINITIALIZED, ATOM, CHAR_CLASS};
   TextElement() : type(UNINITIALIZED) { }
-  TextElement(Type t) : type(t) { }
+  explicit TextElement(Type t) : type(t) { }
   static TextElement Atom(RegExpAtom* atom);
   static TextElement CharClass(RegExpCharacterClass* char_class);
   Type type;

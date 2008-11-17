@@ -190,19 +190,21 @@ void Visitor::VisitExpressions(ZoneList<Expression*>* expressions) {
 FOR_EACH_REG_EXP_TREE_TYPE(MAKE_ACCEPT)
 #undef MAKE_ACCEPT
 
-#define MAKE_CONVERSION(Name)                                        \
+#define MAKE_TYPE_CASE(Name)                                         \
   RegExp##Name* RegExpTree::As##Name() {                             \
     return NULL;                                                     \
-  }
-  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CONVERSION)
-#undef MAKE_CONVERSION
+  }                                                                  \
+  bool RegExpTree::Is##Name() { return false; }
+  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
+#undef MAKE_TYPE_CASE
 
-#define MAKE_CONVERSION(Name)                                       \
+#define MAKE_TYPE_CASE(Name)                                        \
   RegExp##Name* RegExp##Name::As##Name() {                          \
     return this;                                                    \
-  }
-FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CONVERSION)
-#undef MAKE_CONVERSION
+  }                                                                 \
+  bool RegExp##Name::Is##Name() { return true; }
+FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
+#undef MAKE_TYPE_CASE
 
 RegExpEmpty RegExpEmpty::kInstance;
 
@@ -252,12 +254,21 @@ void* RegExpUnparser::VisitAlternative(RegExpAlternative* that, void* data) {
   return NULL;
 }
 
+static void AddChar(StringStream* stream, uc16 character) {
+  if (character < 32 || (character >= 128 && character < 256)) {
+    stream->Add("\\x%02x", character);
+  } else if (character >= 256) {
+    stream->Add("\\u%04x", character);
+  } else {
+    stream->Add("%c", character);
+  }
+}
 
 void RegExpUnparser::VisitCharacterRange(CharacterRange that) {
-  if (that.IsSingleton()) {
-    stream()->Add("%c", that.from());
-  } else {
-    stream()->Add("%c-%c", that.from(), that.to());
+  AddChar(stream(), that.from());
+  if (!that.IsSingleton()) {
+    stream()->Add("-");
+    AddChar(stream(), that.to());
   }
 }
 
@@ -303,7 +314,12 @@ void* RegExpUnparser::VisitAssertion(RegExpAssertion* that, void* data) {
 
 
 void* RegExpUnparser::VisitAtom(RegExpAtom* that, void* data) {
-  stream()->Add("'%w'", that->data());
+  stream()->Add("'");
+  Vector<const uc16> chardata = that->data();
+  for (int i = 0; i < chardata.length(); i++) {
+    AddChar(stream(), chardata[i]);
+  }
+  stream()->Add("'");
   return NULL;
 }
 

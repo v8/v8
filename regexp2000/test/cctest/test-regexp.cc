@@ -96,8 +96,8 @@ TEST(Parser) {
   CHECK_PARSE_EQ("xyz{1,32}?", "(: 'xy' (# 1 32 n 'z'))");
   CHECK_PARSE_EQ("xyz{1,}", "(: 'xy' (# 1 - g 'z'))");
   CHECK_PARSE_EQ("xyz{1,}?", "(: 'xy' (# 1 - n 'z'))");
-  CHECK_PARSE_EQ("a\\fb\\nc\\rd\\te\\vf", "'a\fb\nc\rd\te\vf'");
-  CHECK_PARSE_EQ("a\\nb\\bc", "(: 'a\nb' @b 'c')");
+  CHECK_PARSE_EQ("a\\fb\\nc\\rd\\te\\vf", "'a\\x0cb\\x0ac\\x0dd\\x09e\\x0bf'");
+  CHECK_PARSE_EQ("a\\nb\\bc", "(: 'a\\x0ab' @b 'c')");
   CHECK_PARSE_EQ("(?:foo)", "'foo'");
   CHECK_PARSE_EQ("(?: foo )", "' foo '");
   CHECK_PARSE_EQ("(foo|bar|baz)", "(^ (| 'foo' 'bar' 'baz'))");
@@ -106,8 +106,8 @@ TEST(Parser) {
   CHECK_PARSE_EQ("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
   CHECK_PARSE_EQ("()", "(^ %)");
   CHECK_PARSE_EQ("(?=)", "(-> + %)");
-  CHECK_PARSE_EQ("[]", "^[\x00-\uffff]");
-  CHECK_PARSE_EQ("[^]", "[\x00-\uffff]");
+  CHECK_PARSE_EQ("[]", "^[\\x00-\\uffff]");   // Doesn't compile on windows
+  CHECK_PARSE_EQ("[^]", "[\\x00-\\uffff]");   // \uffff isn't in codepage 1252
   CHECK_PARSE_EQ("[x]", "[x]");
   CHECK_PARSE_EQ("[xyz]", "[x y z]");
   CHECK_PARSE_EQ("[a-zA-Z0-9]", "[a-z A-Z 0-9]");
@@ -120,27 +120,28 @@ TEST(Parser) {
   CHECK_PARSE_EQ("[x\\dz]", "[x 0-9 z]");
   CHECK_PARSE_EQ("[\\d-z]", "[0-9 - z]");
   CHECK_PARSE_EQ("[\\d-\\d]", "[0-9 - 0-9]");
-  CHECK_PARSE_EQ("\\cj\\cJ\\ci\\cI\\ck\\cK", "'\n\n\t\t\v\v'");
+  CHECK_PARSE_EQ("\\cj\\cJ\\ci\\cI\\ck\\cK",
+                 "'\\x0a\\x0a\\x09\\x09\\x0b\\x0b'");
   CHECK_PARSE_EQ("\\c!", "'c!'");
   CHECK_PARSE_EQ("\\c_", "'c_'");
   CHECK_PARSE_EQ("\\c~", "'c~'");
   CHECK_PARSE_EQ("[a\\]c]", "[a ] c]");
   CHECK_PARSE_EQ("\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ", "'[]{}()%^# '");
   CHECK_PARSE_EQ("[\\[\\]\\{\\}\\(\\)\\%\\^\\#\\ ]", "[[ ] { } ( ) % ^ #  ]");
-  CHECK_PARSE_EQ("\\0", "'\0'");
+  CHECK_PARSE_EQ("\\0", "'\\x00'");
   CHECK_PARSE_EQ("\\8", "'8'");
   CHECK_PARSE_EQ("\\9", "'9'");
-  CHECK_PARSE_EQ("\\11", "'\t'");
-  CHECK_PARSE_EQ("\\11a", "'\ta'");
-  CHECK_PARSE_EQ("\\011", "'\t'");
-  CHECK_PARSE_EQ("\\00011", "'\00011'");
-  CHECK_PARSE_EQ("\\118", "'\t8'");
+  CHECK_PARSE_EQ("\\11", "'\\x09'");
+  CHECK_PARSE_EQ("\\11a", "'\\x09a'");
+  CHECK_PARSE_EQ("\\011", "'\\x09'");
+  CHECK_PARSE_EQ("\\00011", "'\\x0011'");
+  CHECK_PARSE_EQ("\\118", "'\\x098'");
   CHECK_PARSE_EQ("\\111", "'I'");
   CHECK_PARSE_EQ("\\1111", "'I1'");
   CHECK_PARSE_EQ("(x)(x)(x)\\1", "(: (^ 'x') (^ 'x') (^ 'x') (<- 1))");
   CHECK_PARSE_EQ("(x)(x)(x)\\2", "(: (^ 'x') (^ 'x') (^ 'x') (<- 2))");
   CHECK_PARSE_EQ("(x)(x)(x)\\3", "(: (^ 'x') (^ 'x') (^ 'x') (<- 3))");
-  CHECK_PARSE_EQ("(x)(x)(x)\\4", "(: (^ 'x') (^ 'x') (^ 'x') '\x04')");
+  CHECK_PARSE_EQ("(x)(x)(x)\\4", "(: (^ 'x') (^ 'x') (^ 'x') '\\x04')");
   CHECK_PARSE_EQ("(x)(x)(x)\\1*", "(: (^ 'x') (^ 'x') (^ 'x')"
                                " (# 0 - g (<- 1)))");
   CHECK_PARSE_EQ("(x)(x)(x)\\2*", "(: (^ 'x') (^ 'x') (^ 'x')"
@@ -148,25 +149,25 @@ TEST(Parser) {
   CHECK_PARSE_EQ("(x)(x)(x)\\3*", "(: (^ 'x') (^ 'x') (^ 'x')"
                                " (# 0 - g (<- 3)))");
   CHECK_PARSE_EQ("(x)(x)(x)\\4*", "(: (^ 'x') (^ 'x') (^ 'x')"
-                               " (# 0 - g '\x04'))");
+                               " (# 0 - g '\\x04'))");
   CHECK_PARSE_EQ("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\10",
               "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
               " (^ 'x') (^ 'x') (^ 'x') (^ 'x') (<- 10))");
   CHECK_PARSE_EQ("(x)(x)(x)(x)(x)(x)(x)(x)(x)(x)\\11",
               "(: (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x') (^ 'x')"
-              " (^ 'x') (^ 'x') (^ 'x') (^ 'x') '\x09')");
+              " (^ 'x') (^ 'x') (^ 'x') (^ 'x') '\\x09')");
   CHECK_PARSE_EQ("(a)\\1", "(: (^ 'a') (<- 1))");
   CHECK_PARSE_EQ("(a\\1)", "(^ 'a')");
   CHECK_PARSE_EQ("(\\1a)", "(^ 'a')");
-  CHECK_PARSE_EQ("\\1(a)", "(: '\x01' (^ 'a'))");
+  CHECK_PARSE_EQ("\\1(a)", "(: '\\x01' (^ 'a'))");
   CHECK_PARSE_EQ("(?!(a))\\1", "(-> - (^ 'a'))");
-  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(-> - (: '\x01' (^ 'a') (<- 1)))");
-  CHECK_PARSE_EQ("[\\0]", "[\0]");
-  CHECK_PARSE_EQ("[\\11]", "[\t]");
-  CHECK_PARSE_EQ("[\\11a]", "[\t a]");
-  CHECK_PARSE_EQ("[\\011]", "[\t]");
-  CHECK_PARSE_EQ("[\\00011]", "[\000 1 1]");
-  CHECK_PARSE_EQ("[\\118]", "[\t 8]");
+  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(-> - (: '\\x01' (^ 'a') (<- 1)))");
+  CHECK_PARSE_EQ("[\\0]", "[\\x00]");
+  CHECK_PARSE_EQ("[\\11]", "[\\x09]");
+  CHECK_PARSE_EQ("[\\11a]", "[\\x09 a]");
+  CHECK_PARSE_EQ("[\\011]", "[\\x09]");
+  CHECK_PARSE_EQ("[\\00011]", "[\\x00 1 1]");
+  CHECK_PARSE_EQ("[\\118]", "[\\x09 8]");
   CHECK_PARSE_EQ("[\\111]", "[I]");
   CHECK_PARSE_EQ("[\\1111]", "[I 1]");
   CHECK_PARSE_EQ("\\x34", "'\x34'");

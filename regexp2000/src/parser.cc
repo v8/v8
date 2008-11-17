@@ -387,6 +387,10 @@ void RegExpBuilder::AddEmpty() {
 
 
 void RegExpBuilder::AddAtom(RegExpTree* term) {
+  if (term->IsEmpty()) {
+    AddEmpty();
+    return;
+  }
   if (term->IsTextElement()) {
     FlushCharacters();
     text_.Add(term);
@@ -470,6 +474,16 @@ void RegExpBuilder::AddQuantifierToAtom(int min, int max, bool is_greedy) {
   } else if (terms_.length() > 0) {
     ASSERT(last_added_ == ADD_ATOM);
     atom = terms_.RemoveLast();
+    if (atom->IsLookahead() || atom->IsAssertion()) {
+      // Guaranteed not to match a non-empty string.
+      // Assertion as an atom can happen as, e.g., (?:\b)
+      LAST(ADD_TERM);
+      if (min == 0) {
+        return;
+      }
+      terms_.Add(atom);
+      return;
+    }
   } else {
     // Only call immediately after adding an atom or character!
     UNREACHABLE();

@@ -1201,7 +1201,9 @@ class RegExpTree: public ZoneObject {
   virtual bool IsTextElement() { return false; }
   virtual void AppendToText(RegExpText* text);
   SmartPointer<const char> ToString();
-#define MAKE_ASTYPE(Name)  virtual RegExp##Name* As##Name();
+#define MAKE_ASTYPE(Name)                                                  \
+  virtual RegExp##Name* As##Name();                                        \
+  virtual bool Is##Name();
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_ASTYPE)
 #undef MAKE_ASTYPE
 };
@@ -1216,6 +1218,7 @@ class RegExpDisjunction: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpDisjunction* AsDisjunction();
+  virtual bool IsDisjunction();
   ZoneList<RegExpTree*>* alternatives() { return alternatives_; }
  private:
   ZoneList<RegExpTree*>* alternatives_;
@@ -1230,6 +1233,7 @@ class RegExpAlternative: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpAlternative* AsAlternative();
+  virtual bool IsAlternative();
   ZoneList<RegExpTree*>* nodes() { return nodes_; }
  private:
   ZoneList<RegExpTree*>* nodes_;
@@ -1244,6 +1248,7 @@ class RegExpText: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpText* AsText();
+  virtual bool IsText();
   virtual bool IsTextElement() { return true; }
   virtual void AppendToText(RegExpText* text);
   void AddElement(TextElement elm) { elements_.Add(elm); }
@@ -1265,6 +1270,7 @@ class RegExpAssertion: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpAssertion* AsAssertion();
+  virtual bool IsAssertion();
   Type type() { return type_; }
  private:
   Type type_;
@@ -1286,6 +1292,7 @@ class RegExpCharacterClass: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpCharacterClass* AsCharacterClass();
+  virtual bool IsCharacterClass();
   virtual bool IsTextElement() { return true; }
   virtual void AppendToText(RegExpText* text);
   ZoneList<CharacterRange>* ranges() { return ranges_; }
@@ -1304,6 +1311,7 @@ class RegExpAtom: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpAtom* AsAtom();
+  virtual bool IsAtom();
   virtual bool IsTextElement() { return true; }
   virtual void AppendToText(RegExpText* text);
   Vector<const uc16> data() { return data_; }
@@ -1331,6 +1339,7 @@ class RegExpQuantifier: public RegExpTree {
                             RegExpNode* on_success,
                             RegExpNode* on_failure);
   virtual RegExpQuantifier* AsQuantifier();
+  virtual bool IsQuantifier();
   int min() { return min_; }
   int max() { return max_; }
   bool is_greedy() { return is_greedy_; }
@@ -1363,6 +1372,7 @@ class RegExpCapture: public RegExpTree {
                             RegExpNode* on_success,
                             RegExpNode* on_failure);
   virtual RegExpCapture* AsCapture();
+  virtual bool IsCapture();
   RegExpTree* body() { return body_; }
   int index() { return index_; }
   inline CaptureAvailability available() { return available_; }
@@ -1388,6 +1398,7 @@ class RegExpLookahead: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpLookahead* AsLookahead();
+  virtual bool IsLookahead();
   RegExpTree* body() { return body_; }
   bool is_positive() { return is_positive_; }
  private:
@@ -1405,6 +1416,7 @@ class RegExpBackreference: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpBackreference* AsBackreference();
+  virtual bool IsBackreference();
   int index() { return capture_->index(); }
   RegExpCapture* capture() { return capture_; }
  private:
@@ -1420,6 +1432,7 @@ class RegExpEmpty: public RegExpTree {
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
   virtual RegExpEmpty* AsEmpty();
+  virtual bool IsEmpty();
   static RegExpEmpty* GetInstance() { return &kInstance; }
  private:
   static RegExpEmpty kInstance;
