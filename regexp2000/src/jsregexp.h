@@ -438,11 +438,19 @@ class NodeInfo {
     : being_analyzed(false),
       been_analyzed(false),
       propagate_word(false),
-      propagate_line(false) { }
+      propagate_newline(false),
+      propagate_start(false),
+      follows_word_interest(false),
+      follows_newline_interest(false),
+      follows_start_interest(false) { }
   bool being_analyzed: 1;
   bool been_analyzed: 1;
   bool propagate_word: 1;
-  bool propagate_line: 1;
+  bool propagate_newline: 1;
+  bool propagate_start: 1;
+  bool follows_word_interest: 1;
+  bool follows_newline_interest: 1;
+  bool follows_start_interest: 1;
 };
 
 

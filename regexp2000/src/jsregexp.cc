@@ -1451,7 +1451,20 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
 RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
                                     RegExpNode* on_success,
                                     RegExpNode* on_failure) {
-  // TODO(self): implement assertions.
+  switch (type()) {
+    case START_OF_LINE:
+      on_success->info()->follows_newline_interest = true;
+      break;
+    case START_OF_INPUT:
+      on_success->info()->follows_start_interest = true;
+      break;
+    case BOUNDARY: case NON_BOUNDARY:
+      on_success->info()->follows_word_interest = true;
+      break;
+    case END_OF_LINE: case END_OF_INPUT:
+      // This is wrong but has the effect of making the compiler abort.
+      on_success->info()->follows_start_interest = true;
+  }
   return on_success;
 }
 
@@ -1802,8 +1815,9 @@ void Analysis::VisitText(TextNode* that) {
 void Analysis::VisitAction(ActionNode* that) {
   RegExpNode* next = that->on_success();
   EnsureAnalyzed(next);
-  that->info()->propagate_line = next->info()->propagate_line;
+  that->info()->propagate_newline = next->info()->propagate_newline;
   that->info()->propagate_word = next->info()->propagate_word;
+  that->info()->propagate_start = next->info()->propagate_start;
 }
 
 
@@ -1812,8 +1826,9 @@ void Analysis::VisitChoice(ChoiceNode* that) {
   for (int i = 0; i < that->alternatives()->length(); i++) {
     RegExpNode* node = that->alternatives()->at(i).node();
     EnsureAnalyzed(node);
-    info->propagate_line |= node->info()->propagate_line;
+    info->propagate_newline |= node->info()->propagate_newline;
     info->propagate_word |= node->info()->propagate_word;
+    info->propagate_start |= node->info()->propagate_start;
   }
   if (!that->table_calculated()) {
     DispatchTableConstructor cons(that->table());
