@@ -5238,7 +5238,8 @@ static String::ExternalStringResource* SymbolCallback(const char* chars,
 static v8::Handle<Value> ExternalSymbolGetter(Local<String> name,
                                               const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  CHECK(!name->Equals(v8_str("externalSymbol722")) || name->IsExternal());  CHECK(name->IsExternal());
+  CHECK(!name->Equals(v8_str("externalSymbol722")) || name->IsExternal());
+  CHECK(name->IsExternal());
   return v8::True();
 }
 
