@@ -4797,9 +4797,10 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
   SaveContext* save = Top::save_context();
-  while (save != NULL && reinterpret_cast<Address>(save) < it.frame()->sp()) {
+  while (save != NULL && !save->below(it.frame())) {
     save = save->prev();
   }
+  ASSERT(save != NULL);
 
   // Get the frame id.
   Handle<Object> frame_id(WrapFrameId(it.frame()->id()));
@@ -5299,7 +5300,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
   SaveContext* save = Top::save_context();
-  while (save != NULL && reinterpret_cast<Address>(save) < frame->sp()) {
+  while (save != NULL && !save->below(frame)) {
     save = save->prev();
   }
   ASSERT(save != NULL);
