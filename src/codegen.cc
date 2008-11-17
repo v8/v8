@@ -242,6 +242,15 @@ Handle<Code> CodeGenerator::ComputeCallInitialize(int argc) {
 }
 
 
+Handle<Code> CodeGenerator::ComputeCallInitializeInLoop(int argc) {
+  // Force the creation of the corresponding stub outside loops,
+  // because it will be used when clearing the ICs later - when we
+  // don't know if we're inside a loop or not.
+  ComputeCallInitialize(argc);
+  CALL_HEAP_FUNCTION(StubCache::ComputeCallInitializeInLoop(argc), Code);
+}
+
+
 void CodeGenerator::ProcessDeclarations(ZoneList<Declaration*>* declarations) {
   int length = declarations->length();
   int globals = 0;

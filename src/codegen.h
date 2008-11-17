@@ -48,6 +48,7 @@
 // CodeGenerator::GenCode
 // CodeGenerator::BuildBoilerplate
 // CodeGenerator::ComputeCallInitialize
+// CodeGenerator::ComputeCallInitializeInLoop
 // CodeGenerator::ProcessDeclarations
 // CodeGenerator::DeclareGlobals
 // CodeGenerator::CheckForInlineRuntimeCall

@@ -194,9 +194,13 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 // Do lazy compilation of the given function. Returns true on success
 // and false if the compilation resulted in a stack overflow.
 enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
+
 bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
-                       ClearExceptionFlag flag);
+                       ClearExceptionFlag flag,
+                       int loop_nesting);
+
 bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
+bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag);
 
 // These deal with lazily loaded properties.
 void SetupLazy(Handle<JSFunction> fun,

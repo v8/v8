@@ -64,7 +64,7 @@ class Compiler : public AllStatic {
   // Compile from function info (used for lazy compilation). Returns
   // true on success and false if the compilation resulted in a stack
   // overflow.
-  static bool CompileLazy(Handle<SharedFunctionInfo> shared);
+  static bool CompileLazy(Handle<SharedFunctionInfo> shared, int loop_nesting);
 };
 
 } }  // namespace v8::internal

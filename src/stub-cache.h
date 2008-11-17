@@ -148,6 +148,7 @@ class StubCache : public AllStatic {
   // ---
 
   static Object* ComputeCallInitialize(int argc);
+  static Object* ComputeCallInitializeInLoop(int argc);
   static Object* ComputeCallPreMonomorphic(int argc);
   static Object* ComputeCallNormal(int argc);
   static Object* ComputeCallMegamorphic(int argc);

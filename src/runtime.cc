@@ -5088,7 +5088,7 @@ static Object* FindSharedFunctionInfoInScript(Handle<Script> script,
     if (!done) {
       // If the candidate is not compiled compile it to reveal any inner
       // functions which might contain the requested source position.
-      CompileLazyShared(target, KEEP_EXCEPTION);
+      CompileLazyShared(target, KEEP_EXCEPTION, 0);
     }
   }
 
