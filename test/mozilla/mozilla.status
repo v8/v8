@@ -570,10 +570,7 @@ js1_5/Regress/regress-306633: FAIL
 js1_5/Regress/regress-303213: FAIL
 
 
-# Bug 1193440: Ignore Unicode BOM characters when scanning.
-ecma_3/extensions/regress-368516: FAIL
-
-# Bug 1202592:New ecma_3/String/15.5.4.11 is failing.
+# Bug 1202592: New ecma_3/String/15.5.4.11 is failing.
 ecma_3/String/15.5.4.11: FAIL
 
 # Bug 1202597: New js1_5/Expressions/regress-394673 is failing.
