@@ -761,17 +761,20 @@ bool Rewriter::Process(FunctionLiteral* function) {
 }
 
 
-void Rewriter::Optimize(FunctionLiteral* function) {
+bool Rewriter::Optimize(FunctionLiteral* function) {
   ZoneList<Statement*>* body = function->body();
-  if (body->is_empty()) return;
 
-  if (FLAG_optimize_ast) {
+  if (FLAG_optimize_ast && !body->is_empty()) {
     Scope* scope = function->scope();
     if (!scope->is_global_scope()) {
       AstOptimizer optimizer;
       optimizer.Optimize(body);
+      if (optimizer.HasStackOverflow()) {
+        return false;
+      }
     }
   }
+  return true;
 }
 
 

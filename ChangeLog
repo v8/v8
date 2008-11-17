@@ -1,3 +1,28 @@
+2008-11-17: Version 0.4.4
+
+        Reduced code size by using shorter instruction encoding when
+        possible.
+
+        Added a --help option to the shell sample and to the d8 shell.
+
+        Added visual studio project files for building the ARM simulator.
+
+        Fixed a number of ARM simulator issues.
+
+        Fixed bug in out-of-memory handling on ARM.
+
+        Implemented shell support for passing arguments to a script from
+        the command line.
+
+        Fixed bug in date code that made certain date functions return -0
+        instead of 0 for dates before the epoch.
+
+        Restricted applications of eval so it can only be used in the
+        context of the associated global object.
+
+        Treat byte-order marks as whitespace characters.
+        
+        
 2008-11-04: Version 0.4.3
 
         Added support for API accessors that prohibit overwriting by

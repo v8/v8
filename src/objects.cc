@@ -199,11 +199,11 @@ Object* Object::GetPropertyWithCallback(Object* receiver,
       Handle<JSFunction> fun(JSFunction::cast(getter));
       Handle<Object> self(receiver);
       bool has_pending_exception;
-      Object* result =
-          *Execution::Call(fun, self, 0, NULL, &has_pending_exception);
+      Handle<Object> result =
+          Execution::Call(fun, self, 0, NULL, &has_pending_exception);
       // Check for pending exception and return the result.
       if (has_pending_exception) return Failure::Exception();
-      return result;
+      return *result;
     }
     // Getter is not a function.
     return Heap::undefined_value();
@@ -3848,7 +3848,7 @@ static inline bool CompareRawStringContents(Vector<Char> a, Vector<Char> b) {
   const int kAlignmentMask = sizeof(uint32_t) - 1;  // NOLINT
   uint32_t pa_addr = reinterpret_cast<uint32_t>(pa);
   uint32_t pb_addr = reinterpret_cast<uint32_t>(pb);
-  if ((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask) == 0) {
+  if (((pa_addr & kAlignmentMask) | (pb_addr & kAlignmentMask)) == 0) {
 #endif
     const int kStepSize = sizeof(int) / sizeof(Char);  // NOLINT
     int endpoint = length - kStepSize;
@@ -4603,6 +4603,7 @@ const char* Code::Kind2String(Kind kind) {
 const char* Code::ICState2String(InlineCacheState state) {
   switch (state) {
     case UNINITIALIZED: return "UNINITIALIZED";
+    case UNINITIALIZED_IN_LOOP: return "UNINITIALIZED_IN_LOOP";
     case PREMONOMORPHIC: return "PREMONOMORPHIC";
     case MONOMORPHIC: return "MONOMORPHIC";
     case MONOMORPHIC_PROTOTYPE_FAILURE: return "MONOMORPHIC_PROTOTYPE_FAILURE";

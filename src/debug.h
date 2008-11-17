@@ -346,9 +346,6 @@ class Debugger {
   static Handle<Object> MakeCompileEvent(Handle<Script> script,
                                          Handle<Object> script_function,
                                          bool* caught_exception);
-  static Handle<String> ProcessRequest(Handle<Object> exec_state,
-                                       Handle<Object> request,
-                                       bool stopped);
   static void OnDebugBreak(Handle<Object> break_points_hit);
   static void OnException(Handle<Object> exception, bool uncaught);
   static void OnBeforeCompile(Handle<Script> script);

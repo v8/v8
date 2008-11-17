@@ -597,6 +597,14 @@ void Assembler::mov(Register dst, int32_t imm32) {
 }
 
 
+void Assembler::mov(Register dst, const Immediate& x) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xB8 | dst.code());
+  emit(x);
+}
+
+
 void Assembler::mov(Register dst, Handle<Object> handle) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -610,6 +618,14 @@ void Assembler::mov(Register dst, const Operand& src) {
   last_pc_ = pc_;
   EMIT(0x8B);
   emit_operand(dst, src);
+}
+
+
+void Assembler::mov(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x89);
+  EMIT(0xC0 | src.code() << 3 | dst.code());
 }
 
 
@@ -781,7 +797,7 @@ void Assembler::and_(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x21);
-  emit_operand(dst, src);
+  emit_operand(src, dst);
 }
 
 
@@ -949,7 +965,7 @@ void Assembler::or_(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x09);
-  emit_operand(dst, src);
+  emit_operand(src, dst);
 }
 
 
@@ -1077,7 +1093,7 @@ void Assembler::sub(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0x29);
-  emit_operand(dst, src);
+  emit_operand(src, dst);
 }
 
 
@@ -2006,18 +2022,6 @@ void Assembler::emit_arith(int sel, Operand dst, const Immediate& x) {
 
 
 void Assembler::emit_operand(Register reg, const Operand& adr) {
-  adr.set_reg(reg);
-  memmove(pc_, adr.buf_, adr.len_);
-  pc_ += adr.len_;
-  if (adr.len_ >= sizeof(int32_t) && adr.rmode_ != RelocInfo::NONE) {
-    pc_ -= sizeof(int32_t);  // pc_ must be *at* disp32
-    RecordRelocInfo(adr.rmode_);
-    pc_ += sizeof(int32_t);
-  }
-}
-
-
-void Assembler::emit_operand(const Operand& adr, Register reg) {
   adr.set_reg(reg);
   memmove(pc_, adr.buf_, adr.len_);
   pc_ += adr.len_;

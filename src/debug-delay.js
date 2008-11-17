@@ -357,15 +357,6 @@ function UpdateScriptBreakPoints(script) {
 }
 
 
-// Function called from the runtime to handle a debug request receiced from the
-// debugger. When this function is called the debugger is in the broken state
-// reflected by the exec_state parameter. When pending requests are handled the
-// parameter stopping indicate the expected running state.
-function ProcessDebugRequest(exec_state, request, stopping) {
-  return exec_state.debugCommandProcessor().processDebugJSONRequest(request, stopping);
-}
-
-
 Debug.addListener = function(listener, opt_data) {
   if (!IS_FUNCTION(listener)) throw new Error('Parameters have wrong types.');
   %AddDebugEventListener(listener, opt_data);

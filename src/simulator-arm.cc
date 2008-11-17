@@ -48,11 +48,7 @@ using ::v8::internal::DeleteArray;
 // SScanF not beeing implemented in a platform independent was through
 // ::v8::internal::OS in the same way as SNPrintF is that the Windows C Run-Time
 // Library does not provide vsscanf.
-#ifdef WIN32
-#define SScanF sscanf_s
-#else
 #define SScanF sscanf  // NOLINT
-#endif
 
 // The Debugger class is used by the simulator while debugging simulated ARM
 // code.
@@ -210,7 +206,8 @@ void Debugger::Debug() {
 
   while (!done) {
     if (last_pc != sim_->get_pc()) {
-      disasm::Disassembler dasm;
+      disasm::NameConverter converter;
+      disasm::Disassembler dasm(converter);
       // use a reasonably large buffer
       v8::internal::EmbeddedVector<char, 256> buffer;
       dasm.InstructionDecode(buffer,
@@ -265,7 +262,8 @@ void Debugger::Debug() {
           PrintF("printobject value\n");
         }
       } else if (strcmp(cmd, "disasm") == 0) {
-        disasm::Disassembler dasm;
+        disasm::NameConverter converter;
+        disasm::Disassembler dasm(converter);
         // use a reasonably large buffer
         v8::internal::EmbeddedVector<char, 256> buffer;
 
@@ -380,19 +378,20 @@ Simulator::Simulator() {
 }
 
 
-// This is the Simulator singleton. Currently only one thread is supported by
-// V8. If we had multiple threads, then we should have a Simulator instance on
-// a per thread basis.
-static Simulator* the_sim = NULL;
+// Create one simulator per thread and keep it in thread local storage.
+static v8::internal::Thread::LocalStorageKey simulator_key =
+    v8::internal::Thread::CreateThreadLocalKey();
 
-
-// Get the active Simulator for the current thread. See comment above about
-// using a singleton currently.
+// Get the active Simulator for the current thread.
 Simulator* Simulator::current() {
-  if (the_sim == NULL) {
-    the_sim = new Simulator();
+  Simulator* sim = reinterpret_cast<Simulator*>(
+      v8::internal::Thread::GetThreadLocal(simulator_key));
+  if (sim == NULL) {
+    // TODO(146): delete the simulator object when a thread goes away.
+    sim = new Simulator();
+    v8::internal::Thread::SetThreadLocal(simulator_key, sim);
   }
-  return the_sim;
+  return sim;
 }
 
 
@@ -1441,7 +1440,8 @@ void Simulator::InstructionDecode(Instr* instr) {
     return;
   }
   if (::v8::internal::FLAG_trace_sim) {
-    disasm::Disassembler dasm;
+    disasm::NameConverter converter;
+    disasm::Disassembler dasm(converter);
     // use a reasonably large buffer
     v8::internal::EmbeddedVector<char, 256> buffer;
     dasm.InstructionDecode(buffer,
@@ -1492,7 +1492,7 @@ void Simulator::InstructionDecode(Instr* instr) {
 
 
 //
-void Simulator::execute() {
+void Simulator::Execute() {
   // Get the PC to simulate. Cannot use the accessor here as we need the
   // raw PC value and not the one used as input to arithmetic instructions.
   int program_counter = get_pc();
@@ -1524,7 +1524,7 @@ void Simulator::execute() {
 }
 
 
-Object* Simulator::call(int32_t entry, int32_t p0, int32_t p1, int32_t p2,
+Object* Simulator::Call(int32_t entry, int32_t p0, int32_t p1, int32_t p2,
                            int32_t p3, int32_t p4) {
   // Setup parameters
   set_register(r0, p0);
@@ -1567,7 +1567,7 @@ Object* Simulator::call(int32_t entry, int32_t p0, int32_t p1, int32_t p2,
   set_register(r11, callee_saved_value);
 
   // Start the simulation
-  execute();
+  Execute();
 
   // Check that the callee-saved registers have been preserved.
   CHECK_EQ(get_register(r4), callee_saved_value);

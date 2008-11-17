@@ -50,8 +50,6 @@ namespace v8 { namespace internal {
 #define STATS_COUNTER_LIST_1(SC)                                 \
   /* Global Handle Count*/                                       \
   SC(global_handles, V8.GlobalHandles)                           \
-  /* Global Object Count */                                      \
-  SC(global_objects, V8.GlobalObjects)                           \
   /* Mallocs from PCRE */                                        \
   SC(pcre_mallocs, V8.PcreMallocCount)                           \
   /* OS Memory allocated */                                      \

@@ -66,7 +66,11 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 #endif
 
   // Optimize the AST.
-  Rewriter::Optimize(literal);
+  if (!Rewriter::Optimize(literal)) {
+    // Signal a stack overflow by returning a null handle.  The stack
+    // overflow exception will be thrown by the caller.
+    return Handle<Code>::null();
+  }
 
   // Generate code and return it.
   Handle<Code> result = CodeGenerator::MakeCode(literal, script, is_eval);
@@ -235,7 +239,8 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
 }
 
 
-bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared) {
+bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
+                           int loop_nesting) {
   ZoneScope zone_scope(DELETE_ON_EXIT);
 
   // The VM is in the COMPILER state until exiting this function.
@@ -266,6 +271,9 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared) {
     ASSERT(Top::has_pending_exception());
     return false;
   }
+
+  // Update the loop nesting in the function literal.
+  lit->set_loop_nesting(loop_nesting);
 
   // Measure how long it takes to do the lazy compilation; only take
   // the rest of the function into account to avoid overlap with the

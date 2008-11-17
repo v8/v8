@@ -2052,6 +2052,7 @@ class EXPORT TryCatch {
   void* message_;
   bool is_verbose_;
   bool capture_message_;
+  void* js_handler_;
 };
 
 

@@ -422,10 +422,11 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object) {
 
 
 bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
-                       ClearExceptionFlag flag) {
+                       ClearExceptionFlag flag,
+                       int loop_nesting) {
   // Compile the source information to a code object.
   ASSERT(!shared->is_compiled());
-  bool result = Compiler::CompileLazy(shared);
+  bool result = Compiler::CompileLazy(shared, loop_nesting);
   ASSERT(result != Top::has_pending_exception());
   if (!result && flag == CLEAR_EXCEPTION) Top::clear_pending_exception();
   return result;
@@ -435,9 +436,15 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag) {
   // Compile the source information to a code object.
   Handle<SharedFunctionInfo> shared(function->shared());
-  return CompileLazyShared(shared, flag);
+  return CompileLazyShared(shared, flag, 0);
 }
 
+
+bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag) {
+  // Compile the source information to a code object.
+  Handle<SharedFunctionInfo> shared(function->shared());
+  return CompileLazyShared(shared, flag, 1);
+}
 
 OptimizedObjectForAddingMultipleProperties::
 OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,

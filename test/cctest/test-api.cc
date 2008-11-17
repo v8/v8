@@ -4078,6 +4078,14 @@ THREADED_TEST(CrossEval) {
                                       "with({x:2}){other.eval('x+y')}"));
   result = script->Run();
   CHECK_EQ(3, result->Int32Value());
+
+  // Check that you cannot use 'eval.call' with another object than the
+  // current global object.
+  v8::TryCatch try_catch;
+  script =
+      Script::Compile(v8_str("other.y = 1; eval.call(other, 'y')"));
+  result = script->Run();
+  CHECK(try_catch.HasCaught());
 }
 
 

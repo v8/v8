@@ -25,6 +25,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#ifndef V8_GLOBALS_H_
+#define V8_GLOBALS_H_
+
 // -----------------------------------------------------------------------------
 // Types
 // Windows is missing the stdint.h header file. Instead we define standard
@@ -57,9 +60,6 @@ namespace v8 { namespace internal {
 // This does not actually belong in the platform code, but needs to be
 // defined here because the platform code uses bool, and platform.h is
 // include very early in the main include file.
-
-#ifndef V8_GLOBALS_H_
-#define V8_GLOBALS_H_
 
 #ifdef USE_MYBOOL
 typedef unsigned int __my_bool__;
@@ -282,6 +282,8 @@ typedef void (*InlineCacheCallback)(Code* code, Address ic);
 enum InlineCacheState {
   // Has never been executed.
   UNINITIALIZED,
+  // Has never been executed, but is in a loop.
+  UNINITIALIZED_IN_LOOP,
   // Has been executed but monomorhic state has been delayed.
   PREMONOMORPHIC,
   // Has been executed and only one receiver type has been seen.

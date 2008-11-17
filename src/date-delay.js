@@ -50,6 +50,8 @@ function Day(time) {
 // ECMA 262 - 5.2
 function Modulo(value, remainder) {
   var mod = value % remainder;
+  // Guard against returning -0.
+  if (mod == 0) return 0;
   return mod >= 0 ? mod : mod + remainder;
 }
 

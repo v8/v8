@@ -18,7 +18,7 @@
 		<Configuration
 			Name="Debug|Win32"
 			ConfigurationType="4"
-			InheritedPropertySheets=".\common.vsprops;.\debug.vsprops"
+			InheritedPropertySheets=".\common.vsprops;.\debug.vsprops;.\arm.vsprops"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -49,6 +49,7 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
+				OutputFile="$(OutDir)\lib\v8_base.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -69,7 +70,7 @@
 		<Configuration
 			Name="Release|Win32"
 			ConfigurationType="4"
-			InheritedPropertySheets=".\common.vsprops;.\release.vsprops"
+			InheritedPropertySheets=".\common.vsprops;.\release.vsprops;.\arm.vsprops"
 			>
 			<Tool
 				Name="VCPreBuildEventTool"
@@ -285,15 +286,15 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\assembler-ia32-inl.h"
+				RelativePath="..\..\src\assembler-arm-inl.h"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\assembler-ia32.cc"
+				RelativePath="..\..\src\assembler-arm.cc"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\assembler-ia32.h"
+				RelativePath="..\..\src\assembler-arm.h"
 				>
 			</File>
 			<File
@@ -321,7 +322,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\builtins-ia32.cc"
+				RelativePath="..\..\src\builtins-arm.cc"
 				>
 			</File>
 			<File
@@ -361,11 +362,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\codegen-ia32.cc"
+				RelativePath="..\..\src\codegen-arm.cc"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\codegen-ia32.h"
+				RelativePath="..\..\src\codegen-arm.h"
 				>
 			</File>
 			<File
@@ -397,6 +398,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\constants-arm.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\contexts.cc"
 				>
 			</File>
@@ -425,7 +430,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\cpu-ia32.cc"
+				RelativePath="..\..\src\cpu-arm.cc"
 				>
 			</File>
 			<File
@@ -481,15 +486,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\frames-ia32-inl.h"
+				RelativePath="..\..\src\frames-arm.cc"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\frames-ia32.cc"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\frames-ia32.h"
+				RelativePath="..\..\src\frames-arm.h"
 				>
 			</File>
 			<File
@@ -549,7 +550,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\ic-ia32.cc"
+				RelativePath="..\..\src\ic-arm.cc"
 				>
 			</File>
 			<File
@@ -593,11 +594,11 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\macro-assembler-ia32.cc"
+				RelativePath="..\..\src\macro-assembler-arm.cc"
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\macro-assembler-ia32.h"
+				RelativePath="..\..\src\macro-assembler-arm.h"
 				>
 			</File>
 			<File
@@ -753,6 +754,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\simulator-arm.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\simulator-arm.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\spaces-inl.h"
 				>
 			</File>
@@ -773,7 +782,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\stub-cache-ia32.cc"
+				RelativePath="..\..\src\stub-cache-arm.cc"
 				>
 			</File>
 			<File
@@ -872,7 +881,7 @@
 				Name="third party"
 				>
 				<File
-					RelativePath="..\..\src\disasm-ia32.cc"
+					RelativePath="..\..\src\disasm-arm.cc"
 					>
 				</File>
 				<File
