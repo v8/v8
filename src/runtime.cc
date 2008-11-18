@@ -3956,29 +3956,8 @@ static Object* EvalContext() {
   Handle<Context> target = Top::global_context();
   if (caller->global_context() == *target) return *caller;
 
-  // Compute a function closure that captures the calling context. We
-  // need a function that has trivial scope info, since it is only
-  // used to hold the context chain together.
-  Handle<JSFunction> closure = Factory::NewFunction(Factory::empty_symbol(),
-                                                    Factory::undefined_value());
-  closure->set_context(*caller);
-
-  // Create a new adaptor context that has the target environment as
-  // the extension object. This enables the evaluated code to see both
-  // the current context with locals and everything and to see global
-  // variables declared in the target global object. Furthermore, any
-  // properties introduced with 'var' will be added to the target
-  // global object because it is the extension object.
-  Handle<Context> adaptor =
-    Factory::NewFunctionContext(Context::MIN_CONTEXT_SLOTS, closure);
-  adaptor->set_extension(target->global());
-  return *adaptor;
-}
-
-
-static Object* Runtime_EvalReceiver(Arguments args) {
-  StackFrameLocator locator;
-  return locator.FindJavaScriptFrame(1)->receiver();
+  // Otherwise, use the global context from the other environment.
+  return *target;
 }
 
 

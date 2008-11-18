@@ -4018,6 +4018,22 @@ THREADED_TEST(FunctionDescriptorException) {
 }
 
 
+THREADED_TEST(Eval) {
+  v8::HandleScope scope;
+  LocalContext current;
+
+  // Test that un-aliased eval uses local context.
+  Local<Script> script =
+      Script::Compile(v8_str("foo = 0;"
+                             "(function() {"
+                             "  var foo = 2;"
+                             "  return eval('foo');"
+                             "})();"));
+  Local<Value> foo = script->Run();
+  CHECK_EQ(2, foo->Int32Value());
+}
+
+
 THREADED_TEST(CrossEval) {
   v8::HandleScope scope;
   LocalContext other;
@@ -4039,49 +4055,58 @@ THREADED_TEST(CrossEval) {
   CHECK(!current->Global()->Has(v8_str("foo")));
 
   // Check that writing to non-existing properties introduces them in
-  // the current context.
+  // the other context.
   script =
       Script::Compile(v8_str("other.eval('na = 1234')"));
   script->Run();
-  CHECK_EQ(1234, current->Global()->Get(v8_str("na"))->Int32Value());
-  CHECK(!other->Global()->Has(v8_str("na")));
+  CHECK_EQ(1234, other->Global()->Get(v8_str("na"))->Int32Value());
+  CHECK(!current->Global()->Has(v8_str("na")));
 
-  // Check that variables in current context are visible in other
-  // context. This must include local variables.
+  // Check that global variables in current context are not visible in other
+  // context.
+  v8::TryCatch try_catch;
   script =
-      Script::Compile(v8_str("var bar = 42;"
-                                      "(function() { "
-                                      "  var baz = 87;"
-                                      "  return other.eval('bar + baz');"
-                                      "})();"));
+      Script::Compile(v8_str("var bar = 42; other.eval('bar');"));
   Local<Value> result = script->Run();
-  CHECK_EQ(42 + 87, result->Int32Value());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  // Check that local variables in current context are not visible in other
+  // context.
+  script =
+      Script::Compile(v8_str("(function() { "
+                             "  var baz = 87;"
+                             "  return other.eval('baz');"
+                             "})();"));
+  result = script->Run();
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
 
   // Check that global variables in the other environment are visible
   // when evaluting code.
   other->Global()->Set(v8_str("bis"), v8_num(1234));
   script = Script::Compile(v8_str("other.eval('bis')"));
   CHECK_EQ(1234, script->Run()->Int32Value());
+  CHECK(!try_catch.HasCaught());
 
-  // Check that the 'this' pointer isn't touched as a result of
-  // calling eval across environments.
-  script =
-      Script::Compile(v8_str("var t = this; other.eval('this == t')"));
+  // Check that the 'this' pointer points to the global object evaluating
+  // code.
+  other->Global()->Set(v8_str("t"), other->Global());
+  script = Script::Compile(v8_str("other.eval('this == t')"));
   result = script->Run();
-  CHECK(result->IsBoolean());
-  CHECK(result->BooleanValue());
+  CHECK(result->IsTrue());
+  CHECK(!try_catch.HasCaught());
 
-  // Check that doing a cross eval works from within a global
-  // with-statement.
+  // Check that variables introduced in with-statement are not visible in
+  // other context.
   script =
-      Script::Compile(v8_str("other.y = 1;"
-                                      "with({x:2}){other.eval('x+y')}"));
+      Script::Compile(v8_str("with({x:2}){other.eval('x')}"));
   result = script->Run();
-  CHECK_EQ(3, result->Int32Value());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
 
   // Check that you cannot use 'eval.call' with another object than the
   // current global object.
-  v8::TryCatch try_catch;
   script =
       Script::Compile(v8_str("other.y = 1; eval.call(other, 'y')"));
   result = script->Run();
