@@ -238,24 +238,28 @@ struct ConnectorPunctuation {
   static bool Is(uchar c);
 };
 struct ToLowercase {
+  static const int kMaxWidth = 3;
   static int Convert(uchar c,
                      uchar n,
                      uchar* result,
                      bool* allow_caching_ptr);
 };
 struct ToUppercase {
+  static const int kMaxWidth = 3;
   static int Convert(uchar c,
                      uchar n,
                      uchar* result,
                      bool* allow_caching_ptr);
 };
 struct Ecma262Canonicalize {
+  static const int kMaxWidth = 1;
   static int Convert(uchar c,
                      uchar n,
                      uchar* result,
                      bool* allow_caching_ptr);
 };
 struct Ecma262UnCanonicalize {
+  static const int kMaxWidth = 4;
   static int Convert(uchar c,
                      uchar n,
                      uchar* result,

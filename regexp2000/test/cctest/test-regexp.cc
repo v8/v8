@@ -715,7 +715,7 @@ TEST(AddInverseToTable) {
 
 
 static uc32 canonicalize(uc32 c) {
-  unibrow::uchar canon[unibrow::kMaxMappingSize];
+  unibrow::uchar canon[unibrow::Ecma262Canonicalize::kMaxWidth];
   int count = unibrow::Ecma262Canonicalize::Convert(c, '\0', canon, NULL);
   if (count == 0) {
     return c;
@@ -731,7 +731,7 @@ TEST(LatinCanonicalize) {
   for (char lower = 'a'; lower <= 'z'; lower++) {
     char upper = lower + ('A' - 'a');
     CHECK_EQ(canonicalize(lower), canonicalize(upper));
-    unibrow::uchar uncanon[unibrow::kMaxMappingSize];
+    unibrow::uchar uncanon[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     int length = un_canonicalize.get(lower, '\0', uncanon);
     CHECK_EQ(2, length);
     CHECK_EQ(upper, uncanon[0]);
@@ -745,7 +745,7 @@ TEST(LatinCanonicalize) {
   unibrow::Mapping<unibrow::ToUppercase> to_upper;
   for (uc32 c = 0; c < (1 << 21); c++) {
     if (c == 0x026B || c == 0x027D) continue;
-    unibrow::uchar upper[unibrow::kMaxMappingSize];
+    unibrow::uchar upper[unibrow::ToUppercase::kMaxWidth];
     int length = to_upper.get(c, '\0', upper);
     if (length == 0) {
       length = 1;

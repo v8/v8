@@ -2444,7 +2444,7 @@ static Object* ConvertCase(Arguments args,
   // in the buffer
   Access<StringInputBuffer> buffer(&string_input_buffer);
   buffer->Reset(s);
-  unibrow::uchar chars[unibrow::kMaxMappingSize];
+  unibrow::uchar chars[Converter::kMaxWidth];
   int i = 0;
   // We can assume that the string is not empty
   uc32 current = buffer->GetNext();

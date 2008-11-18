@@ -1670,9 +1670,9 @@ RegExpNode* ActionNode::PropagateInterest(NodeInfo* info) {
   if (sibling != NULL) return sibling;
   EnsureSiblings();
   ActionNode* action = new ActionNode(*this);
-  action->set_on_success(action->on_success()->PropagateInterest(info));
   action->info()->AdoptInterests(info);
   AddSibling(action);
+  action->set_on_success(action->on_success()->PropagateInterest(info));
   return action;
 }
 
@@ -1682,6 +1682,8 @@ RegExpNode* ChoiceNode::PropagateInterest(NodeInfo* info) {
   if (sibling != NULL) return sibling;
   EnsureSiblings();
   ChoiceNode* choice = new ChoiceNode(*this);
+  choice->info()->AdoptInterests(info);
+  AddSibling(choice);
   ZoneList<GuardedAlternative>* old_alternatives = alternatives();
   int count = old_alternatives->length();
   choice->alternatives_ = new ZoneList<GuardedAlternative>(count);
@@ -1690,8 +1692,6 @@ RegExpNode* ChoiceNode::PropagateInterest(NodeInfo* info) {
     alternative.set_node(alternative.node()->PropagateInterest(info));
     choice->alternatives()->Add(alternative);
   }
-  choice->info()->AdoptInterests(info);
-  AddSibling(choice);
   return choice;
 }
 
