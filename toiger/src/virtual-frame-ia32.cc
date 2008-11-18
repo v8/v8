@@ -149,7 +149,7 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
   Adjust(kHandlerSize - 2);
   __ PushTryHandler(IN_JAVASCRIPT, type);
   // TODO(1222589): remove the reliance of PushTryHandler on a cached TOS
-  Push(eax);
+  EmitPush(eax);
 }
 
 
@@ -216,19 +216,19 @@ void VirtualFrame::Pop(Operand operand) {
 }
 
 
-void VirtualFrame::Push(Register reg) {
+void VirtualFrame::EmitPush(Register reg) {
   Adjust(1);
   __ push(reg);
 }
 
 
-void VirtualFrame::Push(Operand operand) {
+void VirtualFrame::EmitPush(Operand operand) {
   Adjust(1);
   __ push(operand);
 }
 
 
-void VirtualFrame::Push(Immediate immediate) {
+void VirtualFrame::EmitPush(Immediate immediate) {
   Adjust(1);
   __ push(immediate);
 }

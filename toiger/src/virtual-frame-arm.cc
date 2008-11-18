@@ -206,7 +206,7 @@ void VirtualFrame::Pop(Register reg) {
 }
 
 
-void VirtualFrame::Push(Register reg) {
+void VirtualFrame::EmitPush(Register reg) {
   Adjust(1);
   __ push(reg);
 }

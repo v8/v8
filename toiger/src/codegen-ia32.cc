@@ -146,9 +146,9 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       Comment cmnt(masm_, "[ allocate arguments object");
       ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
       __ lea(eax, frame_->Receiver());
-      frame_->Push(frame_->Function());
-      frame_->Push(eax);
-      frame_->Push(Immediate(Smi::FromInt(scope_->num_parameters())));
+      frame_->EmitPush(frame_->Function());
+      frame_->EmitPush(eax);
+      frame_->EmitPush(Immediate(Smi::FromInt(scope_->num_parameters())));
       frame_->CallStub(&stub, 3);
       __ mov(ecx, Operand(eax));
       arguments_object_allocated = true;
@@ -161,12 +161,12 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       Comment cmnt(masm_, "[ allocate local context");
       // Save the arguments object pointer, if any.
       if (arguments_object_allocated && !arguments_object_saved) {
-        frame_->Push(ecx);
+        frame_->EmitPush(ecx);
         arguments_object_saved = true;
       }
       // Allocate local context.
       // Get outer context and create a new context based on it.
-      frame_->Push(frame_->Function());
+      frame_->EmitPush(frame_->Function());
       frame_->CallRuntime(Runtime::kNewContext, 1);  // eax holds the result
 
       if (kDebug) {
@@ -202,7 +202,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
           // Save the arguments object pointer, if any.
           if (arguments_object_allocated && !arguments_object_saved) {
-            frame_->Push(ecx);
+            frame_->EmitPush(ecx);
             arguments_object_saved = true;
           }
           ASSERT(!scope_->is_global_scope());  // no parameters in global scope
@@ -240,7 +240,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
           // the stack, we rely on the property that loading a
           // zero-sized reference will not clobber the ecx register.
           if (!arguments_object_saved) {
-            frame_->Push(ecx);
+            frame_->EmitPush(ecx);
           }
           arguments_ref.SetValue(NOT_CONST_INIT);
         }
@@ -395,10 +395,10 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     JumpTarget loaded(this);
     JumpTarget materialize_true(this);
     materialize_true.Branch(cc_reg_);
-    frame_->Push(Immediate(Factory::false_value()));
+    frame_->EmitPush(Immediate(Factory::false_value()));
     loaded.Jump();
     materialize_true.Bind();
-    frame_->Push(Immediate(Factory::true_value()));
+    frame_->EmitPush(Immediate(Factory::true_value()));
     loaded.Bind();
     cc_reg_ = no_condition;
   }
@@ -414,7 +414,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // Load "true" if necessary.
     if (true_target.is_linked()) {
       true_target.Bind();
-      frame_->Push(Immediate(Factory::true_value()));
+      frame_->EmitPush(Immediate(Factory::true_value()));
     }
     // If both "true" and "false" need to be reincarnated jump across the
     // code for "false".
@@ -424,7 +424,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // Load "false" if necessary.
     if (false_target.is_linked()) {
       false_target.Bind();
-      frame_->Push(Immediate(Factory::false_value()));
+      frame_->EmitPush(Immediate(Factory::false_value()));
     }
     // A value is loaded on all paths reaching this point.
     loaded.Bind();
@@ -435,13 +435,13 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
 
 
 void CodeGenerator::LoadGlobal() {
-  frame_->Push(GlobalObject());
+  frame_->EmitPush(GlobalObject());
 }
 
 
 void CodeGenerator::LoadGlobalReceiver(Register scratch) {
   __ mov(scratch, GlobalObject());
-  frame_->Push(FieldOperand(scratch, GlobalObject::kGlobalReceiverOffset));
+  frame_->EmitPush(FieldOperand(scratch, GlobalObject::kGlobalReceiverOffset));
 }
 
 
@@ -529,7 +529,7 @@ void CodeGenerator::UnloadReference(Reference* ref) {
   } else if (size > 1) {
     frame_->Pop(eax);
     frame_->Drop(size);
-    frame_->Push(eax);
+    frame_->EmitPush(eax);
   }
 }
 
@@ -577,7 +577,7 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target, JumpTarget* false_target)
   true_target->Branch(zero);
 
   // Call the stub for all other cases.
-  frame_->Push(eax);  // Undo the pop(eax) from above.
+  frame_->EmitPush(eax);  // Undo the pop(eax) from above.
   ToBooleanStub stub;
   frame_->CallStub(&stub, 1);
   // Convert the result (eax) to condition code.
@@ -713,7 +713,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // Simply discard left value.
     frame_->Pop(eax);
     frame_->Drop();
-    frame_->Push(eax);
+    frame_->EmitPush(eax);
     return;
   }
 
@@ -761,7 +761,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // Call the stub and push the result to the stack.
     GenericBinaryOpStub stub(op, overwrite_mode, flags);
     frame_->CallStub(&stub, 2);
-    frame_->Push(eax);
+    frame_->EmitPush(eax);
   }
 }
 
@@ -944,7 +944,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       __ test(eax, Immediate(kSmiTagMask));
       __ j(not_zero, deferred->enter(), not_taken);
       __ bind(deferred->exit());
-      frame_->Push(eax);
+      frame_->EmitPush(eax);
       break;
     }
 
@@ -964,15 +964,15 @@ void CodeGenerator::SmiOperation(Token::Value op,
       __ test(eax, Immediate(kSmiTagMask));
       __ j(not_zero, deferred->enter(), not_taken);
       __ bind(deferred->exit());
-      frame_->Push(eax);
+      frame_->EmitPush(eax);
       break;
     }
 
     case Token::SAR: {
       if (reversed) {
         frame_->Pop(eax);
-        frame_->Push(Immediate(value));
-        frame_->Push(eax);
+        frame_->EmitPush(Immediate(value));
+        frame_->EmitPush(eax);
         GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
@@ -985,7 +985,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ sar(eax, shift_value);
         __ and_(eax, ~kSmiTagMask);
         __ bind(deferred->exit());
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
       }
       break;
     }
@@ -993,8 +993,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::SHR: {
       if (reversed) {
         frame_->Pop(eax);
-        frame_->Push(Immediate(value));
-        frame_->Push(eax);
+        frame_->EmitPush(Immediate(value));
+        frame_->EmitPush(eax);
         GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
@@ -1013,7 +1013,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
         __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
         __ bind(deferred->exit());
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
       }
       break;
     }
@@ -1021,8 +1021,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::SHL: {
       if (reversed) {
         frame_->Pop(eax);
-        frame_->Push(Immediate(value));
-        frame_->Push(eax);
+        frame_->EmitPush(Immediate(value));
+        frame_->EmitPush(eax);
         GenericBinaryOperation(op, type, overwrite_mode);
       } else {
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
@@ -1042,7 +1042,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
         __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
         __ bind(deferred->exit());
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
       }
       break;
     }
@@ -1070,17 +1070,17 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ or_(Operand(eax), Immediate(value));
       }
       __ bind(deferred->exit());
-      frame_->Push(eax);
+      frame_->EmitPush(eax);
       break;
     }
 
     default: {
       if (!reversed) {
-        frame_->Push(Immediate(value));
+        frame_->EmitPush(Immediate(value));
       } else {
         frame_->Pop(eax);
-        frame_->Push(Immediate(value));
-        frame_->Push(eax);
+        frame_->EmitPush(Immediate(value));
+        frame_->EmitPush(eax);
       }
       GenericBinaryOperation(op, type, overwrite_mode);
       break;
@@ -1293,9 +1293,9 @@ void CodeGenerator::VisitBlock(Block* node) {
 
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
-  frame_->Push(Immediate(pairs));
-  frame_->Push(esi);
-  frame_->Push(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
+  frame_->EmitPush(Immediate(pairs));
+  frame_->EmitPush(esi);
+  frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
   frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
 }
@@ -1315,22 +1315,22 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // during variable resolution and must have mode DYNAMIC.
     ASSERT(var->mode() == Variable::DYNAMIC);
     // For now, just do a runtime call.
-    frame_->Push(esi);
-    frame_->Push(Immediate(var->name()));
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(var->name()));
     // Declaration nodes are always introduced in one of two modes.
     ASSERT(node->mode() == Variable::VAR || node->mode() == Variable::CONST);
     PropertyAttributes attr = node->mode() == Variable::VAR ? NONE : READ_ONLY;
-    frame_->Push(Immediate(Smi::FromInt(attr)));
+    frame_->EmitPush(Immediate(Smi::FromInt(attr)));
     // Push initial value, if any.
     // Note: For variables we must not push an initial value (such as
     // 'undefined') because we may have a (legal) redeclaration and we
     // must not destroy the current value.
     if (node->mode() == Variable::CONST) {
-      frame_->Push(Immediate(Factory::the_hole_value()));
+      frame_->EmitPush(Immediate(Factory::the_hole_value()));
     } else if (node->fun() != NULL) {
       Load(node->fun());
     } else {
-      frame_->Push(Immediate(0));  // no initial value!
+      frame_->EmitPush(Immediate(0));  // no initial value!
     }
     frame_->CallRuntime(Runtime::kDeclareContextSlot, 4);
     // Ignore the return value (declarations are statements).
@@ -1509,7 +1509,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   } else {
     function_return_.Bind();
     if (FLAG_trace) {
-      frame_->Push(eax);  // undo the pop(eax) from above
+      frame_->EmitPush(eax);  // undo the pop(eax) from above
       frame_->CallRuntime(Runtime::kTraceExit, 1);
     }
 
@@ -1671,7 +1671,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     next_test.Unuse();
     // Duplicate TOS.
     __ mov(eax, frame_->Top());
-    frame_->Push(eax);
+    frame_->EmitPush(eax);
     Load(clause->label());
     Comparison(equal, true);
     Branch(false, &next_test);
@@ -1955,16 +1955,16 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   jsobject.Branch(above_equal);
 
   primitive.Bind();
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
   frame_->InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION, 1);
   // function call returns the value in eax, which is where we want it below
 
   jsobject.Bind();
   // Get the set of properties (as a FixedArray or Map).
   // eax: value to be iterated over
-  frame_->Push(eax);  // push the object being iterated over (slot 4)
+  frame_->EmitPush(eax);  // push the object being iterated over (slot 4)
 
-  frame_->Push(eax);  // push the Object (slot 4) for the runtime call
+  frame_->EmitPush(eax);  // push the Object (slot 4) for the runtime call
   frame_->CallRuntime(Runtime::kGetPropertyNamesFast, 1);
 
   // If we got a Map, we can do a fast modification check.
@@ -1985,24 +1985,24 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Get the cache from the bridge array.
   __ mov(edx, FieldOperand(ecx, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
-  frame_->Push(eax);  // <- slot 3
-  frame_->Push(edx);  // <- slot 2
+  frame_->EmitPush(eax);  // <- slot 3
+  frame_->EmitPush(edx);  // <- slot 2
   __ mov(eax, FieldOperand(edx, FixedArray::kLengthOffset));
   __ shl(eax, kSmiTagSize);
-  frame_->Push(eax);  // <- slot 1
-  frame_->Push(Immediate(Smi::FromInt(0)));  // <- slot 0
+  frame_->EmitPush(eax);  // <- slot 1
+  frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
   entry.Jump();
 
   fixed_array.Bind();
   // eax: fixed array (result from call to Runtime::kGetPropertyNamesFast)
-  frame_->Push(Immediate(Smi::FromInt(0)));  // <- slot 3
-  frame_->Push(eax);  // <- slot 2
+  frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 3
+  frame_->EmitPush(eax);  // <- slot 2
 
   // Push the length of the array and the initial index onto the stack.
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
   __ shl(eax, kSmiTagSize);
-  frame_->Push(eax);  // <- slot 1
-  frame_->Push(Immediate(Smi::FromInt(0)));  // <- slot 0
+  frame_->EmitPush(eax);  // <- slot 1
+  frame_->EmitPush(Immediate(Smi::FromInt(0)));  // <- slot 0
 
   // Condition.
   entry.Bind();
@@ -2030,8 +2030,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   end_del_check.Branch(equal);
 
   // Convert the entry to a string (or null if it isn't a property anymore).
-  frame_->Push(frame_->ElementAt(4));  // push enumerable
-  frame_->Push(ebx);  // push entry
+  frame_->EmitPush(frame_->ElementAt(4));  // push enumerable
+  frame_->EmitPush(ebx);  // push entry
   frame_->InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION, 2);
   __ mov(ebx, Operand(eax));
 
@@ -2042,11 +2042,11 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   end_del_check.Bind();
   // Store the entry in the 'each' expression and take another spin in the
   // loop.  edx: i'th entry of the enum cache (or string there of)
-  frame_->Push(ebx);
+  frame_->EmitPush(ebx);
   { Reference each(this, node->each());
     if (!each.is_illegal()) {
       if (each.size() > 0) {
-        frame_->Push(frame_->ElementAt(each.size()));
+        frame_->EmitPush(frame_->ElementAt(each.size()));
       }
       // If the reference was to a slot we rely on the convenient property
       // that it doesn't matter whether a value (eg, ebx pushed above) is
@@ -2074,7 +2074,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   node->continue_target()->Bind();
   frame_->Pop(eax);
   __ add(Operand(eax), Immediate(Smi::FromInt(1)));
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
   entry.Jump();
 
   // Cleanup.
@@ -2097,7 +2097,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
   try_block.Call();
   // --- Catch block ---
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
 
   // Store the caught exception in the catch variable.
   { Reference ref(this, node->catch_var());
@@ -2218,7 +2218,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
   try_block.Call();
 
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
   // In case of thrown exceptions, this is where we continue.
   __ Set(ecx, Immediate(Smi::FromInt(THROWING)));
   finally_block.Jump();
@@ -2265,7 +2265,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // If we can fall off the end of the try block, set the state on the stack
   // to FALLING.
   if (frame_ != NULL) {
-    frame_->Push(Immediate(Factory::undefined_value()));  // fake TOS
+    frame_->EmitPush(Immediate(Factory::undefined_value()));  // fake TOS
     __ Set(ecx, Immediate(Smi::FromInt(FALLING)));
     if (nof_unlinks > 0) {
       unlink.Jump();
@@ -2280,10 +2280,10 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
       if (shadows[i]->original_target() == &function_return_) {
         // If this target shadowed the function return, materialize the
         // return value on the stack.
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
       } else {
         // Fake TOS for targets that shadowed breaks and continues.
-        frame_->Push(Immediate(Factory::undefined_value()));
+        frame_->EmitPush(Immediate(Factory::undefined_value()));
       }
       __ Set(ecx, Immediate(Smi::FromInt(JUMPING + i)));
       unlink.Jump();
@@ -2306,13 +2306,13 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   frame_->Pop(Operand::StaticVariable(handler_address));
   frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
   // Next_sp popped.
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
 
   // --- Finally block ---
   finally_block.Bind();
 
   // Push the state on the stack.
-  frame_->Push(ecx);
+  frame_->EmitPush(ecx);
 
   // We keep two elements on the stack - the (possibly faked) result
   // and the state - while evaluating the finally block. Record it, so
@@ -2345,7 +2345,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     exit.Branch(not_equal);
 
     // Rethrow exception.
-    frame_->Push(eax);  // undo pop from above
+    frame_->EmitPush(eax);  // undo pop from above
     frame_->CallRuntime(Runtime::kReThrow, 1);
 
     // Done.
@@ -2366,12 +2366,12 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
 
   // Push the boilerplate on the stack.
-  frame_->Push(Immediate(boilerplate));
+  frame_->EmitPush(Immediate(boilerplate));
 
   // Create a new closure.
-  frame_->Push(esi);
+  frame_->EmitPush(esi);
   frame_->CallRuntime(Runtime::kNewClosure, 2);
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
 }
 
 
@@ -2420,15 +2420,15 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     ASSERT(slot->var()->mode() == Variable::DYNAMIC);
 
     // For now, just do a runtime call.
-    frame_->Push(esi);
-    frame_->Push(Immediate(slot->var()->name()));
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(slot->var()->name()));
 
     if (typeof_state == INSIDE_TYPEOF) {
       frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
     } else {
       frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     }
-    frame_->Push(eax);
+    frame_->EmitPush(eax);
 
   } else {
     // Note: We would like to keep the assert below, but it fires because of
@@ -2445,9 +2445,9 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
       exit.Branch(not_equal);
       __ mov(eax, Factory::undefined_value());
       exit.Bind();
-      frame_->Push(eax);
+      frame_->EmitPush(eax);
     } else {
-      frame_->Push(SlotOperand(slot, ecx));
+      frame_->EmitPush(SlotOperand(slot, ecx));
     }
   }
 }
@@ -2489,9 +2489,9 @@ void CodeGenerator::VisitLiteral(Literal* node) {
     int bits = reinterpret_cast<int>(*node->handle());
     __ mov(eax, bits & 0x0000FFFF);
     __ xor_(eax, bits & 0xFFFF0000);
-    frame_->Push(eax);
+    frame_->EmitPush(eax);
   } else {
-    frame_->Push(Immediate(node->handle()));
+    frame_->EmitPush(Immediate(node->handle()));
   }
 }
 
@@ -2549,7 +2549,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   __ bind(deferred->exit());
 
   // Push the literal.
-  frame_->Push(ebx);
+  frame_->EmitPush(ebx);
 }
 
 
@@ -2609,11 +2609,11 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   __ bind(deferred->exit());
 
   // Push the literal.
-  frame_->Push(ebx);
+  frame_->EmitPush(ebx);
   // Clone the boilerplate object.
   frame_->CallRuntime(Runtime::kCloneObjectLiteralBoilerplate, 1);
   // Push the new cloned literal object as the result.
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
 
 
   for (int i = 0; i < node->properties()->length(); i++) {
@@ -2625,7 +2625,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
         if (key->IsSymbol()) {
           __ mov(eax, frame_->Top());
-          frame_->Push(eax);
+          frame_->EmitPush(eax);
           Load(property->value());
           frame_->Pop(eax);
           __ Set(ecx, Immediate(key));
@@ -2638,7 +2638,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
       }
       case ObjectLiteral::Property::PROTOTYPE: {
         __ mov(eax, frame_->Top());
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
         Load(property->key());
         Load(property->value());
         frame_->CallRuntime(Runtime::kSetProperty, 3);
@@ -2649,9 +2649,9 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         // Duplicate the resulting object on the stack. The runtime
         // function will pop the three arguments passed in.
         __ mov(eax, frame_->Top());
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
         Load(property->key());
-        frame_->Push(Immediate(Smi::FromInt(1)));
+        frame_->EmitPush(Immediate(Smi::FromInt(1)));
         Load(property->value());
         frame_->CallRuntime(Runtime::kDefineAccessor, 4);
         // Ignore result.
@@ -2661,9 +2661,9 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         // Duplicate the resulting object on the stack. The runtime
         // function will pop the three arguments passed in.
         __ mov(eax, frame_->Top());
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
         Load(property->key());
-        frame_->Push(Immediate(Smi::FromInt(0)));
+        frame_->EmitPush(Immediate(Smi::FromInt(0)));
         Load(property->value());
         frame_->CallRuntime(Runtime::kDefineAccessor, 4);
         // Ignore result.
@@ -2679,16 +2679,16 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   // Call runtime to create the array literal.
-  frame_->Push(Immediate(node->literals()));
+  frame_->EmitPush(Immediate(node->literals()));
   // Load the function of this frame.
   __ mov(ecx, frame_->Function());
   // Load the literals array of the function.
   __ mov(ecx, FieldOperand(ecx, JSFunction::kLiteralsOffset));
-  frame_->Push(ecx);
+  frame_->EmitPush(ecx);
   frame_->CallRuntime(Runtime::kCreateArrayLiteral, 2);
 
   // Push the resulting array literal on the stack.
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
 
   // Generate code to set the elements in the array that are not
   // literals.
@@ -2734,7 +2734,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     if (target.is_illegal()) {
       // Fool the virtual frame into thinking that we left the assignment's
       // value on the frame.
-      frame_->Push(Immediate(Smi::FromInt(0)));
+      frame_->EmitPush(Immediate(Smi::FromInt(0)));
       return;
     }
 
@@ -2781,7 +2781,7 @@ void CodeGenerator::VisitThrow(Throw* node) {
   Load(node->exception());
   __ RecordPosition(node->position());
   frame_->CallRuntime(Runtime::kThrow, 1);
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
 }
 
 
@@ -2819,7 +2819,7 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
 
     // Push the name of the function and the receiver onto the stack.
-    frame_->Push(Immediate(var->name()));
+    frame_->EmitPush(Immediate(var->name()));
 
     // Pass the global object as the receiver and let the IC stub
     // patch the stack to use the global proxy as 'this' in the
@@ -2849,14 +2849,14 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
 
     // Load the function
-    frame_->Push(esi);
-    frame_->Push(Immediate(var->name()));
+    frame_->EmitPush(esi);
+    frame_->EmitPush(Immediate(var->name()));
     frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     // eax: slot value; edx: receiver
 
     // Load the receiver.
-    frame_->Push(eax);
-    frame_->Push(edx);
+    frame_->EmitPush(eax);
+    frame_->EmitPush(edx);
 
     // Call the function.
     CallWithArguments(args, node->position());
@@ -2871,7 +2871,7 @@ void CodeGenerator::VisitCall(Call* node) {
       // ------------------------------------------------------------------
 
       // Push the name of the function and the receiver onto the stack.
-      frame_->Push(Immediate(literal->handle()));
+      frame_->EmitPush(Immediate(literal->handle()));
       Load(property->obj());
 
       // Load the arguments.
@@ -2900,7 +2900,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Pass receiver to called function.
       // The reference's size is non-negative.
-      frame_->Push(frame_->ElementAt(ref.size()));
+      frame_->EmitPush(frame_->ElementAt(ref.size()));
 
       // Call the function.
       CallWithArguments(args, node->position());
@@ -3068,7 +3068,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   got_char_code.Bind();
   ASSERT(kSmiTag == 0);
   __ shl(eax, kSmiTagSize);
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
   end.Jump();
 
   // Handle non-flat strings.
@@ -3095,7 +3095,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   try_again_with_new_string.Jump();
 
   slow_case.Bind();
-  frame_->Push(Immediate(Factory::undefined_value()));
+  frame_->EmitPush(Immediate(Factory::undefined_value()));
 
   end.Bind();
 }
@@ -3135,7 +3135,7 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   // Call the shared stub to get to the arguments.length.
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
   frame_->CallStub(&stub, 0);
-  frame_->Push(eax);
+  frame_->EmitPush(eax);
 }
 
 
@@ -3226,10 +3226,10 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Prepare stack for calling JS runtime function.
-    frame_->Push(Immediate(node->name()));
+    frame_->EmitPush(Immediate(node->name()));
     // Push the builtins object found in the current global object.
     __ mov(edx, GlobalObject());
-    frame_->Push(FieldOperand(edx, GlobalObject::kBuiltinsOffset));
+    frame_->EmitPush(FieldOperand(edx, GlobalObject::kBuiltinsOffset));
   }
 
   // Push the arguments ("left-to-right").
@@ -3248,7 +3248,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   } else {
     // Call the C runtime function.
     frame_->CallRuntime(function, arg_count);
-    frame_->Push(eax);
+    frame_->EmitPush(eax);
   }
 }
 
@@ -3272,7 +3272,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       Load(property->obj());
       Load(property->key());
       frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
-      frame_->Push(eax);
+      frame_->EmitPush(eax);
       return;
     }
 
@@ -3281,27 +3281,27 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       Slot* slot = variable->slot();
       if (variable->is_global()) {
         LoadGlobal();
-        frame_->Push(Immediate(variable->name()));
+        frame_->EmitPush(Immediate(variable->name()));
         frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
         return;
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
         // lookup the context holding the named variable
-        frame_->Push(esi);
-        frame_->Push(Immediate(variable->name()));
+        frame_->EmitPush(esi);
+        frame_->EmitPush(Immediate(variable->name()));
         frame_->CallRuntime(Runtime::kLookupContext, 2);
         // eax: context
-        frame_->Push(eax);
-        frame_->Push(Immediate(variable->name()));
+        frame_->EmitPush(eax);
+        frame_->EmitPush(Immediate(variable->name()));
         frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
         return;
       }
 
       // Default: Result of deleting non-global, not dynamically
       // introduced variables is false.
-      frame_->Push(Immediate(Factory::false_value()));
+      frame_->EmitPush(Immediate(Factory::false_value()));
 
     } else {
       // Default: Result of deleting expressions is true.
@@ -3314,7 +3314,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     // LoadTypeofExpression().
     LoadTypeofExpression(node->expression());
     frame_->CallRuntime(Runtime::kTypeof, 1);
-    frame_->Push(eax);
+    frame_->EmitPush(eax);
 
   } else {
     Load(node->expression());
@@ -3330,7 +3330,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         // TODO(1222589): remove dependency of TOS being cached inside stub
         frame_->Pop(eax);
         frame_->CallStub(&stub, 0);
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
         break;
       }
 
@@ -3342,7 +3342,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ test(eax, Immediate(kSmiTagMask));
         smi_label.Branch(zero, taken);
 
-        frame_->Push(eax);  // undo popping of TOS
+        frame_->EmitPush(eax);  // undo popping of TOS
         frame_->InvokeBuiltin(Builtins::BIT_NOT, CALL_FUNCTION, 1);
 
         continue_label.Jump();
@@ -3350,7 +3350,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ not_(eax);
         __ and_(eax, ~kSmiTagMask);  // Remove inverted smi-tag.
         continue_label.Bind();
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
         break;
       }
 
@@ -3365,11 +3365,11 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ test(eax, Immediate(kSmiTagMask));
         continue_label.Branch(zero);
 
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
         frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION, 1);
 
         continue_label.Bind();
-        frame_->Push(eax);
+        frame_->EmitPush(eax);
         break;
       }
 
@@ -3476,7 +3476,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
   // Postfix: Make room for the result.
   if (is_postfix) {
-    frame_->Push(Immediate(0));
+    frame_->EmitPush(Immediate(0));
   }
 
   { Reference target(this, node->expression());
@@ -3484,7 +3484,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       // Spoof the virtual frame to have the expected height (one higher
       // than on entry).
       if (!is_postfix) {
-        frame_->Push(Immediate(Smi::FromInt(0)));
+        frame_->EmitPush(Immediate(Smi::FromInt(0)));
       }
       return;
     }
@@ -3517,7 +3517,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
     // Store the new value in the target if not const.
     __ bind(deferred->exit());
-    frame_->Push(eax);  // Push the new value to TOS
+    frame_->EmitPush(eax);  // Push the new value to TOS
     if (!is_const) target.SetValue(NOT_CONST_INIT);
   }
 
@@ -3574,7 +3574,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       //
       // Duplicate the TOS value. The duplicate will be popped by ToBoolean.
       __ mov(eax, frame_->Top());
-      frame_->Push(eax);
+      frame_->EmitPush(eax);
       ToBoolean(&pop_and_continue, &exit);
       Branch(false, &exit);
 
@@ -3617,7 +3617,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // section 9.2, page 30.
       // Duplicate the TOS value. The duplicate will be popped by ToBoolean.
       __ mov(eax, frame_->Top());
-      frame_->Push(eax);
+      frame_->EmitPush(eax);
       ToBoolean(&exit, &pop_and_continue);
       Branch(true, &exit);
 
@@ -3668,7 +3668,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
 
 void CodeGenerator::VisitThisFunction(ThisFunction* node) {
-  frame_->Push(frame_->Function());
+  frame_->EmitPush(frame_->Function());
 }
 
 
@@ -3851,7 +3851,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       Load(left);
       Load(right);
       frame_->InvokeBuiltin(Builtins::IN, CALL_FUNCTION, 2);
-      frame_->Push(eax);  // push the result
+      frame_->EmitPush(eax);  // push the result
       return;
     }
     case Token::INSTANCEOF: {
@@ -3956,7 +3956,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       } else {
         frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
       }
-      frame->Push(eax);  // IC call leaves result in eax, push it out
+      frame->EmitPush(eax);  // IC call leaves result in eax, push it out
       break;
     }
 
@@ -3976,7 +3976,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       } else {
         frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
       }
-      frame->Push(eax);  // IC call leaves result in eax, push it out
+      frame->EmitPush(eax);  // IC call leaves result in eax, push it out
       break;
     }
 
@@ -4000,8 +4000,8 @@ void Reference::SetValue(InitState init_state) {
         ASSERT(slot->var()->mode() == Variable::DYNAMIC);
 
         // For now, just do a runtime call.
-        frame->Push(esi);
-        frame->Push(Immediate(slot->var()->name()));
+        frame->EmitPush(esi);
+        frame->EmitPush(Immediate(slot->var()->name()));
 
         if (init_state == CONST_INIT) {
           // Same as the case for a normal store, but ignores attribute
@@ -4026,7 +4026,7 @@ void Reference::SetValue(InitState init_state) {
         // Storing a variable must keep the (new) value on the expression
         // stack. This is necessary for compiling chained assignment
         // expressions.
-        frame->Push(eax);
+        frame->EmitPush(eax);
 
       } else {
         ASSERT(slot->var()->mode() != Variable::DYNAMIC);
@@ -4053,7 +4053,7 @@ void Reference::SetValue(InitState init_state) {
         // calling this code.
         frame->Pop(eax);
         __ mov(cgen_->SlotOperand(slot, ecx), eax);
-        frame->Push(eax);  // RecordWrite may destroy the value in eax.
+        frame->EmitPush(eax);  // RecordWrite may destroy the value in eax.
         if (slot->type() == Slot::CONTEXT) {
           // ecx is loaded with context when calling SlotOperand above.
           int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
@@ -4079,7 +4079,7 @@ void Reference::SetValue(InitState init_state) {
       // Setup the name register.
       __ mov(ecx, name);
       frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-      frame->Push(eax);  // IC call leaves result in eax, push it out
+      frame->EmitPush(eax);  // IC call leaves result in eax, push it out
       break;
     }
 
@@ -4093,7 +4093,7 @@ void Reference::SetValue(InitState init_state) {
       // TODO(1222589): Make the IC grab the values from the stack.
       frame->Pop(eax);
       frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-      frame->Push(eax);  // IC call leaves result in eax, push it out
+      frame->EmitPush(eax);  // IC call leaves result in eax, push it out
       break;
     }
 

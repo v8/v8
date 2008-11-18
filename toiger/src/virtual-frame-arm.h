@@ -158,8 +158,9 @@ class VirtualFrame : public Malloced{
   // code.
   void Pop(Register reg);
 
-  // Push an element on top of the expression stack.  May emit code.
-  void Push(Register reg);
+  // Push an element on top of the expression stack and emit a corresponding
+  // push instruction.
+  void EmitPush(Register reg);
 
  private:
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
