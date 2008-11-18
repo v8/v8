@@ -432,22 +432,40 @@ class TextElement {
 };
 
 
-class NodeInfo {
- public:
+struct NodeInfo {
   NodeInfo()
     : being_analyzed(false),
       been_analyzed(false),
-      propagate_word(false),
-      propagate_newline(false),
-      propagate_start(false),
+      determine_word(false),
+      determine_newline(false),
+      determine_start(false),
       follows_word_interest(false),
       follows_newline_interest(false),
       follows_start_interest(false) { }
+  bool SameInterests(NodeInfo* that) {
+    return (follows_word_interest == that->follows_word_interest)
+        && (follows_newline_interest == that->follows_newline_interest)
+        && (follows_start_interest == that->follows_start_interest);
+  }
+  void AdoptInterests(NodeInfo* that) {
+    follows_word_interest = that->follows_word_interest;
+    follows_newline_interest = that->follows_newline_interest;
+    follows_start_interest = that->follows_start_interest;
+  }
+  bool prev_determine_word() {
+    return determine_word || follows_word_interest;
+  }
+  bool prev_determine_newline() {
+    return determine_newline || follows_newline_interest;
+  }
+  bool prev_determine_start() {
+    return determine_start || follows_start_interest;
+  }
   bool being_analyzed: 1;
   bool been_analyzed: 1;
-  bool propagate_word: 1;
-  bool propagate_newline: 1;
-  bool propagate_start: 1;
+  bool determine_word: 1;
+  bool determine_newline: 1;
+  bool determine_start: 1;
   bool follows_word_interest: 1;
   bool follows_newline_interest: 1;
   bool follows_start_interest: 1;
@@ -455,6 +473,25 @@ class NodeInfo {
 
 
 STATIC_CHECK(sizeof(NodeInfo) <= sizeof(int));  // NOLINT
+
+
+class SiblingList {
+public:
+  SiblingList() : list_(NULL) { }
+  int length() {
+    return list_ == NULL ? 0 : list_->length();
+  }
+  void Ensure(RegExpNode* parent) {
+    if (list_ == NULL) {
+      list_ = new ZoneList<RegExpNode*>(2);
+      list_->Add(parent);
+    }
+  }
+  void Add(RegExpNode* node) { list_->Add(node); }
+  RegExpNode* Get(int index) { return list_->at(index); }
+private:
+  ZoneList<RegExpNode*>* list_;
+};
 
 
 class RegExpNode: public ZoneObject {
@@ -470,11 +507,16 @@ class RegExpNode: public ZoneObject {
   // Until the implementation is complete we will return true for success and
   // false for failure.
   virtual bool Emit(RegExpCompiler* compiler) = 0;
+  virtual RegExpNode* PropagateInterest(NodeInfo* info) = 0;
   NodeInfo* info() { return &info_; }
   virtual bool IsBacktrack() { return false; }
+  RegExpNode* GetSibling(NodeInfo* info);
+  void EnsureSiblings() { siblings_.Ensure(this); }
+  void AddSibling(RegExpNode* node) { siblings_.Add(node); }
  private:
   Label label_;
   NodeInfo info_;
+  SiblingList siblings_;
 };
 
 
@@ -483,6 +525,7 @@ class SeqRegExpNode: public RegExpNode {
   explicit SeqRegExpNode(RegExpNode* on_success)
     : on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
+  void set_on_success(RegExpNode* node) { on_success_ = node; }
   virtual bool Emit(RegExpCompiler* compiler) { return false; }
  private:
   RegExpNode* on_success_;
@@ -509,6 +552,7 @@ class ActionNode: public SeqRegExpNode {
   static ActionNode* EndSubmatch(RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler);
+  virtual RegExpNode* PropagateInterest(NodeInfo* info);
  private:
   union {
     struct {
@@ -540,6 +584,7 @@ class TextNode: public SeqRegExpNode {
       elms_(elms) { }
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler) { return false; }
+  virtual RegExpNode* PropagateInterest(NodeInfo* info);
   RegExpNode* on_failure() { return on_failure_; }
   ZoneList<TextElement>* elements() { return elms_; }
  private:
@@ -563,6 +608,7 @@ class BackreferenceNode: public SeqRegExpNode {
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
   virtual bool Emit(RegExpCompiler* compiler) { return false; }
+  virtual RegExpNode* PropagateInterest(NodeInfo* info);
  private:
   RegExpNode* on_failure_;
   int start_reg_;
@@ -576,6 +622,7 @@ class EndNode: public RegExpNode {
   explicit EndNode(Action action) : action_(action) { }
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler);
+  virtual RegExpNode* PropagateInterest(NodeInfo* info);
   virtual bool IsBacktrack() { return action_ == BACKTRACK; }
  private:
   Action action_;
@@ -604,6 +651,7 @@ class GuardedAlternative {
   explicit GuardedAlternative(RegExpNode* node) : node_(node), guards_(NULL) { }
   void AddGuard(Guard* guard);
   RegExpNode* node() { return node_; }
+  void set_node(RegExpNode* node) { node_ = node; }
   ZoneList<Guard*>* guards() { return guards_; }
  private:
   RegExpNode* node_;
@@ -624,6 +672,7 @@ class ChoiceNode: public RegExpNode {
   DispatchTable* table() { return &table_; }
   RegExpNode* on_failure() { return on_failure_; }
   virtual bool Emit(RegExpCompiler* compiler);
+  virtual RegExpNode* PropagateInterest(NodeInfo* info);
   bool table_calculated() { return table_calculated_; }
   void set_table_calculated(bool b) { table_calculated_ = b; }
   bool being_calculated() { return being_calculated_; }

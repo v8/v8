@@ -1451,21 +1451,22 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
 RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
                                     RegExpNode* on_success,
                                     RegExpNode* on_failure) {
+  NodeInfo info;
   switch (type()) {
     case START_OF_LINE:
-      on_success->info()->follows_newline_interest = true;
+      info.follows_newline_interest = true;
       break;
     case START_OF_INPUT:
-      on_success->info()->follows_start_interest = true;
+      info.follows_start_interest = true;
       break;
     case BOUNDARY: case NON_BOUNDARY:
-      on_success->info()->follows_word_interest = true;
+      info.follows_word_interest = true;
       break;
     case END_OF_LINE: case END_OF_INPUT:
       // This is wrong but has the effect of making the compiler abort.
-      on_success->info()->follows_start_interest = true;
+      info.follows_start_interest = true;
   }
-  return on_success;
+  return on_success->PropagateInterest(&info);
 }
 
 
@@ -1635,6 +1636,78 @@ void CharacterRange::AddClassEscape(uc16 type,
     default:
       UNREACHABLE();
   }
+}
+
+
+// -------------------------------------------------------------------
+// Interest propagation
+
+
+RegExpNode* RegExpNode::GetSibling(NodeInfo* info) {
+  for (int i = 0; i < siblings_.length(); i++) {
+    RegExpNode* sibling = siblings_.Get(i);
+    if (sibling->info()->SameInterests(info))
+      return sibling;
+  }
+  return NULL;
+}
+
+
+template <class C>
+static RegExpNode* PropagateToEndpoint(C* node, NodeInfo* info) {
+  RegExpNode* sibling = node->GetSibling(info);
+  if (sibling != NULL) return sibling;
+  node->EnsureSiblings();
+  sibling = new C(*node);
+  sibling->info()->AdoptInterests(info);
+  node->AddSibling(sibling);
+  return sibling;
+}
+
+
+RegExpNode* ActionNode::PropagateInterest(NodeInfo* info) {
+  RegExpNode* sibling = GetSibling(info);
+  if (sibling != NULL) return sibling;
+  EnsureSiblings();
+  ActionNode* action = new ActionNode(*this);
+  action->set_on_success(action->on_success()->PropagateInterest(info));
+  action->info()->AdoptInterests(info);
+  AddSibling(action);
+  return action;
+}
+
+
+RegExpNode* ChoiceNode::PropagateInterest(NodeInfo* info) {
+  RegExpNode* sibling = GetSibling(info);
+  if (sibling != NULL) return sibling;
+  EnsureSiblings();
+  ChoiceNode* choice = new ChoiceNode(*this);
+  ZoneList<GuardedAlternative>* old_alternatives = alternatives();
+  int count = old_alternatives->length();
+  choice->alternatives_ = new ZoneList<GuardedAlternative>(count);
+  for (int i = 0; i < count; i++) {
+    GuardedAlternative alternative = old_alternatives->at(i);
+    alternative.set_node(alternative.node()->PropagateInterest(info));
+    choice->alternatives()->Add(alternative);
+  }
+  choice->info()->AdoptInterests(info);
+  AddSibling(choice);
+  return choice;
+}
+
+
+RegExpNode* EndNode::PropagateInterest(NodeInfo* info) {
+  return PropagateToEndpoint(this, info);
+}
+
+
+RegExpNode* BackreferenceNode::PropagateInterest(NodeInfo* info) {
+  return PropagateToEndpoint(this, info);
+}
+
+
+RegExpNode* TextNode::PropagateInterest(NodeInfo* info) {
+  return PropagateToEndpoint(this, info);
 }
 
 
@@ -1815,9 +1888,9 @@ void Analysis::VisitText(TextNode* that) {
 void Analysis::VisitAction(ActionNode* that) {
   RegExpNode* next = that->on_success();
   EnsureAnalyzed(next);
-  that->info()->propagate_newline = next->info()->propagate_newline;
-  that->info()->propagate_word = next->info()->propagate_word;
-  that->info()->propagate_start = next->info()->propagate_start;
+  that->info()->determine_newline = next->info()->prev_determine_newline();
+  that->info()->determine_word = next->info()->prev_determine_word();
+  that->info()->determine_start = next->info()->prev_determine_start();
 }
 
 
@@ -1826,9 +1899,9 @@ void Analysis::VisitChoice(ChoiceNode* that) {
   for (int i = 0; i < that->alternatives()->length(); i++) {
     RegExpNode* node = that->alternatives()->at(i).node();
     EnsureAnalyzed(node);
-    info->propagate_newline |= node->info()->propagate_newline;
-    info->propagate_word |= node->info()->propagate_word;
-    info->propagate_start |= node->info()->propagate_start;
+    info->determine_newline |= node->info()->prev_determine_newline();
+    info->determine_word |= node->info()->prev_determine_word();
+    info->determine_start |= node->info()->prev_determine_start();
   }
   if (!that->table_calculated()) {
     DispatchTableConstructor cons(that->table());

@@ -334,17 +334,23 @@ TEST(CharacterClassEscapes) {
 }
 
 
+static RegExpNode* Compile(const char* input) {
+  unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
+  RegExpParseResult result;
+  if (!v8::internal::ParseRegExp(&buffer, &result))
+    return NULL;
+  RegExpNode* node = NULL;
+  RegExpEngine::Compile(&result, &node, false);
+  return node;
+}
+
+
 static void Execute(const char* input,
                     const char* str,
                     bool dot_output = false) {
   v8::HandleScope scope;
-  unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  RegExpParseResult result;
-  if (!v8::internal::ParseRegExp(&buffer, &result))
-    return;
-  RegExpNode* node = NULL;
-  RegExpEngine::Compile(&result, &node, false);
+  RegExpNode* node = Compile(input);
   USE(node);
 #ifdef DEBUG
   if (dot_output) {
@@ -755,6 +761,14 @@ TEST(LatinCanonicalize) {
 }
 
 
+TEST(SimplePropagation) {
+  v8::HandleScope scope;
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  RegExpNode* node = Compile("(a|^b|c)");
+  CHECK(node->info()->determine_start);
+}
+
+
 TEST(Graph) {
-  Execute("fo[ob]ar|[ba]z|x[yz]*", "", true);
+  Execute("(a|^b|c)", "", true);
 }
