@@ -143,10 +143,12 @@ void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
     case 'k': {
       ASSERT_EQ(FmtElm::INT, current.type_);
       int value = current.data_.u_int_;
-      if (0x20 <= value && value <= 0xFF) {
+      if (0x20 <= value && value <= 0x7F) {
         Put(value);
+      } else if (value <= 0xff) {
+        Add("\\x%02x", value);
       } else {
-        Add("\\x%X", value);
+        Add("\\u%04x", value);
       }
       break;
     }

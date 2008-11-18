@@ -254,21 +254,11 @@ void* RegExpUnparser::VisitAlternative(RegExpAlternative* that, void* data) {
   return NULL;
 }
 
-static void AddChar(StringStream* stream, uc16 character) {
-  if (character < 32 || (character >= 128 && character < 256)) {
-    stream->Add("\\x%02x", character);
-  } else if (character >= 256) {
-    stream->Add("\\u%04x", character);
-  } else {
-    stream->Add("%c", character);
-  }
-}
 
 void RegExpUnparser::VisitCharacterRange(CharacterRange that) {
-  AddChar(stream(), that.from());
+  stream()->Add("%k", that.from());
   if (!that.IsSingleton()) {
-    stream()->Add("-");
-    AddChar(stream(), that.to());
+    stream()->Add("-%k", that.to());
   }
 }
 
@@ -317,7 +307,7 @@ void* RegExpUnparser::VisitAtom(RegExpAtom* that, void* data) {
   stream()->Add("'");
   Vector<const uc16> chardata = that->data();
   for (int i = 0; i < chardata.length(); i++) {
-    AddChar(stream(), chardata[i]);
+    stream()->Add("%k", chardata[i]);
   }
   stream()->Add("'");
   return NULL;

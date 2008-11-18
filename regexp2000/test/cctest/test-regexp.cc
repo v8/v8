@@ -734,7 +734,7 @@ TEST(LatinCanonicalize) {
   for (uc32 c = 128; c < (1 << 21); c++) {
     // These exceptions are caused by a known bug in the implementation.
     if (c != 0x026B && c != 0x027D)
-      CHECK(canonicalize(c) >= 128);
+      CHECK_GE(canonicalize(c), 128);
   }
   unibrow::Mapping<unibrow::ToUppercase> to_upper;
   for (uc32 c = 0; c < (1 << 21); c++) {
