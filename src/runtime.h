@@ -195,6 +195,7 @@ namespace v8 { namespace internal {
   F(GlobalPrint, 1) \
   \
   /* Eval */ \
+  F(EvalReceiver, 1) \
   F(GlobalReceiver, 1) \
   \
   F(SetProperty, -1 /* 3 or 4 */) \

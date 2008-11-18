@@ -3961,6 +3961,26 @@ static Object* EvalContext() {
 }
 
 
+static Object* Runtime_EvalReceiver(Arguments args) {
+  ASSERT(args.length() == 1);
+  StackFrameLocator locator;
+  JavaScriptFrame* frame = locator.FindJavaScriptFrame(1);
+  // Fetch the caller context from the frame.
+  Context* caller = Context::cast(frame->context());
+
+  // Check for eval() invocations that cross environments. Use the
+  // top frames receiver if evaluating in current environment.
+  Context* global_context = Top::context()->global()->global_context();
+  if (caller->global_context() == global_context) {
+    return frame->receiver();
+  }
+
+  // Otherwise use the given argument (the global object of the
+  // receiving context).
+  return args[0];
+}
+
+
 static Object* Runtime_GlobalReceiver(Arguments args) {
   ASSERT(args.length() == 1);
   Object* global = args[0];

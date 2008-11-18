@@ -113,7 +113,7 @@ function GlobalEval(x) {
   var f = %CompileString(x, 0, true);
   if (!IS_FUNCTION(f)) return f;
 
-  return f.call(this);
+  return f.call(%EvalReceiver(this));
 }
 
 

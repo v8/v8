@@ -4029,8 +4029,16 @@ THREADED_TEST(Eval) {
                              "  var foo = 2;"
                              "  return eval('foo');"
                              "})();"));
-  Local<Value> foo = script->Run();
-  CHECK_EQ(2, foo->Int32Value());
+  Local<Value> result = script->Run();
+  CHECK_EQ(2, result->Int32Value());
+
+  // Test that un-aliased eval has right this.
+  script =
+      Script::Compile(v8_str("function MyObject() { this.self = eval('this'); }"
+                             "var o = new MyObject();"
+                             "o === o.self"));
+  result = script->Run();
+  CHECK(result->IsTrue());
 }
 
 
