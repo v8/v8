@@ -2142,6 +2142,8 @@ Object* Heap::AllocateExternalSymbol(Vector<const char> string, int chars) {
   // Patch the resource pointer of the result.
   ExternalTwoByteString* result = ExternalTwoByteString::cast(obj);
   result->set_resource(resource);
+  // Force hash code to be computed.
+  result->Hash();
   ASSERT(result->IsEqualTo(string));
   return result;
 }
