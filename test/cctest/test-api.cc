@@ -5274,3 +5274,17 @@ THREADED_TEST(ExternalSymbols) {
   value = CompileRun("obj.externalSymbol722 = 42");
   v8::V8::SetExternalSymbolCallback(NULL);
 }
+
+
+// This test verifies that pre-compilation (aka preparsing) can be called
+// without initializing the whole VM. Thus we cannot run this test in a
+// multi-threaded setup.
+TEST(PreCompile) {
+  // TODO(155): This test would break without the initialization of V8. This is
+  // a workaround for now to make this test not fail.
+  v8::V8::Initialize();
+  const char *script = "function foo(a) { return a+1; }";
+  v8::ScriptData *sd = v8::ScriptData::PreCompile(script, strlen(script));
+  CHECK_NE(sd->Length(), 0);
+  CHECK_NE(sd->Data(), NULL);
+}
