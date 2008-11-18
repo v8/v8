@@ -41,10 +41,9 @@ namespace v8 { namespace internal {
 VirtualFrame::VirtualFrame(CodeGenerator* cgen)
     : masm_(cgen->masm()),
       elements_(0),
-      virtual_stack_pointer_(-1),
-      virtual_frame_pointer_(-1),
       parameter_count_(cgen->scope()->num_parameters()),
-      local_count_(0) {
+      local_count_(0),
+      frame_pointer_(-1) {
   // The virtual frame contains a receiver and the parameters (all in
   // memory) when it is created.
   Adjust(parameter_count_ + 1);
@@ -54,12 +53,11 @@ VirtualFrame::VirtualFrame(CodeGenerator* cgen)
 VirtualFrame::VirtualFrame(VirtualFrame* original)
     : masm_(original->masm_),
       elements_(original->elements_.length()),
-      virtual_stack_pointer_(original->virtual_stack_pointer_),
-      virtual_frame_pointer_(original->virtual_frame_pointer_),
       parameter_count_(original->parameter_count_),
-      local_count_(original->local_count_) {
+      local_count_(original->local_count_),
+      frame_pointer_(original->frame_pointer_) {
   // Copy all the elements.
-  for (int i = 0; i <= virtual_stack_pointer_; i++) {
+  for (int i = 0; i < original->elements_.length(); i++) {
     elements_.Add(original->elements_[i]);
   }
 }
@@ -68,16 +66,16 @@ VirtualFrame::VirtualFrame(VirtualFrame* original)
 void VirtualFrame::Adjust(int count) {
   ASSERT(count >= 0);
   for (int i = 0; i < count; i++) {
-    AddElement(Element());
+    elements_.Add(Element());
   }
 }
 
 
 void VirtualFrame::Forget(int count) {
   ASSERT(count >= 0);
-  ASSERT(virtual_stack_pointer_ >= count);
+  ASSERT(elements_.length() >= count);
   for (int i = 0; i < count; i++) {
-    RemoveElement();
+    elements_.RemoveLast();
   }
 }
 
@@ -85,11 +83,10 @@ void VirtualFrame::Forget(int count) {
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
   ASSERT(masm_ == expected->masm_);
   ASSERT(elements_.length() == expected->elements_.length());
-  ASSERT(virtual_frame_pointer_ == expected->virtual_frame_pointer_);
-  ASSERT(virtual_stack_pointer_ == expected->virtual_stack_pointer_);
   ASSERT(parameter_count_ == expected->parameter_count_);
   ASSERT(local_count_ == expected->local_count_);
-  for (int i = 0; i <= virtual_stack_pointer_; i++) {
+  ASSERT(frame_pointer_ == expected->frame_pointer_);
+  for (int i = 0; i < elements_.length(); i++) {
     ASSERT(elements_[i].matches(expected->elements_[i]));
   }
 }
@@ -111,10 +108,11 @@ void VirtualFrame::Enter() {
   }
 #endif  // DEBUG
 
+  // We are about to push four values to the frame.
   Adjust(4);
   __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
   // Adjust FP to point to saved FP.
-  virtual_frame_pointer_ = virtual_stack_pointer_ - 1;
+  frame_pointer_ = elements_.length() - 2;
   __ add(fp, sp, Operand(2 * kPointerSize));
 }
 

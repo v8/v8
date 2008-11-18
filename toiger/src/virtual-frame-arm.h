@@ -67,7 +67,7 @@ class VirtualFrame : public Malloced{
   explicit VirtualFrame(VirtualFrame* original);
 
   int height() const {
-    return virtual_stack_pointer_ - expression_base_index() + 1;
+    return elements_.length() - expression_base_index();
   }
 
   // Add extra in-memory elements to the top of the frame without generating
@@ -172,14 +172,11 @@ class VirtualFrame : public Malloced{
 
   List<Element> elements_;
 
-  // The virtual stack pointer is the index of the top element of the stack.
-  int virtual_stack_pointer_;
-
-  int virtual_frame_pointer_;
-
   // The number of frame-allocated locals and parameters respectively.
   int parameter_count_;
   int local_count_;
+
+  int frame_pointer_;
 
   // The index of the first parameter.  The receiver lies below the first
   // parameter.
@@ -192,16 +189,6 @@ class VirtualFrame : public Malloced{
 
   // The index of the base of the expression stack.
   int expression_base_index() const { return local0_index() + local_count_; }
-
-  void AddElement(const Element& element) {
-    virtual_stack_pointer_++;
-    elements_.Add(element);
-  }
-
-  Element RemoveElement() {
-    virtual_stack_pointer_--;
-    return elements_.RemoveLast();
-  }
 };
 
 
