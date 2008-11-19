@@ -52,7 +52,6 @@ class FrameElement BASE_EMBEDDED {
   Type type() const { return static_cast<Type>(type_ & kTypeMask); }
 
   bool is_dirty() const {
-    STATIC_ASSERT(kDirtyBit > LAST_TYPE);
     return (type_ & kDirtyBit) != 0;
   }
 
@@ -74,6 +73,8 @@ class FrameElement BASE_EMBEDDED {
  private:
   static const int kDirtyBit = 1 << 8;
   static const int kTypeMask = kDirtyBit - 1;
+
+  STATIC_ASSERT((kDirtyBit > LAST_TYPE));
 
   // The element's type and a dirty bit.  The dirty bit can be cleared
   // for non-memory elements to indicate that the element agrees with
