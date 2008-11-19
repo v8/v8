@@ -47,10 +47,10 @@ using namespace v8::internal;
 
 static SmartPointer<const char> Parse(const char* input) {
   v8::HandleScope scope;
-  unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
+  FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
-  CHECK(v8::internal::ParseRegExp(&buffer, &result));
+  CHECK(v8::internal::ParseRegExp(&reader, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   SmartPointer<const char> output = result.tree->ToString();
@@ -61,8 +61,9 @@ static bool ParseEscapes(const char* input) {
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
+  FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
-  CHECK(v8::internal::ParseRegExp(&buffer, &result));
+  CHECK(v8::internal::ParseRegExp(&reader, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   return result.has_character_escapes;
@@ -227,10 +228,10 @@ TEST(ParserRegression) {
 static void ExpectError(const char* input,
                         const char* expected) {
   v8::HandleScope scope;
-  unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
+  FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
-  CHECK_EQ(false, v8::internal::ParseRegExp(&buffer, &result));
+  CHECK_EQ(false, v8::internal::ParseRegExp(&reader, &result));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
   SmartPointer<char> str = result.error->ToCString(ALLOW_NULLS);
@@ -343,9 +344,9 @@ TEST(CharacterClassEscapes) {
 
 
 static RegExpNode* Compile(const char* input) {
-  unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
+  FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
-  if (!v8::internal::ParseRegExp(&buffer, &result))
+  if (!v8::internal::ParseRegExp(&reader, &result))
     return NULL;
   RegExpNode* node = NULL;
   RegExpEngine::Compile(&result, &node, false);

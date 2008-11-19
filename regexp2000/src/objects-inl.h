@@ -279,6 +279,16 @@ bool StringShape::IsExternalTwoByte() {
 }
 
 
+uc32 FlatStringReader::Get(int index) {
+  ASSERT(0 <= index && index <= length_);
+  if (is_ascii_) {
+    return static_cast<const byte*>(start_)[index];
+  } else {
+    return static_cast<const uc16*>(start_)[index];
+  }
+}
+
+
 bool Object::IsNumber() {
   return IsSmi() || IsHeapNumber();
 }

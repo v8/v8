@@ -203,14 +203,14 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   Handle<FixedArray> cached = CompilationCache::LookupRegExp(pattern, flags);
   bool in_cache = !cached.is_null();
   Handle<Object> result;
-  StringShape shape(*pattern);
   if (in_cache) {
     re->set_data(*cached);
     result = re;
   } else {
-    SafeStringInputBuffer buffer(pattern.location());
+    FlattenString(pattern);
     RegExpParseResult parse_result;
-    if (!ParseRegExp(&buffer, &parse_result)) {
+    FlatStringReader reader(pattern);
+    if (!ParseRegExp(&reader, &parse_result)) {
       // Throw an exception if we fail to parse the pattern.
       ThrowRegExpException(re,
                            pattern,

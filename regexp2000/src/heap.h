@@ -578,6 +578,9 @@ class Heap : public AllStatic {
   static void GarbageCollectionPrologue();
   static void GarbageCollectionEpilogue();
 
+  // Code that should be executed after the garbage collection proper.
+  static void PostGarbageCollectionProcessing();
+
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.
   static bool CollectGarbage(int required_space, AllocationSpace space);

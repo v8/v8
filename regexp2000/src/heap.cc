@@ -390,8 +390,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   }
   Counters::objs_since_last_young.Set(0);
 
-  // Process weak handles post gc.
-  GlobalHandles::PostGarbageCollectionProcessing();
+  PostGarbageCollectionProcessing();
 
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
@@ -403,6 +402,14 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     ASSERT(!allocation_allowed_);
     global_gc_epilogue_callback_();
   }
+}
+
+
+void Heap::PostGarbageCollectionProcessing() {
+  // Process weak handles post gc.
+  GlobalHandles::PostGarbageCollectionProcessing();
+  // Update flat string readers.
+  FlatStringReader::PostGarbageCollectionProcessing();
 }
 
 

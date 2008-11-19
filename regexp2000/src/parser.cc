@@ -496,7 +496,7 @@ void RegExpBuilder::AddQuantifierToAtom(int min, int max, bool is_greedy) {
 
 class RegExpParser {
  public:
-  RegExpParser(unibrow::CharacterStream* in,
+  RegExpParser(FlatStringReader* in,
                Handle<String>* error,
                bool multiline_mode);
   RegExpTree* ParsePattern(bool* ok);
@@ -531,36 +531,26 @@ class RegExpParser {
   RegExpTree* ReportError(Vector<const char> message, bool* ok);
   void Advance();
   void Advance(int dist);
-  // Pushes a read character (or potentially some other character) back
-  // on the input stream. After pushing it back, it becomes the character
-  // returned by current(). There is a limited amount of push-back buffer.
-  // A function using PushBack should check that it doesn't push back more
-  // than kMaxPushback characters, and it should not push back more characters
-  // than it has read.
-  void PushBack(uc32 character);
-  bool CanPushBack();
+  void Reset(int pos);
 
   bool HasCharacterEscapes();
 
   int captures_started() { return captures_ == NULL ? 0 : captures_->length(); }
+  int position() { return next_pos_ - 1; }
 
   static const uc32 kEndMarker = unibrow::Utf8::kBadChar;
  private:
   uc32 current() { return current_; }
-  uc32 next() { return next_; }
   bool has_more() { return has_more_; }
-  bool has_next() { return has_next_; }
-  unibrow::CharacterStream* in() { return in_; }
+  bool has_next() { return next_pos_ < in()->length(); }
+  uc32 Next();
+  FlatStringReader* in() { return in_; }
   uc32 current_;
-  uc32 next_;
   bool has_more_;
-  bool has_next_;
   bool multiline_mode_;
-  unibrow::CharacterStream* in_;
+  int next_pos_;
+  FlatStringReader* in_;
   Handle<String>* error_;
-  static const int kMaxPushback = 5;
-  int pushback_count_;
-  uc32 pushback_buffer_[kMaxPushback];
   bool has_character_escapes_;
   ZoneList<RegExpCapture*>* captures_;
 };
@@ -3506,35 +3496,44 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 // Regular expressions
 
 
-RegExpParser::RegExpParser(unibrow::CharacterStream* in,
+RegExpParser::RegExpParser(FlatStringReader* in,
                            Handle<String>* error,
                            bool multiline_mode)
   : current_(kEndMarker),
-    next_(kEndMarker),
     has_more_(true),
-    has_next_(true),
     multiline_mode_(multiline_mode),
+    next_pos_(0),
     in_(in),
     error_(error),
-    pushback_count_(0),
     has_character_escapes_(false),
     captures_(NULL) {
-  Advance(2);
+  Advance(1);
+}
+
+
+uc32 RegExpParser::Next() {
+  if (has_next()) {
+    return in()->Get(next_pos_);
+  } else {
+    return kEndMarker;
+  }
 }
 
 
 void RegExpParser::Advance() {
-  current_ = next_;
-  has_more_ = has_next_;
-  if (pushback_count_ > 0) {
-    pushback_count_--;
-    next_ = pushback_buffer_[pushback_count_];
-  } else if (in()->has_more()) {
-    next_ = in()->GetNext();
+  if (next_pos_ < in()->length()) {
+    current_ = in()->Get(next_pos_);
+    next_pos_++;
   } else {
-    next_ = kEndMarker;
-    has_next_ = false;
+    current_ = kEndMarker;
+    has_more_ = false;
   }
+}
+
+
+void RegExpParser::Reset(int pos) {
+  next_pos_ = pos;
+  Advance();
 }
 
 
@@ -3543,25 +3542,6 @@ void RegExpParser::Advance(int dist) {
     Advance();
 }
 
-
-void RegExpParser::PushBack(uc32 character) {
-  if (has_next_) {
-    ASSERT(pushback_count_ < kMaxPushback);
-    pushback_buffer_[pushback_count_] = next_;
-    pushback_count_++;
-  }
-
-  next_ = current_;
-  has_next_ = has_more_;
-
-  current_ = character;
-  has_more_ = true;
-}
-
-
-bool RegExpParser::CanPushBack() {
-  return (pushback_count_ < kMaxPushback);
-}
 
 // Reports whether the parsed string atoms contain any characters that were
 // escaped in the original pattern. If not, all atoms are proper substrings
@@ -3662,7 +3642,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
     // Atom ::
     //   \ AtomEscape
     case '\\':
-      switch (next()) {
+      switch (Next()) {
       case kEndMarker:
         ReportError(CStrVector("\\ at end of pattern"), CHECK_OK);
       case 'b':
@@ -3681,7 +3661,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
         // CharacterClassEscape :: one of
         //   d D s S w W
       case 'd': case 'D': case 's': case 'S': case 'w': case 'W': {
-        uc32 c = next();
+        uc32 c = Next();
         Advance(2);
         ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
         CharacterRange::AddClassEscape(c, ranges);
@@ -3703,7 +3683,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
           builder.AddAtom(atom);
           goto has_read_atom;  // Avoid setting has_character_escapes_.
         }
-        uc32 first_digit = next();
+        uc32 first_digit = Next();
         if (first_digit == '8' || first_digit == '9') {
           // Treat as identity escape
           builder.AddCharacter(first_digit);
@@ -3768,7 +3748,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
       }
       default:
         // Identity escape.
-        builder.AddCharacter(next());
+        builder.AddCharacter(Next());
         Advance(2);
         break;
       }
@@ -3861,8 +3841,7 @@ static bool IsSpecialClassEscape(uc32 c) {
 
 bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
   ASSERT_EQ('\\', current());
-  ASSERT('1' <= next() && next() <= '9');
-  ASSERT_EQ(0, pushback_count_);
+  ASSERT('1' <= Next() && Next() <= '9');
   // Try to parse a decimal literal that is no greater than the number
   // of previously encountered left capturing parentheses.
   // This is a not according the the ECMAScript specification. According to
@@ -3870,30 +3849,19 @@ bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
   // parentheses in the entire input, even if they are meaningless.
   if (captures_ == NULL)
     return false;
-  int value = next() - '0';
+  int start = position();
+  int value = Next() - '0';
   if (value > captures_->length())
     return false;
-  static const int kMaxChars = kMaxPushback - 2;
-  EmbeddedVector<uc32, kMaxChars> chars_seen;
-  chars_seen[0] = next();
-  int char_count = 1;
   Advance(2);
   while (true) {
     uc32 c = current();
     if (IsDecimalDigit(c)) {
       value = 10 * value + (c - '0');
-      // To avoid reading past the end of the stack-allocated pushback
-      // buffers we only read kMaxChars before giving up.
-      if (value > captures_->length() || char_count > kMaxChars) {
-        // If we give up we have to push the characters we read back
-        // onto the pushback buffer in the reverse order.
-        for (int i = 0; i < char_count; i++) {
-          PushBack(chars_seen[char_count - i - 1]);
-        }
-        PushBack('\\');
+      if (value > captures_->length()) {
+        Reset(start);
         return false;
       }
-      chars_seen[char_count++] = current();
       Advance();
     } else {
       break;
@@ -3992,26 +3960,19 @@ uc32 RegExpParser::ParseOctalLiteral() {
 
 
 bool RegExpParser::ParseHexEscape(int length, uc32 *value) {
-  static const int kMaxChars = kMaxPushback;
-  EmbeddedVector<uc32, kMaxChars> chars_seen;
-  ASSERT(length <= kMaxChars);
+  int start = position();
   uc32 val = 0;
   bool done = false;
   for (int i = 0; !done; i++) {
     uc32 c = current();
     int d = HexValue(c);
     if (d < 0) {
-      while (i > 0) {
-        i--;
-        PushBack(chars_seen[i]);
-      }
+      Reset(start);
       return false;
     }
     val = val * 16 + d;
     Advance();
-    if (i < length - 1) {
-      chars_seen[i] = c;
-    } else {
+    if (i == length - 1) {
       done = true;
     }
   }
@@ -4022,7 +3983,7 @@ bool RegExpParser::ParseHexEscape(int length, uc32 *value) {
 
 uc32 RegExpParser::ParseClassCharacterEscape(bool* ok) {
   ASSERT(current() == '\\');
-  ASSERT(has_next() && !IsSpecialClassEscape(next()));
+  ASSERT(has_next() && !IsSpecialClassEscape(Next()));
   Advance();
   switch (current()) {
     case 'b':
@@ -4091,9 +4052,9 @@ RegExpTree* RegExpParser::ParseGroup(bool* ok) {
   char type = '(';
   Advance();
   if (current() == '?') {
-    switch (next()) {
+    switch (Next()) {
       case ':': case '=': case '!':
-        type = next();
+        type = Next();
         Advance(2);
         break;
       default:
@@ -4153,10 +4114,10 @@ CharacterRange RegExpParser::ParseClassAtom(bool* is_char_class,
   ASSERT_EQ(false, *is_char_class);
   uc32 first = current();
   if (first == '\\') {
-    switch (next()) {
+    switch (Next()) {
       case 'w': case 'W': case 'd': case 'D': case 's': case 'S': {
         *is_char_class = true;
-        uc32 c = next();
+        uc32 c = Next();
         CharacterRange::AddClassEscape(c, ranges);
         Advance(2);
         return NULL;
@@ -4270,10 +4231,10 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
 }
 
 
-bool ParseRegExp(unibrow::CharacterStream* stream, RegExpParseResult* result) {
+bool ParseRegExp(FlatStringReader* input, RegExpParseResult* result) {
   ASSERT(result != NULL);
   // Get multiline flag somehow
-  RegExpParser parser(stream, &result->error, false);
+  RegExpParser parser(input, &result->error, false);
   bool ok = true;
   result->tree = parser.ParsePattern(&ok);
   if (!ok) {

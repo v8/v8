@@ -3590,6 +3590,28 @@ class ExternalTwoByteString: public ExternalString {
 };
 
 
+// A flat string reader provides random access to the contents of a
+// string independent of the character width of the string.  The handle
+// must be valid as long as the reader is being used.
+class FlatStringReader BASE_EMBEDDED {
+ public:
+  explicit FlatStringReader(Handle<String> str);
+  explicit FlatStringReader(Vector<const char> input);
+  ~FlatStringReader();
+  void RefreshState();
+  inline uc32 Get(int index);
+  int length() { return length_; }
+  static void PostGarbageCollectionProcessing();
+ private:
+  String** str_;
+  bool is_ascii_;
+  int length_;
+  const void* start_;
+  FlatStringReader* prev_;
+  static FlatStringReader* top_;
+};
+
+
 // Note that StringInputBuffers are not valid across a GC!  To fix this
 // it would have to store a String Handle instead of a String* and
 // AsciiStringReadBlock would have to be modified to use memcpy.
