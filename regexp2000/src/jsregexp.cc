@@ -460,25 +460,31 @@ Handle<Object> RegExpImpl::JscreCompile(Handle<JSRegExp> re) {
 
 Handle<Object> RegExpImpl::Re2kExecOnce(Handle<JSRegExp> regexp,
                                         int num_captures,
-                                        Handle<String> subject,
+                                        Handle<String> two_byte_subject,
                                         int previous_index,
-                                        const uc16* two_byte_subject,
                                         int* offsets_vector,
                                         int offsets_vector_length) {
+#ifdef DEBUG
+  if (FLAG_trace_regexp_bytecodes) {
+    String* pattern = regexp->Pattern();
+    PrintF("\n\nRegexp match:   /%s/\n\n", *(pattern->ToCString()));
+    PrintF("\n\nSubject string: '%s'\n\n", *(two_byte_subject->ToCString()));
+  }
+#endif
+  ASSERT(StringShape(*two_byte_subject).IsTwoByteRepresentation());
+  ASSERT(two_byte_subject->IsFlat(StringShape(*two_byte_subject)));
   bool rc;
   {
     for (int i = (num_captures + 1) * 2 - 1; i >= 0; i--) {
       offsets_vector[i] = -1;
     }
 
-    AssertNoAllocation a;
-
-    LOG(RegExpExecEvent(regexp, previous_index, subject));
+    LOG(RegExpExecEvent(regexp, previous_index, two_byte_subject));
 
     Handle<ByteArray> byte_codes = Re2kCode(regexp);
 
     rc = Re2kInterpreter::Match(byte_codes,
-                                subject,
+                                two_byte_subject,
                                 offsets_vector,
                                 previous_index);
   }
@@ -605,13 +611,13 @@ Handle<Object> RegExpImpl::Re2kExec(Handle<JSRegExp> regexp,
 
   Handle<String> subject16 = CachedStringToTwoByte(subject);
 
-  Handle<Object> result(Re2kExecOnce(regexp,
-                                     num_captures,
-                                     subject,
-                                     previous_index,
-                                     subject16->GetTwoByteData(),
-                                     offsets.vector(),
-                                     offsets.length()));
+  Handle<Object> result(
+      Re2kExecOnce(regexp,
+                   num_captures,
+                   subject16,
+                   previous_index,
+                   offsets.vector(),
+                   offsets.length()));
   return result;
 }
 
@@ -671,9 +677,8 @@ Handle<Object> RegExpImpl::Re2kExecGlobal(Handle<JSRegExp> regexp,
     } else {
       matches = Re2kExecOnce(regexp,
                              Re2kNumberOfCaptures(regexp),
-                             subject,
+                             subject16,
                              previous_index,
-                             subject16->GetTwoByteData(),
                              offsets.vector(),
                              offsets.length());
 
@@ -845,11 +850,17 @@ class RegExpCompiler {
   EndNode* accept() { return accept_; }
   EndNode* backtrack() { return backtrack_; }
 
+  static const int kMaxRecursion = 100;
+  inline int recursion_depth() { return recursion_depth_; }
+  inline void IncrementRecursionDepth() { recursion_depth_++; }
+  inline void DecrementRecursionDepth() { recursion_depth_--; }
+
  private:
   EndNode* accept_;
   EndNode* backtrack_;
   int next_register_;
   List<RegExpNode*>* work_list_;
+  int recursion_depth_;
   RegExpMacroAssembler* macro_assembler_;
 };
 
@@ -857,8 +868,9 @@ class RegExpCompiler {
 // Attempts to compile the regexp using a Regexp2000 code generator.  Returns
 // a fixed array or a null handle depending on whether it succeeded.
 RegExpCompiler::RegExpCompiler(int capture_count)
-  : next_register_(2 * capture_count),
-    work_list_(NULL) {
+  : next_register_(2 * (capture_count + 1)),
+    work_list_(NULL),
+    recursion_depth_(0) {
   accept_ = new EndNode(EndNode::ACCEPT);
   backtrack_ = new EndNode(EndNode::BACKTRACK);
 }
@@ -880,7 +892,7 @@ Handle<FixedArray> RegExpCompiler::Assemble(
     return Handle<FixedArray>::null();
   }
   while (!work_list.is_empty()) {
-    if (!work_list.RemoveLast()->Emit(this)) {
+    if (!work_list.RemoveLast()->GoTo(this)) {
       fail.Unuse();
       return Handle<FixedArray>::null();
     }
@@ -903,12 +915,48 @@ Handle<FixedArray> RegExpCompiler::Assemble(
 
 
 bool RegExpNode::GoTo(RegExpCompiler* compiler) {
+  // TODO(erikcorry): Implement support.
+  if (info_.follows_word_interest ||
+      info_.follows_newline_interest ||
+      info_.follows_start_interest) {
+    return false;
+  }
   if (label_.is_bound()) {
     compiler->macro_assembler()->GoTo(&label_);
     return true;
   } else {
-    return Emit(compiler);
+    if (compiler->recursion_depth() > RegExpCompiler::kMaxRecursion) {
+      compiler->macro_assembler()->GoTo(&label_);
+      compiler->AddWork(this);
+      return true;
+    } else {
+      compiler->IncrementRecursionDepth();
+      bool how_it_went = Emit(compiler);
+      compiler->DecrementRecursionDepth();
+      return how_it_went;
+    }
   }
+}
+
+
+bool EndNode::GoTo(RegExpCompiler* compiler) {
+  if (info()->follows_word_interest ||
+      info()->follows_newline_interest ||
+      info()->follows_start_interest) {
+    return false;
+  }
+  if (!label()->is_bound()) {
+    Bind(compiler->macro_assembler());
+  }
+  switch (action_) {
+    case ACCEPT:
+      compiler->macro_assembler()->Succeed();
+    break;
+    case BACKTRACK:
+      compiler->macro_assembler()->Backtrack();
+    break;
+  }
+  return true;
 }
 
 
@@ -918,12 +966,15 @@ Label* RegExpNode::label() {
 
 
 bool EndNode::Emit(RegExpCompiler* compiler) {
+  RegExpMacroAssembler* macro = compiler->macro_assembler();
   switch (action_) {
     case ACCEPT:
-      compiler->macro_assembler()->Succeed();
+      Bind(macro);
+      macro->Succeed();
       return true;
     case BACKTRACK:
-      compiler->macro_assembler()->Backtrack();
+      Bind(macro);
+      macro->Backtrack();
       return true;
   }
   return false;
@@ -995,46 +1046,135 @@ FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
 // Emit code.
 
 
-void ChoiceNode::GenerateGuard(RegExpCompiler* compiler,
-                               Guard *guard,
+void ChoiceNode::GenerateGuard(RegExpMacroAssembler* macro_assembler,
+                               Guard* guard,
                                Label* on_failure) {
+  switch (guard->op()) {
+    case Guard::LT:
+      macro_assembler->IfRegisterGE(guard->reg(), guard->value(), on_failure);
+      break;
+    case Guard::GEQ:
+      macro_assembler->IfRegisterLT(guard->reg(), guard->value(), on_failure);
+      break;
+  }
+}
+
+
+bool TextNode::Emit(RegExpCompiler* compiler) {
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  Bind(macro_assembler);
+  int element_count = elms_->length();
+  int cp_offset = 0;
+  for (int i = 0; i < element_count; i++) {
+    TextElement elm = (*elms_)[i];
+    switch (elm.type) {
+      case TextElement::ATOM: {
+        Vector<const uc16> quarks = elm.data.u_atom->data();
+        macro_assembler->CheckCharacters(quarks,
+                                         cp_offset,
+                                         on_failure_->label());
+        cp_offset += quarks.length();
+        break;
+      }
+      case TextElement::CHAR_CLASS: {
+        RegExpCharacterClass* cc = elm.data.u_char_class;
+        if (cc->is_negated()) return false;
+        macro_assembler->LoadCurrentCharacter(cp_offset, on_failure_->label());
+        cp_offset++;
+
+        ZoneList<CharacterRange>* ranges = cc->ranges();
+
+        Label found;
+
+        int range_count = ranges->length();
+
+        if (range_count == 0) {
+          on_failure()->GoTo(compiler);
+          break;
+        }
+
+        for (int i = 0; i < range_count - 1; i++) {
+          CharacterRange& range = (*ranges)[i];
+          Label next_range;
+          uc16 from = range.from();
+          uc16 to = range.to();
+          if (from != 0) {
+            macro_assembler->CheckCharacterLT(from, &next_range);
+          }
+          if (to != 0xffff) {
+            macro_assembler->CheckCharacterLT(to + 1, &found);
+          } else {
+            macro_assembler->AdvanceCurrentPosition(1);
+            on_success()->GoTo(compiler);
+          }
+          macro_assembler->Bind(&next_range);
+        }
+
+        CharacterRange& range = (*ranges)[range_count - 1];
+        uc16 from = range.from();
+        uc16 to = range.to();
+        if (from != 0) {
+          macro_assembler->CheckCharacterLT(from, on_failure_->label());
+        }
+        if (to != 0xffff) {
+          macro_assembler->CheckCharacterGT(to, on_failure_->label());
+        }
+        compiler->AddWork(on_failure_);
+        macro_assembler->Bind(&found);
+        break;
+      }
+      default:
+        UNREACHABLE();
+        return false;
+    }
+  }
+  macro_assembler->AdvanceCurrentPosition(cp_offset);
+  return on_success()->GoTo(compiler);
 }
 
 
 bool ChoiceNode::Emit(RegExpCompiler* compiler) {
   int choice_count = alternatives_->length();
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  Bind(macro_assembler);
   // For now we just call all choices one after the other.  The idea ultimately
   // is to use the Dispatch table to try only the relevant ones.
-  for (int i = 0; i < choice_count; i++) {
+  int i;
+  for (i = 0; i < choice_count - 1; i++) {
     GuardedAlternative alternative = (*alternatives_)[i];
     Label after;
-    Label* next_alternative;
-    if (i < choice_count - 1) {
-      next_alternative = &after;
-    } else {
-      next_alternative = on_failure_->label();
-    }
+    Label after_no_pop_cp;
     ZoneList<Guard*>* guards = alternative.guards();
     if (guards != NULL) {
       int guard_count = guards->length();
       for (int j = 0; j < guard_count; j++) {
-        GenerateGuard(compiler, (*guards)[i], next_alternative);
+        GenerateGuard(macro_assembler, (*guards)[j], &after_no_pop_cp);
       }
     }
-    macro_assembler->PushBacktrack(next_alternative);
-    if (!alternative.node()->Emit(compiler)) {
+    macro_assembler->PushCurrentPosition();
+    macro_assembler->PushBacktrack(&after);
+    if (!alternative.node()->GoTo(compiler)) {
       after.Unuse();
-      if (next_alternative != &after) {
-        next_alternative->Unuse();
-      }
+      after_no_pop_cp.Unuse();
       return false;
     }
-    if (i < choice_count - 1) {
-      macro_assembler->Bind(&after);
-    } else {
-      after.Unuse();
+    macro_assembler->Bind(&after);
+    macro_assembler->PopCurrentPosition();
+    macro_assembler->Bind(&after_no_pop_cp);
+  }
+  GuardedAlternative alternative = (*alternatives_)[i];
+  ZoneList<Guard*>* guards = alternative.guards();
+  if (guards != NULL) {
+    int guard_count = guards->length();
+    for (int j = 0; j < guard_count; j++) {
+      GenerateGuard(macro_assembler, (*guards)[j], on_failure_->label());
     }
+  }
+  if (!on_failure_->IsBacktrack()) {
+    macro_assembler->PushBacktrack(on_failure_->label());
+  }
+  if (!alternative.node()->GoTo(compiler)) {
+    return false;
   }
   compiler->AddWork(on_failure_);
   return true;
@@ -1043,20 +1183,44 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler) {
 
 bool ActionNode::Emit(RegExpCompiler* compiler) {
   RegExpMacroAssembler* macro = compiler->macro_assembler();
+  Bind(macro);
   switch (type_) {
     case STORE_REGISTER:
       macro->SetRegister(data_.u_store_register.reg,
                          data_.u_store_register.value);
       break;
-    case INCREMENT_REGISTER:
+    case INCREMENT_REGISTER: {
+      Label undo;
+      macro->PushBacktrack(&undo);
       macro->AdvanceRegister(data_.u_increment_register.reg, 1);
+      bool ok = on_success()->GoTo(compiler);
+      if (!ok) {
+        undo.Unuse();
+        return false;
+      }
+      macro->Bind(&undo);
+      macro->AdvanceRegister(data_.u_increment_register.reg, -1);
+      macro->Backtrack();
       break;
-    case STORE_POSITION:
-      macro->PushCurrentPosition();
+    }
+    case STORE_POSITION: {
+      Label undo;
+      macro->PushRegister(data_.u_position_register.reg);
+      macro->PushBacktrack(&undo);
+      macro->WriteCurrentPositionToRegister(data_.u_position_register.reg);
+      bool ok = on_success()->GoTo(compiler);
+      if (!ok) {
+        undo.Unuse();
+        return false;
+      }
+      macro->Bind(&undo);
+      macro->PopRegister(data_.u_position_register.reg);
+      macro->Backtrack();
       break;
+    }
     case RESTORE_POSITION:
-      macro->PopCurrentPosition();
-      break;
+      // TODO(erikcorry): Implement this.
+      return false;
     case BEGIN_SUBMATCH:
       // TODO(erikcorry): Implement this.
       return false;
@@ -1070,8 +1234,7 @@ bool ActionNode::Emit(RegExpCompiler* compiler) {
       UNREACHABLE();
       return false;
   }
-  compiler->AddWork(on_success());
-  return true;
+  return on_success()->GoTo(compiler);
 }
 
 
@@ -1565,9 +1728,9 @@ RegExpNode* RegExpAlternative::ToNode(RegExpCompiler* compiler,
 
 static const int kSpaceRangeCount = 20;
 static const uc16 kSpaceRanges[kSpaceRangeCount] = {
-  0x0009, 0x0009, 0x000B, 0x000C, 0x0020, 0x0020, 0x00A0, 0x00A0,
-  0x1680, 0x1680, 0x180E, 0x180E, 0x2000, 0x200A, 0x202F, 0x202F,
-  0x205F, 0x205F, 0x3000, 0x3000
+  0x0009, 0x000D, 0x0020, 0x0020, 0x00A0, 0x00A0, 0x1680,
+  0x1680, 0x180E, 0x180E, 0x2000, 0x200A, 0x2028, 0x2029,
+  0x202F, 0x202F, 0x205F, 0x205F, 0x3000, 0x3000
 };
 
 
@@ -1969,7 +2132,7 @@ void DispatchTableConstructor::VisitChoice(ChoiceNode* node) {
 
 
 void DispatchTableConstructor::VisitBackreference(BackreferenceNode* that) {
-  UNIMPLEMENTED();
+  // TODO(plesner): What should this do?
 }
 
 
@@ -2055,7 +2218,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
   if (node_return != NULL) *node_return = node;
   Analysis analysis;
   analysis.EnsureAnalyzed(node);
-  byte codes[10240];
+  byte codes[1024];
   Re2kAssembler assembler(Vector<byte>(codes, 1024));
   RegExpMacroAssemblerRe2k macro_assembler(&assembler);
   return compiler.Assemble(&macro_assembler,

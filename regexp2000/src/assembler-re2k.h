@@ -60,11 +60,11 @@ class Re2kAssembler {
   void CheckChar(uc16 c, Label* on_mismatch);
   void CheckNotChar(uc16 c, Label* on_match);
 
-  // Checks current char register against a range.
-  void CheckRange(uc16 start, uc16 end, Label* on_mismatch);
-  void CheckNotRange(uc16 start, uc16 end, Label* on_match);
+  // Used to check current char register against a range.
+  void CheckCharacterLT(uc16 limit, Label* on_less);
+  void CheckCharacterGT(uc16 limit, Label* on_greater);
 
-  // Checks current position (plus optional offset) for a match against a
+  // Checks current position for a match against a
   // previous capture.  Advances current position by the length of the capture
   // iff it matches.  The capture is stored in a given register and the
   // the register after.  If a register contains -1 then the other register
@@ -122,6 +122,8 @@ class Re2kAssembler {
 
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
+
+  void Expand();
 };
 
 

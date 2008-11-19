@@ -43,6 +43,9 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler<SubjectChar> {
   virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
   virtual void Backtrack();
   virtual void Bind(Label* label);
+  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
+
+
 
   // Check the current character against a bitmap.  The range of the current
   // character must be from start to start + length_of_bitmap_in_bits.

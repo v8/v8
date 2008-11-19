@@ -123,46 +123,6 @@ void RegExpMacroAssemblerRe2k::AdvanceCurrentPosition(int by) {
 }
 
 
-static void TwoWayCharacterClass(
-    Re2kAssembler* assembler,
-    RegExpCharacterClass* char_class,
-    Label* on_match,
-    Label* on_mismatch) {
-  ZoneList<CharacterRange>* ranges = char_class->ranges();
-  int range_count = ranges->length();
-  if (!char_class->is_negated()) {
-    for (int i = 0; i < range_count; i++) {
-      CharacterRange& range = ranges->at(i);
-      assembler->CheckRange(range.from(), range.to(), on_match);
-    }
-    if (on_mismatch == NULL) {
-      assembler->PopBacktrack();
-    } else {
-      assembler->GoTo(on_mismatch);
-    }
-  } else {  // range is negated.
-    if (range_count == 0) {
-      assembler->GoTo(on_match);
-    } else {
-      CharacterRange& previous = ranges->at(0);
-      if (previous.from() > 0) {
-        assembler->CheckRange(0, previous.from() - 1, on_match);
-      }
-      for (int i = 1; i < range_count; i++) {
-        CharacterRange& range = ranges->at(i);
-        if (previous.to() < range.from() - 1) {
-          assembler->CheckRange(previous.to() + 1, range.from() - 1, on_match);
-        }
-        previous = range;
-      }
-      if (previous.to() < 65535) {
-        assembler->CheckRange(previous.to() + 1, 65535, on_match);
-      }
-    }
-  }
-}
-
-
 void RegExpMacroAssemblerRe2k::CheckCurrentPosition(
   int register_index,
   Label* on_equal) {
@@ -171,23 +131,21 @@ void RegExpMacroAssemblerRe2k::CheckCurrentPosition(
 }
 
 
-void RegExpMacroAssemblerRe2k::CheckCharacterClass(
-    RegExpCharacterClass* char_class,
-    int cp_offset,
-    Label* on_failure) {
+void RegExpMacroAssemblerRe2k::LoadCurrentCharacter(int cp_offset,
+                                                    Label* on_failure) {
   assembler_->LoadCurrentChar(cp_offset, on_failure);
-  if (!char_class->is_negated() &&
-      char_class->ranges()->length() == 1 &&
-      on_failure != NULL) {
-    // This is the simple case where the char class has one range and we want to
-    // fall through if it matches.
-    CharacterRange& range = char_class->ranges()->at(0);
-    assembler_->CheckNotRange(range.from(), range.to(), on_failure);
-  } else {
-    Label on_success;
-    TwoWayCharacterClass(assembler_, char_class, &on_success, on_failure);
-    assembler_->Bind(&on_success);
-  }
+}
+
+
+void RegExpMacroAssemblerRe2k::CheckCharacterLT(uc16 limit,
+                                                Label* on_less) {
+  assembler_->CheckCharacterLT(limit, on_less);
+}
+
+
+void RegExpMacroAssemblerRe2k::CheckCharacterGT(uc16 limit,
+                                                Label* on_greater) {
+  assembler_->CheckCharacterGT(limit, on_greater);
 }
 
 

@@ -52,17 +52,13 @@ class RegExpMacroAssemblerRe2k: public RegExpMacroAssembler {
   virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
   virtual void SetRegister(int register_index, int to);
   virtual void WriteCurrentPositionToRegister(int reg);
-  virtual void CheckCharacterClass(
-      RegExpCharacterClass* cclass,
-      int cp_offset,
-      Label* on_failure);
-  virtual void CheckCharacters(
-      Vector<const uc16> str,
-      int cp_offset,
-      Label* on_failure);
-  virtual void CheckCurrentPosition(
-      int register_index,
-      Label* on_equal);
+  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
+  virtual void CheckCharacterLT(uc16 limit, Label* on_less);
+  virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
+  virtual void CheckCharacters(Vector<const uc16> str,
+                               int cp_offset,
+                               Label* on_failure);
+  virtual void CheckCurrentPosition(int register_index, Label* on_equal);
   virtual void CheckBitmap(uc16 start, Label* bitmap, Label* on_zero);
   virtual void DispatchHalfNibbleMap(uc16 start,
                                      Label* half_nibble_map,

@@ -49,8 +49,8 @@ V(GOTO,              13, 5) /* goto addr32                                  */ \
 V(LOAD_CURRENT_CHAR, 14, 9) /* load offset32 addr32                         */ \
 V(CHECK_CHAR,        15, 7) /* check_char uc16 addr32                       */ \
 V(CHECK_NOT_CHAR,    16, 7) /* check_not_char uc16 addr32                   */ \
-V(CHECK_RANGE,       17, 9) /* check_range uc16 uc16 addr32                 */ \
-V(CHECK_NOT_RANGE,   18, 9) /* check_not_range uc16 uc16 addr32             */ \
+V(CHECK_LT,          17, 7) /* check_lt uc16 addr32                         */ \
+V(CHECK_GT,          18, 7) /* check_gr uc16 addr32                         */ \
 V(CHECK_BACKREF,     19, 9) /* check_backref offset32 capture_idx addr32    */ \
 V(CHECK_NOT_BACKREF, 20, 9) /* check_not_backref offset32 capture_idx addr32*/ \
 V(LOOKUP_MAP1,       21, 11) /* l_map1 start16 bit_map_addr32 addr32        */ \
@@ -64,6 +64,11 @@ V(CHECK_REGISTER_GE, 26, 8) /* check_reg_ge register_index value16 addr32   */ \
   static const int BC_##name = code;
 BYTECODE_ITERATOR(DECLARE_BYTECODES)
 #undef DECLARE_BYTECODES
+
+#define DECLARE_BYTECODE_LENGTH(name, code, length) \
+  static const int BC_##name##_LENGTH = length;
+BYTECODE_ITERATOR(DECLARE_BYTECODE_LENGTH)
+#undef DECLARE_BYTECODE_LENGTH
 } }
 
 #endif  // V8_BYTECODES_IA32_H_

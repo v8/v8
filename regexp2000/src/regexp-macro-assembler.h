@@ -54,16 +54,11 @@ class RegExpMacroAssembler {
   virtual void PopRegister(int register_index) = 0;
   virtual void PushRegister(int register_index) = 0;
   virtual void AdvanceRegister(int reg, int by) = 0;  // r[reg] += by.
-  virtual void WriteCurrentPositionToRegister(int reg) = 0;
   virtual void SetRegister(int register_index, int to) = 0;
-  // Looks at the next character from the subject and if it doesn't match
-  // then goto the on_failure label.  End of input never matches.  If the
-  // label is NULL then we should pop a backtrack address off the stack and
-  // go to that.
-  virtual void CheckCharacterClass(
-      RegExpCharacterClass* cclass,
-      int cp_offset,
-      Label* on_failure) = 0;
+  virtual void WriteCurrentPositionToRegister(int reg) = 0;
+  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input) = 0;
+  virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
+  virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
   // Check the current character for a match with a literal string.  If we
   // fail to match then goto the on_failure label.  End of input always
   // matches.  If the label is NULL then we should pop a backtrack address off

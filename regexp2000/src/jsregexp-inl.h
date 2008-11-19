@@ -30,6 +30,7 @@
 
 
 #include "jsregexp.h"
+#include "regexp-macro-assembler.h"
 
 
 namespace v8 {
@@ -250,6 +251,11 @@ static void DoForEach(Node* node, Callback* callback) {
   DoForEach<Node, Callback>(node->left(), callback);
   callback->Call(node->key(), node->value());
   DoForEach<Node, Callback>(node->right(), callback);
+}
+
+
+void RegExpNode::Bind(RegExpMacroAssembler* macro) {
+  macro->Bind(&label_);
 }
 
 

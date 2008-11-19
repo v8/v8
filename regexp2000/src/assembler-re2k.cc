@@ -47,6 +47,9 @@ Re2kAssembler::Re2kAssembler(Vector<byte> buffer)
 
 
 Re2kAssembler::~Re2kAssembler() {
+  if (own_buffer_) {
+    buffer_.Dispose();
+  }
 }
 
 
@@ -173,22 +176,17 @@ void Re2kAssembler::CheckNotChar(uc16 c, Label* on_match) {
 }
 
 
-void Re2kAssembler::CheckRange(uc16 start, uc16 end, Label* on_mismatch) {
-  if (start == end) {
-    CheckChar(start, on_mismatch);
-  }
-  Emit(BC_CHECK_RANGE);
-  Emit16(start);
-  Emit16(end);
-  EmitOrLink(on_mismatch);
+void Re2kAssembler::CheckCharacterLT(uc16 limit, Label* on_less) {
+  Emit(BC_CHECK_LT);
+  Emit16(limit);
+  EmitOrLink(on_less);
 }
 
 
-void Re2kAssembler::CheckNotRange(uc16 start, uc16 end, Label* on_match) {
-  Emit(BC_CHECK_NOT_RANGE);
-  Emit16(start);
-  Emit16(end);
-  EmitOrLink(on_match);
+void Re2kAssembler::CheckCharacterGT(uc16 limit, Label* on_greater) {
+  Emit(BC_CHECK_GT);
+  Emit16(limit);
+  EmitOrLink(on_greater);
 }
 
 
@@ -284,5 +282,18 @@ int Re2kAssembler::length() {
 void Re2kAssembler::Copy(Address a) {
   memcpy(a, buffer_.start(), length());
 }
+
+
+void Re2kAssembler::Expand() {
+  bool old_buffer_was_our_own = own_buffer_;
+  Vector<byte> old_buffer = buffer_;
+  buffer_ = Vector<byte>::New(old_buffer.length() * 2);
+  own_buffer_ = true;
+  memcpy(buffer_.start(), old_buffer.start(), old_buffer.length());
+  if (old_buffer_was_our_own) {
+    old_buffer.Dispose();
+  }
+}
+
 
 } }  // namespace v8::internal

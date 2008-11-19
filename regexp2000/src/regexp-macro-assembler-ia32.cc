@@ -121,8 +121,18 @@ void RegExpMacroAssemblerIA32::CheckBitmap(uc16 start,
 }
 
 
-void RegExpMacroAssemblerIA32::CheckCharacterClass(RegExpCharacterClass *cclass,
-                                                   Label* on_failure) {
+void RegExpMacroAssemblerIA32::LoadCurrentCharacter(int cp_offset,
+                                                    Label* on_end_of_input) {
+  UNREACHABLE();  // Not implemented.
+}
+
+
+void RegExpMacroAssemblerIA32::CheckCharacterLT(uc16 limit, Label* on_less) {
+  UNREACHABLE();  // Not implemented.
+}
+
+
+void RegExpMacroAssemblerIA32::CheckCharacterGT(uc16 limit, Label* on_greater) {
   UNREACHABLE();  // Not implemented.
 }
 

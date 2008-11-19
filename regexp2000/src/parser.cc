@@ -4025,6 +4025,9 @@ uc32 RegExpParser::ParseClassCharacterEscape(bool* ok) {
   ASSERT(has_next() && !IsSpecialClassEscape(next()));
   Advance();
   switch (current()) {
+    case 'b':
+      Advance();
+      return '\b';
     // ControlEscape :: one of
     //   f n r t v
     case 'f':

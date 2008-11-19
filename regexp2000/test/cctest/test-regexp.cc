@@ -277,7 +277,15 @@ static bool NotDigit(uc16 c) {
 
 static bool IsWhiteSpace(uc16 c) {
   switch (c) {
-    case 0x09: case 0x0B: case 0x0C: case 0x20: case 0xA0:
+    case 0x09:
+    case 0x0A:
+    case 0x0B:
+    case 0x0C:
+    case 0x0d:
+    case 0x20:
+    case 0xA0:
+    case 0x2028:
+    case 0x2029:
       return true;
     default:
       return unibrow::Space::Is(c);
@@ -519,15 +527,18 @@ TEST(Assembler) {
 
   Handle<String> f1 =
       Factory::NewStringFromAscii(CStrVector("Now is the time"));
-  CHECK(!Re2kInterpreter::Match(array, f1, captures, 0));
+  Handle<String> f1_16 = RegExpImpl::StringToTwoByte(f1);
+  CHECK(!Re2kInterpreter::Match(array, f1_16, captures, 0));
 
   Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));
-  CHECK(Re2kInterpreter::Match(array, f2, captures, 0));
+  Handle<String> f2_16 = RegExpImpl::StringToTwoByte(f2);
+  CHECK(Re2kInterpreter::Match(array, f2_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(2, captures[1]);
 
   Handle<String> f3 = Factory::NewStringFromAscii(CStrVector("tomfoolery"));
-  CHECK(Re2kInterpreter::Match(array, f3, captures, 0));
+  Handle<String> f3_16 = RegExpImpl::StringToTwoByte(f3);
+  CHECK(Re2kInterpreter::Match(array, f3_16, captures, 0));
   CHECK_EQ(3, captures[0]);
   CHECK_EQ(5, captures[1]);
 }
@@ -591,27 +602,32 @@ TEST(Assembler2) {
 
   Handle<String> f1 =
       Factory::NewStringFromAscii(CStrVector("Now is the time"));
-  CHECK(!Re2kInterpreter::Match(array, f1, captures, 0));
+  Handle<String> f1_16 = RegExpImpl::StringToTwoByte(f1);
+  CHECK(!Re2kInterpreter::Match(array, f1_16, captures, 0));
 
   Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));
-  CHECK(Re2kInterpreter::Match(array, f2, captures, 0));
+  Handle<String> f2_16 = RegExpImpl::StringToTwoByte(f2);
+  CHECK(Re2kInterpreter::Match(array, f2_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(2, captures[1]);
 
   Handle<String> f3 = Factory::NewStringFromAscii(CStrVector("tomfoolery"));
-  CHECK(Re2kInterpreter::Match(array, f3, captures, 0));
+  Handle<String> f3_16 = RegExpImpl::StringToTwoByte(f3);
+  CHECK(Re2kInterpreter::Match(array, f3_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(5, captures[1]);
 
   Handle<String> f4 =
       Factory::NewStringFromAscii(CStrVector("football buffoonery"));
-  CHECK(Re2kInterpreter::Match(array, f4, captures, 0));
+  Handle<String> f4_16 = RegExpImpl::StringToTwoByte(f4);
+  CHECK(Re2kInterpreter::Match(array, f4_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(14, captures[1]);
 
   Handle<String> f5 =
       Factory::NewStringFromAscii(CStrVector("walking\nbarefoot"));
-  CHECK(!Re2kInterpreter::Match(array, f5, captures, 0));
+  Handle<String> f5_16 = RegExpImpl::StringToTwoByte(f5);
+  CHECK(!Re2kInterpreter::Match(array, f5_16, captures, 0));
 }
 
 
@@ -662,7 +678,8 @@ TEST(MacroAssembler) {
 
   Handle<String> f1 =
       Factory::NewStringFromAscii(CStrVector("foobar"));
-  CHECK(Re2kInterpreter::Match(array, f1, captures, 0));
+  Handle<String> f1_16 = RegExpImpl::StringToTwoByte(f1);
+  CHECK(Re2kInterpreter::Match(array, f1_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(3, captures[1]);
   CHECK_EQ(1, captures[2]);
@@ -671,7 +688,8 @@ TEST(MacroAssembler) {
 
   Handle<String> f2 =
       Factory::NewStringFromAscii(CStrVector("barfoo"));
-  CHECK(!Re2kInterpreter::Match(array, f2, captures, 0));
+  Handle<String> f2_16 = RegExpImpl::StringToTwoByte(f2);
+  CHECK(!Re2kInterpreter::Match(array, f2_16, captures, 0));
   CHECK_EQ(42, captures[0]);
 }
 
@@ -770,5 +788,6 @@ TEST(SimplePropagation) {
 
 
 TEST(Graph) {
+  V8::Initialize(NULL);
   Execute("(a|^b|c)", "", true);
 }

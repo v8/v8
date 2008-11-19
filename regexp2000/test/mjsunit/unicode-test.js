@@ -9134,6 +9134,32 @@ for (idx in languages) {
   assertEquals(munged_sizes[i - 1], munged.length, "munged size " + i);
 }
 
+
+function hex(x) {
+  x &= 15;
+  if (x < 10) {
+    return String.fromCharCode(x + 48);
+  } else {
+    return String.fromCharCode(x + 97 - 10);
+  }
+}
+
+
+function dump_re(re) {
+  var out = "";
+  for (var i = 0; i < re.length; i++) {
+    var c = re.charCodeAt(i);
+    if (c >= 32 && c <= 126) {
+      out += re[i];
+    } else if (c < 256) {
+      out += "\\x" + hex(c >> 4) + hex(c);
+    } else {
+      out += "\\u" + hex(c >> 12) + hex(c >> 8) + hex(c >> 4) + hex(c);
+    }
+  }
+  print ("re = " + out);
+}
+
 var thai_l_thingy = "\u0e44";
 var thai_l_regexp = new RegExp(thai_l_thingy);
 var thai_l_regexp2 = new RegExp("[" + thai_l_thingy + "]");

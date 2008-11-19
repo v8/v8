@@ -38,17 +38,29 @@ namespace v8 { namespace internal {
 
 
 void Re2kAssembler::Emit(uint32_t byte) {
+  ASSERT(pc_ <= buffer_.length());
+  if (pc_ == buffer_.length()) {
+    Expand();
+  }
   buffer_[pc_++] = byte;
 }
 
 
 void Re2kAssembler::Emit16(uint32_t word) {
+  ASSERT(pc_ <= buffer_.length());
+  if (pc_ + 1 >= buffer_.length()) {
+    Expand();
+  }
   Store16(buffer_.start() + pc_, word);
   pc_ += 2;
 }
 
 
 void Re2kAssembler::Emit32(uint32_t word) {
+  ASSERT(pc_ <= buffer_.length());
+  if (pc_ + 3 >= buffer_.length()) {
+    Expand();
+  }
   Store32(buffer_.start() + pc_, word);
   pc_ += 4;
 }

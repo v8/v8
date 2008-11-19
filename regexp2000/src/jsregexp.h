@@ -30,6 +30,10 @@
 
 namespace v8 { namespace internal {
 
+
+class RegExpMacroAssembler;
+
+
 class RegExpImpl {
  public:
   // Creates a regular expression literal in the old space.
@@ -151,9 +155,8 @@ class RegExpImpl {
 
   static Handle<Object> Re2kExecOnce(Handle<JSRegExp> regexp,
                                      int num_captures,
-                                     Handle<String> subject,
+                                     Handle<String> subject16,
                                      int previous_index,
-                                     const uc16* utf8_subject,
                                      int* ovector,
                                      int ovector_length);
 
@@ -476,7 +479,7 @@ STATIC_CHECK(sizeof(NodeInfo) <= sizeof(int));  // NOLINT
 
 
 class SiblingList {
-public:
+ public:
   SiblingList() : list_(NULL) { }
   int length() {
     return list_ == NULL ? 0 : list_->length();
@@ -489,7 +492,7 @@ public:
   }
   void Add(RegExpNode* node) { list_->Add(node); }
   RegExpNode* Get(int index) { return list_->at(index); }
-private:
+ private:
   ZoneList<RegExpNode*>* list_;
 };
 
@@ -501,7 +504,7 @@ class RegExpNode: public ZoneObject {
   // Generates a goto to this node or actually generates the code at this point.
   // Until the implementation is complete we will return true for success and
   // false for failure.
-  bool GoTo(RegExpCompiler* compiler);
+  virtual bool GoTo(RegExpCompiler* compiler);
   Label* label();
 
   // Until the implementation is complete we will return true for success and
@@ -513,6 +516,8 @@ class RegExpNode: public ZoneObject {
   RegExpNode* GetSibling(NodeInfo* info);
   void EnsureSiblings() { siblings_.Ensure(this); }
   void AddSibling(RegExpNode* node) { siblings_.Add(node); }
+ protected:
+  inline void Bind(RegExpMacroAssembler* macro);
  private:
   Label label_;
   NodeInfo info_;
@@ -583,9 +588,9 @@ class TextNode: public SeqRegExpNode {
       on_failure_(on_failure),
       elms_(elms) { }
   virtual void Accept(NodeVisitor* visitor);
-  virtual bool Emit(RegExpCompiler* compiler) { return false; }
   virtual RegExpNode* PropagateInterest(NodeInfo* info);
   RegExpNode* on_failure() { return on_failure_; }
+  virtual bool Emit(RegExpCompiler* compiler);
   ZoneList<TextElement>* elements() { return elms_; }
  private:
   RegExpNode* on_failure_;
@@ -624,6 +629,7 @@ class EndNode: public RegExpNode {
   virtual bool Emit(RegExpCompiler* compiler);
   virtual RegExpNode* PropagateInterest(NodeInfo* info);
   virtual bool IsBacktrack() { return action_ == BACKTRACK; }
+  virtual bool GoTo(RegExpCompiler* compiler);
  private:
   Action action_;
 };
@@ -678,7 +684,7 @@ class ChoiceNode: public RegExpNode {
   bool being_calculated() { return being_calculated_; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
  private:
-  void GenerateGuard(RegExpCompiler* compiler,
+  void GenerateGuard(RegExpMacroAssembler* macro_assembler,
                      Guard *guard,
                      Label* on_failure);
   RegExpNode* on_failure_;
