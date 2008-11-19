@@ -69,11 +69,12 @@ void JumpTarget::Jump() {
 
   if (expected_frame_ == NULL) {
     expected_frame_ = current_frame;
-    code_generator_->set_frame(NULL);
+    expected_frame_->EnsureMergable();
     // The frame at the actual function return will always have height zero.
     if (code_generator_->IsActualFunctionReturn(this)) {
       expected_frame_->Forget(expected_frame_->height());
     }
+    code_generator_->set_frame(NULL);
   } else {
     // No code needs to be emitted to merge to the expected frame at the
     // actual function return.
@@ -100,6 +101,7 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
 
   if (expected_frame_ == NULL) {
     expected_frame_ = new VirtualFrame(current_frame);
+    expected_frame_->EnsureMergable();
     // The frame at the actual function return will always have height zero.
     if (code_generator_->IsActualFunctionReturn(this)) {
       expected_frame_->Forget(expected_frame_->height());
@@ -130,6 +132,7 @@ void JumpTarget::Call() {
   ASSERT(expected_frame_ == NULL);
 
   expected_frame_ = new VirtualFrame(current_frame);
+  expected_frame_->EnsureMergable();
   // Adjust the expected frame's height to account for the return address
   // pushed by the call instruction.
   expected_frame_->Adjust(1);
@@ -153,6 +156,7 @@ void JumpTarget::Bind() {
 
   if (expected_frame_ == NULL) {
     expected_frame_ = new VirtualFrame(current_frame);
+    expected_frame_->EnsureMergable();
     // The frame at the actual function return will always have height zero.
     if (code_generator_->IsActualFunctionReturn(this)) {
       expected_frame_->Forget(expected_frame_->height());

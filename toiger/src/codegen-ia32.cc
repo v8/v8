@@ -158,6 +158,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     frame_->AllocateStackSlots(scope_->num_stack_slots());
 
     if (scope_->num_heap_slots() > 0) {
+      frame_->SpillAll();
       Comment cmnt(masm_, "[ allocate local context");
       // Save the arguments object pointer, if any.
       if (arguments_object_allocated && !arguments_object_saved) {
@@ -200,17 +201,12 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         Variable* par = scope_->parameter(i);
         Slot* slot = par->slot();
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
-          // Save the arguments object pointer, if any.
-          if (arguments_object_allocated && !arguments_object_saved) {
-            frame_->EmitPush(ecx);
-            arguments_object_saved = true;
-          }
           ASSERT(!scope_->is_global_scope());  // no parameters in global scope
           __ mov(eax, frame_->ParameterAt(i));
           // Loads ecx with context; used below in RecordWrite.
-          __ mov(SlotOperand(slot, ecx), eax);
+          __ mov(SlotOperand(slot, edx), eax);
           int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-          __ RecordWrite(ecx, offset, eax, ebx);
+          __ RecordWrite(edx, offset, eax, ebx);
         }
       }
     }
@@ -240,6 +236,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
           // the stack, we rely on the property that loading a
           // zero-sized reference will not clobber the ecx register.
           if (!arguments_object_saved) {
+            frame_->SpillAll();
             frame_->EmitPush(ecx);
           }
           arguments_ref.SetValue(NOT_CONST_INIT);
@@ -524,10 +521,10 @@ void CodeGenerator::UnloadReference(Reference* ref) {
   Comment cmnt(masm_, "[ UnloadReference");
   int size = ref->size();
   if (size == 1) {
-    frame_->Pop(eax);
+    frame_->EmitPop(eax);
     __ mov(frame_->Top(), eax);
   } else if (size > 1) {
-    frame_->Pop(eax);
+    frame_->EmitPop(eax);
     frame_->Drop(size);
     frame_->EmitPush(eax);
   }
@@ -553,7 +550,7 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target, JumpTarget* false_target)
   Comment cmnt(masm_, "[ ToBoolean");
 
   // The value to convert should be popped from the stack.
-  frame_->Pop(eax);
+  frame_->EmitPop(eax);
 
   // Fast case checks.
 
@@ -711,7 +708,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 
   if (op == Token::COMMA) {
     // Simply discard left value.
-    frame_->Pop(eax);
+    frame_->EmitPop(eax);
     frame_->Drop();
     frame_->EmitPush(eax);
     return;
@@ -747,7 +744,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     DeferredInlineBinaryOperation* deferred =
         new DeferredInlineBinaryOperation(this, op, overwrite_mode, flags);
     // Fetch the operands from the stack.
-    frame_->Pop(ebx);  // get y
+    frame_->EmitPop(ebx);  // get y
     __ mov(eax, frame_->Top());  // get x
     // Generate the inline part of the code.
     deferred->GenerateInlineCode();
@@ -938,7 +935,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         deferred = new DeferredInlinedSmiAddReversed(this, int_value,
                                                      overwrite_mode);
       }
-      frame_->Pop(eax);
+      frame_->EmitPop(eax);
       __ add(Operand(eax), Immediate(value));
       __ j(overflow, deferred->enter(), not_taken);
       __ test(eax, Immediate(kSmiTagMask));
@@ -950,7 +947,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SUB: {
       DeferredCode* deferred = NULL;
-      frame_->Pop(eax);
+      frame_->EmitPop(eax);
       if (!reversed) {
         deferred = new DeferredInlinedSmiSub(this, int_value, overwrite_mode);
         __ sub(Operand(eax), Immediate(value));
@@ -970,7 +967,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SAR: {
       if (reversed) {
-        frame_->Pop(eax);
+        frame_->EmitPop(eax);
         frame_->EmitPush(Immediate(value));
         frame_->EmitPush(eax);
         GenericBinaryOperation(op, type, overwrite_mode);
@@ -979,7 +976,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         DeferredCode* deferred =
           new DeferredInlinedSmiOperation(this, Token::SAR, shift_value,
                                           overwrite_mode);
-        frame_->Pop(eax);
+        frame_->EmitPop(eax);
         __ test(eax, Immediate(kSmiTagMask));
         __ j(not_zero, deferred->enter(), not_taken);
         __ sar(eax, shift_value);
@@ -992,7 +989,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SHR: {
       if (reversed) {
-        frame_->Pop(eax);
+        frame_->EmitPop(eax);
         frame_->EmitPush(Immediate(value));
         frame_->EmitPush(eax);
         GenericBinaryOperation(op, type, overwrite_mode);
@@ -1001,7 +998,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         DeferredCode* deferred =
         new DeferredInlinedSmiOperation(this, Token::SHR, shift_value,
                                         overwrite_mode);
-        frame_->Pop(eax);
+        frame_->EmitPop(eax);
         __ test(eax, Immediate(kSmiTagMask));
         __ mov(ebx, Operand(eax));
         __ j(not_zero, deferred->enter(), not_taken);
@@ -1020,7 +1017,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SHL: {
       if (reversed) {
-        frame_->Pop(eax);
+        frame_->EmitPop(eax);
         frame_->EmitPush(Immediate(value));
         frame_->EmitPush(eax);
         GenericBinaryOperation(op, type, overwrite_mode);
@@ -1029,7 +1026,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         DeferredCode* deferred =
         new DeferredInlinedSmiOperation(this, Token::SHL, shift_value,
                                         overwrite_mode);
-        frame_->Pop(eax);
+        frame_->EmitPop(eax);
         __ test(eax, Immediate(kSmiTagMask));
         __ mov(ebx, Operand(eax));
         __ j(not_zero, deferred->enter(), not_taken);
@@ -1058,7 +1055,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         deferred = new DeferredInlinedSmiOperationReversed(this, op, int_value,
                                                            overwrite_mode);
       }
-      frame_->Pop(eax);
+      frame_->EmitPop(eax);
       __ test(eax, Immediate(kSmiTagMask));
       __ j(not_zero, deferred->enter(), not_taken);
       if (op == Token::BIT_AND) {
@@ -1078,7 +1075,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       if (!reversed) {
         frame_->EmitPush(Immediate(value));
       } else {
-        frame_->Pop(eax);
+        frame_->EmitPop(eax);
         frame_->EmitPush(Immediate(value));
         frame_->EmitPush(eax);
       }
@@ -1124,11 +1121,11 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
   // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
   if (cc == greater || cc == less_equal) {
     cc = ReverseCondition(cc);
-    frame_->Pop(edx);
-    frame_->Pop(eax);
+    frame_->EmitPop(edx);
+    frame_->EmitPop(eax);
   } else {
-    frame_->Pop(eax);
-    frame_->Pop(edx);
+    frame_->EmitPop(eax);
+    frame_->EmitPop(edx);
   }
 
   // Check for the smi case.
@@ -1200,7 +1197,7 @@ void CodeGenerator::SmiComparison(Condition cc,
 
   SmiComparisonDeferred* deferred =
       new SmiComparisonDeferred(this, cc, strict, int_value);
-  frame_->Pop(eax);
+  frame_->EmitPop(eax);
   __ test(eax, Immediate(kSmiTagMask));
   __ j(not_zero, deferred->enter(), not_taken);
   // Test smi equality by pointer comparison.
@@ -1281,6 +1278,7 @@ void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
 
 
 void CodeGenerator::VisitBlock(Block* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ Block");
   RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -1293,6 +1291,7 @@ void CodeGenerator::VisitBlock(Block* node) {
 
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
+  frame_->SpillAll();
   frame_->EmitPush(Immediate(pairs));
   frame_->EmitPush(esi);
   frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
@@ -1302,6 +1301,8 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 
 
 void CodeGenerator::VisitDeclaration(Declaration* node) {
+  frame_->SpillAll();
+
   Comment cmnt(masm_, "[ Declaration");
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
@@ -1363,6 +1364,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
 
 
 void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ ExpressionStatement");
   RecordStatementPosition(node);
   Expression* expression = node->expression();
@@ -1374,12 +1376,14 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
 
 
 void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "// EmptyStatement");
   // nothing to do
 }
 
 
 void CodeGenerator::VisitIfStatement(IfStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ IfStatement");
   // Generate different code depending on which parts of the if statement
   // are present or not.
@@ -1477,6 +1481,7 @@ void CodeGenerator::CleanStack(int num_bytes) {
 
 
 void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ ContinueStatement");
   RecordStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
@@ -1485,6 +1490,7 @@ void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
 
 
 void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ BreakStatement");
   RecordStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
@@ -1493,12 +1499,13 @@ void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
 
 
 void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ ReturnStatement");
   RecordStatementPosition(node);
   Load(node->expression());
 
   // Move the function result into eax
-  frame_->Pop(eax);
+  frame_->EmitPop(eax);
 
   // If we're inside a try statement or the return instruction
   // sequence has been generated, we just jump to that
@@ -1532,6 +1539,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 
 
 void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ WithEnterStatement");
   RecordStatementPosition(node);
   Load(node->expression());
@@ -1552,6 +1560,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
 
 
 void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ WithExitStatement");
   // Pop context.
   __ mov(esi, ContextOperand(esi, Context::PREVIOUS_INDEX));
@@ -1586,7 +1595,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // placeholders, and fill in the addresses after the labels have been
   // bound.
 
-  frame_->Pop(eax);  // supposed Smi
+  frame_->EmitPop(eax);  // supposed Smi
   // check range of value, if outside [0..length-1] jump to default/end label.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
 
@@ -1638,6 +1647,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
 
 
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ SwitchStatement");
   RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -1727,6 +1737,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
 
 void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ LoopStatement");
   RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -1905,6 +1916,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
 
 void CodeGenerator::VisitForInStatement(ForInStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ ForInStatement");
   RecordStatementPosition(node);
 
@@ -1930,7 +1942,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Both SpiderMonkey and kjs ignore null and undefined in contrast
   // to the specification.  12.6.4 mandates a call to ToObject.
-  frame_->Pop(eax);
+  frame_->EmitPop(eax);
 
   // eax: value to be iterated over
   __ cmp(eax, Factory::undefined_value());
@@ -2072,7 +2084,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Next.
   node->continue_target()->Bind();
-  frame_->Pop(eax);
+  frame_->EmitPop(eax);
   __ add(Operand(eax), Immediate(Smi::FromInt(1)));
   frame_->EmitPush(eax);
   entry.Jump();
@@ -2090,6 +2102,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
 
 void CodeGenerator::VisitTryCatch(TryCatch* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ TryCatch");
 
   JumpTarget try_block(this);
@@ -2169,7 +2182,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
   // If we can fall off the end of the try block, unlink from try chain.
   if (frame_ != NULL) {
-    frame_->Pop(eax);
+    frame_->EmitPop(eax);
     __ mov(Operand::StaticVariable(handler_address), eax);  // TOS == next_sp
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
     // next_sp popped.
@@ -2193,7 +2206,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       __ lea(esp, Operand(edx, kNextOffset));
       frame_->Forget(frame_->height() - handler_height);
 
-      frame_->Pop(Operand::StaticVariable(handler_address));
+      frame_->EmitPop(Operand::StaticVariable(handler_address));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
       // next_sp popped.
       shadows[i]->original_target()->Jump();
@@ -2205,6 +2218,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
 
 void CodeGenerator::VisitTryFinally(TryFinally* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ TryFinally");
 
   // State: Used to keep track of reason for entering the finally
@@ -2295,7 +2309,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // Reload sp from the top handler, because some statements that we
   // break from (eg, for...in) may have left stuff on the stack.
   // Preserve the TOS in a register across stack manipulation.
-  frame_->Pop(eax);
+  frame_->EmitPop(eax);
   ExternalReference handler_address(Top::k_handler_address);
   __ mov(edx, Operand::StaticVariable(handler_address));
   const int kNextOffset = StackHandlerConstants::kNextOffset +
@@ -2303,7 +2317,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   __ lea(esp, Operand(edx, kNextOffset));
   frame_->Forget(frame_->height() - handler_height);
 
-  frame_->Pop(Operand::StaticVariable(handler_address));
+  frame_->EmitPop(Operand::StaticVariable(handler_address));
   frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
   // Next_sp popped.
   frame_->EmitPush(eax);
@@ -2328,8 +2342,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   if (frame_ != NULL) {
     JumpTarget exit(this);
     // Restore state and return value or faked TOS.
-    frame_->Pop(ecx);
-    frame_->Pop(eax);
+    frame_->EmitPop(ecx);
+    frame_->EmitPop(eax);
 
     // Generate code to jump to the right destination for all used
     // (formerly) shadowing targets.
@@ -2355,6 +2369,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
 
 void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ DebuggerStatement");
   RecordStatementPosition(node);
   frame_->CallRuntime(Runtime::kDebugBreak, 0);
@@ -2376,6 +2391,7 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 
 
 void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
@@ -2388,12 +2404,14 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
 
 void CodeGenerator::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
   InstantiateBoilerplate(node->boilerplate());
 }
 
 
 void CodeGenerator::VisitConditional(Conditional* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ Conditional");
   JumpTarget then(this);
   JumpTarget else_(this);
@@ -2454,12 +2472,14 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 
 
 void CodeGenerator::VisitSlot(Slot* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ Slot");
   LoadFromSlot(node, typeof_state());
 }
 
 
 void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ VariableProxy");
   Variable* var = node->var();
   Expression* expr = var->rewrite();
@@ -2482,6 +2502,7 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 
 
 void CodeGenerator::VisitLiteral(Literal* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ Literal");
   if (node->handle()->IsSmi() && !IsInlineSmi(node)) {
     // To prevent long attacker-controlled byte sequences in code, larger
@@ -2526,6 +2547,7 @@ void RegExpDeferred::Generate() {
 
 
 void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ RegExp Literal");
   RegExpDeferred* deferred = new RegExpDeferred(this, node);
 
@@ -2586,6 +2608,7 @@ void ObjectLiteralDeferred::Generate() {
 
 
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ ObjectLiteral");
   ObjectLiteralDeferred* deferred = new ObjectLiteralDeferred(this, node);
 
@@ -2627,7 +2650,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           __ mov(eax, frame_->Top());
           frame_->EmitPush(eax);
           Load(property->value());
-          frame_->Pop(eax);
+          frame_->EmitPop(eax);
           __ Set(ecx, Immediate(key));
           frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
           frame_->Drop();
@@ -2676,6 +2699,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 
 
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   // Call runtime to create the array literal.
@@ -2702,7 +2726,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
       Load(value);
 
       // Get the value off the stack.
-      frame_->Pop(eax);
+      frame_->EmitPop(eax);
       // Fetch the object literal while leaving on the stack.
       __ mov(ecx, frame_->Top());
       // Get the elements array.
@@ -2727,6 +2751,7 @@ bool CodeGenerator::IsInlineSmi(Literal* literal) {
 
 
 void CodeGenerator::VisitAssignment(Assignment* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ Assignment");
 
   RecordStatementPosition(node);
@@ -2776,6 +2801,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
 
 
 void CodeGenerator::VisitThrow(Throw* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ Throw");
 
   Load(node->exception());
@@ -2786,6 +2812,7 @@ void CodeGenerator::VisitThrow(Throw* node) {
 
 
 void CodeGenerator::VisitProperty(Property* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ Property");
   Reference property(this, node);
   property.GetValue(typeof_state());
@@ -2793,6 +2820,7 @@ void CodeGenerator::VisitProperty(Property* node) {
 
 
 void CodeGenerator::VisitCall(Call* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ Call");
 
   ZoneList<Expression*>* args = node->arguments();
@@ -2924,6 +2952,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
 
 void CodeGenerator::VisitCallNew(CallNew* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ CallNew");
 
   // According to ECMA-262, section 11.2.2, page 44, the function
@@ -2967,7 +2996,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
-  frame_->Pop(eax);
+  frame_->EmitPop(eax);
   __ test(eax, Immediate(kSmiTagMask));
   cc_reg_ = zero;
 }
@@ -2976,7 +3005,7 @@ void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
-  frame_->Pop(eax);
+  frame_->EmitPop(eax);
   __ test(eax, Immediate(kSmiTagMask | 0x80000000));
   cc_reg_ = zero;
 }
@@ -3001,7 +3030,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
   // Load the string into eax.
   Load(args->at(0));
-  frame_->Pop(eax);
+  frame_->EmitPop(eax);
   // If the receiver is a smi return undefined.
   ASSERT(kSmiTag == 0);
   __ test(eax, Immediate(kSmiTagMask));
@@ -3009,7 +3038,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
   // Load the index into ebx.
   Load(args->at(1));
-  frame_->Pop(ebx);
+  frame_->EmitPop(ebx);
 
   // Check for negative or non-smi index.
   ASSERT(kSmiTag == 0);
@@ -3109,7 +3138,7 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   // object is a smi.  This can't be done with the usual test opcode so
   // we copy the object to ecx and do some destructive ops on it that
   // result in the right CC bits.
-  frame_->Pop(eax);
+  frame_->EmitPop(eax);
   __ mov(ecx, Operand(eax));
   __ and_(ecx, kSmiTagMask);
   __ xor_(ecx, kSmiTagMask);
@@ -3208,14 +3237,15 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   // Load the two objects into registers and perform the comparison.
   Load(args->at(0));
   Load(args->at(1));
-  frame_->Pop(eax);
-  frame_->Pop(ecx);
+  frame_->EmitPop(eax);
+  frame_->EmitPop(ecx);
   __ cmp(eax, Operand(ecx));
   cc_reg_ = equal;
 }
 
 
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
+  frame_->SpillAll();
   if (CheckForInlineRuntimeCall(node)) {
     return;
   }
@@ -3254,6 +3284,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
 
 void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
+  frame_->SpillAll();
   // Note that because of NOT and an optimization in comparison of a typeof
   // expression to a literal string, this function can fail to leave a value
   // on top of the frame or in the cc register.
@@ -3328,7 +3359,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       case Token::SUB: {
         UnarySubStub stub;
         // TODO(1222589): remove dependency of TOS being cached inside stub
-        frame_->Pop(eax);
+        frame_->EmitPop(eax);
         frame_->CallStub(&stub, 0);
         frame_->EmitPush(eax);
         break;
@@ -3338,7 +3369,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         // Smi check.
         JumpTarget smi_label(this);
         JumpTarget continue_label(this);
-        frame_->Pop(eax);
+        frame_->EmitPop(eax);
         __ test(eax, Immediate(kSmiTagMask));
         smi_label.Branch(zero, taken);
 
@@ -3361,7 +3392,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       case Token::ADD: {
         // Smi check.
         JumpTarget continue_label(this);
-        frame_->Pop(eax);
+        frame_->EmitPop(eax);
         __ test(eax, Immediate(kSmiTagMask));
         continue_label.Branch(zero);
 
@@ -3466,6 +3497,7 @@ void CountOperationDeferred::Generate() {
 
 
 void CodeGenerator::VisitCountOperation(CountOperation* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ CountOperation");
 
   bool is_postfix = node->is_postfix();
@@ -3494,7 +3526,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
         new CountOperationDeferred(this, is_postfix, is_increment,
                                    target.size() * kPointerSize);
 
-    frame_->Pop(eax);  // Load TOS into eax for calculations below
+    frame_->EmitPop(eax);  // Load TOS into eax for calculations below
 
     // Postfix: Store the old value as the result.
     if (is_postfix) {
@@ -3529,6 +3561,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
 
 void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
+  frame_->SpillAll();
   // Note that due to an optimization in comparison operations (typeof
   // compared to a string literal), we can evaluate a binary expression such
   // as AND or OR and not leave a value on the frame or in the cc register.
@@ -3668,6 +3701,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
 
 void CodeGenerator::VisitThisFunction(ThisFunction* node) {
+  frame_->SpillAll();
   frame_->EmitPush(frame_->Function());
 }
 
@@ -3685,6 +3719,7 @@ class InstanceofStub: public CodeStub {
 
 
 void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ CompareOperation");
 
   // Get the expressions from the node.
@@ -3704,7 +3739,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     // The 'null' value can only be equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
       Load(left_is_null ? right : left);
-      frame_->Pop(eax);
+      frame_->EmitPop(eax);
       __ cmp(eax, Factory::null_value());
 
       // The 'null' value is only equal to 'undefined' if using non-strict
@@ -3742,7 +3777,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
     // Load the operand and move it to register edx.
     LoadTypeofExpression(operation->expression());
-    frame_->Pop(edx);
+    frame_->EmitPop(edx);
 
     if (check->Equals(Heap::number_symbol())) {
       __ test(edx, Immediate(kSmiTagMask));
@@ -4051,7 +4086,7 @@ void Reference::SetValue(InitState init_state) {
         // Variable::CONST because of const declarations which will
         // initialize consts to 'the hole' value and by doing so, end up
         // calling this code.
-        frame->Pop(eax);
+        frame->EmitPop(eax);
         __ mov(cgen_->SlotOperand(slot, ecx), eax);
         frame->EmitPush(eax);  // RecordWrite may destroy the value in eax.
         if (slot->type() == Slot::CONTEXT) {
@@ -4075,7 +4110,7 @@ void Reference::SetValue(InitState init_state) {
       Handle<String> name(GetName());
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      frame->Pop(eax);
+      frame->EmitPop(eax);
       // Setup the name register.
       __ mov(ecx, name);
       frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
@@ -4091,7 +4126,7 @@ void Reference::SetValue(InitState init_state) {
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      frame->Pop(eax);
+      frame->EmitPop(eax);
       frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
       frame->EmitPush(eax);  // IC call leaves result in eax, push it out
       break;

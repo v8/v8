@@ -39,11 +39,50 @@ namespace v8 { namespace internal {
 // only one kind, in-memory.  Their actual location is given by their
 // position in the virtual frame.
 
-class Element BASE_EMBEDDED {
+class FrameElement BASE_EMBEDDED {
  public:
-  Element() {}
+  enum Type { MEMORY, CONSTANT, LAST_TYPE = CONSTANT };
 
-  bool matches(const Element& other) { return true; }
+  FrameElement() : type_(MEMORY) {}
+
+  explicit FrameElement(Handle<Object> value) : type_(CONSTANT | kDirtyBit) {
+    data_.handle_ = value.location();
+  }
+
+  Type type() const { return static_cast<Type>(type_ & kTypeMask); }
+
+  bool is_dirty() const {
+    STATIC_ASSERT(kDirtyBit > LAST_TYPE);
+    return (type_ & kDirtyBit) != 0;
+  }
+
+  void set_dirty() {
+    ASSERT(type() != MEMORY);
+    type_ = type_ | kDirtyBit;
+  }
+
+  void clear_dirty() {
+    ASSERT(type() != MEMORY);
+    type_ = type_ & ~kDirtyBit;
+  }
+
+  Handle<Object> handle() const {
+    ASSERT(type() == CONSTANT);
+    return Handle<Object>(data_.handle_);
+  }
+
+ private:
+  static const int kDirtyBit = 1 << 8;
+  static const int kTypeMask = kDirtyBit - 1;
+
+  // The element's type and a dirty bit.  The dirty bit can be cleared
+  // for non-memory elements to indicate that the element agrees with
+  // the value in memory in the actual frame.
+  int type_;
+
+  union {
+    Object** handle_;
+  } data_;
 };
 
 
@@ -58,12 +97,10 @@ class Element BASE_EMBEDDED {
 
 class VirtualFrame : public Malloced {
  public:
-  // Construct a virtual frame with the given code generator used to
-  // generate code.
+  // Construct an initial virtual frame on entry to a JS function.
   explicit VirtualFrame(CodeGenerator* cgen);
 
-  // Construct a virtual frame that is a clone of an existing one, initially
-  // with an identical state.
+  // Construct a virtual frame as a clone of an existing one.
   explicit VirtualFrame(VirtualFrame* original);
 
   // The height of the virtual expression stack.
@@ -71,12 +108,21 @@ class VirtualFrame : public Malloced {
     return elements_.length() - expression_base_index();
   }
 
-  // Add extra in-memory elements to the top of the frame without generating
-  // code.
+  // Add extra in-memory elements to the top of the frame to match an actual
+  // frame (eg, the frame after an exception handler is pushed).  No code is
+  // emitted.
   void Adjust(int count);
 
-  // Forget frame elements without generating code.
+  // Forget elements from the top of the frame to match an actual frame (eg,
+  // the frame after a runtime call).  No code is emitted.
   void Forget(int count);
+
+  // Spill all values from the frame to memory.
+  void SpillAll();
+
+  // Ensure that this frame is in a state where an arbitrary frame of the
+  // right size could be merged to it.  May emit code.
+  void EnsureMergable();
 
   // Make this virtual frame have a state identical to an expected virtual
   // frame.  As a side effect, code may be emitted to make this frame match
@@ -158,10 +204,10 @@ class VirtualFrame : public Malloced {
   // Drop one element.
   void Drop();
 
-  // Pop and save an element from the top of the expression stack.  May emit
-  // code.
-  void Pop(Register reg);
-  void Pop(Operand operand);
+  // Pop and save an element from the top of the expression stack and emit a
+  // corresponding pop instruction.
+  void EmitPop(Register reg);
+  void EmitPop(Operand operand);
 
   // Push an element on top of the expression stack and emit a corresponding
   // push instruction.
@@ -170,6 +216,9 @@ class VirtualFrame : public Malloced {
   void EmitPush(Immediate immediate);
 
  private:
+  // An illegal index into the virtual frame.
+  static const int kIllegalIndex = -1;
+
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
   static const int kFunctionOffset = JavaScriptFrameConstants::kFunctionOffset;
   static const int kContextOffset = StandardFrameConstants::kContextOffset;
@@ -178,11 +227,17 @@ class VirtualFrame : public Malloced {
 
   MacroAssembler* masm_;
 
-  List<Element> elements_;
+  List<FrameElement> elements_;
 
   int parameter_count_;
   int local_count_;
 
+  // The index of the element that is at the processor's stack pointer
+  // (the esp register).
+  int stack_pointer_;
+
+  // The index of the element that is at the processor's frame pointer
+  // (the ebp register).
   int frame_pointer_;
 
   // The index of the first parameter.  The receiver lies below the first
@@ -196,6 +251,16 @@ class VirtualFrame : public Malloced {
 
   // The index of the base of the expression stack.
   int expression_base_index() const { return local0_index() + local_count_; }
+
+  // Convert a frame index into a frame pointer relative offset into the
+  // actual stack.
+  int fp_relative(int index) const {
+    return (frame_pointer_ - index) * kPointerSize;
+  }
+
+  // Spill the topmost elements of the frame to memory (eg, they are the
+  // arguments to a call) and all registers.
+  void PrepareForCall(int count);
 };
 
 
