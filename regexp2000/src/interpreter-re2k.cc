@@ -67,7 +67,7 @@ static void TraceInterpreter(const byte* code_base,
                                            BC_##name##_LENGTH,                \
                                            #name);
 #else
-# define BYTECODE(name) case BC_##name:
+# define BYTECODE(name) case BC_##name:  // NOLINT
 #endif
 
 

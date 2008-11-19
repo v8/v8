@@ -247,11 +247,11 @@ js1_5/Regress/regress-247179: FAIL_OK
 
 
 # Regexp too long for PCRE.
-js1_5/Regress/regress-280769: FAIL_OK
-js1_5/Regress/regress-280769-1: FAIL_OK
-js1_5/Regress/regress-280769-2: FAIL_OK
-js1_5/Regress/regress-280769-4: FAIL_OK
-js1_5/Regress/regress-280769-5: FAIL_OK
+js1_5/Regress/regress-280769: PASS || FAIL
+js1_5/Regress/regress-280769-1: PASS || FAIL
+js1_5/Regress/regress-280769-2: PASS || FAIL
+js1_5/Regress/regress-280769-4: PASS || FAIL
+js1_5/Regress/regress-280769-5: PASS || FAIL
 
 
 # We do not support static RegExp.multiline - should we?.
@@ -489,7 +489,7 @@ js1_5/Regress/regress-336100: FAIL_OK
 # behavior and not the ECMA spec.
 ecma_3/RegExp/15.10.2-1: FAIL_OK
 ecma_3/RegExp/perlstress-001: FAIL_OK
-ecma_3/RegExp/regress-334158: FAIL_OK
+ecma_3/RegExp/regress-334158: PASS || FAIL
 
 
 # This test requires a failure if we try to compile a function with more
