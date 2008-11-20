@@ -124,6 +124,32 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 }
 
 
+// Helper function used to check that a value is either not a function
+// or is loaded if it is a function.
+static void GenerateCheckNonFunctionOrLoaded(MacroAssembler* masm,
+                                             Label* miss,
+                                             Register value,
+                                             Register scratch) {
+  Label done;
+  // Check if the value is a Smi.
+  __ tst(value, Operand(kSmiTagMask));
+  __ b(eq, &done);
+  // Check if the value is a function.
+  __ ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ cmp(scratch, Operand(JS_FUNCTION_TYPE));
+  __ b(ne, &done);
+  // Check if the function has been loaded.
+  __ ldr(scratch,
+         FieldMemOperand(value, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(scratch,
+         FieldMemOperand(scratch, SharedFunctionInfo::kLazyLoadDataOffset));
+  __ cmp(scratch, Operand(Factory::undefined_value()));
+  __ b(ne, miss);
+  __ bind(&done);
+}
+
+
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
@@ -342,6 +368,12 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ cmp(r0, Operand(JS_FUNCTION_TYPE));
   __ b(ne, &miss);
 
+  // Check that the function has been loaded.
+  __ ldr(r0, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r0, FieldMemOperand(r0, SharedFunctionInfo::kLazyLoadDataOffset));
+  __ cmp(r0, Operand(Factory::undefined_value()));
+  __ b(ne, &miss);
+
   // Patch the function on the stack; 1 ~ receiver.
   __ str(r1, MemOperand(sp, (argc + 1) * kPointerSize));
 
@@ -447,6 +479,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   __ bind(&probe);
   GenerateDictionaryLoad(masm, &done, &miss, r1, r0);
+  GenerateCheckNonFunctionOrLoaded(masm, &miss, r0, r1);
   __ Ret();
 
   // Global object access: Check access rights.

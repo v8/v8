@@ -134,7 +134,7 @@ DEFINE_bool(gc_global, false, "always perform global GCs")
 DEFINE_int(gc_interval, -1, "garbage collect after <n> allocations")
 DEFINE_bool(trace_gc, false,
             "print one trace line following each garbage collection")
-DEFINE_bool(collect_maps, true,
+DEFINE_bool(collect_maps, false,
             "garbage collect maps from which no objects can be reached")
 
 // ic.cc
