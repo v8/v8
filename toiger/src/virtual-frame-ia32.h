@@ -137,9 +137,8 @@ class VirtualFrame : public Malloced {
   void Enter();
   void Exit();
 
-  // Allocate and initialize the frame-allocated locals.  The number of
-  // locals is known from the frame's code generator's state (specifically
-  // its scope).  As a side effect, code may be emitted.
+  // Allocate and initialize the frame-allocated locals.  The eax register
+  // us clobbered.
   void AllocateStackSlots(int count);
 
   // The current top of the expression stack as an assembly operand.

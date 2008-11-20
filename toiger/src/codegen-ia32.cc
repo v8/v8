@@ -1228,7 +1228,7 @@ class CallFunctionStub: public CodeStub {
 // Call the function just below TOS on the stack with the given
 // arguments. The receiver is the TOS.
 void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
-                                          int position) {
+                                      int position) {
   // Push the arguments ("left-to-right") on the stack.
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {

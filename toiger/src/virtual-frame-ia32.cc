@@ -206,8 +206,19 @@ void VirtualFrame::Exit() {
 void VirtualFrame::AllocateStackSlots(int count) {
   ASSERT(height() == 0);
   local_count_ = count;
-  for (int i = 0; i < count; i++) {
-    elements_.Add(FrameElement(Factory::undefined_value()));
+
+  if (count > 0) {
+    Comment cmnt(masm_, "[ Allocate space for locals");
+    // The locals are constants (the undefined value), but we sync them with
+    // the actual frame to allocate space for spilling them.
+    FrameElement initial_value(Factory::undefined_value());
+    initial_value.clear_dirty();
+    __ Set(eax, Immediate(Factory::undefined_value()));
+    for (int i = 0; i < count; i++) {
+      elements_.Add(initial_value);
+      stack_pointer_++;
+      __ push(eax);
+    }
   }
 }
 
