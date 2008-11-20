@@ -1746,6 +1746,12 @@ static const uc16 kDigitRanges[kDigitRangeCount] = {
 };
 
 
+static const int kLineTerminatorRangeCount = 6;
+static const uc16 kLineTerminatorRanges[kLineTerminatorRangeCount] = {
+  0x000A, 0x000A, 0x000D, 0x000D, 0x2028, 0x2029
+};
+
+
 static void AddClass(const uc16* elmv,
                      int elmc,
                      ZoneList<CharacterRange>* ranges) {
@@ -1794,6 +1800,14 @@ void CharacterRange::AddClassEscape(uc16 type,
       AddClassNegated(kDigitRanges, kDigitRangeCount, ranges);
       break;
     case '.':
+      AddClassNegated(kLineTerminatorRanges,
+                      kLineTerminatorRangeCount,
+                      ranges);
+      break;
+    // This is not a character range as defined by the spec but a
+    // convenient shorthand for a character class that matches any
+    // character.
+    case '*':
       ranges->Add(CharacterRange::Everything());
       break;
     default:
@@ -2211,7 +2225,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
   RegExpNode* node = RegExpQuantifier::ToNode(0,
                                               RegExpQuantifier::kInfinity,
                                               false,
-                                              new RegExpCharacterClass('.'),
+                                              new RegExpCharacterClass('*'),
                                               &compiler,
                                               captured_body,
                                               compiler.backtrack());

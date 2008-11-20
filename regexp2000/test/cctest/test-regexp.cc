@@ -219,10 +219,30 @@ TEST(Parser) {
   CHECK_ESCAPES("\\1112", true);
   CHECK_ESCAPES("\\0", true);
   CHECK_ESCAPES("(a)\\1", false);
+
+  CHECK_PARSE_EQ("a{}", "'a{}'");
+  CHECK_PARSE_EQ("a{,}", "'a{,}'");
+  CHECK_PARSE_EQ("a{", "'a{'");
+  CHECK_PARSE_EQ("a{z}", "'a{z}'");
+  CHECK_PARSE_EQ("a{1z}", "'a{1z}'");
+  CHECK_PARSE_EQ("a{12z}", "'a{12z}'");
+  CHECK_PARSE_EQ("a{12,", "'a{12,'");
+  CHECK_PARSE_EQ("a{12,3b", "'a{12,3b'");
+  CHECK_PARSE_EQ("{}", "'{}'");
+  CHECK_PARSE_EQ("{,}", "'{,}'");
+  CHECK_PARSE_EQ("{", "'{'");
+  CHECK_PARSE_EQ("{z}", "'{z}'");
+  CHECK_PARSE_EQ("{1z}", "'{1z}'");
+  CHECK_PARSE_EQ("{12z}", "'{12z}'");
+  CHECK_PARSE_EQ("{12,", "'{12,'");
+  CHECK_PARSE_EQ("{12,3b", "'{12,3b'");
 }
 
 TEST(ParserRegression) {
   CHECK_PARSE_EQ("[A-Z$-][x]", "(! [A-Z $ -] [x])");
+  CHECK_PARSE_EQ("a{3,4*}", "(: 'a{3,' (# 0 - g '4') '}')");
+  CHECK_PARSE_EQ("{", "'{'");
+  CHECK_PARSE_EQ("a|", "(| 'a' %)");
 }
 
 static void ExpectError(const char* input,
@@ -243,15 +263,6 @@ TEST(Errors) {
   V8::Initialize(NULL);
   const char* kEndBackslash = "\\ at end of pattern";
   ExpectError("\\", kEndBackslash);
-  const char* kInvalidQuantifier = "Invalid quantifier";
-  ExpectError("a{}", kInvalidQuantifier);
-  ExpectError("a{,}", kInvalidQuantifier);
-  ExpectError("a{", kInvalidQuantifier);
-  ExpectError("a{z}", kInvalidQuantifier);
-  ExpectError("a{1z}", kInvalidQuantifier);
-  ExpectError("a{12z}", kInvalidQuantifier);
-  ExpectError("a{12,", kInvalidQuantifier);
-  ExpectError("a{12,3b", kInvalidQuantifier);
   const char* kUnterminatedGroup = "Unterminated group";
   ExpectError("(foo", kUnterminatedGroup);
   const char* kInvalidGroup = "Invalid group";
@@ -263,6 +274,13 @@ TEST(Errors) {
   ExpectError("[a-\\w]", kIllegalCharacterClass);
   const char* kEndControl = "\\c at end of pattern";
   ExpectError("\\c", kEndControl);
+  static char* kNothingToRepeat = "Nothing to repeat";
+  ExpectError("*", kNothingToRepeat);
+  ExpectError("?", kNothingToRepeat);
+  ExpectError("+", kNothingToRepeat);
+  ExpectError("{1}", kNothingToRepeat);
+  ExpectError("{1,2}", kNothingToRepeat);
+  ExpectError("{1,}", kNothingToRepeat);
 }
 
 
@@ -313,7 +331,13 @@ static bool NotWord(uc16 c) {
 
 
 static bool Dot(uc16 c) {
-  return true;
+  switch (c) {
+    //   CR           LF           LS           PS
+    case 0x000A: case 0x000D: case 0x2028: case 0x2029:
+      return false;
+    default:
+      return true;
+  }
 }
 
 

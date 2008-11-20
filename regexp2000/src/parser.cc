@@ -320,7 +320,7 @@ class RegExpBuilder {
  private:
   void FlushCharacters();
   void FlushText();
-  bool FlushTerms();
+  void FlushTerms();
   bool pending_empty_;
   ZoneList<uc16>* characters_;
   BufferedZoneList<RegExpTree, 2> terms_;
@@ -410,20 +410,17 @@ void RegExpBuilder::AddAssertion(RegExpTree* assert) {
 
 
 void RegExpBuilder::NewAlternative() {
-  if (!FlushTerms()) {
-    alternatives_.Add(RegExpEmpty::GetInstance());
-  }
+  FlushTerms();
 }
 
 
-bool RegExpBuilder::FlushTerms() {
+void RegExpBuilder::FlushTerms() {
   FlushText();
   int num_terms = terms_.length();
-  if (num_terms == 0) {
-    return false;
-  }
   RegExpTree* alternative;
-  if (num_terms == 1) {
+  if (num_terms == 0) {
+    alternative = RegExpEmpty::GetInstance();
+  } else if (num_terms == 1) {
     alternative = terms_.last();
   } else {
     alternative = new RegExpAlternative(terms_.GetList());
@@ -431,7 +428,6 @@ bool RegExpBuilder::FlushTerms() {
   alternatives_.Add(alternative);
   terms_.Clear();
   LAST(ADD_NONE);
-  return true;
 }
 
 
@@ -506,7 +502,7 @@ class RegExpParser {
 
   // Parses a {...,...} quantifier and stores the range in the given
   // out parameters.
-  void* ParseIntervalQuantifier(int* min_out, int* max_out, bool* ok);
+  bool ParseIntervalQuantifier(int* min_out, int* max_out);
 
   // Parses and returns a single escaped character.  The character
   // must not be 'b' or 'B' since they are usually handle specially.
@@ -538,7 +534,7 @@ class RegExpParser {
   int captures_started() { return captures_ == NULL ? 0 : captures_->length(); }
   int position() { return next_pos_ - 1; }
 
-  static const uc32 kEndMarker = unibrow::Utf8::kBadChar;
+  static const uc32 kEndMarker = (1 << 21);
  private:
   uc32 current() { return current_; }
   bool has_more() { return has_more_; }
@@ -3602,8 +3598,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
     case '*':
     case '+':
     case '?':
-    case '{':
-      ReportError(CStrVector("Nothing to repeat."), CHECK_OK);
+      ReportError(CStrVector("Nothing to repeat"), CHECK_OK);
     case '^': {
       Advance();
       RegExpAssertion::Type type =
@@ -3754,13 +3749,20 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
       }
       has_character_escapes_ = true;
       break;
+    case '{': {
+      int dummy;
+      if (ParseIntervalQuantifier(&dummy, &dummy)) {
+        ReportError(CStrVector("Nothing to repeat"), CHECK_OK);
+      }
+      // fallthrough
+    }
     default:
       builder.AddCharacter(current());
       Advance();
       break;
     }  // end switch(current())
 
-    has_read_atom:
+   has_read_atom:
     int min;
     int max;
     switch (current()) {
@@ -3785,8 +3787,11 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
       Advance();
       break;
     case '{':
-      ParseIntervalQuantifier(&min, &max, CHECK_OK);
-      break;
+      if (ParseIntervalQuantifier(&min, &max)) {
+        break;
+      } else {
+        continue;
+      }
     default:
       continue;
     }
@@ -3876,19 +3881,14 @@ bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
 //   { DecimalDigits }
 //   { DecimalDigits , }
 //   { DecimalDigits , DecimalDigits }
-void* RegExpParser::ParseIntervalQuantifier(int* min_out,
-                                            int* max_out,
-                                            bool* ok) {
+bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
   ASSERT_EQ(current(), '{');
-  static const char* kInvalidQuantifier = "Invalid quantifier";
+  int start = position();
   Advance();
   int min = 0;
   if (!IsDecimalDigit(current())) {
-    // JSC allows {} and {,} as quantifiers (and { and } and all
-    // sorts of crazy stuff) but my puny human brain has been unable
-    // to figure out what they mean exactly, if anything.  For now
-    // we follow the spec and report a syntax error.
-    ReportError(CStrVector(kInvalidQuantifier), CHECK_OK);
+    Reset(start);
+    return false;
   }
   while (IsDecimalDigit(current())) {
     min = 10 * min + (current() - '0');
@@ -3909,16 +3909,18 @@ void* RegExpParser::ParseIntervalQuantifier(int* min_out,
         Advance();
       }
       if (current() != '}') {
-        ReportError(CStrVector(kInvalidQuantifier), CHECK_OK);
+        Reset(start);
+        return false;
       }
       Advance();
     }
   } else {
-    ReportError(CStrVector(kInvalidQuantifier), CHECK_OK);
+    Reset(start);
+    return false;
   }
   *min_out = min;
   *max_out = max;
-  return NULL;
+  return true;
 }
 
 
@@ -4152,7 +4154,11 @@ RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
     if (!is_char_class) {
       if (current() == '-') {
         Advance();
-        if (current() == ']') {
+        if (current() == kEndMarker) {
+          // If we reach the end we break out of the loop and let the
+          // following code report an error.
+          break;
+        } else if (current() == ']') {
           ranges->Add(first);
           ranges->Add(CharacterRange::Singleton('-'));
           break;
