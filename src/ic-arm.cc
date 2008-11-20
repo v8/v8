@@ -658,15 +658,16 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Array case: Get the length and the elements array from the JS
   // array. Check that the array is in fast mode; if it is the
   // length is always a smi.
-  // r0 == value, r1 == key, r3 == object
+  // r0 == value, r3 == object
   __ bind(&array);
   __ ldr(r2, FieldMemOperand(r3, JSObject::kElementsOffset));
-  __ ldr(ip, FieldMemOperand(r2, HeapObject::kMapOffset));
-  __ cmp(ip, Operand(Factory::hash_table_map()));
+  __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ cmp(r1, Operand(Factory::hash_table_map()));
   __ b(eq, &slow);
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
+  __ ldr(r1, MemOperand(sp));  // resotre key 
   // r0 == value, r1 == key, r2 == elements, r3 == object.
   __ ldr(ip, FieldMemOperand(r3, JSArray::kLengthOffset));
   __ cmp(r1, Operand(ip));
