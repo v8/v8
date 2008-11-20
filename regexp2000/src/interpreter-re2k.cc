@@ -77,8 +77,9 @@ static bool RawMatch(const byte* code_base,
                      int* registers,
                      int current) {
   const byte* pc = code_base;
-  int backtrack_stack[10000];
-  int backtrack_stack_space = 10000;
+  static const int kBacktrackStackSize = 10000;
+  int backtrack_stack[kBacktrackStackSize];
+  int backtrack_stack_space = kBacktrackStackSize;
   int* backtrack_sp = backtrack_stack;
   int current_char = -1;
 #ifdef DEBUG
@@ -124,6 +125,20 @@ static bool RawMatch(const byte* code_base,
         registers[pc[1]] = current + Load32(pc + 2);
         pc += BC_SET_REGISTER_TO_CP_LENGTH;
         break;
+      BYTECODE(SET_CP_TO_REGISTER)
+        current = registers[pc[1]];
+        pc += BC_SET_CP_TO_REGISTER_LENGTH;
+        break;
+      BYTECODE(SET_REGISTER_TO_SP)
+        registers[pc[1]] = backtrack_sp - backtrack_stack;
+        pc += BC_SET_REGISTER_TO_SP_LENGTH;
+        break;
+      BYTECODE(SET_SP_TO_REGISTER)
+        backtrack_sp = backtrack_stack + registers[pc[1]];
+        backtrack_stack_space = kBacktrackStackSize -
+                                (backtrack_sp - backtrack_stack);
+        pc += BC_SET_SP_TO_REGISTER_LENGTH;
+        break;
       BYTECODE(POP_CP)
         backtrack_stack_space++;
         --backtrack_sp;
@@ -164,7 +179,7 @@ static bool RawMatch(const byte* code_base,
       }
       BYTECODE(CHECK_CHAR) {
         int c = Load16(pc + 1);
-        if (c != current_char) {
+        if (c == current_char) {
           pc = code_base + Load32(pc + 3);
         } else {
           pc += BC_CHECK_CHAR_LENGTH;
@@ -173,7 +188,7 @@ static bool RawMatch(const byte* code_base,
       }
       BYTECODE(CHECK_NOT_CHAR) {
         int c = Load16(pc + 1);
-        if (c == current_char) {
+        if (c != current_char) {
           pc = code_base + Load32(pc + 3);
         } else {
           pc += BC_CHECK_NOT_CHAR_LENGTH;

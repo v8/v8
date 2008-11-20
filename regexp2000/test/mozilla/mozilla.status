@@ -217,7 +217,7 @@ ecma_3/RegExp/regress-57631: FAIL_OK
 # depth 500.  KJS detects the case, and return null from the match,
 # and passes this test (the test doesn't check for a correct return
 # value).
-ecma_3/RegExp/regress-119909: FAIL_OK
+ecma_3/RegExp/regress-119909: PASS || FAIL_OK
 
 
 # Difference in the way capturing subpatterns work.  In JS, when the
@@ -234,6 +234,13 @@ ecma_3/RegExp/regress-209919: FAIL_OK
 # KJS returns true somehow.  Maybe they up the match limit?  There is
 # an open V8 bug 676063 about this.
 ecma_3/RegExp/regress-330684: FAIL_OK
+
+
+# This test contains a regexp that runs exponentially long.  Spidermonkey
+# standalone will hang, though apparently inside Firefox it will trigger a
+# long-running-script timeout.  JSCRE passes by hitting the matchLimit and
+# just pretending that an exhaustive search found no match.
+ecma_3/RegExp/regress-307456: PASS || FAIL_OK
 
 
 # We do not detect overflow in bounds for back references and {}

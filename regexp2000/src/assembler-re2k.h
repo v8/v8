@@ -33,7 +33,10 @@ class Re2kAssembler {
   void PushCurrentPosition(int cp_offset = 0);
   void PushBacktrack(Label* l);
   void PushRegister(int index);
-  void SetRegisterToCurrentPosition(int index, int cp_offset = 0);
+  void WriteCurrentPositionToRegister(int index, int cp_offset = 0);
+  void ReadCurrentPositionFromRegister(int index);
+  void WriteStackPointerToRegister(int index);
+  void ReadStackPointerFromRegister(int index);
   void SetRegister(int index, int value);
   void AdvanceRegister(int index, int by);
 
@@ -57,8 +60,8 @@ class Re2kAssembler {
   void LoadCurrentChar(int cp_offset, Label* on_end);
 
   // Checks current char register against a singleton.
-  void CheckChar(uc16 c, Label* on_mismatch);
-  void CheckNotChar(uc16 c, Label* on_match);
+  void CheckCharacter(uc16 c, Label* on_match);
+  void CheckNotCharacter(uc16 c, Label* on_mismatch);
 
   // Used to check current char register against a range.
   void CheckCharacterLT(uc16 limit, Label* on_less);

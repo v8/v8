@@ -52,9 +52,14 @@ class RegExpMacroAssemblerRe2k: public RegExpMacroAssembler {
   virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
   virtual void SetRegister(int register_index, int to);
   virtual void WriteCurrentPositionToRegister(int reg);
+  virtual void ReadCurrentPositionFromRegister(int reg);
+  virtual void WriteStackPointerToRegister(int reg);
+  virtual void ReadStackPointerFromRegister(int reg);
   virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
+  virtual void CheckCharacter(uc16 c, Label* on_equal);
+  virtual void CheckNotCharacter(uc16 c, Label* on_not_equal);
   virtual void CheckCharacters(Vector<const uc16> str,
                                int cp_offset,
                                Label* on_failure);

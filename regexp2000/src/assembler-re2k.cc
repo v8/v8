@@ -73,12 +73,33 @@ void Re2kAssembler::PushRegister(int index) {
 }
 
 
-void Re2kAssembler::SetRegisterToCurrentPosition(int index, int cp_offset) {
+void Re2kAssembler::WriteCurrentPositionToRegister(int index, int cp_offset) {
   ASSERT(cp_offset >= 0);
   ASSERT(index >= 0);
   Emit(BC_SET_REGISTER_TO_CP);
   Emit(index);
   Emit32(cp_offset);
+}
+
+
+void Re2kAssembler::ReadCurrentPositionFromRegister(int index) {
+  ASSERT(index >= 0);
+  Emit(BC_SET_CP_TO_REGISTER);
+  Emit(index);
+}
+
+
+void Re2kAssembler::WriteStackPointerToRegister(int index) {
+  ASSERT(index >= 0);
+  Emit(BC_SET_REGISTER_TO_SP);
+  Emit(index);
+}
+
+
+void Re2kAssembler::ReadStackPointerFromRegister(int index) {
+  ASSERT(index >= 0);
+  Emit(BC_SET_SP_TO_REGISTER);
+  Emit(index);
 }
 
 
@@ -162,17 +183,17 @@ void Re2kAssembler::LoadCurrentChar(int cp_offset, Label* on_end) {
 }
 
 
-void Re2kAssembler::CheckChar(uc16 c, Label* on_mismatch) {
+void Re2kAssembler::CheckCharacter(uc16 c, Label* on_match) {
   Emit(BC_CHECK_CHAR);
   Emit16(c);
-  EmitOrLink(on_mismatch);
+  EmitOrLink(on_match);
 }
 
 
-void Re2kAssembler::CheckNotChar(uc16 c, Label* on_match) {
+void Re2kAssembler::CheckNotCharacter(uc16 c, Label* on_mismatch) {
   Emit(BC_CHECK_NOT_CHAR);
   Emit16(c);
-  EmitOrLink(on_match);
+  EmitOrLink(on_mismatch);
 }
 
 

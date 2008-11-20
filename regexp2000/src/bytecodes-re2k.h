@@ -37,28 +37,31 @@ V(PUSH_CP,            1, 5) /* push_cp offset32                             */ \
 V(PUSH_BT,            2, 5) /* push_bt addr32                               */ \
 V(PUSH_REGISTER,      3, 2) /* push_register register_index                 */ \
 V(SET_REGISTER_TO_CP, 4, 6) /* set_register_to_cp register_index offset32   */ \
-V(SET_REGISTER,       5, 6) /* set_register register_index value32          */ \
-V(ADVANCE_REGISTER,   6, 6) /* advance_register register_index value32      */ \
-V(POP_CP,             7, 1) /* pop_cp                                       */ \
-V(POP_BT,             8, 1) /* pop_bt                                       */ \
-V(POP_REGISTER,       9, 2) /* pop_register register_index                  */ \
-V(FAIL,              10, 1) /* fail                                         */ \
-V(SUCCEED,           11, 1) /* succeed                                      */ \
-V(ADVANCE_CP,        12, 5) /* advance_cp offset32                          */ \
-V(GOTO,              13, 5) /* goto addr32                                  */ \
-V(LOAD_CURRENT_CHAR, 14, 9) /* load offset32 addr32                         */ \
-V(CHECK_CHAR,        15, 7) /* check_char uc16 addr32                       */ \
-V(CHECK_NOT_CHAR,    16, 7) /* check_not_char uc16 addr32                   */ \
-V(CHECK_LT,          17, 7) /* check_lt uc16 addr32                         */ \
-V(CHECK_GT,          18, 7) /* check_gr uc16 addr32                         */ \
-V(CHECK_BACKREF,     19, 9) /* check_backref offset32 capture_idx addr32    */ \
-V(CHECK_NOT_BACKREF, 20, 9) /* check_not_backref offset32 capture_idx addr32*/ \
-V(LOOKUP_MAP1,       21, 11) /* l_map1 start16 bit_map_addr32 addr32        */ \
-V(LOOKUP_MAP2,       22, 99) /* l_map2 start16 half_nibble_map_addr32*      */ \
-V(LOOKUP_MAP8,       23, 99) /* l_map8 start16 byte_map addr32*             */ \
-V(LOOKUP_HI_MAP8,    24, 99) /* l_himap8 start8 byte_map_addr32 addr32*     */ \
-V(CHECK_REGISTER_LT, 25, 8) /* check_reg_lt register_index value16 addr32   */ \
-V(CHECK_REGISTER_GE, 26, 8) /* check_reg_ge register_index value16 addr32   */ \
+V(SET_CP_TO_REGISTER, 5, 2) /* set_cp_to_registger register_index           */ \
+V(SET_REGISTER_TO_SP, 6, 2) /* set_register_to_sp register_index            */ \
+V(SET_SP_TO_REGISTER, 7, 2) /* set_sp_to_registger register_index           */ \
+V(SET_REGISTER,       8, 6) /* set_register register_index value32          */ \
+V(ADVANCE_REGISTER,   9, 6) /* advance_register register_index value32      */ \
+V(POP_CP,            10, 1) /* pop_cp                                       */ \
+V(POP_BT,            11, 1) /* pop_bt                                       */ \
+V(POP_REGISTER,      12, 2) /* pop_register register_index                  */ \
+V(FAIL,              13, 1) /* fail                                         */ \
+V(SUCCEED,           14, 1) /* succeed                                      */ \
+V(ADVANCE_CP,        15, 5) /* advance_cp offset32                          */ \
+V(GOTO,              16, 5) /* goto addr32                                  */ \
+V(LOAD_CURRENT_CHAR, 17, 9) /* load offset32 addr32                         */ \
+V(CHECK_CHAR,        18, 7) /* check_char uc16 addr32                       */ \
+V(CHECK_NOT_CHAR,    19, 7) /* check_not_char uc16 addr32                   */ \
+V(CHECK_LT,          20, 7) /* check_lt uc16 addr32                         */ \
+V(CHECK_GT,          21, 7) /* check_gr uc16 addr32                         */ \
+V(CHECK_BACKREF,     22, 9) /* check_backref offset32 capture_idx addr32    */ \
+V(CHECK_NOT_BACKREF, 23, 9) /* check_not_backref offset32 capture_idx addr32*/ \
+V(LOOKUP_MAP1,       24, 11) /* l_map1 start16 bit_map_addr32 addr32        */ \
+V(LOOKUP_MAP2,       25, 99) /* l_map2 start16 half_nibble_map_addr32*      */ \
+V(LOOKUP_MAP8,       26, 99) /* l_map8 start16 byte_map addr32*             */ \
+V(LOOKUP_HI_MAP8,    27, 99) /* l_himap8 start8 byte_map_addr32 addr32*     */ \
+V(CHECK_REGISTER_LT, 28, 8) /* check_reg_lt register_index value16 addr32   */ \
+V(CHECK_REGISTER_GE, 29, 8) /* check_reg_ge register_index value16 addr32   */ \
 
 #define DECLARE_BYTECODES(name, code, length) \
   static const int BC_##name = code;

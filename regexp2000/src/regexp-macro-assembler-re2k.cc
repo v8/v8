@@ -69,7 +69,24 @@ void RegExpMacroAssemblerRe2k::PushRegister(int register_index) {
 
 void RegExpMacroAssemblerRe2k::WriteCurrentPositionToRegister(
     int register_index) {
-  assembler_->SetRegisterToCurrentPosition(register_index);
+  assembler_->WriteCurrentPositionToRegister(register_index);
+}
+
+
+void RegExpMacroAssemblerRe2k::ReadCurrentPositionFromRegister(
+    int register_index) {
+  assembler_->ReadCurrentPositionFromRegister(register_index);
+}
+
+
+void RegExpMacroAssemblerRe2k::WriteStackPointerToRegister(int register_index) {
+  assembler_->WriteStackPointerToRegister(register_index);
+}
+
+
+void RegExpMacroAssemblerRe2k::ReadStackPointerFromRegister(
+    int register_index) {
+  assembler_->ReadStackPointerFromRegister(register_index);
 }
 
 
@@ -137,15 +154,23 @@ void RegExpMacroAssemblerRe2k::LoadCurrentCharacter(int cp_offset,
 }
 
 
-void RegExpMacroAssemblerRe2k::CheckCharacterLT(uc16 limit,
-                                                Label* on_less) {
+void RegExpMacroAssemblerRe2k::CheckCharacterLT(uc16 limit, Label* on_less) {
   assembler_->CheckCharacterLT(limit, on_less);
 }
 
 
-void RegExpMacroAssemblerRe2k::CheckCharacterGT(uc16 limit,
-                                                Label* on_greater) {
+void RegExpMacroAssemblerRe2k::CheckCharacterGT(uc16 limit, Label* on_greater) {
   assembler_->CheckCharacterGT(limit, on_greater);
+}
+
+
+void RegExpMacroAssemblerRe2k::CheckCharacter(uc16 c, Label* on_equal) {
+  assembler_->CheckCharacter(c, on_equal);
+}
+
+
+void RegExpMacroAssemblerRe2k::CheckNotCharacter(uc16 c, Label* on_not_equal) {
+  assembler_->CheckNotCharacter(c, on_not_equal);
 }
 
 
@@ -185,7 +210,7 @@ void RegExpMacroAssemblerRe2k::CheckCharacters(
   Label* on_failure) {
   for (int i = str.length() - 1; i >= 0; i--) {
     assembler_->LoadCurrentChar(cp_offset + i, on_failure);
-    assembler_->CheckChar(str[i], on_failure);
+    assembler_->CheckNotCharacter(str[i], on_failure);
   }
 }
 

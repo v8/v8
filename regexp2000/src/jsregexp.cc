@@ -1012,6 +1012,13 @@ ActionNode* ActionNode::StorePosition(int reg, RegExpNode* on_success) {
 }
 
 
+ActionNode* ActionNode::SavePosition(int reg, RegExpNode* on_success) {
+  ActionNode* result = new ActionNode(SAVE_POSITION, on_success);
+  result->data_.u_position_register.reg = reg;
+  return result;
+}
+
+
 ActionNode* ActionNode::RestorePosition(int reg, RegExpNode* on_success) {
   ActionNode* result = new ActionNode(RESTORE_POSITION, on_success);
   result->data_.u_position_register.reg = reg;
@@ -1019,18 +1026,17 @@ ActionNode* ActionNode::RestorePosition(int reg, RegExpNode* on_success) {
 }
 
 
-ActionNode* ActionNode::BeginSubmatch(RegExpNode* on_success) {
-  return new ActionNode(BEGIN_SUBMATCH, on_success);
+ActionNode* ActionNode::BeginSubmatch(int reg, RegExpNode* on_success) {
+  ActionNode* result = new ActionNode(BEGIN_SUBMATCH, on_success);
+  result->data_.u_submatch_stack_pointer_register.reg = reg;
+  return result;
 }
 
 
-ActionNode* ActionNode::EscapeSubmatch(RegExpNode* on_success) {
-  return new ActionNode(ESCAPE_SUBMATCH, on_success);
-}
-
-
-ActionNode* ActionNode::EndSubmatch(RegExpNode* on_success) {
-  return new ActionNode(END_SUBMATCH, on_success);
+ActionNode* ActionNode::EscapeSubmatch(int reg, RegExpNode* on_success) {
+  ActionNode* result = new ActionNode(ESCAPE_SUBMATCH, on_success);
+  result->data_.u_submatch_stack_pointer_register.reg = reg;
+  return result;
 }
 
 
@@ -1078,18 +1084,22 @@ bool TextNode::Emit(RegExpCompiler* compiler) {
       }
       case TextElement::CHAR_CLASS: {
         RegExpCharacterClass* cc = elm.data.u_char_class;
-        if (cc->is_negated()) return false;
         macro_assembler->LoadCurrentCharacter(cp_offset, on_failure_->label());
         cp_offset++;
 
         ZoneList<CharacterRange>* ranges = cc->ranges();
 
-        Label found;
+        Label success;
+
+        Label *char_is_in_class =
+            cc->is_negated() ? on_failure_->label() : &success;
 
         int range_count = ranges->length();
 
         if (range_count == 0) {
-          on_failure()->GoTo(compiler);
+          if (!cc->is_negated()) {
+            on_failure()->GoTo(compiler);
+          }
           break;
         }
 
@@ -1098,29 +1108,58 @@ bool TextNode::Emit(RegExpCompiler* compiler) {
           Label next_range;
           uc16 from = range.from();
           uc16 to = range.to();
-          if (from != 0) {
-            macro_assembler->CheckCharacterLT(from, &next_range);
-          }
-          if (to != 0xffff) {
-            macro_assembler->CheckCharacterLT(to + 1, &found);
+          if (to == from) {
+            macro_assembler->CheckCharacter(to, char_is_in_class);
           } else {
-            macro_assembler->AdvanceCurrentPosition(1);
-            on_success()->GoTo(compiler);
+            if (from != 0) {
+              macro_assembler->CheckCharacterLT(from, &next_range);
+            }
+            if (to != 0xffff) {
+              macro_assembler->CheckCharacterLT(to + 1, char_is_in_class);
+            } else {
+              macro_assembler->GoTo(char_is_in_class);
+            }
           }
           macro_assembler->Bind(&next_range);
         }
 
-        CharacterRange& range = (*ranges)[range_count - 1];
-        uc16 from = range.from();
-        uc16 to = range.to();
-        if (from != 0) {
-          macro_assembler->CheckCharacterLT(from, on_failure_->label());
+        if (range_count != 0) {
+          CharacterRange& range = (*ranges)[range_count - 1];
+          uc16 from = range.from();
+          uc16 to = range.to();
+
+          if (to == from) {
+            if (cc->is_negated()) {
+              macro_assembler->CheckCharacter(to, on_failure_->label());
+            } else {
+              macro_assembler->CheckNotCharacter(to, on_failure_->label());
+            }
+          } else {
+            if (from != 0) {
+              if (!cc->is_negated()) {
+                macro_assembler->CheckCharacterLT(from, on_failure_->label());
+              } else {
+                macro_assembler->CheckCharacterLT(from, &success);
+              }
+            }
+            if (to != 0xffff) {
+              if (!cc->is_negated()) {
+                macro_assembler->CheckCharacterGT(to, on_failure_->label());
+              } else {
+                macro_assembler->CheckCharacterLT(to + 1, on_failure_->label());
+              }
+            } else {
+              if (cc->is_negated()) {
+                macro_assembler->GoTo(on_failure_->label());
+              }
+            }
+          }
+        } else if (cc->is_negated()) {
+          macro_assembler->GoTo(on_failure_->label());
         }
-        if (to != 0xffff) {
-          macro_assembler->CheckCharacterGT(to, on_failure_->label());
-        }
-        compiler->AddWork(on_failure_);
-        macro_assembler->Bind(&found);
+
+        macro_assembler->Bind(&success);
+
         break;
       }
       default:
@@ -1128,6 +1167,7 @@ bool TextNode::Emit(RegExpCompiler* compiler) {
         return false;
     }
   }
+  compiler->AddWork(on_failure_);
   macro_assembler->AdvanceCurrentPosition(cp_offset);
   return on_success()->GoTo(compiler);
 }
@@ -1172,11 +1212,11 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler) {
   }
   if (!on_failure_->IsBacktrack()) {
     macro_assembler->PushBacktrack(on_failure_->label());
+    compiler->AddWork(on_failure_);
   }
   if (!alternative.node()->GoTo(compiler)) {
     return false;
   }
-  compiler->AddWork(on_failure_);
   return true;
 }
 
@@ -1218,18 +1258,22 @@ bool ActionNode::Emit(RegExpCompiler* compiler) {
       macro->Backtrack();
       break;
     }
+    case SAVE_POSITION:
+      macro->WriteCurrentPositionToRegister(
+          data_.u_position_register.reg);
+      break;
     case RESTORE_POSITION:
-      // TODO(erikcorry): Implement this.
-      return false;
+      macro->ReadCurrentPositionFromRegister(
+          data_.u_position_register.reg);
+      break;
     case BEGIN_SUBMATCH:
-      // TODO(erikcorry): Implement this.
-      return false;
+      macro->WriteStackPointerToRegister(
+          data_.u_submatch_stack_pointer_register.reg);
+      break;
     case ESCAPE_SUBMATCH:
-      // TODO(erikcorry): Implement this.
-      return false;
-    case END_SUBMATCH:
-      // TODO(erikcorry): Implement this.
-      return false;
+      macro->ReadStackPointerFromRegister(
+          data_.u_submatch_stack_pointer_register.reg);
+      break;
     default:
       UNREACHABLE();
       return false;
@@ -1433,6 +1477,10 @@ void DotPrinter::VisitAction(ActionNode* that) {
       stream()->Add("label=\"$%i:=$pos\", shape=octagon",
                     that->data_.u_position_register.reg);
       break;
+    case ActionNode::SAVE_POSITION:
+      stream()->Add("label=\"$%i:=$pos\", shape=octagon",
+                    that->data_.u_position_register.reg);
+      break;
     case ActionNode::RESTORE_POSITION:
       stream()->Add("label=\"$pos:=$%i\", shape=octagon",
                     that->data_.u_position_register.reg);
@@ -1442,9 +1490,6 @@ void DotPrinter::VisitAction(ActionNode* that) {
       break;
     case ActionNode::ESCAPE_SUBMATCH:
       stream()->Add("label=\"escape\", shape=septagon");
-      break;
-    case ActionNode::END_SUBMATCH:
-      stream()->Add("label=\"end\", shape=septagon");
       break;
   }
   stream()->Add("];\n");
@@ -1653,8 +1698,9 @@ RegExpNode* RegExpEmpty::ToNode(RegExpCompiler* compiler,
 RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
                                     RegExpNode* on_success,
                                     RegExpNode* on_failure) {
+  int stack_pointer_register = compiler->AllocateRegister();
+  int position_register = compiler->AllocateRegister();
   if (is_positive()) {
-    int position_register = compiler->AllocateRegister();
     // begin submatch scope
     // $reg = $pos
     // if [body]
@@ -1665,11 +1711,17 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
     // else
     //   end submatch scope (nothing to clean up, just exit the scope)
     //   fail
-    return ActionNode::BeginSubmatch(ActionNode::StorePosition(
-        position_register, body()->ToNode(compiler,
-            ActionNode::RestorePosition(position_register,
-                ActionNode::EscapeSubmatch(on_success)),
-            ActionNode::EndSubmatch(on_failure))));
+    return ActionNode::BeginSubmatch(
+        stack_pointer_register,
+        ActionNode::SavePosition(
+            position_register,
+            body()->ToNode(
+                compiler,
+                ActionNode::RestorePosition(
+                    position_register,
+                    ActionNode::EscapeSubmatch(stack_pointer_register,
+                                               on_success)),
+                on_failure)));
   } else {
     // begin submatch scope
     // try
@@ -1681,15 +1733,21 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
     //         backtrack
     // second
     //       end submatch scope
+    //       restore current position
     //       succeed
     ChoiceNode* try_node =
-        new ChoiceNode(1, ActionNode::EndSubmatch(on_success));
-    RegExpNode* body_node = body()->ToNode(compiler,
-        ActionNode::EscapeSubmatch(on_failure),
+        new ChoiceNode(1, ActionNode::RestorePosition(position_register,
+                                                      on_success));
+    RegExpNode* body_node = body()->ToNode(
+        compiler,
+        ActionNode::EscapeSubmatch(stack_pointer_register, on_failure),
         compiler->backtrack());
     GuardedAlternative body_alt(body_node);
     try_node->AddAlternative(body_alt);
-    return ActionNode::BeginSubmatch(try_node);
+    return ActionNode::BeginSubmatch(stack_pointer_register,
+                                     ActionNode::SavePosition(
+                                         position_register,
+                                         try_node));
   }
 }
 

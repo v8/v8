@@ -534,13 +534,13 @@ TEST(Assembler) {
   __ AdvanceCP(1);
   __ Bind(&look_for_foo);
   __ LoadCurrentChar(0, &fail);
-  __ CheckChar('f', &advance);
+  __ CheckNotCharacter('f', &advance);
   __ LoadCurrentChar(1, &fail);
-  __ CheckChar('o', &advance);
+  __ CheckNotCharacter('o', &advance);
   __ LoadCurrentChar(2, &fail);
-  __ CheckChar('o', &advance);
-  __ SetRegisterToCurrentPosition(0);
-  __ SetRegisterToCurrentPosition(1, 2);
+  __ CheckNotCharacter('o', &advance);
+  __ WriteCurrentPositionToRegister(0);
+  __ WriteCurrentPositionToRegister(1, 2);
   __ Succeed();
   __ Bind(&fail);
   __ Fail();
@@ -584,7 +584,7 @@ TEST(Assembler2) {
   // ^
   __ PushCurrentPosition();
   __ PushRegister(0);
-  __ SetRegisterToCurrentPosition(0);
+  __ WriteCurrentPositionToRegister(0);
   __ PushBacktrack(&failure);
   __ GoTo(&dot_match);
   // .*
@@ -594,15 +594,15 @@ TEST(Assembler2) {
   __ PushCurrentPosition();
   __ PushBacktrack(&unwind_dot);
   __ LoadCurrentChar(0, &foo);
-  __ CheckChar('\n', &more_dots);
+  __ CheckNotCharacter('\n', &more_dots);
   // foo
   __ Bind(&foo);
-  __ CheckChar('f', &foo_failed);
+  __ CheckNotCharacter('f', &foo_failed);
   __ LoadCurrentChar(1, &foo_failed);
-  __ CheckChar('o', &foo_failed);
+  __ CheckNotCharacter('o', &foo_failed);
   __ LoadCurrentChar(2, &foo_failed);
-  __ CheckChar('o', &foo_failed);
-  __ SetRegisterToCurrentPosition(1, 2);
+  __ CheckNotCharacter('o', &foo_failed);
+  __ WriteCurrentPositionToRegister(1, 2);
   __ Succeed();
   __ Break();
 
@@ -814,5 +814,5 @@ TEST(SimplePropagation) {
 
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("(a|^b|c)", "", true);
+  Execute(".*o(?=o)", "", true);
 }
