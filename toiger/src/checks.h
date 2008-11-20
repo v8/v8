@@ -228,8 +228,8 @@ template <> class StaticAssertion<true> { };
 // actually causes each use to introduce a new defined type with a
 // name depending on the source line.
 template <int> class StaticAssertionHelper { };
-#define STATIC_CHECK(test)                                                    \
-  typedef                                                                     \
+#define STATIC_CHECK(test)                                                  \
+  typedef                                                                   \
     StaticAssertionHelper<sizeof(StaticAssertion<static_cast<bool>(test)>)> \
     SEMI_STATIC_JOIN(__StaticAssertTypedef__, __LINE__)
 

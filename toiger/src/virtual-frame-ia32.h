@@ -41,28 +41,40 @@ namespace v8 { namespace internal {
 
 class FrameElement BASE_EMBEDDED {
  public:
-  enum Type { MEMORY, CONSTANT, LAST_TYPE = CONSTANT };
+  FrameElement() {
+    type_ = TypeField::encode(MEMORY) | DirtyField::encode(false);
+    // Memory elements have no useful data.
+    data_.reg_ = no_reg;
+  }
 
-  FrameElement() : type_(MEMORY) {}
+  explicit FrameElement(Register reg) {
+    type_ = TypeField::encode(REGISTER) | DirtyField::encode(true);
+    data_.reg_ = reg;
+  }
 
-  explicit FrameElement(Handle<Object> value) : type_(CONSTANT | kDirtyBit) {
+  explicit FrameElement(Handle<Object> value) {
+    type_ = TypeField::encode(CONSTANT) | DirtyField::encode(true);
     data_.handle_ = value.location();
   }
 
-  Type type() const { return static_cast<Type>(type_ & kTypeMask); }
-
-  bool is_dirty() const {
-    return (type_ & kDirtyBit) != 0;
-  }
+  bool is_dirty() const { return DirtyField::decode(type_); }
 
   void set_dirty() {
     ASSERT(type() != MEMORY);
-    type_ = type_ | kDirtyBit;
+    type_ = type_ | DirtyField::encode(true);
   }
 
   void clear_dirty() {
     ASSERT(type() != MEMORY);
-    type_ = type_ & ~kDirtyBit;
+    type_ = type_ & ~DirtyField::mask();
+  }
+
+  bool is_register() const { return type() == REGISTER; }
+  bool is_constant() const { return type() == CONSTANT; }
+
+  Register reg() const {
+    ASSERT(type() == REGISTER);
+    return data_.reg_;
   }
 
   Handle<Object> handle() const {
@@ -71,10 +83,13 @@ class FrameElement BASE_EMBEDDED {
   }
 
  private:
-  static const int kDirtyBit = 1 << 8;
-  static const int kTypeMask = kDirtyBit - 1;
+  enum Type { MEMORY, REGISTER, CONSTANT };
 
-  STATIC_ASSERT((kDirtyBit > LAST_TYPE));
+  // BitField is <type, shift, size>.
+  class DirtyField : public BitField<bool, 0, 1> {};
+  class TypeField : public BitField<Type, 1, 32 - 1> {};
+
+  Type type() const { return TypeField::decode(type_); }
 
   // The element's type and a dirty bit.  The dirty bit can be cleared
   // for non-memory elements to indicate that the element agrees with
@@ -82,6 +97,7 @@ class FrameElement BASE_EMBEDDED {
   int type_;
 
   union {
+    Register reg_;
     Object** handle_;
   } data_;
 };
@@ -257,6 +273,18 @@ class VirtualFrame : public Malloced {
   int fp_relative(int index) const {
     return (frame_pointer_ - index) * kPointerSize;
   }
+
+  // Sync the element at a particular index---write it to memory if
+  // necessary, but do not free any associated register or forget its value
+  // if constant.  Space should have already been allocated in the actual
+  // frame for all the elements below this one (at least).
+  void SyncElementAt(int index);
+
+  // Spill the element at a particular index---write it to memory if
+  // necessary, free any associated register, and forget its value if
+  // constant.  Space should have already been allocated in the actual frame
+  // for all the elements below this one (at least).
+  void SpillElementAt(int index);
 
   // Spill the topmost elements of the frame to memory (eg, they are the
   // arguments to a call) and all registers.

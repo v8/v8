@@ -99,25 +99,53 @@ void VirtualFrame::Forget(int count) {
 }
 
 
-void VirtualFrame::SpillAll() {
-  int i = 0;
+// Clear the dirty bit for the element at a given index.  We can only
+// allocate space in the actual frame for the virtual element immediately
+// above the stack pointer.
+void VirtualFrame::SyncElementAt(int index) {
+  FrameElement element = elements_[index];
 
-  // Spill dirty constants below the stack pointer.
-  for (; i <= stack_pointer_; i++) {
-    if (elements_[i].type() == FrameElement::CONSTANT &&
-        elements_[i].is_dirty()) {
-      __ mov(Operand(ebp, fp_relative(i)), Immediate(elements_[i].handle()));
-      elements_[i] = FrameElement();  // The element is now in memory.
+  if (element.is_dirty()) {
+    if (index <= stack_pointer_) {
+      // Write elements below the stack pointer to their (already allocated)
+      // actual frame location.
+      if (element.is_constant()) {
+        __ Set(Operand(ebp, fp_relative(index)), Immediate(element.handle()));
+      } else {
+        ASSERT(element.is_register());
+        __ mov(Operand(ebp, fp_relative(index)), element.reg());
+      }
+    } else {
+      // Push elements above the stack pointer to allocate space and sync
+      // them.  Space should have already been allocated in the actual frame
+      // for all the elements below this one.
+      ASSERT(index == stack_pointer_ + 1);
+      stack_pointer_++;
+      if (element.is_constant()) {
+        __ push(Immediate(element.handle()));
+      } else {
+        ASSERT(element.is_register());
+        __ push(element.reg());
+      }
     }
   }
+}
 
-  // Spill all constants above the stack pointer.
-  for (; i < elements_.length(); i++) {
-    ASSERT(elements_[i].type() == FrameElement::CONSTANT);
-    ASSERT(elements_[i].is_dirty());
-    stack_pointer_++;
-    __ push(Immediate(elements_[i].handle()));
-    elements_[i] = FrameElement();  // The element is now in memory.
+
+// Make the type of the element at a given index be MEMORY.  We can only
+// allocate space in the actual frame for the virtual element immediately
+// above the stack pointer.
+void VirtualFrame::SpillElementAt(int index) {
+  SyncElementAt(index);
+  // The element is now in memory.
+  elements_[index] = FrameElement();
+}
+
+
+// Make the type of all elements be MEMORY.
+void VirtualFrame::SpillAll() {
+  for (int i = 0; i < elements_.length(); i++) {
+    SpillElementAt(i);
   }
 }
 
@@ -125,25 +153,34 @@ void VirtualFrame::SpillAll() {
 void VirtualFrame::PrepareForCall(int frame_arg_count) {
   ASSERT(height() >= frame_arg_count);
 
-  // The only non-memory elements of the frame are constants.  Push all of
-  // them above the stack pointer to allocate space for them and to ensure
-  // the arguments are flushed to memory.
-  for (int i = stack_pointer_ + 1; i < elements_.length(); i++) {
-    ASSERT(elements_[i].type() == FrameElement::CONSTANT);
-    ASSERT(elements_[i].is_dirty());
-    stack_pointer_++;
-    elements_[i].clear_dirty();
-    __ push(Immediate(elements_[i].handle()));
+  // Below the stack pointer, spill all registers.
+  for (int i = 0; i <= stack_pointer_; i++) {
+    if (elements_[i].is_register()) {
+      SpillElementAt(i);
+    }
   }
 
-  // Forget the ones that will be popped by the call.
+  // Above the stack pointer, spill registers and sync everything else (ie,
+  // constants).
+  for (int i = stack_pointer_ + 1; i < elements_.length(); i++) {
+    if (elements_[i].is_register()) {
+      SpillElementAt(i);
+    } else {
+      SyncElementAt(i);
+    }
+  }
+
+  // Forget the frame elements that will be popped by the call.
   Forget(frame_arg_count);
 }
 
 
 void VirtualFrame::EnsureMergable() {
   // We cannot merge to a frame that has constants as elements, because an
-  // arbitrary frame may not have constants in those locations.
+  // arbitrary frame might not have constants in those locations.
+  //
+  // We cannot merge to a frame that has registers as elements because we
+  // haven't implemented merging for such frames yet.
   SpillAll();
 }
 
@@ -155,9 +192,11 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   ASSERT(local_count_ == expected->local_count_);
   ASSERT(frame_pointer_ == expected->frame_pointer_);
 
-  // The expected frame is one we can merge to (ie, currently that means
-  // that all elements are in memory).  The only thing we need to do to
-  // merge is make this one mergable too.
+  // Mergable frames do not have constants and they do not (currently) have
+  // registers.  They are always fully spilled, so the only thing needed to
+  // make this frame match the expected one is to spill everything.
+  //
+  // TODO(): Implement a non-stupid way of merging frames.
   SpillAll();
 
   ASSERT(stack_pointer_ == expected->stack_pointer_);
@@ -172,11 +211,21 @@ void VirtualFrame::Enter() {
   __ mov(ebp, Operand(esp));
 
   // Store the context and the function in the frame.
-  EmitPush(esi);
-  EmitPush(edi);
+  FrameElement context(esi);
+  context.clear_dirty();
+  elements_.Add(context);
+  stack_pointer_++;
+  __ push(esi);
+
+  FrameElement function(edi);
+  function.clear_dirty();
+  elements_.Add(function);
+  stack_pointer_++;
+  __ push(edi);
 
   // Clear the function slot when generating debug code.
   if (FLAG_debug_code) {
+    SpillElementAt(stack_pointer_);
     __ Set(edi, Immediate(reinterpret_cast<int>(kZapValue)));
   }
 }
