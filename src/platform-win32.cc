@@ -48,6 +48,11 @@
 #ifndef NOMCX
 #define NOMCX
 #endif
+// Require Windows 2000 or higher (this is required for the IsDebuggerPresent
+// function to be present).
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x500
+#endif
 
 #include <windows.h>
 
@@ -781,10 +786,14 @@ void OS::Sleep(int milliseconds) {
 
 
 void OS::Abort() {
-  // Make the MSVCRT do a silent abort.
-  _set_abort_behavior(0, _WRITE_ABORT_MSG);
-  _set_abort_behavior(0, _CALL_REPORTFAULT);
-  abort();
+  if (!IsDebuggerPresent()) {
+    // Make the MSVCRT do a silent abort.
+    _set_abort_behavior(0, _WRITE_ABORT_MSG);
+    _set_abort_behavior(0, _CALL_REPORTFAULT);
+    abort();
+  } else {
+    DebugBreak();
+  }
 }
 
 
