@@ -290,6 +290,155 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
 }
 
 
+// Generate code to check if an object is a string.  If the object is
+// a string, the map's instance type is left in the scratch1 register.
+static void GenerateStringCheck(MacroAssembler* masm,
+                                Register receiver,
+                                Register scratch1,
+                                Register scratch2,
+                                Label* smi,
+                                Label* non_string_object) {
+  // Check that the receiver isn't a smi.
+  __ tst(receiver, Operand(kSmiTagMask));
+  __ b(eq, smi);
+
+  // Check that the object is a string.
+  __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
+  __ and_(scratch2, scratch1, Operand(kIsNotStringMask));
+  // The cast is to resolve the overload for the argument of 0x0.
+  __ cmp(scratch2, Operand(static_cast<int32_t>(kStringTag)));
+  __ b(ne, non_string_object);
+}
+
+
+void StubCompiler::GenerateLoadStringLength2(MacroAssembler* masm,
+                                             Register receiver,
+                                             Register scratch1,
+                                             Register scratch2,
+                                             Label* miss) {
+  Label load_length, check_wrapper;
+
+  // Check if the object is a string leaving the instance type in the
+  // scratch1 register.
+  GenerateStringCheck(masm, receiver, scratch1, scratch2,
+                      miss, &check_wrapper);
+
+  // Load length directly from the string.
+  __ bind(&load_length);
+  __ and_(scratch1, scratch1, Operand(kStringSizeMask));
+  __ add(scratch1, scratch1, Operand(String::kHashShift));
+  __ ldr(r0, FieldMemOperand(receiver, String::kLengthOffset));
+  __ mov(r0, Operand(r0, LSR, scratch1));
+  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
+  __ Ret();
+
+  // Check if the object is a JSValue wrapper.
+  __ bind(&check_wrapper);
+  __ cmp(scratch1, Operand(JS_VALUE_TYPE));
+  __ b(ne, miss);
+
+  // Check if the wrapped value is a string and load the length
+  // directly if it is.
+  __ ldr(r0, FieldMemOperand(receiver, JSValue::kValueOffset));
+  GenerateStringCheck(masm, receiver, scratch1, scratch1, miss, miss);
+  __ b(&load_length);
+}
+
+
+// Generate StoreField code, value is passed in r0 register.
+// After executing generated code, the receiver_reg and name_reg
+// may be clobbered.
+void StubCompiler::GenerateStoreField(MacroAssembler* masm,
+                                      Builtins::Name storage_extend,
+                                      JSObject* object,
+                                      int index,
+                                      Map* transition,
+                                      Register receiver_reg,
+                                      Register name_reg,
+                                      Register scratch,
+                                      Label* miss_label) {
+  // r0 : value
+  Label exit;
+
+  // Check that the receiver isn't a smi.
+  __ tst(receiver_reg, Operand(kSmiTagMask));
+  __ b(eq, miss_label);
+
+  // Check that the map of the receiver hasn't changed.
+  __ ldr(scratch, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
+  __ cmp(scratch, Operand(Handle<Map>(object->map())));
+  __ b(ne, miss_label);
+
+  // Perform global security token check if needed.
+  if (object->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(receiver_reg, scratch, miss_label);
+  }
+
+  // Stub never generated for non-global objects that require access
+  // checks.
+  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
+
+  // Perform map transition for the receiver if necessary.
+  if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
+    // The properties must be extended before we can store the value.
+    // We jump to a runtime call that extends the propeties array.
+    __ mov(r2, Operand(Handle<Map>(transition)));
+    // Please note, if we implement keyed store for arm we need
+    // to call the Builtins::KeyedStoreIC_ExtendStorage.
+    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_ExtendStorage));
+    __ Jump(ic, RelocInfo::CODE_TARGET);
+    return;
+  }
+
+  if (transition != NULL) {
+    // Update the map of the object; no write barrier updating is
+    // needed because the map is never in new space.
+    __ mov(ip, Operand(Handle<Map>(transition)));
+    __ str(ip, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
+  }
+
+  // Adjust for the number of properties stored in the object. Even in the
+  // face of a transition we can use the old map here because the size of the
+  // object and the number of in-object properties is not going to change.
+  index -= object->map()->inobject_properties();
+
+  if (index < 0) {
+    // Set the property straight into the object.
+    int offset = object->map()->instance_size() + (index * kPointerSize);
+    __ str(r0, FieldMemOperand(receiver_reg, offset));
+
+    // Skip updating write barrier if storing a smi.
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, &exit);
+
+    // Update the write barrier for the array address.
+    // Pass the value being stored in the now unused name_reg.
+    __ mov(name_reg, Operand(offset));
+    __ RecordWrite(receiver_reg, name_reg, scratch);
+  } else {
+    // Write to the properties array.
+    int offset = index * kPointerSize + Array::kHeaderSize;
+    // Get the properties array
+    __ ldr(scratch, FieldMemOperand(receiver_reg, JSObject::kPropertiesOffset));
+    __ str(r0, FieldMemOperand(scratch, offset));
+
+    // Skip updating write barrier if storing a smi.
+    __ tst(r0, Operand(kSmiTagMask));
+    __ b(eq, &exit);
+
+    // Update the write barrier for the array address.
+    // Ok to clobber receiver_reg and name_reg, since we return.
+    __ mov(name_reg, Operand(offset));
+    __ RecordWrite(scratch, name_reg, receiver_reg);
+  }
+
+  // Return the value (register r0).
+  __ bind(&exit);
+  __ Ret();
+}
+
+
 void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
   ASSERT(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
   Code* code = NULL;
@@ -552,87 +701,19 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   // -----------------------------------
 
   HandleScope scope;
-  Label miss, exit;
+  Label miss;
 
   // Get the receiver from the stack.
   __ ldr(r3, MemOperand(sp, 0 * kPointerSize));
 
-  // Check that the receiver isn't a smi.
-  __ tst(r3, Operand(kSmiTagMask));
-  __ b(eq, &miss);
-
-  // Check that the map of the receiver hasn't changed.
-  __ ldr(r1, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ cmp(r1, Operand(Handle<Map>(object->map())));
-  __ b(ne, &miss);
-
-  // Perform global security token check if needed.
-  if (object->IsJSGlobalProxy()) {
-    __ CheckAccessGlobalProxy(r3, r1, &miss);
-  }
-
-  // Stub never generated for non-global objects that require access
-  // checks.
-  ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
-
-  // Perform map transition for the receiver if necessary.
-  if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
-    // The properties must be extended before we can store the value.
-    // We jump to a runtime call that extends the propeties array.
-    __ mov(r2, Operand(Handle<Map>(transition)));
-    // Please note, if we implement keyed store for arm we need
-    // to call the Builtins::KeyedStoreIC_ExtendStorage.
-    Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_ExtendStorage));
-    __ Jump(ic, RelocInfo::CODE_TARGET);
-  } else {
-    // Adjust for the number of properties stored in the object. Even in the
-    // face of a transition we can use the old map here because the size of the
-    // object and the number of in-object properties is not going to change.
-    index -= object->map()->inobject_properties();
-
-    if (index >= 0) {
-      // Get the properties array
-      __ ldr(r1, FieldMemOperand(r3, JSObject::kPropertiesOffset));
-    }
-
-    if (transition != NULL) {
-      // Update the map of the object; no write barrier updating is
-      // needed because the map is never in new space.
-      __ mov(ip, Operand(Handle<Map>(transition)));
-      __ str(ip, FieldMemOperand(r3, HeapObject::kMapOffset));
-    }
-
-    if (index < 0) {
-      // Set the property straight into the object.
-      int offset = object->map()->instance_size() + (index * kPointerSize);
-      __ str(r0, FieldMemOperand(r3, offset));
-
-      // Skip updating write barrier if storing a smi.
-      __ tst(r0, Operand(kSmiTagMask));
-      __ b(eq, &exit);
-
-      // Update the write barrier for the array address.
-      __ mov(r1, Operand(offset));
-      __ RecordWrite(r3, r1, r2);
-    } else {
-      // Write to the properties array.
-      int offset = index * kPointerSize + Array::kHeaderSize;
-      __ str(r0, FieldMemOperand(r1, offset));
-
-      // Skip updating write barrier if storing a smi.
-      __ tst(r0, Operand(kSmiTagMask));
-      __ b(eq, &exit);
-
-      // Update the write barrier for the array address.
-      __ mov(r3, Operand(offset));
-      __ RecordWrite(r1, r3, r2);  // OK to clobber r2, since we return
-    }
-
-    // Return the value (register r0).
-    __ bind(&exit);
-    __ Ret();
-  }
-  // Handle store cache miss.
+  // name register might be clobbered.
+  GenerateStoreField(masm(),
+                     Builtins::StoreIC_ExtendStorage,
+                     object,
+                     index,
+                     transition,
+                     r3, r2, r1,
+                     &miss);
   __ bind(&miss);
   __ mov(r2, Operand(Handle<String>(name)));  // restore name
   Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Miss));
@@ -978,7 +1059,6 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
 }
 
 
-// TODO(1224671): implement the fast case.
 Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
@@ -986,6 +1066,20 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   //  -- sp[4] : receiver
   // -----------------------------------
   HandleScope scope;
+
+  Label miss;
+  __ IncrementCounter(&Counters::keyed_load_string_length, 1, r1, r3);
+
+  __ ldr(r2, MemOperand(sp));
+  __ ldr(r0, MemOperand(sp, kPointerSize));  // receiver
+
+  __ cmp(r2, Operand(Handle<String>(name)));
+  __ b(ne, &miss);
+
+  GenerateLoadStringLength2(masm(), r0, r1, r3, &miss);
+  __ bind(&miss);
+  __ DecrementCounter(&Counters::keyed_load_string_length, 1, r1, r3);
+
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   return GetCode(CALLBACKS);
@@ -1006,7 +1100,6 @@ Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
 }
 
 
-// TODO(1224671): implement the fast case.
 Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
                                                   int index,
                                                   Map* transition,
@@ -1018,6 +1111,28 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   //  -- [sp]  : receiver
   // -----------------------------------
   HandleScope scope;
+  Label miss;
+
+  __ IncrementCounter(&Counters::keyed_store_field, 1, r1, r3);
+
+  // Check that the name has not changed.
+  __ cmp(r2, Operand(Handle<String>(name)));
+  __ b(ne, &miss);
+
+  // Load receiver from the stack.
+  __ ldr(r3, MemOperand(sp));
+  // r1 is used as scratch register, r3 and r2 might be clobbered.
+  GenerateStoreField(masm(),
+                     Builtins::StoreIC_ExtendStorage,
+                     object,
+                     index,
+                     transition,
+                     r3, r2, r1,
+                     &miss);
+  __ bind(&miss);
+
+  __ DecrementCounter(&Counters::keyed_store_field, 1, r1, r3);
+  __ mov(r2, Operand(Handle<String>(name)));  // restore name register.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Miss));
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
