@@ -667,7 +667,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
-  __ ldr(r1, MemOperand(sp));  // resotre key 
+  __ ldr(r1, MemOperand(sp));  // resotre key
   // r0 == value, r1 == key, r2 == elements, r3 == object.
   __ ldr(ip, FieldMemOperand(r3, JSArray::kLengthOffset));
   __ cmp(r1, Operand(ip));
