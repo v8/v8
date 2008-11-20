@@ -401,22 +401,17 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     return;
   }
 
-  // Adjust for the number of properties stored in the object. Even in the
-  // face of a transition we can use the old map here because the size of the
-  // object and the number of in-object properties is not going to change.
-  index -= object->map()->inobject_properties();
-
-  if (index >= 0) {
-    // Get the properties array (optimistically).
-    __ mov(scratch, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
-  }
-
   if (transition != NULL) {
     // Update the map of the object; no write barrier updating is
     // needed because the map is never in new space.
     __ mov(FieldOperand(receiver_reg, HeapObject::kMapOffset),
            Immediate(Handle<Map>(transition)));
   }
+
+  // Adjust for the number of properties stored in the object. Even in the
+  // face of a transition we can use the old map here because the size of the
+  // object and the number of in-object properties is not going to change.
+  index -= object->map()->inobject_properties();
 
   if (index < 0) {
     // Set the property straight into the object.
@@ -430,6 +425,8 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + Array::kHeaderSize;
+    // Get the properties array (optimistically).
+    __ mov(scratch, FieldOperand(receiver_reg, JSObject::kPropertiesOffset));
     __ mov(FieldOperand(scratch, offset), eax);
 
     // Update the write barrier for the array address.
