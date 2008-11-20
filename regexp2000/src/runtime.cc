@@ -3956,29 +3956,28 @@ static Object* EvalContext() {
   Handle<Context> target = Top::global_context();
   if (caller->global_context() == *target) return *caller;
 
-  // Compute a function closure that captures the calling context. We
-  // need a function that has trivial scope info, since it is only
-  // used to hold the context chain together.
-  Handle<JSFunction> closure = Factory::NewFunction(Factory::empty_symbol(),
-                                                    Factory::undefined_value());
-  closure->set_context(*caller);
-
-  // Create a new adaptor context that has the target environment as
-  // the extension object. This enables the evaluated code to see both
-  // the current context with locals and everything and to see global
-  // variables declared in the target global object. Furthermore, any
-  // properties introduced with 'var' will be added to the target
-  // global object because it is the extension object.
-  Handle<Context> adaptor =
-    Factory::NewFunctionContext(Context::MIN_CONTEXT_SLOTS, closure);
-  adaptor->set_extension(target->global());
-  return *adaptor;
+  // Otherwise, use the global context from the other environment.
+  return *target;
 }
 
 
 static Object* Runtime_EvalReceiver(Arguments args) {
+  ASSERT(args.length() == 1);
   StackFrameLocator locator;
-  return locator.FindJavaScriptFrame(1)->receiver();
+  JavaScriptFrame* frame = locator.FindJavaScriptFrame(1);
+  // Fetch the caller context from the frame.
+  Context* caller = Context::cast(frame->context());
+
+  // Check for eval() invocations that cross environments. Use the
+  // top frames receiver if evaluating in current environment.
+  Context* global_context = Top::context()->global()->global_context();
+  if (caller->global_context() == global_context) {
+    return frame->receiver();
+  }
+
+  // Otherwise use the given argument (the global object of the
+  // receiving context).
+  return args[0];
 }
 
 
@@ -4797,9 +4796,10 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
   SaveContext* save = Top::save_context();
-  while (save != NULL && reinterpret_cast<Address>(save) < it.frame()->sp()) {
+  while (save != NULL && !save->below(it.frame())) {
     save = save->prev();
   }
+  ASSERT(save != NULL);
 
   // Get the frame id.
   Handle<Object> frame_id(WrapFrameId(it.frame()->id()));
@@ -5088,7 +5088,7 @@ static Object* FindSharedFunctionInfoInScript(Handle<Script> script,
     if (!done) {
       // If the candidate is not compiled compile it to reveal any inner
       // functions which might contain the requested source position.
-      CompileLazyShared(target, KEEP_EXCEPTION);
+      CompileLazyShared(target, KEEP_EXCEPTION, 0);
     }
   }
 
@@ -5299,7 +5299,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
   SaveContext* save = Top::save_context();
-  while (save != NULL && reinterpret_cast<Address>(save) < frame->sp()) {
+  while (save != NULL && !save->below(frame)) {
     save = save->prev();
   }
   ASSERT(save != NULL);

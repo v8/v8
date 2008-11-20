@@ -1126,6 +1126,7 @@ class FunctionLiteral: public Expression {
         start_position_(start_position),
         end_position_(end_position),
         is_expression_(is_expression),
+        loop_nesting_(0),
         function_token_position_(RelocInfo::kNoPosition) {
   }
 
@@ -1150,6 +1151,9 @@ class FunctionLiteral: public Expression {
 
   bool AllowsLazyCompilation();
 
+  bool loop_nesting() const { return loop_nesting_; }
+  void set_loop_nesting(int nesting) { loop_nesting_ = nesting; }
+
  private:
   Handle<String> name_;
   Scope* scope_;
@@ -1161,6 +1165,7 @@ class FunctionLiteral: public Expression {
   int start_position_;
   int end_position_;
   bool is_expression_;
+  int loop_nesting_;
   int function_token_position_;
 };
 

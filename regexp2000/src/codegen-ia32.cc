@@ -197,6 +197,10 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   VirtualFrame virtual_frame(this);
   frame_ = &virtual_frame;
   cc_reg_ = no_condition;
+
+  // Adjust for function-level loop nesting.
+  loop_nesting_ += fun->loop_nesting();
+
   {
     CodeGenState state(this);
 
@@ -383,11 +387,15 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     }
   }
 
+  // Adjust for function-level loop nesting.
+  loop_nesting_ -= fun->loop_nesting();
+
   // Code generation state must be reset.
   scope_ = NULL;
   frame_ = NULL;
   ASSERT(!has_cc());
   ASSERT(state_ == NULL);
+  ASSERT(loop_nesting() == 0);
 }
 
 
@@ -2694,14 +2702,15 @@ void CodeGenerator::VisitCall(Call* node) {
     // patch the stack to use the global proxy as 'this' in the
     // invoked function.
     LoadGlobal();
-
     // Load the arguments.
     for (int i = 0; i < args->length(); i++) {
       Load(args->at(i));
     }
 
     // Setup the receiver register and call the IC initialization code.
-    Handle<Code> stub = ComputeCallInitialize(args->length());
+    Handle<Code> stub = (loop_nesting() > 0)
+        ? ComputeCallInitializeInLoop(args->length())
+        : ComputeCallInitialize(args->length());
     __ RecordPosition(node->position());
     __ call(stub, RelocInfo::CODE_TARGET_CONTEXT);
     __ mov(esi, frame_->Context());
@@ -2745,7 +2754,9 @@ void CodeGenerator::VisitCall(Call* node) {
       for (int i = 0; i < args->length(); i++) Load(args->at(i));
 
       // Call the IC initialization code.
-      Handle<Code> stub = ComputeCallInitialize(args->length());
+      Handle<Code> stub = (loop_nesting() > 0)
+        ? ComputeCallInitializeInLoop(args->length())
+        : ComputeCallInitialize(args->length());
       __ RecordPosition(node->position());
       __ call(stub, RelocInfo::CODE_TARGET);
       __ mov(esi, frame_->Context());

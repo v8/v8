@@ -288,6 +288,8 @@ typedef void (*InlineCacheCallback)(Code* code, Address ic);
 enum InlineCacheState {
   // Has never been executed.
   UNINITIALIZED,
+  // Has never been executed, but is in a loop.
+  UNINITIALIZED_IN_LOOP,
   // Has been executed but monomorhic state has been delayed.
   PREMONOMORPHIC,
   // Has been executed and only one receiver type has been seen.

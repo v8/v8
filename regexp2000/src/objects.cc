@@ -4654,6 +4654,7 @@ const char* Code::Kind2String(Kind kind) {
 const char* Code::ICState2String(InlineCacheState state) {
   switch (state) {
     case UNINITIALIZED: return "UNINITIALIZED";
+    case UNINITIALIZED_IN_LOOP: return "UNINITIALIZED_IN_LOOP";
     case PREMONOMORPHIC: return "PREMONOMORPHIC";
     case MONOMORPHIC: return "MONOMORPHIC";
     case MONOMORPHIC_PROTOTYPE_FAILURE: return "MONOMORPHIC_PROTOTYPE_FAILURE";
@@ -5856,9 +5857,7 @@ class Utf8SymbolKey : public HashTableKey {
 
   Object* GetObject() {
     if (length_field_ == 0) Hash();
-    unibrow::Utf8InputBuffer<> buffer(string_.start(),
-                                      static_cast<unsigned>(string_.length()));
-    return Heap::AllocateSymbol(&buffer, chars_, length_field_);
+    return Heap::AllocateSymbol(string_, chars_, length_field_);
   }
 
   static uint32_t StringHash(Object* obj) {
@@ -5907,9 +5906,9 @@ class SymbolKey : public HashTableKey {
     }
     // Otherwise allocate a new symbol.
     StringInputBuffer buffer(string_);
-    return Heap::AllocateSymbol(&buffer,
-                                string_->length(),
-                                string_->length_field());
+    return Heap::AllocateInternalSymbol(&buffer,
+                                        string_->length(),
+                                        string_->length_field());
   }
 
   static uint32_t StringHash(Object* obj) {

@@ -41,6 +41,7 @@ namespace v8 { namespace internal {
 static char TransitionMarkFromState(IC::State state) {
   switch (state) {
     case UNINITIALIZED: return '0';
+    case UNINITIALIZED_IN_LOOP: return 'L';
     case PREMONOMORPHIC: return '0';
     case MONOMORPHIC: return '1';
     case MONOMORPHIC_PROTOTYPE_FAILURE: return '^';
@@ -223,7 +224,8 @@ void IC::Clear(Address address) {
 
 
 void CallIC::Clear(Address address, Code* target) {
-  if (target->ic_state() == UNINITIALIZED) return;
+  State state = target->ic_state();
+  if (state == UNINITIALIZED || state == UNINITIALIZED_IN_LOOP) return;
   Code* code = StubCache::FindCallInitialize(target->arguments_count());
   SetTargetAtAddress(address, code);
 }
@@ -434,8 +436,9 @@ void CallIC::UpdateCaches(LookupResult* lookup,
   if (code->IsFailure()) return;
 
   // Patch the call site depending on the state of the cache.
-  if (state == UNINITIALIZED || state == PREMONOMORPHIC ||
-      state == MONOMORPHIC || state == MONOMORPHIC_PROTOTYPE_FAILURE) {
+  if (state == UNINITIALIZED || state == UNINITIALIZED_IN_LOOP ||
+      state == PREMONOMORPHIC || state == MONOMORPHIC ||
+      state == MONOMORPHIC_PROTOTYPE_FAILURE) {
     set_target(Code::cast(code));
   }
 
@@ -1044,7 +1047,17 @@ Object* CallIC_Miss(Arguments args) {
   ASSERT(args.length() == 2);
   CallIC ic;
   IC::State state = IC::StateFrom(ic.target(), args[0]);
-  return ic.LoadFunction(state, args.at<Object>(0), args.at<String>(1));
+  Object* result =
+      ic.LoadFunction(state, args.at<Object>(0), args.at<String>(1));
+  if (state != UNINITIALIZED_IN_LOOP || !result->IsJSFunction())
+    return result;
+
+  // Compile the function with the knowledge that it's called from
+  // within a loop. This enables further optimization of the function.
+  HandleScope scope;
+  Handle<JSFunction> function = Handle<JSFunction>(JSFunction::cast(result));
+  if (!function->is_compiled()) CompileLazyInLoop(function, CLEAR_EXCEPTION);
+  return *function;
 }
 
 

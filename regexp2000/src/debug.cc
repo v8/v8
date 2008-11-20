@@ -1135,7 +1135,7 @@ void Debug::ClearStepNext() {
 
 bool Debug::EnsureCompiled(Handle<SharedFunctionInfo> shared) {
   if (shared->is_compiled()) return true;
-  return CompileLazyShared(shared, CLEAR_EXCEPTION);
+  return CompileLazyShared(shared, CLEAR_EXCEPTION, 0);
 }
 
 

@@ -320,6 +320,7 @@ class CodeGenerator: public Visitor {
   void ProcessDeclarations(ZoneList<Declaration*>* declarations);
 
   Handle<Code> ComputeCallInitialize(int argc);
+  Handle<Code> ComputeCallInitializeInLoop(int argc);
 
   // Declare global variables and functions in the given array of
   // name/value pairs.

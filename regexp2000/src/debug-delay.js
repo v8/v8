@@ -752,46 +752,6 @@ BreakEvent.prototype.breakPointsHit = function() {
 };
 
 
-BreakEvent.prototype.details = function() {
-  // Build the break details.
-  var details = '';
-  if (this.breakPointsHit()) {
-    details += 'breakpoint';
-    if (this.breakPointsHit().length > 1) {
-      details += 's';
-    }
-    details += ' ';
-    for (var i = 0; i < this.breakPointsHit().length; i++) {
-      if (i > 0) {
-        details += ',';
-      }
-      details += this.breakPointsHit()[i].number();
-    }
-  } else {
-    details += 'break';
-  }
-  details += ' in ';
-  details += this.exec_state_.frame(0).invocationText();
-  details += ' at ';
-  details += this.exec_state_.frame(0).sourceAndPositionText();
-  details += '\n'
-  if (this.func().script()) {
-    details += FrameSourceUnderline(this.exec_state_.frame(0));
-  }
-  return details;
-};
-
-
-BreakEvent.prototype.debugPrompt = function() {
-  // Build the debug break prompt.
-  if (this.breakPointsHit()) {
-    return 'breakpoint';
-  } else {
-    return 'break';
-  }
-};
-
-
 BreakEvent.prototype.toJSONProtocol = function() {
   var o = { seq: next_response_seq++,
             type: "event",
@@ -869,32 +829,6 @@ ExceptionEvent.prototype.sourceLineText = function() {
 };
 
 
-ExceptionEvent.prototype.details = function() {
-  var details = "";
-  if (this.uncaught_) {
-    details += "Uncaught: ";
-  } else {
-    details += "Exception: ";
-  }
-
-  details += '"';
-  details += MakeMirror(this.exception_).toText();
-  details += '" at ';
-  details += this.exec_state_.frame(0).sourceAndPositionText();
-  details += '\n';
-  details += FrameSourceUnderline(this.exec_state_.frame(0));
-
-  return details;
-};
-
-ExceptionEvent.prototype.debugPrompt = function() {
-  if (this.uncaught_) {
-    return "uncaught exception";
-  } else {
-    return "exception";
-  }
-};
-
 ExceptionEvent.prototype.toJSONProtocol = function() {
   var o = { seq: next_response_seq++,
             type: "event",
@@ -920,9 +854,11 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
   return SimpleObjectToJSON_(o);
 };
 
+
 function MakeCompileEvent(script_source, script_name, script_function) {
   return new CompileEvent(script_source, script_name, script_function);
 }
+
 
 function CompileEvent(script_source, script_name, script_function) {
   this.scriptSource = script_source;
@@ -930,65 +866,25 @@ function CompileEvent(script_source, script_name, script_function) {
   this.scriptFunction = script_function;
 }
 
-CompileEvent.prototype.details = function() {
-  var result = "";
-  result = "Script added"
-  if (this.scriptData) {
-    result += ": '";
-    result += this.scriptData;
-    result += "'";
-  }
-  return result;
-};
-
-CompileEvent.prototype.debugPrompt = function() {
-  var result = "source"
-  if (this.scriptData) {
-    result += " '";
-    result += this.scriptData;
-    result += "'";
-  }
-  if (this.func) {
-    result += " added";
-  } else {
-    result += " compiled";
-  }
-  return result;
-};
 
 function MakeNewFunctionEvent(func) {
   return new NewFunctionEvent(func);
 }
 
+
 function NewFunctionEvent(func) {
   this.func = func;
 }
-
-NewFunctionEvent.prototype.details = function() {
-  var result = "";
-  result = "Function added: ";
-  result += this.func.name;
-  return result;
-};
-
-NewFunctionEvent.prototype.debugPrompt = function() {
-  var result = "function";
-  if (this.func.name) {
-    result += " '";
-    result += this.func.name;
-    result += "'";
-  }
-  result += " added";
-  return result;
-};
 
 NewFunctionEvent.prototype.name = function() {
   return this.func.name;
 };
 
+
 NewFunctionEvent.prototype.setBreakPoint = function(p) {
   Debug.setBreakPoint(this.func, p || 0);
 };
+
 
 function DebugCommandProcessor(exec_state) {
   this.exec_state_ = exec_state;
