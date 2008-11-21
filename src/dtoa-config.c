@@ -37,7 +37,8 @@
  * subtly wrong.
  */
 
-#if !(defined(__APPLE__) && defined(__MACH__)) && !defined(WIN32)
+#if !(defined(__APPLE__) && defined(__MACH__)) && \
+    !defined(WIN32) && !defined(__FreeBSD__)
 #include <endian.h>
 #endif
 #include <math.h>
@@ -46,17 +47,18 @@
 /* The floating point word order on ARM is big endian when floating point
  * emulation is used, even if the byte order is little endian */
 #if !(defined(__APPLE__) && defined(__MACH__)) && !defined(WIN32) && \
-  __FLOAT_WORD_ORDER == __BIG_ENDIAN
+    !defined(__FreeBSD__) && __FLOAT_WORD_ORDER == __BIG_ENDIAN
 #define  IEEE_MC68k
 #else
 #define  IEEE_8087
 #endif
 
 #define __MATH_H__
-#if defined(__APPLE__) && defined(__MACH__)
-/* stdlib.h on Apple's 10.5 and later SDKs will mangle the name of strtod.
- * If it's included after strtod is redefined as gay_strtod, it will mangle
- * the name of gay_strtod, which is unwanted. */
+#if defined(__APPLE__) && defined(__MACH__) || defined(__FreeBSD__)
+/* stdlib.h on FreeBSD and Apple's 10.5 and later SDKs will mangle the
+ * name of strtod.  If it's included after strtod is redefined as
+ * gay_strtod, it will mangle the name of gay_strtod, which is
+ * unwanted. */
 #include <stdlib.h>
 #endif
 /* Make sure we use the David M. Gay version of strtod(). On Linux, we

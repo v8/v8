@@ -54,6 +54,9 @@ LIBRARY_FLAGS = {
     'mode:release': {
       'CCFLAGS':      ['-O3', '-fomit-frame-pointer']
     },
+    'os:freebsd': {
+      'LIBS':         ['execinfo']
+    },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
@@ -186,6 +189,9 @@ SAMPLE_FLAGS = {
       'LIBS': ['pthread'],
       'LIBPATH': ['.']
     },
+    'os:freebsd': {
+      'LIBS':         ['execinfo']
+    },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
@@ -264,7 +270,7 @@ SIMPLE_OPTIONS = {
     'help': 'the toolchain to use'
   },
   'os': {
-    'values': ['linux', 'macos', 'win32'],
+    'values': ['freebsd', 'linux', 'macos', 'win32'],
     'default': OS_GUESS,
     'help': 'the os to build for'
   },
@@ -541,7 +547,7 @@ def Build():
   env.Alias('cctests', cctests)
   env.Alias('sample', samples)
   env.Alias('d8', d8s)
-  
+
   if env['sample']:
     env.Default('sample')
   else:
