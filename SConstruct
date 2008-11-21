@@ -74,15 +74,27 @@ LIBRARY_FLAGS = {
       'CCPDBFLAGS':   ['/Zi']
     },
     'mode:debug': {
-      'CCFLAGS':      ['/Od', '/Gm', '/MTd'],
+      'CCFLAGS':      ['/Od', '/Gm'],
       'CPPDEFINES':   ['_DEBUG', 'ENABLE_DISASSEMBLER', 'DEBUG'],
-      'LINKFLAGS':    ['/DEBUG']
+      'LINKFLAGS':    ['/DEBUG'],
+      'msvcrt:static': {
+        'CCFLAGS': ['/MTd']
+      },
+      'msvcrt:shared': {
+        'CCFLAGS': ['/MDd']
+      }
     },
     'mode:release': {
-      'CCFLAGS':      ['/O2', '/MT', '/GL'],
+      'CCFLAGS':      ['/O2', '/GL'],
       'LINKFLAGS':    ['/OPT:REF', '/OPT:ICF', '/LTCG'],
-      'ARFLAGS':      ['/LTCG']
-    }
+      'ARFLAGS':      ['/LTCG'],
+      'msvcrt:static': {
+        'CCFLAGS': ['/MT']
+      },
+      'msvcrt:shared': {
+        'CCFLAGS': ['/MD']
+      }
+    },
   }
 }
 
@@ -215,12 +227,24 @@ SAMPLE_FLAGS = {
       'LINKFLAGS': ['/MAP']
     },
     'mode:release': {
-      'CCFLAGS':   ['/O2', '/MT'],
-      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF', '/LTCG']
+      'CCFLAGS':   ['/O2'],
+      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF', '/LTCG'],
+      'msvcrt:static': {
+        'CCFLAGS': ['/MT']
+      },
+      'msvcrt:shared': {
+        'CCFLAGS': ['/MD']
+      }
     },
     'mode:debug': {
-      'CCFLAGS':   ['/Od', '/MTd'],
-      'LINKFLAGS': ['/DEBUG']
+      'CCFLAGS':   ['/Od'],
+      'LINKFLAGS': ['/DEBUG'],
+      'msvcrt:static': {
+        'CCFLAGS': ['/MTd']
+      },
+      'msvcrt:shared': {
+        'CCFLAGS': ['/MDd']
+      }
     }
   }
 }
@@ -232,7 +256,6 @@ D8_FLAGS = {
       'LIBS': ['readline']
     }
   },
-  'msvc': { }
 }
 
 
@@ -293,6 +316,11 @@ SIMPLE_OPTIONS = {
     'values': ['static', 'shared'],
     'default': 'static',
     'help': 'the type of library to produce'
+  },
+  'msvcrt': {
+    'values': ['static', 'shared'],
+    'default': 'static',
+    'help': 'the type of MSVCRT library to use'
   },
   'wordsize': {
     'values': ['64', '32'],
@@ -381,11 +409,18 @@ class BuildContext(object):
     result = initial.copy()
     self.AppendFlags(result, flags.get('all'))
     toolchain = self.options['toolchain']
-    self.AppendFlags(result, flags[toolchain].get('all'))
+    if toolchain in flags:
+      self.AppendFlags(result, flags[toolchain].get('all'))
+      for option in sorted(self.options.keys()):
+        value = self.options[option]
+        self.AppendFlags(result, flags[toolchain].get(option + ':' + value))
+    return result
+
+  def AddRelevantSubFlags(self, options, flags):
+    self.AppendFlags(options, flags.get('all'))
     for option in sorted(self.options.keys()):
       value = self.options[option]
-      self.AppendFlags(result, flags[toolchain].get(option + ':' + value))
-    return result
+      self.AppendFlags(options, flags.get(option + ':' + value))
 
   def GetRelevantSources(self, source):
     result = []
@@ -398,12 +433,15 @@ class BuildContext(object):
     if not added:
       return
     for (key, value) in added.iteritems():
-      if not key in options:
-        options[key] = value
+      if key.find(':') != -1:
+        self.AddRelevantSubFlags(options, { key: value })
       else:
-        prefix = options[key]
-        if isinstance(prefix, StringTypes): prefix = prefix.split()
-        options[key] = prefix + value
+        if not key in options:
+          options[key] = value
+        else:
+          prefix = options[key]
+          if isinstance(prefix, StringTypes): prefix = prefix.split()
+          options[key] = prefix + value
 
   def ConfigureObject(self, env, input, **kw):
     if self.options['library'] == 'static':

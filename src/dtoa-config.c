@@ -60,7 +60,18 @@
  * gay_strtod, it will mangle the name of gay_strtod, which is
  * unwanted. */
 #include <stdlib.h>
+
 #endif
+/* stdlib.h on Windows adds __declspec(dllimport) to all functions when using
+ * the DLL version of the CRT (compiling with /MD or /MDd). If stdlib.h is
+ * included after strtod is redefined as gay_strtod, it will add
+ * __declspec(dllimport) to gay_strtod, which causes the compilation of
+ * gay_strtod in dtoa.c to fail.
+*/
+#if defined(WIN32) && defined(_DLL)
+#include "stdlib.h"
+#endif
+
 /* Make sure we use the David M. Gay version of strtod(). On Linux, we
  * cannot use the same name (maybe the function does not have weak
  * linkage?). */
