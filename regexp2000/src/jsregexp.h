@@ -180,6 +180,7 @@ class RegExpImpl {
 
 class CharacterRange {
  public:
+  CharacterRange() : from_(0), to_(0) { }
   // For compatibility with the CHECK_OK macro
   CharacterRange(void* null) { ASSERT_EQ(NULL, null); }  //NOLINT
   CharacterRange(uc16 from, uc16 to)
@@ -204,6 +205,10 @@ class CharacterRange {
   void set_to(uc16 value) { to_ = value; }
   bool is_valid() { return from_ <= to_; }
   bool IsSingleton() { return (from_ == to_); }
+  void AddCaseEquivalents(ZoneList<CharacterRange>* ranges);
+  static const int kRangeCanonicalizeMax = 0x200;
+  static const int kStartMarker = (1 << 10);
+  static const int kPayloadMask = (1 << 10) - 1;
  private:
   uc16 from_;
   uc16 to_;

@@ -80,12 +80,13 @@ class Mapping {
   friend class Test;
   int CalculateValue(uchar c, uchar n, uchar* result);
   struct CacheEntry {
-    inline CacheEntry() : code_point_(0), offset_(0) { }
+    inline CacheEntry() : code_point_(kNoChar), offset_(0) { }
     inline CacheEntry(uchar code_point, signed offset)
       : code_point_(code_point),
         offset_(offset) { }
     uchar code_point_ : 21;
     signed offset_ : 21;
+    static const int kNoChar = (1 << 21) - 1;
   };
   static const int kSize = size;
   static const int kMask = kSize - 1;
@@ -260,6 +261,13 @@ struct Ecma262Canonicalize {
 };
 struct Ecma262UnCanonicalize {
   static const int kMaxWidth = 4;
+  static int Convert(uchar c,
+                     uchar n,
+                     uchar* result,
+                     bool* allow_caching_ptr);
+};
+struct CanonicalizationRange {
+  static const int kMaxWidth = 1;
   static int Convert(uchar c,
                      uchar n,
                      uchar* result,

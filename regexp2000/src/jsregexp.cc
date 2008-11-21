@@ -1874,6 +1874,90 @@ void CharacterRange::AddClassEscape(uc16 type,
 }
 
 
+static unibrow::Mapping<unibrow::Ecma262UnCanonicalize> uncanonicalize;
+static unibrow::Mapping<unibrow::CanonicalizationRange> canonrange;
+
+
+void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
+  unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+  if (IsSingleton()) {
+    // If this is a singleton we just expand the one character.
+    int length = uncanonicalize.get(from(), '\0', chars);
+    for (int i = 0; i < length; i++) {
+      uc32 chr = chars[i];
+      if (chr != from()) {
+        ranges->Add(CharacterRange::Singleton(chars[i]));
+      }
+    }
+  } else if (from() <= kRangeCanonicalizeMax
+          && to() <= kRangeCanonicalizeMax) {
+    // If this is a range we expand the characters block by block,
+    // expanding contiguous subranges (blocks) one at a time.
+    // The approach is as follows.  For a given start character we
+    // look up the block that contains it, for instance 'a' if the
+    // start character is 'c'.  A block is characterized by the property
+    // that all characters uncanonicalize in the same way as the first
+    // element, except that each entry in the result is incremented
+    // by the distance from the first element.  So a-z is a block
+    // because 'a' uncanonicalizes to ['a', 'A'] and the k'th letter
+    // uncanonicalizes to ['a' + k, 'A' + k].
+    // Once we've found the start point we look up its uncanonicalization
+    // and produce a range for each element.  For instance for [c-f]
+    // we look up ['a', 'A'] and produce [c-f] and [C-F].  We then only
+    // add a range if it is not already contained in the input, so [c-f]
+    // will be skipped but [C-F] will be added.  If this range is not
+    // completely contained in a block we do this for all the blocks
+    // covered by the range.
+    unibrow::uchar range[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+    // First, look up the block that contains the 'from' character.
+    int length = canonrange.get(from(), '\0', range);
+    if (length == 0) {
+      range[0] = from();
+    } else {
+      ASSERT_EQ(1, length);
+    }
+    int pos = from();
+    // The start of the current block.  Note that except for the first
+    // iteration 'start' is always equal to 'pos'.
+    int start;
+    // If it is not the start point of a block the entry contains the
+    // offset of the character from the start point.
+    if ((range[0] & kStartMarker) == 0) {
+      start = pos - range[0];
+    } else {
+      start = pos;
+    }
+    // Then we add the ranges on at a time, incrementing the current
+    // position to be after the last block each time.  The position
+    // always points to the start of a block.
+    while (pos < to()) {
+      length = canonrange.get(start, '\0', range);
+      if (length == 0) {
+        range[0] = start;
+      } else {
+        ASSERT_EQ(1, length);
+      }
+      ASSERT((range[0] & kStartMarker) != 0);
+      // The start point of a block contains the distance to the end
+      // of the range.
+      int block_end = start + (range[0] & kPayloadMask) - 1;
+      int end = (block_end > to()) ? to() : block_end;
+      length = uncanonicalize.get(start, '\0', range);
+      for (int i = 0; i < length; i++) {
+        uc32 c = range[i];
+        uc16 range_from = c + (pos - start);
+        uc16 range_to = c + (end - start);
+        if (!(from() <= range_from && range_to <= to()))
+          ranges->Add(CharacterRange(range_from, range_to));
+      }
+      start = pos = block_end + 1;
+    }
+  } else {
+    // TODO when we've fixed the 2^11 bug in unibrow.
+  }
+}
+
+
 // -------------------------------------------------------------------
 // Interest propagation
 

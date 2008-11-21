@@ -812,7 +812,116 @@ TEST(SimplePropagation) {
 }
 
 
+static uc32 CanonRange(uc32 c) {
+  unibrow::uchar canon[unibrow::CanonicalizationRange::kMaxWidth];
+  int count = unibrow::CanonicalizationRange::Convert(c, '\0', canon, NULL);
+  if (count == 0) {
+    return c;
+  } else {
+    CHECK_EQ(1, count);
+    return canon[0];
+  }
+}
+
+
+TEST(RangeCanonicalization) {
+  ASSERT((CanonRange(0) & CharacterRange::kStartMarker) != 0);
+  // Check that we arrive at the same result when using the basic
+  // range canonicalization primitives as when using immediate
+  // canonicalization.
+  unibrow::Mapping<unibrow::Ecma262UnCanonicalize> un_canonicalize;
+  for (int i = 0; i < CharacterRange::kRangeCanonicalizeMax; i++) {
+    int range = CanonRange(i);
+    int indirect_length = 0;
+    unibrow::uchar indirect[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+    if ((range & CharacterRange::kStartMarker) == 0) {
+      indirect_length = un_canonicalize.get(i - range, '\0', indirect);
+      for (int i = 0; i < indirect_length; i++)
+        indirect[i] += range;
+    } else {
+      indirect_length = un_canonicalize.get(i, '\0', indirect);
+    }
+    unibrow::uchar direct[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+    int direct_length = un_canonicalize.get(i, '\0', direct);
+    CHECK_EQ(direct_length, indirect_length);
+  }
+  // Check that we arrive at the same results when skipping over
+  // canonicalization ranges.
+  int next_block = 0;
+  while (next_block < CharacterRange::kRangeCanonicalizeMax) {
+    uc32 start = CanonRange(next_block);
+    CHECK((start & CharacterRange::kStartMarker) != 0);
+    unsigned dist = start & CharacterRange::kPayloadMask;
+    unibrow::uchar first[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+    int first_length = un_canonicalize.get(next_block, '\0', first);
+    for (unsigned i = 1; i < dist; i++) {
+      CHECK_EQ(i, CanonRange(i));
+      unibrow::uchar succ[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+      int succ_length = un_canonicalize.get(next_block + i, '\0', succ);
+      CHECK_EQ(first_length, succ_length);
+      for (int j = 0; j < succ_length; j++) {
+        int calc = first[j] + i;
+        int found = succ[j];
+        CHECK_EQ(calc, found);
+      }
+    }
+    next_block = next_block + dist;
+  }
+}
+
+
+static void TestRangeCaseIndependence(CharacterRange input,
+                                      Vector<CharacterRange> expected) {
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  int count = expected.length();
+  ZoneList<CharacterRange>* list = new ZoneList<CharacterRange>(count);
+  input.AddCaseEquivalents(list);
+  CHECK_EQ(count, list->length());
+  for (int i = 0; i < list->length(); i++) {
+    CHECK_EQ(expected[i].from(), list->at(i).from());
+    CHECK_EQ(expected[i].to(), list->at(i).to());
+  }
+}
+
+
+static void TestSimpleRangeCaseIndependence(CharacterRange input,
+                                            CharacterRange expected) {
+  EmbeddedVector<CharacterRange, 1> vector;
+  vector[0] = expected;
+  TestRangeCaseIndependence(input, vector);
+}
+
+
+TEST(CharacterRangeCaseIndependence) {
+  TestSimpleRangeCaseIndependence(CharacterRange::Singleton('a'),
+                                  CharacterRange::Singleton('A'));
+  TestSimpleRangeCaseIndependence(CharacterRange::Singleton('z'),
+                                  CharacterRange::Singleton('Z'));
+  TestSimpleRangeCaseIndependence(CharacterRange('a', 'z'),
+                                  CharacterRange('A', 'Z'));
+  TestSimpleRangeCaseIndependence(CharacterRange('c', 'f'),
+                                  CharacterRange('C', 'F'));
+  TestSimpleRangeCaseIndependence(CharacterRange('a', 'b'),
+                                  CharacterRange('A', 'B'));
+  TestSimpleRangeCaseIndependence(CharacterRange('y', 'z'),
+                                  CharacterRange('Y', 'Z'));
+  TestSimpleRangeCaseIndependence(CharacterRange('a' - 1, 'z' + 1),
+                                  CharacterRange('A', 'Z'));
+  TestSimpleRangeCaseIndependence(CharacterRange('A', 'Z'),
+                                  CharacterRange('a', 'z'));
+  TestSimpleRangeCaseIndependence(CharacterRange('C', 'F'),
+                                  CharacterRange('c', 'f'));
+  TestSimpleRangeCaseIndependence(CharacterRange('A' - 1, 'Z' + 1),
+                                  CharacterRange('a', 'z'));
+  // Here we need to add [l-z] to complete the case independence of
+  // [A-Za-z] but we expect [a-z] to be added since we always add a
+  // whole block at a time.
+  TestSimpleRangeCaseIndependence(CharacterRange('A', 'k'),
+                                  CharacterRange('a', 'z'));
+}
+
+
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute(".*o(?=o)", "", true);
+  Execute("(a|^b|c)", "", false);
 }
