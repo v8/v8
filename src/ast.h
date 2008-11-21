@@ -864,13 +864,20 @@ class Property: public Expression {
 
 class Call: public Expression {
  public:
+  enum EvalType {
+    ALIASED,               // Either not eval or an aliased eval.
+    POTENTIALLY_DIRECT     // Looks like a direct eval at codegen time.
+                           // Needs to be determined at runtime whether the
+                           // eval is direct.
+  };
+
   Call(Expression* expression,
        ZoneList<Expression*>* arguments,
-       bool is_eval,
+       EvalType eval_type,
        int pos)
       : expression_(expression),
         arguments_(arguments),
-        is_eval_(is_eval),
+        eval_type_(eval_type),
         pos_(pos) { }
 
   virtual void Accept(Visitor* v);
@@ -880,7 +887,7 @@ class Call: public Expression {
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
-  bool is_eval()  { return is_eval_; }
+  EvalType eval_type()  { return eval_type_; }
   int position() { return pos_; }
 
   static Call* sentinel() { return &sentinel_; }
@@ -888,7 +895,7 @@ class Call: public Expression {
  private:
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
-  bool is_eval_;
+  EvalType eval_type_;
   int pos_;
 
   static Call sentinel_;
@@ -898,7 +905,7 @@ class Call: public Expression {
 class CallNew: public Call {
  public:
   CallNew(Expression* expression, ZoneList<Expression*>* arguments, int pos)
-      : Call(expression, arguments, false, pos) { }
+      : Call(expression, arguments, ALIASED, pos) { }
 
   virtual void Accept(Visitor* v);
 };

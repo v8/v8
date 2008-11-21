@@ -102,6 +102,7 @@ void Top::InitializeThreadLocal() {
   clear_scheduled_exception();
   thread_local_.save_context_ = NULL;
   thread_local_.catcher_ = NULL;
+  thread_local_.in_potentially_direct_eval_ = false;
 }
 
 

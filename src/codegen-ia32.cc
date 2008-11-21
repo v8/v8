@@ -2690,6 +2690,12 @@ void CodeGenerator::VisitCall(Call* node) {
   // is resolved in cache misses (this also holds for megamorphic calls).
   // ------------------------------------------------------------------------
 
+  if (node->eval_type() == Call::POTENTIALLY_DIRECT) {
+    __ CallRuntime(Runtime::kSetInPotentiallyDirectEval, 0);
+  } else {
+    __ CallRuntime(Runtime::kClearInPotentiallyDirectEval, 0);
+  }
+
   if (var != NULL && !var->is_this() && var->is_global()) {
     // ----------------------------------
     // JavaScript example: 'foo(1, 2, 3)'  // foo is global
