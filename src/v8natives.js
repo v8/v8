@@ -101,6 +101,7 @@ function GlobalParseFloat(string) {
   return %StringParseFloat(ToString(string));
 }
 
+
 function GlobalEval(x) {
   if (!IS_STRING(x)) return x;
 
@@ -109,14 +110,10 @@ function GlobalEval(x) {
                          'be the global object from which eval originated');
   }
   
-  if (%InDirectEval()) {
-    return %ExecDirectEval(x);
-  }
-  
-  var f = %CompileString(x, 0);
+  var f = %CompileString(x, 0, true);
   if (!IS_FUNCTION(f)) return f;
 
-  return f.call(this);
+  return f.call(%EvalReceiver(this));
 }
 
 
@@ -124,7 +121,7 @@ function GlobalEval(x) {
 function GlobalExecScript(expr, lang) {
   // NOTE: We don't care about the character casing.
   if (!lang || /javascript/i.test(lang)) {
-    var f = %CompileString(ToString(expr), 0);
+    var f = %CompileString(ToString(expr), 0, false);
     f.call(%GlobalReceiver(global));
   }
   return null;
@@ -143,7 +140,7 @@ function SetupGlobal() {
 
   // ECMA-262 - 15.1.1.3.
   %SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
-  
+
   // Setup non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
     "isNaN", GlobalIsNaN,
@@ -524,7 +521,7 @@ function NewFunction(arg1) {  // length == 1
 
   // The call to SetNewFunctionAttributes will ensure the prototype
   // property of the resulting function is enumerable (ECMA262, 15.3.5.2).
-  var f = %CompileString(source, -1)();
+  var f = %CompileString(source, -1, false)();
   %FunctionSetName(f, "anonymous");
   return %SetNewFunctionAttributes(f);
 }

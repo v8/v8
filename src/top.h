@@ -67,10 +67,6 @@ class ThreadLocalTop BASE_EMBEDDED {
 
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
-
-  // Flag for whether we are currently in a call that the static analysis
-  // marked as a potentially direct eval.
-  bool in_potentially_direct_eval_;
 };
 
 #define TOP_ADDRESS_LIST(C) \
@@ -168,14 +164,6 @@ class Top {
     return &thread_local_.c_entry_fp_;
   }
   static inline Address* handler_address() { return &thread_local_.handler_; }
-
-  static inline void set_in_potentially_direct_eval(bool b) {
-    thread_local_.in_potentially_direct_eval_ = b;
-  }
-
-  static inline bool is_in_potentially_direct_eval() {
-    return thread_local_.in_potentially_direct_eval_;
-  }
 
   // Generated code scratch locations.
   static void* formal_count_address() { return &thread_local_.formal_count_; }

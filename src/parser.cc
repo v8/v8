@@ -327,8 +327,6 @@ class ParserFactory BASE_EMBEDDED {
     return Handle<String>();
   }
 
-
-
   virtual Expression* NewProperty(Expression* obj, Expression* key, int pos) {
     if (obj == VariableProxySentinel::this_proxy()) {
       return Property::this_property();
@@ -339,7 +337,7 @@ class ParserFactory BASE_EMBEDDED {
 
   virtual Expression* NewCall(Expression* expression,
                               ZoneList<Expression*>* arguments,
-                              Call::EvalType eval_type, int pos) {
+                              bool is_eval, int pos) {
     return Call::sentinel();
   }
 
@@ -389,8 +387,8 @@ class AstBuildingParserFactory : public ParserFactory {
 
   virtual Expression* NewCall(Expression* expression,
                               ZoneList<Expression*>* arguments,
-                              Call::EvalType eval_type, int pos) {
-    return new Call(expression, arguments, eval_type, pos);
+                              bool is_eval, int pos) {
+    return new Call(expression, arguments, is_eval, pos);
   }
 
   virtual Statement* EmptyStatement() {
@@ -2296,32 +2294,38 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
 
         // Keep track of eval() calls since they disable all local variable
-        // optimizations.
-        // The calls that need special treatment are the
-        // direct (i.e. not aliased) eval calls. These calls are all of the
-        // form eval(...) with no explicit receiver object where eval is not
-        // declared in the current scope chain. These calls are marked as
-        // potentially direct eval calls. Whether they are actually direct calls
-        // to eval is determined at run time.
+        // optimizations. We can ignore locally declared variables with
+        // name 'eval' since they override the global 'eval' function. We
+        // only need to look at unresolved variables (VariableProxies).
 
-        Call::EvalType eval_type = Call::ALIASED;
         if (!is_pre_parsing_) {
+          // We assume that only a function called 'eval' can be used
+          // to invoke the global eval() implementation. This permits
+          // for massive optimizations.
           VariableProxy* callee = result->AsVariableProxy();
           if (callee != NULL && callee->IsVariable(Factory::eval_symbol())) {
-            Handle<String> name = callee->name();
-            Variable* var = NULL;
-            for (Scope* scope = top_scope_;
-                 scope != NULL;
-                 scope = scope->outer_scope()) {
-              var = scope->Lookup(callee->name());
-              if (var != NULL) break;
-            }
-            if (var == NULL) {
-              // We do not allow direct calls to 'eval' in our internal
-              // JS files. Use builtin functions instead.
-              ASSERT(!Bootstrapper::IsActive());
-              top_scope_->RecordEvalCall();
-              eval_type = Call::POTENTIALLY_DIRECT;
+            // We do not allow direct calls to 'eval' in our internal
+            // JS files. Use builtin functions instead.
+            ASSERT(!Bootstrapper::IsActive());
+            top_scope_->RecordEvalCall();
+          } else {
+            // This is rather convoluted code to check if we're calling
+            // a function named 'eval' through a property access. If so,
+            // we mark it as a possible eval call (we don't know if the
+            // receiver will resolve to the global object or not), but
+            // we do not treat the call as an eval() call - we let the
+            // call get through to the JavaScript eval code defined in
+            // v8natives.js.
+            Property* property = result->AsProperty();
+            if (property != NULL) {
+              Literal* key = property->key()->AsLiteral();
+              if (key != NULL &&
+                  key->handle().is_identical_to(Factory::eval_symbol())) {
+                // We do not allow direct calls to 'eval' in our
+                // internal JS files. Use builtin functions instead.
+                ASSERT(!Bootstrapper::IsActive());
+                top_scope_->RecordEvalCall();
+              }
             }
           }
         }
@@ -2338,7 +2342,7 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         if (is_eval && args->length() == 0) {
           result = NEW(Literal(Factory::undefined_value()));
         } else {
-          result = factory()->NewCall(result, args, eval_type, pos);
+          result = factory()->NewCall(result, args, is_eval, pos);
         }
         break;
       }

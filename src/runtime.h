@@ -190,16 +190,13 @@ namespace v8 { namespace internal {
   F(NumberIsFinite, 1) \
   \
   /* Globals */ \
-  F(CompileString, 2) \
+  F(CompileString, 3) \
   F(CompileScript, 4) \
   F(GlobalPrint, 1) \
   \
   /* Eval */ \
+  F(EvalReceiver, 1) \
   F(GlobalReceiver, 1) \
-  F(SetInPotentiallyDirectEval, 0) \
-  F(ClearInPotentiallyDirectEval, 0) \
-  F(InDirectEval, 0) \
-  F(ExecDirectEval, 1) \
   \
   F(SetProperty, -1 /* 3 or 4 */) \
   F(IgnoreAttributesAndSetProperty, -1 /* 3 or 4 */) \

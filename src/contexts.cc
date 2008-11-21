@@ -74,6 +74,14 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
                                int* index_, PropertyAttributes* attributes) {
   Handle<Context> context(this);
 
+  // The context must be in frame slot 0 (if not debugging).
+  if (kDebug && !Debug::InDebugger()) {
+    StackFrameLocator locator;
+    ASSERT(context->fcontext() ==
+           Context::cast(
+               locator.FindJavaScriptFrame(0)->context())->fcontext());
+  }
+
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
   *index_ = -1;
   *attributes = ABSENT;

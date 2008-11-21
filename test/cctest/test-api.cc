@@ -4022,7 +4022,7 @@ THREADED_TEST(Eval) {
   v8::HandleScope scope;
   LocalContext current;
 
-  // Test that un-aliased eval reads from local context.
+  // Test that un-aliased eval uses local context.
   Local<Script> script =
       Script::Compile(v8_str("foo = 0;"
                              "(function() {"
@@ -4032,19 +4032,6 @@ THREADED_TEST(Eval) {
   Local<Value> result = script->Run();
   CHECK_EQ(2, result->Int32Value());
 
-  // Test that un-aliased eval writes to local context.
-  script =
-      Script::Compile(v8_str("foo = 0;"
-                             "(function() {"
-                             "  var foo = 1;"
-                             "  eval('foo = 2;');"
-                             "  return foo;"
-                             "})();"));
-  result = script->Run();
-  CHECK_EQ(0, current->Global()->Get(v8_str("foo"))->Int32Value());
-  CHECK(result->IsInt32());
-  CHECK_EQ(2, result->Int32Value());
-
   // Test that un-aliased eval has right this.
   script =
       Script::Compile(v8_str("function MyObject() { this.self = eval('this'); }"
@@ -4052,120 +4039,6 @@ THREADED_TEST(Eval) {
                              "o === o.self"));
   result = script->Run();
   CHECK(result->IsTrue());
-
-  // Test that aliased eval reads from global context.
-  script =
-      Script::Compile(v8_str("var e = eval;"
-                             "foo = 0;"
-                             "(function() {"
-                             "  var foo = 2;"
-                             "  return e('foo');"
-                             "})();"));
-  result = script->Run();
-  CHECK_EQ(0, result->Int32Value());
-
-  // Test that aliased eval writes to global context.
-  script =
-      Script::Compile(v8_str("var e = eval;"
-                             "foo = 0;"
-                             "(function() {"
-                             "  e('var foo = 2;');"
-                             "})();"
-                             "foo"));
-  result = script->Run();
-  CHECK_EQ(2, result->Int32Value());
-
-  // Test that aliased eval has right this.
-  script =
-      Script::Compile(v8_str("var e = eval;"
-                             "function MyObject() { this.self = e('this'); }"
-                             "var o = new MyObject();"
-                             "this === o.self"));
-  result = script->Run();
-  CHECK(result->IsTrue());
-
-  // Try to cheat the 'aliased eval' detection.
-  script =
-      Script::Compile(v8_str("var x = this;"
-                             "foo = 0;"
-                             "(function() {"
-                             "  var foo = 2;"
-                             "  return x.eval('foo');"
-                             "})();"));
-  result = script->Run();
-  CHECK_EQ(0, result->Int32Value());
-
-  script =
-      Script::Compile(v8_str("var e = eval;"
-                             "foo = 0;"
-                             "(function() {"
-                             "  var eval = function(x) { return x; };"
-                             "  var foo = eval(2);"
-                             "  return e('foo');"
-                             "})();"));
-  result = script->Run();
-  CHECK_EQ(0, result->Int32Value());
-
-  script =
-      Script::Compile(v8_str("(function() {"
-                             "  var eval = function(x) { return 2 * x; };"
-                             "  return (function() { return eval(2); })();"
-                             "})();"));
-  result = script->Run();
-  CHECK_EQ(4, result->Int32Value());
-
-  script =
-      Script::Compile(v8_str("eval = function(x) { return 2 * x; };"
-                             "(function() {"
-                             "  return (function() { return eval(2); })();"
-                             "})();"));
-  result = script->Run();
-  CHECK_EQ(4, result->Int32Value());
-}
-
-
-THREADED_TEST(EvalAliasedDynamic) {
-  v8::HandleScope scope;
-  LocalContext current;
-
-  // This sets 'global' to the real global object (as opposed to the
-  // proxy). It is highly implementation dependent, so take care.
-  current->Global()->Set(v8_str("global"), current->Global()->GetPrototype());
-
-  // Tests where aliased eval can only be resolved dynamically.
-  Local<Script> script =
-      Script::Compile(v8_str("function f(x) { "
-                             "  var foo = 2;"
-                             "  with (x) { return eval('foo'); }"
-                             "}"
-                             "foo = 0;"
-                             "var result = f(new Object()) == 2;"
-                             "result = result && (f(global) == 0);"
-                             "var x = new Object();"
-                             "x.eval = function(x) { return 1; };"
-                             "result = result && (f(x) == 1);"
-                             "result"));
-  Local<Value> result = script->Run();
-  CHECK(result->IsTrue());
-
-  v8::TryCatch try_catch;
-  script =
-    Script::Compile(v8_str("function f(x) { "
-                           "  var bar = 2;"
-                           "  with (x) { return eval('bar'); }"
-                           "}"
-                           "f(global)"));
-  result = script->Run();
-  CHECK(try_catch.HasCaught());
-  try_catch.Reset();
-
-  script =
-    Script::Compile(v8_str("this.eval = function (x) { return x + x; };"
-                           "foo = 2;"
-                           "eval('foo')"));
-  result = script->Run();
-  CHECK(result->IsString());
-  CHECK_EQ(v8_str("foofoo"), result);
 }
 
 

@@ -3930,6 +3930,57 @@ static Object* Runtime_NumberIsFinite(Arguments args) {
 }
 
 
+static Object* EvalContext() {
+  // The topmost JS frame belongs to the eval function which called
+  // the CompileString runtime function. We need to unwind one level
+  // to get to the caller of eval.
+  StackFrameLocator locator;
+  JavaScriptFrame* frame = locator.FindJavaScriptFrame(1);
+
+  // TODO(900055): Right now we check if the caller of eval() supports
+  // eval to determine if it's an aliased eval or not. This may not be
+  // entirely correct in the unlikely case where a function uses both
+  // aliased and direct eval calls.
+  HandleScope scope;
+  if (!ScopeInfo<>::SupportsEval(frame->FindCode())) {
+    // Aliased eval: Evaluate in the global context of the eval
+    // function to support aliased, cross environment evals.
+    return *Top::global_context();
+  }
+
+  // Fetch the caller context from the frame.
+  Handle<Context> caller(Context::cast(frame->context()));
+
+  // Check for eval() invocations that cross environments. Use the
+  // context from the stack if evaluating in current environment.
+  Handle<Context> target = Top::global_context();
+  if (caller->global_context() == *target) return *caller;
+
+  // Otherwise, use the global context from the other environment.
+  return *target;
+}
+
+
+static Object* Runtime_EvalReceiver(Arguments args) {
+  ASSERT(args.length() == 1);
+  StackFrameLocator locator;
+  JavaScriptFrame* frame = locator.FindJavaScriptFrame(1);
+  // Fetch the caller context from the frame.
+  Context* caller = Context::cast(frame->context());
+
+  // Check for eval() invocations that cross environments. Use the
+  // top frames receiver if evaluating in current environment.
+  Context* global_context = Top::context()->global()->global_context();
+  if (caller->global_context() == global_context) {
+    return frame->receiver();
+  }
+
+  // Otherwise use the given argument (the global object of the
+  // receiving context).
+  return args[0];
+}
+
+
 static Object* Runtime_GlobalReceiver(Arguments args) {
   ASSERT(args.length() == 1);
   Object* global = args[0];
@@ -3940,97 +3991,34 @@ static Object* Runtime_GlobalReceiver(Arguments args) {
 
 static Object* Runtime_CompileString(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
   CONVERT_ARG_CHECKED(String, source, 0);
   CONVERT_ARG_CHECKED(Smi, line_offset, 1);
+  bool contextual = args[2]->IsTrue();
+  RUNTIME_ASSERT(contextual || args[2]->IsFalse());
+
+  // Compute the eval context.
+  Handle<Context> context;
+  if (contextual) {
+    // Get eval context. May not be available if we are calling eval
+    // through an alias, and the corresponding frame doesn't have a
+    // proper eval context set up.
+    Object* eval_context = EvalContext();
+    if (eval_context->IsFailure()) return eval_context;
+    context = Handle<Context>(Context::cast(eval_context));
+  } else {
+    context = Handle<Context>(Top::context()->global_context());
+  }
+
 
   // Compile source string.
+  bool is_global = context->IsGlobalContext();
   Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, line_offset->value(), true);
+      Compiler::CompileEval(source, line_offset->value(), is_global);
   if (boilerplate.is_null()) return Failure::Exception();
-  Handle<Context> context(Top::context()->global_context());
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
   return *fun;
-}
-
-
-static Object* Runtime_ExecDirectEval(Arguments args) {
-  ASSERT(args.length() == 1);
-
-  if (!args[0]->IsString()) return args[0];
-
-  Handle<String> source = args.at<String>(0);
-
-  // Compute the eval context.
-  HandleScope scope;
-  StackFrameLocator locator;
-  JavaScriptFrame* frame = locator.FindJavaScriptFrame(1);
-  Handle<Context> context(Context::cast(frame->context()));
-  bool is_global = context->IsGlobalContext();
-
-  // Compile source string.
-  Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, 0, is_global);
-  if (boilerplate.is_null()) return Failure::Exception();
-  Handle<JSFunction> fun =
-      Factory::NewFunctionFromBoilerplate(boilerplate, context);
-
-  // Call generated function
-  Handle<Object> receiver(frame->receiver());
-  bool has_pending_exception = false;
-  Handle<Object> result =
-      Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
-  if (has_pending_exception) {
-    ASSERT(Top::has_pending_exception());
-    return Failure::Exception();
-  }
-  return *result;
-}
-
-
-static Object* Runtime_SetInPotentiallyDirectEval(Arguments args) {
-  ASSERT(args.length() == 0);
-  Top::set_in_potentially_direct_eval(true);
-  return Heap::undefined_value();
-}
-
-
-static Object* Runtime_ClearInPotentiallyDirectEval(Arguments args) {
-  ASSERT(args.length() == 0);
-  Top::set_in_potentially_direct_eval(false);
-  return Heap::undefined_value();
-}
-
-
-static Object* Runtime_InDirectEval(Arguments args) {
-  ASSERT(args.length() == 0);
-
-  // No need to look further if the static analysis showed that this
-  // is aliased.
-  if (!Top::is_in_potentially_direct_eval()) {
-    return Heap::false_value();
-  }
-
-  // Find where the 'eval' symbol is bound. It is unaliased only if
-  // it is bound in the global object.
-  HandleScope scope;
-  StackFrameLocator locator;
-  JavaScriptFrame* frame = locator.FindJavaScriptFrame(1);
-  Context* context = Context::cast(frame->context());
-  int index;
-  PropertyAttributes attributes;
-  while (context && !context->IsGlobalContext()) {
-    context->Lookup(Factory::eval_symbol(), FOLLOW_PROTOTYPE_CHAIN,
-                    &index, &attributes);
-    if (attributes != ABSENT) return Heap::false_value();
-    if (context->is_function_context()) {
-      context = Context::cast(context->closure()->context());
-    } else {
-      context = context->previous();
-    }
-  }
-  return Heap::true_value();
 }
 
 
