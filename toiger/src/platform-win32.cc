@@ -48,6 +48,11 @@
 #ifndef NOMCX
 #define NOMCX
 #endif
+// Require Windows 2000 or higher (this is required for the IsDebuggerPresent
+// function to be present).
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x500
+#endif
 
 #include <windows.h>
 
@@ -680,13 +685,6 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
-void OS::WcsCpy(Vector<wchar_t> dest, const wchar_t* src) {
-  int result = wcscpy_s(dest.start(), dest.length(), src);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
 char *OS::StrDup(const char* str) {
   return _strdup(str);
 }
@@ -781,10 +779,14 @@ void OS::Sleep(int milliseconds) {
 
 
 void OS::Abort() {
-  // Make the MSVCRT do a silent abort.
-  _set_abort_behavior(0, _WRITE_ABORT_MSG);
-  _set_abort_behavior(0, _CALL_REPORTFAULT);
-  abort();
+  if (!IsDebuggerPresent()) {
+    // Make the MSVCRT do a silent abort.
+    _set_abort_behavior(0, _WRITE_ABORT_MSG);
+    _set_abort_behavior(0, _CALL_REPORTFAULT);
+    abort();
+  } else {
+    DebugBreak();
+  }
 }
 
 

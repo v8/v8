@@ -26,6 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+#include <stdlib.h>
+
 #include "d8.h"
 #include "debug.h"
 #include "api.h"
@@ -77,7 +79,7 @@ i::SmartPointer<char> DumbLineEditor::Prompt(const char* prompt) {
   char buffer[kBufferSize];
   printf("%s", prompt);
   char* str = fgets(buffer, kBufferSize, stdin);
-  return i::SmartPointer<char>(str ? i::OS::StrDup(str) : str);
+  return i::SmartPointer<char>(str ? i::StrDup(str) : str);
 }
 
 

@@ -148,6 +148,7 @@ class StubCache : public AllStatic {
   // ---
 
   static Object* ComputeCallInitialize(int argc);
+  static Object* ComputeCallInitializeInLoop(int argc);
   static Object* ComputeCallPreMonomorphic(int argc);
   static Object* ComputeCallNormal(int argc);
   static Object* ComputeCallMegamorphic(int argc);
@@ -339,6 +340,11 @@ class StubCompiler BASE_EMBEDDED {
                                        Register receiver,
                                        Register scratch,
                                        Label* miss_label);
+  static void GenerateLoadStringLength2(MacroAssembler* masm,
+                                        Register receiver,
+                                        Register scratch1,
+                                        Register scratch2,
+                                        Label* miss_label);
   static void GenerateLoadFunctionPrototype(MacroAssembler* masm,
                                             Register receiver,
                                             Register scratch1,

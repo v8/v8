@@ -663,36 +663,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // they will have the correct value when returning from the debugger.
   __ SaveRegistersToMemory(kJSCallerSaved);
 
-  // This is a direct call from a debug breakpoint. To build a fake JS frame
-  // with no parameters push a function and a receiver, keep the current
-  // return address in lr, and set r0 to zero.
-  __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
-  __ ldr(r3, MemOperand(ip));
-  __ mov(r0, Operand(0));  // Null receiver and zero arguments.
-  __ stm(db_w, sp, r0.bit() | r3.bit());  // push function and receiver
-
-  // r0: number of arguments.
-  // What follows is an inlined version of EnterJSFrame(0, 0).
-  // It needs to be kept in sync if any calling conventions are changed.
-
-  // Compute parameter pointer before making changes
-  // ip = sp + kPointerSize*(args_len+1);  // +1 for receiver, args_len == 0
-  __ add(ip, sp, Operand(kPointerSize));
-
-  __ mov(r3, Operand(0));  // args_len to be saved
-  __ mov(r2, Operand(cp));  // context to be saved
-
-  // push in reverse order: context (r2), args_len (r3), caller_pp, caller_fp,
-  // sp_on_exit (ip == pp), return address
-  __ stm(db_w, sp, r2.bit() | r3.bit() | pp.bit() | fp.bit() |
-         ip.bit() | lr.bit());
-  // Setup new frame pointer.
-  __ add(fp, sp, Operand(-StandardFrameConstants::kContextOffset));
-  __ mov(pp, Operand(ip));  // setup new parameter pointer
-  // r0 is already set to 0 as spare slot to store caller code object during GC
-  __ push(r0);  // code pointer
-
-  // Inlined EnterJSFrame ends here.
+  __ EnterInternalFrame();
 
   // Store the registers containing object pointers on the expression stack to
   // make sure that these are correctly updated during GC.
@@ -702,7 +673,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
 #ifdef DEBUG
   __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
-  // r0 is already 0, no arguments
+  __ mov(r0, Operand(0));  // no arguments
   __ mov(r1, Operand(ExternalReference::debug_break()));
 
   CEntryDebugBreakStub ceb;
@@ -713,14 +684,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // Use sp as base to pop.
   __ CopyRegistersFromStackToMemory(sp, r3, pointer_regs);
 
-  // What follows is an inlined version of ExitJSFrame(0).
-  // It needs to be kept in sync if any calling conventions are changed.
-  // NOTE: loading the return address to lr and discarding the (fake) function
-  //       is an addition to this inlined copy.
-
-  __ mov(sp, Operand(fp));  // respect ABI stack constraint
-  __ ldm(ia, sp, pp.bit() | fp.bit() | sp.bit() | lr.bit());
-  __ pop();  // discard fake function
+  __ LeaveInternalFrame();
 
   // Inlined ExitJSFrame ends here.
 

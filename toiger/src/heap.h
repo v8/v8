@@ -356,9 +356,17 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  static Object* AllocateSymbol(unibrow::CharacterStream* buffer,
-                                int chars,
-                                uint32_t length_field);
+  static inline Object* AllocateSymbol(Vector<const char> str,
+                                       int chars,
+                                       uint32_t length_field);
+
+  static Object* AllocateInternalSymbol(unibrow::CharacterStream* buffer,
+                                        int chars,
+                                        uint32_t length_field);
+
+  static Object* AllocateExternalSymbol(Vector<const char> str,
+                                        int chars);
+
 
   // Allocates and partially initializes a String.  There are two String
   // encodings: ASCII and two byte.  These functions allocate a string of the
@@ -527,6 +535,8 @@ class Heap : public AllStatic {
       ExternalAsciiString::Resource* resource);
   static Object* AllocateExternalStringFromTwoByte(
       ExternalTwoByteString::Resource* resource);
+  static Object* AllocateExternalSymbolFromTwoByte(
+      ExternalTwoByteString::Resource* resource);
 
   // Allocates an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.
@@ -593,6 +603,10 @@ class Heap : public AllStatic {
   }
   static void SetGlobalGCEpilogueCallback(GCCallback callback) {
     global_gc_epilogue_callback_ = callback;
+  }
+
+  static void SetExternalSymbolCallback(ExternalSymbolCallback callback) {
+    global_external_symbol_callback_ = callback;
   }
 
   // Heap roots
@@ -853,6 +867,9 @@ class Heap : public AllStatic {
   // Allocations in the callback function are disallowed.
   static GCCallback global_gc_prologue_callback_;
   static GCCallback global_gc_epilogue_callback_;
+
+  // Callback function used for allocating external symbols.
+  static ExternalSymbolCallback global_external_symbol_callback_;
 
   // Checks whether a global GC is necessary
   static GarbageCollector SelectGarbageCollector(AllocationSpace space);

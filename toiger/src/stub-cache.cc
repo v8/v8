@@ -543,6 +543,17 @@ Object* StubCache::ComputeCallInitialize(int argc) {
 }
 
 
+Object* StubCache::ComputeCallInitializeInLoop(int argc) {
+  Code::Flags flags =
+      Code::ComputeFlags(Code::CALL_IC, UNINITIALIZED_IN_LOOP, NORMAL, argc);
+  Object* probe = ProbeCache(flags);
+  if (!probe->IsUndefined()) return probe;
+  StubCompiler compiler;
+  return FillCache(compiler.CompileCallInitialize(flags));
+}
+
+
+
 Object* StubCache::ComputeCallPreMonomorphic(int argc) {
   Code::Flags flags =
       Code::ComputeFlags(Code::CALL_IC, PREMONOMORPHIC, NORMAL, argc);

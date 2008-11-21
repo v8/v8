@@ -109,6 +109,10 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   cc_reg_ = no_condition;
   function_return_.set_code_generator(this);
   function_return_is_shadowed_ = false;
+
+  // Adjust for function-level loop nesting.
+  loop_nesting_ += fun->loop_nesting();
+
   {
     CodeGenState state(this);
 
@@ -294,6 +298,9 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     }
   }
 
+  // Adjust for function-level loop nesting.
+  loop_nesting_ -= fun->loop_nesting();
+
   // Code generation state must be reset.
   ASSERT(!function_return_is_shadowed_);
   function_return_.Unuse();
@@ -301,6 +308,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   delete_frame();
   ASSERT(!has_cc());
   ASSERT(state_ == NULL);
+  ASSERT(loop_nesting() == 0);
 }
 
 
@@ -2853,7 +2861,6 @@ void CodeGenerator::VisitCall(Call* node) {
     // patch the stack to use the global proxy as 'this' in the
     // invoked function.
     LoadGlobal();
-
     // Load the arguments.
     int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
@@ -2861,7 +2868,9 @@ void CodeGenerator::VisitCall(Call* node) {
     }
 
     // Setup the receiver register and call the IC initialization code.
-    Handle<Code> stub = ComputeCallInitialize(arg_count);
+    Handle<Code> stub = (loop_nesting() > 0)
+        ? ComputeCallInitializeInLoop(arg_count)
+        : ComputeCallInitialize(arg_count);
     __ RecordPosition(node->position());
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
                            arg_count + 1);
@@ -2909,7 +2918,9 @@ void CodeGenerator::VisitCall(Call* node) {
       }
 
       // Call the IC initialization code.
-      Handle<Code> stub = ComputeCallInitialize(arg_count);
+      Handle<Code> stub = (loop_nesting() > 0)
+        ? ComputeCallInitializeInLoop(arg_count)
+        : ComputeCallInitialize(arg_count);
       __ RecordPosition(node->position());
       frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
       __ mov(esi, frame_->Context());

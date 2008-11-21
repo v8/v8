@@ -205,7 +205,6 @@ class OS {
                        va_list args);
 
   static void StrNCpy(Vector<char> dest, const char* src, size_t n);
-  static void WcsCpy(Vector<wchar_t> dest, const wchar_t* src);
   static char* StrDup(const char* str);
 
   // Support for profiler.  Can do nothing, in which case ticks

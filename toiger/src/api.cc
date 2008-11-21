@@ -2203,7 +2203,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.4.4 (candidate)";
+  return "0.4.5 (candidate)";
 }
 
 
@@ -2649,6 +2649,12 @@ void V8::SetGlobalGCPrologueCallback(GCCallback callback) {
 void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
   if (IsDeadCheck("v8::V8::SetGlobalGCEpilogueCallback()")) return;
   i::Heap::SetGlobalGCEpilogueCallback(callback);
+}
+
+
+void V8::SetExternalSymbolCallback(ExternalSymbolCallback callback) {
+  if (IsDeadCheck("v8::V8::SetExternalSymbolCallback()")) return;
+  i::Heap::SetExternalSymbolCallback(callback);
 }
 
 
