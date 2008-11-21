@@ -27,7 +27,7 @@
 
 import test
 import os
-from os.path import join, dirname, exists, basename
+from os.path import join, dirname, exists, basename, isdir
 import re
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
@@ -93,7 +93,10 @@ class MessageTestConfiguration(test.TestConfiguration):
     super(MessageTestConfiguration, self).__init__(context, root)
 
   def Ls(self, path):
-    return [f[:-3] for f in os.listdir(path) if f.endswith('.js')]
+    if isdir(path):
+        return [f[:-3] for f in os.listdir(path) if f.endswith('.js')]
+    else:
+        return []
 
   def ListTests(self, current_path, path, mode):
     mjsunit = [current_path + [t] for t in self.Ls(self.root)]
