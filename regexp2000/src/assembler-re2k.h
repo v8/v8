@@ -71,8 +71,8 @@ class Re2kAssembler {
   // previous capture.  Advances current position by the length of the capture
   // iff it matches.  The capture is stored in a given register and the
   // the register after.  If a register contains -1 then the other register
-  // mush always contain -1 and the on_mismatch label will never be called.
-  void CheckBackref(int capture_index, Label* on_mismatch);
+  // must always contain -1 and the on_mismatch label will never be called.
+  void CheckNotBackReference(int capture_index, Label* on_mismatch);
 
   // Checks a register for strictly-less-than or greater-than-or-equal.
   void CheckRegisterLT(int reg_index, uint16_t vs, Label* on_less_than);

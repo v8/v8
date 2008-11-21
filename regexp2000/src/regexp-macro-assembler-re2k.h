@@ -60,6 +60,7 @@ class RegExpMacroAssemblerRe2k: public RegExpMacroAssembler {
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacter(uc16 c, Label* on_equal);
   virtual void CheckNotCharacter(uc16 c, Label* on_not_equal);
+  virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckCharacters(Vector<const uc16> str,
                                int cp_offset,
                                Label* on_failure);

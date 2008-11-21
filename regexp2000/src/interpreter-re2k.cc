@@ -280,12 +280,26 @@ static bool RawMatch(const byte* code_base,
         pc = code_base + Load32(new_pc);
         break;
       }
-      BYTECODE(CHECK_BACKREF)
-        UNREACHABLE();
+      BYTECODE(CHECK_NOT_BACK_REF) {
+        int from = registers[pc[1]];
+        int len = registers[pc[1] + 1] - from;
+        if (current + len > subject.length()) {
+          pc = code_base + Load32(pc + 2);
+          break;
+        } else {
+          int i;
+          for (i = 0; i < len; i++) {
+            if (subject[from + i] != subject[current + i]) {
+              pc = code_base + Load32(pc + 2);
+              break;
+            }
+          }
+          if (i < len) break;
+          current += len;
+        }
+        pc += BC_CHECK_NOT_BACK_REF_LENGTH;
         break;
-      BYTECODE(CHECK_NOT_BACKREF)
-        UNREACHABLE();
-        break;
+      }
       default:
         UNREACHABLE();
         break;

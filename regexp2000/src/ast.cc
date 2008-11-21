@@ -360,7 +360,7 @@ void* RegExpUnparser::VisitLookahead(RegExpLookahead* that, void* data) {
 }
 
 
-void* RegExpUnparser::VisitBackreference(RegExpBackreference* that,
+void* RegExpUnparser::VisitBackReference(RegExpBackReference* that,
                                          void* data) {
   stream()->Add("(<- %i)", that->index());
   return NULL;

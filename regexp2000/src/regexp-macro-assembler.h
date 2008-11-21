@@ -64,6 +64,7 @@ class RegExpMacroAssembler {
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacter(uc16 c, Label* on_equal) = 0;
   virtual void CheckNotCharacter(uc16 c, Label* on_not_equal) = 0;
+  virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
   // Check the current character for a match with a literal string.  If we
   // fail to match then goto the on_failure label.  End of input always
   // matches.  If the label is NULL then we should pop a backtrack address off

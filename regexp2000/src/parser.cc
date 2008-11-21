@@ -515,11 +515,11 @@ class RegExpParser {
   uc32 ParseControlLetterEscape(bool* ok);
   uc32 ParseOctalLiteral();
 
-  // Tries to parse the input as a backreference.  If successful it
+  // Tries to parse the input as a back reference.  If successful it
   // stores the result in the output parameter and returns true.  If
   // it fails it will push back the characters read so the same characters
   // can be reparsed.
-  bool ParseBackreferenceIndex(int* index_out);
+  bool ParseBackReferenceIndex(int* index_out);
 
   CharacterRange ParseClassAtom(bool* is_char_class,
                                 ZoneList<CharacterRange>* ranges,
@@ -541,6 +541,8 @@ class RegExpParser {
   bool has_next() { return next_pos_ < in()->length(); }
   uc32 Next();
   FlatStringReader* in() { return in_; }
+  void ScanForCaptures();
+  bool CaptureAvailable(int index);
   uc32 current_;
   bool has_more_;
   bool multiline_mode_;
@@ -548,7 +550,9 @@ class RegExpParser {
   FlatStringReader* in_;
   Handle<String>* error_;
   bool has_character_escapes_;
+  bool is_scanned_for_captures_;
   ZoneList<RegExpCapture*>* captures_;
+  int capture_count_;
 };
 
 
@@ -3502,7 +3506,9 @@ RegExpParser::RegExpParser(FlatStringReader* in,
     in_(in),
     error_(error),
     has_character_escapes_(false),
-    captures_(NULL) {
+    is_scanned_for_captures_(false),
+    captures_(NULL),
+    capture_count_(0) {
   Advance(1);
 }
 
@@ -3561,6 +3567,14 @@ RegExpTree* RegExpParser::ParsePattern(bool* ok) {
     ReportError(CStrVector("Unmatched ')'"), CHECK_OK);
   }
   return result;
+}
+
+
+bool RegExpParser::CaptureAvailable(int index) {
+  if (captures_ == NULL) return false;
+  if (index >= captures_->length()) return false;
+  RegExpCapture* capture = captures_->at(index);
+  return capture != NULL && capture->available() == CAPTURE_AVAILABLE;
 }
 
 
@@ -3667,14 +3681,14 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
       case '1': case '2': case '3': case '4': case '5': case '6':
       case '7': case '8': case '9': {
         int index = 0;
-        if (ParseBackreferenceIndex(&index)) {
-          RegExpCapture* capture = captures_->at(index - 1);
-          if (capture == NULL || capture->available() != CAPTURE_AVAILABLE) {
+        if (ParseBackReferenceIndex(&index)) {
+          if (!CaptureAvailable(index - 1)) {
             // Prepare to ignore a following quantifier
             builder.AddEmpty();
             goto has_read_atom;
           }
-          RegExpTree* atom = new RegExpBackreference(capture);
+          RegExpCapture* capture = captures_->at(index - 1);
+          RegExpTree* atom = new RegExpBackReference(capture);
           builder.AddAtom(atom);
           goto has_read_atom;  // Avoid setting has_character_escapes_.
         }
@@ -3844,7 +3858,42 @@ static bool IsSpecialClassEscape(uc32 c) {
 #endif
 
 
-bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
+// In order to know whether an escape is a backreference or not we have to scan
+// the entire regexp and find the number of capturing parentheses.  However we
+// don't want to scan the regexp twice unless it is necessary.  This mini-parser
+// is called when needed.  It can see the difference between capturing and
+// noncapturing parentheses and can skip character classes and backslash-escaped
+// characters.
+void RegExpParser::ScanForCaptures() {
+  int n;
+  while ((n = current()) != kEndMarker) {
+    Advance();
+    switch (n) {
+      case '\\':
+        Advance();
+        break;
+      case '[': {
+        int c;
+        while ((c = current()) != kEndMarker) {
+          Advance();
+          if (c == '\\') {
+            Advance();
+          } else {
+            if (c == ']') break;
+          }
+        }
+        break;
+      }
+      case '(':
+        if (current() != '?') capture_count_++;
+        break;
+    }
+  }
+  is_scanned_for_captures_ = true;
+}
+
+
+bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
   ASSERT_EQ('\\', current());
   ASSERT('1' <= Next() && Next() <= '9');
   // Try to parse a decimal literal that is no greater than the number
@@ -3852,18 +3901,21 @@ bool RegExpParser::ParseBackreferenceIndex(int* index_out) {
   // This is a not according the the ECMAScript specification. According to
   // that, one must accept values up to the total number of left capturing
   // parentheses in the entire input, even if they are meaningless.
-  if (captures_ == NULL)
-    return false;
+  if (!is_scanned_for_captures_) {
+    int saved_position = position();
+    ScanForCaptures();
+    Reset(saved_position);
+  }
+  if (capture_count_ == 0) return false;
   int start = position();
   int value = Next() - '0';
-  if (value > captures_->length())
-    return false;
+  if (value > capture_count_) return false;
   Advance(2);
   while (true) {
     uc32 c = current();
     if (IsDecimalDigit(c)) {
       value = 10 * value + (c - '0');
-      if (value > captures_->length()) {
+      if (value > capture_count_) {
         Reset(start);
         return false;
       }
@@ -4068,6 +4120,7 @@ RegExpTree* RegExpParser::ParseGroup(bool* ok) {
       captures_ = new ZoneList<RegExpCapture*>(2);
     }
     captures_->Add(NULL);
+    if (!is_scanned_for_captures_) capture_count_++;
   }
   int capture_index = captures_started();
   RegExpTree* body = ParseDisjunction(CHECK_OK);

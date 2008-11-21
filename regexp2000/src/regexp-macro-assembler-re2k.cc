@@ -174,6 +174,12 @@ void RegExpMacroAssemblerRe2k::CheckNotCharacter(uc16 c, Label* on_not_equal) {
 }
 
 
+void RegExpMacroAssemblerRe2k::CheckNotBackReference(int start_reg,
+                                                     Label* on_not_equal) {
+  assembler_->CheckNotBackReference(start_reg, on_not_equal);
+}
+
+
 void RegExpMacroAssemblerRe2k::CheckBitmap(uc16 start,
                                            Label* bitmap,
                                            Label* on_zero) {

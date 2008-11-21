@@ -1282,6 +1282,19 @@ bool ActionNode::Emit(RegExpCompiler* compiler) {
 }
 
 
+bool BackReferenceNode::Emit(RegExpCompiler* compiler) {
+  RegExpMacroAssembler* macro = compiler->macro_assembler();
+  Bind(macro);
+  // Check whether the registers are uninitialized and always
+  // succeed if they are.
+  macro->IfRegisterLT(start_reg_, 0, on_success()->label());
+  macro->IfRegisterLT(end_reg_, 0, on_success()->label());
+  ASSERT_EQ(start_reg_ + 1, end_reg_);
+  macro->CheckNotBackReference(start_reg_, on_failure_->label());
+  return on_success()->GoTo(compiler);
+}
+
+
 // -------------------------------------------------------------------
 // Dot/dotty output
 
@@ -1445,7 +1458,7 @@ void DotPrinter::VisitText(TextNode* that) {
 }
 
 
-void DotPrinter::VisitBackreference(BackreferenceNode* that) {
+void DotPrinter::VisitBackReference(BackReferenceNode* that) {
   stream()->Add("  n%p [label=\"$%i..$%i\", shape=doubleoctagon];\n",
                 that,
                 that->start_register(),
@@ -1678,10 +1691,10 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
 }
 
 
-RegExpNode* RegExpBackreference::ToNode(RegExpCompiler* compiler,
+RegExpNode* RegExpBackReference::ToNode(RegExpCompiler* compiler,
                                         RegExpNode* on_success,
                                         RegExpNode* on_failure) {
-  return new BackreferenceNode(RegExpCapture::StartRegister(index()),
+  return new BackReferenceNode(RegExpCapture::StartRegister(index()),
                                RegExpCapture::EndRegister(index()),
                                on_success,
                                on_failure);
@@ -2020,7 +2033,7 @@ RegExpNode* EndNode::PropagateInterest(NodeInfo* info) {
 }
 
 
-RegExpNode* BackreferenceNode::PropagateInterest(NodeInfo* info) {
+RegExpNode* BackReferenceNode::PropagateInterest(NodeInfo* info) {
   return PropagateToEndpoint(this, info);
 }
 
@@ -2230,7 +2243,7 @@ void Analysis::VisitChoice(ChoiceNode* that) {
 }
 
 
-void Analysis::VisitBackreference(BackreferenceNode* that) {
+void Analysis::VisitBackReference(BackReferenceNode* that) {
   EnsureAnalyzed(that->on_success());
   EnsureAnalyzed(that->on_failure());
 }
@@ -2287,8 +2300,10 @@ void DispatchTableConstructor::VisitChoice(ChoiceNode* node) {
 }
 
 
-void DispatchTableConstructor::VisitBackreference(BackreferenceNode* that) {
-  // TODO(plesner): What should this do?
+void DispatchTableConstructor::VisitBackReference(BackReferenceNode* that) {
+  // TODO(160): Find the node that we refer back to and propagate its start
+  // set back to here.  For now we just accept anything.
+  AddRange(CharacterRange::Everything());
 }
 
 

@@ -211,10 +211,9 @@ void Re2kAssembler::CheckCharacterGT(uc16 limit, Label* on_greater) {
 }
 
 
-void Re2kAssembler::CheckBackref(int capture_index,
-                                 Label* on_mismatch) {
-  Emit(BC_CHECK_BACKREF);
-  Emit32(0);
+void Re2kAssembler::CheckNotBackReference(int capture_index,
+                                          Label* on_mismatch) {
+  Emit(BC_CHECK_NOT_BACK_REF);
   Emit(capture_index);
   EmitOrLink(on_mismatch);
 }

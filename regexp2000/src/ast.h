@@ -1412,16 +1412,16 @@ class RegExpLookahead: public RegExpTree {
 };
 
 
-class RegExpBackreference: public RegExpTree {
+class RegExpBackReference: public RegExpTree {
  public:
-  explicit RegExpBackreference(RegExpCapture* capture)
+  explicit RegExpBackReference(RegExpCapture* capture)
     : capture_(capture) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
                              RegExpNode* on_failure);
-  virtual RegExpBackreference* AsBackreference();
-  virtual bool IsBackreference();
+  virtual RegExpBackReference* AsBackReference();
+  virtual bool IsBackReference();
   int index() { return capture_->index(); }
   RegExpCapture* capture() { return capture_; }
  private:

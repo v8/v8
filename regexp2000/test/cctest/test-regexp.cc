@@ -160,9 +160,9 @@ TEST(Parser) {
   CHECK_PARSE_EQ("(a)\\1", "(: (^ 'a') (<- 1))");
   CHECK_PARSE_EQ("(a\\1)", "(^ 'a')");
   CHECK_PARSE_EQ("(\\1a)", "(^ 'a')");
-  CHECK_PARSE_EQ("\\1(a)", "(: '\\x01' (^ 'a'))");
+  CHECK_PARSE_EQ("\\1(a)", "(^ 'a')");
   CHECK_PARSE_EQ("(?!(a))\\1", "(-> - (^ 'a'))");
-  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(-> - (: '\\x01' (^ 'a') (<- 1)))");
+  CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(-> - (: (^ 'a') (<- 1)))");
   CHECK_PARSE_EQ("[\\0]", "[\\x00]");
   CHECK_PARSE_EQ("[\\11]", "[\\x09]");
   CHECK_PARSE_EQ("[\\11a]", "[\\x09 a]");
@@ -196,7 +196,7 @@ TEST(Parser) {
   CHECK_ESCAPES("(a)", false);
   CHECK_ESCAPES("(a)\\1", false);
   CHECK_ESCAPES("(\\1a)", false);
-  CHECK_ESCAPES("\\1(a)", true);
+  CHECK_ESCAPES("\\1(a)", false);
   CHECK_ESCAPES("a\\s", false);
   CHECK_ESCAPES("a\\S", false);
   CHECK_ESCAPES("a\\d", false);
@@ -923,5 +923,5 @@ TEST(CharacterRangeCaseIndependence) {
 
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("(a|^b|c)", "", false);
+  Execute("(x)?\\1y", "", true);
 }

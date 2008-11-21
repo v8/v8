@@ -402,7 +402,7 @@ class DispatchTable {
   VISIT(End)                                                         \
   VISIT(Action)                                                      \
   VISIT(Choice)                                                      \
-  VISIT(Backreference)                                               \
+  VISIT(BackReference)                                               \
   VISIT(Text)
 
 
@@ -415,7 +415,7 @@ class DispatchTable {
   VISIT(Quantifier)                                                  \
   VISIT(Capture)                                                     \
   VISIT(Lookahead)                                                   \
-  VISIT(Backreference)                                               \
+  VISIT(BackReference)                                               \
   VISIT(Empty)                                                       \
   VISIT(Text)
 
@@ -606,9 +606,9 @@ class TextNode: public SeqRegExpNode {
 };
 
 
-class BackreferenceNode: public SeqRegExpNode {
+class BackReferenceNode: public SeqRegExpNode {
  public:
-  BackreferenceNode(int start_reg,
+  BackReferenceNode(int start_reg,
                     int end_reg,
                     RegExpNode* on_success,
                     RegExpNode* on_failure)
@@ -620,7 +620,7 @@ class BackreferenceNode: public SeqRegExpNode {
   RegExpNode* on_failure() { return on_failure_; }
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
-  virtual bool Emit(RegExpCompiler* compiler) { return false; }
+  virtual bool Emit(RegExpCompiler* compiler);
   virtual RegExpNode* PropagateInterest(NodeInfo* info);
  private:
   RegExpNode* on_failure_;
