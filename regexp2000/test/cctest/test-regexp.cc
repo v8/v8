@@ -781,14 +781,10 @@ TEST(LatinCanonicalize) {
     CHECK_EQ(upper, uncanon[0]);
     CHECK_EQ(lower, uncanon[1]);
   }
-  for (uc32 c = 128; c < (1 << 21); c++) {
-    // These exceptions are caused by a known bug in the implementation.
-    if (c != 0x026B && c != 0x027D)
-      CHECK_GE(canonicalize(c), 128);
-  }
+  for (uc32 c = 128; c < (1 << 21); c++)
+    CHECK_GE(canonicalize(c), 128);
   unibrow::Mapping<unibrow::ToUppercase> to_upper;
   for (uc32 c = 0; c < (1 << 21); c++) {
-    if (c == 0x026B || c == 0x027D) continue;
     unibrow::uchar upper[unibrow::ToUppercase::kMaxWidth];
     int length = to_upper.get(c, '\0', upper);
     if (length == 0) {
@@ -798,8 +794,6 @@ TEST(LatinCanonicalize) {
     uc32 u = upper[0];
     if (length > 1 || (c >= 128 && u < 128))
       u = c;
-    if (u != canonicalize(c))
-      printf("%x\n", c);
     CHECK_EQ(u, canonicalize(c));
   }
 }

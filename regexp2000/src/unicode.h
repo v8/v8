@@ -84,8 +84,8 @@ class Mapping {
     inline CacheEntry(uchar code_point, signed offset)
       : code_point_(code_point),
         offset_(offset) { }
-    uchar code_point_ : 21;
-    signed offset_ : 21;
+    uchar code_point_;
+    signed offset_;
     static const int kNoChar = (1 << 21) - 1;
   };
   static const int kSize = size;
