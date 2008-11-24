@@ -25,22 +25,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <string.h>
 #include "v8.h"
+#include "ast.h"
+#include "assembler.h"
 #include "regexp-macro-assembler.h"
 
 namespace v8 { namespace internal {
 
+RegExpMacroAssembler::RegExpMacroAssembler() {
+}
 
-ByteArrayProvider::ByteArrayProvider(int initial_size)
+
+RegExpMacroAssembler::~RegExpMacroAssembler() {
+}
+
+
+ByteArrayProvider::ByteArrayProvider(unsigned int initial_size)
   : byte_array_size_(initial_size),
-    current_byte_array_(NULL),
+    current_byte_array_(),
     current_byte_array_free_offset_(initial_size) {}
 
 
-template <typename T>
-ArraySlice<T> ByteArrayProvider::GetBuffer(int size) {
-  ASSERT(sze > 0);
-  size_t elem_size = sizeof(T);
+ArraySlice ByteArrayProvider::GetBuffer(unsigned int size,
+                                        unsigned int elem_size) {
+  ASSERT(size > 0);
   size_t byte_size = size * elem_size;
   int free_offset = current_byte_array_free_offset_;
   // align elements
@@ -49,13 +58,20 @@ ArraySlice<T> ByteArrayProvider::GetBuffer(int size) {
 
   if (free_offset + byte_size > byte_array_size_) {
     if (byte_size > (byte_array_size_ / 2)) {
-      Handle<ByteArray> solo_buffer = Factory::NewByteArray(byte_size, TENURED);
-      return ArraySlice<T>(solo_buffer, 0);
+      Handle<ByteArray> solo_buffer(Factory::NewByteArray(byte_size, TENURED));
+      return ArraySlice(solo_buffer, 0);
     }
     current_byte_array_ = Factory::NewByteArray(byte_array_size_, TENURED);
     free_offset = 0;
   }
   current_byte_array_free_offset_ = free_offset + size;
-  return ArraySlice<T>(current_byte_array_, free_offset);
+  return ArraySlice(current_byte_array_, free_offset);
 }
-}}
+
+template <typename T>
+ArraySlice ByteArrayProvider::GetBuffer(Vector<T> values) {
+  ArraySlice slice = GetBuffer(values.length(), sizeof(T));
+  memcpy(slice.location<void>(), values.start(), values.length() * sizeof(T));
+  return slice;
+}
+} }

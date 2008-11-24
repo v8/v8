@@ -118,8 +118,8 @@ enum Condition {
   not_equal     =  5,
   below_equal   =  6,
   above         =  7,
-  sign          =  8,
-  not_sign      =  9,
+  negative      =  8,
+  positive      =  9,
   parity_even   = 10,
   parity_odd    = 11,
   less          = 12,
@@ -128,10 +128,12 @@ enum Condition {
   greater       = 15,
 
   // aliases
+  carry         = below,
+  not_carry     = above_equal,
   zero          = equal,
   not_zero      = not_equal,
-  negative      = sign,
-  positive      = not_sign
+  sign          = negative,
+  not_sign      = positive
 };
 
 
@@ -283,13 +285,14 @@ class Operand BASE_EMBEDDED {
 //
 // Displacement _data field layout
 //
-// |31.....1| ......0|
+// |31.....2|1......0|
 // [  next  |  type  |
 
 class Displacement BASE_EMBEDDED {
  public:
   enum Type {
     UNCONDITIONAL_JUMP,
+    CODE_RELATIVE,
     OTHER
   };
 
@@ -313,8 +316,8 @@ class Displacement BASE_EMBEDDED {
  private:
   int data_;
 
-  class TypeField: public BitField<Type, 0, 1> {};
-  class NextField: public BitField<int,  1, 32-1> {};
+  class TypeField: public BitField<Type, 0, 2> {};
+  class NextField: public BitField<int,  2, 32-2> {};
 
   void init(Label* L, Type type);
 };
@@ -440,6 +443,7 @@ class Assembler : public Malloced {
   void push(const Immediate& x);
   void push(Register src);
   void push(const Operand& src);
+  void push(Label* label, RelocInfo::Mode relocation_mode);
 
   void pop(Register dst);
   void pop(const Operand& dst);
@@ -541,6 +545,7 @@ class Assembler : public Malloced {
 
   void shr(Register dst, uint8_t imm8);
   void shr(Register dst);
+  void shr_cl(Register dst);
 
   void sub(const Operand& dst, const Immediate& x);
   void sub(Register dst, const Operand& src);

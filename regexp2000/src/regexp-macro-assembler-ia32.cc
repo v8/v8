@@ -25,11 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include <string.h>
 #include "v8.h"
+#include "log.h"
+#include "ast.h"
+#include "macro-assembler.h"
 #include "regexp-macro-assembler-ia32.h"
 
 namespace v8 { namespace internal {
-
 /*
  * This assembler uses the following register assignment convention
  * - edx : current character, or kEndOfInput if current position is not
@@ -38,63 +41,91 @@ namespace v8 { namespace internal {
  *         is inside the correct range should retain bits above the
  *         15th in their computations, and fail if the value is too
  *         great.
- * - edi : current position in input.
+ * - edi : current position in input, as negative offset from end of string.
  * - esi : end of input (points to byte after last character in input).
  * - ebp : points to the location above the registers on the stack,
  *         as if by the "enter <register_count>" opcode.
  * - esp : points to tip of backtracking stack.
  *
- * The registers eax, ebx and eax are free to use for computations.
+ * The registers eax, ebx and ecx are free to use for computations.
  *
  * Each call to a public method should retain this convention.
- * The stack is expected to have the following structure (tentative):
- *
- *       - pointer to array where captures can be stored
- *       - end of input
- *       - start of input
+ * The stack will have the following structure:
+ *       - int* capture_array (int[num_saved_registers_], for output).
+ *       - end of input       (index of end of string, relative to *string_base)
+ *       - start of input     (index of first character in string, relative
+ *                            to *string_base)
+ *       - void** string_base (location of a handle containing the string)
  *       - return address
+ *       - backup of esi
+ *       - backup of edi
  * ebp-> - old ebp
  *       - register 0  ebp[-4]
  *       - register 1  ebp[-8]
  *       - ...
  *
- * The data before ebp must be placed there by the calling code.
+ * The data before ebp must be placed there by the calling code, e.g.,
+ * by calling the code as cast to:
+ * bool (*match)(String** string_base,
+ *               int start_offset,
+ *               int end_offset,
+ *               int* capture_output_array)
  */
 
-RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32()
+#define __ masm_->
+
+RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(
+    Mode mode,
+    int registers_to_save,
+    bool ignore_case)
   : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
     constants_(kRegExpConstantsSize),
-    num_registers_(0),
-    ignore_case(false) {}
+    mode_(mode),
+    num_registers_(registers_to_save),
+    num_saved_registers_(registers_to_save),
+    ignore_case_(ignore_case),
+    entry_label_(),
+    start_label_(),
+    success_label_(),
+    exit_label_(),
+    self_(Heap::undefined_value()) {
+  __ jmp(&entry_label_);   // We'll write the entry code later.
+  __ bind(&start_label_);  // And then continue from here.
+}
 
 
 RegExpMacroAssemblerIA32::~RegExpMacroAssemblerIA32() {
   delete masm_;
+  // Unuse labels in case we throw away the assembler without calling GetCode.
+  entry_label_.Unuse();
+  start_label_.Unuse();
+  success_label_.Unuse();
+  exit_label_.Unuse();
 }
 
 
-#define __ masm_->
-
 void RegExpMacroAssemblerIA32::AdvanceCurrentPosition(int by) {
-  __ add(edi, by * sizeof(SubjectChar));
-  __ cmp(edi, esi);
+  ASSERT(by > 0);
   Label inside_string;
+  __ add(Operand(edi), Immediate(by * char_size()));
+  __ j(below, &inside_string);
   Backtrack();
 
   __ bind(&inside_string);
-  ReadChar(edx, 0);
 }
 
 
 void RegExpMacroAssemblerIA32::AdvanceRegister(int reg, int by) {
   ASSERT(reg >= 0);
-  ASSERT(reg < num_registers);
-  __ add(register_location(reg), by);
+  ASSERT(reg < num_registers_);
+  __ add(register_location(reg), Immediate(by));
 }
 
 
 void RegExpMacroAssemblerIA32::Backtrack() {
-  __ ret();
+  __ pop(ecx);
+  __ add(Operand(ecx), Immediate(self_));
+  __ jmp(Operand(ecx));
 }
 
 
@@ -102,12 +133,11 @@ void RegExpMacroAssemblerIA32::Bind(Label* label) {
   __ bind(label);
 }
 
-
 void RegExpMacroAssemblerIA32::CheckBitmap(uc16 start,
                                            Label* bitmap,
                                            Label* on_zero) {
   ReadCurrentChar(eax);
-  __ sub(eax, start);
+  __ sub(Operand(eax), Immediate(start));
   __ cmp(eax, 64);  // FIXME: 64 = length_of_bitmap_in_bits.
   BranchOrBacktrack(greater_equal, on_zero);
   __ mov(ebx, eax);
@@ -116,80 +146,102 @@ void RegExpMacroAssemblerIA32::CheckBitmap(uc16 start,
   // __ mov(ecx, position_of_bitmap);
   __ movzx_b(ebx, Operand(ecx, ebx, times_1, 0));
   __ and_(eax, (1<<3)-1);
-  __ bt(ebx, eax);
-  __ j(greater_equal, on_zero);  // Aka. jump on carry set.
+  __ bt(Operand(ebx), eax);
+  __ j(carry, on_zero);
 }
 
 
-void RegExpMacroAssemblerIA32::LoadCurrentCharacter(int cp_offset,
-                                                    Label* on_end_of_input) {
-  UNREACHABLE();  // Not implemented.
-}
-
-
-void RegExpMacroAssemblerIA32::CheckCharacterLT(uc16 limit, Label* on_less) {
-  UNREACHABLE();  // Not implemented.
+void RegExpMacroAssemblerIA32::CheckCharacter(uc16 c, Label* on_equal) {
+  __ cmp(edx, c);
+  BranchOrBacktrack(equal, on_equal);
 }
 
 
 void RegExpMacroAssemblerIA32::CheckCharacterGT(uc16 limit, Label* on_greater) {
-  UNREACHABLE();  // Not implemented.
+  __ cmp(edx, limit);
+  BranchOrBacktrack(greater, on_greater);
 }
 
 
-void RegExpMacroAssemblerIA32::CheckCharacters(Vector<uc16> str,
+void RegExpMacroAssemblerIA32::CheckCharacterLT(uc16 limit, Label* on_less) {
+  __ cmp(edx, limit);
+  BranchOrBacktrack(less, on_less);
+}
+
+
+void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
+                                               int cp_offset,
                                                Label* on_failure) {
-  if (sizeof(SubjectChar) == 1) {
-    for (int i = 0; i < str.length(); i++) {
-      if (str[i] > String::kMaxAsciiCharCode) {
-        __ jmp(on_failure);
-        return;
-      }
-    }
-  }
-  int byte_length = str.length() * sizeof(SubjectChar);
+  int byte_length = str.length() * char_size();
+  int start_offset = cp_offset * char_size();
   __ mov(ebx, edi);
-  __ add(ebx, byte_length);
-  __ cmp(ebx, esi);
+  __ add(Operand(ebx), Immediate(start_offset + byte_length));
   BranchOrBacktrack(greater_equal, on_failure);
 
-  if (str.length() <= kMaxInlineStringTests || ignore_case()) {
-    // TODO(lrn): make loop if str.length is large but ignore_case is true;
-    for (int i = 0; i < str.length(); i++) {
-      ReadChar(eax, i);
-      if (ignore_case()) {
-        Canonicalize(eax);
-      }
-      __ cmp(eax, str[i]);
-      BranchOrBacktrack(not_equal, on_failure);
-    }
-    add(edi, byte_length);
-  } else {
-    int offset;
-    ArraySlice<SubjectChar> constant_buffer =
-        constants_.GetBuffer<SubjectChar>(str.length());
-    for (int i = 0; i < str.length(); i++) {
-      constant_buffer[i] = str[i];
-    }
-    __ mov(ebx, esi);
-    LoadConstantBufferAddress(esi, constant_buffer);
-    __ mov(ecx, str.length());
-    if (sizeof(SubjectChar) == 1) {
-      __ rep_cmpsb();
+  ArraySlice constant_buffer = constants_.GetBuffer(str.length(), char_size());
+  for (int i = 0; i < str.length(); i++) {
+    if (mode_ == ASCII) {
+      constant_buffer.at<char>(i) = static_cast<char>(str[i]);
     } else {
-      ASSERT(sizeof(SubjectChar) == 2);
-      __ rep_cmpsw();
+      memcpy(constant_buffer.location<void>(),
+             str.start(),
+             str.length() * sizeof(uc16));
     }
-    __ mov(esi, ebx);
-    BranchOrBacktrack(not_equal, on_failure);
   }
-};
+
+  __ mov(eax, edi);
+  __ mov(ebx, esi);
+  __ lea(edi, Operand(esi, edi, times_1, start_offset));
+  LoadConstantBufferAddress(esi, &constant_buffer);
+  __ mov(ecx, str.length());
+  if (mode_ == ASCII) {
+    __ rep_cmpsb();
+  } else {
+    ASSERT(mode_ == UC16);
+    __ rep_cmpsw();
+  }
+  __ mov(esi, ebx);
+  __ mov(edi, eax);
+  BranchOrBacktrack(not_equal, on_failure);
+}
 
 
 void RegExpMacroAssemblerIA32::CheckCurrentPosition(int register_index,
                                                     Label* on_equal) {
-  __ cmp(register_location(register_index), edi);
+  __ cmp(edi, register_location(register_index));
   BranchOrBacktrack(equal, on_equal);
+}
+
+
+void RegExpMacroAssemblerIA32::CheckNotBackReference(
+    int start_reg, Label* on_no_match) {
+  if (ignore_case_) {
+    UNIMPLEMENTED();
+  }
+  Label fallthrough;
+  __ mov(eax, register_location(start_reg));
+  __ mov(ecx, register_location(start_reg + 1));
+  __ sub(ecx, Operand(eax));  // Length to check.
+  __ j(equal, &fallthrough);  // Covers the case where it's not bound (-1,-1).
+  __ mov(ebx, Operand(edi));
+  __ push(esi);
+  __ add(edi, Operand(esi));
+  __ add(esi, Operand(eax));
+  if (mode_ == ASCII) {
+    __ rep_cmpsb();
+  } else {
+    __ rep_cmpsw();
+  }
+  __ pop(esi);
+  __ mov(edi, Operand(ebx));
+  BranchOrBacktrack(not_equal, on_no_match);
+  __ bind(&fallthrough);
+}
+
+
+void RegExpMacroAssemblerIA32::CheckNotCharacter(uc16 c, Label* on_not_equal) {
+  __ cmp(edx, c);
+  BranchOrBacktrack(not_equal, on_not_equal);
 }
 
 
@@ -197,46 +249,35 @@ void RegExpMacroAssemblerIA32::DispatchHalfNibbleMap(
     uc16 start,
     Label* half_nibble_map,
     const Vector<Label*>& destinations) {
-
-  if (sizeof(SubjectChar) == 1 && start > String::kMaxAsciiCharCode) {
-    return;
-  }
-
-  Label fallthrough;
-
   ReadCurrentChar(eax);
-  __ sub(eax, start);
-  __ cmp(eax, 64);  // FIXME: 64 = size of map in bytes. Found somehow??
-  __ j(greater_equal, &fallthrough);
+  __ sub(Operand(eax), Immediate(start));
 
-  __ mov(ebx, eax);
+  __ mov(ecx, eax);
   __ shr(eax, 2);
-  __ movzx_b(eax, Operand(ecx, eax));  // FIXME: ecx holds address of map
-  Label got_nybble;
-  Label high_bits;
-  __ and_(ebx, 0x03);
-  __ shr(eax, ebx);
+  // FIXME: ecx must hold address of map
+  __ movzx_b(eax, Operand(ecx, eax, times_1, 0));
+  __ and_(ecx, 0x03);
+  __ add(ecx, Operand(ecx));
+  __ shr(eax);  // Shift right cl times
 
   Label second_bit_set, case_3, case_1;
-  __ test(eax, 2);
-  __ j(not_equal, &second_bit_set);
-  __ test(eax, 1);
-  __ j(not_equal, &case_1);
+  __ test(eax, Immediate(0x02));
+  __ j(not_zero, &second_bit_set);
+  __ test(eax, Immediate(0x01));
+  __ j(not_zero, &case_1);
   // Case 0:
-  __ jmp(&destinations[0]);
+  __ jmp(destinations[0]);
   __ bind(&case_1);
   // Case 1:
-  __ jmp(&destinations[1]);
+  __ jmp(destinations[1]);
   __ bind(&second_bit_set);
-  __ test(eax, 1);
-  __ j(not_equal, &case_3);
+  __ test(eax, Immediate(0x01));
+  __ j(not_zero, &case_3);
   // Case 2
-  __ jmp(&destinations[2]);
+  __ jmp(destinations[2]);
   __ bind(&case_3);
   // Case 3:
-  __ jmp(&destinations[3]);
-
-  __ bind(&fallthrough);
+  __ jmp(destinations[3]);
 }
 
 
@@ -244,23 +285,19 @@ void RegExpMacroAssemblerIA32::DispatchByteMap(
     uc16 start,
     Label* byte_map,
     const Vector<Label*>& destinations) {
-
-  if (sizeof(SubjectChar) == 1 && start > String::kMaxAsciiCharCode) {
-    return;
-  }
-
   Label fallthrough;
-
   ReadCurrentChar(eax);
-  __ sub(eax, start);
+  __ sub(Operand(eax), Immediate(start));
   __ cmp(eax, 64);  // FIXME: 64 = size of map. Found somehow??
   __ j(greater_equal, &fallthrough);
-
-  __ movzx_b(eax, Operand(ecx, eax));  // FIXME: ecx must hold address of map
+  // FIXME: ecx must hold address of map
+  __ movzx_b(eax, Operand(ecx, eax, times_1, 0));
   // jump table: jump to destinations[eax];
 
   __ bind(&fallthrough);
 }
+
+
 
 void RegExpMacroAssemblerIA32::DispatchHighByteMap(
     byte start,
@@ -269,7 +306,7 @@ void RegExpMacroAssemblerIA32::DispatchHighByteMap(
   Label fallthrough;
   ReadCurrentChar(eax);
   __ shr(eax, 8);
-  __ sub(eax, start);
+  __ sub(Operand(eax), Immediate(start));
   __ cmp(eax, destinations.length() - start);
   __ j(greater_equal, &fallthrough);
 
@@ -284,12 +321,55 @@ void RegExpMacroAssemblerIA32::EmitOrLink(Label* label) {
 
 
 void RegExpMacroAssemblerIA32::Fail() {
-  Exit(false);
+  __ mov(eax, 0);
+  __ jmp(&exit_label_);
 }
 
+
 Handle<Object> RegExpMacroAssemblerIA32::GetCode() {
-  // something
-  return Handle();
+  // Finalize code - write the entry point code now we know how many
+  // registers we need.
+
+  // Entry code:
+  __ bind(&entry_label_);
+  __ push(esi);
+  __ push(edi);
+  __ enter(Immediate(num_registers_ * sizeof(uint32_t)));
+  __ mov(esi, Operand(ebp, kInputEndOffset));
+  __ mov(edi, Operand(ebp, kInputStartOffset));
+  __ sub(edi, Operand(esi));
+  __ mov(edx, Operand(ebp, kInputBuffer));
+  __ mov(edx, Operand(edx, 0));
+  __ add(esi, Operand(edx));
+  __ jmp(&start_label_);
+
+  // Exit code:
+  __ bind(&success_label_);
+  __ mov(ebx, Operand(ebp, kRegisterOutput));
+  __ mov(ecx, Operand(ebp, kInputEndOffset));
+  __ sub(ecx, Operand(ebp, kInputStartOffset));
+  for (int i = 0; i < num_saved_registers_; i++) {
+    __ mov(eax, register_location(i));
+    __ sub(eax, Operand(ecx));  // Convert to index from start, not end.
+    __ mov(Operand(ebx, i * sizeof(int32_t)), eax);
+  }
+  // copy captures to output
+  __ mov(eax, Immediate(1));
+
+  __ bind(&exit_label_);
+  __ leave();
+  __ pop(edi);
+  __ pop(esi);
+  __ ret(0);
+
+  CodeDesc code_desc;
+  masm_->GetCode(&code_desc);
+  Handle<Code> code = Factory::NewCode(code_desc,
+                                       NULL,
+                                       Code::ComputeFlags(Code::REGEXP),
+                                       self_);
+  LOG(CodeCreateEvent("RegExp", *code, "(Compiled RegExp)"));
+  return Handle<Object>::cast(code);
 }
 
 
@@ -298,43 +378,86 @@ void RegExpMacroAssemblerIA32::GoTo(Label* to) {
 }
 
 
+
 void RegExpMacroAssemblerIA32::IfRegisterGE(int reg,
                                             int comparand,
                                             Label* if_ge) {
-  __ cmp(register_location(reg), comparand);
+  __ cmp(register_location(reg), Immediate(comparand));
   BranchOrBacktrack(greater_equal, if_ge);
 }
+
 
 
 void RegExpMacroAssemblerIA32::IfRegisterLT(int reg,
                                             int comparand,
                                             Label* if_lt) {
-  __ cmp(register_location(reg), comparand);
+  __ cmp(register_location(reg), Immediate(comparand));
   BranchOrBacktrack(less, if_lt);
 }
 
 
-Re2kImplementation RegExpMacroAssemblerIA32::Implementation() {
+
+RegExpMacroAssembler::Re2kImplementation
+    RegExpMacroAssemblerIA32::Implementation() {
   return kIA32Implementation;
+}
+
+
+
+void RegExpMacroAssemblerIA32::LoadCurrentCharacter(int cp_offset,
+                                                    Label* on_end_of_input) {
+  ASSERT(cp_offset >= 0);
+  ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
+  __ cmp(edi, -cp_offset);
+  BranchOrBacktrack(less_equal, on_end_of_input);
+  ReadChar(edx, cp_offset);
 }
 
 
 void RegExpMacroAssemblerIA32::PopCurrentPosition() {
   __ pop(edi);
-  ReadChar(edx, 0);
 }
 
 
 void RegExpMacroAssemblerIA32::PopRegister(int register_index) {
+  RecordRegister(register_index);
   __ pop(register_location(register_index));
 }
 
 
 void RegExpMacroAssemblerIA32::PushBacktrack(Label* label) {
+  // Check for preemption first.
+  Label no_preempt;
+  Label retry_preempt;
+  // Check for preemption.
+  ExternalReference stack_limit =
+      ExternalReference::address_of_stack_guard_limit();
+  __ cmp(esp, Operand::StaticVariable(stack_limit));
+  __ j(above, &no_preempt);
+
+  __ push(edi);  // Current position.
+  __ push(edx);  // Current character.
+  // Restore original edi, esi.
+  __ mov(edi, Operand(ebp, kBackup_edi));
+  __ mov(esi, Operand(ebp, kBackup_esi));
+
+  __ bind(&retry_preempt);
+  // simulate stack for Runtime call.
+  __ push(Immediate(0));  // Dummy receiver
+  __ CallRuntime(Runtime::kStackGuard, 0);
+  __ cmp(esp, Operand::StaticVariable(stack_limit));
+  __ j(below_equal, &retry_preempt);
+
+  __ pop(edx);
+  __ pop(edi);
+  __ mov(esi, Operand(ebp, kInputBuffer));
+  __ mov(esi, Operand(esi, 0));
+  __ add(esi, Operand(ebp, kInputEndOffset));
+
+  __ bind(&no_preempt);
+
   Label cont;
-  __ call(&cont);
-  __ jmp(label);
-  __ bind(&cont);
+  __ push(label, RelocInfo::NONE);
 }
 
 
@@ -348,31 +471,48 @@ void RegExpMacroAssemblerIA32::PushRegister(int register_index) {
 }
 
 
+void RegExpMacroAssemblerIA32::ReadCurrentPositionFromRegister(int reg) {
+  __ mov(edi, register_location(reg));
+}
+
+
+void RegExpMacroAssemblerIA32::ReadStackPointerFromRegister(int reg) {
+  __ mov(esp, register_location(reg));
+}
+
+
 void RegExpMacroAssemblerIA32::SetRegister(int register_index, int to) {
-  __ mov(register_location(register_index), to);
+  RecordRegister(register_index);
+  __ mov(register_location(register_index), Immediate(to));
 }
 
 
 void RegExpMacroAssemblerIA32::Succeed() {
-  Exit(true);
+  __ jmp(&success_label_);
 }
 
-void RegExpMacroAssemblerIA32::WriteCurrentPositionToRegister() {
+
+void RegExpMacroAssemblerIA32::WriteCurrentPositionToRegister(
+    int register_index) {
   __ mov(register_location(register_index), edi);
 }
 
-// Custom :
-
-void RegExpMacroAssemblerIA32::Initialize(int num_registers, bool ignore_case) {
-  num_registers_ = num_registers;
-  ignore_case_ = ignore_case;
-  __ enter(num_registers * sizeof(uint32_t));
+void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
+  __ mov(register_location(reg), esp);
 }
 
 
-Operand RegExpMacroAssemblerIA32::register_location(int register_index) {
+// Private methods:
+
+Operand RegExpMacroAssemblerIA32::register_location(
+    int register_index) {
   ASSERT(register_index < (1<<30));
   return Operand(ebp, -((register_index + 1) * sizeof(uint32_t)));
+}
+
+
+size_t RegExpMacroAssemblerIA32::char_size() {
+  return static_cast<size_t>(mode_);
 }
 
 
@@ -397,50 +537,47 @@ void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
 
 
 void RegExpMacroAssemblerIA32::Canonicalize(Register reg) {
-  if (sizeof(SubjectChar) == 1) {
+  if (mode_ == ASCII) {
     Label end;
-    __ cmp(reg, 'a');
+    __ cmp(Operand(reg), Immediate('a'));
     __ j(below, &end);
-    __ cmp(reg, 'z');
+    __ cmp(Operand(reg), Immediate('z'));
     __ j(above, &end);
-    __ sub(reg, 'a' - 'A');
+    __ sub(Operand(reg), Immediate('a' - 'A'));
     __ bind(&end);
     return;
   }
-  ASSERT(sizeof(SubjectChar) == 2);
+  ASSERT(mode_ == UC16);
   // TODO(lrn): Use some tables.
 }
 
 
-void RegExpMacroAssemblerIA32::Exit(bool success) {
-  if (success) {
-    // Copy captures to output capture array.
+void RegExpMacroAssemblerIA32::RecordRegister(int register_index) {
+  if (register_index >= num_registers_) {
+    num_registers_ = register_index + 1;
   }
-  __ leave();
-  __ mov(eax, success ? 1 : 0);
-  __ ret();
 }
 
 
 void RegExpMacroAssemblerIA32::ReadChar(Register destination, int offset) {
-  if (sizeof(SubjectChar) == 1) {
-    __ movzx_b(destination, Operand(edi, offset));
+  if (mode_ == ASCII) {
+    __ movzx_b(destination, Operand(esi, edi, times_1, offset));
     return;
   }
-  ASSERT(sizeof(SubjectChar) == 2);
-  __ movzx_w(destination, Operand(edi, offset * 2));
+  ASSERT(mode_ == UC16);
+  __ movzx_w(destination, Operand(esi, edi, times_1, offset * 2));
 }
 
 
 void RegExpMacroAssemblerIA32::ReadCurrentChar(Register destination) {
-  mov(destination, edx);
+  __ mov(destination, edx);
 }
 
 
-void RegExpMacroAssemblerIA32::LoadConstantBufferAddress(
-    Register reg, ArraySlice<T>* buffer) {
+void RegExpMacroAssemblerIA32::LoadConstantBufferAddress(Register reg,
+                                                         ArraySlice* buffer) {
   __ mov(reg, buffer->array());
-  __ add(reg, buffer->base_offset());
+  __ add(Operand(reg), Immediate(buffer->base_offset()));
 }
 
 #undef __

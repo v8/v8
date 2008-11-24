@@ -2117,14 +2117,17 @@ class Code: public HeapObject {
     CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
+    // No more than eight kinds. The value currently encoded in three bits in
+    // Flags.
 
     // Pseudo-kinds.
+    REGEXP = BUILTIN,
     FIRST_IC_KIND = LOAD_IC,
     LAST_IC_KIND = KEYED_STORE_IC
   };
 
   enum {
-    NUMBER_OF_KINDS = LAST_IC_KIND + 1
+    NUMBER_OF_KINDS = KEYED_STORE_IC + 1
   };
 
   // A state indicates that inline cache in this Code object contains
@@ -2274,7 +2277,6 @@ class Code: public HeapObject {
   static const int kFlagsKindMask           = 0x00000038;  // 000111000
   static const int kFlagsTypeMask           = 0x000001C0;  // 111000000
   static const int kFlagsArgumentsCountMask = 0xFFFFFE00;
-
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);

@@ -28,130 +28,131 @@
 #ifndef REGEXP_MACRO_ASSEMBLER_IA32_H_
 #define REGEXP_MACRO_ASSEMBLER_IA32_H_
 
+#if !(defined __arm__ || defined __thumb__ || defined ARM)
+
 #include "regexp-macro-assembler.h"
 #include "macro-assembler-ia32.h"
 
 namespace v8 { namespace internal {
 
-template <typename SubjectChar>
-class RegExpMacroAssemblerIA32: public RegExpMacroAssembler<SubjectChar> {
+class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
  public:
-  RegExpMacroAssemblerIA32() { }
-  virtual ~RegExpMacroAssembler();
-  void Initialize(int num_registers, bool ignore_case);
-  virtual void AdvanceCurrentPosition(int by);  // Signed cp change.
-  virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
+  enum Mode {ASCII = 1, UC16 = 2};
+  RegExpMacroAssemblerIA32(Mode mode, int registers_to_save, bool ignore_case);
+  virtual ~RegExpMacroAssemblerIA32();
+  virtual void AdvanceCurrentPosition(int by);
+  virtual void AdvanceRegister(int reg, int by);
   virtual void Backtrack();
   virtual void Bind(Label* label);
-  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
-
-
-
-  // Check the current character against a bitmap.  The range of the current
-  // character must be from start to start + length_of_bitmap_in_bits.
-  // Where to go if the bit is 0.  Fall through on 1.
-  virtual void CheckBitmap(
-      uc16 start,           // The bitmap is indexed from this character.
-      Label* bitmap,        // Where the bitmap is emitted.
-      Label* on_zero);
-
-
-  // Looks at the next character from the subject and if it doesn't match
-  // then goto the on_failure label.  End of input never matches.  If the
-  // label is NULL then we should pop a backtrack address off the stack and
-  // go to that.
-  virtual void CheckCharacterClass(
-      RegExpCharacterClass* cclass,
-      Label* on_failure);
-
-  // Check the current character for a match with a literal string.  If we
-  // fail to match then goto the on_failure label.  End of input always
-  // matches.  If the label is NULL then we should pop a backtrack address off
-  // the stack and go to that.
-  virtual void CheckCharacters(
-      Vector<uc16> str,
-      Label* on_failure);
-
-  // Check the current input position against a register.  If the register is
-  // equal to the current position then go to the label.  If the label is NULL
-  // then backtrack instead.
-  virtual void CheckCurrentPosition(
-      int register_index,
-      Label* on_equal);
-
-  // Dispatch after looking the current character up in a byte map.  The
-  // destinations vector has up to 256 labels.
-  virtual void DispatchByteMap(
-      uc16 start,
-      Label* byte_map,
-      Vector<Label*>& destinations);
-
-  // Dispatch after looking the current character up in a 2-bits-per-entry
-  // map.  The destinations vector has up to 4 labels.
-  virtual void DispatchHalfNibbleMap(
-      uc16 start,
-      Label* half_nibble_map,
-      Vector<Label*>& destinations);
-
-  // Dispatch after looking the high byte of the current character up in a byte
-  // map.  The destinations vector has up to 256 labels.
-  virtual void DispatchHighByteMap(
-      byte start,
-      Label* byte_map,
-      Vector<Label*>& destinations);
-
+  virtual void CheckBitmap(uc16 start, Label* bitmap, Label* on_zero);
+  virtual void CheckCharacter(uc16 c, Label* on_equal);
+  virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
+  virtual void CheckCharacterLT(uc16 limit, Label* on_less);
+  virtual void CheckCharacters(Vector<const uc16> str,
+                               int cp_offset,
+                               Label* on_failure);
+  virtual void CheckCurrentPosition(int register_index, Label* on_equal);
+  virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
+  virtual void CheckNotCharacter(uc16 c, Label* on_not_equal);
+  virtual void DispatchByteMap(uc16 start,
+                               Label* byte_map,
+                               const Vector<Label*>& destinations);
+  virtual void DispatchHalfNibbleMap(uc16 start,
+                                     Label* half_nibble_map,
+                                     const Vector<Label*>& destinations);
+  virtual void DispatchHighByteMap(byte start,
+                                   Label* byte_map,
+                                   const Vector<Label*>& destinations);
   virtual void EmitOrLink(Label* label);
-
   virtual void Fail();
-
   virtual Handle<Object> GetCode();
-
   virtual void GoTo(Label* label);
-
-  // Check whether a register is >= a given constant and go to a label if it
-  // is.  Backtracks instead if the label is NULL.
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
-
-  // Check whether a register is < a given constant and go to a label if it is.
-  // Backtracks instead if the label is NULL.
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
-
   virtual Re2kImplementation Implementation();
-
+  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
   virtual void PopCurrentPosition();
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);
   virtual void PushCurrentPosition();
   virtual void PushRegister(int register_index);
+  virtual void ReadCurrentPositionFromRegister(int reg);
+  virtual void ReadStackPointerFromRegister(int reg);
   virtual void SetRegister(int register_index, int to);
   virtual void Succeed();
   virtual void WriteCurrentPositionToRegister(int reg);
+  virtual void WriteStackPointerToRegister(int reg);
  private:
+  // Offsets from ebp of arguments to function.
+  static const int kBackup_edi = 1 * sizeof(uint32_t);
+  static const int kBackup_esi= 2 * sizeof(uint32_t);
+  static const int kInputBuffer = 4 * sizeof(uint32_t);
+  static const int kInputStartOffset = 5 * sizeof(uint32_t);
+  static const int kInputEndOffset = 6 * sizeof(uint32_t);
+  static const int kRegisterOutput = 7 * sizeof(uint32_t);
+
+  // The ebp-relative location of a regexp register.
   Operand register_location(int register_index);
+
+  // Whether to implement case-insensitive matching.
   bool ignore_case();
-  // Generate code to perform case-canonicalization on the register.
+
+  // Byte size of chars in the string to match (decided by the Mode argument)
+  size_t char_size();
+
+  // Records that a register is used. At the end, we need the number of
+  // registers used.
+  void RecordRegister(int register_index);
+
+  // Equivalent to a conditional branch to the label, unless the label
+  // is NULL, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to);
+
+  // Generate code to perform case-canonicalization on the register.
   void Canonicalize(Register register);
-  void Exit(bool success);
+
   // Read a character from input at the given offset from the current
   // position.
   void ReadChar(Register destination, int offset);
 
-  template <typename T>
-  void LoadConstantBufferAddress(Register reg, ArraySlice<T>* buffer);
+  // Load the address of a "constant buffer" (a slice of a byte array)
+  // into a register. The address is computed from the ByteArray* address
+  // and an offset. Uses no extra registers.
+  void LoadConstantBufferAddress(Register reg, ArraySlice* buffer);
 
   // Read the current character into the destination register.
   void ReadCurrentChar(Register destination);
 
+  // Initial size of code buffer.
+  static const size_t kRegExpCodeSize = 1024;
+  // Initial size of constant buffers allocated during compilation.
   static const int kRegExpConstantsSize = 256;
+  // Only unroll loops up to this length.
   static const int kMaxInlineStringTests = 8;
+  // Special "character" marking end of input.
   static const uint32_t kEndOfInput = ~0;
 
   MacroAssembler* masm_;
   ByteArrayProvider constants_;
+  // Which mode to generate code for (ASCII or UTF16).
+  Mode mode_;
+  // One greater than maximal register index actually used.
   int num_registers_;
+  // Number of registers to output at the end (the saved registers
+  // are always 0..num_saved_registers_-1)
+  int num_saved_registers_;
+  // Whether to generate code that is case-insensitive. Only relevant for
+  // back-references.
   bool ignore_case_;
+  Label entry_label_;
+  Label start_label_;
+  Label success_label_;
+  Label exit_label_;
+  // Handle used to represent the generated code object itself.
+  Handle<Object> self_;
 };
 }}
+
+#endif  // !ARM
 
 #endif /* REGEXP_MACRO_ASSEMBLER_IA32_H_ */

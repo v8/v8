@@ -50,7 +50,8 @@ namespace v8 { namespace internal {
 
 class Label : public ZoneObject {  // LabelShadows are dynamically allocated.
  public:
-  INLINE(Label())                 { Unuse(); }
+  INLINE(Label())
+  { Unuse(); }
   INLINE(~Label())                { ASSERT(!is_linked()); }
 
   INLINE(void Unuse())            { pos_ = 0; }

@@ -43,6 +43,11 @@
 #include "assembler-re2k.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-re2k.h"
+#if defined __arm__ || defined __thumb__ || defined ARM
+// include regexp-macro-assembler-arm.h when created.
+#else  // ia32
+#include "regexp-macro-assembler-ia32.h"
+#endif
 #include "interpreter-re2k.h"
 
 // Including pcre.h undefines DEBUG to avoid getting debug output from
@@ -481,12 +486,51 @@ Handle<Object> RegExpImpl::Re2kExecOnce(Handle<JSRegExp> regexp,
 
     LOG(RegExpExecEvent(regexp, previous_index, two_byte_subject));
 
-    Handle<ByteArray> byte_codes = Re2kCode(regexp);
+    FixedArray* re2k =
+        FixedArray::cast(regexp->DataAt(JSRegExp::kRe2kDataIndex));
+    int tag = Smi::cast(re2k->get(kRe2kImplementationIndex))->value();
 
-    rc = Re2kInterpreter::Match(byte_codes,
-                                two_byte_subject,
-                                offsets_vector,
-                                previous_index);
+    switch (tag) {
+    case RegExpMacroAssembler::kIA32Implementation: {
+      Code* code = Code::cast(re2k->get(kRe2kCodeIndex));
+      SmartPointer<int> captures(NewArray<int>((num_captures + 1) * 2));
+      Address start_addr =
+          Handle<SeqTwoByteString>::cast(two_byte_subject)->GetCharsAddress();
+      int start_offset =
+          start_addr - reinterpret_cast<Address>(*two_byte_subject);
+      int end_offset =
+          start_offset + (two_byte_subject->length() - previous_index) * 2;
+      typedef bool testfunc(String**, int, int, int*);
+      testfunc* test = FUNCTION_CAST<testfunc*>(code->entry());
+      rc = test(two_byte_subject.location(),
+                start_offset,
+                end_offset,
+                *captures);
+      if (rc) {
+        // Capture values are relative to start_offset only.
+        for (int i = 0; i < offsets_vector_length; i++) {
+          if (offsets_vector[i] >= 0) {
+            offsets_vector[i] += previous_index;
+          }
+        }
+      }
+      break;
+    }
+    default:
+    case RegExpMacroAssembler::kARMImplementation:
+      UNREACHABLE();
+      rc = false;
+      break;
+    case RegExpMacroAssembler::kBytecodeImplementation: {
+      Handle<ByteArray> byte_codes = Re2kCode(regexp);
+
+      rc = Re2kInterpreter::Match(byte_codes,
+                                  two_byte_subject,
+                                  offsets_vector,
+                                  previous_index);
+      break;
+    }
+    }
   }
 
   if (!rc) {
@@ -1211,6 +1255,7 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler) {
     }
   }
   if (!on_failure_->IsBacktrack()) {
+    ASSERT_NOT_NULL(on_failure_ -> label());
     macro_assembler->PushBacktrack(on_failure_->label());
     compiler->AddWork(on_failure_);
   }
@@ -1966,7 +2011,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
       start = pos = block_end + 1;
     }
   } else {
-    // TODO when we've fixed the 2^11 bug in unibrow.
+    // TODO(plesner) when we've fixed the 2^11 bug in unibrow.
   }
 }
 
@@ -2389,6 +2434,21 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
   if (node_return != NULL) *node_return = node;
   Analysis analysis;
   analysis.EnsureAnalyzed(node);
+
+#if !(defined ARM || defined __arm__ || defined __thumb__)
+  if (FLAG_re2k_native) {  // Flag only checked in IA32 mode.
+    // TODO(lrn) Move compilation to a later point in the life-cycle
+    // of the RegExp. We don't know the type of input string yet.
+    // For now, always assume two-byte strings.
+    RegExpMacroAssemblerIA32 macro_assembler(RegExpMacroAssemblerIA32::UC16,
+                                             (input->capture_count + 1) * 2,
+                                             ignore_case);
+    return compiler.Assemble(&macro_assembler,
+                             node,
+                             input->capture_count,
+                             ignore_case);
+  }
+#endif
   byte codes[1024];
   Re2kAssembler assembler(Vector<byte>(codes, 1024));
   RegExpMacroAssemblerRe2k macro_assembler(&assembler);
@@ -2396,12 +2456,6 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
                            node,
                            input->capture_count,
                            ignore_case);
-}
-
-RegExpMacroAssembler::RegExpMacroAssembler() {
-}
-
-RegExpMacroAssembler::~RegExpMacroAssembler() {
 }
 
 

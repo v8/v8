@@ -1764,6 +1764,7 @@ Code::Flags Code::flags() {
 
 
 void Code::set_flags(Code::Flags flags) {
+  STATIC_ASSERT(Code::NUMBER_OF_KINDS <= (kFlagsKindMask >> kFlagsKindShift)+1);
   // Make sure that all call stubs have an arguments count.
   ASSERT(ExtractKindFromFlags(flags) != CALL_IC ||
          ExtractArgumentsCountFromFlags(flags) >= 0);

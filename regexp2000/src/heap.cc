@@ -1624,7 +1624,8 @@ Object* Heap::AllocateByteArray(int length) {
 
 Object* Heap::CreateCode(const CodeDesc& desc,
                          ScopeInfo<>* sinfo,
-                         Code::Flags flags) {
+                         Code::Flags flags,
+                         Code** self_reference) {
   // Compute size
   int body_size = RoundUp(desc.instr_size + desc.reloc_size, kObjectAlignment);
   int sinfo_size = 0;
@@ -1647,7 +1648,16 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   code->set_sinfo_size(sinfo_size);
   code->set_flags(flags);
   code->set_ic_flag(Code::IC_TARGET_IS_ADDRESS);
-  code->CopyFrom(desc);  // migrate generated code
+  // Allow self references to created code object.
+  if (self_reference != NULL) {
+    *self_reference = code;
+  }
+  // Migrate generated code.
+  // The generated code can contain Object** values (typically from handles)
+  // that are dereferenced during the copy to point directly to the actual heap
+  // objects. These pointers can include references to the code object itself,
+  // through the self_reference parameter.
+  code->CopyFrom(desc);
   if (sinfo != NULL) sinfo->Serialize(code);  // write scope info
 
 #ifdef DEBUG

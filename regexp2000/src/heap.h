@@ -555,11 +555,14 @@ class Heap : public AllStatic {
 
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
+  // failed. On success, the pointer to the Code object is stored in the
+  // self_reference. This allows generated code to reference its own Code
+  // object by containing this pointer.
   // Please note this function does not perform a garbage collection.
   static Object* CreateCode(const CodeDesc& desc,
                             ScopeInfo<>* sinfo,
-                            Code::Flags flags);
+                            Code::Flags flags,
+                            Code** self_reference = NULL);
 
   static Object* CopyCode(Code* code);
   // Finds the symbol for string in the symbol table.

@@ -39,6 +39,7 @@
 #include "assembler-re2k.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-re2k.h"
+#include "regexp-macro-assembler-ia32.h"
 #include "interpreter-re2k.h"
 
 
@@ -274,7 +275,7 @@ TEST(Errors) {
   ExpectError("[a-\\w]", kIllegalCharacterClass);
   const char* kEndControl = "\\c at end of pattern";
   ExpectError("\\c", kEndControl);
-  static char* kNothingToRepeat = "Nothing to repeat";
+  const char* kNothingToRepeat = "Nothing to repeat";
   ExpectError("*", kNothingToRepeat);
   ExpectError("?", kNothingToRepeat);
   ExpectError("+", kNothingToRepeat);
@@ -850,7 +851,7 @@ TEST(RangeCanonicalization) {
   int next_block = 0;
   while (next_block < CharacterRange::kRangeCanonicalizeMax) {
     uc32 start = CanonRange(next_block);
-    CHECK((start & CharacterRange::kStartMarker) != 0);
+    CHECK_NE((start & CharacterRange::kStartMarker), 0);
     unsigned dist = start & CharacterRange::kPayloadMask;
     unibrow::uchar first[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     int first_length = un_canonicalize.get(next_block, '\0', first);

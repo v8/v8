@@ -170,9 +170,9 @@ Handle<Proxy> Factory::NewProxy(const AccessorDescriptor* desc) {
 }
 
 
-Handle<ByteArray> Factory::NewByteArray(int length) {
+Handle<ByteArray> Factory::NewByteArray(int length, PretenureFlag pretenure) {
   ASSERT(0 <= length);
-  CALL_HEAP_FUNCTION(Heap::AllocateByteArray(length), ByteArray);
+  CALL_HEAP_FUNCTION(Heap::AllocateByteArray(length, pretenure), ByteArray);
 }
 
 
@@ -458,8 +458,14 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 
 
 Handle<Code> Factory::NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
+                              Code::Flags flags, Handle<Object> self_ref) {
+  CALL_HEAP_FUNCTION(Heap::CreateCode(
+      desc, sinfo, flags, reinterpret_cast<Code**>(self_ref.location())), Code);
+}
+
+Handle<Code> Factory::NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
                               Code::Flags flags) {
-  CALL_HEAP_FUNCTION(Heap::CreateCode(desc, sinfo, flags), Code);
+  CALL_HEAP_FUNCTION(Heap::CreateCode(desc, sinfo, flags, NULL), Code);
 }
 
 

@@ -291,6 +291,7 @@ DEFINE_bool(collect_heap_spill_statistics, false,
 
 DEFINE_bool(trace_regexps, false, "trace regexp execution")
 DEFINE_bool(trace_regexp_bytecodes, false, "trace regexp bytecode executon")
+DEFINE_bool(re2k_native, false, "use native code regexp implementation")
 
 //
 // Logging and profiling only flags

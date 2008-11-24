@@ -39,36 +39,28 @@ struct DisjunctDecisionRow {
 
 class RegExpMacroAssembler {
  public:
+  enum Re2kImplementation {
+    kIA32Implementation,
+    kARMImplementation,
+    kBytecodeImplementation};
+
   RegExpMacroAssembler();
   virtual ~RegExpMacroAssembler();
-  virtual void Bind(Label* label) = 0;
-  virtual void EmitOrLink(Label* label) = 0;
   virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.
-  virtual void PopCurrentPosition() = 0;
-  virtual void PushCurrentPosition() = 0;
-  virtual void Backtrack() = 0;
-  virtual void GoTo(Label* label) = 0;
-  virtual void PushBacktrack(Label* label) = 0;
-  virtual void Succeed() = 0;
-  virtual void Fail() = 0;
-  virtual void PopRegister(int register_index) = 0;
-  virtual void PushRegister(int register_index) = 0;
   virtual void AdvanceRegister(int reg, int by) = 0;  // r[reg] += by.
-  virtual void SetRegister(int register_index, int to) = 0;
-  virtual void WriteCurrentPositionToRegister(int reg) = 0;
-  virtual void ReadCurrentPositionFromRegister(int reg) = 0;
-  virtual void WriteStackPointerToRegister(int reg) = 0;
-  virtual void ReadStackPointerFromRegister(int reg) = 0;
-  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input) = 0;
-  virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
-  virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
+  virtual void Backtrack() = 0;
+  virtual void Bind(Label* label) = 0;
+  // Check the current character against a bitmap.  The range of the current
+  // character must be from start to start + length_of_bitmap_in_bits.
+  virtual void CheckBitmap(
+      uc16 start,           // The bitmap is indexed from this character.
+      Label* bitmap,        // Where the bitmap is emitted.
+      Label* on_zero) = 0;  // Where to go if the bit is 0.  Fall through on 1.
+  // Dispatch after looking the current character up in a 2-bits-per-entry
+  // map.  The destinations vector has up to 4 labels.
   virtual void CheckCharacter(uc16 c, Label* on_equal) = 0;
-  virtual void CheckNotCharacter(uc16 c, Label* on_not_equal) = 0;
-  virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
-  // Check the current character for a match with a literal string.  If we
-  // fail to match then goto the on_failure label.  End of input always
-  // matches.  If the label is NULL then we should pop a backtrack address off
-  // the stack abnd go to that.
+  virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
+  virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
   virtual void CheckCharacters(
       Vector<const uc16> str,
       int cp_offset,
@@ -79,23 +71,21 @@ class RegExpMacroAssembler {
   virtual void CheckCurrentPosition(
       int register_index,
       Label* on_equal) = 0;
-  // Check the current character against a bitmap.  The range of the current
-  // character must be from start to start + length_of_bitmap_in_bits.
-  virtual void CheckBitmap(
-      uc16 start,           // The bitmap is indexed from this character.
-      Label* bitmap,        // Where the bitmap is emitted.
-      Label* on_zero) = 0;  // Where to go if the bit is 0.  Fall through on 1.
-  // Dispatch after looking the current character up in a 2-bits-per-entry
-  // map.  The destinations vector has up to 4 labels.
-  virtual void DispatchHalfNibbleMap(
-      uc16 start,
-      Label* half_nibble_map,
-      const Vector<Label*>& destinations) = 0;
+  virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
+  // Check the current character for a match with a literal string.  If we
+  // fail to match then goto the on_failure label.  End of input always
+  // matches.  If the label is NULL then we should pop a backtrack address off
+  // the stack and go to that.
+  virtual void CheckNotCharacter(uc16 c, Label* on_not_equal) = 0;
   // Dispatch after looking the current character up in a byte map.  The
   // destinations vector has up to 256 labels.
   virtual void DispatchByteMap(
       uc16 start,
       Label* byte_map,
+      const Vector<Label*>& destinations) = 0;
+  virtual void DispatchHalfNibbleMap(
+      uc16 start,
+      Label* half_nibble_map,
       const Vector<Label*>& destinations) = 0;
   // Dispatch after looking the high byte of the current character up in a byte
   // map.  The destinations vector has up to 256 labels.
@@ -103,26 +93,34 @@ class RegExpMacroAssembler {
       byte start,
       Label* byte_map,
       const Vector<Label*>& destinations) = 0;
-  // Check whether a register is < a given constant and go to a label if it is.
-  // Backtracks instead if the label is NULL.
-  virtual void IfRegisterLT(int reg, int comparand, Label* if_lt) = 0;
+  virtual void EmitOrLink(Label* label) = 0;
+  virtual void Fail() = 0;
+  virtual Handle<Object> GetCode() = 0;
+  virtual void GoTo(Label* label) = 0;
   // Check whether a register is >= a given constant and go to a label if it
   // is.  Backtracks instead if the label is NULL.
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge) = 0;
-
-  enum Re2kImplementation {
-    kIA32Implementation,
-    kARMImplementation,
-    kBytecodeImplementation};
-
+  // Check whether a register is < a given constant and go to a label if it is.
+  // Backtracks instead if the label is NULL.
+  virtual void IfRegisterLT(int reg, int comparand, Label* if_lt) = 0;
   virtual Re2kImplementation Implementation() = 0;
-  virtual Handle<Object> GetCode() = 0;
+  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input) = 0;
+  virtual void PopCurrentPosition() = 0;
+  virtual void PopRegister(int register_index) = 0;
+  virtual void PushBacktrack(Label* label) = 0;
+  virtual void PushCurrentPosition() = 0;
+  virtual void PushRegister(int register_index) = 0;
+  virtual void ReadCurrentPositionFromRegister(int reg) = 0;
+  virtual void ReadStackPointerFromRegister(int reg) = 0;
+  virtual void SetRegister(int register_index, int to) = 0;
+  virtual void Succeed() = 0;
+  virtual void WriteCurrentPositionToRegister(int reg) = 0;
+  virtual void WriteStackPointerToRegister(int reg) = 0;
 
  private:
 };
 
 
-template <typename T>
 struct ArraySlice {
  public:
   ArraySlice(Handle<ByteArray> array, size_t offset)
@@ -132,13 +130,15 @@ struct ArraySlice {
   size_t offset() { return offset_; }
   // Offset from the ByteArray pointer.
   size_t base_offset() {
-    return ByteArray::kHeaderSize - kHeapObjectTag + offset;
+    return ByteArray::kHeaderSize - kHeapObjectTag + offset_;
   }
-  T* operator*() {
-    return reinterpret_cast<T*>(array_->GetDataStartAddress() + offset);
+  template <typename T>
+  T* location() {
+    return reinterpret_cast<T*>(array_->GetDataStartAddress() + offset_);
   }
-  T& operator[](int idx) {
-    return reinterpret_cast<T*>(array_->GetDataStartAddress() + offset)[idx];
+  template <typename T>
+  T& at(int idx) {
+    return reinterpret_cast<T*>(array_->GetDataStartAddress() + offset_)[idx];
   }
  private:
   Handle<ByteArray> array_;
@@ -148,14 +148,16 @@ struct ArraySlice {
 
 class ByteArrayProvider {
  public:
-  explicit ByteArrayProvider(int initial_size);
-  // Provides a place to put "size" elements of type T. The information
-  // can be stored in the provided ByteArray at the "offset". The offset is
-  // aligned to an "align"-boundary
+  explicit ByteArrayProvider(unsigned int initial_size);
+  // Provides a place to put "size" elements of size "element_size".
+  // The information can be stored in the provided ByteArray at the "offset".
+  // The offset is aligned to the element size.
+  ArraySlice GetBuffer(unsigned int size,
+                       unsigned int element_size);
   template <typename T>
-  ArraySlice<T> GetBuffer(int size, int align);
+  ArraySlice GetBuffer(Vector<T> values);
  private:
-  const int byte_array_size_;
+  size_t byte_array_size_;
   Handle<ByteArray> current_byte_array_;
   int current_byte_array_free_offset_;
 };

@@ -258,4 +258,6 @@ template <int> class StaticAssertionHelper { };
 
 #define ASSERT_SIZE_TAG_ALIGNED(size) ASSERT((size & kHeapObjectTagMask) == 0)
 
+#define ASSERT_NOT_NULL(p)  ASSERT_NE(NULL, p)
+
 #endif  // V8_CHECKS_H_

@@ -147,7 +147,8 @@ class Factory : public AllStatic {
   // the old generation).
   static Handle<Proxy> NewProxy(const AccessorDescriptor* proxy);
 
-  static Handle<ByteArray> NewByteArray(int length);
+  static Handle<ByteArray> NewByteArray(int length,
+                                        PretenureFlag pretenure = NOT_TENURED);
 
   static Handle<Map> NewMap(InstanceType type, int instance_size);
 
@@ -204,6 +205,9 @@ class Factory : public AllStatic {
   static Handle<JSFunction> NewFunctionFromBoilerplate(
       Handle<JSFunction> boilerplate,
       Handle<Context> context);
+
+  static Handle<Code> NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
+                              Code::Flags flags, Handle<Object> self_reference);
 
   static Handle<Code> NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
                               Code::Flags flags);
