@@ -245,6 +245,27 @@ void RegExpMacroAssemblerIA32::CheckNotCharacter(uc16 c, Label* on_not_equal) {
 }
 
 
+void RegExpMacroAssemblerIA32::CheckNotCharacterAfterOr(uc16 c,
+                                                        uc16 mask,
+                                                        Label* on_not_equal) {
+  __ mov(eax, Operand(edx));
+  __ or_(eax, mask);
+  __ cmp(eax, c);
+  BranchOrBacktrack(not_equal, on_not_equal);
+}
+
+
+void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusOr(
+    uc16 c,
+    uc16 mask,
+    Label* on_not_equal) {
+  __ lea(eax, Operand(edx, -mask));
+  __ or_(eax, mask);
+  __ cmp(eax, c);
+  BranchOrBacktrack(not_equal, on_not_equal);
+}
+
+
 void RegExpMacroAssemblerIA32::DispatchHalfNibbleMap(
     uc16 start,
     Label* half_nibble_map,

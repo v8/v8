@@ -196,6 +196,25 @@ void Re2kAssembler::CheckNotCharacter(uc16 c, Label* on_mismatch) {
   EmitOrLink(on_mismatch);
 }
 
+void Re2kAssembler::OrThenCheckNotCharacter(uc16 c,
+                                            uc16 mask,
+                                            Label* on_mismatch) {
+  Emit(BC_OR_CHECK_NOT_CHAR);
+  Emit16(c);
+  Emit16(mask);
+  EmitOrLink(on_mismatch);
+}
+
+
+void Re2kAssembler::MinusOrThenCheckNotCharacter(uc16 c,
+                                                 uc16 mask,
+                                                 Label* on_mismatch) {
+  Emit(BC_MINUS_OR_CHECK_NOT_CHAR);
+  Emit16(c);
+  Emit16(mask);
+  EmitOrLink(on_mismatch);
+}
+
 
 void Re2kAssembler::CheckCharacterLT(uc16 limit, Label* on_less) {
   Emit(BC_CHECK_LT);

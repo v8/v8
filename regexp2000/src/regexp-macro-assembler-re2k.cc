@@ -174,6 +174,21 @@ void RegExpMacroAssemblerRe2k::CheckNotCharacter(uc16 c, Label* on_not_equal) {
 }
 
 
+void RegExpMacroAssemblerRe2k::CheckNotCharacterAfterOr(uc16 c,
+                                                        uc16 mask,
+                                                        Label* on_not_equal) {
+  assembler_->OrThenCheckNotCharacter(c, mask, on_not_equal);
+}
+
+
+void RegExpMacroAssemblerRe2k::CheckNotCharacterAfterMinusOr(
+    uc16 c,
+    uc16 mask,
+    Label* on_not_equal) {
+  assembler_->MinusOrThenCheckNotCharacter(c, mask, on_not_equal);
+}
+
+
 void RegExpMacroAssemblerRe2k::CheckNotBackReference(int start_reg,
                                                      Label* on_not_equal) {
   assembler_->CheckNotBackReference(start_reg, on_not_equal);

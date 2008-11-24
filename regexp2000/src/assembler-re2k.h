@@ -62,6 +62,8 @@ class Re2kAssembler {
   // Checks current char register against a singleton.
   void CheckCharacter(uc16 c, Label* on_match);
   void CheckNotCharacter(uc16 c, Label* on_mismatch);
+  void OrThenCheckNotCharacter(uc16 c, uc16 mask, Label* on_mismatch);
+  void MinusOrThenCheckNotCharacter(uc16 c, uc16 mask, Label* on_mismatch);
 
   // Used to check current char register against a range.
   void CheckCharacterLT(uc16 limit, Label* on_less);

@@ -875,14 +875,13 @@ TextElement TextElement::CharClass(
 
 class RegExpCompiler {
  public:
-  explicit RegExpCompiler(int capture_count);
+  RegExpCompiler(int capture_count, bool ignore_case);
 
   int AllocateRegister() { return next_register_++; }
 
   Handle<FixedArray> Assemble(RegExpMacroAssembler* assembler,
                               RegExpNode* start,
-                              int capture_count,
-                              bool case_independent);
+                              int capture_count);
 
   inline void AddWork(RegExpNode* node) { work_list_->Add(node); }
 
@@ -899,6 +898,8 @@ class RegExpCompiler {
   inline void IncrementRecursionDepth() { recursion_depth_++; }
   inline void DecrementRecursionDepth() { recursion_depth_--; }
 
+  inline bool is_case_independent() { return is_case_independent_; }
+
  private:
   EndNode* accept_;
   EndNode* backtrack_;
@@ -906,15 +907,17 @@ class RegExpCompiler {
   List<RegExpNode*>* work_list_;
   int recursion_depth_;
   RegExpMacroAssembler* macro_assembler_;
+  bool is_case_independent_;
 };
 
 
 // Attempts to compile the regexp using a Regexp2000 code generator.  Returns
 // a fixed array or a null handle depending on whether it succeeded.
-RegExpCompiler::RegExpCompiler(int capture_count)
+RegExpCompiler::RegExpCompiler(int capture_count, bool ignore_case)
   : next_register_(2 * (capture_count + 1)),
     work_list_(NULL),
-    recursion_depth_(0) {
+    recursion_depth_(0),
+    is_case_independent_(ignore_case) {
   accept_ = new EndNode(EndNode::ACCEPT);
   backtrack_ = new EndNode(EndNode::BACKTRACK);
 }
@@ -923,9 +926,10 @@ RegExpCompiler::RegExpCompiler(int capture_count)
 Handle<FixedArray> RegExpCompiler::Assemble(
     RegExpMacroAssembler* macro_assembler,
     RegExpNode* start,
-    int capture_count,
-    bool case_independent) {
-  if (case_independent) return Handle<FixedArray>::null();
+    int capture_count) {
+  if (!FLAG_attempt_case_independent && is_case_independent_) {
+    return Handle<FixedArray>::null();
+  }
   macro_assembler_ = macro_assembler;
   List <RegExpNode*> work_list(0);
   work_list_ = &work_list;
@@ -1110,107 +1114,231 @@ void ChoiceNode::GenerateGuard(RegExpMacroAssembler* macro_assembler,
 }
 
 
+static unibrow::Mapping<unibrow::Ecma262UnCanonicalize> uncanonicalize;
+static unibrow::Mapping<unibrow::CanonicalizationRange> canonrange;
+
+
+static inline void EmitAtomNonLetters(
+    RegExpMacroAssembler* macro_assembler,
+    TextElement elm,
+    Vector<const uc16> quarks,
+    Label* on_failure,
+    int cp_offset) {
+  unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+  for (int i = quarks.length() - 1; i >= 0; i--) {
+    uc16 c = quarks[i];
+    int length = uncanonicalize.get(c, '\0', chars);
+    if (length <= 1) {
+      macro_assembler->LoadCurrentCharacter(cp_offset + i, on_failure);
+      macro_assembler->CheckNotCharacter(c, on_failure);
+    }
+  }
+}
+
+
+static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
+                                      uc16 c1,
+                                      uc16 c2,
+                                      Label* on_failure) {
+  uc16 exor = c1 ^ c2;
+  // Check whether exor has only one bit set.
+  if (((exor - 1) & exor) == 0) {
+    // If c1 and c2 differ only by one bit.
+    // Ecma262UnCanonicalize always gives the highest number last.
+    ASSERT(c2 > c1);
+    macro_assembler->CheckNotCharacterAfterOr(c2, exor, on_failure);
+    return true;
+  } else {
+    ASSERT(c2 > c1);
+    uc16 diff = c2 - c1;
+    if (((diff - 1) & diff) == 0 && c1 >= diff) {
+      // If the characters differ by 2^n but don't differ by one bit then
+      // subtract the difference from the found character, then do the or
+      // trick.  We avoid the theoretical case where negative numbers are
+      // involved in order to simplify code generation.
+      macro_assembler->CheckNotCharacterAfterMinusOr(c2 - diff,
+                                                     diff,
+                                                     on_failure);
+      return true;
+    }
+  }
+  return false;
+}
+
+
+static inline void EmitAtomLetters(
+    RegExpMacroAssembler* macro_assembler,
+    TextElement elm,
+    Vector<const uc16> quarks,
+    Label* on_failure,
+    int cp_offset) {
+  unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+  for (int i = quarks.length() - 1; i >= 0; i--) {
+    uc16 c = quarks[i];
+    int length = uncanonicalize.get(c, '\0', chars);
+    if (length <= 1) continue;
+    macro_assembler->LoadCurrentCharacter(cp_offset + i, on_failure);
+    Label ok;
+    ASSERT(unibrow::Ecma262UnCanonicalize::kMaxWidth == 4);
+    switch (length) {
+      case 2: {
+        if (ShortCutEmitCharacterPair(macro_assembler,
+                                      chars[0],
+                                      chars[1],
+                                      on_failure)) {
+          ok.Unuse();
+        } else {
+          macro_assembler->CheckCharacter(chars[0], &ok);
+          macro_assembler->CheckNotCharacter(chars[1], on_failure);
+          macro_assembler->Bind(&ok);
+        }
+        break;
+      }
+      case 4:
+        macro_assembler->CheckCharacter(chars[3], &ok);
+        // Fall through!
+      case 3:
+        macro_assembler->CheckCharacter(chars[0], &ok);
+        macro_assembler->CheckCharacter(chars[1], &ok);
+        macro_assembler->CheckNotCharacter(chars[2], on_failure);
+        macro_assembler->Bind(&ok);
+        break;
+      default:
+        UNREACHABLE();
+        break;
+    }
+  }
+}
+
+
+static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
+                          RegExpCharacterClass* cc,
+                          int cp_offset,
+                          Label* on_failure) {
+  macro_assembler->LoadCurrentCharacter(cp_offset, on_failure);
+  cp_offset++;
+
+  ZoneList<CharacterRange>* ranges = cc->ranges();
+
+  Label success;
+
+  Label *char_is_in_class =
+      cc->is_negated() ? on_failure : &success;
+
+  int range_count = ranges->length();
+
+  if (range_count == 0) {
+    if (!cc->is_negated()) {
+      macro_assembler->GoTo(on_failure);
+    }
+    return;
+  }
+
+  for (int i = 0; i < range_count - 1; i++) {
+    CharacterRange& range = ranges->at(i);
+    Label next_range;
+    uc16 from = range.from();
+    uc16 to = range.to();
+    if (to == from) {
+      macro_assembler->CheckCharacter(to, char_is_in_class);
+    } else {
+      if (from != 0) {
+        macro_assembler->CheckCharacterLT(from, &next_range);
+      }
+      if (to != 0xffff) {
+        macro_assembler->CheckCharacterLT(to + 1, char_is_in_class);
+      } else {
+        macro_assembler->GoTo(char_is_in_class);
+      }
+    }
+    macro_assembler->Bind(&next_range);
+  }
+
+  CharacterRange& range = ranges->at(range_count - 1);
+  uc16 from = range.from();
+  uc16 to = range.to();
+
+  if (to == from) {
+    if (cc->is_negated()) {
+      macro_assembler->CheckCharacter(to, on_failure);
+    } else {
+      macro_assembler->CheckNotCharacter(to, on_failure);
+    }
+  } else {
+    if (from != 0) {
+      if (!cc->is_negated()) {
+        macro_assembler->CheckCharacterLT(from, on_failure);
+      } else {
+        macro_assembler->CheckCharacterLT(from, &success);
+      }
+    }
+    if (to != 0xffff) {
+      if (!cc->is_negated()) {
+        macro_assembler->CheckCharacterGT(to, on_failure);
+      } else {
+        macro_assembler->CheckCharacterLT(to + 1, on_failure);
+      }
+    } else {
+      if (cc->is_negated()) {
+        macro_assembler->GoTo(on_failure);
+      }
+    }
+  }
+  macro_assembler->Bind(&success);
+}
+
+
+
 bool TextNode::Emit(RegExpCompiler* compiler) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   Bind(macro_assembler);
   int element_count = elms_->length();
   int cp_offset = 0;
+  // First, handle straight character matches.
   for (int i = 0; i < element_count; i++) {
-    TextElement elm = (*elms_)[i];
-    switch (elm.type) {
-      case TextElement::ATOM: {
-        Vector<const uc16> quarks = elm.data.u_atom->data();
+    TextElement elm = elms_->at(i);
+    if (elm.type == TextElement::ATOM) {
+      Vector<const uc16> quarks = elm.data.u_atom->data();
+      if (!compiler->is_case_independent()) {
         macro_assembler->CheckCharacters(quarks,
                                          cp_offset,
                                          on_failure_->label());
-        cp_offset += quarks.length();
-        break;
+      } else {
+        EmitAtomNonLetters(macro_assembler, elm, quarks, on_failure_->label(), cp_offset);
       }
-      case TextElement::CHAR_CLASS: {
-        RegExpCharacterClass* cc = elm.data.u_char_class;
-        macro_assembler->LoadCurrentCharacter(cp_offset, on_failure_->label());
-        cp_offset++;
-
-        ZoneList<CharacterRange>* ranges = cc->ranges();
-
-        Label success;
-
-        Label *char_is_in_class =
-            cc->is_negated() ? on_failure_->label() : &success;
-
-        int range_count = ranges->length();
-
-        if (range_count == 0) {
-          if (!cc->is_negated()) {
-            on_failure()->GoTo(compiler);
-          }
-          break;
-        }
-
-        for (int i = 0; i < range_count - 1; i++) {
-          CharacterRange& range = (*ranges)[i];
-          Label next_range;
-          uc16 from = range.from();
-          uc16 to = range.to();
-          if (to == from) {
-            macro_assembler->CheckCharacter(to, char_is_in_class);
-          } else {
-            if (from != 0) {
-              macro_assembler->CheckCharacterLT(from, &next_range);
-            }
-            if (to != 0xffff) {
-              macro_assembler->CheckCharacterLT(to + 1, char_is_in_class);
-            } else {
-              macro_assembler->GoTo(char_is_in_class);
-            }
-          }
-          macro_assembler->Bind(&next_range);
-        }
-
-        if (range_count != 0) {
-          CharacterRange& range = (*ranges)[range_count - 1];
-          uc16 from = range.from();
-          uc16 to = range.to();
-
-          if (to == from) {
-            if (cc->is_negated()) {
-              macro_assembler->CheckCharacter(to, on_failure_->label());
-            } else {
-              macro_assembler->CheckNotCharacter(to, on_failure_->label());
-            }
-          } else {
-            if (from != 0) {
-              if (!cc->is_negated()) {
-                macro_assembler->CheckCharacterLT(from, on_failure_->label());
-              } else {
-                macro_assembler->CheckCharacterLT(from, &success);
-              }
-            }
-            if (to != 0xffff) {
-              if (!cc->is_negated()) {
-                macro_assembler->CheckCharacterGT(to, on_failure_->label());
-              } else {
-                macro_assembler->CheckCharacterLT(to + 1, on_failure_->label());
-              }
-            } else {
-              if (cc->is_negated()) {
-                macro_assembler->GoTo(on_failure_->label());
-              }
-            }
-          }
-        } else if (cc->is_negated()) {
-          macro_assembler->GoTo(on_failure_->label());
-        }
-
-        macro_assembler->Bind(&success);
-
-        break;
-      }
-      default:
-        UNREACHABLE();
-        return false;
+      cp_offset += quarks.length();
+    } else {
+      ASSERT_EQ(elm.type, TextElement::CHAR_CLASS);
+      cp_offset++;
     }
   }
+  // Second, handle case independent letter matches if any.
+  if (compiler->is_case_independent()) {
+    cp_offset = 0;
+    for (int i = 0; i < element_count; i++) {
+      TextElement elm = elms_->at(i);
+      if (elm.type == TextElement::ATOM) {
+        Vector<const uc16> quarks = elm.data.u_atom->data();
+        EmitAtomLetters(macro_assembler, elm, quarks, on_failure_->label(), cp_offset);
+        cp_offset += quarks.length();
+      } else {
+        cp_offset++;
+      }
+    }
+  }
+  // If the fast character matches passed then do the character classes.
+  cp_offset = 0;
+  for (int i = 0; i < element_count; i++) {
+    TextElement elm = elms_->at(i);
+    if (elm.type == TextElement::CHAR_CLASS) {
+      RegExpCharacterClass* cc = elm.data.u_char_class;
+      EmitCharClass(macro_assembler, cc, cp_offset, on_failure_->label());
+      cp_offset ++;
+    } else {
+      cp_offset += elm.data.u_atom->data().length();
+    }
+  }
+
   compiler->AddWork(on_failure_);
   macro_assembler->AdvanceCurrentPosition(cp_offset);
   return on_success()->GoTo(compiler);
@@ -1225,14 +1353,14 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler) {
   // is to use the Dispatch table to try only the relevant ones.
   int i;
   for (i = 0; i < choice_count - 1; i++) {
-    GuardedAlternative alternative = (*alternatives_)[i];
+    GuardedAlternative alternative = alternatives_->at(i);
     Label after;
     Label after_no_pop_cp;
     ZoneList<Guard*>* guards = alternative.guards();
     if (guards != NULL) {
       int guard_count = guards->length();
       for (int j = 0; j < guard_count; j++) {
-        GenerateGuard(macro_assembler, (*guards)[j], &after_no_pop_cp);
+        GenerateGuard(macro_assembler, guards->at(j), &after_no_pop_cp);
       }
     }
     macro_assembler->PushCurrentPosition();
@@ -1246,12 +1374,12 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler) {
     macro_assembler->PopCurrentPosition();
     macro_assembler->Bind(&after_no_pop_cp);
   }
-  GuardedAlternative alternative = (*alternatives_)[i];
+  GuardedAlternative alternative = alternatives_->at(i);
   ZoneList<Guard*>* guards = alternative.guards();
   if (guards != NULL) {
     int guard_count = guards->length();
     for (int j = 0; j < guard_count; j++) {
-      GenerateGuard(macro_assembler, (*guards)[j], on_failure_->label());
+      GenerateGuard(macro_assembler, guards->at(j), on_failure_->label());
     }
   }
   if (!on_failure_->IsBacktrack()) {
@@ -1932,10 +2060,6 @@ void CharacterRange::AddClassEscape(uc16 type,
 }
 
 
-static unibrow::Mapping<unibrow::Ecma262UnCanonicalize> uncanonicalize;
-static unibrow::Mapping<unibrow::CanonicalizationRange> canonrange;
-
-
 void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
   if (IsSingleton()) {
@@ -2412,7 +2536,7 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
                                          RegExpNode** node_return,
                                          bool ignore_case) {
-  RegExpCompiler compiler(input->capture_count);
+  RegExpCompiler compiler(input->capture_count, ignore_case);
   // Wrap the body of the regexp in capture #0.
   RegExpNode* captured_body = RegExpCapture::ToNode(input->tree,
                                                     0,
@@ -2445,8 +2569,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
                                              ignore_case);
     return compiler.Assemble(&macro_assembler,
                              node,
-                             input->capture_count,
-                             ignore_case);
+                             input->capture_count);
   }
 #endif
   byte codes[1024];
@@ -2454,8 +2577,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
   RegExpMacroAssemblerRe2k macro_assembler(&assembler);
   return compiler.Assemble(&macro_assembler,
                            node,
-                           input->capture_count,
-                           ignore_case);
+                           input->capture_count);
 }
 
 

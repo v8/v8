@@ -61,6 +61,10 @@ class RegExpMacroAssembler {
   virtual void CheckCharacter(uc16 c, Label* on_equal) = 0;
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
+  // Check the current character for a match with a literal string.  If we
+  // fail to match then goto the on_failure label.  End of input always
+  // matches.  If the label is NULL then we should pop a backtrack address off
+  // the stack abnd go to that.
   virtual void CheckCharacters(
       Vector<const uc16> str,
       int cp_offset,
@@ -72,11 +76,21 @@ class RegExpMacroAssembler {
       int register_index,
       Label* on_equal) = 0;
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
-  // Check the current character for a match with a literal string.  If we
+  // Check the current character for a match with a literal character.  If we
   // fail to match then goto the on_failure label.  End of input always
   // matches.  If the label is NULL then we should pop a backtrack address off
   // the stack and go to that.
   virtual void CheckNotCharacter(uc16 c, Label* on_not_equal) = 0;
+  // Bitwise or the current character with the given constant and then
+  // check for a match with c.
+  virtual void CheckNotCharacterAfterOr(uc16 c,
+                                        uc16 or_with,
+                                        Label* on_not_equal) = 0;
+  // Subtract a constant from the current character, then or with the given
+  // constant and then check for a match with c.
+  virtual void CheckNotCharacterAfterMinusOr(uc16 c,
+                                             uc16 minus_then_or_with,
+                                             Label* on_not_equal) = 0;
   // Dispatch after looking the current character up in a byte map.  The
   // destinations vector has up to 256 labels.
   virtual void DispatchByteMap(

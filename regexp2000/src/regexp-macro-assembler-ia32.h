@@ -54,6 +54,10 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void CheckCurrentPosition(int register_index, Label* on_equal);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotCharacter(uc16 c, Label* on_not_equal);
+  virtual void CheckNotCharacterAfterOr(uc16 c, uc16 mask, Label* on_not_equal);
+  virtual void CheckNotCharacterAfterMinusOr(uc16 c,
+                                             uc16 mask,
+                                             Label* on_not_equal);
   virtual void DispatchByteMap(uc16 start,
                                Label* byte_map,
                                const Vector<Label*>& destinations);

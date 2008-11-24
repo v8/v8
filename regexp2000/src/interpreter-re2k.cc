@@ -195,6 +195,25 @@ static bool RawMatch(const byte* code_base,
         }
         break;
       }
+      BYTECODE(OR_CHECK_NOT_CHAR) {
+        int c = Load16(pc + 1);
+        if (c != (current_char | Load16(pc + 3))) {
+          pc = code_base + Load32(pc + 5);
+        } else {
+          pc += BC_OR_CHECK_NOT_CHAR_LENGTH;
+        }
+        break;
+      }
+      BYTECODE(MINUS_OR_CHECK_NOT_CHAR) {
+        int c = Load16(pc + 1);
+        int m = Load16(pc + 3);
+        if (c != ((current_char - m) | m)) {
+          pc = code_base + Load32(pc + 5);
+        } else {
+          pc += BC_MINUS_OR_CHECK_NOT_CHAR_LENGTH;
+        }
+        break;
+      }
       BYTECODE(CHECK_LT) {
         int limit = Load16(pc + 1);
         if (current_char < limit) {
