@@ -36,11 +36,11 @@
 #include "parser.h"
 #include "ast.h"
 #include "jsregexp-inl.h"
-#include "assembler-re2k.h"
+#include "assembler-irregexp.h"
 #include "regexp-macro-assembler.h"
-#include "regexp-macro-assembler-re2k.h"
+#include "regexp-macro-assembler-irregexp.h"
 #include "regexp-macro-assembler-ia32.h"
-#include "interpreter-re2k.h"
+#include "interpreter-irregexp.h"
 
 
 using namespace v8::internal;
@@ -525,7 +525,7 @@ TEST(DispatchTableConstruction) {
 TEST(Assembler) {
   V8::Initialize(NULL);
   byte codes[1024];
-  Re2kAssembler assembler(Vector<byte>(codes, 1024));
+  IrregexpAssembler assembler(Vector<byte>(codes, 1024));
 #define __ assembler.
   Label advance;
   Label look_for_foo;
@@ -554,17 +554,17 @@ TEST(Assembler) {
   Handle<String> f1 =
       Factory::NewStringFromAscii(CStrVector("Now is the time"));
   Handle<String> f1_16 = RegExpImpl::StringToTwoByte(f1);
-  CHECK(!Re2kInterpreter::Match(array, f1_16, captures, 0));
+  CHECK(!IrregexpInterpreter::Match(array, f1_16, captures, 0));
 
   Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));
   Handle<String> f2_16 = RegExpImpl::StringToTwoByte(f2);
-  CHECK(Re2kInterpreter::Match(array, f2_16, captures, 0));
+  CHECK(IrregexpInterpreter::Match(array, f2_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(2, captures[1]);
 
   Handle<String> f3 = Factory::NewStringFromAscii(CStrVector("tomfoolery"));
   Handle<String> f3_16 = RegExpImpl::StringToTwoByte(f3);
-  CHECK(Re2kInterpreter::Match(array, f3_16, captures, 0));
+  CHECK(IrregexpInterpreter::Match(array, f3_16, captures, 0));
   CHECK_EQ(3, captures[0]);
   CHECK_EQ(5, captures[1]);
 }
@@ -573,7 +573,7 @@ TEST(Assembler) {
 TEST(Assembler2) {
   V8::Initialize(NULL);
   byte codes[1024];
-  Re2kAssembler assembler(Vector<byte>(codes, 1024));
+  IrregexpAssembler assembler(Vector<byte>(codes, 1024));
 #define __ assembler.
   // /^.*foo/
   Label more_dots;
@@ -629,39 +629,39 @@ TEST(Assembler2) {
   Handle<String> f1 =
       Factory::NewStringFromAscii(CStrVector("Now is the time"));
   Handle<String> f1_16 = RegExpImpl::StringToTwoByte(f1);
-  CHECK(!Re2kInterpreter::Match(array, f1_16, captures, 0));
+  CHECK(!IrregexpInterpreter::Match(array, f1_16, captures, 0));
 
   Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));
   Handle<String> f2_16 = RegExpImpl::StringToTwoByte(f2);
-  CHECK(Re2kInterpreter::Match(array, f2_16, captures, 0));
+  CHECK(IrregexpInterpreter::Match(array, f2_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(2, captures[1]);
 
   Handle<String> f3 = Factory::NewStringFromAscii(CStrVector("tomfoolery"));
   Handle<String> f3_16 = RegExpImpl::StringToTwoByte(f3);
-  CHECK(Re2kInterpreter::Match(array, f3_16, captures, 0));
+  CHECK(IrregexpInterpreter::Match(array, f3_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(5, captures[1]);
 
   Handle<String> f4 =
       Factory::NewStringFromAscii(CStrVector("football buffoonery"));
   Handle<String> f4_16 = RegExpImpl::StringToTwoByte(f4);
-  CHECK(Re2kInterpreter::Match(array, f4_16, captures, 0));
+  CHECK(IrregexpInterpreter::Match(array, f4_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(14, captures[1]);
 
   Handle<String> f5 =
       Factory::NewStringFromAscii(CStrVector("walking\nbarefoot"));
   Handle<String> f5_16 = RegExpImpl::StringToTwoByte(f5);
-  CHECK(!Re2kInterpreter::Match(array, f5_16, captures, 0));
+  CHECK(!IrregexpInterpreter::Match(array, f5_16, captures, 0));
 }
 
 
 TEST(MacroAssembler) {
   V8::Initialize(NULL);
   byte codes[1024];
-  Re2kAssembler assembler(Vector<byte>(codes, 1024));
-  RegExpMacroAssemblerRe2k m(&assembler);
+  IrregexpAssembler assembler(Vector<byte>(codes, 1024));
+  RegExpMacroAssemblerIrregexp m(&assembler);
   // ^f(o)o.
   Label fail, fail2, start;
   uc16 foo_chars[3];
@@ -705,7 +705,7 @@ TEST(MacroAssembler) {
   Handle<String> f1 =
       Factory::NewStringFromAscii(CStrVector("foobar"));
   Handle<String> f1_16 = RegExpImpl::StringToTwoByte(f1);
-  CHECK(Re2kInterpreter::Match(array, f1_16, captures, 0));
+  CHECK(IrregexpInterpreter::Match(array, f1_16, captures, 0));
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(3, captures[1]);
   CHECK_EQ(1, captures[2]);
@@ -715,7 +715,7 @@ TEST(MacroAssembler) {
   Handle<String> f2 =
       Factory::NewStringFromAscii(CStrVector("barfoo"));
   Handle<String> f2_16 = RegExpImpl::StringToTwoByte(f2);
-  CHECK(!Re2kInterpreter::Match(array, f2_16, captures, 0));
+  CHECK(!IrregexpInterpreter::Match(array, f2_16, captures, 0));
   CHECK_EQ(42, captures[0]);
 }
 

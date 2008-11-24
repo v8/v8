@@ -39,7 +39,7 @@ struct DisjunctDecisionRow {
 
 class RegExpMacroAssembler {
  public:
-  enum Re2kImplementation {
+  enum IrregexpImplementation {
     kIA32Implementation,
     kARMImplementation,
     kBytecodeImplementation};
@@ -117,7 +117,7 @@ class RegExpMacroAssembler {
   // Check whether a register is < a given constant and go to a label if it is.
   // Backtracks instead if the label is NULL.
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt) = 0;
-  virtual Re2kImplementation Implementation() = 0;
+  virtual IrregexpImplementation Implementation() = 0;
   virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input) = 0;
   virtual void PopCurrentPosition() = 0;
   virtual void PopRegister(int register_index) = 0;

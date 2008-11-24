@@ -289,10 +289,11 @@ DEFINE_bool(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
 
-DEFINE_bool(trace_regexps, false, "trace regexp execution")
-DEFINE_bool(trace_regexp_bytecodes, false, "trace regexp bytecode executon")
-DEFINE_bool(attempt_case_independent, false, "attempt to run re2k case independent")
-DEFINE_bool(re2k_native, false, "use native code regexp implementation")
+DEFINE_bool(irregexp, false, "new regular expression code")
+DEFINE_bool(trace_regexps, false, "trace Irregexp execution")
+DEFINE_bool(trace_regexp_bytecodes, false, "trace Irregexp bytecode executon")
+DEFINE_bool(attempt_case_independent, false, "attempt to run Irregexp case independent")
+DEFINE_bool(irregexp_native, false, "use native code Irregexp implementation (IA32 only)")
 
 //
 // Logging and profiling only flags

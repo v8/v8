@@ -2921,9 +2921,9 @@ class JSRegExp: public JSObject {
   // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
   // JSCRE: A complex RegExp for JSCRE
   // ATOM: A simple string to match against using an indexOf operation.
-  // RE2K: Compiled with RegExp2000.
-  // RE2K_NATIVE: Compiled to native code with RegExp2000.
-  enum Type { NOT_COMPILED, JSCRE, ATOM, RE2K, RE2K_NATIVE };
+  // IRREGEXP: Compiled with Irregexp.
+  // IRREGEXP_NATIVE: Compiled to native code with Irregexp.
+  enum Type { NOT_COMPILED, JSCRE, ATOM, IRREGEXP, IRREGEXP_NATIVE };
   enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
 
   class Flags {
@@ -2962,7 +2962,7 @@ class JSRegExp: public JSObject {
   // different purposes in different types of regexps.
   static const int kAtomPatternIndex = kFlagsIndex + 1;
   static const int kJscreDataIndex = kFlagsIndex + 1;
-  static const int kRe2kDataIndex = kFlagsIndex + 1;
+  static const int kIrregexpDataIndex = kFlagsIndex + 1;
   static const int kDataSize = kAtomPatternIndex + 1;
 };
 

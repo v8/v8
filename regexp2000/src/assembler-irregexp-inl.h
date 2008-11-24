@@ -25,23 +25,58 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A simple interpreter for the Regexp2000 byte code.
+// A light-weight assembler for the Regexp2000 byte code.
 
-#ifndef V8_INTERPRETER_RE2K_H_
-#define V8_INTERPRETER_RE2K_H_
+
+#include "v8.h"
+#include "ast.h"
+#include "bytecodes-irregexp.h"
+#include "assembler-irregexp.h"
+
 
 namespace v8 { namespace internal {
 
 
-class Re2kInterpreter {
- public:
-  static bool Match(Handle<ByteArray> code,
-                    Handle<String> subject16,
-                    int* captures,
-                    int start_position);
-};
+void IrregexpAssembler::Emit(uint32_t byte) {
+  ASSERT(pc_ <= buffer_.length());
+  if (pc_ == buffer_.length()) {
+    Expand();
+  }
+  buffer_[pc_++] = byte;
+}
 
+
+void IrregexpAssembler::Emit16(uint32_t word) {
+  ASSERT(pc_ <= buffer_.length());
+  if (pc_ + 1 >= buffer_.length()) {
+    Expand();
+  }
+  Store16(buffer_.start() + pc_, word);
+  pc_ += 2;
+}
+
+
+void IrregexpAssembler::Emit32(uint32_t word) {
+  ASSERT(pc_ <= buffer_.length());
+  if (pc_ + 3 >= buffer_.length()) {
+    Expand();
+  }
+  Store32(buffer_.start() + pc_, word);
+  pc_ += 4;
+}
+
+
+void IrregexpAssembler::EmitOrLink(Label* l) {
+    if (l->is_bound()) {
+      Emit32(l->pos());
+    } else {
+      int pos = 0;
+      if (l->is_linked()) {
+        pos = l->pos();
+      }
+      l->link_to(pc_);
+      Emit32(pos);
+    }
+  }
 
 } }  // namespace v8::internal
-
-#endif  // V8_INTERPRETER_RE2K_H_

@@ -25,14 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A simple interpreter for the Regexp2000 byte code.
+// A simple interpreter for the Irregexp byte code.
 
 
 #include "v8.h"
 #include "utils.h"
 #include "ast.h"
-#include "bytecodes-re2k.h"
-#include "interpreter-re2k.h"
+#include "bytecodes-irregexp.h"
+#include "interpreter-irregexp.h"
 
 
 namespace v8 { namespace internal {
@@ -327,10 +327,10 @@ static bool RawMatch(const byte* code_base,
 }
 
 
-bool Re2kInterpreter::Match(Handle<ByteArray> code_array,
-                            Handle<String> subject16,
-                            int* registers,
-                            int start_position) {
+bool IrregexpInterpreter::Match(Handle<ByteArray> code_array,
+                                Handle<String> subject16,
+                                int* registers,
+                                int start_position) {
   ASSERT(StringShape(*subject16).IsTwoByteRepresentation());
   ASSERT(subject16->IsFlat(StringShape(*subject16)));
 

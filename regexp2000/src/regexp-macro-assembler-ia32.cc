@@ -418,7 +418,7 @@ void RegExpMacroAssemblerIA32::IfRegisterLT(int reg,
 
 
 
-RegExpMacroAssembler::Re2kImplementation
+RegExpMacroAssembler::IrregexpImplementation
     RegExpMacroAssemblerIA32::Implementation() {
   return kIA32Implementation;
 }

@@ -72,11 +72,11 @@ class RegExpImpl {
                                      JSRegExp::Flags flags);
 
   // Stores a compiled RegExp pattern in the JSRegExp object.
-  // The pattern is compiled by Regexp2000.
-  static Handle<Object> Re2kPrepare(Handle<JSRegExp> re,
-                                    Handle<String> pattern,
-                                    JSRegExp::Flags flags,
-                                    Handle<FixedArray> re2k_data);
+  // The pattern is compiled by Irregexp.
+  static Handle<Object> IrregexpPrepare(Handle<JSRegExp> re,
+                                        Handle<String> pattern,
+                                        JSRegExp::Flags flags,
+                                        Handle<FixedArray> irregexp_data);
 
 
   // Compile the pattern using JSCRE and store the result in the
@@ -103,16 +103,16 @@ class RegExpImpl {
                                   Handle<String> subject,
                                   Handle<Object> index);
 
-  // Execute a Regexp2000 bytecode pattern.
-  static Handle<Object> Re2kExec(Handle<JSRegExp> regexp,
-                                 Handle<String> subject,
-                                 Handle<Object> index);
+  // Execute an Irregexp bytecode pattern.
+  static Handle<Object> IrregexpExec(Handle<JSRegExp> regexp,
+                                     Handle<String> subject,
+                                     Handle<Object> index);
 
   static Handle<Object> JscreExecGlobal(Handle<JSRegExp> regexp,
                                         Handle<String> subject);
 
-  static Handle<Object> Re2kExecGlobal(Handle<JSRegExp> regexp,
-                                       Handle<String> subject);
+  static Handle<Object> IrregexpExecGlobal(Handle<JSRegExp> regexp,
+                                           Handle<String> subject);
 
   static void NewSpaceCollectionPrologue();
   static void OldSpaceCollectionPrologue();
@@ -123,11 +123,11 @@ class RegExpImpl {
   static Handle<String> StringToTwoByte(Handle<String> pattern);
   static Handle<String> CachedStringToTwoByte(Handle<String> pattern);
 
-  static const int kRe2kImplementationIndex = 0;
-  static const int kRe2kNumberOfCapturesIndex = 1;
-  static const int kRe2kNumberOfRegistersIndex = 2;
-  static const int kRe2kCodeIndex = 3;
-  static const int kRe2kDataLength = 4;
+  static const int kIrregexpImplementationIndex = 0;
+  static const int kIrregexpNumberOfCapturesIndex = 1;
+  static const int kIrregexpNumberOfRegistersIndex = 2;
+  static const int kIrregexpCodeIndex = 3;
+  static const int kIrregexpDataLength = 4;
 
   static const int kJscreNumberOfCapturesIndex = 0;
   static const int kJscreInternalIndex = 1;
@@ -140,9 +140,9 @@ class RegExpImpl {
   static int JscreNumberOfCaptures(Handle<JSRegExp> re);
   static ByteArray* JscreInternal(Handle<JSRegExp> re);
 
-  static int Re2kNumberOfCaptures(Handle<JSRegExp> re);
-  static int Re2kNumberOfRegisters(Handle<JSRegExp> re);
-  static Handle<ByteArray> Re2kCode(Handle<JSRegExp> re);
+  static int IrregexpNumberOfCaptures(Handle<JSRegExp> re);
+  static int IrregexpNumberOfRegisters(Handle<JSRegExp> re);
+  static Handle<ByteArray> IrregexpCode(Handle<JSRegExp> re);
 
   // Call jsRegExpExecute once
   static Handle<Object> JscreExecOnce(Handle<JSRegExp> regexp,
@@ -153,12 +153,12 @@ class RegExpImpl {
                                       int* ovector,
                                       int ovector_length);
 
-  static Handle<Object> Re2kExecOnce(Handle<JSRegExp> regexp,
-                                     int num_captures,
-                                     Handle<String> subject16,
-                                     int previous_index,
-                                     int* ovector,
-                                     int ovector_length);
+  static Handle<Object> IrregexpExecOnce(Handle<JSRegExp> regexp,
+                                         int num_captures,
+                                         Handle<String> subject16,
+                                         int previous_index,
+                                         int* ovector,
+                                         int ovector_length);
 
   // Set the subject cache.  The previous string buffer is not deleted, so the
   // caller should ensure that it doesn't leak.

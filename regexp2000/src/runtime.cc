@@ -786,7 +786,9 @@ static Object* Runtime_RegExpExec(Arguments args) {
   Handle<String> subject(raw_subject);
   Handle<Object> index(args[2]);
   ASSERT(index->IsNumber());
-  return *RegExpImpl::Exec(regexp, subject, index);
+  Handle<Object> result = RegExpImpl::Exec(regexp, subject, index);
+  if (result.is_null()) return Failure::Exception();
+  return *result;
 }
 
 
@@ -797,7 +799,9 @@ static Object* Runtime_RegExpExecGlobal(Arguments args) {
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  return *RegExpImpl::ExecGlobal(regexp, subject);
+  Handle<Object> result = RegExpImpl::ExecGlobal(regexp, subject);
+  if (result.is_null()) return Failure::Exception();
+  return *result;
 }
 
 

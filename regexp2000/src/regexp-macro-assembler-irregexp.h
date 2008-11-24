@@ -25,18 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_REGEXP_MACRO_ASSEMBLER_RE2K_H_
-#define V8_REGEXP_MACRO_ASSEMBLER_RE2K_H_
+#ifndef V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
+#define V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_
 
 namespace v8 { namespace internal {
 
 
-class RegExpMacroAssemblerRe2k: public RegExpMacroAssembler {
+class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
  public:
-  explicit RegExpMacroAssemblerRe2k(Re2kAssembler* assembler)
+  explicit RegExpMacroAssemblerIrregexp(IrregexpAssembler* assembler)
     : assembler_(assembler) {
   }
-  virtual ~RegExpMacroAssemblerRe2k();
+  virtual ~RegExpMacroAssemblerIrregexp();
   virtual void Bind(Label* label);
   virtual void EmitOrLink(Label* label);
   virtual void AdvanceCurrentPosition(int by);  // Signed cp change.
@@ -82,12 +82,12 @@ class RegExpMacroAssemblerRe2k: public RegExpMacroAssembler {
   virtual void IfRegisterLT(int register_index, int comparand, Label* if_lt);
   virtual void IfRegisterGE(int register_index, int comparand, Label* if_ge);
 
-  virtual Re2kImplementation Implementation();
+  virtual IrregexpImplementation Implementation();
   virtual Handle<Object> GetCode();
  private:
-  Re2kAssembler* assembler_;
+  IrregexpAssembler* assembler_;
 };
 
 } }  // namespace v8::internal
 
-#endif  // V8_REGEXP_MACRO_ASSEMBLER_RE2K_H_
+#endif  // V8_REGEXP_MACRO_ASSEMBLER_IRREGEXP_H_

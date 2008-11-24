@@ -1,14 +1,14 @@
 // Copyright 2006-2008 the V8 project authors. All rights reserved.
 
-// A light-weight assembler for the Regexp2000 byte code.
+// A light-weight assembler for the Irregexp byte code.
 
-#ifndef V8_ASSEMBLER_RE2K_H_
-#define V8_ASSEMBLER_RE2K_H_
+#ifndef V8_ASSEMBLER_IRREGEXP_H_
+#define V8_ASSEMBLER_IRREGEXP_H_
 
 namespace v8 { namespace internal {
 
 
-class Re2kAssembler {
+class IrregexpAssembler {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
@@ -23,8 +23,8 @@ class Re2kAssembler {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  explicit Re2kAssembler(Vector<byte>);
-  ~Re2kAssembler();
+  explicit IrregexpAssembler(Vector<byte>);
+  ~IrregexpAssembler();
 
   // CP = current position in source.
   // BT = backtrack label.
@@ -114,7 +114,7 @@ class Re2kAssembler {
   inline void EmitOrLink(Label* l);
  private:
   // Don't use this.
-  Re2kAssembler() { UNREACHABLE(); }
+  IrregexpAssembler() { UNREACHABLE(); }
   // The buffer into which code and relocation info are generated.
   Vector<byte> buffer_;
 
@@ -134,4 +134,4 @@ class Re2kAssembler {
 
 } }  // namespace v8::internal
 
-#endif  // V8_ASSEMBLER_RE2K_H_
+#endif  // V8_ASSEMBLER_IRREGEXP_H_
