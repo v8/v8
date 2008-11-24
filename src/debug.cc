@@ -1769,10 +1769,10 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
   host_running_ = false;
   SetEventJSONFromEvent(event_data);
 
-  // Wait for commands from the debugger.
+  // Wait for requests from the debugger.
   while (true) {
     command_received_->Wait();
-    Logger::DebugTag("Get command from command queue, in interactive loop.");
+    Logger::DebugTag("Got request from command queue, in interactive loop.");
     Vector<uint16_t> command = command_queue_.Get();
     ASSERT(!host_running_);
     if (!Debugger::debugger_active()) {
@@ -1780,52 +1780,54 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
       return;
     }
 
-    // Invoke the JavaScript to convert the debug command line to a JSON
-    // request, invoke the JSON request and convert the JSON response to a text
-    // representation.
+    // Invoke the JavaScript to process the debug request.
     v8::Local<v8::String> fun_name;
     v8::Local<v8::Function> fun;
-    v8::Local<v8::Value> args[1];
+    v8::Local<v8::Value> request;
     v8::TryCatch try_catch;
-    fun_name = v8::String::New("processDebugCommand");
+    fun_name = v8::String::New("processDebugRequest");
     fun = v8::Function::Cast(*cmd_processor->Get(fun_name));
-    args[0] = v8::String::New(reinterpret_cast<uint16_t*>(command.start()),
+    request = v8::String::New(reinterpret_cast<uint16_t*>(command.start()),
                               command.length());
-    v8::Local<v8::Value> result_val = fun->Call(cmd_processor, 1, args);
+    static const int kArgc = 1;
+    v8::Handle<Value> argv[kArgc] = { request };
+    v8::Local<v8::Value> response_val = fun->Call(cmd_processor, kArgc, argv);
 
-    // Get the result of the command.
-    v8::Local<v8::String> result_string;
+    // Get the response.
+    v8::Local<v8::String> response;
     bool running = false;
     if (!try_catch.HasCaught()) {
-      // Get the result as an object.
-      v8::Local<v8::Object> result = v8::Object::Cast(*result_val);
+      // Get response string.
+      if (!response_val->IsUndefined()) {
+        response = v8::String::Cast(*response_val);
+      } else {
+        response = v8::String::New("");
+      }
 
       // Log the JSON request/response.
       if (FLAG_trace_debug_json) {
-        PrintLn(result->Get(v8::String::New("request")));
-        PrintLn(result->Get(v8::String::New("response")));
+        PrintLn(request);
+        PrintLn(response);
       }
 
       // Get the running state.
-      running = result->Get(v8::String::New("running"))->ToBoolean()->Value();
-
-      // Get result text.
-      v8::Local<v8::Value> text_result =
-          result->Get(v8::String::New("response"));
-      if (!text_result->IsUndefined()) {
-        result_string = text_result->ToString();
-      } else {
-        result_string = v8::String::New("");
+      fun_name = v8::String::New("isRunning");
+      fun = v8::Function::Cast(*cmd_processor->Get(fun_name));
+      static const int kArgc = 1;
+      v8::Handle<Value> argv[kArgc] = { response };
+      v8::Local<v8::Value> running_val = fun->Call(cmd_processor, kArgc, argv);
+      if (!try_catch.HasCaught()) {
+        running = running_val->ToBoolean()->Value();
       }
     } else {
       // In case of failure the result text is the exception text.
-      result_string = try_catch.Exception()->ToString();
+      response = try_catch.Exception()->ToString();
     }
 
     // Convert text result to C string.
-    v8::String::Value val(result_string);
+    v8::String::Value val(response);
     Vector<uint16_t> str(reinterpret_cast<uint16_t*>(*val),
-                        result_string->Length());
+                        response->Length());
 
     // Set host_running_ correctly for nested debugger evaluations.
     host_running_ = running;
