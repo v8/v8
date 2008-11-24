@@ -538,7 +538,6 @@ static inline void Store16(byte* pc, uint16_t value) {
 #ifdef CAN_READ_UNALIGNED
   *reinterpret_cast<uint16_t*>(pc) = value;
 #else
-  uint16_t word;
   pc[1] = value;
   pc[0] = value >> 8;
 #endif
@@ -549,12 +548,10 @@ static inline void Store32(byte* pc, uint32_t value) {
 #ifdef CAN_READ_UNALIGNED
   *reinterpret_cast<uint32_t*>(pc) = value;
 #else
-  uint32_t word;
   pc[3] = value;
   pc[2] = value >> 8;
   pc[1] = value >> 16;
   pc[0] = value >> 24;
-  return word;
 #endif
 }
 
