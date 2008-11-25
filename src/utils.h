@@ -83,6 +83,23 @@ static inline T RoundUp(T x, int m) {
 }
 
 
+template <typename T>
+static int Spaceship(const T& a, const T& b) {
+  if (a == b)
+    return 0;
+  else if (a < b)
+    return -1;
+  else
+    return 1;
+}
+
+
+template <typename T>
+static int PointerSpaceship(const T* a, const T* b) {
+  return Spaceship<T>(*a, *b);
+}
+
+
 // Returns the smallest power of two which is >= x. If you pass in a
 // number that is already a power of two, it is returned as is.
 uint32_t RoundUpToPowerOf2(uint32_t x);
@@ -283,6 +300,15 @@ class Vector {
     return Vector<T>(NewArray<T>(length), length);
   }
 
+  // Returns a vector using the same backing storage as this one,
+  // spanning from and including 'from', to but not including 'to'.
+  Vector<T> SubVector(int from, int to) {
+    ASSERT(from < length_);
+    ASSERT(to <= length_);
+    ASSERT(from < to);
+    return Vector<T>(start() + from, to - from);
+  }
+
   // Returns the length of the vector.
   int length() const { return length_; }
 
@@ -298,11 +324,27 @@ class Vector {
     return start_[index];
   }
 
+  T& first() { return start_[0]; }
+
+  T& last() { return start_[length_ - 1]; }
+
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {
     T* result = NewArray<T>(length_);
     for (int i = 0; i < length_; i++) result[i] = start_[i];
     return Vector<T>(result, length_);
+  }
+
+  void Sort(int (*cmp)(const T*, const T*)) {
+    typedef int (*RawComparer)(const void*, const void*);
+    qsort(start(),
+          length(),
+          sizeof(T),
+          reinterpret_cast<RawComparer>(cmp));
+  }
+
+  void Sort() {
+    Sort(PointerSpaceship<T>);
   }
 
   // Releases the array underlying this vector. Once disposed the
@@ -464,6 +506,58 @@ static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
     *dest++ = static_cast<sinkchar>(*src++);
   }
 }
+
+
+static inline int Load16(const byte* pc) {
+#ifdef CAN_READ_UNALIGNED
+  return *reinterpret_cast<const uint16_t*>(pc);
+#else
+  uint32_t word;
+  word  = pc[1];
+  word |= pc[0] << 8;
+  return word;
+#endif
+}
+
+
+static inline int Load32(const byte* pc) {
+#ifdef CAN_READ_UNALIGNED
+  return *reinterpret_cast<const uint32_t*>(pc);
+#else
+  uint32_t word;
+  word  = pc[3];
+  word |= pc[2] << 8;
+  word |= pc[1] << 16;
+  word |= pc[0] << 24;
+  return word;
+#endif
+}
+
+
+static inline void Store16(byte* pc, uint16_t value) {
+#ifdef CAN_READ_UNALIGNED
+  *reinterpret_cast<uint16_t*>(pc) = value;
+#else
+  pc[1] = value;
+  pc[0] = value >> 8;
+#endif
+}
+
+
+static inline void Store32(byte* pc, uint32_t value) {
+#ifdef CAN_READ_UNALIGNED
+  *reinterpret_cast<uint32_t*>(pc) = value;
+#else
+  pc[3] = value;
+  pc[2] = value >> 8;
+  pc[1] = value >> 16;
+  pc[0] = value >> 24;
+#endif
+}
+
+
+
+
 
 } }  // namespace v8::internal
 

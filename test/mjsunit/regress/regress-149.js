@@ -25,6 +25,4 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Regression test for bug #743664.
-assertEquals("uu", "\x60\x60".replace(/\x60/g, "u"));
-assertEquals("uu", "\xAB\xAB".replace(/\xAB/g, "u"));
+assertEquals(String.fromCharCode(0x26B), String.fromCharCode(0x2C62).toLowerCase());

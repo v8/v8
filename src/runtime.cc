@@ -288,7 +288,7 @@ static Object* Runtime_IsConstructCall(Arguments args) {
 
 
 static Object* Runtime_RegExpCompile(Arguments args) {
-  HandleScope scope;  // create a new handle scope
+  HandleScope scope;
   ASSERT(args.length() == 3);
   CONVERT_CHECKED(JSRegExp, raw_re, args[0]);
   Handle<JSRegExp> re(raw_re);
@@ -786,7 +786,9 @@ static Object* Runtime_RegExpExec(Arguments args) {
   Handle<String> subject(raw_subject);
   Handle<Object> index(args[2]);
   ASSERT(index->IsNumber());
-  return *RegExpImpl::Exec(regexp, subject, index);
+  Handle<Object> result = RegExpImpl::Exec(regexp, subject, index);
+  if (result.is_null()) return Failure::Exception();
+  return *result;
 }
 
 
@@ -797,7 +799,9 @@ static Object* Runtime_RegExpExecGlobal(Arguments args) {
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  return *RegExpImpl::ExecGlobal(regexp, subject);
+  Handle<Object> result = RegExpImpl::ExecGlobal(regexp, subject);
+  if (result.is_null()) return Failure::Exception();
+  return *result;
 }
 
 
@@ -2444,7 +2448,7 @@ static Object* ConvertCase(Arguments args,
   // in the buffer
   Access<StringInputBuffer> buffer(&string_input_buffer);
   buffer->Reset(s);
-  unibrow::uchar chars[unibrow::kMaxCaseConvertedSize];
+  unibrow::uchar chars[Converter::kMaxWidth];
   int i = 0;
   // We can assume that the string is not empty
   uc32 current = buffer->GetNext();

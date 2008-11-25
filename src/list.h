@@ -46,6 +46,7 @@ namespace v8 { namespace internal {
 template <typename T, class P>
 class List {
  public:
+
   INLINE(explicit List(int capacity)) { Initialize(capacity); }
   INLINE(~List()) { DeleteData(data_); }
 
@@ -66,6 +67,8 @@ class List {
   INLINE(int length() const) { return length_; }
 
   Vector<T> ToVector() { return Vector<T>(data_, length_); }
+
+  Vector<const T> ToConstVector() { return Vector<const T>(data_, length_); }
 
   // Adds a copy of the given 'element' to the end of the list,
   // expanding the list if necessary.
@@ -92,11 +95,14 @@ class List {
   // Drops all but the first 'pos' elements from the list.
   INLINE(void Rewind(int pos));
 
+  bool Contains(const T& elm);
+
   // Iterate through all list entries, starting at index 0.
   void Iterate(void (*callback)(T* x));
 
   // Sort all list entries (using QuickSort)
   void Sort(int (*cmp)(const T* x, const T* y));
+  void Sort();
 
   INLINE(void Initialize(int capacity));
 

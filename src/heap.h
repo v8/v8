@@ -391,7 +391,13 @@ class Heap : public AllStatic {
   // Allocate a byte array of the specified length
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
-  // Please not this does not perform a garbage collection.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocateByteArray(int length, PretenureFlag pretenure);
+
+  // Allocate a non-tenured byte array of the specified length
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
   static Object* AllocateByteArray(int length);
 
   // Allocates a fixed array initialized with undefined values
@@ -549,11 +555,14 @@ class Heap : public AllStatic {
 
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
+  // failed. On success, the pointer to the Code object is stored in the
+  // self_reference. This allows generated code to reference its own Code
+  // object by containing this pointer.
   // Please note this function does not perform a garbage collection.
   static Object* CreateCode(const CodeDesc& desc,
                             ScopeInfo<>* sinfo,
-                            Code::Flags flags);
+                            Code::Flags flags,
+                            Code** self_reference = NULL);
 
   static Object* CopyCode(Code* code);
   // Finds the symbol for string in the symbol table.
@@ -581,6 +590,9 @@ class Heap : public AllStatic {
   // reporting/verification activities when compiled with DEBUG set.
   static void GarbageCollectionPrologue();
   static void GarbageCollectionEpilogue();
+
+  // Code that should be executed after the garbage collection proper.
+  static void PostGarbageCollectionProcessing();
 
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.

@@ -120,7 +120,7 @@ typedef int32_t instr_t;
 // bits.
 //
 // bool InstructionSetsConditionCodes(byte* ptr) {
-//   Instr *instr = Instr::At(ptr);
+//   Instr* instr = Instr::At(ptr);
 //   int type = instr->TypeField();
 //   return ((type == 0) || (type == 1)) && instr->HasS();
 // }

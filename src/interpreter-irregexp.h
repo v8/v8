@@ -25,6 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Regression test for bug #743664.
-assertEquals("uu", "\x60\x60".replace(/\x60/g, "u"));
-assertEquals("uu", "\xAB\xAB".replace(/\xAB/g, "u"));
+// A simple interpreter for the Regexp2000 byte code.
+
+#ifndef V8_INTERPRETER_IRREGEXP_H_
+#define V8_INTERPRETER_IRREGEXP_H_
+
+namespace v8 { namespace internal {
+
+
+class IrregexpInterpreter {
+ public:
+  static bool Match(Handle<ByteArray> code,
+                    Handle<String> subject16,
+                    int* captures,
+                    int start_position);
+};
+
+
+} }  // namespace v8::internal
+
+#endif  // V8_INTERPRETER_IRREGEXP_H_
