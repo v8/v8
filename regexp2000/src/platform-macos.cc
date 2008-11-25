@@ -190,11 +190,6 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
-void OS::WcsCpy(Vector<wchar_t> dest, const wchar_t* src) {
-  wcscpy(dest.start(), src);
-}
-
-
 char *OS::StrDup(const char* str) {
   return strdup(str);
 }

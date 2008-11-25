@@ -41,7 +41,7 @@ namespace v8 { namespace internal {
 #define __ masm->
 
 
-// Helper function used from LoadIC/CallIC GenerateNormal.
+// Helper function used to load a property from a dictionary backing storage.
 static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
                                    Register r0, Register r1, Register r2,
                                    Register name) {
@@ -118,6 +118,29 @@ static void GenerateDictionaryLoad(MacroAssembler* masm, Label* miss_label,
   // Get the value at the masked, scaled index.
   const int kValueOffset = kElementsStartOffset + kPointerSize;
   __ mov(r1, Operand(r0, r1, times_4, kValueOffset - kHeapObjectTag));
+}
+
+
+// Helper function used to check that a value is either not a function
+// or is loaded if it is a function.
+static void GenerateCheckNonFunctionOrLoaded(MacroAssembler* masm, Label* miss,
+                                             Register value, Register scratch) {
+  Label done;
+  // Check if the value is a Smi.
+  __ test(value, Immediate(kSmiTagMask));
+  __ j(zero, &done, not_taken);
+  // Check if the value is a function.
+  __ mov(scratch, FieldOperand(value, HeapObject::kMapOffset));
+  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
+  __ cmp(scratch, JS_FUNCTION_TYPE);
+  __ j(not_equal, &done, taken);
+  // Check if the function has been loaded.
+  __ mov(scratch, FieldOperand(value, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(scratch,
+         FieldOperand(scratch, SharedFunctionInfo::kLazyLoadDataOffset));
+  __ cmp(scratch, Factory::undefined_value());
+  __ j(not_equal, miss, not_taken);
+  __ bind(&done);
 }
 
 
@@ -236,6 +259,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ j(not_zero, &slow, not_taken);
   // Probe the dictionary leaving result in ecx.
   GenerateDictionaryLoad(masm, &slow, ebx, ecx, edx, eax);
+  GenerateCheckNonFunctionOrLoaded(masm, &slow, ecx, edx);
   __ mov(eax, Operand(ecx));
   __ IncrementCounter(&Counters::keyed_load_generic_symbol, 1);
   __ ret(0);
@@ -456,6 +480,12 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   __ cmp(edx, JS_FUNCTION_TYPE);
   __ j(not_equal, miss, not_taken);
 
+  // Check that the function has been loaded.
+  __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(edx, FieldOperand(edx, SharedFunctionInfo::kLazyLoadDataOffset));
+  __ cmp(edx, Factory::undefined_value());
+  __ j(not_equal, miss, not_taken);
+
   // Patch the receiver with the global proxy if necessary.
   if (is_global_object) {
     __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
@@ -627,6 +657,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // Search the dictionary placing the result in eax.
   __ bind(&probe);
   GenerateDictionaryLoad(masm, &miss, edx, eax, ebx, ecx);
+  GenerateCheckNonFunctionOrLoaded(masm, &miss, eax, edx);
   __ ret(0);
 
   // Global object access: Check access rights.

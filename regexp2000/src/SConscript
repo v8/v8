@@ -58,10 +58,11 @@ SOURCES = {
       'macro-assembler-ia32.cc', 'regexp-macro-assembler-ia32.cc', 
       'stub-cache-ia32.cc'],
   'simulator:arm': ['simulator-arm.cc'],
-  'os:linux':  ['platform-linux.cc'],
-  'os:macos':  ['platform-macos.cc'],
-  'os:nullos': ['platform-nullos.cc'],
-  'os:win32':  ['platform-win32.cc'],
+  'os:freebsd': ['platform-freebsd.cc'],
+  'os:linux':   ['platform-linux.cc'],
+  'os:macos':   ['platform-macos.cc'],
+  'os:nullos':  ['platform-nullos.cc'],
+  'os:win32':   ['platform-win32.cc'],
   'mode:release': [],
   'mode:debug': ['objects-debug.cc', 'prettyprinter.cc']
 }

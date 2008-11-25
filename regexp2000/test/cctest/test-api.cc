@@ -5321,3 +5321,27 @@ TEST(PreCompile) {
   CHECK_NE(sd->Length(), 0);
   CHECK_NE(sd->Data(), NULL);
 }
+
+
+// This tests that we do not allow dictionary load/call inline caches
+// to use functions that have not yet been compiled.  The potential
+// problem of loading a function that has not yet been compiled can
+// arise because we share code between contexts via the compilation
+// cache.
+THREADED_TEST(DictionaryICLoadedFunction) {
+  v8::HandleScope scope;
+  // Test LoadIC.
+  for (int i = 0; i < 2; i++) {
+    LocalContext context;
+    context->Global()->Set(v8_str("tmp"), v8::True());
+    context->Global()->Delete(v8_str("tmp"));
+    CompileRun("for (var j = 0; j < 10; j++) new RegExp('');");
+  }
+  // Test CallIC.
+  for (int i = 0; i < 2; i++) {
+    LocalContext context;
+    context->Global()->Set(v8_str("tmp"), v8::True());
+    context->Global()->Delete(v8_str("tmp"));
+    CompileRun("for (var j = 0; j < 10; j++) RegExp('')");
+  }
+}

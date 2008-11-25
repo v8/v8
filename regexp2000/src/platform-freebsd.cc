@@ -25,18 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for Linux goes here
+// Platform specific code for FreeBSD goes here
 
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/ucontext.h>
 #include <stdlib.h>
 
-// Ubuntu Dapper requires memory pages to be marked as
-// executable. Otherwise, OS raises an exception when executing code
-// in that page.
 #include <sys/types.h>  // mmap & munmap
 #include <sys/mman.h>   // mmap & munmap
 #include <sys/stat.h>   // open
@@ -46,6 +44,7 @@
 #include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
+#include <limits.h>
 
 #undef MAP_TYPE
 
@@ -56,13 +55,18 @@
 
 namespace v8 { namespace internal {
 
-// 0 is never a valid thread id on Linux since tids and pids share a
-// name space and pid 0 is reserved (see man 2 kill).
+// 0 is never a valid thread id on FreeBSD since tids and pids share a
+// name space and pid 0 is used to kill the group (see man 2 kill).
 static const pthread_t kNoThread = (pthread_t) 0;
 
 
 double ceiling(double x) {
-  return ceil(x);
+    // Correct as on OS X
+    if (-1.0 < x && x < 0.0) {
+        return -0.0;
+    } else {
+        return ceil(x);
+    }
 }
 
 
@@ -96,7 +100,7 @@ double OS::TimeCurrentMillis() {
 
 
 int64_t OS::Ticks() {
-  // Linux's gettimeofday has microsecond resolution.
+  // FreeBSD's gettimeofday has microsecond resolution.
   struct timeval tv;
   if (gettimeofday(&tv, NULL) < 0)
     return 0;
@@ -196,8 +200,8 @@ double OS::nan_value() {
 
 
 int OS::ActivationFrameAlignment() {
-  // No constraint on Linux.
-  return 0;
+  // 16 byte alignment on FreeBSD
+  return 16;
 }
 
 
@@ -233,7 +237,8 @@ void* OS::Allocate(const size_t requested,
                    bool executable) {
   const size_t msize = RoundUp(requested, getpagesize());
   int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
-  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
+
   if (mbase == MAP_FAILED) {
     LOG(StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
@@ -391,7 +396,7 @@ static const int kMmapFdOffset = 0;
 
 VirtualMemory::VirtualMemory(size_t size) {
   address_ = mmap(NULL, size, PROT_NONE,
-                  MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+                  MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
                   kMmapFd, kMmapFdOffset);
   size_ = size;
 }
@@ -412,7 +417,7 @@ bool VirtualMemory::IsReserved() {
 bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
   int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
   if (MAP_FAILED == mmap(address, size, prot,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED,
+                         MAP_PRIVATE | MAP_ANON | MAP_FIXED,
                          kMmapFd, kMmapFdOffset)) {
     return false;
   }
@@ -424,7 +429,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   return mmap(address, size, PROT_NONE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
+              MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
               kMmapFd, kMmapFdOffset) != MAP_FAILED;
 }
 
@@ -535,10 +540,10 @@ void Thread::YieldCPU() {
 }
 
 
-class LinuxMutex : public Mutex {
+class FreeBSDMutex : public Mutex {
  public:
 
-  LinuxMutex() {
+  FreeBSDMutex() {
     pthread_mutexattr_t attrs;
     int result = pthread_mutexattr_init(&attrs);
     ASSERT(result == 0);
@@ -548,7 +553,7 @@ class LinuxMutex : public Mutex {
     ASSERT(result == 0);
   }
 
-  virtual ~LinuxMutex() { pthread_mutex_destroy(&mutex_); }
+  virtual ~FreeBSDMutex() { pthread_mutex_destroy(&mutex_); }
 
   virtual int Lock() {
     int result = pthread_mutex_lock(&mutex_);
@@ -566,14 +571,14 @@ class LinuxMutex : public Mutex {
 
 
 Mutex* OS::CreateMutex() {
-  return new LinuxMutex();
+  return new FreeBSDMutex();
 }
 
 
-class LinuxSemaphore : public Semaphore {
+class FreeBSDSemaphore : public Semaphore {
  public:
-  explicit LinuxSemaphore(int count) {  sem_init(&sem_, 0, count); }
-  virtual ~LinuxSemaphore() { sem_destroy(&sem_); }
+  explicit FreeBSDSemaphore(int count) {  sem_init(&sem_, 0, count); }
+  virtual ~FreeBSDSemaphore() { sem_destroy(&sem_); }
 
   virtual void Wait();
   virtual void Signal() { sem_post(&sem_); }
@@ -581,7 +586,7 @@ class LinuxSemaphore : public Semaphore {
   sem_t sem_;
 };
 
-void LinuxSemaphore::Wait() {
+void FreeBSDSemaphore::Wait() {
   while (true) {
     int result = sem_wait(&sem_);
     if (result == 0) return;  // Successfully got semaphore.
@@ -590,7 +595,7 @@ void LinuxSemaphore::Wait() {
 }
 
 Semaphore* OS::CreateSemaphore(int count) {
-  return new LinuxSemaphore(count);
+  return new FreeBSDSemaphore(count);
 }
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -610,11 +615,11 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
     ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
     mcontext_t& mcontext = ucontext->uc_mcontext;
 #if defined (__arm__) || defined(__thumb__)
-    sample.pc = mcontext.gregs[R15];
-    sample.sp = mcontext.gregs[R13];
+    sample.pc = mcontext.mc_r15;
+    sample.sp = mcontext.mc_r13;
 #else
-    sample.pc = mcontext.gregs[REG_EIP];
-    sample.sp = mcontext.gregs[REG_ESP];
+    sample.pc = mcontext.mc_eip;
+    sample.sp = mcontext.mc_esp;
 #endif
   }
 

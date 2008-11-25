@@ -554,7 +554,7 @@ void Assembler::addrmod1(Instr instr,
       // However, if the original instruction is a 'mov rd, x' (not setting the
       // condition code), then replace it with a 'ldr rd, [pc]'
       RecordRelocInfo(x.rmode_, x.imm32_);
-      ASSERT(!rn.is(ip));  // rn should never be ip, or will be trashed
+      CHECK(!rn.is(ip));  // rn should never be ip, or will be trashed
       Condition cond = static_cast<Condition>(instr & CondMask);
       if ((instr & ~CondMask) == 13*B21) {  // mov, S not set
         ldr(rd, MemOperand(pc, 0), cond);

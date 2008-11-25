@@ -231,6 +231,17 @@ class MacroAssembler: public Assembler {
 
 
   // ---------------------------------------------------------------------------
+  // StatsCounter support
+
+  void SetCounter(StatsCounter* counter, int value,
+                  Register scratch1, Register scratch2);
+  void IncrementCounter(StatsCounter* counter, int value,
+                        Register scratch1, Register scratch2);
+  void DecrementCounter(StatsCounter* counter, int value,
+                        Register scratch1, Register scratch2);
+
+
+  // ---------------------------------------------------------------------------
   // Debugging
 
   // Calls Abort(msg) if the condition cc is not satisfied.
