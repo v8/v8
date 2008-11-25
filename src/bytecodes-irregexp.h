@@ -57,12 +57,13 @@ V(MINUS_OR_CHECK_NOT_CHAR, 21, 9) /* minus_or_check_not_char uc16 uc16 ad...*/ \
 V(CHECK_LT,          22, 7) /* check_lt uc16 addr32                         */ \
 V(CHECK_GT,          23, 7) /* check_gr uc16 addr32                         */ \
 V(CHECK_NOT_BACK_REF, 24, 6) /* check_not_back_ref capture_idx addr32       */ \
-V(LOOKUP_MAP1,       25, 11) /* l_map1 start16 bit_map_addr32 addr32        */ \
-V(LOOKUP_MAP2,       26, 99) /* l_map2 start16 half_nibble_map_addr32*      */ \
-V(LOOKUP_MAP8,       27, 99) /* l_map8 start16 byte_map addr32*             */ \
-V(LOOKUP_HI_MAP8,    28, 99) /* l_himap8 start8 byte_map_addr32 addr32*     */ \
-V(CHECK_REGISTER_LT, 29, 8) /* check_reg_lt register_index value16 addr32   */ \
-V(CHECK_REGISTER_GE, 30, 8) /* check_reg_ge register_index value16 addr32   */ \
+V(CHECK_NOT_BACK_REF_NO_CASE, 25, 6) /* check_not_back_ref_no_case captu... */ \
+V(LOOKUP_MAP1,       26, 11) /* l_map1 start16 bit_map_addr32 addr32        */ \
+V(LOOKUP_MAP2,       27, 99) /* l_map2 start16 half_nibble_map_addr32*      */ \
+V(LOOKUP_MAP8,       28, 99) /* l_map8 start16 byte_map addr32*             */ \
+V(LOOKUP_HI_MAP8,    29, 99) /* l_himap8 start8 byte_map_addr32 addr32*     */ \
+V(CHECK_REGISTER_LT, 30, 8) /* check_reg_lt register_index value16 addr32   */ \
+V(CHECK_REGISTER_GE, 31, 8) /* check_reg_ge register_index value16 addr32   */ \
 
 #define DECLARE_BYTECODES(name, code, length) \
   static const int BC_##name = code;

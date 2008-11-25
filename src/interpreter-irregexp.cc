@@ -29,6 +29,7 @@
 
 
 #include "v8.h"
+#include "unicode.h"
 #include "utils.h"
 #include "ast.h"
 #include "bytecodes-irregexp.h"
@@ -36,6 +37,27 @@
 
 
 namespace v8 { namespace internal {
+
+
+static unibrow::Mapping<unibrow::Ecma262Canonicalize> canonicalize;
+
+
+static bool BackRefMatchesNoCase(int from,
+                                 int current,
+                                 int len,
+                                 Vector<const uc16> subject) {
+  for (int i = 0; i < len; i++) {
+    unibrow::uchar old_char = subject[from++];
+    unibrow::uchar new_char = subject[current++];
+    if (old_char == new_char) continue;
+    canonicalize.get(old_char, '\0', &old_char);
+    canonicalize.get(new_char, '\0', &new_char);
+    if (old_char != new_char) {
+      return false;
+    }
+  }
+  return true;
+}
 
 
 #ifdef DEBUG
@@ -317,6 +339,21 @@ static bool RawMatch(const byte* code_base,
           current += len;
         }
         pc += BC_CHECK_NOT_BACK_REF_LENGTH;
+        break;
+      }
+      BYTECODE(CHECK_NOT_BACK_REF_NO_CASE) {
+        int from = registers[pc[1]];
+        int len = registers[pc[1] + 1] - from;
+        if (current + len > subject.length()) {
+          pc = code_base + Load32(pc + 2);
+          break;
+        } else {
+          if (BackRefMatchesNoCase(from, current, len, subject)) {
+            pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
+          } else {
+            pc = code_base + Load32(pc + 2);
+          }
+        }
         break;
       }
       default:

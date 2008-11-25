@@ -199,6 +199,13 @@ void RegExpMacroAssemblerIrregexp::CheckNotBackReference(int start_reg,
 }
 
 
+void RegExpMacroAssemblerIrregexp::CheckNotBackReferenceCaseIndependent(
+    int start_reg,
+    Label* on_not_equal) {
+  assembler_->CheckNotBackReferenceNoCase(start_reg, on_not_equal);
+}
+
+
 void RegExpMacroAssemblerIrregexp::CheckBitmap(uc16 start,
                                            Label* bitmap,
                                            Label* on_zero) {

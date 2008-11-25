@@ -75,6 +75,7 @@ class IrregexpAssembler {
   // the register after.  If a register contains -1 then the other register
   // must always contain -1 and the on_mismatch label will never be called.
   void CheckNotBackReference(int capture_index, Label* on_mismatch);
+  void CheckNotBackReferenceNoCase(int capture_index, Label* on_mismatch);
 
   // Checks a register for strictly-less-than or greater-than-or-equal.
   void CheckRegisterLT(int reg_index, uint16_t vs, Label* on_less_than);

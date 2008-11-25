@@ -65,6 +65,8 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
                                              uc16 mask,
                                              Label* on_not_equal);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
+  virtual void CheckNotBackReferenceCaseIndependent(int start_reg,
+                                                    Label* on_no_match);
   virtual void CheckCharacters(Vector<const uc16> str,
                                int cp_offset,
                                Label* on_failure);

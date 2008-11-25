@@ -239,6 +239,14 @@ void IrregexpAssembler::CheckNotBackReference(int capture_index,
 }
 
 
+void IrregexpAssembler::CheckNotBackReferenceNoCase(int capture_index,
+                                                    Label* on_mismatch) {
+  Emit(BC_CHECK_NOT_BACK_REF_NO_CASE);
+  Emit(capture_index);
+  EmitOrLink(on_mismatch);
+}
+
+
 void IrregexpAssembler::CheckRegister(int byte_code,
                                       int reg_index,
                                       uint16_t vs,

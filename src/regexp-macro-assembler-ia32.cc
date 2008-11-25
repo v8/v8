@@ -213,11 +213,14 @@ void RegExpMacroAssemblerIA32::CheckCurrentPosition(int register_index,
 }
 
 
+void RegExpMacroAssemblerIA32::CheckNotBackReferenceCaseIndependent(
+    int start_reg, Label* on_no_match) {
+  UNIMPLEMENTED();
+}
+
+
 void RegExpMacroAssemblerIA32::CheckNotBackReference(
     int start_reg, Label* on_no_match) {
-  if (ignore_case_) {
-    UNIMPLEMENTED();
-  }
   Label fallthrough;
   __ mov(eax, register_location(start_reg));
   __ mov(ecx, register_location(start_reg + 1));

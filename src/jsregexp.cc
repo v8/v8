@@ -1269,17 +1269,17 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     }
   } else {
     if (from != 0) {
-      if (!cc->is_negated()) {
-        macro_assembler->CheckCharacterLT(from, on_failure);
-      } else {
+      if (cc->is_negated()) {
         macro_assembler->CheckCharacterLT(from, &success);
+      } else {
+        macro_assembler->CheckCharacterLT(from, on_failure);
       }
     }
     if (to != 0xffff) {
-      if (!cc->is_negated()) {
-        macro_assembler->CheckCharacterGT(to, on_failure);
-      } else {
+      if (cc->is_negated()) {
         macro_assembler->CheckCharacterLT(to + 1, on_failure);
+      } else {
+        macro_assembler->CheckCharacterGT(to, on_failure);
       }
     } else {
       if (cc->is_negated()) {
@@ -1302,16 +1302,16 @@ bool TextNode::Emit(RegExpCompiler* compiler) {
     TextElement elm = elms_->at(i);
     if (elm.type == TextElement::ATOM) {
       Vector<const uc16> quarks = elm.data.u_atom->data();
-      if (!compiler->is_case_independent()) {
-        macro_assembler->CheckCharacters(quarks,
-                                         cp_offset,
-                                         on_failure_->label());
-      } else {
+      if (compiler->is_case_independent()) {
         EmitAtomNonLetters(macro_assembler,
                            elm,
                            quarks,
                            on_failure_->label(),
                            cp_offset);
+      } else {
+        macro_assembler->CheckCharacters(quarks,
+                                         cp_offset,
+                                         on_failure_->label());
       }
       cp_offset += quarks.length();
     } else {
@@ -1474,7 +1474,12 @@ bool BackReferenceNode::Emit(RegExpCompiler* compiler) {
   macro->IfRegisterLT(start_reg_, 0, on_success()->label());
   macro->IfRegisterLT(end_reg_, 0, on_success()->label());
   ASSERT_EQ(start_reg_ + 1, end_reg_);
-  macro->CheckNotBackReference(start_reg_, on_failure_->label());
+  if (compiler->is_case_independent()) {
+    macro->CheckNotBackReferenceCaseIndependent(start_reg_,
+                                                on_failure_->label());
+  } else {
+    macro->CheckNotBackReference(start_reg_, on_failure_->label());
+  }
   return on_success()->GoTo(compiler);
 }
 
@@ -2140,8 +2145,9 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
         uc32 c = range[i];
         uc16 range_from = c + (pos - start);
         uc16 range_to = c + (end - start);
-        if (!(from() <= range_from && range_to <= to()))
+        if (!(from() <= range_from && range_to <= to())) {
           ranges->Add(CharacterRange(range_from, range_to));
+        }
       }
       start = pos = block_end + 1;
     }
