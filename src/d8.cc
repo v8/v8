@@ -252,7 +252,6 @@ void Shell::Initialize() {
 
   // Install the debugger object in the utility scope
   i::Debug::Load();
-  i::Debug::debug_context()->set_security_token(i::Heap::undefined_value());
   i::JSObject* debug = i::Debug::debug_context()->global();
   utility_context_->Global()->Set(String::New("$debug"),
                                   Utils::ToLocal(&debug));
@@ -272,6 +271,9 @@ void Shell::Initialize() {
   // Create the evaluation context
   evaluation_context_ = Context::New(NULL, global_template);
   evaluation_context_->SetSecurityToken(Undefined());
+
+  // Set the security token of the debug context to allow access.
+  i::Debug::debug_context()->set_security_token(i::Heap::undefined_value());
 }
 
 
@@ -341,15 +343,32 @@ int Shell::Main(int argc, char* argv[]) {
   Context::Scope context_scope(evaluation_context_);
   for (int i = 1; i < argc; i++) {
     char* str = argv[i];
-    HandleScope handle_scope;
-    Handle<String> file_name = v8::String::New(str);
-    Handle<String> source = ReadFile(str);
-    if (source.IsEmpty()) {
-      printf("Error reading '%s'\n", str);
-      return 1;
+    if (strcmp(str, "-f") == 0) {
+      // Ignore any -f flags for compatibility with other stand-alone
+      // JavaScript engines.
+      continue;
+    } else if (strncmp(str, "--", 2) == 0) {
+      printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+    } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
+      // Execute argument given to -e option directly.
+      v8::HandleScope handle_scope;
+      v8::Handle<v8::String> file_name = v8::String::New("unnamed");
+      v8::Handle<v8::String> source = v8::String::New(argv[i + 1]);
+      if (!ExecuteString(source, file_name, false, true))
+        return 1;
+      i++;
+    } else {
+      // Use all other arguments as names of files to load and run.
+      HandleScope handle_scope;
+      Handle<String> file_name = v8::String::New(str);
+      Handle<String> source = ReadFile(str);
+      if (source.IsEmpty()) {
+        printf("Error reading '%s'\n", str);
+        return 1;
+      }
+      if (!ExecuteString(source, file_name, false, true))
+        return 1;
     }
-    if (!ExecuteString(source, file_name, false, true))
-      return 1;
   }
   if (run_shell)
     RunShell();
