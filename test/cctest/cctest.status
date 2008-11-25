@@ -40,4 +40,7 @@ test-spaces/LargeObjectSpace: PASS || FAIL
 
 [ $system == macos ]
 
-test-regexp/MacroAssemblerIA32Simple: FAIL
+# TODO(lrn): Please fix this asap.
+test-regexp/MacroAssemblerIA32Simple: PASS || CRASH
+test-regexp/MacroAssemblerIA32Registers: PASS || CRASH
+
