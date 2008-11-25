@@ -38,7 +38,7 @@ namespace v8 { namespace internal {
 class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
  public:
   enum Mode {ASCII = 1, UC16 = 2};
-  RegExpMacroAssemblerIA32(Mode mode, int registers_to_save, bool ignore_case);
+  RegExpMacroAssemblerIA32(Mode mode, int registers_to_save);
   virtual ~RegExpMacroAssemblerIA32();
   virtual void AdvanceCurrentPosition(int by);
   virtual void AdvanceRegister(int reg, int by);
@@ -100,9 +100,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // The ebp-relative location of a regexp register.
   Operand register_location(int register_index);
 
-  // Whether to implement case-insensitive matching.
-  bool ignore_case();
-
   // Byte size of chars in the string to match (decided by the Mode argument)
   size_t char_size();
 
@@ -129,6 +126,10 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // Read the current character into the destination register.
   void ReadCurrentChar(Register destination);
 
+  // Adds code that checks whether preemption has been requested
+  // (and checks if we have hit the stack limit too).
+  void CheckStackLimit();
+
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
   // Initial size of constant buffers allocated during compilation.
@@ -149,7 +150,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   int num_saved_registers_;
   // Whether to generate code that is case-insensitive. Only relevant for
   // back-references.
-  bool ignore_case_;
   Label entry_label_;
   Label start_label_;
   Label success_label_;

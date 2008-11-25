@@ -2586,8 +2586,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
     // of the RegExp. We don't know the type of input string yet.
     // For now, always assume two-byte strings.
     RegExpMacroAssemblerIA32 macro_assembler(RegExpMacroAssemblerIA32::UC16,
-                                             (input->capture_count + 1) * 2,
-                                             ignore_case);
+                                             (input->capture_count + 1) * 2);
     return compiler.Assemble(&macro_assembler,
                              node,
                              input->capture_count);

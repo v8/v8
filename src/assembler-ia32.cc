@@ -427,14 +427,14 @@ void Assembler::push(Label* label, RelocInfo::Mode reloc_mode) {
   // If reloc_mode == NONE, the label is stored as buffer relative.
   ASSERT(reloc_mode == RelocInfo::NONE);
   if (label->is_bound()) {
-    // Index of position in Code object:
-    int pos = label->pos() + Code::kHeaderSize;
-    if (pos >= 0 && pos < 256) {
+    // Index of position relative to Code Object-pointer.
+    int rel_pos = label->pos() + Code::kHeaderSize - kHeapObjectTag;
+    if (rel_pos >= 0 && rel_pos < 256) {
       EMIT(0x6a);
-      EMIT(pos);
+      EMIT(rel_pos);
     } else {
       EMIT(0x68);
-      emit(pos);
+      emit(rel_pos);
     }
   } else {
     EMIT(0x68);
@@ -1337,7 +1337,8 @@ void Assembler::bind_to(Label* L, int pos) {
     Displacement disp = disp_at(L);
     int fixup_pos = L->pos();
     if (disp.type() == Displacement::CODE_RELATIVE) {
-      long_at_put(fixup_pos, pos + Code::kHeaderSize);
+      // Relative to Code* heap object pointer.
+      long_at_put(fixup_pos, pos + Code::kHeaderSize - kHeapObjectTag);
     } else {
       if (disp.type() == Displacement::UNCONDITIONAL_JUMP) {
         ASSERT(byte_at(fixup_pos - 1) == 0xE9);  // jmp expected
