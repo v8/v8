@@ -180,7 +180,7 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
       constant_buffer.at<char>(i) = static_cast<char>(str[i]);
     }
   } else {
-    memcpy(constant_buffer.location<void>(),
+    memcpy(constant_buffer.location(),
            str.start(),
            str.length() * sizeof(uc16));
   }
