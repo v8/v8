@@ -148,9 +148,8 @@ struct ArraySlice {
   size_t base_offset() {
     return ByteArray::kHeaderSize - kHeapObjectTag + offset_;
   }
-  template <typename T>
-  T* location() {
-    return reinterpret_cast<T*>(array_->GetDataStartAddress() + offset_);
+  void* location() {
+    return reinterpret_cast<void*>(array_->GetDataStartAddress() + offset_);
   }
   template <typename T>
   T& at(int idx) {

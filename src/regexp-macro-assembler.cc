@@ -71,7 +71,7 @@ ArraySlice ByteArrayProvider::GetBuffer(unsigned int size,
 template <typename T>
 ArraySlice ByteArrayProvider::GetBuffer(Vector<T> values) {
   ArraySlice slice = GetBuffer(values.length(), sizeof(T));
-  memcpy(slice.location<void>(), values.start(), values.length() * sizeof(T));
+  memcpy(slice.location(), values.start(), values.length() * sizeof(T));
   return slice;
 }
 } }
