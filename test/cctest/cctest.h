@@ -42,15 +42,6 @@
   static void Test##Name()
 #endif
 
-#if (defined __arm__ || defined __thumb__ || defined ARM)
-#define IA32TEST DISABLED_TEST
-#define ARMTEST TEST
-#else  // ia32
-#define IA32TEST TEST
-#define ARMTEST DISABLED_TEST
-#endif
-
-
 class CcTest {
  public:
   typedef void (TestFunction)();

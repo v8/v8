@@ -720,7 +720,9 @@ TEST(MacroAssembler) {
 }
 
 
-IA32TEST(MacroAssemblerIA32Success) {
+#if !(defined(ARM) || defined(__arm__) || defined(__thumb__))
+
+TEST(MacroAssemblerIA32Success) {
   typedef bool (*AsciiTest) (
       SeqAsciiString** base, int start_index, int end_index, int* captures);
 
@@ -756,7 +758,7 @@ IA32TEST(MacroAssemblerIA32Success) {
 }
 
 
-IA32TEST(MacroAssemblerIA32Simple) {
+TEST(MacroAssemblerIA32Simple) {
   typedef bool (*AsciiTest) (
       SeqAsciiString** base, int start_index, int end_index, int* captures);
 
@@ -812,7 +814,7 @@ IA32TEST(MacroAssemblerIA32Simple) {
 }
 
 
-IA32TEST(MacroAssemblerIA32Backtrack) {
+TEST(MacroAssemblerIA32Backtrack) {
   typedef bool (*AsciiTest) (
       SeqAsciiString** base, int start_index, int end_index, int* captures);
 
@@ -855,7 +857,7 @@ IA32TEST(MacroAssemblerIA32Backtrack) {
 }
 
 
-IA32TEST(MacroAssemblerIA32Registers) {
+TEST(MacroAssemblerIA32Registers) {
   typedef bool (*AsciiTest) (
       SeqAsciiString** base, int start_index, int end_index, int* captures);
 
@@ -952,6 +954,7 @@ IA32TEST(MacroAssemblerIA32Registers) {
   CHECK_EQ(9, output[4]);
 }
 
+#endif  // !(defined(ARM) || defined(__arm__) || defined(__thumb__))
 
 TEST(AddInverseToTable) {
   static const int kLimit = 1000;

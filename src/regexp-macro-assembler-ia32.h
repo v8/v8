@@ -28,7 +28,7 @@
 #ifndef REGEXP_MACRO_ASSEMBLER_IA32_H_
 #define REGEXP_MACRO_ASSEMBLER_IA32_H_
 
-#if !(defined __arm__ || defined __thumb__ || defined ARM)
+#if !(defined(ARM) || defined(__arm__) || defined(__thumb__))
 
 #include "regexp-macro-assembler.h"
 #include "macro-assembler-ia32.h"

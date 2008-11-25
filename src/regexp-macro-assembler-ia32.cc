@@ -318,7 +318,6 @@ void RegExpMacroAssemblerIA32::DispatchByteMap(
 }
 
 
-
 void RegExpMacroAssemblerIA32::DispatchHighByteMap(
     byte start,
     Label* byte_map,
