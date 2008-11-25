@@ -297,6 +297,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\assembler-irregexp-inl.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\assembler-irregexp.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\assembler-irregexp.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\assembler.cc"
 				>
 			</File>
@@ -330,6 +342,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\builtins.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\bytecodes-irregexp.h"
 				>
 			</File>
 			<File
@@ -569,6 +585,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\interpreter-irregexp.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\interpreter-irregexp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jsregexp-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\jsregexp.cc"
 				>
 			</File>
@@ -690,6 +718,30 @@
 			</File>
 			<File
 				RelativePath="..\..\src\property.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-ia32.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-ia32.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-irregexp.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-irregexp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler.h"
 				>
 			</File>
 			<File

@@ -531,7 +531,7 @@ void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
 Operand RegExpMacroAssemblerIA32::register_location(
     int register_index) {
   ASSERT(register_index < (1<<30));
-  return Operand(ebp, -((register_index + 1) * sizeof(uint32_t)));
+  return Operand(ebp, -(register_index + 1) * sizeof(uint32_t));
 }
 
 
