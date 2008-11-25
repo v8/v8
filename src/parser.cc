@@ -550,8 +550,9 @@ class RegExpParser {
   FlatStringReader* in_;
   Handle<String>* error_;
   bool has_character_escapes_;
-  bool is_scanned_for_captures_;
   ZoneList<RegExpCapture*>* captures_;
+  bool is_scanned_for_captures_;
+  // The capture count is only valid after we have scanned for captures.
   int capture_count_;
 };
 
@@ -3506,8 +3507,8 @@ RegExpParser::RegExpParser(FlatStringReader* in,
     in_(in),
     error_(error),
     has_character_escapes_(false),
-    is_scanned_for_captures_(false),
     captures_(NULL),
+    is_scanned_for_captures_(false),
     capture_count_(0) {
   Advance(1);
 }
@@ -3865,6 +3866,9 @@ static bool IsSpecialClassEscape(uc32 c) {
 // noncapturing parentheses and can skip character classes and backslash-escaped
 // characters.
 void RegExpParser::ScanForCaptures() {
+  // Start with captures started previous to current position
+  int capture_count = captures_started();
+  // Add count of captures after this position.
   int n;
   while ((n = current()) != kEndMarker) {
     Advance();
@@ -3885,10 +3889,11 @@ void RegExpParser::ScanForCaptures() {
         break;
       }
       case '(':
-        if (current() != '?') capture_count_++;
+        if (current() != '?') capture_count++;
         break;
     }
   }
+  capture_count_ = capture_count;
   is_scanned_for_captures_ = true;
 }
 
@@ -3901,27 +3906,27 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
   // This is a not according the the ECMAScript specification. According to
   // that, one must accept values up to the total number of left capturing
   // parentheses in the entire input, even if they are meaningless.
-  if (!is_scanned_for_captures_) {
-    int saved_position = position();
-    ScanForCaptures();
-    Reset(saved_position);
-  }
-  if (capture_count_ == 0) return false;
   int start = position();
   int value = Next() - '0';
-  if (value > capture_count_) return false;
   Advance(2);
   while (true) {
     uc32 c = current();
     if (IsDecimalDigit(c)) {
       value = 10 * value + (c - '0');
-      if (value > capture_count_) {
-        Reset(start);
-        return false;
-      }
       Advance();
     } else {
       break;
+    }
+  }
+  if (value > captures_started()) {
+    if (!is_scanned_for_captures_) {
+      int saved_position = position();
+      ScanForCaptures();
+      Reset(saved_position);
+    }
+    if (value > capture_count_) {
+      Reset(start);
+      return false;
     }
   }
   *index_out = value;
@@ -4120,7 +4125,6 @@ RegExpTree* RegExpParser::ParseGroup(bool* ok) {
       captures_ = new ZoneList<RegExpCapture*>(2);
     }
     captures_->Add(NULL);
-    if (!is_scanned_for_captures_) capture_count_++;
   }
   int capture_index = captures_started();
   RegExpTree* body = ParseDisjunction(CHECK_OK);
