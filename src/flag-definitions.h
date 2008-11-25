@@ -199,6 +199,13 @@ DEFINE_bool(usage_computation, true, "compute variable usage counts")
 DEFINE_bool(preemption, false,
             "activate a 100ms timer that switches between V8 threads")
 
+// irregexp
+DEFINE_bool(irregexp, false, "new regular expression code")
+DEFINE_bool(trace_regexps, false, "trace Irregexp execution")
+DEFINE_bool(trace_regexp_bytecodes, false, "trace Irregexp bytecode executon")
+DEFINE_bool(attempt_case_independent, false, "attempt to run Irregexp case independent")
+DEFINE_bool(irregexp_native, false, "use native code Irregexp implementation (IA32 only)")
+
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_bool(testing_bool_flag, true, "testing_bool_flag")
 DEFINE_int(testing_int_flag, 13, "testing_int_flag")
@@ -288,12 +295,6 @@ DEFINE_bool(debug_serialization, false,
 DEFINE_bool(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
-
-DEFINE_bool(irregexp, false, "new regular expression code")
-DEFINE_bool(trace_regexps, false, "trace Irregexp execution")
-DEFINE_bool(trace_regexp_bytecodes, false, "trace Irregexp bytecode executon")
-DEFINE_bool(attempt_case_independent, false, "attempt to run Irregexp case independent")
-DEFINE_bool(irregexp_native, false, "use native code Irregexp implementation (IA32 only)")
 
 //
 // Logging and profiling only flags
