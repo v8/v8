@@ -206,7 +206,7 @@ class CharacterRange {
   bool is_valid() { return from_ <= to_; }
   bool IsSingleton() { return (from_ == to_); }
   void AddCaseEquivalents(ZoneList<CharacterRange>* ranges);
-  static const int kRangeCanonicalizeMax = 0x200;
+  static const int kRangeCanonicalizeMax = 0x346;
   static const int kStartMarker = (1 << 24);
   static const int kPayloadMask = (1 << 24) - 1;
  private:

@@ -1086,7 +1086,7 @@ TEST(RangeCanonicalization) {
     unibrow::uchar first[unibrow::Ecma262UnCanonicalize::kMaxWidth];
     int first_length = un_canonicalize.get(next_block, '\0', first);
     for (unsigned i = 1; i < dist; i++) {
-      CHECK_EQ(i, CanonRange(i));
+      CHECK_EQ(i, CanonRange(next_block + i));
       unibrow::uchar succ[unibrow::Ecma262UnCanonicalize::kMaxWidth];
       int succ_length = un_canonicalize.get(next_block + i, '\0', succ);
       CHECK_EQ(first_length, succ_length);
@@ -1097,6 +1097,22 @@ TEST(RangeCanonicalization) {
       }
     }
     next_block = next_block + dist;
+  }
+}
+
+
+TEST(UncanonicalizeEquivalence) {
+  unibrow::Mapping<unibrow::Ecma262UnCanonicalize> un_canonicalize;
+  unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+  for (int i = 0; i < (1 << 16); i++) {
+    int length = un_canonicalize.get(i, '\0', chars);
+    for (int j = 0; j < length; j++) {
+      unibrow::uchar chars2[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+      int length2 = un_canonicalize.get(chars[j], '\0', chars2);
+      CHECK_EQ(length, length2);
+      for (int k = 0; k < length; k++)
+        CHECK_EQ(static_cast<int>(chars[k]), static_cast<int>(chars2[k]));
+    }
   }
 }
 
