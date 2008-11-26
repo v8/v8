@@ -479,18 +479,18 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
   ASSERT(StringShape(*two_byte_subject).IsTwoByteRepresentation());
   ASSERT(two_byte_subject->IsFlat(StringShape(*two_byte_subject)));
   bool rc;
-  {
-    for (int i = (num_captures + 1) * 2 - 1; i >= 0; i--) {
-      offsets_vector[i] = -1;
-    }
 
-    LOG(RegExpExecEvent(regexp, previous_index, two_byte_subject));
+  for (int i = (num_captures + 1) * 2 - 1; i >= 0; i--) {
+    offsets_vector[i] = -1;
+  }
 
-    FixedArray* irregexp =
-        FixedArray::cast(regexp->DataAt(JSRegExp::kIrregexpDataIndex));
-    int tag = Smi::cast(irregexp->get(kIrregexpImplementationIndex))->value();
+  LOG(RegExpExecEvent(regexp, previous_index, two_byte_subject));
 
-    switch (tag) {
+  FixedArray* irregexp =
+      FixedArray::cast(regexp->DataAt(JSRegExp::kIrregexpDataIndex));
+  int tag = Smi::cast(irregexp->get(kIrregexpImplementationIndex))->value();
+
+  switch (tag) {
     case RegExpMacroAssembler::kIA32Implementation: {
       Code* code = Code::cast(irregexp->get(kIrregexpCodeIndex));
       SmartPointer<int> captures(NewArray<int>((num_captures + 1) * 2));
@@ -530,7 +530,6 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
       UNREACHABLE();
       rc = false;
       break;
-    }
   }
 
   if (!rc) {
@@ -655,13 +654,12 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
 
   Handle<String> subject16 = CachedStringToTwoByte(subject);
 
-  Handle<Object> result(
-      IrregexpExecOnce(regexp,
-                       num_captures,
-                       subject16,
-                       previous_index,
-                       offsets.vector(),
-                       offsets.length()));
+  Handle<Object> result(IrregexpExecOnce(regexp,
+                                         num_captures,
+                                         subject16,
+                                         previous_index,
+                                         offsets.vector(),
+                                         offsets.length()));
   return result;
 }
 
@@ -738,9 +736,11 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
   } while (matches->IsJSArray());
 
   // If we exited the loop with an exception, throw it.
-  if (matches->IsNull()) {  // Exited loop normally.
+  if (matches->IsNull()) {
+    // Exited loop normally.
     return result;
-  } else {  // Exited loop with the exception in matches.
+  } else {
+    // Exited loop with the exception in matches.
     return matches;
   }
 }
@@ -794,9 +794,11 @@ Handle<Object> RegExpImpl::JscreExecGlobal(Handle<JSRegExp> regexp,
   } while (matches->IsJSArray());
 
   // If we exited the loop with an exception, throw it.
-  if (matches->IsNull()) {  // Exited loop normally.
+  if (matches->IsNull()) {
+    // Exited loop normally.
     return result;
-  } else {  // Exited loop with the exception in matches.
+  } else {
+    // Exited loop with the exception in matches.
     return matches;
   }
 }
@@ -804,7 +806,7 @@ Handle<Object> RegExpImpl::JscreExecGlobal(Handle<JSRegExp> regexp,
 
 int RegExpImpl::JscreNumberOfCaptures(Handle<JSRegExp> re) {
   FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
-  return Smi::cast(value->get(kJscreNumberOfCapturesIndex))-> value();
+  return Smi::cast(value->get(kJscreNumberOfCapturesIndex))->value();
 }
 
 
@@ -836,7 +838,7 @@ Handle<ByteArray> RegExpImpl::IrregexpCode(Handle<JSRegExp> re) {
 
 
 // -------------------------------------------------------------------
-// New regular expression engine
+// Implmentation of the Irregexp regular expression engine.
 
 
 void RegExpTree::AppendToText(RegExpText* text) {
@@ -1001,10 +1003,10 @@ bool EndNode::GoTo(RegExpCompiler* compiler) {
   switch (action_) {
     case ACCEPT:
       compiler->macro_assembler()->Succeed();
-    break;
+      break;
     case BACKTRACK:
       compiler->macro_assembler()->Backtrack();
-    break;
+      break;
   }
   return true;
 }
@@ -1150,19 +1152,18 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
     ASSERT(c2 > c1);
     macro_assembler->CheckNotCharacterAfterOr(c2, exor, on_failure);
     return true;
-  } else {
-    ASSERT(c2 > c1);
-    uc16 diff = c2 - c1;
-    if (((diff - 1) & diff) == 0 && c1 >= diff) {
-      // If the characters differ by 2^n but don't differ by one bit then
-      // subtract the difference from the found character, then do the or
-      // trick.  We avoid the theoretical case where negative numbers are
-      // involved in order to simplify code generation.
-      macro_assembler->CheckNotCharacterAfterMinusOr(c2 - diff,
-                                                     diff,
-                                                     on_failure);
-      return true;
-    }
+  }
+  ASSERT(c2 > c1);
+  uc16 diff = c2 - c1;
+  if (((diff - 1) & diff) == 0 && c1 >= diff) {
+    // If the characters differ by 2^n but don't differ by one bit then
+    // subtract the difference from the found character, then do the or
+    // trick.  We avoid the theoretical case where negative numbers are
+    // involved in order to simplify code generation.
+    macro_assembler->CheckNotCharacterAfterMinusOr(c2 - diff,
+                                                   diff,
+                                                   on_failure);
+    return true;
   }
   return false;
 }
@@ -1224,7 +1225,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
 
   Label success;
 
-  Label *char_is_in_class =
+  Label* char_is_in_class =
       cc->is_negated() ? on_failure : &success;
 
   int range_count = ranges->length();
@@ -1361,8 +1362,7 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler) {
   Bind(macro_assembler);
   // For now we just call all choices one after the other.  The idea ultimately
   // is to use the Dispatch table to try only the relevant ones.
-  int i;
-  for (i = 0; i < choice_count - 1; i++) {
+  for (int i = 0; i < choice_count - 1; i++) {
     GuardedAlternative alternative = alternatives_->at(i);
     Label after;
     Label after_no_pop_cp;
@@ -1384,7 +1384,7 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler) {
     macro_assembler->PopCurrentPosition();
     macro_assembler->Bind(&after_no_pop_cp);
   }
-  GuardedAlternative alternative = alternatives_->at(i);
+  GuardedAlternative alternative = alternatives_->at(choice_count - 1);
   ZoneList<Guard*>* guards = alternative.guards();
   if (guards != NULL) {
     int guard_count = guards->length();

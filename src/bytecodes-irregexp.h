@@ -31,7 +31,7 @@
 
 namespace v8 { namespace internal {
 
-#define BYTECODE_ITERATOR(V)    \
+#define BYTECODE_ITERATOR(V)                                                   \
 V(BREAK,              0, 1) /* break                                        */ \
 V(PUSH_CP,            1, 5) /* push_cp offset32                             */ \
 V(PUSH_BT,            2, 5) /* push_bt addr32                               */ \
@@ -63,7 +63,7 @@ V(LOOKUP_MAP2,       27, 99) /* l_map2 start16 half_nibble_map_addr32*      */ \
 V(LOOKUP_MAP8,       28, 99) /* l_map8 start16 byte_map addr32*             */ \
 V(LOOKUP_HI_MAP8,    29, 99) /* l_himap8 start8 byte_map_addr32 addr32*     */ \
 V(CHECK_REGISTER_LT, 30, 8) /* check_reg_lt register_index value16 addr32   */ \
-V(CHECK_REGISTER_GE, 31, 8) /* check_reg_ge register_index value16 addr32   */ \
+V(CHECK_REGISTER_GE, 31, 8) /* check_reg_ge register_index value16 addr32   */
 
 #define DECLARE_BYTECODES(name, code, length) \
   static const int BC_##name = code;

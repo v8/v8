@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A simple interpreter for the Regexp2000 byte code.
+// A simple interpreter for the Irregexp byte code.
 
 #ifndef V8_INTERPRETER_IRREGEXP_H_
 #define V8_INTERPRETER_IRREGEXP_H_

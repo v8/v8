@@ -1,4 +1,29 @@
 // Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+//       copyright notice, this list of conditions and the following
+//       disclaimer in the documentation and/or other materials provided
+//       with the distribution.
+//     * Neither the name of Google Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived
+//       from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // A light-weight assembler for the Irregexp byte code.
 
@@ -47,9 +72,11 @@ class IrregexpAssembler {
   void Fail();
   void Succeed();
 
-  void Break();  // This instruction will cause a fatal VM error if hit.
+  // This instruction will cause a fatal VM error if hit.
+  void Break();
 
-  void Bind(Label* l);  // Binds an unbound label L to the current code posn.
+  // Binds an unbound label L to the current code posn.
+  void Bind(Label* l);
 
   void AdvanceCP(int by);
 
@@ -69,11 +96,11 @@ class IrregexpAssembler {
   void CheckCharacterLT(uc16 limit, Label* on_less);
   void CheckCharacterGT(uc16 limit, Label* on_greater);
 
-  // Checks current position for a match against a
-  // previous capture.  Advances current position by the length of the capture
-  // iff it matches.  The capture is stored in a given register and the
-  // the register after.  If a register contains -1 then the other register
-  // must always contain -1 and the on_mismatch label will never be called.
+  // Checks current position for a match against a previous capture.  Advances
+  // current position by the length of the capture iff it matches.  The capture
+  // is stored in a given register and the register after.  If a register
+  // contains -1 then the other register must always contain -1 and the
+  // on_mismatch label will never be called.
   void CheckNotBackReference(int capture_index, Label* on_mismatch);
   void CheckNotBackReferenceNoCase(int capture_index, Label* on_mismatch);
 
@@ -82,7 +109,7 @@ class IrregexpAssembler {
   void CheckRegisterGE(int reg_index, uint16_t vs, Label* on_greater_equal);
 
   // Subtracts a 16 bit value from the current character, uses the result to
-  // look up in a bit array, uses the result of that decide whether to fall
+  // look up in a bit array, uses the result of that to decide whether to fall
   // though (on 1) or jump to the on_zero label (on 0).
   void LookupMap1(uc16 start, Label* bit_map, Label* on_zero);
 
@@ -114,22 +141,20 @@ class IrregexpAssembler {
 
   inline void EmitOrLink(Label* l);
  private:
-  // Don't use this.
-  IrregexpAssembler() { UNREACHABLE(); }
-  // The buffer into which code and relocation info are generated.
-  Vector<byte> buffer_;
-
   inline void CheckRegister(int byte_code,
                             int reg_index,
                             uint16_t vs,
                             Label* on_true);
-  // Code generation.
-  int pc_;  // The program counter; moves forward.
+  void Expand();
 
+  // The buffer into which code and relocation info are generated.
+  Vector<byte> buffer_;
+  // The program counter.
+  int pc_;
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
 
-  void Expand();
+  DISALLOW_IMPLICIT_CONSTRUCTORS(IrregexpAssembler);
 };
 
 

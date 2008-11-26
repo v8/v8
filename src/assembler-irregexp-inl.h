@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A light-weight assembler for the Regexp2000 byte code.
+// A light-weight assembler for the Irregexp byte code.
 
 
 #include "v8.h"
@@ -67,16 +67,16 @@ void IrregexpAssembler::Emit32(uint32_t word) {
 
 
 void IrregexpAssembler::EmitOrLink(Label* l) {
-    if (l->is_bound()) {
-      Emit32(l->pos());
-    } else {
-      int pos = 0;
-      if (l->is_linked()) {
-        pos = l->pos();
-      }
-      l->link_to(pc_);
-      Emit32(pos);
+  if (l->is_bound()) {
+    Emit32(l->pos());
+  } else {
+    int pos = 0;
+    if (l->is_linked()) {
+      pos = l->pos();
     }
+    l->link_to(pc_);
+    Emit32(pos);
   }
+}
 
 } }  // namespace v8::internal

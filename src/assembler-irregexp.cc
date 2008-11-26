@@ -40,9 +40,9 @@ namespace v8 { namespace internal {
 
 
 IrregexpAssembler::IrregexpAssembler(Vector<byte> buffer)
-  : buffer_(buffer),
-    pc_(0),
-    own_buffer_(false) {
+    : buffer_(buffer),
+      pc_(0),
+      own_buffer_(false) {
 }
 
 
@@ -232,7 +232,7 @@ void IrregexpAssembler::CheckCharacterGT(uc16 limit, Label* on_greater) {
 
 
 void IrregexpAssembler::CheckNotBackReference(int capture_index,
-                                          Label* on_mismatch) {
+                                              Label* on_mismatch) {
   Emit(BC_CHECK_NOT_BACK_REF);
   Emit(capture_index);
   EmitOrLink(on_mismatch);

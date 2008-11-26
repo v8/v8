@@ -4296,7 +4296,7 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
 
 bool ParseRegExp(FlatStringReader* input, RegExpParseResult* result) {
   ASSERT(result != NULL);
-  // Get multiline flag somehow
+  // TODO(plesner): Get multiline flag somehow
   RegExpParser parser(input, &result->error, false);
   bool ok = true;
   result->tree = parser.ParsePattern(&ok);

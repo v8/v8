@@ -69,10 +69,10 @@ static void TraceInterpreter(const byte* code_base,
                              const char* bytecode_name) {
   if (FLAG_trace_regexp_bytecodes) {
     PrintF("pc = %02x, sp = %d, current = %d, bc = %s",
-            pc - code_base,
-            stack_depth,
-            current_position,
-            bytecode_name);
+           pc - code_base,
+           stack_depth,
+           current_position,
+           bytecode_name);
     for (int i = 1; i < bytecode_length; i++) {
       printf(", %02x", pc[i]);
     }
@@ -81,15 +81,17 @@ static void TraceInterpreter(const byte* code_base,
 }
 
 
-# define BYTECODE(name) case BC_##name:                                       \
-                          TraceInterpreter(code_base,                         \
-                                           pc,                                \
-                                           backtrack_sp - backtrack_stack,    \
-                                           current,                           \
-                                           BC_##name##_LENGTH,                \
-                                           #name);
+#define BYTECODE(name)                                  \
+  case BC_##name:                                       \
+    TraceInterpreter(code_base,                         \
+                     pc,                                \
+                     backtrack_sp - backtrack_stack,    \
+                     current,                           \
+                     BC_##name##_LENGTH,                \
+                     #name);
 #else
-# define BYTECODE(name) case BC_##name:  // NOLINT
+#define BYTECODE(name)                                  \
+  case BC_##name:
 #endif
 
 
@@ -370,7 +372,6 @@ bool IrregexpInterpreter::Match(Handle<ByteArray> code_array,
                                 int start_position) {
   ASSERT(StringShape(*subject16).IsTwoByteRepresentation());
   ASSERT(subject16->IsFlat(StringShape(*subject16)));
-
 
   AssertNoAllocation a;
   const byte* code_base = code_array->GetDataStartAddress();
