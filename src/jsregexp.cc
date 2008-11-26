@@ -917,10 +917,10 @@ class RegExpCompiler {
 // Attempts to compile the regexp using an Irregexp code generator.  Returns
 // a fixed array or a null handle depending on whether it succeeded.
 RegExpCompiler::RegExpCompiler(int capture_count, bool ignore_case)
-  : next_register_(2 * (capture_count + 1)),
-    work_list_(NULL),
-    recursion_depth_(0),
-    is_case_independent_(ignore_case) {
+    : next_register_(2 * (capture_count + 1)),
+      work_list_(NULL),
+      recursion_depth_(0),
+      is_case_independent_(ignore_case) {
   accept_ = new EndNode(EndNode::ACCEPT);
   backtrack_ = new EndNode(EndNode::BACKTRACK);
 }
@@ -1549,7 +1549,7 @@ void DotPrinter::PrintOnFailure(RegExpNode* from, RegExpNode* on_failure) {
 class TableEntryBodyPrinter {
  public:
   TableEntryBodyPrinter(StringStream* stream, ChoiceNode* choice)
-    : stream_(stream), choice_(choice) { }
+      : stream_(stream), choice_(choice) { }
   void Call(uc16 from, DispatchTable::Entry entry) {
     OutSet* out_set = entry.out_set();
     for (unsigned i = 0; i < OutSet::kFirstLimit; i++) {
@@ -1573,7 +1573,7 @@ class TableEntryBodyPrinter {
 class TableEntryHeaderPrinter {
  public:
   explicit TableEntryHeaderPrinter(StringStream* stream)
-    : first_(true), stream_(stream) { }
+      : first_(true), stream_(stream) { }
   void Call(uc16 from, DispatchTable::Entry entry) {
     if (first_) {
       first_ = false;
@@ -2087,8 +2087,8 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
         ranges->Add(CharacterRange::Singleton(chars[i]));
       }
     }
-  } else if (from() <= kRangeCanonicalizeMax
-          && to() <= kRangeCanonicalizeMax) {
+  } else if (from() <= kRangeCanonicalizeMax &&
+             to() <= kRangeCanonicalizeMax) {
     // If this is a range we expand the characters block by block,
     // expanding contiguous subranges (blocks) one at a time.
     // The approach is as follows.  For a given start character we
@@ -2496,7 +2496,7 @@ void DispatchTableConstructor::VisitBackReference(BackReferenceNode* that) {
 
 static int CompareRangeByFrom(const CharacterRange* a,
                               const CharacterRange* b) {
-  return Spaceship<uc16>(a->from(), b->from());
+  return Compare<uc16>(a->from(), b->from());
 }
 
 

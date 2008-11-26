@@ -111,7 +111,7 @@ void List<T, P>::Sort(int (*cmp)(const T* x, const T* y)) {
 
 template<typename T, class P>
 void List<T, P>::Sort() {
-  Sort(PointerSpaceship<T>);
+  Sort(PointerValueCompare<T>);
 }
 
 

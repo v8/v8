@@ -237,9 +237,9 @@ class Block: public BreakableStatement {
 class Declaration: public Node {
  public:
   Declaration(VariableProxy* proxy, Variable::Mode mode, FunctionLiteral* fun)
-    : proxy_(proxy),
-      mode_(mode),
-      fun_(fun) {
+      : proxy_(proxy),
+        mode_(mode),
+        fun_(fun) {
     ASSERT(mode == Variable::VAR || mode == Variable::CONST);
     // At the moment there are no "const functions"'s in JavaScript...
     ASSERT(fun == NULL || mode == Variable::VAR);
@@ -270,7 +270,7 @@ class IterationStatement: public BreakableStatement {
 
  protected:
   explicit IterationStatement(ZoneStringList* labels)
-    : BreakableStatement(labels, TARGET_FOR_ANONYMOUS), body_(NULL) { }
+      : BreakableStatement(labels, TARGET_FOR_ANONYMOUS), body_(NULL) { }
 
   void Initialize(Statement* body) {
     body_ = body;
@@ -324,7 +324,7 @@ class LoopStatement: public IterationStatement {
 class ForInStatement: public IterationStatement {
  public:
   explicit ForInStatement(ZoneStringList* labels)
-    : IterationStatement(labels), each_(NULL), enumerable_(NULL) { }
+      : IterationStatement(labels), each_(NULL), enumerable_(NULL) { }
 
   void Initialize(Expression* each, Expression* enumerable, Statement* body) {
     IterationStatement::Initialize(body);
@@ -812,7 +812,7 @@ class Slot: public Expression {
   };
 
   Slot(Variable* var, Type type, int index)
-    : var_(var), type_(type), index_(index) {
+      : var_(var), type_(type), index_(index) {
     ASSERT(var != NULL);
   }
 
@@ -932,7 +932,7 @@ class CallRuntime: public Expression {
 class UnaryOperation: public Expression {
  public:
   UnaryOperation(Token::Value op, Expression* expression)
-    : op_(op), expression_(expression) {
+      : op_(op), expression_(expression) {
     ASSERT(Token::IsUnaryOp(op));
   }
 
@@ -953,7 +953,7 @@ class UnaryOperation: public Expression {
 class BinaryOperation: public Expression {
  public:
   BinaryOperation(Token::Value op, Expression* left, Expression* right)
-    : op_(op), left_(left), right_(right) {
+      : op_(op), left_(left), right_(right) {
     ASSERT(Token::IsBinaryOp(op));
   }
 
@@ -1002,7 +1002,7 @@ class BinaryOperation: public Expression {
 class CountOperation: public Expression {
  public:
   CountOperation(bool is_prefix, Token::Value op, Expression* expression)
-    : is_prefix_(is_prefix), op_(op), expression_(expression) {
+      : is_prefix_(is_prefix), op_(op), expression_(expression) {
     ASSERT(Token::IsCountOp(op));
   }
 
@@ -1025,7 +1025,7 @@ class CountOperation: public Expression {
 class CompareOperation: public Expression {
  public:
   CompareOperation(Token::Value op, Expression* left, Expression* right)
-    : op_(op), left_(left), right_(right) {
+      : op_(op), left_(left), right_(right) {
     ASSERT(Token::IsCompareOp(op));
   }
 
@@ -1067,7 +1067,7 @@ class Conditional: public Expression {
 class Assignment: public Expression {
  public:
   Assignment(Token::Value op, Expression* target, Expression* value, int pos)
-    : op_(op), target_(target), value_(value), pos_(pos) {
+      : op_(op), target_(target), value_(value), pos_(pos) {
     ASSERT(Token::IsAssignmentOp(op));
   }
 
@@ -1217,7 +1217,7 @@ class RegExpTree: public ZoneObject {
 class RegExpDisjunction: public RegExpTree {
  public:
   explicit RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
-    : alternatives_(alternatives) { }
+      : alternatives_(alternatives) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
@@ -1266,8 +1266,12 @@ class RegExpText: public RegExpTree {
 class RegExpAssertion: public RegExpTree {
  public:
   enum Type {
-    START_OF_LINE, START_OF_INPUT, END_OF_LINE, END_OF_INPUT,
-    BOUNDARY, NON_BOUNDARY
+    START_OF_LINE,
+    START_OF_INPUT,
+    END_OF_LINE,
+    END_OF_INPUT,
+    BOUNDARY,
+    NON_BOUNDARY
   };
   explicit RegExpAssertion(Type type) : type_(type) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
@@ -1285,11 +1289,11 @@ class RegExpAssertion: public RegExpTree {
 class RegExpCharacterClass: public RegExpTree {
  public:
   RegExpCharacterClass(ZoneList<CharacterRange>* ranges, bool is_negated)
-    : ranges_(ranges),
-      is_negated_(is_negated) { }
+      : ranges_(ranges),
+        is_negated_(is_negated) { }
   explicit RegExpCharacterClass(uc16 type)
-    : ranges_(new ZoneList<CharacterRange>(2)),
-      is_negated_(false) {
+      : ranges_(new ZoneList<CharacterRange>(2)),
+        is_negated_(false) {
     CharacterRange::AddClassEscape(type, ranges_);
   }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
@@ -1328,10 +1332,10 @@ class RegExpAtom: public RegExpTree {
 class RegExpQuantifier: public RegExpTree {
  public:
   RegExpQuantifier(int min, int max, bool is_greedy, RegExpTree* body)
-    : min_(min),
-      max_(max),
-      is_greedy_(is_greedy),
-      body_(body) { }
+      : min_(min),
+        max_(max),
+        is_greedy_(is_greedy),
+        body_(body) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
@@ -1366,7 +1370,7 @@ enum CaptureAvailability {
 class RegExpCapture: public RegExpTree {
  public:
   explicit RegExpCapture(RegExpTree* body, int index)
-    : body_(body), index_(index), available_(CAPTURE_AVAILABLE) { }
+      : body_(body), index_(index), available_(CAPTURE_AVAILABLE) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
@@ -1396,8 +1400,8 @@ class RegExpCapture: public RegExpTree {
 class RegExpLookahead: public RegExpTree {
  public:
   RegExpLookahead(RegExpTree* body, bool is_positive)
-    : body_(body),
-      is_positive_(is_positive) { }
+      : body_(body),
+        is_positive_(is_positive) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,
@@ -1415,7 +1419,7 @@ class RegExpLookahead: public RegExpTree {
 class RegExpBackReference: public RegExpTree {
  public:
   explicit RegExpBackReference(RegExpCapture* capture)
-    : capture_(capture) { }
+      : capture_(capture) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success,

@@ -183,10 +183,7 @@ class CharacterRange {
   CharacterRange() : from_(0), to_(0) { }
   // For compatibility with the CHECK_OK macro
   CharacterRange(void* null) { ASSERT_EQ(NULL, null); }  //NOLINT
-  CharacterRange(uc16 from, uc16 to)
-    : from_(from),
-      to_(to) {
-  }
+  CharacterRange(uc16 from, uc16 to) : from_(from), to_(to) { }
   static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges);
   static inline CharacterRange Singleton(uc16 value) {
     return CharacterRange(value, value);
@@ -276,14 +273,14 @@ class ZoneSplayTree : public ZoneObject {
   class Node : public ZoneObject {
    public:
     Node(const Key& key, const Value& value)
-      : key_(key),
-        value_(value),
-        left_(NULL),
-        right_(NULL) { }
-     Key key() { return key_; }
-     Value value() { return value_; }
-     Node* left() { return left_; }
-     Node* right() { return right_; }
+        : key_(key),
+          value_(value),
+          left_(NULL),
+          right_(NULL) { }
+    Key key() { return key_; }
+    Value value() { return value_; }
+    Node* left() { return left_; }
+    Node* right() { return right_; }
    private:
     friend class ZoneSplayTree;
     friend class Locator;
@@ -325,8 +322,8 @@ class OutSet: public ZoneObject {
   OutSet* Extend(unsigned value);
   bool Get(unsigned value);
   static const unsigned kFirstLimit = 32;
- private:
 
+ private:
   // Destructively set a value in this set.  In most cases you want
   // to use Extend instead to ensure that only one instance exists
   // that contains the same values.
@@ -338,7 +335,7 @@ class OutSet: public ZoneObject {
   ZoneList<OutSet*>* successors() { return successors_; }
 
   OutSet(uint32_t first, ZoneList<unsigned>* remaining)
-    : first_(first), remaining_(remaining), successors_(NULL) { }
+      : first_(first), remaining_(remaining), successors_(NULL) { }
   uint32_t first_;
   ZoneList<unsigned>* remaining_;
   ZoneList<OutSet*>* successors_;
@@ -351,10 +348,9 @@ class DispatchTable {
  public:
   class Entry {
    public:
-    Entry()
-      : from_(0), to_(0), out_set_(NULL) { }
+    Entry() : from_(0), to_(0), out_set_(NULL) { }
     Entry(uc16 from, uc16 to, OutSet* out_set)
-      : from_(from), to_(to), out_set_(out_set) { }
+        : from_(from), to_(to), out_set_(out_set) { }
     uc16 from() { return from_; }
     uc16 to() { return to_; }
     void set_to(uc16 value) { to_ = value; }
@@ -442,14 +438,14 @@ class TextElement {
 
 struct NodeInfo {
   NodeInfo()
-    : being_analyzed(false),
-      been_analyzed(false),
-      determine_word(false),
-      determine_newline(false),
-      determine_start(false),
-      follows_word_interest(false),
-      follows_newline_interest(false),
-      follows_start_interest(false) { }
+      : being_analyzed(false),
+        been_analyzed(false),
+        determine_word(false),
+        determine_newline(false),
+        determine_start(false),
+        follows_word_interest(false),
+        follows_newline_interest(false),
+        follows_start_interest(false) { }
   bool SameInterests(NodeInfo* that) {
     return (follows_word_interest == that->follows_word_interest)
         && (follows_newline_interest == that->follows_newline_interest)
@@ -533,7 +529,7 @@ class RegExpNode: public ZoneObject {
 class SeqRegExpNode: public RegExpNode {
  public:
   explicit SeqRegExpNode(RegExpNode* on_success)
-    : on_success_(on_success) { }
+      : on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
   virtual bool Emit(RegExpCompiler* compiler) { return false; }
@@ -580,8 +576,8 @@ class ActionNode: public SeqRegExpNode {
     } u_submatch_stack_pointer_register;
   } data_;
   ActionNode(Type type, RegExpNode* on_success)
-    : SeqRegExpNode(on_success),
-      type_(type) { }
+      : SeqRegExpNode(on_success),
+        type_(type) { }
   Type type_;
   friend class DotPrinter;
 };
@@ -592,9 +588,9 @@ class TextNode: public SeqRegExpNode {
   TextNode(ZoneList<TextElement>* elms,
            RegExpNode* on_success,
            RegExpNode* on_failure)
-    : SeqRegExpNode(on_success),
-      on_failure_(on_failure),
-      elms_(elms) { }
+      : SeqRegExpNode(on_success),
+        on_failure_(on_failure),
+        elms_(elms) { }
   virtual void Accept(NodeVisitor* visitor);
   virtual RegExpNode* PropagateInterest(NodeInfo* info);
   RegExpNode* on_failure() { return on_failure_; }
@@ -612,10 +608,10 @@ class BackReferenceNode: public SeqRegExpNode {
                     int end_reg,
                     RegExpNode* on_success,
                     RegExpNode* on_failure)
-    : SeqRegExpNode(on_success),
-      on_failure_(on_failure),
-      start_reg_(start_reg),
-      end_reg_(end_reg) { }
+      : SeqRegExpNode(on_success),
+        on_failure_(on_failure),
+        start_reg_(start_reg),
+        end_reg_(end_reg) { }
   virtual void Accept(NodeVisitor* visitor);
   RegExpNode* on_failure() { return on_failure_; }
   int start_register() { return start_reg_; }
@@ -647,9 +643,9 @@ class Guard: public ZoneObject {
  public:
   enum Relation { LT, GEQ };
   Guard(int reg, Relation op, int value)
-    : reg_(reg),
-      op_(op),
-      value_(value) { }
+      : reg_(reg),
+        op_(op),
+        value_(value) { }
   int reg() { return reg_; }
   Relation op() { return op_; }
   int value() { return value_; }
@@ -676,10 +672,10 @@ class GuardedAlternative {
 class ChoiceNode: public RegExpNode {
  public:
   explicit ChoiceNode(int expected_size, RegExpNode* on_failure)
-    : on_failure_(on_failure),
-      alternatives_(new ZoneList<GuardedAlternative>(expected_size)),
-      table_calculated_(false),
-      being_calculated_(false) { }
+      : on_failure_(on_failure),
+        alternatives_(new ZoneList<GuardedAlternative>(expected_size)),
+        table_calculated_(false),
+        being_calculated_(false) { }
   virtual void Accept(NodeVisitor* visitor);
   void AddAlternative(GuardedAlternative node) { alternatives()->Add(node); }
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
@@ -718,8 +714,8 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 class DispatchTableConstructor: public NodeVisitor {
  public:
   explicit DispatchTableConstructor(DispatchTable* table)
-    : table_(table),
-      choice_index_(-1) { }
+      : table_(table),
+        choice_index_(-1) { }
 
   void BuildTable(ChoiceNode* node);
 

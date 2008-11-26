@@ -84,7 +84,7 @@ static inline T RoundUp(T x, int m) {
 
 
 template <typename T>
-static int Spaceship(const T& a, const T& b) {
+static int Compare(const T& a, const T& b) {
   if (a == b)
     return 0;
   else if (a < b)
@@ -95,8 +95,8 @@ static int Spaceship(const T& a, const T& b) {
 
 
 template <typename T>
-static int PointerSpaceship(const T* a, const T* b) {
-  return Spaceship<T>(*a, *b);
+static int PointerValueCompare(const T* a, const T* b) {
+  return Compare<T>(*a, *b);
 }
 
 
@@ -344,7 +344,7 @@ class Vector {
   }
 
   void Sort() {
-    Sort(PointerSpaceship<T>);
+    Sort(PointerValueCompare<T>);
   }
 
   // Releases the array underlying this vector. Once disposed the
