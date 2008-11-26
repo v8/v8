@@ -1,3 +1,9 @@
+2008-11-26: Version 0.4.4.1
+
+        Added the v8::jscre namespace around the jscre functions to avoid
+        link errors (duplicate symbols) when building Google Chrome.
+
+
 2008-11-17: Version 0.4.4
 
         Reduced code size by using shorter instruction encoding when
