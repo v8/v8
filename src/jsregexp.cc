@@ -378,23 +378,23 @@ static inline Object* DoCompile(String* pattern,
                                 JSRegExp::Flags flags,
                                 unsigned* number_of_captures,
                                 const char** error_message,
-                                JscreRegExp** code) {
-  JSRegExpIgnoreCaseOption case_option = flags.is_ignore_case()
-    ? JSRegExpIgnoreCase
-    : JSRegExpDoNotIgnoreCase;
-  JSRegExpMultilineOption multiline_option = flags.is_multiline()
-    ? JSRegExpMultiline
-    : JSRegExpSingleLine;
+                                v8::jscre::JscreRegExp** code) {
+  v8::jscre::JSRegExpIgnoreCaseOption case_option = flags.is_ignore_case()
+    ? v8::jscre::JSRegExpIgnoreCase
+    : v8::jscre::JSRegExpDoNotIgnoreCase;
+  v8::jscre::JSRegExpMultilineOption multiline_option = flags.is_multiline()
+    ? v8::jscre::JSRegExpMultiline
+    : v8::jscre::JSRegExpSingleLine;
   *error_message = NULL;
   malloc_failure = Failure::Exception();
-  *code = jsRegExpCompile(pattern->GetTwoByteData(),
-                          pattern->length(),
-                          case_option,
-                          multiline_option,
-                          number_of_captures,
-                          error_message,
-                          &JSREMalloc,
-                          &JSREFree);
+  *code = v8::jscre::jsRegExpCompile(pattern->GetTwoByteData(),
+                                     pattern->length(),
+                                     case_option,
+                                     multiline_option,
+                                     number_of_captures,
+                                     error_message,
+                                     &JSREMalloc,
+                                     &JSREFree);
   if (*code == NULL && (malloc_failure->IsRetryAfterGC() ||
                        malloc_failure->IsOutOfMemoryFailure())) {
     return malloc_failure;
@@ -411,7 +411,7 @@ void CompileWithRetryAfterGC(Handle<String> pattern,
                              JSRegExp::Flags flags,
                              unsigned* number_of_captures,
                              const char** error_message,
-                             JscreRegExp** code) {
+                             v8::jscre::JscreRegExp** code) {
   CALL_HEAP_FUNCTION_VOID(DoCompile(*pattern,
                                     flags,
                                     number_of_captures,
@@ -432,7 +432,7 @@ Handle<Object> RegExpImpl::JscreCompile(Handle<JSRegExp> re) {
   unsigned number_of_captures;
   const char* error_message = NULL;
 
-  JscreRegExp* code = NULL;
+  v8::jscre::JscreRegExp* code = NULL;
   FlattenString(pattern);
 
   CompileWithRetryAfterGC(two_byte_pattern,
@@ -560,23 +560,24 @@ Handle<Object> RegExpImpl::JscreExecOnce(Handle<JSRegExp> regexp,
   {
     AssertNoAllocation a;
     ByteArray* internal = JscreInternal(regexp);
-    const JscreRegExp* js_regexp =
-        reinterpret_cast<JscreRegExp*>(internal->GetDataStartAddress());
+    const v8::jscre::JscreRegExp* js_regexp =
+        reinterpret_cast<v8::jscre::JscreRegExp*>(
+            internal->GetDataStartAddress());
 
     LOG(RegExpExecEvent(regexp, previous_index, subject));
 
-    rc = jsRegExpExecute(js_regexp,
-                         two_byte_subject,
-                         subject->length(),
-                         previous_index,
-                         offsets_vector,
-                         offsets_vector_length);
+    rc = v8::jscre::jsRegExpExecute(js_regexp,
+                                    two_byte_subject,
+                                    subject->length(),
+                                    previous_index,
+                                    offsets_vector,
+                                    offsets_vector_length);
   }
 
   // The KJS JavaScript engine returns null (ie, a failed match) when
   // JSRE's internal match limit is exceeded.  We duplicate that behavior here.
-  if (rc == JSRegExpErrorNoMatch
-      || rc == JSRegExpErrorHitLimit) {
+  if (rc == v8::jscre::JSRegExpErrorNoMatch
+      || rc == v8::jscre::JSRegExpErrorHitLimit) {
     return Factory::null_value();
   }
 

@@ -46,6 +46,8 @@ properties. */
 #include "ucpinternal.h"       /* Internal table details */
 #include "ucptable.cpp"        /* The table itself */
 
+namespace v8 { namespace jscre {
+
 /*************************************************
 *       Search table and return other case       *
 *************************************************/
@@ -96,3 +98,5 @@ int kjs_pcre_ucp_othercase(unsigned c)
         offset |= f1_caseneg;
     return !offset ? -1 : c + offset;
 }
+
+} }  // namespace v8::jscre

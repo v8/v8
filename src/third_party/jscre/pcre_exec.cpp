@@ -61,6 +61,8 @@ the JavaScript specification. There are also some supporting functions. */
 #undef min
 #undef max
 
+namespace v8 { namespace jscre {
+
 #ifndef USE_COMPUTED_GOTO_FOR_MATCH_RECURSION
 typedef int ReturnLocation;
 #else
@@ -2079,3 +2081,5 @@ int jsRegExpExecute(const JSRegExp* re,
     DPRINTF((">>>> returning PCRE_ERROR_NOMATCH\n"));
     return JSRegExpErrorNoMatch;
 }
+
+} }  // namespace v8::jscre

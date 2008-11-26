@@ -42,6 +42,8 @@ class (one that contains characters whose values are > 255). */
 
 #include "pcre_internal.h"
 
+namespace v8 { namespace jscre {
+
 /*************************************************
 *       Match character against an XCLASS        *
 *************************************************/
@@ -112,3 +114,5 @@ bool kjs_pcre_xclass(int c, const unsigned char* data)
     
     return negated;   /* char did not match */
 }
+
+} }  // namespace v8::jscre
