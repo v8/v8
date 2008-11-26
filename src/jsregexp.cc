@@ -43,11 +43,14 @@
 #include "assembler-irregexp.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-irregexp.h"
-#if defined __arm__ || defined __thumb__ || defined ARM
-// include regexp-macro-assembler-arm.h when created.
-#else  // ia32
+
+#ifdef ARM
+#include "regexp-macro-assembler-arm.h"
+#else  // IA32
+#include "macro-assembler-ia32.h"
 #include "regexp-macro-assembler-ia32.h"
 #endif
+
 #include "interpreter-irregexp.h"
 
 // Including pcre.h undefines DEBUG to avoid getting debug output from
@@ -2579,18 +2582,17 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
     return Handle<FixedArray>::null();
   }
 
-#if !(defined ARM || defined __arm__ || defined __thumb__)
-  if (FLAG_irregexp_native) {  // Flag only checked in IA32 mode.
-    // TODO(lrn) Move compilation to a later point in the life-cycle
-    // of the RegExp. We don't know the type of input string yet.
-    // For now, always assume two-byte strings.
+  if (FLAG_irregexp_native) {
+#ifdef ARM
+    UNIMPLEMENTED();
+#else  // IA32
     RegExpMacroAssemblerIA32 macro_assembler(RegExpMacroAssemblerIA32::UC16,
                                              (input->capture_count + 1) * 2);
     return compiler.Assemble(&macro_assembler,
                              node,
                              input->capture_count);
-  }
 #endif
+  }
   byte codes[1024];
   IrregexpAssembler assembler(Vector<byte>(codes, 1024));
   RegExpMacroAssemblerIrregexp macro_assembler(&assembler);

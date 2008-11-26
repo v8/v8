@@ -30,9 +30,12 @@
 #include "log.h"
 #include "ast.h"
 #include "macro-assembler.h"
+#include "regexp-macro-assembler.h"
+#include "macro-assembler-ia32.h"
 #include "regexp-macro-assembler-ia32.h"
 
 namespace v8 { namespace internal {
+
 /*
  * This assembler uses the following register assignment convention
  * - edx : current character. Must be loaded using LoadCurrentCharacter
@@ -355,7 +358,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode() {
   __ bind(&entry_label_);
   __ push(esi);
   __ push(edi);
-  __ enter(Immediate(num_registers_ * sizeof(uint32_t)));
+  __ enter(Immediate(num_registers_ * kPointerSize));
   __ mov(esi, Operand(ebp, kInputEndOffset));
   __ mov(edi, Operand(ebp, kInputStartOffset));
   __ sub(edi, Operand(esi));
@@ -388,7 +391,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode() {
       if (char_size() == 2) {
         __ shr(eax);
       }
-      __ mov(Operand(ebx, i * sizeof(int32_t)), eax);
+      __ mov(Operand(ebx, i * kPointerSize), eax);
     }
   }
   __ mov(eax, Immediate(1));
@@ -516,7 +519,7 @@ void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
 Operand RegExpMacroAssemblerIA32::register_location(
     int register_index) {
   ASSERT(register_index < (1<<30));
-  return Operand(ebp, -(register_index + 1) * sizeof(uint32_t));
+  return Operand(ebp, -(register_index + 1) * kPointerSize);
 }
 
 
@@ -629,4 +632,4 @@ void RegExpMacroAssemblerIA32::LoadConstantBufferAddress(Register reg,
 }
 
 #undef __
-}}
+}}  // namespace v8::internal

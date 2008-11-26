@@ -25,26 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_MACRO_ASSEMBLER_H_
-#define V8_MACRO_ASSEMBLER_H_
+#include "v8.h"
+#include "ast.h"
+#include "regexp-macro-assembler.h"
+#include "regexp-macro-assembler-arm.h"
 
-#ifdef ARM
+namespace v8 { namespace internal {
 
-#include "constants-arm.h"
-#include "assembler.h"
-#include "assembler-arm.h"
-#include "assembler-arm-inl.h"
-#include "code.h"  // must be after assembler_*.h
-#include "macro-assembler-arm.h"
+RegExpMacroAssemblerARM::RegExpMacroAssemblerARM() {
+  UNIMPLEMENTED();
+}
 
-#else  // ia32
 
-#include "assembler.h"
-#include "assembler-ia32.h"
-#include "assembler-ia32-inl.h"
-#include "code.h"  // must be after assembler_*.h
-#include "macro-assembler-ia32.h"
+RegExpMacroAssemblerARM::~RegExpMacroAssemblerARM() {}
 
-#endif
+}}  // namespace v8::internal
 
-#endif  // V8_MACRO_ASSEMBLER_H_

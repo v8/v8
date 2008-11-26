@@ -39,7 +39,12 @@
 #include "assembler-irregexp.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-irregexp.h"
+#ifdef ARM
+#include "regexp-macro-assembler-arm.h"
+#else  // IA32
+#include "macro-assembler-ia32.h"
 #include "regexp-macro-assembler-ia32.h"
+#endif
 #include "interpreter-irregexp.h"
 
 
@@ -720,7 +725,7 @@ TEST(MacroAssembler) {
 }
 
 
-#if !(defined(ARM) || defined(__arm__) || defined(__thumb__))
+#ifndef ARM  // IA32 only tests.
 
 TEST(MacroAssemblerIA32Success) {
   typedef bool (*AsciiTest) (
@@ -954,7 +959,7 @@ TEST(MacroAssemblerIA32Registers) {
   CHECK_EQ(9, output[4]);
 }
 
-#endif  // !(defined(ARM) || defined(__arm__) || defined(__thumb__))
+#endif  // !defined ARM
 
 TEST(AddInverseToTable) {
   static const int kLimit = 1000;

@@ -28,16 +28,13 @@
 #ifndef REGEXP_MACRO_ASSEMBLER_IA32_H_
 #define REGEXP_MACRO_ASSEMBLER_IA32_H_
 
-#if !(defined(ARM) || defined(__arm__) || defined(__thumb__))
-
-#include "regexp-macro-assembler.h"
-#include "macro-assembler-ia32.h"
-
 namespace v8 { namespace internal {
 
 class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
  public:
+  // Type of input string to generate code for.
   enum Mode {ASCII = 1, UC16 = 2};
+
   RegExpMacroAssemblerIA32(Mode mode, int registers_to_save);
   virtual ~RegExpMacroAssemblerIA32();
   virtual void AdvanceCurrentPosition(int by);
@@ -88,6 +85,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void Succeed();
   virtual void WriteCurrentPositionToRegister(int reg);
   virtual void WriteStackPointerToRegister(int reg);
+
  private:
   // Offsets from ebp of arguments to function.
   static const int kBackup_edi = 1 * sizeof(uint32_t);
@@ -96,6 +94,15 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   static const int kInputStartOffset = 5 * sizeof(uint32_t);
   static const int kInputEndOffset = 6 * sizeof(uint32_t);
   static const int kRegisterOutput = 7 * sizeof(uint32_t);
+
+  // Initial size of code buffer.
+  static const size_t kRegExpCodeSize = 1024;
+  // Initial size of constant buffers allocated during compilation.
+  static const int kRegExpConstantsSize = 256;
+  // Only unroll loops up to this length.
+  static const int kMaxInlineStringTests = 8;
+  // Special "character" marking end of input.
+  static const uint32_t kEndOfInput = ~0;
 
   // The ebp-relative location of a regexp register.
   Operand register_location(int register_index);
@@ -130,16 +137,9 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // (and checks if we have hit the stack limit too).
   void CheckStackLimit();
 
-  // Initial size of code buffer.
-  static const size_t kRegExpCodeSize = 1024;
-  // Initial size of constant buffers allocated during compilation.
-  static const int kRegExpConstantsSize = 256;
-  // Only unroll loops up to this length.
-  static const int kMaxInlineStringTests = 8;
-  // Special "character" marking end of input.
-  static const uint32_t kEndOfInput = ~0;
-
   MacroAssembler* masm_;
+  // Constant buffer provider. Allocates external storage for storing
+  // constants.
   ByteArrayProvider constants_;
   // Which mode to generate code for (ASCII or UTF16).
   Mode mode_;
@@ -148,8 +148,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // Number of registers to output at the end (the saved registers
   // are always 0..num_saved_registers_-1)
   int num_saved_registers_;
-  // Whether to generate code that is case-insensitive. Only relevant for
-  // back-references.
+  // Labels used internally.
   Label entry_label_;
   Label start_label_;
   Label success_label_;
@@ -157,8 +156,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // Handle used to represent the generated code object itself.
   Handle<Object> self_;
 };
-}}
 
-#endif  // !ARM
+}}  // namespace v8::internal
 
 #endif /* REGEXP_MACRO_ASSEMBLER_IA32_H_ */

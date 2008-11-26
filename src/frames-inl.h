@@ -29,7 +29,7 @@
 #define V8_FRAMES_INL_H_
 
 #include "frames.h"
-#if defined(ARM) || defined (__arm__) || defined(__thumb__)
+#ifdef ARM
 #include "frames-arm.h"
 #else
 #include "frames-ia32.h"
