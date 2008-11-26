@@ -195,7 +195,7 @@ FOR_EACH_REG_EXP_TREE_TYPE(MAKE_ACCEPT)
     return NULL;                                                     \
   }                                                                  \
   bool RegExpTree::Is##Name() { return false; }
-  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
+FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
 #undef MAKE_TYPE_CASE
 
 #define MAKE_TYPE_CASE(Name)                                        \

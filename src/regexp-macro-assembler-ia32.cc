@@ -78,16 +78,16 @@ namespace v8 { namespace internal {
 RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(
     Mode mode,
     int registers_to_save)
-  : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
-    constants_(kRegExpConstantsSize),
-    mode_(mode),
-    num_registers_(registers_to_save),
-    num_saved_registers_(registers_to_save),
-    entry_label_(),
-    start_label_(),
-    success_label_(),
-    exit_label_(),
-    self_(Heap::undefined_value()) {
+    : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
+      constants_(kRegExpConstantsSize),
+      mode_(mode),
+      num_registers_(registers_to_save),
+      num_saved_registers_(registers_to_save),
+      entry_label_(),
+      start_label_(),
+      success_label_(),
+      exit_label_(),
+      self_(Heap::undefined_value()) {
   __ jmp(&entry_label_);   // We'll write the entry code later.
   __ bind(&start_label_);  // And then continue from here.
 }

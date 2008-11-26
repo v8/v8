@@ -1365,7 +1365,10 @@ class RegExpQuantifier: public RegExpTree {
 
 
 enum CaptureAvailability {
-    CAPTURE_AVAILABLE, CAPTURE_UNREACHABLE, CAPTURE_PERMANENTLY_UNREACHABLE };
+  CAPTURE_AVAILABLE,
+  CAPTURE_UNREACHABLE,
+  CAPTURE_PERMANENTLY_UNREACHABLE
+};
 
 class RegExpCapture: public RegExpTree {
  public:

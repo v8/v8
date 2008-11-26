@@ -516,11 +516,6 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
       }
       break;
     }
-    default:
-    case RegExpMacroAssembler::kARMImplementation:
-      UNREACHABLE();
-      rc = false;
-      break;
     case RegExpMacroAssembler::kBytecodeImplementation: {
       Handle<ByteArray> byte_codes = IrregexpCode(regexp);
 
@@ -530,6 +525,11 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
                                       previous_index);
       break;
     }
+    case RegExpMacroAssembler::kARMImplementation:
+    default:
+      UNREACHABLE();
+      rc = false;
+      break;
     }
   }
 
@@ -600,8 +600,8 @@ Handle<Object> RegExpImpl::JscreExecOnce(Handle<JSRegExp> regexp,
 
 class OffsetsVector {
  public:
-  inline OffsetsVector(int num_registers) :
-    offsets_vector_length_(num_registers) {
+  inline OffsetsVector(int num_registers)
+      : offsets_vector_length_(num_registers) {
     if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
       vector_ = NewArray<int>(offsets_vector_length_);
     } else {
@@ -640,8 +640,8 @@ int OffsetsVector::static_offsets_vector_[
 
 
 Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
-                                    Handle<String> subject,
-                                    Handle<Object> index) {
+                                        Handle<String> subject,
+                                        Handle<Object> index) {
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
   ASSERT(!regexp->DataAt(JSRegExp::kIrregexpDataIndex)->IsUndefined());
 
@@ -804,8 +804,7 @@ Handle<Object> RegExpImpl::JscreExecGlobal(Handle<JSRegExp> regexp,
 
 int RegExpImpl::JscreNumberOfCaptures(Handle<JSRegExp> re) {
   FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
-  return Smi::cast(value->get(kJscreNumberOfCapturesIndex))->
-      value();
+  return Smi::cast(value->get(kJscreNumberOfCapturesIndex))-> value();
 }
 
 

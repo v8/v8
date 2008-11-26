@@ -33,8 +33,7 @@
 #include "regexp-macro-assembler.h"
 
 
-namespace v8 {
-namespace internal {
+namespace v8 { namespace internal {
 
 
 template <typename C>
@@ -259,8 +258,7 @@ void RegExpNode::Bind(RegExpMacroAssembler* macro) {
 }
 
 
-}  // namespace internal
-}  // namespace v8
+}}  // namespace v8::internal
 
 
 #endif  // V8_JSREGEXP_INL_H_
