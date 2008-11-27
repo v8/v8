@@ -203,8 +203,8 @@ DEFINE_bool(preemption, false,
 DEFINE_bool(irregexp, false, "new regular expression code")
 DEFINE_bool(trace_regexps, false, "trace Irregexp execution")
 DEFINE_bool(trace_regexp_bytecodes, false, "trace Irregexp bytecode execution")
-DEFINE_bool(attempt_case_independent, false, "attempt to run Irregexp case independent")
 DEFINE_bool(irregexp_native, false, "use native code Irregexp implementation (IA32 only)")
+DEFINE_bool(disable_jscre, false, "abort if JSCRE is used.  Only useful with --irregexp")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_bool(testing_bool_flag, true, "testing_bool_flag")

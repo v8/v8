@@ -212,7 +212,7 @@ void RegExpMacroAssemblerIA32::CheckCurrentPosition(int register_index,
 }
 
 
-void RegExpMacroAssemblerIA32::CheckNotBackReferenceCaseIndependent(
+void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     int start_reg, Label* on_no_match) {
   UNIMPLEMENTED();
 }

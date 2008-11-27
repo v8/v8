@@ -243,6 +243,9 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                                 &node,
                                 flags.is_ignore_case());
       if (irregexp_data.is_null()) {
+        if (FLAG_disable_jscre) {
+          UNIMPLEMENTED();
+        }
         result = JscrePrepare(re, pattern, flags);
       } else {
         result = IrregexpPrepare(re, pattern, flags, irregexp_data);
@@ -267,6 +270,9 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
                                 Handle<Object> index) {
   switch (regexp->TypeTag()) {
     case JSRegExp::JSCRE:
+      if (FLAG_disable_jscre) {
+        UNIMPLEMENTED();
+      }
       return JscreExec(regexp, subject, index);
     case JSRegExp::ATOM:
       return AtomExec(regexp, subject, index);
@@ -283,6 +289,9 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
                                 Handle<String> subject) {
   switch (regexp->TypeTag()) {
     case JSRegExp::JSCRE:
+      if (FLAG_disable_jscre) {
+        UNIMPLEMENTED();
+      }
       return JscreExecGlobal(regexp, subject);
     case JSRegExp::ATOM:
       return AtomExecGlobal(regexp, subject);
@@ -906,7 +915,7 @@ class RegExpCompiler {
   inline void IncrementRecursionDepth() { recursion_depth_++; }
   inline void DecrementRecursionDepth() { recursion_depth_--; }
 
-  inline bool is_case_independent() { return is_case_independent_; }
+  inline bool ignore_case() { return ignore_case_; }
 
  private:
   EndNode* accept_;
@@ -915,7 +924,7 @@ class RegExpCompiler {
   List<RegExpNode*>* work_list_;
   int recursion_depth_;
   RegExpMacroAssembler* macro_assembler_;
-  bool is_case_independent_;
+  bool ignore_case_;
 };
 
 
@@ -925,7 +934,7 @@ RegExpCompiler::RegExpCompiler(int capture_count, bool ignore_case)
     : next_register_(2 * (capture_count + 1)),
       work_list_(NULL),
       recursion_depth_(0),
-      is_case_independent_(ignore_case) {
+      ignore_case_(ignore_case) {
   accept_ = new EndNode(EndNode::ACCEPT);
   backtrack_ = new EndNode(EndNode::BACKTRACK);
 }
@@ -935,9 +944,6 @@ Handle<FixedArray> RegExpCompiler::Assemble(
     RegExpMacroAssembler* macro_assembler,
     RegExpNode* start,
     int capture_count) {
-  if (!FLAG_attempt_case_independent && is_case_independent_) {
-    return Handle<FixedArray>::null();
-  }
   macro_assembler_ = macro_assembler;
   List <RegExpNode*> work_list(0);
   work_list_ = &work_list;
@@ -1306,7 +1312,7 @@ bool TextNode::Emit(RegExpCompiler* compiler) {
     TextElement elm = elms_->at(i);
     if (elm.type == TextElement::ATOM) {
       Vector<const uc16> quarks = elm.data.u_atom->data();
-      if (compiler->is_case_independent()) {
+      if (compiler->ignore_case()) {
         EmitAtomNonLetters(macro_assembler,
                            elm,
                            quarks,
@@ -1324,7 +1330,7 @@ bool TextNode::Emit(RegExpCompiler* compiler) {
     }
   }
   // Second, handle case independent letter matches if any.
-  if (compiler->is_case_independent()) {
+  if (compiler->ignore_case()) {
     cp_offset = 0;
     for (int i = 0; i < element_count; i++) {
       TextElement elm = elms_->at(i);
@@ -1357,6 +1363,22 @@ bool TextNode::Emit(RegExpCompiler* compiler) {
   compiler->AddWork(on_failure_);
   macro_assembler->AdvanceCurrentPosition(cp_offset);
   return on_success()->GoTo(compiler);
+}
+
+
+void TextNode::MakeCaseIndependent() {
+  int element_count = elms_->length();
+  for (int i = 0; i < element_count; i++) {
+    TextElement elm = elms_->at(i);
+    if (elm.type == TextElement::CHAR_CLASS) {
+      RegExpCharacterClass* cc = elm.data.u_char_class;
+      ZoneList<CharacterRange>* ranges = cc->ranges();
+      int range_count = ranges->length();
+      for (int i = 0; i < range_count; i++) {
+        ranges->at(i).AddCaseEquivalents(ranges);
+      }
+    }
+  }
 }
 
 
@@ -1477,9 +1499,8 @@ bool BackReferenceNode::Emit(RegExpCompiler* compiler) {
   macro->IfRegisterLT(start_reg_, 0, on_success()->label());
   macro->IfRegisterLT(end_reg_, 0, on_success()->label());
   ASSERT_EQ(start_reg_ + 1, end_reg_);
-  if (compiler->is_case_independent()) {
-    macro->CheckNotBackReferenceCaseIndependent(start_reg_,
-                                                on_failure_->label());
+  if (compiler->ignore_case()) {
+    macro->CheckNotBackReferenceIgnoreCase(start_reg_, on_failure_->label());
   } else {
     macro->CheckNotBackReference(start_reg_, on_failure_->label());
   }
@@ -2429,6 +2450,9 @@ void Analysis::VisitEnd(EndNode* that) {
 
 
 void Analysis::VisitText(TextNode* that) {
+  if (ignore_case_) {
+    that->MakeCaseIndependent();
+  }
   EnsureAnalyzed(that->on_success());
   EnsureAnalyzed(that->on_failure());
 }
@@ -2604,7 +2628,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
                                               captured_body,
                                               compiler.backtrack());
   if (node_return != NULL) *node_return = node;
-  Analysis analysis;
+  Analysis analysis(ignore_case);
   analysis.EnsureAnalyzed(node);
 
   if (!FLAG_irregexp) {

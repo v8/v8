@@ -199,7 +199,7 @@ void RegExpMacroAssemblerIrregexp::CheckNotBackReference(int start_reg,
 }
 
 
-void RegExpMacroAssemblerIrregexp::CheckNotBackReferenceCaseIndependent(
+void RegExpMacroAssemblerIrregexp::CheckNotBackReferenceIgnoreCase(
     int start_reg,
     Label* on_not_equal) {
   assembler_->CheckNotBackReferenceNoCase(start_reg, on_not_equal);

@@ -596,6 +596,7 @@ class TextNode: public SeqRegExpNode {
   RegExpNode* on_failure() { return on_failure_; }
   virtual bool Emit(RegExpCompiler* compiler);
   ZoneList<TextElement>* elements() { return elms_; }
+  void MakeCaseIndependent();
  private:
   RegExpNode* on_failure_;
   ZoneList<TextElement>* elms_;
@@ -741,12 +742,19 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 
 class Analysis: public NodeVisitor {
  public:
+  explicit Analysis(bool ignore_case)
+      : ignore_case_(ignore_case) { }
   void EnsureAnalyzed(RegExpNode* node);
 
 #define DECLARE_VISIT(Type)                                          \
   virtual void Visit##Type(Type##Node* that);
 FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 #undef DECLARE_VISIT
+
+ private:
+  bool ignore_case_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
 };
 
 

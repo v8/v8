@@ -76,8 +76,8 @@ class RegExpMacroAssembler {
       int register_index,
       Label* on_equal) = 0;
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
-  virtual void CheckNotBackReferenceCaseIndependent(int start_reg,
-                                                    Label* on_no_match) = 0;
+  virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
+                                               Label* on_no_match) = 0;
   // Check the current character for a match with a literal character.  If we
   // fail to match then goto the on_failure label.  End of input always
   // matches.  If the label is NULL then we should pop a backtrack address off
