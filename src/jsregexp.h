@@ -437,6 +437,10 @@ class TextElement {
 
 
 struct NodeInfo {
+  enum PrecedingInfo {
+    UNKNOWN = -1, FALSE = 0, TRUE = 1
+  };
+
   NodeInfo()
       : being_analyzed(false),
         been_analyzed(false),
@@ -445,34 +449,59 @@ struct NodeInfo {
         determine_start(false),
         follows_word_interest(false),
         follows_newline_interest(false),
-        follows_start_interest(false) { }
-  bool SameInterests(NodeInfo* that) {
-    return (follows_word_interest == that->follows_word_interest)
+        follows_start_interest(false),
+        at_end(false),
+        follows_word(UNKNOWN),
+        follows_newline(UNKNOWN),
+        follows_start(UNKNOWN) { }
+
+  bool HasSameForwardInterests(NodeInfo* that) {
+    return (at_end == that->at_end)
+        && (follows_word_interest == that->follows_word_interest)
         && (follows_newline_interest == that->follows_newline_interest)
         && (follows_start_interest == that->follows_start_interest);
   }
-  void AdoptInterests(NodeInfo* that) {
-    follows_word_interest = that->follows_word_interest;
-    follows_newline_interest = that->follows_newline_interest;
-    follows_start_interest = that->follows_start_interest;
+
+  // Updates the interests of this node given the interests of the
+  // node preceding it.
+  void AddFromPreceding(NodeInfo* that) {
+    at_end |= that->at_end;
+    follows_word_interest |= that->follows_word_interest;
+    follows_newline_interest |= that->follows_newline_interest;
+    follows_start_interest |= that->follows_start_interest;
   }
-  bool prev_determine_word() {
-    return determine_word || follows_word_interest;
+
+  // Sets the interests of this node to include the interests of the
+  // following node.
+  void AddFromFollowing(NodeInfo* that) {
+    follows_word_interest |= that->follows_word_interest;
+    follows_newline_interest |= that->follows_newline_interest;
+    follows_start_interest |= that->follows_start_interest;
   }
-  bool prev_determine_newline() {
-    return determine_newline || follows_newline_interest;
-  }
-  bool prev_determine_start() {
-    return determine_start || follows_start_interest;
-  }
+
   bool being_analyzed: 1;
   bool been_analyzed: 1;
+
+  // These bits are set if this node must propagate forward information
+  // about the last character it consumed (or, in the case of 'start',
+  // if it is at the start of the input).
   bool determine_word: 1;
   bool determine_newline: 1;
   bool determine_start: 1;
+
+  // These bits are set of this node has to know what the preceding
+  // character was.
   bool follows_word_interest: 1;
   bool follows_newline_interest: 1;
   bool follows_start_interest: 1;
+
+  bool at_end: 1;
+
+  // These bits are set if the node can make assumptions about what
+  // the previous character was.
+  PrecedingInfo follows_word: 2;
+  PrecedingInfo follows_newline: 2;
+  PrecedingInfo follows_start: 2;
 };
 
 
@@ -511,7 +540,13 @@ class RegExpNode: public ZoneObject {
   // Until the implementation is complete we will return true for success and
   // false for failure.
   virtual bool Emit(RegExpCompiler* compiler) = 0;
-  virtual RegExpNode* PropagateInterest(NodeInfo* info) = 0;
+
+  // Propagates the given interest information forward.  When seeing
+  // \bfoo for instance, the \b is implemented by propagating forward
+  // to the 'foo' string that it should only succeed if its first
+  // character is a letter xor the previous character was a letter.
+  virtual RegExpNode* PropagateForward(NodeInfo* info) = 0;
+
   NodeInfo* info() { return &info_; }
   virtual bool IsBacktrack() { return false; }
   RegExpNode* GetSibling(NodeInfo* info);
@@ -558,7 +593,7 @@ class ActionNode: public SeqRegExpNode {
   static ActionNode* EscapeSubmatch(int reg, RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler);
-  virtual RegExpNode* PropagateInterest(NodeInfo* info);
+  virtual RegExpNode* PropagateForward(NodeInfo* info);
  private:
   union {
     struct {
@@ -592,7 +627,7 @@ class TextNode: public SeqRegExpNode {
         on_failure_(on_failure),
         elms_(elms) { }
   virtual void Accept(NodeVisitor* visitor);
-  virtual RegExpNode* PropagateInterest(NodeInfo* info);
+  virtual RegExpNode* PropagateForward(NodeInfo* info);
   RegExpNode* on_failure() { return on_failure_; }
   virtual bool Emit(RegExpCompiler* compiler);
   ZoneList<TextElement>* elements() { return elms_; }
@@ -618,7 +653,7 @@ class BackReferenceNode: public SeqRegExpNode {
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
   virtual bool Emit(RegExpCompiler* compiler);
-  virtual RegExpNode* PropagateInterest(NodeInfo* info);
+  virtual RegExpNode* PropagateForward(NodeInfo* info);
  private:
   RegExpNode* on_failure_;
   int start_reg_;
@@ -632,7 +667,7 @@ class EndNode: public RegExpNode {
   explicit EndNode(Action action) : action_(action) { }
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler);
-  virtual RegExpNode* PropagateInterest(NodeInfo* info);
+  virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual bool IsBacktrack() { return action_ == BACKTRACK; }
   virtual bool GoTo(RegExpCompiler* compiler);
  private:
@@ -683,7 +718,7 @@ class ChoiceNode: public RegExpNode {
   DispatchTable* table() { return &table_; }
   RegExpNode* on_failure() { return on_failure_; }
   virtual bool Emit(RegExpCompiler* compiler);
-  virtual RegExpNode* PropagateInterest(NodeInfo* info);
+  virtual RegExpNode* PropagateForward(NodeInfo* info);
   bool table_calculated() { return table_calculated_; }
   void set_table_calculated(bool b) { table_calculated_ = b; }
   bool being_calculated() { return being_calculated_; }
@@ -770,7 +805,8 @@ class RegExpEngine: public AllStatic {
  public:
   static Handle<FixedArray> Compile(RegExpParseResult* input,
                                     RegExpNode** node_return,
-                                    bool ignore_case);
+                                    bool ignore_case,
+                                    bool multiline);
   static void DotPrint(const char* label, RegExpNode* node);
 };
 

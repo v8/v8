@@ -545,7 +545,7 @@ class RegExpParser {
   bool CaptureAvailable(int index);
   uc32 current_;
   bool has_more_;
-  bool multiline_mode_;
+  bool multiline_;
   int next_pos_;
   FlatStringReader* in_;
   Handle<String>* error_;
@@ -3499,10 +3499,10 @@ Expression* Parser::NewThrowError(Handle<String> constructor,
 
 RegExpParser::RegExpParser(FlatStringReader* in,
                            Handle<String>* error,
-                           bool multiline_mode)
+                           bool multiline)
   : current_(kEndMarker),
     has_more_(true),
-    multiline_mode_(multiline_mode),
+    multiline_(multiline),
     next_pos_(0),
     in_(in),
     error_(error),
@@ -3617,16 +3617,16 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
     case '^': {
       Advance();
       RegExpAssertion::Type type =
-          multiline_mode_ ? RegExpAssertion::START_OF_LINE :
-                            RegExpAssertion::START_OF_INPUT;
+          multiline_ ? RegExpAssertion::START_OF_LINE :
+                       RegExpAssertion::START_OF_INPUT;
       builder.AddAssertion(new RegExpAssertion(type));
       continue;
     }
     case '$': {
       Advance();
       RegExpAssertion::Type type =
-          multiline_mode_ ? RegExpAssertion::END_OF_LINE :
-                            RegExpAssertion::END_OF_INPUT;
+          multiline_ ? RegExpAssertion::END_OF_LINE :
+                       RegExpAssertion::END_OF_INPUT;
       builder.AddAssertion(new RegExpAssertion(type));
       continue;
     }
@@ -4294,10 +4294,11 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
 }
 
 
-bool ParseRegExp(FlatStringReader* input, RegExpParseResult* result) {
+bool ParseRegExp(FlatStringReader* input,
+                 bool multiline,
+                 RegExpParseResult* result) {
   ASSERT(result != NULL);
-  // TODO(plesner): Get multiline flag somehow
-  RegExpParser parser(input, &result->error, false);
+  RegExpParser parser(input, &result->error, multiline);
   bool ok = true;
   result->tree = parser.ParsePattern(&ok);
   if (!ok) {

@@ -56,7 +56,7 @@ static SmartPointer<const char> Parse(const char* input) {
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
-  CHECK(v8::internal::ParseRegExp(&reader, &result));
+  CHECK(v8::internal::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   SmartPointer<const char> output = result.tree->ToString();
@@ -69,7 +69,7 @@ static bool ParseEscapes(const char* input) {
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
-  CHECK(v8::internal::ParseRegExp(&reader, &result));
+  CHECK(v8::internal::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
   return result.has_character_escapes;
@@ -257,7 +257,7 @@ static void ExpectError(const char* input,
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
-  CHECK_EQ(false, v8::internal::ParseRegExp(&reader, &result));
+  CHECK_EQ(false, v8::internal::ParseRegExp(&reader, false, &result));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
   SmartPointer<char> str = result.error->ToCString(ALLOW_NULLS);
@@ -373,23 +373,23 @@ TEST(CharacterClassEscapes) {
 }
 
 
-static RegExpNode* Compile(const char* input) {
+static RegExpNode* Compile(const char* input, bool multiline) {
   FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
-  if (!v8::internal::ParseRegExp(&reader, &result))
+  if (!v8::internal::ParseRegExp(&reader, multiline, &result))
     return NULL;
   RegExpNode* node = NULL;
-  RegExpEngine::Compile(&result, &node, false);
+  RegExpEngine::Compile(&result, &node, false, multiline);
   return node;
 }
 
 
 static void Execute(const char* input,
-                    const char* str,
+                    bool multiline,
                     bool dot_output = false) {
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  RegExpNode* node = Compile(input);
+  RegExpNode* node = Compile(input, multiline);
   USE(node);
 #ifdef DEBUG
   if (dot_output) {
@@ -397,14 +397,6 @@ static void Execute(const char* input,
     exit(0);
   }
 #endif  // DEBUG
-}
-
-
-TEST(Execution) {
-  V8::Initialize(NULL);
-  Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbegh");
-  Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbefh");
-  Execute(".*?(?:a[bc]d|e[fg]h)", "xxxabbefd");
 }
 
 
@@ -1043,8 +1035,8 @@ TEST(LatinCanonicalize) {
 TEST(SimplePropagation) {
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  RegExpNode* node = Compile("(a|^b|c)");
-  CHECK(node->info()->determine_start);
+  RegExpNode* node = Compile("(a|^b|c)", false);
+  CHECK(node->info()->follows_start_interest);
 }
 
 
@@ -1061,7 +1053,7 @@ static uc32 CanonRange(uc32 c) {
 
 
 TEST(RangeCanonicalization) {
-  ASSERT((CanonRange(0) & CharacterRange::kStartMarker) != 0);
+  CHECK((CanonRange(0) & CharacterRange::kStartMarker) != 0);
   // Check that we arrive at the same result when using the basic
   // range canonicalization primitives as when using immediate
   // canonicalization.
@@ -1175,5 +1167,5 @@ TEST(CharacterRangeCaseIndependence) {
 
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("\\w+", "", true);
+  Execute("(?:foo|bar$)", false, true);
 }

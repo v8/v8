@@ -145,7 +145,9 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
                          v8::Extension* extension);
 
 
-bool ParseRegExp(FlatStringReader* input, RegExpParseResult* result);
+bool ParseRegExp(FlatStringReader* input,
+                 bool multiline,
+                 RegExpParseResult* result);
 
 
 // Support for doing lazy compilation. The script is the script containing full

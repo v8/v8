@@ -218,7 +218,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     FlattenString(pattern);
     RegExpParseResult parse_result;
     FlatStringReader reader(pattern);
-    if (!ParseRegExp(&reader, &parse_result)) {
+    if (!ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
       // Throw an exception if we fail to parse the pattern.
       ThrowRegExpException(re,
                            pattern,
@@ -241,7 +241,8 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
       Handle<FixedArray> irregexp_data =
           RegExpEngine::Compile(&parse_result,
                                 &node,
-                                flags.is_ignore_case());
+                                flags.is_ignore_case(),
+                                flags.is_multiline());
       if (irregexp_data.is_null()) {
         if (FLAG_disable_jscre) {
           UNIMPLEMENTED();
@@ -980,7 +981,8 @@ bool RegExpNode::GoTo(RegExpCompiler* compiler) {
   // TODO(erikcorry): Implement support.
   if (info_.follows_word_interest ||
       info_.follows_newline_interest ||
-      info_.follows_start_interest) {
+      info_.follows_start_interest ||
+      info_.at_end) {
     return false;
   }
   if (label_.is_bound()) {
@@ -1004,7 +1006,8 @@ bool RegExpNode::GoTo(RegExpCompiler* compiler) {
 bool EndNode::GoTo(RegExpCompiler* compiler) {
   if (info()->follows_word_interest ||
       info()->follows_newline_interest ||
-      info()->follows_start_interest) {
+      info()->follows_start_interest ||
+      info()->at_end) {
     return false;
   }
   if (!label()->is_bound()) {
@@ -1629,14 +1632,21 @@ void DotPrinter::PrintAttributes(RegExpNode* that) {
                 "fontcolor=lightgrey, margin=0.1, fontsize=10, label=\"{",
                 that);
   NodeInfo* info = that->info();
-  stream()->Add("{NI|%i}|{SI|%i}|{WI|%i}",
+  stream()->Add("{NI|%i}|{WI|%i}|{SI|%i}",
                 info->follows_newline_interest,
-                info->follows_start_interest,
-                info->follows_word_interest);
-  stream()->Add("|{DN|%i}|{DS|%i}|{DW|%i}",
+                info->follows_word_interest,
+                info->follows_start_interest);
+  stream()->Add("|{DN|%i}|{DW|%i}|{DS|%i}|{AE|%i}",
                 info->determine_newline,
+                info->determine_word,
                 info->determine_start,
-                info->determine_word);
+                info->at_end);
+  if (info->follows_newline != NodeInfo::UNKNOWN)
+    stream()->Add("|{FN|%i}", info->follows_newline);
+  if (info->follows_word != NodeInfo::UNKNOWN)
+    stream()->Add("|{FW|%i}", info->follows_word);
+  if (info->follows_start != NodeInfo::UNKNOWN)
+    stream()->Add("|{FS|%i}", info->follows_start);
   Label* label = that->label();
   if (label->is_bound())
     stream()->Add("|{@|%x}", label->pos());
@@ -1924,11 +1934,14 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
     case BOUNDARY: case NON_BOUNDARY:
       info.follows_word_interest = true;
       break;
-    case END_OF_LINE: case END_OF_INPUT:
+    case END_OF_INPUT:
+      info.at_end = true;
+      break;
+    case END_OF_LINE:
       // This is wrong but has the effect of making the compiler abort.
-      info.follows_start_interest = true;
+      info.at_end = true;
   }
-  return on_success->PropagateInterest(&info);
+  return on_success->PropagateForward(&info);
 }
 
 
@@ -2216,7 +2229,7 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
 RegExpNode* RegExpNode::GetSibling(NodeInfo* info) {
   for (int i = 0; i < siblings_.length(); i++) {
     RegExpNode* sibling = siblings_.Get(i);
-    if (sibling->info()->SameInterests(info))
+    if (sibling->info()->HasSameForwardInterests(info))
       return sibling;
   }
   return NULL;
@@ -2225,58 +2238,64 @@ RegExpNode* RegExpNode::GetSibling(NodeInfo* info) {
 
 template <class C>
 static RegExpNode* PropagateToEndpoint(C* node, NodeInfo* info) {
-  RegExpNode* sibling = node->GetSibling(info);
+  NodeInfo full_info(*node->info());
+  full_info.AddFromPreceding(info);
+  RegExpNode* sibling = node->GetSibling(&full_info);
   if (sibling != NULL) return sibling;
   node->EnsureSiblings();
   sibling = new C(*node);
-  sibling->info()->AdoptInterests(info);
+  sibling->info()->AddFromPreceding(&full_info);
   node->AddSibling(sibling);
   return sibling;
 }
 
 
-RegExpNode* ActionNode::PropagateInterest(NodeInfo* info) {
-  RegExpNode* sibling = GetSibling(info);
+RegExpNode* ActionNode::PropagateForward(NodeInfo* info) {
+  NodeInfo full_info(*this->info());
+  full_info.AddFromPreceding(info);
+  RegExpNode* sibling = GetSibling(&full_info);
   if (sibling != NULL) return sibling;
   EnsureSiblings();
   ActionNode* action = new ActionNode(*this);
-  action->info()->AdoptInterests(info);
+  action->info()->AddFromPreceding(&full_info);
   AddSibling(action);
-  action->set_on_success(action->on_success()->PropagateInterest(info));
+  action->set_on_success(action->on_success()->PropagateForward(info));
   return action;
 }
 
 
-RegExpNode* ChoiceNode::PropagateInterest(NodeInfo* info) {
-  RegExpNode* sibling = GetSibling(info);
+RegExpNode* ChoiceNode::PropagateForward(NodeInfo* info) {
+  NodeInfo full_info(*this->info());
+  full_info.AddFromPreceding(info);
+  RegExpNode* sibling = GetSibling(&full_info);
   if (sibling != NULL) return sibling;
   EnsureSiblings();
   ChoiceNode* choice = new ChoiceNode(*this);
-  choice->info()->AdoptInterests(info);
+  choice->info()->AddFromPreceding(&full_info);
   AddSibling(choice);
   ZoneList<GuardedAlternative>* old_alternatives = alternatives();
   int count = old_alternatives->length();
   choice->alternatives_ = new ZoneList<GuardedAlternative>(count);
   for (int i = 0; i < count; i++) {
     GuardedAlternative alternative = old_alternatives->at(i);
-    alternative.set_node(alternative.node()->PropagateInterest(info));
+    alternative.set_node(alternative.node()->PropagateForward(info));
     choice->alternatives()->Add(alternative);
   }
   return choice;
 }
 
 
-RegExpNode* EndNode::PropagateInterest(NodeInfo* info) {
+RegExpNode* EndNode::PropagateForward(NodeInfo* info) {
   return PropagateToEndpoint(this, info);
 }
 
 
-RegExpNode* BackReferenceNode::PropagateInterest(NodeInfo* info) {
+RegExpNode* BackReferenceNode::PropagateForward(NodeInfo* info) {
   return PropagateToEndpoint(this, info);
 }
 
 
-RegExpNode* TextNode::PropagateInterest(NodeInfo* info) {
+RegExpNode* TextNode::PropagateForward(NodeInfo* info) {
   return PropagateToEndpoint(this, info);
 }
 
@@ -2455,15 +2474,21 @@ void Analysis::VisitText(TextNode* that) {
   }
   EnsureAnalyzed(that->on_success());
   EnsureAnalyzed(that->on_failure());
+  NodeInfo* info = that->info();
+  NodeInfo* next_info = that->on_success()->info();
+  // If the following node is interested in what it follows then this
+  // node must determine it.
+  info->determine_newline = next_info->follows_newline_interest;
+  info->determine_word = next_info->follows_word_interest;
+  info->determine_start = next_info->follows_start_interest;
 }
 
 
 void Analysis::VisitAction(ActionNode* that) {
-  RegExpNode* next = that->on_success();
-  EnsureAnalyzed(next);
-  that->info()->determine_newline = next->info()->prev_determine_newline();
-  that->info()->determine_word = next->info()->prev_determine_word();
-  that->info()->determine_start = next->info()->prev_determine_start();
+  EnsureAnalyzed(that->on_success());
+  // If the next node is interested in what it follows then this node
+  // has to be interested too so it can pass the information on.
+  that->info()->AddFromFollowing(that->on_success()->info());
 }
 
 
@@ -2472,9 +2497,9 @@ void Analysis::VisitChoice(ChoiceNode* that) {
   for (int i = 0; i < that->alternatives()->length(); i++) {
     RegExpNode* node = that->alternatives()->at(i).node();
     EnsureAnalyzed(node);
-    info->determine_newline |= node->info()->prev_determine_newline();
-    info->determine_word |= node->info()->prev_determine_word();
-    info->determine_start |= node->info()->prev_determine_start();
+    // Anything the following nodes need to know has to be known by
+    // this node also, so it can pass it on.
+    info->AddFromFollowing(node->info());
   }
   if (!that->table_calculated()) {
     DispatchTableConstructor cons(that->table());
@@ -2607,7 +2632,8 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 
 Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
                                          RegExpNode** node_return,
-                                         bool ignore_case) {
+                                         bool ignore_case,
+                                         bool is_multiline) {
   RegExpCompiler compiler(input->capture_count, ignore_case);
   // Wrap the body of the regexp in capture #0.
   RegExpNode* captured_body = RegExpCapture::ToNode(input->tree,
