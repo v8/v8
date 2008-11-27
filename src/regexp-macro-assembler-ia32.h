@@ -88,12 +88,14 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
 
  private:
   // Offsets from ebp of arguments to function.
-  static const int kBackup_edi = 1 * sizeof(uint32_t);
-  static const int kBackup_esi= 2 * sizeof(uint32_t);
-  static const int kInputBuffer = 4 * sizeof(uint32_t);
-  static const int kInputStartOffset = 5 * sizeof(uint32_t);
-  static const int kInputEndOffset = 6 * sizeof(uint32_t);
-  static const int kRegisterOutput = 7 * sizeof(uint32_t);
+  static const int kBackup_ebx = sizeof(uint32_t);
+  static const int kBackup_edi = kBackup_ebx + sizeof(uint32_t);
+  static const int kBackup_esi = kBackup_edi + sizeof(uint32_t);
+  static const int kReturn_eip = kBackup_esi + sizeof(uint32_t);
+  static const int kInputBuffer = kReturn_eip + sizeof(uint32_t);
+  static const int kInputStartOffset = kInputBuffer + sizeof(uint32_t);
+  static const int kInputEndOffset = kInputStartOffset + sizeof(uint32_t);
+  static const int kRegisterOutput = kInputEndOffset + sizeof(uint32_t);
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;

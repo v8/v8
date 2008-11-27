@@ -356,14 +356,23 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode() {
 
   // Entry code:
   __ bind(&entry_label_);
+  // Save callee-save registers.  Order here should correspond to order of
+  // kBackup_ebx etc.
   __ push(esi);
   __ push(edi);
+  __ push(ebx);  // Callee-save on MacOS.
   __ enter(Immediate(num_registers_ * kPointerSize));
+  // Load string length.
   __ mov(esi, Operand(ebp, kInputEndOffset));
+  // Load input position.
   __ mov(edi, Operand(ebp, kInputStartOffset));
+  // Set up edi to be negative offset from string end.
   __ sub(edi, Operand(esi));
+  // Set up esi to be end of string.  First get location.
   __ mov(edx, Operand(ebp, kInputBuffer));
+  // Dereference location to get string start.
   __ mov(edx, Operand(edx, 0));
+  // Add start to length to complete esi setup.
   __ add(esi, Operand(edx));
   if (num_saved_registers_ > 0) {
     // Fill saved registers with initial value = start offset - 1
@@ -398,6 +407,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode() {
 
   __ bind(&exit_label_);
   __ leave();
+  __ pop(ebx);
   __ pop(edi);
   __ pop(esi);
   __ ret(0);

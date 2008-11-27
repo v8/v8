@@ -38,9 +38,3 @@ test-serialize: SKIP
 # BUG(113): Test seems flaky on ARM.
 test-spaces/LargeObjectSpace: PASS || FAIL
 
-[ $system == macos ]
-
-# TODO(lrn): Please fix this asap.
-test-regexp/MacroAssemblerIA32Simple: PASS || CRASH
-test-regexp/MacroAssemblerIA32Registers: PASS || CRASH
-
