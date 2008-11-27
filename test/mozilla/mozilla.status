@@ -293,10 +293,6 @@ js1_5/Regress/regress-234389: FAIL_OK
 js1_5/Regress/regress-320119: FAIL_OK
 
 
-# We do not support explicit global evals through <global>.eval(...).
-js1_5/Regress/regress-68498-003: FAIL_OK
-
-
 # No support for toSource().
 js1_5/Regress/regress-248444: FAIL_OK
 js1_5/Regress/regress-313967-01: FAIL_OK
@@ -583,10 +579,6 @@ ecma_3/String/15.5.4.11: FAIL
 # Bug 1202597: New js1_5/Expressions/regress-394673 is failing.
 # Marked as: Will not fix. V8 throws an acceptable RangeError.
 js1_5/Expressions/regress-394673: FAIL
-
-# Bug 1202598: New mozilla test js1_5/Regress/regress-383682 fails.
-js1_5/Regress/regress-383682: FAIL
-
 
 ##################### MOZILLA EXTENSION TESTS #####################
 

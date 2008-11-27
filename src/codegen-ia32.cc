@@ -2836,6 +2836,54 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 }
 
 
+void CodeGenerator::VisitCallEval(CallEval* node) {
+  Comment cmnt(masm_, "[ CallEval");
+
+  // In a call to eval, we first call %ResolvePossiblyDirectEval to resolve
+  // the function we need to call and the receiver of the call.
+  // Then we call the resolved function using the given arguments.
+
+  ZoneList<Expression*>* args = node->arguments();
+  Expression* function = node->expression();
+
+  RecordStatementPosition(node);
+
+  // Prepare stack for call to resolved function.
+  Load(function);
+  __ push(Immediate(Factory::undefined_value()));  // Slot for receiver
+  for (int i = 0; i < args->length(); i++) {
+    Load(args->at(i));
+  }
+
+  // Prepare stack for call to ResolvePossiblyDirectEval.
+  __ push(Operand(esp, args->length() * kPointerSize + kPointerSize));
+  if (args->length() > 0) {
+    __ push(Operand(esp, args->length() * kPointerSize));
+  } else {
+    __ push(Immediate(Factory::undefined_value()));
+  }
+
+  // Resolve the call.
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+
+  // Touch up stack with the right values for the function and the receiver.
+  __ mov(edx, FieldOperand(eax, FixedArray::kHeaderSize));
+  __ mov(Operand(esp, (args->length() + 1) * kPointerSize), edx);
+  __ mov(edx, FieldOperand(eax, FixedArray::kHeaderSize + kPointerSize));
+  __ mov(Operand(esp, args->length() * kPointerSize), edx);
+
+  // Call the function.
+  __ RecordPosition(node->position());
+
+  CallFunctionStub call_function(args->length());
+  __ CallStub(&call_function);
+
+  // Restore context and pop function from the stack.
+  __ mov(esi, frame_->Context());
+  __ mov(frame_->Top(), eax);
+}
+
+
 void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));

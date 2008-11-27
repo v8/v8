@@ -81,6 +81,7 @@ namespace v8 { namespace internal {
   V(Throw)                                      \
   V(Property)                                   \
   V(Call)                                       \
+  V(CallEval)                                    \
   V(CallNew)                                    \
   V(CallRuntime)                                \
   V(UnaryOperation)                             \
@@ -104,7 +105,7 @@ class Node: public ZoneObject {
  public:
   Node(): statement_pos_(RelocInfo::kNoPosition) { }
   virtual ~Node() { }
-  virtual void Accept(Visitor* v) = 0;
+  virtual void Accept(AstVisitor* v) = 0;
 
   // Type testing & conversion.
   virtual Statement* AsStatement() { return NULL; }
@@ -168,7 +169,7 @@ class Expression: public Node {
 class ValidLeftHandSideSentinel: public Expression {
  public:
   virtual bool IsValidLeftHandSide() { return true; }
-  virtual void Accept(Visitor* v) { UNREACHABLE(); }
+  virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
   static ValidLeftHandSideSentinel* instance() { return &instance_; }
  private:
   static ValidLeftHandSideSentinel instance_;
@@ -221,7 +222,7 @@ class Block: public BreakableStatement {
         statements_(capacity),
         is_initializer_block_(is_initializer_block) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   void AddStatement(Statement* statement) { statements_.Add(statement); }
 
@@ -245,7 +246,7 @@ class Declaration: public Node {
     ASSERT(fun == NULL || mode == Variable::VAR);
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   VariableProxy* proxy() const  { return proxy_; }
   Variable::Mode mode() const  { return mode_; }
@@ -302,7 +303,7 @@ class LoopStatement: public IterationStatement {
     next_ = next;
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Type type() const  { return type_; }
   Statement* init() const  { return init_; }
@@ -332,7 +333,7 @@ class ForInStatement: public IterationStatement {
     enumerable_ = enumerable;
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Expression* each() const { return each_; }
   Expression* enumerable() const { return enumerable_; }
@@ -348,7 +349,7 @@ class ExpressionStatement: public Statement {
   explicit ExpressionStatement(Expression* expression)
       : expression_(expression) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion.
   virtual ExpressionStatement* AsExpressionStatement() { return this; }
@@ -366,7 +367,7 @@ class ContinueStatement: public Statement {
   explicit ContinueStatement(IterationStatement* target)
       : target_(target) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   IterationStatement* target() const  { return target_; }
 
@@ -380,7 +381,7 @@ class BreakStatement: public Statement {
   explicit BreakStatement(BreakableStatement* target)
       : target_(target) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   BreakableStatement* target() const  { return target_; }
 
@@ -394,7 +395,7 @@ class ReturnStatement: public Statement {
   explicit ReturnStatement(Expression* expression)
       : expression_(expression) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion.
   virtual ReturnStatement* AsReturnStatement() { return this; }
@@ -411,7 +412,7 @@ class WithEnterStatement: public Statement {
   explicit WithEnterStatement(Expression* expression)
       : expression_(expression) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Expression* expression() const  { return expression_; }
 
@@ -424,7 +425,7 @@ class WithExitStatement: public Statement {
  public:
   WithExitStatement() { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 };
 
 
@@ -457,7 +458,7 @@ class SwitchStatement: public BreakableStatement {
     cases_ = cases;
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Expression* tag() const  { return tag_; }
   ZoneList<CaseClause*>* cases() const  { return cases_; }
@@ -482,7 +483,7 @@ class IfStatement: public Statement {
         then_statement_(then_statement),
         else_statement_(else_statement) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   bool HasThenStatement() const { return !then_statement()->IsEmpty(); }
   bool HasElseStatement() const { return !else_statement()->IsEmpty(); }
@@ -510,7 +511,7 @@ class LabelCollector: public Node {
   void AddLabel(Label* label);
 
   // Virtual behaviour. LabelCollectors are never part of the AST.
-  virtual void Accept(Visitor* v) { UNREACHABLE(); }
+  virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
   virtual LabelCollector* AsLabelCollector() { return this; }
 
   ZoneList<Label*>* labels() { return labels_; }
@@ -547,7 +548,7 @@ class TryCatch: public TryStatement {
     ASSERT(catch_var->AsVariableProxy() != NULL);
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Expression* catch_var() const  { return catch_var_; }
   Block* catch_block() const  { return catch_block_; }
@@ -564,7 +565,7 @@ class TryFinally: public TryStatement {
       : TryStatement(try_block),
         finally_block_(finally_block) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Block* finally_block() const { return finally_block_; }
 
@@ -575,13 +576,13 @@ class TryFinally: public TryStatement {
 
 class DebuggerStatement: public Statement {
  public:
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 };
 
 
 class EmptyStatement: public Statement {
  public:
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion.
   virtual EmptyStatement* AsEmptyStatement() { return this; }
@@ -592,7 +593,7 @@ class Literal: public Expression {
  public:
   explicit Literal(Handle<Object> handle) : handle_(handle) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion.
   virtual Literal* AsLiteral() { return this; }
@@ -665,7 +666,7 @@ class ObjectLiteral: public MaterializedLiteral {
         properties_(properties) {
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
@@ -688,7 +689,7 @@ class RegExpLiteral: public MaterializedLiteral {
         pattern_(pattern),
         flags_(flags) {}
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Handle<String> pattern() const { return pattern_; }
   Handle<String> flags() const { return flags_; }
@@ -707,7 +708,7 @@ class ArrayLiteral: public Expression {
       : literals_(literals), values_(values) {
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Handle<FixedArray> literals() const { return literals_; }
   ZoneList<Expression*>* values() const { return values_; }
@@ -720,7 +721,7 @@ class ArrayLiteral: public Expression {
 
 class VariableProxy: public Expression {
  public:
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual Property* AsProperty() {
@@ -816,7 +817,7 @@ class Slot: public Expression {
     ASSERT(var != NULL);
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual Slot* AsSlot()  { return this; }
@@ -838,7 +839,7 @@ class Property: public Expression {
   Property(Expression* obj, Expression* key, int pos)
       : obj_(obj), key_(key), pos_(pos) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual Property* AsProperty() { return this; }
@@ -867,21 +868,18 @@ class Call: public Expression {
  public:
   Call(Expression* expression,
        ZoneList<Expression*>* arguments,
-       bool is_eval,
        int pos)
       : expression_(expression),
         arguments_(arguments),
-        is_eval_(is_eval),
         pos_(pos) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing and conversion.
   virtual Call* AsCall() { return this; }
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
-  bool is_eval()  { return is_eval_; }
   int position() { return pos_; }
 
   static Call* sentinel() { return &sentinel_; }
@@ -889,7 +887,6 @@ class Call: public Expression {
  private:
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
-  bool is_eval_;
   int pos_;
 
   static Call sentinel_;
@@ -899,9 +896,27 @@ class Call: public Expression {
 class CallNew: public Call {
  public:
   CallNew(Expression* expression, ZoneList<Expression*>* arguments, int pos)
-      : Call(expression, arguments, false, pos) { }
+      : Call(expression, arguments, pos) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
+};
+
+
+// The CallEval class represents a call of the form 'eval(...)' where eval
+// cannot be seen to be overwritten at compile time. It is potentially a
+// direct (i.e. not aliased) eval call. The real nature of the call is
+// determined at runtime.
+class CallEval: public Call {
+ public:
+  CallEval(Expression* expression, ZoneList<Expression*>* arguments, int pos)
+      : Call(expression, arguments, pos) { }
+
+  virtual void Accept(AstVisitor* v);
+
+  static CallEval* sentinel() { return &sentinel_; }
+
+ private:
+  static CallEval sentinel_;
 };
 
 
@@ -916,7 +931,7 @@ class CallRuntime: public Expression {
               ZoneList<Expression*>* arguments)
       : name_(name), function_(function), arguments_(arguments) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Handle<String> name() const { return name_; }
   Runtime::Function* function() const { return function_; }
@@ -936,7 +951,7 @@ class UnaryOperation: public Expression {
     ASSERT(Token::IsUnaryOp(op));
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual UnaryOperation* AsUnaryOperation() { return this; }
@@ -957,7 +972,7 @@ class BinaryOperation: public Expression {
     ASSERT(Token::IsBinaryOp(op));
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual BinaryOperation* AsBinaryOperation() { return this; }
@@ -1006,7 +1021,7 @@ class CountOperation: public Expression {
     ASSERT(Token::IsCountOp(op));
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
@@ -1029,7 +1044,7 @@ class CompareOperation: public Expression {
     ASSERT(Token::IsCompareOp(op));
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
@@ -1051,7 +1066,7 @@ class Conditional: public Expression {
         then_expression_(then_expression),
         else_expression_(else_expression) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Expression* condition() const { return condition_; }
   Expression* then_expression() const { return then_expression_; }
@@ -1071,7 +1086,7 @@ class Assignment: public Expression {
     ASSERT(Token::IsAssignmentOp(op));
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
   virtual Assignment* AsAssignment() { return this; }
 
   Token::Value binary_op() const;
@@ -1094,7 +1109,7 @@ class Throw: public Expression {
   Throw(Expression* exception, int pos)
       : exception_(exception), pos_(pos) {}
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
   Expression* exception() const { return exception_; }
   int position() const { return pos_; }
 
@@ -1130,7 +1145,7 @@ class FunctionLiteral: public Expression {
         function_token_position_(RelocInfo::kNoPosition) {
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual FunctionLiteral* AsFunctionLiteral()  { return this; }
@@ -1179,7 +1194,7 @@ class FunctionBoilerplateLiteral: public Expression {
 
   Handle<JSFunction> boilerplate() const { return boilerplate_; }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
  private:
   Handle<JSFunction> boilerplate_;
@@ -1188,7 +1203,7 @@ class FunctionBoilerplateLiteral: public Expression {
 
 class ThisFunction: public Expression {
  public:
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 };
 
 
@@ -1465,10 +1480,10 @@ class RegExpVisitor BASE_EMBEDDED {
 // Basic visitor
 // - leaf node visitors are abstract.
 
-class Visitor BASE_EMBEDDED {
+class AstVisitor BASE_EMBEDDED {
  public:
-  Visitor() : stack_overflow_(false) { }
-  virtual ~Visitor() { }
+  AstVisitor() : stack_overflow_(false) { }
+  virtual ~AstVisitor() { }
 
   // Dispatch
   void Visit(Node* node) { node->Accept(this); }

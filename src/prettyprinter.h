@@ -34,7 +34,7 @@ namespace v8 { namespace internal {
 
 #ifdef DEBUG
 
-class PrettyPrinter: public Visitor {
+class PrettyPrinter: public AstVisitor {
  public:
   PrettyPrinter();
   virtual ~PrettyPrinter();

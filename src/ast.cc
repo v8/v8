@@ -38,14 +38,15 @@ VariableProxySentinel VariableProxySentinel::this_proxy_(true);
 VariableProxySentinel VariableProxySentinel::identifier_proxy_(false);
 ValidLeftHandSideSentinel ValidLeftHandSideSentinel::instance_;
 Property Property::this_property_(VariableProxySentinel::this_proxy(), NULL, 0);
-Call Call::sentinel_(NULL, NULL, false, 0);
+Call Call::sentinel_(NULL, NULL, 0);
+CallEval CallEval::sentinel_(NULL, NULL, 0);
 
 
 // ----------------------------------------------------------------------------
 // All the Accept member functions for each syntax tree node type.
 
 #define DECL_ACCEPT(type)                \
-  void type::Accept(Visitor* v) {        \
+  void type::Accept(AstVisitor* v) {        \
     if (v->CheckStackOverflow()) return; \
     v->Visit##type(this);                \
   }
@@ -158,17 +159,17 @@ void LabelCollector::AddLabel(Label* label) {
 
 
 // ----------------------------------------------------------------------------
-// Implementation of Visitor
+// Implementation of AstVisitor
 
 
-void Visitor::VisitStatements(ZoneList<Statement*>* statements) {
+void AstVisitor::VisitStatements(ZoneList<Statement*>* statements) {
   for (int i = 0; i < statements->length(); i++) {
     Visit(statements->at(i));
   }
 }
 
 
-void Visitor::VisitExpressions(ZoneList<Expression*>* expressions) {
+void AstVisitor::VisitExpressions(ZoneList<Expression*>* expressions) {
   for (int i = 0; i < expressions->length(); i++) {
     // The variable statement visiting code may pass NULL expressions
     // to this code. Maybe this should be handled by introducing an

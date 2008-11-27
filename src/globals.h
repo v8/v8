@@ -197,7 +197,7 @@ class Statement;
 class String;
 class Struct;
 class SwitchStatement;
-class Visitor;
+class AstVisitor;
 class Variable;
 class VariableProxy;
 class RelocInfo;

@@ -193,7 +193,8 @@ namespace v8 { namespace internal {
   V(failure_symbol, "<failure>")                                         \
   V(space_symbol, " ")                                                   \
   V(exec_symbol, "exec")                                                 \
-  V(zero_symbol, "0")
+  V(zero_symbol, "0")                                                    \
+  V(global_eval_symbol, "GlobalEval")
 
 
 // Forward declaration of the GCTracer class.
