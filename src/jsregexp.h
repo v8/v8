@@ -505,9 +505,6 @@ struct NodeInfo {
 };
 
 
-STATIC_CHECK(sizeof(NodeInfo) <= sizeof(int));  // NOLINT
-
-
 class SiblingList {
  public:
   SiblingList() : list_(NULL) { }
