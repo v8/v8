@@ -1053,7 +1053,7 @@ static uc32 CanonRange(uc32 c) {
 
 
 TEST(RangeCanonicalization) {
-  CHECK((CanonRange(0) & CharacterRange::kStartMarker) != 0);
+  CHECK_NE(CanonRange(0) & CharacterRange::kStartMarker, 0);
   // Check that we arrive at the same result when using the basic
   // range canonicalization primitives as when using immediate
   // canonicalization.
