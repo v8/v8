@@ -811,6 +811,65 @@ TEST(MacroAssemblerIA32Simple) {
 }
 
 
+TEST(MacroAssemblerIA32SimpleUC16) {
+  typedef bool (*UC16Test) (
+      SeqTwoByteString** base, int start_index, int end_index, int* captures);
+
+  V8::Initialize(NULL);
+
+  // regexp-macro-assembler-ia32 needs a handle scope to allocate
+  // byte-arrays for constants.
+  v8::HandleScope scope;
+
+  RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::UC16, 4);
+
+  uc16 foo_chars[3] = {'f', 'o', 'o'};
+  Vector<const uc16> foo(foo_chars, 3);
+
+  Label fail;
+  m.CheckCharacters(foo, 0, &fail);
+  m.WriteCurrentPositionToRegister(0);
+  m.AdvanceCurrentPosition(3);
+  m.WriteCurrentPositionToRegister(1);
+  m.Succeed();
+  m.Bind(&fail);
+  m.Fail();
+
+  Handle<Object> code_object = m.GetCode();
+  Handle<Code> code = Handle<Code>::cast(code_object);
+  UC16Test test = FUNCTION_CAST<UC16Test>(code->entry());
+
+  int captures[4] = {42, 37, 87, 117};
+  const uc16 input_data[6] = {'f', 'o', 'o', 'f', 'o', '\xa0'};
+  Handle<String> input =
+      Factory::NewStringFromTwoByte(Vector<const uc16>(input_data, 6));
+  Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
+  Address start_adr = seq_input->GetCharsAddress();
+  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
+  int end_offset = start_offset + seq_input->length() * sizeof(uc16);
+
+  bool success =
+      test(seq_input.location(), start_offset, end_offset, captures);
+
+  CHECK(success);
+  CHECK_EQ(0, captures[0]);
+  CHECK_EQ(3, captures[1]);
+  CHECK_EQ(-1, captures[2]);
+  CHECK_EQ(-1, captures[3]);
+
+  const uc16 input_data2[9] = {'b', 'a', 'r', 'b', 'a', 'r', 'b', 'a', '\xa0'};
+  input = Factory::NewStringFromTwoByte(Vector<const uc16>(input_data2, 9));
+  seq_input = Handle<SeqTwoByteString>::cast(input);
+  start_adr = seq_input->GetCharsAddress();
+  start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
+  end_offset = start_offset + seq_input->length() * sizeof(uc16);
+
+  success = test(seq_input.location(), start_offset, end_offset, captures);
+
+  CHECK(!success);
+}
+
+
 TEST(MacroAssemblerIA32Backtrack) {
   typedef bool (*AsciiTest) (
       SeqAsciiString** base, int start_index, int end_index, int* captures);

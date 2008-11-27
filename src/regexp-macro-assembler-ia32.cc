@@ -192,13 +192,8 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
   __ mov(ebx, esi);
   __ lea(edi, Operand(esi, edi, times_1, byte_offset));
   LoadConstantBufferAddress(esi, &constant_buffer);
-  __ mov(ecx, str.length());
-  if (mode_ == ASCII) {
-    __ rep_cmpsb();
-  } else {
-    ASSERT(mode_ == UC16);
-    __ rep_cmpsw();
-  }
+  __ mov(ecx, str.length() * char_size());
+  __ rep_cmpsb();
   __ mov(esi, ebx);
   __ mov(edi, eax);
   BranchOrBacktrack(not_equal, on_failure);
@@ -229,11 +224,11 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(
   __ push(esi);
   __ add(edi, Operand(esi));
   __ add(esi, Operand(eax));
-  if (mode_ == ASCII) {
-    __ rep_cmpsb();
-  } else {
-    __ rep_cmpsw();
+  if (char_size() > 0) {
+    ASSERT(char_size() == 2);
+    __ add(ecx, Operand(ecx));
   }
+  __ rep_cmpsb();
   __ pop(esi);
   __ mov(edi, Operand(ebx));
   BranchOrBacktrack(not_equal, on_no_match);
@@ -397,8 +392,9 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode() {
     for (int i = 0; i < num_saved_registers_; i++) {
       __ mov(eax, register_location(i));
       __ add(eax, Operand(ecx));  // Convert to index from start, not end.
-      if (char_size() == 2) {
-        __ shr(eax);
+      if (char_size() > 1) {
+        ASSERT(char_size() == 2);
+        __ sar(eax, 1);  // Convert to character index, not byte.
       }
       __ mov(Operand(ebx, i * kPointerSize), eax);
     }

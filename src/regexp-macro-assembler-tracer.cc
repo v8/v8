@@ -1,0 +1,287 @@
+// Copyright 2008 the V8 project authors. All rights reserved.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+//       copyright notice, this list of conditions and the following
+//       disclaimer in the documentation and/or other materials provided
+//       with the distribution.
+//     * Neither the name of Google Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived
+//       from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+#include "v8.h"
+#include "ast.h"
+#include "regexp-macro-assembler.h"
+#include "regexp-macro-assembler-tracer.h"
+
+namespace v8 { namespace internal {
+
+RegExpMacroAssemblerTracer::RegExpMacroAssemblerTracer(
+    RegExpMacroAssembler* assembler) :
+  assembler_(assembler) {
+  unsigned int type = assembler->Implementation();
+  ASSERT(type < 3);
+  const char* impl_names[3] = {"IA32", "ARM", "Bytecode"};
+  PrintF("RegExpMacroAssembler%s();\n", impl_names[type]);
+}
+
+RegExpMacroAssemblerTracer::~RegExpMacroAssemblerTracer() {
+}
+
+void RegExpMacroAssemblerTracer::Bind(Label* label) {
+  PrintF("label[%08x]: (Bind)\n", label, label);
+  assembler_->Bind(label);
+}
+
+void RegExpMacroAssemblerTracer::EmitOrLink(Label* label) {
+  PrintF(" EmitOrLink(label[%08x]);\n", label);
+  assembler_->EmitOrLink(label);
+}
+
+void RegExpMacroAssemblerTracer::AdvanceCurrentPosition(int by) {
+  PrintF(" AdvanceCurrentPosition(by=%d);\n", by);
+  assembler_->AdvanceCurrentPosition(by);
+}
+
+void RegExpMacroAssemblerTracer::PopCurrentPosition() {
+  PrintF(" PopCurrentPosition();\n");
+  assembler_->PopCurrentPosition();
+}
+
+void RegExpMacroAssemblerTracer::PushCurrentPosition() {
+  PrintF(" PushCurrentPosition();\n");
+  assembler_->PushCurrentPosition();
+}
+
+void RegExpMacroAssemblerTracer::Backtrack() {
+  PrintF(" Backtrack();\n");
+  assembler_->Backtrack();
+}
+
+void RegExpMacroAssemblerTracer::GoTo(Label* label) {
+  PrintF(" GoTo(label[%08x]);\n\n", label);
+  assembler_->GoTo(label);
+}
+
+void RegExpMacroAssemblerTracer::PushBacktrack(Label* label) {
+  PrintF(" PushBacktrack(label[%08x]);\n", label);
+  assembler_->PushBacktrack(label);
+}
+
+void RegExpMacroAssemblerTracer::Succeed() {
+  PrintF(" Succeed();\n");
+  assembler_->Succeed();
+}
+
+void RegExpMacroAssemblerTracer::Fail() {
+  PrintF(" Fail();\n");
+  assembler_->Fail();
+}
+
+void RegExpMacroAssemblerTracer::PopRegister(int register_index) {
+  PrintF(" PopRegister(register=%d);\n", register_index);
+  assembler_->PopRegister(register_index);
+}
+
+void RegExpMacroAssemblerTracer::PushRegister(int register_index) {
+  PrintF(" PushRegister(register=%d);\n", register_index);
+  assembler_->PushRegister(register_index);
+}
+
+void RegExpMacroAssemblerTracer::AdvanceRegister(int reg, int by) {
+  PrintF(" AdvanceRegister(register=%d, by=%d);\n", reg, by);
+  assembler_->AdvanceRegister(reg, by);
+}
+
+void RegExpMacroAssemblerTracer::SetRegister(int register_index, int to) {
+  PrintF(" SetRegister(register=%d, to=%d);\n", register_index, to);
+  assembler_->SetRegister(register_index, to);
+}
+
+void RegExpMacroAssemblerTracer::WriteCurrentPositionToRegister(int reg) {
+  PrintF(" WriteCurrentPositionToRegister(register=%d);\n", reg);
+  assembler_->WriteCurrentPositionToRegister(reg);
+}
+
+void RegExpMacroAssemblerTracer::ReadCurrentPositionFromRegister(int reg) {
+  PrintF(" ReadCurrentPositionFromRegister(register=%d);\n", reg);
+  assembler_->ReadCurrentPositionFromRegister(reg);
+}
+
+void RegExpMacroAssemblerTracer::WriteStackPointerToRegister(int reg) {
+  PrintF(" WriteStackPointerToRegister(register=%d);\n", reg);
+  assembler_->WriteStackPointerToRegister(reg);
+}
+
+void RegExpMacroAssemblerTracer::ReadStackPointerFromRegister(int reg) {
+  PrintF(" ReadStackPointerFromRegister(register=%d);\n", reg);
+  assembler_->ReadStackPointerFromRegister(reg);
+}
+
+void RegExpMacroAssemblerTracer::LoadCurrentCharacter(int cp_offset,
+                                                      Label* on_end_of_input) {
+  PrintF(" LoadCurrentCharacter(cp_offset=%d, label[%08x]);\n", cp_offset,
+         on_end_of_input);
+  assembler_->LoadCurrentCharacter(cp_offset, on_end_of_input);
+}
+
+void RegExpMacroAssemblerTracer::CheckCharacterLT(uc16 limit, Label* on_less) {
+  PrintF(" CheckCharacterLT(c='u%04x', label[%08x]);\n", limit, on_less);
+  assembler_->CheckCharacterLT(limit, on_less);
+}
+
+void RegExpMacroAssemblerTracer::CheckCharacterGT(uc16 limit,
+                                                  Label* on_greater) {
+  PrintF(" CheckCharacterGT(c='u%04x', label[%08x]);\n", limit, on_greater);
+  assembler_->CheckCharacterGT(limit, on_greater);
+}
+
+void RegExpMacroAssemblerTracer::CheckCharacter(uc16 c, Label* on_equal) {
+  PrintF(" CheckCharacter(c='u%04x', label[%08x]);\n", c, on_equal);
+  assembler_->CheckCharacter(c, on_equal);
+}
+
+void RegExpMacroAssemblerTracer::CheckNotCharacter(uc16 c,
+                                                   Label* on_not_equal) {
+  PrintF(" CheckNotCharacter(c='u%04x', label[%08x]);\n", c, on_not_equal);
+  assembler_->CheckNotCharacter(c, on_not_equal);
+}
+
+void RegExpMacroAssemblerTracer::CheckNotCharacterAfterOr(uc16 c, uc16 mask,
+                                                          Label* on_not_equal) {
+  PrintF(" CheckNotCharacterAfterOr(c='u%04x', mask=0x%04x, label[%08x]);\n", c,
+         mask, on_not_equal);
+  assembler_->CheckNotCharacterAfterOr(c, mask, on_not_equal);
+}
+
+void RegExpMacroAssemblerTracer::CheckNotCharacterAfterMinusOr(
+    uc16 c,
+    uc16 mask,
+    Label* on_not_equal) {
+  PrintF(" CheckNotCharacterAfterMinusOr(c='u%04x', mask=0x%04x, "
+    "label[%08x]);\n", c, mask, on_not_equal);
+  assembler_->CheckNotCharacterAfterMinusOr(c, mask, on_not_equal);
+}
+
+void RegExpMacroAssemblerTracer::CheckNotBackReference(int start_reg,
+                                                       Label* on_no_match) {
+  PrintF(" CheckNotBackReference(register=%d, label[%08x]);\n", start_reg,
+         on_no_match);
+  assembler_->CheckNotBackReference(start_reg, on_no_match);
+}
+
+void RegExpMacroAssemblerTracer::CheckNotBackReferenceIgnoreCase(
+    int start_reg,
+    Label* on_no_match) {
+  PrintF(" CheckNotBackReferenceIgnoreCase(register=%d, label[%08x]);\n",
+         start_reg, on_no_match);
+  assembler_->CheckNotBackReferenceIgnoreCase(start_reg, on_no_match);
+}
+
+void RegExpMacroAssemblerTracer::CheckCharacters(Vector<const uc16> str,
+                                                 int cp_offset,
+                                                 Label* on_failure) {
+  PrintF(" CheckCharacters(str=\"");
+  for (int i = 0; i < str.length(); i++) {
+    PrintF("u%04x", str[i]);
+  }
+  PrintF("\", cp_offset=%d, label[%08x])\n", cp_offset, on_failure);
+  assembler_->CheckCharacters(str, cp_offset, on_failure);
+}
+
+void RegExpMacroAssemblerTracer::CheckCurrentPosition(int register_index,
+                                                      Label* on_equal) {
+  PrintF(" CheckCurrentPosition(register=%d, label[%08x]);\n", register_index,
+         on_equal);
+  assembler_->CheckCurrentPosition(register_index, on_equal);
+}
+
+void RegExpMacroAssemblerTracer::CheckBitmap(uc16 start, Label* bitmap,
+                                             Label* on_zero) {
+  PrintF(" CheckBitmap(start=u$04x, <bitmap>, label[%08x]);\n", start, on_zero);
+  assembler_->CheckBitmap(start, bitmap, on_zero);
+}
+
+void RegExpMacroAssemblerTracer::DispatchHalfNibbleMap(
+    uc16 start,
+    Label* half_nibble_map,
+    const Vector<Label*>& destinations) {
+  PrintF(" DispatchHalfNibbleMap(start=u$04x, <half_nibble_map>, [", start);
+  for (int i = 0; i < destinations.length(); i++) {
+    if (i > 0)
+      PrintF(", ");
+    PrintF("label[%08x]", destinations[i]);
+  }
+  PrintF(");\n");
+  assembler_->DispatchHalfNibbleMap(start, half_nibble_map, destinations);
+}
+
+void RegExpMacroAssemblerTracer::DispatchByteMap(
+    uc16 start,
+    Label* byte_map,
+    const Vector<Label*>& destinations) {
+  PrintF(" DispatchByteMap(start=u$04x, <byte_map>, [", start);
+  for (int i = 0; i < destinations.length(); i++) {
+    if (i > 0)
+      PrintF(", ");
+    PrintF("label[%08x]", destinations[i]);
+  }
+  PrintF(");\n");
+  assembler_->DispatchByteMap(start, byte_map, destinations);
+}
+
+void RegExpMacroAssemblerTracer::DispatchHighByteMap(
+    byte start,
+    Label* byte_map,
+    const Vector<Label*>& destinations) {
+  PrintF(" DispatchHighByteMap(start=u$04x, <byte_map>, [", start);
+  for (int i = 0; i < destinations.length(); i++) {
+    if (i > 0)
+      PrintF(", ");
+    PrintF("label[%08x]", destinations[i]);
+  }
+  PrintF(");\n");
+  assembler_->DispatchHighByteMap(start, byte_map, destinations);
+}
+
+void RegExpMacroAssemblerTracer::IfRegisterLT(int register_index,
+                                              int comparand, Label* if_lt) {
+  PrintF(" IfRegisterLT(register=%d, number=%d, label[%08x]);\n",
+         register_index, comparand, if_lt);
+  assembler_->IfRegisterLT(register_index, comparand, if_lt);
+}
+
+void RegExpMacroAssemblerTracer::IfRegisterGE(int register_index,
+                                              int comparand, Label* if_ge) {
+  PrintF(" IfRegisterGE(register=%d, number=%d, label[%08x]);\n",
+         register_index, comparand, if_ge);
+  assembler_->IfRegisterGE(register_index, comparand, if_ge);
+}
+
+RegExpMacroAssembler::IrregexpImplementation
+    RegExpMacroAssemblerTracer::Implementation() {
+  return assembler_->Implementation();
+}
+
+Handle<Object> RegExpMacroAssemblerTracer::GetCode() {
+  PrintF(" GetCode();\n");
+  return assembler_->GetCode();
+}
+
+}}  // namespace v8::internal

@@ -499,7 +499,7 @@ class Assembler : public Malloced {
   void cmp(const Operand& op, const Immediate& imm);
 
   void rep_cmpsb();
-  void rep_cmpsw();
+  void rep_cmpsl();
 
   void dec_b(Register dst);
 

@@ -42,6 +42,7 @@
 #include "parser.h"
 #include "assembler-irregexp.h"
 #include "regexp-macro-assembler.h"
+#include "regexp-macro-assembler-tracer.h"
 #include "regexp-macro-assembler-irregexp.h"
 
 #ifdef ARM
@@ -945,11 +946,16 @@ Handle<FixedArray> RegExpCompiler::Assemble(
     RegExpMacroAssembler* macro_assembler,
     RegExpNode* start,
     int capture_count) {
-  macro_assembler_ = macro_assembler;
+#ifdef DEBUG
+  if (FLAG_trace_regexp_assembler)
+    macro_assembler_ = new RegExpMacroAssemblerTracer(macro_assembler);
+  else
+#endif
+    macro_assembler_ = macro_assembler;
   List <RegExpNode*> work_list(0);
   work_list_ = &work_list;
   Label fail;
-  macro_assembler->PushBacktrack(&fail);
+  macro_assembler_->PushBacktrack(&fail);
   if (!start->GoTo(this)) {
     fail.Unuse();
     return Handle<FixedArray>::null();
@@ -960,19 +966,24 @@ Handle<FixedArray> RegExpCompiler::Assemble(
       return Handle<FixedArray>::null();
     }
   }
-  macro_assembler->Bind(&fail);
-  macro_assembler->Fail();
+  macro_assembler_->Bind(&fail);
+  macro_assembler_->Fail();
   Handle<FixedArray> array =
       Factory::NewFixedArray(RegExpImpl::kIrregexpDataLength);
   array->set(RegExpImpl::kIrregexpImplementationIndex,
-             Smi::FromInt(macro_assembler->Implementation()));
+             Smi::FromInt(macro_assembler_->Implementation()));
   array->set(RegExpImpl::kIrregexpNumberOfRegistersIndex,
              Smi::FromInt(next_register_));
   array->set(RegExpImpl::kIrregexpNumberOfCapturesIndex,
              Smi::FromInt(capture_count));
-  Handle<Object> code = macro_assembler->GetCode();
+  Handle<Object> code = macro_assembler_->GetCode();
   array->set(RegExpImpl::kIrregexpCodeIndex, *code);
   work_list_ = NULL;
+#ifdef DEBUG
+  if (FLAG_trace_regexp_assembler) {
+    delete macro_assembler_;
+  }
+#endif
   return array;
 }
 

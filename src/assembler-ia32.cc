@@ -877,7 +877,7 @@ void Assembler::rep_cmpsb() {
   EMIT(0xA6);  // CMPSB
 }
 
-void Assembler::rep_cmpsw() {
+void Assembler::rep_cmpsl() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xFC);  // CLD to ensure forward operation

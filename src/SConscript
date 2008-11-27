@@ -65,7 +65,9 @@ SOURCES = {
   'os:nullos':  ['platform-nullos.cc'],
   'os:win32':   ['platform-win32.cc'],
   'mode:release': [],
-  'mode:debug': ['objects-debug.cc', 'prettyprinter.cc']
+  'mode:debug': [
+    'objects-debug.cc', 'prettyprinter.cc', 'regexp-macro-assembler-tracer.cc'
+  ]
 }
 
 

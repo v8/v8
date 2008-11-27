@@ -202,7 +202,6 @@ DEFINE_bool(preemption, false,
 // irregexp
 DEFINE_bool(irregexp, false, "new regular expression code")
 DEFINE_bool(trace_regexps, false, "trace Irregexp execution")
-DEFINE_bool(trace_regexp_bytecodes, false, "trace Irregexp bytecode execution")
 DEFINE_bool(irregexp_native, false, "use native code Irregexp implementation (IA32 only)")
 DEFINE_bool(disable_jscre, false, "abort if JSCRE is used.  Only useful with --irregexp")
 
@@ -295,6 +294,11 @@ DEFINE_bool(debug_serialization, false,
 DEFINE_bool(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
+
+// irregexp
+DEFINE_bool(trace_regexp_bytecodes, false, "trace Irregexp bytecode execution")
+DEFINE_bool(trace_regexp_assembler, false,
+            "trace Irregexp macro assembler calls.")
 
 //
 // Logging and profiling only flags
