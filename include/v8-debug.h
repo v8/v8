@@ -128,6 +128,26 @@ class EXPORT Debug {
   // Message based interface. The message protocol is JSON.
   static void SetMessageHandler(DebugMessageHandler handler, void* data = NULL);
   static void SendCommand(const uint16_t* command, int length);
+
+ /**
+  * Run a JavaScript function in the debugger.
+  * \param fun the function to call
+  * \param data passed as second argument to the function
+  * With this call the debugger is entered and the function specified is called
+  * with the execution state as the first argument. This makes it possible to
+  * get access to information otherwise not available during normal JavaScript
+  * execution e.g. details on stack frames. The following example show a
+  * JavaScript function which when passed to v8::Debug::Call will return the
+  * current line of JavaScript execution.
+  *
+  * \code
+  *   function frame_source_line(exec_state) {
+  *     return exec_state.frame(0).sourceLine();
+  *   }
+  * \endcode
+  */
+  static Handle<Value> Call(v8::Handle<v8::Function> fun,
+                            Handle<Value> data = Handle<Value>());
 };
 
 

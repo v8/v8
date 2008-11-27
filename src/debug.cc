@@ -1650,6 +1650,30 @@ void Debugger::UpdateActiveDebugger() {
 }
 
 
+Handle<Object> Debugger::Call(Handle<JSFunction> fun,
+                              Handle<Object> data,
+                              bool* pending_exception) {
+  // Enter the debugger.
+  EnterDebugger debugger;
+  if (debugger.FailedToEnter() || !debugger.HasJavaScriptFrames()) {
+    return Factory::undefined_value();
+  }
+
+  // Create the execution state.
+  bool caught_exception = false;
+  Handle<Object> exec_state = MakeExecutionState(&caught_exception);
+  if (caught_exception) {
+    return Factory::undefined_value();
+  }
+
+  static const int kArgc = 2;
+  Object** argv[kArgc] = { exec_state.location(), data.location() };
+  Handle<Object> result = Execution::Call(fun, Factory::undefined_value(),
+                                          kArgc, argv, pending_exception);
+  return result;
+}
+
+
 DebugMessageThread::DebugMessageThread()
     : host_running_(true),
       command_queue_(kQueueInitialSize),

@@ -2902,6 +2902,26 @@ void Debug::SendCommand(const uint16_t* command, int length) {
 }
 
 
+Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
+                          v8::Handle<v8::Value> data) {
+  if (!i::V8::HasBeenSetup()) return Handle<Value>();
+  ON_BAILOUT("v8::Debug::Call()", return Handle<Value>());
+  i::Handle<i::Object> result;
+  EXCEPTION_PREAMBLE();
+  if (data.IsEmpty()) {
+    result = i::Debugger::Call(Utils::OpenHandle(*fun),
+                               i::Factory::undefined_value(),
+                               &has_pending_exception);
+  } else {
+    result = i::Debugger::Call(Utils::OpenHandle(*fun),
+                               Utils::OpenHandle(*data),
+                               &has_pending_exception);
+  }
+  EXCEPTION_BAILOUT_CHECK(Local<Value>());
+  return Utils::ToLocal(result);
+}
+
+
 namespace internal {
 
 

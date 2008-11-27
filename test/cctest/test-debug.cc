@@ -3166,3 +3166,155 @@ TEST(SendCommandToUninitializedVM) {
   int dummy_length = AsciiToUtf16(dummy_command, dummy_buffer);
   v8::Debug::SendCommand(dummy_buffer, dummy_length);
 }
+
+
+// Source for The JavaScript function which returns the number of frames.
+static const char* frame_count_source =
+    "function frame_count(exec_state) {"
+    "  return exec_state.frameCount();"
+    "}";
+v8::Handle<v8::Function> frame_count;
+
+
+// Source for a JavaScript function which returns the source line for the top
+// frame.
+static const char* frame_source_line_source =
+    "function frame_source_line(exec_state) {"
+    "  return exec_state.frame(0).sourceLine();"
+    "}";
+v8::Handle<v8::Function> frame_source_line;
+
+
+// Source for a JavaScript function which returns the data parameter of a
+// function called in the context of the debugger. If no data parameter is
+// passed it throws an exception.
+static const char* debugger_call_with_data_source =
+    "function debugger_call_with_data(exec_state, data) {"
+    "  if (data) return data;"
+    "  throw 'No data!'"
+    "}";
+v8::Handle<v8::Function> debugger_call_with_data;
+
+
+// Source for a JavaScript function which returns the data parameter of a
+// function called in the context of the debugger. If no data parameter is
+// passed it throws an exception.
+static const char* debugger_call_with_closure_source =
+    "var x = 3;"
+    "function (exec_state) {"
+    "  if (exec_state.y) return x - 1;"
+    "  exec_state.y = x;"
+    "  return exec_state.y"
+    "}";
+v8::Handle<v8::Function> debugger_call_with_closure;
+
+// Function to retrieve the number of JavaScript frames by calling a JavaScript
+// in the debugger.
+static v8::Handle<v8::Value> CheckFrameCount(const v8::Arguments& args) {
+  CHECK(v8::Debug::Call(frame_count)->IsNumber());
+  CHECK_EQ(args[0]->Int32Value(),
+           v8::Debug::Call(frame_count)->Int32Value());
+  return v8::Undefined();
+}
+
+
+// Function to retrieve the source line of the top JavaScript frame by calling a
+// JavaScript function in the debugger.
+static v8::Handle<v8::Value> CheckSourceLine(const v8::Arguments& args) {
+  CHECK(v8::Debug::Call(frame_source_line)->IsNumber());
+  CHECK_EQ(args[0]->Int32Value(),
+           v8::Debug::Call(frame_source_line)->Int32Value());
+  return v8::Undefined();
+}
+
+
+// Function to test passing an additional parameter to a JavaScript function
+// called in the debugger. It also tests that functions called in the debugger
+// can throw exceptions.
+static v8::Handle<v8::Value> CheckDataParameter(const v8::Arguments& args) {
+  v8::Handle<v8::String> data = v8::String::New("Test");
+  CHECK(v8::Debug::Call(debugger_call_with_data, data)->IsString());
+
+  CHECK(v8::Debug::Call(debugger_call_with_data).IsEmpty());
+  CHECK(v8::Debug::Call(debugger_call_with_data).IsEmpty());
+
+  v8::TryCatch catcher;
+  v8::Debug::Call(debugger_call_with_data);
+  CHECK(catcher.HasCaught());
+  CHECK(catcher.Exception()->IsString());
+
+  return v8::Undefined();
+}
+
+
+// Function to test using a JavaScript with closure in the debugger.
+static v8::Handle<v8::Value> CheckClosure(const v8::Arguments& args) {
+  CHECK(v8::Debug::Call(debugger_call_with_closure)->IsNumber());
+  CHECK_EQ(3, v8::Debug::Call(debugger_call_with_closure)->Int32Value());
+  return v8::Undefined();
+}
+
+
+// Test functions called through the debugger.
+TEST(CallFunctionInDebugger) {
+  // Create and enter a context with the functions CheckFrameCount,
+  // CheckSourceLine and CheckDataParameter installed.
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->Set(v8::String::New("CheckFrameCount"),
+                       v8::FunctionTemplate::New(CheckFrameCount));
+  global_template->Set(v8::String::New("CheckSourceLine"),
+                       v8::FunctionTemplate::New(CheckSourceLine));
+  global_template->Set(v8::String::New("CheckDataParameter"),
+                       v8::FunctionTemplate::New(CheckDataParameter));
+  global_template->Set(v8::String::New("CheckClosure"),
+                       v8::FunctionTemplate::New(CheckClosure));
+  v8::Handle<v8::Context> context = v8::Context::New(NULL, global_template);
+  v8::Context::Scope context_scope(context);
+
+  // Compile a function for checking the number of JavaScript frames.
+  v8::Script::Compile(v8::String::New(frame_count_source))->Run();
+  frame_count = v8::Local<v8::Function>::Cast(
+      context->Global()->Get(v8::String::New("frame_count")));
+
+  // Compile a function for returning the source line for the top frame.
+  v8::Script::Compile(v8::String::New(frame_source_line_source))->Run();
+  frame_source_line = v8::Local<v8::Function>::Cast(
+      context->Global()->Get(v8::String::New("frame_source_line")));
+
+  // Compile a function returning the data parameter.
+  v8::Script::Compile(v8::String::New(debugger_call_with_data_source))->Run();
+  debugger_call_with_data = v8::Local<v8::Function>::Cast(
+      context->Global()->Get(v8::String::New("debugger_call_with_data")));
+
+  // Compile a function capturing closure.
+  debugger_call_with_closure = v8::Local<v8::Function>::Cast(
+      v8::Script::Compile(
+          v8::String::New(debugger_call_with_closure_source))->Run());
+
+  // Calling a function through the debugger returns undefined if there are no
+  // JavaScript frames.
+  CHECK(v8::Debug::Call(frame_count)->IsUndefined());
+  CHECK(v8::Debug::Call(frame_source_line)->IsUndefined());
+  CHECK(v8::Debug::Call(debugger_call_with_data)->IsUndefined());
+
+  // Test that the number of frames can be retrieved.
+  v8::Script::Compile(v8::String::New("CheckFrameCount(1)"))->Run();
+  v8::Script::Compile(v8::String::New("function f() {"
+                                      "  CheckFrameCount(2);"
+                                      "}; f()"))->Run();
+
+  // Test that the source line can be retrieved.
+  v8::Script::Compile(v8::String::New("CheckSourceLine(0)"))->Run();
+  v8::Script::Compile(v8::String::New("function f() {\n"
+                                      "  CheckSourceLine(1)\n"
+                                      "  CheckSourceLine(2)\n"
+                                      "  CheckSourceLine(3)\n"
+                                      "}; f()"))->Run();
+
+  // Test that a parameter can be passed to a function called in the debugger.
+  v8::Script::Compile(v8::String::New("CheckDataParameter()"))->Run();
+
+  // Test that a function with closure can be run in the debugger.
+  v8::Script::Compile(v8::String::New("CheckClosure()"))->Run();
+}
