@@ -1500,6 +1500,7 @@ class DotPrinter: public NodeVisitor {
   void PrintNode(const char* label, RegExpNode* node);
   void Visit(RegExpNode* node);
   void PrintOnFailure(RegExpNode* from, RegExpNode* on_failure);
+  void PrintAttributes(RegExpNode* from);
   StringStream* stream() { return &stream_; }
 #define DECLARE_VISIT(Type)                                          \
   virtual void Visit##Type(Type##Node* that);
@@ -1602,11 +1603,34 @@ class TableEntryHeaderPrinter {
 };
 
 
+void DotPrinter::PrintAttributes(RegExpNode* that) {
+  stream()->Add("  a%p [shape=Mrecord, style=dashed, color=lightgrey, "
+                "fontcolor=lightgrey, margin=0.1, fontsize=10, label=\"{",
+                that);
+  NodeInfo* info = that->info();
+  stream()->Add("{NI|%i}|{SI|%i}|{WI|%i}",
+                info->follows_newline_interest,
+                info->follows_start_interest,
+                info->follows_word_interest);
+  stream()->Add("|{DN|%i}|{DS|%i}|{DW|%i}",
+                info->determine_newline,
+                info->determine_start,
+                info->determine_word);
+  Label* label = that->label();
+  if (label->is_bound())
+    stream()->Add("|{@|%x}", label->pos());
+  stream()->Add("}\"];\n");
+  stream()->Add("  a%p -> n%p [style=dashed, color=lightgrey, "
+                "arrowhead=none];\n", that, that);
+}
+
+
 void DotPrinter::VisitChoice(ChoiceNode* that) {
   stream()->Add("  n%p [shape=Mrecord, label=\"", that);
   TableEntryHeaderPrinter header_printer(stream());
   that->table()->ForEach(&header_printer);
   stream()->Add("\"]\n", that);
+  PrintAttributes(that);
   TableEntryBodyPrinter body_printer(stream(), that);
   that->table()->ForEach(&body_printer);
   PrintOnFailure(that, that->on_failure());
@@ -1644,6 +1668,7 @@ void DotPrinter::VisitText(TextNode* that) {
     }
   }
   stream()->Add("\", shape=box, peripheries=2];\n");
+  PrintAttributes(that);
   stream()->Add("  n%p -> n%p;\n", that, that->on_success());
   Visit(that->on_success());
   PrintOnFailure(that, that->on_failure());
@@ -1655,6 +1680,7 @@ void DotPrinter::VisitBackReference(BackReferenceNode* that) {
                 that,
                 that->start_register(),
                 that->end_register());
+  PrintAttributes(that);
   stream()->Add("  n%p -> n%p;\n", that, that->on_success());
   Visit(that->on_success());
   PrintOnFailure(that, that->on_failure());
@@ -1663,6 +1689,7 @@ void DotPrinter::VisitBackReference(BackReferenceNode* that) {
 
 void DotPrinter::VisitEnd(EndNode* that) {
   stream()->Add("  n%p [style=bold, shape=point];\n", that);
+  PrintAttributes(that);
 }
 
 
@@ -1698,6 +1725,7 @@ void DotPrinter::VisitAction(ActionNode* that) {
       break;
   }
   stream()->Add("];\n");
+  PrintAttributes(that);
   stream()->Add("  n%p -> n%p;\n", that, that->on_success());
   Visit(that->on_success());
 }

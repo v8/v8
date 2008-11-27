@@ -1175,5 +1175,5 @@ TEST(CharacterRangeCaseIndependence) {
 
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("(x)?\\1y", "", true);
+  Execute("\\w+", "", true);
 }
