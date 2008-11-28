@@ -507,19 +507,19 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
   switch (tag) {
     case RegExpMacroAssembler::kIA32Implementation: {
       Code* code = Code::cast(irregexp->get(kIrregexpCodeIndex));
-      SmartPointer<int> captures(NewArray<int>((num_captures + 1) * 2));
       Address start_addr =
           Handle<SeqTwoByteString>::cast(two_byte_subject)->GetCharsAddress();
-      int start_offset =
+      int string_offset =
           start_addr - reinterpret_cast<Address>(*two_byte_subject);
+      int start_offset = string_offset + previous_index * sizeof(uc16);
       int end_offset =
-          start_offset + (two_byte_subject->length() - previous_index) * 2;
+          string_offset + two_byte_subject->length() * sizeof(uc16);
       typedef bool testfunc(String**, int, int, int*);
       testfunc* test = FUNCTION_CAST<testfunc*>(code->entry());
       rc = test(two_byte_subject.location(),
                 start_offset,
                 end_offset,
-                *captures);
+                offsets_vector);
       if (rc) {
         // Capture values are relative to start_offset only.
         for (int i = 0; i < offsets_vector_length; i++) {
