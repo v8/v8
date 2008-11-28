@@ -99,13 +99,13 @@ static void TraceInterpreter(const byte* code_base,
 static bool RawMatch(const byte* code_base,
                      Vector<const uc16> subject,
                      int* registers,
-                     int current) {
+                     int current,
+                     int current_char) {
   const byte* pc = code_base;
   static const int kBacktrackStackSize = 10000;
   int backtrack_stack[kBacktrackStackSize];
   int backtrack_stack_space = kBacktrackStackSize;
   int* backtrack_sp = backtrack_stack;
-  int current_char = -1;
 #ifdef DEBUG
   if (FLAG_trace_regexp_bytecodes) {
     PrintF("\n\nStart bytecode interpreter\n\n");
@@ -382,11 +382,15 @@ bool IrregexpInterpreter::Match(Handle<ByteArray> code_array,
 
   AssertNoAllocation a;
   const byte* code_base = code_array->GetDataStartAddress();
+  uc16 previous_char = '\n';
+  Vector<const uc16> subject_vector =
+      Vector<const uc16>(subject16->GetTwoByteData(), subject16->length());
+  if (start_position != 0) previous_char = subject_vector[start_position - 1];
   return RawMatch(code_base,
-                  Vector<const uc16>(subject16->GetTwoByteData(),
-                                     subject16->length()),
+                  subject_vector,
                   registers,
-                  start_position);
+                  start_position,
+                  previous_char);
 }
 
 } }  // namespace v8::internal

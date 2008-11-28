@@ -28,13 +28,19 @@
 #include "v8.h"
 #include "ast.h"
 #include "bytecodes-irregexp.h"
-#include "assembler-irregexp.h"
-#include "assembler-irregexp-inl.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-irregexp.h"
+#include "regexp-macro-assembler-irregexp-inl.h"
 
 
 namespace v8 { namespace internal {
+
+
+RegExpMacroAssemblerIrregexp::RegExpMacroAssemblerIrregexp(Vector<byte> buffer)
+    : buffer_(buffer),
+      pc_(0),
+      own_buffer_(false) {
+}
 
 
 RegExpMacroAssemblerIrregexp::~RegExpMacroAssemblerIrregexp() {
@@ -48,96 +54,136 @@ RegExpMacroAssemblerIrregexp::Implementation() {
 
 
 void RegExpMacroAssemblerIrregexp::Bind(Label* l) {
-  assembler_->Bind(l);
+  ASSERT(!l->is_bound());
+  if (l->is_linked()) {
+    int pos = l->pos();
+    while (pos != 0) {
+      int fixup = pos;
+      pos = Load32(buffer_.start() + fixup);
+      Store32(buffer_.start() + fixup, pc_);
+    }
+  }
+  l->bind_to(pc_);
 }
 
 
 void RegExpMacroAssemblerIrregexp::EmitOrLink(Label* l) {
-  assembler_->EmitOrLink(l);
+  if (l->is_bound()) {
+    Emit32(l->pos());
+  } else {
+    int pos = 0;
+    if (l->is_linked()) {
+      pos = l->pos();
+    }
+    l->link_to(pc_);
+    Emit32(pos);
+  }
 }
 
 
 void RegExpMacroAssemblerIrregexp::PopRegister(int register_index) {
-  assembler_->PopRegister(register_index);
+  Emit(BC_POP_REGISTER);
+  Emit(register_index);
 }
 
 
 void RegExpMacroAssemblerIrregexp::PushRegister(int register_index) {
-  assembler_->PushRegister(register_index);
+  ASSERT(register_index >= 0);
+  Emit(BC_PUSH_REGISTER);
+  Emit(register_index);
 }
 
 
 void RegExpMacroAssemblerIrregexp::WriteCurrentPositionToRegister(
     int register_index) {
-  assembler_->WriteCurrentPositionToRegister(register_index);
+  ASSERT(register_index >= 0);
+  Emit(BC_SET_REGISTER_TO_CP);
+  Emit(register_index);
+  Emit32(0);  // Current position offset.
 }
 
 
 void RegExpMacroAssemblerIrregexp::ReadCurrentPositionFromRegister(
     int register_index) {
-  assembler_->ReadCurrentPositionFromRegister(register_index);
+  ASSERT(register_index >= 0);
+  Emit(BC_SET_CP_TO_REGISTER);
+  Emit(register_index);
 }
 
 
 void RegExpMacroAssemblerIrregexp::WriteStackPointerToRegister(
     int register_index) {
-  assembler_->WriteStackPointerToRegister(register_index);
+  ASSERT(register_index >= 0);
+  Emit(BC_SET_REGISTER_TO_SP);
+  Emit(register_index);
 }
 
 
 void RegExpMacroAssemblerIrregexp::ReadStackPointerFromRegister(
     int register_index) {
-  assembler_->ReadStackPointerFromRegister(register_index);
+  ASSERT(register_index >= 0);
+  Emit(BC_SET_SP_TO_REGISTER);
+  Emit(register_index);
 }
 
 
 void RegExpMacroAssemblerIrregexp::SetRegister(int register_index, int to) {
-  assembler_->SetRegister(register_index, to);
+  ASSERT(register_index >= 0);
+  Emit(BC_SET_REGISTER);
+  Emit(register_index);
+  Emit32(to);
 }
 
 
 void RegExpMacroAssemblerIrregexp::AdvanceRegister(int register_index, int by) {
-  assembler_->AdvanceRegister(register_index, by);
+  ASSERT(register_index >= 0);
+  Emit(BC_ADVANCE_REGISTER);
+  Emit(register_index);
+  Emit32(by);
 }
 
 
 void RegExpMacroAssemblerIrregexp::PopCurrentPosition() {
-  assembler_->PopCurrentPosition();
+  Emit(BC_POP_CP);
 }
 
 
 void RegExpMacroAssemblerIrregexp::PushCurrentPosition() {
-  assembler_->PushCurrentPosition();
+  Emit(BC_PUSH_CP);
+  Emit32(0);  // Current position offset.
 }
 
 
 void RegExpMacroAssemblerIrregexp::Backtrack() {
-  assembler_->PopBacktrack();
+  Emit(BC_POP_BT);
 }
 
 
 void RegExpMacroAssemblerIrregexp::GoTo(Label* l) {
-  assembler_->GoTo(l);
+  Emit(BC_GOTO);
+  EmitOrLink(l);
 }
 
 
 void RegExpMacroAssemblerIrregexp::PushBacktrack(Label* l) {
-  assembler_->PushBacktrack(l);
+  Emit(BC_PUSH_BT);
+  EmitOrLink(l);
 }
 
 
 void RegExpMacroAssemblerIrregexp::Succeed() {
-  assembler_->Succeed();
+  Emit(BC_SUCCEED);
 }
 
 
 void RegExpMacroAssemblerIrregexp::Fail() {
-  assembler_->Fail();
+  Emit(BC_FAIL);
 }
 
 
 void RegExpMacroAssemblerIrregexp::AdvanceCurrentPosition(int by) {
-  assembler_->AdvanceCP(by);
+  Emit(BC_ADVANCE_CP);
+  Emit32(by);
 }
 
 
@@ -145,43 +191,57 @@ void RegExpMacroAssemblerIrregexp::CheckCurrentPosition(
   int register_index,
   Label* on_equal) {
   // TODO(erikcorry): Implement.
-  UNREACHABLE();
+  UNIMPLEMENTED();
 }
 
 
 void RegExpMacroAssemblerIrregexp::LoadCurrentCharacter(int cp_offset,
                                                         Label* on_failure) {
-  assembler_->LoadCurrentChar(cp_offset, on_failure);
+  Emit(BC_LOAD_CURRENT_CHAR);
+  Emit32(cp_offset);
+  EmitOrLink(on_failure);
 }
 
 
 void RegExpMacroAssemblerIrregexp::CheckCharacterLT(uc16 limit,
                                                     Label* on_less) {
-  assembler_->CheckCharacterLT(limit, on_less);
+  Emit(BC_CHECK_LT);
+  Emit16(limit);
+  EmitOrLink(on_less);
 }
 
 
 void RegExpMacroAssemblerIrregexp::CheckCharacterGT(uc16 limit,
                                                     Label* on_greater) {
-  assembler_->CheckCharacterGT(limit, on_greater);
+  Emit(BC_CHECK_GT);
+  Emit16(limit);
+  EmitOrLink(on_greater);
 }
 
 
 void RegExpMacroAssemblerIrregexp::CheckCharacter(uc16 c, Label* on_equal) {
-  assembler_->CheckCharacter(c, on_equal);
+  Emit(BC_CHECK_CHAR);
+  Emit16(c);
+  EmitOrLink(on_equal);
 }
 
 
 void RegExpMacroAssemblerIrregexp::CheckNotCharacter(uc16 c,
                                                      Label* on_not_equal) {
-  assembler_->CheckNotCharacter(c, on_not_equal);
+  Emit(BC_CHECK_NOT_CHAR);
+  Emit16(c);
+  EmitOrLink(on_not_equal);
 }
 
 
-void RegExpMacroAssemblerIrregexp::CheckNotCharacterAfterOr(uc16 c,
-                                                        uc16 mask,
-                                                        Label* on_not_equal) {
-  assembler_->OrThenCheckNotCharacter(c, mask, on_not_equal);
+void RegExpMacroAssemblerIrregexp::CheckNotCharacterAfterOr(
+    uc16 c,
+    uc16 mask,
+    Label* on_not_equal) {
+  Emit(BC_OR_CHECK_NOT_CHAR);
+  Emit16(c);
+  Emit16(mask);
+  EmitOrLink(on_not_equal);
 }
 
 
@@ -189,34 +249,44 @@ void RegExpMacroAssemblerIrregexp::CheckNotCharacterAfterMinusOr(
     uc16 c,
     uc16 mask,
     Label* on_not_equal) {
-  assembler_->MinusOrThenCheckNotCharacter(c, mask, on_not_equal);
+  Emit(BC_MINUS_OR_CHECK_NOT_CHAR);
+  Emit16(c);
+  Emit16(mask);
+  EmitOrLink(on_not_equal);
 }
 
 
 void RegExpMacroAssemblerIrregexp::CheckNotBackReference(int start_reg,
                                                      Label* on_not_equal) {
-  assembler_->CheckNotBackReference(start_reg, on_not_equal);
+  Emit(BC_CHECK_NOT_BACK_REF);
+  Emit(start_reg);
+  EmitOrLink(on_not_equal);
 }
 
 
 void RegExpMacroAssemblerIrregexp::CheckNotBackReferenceIgnoreCase(
     int start_reg,
     Label* on_not_equal) {
-  assembler_->CheckNotBackReferenceNoCase(start_reg, on_not_equal);
+  Emit(BC_CHECK_NOT_BACK_REF_NO_CASE);
+  Emit(start_reg);
+  EmitOrLink(on_not_equal);
 }
 
 
 void RegExpMacroAssemblerIrregexp::CheckNotRegistersEqual(int reg1,
                                                           int reg2,
                                                           Label* on_not_equal) {
-  assembler_->CheckNotRegistersEqual(reg1, reg2, on_not_equal);
+  Emit(BC_CHECK_NOT_REGS_EQUAL);
+  Emit(reg1);
+  Emit(reg2);
+  EmitOrLink(on_not_equal);
 }
 
 
 void RegExpMacroAssemblerIrregexp::CheckBitmap(uc16 start,
                                            Label* bitmap,
                                            Label* on_zero) {
-  assembler_->LookupMap1(start, bitmap, on_zero);
+  UNIMPLEMENTED();
 }
 
 
@@ -224,7 +294,7 @@ void RegExpMacroAssemblerIrregexp::DispatchHalfNibbleMap(
     uc16 start,
     Label* half_nibble_map,
     const Vector<Label*>& table) {
-  assembler_->LookupMap2(start, half_nibble_map, table);
+  UNIMPLEMENTED();
 }
 
 
@@ -232,7 +302,7 @@ void RegExpMacroAssemblerIrregexp::DispatchByteMap(
     uc16 start,
     Label* byte_map,
     const Vector<Label*>& table) {
-  assembler_->LookupMap8(start, byte_map, table);
+  UNIMPLEMENTED();
 }
 
 
@@ -240,7 +310,7 @@ void RegExpMacroAssemblerIrregexp::DispatchHighByteMap(
     byte start,
     Label* byte_map,
     const Vector<Label*>& table) {
-  assembler_->LookupHighMap8(start, byte_map, table);
+  UNIMPLEMENTED();
 }
 
 
@@ -249,32 +319,65 @@ void RegExpMacroAssemblerIrregexp::CheckCharacters(
   int cp_offset,
   Label* on_failure) {
   for (int i = str.length() - 1; i >= 0; i--) {
-    assembler_->LoadCurrentChar(cp_offset + i, on_failure);
-    assembler_->CheckNotCharacter(str[i], on_failure);
+    Emit(BC_LOAD_CURRENT_CHAR);
+    Emit32(cp_offset + i);
+    EmitOrLink(on_failure);
+    Emit(BC_CHECK_NOT_CHAR);
+    Emit16(str[i]);
+    EmitOrLink(on_failure);
   }
 }
 
 
 void RegExpMacroAssemblerIrregexp::IfRegisterLT(int register_index,
                                                 int comparand,
-                                                Label* if_less_than) {
+                                                Label* on_less_than) {
   ASSERT(comparand >= 0 && comparand <= 65535);
-  assembler_->CheckRegisterLT(register_index, comparand, if_less_than);
+  Emit(BC_CHECK_REGISTER_LT);
+  Emit(register_index);
+  Emit16(comparand);
+  EmitOrLink(on_less_than);
 }
 
 
 void RegExpMacroAssemblerIrregexp::IfRegisterGE(int register_index,
                                                 int comparand,
-                                                Label* if_greater_or_equal) {
+                                                Label* on_greater_or_equal) {
   ASSERT(comparand >= 0 && comparand <= 65535);
-  assembler_->CheckRegisterGE(register_index, comparand, if_greater_or_equal);
+  Emit(BC_CHECK_REGISTER_GE);
+  Emit(register_index);
+  Emit16(comparand);
+  EmitOrLink(on_greater_or_equal);
 }
 
 
 Handle<Object> RegExpMacroAssemblerIrregexp::GetCode() {
-  Handle<ByteArray> array = Factory::NewByteArray(assembler_->length());
-  assembler_->Copy(array->GetDataStartAddress());
+  Handle<ByteArray> array = Factory::NewByteArray(length());
+  Copy(array->GetDataStartAddress());
   return array;
 }
+
+
+int RegExpMacroAssemblerIrregexp::length() {
+  return pc_;
+}
+
+
+void RegExpMacroAssemblerIrregexp::Copy(Address a) {
+  memcpy(a, buffer_.start(), length());
+}
+
+
+void RegExpMacroAssemblerIrregexp::Expand() {
+  bool old_buffer_was_our_own = own_buffer_;
+  Vector<byte> old_buffer = buffer_;
+  buffer_ = Vector<byte>::New(old_buffer.length() * 2);
+  own_buffer_ = true;
+  memcpy(buffer_.start(), old_buffer.start(), old_buffer.length());
+  if (old_buffer_was_our_own) {
+    old_buffer.Dispose();
+  }
+}
+
 
 } }  // namespace v8::internal

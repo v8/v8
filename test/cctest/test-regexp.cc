@@ -36,7 +36,6 @@
 #include "parser.h"
 #include "ast.h"
 #include "jsregexp-inl.h"
-#include "assembler-irregexp.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-irregexp.h"
 #ifdef ARM
@@ -519,146 +518,10 @@ TEST(DispatchTableConstruction) {
 }
 
 
-TEST(Assembler) {
-  V8::Initialize(NULL);
-  byte codes[1024];
-  IrregexpAssembler assembler(Vector<byte>(codes, 1024));
-#define __ assembler.
-  Label advance;
-  Label look_for_foo;
-  Label fail;
-  __ GoTo(&look_for_foo);
-  __ Bind(&advance);
-  __ AdvanceCP(1);
-  __ Bind(&look_for_foo);
-  __ LoadCurrentChar(0, &fail);
-  __ CheckNotCharacter('f', &advance);
-  __ LoadCurrentChar(1, &fail);
-  __ CheckNotCharacter('o', &advance);
-  __ LoadCurrentChar(2, &fail);
-  __ CheckNotCharacter('o', &advance);
-  __ WriteCurrentPositionToRegister(0);
-  __ WriteCurrentPositionToRegister(1, 2);
-  __ Succeed();
-  __ Bind(&fail);
-  __ Fail();
-
-  v8::HandleScope scope;
-  Handle<ByteArray> array = Factory::NewByteArray(assembler.length());
-  assembler.Copy(array->GetDataStartAddress());
-  int captures[2];
-
-  Handle<String> f1 =
-      Factory::NewStringFromAscii(CStrVector("Now is the time"));
-  Handle<String> f1_16 = RegExpImpl::StringToTwoByte(f1);
-  CHECK(!IrregexpInterpreter::Match(array, f1_16, captures, 0));
-
-  Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));
-  Handle<String> f2_16 = RegExpImpl::StringToTwoByte(f2);
-  CHECK(IrregexpInterpreter::Match(array, f2_16, captures, 0));
-  CHECK_EQ(0, captures[0]);
-  CHECK_EQ(2, captures[1]);
-
-  Handle<String> f3 = Factory::NewStringFromAscii(CStrVector("tomfoolery"));
-  Handle<String> f3_16 = RegExpImpl::StringToTwoByte(f3);
-  CHECK(IrregexpInterpreter::Match(array, f3_16, captures, 0));
-  CHECK_EQ(3, captures[0]);
-  CHECK_EQ(5, captures[1]);
-}
-
-
-TEST(Assembler2) {
-  V8::Initialize(NULL);
-  byte codes[1024];
-  IrregexpAssembler assembler(Vector<byte>(codes, 1024));
-#define __ assembler.
-  // /^.*foo/
-  Label more_dots;
-  Label unwind_dot;
-  Label failure;
-  Label foo;
-  Label foo_failed;
-  Label dot_match;
-  // ^
-  __ PushCurrentPosition();
-  __ PushRegister(0);
-  __ WriteCurrentPositionToRegister(0);
-  __ PushBacktrack(&failure);
-  __ GoTo(&dot_match);
-  // .*
-  __ Bind(&more_dots);
-  __ AdvanceCP(1);
-  __ Bind(&dot_match);
-  __ PushCurrentPosition();
-  __ PushBacktrack(&unwind_dot);
-  __ LoadCurrentChar(0, &foo);
-  __ CheckNotCharacter('\n', &more_dots);
-  // foo
-  __ Bind(&foo);
-  __ CheckNotCharacter('f', &foo_failed);
-  __ LoadCurrentChar(1, &foo_failed);
-  __ CheckNotCharacter('o', &foo_failed);
-  __ LoadCurrentChar(2, &foo_failed);
-  __ CheckNotCharacter('o', &foo_failed);
-  __ WriteCurrentPositionToRegister(1, 2);
-  __ Succeed();
-  __ Break();
-
-  __ Bind(&foo_failed);
-  __ PopBacktrack();
-  __ Break();
-
-  __ Bind(&unwind_dot);
-  __ PopCurrentPosition();
-  __ LoadCurrentChar(0, &foo_failed);
-  __ GoTo(&foo);
-
-  __ Bind(&failure);
-  __ PopRegister(0);
-  __ PopCurrentPosition();
-  __ Fail();
-
-  v8::HandleScope scope;
-  Handle<ByteArray> array = Factory::NewByteArray(assembler.length());
-  assembler.Copy(array->GetDataStartAddress());
-  int captures[2];
-
-  Handle<String> f1 =
-      Factory::NewStringFromAscii(CStrVector("Now is the time"));
-  Handle<String> f1_16 = RegExpImpl::StringToTwoByte(f1);
-  CHECK(!IrregexpInterpreter::Match(array, f1_16, captures, 0));
-
-  Handle<String> f2 = Factory::NewStringFromAscii(CStrVector("foo bar baz"));
-  Handle<String> f2_16 = RegExpImpl::StringToTwoByte(f2);
-  CHECK(IrregexpInterpreter::Match(array, f2_16, captures, 0));
-  CHECK_EQ(0, captures[0]);
-  CHECK_EQ(2, captures[1]);
-
-  Handle<String> f3 = Factory::NewStringFromAscii(CStrVector("tomfoolery"));
-  Handle<String> f3_16 = RegExpImpl::StringToTwoByte(f3);
-  CHECK(IrregexpInterpreter::Match(array, f3_16, captures, 0));
-  CHECK_EQ(0, captures[0]);
-  CHECK_EQ(5, captures[1]);
-
-  Handle<String> f4 =
-      Factory::NewStringFromAscii(CStrVector("football buffoonery"));
-  Handle<String> f4_16 = RegExpImpl::StringToTwoByte(f4);
-  CHECK(IrregexpInterpreter::Match(array, f4_16, captures, 0));
-  CHECK_EQ(0, captures[0]);
-  CHECK_EQ(14, captures[1]);
-
-  Handle<String> f5 =
-      Factory::NewStringFromAscii(CStrVector("walking\nbarefoot"));
-  Handle<String> f5_16 = RegExpImpl::StringToTwoByte(f5);
-  CHECK(!IrregexpInterpreter::Match(array, f5_16, captures, 0));
-}
-
-
 TEST(MacroAssembler) {
   V8::Initialize(NULL);
   byte codes[1024];
-  IrregexpAssembler assembler(Vector<byte>(codes, 1024));
-  RegExpMacroAssemblerIrregexp m(&assembler);
+  RegExpMacroAssemblerIrregexp m(Vector<byte>(codes, 1024));
   // ^f(o)o.
   Label fail, fail2, start;
   uc16 foo_chars[3];
@@ -695,8 +558,7 @@ TEST(MacroAssembler) {
 
   v8::HandleScope scope;
 
-  Handle<ByteArray> array = Factory::NewByteArray(assembler.length());
-  assembler.Copy(array->GetDataStartAddress());
+  Handle<ByteArray> array = Handle<ByteArray>::cast(m.GetCode());
   int captures[5];
 
   Handle<String> f1 =

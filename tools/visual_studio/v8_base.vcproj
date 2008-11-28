@@ -297,15 +297,7 @@
 				>
 			</File>
 			<File
-				RelativePath="..\..\src\assembler-irregexp-inl.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\assembler-irregexp.cc"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\assembler-irregexp.h"
+				RelativePath="..\..\src\regexp-macro-assembler-irregexp-inl.h"
 				>
 			</File>
 			<File

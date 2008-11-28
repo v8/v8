@@ -40,7 +40,6 @@
 #include "compilation-cache.h"
 #include "string-stream.h"
 #include "parser.h"
-#include "assembler-irregexp.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-tracer.h"
 #include "regexp-macro-assembler-irregexp.h"
@@ -2730,9 +2729,8 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
                              input->capture_count);
 #endif
   }
-  byte codes[1024];
-  IrregexpAssembler assembler(Vector<byte>(codes, 1024));
-  RegExpMacroAssemblerIrregexp macro_assembler(&assembler);
+  EmbeddedVector<byte, 1024> codes;
+  RegExpMacroAssemblerIrregexp macro_assembler(codes);
   return compiler.Assemble(&macro_assembler,
                            node,
                            input->capture_count);

@@ -33,9 +33,20 @@ namespace v8 { namespace internal {
 
 class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
  public:
-  explicit RegExpMacroAssemblerIrregexp(IrregexpAssembler* assembler)
-    : assembler_(assembler) {
-  }
+  // Create an assembler. Instructions and relocation information are emitted
+  // into a buffer, with the instructions starting from the beginning and the
+  // relocation information starting from the end of the buffer. See CodeDesc
+  // for a detailed comment on the layout (globals.h).
+  //
+  // If the provided buffer is NULL, the assembler allocates and grows its own
+  // buffer, and buffer_size determines the initial buffer size. The buffer is
+  // owned by the assembler and deallocated upon destruction of the assembler.
+  //
+  // If the provided buffer is not NULL, the assembler uses the provided buffer
+  // for code generation and assumes its size to be buffer_size. If the buffer
+  // is too small, a fatal error occurs. No deallocation of the buffer is done
+  // upon destruction of the assembler.
+  explicit RegExpMacroAssemblerIrregexp(Vector<byte>);
   virtual ~RegExpMacroAssemblerIrregexp();
   virtual void Bind(Label* label);
   virtual void EmitOrLink(Label* label);
@@ -88,7 +99,25 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual IrregexpImplementation Implementation();
   virtual Handle<Object> GetCode();
  private:
-  IrregexpAssembler* assembler_;
+  void Expand();
+  // Code and bitmap emission.
+  inline void Emit32(uint32_t x);
+  inline void Emit16(uint32_t x);
+  inline void Emit(uint32_t x);
+  // Bytecode buffer.
+  int length();
+  void Copy(Address a);
+
+
+
+  // The buffer into which code and relocation info are generated.
+  Vector<byte> buffer_;
+  // The program counter.
+  int pc_;
+  // True if the assembler owns the buffer, false if buffer is external.
+  bool own_buffer_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpMacroAssemblerIrregexp);
 };
 
 } }  // namespace v8::internal

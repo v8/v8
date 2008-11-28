@@ -31,13 +31,12 @@
 #include "v8.h"
 #include "ast.h"
 #include "bytecodes-irregexp.h"
-#include "assembler-irregexp.h"
 
 
 namespace v8 { namespace internal {
 
 
-void IrregexpAssembler::Emit(uint32_t byte) {
+void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte) {
   ASSERT(pc_ <= buffer_.length());
   if (pc_ == buffer_.length()) {
     Expand();
@@ -46,7 +45,7 @@ void IrregexpAssembler::Emit(uint32_t byte) {
 }
 
 
-void IrregexpAssembler::Emit16(uint32_t word) {
+void RegExpMacroAssemblerIrregexp::Emit16(uint32_t word) {
   ASSERT(pc_ <= buffer_.length());
   if (pc_ + 1 >= buffer_.length()) {
     Expand();
@@ -56,7 +55,7 @@ void IrregexpAssembler::Emit16(uint32_t word) {
 }
 
 
-void IrregexpAssembler::Emit32(uint32_t word) {
+void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
   ASSERT(pc_ <= buffer_.length());
   if (pc_ + 3 >= buffer_.length()) {
     Expand();
@@ -65,18 +64,5 @@ void IrregexpAssembler::Emit32(uint32_t word) {
   pc_ += 4;
 }
 
-
-void IrregexpAssembler::EmitOrLink(Label* l) {
-  if (l->is_bound()) {
-    Emit32(l->pos());
-  } else {
-    int pos = 0;
-    if (l->is_linked()) {
-      pos = l->pos();
-    }
-    l->link_to(pc_);
-    Emit32(pos);
-  }
-}
 
 } }  // namespace v8::internal
