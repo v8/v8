@@ -4018,27 +4018,41 @@ THREADED_TEST(FunctionDescriptorException) {
 }
 
 
-THREADED_TEST(Eval) {
+THREADED_TEST(EvalAliasedDynamic) {
   v8::HandleScope scope;
   LocalContext current;
 
-  // Test that un-aliased eval uses local context.
-  Local<Script> script =
-      Script::Compile(v8_str("foo = 0;"
-                             "(function() {"
-                             "  var foo = 2;"
-                             "  return eval('foo');"
-                             "})();"));
-  Local<Value> result = script->Run();
-  CHECK_EQ(2, result->Int32Value());
+  // This sets 'global' to the real global object (as opposed to the
+  // proxy). It is highly implementation dependent, so take care.
+  current->Global()->Set(v8_str("global"), current->Global()->GetPrototype());
 
-  // Test that un-aliased eval has right this.
+  // Tests where aliased eval can only be resolved dynamically.
+  Local<Script> script =
+      Script::Compile(v8_str("function f(x) { "
+                             "  var foo = 2;"
+                             "  with (x) { return eval('foo'); }"
+                             "}"
+                             "foo = 0;"
+                             "result1 = f(new Object());"
+                             "result2 = f(global);"
+                             "var x = new Object();"
+                             "x.eval = function(x) { return 1; };"
+                             "result3 = f(x);"));
+  script->Run();
+  CHECK_EQ(2, current->Global()->Get(v8_str("result1"))->Int32Value());
+  CHECK_EQ(0, current->Global()->Get(v8_str("result2"))->Int32Value());
+  CHECK_EQ(1, current->Global()->Get(v8_str("result3"))->Int32Value());
+
+  v8::TryCatch try_catch;
   script =
-      Script::Compile(v8_str("function MyObject() { this.self = eval('this'); }"
-                             "var o = new MyObject();"
-                             "o === o.self"));
-  result = script->Run();
-  CHECK(result->IsTrue());
+    Script::Compile(v8_str("function f(x) { "
+                           "  var bar = 2;"
+                           "  with (x) { return eval('bar'); }"
+                           "}"
+                           "f(global)"));
+  script->Run();
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
 }
 
 

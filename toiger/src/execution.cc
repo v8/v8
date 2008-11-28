@@ -32,7 +32,7 @@
 #include "api.h"
 #include "codegen-inl.h"
 
-#if defined(ARM) || defined (__arm__) || defined(__thumb__)
+#ifdef ARM
 #include "simulator-arm.h"
 #else  // ia32
 #include "simulator-ia32.h"

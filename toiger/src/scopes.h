@@ -88,6 +88,10 @@ class Scope: public ZoneObject {
   // Declarations
 
   // Lookup a variable in this scope. Returns the variable or NULL if not found.
+  virtual Variable* LookupLocal(Handle<String> name);
+
+  // Lookup a variable in this scope or outer scopes.
+  // Returns the variable or NULL if not found.
   virtual Variable* Lookup(Handle<String> name);
 
   // Declare the function variable for a function literal. This variable
@@ -138,7 +142,7 @@ class Scope: public ZoneObject {
 
   // Visit the illegal redeclaration expression. Do not call if the
   // scope doesn't have an illegal redeclaration node.
-  void VisitIllegalRedeclaration(Visitor* visitor);
+  void VisitIllegalRedeclaration(AstVisitor* visitor);
 
   // Check if the scope has (at least) one illegal redeclaration.
   bool HasIllegalRedeclaration() const { return illegal_redecl_ != NULL; }

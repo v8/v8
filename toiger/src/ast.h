@@ -34,6 +34,7 @@
 #include "token.h"
 #include "variables.h"
 #include "macro-assembler.h"
+#include "jsregexp.h"
 #include "jump-target.h"
 
 namespace v8 { namespace internal {
@@ -81,6 +82,7 @@ namespace v8 { namespace internal {
   V(Throw)                                      \
   V(Property)                                   \
   V(Call)                                       \
+  V(CallEval)                                    \
   V(CallNew)                                    \
   V(CallRuntime)                                \
   V(UnaryOperation)                             \
@@ -107,7 +109,7 @@ class Node: public ZoneObject {
  public:
   Node(): statement_pos_(RelocInfo::kNoPosition) { }
   virtual ~Node() { }
-  virtual void Accept(Visitor* v) = 0;
+  virtual void Accept(AstVisitor* v) = 0;
 
   // Type testing & conversion.
   virtual Statement* AsStatement() { return NULL; }
@@ -171,7 +173,7 @@ class Expression: public Node {
 class ValidLeftHandSideSentinel: public Expression {
  public:
   virtual bool IsValidLeftHandSide() { return true; }
-  virtual void Accept(Visitor* v) { UNREACHABLE(); }
+  virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
   static ValidLeftHandSideSentinel* instance() { return &instance_; }
  private:
   static ValidLeftHandSideSentinel instance_;
@@ -224,7 +226,7 @@ class Block: public BreakableStatement {
         statements_(capacity),
         is_initializer_block_(is_initializer_block) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   void AddStatement(Statement* statement) { statements_.Add(statement); }
 
@@ -240,15 +242,15 @@ class Block: public BreakableStatement {
 class Declaration: public Node {
  public:
   Declaration(VariableProxy* proxy, Variable::Mode mode, FunctionLiteral* fun)
-    : proxy_(proxy),
-      mode_(mode),
-      fun_(fun) {
+      : proxy_(proxy),
+        mode_(mode),
+        fun_(fun) {
     ASSERT(mode == Variable::VAR || mode == Variable::CONST);
     // At the moment there are no "const functions"'s in JavaScript...
     ASSERT(fun == NULL || mode == Variable::VAR);
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   VariableProxy* proxy() const  { return proxy_; }
   Variable::Mode mode() const  { return mode_; }
@@ -273,7 +275,7 @@ class IterationStatement: public BreakableStatement {
 
  protected:
   explicit IterationStatement(ZoneStringList* labels)
-    : BreakableStatement(labels, TARGET_FOR_ANONYMOUS), body_(NULL) { }
+      : BreakableStatement(labels, TARGET_FOR_ANONYMOUS), body_(NULL) { }
 
   void Initialize(Statement* body) {
     body_ = body;
@@ -305,7 +307,7 @@ class LoopStatement: public IterationStatement {
     next_ = next;
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Type type() const  { return type_; }
   Statement* init() const  { return init_; }
@@ -327,7 +329,7 @@ class LoopStatement: public IterationStatement {
 class ForInStatement: public IterationStatement {
  public:
   explicit ForInStatement(ZoneStringList* labels)
-    : IterationStatement(labels), each_(NULL), enumerable_(NULL) { }
+      : IterationStatement(labels), each_(NULL), enumerable_(NULL) { }
 
   void Initialize(Expression* each, Expression* enumerable, Statement* body) {
     IterationStatement::Initialize(body);
@@ -335,7 +337,7 @@ class ForInStatement: public IterationStatement {
     enumerable_ = enumerable;
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Expression* each() const { return each_; }
   Expression* enumerable() const { return enumerable_; }
@@ -351,7 +353,7 @@ class ExpressionStatement: public Statement {
   explicit ExpressionStatement(Expression* expression)
       : expression_(expression) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion.
   virtual ExpressionStatement* AsExpressionStatement() { return this; }
@@ -369,7 +371,7 @@ class ContinueStatement: public Statement {
   explicit ContinueStatement(IterationStatement* target)
       : target_(target) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   IterationStatement* target() const  { return target_; }
 
@@ -383,7 +385,7 @@ class BreakStatement: public Statement {
   explicit BreakStatement(BreakableStatement* target)
       : target_(target) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   BreakableStatement* target() const  { return target_; }
 
@@ -397,7 +399,7 @@ class ReturnStatement: public Statement {
   explicit ReturnStatement(Expression* expression)
       : expression_(expression) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion.
   virtual ReturnStatement* AsReturnStatement() { return this; }
@@ -414,7 +416,7 @@ class WithEnterStatement: public Statement {
   explicit WithEnterStatement(Expression* expression)
       : expression_(expression) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Expression* expression() const  { return expression_; }
 
@@ -427,7 +429,7 @@ class WithExitStatement: public Statement {
  public:
   WithExitStatement() { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 };
 
 
@@ -460,7 +462,7 @@ class SwitchStatement: public BreakableStatement {
     cases_ = cases;
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Expression* tag() const  { return tag_; }
   ZoneList<CaseClause*>* cases() const  { return cases_; }
@@ -485,7 +487,7 @@ class IfStatement: public Statement {
         then_statement_(then_statement),
         else_statement_(else_statement) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   bool HasThenStatement() const { return !then_statement()->IsEmpty(); }
   bool HasElseStatement() const { return !else_statement()->IsEmpty(); }
@@ -515,7 +517,7 @@ class TargetCollector: public Node {
   void AddTarget(JumpTarget* target);
 
   // Virtual behaviour. TargetCollectors are never part of the AST.
-  virtual void Accept(Visitor* v) { UNREACHABLE(); }
+  virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
   virtual TargetCollector* AsTargetCollector() { return this; }
 
   ZoneList<JumpTarget*>* targets() { return targets_; }
@@ -552,7 +554,7 @@ class TryCatch: public TryStatement {
     ASSERT(catch_var->AsVariableProxy() != NULL);
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Expression* catch_var() const  { return catch_var_; }
   Block* catch_block() const  { return catch_block_; }
@@ -569,7 +571,7 @@ class TryFinally: public TryStatement {
       : TryStatement(try_block),
         finally_block_(finally_block) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Block* finally_block() const { return finally_block_; }
 
@@ -580,13 +582,13 @@ class TryFinally: public TryStatement {
 
 class DebuggerStatement: public Statement {
  public:
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 };
 
 
 class EmptyStatement: public Statement {
  public:
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion.
   virtual EmptyStatement* AsEmptyStatement() { return this; }
@@ -597,7 +599,7 @@ class Literal: public Expression {
  public:
   explicit Literal(Handle<Object> handle) : handle_(handle) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion.
   virtual Literal* AsLiteral() { return this; }
@@ -670,7 +672,7 @@ class ObjectLiteral: public MaterializedLiteral {
         properties_(properties) {
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Handle<FixedArray> constant_properties() const {
     return constant_properties_;
@@ -693,7 +695,7 @@ class RegExpLiteral: public MaterializedLiteral {
         pattern_(pattern),
         flags_(flags) {}
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Handle<String> pattern() const { return pattern_; }
   Handle<String> flags() const { return flags_; }
@@ -712,7 +714,7 @@ class ArrayLiteral: public Expression {
       : literals_(literals), values_(values) {
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Handle<FixedArray> literals() const { return literals_; }
   ZoneList<Expression*>* values() const { return values_; }
@@ -725,7 +727,7 @@ class ArrayLiteral: public Expression {
 
 class VariableProxy: public Expression {
  public:
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual Property* AsProperty() {
@@ -817,11 +819,11 @@ class Slot: public Expression {
   };
 
   Slot(Variable* var, Type type, int index)
-    : var_(var), type_(type), index_(index) {
+      : var_(var), type_(type), index_(index) {
     ASSERT(var != NULL);
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual Slot* AsSlot()  { return this; }
@@ -843,7 +845,7 @@ class Property: public Expression {
   Property(Expression* obj, Expression* key, int pos)
       : obj_(obj), key_(key), pos_(pos) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual Property* AsProperty() { return this; }
@@ -872,21 +874,18 @@ class Call: public Expression {
  public:
   Call(Expression* expression,
        ZoneList<Expression*>* arguments,
-       bool is_eval,
        int pos)
       : expression_(expression),
         arguments_(arguments),
-        is_eval_(is_eval),
         pos_(pos) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing and conversion.
   virtual Call* AsCall() { return this; }
 
   Expression* expression() const { return expression_; }
   ZoneList<Expression*>* arguments() const { return arguments_; }
-  bool is_eval()  { return is_eval_; }
   int position() { return pos_; }
 
   static Call* sentinel() { return &sentinel_; }
@@ -894,7 +893,6 @@ class Call: public Expression {
  private:
   Expression* expression_;
   ZoneList<Expression*>* arguments_;
-  bool is_eval_;
   int pos_;
 
   static Call sentinel_;
@@ -904,9 +902,27 @@ class Call: public Expression {
 class CallNew: public Call {
  public:
   CallNew(Expression* expression, ZoneList<Expression*>* arguments, int pos)
-      : Call(expression, arguments, false, pos) { }
+      : Call(expression, arguments, pos) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
+};
+
+
+// The CallEval class represents a call of the form 'eval(...)' where eval
+// cannot be seen to be overwritten at compile time. It is potentially a
+// direct (i.e. not aliased) eval call. The real nature of the call is
+// determined at runtime.
+class CallEval: public Call {
+ public:
+  CallEval(Expression* expression, ZoneList<Expression*>* arguments, int pos)
+      : Call(expression, arguments, pos) { }
+
+  virtual void Accept(AstVisitor* v);
+
+  static CallEval* sentinel() { return &sentinel_; }
+
+ private:
+  static CallEval sentinel_;
 };
 
 
@@ -921,7 +937,7 @@ class CallRuntime: public Expression {
               ZoneList<Expression*>* arguments)
       : name_(name), function_(function), arguments_(arguments) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Handle<String> name() const { return name_; }
   Runtime::Function* function() const { return function_; }
@@ -937,11 +953,11 @@ class CallRuntime: public Expression {
 class UnaryOperation: public Expression {
  public:
   UnaryOperation(Token::Value op, Expression* expression)
-    : op_(op), expression_(expression) {
+      : op_(op), expression_(expression) {
     ASSERT(Token::IsUnaryOp(op));
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual UnaryOperation* AsUnaryOperation() { return this; }
@@ -958,11 +974,11 @@ class UnaryOperation: public Expression {
 class BinaryOperation: public Expression {
  public:
   BinaryOperation(Token::Value op, Expression* left, Expression* right)
-    : op_(op), left_(left), right_(right) {
+      : op_(op), left_(left), right_(right) {
     ASSERT(Token::IsBinaryOp(op));
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual BinaryOperation* AsBinaryOperation() { return this; }
@@ -1007,11 +1023,11 @@ class BinaryOperation: public Expression {
 class CountOperation: public Expression {
  public:
   CountOperation(bool is_prefix, Token::Value op, Expression* expression)
-    : is_prefix_(is_prefix), op_(op), expression_(expression) {
+      : is_prefix_(is_prefix), op_(op), expression_(expression) {
     ASSERT(Token::IsCountOp(op));
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   bool is_prefix() const { return is_prefix_; }
   bool is_postfix() const { return !is_prefix_; }
@@ -1030,11 +1046,11 @@ class CountOperation: public Expression {
 class CompareOperation: public Expression {
  public:
   CompareOperation(Token::Value op, Expression* left, Expression* right)
-    : op_(op), left_(left), right_(right) {
+      : op_(op), left_(left), right_(right) {
     ASSERT(Token::IsCompareOp(op));
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Token::Value op() const { return op_; }
   Expression* left() const { return left_; }
@@ -1056,7 +1072,7 @@ class Conditional: public Expression {
         then_expression_(then_expression),
         else_expression_(else_expression) { }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   Expression* condition() const { return condition_; }
   Expression* then_expression() const { return then_expression_; }
@@ -1072,11 +1088,11 @@ class Conditional: public Expression {
 class Assignment: public Expression {
  public:
   Assignment(Token::Value op, Expression* target, Expression* value, int pos)
-    : op_(op), target_(target), value_(value), pos_(pos) {
+      : op_(op), target_(target), value_(value), pos_(pos) {
     ASSERT(Token::IsAssignmentOp(op));
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
   virtual Assignment* AsAssignment() { return this; }
 
   Token::Value binary_op() const;
@@ -1099,7 +1115,7 @@ class Throw: public Expression {
   Throw(Expression* exception, int pos)
       : exception_(exception), pos_(pos) {}
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
   Expression* exception() const { return exception_; }
   int position() const { return pos_; }
 
@@ -1135,7 +1151,7 @@ class FunctionLiteral: public Expression {
         function_token_position_(RelocInfo::kNoPosition) {
   }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
   // Type testing & conversion
   virtual FunctionLiteral* AsFunctionLiteral()  { return this; }
@@ -1184,7 +1200,7 @@ class FunctionBoilerplateLiteral: public Expression {
 
   Handle<JSFunction> boilerplate() const { return boilerplate_; }
 
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
 
  private:
   Handle<JSFunction> boilerplate_;
@@ -1193,7 +1209,276 @@ class FunctionBoilerplateLiteral: public Expression {
 
 class ThisFunction: public Expression {
  public:
-  virtual void Accept(Visitor* v);
+  virtual void Accept(AstVisitor* v);
+};
+
+
+// ----------------------------------------------------------------------------
+// Regular expressions
+
+
+class RegExpTree: public ZoneObject {
+ public:
+  virtual ~RegExpTree() { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data) = 0;
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure) = 0;
+  virtual bool IsTextElement() { return false; }
+  virtual void AppendToText(RegExpText* text);
+  SmartPointer<const char> ToString();
+#define MAKE_ASTYPE(Name)                                                  \
+  virtual RegExp##Name* As##Name();                                        \
+  virtual bool Is##Name();
+  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_ASTYPE)
+#undef MAKE_ASTYPE
+};
+
+
+class RegExpDisjunction: public RegExpTree {
+ public:
+  explicit RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
+      : alternatives_(alternatives) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  virtual RegExpDisjunction* AsDisjunction();
+  virtual bool IsDisjunction();
+  ZoneList<RegExpTree*>* alternatives() { return alternatives_; }
+ private:
+  ZoneList<RegExpTree*>* alternatives_;
+};
+
+
+class RegExpAlternative: public RegExpTree {
+ public:
+  explicit RegExpAlternative(ZoneList<RegExpTree*>* nodes) : nodes_(nodes) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  virtual RegExpAlternative* AsAlternative();
+  virtual bool IsAlternative();
+  ZoneList<RegExpTree*>* nodes() { return nodes_; }
+ private:
+  ZoneList<RegExpTree*>* nodes_;
+};
+
+
+class RegExpText: public RegExpTree {
+ public:
+  RegExpText() : elements_(2) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  virtual RegExpText* AsText();
+  virtual bool IsText();
+  virtual bool IsTextElement() { return true; }
+  virtual void AppendToText(RegExpText* text);
+  void AddElement(TextElement elm) { elements_.Add(elm); }
+  ZoneList<TextElement>* elements() { return &elements_; }
+ private:
+  ZoneList<TextElement> elements_;
+};
+
+
+class RegExpAssertion: public RegExpTree {
+ public:
+  enum Type {
+    START_OF_LINE,
+    START_OF_INPUT,
+    END_OF_LINE,
+    END_OF_INPUT,
+    BOUNDARY,
+    NON_BOUNDARY
+  };
+  explicit RegExpAssertion(Type type) : type_(type) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  virtual RegExpAssertion* AsAssertion();
+  virtual bool IsAssertion();
+  Type type() { return type_; }
+ private:
+  Type type_;
+};
+
+
+class RegExpCharacterClass: public RegExpTree {
+ public:
+  RegExpCharacterClass(ZoneList<CharacterRange>* ranges, bool is_negated)
+      : ranges_(ranges),
+        is_negated_(is_negated) { }
+  explicit RegExpCharacterClass(uc16 type)
+      : ranges_(new ZoneList<CharacterRange>(2)),
+        is_negated_(false) {
+    CharacterRange::AddClassEscape(type, ranges_);
+  }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  virtual RegExpCharacterClass* AsCharacterClass();
+  virtual bool IsCharacterClass();
+  virtual bool IsTextElement() { return true; }
+  virtual void AppendToText(RegExpText* text);
+  ZoneList<CharacterRange>* ranges() { return ranges_; }
+  bool is_negated() { return is_negated_; }
+ private:
+  ZoneList<CharacterRange>* ranges_;
+  bool is_negated_;
+};
+
+
+class RegExpAtom: public RegExpTree {
+ public:
+  explicit RegExpAtom(Vector<const uc16> data) : data_(data) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  virtual RegExpAtom* AsAtom();
+  virtual bool IsAtom();
+  virtual bool IsTextElement() { return true; }
+  virtual void AppendToText(RegExpText* text);
+  Vector<const uc16> data() { return data_; }
+ private:
+  Vector<const uc16> data_;
+};
+
+
+class RegExpQuantifier: public RegExpTree {
+ public:
+  RegExpQuantifier(int min, int max, bool is_greedy, RegExpTree* body)
+      : min_(min),
+        max_(max),
+        is_greedy_(is_greedy),
+        body_(body) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  static RegExpNode* ToNode(int min,
+                            int max,
+                            bool is_greedy,
+                            RegExpTree* body,
+                            RegExpCompiler* compiler,
+                            RegExpNode* on_success,
+                            RegExpNode* on_failure);
+  virtual RegExpQuantifier* AsQuantifier();
+  virtual bool IsQuantifier();
+  int min() { return min_; }
+  int max() { return max_; }
+  bool is_greedy() { return is_greedy_; }
+  RegExpTree* body() { return body_; }
+  // We just use a very large integer value as infinity because 2^30
+  // is infinite in practice.
+  static const int kInfinity = (1 << 30);
+ private:
+  int min_;
+  int max_;
+  bool is_greedy_;
+  RegExpTree* body_;
+};
+
+
+enum CaptureAvailability {
+  CAPTURE_AVAILABLE,
+  CAPTURE_UNREACHABLE,
+  CAPTURE_PERMANENTLY_UNREACHABLE
+};
+
+class RegExpCapture: public RegExpTree {
+ public:
+  explicit RegExpCapture(RegExpTree* body, int index)
+      : body_(body), index_(index), available_(CAPTURE_AVAILABLE) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  static RegExpNode* ToNode(RegExpTree* body,
+                            int index,
+                            RegExpCompiler* compiler,
+                            RegExpNode* on_success,
+                            RegExpNode* on_failure);
+  virtual RegExpCapture* AsCapture();
+  virtual bool IsCapture();
+  RegExpTree* body() { return body_; }
+  int index() { return index_; }
+  inline CaptureAvailability available() { return available_; }
+  inline void set_available(CaptureAvailability availability) {
+    available_ = availability;
+  }
+  static int StartRegister(int index) { return index * 2; }
+  static int EndRegister(int index) { return index * 2 + 1; }
+ private:
+  RegExpTree* body_;
+  int index_;
+  CaptureAvailability available_;
+};
+
+
+class RegExpLookahead: public RegExpTree {
+ public:
+  RegExpLookahead(RegExpTree* body, bool is_positive)
+      : body_(body),
+        is_positive_(is_positive) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  virtual RegExpLookahead* AsLookahead();
+  virtual bool IsLookahead();
+  RegExpTree* body() { return body_; }
+  bool is_positive() { return is_positive_; }
+ private:
+  RegExpTree* body_;
+  bool is_positive_;
+};
+
+
+class RegExpBackReference: public RegExpTree {
+ public:
+  explicit RegExpBackReference(RegExpCapture* capture)
+      : capture_(capture) { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  virtual RegExpBackReference* AsBackReference();
+  virtual bool IsBackReference();
+  int index() { return capture_->index(); }
+  RegExpCapture* capture() { return capture_; }
+ private:
+  RegExpCapture* capture_;
+};
+
+
+class RegExpEmpty: public RegExpTree {
+ public:
+  RegExpEmpty() { }
+  virtual void* Accept(RegExpVisitor* visitor, void* data);
+  virtual RegExpNode* ToNode(RegExpCompiler* compiler,
+                             RegExpNode* on_success,
+                             RegExpNode* on_failure);
+  virtual RegExpEmpty* AsEmpty();
+  virtual bool IsEmpty();
+  static RegExpEmpty* GetInstance() { return &kInstance; }
+ private:
+  static RegExpEmpty kInstance;
+};
+
+
+class RegExpVisitor BASE_EMBEDDED {
+ public:
+  virtual ~RegExpVisitor() { }
+#define MAKE_CASE(Name)                                              \
+  virtual void* Visit##Name(RegExp##Name*, void* data) = 0;
+  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
+#undef MAKE_CASE
 };
 
 
@@ -1201,10 +1486,10 @@ class ThisFunction: public Expression {
 // Basic visitor
 // - leaf node visitors are abstract.
 
-class Visitor BASE_EMBEDDED {
+class AstVisitor BASE_EMBEDDED {
  public:
-  Visitor() : stack_overflow_(false) { }
-  virtual ~Visitor() { }
+  AstVisitor() : stack_overflow_(false) { }
+  virtual ~AstVisitor() { }
 
   // Dispatch
   void Visit(Node* node) { node->Accept(this); }

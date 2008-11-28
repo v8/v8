@@ -184,8 +184,19 @@ void Scope::Initialize(bool inside_with) {
 
 
 
-Variable* Scope::Lookup(Handle<String> name) {
+Variable* Scope::LookupLocal(Handle<String> name) {
   return locals_.Lookup(name);
+}
+
+
+Variable* Scope::Lookup(Handle<String> name) {
+  for (Scope* scope = this;
+       scope != NULL;
+       scope = scope->outer_scope()) {
+    Variable* var = scope->LookupLocal(name);
+    if (var != NULL) return var;
+  }
+  return NULL;
 }
 
 
@@ -207,7 +218,7 @@ Variable* Scope::Declare(Handle<String> name, Variable::Mode mode) {
 
 void Scope::AddParameter(Variable* var) {
   ASSERT(is_function_scope());
-  ASSERT(Lookup(var->name()) == var);
+  ASSERT(LookupLocal(var->name()) == var);
   params_.Add(var);
 }
 
@@ -258,7 +269,7 @@ void Scope::SetIllegalRedeclaration(Expression* expression) {
 }
 
 
-void Scope::VisitIllegalRedeclaration(Visitor* visitor) {
+void Scope::VisitIllegalRedeclaration(AstVisitor* visitor) {
   ASSERT(HasIllegalRedeclaration());
   illegal_redecl_->Accept(visitor);
 }
@@ -513,7 +524,7 @@ Variable* Scope::LookupRecursive(Handle<String> name, bool inner_lookup) {
   bool guess = scope_calls_eval_;
 
   // Try to find the variable in this scope.
-  Variable* var = Lookup(name);
+  Variable* var = LookupLocal(name);
 
   if (var != NULL) {
     // We found a variable. If this is not an inner lookup, we are done.
@@ -707,7 +718,7 @@ void Scope::AllocateHeapSlot(Variable* var) {
 
 void Scope::AllocateParameterLocals() {
   ASSERT(is_function_scope());
-  Variable* arguments = Lookup(Factory::arguments_symbol());
+  Variable* arguments = LookupLocal(Factory::arguments_symbol());
   ASSERT(arguments != NULL);  // functions have 'arguments' declared implicitly
   if (MustAllocate(arguments) && !HasArgumentsParameter()) {
     // 'arguments' is used. Unless there is also a parameter called

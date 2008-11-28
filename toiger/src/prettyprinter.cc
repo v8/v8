@@ -348,6 +348,11 @@ void PrettyPrinter::VisitCall(Call* node) {
 }
 
 
+void PrettyPrinter::VisitCallEval(CallEval* node) {
+  VisitCall(node);
+}
+
+
 void PrettyPrinter::VisitCallNew(CallNew* node) {
   Print("new (");
   Visit(node->expression());
@@ -1013,6 +1018,11 @@ void AstPrinter::VisitCall(Call* node) {
   IndentedScope indent("CALL");
   Visit(node->expression());
   PrintArguments(node->arguments());
+}
+
+
+void AstPrinter::VisitCallEval(CallEval* node) {
+  VisitCall(node);
 }
 
 

@@ -82,8 +82,10 @@ class Label BASE_EMBEDDED {
   }
 
   friend class Assembler;
+  friend class RegexpAssembler;
   friend class Displacement;
   friend class ShadowTarget;
+  friend class RegExpMacroAssemblerIrregexp;
 };
 
 

@@ -26,5 +26,5 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Regression test for bug #743664.
-assertEquals("\x60\x60".replace(/\x60/g, "u"), "uu");
-assertEquals("\xAB\xAB".replace(/\xAB/g, "u"), "uu");
+assertEquals("uu", "\x60\x60".replace(/\x60/g, "u"));
+assertEquals("uu", "\xAB\xAB".replace(/\xAB/g, "u"));

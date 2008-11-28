@@ -358,6 +358,10 @@ class Debugger {
   static void SendMessage(Vector<uint16_t> message);
   static void ProcessCommand(Vector<const uint16_t> command);
   static void UpdateActiveDebugger();
+  static Handle<Object> Call(Handle<JSFunction> fun,
+                             Handle<Object> data,
+                             bool* pending_exception);
+
   inline static bool EventActive(v8::DebugEvent event) {
     // Currently argument event is not used.
     return !Debugger::compiling_natives_ && Debugger::debugger_active_;
@@ -503,6 +507,9 @@ class EnterDebugger BASE_EMBEDDED {
 
   // Check whether the debugger could be entered.
   inline bool FailedToEnter() { return load_failed_; }
+
+  // Check whether there are any JavaScript frames on the stack.
+  inline bool HasJavaScriptFrames() { return set_; }
 
  private:
   JavaScriptFrameIterator it_;

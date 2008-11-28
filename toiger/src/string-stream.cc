@@ -93,13 +93,13 @@ static bool IsControlChar(char c) {
 }
 
 
-void StringStream::Add(const char* format, Vector<FmtElm> elms) {
+void StringStream::Add(Vector<const char> format, Vector<FmtElm> elms) {
   // If we already ran out of space then return immediately.
   if (space() == 0)
     return;
   int offset = 0;
   int elm = 0;
-  while (format[offset] != '\0') {
+  while (offset < format.length()) {
     if (format[offset] != '%' || elm == elms.length()) {
       Put(format[offset]);
       offset++;
@@ -111,12 +111,11 @@ void StringStream::Add(const char* format, Vector<FmtElm> elms) {
     // Skip over the whole control character sequence until the
     // format element type
     temp[format_length++] = format[offset++];
-    // '\0' is not a control character so we don't have to
-    // explicitly check for the end of the string
-    while (IsControlChar(format[offset]))
+    while (offset < format.length() && IsControlChar(format[offset]))
       temp[format_length++] = format[offset++];
+    if (offset >= format.length())
+      return;
     char type = format[offset];
-    if (type == '\0') return;
     temp[format_length++] = type;
     temp[format_length] = '\0';
     offset++;
@@ -128,17 +127,36 @@ void StringStream::Add(const char* format, Vector<FmtElm> elms) {
       Add(value);
       break;
     }
+    case 'w': {
+      ASSERT_EQ(FmtElm::LC_STR, current.type_);
+      Vector<const uc16> value = *current.data_.u_lc_str_;
+      for (int i = 0; i < value.length(); i++)
+        Put(static_cast<char>(value[i]));
+      break;
+    }
     case 'o': {
       ASSERT_EQ(FmtElm::OBJ, current.type_);
       Object* obj = current.data_.u_obj_;
       PrintObject(obj);
       break;
     }
-    case 'i': case 'd': case 'u': case 'x': case 'c': case 'p': {
+    case 'k': {
+      ASSERT_EQ(FmtElm::INT, current.type_);
+      int value = current.data_.u_int_;
+      if (0x20 <= value && value <= 0x7F) {
+        Put(value);
+      } else if (value <= 0xff) {
+        Add("\\x%02x", value);
+      } else {
+        Add("\\u%04x", value);
+      }
+      break;
+    }
+    case 'i': case 'd': case 'u': case 'x': case 'c': case 'p': case 'X': {
       int value = current.data_.u_int_;
       EmbeddedVector<char, 24> formatted;
-      OS::SNPrintF(formatted, temp.start(), value);
-      Add(formatted.start());
+      int length = OS::SNPrintF(formatted, temp.start(), value);
+      Add(Vector<const char>(formatted.start(), length));
       break;
     }
     case 'f': case 'g': case 'G': case 'e': case 'E': {
@@ -154,10 +172,8 @@ void StringStream::Add(const char* format, Vector<FmtElm> elms) {
     }
   }
 
-  // Verify that the buffer is 0-terminated and doesn't contain any
-  // other 0-characters.
+  // Verify that the buffer is 0-terminated
   ASSERT(buffer_[length_] == '\0');
-  ASSERT(strlen(buffer_) == length_);
 }
 
 
@@ -188,6 +204,11 @@ void StringStream::PrintObject(Object* o) {
 
 
 void StringStream::Add(const char* format) {
+  Add(CStrVector(format));
+}
+
+
+void StringStream::Add(Vector<const char> format) {
   Add(format, Vector<FmtElm>::empty());
 }
 
@@ -195,14 +216,14 @@ void StringStream::Add(const char* format) {
 void StringStream::Add(const char* format, FmtElm arg0) {
   const char argc = 1;
   FmtElm argv[argc] = { arg0 };
-  Add(format, Vector<FmtElm>(argv, argc));
+  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
 }
 
 
 void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1) {
   const char argc = 2;
   FmtElm argv[argc] = { arg0, arg1 };
-  Add(format, Vector<FmtElm>(argv, argc));
+  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
 }
 
 
@@ -210,7 +231,15 @@ void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
                        FmtElm arg2) {
   const char argc = 3;
   FmtElm argv[argc] = { arg0, arg1, arg2 };
-  Add(format, Vector<FmtElm>(argv, argc));
+  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
+}
+
+
+void StringStream::Add(const char* format, FmtElm arg0, FmtElm arg1,
+                       FmtElm arg2, FmtElm arg3) {
+  const char argc = 4;
+  FmtElm argv[argc] = { arg0, arg1, arg2, arg3 };
+  Add(CStrVector(format), Vector<FmtElm>(argv, argc));
 }
 
 

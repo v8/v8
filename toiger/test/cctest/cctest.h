@@ -42,7 +42,6 @@
   static void Test##Name()
 #endif
 
-
 class CcTest {
  public:
   typedef void (TestFunction)();

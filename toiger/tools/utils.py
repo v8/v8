@@ -42,7 +42,7 @@ def ReadLinesFrom(name):
     list.append(line)
   return list
 
-  
+
 def GuessOS():
   id = platform.system()
   if id == 'Linux':
@@ -53,6 +53,8 @@ def GuessOS():
     # On Windows Vista platform.system() can return 'Microsoft' with some
     # versions of Python, see http://bugs.python.org/issue1082
     return 'win32'
+  elif id == 'FreeBSD':
+    return 'freebsd'
   else:
     return None
 

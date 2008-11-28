@@ -28,7 +28,7 @@
 #ifndef V8_MACRO_ASSEMBLER_H_
 #define V8_MACRO_ASSEMBLER_H_
 
-#if defined(ARM) || defined (__arm__) || defined(__thumb__)
+#ifdef ARM
 
 #include "constants-arm.h"
 #include "assembler.h"

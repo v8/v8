@@ -1498,9 +1498,12 @@ class FixedArray: public Array {
 
   // Setter and getter for elements.
   inline Object* get(int index);
+  // Setter that uses write barrier.
   inline void set(int index, Object* value);
 
-  // Setter with barrier mode.
+  // Setter that doesn't need write barrier).
+  inline void set(int index, Smi* value);
+  // Setter with explicit barrier mode.
   inline void set(int index, Object* value, WriteBarrierMode mode);
 
   // Setters for frequently used oddballs located in old space.
@@ -2114,14 +2117,17 @@ class Code: public HeapObject {
     CALL_IC,
     STORE_IC,
     KEYED_STORE_IC,
+    // No more than eight kinds. The value currently encoded in three bits in
+    // Flags.
 
     // Pseudo-kinds.
+    REGEXP = BUILTIN,
     FIRST_IC_KIND = LOAD_IC,
     LAST_IC_KIND = KEYED_STORE_IC
   };
 
   enum {
-    NUMBER_OF_KINDS = LAST_IC_KIND + 1
+    NUMBER_OF_KINDS = KEYED_STORE_IC + 1
   };
 
   // A state indicates that inline cache in this Code object contains
@@ -2271,7 +2277,6 @@ class Code: public HeapObject {
   static const int kFlagsKindMask           = 0x00000038;  // 000111000
   static const int kFlagsTypeMask           = 0x000001C0;  // 111000000
   static const int kFlagsArgumentsCountMask = 0xFFFFFE00;
-
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
@@ -2912,7 +2917,13 @@ class JSValue: public JSObject {
 // Regular expressions
 class JSRegExp: public JSObject {
  public:
-  enum Type { NOT_COMPILED, JSCRE, ATOM };
+  // Meaning of Type:
+  // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
+  // JSCRE: A complex RegExp for JSCRE
+  // ATOM: A simple string to match against using an indexOf operation.
+  // IRREGEXP: Compiled with Irregexp.
+  // IRREGEXP_NATIVE: Compiled to native code with Irregexp.
+  enum Type { NOT_COMPILED, JSCRE, ATOM, IRREGEXP, IRREGEXP_NATIVE };
   enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
 
   class Flags {
@@ -2929,6 +2940,8 @@ class JSRegExp: public JSObject {
   DECL_ACCESSORS(data, Object)
 
   inline Type TypeTag();
+  inline Flags GetFlags();
+  inline String* Pattern();
   inline Object* DataAt(int index);
 
   static inline JSRegExp* cast(Object* obj);
@@ -2945,10 +2958,11 @@ class JSRegExp: public JSObject {
   static const int kTagIndex = 0;
   static const int kSourceIndex = kTagIndex + 1;
   static const int kFlagsIndex = kSourceIndex + 1;
-  // These two are the same since the same entry is shared for
+  // These three are the same since the same entry is shared for
   // different purposes in different types of regexps.
   static const int kAtomPatternIndex = kFlagsIndex + 1;
   static const int kJscreDataIndex = kFlagsIndex + 1;
+  static const int kIrregexpDataIndex = kFlagsIndex + 1;
   static const int kDataSize = kAtomPatternIndex + 1;
 };
 
@@ -3575,6 +3589,28 @@ class ExternalTwoByteString: public ExternalString {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalTwoByteString);
+};
+
+
+// A flat string reader provides random access to the contents of a
+// string independent of the character width of the string.  The handle
+// must be valid as long as the reader is being used.
+class FlatStringReader BASE_EMBEDDED {
+ public:
+  explicit FlatStringReader(Handle<String> str);
+  explicit FlatStringReader(Vector<const char> input);
+  ~FlatStringReader();
+  void RefreshState();
+  inline uc32 Get(int index);
+  int length() { return length_; }
+  static void PostGarbageCollectionProcessing();
+ private:
+  String** str_;
+  bool is_ascii_;
+  int length_;
+  const void* start_;
+  FlatStringReader* prev_;
+  static FlatStringReader* top_;
 };
 
 

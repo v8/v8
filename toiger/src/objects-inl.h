@@ -279,6 +279,16 @@ bool StringShape::IsExternalTwoByte() {
 }
 
 
+uc32 FlatStringReader::Get(int index) {
+  ASSERT(0 <= index && index <= length_);
+  if (is_ascii_) {
+    return static_cast<const byte*>(start_)[index];
+  } else {
+    return static_cast<const uc16*>(start_)[index];
+  }
+}
+
+
 bool Object::IsNumber() {
   return IsSmi() || IsHeapNumber();
 }
@@ -1142,6 +1152,13 @@ Object* FixedArray::get(int index) {
 }
 
 
+void FixedArray::set(int index, Smi* value) {
+  ASSERT(reinterpret_cast<Object*>(value)->IsSmi());
+  int offset = kHeaderSize + index * kPointerSize;
+  WRITE_FIELD(this, offset, value);
+}
+
+
 void FixedArray::set(int index, Object* value) {
   ASSERT(index >= 0 && index < this->length());
   int offset = kHeaderSize + index * kPointerSize;
@@ -1747,6 +1764,7 @@ Code::Flags Code::flags() {
 
 
 void Code::set_flags(Code::Flags flags) {
+  STATIC_ASSERT(Code::NUMBER_OF_KINDS <= (kFlagsKindMask >> kFlagsKindShift)+1);
   // Make sure that all call stubs have an arguments count.
   ASSERT(ExtractKindFromFlags(flags) != CALL_IC ||
          ExtractArgumentsCountFromFlags(flags) >= 0);
@@ -2210,6 +2228,22 @@ JSRegExp::Type JSRegExp::TypeTag() {
   if (data->IsUndefined()) return JSRegExp::NOT_COMPILED;
   Smi* smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
   return static_cast<JSRegExp::Type>(smi->value());
+}
+
+
+JSRegExp::Flags JSRegExp::GetFlags() {
+  ASSERT(this->data()->IsFixedArray());
+  Object* data = this->data();
+  Smi* smi = Smi::cast(FixedArray::cast(data)->get(kFlagsIndex));
+  return Flags(smi->value());
+}
+
+
+String* JSRegExp::Pattern() {
+  ASSERT(this->data()->IsFixedArray());
+  Object* data = this->data();
+  String* pattern= String::cast(FixedArray::cast(data)->get(kSourceIndex));
+  return pattern;
 }
 
 

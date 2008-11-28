@@ -3501,6 +3501,57 @@ const unibrow::byte* String::ReadBlock(String* input,
 }
 
 
+FlatStringReader* FlatStringReader::top_ = NULL;
+
+
+FlatStringReader::FlatStringReader(Handle<String> str)
+    : str_(str.location()),
+      length_(str->length()),
+      prev_(top_) {
+  top_ = this;
+  RefreshState();
+}
+
+
+FlatStringReader::FlatStringReader(Vector<const char> input)
+    : str_(NULL),
+      is_ascii_(true),
+      length_(input.length()),
+      start_(input.start()),
+      prev_(top_) {
+  top_ = this;
+}
+
+
+FlatStringReader::~FlatStringReader() {
+  ASSERT_EQ(top_, this);
+  top_ = prev_;
+}
+
+
+void FlatStringReader::RefreshState() {
+  if (str_ == NULL) return;
+  Handle<String> str(str_);
+  StringShape shape(*str);
+  ASSERT(str->IsFlat(shape));
+  is_ascii_ = shape.IsAsciiRepresentation();
+  if (is_ascii_) {
+    start_ = str->ToAsciiVector().start();
+  } else {
+    start_ = str->ToUC16Vector().start();
+  }
+}
+
+
+void FlatStringReader::PostGarbageCollectionProcessing() {
+  FlatStringReader* current = top_;
+  while (current != NULL) {
+    current->RefreshState();
+    current = current->prev_;
+  }
+}
+
+
 void StringInputBuffer::Seek(unsigned pos) {
   Reset(pos, input_);
 }
@@ -5745,8 +5796,8 @@ class StringKey : public HashTableKey {
 class RegExpKey : public HashTableKey {
  public:
   RegExpKey(String* string, JSRegExp::Flags flags)
-    : string_(string),
-      flags_(Smi::FromInt(flags.value())) { }
+      : string_(string),
+        flags_(Smi::FromInt(flags.value())) { }
 
   bool IsMatch(Object* obj) {
     FixedArray* val = FixedArray::cast(obj);
@@ -6137,7 +6188,7 @@ class SymbolsKey : public HashTableKey {
 class MapNameKey : public HashTableKey {
  public:
   MapNameKey(Map* map, String* name)
-    : map_(map), name_(name) { }
+      : map_(map), name_(name) { }
 
   bool IsMatch(Object* other) {
     if (!other->IsFixedArray()) return false;

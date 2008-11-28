@@ -103,6 +103,8 @@ all, it had only been about 10 years then... */
 #define DPRINTF(p) /*nothing*/
 #endif
 
+namespace v8 { namespace jscre {
+
 /* PCRE keeps offsets in its compiled code as 2-byte quantities (always stored
 in big-endian order) by default. These are used, for example, to link from the
 start of a subpattern to its alternatives and its end. The use of 2 bytes per
@@ -416,6 +418,7 @@ but are not part of the public API and so not exported from the library. */
 extern int kjs_pcre_ucp_othercase(unsigned);
 extern bool kjs_pcre_xclass(int, const unsigned char*);
 
+} }  // namespace v8::jscre
 #endif
 
 #endif

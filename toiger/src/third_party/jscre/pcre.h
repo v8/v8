@@ -49,6 +49,8 @@ POSSIBILITY OF SUCH DAMAGE.
 // we allow DEBUG to be set and undef it manually.
 #undef DEBUG
 
+namespace v8 { namespace jscre {
+
 typedef uint16_t UChar;
 
 struct JSRegExp;
@@ -76,5 +78,7 @@ int jsRegExpExecute(const JSRegExp*,
     int* offsetsVector, int offsetsVectorLength);
 
 void jsRegExpFree(JSRegExp*);
+
+} }  // namespace v8::jscre
 
 #endif

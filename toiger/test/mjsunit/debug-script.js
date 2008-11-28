@@ -58,7 +58,9 @@ assertEquals(12, native_count);
 // If no snapshot is used, only the 'gc' extension is loaded.
 // If snapshot is used, all extensions are cached in the snapshot.
 assertTrue(extension_count == 1 || extension_count == 5);
-assertEquals(2, normal_count);  // This script and mjsunit.js.
+// This script and mjsunit.js has been loaded.  If using d8, d8 loads
+// a normal script during startup too.
+assertTrue(normal_count == 2 || normal_count == 3);
 
 // Test a builtins script.
 var math_script = Debug.findScript('native math.js');

@@ -42,6 +42,8 @@ PCRE code modules. */
 
 #include "pcre_internal.h"
 
+namespace v8 { namespace jscre {
+
 /*************************************************
 *           Tables for UTF-8 support             *
 *************************************************/
@@ -69,3 +71,5 @@ const unsigned char kjs_pcre_utf8_table4[0x40] = {
   3,3,3,3,3,3,3,3,4,4,4,4,5,5,5,5 };
 
 #include "pcre_chartables.c"
+
+} }  // namespace v8::jscre

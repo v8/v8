@@ -65,6 +65,8 @@ compile time. */
 
 #define BRASTACK_SIZE 200
 
+namespace v8 { namespace jscre {
+
 /* Table for handling escaped characters in the range '0'-'z'. Positive returns
 are simple data values; negative values are for special things like \d and so
 on. Zero means further processing is needed (for things like \x), or the escape
@@ -2671,3 +2673,5 @@ void jsRegExpFree(JSRegExp* re, free_t* free_function)
 {
     (*free_function)(reinterpret_cast<void*>(re));
 }
+
+} }  // namespace v8::jscre

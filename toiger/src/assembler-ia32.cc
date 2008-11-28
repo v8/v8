@@ -122,7 +122,8 @@ void CpuFeatures::Probe() {
 #undef __
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB));
+  Object* code =
+      Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB), NULL);
   if (!code->IsCode()) return;
   F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
   uint32_t res = f();
@@ -294,7 +295,6 @@ Assembler::Assembler(void* buffer, int buffer_size) {
     }
     buffer_size_ = buffer_size;
     own_buffer_ = true;
-
   } else {
     // use externally provided buffer instead
     ASSERT(buffer_size > 0);
@@ -417,6 +417,29 @@ void Assembler::push(const Operand& src) {
   last_pc_ = pc_;
   EMIT(0xFF);
   emit_operand(esi, src);
+}
+
+
+void Assembler::push(Label* label, RelocInfo::Mode reloc_mode) {
+  ASSERT_NOT_NULL(label);
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  // If reloc_mode == NONE, the label is stored as buffer relative.
+  ASSERT(reloc_mode == RelocInfo::NONE);
+  if (label->is_bound()) {
+    // Index of position relative to Code Object-pointer.
+    int rel_pos = label->pos() + Code::kHeaderSize - kHeapObjectTag;
+    if (rel_pos >= 0 && rel_pos < 256) {
+      EMIT(0x6a);
+      EMIT(rel_pos);
+    } else {
+      EMIT(0x68);
+      emit(rel_pos);
+    }
+  } else {
+    EMIT(0x68);
+    emit_disp(label, Displacement::CODE_RELATIVE);
+  }
 }
 
 
@@ -543,6 +566,22 @@ void Assembler::pop(const Operand& dst) {
   last_pc_ = pc_;
   EMIT(0x8F);
   emit_operand(eax, dst);
+}
+
+
+void Assembler::enter(const Immediate& size) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xC8);
+  emit_w(size);
+  EMIT(0);
+}
+
+
+void Assembler::leave() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xC9);
 }
 
 
@@ -830,6 +869,23 @@ void Assembler::cmp(const Operand& op, const Immediate& imm) {
 }
 
 
+void Assembler::rep_cmpsb() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xFC);  // CLD to ensure forward operation
+  EMIT(0xF3);  // REP
+  EMIT(0xA6);  // CMPSB
+}
+
+void Assembler::rep_cmpsl() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xFC);  // CLD to ensure forward operation
+  EMIT(0xF3);  // REP
+  EMIT(0xA7);  // CMPSW
+}
+
+
 void Assembler::dec_b(Register dst) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1074,6 +1130,14 @@ void Assembler::shr(Register dst) {
 }
 
 
+void Assembler::shr_cl(Register dst) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xD1);
+  EMIT(0xE8 | dst.code());
+}
+
+
 void Assembler::sub(const Operand& dst, const Immediate& x) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1171,6 +1235,15 @@ void Assembler::xor_(const Operand& dst, const Immediate& x) {
 }
 
 
+void Assembler::bt(const Operand& dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x0F);
+  EMIT(0xA3);
+  emit_operand(src, dst);
+}
+
+
 void Assembler::bts(const Operand& dst, Register src) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1224,13 +1297,6 @@ void Assembler::ret(int imm16) {
 }
 
 
-void Assembler::leave() {
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  EMIT(0xC9);
-}
-
-
 // Labels refer to positions in the (to be) generated code.
 // There are bound, linked, and unused labels.
 //
@@ -1270,12 +1336,17 @@ void Assembler::bind_to(Label* L, int pos) {
   while (L->is_linked()) {
     Displacement disp = disp_at(L);
     int fixup_pos = L->pos();
-    if (disp.type() == Displacement::UNCONDITIONAL_JUMP) {
-      ASSERT(byte_at(fixup_pos - 1) == 0xE9);  // jmp expected
+    if (disp.type() == Displacement::CODE_RELATIVE) {
+      // Relative to Code* heap object pointer.
+      long_at_put(fixup_pos, pos + Code::kHeaderSize - kHeapObjectTag);
+    } else {
+      if (disp.type() == Displacement::UNCONDITIONAL_JUMP) {
+        ASSERT(byte_at(fixup_pos - 1) == 0xE9);  // jmp expected
+      }
+      // relative address, relative to point after address
+      int imm32 = pos - (fixup_pos + sizeof(int32_t));
+      long_at_put(fixup_pos, imm32);
     }
-    // relative address, relative to point after address
-    int imm32 = pos - (fixup_pos + sizeof(int32_t));
-    long_at_put(fixup_pos, imm32);
     disp.next(L);
   }
   L->bind_to(pos);

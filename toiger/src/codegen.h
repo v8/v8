@@ -59,7 +59,7 @@
 // CodeGenerator::FastCaseSwitchMinCaseCount
 // CodeGenerator::FastCaseSwitchMaxOverheadFactor
 
-#if defined(ARM)
+#ifdef ARM
 #include "codegen-arm.h"
 #else
 #include "codegen-ia32.h"
