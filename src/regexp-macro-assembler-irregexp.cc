@@ -226,6 +226,12 @@ void RegExpMacroAssemblerIrregexp::CheckCharacter(uc16 c, Label* on_equal) {
 }
 
 
+void RegExpMacroAssemblerIrregexp::CheckNotAtStart(Label* on_not_at_start) {
+  Emit(BC_CHECK_NOT_AT_START);
+  EmitOrLink(on_not_at_start);
+}
+
+
 void RegExpMacroAssemblerIrregexp::CheckNotCharacter(uc16 c,
                                                      Label* on_not_equal) {
   Emit(BC_CHECK_NOT_CHAR);

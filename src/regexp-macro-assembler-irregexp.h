@@ -70,6 +70,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacter(uc16 c, Label* on_equal);
+  virtual void CheckNotAtStart(Label* on_not_at_start);
   virtual void CheckNotCharacter(uc16 c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterOr(uc16 c, uc16 mask, Label* on_not_equal);
   virtual void CheckNotCharacterAfterMinusOr(uc16 c,

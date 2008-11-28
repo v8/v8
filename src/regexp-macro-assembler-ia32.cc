@@ -162,6 +162,11 @@ void RegExpMacroAssemblerIA32::CheckCharacterGT(uc16 limit, Label* on_greater) {
 }
 
 
+void RegExpMacroAssemblerIA32::CheckNotAtStart(Label* on_not_at_start) {
+  UNIMPLEMENTED();
+}
+
+
 void RegExpMacroAssemblerIA32::CheckCharacterLT(uc16 limit, Label* on_less) {
   __ cmp(edx, limit);
   BranchOrBacktrack(less, on_less);

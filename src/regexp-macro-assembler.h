@@ -75,6 +75,7 @@ class RegExpMacroAssembler {
   virtual void CheckCurrentPosition(
       int register_index,
       Label* on_equal) = 0;
+  virtual void CheckNotAtStart(Label* on_not_at_start) = 0;
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match) = 0;

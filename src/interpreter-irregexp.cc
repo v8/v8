@@ -365,6 +365,13 @@ static bool RawMatch(const byte* code_base,
         }
         break;
       }
+      BYTECODE(CHECK_NOT_AT_START)
+        if (current == 0) {
+          pc += BC_CHECK_NOT_AT_START_LENGTH;
+        } else {
+          pc = code_base + Load32(pc + 1);
+        }
+        break;
       default:
         UNREACHABLE();
         break;

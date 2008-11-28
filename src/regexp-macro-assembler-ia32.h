@@ -49,6 +49,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
                                int cp_offset,
                                Label* on_failure);
   virtual void CheckCurrentPosition(int register_index, Label* on_equal);
+  virtual void CheckNotAtStart(Label* on_not_at_start);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);
