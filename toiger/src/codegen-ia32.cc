@@ -80,6 +80,7 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
       masm_(new MacroAssembler(NULL, buffer_size)),
       scope_(NULL),
       frame_(NULL),
+      allocator_(NULL),
       cc_reg_(no_condition),
       state_(NULL),
       is_inside_try_(false),
@@ -106,6 +107,9 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   scope_ = fun->scope();
   ASSERT(frame_ == NULL);
   set_frame(new VirtualFrame(this));
+  ASSERT(allocator_ == NULL);
+  RegisterAllocator register_allocator(this);
+  allocator_ = &register_allocator;
   cc_reg_ = no_condition;
   function_return_.set_code_generator(this);
   function_return_is_shadowed_ = false;
@@ -123,54 +127,39 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // edi: caller's parameter pointer
     // esi: callee's context
 
+    allocator_->Initialize();
     frame_->Enter();
     // tos: code slot
 #ifdef DEBUG
     if (strlen(FLAG_stop_at) > 0 &&
         fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+      frame_->SpillAll();
       __ int3();
     }
 #endif
 
-    // This section now only allocates and copies the formals into the
-    // arguments object. It saves the address in ecx, which is saved
-    // at any point before either garbage collection or ecx is
-    // overwritten.  The flag arguments_array_allocated communicates
-    // with the store into the arguments variable and guards the lazy
-    // pushes of ecx to TOS.  The flag arguments_array_saved notes
-    // when the push has happened.
-    bool arguments_object_allocated = false;
-    bool arguments_object_saved = false;
+    // Allocate space for locals and initialize them.
+    frame_->AllocateStackSlots(scope_->num_stack_slots());
 
-    // Allocate arguments object.
-    // The arguments object pointer needs to be saved in ecx, since we need
-    // to store arguments into the context.
+    // Allocate the arguments object and copy the parameters into it.
     if (scope_->arguments() != NULL) {
       ASSERT(scope_->arguments_shadow() != NULL);
-      Comment cmnt(masm_, "[ allocate arguments object");
+      Comment cmnt(masm_, "[ Allocate arguments object");
       ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
+      frame_->SpillAll();
       __ lea(eax, frame_->Receiver());
       frame_->EmitPush(frame_->Function());
       frame_->EmitPush(eax);
       frame_->EmitPush(Immediate(Smi::FromInt(scope_->num_parameters())));
       frame_->CallStub(&stub, 3);
-      __ mov(ecx, Operand(eax));
-      arguments_object_allocated = true;
+      frame_->Push(eax);
     }
 
-    // Allocate space for locals and initialize them.
-    frame_->AllocateStackSlots(scope_->num_stack_slots());
-
     if (scope_->num_heap_slots() > 0) {
-      frame_->SpillAll();
       Comment cmnt(masm_, "[ allocate local context");
-      // Save the arguments object pointer, if any.
-      if (arguments_object_allocated && !arguments_object_saved) {
-        frame_->EmitPush(ecx);
-        arguments_object_saved = true;
-      }
       // Allocate local context.
       // Get outer context and create a new context based on it.
+      frame_->SpillAll();
       frame_->EmitPush(frame_->Function());
       frame_->CallRuntime(Runtime::kNewContext, 1);  // eax holds the result
 
@@ -205,6 +194,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         Variable* par = scope_->parameter(i);
         Slot* slot = par->slot();
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
+          frame_->SpillAll();
           ASSERT(!scope_->is_global_scope());  // no parameters in global scope
           __ mov(eax, frame_->ParameterAt(i));
           // Loads ecx with context; used below in RecordWrite.
@@ -222,27 +212,16 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // Store the arguments object.  This must happen after context
     // initialization because the arguments object may be stored in the
     // context.
-    if (arguments_object_allocated) {
-      ASSERT(scope_->arguments() != NULL);
-      ASSERT(scope_->arguments_shadow() != NULL);
+    if (scope_->arguments() != NULL) {
+      frame_->SpillAll();
       Comment cmnt(masm_, "[ store arguments object");
       { Reference shadow_ref(this, scope_->arguments_shadow());
         ASSERT(shadow_ref.is_slot());
         { Reference arguments_ref(this, scope_->arguments());
           ASSERT(arguments_ref.is_slot());
-          // If the newly-allocated arguments object is already on the
-          // stack, we make use of the convenient property that references
-          // representing slots take up no space on the expression stack
-          // (ie, it doesn't matter that the stored value is actually below
-          // the reference).
-          //
-          // If the newly-allocated argument object is not already on
-          // the stack, we rely on the property that loading a
-          // zero-sized reference will not clobber the ecx register.
-          if (!arguments_object_saved) {
-            frame_->SpillAll();
-            frame_->EmitPush(ecx);
-          }
+          // Here we rely on the convenient property that references to slot
+          // take up zero space in the frame (ie, it doesn't matter that the
+          // stored value is actually below the reference on the frame).
           arguments_ref.SetValue(NOT_CONST_INIT);
         }
         shadow_ref.SetValue(NOT_CONST_INIT);
@@ -268,6 +247,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       frame_->CallRuntime(Runtime::kTraceEnter, 0);
       // Ignore the return value.
     }
+    frame_->SpillAll();
     CheckStack();
 
     // Compile the body of the function in a vanilla state. Don't
@@ -302,13 +282,16 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   loop_nesting_ -= fun->loop_nesting();
 
   // Code generation state must be reset.
-  ASSERT(!function_return_is_shadowed_);
-  function_return_.Unuse();
-  scope_ = NULL;
-  delete_frame();
-  ASSERT(!has_cc());
   ASSERT(state_ == NULL);
   ASSERT(loop_nesting() == 0);
+  ASSERT(!function_return_is_shadowed_);
+  function_return_.Unuse();
+  ASSERT(!has_cc());
+  // There is no need to delete the register allocator, it is a
+  // stack-allocated local.
+  allocator_ = NULL;
+  delete_frame();
+  scope_ = NULL;
 }
 
 
@@ -1195,8 +1178,8 @@ void SmiComparisonDeferred::Generate() {
 
 
 void CodeGenerator::SmiComparison(Condition cc,
-                                      Handle<Object> value,
-                                      bool strict) {
+                                  Handle<Object> value,
+                                  bool strict) {
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == equal);
 

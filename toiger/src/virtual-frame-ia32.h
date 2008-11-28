@@ -29,44 +29,53 @@
 #define V8_VIRTUAL_FRAME_IA32_H_
 
 #include "macro-assembler.h"
+#include "register-allocator.h"
 
 namespace v8 { namespace internal {
 
 // -------------------------------------------------------------------------
 // Virtual frame elements
 //
-// The internal elements of the virtual frames.  Elements are (currently) of
-// only one kind, in-memory.  Their actual location is given by their
-// position in the virtual frame.
+// The internal elements of the virtual frames.  There are several kinds of
+// elements:
+//   * Memory: an element that resides in the actual frame.  Its address is
+//     given by its position in the virtual frame.
+//   * Register: an element that resides in a register.
+//   * Constant: an element whose value is known at compile time.
 
 class FrameElement BASE_EMBEDDED {
  public:
+  enum SyncFlag { SYNCED, NOT_SYNCED };
+
+  // Construct an in-memory frame element.
   FrameElement() {
-    type_ = TypeField::encode(MEMORY) | DirtyField::encode(false);
-    // Memory elements have no useful data.
+    type_ = TypeField::encode(MEMORY) | SyncField::encode(SYNCED);
+    // In-memory elements have no useful data.
     data_.reg_ = no_reg;
   }
 
-  explicit FrameElement(Register reg) {
-    type_ = TypeField::encode(REGISTER) | DirtyField::encode(true);
+  // Construct an in-register frame element.
+  FrameElement(Register reg, SyncFlag is_synced) {
+    type_ = TypeField::encode(REGISTER) | SyncField::encode(is_synced);
     data_.reg_ = reg;
   }
 
-  explicit FrameElement(Handle<Object> value) {
-    type_ = TypeField::encode(CONSTANT) | DirtyField::encode(true);
+  // Construct a frame element whose value is known at compile time.
+  FrameElement(Handle<Object> value, SyncFlag is_synced) {
+    type_ = TypeField::encode(CONSTANT) | SyncField::encode(is_synced);
     data_.handle_ = value.location();
   }
 
-  bool is_dirty() const { return DirtyField::decode(type_); }
+  bool is_synced() const { return SyncField::decode(type_) == SYNCED; }
 
-  void set_dirty() {
+  void set_sync() {
     ASSERT(type() != MEMORY);
-    type_ = type_ | DirtyField::encode(true);
+    type_ = type_ | SyncField::encode(SYNCED);
   }
 
-  void clear_dirty() {
+  void clear_sync() {
     ASSERT(type() != MEMORY);
-    type_ = type_ & ~DirtyField::mask();
+    type_ = type_ & ~SyncField::mask();
   }
 
   bool is_register() const { return type() == REGISTER; }
@@ -86,7 +95,7 @@ class FrameElement BASE_EMBEDDED {
   enum Type { MEMORY, REGISTER, CONSTANT };
 
   // BitField is <type, shift, size>.
-  class DirtyField : public BitField<bool, 0, 1> {};
+  class SyncField : public BitField<SyncFlag, 0, 1> {};
   class TypeField : public BitField<Type, 1, 32 - 1> {};
 
   Type type() const { return TypeField::decode(type_); }
@@ -136,6 +145,10 @@ class VirtualFrame : public Malloced {
 
   // Spill all values from the frame to memory.
   void SpillAll();
+
+  // Spill a register if possible.  Return the register spilled or no_reg if
+  // it was not possible to spill one.
+  Register SpillAnyRegister();
 
   // Ensure that this frame is in a state where an arbitrary frame of the
   // right size could be merged to it.  May emit code.
@@ -231,6 +244,10 @@ class VirtualFrame : public Malloced {
   void EmitPush(Operand operand);
   void EmitPush(Immediate immediate);
 
+  // Push an element on the virtual frame.
+  void Push(Register reg);
+  void Push(Handle<Object> value);
+
  private:
   // An illegal index into the virtual frame.
   static const int kIllegalIndex = -1;
@@ -241,6 +258,7 @@ class VirtualFrame : public Malloced {
 
   static const int kHandlerSize = StackHandlerConstants::kSize / kPointerSize;
 
+  CodeGenerator* cgen_;
   MacroAssembler* masm_;
 
   List<FrameElement> elements_;
@@ -256,14 +274,34 @@ class VirtualFrame : public Malloced {
   // (the ebp register).
   int frame_pointer_;
 
+  // The frame has an embedded register file that it uses to track registers
+  // used in the frame.
+  RegisterFile frame_registers_;
+
   // The index of the first parameter.  The receiver lies below the first
   // parameter.
   int param0_index() const { return 1; }
 
+  // The index of the context slot in the frame.
+  int context_index() const {
+    ASSERT(frame_pointer_ != kIllegalIndex);
+    return frame_pointer_ + 1;
+  }
+
+  // The index of the function slot in the frame.  It lies above the context
+  // slot.
+  int function_index() const {
+    ASSERT(frame_pointer_ != kIllegalIndex);
+    return frame_pointer_ + 2;
+  }
+
   // The index of the first local.  Between the parameters and the locals
   // lie the return address, the saved frame pointer, the context, and the
   // function.
-  int local0_index() const { return param0_index() + parameter_count_ + 4; }
+  int local0_index() const {
+    ASSERT(frame_pointer_ != kIllegalIndex);
+    return frame_pointer_ + 3;
+  }
 
   // The index of the base of the expression stack.
   int expression_base_index() const { return local0_index() + local_count_; }
@@ -273,6 +311,15 @@ class VirtualFrame : public Malloced {
   int fp_relative(int index) const {
     return (frame_pointer_ - index) * kPointerSize;
   }
+
+  // Record an occurrence of a register in the virtual frame.  This has the
+  // effect of incrementing both the register's frame-internal reference
+  // count and its external reference count.
+  void Use(Register reg);
+
+  // Record that a register reference has been dropped from the frame.  This
+  // decrements both the register's internal and external reference counts.
+  void Unuse(Register reg);
 
   // Sync the element at a particular index---write it to memory if
   // necessary, but do not free any associated register or forget its value
@@ -285,6 +332,9 @@ class VirtualFrame : public Malloced {
   // constant.  Space should have already been allocated in the actual frame
   // for all the elements below this one (at least).
   void SpillElementAt(int index);
+
+  // Sync all elements in the frame.
+  void SyncAll();
 
   // Spill the topmost elements of the frame to memory (eg, they are the
   // arguments to a call) and all registers.

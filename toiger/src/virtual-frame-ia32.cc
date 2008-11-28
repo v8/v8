@@ -41,26 +41,30 @@ namespace v8 { namespace internal {
 // On entry to a function, the virtual frame already contains the receiver,
 // the parameters, and a return address.  All frame elements are in memory.
 VirtualFrame::VirtualFrame(CodeGenerator* cgen)
-    : masm_(cgen->masm()),
+    : cgen_(cgen),
+      masm_(cgen->masm()),
       elements_(0),
       parameter_count_(cgen->scope()->num_parameters()),
       local_count_(0),
       stack_pointer_(parameter_count_ + 1),  // 0-based index of TOS.
       frame_pointer_(kIllegalIndex) {
+  FrameElement memory_element;
   for (int i = 0; i < parameter_count_ + 2; i++) {
-    elements_.Add(FrameElement());
+    elements_.Add(memory_element);
   }
 }
 
 
 // When cloned, a frame is a deep copy of the original.
 VirtualFrame::VirtualFrame(VirtualFrame* original)
-    : masm_(original->masm_),
+    : cgen_(original->cgen_),
+      masm_(original->masm_),
       elements_(original->elements_.length()),
       parameter_count_(original->parameter_count_),
       local_count_(original->local_count_),
       stack_pointer_(original->stack_pointer_),
-      frame_pointer_(original->frame_pointer_) {
+      frame_pointer_(original->frame_pointer_),
+      frame_registers_(original->frame_registers_) {
   // Copy all the elements from the original.
   for (int i = 0; i < original->elements_.length(); i++) {
     elements_.Add(original->elements_[i]);
@@ -94,8 +98,23 @@ void VirtualFrame::Forget(int count) {
 
   stack_pointer_ -= count;
   for (int i = 0; i < count; i++) {
-    elements_.RemoveLast();
+    FrameElement last = elements_.RemoveLast();
+    if (last.is_register()) {
+      Unuse(last.reg());
+    }
   }
+}
+
+
+void VirtualFrame::Use(Register reg) {
+  frame_registers_.Use(reg);
+  cgen_->allocator()->Use(reg);
+}
+
+
+void VirtualFrame::Unuse(Register reg) {
+  frame_registers_.Unuse(reg);
+  cgen_->allocator()->Unuse(reg);
 }
 
 
@@ -105,7 +124,7 @@ void VirtualFrame::Forget(int count) {
 void VirtualFrame::SyncElementAt(int index) {
   FrameElement element = elements_[index];
 
-  if (element.is_dirty()) {
+  if (!element.is_synced()) {
     if (index <= stack_pointer_) {
       // Write elements below the stack pointer to their (already allocated)
       // actual frame location.
@@ -128,7 +147,55 @@ void VirtualFrame::SyncElementAt(int index) {
         __ push(element.reg());
       }
     }
+
+    elements_[index].set_sync();
   }
+}
+
+
+// Spill any register if possible, making its reference count zero.
+Register VirtualFrame::SpillAnyRegister() {
+  // Find the leftmost (ordered by register code), least
+  // internally-referenced register whose internal reference count matches
+  // its external reference count (so that spilling it from the frame frees
+  // it for use).
+  int min_count = kMaxInt;
+  int best_register_code = no_reg.code();
+
+  for (int i = 0; i < RegisterFile::kNumRegisters; i++) {
+    int count = frame_registers_.count(i);
+    if (count < min_count && count == cgen_->allocator()->count(i)) {
+      min_count = count;
+      best_register_code = i;
+    }
+  }
+
+  if (best_register_code != no_reg.code()) {
+    // Spill all occurrences of the register.  There are min_count
+    // occurrences, stop when we've spilled them all to avoid syncing
+    // elements unnecessarily.
+    int i = 0;
+    while (min_count > 0) {
+      ASSERT(i < elements_.length());
+      if (elements_[i].is_register() &&
+          elements_[i].reg().code() == best_register_code) {
+        // Found an instance of the best_register being used in the frame.
+        // Spill it.
+        SpillElementAt(i);
+        min_count--;
+      } else {
+        if (i > stack_pointer_) {
+          // Make sure to materialize elements on the virtual frame in
+          // memory.  We rely on this to spill occurrences of the register
+          // lying above the current virtual stack pointer.
+          SyncElementAt(i);
+        }
+      }
+    }
+  }
+
+  Register result = { best_register_code };
+  return result;
 }
 
 
@@ -138,7 +205,18 @@ void VirtualFrame::SyncElementAt(int index) {
 void VirtualFrame::SpillElementAt(int index) {
   SyncElementAt(index);
   // The element is now in memory.
+  if (elements_[index].is_register()) {
+    Unuse(elements_[index].reg());
+  }
   elements_[index] = FrameElement();
+}
+
+
+// Clear the dirty bits for all elements.
+void VirtualFrame::SyncAll() {
+  for (int i = 0; i < elements_.length(); i++) {
+    SyncElementAt(i);
+  }
 }
 
 
@@ -186,6 +264,7 @@ void VirtualFrame::EnsureMergable() {
 
 
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
+  ASSERT(cgen_ == expected->cgen_);
   ASSERT(masm_ == expected->masm_);
   ASSERT(elements_.length() == expected->elements_.length());
   ASSERT(parameter_count_ == expected->parameter_count_);
@@ -204,6 +283,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
 
 
 void VirtualFrame::Enter() {
+  // Registers live on entry: esp, ebp, esi, edi.
   Comment cmnt(masm_, "[ Enter JS frame");
   EmitPush(ebp);
 
@@ -211,23 +291,12 @@ void VirtualFrame::Enter() {
   __ mov(ebp, Operand(esp));
 
   // Store the context and the function in the frame.
-  FrameElement context(esi);
-  context.clear_dirty();
-  elements_.Add(context);
-  stack_pointer_++;
-  __ push(esi);
+  Push(esi);
+  // The frame owns the register reference now.
+  cgen_->allocator()->Unuse(esi);
 
-  FrameElement function(edi);
-  function.clear_dirty();
-  elements_.Add(function);
-  stack_pointer_++;
-  __ push(edi);
-
-  // Clear the function slot when generating debug code.
-  if (FLAG_debug_code) {
-    SpillElementAt(stack_pointer_);
-    __ Set(edi, Immediate(reinterpret_cast<int>(kZapValue)));
-  }
+  Push(edi);
+  cgen_->allocator()->Unuse(edi);
 }
 
 
@@ -244,7 +313,10 @@ void VirtualFrame::Exit() {
   __ mov(esp, Operand(ebp));
   stack_pointer_ = frame_pointer_;
   for (int i = elements_.length() - 1; i > stack_pointer_; i--) {
-    elements_.RemoveLast();
+    FrameElement last = elements_.RemoveLast();
+    if (last.is_register()) {
+      Unuse(last.reg());
+    }
   }
 
   frame_pointer_ = kIllegalIndex;
@@ -260,14 +332,17 @@ void VirtualFrame::AllocateStackSlots(int count) {
     Comment cmnt(masm_, "[ Allocate space for locals");
     // The locals are constants (the undefined value), but we sync them with
     // the actual frame to allocate space for spilling them.
-    FrameElement initial_value(Factory::undefined_value());
-    initial_value.clear_dirty();
-    __ Set(eax, Immediate(Factory::undefined_value()));
+    SyncAll();
+    Handle<Object> undefined = Factory::undefined_value();
+    FrameElement initial_value(undefined, FrameElement::SYNCED);
+    Register tmp = cgen_->allocator()->Allocate();
+    __ Set(tmp, Immediate(undefined));
     for (int i = 0; i < count; i++) {
       elements_.Add(initial_value);
       stack_pointer_++;
-      __ push(eax);
+      __ push(tmp);
     }
+    cgen_->allocator()->Unuse(tmp);
   }
 }
 
@@ -323,7 +398,10 @@ void VirtualFrame::Drop(int count) {
 
   // Discard elements above the stack pointer.
   while (count > 0 && stack_pointer_ < elements_.length() - 1) {
-    elements_.RemoveLast();
+    FrameElement last = elements_.RemoveLast();
+    if (last.is_register()) {
+      Unuse(last.reg());
+    }
   }
 
   // Discard the rest of the elements and lower the stack pointer.
@@ -371,9 +449,23 @@ void VirtualFrame::EmitPush(Operand operand) {
 
 void VirtualFrame::EmitPush(Immediate immediate) {
   ASSERT(stack_pointer_ == elements_.length() - 1);
-  elements_.Add(FrameElement());
+  FrameElement memory_element;
+  elements_.Add(memory_element);
   stack_pointer_++;
   __ push(immediate);
+}
+
+
+void VirtualFrame::Push(Register reg) {
+  FrameElement register_element(reg, FrameElement::NOT_SYNCED);
+  Use(reg);
+  elements_.Add(register_element);
+}
+
+
+void VirtualFrame::Push(Handle<Object> value) {
+  FrameElement constant_element(value, FrameElement::NOT_SYNCED);
+  elements_.Add(constant_element);
 }
 
 

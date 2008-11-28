@@ -29,6 +29,7 @@
 #define V8_CODEGEN_IA32_H_
 
 #include "scopes.h"
+#include "register-allocator.h"
 
 namespace v8 { namespace internal {
 
@@ -173,13 +174,13 @@ class CodeGenerator: public Visitor {
   MacroAssembler* masm() { return masm_; }
 
   VirtualFrame* frame() const { return frame_; }
-
   void set_frame(VirtualFrame* frame) { frame_ = frame; }
-
   void delete_frame() {
     delete frame_;
     frame_ = NULL;
   }
+
+  RegisterAllocator* allocator() const { return allocator_; }
 
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
@@ -389,6 +390,7 @@ class CodeGenerator: public Visitor {
   // Code generation state
   Scope* scope_;
   VirtualFrame* frame_;
+  RegisterAllocator* allocator_;
   Condition cc_reg_;
   CodeGenState* state_;
   bool is_inside_try_;
