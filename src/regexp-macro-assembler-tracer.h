@@ -51,6 +51,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void CheckCurrentPosition(
       int register_index,
       Label* on_equal);
+  virtual void CheckNotAtStart(Label* on_not_at_start);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);
