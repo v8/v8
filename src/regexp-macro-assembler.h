@@ -93,7 +93,9 @@ class RegExpMacroAssembler {
   virtual void CheckNotCharacterAfterMinusOr(uc16 c,
                                              uc16 minus_then_or_with,
                                              Label* on_not_equal) = 0;
-  virtual void CheckNotRegistersEqual(int reg1, int reg2, Label* on_not_equal) = 0;
+  virtual void CheckNotRegistersEqual(int reg1,
+                                      int reg2,
+                                      Label* on_not_equal) = 0;
   // Dispatch after looking the current character up in a byte map.  The
   // destinations vector has up to 256 labels.
   virtual void DispatchByteMap(
