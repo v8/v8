@@ -250,6 +250,10 @@ class CodeGenerator: public Visitor {
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
 
+  // Store the value on top of the expression stack into a slot, leaving the
+  // value in place.
+  void StoreToSlot(Slot* slot, InitState init_state);
+
   // Special code for typeof expressions: Unfortunately, we must
   // be careful when loading the expression in 'typeof'
   // expressions. We are not allowed to throw reference errors for

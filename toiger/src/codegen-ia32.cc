@@ -365,6 +365,7 @@ void CodeGenerator::LoadCondition(Expression* x,
 
   if (force_cc && frame_ != NULL && !has_cc()) {
     // Convert the TOS value to a boolean in the condition code register.
+    frame_->SpillAll();
     ToBoolean(true_target, false_target);
   }
 
@@ -448,8 +449,10 @@ void CodeGenerator::LoadTypeofExpression(Expression* x) {
     // no position.
     Property property(&global, &key, RelocInfo::kNoPosition);
     Load(&property);
+    frame_->SpillAll();
   } else {
     Load(x, INSIDE_TYPEOF);
+    frame_->SpillAll();
   }
 }
 
@@ -475,6 +478,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is either a property or a variable proxy that rewrites
     // to a property.
     Load(property->obj());
+    frame_->SpillAll();
     // We use a named reference if the key is a literal symbol, unless it is
     // a string that can be legally parsed as an integer.  This is because
     // otherwise we will not get into the slow case code that handles [] on
@@ -487,6 +491,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
       ref->set_type(Reference::NAMED);
     } else {
       Load(property->key());
+      frame_->SpillAll();
       ref->set_type(Reference::KEYED);
     }
   } else if (var != NULL) {
@@ -502,6 +507,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
   } else {
     // Anything else is a runtime error.
     Load(e);
+    frame_->SpillAll();
     frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
   }
 }
@@ -1224,6 +1230,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Load(args->at(i));
+    frame_->SpillAll();
   }
 
   // Record the position for debugging purposes.
@@ -1321,6 +1328,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
       frame_->EmitPush(Immediate(Factory::the_hole_value()));
     } else if (node->fun() != NULL) {
       Load(node->fun());
+      frame_->SpillAll();
     } else {
       frame_->EmitPush(Immediate(0));  // no initial value!
     }
@@ -1344,6 +1352,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     Reference target(this, node->proxy());
     ASSERT(target.is_slot());
     Load(val);
+    frame_->SpillAll();
     target.SetValue(NOT_CONST_INIT);
     // Get rid of the assigned value (declarations are statements).  It's
     // safe to pop the value lying on top of the reference before unloading
@@ -1355,7 +1364,6 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
 
 
 void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
-  frame_->SpillAll();
   Comment cmnt(masm_, "[ ExpressionStatement");
   RecordStatementPosition(node);
   Expression* expression = node->expression();
@@ -1363,6 +1371,10 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   Load(expression);
   // Remove the lingering expression result from the top of stack.
   frame_->Drop();
+  // Rather than using SpillAll after all recursive calls to Visit over
+  // statements, we spill here in the only statement type that uses the
+  // virtual frame.  This is temporary.
+  frame_->SpillAll();
 }
 
 
@@ -1448,6 +1460,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     // if (cond)
     LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &exit, false);
     if (frame_ != NULL) {
+      frame_->SpillAll();
       if (has_cc()) {
         cc_reg_ = no_condition;
       } else {
@@ -1494,6 +1507,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   Comment cmnt(masm_, "[ ReturnStatement");
   RecordStatementPosition(node);
   Load(node->expression());
+  frame_->SpillAll();
 
   // Move the function result into eax
   frame_->EmitPop(eax);
@@ -1534,6 +1548,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   RecordStatementPosition(node);
   Load(node->expression());
+  frame_->SpillAll();
   frame_->CallRuntime(Runtime::kPushContext, 1);
 
   if (kDebug) {
@@ -1645,6 +1660,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   node->break_target()->set_code_generator(this);
 
   Load(node->tag());
+  frame_->SpillAll();
 
   if (TryGenerateFastCaseSwitchStatement(node)) {
     return;
@@ -1674,6 +1690,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     __ mov(eax, frame_->Top());
     frame_->EmitPush(eax);
     Load(clause->label());
+    frame_->SpillAll();
     Comparison(equal, true);
     Branch(false, &next_test);
 
@@ -1930,6 +1947,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Get the object to enumerate over (converted to JSObject).
   Load(node->enumerable());
+  frame_->SpillAll();
 
   // Both SpiderMonkey and kjs ignore null and undefined in contrast
   // to the specification.  12.6.4 mandates a call to ToObject.
@@ -2414,11 +2432,13 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   if (frame_ != NULL || then.is_linked()) {
     then.Bind();
     Load(node->then_expression(), typeof_state());
+    frame_->SpillAll();
     exit.Jump();
   }
   if (else_.is_linked()) {
     else_.Bind();
     Load(node->else_expression(), typeof_state());
+    frame_->SpillAll();
   }
   exit.Bind();
 }
@@ -2462,6 +2482,87 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 }
 
 
+void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
+  if (slot->type() == Slot::LOOKUP) {
+    ASSERT(slot->var()->mode() == Variable::DYNAMIC);
+
+    // For now, just do a runtime call.
+    frame_->SpillAll();
+    frame_->EmitPush(frame_->Context());
+    frame_->EmitPush(Immediate(slot->var()->name()));
+
+    if (init_state == CONST_INIT) {
+      // Same as the case for a normal store, but ignores attribute
+      // (e.g. READ_ONLY) of context slot so that we can initialize const
+      // properties (introduced via eval("const foo = (some expr);")). Also,
+      // uses the current function context instead of the top context.
+      //
+      // Note that we must declare the foo upon entry of eval(), via a
+      // context slot declaration, but we cannot initialize it at the same
+      // time, because the const declaration may be at the end of the eval
+      // code (sigh...) and the const variable may have been used before
+      // (where its value is 'undefined'). Thus, we can only do the
+      // initialization when we actually encounter the expression and when
+      // the expression operands are defined and valid, and thus we need the
+      // split into 2 operations: declaration of the context slot followed
+      // by initialization.
+      frame_->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+    } else {
+      frame_->CallRuntime(Runtime::kStoreContextSlot, 3);
+    }
+    // Storing a variable must keep the (new) value on the expression
+    // stack. This is necessary for compiling chained assignment
+    // expressions.
+    frame_->EmitPush(eax);
+
+  } else {
+    ASSERT(slot->var()->mode() != Variable::DYNAMIC);
+
+    JumpTarget exit(this);
+    if (init_state == CONST_INIT) {
+      ASSERT(slot->var()->mode() == Variable::CONST);
+      // Only the first const initialization must be executed (the slot
+      // still contains 'the hole' value). When the assignment is executed,
+      // the code is identical to a normal store (see below).
+      Comment cmnt(masm_, "[ Init const");
+      frame_->SpillAll();
+      __ mov(eax, SlotOperand(slot, ecx));
+      __ cmp(eax, Factory::the_hole_value());
+      exit.Branch(not_equal);
+    }
+
+    // We must execute the store.  Storing a variable must keep the (new)
+    // value on the stack. This is necessary for compiling assignment
+    // expressions.
+    //
+    // Note: We will reach here even with slot->var()->mode() ==
+    // Variable::CONST because of const declarations which will initialize
+    // consts to 'the hole' value and by doing so, end up calling this code.
+    if (slot->type() == Slot::PARAMETER) {
+      frame_->StoreToParameterAt(slot->index());
+    } else if (slot->type() == Slot::LOCAL) {
+      frame_->StoreToLocalAt(slot->index());
+    } else {
+      // The other slot types (LOOKUP and GLOBAL) cannot reach here.
+      ASSERT(slot->type() == Slot::CONTEXT);
+      frame_->SpillAll();
+      frame_->EmitPop(eax);
+      __ mov(SlotOperand(slot, ecx), eax);
+      frame_->EmitPush(eax);  // RecordWrite may destroy the value in eax.
+      int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
+      __ RecordWrite(ecx, offset, eax, ebx);
+    }
+
+    // If we definitely did not jump over the assignment, we do not need
+    // to bind the exit label.  Doing so can defeat peephole
+    // optimization.
+    if (init_state == CONST_INIT) {
+      exit.Bind();
+    }
+  }
+}
+
+
 void CodeGenerator::VisitSlot(Slot* node) {
   frame_->SpillAll();
   Comment cmnt(masm_, "[ Slot");
@@ -2493,17 +2594,19 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 
 
 void CodeGenerator::VisitLiteral(Literal* node) {
-  frame_->SpillAll();
   Comment cmnt(masm_, "[ Literal");
   if (node->handle()->IsSmi() && !IsInlineSmi(node)) {
     // To prevent long attacker-controlled byte sequences in code, larger
-    // Smis are loaded in two steps.
+    // Smis are loaded in two steps via a temporary register.
+    Register temp = allocator_->Allocate();
     int bits = reinterpret_cast<int>(*node->handle());
-    __ mov(eax, bits & 0x0000FFFF);
-    __ xor_(eax, bits & 0xFFFF0000);
-    frame_->EmitPush(eax);
+    ASSERT(!temp.is(no_reg));
+    __ mov(temp, bits & 0x0000FFFF);
+    __ xor_(temp, bits & 0xFFFF0000);
+    frame_->Push(temp);
+    allocator_->Unuse(temp);
   } else {
-    frame_->EmitPush(Immediate(node->handle()));
+    frame_->Push(node->handle());
   }
 }
 
@@ -2641,6 +2744,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           __ mov(eax, frame_->Top());
           frame_->EmitPush(eax);
           Load(property->value());
+          frame_->SpillAll();
           frame_->EmitPop(eax);
           __ Set(ecx, Immediate(key));
           frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
@@ -2654,7 +2758,9 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         __ mov(eax, frame_->Top());
         frame_->EmitPush(eax);
         Load(property->key());
+        frame_->SpillAll();
         Load(property->value());
+        frame_->SpillAll();
         frame_->CallRuntime(Runtime::kSetProperty, 3);
         // Ignore result.
         break;
@@ -2665,8 +2771,10 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         __ mov(eax, frame_->Top());
         frame_->EmitPush(eax);
         Load(property->key());
+        frame_->SpillAll();
         frame_->EmitPush(Immediate(Smi::FromInt(1)));
         Load(property->value());
+        frame_->SpillAll();
         frame_->CallRuntime(Runtime::kDefineAccessor, 4);
         // Ignore result.
         break;
@@ -2677,8 +2785,10 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         __ mov(eax, frame_->Top());
         frame_->EmitPush(eax);
         Load(property->key());
+        frame_->SpillAll();
         frame_->EmitPush(Immediate(Smi::FromInt(0)));
         Load(property->value());
+        frame_->SpillAll();
         frame_->CallRuntime(Runtime::kDefineAccessor, 4);
         // Ignore result.
         break;
@@ -2715,6 +2825,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     if (value->AsLiteral() == NULL) {
       // The property must be set by generated code.
       Load(value);
+      frame_->SpillAll();
 
       // Get the value off the stack.
       frame_->EmitPop(eax);
@@ -2767,6 +2878,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
                      NO_OVERWRITE);
       } else {
         Load(node->value());
+        frame_->SpillAll();
         GenericBinaryOperation(node->binary_op(), node->type());
       }
     }
@@ -2796,6 +2908,7 @@ void CodeGenerator::VisitThrow(Throw* node) {
   Comment cmnt(masm_, "[ Throw");
 
   Load(node->exception());
+  frame_->SpillAll();
   __ RecordPosition(node->position());
   frame_->CallRuntime(Runtime::kThrow, 1);
   frame_->EmitPush(eax);
@@ -2848,6 +2961,7 @@ void CodeGenerator::VisitCall(Call* node) {
     int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
       Load(args->at(i));
+      frame_->SpillAll();
     }
 
     // Setup the receiver register and call the IC initialization code.
@@ -2893,11 +3007,13 @@ void CodeGenerator::VisitCall(Call* node) {
       // Push the name of the function and the receiver onto the stack.
       frame_->EmitPush(Immediate(literal->handle()));
       Load(property->obj());
+      frame_->SpillAll();
 
       // Load the arguments.
       int arg_count = args->length();
       for (int i = 0; i < arg_count; i++) {
         Load(args->at(i));
+        frame_->SpillAll();
       }
 
       // Call the IC initialization code.
@@ -2935,6 +3051,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Load the function.
     Load(function);
+    frame_->SpillAll();
 
     // Pass the global proxy as the receiver.
     LoadGlobalReceiver(eax);
@@ -2959,6 +3076,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // receiver. There is no need to use the global proxy here because
   // it will always be replaced with a newly allocated object.
   Load(node->expression());
+  frame_->SpillAll();
   LoadGlobal();
 
   // Push the arguments ("left-to-right") on the stack.
@@ -2966,6 +3084,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Load(args->at(i));
+    frame_->SpillAll();
   }
 
   // Constructors are called with the number of arguments in register
@@ -2990,6 +3109,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
+  frame_->SpillAll();
   frame_->EmitPop(eax);
   __ test(eax, Immediate(kSmiTagMask));
   cc_reg_ = zero;
@@ -2999,6 +3119,7 @@ void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
+  frame_->SpillAll();
   frame_->EmitPop(eax);
   __ test(eax, Immediate(kSmiTagMask | 0x80000000));
   cc_reg_ = zero;
@@ -3024,6 +3145,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
   // Load the string into eax.
   Load(args->at(0));
+  frame_->SpillAll();
   frame_->EmitPop(eax);
   // If the receiver is a smi return undefined.
   ASSERT(kSmiTag == 0);
@@ -3032,6 +3154,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
   // Load the index into ebx.
   Load(args->at(1));
+  frame_->SpillAll();
   frame_->EmitPop(ebx);
 
   // Check for negative or non-smi index.
@@ -3127,6 +3250,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
+  frame_->SpillAll();
   JumpTarget answer(this);
   // We need the CC bits to come out as not_equal in the case where the
   // object is a smi.  This can't be done with the usual test opcode so
@@ -3166,6 +3290,7 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   JumpTarget leave(this);
   Load(args->at(0));  // Load the object.
+  frame_->SpillAll();
   __ mov(eax, frame_->Top());
   // if (object->IsSmi()) return object.
   __ test(eax, Immediate(kSmiTagMask));
@@ -3186,7 +3311,9 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
   JumpTarget leave(this);
   Load(args->at(0));  // Load the object.
+  frame_->SpillAll();
   Load(args->at(1));  // Load the value.
+  frame_->SpillAll();
   __ mov(eax, frame_->ElementAt(1));
   __ mov(ecx, frame_->Top());
   // if (object->IsSmi()) return object.
@@ -3216,6 +3343,7 @@ void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   // Load the key onto the stack and set register eax to the formal
   // parameters count for the currently executing function.
   Load(args->at(0));
+  frame_->SpillAll();
   __ Set(eax, Immediate(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
@@ -3230,7 +3358,9 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 
   // Load the two objects into registers and perform the comparison.
   Load(args->at(0));
+  frame_->SpillAll();
   Load(args->at(1));
+  frame_->SpillAll();
   frame_->EmitPop(eax);
   frame_->EmitPop(ecx);
   __ cmp(eax, Operand(ecx));
@@ -3260,6 +3390,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
     Load(args->at(i));
+    frame_->SpillAll();
   }
 
   if (function == NULL) {
@@ -3295,7 +3426,9 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     Property* property = node->expression()->AsProperty();
     if (property != NULL) {
       Load(property->obj());
+      frame_->SpillAll();
       Load(property->key());
+      frame_->SpillAll();
       frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
       frame_->EmitPush(eax);
       return;
@@ -3331,6 +3464,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     } else {
       // Default: Result of deleting expressions is true.
       Load(node->expression());  // may have side-effects
+      frame_->SpillAll();
       __ Set(frame_->Top(), Immediate(Factory::true_value()));
     }
 
@@ -3343,6 +3477,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
   } else {
     Load(node->expression());
+    frame_->SpillAll();
     switch (op) {
       case Token::NOT:
       case Token::DELETE:
@@ -3591,6 +3726,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
                       false_target(), false);
       }
     } else {
+      frame_->SpillAll();
       // We have a materialized value on the frame.
       JumpTarget pop_and_continue(this);
       JumpTarget exit(this);
@@ -3612,6 +3748,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Evaluate right side expression.
       is_true.Bind();
       Load(node->right());
+      frame_->SpillAll();
 
       // Exit (always with a materialized value).
       exit.Bind();
@@ -3635,6 +3772,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       }
 
     } else {
+      frame_->SpillAll();
       // We have a materialized value on the frame.
       JumpTarget pop_and_continue(this);
       JumpTarget exit(this);
@@ -3655,6 +3793,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Evaluate right side expression.
       is_false.Bind();
       Load(node->right());
+      frame_->SpillAll();
 
       // Exit (always with a materialized value).
       exit.Bind();
@@ -3679,15 +3818,19 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
     if (IsInlineSmi(rliteral)) {
       Load(node->left());
+      frame_->SpillAll();
       SmiOperation(node->op(), node->type(), rliteral->handle(), false,
                    overwrite_mode);
     } else if (IsInlineSmi(lliteral)) {
       Load(node->right());
+      frame_->SpillAll();
       SmiOperation(node->op(), node->type(), lliteral->handle(), true,
                    overwrite_mode);
     } else {
       Load(node->left());
+      frame_->SpillAll();
       Load(node->right());
+      frame_->SpillAll();
       GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
     }
   }
@@ -3733,6 +3876,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     // The 'null' value can only be equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
       Load(left_is_null ? right : left);
+      frame_->SpillAll();
       frame_->EmitPop(eax);
       __ cmp(eax, Factory::null_value());
 
@@ -3878,14 +4022,18 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       break;
     case Token::IN: {
       Load(left);
+      frame_->SpillAll();
       Load(right);
+      frame_->SpillAll();
       frame_->InvokeBuiltin(Builtins::IN, CALL_FUNCTION, 2);
       frame_->EmitPush(eax);  // push the result
       return;
     }
     case Token::INSTANCEOF: {
       Load(left);
+      frame_->SpillAll();
       Load(right);
+      frame_->SpillAll();
       InstanceofStub stub;
       frame_->CallStub(&stub, 2);
       __ test(eax, Operand(eax));
@@ -3900,17 +4048,21 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   // is a literal small integer.
   if (IsInlineSmi(left->AsLiteral())) {
     Load(right);
+    frame_->SpillAll();
     SmiComparison(ReverseCondition(cc), left->AsLiteral()->handle(), strict);
     return;
   }
   if (IsInlineSmi(right->AsLiteral())) {
     Load(left);
+    frame_->SpillAll();
     SmiComparison(cc, right->AsLiteral()->handle(), strict);
     return;
   }
 
   Load(left);
+  frame_->SpillAll();
   Load(right);
+  frame_->SpillAll();
   Comparison(cc, strict);
 }
 
@@ -4025,80 +4177,12 @@ void Reference::SetValue(InitState init_state) {
       Comment cmnt(masm, "[ Store to Slot");
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
-      if (slot->type() == Slot::LOOKUP) {
-        ASSERT(slot->var()->mode() == Variable::DYNAMIC);
-
-        // For now, just do a runtime call.
-        frame->EmitPush(esi);
-        frame->EmitPush(Immediate(slot->var()->name()));
-
-        if (init_state == CONST_INIT) {
-          // Same as the case for a normal store, but ignores attribute
-          // (e.g. READ_ONLY) of context slot so that we can initialize
-          // const properties (introduced via eval("const foo = (some
-          // expr);")). Also, uses the current function context instead of
-          // the top context.
-          //
-          // Note that we must declare the foo upon entry of eval(), via a
-          // context slot declaration, but we cannot initialize it at the
-          // same time, because the const declaration may be at the end of
-          // the eval code (sigh...) and the const variable may have been
-          // used before (where its value is 'undefined'). Thus, we can only
-          // do the initialization when we actually encounter the expression
-          // and when the expression operands are defined and valid, and
-          // thus we need the split into 2 operations: declaration of the
-          // context slot followed by initialization.
-          frame->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
-        } else {
-          frame->CallRuntime(Runtime::kStoreContextSlot, 3);
-        }
-        // Storing a variable must keep the (new) value on the expression
-        // stack. This is necessary for compiling chained assignment
-        // expressions.
-        frame->EmitPush(eax);
-
-      } else {
-        ASSERT(slot->var()->mode() != Variable::DYNAMIC);
-
-        JumpTarget exit(cgen_);
-        if (init_state == CONST_INIT) {
-          ASSERT(slot->var()->mode() == Variable::CONST);
-          // Only the first const initialization must be executed (the slot
-          // still contains 'the hole' value). When the assignment is
-          // executed, the code is identical to a normal store (see below).
-          Comment cmnt(masm, "[ Init const");
-          __ mov(eax, cgen_->SlotOperand(slot, ecx));
-          __ cmp(eax, Factory::the_hole_value());
-          exit.Branch(not_equal);
-        }
-
-        // We must execute the store.  Storing a variable must keep the
-        // (new) value on the stack. This is necessary for compiling
-        // assignment expressions.
-        //
-        // Note: We will reach here even with slot->var()->mode() ==
-        // Variable::CONST because of const declarations which will
-        // initialize consts to 'the hole' value and by doing so, end up
-        // calling this code.
-        frame->EmitPop(eax);
-        __ mov(cgen_->SlotOperand(slot, ecx), eax);
-        frame->EmitPush(eax);  // RecordWrite may destroy the value in eax.
-        if (slot->type() == Slot::CONTEXT) {
-          // ecx is loaded with context when calling SlotOperand above.
-          int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-          __ RecordWrite(ecx, offset, eax, ebx);
-        }
-        // If we definitely did not jump over the assignment, we do not need
-        // to bind the exit label.  Doing so can defeat peephole
-        // optimization.
-        if (init_state == CONST_INIT) {
-          exit.Bind();
-        }
-      }
+      cgen_->StoreToSlot(slot, init_state);
       break;
     }
 
     case NAMED: {
+      frame->SpillAll();
       Comment cmnt(masm, "[ Store to named Property");
       // Call the appropriate IC code.
       Handle<String> name(GetName());
@@ -4113,6 +4197,7 @@ void Reference::SetValue(InitState init_state) {
     }
 
     case KEYED: {
+      frame->SpillAll();
       Comment cmnt(masm, "[ Store to keyed Property");
       Property* property = expression_->AsProperty();
       ASSERT(property != NULL);

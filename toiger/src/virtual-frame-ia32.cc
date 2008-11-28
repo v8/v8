@@ -160,7 +160,7 @@ Register VirtualFrame::SpillAnyRegister() {
   // its external reference count (so that spilling it from the frame frees
   // it for use).
   int min_count = kMaxInt;
-  int best_register_code = no_reg.code();
+  int best_register_code = no_reg.code_;
 
   for (int i = 0; i < RegisterFile::kNumRegisters; i++) {
     int count = frame_registers_.count(i);
@@ -170,7 +170,7 @@ Register VirtualFrame::SpillAnyRegister() {
     }
   }
 
-  if (best_register_code != no_reg.code()) {
+  if (best_register_code != no_reg.code_) {
     // Spill all occurrences of the register.  There are min_count
     // occurrences, stop when we've spilled them all to avoid syncing
     // elements unnecessarily.
@@ -347,6 +347,38 @@ void VirtualFrame::AllocateStackSlots(int count) {
 }
 
 
+void VirtualFrame::StoreToFrameSlotAt(int index) {
+  // Store the value on top of the frame to the virtual frame slot at a
+  // given index.  The value on top of the frame is left in place.
+  ASSERT(index < elements_.length());
+  FrameElement top = elements_[elements_.length() - 1];
+
+  // The virtual frame slot is now of the same type and has the same value
+  // as the frame top.
+  if (elements_[index].is_register()) {
+    Unuse(elements_[index].reg());
+  }
+  elements_[index] = top;
+
+  if (top.is_memory()) {
+    // Emit code to store memory values into the required frame slot.
+    Register temp = cgen_->allocator()->Allocate();
+    ASSERT(!temp.is(no_reg));
+    __ mov(temp, Top());
+    __ mov(Operand(ebp, fp_relative(index)), temp);
+    cgen_->allocator()->Unuse(temp);
+  } else {
+    // We haven't actually written the value to memory.
+    elements_[index].clear_sync();
+
+    if (top.is_register()) {
+      // Establish another frame-internal reference to the register.
+      Use(top.reg());
+    }
+  }
+}
+
+
 void VirtualFrame::PushTryHandler(HandlerType type) {
   // Grow the expression stack by handler size less two (the return address
   // is already pushed by a call instruction, and PushTryHandler from the
@@ -395,19 +427,21 @@ void VirtualFrame::CallCodeObject(Handle<Code> code,
 
 void VirtualFrame::Drop(int count) {
   ASSERT(height() >= count);
+  int num_virtual_elements = (elements_.length() - 1) - stack_pointer_;
 
-  // Discard elements above the stack pointer.
-  while (count > 0 && stack_pointer_ < elements_.length() - 1) {
-    FrameElement last = elements_.RemoveLast();
-    if (last.is_register()) {
-      Unuse(last.reg());
-    }
+  // Emit code to lower the stack pointer if necessary.
+  if (num_virtual_elements < count) {
+    int num_dropped = count - num_virtual_elements;
+    stack_pointer_ -= num_dropped;
+    __ add(Operand(esp), Immediate(num_dropped * kPointerSize));
   }
 
-  // Discard the rest of the elements and lower the stack pointer.
-  Forget(count);
-  if (count > 0) {
-    __ add(Operand(esp), Immediate(count * kPointerSize));
+  // Discard elements from the virtual frame and free any registers.
+  for (int i = 0; i < count; i++) {
+    FrameElement dropped = elements_.RemoveLast();
+    if (dropped.is_register()) {
+      Unuse(dropped.reg());
+    }
   }
 }
 
@@ -468,6 +502,17 @@ void VirtualFrame::Push(Handle<Object> value) {
   elements_.Add(constant_element);
 }
 
+
+#ifdef DEBUG
+bool VirtualFrame::IsSpilled() {
+  for (int i = 0; i < elements_.length(); i++) {
+    if (!elements_[i].is_memory()) {
+      return false;
+    }
+  }
+  return true;
+}
+#endif
 
 #undef __
 

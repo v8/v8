@@ -70,14 +70,15 @@ class FrameElement BASE_EMBEDDED {
 
   void set_sync() {
     ASSERT(type() != MEMORY);
-    type_ = type_ | SyncField::encode(SYNCED);
+    type_ = (type_ & ~SyncField::mask()) | SyncField::encode(SYNCED);
   }
 
   void clear_sync() {
     ASSERT(type() != MEMORY);
-    type_ = type_ & ~SyncField::mask();
+    type_ = (type_ & ~SyncField::mask()) | SyncField::encode(NOT_SYNCED);
   }
 
+  bool is_memory() const { return type() == MEMORY; }
   bool is_register() const { return type() == REGISTER; }
   bool is_constant() const { return type() == CONSTANT; }
 
@@ -185,6 +186,12 @@ class VirtualFrame : public Malloced {
     return Operand(ebp, kLocal0Offset - index * kPointerSize);
   }
 
+  // Store the top value on the virtual frame into a local frame slot.  The
+  // value is left in place on top of the frame.
+  void StoreToLocalAt(int index) {
+    StoreToFrameSlotAt(local0_index() + index);
+  }
+
   // The function frame slot.
   Operand Function() const { return Operand(ebp, kFunctionOffset); }
 
@@ -196,6 +203,12 @@ class VirtualFrame : public Malloced {
     ASSERT(-1 <= index);  // -1 is the receiver.
     ASSERT(index < parameter_count_);
     return Operand(ebp, (1 + parameter_count_ - index) * kPointerSize);
+  }
+
+  // Store the top value on the virtual frame into a parameter frame slot.
+  // The value is left in place on top of the frame.
+  void StoreToParameterAt(int index) {
+    StoreToFrameSlotAt(param0_index() + index);
   }
 
   // The receiver frame slot.
@@ -247,6 +260,10 @@ class VirtualFrame : public Malloced {
   // Push an element on the virtual frame.
   void Push(Register reg);
   void Push(Handle<Object> value);
+
+#ifdef DEBUG
+  bool IsSpilled();
+#endif
 
  private:
   // An illegal index into the virtual frame.
@@ -335,6 +352,10 @@ class VirtualFrame : public Malloced {
 
   // Sync all elements in the frame.
   void SyncAll();
+
+  // Store the value on top of the frame to a frame slot (typically a local
+  // or parameter).
+  void StoreToFrameSlotAt(int index);
 
   // Spill the topmost elements of the frame to memory (eg, they are the
   // arguments to a call) and all registers.
