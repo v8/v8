@@ -576,7 +576,6 @@ class ActionNode: public SeqRegExpNode {
     STORE_REGISTER,
     INCREMENT_REGISTER,
     STORE_POSITION,
-    SAVE_POSITION,
     RESTORE_POSITION,
     BEGIN_SUBMATCH,
     ESCAPE_SUBMATCH
@@ -584,10 +583,14 @@ class ActionNode: public SeqRegExpNode {
   static ActionNode* StoreRegister(int reg, int val, RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
   static ActionNode* StorePosition(int reg, RegExpNode* on_success);
-  static ActionNode* SavePosition(int reg, RegExpNode* on_success);
   static ActionNode* RestorePosition(int reg, RegExpNode* on_success);
-  static ActionNode* BeginSubmatch(int reg, RegExpNode* on_success);
-  static ActionNode* EscapeSubmatch(int reg, RegExpNode* on_success);
+  static ActionNode* BeginSubmatch(int stack_pointer_reg,
+                                   int position_reg,
+                                   RegExpNode* on_success);
+  static ActionNode* EscapeSubmatch(int stack_pointer_reg,
+                                    bool and_restore_position,
+                                    int restore_reg,
+                                    RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
@@ -604,8 +607,9 @@ class ActionNode: public SeqRegExpNode {
       int reg;
     } u_position_register;
     struct {
-      int reg;
-    } u_submatch_stack_pointer_register;
+      int stack_pointer_register;
+      int current_position_register;
+    } u_submatch;
   } data_;
   ActionNode(Type type, RegExpNode* on_success)
       : SeqRegExpNode(on_success),

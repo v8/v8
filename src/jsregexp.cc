@@ -992,8 +992,7 @@ bool RegExpNode::GoTo(RegExpCompiler* compiler) {
   // TODO(erikcorry): Implement support.
   if (info_.follows_word_interest ||
       info_.follows_newline_interest ||
-      info_.follows_start_interest ||
-      info_.at_end) {
+      info_.follows_start_interest) {
     return false;
   }
   if (label_.is_bound()) {
@@ -1014,25 +1013,17 @@ bool RegExpNode::GoTo(RegExpCompiler* compiler) {
 }
 
 
+// EndNodes are special.  Because they can be very common and they are very
+// short we normally inline them.  That is, if we are asked to emit a GoTo
+// we just emit the entire node.  Since they don't have successors this
+// works.
 bool EndNode::GoTo(RegExpCompiler* compiler) {
   if (info()->follows_word_interest ||
       info()->follows_newline_interest ||
-      info()->follows_start_interest ||
-      info()->at_end) {
+      info()->follows_start_interest) {
     return false;
   }
-  if (!label()->is_bound()) {
-    Bind(compiler->macro_assembler());
-  }
-  switch (action_) {
-    case ACCEPT:
-      compiler->macro_assembler()->Succeed();
-      break;
-    case BACKTRACK:
-      compiler->macro_assembler()->Backtrack();
-      break;
-  }
-  return true;
+  return Emit(compiler);
 }
 
 
@@ -1045,11 +1036,20 @@ bool EndNode::Emit(RegExpCompiler* compiler) {
   RegExpMacroAssembler* macro = compiler->macro_assembler();
   switch (action_) {
     case ACCEPT:
-      Bind(macro);
+      if (!label()->is_bound()) Bind(macro);
+      if (info()->at_end) {
+        Label succeed;
+        // LoadCurrentCharacter will go to the label if we are at the end of the
+        // input string.
+        macro->LoadCurrentCharacter(0, &succeed);
+        macro->Backtrack();
+        macro->Bind(&succeed);
+      }
       macro->Succeed();
       return true;
     case BACKTRACK:
-      Bind(macro);
+      if (!label()->is_bound()) Bind(macro);
+      ASSERT(!info()->at_end);
       macro->Backtrack();
       return true;
   }
@@ -1088,13 +1088,6 @@ ActionNode* ActionNode::StorePosition(int reg, RegExpNode* on_success) {
 }
 
 
-ActionNode* ActionNode::SavePosition(int reg, RegExpNode* on_success) {
-  ActionNode* result = new ActionNode(SAVE_POSITION, on_success);
-  result->data_.u_position_register.reg = reg;
-  return result;
-}
-
-
 ActionNode* ActionNode::RestorePosition(int reg, RegExpNode* on_success) {
   ActionNode* result = new ActionNode(RESTORE_POSITION, on_success);
   result->data_.u_position_register.reg = reg;
@@ -1102,16 +1095,27 @@ ActionNode* ActionNode::RestorePosition(int reg, RegExpNode* on_success) {
 }
 
 
-ActionNode* ActionNode::BeginSubmatch(int reg, RegExpNode* on_success) {
+ActionNode* ActionNode::BeginSubmatch(int stack_reg,
+                                      int position_reg,
+                                      RegExpNode* on_success) {
   ActionNode* result = new ActionNode(BEGIN_SUBMATCH, on_success);
-  result->data_.u_submatch_stack_pointer_register.reg = reg;
+  result->data_.u_submatch.stack_pointer_register = stack_reg;
+  result->data_.u_submatch.current_position_register = position_reg;
   return result;
 }
 
 
-ActionNode* ActionNode::EscapeSubmatch(int reg, RegExpNode* on_success) {
+ActionNode* ActionNode::EscapeSubmatch(int stack_reg,
+                                       bool restore_position,
+                                       int position_reg,
+                                       RegExpNode* on_success) {
   ActionNode* result = new ActionNode(ESCAPE_SUBMATCH, on_success);
-  result->data_.u_submatch_stack_pointer_register.reg = reg;
+  result->data_.u_submatch.stack_pointer_register = stack_reg;
+  if (restore_position) {
+    result->data_.u_submatch.current_position_register = position_reg;
+  } else {
+    result->data_.u_submatch.current_position_register = -1;
+  }
   return result;
 }
 
@@ -1320,7 +1324,12 @@ bool TextNode::Emit(RegExpCompiler* compiler) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   Bind(macro_assembler);
   int element_count = elms_->length();
+  ASSERT(element_count != 0);
   int cp_offset = 0;
+  if (info()->at_end) {
+    macro_assembler->Backtrack();
+    return true;
+  }
   // First, handle straight character matches.
   for (int i = 0; i < element_count; i++) {
     TextElement elm = elms_->at(i);
@@ -1481,21 +1490,31 @@ bool ActionNode::Emit(RegExpCompiler* compiler) {
       macro->Backtrack();
       break;
     }
-    case SAVE_POSITION:
-      macro->WriteCurrentPositionToRegister(
-          data_.u_position_register.reg);
-      break;
     case RESTORE_POSITION:
       macro->ReadCurrentPositionFromRegister(
           data_.u_position_register.reg);
       break;
     case BEGIN_SUBMATCH:
+      macro->WriteCurrentPositionToRegister(
+          data_.u_submatch.current_position_register);
       macro->WriteStackPointerToRegister(
-          data_.u_submatch_stack_pointer_register.reg);
+          data_.u_submatch.stack_pointer_register);
       break;
     case ESCAPE_SUBMATCH:
+      if (info()->at_end) {
+        Label at_end;
+        // Load current character jumps to the label if we are beyond the string
+        // end.
+        macro->LoadCurrentCharacter(0, &at_end);
+        macro->Backtrack();
+        macro->Bind(&at_end);
+      }
+      if (data_.u_submatch.current_position_register != -1) {
+        macro->ReadCurrentPositionFromRegister(
+            data_.u_submatch.current_position_register);
+      }
       macro->ReadStackPointerFromRegister(
-          data_.u_submatch_stack_pointer_register.reg);
+          data_.u_submatch.stack_pointer_register);
       break;
     default:
       UNREACHABLE();
@@ -1513,10 +1532,16 @@ bool BackReferenceNode::Emit(RegExpCompiler* compiler) {
   macro->IfRegisterLT(start_reg_, 0, on_success()->label());
   macro->IfRegisterLT(end_reg_, 0, on_success()->label());
   ASSERT_EQ(start_reg_ + 1, end_reg_);
-  if (compiler->ignore_case()) {
-    macro->CheckNotBackReferenceIgnoreCase(start_reg_, on_failure_->label());
+  if (info()->at_end) {
+    // If we are constrained to match at the end of the input then succeed
+    // iff the back reference is empty.
+    macro->CheckNotRegistersEqual(start_reg_, end_reg_, on_failure_->label());
   } else {
-    macro->CheckNotBackReference(start_reg_, on_failure_->label());
+    if (compiler->ignore_case()) {
+      macro->CheckNotBackReferenceIgnoreCase(start_reg_, on_failure_->label());
+    } else {
+      macro->CheckNotBackReference(start_reg_, on_failure_->label());
+    }
   }
   return on_success()->GoTo(compiler);
 }
@@ -1751,16 +1776,13 @@ void DotPrinter::VisitAction(ActionNode* that) {
       stream()->Add("label=\"$%i:=$pos\", shape=octagon",
                     that->data_.u_position_register.reg);
       break;
-    case ActionNode::SAVE_POSITION:
-      stream()->Add("label=\"$%i:=$pos\", shape=octagon",
-                    that->data_.u_position_register.reg);
-      break;
     case ActionNode::RESTORE_POSITION:
       stream()->Add("label=\"$pos:=$%i\", shape=octagon",
                     that->data_.u_position_register.reg);
       break;
     case ActionNode::BEGIN_SUBMATCH:
-      stream()->Add("label=\"begin\", shape=septagon");
+      stream()->Add("label=\"$%i:=$pos,begin\", shape=septagon",
+                    that->data_.u_submatch.current_position_register);
       break;
     case ActionNode::ESCAPE_SUBMATCH:
       stream()->Add("label=\"escape\", shape=septagon");
@@ -1991,15 +2013,15 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
     //   fail
     return ActionNode::BeginSubmatch(
         stack_pointer_register,
-        ActionNode::SavePosition(
-            position_register,
-            body()->ToNode(
-                compiler,
-                ActionNode::RestorePosition(
-                    position_register,
-                    ActionNode::EscapeSubmatch(stack_pointer_register,
-                                               on_success)),
-                on_failure)));
+        position_register,
+        body()->ToNode(
+            compiler,
+            ActionNode::EscapeSubmatch(
+                stack_pointer_register,
+                true,                    // Also restore input position.
+                position_register,
+                on_success),
+            on_failure));
   } else {
     // begin submatch scope
     // try
@@ -2018,14 +2040,16 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
                                                       on_success));
     RegExpNode* body_node = body()->ToNode(
         compiler,
-        ActionNode::EscapeSubmatch(stack_pointer_register, on_failure),
+        ActionNode::EscapeSubmatch(stack_pointer_register,
+                                   false,        // Don't also restore position
+                                   0,            // Unused arguments.
+                                   on_failure),
         compiler->backtrack());
     GuardedAlternative body_alt(body_node);
     try_node->AddAlternative(body_alt);
     return ActionNode::BeginSubmatch(stack_pointer_register,
-                                     ActionNode::SavePosition(
-                                         position_register,
-                                         try_node));
+                                     position_register,
+                                     try_node);
   }
 }
 
@@ -2270,7 +2294,9 @@ RegExpNode* ActionNode::PropagateForward(NodeInfo* info) {
   ActionNode* action = new ActionNode(*this);
   action->info()->AddFromPreceding(&full_info);
   AddSibling(action);
-  action->set_on_success(action->on_success()->PropagateForward(info));
+  if (type_ != ESCAPE_SUBMATCH) {
+    action->set_on_success(action->on_success()->PropagateForward(info));
+  }
   return action;
 }
 
@@ -2292,6 +2318,9 @@ RegExpNode* ChoiceNode::PropagateForward(NodeInfo* info) {
     alternative.set_node(alternative.node()->PropagateForward(info));
     choice->alternatives()->Add(alternative);
   }
+  if (!choice->on_failure_->IsBacktrack()) {
+    choice->on_failure_ = choice->on_failure_->PropagateForward(info);
+  }
   return choice;
 }
 
@@ -2302,7 +2331,21 @@ RegExpNode* EndNode::PropagateForward(NodeInfo* info) {
 
 
 RegExpNode* BackReferenceNode::PropagateForward(NodeInfo* info) {
-  return PropagateToEndpoint(this, info);
+  NodeInfo full_info(*this->info());
+  full_info.AddFromPreceding(info);
+  RegExpNode* sibling = GetSibling(&full_info);
+  if (sibling != NULL) return sibling;
+  EnsureSiblings();
+  BackReferenceNode* back_ref = new BackReferenceNode(*this);
+  back_ref->info()->AddFromPreceding(&full_info);
+  AddSibling(back_ref);
+  // TODO(erikcorry): A back reference has to have two successors (by default
+  // the same node).  The first is used if the back reference matches a non-
+  // empty back reference, the second if it matches an empty one.  This doesn't
+  // matter for at_end, which is the only one implemented right now, but it will
+  // matter for other pieces of info.
+  back_ref->set_on_success(back_ref->on_success()->PropagateForward(info));
+  return back_ref;
 }
 
 
@@ -2669,6 +2712,10 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
   analysis.EnsureAnalyzed(node);
 
   if (!FLAG_irregexp) {
+    return Handle<FixedArray>::null();
+  }
+
+  if (is_multiline && !FLAG_attempt_multiline_irregexp) {
     return Handle<FixedArray>::null();
   }
 

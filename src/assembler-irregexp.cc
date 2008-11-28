@@ -247,6 +247,16 @@ void IrregexpAssembler::CheckNotBackReferenceNoCase(int capture_index,
 }
 
 
+void IrregexpAssembler::CheckNotRegistersEqual(int reg1,
+                                               int reg2,
+                                               Label* on_not_equal) {
+  Emit(BC_CHECK_NOT_REGS_EQUAL);
+  Emit(reg1);
+  Emit(reg2);
+  EmitOrLink(on_not_equal);
+}
+
+
 void IrregexpAssembler::CheckRegister(int byte_code,
                                       int reg_index,
                                       uint16_t vs,

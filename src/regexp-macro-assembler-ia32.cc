@@ -236,6 +236,16 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(
 }
 
 
+void RegExpMacroAssemblerIA32::CheckNotRegistersEqual(int reg1,
+                                                      int reg2,
+                                                      Label* on_not_equal) {
+  __ mov(eax, register_location(reg1));
+  __ mov(ecx, register_location(reg2));
+  __ cmp(ecx, Operand(eax));
+  BranchOrBacktrack(not_equal, on_not_equal);
+}
+
+
 void RegExpMacroAssemblerIA32::CheckNotCharacter(uc16 c, Label* on_not_equal) {
   __ cmp(edx, c);
   BranchOrBacktrack(not_equal, on_not_equal);

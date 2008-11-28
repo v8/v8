@@ -204,6 +204,7 @@ DEFINE_bool(irregexp, false, "new regular expression code")
 DEFINE_bool(trace_regexps, false, "trace Irregexp execution")
 DEFINE_bool(irregexp_native, false, "use native code Irregexp implementation (IA32 only)")
 DEFINE_bool(disable_jscre, false, "abort if JSCRE is used.  Only useful with --irregexp")
+DEFINE_bool(attempt_multiline_irregexp, false, "attempt to use Irregexp for multiline regexps")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_bool(testing_bool_flag, true, "testing_bool_flag")

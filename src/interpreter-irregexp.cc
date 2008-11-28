@@ -323,6 +323,13 @@ static bool RawMatch(const byte* code_base,
         pc = code_base + Load32(new_pc);
         break;
       }
+      BYTECODE(CHECK_NOT_REGS_EQUAL)
+        if (registers[pc[1]] == registers[pc[2]]) {
+          pc += BC_CHECK_NOT_REGS_EQUAL_LENGTH;
+        } else {
+          pc = code_base + Load32(pc + 3);
+        }
+        break;
       BYTECODE(CHECK_NOT_BACK_REF) {
         int from = registers[pc[1]];
         int len = registers[pc[1] + 1] - from;

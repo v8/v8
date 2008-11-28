@@ -194,6 +194,18 @@ void RegExpMacroAssemblerTracer::CheckNotBackReferenceIgnoreCase(
   assembler_->CheckNotBackReferenceIgnoreCase(start_reg, on_no_match);
 }
 
+
+void RegExpMacroAssemblerTracer::CheckNotRegistersEqual(int reg1,
+                                                        int reg2,
+                                                        Label* on_not_equal) {
+  PrintF(" CheckNotRegistersEqual(reg1=%d, reg2=%d, label[%08x]);\n",
+         reg1,
+         reg2,
+         on_not_equal);
+  assembler_->CheckNotRegistersEqual(reg1, reg2, on_not_equal);
+}
+
+
 void RegExpMacroAssemblerTracer::CheckCharacters(Vector<const uc16> str,
                                                  int cp_offset,
                                                  Label* on_failure) {

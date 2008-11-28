@@ -103,6 +103,7 @@ class IrregexpAssembler {
   // on_mismatch label will never be called.
   void CheckNotBackReference(int capture_index, Label* on_mismatch);
   void CheckNotBackReferenceNoCase(int capture_index, Label* on_mismatch);
+  void CheckNotRegistersEqual(int reg1, int reg2, Label* on_not_equal);
 
   // Checks a register for strictly-less-than or greater-than-or-equal.
   void CheckRegisterLT(int reg_index, uint16_t vs, Label* on_less_than);

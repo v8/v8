@@ -1226,5 +1226,5 @@ TEST(CharacterRangeCaseIndependence) {
 
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("(?:foo|bar$)", false, true);
+  Execute("foo$(?!bar)", false, true);
 }
