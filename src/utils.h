@@ -28,6 +28,8 @@
 #ifndef V8_UTILS_H_
 #define V8_UTILS_H_
 
+#include <stdlib.h>
+
 namespace v8 { namespace internal {
 
 // ----------------------------------------------------------------------------
@@ -508,55 +510,52 @@ static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
 }
 
 
-static inline int Load16(const byte* pc) {
+static inline int Load16(const byte* ptr) {
 #ifdef CAN_READ_UNALIGNED
-  return *reinterpret_cast<const uint16_t*>(pc);
+  return *reinterpret_cast<const uint16_t*>(ptr);
 #else
   uint32_t word;
-  word  = pc[1];
-  word |= pc[0] << 8;
+  word  = ptr[1];
+  word |= ptr[0] << 8;
   return word;
 #endif
 }
 
 
-static inline int Load32(const byte* pc) {
+static inline int Load32(const byte* ptr) {
 #ifdef CAN_READ_UNALIGNED
-  return *reinterpret_cast<const uint32_t*>(pc);
+  return *reinterpret_cast<const uint32_t*>(ptr);
 #else
   uint32_t word;
-  word  = pc[3];
-  word |= pc[2] << 8;
-  word |= pc[1] << 16;
-  word |= pc[0] << 24;
+  word  = ptr[3];
+  word |= ptr[2] << 8;
+  word |= ptr[1] << 16;
+  word |= ptr[0] << 24;
   return word;
 #endif
 }
 
 
-static inline void Store16(byte* pc, uint16_t value) {
+static inline void Store16(byte* ptr, uint16_t value) {
 #ifdef CAN_READ_UNALIGNED
-  *reinterpret_cast<uint16_t*>(pc) = value;
+  *reinterpret_cast<uint16_t*>(ptr) = value;
 #else
-  pc[1] = value;
-  pc[0] = value >> 8;
+  ptr[1] = value;
+  ptr[0] = value >> 8;
 #endif
 }
 
 
-static inline void Store32(byte* pc, uint32_t value) {
+static inline void Store32(byte* ptr, uint32_t value) {
 #ifdef CAN_READ_UNALIGNED
-  *reinterpret_cast<uint32_t*>(pc) = value;
+  *reinterpret_cast<uint32_t*>(ptr) = value;
 #else
-  pc[3] = value;
-  pc[2] = value >> 8;
-  pc[1] = value >> 16;
-  pc[0] = value >> 24;
+  ptr[3] = value;
+  ptr[2] = value >> 8;
+  ptr[1] = value >> 16;
+  ptr[0] = value >> 24;
 #endif
 }
-
-
-
 
 
 } }  // namespace v8::internal
