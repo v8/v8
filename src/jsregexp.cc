@@ -505,6 +505,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
 
   switch (tag) {
     case RegExpMacroAssembler::kIA32Implementation: {
+#ifndef ARM
       Code* code = Code::cast(irregexp->get(kIrregexpCodeIndex));
       Address start_addr =
           Handle<SeqTwoByteString>::cast(two_byte_subject)->GetCharsAddress();
@@ -528,6 +529,10 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
         }
       }
       break;
+#else
+      UNIMPLEMENTED();
+      break;
+#endif
     }
     case RegExpMacroAssembler::kBytecodeImplementation: {
       Handle<ByteArray> byte_codes = IrregexpCode(regexp);
