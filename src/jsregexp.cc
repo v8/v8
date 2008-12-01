@@ -531,6 +531,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
       break;
 #else
       UNIMPLEMENTED();
+      rc = false;
       break;
 #endif
     }
@@ -2725,7 +2726,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
 
   if (FLAG_irregexp_native) {
 #ifdef ARM
-    UNIMPLEMENTED();
+    // Unimplemented, fall-through to bytecode implementation.
 #else  // IA32
     RegExpMacroAssemblerIA32 macro_assembler(RegExpMacroAssemblerIA32::UC16,
                                              (input->capture_count + 1) * 2);
