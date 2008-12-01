@@ -1028,7 +1028,7 @@ class LexicalScope BASE_EMBEDDED {
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
-#define CHECK_FAILED  );   \
+#define CHECK_FAILED  /**/);   \
   if (failed_) return NULL; \
   ((void)0
 #define DUMMY )  // to make indentation work

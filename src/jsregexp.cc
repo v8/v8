@@ -897,6 +897,16 @@ TextElement TextElement::CharClass(
 }
 
 
+DispatchTable* ChoiceNode::GetTable(bool ignore_case) {
+  if (table_ == NULL) {
+    table_ = new DispatchTable();
+    DispatchTableConstructor cons(table_, ignore_case);
+    cons.BuildTable(this);
+  }
+  return table_;
+}
+
+
 class RegExpCompiler {
  public:
   RegExpCompiler(int capture_count, bool ignore_case);
@@ -1561,7 +1571,9 @@ bool BackReferenceNode::Emit(RegExpCompiler* compiler) {
 
 class DotPrinter: public NodeVisitor {
  public:
-  DotPrinter() : stream_(&alloc_) { }
+  explicit DotPrinter(bool ignore_case)
+      : ignore_case_(ignore_case),
+        stream_(&alloc_) { }
   void PrintNode(const char* label, RegExpNode* node);
   void Visit(RegExpNode* node);
   void PrintOnFailure(RegExpNode* from, RegExpNode* on_failure);
@@ -1572,6 +1584,7 @@ class DotPrinter: public NodeVisitor {
 FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 #undef DECLARE_VISIT
  private:
+  bool ignore_case_;
   HeapStringAllocator alloc_;
   StringStream stream_;
   std::set<RegExpNode*> seen_;
@@ -1668,44 +1681,80 @@ class TableEntryHeaderPrinter {
 };
 
 
+class AttributePrinter {
+ public:
+  explicit AttributePrinter(DotPrinter* out)
+      : out_(out), first_(true) { }
+  void PrintSeparator() {
+    if (first_) {
+      first_ = false;
+    } else {
+      out_->stream()->Add("|");
+    }
+  }
+  void PrintBit(const char* name, bool value) {
+    if (!value) return;
+    PrintSeparator();
+    out_->stream()->Add("{%s}", name);
+  }
+  void PrintPositive(const char* name, int value) {
+    if (value < 0) return;
+    PrintSeparator();
+    out_->stream()->Add("{%s|%x}", name, value);
+  }
+ private:
+  DotPrinter* out_;
+  bool first_;
+};
+
+
 void DotPrinter::PrintAttributes(RegExpNode* that) {
-  stream()->Add("  a%p [shape=Mrecord, style=dashed, color=lightgrey, "
-                "fontcolor=lightgrey, margin=0.1, fontsize=10, label=\"{",
+  stream()->Add("  a%p [shape=Mrecord, color=grey, fontcolor=grey, "
+                "margin=0.1, fontsize=10, label=\"{",
                 that);
+  AttributePrinter printer(this);
   NodeInfo* info = that->info();
-  stream()->Add("{NI|%i}|{WI|%i}|{SI|%i}",
-                info->follows_newline_interest,
-                info->follows_word_interest,
-                info->follows_start_interest);
-  stream()->Add("|{DN|%i}|{DW|%i}|{DS|%i}|{AE|%i}",
-                info->determine_newline,
-                info->determine_word,
-                info->determine_start,
-                info->at_end);
-  if (info->follows_newline != NodeInfo::UNKNOWN)
-    stream()->Add("|{FN|%i}", info->follows_newline);
-  if (info->follows_word != NodeInfo::UNKNOWN)
-    stream()->Add("|{FW|%i}", info->follows_word);
-  if (info->follows_start != NodeInfo::UNKNOWN)
-    stream()->Add("|{FS|%i}", info->follows_start);
+  printer.PrintBit("NI", info->follows_newline_interest);
+  printer.PrintBit("WI", info->follows_word_interest);
+  printer.PrintBit("SI", info->follows_start_interest);
+  printer.PrintBit("DN", info->determine_newline);
+  printer.PrintBit("DW", info->determine_word);
+  printer.PrintBit("DS", info->determine_start);
+  printer.PrintBit("DDN", info->does_determine_newline);
+  printer.PrintBit("DDW", info->does_determine_word);
+  printer.PrintBit("DDS", info->does_determine_start);
+  printer.PrintPositive("IW", info->is_word);
+  printer.PrintPositive("IN", info->is_newline);
+  printer.PrintPositive("FN", info->follows_newline);
+  printer.PrintPositive("FW", info->follows_word);
+  printer.PrintPositive("FS", info->follows_start);
   Label* label = that->label();
   if (label->is_bound())
-    stream()->Add("|{@|%x}", label->pos());
+    printer.PrintPositive("@", label->pos());
   stream()->Add("}\"];\n");
-  stream()->Add("  a%p -> n%p [style=dashed, color=lightgrey, "
+  stream()->Add("  a%p -> n%p [style=dashed, color=grey, "
                 "arrowhead=none];\n", that, that);
 }
 
 
+static const bool kPrintDispatchTable = false;
 void DotPrinter::VisitChoice(ChoiceNode* that) {
-  stream()->Add("  n%p [shape=Mrecord, label=\"", that);
-  TableEntryHeaderPrinter header_printer(stream());
-  that->table()->ForEach(&header_printer);
-  stream()->Add("\"]\n", that);
-  PrintAttributes(that);
-  TableEntryBodyPrinter body_printer(stream(), that);
-  that->table()->ForEach(&body_printer);
-  PrintOnFailure(that, that->on_failure());
+  if (kPrintDispatchTable) {
+    stream()->Add("  n%p [shape=Mrecord, label=\"", that);
+    TableEntryHeaderPrinter header_printer(stream());
+    that->GetTable(ignore_case_)->ForEach(&header_printer);
+    stream()->Add("\"]\n", that);
+    PrintAttributes(that);
+    TableEntryBodyPrinter body_printer(stream(), that);
+    that->GetTable(ignore_case_)->ForEach(&body_printer);
+    PrintOnFailure(that, that->on_failure());
+  } else {
+    stream()->Add("  n%p [shape=Mrecord, label=\"?\"];\n", that);
+    for (int i = 0; i < that->alternatives()->length(); i++) {
+      GuardedAlternative alt = that->alternatives()->at(i);
+      stream()->Add("  n%p -> n%p;\n", that, alt.node());
+    }
+  }
   for (int i = 0; i < that->alternatives()->length(); i++) {
     GuardedAlternative alt = that->alternatives()->at(i);
     alt.node()->Accept(this);
@@ -1837,8 +1886,10 @@ void DispatchTable::Dump() {
 }
 
 
-void RegExpEngine::DotPrint(const char* label, RegExpNode* node) {
-  DotPrinter printer;
+void RegExpEngine::DotPrint(const char* label,
+                            RegExpNode* node,
+                            bool ignore_case) {
+  DotPrinter printer(ignore_case);
   printer.PrintNode(label, node);
 }
 
@@ -2181,6 +2232,56 @@ void CharacterRange::AddClassEscape(uc16 type,
 }
 
 
+Vector<const uc16> CharacterRange::GetWordBounds() {
+  return Vector<const uc16>(kWordRanges, kWordRangeCount);
+}
+
+
+class CharacterRangeSplitter {
+ public:
+  CharacterRangeSplitter(ZoneList<CharacterRange>** included,
+                          ZoneList<CharacterRange>** excluded)
+      : included_(included),
+        excluded_(excluded) { }
+  void Call(uc16 from, DispatchTable::Entry entry);
+
+  static const int kInBase = 0;
+  static const int kInOverlay = 1;
+
+ private:
+  ZoneList<CharacterRange>** included_;
+  ZoneList<CharacterRange>** excluded_;
+};
+
+
+void CharacterRangeSplitter::Call(uc16 from, DispatchTable::Entry entry) {
+  if (!entry.out_set()->Get(kInBase)) return;
+  ZoneList<CharacterRange>** target = entry.out_set()->Get(kInOverlay)
+    ? included_
+    : excluded_;
+  if (*target == NULL) *target = new ZoneList<CharacterRange>(2);
+  (*target)->Add(CharacterRange(entry.from(), entry.to()));
+}
+
+
+void CharacterRange::Split(ZoneList<CharacterRange>* base,
+                           Vector<const uc16> overlay,
+                           ZoneList<CharacterRange>** included,
+                           ZoneList<CharacterRange>** excluded) {
+  ASSERT_EQ(NULL, *included);
+  ASSERT_EQ(NULL, *excluded);
+  DispatchTable table;
+  for (int i = 0; i < base->length(); i++)
+    table.AddRange(base->at(i), CharacterRangeSplitter::kInBase);
+  for (int i = 0; i < overlay.length(); i += 2) {
+    table.AddRange(CharacterRange(overlay[i], overlay[i+1]),
+                   CharacterRangeSplitter::kInOverlay);
+  }
+  CharacterRangeSplitter callback(included, excluded);
+  table.ForEach(&callback);
+}
+
+
 void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
   if (IsSingleton()) {
@@ -2266,13 +2367,29 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
 // Interest propagation
 
 
-RegExpNode* RegExpNode::GetSibling(NodeInfo* info) {
+RegExpNode* RegExpNode::TryGetSibling(NodeInfo* info) {
   for (int i = 0; i < siblings_.length(); i++) {
     RegExpNode* sibling = siblings_.Get(i);
-    if (sibling->info()->HasSameForwardInterests(info))
+    if (sibling->info()->Matches(info))
       return sibling;
   }
   return NULL;
+}
+
+
+RegExpNode* RegExpNode::EnsureSibling(NodeInfo* info, bool* cloned) {
+  ASSERT_EQ(false, *cloned);
+  ASSERT(!info->HasAssertions());
+  siblings_.Ensure(this);
+  RegExpNode* result = TryGetSibling(info);
+  if (result != NULL) return result;
+  result = this->Clone();
+  NodeInfo* new_info = result->info();
+  new_info->ResetCompilationState();
+  new_info->AddFromPreceding(info);
+  AddSibling(result);
+  *cloned = true;
+  return result;
 }
 
 
@@ -2280,26 +2397,17 @@ template <class C>
 static RegExpNode* PropagateToEndpoint(C* node, NodeInfo* info) {
   NodeInfo full_info(*node->info());
   full_info.AddFromPreceding(info);
-  RegExpNode* sibling = node->GetSibling(&full_info);
-  if (sibling != NULL) return sibling;
-  node->EnsureSiblings();
-  sibling = new C(*node);
-  sibling->info()->AddFromPreceding(&full_info);
-  node->AddSibling(sibling);
-  return sibling;
+  bool cloned = false;
+  return RegExpNode::EnsureSibling(node, &full_info, &cloned);
 }
 
 
 RegExpNode* ActionNode::PropagateForward(NodeInfo* info) {
   NodeInfo full_info(*this->info());
   full_info.AddFromPreceding(info);
-  RegExpNode* sibling = GetSibling(&full_info);
-  if (sibling != NULL) return sibling;
-  EnsureSiblings();
-  ActionNode* action = new ActionNode(*this);
-  action->info()->AddFromPreceding(&full_info);
-  AddSibling(action);
-  if (type_ != ESCAPE_SUBMATCH) {
+  bool cloned = false;
+  ActionNode* action = EnsureSibling(this, &full_info, &cloned);
+  if (cloned && type_ != ESCAPE_SUBMATCH) {
     action->set_on_success(action->on_success()->PropagateForward(info));
   }
   return action;
@@ -2309,22 +2417,20 @@ RegExpNode* ActionNode::PropagateForward(NodeInfo* info) {
 RegExpNode* ChoiceNode::PropagateForward(NodeInfo* info) {
   NodeInfo full_info(*this->info());
   full_info.AddFromPreceding(info);
-  RegExpNode* sibling = GetSibling(&full_info);
-  if (sibling != NULL) return sibling;
-  EnsureSiblings();
-  ChoiceNode* choice = new ChoiceNode(*this);
-  choice->info()->AddFromPreceding(&full_info);
-  AddSibling(choice);
-  ZoneList<GuardedAlternative>* old_alternatives = alternatives();
-  int count = old_alternatives->length();
-  choice->alternatives_ = new ZoneList<GuardedAlternative>(count);
-  for (int i = 0; i < count; i++) {
-    GuardedAlternative alternative = old_alternatives->at(i);
-    alternative.set_node(alternative.node()->PropagateForward(info));
-    choice->alternatives()->Add(alternative);
-  }
-  if (!choice->on_failure_->IsBacktrack()) {
-    choice->on_failure_ = choice->on_failure_->PropagateForward(info);
+  bool cloned = false;
+  ChoiceNode* choice = EnsureSibling(this, &full_info, &cloned);
+  if (cloned) {
+    ZoneList<GuardedAlternative>* old_alternatives = alternatives();
+    int count = old_alternatives->length();
+    choice->alternatives_ = new ZoneList<GuardedAlternative>(count);
+    for (int i = 0; i < count; i++) {
+      GuardedAlternative alternative = old_alternatives->at(i);
+      alternative.set_node(alternative.node()->PropagateForward(info));
+      choice->alternatives()->Add(alternative);
+    }
+    if (!choice->on_failure_->IsBacktrack()) {
+      choice->on_failure_ = choice->on_failure_->PropagateForward(info);
+    }
   }
   return choice;
 }
@@ -2338,18 +2444,16 @@ RegExpNode* EndNode::PropagateForward(NodeInfo* info) {
 RegExpNode* BackReferenceNode::PropagateForward(NodeInfo* info) {
   NodeInfo full_info(*this->info());
   full_info.AddFromPreceding(info);
-  RegExpNode* sibling = GetSibling(&full_info);
-  if (sibling != NULL) return sibling;
-  EnsureSiblings();
-  BackReferenceNode* back_ref = new BackReferenceNode(*this);
-  back_ref->info()->AddFromPreceding(&full_info);
-  AddSibling(back_ref);
-  // TODO(erikcorry): A back reference has to have two successors (by default
-  // the same node).  The first is used if the back reference matches a non-
-  // empty back reference, the second if it matches an empty one.  This doesn't
-  // matter for at_end, which is the only one implemented right now, but it will
-  // matter for other pieces of info.
-  back_ref->set_on_success(back_ref->on_success()->PropagateForward(info));
+  bool cloned = false;
+  BackReferenceNode* back_ref = EnsureSibling(this, &full_info, &cloned);
+  if (cloned) {
+    // TODO(erikcorry): A back reference has to have two successors (by default
+    // the same node).  The first is used if the back reference matches a non-
+    // empty back reference, the second if it matches an empty one.  This
+    // doesn't matter for at_end, which is the only one implemented right now,
+    // but it will matter for other pieces of info.
+    back_ref->set_on_success(back_ref->on_success()->PropagateForward(info));
+  }
   return back_ref;
 }
 
@@ -2560,10 +2664,6 @@ void Analysis::VisitChoice(ChoiceNode* that) {
     // this node also, so it can pass it on.
     info->AddFromFollowing(node->info());
   }
-  if (!that->table_calculated()) {
-    DispatchTableConstructor cons(that->table());
-    cons.BuildTable(that);
-  }
   EnsureAnalyzed(that->on_failure());
 }
 
@@ -2571,6 +2671,208 @@ void Analysis::VisitChoice(ChoiceNode* that) {
 void Analysis::VisitBackReference(BackReferenceNode* that) {
   EnsureAnalyzed(that->on_success());
   EnsureAnalyzed(that->on_failure());
+}
+
+
+// -------------------------------------------------------------------
+// Assumption expansion
+
+
+RegExpNode* RegExpNode::EnsureExpanded(NodeInfo* info) {
+  siblings_.Ensure(this);
+  NodeInfo new_info = *this->info();
+  if (new_info.follows_word_interest)
+    new_info.follows_word = info->follows_word;
+  if (new_info.follows_newline_interest)
+    new_info.follows_newline = info->follows_newline;
+  // If the following node should determine something we need to get
+  // a sibling that determines it.
+  new_info.does_determine_newline = new_info.determine_newline;
+  new_info.does_determine_word = new_info.determine_word;
+  new_info.does_determine_start = new_info.determine_start;
+  RegExpNode* sibling = TryGetSibling(&new_info);
+  if (sibling == NULL) {
+    sibling = ExpandLocal(&new_info);
+    siblings_.Add(sibling);
+    sibling->info()->being_expanded = true;
+    sibling->ExpandChildren();
+    sibling->info()->being_expanded = false;
+    sibling->info()->been_expanded = true;
+  } else {
+    NodeInfo* sib_info = sibling->info();
+    if (!sib_info->been_expanded && !sib_info->being_expanded) {
+      sibling->info()->being_expanded = true;
+      sibling->ExpandChildren();
+      sibling->info()->being_expanded = false;
+      sibling->info()->been_expanded = true;
+    }
+  }
+  return sibling;
+}
+
+
+RegExpNode* ChoiceNode::ExpandLocal(NodeInfo* info) {
+  ChoiceNode* clone = this->Clone();
+  clone->info()->ResetCompilationState();
+  clone->info()->AddAssumptions(info);
+  return clone;
+}
+
+
+void ChoiceNode::ExpandChildren() {
+  ZoneList<GuardedAlternative>* alts = alternatives();
+  ZoneList<GuardedAlternative>* new_alts
+      = new ZoneList<GuardedAlternative>(alts->length());
+  for (int i = 0; i < alts->length(); i++) {
+    GuardedAlternative next = alts->at(i);
+    next.set_node(next.node()->EnsureExpanded(info()));
+    new_alts->Add(next);
+  }
+  alternatives_ = new_alts;
+}
+
+
+RegExpNode* TextNode::ExpandLocal(NodeInfo* info) {
+  TextElement last = elements()->last();
+  if (last.type == TextElement::CHAR_CLASS) {
+    RegExpCharacterClass* char_class = last.data.u_char_class;
+    if (info->does_determine_word) {
+      ZoneList<CharacterRange>* word = NULL;
+      ZoneList<CharacterRange>* non_word = NULL;
+      CharacterRange::Split(char_class->ranges(),
+                            CharacterRange::GetWordBounds(),
+                            &word,
+                            &non_word);
+      if (non_word == NULL) {
+        // This node contains no non-word characters so it must be
+        // all word.
+        this->info()->is_word = NodeInfo::TRUE;
+      } else if (word == NULL) {
+        // Vice versa.
+        this->info()->is_word = NodeInfo::FALSE;
+      } else {
+        // If this character class contains both word and non-word
+        // characters we need to split it into two.
+        ChoiceNode* result = new ChoiceNode(2, on_failure());
+        // Welcome to the family, son!
+        result->set_siblings(this->siblings());
+        *result->info() = *this->info();
+        result->info()->ResetCompilationState();
+        result->info()->AddAssumptions(info);
+        RegExpNode* word_node
+            = new TextNode(new RegExpCharacterClass(word, false),
+                           on_success(),
+                           on_failure());
+        word_node->info()->determine_word = true;
+        word_node->info()->does_determine_word = true;
+        word_node->info()->is_word = NodeInfo::TRUE;
+        result->alternatives()->Add(GuardedAlternative(word_node));
+        RegExpNode* non_word_node
+            = new TextNode(new RegExpCharacterClass(non_word, false),
+                           on_success(),
+                           on_failure());
+        non_word_node->info()->determine_word = true;
+        non_word_node->info()->does_determine_word = true;
+        non_word_node->info()->is_word = NodeInfo::FALSE;
+        result->alternatives()->Add(GuardedAlternative(non_word_node));
+        return result;
+      }
+    }
+  }
+  TextNode* clone = this->Clone();
+  clone->info()->ResetCompilationState();
+  clone->info()->AddAssumptions(info);
+  return clone;
+}
+
+
+void TextNode::ExpandAtomChildren(RegExpAtom* that) {
+  NodeInfo new_info = *info();
+  uc16 last = that->data()[that->data().length() - 1];
+  if (info()->determine_word) {
+    new_info.follows_word = IsRegExpWord(last)
+      ? NodeInfo::TRUE : NodeInfo::FALSE;
+  } else {
+    new_info.follows_word = NodeInfo::UNKNOWN;
+  }
+  if (info()->determine_newline) {
+    new_info.follows_newline = IsRegExpNewline(last)
+      ? NodeInfo::TRUE : NodeInfo::FALSE;
+  } else {
+    new_info.follows_newline = NodeInfo::UNKNOWN;
+  }
+  if (info()->determine_start) {
+    new_info.follows_start = NodeInfo::FALSE;
+  } else {
+    new_info.follows_start = NodeInfo::UNKNOWN;
+  }
+  set_on_success(on_success()->EnsureExpanded(&new_info));
+}
+
+
+void TextNode::ExpandCharClassChildren(RegExpCharacterClass* that) {
+  if (info()->does_determine_word) {
+    // ASSERT(info()->is_word != NodeInfo::UNKNOWN);
+    NodeInfo next_info = *on_success()->info();
+    next_info.follows_word = info()->is_word;
+    set_on_success(on_success()->EnsureExpanded(&next_info));
+  } else {
+    set_on_success(on_success()->EnsureExpanded(info()));
+  }
+}
+
+
+void TextNode::ExpandChildren() {
+  TextElement last = elements()->last();
+  switch (last.type) {
+    case TextElement::ATOM:
+      ExpandAtomChildren(last.data.u_atom);
+      break;
+    case TextElement::CHAR_CLASS:
+      ExpandCharClassChildren(last.data.u_char_class);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+
+RegExpNode* ActionNode::ExpandLocal(NodeInfo* info) {
+  ActionNode* clone = this->Clone();
+  clone->info()->ResetCompilationState();
+  clone->info()->AddAssumptions(info);
+  return clone;
+}
+
+
+void ActionNode::ExpandChildren() {
+  set_on_success(on_success()->EnsureExpanded(info()));
+}
+
+
+RegExpNode* BackReferenceNode::ExpandLocal(NodeInfo* info) {
+  BackReferenceNode* clone = this->Clone();
+  clone->info()->ResetCompilationState();
+  clone->info()->AddAssumptions(info);
+  return clone;
+}
+
+
+void BackReferenceNode::ExpandChildren() {
+  set_on_success(on_success()->EnsureExpanded(info()));
+}
+
+
+RegExpNode* EndNode::ExpandLocal(NodeInfo* info) {
+  EndNode* clone = this->Clone();
+  clone->info()->ResetCompilationState();
+  clone->info()->AddAssumptions(info);
+  return clone;
+}
+
+
+void EndNode::ExpandChildren() {
+  // nothing to do
 }
 
 
@@ -2584,7 +2886,6 @@ void DispatchTableConstructor::VisitEnd(EndNode* that) {
 
 
 void DispatchTableConstructor::BuildTable(ChoiceNode* node) {
-  ASSERT(!node->table_calculated());
   node->set_being_calculated(true);
   ZoneList<GuardedAlternative>* alternatives = node->alternatives();
   for (int i = 0; i < alternatives->length(); i++) {
@@ -2592,7 +2893,6 @@ void DispatchTableConstructor::BuildTable(ChoiceNode* node) {
     alternatives->at(i).node()->Accept(this);
   }
   node->set_being_calculated(false);
-  node->set_table_calculated(true);
 }
 
 
@@ -2615,13 +2915,9 @@ void AddDispatchRange::Call(uc32 from, DispatchTable::Entry entry) {
 void DispatchTableConstructor::VisitChoice(ChoiceNode* node) {
   if (node->being_calculated())
     return;
-  if (!node->table_calculated()) {
-    DispatchTableConstructor constructor(node->table());
-    constructor.BuildTable(node);
-  }
-  ASSERT(node->table_calculated());
+  DispatchTable* table = node->GetTable(ignore_case_);
   AddDispatchRange adder(this);
-  node->table()->ForEach(&adder);
+  table->ForEach(&adder);
 }
 
 
@@ -2715,6 +3011,9 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
   if (node_return != NULL) *node_return = node;
   Analysis analysis(ignore_case);
   analysis.EnsureAnalyzed(node);
+
+  NodeInfo info = *node->info();
+  node = node->EnsureExpanded(&info);
 
   if (!FLAG_irregexp) {
     return Handle<FixedArray>::null();

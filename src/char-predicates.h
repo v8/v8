@@ -37,6 +37,8 @@ inline bool IsCarriageReturn(uc32 c);
 inline bool IsLineFeed(uc32 c);
 inline bool IsDecimalDigit(uc32 c);
 inline bool IsHexDigit(uc32 c);
+inline bool IsRegExpWord(uc32 c);
+inline bool IsRegExpNewline(uc32 c);
 
 struct IdentifierStart {
   static inline bool Is(uc32 c) {

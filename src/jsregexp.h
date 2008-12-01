@@ -185,6 +185,7 @@ class CharacterRange {
   CharacterRange(void* null) { ASSERT_EQ(NULL, null); }  //NOLINT
   CharacterRange(uc16 from, uc16 to) : from_(from), to_(to) { }
   static void AddClassEscape(uc16 type, ZoneList<CharacterRange>* ranges);
+  static Vector<const uc16> GetWordBounds();
   static inline CharacterRange Singleton(uc16 value) {
     return CharacterRange(value, value);
   }
@@ -203,9 +204,15 @@ class CharacterRange {
   bool is_valid() { return from_ <= to_; }
   bool IsSingleton() { return (from_ == to_); }
   void AddCaseEquivalents(ZoneList<CharacterRange>* ranges);
+  static void Split(ZoneList<CharacterRange>* base,
+                    Vector<const uc16> overlay,
+                    ZoneList<CharacterRange>** included,
+                    ZoneList<CharacterRange>** excluded);
+
   static const int kRangeCanonicalizeMax = 0x346;
   static const int kStartMarker = (1 << 24);
   static const int kPayloadMask = (1 << 24) - 1;
+
  private:
   uc16 from_;
   uc16 to_;
@@ -344,7 +351,7 @@ class OutSet: public ZoneObject {
 
 // A mapping from integers, specified as ranges, to a set of integers.
 // Used for mapping character ranges to choices.
-class DispatchTable {
+class DispatchTable : public ZoneObject {
  public:
   class Entry {
    public:
@@ -437,29 +444,50 @@ class TextElement {
 
 
 struct NodeInfo {
-  enum PrecedingInfo {
+  enum TriBool {
     UNKNOWN = -1, FALSE = 0, TRUE = 1
   };
 
   NodeInfo()
       : being_analyzed(false),
         been_analyzed(false),
+        being_expanded(false),
+        been_expanded(false),
         determine_word(false),
         determine_newline(false),
         determine_start(false),
+        does_determine_word(false),
+        does_determine_newline(false),
+        does_determine_start(false),
         follows_word_interest(false),
         follows_newline_interest(false),
         follows_start_interest(false),
+        is_word(UNKNOWN),
+        is_newline(UNKNOWN),
         at_end(false),
         follows_word(UNKNOWN),
         follows_newline(UNKNOWN),
         follows_start(UNKNOWN) { }
 
-  bool HasSameForwardInterests(NodeInfo* that) {
-    return (at_end == that->at_end)
-        && (follows_word_interest == that->follows_word_interest)
-        && (follows_newline_interest == that->follows_newline_interest)
-        && (follows_start_interest == that->follows_start_interest);
+  // Returns true if the interests and assumptions of this node
+  // matches the given one.
+  bool Matches(NodeInfo* that) {
+    return (at_end == that->at_end) &&
+           (follows_word_interest == that->follows_word_interest) &&
+           (follows_newline_interest == that->follows_newline_interest) &&
+           (follows_start_interest == that->follows_start_interest) &&
+           (follows_word == that->follows_word) &&
+           (follows_newline == that->follows_newline) &&
+           (follows_start == that->follows_start) &&
+           (does_determine_word == that->does_determine_word) &&
+           (does_determine_newline == that->does_determine_newline) &&
+           (does_determine_start == that->does_determine_start);
+  }
+
+  bool HasAssertions() {
+    return (follows_word != UNKNOWN) ||
+           (follows_newline != UNKNOWN) ||
+           (follows_start != UNKNOWN);
   }
 
   // Updates the interests of this node given the interests of the
@@ -471,6 +499,26 @@ struct NodeInfo {
     follows_start_interest |= that->follows_start_interest;
   }
 
+  void AddAssumptions(NodeInfo* that) {
+    if (that->follows_word != UNKNOWN) {
+      ASSERT(follows_word == UNKNOWN || follows_word == that->follows_word);
+      follows_word = that->follows_word;
+    }
+    if (that->follows_newline != UNKNOWN) {
+      ASSERT(follows_newline == UNKNOWN ||
+             follows_newline == that->follows_newline);
+      follows_newline = that->follows_newline;
+    }
+    if (that->follows_start != UNKNOWN) {
+      ASSERT(follows_start == UNKNOWN ||
+             follows_start == that->follows_start);
+      follows_start = that->follows_start;
+    }
+    does_determine_word = that->does_determine_word;
+    does_determine_newline = that->does_determine_newline;
+    does_determine_start = that->does_determine_start;
+  }
+
   // Sets the interests of this node to include the interests of the
   // following node.
   void AddFromFollowing(NodeInfo* that) {
@@ -479,8 +527,17 @@ struct NodeInfo {
     follows_start_interest |= that->follows_start_interest;
   }
 
+  void ResetCompilationState() {
+    being_analyzed = false;
+    been_analyzed = false;
+    being_expanded = false;
+    been_expanded = false;
+  }
+
   bool being_analyzed: 1;
   bool been_analyzed: 1;
+  bool being_expanded: 1;
+  bool been_expanded: 1;
 
   // These bits are set if this node must propagate forward information
   // about the last character it consumed (or, in the case of 'start',
@@ -489,19 +546,40 @@ struct NodeInfo {
   bool determine_newline: 1;
   bool determine_start: 1;
 
+  bool does_determine_word: 1;
+  bool does_determine_newline: 1;
+  bool does_determine_start: 1;
+
   // These bits are set of this node has to know what the preceding
   // character was.
   bool follows_word_interest: 1;
   bool follows_newline_interest: 1;
   bool follows_start_interest: 1;
 
+  TriBool is_word: 2;
+  TriBool is_newline: 2;
+
   bool at_end: 1;
 
   // These bits are set if the node can make assumptions about what
   // the previous character was.
-  PrecedingInfo follows_word: 2;
-  PrecedingInfo follows_newline: 2;
-  PrecedingInfo follows_start: 2;
+  TriBool follows_word: 2;
+  TriBool follows_newline: 2;
+  TriBool follows_start: 2;
+};
+
+
+class ExpansionGuard {
+ public:
+  explicit inline ExpansionGuard(NodeInfo* info) : info_(info) {
+    ASSERT(!info->being_expanded);
+    info->being_expanded = true;
+  }
+  inline ~ExpansionGuard() {
+    info_->being_expanded = false;
+  }
+ private:
+  NodeInfo* info_;
 };
 
 
@@ -538,6 +616,10 @@ class RegExpNode: public ZoneObject {
   // false for failure.
   virtual bool Emit(RegExpCompiler* compiler) = 0;
 
+  RegExpNode* EnsureExpanded(NodeInfo* info);
+  virtual RegExpNode* ExpandLocal(NodeInfo* info) = 0;
+  virtual void ExpandChildren() = 0;
+
   // Propagates the given interest information forward.  When seeing
   // \bfoo for instance, the \b is implemented by propagating forward
   // to the 'foo' string that it should only succeed if its first
@@ -546,11 +628,40 @@ class RegExpNode: public ZoneObject {
 
   NodeInfo* info() { return &info_; }
   virtual bool IsBacktrack() { return false; }
-  RegExpNode* GetSibling(NodeInfo* info);
-  void EnsureSiblings() { siblings_.Ensure(this); }
+
   void AddSibling(RegExpNode* node) { siblings_.Add(node); }
+
+  // Static version of EnsureSibling that expresses the fact that the
+  // result has the same type as the input.
+  template <class C>
+  static C* EnsureSibling(C* node, NodeInfo* info, bool* cloned) {
+    return static_cast<C*>(node->EnsureSibling(info, cloned));
+  }
+
+  SiblingList* siblings() { return &siblings_; }
+  void set_siblings(SiblingList* other) { siblings_ = *other; }
+
  protected:
+
+  // Returns a sibling of this node whose interests and assumptions
+  // match the ones in the given node info.  If no sibling exists NULL
+  // is returned.
+  RegExpNode* TryGetSibling(NodeInfo* info);
+
+  // Returns a sibling of this node whose interests match the ones in
+  // the given node info.  The info must not contain any assertions.
+  // If no node exists a new one will be created by cloning the current
+  // node.  The result will always be an instance of the same concrete
+  // class as this node.
+  RegExpNode* EnsureSibling(NodeInfo* info, bool* cloned);
+
+  // Returns a clone of this node initialized using the copy constructor
+  // of its concrete class.  Note that the node may have to be pre-
+  // processed before it is on a useable state.
+  virtual RegExpNode* Clone() = 0;
+
   inline void Bind(RegExpMacroAssembler* macro);
+
  private:
   Label label_;
   NodeInfo info_;
@@ -593,7 +704,11 @@ class ActionNode: public SeqRegExpNode {
                                     RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler);
+  virtual RegExpNode* ExpandLocal(NodeInfo* info);
+  virtual void ExpandChildren();
   virtual RegExpNode* PropagateForward(NodeInfo* info);
+  virtual ActionNode* Clone() { return new ActionNode(*this); }
+
  private:
   union {
     struct {
@@ -627,13 +742,28 @@ class TextNode: public SeqRegExpNode {
       : SeqRegExpNode(on_success),
         on_failure_(on_failure),
         elms_(elms) { }
+  TextNode(RegExpCharacterClass* that,
+           RegExpNode* on_success,
+           RegExpNode* on_failure)
+      : SeqRegExpNode(on_success),
+        on_failure_(on_failure),
+        elms_(new ZoneList<TextElement>(1)) {
+    elms_->Add(TextElement::CharClass(that));
+  }
   virtual void Accept(NodeVisitor* visitor);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
+  virtual RegExpNode* ExpandLocal(NodeInfo* info);
+  virtual void ExpandChildren();
   RegExpNode* on_failure() { return on_failure_; }
   virtual bool Emit(RegExpCompiler* compiler);
   ZoneList<TextElement>* elements() { return elms_; }
   void MakeCaseIndependent();
+  virtual TextNode* Clone() { return new TextNode(*this); }
+
  private:
+  void ExpandAtomChildren(RegExpAtom* that);
+  void ExpandCharClassChildren(RegExpCharacterClass* that);
+
   RegExpNode* on_failure_;
   ZoneList<TextElement>* elms_;
 };
@@ -655,6 +785,10 @@ class BackReferenceNode: public SeqRegExpNode {
   int end_register() { return end_reg_; }
   virtual bool Emit(RegExpCompiler* compiler);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
+  virtual RegExpNode* ExpandLocal(NodeInfo* info);
+  virtual void ExpandChildren();
+  virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
+
  private:
   RegExpNode* on_failure_;
   int start_reg_;
@@ -669,8 +803,12 @@ class EndNode: public RegExpNode {
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
+  virtual RegExpNode* ExpandLocal(NodeInfo* info);
+  virtual void ExpandChildren();
   virtual bool IsBacktrack() { return action_ == BACKTRACK; }
   virtual bool GoTo(RegExpCompiler* compiler);
+  virtual EndNode* Clone() { return new EndNode(*this); }
+
  private:
   Action action_;
 };
@@ -686,6 +824,7 @@ class Guard: public ZoneObject {
   int reg() { return reg_; }
   Relation op() { return op_; }
   int value() { return value_; }
+
  private:
   int reg_;
   Relation op_;
@@ -700,6 +839,7 @@ class GuardedAlternative {
   RegExpNode* node() { return node_; }
   void set_node(RegExpNode* node) { node_ = node; }
   ZoneList<Guard*>* guards() { return guards_; }
+
  private:
   RegExpNode* node_;
   ZoneList<Guard*>* guards_;
@@ -711,27 +851,31 @@ class ChoiceNode: public RegExpNode {
   explicit ChoiceNode(int expected_size, RegExpNode* on_failure)
       : on_failure_(on_failure),
         alternatives_(new ZoneList<GuardedAlternative>(expected_size)),
-        table_calculated_(false),
+        table_(NULL),
         being_calculated_(false) { }
   virtual void Accept(NodeVisitor* visitor);
   void AddAlternative(GuardedAlternative node) { alternatives()->Add(node); }
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
-  DispatchTable* table() { return &table_; }
+  DispatchTable* GetTable(bool ignore_case);
   RegExpNode* on_failure() { return on_failure_; }
   virtual bool Emit(RegExpCompiler* compiler);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
-  bool table_calculated() { return table_calculated_; }
-  void set_table_calculated(bool b) { table_calculated_ = b; }
+  virtual RegExpNode* ExpandLocal(NodeInfo* info);
+  virtual void ExpandChildren();
+  virtual ChoiceNode* Clone() { return new ChoiceNode(*this); }
+
   bool being_calculated() { return being_calculated_; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
+
  private:
+  friend class DispatchTableConstructor;
+  friend class Analysis;
   void GenerateGuard(RegExpMacroAssembler* macro_assembler,
                      Guard *guard,
                      Label* on_failure);
   RegExpNode* on_failure_;
   ZoneList<GuardedAlternative>* alternatives_;
-  DispatchTable table_;
-  bool table_calculated_;
+  DispatchTable* table_;
   bool being_calculated_;
 };
 
@@ -750,9 +894,10 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 // dispatch table of a choice node.
 class DispatchTableConstructor: public NodeVisitor {
  public:
-  explicit DispatchTableConstructor(DispatchTable* table)
+  DispatchTableConstructor(DispatchTable* table, bool ignore_case)
       : table_(table),
-        choice_index_(-1) { }
+        choice_index_(-1),
+        ignore_case_(ignore_case) { }
 
   void BuildTable(ChoiceNode* node);
 
@@ -773,6 +918,7 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
  protected:
   DispatchTable *table_;
   int choice_index_;
+  bool ignore_case_;
 };
 
 
@@ -808,7 +954,7 @@ class RegExpEngine: public AllStatic {
                                     RegExpNode** node_return,
                                     bool ignore_case,
                                     bool multiline);
-  static void DotPrint(const char* label, RegExpNode* node);
+  static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
 };
 
 

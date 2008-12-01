@@ -324,27 +324,8 @@ static bool NotWhiteSpace(uc16 c) {
 }
 
 
-static bool IsWord(uc16 c) {
-  return ('a' <= c && c <= 'z')
-      || ('A' <= c && c <= 'Z')
-      || ('0' <= c && c <= '9')
-      || (c == '_');
-}
-
-
 static bool NotWord(uc16 c) {
-  return !IsWord(c);
-}
-
-
-static bool Dot(uc16 c) {
-  switch (c) {
-    //   CR           LF           LS           PS
-    case 0x000A: case 0x000D: case 0x2028: case 0x2029:
-      return false;
-    default:
-      return true;
-  }
+  return !IsRegExpWord(c);
 }
 
 
@@ -364,12 +345,12 @@ static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
 
 
 TEST(CharacterClassEscapes) {
-  TestCharacterClassEscapes('.', Dot);
+  TestCharacterClassEscapes('.', IsRegExpNewline);
   TestCharacterClassEscapes('d', IsDigit);
   TestCharacterClassEscapes('D', NotDigit);
   TestCharacterClassEscapes('s', IsWhiteSpace);
   TestCharacterClassEscapes('S', NotWhiteSpace);
-  TestCharacterClassEscapes('w', IsWord);
+  TestCharacterClassEscapes('w', IsRegExpWord);
   TestCharacterClassEscapes('W', NotWord);
 }
 
@@ -395,7 +376,7 @@ static void Execute(const char* input,
   USE(node);
 #ifdef DEBUG
   if (dot_output) {
-    RegExpEngine::DotPrint(input, node);
+    RegExpEngine::DotPrint(input, node, false);
     exit(0);
   }
 #endif  // DEBUG
@@ -964,7 +945,7 @@ TEST(AddInverseToTable) {
       ranges->Add(CharacterRange(from, to));
     }
     DispatchTable table;
-    DispatchTableConstructor cons(&table);
+    DispatchTableConstructor cons(&table, false);
     cons.set_choice_index(0);
     cons.AddInverse(ranges);
     for (int i = 0; i < kLimit; i++) {
@@ -980,7 +961,7 @@ TEST(AddInverseToTable) {
           new ZoneList<CharacterRange>(1);
   ranges->Add(CharacterRange(0xFFF0, 0xFFFE));
   DispatchTable table;
-  DispatchTableConstructor cons(&table);
+  DispatchTableConstructor cons(&table, false);
   cons.set_choice_index(0);
   cons.AddInverse(ranges);
   CHECK(!table.Get(0xFFFE)->Get(0));
@@ -1162,7 +1143,45 @@ TEST(CharacterRangeCaseIndependence) {
 }
 
 
+static bool InClass(uc16 c, ZoneList<CharacterRange>* ranges) {
+  if (ranges == NULL)
+    return false;
+  for (int i = 0; i < ranges->length(); i++) {
+    CharacterRange range = ranges->at(i);
+    if (range.from() <= c && c <= range.to())
+      return true;
+  }
+  return false;
+}
+
+
+TEST(CharClassDifference) {
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  ZoneList<CharacterRange>* base = new ZoneList<CharacterRange>(1);
+  base->Add(CharacterRange::Everything());
+  Vector<const uc16> overlay = CharacterRange::GetWordBounds();
+  ZoneList<CharacterRange>* included = NULL;
+  ZoneList<CharacterRange>* excluded = NULL;
+  CharacterRange::Split(base, overlay, &included, &excluded);
+  for (int i = 0; i < (1 << 16); i++) {
+    bool in_base = InClass(i, base);
+    if (in_base) {
+      bool in_overlay = false;
+      for (int j = 0; !in_overlay && j < overlay.length(); j += 2) {
+        if (overlay[j] <= i && i <= overlay[j+1])
+          in_overlay = true;
+      }
+      CHECK_EQ(in_overlay, InClass(i, included));
+      CHECK_EQ(!in_overlay, InClass(i, excluded));
+    } else {
+      CHECK(!InClass(i, included));
+      CHECK(!InClass(i, excluded));
+    }
+  }
+}
+
+
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("foo$(?!bar)", false, true);
+  Execute("\\b\\w", false, true);
 }
