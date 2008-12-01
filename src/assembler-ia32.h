@@ -189,6 +189,9 @@ class Immediate BASE_EMBEDDED {
   bool is_int8() const {
     return -128 <= x_ && x_ < 128 && rmode_ == RelocInfo::NONE;
   }
+  bool is_int16() const {
+    return -32768 <= x_ && x_ < 32768 && rmode_ == RelocInfo::NONE;
+  }
 
  private:
   int x_;
@@ -493,13 +496,15 @@ class Assembler : public Malloced {
   void and_(const Operand& src, Register dst);
   void and_(const Operand& dst, const Immediate& x);
 
+  void cmpb(const Operand& op, int8_t imm8);
+  void cmpw(const Operand& op, Immediate imm16);
   void cmp(Register reg, int32_t imm32);
   void cmp(Register reg, Handle<Object> handle);
   void cmp(Register reg, const Operand& op);
   void cmp(const Operand& op, const Immediate& imm);
 
   void rep_cmpsb();
-  void rep_cmpsl();
+  void rep_cmpsw();
 
   void dec_b(Register dst);
 

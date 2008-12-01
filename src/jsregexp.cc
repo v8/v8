@@ -513,12 +513,12 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<JSRegExp> regexp,
       int start_offset = string_offset + previous_index * sizeof(uc16);
       int end_offset =
           string_offset + two_byte_subject->length() * sizeof(uc16);
-      typedef bool testfunc(String**, int, int, int*);
-      testfunc* test = FUNCTION_CAST<testfunc*>(code->entry());
-      rc = test(two_byte_subject.location(),
-                start_offset,
-                end_offset,
-                offsets_vector);
+      rc = RegExpMacroAssemblerIA32::Execute(code,
+                                             two_byte_subject.location(),
+                                             start_offset,
+                                             end_offset,
+                                             offsets_vector,
+                                             previous_index == 0);
       if (rc) {
         // Capture values are relative to start_offset only.
         for (int i = 0; i < offsets_vector_length; i++) {

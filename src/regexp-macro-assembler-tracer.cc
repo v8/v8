@@ -183,6 +183,7 @@ void RegExpMacroAssemblerTracer::CheckCharacter(uc16 c, Label* on_equal) {
 
 void RegExpMacroAssemblerTracer::CheckNotAtStart(Label* on_not_at_start) {
   PrintF(" CheckNotAtStart(label[%08x]);\n", on_not_at_start);
+  assembler_->CheckNotAtStart(on_not_at_start);
 }
 
 
