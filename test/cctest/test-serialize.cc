@@ -44,12 +44,12 @@ using namespace v8::internal;
 
 static int local_counters[256];
 static int counter_count = 0;
-static std::map<std::wstring, int> counter_table;
+static std::map<std::string, int> counter_table;
 
 
 // Callback receiver to track counters in test.
-static int* counter_function(const wchar_t* name) {
-  std::wstring counter(name);
+static int* counter_function(const char* name) {
+  std::string counter(name);
   if (counter_table.find(counter) == counter_table.end()) {
     local_counters[counter_count] = 0;
     counter_table[counter] = counter_count++;

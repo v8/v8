@@ -286,7 +286,7 @@ void Shell::OnExit() {
          i != counter_map_.end();
          i++) {
       Counter* counter = (*i).second;
-      ::printf("| %-38ls | %8i |\n", counter->name(), counter->value());
+      ::printf("| %-38s | %8i |\n", counter->name(), counter->value());
     }
     ::printf("+----------------------------------------+----------+\n");
   }
