@@ -33,14 +33,14 @@ namespace v8 { namespace internal {
 
 #define SR(name, caption) \
   StatsRate Counters::name = { \
-  { { L"t:" L###caption, NULL, false }, 0, 0 }, \
-  { L"c:" L###caption, NULL, false } };
+  { { "t:" #caption, NULL, false }, 0, 0 }, \
+  { "c:" #caption, NULL, false } };
 
   STATS_RATE_LIST(SR)
 #undef SR
 
 #define SC(name, caption) \
-  StatsCounter Counters::name = { L"c:" L###caption, NULL, false };
+  StatsCounter Counters::name = { "c:" #caption, NULL, false };
 
   STATS_COUNTER_LIST_1(SC)
   STATS_COUNTER_LIST_2(SC)
@@ -48,7 +48,7 @@ namespace v8 { namespace internal {
 
 StatsCounter Counters::state_counters[] = {
 #define COUNTER_NAME(name) \
-  { L"c:V8.State" L###name, NULL, false },
+  { "c:V8.State" #name, NULL, false },
   STATE_TAG_LIST(COUNTER_NAME)
 #undef COUNTER_NAME
 };

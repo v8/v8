@@ -44,13 +44,13 @@ namespace i = v8::internal;
 
 class Counter {
  public:
-  explicit Counter(const wchar_t* name)
+  explicit Counter(const char* name)
     : name_(name), value_(0) { }
   int* GetValuePtr() { return &value_; }
-  const wchar_t* name() { return name_; }
+  const char* name() { return name_; }
   int value() { return value_; }
  private:
-  const wchar_t* name_;
+  const char* name_;
   int value_;
 };
 
@@ -64,7 +64,7 @@ class Shell: public i::AllStatic {
   static void ReportException(TryCatch* try_catch);
   static void Initialize();
   static void OnExit();
-  static int* LookupCounter(const wchar_t* name);
+  static int* LookupCounter(const char* name);
   static Handle<String> ReadFile(const char* name);
   static void RunShell();
   static int Main(int argc, char* argv[]);
@@ -81,7 +81,7 @@ class Shell: public i::AllStatic {
  private:
   static Persistent<Context> utility_context_;
   static Persistent<Context> evaluation_context_;
-  typedef std::map<const wchar_t*, Counter*> CounterMap;
+  typedef std::map<const char*, Counter*> CounterMap;
   static CounterMap counter_map_;
 };
 

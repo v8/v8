@@ -209,7 +209,7 @@ Handle<Array> Shell::GetCompletions(Handle<String> text, Handle<String> full) {
 }
 
 
-int* Shell::LookupCounter(const wchar_t* name) {
+int* Shell::LookupCounter(const char* name) {
   CounterMap::iterator item = counter_map_.find(name);
   if (item != counter_map_.end()) {
     Counter* result = (*item).second;

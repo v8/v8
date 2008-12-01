@@ -1813,7 +1813,7 @@ class EXPORT Exception {
 
 // --- C o u n t e r s  C a l l b a c k s ---
 
-typedef int* (*CounterLookupCallback)(const wchar_t* name);
+typedef int* (*CounterLookupCallback)(const char* name);
 
 // --- F a i l e d A c c e s s C h e c k C a l l b a c k ---
 typedef void (*FailedAccessCheckCallback)(Local<Object> target,
