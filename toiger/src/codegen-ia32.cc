@@ -1299,8 +1299,6 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 
 
 void CodeGenerator::VisitDeclaration(Declaration* node) {
-  frame_->SpillAll();
-
   Comment cmnt(masm_, "[ Declaration");
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
@@ -1314,6 +1312,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // during variable resolution and must have mode DYNAMIC.
     ASSERT(var->mode() == Variable::DYNAMIC);
     // For now, just do a runtime call.
+    frame_->SpillAll();
     frame_->EmitPush(esi);
     frame_->EmitPush(Immediate(var->name()));
     // Declaration nodes are always introduced in one of two modes.
@@ -1348,6 +1347,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
   }
 
   if (val != NULL) {
+    frame_->SpillAll();
     // Set initial value.
     Reference target(this, node->proxy());
     ASSERT(target.is_slot());
