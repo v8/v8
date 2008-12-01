@@ -521,8 +521,7 @@ class RegExpParser {
   // can be reparsed.
   bool ParseBackReferenceIndex(int* index_out);
 
-  CharacterRange ParseClassAtom(bool* is_char_class,
-                                ZoneList<CharacterRange>* ranges,
+  CharacterRange ParseClassAtom(uc16* char_class,
                                 bool* ok);
   RegExpTree* ReportError(Vector<const char> message, bool* ok);
   void Advance();
@@ -4158,19 +4157,15 @@ RegExpTree* RegExpParser::ParseGroup(bool* ok) {
 }
 
 
-CharacterRange RegExpParser::ParseClassAtom(bool* is_char_class,
-                                            ZoneList<CharacterRange>* ranges,
-                                            bool* ok) {
-  ASSERT_EQ(false, *is_char_class);
+CharacterRange RegExpParser::ParseClassAtom(uc16* char_class, bool* ok) {
+  ASSERT_EQ(0, *char_class);
   uc32 first = current();
   if (first == '\\') {
     switch (Next()) {
       case 'w': case 'W': case 'd': case 'D': case 's': case 'S': {
-        *is_char_class = true;
-        uc32 c = Next();
-        CharacterRange::AddClassEscape(c, ranges);
+        *char_class = Next();
         Advance(2);
-        return NULL;
+        return CharacterRange::Singleton(0);  // Return dummy value.
       }
       default:
         uc32 c = ParseClassCharacterEscape(CHECK_OK);
@@ -4185,7 +4180,6 @@ CharacterRange RegExpParser::ParseClassAtom(bool* is_char_class,
 
 RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
   static const char* kUnterminated = "Unterminated character class";
-  static const char* kIllegal = "Illegal character class";
   static const char* kRangeOutOfOrder = "Range out of order in character class";
 
   ASSERT_EQ(current(), '[');
@@ -4197,32 +4191,36 @@ RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
   }
   ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
   while (has_more() && current() != ']') {
-    bool is_char_class = false;
-    CharacterRange first = ParseClassAtom(&is_char_class, ranges, CHECK_OK);
-    if (!is_char_class) {
-      if (current() == '-') {
-        Advance();
-        if (current() == kEndMarker) {
-          // If we reach the end we break out of the loop and let the
-          // following code report an error.
-          break;
-        } else if (current() == ']') {
-          ranges->Add(first);
-          ranges->Add(CharacterRange::Singleton('-'));
-          break;
-        }
-        CharacterRange next =
-            ParseClassAtom(&is_char_class, ranges, CHECK_OK);
-        if (is_char_class) {
-          return ReportError(CStrVector(kIllegal), CHECK_OK);
-        }
-        if (first.from() > next.to()) {
-          return ReportError(CStrVector(kRangeOutOfOrder), CHECK_OK);
-        }
-        ranges->Add(CharacterRange::Range(first.from(), next.to()));
-      } else {
+    uc16 char_class = 0;
+    CharacterRange first = ParseClassAtom(&char_class, CHECK_OK);
+    if (char_class) {
+      CharacterRange::AddClassEscape(char_class, ranges);
+      continue;
+    }
+    if (current() == '-') {
+      Advance();
+      if (current() == kEndMarker) {
+        // If we reach the end we break out of the loop and let the
+        // following code report an error.
+        break;
+      } else if (current() == ']') {
         ranges->Add(first);
+        ranges->Add(CharacterRange::Singleton('-'));
+        break;
       }
+      CharacterRange next = ParseClassAtom(&char_class, CHECK_OK);
+      if (char_class) {
+        ranges->Add(first);
+        ranges->Add(CharacterRange::Singleton('-'));
+        CharacterRange::AddClassEscape(char_class, ranges);
+        continue;
+      }
+      if (first.from() > next.to()) {
+        return ReportError(CStrVector(kRangeOutOfOrder), CHECK_OK);
+      }
+      ranges->Add(CharacterRange::Range(first.from(), next.to()));
+    } else {
+      ranges->Add(first);
     }
   }
   if (!has_more()) {
@@ -4230,7 +4228,7 @@ RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
   }
   Advance();
   if (ranges->length() == 0) {
-    ranges->Add(CharacterRange::Range(0, 0xffff));
+    ranges->Add(CharacterRange::Everything());
     is_negated = !is_negated;
   }
   return new RegExpCharacterClass(ranges, is_negated);
