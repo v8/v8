@@ -3107,6 +3107,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
 
 void CodeGenerator::VisitCallEval(CallEval* node) {
+  frame_->SpillAll();
   Comment cmnt(masm_, "[ CallEval");
 
   // In a call to eval, we first call %ResolvePossiblyDirectEval to resolve
@@ -3120,33 +3121,37 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 
   // Prepare stack for call to resolved function.
   Load(function);
-  __ push(Immediate(Factory::undefined_value()));  // Slot for receiver
-  for (int i = 0; i < args->length(); i++) {
+  frame_->SpillAll();
+  // Allocate a frame slot for the receiver.
+  frame_->EmitPush(Immediate(Factory::undefined_value()));
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
     Load(args->at(i));
+    frame_->SpillAll();
   }
 
   // Prepare stack for call to ResolvePossiblyDirectEval.
-  __ push(Operand(esp, args->length() * kPointerSize + kPointerSize));
-  if (args->length() > 0) {
-    __ push(Operand(esp, args->length() * kPointerSize));
+  frame_->EmitPush(frame_->ElementAt(arg_count + 1));
+  if (arg_count > 0) {
+    frame_->EmitPush(frame_->ElementAt(arg_count));
   } else {
-    __ push(Immediate(Factory::undefined_value()));
+    frame_->EmitPush(Immediate(Factory::undefined_value()));
   }
 
   // Resolve the call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+  frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
 
   // Touch up stack with the right values for the function and the receiver.
   __ mov(edx, FieldOperand(eax, FixedArray::kHeaderSize));
-  __ mov(Operand(esp, (args->length() + 1) * kPointerSize), edx);
+  __ mov(frame_->ElementAt(arg_count + 1), edx);
   __ mov(edx, FieldOperand(eax, FixedArray::kHeaderSize + kPointerSize));
-  __ mov(Operand(esp, args->length() * kPointerSize), edx);
+  __ mov(frame_->ElementAt(arg_count), edx);
 
   // Call the function.
   __ RecordPosition(node->position());
 
-  CallFunctionStub call_function(args->length());
-  __ CallStub(&call_function);
+  CallFunctionStub call_function(arg_count);
+  frame_->CallStub(&call_function, arg_count + 1);
 
   // Restore context and pop function from the stack.
   __ mov(esi, frame_->Context());
