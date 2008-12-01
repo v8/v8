@@ -603,6 +603,10 @@ bool Top::MayIndexedAccess(JSObject* receiver,
 }
 
 
+const char* Top::kStackOverflowMessage =
+  "Uncaught RangeError: Maximum call stack size exceeded";
+
+
 Failure* Top::StackOverflow() {
   HandleScope scope;
   Handle<String> key = Factory::stack_overflow_symbol();
@@ -616,9 +620,7 @@ Failure* Top::StackOverflow() {
   // doesn't use ReportUncaughtException to determine the location
   // from where the exception occurred. It should probably be
   // reworked.
-  static const char* kMessage =
-      "Uncaught RangeError: Maximum call stack size exceeded";
-  DoThrow(*exception, NULL, kMessage);
+  DoThrow(*exception, NULL, kStackOverflowMessage);
   return Failure::Exception();
 }
 

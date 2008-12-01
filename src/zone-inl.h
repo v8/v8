@@ -48,6 +48,11 @@ inline void* Zone::New(int size) {
 }
 
 
+bool Zone::excess_allocation() {
+  return segment_bytes_allocated_ > zone_excess_limit_;
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_ZONE_INL_H_

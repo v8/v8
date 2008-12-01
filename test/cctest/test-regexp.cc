@@ -51,6 +51,7 @@ using namespace v8::internal;
 
 
 static SmartPointer<const char> Parse(const char* input) {
+  V8::Initialize(NULL);
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
@@ -63,6 +64,7 @@ static SmartPointer<const char> Parse(const char* input) {
 }
 
 static bool ParseEscapes(const char* input) {
+  V8::Initialize(NULL);
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
@@ -253,6 +255,7 @@ TEST(ParserRegression) {
 
 static void ExpectError(const char* input,
                         const char* expected) {
+  V8::Initialize(NULL);
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
@@ -372,6 +375,7 @@ TEST(CharacterClassEscapes) {
 
 
 static RegExpNode* Compile(const char* input, bool multiline) {
+  V8::Initialize(NULL);
   FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
   if (!v8::internal::ParseRegExp(&reader, multiline, &result))

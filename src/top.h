@@ -271,6 +271,8 @@ class Top {
   static char* ArchiveThread(char* to);
   static char* RestoreThread(char* from);
 
+  static const char* kStackOverflowMessage;
+
  private:
   // The context that initiated this JS execution.
   static ThreadLocalTop thread_local_;
