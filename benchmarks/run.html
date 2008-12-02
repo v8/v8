@@ -21,7 +21,7 @@ function ShowProgress(name) {
 
 
 function AddResult(name, result) {
-  var text = name + ': ' + result;
+  var text = name + ': ' + formatScore(result);
   var results = document.getElementById("results");
   results.innerHTML += (text + "<br/>");  
 }
@@ -36,7 +36,7 @@ function AddError(name, error) {
 function AddScore(score) {
   var status = document.getElementById("status");
   if (success) {
-    status.innerHTML = "Score: " + score;
+    status.innerHTML = "Score: " + formatScore(score);
   }
 }
 
