@@ -737,6 +737,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\regexp-macro-assembler-tracer.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-tracer.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\rewriter.cc"
 				>
 			</File>
