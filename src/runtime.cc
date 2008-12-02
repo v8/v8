@@ -1383,13 +1383,14 @@ int Runtime::StringMatch(Handle<String> sub,
       }
       Vector<const char> ascii_vector =
         sub->ToAsciiVector().SubVector(start_index, subject_length);
-      void* pos = memchr(ascii_vector.start(),
-                         static_cast<const char>(pchar),
-                         static_cast<size_t>(ascii_vector.length()));
+      const void* pos = memchr(ascii_vector.start(),
+                               static_cast<const char>(pchar),
+                               static_cast<size_t>(ascii_vector.length()));
       if (pos == NULL) {
         return -1;
       }
-      return reinterpret_cast<char*>(pos) - ascii_vector.start() + start_index;
+      return reinterpret_cast<const char*>(pos) - ascii_vector.start()
+          + start_index;
     }
     return SingleCharIndexOf(sub->ToUC16Vector(),
                              pat->Get(pat_shape, 0),
