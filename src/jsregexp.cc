@@ -207,12 +207,15 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   JSRegExp::Flags flags = RegExpFlagsFromString(flag_str);
   Handle<FixedArray> cached = CompilationCache::LookupRegExp(pattern, flags);
   bool in_cache = !cached.is_null();
+  LOG(RegExpCompileEvent(re, in_cache));
+
   Handle<Object> result;
   if (in_cache) {
     re->set_data(*cached);
     result = re;
   } else {
     FlattenString(pattern);
+    ZoneScope zone_scope(DELETE_ON_EXIT);
     RegExpParseResult parse_result;
     FlatStringReader reader(pattern);
     if (!ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
@@ -258,7 +261,6 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     }
   }
 
-  LOG(RegExpCompileEvent(re, in_cache));
   return result;
 }
 

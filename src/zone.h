@@ -65,8 +65,9 @@ class Zone {
   // the limit allows.
   static inline bool excess_allocation();
 
+  static inline void adjust_segment_bytes_allocated(int delta);
+
  private:
-  friend class Segment;
 
   // All pointers returned from New() have this alignment.
   static const int kAlignment = kPointerSize;
@@ -182,6 +183,8 @@ class ZoneScope BASE_EMBEDDED {
   void DeleteOnExit() {
     mode_ = DELETE_ON_EXIT;
   }
+
+  static int nesting() { return nesting_; }
 
  private:
   ZoneScopeMode mode_;

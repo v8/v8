@@ -65,7 +65,7 @@ class Segment {
   // of the segment chain. Returns the new segment.
   static Segment* New(int size) {
     Segment* result = reinterpret_cast<Segment*>(Malloced::New(size));
-    Zone::segment_bytes_allocated_ += size;
+    Zone::adjust_segment_bytes_allocated(size);
     if (result != NULL) {
       result->next_ = head_;
       result->size_ = size;
@@ -76,7 +76,7 @@ class Segment {
 
   // Deletes the given segment. Does not touch the segment chain.
   static void Delete(Segment* segment, int size) {
-    Zone::segment_bytes_allocated_ -= size;
+    Zone::adjust_segment_bytes_allocated(-size);
     Malloced::Delete(segment);
   }
 
