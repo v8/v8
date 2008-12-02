@@ -467,7 +467,8 @@ struct NodeInfo {
         at_end(false),
         follows_word(UNKNOWN),
         follows_newline(UNKNOWN),
-        follows_start(UNKNOWN) { }
+        follows_start(UNKNOWN),
+        visited(false) { }
 
   // Returns true if the interests and assumptions of this node
   // matches the given one.
@@ -566,6 +567,8 @@ struct NodeInfo {
   TriBool follows_word: 2;
   TriBool follows_newline: 2;
   TriBool follows_start: 2;
+
+  bool visited: 1;
 };
 
 

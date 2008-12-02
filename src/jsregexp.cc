@@ -25,9 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#define _HAS_EXCEPTIONS 0
-#include <set>
-
 #include "v8.h"
 
 #include "ast.h"
@@ -1587,7 +1584,6 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
   bool ignore_case_;
   HeapStringAllocator alloc_;
   StringStream stream_;
-  std::set<RegExpNode*> seen_;
 };
 
 
@@ -1614,9 +1610,8 @@ void DotPrinter::PrintNode(const char* label, RegExpNode* node) {
 
 
 void DotPrinter::Visit(RegExpNode* node) {
-  if (seen_.find(node) != seen_.end())
-    return;
-  seen_.insert(node);
+  if (node->info()->visited) return;
+  node->info()->visited = true;
   node->Accept(this);
 }
 
