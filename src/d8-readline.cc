@@ -26,11 +26,19 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+#include <cstdio>
 #include <readline/readline.h>
 #include <readline/history.h>
 
 
 #include "d8.h"
+
+
+// There are incompatibilities between different versions and different
+// implementations of readline.  This smoothes out one known incompatibility.
+#if RL_READLINE_VERSION >= 0x0500
+#define completion_matches rl_completion_matches
+#endif
 
 
 namespace v8 {
@@ -85,7 +93,7 @@ void ReadLineEditor::AddHistory(const char* str) {
 char** ReadLineEditor::AttemptedCompletion(const char* text,
                                            int start,
                                            int end) {
-  char** result = rl_completion_matches(text, CompletionGenerator);
+  char** result = completion_matches(text, CompletionGenerator);
   rl_attempted_completion_over = true;
   return result;
 }
@@ -95,7 +103,7 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
   static unsigned current_index;
   static Persistent<Array> current_completions;
   if (state == 0) {
-    i::SmartPointer<char> full_text(strndup(rl_line_buffer, rl_point));
+    i::SmartPointer<char> full_text(i::OS::StrNDup(rl_line_buffer, rl_point));
     HandleScope scope;
     Handle<Array> completions =
       Shell::GetCompletions(String::New(text), String::New(*full_text));

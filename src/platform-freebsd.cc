@@ -194,6 +194,11 @@ char *OS::StrDup(const char* str) {
 }
 
 
+char* OS::StrNDup(const char* str, size_t n) {
+  return strndup(str, n);
+}
+
+
 double OS::nan_value() {
   return NAN;
 }
