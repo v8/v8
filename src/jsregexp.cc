@@ -1541,10 +1541,6 @@ bool ActionNode::Emit(RegExpCompiler* compiler) {
 bool BackReferenceNode::Emit(RegExpCompiler* compiler) {
   RegExpMacroAssembler* macro = compiler->macro_assembler();
   Bind(macro);
-  // Check whether the registers are uninitialized and always
-  // succeed if they are.
-  macro->IfRegisterLT(start_reg_, 0, on_success()->label());
-  macro->IfRegisterLT(end_reg_, 0, on_success()->label());
   ASSERT_EQ(start_reg_ + 1, end_reg_);
   if (info()->at_end) {
     // If we are constrained to match at the end of the input then succeed

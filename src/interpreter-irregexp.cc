@@ -333,6 +333,10 @@ static bool RawMatch(const byte* code_base,
       BYTECODE(CHECK_NOT_BACK_REF) {
         int from = registers[pc[1]];
         int len = registers[pc[1] + 1] - from;
+        if (from < 0 || len <= 0) {
+          pc += BC_CHECK_NOT_BACK_REF_LENGTH;
+          break;
+        }
         if (current + len > subject.length()) {
           pc = code_base + Load32(pc + 2);
           break;
@@ -353,6 +357,10 @@ static bool RawMatch(const byte* code_base,
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE) {
         int from = registers[pc[1]];
         int len = registers[pc[1] + 1] - from;
+        if (from < 0 || len <= 0) {
+          pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
+          break;
+        }
         if (current + len > subject.length()) {
           pc = code_base + Load32(pc + 2);
           break;

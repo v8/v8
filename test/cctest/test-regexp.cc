@@ -768,6 +768,56 @@ TEST(MacroAssemblerIA32Backtrack) {
   CHECK(!success);
 }
 
+
+TEST(MacroAssemblerIA32BackReference) {
+  V8::Initialize(NULL);
+
+  // regexp-macro-assembler-ia32 needs a handle scope to allocate
+  // byte-arrays for constants.
+  v8::HandleScope scope;
+
+  RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 3);
+
+  m.WriteCurrentPositionToRegister(0);
+  m.AdvanceCurrentPosition(2);
+  m.WriteCurrentPositionToRegister(1);
+  Label nomatch;
+  m.CheckNotBackReference(0, &nomatch);
+  m.Fail();
+  m.Bind(&nomatch);
+  m.AdvanceCurrentPosition(2);
+  Label missing_match;
+  m.CheckNotBackReference(0, &missing_match);
+  m.WriteCurrentPositionToRegister(2);
+  m.Succeed();
+  m.Bind(&missing_match);
+  m.Fail();
+
+  Handle<Object> code_object = m.GetCode();
+  Handle<Code> code = Handle<Code>::cast(code_object);
+
+  Handle<String> input = Factory::NewStringFromAscii(CStrVector("fooofo"));
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Address start_adr = seq_input->GetCharsAddress();
+  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
+  int end_offset = start_offset + seq_input->length();
+
+  int output[3];
+  bool success = RegExpMacroAssemblerIA32::Execute(*code,
+                                                   seq_input.location(),
+                                                   start_offset,
+                                                   end_offset,
+                                                   output,
+                                                   true);
+
+  CHECK(success);
+  CHECK_EQ(0, output[0]);
+  CHECK_EQ(2, output[1]);
+  CHECK_EQ(6, output[2]);
+}
+
+
+
 TEST(MacroAssemblerIA32AtStart) {
   V8::Initialize(NULL);
 

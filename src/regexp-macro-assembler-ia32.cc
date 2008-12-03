@@ -260,20 +260,27 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(
   __ mov(eax, register_location(start_reg));
   __ mov(ecx, register_location(start_reg + 1));
   __ sub(ecx, Operand(eax));  // Length to check.
-  __ j(less, on_no_match);
+  BranchOrBacktrack(less, on_no_match);
   __ j(equal, &fallthrough);
-  // check that there are sufficient characters left in the input
+  // Check that there are sufficient characters left in the input.
   __ mov(ebx, edi);
   __ add(ebx, Operand(ecx));
-  __ j(greater, on_no_match);
-  __ mov(ebx, Operand(edi));
-  __ push(esi);
+  BranchOrBacktrack(greater, on_no_match);
+
+  __ mov(ebx, edi);
+  __ mov(edx, esi);
   __ add(edi, Operand(esi));
   __ add(esi, Operand(eax));
   __ rep_cmpsb();
-  __ pop(esi);
-  __ mov(edi, Operand(ebx));
-  BranchOrBacktrack(not_equal, on_no_match);
+  __ mov(esi, edx);
+  Label success;
+  __ j(equal, &success);
+  __ mov(edi, ebx);
+  BranchOrBacktrack(no_condition, on_no_match);
+
+  __ bind(&success);
+  __ sub(edi, Operand(esi));
+
   __ bind(&fallthrough);
 }
 
@@ -629,7 +636,6 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
         ExternalReference::address_of_stack_guard_limit();
     __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
     __ j(above, &no_preempt, taken);
-
     __ push(edi);  // Current position.
     __ push(edx);  // Current character.
     // Restore original edi, esi.
