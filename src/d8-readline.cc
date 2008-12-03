@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include <cstdio>
+#include <cstdio>  // NOLINT
 #include <readline/readline.h>
 #include <readline/history.h>
 
