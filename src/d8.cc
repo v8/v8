@@ -84,6 +84,9 @@ i::SmartPointer<char> DumbLineEditor::Prompt(const char* prompt) {
 
 
 Shell::CounterMap Shell::counter_map_;
+i::OS::MemoryMappedFile* Shell::counters_file_ = NULL;
+CounterCollection Shell::local_counters_;
+CounterCollection* Shell::counters_ = &local_counters_;
 Persistent<Context> Shell::utility_context_;
 Persistent<Context> Shell::evaluation_context_;
 
@@ -209,20 +212,59 @@ Handle<Array> Shell::GetCompletions(Handle<String> text, Handle<String> full) {
 }
 
 
+int32_t* Counter::Bind(const char* name) {
+  int i;
+  for (i = 0; i < kMaxNameSize - 1 && name[i]; i++)
+    name_[i] = static_cast<char>(name[i]);
+  name_[i] = '\0';
+  return &counter_;
+}
+
+
+CounterCollection::CounterCollection() {
+  magic_number_ = 0xDEADFACE;
+  max_counters_ = kMaxCounters;
+  max_name_size_ = Counter::kMaxNameSize;
+  counters_in_use_ = 0;
+}
+
+
+Counter* CounterCollection::GetNextCounter() {
+  if (counters_in_use_ == kMaxCounters) return NULL;
+  return &counters_[counters_in_use_++];
+}
+
+
+void Shell::MapCounters(const char* name) {
+  counters_file_ = i::OS::MemoryMappedFile::create(name,
+    sizeof(CounterCollection), &local_counters_);
+  void* memory = (counters_file_ == NULL) ?
+      NULL : counters_file_->memory();
+  if (memory == NULL) {
+    printf("Could not map counters file %s\n", name);
+    exit(1);
+  }
+  counters_ = static_cast<CounterCollection*>(memory);
+  V8::SetCounterFunction(LookupCounter);
+}
+
+
 int* Shell::LookupCounter(const char* name) {
   CounterMap::iterator item = counter_map_.find(name);
   if (item != counter_map_.end()) {
     Counter* result = (*item).second;
-    return result->GetValuePtr();
+    return result->ptr();
   }
-  Counter* result = new Counter(name);
-  counter_map_[name] = result;
-  return result->GetValuePtr();
+  Counter* result = counters_->GetNextCounter();
+  if (result == NULL) return NULL;
+  return result->Bind(name);
 }
 
 
 void Shell::Initialize() {
   // Set up counters
+  if (i::FLAG_map_counters != NULL)
+    MapCounters(i::FLAG_map_counters);
   if (i::FLAG_dump_counters)
     V8::SetCounterFunction(LookupCounter);
   // Initialize the global objects
@@ -286,10 +328,12 @@ void Shell::OnExit() {
          i != counter_map_.end();
          i++) {
       Counter* counter = (*i).second;
-      ::printf("| %-38s | %8i |\n", counter->name(), counter->value());
+      ::printf("| %-38s | %8i |\n", (*i).first, counter->value());
     }
     ::printf("+----------------------------------------+----------+\n");
   }
+  if (counters_file_ != NULL)
+    delete counters_file_;
 }
 
 
