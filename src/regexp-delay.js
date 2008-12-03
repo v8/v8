@@ -163,6 +163,9 @@ function DoRegExpExecGlobal(regexp, string) {
 
 function RegExpExec(string) {
   if (%_ArgumentsLength() == 0) {
+    if (IS_UNDEFINED(regExpInput)) {
+      throw MakeError('no_input_to_regexp', [this]);
+    }
     string = regExpInput;
   }
   var s = ToString(string);
@@ -283,7 +286,7 @@ function RegExpMakeCaptureGetter(n) {
 // the last successful match.
 var regExpCaptures = [0, 0];
 var regExpSubject = '';
-var regExpInput = "";
+var regExpInput;
 
 // -------------------------------------------------------------------
 
@@ -308,13 +311,11 @@ function SetupRegExp() {
   %FunctionSetLength($RegExp.prototype.compile, 1);
 
   // The properties input, $input, and $_ are aliases for each other.  When this
-  // value is set in SpiderMonkey, the value it is set to is coerced to a
-  // string.  We mimic that behavior with a slight difference: in SpiderMonkey
-  // the value of the expression 'RegExp.input = null' (for instance) is the
-  // string "null" (ie, the value after coercion), while in V8 it is the value
-  // null (ie, the value before coercion).
+  // value is set the value it is set to is coerced to a string. 
   // Getter and setter for the input.
-  function RegExpGetInput() { return regExpInput; }
+  function RegExpGetInput() {
+    return IS_UNDEFINED(regExpInput) ? "" : regExpInput;
+  }
   function RegExpSetInput(string) { regExpInput = ToString(string); }
 
   %DefineAccessor($RegExp, 'input', GETTER, RegExpGetInput, DONT_DELETE);
