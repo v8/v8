@@ -61,7 +61,14 @@ class Zone {
   // Delete all objects and free all memory allocated in the Zone.
   static void DeleteAll();
 
+  // Returns true if more memory has been allocated in zones than
+  // the limit allows.
+  static inline bool excess_allocation();
+
+  static inline void adjust_segment_bytes_allocated(int delta);
+
  private:
+
   // All pointers returned from New() have this alignment.
   static const int kAlignment = kPointerSize;
 
@@ -71,6 +78,13 @@ class Zone {
   // Never keep segments larger than this size in bytes around.
   static const int kMaximumKeptSegmentSize = 64 * KB;
 
+  // Report zone excess when allocation exceeds this limit.
+  static int zone_excess_limit_;
+
+  // The number of bytes allocated in segments.  Note that this number
+  // includes memory allocated from the OS but not yet allocated from
+  // the zone.
+  static int segment_bytes_allocated_;
 
   // The Zone is intentionally a singleton; you should not try to
   // allocate instances of the class.
@@ -169,6 +183,8 @@ class ZoneScope BASE_EMBEDDED {
   void DeleteOnExit() {
     mode_ = DELETE_ON_EXIT;
   }
+
+  static int nesting() { return nesting_; }
 
  private:
   ZoneScopeMode mode_;

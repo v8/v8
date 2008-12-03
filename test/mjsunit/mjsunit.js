@@ -90,12 +90,14 @@ function assertNaN(value, name_opt) {
 
 
 function assertThrows(code) {
+  var threwException = true;
   try {
     eval(code);
-    assertTrue(false, "did not throw exception");
+    threwException = false;
   } catch (e) {
     // Do nothing.
   }
+  if (!threwException) assertTrue(false, "did not throw exception");
 }
 
 

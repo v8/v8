@@ -846,6 +846,40 @@ void MacroAssembler::GetBuiltinEntry(Register target, Builtins::JavaScript id) {
 }
 
 
+void MacroAssembler::SetCounter(StatsCounter* counter, int value,
+                                Register scratch1, Register scratch2) {
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    mov(scratch1, Operand(value));
+    mov(scratch2, Operand(ExternalReference(counter)));
+    str(scratch1, MemOperand(scratch2));
+  }
+}
+
+
+void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
+                                      Register scratch1, Register scratch2) {
+  ASSERT(value > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    mov(scratch2, Operand(ExternalReference(counter)));
+    ldr(scratch1, MemOperand(scratch2));
+    add(scratch1, scratch1, Operand(value));
+    str(scratch1, MemOperand(scratch2));
+  }
+}
+
+
+void MacroAssembler::DecrementCounter(StatsCounter* counter, int value,
+                                      Register scratch1, Register scratch2) {
+  ASSERT(value > 0);
+  if (FLAG_native_code_counters && counter->Enabled()) {
+    mov(scratch2, Operand(ExternalReference(counter)));
+    ldr(scratch1, MemOperand(scratch2));
+    sub(scratch1, scratch1, Operand(value));
+    str(scratch1, MemOperand(scratch2));
+  }
+}
+
+
 void MacroAssembler::Assert(Condition cc, const char* msg) {
   if (FLAG_debug_code)
     Check(cc, msg);

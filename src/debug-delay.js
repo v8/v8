@@ -752,46 +752,6 @@ BreakEvent.prototype.breakPointsHit = function() {
 };
 
 
-BreakEvent.prototype.details = function() {
-  // Build the break details.
-  var details = '';
-  if (this.breakPointsHit()) {
-    details += 'breakpoint';
-    if (this.breakPointsHit().length > 1) {
-      details += 's';
-    }
-    details += ' ';
-    for (var i = 0; i < this.breakPointsHit().length; i++) {
-      if (i > 0) {
-        details += ',';
-      }
-      details += this.breakPointsHit()[i].number();
-    }
-  } else {
-    details += 'break';
-  }
-  details += ' in ';
-  details += this.exec_state_.frame(0).invocationText();
-  details += ' at ';
-  details += this.exec_state_.frame(0).sourceAndPositionText();
-  details += '\n'
-  if (this.func().script()) {
-    details += FrameSourceUnderline(this.exec_state_.frame(0));
-  }
-  return details;
-};
-
-
-BreakEvent.prototype.debugPrompt = function() {
-  // Build the debug break prompt.
-  if (this.breakPointsHit()) {
-    return 'breakpoint';
-  } else {
-    return 'break';
-  }
-};
-
-
 BreakEvent.prototype.toJSONProtocol = function() {
   var o = { seq: next_response_seq++,
             type: "event",
@@ -869,32 +829,6 @@ ExceptionEvent.prototype.sourceLineText = function() {
 };
 
 
-ExceptionEvent.prototype.details = function() {
-  var details = "";
-  if (this.uncaught_) {
-    details += "Uncaught: ";
-  } else {
-    details += "Exception: ";
-  }
-
-  details += '"';
-  details += MakeMirror(this.exception_).toText();
-  details += '" at ';
-  details += this.exec_state_.frame(0).sourceAndPositionText();
-  details += '\n';
-  details += FrameSourceUnderline(this.exec_state_.frame(0));
-
-  return details;
-};
-
-ExceptionEvent.prototype.debugPrompt = function() {
-  if (this.uncaught_) {
-    return "uncaught exception";
-  } else {
-    return "exception";
-  }
-};
-
 ExceptionEvent.prototype.toJSONProtocol = function() {
   var o = { seq: next_response_seq++,
             type: "event",
@@ -920,9 +854,11 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
   return SimpleObjectToJSON_(o);
 };
 
+
 function MakeCompileEvent(script_source, script_name, script_function) {
   return new CompileEvent(script_source, script_name, script_function);
 }
+
 
 function CompileEvent(script_source, script_name, script_function) {
   this.scriptSource = script_source;
@@ -930,389 +866,38 @@ function CompileEvent(script_source, script_name, script_function) {
   this.scriptFunction = script_function;
 }
 
-CompileEvent.prototype.details = function() {
-  var result = "";
-  result = "Script added"
-  if (this.scriptData) {
-    result += ": '";
-    result += this.scriptData;
-    result += "'";
-  }
-  return result;
-};
-
-CompileEvent.prototype.debugPrompt = function() {
-  var result = "source"
-  if (this.scriptData) {
-    result += " '";
-    result += this.scriptData;
-    result += "'";
-  }
-  if (this.func) {
-    result += " added";
-  } else {
-    result += " compiled";
-  }
-  return result;
-};
 
 function MakeNewFunctionEvent(func) {
   return new NewFunctionEvent(func);
 }
 
+
 function NewFunctionEvent(func) {
   this.func = func;
 }
-
-NewFunctionEvent.prototype.details = function() {
-  var result = "";
-  result = "Function added: ";
-  result += this.func.name;
-  return result;
-};
-
-NewFunctionEvent.prototype.debugPrompt = function() {
-  var result = "function";
-  if (this.func.name) {
-    result += " '";
-    result += this.func.name;
-    result += "'";
-  }
-  result += " added";
-  return result;
-};
 
 NewFunctionEvent.prototype.name = function() {
   return this.func.name;
 };
 
+
 NewFunctionEvent.prototype.setBreakPoint = function(p) {
   Debug.setBreakPoint(this.func, p || 0);
 };
+
 
 function DebugCommandProcessor(exec_state) {
   this.exec_state_ = exec_state;
 };
 
 
-// Convenience function for C debugger code to process a text command. This
-// function converts the text command to a JSON request, performs the request
-// and converts the request to a text result for display. The result is an
-// object containing the text result and the intermediate results.
-DebugCommandProcessor.prototype.processDebugCommand = function (command) {
-  var request;
-  var response;
-  var text_result;
-  var running;
-
-  request = this.commandToJSONRequest(command);
-  response = this.processDebugJSONRequest(request);
-  text_result = this.responseToText(response);
-  running = this.isRunning(response);
-
-  return { "request"       : request,
-           "response"      : response,
-           "text_result"   : text_result,
-           "running"       : running };
+DebugCommandProcessor.prototype.processDebugRequest = function (request) {
+  return this.processDebugJSONRequest(request);
 }
 
 
-// Converts a text command to a JSON request.
-DebugCommandProcessor.prototype.commandToJSONRequest = function(cmd_line) {
-  // If the wery first character is a { assume that a JSON request have been
-  // entered as a command. Converting that to a JSON request is trivial.
-  if (cmd_line && cmd_line.length > 0 && cmd_line.charAt(0) == '{') {
-    return cmd_line;
-  }
-
-  // Trim string for leading and trailing whitespace.
-  cmd_line = cmd_line.replace(/^\s+|\s+$/g, "");
-
-  // Find the command.
-  var pos = cmd_line.indexOf(" ");
-  var cmd;
-  var args;
-  if (pos == -1) {
-    cmd = cmd_line;
-    args = "";
-  } else {
-    cmd = cmd_line.slice(0, pos);
-    args = cmd_line.slice(pos).replace(/^\s+|\s+$/g, "");
-  }
-
-  // Switch on command.
-  if (cmd == 'continue' || cmd == 'c') {
-    return this.continueCommandToJSONRequest_(args);
-  } else if (cmd == 'step' || cmd == 's') {
-    return this.stepCommandToJSONRequest_(args);
-  } else if (cmd == 'backtrace' || cmd == 'bt') {
-    return this.backtraceCommandToJSONRequest_(args);
-  } else if (cmd == 'frame' || cmd == 'f') {
-    return this.frameCommandToJSONRequest_(args);
-  } else if (cmd == 'print' || cmd == 'p') {
-    return this.printCommandToJSONRequest_(args);
-  } else if (cmd == 'source') {
-    return this.sourceCommandToJSONRequest_(args);
-  } else if (cmd == 'scripts') {
-    return this.scriptsCommandToJSONRequest_(args);
-  } else if (cmd[0] == '{') {
-    return cmd_line;
-  } else {
-    throw new Error('Unknown command "' + cmd + '"');
-  }
-};
-
-
-// Create a JSON request for the continue command.
-DebugCommandProcessor.prototype.continueCommandToJSONRequest_ = function(args) {
-  var request = this.createRequest('continue');
-  return request.toJSONProtocol();
-};
-
-
-// Create a JSON request for the step command.
-DebugCommandProcessor.prototype.stepCommandToJSONRequest_ = function(args) {
-  // Requesting a step is through the continue command with additional
-  // arguments.
-  var request = this.createRequest('continue');
-  request.arguments = {};
-
-  // Process arguments if any.
-  if (args && args.length > 0) {
-    args = args.split(/\s*[ ]+\s*/g);
-
-    if (args.length > 2) {
-      throw new Error('Invalid step arguments.');
-    }
-
-    if (args.length > 0) {
-      // Get step count argument if any.
-      if (args.length == 2) {
-        request.arguments.stepcount = %ToNumber(args[1]);
-      }
-
-      // Get the step action.
-      if (args[0] == 'in' || args[0] == 'i') {
-        request.arguments.stepaction = 'in';
-      } else if (args[0] == 'min' || args[0] == 'm') {
-        request.arguments.stepaction = 'min';
-      } else if (args[0] == 'next' || args[0] == 'n') {
-        request.arguments.stepaction = 'next';
-      } else if (args[0] == 'out' || args[0] == 'o') {
-        request.arguments.stepaction = 'out';
-      } else {
-        throw new Error('Invalid step argument "' + args[0] + '".');
-      }
-    }
-  } else {
-    // Default is step next.
-    request.arguments.stepaction = 'next';
-  }
-
-  return request.toJSONProtocol();
-};
-
-
-// Create a JSON request for the backtrace command.
-DebugCommandProcessor.prototype.backtraceCommandToJSONRequest_ = function(args) {
-  // Build a backtrace request from the text command.
-  var request = this.createRequest('backtrace');
-  args = args.split(/\s*[ ]+\s*/g);
-  if (args.length == 2) {
-    request.arguments = {};
-    request.arguments.fromFrame = %ToNumber(args[0]);
-    request.arguments.toFrame = %ToNumber(args[1]) + 1;
-  }
-  return request.toJSONProtocol();
-};
-
-
-// Create a JSON request for the frame command.
-DebugCommandProcessor.prototype.frameCommandToJSONRequest_ = function(args) {
-  // Build a frame request from the text command.
-  var request = this.createRequest('frame');
-  args = args.split(/\s*[ ]+\s*/g);
-  if (args.length > 0 && args[0].length > 0) {
-    request.arguments = {};
-    request.arguments.number = args[0];
-  }
-  return request.toJSONProtocol();
-};
-
-
-// Create a JSON request for the print command.
-DebugCommandProcessor.prototype.printCommandToJSONRequest_ = function(args) {
-  // Build a evaluate request from the text command.
-  var request = this.createRequest('evaluate');
-  if (args.length == 0) {
-    throw new Error('Missing expression.');
-  }
-
-  request.arguments = {};
-  request.arguments.expression = args;
-
-  return request.toJSONProtocol();
-};
-
-
-// Create a JSON request for the source command.
-DebugCommandProcessor.prototype.sourceCommandToJSONRequest_ = function(args) {
-  // Build a evaluate request from the text command.
-  var request = this.createRequest('source');
-
-  // Default is one line before and two lines after current location.
-  var before = 1;
-  var after = 2;
-
-  // Parse the arguments.
-  args = args.split(/\s*[ ]+\s*/g);
-  if (args.length > 1 && args[0].length > 0 && args[1].length > 0) {
-    before = %ToNumber(args[0]);
-    after = %ToNumber(args[1]);
-  } else if (args.length > 0 && args[0].length > 0) {
-    after = %ToNumber(args[0]);
-  }
-
-  // Request source arround current source location.
-  request.arguments = {};
-  request.arguments.fromLine = this.exec_state_.frame().sourceLine() - before;
-  if (request.arguments.fromLine < 0) {
-    request.arguments.fromLine = 0
-  }
-  request.arguments.toLine = this.exec_state_.frame().sourceLine() + after + 1;
-
-  return request.toJSONProtocol();
-};
-
-
-// Create a JSON request for the scripts command.
-DebugCommandProcessor.prototype.scriptsCommandToJSONRequest_ = function(args) {
-  // Build a evaluate request from the text command.
-  var request = this.createRequest('scripts');
-
-  // Process arguments if any.
-  if (args && args.length > 0) {
-    args = args.split(/\s*[ ]+\s*/g);
-
-    if (args.length > 1) {
-      throw new Error('Invalid scripts arguments.');
-    }
-
-    request.arguments = {};
-    if (args[0] == 'natives') {
-      request.arguments.types = ScriptTypeFlag(Debug.ScriptType.Native);
-    } else if (args[0] == 'extensions') {
-      request.arguments.types = ScriptTypeFlag(Debug.ScriptType.Extension);
-    } else if (args[0] == 'all') {
-      request.arguments.types =
-          ScriptTypeFlag(Debug.ScriptType.Normal) |
-          ScriptTypeFlag(Debug.ScriptType.Native) |
-          ScriptTypeFlag(Debug.ScriptType.Extension);
-    } else {
-      throw new Error('Invalid argument "' + args[0] + '".');
-    }
-  }
-
-  return request.toJSONProtocol();
-};
-
-
-// Convert a JSON response to text for display in a text based debugger.
-DebugCommandProcessor.prototype.responseToText = function(json_response) {
-  try {
-    // Convert the JSON string to an object.
-    response = %CompileString('(' + json_response + ')', 0, false)();
-
-    if (!response.success) {
-      return response.message;
-    }
-
-    if (response.command == 'backtrace') {
-      var body = response.body;
-      var result = 'Frames #' + body.fromFrame + ' to #' +
-          (body.toFrame - 1) + ' of ' + body.totalFrames + '\n';
-      for (i = 0; i < body.frames.length; i++) {
-        if (i != 0) result += '\n';
-        result += body.frames[i].text;
-      }
-      return result;
-    } else if (response.command == 'frame') {
-      return SourceUnderline(response.body.sourceLineText,
-                             response.body.column);
-    } else if (response.command == 'evaluate') {
-      return response.body.text;
-    } else if (response.command == 'source') {
-      // Get the source from the response.
-      var source = response.body.source;
-
-      // Get rid of last line terminator.
-      var remove_count = 0;
-      if (source[source.length - 1] == '\n') remove_count++;
-      if (source[source.length - 2] == '\r') remove_count++;
-      if (remove_count > 0) source = source.substring(0, source.length - remove_count);
-
-      return source;
-    } else if (response.command == 'scripts') {
-      var result = '';
-      for (i = 0; i < response.body.length; i++) {
-        if (i != 0) result += '\n';
-        if (response.body[i].name) {
-          result += response.body[i].name;
-        } else {
-          result += '[unnamed] ';
-          var sourceStart = response.body[i].sourceStart;
-          if (sourceStart.length > 40) {
-            sourceStart = sourceStart.substring(0, 37) + '...';
-          }
-          result += sourceStart;
-        }
-        result += ' (lines: ';
-        result += response.body[i].sourceLines;
-        result += ', length: ';
-        result += response.body[i].sourceLength;
-        if (response.body[i].type == Debug.ScriptType.Native) {
-          result += ', native';
-        } else if (response.body[i].type == Debug.ScriptType.Extension) {
-          result += ', extension';
-        }
-        result += ')';
-      }
-      return result;
-    }
-  } catch (e) {
-    return 'Error: "' + %ToString(e) + '" formatting response';
-  }
-};
-
-
-function SourceUnderline(source_text, position) {
-  if (IS_UNDEFINED(source_text)) {
-    return;
-  }
-
-  // Create an underline with a caret pointing to the source position. If the
-  // source contains a tab character the underline will have a tab character in
-  // the same place otherwise the underline will have a space character.
-  var underline = '';
-  for (var i = 0; i < position; i++) {
-    if (source_text[i] == '\t') {
-      underline += '\t';
-    } else {
-      underline += ' ';
-    }
-  }
-  underline += '^';
-
-  // Return the source line text with the underline beneath.
-  return source_text + '\n' + underline;
-}
-
-
-function FrameSourceUnderline(frame) {
-  var location = frame.sourceLocation();
-  if (location) {
-    return SourceUnderline(location.sourceText(), location.position - location.start);
-  }
+DebugCommandProcessor.prototype.responseIsRunning = function (response) {
+  return this.isRunning(response);
 }
 
 
@@ -1427,7 +1012,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request,
   try {
     try {
       // Convert the JSON string to an object.
-      request = %CompileString('(' + json_request + ')', 0, false)();
+      request = %CompileString('(' + json_request + ')', 0)();
 
       // Create an initial response.
       response = this.createResponse(request);
@@ -1880,7 +1465,7 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
 DebugCommandProcessor.prototype.isRunning = function(json_response) {
   try {
     // Convert the JSON string to an object.
-    response = %CompileString('(' + json_response + ')', 0, false)();
+    response = %CompileString('(' + json_response + ')', 0)();
 
     // Return whether VM should be running after this request.
     return response.running;

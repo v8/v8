@@ -34,6 +34,8 @@ namespace v8 { namespace internal {
 
 Address Zone::position_ = 0;
 Address Zone::limit_ = 0;
+int Zone::zone_excess_limit_ = 256 * MB;
+int Zone::segment_bytes_allocated_ = 0;
 
 bool AssertNoZoneAllocation::allow_allocation_ = true;
 
@@ -63,6 +65,7 @@ class Segment {
   // of the segment chain. Returns the new segment.
   static Segment* New(int size) {
     Segment* result = reinterpret_cast<Segment*>(Malloced::New(size));
+    Zone::adjust_segment_bytes_allocated(size);
     if (result != NULL) {
       result->next_ = head_;
       result->size_ = size;
@@ -72,9 +75,12 @@ class Segment {
   }
 
   // Deletes the given segment. Does not touch the segment chain.
-  static void Delete(Segment* segment) {
+  static void Delete(Segment* segment, int size) {
+    Zone::adjust_segment_bytes_allocated(-size);
     Malloced::Delete(segment);
   }
+
+  static int bytes_allocated() { return bytes_allocated_; }
 
  private:
   // Computes the address of the nth byte in this segment.
@@ -83,12 +89,14 @@ class Segment {
   }
 
   static Segment* head_;
+  static int bytes_allocated_;
   Segment* next_;
   int size_;
 };
 
 
 Segment* Segment::head_ = NULL;
+int Segment::bytes_allocated_ = 0;
 
 
 void Zone::DeleteAll() {
@@ -112,11 +120,12 @@ void Zone::DeleteAll() {
       // Unlink the segment we wish to keep from the list.
       current->clear_next();
     } else {
+      int size = current->size();
 #ifdef DEBUG
       // Zap the entire current segment (including the header).
-      memset(current, kZapDeadByte, current->size());
+      memset(current, kZapDeadByte, size);
 #endif
-      Segment::Delete(current);
+      Segment::Delete(current, size);
     }
     current = next;
   }

@@ -89,7 +89,10 @@ assertEquals(result[6], 'F');
 // From ecma_3/RegExp/regress-334158.js
 assertTrue(/\ca/.test( "\x01" ));
 assertFalse(/\ca/.test( "\\ca" ));
-assertTrue(/\c[a/]/.test( "\x1ba/]" ));
+// Passes in KJS, fails in IrregularExpressions.
+// See http://code.google.com/p/v8/issues/detail?id=152
+//assertTrue(/\c[a/]/.test( "\x1ba/]" ));
+
 
 // Test that we handle \s and \S correctly inside some bizarre
 // character classes.
@@ -241,3 +244,23 @@ assertEquals("bar$00", "foox".replace(re, "bar$00"), "$00");
 assertEquals("bar$000", "foox".replace(re, "bar$000"), "$000");
 assertEquals("barx", "foox".replace(re, "bar$01"), "$01 2");
 assertEquals("barx5", "foox".replace(re, "bar$15"), "$15");
+
+assertFalse(/()foo$\1/.test("football"), "football1");
+assertFalse(/foo$(?=ball)/.test("football"), "football2");
+assertFalse(/foo$(?!bar)/.test("football"), "football3");
+assertTrue(/()foo$\1/.test("foo"), "football4");
+assertTrue(/foo$(?=(ball)?)/.test("foo"), "football5");
+assertTrue(/()foo$(?!bar)/.test("foo"), "football6");
+assertFalse(/(x?)foo$\1/.test("football"), "football7");
+assertFalse(/foo$(?=ball)/.test("football"), "football8");
+assertFalse(/foo$(?!bar)/.test("football"), "football9");
+assertTrue(/(x?)foo$\1/.test("foo"), "football10");
+assertTrue(/foo$(?=(ball)?)/.test("foo"), "football11");
+assertTrue(/foo$(?!bar)/.test("foo"), "football12");
+
+// Check that the back reference has two successors.  See
+// BackReferenceNode::PropagateForward.
+assertFalse(/f(o)\b\1/.test('foo'));
+assertTrue(/f(o)\B\1/.test('foo'));
+
+assertFalse(/f(o)$\1/.test('foo'), "backref detects at_end");

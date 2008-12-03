@@ -670,7 +670,14 @@ void JSRegExp::JSRegExpVerify() {
     }
     case JSRegExp::JSCRE: {
       FixedArray* arr = FixedArray::cast(data());
-      ASSERT(arr->get(JSRegExp::kJscreDataIndex)->IsFixedArray());
+      Object* jscre_data = arr->get(JSRegExp::kJscreDataIndex);
+      ASSERT(jscre_data->IsFixedArray() || jscre_data->IsUndefined());
+      break;
+    }
+    case JSRegExp::IRREGEXP: {
+      FixedArray* arr = FixedArray::cast(data());
+      Object* jscre_data = arr->get(JSRegExp::kJscreDataIndex);
+      ASSERT(jscre_data->IsFixedArray());
       break;
     }
     default:

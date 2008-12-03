@@ -34,7 +34,7 @@
 namespace v8 { namespace internal {
 
 
-class AstOptimizer: public Visitor {
+class AstOptimizer: public AstVisitor {
  public:
   explicit AstOptimizer() {
   }
@@ -344,6 +344,12 @@ void AstOptimizer::VisitCall(Call* node) {
 }
 
 
+void AstOptimizer::VisitCallEval(CallEval* node) {
+  Visit(node->expression());
+  OptimizeArguments(node->arguments());
+}
+
+
 void AstOptimizer::VisitCallNew(CallNew* node) {
   Visit(node->expression());
   OptimizeArguments(node->arguments());
@@ -469,7 +475,7 @@ void AstOptimizer::VisitThisFunction(ThisFunction* node) {
 }
 
 
-class Processor: public Visitor {
+class Processor: public AstVisitor {
  public:
   explicit Processor(VariableProxy* result)
       : result_(result),
@@ -697,6 +703,12 @@ void Processor::VisitProperty(Property* node) {
 
 
 void Processor::VisitCall(Call* node) {
+  USE(node);
+  UNREACHABLE();
+}
+
+
+void Processor::VisitCallEval(CallEval* node) {
   USE(node);
   UNREACHABLE();
 }

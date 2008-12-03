@@ -417,8 +417,12 @@ def RunProcess(context, timeout, args, **rest):
   if utils.IsWindows():
     popen_args = '"' + subprocess.list2cmdline(args) + '"'
     if context.suppress_dialogs:
-      # Try to change the error mode to avoid dialogs on fatal errors.
-      Win32SetErrorMode(SEM_NOGPFAULTERRORBOX)
+      # Try to change the error mode to avoid dialogs on fatal errors. Don't
+      # touch any existing error mode flags by merging the existing error mode.
+      # See http://blogs.msdn.com/oldnewthing/archive/2004/07/27/198410.aspx.
+      error_mode = SEM_NOGPFAULTERRORBOX;
+      prev_error_mode = Win32SetErrorMode(error_mode);
+      Win32SetErrorMode(error_mode | prev_error_mode);
   process = subprocess.Popen(
     shell = utils.IsWindows(),
     args = popen_args,

@@ -185,11 +185,6 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
-void OS::WcsCpy(Vector<wchar_t> dest, const wchar_t* src) {
-  wcscpy(dest.start(), src);
-}
-
-
 char *OS::StrDup(const char* str) {
   return strdup(str);
 }
@@ -309,12 +304,13 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
   fclose(file_);
 }
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-static unsigned  StringToLongLong(char* buffer) {
-  return static_cast<unsigned>(strtoll(buffer, NULL, 16));  // NOLINT
-}
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+static unsigned StringToLong(char* buffer) {
+  return static_cast<unsigned>(strtol(buffer, NULL, 16));  // NOLINT
+}
 #endif
+
 
 void OS::LogSharedLibraryAddresses() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -328,13 +324,13 @@ void OS::LogSharedLibraryAddresses() {
     addr_buffer[10] = 0;
     int result = read(fd, addr_buffer + 2, 8);
     if (result < 8) break;
-    unsigned start = StringToLongLong(addr_buffer);
+    unsigned start = StringToLong(addr_buffer);
     result = read(fd, addr_buffer + 2, 1);
     if (result < 1) break;
     if (addr_buffer[2] != '-') break;
     result = read(fd, addr_buffer + 2, 8);
     if (result < 8) break;
-    unsigned end = StringToLongLong(addr_buffer);
+    unsigned end = StringToLong(addr_buffer);
     char buffer[MAP_LENGTH];
     int bytes_read = -1;
     do {

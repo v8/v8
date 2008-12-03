@@ -187,7 +187,7 @@ class CodeGenState BASE_EMBEDDED {
 // -------------------------------------------------------------------------
 // CodeGenerator
 
-class CodeGenerator: public Visitor {
+class CodeGenerator: public AstVisitor {
  public:
   // Takes a function literal, generates code for it. This function should only
   // be called by compiler.cc.

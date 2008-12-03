@@ -25,19 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var s = "a";
-for (var i = 0; i < 17; i++)
-    s += s;
+// A simple interpreter for the Irregexp byte code.
 
-assertThrows('new RegExp(s);');
+#ifndef V8_INTERPRETER_IRREGEXP_H_
+#define V8_INTERPRETER_IRREGEXP_H_
 
-assertThrows('/(([ab]){30}){3360}/');
-assertThrows('/(([ab]){30}){0,3360}/');
-assertThrows('/(([ab]){30}){10,3360}/');
-assertThrows('/(([ab]){0,30}){3360}/');
-assertThrows('/(([ab]){0,30}){0,3360}/');
-assertThrows('/(([ab]){0,30}){10,3360}/');
-assertThrows('/(([ab]){10,30}){3360}/');
-assertThrows('/(([ab]){10,30}){0,3360}/');
-assertThrows('/(([ab]){10,30}){10,3360}/');
-assertThrows('/(([ab]){12})(([ab]){65535}){1680}(([ab]){38}){722}([ab]){27}/');
+namespace v8 { namespace internal {
+
+
+class IrregexpInterpreter {
+ public:
+  static bool Match(Handle<ByteArray> code,
+                    Handle<String> subject16,
+                    int* captures,
+                    int start_position);
+};
+
+
+} }  // namespace v8::internal
+
+#endif  // V8_INTERPRETER_IRREGEXP_H_

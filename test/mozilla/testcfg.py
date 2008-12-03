@@ -56,11 +56,12 @@ TEST_DIRS = """
 
 class MozillaTestCase(test.TestCase):
 
-  def __init__(self, filename, path, context, mode, framework):
+  def __init__(self, filename, path, context, root, mode, framework):
     super(MozillaTestCase, self).__init__(context, path)
     self.filename = filename
     self.mode = mode
     self.framework = framework
+    self.root = root
 
   def IsNegative(self):
     return self.filename.endswith('-n.js')
@@ -74,7 +75,8 @@ class MozillaTestCase(test.TestCase):
     return 'FAILED!' in output.stdout
 
   def GetCommand(self):
-    result = [self.context.GetVm(self.mode), '--expose-gc']
+    result = [self.context.GetVm(self.mode), '--expose-gc',
+              join(self.root, 'mozilla-shell-emulation.js')]
     result += self.framework
     result.append(self.filename)
     return result
@@ -117,7 +119,7 @@ class MozillaTestConfiguration(test.TestConfiguration):
             full_path = [x for x in full_path if x != 'data']
             if self.Contains(path, full_path):
               test = MozillaTestCase(join(root, file), full_path, self.context,
-                                     mode, framework)
+                                     self.root, mode, framework)
               tests.append(test)
     return tests
 

@@ -44,5 +44,5 @@ h();
 f(null);
 
 // Check called from eval.
-eval('f(eval)');
+eval('f(null)');
 

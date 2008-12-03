@@ -120,7 +120,7 @@ BenchmarkSuite.RunSuites = function(runner) {
     }
     if (runner.NotifyScore) {
       var score = BenchmarkSuite.GeometricMean(BenchmarkSuite.scores);
-      runner.NotifyScore(Math.round(100 * score));
+      runner.NotifyScore(100 * score);
     }
   }
   RunStep();
@@ -164,7 +164,7 @@ BenchmarkSuite.prototype.NotifyResult = function() {
   var score = this.reference / mean;
   BenchmarkSuite.scores.push(score);
   if (this.runner.NotifyResult) {
-    this.runner.NotifyResult(this.name, Math.round(100 * score));
+    this.runner.NotifyResult(this.name, 100 * score);
   }
 }
 
@@ -218,4 +218,15 @@ BenchmarkSuite.prototype.RunStep = function(runner) {
     return null;
   }
   return RunNext();
+}
+
+
+// Converts a score value to a string with at least three significant
+// digits.
+function formatScore(value) {
+  if (value > 100) {
+    return value.toFixed(0);
+  } else {
+    return value.toPrecision(3);
+  }
 }

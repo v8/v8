@@ -53,6 +53,15 @@ def FAIL_OK = FAIL, OKAY
 js1_5/Regress/regress-271716-n: SKIP
 
 
+# These tests are simply wrong (i.e., they do not test what they intend
+# to test).
+# In particular, these two compare numbers to NaN with != in the current
+# version of the Mozilla tests. This is *fixed* in a later version.
+# The tests should be re-enabled when switching to a new version.
+ecma_3/Date/15.9.3.2-1: SKIP
+js1_2/function/Number: SKIP
+
+
 ##################### SLOW TESTS #####################
 
 # This takes a long time to run (~100 seconds). It should only be run
@@ -178,8 +187,8 @@ js1_5/extensions/regress-363258: PASS || FAIL
 
 ##################### INCOMPATIBLE TESTS #####################
 
-# This section is for tests that fail in both V8 and KJS.  Thus they
-# have been determined to be incompatible between Mozilla and V8/KJS.
+# This section is for tests that fail in both V8 and JSC.  Thus they
+# have been determined to be incompatible between Mozilla and V8/JSC.
 
 # Fail because of toLowerCase and toUpperCase conversion.
 ecma/String/15.5.4.11-2: FAIL_OK
@@ -207,33 +216,48 @@ js1_5/Function/regress-338121-03: FAIL_OK
 # Length of objects whose prototype chain includes a function
 ecma_3/Function/regress-313570: FAIL_OK
 
+# toPrecision argument restricted to range 1..21 in JSC/V8
+js1_5/Regress/regress-452346: FAIL_OK
+
+# Array.prototype.slice with zero arguments return undefined in JSC/V8, 
+# empty array in Spider/TraceMonkey.
+js1_5/Array/regress-451483: FAIL_OK
+
 
 #:=== RegExp:=== 
-# To be compatible with KJS we silently ignore flags that do not make
+# To be compatible with JSC we silently ignore flags that do not make
 # sense.  This test expects us to throw exceptions.  
 ecma_3/RegExp/regress-57631: FAIL_OK
 
 # PCRE doesn't allow subpattern nesting deeper than 200, this tests
-# depth 500.  KJS detects the case, and return null from the match,
+# depth 500.  JSC detects the case, and return null from the match,
 # and passes this test (the test doesn't check for a correct return
 # value).
-ecma_3/RegExp/regress-119909: FAIL_OK
+ecma_3/RegExp/regress-119909: PASS || FAIL_OK
 
 
 # Difference in the way capturing subpatterns work.  In JS, when the
 # 'minimum repeat count' is reached, the empty string must not match.
-# In this case, we are similar but not identical to KJS.  Hard to
-# support the JS behavior with PCRE, so maybe emulate KJS?
+# In this case, we are similar but not identical to JSC.  Hard to
+# support the JS behavior with PCRE, so maybe emulate JSC?
 #
 # Note: We do not support toSource currently so we cannot run this
 # test. We should make an isolated test case for the regexp issue.
 ecma_3/RegExp/regress-209919: FAIL_OK
+js1_5/extensions/regress-459606: FAIL_OK
 
 
 # PCRE's match limit is reached.  SpiderMonkey hangs on the first one,
-# KJS returns true somehow.  Maybe they up the match limit?  There is
+# JSC returns true somehow.  Maybe they up the match limit?  There is
 # an open V8 bug 676063 about this.
 ecma_3/RegExp/regress-330684: FAIL_OK
+
+
+# This test contains a regexp that runs exponentially long.  Spidermonkey
+# standalone will hang, though apparently inside Firefox it will trigger a
+# long-running-script timeout.  JSCRE passes by hitting the matchLimit and
+# just pretending that an exhaustive search found no match.
+ecma_3/RegExp/regress-307456: PASS || FAIL_OK
 
 
 # We do not detect overflow in bounds for back references and {}
@@ -247,11 +271,11 @@ js1_5/Regress/regress-247179: FAIL_OK
 
 
 # Regexp too long for PCRE.
-js1_5/Regress/regress-280769: FAIL_OK
-js1_5/Regress/regress-280769-1: FAIL_OK
-js1_5/Regress/regress-280769-2: FAIL_OK
-js1_5/Regress/regress-280769-4: FAIL_OK
-js1_5/Regress/regress-280769-5: FAIL_OK
+js1_5/Regress/regress-280769: PASS || FAIL
+js1_5/Regress/regress-280769-1: PASS || FAIL
+js1_5/Regress/regress-280769-2: PASS || FAIL
+js1_5/Regress/regress-280769-4: PASS || FAIL
+js1_5/Regress/regress-280769-5: PASS || FAIL
 
 
 # We do not support static RegExp.multiline - should we?.
@@ -270,7 +294,7 @@ ecma/Date/15.9.5.35-1: PASS || FAIL_OK
 
 
 # Spidermonkey allows stuff in parenthesis directly after the minutes
-# in a date.  KJS does not, so we don't either.
+# in a date.  JSC does not, so we don't either.
 js1_5/Date/regress-309925-02: FAIL_OK
 
 
@@ -284,10 +308,6 @@ js1_5/Regress/regress-234389: FAIL_OK
 
 # This may very well be a bogus test. I'm not sure yet.
 js1_5/Regress/regress-320119: FAIL_OK
-
-
-# We do not support explicit global evals through <global>.eval(...).
-js1_5/Regress/regress-68498-003: FAIL_OK
 
 
 # No support for toSource().
@@ -342,10 +362,28 @@ js1_5/Regress/regress-420919: FAIL_OK
 js1_5/Regress/regress-422348: FAIL_OK
 js1_5/Regress/regress-410852: FAIL_OK
 ecma_3/RegExp/regress-375715-04: FAIL_OK
+js1_5/decompilation/regress-456964-01: FAIL_OK
+js1_5/decompilation/regress-437288-02: FAIL_OK
+js1_5/decompilation/regress-457824: FAIL_OK
+js1_5/decompilation/regress-460116-01: FAIL_OK
+js1_5/decompilation/regress-460116-02: FAIL_OK
+js1_5/decompilation/regress-460501: FAIL_OK
+js1_5/decompilation/regress-460116-03: FAIL_OK
+js1_5/decompilation/regress-461110: FAIL_OK
+js1_5/decompilation/regress-456964-01: FAIL_OK
+js1_5/decompilation/regress-437288-02: FAIL_OK
+js1_5/decompilation/regress-457824: FAIL_OK
+js1_5/decompilation/regress-460116-01: FAIL_OK
+js1_5/decompilation/regress-460116-02: FAIL_OK
+js1_5/decompilation/regress-460116-03: FAIL_OK
+js1_5/decompilation/regress-460501: FAIL_OK
+js1_5/decompilation/regress-461110: FAIL_OK
+
 
 
 # Tests that use uneval.  Non-ECMA.
 js1_5/GC/regress-418128: FAIL_OK
+js1_5/extensions/regress-465276: FAIL_OK
 
 
 # Tests that use __count__.  Non-ECMA.
@@ -354,6 +392,7 @@ js1_5/extensions/regress-434837-01: FAIL_OK
 
 # Tests that use the watch method.  Non-ECMA.
 js1_5/extensions/regress-435345-01: FAIL_OK
+js1_5/extensions/regress-455413: FAIL_OK
 
 
 # The spec specifies reverse evaluation order for < and >=.
@@ -402,6 +441,7 @@ js1_5/GetSet/regress-353264: FAIL_OK
 js1_5/Regress/regress-361617: FAIL_OK
 js1_5/Regress/regress-362583: FAIL_OK
 js1_5/extensions/regress-356378: FAIL_OK
+js1_5/extensions/regress-452178: FAIL_OK
 
 
 # 'native' *is* a keyword in V8.
@@ -415,14 +455,6 @@ js1_5/Regress/regress-106244: FAIL_OK
 js1_5/Regress/regress-317533: FAIL_OK
 js1_5/Regress/regress-323314-1: FAIL_OK
 js1_5/Regress/regress-352197: FAIL_OK
-js1_5/Regress/regress-115436: FAIL_OK
-js1_5/Regress/regress-214761: FAIL_OK
-js1_5/Regress/regress-253150: FAIL_OK
-js1_5/Regress/regress-306727: FAIL_OK
-js1_5/Regress/regress-308566: FAIL_OK
-js1_5/Regress/regress-312260: FAIL_OK
-js1_5/Regress/regress-322430: FAIL_OK
-js1_5/Regress/regress-383674: FAIL_OK
 
 
 # Equivalent to assert(false).
@@ -431,14 +463,14 @@ ecma_2/String/replace-001: FAIL_OK
 
 
 # We do not strip unicode format control characters. This is really
-# required for working with non-latin character sets.  We match KJS
+# required for working with non-latin character sets.  We match JSC
 # and IE here.  Firefox matches the spec (section 7.1).
 ecma_3/Unicode/uc-001: FAIL_OK
 
 
 # A non-breaking space doesn't match \s in a regular expression.  This behaviour
-# matches KJS.  All the VMs have different behaviours in which characters match
-# \s so we do the same as KJS until they change.
+# matches JSC.  All the VMs have different behaviours in which characters match
+# \s so we do the same as JSC until they change.
 ecma_3/Unicode/uc-002: FAIL_OK
 
 
@@ -465,6 +497,8 @@ js1_5/Regress/regress-243869: FAIL_OK
 js1_5/Regress/regress-249211: FAIL_OK
 js1_5/Regress/regress-309242: FAIL_OK
 js1_5/Regress/regress-350692: FAIL_OK
+js1_5/extensions/regress-421621: FAIL_OK
+js1_5/extensions/regress-432075: FAIL_OK
 
 
 # The length of Error functions is 1 not 3.
@@ -485,11 +519,11 @@ js1_5/Regress/regress-349648: FAIL_OK
 js1_5/Regress/regress-336100: FAIL_OK
 
 
-# Regular expression test failures due to PCRE. We match KJS (ie, perl)
+# Regular expression test failures due to PCRE. We match JSC (ie, perl)
 # behavior and not the ECMA spec.
 ecma_3/RegExp/15.10.2-1: FAIL_OK
 ecma_3/RegExp/perlstress-001: FAIL_OK
-ecma_3/RegExp/regress-334158: FAIL_OK
+ecma_3/RegExp/regress-334158: PASS || FAIL
 
 
 # This test requires a failure if we try to compile a function with more
@@ -498,7 +532,7 @@ js1_5/Regress/regress-290575: FAIL_OK
 
 
 # Fails because of the way function declarations are
-# handled in V8/KJS. V8 follows IE behavior and introduce
+# handled in V8/JSC. V8 follows IE behavior and introduce
 # all nested function declarations when entering the
 # surrounding function, whereas Spidermonkey declares
 # them dynamically when the statement is executed.
@@ -507,7 +541,7 @@ ecma_3/FunExpr/fe-001: FAIL_OK
 js1_5/Scope/regress-184107: FAIL_OK
 
 
-# Function is deletable in V8 and KJS.
+# Function is deletable in V8 and JSC.
 js1_5/Regress/regress-352604: FAIL_OK
 
 
@@ -518,8 +552,8 @@ js1_5/Regress/regress-417893: FAIL_OK
 
 ##################### FAILING TESTS #####################
 
-# This section is for tests that fail in V8 and pass in KJS.
-# Tests that fail in both V8 and KJS belong in the FAIL_OK
+# This section is for tests that fail in V8 and pass in JSC.
+# Tests that fail in both V8 and JSC belong in the FAIL_OK
 # category.
 
 # This fails because we don't handle Function.prototype.apply with very large
@@ -550,7 +584,6 @@ js1_4/Regress/function-003: FAIL
 # Relies on JavaScript 1.2 / 1.3 deprecated features.
 js1_2/function/regexparg-1: FAIL
 
-
 # 'export' and 'import' are not keywords in V8.
 ecma_2/Exceptions/lexical-010: FAIL
 ecma_2/Exceptions/lexical-022: FAIL
@@ -576,10 +609,6 @@ ecma_3/String/15.5.4.11: FAIL
 # Bug 1202597: New js1_5/Expressions/regress-394673 is failing.
 # Marked as: Will not fix. V8 throws an acceptable RangeError.
 js1_5/Expressions/regress-394673: FAIL
-
-# Bug 1202598: New mozilla test js1_5/Regress/regress-383682 fails.
-js1_5/Regress/regress-383682: FAIL
-
 
 ##################### MOZILLA EXTENSION TESTS #####################
 

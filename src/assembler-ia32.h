@@ -118,8 +118,8 @@ enum Condition {
   not_equal     =  5,
   below_equal   =  6,
   above         =  7,
-  sign          =  8,
-  not_sign      =  9,
+  negative      =  8,
+  positive      =  9,
   parity_even   = 10,
   parity_odd    = 11,
   less          = 12,
@@ -128,10 +128,12 @@ enum Condition {
   greater       = 15,
 
   // aliases
+  carry         = below,
+  not_carry     = above_equal,
   zero          = equal,
   not_zero      = not_equal,
-  negative      = sign,
-  positive      = not_sign
+  sign          = negative,
+  not_sign      = positive
 };
 
 
@@ -186,6 +188,9 @@ class Immediate BASE_EMBEDDED {
   bool is_zero() const { return x_ == 0 && rmode_ == RelocInfo::NONE; }
   bool is_int8() const {
     return -128 <= x_ && x_ < 128 && rmode_ == RelocInfo::NONE;
+  }
+  bool is_int16() const {
+    return -32768 <= x_ && x_ < 32768 && rmode_ == RelocInfo::NONE;
   }
 
  private:
@@ -283,13 +288,14 @@ class Operand BASE_EMBEDDED {
 //
 // Displacement _data field layout
 //
-// |31.....1| ......0|
+// |31.....2|1......0|
 // [  next  |  type  |
 
 class Displacement BASE_EMBEDDED {
  public:
   enum Type {
     UNCONDITIONAL_JUMP,
+    CODE_RELATIVE,
     OTHER
   };
 
@@ -313,8 +319,8 @@ class Displacement BASE_EMBEDDED {
  private:
   int data_;
 
-  class TypeField: public BitField<Type, 0, 1> {};
-  class NextField: public BitField<int,  1, 32-1> {};
+  class TypeField: public BitField<Type, 0, 2> {};
+  class NextField: public BitField<int,  2, 32-2> {};
 
   void init(Label* L, Type type);
 };
@@ -440,9 +446,13 @@ class Assembler : public Malloced {
   void push(const Immediate& x);
   void push(Register src);
   void push(const Operand& src);
+  void push(Label* label, RelocInfo::Mode relocation_mode);
 
   void pop(Register dst);
   void pop(const Operand& dst);
+
+  void enter(const Immediate& size);
+  void leave();
 
   // Moves
   void mov_b(Register dst, const Operand& src);
@@ -486,10 +496,15 @@ class Assembler : public Malloced {
   void and_(const Operand& src, Register dst);
   void and_(const Operand& dst, const Immediate& x);
 
+  void cmpb(const Operand& op, int8_t imm8);
+  void cmpw(const Operand& op, Immediate imm16);
   void cmp(Register reg, int32_t imm32);
   void cmp(Register reg, Handle<Object> handle);
   void cmp(Register reg, const Operand& op);
   void cmp(const Operand& op, const Immediate& imm);
+
+  void rep_cmpsb();
+  void rep_cmpsw();
 
   void dec_b(Register dst);
 
@@ -535,6 +550,7 @@ class Assembler : public Malloced {
 
   void shr(Register dst, uint8_t imm8);
   void shr(Register dst);
+  void shr_cl(Register dst);
 
   void sub(const Operand& dst, const Immediate& x);
   void sub(Register dst, const Operand& src);
@@ -550,6 +566,7 @@ class Assembler : public Malloced {
   void xor_(const Operand& dst, const Immediate& x);
 
   // Bit operations.
+  void bt(const Operand& dst, Register src);
   void bts(const Operand& dst, Register src);
 
   // Miscellaneous
@@ -558,7 +575,6 @@ class Assembler : public Malloced {
   void nop();
   void rdtsc();
   void ret(int imm16);
-  void leave();
 
   // Label operations & relative jumps (PPUM Appendix D)
   //
@@ -748,6 +764,7 @@ class Assembler : public Malloced {
   inline void emit(Handle<Object> handle);
   inline void emit(uint32_t x, RelocInfo::Mode rmode);
   inline void emit(const Immediate& x);
+  inline void emit_w(const Immediate& x);
 
   // instruction generation
   void emit_arith_b(int op1, int op2, Register dst, int imm8);

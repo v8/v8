@@ -125,6 +125,32 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
 }
 
 
+// Helper function used to check that a value is either not a function
+// or is loaded if it is a function.
+static void GenerateCheckNonFunctionOrLoaded(MacroAssembler* masm,
+                                             Label* miss,
+                                             Register value,
+                                             Register scratch) {
+  Label done;
+  // Check if the value is a Smi.
+  __ tst(value, Operand(kSmiTagMask));
+  __ b(eq, &done);
+  // Check if the value is a function.
+  __ ldr(scratch, FieldMemOperand(value, HeapObject::kMapOffset));
+  __ ldrb(scratch, FieldMemOperand(scratch, Map::kInstanceTypeOffset));
+  __ cmp(scratch, Operand(JS_FUNCTION_TYPE));
+  __ b(ne, &done);
+  // Check if the function has been loaded.
+  __ ldr(scratch,
+         FieldMemOperand(value, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(scratch,
+         FieldMemOperand(scratch, SharedFunctionInfo::kLazyLoadDataOffset));
+  __ cmp(scratch, Operand(Factory::undefined_value()));
+  __ b(ne, miss);
+  __ bind(&done);
+}
+
+
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
@@ -142,62 +168,17 @@ void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
 }
 
 
-// Generate code to check if an object is a string.  If the object is
-// a string, the map's instance type is left in the scratch1 register.
-static void GenerateStringCheck(MacroAssembler* masm,
-                                Register receiver,
-                                Register scratch1,
-                                Register scratch2,
-                                Label* smi,
-                                Label* non_string_object) {
-  // Check that the receiver isn't a smi.
-  __ tst(receiver, Operand(kSmiTagMask));
-  __ b(eq, smi);
-
-  // Check that the object is a string.
-  __ ldr(scratch1, FieldMemOperand(receiver, HeapObject::kMapOffset));
-  __ ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
-  __ and_(scratch2, scratch1, Operand(kIsNotStringMask));
-  // The cast is to resolve the overload for the argument of 0x0.
-  __ cmp(scratch2, Operand(static_cast<int32_t>(kStringTag)));
-  __ b(ne, non_string_object);
-}
-
-
 void LoadIC::GenerateStringLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-  Label miss, load_length, check_wrapper;
+  Label miss;
 
   __ ldr(r0, MemOperand(sp, 0));
 
-  // Check if the object is a string leaving the instance type in the
-  // r1 register.
-  GenerateStringCheck(masm, r0, r1, r3, &miss, &check_wrapper);
-
-  // Load length directly from the string.
-  __ bind(&load_length);
-  __ and_(r1, r1, Operand(kStringSizeMask));
-  __ add(r1, r1, Operand(String::kHashShift));
-  __ ldr(r0, FieldMemOperand(r0, String::kLengthOffset));
-  __ mov(r0, Operand(r0, LSR, r1));
-  __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  __ Ret();
-
-  // Check if the object is a JSValue wrapper.
-  __ bind(&check_wrapper);
-  __ cmp(r1, Operand(JS_VALUE_TYPE));
-  __ b(ne, &miss);
-
-  // Check if the wrapped value is a string and load the length
-  // directly if it is.
-  __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
-  GenerateStringCheck(masm, r0, r1, r3, &miss, &miss);
-  __ b(&load_length);
-
+  StubCompiler::GenerateLoadStringLength2(masm, r0, r1, r3, &miss);
   // Cache miss: Jump to runtime.
   __ bind(&miss);
   StubCompiler::GenerateLoadMiss(masm, Code::LOAD_IC);
@@ -298,6 +279,12 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   __ ldr(r0, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
   __ cmp(r0, Operand(JS_FUNCTION_TYPE));
+  __ b(ne, miss);
+
+  // Check that the function has been loaded.
+  __ ldr(r0, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r0, FieldMemOperand(r0, SharedFunctionInfo::kLazyLoadDataOffset));
+  __ cmp(r0, Operand(Factory::undefined_value()));
   __ b(ne, miss);
 
   // Patch the receiver with the global proxy if necessary.
@@ -467,6 +454,7 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
 
   __ bind(&probe);
   GenerateDictionaryLoad(masm, &miss, r1, r0);
+  GenerateCheckNonFunctionOrLoaded(masm, &miss, r0, r1);
   __ Ret();
 
   // Global object access: Check access rights.
@@ -500,7 +488,6 @@ void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
 }
 
 
-// TODO(1224671): ICs for keyed load/store is not completed on ARM.
 Object* KeyedLoadIC_Miss(Arguments args);
 
 
@@ -521,14 +508,62 @@ void KeyedLoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
 }
 
 
-// TODO(1224671): implement the fast case.
 void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- sp[0]  : key
   //  -- sp[4]  : receiver
+  Label slow, fast;
 
-  KeyedLoadIC::Generate(masm, ExternalReference(Runtime::kKeyedGetProperty));
+  // Get the key and receiver object from the stack.
+  __ ldm(ia, sp, r0.bit() | r1.bit());
+  // Check that the key is a smi.
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(ne, &slow);
+  __ mov(r0, Operand(r0, ASR, kSmiTagSize));
+  // Check that the object isn't a smi.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(eq, &slow);
+
+  // Check that the object is some kind of JS object EXCEPT JS Value type.
+  // In the case that the object is a value-wrapper object,
+  // we enter the runtime system to make sure that indexing into string
+  // objects work as intended.
+  ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+  __ cmp(r2, Operand(JS_OBJECT_TYPE));
+  __ b(lt, &slow);
+
+  // Get the elements array of the object.
+  __ ldr(r1, FieldMemOperand(r1, JSObject::kElementsOffset));
+  // Check that the object is in fast mode (not dictionary).
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ cmp(r3, Operand(Factory::hash_table_map()));
+  __ b(eq, &slow);
+  // Check that the key (index) is within bounds.
+  __ ldr(r3, FieldMemOperand(r1, Array::kLengthOffset));
+  __ cmp(r0, Operand(r3));
+  __ b(lo, &fast);
+
+  // Slow case: Push extra copies of the arguments (2).
+  __ bind(&slow);
+  __ IncrementCounter(&Counters::keyed_load_generic_slow, 1, r0, r1);
+  __ ldm(ia, sp, r0.bit() | r1.bit());
+  __ stm(db_w, sp, r0.bit() | r1.bit());
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(ExternalReference(Runtime::kGetProperty), 2);
+
+  // Fast case: Do the load.
+  __ bind(&fast);
+  __ add(r3, r1, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ ldr(r0, MemOperand(r3, r0, LSL, kPointerSizeLog2));
+  __ cmp(r0, Operand(Factory::the_hole_value()));
+  // In case the loaded value is the_hole we have to consult GetProperty
+  // to ensure the prototype chain is searched.
+  __ b(eq, &slow);
+
+  __ Ret();
 }
 
 
@@ -547,15 +582,114 @@ void KeyedStoreIC::Generate(MacroAssembler* masm,
 }
 
 
-// TODO(1224671): implement the fast case.
 void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- lr     : return address
   //  -- sp[0]  : key
   //  -- sp[1]  : receiver
+  Label slow, fast, array, extra, exit;
+  // Get the key and the object from the stack.
+  __ ldm(ia, sp, r1.bit() | r3.bit());  // r1 = key, r3 = receiver
+  // Check that the key is a smi.
+  __ tst(r1, Operand(kSmiTagMask));
+  __ b(ne, &slow);
+  // Check that the object isn't a smi.
+  __ tst(r3, Operand(kSmiTagMask));
+  __ b(eq, &slow);
+  // Get the type of the object from its map.
+  __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+  // Check if the object is a JS array or not.
+  __ cmp(r2, Operand(JS_ARRAY_TYPE));
+  // r1 == key.
+  __ b(eq, &array);
+  // Check that the object is some kind of JS object.
+  __ cmp(r2, Operand(FIRST_JS_OBJECT_TYPE));
+  __ b(lt, &slow);
 
-  KeyedStoreIC::Generate(masm, ExternalReference(Runtime::kSetProperty));
+
+  // Object case: Check key against length in the elements array.
+  __ ldr(r3, FieldMemOperand(r3, JSObject::kElementsOffset));
+  // Check that the object is in fast mode (not dictionary).
+  __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
+  __ cmp(r2, Operand(Factory::hash_table_map()));
+  __ b(eq, &slow);
+  // Untag the key (for checking against untagged length in the fixed array).
+  __ mov(r1, Operand(r1, ASR, kSmiTagSize));
+  // Compute address to store into and check array bounds.
+  __ add(r2, r3, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2));
+  __ ldr(ip, FieldMemOperand(r3, Array::kLengthOffset));
+  __ cmp(r1, Operand(ip));
+  __ b(lo, &fast);
+
+
+  // Slow case: Push extra copies of the arguments (3).
+  __ bind(&slow);
+  __ ldm(ia, sp, r1.bit() | r3.bit());  // r0 == value, r1 == key, r3 == object
+  __ stm(db_w, sp, r0.bit() | r1.bit() | r3.bit());
+  // Do tail-call to runtime routine.
+  __ TailCallRuntime(ExternalReference(Runtime::kSetProperty), 3);
+
+  // Extra capacity case: Check if there is extra capacity to
+  // perform the store and update the length. Used for adding one
+  // element to the array by writing to array[array.length].
+  // r0 == value, r1 == key, r2 == elements, r3 == object
+  __ bind(&extra);
+  __ b(ne, &slow);  // do not leave holes in the array
+  __ mov(r1, Operand(r1, ASR, kSmiTagSize));  // untag
+  __ ldr(ip, FieldMemOperand(r2, Array::kLengthOffset));
+  __ cmp(r1, Operand(ip));
+  __ b(hs, &slow);
+  __ mov(r1, Operand(r1, LSL, kSmiTagSize));  // restore tag
+  __ add(r1, r1, Operand(1 << kSmiTagSize));  // and increment
+  __ str(r1, FieldMemOperand(r3, JSArray::kLengthOffset));
+  __ mov(r3, Operand(r2));
+  // NOTE: Computing the address to store into must take the fact
+  // that the key has been incremented into account.
+  int displacement = Array::kHeaderSize - kHeapObjectTag -
+      ((1 << kSmiTagSize) * 2);
+  __ add(r2, r2, Operand(displacement));
+  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ b(&fast);
+
+
+  // Array case: Get the length and the elements array from the JS
+  // array. Check that the array is in fast mode; if it is the
+  // length is always a smi.
+  // r0 == value, r3 == object
+  __ bind(&array);
+  __ ldr(r2, FieldMemOperand(r3, JSObject::kElementsOffset));
+  __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ cmp(r1, Operand(Factory::hash_table_map()));
+  __ b(eq, &slow);
+
+  // Check the key against the length in the array, compute the
+  // address to store into and fall through to fast case.
+  __ ldr(r1, MemOperand(sp));  // resotre key
+  // r0 == value, r1 == key, r2 == elements, r3 == object.
+  __ ldr(ip, FieldMemOperand(r3, JSArray::kLengthOffset));
+  __ cmp(r1, Operand(ip));
+  __ b(hs, &extra);
+  __ mov(r3, Operand(r2));
+  __ add(r2, r2, Operand(Array::kHeaderSize - kHeapObjectTag));
+  __ add(r2, r2, Operand(r1, LSL, kPointerSizeLog2 - kSmiTagSize));
+
+
+  // Fast case: Do the store.
+  // r0 == value, r2 == address to store into, r3 == elements
+  __ bind(&fast);
+  __ str(r0, MemOperand(r2));
+  // Skip write barrier if the written value is a smi.
+  __ tst(r0, Operand(kSmiTagMask));
+  __ b(eq, &exit);
+  // Update write barrier for the elements array address.
+  __ sub(r1, r2, Operand(r3));
+  __ RecordWrite(r3, r1, r2);
+
+  __ bind(&exit);
+  __ Ret();
 }
 
 

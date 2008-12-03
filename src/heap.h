@@ -193,7 +193,8 @@ namespace v8 { namespace internal {
   V(failure_symbol, "<failure>")                                         \
   V(space_symbol, " ")                                                   \
   V(exec_symbol, "exec")                                                 \
-  V(zero_symbol, "0")
+  V(zero_symbol, "0")                                                    \
+  V(global_eval_symbol, "GlobalEval")
 
 
 // Forward declaration of the GCTracer class.
@@ -356,9 +357,17 @@ class Heap : public AllStatic {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  static Object* AllocateSymbol(unibrow::CharacterStream* buffer,
-                                int chars,
-                                uint32_t length_field);
+  static inline Object* AllocateSymbol(Vector<const char> str,
+                                       int chars,
+                                       uint32_t length_field);
+
+  static Object* AllocateInternalSymbol(unibrow::CharacterStream* buffer,
+                                        int chars,
+                                        uint32_t length_field);
+
+  static Object* AllocateExternalSymbol(Vector<const char> str,
+                                        int chars);
+
 
   // Allocates and partially initializes a String.  There are two String
   // encodings: ASCII and two byte.  These functions allocate a string of the
@@ -383,7 +392,13 @@ class Heap : public AllStatic {
   // Allocate a byte array of the specified length
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
-  // Please not this does not perform a garbage collection.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocateByteArray(int length, PretenureFlag pretenure);
+
+  // Allocate a non-tenured byte array of the specified length
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
   static Object* AllocateByteArray(int length);
 
   // Allocates a fixed array initialized with undefined values
@@ -527,6 +542,8 @@ class Heap : public AllStatic {
       ExternalAsciiString::Resource* resource);
   static Object* AllocateExternalStringFromTwoByte(
       ExternalTwoByteString::Resource* resource);
+  static Object* AllocateExternalSymbolFromTwoByte(
+      ExternalTwoByteString::Resource* resource);
 
   // Allocates an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.
@@ -539,11 +556,14 @@ class Heap : public AllStatic {
 
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
-  // failed.
+  // failed. On success, the pointer to the Code object is stored in the
+  // self_reference. This allows generated code to reference its own Code
+  // object by containing this pointer.
   // Please note this function does not perform a garbage collection.
   static Object* CreateCode(const CodeDesc& desc,
                             ScopeInfo<>* sinfo,
-                            Code::Flags flags);
+                            Code::Flags flags,
+                            Code** self_reference = NULL);
 
   static Object* CopyCode(Code* code);
   // Finds the symbol for string in the symbol table.
@@ -572,6 +592,9 @@ class Heap : public AllStatic {
   static void GarbageCollectionPrologue();
   static void GarbageCollectionEpilogue();
 
+  // Code that should be executed after the garbage collection proper.
+  static void PostGarbageCollectionProcessing();
+
   // Performs garbage collection operation.
   // Returns whether required_space bytes are available after the collection.
   static bool CollectGarbage(int required_space, AllocationSpace space);
@@ -593,6 +616,10 @@ class Heap : public AllStatic {
   }
   static void SetGlobalGCEpilogueCallback(GCCallback callback) {
     global_gc_epilogue_callback_ = callback;
+  }
+
+  static void SetExternalSymbolCallback(ExternalSymbolCallback callback) {
+    global_external_symbol_callback_ = callback;
   }
 
   // Heap roots
@@ -853,6 +880,9 @@ class Heap : public AllStatic {
   // Allocations in the callback function are disallowed.
   static GCCallback global_gc_prologue_callback_;
   static GCCallback global_gc_epilogue_callback_;
+
+  // Callback function used for allocating external symbols.
+  static ExternalSymbolCallback global_external_symbol_callback_;
 
   // Checks whether a global GC is necessary
   static GarbageCollector SelectGarbageCollector(AllocationSpace space);

@@ -2303,7 +2303,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
   ZoneList<Expression*>* args = node->arguments();
 
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  RecordStatementPosition(node);
   // Standard function call.
 
   // Check if the function is a variable or a property.
@@ -2427,6 +2427,58 @@ void CodeGenerator::VisitCall(Call* node) {
     CallWithArguments(args, node->position());
     frame_->Push(r0);
   }
+}
+
+
+void CodeGenerator::VisitCallEval(CallEval* node) {
+  Comment cmnt(masm_, "[ CallEval");
+
+  // In a call to eval, we first call %ResolvePossiblyDirectEval to resolve
+  // the function we need to call and the receiver of the call.
+  // Then we call the resolved function using the given arguments.
+
+  ZoneList<Expression*>* args = node->arguments();
+  Expression* function = node->expression();
+
+  RecordStatementPosition(node);
+
+  // Prepare stack for call to resolved function.
+  Load(function);
+  __ mov(r2, Operand(Factory::undefined_value()));
+  __ push(r2);  // Slot for receiver
+  for (int i = 0; i < args->length(); i++) {
+    Load(args->at(i));
+  }
+
+  // Prepare stack for call to ResolvePossiblyDirectEval.
+  __ ldr(r1, MemOperand(sp, args->length() * kPointerSize + kPointerSize));
+  __ push(r1);
+  if (args->length() > 0) {
+    __ ldr(r1, MemOperand(sp, args->length() * kPointerSize));
+    __ push(r1);
+  } else {
+    __ push(r2);
+  }
+
+  // Resolve the call.
+  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+
+  // Touch up stack with the right values for the function and the receiver.
+  __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize));
+  __ str(r1, MemOperand(sp, (args->length() + 1) * kPointerSize));
+  __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize + kPointerSize));
+  __ str(r1, MemOperand(sp, args->length() * kPointerSize));
+
+  // Call the function.
+  __ RecordPosition(node->position());
+
+  CallFunctionStub call_function(args->length());
+  __ CallStub(&call_function);
+
+  __ ldr(cp, frame_->Context());
+  // Remove the function from the stack.
+  frame_->Pop();
+  frame_->Push(r0);
 }
 
 

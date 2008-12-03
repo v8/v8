@@ -271,6 +271,8 @@ class Top {
   static char* ArchiveThread(char* to);
   static char* RestoreThread(char* from);
 
+  static const char* kStackOverflowMessage;
+
  private:
   // The context that initiated this JS execution.
   static ThreadLocalTop thread_local_;
@@ -312,6 +314,10 @@ class SaveContext BASE_EMBEDDED {
 #endif
       prev_(Top::save_context()) {
     Top::set_save_context(this);
+
+    // If there is no JS frame under the current C frame, use the value 0.
+    JavaScriptFrameIterator it;
+    js_sp_ = it.done() ? 0 : it.frame()->sp();
   }
 
   ~SaveContext() {
@@ -322,12 +328,18 @@ class SaveContext BASE_EMBEDDED {
   Handle<Context> context() { return context_; }
   SaveContext* prev() { return prev_; }
 
+  // Returns true if this save context is below a given JavaScript frame.
+  bool below(JavaScriptFrame* frame) {
+    return (js_sp_ == 0) || (frame->sp() < js_sp_);
+  }
+
  private:
   Handle<Context> context_;
 #if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
   Handle<Context> dummy_;
 #endif
   SaveContext* prev_;
+  Address js_sp_;  // The top JS frame's sp when saving context.
 };
 
 

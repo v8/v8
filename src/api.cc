@@ -2203,7 +2203,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.4.4.1";
+  return "0.4.5";
 }
 
 
@@ -2652,6 +2652,12 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 }
 
 
+void V8::SetExternalSymbolCallback(ExternalSymbolCallback callback) {
+  if (IsDeadCheck("v8::V8::SetExternalSymbolCallback()")) return;
+  i::Heap::SetExternalSymbolCallback(callback);
+}
+
+
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
   if (obj.IsEmpty()) {
@@ -2893,6 +2899,26 @@ void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
 void Debug::SendCommand(const uint16_t* command, int length) {
   if (!i::V8::HasBeenSetup()) return;
   i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length));
+}
+
+
+Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
+                          v8::Handle<v8::Value> data) {
+  if (!i::V8::HasBeenSetup()) return Handle<Value>();
+  ON_BAILOUT("v8::Debug::Call()", return Handle<Value>());
+  i::Handle<i::Object> result;
+  EXCEPTION_PREAMBLE();
+  if (data.IsEmpty()) {
+    result = i::Debugger::Call(Utils::OpenHandle(*fun),
+                               i::Factory::undefined_value(),
+                               &has_pending_exception);
+  } else {
+    result = i::Debugger::Call(Utils::OpenHandle(*fun),
+                               Utils::OpenHandle(*data),
+                               &has_pending_exception);
+  }
+  EXCEPTION_BAILOUT_CHECK(Local<Value>());
+  return Utils::ToLocal(result);
 }
 
 

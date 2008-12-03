@@ -48,9 +48,15 @@
 #ifndef NOMCX
 #define NOMCX
 #endif
+// Require Windows 2000 or higher (this is required for the IsDebuggerPresent
+// function to be present).
+#ifndef _WIN32_WINNT
+#define _WIN32_WINNT 0x500
+#endif
 
 #include <windows.h>
 
+#include <time.h>  // For LocalOffset() implementation.
 #include <mmsystem.h>  // For timeGetTime().
 #include <dbghelp.h>  // For SymLoadModule64 and al.
 #include <tlhelp32.h>  // For Module32First and al.
@@ -318,6 +324,8 @@ void Time::TzSet() {
   // Just return if timezone information has already been initialized.
   if (tz_initialized_) return;
 
+  // Initialize POSIX time zone data.
+  _tzset();
   // Obtain timezone information from operating system.
   memset(&tzinfo_, 0, sizeof(tzinfo_));
   if (GetTimeZoneInformation(&tzinfo_) == TIME_ZONE_ID_INVALID) {
@@ -391,9 +399,9 @@ void Time::SetToCurrentTime() {
   static bool initialized = false;
   static TimeStamp init_time;
   static DWORD init_ticks;
-  static const int kHundredNanosecondsPerSecond = 10000;
-  static const int kMaxClockElapsedTime =
-      60*60*24*kHundredNanosecondsPerSecond;  // 1 day
+  static const int64_t kHundredNanosecondsPerSecond = 10000000;
+  static const int64_t kMaxClockElapsedTime =
+      60*kHundredNanosecondsPerSecond;  // 1 minute
 
   // If we are uninitialized, we need to resync the clock.
   bool needs_resync = !initialized;
@@ -424,30 +432,37 @@ void Time::SetToCurrentTime() {
 
 // Return the local timezone offset in milliseconds east of UTC. This
 // takes into account whether daylight saving is in effect at the time.
+// Only times in the 32-bit Unix range may be passed to this function.
+// Also, adding the time-zone offset to the input must not overflow.
+// The function EquivalentTime() in date-delay.js guarantees this.
 int64_t Time::LocalOffset() {
   // Initialize timezone information, if needed.
   TzSet();
 
-  // Convert timestamp to date/time components. These are now in UTC
-  // format. NB: Please do not replace the following three calls with one
-  // call to FileTimeToLocalFileTime(), because it does not handle
-  // daylight saving correctly.
-  SYSTEMTIME utc;
-  FileTimeToSystemTime(&ft(), &utc);
+  Time rounded_to_second(*this);
+  rounded_to_second.t() = rounded_to_second.t() / 1000 / kTimeScaler *
+      1000 * kTimeScaler;
+  // Convert to local time using POSIX localtime function.
+  // Windows XP Service Pack 3 made SystemTimeToTzSpecificLocalTime()
+  // very slow.  Other browsers use localtime().
 
-  // Convert to local time, using timezone information.
-  SYSTEMTIME local;
-  SystemTimeToTzSpecificLocalTime(&tzinfo_, &utc, &local);
+  // Convert from JavaScript milliseconds past 1/1/1970 0:00:00 to
+  // POSIX seconds past 1/1/1970 0:00:00.
+  double unchecked_posix_time = rounded_to_second.ToJSTime() / 1000;
+  if (unchecked_posix_time > INT_MAX || unchecked_posix_time < 0) {
+    return 0;
+  }
+  // Because _USE_32BIT_TIME_T is defined, time_t is a 32-bit int.
+  time_t posix_time = static_cast<time_t>(unchecked_posix_time);
 
-  // Convert local time back to a timestamp. This timestamp now
-  // has a bias similar to the local timezone bias in effect
-  // at the time of the original timestamp.
-  Time localtime;
-  SystemTimeToFileTime(&local, &localtime.ft());
+  // Convert to local time, as struct with fields for day, hour, year, etc.
+  tm posix_local_time_struct;
+  if (localtime_s(&posix_local_time_struct, &posix_time)) return 0;
+  // Convert local time in struct to POSIX time as if it were a UTC time.
+  time_t local_posix_time = _mkgmtime(&posix_local_time_struct);
+  Time localtime(1000.0 * local_posix_time);
 
-  // The difference between the new local timestamp and the original
-  // timestamp and is the local timezone offset.
-  return localtime.Diff(this);
+  return localtime.Diff(&rounded_to_second);
 }
 
 
@@ -680,13 +695,6 @@ void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
 }
 
 
-void OS::WcsCpy(Vector<wchar_t> dest, const wchar_t* src) {
-  int result = wcscpy_s(dest.start(), dest.length(), src);
-  USE(result);
-  ASSERT(result == 0);
-}
-
-
 char *OS::StrDup(const char* str) {
   return _strdup(str);
 }
@@ -781,10 +789,14 @@ void OS::Sleep(int milliseconds) {
 
 
 void OS::Abort() {
-  // Make the MSVCRT do a silent abort.
-  _set_abort_behavior(0, _WRITE_ABORT_MSG);
-  _set_abort_behavior(0, _CALL_REPORTFAULT);
-  abort();
+  if (!IsDebuggerPresent()) {
+    // Make the MSVCRT do a silent abort.
+    _set_abort_behavior(0, _WRITE_ABORT_MSG);
+    _set_abort_behavior(0, _CALL_REPORTFAULT);
+    abort();
+  } else {
+    DebugBreak();
+  }
 }
 
 

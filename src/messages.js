@@ -112,6 +112,7 @@ const kMessages = {
   illegal_continue:             "Illegal continue statement",
   illegal_return:               "Illegal return statement",
   error_loading_debugger:       "Error loading debugger %0",
+  no_input_to_regexp:           "No input to %0",
 };
 
 

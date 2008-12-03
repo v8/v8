@@ -84,6 +84,8 @@ int Heap::initial_semispace_size_ = 256*KB;
 GCCallback Heap::global_gc_prologue_callback_ = NULL;
 GCCallback Heap::global_gc_epilogue_callback_ = NULL;
 
+ExternalSymbolCallback Heap::global_external_symbol_callback_ = NULL;
+
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap.
 int Heap::young_generation_size_ = 0;  // Will be 2 * semispace_size_.
@@ -390,8 +392,7 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
   }
   Counters::objs_since_last_young.Set(0);
 
-  // Process weak handles post gc.
-  GlobalHandles::PostGarbageCollectionProcessing();
+  PostGarbageCollectionProcessing();
 
   if (collector == MARK_COMPACTOR) {
     // Register the amount of external allocated memory.
@@ -403,6 +404,14 @@ void Heap::PerformGarbageCollection(AllocationSpace space,
     ASSERT(!allocation_allowed_);
     global_gc_epilogue_callback_();
   }
+}
+
+
+void Heap::PostGarbageCollectionProcessing() {
+  // Process weak handles post gc.
+  GlobalHandles::PostGarbageCollectionProcessing();
+  // Update flat string readers.
+  FlatStringReader::PostGarbageCollectionProcessing();
 }
 
 
@@ -1535,6 +1544,29 @@ Object* Heap::AllocateExternalStringFromTwoByte(
 }
 
 
+Object* Heap::AllocateExternalSymbolFromTwoByte(
+    ExternalTwoByteString::Resource* resource) {
+  Map* map;
+  int length = resource->length();
+  if (length <= String::kMaxShortStringSize) {
+    map = short_external_symbol_map();
+  } else if (length <= String::kMaxMediumStringSize) {
+    map = medium_external_symbol_map();
+  } else {
+    map = long_external_symbol_map();
+  }
+
+  Object* result = Allocate(map, OLD_DATA_SPACE);
+  if (result->IsFailure()) return result;
+
+  ExternalTwoByteString* external_string = ExternalTwoByteString::cast(result);
+  external_string->set_length(length);
+  external_string->set_resource(resource);
+
+  return result;
+}
+
+
 Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
   if (code <= String::kMaxAsciiCharCode) {
     Object* value = Heap::single_character_string_cache()->get(code);
@@ -1557,6 +1589,24 @@ Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
 }
 
 
+Object* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
+  if (pretenure == NOT_TENURED) {
+    return AllocateByteArray(length);
+  }
+  int size = ByteArray::SizeFor(length);
+  AllocationSpace space =
+      size > MaxHeapObjectSize() ? LO_SPACE : OLD_DATA_SPACE;
+
+  Object* result = AllocateRaw(size, space, OLD_DATA_SPACE);
+
+  if (result->IsFailure()) return result;
+
+  reinterpret_cast<Array*>(result)->set_map(byte_array_map());
+  reinterpret_cast<Array*>(result)->set_length(length);
+  return result;
+}
+
+
 Object* Heap::AllocateByteArray(int length) {
   int size = ByteArray::SizeFor(length);
   AllocationSpace space =
@@ -1574,7 +1624,8 @@ Object* Heap::AllocateByteArray(int length) {
 
 Object* Heap::CreateCode(const CodeDesc& desc,
                          ScopeInfo<>* sinfo,
-                         Code::Flags flags) {
+                         Code::Flags flags,
+                         Code** self_reference) {
   // Compute size
   int body_size = RoundUp(desc.instr_size + desc.reloc_size, kObjectAlignment);
   int sinfo_size = 0;
@@ -1597,7 +1648,16 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   code->set_sinfo_size(sinfo_size);
   code->set_flags(flags);
   code->set_ic_flag(Code::IC_TARGET_IS_ADDRESS);
-  code->CopyFrom(desc);  // migrate generated code
+  // Allow self references to created code object.
+  if (self_reference != NULL) {
+    *self_reference = code;
+  }
+  // Migrate generated code.
+  // The generated code can contain Object** values (typically from handles)
+  // that are dereferenced during the copy to point directly to the actual heap
+  // objects. These pointers can include references to the code object itself,
+  // through the self_reference parameter.
+  code->CopyFrom(desc);
   if (sinfo != NULL) sinfo->Serialize(code);  // write scope info
 
 #ifdef DEBUG
@@ -2028,9 +2088,9 @@ Map* Heap::SymbolMapForString(String* string) {
 }
 
 
-Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
-                             int chars,
-                             uint32_t length_field) {
+Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
+                                     int chars,
+                                     uint32_t length_field) {
   // Ensure the chars matches the number of characters in the buffer.
   ASSERT(static_cast<unsigned>(chars) == buffer->Length());
   // Determine whether the string is ascii.
@@ -2083,6 +2143,44 @@ Object* Heap::AllocateSymbol(unibrow::CharacterStream* buffer,
     answer->Set(answer_shape, i, buffer->GetNext());
   }
   return answer;
+}
+
+
+// External string resource that only contains a length field.  These
+// are used temporarily when allocating external symbols.
+class DummyExternalStringResource
+    : public v8::String::ExternalStringResource {
+ public:
+  explicit DummyExternalStringResource(size_t length) : length_(length) { }
+
+  virtual const uint16_t* data() const {
+    UNREACHABLE();
+    return NULL;
+  }
+
+  virtual size_t length() const { return length_; }
+ private:
+  size_t length_;
+};
+
+
+Object* Heap::AllocateExternalSymbol(Vector<const char> string, int chars) {
+  // Attempt to allocate the resulting external string first.  Use a
+  // dummy string resource that has the correct length so that we only
+  // have to patch the external string resource after the callback.
+  DummyExternalStringResource dummy_resource(chars);
+  Object* obj = AllocateExternalSymbolFromTwoByte(&dummy_resource);
+  if (obj->IsFailure()) return obj;
+  // Perform callback.
+  v8::String::ExternalStringResource* resource =
+      global_external_symbol_callback_(string.start(), string.length());
+  // Patch the resource pointer of the result.
+  ExternalTwoByteString* result = ExternalTwoByteString::cast(obj);
+  result->set_resource(resource);
+  // Force hash code to be computed.
+  result->Hash();
+  ASSERT(result->IsEqualTo(string));
+  return result;
 }
 
 

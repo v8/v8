@@ -356,12 +356,14 @@ void Logger::LogString(Handle<String> str) {
     len = 256;
   for (int i = 0; i < len; i++) {
     uc32 c = str->Get(shape, i);
-    if (c < 32 || (c > 126 && c <= 255)) {
-      fprintf(logfile_, "\\x%02x", c);
-    } else if (c > 255) {
+    if (c > 0xff) {
       fprintf(logfile_, "\\u%04x", c);
+    } else if (c < 32 || c > 126) {
+      fprintf(logfile_, "\\x%02x", c);
     } else if (c == ',') {
       fprintf(logfile_, "\\,");
+    } else if (c == '\\') {
+      fprintf(logfile_, "\\\\");
     } else {
       fprintf(logfile_, "%lc", c);
     }

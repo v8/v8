@@ -75,17 +75,19 @@ class FmtElm {
   FmtElm(int value) : type_(INT) { data_.u_int_ = value; }  // NOLINT
   explicit FmtElm(double value) : type_(DOUBLE) { data_.u_double_ = value; }  // NOLINT
   FmtElm(const char* value) : type_(C_STR) { data_.u_c_str_ = value; }  // NOLINT
+  FmtElm(const Vector<const uc16>& value) : type_(LC_STR) { data_.u_lc_str_ = &value; } // NOLINT
   FmtElm(Object* value) : type_(OBJ) { data_.u_obj_ = value; }  // NOLINT
   FmtElm(Handle<Object> value) : type_(HANDLE) { data_.u_handle_ = value.location(); }  // NOLINT
   FmtElm(void* value) : type_(INT) { data_.u_int_ = reinterpret_cast<int>(value); }  // NOLINT
  private:
   friend class StringStream;
-  enum Type { INT, DOUBLE, C_STR, OBJ, HANDLE };
+  enum Type { INT, DOUBLE, C_STR, LC_STR, OBJ, HANDLE };
   Type type_;
   union {
     int u_int_;
     double u_double_;
     const char* u_c_str_;
+    const Vector<const uc16>* u_lc_str_;
     Object* u_obj_;
     Object** u_handle_;
   } data_;
@@ -108,11 +110,17 @@ class StringStream {
   bool Put(char c);
   bool Put(String* str);
   bool Put(String* str, int start, int end);
-  void Add(const char* format, Vector<FmtElm> elms);
+  void Add(Vector<const char> format, Vector<FmtElm> elms);
   void Add(const char* format);
+  void Add(Vector<const char> format);
   void Add(const char* format, FmtElm arg0);
   void Add(const char* format, FmtElm arg0, FmtElm arg1);
   void Add(const char* format, FmtElm arg0, FmtElm arg1, FmtElm arg2);
+  void Add(const char* format,
+           FmtElm arg0,
+           FmtElm arg1,
+           FmtElm arg2,
+           FmtElm arg3);
 
   // Getting the message out.
   void OutputToStdOut();

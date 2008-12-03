@@ -39,7 +39,7 @@ static const int MaxWeight = 1000000;
 static const int InitialWeight = 100;
 
 
-class UsageComputer: public Visitor {
+class UsageComputer: public AstVisitor {
  public:
   static bool Traverse(Node* node);
 
@@ -73,6 +73,7 @@ class UsageComputer: public Visitor {
   void VisitThrow(Throw* node);
   void VisitProperty(Property* node);
   void VisitCall(Call* node);
+  void VisitCallEval(CallEval* node);
   void VisitCallNew(CallNew* node);
   void VisitCallRuntime(CallRuntime* node);
   void VisitUnaryOperation(UnaryOperation* node);
@@ -318,6 +319,11 @@ void UsageComputer::VisitProperty(Property* node) {
 void UsageComputer::VisitCall(Call* node) {
   Read(node->expression());
   ReadList(node->arguments());
+}
+
+
+void UsageComputer::VisitCallEval(CallEval* node) {
+  VisitCall(node);
 }
 
 

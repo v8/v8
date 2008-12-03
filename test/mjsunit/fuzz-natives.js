@@ -122,7 +122,8 @@ var knownProblems = {
   "LazyCompile": true,
   "CreateObjectLiteralBoilerplate": true,
   "CloneObjectLiteralBoilerplate": true,
-  "IS_VAR": true
+  "IS_VAR": true,
+  "ResolvePossiblyDirectEval": true
 };
 
 var currentlyUncallable = {

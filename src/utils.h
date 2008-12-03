@@ -28,6 +28,8 @@
 #ifndef V8_UTILS_H_
 #define V8_UTILS_H_
 
+#include <stdlib.h>
+
 namespace v8 { namespace internal {
 
 // ----------------------------------------------------------------------------
@@ -80,6 +82,23 @@ static inline T RoundDown(T x, int m) {
 template <typename T>
 static inline T RoundUp(T x, int m) {
   return RoundDown(x + m - 1, m);
+}
+
+
+template <typename T>
+static int Compare(const T& a, const T& b) {
+  if (a == b)
+    return 0;
+  else if (a < b)
+    return -1;
+  else
+    return 1;
+}
+
+
+template <typename T>
+static int PointerValueCompare(const T* a, const T* b) {
+  return Compare<T>(*a, *b);
 }
 
 
@@ -283,6 +302,15 @@ class Vector {
     return Vector<T>(NewArray<T>(length), length);
   }
 
+  // Returns a vector using the same backing storage as this one,
+  // spanning from and including 'from', to but not including 'to'.
+  Vector<T> SubVector(int from, int to) {
+    ASSERT(from < length_);
+    ASSERT(to <= length_);
+    ASSERT(from < to);
+    return Vector<T>(start() + from, to - from);
+  }
+
   // Returns the length of the vector.
   int length() const { return length_; }
 
@@ -298,11 +326,27 @@ class Vector {
     return start_[index];
   }
 
+  T& first() { return start_[0]; }
+
+  T& last() { return start_[length_ - 1]; }
+
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {
     T* result = NewArray<T>(length_);
     for (int i = 0; i < length_; i++) result[i] = start_[i];
     return Vector<T>(result, length_);
+  }
+
+  void Sort(int (*cmp)(const T*, const T*)) {
+    typedef int (*RawComparer)(const void*, const void*);
+    qsort(start(),
+          length(),
+          sizeof(T),
+          reinterpret_cast<RawComparer>(cmp));
+  }
+
+  void Sort() {
+    Sort(PointerValueCompare<T>);
   }
 
   // Releases the array underlying this vector. Once disposed the
@@ -464,6 +508,55 @@ static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
     *dest++ = static_cast<sinkchar>(*src++);
   }
 }
+
+
+static inline int Load16(const byte* ptr) {
+#ifdef CAN_READ_UNALIGNED
+  return *reinterpret_cast<const uint16_t*>(ptr);
+#else
+  uint32_t word;
+  word  = ptr[1];
+  word |= ptr[0] << 8;
+  return word;
+#endif
+}
+
+
+static inline int Load32(const byte* ptr) {
+#ifdef CAN_READ_UNALIGNED
+  return *reinterpret_cast<const uint32_t*>(ptr);
+#else
+  uint32_t word;
+  word  = ptr[3];
+  word |= ptr[2] << 8;
+  word |= ptr[1] << 16;
+  word |= ptr[0] << 24;
+  return word;
+#endif
+}
+
+
+static inline void Store16(byte* ptr, uint16_t value) {
+#ifdef CAN_READ_UNALIGNED
+  *reinterpret_cast<uint16_t*>(ptr) = value;
+#else
+  ptr[1] = value;
+  ptr[0] = value >> 8;
+#endif
+}
+
+
+static inline void Store32(byte* ptr, uint32_t value) {
+#ifdef CAN_READ_UNALIGNED
+  *reinterpret_cast<uint32_t*>(ptr) = value;
+#else
+  ptr[3] = value;
+  ptr[2] = value >> 8;
+  ptr[1] = value >> 16;
+  ptr[0] = value >> 24;
+#endif
+}
+
 
 } }  // namespace v8::internal
 

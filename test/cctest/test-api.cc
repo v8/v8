@@ -4018,6 +4018,44 @@ THREADED_TEST(FunctionDescriptorException) {
 }
 
 
+THREADED_TEST(EvalAliasedDynamic) {
+  v8::HandleScope scope;
+  LocalContext current;
+
+  // This sets 'global' to the real global object (as opposed to the
+  // proxy). It is highly implementation dependent, so take care.
+  current->Global()->Set(v8_str("global"), current->Global()->GetPrototype());
+
+  // Tests where aliased eval can only be resolved dynamically.
+  Local<Script> script =
+      Script::Compile(v8_str("function f(x) { "
+                             "  var foo = 2;"
+                             "  with (x) { return eval('foo'); }"
+                             "}"
+                             "foo = 0;"
+                             "result1 = f(new Object());"
+                             "result2 = f(global);"
+                             "var x = new Object();"
+                             "x.eval = function(x) { return 1; };"
+                             "result3 = f(x);"));
+  script->Run();
+  CHECK_EQ(2, current->Global()->Get(v8_str("result1"))->Int32Value());
+  CHECK_EQ(0, current->Global()->Get(v8_str("result2"))->Int32Value());
+  CHECK_EQ(1, current->Global()->Get(v8_str("result3"))->Int32Value());
+
+  v8::TryCatch try_catch;
+  script =
+    Script::Compile(v8_str("function f(x) { "
+                           "  var bar = 2;"
+                           "  with (x) { return eval('bar'); }"
+                           "}"
+                           "f(global)"));
+  script->Run();
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+}
+
+
 THREADED_TEST(CrossEval) {
   v8::HandleScope scope;
   LocalContext other;
@@ -4039,49 +4077,58 @@ THREADED_TEST(CrossEval) {
   CHECK(!current->Global()->Has(v8_str("foo")));
 
   // Check that writing to non-existing properties introduces them in
-  // the current context.
+  // the other context.
   script =
       Script::Compile(v8_str("other.eval('na = 1234')"));
   script->Run();
-  CHECK_EQ(1234, current->Global()->Get(v8_str("na"))->Int32Value());
-  CHECK(!other->Global()->Has(v8_str("na")));
+  CHECK_EQ(1234, other->Global()->Get(v8_str("na"))->Int32Value());
+  CHECK(!current->Global()->Has(v8_str("na")));
 
-  // Check that variables in current context are visible in other
-  // context. This must include local variables.
+  // Check that global variables in current context are not visible in other
+  // context.
+  v8::TryCatch try_catch;
   script =
-      Script::Compile(v8_str("var bar = 42;"
-                                      "(function() { "
-                                      "  var baz = 87;"
-                                      "  return other.eval('bar + baz');"
-                                      "})();"));
+      Script::Compile(v8_str("var bar = 42; other.eval('bar');"));
   Local<Value> result = script->Run();
-  CHECK_EQ(42 + 87, result->Int32Value());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+
+  // Check that local variables in current context are not visible in other
+  // context.
+  script =
+      Script::Compile(v8_str("(function() { "
+                             "  var baz = 87;"
+                             "  return other.eval('baz');"
+                             "})();"));
+  result = script->Run();
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
 
   // Check that global variables in the other environment are visible
   // when evaluting code.
   other->Global()->Set(v8_str("bis"), v8_num(1234));
   script = Script::Compile(v8_str("other.eval('bis')"));
   CHECK_EQ(1234, script->Run()->Int32Value());
+  CHECK(!try_catch.HasCaught());
 
-  // Check that the 'this' pointer isn't touched as a result of
-  // calling eval across environments.
-  script =
-      Script::Compile(v8_str("var t = this; other.eval('this == t')"));
+  // Check that the 'this' pointer points to the global object evaluating
+  // code.
+  other->Global()->Set(v8_str("t"), other->Global());
+  script = Script::Compile(v8_str("other.eval('this == t')"));
   result = script->Run();
-  CHECK(result->IsBoolean());
-  CHECK(result->BooleanValue());
+  CHECK(result->IsTrue());
+  CHECK(!try_catch.HasCaught());
 
-  // Check that doing a cross eval works from within a global
-  // with-statement.
+  // Check that variables introduced in with-statement are not visible in
+  // other context.
   script =
-      Script::Compile(v8_str("other.y = 1;"
-                                      "with({x:2}){other.eval('x+y')}"));
+      Script::Compile(v8_str("with({x:2}){other.eval('x')}"));
   result = script->Run();
-  CHECK_EQ(3, result->Int32Value());
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
 
   // Check that you cannot use 'eval.call' with another object than the
   // current global object.
-  v8::TryCatch try_catch;
   script =
       Script::Compile(v8_str("other.y = 1; eval.call(other, 'y')"));
   result = script->Run();
@@ -5221,4 +5268,94 @@ THREADED_TEST(DisableAccessChecksWhileConfiguring) {
   context->Global()->Set(v8_str("obj"), instance);
   Local<Value> value = CompileRun("obj.x");
   CHECK(value->BooleanValue());
+}
+
+
+static String::ExternalStringResource* SymbolCallback(const char* chars,
+                                                      size_t length) {
+  uint16_t* buffer = i::NewArray<uint16_t>(length + 1);
+  for (size_t i = 0; i < length; i++) {
+    buffer[i] = chars[i];
+  }
+  buffer[length] = '\0';
+  return new TestResource(buffer);
+}
+
+
+static v8::Handle<Value> ExternalSymbolGetter(Local<String> name,
+                                              const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  CHECK(!name->Equals(v8_str("externalSymbol722")) || name->IsExternal());
+  return v8::True();
+}
+
+
+static void ExternalSymbolSetter(Local<String> name,
+                                 Local<Value> value,
+                                 const AccessorInfo&) {
+  ApiTestFuzzer::Fuzz();
+  CHECK(!name->Equals(v8_str("externalSymbol722")) || name->IsExternal());
+}
+
+
+THREADED_TEST(ExternalSymbols) {
+  TestResource::dispose_count = 0;
+  v8::V8::SetExternalSymbolCallback(SymbolCallback);
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  // Use a bizare name so that the name does not clash with names used
+  // in natives files.  If running with snapshots enabled, variable
+  // names used in the native files will be normal symbols instead of
+  // external ones.  Also, make sure that the bizare name is used from
+  // JavaScript code before using it from C++ code.
+  Local<Value> value =
+      CompileRun("var o = { externalSymbol722: 42 }; o.externalSymbol722");
+  CHECK_EQ(42, value->Int32Value());
+  templ->SetAccessor(v8_str("externalSymbol722"),
+                     ExternalSymbolGetter,
+                     ExternalSymbolSetter);
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+  value = CompileRun("obj.externalSymbol722");
+  CHECK_EQ(true, value->BooleanValue());
+  value = CompileRun("obj.externalSymbol722 = 42");
+  v8::V8::SetExternalSymbolCallback(NULL);
+}
+
+
+// This test verifies that pre-compilation (aka preparsing) can be called
+// without initializing the whole VM. Thus we cannot run this test in a
+// multi-threaded setup.
+TEST(PreCompile) {
+  // TODO(155): This test would break without the initialization of V8. This is
+  // a workaround for now to make this test not fail.
+  v8::V8::Initialize();
+  const char *script = "function foo(a) { return a+1; }";
+  v8::ScriptData *sd = v8::ScriptData::PreCompile(script, strlen(script));
+  CHECK_NE(sd->Length(), 0);
+  CHECK_NE(sd->Data(), NULL);
+}
+
+
+// This tests that we do not allow dictionary load/call inline caches
+// to use functions that have not yet been compiled.  The potential
+// problem of loading a function that has not yet been compiled can
+// arise because we share code between contexts via the compilation
+// cache.
+THREADED_TEST(DictionaryICLoadedFunction) {
+  v8::HandleScope scope;
+  // Test LoadIC.
+  for (int i = 0; i < 2; i++) {
+    LocalContext context;
+    context->Global()->Set(v8_str("tmp"), v8::True());
+    context->Global()->Delete(v8_str("tmp"));
+    CompileRun("for (var j = 0; j < 10; j++) new RegExp('');");
+  }
+  // Test CallIC.
+  for (int i = 0; i < 2; i++) {
+    LocalContext context;
+    context->Global()->Set(v8_str("tmp"), v8::True());
+    context->Global()->Delete(v8_str("tmp"));
+    CompileRun("for (var j = 0; j < 10; j++) RegExp('')");
+  }
 }

@@ -28,8 +28,6 @@
 #ifndef V8_COUNTERS_H_
 #define V8_COUNTERS_H_
 
-#include <wchar.h>
-
 namespace v8 { namespace internal {
 
 // StatsCounters is an interface for plugging into external
@@ -54,7 +52,7 @@ class StatsTable : public AllStatic {
   // may receive a different location to store it's counter.
   // The return value must not be cached and re-used across
   // threads, although a single thread is free to cache it.
-  static int *FindLocation(const wchar_t* name) {
+  static int *FindLocation(const char* name) {
     if (!lookup_function_) return NULL;
     return lookup_function_(name);
   }
@@ -74,9 +72,9 @@ class StatsTable : public AllStatic {
 //
 // This class is designed to be POD initialized.  It will be registered with
 // the counter system on first use.  For example:
-//   StatsCounter c = { L"c:myctr", NULL, false };
+//   StatsCounter c = { "c:myctr", NULL, false };
 struct StatsCounter {
-  const wchar_t* name_;
+  const char* name_;
   int* ptr_;
   bool lookup_done_;
 

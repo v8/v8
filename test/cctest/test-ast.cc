@@ -38,6 +38,7 @@ TEST(List) {
   List<Node*>* list = new List<Node*>(0);
   CHECK_EQ(0, list->length());
 
+  ZoneScope zone_scope(DELETE_ON_EXIT);
   Node* node = new EmptyStatement();
   list->Add(node);
   CHECK_EQ(1, list->length());

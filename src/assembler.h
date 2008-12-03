@@ -82,8 +82,10 @@ class Label : public ZoneObject {  // LabelShadows are dynamically allocated.
   }
 
   friend class Assembler;
+  friend class RegexpAssembler;
   friend class Displacement;
   friend class LabelShadow;
+  friend class RegExpMacroAssemblerIrregexp;
 };
 
 

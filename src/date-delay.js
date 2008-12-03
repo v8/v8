@@ -111,24 +111,27 @@ function DateFromTime(time) {
 
 // ECMA 262 - 15.9.1.9
 function EquivalentYear(year) {
-  // Returns an equivalent year in the range [1956-2000] matching
+  // Returns an equivalent year in the range [2008-2035] matching
   // - leap year.
   // - week day of first day.
   var time = TimeFromYear(year);
-  return (InLeapYear(time) == 0 ? 1967 : 1956) + (WeekDay(time) * 12) % 28;
+  var recent_year = (InLeapYear(time) == 0 ? 1967 : 1956) + 
+      (WeekDay(time) * 12) % 28;
+  // Find the year in the range 2008..2037 that is equivalent mod 28.
+  // Add 3*28 to give a positive argument to the modulus operator.
+  return 2008 + (recent_year + 3*28 - 2008) % 28;
 }
 
 
 function EquivalentTime(t) {
   // The issue here is that some library calls don't work right for dates
-  // that cannot be represented using a signed 32 bit integer (measured in
-  // whole seconds based on the 1970 epoch).
+  // that cannot be represented using a non-negative signed 32 bit integer
+  // (measured in whole seconds based on the 1970 epoch).
   // We solve this by mapping the time to a year with same leap-year-ness
-  // and same starting day for the year.
-  // As an optimization we avoid finding an equivalent year in the common
-  // case.  We are measuring in ms here so the 32 bit signed integer range
-  // is +-(1<<30)*1000 ie approximately +-2.1e20.
-  if (t >= -2.1e12 && t <= 2.1e12) return t;
+  // and same starting day for the year.  The ECMAscript specification says
+  // we must do this, but for compatability with other browsers, we use
+  // the actual year if it is in the range 1970..2037
+  if (t >= 0 && t <= 2.1e12) return t;
   var day = MakeDay(EquivalentYear(YearFromTime(t)), MonthFromTime(t), DateFromTime(t));
   return TimeClip(MakeDate(day, TimeWithinDay(t)));
 }

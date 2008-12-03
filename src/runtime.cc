@@ -288,7 +288,7 @@ static Object* Runtime_IsConstructCall(Arguments args) {
 
 
 static Object* Runtime_RegExpCompile(Arguments args) {
-  HandleScope scope;  // create a new handle scope
+  HandleScope scope;
   ASSERT(args.length() == 3);
   CONVERT_CHECKED(JSRegExp, raw_re, args[0]);
   Handle<JSRegExp> re(raw_re);
@@ -786,7 +786,9 @@ static Object* Runtime_RegExpExec(Arguments args) {
   Handle<String> subject(raw_subject);
   Handle<Object> index(args[2]);
   ASSERT(index->IsNumber());
-  return *RegExpImpl::Exec(regexp, subject, index);
+  Handle<Object> result = RegExpImpl::Exec(regexp, subject, index);
+  if (result.is_null()) return Failure::Exception();
+  return *result;
 }
 
 
@@ -797,7 +799,9 @@ static Object* Runtime_RegExpExecGlobal(Arguments args) {
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  return *RegExpImpl::ExecGlobal(regexp, subject);
+  Handle<Object> result = RegExpImpl::ExecGlobal(regexp, subject);
+  if (result.is_null()) return Failure::Exception();
+  return *result;
 }
 
 
@@ -1237,11 +1241,8 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
 
 template <typename schar>
 static int SingleCharIndexOf(Vector<const schar> string,
-                             uc16 pattern_char,
+                             schar pattern_char,
                              int start_index) {
-  if (sizeof(schar) == 1 && pattern_char > String::kMaxAsciiCharCode) {
-    return -1;
-  }
   for (int i = start_index, n = string.length(); i < n; i++) {
     if (pattern_char == string[i]) {
       return i;
@@ -1376,9 +1377,20 @@ int Runtime::StringMatch(Handle<String> sub,
   if (pattern_length == 1) {
     AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
     if (sub_shape.IsAsciiRepresentation()) {
-      return SingleCharIndexOf(sub->ToAsciiVector(),
-                               pat->Get(pat_shape, 0),
-                               start_index);
+      uc16 pchar = pat->Get(pat_shape, 0);
+      if (pchar > String::kMaxAsciiCharCode) {
+        return -1;
+      }
+      Vector<const char> ascii_vector =
+        sub->ToAsciiVector().SubVector(start_index, subject_length);
+      const void* pos = memchr(ascii_vector.start(),
+                               static_cast<const char>(pchar),
+                               static_cast<size_t>(ascii_vector.length()));
+      if (pos == NULL) {
+        return -1;
+      }
+      return reinterpret_cast<const char*>(pos) - ascii_vector.start()
+          + start_index;
     }
     return SingleCharIndexOf(sub->ToUC16Vector(),
                              pat->Get(pat_shape, 0),
@@ -2444,7 +2456,7 @@ static Object* ConvertCase(Arguments args,
   // in the buffer
   Access<StringInputBuffer> buffer(&string_input_buffer);
   buffer->Reset(s);
-  unibrow::uchar chars[unibrow::kMaxCaseConvertedSize];
+  unibrow::uchar chars[Converter::kMaxWidth];
   int i = 0;
   // We can assume that the string is not empty
   uc32 current = buffer->GetNext();
@@ -3163,9 +3175,9 @@ static Object* Runtime_Math_random(Arguments args) {
   // double in the range [0, RAND_MAX + 1) obtained by adding the
   // high-order bits in the range [0, RAND_MAX] with the low-order
   // bits in the range [0, 1).
-  double lo = static_cast<double>(random()) / (RAND_MAX + 1.0);
+  double lo = static_cast<double>(random()) * (1.0 / (RAND_MAX + 1.0));
   double hi = static_cast<double>(random());
-  double result = (hi + lo) / (RAND_MAX + 1.0);
+  double result = (hi + lo) * (1.0 / (RAND_MAX + 1.0));
   ASSERT(result >= 0 && result < 1);
   return Heap::AllocateHeapNumber(result);
 }
@@ -3930,58 +3942,6 @@ static Object* Runtime_NumberIsFinite(Arguments args) {
 }
 
 
-static Object* EvalContext() {
-  // The topmost JS frame belongs to the eval function which called
-  // the CompileString runtime function. We need to unwind one level
-  // to get to the caller of eval.
-  StackFrameLocator locator;
-  JavaScriptFrame* frame = locator.FindJavaScriptFrame(1);
-
-  // TODO(900055): Right now we check if the caller of eval() supports
-  // eval to determine if it's an aliased eval or not. This may not be
-  // entirely correct in the unlikely case where a function uses both
-  // aliased and direct eval calls.
-  HandleScope scope;
-  if (!ScopeInfo<>::SupportsEval(frame->FindCode())) {
-    // Aliased eval: Evaluate in the global context of the eval
-    // function to support aliased, cross environment evals.
-    return *Top::global_context();
-  }
-
-  // Fetch the caller context from the frame.
-  Handle<Context> caller(Context::cast(frame->context()));
-
-  // Check for eval() invocations that cross environments. Use the
-  // context from the stack if evaluating in current environment.
-  Handle<Context> target = Top::global_context();
-  if (caller->global_context() == *target) return *caller;
-
-  // Compute a function closure that captures the calling context. We
-  // need a function that has trivial scope info, since it is only
-  // used to hold the context chain together.
-  Handle<JSFunction> closure = Factory::NewFunction(Factory::empty_symbol(),
-                                                    Factory::undefined_value());
-  closure->set_context(*caller);
-
-  // Create a new adaptor context that has the target environment as
-  // the extension object. This enables the evaluated code to see both
-  // the current context with locals and everything and to see global
-  // variables declared in the target global object. Furthermore, any
-  // properties introduced with 'var' will be added to the target
-  // global object because it is the extension object.
-  Handle<Context> adaptor =
-    Factory::NewFunctionContext(Context::MIN_CONTEXT_SLOTS, closure);
-  adaptor->set_extension(target->global());
-  return *adaptor;
-}
-
-
-static Object* Runtime_EvalReceiver(Arguments args) {
-  StackFrameLocator locator;
-  return locator.FindJavaScriptFrame(1)->receiver();
-}
-
-
 static Object* Runtime_GlobalReceiver(Arguments args) {
   ASSERT(args.length() == 1);
   Object* global = args[0];
@@ -3992,34 +3952,109 @@ static Object* Runtime_GlobalReceiver(Arguments args) {
 
 static Object* Runtime_CompileString(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 2);
   CONVERT_ARG_CHECKED(String, source, 0);
   CONVERT_ARG_CHECKED(Smi, line_offset, 1);
-  bool contextual = args[2]->IsTrue();
-  RUNTIME_ASSERT(contextual || args[2]->IsFalse());
-
-  // Compute the eval context.
-  Handle<Context> context;
-  if (contextual) {
-    // Get eval context. May not be available if we are calling eval
-    // through an alias, and the corresponding frame doesn't have a
-    // proper eval context set up.
-    Object* eval_context = EvalContext();
-    if (eval_context->IsFailure()) return eval_context;
-    context = Handle<Context>(Context::cast(eval_context));
-  } else {
-    context = Handle<Context>(Top::context()->global_context());
-  }
-
 
   // Compile source string.
-  bool is_global = context->IsGlobalContext();
   Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, line_offset->value(), is_global);
+      Compiler::CompileEval(source, line_offset->value(), true);
   if (boilerplate.is_null()) return Failure::Exception();
+  Handle<Context> context(Top::context()->global_context());
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
   return *fun;
+}
+
+
+static Handle<JSFunction> GetBuiltinFunction(String* name) {
+  LookupResult result;
+  Top::global_context()->builtins()->LocalLookup(name, &result);
+  return Handle<JSFunction>(JSFunction::cast(result.GetValue()));
+}
+
+
+static Object* CompileDirectEval(Handle<String> source) {
+  // Compute the eval context.
+  HandleScope scope;
+  StackFrameLocator locator;
+  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
+  Handle<Context> context(Context::cast(frame->context()));
+  bool is_global = context->IsGlobalContext();
+
+  // Compile source string.
+  Handle<JSFunction> boilerplate = Compiler::CompileEval(source, 0, is_global);
+  if (boilerplate.is_null()) return Failure::Exception();
+  Handle<JSFunction> fun =
+    Factory::NewFunctionFromBoilerplate(boilerplate, context);
+  return *fun;
+}
+
+
+static Object* Runtime_ResolvePossiblyDirectEval(Arguments args) {
+  ASSERT(args.length() == 2);
+
+  HandleScope scope;
+
+  CONVERT_ARG_CHECKED(JSFunction, callee, 0);
+
+  Handle<Object> receiver;
+
+  // Find where the 'eval' symbol is bound. It is unaliased only if
+  // it is bound in the global context.
+  StackFrameLocator locator;
+  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
+  Handle<Context> context(Context::cast(frame->context()));
+  int index;
+  PropertyAttributes attributes;
+  while (!context.is_null()) {
+    receiver = context->Lookup(Factory::eval_symbol(), FOLLOW_PROTOTYPE_CHAIN,
+                               &index, &attributes);
+    if (attributes != ABSENT) break;
+    if (context->is_function_context()) {
+      context = Handle<Context>(Context::cast(context->closure()->context()));
+    } else {
+      context = Handle<Context>(context->previous());
+    }
+  }
+
+  if (context->IsGlobalContext()) {
+    // 'eval' is bound in the global context, but it may have been overwritten.
+    // Compare it to the builtin 'GlobalEval' function to make sure.
+    Handle<JSFunction> global_eval =
+      GetBuiltinFunction(Heap::global_eval_symbol());
+    if (global_eval.is_identical_to(callee)) {
+      // A direct eval call.
+      if (args[1]->IsString()) {
+        CONVERT_ARG_CHECKED(String, source, 1);
+        // A normal eval call on a string. Compile it and return the
+        // compiled function bound in the local context.
+        Object* compiled_source = CompileDirectEval(source);
+        if (compiled_source->IsFailure()) return compiled_source;
+        receiver = Handle<Object>(frame->receiver());
+        callee = Handle<JSFunction>(JSFunction::cast(compiled_source));
+      } else {
+        // An eval call that is not called on a string. Global eval
+        // deals better with this.
+        receiver = Handle<Object>(Top::global_context()->global());
+      }
+    } else {
+      // 'eval' is overwritten. Just call the function with the given arguments.
+      receiver = Handle<Object>(Top::global_context()->global());
+    }
+  } else {
+    // 'eval' is not bound in the global context. Just call the function
+    // with the given arguments. This is not necessarily the global eval.
+    if (receiver->IsContext()) {
+      context = Handle<Context>::cast(receiver);
+      receiver = Handle<Object>(context->get(index));
+    }
+  }
+
+  Handle<FixedArray> call = Factory::NewFixedArray(2);
+  call->set(0, *callee);
+  call->set(1, *receiver);
+  return *call;
 }
 
 
@@ -4797,9 +4832,10 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
   SaveContext* save = Top::save_context();
-  while (save != NULL && reinterpret_cast<Address>(save) < it.frame()->sp()) {
+  while (save != NULL && !save->below(it.frame())) {
     save = save->prev();
   }
+  ASSERT(save != NULL);
 
   // Get the frame id.
   Handle<Object> frame_id(WrapFrameId(it.frame()->id()));
@@ -5299,7 +5335,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
   SaveContext* save = Top::save_context();
-  while (save != NULL && reinterpret_cast<Address>(save) < frame->sp()) {
+  while (save != NULL && !save->below(frame)) {
     save = save->prev();
   }
   ASSERT(save != NULL);
