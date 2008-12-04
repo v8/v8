@@ -2960,6 +2960,7 @@ static void ApiUncaughtExceptionTestListener(v8::Handle<v8::Message>,
 // Counts uncaught exceptions, but other tests running in parallel
 // also have uncaught exceptions.
 TEST(ApiUncaughtException) {
+  report_count = 0;
   v8::HandleScope scope;
   LocalContext env;
   v8::V8::AddMessageListener(ApiUncaughtExceptionTestListener);
@@ -2983,6 +2984,27 @@ TEST(ApiUncaughtException) {
   CHECK(trouble_caller->IsFunction());
   Function::Cast(*trouble_caller)->Call(global, 0, NULL);
   CHECK_EQ(1, report_count);
+  v8::V8::RemoveMessageListeners(ApiUncaughtExceptionTestListener);
+}
+
+
+TEST(TryCatchFinallyUsingTryCatchHandler) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::TryCatch try_catch;
+  Script::Compile(v8_str("try { throw ''; } catch (e) {}"))->Run();
+  CHECK(!try_catch.HasCaught());
+  Script::Compile(v8_str("try { throw ''; } finally {}"))->Run();
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  Script::Compile(v8_str("(function() {"
+                         "try { throw ''; } finally { return; }"
+                         "})()"))->Run();
+  CHECK(!try_catch.HasCaught());
+  Script::Compile(v8_str("(function()"
+                         "  { try { throw ''; } finally { throw 0; }"
+                         "})()"))->Run();
+  CHECK(try_catch.HasCaught());
 }
 
 
