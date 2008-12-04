@@ -66,9 +66,6 @@ char* Top::Iterate(ObjectVisitor* v, char* thread_storage) {
 
 void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   v->VisitPointer(&(thread->pending_exception_));
-  v->VisitPointer(&(thread->pending_message_obj_));
-  v->VisitPointer(
-      bit_cast<Object**, Script**>(&(thread->pending_message_script_)));
   v->VisitPointer(bit_cast<Object**, Context**>(&(thread->context_)));
   v->VisitPointer(&(thread->scheduled_exception_));
 
@@ -102,7 +99,6 @@ void Top::InitializeThreadLocal() {
   thread_local_.external_caught_exception_ = false;
   thread_local_.failed_access_check_callback_ = NULL;
   clear_pending_exception();
-  clear_pending_message();
   clear_scheduled_exception();
   thread_local_.save_context_ = NULL;
   thread_local_.catcher_ = NULL;
@@ -795,13 +791,8 @@ void Top::DoThrow(Object* exception,
 
   // Determine reporting and whether the exception is caught externally.
   bool is_caught_externally = false;
-  bool is_out_of_memory = exception == Failure::OutOfMemoryException();
-  bool should_return_exception =  ShouldReportException(&is_caught_externally);
-  bool report_exception = !is_out_of_memory && should_return_exception;
-
-
-  // Notify debugger of exception.
-  Debugger::OnException(exception_handle, report_exception);
+  bool report_exception = (exception != Failure::OutOfMemoryException()) &&
+      ShouldReportException(&is_caught_externally);
 
   // Generate the message.
   Handle<Object> message_obj;
@@ -821,63 +812,35 @@ void Top::DoThrow(Object* exception,
         location, HandleVector<Object>(&exception_handle, 1), stack_trace);
   }
 
-  // Save the message for reporting if the the exception remains uncaught.
-  thread_local_.pending_message_ = message;
-  if (!message_obj.is_null()) {
-    thread_local_.pending_message_obj_ = *message_obj;
-    if (location != NULL) {
-      thread_local_.pending_message_script_ = *location->script();
-      thread_local_.pending_message_start_pos_ = location->start_pos();
-      thread_local_.pending_message_end_pos_ = location->end_pos();
-    }
-  }
-
+  // If the exception is caught externally, we store it in the
+  // try/catch handler. The C code can find it later and process it if
+  // necessary.
+  thread_local_.catcher_ = NULL;
   if (is_caught_externally) {
     thread_local_.catcher_ = thread_local_.try_catch_handler_;
-  }
-
-  // NOTE: Notifying the debugger or generating the message
-  // may have caused new exceptions. For now, we just ignore
-  // that and set the pending exception to the original one.
-  set_pending_exception(*exception_handle);
-}
-
-
-void Top::ReportPendingMessages() {
-  ASSERT(has_pending_exception());
-  setup_external_caught();
-  // If the pending exception is OutOfMemoryException set out_of_memory in
-  // the global context.  Note: We have to mark the global context here
-  // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
-  // set it.
-  HandleScope scope;
-  if (thread_local_.pending_exception_ == Failure::OutOfMemoryException()) {
-    context()->mark_out_of_memory();
-  } else {
-    Handle<Object> exception(pending_exception());
-    if (thread_local_.external_caught_exception_) {
-      thread_local_.try_catch_handler_->exception_ =
-        thread_local_.pending_exception_;
-      if (!thread_local_.pending_message_obj_->IsTheHole()) {
-        try_catch_handler()->message_ = thread_local_.pending_message_obj_;
-      }
-    } else if (thread_local_.pending_message_ != NULL) {
-      MessageHandler::ReportMessage(thread_local_.pending_message_);
-    } else if (!thread_local_.pending_message_obj_->IsTheHole()) {
-      Handle<Object> message_obj(thread_local_.pending_message_obj_);
-      if (thread_local_.pending_message_script_ != NULL) {
-        Handle<Script> script(thread_local_.pending_message_script_);
-        int start_pos = thread_local_.pending_message_start_pos_;
-        int end_pos = thread_local_.pending_message_end_pos_;
-        MessageLocation location(script, start_pos, end_pos);
-        MessageHandler::ReportMessage(&location, message_obj);
-      } else {
-        MessageHandler::ReportMessage(NULL, message_obj);
-      }
+    thread_local_.try_catch_handler_->exception_ =
+      reinterpret_cast<void*>(*exception_handle);
+    if (!message_obj.is_null()) {
+      thread_local_.try_catch_handler_->message_ =
+        reinterpret_cast<void*>(*message_obj);
     }
-    set_pending_exception(*exception);
   }
-  clear_pending_message();
+
+  // Notify debugger of exception.
+  Debugger::OnException(exception_handle, report_exception);
+
+  if (report_exception) {
+    if (message != NULL) {
+      MessageHandler::ReportMessage(message);
+    } else if (!message_obj.is_null()) {
+      MessageHandler::ReportMessage(location, message_obj);
+    }
+  }
+
+  // NOTE: Notifying the debugger or reporting the exception may have caused
+  // new exceptions. For now, we just ignore that and set the pending exception
+  // to the original one.
+  set_pending_exception(*exception_handle);
 }
 
 
