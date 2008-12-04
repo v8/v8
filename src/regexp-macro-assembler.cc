@@ -64,7 +64,7 @@ ArraySlice ByteArrayProvider::GetBuffer(unsigned int size,
     current_byte_array_ = Factory::NewByteArray(byte_array_size_, TENURED);
     free_offset = 0;
   }
-  current_byte_array_free_offset_ = free_offset + size;
+  current_byte_array_free_offset_ = free_offset + byte_size;
   return ArraySlice(current_byte_array_, free_offset);
 }
 
