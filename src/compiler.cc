@@ -74,11 +74,6 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 
   // Generate code and return it.
   Handle<Code> result = CodeGenerator::MakeCode(literal, script, is_eval);
-  // Check for stack-overflow exception.
-  if (result.is_null()) {
-    Top::StackOverflow();
-    Top::ReportPendingMessages();
-  }
   return result;
 }
 
@@ -123,6 +118,8 @@ static Handle<JSFunction> MakeFunction(bool is_global,
 
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
+    Top::StackOverflow();
+    Top::ReportPendingMessages();
     return Handle<JSFunction>::null();
   }
 
@@ -211,8 +208,6 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
     }
   }
 
-  if (result.is_null()) Top::ReportPendingMessages();
-
   return result;
 }
 
@@ -242,8 +237,6 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
       CompilationCache::PutFunction(source, entry, result);
     }
   }
-
-  if (result.is_null()) Top::ReportPendingMessages();
 
   return result;
 }
@@ -294,7 +287,10 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // Compile the code.
   Handle<Code> code = MakeCode(lit, script, false);
 
+  // Check for stack-overflow exception.
   if (code.is_null()) {
+    Top::StackOverflow();
+    Top::ReportPendingMessages();
     return false;
   }
 
