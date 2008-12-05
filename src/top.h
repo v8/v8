@@ -46,6 +46,11 @@ class ThreadLocalTop BASE_EMBEDDED {
   // lookups.
   Context* context_;
   Object* pending_exception_;
+  const char* pending_message_;
+  Object* pending_message_obj_;
+  Script* pending_message_script_;
+  int pending_message_start_pos_;
+  int pending_message_end_pos_;
   // Use a separate value for scheduled exceptions to preserve the
   // invariants that hold about pending_exception.  We may want to
   // unify them later.
@@ -120,6 +125,12 @@ class Top {
   static bool has_pending_exception() {
     return !thread_local_.pending_exception_->IsTheHole();
   }
+  static void clear_pending_message() {
+    thread_local_.catcher_ = NULL;
+    thread_local_.pending_message_ = NULL;
+    thread_local_.pending_message_obj_ = Heap::the_hole_value();
+    thread_local_.pending_message_script_ = NULL;
+  }
   static v8::TryCatch* try_catch_handler() {
     return thread_local_.try_catch_handler_;
   }
@@ -146,6 +157,7 @@ class Top {
 
   static void setup_external_caught() {
     thread_local_.external_caught_exception_ =
+        (!thread_local_.pending_exception_->IsTheHole()) &&
         (thread_local_.catcher_ != NULL) &&
         (Top::thread_local_.try_catch_handler_ == Top::thread_local_.catcher_);
   }
@@ -207,6 +219,7 @@ class Top {
   // originally.
   static Failure* ReThrow(Object* exception, MessageLocation* location = NULL);
   static void ScheduleThrow(Object* exception);
+  static void ReportPendingMessages();
 
   // Promote a scheduled exception to pending. Asserts has_scheduled_exception.
   static Object* PromoteScheduledException();
