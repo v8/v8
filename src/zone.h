@@ -74,6 +74,9 @@ class Zone {
 
   // Never allocate segments smaller than this size in bytes.
   static const int kMinimumSegmentSize = 8 * KB;
+  
+  // Never allocate segments larger than this size in bytes.
+  static const int kMaximumSegmentSize = 1 * MB;
 
   // Never keep segments larger than this size in bytes around.
   static const int kMaximumKeptSegmentSize = 64 * KB;
