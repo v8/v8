@@ -265,17 +265,17 @@ assertTrue(/f(o)\B\1/.test('foo'));
 
 // Back-reference, ignore case:
 // ASCII
-assertEquals("xaAx,a", String(/x(a)\1x/i.exec("xaAx")), "\\1 ASCII");
-assertFalse(/x(...)\1/i.test("xaaaaa"), "\\1 ASCII, string short");
-assertTrue(/x((?:))\1\1x/i.test("xx"), "\\1 empty, ASCII");
-assertTrue(/x(?:...|(...))\1x/i.test("xabcx"), "\\1 uncaptured, ASCII");
-assertTrue(/x(?:...|(...))\1x/i.test("xabcABCx"), "\\1 backtrack, ASCII");
+assertEquals("xaAx,a", String(/x(a)\1x/i.exec("xaAx")), "backref-ASCII");
+assertFalse(/x(...)\1/i.test("xaaaaa"), "backref-ASCII-short");
+assertTrue(/x((?:))\1\1x/i.test("xx"), "backref-ASCII-empty");
+assertTrue(/x(?:...|(...))\1x/i.test("xabcx"), "backref-ASCII-uncaptured");
+assertTrue(/x(?:...|(...))\1x/i.test("xabcABCx"), "backref-ASCII-backtrack");
 assertEquals("xaBcAbCABCx,aBc",
              String(/x(...)\1\1x/i.exec("xaBcAbCABCx")),
-             "\\1\\1 ASCII");
+             "backref-ASCII-twice");
 
 for (var i = 0; i < 128; i++) {
-  var testName = "(.)\\1 ~ " + i + "," + (i^0x20);
+  var testName = "backref-ASCII-char-" + i + "," + (i^0x20);
   var test = /^(.)\1$/i.test(String.fromCharCode(i, i ^ 0x20))
   var c = String.fromCharCode(i);
   if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')) {
@@ -284,22 +284,5 @@ for (var i = 0; i < 128; i++) {
     assertFalse(test, testName);
   }
 }
-
-// UC16
-// Characters used:
-// "\u03a3\u03c2\u03c3\u039b\u03bb" - Sigma, final sigma, sigma, Lambda, lamda
-assertEquals("x\u03a3\u03c3x,\u03a3",
-              String(/x(.)\1x/i.exec("x\u03a3\u03c3x")), "\\1 UC16");
-assertFalse(/x(...)\1/i.test("x\u03a3\u03c2\u03c3\u03c2\u03c3"),
-            "\\1 ASCII, string short");
-assertTrue(/\u03a3((?:))\1\1x/i.test("\u03c2x"), "\\1 empty, UC16");
-assertTrue(/x(?:...|(...))\1x/i.test("x\u03a3\u03c2\u03c3x"),
-           "\\1 uncaptured, UC16");
-assertTrue(/x(?:...|(...))\1x/i.test("x\u03c2\u03c3\u039b\u03a3\u03c2\u03bbx"),
-           "\\1 backtrack, UC16");
-var longUC16String = "x\u03a3\u03c2\u039b\u03c2\u03c3\u03bb\u03c3\u03a3\u03bb";
-assertEquals(longUC16String + "," + longUC16String.substring(1,4),
-             String(/x(...)\1\1/i.exec(longUC16String)),
-             "\\1\\1 UC16");
 
 assertFalse(/f(o)$\1/.test('foo'), "backref detects at_end");
