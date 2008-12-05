@@ -1666,6 +1666,55 @@ THREADED_TEST(APICatch) {
 }
 
 
+THREADED_TEST(APIThrowTryCatch) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("ThrowFromC"),
+             v8::FunctionTemplate::New(ThrowFromC));
+  LocalContext context(0, templ);
+  v8::TryCatch try_catch;
+  CompileRun("ThrowFromC();");
+  CHECK(try_catch.HasCaught());
+}
+
+
+static void receive_message(v8::Handle<v8::Message> message,
+                            v8::Handle<v8::Value> data) {
+  message_received = true;
+}
+
+
+TEST(APIThrowMessage) {
+  message_received = false;
+  v8::HandleScope scope;
+  v8::V8::AddMessageListener(receive_message);
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("ThrowFromC"),
+             v8::FunctionTemplate::New(ThrowFromC));
+  LocalContext context(0, templ);
+  CompileRun("ThrowFromC();");
+  CHECK(message_received);
+  v8::V8::RemoveMessageListeners(check_message);
+}
+
+
+TEST(APIThrowMessageAndVerboseTryCatch) {
+  message_received = false;
+  v8::HandleScope scope;
+  v8::V8::AddMessageListener(receive_message);
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("ThrowFromC"),
+             v8::FunctionTemplate::New(ThrowFromC));
+  LocalContext context(0, templ);
+  v8::TryCatch try_catch;
+  try_catch.SetVerbose(true);
+  CompileRun("ThrowFromC();");
+  CHECK(try_catch.HasCaught());
+  CHECK(message_received);
+  v8::V8::RemoveMessageListeners(check_message);
+}
+
+
 THREADED_TEST(ExternalScriptException) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();

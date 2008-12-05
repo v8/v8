@@ -46,6 +46,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // lookups.
   Context* context_;
   Object* pending_exception_;
+  bool has_pending_message_;
   const char* pending_message_;
   Object* pending_message_obj_;
   Script* pending_message_script_;
@@ -127,6 +128,7 @@ class Top {
   }
   static void clear_pending_message() {
     thread_local_.catcher_ = NULL;
+    thread_local_.has_pending_message_ = false;
     thread_local_.pending_message_ = NULL;
     thread_local_.pending_message_obj_ = Heap::the_hole_value();
     thread_local_.pending_message_script_ = NULL;

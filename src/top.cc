@@ -822,6 +822,7 @@ void Top::DoThrow(Object* exception,
   }
 
   // Save the message for reporting if the the exception remains uncaught.
+  thread_local_.has_pending_message_ = report_exception;
   thread_local_.pending_message_ = message;
   if (!message_obj.is_null()) {
     thread_local_.pending_message_obj_ = *message_obj;
@@ -855,26 +856,33 @@ void Top::ReportPendingMessages() {
     context()->mark_out_of_memory();
   } else {
     Handle<Object> exception(pending_exception());
-    if (thread_local_.external_caught_exception_) {
+    bool external_caught = thread_local_.external_caught_exception_;
+    thread_local_.external_caught_exception_ = false;
+    if (external_caught) {
       thread_local_.try_catch_handler_->exception_ =
         thread_local_.pending_exception_;
       if (!thread_local_.pending_message_obj_->IsTheHole()) {
         try_catch_handler()->message_ = thread_local_.pending_message_obj_;
       }
-    } else if (thread_local_.pending_message_ != NULL) {
-      MessageHandler::ReportMessage(thread_local_.pending_message_);
-    } else if (!thread_local_.pending_message_obj_->IsTheHole()) {
-      Handle<Object> message_obj(thread_local_.pending_message_obj_);
-      if (thread_local_.pending_message_script_ != NULL) {
-        Handle<Script> script(thread_local_.pending_message_script_);
-        int start_pos = thread_local_.pending_message_start_pos_;
-        int end_pos = thread_local_.pending_message_end_pos_;
-        MessageLocation location(script, start_pos, end_pos);
-        MessageHandler::ReportMessage(&location, message_obj);
-      } else {
-        MessageHandler::ReportMessage(NULL, message_obj);
+    }
+    if (thread_local_.has_pending_message_) {
+      thread_local_.has_pending_message_ = false;
+      if (thread_local_.pending_message_ != NULL) {
+        MessageHandler::ReportMessage(thread_local_.pending_message_);
+      } else if (!thread_local_.pending_message_obj_->IsTheHole()) {
+        Handle<Object> message_obj(thread_local_.pending_message_obj_);
+        if (thread_local_.pending_message_script_ != NULL) {
+          Handle<Script> script(thread_local_.pending_message_script_);
+          int start_pos = thread_local_.pending_message_start_pos_;
+          int end_pos = thread_local_.pending_message_end_pos_;
+          MessageLocation location(script, start_pos, end_pos);
+          MessageHandler::ReportMessage(&location, message_obj);
+        } else {
+          MessageHandler::ReportMessage(NULL, message_obj);
+        }
       }
     }
+    thread_local_.external_caught_exception_ = external_caught;
     set_pending_exception(*exception);
   }
   clear_pending_message();
