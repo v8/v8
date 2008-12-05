@@ -169,16 +169,10 @@ Address Zone::NewExpand(int size) {
     new_size = kMinimumSegmentSize;
   } else if (new_size > kMaximumSegmentSize) {
     // Limit the size of new segments to avoid growing the segment size
-    // exponentially, thus putting pressure on contiguous virtual address
-    // space.
-    if (size > (kMaximumSegmentSize - kSegmentOverhead)) {
-      // Make sure to allocate a segment at large enough to hold the requested
-      // size.
-      new_size = kSegmentOverhead + size;
-    } else {
-      // Allocate a new segment of maximum size.
-      new_size = kMaximumSegmentSize;
-    }
+    // exponentially, thus putting pressure on contiguous virtual address space.
+    // All the while making sure to allocate a segment large enough to hold the
+    // requested size.
+    new_size = Max(kSegmentOverhead + size, kMaximumSegmentSize);
   }
   Segment* segment = Segment::New(new_size);
   if (segment == NULL) V8::FatalProcessOutOfMemory("Zone");
