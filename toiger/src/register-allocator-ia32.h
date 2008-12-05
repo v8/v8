@@ -101,6 +101,10 @@ class RegisterAllocator BASE_EMBEDDED {
   // Allocate a free register if possible or fail by returning no_reg.
   Register Allocate();
 
+  // Allocate a free register without spilling any or fail and return
+  // no_reg.
+  Register AllocateWithoutSpilling();
+
  private:
   CodeGenerator* code_generator_;
   RegisterFile registers_;

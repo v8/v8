@@ -247,7 +247,6 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       frame_->CallRuntime(Runtime::kTraceEnter, 0);
       // Ignore the return value.
     }
-    frame_->SpillAll();
     CheckStack();
 
     // Compile the body of the function in a vanilla state. Don't

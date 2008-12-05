@@ -41,7 +41,7 @@ void RegisterAllocator::Initialize() {
 }
 
 
-Register RegisterAllocator::Allocate() {
+Register RegisterAllocator::AllocateWithoutSpilling() {
   // Return the first free register, if any.
   for (int i = 0; i < num_registers(); i++) {
     if (!registers_.is_used(i)) {
@@ -50,15 +50,21 @@ Register RegisterAllocator::Allocate() {
       return result;
     }
   }
+  return no_reg;
+}
 
-  // Ask the current frame to spill a register.
-  ASSERT(code_generator_->frame() != NULL);
-  Register result = code_generator_->frame()->SpillAnyRegister();
-  if (!result.is(no_reg)) {
-    ASSERT(!registers_.is_used(result.code()));
-    registers_.Use(result);
+
+Register RegisterAllocator::Allocate() {
+  Register result = AllocateWithoutSpilling();
+  if (result.is(no_reg)) {
+    // Ask the current frame to spill a register.
+    ASSERT(code_generator_->frame() != NULL);
+    result = code_generator_->frame()->SpillAnyRegister();
+    if (!result.is(no_reg)) {
+      ASSERT(!registers_.is_used(result.code()));
+      registers_.Use(result);
+    }
   }
-
   return result;
 }
 

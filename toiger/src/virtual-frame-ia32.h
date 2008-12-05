@@ -151,9 +151,14 @@ class VirtualFrame : public Malloced {
   // it was not possible to spill one.
   Register SpillAnyRegister();
 
+  // True if an arbitrary frame of the same size could be merged to this
+  // one.  Requires all values to be in a unique register or memory
+  // location.
+  bool IsMergable();
+
   // Ensure that this frame is in a state where an arbitrary frame of the
   // right size could be merged to it.  May emit code.
-  void EnsureMergable();
+  void MakeMergable();
 
   // Make this virtual frame have a state identical to an expected virtual
   // frame.  As a side effect, code may be emitted to make this frame match
@@ -350,8 +355,8 @@ class VirtualFrame : public Malloced {
   // for all the elements below this one (at least).
   void SpillElementAt(int index);
 
-  // Sync all elements in the frame.
-  void SyncAll();
+  // Sync the range of elements in [begin, end).
+  void SyncRange(int begin, int end);
 
   // Store the value on top of the frame to a frame slot (typically a local
   // or parameter).

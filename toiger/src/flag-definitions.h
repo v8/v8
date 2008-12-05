@@ -249,7 +249,6 @@ DEFINE_bool(print_code_stubs, false, "print code stubs")
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(trace_codegen, false,
             "print name of functions for which code is generated")
-DEFINE_bool(print_builtin_code, false, "print generated code for builtins")
 DEFINE_bool(print_source, false, "pretty print source code")
 DEFINE_bool(print_builtin_source, false,
             "pretty print source code for builtins")
@@ -342,6 +341,7 @@ DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
 
 // codegen-ia32.cc / codegen-arm.cc
 DEFINE_bool(print_code, false, "print generated code")
+DEFINE_bool(print_builtin_code, false, "print generated code for builtins")
 
 // Cleanup...
 #undef FLAG_FULL

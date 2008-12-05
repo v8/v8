@@ -78,7 +78,9 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
                                      Handle<Script> script,
                                      bool is_eval) {
 #ifdef ENABLE_DISASSEMBLER
-  bool print_code = FLAG_print_code && !Bootstrapper::IsActive();
+  bool print_code = Bootstrapper::IsActive()
+      ? FLAG_print_builtin_code
+      : FLAG_print_code;
 #endif
 
 #ifdef DEBUG
@@ -89,7 +91,6 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
   if (Bootstrapper::IsActive()) {
     print_source = FLAG_print_builtin_source;
     print_ast = FLAG_print_builtin_ast;
-    print_code = FLAG_print_builtin_code;
     ftype = "builtin";
   } else {
     print_source = FLAG_print_source;

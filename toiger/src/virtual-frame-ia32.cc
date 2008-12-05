@@ -172,7 +172,7 @@ Register VirtualFrame::SpillAnyRegister() {
 
   if (best_register_code != no_reg.code_) {
     // Spill all occurrences of the register.  There are min_count
-    // occurrences, stop when we've spilled them all to avoid syncing
+    // occurrences, stop when we have spilled them all to avoid syncing
     // elements unnecessarily.
     int i = 0;
     while (min_count > 0) {
@@ -183,17 +183,12 @@ Register VirtualFrame::SpillAnyRegister() {
         // Spill it.
         SpillElementAt(i);
         min_count--;
-      } else {
-        if (i > stack_pointer_) {
-          // Make sure to materialize elements on the virtual frame in
-          // memory.  We rely on this to spill occurrences of the register
-          // lying above the current virtual stack pointer.
-          SyncElementAt(i);
-        }
       }
+      i++;
     }
   }
 
+  ASSERT(cgen_->allocator()->count(best_register_code) == 0);
   Register result = { best_register_code };
   return result;
 }
@@ -203,6 +198,9 @@ Register VirtualFrame::SpillAnyRegister() {
 // allocate space in the actual frame for the virtual element immediately
 // above the stack pointer.
 void VirtualFrame::SpillElementAt(int index) {
+  if (index > stack_pointer_ + 1) {
+    SyncRange(stack_pointer_ + 1, index);
+  }
   SyncElementAt(index);
   // The element is now in memory.
   if (elements_[index].is_register()) {
@@ -212,13 +210,14 @@ void VirtualFrame::SpillElementAt(int index) {
 }
 
 
-// Clear the dirty bits for all elements.
-void VirtualFrame::SyncAll() {
-  for (int i = 0; i < elements_.length(); i++) {
+// Clear the dirty bits for the range of elements in [begin, end).
+void VirtualFrame::SyncRange(int begin, int end) {
+  ASSERT(begin >= 0);
+  ASSERT(end <= elements_.length());
+  for (int i = begin; i < end; i++) {
     SyncElementAt(i);
   }
 }
-
 
 // Make the type of all elements be MEMORY.
 void VirtualFrame::SpillAll() {
@@ -253,17 +252,106 @@ void VirtualFrame::PrepareForCall(int frame_arg_count) {
 }
 
 
-void VirtualFrame::EnsureMergable() {
+bool VirtualFrame::IsMergable() {
   // We cannot merge to a frame that has constants as elements, because an
-  // arbitrary frame might not have constants in those locations.
-  //
-  // We cannot merge to a frame that has registers as elements because we
-  // haven't implemented merging for such frames yet.
-  SpillAll();
+  // arbitrary frame may not have the same constants at those locations.  We
+  // cannot merge to a frame that has registers that are mulitply referenced
+  // in the frame, because an arbitrary frame might not exhibit the same
+  // sharing.  Thus, a frame is mergable if all elements are in memory or a
+  // register and no register is multiply referenced.
+  for (int i = 0; i < RegisterFile::kNumRegisters; i++) {
+    if (frame_registers_.count(i) > 1) {
+      return false;
+    }
+  }
+
+  for (int i = 0; i < elements_.length(); i++) {
+    if (!elements_[i].is_memory() && !elements_[i].is_register()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
+void VirtualFrame::MakeMergable() {
+  Comment cmnt(masm_, "[ Make frame mergable");
+  // Remove constants from the frame and ensure that no registers are
+  // multiply referenced within the frame.  Allocate elements to their
+  // new locations from the top down so that the topmost elements have
+  // a chance to be in registers, then fill them into memory from the
+  // bottom up.  (NB: Currently when spilling registers that are
+  // multiply referenced, it is the lowermost occurrence that gets to
+  // stay in the register.)
+  FrameElement* new_elements = new FrameElement[elements_.length()];
+  FrameElement memory_element;
+  for (int i = elements_.length() - 1; i >= 0; i--) {
+    FrameElement element = elements_[i];
+    if (element.is_constant() ||
+        (element.is_register() &&
+         frame_registers_.count(element.reg().code()) > 1)) {
+      // A simple strategy is to locate these elements in memory if they are
+      // synced (avoiding a spill right now) and otherwise to prefer a
+      // register for them.
+      if (element.is_synced()) {
+        new_elements[i] = memory_element;
+      } else {
+        // This code path is currently not triggered.  UNIMPLEMENTED is
+        // temporarily used to trap when it becomes active so we can test
+        // it.
+        UNIMPLEMENTED();
+        Register reg = cgen_->allocator()->AllocateWithoutSpilling();
+        if (reg.is(no_reg)) {
+          new_elements[i] = memory_element;
+        } else {
+          FrameElement register_element(reg, FrameElement::NOT_SYNCED);
+          new_elements[i] = register_element;
+        }
+      }
+
+      // We have not moved register references, but record that we will so
+      // that we do not unnecessarily spill the last reference within the
+      // frame.
+      if (element.is_register()) {
+        Unuse(element.reg());
+      }
+    } else {
+      // The element is in memory or a singly-frame-referenced register.
+      new_elements[i] = element;
+    }
+  }
+
+  // Perform the moves.
+  for (int i = 0; i < elements_.length(); i++) {
+    FrameElement source = elements_[i];
+    FrameElement target = new_elements[i];
+    ASSERT(target.is_register() || target.is_memory());
+    if (target.is_register()) {
+      if (source.is_constant()) {
+        // The allocator's register reference count was incremented by
+        // register allocation, so we only record the new reference in the
+        // frame.  The frame now owns the reference.
+        frame_registers_.Use(target.reg());
+        __ Set(target.reg(), Immediate(source.handle()));
+      } else if (source.is_register() && !source.reg().is(target.reg())) {
+        // The frame now owns the reference.
+        frame_registers_.Use(target.reg());
+        __ mov(target.reg(), source.reg());
+      }
+      elements_[i] = target;
+    } else {
+      // The target is memory.
+      SpillElementAt(i);
+    }
+  }
+
+  delete[] new_elements;
 }
 
 
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
+  Comment cmnt(masm_, "[ Merge frame");
   ASSERT(cgen_ == expected->cgen_);
   ASSERT(masm_ == expected->masm_);
   ASSERT(elements_.length() == expected->elements_.length());
@@ -271,12 +359,67 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   ASSERT(local_count_ == expected->local_count_);
   ASSERT(frame_pointer_ == expected->frame_pointer_);
 
-  // Mergable frames do not have constants and they do not (currently) have
-  // registers.  They are always fully spilled, so the only thing needed to
-  // make this frame match the expected one is to spill everything.
-  //
-  // TODO(): Implement a non-stupid way of merging frames.
-  SpillAll();
+  // Mergable frames have all elements in locations, either memory or
+  // register.  We thus have a series of to-memory and to-register moves.
+  // First perform all to-memory moves, register-to-memory moves because
+  // they can free registers and constant-to-memory moves because they do
+  // not use registers.
+  for (int i = 0; i < elements_.length(); i++) {
+    FrameElement source = elements_[i];
+    FrameElement target = expected->elements_[i];
+    if (target.is_memory() && !source.is_memory()) {
+      ASSERT(source.is_register() || source.is_constant());
+      SpillElementAt(i);
+    }
+  }
+
+  // Then register-to-register moves, not yet implemented.
+  for (int i = 0; i < elements_.length(); i++) {
+    FrameElement source = elements_[i];
+    FrameElement target = expected->elements_[i];
+    ASSERT(!source.is_register() || !target.is_register());
+  }
+
+  // Finally, constant-to-register and memory-to-register.  We do these from
+  // the top down so we can use pop for memory-to-register moves above the
+  // expected stack pointer.
+  for (int i = elements_.length() - 1; i >= 0; i--) {
+    FrameElement source = elements_[i];
+    FrameElement target = expected->elements_[i];
+    if (target.is_register() && !source.is_register()) {
+      ASSERT(source.is_constant() || source.is_memory());
+      if (source.is_memory()) {
+        ASSERT(i <= stack_pointer_);
+        if (i <= expected->stack_pointer_) {
+          // Elements below both stack pointers can just be moved.
+          __ mov(target.reg(), Operand(ebp, fp_relative(i)));
+        } else {
+          // Elements below the current stack pointer but above the expected
+          // one can be popped, bet first we may have to adjust the stack
+          // pointer downward.
+          if (stack_pointer_ > i + 1) {
+#ifdef DEBUG
+            // In debug builds check to ensure this is safe.
+            for (int j = stack_pointer_; j > i; j--) {
+              ASSERT(!elements_[j].is_memory());
+            }
+#endif
+            stack_pointer_ = i + 1;
+            __ add(Operand(esp),
+                   Immediate((stack_pointer_ - i) * kPointerSize));
+          }
+          stack_pointer_--;
+          __ pop(target.reg());
+        }
+        Use(target.reg());
+      } else if (source.is_constant()) {
+        // Not yet implemented.  When done, code in common with the
+        // memory-to-register just above case can be factored out.
+        UNIMPLEMENTED();
+      }
+      elements_[i] = target;
+    }
+  }
 
   ASSERT(stack_pointer_ == expected->stack_pointer_);
 }
@@ -330,9 +473,11 @@ void VirtualFrame::AllocateStackSlots(int count) {
 
   if (count > 0) {
     Comment cmnt(masm_, "[ Allocate space for locals");
-    // The locals are constants (the undefined value), but we sync them with
-    // the actual frame to allocate space for spilling them.
-    SyncAll();
+    // The locals are initialized to a constant (the undefined value), but
+    // we sync them with the actual frame to allocate space for spilling
+    // them later.  First sync everything above the stack pointer so we can
+    // use pushes to allocate and initialize the locals.
+    SyncRange(stack_pointer_ + 1, elements_.length());
     Handle<Object> undefined = Factory::undefined_value();
     FrameElement initial_value(undefined, FrameElement::SYNCED);
     Register tmp = cgen_->allocator()->Allocate();
@@ -368,7 +513,7 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
     __ mov(Operand(ebp, fp_relative(index)), temp);
     cgen_->allocator()->Unuse(temp);
   } else {
-    // We haven't actually written the value to memory.
+    // We have not actually written the value to memory.
     elements_[index].clear_sync();
 
     if (top.is_register()) {
