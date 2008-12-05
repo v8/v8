@@ -27,6 +27,7 @@
 
 #include <string.h>
 #include "v8.h"
+#include "unicode.h"
 #include "log.h"
 #include "ast.h"
 #include "macro-assembler.h"
@@ -240,22 +241,97 @@ void RegExpMacroAssemblerIA32::CheckCurrentPosition(int register_index,
 
 
 void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
-    int start_reg, Label* on_no_match) {
+    int start_reg,
+    Label* on_no_match) {
   Label fallthrough;
   __ mov(eax, register_location(start_reg));
   __ mov(ecx, register_location(start_reg + 1));
   __ sub(ecx, Operand(eax));  // Length to check.
-  __ j(less, on_no_match);
+  BranchOrBacktrack(less, on_no_match);
   __ j(equal, &fallthrough);
 
-  UNIMPLEMENTED();  // TODO(lrn): Call runtime function to do test.
+  if (mode_ == ASCII) {
+    Label success;
+    Label fail;
+    __ push(esi);
+    __ push(edi);
+    __ add(edi, Operand(esi));
+    __ add(esi, Operand(eax));
+    Label loop;
+    __ bind(&loop);
+    __ rep_cmpsb();
+    __ j(equal, &success);
+    // Compare lower-case if letters.
+    __ movzx_b(eax, Operand(edi, -1));
+    __ or_(eax, 0x20);  // To-lower-case
+    __ lea(ebx, Operand(eax, -'a'));
+    __ cmp(ebx, static_cast<int32_t>('z' - 'a'));
+    __ j(above, &fail);
+    __ movzx_b(ebx, Operand(esi, -1));
+    __ or_(ebx, 0x20);  // To-lower-case
+    __ cmp(eax, Operand(ebx));
+    __ j(not_equal, &fail);
+    __ or_(ecx, Operand(ecx));
+    __ j(not_equal, &loop);
+    __ jmp(&success);
 
+    __ bind(&fail);
+    __ pop(edi);
+    __ pop(esi);
+    BranchOrBacktrack(no_condition, on_no_match);
+
+    __ bind(&success);
+    __ pop(eax);  // discard original value of edi
+    __ pop(esi);
+    __ sub(edi, Operand(esi));
+  } else {
+    // store state
+    __ push(esi);
+    __ push(edi);
+    __ push(ecx);
+    // align stack
+    int frameAlignment = OS::ActivationFrameAlignment();
+    if (frameAlignment != 0) {
+      __ mov(ebx, esp);
+      __ sub(Operand(esp), Immediate(5 * kPointerSize));  // args + esp.
+      ASSERT(IsPowerOf2(frameAlignment));
+      __ and_(esp, -frameAlignment);
+      __ mov(Operand(esp, 4 * kPointerSize), ebx);
+    } else {
+      __ sub(Operand(esp), Immediate(4 * kPointerSize));
+    }
+    // Put arguments on stack.
+    __ mov(Operand(esp, 3 * kPointerSize), ecx);
+    __ mov(ebx, Operand(ebp, kInputEndOffset));
+    __ add(edi, Operand(ebx));
+    __ mov(Operand(esp, 2 * kPointerSize), edi);
+    __ add(eax, Operand(ebx));
+    __ mov(Operand(esp, 1 * kPointerSize), eax);
+    __ mov(eax, Operand(ebp, kInputBuffer));
+    __ mov(Operand(esp, 0 * kPointerSize), eax);
+    Address function_address = FUNCTION_ADDR(&CaseInsensitiveCompareUC16);
+    __ mov(Operand(eax),
+        Immediate(reinterpret_cast<int32_t>(function_address)));
+    __ call(Operand(eax));
+    if (frameAlignment != 0) {
+      __ mov(esp, Operand(esp, 4 * kPointerSize));
+    } else {
+      __ add(Operand(esp), Immediate(4 * sizeof(int32_t)));
+    }
+    __ pop(ecx);
+    __ pop(edi);
+    __ pop(esi);
+    __ or_(eax, Operand(eax));
+    BranchOrBacktrack(zero, on_no_match);
+    __ add(edi, Operand(ecx));
+  }
   __ bind(&fallthrough);
 }
 
 
 void RegExpMacroAssemblerIA32::CheckNotBackReference(
-    int start_reg, Label* on_no_match) {
+    int start_reg,
+    Label* on_no_match) {
   Label fallthrough;
   __ mov(eax, register_location(start_reg));
   __ mov(ecx, register_location(start_reg + 1));
@@ -585,6 +661,37 @@ void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
 
 
 // Private methods:
+
+
+static unibrow::Mapping<unibrow::Ecma262Canonicalize> canonicalize;
+
+
+int RegExpMacroAssemblerIA32::CaseInsensitiveCompareUC16(uc16** buffer,
+                                                         int byte_offset1,
+                                                         int byte_offset2,
+                                                         size_t byte_length) {
+  ASSERT(byte_length % 2 == 0);
+  Address buffer_address = reinterpret_cast<Address>(*buffer);
+  uc16* substring1 = reinterpret_cast<uc16*>(buffer_address + byte_offset1);
+  uc16* substring2 = reinterpret_cast<uc16*>(buffer_address + byte_offset2);
+  size_t length = byte_length >> 1;
+
+  for (size_t i = 0; i < length; i++) {
+    unibrow::uchar c1 = substring1[i];
+    unibrow::uchar c2 = substring2[i];
+    if (c1 != c2) {
+      canonicalize.get(c1, '\0', &c1);
+      if (c1 != c2) {
+        canonicalize.get(c2, '\0', &c2);
+        if (c1 != c2) {
+          return 0;
+        }
+      }
+    }
+  }
+  return 1;
+}
+
 
 Operand RegExpMacroAssemblerIA32::register_location(int register_index) {
   ASSERT(register_index < (1<<30));

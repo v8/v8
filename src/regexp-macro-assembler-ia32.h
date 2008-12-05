@@ -119,8 +119,12 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   static const int kRegExpConstantsSize = 256;
   // Only unroll loops up to this length.
   static const int kMaxInlineStringTests = 8;
-  // Special "character" marking end of input.
-  static const uint32_t kEndOfInput = ~0;
+
+  // Compares two-byte strings case insenstively.
+  static int CaseInsensitiveCompareUC16(uc16** buffer,
+                                        int byte_offset1,
+                                        int byte_offset2,
+                                        size_t byte_length);
 
   // The ebp-relative location of a regexp register.
   Operand register_location(int register_index);

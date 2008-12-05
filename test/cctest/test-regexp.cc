@@ -817,7 +817,6 @@ TEST(MacroAssemblerIA32BackReference) {
 }
 
 
-
 TEST(MacroAssemblerIA32AtStart) {
   V8::Initialize(NULL);
 
@@ -878,6 +877,65 @@ TEST(MacroAssemblerIA32AtStart) {
                                               false);
 
   CHECK(success);
+}
+
+
+
+
+TEST(MacroAssemblerIA32BackRefNoCase) {
+  V8::Initialize(NULL);
+
+  // regexp-macro-assembler-ia32 needs a handle scope to allocate
+  // byte-arrays for constants.
+  v8::HandleScope scope;
+
+  RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 4);
+
+  Label fail, succ;
+
+  m.WriteCurrentPositionToRegister(0);
+  m.WriteCurrentPositionToRegister(2);
+  m.AdvanceCurrentPosition(3);
+  m.WriteCurrentPositionToRegister(3);
+  m.CheckNotBackReferenceIgnoreCase(2, &fail);  // Match "AbC".
+  m.CheckNotBackReferenceIgnoreCase(2, &fail);  // Match "ABC".
+  Label expected_fail;
+  m.CheckNotBackReferenceIgnoreCase(2, &expected_fail);
+  m.Bind(&fail);
+  m.Fail();
+
+  m.Bind(&expected_fail);
+  m.AdvanceCurrentPosition(3);  // Skip "xYz"
+  m.CheckNotBackReferenceIgnoreCase(2, &succ);
+  m.Fail();
+
+  m.Bind(&succ);
+  m.WriteCurrentPositionToRegister(1);
+  m.Succeed();
+
+  Handle<Object> code_object = m.GetCode();
+  Handle<Code> code = Handle<Code>::cast(code_object);
+
+  Handle<String> input =
+      Factory::NewStringFromAscii(CStrVector("aBcAbCABCxYzab"));
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Address start_adr = seq_input->GetCharsAddress();
+  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
+  int end_offset = start_offset + seq_input->length();
+
+  int output[4];
+  bool success = RegExpMacroAssemblerIA32::Execute(*code,
+                                                   seq_input.location(),
+                                                   start_offset,
+                                                   end_offset,
+                                                   output,
+                                                   true);
+
+  CHECK(success);
+  CHECK_EQ(0, output[0]);
+  CHECK_EQ(12, output[1]);
+  CHECK_EQ(0, output[2]);
+  CHECK_EQ(3, output[3]);
 }
 
 
