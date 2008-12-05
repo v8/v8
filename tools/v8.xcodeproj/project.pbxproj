@@ -26,6 +26,11 @@
 
 /* Begin PBXBuildFile section */
 		8900116C0E71CA2300F91F35 /* libraries.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8900116B0E71CA2300F91F35 /* libraries.cc */; };
+		890A13FE0EE9C47F00E49346 /* interpreter-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */; };
+		890A14010EE9C4B000E49346 /* regexp-macro-assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */; };
+		890A14020EE9C4B400E49346 /* regexp-macro-assembler-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C750EE466D000B48DEB /* regexp-macro-assembler-irregexp.cc */; };
+		890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C770EE466D000B48DEB /* regexp-macro-assembler-tracer.cc */; };
+		890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */; };
 		893CCE640E71D83700357A03 /* code-stubs.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1110E719B8F00D62E90 /* code-stubs.cc */; };
 		89495E480E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
 		89495E490E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
@@ -1157,6 +1162,7 @@
 				89F23C5E0E78D5B2006B2466 /* heap.cc in Sources */,
 				89F23C9D0E78D5FB006B2466 /* ic-arm.cc in Sources */,
 				89F23C600E78D5B2006B2466 /* ic.cc in Sources */,
+				890A13FE0EE9C47F00E49346 /* interpreter-irregexp.cc in Sources */,
 				89F23C610E78D5B2006B2466 /* jsregexp.cc in Sources */,
 				89F23C620E78D5B2006B2466 /* libraries.cc in Sources */,
 				89F23C630E78D5B2006B2466 /* log.cc in Sources */,
@@ -1169,6 +1175,10 @@
 				89F23C6A0E78D5B2006B2466 /* platform-macos.cc in Sources */,
 				89F23C6B0E78D5B2006B2466 /* prettyprinter.cc in Sources */,
 				89F23C6C0E78D5B2006B2466 /* property.cc in Sources */,
+				890A14010EE9C4B000E49346 /* regexp-macro-assembler-arm.cc in Sources */,
+				890A14020EE9C4B400E49346 /* regexp-macro-assembler-irregexp.cc in Sources */,
+				890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */,
+				890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */,
 				89F23C6D0E78D5B2006B2466 /* rewriter.cc in Sources */,
 				89F23C6E0E78D5B2006B2466 /* runtime.cc in Sources */,
 				89F23C6F0E78D5B2006B2466 /* scanner.cc in Sources */,
