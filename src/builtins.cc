@@ -615,6 +615,7 @@ void Builtins::Setup(bool create_heap_objects) {
   static BuiltinDesc functions[] = {
       BUILTIN_LIST_C(DEF_FUNCTION_PTR_C)
       BUILTIN_LIST_A(DEF_FUNCTION_PTR_A)
+      BUILTIN_LIST_DEBUG_A(DEF_FUNCTION_PTR_A)
       // Terminator:
       { NULL, NULL, NULL, builtin_count, static_cast<Code::Flags>(0) }
   };
