@@ -286,3 +286,23 @@ for (var i = 0; i < 128; i++) {
 }
 
 assertFalse(/f(o)$\1/.test('foo'), "backref detects at_end");
+
+// Check that we don't read past the end of the string.
+assertFalse(/f/.test('b'));
+assertFalse(/[abc]f/.test('x'));
+assertFalse(/[abc]f/.test('xa'));
+assertFalse(/[abc]</.test('x'));
+assertFalse(/[abc]</.test('xa'));
+assertFalse(/f/i.test('b'));
+assertFalse(/[abc]f/i.test('x'));
+assertFalse(/[abc]f/i.test('xa'));
+assertFalse(/[abc]</i.test('x'));
+assertFalse(/[abc]</i.test('xa'));
+assertFalse(/f[abc]/.test('x'));
+assertFalse(/f[abc]/.test('xa'));
+assertFalse(/<[abc]/.test('x'));
+assertFalse(/<[abc]/.test('xa'));
+assertFalse(/f[abc]/i.test('x'));
+assertFalse(/f[abc]/i.test('xa'));
+assertFalse(/<[abc]/i.test('x'));
+assertFalse(/<[abc]/i.test('xa'));

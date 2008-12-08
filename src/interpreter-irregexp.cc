@@ -191,6 +191,15 @@ static bool RawMatch(const byte* code_base,
       BYTECODE(GOTO)
         pc = code_base + Load32(pc + 1);
         break;
+      BYTECODE(CHECK_GREEDY)
+        if (current == backtrack_sp[-1]) {
+          backtrack_sp--;
+          backtrack_stack_space++;
+          pc = code_base + Load32(pc + 1);
+        } else {
+          pc += BC_CHECK_GREEDY_LENGTH;
+        }
+        break;
       BYTECODE(LOAD_CURRENT_CHAR) {
         int pos = current + Load32(pc + 1);
         if (pos >= subject.length()) {
@@ -199,6 +208,12 @@ static bool RawMatch(const byte* code_base,
           current_char = subject[pos];
           pc += BC_LOAD_CURRENT_CHAR_LENGTH;
         }
+        break;
+      }
+      BYTECODE(LOAD_CURRENT_CHAR_UNCHECKED) {
+        int pos = current + Load32(pc + 1);
+        current_char = subject[pos];
+        pc += BC_LOAD_CURRENT_CHAR_UNCHECKED_LENGTH;
         break;
       }
       BYTECODE(CHECK_CHAR) {

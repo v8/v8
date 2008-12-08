@@ -362,7 +362,8 @@ static RegExpNode* Compile(const char* input, bool multiline) {
   if (!v8::internal::ParseRegExp(&reader, multiline, &result))
     return NULL;
   RegExpNode* node = NULL;
-  RegExpEngine::Compile(&result, &node, false, multiline);
+  Handle<String> pattern = Factory::NewStringFromUtf8(CStrVector(input));
+  RegExpEngine::Compile(&result, &node, false, multiline, pattern);
   return node;
 }
 
@@ -520,16 +521,16 @@ TEST(MacroAssembler) {
   m.Fail();
   m.Bind(&start);
   m.PushBacktrack(&fail2);
-  m.CheckCharacters(foo, 0, &fail);
-  m.WriteCurrentPositionToRegister(0);
+  m.CheckCharacters(foo, 0, &fail, true);
+  m.WriteCurrentPositionToRegister(0, 0);
   m.PushCurrentPosition();
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(1);
+  m.WriteCurrentPositionToRegister(1, 0);
   m.PopCurrentPosition();
   m.AdvanceCurrentPosition(1);
-  m.WriteCurrentPositionToRegister(2);
+  m.WriteCurrentPositionToRegister(2, 0);
   m.AdvanceCurrentPosition(1);
-  m.WriteCurrentPositionToRegister(3);
+  m.WriteCurrentPositionToRegister(3, 0);
   m.Succeed();
 
   m.Bind(&fail);
@@ -542,7 +543,8 @@ TEST(MacroAssembler) {
 
   v8::HandleScope scope;
 
-  Handle<ByteArray> array = Handle<ByteArray>::cast(m.GetCode());
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^f(o)o"));
+  Handle<ByteArray> array = Handle<ByteArray>::cast(m.GetCode(source));
   int captures[5];
 
   Handle<String> f1 =
@@ -576,7 +578,8 @@ TEST(MacroAssemblerIA32Success) {
 
   m.Succeed();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector(""));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   int captures[4] = {42, 37, 87, 117};
@@ -614,15 +617,16 @@ TEST(MacroAssemblerIA32Simple) {
   Vector<const uc16> foo(foo_chars, 3);
 
   Label fail;
-  m.CheckCharacters(foo, 0, &fail);
-  m.WriteCurrentPositionToRegister(0);
+  m.CheckCharacters(foo, 0, &fail, true);
+  m.WriteCurrentPositionToRegister(0, 0);
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(1);
+  m.WriteCurrentPositionToRegister(1, 0);
   m.Succeed();
   m.Bind(&fail);
   m.Fail();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^foo"));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   int captures[4] = {42, 37, 87, 117};
@@ -675,15 +679,16 @@ TEST(MacroAssemblerIA32SimpleUC16) {
   Vector<const uc16> foo(foo_chars, 3);
 
   Label fail;
-  m.CheckCharacters(foo, 0, &fail);
-  m.WriteCurrentPositionToRegister(0);
+  m.CheckCharacters(foo, 0, &fail, true);
+  m.WriteCurrentPositionToRegister(0, 0);
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(1);
+  m.WriteCurrentPositionToRegister(1, 0);
   m.Succeed();
   m.Bind(&fail);
   m.Fail();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^foo"));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   int captures[4] = {42, 37, 87, 117};
@@ -735,9 +740,6 @@ TEST(MacroAssemblerIA32Backtrack) {
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 0);
 
-  uc16 foo_chars[3] = {'f', 'o', 'o'};
-  Vector<const uc16> foo(foo_chars, 3);
-
   Label fail;
   Label backtrack;
   m.LoadCurrentCharacter(10, &fail);
@@ -749,7 +751,8 @@ TEST(MacroAssemblerIA32Backtrack) {
   m.Bind(&backtrack);
   m.Fail();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector(".........."));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("foofoo"));
@@ -778,9 +781,9 @@ TEST(MacroAssemblerIA32BackReference) {
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 3);
 
-  m.WriteCurrentPositionToRegister(0);
+  m.WriteCurrentPositionToRegister(0, 0);
   m.AdvanceCurrentPosition(2);
-  m.WriteCurrentPositionToRegister(1);
+  m.WriteCurrentPositionToRegister(1, 0);
   Label nomatch;
   m.CheckNotBackReference(0, &nomatch);
   m.Fail();
@@ -788,12 +791,13 @@ TEST(MacroAssemblerIA32BackReference) {
   m.AdvanceCurrentPosition(2);
   Label missing_match;
   m.CheckNotBackReference(0, &missing_match);
-  m.WriteCurrentPositionToRegister(2);
+  m.WriteCurrentPositionToRegister(2, 0);
   m.Succeed();
   m.Bind(&missing_match);
   m.Fail();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^(..)..\1"));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("fooofo"));
@@ -826,9 +830,6 @@ TEST(MacroAssemblerIA32AtStart) {
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 0);
 
-  uc16 foo_chars[3] = {'f', 'o', 'o'};
-  Vector<const uc16> foo(foo_chars, 3);
-
   Label not_at_start, newline, fail;
   m.CheckNotAtStart(&not_at_start);
   // Check that prevchar = '\n' and current = 'f'.
@@ -850,7 +851,8 @@ TEST(MacroAssemblerIA32AtStart) {
   m.CheckNotCharacter('b', &fail);
   m.Succeed();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("(^f|ob)"));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("foobar"));
@@ -893,10 +895,10 @@ TEST(MacroAssemblerIA32BackRefNoCase) {
 
   Label fail, succ;
 
-  m.WriteCurrentPositionToRegister(0);
-  m.WriteCurrentPositionToRegister(2);
+  m.WriteCurrentPositionToRegister(0, 0);
+  m.WriteCurrentPositionToRegister(2, 0);
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(3);
+  m.WriteCurrentPositionToRegister(3, 0);
   m.CheckNotBackReferenceIgnoreCase(2, &fail);  // Match "AbC".
   m.CheckNotBackReferenceIgnoreCase(2, &fail);  // Match "ABC".
   Label expected_fail;
@@ -910,10 +912,12 @@ TEST(MacroAssemblerIA32BackRefNoCase) {
   m.Fail();
 
   m.Bind(&succ);
-  m.WriteCurrentPositionToRegister(1);
+  m.WriteCurrentPositionToRegister(1, 0);
   m.Succeed();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source =
+      Factory::NewStringFromAscii(CStrVector("^(abc)\1\1(?!\1)...(?!\1)"));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   Handle<String> input =
@@ -955,13 +959,13 @@ TEST(MacroAssemblerIA32Registers) {
   enum registers { out1, out2, out3, out4, out5, sp, loop_cnt };
   Label fail;
   Label backtrack;
-  m.WriteCurrentPositionToRegister(out1);  // Output: [0]
+  m.WriteCurrentPositionToRegister(out1, 0);  // Output: [0]
   m.PushRegister(out1);
   m.PushBacktrack(&backtrack);
   m.WriteStackPointerToRegister(sp);
   // Fill stack and registers
   m.AdvanceCurrentPosition(2);
-  m.WriteCurrentPositionToRegister(out1);
+  m.WriteCurrentPositionToRegister(out1, 0);
   m.PushRegister(out1);
   m.PushBacktrack(&fail);
   // Drop backtrack stack frames.
@@ -977,7 +981,7 @@ TEST(MacroAssemblerIA32Registers) {
   m.PopRegister(out1);
   m.ReadCurrentPositionFromRegister(out1);
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(out2);  // [0,3]
+  m.WriteCurrentPositionToRegister(out2, 0);  // [0,3]
 
   Label loop;
   m.SetRegister(loop_cnt, 0);  // loop counter
@@ -985,7 +989,7 @@ TEST(MacroAssemblerIA32Registers) {
   m.AdvanceRegister(loop_cnt, 1);
   m.AdvanceCurrentPosition(1);
   m.IfRegisterLT(loop_cnt, 3, &loop);
-  m.WriteCurrentPositionToRegister(out3);  // [0,3,6]
+  m.WriteCurrentPositionToRegister(out3, 0);  // [0,3,6]
 
   Label loop2;
   m.SetRegister(loop_cnt, 2);  // loop counter
@@ -993,24 +997,29 @@ TEST(MacroAssemblerIA32Registers) {
   m.AdvanceRegister(loop_cnt, -1);
   m.AdvanceCurrentPosition(1);
   m.IfRegisterGE(loop_cnt, 0, &loop2);
-  m.WriteCurrentPositionToRegister(out4);  // [0,3,6,9]
+  m.WriteCurrentPositionToRegister(out4, 0);  // [0,3,6,9]
 
   Label loop3;
   Label exit_loop3;
+  m.PushRegister(out4);
+  m.PushRegister(out4);
   m.ReadCurrentPositionFromRegister(out3);
   m.Bind(&loop3);
   m.AdvanceCurrentPosition(1);
-  m.CheckCurrentPosition(out4, &exit_loop3);
+  m.CheckGreedyLoop(&exit_loop3);
   m.GoTo(&loop3);
   m.Bind(&exit_loop3);
-  m.WriteCurrentPositionToRegister(out5);  // [0,3,6,9,9]
+  m.PopCurrentPosition();
+  m.WriteCurrentPositionToRegister(out5, 0);  // [0,3,6,9,9]
 
   m.Succeed();
 
   m.Bind(&fail);
   m.Fail();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source =
+      Factory::NewStringFromAscii(CStrVector("<loop test>"));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
 
   // String long enough for test (content doesn't matter).
@@ -1291,5 +1300,5 @@ TEST(CharClassDifference) {
 
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("\\b\\w", false, true);
+  Execute("(?=[d#.])", false, true);
 }

@@ -62,19 +62,17 @@ class RegExpMacroAssembler {
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
   // Check the current character for a match with a literal string.  If we
-  // fail to match then goto the on_failure label.  End of input always
-  // matches.  If the label is NULL then we should pop a backtrack address off
-  // the stack abnd go to that.
+  // fail to match then goto the on_failure label.  If check_eos is set then
+  // the end of input always fails.  If check_eos is clear then it is the
+  // caller's responsibility to ensure that the end of string is not hit.
+  // If the label is NULL then we should pop a backtrack address off
+  // the stack and go to that.
   virtual void CheckCharacters(
       Vector<const uc16> str,
       int cp_offset,
-      Label* on_failure) = 0;
-  // Check the current input position against a register.  If the register is
-  // equal to the current position then go to the label.  If the label is NULL
-  // then backtrack instead.
-  virtual void CheckCurrentPosition(
-      int register_index,
-      Label* on_equal) = 0;
+      Label* on_failure,
+      bool check_eos) = 0;
+  virtual void CheckGreedyLoop(Label* on_tos_equals_current_position) = 0;
   virtual void CheckNotAtStart(Label* on_not_at_start) = 0;
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match) = 0;
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
@@ -115,7 +113,7 @@ class RegExpMacroAssembler {
       const Vector<Label*>& destinations) = 0;
   virtual void EmitOrLink(Label* label) = 0;
   virtual void Fail() = 0;
-  virtual Handle<Object> GetCode() = 0;
+  virtual Handle<Object> GetCode(Handle<String> source) = 0;
   virtual void GoTo(Label* label) = 0;
   // Check whether a register is >= a given constant and go to a label if it
   // is.  Backtracks instead if the label is NULL.
@@ -125,6 +123,7 @@ class RegExpMacroAssembler {
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt) = 0;
   virtual IrregexpImplementation Implementation() = 0;
   virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input) = 0;
+  virtual void LoadCurrentCharacterUnchecked(int cp_offset) = 0;
   virtual void PopCurrentPosition() = 0;
   virtual void PopRegister(int register_index) = 0;
   virtual void PushBacktrack(Label* label) = 0;
@@ -134,7 +133,7 @@ class RegExpMacroAssembler {
   virtual void ReadStackPointerFromRegister(int reg) = 0;
   virtual void SetRegister(int register_index, int to) = 0;
   virtual void Succeed() = 0;
-  virtual void WriteCurrentPositionToRegister(int reg) = 0;
+  virtual void WriteCurrentPositionToRegister(int reg, int cp_offset) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
 
  private:

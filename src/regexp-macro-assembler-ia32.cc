@@ -184,11 +184,14 @@ void RegExpMacroAssemblerIA32::CheckCharacterLT(uc16 limit, Label* on_less) {
 
 void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
                                                int cp_offset,
-                                               Label* on_failure) {
+                                               Label* on_failure,
+                                               bool check_end_of_string) {
   int byte_length = str.length() * char_size();
   int byte_offset = cp_offset * char_size();
-  __ cmp(Operand(edi), Immediate(-(byte_offset + byte_length)));
-  BranchOrBacktrack(greater, on_failure);
+  if (check_end_of_string) {
+    __ cmp(Operand(edi), Immediate(-(byte_offset + byte_length)));
+    BranchOrBacktrack(greater, on_failure);
+  }
 
   if (str.length() <= kMaxInlineStringTests) {
     for (int i = 0; i < str.length(); i++) {
@@ -233,10 +236,13 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
 }
 
 
-void RegExpMacroAssemblerIA32::CheckCurrentPosition(int register_index,
-                                                    Label* on_equal) {
-  __ cmp(edi, register_location(register_index));
-  BranchOrBacktrack(equal, on_equal);
+void RegExpMacroAssemblerIA32::CheckGreedyLoop(Label* on_equal) {
+  Label fallthrough;
+  __ cmp(edi, Operand(esp, 0));
+  __ j(not_equal, &fallthrough);
+  __ add(Operand(esp), Immediate(4));  // Pop.
+  BranchOrBacktrack(no_condition, on_equal);
+  __ bind(&fallthrough);
 }
 
 
@@ -482,7 +488,7 @@ void RegExpMacroAssemblerIA32::Fail() {
 }
 
 
-Handle<Object> RegExpMacroAssemblerIA32::GetCode() {
+Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   // Finalize code - write the entry point code now we know how many
   // registers we need.
 
@@ -521,7 +527,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode() {
   Label at_start;
   __ cmp(Operand(ebp, kAtStart), Immediate(0));
   __ j(not_equal, &at_start);
-  LoadCurrentCharToRegister(-1);  // Load previous char.
+  LoadCurrentCharacterUnchecked(-1);  // Load previous char.
   __ jmp(&start_label_);
   __ bind(&at_start);
   __ mov(current_character(), '\n');
@@ -562,7 +568,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode() {
                                        NULL,
                                        Code::ComputeFlags(Code::REGEXP),
                                        self_);
-  LOG(CodeCreateEvent("RegExp", *code, "(Compiled RegExp)"));
+  LOG(CodeCreateEvent("RegExp", *code, *(source->ToCString())));
   return Handle<Object>::cast(code);
 }
 
@@ -600,7 +606,7 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacter(int cp_offset,
   ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
   __ cmp(edi, -cp_offset * char_size());
   BranchOrBacktrack(greater_equal, on_end_of_input);
-  LoadCurrentCharToRegister(cp_offset);
+  LoadCurrentCharacterUnchecked(cp_offset);
 }
 
 
@@ -651,9 +657,16 @@ void RegExpMacroAssemblerIA32::Succeed() {
 }
 
 
-void RegExpMacroAssemblerIA32::WriteCurrentPositionToRegister(int reg) {
-  __ mov(register_location(reg), edi);
+void RegExpMacroAssemblerIA32::WriteCurrentPositionToRegister(int reg,
+                                                              int cp_offset) {
+  if (cp_offset == 0) {
+    __ mov(register_location(reg), edi);
+  } else {
+    __ lea(eax, Operand(edi, cp_offset));
+    __ mov(register_location(reg), eax);
+  }
 }
+
 
 void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
   __ mov(register_location(reg), esp);
@@ -770,7 +783,7 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
 }
 
 
-void RegExpMacroAssemblerIA32::LoadCurrentCharToRegister(int cp_offset) {
+void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset) {
   if (mode_ == ASCII) {
     __ movzx_b(current_character(), Operand(esi, edi, times_1, cp_offset));
     return;
