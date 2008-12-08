@@ -381,6 +381,7 @@ static bool RawMatch(const byte* code_base,
           break;
         } else {
           if (BackRefMatchesNoCase(from, current, len, subject)) {
+            current += len;
             pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
           } else {
             pc = code_base + Load32(pc + 2);
