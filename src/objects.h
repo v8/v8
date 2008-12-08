@@ -1185,7 +1185,8 @@ class JSObject: public HeapObject {
   // Used from Object::GetProperty().
   Object* GetPropertyWithFailedAccessCheck(Object* receiver,
                                            LookupResult* result,
-                                           String* name);
+                                           String* name,
+                                           PropertyAttributes* attributes);
   Object* GetPropertyWithInterceptor(JSObject* receiver,
                                      String* name,
                                      PropertyAttributes* attributes);
