@@ -684,8 +684,9 @@ int RegExpMacroAssemblerIA32::CaseInsensitiveCompareUC16(uc16** buffer,
                                                          int byte_offset1,
                                                          int byte_offset2,
                                                          size_t byte_length) {
-  // This function MUST NOT cause a garbage collection. A GC might move
-  // the calling generated code and invalidate the stacked return address.
+  // This function is not allowed to cause a garbage collection.
+  // A GC might move the calling generated code and invalidate the
+  // return address on the stack.
   ASSERT(byte_length % 2 == 0);
   Address buffer_address = reinterpret_cast<Address>(*buffer);
   uc16* substring1 = reinterpret_cast<uc16*>(buffer_address + byte_offset1);

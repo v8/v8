@@ -312,8 +312,7 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
         return result;
       }
       // We couldn't handle the regexp using Irregexp, so fall back
-      // on JSCRE. We rejoice at the though of the day when this is
-      // no longer needed.
+      // on JSCRE.
       // Reset the JSRegExp to use JSCRE.
       JscrePrepare(regexp,
                    Handle<String>(regexp->Pattern()),
@@ -343,8 +342,7 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
         return result;
       }
       // We couldn't handle the regexp using Irregexp, so fall back
-      // on JSCRE. We rejoice at the though of the day when this is
-      // no longer needed.
+      // on JSCRE.
       // Reset the JSRegExp to use JSCRE.
       JscrePrepare(regexp,
                    Handle<String>(regexp->Pattern()),
@@ -911,7 +909,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
       // String is now either Sequential or External
       StringShape flatshape(*subject);
       bool is_ascii = flatshape.IsAsciiRepresentation();
-      int char_size = is_ascii ? sizeof(char) : sizeof(uc16);  // NOLINT
+      int char_size_shift = is_ascii ? 0 : 1;
 
       if (flatshape.IsExternal()) {
         const byte* address;
@@ -925,19 +923,20 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
         rc = RegExpMacroAssemblerIA32::Execute(
             *code,
             &address,
-            start_offset * char_size,
-            end_offset * char_size,
+            start_offset << char_size_shift,
+            end_offset << char_size_shift,
             offsets_vector,
             previous_index == 0);
       } else {  // Sequential string
-        int byte_offset =
-            is_ascii ? SeqAsciiString::kHeaderSize - kHeapObjectTag:
-                       SeqTwoByteString::kHeaderSize - kHeapObjectTag;
+        Address char_address =
+            is_ascii ? SeqAsciiString::cast(*subject)->GetCharsAddress()
+                     : SeqTwoByteString::cast(*subject)->GetCharsAddress();
+        int byte_offset = char_address - reinterpret_cast<Address>(*subject);
         rc = RegExpMacroAssemblerIA32::Execute(
             *code,
             subject.location(),
-            byte_offset + start_offset * char_size,
-            byte_offset + end_offset * char_size,
+            byte_offset + (start_offset << char_size_shift),
+            byte_offset + (end_offset << char_size_shift),
             offsets_vector,
             previous_index == 0);
       }
