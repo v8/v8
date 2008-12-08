@@ -92,7 +92,7 @@ namespace v8 { namespace internal {
   V(LoadIC_DebugBreak,          LOAD_IC, DEBUG_BREAK)          \
   V(KeyedLoadIC_DebugBreak,     KEYED_LOAD_IC, DEBUG_BREAK)    \
   V(StoreIC_DebugBreak,         STORE_IC, DEBUG_BREAK)         \
-  V(KeyedStoreIC_DebugBreak,    KEYED_STORE_IC, DEBUG_BREAK)   
+  V(KeyedStoreIC_DebugBreak,    KEYED_STORE_IC, DEBUG_BREAK)
 
 
 // Define list of builtins implemented in JavaScript.
