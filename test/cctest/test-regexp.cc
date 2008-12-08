@@ -355,7 +355,7 @@ TEST(CharacterClassEscapes) {
 }
 
 
-static RegExpNode* Compile(const char* input, bool multiline) {
+static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
   V8::Initialize(NULL);
   FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
@@ -363,17 +363,18 @@ static RegExpNode* Compile(const char* input, bool multiline) {
     return NULL;
   RegExpNode* node = NULL;
   Handle<String> pattern = Factory::NewStringFromUtf8(CStrVector(input));
-  RegExpEngine::Compile(&result, &node, false, multiline, pattern);
+  RegExpEngine::Compile(&result, &node, false, multiline, pattern, is_ascii);
   return node;
 }
 
 
 static void Execute(const char* input,
                     bool multiline,
+                    bool is_ascii,
                     bool dot_output = false) {
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  RegExpNode* node = Compile(input, multiline);
+  RegExpNode* node = Compile(input, multiline, is_ascii);
   USE(node);
 #ifdef DEBUG
   if (dot_output) {
@@ -1130,7 +1131,7 @@ TEST(LatinCanonicalize) {
 TEST(SimplePropagation) {
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  RegExpNode* node = Compile("(a|^b|c)", false);
+  RegExpNode* node = Compile("(a|^b|c)", false, true);
   CHECK(node->info()->follows_start_interest);
 }
 
@@ -1300,5 +1301,5 @@ TEST(CharClassDifference) {
 
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("(?=[d#.])", false, true);
+  Execute("(?=[d#.])", false, true, true);
 }

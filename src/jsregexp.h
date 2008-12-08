@@ -48,6 +48,9 @@ class RegExpImpl {
   // This function calls the garbage collector if necessary.
   static Handle<String> ToString(Handle<Object> value);
 
+  // Parses the RegExp pattern and prepares the JSRegExp object with
+  // generic data and choice of implementation - as well as what
+  // the implementation wants to store in the data field.
   static Handle<Object> Compile(Handle<JSRegExp> re,
                                 Handle<String> pattern,
                                 Handle<String> flags);
@@ -71,12 +74,10 @@ class RegExpImpl {
                                      Handle<String> pattern,
                                      JSRegExp::Flags flags);
 
-  // Stores a compiled RegExp pattern in the JSRegExp object.
-  // The pattern is compiled by Irregexp.
+  // Prepares a JSRegExp object with Irregexp-specific data.
   static Handle<Object> IrregexpPrepare(Handle<JSRegExp> re,
                                         Handle<String> pattern,
-                                        JSRegExp::Flags flags,
-                                        Handle<FixedArray> irregexp_data);
+                                        JSRegExp::Flags flags);
 
 
   // Compile the pattern using JSCRE and store the result in the
@@ -140,9 +141,10 @@ class RegExpImpl {
   static int JscreNumberOfCaptures(Handle<JSRegExp> re);
   static ByteArray* JscreInternal(Handle<JSRegExp> re);
 
-  static int IrregexpNumberOfCaptures(Handle<JSRegExp> re);
-  static int IrregexpNumberOfRegisters(Handle<JSRegExp> re);
-  static Handle<ByteArray> IrregexpCode(Handle<JSRegExp> re);
+  static int IrregexpNumberOfCaptures(Handle<FixedArray> re);
+  static int IrregexpNumberOfRegisters(Handle<FixedArray> re);
+  static Handle<ByteArray> IrregexpByteCode(Handle<FixedArray> re);
+  static Handle<Code> IrregexpNativeCode(Handle<FixedArray> re);
 
   // Call jsRegExpExecute once
   static Handle<Object> JscreExecOnce(Handle<JSRegExp> regexp,
@@ -153,7 +155,7 @@ class RegExpImpl {
                                       int* ovector,
                                       int ovector_length);
 
-  static Handle<Object> IrregexpExecOnce(Handle<JSRegExp> regexp,
+  static Handle<Object> IrregexpExecOnce(Handle<FixedArray> regexp,
                                          int num_captures,
                                          Handle<String> subject16,
                                          int previous_index,
@@ -1082,7 +1084,9 @@ class RegExpEngine: public AllStatic {
                                     RegExpNode** node_return,
                                     bool ignore_case,
                                     bool multiline,
-                                    Handle<String> pattern);
+                                    Handle<String> pattern,
+                                    bool is_ascii);
+
   static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
 };
 

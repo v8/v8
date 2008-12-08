@@ -111,9 +111,10 @@ RegExpMacroAssemblerIA32::~RegExpMacroAssemblerIA32() {
 
 
 void RegExpMacroAssemblerIA32::AdvanceCurrentPosition(int by) {
-  ASSERT(by > 0);
-  Label inside_string;
-  __ add(Operand(edi), Immediate(by * char_size()));
+  if (by != 0) {
+    Label inside_string;
+    __ add(Operand(edi), Immediate(by * char_size()));
+  }
 }
 
 
@@ -138,7 +139,7 @@ void RegExpMacroAssemblerIA32::Bind(Label* label) {
 void RegExpMacroAssemblerIA32::CheckBitmap(uc16 start,
                                            Label* bitmap,
                                            Label* on_zero) {
-  UNREACHABLE();
+  UNIMPLEMENTED();
   __ mov(eax, current_character());
   __ sub(Operand(eax), Immediate(start));
   __ cmp(eax, 64);  // FIXME: 64 = length_of_bitmap_in_bits.
@@ -683,6 +684,8 @@ int RegExpMacroAssemblerIA32::CaseInsensitiveCompareUC16(uc16** buffer,
                                                          int byte_offset1,
                                                          int byte_offset2,
                                                          size_t byte_length) {
+  // This function MUST NOT cause a garbage collection. A GC might move
+  // the calling generated code and invalidate the stacked return address.
   ASSERT(byte_length % 2 == 0);
   Address buffer_address = reinterpret_cast<Address>(*buffer);
   uc16* substring1 = reinterpret_cast<uc16*>(buffer_address + byte_offset1);
