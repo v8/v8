@@ -150,7 +150,7 @@ void RegExpMacroAssemblerIA32::CheckBitmap(uc16 start,
   __ movzx_b(ebx, Operand(ecx, ebx, times_1, 0));
   __ and_(eax, (1<<3)-1);
   __ bt(Operand(ebx), eax);
-  __ j(carry, on_zero);
+  BranchOrBacktrack(carry, on_zero);
 }
 
 
@@ -203,7 +203,7 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
         __ cmpw(Operand(esi, edi, times_1, byte_offset + i * sizeof(uc16)),
                 Immediate(str[i]));
       }
-      __ j(not_equal, on_failure);
+      BranchOrBacktrack(not_equal, on_failure);
     }
     return;
   }
@@ -574,7 +574,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
 
 void RegExpMacroAssemblerIA32::GoTo(Label* to) {
-  __ jmp(to);
+  BranchOrBacktrack(no_condition, to);
 }
 
 
@@ -662,7 +662,7 @@ void RegExpMacroAssemblerIA32::WriteCurrentPositionToRegister(int reg,
   if (cp_offset == 0) {
     __ mov(register_location(reg), edi);
   } else {
-    __ lea(eax, Operand(edi, cp_offset));
+    __ lea(eax, Operand(edi, cp_offset * char_size()));
     __ mov(register_location(reg), eax);
   }
 }
