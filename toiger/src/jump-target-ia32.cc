@@ -68,22 +68,22 @@ void JumpTarget::Jump() {
   ASSERT(current_frame != NULL);
 
   if (expected_frame_ == NULL) {
-    expected_frame_ = current_frame;
     // The frame at the actual function return will always have height zero.
     if (code_generator_->IsActualFunctionReturn(this)) {
-      expected_frame_->Forget(expected_frame_->height());
+      current_frame->Forget(current_frame->height());
     }
-    if (!expected_frame_->IsMergable()) {
-      expected_frame_->MakeMergable();
+    if (!current_frame->IsMergable()) {
+      current_frame->MakeMergable();
     }
-    code_generator_->set_frame(NULL);
+    expected_frame_ = current_frame;
+    code_generator_->SetFrame(NULL);
   } else {
     // No code needs to be emitted to merge to the expected frame at the
     // actual function return.
     if (!code_generator_->IsActualFunctionReturn(this)) {
       current_frame->MergeTo(expected_frame_);
     }
-    code_generator_->delete_frame();
+    code_generator_->DeleteFrame();
   }
 
   __ jmp(&label_);
@@ -107,8 +107,22 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
     if (code_generator_->IsActualFunctionReturn(this)) {
       expected_frame_->Forget(expected_frame_->height());
     }
-    if (!expected_frame_->IsMergable()) {
+    // For a branch, the frame at the fall-through basic block (not labeled)
+    // does not need to be mergable, but only the other (labeled) one.  That
+    // is achieved by reversing the condition and emitting the make mergable
+    // code as the actual fall-through block.  This is necessary only when
+    // MakeMergable will generate code.
+    if (expected_frame_->RequiresMergeCode()) {
+      Label original_fall_through;
+      __ j(NegateCondition(cc), &original_fall_through, NegateHint(hint));
       expected_frame_->MakeMergable();
+      __ jmp(&label_);
+      __ bind(&original_fall_through);
+    } else {
+      if (!expected_frame_->IsMergable()) {
+        expected_frame_->MakeMergable();
+      }
+      __ j(cc, &label_, hint);
     }
   } else {
     // No code needs to be emitted to merge to the expected frame at the
@@ -116,9 +130,8 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
     if (!code_generator_->IsActualFunctionReturn(this)) {
       current_frame->MergeTo(expected_frame_);
     }
+      __ j(cc, &label_, hint);
   }
-
-  __ j(cc, &label_, hint);
   // Postcondition: there is both a current frame and an expected frame at
   // the label and they match.
 }
@@ -161,16 +174,18 @@ void JumpTarget::Bind() {
   ASSERT(!label_.is_bound());
 
   if (expected_frame_ == NULL) {
-    expected_frame_ = new VirtualFrame(current_frame);
+    // When a label is bound the current frame becomes the expected frame at
+    // the label.  This requires the current frame to be mergable.
     // The frame at the actual function return will always have height zero.
     if (code_generator_->IsActualFunctionReturn(this)) {
-      expected_frame_->Forget(expected_frame_->height());
+      current_frame->Forget(current_frame->height());
     }
-    if (!expected_frame_->IsMergable()) {
-      expected_frame_->MakeMergable();
+    if (!current_frame->IsMergable()) {
+      current_frame->MakeMergable();
     }
+    expected_frame_ = new VirtualFrame(current_frame);
   } else if (current_frame == NULL) {
-    code_generator_->set_frame(new VirtualFrame(expected_frame_));
+    code_generator_->SetFrame(new VirtualFrame(expected_frame_));
   } else {
     // No code needs to be emitted to merge to the expected frame at the
     // actual function return.

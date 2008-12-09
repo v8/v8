@@ -44,7 +44,7 @@ Result::Result(Register reg, CodeGenerator* cgen)
   : type_(REGISTER),
     cgen_(cgen) {
   data_.reg_ = reg;
-  ASSERT(!reg().is(no_reg));
+  ASSERT(!reg.is(no_reg));
   cgen_->allocator()->Use(reg);
 }
 
@@ -240,6 +240,7 @@ void VirtualFrame::SyncRange(int begin, int end) {
   }
 }
 
+
 // Make the type of all elements be MEMORY.
 void VirtualFrame::SpillAll() {
   for (int i = 0; i < elements_.length(); i++) {
@@ -296,6 +297,35 @@ bool VirtualFrame::IsMergable() {
 }
 
 
+bool VirtualFrame::RequiresMergeCode() {
+  // A frame requires merge code to be generated in the event that
+  // there are duplicated non-synched registers or else elements not
+  // in a (memory or register) location in the frame.  We look for
+  // non-synced non-location elements and count occurrences of
+  // non-synced registers.
+  RegisterFile non_synced_regs;
+  for (int i = 0; i < elements_.length(); i++) {
+    FrameElement element = elements_[i];
+    if (!element.is_synced()) {
+      if (element.is_register()) {
+        non_synced_regs.Use(elements_[i].reg());
+      } else if (!element.is_memory()) {
+        // Not memory or register and not synced.
+        return true;
+      }
+    }
+  }
+
+  for (int i = 0; i < RegisterFile::kNumRegisters; i++) {
+    if (non_synced_regs.count(i) > 1) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+
 void VirtualFrame::MakeMergable() {
   Comment cmnt(masm_, "[ Make frame mergable");
   // Remove constants from the frame and ensure that no registers are
@@ -318,10 +348,6 @@ void VirtualFrame::MakeMergable() {
       if (element.is_synced()) {
         new_elements[i] = memory_element;
       } else {
-        // This code path is currently not triggered.  UNIMPLEMENTED is
-        // temporarily used to trap when it becomes active so we can test
-        // it.
-        UNIMPLEMENTED();
         Register reg = cgen_->allocator()->AllocateWithoutSpilling();
         if (reg.is(no_reg)) {
           new_elements[i] = memory_element;
@@ -432,17 +458,60 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
           stack_pointer_--;
           __ pop(target.reg());
         }
-        Use(target.reg());
-      } else if (source.is_constant()) {
-        // Not yet implemented.  When done, code in common with the
-        // memory-to-register just above case can be factored out.
-        UNIMPLEMENTED();
+      } else {
+        // Source is constant.
+        __ Set(target.reg(), Immediate(source.handle()));
       }
+      Use(target.reg());
       elements_[i] = target;
     }
   }
 
+  // At this point, the frames should be identical.
   ASSERT(stack_pointer_ == expected->stack_pointer_);
+#ifdef DEBUG
+  for (int i = 0; i < elements_.length(); i++) {
+    FrameElement expect = expected->elements_[i];
+    if (expect.is_memory()) {
+      ASSERT(elements_[i].is_memory());
+      ASSERT(elements_[i].is_synced() && expect.is_synced());
+    } else if (expect.is_register()) {
+      ASSERT(elements_[i].is_register());
+      ASSERT(elements_[i].reg().is(expect.reg()));
+      ASSERT(elements_[i].is_synced() == expect.is_synced());
+    } else {
+      ASSERT(expect.is_constant());
+      ASSERT(elements_[i].is_constant());
+      ASSERT(elements_[i].handle().location() ==
+             expect.handle().location());
+      ASSERT(elements_[i].is_synced() == expect.is_synced());
+    }
+  }
+#endif
+}
+
+
+void VirtualFrame::DetachFromCodeGenerator() {
+  // Tell the global register allocator that it is free to reallocate all
+  // register references contained in this frame.  The frame elements remain
+  // register references, so the frame-internal reference count is not
+  // decremented.
+  for (int i = 0; i < elements_.length(); i++) {
+    if (elements_[i].is_register()) {
+      cgen_->allocator()->Unuse(elements_[i].reg());
+    }
+  }
+}
+
+
+void VirtualFrame::AttachToCodeGenerator() {
+  // Tell the global register allocator that the frame-internal register
+  // references are live again.
+  for (int i = 0; i < elements_.length(); i++) {
+    if (elements_[i].is_register()) {
+      cgen_->allocator()->Use(elements_[i].reg());
+    }
+  }
 }
 
 
@@ -454,11 +523,14 @@ void VirtualFrame::Enter() {
   frame_pointer_ = stack_pointer_;
   __ mov(ebp, Operand(esp));
 
-  // Store the context and the function in the frame.
-  Push(esi);
-  // The frame owns the register reference now.
-  cgen_->allocator()->Unuse(esi);
+  // Store the context in the frame.  The context is kept in esi, so the
+  // register reference is not owned by the frame (ie, the frame is not free
+  // to spill it).  This is implemented by making the in-frame value be
+  // memory.
+  EmitPush(esi);
 
+  // Store the function in the frame.  The frame owns the register reference
+  // now (ie, it can keep it in edi or spill it later).
   Push(edi);
   cgen_->allocator()->Unuse(edi);
 }

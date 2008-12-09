@@ -174,11 +174,10 @@ class CodeGenerator: public AstVisitor {
   MacroAssembler* masm() { return masm_; }
 
   VirtualFrame* frame() const { return frame_; }
-  void set_frame(VirtualFrame* frame) { frame_ = frame; }
-  void delete_frame() {
-    delete frame_;
-    frame_ = NULL;
-  }
+
+  void SetFrame(VirtualFrame* frame);
+
+  void DeleteFrame();
 
   RegisterAllocator* allocator() const { return allocator_; }
 

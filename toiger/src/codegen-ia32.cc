@@ -90,6 +90,26 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
 }
 
 
+void CodeGenerator::SetFrame(VirtualFrame* new_frame) {
+  if (frame_ != NULL) {
+    frame_->DetachFromCodeGenerator();
+  }
+  if (new_frame != NULL) {
+    new_frame->AttachToCodeGenerator();
+  }
+  frame_ = new_frame;
+}
+
+
+void CodeGenerator::DeleteFrame() {
+  if (frame_ != NULL) {
+    frame_->DetachFromCodeGenerator();
+    delete frame_;
+    frame_ = NULL;
+  }
+}
+
+
 // Calling conventions:
 // ebp: frame pointer
 // esp: stack pointer
@@ -105,11 +125,11 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   // Initialize state.
   ASSERT(scope_ == NULL);
   scope_ = fun->scope();
-  ASSERT(frame_ == NULL);
-  set_frame(new VirtualFrame(this));
   ASSERT(allocator_ == NULL);
   RegisterAllocator register_allocator(this);
   allocator_ = &register_allocator;
+  ASSERT(frame_ == NULL);
+  SetFrame(new VirtualFrame(this));
   cc_reg_ = no_condition;
   function_return_.set_code_generator(this);
   function_return_is_shadowed_ = false;
@@ -288,8 +308,8 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   ASSERT(!has_cc());
   // There is no need to delete the register allocator, it is a
   // stack-allocated local.
+  DeleteFrame();
   allocator_ = NULL;
-  delete_frame();
   scope_ = NULL;
 }
 
@@ -497,6 +517,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is a variable proxy that does not rewrite to a
     // property.  Global variables are treated as named property references.
     if (var->is_global()) {
+      frame_->SpillAll();
       LoadGlobal();
       ref->set_type(Reference::NAMED);
     } else {
@@ -1261,6 +1282,9 @@ void CodeGenerator::CheckStack() {
         ExternalReference::address_of_stack_guard_limit();
     __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
     stack_is_ok.Branch(above_equal, taken);
+    // The stack check can trigger the debugger.  Before calling it, all
+    // values including constants must be spilled to the frame.
+    frame_->SpillAll();
     frame_->CallStub(&stub, 0);
     stack_is_ok.Bind();
   }
@@ -1275,7 +1299,6 @@ void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
 
 
 void CodeGenerator::VisitBlock(Block* node) {
-  frame_->SpillAll();
   Comment cmnt(masm_, "[ Block");
   RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -1370,10 +1393,6 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   Load(expression);
   // Remove the lingering expression result from the top of stack.
   frame_->Drop();
-  // Rather than using SpillAll after all recursive calls to Visit over
-  // statements, we spill here in the only statement type that uses the
-  // virtual frame.  This is temporary.
-  frame_->SpillAll();
 }
 
 
@@ -1416,6 +1435,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
       // then statement, it escaped on all branches.  In that case, a jump
       // to the exit label would be dead code (and impossible, because we
       // don't have a current virtual frame to set at the exit label).
+      frame_->SpillAll();
       exit.Jump();
     }
     // else
@@ -1532,7 +1552,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
     // receiver.
     frame_->Exit();
     __ ret((scope_->num_parameters() + 1) * kPointerSize);
-    delete_frame();
+    DeleteFrame();
 
     // Check that the size of the code used for returning matches what is
     // expected by the debugger.
@@ -1709,6 +1729,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     // If control flow can fall through from the body, jump to the next body
     // or the end of the statement.
     if (frame_ != NULL) {
+      frame_->SpillAll();
       if (i < length - 1 && cases->at(i + 1)->is_default()) {
         default_entry.Jump();
       } else {
@@ -1726,6 +1747,9 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     Comment cmnt(masm_, "[ Default clause");
     default_entry.Bind();
     VisitStatements(default_clause->statements());
+    if (frame_ != NULL) {
+      frame_->SpillAll();
+    }
     // If control flow can fall out of the default and there is a case after
     // it, jump to that case's body.
     if (frame_ != NULL && default_exit.is_bound()) {
@@ -1744,7 +1768,6 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
 
 void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
-  frame_->SpillAll();
   Comment cmnt(masm_, "[ LoopStatement");
   RecordStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
@@ -1770,6 +1793,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
   switch (node->type()) {
     case LoopStatement::DO_LOOP: {
+      // The new code generator does not yet compile do loops.
+      frame_->SpillAll();
       JumpTarget body(this);
       IncrementLoopNesting();
       // Label the body.
@@ -1783,6 +1808,9 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       }
       CheckStack();  // TODO(1222600): ignore if body contains calls.
       Visit(node->body());
+      if (frame_ != NULL) {
+        frame_->SpillAll();
+      }
 
       // Compile the "test".
       if (info == ALWAYS_TRUE) {
@@ -1816,6 +1844,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::WHILE_LOOP: {
+      // The new code generator does not yet compile while loops.
+      frame_->SpillAll();
       JumpTarget body(this);
       IncrementLoopNesting();
       // Generate the loop header.
@@ -1847,6 +1877,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
         // If control flow can fall out of the body, jump back to the top.
         if (frame_ != NULL) {
+          frame_->SpillAll();
           node->continue_target()->Jump();
         }
       }
@@ -1864,8 +1895,9 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       // There is no need to compile the test or body.
       if (info == ALWAYS_FALSE) break;
 
-      // If there is no update statement, label the top of the loop with the
-      // continue target, otherwise with the loop target.
+      // Label the top of the loop for the backward CFG edge.  If there is
+      // no update expression label it with the continue target, otherwise
+      // with the loop target.
       if (node->next() == NULL) {
         node->continue_target()->Bind();
       } else {
@@ -1890,7 +1922,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
         if (node->next() == NULL) {
           // If there is no update statement and control flow can fall out
-          // of the loop, jump directly to the continue label.
+          // of the loop, jump to the continue label.
           if (frame_ != NULL) {
             node->continue_target()->Jump();
           }
@@ -2089,6 +2121,9 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // Body.
   CheckStack();  // TODO(1222600): ignore if body contains calls.
   Visit(node->body());
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
 
   // Next.
   node->continue_target()->Bind();
@@ -2134,6 +2169,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
   VisitStatements(node->catch_block()->statements());
   if (frame_ != NULL) {
+    frame_->SpillAll();
     exit.Jump();
   }
 
@@ -2164,6 +2200,9 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   bool was_inside_try = is_inside_try_;
   is_inside_try_ = true;
   VisitStatements(node->try_block()->statements());
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
   is_inside_try_ = was_inside_try;
 
   // Stop the introduced shadowing and count the number of required unlinks.
@@ -2272,6 +2311,9 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   bool was_inside_try = is_inside_try_;
   is_inside_try_ = true;
   VisitStatements(node->try_block()->statements());
+  if (frame_ != NULL) {
+    frame_->SpillAll();
+  }
   is_inside_try_ = was_inside_try;
 
   // Stop the introduced shadowing and count the number of required unlinks.
@@ -2348,6 +2390,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
   break_stack_height_ -= kFinallyStackSize;
   if (frame_ != NULL) {
+    frame_->SpillAll();
     JumpTarget exit(this);
     // Restore state and return value or faked TOS.
     frame_->EmitPop(ecx);
@@ -2852,7 +2895,6 @@ bool CodeGenerator::IsInlineSmi(Literal* literal) {
 
 
 void CodeGenerator::VisitAssignment(Assignment* node) {
-  frame_->SpillAll();
   Comment cmnt(masm_, "[ Assignment");
 
   RecordStatementPosition(node);
@@ -2870,6 +2912,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       Load(node->value());
 
     } else {
+      frame_->SpillAll();
       target.GetValue(NOT_INSIDE_TYPEOF);
       Literal* literal = node->value()->AsLiteral();
       if (IsInlineSmi(literal)) {

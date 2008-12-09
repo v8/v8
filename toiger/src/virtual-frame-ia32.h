@@ -51,7 +51,7 @@ class Result BASE_EMBEDDED {
 
   ~Result() {
     // We have called Unuse() before Result goes out of scope.
-    ASSERT(reg_.is(no_reg));
+    ASSERT(!is_register() || reg().is(no_reg));
   }
 
   void Unuse();
@@ -211,6 +211,13 @@ class VirtualFrame : public Malloced {
   // location.
   bool IsMergable();
 
+  // True if making the frame mergable via MakeMergable will generate code.
+  // This differs from !IsMergable() because there are some non-mergable
+  // frames that can be made mergable simply by changing internal state (eg,
+  // forgetting about constants that are synced to memory) without
+  // generating code.
+  bool RequiresMergeCode();
+
   // Ensure that this frame is in a state where an arbitrary frame of the
   // right size could be merged to it.  May emit code.
   void MakeMergable();
@@ -219,6 +226,18 @@ class VirtualFrame : public Malloced {
   // frame.  As a side effect, code may be emitted to make this frame match
   // the expected one.
   void MergeTo(VirtualFrame* expected);
+
+  // Detach a frame from its code generator, perhaps temporarily.  This
+  // tells the register allocator that it is free to use frame-internal
+  // registers.  Used when the code generator's frame is switched from this
+  // one to NULL by an unconditional jump.
+  void DetachFromCodeGenerator();
+
+  // (Re)attach a frame to its code generator.  This informs the register
+  // allocator that the frame-internal register references are active again.
+  // Used when a code generator's frame is switched from NULL to this one by
+  // binding a label.
+  void AttachToCodeGenerator();
 
   // Emit code for the physical JS entry and exit frame sequences.  After
   // calling Enter, the virtual frame is ready for use; and after calling
