@@ -33,6 +33,61 @@
 
 namespace v8 { namespace internal {
 
+
+// The code generator's view of a frame element, when it wants to use it.
+//
+// A Result can be a register or a constant.
+class Result BASE_EMBEDDED {
+ public:
+  // Construct a register Result.
+  explicit Result(Register reg, CodeGenerator* cgen);
+
+  // Construct a Result whose value is a compile-time constant.
+  Result(Handle<Object> value, CodeGenerator * cgen) :
+      type_(CONSTANT),
+      cgen_(cgen) {
+    data_.handle_ = value.location();
+  }
+
+  ~Result() {
+    // We have called Unuse() before Result goes out of scope.
+    ASSERT(reg_.is(no_reg));
+  }
+
+  void Unuse();
+
+  bool is_register() const { return type() == REGISTER; }
+  bool is_constant() const { return type() == CONSTANT; }
+
+  Register reg() const {
+    ASSERT(type() == REGISTER);
+    return data_.reg_;
+  }
+
+  Handle<Object> handle() const {
+    ASSERT(type() == CONSTANT);
+    return Handle<Object>(data_.handle_);
+  }
+
+ private:
+  enum Type { REGISTER, CONSTANT };
+
+  Type type_;
+
+  Type type() const { return type_; }
+
+  union {
+    Register reg_;
+    Object** handle_;
+  } data_;
+
+  CodeGenerator* cgen_;
+};
+
+
+// A result in a register just means that the value can be read from the register
+
+
 // -------------------------------------------------------------------------
 // Virtual frame elements
 //
@@ -250,6 +305,10 @@ class VirtualFrame : public Malloced {
 
   // Drop one element.
   void Drop();
+
+  // Pop an element from the top of the expression stack.
+  // Returns a Result, which may be a constant or a register.
+  Result Pop();
 
   // Pop and save an element from the top of the expression stack and emit a
   // corresponding pop instruction.

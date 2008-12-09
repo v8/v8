@@ -35,6 +35,27 @@ namespace v8 { namespace internal {
 
 #define __ masm_->
 
+
+// -------------------------------------------------------------------------
+// Result implementation.
+
+
+Result::Result(Register reg, CodeGenerator* cgen)
+  : type_(REGISTER),
+    cgen_(cgen) {
+  data_.reg_ = reg;
+  ASSERT(!reg().is(no_reg));
+  cgen_->allocator()->Use(reg);
+}
+
+
+void Result::Unuse() {
+  ASSERT(!reg().is(no_reg));
+  cgen_->allocator()->Unuse(reg());
+  data_.reg_ = no_reg;
+}
+
+
 // -------------------------------------------------------------------------
 // VirtualFrame implementation.
 
@@ -593,6 +614,47 @@ void VirtualFrame::Drop(int count) {
 
 void VirtualFrame::Drop() { Drop(1); }
 
+
+/*
+We need comparison with literal to work.
+It will get Result, is register or constant.
+Pop gives it this, from register, constant, memory, or
+reference to slot.
+
+In comparison to literal, we need register case to work.
+We need non-smi stub to exit and return with a non-spilled frame.
+*/
+
+
+Result VirtualFrame::Pop() {
+  FrameElement popped = elements_.RemoveLast();
+  bool pop_needed = (stack_pointer_ == elements_.length());
+
+  if (popped.is_constant()) {
+    if (pop_needed) {
+      stack_pointer_--;
+      __ add(Operand(esp), Immediate(kPointerSize));
+    }
+    return Result(popped.handle(), cgen_);
+  } else if (popped.is_register()) {
+    Unuse(popped.reg());
+    if (pop_needed) {
+      stack_pointer_--;
+      __ add(Operand(esp), Immediate(kPointerSize));
+    }
+    return Result(popped.reg(), cgen_);
+  } else {
+    ASSERT(popped.is_memory());
+    Register temp = cgen_->allocator()->Allocate();
+    ASSERT(!temp.is(no_reg));
+    ASSERT(pop_needed);
+    stack_pointer_--;
+    __ pop(temp);
+    // The register temp is double counted, by Allocate and Result(temp).
+    cgen_->allocator()->Unuse(temp);
+    return Result(temp, cgen_);
+  }
+}
 
 void VirtualFrame::EmitPop(Register reg) {
   ASSERT(stack_pointer_ == elements_.length() - 1);
