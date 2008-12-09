@@ -194,7 +194,6 @@ class Debug {
 
   static Handle<Object> GetSourceBreakLocations(
       Handle<SharedFunctionInfo> shared);
-  static Code* GetCodeTarget(Address target);
 
   // Getter for the debug_context.
   inline static Handle<Context> debug_context() { return debug_context_; }

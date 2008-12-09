@@ -228,7 +228,7 @@ static int DecodeIt(FILE* f,
         if (rmode == RelocInfo::CONSTRUCT_CALL) {
           out.AddFormatted(" constructor,");
         }
-        Code* code = Debug::GetCodeTarget(relocinfo.target_address());
+        Code* code = Code::GetCodeFromTargetAddress(relocinfo.target_address());
         Code::Kind kind = code->kind();
         if (code->is_inline_cache_stub()) {
           if (rmode == RelocInfo::CODE_TARGET_CONTEXT) {

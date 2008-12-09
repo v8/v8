@@ -59,14 +59,11 @@ Address IC::address() {
 
 
 Code* IC::GetTargetAtAddress(Address address) {
+  // Get the target address of the IC.
   Address target = Assembler::target_address_at(address);
-  HeapObject* code = HeapObject::FromAddress(target - Code::kHeaderSize);
-  // GetTargetAtAddress is called from IC::Clear which in turn is
-  // called when marking objects during mark sweep. reinterpret_cast
-  // is therefore used instead of the more appropriate
-  // Code::cast. Code::cast does not work when the object's map is
-  // marked.
-  Code* result = reinterpret_cast<Code*>(code);
+  // Convert target address to the code object. Code::GetCodeFromTargetAddress
+  // is safe for use during GC where the map might be marked.
+  Code* result = Code::GetCodeFromTargetAddress(target);
   ASSERT(result->is_inline_cache_stub());
   return result;
 }

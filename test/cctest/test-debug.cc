@@ -397,7 +397,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   CHECK_EQ(mode, it1.it()->rinfo()->rmode());
   if (mode != v8::internal::RelocInfo::JS_RETURN) {
     CHECK_EQ(debug_break,
-             Debug::GetCodeTarget(it1.it()->rinfo()->target_address()));
+        Code::GetCodeFromTargetAddress(it1.it()->rinfo()->target_address()));
   } else {
     // TODO(1240753): Make the test architecture independent or split
     // parts of the debugger into architecture dependent files.

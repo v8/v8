@@ -113,7 +113,7 @@ void BreakLocationIterator::Next() {
     // be of a different kind than in the original code.
     if (RelocInfo::IsCodeTarget(rmode())) {
       Address target = original_rinfo()->target_address();
-      Code* code = Debug::GetCodeTarget(target);
+      Code* code = Code::GetCodeFromTargetAddress(target);
       if (code->is_inline_cache_stub() || RelocInfo::IsConstructCall(rmode())) {
         break_point_++;
         return;
@@ -325,7 +325,7 @@ void BreakLocationIterator::PrepareStepIn() {
   // Step in can only be prepared if currently positioned on an IC call or
   // construct call.
   Address target = rinfo()->target_address();
-  Code* code = Debug::GetCodeTarget(target);
+  Code* code = Code::GetCodeFromTargetAddress(target);
   if (code->is_call_stub()) {
     // Step in through IC call is handled by the runtime system. Therefore make
     // sure that the any current IC is cleared and the runtime system is
@@ -923,7 +923,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   bool is_call_target = false;
   if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
     Address target = it.rinfo()->target_address();
-    Code* code = Debug::GetCodeTarget(target);
+    Code* code = Code::GetCodeFromTargetAddress(target);
     if (code->is_call_stub()) is_call_target = true;
   }
 
@@ -991,7 +991,7 @@ bool Debug::StepNextContinue(BreakLocationIterator* break_location_iterator,
 // Check whether the code object at the specified address is a debug break code
 // object.
 bool Debug::IsDebugBreak(Address addr) {
-  Code* code = GetCodeTarget(addr);
+  Code* code = Code::GetCodeFromTargetAddress(addr);
   return code->ic_state() == DEBUG_BREAK;
 }
 
@@ -1021,7 +1021,7 @@ Handle<Code> Debug::FindDebugBreak(RelocInfo* rinfo) {
 
   if (RelocInfo::IsCodeTarget(mode)) {
     Address target = rinfo->target_address();
-    Code* code = Debug::GetCodeTarget(target);
+    Code* code = Code::GetCodeFromTargetAddress(target);
     if (code->is_inline_cache_stub()) {
       if (code->is_call_stub()) {
         return ComputeCallDebugBreak(code->arguments_count());
@@ -1259,14 +1259,6 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
     // call which was overwritten by the call to DebugBreakXXX.
     thread_local_.after_break_target_ = Assembler::target_address_at(addr);
   }
-}
-
-
-Code* Debug::GetCodeTarget(Address target) {
-  // Maybe this can be refactored with the stuff in ic-inl.h?
-  Code* result =
-      Code::cast(HeapObject::FromAddress(target - Code::kHeaderSize));
-  return result;
 }
 
 

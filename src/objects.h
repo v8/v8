@@ -2201,6 +2201,8 @@ class Code: public HeapObject {
   static inline int ExtractArgumentsCountFromFlags(Flags flags);
   static inline Flags RemoveTypeFromFlags(Flags flags);
 
+  // Convert a target address into a code object.
+  static inline Code* GetCodeFromTargetAddress(Address address);
 
   // Returns the address of the first instruction.
   inline byte* instruction_start();
