@@ -579,11 +579,6 @@ static void Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm) {
 }
 
 
-static void Generate_CallIC_DebugBreak(MacroAssembler* masm) {
-  Debug::GenerateCallICDebugBreak(masm);
-}
-
-
 static void Generate_ConstructCall_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateConstructCallDebugBreak(masm);
 }
