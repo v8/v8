@@ -1648,6 +1648,15 @@ v8::Handle<Value> ThrowFromC(const v8::Arguments& args) {
 }
 
 
+v8::Handle<Value> CCatcher(const v8::Arguments& args) {
+  if (args.Length() < 1) return v8::Boolean::New(false);
+  v8::HandleScope scope;
+  v8::TryCatch try_catch;
+  v8::Script::Compile(args[0]->ToString())->Run();
+  return v8::Boolean::New(try_catch.HasCaught());
+}
+
+
 THREADED_TEST(APICatch) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
@@ -1675,6 +1684,25 @@ THREADED_TEST(APIThrowTryCatch) {
   v8::TryCatch try_catch;
   CompileRun("ThrowFromC();");
   CHECK(try_catch.HasCaught());
+}
+
+
+// Test that a try-finally block doesn't shadow a try-catch block
+// when setting up an external handler.
+THREADED_TEST(TryCatchInTryFinally) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("CCatcher"),
+             v8::FunctionTemplate::New(CCatcher));
+  LocalContext context(0, templ);
+  Local<Value> result = CompileRun("try {"
+                                   "  try {"
+                                   "    CCatcher('throw 7;');"
+                                   "  } finally {"
+                                   "  }"
+                                   "} catch (e) {"
+                                   "}");
+  CHECK(result->IsTrue());
 }
 
 

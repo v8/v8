@@ -280,7 +280,15 @@ void Top::TearDown() {
 // is on the top. Otherwise, it means the C try-catch handler is on the top.
 //
 void Top::RegisterTryCatchHandler(v8::TryCatch* that) {
-  that->js_handler_ = thread_local_.handler_;  // casted to void*
+  StackHandler* handler =
+    reinterpret_cast<StackHandler*>(thread_local_.handler_);
+
+  // Find the top-most try-catch handler.
+  while (handler != NULL && !handler->is_try_catch()) {
+    handler = handler->next();
+  }
+
+  that->js_handler_ = handler;  // casted to void*
   thread_local_.try_catch_handler_ = that;
 }
 
