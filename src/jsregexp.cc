@@ -1715,9 +1715,12 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
                           bool check_offset,
                           bool ascii) {
   ZoneList<CharacterRange>* ranges = cc->ranges();
-  const int max_char = ascii ?
-                       String::kMaxAsciiCharCode :
-                       String::kMaxUC16CharCode;
+  int max_char;
+  if (ascii) {
+    max_char = String::kMaxAsciiCharCode;
+  } else {
+    max_char = String::kMaxUC16CharCode;
+  }
 
   Label success;
 
