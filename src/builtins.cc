@@ -559,6 +559,51 @@ static void Generate_KeyedStoreIC_Initialize(MacroAssembler* masm) {
 }
 
 
+static void Generate_LoadIC_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateLoadICDebugBreak(masm);
+}
+
+
+static void Generate_StoreIC_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateStoreICDebugBreak(masm);
+}
+
+
+static void Generate_KeyedLoadIC_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateKeyedLoadICDebugBreak(masm);
+}
+
+
+static void Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateKeyedStoreICDebugBreak(masm);
+}
+
+
+static void Generate_CallIC_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateCallICDebugBreak(masm);
+}
+
+
+static void Generate_ConstructCall_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateConstructCallDebugBreak(masm);
+}
+
+
+static void Generate_Return_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateReturnDebugBreak(masm);
+}
+
+
+static void Generate_Return_DebugBreakEntry(MacroAssembler* masm) {
+  Debug::GenerateReturnDebugBreakEntry(masm);
+}
+
+
+static void Generate_StubNoRegisters_DebugBreak(MacroAssembler* masm) {
+  Debug::GenerateStubNoRegistersDebugBreak(masm);
+}
+
+
 Object* Builtins::builtins_[builtin_count] = { NULL, };
 const char* Builtins::names_[builtin_count] = { NULL, };
 

@@ -188,9 +188,6 @@ class Builtins : public AllStatic {
   static Handle<Code> GetCode(JavaScript id, bool* resolved);
   static int NumberOfJavaScriptBuiltins() { return id_count; }
 
-  // Called from stub-cache.cc.
-  static void Generate_CallIC_DebugBreak(MacroAssembler* masm);
-
   static Object* builtin_passed_function;
 
  private:
@@ -213,15 +210,6 @@ class Builtins : public AllStatic {
 
   static void Generate_FunctionCall(MacroAssembler* masm);
   static void Generate_FunctionApply(MacroAssembler* masm);
-
-  static void Generate_LoadIC_DebugBreak(MacroAssembler* masm);
-  static void Generate_StoreIC_DebugBreak(MacroAssembler* masm);
-  static void Generate_KeyedLoadIC_DebugBreak(MacroAssembler* masm);
-  static void Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm);
-  static void Generate_ConstructCall_DebugBreak(MacroAssembler* masm);
-  static void Generate_Return_DebugBreak(MacroAssembler* masm);
-  static void Generate_Return_DebugBreakEntry(MacroAssembler* masm);
-  static void Generate_StubNoRegisters_DebugBreak(MacroAssembler* masm);
 };
 
 } }  // namespace v8::internal
