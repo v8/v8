@@ -42,16 +42,33 @@ namespace v8 {
 namespace i = v8::internal;
 
 
+// A single counter in a counter collection.
 class Counter {
  public:
-  explicit Counter(const wchar_t* name)
-    : name_(name), value_(0) { }
-  int* GetValuePtr() { return &value_; }
-  const wchar_t* name() { return name_; }
-  int value() { return value_; }
+  static const int kMaxNameSize = 64;
+  int32_t* Bind(const char* name);
+  int32_t* ptr() { return &counter_; }
+  int32_t value() { return counter_; }
  private:
-  const wchar_t* name_;
-  int value_;
+  int32_t counter_;
+  uint8_t name_[kMaxNameSize];
+};
+
+
+// A set of counters and associated information.  An instance of this
+// class is stored directly in the memory-mapped counters file if
+// the --map-counters options is used
+class CounterCollection {
+ public:
+  CounterCollection();
+  Counter* GetNextCounter();
+ private:
+  static const unsigned kMaxCounters = 256;
+  uint32_t magic_number_;
+  uint32_t max_counters_;
+  uint32_t max_name_size_;
+  uint32_t counters_in_use_;
+  Counter counters_[kMaxCounters];
 };
 
 
@@ -64,7 +81,8 @@ class Shell: public i::AllStatic {
   static void ReportException(TryCatch* try_catch);
   static void Initialize();
   static void OnExit();
-  static int* LookupCounter(const wchar_t* name);
+  static int* LookupCounter(const char* name);
+  static void MapCounters(const char* name);
   static Handle<String> ReadFile(const char* name);
   static void RunShell();
   static int Main(int argc, char* argv[]);
@@ -81,8 +99,13 @@ class Shell: public i::AllStatic {
  private:
   static Persistent<Context> utility_context_;
   static Persistent<Context> evaluation_context_;
-  typedef std::map<const wchar_t*, Counter*> CounterMap;
+  typedef std::map<const char*, Counter*> CounterMap;
   static CounterMap counter_map_;
+  // We statically allocate a set of local counters to be used if we
+  // don't want to store the stats in a memory-mapped file
+  static CounterCollection local_counters_;
+  static CounterCollection* counters_;
+  static i::OS::MemoryMappedFile* counters_file_;
 };
 
 

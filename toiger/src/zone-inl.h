@@ -29,12 +29,14 @@
 #define V8_ZONE_INL_H_
 
 #include "zone.h"
+#include "v8-counters.h"
 
 namespace v8 { namespace internal {
 
 
 inline void* Zone::New(int size) {
   ASSERT(AssertNoZoneAllocation::allow_allocation());
+  ASSERT(ZoneScope::nesting() > 0);
   // Round up the requested size to fit the alignment.
   size = RoundUp(size, kAlignment);
 
@@ -45,6 +47,17 @@ inline void* Zone::New(int size) {
   // Check that the result has the proper alignment and return it.
   ASSERT(IsAddressAligned(result, kAlignment, 0));
   return reinterpret_cast<void*>(result);
+}
+
+
+bool Zone::excess_allocation() {
+  return segment_bytes_allocated_ > zone_excess_limit_;
+}
+
+
+void Zone::adjust_segment_bytes_allocated(int delta) {
+  segment_bytes_allocated_ += delta;
+  Counters::zone_segment_bytes.Set(segment_bytes_allocated_);
 }
 
 

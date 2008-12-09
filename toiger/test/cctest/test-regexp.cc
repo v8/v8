@@ -51,6 +51,7 @@ using namespace v8::internal;
 
 
 static SmartPointer<const char> Parse(const char* input) {
+  V8::Initialize(NULL);
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
@@ -63,6 +64,7 @@ static SmartPointer<const char> Parse(const char* input) {
 }
 
 static bool ParseEscapes(const char* input) {
+  V8::Initialize(NULL);
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
@@ -126,6 +128,7 @@ TEST(Parser) {
   CHECK_PARSE_EQ("[x\\dz]", "[x 0-9 z]");
   CHECK_PARSE_EQ("[\\d-z]", "[0-9 - z]");
   CHECK_PARSE_EQ("[\\d-\\d]", "[0-9 - 0-9]");
+  CHECK_PARSE_EQ("[z-\\d]", "[z - 0-9]");
   CHECK_PARSE_EQ("\\cj\\cJ\\ci\\cI\\ck\\cK",
                  "'\\x0a\\x0a\\x09\\x09\\x0b\\x0b'");
   CHECK_PARSE_EQ("\\c!", "'c!'");
@@ -252,6 +255,7 @@ TEST(ParserRegression) {
 
 static void ExpectError(const char* input,
                         const char* expected) {
+  V8::Initialize(NULL);
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
@@ -275,8 +279,6 @@ TEST(Errors) {
   const char* kUnterminatedCharacterClass = "Unterminated character class";
   ExpectError("[", kUnterminatedCharacterClass);
   ExpectError("[a-", kUnterminatedCharacterClass);
-  const char* kIllegalCharacterClass = "Illegal character class";
-  ExpectError("[a-\\w]", kIllegalCharacterClass);
   const char* kEndControl = "\\c at end of pattern";
   ExpectError("\\c", kEndControl);
   const char* kNothingToRepeat = "Nothing to repeat";
@@ -322,27 +324,8 @@ static bool NotWhiteSpace(uc16 c) {
 }
 
 
-static bool IsWord(uc16 c) {
-  return ('a' <= c && c <= 'z')
-      || ('A' <= c && c <= 'Z')
-      || ('0' <= c && c <= '9')
-      || (c == '_');
-}
-
-
 static bool NotWord(uc16 c) {
-  return !IsWord(c);
-}
-
-
-static bool Dot(uc16 c) {
-  switch (c) {
-    //   CR           LF           LS           PS
-    case 0x000A: case 0x000D: case 0x2028: case 0x2029:
-      return false;
-    default:
-      return true;
-  }
+  return !IsRegExpWord(c);
 }
 
 
@@ -362,37 +345,40 @@ static void TestCharacterClassEscapes(uc16 c, bool (pred)(uc16 c)) {
 
 
 TEST(CharacterClassEscapes) {
-  TestCharacterClassEscapes('.', Dot);
+  TestCharacterClassEscapes('.', IsRegExpNewline);
   TestCharacterClassEscapes('d', IsDigit);
   TestCharacterClassEscapes('D', NotDigit);
   TestCharacterClassEscapes('s', IsWhiteSpace);
   TestCharacterClassEscapes('S', NotWhiteSpace);
-  TestCharacterClassEscapes('w', IsWord);
+  TestCharacterClassEscapes('w', IsRegExpWord);
   TestCharacterClassEscapes('W', NotWord);
 }
 
 
-static RegExpNode* Compile(const char* input, bool multiline) {
+static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
+  V8::Initialize(NULL);
   FlatStringReader reader(CStrVector(input));
   RegExpParseResult result;
   if (!v8::internal::ParseRegExp(&reader, multiline, &result))
     return NULL;
   RegExpNode* node = NULL;
-  RegExpEngine::Compile(&result, &node, false, multiline);
+  Handle<String> pattern = Factory::NewStringFromUtf8(CStrVector(input));
+  RegExpEngine::Compile(&result, &node, false, multiline, pattern, is_ascii);
   return node;
 }
 
 
 static void Execute(const char* input,
                     bool multiline,
+                    bool is_ascii,
                     bool dot_output = false) {
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  RegExpNode* node = Compile(input, multiline);
+  RegExpNode* node = Compile(input, multiline, is_ascii);
   USE(node);
 #ifdef DEBUG
   if (dot_output) {
-    RegExpEngine::DotPrint(input, node);
+    RegExpEngine::DotPrint(input, node, false);
     exit(0);
   }
 #endif  // DEBUG
@@ -536,16 +522,16 @@ TEST(MacroAssembler) {
   m.Fail();
   m.Bind(&start);
   m.PushBacktrack(&fail2);
-  m.CheckCharacters(foo, 0, &fail);
-  m.WriteCurrentPositionToRegister(0);
+  m.CheckCharacters(foo, 0, &fail, true);
+  m.WriteCurrentPositionToRegister(0, 0);
   m.PushCurrentPosition();
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(1);
+  m.WriteCurrentPositionToRegister(1, 0);
   m.PopCurrentPosition();
   m.AdvanceCurrentPosition(1);
-  m.WriteCurrentPositionToRegister(2);
+  m.WriteCurrentPositionToRegister(2, 0);
   m.AdvanceCurrentPosition(1);
-  m.WriteCurrentPositionToRegister(3);
+  m.WriteCurrentPositionToRegister(3, 0);
   m.Succeed();
 
   m.Bind(&fail);
@@ -558,7 +544,8 @@ TEST(MacroAssembler) {
 
   v8::HandleScope scope;
 
-  Handle<ByteArray> array = Handle<ByteArray>::cast(m.GetCode());
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^f(o)o"));
+  Handle<ByteArray> array = Handle<ByteArray>::cast(m.GetCode(source));
   int captures[5];
 
   Handle<String> f1 =
@@ -582,9 +569,6 @@ TEST(MacroAssembler) {
 #ifndef ARM  // IA32 only tests.
 
 TEST(MacroAssemblerIA32Success) {
-  typedef bool (*AsciiTest) (
-      SeqAsciiString** base, int start_index, int end_index, int* captures);
-
   V8::Initialize(NULL);
 
   // regexp-macro-assembler-ia32 needs a handle scope to allocate
@@ -595,9 +579,9 @@ TEST(MacroAssemblerIA32Success) {
 
   m.Succeed();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector(""));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
-  AsciiTest test = FUNCTION_CAST<AsciiTest>(code->entry());
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("foofoo"));
@@ -606,8 +590,12 @@ TEST(MacroAssemblerIA32Success) {
   int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   int end_offset = start_offset + seq_input->length();
 
-  bool success =
-      test(seq_input.location(), start_offset, end_offset, captures);
+  bool success = RegExpMacroAssemblerIA32::Execute(*code,
+                                                   seq_input.location(),
+                                                   start_offset,
+                                                   end_offset,
+                                                   captures,
+                                                   true);
 
   CHECK(success);
   CHECK_EQ(-1, captures[0]);
@@ -618,9 +606,6 @@ TEST(MacroAssemblerIA32Success) {
 
 
 TEST(MacroAssemblerIA32Simple) {
-  typedef bool (*AsciiTest) (
-      SeqAsciiString** base, int start_index, int end_index, int* captures);
-
   V8::Initialize(NULL);
 
   // regexp-macro-assembler-ia32 needs a handle scope to allocate
@@ -633,17 +618,17 @@ TEST(MacroAssemblerIA32Simple) {
   Vector<const uc16> foo(foo_chars, 3);
 
   Label fail;
-  m.CheckCharacters(foo, 0, &fail);
-  m.WriteCurrentPositionToRegister(0);
+  m.CheckCharacters(foo, 0, &fail, true);
+  m.WriteCurrentPositionToRegister(0, 0);
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(1);
+  m.WriteCurrentPositionToRegister(1, 0);
   m.Succeed();
   m.Bind(&fail);
   m.Fail();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^foo"));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
-  AsciiTest test = FUNCTION_CAST<AsciiTest>(code->entry());
 
   int captures[4] = {42, 37, 87, 117};
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("foofoo"));
@@ -652,8 +637,12 @@ TEST(MacroAssemblerIA32Simple) {
   int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   int end_offset = start_offset + seq_input->length();
 
-  bool success =
-      test(seq_input.location(), start_offset, end_offset, captures);
+  bool success = RegExpMacroAssemblerIA32::Execute(*code,
+                                                   seq_input.location(),
+                                                   start_offset,
+                                                   end_offset,
+                                                   captures,
+                                                   true);
 
   CHECK(success);
   CHECK_EQ(0, captures[0]);
@@ -667,16 +656,18 @@ TEST(MacroAssemblerIA32Simple) {
   start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   end_offset = start_offset + seq_input->length();
 
-  success = test(seq_input.location(), start_offset, end_offset, captures);
+  success = RegExpMacroAssemblerIA32::Execute(*code,
+                                              seq_input.location(),
+                                              start_offset,
+                                              end_offset,
+                                              captures,
+                                              true);
 
   CHECK(!success);
 }
 
 
 TEST(MacroAssemblerIA32SimpleUC16) {
-  typedef bool (*UC16Test) (
-      SeqTwoByteString** base, int start_index, int end_index, int* captures);
-
   V8::Initialize(NULL);
 
   // regexp-macro-assembler-ia32 needs a handle scope to allocate
@@ -689,17 +680,17 @@ TEST(MacroAssemblerIA32SimpleUC16) {
   Vector<const uc16> foo(foo_chars, 3);
 
   Label fail;
-  m.CheckCharacters(foo, 0, &fail);
-  m.WriteCurrentPositionToRegister(0);
+  m.CheckCharacters(foo, 0, &fail, true);
+  m.WriteCurrentPositionToRegister(0, 0);
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(1);
+  m.WriteCurrentPositionToRegister(1, 0);
   m.Succeed();
   m.Bind(&fail);
   m.Fail();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^foo"));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
-  UC16Test test = FUNCTION_CAST<UC16Test>(code->entry());
 
   int captures[4] = {42, 37, 87, 117};
   const uc16 input_data[6] = {'f', 'o', 'o', 'f', 'o', '\xa0'};
@@ -710,8 +701,12 @@ TEST(MacroAssemblerIA32SimpleUC16) {
   int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   int end_offset = start_offset + seq_input->length() * sizeof(uc16);
 
-  bool success =
-      test(seq_input.location(), start_offset, end_offset, captures);
+  bool success = RegExpMacroAssemblerIA32::Execute(*code,
+                                                   seq_input.location(),
+                                                   start_offset,
+                                                   end_offset,
+                                                   captures,
+                                                   true);
 
   CHECK(success);
   CHECK_EQ(0, captures[0]);
@@ -726,16 +721,18 @@ TEST(MacroAssemblerIA32SimpleUC16) {
   start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   end_offset = start_offset + seq_input->length() * sizeof(uc16);
 
-  success = test(seq_input.location(), start_offset, end_offset, captures);
+  success = RegExpMacroAssemblerIA32::Execute(*code,
+                                              seq_input.location(),
+                                              start_offset,
+                                              end_offset,
+                                              captures,
+                                              true);
 
   CHECK(!success);
 }
 
 
 TEST(MacroAssemblerIA32Backtrack) {
-  typedef bool (*AsciiTest) (
-      SeqAsciiString** base, int start_index, int end_index, int* captures);
-
   V8::Initialize(NULL);
 
   // regexp-macro-assembler-ia32 needs a handle scope to allocate
@@ -743,9 +740,6 @@ TEST(MacroAssemblerIA32Backtrack) {
   v8::HandleScope scope;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 0);
-
-  uc16 foo_chars[3] = {'f', 'o', 'o'};
-  Vector<const uc16> foo(foo_chars, 3);
 
   Label fail;
   Label backtrack;
@@ -758,9 +752,9 @@ TEST(MacroAssemblerIA32Backtrack) {
   m.Bind(&backtrack);
   m.Fail();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector(".........."));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
-  AsciiTest test = FUNCTION_CAST<AsciiTest>(code->entry());
 
   Handle<String> input = Factory::NewStringFromAscii(CStrVector("foofoo"));
   Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
@@ -768,17 +762,190 @@ TEST(MacroAssemblerIA32Backtrack) {
   int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   int end_offset = start_offset + seq_input->length();
 
-  bool success =
-      test(seq_input.location(), start_offset, end_offset, NULL);
+  bool success = RegExpMacroAssemblerIA32::Execute(*code,
+                                                   seq_input.location(),
+                                                   start_offset,
+                                                   end_offset,
+                                                   NULL,
+                                                   true);
 
   CHECK(!success);
 }
 
 
-TEST(MacroAssemblerIA32Registers) {
-  typedef bool (*AsciiTest) (
-      SeqAsciiString** base, int start_index, int end_index, int* captures);
+TEST(MacroAssemblerIA32BackReference) {
+  V8::Initialize(NULL);
 
+  // regexp-macro-assembler-ia32 needs a handle scope to allocate
+  // byte-arrays for constants.
+  v8::HandleScope scope;
+
+  RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 3);
+
+  m.WriteCurrentPositionToRegister(0, 0);
+  m.AdvanceCurrentPosition(2);
+  m.WriteCurrentPositionToRegister(1, 0);
+  Label nomatch;
+  m.CheckNotBackReference(0, &nomatch);
+  m.Fail();
+  m.Bind(&nomatch);
+  m.AdvanceCurrentPosition(2);
+  Label missing_match;
+  m.CheckNotBackReference(0, &missing_match);
+  m.WriteCurrentPositionToRegister(2, 0);
+  m.Succeed();
+  m.Bind(&missing_match);
+  m.Fail();
+
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^(..)..\1"));
+  Handle<Object> code_object = m.GetCode(source);
+  Handle<Code> code = Handle<Code>::cast(code_object);
+
+  Handle<String> input = Factory::NewStringFromAscii(CStrVector("fooofo"));
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Address start_adr = seq_input->GetCharsAddress();
+  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
+  int end_offset = start_offset + seq_input->length();
+
+  int output[3];
+  bool success = RegExpMacroAssemblerIA32::Execute(*code,
+                                                   seq_input.location(),
+                                                   start_offset,
+                                                   end_offset,
+                                                   output,
+                                                   true);
+
+  CHECK(success);
+  CHECK_EQ(0, output[0]);
+  CHECK_EQ(2, output[1]);
+  CHECK_EQ(6, output[2]);
+}
+
+
+TEST(MacroAssemblerIA32AtStart) {
+  V8::Initialize(NULL);
+
+  // regexp-macro-assembler-ia32 needs a handle scope to allocate
+  // byte-arrays for constants.
+  v8::HandleScope scope;
+
+  RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 0);
+
+  Label not_at_start, newline, fail;
+  m.CheckNotAtStart(&not_at_start);
+  // Check that prevchar = '\n' and current = 'f'.
+  m.CheckCharacter('\n', &newline);
+  m.Bind(&fail);
+  m.Fail();
+  m.Bind(&newline);
+  m.LoadCurrentCharacter(0, &fail);
+  m.CheckNotCharacter('f', &fail);
+  m.Succeed();
+
+  m.Bind(&not_at_start);
+  // Check that prevchar = 'o' and current = 'b'.
+  Label prevo;
+  m.CheckCharacter('o', &prevo);
+  m.Fail();
+  m.Bind(&prevo);
+  m.LoadCurrentCharacter(0, &fail);
+  m.CheckNotCharacter('b', &fail);
+  m.Succeed();
+
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("(^f|ob)"));
+  Handle<Object> code_object = m.GetCode(source);
+  Handle<Code> code = Handle<Code>::cast(code_object);
+
+  Handle<String> input = Factory::NewStringFromAscii(CStrVector("foobar"));
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Address start_adr = seq_input->GetCharsAddress();
+  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
+  int end_offset = start_offset + seq_input->length();
+
+  bool success = RegExpMacroAssemblerIA32::Execute(*code,
+                                                   seq_input.location(),
+                                                   start_offset,
+                                                   end_offset,
+                                                   NULL,
+                                                   true);
+
+  CHECK(success);
+
+  start_offset += 3;
+  success = RegExpMacroAssemblerIA32::Execute(*code,
+                                              seq_input.location(),
+                                              start_offset,
+                                              end_offset,
+                                              NULL,
+                                              false);
+
+  CHECK(success);
+}
+
+
+
+
+TEST(MacroAssemblerIA32BackRefNoCase) {
+  V8::Initialize(NULL);
+
+  // regexp-macro-assembler-ia32 needs a handle scope to allocate
+  // byte-arrays for constants.
+  v8::HandleScope scope;
+
+  RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 4);
+
+  Label fail, succ;
+
+  m.WriteCurrentPositionToRegister(0, 0);
+  m.WriteCurrentPositionToRegister(2, 0);
+  m.AdvanceCurrentPosition(3);
+  m.WriteCurrentPositionToRegister(3, 0);
+  m.CheckNotBackReferenceIgnoreCase(2, &fail);  // Match "AbC".
+  m.CheckNotBackReferenceIgnoreCase(2, &fail);  // Match "ABC".
+  Label expected_fail;
+  m.CheckNotBackReferenceIgnoreCase(2, &expected_fail);
+  m.Bind(&fail);
+  m.Fail();
+
+  m.Bind(&expected_fail);
+  m.AdvanceCurrentPosition(3);  // Skip "xYz"
+  m.CheckNotBackReferenceIgnoreCase(2, &succ);
+  m.Fail();
+
+  m.Bind(&succ);
+  m.WriteCurrentPositionToRegister(1, 0);
+  m.Succeed();
+
+  Handle<String> source =
+      Factory::NewStringFromAscii(CStrVector("^(abc)\1\1(?!\1)...(?!\1)"));
+  Handle<Object> code_object = m.GetCode(source);
+  Handle<Code> code = Handle<Code>::cast(code_object);
+
+  Handle<String> input =
+      Factory::NewStringFromAscii(CStrVector("aBcAbCABCxYzab"));
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Address start_adr = seq_input->GetCharsAddress();
+  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
+  int end_offset = start_offset + seq_input->length();
+
+  int output[4];
+  bool success = RegExpMacroAssemblerIA32::Execute(*code,
+                                                   seq_input.location(),
+                                                   start_offset,
+                                                   end_offset,
+                                                   output,
+                                                   true);
+
+  CHECK(success);
+  CHECK_EQ(0, output[0]);
+  CHECK_EQ(12, output[1]);
+  CHECK_EQ(0, output[2]);
+  CHECK_EQ(3, output[3]);
+}
+
+
+
+TEST(MacroAssemblerIA32Registers) {
   V8::Initialize(NULL);
 
   // regexp-macro-assembler-ia32 needs a handle scope to allocate
@@ -793,13 +960,13 @@ TEST(MacroAssemblerIA32Registers) {
   enum registers { out1, out2, out3, out4, out5, sp, loop_cnt };
   Label fail;
   Label backtrack;
-  m.WriteCurrentPositionToRegister(out1);  // Output: [0]
+  m.WriteCurrentPositionToRegister(out1, 0);  // Output: [0]
   m.PushRegister(out1);
   m.PushBacktrack(&backtrack);
   m.WriteStackPointerToRegister(sp);
   // Fill stack and registers
   m.AdvanceCurrentPosition(2);
-  m.WriteCurrentPositionToRegister(out1);
+  m.WriteCurrentPositionToRegister(out1, 0);
   m.PushRegister(out1);
   m.PushBacktrack(&fail);
   // Drop backtrack stack frames.
@@ -815,7 +982,7 @@ TEST(MacroAssemblerIA32Registers) {
   m.PopRegister(out1);
   m.ReadCurrentPositionFromRegister(out1);
   m.AdvanceCurrentPosition(3);
-  m.WriteCurrentPositionToRegister(out2);  // [0,3]
+  m.WriteCurrentPositionToRegister(out2, 0);  // [0,3]
 
   Label loop;
   m.SetRegister(loop_cnt, 0);  // loop counter
@@ -823,7 +990,7 @@ TEST(MacroAssemblerIA32Registers) {
   m.AdvanceRegister(loop_cnt, 1);
   m.AdvanceCurrentPosition(1);
   m.IfRegisterLT(loop_cnt, 3, &loop);
-  m.WriteCurrentPositionToRegister(out3);  // [0,3,6]
+  m.WriteCurrentPositionToRegister(out3, 0);  // [0,3,6]
 
   Label loop2;
   m.SetRegister(loop_cnt, 2);  // loop counter
@@ -831,26 +998,30 @@ TEST(MacroAssemblerIA32Registers) {
   m.AdvanceRegister(loop_cnt, -1);
   m.AdvanceCurrentPosition(1);
   m.IfRegisterGE(loop_cnt, 0, &loop2);
-  m.WriteCurrentPositionToRegister(out4);  // [0,3,6,9]
+  m.WriteCurrentPositionToRegister(out4, 0);  // [0,3,6,9]
 
   Label loop3;
   Label exit_loop3;
+  m.PushRegister(out4);
+  m.PushRegister(out4);
   m.ReadCurrentPositionFromRegister(out3);
   m.Bind(&loop3);
   m.AdvanceCurrentPosition(1);
-  m.CheckCurrentPosition(out4, &exit_loop3);
+  m.CheckGreedyLoop(&exit_loop3);
   m.GoTo(&loop3);
   m.Bind(&exit_loop3);
-  m.WriteCurrentPositionToRegister(out5);  // [0,3,6,9,9]
+  m.PopCurrentPosition();
+  m.WriteCurrentPositionToRegister(out5, 0);  // [0,3,6,9,9]
 
   m.Succeed();
 
   m.Bind(&fail);
   m.Fail();
 
-  Handle<Object> code_object = m.GetCode();
+  Handle<String> source =
+      Factory::NewStringFromAscii(CStrVector("<loop test>"));
+  Handle<Object> code_object = m.GetCode(source);
   Handle<Code> code = Handle<Code>::cast(code_object);
-  AsciiTest test = FUNCTION_CAST<AsciiTest>(code->entry());
 
   // String long enough for test (content doesn't matter).
   Handle<String> input =
@@ -861,8 +1032,12 @@ TEST(MacroAssemblerIA32Registers) {
   int end_offset = start_offset + seq_input->length();
 
   int output[5];
-  bool success =
-      test(seq_input.location(), start_offset, end_offset, output);
+  bool success = RegExpMacroAssemblerIA32::Execute(*code,
+                                                   seq_input.location(),
+                                                   start_offset,
+                                                   end_offset,
+                                                   output,
+                                                   true);
 
   CHECK(success);
   CHECK_EQ(0, output[0]);
@@ -888,7 +1063,7 @@ TEST(AddInverseToTable) {
       ranges->Add(CharacterRange(from, to));
     }
     DispatchTable table;
-    DispatchTableConstructor cons(&table);
+    DispatchTableConstructor cons(&table, false);
     cons.set_choice_index(0);
     cons.AddInverse(ranges);
     for (int i = 0; i < kLimit; i++) {
@@ -904,7 +1079,7 @@ TEST(AddInverseToTable) {
           new ZoneList<CharacterRange>(1);
   ranges->Add(CharacterRange(0xFFF0, 0xFFFE));
   DispatchTable table;
-  DispatchTableConstructor cons(&table);
+  DispatchTableConstructor cons(&table, false);
   cons.set_choice_index(0);
   cons.AddInverse(ranges);
   CHECK(!table.Get(0xFFFE)->Get(0));
@@ -956,7 +1131,7 @@ TEST(LatinCanonicalize) {
 TEST(SimplePropagation) {
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
-  RegExpNode* node = Compile("(a|^b|c)", false);
+  RegExpNode* node = Compile("(a|^b|c)", false, true);
   CHECK(node->info()->follows_start_interest);
 }
 
@@ -1086,7 +1261,45 @@ TEST(CharacterRangeCaseIndependence) {
 }
 
 
+static bool InClass(uc16 c, ZoneList<CharacterRange>* ranges) {
+  if (ranges == NULL)
+    return false;
+  for (int i = 0; i < ranges->length(); i++) {
+    CharacterRange range = ranges->at(i);
+    if (range.from() <= c && c <= range.to())
+      return true;
+  }
+  return false;
+}
+
+
+TEST(CharClassDifference) {
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  ZoneList<CharacterRange>* base = new ZoneList<CharacterRange>(1);
+  base->Add(CharacterRange::Everything());
+  Vector<const uc16> overlay = CharacterRange::GetWordBounds();
+  ZoneList<CharacterRange>* included = NULL;
+  ZoneList<CharacterRange>* excluded = NULL;
+  CharacterRange::Split(base, overlay, &included, &excluded);
+  for (int i = 0; i < (1 << 16); i++) {
+    bool in_base = InClass(i, base);
+    if (in_base) {
+      bool in_overlay = false;
+      for (int j = 0; !in_overlay && j < overlay.length(); j += 2) {
+        if (overlay[j] <= i && i <= overlay[j+1])
+          in_overlay = true;
+      }
+      CHECK_EQ(in_overlay, InClass(i, included));
+      CHECK_EQ(!in_overlay, InClass(i, excluded));
+    } else {
+      CHECK(!InClass(i, included));
+      CHECK(!InClass(i, excluded));
+    }
+  }
+}
+
+
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("foo$(?!bar)", false, true);
+  Execute("(?=[d#.])", false, true, true);
 }

@@ -1648,6 +1648,15 @@ v8::Handle<Value> ThrowFromC(const v8::Arguments& args) {
 }
 
 
+v8::Handle<Value> CCatcher(const v8::Arguments& args) {
+  if (args.Length() < 1) return v8::Boolean::New(false);
+  v8::HandleScope scope;
+  v8::TryCatch try_catch;
+  v8::Script::Compile(args[0]->ToString())->Run();
+  return v8::Boolean::New(try_catch.HasCaught());
+}
+
+
 THREADED_TEST(APICatch) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
@@ -1663,6 +1672,74 @@ THREADED_TEST(APICatch) {
     "}");
   Local<Value> thrown = context->Global()->Get(v8_str("thrown"));
   CHECK(thrown->BooleanValue());
+}
+
+
+THREADED_TEST(APIThrowTryCatch) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("ThrowFromC"),
+             v8::FunctionTemplate::New(ThrowFromC));
+  LocalContext context(0, templ);
+  v8::TryCatch try_catch;
+  CompileRun("ThrowFromC();");
+  CHECK(try_catch.HasCaught());
+}
+
+
+// Test that a try-finally block doesn't shadow a try-catch block
+// when setting up an external handler.
+THREADED_TEST(TryCatchInTryFinally) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("CCatcher"),
+             v8::FunctionTemplate::New(CCatcher));
+  LocalContext context(0, templ);
+  Local<Value> result = CompileRun("try {"
+                                   "  try {"
+                                   "    CCatcher('throw 7;');"
+                                   "  } finally {"
+                                   "  }"
+                                   "} catch (e) {"
+                                   "}");
+  CHECK(result->IsTrue());
+}
+
+
+static void receive_message(v8::Handle<v8::Message> message,
+                            v8::Handle<v8::Value> data) {
+  message_received = true;
+}
+
+
+TEST(APIThrowMessage) {
+  message_received = false;
+  v8::HandleScope scope;
+  v8::V8::AddMessageListener(receive_message);
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("ThrowFromC"),
+             v8::FunctionTemplate::New(ThrowFromC));
+  LocalContext context(0, templ);
+  CompileRun("ThrowFromC();");
+  CHECK(message_received);
+  v8::V8::RemoveMessageListeners(check_message);
+}
+
+
+TEST(APIThrowMessageAndVerboseTryCatch) {
+  message_received = false;
+  v8::HandleScope scope;
+  v8::V8::AddMessageListener(receive_message);
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("ThrowFromC"),
+             v8::FunctionTemplate::New(ThrowFromC));
+  LocalContext context(0, templ);
+  v8::TryCatch try_catch;
+  try_catch.SetVerbose(true);
+  CompileRun("ThrowFromC();");
+  CHECK(try_catch.HasCaught());
+  CHECK(message_received);
+  v8::V8::RemoveMessageListeners(check_message);
 }
 
 
@@ -2960,6 +3037,7 @@ static void ApiUncaughtExceptionTestListener(v8::Handle<v8::Message>,
 // Counts uncaught exceptions, but other tests running in parallel
 // also have uncaught exceptions.
 TEST(ApiUncaughtException) {
+  report_count = 0;
   v8::HandleScope scope;
   LocalContext env;
   v8::V8::AddMessageListener(ApiUncaughtExceptionTestListener);
@@ -2983,6 +3061,37 @@ TEST(ApiUncaughtException) {
   CHECK(trouble_caller->IsFunction());
   Function::Cast(*trouble_caller)->Call(global, 0, NULL);
   CHECK_EQ(1, report_count);
+  v8::V8::RemoveMessageListeners(ApiUncaughtExceptionTestListener);
+}
+
+
+TEST(CompilationErrorUsingTryCatchHandler) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::TryCatch try_catch;
+  Script::Compile(v8_str("This doesn't &*&@#$&*^ compile."));
+  CHECK_NE(NULL, *try_catch.Exception());
+  CHECK(try_catch.HasCaught());
+}
+
+
+TEST(TryCatchFinallyUsingTryCatchHandler) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::TryCatch try_catch;
+  Script::Compile(v8_str("try { throw ''; } catch (e) {}"))->Run();
+  CHECK(!try_catch.HasCaught());
+  Script::Compile(v8_str("try { throw ''; } finally {}"))->Run();
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  Script::Compile(v8_str("(function() {"
+                         "try { throw ''; } finally { return; }"
+                         "})()"))->Run();
+  CHECK(!try_catch.HasCaught());
+  Script::Compile(v8_str("(function()"
+                         "  { try { throw ''; } finally { throw 0; }"
+                         "})()"))->Run();
+  CHECK(try_catch.HasCaught());
 }
 
 

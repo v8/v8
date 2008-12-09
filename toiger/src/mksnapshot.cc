@@ -48,10 +48,10 @@ static const unsigned int kMaxCounters = 256;
 class Counter {
  public:
   static const int kMaxNameSize = 64;
-  int32_t* Bind(const wchar_t* name) {
+  int32_t* Bind(const char* name) {
     int i;
     for (i = 0; i < kMaxNameSize - 1 && name[i]; i++) {
-      name_[i] = static_cast<char>(name[i]);
+      name_[i] = name[i];
     }
     name_[i] = '\0';
     return &counter_;
@@ -92,13 +92,13 @@ static CounterCollection local_counters;
 static CounterCollection* counters = &local_counters;
 
 
-typedef std::map<std::wstring, int*> CounterMap;
-typedef std::map<std::wstring, int*>::iterator CounterMapIterator;
+typedef std::map<std::string, int*> CounterMap;
+typedef std::map<std::string, int*>::iterator CounterMapIterator;
 static CounterMap counter_table_;
 
 // Callback receiver when v8 has a counter to track.
-static int* counter_callback(const wchar_t* name) {
-  std::wstring counter = name;
+static int* counter_callback(const char* name) {
+  std::string counter = name;
   // See if this counter name is already known.
   if (counter_table_.find(counter) != counter_table_.end())
     return counter_table_[counter];

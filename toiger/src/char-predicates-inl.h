@@ -59,6 +59,25 @@ inline bool IsHexDigit(uc32 c) {
 }
 
 
+inline bool IsRegExpWord(uc16 c) {
+  return ('a' <= c && c <= 'z')
+      || ('A' <= c && c <= 'Z')
+      || ('0' <= c && c <= '9')
+      || (c == '_');
+}
+
+
+inline bool IsRegExpNewline(uc16 c) {
+  switch (c) {
+    //   CR           LF           LS           PS
+    case 0x000A: case 0x000D: case 0x2028: case 0x2029:
+      return false;
+    default:
+      return true;
+  }
+}
+
+
 } }  // namespace v8::internal
 
 #endif  // V8_CHAR_PREDICATES_INL_H_

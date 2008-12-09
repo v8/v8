@@ -118,7 +118,8 @@ namespace v8 { namespace internal {
   SC(enum_cache_hits, V8.EnumCacheHits)                             \
   SC(enum_cache_misses, V8.EnumCacheMisses)                         \
   SC(reloc_info_count, V8.RelocInfoCount)                           \
-  SC(reloc_info_size, V8.RelocInfoSize)
+  SC(reloc_info_size, V8.RelocInfoSize)                             \
+  SC(zone_segment_bytes, V8.ZoneSegmentBytes)
 
 
 // This file contains all the v8 counters that are in use.

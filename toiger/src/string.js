@@ -198,9 +198,9 @@ function StringReplace(search, replace) {
   if (start < 0) return subject;
   var end = start + search.length;
 
-  var builder = new StringBuilder();
+  var builder = new ReplaceResultBuilder(subject);
   // prefix
-  builder.add(SubString(subject, 0, start));
+  builder.addSpecialSlice(0, start);
 
   // Compute the string to replace with.
   if (IS_FUNCTION(replace)) {
@@ -210,7 +210,7 @@ function StringReplace(search, replace) {
   }
 
   // suffix
-  builder.add(SubString(subject, end, subject.length));
+  builder.addSpecialSlice(end, subject.length);
 
   return builder.generate();
 }
@@ -234,18 +234,27 @@ function StringReplaceRegExp(subject, regexp, replace) {
   var length = matches.length;
 
   // Build the resulting string of subject slices and replacements.
-  var result = new StringBuilder();
+  var result = new ReplaceResultBuilder(subject);
   var previous = 0;
   // The caller of StringReplaceRegExp must ensure that replace is not a
   // function.
   replace = ToString(replace);
-  for (var i = 0; i < length; i++) {
-    var captures = matches[i];
-    result.add(SubString(subject, previous, captures[0]));
-    ExpandReplacement(replace, subject, captures, result);
-    previous = captures[1];  // continue after match
+  if (%StringIndexOf(replace, "$", 0) < 0) {
+    for (var i = 0; i < length; i++) {
+      var captures = matches[i];
+      result.addSpecialSlice(previous, captures[0]);
+      result.add(replace);
+      previous = captures[1];  // continue after match
+    }
+  } else {
+    for (var i = 0; i < length; i++) {
+      var captures = matches[i];
+      result.addSpecialSlice(previous, captures[0]);
+      ExpandReplacement(replace, subject, captures, result);
+      previous = captures[1];  // continue after match
+    }
   }
-  result.add(SubString(subject, previous, subject.length));
+  result.addSpecialSlice(previous, subject.length);
   return result.generate();
 };
 
@@ -272,15 +281,16 @@ function ExpandReplacement(string, subject, captures, builder) {
       var peek = %StringCharCodeAt(string, position);
       if (peek == 36) {         // $$
         ++position;
+        builder.add('$');
       } else if (peek == 38) {  // $& - match
         ++position;
-        expansion = SubString(subject, captures[0], captures[1]);
+        builder.addSpecialSlice(captures[0], captures[1]);
       } else if (peek == 96) {  // $` - prefix
         ++position;
-        expansion = SubString(subject, 0, captures[0]);
+        builder.addSpecialSlice(0, captures[0]);
       } else if (peek == 39) {  // $' - suffix
         ++position;
-        expansion = SubString(subject, captures[1], subject.length);
+        builder.addSpecialSlice(captures[1], subject.length);
       } else if (peek >= 48 && peek <= 57) {  // $n, 0 <= n <= 9
         ++position;
         var n = peek - 48;
@@ -301,20 +311,21 @@ function ExpandReplacement(string, subject, captures, builder) {
           }
         }
         if (0 < n && n < m) {
-          expansion = CaptureString(subject, captures, n);
-          if (IS_UNDEFINED(expansion)) expansion = "";
+          addCaptureString(builder, captures, n);
         } else {
           // Because of the captures range check in the parsing of two
           // digit capture references, we can only enter here when a
           // single digit capture reference is outside the range of
           // captures.
+          builder.add('$');
           --position;
         }
       }
+    } else {
+      builder.add('$');
     }
 
-    // Append the $ expansion and go the the next $ in the string.
-    builder.add(expansion);
+    // Go the the next $ in the string.
     next = %StringIndexOf(string, '$', position);
 
     // Return if there are no more $ characters in the string. If we
@@ -342,6 +353,19 @@ function CaptureString(string, captures, index) {
   // If either start or end is missing return undefined.
   if (start < 0 || end < 0) return;
   return SubString(string, start, end);
+};
+
+
+// Add the string of a given PCRE capture to the ReplaceResultBuilder
+function addCaptureString(builder, captures, index) {
+  // Scale the index.
+  var scaled = index << 1;
+  // Compute start and end.
+  var start = captures[scaled];
+  var end = captures[scaled + 1];
+  // If either start or end is missing return.
+  if (start < 0 || end < 0) return;
+  builder.addSpecialSlice(start, end);
 };
 
 

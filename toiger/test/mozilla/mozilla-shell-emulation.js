@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,53 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <string.h>
-#include "v8.h"
-#include "ast.h"
-#include "assembler.h"
-#include "regexp-macro-assembler.h"
+// Sets up fake implementations of MDC built-in objects and functions
+// necessary to run the tests in V8.
 
-namespace v8 { namespace internal {
+// Options are generally ignored (not set, if anybody asks).
 
-RegExpMacroAssembler::RegExpMacroAssembler() {
+function options(aOptionName) {
+  // Returns comma-separated list of options set.
+  // Toggles the option if a name is given.
+  return "";  // Default implementation is always false.
 }
-
-
-RegExpMacroAssembler::~RegExpMacroAssembler() {
-}
-
-
-ByteArrayProvider::ByteArrayProvider(unsigned int initial_size)
-  : byte_array_size_(initial_size),
-    current_byte_array_(),
-    current_byte_array_free_offset_(initial_size) {}
-
-
-ArraySlice ByteArrayProvider::GetBuffer(unsigned int size,
-                                        unsigned int elem_size) {
-  ASSERT(size > 0);
-  size_t byte_size = size * elem_size;
-  int free_offset = current_byte_array_free_offset_;
-  // align elements
-  free_offset += elem_size - 1;
-  free_offset = free_offset - (free_offset % elem_size);
-
-  if (free_offset + byte_size > byte_array_size_) {
-    if (byte_size > (byte_array_size_ / 2)) {
-      Handle<ByteArray> solo_buffer(Factory::NewByteArray(byte_size, TENURED));
-      return ArraySlice(solo_buffer, 0);
-    }
-    current_byte_array_ = Factory::NewByteArray(byte_array_size_, TENURED);
-    free_offset = 0;
-  }
-  current_byte_array_free_offset_ = free_offset + byte_size;
-  return ArraySlice(current_byte_array_, free_offset);
-}
-
-template <typename T>
-ArraySlice ByteArrayProvider::GetBuffer(Vector<T> values) {
-  ArraySlice slice = GetBuffer(values.length(), sizeof(T));
-  memcpy(slice.location(), values.start(), values.length() * sizeof(T));
-  return slice;
-}
-} }

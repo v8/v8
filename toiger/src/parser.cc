@@ -495,10 +495,10 @@ class RegExpParser {
   RegExpParser(FlatStringReader* in,
                Handle<String>* error,
                bool multiline_mode);
-  RegExpTree* ParsePattern(bool* ok);
-  RegExpTree* ParseDisjunction(bool* ok);
-  RegExpTree* ParseGroup(bool* ok);
-  RegExpTree* ParseCharacterClass(bool* ok);
+  RegExpTree* ParsePattern();
+  RegExpTree* ParseDisjunction();
+  RegExpTree* ParseGroup();
+  RegExpTree* ParseCharacterClass();
 
   // Parses a {...,...} quantifier and stores the range in the given
   // out parameters.
@@ -506,13 +506,13 @@ class RegExpParser {
 
   // Parses and returns a single escaped character.  The character
   // must not be 'b' or 'B' since they are usually handle specially.
-  uc32 ParseClassCharacterEscape(bool* ok);
+  uc32 ParseClassCharacterEscape();
 
   // Checks whether the following is a length-digit hexadecimal number,
   // and sets the value if it is.
   bool ParseHexEscape(int length, uc32* value);
 
-  uc32 ParseControlLetterEscape(bool* ok);
+  uc32 ParseControlLetterEscape();
   uc32 ParseOctalLiteral();
 
   // Tries to parse the input as a back reference.  If successful it
@@ -521,10 +521,8 @@ class RegExpParser {
   // can be reparsed.
   bool ParseBackReferenceIndex(int* index_out);
 
-  CharacterRange ParseClassAtom(bool* is_char_class,
-                                ZoneList<CharacterRange>* ranges,
-                                bool* ok);
-  RegExpTree* ReportError(Vector<const char> message, bool* ok);
+  CharacterRange ParseClassAtom(uc16* char_class);
+  RegExpTree* ReportError(Vector<const char> message);
   void Advance();
   void Advance(int dist);
   void Reset(int pos);
@@ -533,6 +531,7 @@ class RegExpParser {
 
   int captures_started() { return captures_ == NULL ? 0 : captures_->length(); }
   int position() { return next_pos_ - 1; }
+  bool failed() { return failed_; }
 
   static const uc32 kEndMarker = (1 << 21);
  private:
@@ -554,6 +553,7 @@ class RegExpParser {
   bool is_scanned_for_captures_;
   // The capture count is only valid after we have scanned for captures.
   int capture_count_;
+  bool failed_;
 };
 
 
@@ -1028,6 +1028,11 @@ class LexicalScope BASE_EMBEDDED {
 #define DUMMY )  // to make indentation work
 #undef DUMMY
 
+#define CHECK_FAILED  /**/);   \
+  if (failed_) return NULL; \
+  ((void)0
+#define DUMMY )  // to make indentation work
+#undef DUMMY
 
 // ----------------------------------------------------------------------------
 // Implementation of Parser
@@ -3499,7 +3504,8 @@ RegExpParser::RegExpParser(FlatStringReader* in,
     has_character_escapes_(false),
     captures_(NULL),
     is_scanned_for_captures_(false),
-    capture_count_(0) {
+    capture_count_(0),
+    failed_(false) {
   Advance(1);
 }
 
@@ -3515,8 +3521,15 @@ uc32 RegExpParser::Next() {
 
 void RegExpParser::Advance() {
   if (next_pos_ < in()->length()) {
-    current_ = in()->Get(next_pos_);
-    next_pos_++;
+    StackLimitCheck check;
+    if (check.HasOverflowed()) {
+      ReportError(CStrVector(Top::kStackOverflowMessage));
+    } else if (Zone::excess_allocation()) {
+      ReportError(CStrVector("Regular expression too large"));
+    } else {
+      current_ = in()->Get(next_pos_);
+      next_pos_++;
+    }
   } else {
     current_ = kEndMarker;
     has_more_ = false;
@@ -3543,19 +3556,22 @@ bool RegExpParser::HasCharacterEscapes() {
   return has_character_escapes_;
 }
 
-RegExpTree* RegExpParser::ReportError(Vector<const char> message, bool* ok) {
-  *ok = false;
+RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
+  failed_ = true;
   *error_ = Factory::NewStringFromAscii(message, NOT_TENURED);
+  // Zip to the end to make sure the no more input is read.
+  current_ = kEndMarker;
+  next_pos_ = in()->length();
   return NULL;
 }
 
 
 // Pattern ::
 //   Disjunction
-RegExpTree* RegExpParser::ParsePattern(bool* ok) {
-  RegExpTree* result = ParseDisjunction(CHECK_OK);
+RegExpTree* RegExpParser::ParsePattern() {
+  RegExpTree* result = ParseDisjunction(CHECK_FAILED);
   if (has_more()) {
-    ReportError(CStrVector("Unmatched ')'"), CHECK_OK);
+    ReportError(CStrVector("Unmatched ')'") CHECK_FAILED);
   }
   return result;
 }
@@ -3579,7 +3595,7 @@ bool RegExpParser::CaptureAvailable(int index) {
 //   Assertion
 //   Atom
 //   Atom Quantifier
-RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
+RegExpTree* RegExpParser::ParseDisjunction() {
   RegExpBuilder builder;
   int capture_start_index = captures_started();
   while (true) {
@@ -3603,7 +3619,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
     case '*':
     case '+':
     case '?':
-      ReportError(CStrVector("Nothing to repeat"), CHECK_OK);
+      ReportError(CStrVector("Nothing to repeat") CHECK_FAILED);
     case '^': {
       Advance();
       RegExpAssertion::Type type =
@@ -3630,12 +3646,12 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
       break;
     }
     case '(': {
-      RegExpTree* atom = ParseGroup(CHECK_OK);
+      RegExpTree* atom = ParseGroup(CHECK_FAILED);
       builder.AddAtom(atom);
       break;
     }
     case '[': {
-      RegExpTree* atom = ParseCharacterClass(CHECK_OK);
+      RegExpTree* atom = ParseCharacterClass(CHECK_FAILED);
       builder.AddAtom(atom);
       break;
     }
@@ -3644,7 +3660,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
     case '\\':
       switch (Next()) {
       case kEndMarker:
-        ReportError(CStrVector("\\ at end of pattern"), CHECK_OK);
+        ReportError(CStrVector("\\ at end of pattern") CHECK_FAILED);
       case 'b':
         Advance(2);
         builder.AddAssertion(
@@ -3722,7 +3738,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
         break;
       case 'c': {
         Advance(2);
-        uc32 control = ParseControlLetterEscape(ok);
+        uc32 control = ParseControlLetterEscape();
         builder.AddCharacter(control);
         break;
       }
@@ -3757,7 +3773,7 @@ RegExpTree* RegExpParser::ParseDisjunction(bool* ok) {
     case '{': {
       int dummy;
       if (ParseIntervalQuantifier(&dummy, &dummy)) {
-        ReportError(CStrVector("Nothing to repeat"), CHECK_OK);
+        ReportError(CStrVector("Nothing to repeat") CHECK_FAILED);
       }
       // fallthrough
     }
@@ -3974,9 +3990,9 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
 // Upper and lower case letters differ by one bit.
 STATIC_CHECK(('a' ^ 'A') == 0x20);
 
-uc32 RegExpParser::ParseControlLetterEscape(bool* ok) {
+uc32 RegExpParser::ParseControlLetterEscape() {
   if (!has_more()) {
-    ReportError(CStrVector("\\c at end of pattern"), ok);
+    ReportError(CStrVector("\\c at end of pattern"));
     return '\0';
   }
   uc32 letter = current() & ~(0x20);  // Collapse upper and lower case letters.
@@ -4030,7 +4046,7 @@ bool RegExpParser::ParseHexEscape(int length, uc32 *value) {
 }
 
 
-uc32 RegExpParser::ParseClassCharacterEscape(bool* ok) {
+uc32 RegExpParser::ParseClassCharacterEscape() {
   ASSERT(current() == '\\');
   ASSERT(has_next() && !IsSpecialClassEscape(Next()));
   Advance();
@@ -4056,7 +4072,7 @@ uc32 RegExpParser::ParseClassCharacterEscape(bool* ok) {
       Advance();
       return '\v';
     case 'c':
-      return ParseControlLetterEscape(ok);
+      return ParseControlLetterEscape();
     case '0': case '1': case '2': case '3': case '4': case '5':
     case '6': case '7':
       // For compatibility, we interpret a decimal escape that isn't
@@ -4096,7 +4112,7 @@ uc32 RegExpParser::ParseClassCharacterEscape(bool* ok) {
 }
 
 
-RegExpTree* RegExpParser::ParseGroup(bool* ok) {
+RegExpTree* RegExpParser::ParseGroup() {
   ASSERT_EQ(current(), '(');
   char type = '(';
   Advance();
@@ -4107,7 +4123,7 @@ RegExpTree* RegExpParser::ParseGroup(bool* ok) {
         Advance(2);
         break;
       default:
-        ReportError(CStrVector("Invalid group"), CHECK_OK);
+        ReportError(CStrVector("Invalid group") CHECK_FAILED);
         break;
     }
   } else {
@@ -4117,9 +4133,9 @@ RegExpTree* RegExpParser::ParseGroup(bool* ok) {
     captures_->Add(NULL);
   }
   int capture_index = captures_started();
-  RegExpTree* body = ParseDisjunction(CHECK_OK);
+  RegExpTree* body = ParseDisjunction(CHECK_FAILED);
   if (current() != ')') {
-    ReportError(CStrVector("Unterminated group"), CHECK_OK);
+    ReportError(CStrVector("Unterminated group") CHECK_FAILED);
   }
   Advance();
 
@@ -4157,22 +4173,18 @@ RegExpTree* RegExpParser::ParseGroup(bool* ok) {
 }
 
 
-CharacterRange RegExpParser::ParseClassAtom(bool* is_char_class,
-                                            ZoneList<CharacterRange>* ranges,
-                                            bool* ok) {
-  ASSERT_EQ(false, *is_char_class);
+CharacterRange RegExpParser::ParseClassAtom(uc16* char_class) {
+  ASSERT_EQ(0, *char_class);
   uc32 first = current();
   if (first == '\\') {
     switch (Next()) {
       case 'w': case 'W': case 'd': case 'D': case 's': case 'S': {
-        *is_char_class = true;
-        uc32 c = Next();
-        CharacterRange::AddClassEscape(c, ranges);
+        *char_class = Next();
         Advance(2);
-        return NULL;
+        return CharacterRange::Singleton(0);  // Return dummy value.
       }
       default:
-        uc32 c = ParseClassCharacterEscape(CHECK_OK);
+        uc32 c = ParseClassCharacterEscape(CHECK_FAILED);
         return CharacterRange::Singleton(c);
     }
   } else {
@@ -4182,9 +4194,8 @@ CharacterRange RegExpParser::ParseClassAtom(bool* is_char_class,
 }
 
 
-RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
+RegExpTree* RegExpParser::ParseCharacterClass() {
   static const char* kUnterminated = "Unterminated character class";
-  static const char* kIllegal = "Illegal character class";
   static const char* kRangeOutOfOrder = "Range out of order in character class";
 
   ASSERT_EQ(current(), '[');
@@ -4196,40 +4207,44 @@ RegExpTree* RegExpParser::ParseCharacterClass(bool* ok) {
   }
   ZoneList<CharacterRange>* ranges = new ZoneList<CharacterRange>(2);
   while (has_more() && current() != ']') {
-    bool is_char_class = false;
-    CharacterRange first = ParseClassAtom(&is_char_class, ranges, CHECK_OK);
-    if (!is_char_class) {
-      if (current() == '-') {
-        Advance();
-        if (current() == kEndMarker) {
-          // If we reach the end we break out of the loop and let the
-          // following code report an error.
-          break;
-        } else if (current() == ']') {
-          ranges->Add(first);
-          ranges->Add(CharacterRange::Singleton('-'));
-          break;
-        }
-        CharacterRange next =
-            ParseClassAtom(&is_char_class, ranges, CHECK_OK);
-        if (is_char_class) {
-          return ReportError(CStrVector(kIllegal), CHECK_OK);
-        }
-        if (first.from() > next.to()) {
-          return ReportError(CStrVector(kRangeOutOfOrder), CHECK_OK);
-        }
-        ranges->Add(CharacterRange::Range(first.from(), next.to()));
-      } else {
+    uc16 char_class = 0;
+    CharacterRange first = ParseClassAtom(&char_class CHECK_FAILED);
+    if (char_class) {
+      CharacterRange::AddClassEscape(char_class, ranges);
+      continue;
+    }
+    if (current() == '-') {
+      Advance();
+      if (current() == kEndMarker) {
+        // If we reach the end we break out of the loop and let the
+        // following code report an error.
+        break;
+      } else if (current() == ']') {
         ranges->Add(first);
+        ranges->Add(CharacterRange::Singleton('-'));
+        break;
       }
+      CharacterRange next = ParseClassAtom(&char_class CHECK_FAILED);
+      if (char_class) {
+        ranges->Add(first);
+        ranges->Add(CharacterRange::Singleton('-'));
+        CharacterRange::AddClassEscape(char_class, ranges);
+        continue;
+      }
+      if (first.from() > next.to()) {
+        return ReportError(CStrVector(kRangeOutOfOrder) CHECK_FAILED);
+      }
+      ranges->Add(CharacterRange::Range(first.from(), next.to()));
+    } else {
+      ranges->Add(first);
     }
   }
   if (!has_more()) {
-    return ReportError(CStrVector(kUnterminated), CHECK_OK);
+    return ReportError(CStrVector(kUnterminated) CHECK_FAILED);
   }
   Advance();
   if (ranges->length() == 0) {
-    ranges->Add(CharacterRange::Range(0, 0xffff));
+    ranges->Add(CharacterRange::Everything());
     is_negated = !is_negated;
   }
   return new RegExpCharacterClass(ranges, is_negated);
@@ -4288,21 +4303,20 @@ bool ParseRegExp(FlatStringReader* input,
                  bool multiline,
                  RegExpParseResult* result) {
   ASSERT(result != NULL);
+  // Make sure we have a stack guard.
+  StackGuard guard;
   RegExpParser parser(input, &result->error, multiline);
-  bool ok = true;
-  result->tree = parser.ParsePattern(&ok);
-  if (!ok) {
+  result->tree = parser.ParsePattern();
+  if (parser.failed()) {
     ASSERT(result->tree == NULL);
     ASSERT(!result->error.is_null());
   } else {
     ASSERT(result->tree != NULL);
     ASSERT(result->error.is_null());
-  }
-  if (ok) {
     result->has_character_escapes = parser.HasCharacterEscapes();
     result->capture_count = parser.captures_started();
   }
-  return ok;
+  return !parser.failed();
 }
 
 

@@ -64,6 +64,12 @@ void RegExpMacroAssemblerTracer::AdvanceCurrentPosition(int by) {
 }
 
 
+void RegExpMacroAssemblerTracer::CheckGreedyLoop(Label* label) {
+  PrintF(" CheckGreedyLoop(label[%08x]);\n\n", label);
+  assembler_->CheckGreedyLoop(label);
+}
+
+
 void RegExpMacroAssemblerTracer::PopCurrentPosition() {
   PrintF(" PopCurrentPosition();\n");
   assembler_->PopCurrentPosition();
@@ -130,9 +136,12 @@ void RegExpMacroAssemblerTracer::SetRegister(int register_index, int to) {
 }
 
 
-void RegExpMacroAssemblerTracer::WriteCurrentPositionToRegister(int reg) {
-  PrintF(" WriteCurrentPositionToRegister(register=%d);\n", reg);
-  assembler_->WriteCurrentPositionToRegister(reg);
+void RegExpMacroAssemblerTracer::WriteCurrentPositionToRegister(int reg,
+                                                                int cp_offset) {
+  PrintF(" WriteCurrentPositionToRegister(register=%d,cp_offset=%d);\n",
+         reg,
+         cp_offset);
+  assembler_->WriteCurrentPositionToRegister(reg, cp_offset);
 }
 
 
@@ -156,9 +165,17 @@ void RegExpMacroAssemblerTracer::ReadStackPointerFromRegister(int reg) {
 
 void RegExpMacroAssemblerTracer::LoadCurrentCharacter(int cp_offset,
                                                       Label* on_end_of_input) {
-  PrintF(" LoadCurrentCharacter(cp_offset=%d, label[%08x]);\n", cp_offset,
+  PrintF(" LoadCurrentCharacter(cp_offset=%d, label[%08x]);\n",
+         cp_offset,
          on_end_of_input);
   assembler_->LoadCurrentCharacter(cp_offset, on_end_of_input);
+}
+
+
+void RegExpMacroAssemblerTracer::LoadCurrentCharacterUnchecked(int cp_offset) {
+  PrintF(" LoadCurrentCharacterUnchecked(cp_offset=%d);\n",
+         cp_offset);
+  assembler_->LoadCurrentCharacterUnchecked(cp_offset);
 }
 
 
@@ -183,6 +200,7 @@ void RegExpMacroAssemblerTracer::CheckCharacter(uc16 c, Label* on_equal) {
 
 void RegExpMacroAssemblerTracer::CheckNotAtStart(Label* on_not_at_start) {
   PrintF(" CheckNotAtStart(label[%08x]);\n", on_not_at_start);
+  assembler_->CheckNotAtStart(on_not_at_start);
 }
 
 
@@ -241,21 +259,15 @@ void RegExpMacroAssemblerTracer::CheckNotRegistersEqual(int reg1,
 
 void RegExpMacroAssemblerTracer::CheckCharacters(Vector<const uc16> str,
                                                  int cp_offset,
-                                                 Label* on_failure) {
-  PrintF(" CheckCharacters(str=\"");
+                                                 Label* on_failure,
+                                                 bool check_end_of_string) {
+  PrintF(" %s(str=\"",
+         check_end_of_string ? "CheckCharacters" : "CheckCharactersUnchecked");
   for (int i = 0; i < str.length(); i++) {
     PrintF("u%04x", str[i]);
   }
   PrintF("\", cp_offset=%d, label[%08x])\n", cp_offset, on_failure);
-  assembler_->CheckCharacters(str, cp_offset, on_failure);
-}
-
-
-void RegExpMacroAssemblerTracer::CheckCurrentPosition(int register_index,
-                                                      Label* on_equal) {
-  PrintF(" CheckCurrentPosition(register=%d, label[%08x]);\n", register_index,
-         on_equal);
-  assembler_->CheckCurrentPosition(register_index, on_equal);
+  assembler_->CheckCharacters(str, cp_offset, on_failure, check_end_of_string);
 }
 
 
@@ -333,9 +345,9 @@ RegExpMacroAssembler::IrregexpImplementation
 }
 
 
-Handle<Object> RegExpMacroAssemblerTracer::GetCode() {
-  PrintF(" GetCode();\n");
-  return assembler_->GetCode();
+Handle<Object> RegExpMacroAssemblerTracer::GetCode(Handle<String> source) {
+  PrintF(" GetCode(%s);\n", *(source->ToCString()));
+  return assembler_->GetCode(source);
 }
 
 }}  // namespace v8::internal

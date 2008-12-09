@@ -449,6 +449,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\debug-ia32.cc"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\debug.cc"
 				>
 			</File>
@@ -486,10 +490,6 @@
 			</File>
 			<File
 				RelativePath="..\..\src\flags.h"
-				>
-			</File>
-			<File
-				RelativePath="..\..\src\frames-ia32-inl.h"
 				>
 			</File>
 			<File
@@ -734,6 +734,14 @@
 			</File>
 			<File
 				RelativePath="..\..\src\regexp-macro-assembler.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-tracer.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-tracer.h"
 				>
 			</File>
 			<File

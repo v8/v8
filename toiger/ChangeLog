@@ -1,7 +1,39 @@
-2008-11-26: Version 0.4.4.1
+2008-12-03: Version 0.4.5
 
+        Added experimental API support for allocating V8 symbols as
+        external strings.
+
+        Fixed bugs in debugging support on ARM.
+
+        Changed eval implementation to correctly detect whether or not a
+        call to eval is aliased.
+
+        Fixed bug caused by a combination of the compilation cache and
+        dictionary probing in native code.  The bug caused us to sometimes
+        call functions that had not yet been compiled.
+
+        Added platform support for FreeBSD.
+
+        Added support for building V8 on Windows with either the shared or
+        static version of MSVCRT
+        
         Added the v8::jscre namespace around the jscre functions to avoid
         link errors (duplicate symbols) when building Google Chrome.
+
+        Added support for calling a JavaScript function with the current
+        debugger execution context as its argument to the debugger
+        interface.
+
+        Changed the type of names of counters from wchar_t to char.
+
+        Changed the Windows system call used to compute daylight savings
+        time.  The system call that we used to use became four times
+        slower on WinXP SP3.
+
+        Added support in the d8 developer shell for memory-mapped counters
+        and added a stats-viewer tool.
+
+        Fixed bug in upper/lower case mappings (issue 149).
 
 
 2008-11-17: Version 0.4.4

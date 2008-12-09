@@ -26,6 +26,11 @@
 
 /* Begin PBXBuildFile section */
 		8900116C0E71CA2300F91F35 /* libraries.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8900116B0E71CA2300F91F35 /* libraries.cc */; };
+		890A13FE0EE9C47F00E49346 /* interpreter-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */; };
+		890A14010EE9C4B000E49346 /* regexp-macro-assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */; };
+		890A14020EE9C4B400E49346 /* regexp-macro-assembler-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C750EE466D000B48DEB /* regexp-macro-assembler-irregexp.cc */; };
+		890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C770EE466D000B48DEB /* regexp-macro-assembler-tracer.cc */; };
+		890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */; };
 		893CCE640E71D83700357A03 /* code-stubs.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1110E719B8F00D62E90 /* code-stubs.cc */; };
 		89495E480E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
 		89495E490E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
@@ -38,6 +43,11 @@
 		897FF1C60E719D7100D62E90 /* pcre_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0ED0E719B3500D62E90 /* pcre_tables.cpp */; };
 		897FF1C70E719D7300D62E90 /* pcre_ucp_searchfuncs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0EE0E719B3500D62E90 /* pcre_ucp_searchfuncs.cpp */; };
 		897FF1C80E719D7600D62E90 /* pcre_xclass.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0EF0E719B3500D62E90 /* pcre_xclass.cpp */; };
+		89A15C7B0EE466EB00B48DEB /* regexp-macro-assembler-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C720EE466D000B48DEB /* regexp-macro-assembler-ia32.cc */; };
+		89A15C810EE4674900B48DEB /* regexp-macro-assembler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */; };
+		89A15C830EE4675E00B48DEB /* regexp-macro-assembler-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C750EE466D000B48DEB /* regexp-macro-assembler-irregexp.cc */; };
+		89A15C850EE4678B00B48DEB /* interpreter-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */; };
+		89A15C8A0EE467D100B48DEB /* regexp-macro-assembler-tracer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C770EE466D000B48DEB /* regexp-macro-assembler-tracer.cc */; };
 		89A88DEC0E71A5FF0043BA31 /* accessors.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0F60E719B8F00D62E90 /* accessors.cc */; };
 		89A88DED0E71A6000043BA31 /* allocation.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0F80E719B8F00D62E90 /* allocation.cc */; };
 		89A88DEE0E71A6010043BA31 /* api.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0FA0E719B8F00D62E90 /* api.cc */; };
@@ -460,6 +470,26 @@
 		897FF1B60E719C2300D62E90 /* js2c.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = js2c.py; sourceTree = "<group>"; };
 		897FF1B70E719C2E00D62E90 /* macros.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = macros.py; path = ../src/macros.py; sourceTree = "<group>"; };
 		897FF1BF0E719CB600D62E90 /* libjscre.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libjscre.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		89A15C630EE4661A00B48DEB /* bytecodes-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "bytecodes-irregexp.h"; sourceTree = "<group>"; };
+		89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "interpreter-irregexp.cc"; sourceTree = "<group>"; };
+		89A15C670EE4665300B48DEB /* interpreter-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "interpreter-irregexp.h"; sourceTree = "<group>"; };
+		89A15C680EE4665300B48DEB /* jsregexp-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jsregexp-inl.h"; sourceTree = "<group>"; };
+		89A15C6D0EE466A900B48DEB /* platform-freebsd.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "platform-freebsd.cc"; sourceTree = "<group>"; };
+		89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-macro-assembler-arm.cc"; sourceTree = "<group>"; };
+		89A15C710EE466D000B48DEB /* regexp-macro-assembler-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-macro-assembler-arm.h"; sourceTree = "<group>"; };
+		89A15C720EE466D000B48DEB /* regexp-macro-assembler-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-macro-assembler-ia32.cc"; sourceTree = "<group>"; };
+		89A15C730EE466D000B48DEB /* regexp-macro-assembler-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-macro-assembler-ia32.h"; sourceTree = "<group>"; };
+		89A15C740EE466D000B48DEB /* regexp-macro-assembler-irregexp-inl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-macro-assembler-irregexp-inl.h"; sourceTree = "<group>"; };
+		89A15C750EE466D000B48DEB /* regexp-macro-assembler-irregexp.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-macro-assembler-irregexp.cc"; sourceTree = "<group>"; };
+		89A15C760EE466D000B48DEB /* regexp-macro-assembler-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-macro-assembler-irregexp.h"; sourceTree = "<group>"; };
+		89A15C770EE466D000B48DEB /* regexp-macro-assembler-tracer.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-macro-assembler-tracer.cc"; sourceTree = "<group>"; };
+		89A15C780EE466D000B48DEB /* regexp-macro-assembler-tracer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-macro-assembler-tracer.h"; sourceTree = "<group>"; };
+		89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-macro-assembler.cc"; sourceTree = "<group>"; };
+		89A15C7A0EE466D000B48DEB /* regexp-macro-assembler.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-macro-assembler.h"; sourceTree = "<group>"; };
+		89A15C910EE46A1700B48DEB /* d8-readline.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-readline.cc"; path = "../src/d8-readline.cc"; sourceTree = "<group>"; };
+		89A15C920EE46A1700B48DEB /* d8.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = d8.cc; path = ../src/d8.cc; sourceTree = "<group>"; };
+		89A15C930EE46A1700B48DEB /* d8.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = d8.h; path = ../src/d8.h; sourceTree = "<group>"; };
+		89A15C940EE46A1700B48DEB /* d8.js */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.javascript; name = d8.js; path = ../src/d8.js; sourceTree = "<group>"; };
 		89B12E8D0E7FF2A40080BA62 /* presubmit.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = presubmit.py; sourceTree = "<group>"; };
 		89F23C870E78D5B2006B2466 /* libv8-arm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libv8-arm.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89F23C950E78D5B6006B2466 /* v8_shell-arm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "v8_shell-arm"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -574,6 +604,7 @@
 				897FF10A0E719B8F00D62E90 /* builtins-ia32.cc */,
 				897FF10B0E719B8F00D62E90 /* builtins.cc */,
 				897FF10C0E719B8F00D62E90 /* builtins.h */,
+				89A15C630EE4661A00B48DEB /* bytecodes-irregexp.h */,
 				897FF10D0E719B8F00D62E90 /* char-predicates-inl.h */,
 				897FF10E0E719B8F00D62E90 /* char-predicates.h */,
 				897FF10F0E719B8F00D62E90 /* checks.cc */,
@@ -643,6 +674,9 @@
 				897FF14B0E719B8F00D62E90 /* ic-inl.h */,
 				897FF14C0E719B8F00D62E90 /* ic.cc */,
 				897FF14D0E719B8F00D62E90 /* ic.h */,
+				89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */,
+				89A15C670EE4665300B48DEB /* interpreter-irregexp.h */,
+				89A15C680EE4665300B48DEB /* jsregexp-inl.h */,
 				897FF14E0E719B8F00D62E90 /* jsregexp.cc */,
 				897FF14F0E719B8F00D62E90 /* jsregexp.h */,
 				897FF1500E719B8F00D62E90 /* list-inl.h */,
@@ -667,6 +701,7 @@
 				897FF1630E719B8F00D62E90 /* objects.h */,
 				897FF1640E719B8F00D62E90 /* parser.cc */,
 				897FF1650E719B8F00D62E90 /* parser.h */,
+				89A15C6D0EE466A900B48DEB /* platform-freebsd.cc */,
 				897FF1660E719B8F00D62E90 /* platform-linux.cc */,
 				897FF1670E719B8F00D62E90 /* platform-macos.cc */,
 				897FF1680E719B8F00D62E90 /* platform-nullos.cc */,
@@ -676,6 +711,17 @@
 				897FF16C0E719B8F00D62E90 /* prettyprinter.h */,
 				897FF16D0E719B8F00D62E90 /* property.cc */,
 				897FF16E0E719B8F00D62E90 /* property.h */,
+				89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */,
+				89A15C710EE466D000B48DEB /* regexp-macro-assembler-arm.h */,
+				89A15C720EE466D000B48DEB /* regexp-macro-assembler-ia32.cc */,
+				89A15C730EE466D000B48DEB /* regexp-macro-assembler-ia32.h */,
+				89A15C740EE466D000B48DEB /* regexp-macro-assembler-irregexp-inl.h */,
+				89A15C750EE466D000B48DEB /* regexp-macro-assembler-irregexp.cc */,
+				89A15C760EE466D000B48DEB /* regexp-macro-assembler-irregexp.h */,
+				89A15C770EE466D000B48DEB /* regexp-macro-assembler-tracer.cc */,
+				89A15C780EE466D000B48DEB /* regexp-macro-assembler-tracer.h */,
+				89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */,
+				89A15C7A0EE466D000B48DEB /* regexp-macro-assembler.h */,
 				897FF16F0E719B8F00D62E90 /* rewriter.cc */,
 				897FF1700E719B8F00D62E90 /* rewriter.h */,
 				897FF1710E719B8F00D62E90 /* runtime.cc */,
@@ -795,6 +841,10 @@
 		897FF1B30E719BCE00D62E90 /* samples */ = {
 			isa = PBXGroup;
 			children = (
+				89A15C910EE46A1700B48DEB /* d8-readline.cc */,
+				89A15C920EE46A1700B48DEB /* d8.cc */,
+				89A15C930EE46A1700B48DEB /* d8.h */,
+				89A15C940EE46A1700B48DEB /* d8.js */,
 				897FF1B50E719C0900D62E90 /* shell.cc */,
 			);
 			path = samples;
@@ -1011,6 +1061,7 @@
 				89A88E0B0E71A66C0043BA31 /* heap.cc in Sources */,
 				89A88E0C0E71A66D0043BA31 /* ic-ia32.cc in Sources */,
 				89A88E0D0E71A66E0043BA31 /* ic.cc in Sources */,
+				89A15C850EE4678B00B48DEB /* interpreter-irregexp.cc in Sources */,
 				89A88E0E0E71A66F0043BA31 /* jsregexp.cc in Sources */,
 				8900116C0E71CA2300F91F35 /* libraries.cc in Sources */,
 				89A88E0F0E71A6740043BA31 /* log.cc in Sources */,
@@ -1023,6 +1074,10 @@
 				89A88E160E71A68E0043BA31 /* platform-macos.cc in Sources */,
 				89A88E170E71A6950043BA31 /* prettyprinter.cc in Sources */,
 				89A88E180E71A6960043BA31 /* property.cc in Sources */,
+				89A15C7B0EE466EB00B48DEB /* regexp-macro-assembler-ia32.cc in Sources */,
+				89A15C830EE4675E00B48DEB /* regexp-macro-assembler-irregexp.cc in Sources */,
+				89A15C8A0EE467D100B48DEB /* regexp-macro-assembler-tracer.cc in Sources */,
+				89A15C810EE4674900B48DEB /* regexp-macro-assembler.cc in Sources */,
 				89A88E190E71A6970043BA31 /* rewriter.cc in Sources */,
 				89A88E1A0E71A69B0043BA31 /* runtime.cc in Sources */,
 				89A88E1B0E71A69D0043BA31 /* scanner.cc in Sources */,
@@ -1107,6 +1162,7 @@
 				89F23C5E0E78D5B2006B2466 /* heap.cc in Sources */,
 				89F23C9D0E78D5FB006B2466 /* ic-arm.cc in Sources */,
 				89F23C600E78D5B2006B2466 /* ic.cc in Sources */,
+				890A13FE0EE9C47F00E49346 /* interpreter-irregexp.cc in Sources */,
 				89F23C610E78D5B2006B2466 /* jsregexp.cc in Sources */,
 				89F23C620E78D5B2006B2466 /* libraries.cc in Sources */,
 				89F23C630E78D5B2006B2466 /* log.cc in Sources */,
@@ -1119,6 +1175,10 @@
 				89F23C6A0E78D5B2006B2466 /* platform-macos.cc in Sources */,
 				89F23C6B0E78D5B2006B2466 /* prettyprinter.cc in Sources */,
 				89F23C6C0E78D5B2006B2466 /* property.cc in Sources */,
+				890A14010EE9C4B000E49346 /* regexp-macro-assembler-arm.cc in Sources */,
+				890A14020EE9C4B400E49346 /* regexp-macro-assembler-irregexp.cc in Sources */,
+				890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */,
+				890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */,
 				89F23C6D0E78D5B2006B2466 /* rewriter.cc in Sources */,
 				89F23C6E0E78D5B2006B2466 /* runtime.cc in Sources */,
 				89F23C6F0E78D5B2006B2466 /* scanner.cc in Sources */,
@@ -1235,9 +1295,6 @@
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(GCC_PREPROCESSOR_DEFINITIONS)",
 					DEBUG,
-					_GLIBCXX_CONCEPT_CHECKS,
-					_GLIBCXX_DEBUG,
-					_GLIBCXX_DEBUG_PEDANTIC,
 				);
 				GCC_SYMBOLS_PRIVATE_EXTERN = YES;
 				GCC_TREAT_WARNINGS_AS_ERRORS = YES;

@@ -840,6 +840,26 @@ void Assembler::and_(const Operand& dst, Register src) {
 }
 
 
+void Assembler::cmpb(const Operand& op, int8_t imm8) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x80);
+  emit_operand(edi, op);  // edi == 7
+  EMIT(imm8);
+}
+
+
+void Assembler::cmpw(const Operand& op, Immediate imm16) {
+  ASSERT(imm16.is_int16());
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x66);
+  EMIT(0x81);
+  emit_operand(edi, op);
+  emit_w(imm16);
+}
+
+
 void Assembler::cmp(Register reg, int32_t imm32) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -877,12 +897,13 @@ void Assembler::rep_cmpsb() {
   EMIT(0xA6);  // CMPSB
 }
 
-void Assembler::rep_cmpsl() {
+void Assembler::rep_cmpsw() {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   EMIT(0xFC);  // CLD to ensure forward operation
   EMIT(0xF3);  // REP
-  EMIT(0xA7);  // CMPSW
+  EMIT(0x66);  // Operand size overide.
+  EMIT(0xA7);  // CMPS
 }
 
 

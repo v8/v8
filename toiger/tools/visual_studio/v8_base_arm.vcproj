@@ -49,7 +49,6 @@
 			/>
 			<Tool
 				Name="VCLibrarianTool"
-				OutputFile="$(OutDir)\lib\v8_base.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -298,6 +297,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\regexp-macro-assembler-irregexp-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\assembler.cc"
 				>
 			</File>
@@ -331,6 +334,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\builtins.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\bytecodes-irregexp.h"
 				>
 			</File>
 			<File
@@ -443,6 +450,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\dateparser.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\debug-arm.cc"
 				>
 			</File>
 			<File
@@ -570,6 +581,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\interpreter-irregexp.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\interpreter-irregexp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jsregexp-inl.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\jsregexp.cc"
 				>
 			</File>
@@ -691,6 +714,38 @@
 			</File>
 			<File
 				RelativePath="..\..\src\property.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-arm.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-arm.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-irregexp.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-irregexp.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-tracer.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-macro-assembler-tracer.h"
 				>
 			</File>
 			<File

@@ -861,7 +861,7 @@ Object* StubCompiler::CompileCallMiss(Code::Flags flags) {
 
 Object* StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
   HandleScope scope;
-  Builtins::Generate_CallIC_DebugBreak(masm());
+  Debug::GenerateCallICDebugBreak(masm());
   Object* result = GetCodeWithFlags(flags);
   if (!result->IsFailure()) {
     Code* code = Code::cast(result);

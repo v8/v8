@@ -25,19 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var s = "a";
-for (var i = 0; i < 17; i++)
-    s += s;
-
-assertThrows('new RegExp(s);');
-
-assertThrows('/(([ab]){30}){3360}/');
-assertThrows('/(([ab]){30}){0,3360}/');
-assertThrows('/(([ab]){30}){10,3360}/');
-assertThrows('/(([ab]){0,30}){3360}/');
-assertThrows('/(([ab]){0,30}){0,3360}/');
-assertThrows('/(([ab]){0,30}){10,3360}/');
-assertThrows('/(([ab]){10,30}){3360}/');
-assertThrows('/(([ab]){10,30}){0,3360}/');
-assertThrows('/(([ab]){10,30}){10,3360}/');
-assertThrows('/(([ab]){12})(([ab]){65535}){1680}(([ab]){38}){722}([ab]){27}/');
+// UC16
+// Characters used:
+// "\u03a3\u03c2\u03c3\u039b\u03bb" - Sigma, final sigma, sigma, Lambda, lamda
+assertEquals("x\u03a3\u03c3x,\u03a3",
+              String(/x(.)\1x/i.exec("x\u03a3\u03c3x")), "backref-UC16");
+assertFalse(/x(...)\1/i.test("x\u03a3\u03c2\u03c3\u03c2\u03c3"),
+            "\\1 ASCII, string short");
+assertTrue(/\u03a3((?:))\1\1x/i.test("\u03c2x"), "backref-UC16-empty");
+assertTrue(/x(?:...|(...))\1x/i.test("x\u03a3\u03c2\u03c3x"),
+           "backref-UC16-uncaptured");
+assertTrue(/x(?:...|(...))\1x/i.test("x\u03c2\u03c3\u039b\u03a3\u03c2\u03bbx"),
+           "backref-UC16-backtrack");
+var longUC16String = "x\u03a3\u03c2\u039b\u03c2\u03c3\u03bb\u03c3\u03a3\u03bb";
+assertEquals(longUC16String + "," + longUC16String.substring(1,4),
+             String(/x(...)\1\1/i.exec(longUC16String)),
+             "backref-UC16-twice");

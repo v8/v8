@@ -1185,7 +1185,8 @@ class JSObject: public HeapObject {
   // Used from Object::GetProperty().
   Object* GetPropertyWithFailedAccessCheck(Object* receiver,
                                            LookupResult* result,
-                                           String* name);
+                                           String* name,
+                                           PropertyAttributes* attributes);
   Object* GetPropertyWithInterceptor(JSObject* receiver,
                                      String* name,
                                      PropertyAttributes* attributes);
@@ -2923,7 +2924,7 @@ class JSRegExp: public JSObject {
   // ATOM: A simple string to match against using an indexOf operation.
   // IRREGEXP: Compiled with Irregexp.
   // IRREGEXP_NATIVE: Compiled to native code with Irregexp.
-  enum Type { NOT_COMPILED, JSCRE, ATOM, IRREGEXP, IRREGEXP_NATIVE };
+  enum Type { NOT_COMPILED, JSCRE, ATOM, IRREGEXP };
   enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
 
   class Flags {
@@ -3211,6 +3212,7 @@ class String: public HeapObject {
 
   // Max ascii char code.
   static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
+  static const int kMaxUC16CharCode = 0xffff;
 
   // Minimum length for a cons or sliced string.
   static const int kMinNonFlatLength = 13;

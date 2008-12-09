@@ -356,12 +356,14 @@ void Logger::LogString(Handle<String> str) {
     len = 256;
   for (int i = 0; i < len; i++) {
     uc32 c = str->Get(shape, i);
-    if (c < 32 || (c > 126 && c <= 255)) {
-      fprintf(logfile_, "\\x%02x", c);
-    } else if (c > 255) {
+    if (c > 0xff) {
       fprintf(logfile_, "\\u%04x", c);
+    } else if (c < 32 || c > 126) {
+      fprintf(logfile_, "\\x%02x", c);
     } else if (c == ',') {
       fprintf(logfile_, "\\,");
+    } else if (c == '\\') {
+      fprintf(logfile_, "\\\\");
     } else {
       fprintf(logfile_, "%lc", c);
     }
@@ -591,12 +593,15 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
 }
 
 
-void Logger::SuspectReadEvent(String* name, String* obj) {
+void Logger::SuspectReadEvent(String* name, Object* obj) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_suspect) return;
+  String* class_name = obj->IsJSObject()
+                       ? JSObject::cast(obj)->class_name()
+                       : Heap::empty_string();
   ScopedLock sl(mutex_);
   fprintf(logfile_, "suspect-read,");
-  obj->PrintOn(logfile_);
+  class_name->PrintOn(logfile_);
   fprintf(logfile_, ",\"");
   name->PrintOn(logfile_);
   fprintf(logfile_, "\"\n");

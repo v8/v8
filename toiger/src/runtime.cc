@@ -1241,11 +1241,8 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
 
 template <typename schar>
 static int SingleCharIndexOf(Vector<const schar> string,
-                             uc16 pattern_char,
+                             schar pattern_char,
                              int start_index) {
-  if (sizeof(schar) == 1 && pattern_char > String::kMaxAsciiCharCode) {
-    return -1;
-  }
   for (int i = start_index, n = string.length(); i < n; i++) {
     if (pattern_char == string[i]) {
       return i;
@@ -1380,9 +1377,20 @@ int Runtime::StringMatch(Handle<String> sub,
   if (pattern_length == 1) {
     AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
     if (sub_shape.IsAsciiRepresentation()) {
-      return SingleCharIndexOf(sub->ToAsciiVector(),
-                               pat->Get(pat_shape, 0),
-                               start_index);
+      uc16 pchar = pat->Get(pat_shape, 0);
+      if (pchar > String::kMaxAsciiCharCode) {
+        return -1;
+      }
+      Vector<const char> ascii_vector =
+        sub->ToAsciiVector().SubVector(start_index, subject_length);
+      const void* pos = memchr(ascii_vector.start(),
+                               static_cast<const char>(pchar),
+                               static_cast<size_t>(ascii_vector.length()));
+      if (pos == NULL) {
+        return -1;
+      }
+      return reinterpret_cast<const char*>(pos) - ascii_vector.start()
+          + start_index;
     }
     return SingleCharIndexOf(sub->ToUC16Vector(),
                              pat->Get(pat_shape, 0),

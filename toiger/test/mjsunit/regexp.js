@@ -263,4 +263,46 @@ assertTrue(/foo$(?!bar)/.test("foo"), "football12");
 assertFalse(/f(o)\b\1/.test('foo'));
 assertTrue(/f(o)\B\1/.test('foo'));
 
+// Back-reference, ignore case:
+// ASCII
+assertEquals("xaAx,a", String(/x(a)\1x/i.exec("xaAx")), "backref-ASCII");
+assertFalse(/x(...)\1/i.test("xaaaaa"), "backref-ASCII-short");
+assertTrue(/x((?:))\1\1x/i.test("xx"), "backref-ASCII-empty");
+assertTrue(/x(?:...|(...))\1x/i.test("xabcx"), "backref-ASCII-uncaptured");
+assertTrue(/x(?:...|(...))\1x/i.test("xabcABCx"), "backref-ASCII-backtrack");
+assertEquals("xaBcAbCABCx,aBc",
+             String(/x(...)\1\1x/i.exec("xaBcAbCABCx")),
+             "backref-ASCII-twice");
+
+for (var i = 0; i < 128; i++) {
+  var testName = "backref-ASCII-char-" + i + "," + (i^0x20);
+  var test = /^(.)\1$/i.test(String.fromCharCode(i, i ^ 0x20))
+  var c = String.fromCharCode(i);
+  if (('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z')) {
+    assertTrue(test, testName);
+  } else {
+    assertFalse(test, testName);
+  }
+}
+
 assertFalse(/f(o)$\1/.test('foo'), "backref detects at_end");
+
+// Check that we don't read past the end of the string.
+assertFalse(/f/.test('b'));
+assertFalse(/[abc]f/.test('x'));
+assertFalse(/[abc]f/.test('xa'));
+assertFalse(/[abc]</.test('x'));
+assertFalse(/[abc]</.test('xa'));
+assertFalse(/f/i.test('b'));
+assertFalse(/[abc]f/i.test('x'));
+assertFalse(/[abc]f/i.test('xa'));
+assertFalse(/[abc]</i.test('x'));
+assertFalse(/[abc]</i.test('xa'));
+assertFalse(/f[abc]/.test('x'));
+assertFalse(/f[abc]/.test('xa'));
+assertFalse(/<[abc]/.test('x'));
+assertFalse(/<[abc]/.test('xa'));
+assertFalse(/f[abc]/i.test('x'));
+assertFalse(/f[abc]/i.test('xa'));
+assertFalse(/<[abc]/i.test('x'));
+assertFalse(/<[abc]/i.test('xa'));

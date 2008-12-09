@@ -262,6 +262,19 @@ class Debug {
   static const int kIa32CallInstructionLength = 5;
   static const int kIa32JSReturnSequenceLength = 6;
 
+  // Code generator routines.
+  static void GenerateLoadICDebugBreak(MacroAssembler* masm);
+  static void GenerateStoreICDebugBreak(MacroAssembler* masm);
+  static void GenerateKeyedLoadICDebugBreak(MacroAssembler* masm);
+  static void GenerateKeyedStoreICDebugBreak(MacroAssembler* masm);
+  static void GenerateConstructCallDebugBreak(MacroAssembler* masm);
+  static void GenerateReturnDebugBreak(MacroAssembler* masm);
+  static void GenerateReturnDebugBreakEntry(MacroAssembler* masm);
+  static void GenerateStubNoRegistersDebugBreak(MacroAssembler* masm);
+
+  // Called from stub-cache.cc.
+  static void GenerateCallICDebugBreak(MacroAssembler* masm);
+
  private:
   static bool CompileDebuggerScript(int index);
   static void ClearOneShot();

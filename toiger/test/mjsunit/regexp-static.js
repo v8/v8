@@ -25,6 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Test that we throw exceptions when calling test and exec with no
+// input.  This is not part of the spec, but we do it for
+// compatibility with JSC.
+assertThrows("/a/.test()");
+assertThrows("/a/.exec()");
+
+// Test that we do not throw exceptions once the static RegExp.input
+// field has been set.
+RegExp.input = "a";
+assertDoesNotThrow("/a/.test()");
+assertDoesNotThrow("/a/.exec()");
+
 // Test the (deprecated as of JS 1.5) properties of the RegExp function.
 var re = /((\d+)\.(\d+))/;
 var s = 'abc123.456def';

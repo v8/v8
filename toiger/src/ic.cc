@@ -514,11 +514,7 @@ Object* LoadIC::Load(State state, Handle<Object> object, Handle<String> name) {
     if (FLAG_strict || is_contextual()) {
       return ReferenceError("not_defined", name);
     }
-    String* class_name = object->IsJSObject()
-                         ? Handle<JSObject>::cast(object)->class_name()
-                         : Heap::empty_string();
-    LOG(SuspectReadEvent(*name, class_name));
-    USE(class_name);
+    LOG(SuspectReadEvent(*name, *object));
   }
 
   // Update inline cache and stub cache.

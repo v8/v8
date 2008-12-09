@@ -101,6 +101,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // Check for parse errors.
   if (lit == NULL) {
     ASSERT(Top::has_pending_exception());
+    Top::ReportPendingMessages();
     return Handle<JSFunction>::null();
   }
 
@@ -118,6 +119,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
     Top::StackOverflow();
+    Top::ReportPendingMessages();
     return Handle<JSFunction>::null();
   }
 
@@ -235,6 +237,7 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
       CompilationCache::PutFunction(source, entry, result);
     }
   }
+
   return result;
 }
 
@@ -269,6 +272,7 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // Check for parse errors.
   if (lit == NULL) {
     ASSERT(Top::has_pending_exception());
+    Top::ReportPendingMessages();
     return false;
   }
 
@@ -286,6 +290,7 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // Check for stack-overflow exception.
   if (code.is_null()) {
     Top::StackOverflow();
+    Top::ReportPendingMessages();
     return false;
   }
 

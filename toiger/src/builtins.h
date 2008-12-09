@@ -52,11 +52,6 @@ namespace v8 { namespace internal {
   V(JSEntryTrampoline,          BUILTIN, UNINITIALIZED)        \
   V(JSConstructEntryTrampoline, BUILTIN, UNINITIALIZED)        \
                                                                \
-  V(Return_DebugBreak,          BUILTIN, DEBUG_BREAK)          \
-  V(Return_DebugBreakEntry,     BUILTIN, DEBUG_BREAK)          \
-  V(ConstructCall_DebugBreak,   BUILTIN, DEBUG_BREAK)          \
-  V(StubNoRegisters_DebugBreak, BUILTIN, DEBUG_BREAK)          \
-                                                               \
   V(LoadIC_Miss,                BUILTIN, UNINITIALIZED)        \
   V(KeyedLoadIC_Miss,           BUILTIN, UNINITIALIZED)        \
   V(StoreIC_Miss,               BUILTIN, UNINITIALIZED)        \
@@ -72,24 +67,32 @@ namespace v8 { namespace internal {
   V(LoadIC_StringLength,        LOAD_IC, MONOMORPHIC)          \
   V(LoadIC_FunctionPrototype,   LOAD_IC, MONOMORPHIC)          \
   V(LoadIC_Megamorphic,         LOAD_IC, MEGAMORPHIC)          \
-  V(LoadIC_DebugBreak,          LOAD_IC, DEBUG_BREAK)          \
                                                                \
   V(KeyedLoadIC_Initialize,     KEYED_LOAD_IC, UNINITIALIZED)  \
   V(KeyedLoadIC_PreMonomorphic, KEYED_LOAD_IC, PREMONOMORPHIC) \
   V(KeyedLoadIC_Generic,        KEYED_LOAD_IC, MEGAMORPHIC)    \
-  V(KeyedLoadIC_DebugBreak,     KEYED_LOAD_IC, DEBUG_BREAK)    \
                                                                \
   V(StoreIC_Initialize,         STORE_IC, UNINITIALIZED)       \
   V(StoreIC_Megamorphic,        STORE_IC, MEGAMORPHIC)         \
-  V(StoreIC_DebugBreak,         STORE_IC, DEBUG_BREAK)         \
                                                                \
   V(KeyedStoreIC_Initialize,    KEYED_STORE_IC, UNINITIALIZED) \
   V(KeyedStoreIC_Generic,       KEYED_STORE_IC, MEGAMORPHIC)   \
-  V(KeyedStoreIC_DebugBreak,    KEYED_STORE_IC, DEBUG_BREAK)   \
                                                                \
   /* Uses KeyedLoadIC_Initialize; must be after in list. */    \
   V(FunctionCall,               BUILTIN, UNINITIALIZED)        \
   V(FunctionApply,              BUILTIN, UNINITIALIZED)
+
+
+// Define list of builtins used by the debugger implemented in assembly.
+#define BUILTIN_LIST_DEBUG_A(V)                                \
+  V(Return_DebugBreak,          BUILTIN, DEBUG_BREAK)          \
+  V(Return_DebugBreakEntry,     BUILTIN, DEBUG_BREAK)          \
+  V(ConstructCall_DebugBreak,   BUILTIN, DEBUG_BREAK)          \
+  V(StubNoRegisters_DebugBreak, BUILTIN, DEBUG_BREAK)          \
+  V(LoadIC_DebugBreak,          LOAD_IC, DEBUG_BREAK)          \
+  V(KeyedLoadIC_DebugBreak,     KEYED_LOAD_IC, DEBUG_BREAK)    \
+  V(StoreIC_DebugBreak,         STORE_IC, DEBUG_BREAK)         \
+  V(KeyedStoreIC_DebugBreak,    KEYED_STORE_IC, DEBUG_BREAK)
 
 
 // Define list of builtins implemented in JavaScript.
@@ -146,6 +149,7 @@ class Builtins : public AllStatic {
 #define DEF_ENUM_A(name, kind, state) name,
     BUILTIN_LIST_C(DEF_ENUM_C)
     BUILTIN_LIST_A(DEF_ENUM_A)
+    BUILTIN_LIST_DEBUG_A(DEF_ENUM_A)
 #undef DEF_ENUM_C
 #undef DEF_ENUM_A
     builtin_count
@@ -184,9 +188,6 @@ class Builtins : public AllStatic {
   static Handle<Code> GetCode(JavaScript id, bool* resolved);
   static int NumberOfJavaScriptBuiltins() { return id_count; }
 
-  // Called from stub-cache.cc.
-  static void Generate_CallIC_DebugBreak(MacroAssembler* masm);
-
   static Object* builtin_passed_function;
 
  private:
@@ -209,15 +210,6 @@ class Builtins : public AllStatic {
 
   static void Generate_FunctionCall(MacroAssembler* masm);
   static void Generate_FunctionApply(MacroAssembler* masm);
-
-  static void Generate_LoadIC_DebugBreak(MacroAssembler* masm);
-  static void Generate_StoreIC_DebugBreak(MacroAssembler* masm);
-  static void Generate_KeyedLoadIC_DebugBreak(MacroAssembler* masm);
-  static void Generate_KeyedStoreIC_DebugBreak(MacroAssembler* masm);
-  static void Generate_ConstructCall_DebugBreak(MacroAssembler* masm);
-  static void Generate_Return_DebugBreak(MacroAssembler* masm);
-  static void Generate_Return_DebugBreakEntry(MacroAssembler* masm);
-  static void Generate_StubNoRegisters_DebugBreak(MacroAssembler* masm);
 };
 
 } }  // namespace v8::internal
