@@ -593,12 +593,15 @@ void Logger::ResourceEvent(const char* name, const char* tag) {
 }
 
 
-void Logger::SuspectReadEvent(String* name, String* obj) {
+void Logger::SuspectReadEvent(String* name, Object* obj) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_suspect) return;
+  String* class_name = obj->IsJSObject()
+                       ? JSObject::cast(obj)->class_name()
+                       : Heap::empty_string();
   ScopedLock sl(mutex_);
   fprintf(logfile_, "suspect-read,");
-  obj->PrintOn(logfile_);
+  class_name->PrintOn(logfile_);
   fprintf(logfile_, ",\"");
   name->PrintOn(logfile_);
   fprintf(logfile_, "\"\n");
