@@ -3212,6 +3212,7 @@ class String: public HeapObject {
 
   // Max ascii char code.
   static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
+  static const int kMaxUC16CharCode = 0xffff;
 
   // Minimum length for a cons or sliced string.
   static const int kMinNonFlatLength = 13;

@@ -48,6 +48,9 @@ namespace v8 { namespace internal {
 const int kGetterIndex = 0;
 const int kSetterIndex = 1;
 
+const int String::kMaxAsciiCharCode;
+const int String::kMaxUC16CharCode;
+
 bool Object::IsInstanceOf(FunctionTemplateInfo* expected) {
   // There is a constraint on the object; check
   if (!this->IsJSObject()) return false;

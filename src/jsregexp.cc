@@ -883,12 +883,13 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
 
   int tag = Smi::cast(irregexp->get(kIrregexpImplementationIndex))->value();
 
+  if (!subject->IsFlat(StringShape(*subject))) {
+    FlattenString(subject);
+  }
+
   switch (tag) {
     case RegExpMacroAssembler::kIA32Implementation: {
 #ifndef ARM
-      if (!subject->IsFlat(StringShape(*subject))) {
-        FlattenString(subject);
-      }
       Handle<Code> code = IrregexpNativeCode(irregexp);
 
       StringShape shape(*subject);
@@ -962,10 +963,8 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
       }
       Handle<ByteArray> byte_codes = IrregexpByteCode(irregexp);
 
-      Handle<String> two_byte_subject = CachedStringToTwoByte(subject);
-
       rc = IrregexpInterpreter::Match(byte_codes,
-                                      two_byte_subject,
+                                      subject,
                                       offsets_vector,
                                       previous_index);
       break;
@@ -1191,7 +1190,7 @@ DispatchTable* ChoiceNode::GetTable(bool ignore_case) {
 
 class RegExpCompiler {
  public:
-  RegExpCompiler(int capture_count, bool ignore_case);
+  RegExpCompiler(int capture_count, bool ignore_case, bool is_ascii);
 
   int AllocateRegister() { return next_register_++; }
 
@@ -1215,6 +1214,7 @@ class RegExpCompiler {
   inline void DecrementRecursionDepth() { recursion_depth_--; }
 
   inline bool ignore_case() { return ignore_case_; }
+  inline bool ascii() { return ascii_; }
 
  private:
   EndNode* accept_;
@@ -1223,6 +1223,7 @@ class RegExpCompiler {
   int recursion_depth_;
   RegExpMacroAssembler* macro_assembler_;
   bool ignore_case_;
+  bool ascii_;
 };
 
 
@@ -1239,11 +1240,12 @@ class RecursionCheck {
 
 // Attempts to compile the regexp using an Irregexp code generator.  Returns
 // a fixed array or a null handle depending on whether it succeeded.
-RegExpCompiler::RegExpCompiler(int capture_count, bool ignore_case)
+RegExpCompiler::RegExpCompiler(int capture_count, bool ignore_case, bool ascii)
     : next_register_(2 * (capture_count + 1)),
       work_list_(NULL),
       recursion_depth_(0),
-      ignore_case_(ignore_case) {
+      ignore_case_(ignore_case),
+      ascii_(ascii) {
   accept_ = new EndNode(EndNode::ACCEPT);
 }
 
@@ -1682,7 +1684,6 @@ static inline void EmitAtomLetters(
                                       chars[0],
                                       chars[1],
                                       on_failure)) {
-          ok.Unuse();
         } else {
           macro_assembler->CheckCharacter(chars[0], &ok);
           macro_assembler->CheckNotCharacter(chars[1], on_failure);
@@ -1711,8 +1712,12 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
                           RegExpCharacterClass* cc,
                           int cp_offset,
                           Label* on_failure,
-                          bool check_offset) {
+                          bool check_offset,
+                          bool ascii) {
   ZoneList<CharacterRange>* ranges = cc->ranges();
+  const int max_char = ascii ?
+                       String::kMaxAsciiCharCode :
+                       String::kMaxUC16CharCode;
 
   Label success;
 
@@ -1721,16 +1726,27 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
 
   int range_count = ranges->length();
 
-  if (range_count == 0) {
+  int last_valid_range = range_count - 1;
+  while (last_valid_range >= 0) {
+    CharacterRange& range = ranges->at(last_valid_range);
+    if (range.from() <= max_char) {
+      break;
+    }
+    last_valid_range--;
+  }
+
+  if (last_valid_range < 0) {
     if (!cc->is_negated()) {
+      // TODO(plesner): We can remove this when the node level does our
+      // ASCII optimizations for us.
       macro_assembler->GoTo(on_failure);
     }
     return;
   }
 
-  if (range_count == 1 &&
+  if (last_valid_range == 0 &&
       !cc->is_negated() &&
-      ranges->at(0).IsEverything(0xffff)) {
+      ranges->at(0).IsEverything(max_char)) {
     // This is a common case hit by non-anchored expressions.
     // TODO(erikcorry): We should have a macro assembler instruction that just
     // checks for end of string without loading the character.
@@ -1748,18 +1764,22 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     macro_assembler->LoadCurrentCharacterUnchecked(cp_offset);
   }
 
-  for (int i = 0; i < range_count - 1; i++) {
+  for (int i = 0; i <= last_valid_range; i++) {
     CharacterRange& range = ranges->at(i);
     Label next_range;
     uc16 from = range.from();
     uc16 to = range.to();
+    if (from > max_char) {
+      continue;
+    }
+    if (to > max_char) to = max_char;
     if (to == from) {
       macro_assembler->CheckCharacter(to, char_is_in_class);
     } else {
       if (from != 0) {
         macro_assembler->CheckCharacterLT(from, &next_range);
       }
-      if (to != 0xffff) {
+      if (to != max_char) {
         macro_assembler->CheckCharacterLT(to + 1, char_is_in_class);
       } else {
         macro_assembler->GoTo(char_is_in_class);
@@ -1768,9 +1788,12 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     macro_assembler->Bind(&next_range);
   }
 
-  CharacterRange& range = ranges->at(range_count - 1);
+  CharacterRange& range = ranges->at(last_valid_range);
   uc16 from = range.from();
   uc16 to = range.to();
+
+  if (to > max_char) to = max_char;
+  ASSERT(to >= from);
 
   if (to == from) {
     if (cc->is_negated()) {
@@ -1786,7 +1809,7 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
         macro_assembler->CheckCharacterLT(from, on_failure);
       }
     }
-    if (to != 0xffff) {
+    if (to != String::kMaxUC16CharCode) {
       if (cc->is_negated()) {
         macro_assembler->CheckCharacterLT(to + 1, on_failure);
       } else {
@@ -1875,7 +1898,25 @@ bool TextNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
     macro_assembler->GoTo(backtrack);
     return true;
   }
-  // First, handle straight character matches.
+  // First check for non-ASCII text.
+  // TODO(plesner): We should do this at node level.
+  if (compiler->ascii()) {
+    for (int i = element_count - 1; i >= 0; i--) {
+      TextElement elm = elms_->at(i);
+      if (elm.type == TextElement::ATOM) {
+        Vector<const uc16> quarks = elm.data.u_atom->data();
+        for (int j = quarks.length() - 1; j >= 0; j--) {
+          if (quarks[j] > String::kMaxAsciiCharCode) {
+            macro_assembler->GoTo(backtrack);
+            return true;
+          }
+        }
+      } else {
+        ASSERT_EQ(elm.type, TextElement::CHAR_CLASS);
+      }
+    }
+  }
+  // Second, handle straight character matches.
   int checked_up_to = -1;
   for (int i = element_count - 1; i >= 0; i--) {
     TextElement elm = elms_->at(i);
@@ -1902,7 +1943,7 @@ bool TextNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
       ASSERT_EQ(elm.type, TextElement::CHAR_CLASS);
     }
   }
-  // Second, handle case independent letter matches if any.
+  // Third, handle case independent letter matches if any.
   if (compiler->ignore_case()) {
     for (int i = element_count - 1; i >= 0; i--) {
       TextElement elm = elms_->at(i);
@@ -1930,7 +1971,8 @@ bool TextNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
                     cc,
                     cp_offset,
                     backtrack,
-                    checked_up_to < cp_offset);
+                    checked_up_to < cp_offset,
+                    compiler->ascii());
       if (cp_offset > checked_up_to) checked_up_to = cp_offset;
     }
   }
@@ -2791,7 +2833,7 @@ static void AddClassNegated(const uc16 *elmv,
                             int elmc,
                             ZoneList<CharacterRange>* ranges) {
   ASSERT(elmv[0] != 0x0000);
-  ASSERT(elmv[elmc-1] != 0xFFFF);
+  ASSERT(elmv[elmc-1] != String::kMaxUC16CharCode);
   uc16 last = 0x0000;
   for (int i = 0; i < elmc; i += 2) {
     ASSERT(last <= elmv[i] - 1);
@@ -2799,7 +2841,7 @@ static void AddClassNegated(const uc16 *elmv,
     ranges->Add(CharacterRange(last, elmv[i] - 1));
     last = elmv[i + 1] + 1;
   }
-  ranges->Add(CharacterRange(last, 0xFFFF));
+  ranges->Add(CharacterRange(last, String::kMaxUC16CharCode));
 }
 
 
@@ -3187,7 +3229,7 @@ void DispatchTable::AddRange(CharacterRange full_range, int value) {
       entry->AddValue(value);
       // Bail out if the last interval ended at 0xFFFF since otherwise
       // adding 1 will wrap around to 0.
-      if (entry->to() == 0xFFFF)
+      if (entry->to() == String::kMaxUC16CharCode)
         break;
       ASSERT(entry->to() + 1 > current.from());
       current.set_from(entry->to() + 1);
@@ -3562,14 +3604,14 @@ void DispatchTableConstructor::AddInverse(ZoneList<CharacterRange>* ranges) {
     if (last < range.from())
       AddRange(CharacterRange(last, range.from() - 1));
     if (range.to() >= last) {
-      if (range.to() == 0xFFFF) {
+      if (range.to() == String::kMaxUC16CharCode) {
         return;
       } else {
         last = range.to() + 1;
       }
     }
   }
-  AddRange(CharacterRange(last, 0xFFFF));
+  AddRange(CharacterRange(last, String::kMaxUC16CharCode));
 }
 
 
@@ -3611,7 +3653,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
                                          bool is_multiline,
                                          Handle<String> pattern,
                                          bool is_ascii) {
-  RegExpCompiler compiler(input->capture_count, ignore_case);
+  RegExpCompiler compiler(input->capture_count, ignore_case, is_ascii);
   // Wrap the body of the regexp in capture #0.
   RegExpNode* captured_body = RegExpCapture::ToNode(input->tree,
                                                     0,
