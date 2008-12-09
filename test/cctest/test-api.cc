@@ -1810,6 +1810,21 @@ v8::Handle<Value> JSCheck(const v8::Arguments& args) {
 }
 
 
+THREADED_TEST(EvalInTryFinally) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  CompileRun("(function() {"
+             "  try {"
+             "    eval('asldkf (*&^&*^');"
+             "  } finally {"
+             "    return;"
+             "  }"
+             "})()");
+  CHECK(!try_catch.HasCaught());
+}
+
+
 // This test works by making a stack of alternating JavaScript and C
 // activations.  These activations set up exception handlers with regular
 // intervals, one interval for C activations and another for JavaScript
