@@ -749,46 +749,31 @@ void Top::ReportUncaughtException(Handle<Object> exception,
 
 
 bool Top::ShouldReportException(bool* is_caught_externally) {
+  // Find the top-most try-catch handler.
   StackHandler* handler =
       StackHandler::FromAddress(Top::handler(Top::GetCurrentThread()));
-
-  // Determine if we have an external exception handler and get the
-  // address of the external handler so we can compare the address to
-  // determine which one is closer to the top of the stack.
-  bool has_external_handler = (thread_local_.try_catch_handler_ != NULL);
-  v8::TryCatch* try_catch = thread_local_.try_catch_handler_;
-
-  // NOTE: The stack is assumed to grown towards lower addresses. If
-  // the handler is at a higher address than the external address it
-  // means that it is below it on the stack.
-
-  // Find the top-most try-catch handler.
   while (handler != NULL && !handler->is_try_catch()) {
     handler = handler->next();
   }
+
+  // Get the address of the external handler so we can compare the address to
+  // determine which one is closer to the top of the stack.
+  v8::TryCatch* try_catch = thread_local_.try_catch_handler_;
 
   // The exception has been externally caught if and only if there is
   // an external handler which is on top of the top-most try-catch
   // handler.
   //
   // See comments in RegisterTryCatchHandler for details.
-  *is_caught_externally = has_external_handler &&
+  *is_caught_externally = try_catch != NULL &&
       (handler == NULL || handler == try_catch->js_handler_);
 
-  // If we have a try-catch handler then the exception is caught in
-  // JavaScript code.
-  bool is_uncaught_by_js = (handler == NULL);
-
-  // If there is no external try-catch handler, we report the
-  // exception if it isn't caught by JavaScript code.
-  if (!has_external_handler) return is_uncaught_by_js;
-
-  if (is_uncaught_by_js || handler == try_catch->js_handler_) {
+  if (*is_caught_externally) {
     // Only report the exception if the external handler is verbose.
     return thread_local_.try_catch_handler_->is_verbose_;
   } else {
     // Report the exception if it isn't caught by JavaScript code.
-    return is_uncaught_by_js;
+    return handler == NULL;
   }
 }
 
