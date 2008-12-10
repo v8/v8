@@ -672,6 +672,14 @@ class Assembler : public Malloced {
   // Patch branch instruction at pos to branch to given branch target pos
   void target_at_put(int pos, int target_pos);
 
+  // Check if is time to emit a constant pool for pending reloc info entries
+  void CheckConstPool(bool force_emit, bool require_jump);
+
+  // Block the emission of the constant pool before pc_offset
+  void BlockConstPoolBefore(int pc_offset) {
+    if (no_const_pool_before_ < pc_offset) no_const_pool_before_ = pc_offset;
+  }
+
  private:
   // Code buffer:
   // The buffer into which code and relocation info are generated.
@@ -769,14 +777,6 @@ class Assembler : public Malloced {
 
   // Record reloc info for current pc_
   void RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data = 0);
-
-  // Check if is time to emit a constant pool for pending reloc info entries
-  void CheckConstPool(bool force_emit, bool require_jump);
-
-  // Block the emission of the constant pool before pc_offset
-  void BlockConstPoolBefore(int pc_offset) {
-    if (no_const_pool_before_ < pc_offset) no_const_pool_before_ = pc_offset;
-  }
 };
 
 } }  // namespace v8::internal

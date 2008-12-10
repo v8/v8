@@ -87,7 +87,8 @@ class MacroAssembler: public Assembler {
   void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
   void Call(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   void Ret();
-
+  // Jumps to the label at the index given by the Smi in "index".
+  void SmiJumpTable(Register index, Vector<Label*> targets);
 
   // Sets the remembered set bit for [address+offset], where address is the
   // address of the heap object 'object'.  The address must be in the first 8K
