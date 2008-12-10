@@ -3681,29 +3681,81 @@ TEST(AccessControlIC) {
   v8::Handle<Value> value;
 
   // Check that the named access-control function is called every time.
-  value = v8_compile("for (var i = 0; i < 10; i++)  obj.prop = 1;")->Run();
-  value = v8_compile("for (var i = 0; i < 10; i++)  obj.prop;"
-                     "obj.prop")->Run();
+  CompileRun("function testProp(obj) {"
+             "  for (var i = 0; i < 10; i++) obj.prop = 1;"
+             "  for (var j = 0; j < 10; j++) obj.prop;"
+             "  return obj.prop"
+             "}");
+  value = CompileRun("testProp(obj)");
   CHECK(value->IsNumber());
   CHECK_EQ(1, value->Int32Value());
   CHECK_EQ(21, named_access_count);
 
   // Check that the named access-control function is called every time.
-  value = v8_compile("var p = 'prop';")->Run();
-  value = v8_compile("for (var i = 0; i < 10; i++) obj[p] = 1;")->Run();
-  value = v8_compile("for (var i = 0; i < 10; i++) obj[p];"
-                     "obj[p]")->Run();
+  CompileRun("var p = 'prop';"
+             "function testKeyed(obj) {"
+             "  for (var i = 0; i < 10; i++) obj[p] = 1;"
+             "  for (var j = 0; j < 10; j++) obj[p];"
+             "  return obj[p];"
+             "}");
+  // Use obj which requires access checks.  No inline caching is used
+  // in that case.
+  value = CompileRun("testKeyed(obj)");
   CHECK(value->IsNumber());
   CHECK_EQ(1, value->Int32Value());
   CHECK_EQ(42, named_access_count);
+  // Force the inline caches into generic state and try again.
+  CompileRun("testKeyed({ a: 0 })");
+  CompileRun("testKeyed({ b: 0 })");
+  value = CompileRun("testKeyed(obj)");
+  CHECK(value->IsNumber());
+  CHECK_EQ(1, value->Int32Value());
+  CHECK_EQ(63, named_access_count);
 
   // Check that the indexed access-control function is called every time.
-  value = v8_compile("for (var i = 0; i < 10; i++) obj[0] = 1;")->Run();
-  value = v8_compile("for (var i = 0; i < 10; i++) obj[0];"
-                     "obj[0]")->Run();
+  CompileRun("function testIndexed(obj) {"
+             "  for (var i = 0; i < 10; i++) obj[0] = 1;"
+             "  for (var j = 0; j < 10; j++) obj[0];"
+             "  return obj[0]"
+             "}");
+  value = CompileRun("testIndexed(obj)");
   CHECK(value->IsNumber());
   CHECK_EQ(1, value->Int32Value());
   CHECK_EQ(21, indexed_access_count);
+  // Force the inline caches into generic state.
+  CompileRun("testIndexed(new Array(1))");
+  // Test that the indexed access check is called.
+  value = CompileRun("testIndexed(obj)");
+  CHECK(value->IsNumber());
+  CHECK_EQ(1, value->Int32Value());
+  CHECK_EQ(42, indexed_access_count);
+
+  // Check that the named access check is called when invoking
+  // functions on an object that requires access checks.
+  CompileRun("obj.f = function() {}");
+  CompileRun("function testCallNormal(obj) {"
+             "  for (var i = 0; i < 10; i++) obj.f();"
+             "}");
+  CompileRun("testCallNormal(obj)");
+  CHECK_EQ(74, named_access_count);
+
+  // Force obj into slow case.
+  value = CompileRun("delete obj.prop");
+  CHECK(value->BooleanValue());
+  // Force inline caches into dictionary probing mode.
+  CompileRun("var o = { x: 0 }; delete o.x; testProp(o);");
+  // Test that the named access check is called.
+  value = CompileRun("testProp(obj);");
+  CHECK(value->IsNumber());
+  CHECK_EQ(1, value->Int32Value());
+  CHECK_EQ(96, named_access_count);
+
+  // Force the call inline cache into dictionary probing mode.
+  CompileRun("o.f = function() {}; testCallNormal(o)");
+  // Test that the named access check is still called for each
+  // invocation of the function.
+  value = CompileRun("testCallNormal(obj)");
+  CHECK_EQ(106, named_access_count);
 
   context1->Exit();
   context0->Exit();

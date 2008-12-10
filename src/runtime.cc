@@ -1733,13 +1733,19 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
   ASSERT(args.length() == 2);
 
   // Fast cases for getting named properties of the receiver JSObject
-  // itself. The global proxy objects has to be excluded since
-  // LocalLookup on the global proxy object can return a valid result
-  // eventhough the global proxy object never has properties.  This is
-  // the case because the global proxy object forwards everything to
-  // its hidden prototype including local lookups.
+  // itself.
+  //
+  // The global proxy objects has to be excluded since LocalLookup on
+  // the global proxy object can return a valid result eventhough the
+  // global proxy object never has properties.  This is the case
+  // because the global proxy object forwards everything to its hidden
+  // prototype including local lookups.
+  //
+  // Additionally, we need to make sure that we do not cache results
+  // for objects that require access checks.
   if (args[0]->IsJSObject() &&
       !args[0]->IsJSGlobalProxy() &&
+      !args[0]->IsAccessCheckNeeded() &&
       args[1]->IsString()) {
     JSObject* receiver = JSObject::cast(args[0]);
     String* key = String::cast(args[1]);

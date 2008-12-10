@@ -317,8 +317,8 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ b(eq, &miss);
 
   // Check that the receiver is a valid JS object.
-  __ ldr(r0, FieldMemOperand(r1, HeapObject::kMapOffset));
-  __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldrb(r0, FieldMemOperand(r3, Map::kInstanceTypeOffset));
   __ cmp(r0, Operand(FIRST_JS_OBJECT_TYPE));
   __ b(lt, &miss);
 
@@ -333,6 +333,10 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Accessing global object: Load and invoke.
   __ bind(&global_object);
+  // Check that the global object does not require access checks.
+  __ ldrb(r3, FieldMemOperand(r3, Map::kBitFieldOffset));
+  __ tst(r3, Operand(1 << Map::kIsAccessCheckNeeded));
+  __ b(ne, &miss);
   GenerateNormalHelper(masm, argc, true, &miss);
 
   // Accessing non-global object: Check for access to global proxy.
@@ -340,6 +344,11 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ bind(&non_global_object);
   __ cmp(r0, Operand(JS_GLOBAL_PROXY_TYPE));
   __ b(eq, &global_proxy);
+  // Check that the non-global, non-global-proxy object does not
+  // require access checks.
+  __ ldrb(r3, FieldMemOperand(r3, Map::kBitFieldOffset));
+  __ tst(r3, Operand(1 << Map::kIsAccessCheckNeeded));
+  __ b(ne, &miss);
   __ bind(&invoke);
   GenerateNormalHelper(masm, argc, false, &miss);
 
@@ -441,8 +450,8 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   __ b(eq, &miss);
 
   // Check that the receiver is a valid JS object.
-  __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
-  __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
+  __ ldr(r3, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ ldrb(r1, FieldMemOperand(r3, Map::kInstanceTypeOffset));
   __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
   __ b(lt, &miss);
   // If this assert fails, we have to check upper bound too.
@@ -451,6 +460,11 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // Check for access to global object (unlikely).
   __ cmp(r1, Operand(JS_GLOBAL_PROXY_TYPE));
   __ b(eq, &global);
+
+  // Check for non-global object that requires access check.
+  __ ldrb(r3, FieldMemOperand(r3, Map::kBitFieldOffset));
+  __ tst(r3, Operand(1 << Map::kIsAccessCheckNeeded));
+  __ b(ne, &miss);
 
   __ bind(&probe);
   GenerateDictionaryLoad(masm, &miss, r1, r0);
@@ -525,12 +539,19 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ tst(r1, Operand(kSmiTagMask));
   __ b(eq, &slow);
 
+  // Get the map of the receiver.
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  // Check that the receiver does not require access checks.  We need
+  // to check this explicitly since this generic stub does not perform
+  // map checks.
+  __ ldrb(r3, FieldMemOperand(r2, Map::kBitFieldOffset));
+  __ tst(r3, Operand(1 << Map::kIsAccessCheckNeeded));
+  __ b(ne, &slow);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
   // we enter the runtime system to make sure that indexing into string
   // objects work as intended.
   ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
-  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
   __ cmp(r2, Operand(JS_OBJECT_TYPE));
   __ b(lt, &slow);
@@ -597,10 +618,15 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Check that the object isn't a smi.
   __ tst(r3, Operand(kSmiTagMask));
   __ b(eq, &slow);
-  // Get the type of the object from its map.
+  // Get the map of the object.
   __ ldr(r2, FieldMemOperand(r3, HeapObject::kMapOffset));
-  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
+  // Check that the receiver does not require access checks.  We need
+  // to do this because this generic stub does not perform map checks.
+  __ ldrb(ip, FieldMemOperand(r2, Map::kBitFieldOffset));
+  __ tst(ip, Operand(1 << Map::kIsAccessCheckNeeded));
+  __ b(ne, &slow);
   // Check if the object is a JS array or not.
+  __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
   __ cmp(r2, Operand(JS_ARRAY_TYPE));
   // r1 == key.
   __ b(eq, &array);
