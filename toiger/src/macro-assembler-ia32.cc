@@ -603,6 +603,19 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::NegativeZeroTest(CodeGenerator* cgen,
+                                      Register result,
+                                      Register op,
+                                      JumpTarget* then_target) {
+  JumpTarget ok(cgen);
+  test(result, Operand(result));
+  ok.Branch(not_zero, taken);
+  test(op, Operand(op));
+  then_target->Branch(sign, not_taken);
+  ok.Bind();
+}
+
+
 void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {

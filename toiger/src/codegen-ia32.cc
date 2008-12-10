@@ -306,9 +306,13 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   ASSERT(!function_return_is_shadowed_);
   function_return_.Unuse();
   ASSERT(!has_cc());
+  DeleteFrame();
+
+  // Process any deferred code using the register allocator.
+  ProcessDeferred();
+
   // There is no need to delete the register allocator, it is a
   // stack-allocated local.
-  DeleteFrame();
   allocator_ = NULL;
   scope_ = NULL;
 }
@@ -696,11 +700,12 @@ class DeferredInlineBinaryOperation: public DeferredCode {
                                 Token::Value op,
                                 OverwriteMode mode,
                                 GenericBinaryFlags flags)
-      : DeferredCode(generator), stub_(op, mode, flags) { }
-
-  void GenerateInlineCode() {
-    stub_.GenerateSmiCode(masm(), enter());
+      : DeferredCode(generator),
+        stub_(op, mode, flags),
+        op_(op) {
   }
+
+  void GenerateInlineCode();
 
   virtual void Generate() {
     __ push(ebx);
@@ -714,6 +719,7 @@ class DeferredInlineBinaryOperation: public DeferredCode {
 
  private:
   GenericBinaryOpStub stub_;
+  Token::Value op_;
 };
 
 
@@ -769,7 +775,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // the deferred code jump back before the assignment to the frame
     // top, but this is just to let the peephole optimizer get rid of
     // more code.
-    __ bind(deferred->exit());
+    deferred->exit()->Bind();
     __ mov(frame_->Top(), eax);
   } else {
     // Call the stub and push the result to the stack.
@@ -954,10 +960,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
       }
       frame_->EmitPop(eax);
       __ add(Operand(eax), Immediate(value));
-      __ j(overflow, deferred->enter(), not_taken);
+      deferred->enter()->Branch(overflow, not_taken);
       __ test(eax, Immediate(kSmiTagMask));
-      __ j(not_zero, deferred->enter(), not_taken);
-      __ bind(deferred->exit());
+      deferred->enter()->Branch(not_zero, not_taken);
+      deferred->exit()->Bind();
       frame_->EmitPush(eax);
       break;
     }
@@ -974,10 +980,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ mov(eax, Immediate(value));
         __ sub(eax, Operand(edx));
       }
-      __ j(overflow, deferred->enter(), not_taken);
+      deferred->enter()->Branch(overflow, not_taken);
       __ test(eax, Immediate(kSmiTagMask));
-      __ j(not_zero, deferred->enter(), not_taken);
-      __ bind(deferred->exit());
+      deferred->enter()->Branch(not_zero, not_taken);
+      deferred->exit()->Bind();
       frame_->EmitPush(eax);
       break;
     }
@@ -995,10 +1001,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
                                           overwrite_mode);
         frame_->EmitPop(eax);
         __ test(eax, Immediate(kSmiTagMask));
-        __ j(not_zero, deferred->enter(), not_taken);
+        deferred->enter()->Branch(not_zero, not_taken);
         __ sar(eax, shift_value);
         __ and_(eax, ~kSmiTagMask);
-        __ bind(deferred->exit());
+        deferred->exit()->Bind();
         frame_->EmitPush(eax);
       }
       break;
@@ -1018,15 +1024,15 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->EmitPop(eax);
         __ test(eax, Immediate(kSmiTagMask));
         __ mov(ebx, Operand(eax));
-        __ j(not_zero, deferred->enter(), not_taken);
+        deferred->enter()->Branch(not_zero, not_taken);
         __ sar(ebx, kSmiTagSize);
         __ shr(ebx, shift_value);
         __ test(ebx, Immediate(0xc0000000));
-        __ j(not_zero, deferred->enter(), not_taken);
+        deferred->enter()->Branch(not_zero, not_taken);
         // tag result and store it in TOS (eax)
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
         __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
-        __ bind(deferred->exit());
+        deferred->exit()->Bind();
         frame_->EmitPush(eax);
       }
       break;
@@ -1046,16 +1052,16 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->EmitPop(eax);
         __ test(eax, Immediate(kSmiTagMask));
         __ mov(ebx, Operand(eax));
-        __ j(not_zero, deferred->enter(), not_taken);
+        deferred->enter()->Branch(not_zero, not_taken);
         __ sar(ebx, kSmiTagSize);
         __ shl(ebx, shift_value);
         __ lea(ecx, Operand(ebx, 0x40000000));
         __ test(ecx, Immediate(0x80000000));
-        __ j(not_zero, deferred->enter(), not_taken);
+        deferred->enter()->Branch(not_zero, not_taken);
         // tag result and store it in TOS (eax)
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
         __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
-        __ bind(deferred->exit());
+        deferred->exit()->Bind();
         frame_->EmitPush(eax);
       }
       break;
@@ -1074,7 +1080,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       }
       frame_->EmitPop(eax);
       __ test(eax, Immediate(kSmiTagMask));
-      __ j(not_zero, deferred->enter(), not_taken);
+      deferred->enter()->Branch(not_zero, not_taken);
       if (op == Token::BIT_AND) {
         __ and_(Operand(eax), Immediate(value));
       } else if (op == Token::BIT_XOR) {
@@ -1083,7 +1089,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         ASSERT(op == Token::BIT_OR);
         __ or_(Operand(eax), Immediate(value));
       }
-      __ bind(deferred->exit());
+      deferred->exit()->Bind();
       frame_->EmitPush(eax);
       break;
     }
@@ -1216,10 +1222,10 @@ void CodeGenerator::SmiComparison(Condition cc,
       new SmiComparisonDeferred(this, cc, strict, int_value);
   frame_->EmitPop(eax);
   __ test(eax, Immediate(kSmiTagMask));
-  __ j(not_zero, deferred->enter(), not_taken);
+  deferred->enter()->Branch(not_zero, not_taken);
   // Test smi equality by pointer comparison.
   __ cmp(Operand(eax), Immediate(value));
-  __ bind(deferred->exit());
+  deferred->exit()->Bind();
   cc_reg_ = cc;
 }
 
@@ -2703,8 +2709,8 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   // Check whether we need to materialize the RegExp object.
   // If so, jump to the deferred code.
   __ cmp(ebx, Factory::undefined_value());
-  __ j(equal, deferred->enter(), not_taken);
-  __ bind(deferred->exit());
+  deferred->enter()->Branch(equal, not_taken);
+  deferred->exit()->Bind();
 
   // Push the literal.
   frame_->EmitPush(ebx);
@@ -2764,8 +2770,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // Check whether we need to materialize the object literal boilerplate.
   // If so, jump to the deferred code.
   __ cmp(ebx, Factory::undefined_value());
-  __ j(equal, deferred->enter(), not_taken);
-  __ bind(deferred->exit());
+  deferred->enter()->Branch(equal, not_taken);
+  deferred->exit()->Bind();
 
   // Push the literal.
   frame_->EmitPush(ebx);
@@ -3767,12 +3773,12 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     // If the count operation didn't overflow and the result is a
     // valid smi, we're done. Otherwise, we jump to the deferred
     // slow-case code.
-    __ j(overflow, deferred->enter(), not_taken);
+    deferred->enter()->Branch(overflow, not_taken);
     __ test(eax, Immediate(kSmiTagMask));
-    __ j(not_zero, deferred->enter(), not_taken);
+    deferred->enter()->Branch(not_zero, not_taken);
 
     // Store the new value in the target if not const.
-    __ bind(deferred->exit());
+    deferred->exit()->Bind();
     frame_->EmitPush(eax);  // Push the new value to TOS
     if (!is_const) target.SetValue(NOT_CONST_INIT);
   }
@@ -4368,6 +4374,162 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ ret(1 * kPointerSize);
 }
 
+
+#undef __
+#define __ masm_->
+
+// This function's implementation is a copy of
+// GenericBinaryOpStub::GenerateSmiCode, with the slow-case label replaced
+// with the deferred code's entry target.  The duplicated code is a
+// temporary intermediate stage on the way to using the virtual frame in
+// more places.
+void DeferredInlineBinaryOperation::GenerateInlineCode() {
+  // Perform fast-case smi code for the operation (eax <op> ebx) and
+  // leave result in register eax.
+
+  // Prepare the smi check of both operands by or'ing them together
+  // before checking against the smi mask.
+  __ mov(ecx, Operand(ebx));
+  __ or_(ecx, Operand(eax));
+
+  switch (op_) {
+    case Token::ADD:
+      __ add(eax, Operand(ebx));  // add optimistically
+      enter()->Branch(overflow, not_taken);
+      break;
+
+    case Token::SUB:
+      __ sub(eax, Operand(ebx));  // subtract optimistically
+      enter()->Branch(overflow, not_taken);
+      break;
+
+    case Token::DIV:
+    case Token::MOD:
+      // Sign extend eax into edx:eax.
+      __ cdq();
+      // Check for 0 divisor.
+      __ test(ebx, Operand(ebx));
+      enter()->Branch(zero, not_taken);
+      break;
+
+    default:
+      // Fall-through to smi check.
+      break;
+  }
+
+  // Perform the actual smi check.
+  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
+  __ test(ecx, Immediate(kSmiTagMask));
+  enter()->Branch(not_zero, not_taken);
+
+  switch (op_) {
+    case Token::ADD:
+    case Token::SUB:
+      // Do nothing here.
+      break;
+
+    case Token::MUL:
+      // If the smi tag is 0 we can just leave the tag on one operand.
+      ASSERT(kSmiTag == 0);  // adjust code below if not the case
+      // Remove tag from one of the operands (but keep sign).
+      __ sar(eax, kSmiTagSize);
+      // Do multiplication.
+      __ imul(eax, Operand(ebx));  // multiplication of smis; result in eax
+      // Go slow on overflows.
+      enter()->Branch(overflow, not_taken);
+      // Check for negative zero result.  Use ecx = x | y.
+      __ NegativeZeroTest(generator(), eax, ecx, enter());
+      break;
+
+    case Token::DIV:
+      // Divide edx:eax by ebx.
+      __ idiv(ebx);
+      // Check for the corner case of dividing the most negative smi
+      // by -1. We cannot use the overflow flag, since it is not set
+      // by idiv instruction.
+      ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
+      __ cmp(eax, 0x40000000);
+      enter()->Branch(equal);
+      // Check for negative zero result.  Use ecx = x | y.
+      __ NegativeZeroTest(generator(), eax, ecx, enter());
+      // Check that the remainder is zero.
+      __ test(edx, Operand(edx));
+      enter()->Branch(not_zero);
+      // Tag the result and store it in register eax.
+      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
+      break;
+
+    case Token::MOD:
+      // Divide edx:eax by ebx.
+      __ idiv(ebx);
+      // Check for negative zero result.  Use ecx = x | y.
+      __ NegativeZeroTest(generator(), edx, ecx, enter());
+      // Move remainder to register eax.
+      __ mov(eax, Operand(edx));
+      break;
+
+    case Token::BIT_OR:
+      __ or_(eax, Operand(ebx));
+      break;
+
+    case Token::BIT_AND:
+      __ and_(eax, Operand(ebx));
+      break;
+
+    case Token::BIT_XOR:
+      __ xor_(eax, Operand(ebx));
+      break;
+
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR:
+      // Move the second operand into register ecx.
+      __ mov(ecx, Operand(ebx));
+      // Remove tags from operands (but keep sign).
+      __ sar(eax, kSmiTagSize);
+      __ sar(ecx, kSmiTagSize);
+      // Perform the operation.
+      switch (op_) {
+        case Token::SAR:
+          __ sar(eax);
+          // No checks of result necessary
+          break;
+        case Token::SHR:
+          __ shr(eax);
+          // Check that the *unsigned* result fits in a smi.
+          // Neither of the two high-order bits can be set:
+          // - 0x80000000: high bit would be lost when smi tagging.
+          // - 0x40000000: this number would convert to negative when
+          // Smi tagging these two cases can only happen with shifts
+          // by 0 or 1 when handed a valid smi.
+          __ test(eax, Immediate(0xc0000000));
+          enter()->Branch(not_zero, not_taken);
+          break;
+        case Token::SHL:
+          __ shl(eax);
+          // Check that the *signed* result fits in a smi.
+          __ lea(ecx, Operand(eax, 0x40000000));
+          __ test(ecx, Immediate(0x80000000));
+          enter()->Branch(not_zero, not_taken);
+          break;
+        default:
+          UNREACHABLE();
+      }
+      // Tag the result and store it in register eax.
+      ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
+      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
+      break;
+
+    default:
+      UNREACHABLE();
+      break;
+  }
+}
+
+
+#undef __
+#define __ masm->
 
 void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
   // Perform fast-case smi code for the operation (eax <op> ebx) and

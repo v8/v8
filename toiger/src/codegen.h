@@ -88,8 +88,8 @@ class DeferredCode: public ZoneObject {
   MacroAssembler* masm() const { return masm_; }
   CodeGenerator* generator() const { return generator_; }
 
-  Label* enter() { return &enter_; }
-  Label* exit() { return &exit_; }
+  JumpTarget* enter() { return &enter_; }
+  JumpTarget* exit() { return &exit_; }
 
   int statement_position() const { return statement_position_; }
   int position() const { return position_; }
@@ -110,8 +110,8 @@ class DeferredCode: public ZoneObject {
 
  private:
   CodeGenerator* const generator_;
-  Label enter_;
-  Label exit_;
+  JumpTarget enter_;
+  JumpTarget exit_;
   int statement_position_;
   int position_;
 #ifdef DEBUG

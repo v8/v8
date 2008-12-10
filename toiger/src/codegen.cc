@@ -40,6 +40,8 @@ namespace v8 { namespace internal {
 DeferredCode::DeferredCode(CodeGenerator* generator)
   : masm_(generator->masm()),
     generator_(generator),
+    enter_(generator),
+    exit_(generator),
     statement_position_(masm_->last_statement_position()),
     position_(masm_->last_position()) {
   generator->AddDeferred(this);
@@ -61,11 +63,11 @@ void CodeGenerator::ProcessDeferred() {
       masm->RecordPosition(code->position());
     }
     // Bind labels and generate the code.
-    masm->bind(code->enter());
+    code->enter()->Bind();
     Comment cmnt(masm, code->comment());
     code->Generate();
     if (code->exit()->is_bound()) {
-      masm->jmp(code->exit());  // platform independent?
+      code->exit()->Jump();
     }
   }
 }
@@ -121,9 +123,6 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
     ASSERT(!Top::has_pending_exception());
     return Handle<Code>::null();
   }
-
-  // Process any deferred code.
-  cgen.ProcessDeferred();
 
   // Allocate and install the code.
   CodeDesc desc;

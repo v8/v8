@@ -32,6 +32,9 @@
 
 namespace v8 { namespace internal {
 
+// Forward declaration.
+class JumpTarget;
+
 
 // Helper types to make flags easier to read at call sites.
 enum InvokeFlag {
@@ -178,6 +181,12 @@ class MacroAssembler: public Assembler {
 
   // Check if result is zero and op is negative.
   void NegativeZeroTest(Register result, Register op, Label* then_label);
+
+  // Check if result is zero and op is negative in code using jump targets.
+  void NegativeZeroTest(CodeGenerator* cgen,
+                        Register result,
+                        Register op,
+                        JumpTarget* then_target);
 
   // Check if result is zero and any of op1 and op2 are negative.
   // Register scratch is destroyed, and it must be different from op2.
