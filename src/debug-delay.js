@@ -832,9 +832,15 @@ ExceptionEvent.prototype.eventType = function() {
 };
 
 
+ExceptionEvent.prototype.exception = function() {
+  return this.exception_;
+}
+
+
 ExceptionEvent.prototype.uncaught = function() {
   return this.uncaught_;
 }
+
 
 ExceptionEvent.prototype.func = function() {
   return this.exec_state_.frame(0).func();
@@ -1321,6 +1327,14 @@ DebugCommandProcessor.prototype.clearBreakPointRequest_ = function(request, resp
 DebugCommandProcessor.prototype.backtraceRequest_ = function(request, response) {
   // Get the number of frames.
   var total_frames = this.exec_state_.frameCount();
+
+  // Create simple response if there are no frames.
+  if (total_frames == 0) {
+    response.body = {
+      totalFrames: total_frames
+    }
+    return;
+  }
 
   // Default frame range to include in backtrace.
   var from_index = 0
