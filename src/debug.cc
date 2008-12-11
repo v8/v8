@@ -849,7 +849,12 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
 
 
 void Debug::FloodHandlerWithOneShot() {
+  // Iterate through the JavaScript stack looking for handlers.
   StackFrame::Id id = Top::break_frame_id();
+  if (id == StackFrame::NO_ID) {
+    // If there is no JavaScript stack don't do anything.
+    return;
+  }
   for (JavaScriptFrameIterator it(id); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->HasHandler()) {
@@ -886,6 +891,10 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   // hitting a break point. In other situations (e.g. unhandled exception) the
   // debug frame is not present.
   StackFrame::Id id = Top::break_frame_id();
+  if (id == StackFrame::NO_ID) {
+    // If there is no JavaScript stack don't do anything.
+    return;
+  }
   JavaScriptFrameIterator frames_it(id);
   JavaScriptFrame* frame = frames_it.frame();
 
