@@ -322,6 +322,10 @@ ScriptBreakPoint.prototype.set = function (script) {
   // Convert the line and column into an absolute position within the script.
   var pos = Debug.findScriptSourcePosition(script, this.line(), column);
   
+  // If the position is not found in the script (the script might be shorter
+  // than it used to be) just ignore it.
+  if (pos === null) return;
+  
   // Create a break point object and set the break point.
   break_point = MakeBreakPoint(pos, this.line(), this.column(), this);
   break_point.setIgnoreCount(this.ignoreCount());
@@ -443,7 +447,8 @@ Debug.findFunctionSourcePosition = function(func, opt_line, opt_column) {
 // Returns the character position in a script based on a line number and an
 // optional position within that line.
 Debug.findScriptSourcePosition = function(script, opt_line, opt_column) {
-  return script.locationFromLine(opt_line, opt_column).position;
+  var location = script.locationFromLine(opt_line, opt_column);  
+  return location ? location.position : null;
 }
 
 
@@ -727,6 +732,16 @@ function BreakEvent(exec_state, break_points_hit) {
 }
 
 
+BreakEvent.prototype.executionState = function() {
+  return this.exec_state_;
+};
+
+
+BreakEvent.prototype.eventType = function() {
+  return Debug.DebugEvent.Break;
+};
+
+
 BreakEvent.prototype.func = function() {
   return this.exec_state_.frame(0).func();
 };
@@ -799,15 +814,33 @@ function MakeExceptionEvent(exec_state, exception, uncaught) {
   return new ExceptionEvent(exec_state, exception, uncaught);
 }
 
+
 function ExceptionEvent(exec_state, exception, uncaught) {
   this.exec_state_ = exec_state;
   this.exception_ = exception;
   this.uncaught_ = uncaught;
 }
 
+
+ExceptionEvent.prototype.executionState = function() {
+  return this.exec_state_;
+};
+
+
+ExceptionEvent.prototype.eventType = function() {
+  return Debug.DebugEvent.Exception;
+};
+
+
+ExceptionEvent.prototype.exception = function() {
+  return this.exception_;
+}
+
+
 ExceptionEvent.prototype.uncaught = function() {
   return this.uncaught_;
 }
+
 
 ExceptionEvent.prototype.func = function() {
   return this.exec_state_.frame(0).func();
@@ -855,16 +888,26 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
 };
 
 
-function MakeCompileEvent(script_source, script_name, script_function) {
-  return new CompileEvent(script_source, script_name, script_function);
+function MakeCompileEvent(script_source, script_name, script_function, before) {
+  return new CompileEvent(script_source, script_name, script_function, before);
 }
 
 
-function CompileEvent(script_source, script_name, script_function) {
+function CompileEvent(script_source, script_name, script_function, before) {
   this.scriptSource = script_source;
   this.scriptName = script_name;
   this.scriptFunction = script_function;
+  this.before = before;
 }
+
+
+CompileEvent.prototype.eventType = function() {
+  if (this.before) {
+    return Debug.DebugEvent.BeforeComplie;
+  } else {
+    return Debug.DebugEvent.AfterComplie;
+  }
+};
 
 
 function MakeNewFunctionEvent(func) {
@@ -875,6 +918,12 @@ function MakeNewFunctionEvent(func) {
 function NewFunctionEvent(func) {
   this.func = func;
 }
+
+
+NewFunctionEvent.prototype.eventType = function() {
+  return Debug.DebugEvent.NewFunction;
+};
+
 
 NewFunctionEvent.prototype.name = function() {
   return this.func.name;
@@ -1278,6 +1327,14 @@ DebugCommandProcessor.prototype.clearBreakPointRequest_ = function(request, resp
 DebugCommandProcessor.prototype.backtraceRequest_ = function(request, response) {
   // Get the number of frames.
   var total_frames = this.exec_state_.frameCount();
+
+  // Create simple response if there are no frames.
+  if (total_frames == 0) {
+    response.body = {
+      totalFrames: total_frames
+    }
+    return;
+  }
 
   // Default frame range to include in backtrace.
   var from_index = 0

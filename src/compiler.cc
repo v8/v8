@@ -206,6 +206,8 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
     }
   }
 
+  if (result.is_null()) Top::ReportPendingMessages();
+
   return result;
 }
 
@@ -235,6 +237,7 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
       CompilationCache::PutFunction(source, entry, result);
     }
   }
+
   return result;
 }
 

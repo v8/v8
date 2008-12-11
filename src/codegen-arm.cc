@@ -1347,15 +1347,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   __ b(ne, fail_label);
   __ cmp(r0, Operand(Smi::FromInt(range)));
   __ b(ge, fail_label);
-  __ add(pc, pc, Operand(r0, LSL, 2 - kSmiTagSize));
-  // One extra instruction offsets the table, so the table's start address is
-  // the pc-register at the above add.
-  __ stop("Unreachable: Switch table alignment");
-
-  // Table containing branch operations.
-  for (int i = 0; i < range; i++) {
-    __ b(case_targets[i]);
-  }
+  __ SmiJumpTable(r0, case_targets);
 
   GenerateFastCaseSwitchCases(node, case_labels);
 }

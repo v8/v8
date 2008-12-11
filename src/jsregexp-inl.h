@@ -253,11 +253,6 @@ static void DoForEach(Node* node, Callback* callback) {
 }
 
 
-void RegExpNode::Bind(RegExpMacroAssembler* macro) {
-  macro->Bind(&label_);
-}
-
-
 }}  // namespace v8::internal
 
 

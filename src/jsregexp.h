@@ -48,6 +48,9 @@ class RegExpImpl {
   // This function calls the garbage collector if necessary.
   static Handle<String> ToString(Handle<Object> value);
 
+  // Parses the RegExp pattern and prepares the JSRegExp object with
+  // generic data and choice of implementation - as well as what
+  // the implementation wants to store in the data field.
   static Handle<Object> Compile(Handle<JSRegExp> re,
                                 Handle<String> pattern,
                                 Handle<String> flags);
@@ -71,12 +74,10 @@ class RegExpImpl {
                                      Handle<String> pattern,
                                      JSRegExp::Flags flags);
 
-  // Stores a compiled RegExp pattern in the JSRegExp object.
-  // The pattern is compiled by Irregexp.
+  // Prepares a JSRegExp object with Irregexp-specific data.
   static Handle<Object> IrregexpPrepare(Handle<JSRegExp> re,
                                         Handle<String> pattern,
-                                        JSRegExp::Flags flags,
-                                        Handle<FixedArray> irregexp_data);
+                                        JSRegExp::Flags flags);
 
 
   // Compile the pattern using JSCRE and store the result in the
@@ -140,9 +141,10 @@ class RegExpImpl {
   static int JscreNumberOfCaptures(Handle<JSRegExp> re);
   static ByteArray* JscreInternal(Handle<JSRegExp> re);
 
-  static int IrregexpNumberOfCaptures(Handle<JSRegExp> re);
-  static int IrregexpNumberOfRegisters(Handle<JSRegExp> re);
-  static Handle<ByteArray> IrregexpCode(Handle<JSRegExp> re);
+  static int IrregexpNumberOfCaptures(Handle<FixedArray> re);
+  static int IrregexpNumberOfRegisters(Handle<FixedArray> re);
+  static Handle<ByteArray> IrregexpByteCode(Handle<FixedArray> re);
+  static Handle<Code> IrregexpNativeCode(Handle<FixedArray> re);
 
   // Call jsRegExpExecute once
   static Handle<Object> JscreExecOnce(Handle<JSRegExp> regexp,
@@ -153,7 +155,7 @@ class RegExpImpl {
                                       int* ovector,
                                       int ovector_length);
 
-  static Handle<Object> IrregexpExecOnce(Handle<JSRegExp> regexp,
+  static Handle<Object> IrregexpExecOnce(Handle<FixedArray> regexp,
                                          int num_captures,
                                          Handle<String> subject16,
                                          int previous_index,
@@ -202,6 +204,7 @@ class CharacterRange {
   uc16 to() const { return to_; }
   void set_to(uc16 value) { to_ = value; }
   bool is_valid() { return from_ <= to_; }
+  bool IsEverything(uc16 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
   void AddCaseEquivalents(ZoneList<CharacterRange>* ranges);
   static void Split(ZoneList<CharacterRange>* base,
@@ -346,6 +349,7 @@ class OutSet: public ZoneObject {
   uint32_t first_;
   ZoneList<unsigned>* remaining_;
   ZoneList<OutSet*>* successors_;
+  friend class GenerationVariant;
 };
 
 
@@ -432,7 +436,7 @@ class TextElement {
  public:
   enum Type {UNINITIALIZED, ATOM, CHAR_CLASS};
   TextElement() : type(UNINITIALIZED) { }
-  explicit TextElement(Type t) : type(t) { }
+  explicit TextElement(Type t) : type(t), cp_offset(-1) { }
   static TextElement Atom(RegExpAtom* atom);
   static TextElement CharClass(RegExpCharacterClass* char_class);
   Type type;
@@ -440,7 +444,11 @@ class TextElement {
     RegExpAtom* u_atom;
     RegExpCharacterClass* u_char_class;
   } data;
+  int cp_offset;
 };
+
+
+class GenerationVariant;
 
 
 struct NodeInfo {
@@ -518,6 +526,12 @@ struct NodeInfo {
     does_determine_word = that->does_determine_word;
     does_determine_newline = that->does_determine_newline;
     does_determine_start = that->does_determine_start;
+  }
+
+  bool HasLookbehind() {
+    return follows_word_interest ||
+           follows_newline_interest ||
+           follows_start_interest;
   }
 
   // Sets the interests of this node to include the interests of the
@@ -607,17 +621,17 @@ class SiblingList {
 
 class RegExpNode: public ZoneObject {
  public:
+  RegExpNode() : variants_generated_(0) { }
   virtual ~RegExpNode() { }
   virtual void Accept(NodeVisitor* visitor) = 0;
   // Generates a goto to this node or actually generates the code at this point.
   // Until the implementation is complete we will return true for success and
   // false for failure.
-  virtual bool GoTo(RegExpCompiler* compiler);
-  Label* label();
-
-  // Until the implementation is complete we will return true for success and
-  // false for failure.
-  virtual bool Emit(RegExpCompiler* compiler) = 0;
+  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant) = 0;
+  static const int kNodeIsTooComplexForGreedyLoops = -1;
+  virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
+  Label* label() { return &label_; }
+  static const int kMaxVariantsGenerated = 10;
 
   RegExpNode* EnsureExpanded(NodeInfo* info);
   virtual RegExpNode* ExpandLocal(NodeInfo* info) = 0;
@@ -630,7 +644,6 @@ class RegExpNode: public ZoneObject {
   virtual RegExpNode* PropagateForward(NodeInfo* info) = 0;
 
   NodeInfo* info() { return &info_; }
-  virtual bool IsBacktrack() { return false; }
 
   void AddSibling(RegExpNode* node) { siblings_.Add(node); }
 
@@ -645,6 +658,9 @@ class RegExpNode: public ZoneObject {
   void set_siblings(SiblingList* other) { siblings_ = *other; }
 
  protected:
+  enum LimitResult { DONE, FAIL, CONTINUE };
+  LimitResult LimitVersions(RegExpCompiler* compiler,
+                            GenerationVariant* variant);
 
   // Returns a sibling of this node whose interests and assumptions
   // match the ones in the given node info.  If no sibling exists NULL
@@ -663,12 +679,11 @@ class RegExpNode: public ZoneObject {
   // processed before it is on a useable state.
   virtual RegExpNode* Clone() = 0;
 
-  inline void Bind(RegExpMacroAssembler* macro);
-
  private:
   Label label_;
   NodeInfo info_;
   SiblingList siblings_;
+  int variants_generated_;
 };
 
 
@@ -678,7 +693,6 @@ class SeqRegExpNode: public RegExpNode {
       : on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
-  virtual bool Emit(RegExpCompiler* compiler) { return false; }
  private:
   RegExpNode* on_success_;
 };
@@ -687,29 +701,31 @@ class SeqRegExpNode: public RegExpNode {
 class ActionNode: public SeqRegExpNode {
  public:
   enum Type {
-    STORE_REGISTER,
+    SET_REGISTER,
     INCREMENT_REGISTER,
     STORE_POSITION,
-    RESTORE_POSITION,
     BEGIN_SUBMATCH,
-    ESCAPE_SUBMATCH
+    POSITIVE_SUBMATCH_SUCCESS
   };
-  static ActionNode* StoreRegister(int reg, int val, RegExpNode* on_success);
+  static ActionNode* SetRegister(int reg, int val, RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
   static ActionNode* StorePosition(int reg, RegExpNode* on_success);
-  static ActionNode* RestorePosition(int reg, RegExpNode* on_success);
-  static ActionNode* BeginSubmatch(int stack_pointer_reg,
-                                   int position_reg,
-                                   RegExpNode* on_success);
-  static ActionNode* EscapeSubmatch(int stack_pointer_reg,
-                                    bool and_restore_position,
-                                    int restore_reg,
-                                    RegExpNode* on_success);
+  static ActionNode* BeginSubmatch(
+      int stack_pointer_reg,
+      int position_reg,
+      RegExpNode* on_success);
+  static ActionNode* PositiveSubmatchSuccess(
+      int stack_pointer_reg,
+      int restore_reg,
+      RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
-  virtual bool Emit(RegExpCompiler* compiler);
+  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   virtual RegExpNode* ExpandLocal(NodeInfo* info);
   virtual void ExpandChildren();
   virtual RegExpNode* PropagateForward(NodeInfo* info);
+  Type type() { return type_; }
+  // TODO(erikcorry): We should allow some action nodes in greedy loops.
+  virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
   virtual ActionNode* Clone() { return new ActionNode(*this); }
 
  private:
@@ -740,16 +756,12 @@ class ActionNode: public SeqRegExpNode {
 class TextNode: public SeqRegExpNode {
  public:
   TextNode(ZoneList<TextElement>* elms,
-           RegExpNode* on_success,
-           RegExpNode* on_failure)
+           RegExpNode* on_success)
       : SeqRegExpNode(on_success),
-        on_failure_(on_failure),
         elms_(elms) { }
   TextNode(RegExpCharacterClass* that,
-           RegExpNode* on_success,
-           RegExpNode* on_failure)
+           RegExpNode* on_success)
       : SeqRegExpNode(on_success),
-        on_failure_(on_failure),
         elms_(new ZoneList<TextElement>(1)) {
     elms_->Add(TextElement::CharClass(that));
   }
@@ -757,17 +769,20 @@ class TextNode: public SeqRegExpNode {
   virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual RegExpNode* ExpandLocal(NodeInfo* info);
   virtual void ExpandChildren();
-  RegExpNode* on_failure() { return on_failure_; }
-  virtual bool Emit(RegExpCompiler* compiler);
+  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   ZoneList<TextElement>* elements() { return elms_; }
   void MakeCaseIndependent();
-  virtual TextNode* Clone() { return new TextNode(*this); }
-
+  virtual int GreedyLoopTextLength();
+  virtual TextNode* Clone() {
+    TextNode* result = new TextNode(*this);
+    result->CalculateOffsets();
+    return result;
+  }
+  void CalculateOffsets();
  private:
   void ExpandAtomChildren(RegExpAtom* that);
   void ExpandCharClassChildren(RegExpCharacterClass* that);
 
-  RegExpNode* on_failure_;
   ZoneList<TextElement>* elms_;
 };
 
@@ -776,24 +791,20 @@ class BackReferenceNode: public SeqRegExpNode {
  public:
   BackReferenceNode(int start_reg,
                     int end_reg,
-                    RegExpNode* on_success,
-                    RegExpNode* on_failure)
+                    RegExpNode* on_success)
       : SeqRegExpNode(on_success),
-        on_failure_(on_failure),
         start_reg_(start_reg),
         end_reg_(end_reg) { }
   virtual void Accept(NodeVisitor* visitor);
-  RegExpNode* on_failure() { return on_failure_; }
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
-  virtual bool Emit(RegExpCompiler* compiler);
+  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual RegExpNode* ExpandLocal(NodeInfo* info);
   virtual void ExpandChildren();
   virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
 
  private:
-  RegExpNode* on_failure_;
   int start_reg_;
   int end_reg_;
 };
@@ -801,19 +812,34 @@ class BackReferenceNode: public SeqRegExpNode {
 
 class EndNode: public RegExpNode {
  public:
-  enum Action { ACCEPT, BACKTRACK };
+  enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
   explicit EndNode(Action action) : action_(action) { }
   virtual void Accept(NodeVisitor* visitor);
-  virtual bool Emit(RegExpCompiler* compiler);
+  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual RegExpNode* ExpandLocal(NodeInfo* info);
   virtual void ExpandChildren();
-  virtual bool IsBacktrack() { return action_ == BACKTRACK; }
-  virtual bool GoTo(RegExpCompiler* compiler);
   virtual EndNode* Clone() { return new EndNode(*this); }
+
+ protected:
+  void EmitInfoChecks(RegExpMacroAssembler* macro, GenerationVariant* variant);
 
  private:
   Action action_;
+};
+
+
+class NegativeSubmatchSuccess: public EndNode {
+ public:
+  NegativeSubmatchSuccess(int stack_pointer_reg, int position_reg)
+      : EndNode(NEGATIVE_SUBMATCH_SUCCESS),
+        stack_pointer_register_(stack_pointer_reg),
+        current_position_register_(position_reg) { }
+  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+
+ private:
+  int stack_pointer_register_;
+  int current_position_register_;
 };
 
 
@@ -851,17 +877,15 @@ class GuardedAlternative {
 
 class ChoiceNode: public RegExpNode {
  public:
-  explicit ChoiceNode(int expected_size, RegExpNode* on_failure)
-      : on_failure_(on_failure),
-        alternatives_(new ZoneList<GuardedAlternative>(expected_size)),
+  explicit ChoiceNode(int expected_size)
+      : alternatives_(new ZoneList<GuardedAlternative>(expected_size)),
         table_(NULL),
         being_calculated_(false) { }
   virtual void Accept(NodeVisitor* visitor);
   void AddAlternative(GuardedAlternative node) { alternatives()->Add(node); }
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
   DispatchTable* GetTable(bool ignore_case);
-  RegExpNode* on_failure() { return on_failure_; }
-  virtual bool Emit(RegExpCompiler* compiler);
+  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual RegExpNode* ExpandLocal(NodeInfo* info);
   virtual void ExpandChildren();
@@ -870,19 +894,128 @@ class ChoiceNode: public RegExpNode {
   bool being_calculated() { return being_calculated_; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
 
+ protected:
+  int GreedyLoopTextLength(GuardedAlternative *alternative);
+  ZoneList<GuardedAlternative>* alternatives_;
+
  private:
   friend class DispatchTableConstructor;
-  friend class Analysis;
+  friend class AssertionPropagation;
   void GenerateGuard(RegExpMacroAssembler* macro_assembler,
                      Guard *guard,
-                     Label* on_failure);
-  RegExpNode* on_failure_;
-  ZoneList<GuardedAlternative>* alternatives_;
+                     GenerationVariant* variant);
   DispatchTable* table_;
   bool being_calculated_;
 };
 
 
+class LoopChoiceNode: public ChoiceNode {
+ public:
+  explicit LoopChoiceNode(int expected_size) : ChoiceNode(expected_size) { }
+  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual LoopChoiceNode* Clone() { return new LoopChoiceNode(*this); }
+};
+
+
+// There are many ways to generate code for a node.  This class encapsulates
+// the current way we should be generating.  In other words it encapsulates
+// the current state of the code generator.
+class GenerationVariant {
+ public:
+  class DeferredAction {
+   public:
+    DeferredAction(ActionNode::Type type, int reg)
+        : type_(type), reg_(reg), next_(NULL) { }
+    DeferredAction* next() { return next_; }
+    int reg() { return reg_; }
+    ActionNode::Type type() { return type_; }
+   private:
+    ActionNode::Type type_;
+    int reg_;
+    DeferredAction* next_;
+    friend class GenerationVariant;
+  };
+
+  class DeferredCapture: public DeferredAction {
+   public:
+    DeferredCapture(int reg, GenerationVariant* variant)
+        : DeferredAction(ActionNode::STORE_POSITION, reg),
+          cp_offset_(variant->cp_offset()) { }
+    int cp_offset() { return cp_offset_; }
+   private:
+    int cp_offset_;
+    void set_cp_offset(int cp_offset) { cp_offset_ = cp_offset; }
+  };
+
+  class DeferredSetRegister :public DeferredAction {
+   public:
+    DeferredSetRegister(int reg, int value)
+        : DeferredAction(ActionNode::SET_REGISTER, reg),
+          value_(value) { }
+    int value() { return value_; }
+   private:
+    int value_;
+  };
+
+  class DeferredIncrementRegister: public DeferredAction {
+   public:
+    explicit DeferredIncrementRegister(int reg)
+        : DeferredAction(ActionNode::INCREMENT_REGISTER, reg) { }
+  };
+
+  explicit GenerationVariant(Label* backtrack)
+      : cp_offset_(0),
+        actions_(NULL),
+        backtrack_(backtrack),
+        stop_node_(NULL),
+        loop_label_(NULL) { }
+  GenerationVariant()
+      : cp_offset_(0),
+        actions_(NULL),
+        backtrack_(NULL),
+        stop_node_(NULL),
+        loop_label_(NULL) { }
+  bool Flush(RegExpCompiler* compiler, RegExpNode* successor);
+  int cp_offset() { return cp_offset_; }
+  DeferredAction* actions() { return actions_; }
+  bool is_trivial() {
+    return backtrack_ == NULL && actions_ == NULL && cp_offset_ == 0;
+  }
+  Label* backtrack() { return backtrack_; }
+  Label* loop_label() { return loop_label_; }
+  RegExpNode* stop_node() { return stop_node_; }
+  // These set methods should be used only on new GenerationVariants - the
+  // intention is that GenerationVariants are immutable after creation.
+  void add_action(DeferredAction* new_action) {
+    ASSERT(new_action->next_ == NULL);
+    new_action->next_ = actions_;
+    actions_ = new_action;
+  }
+  void set_cp_offset(int new_cp_offset) {
+    ASSERT(new_cp_offset >= cp_offset_);
+    cp_offset_ = new_cp_offset;
+  }
+  void set_backtrack(Label* backtrack) { backtrack_ = backtrack; }
+  void set_stop_node(RegExpNode* node) { stop_node_ = node; }
+  void set_loop_label(Label* label) { loop_label_ = label; }
+  bool mentions_reg(int reg);
+ private:
+  int FindAffectedRegisters(OutSet* affected_registers);
+  void PerformDeferredActions(RegExpMacroAssembler* macro,
+                               int max_register,
+                               OutSet& affected_registers);
+  void RestoreAffectedRegisters(RegExpMacroAssembler* macro,
+                                int max_register,
+                                OutSet& affected_registers);
+  void PushAffectedRegisters(RegExpMacroAssembler* macro,
+                             int max_register,
+                             OutSet& affected_registers);
+  int cp_offset_;
+  DeferredAction* actions_;
+  Label* backtrack_;
+  RegExpNode* stop_node_;
+  Label* loop_label_;
+};
 class NodeVisitor {
  public:
   virtual ~NodeVisitor() { }
@@ -925,9 +1058,45 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 };
 
 
-class Analysis: public NodeVisitor {
+// Assertion propagation moves information about assertions such as
+// \b to the affected nodes.  For instance, in /.\b./ information must
+// be propagated to the first '.' that whatever follows needs to know
+// if it matched a word or a non-word, and to the second '.' that it
+// has to check if it succeeds a word or non-word.  In this case the
+// result will be something like:
+//
+//   +-------+        +------------+
+//   |   .   |        |      .     |
+//   +-------+  --->  +------------+
+//   | word? |        | check word |
+//   +-------+        +------------+
+//
+// At a later phase all nodes that determine information for their
+// following nodes are split into several 'sibling' nodes.  In this
+// case the first '.' is split into one node that only matches words
+// and one that only matches non-words.  The second '.' is also split,
+// into one node that assumes that the previous character was a word
+// character and one that assumes that is was non-word.  In this case
+// the result is
+//
+//         +------------------+        +------------------+
+//   /-->  | intersect(., \w) |  --->  | intersect(., \W) |
+//   |     +------------------+        +------------------+
+//   |                                 |    follows \w    |
+//   |                                 +------------------+
+// --?
+//   |     +------------------+        +------------------+
+//   \-->  | intersect(., \W) |  --->  | intersect(., \w) |
+//         +------------------+        +------------------+
+//                                     |    follows \W    |
+//                                     +------------------+
+//
+// This way we don't need to explicitly check the previous character
+// but can always assume that whoever consumed the previous character
+// has propagated the relevant information forward.
+class AssertionPropagation: public NodeVisitor {
  public:
-  explicit Analysis(bool ignore_case)
+  explicit AssertionPropagation(bool ignore_case)
       : ignore_case_(ignore_case) { }
   void EnsureAnalyzed(RegExpNode* node);
 
@@ -939,12 +1108,20 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
  private:
   bool ignore_case_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AssertionPropagation);
 };
 
 
-struct RegExpParseResult {
+struct RegExpCompileData {
+  RegExpCompileData()
+    : tree(NULL),
+      node(NULL),
+      has_lookbehind(false),
+      has_character_escapes(false),
+      capture_count(0) { }
   RegExpTree* tree;
+  RegExpNode* node;
+  bool has_lookbehind;
   bool has_character_escapes;
   Handle<String> error;
   int capture_count;
@@ -953,10 +1130,12 @@ struct RegExpParseResult {
 
 class RegExpEngine: public AllStatic {
  public:
-  static Handle<FixedArray> Compile(RegExpParseResult* input,
-                                    RegExpNode** node_return,
+  static Handle<FixedArray> Compile(RegExpCompileData* input,
                                     bool ignore_case,
-                                    bool multiline);
+                                    bool multiline,
+                                    Handle<String> pattern,
+                                    bool is_ascii);
+
   static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
 };
 

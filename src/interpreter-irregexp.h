@@ -36,7 +36,7 @@ namespace v8 { namespace internal {
 class IrregexpInterpreter {
  public:
   static bool Match(Handle<ByteArray> code,
-                    Handle<String> subject16,
+                    Handle<String> subject,
                     int* captures,
                     int start_position);
 };

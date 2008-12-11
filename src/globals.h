@@ -184,7 +184,7 @@ class OldSpace;
 class Property;
 class Proxy;
 class RegExpNode;
-struct RegExpParseResult;
+struct RegExpCompileData;
 class RegExpTree;
 class RegExpCompiler;
 class RegExpVisitor;

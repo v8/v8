@@ -47,10 +47,9 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void CheckCharacters(
       Vector<const uc16> str,
       int cp_offset,
-      Label* on_failure);
-  virtual void CheckCurrentPosition(
-      int register_index,
-      Label* on_equal);
+      Label* on_failure,
+      bool check_end_of_string);
+  virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
   virtual void CheckNotAtStart(Label* on_not_at_start);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
@@ -77,12 +76,13 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
       const Vector<Label*>& destinations);
   virtual void EmitOrLink(Label* label);
   virtual void Fail();
-  virtual Handle<Object> GetCode();
+  virtual Handle<Object> GetCode(Handle<String> source);
   virtual void GoTo(Label* label);
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
   virtual IrregexpImplementation Implementation();
   virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
+  virtual void LoadCurrentCharacterUnchecked(int cp_offset);
   virtual void PopCurrentPosition();
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);
@@ -92,7 +92,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void ReadStackPointerFromRegister(int reg);
   virtual void SetRegister(int register_index, int to);
   virtual void Succeed();
-  virtual void WriteCurrentPositionToRegister(int reg);
+  virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void WriteStackPointerToRegister(int reg);
  private:
   RegExpMacroAssembler* assembler_;

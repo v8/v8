@@ -95,15 +95,10 @@ static Handle<Object> Invoke(bool construct,
   *has_pending_exception = value->IsException();
   ASSERT(*has_pending_exception == Top::has_pending_exception());
   if (*has_pending_exception) {
-    Top::setup_external_caught();
-    // If the pending exception is OutOfMemoryException set out_of_memory in
-    // the global context.  Note: We have to mark the global context here
-    // since the GenerateThrowOutOfMemory stub cannot make a RuntimeCall to
-    // set it.
-    if (Top::pending_exception() == Failure::OutOfMemoryException()) {
-      Top::context()->mark_out_of_memory();
-    }
+    Top::ReportPendingMessages();
     return Handle<Object>();
+  } else {
+    Top::clear_pending_message();
   }
 
   return Handle<Object>(value);

@@ -134,7 +134,7 @@ class Logger {
 
   // Emits an event that an undefined property was read from an
   // object.
-  static void SuspectReadEvent(String* name, String* obj);
+  static void SuspectReadEvent(String* name, Object* obj);
 
   // Emits an event when a message is put on or read from a debugging queue.
   // DebugTag lets us put a call-site specific label on the event.

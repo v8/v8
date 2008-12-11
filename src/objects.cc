@@ -147,7 +147,9 @@ Object* Object::GetPropertyWithReceiver(Object* receiver,
                                         PropertyAttributes* attributes) {
   LookupResult result;
   Lookup(name, &result);
-  return GetProperty(receiver, &result, name, attributes);
+  Object* value = GetProperty(receiver, &result, name, attributes);
+  ASSERT(*attributes <= ABSENT);
+  return value;
 }
 
 
@@ -215,9 +217,11 @@ Object* Object::GetPropertyWithCallback(Object* receiver,
 
 
 // Only deal with CALLBACKS and INTERCEPTOR
-Object* JSObject::GetPropertyWithFailedAccessCheck(Object* receiver,
-                                                   LookupResult* result,
-                                                   String* name) {
+Object* JSObject::GetPropertyWithFailedAccessCheck(
+    Object* receiver,
+    LookupResult* result,
+    String* name,
+    PropertyAttributes* attributes) {
   if (result->IsValid()) {
     switch (result->type()) {
       case CALLBACKS: {
@@ -226,6 +230,7 @@ Object* JSObject::GetPropertyWithFailedAccessCheck(Object* receiver,
         if (obj->IsAccessorInfo()) {
           AccessorInfo* info = AccessorInfo::cast(obj);
           if (info->all_can_read()) {
+            *attributes = result->GetAttributes();
             return GetPropertyWithCallback(receiver,
                                            result->GetCallbackObject(),
                                            name,
@@ -241,7 +246,10 @@ Object* JSObject::GetPropertyWithFailedAccessCheck(Object* receiver,
         LookupResult r;
         result->holder()->LookupRealNamedPropertyInPrototypes(name, &r);
         if (r.IsValid()) {
-          return GetPropertyWithFailedAccessCheck(receiver, &r, name);
+          return GetPropertyWithFailedAccessCheck(receiver,
+                                                  &r,
+                                                  name,
+                                                  attributes);
         }
         break;
       }
@@ -251,9 +259,11 @@ Object* JSObject::GetPropertyWithFailedAccessCheck(Object* receiver,
         LookupResult r;
         result->holder()->LookupRealNamedProperty(name, &r);
         if (r.IsValid()) {
-          return GetPropertyWithFailedAccessCheck(receiver, &r, name);
+          return GetPropertyWithFailedAccessCheck(receiver,
+                                                  &r,
+                                                  name,
+                                                  attributes);
         }
-        break;
       }
       default: {
         break;
@@ -261,6 +271,8 @@ Object* JSObject::GetPropertyWithFailedAccessCheck(Object* receiver,
     }
   }
 
+  // No accessible property found.
+  *attributes = ABSENT;
   Top::ReportFailedAccessCheck(this, v8::ACCESS_GET);
   return Heap::undefined_value();
 }
@@ -402,7 +414,8 @@ Object* Object::GetProperty(Object* receiver,
       if (!Top::MayNamedAccess(checked, name, v8::ACCESS_GET)) {
         return checked->GetPropertyWithFailedAccessCheck(receiver,
                                                          result,
-                                                         name);
+                                                         name,
+                                                         attributes);
       }
     }
     // Stop traversing the chain once we reach the last object in the

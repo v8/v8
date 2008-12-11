@@ -25,53 +25,19 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <string.h>
-#include "v8.h"
-#include "ast.h"
-#include "assembler.h"
-#include "regexp-macro-assembler.h"
-
-namespace v8 { namespace internal {
-
-RegExpMacroAssembler::RegExpMacroAssembler() {
-}
-
-
-RegExpMacroAssembler::~RegExpMacroAssembler() {
-}
-
-
-ByteArrayProvider::ByteArrayProvider(unsigned int initial_size)
-  : byte_array_size_(initial_size),
-    current_byte_array_(),
-    current_byte_array_free_offset_(initial_size) {}
-
-
-ArraySlice ByteArrayProvider::GetBuffer(unsigned int size,
-                                        unsigned int elem_size) {
-  ASSERT(size > 0);
-  size_t byte_size = size * elem_size;
-  int free_offset = current_byte_array_free_offset_;
-  // align elements
-  free_offset += elem_size - 1;
-  free_offset = free_offset - (free_offset % elem_size);
-
-  if (free_offset + byte_size > byte_array_size_) {
-    if (byte_size > (byte_array_size_ / 2)) {
-      Handle<ByteArray> solo_buffer(Factory::NewByteArray(byte_size, TENURED));
-      return ArraySlice(solo_buffer, 0);
-    }
-    current_byte_array_ = Factory::NewByteArray(byte_array_size_, TENURED);
-    free_offset = 0;
-  }
-  current_byte_array_free_offset_ = free_offset + byte_size;
-  return ArraySlice(current_byte_array_, free_offset);
-}
-
-template <typename T>
-ArraySlice ByteArrayProvider::GetBuffer(Vector<T> values) {
-  ArraySlice slice = GetBuffer(values.length(), sizeof(T));
-  memcpy(slice.location(), values.start(), values.length() * sizeof(T));
-  return slice;
-}
-} }
+// UC16
+// Characters used:
+// "\u03a3\u03c2\u03c3\u039b\u03bb" - Sigma, final sigma, sigma, Lambda, lamda
+assertEquals("x\u03a3\u03c3x,\u03a3",
+              String(/x(.)\1x/i.exec("x\u03a3\u03c3x")), "backref-UC16");
+assertFalse(/x(...)\1/i.test("x\u03a3\u03c2\u03c3\u03c2\u03c3"),
+            "\\1 ASCII, string short");
+assertTrue(/\u03a3((?:))\1\1x/i.test("\u03c2x"), "backref-UC16-empty");
+assertTrue(/x(?:...|(...))\1x/i.test("x\u03a3\u03c2\u03c3x"),
+           "backref-UC16-uncaptured");
+assertTrue(/x(?:...|(...))\1x/i.test("x\u03c2\u03c3\u039b\u03a3\u03c2\u03bbx"),
+           "backref-UC16-backtrack");
+var longUC16String = "x\u03a3\u03c2\u039b\u03c2\u03c3\u03bb\u03c3\u03a3\u03bb";
+assertEquals(longUC16String + "," + longUC16String.substring(1,4),
+             String(/x(...)\1\1/i.exec(longUC16String)),
+             "backref-UC16-twice");

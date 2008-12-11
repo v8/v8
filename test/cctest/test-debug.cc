@@ -397,7 +397,7 @@ void CheckDebugBreakFunction(DebugLocalContext* env,
   CHECK_EQ(mode, it1.it()->rinfo()->rmode());
   if (mode != v8::internal::RelocInfo::JS_RETURN) {
     CHECK_EQ(debug_break,
-             Debug::GetCodeTarget(it1.it()->rinfo()->target_address()));
+        Code::GetCodeFromTargetAddress(it1.it()->rinfo()->target_address()));
   } else {
     // TODO(1240753): Make the test architecture independent or split
     // parts of the debugger into architecture dependent files.
@@ -434,6 +434,15 @@ const char* frame_function_name_source =
     "}";
 v8::Local<v8::Function> frame_function_name;
 
+
+// Source for The JavaScript function which returns the number of frames.
+static const char* frame_count_source =
+    "function frame_count(exec_state) {"
+    "  return exec_state.frameCount();"
+    "}";
+v8::Handle<v8::Function> frame_count;
+
+
 // Global variable to store the last function hit - used by some tests.
 char last_function_hit[80];
 
@@ -443,6 +452,9 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
                                          v8::Handle<v8::Object> exec_state,
                                          v8::Handle<v8::Object> event_data,
                                          v8::Handle<v8::Value> data) {
+  // When hitting a debug event listener there must be a break set.
+  CHECK(v8::internal::Top::is_break());
+
   // Count the number of breaks.
   if (event == v8::Break) {
     break_point_hit_count++;
@@ -464,9 +476,11 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
 }
 
 
-// Debug event handler which counts a number of events.
+// Debug event handler which counts a number of events and collects the stack
+// height if there is a function compiled for that.
 int exception_hit_count = 0;
 int uncaught_exception_hit_count = 0;
+int last_js_stack_height = -1;
 
 static void DebugEventCounterClear() {
   break_point_hit_count = 0;
@@ -478,6 +492,9 @@ static void DebugEventCounter(v8::DebugEvent event,
                               v8::Handle<v8::Object> exec_state,
                               v8::Handle<v8::Object> event_data,
                               v8::Handle<v8::Value> data) {
+  // When hitting a debug event listener there must be a break set.
+  CHECK(v8::internal::Top::is_break());
+
   // Count the number of breaks.
   if (event == v8::Break) {
     break_point_hit_count++;
@@ -492,6 +509,16 @@ static void DebugEventCounter(v8::DebugEvent event,
     if (result->IsTrue()) {
       uncaught_exception_hit_count++;
     }
+  }
+
+  // Collect the JavsScript stack height if the function frame_count is
+  // compiled.
+  if (!frame_count.IsEmpty()) {
+    static const int kArgc = 1;
+    v8::Handle<v8::Value> argv[kArgc] = { exec_state };
+    // Using exec_state as receiver is just to have a receiver.
+    v8::Handle<v8::Value> result =  frame_count->Call(exec_state, kArgc, argv);
+    last_js_stack_height = result->Int32Value();
   }
 }
 
@@ -523,6 +550,9 @@ static void DebugEventEvaluate(v8::DebugEvent event,
                                v8::Handle<v8::Object> exec_state,
                                v8::Handle<v8::Object> event_data,
                                v8::Handle<v8::Value> data) {
+  // When hitting a debug event listener there must be a break set.
+  CHECK(v8::internal::Top::is_break());
+
   if (event == v8::Break) {
     for (int i = 0; checks[i].expr != NULL; i++) {
       const int argc = 3;
@@ -546,6 +576,9 @@ static void DebugEventRemoveBreakPoint(v8::DebugEvent event,
                                        v8::Handle<v8::Object> exec_state,
                                        v8::Handle<v8::Object> event_data,
                                        v8::Handle<v8::Value> data) {
+  // When hitting a debug event listener there must be a break set.
+  CHECK(v8::internal::Top::is_break());
+
   if (event == v8::Break) {
     break_point_hit_count++;
     v8::Handle<v8::Function> fun = v8::Handle<v8::Function>::Cast(data);
@@ -561,6 +594,9 @@ static void DebugEventStep(v8::DebugEvent event,
                            v8::Handle<v8::Object> exec_state,
                            v8::Handle<v8::Object> event_data,
                            v8::Handle<v8::Value> data) {
+  // When hitting a debug event listener there must be a break set.
+  CHECK(v8::internal::Top::is_break());
+
   if (event == v8::Break) {
     break_point_hit_count++;
     PrepareStep(step_action);
@@ -584,6 +620,9 @@ static void DebugEventStepSequence(v8::DebugEvent event,
                                    v8::Handle<v8::Object> exec_state,
                                    v8::Handle<v8::Object> event_data,
                                    v8::Handle<v8::Value> data) {
+  // When hitting a debug event listener there must be a break set.
+  CHECK(v8::internal::Top::is_break());
+
   if (event == v8::Break || event == v8::Exception) {
     // Check that the current function is the expected.
     CHECK(break_point_hit_count <
@@ -611,6 +650,9 @@ static void DebugEventBreakPointCollectGarbage(
     v8::Handle<v8::Object> exec_state,
     v8::Handle<v8::Object> event_data,
     v8::Handle<v8::Value> data) {
+  // When hitting a debug event listener there must be a break set.
+  CHECK(v8::internal::Top::is_break());
+
   // Perform a garbage collection when break point is hit and continue. Based
   // on the number of break points hit either scavenge or mark compact
   // collector is used.
@@ -633,6 +675,9 @@ static void DebugEventBreak(v8::DebugEvent event,
                             v8::Handle<v8::Object> exec_state,
                             v8::Handle<v8::Object> event_data,
                             v8::Handle<v8::Value> data) {
+  // When hitting a debug event listener there must be a break set.
+  CHECK(v8::internal::Top::is_break());
+
   if (event == v8::Break) {
     // Count the number of breaks.
     break_point_hit_count++;
@@ -2164,7 +2209,7 @@ TEST(DebugStepNatives) {
 
 // Test break on exceptions. For each exception break combination the number
 // of debug event exception callbacks and message callbacks are collected. The
-// number of debug event exception callbacks are cused to check that the
+// number of debug event exception callbacks are used to check that the
 // debugger is called correctly and the number of message callbacks is used to
 // check that uncaught exceptions are still returned even if there is a break
 // for them.
@@ -2306,6 +2351,60 @@ TEST(BreakOnException) {
 
   v8::Debug::RemoveDebugEventListener(DebugEventCounter);
   v8::V8::RemoveMessageListeners(MessageCallbackCount);
+}
+
+
+// Test break on exception from compiler errors. When compiling using
+// v8::Script::Compile there is no JavaScript stack whereas when compiling using
+// eval there are JavaScript frames.
+TEST(BreakOnCompileException) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  v8::internal::Top::TraceException(false);
+
+  // Create a function for checking the function when hitting a break point.
+  frame_count = CompileFunction(&env, frame_count_source, "frame_count");
+
+  v8::V8::AddMessageListener(MessageCallbackCount);
+  v8::Debug::AddDebugEventListener(DebugEventCounter);
+
+  DebugEventCounterClear();
+  MessageCallbackCountClear();
+
+  // Check initial state.
+  CHECK_EQ(0, exception_hit_count);
+  CHECK_EQ(0, uncaught_exception_hit_count);
+  CHECK_EQ(0, message_callback_count);
+  CHECK_EQ(-1, last_js_stack_height);
+
+  // Throws SyntaxError: Unexpected end of input
+  v8::Script::Compile(v8::String::New("+++"));
+  CHECK_EQ(1, exception_hit_count);
+  CHECK_EQ(1, uncaught_exception_hit_count);
+  CHECK_EQ(1, message_callback_count);
+  CHECK_EQ(0, last_js_stack_height);  // No JavaScript stack.
+
+  // Throws SyntaxError: Unexpected identifier
+  v8::Script::Compile(v8::String::New("x x"));
+  CHECK_EQ(2, exception_hit_count);
+  CHECK_EQ(2, uncaught_exception_hit_count);
+  CHECK_EQ(2, message_callback_count);
+  CHECK_EQ(0, last_js_stack_height);  // No JavaScript stack.
+
+  // Throws SyntaxError: Unexpected end of input
+  v8::Script::Compile(v8::String::New("eval('+++')"))->Run();
+  CHECK_EQ(3, exception_hit_count);
+  CHECK_EQ(3, uncaught_exception_hit_count);
+  CHECK_EQ(3, message_callback_count);
+  CHECK_EQ(1, last_js_stack_height);
+
+  // Throws SyntaxError: Unexpected identifier
+  v8::Script::Compile(v8::String::New("eval('x x')"))->Run();
+  CHECK_EQ(4, exception_hit_count);
+  CHECK_EQ(4, uncaught_exception_hit_count);
+  CHECK_EQ(4, message_callback_count);
+  CHECK_EQ(1, last_js_stack_height);
 }
 
 
@@ -3166,14 +3265,6 @@ TEST(SendCommandToUninitializedVM) {
   int dummy_length = AsciiToUtf16(dummy_command, dummy_buffer);
   v8::Debug::SendCommand(dummy_buffer, dummy_length);
 }
-
-
-// Source for The JavaScript function which returns the number of frames.
-static const char* frame_count_source =
-    "function frame_count(exec_state) {"
-    "  return exec_state.frameCount();"
-    "}";
-v8::Handle<v8::Function> frame_count;
 
 
 // Source for a JavaScript function which returns the source line for the top

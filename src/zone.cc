@@ -163,8 +163,17 @@ Address Zone::NewExpand(int size) {
   // is to avoid excessive malloc() and free() overhead.
   Segment* head = Segment::head();
   int old_size = (head == NULL) ? 0 : head->size();
-  int new_size = sizeof(Segment) + kAlignment + size + (old_size << 1);
-  if (new_size < kMinimumSegmentSize) new_size = kMinimumSegmentSize;
+  static const int kSegmentOverhead = sizeof(Segment) + kAlignment;
+  int new_size = kSegmentOverhead + size + (old_size << 1);
+  if (new_size < kMinimumSegmentSize) {
+    new_size = kMinimumSegmentSize;
+  } else if (new_size > kMaximumSegmentSize) {
+    // Limit the size of new segments to avoid growing the segment size
+    // exponentially, thus putting pressure on contiguous virtual address space.
+    // All the while making sure to allocate a segment large enough to hold the
+    // requested size.
+    new_size = Max(kSegmentOverhead + size, kMaximumSegmentSize);
+  }
   Segment* segment = Segment::New(new_size);
   if (segment == NULL) V8::FatalProcessOutOfMemory("Zone");
 

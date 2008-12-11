@@ -194,7 +194,6 @@ class Debug {
 
   static Handle<Object> GetSourceBreakLocations(
       Handle<SharedFunctionInfo> shared);
-  static Code* GetCodeTarget(Address target);
 
   // Getter for the debug_context.
   inline static Handle<Context> debug_context() { return debug_context_; }
@@ -261,6 +260,19 @@ class Debug {
   // Code generation assumptions.
   static const int kIa32CallInstructionLength = 5;
   static const int kIa32JSReturnSequenceLength = 6;
+
+  // Code generator routines.
+  static void GenerateLoadICDebugBreak(MacroAssembler* masm);
+  static void GenerateStoreICDebugBreak(MacroAssembler* masm);
+  static void GenerateKeyedLoadICDebugBreak(MacroAssembler* masm);
+  static void GenerateKeyedStoreICDebugBreak(MacroAssembler* masm);
+  static void GenerateConstructCallDebugBreak(MacroAssembler* masm);
+  static void GenerateReturnDebugBreak(MacroAssembler* masm);
+  static void GenerateReturnDebugBreakEntry(MacroAssembler* masm);
+  static void GenerateStubNoRegistersDebugBreak(MacroAssembler* masm);
+
+  // Called from stub-cache.cc.
+  static void GenerateCallICDebugBreak(MacroAssembler* masm);
 
  private:
   static bool CompileDebuggerScript(int index);
@@ -448,7 +460,7 @@ class DebugMessageThread: public Thread {
   // which forwards it to the debug_message_handler set by the API.
   void SendMessage(Vector<uint16_t> event_json);
   // Formats an event into JSON, and calls SendMessage.
-  void SetEventJSONFromEvent(Handle<Object> event_data);
+  bool SetEventJSONFromEvent(Handle<Object> event_data);
   // Puts a command coming from the public API on the queue.  Called
   // by the API client thread.  This is where the API client hands off
   // processing of the command to the DebugMessageThread thread.
@@ -477,16 +489,17 @@ class DebugMessageThread: public Thread {
 // some reason could not be entered FailedToEnter will return true.
 class EnterDebugger BASE_EMBEDDED {
  public:
-  EnterDebugger() : set_(!it_.done()) {
-    // If there is no JavaScript frames on the stack don't switch to new break
-    // and break frame.
-    if (set_) {
-      // Store the previous break is and frame id.
-      break_id_ = Top::break_id();
-      break_frame_id_ = Top::break_frame_id();
+  EnterDebugger() : has_js_frames_(!it_.done()) {
+    // Store the previous break id and frame id.
+    break_id_ = Top::break_id();
+    break_frame_id_ = Top::break_frame_id();
 
-      // Create the new break info.
+    // Create the new break info. If there is no JavaScript frames there is no
+    // break frame id.
+    if (has_js_frames_) {
       Top::new_break(it_.frame()->id());
+    } else {
+      Top::new_break(StackFrame::NO_ID);
     }
 
     // Make sure that debugger is loaded and enter the debugger context.
@@ -499,21 +512,19 @@ class EnterDebugger BASE_EMBEDDED {
   }
 
   ~EnterDebugger() {
-    if (set_) {
-      // Restore to the previous break state.
-      Top::set_break(break_frame_id_, break_id_);
-    }
+    // Restore to the previous break state.
+    Top::set_break(break_frame_id_, break_id_);
   }
 
   // Check whether the debugger could be entered.
   inline bool FailedToEnter() { return load_failed_; }
 
   // Check whether there are any JavaScript frames on the stack.
-  inline bool HasJavaScriptFrames() { return set_; }
+  inline bool HasJavaScriptFrames() { return has_js_frames_; }
 
  private:
   JavaScriptFrameIterator it_;
-  const bool set_;  // Was the break actually set?
+  const bool has_js_frames_;  // Were there any JavaScript frames?
   StackFrame::Id break_frame_id_;  // Previous break frame id.
   int break_id_;  // Previous break id.
   bool load_failed_;  // Did the debugger fail to load?

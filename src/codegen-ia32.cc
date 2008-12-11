@@ -2919,17 +2919,15 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   Label ascii_string;
   Label got_char_code;
 
-  // Load the string into eax.
+  // Load the string into eax and the index into ebx.
   Load(args->at(0));
+  Load(args->at(1));
+  frame_->Pop(ebx);
   frame_->Pop(eax);
   // If the receiver is a smi return undefined.
   ASSERT(kSmiTag == 0);
   __ test(eax, Immediate(kSmiTagMask));
   __ j(zero, &slow_case, not_taken);
-
-  // Load the index into ebx.
-  Load(args->at(1));
-  frame_->Pop(ebx);
 
   // Check for negative or non-smi index.
   ASSERT(kSmiTag == 0);

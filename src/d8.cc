@@ -257,6 +257,7 @@ int* Shell::LookupCounter(const char* name) {
   }
   Counter* result = counters_->GetNextCounter();
   if (result == NULL) return NULL;
+  counter_map_[name] = result;
   return result->Bind(name);
 }
 

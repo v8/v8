@@ -1877,6 +1877,17 @@ Code::Flags Code::RemoveTypeFromFlags(Flags flags) {
 }
 
 
+Code* Code::GetCodeFromTargetAddress(Address address) {
+  HeapObject* code = HeapObject::FromAddress(address - Code::kHeaderSize);
+  // GetCodeFromTargetAddress might be called when marking objects during mark
+  // sweep. reinterpret_cast is therefore used instead of the more appropriate
+  // Code::cast. Code::cast does not work when the object's map is
+  // marked.
+  Code* result = reinterpret_cast<Code*>(code);
+  return result;
+}
+
+
 Object* Map::prototype() {
   return READ_FIELD(this, kPrototypeOffset);
 }

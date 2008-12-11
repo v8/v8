@@ -47,8 +47,9 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckCharacters(Vector<const uc16> str,
                                int cp_offset,
-                               Label* on_failure);
-  virtual void CheckCurrentPosition(int register_index, Label* on_equal);
+                               Label* on_failure,
+                               bool check_end_of_string);
+  virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
   virtual void CheckNotAtStart(Label* on_not_at_start);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
@@ -70,12 +71,14 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
                                    const Vector<Label*>& destinations);
   virtual void EmitOrLink(Label* label);
   virtual void Fail();
-  virtual Handle<Object> GetCode();
+  virtual Handle<Object> GetCode(Handle<String> source);
   virtual void GoTo(Label* label);
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
   virtual IrregexpImplementation Implementation();
   virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
+  virtual void LoadCurrentCharacterUnchecked(int cp_offset);
+
   virtual void PopCurrentPosition();
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);
@@ -85,7 +88,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void ReadStackPointerFromRegister(int reg);
   virtual void SetRegister(int register_index, int to);
   virtual void Succeed();
-  virtual void WriteCurrentPositionToRegister(int reg);
+  virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void WriteStackPointerToRegister(int reg);
 
   template <typename T>
@@ -119,8 +122,12 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   static const int kRegExpConstantsSize = 256;
   // Only unroll loops up to this length.
   static const int kMaxInlineStringTests = 8;
-  // Special "character" marking end of input.
-  static const uint32_t kEndOfInput = ~0;
+
+  // Compares two-byte strings case insenstively.
+  static int CaseInsensitiveCompareUC16(uc16** buffer,
+                                        int byte_offset1,
+                                        int byte_offset2,
+                                        size_t byte_length);
 
   // The ebp-relative location of a regexp register.
   Operand register_location(int register_index);
@@ -134,10 +141,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // Equivalent to a conditional branch to the label, unless the label
   // is NULL, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to);
-
-  // Read a character from input at the given offset from the current
-  // position.
-  void LoadCurrentCharToRegister(int cp_offset);
 
   // Load the address of a "constant buffer" (a slice of a byte array)
   // into a register. The address is computed from the ByteArray* address

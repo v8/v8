@@ -450,7 +450,7 @@ void RelocInfo::Print() {
            ref_encoder.NameOfAddress(*target_reference_address()),
            *target_reference_address());
   } else if (IsCodeTarget(rmode_)) {
-    Code* code = Debug::GetCodeTarget(target_address());
+    Code* code = Code::GetCodeFromTargetAddress(target_address());
     PrintF(" (%s)  (%p)", Code::Kind2String(code->kind()), target_address());
   } else if (IsPosition(rmode_)) {
     PrintF("  (%d)", data());

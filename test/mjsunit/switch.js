@@ -267,3 +267,23 @@ assertEquals("default", f7(1<<30), "0-1-switch.maxsmi++");
 assertEquals("default", f7(-(1<<30)-1), "0-1-switch.minsmi--");
 assertEquals("A", f7((170/16)-(170%16/16)), "0-1-switch.heapnum");
 
+
+function makeVeryLong(length) {
+  var res = "function() {\n" +
+            "  var res = 0;\n" + 
+            "  for (var i = 0; i <= " + length + "; i++) {\n" +
+            "    switch(i) {\n";
+  for (var i = 0; i < length; i++) {
+    res += "    case " + i + ": res += 2; break;\n";
+  }
+  res += "    default: res += 1;\n" +
+         "    }\n" +
+         "  }\n" +
+         "  return res;\n" +
+         "}";
+  return eval(res);
+}
+var verylong_size = 1000;
+var verylong = makeVeryLong(verylong_size);
+
+assertEquals(verylong_size * 2 + 1, verylong());

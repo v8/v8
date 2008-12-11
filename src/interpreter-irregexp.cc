@@ -60,6 +60,22 @@ static bool BackRefMatchesNoCase(int from,
 }
 
 
+static bool BackRefMatchesNoCase(int from,
+                                 int current,
+                                 int len,
+                                 Vector<const char> subject) {
+  for (int i = 0; i < len; i++) {
+    unsigned int old_char = subject[from++];
+    unsigned int new_char = subject[current++];
+    if (old_char == new_char) continue;
+    if (old_char - 'A' <= 'Z' - 'A') old_char |= 0x20;
+    if (new_char - 'A' <= 'Z' - 'A') new_char |= 0x20;
+    if (old_char != new_char) return false;
+  }
+  return true;
+}
+
+
 #ifdef DEBUG
 static void TraceInterpreter(const byte* code_base,
                              const byte* pc,
@@ -96,8 +112,9 @@ static void TraceInterpreter(const byte* code_base,
 
 
 
+template <typename Char>
 static bool RawMatch(const byte* code_base,
-                     Vector<const uc16> subject,
+                     Vector<const Char> subject,
                      int* registers,
                      int current,
                      int current_char) {
@@ -191,6 +208,15 @@ static bool RawMatch(const byte* code_base,
       BYTECODE(GOTO)
         pc = code_base + Load32(pc + 1);
         break;
+      BYTECODE(CHECK_GREEDY)
+        if (current == backtrack_sp[-1]) {
+          backtrack_sp--;
+          backtrack_stack_space++;
+          pc = code_base + Load32(pc + 1);
+        } else {
+          pc += BC_CHECK_GREEDY_LENGTH;
+        }
+        break;
       BYTECODE(LOAD_CURRENT_CHAR) {
         int pos = current + Load32(pc + 1);
         if (pos >= subject.length()) {
@@ -199,6 +225,12 @@ static bool RawMatch(const byte* code_base,
           current_char = subject[pos];
           pc += BC_LOAD_CURRENT_CHAR_LENGTH;
         }
+        break;
+      }
+      BYTECODE(LOAD_CURRENT_CHAR_UNCHECKED) {
+        int pos = current + Load32(pc + 1);
+        current_char = subject[pos];
+        pc += BC_LOAD_CURRENT_CHAR_UNCHECKED_LENGTH;
         break;
       }
       BYTECODE(CHECK_CHAR) {
@@ -366,6 +398,7 @@ static bool RawMatch(const byte* code_base,
           break;
         } else {
           if (BackRefMatchesNoCase(from, current, len, subject)) {
+            current += len;
             pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
           } else {
             pc = code_base + Load32(pc + 2);
@@ -389,23 +422,32 @@ static bool RawMatch(const byte* code_base,
 
 
 bool IrregexpInterpreter::Match(Handle<ByteArray> code_array,
-                                Handle<String> subject16,
+                                Handle<String> subject,
                                 int* registers,
                                 int start_position) {
-  ASSERT(StringShape(*subject16).IsTwoByteRepresentation());
-  ASSERT(subject16->IsFlat(StringShape(*subject16)));
+  ASSERT(subject->IsFlat(StringShape(*subject)));
 
   AssertNoAllocation a;
   const byte* code_base = code_array->GetDataStartAddress();
+  StringShape subject_shape(*subject);
   uc16 previous_char = '\n';
-  Vector<const uc16> subject_vector =
-      Vector<const uc16>(subject16->GetTwoByteData(), subject16->length());
-  if (start_position != 0) previous_char = subject_vector[start_position - 1];
-  return RawMatch(code_base,
-                  subject_vector,
-                  registers,
-                  start_position,
-                  previous_char);
+  if (subject_shape.IsAsciiRepresentation()) {
+    Vector<const char> subject_vector = subject->ToAsciiVector();
+    if (start_position != 0) previous_char = subject_vector[start_position - 1];
+    return RawMatch(code_base,
+                    subject_vector,
+                    registers,
+                    start_position,
+                    previous_char);
+  } else {
+    Vector<const uc16> subject_vector = subject->ToUC16Vector();
+    if (start_position != 0) previous_char = subject_vector[start_position - 1];
+    return RawMatch(code_base,
+                    subject_vector,
+                    registers,
+                    start_position,
+                    previous_char);
+  }
 }
 
 } }  // namespace v8::internal

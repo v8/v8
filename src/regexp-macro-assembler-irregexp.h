@@ -62,14 +62,16 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void PushRegister(int register_index);
   virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
   virtual void SetRegister(int register_index, int to);
-  virtual void WriteCurrentPositionToRegister(int reg);
+  virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void ReadCurrentPositionFromRegister(int reg);
   virtual void WriteStackPointerToRegister(int reg);
   virtual void ReadStackPointerFromRegister(int reg);
   virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
+  virtual void LoadCurrentCharacterUnchecked(int cp_offset);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacter(uc16 c, Label* on_equal);
+  virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
   virtual void CheckNotAtStart(Label* on_not_at_start);
   virtual void CheckNotCharacter(uc16 c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterOr(uc16 c, uc16 mask, Label* on_not_equal);
@@ -82,8 +84,8 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void CheckNotRegistersEqual(int reg1, int reg2, Label* on_not_equal);
   virtual void CheckCharacters(Vector<const uc16> str,
                                int cp_offset,
-                               Label* on_failure);
-  virtual void CheckCurrentPosition(int register_index, Label* on_equal);
+                               Label* on_failure,
+                               bool check_end_of_string);
   virtual void CheckBitmap(uc16 start, Label* bitmap, Label* on_zero);
   virtual void DispatchHalfNibbleMap(uc16 start,
                                      Label* half_nibble_map,
@@ -98,7 +100,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void IfRegisterGE(int register_index, int comparand, Label* if_ge);
 
   virtual IrregexpImplementation Implementation();
-  virtual Handle<Object> GetCode();
+  virtual Handle<Object> GetCode(Handle<String> source);
  private:
   void Expand();
   // Code and bitmap emission.
@@ -109,14 +111,13 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   int length();
   void Copy(Address a);
 
-
-
   // The buffer into which code and relocation info are generated.
   Vector<byte> buffer_;
   // The program counter.
   int pc_;
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
+  Label backtrack_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpMacroAssemblerIrregexp);
 };

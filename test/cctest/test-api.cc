@@ -1648,6 +1648,15 @@ v8::Handle<Value> ThrowFromC(const v8::Arguments& args) {
 }
 
 
+v8::Handle<Value> CCatcher(const v8::Arguments& args) {
+  if (args.Length() < 1) return v8::Boolean::New(false);
+  v8::HandleScope scope;
+  v8::TryCatch try_catch;
+  v8::Script::Compile(args[0]->ToString())->Run();
+  return v8::Boolean::New(try_catch.HasCaught());
+}
+
+
 THREADED_TEST(APICatch) {
   v8::HandleScope scope;
   Local<ObjectTemplate> templ = ObjectTemplate::New();
@@ -1663,6 +1672,74 @@ THREADED_TEST(APICatch) {
     "}");
   Local<Value> thrown = context->Global()->Get(v8_str("thrown"));
   CHECK(thrown->BooleanValue());
+}
+
+
+THREADED_TEST(APIThrowTryCatch) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("ThrowFromC"),
+             v8::FunctionTemplate::New(ThrowFromC));
+  LocalContext context(0, templ);
+  v8::TryCatch try_catch;
+  CompileRun("ThrowFromC();");
+  CHECK(try_catch.HasCaught());
+}
+
+
+// Test that a try-finally block doesn't shadow a try-catch block
+// when setting up an external handler.
+THREADED_TEST(TryCatchInTryFinally) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("CCatcher"),
+             v8::FunctionTemplate::New(CCatcher));
+  LocalContext context(0, templ);
+  Local<Value> result = CompileRun("try {"
+                                   "  try {"
+                                   "    CCatcher('throw 7;');"
+                                   "  } finally {"
+                                   "  }"
+                                   "} catch (e) {"
+                                   "}");
+  CHECK(result->IsTrue());
+}
+
+
+static void receive_message(v8::Handle<v8::Message> message,
+                            v8::Handle<v8::Value> data) {
+  message_received = true;
+}
+
+
+TEST(APIThrowMessage) {
+  message_received = false;
+  v8::HandleScope scope;
+  v8::V8::AddMessageListener(receive_message);
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("ThrowFromC"),
+             v8::FunctionTemplate::New(ThrowFromC));
+  LocalContext context(0, templ);
+  CompileRun("ThrowFromC();");
+  CHECK(message_received);
+  v8::V8::RemoveMessageListeners(check_message);
+}
+
+
+TEST(APIThrowMessageAndVerboseTryCatch) {
+  message_received = false;
+  v8::HandleScope scope;
+  v8::V8::AddMessageListener(receive_message);
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->Set(v8_str("ThrowFromC"),
+             v8::FunctionTemplate::New(ThrowFromC));
+  LocalContext context(0, templ);
+  v8::TryCatch try_catch;
+  try_catch.SetVerbose(true);
+  CompileRun("ThrowFromC();");
+  CHECK(try_catch.HasCaught());
+  CHECK(message_received);
+  v8::V8::RemoveMessageListeners(check_message);
 }
 
 
@@ -1730,6 +1807,21 @@ v8::Handle<Value> JSCheck(const v8::Arguments& args) {
     CHECK_NE(count, expected);
   }
   return v8::Undefined();
+}
+
+
+THREADED_TEST(EvalInTryFinally) {
+  v8::HandleScope scope;
+  LocalContext context;
+  v8::TryCatch try_catch;
+  CompileRun("(function() {"
+             "  try {"
+             "    eval('asldkf (*&^&*^');"
+             "  } finally {"
+             "    return;"
+             "  }"
+             "})()");
+  CHECK(!try_catch.HasCaught());
 }
 
 
@@ -2960,6 +3052,7 @@ static void ApiUncaughtExceptionTestListener(v8::Handle<v8::Message>,
 // Counts uncaught exceptions, but other tests running in parallel
 // also have uncaught exceptions.
 TEST(ApiUncaughtException) {
+  report_count = 0;
   v8::HandleScope scope;
   LocalContext env;
   v8::V8::AddMessageListener(ApiUncaughtExceptionTestListener);
@@ -2983,6 +3076,37 @@ TEST(ApiUncaughtException) {
   CHECK(trouble_caller->IsFunction());
   Function::Cast(*trouble_caller)->Call(global, 0, NULL);
   CHECK_EQ(1, report_count);
+  v8::V8::RemoveMessageListeners(ApiUncaughtExceptionTestListener);
+}
+
+
+TEST(CompilationErrorUsingTryCatchHandler) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::TryCatch try_catch;
+  Script::Compile(v8_str("This doesn't &*&@#$&*^ compile."));
+  CHECK_NE(NULL, *try_catch.Exception());
+  CHECK(try_catch.HasCaught());
+}
+
+
+TEST(TryCatchFinallyUsingTryCatchHandler) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::TryCatch try_catch;
+  Script::Compile(v8_str("try { throw ''; } catch (e) {}"))->Run();
+  CHECK(!try_catch.HasCaught());
+  Script::Compile(v8_str("try { throw ''; } finally {}"))->Run();
+  CHECK(try_catch.HasCaught());
+  try_catch.Reset();
+  Script::Compile(v8_str("(function() {"
+                         "try { throw ''; } finally { return; }"
+                         "})()"))->Run();
+  CHECK(!try_catch.HasCaught());
+  Script::Compile(v8_str("(function()"
+                         "  { try { throw ''; } finally { throw 0; }"
+                         "})()"))->Run();
+  CHECK(try_catch.HasCaught());
 }
 
 
@@ -3557,29 +3681,81 @@ TEST(AccessControlIC) {
   v8::Handle<Value> value;
 
   // Check that the named access-control function is called every time.
-  value = v8_compile("for (var i = 0; i < 10; i++)  obj.prop = 1;")->Run();
-  value = v8_compile("for (var i = 0; i < 10; i++)  obj.prop;"
-                     "obj.prop")->Run();
+  CompileRun("function testProp(obj) {"
+             "  for (var i = 0; i < 10; i++) obj.prop = 1;"
+             "  for (var j = 0; j < 10; j++) obj.prop;"
+             "  return obj.prop"
+             "}");
+  value = CompileRun("testProp(obj)");
   CHECK(value->IsNumber());
   CHECK_EQ(1, value->Int32Value());
   CHECK_EQ(21, named_access_count);
 
   // Check that the named access-control function is called every time.
-  value = v8_compile("var p = 'prop';")->Run();
-  value = v8_compile("for (var i = 0; i < 10; i++) obj[p] = 1;")->Run();
-  value = v8_compile("for (var i = 0; i < 10; i++) obj[p];"
-                     "obj[p]")->Run();
+  CompileRun("var p = 'prop';"
+             "function testKeyed(obj) {"
+             "  for (var i = 0; i < 10; i++) obj[p] = 1;"
+             "  for (var j = 0; j < 10; j++) obj[p];"
+             "  return obj[p];"
+             "}");
+  // Use obj which requires access checks.  No inline caching is used
+  // in that case.
+  value = CompileRun("testKeyed(obj)");
   CHECK(value->IsNumber());
   CHECK_EQ(1, value->Int32Value());
   CHECK_EQ(42, named_access_count);
+  // Force the inline caches into generic state and try again.
+  CompileRun("testKeyed({ a: 0 })");
+  CompileRun("testKeyed({ b: 0 })");
+  value = CompileRun("testKeyed(obj)");
+  CHECK(value->IsNumber());
+  CHECK_EQ(1, value->Int32Value());
+  CHECK_EQ(63, named_access_count);
 
   // Check that the indexed access-control function is called every time.
-  value = v8_compile("for (var i = 0; i < 10; i++) obj[0] = 1;")->Run();
-  value = v8_compile("for (var i = 0; i < 10; i++) obj[0];"
-                     "obj[0]")->Run();
+  CompileRun("function testIndexed(obj) {"
+             "  for (var i = 0; i < 10; i++) obj[0] = 1;"
+             "  for (var j = 0; j < 10; j++) obj[0];"
+             "  return obj[0]"
+             "}");
+  value = CompileRun("testIndexed(obj)");
   CHECK(value->IsNumber());
   CHECK_EQ(1, value->Int32Value());
   CHECK_EQ(21, indexed_access_count);
+  // Force the inline caches into generic state.
+  CompileRun("testIndexed(new Array(1))");
+  // Test that the indexed access check is called.
+  value = CompileRun("testIndexed(obj)");
+  CHECK(value->IsNumber());
+  CHECK_EQ(1, value->Int32Value());
+  CHECK_EQ(42, indexed_access_count);
+
+  // Check that the named access check is called when invoking
+  // functions on an object that requires access checks.
+  CompileRun("obj.f = function() {}");
+  CompileRun("function testCallNormal(obj) {"
+             "  for (var i = 0; i < 10; i++) obj.f();"
+             "}");
+  CompileRun("testCallNormal(obj)");
+  CHECK_EQ(74, named_access_count);
+
+  // Force obj into slow case.
+  value = CompileRun("delete obj.prop");
+  CHECK(value->BooleanValue());
+  // Force inline caches into dictionary probing mode.
+  CompileRun("var o = { x: 0 }; delete o.x; testProp(o);");
+  // Test that the named access check is called.
+  value = CompileRun("testProp(obj);");
+  CHECK(value->IsNumber());
+  CHECK_EQ(1, value->Int32Value());
+  CHECK_EQ(96, named_access_count);
+
+  // Force the call inline cache into dictionary probing mode.
+  CompileRun("o.f = function() {}; testCallNormal(o)");
+  // Test that the named access check is still called for each
+  // invocation of the function.
+  value = CompileRun("testCallNormal(obj)");
+  CHECK_EQ(106, named_access_count);
 
   context1->Exit();
   context0->Exit();
@@ -5268,6 +5444,24 @@ THREADED_TEST(DisableAccessChecksWhileConfiguring) {
   context->Global()->Set(v8_str("obj"), instance);
   Local<Value> value = CompileRun("obj.x");
   CHECK(value->BooleanValue());
+}
+
+
+// This tests that access check information remains on the global
+// object template when creating contexts.
+THREADED_TEST(AccessControlRepeatedContextCreation) {
+  v8::HandleScope handle_scope;
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetAccessCheckCallbacks(NamedSetAccessBlocker,
+                                           IndexedSetAccessBlocker);
+  i::Handle<i::ObjectTemplateInfo> internal_template =
+      v8::Utils::OpenHandle(*global_template);
+  CHECK(!internal_template->constructor()->IsUndefined());
+  i::Handle<i::FunctionTemplateInfo> constructor(
+      i::FunctionTemplateInfo::cast(internal_template->constructor()));
+  CHECK(!constructor->access_check_info()->IsUndefined());
+  v8::Persistent<Context> context0 = Context::New(NULL, global_template);
+  CHECK(!constructor->access_check_info()->IsUndefined());
 }
 
 

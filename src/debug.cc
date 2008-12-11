@@ -113,7 +113,7 @@ void BreakLocationIterator::Next() {
     // be of a different kind than in the original code.
     if (RelocInfo::IsCodeTarget(rmode())) {
       Address target = original_rinfo()->target_address();
-      Code* code = Debug::GetCodeTarget(target);
+      Code* code = Code::GetCodeFromTargetAddress(target);
       if (code->is_inline_cache_stub() || RelocInfo::IsConstructCall(rmode())) {
         break_point_++;
         return;
@@ -325,7 +325,7 @@ void BreakLocationIterator::PrepareStepIn() {
   // Step in can only be prepared if currently positioned on an IC call or
   // construct call.
   Address target = rinfo()->target_address();
-  Code* code = Debug::GetCodeTarget(target);
+  Code* code = Code::GetCodeFromTargetAddress(target);
   if (code->is_call_stub()) {
     // Step in through IC call is handled by the runtime system. Therefore make
     // sure that the any current IC is cleared and the runtime system is
@@ -849,7 +849,12 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
 
 
 void Debug::FloodHandlerWithOneShot() {
+  // Iterate through the JavaScript stack looking for handlers.
   StackFrame::Id id = Top::break_frame_id();
+  if (id == StackFrame::NO_ID) {
+    // If there is no JavaScript stack don't do anything.
+    return;
+  }
   for (JavaScriptFrameIterator it(id); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->HasHandler()) {
@@ -886,6 +891,10 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   // hitting a break point. In other situations (e.g. unhandled exception) the
   // debug frame is not present.
   StackFrame::Id id = Top::break_frame_id();
+  if (id == StackFrame::NO_ID) {
+    // If there is no JavaScript stack don't do anything.
+    return;
+  }
   JavaScriptFrameIterator frames_it(id);
   JavaScriptFrame* frame = frames_it.frame();
 
@@ -923,7 +932,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   bool is_call_target = false;
   if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
     Address target = it.rinfo()->target_address();
-    Code* code = Debug::GetCodeTarget(target);
+    Code* code = Code::GetCodeFromTargetAddress(target);
     if (code->is_call_stub()) is_call_target = true;
   }
 
@@ -991,7 +1000,7 @@ bool Debug::StepNextContinue(BreakLocationIterator* break_location_iterator,
 // Check whether the code object at the specified address is a debug break code
 // object.
 bool Debug::IsDebugBreak(Address addr) {
-  Code* code = GetCodeTarget(addr);
+  Code* code = Code::GetCodeFromTargetAddress(addr);
   return code->ic_state() == DEBUG_BREAK;
 }
 
@@ -1021,7 +1030,7 @@ Handle<Code> Debug::FindDebugBreak(RelocInfo* rinfo) {
 
   if (RelocInfo::IsCodeTarget(mode)) {
     Address target = rinfo->target_address();
-    Code* code = Debug::GetCodeTarget(target);
+    Code* code = Code::GetCodeFromTargetAddress(target);
     if (code->is_inline_cache_stub()) {
       if (code->is_call_stub()) {
         return ComputeCallDebugBreak(code->arguments_count());
@@ -1259,14 +1268,6 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
     // call which was overwritten by the call to DebugBreakXXX.
     thread_local_.after_break_target_ = Assembler::target_address_at(addr);
   }
-}
-
-
-Code* Debug::GetCodeTarget(Address target) {
-  // Maybe this can be refactored with the stuff in ic-inl.h?
-  Code* result =
-      Code::cast(HeapObject::FromAddress(target - Code::kHeaderSize));
-  return result;
 }
 
 
@@ -1700,7 +1701,7 @@ void DebugMessageThread::SendMessage(Vector<uint16_t> message) {
 }
 
 
-void DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
+bool DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
   v8::HandleScope scope;
   // Call toJSONProtocol on the debug event object.
   v8::Local<v8::Object> api_event_data =
@@ -1726,8 +1727,9 @@ void DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
     }
   } else {
     PrintLn(try_catch.Exception());
-    SendMessage(Vector<uint16_t>::empty());
+    return false;
   }
+  return true;
 }
 
 
@@ -1790,10 +1792,14 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
   }
 
   // Notify the debugger that a debug event has occurred.
-  host_running_ = false;
-  SetEventJSONFromEvent(event_data);
+  bool success = SetEventJSONFromEvent(event_data);
+  if (!success) {
+    // If failed to notify debugger just continue running.
+    return;
+  }
 
   // Wait for requests from the debugger.
+  host_running_ = false;
   while (true) {
     command_received_->Wait();
     Logger::DebugTag("Got request from command queue, in interactive loop.");

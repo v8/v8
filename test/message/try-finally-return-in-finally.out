@@ -25,42 +25,4 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-prefix mjsunit
-
-# All tests in the bug directory are expected to fail.
-bugs: FAIL
-
-# This one uses a built-in that's only present in debug mode. It takes
-# too long to run in debug mode on ARM.
-fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
-
-# This test features unsupported by JSCRE. Change to PASS when
-# no longer using JSCRE.
-regexp-UC16: PASS || FAIL
-
-[ $arch == arm ]
-
-# Slow tests which times out in debug mode.
-try: PASS, SKIP if $mode == debug
-debug-scripts-request: PASS, SKIP if $mode == debug
-
-# Bug number 1020483: Debug tests fail on ARM.
-debug-constructor: CRASH, FAIL
-debug-continue: SKIP
-debug-backtrace: FAIL
-debug-evaluate-recursive: CRASH, FAIL if $mode == debug
-debug-changebreakpoint: CRASH, FAIL if $mode == debug
-debug-clearbreakpoint: CRASH, FAIL if $mode == debug
-debug-conditional-breakpoints: CRASH, FAIL if $mode == debug
-debug-evaluate: CRASH, FAIL if $mode == debug
-debug-ignore-breakpoints: CRASH, FAIL if $mode == debug
-debug-multiple-breakpoints: CRASH, FAIL if $mode == debug
-debug-setbreakpoint: CRASH, FAIL if $mode == debug
-debug-step-stub-callfunction: SKIP
-debug-stepin-constructor: CRASH, FAIL
-debug-step: SKIP
-debug-breakpoints: PASS || FAIL
-
-# Bug number 130 http://code.google.com/p/v8/issues/detail?id=130
-# Fails on real ARM hardware but not on the simulator.
-string-compare-alignment: PASS || FAIL
+42

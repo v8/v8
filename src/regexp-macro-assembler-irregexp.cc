@@ -68,6 +68,7 @@ void RegExpMacroAssemblerIrregexp::Bind(Label* l) {
 
 
 void RegExpMacroAssemblerIrregexp::EmitOrLink(Label* l) {
+  if (l == NULL) l = &backtrack_;
   if (l->is_bound()) {
     Emit32(l->pos());
   } else {
@@ -95,11 +96,11 @@ void RegExpMacroAssemblerIrregexp::PushRegister(int register_index) {
 
 
 void RegExpMacroAssemblerIrregexp::WriteCurrentPositionToRegister(
-    int register_index) {
+    int register_index, int cp_offset) {
   ASSERT(register_index >= 0);
   Emit(BC_SET_REGISTER_TO_CP);
   Emit(register_index);
-  Emit32(0);  // Current position offset.
+  Emit32(cp_offset);  // Current position offset.
 }
 
 
@@ -187,11 +188,10 @@ void RegExpMacroAssemblerIrregexp::AdvanceCurrentPosition(int by) {
 }
 
 
-void RegExpMacroAssemblerIrregexp::CheckCurrentPosition(
-  int register_index,
-  Label* on_equal) {
-  // TODO(erikcorry): Implement.
-  UNIMPLEMENTED();
+void RegExpMacroAssemblerIrregexp::CheckGreedyLoop(
+      Label* on_tos_equals_current_position) {
+  Emit(BC_CHECK_GREEDY);
+  EmitOrLink(on_tos_equals_current_position);
 }
 
 
@@ -200,6 +200,13 @@ void RegExpMacroAssemblerIrregexp::LoadCurrentCharacter(int cp_offset,
   Emit(BC_LOAD_CURRENT_CHAR);
   Emit32(cp_offset);
   EmitOrLink(on_failure);
+}
+
+
+void RegExpMacroAssemblerIrregexp::LoadCurrentCharacterUnchecked(
+      int cp_offset) {
+  Emit(BC_LOAD_CURRENT_CHAR_UNCHECKED);
+  Emit32(cp_offset);
 }
 
 
@@ -263,7 +270,7 @@ void RegExpMacroAssemblerIrregexp::CheckNotCharacterAfterMinusOr(
 
 
 void RegExpMacroAssemblerIrregexp::CheckNotBackReference(int start_reg,
-                                                     Label* on_not_equal) {
+                                                         Label* on_not_equal) {
   Emit(BC_CHECK_NOT_BACK_REF);
   Emit(start_reg);
   EmitOrLink(on_not_equal);
@@ -323,11 +330,19 @@ void RegExpMacroAssemblerIrregexp::DispatchHighByteMap(
 void RegExpMacroAssemblerIrregexp::CheckCharacters(
   Vector<const uc16> str,
   int cp_offset,
-  Label* on_failure) {
+  Label* on_failure,
+  bool check_end_of_string) {
+  // It is vital that this loop is backwards due to the unchecked character
+  // load below.
   for (int i = str.length() - 1; i >= 0; i--) {
-    Emit(BC_LOAD_CURRENT_CHAR);
-    Emit32(cp_offset + i);
-    EmitOrLink(on_failure);
+    if (check_end_of_string && i == str.length() - 1) {
+      Emit(BC_LOAD_CURRENT_CHAR);
+      Emit32(cp_offset + i);
+      EmitOrLink(on_failure);
+    } else {
+      Emit(BC_LOAD_CURRENT_CHAR_UNCHECKED);
+      Emit32(cp_offset + i);
+    }
     Emit(BC_CHECK_NOT_CHAR);
     Emit16(str[i]);
     EmitOrLink(on_failure);
@@ -357,7 +372,9 @@ void RegExpMacroAssemblerIrregexp::IfRegisterGE(int register_index,
 }
 
 
-Handle<Object> RegExpMacroAssemblerIrregexp::GetCode() {
+Handle<Object> RegExpMacroAssemblerIrregexp::GetCode(Handle<String> source) {
+  Bind(&backtrack_);
+  Emit(BC_POP_BT);
   Handle<ByteArray> array = Factory::NewByteArray(length());
   Copy(array->GetDataStartAddress());
   return array;

@@ -540,7 +540,8 @@ static inline void Store16(byte* ptr, uint16_t value) {
 #ifdef CAN_READ_UNALIGNED
   *reinterpret_cast<uint16_t*>(ptr) = value;
 #else
-  ptr[1] = value;
+  // Cast to avoid warning C4244 when compiling with Microsoft Visual C++.
+  ptr[1] = static_cast<byte>(value);
   ptr[0] = value >> 8;
 #endif
 }
