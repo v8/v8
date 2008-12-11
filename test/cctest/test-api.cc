@@ -5447,6 +5447,24 @@ THREADED_TEST(DisableAccessChecksWhileConfiguring) {
 }
 
 
+// This tests that access check information remains on the global
+// object template when creating contexts.
+THREADED_TEST(AccessControlRepeatedContextCreation) {
+  v8::HandleScope handle_scope;
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetAccessCheckCallbacks(NamedSetAccessBlocker,
+                                           IndexedSetAccessBlocker);
+  i::Handle<i::ObjectTemplateInfo> internal_template =
+      v8::Utils::OpenHandle(*global_template);
+  CHECK(!internal_template->constructor()->IsUndefined());
+  i::Handle<i::FunctionTemplateInfo> constructor(
+      i::FunctionTemplateInfo::cast(internal_template->constructor()));
+  CHECK(!constructor->access_check_info()->IsUndefined());
+  v8::Persistent<Context> context0 = Context::New(NULL, global_template);
+  CHECK(!constructor->access_check_info()->IsUndefined());
+}
+
+
 static String::ExternalStringResource* SymbolCallback(const char* chars,
                                                       size_t length) {
   uint16_t* buffer = i::NewArray<uint16_t>(length + 1);

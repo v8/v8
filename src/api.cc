@@ -2227,39 +2227,52 @@ Persistent<Context> v8::Context::New(
   LOG_API("Context::New");
   ON_BAILOUT("v8::Context::New()", return Persistent<Context>());
 
-  // Make sure that the global_template has a constructor.
+  v8::Handle<ObjectTemplate> proxy_template = global_template;
+  i::Handle<i::FunctionTemplateInfo> proxy_constructor;
+  i::Handle<i::FunctionTemplateInfo> global_constructor;
+
   if (!global_template.IsEmpty()) {
-    i::Handle<i::FunctionTemplateInfo> constructor =
-        EnsureConstructor(Utils::OpenHandle(*global_template));
+    // Make sure that the global_template has a constructor.
+    global_constructor = EnsureConstructor(Utils::OpenHandle(*global_template));
 
-    // Create a fresh template for global proxy object.
-    Local<ObjectTemplate> proxy_template = ObjectTemplate::New();
+    // Create a fresh template for the global proxy object.
+    proxy_template = ObjectTemplate::New();
+    proxy_constructor = EnsureConstructor(Utils::OpenHandle(*proxy_template));
 
-    i::Handle<i::FunctionTemplateInfo> proxy_constructor =
-      EnsureConstructor(Utils::OpenHandle(*proxy_template));
-
-    // Set the global template to be the prototype template
-    // of global proxy template.
+    // Set the global template to be the prototype template of global
+    // proxy template.
     proxy_constructor->set_prototype_template(
         *Utils::OpenHandle(*global_template));
 
-    // Migrate security handlers from global_template to proxy_template.
-    if (!constructor->access_check_info()->IsUndefined()) {
-       proxy_constructor->set_access_check_info(
-           constructor->access_check_info());
-       proxy_constructor->set_needs_access_check(true);
-
-       // Remove access check info from global_template.
-       constructor->set_needs_access_check(false);
-       constructor->set_access_check_info(i::Heap::undefined_value());
+    // Migrate security handlers from global_template to
+    // proxy_template.  Temporarily removing access check information
+    // from the global template.
+    if (!global_constructor->access_check_info()->IsUndefined()) {
+      proxy_constructor->set_access_check_info(
+          global_constructor->access_check_info());
+      proxy_constructor->set_needs_access_check(
+          global_constructor->needs_access_check());
+      global_constructor->set_needs_access_check(false);
+      global_constructor->set_access_check_info(i::Heap::undefined_value());
     }
-
-    global_template = proxy_template;
   }
 
+  // Create the environment.
   i::Handle<i::Context> env = i::Bootstrapper::CreateEnvironment(
       Utils::OpenHandle(*global_object),
-      global_template, extensions);
+      proxy_template,
+      extensions);
+
+  // Restore the access check info on the global template.
+  if (!global_template.IsEmpty()) {
+    ASSERT(!global_constructor.is_null());
+    ASSERT(!proxy_constructor.is_null());
+    global_constructor->set_access_check_info(
+        proxy_constructor->access_check_info());
+    global_constructor->set_needs_access_check(
+        proxy_constructor->needs_access_check());
+  }
+
   if (!ApiCheck(!env.is_null(),
                 "v8::Context::New()",
                 "Could not initialize environment"))
