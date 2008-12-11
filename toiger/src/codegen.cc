@@ -64,6 +64,7 @@ void CodeGenerator::ProcessDeferred() {
     }
     // Bind labels and generate the code.
     code->enter()->Bind();
+    frame_->SpillAll();
     Comment cmnt(masm, code->comment());
     code->Generate();
     if (code->exit()->is_bound()) {
