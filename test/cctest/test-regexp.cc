@@ -55,7 +55,7 @@ static SmartPointer<const char> Parse(const char* input) {
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
-  RegExpParseResult result;
+  RegExpCompileData result;
   CHECK(v8::internal::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
@@ -69,7 +69,7 @@ static bool ParseEscapes(const char* input) {
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
-  RegExpParseResult result;
+  RegExpCompileData result;
   CHECK(v8::internal::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
@@ -259,7 +259,7 @@ static void ExpectError(const char* input,
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
-  RegExpParseResult result;
+  RegExpCompileData result;
   CHECK_EQ(false, v8::internal::ParseRegExp(&reader, false, &result));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
@@ -358,13 +358,12 @@ TEST(CharacterClassEscapes) {
 static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
   V8::Initialize(NULL);
   FlatStringReader reader(CStrVector(input));
-  RegExpParseResult result;
-  if (!v8::internal::ParseRegExp(&reader, multiline, &result))
+  RegExpCompileData compile_data;
+  if (!v8::internal::ParseRegExp(&reader, multiline, &compile_data))
     return NULL;
-  RegExpNode* node = NULL;
   Handle<String> pattern = Factory::NewStringFromUtf8(CStrVector(input));
-  RegExpEngine::Compile(&result, &node, false, multiline, pattern, is_ascii);
-  return node;
+  RegExpEngine::Compile(&compile_data, false, multiline, pattern, is_ascii);
+  return compile_data.node;
 }
 
 
@@ -1128,14 +1127,6 @@ TEST(LatinCanonicalize) {
 }
 
 
-TEST(SimplePropagation) {
-  v8::HandleScope scope;
-  ZoneScope zone_scope(DELETE_ON_EXIT);
-  RegExpNode* node = Compile("(a|^b|c)", false, true);
-  CHECK(node->info()->follows_start_interest);
-}
-
-
 static uc32 CanonRange(uc32 c) {
   unibrow::uchar canon[unibrow::CanonicalizationRange::kMaxWidth];
   int count = unibrow::CanonicalizationRange::Convert(c, '\0', canon, NULL);
@@ -1301,5 +1292,5 @@ TEST(CharClassDifference) {
 
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("(?=[d#.])", false, true, true);
+  Execute("\\bboy\\b", false, true, true);
 }

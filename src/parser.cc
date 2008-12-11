@@ -4302,7 +4302,7 @@ ScriptDataImpl* PreParse(unibrow::CharacterStream* stream,
 
 bool ParseRegExp(FlatStringReader* input,
                  bool multiline,
-                 RegExpParseResult* result) {
+                 RegExpCompileData* result) {
   ASSERT(result != NULL);
   // Make sure we have a stack guard.
   StackGuard guard;
