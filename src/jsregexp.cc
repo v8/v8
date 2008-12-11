@@ -3675,13 +3675,13 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 
 
 class PostAnalysisNodeValidator : public NodeValidator {
-public:
+ public:
   virtual void ValidateInfo(NodeInfo* info);
 };
 
 
 class PostExpansionNodeValidator : public NodeValidator {
-public:
+ public:
   virtual void ValidateInfo(NodeInfo* info);
 };
 
