@@ -564,10 +564,10 @@ void MarkCompactCollector::ProcessRoots(RootMarkingVisitor* visitor) {
 
 
 void MarkCompactCollector::MarkObjectGroups() {
-  List<ObjectGroup*>& object_groups = GlobalHandles::ObjectGroups();
+  List<ObjectGroup*>* object_groups = GlobalHandles::ObjectGroups();
 
-  for (int i = 0; i < object_groups.length(); i++) {
-    ObjectGroup* entry = object_groups[i];
+  for (int i = 0; i < object_groups->length(); i++) {
+    ObjectGroup* entry = object_groups->at(i);
     if (entry == NULL) continue;
 
     List<Object**>& objects = entry->objects_;
@@ -591,8 +591,8 @@ void MarkCompactCollector::MarkObjectGroups() {
     }
     // Once the entire group has been colored gray, set the object group
     // to NULL so it won't be processed again.
-    delete object_groups[i];
-    object_groups[i] = NULL;
+    delete object_groups->at(i);
+    object_groups->at(i) = NULL;
   }
 }
 

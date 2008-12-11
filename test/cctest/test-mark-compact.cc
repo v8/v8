@@ -282,10 +282,12 @@ TEST(ObjectGroups) {
   Handle<FixedArray>::cast(g1s2)->set(0, *g2s2);
   Handle<FixedArray>::cast(g2s1)->set(0, *g1s1);
 
-  GlobalHandles::AddToGroup(reinterpret_cast<void*>(1), g1s1.location());
-  GlobalHandles::AddToGroup(reinterpret_cast<void*>(1), g1s2.location());
-  GlobalHandles::AddToGroup(reinterpret_cast<void*>(2), g2s1.location());
-  GlobalHandles::AddToGroup(reinterpret_cast<void*>(2), g2s2.location());
+  {
+    Object** g1_objects[] = { g1s1.location(), g1s2.location() };
+    Object** g2_objects[] = { g2s1.location(), g2s2.location() };
+    GlobalHandles::AddGroup(g1_objects, 2);
+    GlobalHandles::AddGroup(g2_objects, 2);
+  }
   // Do a full GC
   CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 
@@ -298,10 +300,12 @@ TEST(ObjectGroups) {
                           &WeakPointerCallback);
 
   // Groups are deleted, rebuild groups.
-  GlobalHandles::AddToGroup(reinterpret_cast<void*>(1), g1s1.location());
-  GlobalHandles::AddToGroup(reinterpret_cast<void*>(1), g1s2.location());
-  GlobalHandles::AddToGroup(reinterpret_cast<void*>(2), g2s1.location());
-  GlobalHandles::AddToGroup(reinterpret_cast<void*>(2), g2s2.location());
+  {
+    Object** g1_objects[] = { g1s1.location(), g1s2.location() };
+    Object** g2_objects[] = { g2s1.location(), g2s2.location() };
+    GlobalHandles::AddGroup(g1_objects, 2);
+    GlobalHandles::AddGroup(g2_objects, 2);
+  }
 
   CHECK(Heap::CollectGarbage(0, OLD_POINTER_SPACE));
 

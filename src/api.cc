@@ -2641,9 +2641,10 @@ void V8::SetFailedAccessCheckCallbackFunction(
 }
 
 
-void V8::AddObjectToGroup(void* group_id, Persistent<Object> obj) {
-  if (IsDeadCheck("v8::V8::AddObjectToGroup()")) return;
-  i::GlobalHandles::AddToGroup(group_id, reinterpret_cast<i::Object**>(*obj));
+void V8::AddObjectGroup(Persistent<Value>* objects, size_t length) {
+  if (IsDeadCheck("v8::V8::AddObjectGroup()")) return;
+  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
+  i::GlobalHandles::AddGroup(reinterpret_cast<i::Object***>(objects), length);
 }
 
 
