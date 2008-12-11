@@ -460,7 +460,7 @@ class DebugMessageThread: public Thread {
   // which forwards it to the debug_message_handler set by the API.
   void SendMessage(Vector<uint16_t> event_json);
   // Formats an event into JSON, and calls SendMessage.
-  void SetEventJSONFromEvent(Handle<Object> event_data);
+  bool SetEventJSONFromEvent(Handle<Object> event_data);
   // Puts a command coming from the public API on the queue.  Called
   // by the API client thread.  This is where the API client hands off
   // processing of the command to the DebugMessageThread thread.

@@ -1701,7 +1701,7 @@ void DebugMessageThread::SendMessage(Vector<uint16_t> message) {
 }
 
 
-void DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
+bool DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
   v8::HandleScope scope;
   // Call toJSONProtocol on the debug event object.
   v8::Local<v8::Object> api_event_data =
@@ -1727,8 +1727,9 @@ void DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
     }
   } else {
     PrintLn(try_catch.Exception());
-    SendMessage(Vector<uint16_t>::empty());
+    return false;
   }
+  return true;
 }
 
 
@@ -1791,10 +1792,14 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
   }
 
   // Notify the debugger that a debug event has occurred.
-  host_running_ = false;
-  SetEventJSONFromEvent(event_data);
+  bool success = SetEventJSONFromEvent(event_data);
+  if (!success) {
+    // If failed to notify debugger just continue running.
+    return;
+  }
 
   // Wait for requests from the debugger.
+  host_running_ = false;
   while (true) {
     command_received_->Wait();
     Logger::DebugTag("Got request from command queue, in interactive loop.");
