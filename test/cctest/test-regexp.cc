@@ -63,7 +63,7 @@ static SmartPointer<const char> Parse(const char* input) {
   return output;
 }
 
-static bool ParseEscapes(const char* input) {
+static bool CheckSimple(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
@@ -73,13 +73,12 @@ static bool ParseEscapes(const char* input) {
   CHECK(v8::internal::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
-  return result.has_character_escapes;
+  return result.simple;
 }
 
 
 #define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, *Parse(input))
-#define CHECK_ESCAPES(input, has_escapes) CHECK_EQ(has_escapes, \
-                                                   ParseEscapes(input));
+#define CHECK_SIMPLE(input, simple) CHECK_EQ(simple, CheckSimple(input));
 
 TEST(Parser) {
   V8::Initialize(NULL);
@@ -168,6 +167,11 @@ TEST(Parser) {
   CHECK_PARSE_EQ("(a)\\1", "(: (^ 'a') (<- 1))");
   CHECK_PARSE_EQ("(a\\1)", "(^ 'a')");
   CHECK_PARSE_EQ("(\\1a)", "(^ 'a')");
+  CHECK_PARSE_EQ("(?=a)?a", "'a'");
+  CHECK_PARSE_EQ("(?=a){0,10}a", "'a'");
+  CHECK_PARSE_EQ("(?=a){1,10}a", "(: (-> + 'a') 'a')");
+  CHECK_PARSE_EQ("(?=a){9,10}a", "(: (-> + 'a') 'a')");
+  CHECK_PARSE_EQ("(?!a)?a", "'a'");
   CHECK_PARSE_EQ("\\1(a)", "(^ 'a')");
   CHECK_PARSE_EQ("(?!(a))\\1", "(-> - (^ 'a'))");
   CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(-> - (: (^ 'a') (<- 1)))");
@@ -186,47 +190,50 @@ TEST(Parser) {
   CHECK_PARSE_EQ("\\u003z", "'u003z'");
   CHECK_PARSE_EQ("foo[z]*", "(: 'foo' (# 0 - g [z]))");
 
-  CHECK_ESCAPES("a", false);
-  CHECK_ESCAPES("a|b", false);
-  CHECK_ESCAPES("a\\n", true);
-  CHECK_ESCAPES("^a", false);
-  CHECK_ESCAPES("a$", false);
-  CHECK_ESCAPES("a\\b!", false);
-  CHECK_ESCAPES("a\\Bb", false);
-  CHECK_ESCAPES("a*", false);
-  CHECK_ESCAPES("a*?", false);
-  CHECK_ESCAPES("a?", false);
-  CHECK_ESCAPES("a??", false);
-  CHECK_ESCAPES("a{0,1}?", false);
-  CHECK_ESCAPES("a{1,1}?", false);
-  CHECK_ESCAPES("a{1,2}?", false);
-  CHECK_ESCAPES("a+?", false);
-  CHECK_ESCAPES("(a)", false);
-  CHECK_ESCAPES("(a)\\1", false);
-  CHECK_ESCAPES("(\\1a)", false);
-  CHECK_ESCAPES("\\1(a)", false);
-  CHECK_ESCAPES("a\\s", false);
-  CHECK_ESCAPES("a\\S", false);
-  CHECK_ESCAPES("a\\d", false);
-  CHECK_ESCAPES("a\\D", false);
-  CHECK_ESCAPES("a\\w", false);
-  CHECK_ESCAPES("a\\W", false);
-  CHECK_ESCAPES("a.", false);
-  CHECK_ESCAPES("a\\q", true);
-  CHECK_ESCAPES("a[a]", false);
-  CHECK_ESCAPES("a[^a]", false);
-  CHECK_ESCAPES("a[a-z]", false);
-  CHECK_ESCAPES("a[\\q]", false);
-  CHECK_ESCAPES("a(?:b)", false);
-  CHECK_ESCAPES("a(?=b)", false);
-  CHECK_ESCAPES("a(?!b)", false);
-  CHECK_ESCAPES("\\x60", true);
-  CHECK_ESCAPES("\\u0060", true);
-  CHECK_ESCAPES("\\cA", true);
-  CHECK_ESCAPES("\\q", true);
-  CHECK_ESCAPES("\\1112", true);
-  CHECK_ESCAPES("\\0", true);
-  CHECK_ESCAPES("(a)\\1", false);
+  CHECK_SIMPLE("a", true);
+  CHECK_SIMPLE("a|b", false);
+  CHECK_SIMPLE("a\\n", false);
+  CHECK_SIMPLE("^a", false);
+  CHECK_SIMPLE("a$", false);
+  CHECK_SIMPLE("a\\b!", false);
+  CHECK_SIMPLE("a\\Bb", false);
+  CHECK_SIMPLE("a*", false);
+  CHECK_SIMPLE("a*?", false);
+  CHECK_SIMPLE("a?", false);
+  CHECK_SIMPLE("a??", false);
+  CHECK_SIMPLE("a{0,1}?", false);
+  CHECK_SIMPLE("a{1,1}?", false);
+  CHECK_SIMPLE("a{1,2}?", false);
+  CHECK_SIMPLE("a+?", false);
+  CHECK_SIMPLE("(a)", false);
+  CHECK_SIMPLE("(a)\\1", false);
+  CHECK_SIMPLE("(\\1a)", false);
+  CHECK_SIMPLE("\\1(a)", false);
+  CHECK_SIMPLE("a\\s", false);
+  CHECK_SIMPLE("a\\S", false);
+  CHECK_SIMPLE("a\\d", false);
+  CHECK_SIMPLE("a\\D", false);
+  CHECK_SIMPLE("a\\w", false);
+  CHECK_SIMPLE("a\\W", false);
+  CHECK_SIMPLE("a.", false);
+  CHECK_SIMPLE("a\\q", false);
+  CHECK_SIMPLE("a[a]", false);
+  CHECK_SIMPLE("a[^a]", false);
+  CHECK_SIMPLE("a[a-z]", false);
+  CHECK_SIMPLE("a[\\q]", false);
+  CHECK_SIMPLE("a(?:b)", false);
+  CHECK_SIMPLE("a(?=b)", false);
+  CHECK_SIMPLE("a(?!b)", false);
+  CHECK_SIMPLE("\\x60", false);
+  CHECK_SIMPLE("\\u0060", false);
+  CHECK_SIMPLE("\\cA", false);
+  CHECK_SIMPLE("\\q", false);
+  CHECK_SIMPLE("\\1112", false);
+  CHECK_SIMPLE("\\0", false);
+  CHECK_SIMPLE("(a)\\1", false);
+  CHECK_SIMPLE("(?=a)?a", false);
+  CHECK_SIMPLE("(?!a)?a\\1", false);
+  CHECK_SIMPLE("(?:(?=a))a\\1", false);
 
   CHECK_PARSE_EQ("a{}", "'a{}'");
   CHECK_PARSE_EQ("a{,}", "'a{,}'");

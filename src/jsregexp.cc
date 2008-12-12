@@ -270,22 +270,23 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                            "malformed_regexp");
       return Handle<Object>::null();
     }
-    RegExpAtom* atom = parse_result.tree->AsAtom();
-    if (atom != NULL && !flags.is_ignore_case()) {
-      if (parse_result.has_character_escapes) {
-        Vector<const uc16> atom_pattern = atom->data();
-        Handle<String> atom_string =
-            Factory::NewStringFromTwoByte(atom_pattern);
-        result = AtomCompile(re, pattern, flags, atom_string);
-      } else {
-        result = AtomCompile(re, pattern, flags, pattern);
-      }
+
+    if (parse_result.simple && !flags.is_ignore_case()) {
+      // Parse-tree is a single atom that is equal to the pattern.
+      result = AtomCompile(re, pattern, flags, pattern);
+    } else if (parse_result.tree->IsAtom() &&
+        !flags.is_ignore_case() &&
+        parse_result.capture_count == 0) {
+      // TODO(lrn) Accept capture_count > 0 on atoms.
+      RegExpAtom* atom = parse_result.tree->AsAtom();
+      Vector<const uc16> atom_pattern = atom->data();
+      Handle<String> atom_string =
+          Factory::NewStringFromTwoByte(atom_pattern);
+      result = AtomCompile(re, pattern, flags, atom_string);
+    } else if (FLAG_irregexp) {
+      result = IrregexpPrepare(re, pattern, flags);
     } else {
-      if (FLAG_irregexp) {
-        result = IrregexpPrepare(re, pattern, flags);
-      } else {
-        result = JscrePrepare(re, pattern, flags);
-      }
+      result = JscrePrepare(re, pattern, flags);
     }
     Object* data = re->data();
     if (data->IsFixedArray()) {

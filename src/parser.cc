@@ -527,7 +527,9 @@ class RegExpParser {
   void Advance(int dist);
   void Reset(int pos);
 
-  bool HasCharacterEscapes();
+  // Reports whether the pattern might be used as a literal search string.
+  // Only use if the result of the parse is a single atom node.
+  bool simple();
 
   int captures_started() { return captures_ == NULL ? 0 : captures_->length(); }
   int position() { return next_pos_ - 1; }
@@ -548,7 +550,7 @@ class RegExpParser {
   int next_pos_;
   FlatStringReader* in_;
   Handle<String>* error_;
-  bool has_character_escapes_;
+  bool simple_;
   ZoneList<RegExpCapture*>* captures_;
   bool is_scanned_for_captures_;
   // The capture count is only valid after we have scanned for captures.
@@ -3502,7 +3504,7 @@ RegExpParser::RegExpParser(FlatStringReader* in,
     next_pos_(0),
     in_(in),
     error_(error),
-    has_character_escapes_(false),
+    simple_(true),
     captures_(NULL),
     is_scanned_for_captures_(false),
     capture_count_(0),
@@ -3550,11 +3552,8 @@ void RegExpParser::Advance(int dist) {
 }
 
 
-// Reports whether the parsed string atoms contain any characters that were
-// escaped in the original pattern. If not, all atoms are proper substrings
-// of the original pattern.
-bool RegExpParser::HasCharacterEscapes() {
-  return has_character_escapes_;
+bool RegExpParser::simple() {
+  return simple_;
 }
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
@@ -3769,7 +3768,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         Advance(2);
         break;
       }
-      has_character_escapes_ = true;
+      simple_ = false;
       break;
     case '{': {
       int dummy;
@@ -3822,6 +3821,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       is_greedy = false;
       Advance();
     }
+    simple_ = false;  // Adding quantifier might *remove* look-ahead.
     builder.AddQuantifierToAtom(min, max, is_greedy);
   }
 }
@@ -4307,15 +4307,17 @@ bool ParseRegExp(FlatStringReader* input,
   // Make sure we have a stack guard.
   StackGuard guard;
   RegExpParser parser(input, &result->error, multiline);
-  result->tree = parser.ParsePattern();
+  RegExpTree* tree = parser.ParsePattern();
   if (parser.failed()) {
-    ASSERT(result->tree == NULL);
+    ASSERT(tree == NULL);
     ASSERT(!result->error.is_null());
   } else {
-    ASSERT(result->tree != NULL);
+    ASSERT(tree != NULL);
     ASSERT(result->error.is_null());
-    result->has_character_escapes = parser.HasCharacterEscapes();
-    result->capture_count = parser.captures_started();
+    result->tree = tree;
+    int capture_count = parser.captures_started();
+    result->simple = tree->IsAtom() && parser.simple() && capture_count == 0;
+    result->capture_count = capture_count;
   }
   return !parser.failed();
 }

@@ -1117,12 +1117,12 @@ struct RegExpCompileData {
     : tree(NULL),
       node(NULL),
       has_lookbehind(false),
-      has_character_escapes(false),
+      simple(true),
       capture_count(0) { }
   RegExpTree* tree;
   RegExpNode* node;
   bool has_lookbehind;
-  bool has_character_escapes;
+  bool simple;
   Handle<String> error;
   int capture_count;
 };
