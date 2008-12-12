@@ -592,7 +592,7 @@ class ContextInitializer {
 
 
 TEST(MacroAssemblerIA32Success) {
-  V8::Initialize(NULL);
+  v8::V8::Initialize();
   ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 4);
@@ -627,7 +627,7 @@ TEST(MacroAssemblerIA32Success) {
 
 
 TEST(MacroAssemblerIA32Simple) {
-  V8::Initialize(NULL);
+  v8::V8::Initialize();
   ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 4);
@@ -687,7 +687,7 @@ TEST(MacroAssemblerIA32Simple) {
 
 
 TEST(MacroAssemblerIA32SimpleUC16) {
-  V8::Initialize(NULL);
+  v8::V8::Initialize();
   ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::UC16, 4);
@@ -750,7 +750,7 @@ TEST(MacroAssemblerIA32SimpleUC16) {
 
 
 TEST(MacroAssemblerIA32Backtrack) {
-  V8::Initialize(NULL);
+  v8::V8::Initialize();
   ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 0);
@@ -789,7 +789,7 @@ TEST(MacroAssemblerIA32Backtrack) {
 
 
 TEST(MacroAssemblerIA32BackReference) {
-  V8::Initialize(NULL);
+  v8::V8::Initialize();
   ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 3);
@@ -836,7 +836,7 @@ TEST(MacroAssemblerIA32BackReference) {
 
 
 TEST(MacroAssemblerIA32AtStart) {
-  V8::Initialize(NULL);
+  v8::V8::Initialize();
   ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 0);
@@ -897,7 +897,7 @@ TEST(MacroAssemblerIA32AtStart) {
 
 
 TEST(MacroAssemblerIA32BackRefNoCase) {
-  V8::Initialize(NULL);
+  v8::V8::Initialize();
   ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 4);
@@ -955,7 +955,7 @@ TEST(MacroAssemblerIA32BackRefNoCase) {
 
 
 TEST(MacroAssemblerIA32Registers) {
-  V8::Initialize(NULL);
+  v8::V8::Initialize();
   ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 5);
@@ -1056,7 +1056,7 @@ TEST(MacroAssemblerIA32Registers) {
 
 
 TEST(MacroAssemblerIA32StackOverflow) {
-  V8::Initialize(NULL);
+  v8::V8::Initialize();
   ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 0);
