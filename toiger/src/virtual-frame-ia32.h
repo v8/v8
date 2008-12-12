@@ -460,6 +460,15 @@ class VirtualFrame : public Malloced {
   // Spill the topmost elements of the frame to memory (eg, they are the
   // arguments to a call) and all registers.
   void PrepareForCall(int count);
+
+  // Make the register-to-register moves necessary to
+  // merge this frame with the expected frame.
+  // Register to memory moves must already have been made,
+  // and memory to register moves must follow this call.
+  // This is because some new memory-to-register moves are
+  // created in order to break cycles of register moves.
+  // Used in the implementation of MergeTo().
+  void MergeMoveRegistersToRegisters(VirtualFrame *expected);
 };
 
 

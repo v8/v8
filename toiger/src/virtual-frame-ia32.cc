@@ -434,12 +434,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
     }
   }
 
-  // Then register-to-register moves, not yet implemented.
-  for (int i = 0; i < elements_.length(); i++) {
-    FrameElement source = elements_[i];
-    FrameElement target = expected->elements_[i];
-    ASSERT(!source.is_register() || !target.is_register());
-  }
+  MergeMoveRegistersToRegisters(expected);
 
   // Finally, constant-to-register and memory-to-register.  We do these from
   // the top down so we can use pop for memory-to-register moves above the
@@ -502,6 +497,61 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
     }
   }
 #endif
+}
+
+
+void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame *expected) {
+  int start = 0;
+  int end = elements_.length() - 1;
+  bool any_moves_blocked; // Did we fail to make some moves this iteration?
+  bool should_break_cycles = false;
+  bool any_moves_made; // Did we make any progress this iteration?
+  do {
+    any_moves_blocked = false;
+    any_moves_made = false;
+    int first_move_blocked = kIllegalIndex;
+    int last_move_blocked = kIllegalIndex;
+    for (int i = start; i <= end; i++) {
+      FrameElement source = elements_[i];
+      FrameElement target = expected->elements_[i];
+      if (source.is_register() && target.is_register() &&
+          !target.reg().is(source.reg())) {
+        // We need to move source to target.
+        if (frame_registers_.is_used(target.reg().code())) {
+          // The move is blocked because the target contains valid data.
+          // If we are stuck with only cycles remaining, then we spill source.
+          // Otherwise, we just need more iterations.
+          if (should_break_cycles) {
+            SpillElementAt(i);
+            should_break_cycles = false;
+          } else {  // Record a blocked move.
+            if (!any_moves_blocked) {
+              first_move_blocked = i;
+            }
+            last_move_blocked = i;
+            any_moves_blocked = true;
+          }
+        } else {
+          // The move is not blocked.  This frame element can be moved from
+          // its source register to its target register.
+          Use(target.reg());
+          Unuse(source.reg());
+          if (target.is_synced() && !source.is_synced()) {
+            SyncElementAt(i);
+          }
+          elements_[i] = target;
+          __ mov(target.reg(), source.reg());
+          any_moves_made = true;
+        }
+      }
+    }
+    // Update control flags for next iteration.
+    should_break_cycles = (any_moves_blocked && !any_moves_made);
+    if (any_moves_blocked) {
+      start = first_move_blocked;
+      end = last_move_blocked;
+    }
+  } while (any_moves_blocked);
 }
 
 
