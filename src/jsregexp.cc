@@ -309,7 +309,7 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
       return AtomExec(regexp, subject, index);
     case JSRegExp::IRREGEXP: {
       Handle<Object> result = IrregexpExec(regexp, subject, index);
-      if (!result.is_null()) {
+      if (!result.is_null() || Top::has_pending_exception()) {
         return result;
       }
       // We couldn't handle the regexp using Irregexp, so fall back
@@ -339,12 +339,13 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
       return AtomExecGlobal(regexp, subject);
     case JSRegExp::IRREGEXP: {
       Handle<Object> result = IrregexpExecGlobal(regexp, subject);
-      if (!result.is_null()) {
+      if (!result.is_null() || Top::has_pending_exception()) {
         return result;
       }
-      // We couldn't handle the regexp using Irregexp, so fall back
-      // on JSCRE.
-      // Reset the JSRegExp to use JSCRE.
+      // Empty handle as result but no exception thrown means that
+      // the regexp contains features not yet handled by the irregexp
+      // compiler.
+      // We have to fall back on JSCRE. Reset the JSRegExp to use JSCRE.
       JscrePrepare(regexp,
                    Handle<String>(regexp->Pattern()),
                    regexp->GetFlags());
@@ -683,6 +684,12 @@ Handle<Object> RegExpImpl::JscreExecGlobal(Handle<JSRegExp> regexp,
 // Irregexp implementation.
 
 
+// Retrieves a compiled version of the regexp for either ASCII or non-ASCII
+// strings. If the compiled version doesn't already exist, it is compiled
+// from the source pattern.
+// Irregexp is not feature complete yet. If there is something in the
+// regexp that the compiler cannot currently handle, an empty
+// handle is returned, but no exception is thrown.
 static Handle<FixedArray> GetCompiledIrregexp(Handle<JSRegExp> re,
                                               bool is_ascii) {
   ASSERT(re->DataAt(JSRegExp::kIrregexpDataIndex)->IsFixedArray());
@@ -912,6 +919,8 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
       bool is_ascii = flatshape.IsAsciiRepresentation();
       int char_size_shift = is_ascii ? 0 : 1;
 
+      RegExpMacroAssemblerIA32::Result res;
+
       if (flatshape.IsExternal()) {
         const byte* address;
         if (is_ascii) {
@@ -921,7 +930,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
           ExternalTwoByteString* ext = ExternalTwoByteString::cast(*subject);
           address = reinterpret_cast<const byte*>(ext->resource()->data());
         }
-        rc = RegExpMacroAssemblerIA32::Execute(
+        res = RegExpMacroAssemblerIA32::Execute(
             *code,
             &address,
             start_offset << char_size_shift,
@@ -933,7 +942,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
             is_ascii ? SeqAsciiString::cast(*subject)->GetCharsAddress()
                      : SeqTwoByteString::cast(*subject)->GetCharsAddress();
         int byte_offset = char_address - reinterpret_cast<Address>(*subject);
-        rc = RegExpMacroAssemblerIA32::Execute(
+        res = RegExpMacroAssemblerIA32::Execute(
             *code,
             subject.location(),
             byte_offset + (start_offset << char_size_shift),
@@ -941,6 +950,12 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
             offsets_vector,
             previous_index == 0);
       }
+
+      if (res == RegExpMacroAssemblerIA32::EXCEPTION) {
+        ASSERT(Top::has_pending_exception());
+        return Handle<Object>::null();
+      }
+      rc = (res == RegExpMacroAssemblerIA32::SUCCESS);
 
       if (rc) {
         // Capture values are relative to start_offset only.

@@ -420,29 +420,6 @@ void Assembler::push(const Operand& src) {
 }
 
 
-void Assembler::push(Label* label, RelocInfo::Mode reloc_mode) {
-  ASSERT_NOT_NULL(label);
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  // If reloc_mode == NONE, the label is stored as buffer relative.
-  ASSERT(reloc_mode == RelocInfo::NONE);
-  if (label->is_bound()) {
-    // Index of position relative to Code Object-pointer.
-    int rel_pos = label->pos() + Code::kHeaderSize - kHeapObjectTag;
-    if (rel_pos >= 0 && rel_pos < 256) {
-      EMIT(0x6a);
-      EMIT(rel_pos);
-    } else {
-      EMIT(0x68);
-      emit(rel_pos);
-    }
-  } else {
-    EMIT(0x68);
-    emit_disp(label, Displacement::CODE_RELATIVE);
-  }
-}
-
-
 void Assembler::pop(Register dst) {
   ASSERT(reloc_info_writer.last_pc() != NULL);
   if (FLAG_push_pop_elimination && (reloc_info_writer.last_pc() <= last_pc_)) {

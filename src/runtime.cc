@@ -3664,61 +3664,9 @@ static Object* Runtime_StackOverflow(Arguments args) {
 }
 
 
-static Object* RuntimePreempt(Arguments args) {
-  // Clear the preempt request flag.
-  StackGuard::Continue(PREEMPT);
-
-  ContextSwitcher::PreemptionReceived();
-
-  {
-    v8::Unlocker unlocker;
-    Thread::YieldCPU();
-  }
-
-  return Heap::undefined_value();
-}
-
-
-static Object* DebugBreakHelper() {
-  // Just continue if breaks are disabled.
-  if (Debug::disable_break()) {
-    return Heap::undefined_value();
-  }
-
-  // Don't break in system functions. If the current function is
-  // either in the builtins object of some context or is in the debug
-  // context just return with the debug break stack guard active.
-  JavaScriptFrameIterator it;
-  JavaScriptFrame* frame = it.frame();
-  Object* fun = frame->function();
-  if (fun->IsJSFunction()) {
-    GlobalObject* global = JSFunction::cast(fun)->context()->global();
-    if (global->IsJSBuiltinsObject() || Debug::IsDebugGlobal(global)) {
-      return Heap::undefined_value();
-    }
-  }
-
-  // Clear the debug request flag.
-  StackGuard::Continue(DEBUGBREAK);
-
-  HandleScope scope;
-  // Enter the debugger. Just continue if we fail to enter the debugger.
-  EnterDebugger debugger;
-  if (debugger.FailedToEnter()) {
-    return Heap::undefined_value();
-  }
-
-  // Notify the debug event listeners.
-  Debugger::OnDebugBreak(Factory::undefined_value());
-
-  // Return to continue execution.
-  return Heap::undefined_value();
-}
-
-
 static Object* Runtime_DebugBreak(Arguments args) {
   ASSERT(args.length() == 0);
-  return DebugBreakHelper();
+  return Execution::DebugBreakHelper();
 }
 
 
@@ -3728,16 +3676,7 @@ static Object* Runtime_StackGuard(Arguments args) {
   // First check if this is a real stack overflow.
   if (StackGuard::IsStackOverflow()) return Runtime_StackOverflow(args);
 
-  // If not real stack overflow the stack guard was used to interrupt
-  // execution for another purpose.
-  if (StackGuard::IsDebugBreak()) DebugBreakHelper();
-  if (StackGuard::IsPreempted()) RuntimePreempt(args);
-  if (StackGuard::IsInterrupted()) {
-    // interrupt
-    StackGuard::Continue(INTERRUPT);
-    return Top::StackOverflow();
-  }
-  return Heap::undefined_value();
+  return Execution::HandleStackGuardInterrupt();
 }
 
 

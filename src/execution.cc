@@ -38,6 +38,9 @@
 #include "simulator-ia32.h"
 #endif
 
+#include "debug.h"
+#include "v8threads.h"
+
 namespace v8 { namespace internal {
 
 
@@ -499,6 +502,69 @@ Handle<String> Execution::GetStackTraceLine(Handle<Object> recv,
   return Handle<String>::cast(result);
 }
 
+
+static Object* RuntimePreempt() {
+  // Clear the preempt request flag.
+  StackGuard::Continue(PREEMPT);
+
+  ContextSwitcher::PreemptionReceived();
+
+  {
+    v8::Unlocker unlocker;
+    Thread::YieldCPU();
+  }
+
+  return Heap::undefined_value();
+}
+
+
+Object* Execution::DebugBreakHelper() {
+  // Just continue if breaks are disabled.
+  if (Debug::disable_break()) {
+    return Heap::undefined_value();
+  }
+
+  // Don't break in system functions. If the current function is
+  // either in the builtins object of some context or is in the debug
+  // context just return with the debug break stack guard active.
+  JavaScriptFrameIterator it;
+  JavaScriptFrame* frame = it.frame();
+  Object* fun = frame->function();
+  if (fun->IsJSFunction()) {
+    GlobalObject* global = JSFunction::cast(fun)->context()->global();
+    if (global->IsJSBuiltinsObject() || Debug::IsDebugGlobal(global)) {
+      return Heap::undefined_value();
+    }
+  }
+
+  // Clear the debug request flag.
+  StackGuard::Continue(DEBUGBREAK);
+
+  HandleScope scope;
+  // Enter the debugger. Just continue if we fail to enter the debugger.
+  EnterDebugger debugger;
+  if (debugger.FailedToEnter()) {
+    return Heap::undefined_value();
+  }
+
+  // Notify the debug event listeners.
+  Debugger::OnDebugBreak(Factory::undefined_value());
+
+  // Return to continue execution.
+  return Heap::undefined_value();
+}
+
+
+Object* Execution::HandleStackGuardInterrupt() {
+  if (StackGuard::IsDebugBreak()) DebugBreakHelper();
+  if (StackGuard::IsPreempted()) RuntimePreempt();
+  if (StackGuard::IsInterrupted()) {
+    // interrupt
+    StackGuard::Continue(INTERRUPT);
+    return Top::StackOverflow();
+  }
+  return Heap::undefined_value();
+}
 
 // --- G C   E x t e n s i o n ---
 
