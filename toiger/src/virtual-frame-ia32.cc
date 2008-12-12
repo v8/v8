@@ -139,9 +139,10 @@ void VirtualFrame::Unuse(Register reg) {
 }
 
 
-// Clear the dirty bit for the element at a given index.  We can only
-// allocate space in the actual frame for the virtual element immediately
-// above the stack pointer.
+// Clear the dirty bit for the element at a given index.  This requires
+// writing dirty elements to the actual frame.  We can only allocate space
+// in the actual frame for the virtual element immediately above the stack
+// pointer.
 void VirtualFrame::SyncElementAt(int index) {
   FrameElement element = elements_[index];
 
@@ -215,19 +216,27 @@ Register VirtualFrame::SpillAnyRegister() {
 }
 
 
-// Make the type of the element at a given index be MEMORY.  We can only
-// allocate space in the actual frame for the virtual element immediately
-// above the stack pointer.
-void VirtualFrame::SpillElementAt(int index) {
+// Spill an element, making its type be MEMORY.  If it is a register the
+// reference count is not decremented, so it must be done externally.
+void VirtualFrame::RawSpillElementAt(int index) {
   if (index > stack_pointer_ + 1) {
     SyncRange(stack_pointer_ + 1, index);
   }
   SyncElementAt(index);
   // The element is now in memory.
+  FrameElement memory_element;
+  elements_[index] = memory_element;
+}
+
+
+// Make the type of the element at a given index be MEMORY.  We can only
+// allocate space in the actual frame for the virtual element immediately
+// above the stack pointer.
+void VirtualFrame::SpillElementAt(int index) {
   if (elements_[index].is_register()) {
     Unuse(elements_[index].reg());
   }
-  elements_[index] = FrameElement();
+  RawSpillElementAt(index);
 }
 
 
@@ -389,7 +398,12 @@ void VirtualFrame::MakeMergable() {
       elements_[i] = target;
     } else {
       // The target is memory.
-      SpillElementAt(i);
+      if (!source.is_memory()) {
+        // Spilling a source register would decrement its reference count,
+        // but we have already done that when computing new target elements,
+        // so we use a raw spill.
+        RawSpillElementAt(i);
+      }
     }
   }
 
@@ -573,14 +587,50 @@ void VirtualFrame::AllocateStackSlots(int count) {
     SyncRange(stack_pointer_ + 1, elements_.length());
     Handle<Object> undefined = Factory::undefined_value();
     FrameElement initial_value(undefined, FrameElement::SYNCED);
-    Register tmp = cgen_->allocator()->Allocate();
-    __ Set(tmp, Immediate(undefined));
+    Register temp = cgen_->allocator()->Allocate();
+    __ Set(temp, Immediate(undefined));
     for (int i = 0; i < count; i++) {
       elements_.Add(initial_value);
       stack_pointer_++;
-      __ push(tmp);
+      __ push(temp);
     }
-    cgen_->allocator()->Unuse(tmp);
+    cgen_->allocator()->Unuse(temp);
+  }
+}
+
+
+void VirtualFrame::LoadFrameSlotAt(int index) {
+  ASSERT(index >= 0);
+  ASSERT(index < elements_.length());
+
+  FrameElement element = elements_[index];
+
+  if (element.is_memory()) {
+    ASSERT(index <= stack_pointer_);
+    // Eagerly load memory elements into a register.  The element at
+    // the index and the new top of the frame are backed by the same
+    // register location.
+    Register temp = cgen_->allocator()->Allocate();
+    ASSERT(!temp.is(no_reg));
+    FrameElement new_element(temp, FrameElement::NOT_SYNCED);
+    Use(temp);
+    elements_[index] = new_element;
+    Use(temp);
+    elements_.Add(new_element);
+
+    // Finally, move the element at the index into its new location.
+    elements_[index].set_sync();
+    __ mov(temp, Operand(ebp, fp_relative(index)));
+
+    cgen_->allocator()->Unuse(temp);
+  } else {
+    // For constants and registers, add a copy of the element to the
+    // top of the frame.
+    ASSERT(element.is_register() || element.is_constant());
+    if (element.is_register()) {
+      Use(element.reg());
+    }
+    elements_.Add(element);
   }
 }
 
@@ -588,14 +638,15 @@ void VirtualFrame::AllocateStackSlots(int count) {
 void VirtualFrame::StoreToFrameSlotAt(int index) {
   // Store the value on top of the frame to the virtual frame slot at a
   // given index.  The value on top of the frame is left in place.
+  ASSERT(index >= 0);
   ASSERT(index < elements_.length());
   FrameElement top = elements_[elements_.length() - 1];
 
-  // The virtual frame slot is now of the same type and has the same value
-  // as the frame top.
   if (elements_[index].is_register()) {
     Unuse(elements_[index].reg());
   }
+  // The virtual frame slot will be of the same type and have the same value
+  // as the frame top.
   elements_[index] = top;
 
   if (top.is_memory()) {

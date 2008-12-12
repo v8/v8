@@ -265,6 +265,11 @@ class VirtualFrame : public Malloced {
     return Operand(ebp, kLocal0Offset - index * kPointerSize);
   }
 
+  // Push a copy of the value of a local frame slot on top of the frame.
+  void LoadLocalAt(int index) {
+    LoadFrameSlotAt(local0_index() + index);
+  }
+
   // Store the top value on the virtual frame into a local frame slot.  The
   // value is left in place on top of the frame.
   void StoreToLocalAt(int index) {
@@ -282,6 +287,11 @@ class VirtualFrame : public Malloced {
     ASSERT(-1 <= index);  // -1 is the receiver.
     ASSERT(index < parameter_count_);
     return Operand(ebp, (1 + parameter_count_ - index) * kPointerSize);
+  }
+
+  // Push a copy of the value of a parameter frame slot on top of the frame.
+  void LoadParameterAt(int index) {
+    LoadFrameSlotAt(param0_index() + index);
   }
 
   // Store the top value on the virtual frame into a parameter frame slot.
@@ -429,12 +439,19 @@ class VirtualFrame : public Malloced {
 
   // Spill the element at a particular index---write it to memory if
   // necessary, free any associated register, and forget its value if
-  // constant.  Space should have already been allocated in the actual frame
-  // for all the elements below this one (at least).
+  // constant.
   void SpillElementAt(int index);
+
+  // Spill the element at an index without modifying its reference count (if
+  // it was in a register).
+  void RawSpillElementAt(int index);
 
   // Sync the range of elements in [begin, end).
   void SyncRange(int begin, int end);
+
+  // Push a copy of a frame slot (typically a local or parameter) on top of
+  // the frame.
+  void LoadFrameSlotAt(int index);
 
   // Store the value on top of the frame to a frame slot (typically a local
   // or parameter).

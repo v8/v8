@@ -2497,6 +2497,7 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     ASSERT(slot->var()->mode() == Variable::DYNAMIC);
 
     // For now, just do a runtime call.
+    frame_->SpillAll();
     frame_->EmitPush(esi);
     frame_->EmitPush(Immediate(slot->var()->name()));
 
@@ -2515,6 +2516,7 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
       // Const slots may contain 'the hole' value (the constant hasn't been
       // initialized yet) which needs to be converted into the 'undefined'
       // value.
+      frame_->SpillAll();
       Comment cmnt(masm_, "[ Load const");
       JumpTarget exit(this);
       __ mov(eax, SlotOperand(slot, ecx));
@@ -2524,7 +2526,17 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
       exit.Bind();
       frame_->EmitPush(eax);
     } else {
-      frame_->EmitPush(SlotOperand(slot, ecx));
+      if (slot->type() == Slot::PARAMETER) {
+        frame_->LoadParameterAt(slot->index());
+      } else if (slot->type() == Slot::LOCAL) {
+        frame_->LoadLocalAt(slot->index());
+      } else {
+        // The other remaining slot types (LOOKUP and GLOBAL) cannot reach
+        // here.
+        ASSERT(slot->type() == Slot::CONTEXT);
+        frame_->SpillAll();
+        frame_->EmitPush(SlotOperand(slot, ecx));
+      }
     }
   }
 }
@@ -2612,14 +2624,12 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
 
 
 void CodeGenerator::VisitSlot(Slot* node) {
-  frame_->SpillAll();
   Comment cmnt(masm_, "[ Slot");
   LoadFromSlot(node, typeof_state());
 }
 
 
 void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
-  frame_->SpillAll();
   Comment cmnt(masm_, "[ VariableProxy");
   Variable* var = node->var();
   Expression* expr = var->rewrite();
@@ -2920,6 +2930,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     } else {
       frame_->SpillAll();
       target.GetValue(NOT_INSIDE_TYPEOF);
+      frame_->SpillAll();
       Literal* literal = node->value()->AsLiteral();
       if (IsInlineSmi(literal)) {
         SmiOperation(node->binary_op(), node->type(), literal->handle(), false,
@@ -3083,6 +3094,7 @@ void CodeGenerator::VisitCall(Call* node) {
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
       ref.GetValue(NOT_INSIDE_TYPEOF);
+      frame_->SpillAll();
 
       // Pass receiver to called function.
       // The reference's size is non-negative.
@@ -3244,19 +3256,17 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   JumpTarget ascii_string(this);
   JumpTarget got_char_code(this);
 
-  // Load the string into eax.
+  // Load the string into eax and the index into ebx.
   Load(args->at(0));
   frame_->SpillAll();
+  Load(args->at(1));
+  frame_->SpillAll();
+  frame_->EmitPop(ebx);
   frame_->EmitPop(eax);
   // If the receiver is a smi return undefined.
   ASSERT(kSmiTag == 0);
   __ test(eax, Immediate(kSmiTagMask));
   slow_case.Branch(zero, not_taken);
-
-  // Load the index into ebx.
-  Load(args->at(1));
-  frame_->SpillAll();
-  frame_->EmitPop(ebx);
 
   // Check for negative or non-smi index.
   ASSERT(kSmiTag == 0);
@@ -3751,6 +3761,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       return;
     }
     target.GetValue(NOT_INSIDE_TYPEOF);
+    frame_->SpillAll();
 
     CountOperationDeferred* deferred =
         new CountOperationDeferred(this, is_postfix, is_increment,
@@ -3957,7 +3968,6 @@ class InstanceofStub: public CodeStub {
 
 
 void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
-  frame_->SpillAll();
   Comment cmnt(masm_, "[ CompareOperation");
 
   // Get the expressions from the node.
@@ -4016,6 +4026,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
     // Load the operand and move it to register edx.
     LoadTypeofExpression(operation->expression());
+    frame_->SpillAll();
     frame_->EmitPop(edx);
 
     if (check->Equals(Heap::number_symbol())) {
@@ -4225,6 +4236,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       // there is a chance that reference errors can be thrown below, we
       // must distinguish between the two kinds of loads (typeof expression
       // loads must not throw a reference error).
+      frame->SpillAll();
       Comment cmnt(masm, "[ Load from named Property");
       Handle<String> name(GetName());
       Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
@@ -4245,6 +4257,7 @@ void Reference::GetValue(TypeofState typeof_state) {
     case KEYED: {
       // TODO(1241834): Make sure that this it is safe to ignore the
       // distinction between expressions in a typeof and not in a typeof.
+      frame->SpillAll();
       Comment cmnt(masm, "[ Load from keyed Property");
       Property* property = expression_->AsProperty();
       ASSERT(property != NULL);
