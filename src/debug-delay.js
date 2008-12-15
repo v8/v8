@@ -474,10 +474,18 @@ Debug.findBreakPoint = function(break_point_number, remove) {
 
 Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
   if (!IS_FUNCTION(func)) throw new Error('Parameters have wrong types.');
+  // Break points in API functions are not supported.
+  if (%FunctionIsAPIFunction(func)) {
+    throw new Error('Cannot set break point in native code.');
+  }
   var source_position = this.findFunctionSourcePosition(func, opt_line, opt_column) -
                         this.sourcePosition(func);
   // Find the script for the function.
   var script = %FunctionGetScript(func);
+  // Break in builtin JavaScript code is not supported.
+  if (script.type == Debug.ScriptType.Native) {
+    throw new Error('Cannot set break point in native code.');
+  }
   // If the script for the function has a name convert this to a script break
   // point.
   if (script && script.name) {

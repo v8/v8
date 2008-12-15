@@ -919,6 +919,18 @@ static Object* Runtime_FunctionSetPrototype(Arguments args) {
 }
 
 
+static Object* Runtime_FunctionIsAPIFunction(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(JSFunction, f, args[0]);
+  // The function_data field of the shared function info is used exclusively by
+  // the API.
+  return !f->shared()->function_data()->IsUndefined() ? Heap::true_value()
+                                                      : Heap::false_value();
+}
+
+
 static Object* Runtime_SetCode(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
