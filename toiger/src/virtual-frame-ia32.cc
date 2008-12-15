@@ -498,6 +498,12 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
       } else {
         // Source is constant.
         __ Set(target.reg(), Immediate(source.handle()));
+        if (target.is_synced()) {
+          if (i > stack_pointer_) {
+            SyncRange(stack_pointer_ + 1, i);
+          }
+          SyncElementAt(i);
+        }
       }
       Use(target.reg());
       elements_[i] = target;
@@ -708,12 +714,13 @@ void VirtualFrame::LoadFrameSlotAt(int index) {
 
     cgen_->allocator()->Unuse(temp);
   } else {
-    // For constants and registers, add a copy of the element to the
-    // top of the frame.
+    // For constants and registers, add an (unsynced) copy of the element to
+    // the top of the frame.
     ASSERT(element.is_register() || element.is_constant());
     if (element.is_register()) {
       Use(element.reg());
     }
+    element.clear_sync();
     elements_.Add(element);
   }
 }
