@@ -40,7 +40,7 @@ namespace v8 { namespace internal {
 class Result BASE_EMBEDDED {
  public:
   // Construct a register Result.
-  explicit Result(Register reg, CodeGenerator* cgen);
+  Result(Register reg, CodeGenerator* cgen);
 
   // Construct a Result whose value is a compile-time constant.
   Result(Handle<Object> value, CodeGenerator * cgen) :
@@ -50,14 +50,16 @@ class Result BASE_EMBEDDED {
   }
 
   ~Result() {
-    // We have called Unuse() before Result goes out of scope.
-    ASSERT(!is_register() || reg().is(no_reg));
+    if (is_register()) {
+      Unuse();
+    }
   }
 
   void Unuse();
 
   bool is_register() const { return type() == REGISTER; }
   bool is_constant() const { return type() == CONSTANT; }
+  bool is_valid() const { return type() != INVALID; }
 
   Register reg() const {
     ASSERT(type() == REGISTER);
@@ -69,8 +71,16 @@ class Result BASE_EMBEDDED {
     return Handle<Object>(data_.handle_);
   }
 
+  // Change a result to a register result.  If the result is not already
+  // in a register, allocate a register from the code generator, and emit
+  // code to move the value into that register.
+  void ToRegister();
  private:
-  enum Type { REGISTER, CONSTANT };
+  enum Type {
+    REGISTER,
+    CONSTANT,
+    INVALID
+  };
 
   Type type_;
 
@@ -83,9 +93,6 @@ class Result BASE_EMBEDDED {
 
   CodeGenerator* cgen_;
 };
-
-
-// A result in a register just means that the value can be read from the register
 
 
 // -------------------------------------------------------------------------

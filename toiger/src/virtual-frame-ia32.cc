@@ -50,9 +50,23 @@ Result::Result(Register reg, CodeGenerator* cgen)
 
 
 void Result::Unuse() {
-  ASSERT(!reg().is(no_reg));
-  cgen_->allocator()->Unuse(reg());
-  data_.reg_ = no_reg;
+  if (is_register()) {
+    cgen_->allocator()->Unuse(reg());
+  }
+  type_ = INVALID;
+}
+
+
+void Result::ToRegister() {
+  ASSERT(is_valid());
+  if (is_constant()) {
+    Register reg = cgen_->allocator()->Allocate();
+    ASSERT(!reg.is(no_reg));
+    cgen_->masm()->Set(reg, Immediate(handle()));
+    data_.reg_ = reg;
+    type_ = REGISTER;
+  }
+  ASSERT(is_register());
 }
 
 
@@ -514,34 +528,40 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame *expected) {
     for (int i = start; i <= end; i++) {
       FrameElement source = elements_[i];
       FrameElement target = expected->elements_[i];
-      if (source.is_register() && target.is_register() &&
-          !target.reg().is(source.reg())) {
-        // We need to move source to target.
-        if (frame_registers_.is_used(target.reg().code())) {
-          // The move is blocked because the target contains valid data.
-          // If we are stuck with only cycles remaining, then we spill source.
-          // Otherwise, we just need more iterations.
-          if (should_break_cycles) {
-            SpillElementAt(i);
-            should_break_cycles = false;
-          } else {  // Record a blocked move.
-            if (!any_moves_blocked) {
-              first_move_blocked = i;
-            }
-            last_move_blocked = i;
-            any_moves_blocked = true;
-          }
-        } else {
-          // The move is not blocked.  This frame element can be moved from
-          // its source register to its target register.
-          Use(target.reg());
-          Unuse(source.reg());
+      if (source.is_register() && target.is_register()) {
+        if (target.reg().is(source.reg())) {
           if (target.is_synced() && !source.is_synced()) {
             SyncElementAt(i);
           }
           elements_[i] = target;
-          __ mov(target.reg(), source.reg());
-          any_moves_made = true;
+        } else {
+          // We need to move source to target.
+          if (frame_registers_.is_used(target.reg().code())) {
+            // The move is blocked because the target contains valid data.
+            // If we are stuck with only cycles remaining, then we spill source.
+            // Otherwise, we just need more iterations.
+            if (should_break_cycles) {
+              SpillElementAt(i);
+              should_break_cycles = false;
+            } else {  // Record a blocked move.
+              if (!any_moves_blocked) {
+                first_move_blocked = i;
+              }
+              last_move_blocked = i;
+              any_moves_blocked = true;
+            }
+          } else {
+            // The move is not blocked.  This frame element can be moved from
+            // its source register to its target register.
+            if (target.is_synced() && !source.is_synced()) {
+              SyncElementAt(i);
+            }
+            Use(target.reg());
+            Unuse(source.reg());
+            elements_[i] = target;
+            __ mov(target.reg(), source.reg());
+            any_moves_made = true;
+          }
         }
       }
     }

@@ -403,6 +403,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
 
   if (has_cc()) {
     ASSERT(frame_ != NULL);
+    frame_->SpillAll();
     // Convert cc_reg_ into a boolean value.
     JumpTarget loaded(this);
     JumpTarget materialize_true(this);
@@ -426,6 +427,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // Load "true" if necessary.
     if (true_target.is_linked()) {
       true_target.Bind();
+      frame_->SpillAll();
       frame_->EmitPush(Immediate(Factory::true_value()));
     }
     // If both "true" and "false" need to be reincarnated jump across the
@@ -436,6 +438,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // Load "false" if necessary.
     if (false_target.is_linked()) {
       false_target.Bind();
+      frame_->SpillAll();
       frame_->EmitPush(Immediate(Factory::false_value()));
     }
     // A value is loaded on all paths reaching this point.
@@ -1185,8 +1188,13 @@ class SmiComparisonDeferred: public DeferredCode {
   SmiComparisonDeferred(CodeGenerator* generator,
                         Condition cc,
                         bool strict,
-                        int value)
-      : DeferredCode(generator), cc_(cc), strict_(strict), value_(value) {
+                        Register left_side,
+                        int right_side) :
+      DeferredCode(generator),
+      cc_(cc),
+      strict_(strict),
+      left_side_(left_side),
+      right_side_(right_side) {
     set_comment("[ ComparisonDeferred");
   }
   virtual void Generate();
@@ -1194,18 +1202,21 @@ class SmiComparisonDeferred: public DeferredCode {
  private:
   Condition cc_;
   bool strict_;
-  int value_;
+  Register left_side_;
+  int right_side_;
 };
 
 
 void SmiComparisonDeferred::Generate() {
   CompareStub stub(cc_, strict_);
   // Setup parameters and call stub.
-  __ mov(edx, Operand(eax));
-  __ Set(eax, Immediate(Smi::FromInt(value_)));
+  if (!left_side_.is(edx)) {
+    __ mov(edx, Operand(left_side_));
+  }
+  __ Set(eax, Immediate(Smi::FromInt(right_side_)));
   __ CallStub(&stub);
   __ cmp(eax, 0);
-  // "result" is returned in the flags
+  // "result" is returned in the flags.
 }
 
 
@@ -1218,13 +1229,16 @@ void CodeGenerator::SmiComparison(Condition cc,
   int int_value = Smi::cast(*value)->value();
   ASSERT(is_intn(int_value, kMaxSmiInlinedBits));
 
+  Result comparee = frame_->Pop();
+  comparee.ToRegister();
+  Register reg = comparee.reg();
+  __ test(reg, Immediate(kSmiTagMask));
   SmiComparisonDeferred* deferred =
-      new SmiComparisonDeferred(this, cc, strict, int_value);
-  frame_->EmitPop(eax);
-  __ test(eax, Immediate(kSmiTagMask));
+      new SmiComparisonDeferred(this, cc, strict, reg, int_value);
   deferred->enter()->Branch(not_zero, not_taken);
-  // Test smi equality by pointer comparison.
-  __ cmp(Operand(eax), Immediate(value));
+  // Test smi equality and comparison by signed int comparison.
+  __ cmp(Operand(reg), Immediate(value));
+  comparee.Unuse();
   deferred->exit()->Bind();
   cc_reg_ = cc;
 }
@@ -3986,6 +4000,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
         right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
     // The 'null' value can only be equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
+      frame_->SpillAll();
       Load(left_is_null ? right : left);
       frame_->SpillAll();
       frame_->EmitPop(eax);
@@ -4024,6 +4039,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
        right->AsLiteral()->handle()->IsString())) {
     Handle<String> check(String::cast(*right->AsLiteral()->handle()));
 
+    frame_->SpillAll();
     // Load the operand and move it to register edx.
     LoadTypeofExpression(operation->expression());
     frame_->SpillAll();
@@ -4133,6 +4149,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       cc = greater_equal;
       break;
     case Token::IN: {
+      frame_->SpillAll();
       Load(left);
       frame_->SpillAll();
       Load(right);
@@ -4142,6 +4159,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       return;
     }
     case Token::INSTANCEOF: {
+      frame_->SpillAll();
       Load(left);
       frame_->SpillAll();
       Load(right);
@@ -4159,6 +4177,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   // Optimize for the case where (at least) one of the expressions
   // is a literal small integer.
   if (IsInlineSmi(left->AsLiteral())) {
+    frame_->SpillAll();
     Load(right);
     frame_->SpillAll();
     SmiComparison(ReverseCondition(cc), left->AsLiteral()->handle(), strict);
@@ -4166,11 +4185,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   }
   if (IsInlineSmi(right->AsLiteral())) {
     Load(left);
-    frame_->SpillAll();
     SmiComparison(cc, right->AsLiteral()->handle(), strict);
     return;
   }
 
+  frame_->SpillAll();
   Load(left);
   frame_->SpillAll();
   Load(right);
