@@ -413,7 +413,7 @@ void CodeGenerator::GenerateFastCaseSwitchCases(
   for (int i = 0; i < length; i++) {
     Comment cmnt(masm(), "[ Case clause");
     case_labels[i].Bind();
-    VisitStatements(cases->at(i)->statements());
+    VisitStatementsAndSpill(cases->at(i)->statements());
 
     // All of the labels match the same expected frame as the table start.
     // If control flow cannot fall off the end of the case statement, we

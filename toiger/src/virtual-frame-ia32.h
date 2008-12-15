@@ -186,6 +186,22 @@ class FrameElement BASE_EMBEDDED {
 
 class VirtualFrame : public Malloced {
  public:
+  // A utility class to introduce a scope where the virtual frame is
+  // expected to remain spilled.  The constructor spills the code
+  // generator's current frame, but no attempt is made to require it to stay
+  // stay spilled.  It is intended as documentation while the code generator
+  // is being transformed.
+  class SpilledScope BASE_EMBEDDED {
+   public:
+    explicit SpilledScope(CodeGenerator* cgen);
+
+    ~SpilledScope();
+
+   private:
+    CodeGenerator* cgen_;
+    bool previous_state_;
+  };
+
   // Construct an initial virtual frame on entry to a JS function.
   explicit VirtualFrame(CodeGenerator* cgen);
 

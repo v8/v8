@@ -82,6 +82,11 @@ class Reference BASE_EMBEDDED {
   // the expression stack, and it is left in place with its value above it.
   void GetValue(TypeofState typeof_state);
 
+  // Generate code to push the value of a reference on top of the expression
+  // stack and then spill the stack frame.  This function is used temporarily while
+  // the code generator is being transformed.
+  inline void GetValueAndSpill(TypeofState typeof_state);
+
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
   // on the expression stack.  The stored value is left in place (with the
@@ -186,6 +191,9 @@ class CodeGenerator: public AstVisitor {
 
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
 
+  bool in_spilled_code() const { return in_spilled_code_; }
+  void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
+
  private:
   // Construction/Destruction
   CodeGenerator(int buffer_size, Handle<Script> script, bool is_eval);
@@ -218,6 +226,32 @@ class CodeGenerator: public AstVisitor {
   NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
+  // Visit a statement and then spill the virtual frame if control flow can
+  // reach the end of the statement (ie, it does not exit via break,
+  // continue, return, or throw).  This function is used temporarily while
+  // the code generator is being transformed.
+  void VisitAndSpill(Statement* statement) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    Visit(statement);
+    if (frame_ != NULL) {
+      frame_->SpillAll();
+    }
+    set_in_spilled_code(true);
+  }
+
+  // Visit a list of statements and then spill the virtual frame if control
+  // flow can reach the end of the list.
+  void VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    VisitStatements(statements);
+    if (frame_ != NULL) {
+      frame_->SpillAll();
+    }
+    set_in_spilled_code(true);
+  }
+
   // Main code generation function
   void GenCode(FunctionLiteral* fun);
 
@@ -245,6 +279,36 @@ class CodeGenerator: public AstVisitor {
   void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
   void LoadGlobalReceiver(Register scratch);
+
+  // Generate code to push the value of an expression on top of the frame
+  // and then spill the frame fully to memory.  This function is used
+  // temporarily while the code generator is being transformed.
+  void LoadAndSpill(Expression* expression,
+                    TypeofState typeof_state = NOT_INSIDE_TYPEOF) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    Load(expression, typeof_state);
+    frame_->SpillAll();
+    set_in_spilled_code(true);
+  }
+
+  // Call LoadCondition and then spill the virtual frame unless control flow
+  // cannot reach the end of the expression (ie, by emitting only
+  // unconditional jumps to the control targets).
+  void LoadConditionAndSpill(Expression* expression,
+                             TypeofState typeof_state,
+                             JumpTarget* true_target,
+                             JumpTarget* false_target,
+                             bool force_cc) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    LoadCondition(expression, typeof_state, true_target, false_target,
+                  force_cc);
+    if (frame_ != NULL) {
+      frame_->SpillAll();
+    }
+    set_in_spilled_code(true);
+  }
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
@@ -409,12 +473,27 @@ class CodeGenerator: public AstVisitor {
   // to some unlinking code).
   bool function_return_is_shadowed_;
 
+  // True when we are in code that expects the virtual frame to be fully
+  // spilled.  Some virtual frame function are disabled in DEBUG builds when
+  // called from spilled code, because they do not leave the virtual frame
+  // in a spilled state.
+  bool in_spilled_code_;
+
   friend class VirtualFrame;
   friend class JumpTarget;
   friend class Reference;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };
+
+
+void Reference::GetValueAndSpill(TypeofState typeof_state) {
+  ASSERT(cgen_->in_spilled_code());
+  cgen_->set_in_spilled_code(false);
+  GetValue(typeof_state);
+  cgen_->frame()->SpillAll();
+  cgen_->set_in_spilled_code(true);
+}
 
 
 } }  // namespace v8::internal

@@ -73,6 +73,20 @@ void Result::ToRegister() {
 // -------------------------------------------------------------------------
 // VirtualFrame implementation.
 
+VirtualFrame::SpilledScope::SpilledScope(CodeGenerator* cgen)
+    : cgen_(cgen),
+      previous_state_(cgen->in_spilled_code()) {
+  ASSERT(cgen->frame() != NULL);
+  cgen->frame()->SpillAll();
+  cgen->set_in_spilled_code(true);
+}
+
+
+VirtualFrame::SpilledScope::~SpilledScope() {
+  cgen_->set_in_spilled_code(previous_state_);
+}
+
+
 // On entry to a function, the virtual frame already contains the receiver,
 // the parameters, and a return address.  All frame elements are in memory.
 VirtualFrame::VirtualFrame(CodeGenerator* cgen)
