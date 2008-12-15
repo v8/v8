@@ -90,7 +90,7 @@ class RegisterAllocator BASE_EMBEDDED {
   // Explicitly record a reference to a register.
   void Use(Register reg) { registers_.Use(reg); }
 
-  // Explicitly record that a register will no lonber be used.
+  // Explicitly record that a register will no longer be used.
   void Unuse(Register reg) { registers_.Unuse(reg); }
 
   // Initialize the register allocator for entry to a JS function.  On
