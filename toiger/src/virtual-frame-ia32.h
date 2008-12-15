@@ -100,6 +100,8 @@ class Result BASE_EMBEDDED {
 //
 // The internal elements of the virtual frames.  There are several kinds of
 // elements:
+//   * Invalid: elements that are uninitialized or not actually part
+//     of the virtual frame.  They should not be read.
 //   * Memory: an element that resides in the actual frame.  Its address is
 //     given by its position in the virtual frame.
 //   * Register: an element that resides in a register.
@@ -107,25 +109,42 @@ class Result BASE_EMBEDDED {
 
 class FrameElement BASE_EMBEDDED {
  public:
-  enum SyncFlag { SYNCED, NOT_SYNCED };
+  enum SyncFlag {
+    SYNCED,
+    NOT_SYNCED
+  };
 
-  // Construct an in-memory frame element.
+  // The default constructor creates an invalid frame element.
   FrameElement() {
-    type_ = TypeField::encode(MEMORY) | SyncField::encode(SYNCED);
-    // In-memory elements have no useful data.
+    type_ = TypeField::encode(INVALID) | SyncField::encode(NOT_SYNCED);
     data_.reg_ = no_reg;
   }
 
-  // Construct an in-register frame element.
-  FrameElement(Register reg, SyncFlag is_synced) {
-    type_ = TypeField::encode(REGISTER) | SyncField::encode(is_synced);
-    data_.reg_ = reg;
+  // Factory function to construct an in-memory frame element.
+  static FrameElement MemoryElement() {
+    FrameElement result;
+    result.type_ = TypeField::encode(MEMORY) | SyncField::encode(SYNCED);
+    // In-memory elements have no useful data.
+    result.data_.reg_ = no_reg;
+    return result;
   }
 
-  // Construct a frame element whose value is known at compile time.
-  FrameElement(Handle<Object> value, SyncFlag is_synced) {
-    type_ = TypeField::encode(CONSTANT) | SyncField::encode(is_synced);
-    data_.handle_ = value.location();
+  // Factory function to construct an in-register frame element.
+  static FrameElement RegisterElement(Register reg, SyncFlag is_synced) {
+    FrameElement result;
+    result.type_ = TypeField::encode(REGISTER) | SyncField::encode(is_synced);
+    result.data_.reg_ = reg;
+    return result;
+  }
+
+  // Factory function to construct a frame element whose value is known at
+  // compile time.
+  static FrameElement ConstantElement(Handle<Object> value,
+                                      SyncFlag is_synced) {
+    FrameElement result;
+    result.type_ = TypeField::encode(CONSTANT) | SyncField::encode(is_synced);
+    result.data_.handle_ = value.location();
+    return result;
   }
 
   bool is_synced() const { return SyncField::decode(type_) == SYNCED; }
@@ -155,7 +174,12 @@ class FrameElement BASE_EMBEDDED {
   }
 
  private:
-  enum Type { MEMORY, REGISTER, CONSTANT };
+  enum Type {
+    INVALID,
+    MEMORY,
+    REGISTER,
+    CONSTANT
+  };
 
   // BitField is <type, shift, size>.
   class SyncField : public BitField<SyncFlag, 0, 1> {};

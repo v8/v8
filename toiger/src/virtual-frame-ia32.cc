@@ -97,9 +97,8 @@ VirtualFrame::VirtualFrame(CodeGenerator* cgen)
       local_count_(0),
       stack_pointer_(parameter_count_ + 1),  // 0-based index of TOS.
       frame_pointer_(kIllegalIndex) {
-  FrameElement memory_element;
   for (int i = 0; i < parameter_count_ + 2; i++) {
-    elements_.Add(memory_element);
+    elements_.Add(FrameElement::MemoryElement());
   }
 }
 
@@ -130,7 +129,7 @@ void VirtualFrame::Adjust(int count) {
   ASSERT(stack_pointer_ == elements_.length() - 1);
 
   for (int i = 0; i < count; i++) {
-    elements_.Add(FrameElement());
+    elements_.Add(FrameElement::MemoryElement());
   }
   stack_pointer_ += count;
 }
@@ -252,8 +251,7 @@ void VirtualFrame::RawSpillElementAt(int index) {
   }
   SyncElementAt(index);
   // The element is now in memory.
-  FrameElement memory_element;
-  elements_[index] = memory_element;
+  elements_[index] = FrameElement::MemoryElement();
 }
 
 
@@ -372,8 +370,10 @@ void VirtualFrame::MakeMergable() {
   // bottom up.  (NB: Currently when spilling registers that are
   // multiply referenced, it is the lowermost occurrence that gets to
   // stay in the register.)
+
+  // The elements of new_elements are initially invalid.
   FrameElement* new_elements = new FrameElement[elements_.length()];
-  FrameElement memory_element;
+  FrameElement memory_element = FrameElement::MemoryElement();
   for (int i = elements_.length() - 1; i >= 0; i--) {
     FrameElement element = elements_[i];
     if (element.is_constant() ||
@@ -389,8 +389,8 @@ void VirtualFrame::MakeMergable() {
         if (reg.is(no_reg)) {
           new_elements[i] = memory_element;
         } else {
-          FrameElement register_element(reg, FrameElement::NOT_SYNCED);
-          new_elements[i] = register_element;
+          new_elements[i] =
+              FrameElement::RegisterElement(reg, FrameElement::NOT_SYNCED);
         }
       }
 
@@ -676,7 +676,8 @@ void VirtualFrame::AllocateStackSlots(int count) {
     // use pushes to allocate and initialize the locals.
     SyncRange(stack_pointer_ + 1, elements_.length());
     Handle<Object> undefined = Factory::undefined_value();
-    FrameElement initial_value(undefined, FrameElement::SYNCED);
+    FrameElement initial_value =
+        FrameElement::ConstantElement(undefined, FrameElement::SYNCED);
     Register temp = cgen_->allocator()->Allocate();
     __ Set(temp, Immediate(undefined));
     for (int i = 0; i < count; i++) {
@@ -702,7 +703,8 @@ void VirtualFrame::LoadFrameSlotAt(int index) {
     // register location.
     Register temp = cgen_->allocator()->Allocate();
     ASSERT(!temp.is(no_reg));
-    FrameElement new_element(temp, FrameElement::NOT_SYNCED);
+    FrameElement new_element
+        = FrameElement::RegisterElement(temp, FrameElement::NOT_SYNCED);
     Use(temp);
     elements_[index] = new_element;
     Use(temp);
@@ -888,7 +890,7 @@ void VirtualFrame::EmitPop(Operand operand) {
 
 void VirtualFrame::EmitPush(Register reg) {
   ASSERT(stack_pointer_ == elements_.length() - 1);
-  elements_.Add(FrameElement());
+  elements_.Add(FrameElement::MemoryElement());
   stack_pointer_++;
   __ push(reg);
 }
@@ -896,7 +898,7 @@ void VirtualFrame::EmitPush(Register reg) {
 
 void VirtualFrame::EmitPush(Operand operand) {
   ASSERT(stack_pointer_ == elements_.length() - 1);
-  elements_.Add(FrameElement());
+  elements_.Add(FrameElement::MemoryElement());
   stack_pointer_++;
   __ push(operand);
 }
@@ -904,23 +906,22 @@ void VirtualFrame::EmitPush(Operand operand) {
 
 void VirtualFrame::EmitPush(Immediate immediate) {
   ASSERT(stack_pointer_ == elements_.length() - 1);
-  FrameElement memory_element;
-  elements_.Add(memory_element);
+  elements_.Add(FrameElement::MemoryElement());
   stack_pointer_++;
   __ push(immediate);
 }
 
 
 void VirtualFrame::Push(Register reg) {
-  FrameElement register_element(reg, FrameElement::NOT_SYNCED);
   Use(reg);
-  elements_.Add(register_element);
+  elements_.Add(FrameElement::RegisterElement(reg,
+                                              FrameElement::NOT_SYNCED));
 }
 
 
 void VirtualFrame::Push(Handle<Object> value) {
-  FrameElement constant_element(value, FrameElement::NOT_SYNCED);
-  elements_.Add(constant_element);
+  elements_.Add(FrameElement::ConstantElement(value,
+                                              FrameElement::NOT_SYNCED));
 }
 
 
