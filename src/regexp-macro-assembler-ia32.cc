@@ -193,47 +193,28 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
     BranchOrBacktrack(greater, on_failure);
   }
 
-  if (str.length() <= kMaxInlineStringTests) {
-    for (int i = 0; i < str.length(); i++) {
-      if (mode_ == ASCII) {
-        __ cmpb(Operand(esi, edi, times_1, byte_offset + i),
-                static_cast<int8_t>(str[i]));
-      } else {
-        ASSERT(mode_ == UC16);
-        __ cmpw(Operand(esi, edi, times_1, byte_offset + i * sizeof(uc16)),
-                Immediate(str[i]));
-      }
-      BranchOrBacktrack(not_equal, on_failure);
-    }
-    return;
+  Label backtrack;
+  if (on_failure == NULL) {
+    // Avoid inlining the Backtrack macro for each test.
+    Label skip_backtrack;
+    __ jmp(&skip_backtrack);
+    __ bind(&backtrack);
+    Backtrack();
+    __ bind(&skip_backtrack);
+    on_failure = &backtrack;
   }
 
-  ArraySlice constant_buffer = constants_.GetBuffer(str.length(), char_size());
-  if (mode_ == ASCII) {
-    for (int i = 0; i < str.length(); i++) {
-      constant_buffer.at<char>(i) = static_cast<char>(str[i]);
+  for (int i = 0; i < str.length(); i++) {
+    if (mode_ == ASCII) {
+      __ cmpb(Operand(esi, edi, times_1, byte_offset + i),
+              static_cast<int8_t>(str[i]));
+    } else {
+      ASSERT(mode_ == UC16);
+      __ cmpw(Operand(esi, edi, times_1, byte_offset + i * sizeof(uc16)),
+              Immediate(str[i]));
     }
-  } else {
-    ASSERT(mode_ == UC16);
-    memcpy(constant_buffer.location(),
-           str.start(),
-           str.length() * sizeof(uc16));
+    BranchOrBacktrack(not_equal, on_failure);
   }
-
-  __ mov(eax, edi);
-  __ mov(ebx, esi);
-  __ lea(edi, Operand(esi, edi, times_1, byte_offset));
-  LoadConstantBufferAddress(esi, &constant_buffer);
-  __ mov(ecx, str.length());
-  if (char_size() == 1) {
-    __ rep_cmpsb();
-  } else {
-    ASSERT(char_size() == 2);
-    __ rep_cmpsw();
-  }
-  __ mov(esi, ebx);
-  __ mov(edi, eax);
-  BranchOrBacktrack(not_equal, on_failure);
 }
 
 
@@ -251,45 +232,50 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     int start_reg,
     Label* on_no_match) {
   Label fallthrough;
-  __ mov(eax, register_location(start_reg));
+  __ mov(edx, register_location(start_reg));
   __ mov(ecx, register_location(start_reg + 1));
-  __ sub(ecx, Operand(eax));  // Length to check.
+  __ sub(ecx, Operand(edx));  // Length to check.
   BranchOrBacktrack(less, on_no_match);
   __ j(equal, &fallthrough);
 
   if (mode_ == ASCII) {
     Label success;
     Label fail;
-    __ push(esi);
+    Label loop_increment;
     __ push(edi);
+    __ add(edx, Operand(esi));
     __ add(edi, Operand(esi));
-    __ add(esi, Operand(eax));
+    __ add(ecx, Operand(edi));
+
     Label loop;
     __ bind(&loop);
-    __ rep_cmpsb();
-    __ j(equal, &success);
+    __ movzx_b(eax, Operand(edi, 0));
+    __ cmpb_al(Operand(edx, 0));
+    __ j(equal, &loop_increment);
+
     // Compare lower-case if letters.
-    __ movzx_b(eax, Operand(edi, -1));
-    __ or_(eax, 0x20);  // To-lower-case
+    __ or_(eax, 0x20);  // To lower-case.
     __ lea(ebx, Operand(eax, -'a'));
     __ cmp(ebx, static_cast<int32_t>('z' - 'a'));
     __ j(above, &fail);
-    __ movzx_b(ebx, Operand(esi, -1));
+    __ movzx_b(ebx, Operand(edx, 0));
     __ or_(ebx, 0x20);  // To-lower-case
     __ cmp(eax, Operand(ebx));
     __ j(not_equal, &fail);
-    __ or_(ecx, Operand(ecx));
-    __ j(not_equal, &loop);
+
+    __ bind(&loop_increment);
+    __ add(Operand(edx), Immediate(1));
+    __ add(Operand(edi), Immediate(1));
+    __ cmp(edi, Operand(ecx));
+    __ j(below, &loop, taken);
     __ jmp(&success);
 
     __ bind(&fail);
     __ pop(edi);
-    __ pop(esi);
     BranchOrBacktrack(no_condition, on_no_match);
 
     __ bind(&success);
     __ pop(eax);  // discard original value of edi
-    __ pop(esi);
     __ sub(edi, Operand(esi));
   } else {
     ASSERT(mode_ == UC16);
@@ -325,30 +311,47 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(
     int start_reg,
     Label* on_no_match) {
   Label fallthrough;
-  __ mov(eax, register_location(start_reg));
+  Label success;
+  Label fail;
+  __ mov(edx, register_location(start_reg));
   __ mov(ecx, register_location(start_reg + 1));
-  __ sub(ecx, Operand(eax));  // Length to check.
+  __ sub(ecx, Operand(edx));  // Length to check.
   BranchOrBacktrack(less, on_no_match);
   __ j(equal, &fallthrough);
   // Check that there are sufficient characters left in the input.
+
   __ mov(ebx, edi);
   __ add(ebx, Operand(ecx));
   BranchOrBacktrack(greater, on_no_match);
 
   __ mov(ebx, edi);
-  __ mov(edx, esi);
   __ add(edi, Operand(esi));
-  __ add(esi, Operand(eax));
-  __ rep_cmpsb();
-  __ mov(esi, edx);
-  Label success;
-  __ j(equal, &success);
+  __ add(edx, Operand(esi));
+  __ add(ecx, Operand(edi));
+
+  Label loop;
+  __ bind(&loop);
+  if (mode_ == ASCII) {
+    __ movzx_b(eax, Operand(edx, 0));
+    __ cmpb_al(Operand(edi, 0));
+  } else {
+    ASSERT(mode_ == UC16);
+    __ movzx_w(eax, Operand(edx, 0));
+    __ cmpw_ax(Operand(edi, 0));
+  }
+  __ j(not_equal, &fail);
+  __ add(Operand(edx), Immediate(char_size()));
+  __ add(Operand(edi), Immediate(char_size()));
+  __ cmp(edi, Operand(ecx));
+  __ j(below, &loop);
+  __ jmp(&success);
+
+  __ bind(&fail);
   __ mov(edi, ebx);
   BranchOrBacktrack(no_condition, on_no_match);
 
   __ bind(&success);
   __ sub(edi, Operand(esi));
-
   __ bind(&fallthrough);
 }
 

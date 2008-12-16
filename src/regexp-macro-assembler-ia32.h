@@ -126,10 +126,10 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   static const size_t kRegExpCodeSize = 1024;
   // Initial size of constant buffers allocated during compilation.
   static const int kRegExpConstantsSize = 256;
-  // Only unroll loops up to this length.
-  static const int kMaxInlineStringTests = 8;
+  // Only unroll loops up to this length. TODO(lrn): Actually use this.
+  static const int kMaxInlineStringTests = 32;
 
-  // Compares two-byte strings case insenstively.
+  // Compares two-byte strings case insensitively.
   static int CaseInsensitiveCompareUC16(uc16** buffer,
                                         int byte_offset1,
                                         int byte_offset2,

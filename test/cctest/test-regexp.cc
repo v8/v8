@@ -788,7 +788,7 @@ TEST(MacroAssemblerIA32Backtrack) {
 }
 
 
-TEST(MacroAssemblerIA32BackReference) {
+TEST(MacroAssemblerIA32BackReferenceASCII) {
   v8::V8::Initialize();
   ContextInitializer initializer;
 
@@ -833,6 +833,57 @@ TEST(MacroAssemblerIA32BackReference) {
   CHECK_EQ(2, output[1]);
   CHECK_EQ(6, output[2]);
 }
+
+
+TEST(MacroAssemblerIA32BackReferenceUC16) {
+  v8::V8::Initialize();
+  ContextInitializer initializer;
+
+  RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::UC16, 3);
+
+  m.WriteCurrentPositionToRegister(0, 0);
+  m.AdvanceCurrentPosition(2);
+  m.WriteCurrentPositionToRegister(1, 0);
+  Label nomatch;
+  m.CheckNotBackReference(0, &nomatch);
+  m.Fail();
+  m.Bind(&nomatch);
+  m.AdvanceCurrentPosition(2);
+  Label missing_match;
+  m.CheckNotBackReference(0, &missing_match);
+  m.WriteCurrentPositionToRegister(2, 0);
+  m.Succeed();
+  m.Bind(&missing_match);
+  m.Fail();
+
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^(..)..\1"));
+  Handle<Object> code_object = m.GetCode(source);
+  Handle<Code> code = Handle<Code>::cast(code_object);
+
+  const uc16 input_data[6] = {'f', 0x2028, 'o', 'o', 'f', 0x2028};
+  Handle<String> input =
+      Factory::NewStringFromTwoByte(Vector<const uc16>(input_data, 6));
+  Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
+  Address start_adr = seq_input->GetCharsAddress();
+
+  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
+  int end_offset = start_offset + seq_input->length() * sizeof(input_data[0]);
+
+  int output[3];
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        output,
+                                        true);
+
+  CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
+  CHECK_EQ(0, output[0]);
+  CHECK_EQ(2, output[1]);
+  CHECK_EQ(6, output[2]);
+}
+
 
 
 TEST(MacroAssemblerIA32AtStart) {

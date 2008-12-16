@@ -503,14 +503,13 @@ class Assembler : public Malloced {
   void and_(const Operand& dst, const Immediate& x);
 
   void cmpb(const Operand& op, int8_t imm8);
+  void cmpb_al(const Operand& op);
+  void cmpw_ax(const Operand& op);
   void cmpw(const Operand& op, Immediate imm16);
   void cmp(Register reg, int32_t imm32);
   void cmp(Register reg, Handle<Object> handle);
   void cmp(Register reg, const Operand& op);
   void cmp(const Operand& op, const Immediate& imm);
-
-  void rep_cmpsb();
-  void rep_cmpsw();
 
   void dec_b(Register dst);
 
