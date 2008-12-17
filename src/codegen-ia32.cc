@@ -3835,8 +3835,6 @@ void Reference::GetValue(TypeofState typeof_state) {
       // TODO(1241834): Make sure that this it is safe to ignore the
       // distinction between expressions in a typeof and not in a typeof.
       Comment cmnt(masm, "[ Load from keyed Property");
-      Property* property = expression_->AsProperty();
-      ASSERT(property != NULL);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
 
       Variable* var = expression_->AsVariableProxy()->AsVariable();
@@ -3953,8 +3951,6 @@ void Reference::SetValue(InitState init_state) {
 
     case KEYED: {
       Comment cmnt(masm, "[ Store to keyed Property");
-      Property* property = expression_->AsProperty();
-      ASSERT(property != NULL);
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
