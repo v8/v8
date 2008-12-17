@@ -47,7 +47,6 @@ debug-scripts-request: PASS, SKIP if $mode == debug
 # Bug number 1020483: Debug tests fail on ARM.
 debug-constructor: CRASH, FAIL
 debug-continue: SKIP
-debug-backtrace: FAIL
 debug-evaluate-recursive: CRASH, FAIL if $mode == debug
 debug-changebreakpoint: CRASH, FAIL if $mode == debug
 debug-clearbreakpoint: CRASH, FAIL if $mode == debug

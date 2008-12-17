@@ -320,8 +320,10 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   no_const_pool_before_ = 0;
   last_const_pool_end_ = 0;
   last_bound_pos_ = 0;
-  last_position_ = RelocInfo::kNoPosition;
-  last_position_is_statement_ = false;
+  current_statement_position_ = RelocInfo::kNoPosition;
+  current_position_ = RelocInfo::kNoPosition;
+  written_statement_position_ = current_statement_position_;
+  written_position_ = current_position_;
 }
 
 
@@ -1306,20 +1308,36 @@ void Assembler::RecordComment(const char* msg) {
 void Assembler::RecordPosition(int pos) {
   if (pos == RelocInfo::kNoPosition) return;
   ASSERT(pos >= 0);
-  if (pos == last_position_) return;
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::POSITION, pos);
-  last_position_ = pos;
-  last_position_is_statement_ = false;
+  current_position_ = pos;
+  WriteRecordedPositions();
 }
 
 
 void Assembler::RecordStatementPosition(int pos) {
-  if (pos == last_position_) return;
-  CheckBuffer();
-  RecordRelocInfo(RelocInfo::STATEMENT_POSITION, pos);
-  last_position_ = pos;
-  last_position_is_statement_ = true;
+  if (pos == RelocInfo::kNoPosition) return;
+  ASSERT(pos >= 0);
+  current_statement_position_ = pos;
+  WriteRecordedPositions();
+}
+
+
+void Assembler::WriteRecordedPositions() {
+  // Write the statement position if it is different from what was written last
+  // time.
+  if (current_statement_position_ != written_statement_position_) {
+    CheckBuffer();
+    RecordRelocInfo(RelocInfo::STATEMENT_POSITION, current_statement_position_);
+    written_statement_position_ = current_statement_position_;
+  }
+
+  // Write the position if it is different from what was written last time and
+  // also diferent from the written statement position.
+  if (current_position_ != written_position_ &&
+      current_position_ != written_statement_position_) {
+    CheckBuffer();
+    RecordRelocInfo(RelocInfo::POSITION, current_position_);
+    written_position_ = current_position_;
+  }
 }
 
 

@@ -316,8 +316,10 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
 
   last_pc_ = NULL;
-  last_position_ = RelocInfo::kNoPosition;
-  last_statement_position_ = RelocInfo::kNoPosition;
+  current_statement_position_ = RelocInfo::kNoPosition;
+  current_position_ = RelocInfo::kNoPosition;
+  written_statement_position_ = current_statement_position_;
+  written_position_ = current_position_;
 }
 
 
@@ -1964,31 +1966,36 @@ void Assembler::RecordComment(const char* msg) {
 
 
 void Assembler::RecordPosition(int pos) {
-  if (pos == RelocInfo::kNoPosition) return;
+  ASSERT(pos != RelocInfo::kNoPosition);
   ASSERT(pos >= 0);
-  last_position_ = pos;
+  current_position_ = pos;
 }
 
 
 void Assembler::RecordStatementPosition(int pos) {
-  if (pos == RelocInfo::kNoPosition) return;
+  ASSERT(pos != RelocInfo::kNoPosition);
   ASSERT(pos >= 0);
-  last_statement_position_ = pos;
+  current_statement_position_ = pos;
 }
 
 
 void Assembler::WriteRecordedPositions() {
-  if (last_statement_position_ != RelocInfo::kNoPosition) {
+  // Write the statement position if it is different from what was written last
+  // time.
+  if (current_statement_position_ != written_statement_position_) {
     EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::STATEMENT_POSITION, last_statement_position_);
+    RecordRelocInfo(RelocInfo::STATEMENT_POSITION, current_statement_position_);
+    written_statement_position_ = current_statement_position_;
   }
-  if ((last_position_ != RelocInfo::kNoPosition) &&
-      (last_position_ != last_statement_position_)) {
+
+  // Write the position if it is different from what was written last time and
+  // also diferent from the written statement position.
+  if (current_position_ != written_position_ &&
+      current_position_ != written_statement_position_) {
     EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::POSITION, last_position_);
+    RecordRelocInfo(RelocInfo::POSITION, current_position_);
+    written_position_ = current_position_;
   }
-  last_statement_position_ = RelocInfo::kNoPosition;
-  last_position_ = RelocInfo::kNoPosition;
 }
 
 

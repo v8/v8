@@ -643,15 +643,11 @@ class Assembler : public Malloced {
 
   void RecordPosition(int pos);
   void RecordStatementPosition(int pos);
+  void WriteRecordedPositions();
 
   int pc_offset() const { return pc_ - buffer_; }
-  int last_position() const { return last_position_; }
-  bool last_position_is_statement() const {
-    return last_position_is_statement_;
-  }
-
-  // Temporary helper function. Used by codegen.cc.
-  int last_statement_position() const { return last_position_; }
+  int current_position() const { return current_position_; }
+  int current_statement_position() const { return current_position_; }
 
  protected:
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
@@ -754,8 +750,10 @@ class Assembler : public Malloced {
   int last_bound_pos_;
 
   // source position information
-  int last_position_;
-  bool last_position_is_statement_;
+  int current_position_;
+  int current_statement_position_;
+  int written_position_;
+  int written_statement_position_;
 
   // Code emission
   inline void CheckBuffer();

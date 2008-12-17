@@ -712,8 +712,8 @@ class Assembler : public Malloced {
   void WriteInternalReference(int position, const Label& bound_label);
 
   int pc_offset() const  { return pc_ - buffer_; }
-  int last_statement_position() const  { return last_statement_position_; }
-  int last_position() const  { return last_position_; }
+  int current_statement_position() const { return current_statement_position_; }
+  int current_position() const  { return current_position_; }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
@@ -800,8 +800,10 @@ class Assembler : public Malloced {
   byte* last_pc_;
 
   // source position information
-  int last_position_;
-  int last_statement_position_;
+  int current_statement_position_;
+  int current_position_;
+  int written_statement_position_;
+  int written_position_;
 };
 
 
