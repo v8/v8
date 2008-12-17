@@ -81,7 +81,7 @@ namespace v8 { namespace internal {
   V(Throw)                                      \
   V(Property)                                   \
   V(Call)                                       \
-  V(CallEval)                                    \
+  V(CallEval)                                   \
   V(CallNew)                                    \
   V(CallRuntime)                                \
   V(UnaryOperation)                             \
@@ -1213,7 +1213,7 @@ class ThisFunction: public Expression {
 
 class RegExpTree: public ZoneObject {
  public:
-  static const int kInfinity = (1<<31)-1;
+  static const int kInfinity = kMaxInt;
   virtual ~RegExpTree() { }
   virtual void* Accept(RegExpVisitor* visitor, void* data) = 0;
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
