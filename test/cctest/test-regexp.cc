@@ -1466,5 +1466,5 @@ TEST(CharClassDifference) {
 
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("\\bboy\\b", false, true, true);
+  Execute("\\b\\w+\\b", false, true, true);
 }

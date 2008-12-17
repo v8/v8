@@ -1596,6 +1596,11 @@ FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
 #undef DEFINE_ACCEPT
 
 
+void LoopChoiceNode::Accept(NodeVisitor* visitor) {
+  visitor->VisitLoopChoice(this);
+}
+
+
 // -------------------------------------------------------------------
 // Emit code.
 
@@ -2067,6 +2072,20 @@ int ChoiceNode::GreedyLoopTextLength(GuardedAlternative* alternative) {
     node = seq_node->on_success();
   }
   return length;
+}
+
+
+void LoopChoiceNode::AddLoopAlternative(GuardedAlternative alt) {
+  ASSERT_EQ(loop_node_, NULL);
+  AddAlternative(alt);
+  loop_node_ = alt.node();
+}
+
+
+void LoopChoiceNode::AddContinueAlternative(GuardedAlternative alt) {
+  ASSERT_EQ(continue_node_, NULL);
+  AddAlternative(alt);
+  continue_node_ = alt.node();
 }
 
 
@@ -2680,7 +2699,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   bool has_max = max < RegExpTree::kInfinity;
   bool needs_counter = has_min || has_max;
   int reg_ctr = needs_counter ? compiler->AllocateRegister() : -1;
-  ChoiceNode* center = new LoopChoiceNode(2);
+  LoopChoiceNode* center = new LoopChoiceNode();
   RegExpNode* loop_return = needs_counter
       ? static_cast<RegExpNode*>(ActionNode::IncrementRegister(reg_ctr, center))
       : static_cast<RegExpNode*>(center);
@@ -2696,11 +2715,11 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
     rest_alt.AddGuard(rest_guard);
   }
   if (is_greedy) {
-    center->AddAlternative(body_alt);
-    center->AddAlternative(rest_alt);
+    center->AddLoopAlternative(body_alt);
+    center->AddContinueAlternative(rest_alt);
   } else {
-    center->AddAlternative(rest_alt);
-    center->AddAlternative(body_alt);
+    center->AddContinueAlternative(rest_alt);
+    center->AddLoopAlternative(body_alt);
   }
   if (needs_counter) {
     return ActionNode::SetRegister(reg_ctr, 0, center);
@@ -3355,6 +3374,22 @@ void AssertionPropagation::VisitChoice(ChoiceNode* that) {
     // this node also, so it can pass it on.
     info->AddFromFollowing(node->info());
   }
+}
+
+
+void AssertionPropagation::VisitLoopChoice(LoopChoiceNode* that) {
+  NodeInfo* info = that->info();
+  for (int i = 0; i < that->alternatives()->length(); i++) {
+    RegExpNode* node = that->alternatives()->at(i).node();
+    if (node != that->loop_node()) {
+      EnsureAnalyzed(node);
+      info->AddFromFollowing(node->info());
+    }
+  }
+  // Check the loop last since it may need the value of this node
+  // to get a correct result.
+  EnsureAnalyzed(that->loop_node());
+  info->AddFromFollowing(that->loop_node()->info());
 }
 
 

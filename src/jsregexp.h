@@ -912,9 +912,28 @@ class ChoiceNode: public RegExpNode {
 
 class LoopChoiceNode: public ChoiceNode {
  public:
-  explicit LoopChoiceNode(int expected_size) : ChoiceNode(expected_size) { }
+  explicit LoopChoiceNode()
+      : ChoiceNode(2),
+        loop_node_(NULL),
+        continue_node_(NULL) { }
+  void AddLoopAlternative(GuardedAlternative alt);
+  void AddContinueAlternative(GuardedAlternative alt);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   virtual LoopChoiceNode* Clone() { return new LoopChoiceNode(*this); }
+  RegExpNode* loop_node() { return loop_node_; }
+  RegExpNode* continue_node() { return continue_node_; }
+  virtual void Accept(NodeVisitor* visitor);
+
+ private:
+  // AddAlternative is made private for loop nodes because alternatives
+  // should not be added freely, we need to keep track of which node
+  // goes back to the node itself.
+  void AddAlternative(GuardedAlternative node) {
+    ChoiceNode::AddAlternative(node);
+  }
+
+  RegExpNode* loop_node_;
+  RegExpNode* continue_node_;
 };
 
 
@@ -1024,6 +1043,7 @@ class NodeVisitor {
   virtual void Visit##Type(Type##Node* that) = 0;
 FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 #undef DECLARE_VISIT
+  virtual void VisitLoopChoice(LoopChoiceNode* that) { VisitChoice(that); }
 };
 
 
@@ -1105,6 +1125,7 @@ class AssertionPropagation: public NodeVisitor {
   virtual void Visit##Type(Type##Node* that);
 FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 #undef DECLARE_VISIT
+  virtual void VisitLoopChoice(LoopChoiceNode* that);
 
  private:
   bool ignore_case_;
