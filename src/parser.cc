@@ -470,9 +470,8 @@ void RegExpBuilder::AddQuantifierToAtom(int min, int max, bool is_greedy) {
   } else if (terms_.length() > 0) {
     ASSERT(last_added_ == ADD_ATOM);
     atom = terms_.RemoveLast();
-    if (atom->IsLookahead() || atom->IsAssertion()) {
-      // Guaranteed not to match a non-empty string.
-      // Assertion as an atom can happen as, e.g., (?:\b)
+    if (atom->max_match() == 0) {
+      // Guaranteed to only match an empty string.
       LAST(ADD_TERM);
       if (min == 0) {
         return;
@@ -3797,12 +3796,12 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     //   {
     case '*':
       min = 0;
-      max = RegExpQuantifier::kInfinity;
+      max = RegExpTree::kInfinity;
       Advance();
       break;
     case '+':
       min = 1;
-      max = RegExpQuantifier::kInfinity;
+      max = RegExpTree::kInfinity;
       Advance();
       break;
     case '?':
@@ -3968,7 +3967,7 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
   } else if (current() == ',') {
     Advance();
     if (current() == '}') {
-      max = RegExpQuantifier::kInfinity;
+      max = RegExpTree::kInfinity;
       Advance();
     } else {
       while (IsDecimalDigit(current())) {

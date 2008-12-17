@@ -439,6 +439,7 @@ class TextElement {
   explicit TextElement(Type t) : type(t), cp_offset(-1) { }
   static TextElement Atom(RegExpAtom* atom);
   static TextElement CharClass(RegExpCharacterClass* char_class);
+  int length();
   Type type;
   union {
     RegExpAtom* u_atom;

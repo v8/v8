@@ -76,9 +76,36 @@ static bool CheckSimple(const char* input) {
   return result.simple;
 }
 
+struct MinMaxPair {
+  int min_match;
+  int max_match;
+};
+
+static MinMaxPair CheckMinMaxMatch(const char* input) {
+  V8::Initialize(NULL);
+  v8::HandleScope scope;
+  unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  FlatStringReader reader(CStrVector(input));
+  RegExpCompileData result;
+  CHECK(v8::internal::ParseRegExp(&reader, false, &result));
+  CHECK(result.tree != NULL);
+  CHECK(result.error.is_null());
+  int min_match = result.tree->min_match();
+  int max_match = result.tree->max_match();
+  MinMaxPair pair = { min_match, max_match };
+  return pair;
+}
+
+
 
 #define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, *Parse(input))
 #define CHECK_SIMPLE(input, simple) CHECK_EQ(simple, CheckSimple(input));
+#define CHECK_MIN_MAX(input, min, max)                                         \
+  { MinMaxPair min_max = CheckMinMaxMatch(input);                              \
+    CHECK_EQ(min, min_max.min_match);                                          \
+    CHECK_EQ(max, min_max.max_match);                                          \
+  }
 
 TEST(Parser) {
   V8::Initialize(NULL);
@@ -251,6 +278,55 @@ TEST(Parser) {
   CHECK_PARSE_EQ("{12z}", "'{12z}'");
   CHECK_PARSE_EQ("{12,", "'{12,'");
   CHECK_PARSE_EQ("{12,3b", "'{12,3b'");
+
+  CHECK_MIN_MAX("a", 1, 1);
+  CHECK_MIN_MAX("abc", 3, 3);
+  CHECK_MIN_MAX("a[bc]d", 3, 3);
+  CHECK_MIN_MAX("a|bc", 1, 2);
+  CHECK_MIN_MAX("ab|c", 1, 2);
+  CHECK_MIN_MAX("a||bc", 0, 2);
+  CHECK_MIN_MAX("|", 0, 0);
+  CHECK_MIN_MAX("(?:ab)", 2, 2);
+  CHECK_MIN_MAX("(?:ab|cde)", 2, 3);
+  CHECK_MIN_MAX("(?:ab)|cde", 2, 3);
+  CHECK_MIN_MAX("(ab)", 2, 2);
+  CHECK_MIN_MAX("(ab|cde)", 2, 3);
+  CHECK_MIN_MAX("(ab)\\1", 4, 4);
+  CHECK_MIN_MAX("(ab|cde)\\1", 4, 6);
+  CHECK_MIN_MAX("(?:ab)?", 0, 2);
+  CHECK_MIN_MAX("(?:ab)*", 0, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:ab)+", 2, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("a?", 0, 1);
+  CHECK_MIN_MAX("a*", 0, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("a+", 1, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("a??", 0, 1);
+  CHECK_MIN_MAX("a*?", 0, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("a+?", 1, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:a?)?", 0, 1);
+  CHECK_MIN_MAX("(?:a*)?", 0, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:a+)?", 0, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:a?)+", 0, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:a*)+", 0, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:a+)+", 1, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:a?)*", 0, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:a*)*", 0, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:a+)*", 0, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("a{0}", 0, 0);
+  CHECK_MIN_MAX("(?:a+){0}", 0, 0);
+  CHECK_MIN_MAX("(?:a+){0,0}", 0, 0);
+  CHECK_MIN_MAX("a*b", 1, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("a+b", 2, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("a*b|c", 1, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("a+b|c", 1, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:a{5,1000000}){3,1000000}", 15, RegExpTree::kInfinity);
+  CHECK_MIN_MAX("(?:ab){4,7}", 8, 14);
+  CHECK_MIN_MAX("a\\bc", 2, 2);
+  CHECK_MIN_MAX("a\\Bc", 2, 2);
+  CHECK_MIN_MAX("a\\sc", 3, 3);
+  CHECK_MIN_MAX("a\\Sc", 3, 3);
+  CHECK_MIN_MAX("a(?=b)c", 2, 2);
+  CHECK_MIN_MAX("a(?=bbb|bb)c", 2, 2);
+  CHECK_MIN_MAX("a(?!bbb|bb)c", 2, 2);
 }
 
 TEST(ParserRegression) {

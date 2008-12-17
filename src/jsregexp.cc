@@ -1193,6 +1193,16 @@ TextElement TextElement::CharClass(
 }
 
 
+int TextElement::length() {
+  if (type == ATOM) {
+    return data.u_atom->length();
+  } else {
+    ASSERT(type == CHAR_CLASS);
+    return 1;
+  }
+}
+
+
 DispatchTable* ChoiceNode::GetTable(bool ignore_case) {
   if (table_ == NULL) {
     table_ = new DispatchTable();
@@ -2667,7 +2677,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   // TODO(someone): clear captures on repetition and handle empty
   //   matches.
   bool has_min = min > 0;
-  bool has_max = max < RegExpQuantifier::kInfinity;
+  bool has_max = max < RegExpTree::kInfinity;
   bool needs_counter = has_min || has_max;
   int reg_ctr = needs_counter ? compiler->AllocateRegister() : -1;
   ChoiceNode* center = new LoopChoiceNode(2);
@@ -3784,7 +3794,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
   //   since we don't even handle ^ yet I'm saving that optimization for
   //   later.
   RegExpNode* node = RegExpQuantifier::ToNode(0,
-                                              RegExpQuantifier::kInfinity,
+                                              RegExpTree::kInfinity,
                                               false,
                                               new RegExpCharacterClass('*'),
                                               &compiler,
