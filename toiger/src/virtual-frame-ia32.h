@@ -478,12 +478,6 @@ class VirtualFrame : public Malloced {
   // decrements both the register's internal and external reference counts.
   void Unuse(Register reg);
 
-  // Sync the element at a particular index---write it to memory if
-  // necessary, but do not free any associated register or forget its value
-  // if constant.  Space should have already been allocated in the actual
-  // frame for all the elements below this one (at least).
-  void SyncElementAt(int index);
-
   // Spill the element at a particular index---write it to memory if
   // necessary, free any associated register, and forget its value if
   // constant.
@@ -493,8 +487,17 @@ class VirtualFrame : public Malloced {
   // it was in a register).
   void RawSpillElementAt(int index);
 
+  // Sync the element at a particular index.  If it is a register or
+  // constant that disagrees with the value on the stack, write it to memory.
+  // Keep the element type as register or constant, and clear the dirty bit.
+  void SyncElementAt(int index);
+
   // Sync the range of elements in [begin, end).
   void SyncRange(int begin, int end);
+
+  // Sync a single element, assuming that its index is less than
+  // or equal to stack pointer + 1.
+  void RawSyncElementAt(int index);
 
   // Push a copy of a frame slot (typically a local or parameter) on top of
   // the frame.
@@ -508,6 +511,10 @@ class VirtualFrame : public Malloced {
   // arguments to a call) and all registers.
   void PrepareForCall(int count);
 
+  // Move frame elements currently in registers or constants, that
+  // should be in memory in the expected frame, to memory.
+  void MergeMoveRegistersToMemory(VirtualFrame *expected);
+
   // Make the register-to-register moves necessary to
   // merge this frame with the expected frame.
   // Register to memory moves must already have been made,
@@ -516,6 +523,13 @@ class VirtualFrame : public Malloced {
   // created in order to break cycles of register moves.
   // Used in the implementation of MergeTo().
   void MergeMoveRegistersToRegisters(VirtualFrame *expected);
+
+  // Make the memory-to-register and constant-to-register moves
+  // needed to make this frame equal the expected frame.
+  // Called after all register-to-memory and register-to-register
+  // moves have been made.  After this function returns, the frames
+  // should be equal.
+  void MergeMoveMemoryToRegisters(VirtualFrame *expected);
 };
 
 

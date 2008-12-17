@@ -166,42 +166,6 @@ void VirtualFrame::Unuse(Register reg) {
 }
 
 
-// Clear the dirty bit for the element at a given index.  This requires
-// writing dirty elements to the actual frame.  We can only allocate space
-// in the actual frame for the virtual element immediately above the stack
-// pointer.
-void VirtualFrame::SyncElementAt(int index) {
-  FrameElement element = elements_[index];
-
-  if (!element.is_synced()) {
-    if (index <= stack_pointer_) {
-      // Write elements below the stack pointer to their (already allocated)
-      // actual frame location.
-      if (element.is_constant()) {
-        __ Set(Operand(ebp, fp_relative(index)), Immediate(element.handle()));
-      } else {
-        ASSERT(element.is_register());
-        __ mov(Operand(ebp, fp_relative(index)), element.reg());
-      }
-    } else {
-      // Push elements above the stack pointer to allocate space and sync
-      // them.  Space should have already been allocated in the actual frame
-      // for all the elements below this one.
-      ASSERT(index == stack_pointer_ + 1);
-      stack_pointer_++;
-      if (element.is_constant()) {
-        __ push(Immediate(element.handle()));
-      } else {
-        ASSERT(element.is_register());
-        __ push(element.reg());
-      }
-    }
-
-    elements_[index].set_sync();
-  }
-}
-
-
 // Spill any register if possible, making its reference count zero.
 Register VirtualFrame::SpillAnyRegister() {
   // Find the leftmost (ordered by register code), least
@@ -243,21 +207,16 @@ Register VirtualFrame::SpillAnyRegister() {
 }
 
 
-// Spill an element, making its type be MEMORY.  If it is a register the
-// reference count is not decremented, so it must be done externally.
+// Spill an element, making its type be MEMORY.
+// Does not decrement usage counts, if element is a register.
 void VirtualFrame::RawSpillElementAt(int index) {
-  if (index > stack_pointer_ + 1) {
-    SyncRange(stack_pointer_ + 1, index);
-  }
   SyncElementAt(index);
   // The element is now in memory.
   elements_[index] = FrameElement::MemoryElement();
 }
 
 
-// Make the type of the element at a given index be MEMORY.  We can only
-// allocate space in the actual frame for the virtual element immediately
-// above the stack pointer.
+// Make the type of the element at a given index be MEMORY.
 void VirtualFrame::SpillElementAt(int index) {
   if (elements_[index].is_register()) {
     Unuse(elements_[index].reg());
@@ -266,13 +225,57 @@ void VirtualFrame::SpillElementAt(int index) {
 }
 
 
+// Clear the dirty bit for the element at a given index.
+// The element must be on the physical stack, or the first
+// element below the stack pointer (created by a single push).
+void VirtualFrame::RawSyncElementAt(int index) {
+  FrameElement element = elements_[index];
+
+  if (!element.is_synced()) {
+    if (index <= stack_pointer_) {
+      // Write elements below the stack pointer to their (already allocated)
+      // actual frame location.
+      if (element.is_constant()) {
+        __ Set(Operand(ebp, fp_relative(index)), Immediate(element.handle()));
+      } else {
+        ASSERT(element.is_register());
+        __ mov(Operand(ebp, fp_relative(index)), element.reg());
+      }
+    } else {
+      // Push elements above the stack pointer to allocate space and sync
+      // them.  Space should have already been allocated in the actual frame
+      // for all the elements below this one.
+      ASSERT(index == stack_pointer_ + 1);
+      stack_pointer_++;
+      if (element.is_constant()) {
+        __ push(Immediate(element.handle()));
+      } else {
+        ASSERT(element.is_register());
+        __ push(element.reg());
+      }
+    }
+
+    elements_[index].set_sync();
+  }
+}
+
+
 // Clear the dirty bits for the range of elements in [begin, end).
 void VirtualFrame::SyncRange(int begin, int end) {
   ASSERT(begin >= 0);
   ASSERT(end <= elements_.length());
   for (int i = begin; i < end; i++) {
-    SyncElementAt(i);
+    RawSyncElementAt(i);
   }
+}
+
+
+// Clear the dirty bit for the element at a given index.
+void VirtualFrame::SyncElementAt(int index) {
+  if (index > stack_pointer_ + 1) {
+    SyncRange(stack_pointer_ + 1, index);
+  }
+  RawSyncElementAt(index);
 }
 
 
@@ -453,62 +456,9 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   // First perform all to-memory moves, register-to-memory moves because
   // they can free registers and constant-to-memory moves because they do
   // not use registers.
-  for (int i = 0; i < elements_.length(); i++) {
-    FrameElement source = elements_[i];
-    FrameElement target = expected->elements_[i];
-    if (target.is_memory() && !source.is_memory()) {
-      ASSERT(source.is_register() || source.is_constant());
-      SpillElementAt(i);
-    }
-  }
-
+  MergeMoveRegistersToMemory(expected);
   MergeMoveRegistersToRegisters(expected);
-
-  // Finally, constant-to-register and memory-to-register.  We do these from
-  // the top down so we can use pop for memory-to-register moves above the
-  // expected stack pointer.
-  for (int i = elements_.length() - 1; i >= 0; i--) {
-    FrameElement source = elements_[i];
-    FrameElement target = expected->elements_[i];
-    if (target.is_register() && !source.is_register()) {
-      ASSERT(source.is_constant() || source.is_memory());
-      if (source.is_memory()) {
-        ASSERT(i <= stack_pointer_);
-        if (i <= expected->stack_pointer_) {
-          // Elements below both stack pointers can just be moved.
-          __ mov(target.reg(), Operand(ebp, fp_relative(i)));
-        } else {
-          // Elements below the current stack pointer but above the expected
-          // one can be popped, bet first we may have to adjust the stack
-          // pointer downward.
-          if (stack_pointer_ > i + 1) {
-#ifdef DEBUG
-            // In debug builds check to ensure this is safe.
-            for (int j = stack_pointer_; j > i; j--) {
-              ASSERT(!elements_[j].is_memory());
-            }
-#endif
-            stack_pointer_ = i + 1;
-            __ add(Operand(esp),
-                   Immediate((stack_pointer_ - i) * kPointerSize));
-          }
-          stack_pointer_--;
-          __ pop(target.reg());
-        }
-      } else {
-        // Source is constant.
-        __ Set(target.reg(), Immediate(source.handle()));
-        if (target.is_synced()) {
-          if (i > stack_pointer_) {
-            SyncRange(stack_pointer_ + 1, i);
-          }
-          SyncElementAt(i);
-        }
-      }
-      Use(target.reg());
-      elements_[i] = target;
-    }
-  }
+  MergeMoveMemoryToRegisters(expected);
 
   // At this point, the frames should be identical.
   ASSERT(stack_pointer_ == expected->stack_pointer_);
@@ -534,12 +484,24 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
 }
 
 
+void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame *expected) {
+  for (int i = 0; i < elements_.length(); i++) {
+    FrameElement source = elements_[i];
+    FrameElement target = expected->elements_[i];
+    if (target.is_memory() && !source.is_memory()) {
+      ASSERT(source.is_register() || source.is_constant());
+      SpillElementAt(i);
+    }
+  }
+}
+
+
 void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame *expected) {
   int start = 0;
   int end = elements_.length() - 1;
-  bool any_moves_blocked; // Did we fail to make some moves this iteration?
+  bool any_moves_blocked;  // Did we fail to make some moves this iteration?
   bool should_break_cycles = false;
-  bool any_moves_made; // Did we make any progress this iteration?
+  bool any_moves_made;  // Did we make any progress this iteration?
   do {
     any_moves_blocked = false;
     any_moves_made = false;
@@ -592,6 +554,54 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame *expected) {
       end = last_move_blocked;
     }
   } while (any_moves_blocked);
+}
+
+
+void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
+  // Finally, constant-to-register and memory-to-register.  We do these from
+  // the top down so we can use pop for memory-to-register moves above the
+  // expected stack pointer.
+  for (int i = elements_.length() - 1; i >= 0; i--) {
+    FrameElement source = elements_[i];
+    FrameElement target = expected->elements_[i];
+    if (target.is_register() && !source.is_register()) {
+      ASSERT(source.is_constant() || source.is_memory());
+      if (source.is_memory()) {
+        ASSERT(i <= stack_pointer_);
+        if (i <= expected->stack_pointer_) {
+          // Elements below both stack pointers can just be moved.
+          __ mov(target.reg(), Operand(ebp, fp_relative(i)));
+        } else {
+          // Elements below the current stack pointer but above the expected
+          // one can be popped, but first we may have to adjust the stack
+          // pointer downward.
+          if (stack_pointer_ > i) {
+            // Sync elements between i and stack pointer, and bring
+            // stack pointer down to i.
+#ifdef DEBUG
+            // In debug builds check to ensure this is safe.
+            for (int j = stack_pointer_; j > i; j--) {
+              ASSERT(!elements_[j].is_memory());
+            }
+#endif
+            __ add(Operand(esp),
+                   Immediate((stack_pointer_ - i) * kPointerSize));
+            stack_pointer_ = i;
+            }
+          stack_pointer_--;
+          __ pop(target.reg());
+        }
+      } else {
+        // Source is constant.
+        __ Set(target.reg(), Immediate(source.handle()));
+        if (target.is_synced()) {
+          SyncElementAt(i);
+        }
+      }
+      Use(target.reg());
+      elements_[i] = target;
+    }
+  }
 }
 
 
