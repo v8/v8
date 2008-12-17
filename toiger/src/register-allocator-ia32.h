@@ -81,7 +81,7 @@ class RegisterFile BASE_EMBEDDED {
 
 class RegisterAllocator BASE_EMBEDDED {
  public:
-  RegisterAllocator(CodeGenerator* cgen) : code_generator_(cgen) {}
+  explicit RegisterAllocator(CodeGenerator* cgen) : code_generator_(cgen) {}
 
   int num_registers() const { return RegisterFile::kNumRegisters; }
 

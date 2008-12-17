@@ -83,8 +83,8 @@ class Reference BASE_EMBEDDED {
   void GetValue(TypeofState typeof_state);
 
   // Generate code to push the value of a reference on top of the expression
-  // stack and then spill the stack frame.  This function is used temporarily while
-  // the code generator is being transformed.
+  // stack and then spill the stack frame.  This function is used temporarily
+  // while the code generator is being transformed.
   inline void GetValueAndSpill(TypeofState typeof_state);
 
   // Generate code to store the value on top of the expression stack in the

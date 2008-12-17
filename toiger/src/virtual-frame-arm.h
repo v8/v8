@@ -56,7 +56,7 @@ class Element BASE_EMBEDDED {
 // as random access to the expression stack elements, locals, and
 // parameters.
 
-class VirtualFrame : public Malloced{
+class VirtualFrame : public Malloced {
  public:
   // Construct a virtual frame with the given code generator used to
   // generate code.

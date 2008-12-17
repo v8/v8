@@ -571,7 +571,8 @@ class ToBooleanStub: public CodeStub {
 // ECMA-262, section 9.2, page 30: ToBoolean(). Pop the top of stack and
 // convert it to a boolean in the condition code register or jump to
 // 'false_target'/'true_target' as appropriate.
-void CodeGenerator::ToBoolean(JumpTarget* true_target, JumpTarget* false_target) {
+void CodeGenerator::ToBoolean(JumpTarget* true_target,
+                              JumpTarget* false_target) {
   Comment cmnt(masm_, "[ ToBoolean");
 
   // The value to convert should be popped from the stack.
@@ -4067,8 +4068,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       // Uncommon case: typeof testing against a string literal that is
       // never returned from the typeof operator.
       false_target()->Jump();
-      // TODO(): Can this cause a problem because it is an expression that
-      // exits without a virtual frame in place?
+      // TODO(kmilliken) : Can this cause a problem because it is an expression
+      // that exits without a virtual frame in place?
     }
     return;
   }

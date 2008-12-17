@@ -130,7 +130,7 @@ void JumpTarget::Call() {
   ASSERT(expected_frame_ == NULL);
 
   expected_frame_ = new VirtualFrame(current_frame);
-   // Adjust the expected frame's height to account for the return address
+  // Adjust the expected frame's height to account for the return address
   // pushed by the call instruction.
   expected_frame_->Adjust(1);
 
