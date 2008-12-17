@@ -1061,7 +1061,7 @@ class BMGoodSuffixBuffers {
 };
 
 // buffers reused by BoyerMoore
-static int bad_char_occurence[kBMAlphabetSize];
+static int bad_char_occurrence[kBMAlphabetSize];
 static BMGoodSuffixBuffers bmgs_buffers;
 
 // Compute the bad-char table for Boyer-Moore in the static buffer.
@@ -1074,16 +1074,16 @@ static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
   int table_size = (sizeof(pchar) == 1) ? String::kMaxAsciiCharCode + 1
                                         : kBMAlphabetSize;
   if (start == 0) {  // All patterns less than kBMMaxShift in length.
-    memset(bad_char_occurence, -1, table_size * sizeof(*bad_char_occurence));
+    memset(bad_char_occurrence, -1, table_size * sizeof(*bad_char_occurrence));
   } else {
     for (int i = 0; i < table_size; i++) {
-      bad_char_occurence[i] = start - 1;
+      bad_char_occurrence[i] = start - 1;
     }
   }
   for (int i = start; i < pattern.length() - 1; i++) {
     pchar c = pattern[i];
     int bucket = (sizeof(pchar) ==1) ? c : c % kBMAlphabetSize;
-    bad_char_occurence[bucket] = i;
+    bad_char_occurrence[bucket] = i;
   }
 }
 
@@ -1138,28 +1138,27 @@ static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
 }
 
 template <typename schar, typename pchar>
-static inline int CharOccurence(int char_code) {
+static inline int CharOccurrence(int char_code) {
   if (sizeof(schar) == 1) {
-    return bad_char_occurence[char_code];
+    return bad_char_occurrence[char_code];
   }
   if (sizeof(pchar) == 1) {
     if (char_code > String::kMaxAsciiCharCode) {
       return -1;
     }
-    return bad_char_occurence[char_code];
+    return bad_char_occurrence[char_code];
   }
-  return bad_char_occurence[char_code % kBMAlphabetSize];
+  return bad_char_occurrence[char_code % kBMAlphabetSize];
 }
 
-// Restricted simplified Boyer-Moore string matching. Restricts tables to a
-// suffix of long pattern strings and handles only equivalence classes
-// of the full alphabet. This allows us to ensure that tables take only
-// a fixed amount of space.
+// Restricted simplified Boyer-Moore string matching.
+// Uses only the bad-shift table of Boyer-Moore and only uses it
+// for the character compared to the last character of the needle.
 template <typename schar, typename pchar>
-static int BoyerMooreSimplified(Vector<const schar> subject,
-                                Vector<const pchar> pattern,
-                                int start_index,
-                                bool* complete) {
+static int BoyerMooreHorsepool(Vector<const schar> subject,
+                               Vector<const pchar> pattern,
+                               int start_index,
+                               bool* complete) {
   int n = subject.length();
   int m = pattern.length();
   // Only preprocess at most kBMMaxShift last characters of pattern.
@@ -1170,12 +1169,13 @@ static int BoyerMooreSimplified(Vector<const schar> subject,
   int badness = -m;  // How bad we are doing without a good-suffix table.
   int idx;  // No matches found prior to this index.
   pchar last_char = pattern[m - 1];
+  int last_char_shift = m - 1 - CharOccurrence<schar, pchar>(last_char);
   // Perform search
   for (idx = start_index; idx <= n - m;) {
     int j = m - 1;
     int c;
     while (last_char != (c = subject[idx + j])) {
-      int bc_occ = CharOccurence<schar, pchar>(c);
+      int bc_occ = CharOccurrence<schar, pchar>(c);
       int shift = j - bc_occ;
       idx += shift;
       badness += 1 - shift;  // at most zero, so badness cannot increase.
@@ -1185,19 +1185,17 @@ static int BoyerMooreSimplified(Vector<const schar> subject,
       }
     }
     j--;
-    while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
+    while (j >= 0 && pattern[j] == (subject[idx + j])) j--;
     if (j < 0) {
       *complete = true;
       return idx;
     } else {
-      int bc_occ = CharOccurence<schar, pchar>(c);
-      int shift = bc_occ < j ? j - bc_occ : 1;
-      idx += shift;
+      idx += last_char_shift;
       // Badness increases by the number of characters we have
       // checked, and decreases by the number of characters we
       // can skip by shifting. It's a measure of how we are doing
       // compared to reading each character exactly once.
-      badness += (m - j) - shift;
+      badness += (m - j) - last_char_shift;
       if (badness > 0) {
         *complete = false;
         return idx;
@@ -1226,7 +1224,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
     int j = m - 1;
     schar c;
     while (last_char != (c = subject[idx + j])) {
-      int shift = j - CharOccurence<schar, pchar>(c);
+      int shift = j - CharOccurrence<schar, pchar>(c);
       idx += shift;
       if (idx > n - m) {
         return -1;
@@ -1237,12 +1235,15 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
       return idx;
     } else if (j < start) {
       // we have matched more than our tables allow us to be smart about.
-      idx += 1;
+      // Fall back on BMH shift.
+      idx += m - 1 - CharOccurrence<schar, pchar>(last_char);
     } else {
       int gs_shift = bmgs_buffers.shift(j + 1);       // Good suffix shift.
-      int bc_occ = CharOccurence<schar, pchar>(c);
+      int bc_occ = CharOccurrence<schar, pchar>(c);
       int shift = j - bc_occ;                         // Bad-char shift.
-      shift = (gs_shift > shift) ? gs_shift : shift;
+      if (gs_shift > shift) {
+        shift = gs_shift;
+      }
       idx += shift;
     }
   } while (idx <= n - m);
@@ -1286,7 +1287,7 @@ static int SimpleIndexOf(Vector<const schar> subject,
     badness++;
     if (badness > 0) {
       *complete = false;
-      return (i);
+      return i;
     }
     if (subject[i] != pattern_first_char) continue;
     int j = 1;
@@ -1357,7 +1358,7 @@ static int StringMatchStrategy(Vector<const schar> sub,
   bool complete;
   int idx = SimpleIndexOf(sub, pat, start_index, &complete);
   if (complete) return idx;
-  idx = BoyerMooreSimplified(sub, pat, idx, &complete);
+  idx = BoyerMooreHorsepool(sub, pat, idx, &complete);
   if (complete) return idx;
   return BoyerMooreIndexOf(sub, pat, idx);
 }
