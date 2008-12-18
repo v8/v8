@@ -3323,16 +3323,10 @@ static Object* Runtime_NewObject(Arguments args) {
   if (constructor->IsJSFunction()) {
     JSFunction* function = JSFunction::cast(constructor);
 
-    // Handle steping into constructors.
+    // Handle steping into constructors if step into is active.
     if (Debug::StepInActive()) {
-      StackFrameIterator it;
-      it.Advance();
-      ASSERT(it.frame()->is_construct());
-      it.Advance();
-      if (it.frame()->fp() == Debug::step_in_fp()) {
-        HandleScope scope;
-        Debug::FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
-      }
+      HandleScope scope;
+      Debug::HandleStepIn(Handle<JSFunction>(function), 0, true);
     }
 
     if (function->has_initial_map() &&

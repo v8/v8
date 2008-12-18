@@ -1095,6 +1095,33 @@ Handle<Object> Debug::GetSourceBreakLocations(
 }
 
 
+// Handle stepping into a function.
+void Debug::HandleStepIn(Handle<JSFunction> function,
+                         Address fp,
+                         bool is_constructor) {
+  // If the frame pointer is not supplied by the caller find it.
+  if (fp == 0) {
+    StackFrameIterator it;
+    it.Advance();
+    // For constructor functions skip another frame.
+    if (is_constructor) {
+      ASSERT(it.frame()->is_construct());
+      it.Advance();
+    }
+    fp = it.frame()->fp();
+  }
+
+  // Flood the function with one-shot break points if it is called from where
+  // step into was requested.
+  if (fp == Debug::step_in_fp()) {
+    // Don't allow step into functions in the native context.
+    if (function->context()->global() != Top::context()->builtins()) {
+      Debug::FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
+    }
+  }  
+}
+
+
 void Debug::ClearStepping() {
   // Clear the various stepping setup.
   ClearOneShot();

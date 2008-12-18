@@ -352,20 +352,14 @@ Object* CallIC::LoadFunction(State state,
       if (opt->IsJSFunction()) return opt;
     }
 
-    // If performing debug step into then flood this function with one-shot
-    // break points if it is called from where step into was requested.
-    if (Debug::StepInActive() && fp() == Debug::step_in_fp()) {
+    // Handle stepping into a function if step into is active.
+    if (Debug::StepInActive()) {
       // Protect the result in a handle as the debugger can allocate and might
       // cause GC.
       HandleScope scope;
-      Handle<Object> result_handle(result);
-      // Don't allow step into functions in the native context.
-      if (JSFunction::cast(result)->context()->global() !=
-          Top::context()->builtins()) {
-        Handle<SharedFunctionInfo> shared(JSFunction::cast(result)->shared());
-        Debug::FloodWithOneShot(shared);
-      }
-      return *result_handle;
+      Handle<JSFunction> function(JSFunction::cast(result));
+      Debug::HandleStepIn(function, fp(), false);
+      return *function;
     }
 
     return result;
