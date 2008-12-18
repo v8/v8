@@ -264,6 +264,7 @@ namespace v8 { namespace internal {
   /* Contexts */ \
   F(NewContext, 1) \
   F(PushContext, 1) \
+  F(PushCatchContext, 1) \
   F(LookupContext, 2) \
   F(LoadContextSlot, 2) \
   F(LoadContextSlotNoReferenceError, 2) \

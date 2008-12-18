@@ -126,7 +126,8 @@ class Factory : public AllStatic {
 
   // Create a 'with' context.
   static Handle<Context> NewWithContext(Handle<Context> previous,
-                                        Handle<JSObject> extension);
+                                        Handle<JSObject> extension,
+                                        bool is_catch_context);
 
   // Return the Symbol maching the passed in string.
   static Handle<String> SymbolFromString(Handle<String> value);

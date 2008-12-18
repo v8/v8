@@ -1276,7 +1276,11 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   CodeForStatement(node);
   Load(node->expression());
-  __ CallRuntime(Runtime::kPushContext, 1);
+  if (node->is_catch_block()) {
+    __ CallRuntime(Runtime::kPushCatchContext, 1);
+  } else {
+    __ CallRuntime(Runtime::kPushContext, 1);
+  }
   if (kDebug) {
     Label verified_true;
     __ cmp(r0, Operand(cp));

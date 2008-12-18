@@ -409,15 +409,18 @@ class ReturnStatement: public Statement {
 
 class WithEnterStatement: public Statement {
  public:
-  explicit WithEnterStatement(Expression* expression)
-      : expression_(expression) { }
+  explicit WithEnterStatement(Expression* expression, bool is_catch_block)
+      : expression_(expression), is_catch_block_(is_catch_block) { }
 
   virtual void Accept(AstVisitor* v);
 
   Expression* expression() const  { return expression_; }
 
+  bool is_catch_block() const { return is_catch_block_; }
+
  private:
   Expression* expression_;
+  bool is_catch_block_;
 };
 
 

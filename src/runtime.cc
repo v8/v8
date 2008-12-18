@@ -3428,19 +3428,15 @@ static Object* Runtime_NewContext(Arguments args) {
   return result;  // non-failure
 }
 
-
-static Object* Runtime_PushContext(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-
+static Object* PushContextHelper(Object* object, bool is_catch_context) {
   // Convert the object to a proper JavaScript object.
-  Object* object = args[0];
-  if (!object->IsJSObject()) {
-    object = object->ToObject();
-    if (object->IsFailure()) {
-      if (!Failure::cast(object)->IsInternalError()) return object;
+  Object* js_object = object;
+  if (!js_object->IsJSObject()) {
+    js_object = js_object->ToObject();
+    if (js_object->IsFailure()) {
+      if (!Failure::cast(js_object)->IsInternalError()) return js_object;
       HandleScope scope;
-      Handle<Object> handle(args[0]);
+      Handle<Object> handle(object);
       Handle<Object> result =
           Factory::NewTypeError("with_expression", HandleVector(&handle, 1));
       return Top::Throw(*result);
@@ -3448,12 +3444,29 @@ static Object* Runtime_PushContext(Arguments args) {
   }
 
   Object* result =
-      Heap::AllocateWithContext(Top::context(), JSObject::cast(object));
+      Heap::AllocateWithContext(Top::context(),
+                                JSObject::cast(js_object),
+                                is_catch_context);
   if (result->IsFailure()) return result;
 
-  Top::set_context(Context::cast(result));
+  Context* context = Context::cast(result);
+  Top::set_context(context);
 
   return result;
+}
+
+
+static Object* Runtime_PushContext(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  return PushContextHelper(args[0], false);
+}
+
+
+static Object* Runtime_PushCatchContext(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  return PushContextHelper(args[0], true);
 }
 
 
@@ -3554,9 +3567,14 @@ static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   if (!holder.is_null() && holder->IsJSObject()) {
     ASSERT(Handle<JSObject>::cast(holder)->HasProperty(*name));
     JSObject* object = JSObject::cast(*holder);
-    JSObject* receiver = (object->IsGlobalObject())
-        ? GlobalObject::cast(object)->global_receiver()
-        : ComputeReceiverForNonGlobal(object);
+    JSObject* receiver;
+    if (object->IsGlobalObject()) {
+      receiver = GlobalObject::cast(object)->global_receiver();
+    } else if (context->is_exception_holder(*holder)) {
+      receiver = Top::context()->global()->global_receiver();
+    } else {
+      receiver = ComputeReceiverForNonGlobal(object);
+    }
     // No need to unhole the value here. This is taken care of by the
     // GetProperty function.
     Object* value = object->GetProperty(*name);
@@ -5220,7 +5238,9 @@ static Handle<Context> CopyWithContextChain(Handle<Context> context_chain,
   Handle<Context> previous(context_chain->previous());
   Handle<JSObject> extension(JSObject::cast(context_chain->extension()));
   return Factory::NewWithContext(
-      CopyWithContextChain(function_context, previous), extension);
+      CopyWithContextChain(function_context, previous),
+      extension,
+      context_chain->IsCatchContext());
 }
 
 

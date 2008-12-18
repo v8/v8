@@ -1017,6 +1017,10 @@ bool Heap::CreateInitialMaps() {
 
   obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
   if (obj->IsFailure()) return false;
+  catch_context_map_ = Map::cast(obj);
+
+  obj = AllocateMap(FIXED_ARRAY_TYPE, HeapObject::kHeaderSize);
+  if (obj->IsFailure()) return false;
   global_context_map_ = Map::cast(obj);
 
   obj = AllocateMap(JS_FUNCTION_TYPE, JSFunction::kSize);
@@ -2387,11 +2391,13 @@ Object* Heap::AllocateFunctionContext(int length, JSFunction* function) {
 }
 
 
-Object* Heap::AllocateWithContext(Context* previous, JSObject* extension) {
+Object* Heap::AllocateWithContext(Context* previous,
+                                  JSObject* extension,
+                                  bool is_catch_context) {
   Object* result = Heap::AllocateFixedArray(Context::MIN_CONTEXT_SLOTS);
   if (result->IsFailure()) return result;
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map(context_map());
+  context->set_map(is_catch_context ? catch_context_map() : context_map());
   context->set_closure(previous->closure());
   context->set_fcontext(previous->fcontext());
   context->set_previous(previous);

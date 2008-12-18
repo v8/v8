@@ -120,7 +120,10 @@ class Parser {
   Statement* ParseContinueStatement(bool* ok);
   Statement* ParseBreakStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseReturnStatement(bool* ok);
-  Block* WithHelper(Expression* obj, ZoneStringList* labels, bool* ok);
+  Block* WithHelper(Expression* obj,
+                    ZoneStringList* labels,
+                    bool is_catch_block,
+                    bool* ok);
   Statement* ParseWithStatement(ZoneStringList* labels, bool* ok);
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
   SwitchStatement* ParseSwitchStatement(ZoneStringList* labels, bool* ok);
@@ -1923,7 +1926,10 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
 }
 
 
-Block* Parser::WithHelper(Expression* obj, ZoneStringList* labels, bool* ok) {
+Block* Parser::WithHelper(Expression* obj,
+                          ZoneStringList* labels,
+                          bool is_catch_block,
+                          bool* ok) {
   // Parse the statement and collect escaping labels.
   ZoneList<Label*>* label_list = NEW(ZoneList<Label*>(0));
   LabelCollector collector(label_list);
@@ -1940,7 +1946,7 @@ Block* Parser::WithHelper(Expression* obj, ZoneStringList* labels, bool* ok) {
   Block* result = NEW(Block(NULL, 2, false));
 
   if (result) {
-    result->AddStatement(NEW(WithEnterStatement(obj)));
+    result->AddStatement(NEW(WithEnterStatement(obj, is_catch_block)));
 
     // Create body block.
     Block* body = NEW(Block(NULL, 1, false));
@@ -1976,7 +1982,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   Expression* expr = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  return WithHelper(expr, labels, CHECK_OK);
+  return WithHelper(expr, labels, false, CHECK_OK);
 }
 
 
@@ -2137,7 +2143,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       catch_var = top_scope_->NewTemporary(Factory::catch_var_symbol());
       Expression* obj = MakeCatchContext(name, catch_var);
       { Target target(this, &catch_collector);
-        catch_block = WithHelper(obj, NULL, CHECK_OK);
+        catch_block = WithHelper(obj, NULL, true, CHECK_OK);
       }
     } else {
       Expect(Token::LBRACE, CHECK_OK);

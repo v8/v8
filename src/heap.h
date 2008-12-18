@@ -92,6 +92,7 @@ namespace v8 { namespace internal {
   V(Map, fixed_array_map)                               \
   V(Map, hash_table_map)                                \
   V(Map, context_map)                                   \
+  V(Map, catch_context_map)                             \
   V(Map, global_context_map)                            \
   V(Map, code_map)                                      \
   V(Map, oddball_map)                                   \
@@ -430,7 +431,9 @@ class Heap : public AllStatic {
   static Object* AllocateFunctionContext(int length, JSFunction* closure);
 
   // Allocate a 'with' context.
-  static Object* AllocateWithContext(Context* previous, JSObject* extension);
+  static Object* AllocateWithContext(Context* previous,
+                                     JSObject* extension,
+                                     bool is_catch_context);
 
   // Allocates a new utility object in the old generation.
   static Object* AllocateStruct(InstanceType type);

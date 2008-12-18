@@ -616,6 +616,7 @@ class Object BASE_EMBEDDED {
   inline bool IsFixedArray();
   inline bool IsDescriptorArray();
   inline bool IsContext();
+  inline bool IsCatchContext();
   inline bool IsGlobalContext();
   inline bool IsJSFunction();
   inline bool IsCode();
