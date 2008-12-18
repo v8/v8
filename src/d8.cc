@@ -433,7 +433,9 @@ int Shell::Main(int argc, char* argv[]) {
   Context::Scope context_scope(evaluation_context_);
   for (int i = 1; i < argc; i++) {
     char* str = argv[i];
-    if (strcmp(str, "-f") == 0) {
+    if (strcmp(str, "--shell") == 0) {
+      run_shell = true;
+    } else if (strcmp(str, "-f") == 0) {
       // Ignore any -f flags for compatibility with other stand-alone
       // JavaScript engines.
       continue;
