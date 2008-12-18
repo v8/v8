@@ -355,14 +355,19 @@ Object* CallIC::LoadFunction(State state,
     // If performing debug step into then flood this function with one-shot
     // break points if it is called from where step into was requested.
     if (Debug::StepInActive() && fp() == Debug::step_in_fp()) {
+      // Protect the result in a handle as the debugger can allocate and might
+      // cause GC.
+      HandleScope scope;
+      Handle<Object> result_handle(result);
       // Don't allow step into functions in the native context.
       if (JSFunction::cast(result)->context()->global() !=
           Top::context()->builtins()) {
-        HandleScope scope;
         Handle<SharedFunctionInfo> shared(JSFunction::cast(result)->shared());
         Debug::FloodWithOneShot(shared);
       }
+      return *result_handle;
     }
+
     return result;
   }
 
