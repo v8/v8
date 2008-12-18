@@ -460,23 +460,10 @@ struct NodeInfo {
   NodeInfo()
       : being_analyzed(false),
         been_analyzed(false),
-        being_expanded(false),
-        been_expanded(false),
-        determine_word(false),
-        determine_newline(false),
-        determine_start(false),
-        does_determine_word(false),
-        does_determine_newline(false),
-        does_determine_start(false),
         follows_word_interest(false),
         follows_newline_interest(false),
         follows_start_interest(false),
-        is_word(UNKNOWN),
-        is_newline(UNKNOWN),
         at_end(false),
-        follows_word(UNKNOWN),
-        follows_newline(UNKNOWN),
-        follows_start(UNKNOWN),
         visited(false) { }
 
   // Returns true if the interests and assumptions of this node
@@ -485,19 +472,7 @@ struct NodeInfo {
     return (at_end == that->at_end) &&
            (follows_word_interest == that->follows_word_interest) &&
            (follows_newline_interest == that->follows_newline_interest) &&
-           (follows_start_interest == that->follows_start_interest) &&
-           (follows_word == that->follows_word) &&
-           (follows_newline == that->follows_newline) &&
-           (follows_start == that->follows_start) &&
-           (does_determine_word == that->does_determine_word) &&
-           (does_determine_newline == that->does_determine_newline) &&
-           (does_determine_start == that->does_determine_start);
-  }
-
-  bool HasAssertions() {
-    return (follows_word != UNKNOWN) ||
-           (follows_newline != UNKNOWN) ||
-           (follows_start != UNKNOWN);
+           (follows_start_interest == that->follows_start_interest);
   }
 
   // Updates the interests of this node given the interests of the
@@ -507,26 +482,6 @@ struct NodeInfo {
     follows_word_interest |= that->follows_word_interest;
     follows_newline_interest |= that->follows_newline_interest;
     follows_start_interest |= that->follows_start_interest;
-  }
-
-  void AddAssumptions(NodeInfo* that) {
-    if (that->follows_word != UNKNOWN) {
-      ASSERT(follows_word == UNKNOWN || follows_word == that->follows_word);
-      follows_word = that->follows_word;
-    }
-    if (that->follows_newline != UNKNOWN) {
-      ASSERT(follows_newline == UNKNOWN ||
-             follows_newline == that->follows_newline);
-      follows_newline = that->follows_newline;
-    }
-    if (that->follows_start != UNKNOWN) {
-      ASSERT(follows_start == UNKNOWN ||
-             follows_start == that->follows_start);
-      follows_start = that->follows_start;
-    }
-    does_determine_word = that->does_determine_word;
-    does_determine_newline = that->does_determine_newline;
-    does_determine_start = that->does_determine_start;
   }
 
   bool HasLookbehind() {
@@ -546,25 +501,10 @@ struct NodeInfo {
   void ResetCompilationState() {
     being_analyzed = false;
     been_analyzed = false;
-    being_expanded = false;
-    been_expanded = false;
   }
 
   bool being_analyzed: 1;
   bool been_analyzed: 1;
-  bool being_expanded: 1;
-  bool been_expanded: 1;
-
-  // These bits are set if this node must propagate forward information
-  // about the last character it consumed (or, in the case of 'start',
-  // if it is at the start of the input).
-  bool determine_word: 1;
-  bool determine_newline: 1;
-  bool determine_start: 1;
-
-  bool does_determine_word: 1;
-  bool does_determine_newline: 1;
-  bool does_determine_start: 1;
 
   // These bits are set of this node has to know what the preceding
   // character was.
@@ -572,32 +512,8 @@ struct NodeInfo {
   bool follows_newline_interest: 1;
   bool follows_start_interest: 1;
 
-  TriBool is_word: 2;
-  TriBool is_newline: 2;
-
   bool at_end: 1;
-
-  // These bits are set if the node can make assumptions about what
-  // the previous character was.
-  TriBool follows_word: 2;
-  TriBool follows_newline: 2;
-  TriBool follows_start: 2;
-
   bool visited: 1;
-};
-
-
-class ExpansionGuard {
- public:
-  explicit inline ExpansionGuard(NodeInfo* info) : info_(info) {
-    ASSERT(!info->being_expanded);
-    info->being_expanded = true;
-  }
-  inline ~ExpansionGuard() {
-    info_->being_expanded = false;
-  }
- private:
-  NodeInfo* info_;
 };
 
 
@@ -633,10 +549,6 @@ class RegExpNode: public ZoneObject {
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
   Label* label() { return &label_; }
   static const int kMaxVariantsGenerated = 10;
-
-  RegExpNode* EnsureExpanded(NodeInfo* info);
-  virtual RegExpNode* ExpandLocal(NodeInfo* info) = 0;
-  virtual void ExpandChildren() = 0;
 
   // Propagates the given interest information forward.  When seeing
   // \bfoo for instance, the \b is implemented by propagating forward
@@ -721,8 +633,6 @@ class ActionNode: public SeqRegExpNode {
       RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
-  virtual RegExpNode* ExpandLocal(NodeInfo* info);
-  virtual void ExpandChildren();
   virtual RegExpNode* PropagateForward(NodeInfo* info);
   Type type() { return type_; }
   // TODO(erikcorry): We should allow some action nodes in greedy loops.
@@ -768,8 +678,6 @@ class TextNode: public SeqRegExpNode {
   }
   virtual void Accept(NodeVisitor* visitor);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
-  virtual RegExpNode* ExpandLocal(NodeInfo* info);
-  virtual void ExpandChildren();
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   ZoneList<TextElement>* elements() { return elms_; }
   void MakeCaseIndependent();
@@ -780,10 +688,8 @@ class TextNode: public SeqRegExpNode {
     return result;
   }
   void CalculateOffsets();
- private:
-  void ExpandAtomChildren(RegExpAtom* that);
-  void ExpandCharClassChildren(RegExpCharacterClass* that);
 
+ private:
   ZoneList<TextElement>* elms_;
 };
 
@@ -801,8 +707,6 @@ class BackReferenceNode: public SeqRegExpNode {
   int end_register() { return end_reg_; }
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
-  virtual RegExpNode* ExpandLocal(NodeInfo* info);
-  virtual void ExpandChildren();
   virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
 
  private:
@@ -818,8 +722,6 @@ class EndNode: public RegExpNode {
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
-  virtual RegExpNode* ExpandLocal(NodeInfo* info);
-  virtual void ExpandChildren();
   virtual EndNode* Clone() { return new EndNode(*this); }
 
  protected:
@@ -888,8 +790,6 @@ class ChoiceNode: public RegExpNode {
   DispatchTable* GetTable(bool ignore_case);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
-  virtual RegExpNode* ExpandLocal(NodeInfo* info);
-  virtual void ExpandChildren();
   virtual ChoiceNode* Clone() { return new ChoiceNode(*this); }
 
   bool being_calculated() { return being_calculated_; }
@@ -901,7 +801,7 @@ class ChoiceNode: public RegExpNode {
 
  private:
   friend class DispatchTableConstructor;
-  friend class AssertionPropagation;
+  friend class Analysis;
   void GenerateGuard(RegExpMacroAssembler* macro_assembler,
                      Guard *guard,
                      GenerationVariant* variant);
@@ -1091,33 +991,9 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 //   +-------+  --->  +------------+
 //   | word? |        | check word |
 //   +-------+        +------------+
-//
-// At a later phase all nodes that determine information for their
-// following nodes are split into several 'sibling' nodes.  In this
-// case the first '.' is split into one node that only matches words
-// and one that only matches non-words.  The second '.' is also split,
-// into one node that assumes that the previous character was a word
-// character and one that assumes that is was non-word.  In this case
-// the result is
-//
-//         +------------------+        +------------------+
-//   /-->  | intersect(., \w) |  --->  | intersect(., \W) |
-//   |     +------------------+        +------------------+
-//   |                                 |    follows \w    |
-//   |                                 +------------------+
-// --?
-//   |     +------------------+        +------------------+
-//   \-->  | intersect(., \W) |  --->  | intersect(., \w) |
-//         +------------------+        +------------------+
-//                                     |    follows \W    |
-//                                     +------------------+
-//
-// This way we don't need to explicitly check the previous character
-// but can always assume that whoever consumed the previous character
-// has propagated the relevant information forward.
-class AssertionPropagation: public NodeVisitor {
+class Analysis: public NodeVisitor {
  public:
-  explicit AssertionPropagation(bool ignore_case)
+  explicit Analysis(bool ignore_case)
       : ignore_case_(ignore_case) { }
   void EnsureAnalyzed(RegExpNode* node);
 
@@ -1130,7 +1006,7 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
  private:
   bool ignore_case_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(AssertionPropagation);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
 };
 
 
@@ -1138,12 +1014,10 @@ struct RegExpCompileData {
   RegExpCompileData()
     : tree(NULL),
       node(NULL),
-      has_lookbehind(false),
       simple(true),
       capture_count(0) { }
   RegExpTree* tree;
   RegExpNode* node;
-  bool has_lookbehind;
   bool simple;
   Handle<String> error;
   int capture_count;

@@ -4192,6 +4192,8 @@ CharacterRange RegExpParser::ParseClassAtom(uc16* char_class) {
         Advance(2);
         return CharacterRange::Singleton(0);  // Return dummy value.
       }
+      case kEndMarker:
+        ReportError(CStrVector("\\ at end of pattern") CHECK_FAILED);
       default:
         uc32 c = ParseClassCharacterEscape(CHECK_FAILED);
         return CharacterRange::Singleton(c);

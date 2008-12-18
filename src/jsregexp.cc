@@ -2453,17 +2453,6 @@ void DotPrinter::PrintAttributes(RegExpNode* that) {
   printer.PrintBit("NI", info->follows_newline_interest);
   printer.PrintBit("WI", info->follows_word_interest);
   printer.PrintBit("SI", info->follows_start_interest);
-  printer.PrintBit("DN", info->determine_newline);
-  printer.PrintBit("DW", info->determine_word);
-  printer.PrintBit("DS", info->determine_start);
-  printer.PrintBit("DDN", info->does_determine_newline);
-  printer.PrintBit("DDW", info->does_determine_word);
-  printer.PrintBit("DDS", info->does_determine_start);
-  printer.PrintPositive("IW", info->is_word);
-  printer.PrintPositive("IN", info->is_newline);
-  printer.PrintPositive("FN", info->follows_newline);
-  printer.PrintPositive("FW", info->follows_word);
-  printer.PrintPositive("FS", info->follows_start);
   Label* label = that->label();
   if (label->is_bound())
     printer.PrintPositive("@", label->pos());
@@ -3075,7 +3064,6 @@ RegExpNode* RegExpNode::TryGetSibling(NodeInfo* info) {
 
 RegExpNode* RegExpNode::EnsureSibling(NodeInfo* info, bool* cloned) {
   ASSERT_EQ(false, *cloned);
-  ASSERT(!info->HasAssertions());
   siblings_.Ensure(this);
   RegExpNode* result = TryGetSibling(info);
   if (result != NULL) return result;
@@ -3307,7 +3295,7 @@ OutSet* DispatchTable::Get(uc16 value) {
 // Analysis
 
 
-void AssertionPropagation::EnsureAnalyzed(RegExpNode* that) {
+void Analysis::EnsureAnalyzed(RegExpNode* that) {
   if (that->info()->been_analyzed || that->info()->being_analyzed)
     return;
   that->info()->being_analyzed = true;
@@ -3317,7 +3305,7 @@ void AssertionPropagation::EnsureAnalyzed(RegExpNode* that) {
 }
 
 
-void AssertionPropagation::VisitEnd(EndNode* that) {
+void Analysis::VisitEnd(EndNode* that) {
   // nothing to do
 }
 
@@ -3340,23 +3328,16 @@ void TextNode::CalculateOffsets() {
 }
 
 
-void AssertionPropagation::VisitText(TextNode* that) {
+void Analysis::VisitText(TextNode* that) {
   if (ignore_case_) {
     that->MakeCaseIndependent();
   }
   EnsureAnalyzed(that->on_success());
-  NodeInfo* info = that->info();
-  NodeInfo* next_info = that->on_success()->info();
-  // If the following node is interested in what it follows then this
-  // node must determine it.
-  info->determine_newline = next_info->follows_newline_interest;
-  info->determine_word = next_info->follows_word_interest;
-  info->determine_start = next_info->follows_start_interest;
   that->CalculateOffsets();
 }
 
 
-void AssertionPropagation::VisitAction(ActionNode* that) {
+void Analysis::VisitAction(ActionNode* that) {
   RegExpNode* target = that->on_success();
   EnsureAnalyzed(target);
   // If the next node is interested in what it follows then this node
@@ -3365,7 +3346,7 @@ void AssertionPropagation::VisitAction(ActionNode* that) {
 }
 
 
-void AssertionPropagation::VisitChoice(ChoiceNode* that) {
+void Analysis::VisitChoice(ChoiceNode* that) {
   NodeInfo* info = that->info();
   for (int i = 0; i < that->alternatives()->length(); i++) {
     RegExpNode* node = that->alternatives()->at(i).node();
@@ -3377,7 +3358,7 @@ void AssertionPropagation::VisitChoice(ChoiceNode* that) {
 }
 
 
-void AssertionPropagation::VisitLoopChoice(LoopChoiceNode* that) {
+void Analysis::VisitLoopChoice(LoopChoiceNode* that) {
   NodeInfo* info = that->info();
   for (int i = 0; i < that->alternatives()->length(); i++) {
     RegExpNode* node = that->alternatives()->at(i).node();
@@ -3393,208 +3374,8 @@ void AssertionPropagation::VisitLoopChoice(LoopChoiceNode* that) {
 }
 
 
-void AssertionPropagation::VisitBackReference(BackReferenceNode* that) {
+void Analysis::VisitBackReference(BackReferenceNode* that) {
   EnsureAnalyzed(that->on_success());
-}
-
-
-// -------------------------------------------------------------------
-// Assumption expansion
-
-
-RegExpNode* RegExpNode::EnsureExpanded(NodeInfo* info) {
-  siblings_.Ensure(this);
-  NodeInfo new_info = *this->info();
-  if (new_info.follows_word_interest)
-    new_info.follows_word = info->follows_word;
-  if (new_info.follows_newline_interest)
-    new_info.follows_newline = info->follows_newline;
-  // If the following node should determine something we need to get
-  // a sibling that determines it.
-  new_info.does_determine_newline = new_info.determine_newline;
-  new_info.does_determine_word = new_info.determine_word;
-  new_info.does_determine_start = new_info.determine_start;
-  RegExpNode* sibling = TryGetSibling(&new_info);
-  if (sibling == NULL) {
-    sibling = ExpandLocal(&new_info);
-    siblings_.Add(sibling);
-    sibling->info()->being_expanded = true;
-    sibling->ExpandChildren();
-    sibling->info()->being_expanded = false;
-    sibling->info()->been_expanded = true;
-  } else {
-    NodeInfo* sib_info = sibling->info();
-    if (!sib_info->been_expanded && !sib_info->being_expanded) {
-      sibling->info()->being_expanded = true;
-      sibling->ExpandChildren();
-      sibling->info()->being_expanded = false;
-      sibling->info()->been_expanded = true;
-    }
-  }
-  return sibling;
-}
-
-
-RegExpNode* ChoiceNode::ExpandLocal(NodeInfo* info) {
-  ChoiceNode* clone = this->Clone();
-  clone->info()->ResetCompilationState();
-  clone->info()->AddAssumptions(info);
-  return clone;
-}
-
-
-void ChoiceNode::ExpandChildren() {
-  ZoneList<GuardedAlternative>* alts = alternatives();
-  ZoneList<GuardedAlternative>* new_alts
-      = new ZoneList<GuardedAlternative>(alts->length());
-  for (int i = 0; i < alts->length(); i++) {
-    GuardedAlternative next = alts->at(i);
-    next.set_node(next.node()->EnsureExpanded(info()));
-    new_alts->Add(next);
-  }
-  alternatives_ = new_alts;
-}
-
-
-RegExpNode* TextNode::ExpandLocal(NodeInfo* info) {
-  TextElement last = elements()->last();
-  if (last.type == TextElement::CHAR_CLASS) {
-    RegExpCharacterClass* char_class = last.data.u_char_class;
-    if (info->does_determine_word) {
-      ZoneList<CharacterRange>* word = NULL;
-      ZoneList<CharacterRange>* non_word = NULL;
-      CharacterRange::Split(char_class->ranges(),
-                            CharacterRange::GetWordBounds(),
-                            &word,
-                            &non_word);
-      if (non_word == NULL) {
-        // This node contains no non-word characters so it must be
-        // all word.
-        this->info()->is_word = NodeInfo::TRUE;
-      } else if (word == NULL) {
-        // Vice versa.
-        this->info()->is_word = NodeInfo::FALSE;
-      } else {
-        // If this character class contains both word and non-word
-        // characters we need to split it into two.
-        ChoiceNode* result = new ChoiceNode(2);
-        // Welcome to the family, son!
-        result->set_siblings(this->siblings());
-        *result->info() = *this->info();
-        result->info()->ResetCompilationState();
-        result->info()->AddAssumptions(info);
-        RegExpNode* word_node
-            = new TextNode(new RegExpCharacterClass(word, false),
-                           on_success());
-        word_node->info()->determine_word = true;
-        word_node->info()->does_determine_word = true;
-        word_node->info()->is_word = NodeInfo::TRUE;
-        result->alternatives()->Add(GuardedAlternative(word_node));
-        RegExpNode* non_word_node
-            = new TextNode(new RegExpCharacterClass(non_word, false),
-                           on_success());
-        non_word_node->info()->determine_word = true;
-        non_word_node->info()->does_determine_word = true;
-        non_word_node->info()->is_word = NodeInfo::FALSE;
-        result->alternatives()->Add(GuardedAlternative(non_word_node));
-        return result;
-      }
-    }
-  }
-  TextNode* clone = this->Clone();
-  clone->info()->ResetCompilationState();
-  clone->info()->AddAssumptions(info);
-  return clone;
-}
-
-
-void TextNode::ExpandAtomChildren(RegExpAtom* that) {
-  NodeInfo new_info = *info();
-  uc16 last = that->data()[that->data().length() - 1];
-  if (info()->determine_word) {
-    new_info.follows_word = IsRegExpWord(last)
-      ? NodeInfo::TRUE : NodeInfo::FALSE;
-  } else {
-    new_info.follows_word = NodeInfo::UNKNOWN;
-  }
-  if (info()->determine_newline) {
-    new_info.follows_newline = IsRegExpNewline(last)
-      ? NodeInfo::TRUE : NodeInfo::FALSE;
-  } else {
-    new_info.follows_newline = NodeInfo::UNKNOWN;
-  }
-  if (info()->determine_start) {
-    new_info.follows_start = NodeInfo::FALSE;
-  } else {
-    new_info.follows_start = NodeInfo::UNKNOWN;
-  }
-  set_on_success(on_success()->EnsureExpanded(&new_info));
-}
-
-
-void TextNode::ExpandCharClassChildren(RegExpCharacterClass* that) {
-  if (info()->does_determine_word) {
-    // ASSERT(info()->is_word != NodeInfo::UNKNOWN);
-    NodeInfo next_info = *on_success()->info();
-    next_info.follows_word = info()->is_word;
-    set_on_success(on_success()->EnsureExpanded(&next_info));
-  } else {
-    set_on_success(on_success()->EnsureExpanded(info()));
-  }
-}
-
-
-void TextNode::ExpandChildren() {
-  TextElement last = elements()->last();
-  switch (last.type) {
-    case TextElement::ATOM:
-      ExpandAtomChildren(last.data.u_atom);
-      break;
-    case TextElement::CHAR_CLASS:
-      ExpandCharClassChildren(last.data.u_char_class);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-RegExpNode* ActionNode::ExpandLocal(NodeInfo* info) {
-  ActionNode* clone = this->Clone();
-  clone->info()->ResetCompilationState();
-  clone->info()->AddAssumptions(info);
-  return clone;
-}
-
-
-void ActionNode::ExpandChildren() {
-  set_on_success(on_success()->EnsureExpanded(info()));
-}
-
-
-RegExpNode* BackReferenceNode::ExpandLocal(NodeInfo* info) {
-  BackReferenceNode* clone = this->Clone();
-  clone->info()->ResetCompilationState();
-  clone->info()->AddAssumptions(info);
-  return clone;
-}
-
-
-void BackReferenceNode::ExpandChildren() {
-  set_on_success(on_success()->EnsureExpanded(info()));
-}
-
-
-RegExpNode* EndNode::ExpandLocal(NodeInfo* info) {
-  EndNode* clone = this->Clone();
-  clone->info()->ResetCompilationState();
-  clone->info()->AddAssumptions(info);
-  return clone;
-}
-
-
-void EndNode::ExpandChildren() {
-  // nothing to do
 }
 
 
@@ -3708,110 +3489,6 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 }
 
 
-#ifdef DEBUG
-
-
-class VisitNodeScope {
- public:
-  explicit VisitNodeScope(RegExpNode* node) : node_(node) {
-    ASSERT(!node->info()->visited);
-    node->info()->visited = true;
-  }
-  ~VisitNodeScope() {
-    node_->info()->visited = false;
-  }
- private:
-  RegExpNode* node_;
-};
-
-
-class NodeValidator : public NodeVisitor {
- public:
-  virtual void ValidateInfo(NodeInfo* info) = 0;
-#define DECLARE_VISIT(Type)                                          \
-  virtual void Visit##Type(Type##Node* that);
-FOR_EACH_NODE_TYPE(DECLARE_VISIT)
-#undef DECLARE_VISIT
-};
-
-
-class PostAnalysisNodeValidator : public NodeValidator {
- public:
-  virtual void ValidateInfo(NodeInfo* info);
-};
-
-
-class PostExpansionNodeValidator : public NodeValidator {
- public:
-  virtual void ValidateInfo(NodeInfo* info);
-};
-
-
-void PostAnalysisNodeValidator::ValidateInfo(NodeInfo* info) {
-  ASSERT(info->been_analyzed);
-}
-
-
-void PostExpansionNodeValidator::ValidateInfo(NodeInfo* info) {
-  ASSERT_EQ(info->determine_newline, info->does_determine_newline);
-  ASSERT_EQ(info->determine_start, info->does_determine_start);
-  ASSERT_EQ(info->determine_word, info->does_determine_word);
-  ASSERT_EQ(info->follows_word_interest,
-            (info->follows_word != NodeInfo::UNKNOWN));
-  if (false) {
-    // These are still unimplemented.
-    ASSERT_EQ(info->follows_start_interest,
-              (info->follows_start != NodeInfo::UNKNOWN));
-    ASSERT_EQ(info->follows_newline_interest,
-              (info->follows_newline != NodeInfo::UNKNOWN));
-  }
-}
-
-
-void NodeValidator::VisitAction(ActionNode* that) {
-  if (that->info()->visited) return;
-  VisitNodeScope scope(that);
-  ValidateInfo(that->info());
-  that->on_success()->Accept(this);
-}
-
-
-void NodeValidator::VisitBackReference(BackReferenceNode* that) {
-  if (that->info()->visited) return;
-  VisitNodeScope scope(that);
-  ValidateInfo(that->info());
-  that->on_success()->Accept(this);
-}
-
-
-void NodeValidator::VisitChoice(ChoiceNode* that) {
-  if (that->info()->visited) return;
-  VisitNodeScope scope(that);
-  ValidateInfo(that->info());
-  ZoneList<GuardedAlternative>* alts = that->alternatives();
-  for (int i = 0; i < alts->length(); i++)
-    alts->at(i).node()->Accept(this);
-}
-
-
-void NodeValidator::VisitEnd(EndNode* that) {
-  if (that->info()->visited) return;
-  VisitNodeScope scope(that);
-  ValidateInfo(that->info());
-}
-
-
-void NodeValidator::VisitText(TextNode* that) {
-  if (that->info()->visited) return;
-  VisitNodeScope scope(that);
-  ValidateInfo(that->info());
-  that->on_success()->Accept(this);
-}
-
-
-#endif
-
-
 Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
                                          bool ignore_case,
                                          bool is_multiline,
@@ -3834,40 +3511,13 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
                                               new RegExpCharacterClass('*'),
                                               &compiler,
                                               captured_body);
-  AssertionPropagation analysis(ignore_case);
+  data->node = node;
+  Analysis analysis(ignore_case);
   analysis.EnsureAnalyzed(node);
 
   NodeInfo info = *node->info();
-  data->has_lookbehind = info.HasLookbehind();
-  if (data->has_lookbehind) {
-    // If this node needs information about the preceding text we let
-    // it start with a character class that consumes a single character
-    // and proceeds to wherever is appropriate.  This means that if
-    // has_lookbehind is set the code generator must start one character
-    // before the start position.
-    node = new TextNode(new RegExpCharacterClass('*'), node);
-    analysis.EnsureAnalyzed(node);
-  }
-
-#ifdef DEBUG
-  PostAnalysisNodeValidator post_analysis_validator;
-  node->Accept(&post_analysis_validator);
-#endif
-
-  node = node->EnsureExpanded(&info);
-
-#ifdef DEBUG
-  PostExpansionNodeValidator post_expansion_validator;
-  node->Accept(&post_expansion_validator);
-#endif
-
-  data->node = node;
 
   if (is_multiline && !FLAG_attempt_multiline_irregexp) {
-    return Handle<FixedArray>::null();
-  }
-
-  if (data->has_lookbehind) {
     return Handle<FixedArray>::null();
   }
 
