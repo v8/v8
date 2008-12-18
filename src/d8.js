@@ -179,9 +179,9 @@ function SourceUnderline(source_text, position) {
     return;
   }
 
-  // Create an underline with a caret pointing to the source position. If the		
-  // source contains a tab character the underline will have a tab character in		
-  // the same place otherwise the underline will have a space character.		
+  // Create an underline with a caret pointing to the source position. If the
+  // source contains a tab character the underline will have a tab character in
+  // the same place otherwise the underline will have a space character.
   var underline = '';
   for (var i = 0; i < position; i++) {
     if (source_text[i] == '\t') {
@@ -197,7 +197,7 @@ function SourceUnderline(source_text, position) {
 };
 
 
-function FrameSourceUnderline(frame) {		
+function FrameSourceUnderline(frame) {
   var location = frame.sourceLocation();
   if (location) {
     return SourceUnderline(location.sourceText(),
