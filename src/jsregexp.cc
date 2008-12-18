@@ -2684,6 +2684,53 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   //
   // TODO(someone): clear captures on repetition and handle empty
   //   matches.
+
+  // 15.10.2.5 RepeatMatcher algorithm.
+  // The parser has already eliminated the case where max is 0.  In the case
+  // where max_match is zero the parser has removed the quantifier if min was
+  // > 0 and removed the atom if min was 0.  See AddQuantifierToAtom.
+
+  // If we know that we cannot match zero length then things are a little
+  // simpler since we don't need to make the special zero length match check
+  // from step 2.1.  If the min and max are small we can unroll a little in
+  // this case.
+  static const int kMaxUnrolledMinMatches = 3;  // Unroll (foo)+ and (foo){3,}
+  static const int kMaxUnrolledMaxMatches = 3;  // Unroll (foo)? and (foo){x,3}
+  if (max == 0) return on_success;  // This can happen due to recursion.
+  if (body->min_match() > 0) {
+    if (min > 0 && min <= kMaxUnrolledMinMatches) {
+      int new_max = (max == kInfinity) ? max : max - min;
+      // Recurse once to get the loop or optional matches after the fixed ones.
+      RegExpNode* answer =
+          ToNode(0, new_max, is_greedy, body, compiler, on_success);
+      // Unroll the forced matches from 0 to min.  This can cause chains of
+      // TextNodes (which the parser does not generate).  These should be
+      // combined if it turns out they hinder good code generation.
+      for (int i = 0; i < min; i++) {
+        answer = body->ToNode(compiler, answer);
+      }
+      return answer;
+    }
+    if (max <= kMaxUnrolledMaxMatches) {
+      ASSERT(min == 0);
+      // Unroll the optional matches up to max.
+      RegExpNode* answer = on_success;
+      for (int i = 0; i < max; i++) {
+        ChoiceNode* alternation = new ChoiceNode(2);
+        if (is_greedy) {
+          alternation->AddAlternative(GuardedAlternative(body->ToNode(compiler,
+                                                                      answer)));
+          alternation->AddAlternative(GuardedAlternative(on_success));
+        } else {
+          alternation->AddAlternative(GuardedAlternative(on_success));
+          alternation->AddAlternative(GuardedAlternative(body->ToNode(compiler,
+                                                                      answer)));
+        }
+        answer = alternation;
+      }
+      return answer;
+    }
+  }
   bool has_min = min > 0;
   bool has_max = max < RegExpTree::kInfinity;
   bool needs_counter = has_min || has_max;
