@@ -1118,7 +1118,7 @@ void Debug::HandleStepIn(Handle<JSFunction> function,
     if (function->context()->global() != Top::context()->builtins()) {
       Debug::FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
     }
-  }  
+  }
 }
 
 
