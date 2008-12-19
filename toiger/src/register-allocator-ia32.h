@@ -32,6 +32,88 @@
 
 namespace v8 { namespace internal {
 
+
+// -------------------------------------------------------------------------
+// Results
+//
+// Results encapsulate the compile-time values manipulated by the code
+// generator.  They can represent registers or constants.
+
+class Result BASE_EMBEDDED {
+ public:
+  // Construct an invalid result.
+  explicit Result(CodeGenerator* cgen) : type_(INVALID), cgen_(cgen) {}
+
+  // Construct a register Result.
+  Result(Register reg, CodeGenerator* cgen);
+
+  // Construct a Result whose value is a compile-time constant.
+  Result(Handle<Object> value, CodeGenerator * cgen)
+      : type_(CONSTANT),
+        cgen_(cgen) {
+    data_.handle_ = value.location();
+  }
+
+  // The copy constructor and assignment operators could each create a new
+  // register reference.
+  Result(const Result& other) {
+    other.CopyTo(this);
+  }
+
+  Result& operator=(Result& other) {
+    if (this != &other) {
+      Unuse();
+      other.CopyTo(this);
+      other.Unuse();
+    }
+    return *this;
+  }
+
+  ~Result() { Unuse(); }
+
+  void Unuse();
+
+  bool is_valid() const { return type() != INVALID; }
+  bool is_register() const { return type() == REGISTER; }
+  bool is_constant() const { return type() == CONSTANT; }
+
+  Register reg() const {
+    ASSERT(type() == REGISTER);
+    return data_.reg_;
+  }
+
+  Handle<Object> handle() const {
+    ASSERT(type() == CONSTANT);
+    return Handle<Object>(data_.handle_);
+  }
+
+  // Change a result to a register result.  If the result is not already
+  // in a register, allocate a register from the code generator, and emit
+  // code to move the value into that register.
+  void ToRegister();
+
+ private:
+  enum Type {
+    INVALID,
+    REGISTER,
+    CONSTANT
+  };
+
+  Type type_;
+
+  union {
+    Register reg_;
+    Object** handle_;
+  } data_;
+
+  CodeGenerator* cgen_;
+
+  Type type() const { return type_; }
+
+  void CopyTo(Result* destination) const;
+};
+
+
 // -------------------------------------------------------------------------
 // Register file
 //
@@ -81,10 +163,12 @@ class RegisterFile BASE_EMBEDDED {
 
 class RegisterAllocator BASE_EMBEDDED {
  public:
-  explicit RegisterAllocator(CodeGenerator* cgen) : code_generator_(cgen) {}
+  explicit RegisterAllocator(CodeGenerator* cgen) : cgen_(cgen) {}
 
   int num_registers() const { return RegisterFile::kNumRegisters; }
 
+  // Predicates and accessors for the registers' reference counts.
+  bool is_used(int reg_code) const { return registers_.is_used(reg_code); }
   int count(int reg_code) { return registers_.count(reg_code); }
 
   // Explicitly record a reference to a register.
@@ -98,15 +182,16 @@ class RegisterAllocator BASE_EMBEDDED {
   // the virtual frame); and the other registers are free.
   void Initialize();
 
-  // Allocate a free register if possible or fail by returning no_reg.
-  Register Allocate();
+  // Allocate a free register and return a register result if possible or
+  // fail and return an invalid result.
+  Result Allocate();
 
-  // Allocate a free register without spilling any or fail and return
-  // no_reg.
-  Register AllocateWithoutSpilling();
+  // Allocate a free register without spilling any from the current frame or
+  // fail and return an invalid result.
+  Result AllocateWithoutSpilling();
 
  private:
-  CodeGenerator* code_generator_;
+  CodeGenerator* cgen_;
   RegisterFile registers_;
 };
 

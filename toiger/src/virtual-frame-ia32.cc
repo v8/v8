@@ -35,41 +35,6 @@ namespace v8 { namespace internal {
 
 #define __ masm_->
 
-
-// -------------------------------------------------------------------------
-// Result implementation.
-
-
-Result::Result(Register reg, CodeGenerator* cgen)
-  : type_(REGISTER),
-    cgen_(cgen) {
-  data_.reg_ = reg;
-  ASSERT(!reg.is(no_reg));
-  cgen_->allocator()->Use(reg);
-}
-
-
-void Result::Unuse() {
-  if (is_register()) {
-    cgen_->allocator()->Unuse(reg());
-  }
-  type_ = INVALID;
-}
-
-
-void Result::ToRegister() {
-  ASSERT(is_valid());
-  if (is_constant()) {
-    Register reg = cgen_->allocator()->Allocate();
-    ASSERT(!reg.is(no_reg));
-    cgen_->masm()->Set(reg, Immediate(handle()));
-    data_.reg_ = reg;
-    type_ = REGISTER;
-  }
-  ASSERT(is_register());
-}
-
-
 // -------------------------------------------------------------------------
 // VirtualFrame implementation.
 
@@ -388,12 +353,16 @@ void VirtualFrame::MakeMergable() {
       if (element.is_synced()) {
         new_elements[i] = memory_element;
       } else {
-        Register reg = cgen_->allocator()->AllocateWithoutSpilling();
-        if (reg.is(no_reg)) {
-          new_elements[i] = memory_element;
-        } else {
+        Result fresh = cgen_->allocator()->AllocateWithoutSpilling();
+        if (fresh.is_valid()) {
+          // We immediately record the frame's use of the register so that
+          // it will not be allocated again.
+          Use(fresh.reg());
           new_elements[i] =
-              FrameElement::RegisterElement(reg, FrameElement::NOT_SYNCED);
+              FrameElement::RegisterElement(fresh.reg(),
+                                            FrameElement::NOT_SYNCED);
+        } else {
+          new_elements[i] = memory_element;
         }
       }
 
@@ -416,14 +385,8 @@ void VirtualFrame::MakeMergable() {
     ASSERT(target.is_register() || target.is_memory());
     if (target.is_register()) {
       if (source.is_constant()) {
-        // The allocator's register reference count was incremented by
-        // register allocation, so we only record the new reference in the
-        // frame.  The frame now owns the reference.
-        frame_registers_.Use(target.reg());
         __ Set(target.reg(), Immediate(source.handle()));
       } else if (source.is_register() && !source.reg().is(target.reg())) {
-        // The frame now owns the reference.
-        frame_registers_.Use(target.reg());
         __ mov(target.reg(), source.reg());
       }
       elements_[i] = target;
@@ -688,14 +651,14 @@ void VirtualFrame::AllocateStackSlots(int count) {
     Handle<Object> undefined = Factory::undefined_value();
     FrameElement initial_value =
         FrameElement::ConstantElement(undefined, FrameElement::SYNCED);
-    Register temp = cgen_->allocator()->Allocate();
-    __ Set(temp, Immediate(undefined));
+    Result temp = cgen_->allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    __ Set(temp.reg(), Immediate(undefined));
     for (int i = 0; i < count; i++) {
       elements_.Add(initial_value);
       stack_pointer_++;
-      __ push(temp);
+      __ push(temp.reg());
     }
-    cgen_->allocator()->Unuse(temp);
   }
 }
 
@@ -711,20 +674,19 @@ void VirtualFrame::LoadFrameSlotAt(int index) {
     // Eagerly load memory elements into a register.  The element at
     // the index and the new top of the frame are backed by the same
     // register location.
-    Register temp = cgen_->allocator()->Allocate();
-    ASSERT(!temp.is(no_reg));
+    Result temp = cgen_->allocator()->Allocate();
+    ASSERT(temp.is_valid());
     FrameElement new_element
-        = FrameElement::RegisterElement(temp, FrameElement::NOT_SYNCED);
-    Use(temp);
+        = FrameElement::RegisterElement(temp.reg(),
+                                        FrameElement::NOT_SYNCED);
+    Use(temp.reg());
     elements_[index] = new_element;
-    Use(temp);
+    Use(temp.reg());
     elements_.Add(new_element);
 
     // Finally, move the element at the index into its new location.
     elements_[index].set_sync();
-    __ mov(temp, Operand(ebp, fp_relative(index)));
-
-    cgen_->allocator()->Unuse(temp);
+    __ mov(temp.reg(), Operand(ebp, fp_relative(index)));
   } else {
     // For constants and registers, add an (unsynced) copy of the element to
     // the top of the frame.
@@ -754,11 +716,10 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
 
   if (top.is_memory()) {
     // Emit code to store memory values into the required frame slot.
-    Register temp = cgen_->allocator()->Allocate();
-    ASSERT(!temp.is(no_reg));
-    __ mov(temp, Top());
-    __ mov(Operand(ebp, fp_relative(index)), temp);
-    cgen_->allocator()->Unuse(temp);
+    Result temp = cgen_->allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    __ mov(temp.reg(), Top());
+    __ mov(Operand(ebp, fp_relative(index)), temp.reg());
   } else {
     // We have not actually written the value to memory.
     elements_[index].clear_sync();
@@ -871,14 +832,12 @@ Result VirtualFrame::Pop() {
     return Result(popped.reg(), cgen_);
   } else {
     ASSERT(popped.is_memory());
-    Register temp = cgen_->allocator()->Allocate();
-    ASSERT(!temp.is(no_reg));
+    Result temp = cgen_->allocator()->Allocate();
+    ASSERT(temp.is_valid());
     ASSERT(pop_needed);
     stack_pointer_--;
-    __ pop(temp);
-    // The register temp is double counted, by Allocate and Result(temp).
-    cgen_->allocator()->Unuse(temp);
-    return Result(temp, cgen_);
+    __ pop(temp.reg());
+    return temp;
   }
 }
 
@@ -932,6 +891,17 @@ void VirtualFrame::Push(Register reg) {
 void VirtualFrame::Push(Handle<Object> value) {
   elements_.Add(FrameElement::ConstantElement(value,
                                               FrameElement::NOT_SYNCED));
+}
+
+
+void VirtualFrame::Push(Result* result) {
+  if (result->is_register()) {
+    Push(result->reg());
+  } else {
+    ASSERT(result->is_constant());
+    Push(result->handle());
+  }
+  result->Unuse();
 }
 
 

@@ -2664,13 +2664,12 @@ void CodeGenerator::VisitLiteral(Literal* node) {
   if (node->handle()->IsSmi() && !IsInlineSmi(node)) {
     // To prevent long attacker-controlled byte sequences in code, larger
     // Smis are loaded in two steps via a temporary register.
-    Register temp = allocator_->Allocate();
+    Result temp = allocator_->Allocate();
+    ASSERT(temp.is_valid());
     int bits = reinterpret_cast<int>(*node->handle());
-    ASSERT(!temp.is(no_reg));
-    __ mov(temp, bits & 0x0000FFFF);
-    __ xor_(temp, bits & 0xFFFF0000);
-    frame_->Push(temp);
-    allocator_->Unuse(temp);
+    __ mov(temp.reg(), bits & 0x0000FFFF);
+    __ xor_(temp.reg(), bits & 0xFFFF0000);
+    frame_->Push(&temp);
   } else {
     frame_->Push(node->handle());
   }

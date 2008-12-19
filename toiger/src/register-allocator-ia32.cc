@@ -32,37 +32,89 @@
 
 namespace v8 { namespace internal {
 
+// -------------------------------------------------------------------------
+// Result implementation.
+
+Result::Result(Register reg, CodeGenerator* cgen)
+  : type_(REGISTER),
+    cgen_(cgen) {
+  data_.reg_ = reg;
+  ASSERT(!reg.is(no_reg));
+  cgen_->allocator()->Use(reg);
+}
+
+
+void Result::CopyTo(Result* destination) const {
+  destination->type_ = type();
+  destination->cgen_ = cgen_;
+
+  if (is_register()) {
+    destination->data_.reg_ = reg();
+    cgen_->allocator()->Use(reg());
+  } else if (is_constant()) {
+    destination->data_.handle_ = data_.handle_;
+  } else {
+    ASSERT(!is_valid());
+  }
+}
+
+
+void Result::Unuse() {
+  if (is_register()) {
+    cgen_->allocator()->Unuse(reg());
+  }
+  type_ = INVALID;
+}
+
+
+void Result::ToRegister() {
+  ASSERT(is_valid());
+  if (is_constant()) {
+    Result fresh = cgen_->allocator()->Allocate();
+    ASSERT(fresh.is_valid());
+    cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
+    // This result becomes a copy of the fresh one.
+    cgen_->allocator()->Use(fresh.reg());
+    type_ = REGISTER;
+    data_.reg_ = fresh.reg();
+  }
+  ASSERT(is_register());
+}
+
+
+// -------------------------------------------------------------------------
+// RegisterAllocator implementation.
+
 void RegisterAllocator::Initialize() {
   registers_.Reset();
-  registers_.Use(esp);
-  registers_.Use(ebp);
-  registers_.Use(esi);
-  registers_.Use(edi);
+  Use(esp);
+  Use(ebp);
+  Use(esi);
+  Use(edi);
 }
 
 
-Register RegisterAllocator::AllocateWithoutSpilling() {
+Result RegisterAllocator::AllocateWithoutSpilling() {
   // Return the first free register, if any.
   for (int i = 0; i < num_registers(); i++) {
-    if (!registers_.is_used(i)) {
-      Register result = { i };
-      registers_.Use(result);
-      return result;
+    if (!is_used(i)) {
+      Register free_reg = { i };
+      return Result(free_reg, cgen_);
     }
   }
-  return no_reg;
+  return Result(cgen_);
 }
 
 
-Register RegisterAllocator::Allocate() {
-  Register result = AllocateWithoutSpilling();
-  if (result.is(no_reg)) {
+Result RegisterAllocator::Allocate() {
+  Result result = AllocateWithoutSpilling();
+  if (!result.is_valid()) {
     // Ask the current frame to spill a register.
-    ASSERT(code_generator_->frame() != NULL);
-    result = code_generator_->frame()->SpillAnyRegister();
-    if (!result.is(no_reg)) {
-      ASSERT(!registers_.is_used(result.code()));
-      registers_.Use(result);
+    ASSERT(cgen_->frame() != NULL);
+    Register free_reg = cgen_->frame()->SpillAnyRegister();
+    if (free_reg.is_valid()) {
+      ASSERT(!is_used(free_reg.code()));
+      return Result(free_reg, cgen_);
     }
   }
   return result;
