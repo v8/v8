@@ -201,6 +201,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   Label entry_label_;
   Label start_label_;
   Label success_label_;
+  Label backtrack_label_;
   Label exit_label_;
   Label check_preempt_label_;
   // Handle used to represent the generated code object itself.

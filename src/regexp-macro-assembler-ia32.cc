@@ -93,6 +93,7 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(
       entry_label_(),
       start_label_(),
       success_label_(),
+      backtrack_label_(),
       exit_label_(),
       self_(Heap::undefined_value()) {
   __ jmp(&entry_label_);   // We'll write the entry code later.
@@ -106,6 +107,7 @@ RegExpMacroAssemblerIA32::~RegExpMacroAssemblerIA32() {
   entry_label_.Unuse();
   start_label_.Unuse();
   success_label_.Unuse();
+  backtrack_label_.Unuse();
   exit_label_.Unuse();
   check_preempt_label_.Unuse();
 }
@@ -564,6 +566,12 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ pop(esi);
   __ ret(0);
 
+  // Backtrack code (branch target for conditional backtracks).
+  if (backtrack_label_.is_linked()) {
+    __ bind(&backtrack_label_);
+    Backtrack();
+  }
+
   // Preempt-code
   if (check_preempt_label_.is_linked()) {
     __ bind(&check_preempt_label_);
@@ -818,10 +826,7 @@ void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
     return;
   }
   if (to == NULL) {
-    Label skip;
-    __ j(NegateCondition(condition), &skip);
-    Backtrack();
-    __ bind(&skip);
+    __ j(condition, &backtrack_label_);
     return;
   }
   __ j(condition, to);
