@@ -119,18 +119,6 @@ void UTF16Buffer::PushBack(uc32 ch) {
 }
 
 
-static inline bool IsByteOrderMark(uc32 c) {
-  // The Unicode value U+FFFE is guaranteed never to be assigned as a
-  // Unicode character; this implies that in a Unicode context the
-  // 0xFF, 0xFE byte pattern can only be interpreted as the U+FEFF
-  // character expressed in little-endian byte order (since it could
-  // not be a U+FFFE character expressed in big-endian byte
-  // order). Nevertheless, we check for it to be compatible with
-  // Spidermonkey.
-  return c == 0xFEFF || c == 0xFFFE;
-}
-
-
 uc32 UTF16Buffer::Advance() {
   // NOTE: It is of importance to Persian / Farsi resources that we do
   // *not* strip format control characters in the scanner; see
@@ -138,17 +126,16 @@ uc32 UTF16Buffer::Advance() {
   //    https://bugzilla.mozilla.org/show_bug.cgi?id=274152
   //
   // So, even though ECMA-262, section 7.1, page 11, dictates that we
-  // must remove Unicode format-control characters, we only remove the BOM.
-  // This is in line with how Safari handles it.
+  // must remove Unicode format-control characters, we do not. This is
+  // in line with how IE and SpiderMonkey handles it.
   if (!pushback_buffer()->is_empty()) {
     pos_++;
     return last_ = pushback_buffer()->RemoveLast();
+  } else if (stream_->has_more()) {
+    pos_++;
+    uc32 next = stream_->GetNext();
+    return last_ = next;
   } else {
-    while (stream_->has_more()) {
-      pos_++;
-      uc32 next = stream_->GetNext();
-      if (!IsByteOrderMark(next)) return last_ = next;
-    }
     // note: currently the following increment is necessary to avoid a
     // test-parser problem!
     pos_++;
@@ -247,11 +234,25 @@ void Scanner::PushBack(uc32 ch) {
 }
 
 
+static inline bool IsByteOrderMark(uc32 c) {
+  // The Unicode value U+FFFE is guaranteed never to be assigned as a
+  // Unicode character; this implies that in a Unicode context the
+  // 0xFF, 0xFE byte pattern can only be interpreted as the U+FEFF
+  // character expressed in little-endian byte order (since it could
+  // not be a U+FFFE character expressed in big-endian byte
+  // order). Nevertheless, we check for it to be compatible with
+  // Spidermonkey.
+  return c == 0xFEFF || c == 0xFFFE;
+}
+
+
 void Scanner::SkipWhiteSpace(bool initial) {
   has_line_terminator_before_next_ = initial;
 
   while (true) {
-    while (kIsWhiteSpace.get(c0_)) {
+    // We treat byte-order marks (BOMs) as whitespace for better
+    // compatibility with Spidermonkey and other JavaScript engines.
+    while (kIsWhiteSpace.get(c0_) || IsByteOrderMark(c0_)) {
       // IsWhiteSpace() includes line terminators!
       if (kIsLineTerminator.get(c0_))
         // Ignore line terminators, but remember them. This is necessary
