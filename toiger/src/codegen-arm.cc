@@ -973,7 +973,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   }
 
   // Record the position for debugging purposes.
-  __ RecordPosition(position);
+  CodeForSourcePosition(position);
 
   // Use the shared code stub to call the function.
   CallFunctionStub call_function(arg_count);
@@ -1011,7 +1011,7 @@ void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
 
 void CodeGenerator::VisitBlock(Block* node) {
   Comment cmnt(masm_, "[ Block");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
   node->set_break_stack_height(break_stack_height_);
   node->break_target()->set_code_generator(this);
   VisitStatements(node->statements());
@@ -1034,6 +1034,7 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 
 void CodeGenerator::VisitDeclaration(Declaration* node) {
   Comment cmnt(masm_, "[ Declaration");
+  CodeForStatement(node);
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
   Slot* slot = var->slot();
@@ -1099,7 +1100,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
 
 void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   Comment cmnt(masm_, "[ ExpressionStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
   Expression* expression = node->expression();
   expression->MarkAsStatement();
   Load(expression);
@@ -1109,6 +1110,7 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
 
 void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
   Comment cmnt(masm_, "// EmptyStatement");
+  CodeForStatement(node);
   // nothing to do
 }
 
@@ -1120,7 +1122,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
   bool has_then_stm = node->HasThenStatement();
   bool has_else_stm = node->HasElseStatement();
 
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
 
   JumpTarget exit(this);
   if (has_then_stm && has_else_stm) {
@@ -1205,7 +1207,7 @@ void CodeGenerator::CleanStack(int num_bytes) {
 
 void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
   Comment cmnt(masm_, "[ ContinueStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
   node->target()->continue_target()->Jump();
 }
@@ -1213,7 +1215,7 @@ void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
 
 void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
   Comment cmnt(masm_, "[ BreakStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
   node->target()->break_target()->Jump();
 }
@@ -1221,7 +1223,7 @@ void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
 
 void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   Comment cmnt(masm_, "[ ReturnStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
   Load(node->expression());
   // Move the function result into r0.
   frame_->Pop(r0);
@@ -1232,7 +1234,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 
 void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
   Load(node->expression());
   frame_->CallRuntime(Runtime::kPushContext, 1);
   if (kDebug) {
@@ -1249,6 +1251,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
 
 void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
   Comment cmnt(masm_, "[ WithExitStatement");
+  CodeForStatement(node);
   // Pop context.
   __ ldr(cp, ContextOperand(cp, Context::PREVIOUS_INDEX));
   // Update context local.
@@ -1322,7 +1325,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
 
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   Comment cmnt(masm_, "[ SwitchStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
   node->set_break_stack_height(break_stack_height_);
   node->break_target()->set_code_generator(this);
 
@@ -1411,7 +1414,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
 void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   Comment cmnt(masm_, "[ LoopStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
   node->set_break_stack_height(break_stack_height_);
   node->break_target()->set_code_generator(this);
   node->continue_target()->set_code_generator(this);
@@ -1565,8 +1568,9 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
             // Record source position of the statement as this code which is
             // after the code for the body actually belongs to the loop
             // statement and not the body.
-            RecordStatementPosition(node);
-            __ RecordPosition(node->statement_pos());
+            CodeForStatement(node);
+
+
             ASSERT(node->type() == LoopStatement::FOR_LOOP);
             Visit(node->next());
             loop.Jump();
@@ -1585,7 +1589,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
 void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   Comment cmnt(masm_, "[ ForInStatement");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
 
   // We keep stuff on the stack while the body is executing.
   // Record it, so that a break/continue crossing this statement
@@ -1774,6 +1778,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
 void CodeGenerator::VisitTryCatch(TryCatch* node) {
   Comment cmnt(masm_, "[ TryCatch");
+  CodeForStatement(node);
 
   JumpTarget try_block(this);
   JumpTarget exit(this);
@@ -1883,6 +1888,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
 void CodeGenerator::VisitTryFinally(TryFinally* node) {
   Comment cmnt(masm_, "[ TryFinally");
+  CodeForStatement(node);
 
   // State: Used to keep track of reason for entering the finally
   // block. Should probably be extended to hold information for
@@ -2040,7 +2046,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
 void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatament");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
   frame_->CallRuntime(Runtime::kDebugBreak, 0);
   // Ignore the return value.
 }
@@ -2350,7 +2356,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
 void CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
-  if (FLAG_debug_info) RecordStatementPosition(node);
+  CodeForStatement(node);
 
   Reference target(this, node->target());
   if (target.is_illegal()) {
@@ -2387,7 +2393,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     // Assignment ignored - leave the value on the stack.
 
   } else {
-    __ RecordPosition(node->position());
+    CodeForSourcePosition(node->position());
     if (node->op() == Token::INIT_CONST) {
       // Dynamic constant initializations must use the function context
       // and initialize the actual constant declared. Dynamic variable
@@ -2404,7 +2410,7 @@ void CodeGenerator::VisitThrow(Throw* node) {
   Comment cmnt(masm_, "[ Throw");
 
   Load(node->exception());
-  __ RecordPosition(node->position());
+  CodeForSourcePosition(node->position());
   frame_->CallRuntime(Runtime::kThrow, 1);
   frame_->EmitPush(r0);
 }
@@ -2423,7 +2429,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
   ZoneList<Expression*>* args = node->arguments();
 
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   // Standard function call.
 
   // Check if the function is a variable or a property.
@@ -2462,7 +2468,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Setup the receiver register and call the IC initialization code.
     Handle<Code> stub = ComputeCallInitialize(arg_count);
-    __ RecordPosition(node->position());
+    CodeForSourcePosition(node->position());
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
                            arg_count + 1);
     __ ldr(cp, frame_->Context());
@@ -2513,7 +2519,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Set the receiver register and call the IC initialization code.
       Handle<Code> stub = ComputeCallInitialize(arg_count);
-      __ RecordPosition(node->position());
+      CodeForSourcePosition(node->position());
       frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
       __ ldr(cp, frame_->Context());
 
@@ -2567,7 +2573,7 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   ZoneList<Expression*>* args = node->arguments();
   Expression* function = node->expression();
 
-  RecordStatementPosition(node);
+  CodeForStatement(node);
 
   // Prepare stack for call to resolved function.
   Load(function);
@@ -2597,7 +2603,7 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   __ str(r1, MemOperand(sp, args->length() * kPointerSize));
 
   // Call the function.
-  __ RecordPosition(node->position());
+  CodeForSourcePosition(node->position());
 
   CallFunctionStub call_function(args->length());
   __ CallStub(&call_function);
@@ -2611,6 +2617,7 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 
 void CodeGenerator::VisitCallNew(CallNew* node) {
   Comment cmnt(masm_, "[ CallNew");
+  CodeForStatement(node);
 
   // According to ECMA-262, section 11.2.2, page 44, the function
   // expression in new calls must be evaluated before the
@@ -2639,7 +2646,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  __ RecordPosition(RelocInfo::POSITION);
+  CodeForSourcePosition(node->position());
   Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
   frame_->CallCodeObject(ic, RelocInfo::CONSTRUCT_CALL, arg_count + 1);
 
@@ -3364,15 +3371,6 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 }
 
 
-void CodeGenerator::RecordStatementPosition(Node* node) {
-  if (FLAG_debug_info) {
-    int statement_pos = node->statement_pos();
-    if (statement_pos == RelocInfo::kNoPosition) return;
-    __ RecordStatementPosition(statement_pos);
-  }
-}
-
-
 bool CodeGenerator::IsActualFunctionReturn(JumpTarget* target) {
   return (target == &function_return_ && !function_return_is_shadowed_);
 }
@@ -3405,7 +3403,7 @@ void Reference::GetValue(TypeofState typeof_state) {
   VirtualFrame* frame = cgen_->frame();
   Property* property = expression_->AsProperty();
   if (property != NULL) {
-    __ RecordPosition(property->position());
+    cgen_->CodeForSourcePosition(property->position());
   }
 
   switch (type_) {
@@ -3471,7 +3469,7 @@ void Reference::SetValue(InitState init_state) {
   VirtualFrame* frame = cgen_->frame();
   Property* property = expression_->AsProperty();
   if (property != NULL) {
-    __ RecordPosition(property->position());
+    cgen_->CodeForSourcePosition(property->position());
   }
 
   switch (type_) {
@@ -3574,7 +3572,7 @@ void Reference::SetValue(InitState init_state) {
       Comment cmnt(masm, "[ Store to keyed Property");
       Property* property = expression_->AsProperty();
       ASSERT(property != NULL);
-      __ RecordPosition(property->position());
+      cgen_->CodeForSourcePosition(property->position());
 
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));

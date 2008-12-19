@@ -42,9 +42,11 @@ DeferredCode::DeferredCode(CodeGenerator* generator)
     generator_(generator),
     enter_(generator),
     exit_(generator),
-    statement_position_(masm_->last_statement_position()),
-    position_(masm_->last_position()) {
+    statement_position_(masm_->current_statement_position()),
+    position_(masm_->current_position()) {
   generator->AddDeferred(this);
+  ASSERT(statement_position_ != RelocInfo::kNoPosition);
+  ASSERT(position_ != RelocInfo::kNoPosition);
 #ifdef DEBUG
   comment_ = "";
 #endif
@@ -56,9 +58,7 @@ void CodeGenerator::ProcessDeferred() {
     DeferredCode* code = deferred_.RemoveLast();
     MacroAssembler* masm = code->masm();
     // Record position of deferred code stub.
-    if (code->statement_position() != RelocInfo::kNoPosition) {
-      masm->RecordStatementPosition(code->statement_position());
-    }
+    masm->RecordStatementPosition(code->statement_position());
     if (code->position() != RelocInfo::kNoPosition) {
       masm->RecordPosition(code->position());
     }
@@ -475,6 +475,26 @@ bool CodeGenerator::TryGenerateFastCaseSwitchStatement(SwitchStatement* node) {
   // Optimization accepted, generate code.
   GenerateFastCaseSwitchStatement(node, min_index, range, default_index);
   return true;
+}
+
+
+void CodeGenerator::CodeForStatement(Node* node) {
+  if (FLAG_debug_info) {
+    int pos = node->statement_pos();
+    if (pos != RelocInfo::kNoPosition) {
+      masm()->RecordStatementPosition(pos);
+      CodeForSourcePosition(pos);
+    }
+  }
+}
+
+
+void CodeGenerator::CodeForSourcePosition(int pos) {
+  if (FLAG_debug_info) {
+    if (pos != RelocInfo::kNoPosition) {
+      masm()->RecordPosition(pos);
+    }
+  }
 }
 
 

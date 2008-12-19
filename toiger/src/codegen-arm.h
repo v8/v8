@@ -335,10 +335,11 @@ class CodeGenerator: public AstVisitor {
   bool TryGenerateFastCaseSwitchStatement(SwitchStatement* node);
 
 
-  // Bottle-neck interface to call the Assembler to generate the statement
-  // position. This allows us to easily control whether statement positions
-  // should be generated or not.
-  void RecordStatementPosition(Node* node);
+  // Methods used to indicate which source code is generated for. Source
+  // positions are collected by the assembler and emitted with the relocation
+  // information.
+  void CodeForStatement(Node* node);
+  void CodeForSourcePosition(int pos);
 
   // Is the given jump target the actual (ie, non-shadowed) function return
   // target?

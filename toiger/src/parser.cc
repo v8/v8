@@ -1320,6 +1320,9 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       Block* result = NEW(Block(labels, 1, false));
       Target target(this, result);
       TryStatement* statement = ParseTryStatement(CHECK_OK);
+      if (statement) {
+        statement->set_statement_pos(statement_pos);
+      }
       if (result) result->AddStatement(statement);
       return result;
     }
