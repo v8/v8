@@ -536,15 +536,79 @@ class SiblingList {
 };
 
 
+// Details of a quick mask-compare check that can look ahead in the
+// input stream.
+class QuickCheckDetails {
+ public:
+  QuickCheckDetails()
+      : characters_(0),
+        mask_(0),
+        value_(0) { }
+  explicit QuickCheckDetails(int characters)
+      : characters_(characters),
+        mask_(0),
+        value_(0) { }
+  bool Rationalize(bool ascii);
+  // Merge in the information from another branch of an alternation.
+  void Merge(QuickCheckDetails* other, int from_index);
+  // Advance the current position by some amount.
+  void Advance(int by, bool ascii);
+  void Clear();
+  struct Position {
+    Position() : mask(0), value(0), determines_perfectly(false) { }
+    uc16 mask;
+    uc16 value;
+    bool determines_perfectly;
+  };
+  int characters() { return characters_; }
+  void set_characters(int characters) { characters_ = characters; }
+  Position* positions(int index) {
+    ASSERT(index >= 0);
+    ASSERT(index < characters_);
+    return positions_ + index;
+  }
+  uint32_t mask() { return mask_; }
+  uint32_t value() { return value_; }
+
+ private:
+  // How many characters do we have quick check information from.  This is
+  // the same for all branches of a choice node.
+  int characters_;
+  Position positions_[4];
+  // These values are the condensate of the above array after Rationalize().
+  uint32_t mask_;
+  uint32_t value_;
+};
+
+
 class RegExpNode: public ZoneObject {
  public:
   RegExpNode() : variants_generated_(0) { }
-  virtual ~RegExpNode() { }
+  virtual ~RegExpNode();
   virtual void Accept(NodeVisitor* visitor) = 0;
   // Generates a goto to this node or actually generates the code at this point.
   // Until the implementation is complete we will return true for success and
   // false for failure.
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant) = 0;
+  // How many characters must this node consume at a minimum in order to
+  // succeed.
+  virtual int EatsAtLeast(int recursion_depth) = 0;
+  // Emits some quick code that checks whether the preloaded characters match.
+  // Falls through on certain failure, jumps to the label on possible success.
+  // If the node cannot make a quick check it does nothing and returns false.
+  bool EmitQuickCheck(RegExpCompiler* compiler,
+                      GenerationVariant* variant,
+                      bool preload_has_checked_bounds,
+                      Label* on_possible_success,
+                      QuickCheckDetails* details_return,
+                      bool fall_through_on_failure);
+  // For a given number of characters this returns a mask and a value.  The
+  // next n characters are anded with the mask and compared with the value.
+  // A comparison failure indicates the node cannot match the next n characters.
+  // A comparison success indicates the node may match.
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int characters_filled_in) = 0;
   static const int kNodeIsTooComplexForGreedyLoops = -1;
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
   Label* label() { return &label_; }
@@ -633,6 +697,12 @@ class ActionNode: public SeqRegExpNode {
       RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual int EatsAtLeast(int recursion_depth);
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int filled_in) {
+    return on_success()->GetQuickCheckDetails(details, compiler, filled_in);
+  }
   virtual RegExpNode* PropagateForward(NodeInfo* info);
   Type type() { return type_; }
   // TODO(erikcorry): We should allow some action nodes in greedy loops.
@@ -679,6 +749,10 @@ class TextNode: public SeqRegExpNode {
   virtual void Accept(NodeVisitor* visitor);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual int EatsAtLeast(int recursion_depth);
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int characters_filled_in);
   ZoneList<TextElement>* elements() { return elms_; }
   void MakeCaseIndependent();
   virtual int GreedyLoopTextLength();
@@ -690,6 +764,19 @@ class TextNode: public SeqRegExpNode {
   void CalculateOffsets();
 
  private:
+  enum TextEmitPassType {
+    NON_ASCII_MATCH,
+    CHARACTER_MATCH,
+    CASE_CHARACTER_MATCH,
+    CHARACTER_CLASS_MATCH
+  };
+  void TextEmitPass(RegExpCompiler* compiler,
+                    TextEmitPassType pass,
+                    bool preloaded,
+                    GenerationVariant* variant,
+                    bool first_element_checked,
+                    int* checked_up_to);
+  int Length();
   ZoneList<TextElement>* elms_;
 };
 
@@ -706,6 +793,12 @@ class BackReferenceNode: public SeqRegExpNode {
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual int EatsAtLeast(int recursion_depth) { return 0; }
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int characters_filled_in) {
+    return;
+  }
   virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
 
@@ -721,6 +814,13 @@ class EndNode: public RegExpNode {
   explicit EndNode(Action action) : action_(action) { }
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual int EatsAtLeast(int recursion_depth) { return 0; }
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int characters_filled_in) {
+    // Returning 0 from EatsAtLeast should ensure we never get here.
+    UNREACHABLE();
+  }
   virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual EndNode* Clone() { return new EndNode(*this); }
 
@@ -778,6 +878,9 @@ class GuardedAlternative {
 };
 
 
+class AlternativeGeneration;
+
+
 class ChoiceNode: public RegExpNode {
  public:
   explicit ChoiceNode(int expected_size)
@@ -789,6 +892,11 @@ class ChoiceNode: public RegExpNode {
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
   DispatchTable* GetTable(bool ignore_case);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual int EatsAtLeast(int recursion_depth);
+  int EatsAtLeastHelper(int recursion_depth, RegExpNode* ignore_this_node);
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int characters_filled_in);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual ChoiceNode* Clone() { return new ChoiceNode(*this); }
 
@@ -805,6 +913,13 @@ class ChoiceNode: public RegExpNode {
   void GenerateGuard(RegExpMacroAssembler* macro_assembler,
                      Guard *guard,
                      GenerationVariant* variant);
+  int CalculatePreloadCharacters(RegExpCompiler* compiler);
+  bool EmitOutOfLineContinuation(RegExpCompiler* compiler,
+                                 GenerationVariant* variant,
+                                 GuardedAlternative alternative,
+                                 AlternativeGeneration* alt_gen,
+                                 int preload_characters,
+                                 bool next_expects_preload);
   DispatchTable* table_;
   bool being_calculated_;
 };
@@ -812,16 +927,22 @@ class ChoiceNode: public RegExpNode {
 
 class LoopChoiceNode: public ChoiceNode {
  public:
-  explicit LoopChoiceNode()
+  explicit LoopChoiceNode(bool body_can_be_zero_length)
       : ChoiceNode(2),
         loop_node_(NULL),
-        continue_node_(NULL) { }
+        continue_node_(NULL),
+        body_can_be_zero_length_(body_can_be_zero_length) { }
   void AddLoopAlternative(GuardedAlternative alt);
   void AddContinueAlternative(GuardedAlternative alt);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual int EatsAtLeast(int recursion_depth);  // Returns 0.
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int characters_filled_in);
   virtual LoopChoiceNode* Clone() { return new LoopChoiceNode(*this); }
   RegExpNode* loop_node() { return loop_node_; }
   RegExpNode* continue_node() { return continue_node_; }
+  bool body_can_be_zero_length() { return body_can_be_zero_length_; }
   virtual void Accept(NodeVisitor* visitor);
 
  private:
@@ -834,6 +955,7 @@ class LoopChoiceNode: public ChoiceNode {
 
   RegExpNode* loop_node_;
   RegExpNode* continue_node_;
+  bool body_can_be_zero_length_;
 };
 
 
@@ -883,42 +1005,47 @@ class GenerationVariant {
         : DeferredAction(ActionNode::INCREMENT_REGISTER, reg) { }
   };
 
-  explicit GenerationVariant(Label* backtrack)
-      : cp_offset_(0),
-        actions_(NULL),
-        backtrack_(backtrack),
-        stop_node_(NULL),
-        loop_label_(NULL) { }
   GenerationVariant()
       : cp_offset_(0),
         actions_(NULL),
         backtrack_(NULL),
         stop_node_(NULL),
-        loop_label_(NULL) { }
+        loop_label_(NULL),
+        characters_preloaded_(0) { }
   bool Flush(RegExpCompiler* compiler, RegExpNode* successor);
   int cp_offset() { return cp_offset_; }
   DeferredAction* actions() { return actions_; }
   bool is_trivial() {
-    return backtrack_ == NULL && actions_ == NULL && cp_offset_ == 0;
+    return backtrack_ == NULL &&
+           actions_ == NULL &&
+           cp_offset_ == 0 &&
+           characters_preloaded_ == 0 &&
+           quick_check_performed_.characters() == 0;
   }
   Label* backtrack() { return backtrack_; }
   Label* loop_label() { return loop_label_; }
   RegExpNode* stop_node() { return stop_node_; }
-  // These set methods should be used only on new GenerationVariants - the
-  // intention is that GenerationVariants are immutable after creation.
+  int characters_preloaded() { return characters_preloaded_; }
+  QuickCheckDetails* quick_check_performed() { return &quick_check_performed_; }
+  bool mentions_reg(int reg);
+  // These set methods and AdvanceVariant should be used only on new
+  // GenerationVariants - the intention is that GenerationVariants are
+  // immutable after creation.
   void add_action(DeferredAction* new_action) {
     ASSERT(new_action->next_ == NULL);
     new_action->next_ = actions_;
     actions_ = new_action;
   }
-  void set_cp_offset(int new_cp_offset) {
-    ASSERT(new_cp_offset >= cp_offset_);
-    cp_offset_ = new_cp_offset;
-  }
   void set_backtrack(Label* backtrack) { backtrack_ = backtrack; }
   void set_stop_node(RegExpNode* node) { stop_node_ = node; }
   void set_loop_label(Label* label) { loop_label_ = label; }
-  bool mentions_reg(int reg);
+  void set_characters_preloaded(int cpre) { characters_preloaded_ = cpre; }
+  void set_quick_check_performed(QuickCheckDetails* d) {
+    quick_check_performed_ = *d;
+  }
+  void clear_quick_check_performed() {
+  }
+  void AdvanceVariant(int by, bool ascii);
  private:
   int FindAffectedRegisters(OutSet* affected_registers);
   void PerformDeferredActions(RegExpMacroAssembler* macro,
@@ -935,7 +1062,11 @@ class GenerationVariant {
   Label* backtrack_;
   RegExpNode* stop_node_;
   Label* loop_label_;
+  int characters_preloaded_;
+  QuickCheckDetails quick_check_performed_;
 };
+
+
 class NodeVisitor {
  public:
   virtual ~NodeVisitor() { }

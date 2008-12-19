@@ -154,7 +154,7 @@ void RegExpMacroAssemblerIA32::CheckBitmap(uc16 start,
 }
 
 
-void RegExpMacroAssemblerIA32::CheckCharacter(uc16 c, Label* on_equal) {
+void RegExpMacroAssemblerIA32::CheckCharacter(uint32_t c, Label* on_equal) {
   __ cmp(current_character(), c);
   BranchOrBacktrack(equal, on_equal);
 }
@@ -365,28 +365,41 @@ void RegExpMacroAssemblerIA32::CheckNotRegistersEqual(int reg1,
 }
 
 
-void RegExpMacroAssemblerIA32::CheckNotCharacter(uc16 c, Label* on_not_equal) {
+void RegExpMacroAssemblerIA32::CheckNotCharacter(uint32_t c,
+                                                 Label* on_not_equal) {
   __ cmp(current_character(), c);
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
 
-void RegExpMacroAssemblerIA32::CheckNotCharacterAfterOr(uc16 c,
-                                                        uc16 mask,
-                                                        Label* on_not_equal) {
+void RegExpMacroAssemblerIA32::CheckCharacterAfterAnd(uint32_t c,
+                                                      uint32_t mask,
+                                                      Label* on_equal) {
   __ mov(eax, current_character());
-  __ or_(eax, mask);
+  __ and_(eax, mask);
+  __ cmp(eax, c);
+  BranchOrBacktrack(equal, on_equal);
+}
+
+
+void RegExpMacroAssemblerIA32::CheckNotCharacterAfterAnd(uint32_t c,
+                                                         uint32_t mask,
+                                                         Label* on_not_equal) {
+  __ mov(eax, current_character());
+  __ and_(eax, mask);
   __ cmp(eax, c);
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
 
-void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusOr(
+void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusAnd(
     uc16 c,
+    uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  __ lea(eax, Operand(current_character(), -mask));
-  __ or_(eax, mask);
+  ASSERT(minus < String::kMaxUC16CharCode);
+  __ lea(eax, Operand(current_character(), -minus));
+  __ and_(eax, mask);
   __ cmp(eax, c);
   BranchOrBacktrack(not_equal, on_not_equal);
 }
@@ -516,7 +529,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   Label at_start;
   __ cmp(Operand(ebp, kAtStart), Immediate(0));
   __ j(not_equal, &at_start);
-  LoadCurrentCharacterUnchecked(-1);  // Load previous char.
+  LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
   __ jmp(&start_label_);
   __ bind(&at_start);
   __ mov(current_character(), '\n');
@@ -631,12 +644,16 @@ RegExpMacroAssembler::IrregexpImplementation
 
 
 void RegExpMacroAssemblerIA32::LoadCurrentCharacter(int cp_offset,
-                                                    Label* on_end_of_input) {
+                                                    Label* on_end_of_input,
+                                                    bool check_bounds,
+                                                    int characters) {
   ASSERT(cp_offset >= 0);
   ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
-  __ cmp(edi, -cp_offset * char_size());
-  BranchOrBacktrack(greater_equal, on_end_of_input);
-  LoadCurrentCharacterUnchecked(cp_offset);
+  if (check_bounds) {
+    __ cmp(edi, -(cp_offset + characters) * char_size());
+    BranchOrBacktrack(greater, on_end_of_input);
+  }
+  LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
 
 
@@ -871,13 +888,27 @@ void RegExpMacroAssemblerIA32::CallCFunction(Address function_address,
 }
 
 
-void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset) {
+void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
+                                                             int characters) {
   if (mode_ == ASCII) {
-    __ movzx_b(current_character(), Operand(esi, edi, times_1, cp_offset));
+    if (characters == 4) {
+      __ mov(current_character(), Operand(esi, edi, times_1, cp_offset));
+    } else if (characters == 2) {
+      __ movzx_w(current_character(), Operand(esi, edi, times_1, cp_offset));
+    } else {
+      ASSERT(characters == 1);
+      __ movzx_b(current_character(), Operand(esi, edi, times_1, cp_offset));
+    }
   } else {
     ASSERT(mode_ == UC16);
-    __ movzx_w(current_character(),
-               Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
+    if (characters == 2) {
+      __ mov(current_character(),
+             Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
+    } else {
+      ASSERT(characters == 1);
+      __ movzx_w(current_character(),
+                 Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
+    }
   }
 }
 
