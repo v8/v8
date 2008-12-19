@@ -1663,6 +1663,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   // through the self_reference parameter.
   code->CopyFrom(desc);
   if (sinfo != NULL) sinfo->Serialize(code);  // write scope info
+  LOG(CodeAllocateEvent(code, desc.origin));
 
 #ifdef DEBUG
   code->Verify();
