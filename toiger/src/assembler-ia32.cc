@@ -420,29 +420,6 @@ void Assembler::push(const Operand& src) {
 }
 
 
-void Assembler::push(Label* label, RelocInfo::Mode reloc_mode) {
-  ASSERT_NOT_NULL(label);
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  // If reloc_mode == NONE, the label is stored as buffer relative.
-  ASSERT(reloc_mode == RelocInfo::NONE);
-  if (label->is_bound()) {
-    // Index of position relative to Code Object-pointer.
-    int rel_pos = label->pos() + Code::kHeaderSize - kHeapObjectTag;
-    if (rel_pos >= 0 && rel_pos < 256) {
-      EMIT(0x6a);
-      EMIT(rel_pos);
-    } else {
-      EMIT(0x68);
-      emit(rel_pos);
-    }
-  } else {
-    EMIT(0x68);
-    emit_disp(label, Displacement::CODE_RELATIVE);
-  }
-}
-
-
 void Assembler::pop(Register dst) {
   ASSERT(reloc_info_writer.last_pc() != NULL);
   if (FLAG_push_pop_elimination && (reloc_info_writer.last_pc() <= last_pc_)) {
@@ -889,21 +866,20 @@ void Assembler::cmp(const Operand& op, const Immediate& imm) {
 }
 
 
-void Assembler::rep_cmpsb() {
+void Assembler::cmpb_al(const Operand& op) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0xFC);  // CLD to ensure forward operation
-  EMIT(0xF3);  // REP
-  EMIT(0xA6);  // CMPSB
+  EMIT(0x38);  // CMP r/m8, r8
+  emit_operand(eax, op);  // eax has same code as register al.
 }
 
-void Assembler::rep_cmpsw() {
+
+void Assembler::cmpw_ax(const Operand& op) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0xFC);  // CLD to ensure forward operation
-  EMIT(0xF3);  // REP
-  EMIT(0x66);  // Operand size overide.
-  EMIT(0xA7);  // CMPS
+  EMIT(0x66);
+  EMIT(0x39);  // CMP r/m16, r16
+  emit_operand(eax, op);  // eax has same code as register ax.
 }
 
 

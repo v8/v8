@@ -372,6 +372,23 @@ class Vector {
 };
 
 
+// A temporary assignment sets a (non-local) variable to a value on
+// construction and resets it the value on destruction.
+template <typename T>
+class TempAssign {
+ public:
+  TempAssign(T* var, T value): var_(var), old_value_(*var) {
+    *var = value;
+  }
+
+  ~TempAssign() { *var_ = old_value_; }
+
+ private:
+  T* var_;
+  T old_value_;
+};
+
+
 template <typename T, int kSize>
 class EmbeddedVector : public Vector<T> {
  public:

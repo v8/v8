@@ -919,6 +919,18 @@ static Object* Runtime_FunctionSetPrototype(Arguments args) {
 }
 
 
+static Object* Runtime_FunctionIsAPIFunction(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(JSFunction, f, args[0]);
+  // The function_data field of the shared function info is used exclusively by
+  // the API.
+  return !f->shared()->function_data()->IsUndefined() ? Heap::true_value()
+                                                      : Heap::false_value();
+}
+
+
 static Object* Runtime_SetCode(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
@@ -1733,13 +1745,19 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
   ASSERT(args.length() == 2);
 
   // Fast cases for getting named properties of the receiver JSObject
-  // itself. The global proxy objects has to be excluded since
-  // LocalLookup on the global proxy object can return a valid result
-  // eventhough the global proxy object never has properties.  This is
-  // the case because the global proxy object forwards everything to
-  // its hidden prototype including local lookups.
+  // itself.
+  //
+  // The global proxy objects has to be excluded since LocalLookup on
+  // the global proxy object can return a valid result eventhough the
+  // global proxy object never has properties.  This is the case
+  // because the global proxy object forwards everything to its hidden
+  // prototype including local lookups.
+  //
+  // Additionally, we need to make sure that we do not cache results
+  // for objects that require access checks.
   if (args[0]->IsJSObject() &&
       !args[0]->IsJSGlobalProxy() &&
+      !args[0]->IsAccessCheckNeeded() &&
       args[1]->IsString()) {
     JSObject* receiver = JSObject::cast(args[0]);
     String* key = String::cast(args[1]);
@@ -3658,61 +3676,9 @@ static Object* Runtime_StackOverflow(Arguments args) {
 }
 
 
-static Object* RuntimePreempt(Arguments args) {
-  // Clear the preempt request flag.
-  StackGuard::Continue(PREEMPT);
-
-  ContextSwitcher::PreemptionReceived();
-
-  {
-    v8::Unlocker unlocker;
-    Thread::YieldCPU();
-  }
-
-  return Heap::undefined_value();
-}
-
-
-static Object* DebugBreakHelper() {
-  // Just continue if breaks are disabled.
-  if (Debug::disable_break()) {
-    return Heap::undefined_value();
-  }
-
-  // Don't break in system functions. If the current function is
-  // either in the builtins object of some context or is in the debug
-  // context just return with the debug break stack guard active.
-  JavaScriptFrameIterator it;
-  JavaScriptFrame* frame = it.frame();
-  Object* fun = frame->function();
-  if (fun->IsJSFunction()) {
-    GlobalObject* global = JSFunction::cast(fun)->context()->global();
-    if (global->IsJSBuiltinsObject() || Debug::IsDebugGlobal(global)) {
-      return Heap::undefined_value();
-    }
-  }
-
-  // Clear the debug request flag.
-  StackGuard::Continue(DEBUGBREAK);
-
-  HandleScope scope;
-  // Enter the debugger. Just continue if we fail to enter the debugger.
-  EnterDebugger debugger;
-  if (debugger.FailedToEnter()) {
-    return Heap::undefined_value();
-  }
-
-  // Notify the debug event listeners.
-  Debugger::OnDebugBreak(Factory::undefined_value());
-
-  // Return to continue execution.
-  return Heap::undefined_value();
-}
-
-
 static Object* Runtime_DebugBreak(Arguments args) {
   ASSERT(args.length() == 0);
-  return DebugBreakHelper();
+  return Execution::DebugBreakHelper();
 }
 
 
@@ -3722,16 +3688,7 @@ static Object* Runtime_StackGuard(Arguments args) {
   // First check if this is a real stack overflow.
   if (StackGuard::IsStackOverflow()) return Runtime_StackOverflow(args);
 
-  // If not real stack overflow the stack guard was used to interrupt
-  // execution for another purpose.
-  if (StackGuard::IsDebugBreak()) DebugBreakHelper();
-  if (StackGuard::IsPreempted()) RuntimePreempt(args);
-  if (StackGuard::IsInterrupted()) {
-    // interrupt
-    StackGuard::Continue(INTERRUPT);
-    return Top::StackOverflow();
-  }
-  return Heap::undefined_value();
+  return Execution::HandleStackGuardInterrupt();
 }
 
 
@@ -4758,10 +4715,8 @@ static Object* Runtime_DebugIndexedInterceptorElementValue(Arguments args) {
 static Object* Runtime_CheckExecutionState(Arguments args) {
   ASSERT(args.length() >= 1);
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
-  // Check that the break id is valid and that there is a valid frame
-  // where execution is broken.
-  if (break_id != Top::break_id() ||
-      Top::break_frame_id() == StackFrame::NO_ID) {
+  // Check that the break id is valid.
+  if (Top::break_id() == 0 || break_id != Top::break_id()) {
     return Top::Throw(Heap::illegal_execution_state_symbol());
   }
 
@@ -4780,6 +4735,10 @@ static Object* Runtime_GetFrameCount(Arguments args) {
   // Count all frames which are relevant to debugging stack trace.
   int n = 0;
   StackFrame::Id id = Top::break_frame_id();
+  if (id == StackFrame::NO_ID) {
+    // If there is no JavaScript stack frame count is 0.
+    return Smi::FromInt(0);
+  }
   for (JavaScriptFrameIterator it(id); !it.done(); it.Advance()) n++;
   return Smi::FromInt(n);
 }
@@ -4821,6 +4780,10 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
 
   // Find the relevant frame with the requested index.
   StackFrame::Id id = Top::break_frame_id();
+  if (id == StackFrame::NO_ID) {
+    // If there are no JavaScript stack frames return undefined.
+    return Heap::undefined_value();
+  }
   int count = 0;
   JavaScriptFrameIterator it(id);
   for (; !it.done(); it.Advance()) {

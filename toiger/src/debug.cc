@@ -849,7 +849,12 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
 
 
 void Debug::FloodHandlerWithOneShot() {
+  // Iterate through the JavaScript stack looking for handlers.
   StackFrame::Id id = Top::break_frame_id();
+  if (id == StackFrame::NO_ID) {
+    // If there is no JavaScript stack don't do anything.
+    return;
+  }
   for (JavaScriptFrameIterator it(id); !it.done(); it.Advance()) {
     JavaScriptFrame* frame = it.frame();
     if (frame->HasHandler()) {
@@ -886,6 +891,10 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   // hitting a break point. In other situations (e.g. unhandled exception) the
   // debug frame is not present.
   StackFrame::Id id = Top::break_frame_id();
+  if (id == StackFrame::NO_ID) {
+    // If there is no JavaScript stack don't do anything.
+    return;
+  }
   JavaScriptFrameIterator frames_it(id);
   JavaScriptFrame* frame = frames_it.frame();
 
@@ -1700,7 +1709,7 @@ void DebugMessageThread::SendMessage(Vector<uint16_t> message) {
 }
 
 
-void DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
+bool DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
   v8::HandleScope scope;
   // Call toJSONProtocol on the debug event object.
   v8::Local<v8::Object> api_event_data =
@@ -1726,8 +1735,9 @@ void DebugMessageThread::SetEventJSONFromEvent(Handle<Object> event_data) {
     }
   } else {
     PrintLn(try_catch.Exception());
-    SendMessage(Vector<uint16_t>::empty());
+    return false;
   }
+  return true;
 }
 
 
@@ -1790,10 +1800,14 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
   }
 
   // Notify the debugger that a debug event has occurred.
-  host_running_ = false;
-  SetEventJSONFromEvent(event_data);
+  bool success = SetEventJSONFromEvent(event_data);
+  if (!success) {
+    // If failed to notify debugger just continue running.
+    return;
+  }
 
   // Wait for requests from the debugger.
+  host_running_ = false;
   while (true) {
     command_received_->Wait();
     Logger::DebugTag("Got request from command queue, in interactive loop.");

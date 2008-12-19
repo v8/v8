@@ -2217,10 +2217,9 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   function_return_is_shadowed_ = true;
 
   // Generate code for the statements in the try block.
-  bool was_inside_try = is_inside_try_;
-  is_inside_try_ = true;
-  VisitStatementsAndSpill(node->try_block()->statements());
-  is_inside_try_ = was_inside_try;
+  { TempAssign<bool> temp(&is_inside_try_, true);
+    VisitStatementsAndSpill(node->try_block()->statements());
+  }
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original targets are unshadowed and the
@@ -2326,10 +2325,9 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   function_return_is_shadowed_ = true;
 
   // Generate code for the statements in the try block.
-  bool was_inside_try = is_inside_try_;
-  is_inside_try_ = true;
-  VisitStatementsAndSpill(node->try_block()->statements());
-  is_inside_try_ = was_inside_try;
+  { TempAssign<bool> temp(&is_inside_try_, true);
+    VisitStatementsAndSpill(node->try_block()->statements());
+  }
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original targets are unshadowed and the

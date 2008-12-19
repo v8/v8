@@ -528,6 +528,12 @@ struct NodeInfo {
     does_determine_start = that->does_determine_start;
   }
 
+  bool HasLookbehind() {
+    return follows_word_interest ||
+           follows_newline_interest ||
+           follows_start_interest;
+  }
+
   // Sets the interests of this node to include the interests of the
   // following node.
   void AddFromFollowing(NodeInfo* that) {
@@ -894,7 +900,7 @@ class ChoiceNode: public RegExpNode {
 
  private:
   friend class DispatchTableConstructor;
-  friend class Analysis;
+  friend class AssertionPropagation;
   void GenerateGuard(RegExpMacroAssembler* macro_assembler,
                      Guard *guard,
                      GenerationVariant* variant);
@@ -1052,9 +1058,45 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 };
 
 
-class Analysis: public NodeVisitor {
+// Assertion propagation moves information about assertions such as
+// \b to the affected nodes.  For instance, in /.\b./ information must
+// be propagated to the first '.' that whatever follows needs to know
+// if it matched a word or a non-word, and to the second '.' that it
+// has to check if it succeeds a word or non-word.  In this case the
+// result will be something like:
+//
+//   +-------+        +------------+
+//   |   .   |        |      .     |
+//   +-------+  --->  +------------+
+//   | word? |        | check word |
+//   +-------+        +------------+
+//
+// At a later phase all nodes that determine information for their
+// following nodes are split into several 'sibling' nodes.  In this
+// case the first '.' is split into one node that only matches words
+// and one that only matches non-words.  The second '.' is also split,
+// into one node that assumes that the previous character was a word
+// character and one that assumes that is was non-word.  In this case
+// the result is
+//
+//         +------------------+        +------------------+
+//   /-->  | intersect(., \w) |  --->  | intersect(., \W) |
+//   |     +------------------+        +------------------+
+//   |                                 |    follows \w    |
+//   |                                 +------------------+
+// --?
+//   |     +------------------+        +------------------+
+//   \-->  | intersect(., \W) |  --->  | intersect(., \w) |
+//         +------------------+        +------------------+
+//                                     |    follows \W    |
+//                                     +------------------+
+//
+// This way we don't need to explicitly check the previous character
+// but can always assume that whoever consumed the previous character
+// has propagated the relevant information forward.
+class AssertionPropagation: public NodeVisitor {
  public:
-  explicit Analysis(bool ignore_case)
+  explicit AssertionPropagation(bool ignore_case)
       : ignore_case_(ignore_case) { }
   void EnsureAnalyzed(RegExpNode* node);
 
@@ -1066,13 +1108,21 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
  private:
   bool ignore_case_;
 
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Analysis);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AssertionPropagation);
 };
 
 
-struct RegExpParseResult {
+struct RegExpCompileData {
+  RegExpCompileData()
+    : tree(NULL),
+      node(NULL),
+      has_lookbehind(false),
+      simple(true),
+      capture_count(0) { }
   RegExpTree* tree;
-  bool has_character_escapes;
+  RegExpNode* node;
+  bool has_lookbehind;
+  bool simple;
   Handle<String> error;
   int capture_count;
 };
@@ -1080,8 +1130,7 @@ struct RegExpParseResult {
 
 class RegExpEngine: public AllStatic {
  public:
-  static Handle<FixedArray> Compile(RegExpParseResult* input,
-                                    RegExpNode** node_return,
+  static Handle<FixedArray> Compile(RegExpCompileData* input,
                                     bool ignore_case,
                                     bool multiline,
                                     Handle<String> pattern,

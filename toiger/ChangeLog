@@ -1,3 +1,25 @@
+2008-12-11: Version 0.4.6
+
+        Fixed exception reporting bug where certain exceptions were
+        incorrectly reported as uncaught.
+
+        Improved the memory allocation strategy used during compilation to
+        make running out of memory when compiling huge scripts less
+        likely.
+
+        Optimized String.replace by avoiding the construction of certain
+        sub strings.
+
+        Fixed bug in code generation for large switch statements on ARM.
+
+        Fixed bug that caused V8 to change the global object template
+        passed in by the user.
+
+        Changed the API for creating object groups used during garbage
+        collection.  Entire object groups are now passed to V8 instead of
+        individual members of the groups.
+
+        
 2008-12-03: Version 0.4.5
 
         Added experimental API support for allocating V8 symbols as

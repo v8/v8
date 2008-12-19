@@ -160,6 +160,7 @@ namespace v8 { namespace internal {
   F(FunctionGetSourceCode, 1) \
   F(FunctionGetScript, 1) \
   F(FunctionGetScriptSourcePosition, 1) \
+  F(FunctionIsAPIFunction, 1) \
   F(GetScript, 1) \
   \
   F(ClassOf, 1) \

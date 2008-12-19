@@ -176,6 +176,20 @@ void MacroAssembler::Ret() {
 }
 
 
+void MacroAssembler::SmiJumpTable(Register index, Vector<Label*> targets) {
+  // Empty the const pool.
+  CheckConstPool(true, true);
+  add(pc, pc, Operand(index,
+                      LSL,
+                      assembler::arm::Instr::kInstrSizeLog2 - kSmiTagSize));
+  BlockConstPoolBefore(pc_offset() + (targets.length() + 1) * sizeof(Instr));
+  nop();  // Jump table alignment.
+  for (int i = 0; i < targets.length(); i++) {
+    b(targets[i]);
+  }
+}
+
+
 // Will clobber 4 registers: object, offset, scratch, ip.  The
 // register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.

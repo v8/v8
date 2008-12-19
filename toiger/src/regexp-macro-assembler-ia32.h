@@ -33,7 +33,8 @@ namespace v8 { namespace internal {
 class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
  public:
   // Type of input string to generate code for.
-  enum Mode {ASCII = 1, UC16 = 2};
+  enum Mode { ASCII = 1, UC16 = 2 };
+  enum Result { EXCEPTION = -1, FAILURE = 0, SUCCESS = 1 };
 
   RegExpMacroAssemblerIA32(Mode mode, int registers_to_save);
   virtual ~RegExpMacroAssemblerIA32();
@@ -92,16 +93,21 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void WriteStackPointerToRegister(int reg);
 
   template <typename T>
-  static inline bool Execute(Code* code,
-                             T** input,
-                             int start_offset,
-                             int end_offset,
-                             int* output,
-                             bool at_start) {
-    typedef bool (*matcher)(T**, int, int, int*, int);
+  static inline Result Execute(Code* code,
+                               T** input,
+                               int start_offset,
+                               int end_offset,
+                               int* output,
+                               bool at_start) {
+    typedef int (*matcher)(T**, int, int, int*, int);
     matcher matcher_func = FUNCTION_CAST<matcher>(code->entry());
     int at_start_val = at_start ? 1 : 0;
-    return matcher_func(input, start_offset, end_offset, output, at_start_val);
+    int result = matcher_func(input,
+                              start_offset,
+                              end_offset,
+                              output,
+                              at_start_val);
+    return (result < 0) ? EXCEPTION : (result ? SUCCESS : FAILURE);
   }
 
  private:
@@ -120,14 +126,19 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   static const size_t kRegExpCodeSize = 1024;
   // Initial size of constant buffers allocated during compilation.
   static const int kRegExpConstantsSize = 256;
-  // Only unroll loops up to this length.
-  static const int kMaxInlineStringTests = 8;
+  // Only unroll loops up to this length. TODO(lrn): Actually use this.
+  static const int kMaxInlineStringTests = 32;
 
-  // Compares two-byte strings case insenstively.
+  // Compares two-byte strings case insensitively.
   static int CaseInsensitiveCompareUC16(uc16** buffer,
                                         int byte_offset1,
                                         int byte_offset2,
                                         size_t byte_length);
+
+  // Called from RegExp if the stack-guard is triggered.
+  // If the code object is relocated, the return address is fixed before
+  // returning.
+  static int CheckStackGuardState(Address return_address, Code* re_code);
 
   // The ebp-relative location of a regexp register.
   Operand register_location(int register_index);
@@ -151,6 +162,21 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // (and checks if we have hit the stack limit too).
   void CheckStackLimit();
 
+  // Call and return internally in the generated code in a way that
+  // is GC-safe (i.e., doesn't leave absolute code addresses on the stack)
+  void SafeCall(Label* to);
+  void SafeReturn();
+
+  // Before calling a C-function from generated code, align arguments on stack.
+  // After aligning the frame, arguments must be stored in esp[0], esp[4],
+  // etc., not pushed. The argument count assumes all arguments are word sized.
+  void FrameAlign(int num_arguments);
+  // Calls a C function and cleans up the space for arguments allocated
+  // by FrameAlign. The called function is not allowed to trigger a garbage
+  // collection, since that might move the code and invalidate the return
+  // address
+  void CallCFunction(Address function_address, int num_arguments);
+
   MacroAssembler* masm_;
   // Constant buffer provider. Allocates external storage for storing
   // constants.
@@ -167,6 +193,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   Label start_label_;
   Label success_label_;
   Label exit_label_;
+  Label check_preempt_label_;
   // Handle used to represent the generated code object itself.
   Handle<Object> self_;
 };

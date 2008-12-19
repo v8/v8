@@ -1967,10 +1967,10 @@ class EXPORT V8 {
    * object in the group is alive, all objects in the group are alive.
    * After each garbage collection, object groups are removed. It is
    * intended to be used in the before-garbage-collection callback
-   * function for istance to simulate DOM tree connections among JS
+   * function, for instance to simulate DOM tree connections among JS
    * wrapper objects.
    */
-  static void AddObjectToGroup(void* id, Persistent<Object> obj);
+  static void AddObjectGroup(Persistent<Value>* objects, size_t length);
 
   /**
    * Initializes from snapshot if possible. Otherwise, attempts to

@@ -152,6 +152,12 @@ Immediate::Immediate(const char* s) {
 }
 
 
+Immediate::Immediate(Label *internal_offset) {
+  x_ = reinterpret_cast<int32_t>(internal_offset);
+  rmode_ = RelocInfo::INTERNAL_REFERENCE;
+}
+
+
 Immediate::Immediate(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
@@ -200,8 +206,24 @@ void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
 
 
 void Assembler::emit(const Immediate& x) {
+  if (x.rmode_ == RelocInfo::INTERNAL_REFERENCE) {
+    Label* label = reinterpret_cast<Label*>(x.x_);
+    emit_code_relative_offset(label);
+    return;
+  }
   if (x.rmode_ != RelocInfo::NONE) RecordRelocInfo(x.rmode_);
   emit(x.x_);
+}
+
+
+void Assembler::emit_code_relative_offset(Label* label) {
+  if (label->is_bound()) {
+    int32_t pos;
+    pos = label->pos() + Code::kHeaderSize - kHeapObjectTag;
+    emit(pos);
+  } else {
+    emit_disp(label, Displacement::CODE_RELATIVE);
+  }
 }
 
 

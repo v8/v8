@@ -215,18 +215,27 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // -----------------------------------
   Label slow, fast, check_string, index_int, index_string;
 
+  // Load name and receiver.
   __ mov(eax, (Operand(esp, kPointerSize)));
   __ mov(ecx, (Operand(esp, 2 * kPointerSize)));
 
   // Check that the object isn't a smi.
   __ test(ecx, Immediate(kSmiTagMask));
   __ j(zero, &slow, not_taken);
+
+  // Get the map of the receiver.
+  __ mov(edx, FieldOperand(ecx, HeapObject::kMapOffset));
+  // Check that the receiver does not require access checks.  We need
+  // to check this explicitly since this generic stub does not perform
+  // map checks.
+  __ movzx_b(ebx, FieldOperand(edx, Map::kBitFieldOffset));
+  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ j(not_zero, &slow, not_taken);
   // Check that the object is some kind of JS object EXCEPT JS Value type.
   // In the case that the object is a value-wrapper object,
   // we enter the runtime system to make sure that indexing
   // into string objects work as intended.
   ASSERT(JS_OBJECT_TYPE > JS_VALUE_TYPE);
-  __ mov(edx, FieldOperand(ecx, HeapObject::kMapOffset));
   __ movzx_b(edx, FieldOperand(edx, Map::kInstanceTypeOffset));
   __ cmp(edx, JS_OBJECT_TYPE);
   __ j(less, &slow, not_taken);
@@ -268,7 +277,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // bits have been subtracted to allow space for the length and the cached
   // array index.
   ASSERT(TenToThe(String::kMaxCachedArrayIndexLength) <
-             (1 << (String::kShortLengthShift - String::kHashShift)));
+         (1 << (String::kShortLengthShift - String::kHashShift)));
   __ bind(&index_string);
   const int kLengthFieldLimit =
       (String::kMaxCachedArrayIndexLength + 1) << String::kShortLengthShift;
@@ -298,17 +307,25 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   //  -- esp[8] : receiver
   // -----------------------------------
   Label slow, fast, array, extra;
-  // Get the key and the object from the stack.
-  __ mov(ebx, Operand(esp, 1 * kPointerSize));  // 1 ~ return address
+
+  // Get the receiver from the stack.
   __ mov(edx, Operand(esp, 2 * kPointerSize));  // 2 ~ return address, key
-  // Check that the key is a smi.
-  __ test(ebx, Immediate(kSmiTagMask));
-  __ j(not_zero, &slow, not_taken);
   // Check that the object isn't a smi.
   __ test(edx, Immediate(kSmiTagMask));
   __ j(zero, &slow, not_taken);
-  // Get the type of the object from its map.
+  // Get the map from the receiver.
   __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
+  // Check that the receiver does not require access checks.  We need
+  // to do this because this generic stub does not perform map checks.
+  __ movzx_b(ebx, FieldOperand(ecx, Map::kBitFieldOffset));
+  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ j(not_zero, &slow, not_taken);
+  // Get the key from the stack.
+  __ mov(ebx, Operand(esp, 1 * kPointerSize));  // 1 ~ return address
+  // Check that the key is a smi.
+  __ test(ebx, Immediate(kSmiTagMask));
+  __ j(not_zero, &slow, not_taken);
+  // Get the instance type from the map of the receiver.
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
   // Check if the object is a JS array or not.
   __ cmp(ecx, JS_ARRAY_TYPE);
@@ -316,7 +333,6 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
   // Check that the object is some kind of JS object.
   __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
   __ j(less, &slow, not_taken);
-
 
   // Object case: Check key against length in the elements array.
   // eax: value
@@ -515,8 +531,8 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ j(zero, &miss, not_taken);
 
   // Check that the receiver is a valid JS object.
-  __ mov(eax, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
+  __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ movzx_b(eax, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ cmp(eax, FIRST_JS_OBJECT_TYPE);
   __ j(less, &miss, not_taken);
 
@@ -531,6 +547,10 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
 
   // Accessing global object: Load and invoke.
   __ bind(&global_object);
+  // Check that the global object does not require access checks.
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kBitFieldOffset));
+  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ j(not_equal, &miss, not_taken);
   GenerateNormalHelper(masm, argc, true, &miss);
 
   // Accessing non-global object: Check for access to global proxy.
@@ -538,6 +558,11 @@ void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ bind(&non_global_object);
   __ cmp(eax, JS_GLOBAL_PROXY_TYPE);
   __ j(equal, &global_proxy, not_taken);
+  // Check that the non-global, non-global-proxy object does not
+  // require access checks.
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kBitFieldOffset));
+  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ j(not_equal, &miss, not_taken);
   __ bind(&invoke);
   GenerateNormalHelper(masm, argc, false, &miss);
 
@@ -642,8 +667,8 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   __ j(zero, &miss, not_taken);
 
   // Check that the receiver is a valid JS object.
-  __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(edx, FieldOperand(edx, Map::kInstanceTypeOffset));
+  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
+  __ movzx_b(edx, FieldOperand(ebx, Map::kInstanceTypeOffset));
   __ cmp(edx, FIRST_JS_OBJECT_TYPE);
   __ j(less, &miss, not_taken);
 
@@ -653,6 +678,11 @@ void LoadIC::GenerateNormal(MacroAssembler* masm) {
   // Check for access to global object (unlikely).
   __ cmp(edx, JS_GLOBAL_PROXY_TYPE);
   __ j(equal, &global, not_taken);
+
+  // Check for non-global object that requires access check.
+  __ movzx_b(ebx, FieldOperand(ebx, Map::kBitFieldOffset));
+  __ test(ebx, Immediate(1 << Map::kIsAccessCheckNeeded));
+  __ j(not_zero, &miss, not_taken);
 
   // Search the dictionary placing the result in eax.
   __ bind(&probe);

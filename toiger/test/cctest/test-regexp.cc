@@ -55,7 +55,7 @@ static SmartPointer<const char> Parse(const char* input) {
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
-  RegExpParseResult result;
+  RegExpCompileData result;
   CHECK(v8::internal::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
@@ -63,23 +63,22 @@ static SmartPointer<const char> Parse(const char* input) {
   return output;
 }
 
-static bool ParseEscapes(const char* input) {
+static bool CheckSimple(const char* input) {
   V8::Initialize(NULL);
   v8::HandleScope scope;
   unibrow::Utf8InputBuffer<> buffer(input, strlen(input));
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
-  RegExpParseResult result;
+  RegExpCompileData result;
   CHECK(v8::internal::ParseRegExp(&reader, false, &result));
   CHECK(result.tree != NULL);
   CHECK(result.error.is_null());
-  return result.has_character_escapes;
+  return result.simple;
 }
 
 
 #define CHECK_PARSE_EQ(input, expected) CHECK_EQ(expected, *Parse(input))
-#define CHECK_ESCAPES(input, has_escapes) CHECK_EQ(has_escapes, \
-                                                   ParseEscapes(input));
+#define CHECK_SIMPLE(input, simple) CHECK_EQ(simple, CheckSimple(input));
 
 TEST(Parser) {
   V8::Initialize(NULL);
@@ -168,6 +167,11 @@ TEST(Parser) {
   CHECK_PARSE_EQ("(a)\\1", "(: (^ 'a') (<- 1))");
   CHECK_PARSE_EQ("(a\\1)", "(^ 'a')");
   CHECK_PARSE_EQ("(\\1a)", "(^ 'a')");
+  CHECK_PARSE_EQ("(?=a)?a", "'a'");
+  CHECK_PARSE_EQ("(?=a){0,10}a", "'a'");
+  CHECK_PARSE_EQ("(?=a){1,10}a", "(: (-> + 'a') 'a')");
+  CHECK_PARSE_EQ("(?=a){9,10}a", "(: (-> + 'a') 'a')");
+  CHECK_PARSE_EQ("(?!a)?a", "'a'");
   CHECK_PARSE_EQ("\\1(a)", "(^ 'a')");
   CHECK_PARSE_EQ("(?!(a))\\1", "(-> - (^ 'a'))");
   CHECK_PARSE_EQ("(?!\\1(a\\1)\\1)\\1", "(-> - (: (^ 'a') (<- 1)))");
@@ -186,47 +190,50 @@ TEST(Parser) {
   CHECK_PARSE_EQ("\\u003z", "'u003z'");
   CHECK_PARSE_EQ("foo[z]*", "(: 'foo' (# 0 - g [z]))");
 
-  CHECK_ESCAPES("a", false);
-  CHECK_ESCAPES("a|b", false);
-  CHECK_ESCAPES("a\\n", true);
-  CHECK_ESCAPES("^a", false);
-  CHECK_ESCAPES("a$", false);
-  CHECK_ESCAPES("a\\b!", false);
-  CHECK_ESCAPES("a\\Bb", false);
-  CHECK_ESCAPES("a*", false);
-  CHECK_ESCAPES("a*?", false);
-  CHECK_ESCAPES("a?", false);
-  CHECK_ESCAPES("a??", false);
-  CHECK_ESCAPES("a{0,1}?", false);
-  CHECK_ESCAPES("a{1,1}?", false);
-  CHECK_ESCAPES("a{1,2}?", false);
-  CHECK_ESCAPES("a+?", false);
-  CHECK_ESCAPES("(a)", false);
-  CHECK_ESCAPES("(a)\\1", false);
-  CHECK_ESCAPES("(\\1a)", false);
-  CHECK_ESCAPES("\\1(a)", false);
-  CHECK_ESCAPES("a\\s", false);
-  CHECK_ESCAPES("a\\S", false);
-  CHECK_ESCAPES("a\\d", false);
-  CHECK_ESCAPES("a\\D", false);
-  CHECK_ESCAPES("a\\w", false);
-  CHECK_ESCAPES("a\\W", false);
-  CHECK_ESCAPES("a.", false);
-  CHECK_ESCAPES("a\\q", true);
-  CHECK_ESCAPES("a[a]", false);
-  CHECK_ESCAPES("a[^a]", false);
-  CHECK_ESCAPES("a[a-z]", false);
-  CHECK_ESCAPES("a[\\q]", false);
-  CHECK_ESCAPES("a(?:b)", false);
-  CHECK_ESCAPES("a(?=b)", false);
-  CHECK_ESCAPES("a(?!b)", false);
-  CHECK_ESCAPES("\\x60", true);
-  CHECK_ESCAPES("\\u0060", true);
-  CHECK_ESCAPES("\\cA", true);
-  CHECK_ESCAPES("\\q", true);
-  CHECK_ESCAPES("\\1112", true);
-  CHECK_ESCAPES("\\0", true);
-  CHECK_ESCAPES("(a)\\1", false);
+  CHECK_SIMPLE("a", true);
+  CHECK_SIMPLE("a|b", false);
+  CHECK_SIMPLE("a\\n", false);
+  CHECK_SIMPLE("^a", false);
+  CHECK_SIMPLE("a$", false);
+  CHECK_SIMPLE("a\\b!", false);
+  CHECK_SIMPLE("a\\Bb", false);
+  CHECK_SIMPLE("a*", false);
+  CHECK_SIMPLE("a*?", false);
+  CHECK_SIMPLE("a?", false);
+  CHECK_SIMPLE("a??", false);
+  CHECK_SIMPLE("a{0,1}?", false);
+  CHECK_SIMPLE("a{1,1}?", false);
+  CHECK_SIMPLE("a{1,2}?", false);
+  CHECK_SIMPLE("a+?", false);
+  CHECK_SIMPLE("(a)", false);
+  CHECK_SIMPLE("(a)\\1", false);
+  CHECK_SIMPLE("(\\1a)", false);
+  CHECK_SIMPLE("\\1(a)", false);
+  CHECK_SIMPLE("a\\s", false);
+  CHECK_SIMPLE("a\\S", false);
+  CHECK_SIMPLE("a\\d", false);
+  CHECK_SIMPLE("a\\D", false);
+  CHECK_SIMPLE("a\\w", false);
+  CHECK_SIMPLE("a\\W", false);
+  CHECK_SIMPLE("a.", false);
+  CHECK_SIMPLE("a\\q", false);
+  CHECK_SIMPLE("a[a]", false);
+  CHECK_SIMPLE("a[^a]", false);
+  CHECK_SIMPLE("a[a-z]", false);
+  CHECK_SIMPLE("a[\\q]", false);
+  CHECK_SIMPLE("a(?:b)", false);
+  CHECK_SIMPLE("a(?=b)", false);
+  CHECK_SIMPLE("a(?!b)", false);
+  CHECK_SIMPLE("\\x60", false);
+  CHECK_SIMPLE("\\u0060", false);
+  CHECK_SIMPLE("\\cA", false);
+  CHECK_SIMPLE("\\q", false);
+  CHECK_SIMPLE("\\1112", false);
+  CHECK_SIMPLE("\\0", false);
+  CHECK_SIMPLE("(a)\\1", false);
+  CHECK_SIMPLE("(?=a)?a", false);
+  CHECK_SIMPLE("(?!a)?a\\1", false);
+  CHECK_SIMPLE("(?:(?=a))a\\1", false);
 
   CHECK_PARSE_EQ("a{}", "'a{}'");
   CHECK_PARSE_EQ("a{,}", "'a{,}'");
@@ -259,7 +266,7 @@ static void ExpectError(const char* input,
   v8::HandleScope scope;
   ZoneScope zone_scope(DELETE_ON_EXIT);
   FlatStringReader reader(CStrVector(input));
-  RegExpParseResult result;
+  RegExpCompileData result;
   CHECK_EQ(false, v8::internal::ParseRegExp(&reader, false, &result));
   CHECK(result.tree == NULL);
   CHECK(!result.error.is_null());
@@ -358,13 +365,12 @@ TEST(CharacterClassEscapes) {
 static RegExpNode* Compile(const char* input, bool multiline, bool is_ascii) {
   V8::Initialize(NULL);
   FlatStringReader reader(CStrVector(input));
-  RegExpParseResult result;
-  if (!v8::internal::ParseRegExp(&reader, multiline, &result))
+  RegExpCompileData compile_data;
+  if (!v8::internal::ParseRegExp(&reader, multiline, &compile_data))
     return NULL;
-  RegExpNode* node = NULL;
   Handle<String> pattern = Factory::NewStringFromUtf8(CStrVector(input));
-  RegExpEngine::Compile(&result, &node, false, multiline, pattern, is_ascii);
-  return node;
+  RegExpEngine::Compile(&compile_data, false, multiline, pattern, is_ascii);
+  return compile_data.node;
 }
 
 
@@ -568,12 +574,26 @@ TEST(MacroAssembler) {
 
 #ifndef ARM  // IA32 only tests.
 
-TEST(MacroAssemblerIA32Success) {
-  V8::Initialize(NULL);
+class ContextInitializer {
+ public:
+  ContextInitializer() : env_(), scope_(), stack_guard_() {
+    env_ = v8::Context::New();
+    env_->Enter();
+  }
+  ~ContextInitializer() {
+    env_->Exit();
+    env_.Dispose();
+  }
+ private:
+  v8::Persistent<v8::Context> env_;
+  v8::HandleScope scope_;
+  v8::internal::StackGuard stack_guard_;
+};
 
-  // regexp-macro-assembler-ia32 needs a handle scope to allocate
-  // byte-arrays for constants.
-  v8::HandleScope scope;
+
+TEST(MacroAssemblerIA32Success) {
+  v8::V8::Initialize();
+  ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 4);
 
@@ -590,14 +610,15 @@ TEST(MacroAssemblerIA32Success) {
   int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   int end_offset = start_offset + seq_input->length();
 
-  bool success = RegExpMacroAssemblerIA32::Execute(*code,
-                                                   seq_input.location(),
-                                                   start_offset,
-                                                   end_offset,
-                                                   captures,
-                                                   true);
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        captures,
+                                        true);
 
-  CHECK(success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
   CHECK_EQ(-1, captures[0]);
   CHECK_EQ(-1, captures[1]);
   CHECK_EQ(-1, captures[2]);
@@ -606,11 +627,8 @@ TEST(MacroAssemblerIA32Success) {
 
 
 TEST(MacroAssemblerIA32Simple) {
-  V8::Initialize(NULL);
-
-  // regexp-macro-assembler-ia32 needs a handle scope to allocate
-  // byte-arrays for constants.
-  v8::HandleScope scope;
+  v8::V8::Initialize();
+  ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 4);
 
@@ -637,14 +655,15 @@ TEST(MacroAssemblerIA32Simple) {
   int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   int end_offset = start_offset + seq_input->length();
 
-  bool success = RegExpMacroAssemblerIA32::Execute(*code,
-                                                   seq_input.location(),
-                                                   start_offset,
-                                                   end_offset,
-                                                   captures,
-                                                   true);
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        captures,
+                                        true);
 
-  CHECK(success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(3, captures[1]);
   CHECK_EQ(-1, captures[2]);
@@ -656,23 +675,20 @@ TEST(MacroAssemblerIA32Simple) {
   start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   end_offset = start_offset + seq_input->length();
 
-  success = RegExpMacroAssemblerIA32::Execute(*code,
-                                              seq_input.location(),
-                                              start_offset,
-                                              end_offset,
-                                              captures,
-                                              true);
+  result = RegExpMacroAssemblerIA32::Execute(*code,
+                                             seq_input.location(),
+                                             start_offset,
+                                             end_offset,
+                                             captures,
+                                             true);
 
-  CHECK(!success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::FAILURE, result);
 }
 
 
 TEST(MacroAssemblerIA32SimpleUC16) {
-  V8::Initialize(NULL);
-
-  // regexp-macro-assembler-ia32 needs a handle scope to allocate
-  // byte-arrays for constants.
-  v8::HandleScope scope;
+  v8::V8::Initialize();
+  ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::UC16, 4);
 
@@ -701,14 +717,15 @@ TEST(MacroAssemblerIA32SimpleUC16) {
   int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   int end_offset = start_offset + seq_input->length() * sizeof(uc16);
 
-  bool success = RegExpMacroAssemblerIA32::Execute(*code,
-                                                   seq_input.location(),
-                                                   start_offset,
-                                                   end_offset,
-                                                   captures,
-                                                   true);
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        captures,
+                                        true);
 
-  CHECK(success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
   CHECK_EQ(0, captures[0]);
   CHECK_EQ(3, captures[1]);
   CHECK_EQ(-1, captures[2]);
@@ -721,23 +738,20 @@ TEST(MacroAssemblerIA32SimpleUC16) {
   start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   end_offset = start_offset + seq_input->length() * sizeof(uc16);
 
-  success = RegExpMacroAssemblerIA32::Execute(*code,
-                                              seq_input.location(),
-                                              start_offset,
-                                              end_offset,
-                                              captures,
-                                              true);
+  result = RegExpMacroAssemblerIA32::Execute(*code,
+                                             seq_input.location(),
+                                             start_offset,
+                                             end_offset,
+                                             captures,
+                                             true);
 
-  CHECK(!success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::FAILURE, result);
 }
 
 
 TEST(MacroAssemblerIA32Backtrack) {
-  V8::Initialize(NULL);
-
-  // regexp-macro-assembler-ia32 needs a handle scope to allocate
-  // byte-arrays for constants.
-  v8::HandleScope scope;
+  v8::V8::Initialize();
+  ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 0);
 
@@ -762,23 +776,21 @@ TEST(MacroAssemblerIA32Backtrack) {
   int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   int end_offset = start_offset + seq_input->length();
 
-  bool success = RegExpMacroAssemblerIA32::Execute(*code,
-                                                   seq_input.location(),
-                                                   start_offset,
-                                                   end_offset,
-                                                   NULL,
-                                                   true);
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        NULL,
+                                        true);
 
-  CHECK(!success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::FAILURE, result);
 }
 
 
-TEST(MacroAssemblerIA32BackReference) {
-  V8::Initialize(NULL);
-
-  // regexp-macro-assembler-ia32 needs a handle scope to allocate
-  // byte-arrays for constants.
-  v8::HandleScope scope;
+TEST(MacroAssemblerIA32BackReferenceASCII) {
+  v8::V8::Initialize();
+  ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 3);
 
@@ -808,26 +820,75 @@ TEST(MacroAssemblerIA32BackReference) {
   int end_offset = start_offset + seq_input->length();
 
   int output[3];
-  bool success = RegExpMacroAssemblerIA32::Execute(*code,
-                                                   seq_input.location(),
-                                                   start_offset,
-                                                   end_offset,
-                                                   output,
-                                                   true);
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        output,
+                                        true);
 
-  CHECK(success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
   CHECK_EQ(0, output[0]);
   CHECK_EQ(2, output[1]);
   CHECK_EQ(6, output[2]);
 }
 
 
-TEST(MacroAssemblerIA32AtStart) {
-  V8::Initialize(NULL);
+TEST(MacroAssemblerIA32BackReferenceUC16) {
+  v8::V8::Initialize();
+  ContextInitializer initializer;
 
-  // regexp-macro-assembler-ia32 needs a handle scope to allocate
-  // byte-arrays for constants.
-  v8::HandleScope scope;
+  RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::UC16, 3);
+
+  m.WriteCurrentPositionToRegister(0, 0);
+  m.AdvanceCurrentPosition(2);
+  m.WriteCurrentPositionToRegister(1, 0);
+  Label nomatch;
+  m.CheckNotBackReference(0, &nomatch);
+  m.Fail();
+  m.Bind(&nomatch);
+  m.AdvanceCurrentPosition(2);
+  Label missing_match;
+  m.CheckNotBackReference(0, &missing_match);
+  m.WriteCurrentPositionToRegister(2, 0);
+  m.Succeed();
+  m.Bind(&missing_match);
+  m.Fail();
+
+  Handle<String> source = Factory::NewStringFromAscii(CStrVector("^(..)..\1"));
+  Handle<Object> code_object = m.GetCode(source);
+  Handle<Code> code = Handle<Code>::cast(code_object);
+
+  const uc16 input_data[6] = {'f', 0x2028, 'o', 'o', 'f', 0x2028};
+  Handle<String> input =
+      Factory::NewStringFromTwoByte(Vector<const uc16>(input_data, 6));
+  Handle<SeqTwoByteString> seq_input = Handle<SeqTwoByteString>::cast(input);
+  Address start_adr = seq_input->GetCharsAddress();
+
+  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
+  int end_offset = start_offset + seq_input->length() * sizeof(input_data[0]);
+
+  int output[3];
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        output,
+                                        true);
+
+  CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
+  CHECK_EQ(0, output[0]);
+  CHECK_EQ(2, output[1]);
+  CHECK_EQ(6, output[2]);
+}
+
+
+
+TEST(MacroAssemblerIA32AtStart) {
+  v8::V8::Initialize();
+  ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 0);
 
@@ -862,35 +923,33 @@ TEST(MacroAssemblerIA32AtStart) {
   int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
   int end_offset = start_offset + seq_input->length();
 
-  bool success = RegExpMacroAssemblerIA32::Execute(*code,
-                                                   seq_input.location(),
-                                                   start_offset,
-                                                   end_offset,
-                                                   NULL,
-                                                   true);
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        NULL,
+                                        true);
 
-  CHECK(success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
 
   start_offset += 3;
-  success = RegExpMacroAssemblerIA32::Execute(*code,
+  result = RegExpMacroAssemblerIA32::Execute(*code,
                                               seq_input.location(),
                                               start_offset,
                                               end_offset,
                                               NULL,
                                               false);
 
-  CHECK(success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
 }
 
 
 
 
 TEST(MacroAssemblerIA32BackRefNoCase) {
-  V8::Initialize(NULL);
-
-  // regexp-macro-assembler-ia32 needs a handle scope to allocate
-  // byte-arrays for constants.
-  v8::HandleScope scope;
+  v8::V8::Initialize();
+  ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 4);
 
@@ -929,14 +988,15 @@ TEST(MacroAssemblerIA32BackRefNoCase) {
   int end_offset = start_offset + seq_input->length();
 
   int output[4];
-  bool success = RegExpMacroAssemblerIA32::Execute(*code,
-                                                   seq_input.location(),
-                                                   start_offset,
-                                                   end_offset,
-                                                   output,
-                                                   true);
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        output,
+                                        true);
 
-  CHECK(success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
   CHECK_EQ(0, output[0]);
   CHECK_EQ(12, output[1]);
   CHECK_EQ(0, output[2]);
@@ -946,11 +1006,8 @@ TEST(MacroAssemblerIA32BackRefNoCase) {
 
 
 TEST(MacroAssemblerIA32Registers) {
-  V8::Initialize(NULL);
-
-  // regexp-macro-assembler-ia32 needs a handle scope to allocate
-  // byte-arrays for constants.
-  v8::HandleScope scope;
+  v8::V8::Initialize();
+  ContextInitializer initializer;
 
   RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 5);
 
@@ -1032,20 +1089,60 @@ TEST(MacroAssemblerIA32Registers) {
   int end_offset = start_offset + seq_input->length();
 
   int output[5];
-  bool success = RegExpMacroAssemblerIA32::Execute(*code,
-                                                   seq_input.location(),
-                                                   start_offset,
-                                                   end_offset,
-                                                   output,
-                                                   true);
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        output,
+                                        true);
 
-  CHECK(success);
+  CHECK_EQ(RegExpMacroAssemblerIA32::SUCCESS, result);
   CHECK_EQ(0, output[0]);
   CHECK_EQ(3, output[1]);
   CHECK_EQ(6, output[2]);
   CHECK_EQ(9, output[3]);
   CHECK_EQ(9, output[4]);
 }
+
+
+TEST(MacroAssemblerIA32StackOverflow) {
+  v8::V8::Initialize();
+  ContextInitializer initializer;
+
+  RegExpMacroAssemblerIA32 m(RegExpMacroAssemblerIA32::ASCII, 0);
+
+  Label loop;
+  m.Bind(&loop);
+  m.PushBacktrack(&loop);
+  m.GoTo(&loop);
+
+  Handle<String> source =
+      Factory::NewStringFromAscii(CStrVector("<stack overflow test>"));
+  Handle<Object> code_object = m.GetCode(source);
+  Handle<Code> code = Handle<Code>::cast(code_object);
+
+  // String long enough for test (content doesn't matter).
+  Handle<String> input =
+      Factory::NewStringFromAscii(CStrVector("dummy"));
+  Handle<SeqAsciiString> seq_input = Handle<SeqAsciiString>::cast(input);
+  Address start_adr = seq_input->GetCharsAddress();
+  int start_offset = start_adr - reinterpret_cast<Address>(*seq_input);
+  int end_offset = start_offset + seq_input->length();
+
+  RegExpMacroAssemblerIA32::Result result =
+      RegExpMacroAssemblerIA32::Execute(*code,
+                                        seq_input.location(),
+                                        start_offset,
+                                        end_offset,
+                                        NULL,
+                                        true);
+
+  CHECK_EQ(RegExpMacroAssemblerIA32::EXCEPTION, result);
+  CHECK(Top::has_pending_exception());
+  Top::clear_pending_exception();
+}
+
 
 #endif  // !defined ARM
 
@@ -1125,14 +1222,6 @@ TEST(LatinCanonicalize) {
       u = c;
     CHECK_EQ(u, canonicalize(c));
   }
-}
-
-
-TEST(SimplePropagation) {
-  v8::HandleScope scope;
-  ZoneScope zone_scope(DELETE_ON_EXIT);
-  RegExpNode* node = Compile("(a|^b|c)", false, true);
-  CHECK(node->info()->follows_start_interest);
 }
 
 
@@ -1301,5 +1390,5 @@ TEST(CharClassDifference) {
 
 TEST(Graph) {
   V8::Initialize(NULL);
-  Execute("(?=[d#.])", false, true, true);
+  Execute("\\bboy\\b", false, true, true);
 }

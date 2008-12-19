@@ -474,10 +474,18 @@ Debug.findBreakPoint = function(break_point_number, remove) {
 
 Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
   if (!IS_FUNCTION(func)) throw new Error('Parameters have wrong types.');
+  // Break points in API functions are not supported.
+  if (%FunctionIsAPIFunction(func)) {
+    throw new Error('Cannot set break point in native code.');
+  }
   var source_position = this.findFunctionSourcePosition(func, opt_line, opt_column) -
                         this.sourcePosition(func);
   // Find the script for the function.
   var script = %FunctionGetScript(func);
+  // Break in builtin JavaScript code is not supported.
+  if (script.type == Debug.ScriptType.Native) {
+    throw new Error('Cannot set break point in native code.');
+  }
   // If the script for the function has a name convert this to a script break
   // point.
   if (script && script.name) {
@@ -832,9 +840,15 @@ ExceptionEvent.prototype.eventType = function() {
 };
 
 
+ExceptionEvent.prototype.exception = function() {
+  return this.exception_;
+}
+
+
 ExceptionEvent.prototype.uncaught = function() {
   return this.uncaught_;
 }
+
 
 ExceptionEvent.prototype.func = function() {
   return this.exec_state_.frame(0).func();
@@ -1321,6 +1335,14 @@ DebugCommandProcessor.prototype.clearBreakPointRequest_ = function(request, resp
 DebugCommandProcessor.prototype.backtraceRequest_ = function(request, response) {
   // Get the number of frames.
   var total_frames = this.exec_state_.frameCount();
+
+  // Create simple response if there are no frames.
+  if (total_frames == 0) {
+    response.body = {
+      totalFrames: total_frames
+    }
+    return;
+  }
 
   // Default frame range to include in backtrace.
   var from_index = 0

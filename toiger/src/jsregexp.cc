@@ -260,7 +260,7 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   } else {
     FlattenString(pattern);
     ZoneScope zone_scope(DELETE_ON_EXIT);
-    RegExpParseResult parse_result;
+    RegExpCompileData parse_result;
     FlatStringReader reader(pattern);
     if (!ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
       // Throw an exception if we fail to parse the pattern.
@@ -270,22 +270,23 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
                            "malformed_regexp");
       return Handle<Object>::null();
     }
-    RegExpAtom* atom = parse_result.tree->AsAtom();
-    if (atom != NULL && !flags.is_ignore_case()) {
-      if (parse_result.has_character_escapes) {
-        Vector<const uc16> atom_pattern = atom->data();
-        Handle<String> atom_string =
-            Factory::NewStringFromTwoByte(atom_pattern);
-        result = AtomCompile(re, pattern, flags, atom_string);
-      } else {
-        result = AtomCompile(re, pattern, flags, pattern);
-      }
+
+    if (parse_result.simple && !flags.is_ignore_case()) {
+      // Parse-tree is a single atom that is equal to the pattern.
+      result = AtomCompile(re, pattern, flags, pattern);
+    } else if (parse_result.tree->IsAtom() &&
+        !flags.is_ignore_case() &&
+        parse_result.capture_count == 0) {
+      // TODO(lrn) Accept capture_count > 0 on atoms.
+      RegExpAtom* atom = parse_result.tree->AsAtom();
+      Vector<const uc16> atom_pattern = atom->data();
+      Handle<String> atom_string =
+          Factory::NewStringFromTwoByte(atom_pattern);
+      result = AtomCompile(re, pattern, flags, atom_string);
+    } else if (FLAG_irregexp) {
+      result = IrregexpPrepare(re, pattern, flags);
     } else {
-      if (FLAG_irregexp) {
-        result = IrregexpPrepare(re, pattern, flags);
-      } else {
-        result = JscrePrepare(re, pattern, flags);
-      }
+      result = JscrePrepare(re, pattern, flags);
     }
     Object* data = re->data();
     if (data->IsFixedArray()) {
@@ -308,7 +309,7 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
       return AtomExec(regexp, subject, index);
     case JSRegExp::IRREGEXP: {
       Handle<Object> result = IrregexpExec(regexp, subject, index);
-      if (!result.is_null()) {
+      if (!result.is_null() || Top::has_pending_exception()) {
         return result;
       }
       // We couldn't handle the regexp using Irregexp, so fall back
@@ -338,12 +339,13 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
       return AtomExecGlobal(regexp, subject);
     case JSRegExp::IRREGEXP: {
       Handle<Object> result = IrregexpExecGlobal(regexp, subject);
-      if (!result.is_null()) {
+      if (!result.is_null() || Top::has_pending_exception()) {
         return result;
       }
-      // We couldn't handle the regexp using Irregexp, so fall back
-      // on JSCRE.
-      // Reset the JSRegExp to use JSCRE.
+      // Empty handle as result but no exception thrown means that
+      // the regexp contains features not yet handled by the irregexp
+      // compiler.
+      // We have to fall back on JSCRE. Reset the JSRegExp to use JSCRE.
       JscrePrepare(regexp,
                    Handle<String>(regexp->Pattern()),
                    regexp->GetFlags());
@@ -682,6 +684,12 @@ Handle<Object> RegExpImpl::JscreExecGlobal(Handle<JSRegExp> regexp,
 // Irregexp implementation.
 
 
+// Retrieves a compiled version of the regexp for either ASCII or non-ASCII
+// strings. If the compiled version doesn't already exist, it is compiled
+// from the source pattern.
+// Irregexp is not feature complete yet. If there is something in the
+// regexp that the compiler cannot currently handle, an empty
+// handle is returned, but no exception is thrown.
 static Handle<FixedArray> GetCompiledIrregexp(Handle<JSRegExp> re,
                                               bool is_ascii) {
   ASSERT(re->DataAt(JSRegExp::kIrregexpDataIndex)->IsFixedArray());
@@ -706,20 +714,19 @@ static Handle<FixedArray> GetCompiledIrregexp(Handle<JSRegExp> re,
     pattern->Flatten(shape);
   }
 
-  RegExpParseResult parse_result;
+  RegExpCompileData compile_data;
   FlatStringReader reader(pattern);
-  if (!ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
+  if (!ParseRegExp(&reader, flags.is_multiline(), &compile_data)) {
     // Throw an exception if we fail to parse the pattern.
     // THIS SHOULD NOT HAPPEN. We already parsed it successfully once.
     ThrowRegExpException(re,
                          pattern,
-                         parse_result.error,
+                         compile_data.error,
                          "malformed_regexp");
     return Handle<FixedArray>::null();
   }
   Handle<FixedArray> compiled_entry =
-      RegExpEngine::Compile(&parse_result,
-                            NULL,
+      RegExpEngine::Compile(&compile_data,
                             flags.is_ignore_case(),
                             flags.is_multiline(),
                             pattern,
@@ -912,6 +919,8 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
       bool is_ascii = flatshape.IsAsciiRepresentation();
       int char_size_shift = is_ascii ? 0 : 1;
 
+      RegExpMacroAssemblerIA32::Result res;
+
       if (flatshape.IsExternal()) {
         const byte* address;
         if (is_ascii) {
@@ -921,7 +930,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
           ExternalTwoByteString* ext = ExternalTwoByteString::cast(*subject);
           address = reinterpret_cast<const byte*>(ext->resource()->data());
         }
-        rc = RegExpMacroAssemblerIA32::Execute(
+        res = RegExpMacroAssemblerIA32::Execute(
             *code,
             &address,
             start_offset << char_size_shift,
@@ -933,7 +942,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
             is_ascii ? SeqAsciiString::cast(*subject)->GetCharsAddress()
                      : SeqTwoByteString::cast(*subject)->GetCharsAddress();
         int byte_offset = char_address - reinterpret_cast<Address>(*subject);
-        rc = RegExpMacroAssemblerIA32::Execute(
+        res = RegExpMacroAssemblerIA32::Execute(
             *code,
             subject.location(),
             byte_offset + (start_offset << char_size_shift),
@@ -941,6 +950,12 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
             offsets_vector,
             previous_index == 0);
       }
+
+      if (res == RegExpMacroAssemblerIA32::EXCEPTION) {
+        ASSERT(Top::has_pending_exception());
+        return Handle<Object>::null();
+      }
+      rc = (res == RegExpMacroAssemblerIA32::SUCCESS);
 
       if (rc) {
         // Capture values are relative to start_offset only.
@@ -2603,9 +2618,7 @@ RegExpNode* RegExpText::ToNode(RegExpCompiler* compiler,
 
 RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
                                          RegExpNode* on_success) {
-  ZoneList<TextElement>* elms = new ZoneList<TextElement>(1);
-  elms->Add(TextElement::CharClass(this));
-  return new TextNode(elms, on_success);
+  return new TextNode(this, on_success);
 }
 
 
@@ -3265,7 +3278,7 @@ OutSet* DispatchTable::Get(uc16 value) {
 // Analysis
 
 
-void Analysis::EnsureAnalyzed(RegExpNode* that) {
+void AssertionPropagation::EnsureAnalyzed(RegExpNode* that) {
   if (that->info()->been_analyzed || that->info()->being_analyzed)
     return;
   that->info()->being_analyzed = true;
@@ -3275,7 +3288,7 @@ void Analysis::EnsureAnalyzed(RegExpNode* that) {
 }
 
 
-void Analysis::VisitEnd(EndNode* that) {
+void AssertionPropagation::VisitEnd(EndNode* that) {
   // nothing to do
 }
 
@@ -3298,7 +3311,7 @@ void TextNode::CalculateOffsets() {
 }
 
 
-void Analysis::VisitText(TextNode* that) {
+void AssertionPropagation::VisitText(TextNode* that) {
   if (ignore_case_) {
     that->MakeCaseIndependent();
   }
@@ -3314,7 +3327,7 @@ void Analysis::VisitText(TextNode* that) {
 }
 
 
-void Analysis::VisitAction(ActionNode* that) {
+void AssertionPropagation::VisitAction(ActionNode* that) {
   RegExpNode* target = that->on_success();
   EnsureAnalyzed(target);
   // If the next node is interested in what it follows then this node
@@ -3323,7 +3336,7 @@ void Analysis::VisitAction(ActionNode* that) {
 }
 
 
-void Analysis::VisitChoice(ChoiceNode* that) {
+void AssertionPropagation::VisitChoice(ChoiceNode* that) {
   NodeInfo* info = that->info();
   for (int i = 0; i < that->alternatives()->length(); i++) {
     RegExpNode* node = that->alternatives()->at(i).node();
@@ -3335,7 +3348,7 @@ void Analysis::VisitChoice(ChoiceNode* that) {
 }
 
 
-void Analysis::VisitBackReference(BackReferenceNode* that) {
+void AssertionPropagation::VisitBackReference(BackReferenceNode* that) {
   EnsureAnalyzed(that->on_success());
 }
 
@@ -3650,15 +3663,118 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 }
 
 
-Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
-                                         RegExpNode** node_return,
+#ifdef DEBUG
+
+
+class VisitNodeScope {
+ public:
+  explicit VisitNodeScope(RegExpNode* node) : node_(node) {
+    ASSERT(!node->info()->visited);
+    node->info()->visited = true;
+  }
+  ~VisitNodeScope() {
+    node_->info()->visited = false;
+  }
+ private:
+  RegExpNode* node_;
+};
+
+
+class NodeValidator : public NodeVisitor {
+ public:
+  virtual void ValidateInfo(NodeInfo* info) = 0;
+#define DECLARE_VISIT(Type)                                          \
+  virtual void Visit##Type(Type##Node* that);
+FOR_EACH_NODE_TYPE(DECLARE_VISIT)
+#undef DECLARE_VISIT
+};
+
+
+class PostAnalysisNodeValidator : public NodeValidator {
+ public:
+  virtual void ValidateInfo(NodeInfo* info);
+};
+
+
+class PostExpansionNodeValidator : public NodeValidator {
+ public:
+  virtual void ValidateInfo(NodeInfo* info);
+};
+
+
+void PostAnalysisNodeValidator::ValidateInfo(NodeInfo* info) {
+  ASSERT(info->been_analyzed);
+}
+
+
+void PostExpansionNodeValidator::ValidateInfo(NodeInfo* info) {
+  ASSERT_EQ(info->determine_newline, info->does_determine_newline);
+  ASSERT_EQ(info->determine_start, info->does_determine_start);
+  ASSERT_EQ(info->determine_word, info->does_determine_word);
+  ASSERT_EQ(info->follows_word_interest,
+            (info->follows_word != NodeInfo::UNKNOWN));
+  if (false) {
+    // These are still unimplemented.
+    ASSERT_EQ(info->follows_start_interest,
+              (info->follows_start != NodeInfo::UNKNOWN));
+    ASSERT_EQ(info->follows_newline_interest,
+              (info->follows_newline != NodeInfo::UNKNOWN));
+  }
+}
+
+
+void NodeValidator::VisitAction(ActionNode* that) {
+  if (that->info()->visited) return;
+  VisitNodeScope scope(that);
+  ValidateInfo(that->info());
+  that->on_success()->Accept(this);
+}
+
+
+void NodeValidator::VisitBackReference(BackReferenceNode* that) {
+  if (that->info()->visited) return;
+  VisitNodeScope scope(that);
+  ValidateInfo(that->info());
+  that->on_success()->Accept(this);
+}
+
+
+void NodeValidator::VisitChoice(ChoiceNode* that) {
+  if (that->info()->visited) return;
+  VisitNodeScope scope(that);
+  ValidateInfo(that->info());
+  ZoneList<GuardedAlternative>* alts = that->alternatives();
+  for (int i = 0; i < alts->length(); i++)
+    alts->at(i).node()->Accept(this);
+}
+
+
+void NodeValidator::VisitEnd(EndNode* that) {
+  if (that->info()->visited) return;
+  VisitNodeScope scope(that);
+  ValidateInfo(that->info());
+}
+
+
+void NodeValidator::VisitText(TextNode* that) {
+  if (that->info()->visited) return;
+  VisitNodeScope scope(that);
+  ValidateInfo(that->info());
+  that->on_success()->Accept(this);
+}
+
+
+#endif
+
+
+Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
                                          bool ignore_case,
                                          bool is_multiline,
                                          Handle<String> pattern,
                                          bool is_ascii) {
-  RegExpCompiler compiler(input->capture_count, ignore_case, is_ascii);
+  RegExpCompiler compiler(data->capture_count, ignore_case, is_ascii);
   // Wrap the body of the regexp in capture #0.
-  RegExpNode* captured_body = RegExpCapture::ToNode(input->tree,
+  RegExpNode* captured_body = RegExpCapture::ToNode(data->tree,
                                                     0,
                                                     &compiler,
                                                     compiler.accept());
@@ -3673,14 +3789,40 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
                                               new RegExpCharacterClass('*'),
                                               &compiler,
                                               captured_body);
-  if (node_return != NULL) *node_return = node;
-  Analysis analysis(ignore_case);
+  AssertionPropagation analysis(ignore_case);
   analysis.EnsureAnalyzed(node);
 
   NodeInfo info = *node->info();
+  data->has_lookbehind = info.HasLookbehind();
+  if (data->has_lookbehind) {
+    // If this node needs information about the preceding text we let
+    // it start with a character class that consumes a single character
+    // and proceeds to wherever is appropriate.  This means that if
+    // has_lookbehind is set the code generator must start one character
+    // before the start position.
+    node = new TextNode(new RegExpCharacterClass('*'), node);
+    analysis.EnsureAnalyzed(node);
+  }
+
+#ifdef DEBUG
+  PostAnalysisNodeValidator post_analysis_validator;
+  node->Accept(&post_analysis_validator);
+#endif
+
   node = node->EnsureExpanded(&info);
 
+#ifdef DEBUG
+  PostExpansionNodeValidator post_expansion_validator;
+  node->Accept(&post_expansion_validator);
+#endif
+
+  data->node = node;
+
   if (is_multiline && !FLAG_attempt_multiline_irregexp) {
+    return Handle<FixedArray>::null();
+  }
+
+  if (data->has_lookbehind) {
     return Handle<FixedArray>::null();
   }
 
@@ -3695,10 +3837,10 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
       mode = RegExpMacroAssemblerIA32::UC16;
     }
     RegExpMacroAssemblerIA32 macro_assembler(mode,
-                                             (input->capture_count + 1) * 2);
+                                             (data->capture_count + 1) * 2);
     return compiler.Assemble(&macro_assembler,
                              node,
-                             input->capture_count,
+                             data->capture_count,
                              pattern);
 #endif
   }
@@ -3706,7 +3848,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpParseResult* input,
   RegExpMacroAssemblerIrregexp macro_assembler(codes);
   return compiler.Assemble(&macro_assembler,
                            node,
-                           input->capture_count,
+                           data->capture_count,
                            pattern);
 }
 

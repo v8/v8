@@ -352,29 +352,26 @@ void GlobalHandles::Print() {
 
 #endif
 
-List<ObjectGroup*> GlobalHandles::object_groups_(4);
+List<ObjectGroup*>* GlobalHandles::ObjectGroups() {
+  // Lazily initialize the list to avoid startup time static constructors.
+  static List<ObjectGroup*> groups(4);
+  return &groups;
+}
 
-void GlobalHandles::AddToGroup(void* id, Object** handle) {
-  for (int i = 0; i < object_groups_.length(); i++) {
-    ObjectGroup* entry = object_groups_[i];
-    if (entry->id_ == id) {
-      entry->objects_.Add(handle);
-      return;
-    }
-  }
-
-  // not found
-  ObjectGroup* new_entry = new ObjectGroup(id);
-  new_entry->objects_.Add(handle);
-  object_groups_.Add(new_entry);
+void GlobalHandles::AddGroup(Object*** handles, size_t length) {
+  ObjectGroup* new_entry = new ObjectGroup(length);
+  for (size_t i = 0; i < length; ++i)
+    new_entry->objects_.Add(handles[i]);
+  ObjectGroups()->Add(new_entry);
 }
 
 
 void GlobalHandles::RemoveObjectGroups() {
-  for (int i = 0; i< object_groups_.length(); i++) {
-    delete object_groups_[i];
+  List<ObjectGroup*>* object_groups = ObjectGroups();
+  for (int i = 0; i< object_groups->length(); i++) {
+    delete object_groups->at(i);
   }
-  object_groups_.Clear();
+  object_groups->Clear();
 }
 
 

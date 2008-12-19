@@ -129,6 +129,7 @@ class Instr {
  public:
   enum {
     kInstrSize = 4,
+    kInstrSizeLog2 = 2,
     kPCReadOffset = 8
   };
 
