@@ -2569,9 +2569,9 @@ bool LoopChoiceNode::Emit(RegExpCompiler* compiler,
 
 
 int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler) {
-  bool ascii = compiler->ascii();
   int preload_characters = EatsAtLeast(0);
 #ifdef CAN_READ_UNALIGNED
+  bool ascii = compiler->ascii();
   if (ascii) {
     if (preload_characters > 4) preload_characters = 4;
     // We can't preload 3 characters because there is no machine instruction
