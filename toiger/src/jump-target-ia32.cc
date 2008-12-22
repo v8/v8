@@ -93,6 +93,15 @@ void JumpTarget::Jump() {
 }
 
 
+void JumpTarget::Jump(Result* arg) {
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->frame() != NULL);
+
+  cgen_->frame()->Push(arg);
+  Jump();
+}
+
+
 void JumpTarget::Branch(Condition cc, Hint hint) {
   // Precondition: there is a current frame.  There may or may not be an
   // expected frame at the label.

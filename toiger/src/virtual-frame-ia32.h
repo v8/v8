@@ -58,6 +58,12 @@ class FrameElement BASE_EMBEDDED {
     data_.reg_ = no_reg;
   }
 
+  // Factory function to construct an invalid frame element.
+  static FrameElement InvalidElement() {
+    FrameElement result;
+    return result;
+  }
+
   // Factory function to construct an in-memory frame element.
   static FrameElement MemoryElement() {
     FrameElement result;
@@ -97,6 +103,7 @@ class FrameElement BASE_EMBEDDED {
     type_ = (type_ & ~SyncField::mask()) | SyncField::encode(NOT_SYNCED);
   }
 
+  bool is_valid() const { return type() != INVALID; }
   bool is_memory() const { return type() == MEMORY; }
   bool is_register() const { return type() == REGISTER; }
   bool is_constant() const { return type() == CONSTANT; }
@@ -242,6 +249,10 @@ class VirtualFrame : public Malloced {
     return Operand(esp, index * kPointerSize);
   }
 
+  // Random-access store to a frame-top relative frame element.  The result
+  // becomes owned by the frame and is invalidated.
+  void SetElementAt(int index, Result* value);
+
   // A frame-allocated local as an assembly operand.
   Operand LocalAt(int index) const {
     ASSERT(0 <= index);
@@ -252,6 +263,13 @@ class VirtualFrame : public Malloced {
   // Push a copy of the value of a local frame slot on top of the frame.
   void LoadLocalAt(int index) {
     LoadFrameSlotAt(local0_index() + index);
+  }
+
+  // Push the value of a local frame slot on top of the frame and invalidate
+  // the local slot.  The slot should be written to before trying to read
+  // from it again.
+  void TakeLocalAt(int index) {
+    TakeFrameSlotAt(local0_index() + index);
   }
 
   // Store the top value on the virtual frame into a local frame slot.  The
@@ -278,6 +296,13 @@ class VirtualFrame : public Malloced {
     LoadFrameSlotAt(param0_index() + index);
   }
 
+  // Push the value of a paramter frame slot on top of the frame and
+  // invalidate the parameter slot.  The slot should be written to before
+  // trying to read from it again.
+  void TakeParameterAt(int index) {
+    TakeFrameSlotAt(param0_index() + index);
+  }
+
   // Store the top value on the virtual frame into a parameter frame slot.
   // The value is left in place on top of the frame.
   void StoreToParameterAt(int index) {
@@ -293,6 +318,7 @@ class VirtualFrame : public Malloced {
   // Call a code stub, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.
   void CallStub(CodeStub* stub, int frame_arg_count);
+  Result CallStub(CodeStub* stub, Result* arg, int frame_arg_count);
   Result CallStub(CodeStub* stub,
                   Result* arg0,
                   Result* arg1,
@@ -447,6 +473,10 @@ class VirtualFrame : public Malloced {
   // Push a copy of a frame slot (typically a local or parameter) on top of
   // the frame.
   void LoadFrameSlotAt(int index);
+
+  // Push a the value of a frame slot (typically a local or parameter) on
+  // top of the frame and invalidate the slot.
+  void TakeFrameSlotAt(int index);
 
   // Store the value on top of the frame to a frame slot (typically a local
   // or parameter).

@@ -272,15 +272,15 @@ void VirtualFrame::PrepareForCall(int frame_arg_count) {
 
 
 bool VirtualFrame::RequiresMergeCode() {
-  // A frame requires merge code to be generated in the event that
-  // there are duplicated non-synched registers or else elements not
-  // in a (memory or register) location in the frame.  We look for
-  // non-synced non-location elements and count occurrences of
-  // non-synced registers.
+  // A frame requires code to be generated to make the frame mergable if
+  // there are duplicated non-synched registers or else valid elements not
+  // in a (memory or register) location in the frame.  We look for valid
+  // non-synced non-location elements and count occurrences of non-synced
+  // registers.
   RegisterFile non_synced_regs;
   for (int i = 0; i < elements_.length(); i++) {
     FrameElement element = elements_[i];
-    if (!element.is_synced()) {
+    if (element.is_valid() && !element.is_synced()) {
       if (element.is_register()) {
         non_synced_regs.Use(elements_[i].reg());
       } else if (!element.is_memory()) {
@@ -361,7 +361,7 @@ void VirtualFrame::MakeMergable() {
   for (int i = 0; i < elements_.length(); i++) {
     FrameElement source = elements_[i];
     FrameElement target = new_elements[i];
-    ASSERT(target.is_register() || target.is_memory());
+    ASSERT(!target.is_valid() || target.is_register() || target.is_memory());
     if (target.is_register()) {
       if (source.is_constant()) {
         __ Set(target.reg(), Immediate(source.handle()));
@@ -369,8 +369,7 @@ void VirtualFrame::MakeMergable() {
         __ mov(target.reg(), source.reg());
       }
       elements_[i] = target;
-    } else {
-      // The target is memory.
+    } else if (target.is_memory()) {
       if (!source.is_memory()) {
         // Spilling a source register would decrement its reference count,
         // but we have already done that when computing new target elements,
@@ -378,6 +377,7 @@ void VirtualFrame::MakeMergable() {
         RawSpillElementAt(i);
       }
     }
+    // Invalid elements do not need to be moved.
   }
 
   delete[] new_elements;
@@ -410,11 +410,14 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   MergeMoveMemoryToRegisters(expected);
 
   // At this point, the frames should be identical.
+  // TODO(): Consider an "equals" method for frames.
   ASSERT(stack_pointer_ == expected->stack_pointer_);
 #ifdef DEBUG
   for (int i = 0; i < elements_.length(); i++) {
     FrameElement expect = expected->elements_[i];
-    if (expect.is_memory()) {
+    if (!expect.is_valid()) {
+      ASSERT(!elements_[i].is_valid());
+    } else if (expect.is_memory()) {
       ASSERT(elements_[i].is_memory());
       ASSERT(elements_[i].is_synced() && expect.is_synced());
     } else if (expect.is_register()) {
@@ -649,6 +652,34 @@ void VirtualFrame::AllocateStackSlots(int count) {
 }
 
 
+void VirtualFrame::SetElementAt(int index, Result* value) {
+  int frame_index = elements_.length() - index - 1;
+  ASSERT(frame_index >= 0);
+  ASSERT(frame_index < elements_.length());
+  ASSERT(value->is_valid());
+
+  // TODO(): if the element is backed by the same register or the same
+  // constant, consider preserving the sync bit.
+  if (elements_[frame_index].is_register()) {
+    Unuse(elements_[frame_index].reg());
+  }
+
+  if (value->is_register()) {
+    Use(value->reg());
+    elements_[frame_index] =
+        FrameElement::RegisterElement(value->reg(),
+                                      FrameElement::NOT_SYNCED);
+  } else {
+    ASSERT(value->is_constant());
+    elements_[frame_index] =
+        FrameElement::ConstantElement(value->handle(),
+                                      FrameElement::NOT_SYNCED);
+  }
+
+  value->Unuse();
+}
+
+
 void VirtualFrame::LoadFrameSlotAt(int index) {
   ASSERT(index >= 0);
   ASSERT(index < elements_.length());
@@ -686,6 +717,16 @@ void VirtualFrame::LoadFrameSlotAt(int index) {
 }
 
 
+void VirtualFrame::TakeFrameSlotAt(int index) {
+  LoadFrameSlotAt(index);
+
+  if (elements_[index].is_register()) {
+    Unuse(elements_[index].reg());
+  }
+  elements_[index] = FrameElement::InvalidElement();
+}
+
+
 void VirtualFrame::StoreToFrameSlotAt(int index) {
   // Store the value on top of the frame to the virtual frame slot at a
   // given index.  The value on top of the frame is left in place.
@@ -701,6 +742,8 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
   elements_[index] = top;
 
   if (top.is_memory()) {
+    // TODO(): consider allocating the slot to a register.
+    //
     // Emit code to store memory values into the required frame slot.
     Result temp = cgen_->allocator()->Allocate();
     ASSERT(temp.is_valid());
@@ -735,6 +778,17 @@ void VirtualFrame::CallStub(CodeStub* stub, int frame_arg_count) {
   ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ CallStub(stub);
+}
+
+
+Result VirtualFrame::CallStub(CodeStub* stub,
+                              Result* arg,
+                              int frame_arg_count) {
+  arg->Unuse();
+  CallStub(stub, frame_arg_count);
+  Result result = cgen_->allocator()->Allocate(eax);
+  ASSERT(result.is_valid());
+  return result;
 }
 
 

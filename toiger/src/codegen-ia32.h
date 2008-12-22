@@ -87,6 +87,11 @@ class Reference BASE_EMBEDDED {
   // while the code generator is being transformed.
   inline void GetValueAndSpill(TypeofState typeof_state);
 
+  // Like GetValue except that the slot is expected to be written to before
+  // being read from again.  Thae value of the reference may be invalidated,
+  // causign subsequent attempts to read it to fail.
+  void TakeValue(TypeofState typeof_state);
+
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
   // on the expression stack.  The stored value is left in place (with the

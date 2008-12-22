@@ -3761,22 +3761,24 @@ class CounterOpStub: public CodeStub {
 
 
 void DeferredCountOperation::Generate() {
-  // The argument is actually passed in eax.
-  enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope(generator());
+  CodeGenerator* cgen = generator();
+
+  Result value(cgen);
+  enter()->Bind(&value);
+  value.ToRegister(eax);  // The stubs below expect their argument in eax.
+
   if (is_postfix_) {
     RevertToNumberStub to_number_stub(is_increment_);
-    generator()->frame()->CallStub(&to_number_stub, 0);
+    value = generator()->frame()->CallStub(&to_number_stub, &value, 0);
   }
+
   CounterOpStub stub(result_offset_, is_postfix_, is_increment_);
-  generator()->frame()->CallStub(&stub, 0);
-  // The result is actually returned in eax.
-  exit()->Jump();
+  value = generator()->frame()->CallStub(&stub, &value, 0);
+  exit()->Jump(&value);
 }
 
 
 void CodeGenerator::VisitCountOperation(CountOperation* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CountOperation");
 
   bool is_postfix = node->is_postfix();
@@ -3787,7 +3789,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
   // Postfix: Make room for the result.
   if (is_postfix) {
-    frame_->EmitPush(Immediate(0));
+    frame_->Push(Handle<Object>(Smi::FromInt(0)));
   }
 
   { Reference target(this, node->expression());
@@ -3795,41 +3797,49 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       // Spoof the virtual frame to have the expected height (one higher
       // than on entry).
       if (!is_postfix) {
-        frame_->EmitPush(Immediate(Smi::FromInt(0)));
+        frame_->Push(Handle<Object>(Smi::FromInt(0)));
       }
       return;
     }
-    target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
+    target.TakeValue(NOT_INSIDE_TYPEOF);
 
     DeferredCountOperation* deferred =
         new DeferredCountOperation(this, is_postfix, is_increment,
                                    target.size() * kPointerSize);
 
-    frame_->EmitPop(eax);  // Load TOS into eax for calculations below
+    Result value = frame_->Pop();
+    value.ToRegister();
+    ASSERT(value.is_valid());
 
     // Postfix: Store the old value as the result.
     if (is_postfix) {
-      __ mov(frame_->ElementAt(target.size()), eax);
+      Result old_value = value;
+      frame_->SetElementAt(target.size(), &old_value);
     }
 
-    // Perform optimistic increment/decrement.
+    // Perform optimistic increment/decrement.  Ensure the value is
+    // writable.
+    frame_->Spill(value.reg());
+    ASSERT(allocator_->count(value.reg()) == 1);
     if (is_increment) {
-      __ add(Operand(eax), Immediate(Smi::FromInt(1)));
+      __ add(Operand(value.reg()), Immediate(Smi::FromInt(1)));
     } else {
-      __ sub(Operand(eax), Immediate(Smi::FromInt(1)));
+      __ sub(Operand(value.reg()), Immediate(Smi::FromInt(1)));
     }
 
     // If the count operation didn't overflow and the result is a
     // valid smi, we're done. Otherwise, we jump to the deferred
     // slow-case code.
-    deferred->enter()->Branch(overflow, not_taken);
-    __ test(eax, Immediate(kSmiTagMask));
-    deferred->enter()->Branch(not_zero, not_taken);
+    deferred->enter()->Branch(overflow, &value, not_taken);
+    __ test(value.reg(), Immediate(kSmiTagMask));
+    deferred->enter()->Branch(not_zero, &value, not_taken);
 
     // Store the new value in the target if not const.
-    deferred->exit()->Bind();
-    frame_->EmitPush(eax);  // Push the new value to TOS
-    if (!is_const) target.SetValue(NOT_CONST_INIT);
+    deferred->exit()->Bind(&value);
+    frame_->Push(&value);
+    if (!is_const) {
+      target.SetValue(NOT_CONST_INIT);
+    }
   }
 
   // Postfix: Discard the new value and use the old.
@@ -4299,6 +4309,37 @@ void Reference::GetValue(TypeofState typeof_state) {
 
     default:
       UNREACHABLE();
+  }
+}
+
+
+void Reference::TakeValue(TypeofState typeof_state) {
+  // For non-constant frame-allocated slots, we invalidate the value in the
+  // slot.  For all others, we fall back on GetValue.
+  ASSERT(!cgen_->in_spilled_code());
+  ASSERT(!is_illegal());
+  ASSERT(!cgen_->has_cc());
+  if (type_ != SLOT) {
+    GetValue(typeof_state);
+    return;
+  }
+
+  Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
+  ASSERT(slot != NULL);
+  if (slot->type() == Slot::LOOKUP ||
+      slot->type() == Slot::CONTEXT ||
+      slot->var()->mode() == Variable::CONST) {
+    GetValue(typeof_state);
+    return;
+  }
+
+  // Only non-constant, frame-allocated parameters and locals can reach
+  // here.
+  if (slot->type() == Slot::PARAMETER) {
+    cgen_->frame()->TakeParameterAt(slot->index());
+  } else {
+    ASSERT(slot->type() == Slot::LOCAL);
+    cgen_->frame()->TakeLocalAt(slot->index());
   }
 }
 
