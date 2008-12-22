@@ -233,6 +233,10 @@ void CallIC::Clear(Address address, Code* target) {
 
 void KeyedLoadIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
+  // Make sure to also clear the map used in inline fast cases.  If we
+  // do not clear these maps, cached code can keep objects alive
+  // through the embedded maps.
+  PatchInlinedMapCheck(address, Heap::null_value());
   SetTargetAtAddress(address, initialize_stub());
 }
 
@@ -718,7 +722,18 @@ Object* KeyedLoadIC::Load(State state,
   // the global object).
   bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
 
-  if (use_ic) set_target(generic_stub());
+  if (use_ic) {
+    set_target(generic_stub());
+    // For JSObjects that are not value wrappers and that do not have
+    // indexed interceptors, we initialize the inlined fast case (if
+    // present) by patching the inlined map check.
+    if (object->IsJSObject() &&
+        !object->IsJSValue() &&
+        !JSObject::cast(*object)->HasIndexedInterceptor()) {
+      Map* map = JSObject::cast(*object)->map();
+      PatchInlinedMapCheck(address(), map);
+    }
+  }
 
   // Get the property.
   return Runtime::GetObjectProperty(object, key);

@@ -3282,6 +3282,9 @@ void Reference::GetValue(TypeofState typeof_state) {
     case KEYED: {
       // TODO(1241834): Make sure that this it is safe to ignore the
       // distinction between expressions in a typeof and not in a typeof.
+
+      // TODO(181): Implement inlined version of array indexing once
+      // loop nesting is properly tracked on ARM.
       Comment cmnt(masm, "[ Load from keyed Property");
       ASSERT(property != NULL);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));

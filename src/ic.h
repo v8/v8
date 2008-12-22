@@ -276,6 +276,11 @@ class KeyedLoadIC: public IC {
   }
 
   static void Clear(Address address, Code* target);
+
+  // Support for patching the map that is checked in an inlined
+  // version of keyed load.
+  static void PatchInlinedMapCheck(Address address, Object* map);
+
   friend class IC;
 };
 

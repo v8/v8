@@ -733,6 +733,27 @@ void LoadIC::Generate(MacroAssembler* masm, const ExternalReference& f) {
 }
 
 
+void KeyedLoadIC::PatchInlinedMapCheck(Address address, Object* value) {
+  static const byte kTestEaxByte = 0xA9;
+  Address test_instruction_address = address + 4;  // 4 = stub address
+  // The keyed load has a fast inlined case if the IC call instruction
+  // is immediately followed by a test instruction.
+  if (*test_instruction_address == kTestEaxByte) {
+    // Fetch the offset from the call instruction to the map cmp
+    // instruction.  This offset is stored in the last 4 bytes of the
+    // 5 byte test instruction.
+    Address offset_address = test_instruction_address + 1;
+    int offset_value = *(reinterpret_cast<int*>(offset_address));
+    // Compute the map address.  The operand-immediate compare
+    // instruction is two bytes larger than a call instruction so we
+    // add 2 to get to the map address.
+    Address map_address = address + offset_value + 2;
+    // patch the map check.
+    (*(reinterpret_cast<Object**>(map_address))) = value;
+  }
+}
+
+
 // Defined in ic.cc.
 Object* KeyedLoadIC_Miss(Arguments args);
 
