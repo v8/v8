@@ -214,24 +214,14 @@ class OffsetsVector {
       vector_ = static_offsets_vector_;
     }
   }
-
-
   inline ~OffsetsVector() {
     if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
       DeleteArray(vector_);
       vector_ = NULL;
     }
   }
-
-
-  inline int* vector() {
-    return vector_;
-  }
-
-
-  inline int length() {
-    return offsets_vector_length_;
-  }
+  inline int* vector() { return vector_; }
+  inline int length() { return offsets_vector_length_; }
 
  private:
   int* vector_;
@@ -803,6 +793,11 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   }
 #endif
   LOG(RegExpExecEvent(regexp, previous_index, subject));
+
+  if (!subject->IsFlat(StringShape(*subject))) {
+    FlattenString(subject);
+  }
+
   return IrregexpExecOnce(irregexp,
                           num_captures,
                           subject,
@@ -837,11 +832,12 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
     subject->Flatten(shape);
   }
 
-  do {
+  while (true) {
     if (previous_index > subject->length() || previous_index < 0) {
       // Per ECMA-262 15.10.6.2, if the previous index is greater than the
       // string length, there is no match.
       matches = Factory::null_value();
+      return result;
     } else {
 #ifdef DEBUG
       if (FLAG_trace_regexp_bytecodes) {
@@ -865,17 +861,12 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
         if (offsets.vector()[0] == offsets.vector()[1]) {
           previous_index++;
         }
+      } else if (matches->IsNull()) {
+        return result;
+      } else {
+        return matches;
       }
     }
-  } while (matches->IsJSArray());
-
-  // If we exited the loop with an exception, throw it.
-  if (matches->IsNull()) {
-    // Exited loop normally.
-    return result;
-  } else {
-    // Exited loop with the exception in matches.
-    return matches;
   }
 }
 
@@ -886,13 +877,10 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
                                             int previous_index,
                                             int* offsets_vector,
                                             int offsets_vector_length) {
+  ASSERT(subject->IsFlat(StringShape(*subject)));
   bool rc;
 
   int tag = Smi::cast(irregexp->get(kIrregexpImplementationIndex))->value();
-
-  if (!subject->IsFlat(StringShape(*subject))) {
-    FlattenString(subject);
-  }
 
   switch (tag) {
     case RegExpMacroAssembler::kIA32Implementation: {
@@ -997,9 +985,9 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
 
   Handle<FixedArray> array = Factory::NewFixedArray(2 * (num_captures+1));
   // The captures come in (start, end+1) pairs.
-  for (int i = 0; i < 2 * (num_captures+1); i += 2) {
+  for (int i = 0; i < 2 * (num_captures + 1); i += 2) {
     array->set(i, Smi::FromInt(offsets_vector[i]));
-    array->set(i+1, Smi::FromInt(offsets_vector[i+1]));
+    array->set(i + 1, Smi::FromInt(offsets_vector[i + 1]));
   }
   return Factory::NewJSArrayWithElements(array);
 }
@@ -1193,6 +1181,16 @@ TextElement TextElement::CharClass(
 }
 
 
+int TextElement::length() {
+  if (type == ATOM) {
+    return data.u_atom->length();
+  } else {
+    ASSERT(type == CHAR_CLASS);
+    return 1;
+  }
+}
+
+
 DispatchTable* ChoiceNode::GetTable(bool ignore_case) {
   if (table_ == NULL) {
     table_ = new DispatchTable();
@@ -1334,25 +1332,26 @@ int GenerationVariant::FindAffectedRegisters(OutSet* affected_registers) {
 }
 
 
-void GenerationVariant::PushAffectedRegisters(RegExpMacroAssembler* macro,
+void GenerationVariant::PushAffectedRegisters(RegExpMacroAssembler* assembler,
                                               int max_register,
                                               OutSet& affected_registers) {
   for (int reg = 0; reg <= max_register; reg++) {
-    if (affected_registers.Get(reg)) macro->PushRegister(reg);
+    if (affected_registers.Get(reg)) assembler->PushRegister(reg);
   }
 }
 
 
-void GenerationVariant::RestoreAffectedRegisters(RegExpMacroAssembler* macro,
-                                                 int max_register,
-                                                 OutSet& affected_registers) {
+void GenerationVariant::RestoreAffectedRegisters(
+    RegExpMacroAssembler* assembler,
+    int max_register,
+    OutSet& affected_registers) {
   for (int reg = max_register; reg >= 0; reg--) {
-    if (affected_registers.Get(reg)) macro->PopRegister(reg);
+    if (affected_registers.Get(reg)) assembler->PopRegister(reg);
   }
 }
 
 
-void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* macro,
+void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* assembler,
                                                int max_register,
                                                OutSet& affected_registers) {
   for (int reg = 0; reg <= max_register; reg++) {
@@ -1400,13 +1399,13 @@ void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* macro,
       }
     }
     if (store_position != -1) {
-      macro->WriteCurrentPositionToRegister(reg, store_position);
+      assembler->WriteCurrentPositionToRegister(reg, store_position);
     } else {
       if (absolute) {
-        macro->SetRegister(reg, value);
+        assembler->SetRegister(reg, value);
       } else {
         if (value != 0) {
-          macro->AdvanceRegister(reg, value);
+          assembler->AdvanceRegister(reg, value);
         }
       }
     }
@@ -1418,14 +1417,19 @@ void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* macro,
 // nodes.  It normalises the state of the code generator to ensure we can
 // generate generic code.
 bool GenerationVariant::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
-  RegExpMacroAssembler* macro = compiler->macro_assembler();
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
 
-  ASSERT(actions_ != NULL || cp_offset_ != 0 || backtrack() != NULL);
+  ASSERT(actions_ != NULL ||
+         cp_offset_ != 0 ||
+         backtrack() != NULL ||
+         characters_preloaded_ != 0 ||
+         quick_check_performed_.characters() != 0);
 
   if (actions_ == NULL && backtrack() == NULL) {
     // Here we just have some deferred cp advances to fix and we are back to
-    // a normal situation.
-    macro->AdvanceCurrentPosition(cp_offset_);
+    // a normal situation.  We may also have to forget some information gained
+    // through a quick check that was already performed.
+    if (cp_offset_ != 0) assembler->AdvanceCurrentPosition(cp_offset_);
     // Create a new trivial state and generate the node with that.
     GenerationVariant new_state;
     return successor->Emit(compiler, &new_state);
@@ -1434,50 +1438,50 @@ bool GenerationVariant::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   // Generate deferred actions here along with code to undo them again.
   OutSet affected_registers;
   int max_register = FindAffectedRegisters(&affected_registers);
-  PushAffectedRegisters(macro, max_register, affected_registers);
-  PerformDeferredActions(macro, max_register, affected_registers);
+  PushAffectedRegisters(assembler, max_register, affected_registers);
+  PerformDeferredActions(assembler, max_register, affected_registers);
   if (backtrack() != NULL) {
     // Here we have a concrete backtrack location.  These are set up by choice
     // nodes and so they indicate that we have a deferred save of the current
     // position which we may need to emit here.
-    macro->PushCurrentPosition();
+    assembler->PushCurrentPosition();
   }
   if (cp_offset_ != 0) {
-    macro->AdvanceCurrentPosition(cp_offset_);
+    assembler->AdvanceCurrentPosition(cp_offset_);
   }
 
   // Create a new trivial state and generate the node with that.
   Label undo;
-  macro->PushBacktrack(&undo);
+  assembler->PushBacktrack(&undo);
   GenerationVariant new_state;
   bool ok = successor->Emit(compiler, &new_state);
 
   // On backtrack we need to restore state.
-  macro->Bind(&undo);
+  assembler->Bind(&undo);
   if (!ok) return false;
   if (backtrack() != NULL) {
-    macro->PopCurrentPosition();
+    assembler->PopCurrentPosition();
   }
-  RestoreAffectedRegisters(macro, max_register, affected_registers);
+  RestoreAffectedRegisters(assembler, max_register, affected_registers);
   if (backtrack() == NULL) {
-    macro->Backtrack();
+    assembler->Backtrack();
   } else {
-    macro->GoTo(backtrack());
+    assembler->GoTo(backtrack());
   }
 
   return true;
 }
 
 
-void EndNode::EmitInfoChecks(RegExpMacroAssembler* macro,
+void EndNode::EmitInfoChecks(RegExpMacroAssembler* assembler,
                              GenerationVariant* variant) {
   if (info()->at_end) {
     Label succeed;
     // LoadCurrentCharacter will go to the label if we are at the end of the
     // input string.
-    macro->LoadCurrentCharacter(0, &succeed);
-    macro->GoTo(variant->backtrack());
-    macro->Bind(&succeed);
+    assembler->LoadCurrentCharacter(0, &succeed);
+    assembler->GoTo(variant->backtrack());
+    assembler->Bind(&succeed);
   }
 }
 
@@ -1487,16 +1491,16 @@ bool NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler,
   if (!variant->is_trivial()) {
     return variant->Flush(compiler, this);
   }
-  RegExpMacroAssembler* macro = compiler->macro_assembler();
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
   if (!label()->is_bound()) {
-    macro->Bind(label());
+    assembler->Bind(label());
   }
-  EmitInfoChecks(macro, variant);
-  macro->ReadCurrentPositionFromRegister(current_position_register_);
-  macro->ReadStackPointerFromRegister(stack_pointer_register_);
+  EmitInfoChecks(assembler, variant);
+  assembler->ReadCurrentPositionFromRegister(current_position_register_);
+  assembler->ReadStackPointerFromRegister(stack_pointer_register_);
   // Now that we have unwound the stack we find at the top of the stack the
   // backtrack that the BeginSubmatch node got.
-  macro->Backtrack();
+  assembler->Backtrack();
   return true;
 }
 
@@ -1505,18 +1509,18 @@ bool EndNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   if (!variant->is_trivial()) {
     return variant->Flush(compiler, this);
   }
-  RegExpMacroAssembler* macro = compiler->macro_assembler();
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
   if (!label()->is_bound()) {
-    macro->Bind(label());
+    assembler->Bind(label());
   }
   switch (action_) {
     case ACCEPT:
-      EmitInfoChecks(macro, variant);
-      macro->Succeed();
+      EmitInfoChecks(assembler, variant);
+      assembler->Succeed();
       return true;
     case BACKTRACK:
       ASSERT(!info()->at_end);
-      macro->GoTo(variant->backtrack());
+      assembler->GoTo(variant->backtrack());
       return true;
     case NEGATIVE_SUBMATCH_SUCCESS:
       // This case is handled in a different virtual method.
@@ -1586,6 +1590,11 @@ FOR_EACH_NODE_TYPE(DEFINE_ACCEPT)
 #undef DEFINE_ACCEPT
 
 
+void LoopChoiceNode::Accept(NodeVisitor* visitor) {
+  visitor->VisitLoopChoice(this);
+}
+
+
 // -------------------------------------------------------------------
 // Emit code.
 
@@ -1614,30 +1623,26 @@ static unibrow::Mapping<unibrow::Ecma262UnCanonicalize> uncanonicalize;
 static unibrow::Mapping<unibrow::CanonicalizationRange> canonrange;
 
 
-static inline void EmitAtomNonLetters(
+// Only emits non-letters (things that don't have case).  Only used for case
+// independent matches.
+static inline bool EmitAtomNonLetter(
     RegExpMacroAssembler* macro_assembler,
-    TextElement elm,
-    Vector<const uc16> quarks,
+    uc16 c,
     Label* on_failure,
     int cp_offset,
-    bool check_offset) {
+    bool check,
+    bool preloaded) {
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  // It is vital that this loop is backwards due to the unchecked character
-  // load below.
-  for (int i = quarks.length() - 1; i >= 0; i--) {
-    uc16 c = quarks[i];
-    int length = uncanonicalize.get(c, '\0', chars);
-    if (length <= 1) {
-      if (check_offset && i == quarks.length() - 1) {
-        macro_assembler->LoadCurrentCharacter(cp_offset + i, on_failure);
-      } else {
-        // Here we don't need to check against the end of the input string
-        // since this character lies before a character that matched.
-        macro_assembler->LoadCurrentCharacterUnchecked(cp_offset + i);
-      }
-      macro_assembler->CheckNotCharacter(c, on_failure);
+  int length = uncanonicalize.get(c, '\0', chars);
+  bool checked = false;
+  if (length <= 1) {
+    if (!preloaded) {
+      macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
+      checked = check;
     }
+    macro_assembler->CheckNotCharacter(c, on_failure);
   }
+  return checked;
 }
 
 
@@ -1651,7 +1656,8 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
     // If c1 and c2 differ only by one bit.
     // Ecma262UnCanonicalize always gives the highest number last.
     ASSERT(c2 > c1);
-    macro_assembler->CheckNotCharacterAfterOr(c2, exor, on_failure);
+    uc16 mask = String::kMaxUC16CharCode ^ exor;
+    macro_assembler->CheckNotCharacterAfterAnd(c1, mask, on_failure);
     return true;
   }
   ASSERT(c2 > c1);
@@ -1661,65 +1667,63 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
     // subtract the difference from the found character, then do the or
     // trick.  We avoid the theoretical case where negative numbers are
     // involved in order to simplify code generation.
-    macro_assembler->CheckNotCharacterAfterMinusOr(c2 - diff,
-                                                   diff,
-                                                   on_failure);
+    uc16 mask = String::kMaxUC16CharCode ^ diff;
+    macro_assembler->CheckNotCharacterAfterMinusAnd(c1 - diff,
+                                                    diff,
+                                                    mask,
+                                                    on_failure);
     return true;
   }
   return false;
 }
 
 
-static inline void EmitAtomLetters(
+// Only emits letters (things that have case).  Only used for case independent
+// matches.
+static inline bool EmitAtomLetter(
     RegExpMacroAssembler* macro_assembler,
-    TextElement elm,
-    Vector<const uc16> quarks,
+    uc16 c,
     Label* on_failure,
     int cp_offset,
-    bool check_offset) {
+    bool check,
+    bool preloaded) {
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  // It is vital that this loop is backwards due to the unchecked character
-  // load below.
-  for (int i = quarks.length() - 1; i >= 0; i--) {
-    uc16 c = quarks[i];
-    int length = uncanonicalize.get(c, '\0', chars);
-    if (length <= 1) continue;
-    if (check_offset && i == quarks.length() - 1) {
-      macro_assembler->LoadCurrentCharacter(cp_offset + i, on_failure);
-    } else {
-      // Here we don't need to check against the end of the input string
-      // since this character lies before a character that matched.
-      macro_assembler->LoadCurrentCharacterUnchecked(cp_offset + i);
-    }
-    Label ok;
-    ASSERT(unibrow::Ecma262UnCanonicalize::kMaxWidth == 4);
-    switch (length) {
-      case 2: {
-        if (ShortCutEmitCharacterPair(macro_assembler,
-                                      chars[0],
-                                      chars[1],
-                                      on_failure)) {
-        } else {
-          macro_assembler->CheckCharacter(chars[0], &ok);
-          macro_assembler->CheckNotCharacter(chars[1], on_failure);
-          macro_assembler->Bind(&ok);
-        }
-        break;
-      }
-      case 4:
-        macro_assembler->CheckCharacter(chars[3], &ok);
-        // Fall through!
-      case 3:
-        macro_assembler->CheckCharacter(chars[0], &ok);
-        macro_assembler->CheckCharacter(chars[1], &ok);
-        macro_assembler->CheckNotCharacter(chars[2], on_failure);
-        macro_assembler->Bind(&ok);
-        break;
-      default:
-        UNREACHABLE();
-        break;
-    }
+  int length = uncanonicalize.get(c, '\0', chars);
+  if (length <= 1) return false;
+  // We may not need to check against the end of the input string
+  // if this character lies before a character that matched.
+  if (!preloaded) {
+    macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
   }
+  Label ok;
+  ASSERT(unibrow::Ecma262UnCanonicalize::kMaxWidth == 4);
+  switch (length) {
+    case 2: {
+      if (ShortCutEmitCharacterPair(macro_assembler,
+                                    chars[0],
+                                    chars[1],
+                                    on_failure)) {
+      } else {
+        macro_assembler->CheckCharacter(chars[0], &ok);
+        macro_assembler->CheckNotCharacter(chars[1], on_failure);
+        macro_assembler->Bind(&ok);
+      }
+      break;
+    }
+    case 4:
+      macro_assembler->CheckCharacter(chars[3], &ok);
+      // Fall through!
+    case 3:
+      macro_assembler->CheckCharacter(chars[0], &ok);
+      macro_assembler->CheckCharacter(chars[1], &ok);
+      macro_assembler->CheckNotCharacter(chars[2], on_failure);
+      macro_assembler->Bind(&ok);
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  return true;
 }
 
 
@@ -1728,7 +1732,8 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
                           int cp_offset,
                           Label* on_failure,
                           bool check_offset,
-                          bool ascii) {
+                          bool ascii,
+                          bool preloaded) {
   ZoneList<CharacterRange>* ranges = cc->ranges();
   int max_char;
   if (ascii) {
@@ -1774,15 +1779,11 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
     return;
   }
 
-  if (check_offset) {
-    macro_assembler->LoadCurrentCharacter(cp_offset, on_failure);
-  } else {
-    // Here we don't need to check against the end of the input string
-    // since this character lies before a character that matched.
-    macro_assembler->LoadCurrentCharacterUnchecked(cp_offset);
+  if (!preloaded) {
+    macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check_offset);
   }
 
-  for (int i = 0; i <= last_valid_range; i++) {
+  for (int i = 0; i < last_valid_range; i++) {
     CharacterRange& range = ranges->at(i);
     Label next_range;
     uc16 from = range.from();
@@ -1843,6 +1844,10 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
 }
 
 
+RegExpNode::~RegExpNode() {
+}
+
+
 RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
                                                   GenerationVariant* variant) {
   // TODO(erikcorry): Implement support.
@@ -1893,112 +1898,580 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
 }
 
 
+int ActionNode::EatsAtLeast(int recursion_depth) {
+  if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
+  if (type_ == POSITIVE_SUBMATCH_SUCCESS) return 0;  // Rewinds input!
+  return on_success()->EatsAtLeast(recursion_depth + 1);
+}
+
+
+int TextNode::EatsAtLeast(int recursion_depth) {
+  int answer = Length();
+  if (answer >= 4) return answer;
+  if (recursion_depth > RegExpCompiler::kMaxRecursion) return answer;
+  return answer + on_success()->EatsAtLeast(recursion_depth + 1);
+}
+
+
+int ChoiceNode::EatsAtLeastHelper(int recursion_depth,
+                                  RegExpNode* ignore_this_node) {
+  if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
+  int min = 100;
+  int choice_count = alternatives_->length();
+  for (int i = 0; i < choice_count; i++) {
+    RegExpNode* node = alternatives_->at(i).node();
+    if (node == ignore_this_node) continue;
+    int node_eats_at_least = node->EatsAtLeast(recursion_depth + 1);
+    if (node_eats_at_least < min) min = node_eats_at_least;
+  }
+  return min;
+}
+
+
+int LoopChoiceNode::EatsAtLeast(int recursion_depth) {
+  return EatsAtLeastHelper(recursion_depth, loop_node_);
+}
+
+
+int ChoiceNode::EatsAtLeast(int recursion_depth) {
+  return EatsAtLeastHelper(recursion_depth, NULL);
+}
+
+
+// Takes the left-most 1-bit and smears it out, setting all bits to its right.
+static inline uint32_t SmearBitsRight(uint32_t v) {
+  v |= v >> 1;
+  v |= v >> 2;
+  v |= v >> 4;
+  v |= v >> 8;
+  v |= v >> 16;
+  return v;
+}
+
+
+bool QuickCheckDetails::Rationalize(bool asc) {
+  bool found_useful_op = false;
+  uint32_t char_mask;
+  if (asc) {
+    char_mask = String::kMaxAsciiCharCode;
+  } else {
+    char_mask = String::kMaxUC16CharCode;
+  }
+  mask_ = 0;
+  value_ = 0;
+  int char_shift = 0;
+  for (int i = 0; i < characters_; i++) {
+    Position* pos = &positions_[i];
+    if ((pos->mask & String::kMaxAsciiCharCode) != 0) {
+      found_useful_op = true;
+    }
+    mask_ |= (pos->mask & char_mask) << char_shift;
+    value_ |= (pos->value & char_mask) << char_shift;
+    char_shift += asc ? 8 : 16;
+  }
+  return found_useful_op;
+}
+
+
+bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
+                                GenerationVariant* variant,
+                                bool preload_has_checked_bounds,
+                                Label* on_possible_success,
+                                QuickCheckDetails* details,
+                                bool fall_through_on_failure) {
+  if (details->characters() == 0) return false;
+  GetQuickCheckDetails(details, compiler, 0);
+  if (!details->Rationalize(compiler->ascii())) return false;
+  uint32_t mask = details->mask();
+  uint32_t value = details->value();
+
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
+
+  if (variant->characters_preloaded() != details->characters()) {
+    assembler->LoadCurrentCharacter(variant->cp_offset(),
+                                    variant->backtrack(),
+                                    !preload_has_checked_bounds,
+                                    details->characters());
+  }
+
+
+  bool need_mask = true;
+
+  if (details->characters() == 1) {
+    // If number of characters preloaded is 1 then we used a byte or 16 bit
+    // load so the value is already masked down.
+    uint32_t char_mask;
+    if (compiler->ascii()) {
+      char_mask = String::kMaxAsciiCharCode;
+    } else {
+      char_mask = String::kMaxUC16CharCode;
+    }
+    if ((mask & char_mask) == char_mask) need_mask = false;
+  } else {
+    // For 2-character preloads in ASCII mode we also use a 16 bit load with
+    // zero extend.
+    if (details->characters() == 2 && compiler->ascii()) {
+      if ((mask & 0xffff) == 0xffff) need_mask = false;
+    } else {
+      if (mask == 0xffffffff) need_mask = false;
+    }
+  }
+
+  if (fall_through_on_failure) {
+    if (need_mask) {
+      assembler->CheckCharacterAfterAnd(value, mask, on_possible_success);
+    } else {
+      assembler->CheckCharacter(value, on_possible_success);
+    }
+  } else {
+    if (need_mask) {
+      assembler->CheckNotCharacterAfterAnd(value, mask, variant->backtrack());
+    } else {
+      assembler->CheckNotCharacter(value, variant->backtrack());
+    }
+  }
+  return true;
+}
+
+
+// Here is the meat of GetQuickCheckDetails (see also the comment on the
+// super-class in the .h file).
+//
+// We iterate along the text object, building up for each character a
+// mask and value that can be used to test for a quick failure to match.
+// The masks and values for the positions will be combined into a single
+// machine word for the current character width in order to be used in
+// generating a quick check.
+void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int characters_filled_in) {
+  ASSERT(characters_filled_in < details->characters());
+  int characters = details->characters();
+  int char_mask;
+  int char_shift;
+  if (compiler->ascii()) {
+    char_mask = String::kMaxAsciiCharCode;
+    char_shift = 8;
+  } else {
+    char_mask = String::kMaxUC16CharCode;
+    char_shift = 16;
+  }
+  for (int k = 0; k < elms_->length(); k++) {
+    TextElement elm = elms_->at(k);
+    if (elm.type == TextElement::ATOM) {
+      Vector<const uc16> quarks = elm.data.u_atom->data();
+      for (int i = 0; i < characters && i < quarks.length(); i++) {
+        QuickCheckDetails::Position* pos =
+            details->positions(characters_filled_in);
+        if (compiler->ignore_case()) {
+          unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
+          uc16 c = quarks[i];
+          int length = uncanonicalize.get(c, '\0', chars);
+          if (length < 2) {
+            // This letter has no case equivalents, so it's nice and simple
+            // and the mask-compare will determine definitely whether we have
+            // a match at this character position.
+            pos->mask = char_mask;
+            pos->value = c;
+            pos->determines_perfectly = true;
+          } else {
+            uint32_t common_bits = char_mask;
+            uint32_t bits = chars[0];
+            for (int j = 1; j < length; j++) {
+              uint32_t differing_bits = ((chars[j] & common_bits) ^ bits);
+              common_bits ^= differing_bits;
+              bits &= common_bits;
+            }
+            // If length is 2 and common bits has only one zero in it then
+            // our mask and compare instruction will determine definitely
+            // whether we have a match at this character position.  Otherwise
+            // it can only be an approximate check.
+            uint32_t one_zero = (common_bits | ~char_mask);
+            if (length == 2 && ((~one_zero) & ((~one_zero) - 1)) == 0) {
+              pos->determines_perfectly = true;
+            }
+            pos->mask = common_bits;
+            pos->value = bits;
+          }
+        } else {
+          // Don't ignore case.  Nice simple case where the mask-compare will
+          // determine definitely whether we have a match at this character
+          // position.
+          pos->mask = char_mask;
+          pos->value = quarks[i];
+          pos->determines_perfectly = true;
+        }
+        characters_filled_in++;
+        ASSERT(characters_filled_in <= details->characters());
+        if (characters_filled_in == details->characters()) {
+          return;
+        }
+      }
+    } else {
+      QuickCheckDetails::Position* pos =
+          details->positions(characters_filled_in);
+      RegExpCharacterClass* tree = elm.data.u_char_class;
+      ZoneList<CharacterRange>* ranges = tree->ranges();
+      CharacterRange range = ranges->at(0);
+      if (tree->is_negated()) {
+        // A quick check uses multi-character mask and compare.  There is no
+        // useful way to incorporate a negative char class into this scheme
+        // so we just conservatively create a mask and value that will always
+        // succeed.
+        pos->mask = 0;
+        pos->value = 0;
+      } else {
+        uint32_t differing_bits = (range.from() ^ range.to());
+        // A mask and compare is only perfect if the differing bits form a
+        // number like 00011111 with one single block of trailing 1s.
+        if ((differing_bits & (differing_bits + 1)) == 0) {
+          pos->determines_perfectly = true;
+        }
+        uint32_t common_bits = ~SmearBitsRight(differing_bits);
+        uint32_t bits = (range.from() & common_bits);
+        for (int i = 1; i < ranges->length(); i++) {
+          // Here we are combining more ranges into the mask and compare
+          // value.  With each new range the mask becomes more sparse and
+          // so the chances of a false positive rise.  A character class
+          // with multiple ranges is assumed never to be equivalent to a
+          // mask and compare operation.
+          pos->determines_perfectly = false;
+          CharacterRange range = ranges->at(i);
+          uint32_t new_common_bits = (range.from() ^ range.to());
+          new_common_bits = ~SmearBitsRight(new_common_bits);
+          common_bits &= new_common_bits;
+          bits &= new_common_bits;
+          uint32_t differing_bits = (range.from() & common_bits) ^ bits;
+          common_bits ^= differing_bits;
+          bits &= common_bits;
+        }
+        pos->mask = common_bits;
+        pos->value = bits;
+      }
+      characters_filled_in++;
+      ASSERT(characters_filled_in <= details->characters());
+      if (characters_filled_in == details->characters()) {
+        return;
+      }
+    }
+  }
+  ASSERT(characters_filled_in != details->characters());
+  on_success()-> GetQuickCheckDetails(details, compiler, characters_filled_in);
+}
+
+
+void QuickCheckDetails::Clear() {
+  for (int i = 0; i < characters_; i++) {
+    positions_[i].mask = 0;
+    positions_[i].value = 0;
+    positions_[i].determines_perfectly = false;
+  }
+  characters_ = 0;
+}
+
+
+void QuickCheckDetails::Advance(int by, bool ascii) {
+  ASSERT(by > 0);
+  if (by >= characters_) {
+    Clear();
+    return;
+  }
+  for (int i = 0; i < characters_ - by; i++) {
+    positions_[i] = positions_[by + i];
+  }
+  for (int i = characters_ - by; i < characters_; i++) {
+    positions_[i].mask = 0;
+    positions_[i].value = 0;
+    positions_[i].determines_perfectly = false;
+  }
+  characters_ -= by;
+  // We could change mask_ and value_ here but we would never advance unless
+  // they had already been used in a check and they won't be used again because
+  // it would gain us nothing.  So there's no point.
+}
+
+
+void QuickCheckDetails::Merge(QuickCheckDetails* other, int from_index) {
+  ASSERT(characters_ == other->characters_);
+  for (int i = from_index; i < characters_; i++) {
+    QuickCheckDetails::Position* pos = positions(i);
+    QuickCheckDetails::Position* other_pos = other->positions(i);
+    if (pos->mask != other_pos->mask ||
+        pos->value != other_pos->value ||
+        !other_pos->determines_perfectly) {
+      // Our mask-compare operation will be approximate unless we have the
+      // exact same operation on both sides of the alternation.
+      pos->determines_perfectly = false;
+    }
+    pos->mask &= other_pos->mask;
+    pos->value &= pos->mask;
+    other_pos->value &= pos->mask;
+    uc16 differing_bits = (pos->value ^ other_pos->value);
+    pos->mask &= ~differing_bits;
+    pos->value &= pos->mask;
+  }
+}
+
+
+void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
+                                          RegExpCompiler* compiler,
+                                          int characters_filled_in) {
+  if (body_can_be_zero_length_) return;
+  return ChoiceNode::GetQuickCheckDetails(details,
+                                          compiler,
+                                          characters_filled_in);
+}
+
+
+void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
+                                      RegExpCompiler* compiler,
+                                      int characters_filled_in) {
+  int choice_count = alternatives_->length();
+  ASSERT(choice_count > 0);
+  alternatives_->at(0).node()->GetQuickCheckDetails(details,
+                                                    compiler,
+                                                    characters_filled_in);
+  for (int i = 1; i < choice_count; i++) {
+    QuickCheckDetails new_details(details->characters());
+    RegExpNode* node = alternatives_->at(i).node();
+    node->GetQuickCheckDetails(&new_details, compiler, characters_filled_in);
+    // Here we merge the quick match details of the two branches.
+    details->Merge(&new_details, characters_filled_in);
+  }
+}
+
+
+// We call this repeatedly to generate code for each pass over the text node.
+// The passes are in increasing order of difficulty because we hope one
+// of the first passes will fail in which case we are saved the work of the
+// later passes.  for example for the case independent regexp /%[asdfghjkl]a/
+// we will check the '%' in the first pass, the case independent 'a' in the
+// second pass and the character class in the last pass.
+//
+// The passes are done from right to left, so for example to test for /bar/
+// we will first test for an 'r' with offset 2, then an 'a' with offset 1
+// and then a 'b' with offset 0.  This means we can avoid the end-of-input
+// bounds check most of the time.  In the example we only need to check for
+// end-of-input when loading the putative 'r'.
+//
+// A slight complication involves the fact that the first character may already
+// be fetched into a register by the previous node.  In this case we want to
+// do the test for that character first.  We do this in separate passes.  The
+// 'preloaded' argument indicates that we are doing such a 'pass'.  If such a
+// pass has been performed then subsequent passes will have true in
+// first_element_checked to indicate that that character does not need to be
+// checked again.
+//
+// In addition to all this we are passed a GenerationVariant, which can
+// contain an AlternativeGeneration object.  In this AlternativeGeneration
+// object we can see details of any quick check that was already passed in
+// order to get to the code we are now generating.  The quick check can involve
+// loading characters, which means we do not need to recheck the bounds
+// up to the limit the quick check already checked.  In addition the quick
+// check can have involved a mask and compare operation which may simplify
+// or obviate the need for further checks at some character positions.
+void TextNode::TextEmitPass(RegExpCompiler* compiler,
+                            TextEmitPassType pass,
+                            bool preloaded,
+                            GenerationVariant* variant,
+                            bool first_element_checked,
+                            int* checked_up_to) {
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
+  bool ascii = compiler->ascii();
+  Label* backtrack = variant->backtrack();
+  QuickCheckDetails* quick_check = variant->quick_check_performed();
+  int element_count = elms_->length();
+  for (int i = preloaded ? 0 : element_count - 1; i >= 0; i--) {
+    TextElement elm = elms_->at(i);
+    int cp_offset = variant->cp_offset() + elm.cp_offset;
+    if (elm.type == TextElement::ATOM) {
+      if (pass == NON_ASCII_MATCH ||
+          pass == CHARACTER_MATCH ||
+          pass == CASE_CHARACTER_MATCH) {
+        Vector<const uc16> quarks = elm.data.u_atom->data();
+        for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
+          bool bound_checked = true;  // Most ops will check their bounds.
+          if (first_element_checked && i == 0 && j == 0) continue;
+          if (quick_check != NULL &&
+              elm.cp_offset + j < quick_check->characters() &&
+              quick_check->positions(elm.cp_offset + j)->determines_perfectly) {
+            continue;
+          }
+          if (pass == NON_ASCII_MATCH) {
+            ASSERT(ascii);
+            if (quarks[j] > String::kMaxAsciiCharCode) {
+              assembler->GoTo(backtrack);
+              return;
+            }
+          } else if (pass == CHARACTER_MATCH) {
+            if (compiler->ignore_case()) {
+              bound_checked = EmitAtomNonLetter(assembler,
+                                                quarks[j],
+                                                backtrack,
+                                                cp_offset + j,
+                                                *checked_up_to < cp_offset + j,
+                                                preloaded);
+            } else {
+              if (!preloaded) {
+                assembler->LoadCurrentCharacter(cp_offset + j,
+                                                backtrack,
+                                                *checked_up_to < cp_offset + j);
+              }
+              assembler->CheckNotCharacter(quarks[j], backtrack);
+            }
+          } else {
+            ASSERT_EQ(pass, CASE_CHARACTER_MATCH);
+            ASSERT(compiler->ignore_case());
+            bound_checked = EmitAtomLetter(assembler,
+                                           quarks[j],
+                                           backtrack,
+                                           cp_offset + j,
+                                           *checked_up_to < cp_offset + j,
+                                           preloaded);
+          }
+          if (pass != NON_ASCII_MATCH && bound_checked) {
+            if (cp_offset + j > *checked_up_to) {
+              *checked_up_to = cp_offset + j;
+            }
+          }
+        }
+      }
+    } else {
+      ASSERT_EQ(elm.type, TextElement::CHAR_CLASS);
+      if (first_element_checked && i == 0) continue;
+      if (quick_check != NULL &&
+          elm.cp_offset < quick_check->characters() &&
+          quick_check->positions(elm.cp_offset)->determines_perfectly) {
+        continue;
+      }
+      if (pass == CHARACTER_CLASS_MATCH) {
+        RegExpCharacterClass* cc = elm.data.u_char_class;
+        EmitCharClass(assembler,
+                      cc,
+                      cp_offset,
+                      backtrack,
+                      *checked_up_to < cp_offset,
+                      ascii,
+                      preloaded);
+        if (cp_offset > *checked_up_to) {
+          *checked_up_to = cp_offset;
+        }
+      }
+    }
+  }
+}
+
+
+int TextNode::Length() {
+  TextElement elm = elms_->last();
+  ASSERT(elm.cp_offset >= 0);
+  if (elm.type == TextElement::ATOM) {
+    return elm.cp_offset + elm.data.u_atom->data().length();
+  } else {
+    return elm.cp_offset + 1;
+  }
+}
+
+
 // This generates the code to match a text node.  A text node can contain
 // straight character sequences (possibly to be matched in a case-independent
-// way) and character classes.  In order to be most efficient we test for the
-// simple things first and then move on to the more complicated things.  The
-// simplest thing is a non-letter or a letter if we are matching case.  The
-// next-most simple thing is a case-independent letter.  The least simple is
-// a character class.  Another optimization is that we test the last one first.
-// If that succeeds we don't need to test for the end of the string when we
-// load other characters.
+// way) and character classes.  For efficiency we do not do this in a single
+// pass from left to right.  Instead we pass over the text node several times,
+// emitting code for some character positions every time.  See the comment on
+// TextEmitPass for details.
 bool TextNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
-  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
-  Label *backtrack = variant->backtrack();
   LimitResult limit_result = LimitVersions(compiler, variant);
   if (limit_result == FAIL) return false;
   if (limit_result == DONE) return true;
   ASSERT(limit_result == CONTINUE);
 
-  int element_count = elms_->length();
-  ASSERT(element_count != 0);
-  if (info()->at_end) {
-    macro_assembler->GoTo(backtrack);
-    return true;
-  }
-  // First check for non-ASCII text.
-  // TODO(plesner): We should do this at node level.
-  if (compiler->ascii()) {
-    for (int i = element_count - 1; i >= 0; i--) {
-      TextElement elm = elms_->at(i);
-      if (elm.type == TextElement::ATOM) {
-        Vector<const uc16> quarks = elm.data.u_atom->data();
-        for (int j = quarks.length() - 1; j >= 0; j--) {
-          if (quarks[j] > String::kMaxAsciiCharCode) {
-            macro_assembler->GoTo(backtrack);
-            return true;
-          }
-        }
-      } else {
-        ASSERT_EQ(elm.type, TextElement::CHAR_CLASS);
-      }
-    }
-  }
-  // Second, handle straight character matches.
-  int checked_up_to = -1;
-  for (int i = element_count - 1; i >= 0; i--) {
-    TextElement elm = elms_->at(i);
-    ASSERT(elm.cp_offset >= 0);
-    int cp_offset = variant->cp_offset() + elm.cp_offset;
-    if (elm.type == TextElement::ATOM) {
-      Vector<const uc16> quarks = elm.data.u_atom->data();
-      int last_cp_offset = cp_offset + quarks.length();
-      if (compiler->ignore_case()) {
-        EmitAtomNonLetters(macro_assembler,
-                           elm,
-                           quarks,
-                           backtrack,
-                           cp_offset,
-                           checked_up_to < last_cp_offset);
-      } else {
-        macro_assembler->CheckCharacters(quarks,
-                                         cp_offset,
-                                         backtrack,
-                                         checked_up_to < last_cp_offset);
-      }
-      if (last_cp_offset > checked_up_to) checked_up_to = last_cp_offset - 1;
-    } else {
-      ASSERT_EQ(elm.type, TextElement::CHAR_CLASS);
-    }
-  }
-  // Third, handle case independent letter matches if any.
-  if (compiler->ignore_case()) {
-    for (int i = element_count - 1; i >= 0; i--) {
-      TextElement elm = elms_->at(i);
-      int cp_offset = variant->cp_offset() + elm.cp_offset;
-      if (elm.type == TextElement::ATOM) {
-        Vector<const uc16> quarks = elm.data.u_atom->data();
-        int last_cp_offset = cp_offset + quarks.length();
-        EmitAtomLetters(macro_assembler,
-                        elm,
-                        quarks,
-                        backtrack,
-                        cp_offset,
-                        checked_up_to < last_cp_offset);
-        if (last_cp_offset > checked_up_to) checked_up_to = last_cp_offset - 1;
-      }
-    }
-  }
-  // If the fast character matches passed then do the character classes.
-  for (int i = element_count - 1; i >= 0; i--) {
-    TextElement elm = elms_->at(i);
-    int cp_offset = variant->cp_offset() + elm.cp_offset;
-    if (elm.type == TextElement::CHAR_CLASS) {
-      RegExpCharacterClass* cc = elm.data.u_char_class;
-      EmitCharClass(macro_assembler,
-                    cc,
-                    cp_offset,
-                    backtrack,
-                    checked_up_to < cp_offset,
-                    compiler->ascii());
-      if (cp_offset > checked_up_to) checked_up_to = cp_offset;
-    }
+  if (info()->follows_word_interest ||
+      info()->follows_newline_interest ||
+      info()->follows_start_interest) {
+    return false;
   }
 
-  GenerationVariant new_variant(*variant);
-  new_variant.set_cp_offset(checked_up_to + 1);
+  if (info()->at_end) {
+    compiler->macro_assembler()->GoTo(variant->backtrack());
+    return true;
+  }
+
+  if (compiler->ascii()) {
+    int dummy = 0;
+    TextEmitPass(compiler, NON_ASCII_MATCH, false, variant, false, &dummy);
+  }
+
+  bool first_elt_done = false;
+  int bound_checked_to = variant->cp_offset() - 1;
+  QuickCheckDetails* quick_check = variant->quick_check_performed();
+  bound_checked_to += Max(quick_check->characters(),
+                          variant->characters_preloaded());
+
+  // If a character is preloaded into the current character register then
+  // check that now.
+  if (variant->characters_preloaded() == 1) {
+    TextEmitPass(compiler,
+                 CHARACTER_MATCH,
+                 true,
+                 variant,
+                 false,
+                 &bound_checked_to);
+    if (compiler->ignore_case()) {
+      TextEmitPass(compiler,
+                   CASE_CHARACTER_MATCH,
+                   true,
+                   variant,
+                   false,
+                   &bound_checked_to);
+    }
+    TextEmitPass(compiler,
+                 CHARACTER_CLASS_MATCH,
+                 true,
+                 variant,
+                 false,
+                 &bound_checked_to);
+    first_elt_done = true;
+  }
+
+  TextEmitPass(compiler,
+               CHARACTER_MATCH,
+               false,
+               variant,
+               first_elt_done,
+               &bound_checked_to);
+  if (compiler->ignore_case()) {
+    TextEmitPass(compiler,
+                 CASE_CHARACTER_MATCH,
+                 false,
+                 variant,
+                 first_elt_done,
+                 &bound_checked_to);
+  }
+  TextEmitPass(compiler,
+               CHARACTER_CLASS_MATCH,
+               false,
+               variant,
+               first_elt_done,
+               &bound_checked_to);
+
+  GenerationVariant successor_variant(*variant);
+  successor_variant.AdvanceVariant(Length(), compiler->ascii());
   RecursionCheck rc(compiler);
-  return on_success()->Emit(compiler, &new_variant);
+  return on_success()->Emit(compiler, &successor_variant);
+}
+
+
+void GenerationVariant::AdvanceVariant(int by, bool ascii) {
+  ASSERT(by > 0);
+  // We don't have an instruction for shifting the current character register
+  // down or for using a shifted value for anything so lets just forget that
+  // we preloaded any characters into it.
+  characters_preloaded_ = 0;
+  // Adjust the offsets of the quick check performed information.  This
+  // information is used to find out what we already determined about the
+  // characters by means of mask and compare.
+  quick_check_performed_.Advance(by, ascii);
+  cp_offset_ += by;
 }
 
 
@@ -2060,6 +2533,20 @@ int ChoiceNode::GreedyLoopTextLength(GuardedAlternative* alternative) {
 }
 
 
+void LoopChoiceNode::AddLoopAlternative(GuardedAlternative alt) {
+  ASSERT_EQ(loop_node_, NULL);
+  AddAlternative(alt);
+  loop_node_ = alt.node();
+}
+
+
+void LoopChoiceNode::AddContinueAlternative(GuardedAlternative alt) {
+  ASSERT_EQ(continue_node_, NULL);
+  AddAlternative(alt);
+  continue_node_ = alt.node();
+}
+
+
 bool LoopChoiceNode::Emit(RegExpCompiler* compiler,
                           GenerationVariant* variant) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
@@ -2079,6 +2566,155 @@ bool LoopChoiceNode::Emit(RegExpCompiler* compiler,
   }
   return ChoiceNode::Emit(compiler, variant);
 }
+
+
+int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler) {
+  int preload_characters = EatsAtLeast(0);
+#ifdef CAN_READ_UNALIGNED
+  bool ascii = compiler->ascii();
+  if (ascii) {
+    if (preload_characters > 4) preload_characters = 4;
+    // We can't preload 3 characters because there is no machine instruction
+    // to do that.  We can't just load 4 because we could be reading
+    // beyond the end of the string, which could cause a memory fault.
+    if (preload_characters == 3) preload_characters = 2;
+  } else {
+    if (preload_characters > 2) preload_characters = 2;
+  }
+#else
+  if (preload_characters > 1) preload_characters = 1;
+#endif
+  return preload_characters;
+}
+
+
+// This class is used when generating the alternatives in a choice node.  It
+// records the way the alternative is being code generated.
+class AlternativeGeneration: public Malloced {
+ public:
+  AlternativeGeneration()
+      : possible_success(),
+        expects_preload(false),
+        after(),
+        quick_check_details() { }
+  Label possible_success;
+  bool expects_preload;
+  Label after;
+  QuickCheckDetails quick_check_details;
+};
+
+
+// Creates a list of AlternativeGenerations.  If the list has a reasonable
+// size then it is on the stack, otherwise the excess is on the heap.
+class AlternativeGenerationList {
+ public:
+  explicit AlternativeGenerationList(int count)
+      : alt_gens_(count) {
+    for (int i = 0; i < count && i < kAFew; i++) {
+      alt_gens_.Add(a_few_alt_gens_ + i);
+    }
+    for (int i = kAFew; i < count; i++) {
+      alt_gens_.Add(new AlternativeGeneration());
+    }
+  }
+  ~AlternativeGenerationList() {
+    for (int i = 0; i < alt_gens_.length(); i++) {
+      alt_gens_[i]->possible_success.Unuse();
+      alt_gens_[i]->after.Unuse();
+    }
+    for (int i = kAFew; i < alt_gens_.length(); i++) {
+      delete alt_gens_[i];
+      alt_gens_[i] = NULL;
+    }
+  }
+
+  AlternativeGeneration* at(int i) {
+    return alt_gens_[i];
+  }
+ private:
+  static const int kAFew = 10;
+  ZoneList<AlternativeGeneration*> alt_gens_;
+  AlternativeGeneration a_few_alt_gens_[kAFew];
+};
+
+
+/* Code generation for choice nodes.
+ *
+ * We generate quick checks that do a mask and compare to eliminate a
+ * choice.  If the quick check succeeds then it jumps to the continuation to
+ * do slow checks and check subsequent nodes.  If it fails (the common case)
+ * it falls through to the next choice.
+ *
+ * Here is the desired flow graph.  Nodes directly below each other imply
+ * fallthrough.  Alternatives 1 and 2 have quick checks.  Alternative
+ * 3 doesn't have a quick check so we have to call the slow check.
+ * Nodes are marked Qn for quick checks and Sn for slow checks.  The entire
+ * regexp continuation is generated directly after the Sn node, up to the
+ * next GoTo if we decide to reuse some already generated code.  Some
+ * nodes expect preload_characters to be preloaded into the current
+ * character register.  R nodes do this preloading.  Vertices are marked
+ * F for failures and S for success (possible success in the case of quick
+ * nodes).  L, V, < and > are used as arrow heads.
+ *
+ * ----------> R
+ *             |
+ *             V
+ *            Q1 -----> S1
+ *             |   S   /
+ *            F|      /
+ *             |    F/
+ *             |    /
+ *             |   R
+ *             |  /
+ *             V L
+ *            Q2 -----> S2
+ *             |   S   /
+ *            F|      /
+ *             |    F/
+ *             |    /
+ *             |   R
+ *             |  /
+ *             V L
+ *            S3
+ *             |
+ *            F|
+ *             |
+ *             R
+ *             |
+ * backtrack   V
+ * <----------Q4
+ *   \    F    |
+ *    \        |S
+ *     \   F   V
+ *      \-----S4
+ *
+ * For greedy loops we reverse our expectation and expect to match rather
+ * than fail. Therefore we want the loop code to look like this (U is the
+ * unwind code that steps back in the greedy loop).  The following alternatives
+ * look the same as above.
+ *              _____
+ *             /     \
+ *             V     |
+ * ----------> S1    |
+ *            /|     |
+ *           / |S    |
+ *         F/  \_____/
+ *         /
+ *        |<-----------
+ *        |            \
+ *        V             \
+ *        Q2 ---> S2     \
+ *        |  S   /       |
+ *       F|     /        |
+ *        |   F/         |
+ *        |   /          |
+ *        |  R           |
+ *        | /            |
+ *   F    VL             |
+ * <------U              |
+ * back   |S             |
+ *        \______________/
+ */
 
 
 bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
@@ -2107,7 +2743,8 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   int text_length = GreedyLoopTextLength(&(alternatives_->at(0)));
   bool greedy_loop = false;
   Label greedy_loop_label;
-  GenerationVariant counter_backtrack_variant(&greedy_loop_label);
+  GenerationVariant counter_backtrack_variant;
+  counter_backtrack_variant.set_backtrack(&greedy_loop_label);
   if (choice_count > 1 && text_length != kNodeIsTooComplexForGreedyLoops) {
     // Here we have special handling for greedy loops containing only text nodes
     // and other simple nodes.  These are handled by pushing the current
@@ -2121,7 +2758,8 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
     macro_assembler->PushCurrentPosition();
     current_variant = &counter_backtrack_variant;
     Label greedy_match_failed;
-    GenerationVariant greedy_match_variant(&greedy_match_failed);
+    GenerationVariant greedy_match_variant;
+    greedy_match_variant.set_backtrack(&greedy_match_failed);
     Label loop_label;
     macro_assembler->Bind(&loop_label);
     greedy_match_variant.set_stop_node(this);
@@ -2138,32 +2776,70 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   Label second_choice;  // For use in greedy matches.
   macro_assembler->Bind(&second_choice);
 
+  int first_normal_choice = greedy_loop ? 1 : 0;
+
+  int preload_characters = CalculatePreloadCharacters(compiler);
+  bool preload_is_current = false;
+  bool preload_has_checked_bounds = false;
+
+  AlternativeGenerationList alt_gens(choice_count);
+
   // For now we just call all choices one after the other.  The idea ultimately
   // is to use the Dispatch table to try only the relevant ones.
-  for (int i = greedy_loop ? 1 : 0; i < choice_count - 1; i++) {
+  for (int i = first_normal_choice; i < choice_count; i++) {
     GuardedAlternative alternative = alternatives_->at(i);
-    Label after;
+    AlternativeGeneration* alt_gen(alt_gens.at(i));
+    alt_gen->quick_check_details.set_characters(preload_characters);
     ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == NULL) ? 0 : guards->length();
+
     GenerationVariant new_variant(*current_variant);
-    new_variant.set_backtrack(&after);
-    for (int j = 0; j < guard_count; j++) {
-      GenerateGuard(macro_assembler, guards->at(j), &new_variant);
+    new_variant.set_characters_preloaded(preload_is_current ?
+                                         preload_characters :
+                                         0);
+    new_variant.quick_check_performed()->Clear();
+    alt_gen->expects_preload = preload_is_current;
+    bool generate_full_check_inline = false;
+    if (alternative.node()->EmitQuickCheck(compiler,
+                                           &new_variant,
+                                           preload_has_checked_bounds,
+                                           &alt_gen->possible_success,
+                                           &alt_gen->quick_check_details,
+                                           i < choice_count - 1)) {
+      // Quick check was generated for this choice.
+      preload_is_current = true;
+      preload_has_checked_bounds = true;
+      // On the last choice in the ChoiceNode we generated the quick
+      // check to fall through on possible success.  So now we need to
+      // generate the full check inline.
+      if (i == choice_count - 1) {
+        macro_assembler->Bind(&alt_gen->possible_success);
+        new_variant.set_quick_check_performed(&alt_gen->quick_check_details);
+        new_variant.set_characters_preloaded(preload_characters);
+        generate_full_check_inline = true;
+      }
+    } else {
+      // No quick check was generated.  Put the full code here.
+      if (i < choice_count - 1) {
+        new_variant.set_backtrack(&alt_gen->after);
+      }
+      generate_full_check_inline = true;
     }
-    if (!alternative.node()->Emit(compiler, &new_variant)) {
-      after.Unuse();
-      return false;
+    if (generate_full_check_inline) {
+      if (preload_is_current) {
+        new_variant.set_characters_preloaded(preload_characters);
+      }
+      for (int j = 0; j < guard_count; j++) {
+        GenerateGuard(macro_assembler, guards->at(j), &new_variant);
+      }
+      if (!alternative.node()->Emit(compiler, &new_variant)) {
+        greedy_loop_label.Unuse();
+        return false;
+      }
+      preload_is_current = false;
     }
-    macro_assembler->Bind(&after);
+    macro_assembler->Bind(&alt_gen->after);
   }
-  GuardedAlternative alternative = alternatives_->at(choice_count - 1);
-  ZoneList<Guard*>* guards = alternative.guards();
-  int guard_count = (guards == NULL) ? 0 : guards->length();
-  for (int j = 0; j < guard_count; j++) {
-    GenerateGuard(macro_assembler, guards->at(j), current_variant);
-  }
-  bool ok = alternative.node()->Emit(compiler, current_variant);
-  if (!ok) return false;
   if (greedy_loop) {
     macro_assembler->Bind(&greedy_loop_label);
     // If we have unwound to the bottom then backtrack.
@@ -2172,12 +2848,68 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
     macro_assembler->AdvanceCurrentPosition(-text_length);
     macro_assembler->GoTo(&second_choice);
   }
+  // At this point we need to generate slow checks for the alternatives where
+  // the quick check was inlined.  We can recognize these because the associated
+  // label was bound.
+  for (int i = first_normal_choice; i < choice_count - 1; i++) {
+    AlternativeGeneration* alt_gen = alt_gens.at(i);
+    if (!EmitOutOfLineContinuation(compiler,
+                                   current_variant,
+                                   alternatives_->at(i),
+                                   alt_gen,
+                                   preload_characters,
+                                   alt_gens.at(i + 1)->expects_preload)) {
+      return false;
+    }
+  }
   return true;
 }
 
 
+bool ChoiceNode::EmitOutOfLineContinuation(RegExpCompiler* compiler,
+                                           GenerationVariant* variant,
+                                           GuardedAlternative alternative,
+                                           AlternativeGeneration* alt_gen,
+                                           int preload_characters,
+                                           bool next_expects_preload) {
+  if (!alt_gen->possible_success.is_linked()) return true;
+
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  macro_assembler->Bind(&alt_gen->possible_success);
+  GenerationVariant out_of_line_variant(*variant);
+  out_of_line_variant.set_characters_preloaded(preload_characters);
+  out_of_line_variant.set_quick_check_performed(&alt_gen->quick_check_details);
+  ZoneList<Guard*>* guards = alternative.guards();
+  int guard_count = (guards == NULL) ? 0 : guards->length();
+  if (next_expects_preload) {
+    Label reload_current_char;
+    out_of_line_variant.set_backtrack(&reload_current_char);
+    for (int j = 0; j < guard_count; j++) {
+      GenerateGuard(macro_assembler, guards->at(j), &out_of_line_variant);
+    }
+    bool ok = alternative.node()->Emit(compiler, &out_of_line_variant);
+    macro_assembler->Bind(&reload_current_char);
+    // Reload the current character, since the next quick check expects that.
+    // We don't need to check bounds here because we only get into this
+    // code through a quick check which already did the checked load.
+    macro_assembler->LoadCurrentCharacter(variant->cp_offset(),
+                                          NULL,
+                                          false,
+                                          preload_characters);
+    macro_assembler->GoTo(&(alt_gen->after));
+    return ok;
+  } else {
+    out_of_line_variant.set_backtrack(&(alt_gen->after));
+    for (int j = 0; j < guard_count; j++) {
+      GenerateGuard(macro_assembler, guards->at(j), &out_of_line_variant);
+    }
+    return alternative.node()->Emit(compiler, &out_of_line_variant);
+  }
+}
+
+
 bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
-  RegExpMacroAssembler* macro = compiler->macro_assembler();
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
   LimitResult limit_result = LimitVersions(compiler, variant);
   if (limit_result == DONE) return true;
   if (limit_result == FAIL) return false;
@@ -2209,9 +2941,9 @@ bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
     }
     case BEGIN_SUBMATCH:
       if (!variant->is_trivial()) return variant->Flush(compiler, this);
-      macro->WriteCurrentPositionToRegister(
+      assembler->WriteCurrentPositionToRegister(
           data_.u_submatch.current_position_register, 0);
-      macro->WriteStackPointerToRegister(
+      assembler->WriteStackPointerToRegister(
           data_.u_submatch.stack_pointer_register);
       return on_success()->Emit(compiler, variant);
     case POSITIVE_SUBMATCH_SUCCESS:
@@ -2226,13 +2958,13 @@ bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
         Label at_end;
         // Load current character jumps to the label if we are beyond the string
         // end.
-        macro->LoadCurrentCharacter(0, &at_end);
-        macro->GoTo(variant->backtrack());
-        macro->Bind(&at_end);
+        assembler->LoadCurrentCharacter(0, &at_end);
+        assembler->GoTo(variant->backtrack());
+        assembler->Bind(&at_end);
       }
-      macro->ReadCurrentPositionFromRegister(
+      assembler->ReadCurrentPositionFromRegister(
           data_.u_submatch.current_position_register);
-      macro->ReadStackPointerFromRegister(
+      assembler->ReadStackPointerFromRegister(
           data_.u_submatch.stack_pointer_register);
       return on_success()->Emit(compiler, variant);
     default:
@@ -2244,7 +2976,7 @@ bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
 
 bool BackReferenceNode::Emit(RegExpCompiler* compiler,
                              GenerationVariant* variant) {
-  RegExpMacroAssembler* macro = compiler->macro_assembler();
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
   if (!variant->is_trivial()) {
     return variant->Flush(compiler, this);
   }
@@ -2260,12 +2992,15 @@ bool BackReferenceNode::Emit(RegExpCompiler* compiler,
   if (info()->at_end) {
     // If we are constrained to match at the end of the input then succeed
     // iff the back reference is empty.
-    macro->CheckNotRegistersEqual(start_reg_, end_reg_, variant->backtrack());
+    assembler->CheckNotRegistersEqual(start_reg_,
+                                      end_reg_,
+                                      variant->backtrack());
   } else {
     if (compiler->ignore_case()) {
-      macro->CheckNotBackReferenceIgnoreCase(start_reg_, variant->backtrack());
+      assembler->CheckNotBackReferenceIgnoreCase(start_reg_,
+                                                 variant->backtrack());
     } else {
-      macro->CheckNotBackReference(start_reg_, variant->backtrack());
+      assembler->CheckNotBackReference(start_reg_, variant->backtrack());
     }
   }
   return on_success()->Emit(compiler, variant);
@@ -2424,17 +3159,6 @@ void DotPrinter::PrintAttributes(RegExpNode* that) {
   printer.PrintBit("NI", info->follows_newline_interest);
   printer.PrintBit("WI", info->follows_word_interest);
   printer.PrintBit("SI", info->follows_start_interest);
-  printer.PrintBit("DN", info->determine_newline);
-  printer.PrintBit("DW", info->determine_word);
-  printer.PrintBit("DS", info->determine_start);
-  printer.PrintBit("DDN", info->does_determine_newline);
-  printer.PrintBit("DDW", info->does_determine_word);
-  printer.PrintBit("DDS", info->does_determine_start);
-  printer.PrintPositive("IW", info->is_word);
-  printer.PrintPositive("IN", info->is_newline);
-  printer.PrintPositive("FN", info->follows_newline);
-  printer.PrintPositive("FW", info->follows_word);
-  printer.PrintPositive("FS", info->follows_start);
   Label* label = that->label();
   if (label->is_bound())
     printer.PrintPositive("@", label->pos());
@@ -2666,11 +3390,58 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   //
   // TODO(someone): clear captures on repetition and handle empty
   //   matches.
+
+  // 15.10.2.5 RepeatMatcher algorithm.
+  // The parser has already eliminated the case where max is 0.  In the case
+  // where max_match is zero the parser has removed the quantifier if min was
+  // > 0 and removed the atom if min was 0.  See AddQuantifierToAtom.
+
+  // If we know that we cannot match zero length then things are a little
+  // simpler since we don't need to make the special zero length match check
+  // from step 2.1.  If the min and max are small we can unroll a little in
+  // this case.
+  static const int kMaxUnrolledMinMatches = 3;  // Unroll (foo)+ and (foo){3,}
+  static const int kMaxUnrolledMaxMatches = 3;  // Unroll (foo)? and (foo){x,3}
+  if (max == 0) return on_success;  // This can happen due to recursion.
+  if (body->min_match() > 0) {
+    if (min > 0 && min <= kMaxUnrolledMinMatches) {
+      int new_max = (max == kInfinity) ? max : max - min;
+      // Recurse once to get the loop or optional matches after the fixed ones.
+      RegExpNode* answer =
+          ToNode(0, new_max, is_greedy, body, compiler, on_success);
+      // Unroll the forced matches from 0 to min.  This can cause chains of
+      // TextNodes (which the parser does not generate).  These should be
+      // combined if it turns out they hinder good code generation.
+      for (int i = 0; i < min; i++) {
+        answer = body->ToNode(compiler, answer);
+      }
+      return answer;
+    }
+    if (max <= kMaxUnrolledMaxMatches) {
+      ASSERT(min == 0);
+      // Unroll the optional matches up to max.
+      RegExpNode* answer = on_success;
+      for (int i = 0; i < max; i++) {
+        ChoiceNode* alternation = new ChoiceNode(2);
+        if (is_greedy) {
+          alternation->AddAlternative(GuardedAlternative(body->ToNode(compiler,
+                                                                      answer)));
+          alternation->AddAlternative(GuardedAlternative(on_success));
+        } else {
+          alternation->AddAlternative(GuardedAlternative(on_success));
+          alternation->AddAlternative(GuardedAlternative(body->ToNode(compiler,
+                                                                      answer)));
+        }
+        answer = alternation;
+      }
+      return answer;
+    }
+  }
   bool has_min = min > 0;
-  bool has_max = max < RegExpQuantifier::kInfinity;
+  bool has_max = max < RegExpTree::kInfinity;
   bool needs_counter = has_min || has_max;
   int reg_ctr = needs_counter ? compiler->AllocateRegister() : -1;
-  ChoiceNode* center = new LoopChoiceNode(2);
+  LoopChoiceNode* center = new LoopChoiceNode(body->min_match() == 0);
   RegExpNode* loop_return = needs_counter
       ? static_cast<RegExpNode*>(ActionNode::IncrementRegister(reg_ctr, center))
       : static_cast<RegExpNode*>(center);
@@ -2686,11 +3457,11 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
     rest_alt.AddGuard(rest_guard);
   }
   if (is_greedy) {
-    center->AddAlternative(body_alt);
-    center->AddAlternative(rest_alt);
+    center->AddLoopAlternative(body_alt);
+    center->AddContinueAlternative(rest_alt);
   } else {
-    center->AddAlternative(rest_alt);
-    center->AddAlternative(body_alt);
+    center->AddContinueAlternative(rest_alt);
+    center->AddLoopAlternative(body_alt);
   }
   if (needs_counter) {
     return ActionNode::SetRegister(reg_ctr, 0, center);
@@ -3046,7 +3817,6 @@ RegExpNode* RegExpNode::TryGetSibling(NodeInfo* info) {
 
 RegExpNode* RegExpNode::EnsureSibling(NodeInfo* info, bool* cloned) {
   ASSERT_EQ(false, *cloned);
-  ASSERT(!info->HasAssertions());
   siblings_.Ensure(this);
   RegExpNode* result = TryGetSibling(info);
   if (result != NULL) return result;
@@ -3278,7 +4048,7 @@ OutSet* DispatchTable::Get(uc16 value) {
 // Analysis
 
 
-void AssertionPropagation::EnsureAnalyzed(RegExpNode* that) {
+void Analysis::EnsureAnalyzed(RegExpNode* that) {
   if (that->info()->been_analyzed || that->info()->being_analyzed)
     return;
   that->info()->being_analyzed = true;
@@ -3288,7 +4058,7 @@ void AssertionPropagation::EnsureAnalyzed(RegExpNode* that) {
 }
 
 
-void AssertionPropagation::VisitEnd(EndNode* that) {
+void Analysis::VisitEnd(EndNode* that) {
   // nothing to do
 }
 
@@ -3311,23 +4081,16 @@ void TextNode::CalculateOffsets() {
 }
 
 
-void AssertionPropagation::VisitText(TextNode* that) {
+void Analysis::VisitText(TextNode* that) {
   if (ignore_case_) {
     that->MakeCaseIndependent();
   }
   EnsureAnalyzed(that->on_success());
-  NodeInfo* info = that->info();
-  NodeInfo* next_info = that->on_success()->info();
-  // If the following node is interested in what it follows then this
-  // node must determine it.
-  info->determine_newline = next_info->follows_newline_interest;
-  info->determine_word = next_info->follows_word_interest;
-  info->determine_start = next_info->follows_start_interest;
   that->CalculateOffsets();
 }
 
 
-void AssertionPropagation::VisitAction(ActionNode* that) {
+void Analysis::VisitAction(ActionNode* that) {
   RegExpNode* target = that->on_success();
   EnsureAnalyzed(target);
   // If the next node is interested in what it follows then this node
@@ -3336,7 +4099,7 @@ void AssertionPropagation::VisitAction(ActionNode* that) {
 }
 
 
-void AssertionPropagation::VisitChoice(ChoiceNode* that) {
+void Analysis::VisitChoice(ChoiceNode* that) {
   NodeInfo* info = that->info();
   for (int i = 0; i < that->alternatives()->length(); i++) {
     RegExpNode* node = that->alternatives()->at(i).node();
@@ -3348,208 +4111,24 @@ void AssertionPropagation::VisitChoice(ChoiceNode* that) {
 }
 
 
-void AssertionPropagation::VisitBackReference(BackReferenceNode* that) {
+void Analysis::VisitLoopChoice(LoopChoiceNode* that) {
+  NodeInfo* info = that->info();
+  for (int i = 0; i < that->alternatives()->length(); i++) {
+    RegExpNode* node = that->alternatives()->at(i).node();
+    if (node != that->loop_node()) {
+      EnsureAnalyzed(node);
+      info->AddFromFollowing(node->info());
+    }
+  }
+  // Check the loop last since it may need the value of this node
+  // to get a correct result.
+  EnsureAnalyzed(that->loop_node());
+  info->AddFromFollowing(that->loop_node()->info());
+}
+
+
+void Analysis::VisitBackReference(BackReferenceNode* that) {
   EnsureAnalyzed(that->on_success());
-}
-
-
-// -------------------------------------------------------------------
-// Assumption expansion
-
-
-RegExpNode* RegExpNode::EnsureExpanded(NodeInfo* info) {
-  siblings_.Ensure(this);
-  NodeInfo new_info = *this->info();
-  if (new_info.follows_word_interest)
-    new_info.follows_word = info->follows_word;
-  if (new_info.follows_newline_interest)
-    new_info.follows_newline = info->follows_newline;
-  // If the following node should determine something we need to get
-  // a sibling that determines it.
-  new_info.does_determine_newline = new_info.determine_newline;
-  new_info.does_determine_word = new_info.determine_word;
-  new_info.does_determine_start = new_info.determine_start;
-  RegExpNode* sibling = TryGetSibling(&new_info);
-  if (sibling == NULL) {
-    sibling = ExpandLocal(&new_info);
-    siblings_.Add(sibling);
-    sibling->info()->being_expanded = true;
-    sibling->ExpandChildren();
-    sibling->info()->being_expanded = false;
-    sibling->info()->been_expanded = true;
-  } else {
-    NodeInfo* sib_info = sibling->info();
-    if (!sib_info->been_expanded && !sib_info->being_expanded) {
-      sibling->info()->being_expanded = true;
-      sibling->ExpandChildren();
-      sibling->info()->being_expanded = false;
-      sibling->info()->been_expanded = true;
-    }
-  }
-  return sibling;
-}
-
-
-RegExpNode* ChoiceNode::ExpandLocal(NodeInfo* info) {
-  ChoiceNode* clone = this->Clone();
-  clone->info()->ResetCompilationState();
-  clone->info()->AddAssumptions(info);
-  return clone;
-}
-
-
-void ChoiceNode::ExpandChildren() {
-  ZoneList<GuardedAlternative>* alts = alternatives();
-  ZoneList<GuardedAlternative>* new_alts
-      = new ZoneList<GuardedAlternative>(alts->length());
-  for (int i = 0; i < alts->length(); i++) {
-    GuardedAlternative next = alts->at(i);
-    next.set_node(next.node()->EnsureExpanded(info()));
-    new_alts->Add(next);
-  }
-  alternatives_ = new_alts;
-}
-
-
-RegExpNode* TextNode::ExpandLocal(NodeInfo* info) {
-  TextElement last = elements()->last();
-  if (last.type == TextElement::CHAR_CLASS) {
-    RegExpCharacterClass* char_class = last.data.u_char_class;
-    if (info->does_determine_word) {
-      ZoneList<CharacterRange>* word = NULL;
-      ZoneList<CharacterRange>* non_word = NULL;
-      CharacterRange::Split(char_class->ranges(),
-                            CharacterRange::GetWordBounds(),
-                            &word,
-                            &non_word);
-      if (non_word == NULL) {
-        // This node contains no non-word characters so it must be
-        // all word.
-        this->info()->is_word = NodeInfo::TRUE;
-      } else if (word == NULL) {
-        // Vice versa.
-        this->info()->is_word = NodeInfo::FALSE;
-      } else {
-        // If this character class contains both word and non-word
-        // characters we need to split it into two.
-        ChoiceNode* result = new ChoiceNode(2);
-        // Welcome to the family, son!
-        result->set_siblings(this->siblings());
-        *result->info() = *this->info();
-        result->info()->ResetCompilationState();
-        result->info()->AddAssumptions(info);
-        RegExpNode* word_node
-            = new TextNode(new RegExpCharacterClass(word, false),
-                           on_success());
-        word_node->info()->determine_word = true;
-        word_node->info()->does_determine_word = true;
-        word_node->info()->is_word = NodeInfo::TRUE;
-        result->alternatives()->Add(GuardedAlternative(word_node));
-        RegExpNode* non_word_node
-            = new TextNode(new RegExpCharacterClass(non_word, false),
-                           on_success());
-        non_word_node->info()->determine_word = true;
-        non_word_node->info()->does_determine_word = true;
-        non_word_node->info()->is_word = NodeInfo::FALSE;
-        result->alternatives()->Add(GuardedAlternative(non_word_node));
-        return result;
-      }
-    }
-  }
-  TextNode* clone = this->Clone();
-  clone->info()->ResetCompilationState();
-  clone->info()->AddAssumptions(info);
-  return clone;
-}
-
-
-void TextNode::ExpandAtomChildren(RegExpAtom* that) {
-  NodeInfo new_info = *info();
-  uc16 last = that->data()[that->data().length() - 1];
-  if (info()->determine_word) {
-    new_info.follows_word = IsRegExpWord(last)
-      ? NodeInfo::TRUE : NodeInfo::FALSE;
-  } else {
-    new_info.follows_word = NodeInfo::UNKNOWN;
-  }
-  if (info()->determine_newline) {
-    new_info.follows_newline = IsRegExpNewline(last)
-      ? NodeInfo::TRUE : NodeInfo::FALSE;
-  } else {
-    new_info.follows_newline = NodeInfo::UNKNOWN;
-  }
-  if (info()->determine_start) {
-    new_info.follows_start = NodeInfo::FALSE;
-  } else {
-    new_info.follows_start = NodeInfo::UNKNOWN;
-  }
-  set_on_success(on_success()->EnsureExpanded(&new_info));
-}
-
-
-void TextNode::ExpandCharClassChildren(RegExpCharacterClass* that) {
-  if (info()->does_determine_word) {
-    // ASSERT(info()->is_word != NodeInfo::UNKNOWN);
-    NodeInfo next_info = *on_success()->info();
-    next_info.follows_word = info()->is_word;
-    set_on_success(on_success()->EnsureExpanded(&next_info));
-  } else {
-    set_on_success(on_success()->EnsureExpanded(info()));
-  }
-}
-
-
-void TextNode::ExpandChildren() {
-  TextElement last = elements()->last();
-  switch (last.type) {
-    case TextElement::ATOM:
-      ExpandAtomChildren(last.data.u_atom);
-      break;
-    case TextElement::CHAR_CLASS:
-      ExpandCharClassChildren(last.data.u_char_class);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-RegExpNode* ActionNode::ExpandLocal(NodeInfo* info) {
-  ActionNode* clone = this->Clone();
-  clone->info()->ResetCompilationState();
-  clone->info()->AddAssumptions(info);
-  return clone;
-}
-
-
-void ActionNode::ExpandChildren() {
-  set_on_success(on_success()->EnsureExpanded(info()));
-}
-
-
-RegExpNode* BackReferenceNode::ExpandLocal(NodeInfo* info) {
-  BackReferenceNode* clone = this->Clone();
-  clone->info()->ResetCompilationState();
-  clone->info()->AddAssumptions(info);
-  return clone;
-}
-
-
-void BackReferenceNode::ExpandChildren() {
-  set_on_success(on_success()->EnsureExpanded(info()));
-}
-
-
-RegExpNode* EndNode::ExpandLocal(NodeInfo* info) {
-  EndNode* clone = this->Clone();
-  clone->info()->ResetCompilationState();
-  clone->info()->AddAssumptions(info);
-  return clone;
-}
-
-
-void EndNode::ExpandChildren() {
-  // nothing to do
 }
 
 
@@ -3663,110 +4242,6 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 }
 
 
-#ifdef DEBUG
-
-
-class VisitNodeScope {
- public:
-  explicit VisitNodeScope(RegExpNode* node) : node_(node) {
-    ASSERT(!node->info()->visited);
-    node->info()->visited = true;
-  }
-  ~VisitNodeScope() {
-    node_->info()->visited = false;
-  }
- private:
-  RegExpNode* node_;
-};
-
-
-class NodeValidator : public NodeVisitor {
- public:
-  virtual void ValidateInfo(NodeInfo* info) = 0;
-#define DECLARE_VISIT(Type)                                          \
-  virtual void Visit##Type(Type##Node* that);
-FOR_EACH_NODE_TYPE(DECLARE_VISIT)
-#undef DECLARE_VISIT
-};
-
-
-class PostAnalysisNodeValidator : public NodeValidator {
- public:
-  virtual void ValidateInfo(NodeInfo* info);
-};
-
-
-class PostExpansionNodeValidator : public NodeValidator {
- public:
-  virtual void ValidateInfo(NodeInfo* info);
-};
-
-
-void PostAnalysisNodeValidator::ValidateInfo(NodeInfo* info) {
-  ASSERT(info->been_analyzed);
-}
-
-
-void PostExpansionNodeValidator::ValidateInfo(NodeInfo* info) {
-  ASSERT_EQ(info->determine_newline, info->does_determine_newline);
-  ASSERT_EQ(info->determine_start, info->does_determine_start);
-  ASSERT_EQ(info->determine_word, info->does_determine_word);
-  ASSERT_EQ(info->follows_word_interest,
-            (info->follows_word != NodeInfo::UNKNOWN));
-  if (false) {
-    // These are still unimplemented.
-    ASSERT_EQ(info->follows_start_interest,
-              (info->follows_start != NodeInfo::UNKNOWN));
-    ASSERT_EQ(info->follows_newline_interest,
-              (info->follows_newline != NodeInfo::UNKNOWN));
-  }
-}
-
-
-void NodeValidator::VisitAction(ActionNode* that) {
-  if (that->info()->visited) return;
-  VisitNodeScope scope(that);
-  ValidateInfo(that->info());
-  that->on_success()->Accept(this);
-}
-
-
-void NodeValidator::VisitBackReference(BackReferenceNode* that) {
-  if (that->info()->visited) return;
-  VisitNodeScope scope(that);
-  ValidateInfo(that->info());
-  that->on_success()->Accept(this);
-}
-
-
-void NodeValidator::VisitChoice(ChoiceNode* that) {
-  if (that->info()->visited) return;
-  VisitNodeScope scope(that);
-  ValidateInfo(that->info());
-  ZoneList<GuardedAlternative>* alts = that->alternatives();
-  for (int i = 0; i < alts->length(); i++)
-    alts->at(i).node()->Accept(this);
-}
-
-
-void NodeValidator::VisitEnd(EndNode* that) {
-  if (that->info()->visited) return;
-  VisitNodeScope scope(that);
-  ValidateInfo(that->info());
-}
-
-
-void NodeValidator::VisitText(TextNode* that) {
-  if (that->info()->visited) return;
-  VisitNodeScope scope(that);
-  ValidateInfo(that->info());
-  that->on_success()->Accept(this);
-}
-
-
-#endif
-
-
 Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
                                          bool ignore_case,
                                          bool is_multiline,
@@ -3784,45 +4259,18 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
   //   since we don't even handle ^ yet I'm saving that optimization for
   //   later.
   RegExpNode* node = RegExpQuantifier::ToNode(0,
-                                              RegExpQuantifier::kInfinity,
+                                              RegExpTree::kInfinity,
                                               false,
                                               new RegExpCharacterClass('*'),
                                               &compiler,
                                               captured_body);
-  AssertionPropagation analysis(ignore_case);
+  data->node = node;
+  Analysis analysis(ignore_case);
   analysis.EnsureAnalyzed(node);
 
   NodeInfo info = *node->info();
-  data->has_lookbehind = info.HasLookbehind();
-  if (data->has_lookbehind) {
-    // If this node needs information about the preceding text we let
-    // it start with a character class that consumes a single character
-    // and proceeds to wherever is appropriate.  This means that if
-    // has_lookbehind is set the code generator must start one character
-    // before the start position.
-    node = new TextNode(new RegExpCharacterClass('*'), node);
-    analysis.EnsureAnalyzed(node);
-  }
-
-#ifdef DEBUG
-  PostAnalysisNodeValidator post_analysis_validator;
-  node->Accept(&post_analysis_validator);
-#endif
-
-  node = node->EnsureExpanded(&info);
-
-#ifdef DEBUG
-  PostExpansionNodeValidator post_expansion_validator;
-  node->Accept(&post_expansion_validator);
-#endif
-
-  data->node = node;
 
   if (is_multiline && !FLAG_attempt_multiline_irregexp) {
-    return Handle<FixedArray>::null();
-  }
-
-  if (data->has_lookbehind) {
     return Handle<FixedArray>::null();
   }
 

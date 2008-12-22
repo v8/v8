@@ -335,6 +335,22 @@ class RelocIterator: public Malloced {
 };
 
 
+// A stack-allocated code region logs a name for the code generated
+// while the region is in effect.  This information is used by the
+// profiler to categorize ticks within generated code.
+class CodeRegion BASE_EMBEDDED {
+ public:
+  inline CodeRegion(Assembler* assm, const char *name) : assm_(assm) {
+    LOG(BeginCodeRegionEvent(this, assm, name));
+  }
+  inline ~CodeRegion() {
+    LOG(EndCodeRegionEvent(this, assm_));
+  }
+ private:
+  Assembler* assm_;
+};
+
+
 //------------------------------------------------------------------------------
 // External function
 

@@ -1598,7 +1598,11 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
   CodeForStatement(node);
   LoadAndSpill(node->expression());
-  frame_->CallRuntime(Runtime::kPushContext, 1);
+  if (node->is_catch_block()) {
+    frame_->CallRuntime(Runtime::kPushCatchContext, 1);
+  } else {
+    frame_->CallRuntime(Runtime::kPushContext, 1);
+  }
 
   if (kDebug) {
     JumpTarget verified_true(this);
@@ -4208,8 +4212,6 @@ void Reference::GetValue(TypeofState typeof_state) {
       // distinction between expressions in a typeof and not in a typeof.
       VirtualFrame::SpilledScope spilled_scope(cgen_);
       Comment cmnt(masm, "[ Load from keyed Property");
-      Property* property = expression_->AsProperty();
-      ASSERT(property != NULL);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
 
       Variable* var = expression_->AsVariableProxy()->AsVariable();
@@ -4261,8 +4263,6 @@ void Reference::SetValue(InitState init_state) {
     case KEYED: {
       VirtualFrame::SpilledScope spilled_scope(cgen_);
       Comment cmnt(masm, "[ Store to keyed Property");
-      Property* property = expression_->AsProperty();
-      ASSERT(property != NULL);
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.

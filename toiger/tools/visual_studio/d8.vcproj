@@ -148,6 +148,14 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\src\d8-debug.cc"
+			>
+		</File>
+		<File
+			RelativePath="..\..\src\d8-debug.h"
+			>
+		</File>
+		<File
 			RelativePath="..\..\src\d8.js"
 			>
 				<FileConfiguration

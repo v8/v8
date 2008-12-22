@@ -43,7 +43,10 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void Backtrack();
   virtual void Bind(Label* label);
   virtual void CheckBitmap(uc16 start, Label* bitmap, Label* on_zero);
-  virtual void CheckCharacter(uc16 c, Label* on_equal);
+  virtual void CheckCharacter(uint32_t c, Label* on_equal);
+  virtual void CheckCharacterAfterAnd(uint32_t c,
+                                      uint32_t mask,
+                                      Label* on_equal);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckCharacters(Vector<const uc16> str,
@@ -56,11 +59,14 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);
   virtual void CheckNotRegistersEqual(int reg1, int reg2, Label* on_not_equal);
-  virtual void CheckNotCharacter(uc16 c, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterOr(uc16 c, uc16 mask, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterMinusOr(uc16 c,
-                                             uc16 mask,
-                                             Label* on_not_equal);
+  virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
+  virtual void CheckNotCharacterAfterAnd(uint32_t c,
+                                         uint32_t mask,
+                                         Label* on_not_equal);
+  virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
+                                              uc16 minus,
+                                              uc16 mask,
+                                              Label* on_not_equal);
   virtual void DispatchByteMap(uc16 start,
                                Label* byte_map,
                                const Vector<Label*>& destinations);
@@ -77,9 +83,10 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
   virtual IrregexpImplementation Implementation();
-  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
-  virtual void LoadCurrentCharacterUnchecked(int cp_offset);
-
+  virtual void LoadCurrentCharacter(int cp_offset,
+                                    Label* on_end_of_input,
+                                    bool check_bounds = true,
+                                    int characters = 1);
   virtual void PopCurrentPosition();
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);
@@ -134,6 +141,8 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
                                         int byte_offset1,
                                         int byte_offset2,
                                         size_t byte_length);
+
+  void LoadCurrentCharacterUnchecked(int cp_offset, int characters);
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
@@ -192,6 +201,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   Label entry_label_;
   Label start_label_;
   Label success_label_;
+  Label backtrack_label_;
   Label exit_label_;
   Label check_preempt_label_;
   // Handle used to represent the generated code object itself.

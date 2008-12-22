@@ -264,6 +264,12 @@ class Context: public FixedArray {
     global_context()->set_out_of_memory(Heap::true_value());
   }
 
+  // The exception holder is the object used as a with object in
+  // the implementation of a catch block.
+  bool is_exception_holder(Object* object) {
+    return IsCatchContext() && extension() == object;
+  }
+
 #define GLOBAL_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   void  set_##name(type* value) {                         \
     ASSERT(IsGlobalContext());                            \

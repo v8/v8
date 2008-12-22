@@ -81,16 +81,33 @@ static void TraceInterpreter(const byte* code_base,
                              const byte* pc,
                              int stack_depth,
                              int current_position,
+                             uint32_t current_char,
                              int bytecode_length,
                              const char* bytecode_name) {
   if (FLAG_trace_regexp_bytecodes) {
-    PrintF("pc = %02x, sp = %d, current = %d, bc = %s",
+    bool printable = (current_char < 127 && current_char >= 32);
+    const char* format =
+        printable ?
+        "pc = %02x, sp = %d, curpos = %d, curchar = %08x (%c), bc = %s" :
+        "pc = %02x, sp = %d, curpos = %d, curchar = %08x .%c., bc = %s";
+    PrintF(format,
            pc - code_base,
            stack_depth,
            current_position,
+           current_char,
+           printable ? current_char : '.',
            bytecode_name);
     for (int i = 1; i < bytecode_length; i++) {
       printf(", %02x", pc[i]);
+    }
+    printf(" ");
+    for (int i = 1; i < bytecode_length; i++) {
+      unsigned char b = pc[i];
+      if (b < 127 && b >= 32) {
+        printf("%c", b);
+      } else {
+        printf(".");
+      }
     }
     printf("\n");
   }
@@ -103,6 +120,7 @@ static void TraceInterpreter(const byte* code_base,
                      pc,                                \
                      backtrack_sp - backtrack_stack,    \
                      current,                           \
+                     current_char,                      \
                      BC_##name##_LENGTH,                \
                      #name);
 #else
@@ -117,7 +135,7 @@ static bool RawMatch(const byte* code_base,
                      Vector<const Char> subject,
                      int* registers,
                      int current,
-                     int current_char) {
+                     uint32_t current_char) {
   const byte* pc = code_base;
   static const int kBacktrackStackSize = 10000;
   int backtrack_stack[kBacktrackStackSize];
@@ -233,45 +251,104 @@ static bool RawMatch(const byte* code_base,
         pc += BC_LOAD_CURRENT_CHAR_UNCHECKED_LENGTH;
         break;
       }
+      BYTECODE(LOAD_2_CURRENT_CHARS) {
+        int pos = current + Load32(pc + 1);
+        if (pos + 2 > subject.length()) {
+          pc = code_base + Load32(pc + 5);
+        } else {
+          Char next = subject[pos + 1];
+          current_char =
+              (subject[pos] | (next << (kBitsPerByte * sizeof(Char))));
+          pc += BC_LOAD_2_CURRENT_CHARS_LENGTH;
+        }
+        break;
+      }
+      BYTECODE(LOAD_2_CURRENT_CHARS_UNCHECKED) {
+        int pos = current + Load32(pc + 1);
+        Char next = subject[pos + 1];
+        current_char = (subject[pos] | (next << (kBitsPerByte * sizeof(Char))));
+        pc += BC_LOAD_2_CURRENT_CHARS_UNCHECKED_LENGTH;
+        break;
+      }
+      BYTECODE(LOAD_4_CURRENT_CHARS) {
+        ASSERT(sizeof(Char) == 1);
+        int pos = current + Load32(pc + 1);
+        if (pos + 4 > subject.length()) {
+          pc = code_base + Load32(pc + 5);
+        } else {
+          Char next1 = subject[pos + 1];
+          Char next2 = subject[pos + 2];
+          Char next3 = subject[pos + 3];
+          current_char = (subject[pos] |
+                          (next1 << 8) |
+                          (next2 << 16) |
+                          (next3 << 24));
+          pc += BC_LOAD_4_CURRENT_CHARS_LENGTH;
+        }
+        break;
+      }
+      BYTECODE(LOAD_4_CURRENT_CHARS_UNCHECKED) {
+        ASSERT(sizeof(Char) == 1);
+        int pos = current + Load32(pc + 1);
+        Char next1 = subject[pos + 1];
+        Char next2 = subject[pos + 2];
+        Char next3 = subject[pos + 3];
+        current_char = (subject[pos] |
+                        (next1 << 8) |
+                        (next2 << 16) |
+                        (next3 << 24));
+        pc += BC_LOAD_4_CURRENT_CHARS_UNCHECKED_LENGTH;
+        break;
+      }
       BYTECODE(CHECK_CHAR) {
-        int c = Load16(pc + 1);
+        uint32_t c = Load32(pc + 1);
         if (c == current_char) {
-          pc = code_base + Load32(pc + 3);
+          pc = code_base + Load32(pc + 5);
         } else {
           pc += BC_CHECK_CHAR_LENGTH;
         }
         break;
       }
       BYTECODE(CHECK_NOT_CHAR) {
-        int c = Load16(pc + 1);
+        uint32_t c = Load32(pc + 1);
         if (c != current_char) {
-          pc = code_base + Load32(pc + 3);
+          pc = code_base + Load32(pc + 5);
         } else {
           pc += BC_CHECK_NOT_CHAR_LENGTH;
         }
         break;
       }
-      BYTECODE(OR_CHECK_NOT_CHAR) {
-        int c = Load16(pc + 1);
-        if (c != (current_char | Load16(pc + 3))) {
-          pc = code_base + Load32(pc + 5);
+      BYTECODE(AND_CHECK_CHAR) {
+        uint32_t c = Load32(pc + 1);
+        if (c == (current_char & Load32(pc + 5))) {
+          pc = code_base + Load32(pc + 9);
         } else {
-          pc += BC_OR_CHECK_NOT_CHAR_LENGTH;
+          pc += BC_AND_CHECK_CHAR_LENGTH;
         }
         break;
       }
-      BYTECODE(MINUS_OR_CHECK_NOT_CHAR) {
-        int c = Load16(pc + 1);
-        int m = Load16(pc + 3);
-        if (c != ((current_char - m) | m)) {
-          pc = code_base + Load32(pc + 5);
+      BYTECODE(AND_CHECK_NOT_CHAR) {
+        uint32_t c = Load32(pc + 1);
+        if (c != (current_char & Load32(pc + 5))) {
+          pc = code_base + Load32(pc + 9);
         } else {
-          pc += BC_MINUS_OR_CHECK_NOT_CHAR_LENGTH;
+          pc += BC_AND_CHECK_NOT_CHAR_LENGTH;
+        }
+        break;
+      }
+      BYTECODE(MINUS_AND_CHECK_NOT_CHAR) {
+        uint32_t c = Load16(pc + 1);
+        uint32_t minus = Load16(pc + 3);
+        uint32_t mask = Load16(pc + 5);
+        if (c != ((current_char - minus) & mask)) {
+          pc = code_base + Load32(pc + 7);
+        } else {
+          pc += BC_MINUS_AND_CHECK_NOT_CHAR_LENGTH;
         }
         break;
       }
       BYTECODE(CHECK_LT) {
-        int limit = Load16(pc + 1);
+        uint32_t limit = Load16(pc + 1);
         if (current_char < limit) {
           pc = code_base + Load32(pc + 3);
         } else {
@@ -280,7 +357,7 @@ static bool RawMatch(const byte* code_base,
         break;
       }
       BYTECODE(CHECK_GT) {
-        int limit = Load16(pc + 1);
+        uint32_t limit = Load16(pc + 1);
         if (current_char > limit) {
           pc = code_base + Load32(pc + 3);
         } else {

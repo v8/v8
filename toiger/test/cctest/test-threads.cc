@@ -25,50 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug
-// Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
+#include "v8.h"
 
-// Simple debug event handler which counts the number of breaks hit and steps.
-var break_break_point_hit_count = 0;
-function listener(event, exec_state, event_data, data) {
-  if (event == Debug.DebugEvent.Break) {
-    break_break_point_hit_count++;
-    // Continue stepping until returned to bottom frame.
-    if (exec_state.frameCount() > 1) {
-      exec_state.prepareStep(Debug.StepAction.StepIn);
-    }
-    
-    // Test that there is a script.
-    assertTrue(typeof(event_data.func().script()) == 'object');
-  }
-};
+#include "platform.h"
 
-// Add the debug event listener.
-Debug.addListener(listener);
+#include "cctest.h"
 
-// Test step into constructor with simple constructor.
-function X() {
+
+TEST(Preemption) {
+  v8::Locker locker;
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  v8::Context::Scope context_scope(v8::Context::New());
+
+  v8::Locker::StartPreemption(100);
+
+  v8::Handle<v8::Script> script = v8::Script::Compile(
+      v8::String::New("var count = 0; var obj = new Object(); count++;\n"));
+
+  script->Run();
+
+  v8::Locker::StopPreemption();
+  v8::internal::OS::Sleep(500);  // Make sure the timer fires.
+
+  script->Run();
 }
 
-function f() {
-  debugger;
-  new X();
-};
 
-break_break_point_hit_count = 0;
-f();
-assertEquals(5, break_break_point_hit_count);
-
-// Test step into constructor with builtin constructor.
-function g() {
-  debugger;
-  new Date();
-};
-
-break_break_point_hit_count = 0;
-g();
-assertEquals(4, break_break_point_hit_count);
-
-// Get rid of the debug event listener.
-Debug.removeListener(listener);

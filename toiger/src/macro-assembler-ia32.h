@@ -314,6 +314,7 @@ class CodePatcher {
   MacroAssembler masm_;  // Macro assembler used to generate the code.
 };
 
+
 // -----------------------------------------------------------------------------
 // Static helper functions.
 

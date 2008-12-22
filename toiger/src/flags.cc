@@ -516,10 +516,11 @@ void FlagList::PrintHelp() {
   printf("  shell [options] file1 file2 ... filek\n");
   printf("    run JavaScript scripts in file1, file2, ..., filek\n");
   printf("  shell [options]\n");
-  printf("  shell [options] --shell\n");
-  printf("    run an interactive JavaScript shell");
-  printf("  d8 [options] file\n");
+  printf("  shell [options] --shell [file1 file2 ... filek]\n");
+  printf("    run an interactive JavaScript shell\n");
+  printf("  d8 [options] file1 file2 ... filek\n");
   printf("  d8 [options]\n");
+  printf("  d8 [options] --shell [file1 file2 ... filek]\n");
   printf("    run the new debugging shell\n\n");
   printf("Options:\n");
   for (size_t i = 0; i < num_flags; ++i) {

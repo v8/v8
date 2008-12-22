@@ -32,6 +32,7 @@
 #include "log.h"
 #include "platform.h"
 #include "string-stream.h"
+#include "macro-assembler.h"
 
 namespace v8 { namespace internal {
 
@@ -556,6 +557,18 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 }
 
 
+void Logger::CodeAllocateEvent(Code* code, Assembler* assem) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL || !FLAG_log_code) return;
+  ScopedLock sl(mutex_);
+
+  fprintf(logfile_, "code-allocate,0x%x,0x%x\n",
+          reinterpret_cast<unsigned int>(code->address()),
+          reinterpret_cast<unsigned int>(assem));
+#endif
+}
+
+
 void Logger::CodeMoveEvent(Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
@@ -572,6 +585,33 @@ void Logger::CodeDeleteEvent(Address from) {
   if (logfile_ == NULL || !FLAG_log_code) return;
   ScopedLock sl(mutex_);
   fprintf(logfile_, "code-delete,0x%x\n", reinterpret_cast<unsigned int>(from));
+#endif
+}
+
+
+void Logger::BeginCodeRegionEvent(CodeRegion* region,
+                                  Assembler* masm,
+                                  const char* name) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL || !FLAG_log_code) return;
+  ScopedLock sl(mutex_);
+  fprintf(logfile_, "begin-code-region,0x%x,0x%x,0x%x,%s\n",
+          reinterpret_cast<unsigned int>(region),
+          reinterpret_cast<unsigned int>(masm),
+          masm->pc_offset(),
+          name);
+#endif
+}
+
+
+void Logger::EndCodeRegionEvent(CodeRegion* region, Assembler* masm) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL || !FLAG_log_code) return;
+  ScopedLock sl(mutex_);
+  fprintf(logfile_, "end-code-region,0x%x,0x%x,0x%x\n",
+          reinterpret_cast<unsigned int>(region),
+          reinterpret_cast<unsigned int>(masm),
+          masm->pc_offset());
 #endif
 }
 

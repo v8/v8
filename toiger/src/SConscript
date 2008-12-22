@@ -79,7 +79,7 @@ SOURCES = {
 
 D8_FILES = {
   'all': [
-    'd8.cc'
+    'd8.cc', 'd8-debug.cc'
   ],
   'console:readline': [
     'd8-readline.cc'

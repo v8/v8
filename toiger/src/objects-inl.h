@@ -348,7 +348,14 @@ bool Object::IsDescriptorArray() {
 bool Object::IsContext() {
   return Object::IsHeapObject()
     && (HeapObject::cast(this)->map() == Heap::context_map() ||
+        HeapObject::cast(this)->map() == Heap::catch_context_map() ||
         HeapObject::cast(this)->map() == Heap::global_context_map());
+}
+
+
+bool Object::IsCatchContext() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map() == Heap::catch_context_map();
 }
 
 

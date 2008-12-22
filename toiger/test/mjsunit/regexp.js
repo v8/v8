@@ -306,3 +306,13 @@ assertFalse(/f[abc]/i.test('x'));
 assertFalse(/f[abc]/i.test('xa'));
 assertFalse(/<[abc]/i.test('x'));
 assertFalse(/<[abc]/i.test('xa'));
+
+// Test that merging of quick test masks gets it right.
+assertFalse(/x([0-7]%%x|[0-6]%%y)/.test('x7%%y'), 'qt');
+assertFalse(/()x\1(y([0-7]%%%x|[0-6]%%%y)|dkjasldkas)/.test('xy7%%%y'), 'qt2');
+assertFalse(/()x\1(y([0-7]%%%x|[0-6]%%%y)|dkjasldkas)/.test('xy%%%y'), 'qt3');
+assertFalse(/()x\1y([0-7]%%%x|[0-6]%%%y)/.test('xy7%%%y'), 'qt4');
+assertFalse(/()x\1(y([0-7]%%%x|[0-6]%%%y)|dkjasldkas)/.test('xy%%%y'), 'qt5');
+assertFalse(/()x\1y([0-7]%%%x|[0-6]%%%y)/.test('xy7%%%y'), 'qt6');
+assertFalse(/xy([0-7]%%%x|[0-6]%%%y)/.test('xy7%%%y'), 'qt7');
+assertFalse(/x([0-7]%%%x|[0-6]%%%y)/.test('x7%%%y'), 'qt8');

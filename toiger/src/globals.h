@@ -145,6 +145,7 @@ class Assembler;
 class BreakableStatement;
 class Code;
 class CodeGenerator;
+class CodeRegion;
 class CodeStub;
 class Context;
 class Debug;
@@ -258,6 +259,7 @@ struct CodeDesc {
   int buffer_size;
   int instr_size;
   int reloc_size;
+  Assembler* origin;
 };
 
 

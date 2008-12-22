@@ -130,8 +130,12 @@ Handle<Context> Factory::NewFunctionContext(int length,
 
 
 Handle<Context> Factory::NewWithContext(Handle<Context> previous,
-                                        Handle<JSObject> extension) {
-  CALL_HEAP_FUNCTION(Heap::AllocateWithContext(*previous, *extension), Context);
+                                        Handle<JSObject> extension,
+                                        bool is_catch_context) {
+  CALL_HEAP_FUNCTION(Heap::AllocateWithContext(*previous,
+                                               *extension,
+                                               is_catch_context),
+                     Context);
 }
 
 

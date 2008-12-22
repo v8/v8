@@ -332,7 +332,7 @@ void* RegExpUnparser::VisitText(RegExpText* that, void* data) {
 
 void* RegExpUnparser::VisitQuantifier(RegExpQuantifier* that, void* data) {
   stream()->Add("(# %i ", that->min());
-  if (that->max() == RegExpQuantifier::kInfinity) {
+  if (that->max() == RegExpTree::kInfinity) {
     stream()->Add("- ");
   } else {
     stream()->Add("%i ", that->max());
@@ -378,6 +378,36 @@ SmartPointer<const char> RegExpTree::ToString() {
   RegExpUnparser unparser;
   Accept(&unparser, NULL);
   return unparser.ToString();
+}
+
+
+RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
+    : alternatives_(alternatives) {
+  RegExpTree* first_alternative = alternatives->at(0);
+  min_match_ = first_alternative->min_match();
+  max_match_ = first_alternative->max_match();
+  for (int i = 1; i < alternatives->length(); i++) {
+    RegExpTree* alternative = alternatives->at(i);
+    min_match_ = Min(min_match_, alternative->min_match());
+    max_match_ = Max(max_match_, alternative->max_match());
+  }
+}
+
+
+RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
+    : nodes_(nodes) {
+  min_match_ = 0;
+  max_match_ = 0;
+  for (int i = 0; i < nodes->length(); i++) {
+    RegExpTree* node = nodes->at(i);
+    min_match_ += node->min_match();
+    int node_max_match = node->max_match();
+    if (kInfinity - max_match_ < node_max_match) {
+      max_match_ = kInfinity;
+    } else {
+      max_match_ += node->max_match();
+    }
+  }
 }
 
 
