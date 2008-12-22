@@ -713,13 +713,18 @@ class DeferredInlineBinaryOperation: public DeferredCode {
   void GenerateInlineCode();
 
   virtual void Generate() {
-    __ push(ebx);
-    __ CallStub(&stub_);
+    // The arguments are is actually passed in ebx and the top of the stack.
+    enter()->Bind();
+    VirtualFrame::SpilledScope spilled_scope(generator());
+    generator()->frame()->EmitPush(ebx);
+    generator()->frame()->CallStub(&stub_, 2);
     // We must preserve the eax value here, because it will be written
     // to the top-of-stack element when getting back to the fast case
     // code. See comment in GenericBinaryOperation where
     // deferred->exit() is bound.
-    __ push(eax);
+    generator()->frame()->EmitPush(eax);
+    // The result is actually returned on the top of the stack.
+    exit()->Jump();
   }
 
  private:
@@ -769,6 +774,10 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 
   if (flags == SMI_CODE_INLINED) {
     // Create a new deferred code for the slow-case part.
+    //
+    // TODO(): When this code is updated to use the virtual frame, it
+    // has to properly flow to the inline code from this deferred code
+    // stub.
     DeferredInlineBinaryOperation* deferred =
         new DeferredInlineBinaryOperation(this, op, overwrite_mode, flags);
     // Fetch the operands from the stack.
@@ -801,10 +810,15 @@ class DeferredInlinedSmiOperation: public DeferredCode {
     set_comment("[ DeferredInlinedSmiOperation");
   }
   virtual void Generate() {
-    __ push(eax);
-    __ push(Immediate(Smi::FromInt(value_)));
+    // The argument is actually passed in eax.
+    enter()->Bind();
+    VirtualFrame::SpilledScope spilled_scope(generator());
+    generator()->frame()->EmitPush(eax);
+    generator()->frame()->EmitPush(Immediate(Smi::FromInt(value_)));
     GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
-    __ CallStub(&igostub);
+    generator()->frame()->CallStub(&igostub, 2);
+    // The result is actually returned in eax.
+    exit()->Jump();
   }
 
  private:
@@ -824,10 +838,15 @@ class DeferredInlinedSmiOperationReversed: public DeferredCode {
     set_comment("[ DeferredInlinedSmiOperationReversed");
   }
   virtual void Generate() {
-    __ push(Immediate(Smi::FromInt(value_)));
-    __ push(eax);
+    // The argument is actually passed in eax.
+    enter()->Bind();
+    VirtualFrame::SpilledScope spilled_scope(generator());
+    generator()->frame()->EmitPush(Immediate(Smi::FromInt(value_)));
+    generator()->frame()->EmitPush(eax);
     GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
-    __ CallStub(&igostub);
+    generator()->frame()->CallStub(&igostub, 2);
+    // The result is actually returned in eax.
+    exit()->Jump();
   }
 
  private:
@@ -846,13 +865,18 @@ class DeferredInlinedSmiAdd: public DeferredCode {
   }
 
   virtual void Generate() {
+    // The argument is actually passed in eax.
+    enter()->Bind();
+    VirtualFrame::SpilledScope spilled_scope(generator());
     // Undo the optimistic add operation and call the shared stub.
     Immediate immediate(Smi::FromInt(value_));
     __ sub(Operand(eax), immediate);
-    __ push(eax);
-    __ push(immediate);
+    generator()->frame()->EmitPush(eax);
+    generator()->frame()->EmitPush(immediate);
     GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-    __ CallStub(&igostub);
+    generator()->frame()->CallStub(&igostub, 2);
+    // The result is actually returned in eax.
+    exit()->Jump();
   }
 
  private:
@@ -870,13 +894,18 @@ class DeferredInlinedSmiAddReversed: public DeferredCode {
   }
 
   virtual void Generate() {
+    // The argument is actually passed in eax.
+    enter()->Bind();
+    VirtualFrame::SpilledScope spilled_scope(generator());
     // Undo the optimistic add operation and call the shared stub.
     Immediate immediate(Smi::FromInt(value_));
     __ sub(Operand(eax), immediate);
-    __ push(immediate);
-    __ push(eax);
+    generator()->frame()->EmitPush(immediate);
+    generator()->frame()->EmitPush(eax);
     GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-    __ CallStub(&igostub);
+    generator()->frame()->CallStub(&igostub, 2);
+    // The result is actually returned in eax.
+    exit()->Jump();
   }
 
  private:
@@ -894,13 +923,18 @@ class DeferredInlinedSmiSub: public DeferredCode {
   }
 
   virtual void Generate() {
+    // The argument is actually passed in eax.
+    enter()->Bind();
+    VirtualFrame::SpilledScope spilled_scope(generator());
     // Undo the optimistic sub operation and call the shared stub.
     Immediate immediate(Smi::FromInt(value_));
     __ add(Operand(eax), immediate);
-    __ push(eax);
-    __ push(immediate);
+    generator()->frame()->EmitPush(eax);
+    generator()->frame()->EmitPush(immediate);
     GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-    __ CallStub(&igostub);
+    generator()->frame()->CallStub(&igostub, 2);
+    // The result is actually returned in eax.
+    exit()->Jump();
   }
 
  private:
@@ -921,12 +955,17 @@ class DeferredInlinedSmiSubReversed: public DeferredCode {
   }
 
   virtual void Generate() {
+    // The arguments are actually passed in eax and tos_reg.
+    enter()->Bind();
+    VirtualFrame::SpilledScope spilled_scope(generator());
     // Undo the optimistic sub operation and call the shared stub.
     __ add(eax, Operand(tos_reg_));
-    __ push(eax);
-    __ push(tos_reg_);
+    generator()->frame()->EmitPush(eax);
+    generator()->frame()->EmitPush(tos_reg_);
     GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-    __ CallStub(&igostub);
+    generator()->frame()->CallStub(&igostub, 2);
+    // The result is actually returned in eax.
+    exit()->Jump();
   }
 
  private:
@@ -1185,18 +1224,16 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
 }
 
 
-class SmiComparisonDeferred: public DeferredCode {
+class DeferredSmiComparison: public DeferredCode {
  public:
-  SmiComparisonDeferred(CodeGenerator* generator,
+  DeferredSmiComparison(CodeGenerator* generator,
                         Condition cc,
                         bool strict,
-                        Register left_side,
-                        int right_side) :
+                        int int_value) :
       DeferredCode(generator),
       cc_(cc),
       strict_(strict),
-      left_side_(left_side),
-      right_side_(right_side) {
+      int_value_(int_value) {
     set_comment("[ ComparisonDeferred");
   }
   virtual void Generate();
@@ -1204,21 +1241,27 @@ class SmiComparisonDeferred: public DeferredCode {
  private:
   Condition cc_;
   bool strict_;
-  Register left_side_;
-  int right_side_;
+  int int_value_;
 };
 
 
-void SmiComparisonDeferred::Generate() {
+void DeferredSmiComparison::Generate() {
+  CodeGenerator* cgen = generator();
   CompareStub stub(cc_, strict_);
+  Result argument(cgen);
+  enter()->Bind(&argument);
+
   // Setup parameters and call stub.
-  if (!left_side_.is(edx)) {
-    __ mov(edx, Operand(left_side_));
-  }
-  __ Set(eax, Immediate(Smi::FromInt(right_side_)));
-  __ CallStub(&stub);
-  __ cmp(eax, 0);
-  // "result" is returned in the flags.
+  argument.ToRegister(edx);
+  Result value = cgen->allocator()->Allocate(eax);
+  ASSERT(value.is_valid());
+  __ Set(value.reg(), Immediate(Smi::FromInt(int_value_)));
+  Result result = cgen->frame()->CallStub(&stub, &argument, &value, 0);
+  ASSERT(result.is_register());
+  __ cmp(result.reg(), 0);
+  result.Unuse();
+  // The actual result is returned in the flags.
+  exit()->Jump();
 }
 
 
@@ -1231,15 +1274,15 @@ void CodeGenerator::SmiComparison(Condition cc,
   int int_value = Smi::cast(*value)->value();
   ASSERT(is_intn(int_value, kMaxSmiInlinedBits));
 
+  DeferredSmiComparison* deferred =
+      new DeferredSmiComparison(this, cc, strict, int_value);
+
   Result comparee = frame_->Pop();
   comparee.ToRegister();
-  Register reg = comparee.reg();
-  __ test(reg, Immediate(kSmiTagMask));
-  SmiComparisonDeferred* deferred =
-      new SmiComparisonDeferred(this, cc, strict, reg, int_value);
-  deferred->enter()->Branch(not_zero, not_taken);
+  __ test(comparee.reg(), Immediate(kSmiTagMask));
+  deferred->enter()->Branch(not_zero, &comparee, not_taken);
   // Test smi equality and comparison by signed int comparison.
-  __ cmp(Operand(reg), Immediate(value));
+  __ cmp(Operand(comparee.reg()), Immediate(value));
   comparee.Unuse();
   deferred->exit()->Bind();
   cc_reg_ = cc;
@@ -2682,9 +2725,9 @@ void CodeGenerator::VisitLiteral(Literal* node) {
 }
 
 
-class RegExpDeferred: public DeferredCode {
+class DeferredRegExpLiteral: public DeferredCode {
  public:
-  RegExpDeferred(CodeGenerator* generator, RegExpLiteral* node)
+  DeferredRegExpLiteral(CodeGenerator* generator, RegExpLiteral* node)
       : DeferredCode(generator), node_(node) {
     set_comment("[ RegExpDeferred");
   }
@@ -2694,27 +2737,33 @@ class RegExpDeferred: public DeferredCode {
 };
 
 
-void RegExpDeferred::Generate() {
+void DeferredRegExpLiteral::Generate() {
+  // The argument is actually passed in ecx.
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
   // If the entry is undefined we call the runtime system to compute the
   // literal.
 
   // Literal array (0).
-  __ push(ecx);
+  generator()->frame()->EmitPush(ecx);
   // Literal index (1).
-  __ push(Immediate(Smi::FromInt(node_->literal_index())));
+  generator()->frame()->EmitPush(
+      Immediate(Smi::FromInt(node_->literal_index())));
   // RegExp pattern (2).
-  __ push(Immediate(node_->pattern()));
+  generator()->frame()->EmitPush(Immediate(node_->pattern()));
   // RegExp flags (3).
-  __ push(Immediate(node_->flags()));
-  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  generator()->frame()->EmitPush(Immediate(node_->flags()));
+  generator()->frame()->CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
   __ mov(ebx, Operand(eax));  // "caller" expects result in ebx
+  // The result is actually returned in ebx.
+  exit()->Jump();
 }
 
 
 void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ RegExp Literal");
-  RegExpDeferred* deferred = new RegExpDeferred(this, node);
+  DeferredRegExpLiteral* deferred = new DeferredRegExpLiteral(this, node);
 
   // Retrieve the literal array and check the allocated entry.
 
@@ -2744,9 +2793,9 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 // by calling Runtime_CreateObjectLiteral.
 // Each created boilerplate is stored in the JSFunction and they are
 // therefore context dependent.
-class ObjectLiteralDeferred: public DeferredCode {
+class DeferredObjectLiteral: public DeferredCode {
  public:
-  ObjectLiteralDeferred(CodeGenerator* generator,
+  DeferredObjectLiteral(CodeGenerator* generator,
                         ObjectLiteral* node)
       : DeferredCode(generator), node_(node) {
     set_comment("[ ObjectLiteralDeferred");
@@ -2757,25 +2806,32 @@ class ObjectLiteralDeferred: public DeferredCode {
 };
 
 
-void ObjectLiteralDeferred::Generate() {
+void DeferredObjectLiteral::Generate() {
+  // The argument is actually passed in ecx.
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
   // If the entry is undefined we call the runtime system to compute
   // the literal.
 
   // Literal array (0).
-  __ push(ecx);
+  generator()->frame()->EmitPush(ecx);
   // Literal index (1).
-  __ push(Immediate(Smi::FromInt(node_->literal_index())));
+  generator()->frame()->EmitPush(
+      Immediate(Smi::FromInt(node_->literal_index())));
   // Constant properties (2).
-  __ push(Immediate(node_->constant_properties()));
-  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
+  generator()->frame()->EmitPush(Immediate(node_->constant_properties()));
+  generator()->frame()->CallRuntime(Runtime::kCreateObjectLiteralBoilerplate,
+                                    3);
   __ mov(ebx, Operand(eax));
+  // The result is actually returned in ebx.
+  exit()->Jump();
 }
 
 
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ObjectLiteral");
-  ObjectLiteralDeferred* deferred = new ObjectLiteralDeferred(this, node);
+  DeferredObjectLiteral* deferred = new DeferredObjectLiteral(this, node);
 
   // Retrieve the literal array and check the allocated entry.
 
@@ -3629,9 +3685,9 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 }
 
 
-class CountOperationDeferred: public DeferredCode {
+class DeferredCountOperation: public DeferredCode {
  public:
-  CountOperationDeferred(CodeGenerator* generator,
+  DeferredCountOperation(CodeGenerator* generator,
                          bool is_postfix,
                          bool is_increment,
                          int result_offset)
@@ -3704,13 +3760,18 @@ class CounterOpStub: public CodeStub {
 };
 
 
-void CountOperationDeferred::Generate() {
+void DeferredCountOperation::Generate() {
+  // The argument is actually passed in eax.
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
   if (is_postfix_) {
     RevertToNumberStub to_number_stub(is_increment_);
-    __ CallStub(&to_number_stub);
+    generator()->frame()->CallStub(&to_number_stub, 0);
   }
   CounterOpStub stub(result_offset_, is_postfix_, is_increment_);
-  __ CallStub(&stub);
+  generator()->frame()->CallStub(&stub, 0);
+  // The result is actually returned in eax.
+  exit()->Jump();
 }
 
 
@@ -3740,8 +3801,8 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     }
     target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
 
-    CountOperationDeferred* deferred =
-        new CountOperationDeferred(this, is_postfix, is_increment,
+    DeferredCountOperation* deferred =
+        new DeferredCountOperation(this, is_postfix, is_increment,
                                    target.size() * kPointerSize);
 
     frame_->EmitPop(eax);  // Load TOS into eax for calculations below
@@ -4146,6 +4207,17 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 bool CodeGenerator::IsActualFunctionReturn(JumpTarget* target) {
   return (target == &function_return_ && !function_return_is_shadowed_);
 }
+
+
+#ifdef DEBUG
+bool CodeGenerator::HasValidEntryRegisters() {
+  return (allocator()->count(eax) - frame()->register_count(eax) == 0)
+      && (allocator()->count(ebx) - frame()->register_count(ebx) == 0)
+      && (allocator()->count(ecx) - frame()->register_count(ecx) == 0)
+      && (allocator()->count(edx) - frame()->register_count(edx) == 0)
+      && (allocator()->count(edi) - frame()->register_count(edi) == 0);
+}
+#endif
 
 
 #undef __

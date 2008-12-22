@@ -39,22 +39,22 @@ namespace v8 { namespace internal {
 
 JumpTarget::JumpTarget(CodeGenerator* cgen)
     : expected_frame_(NULL),
-      code_generator_(cgen),
+      cgen_(cgen),
       masm_(cgen->masm()) {
 }
 
 
 JumpTarget::JumpTarget()
     : expected_frame_(NULL),
-      code_generator_(NULL),
+      cgen_(NULL),
       masm_(NULL) {
 }
 
 
 void JumpTarget::set_code_generator(CodeGenerator* cgen) {
   ASSERT(cgen != NULL);
-  ASSERT(code_generator_ == NULL);
-  code_generator_ = cgen;
+  ASSERT(cgen_ == NULL);
+  cgen_ = cgen;
   masm_ = cgen->masm();
 }
 
@@ -62,28 +62,29 @@ void JumpTarget::set_code_generator(CodeGenerator* cgen) {
 void JumpTarget::Jump() {
   // Precondition: there is a current frame.  There may or may not be an
   // expected frame at the label.
-  ASSERT(code_generator_ != NULL);
+  ASSERT(cgen_ != NULL);
 
-  VirtualFrame* current_frame = code_generator_->frame();
+  VirtualFrame* current_frame = cgen_->frame();
   ASSERT(current_frame != NULL);
+  ASSERT(cgen_->HasValidEntryRegisters());
 
   if (expected_frame_ == NULL) {
     // The frame at the actual function return will always have height zero.
-    if (code_generator_->IsActualFunctionReturn(this)) {
+    if (cgen_->IsActualFunctionReturn(this)) {
       current_frame->Forget(current_frame->height());
     }
-    if (!current_frame->IsMergable()) {
-      current_frame->MakeMergable();
-    }
+    current_frame->MakeMergable();
     expected_frame_ = current_frame;
-    code_generator_->SetFrame(NULL);
+    ASSERT(cgen_->HasValidEntryRegisters());
+    cgen_->SetFrame(NULL);
   } else {
     // No code needs to be emitted to merge to the expected frame at the
     // actual function return.
-    if (!code_generator_->IsActualFunctionReturn(this)) {
+    if (!cgen_->IsActualFunctionReturn(this)) {
       current_frame->MergeTo(expected_frame_);
     }
-    code_generator_->DeleteFrame();
+    ASSERT(cgen_->HasValidEntryRegisters());
+    cgen_->DeleteFrame();
   }
 
   __ jmp(&label_);
@@ -95,16 +96,17 @@ void JumpTarget::Jump() {
 void JumpTarget::Branch(Condition cc, Hint hint) {
   // Precondition: there is a current frame.  There may or may not be an
   // expected frame at the label.
-  ASSERT(code_generator_ != NULL);
+  ASSERT(cgen_ != NULL);
   ASSERT(masm_ != NULL);
 
-  VirtualFrame* current_frame = code_generator_->frame();
+  VirtualFrame* current_frame = cgen_->frame();
   ASSERT(current_frame != NULL);
+  ASSERT(cgen_->HasValidEntryRegisters());
 
   if (expected_frame_ == NULL) {
     expected_frame_ = new VirtualFrame(current_frame);
     // The frame at the actual function return will always have height zero.
-    if (code_generator_->IsActualFunctionReturn(this)) {
+    if (cgen_->IsActualFunctionReturn(this)) {
       expected_frame_->Forget(expected_frame_->height());
     }
     // For a branch, the frame at the fall-through basic block (not labeled)
@@ -119,17 +121,17 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
       __ jmp(&label_);
       __ bind(&original_fall_through);
     } else {
-      if (!expected_frame_->IsMergable()) {
-        expected_frame_->MakeMergable();
-      }
+      expected_frame_->MakeMergable();
+      ASSERT(cgen_->HasValidEntryRegisters());
       __ j(cc, &label_, hint);
     }
   } else {
     // No code needs to be emitted to merge to the expected frame at the
     // actual function return.
-    if (!code_generator_->IsActualFunctionReturn(this)) {
+    if (!cgen_->IsActualFunctionReturn(this)) {
       current_frame->MergeTo(expected_frame_);
     }
+    ASSERT(cgen_->HasValidEntryRegisters());
       __ j(cc, &label_, hint);
   }
   // Postcondition: there is both a current frame and an expected frame at
@@ -137,24 +139,44 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
 }
 
 
+void JumpTarget::Branch(Condition cc, Result* arg, Hint hint) {
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->frame() != NULL);
+
+#ifdef DEBUG
+  // We want register results at the call site to stay in the same registers
+  // on the fall-through branch.
+  Result::Type arg_type = arg->type();
+  Register arg_reg = arg->is_register() ? arg->reg() : no_reg;
+#endif
+
+  cgen_->frame()->Push(arg);
+  Branch(cc, hint);
+  *arg = cgen_->frame()->Pop();
+
+  ASSERT(arg->type() == arg_type);
+  ASSERT(!arg->is_register() || arg->reg().is(arg_reg));
+}
+
+
 void JumpTarget::Call() {
   // Precondition: there is a current frame, and there is no expected frame
   // at the label.
-  ASSERT(code_generator_ != NULL);
+  ASSERT(cgen_ != NULL);
   ASSERT(masm_ != NULL);
-  ASSERT(!code_generator_->IsActualFunctionReturn(this));
+  ASSERT(!cgen_->IsActualFunctionReturn(this));
 
-  VirtualFrame* current_frame = code_generator_->frame();
+  VirtualFrame* current_frame = cgen_->frame();
   ASSERT(current_frame != NULL);
   ASSERT(expected_frame_ == NULL);
+  ASSERT(cgen_->HasValidEntryRegisters());
 
   expected_frame_ = new VirtualFrame(current_frame);
-  if (!expected_frame_->IsMergable()) {
-    expected_frame_->MakeMergable();
-  }
+  expected_frame_->MakeMergable();
   // Adjust the expected frame's height to account for the return address
   // pushed by the call instruction.
   expected_frame_->Adjust(1);
+  ASSERT(cgen_->HasValidEntryRegisters());
 
   __ call(&label_);
   // Postcondition: there is both a current frame and an expected frame at
@@ -166,37 +188,67 @@ void JumpTarget::Call() {
 void JumpTarget::Bind() {
   // Precondition: there is either a current frame or an expected frame at
   // the label (and possibly both).  The label is unbound.
-  ASSERT(code_generator_ != NULL);
+  ASSERT(cgen_ != NULL);
   ASSERT(masm_ != NULL);
 
-  VirtualFrame* current_frame = code_generator_->frame();
+  VirtualFrame* current_frame = cgen_->frame();
   ASSERT(current_frame != NULL || expected_frame_ != NULL);
   ASSERT(!label_.is_bound());
 
   if (expected_frame_ == NULL) {
+    ASSERT(cgen_->HasValidEntryRegisters());
     // When a label is bound the current frame becomes the expected frame at
     // the label.  This requires the current frame to be mergable.
     // The frame at the actual function return will always have height zero.
-    if (code_generator_->IsActualFunctionReturn(this)) {
+    if (cgen_->IsActualFunctionReturn(this)) {
       current_frame->Forget(current_frame->height());
     }
-    if (!current_frame->IsMergable()) {
-      current_frame->MakeMergable();
-    }
+    current_frame->MakeMergable();
+    ASSERT(cgen_->HasValidEntryRegisters());
     expected_frame_ = new VirtualFrame(current_frame);
   } else if (current_frame == NULL) {
-    code_generator_->SetFrame(new VirtualFrame(expected_frame_));
+    cgen_->SetFrame(new VirtualFrame(expected_frame_));
+    ASSERT(cgen_->HasValidEntryRegisters());
   } else {
+    ASSERT(cgen_->HasValidEntryRegisters());
     // No code needs to be emitted to merge to the expected frame at the
     // actual function return.
-    if (!code_generator_->IsActualFunctionReturn(this)) {
+    if (!cgen_->IsActualFunctionReturn(this)) {
       current_frame->MergeTo(expected_frame_);
     }
+    ASSERT(cgen_->HasValidEntryRegisters());
   }
 
   __ bind(&label_);
   // Postcondition: there is both a current frame and an expected frame at
   // the label and they match.  The label is bound.
+}
+
+
+void JumpTarget::Bind(Result* arg) {
+  ASSERT(cgen_ != NULL);
+
+#ifdef DEBUG
+  // We want register results at the call site to stay in the same
+  // registers.
+  bool had_entry_frame = false;
+  Result::Type arg_type;
+  Register arg_reg;
+#endif
+
+  if (cgen_->frame() != NULL) {
+#ifdef DEBUG
+    had_entry_frame = true;
+    arg_type = arg->type();
+    arg_reg = arg->is_register() ? arg->reg() : no_reg;
+#endif
+    cgen_->frame()->Push(arg);
+  }
+  Bind();
+  *arg = cgen_->frame()->Pop();
+
+  ASSERT(!had_entry_frame || arg->type() == arg_type);
+  ASSERT(!had_entry_frame || !arg->is_register() || arg->reg().is(arg_reg));
 }
 
 

@@ -67,7 +67,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   void set_code_generator(CodeGenerator* cgen);
 
   // Accessors.
-  CodeGenerator* code_generator() const { return code_generator_; }
+  CodeGenerator* code_generator() const { return cgen_; }
 
   Label* label() { return &label_; }
 
@@ -96,10 +96,12 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // Emit a conditional branch to the target.  If there is no current frame,
   // there must be one expected at the target.
   void Branch(Condition cc, Hint hint = no_hint);
+  void Branch(Condition cc, Result* arg, Hint hint = no_hint);
 
   // Bind a jump target.  There must be a current frame and no expected
   // frame at the target (targets are only bound once).
   void Bind();
+  void Bind(Result* arg);
 
   // Emit a call to a jump target.  There must be a current frame.  The
   // frame at the target is the same as the current frame except for an
@@ -115,7 +117,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
  private:
   // The code generator gives access to the current frame.
-  CodeGenerator* code_generator_;
+  CodeGenerator* cgen_;
 
   // Used to emit code.
   MacroAssembler* masm_;

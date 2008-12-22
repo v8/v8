@@ -62,14 +62,10 @@ void CodeGenerator::ProcessDeferred() {
     if (code->position() != RelocInfo::kNoPosition) {
       masm->RecordPosition(code->position());
     }
-    // Bind labels and generate the code.
-    code->enter()->Bind();
-    frame_->SpillAll();
+    // Generate the code.
     Comment cmnt(masm, code->comment());
     code->Generate();
-    if (code->exit()->is_bound()) {
-      code->exit()->Jump();
-    }
+    ASSERT(code->enter()->is_bound());
   }
 }
 

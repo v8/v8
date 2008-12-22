@@ -41,6 +41,12 @@ namespace v8 { namespace internal {
 
 class Result BASE_EMBEDDED {
  public:
+  enum Type {
+    INVALID,
+    REGISTER,
+    CONSTANT
+  };
+
   // Construct an invalid result.
   explicit Result(CodeGenerator* cgen) : type_(INVALID), cgen_(cgen) {}
 
@@ -60,11 +66,11 @@ class Result BASE_EMBEDDED {
     other.CopyTo(this);
   }
 
-  Result& operator=(Result& other) {
+  Result& operator=(const Result& other) {
     if (this != &other) {
       Unuse();
       other.CopyTo(this);
-      other.Unuse();
+      // other.Unuse();
     }
     return *this;
   }
@@ -72,6 +78,8 @@ class Result BASE_EMBEDDED {
   ~Result() { Unuse(); }
 
   void Unuse();
+
+  Type type() const { return type_; }
 
   bool is_valid() const { return type() != INVALID; }
   bool is_register() const { return type() == REGISTER; }
@@ -87,18 +95,17 @@ class Result BASE_EMBEDDED {
     return Handle<Object>(data_.handle_);
   }
 
-  // Change a result to a register result.  If the result is not already
-  // in a register, allocate a register from the code generator, and emit
-  // code to move the value into that register.
+  // Move this result to an arbitrary register.  The register is not
+  // necessarily spilled from the frame or even singly-referenced outside
+  // it.
   void ToRegister();
 
- private:
-  enum Type {
-    INVALID,
-    REGISTER,
-    CONSTANT
-  };
+  // Move this result to a specified register.  The register is spilled from
+  // the frame, and the register is singly-referenced (by this result)
+  // outside the frame.
+  void ToRegister(Register reg);
 
+ private:
   Type type_;
 
   union {
@@ -107,8 +114,6 @@ class Result BASE_EMBEDDED {
   } data_;
 
   CodeGenerator* cgen_;
-
-  Type type() const { return type_; }
 
   void CopyTo(Result* destination) const;
 };
@@ -130,11 +135,13 @@ class RegisterFile BASE_EMBEDDED {
     }
   }
 
-  // Predicates and accessors for the reference counts.  They take a
-  // register code rather than a register because they are frequently used
-  // in a loop over the register codes.
+  // Predicates and accessors for the reference counts.  The versions
+  // that take a register code rather than a register are for
+  // convenience in loops over the register codes.
   bool is_used(int reg_code) const { return ref_counts_[reg_code] > 0; }
+  bool is_used(Register reg) const { return is_used(reg.code()); }
   int count(int reg_code) const { return ref_counts_[reg_code]; }
+  int count(Register reg) const { return count(reg.code()); }
 
   // Record a use of a register by incrementing its reference count.
   void Use(Register reg) {
@@ -169,7 +176,9 @@ class RegisterAllocator BASE_EMBEDDED {
 
   // Predicates and accessors for the registers' reference counts.
   bool is_used(int reg_code) const { return registers_.is_used(reg_code); }
-  int count(int reg_code) { return registers_.count(reg_code); }
+  bool is_used(Register reg) const { return registers_.is_used(reg.code()); }
+  int count(int reg_code) const { return registers_.count(reg_code); }
+  int count(Register reg) const { return registers_.count(reg.code()); }
 
   // Explicitly record a reference to a register.
   void Use(Register reg) { registers_.Use(reg); }
@@ -185,6 +194,10 @@ class RegisterAllocator BASE_EMBEDDED {
   // Allocate a free register and return a register result if possible or
   // fail and return an invalid result.
   Result Allocate();
+
+  // Allocate a specific register if possible, spilling it from the frame if
+  // necessary, or else fail and return an invalid result.
+  Result Allocate(Register target);
 
   // Allocate a free register without spilling any from the current frame or
   // fail and return an invalid result.

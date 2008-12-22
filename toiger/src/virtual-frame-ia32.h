@@ -175,6 +175,10 @@ class VirtualFrame : public Malloced {
     return elements_.length() - expression_base_index();
   }
 
+  int register_count(Register reg) {
+    return frame_registers_.count(reg);
+  }
+
   // Add extra in-memory elements to the top of the frame to match an actual
   // frame (eg, the frame after an exception handler is pushed).  No code is
   // emitted.
@@ -187,20 +191,15 @@ class VirtualFrame : public Malloced {
   // Spill all values from the frame to memory.
   void SpillAll();
 
-  // Spill a register if possible.  Return the register spilled or no_reg if
-  // it was not possible to spill one.
+  // Spill all occurrences of a specific register from the frame.
+  void Spill(Register reg);
+
+  // Spill all occurrences of an arbitrary register if possible.  Return the
+  // register spilled or no_reg if it was not possible to free any register
+  // (ie, they all have frame-external references).
   Register SpillAnyRegister();
 
-  // True if an arbitrary frame of the same size could be merged to this
-  // one.  Requires all values to be in a unique register or memory
-  // location.
-  bool IsMergable();
-
   // True if making the frame mergable via MakeMergable will generate code.
-  // This differs from !IsMergable() because there are some non-mergable
-  // frames that can be made mergable simply by changing internal state (eg,
-  // forgetting about constants that are synced to memory) without
-  // generating code.
   bool RequiresMergeCode();
 
   // Ensure that this frame is in a state where an arbitrary frame of the
@@ -294,6 +293,10 @@ class VirtualFrame : public Malloced {
   // Call a code stub, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.
   void CallStub(CodeStub* stub, int frame_arg_count);
+  Result CallStub(CodeStub* stub,
+                  Result* arg0,
+                  Result* arg1,
+                  int frame_arg_count);
 
   // Call the runtime, given the number of arguments expected on (and
   // removed from) the top of the physical frame.

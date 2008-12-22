@@ -131,7 +131,16 @@ void VirtualFrame::Unuse(Register reg) {
 }
 
 
-// Spill any register if possible, making its reference count zero.
+void VirtualFrame::Spill(Register target) {
+  for (int i = 0; i < elements_.length(); i++) {
+    if (elements_[i].is_register() && elements_[i].reg().is(target)) {
+      SpillElementAt(i);
+    }
+  }
+}
+
+
+// Spill any register if possible, making its external reference count zero.
 Register VirtualFrame::SpillAnyRegister() {
   // Find the leftmost (ordered by register code), least
   // internally-referenced register whose internal reference count matches
@@ -148,26 +157,11 @@ Register VirtualFrame::SpillAnyRegister() {
     }
   }
 
-  if (best_register_code != no_reg.code_) {
-    // Spill all occurrences of the register.  There are min_count
-    // occurrences, stop when we have spilled them all to avoid syncing
-    // elements unnecessarily.
-    int i = 0;
-    while (min_count > 0) {
-      ASSERT(i < elements_.length());
-      if (elements_[i].is_register() &&
-          elements_[i].reg().code() == best_register_code) {
-        // Found an instance of the best_register being used in the frame.
-        // Spill it.
-        SpillElementAt(i);
-        min_count--;
-      }
-      i++;
-    }
-  }
-
-  ASSERT(cgen_->allocator()->count(best_register_code) == 0);
   Register result = { best_register_code };
+  if (result.is_valid()) {
+    Spill(result);
+    ASSERT(!cgen_->allocator()->is_used(result));
+  }
   return result;
 }
 
@@ -277,29 +271,6 @@ void VirtualFrame::PrepareForCall(int frame_arg_count) {
 }
 
 
-bool VirtualFrame::IsMergable() {
-  // We cannot merge to a frame that has constants as elements, because an
-  // arbitrary frame may not have the same constants at those locations.  We
-  // cannot merge to a frame that has registers that are mulitply referenced
-  // in the frame, because an arbitrary frame might not exhibit the same
-  // sharing.  Thus, a frame is mergable if all elements are in memory or a
-  // register and no register is multiply referenced.
-  for (int i = 0; i < RegisterFile::kNumRegisters; i++) {
-    if (frame_registers_.count(i) > 1) {
-      return false;
-    }
-  }
-
-  for (int i = 0; i < elements_.length(); i++) {
-    if (!elements_[i].is_memory() && !elements_[i].is_register()) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-
 bool VirtualFrame::RequiresMergeCode() {
   // A frame requires merge code to be generated in the event that
   // there are duplicated non-synched registers or else elements not
@@ -331,13 +302,21 @@ bool VirtualFrame::RequiresMergeCode() {
 
 void VirtualFrame::MakeMergable() {
   Comment cmnt(masm_, "[ Make frame mergable");
+  // We can call MakeMergable on a frame that is not the code generator's
+  // current frame, which will leave the global register counts out of sync
+  // with the frame.  We simply save the current frame and restore it at the
+  // end of this function.  We should find a better way to deal with this.
+  VirtualFrame* original_frame = cgen_->frame();
+  ASSERT(cgen_->HasValidEntryRegisters());
+  cgen_->SetFrame(this);
+  ASSERT(cgen_->HasValidEntryRegisters());
+
   // Remove constants from the frame and ensure that no registers are
-  // multiply referenced within the frame.  Allocate elements to their
-  // new locations from the top down so that the topmost elements have
-  // a chance to be in registers, then fill them into memory from the
-  // bottom up.  (NB: Currently when spilling registers that are
-  // multiply referenced, it is the lowermost occurrence that gets to
-  // stay in the register.)
+  // multiply referenced within the frame.  Allocate elements to their new
+  // locations from the top down so that the topmost elements have a chance
+  // to be in registers, then fill them into memory from the bottom up.
+  // (NB: Currently when spilling registers that are multiply referenced, it
+  // is the lowermost occurrence that gets to stay in the register.)
 
   // The elements of new_elements are initially invalid.
   FrameElement* new_elements = new FrameElement[elements_.length()];
@@ -346,7 +325,7 @@ void VirtualFrame::MakeMergable() {
     FrameElement element = elements_[i];
     if (element.is_constant() ||
         (element.is_register() &&
-         frame_registers_.count(element.reg().code()) > 1)) {
+         frame_registers_.count(element.reg()) > 1)) {
       // A simple strategy is to locate these elements in memory if they are
       // synced (avoiding a spill right now) and otherwise to prefer a
       // register for them.
@@ -402,11 +381,18 @@ void VirtualFrame::MakeMergable() {
   }
 
   delete[] new_elements;
+  ASSERT(cgen_->HasValidEntryRegisters());
+  cgen_->SetFrame(original_frame);
+  ASSERT(cgen_->HasValidEntryRegisters());
 }
 
 
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
   Comment cmnt(masm_, "[ Merge frame");
+  // We should always be merging the code generator's current frame to an
+  // expected frame.
+  ASSERT(cgen_->frame() == this);
+
   ASSERT(cgen_ == expected->cgen_);
   ASSERT(masm_ == expected->masm_);
   ASSERT(elements_.length() == expected->elements_.length());
@@ -481,7 +467,7 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame *expected) {
           elements_[i] = target;
         } else {
           // We need to move source to target.
-          if (frame_registers_.is_used(target.reg().code())) {
+          if (frame_registers_.is_used(target.reg())) {
             // The move is blocked because the target contains valid data.
             // If we are stuck with only cycles remaining, then we spill source.
             // Otherwise, we just need more iterations.
@@ -733,6 +719,7 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
 
 
 void VirtualFrame::PushTryHandler(HandlerType type) {
+  ASSERT(cgen_->HasValidEntryRegisters());
   // Grow the expression stack by handler size less two (the return address
   // is already pushed by a call instruction, and PushTryHandler from the
   // macro assembler will leave the top of stack in the eax register to be
@@ -745,18 +732,34 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 
 
 void VirtualFrame::CallStub(CodeStub* stub, int frame_arg_count) {
+  ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ CallStub(stub);
 }
 
 
+Result VirtualFrame::CallStub(CodeStub* stub,
+                              Result* arg0,
+                              Result* arg1,
+                              int frame_arg_count) {
+  arg0->Unuse();
+  arg1->Unuse();
+  CallStub(stub, frame_arg_count);
+  Result result = cgen_->allocator()->Allocate(eax);
+  ASSERT(result.is_valid());
+  return result;
+}
+
+
 void VirtualFrame::CallRuntime(Runtime::Function* f, int frame_arg_count) {
+  ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ CallRuntime(f, frame_arg_count);
 }
 
 
 void VirtualFrame::CallRuntime(Runtime::FunctionId id, int frame_arg_count) {
+  ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ CallRuntime(id, frame_arg_count);
 }
@@ -765,6 +768,7 @@ void VirtualFrame::CallRuntime(Runtime::FunctionId id, int frame_arg_count) {
 void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                  InvokeFlag flag,
                                  int frame_arg_count) {
+  ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ InvokeBuiltin(id, flag);
 }
@@ -773,6 +777,7 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 void VirtualFrame::CallCodeObject(Handle<Code> code,
                                   RelocInfo::Mode rmode,
                                   int frame_arg_count) {
+  ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ call(code, rmode);
 }
@@ -802,17 +807,6 @@ void VirtualFrame::Drop(int count) {
 void VirtualFrame::Drop() { Drop(1); }
 
 
-/*
-We need comparison with literal to work.
-It will get Result, is register or constant.
-Pop gives it this, from register, constant, memory, or
-reference to slot.
-
-In comparison to literal, we need register case to work.
-We need non-smi stub to exit and return with a non-spilled frame.
-*/
-
-
 Result VirtualFrame::Pop() {
   FrameElement popped = elements_.RemoveLast();
   bool pop_needed = (stack_pointer_ == elements_.length());
@@ -840,6 +834,7 @@ Result VirtualFrame::Pop() {
     return temp;
   }
 }
+
 
 void VirtualFrame::EmitPop(Register reg) {
   ASSERT(stack_pointer_ == elements_.length() - 1);

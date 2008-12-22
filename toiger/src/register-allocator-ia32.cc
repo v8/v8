@@ -39,7 +39,7 @@ Result::Result(Register reg, CodeGenerator* cgen)
   : type_(REGISTER),
     cgen_(cgen) {
   data_.reg_ = reg;
-  ASSERT(!reg.is(no_reg));
+  ASSERT(reg.is_valid());
   cgen_->allocator()->Use(reg);
 }
 
@@ -74,11 +74,31 @@ void Result::ToRegister() {
     ASSERT(fresh.is_valid());
     cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
     // This result becomes a copy of the fresh one.
-    cgen_->allocator()->Use(fresh.reg());
-    type_ = REGISTER;
-    data_.reg_ = fresh.reg();
+    *this = fresh;
   }
   ASSERT(is_register());
+}
+
+
+void Result::ToRegister(Register target) {
+  ASSERT(is_valid());
+  if (!is_register() || !reg().is(target)) {
+    Result fresh = cgen_->allocator()->Allocate(target);
+    ASSERT(fresh.is_valid());
+    if (is_register()) {
+      cgen_->masm()->mov(fresh.reg(), reg());
+    } else {
+      ASSERT(is_constant());
+      cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
+    }
+    *this = fresh;
+  } else if (is_register() && reg().is(target)) {
+    ASSERT(cgen_->frame() != NULL);
+    cgen_->frame()->Spill(target);
+    ASSERT(cgen_->allocator()->count(target) == 1);
+  }
+  ASSERT(is_register());
+  ASSERT(reg().is(target));
 }
 
 
@@ -113,11 +133,29 @@ Result RegisterAllocator::Allocate() {
     ASSERT(cgen_->frame() != NULL);
     Register free_reg = cgen_->frame()->SpillAnyRegister();
     if (free_reg.is_valid()) {
-      ASSERT(!is_used(free_reg.code()));
+      ASSERT(!is_used(free_reg));
       return Result(free_reg, cgen_);
     }
   }
   return result;
+}
+
+
+Result RegisterAllocator::Allocate(Register target) {
+  // If the target is not referenced, it can simply be allocated.
+  if (!is_used(target)) {
+    return Result(target, cgen_);
+  }
+  // If the target is only referenced in the frame, it can be spilled and
+  // then allocated.
+  ASSERT(cgen_->frame() != NULL);
+  if (count(target) == cgen_->frame()->register_count(target)) {
+    cgen_->frame()->Spill(target);
+    ASSERT(!is_used(target));
+    return Result(target, cgen_);
+  }
+  // Otherwise (if it's referenced outside the frame) we cannot allocate it.
+  return Result(cgen_);
 }
 
 

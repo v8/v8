@@ -448,6 +448,13 @@ class CodeGenerator: public AstVisitor {
   bool IsActualFunctionReturn(JumpTarget* target);
 
   bool is_eval_;  // Tells whether code is generated for eval.
+
+#ifdef DEBUG
+  // True if the registers are valid for entry to a block.  There should be
+  // no frame-external references to eax, ebx, ecx, edx, or edi.
+  bool HasValidEntryRegisters();
+#endif
+
   Handle<Script> script_;
   List<DeferredCode*> deferred_;
 
