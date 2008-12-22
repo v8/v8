@@ -1423,7 +1423,8 @@ bool GenerationVariant::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
          cp_offset_ != 0 ||
          backtrack() != NULL ||
          characters_preloaded_ != 0 ||
-         quick_check_performed_.characters() != 0);
+         quick_check_performed_.characters() != 0 ||
+         bound_checked_up_to_ != 0);
 
   if (actions_ == NULL && backtrack() == NULL) {
     // Here we just have some deferred cp advances to fix and we are back to
@@ -1647,16 +1648,23 @@ static inline bool EmitAtomNonLetter(
 
 
 static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
+                                      bool ascii,
                                       uc16 c1,
                                       uc16 c2,
                                       Label* on_failure) {
+  uc16 char_mask;
+  if (ascii) {
+    char_mask = String::kMaxAsciiCharCode;
+  } else {
+    char_mask = String::kMaxUC16CharCode;
+  }
   uc16 exor = c1 ^ c2;
   // Check whether exor has only one bit set.
   if (((exor - 1) & exor) == 0) {
     // If c1 and c2 differ only by one bit.
     // Ecma262UnCanonicalize always gives the highest number last.
     ASSERT(c2 > c1);
-    uc16 mask = String::kMaxUC16CharCode ^ exor;
+    uc16 mask = char_mask ^ exor;
     macro_assembler->CheckNotCharacterAfterAnd(c1, mask, on_failure);
     return true;
   }
@@ -1667,7 +1675,7 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
     // subtract the difference from the found character, then do the or
     // trick.  We avoid the theoretical case where negative numbers are
     // involved in order to simplify code generation.
-    uc16 mask = String::kMaxUC16CharCode ^ diff;
+    uc16 mask = char_mask ^ diff;
     macro_assembler->CheckNotCharacterAfterMinusAnd(c1 - diff,
                                                     diff,
                                                     mask,
@@ -1682,6 +1690,7 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
 // matches.
 static inline bool EmitAtomLetter(
     RegExpMacroAssembler* macro_assembler,
+    bool ascii,
     uc16 c,
     Label* on_failure,
     int cp_offset,
@@ -1700,6 +1709,7 @@ static inline bool EmitAtomLetter(
   switch (length) {
     case 2: {
       if (ShortCutEmitCharacterPair(macro_assembler,
+                                    ascii,
                                     chars[0],
                                     chars[1],
                                     on_failure)) {
@@ -2007,6 +2017,7 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
       char_mask = String::kMaxUC16CharCode;
     }
     if ((mask & char_mask) == char_mask) need_mask = false;
+    mask &= char_mask;
   } else {
     // For 2-character preloads in ASCII mode we also use a 16 bit load with
     // zero extend.
@@ -2323,6 +2334,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
             ASSERT_EQ(pass, CASE_CHARACTER_MATCH);
             ASSERT(compiler->ignore_case());
             bound_checked = EmitAtomLetter(assembler,
+                                           compiler->ascii(),
                                            quarks[j],
                                            backtrack,
                                            cp_offset + j,
@@ -2403,9 +2415,7 @@ bool TextNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
 
   bool first_elt_done = false;
   int bound_checked_to = variant->cp_offset() - 1;
-  QuickCheckDetails* quick_check = variant->quick_check_performed();
-  bound_checked_to += Max(quick_check->characters(),
-                          variant->characters_preloaded());
+  bound_checked_to += variant->bound_checked_up_to();
 
   // If a character is preloaded into the current character register then
   // check that now.
@@ -2472,6 +2482,7 @@ void GenerationVariant::AdvanceVariant(int by, bool ascii) {
   // characters by means of mask and compare.
   quick_check_performed_.Advance(by, ascii);
   cp_offset_ += by;
+  bound_checked_up_to_ = Max(0, bound_checked_up_to_ - by);
 }
 
 
@@ -2779,8 +2790,9 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   int first_normal_choice = greedy_loop ? 1 : 0;
 
   int preload_characters = CalculatePreloadCharacters(compiler);
-  bool preload_is_current = false;
-  bool preload_has_checked_bounds = false;
+  bool preload_is_current =
+      (current_variant->characters_preloaded() == preload_characters);
+  bool preload_has_checked_bounds = preload_is_current;
 
   AlternativeGenerationList alt_gens(choice_count);
 
@@ -2792,11 +2804,13 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
     alt_gen->quick_check_details.set_characters(preload_characters);
     ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == NULL) ? 0 : guards->length();
-
     GenerationVariant new_variant(*current_variant);
     new_variant.set_characters_preloaded(preload_is_current ?
                                          preload_characters :
                                          0);
+    if (preload_has_checked_bounds) {
+      new_variant.set_bound_checked_up_to(preload_characters);
+    }
     new_variant.quick_check_performed()->Clear();
     alt_gen->expects_preload = preload_is_current;
     bool generate_full_check_inline = false;
@@ -2816,19 +2830,25 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
         macro_assembler->Bind(&alt_gen->possible_success);
         new_variant.set_quick_check_performed(&alt_gen->quick_check_details);
         new_variant.set_characters_preloaded(preload_characters);
+        new_variant.set_bound_checked_up_to(preload_characters);
         generate_full_check_inline = true;
       }
     } else {
       // No quick check was generated.  Put the full code here.
+      // If this is not the first choice then there could be slow checks from
+      // previous cases that go here when they fail.  There's no reason to
+      // insist that they preload characters since the slow check we are about
+      // to generate probably can't use it.
+      if (i != first_normal_choice) {
+        alt_gen->expects_preload = false;
+        new_variant.set_characters_preloaded(0);
+      }
       if (i < choice_count - 1) {
         new_variant.set_backtrack(&alt_gen->after);
       }
       generate_full_check_inline = true;
     }
     if (generate_full_check_inline) {
-      if (preload_is_current) {
-        new_variant.set_characters_preloaded(preload_characters);
-      }
       for (int j = 0; j < guard_count; j++) {
         GenerateGuard(macro_assembler, guards->at(j), &new_variant);
       }

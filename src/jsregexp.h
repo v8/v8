@@ -1011,7 +1011,8 @@ class GenerationVariant {
         backtrack_(NULL),
         stop_node_(NULL),
         loop_label_(NULL),
-        characters_preloaded_(0) { }
+        characters_preloaded_(0),
+        bound_checked_up_to_(0) { }
   bool Flush(RegExpCompiler* compiler, RegExpNode* successor);
   int cp_offset() { return cp_offset_; }
   DeferredAction* actions() { return actions_; }
@@ -1020,12 +1021,14 @@ class GenerationVariant {
            actions_ == NULL &&
            cp_offset_ == 0 &&
            characters_preloaded_ == 0 &&
+           bound_checked_up_to_ == 0 &&
            quick_check_performed_.characters() == 0;
   }
   Label* backtrack() { return backtrack_; }
   Label* loop_label() { return loop_label_; }
   RegExpNode* stop_node() { return stop_node_; }
   int characters_preloaded() { return characters_preloaded_; }
+  int bound_checked_up_to() { return bound_checked_up_to_; }
   QuickCheckDetails* quick_check_performed() { return &quick_check_performed_; }
   bool mentions_reg(int reg);
   // These set methods and AdvanceVariant should be used only on new
@@ -1040,6 +1043,7 @@ class GenerationVariant {
   void set_stop_node(RegExpNode* node) { stop_node_ = node; }
   void set_loop_label(Label* label) { loop_label_ = label; }
   void set_characters_preloaded(int cpre) { characters_preloaded_ = cpre; }
+  void set_bound_checked_up_to(int to) { bound_checked_up_to_ = to; }
   void set_quick_check_performed(QuickCheckDetails* d) {
     quick_check_performed_ = *d;
   }
@@ -1063,6 +1067,7 @@ class GenerationVariant {
   RegExpNode* stop_node_;
   Label* loop_label_;
   int characters_preloaded_;
+  int bound_checked_up_to_;
   QuickCheckDetails quick_check_performed_;
 };
 
