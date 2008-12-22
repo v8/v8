@@ -89,7 +89,7 @@ class Reference BASE_EMBEDDED {
 
   // Like GetValue except that the slot is expected to be written to before
   // being read from again.  Thae value of the reference may be invalidated,
-  // causign subsequent attempts to read it to fail.
+  // causing subsequent attempts to read it to fail.
   void TakeValue(TypeofState typeof_state);
 
   // Generate code to store the value on top of the expression stack in the
