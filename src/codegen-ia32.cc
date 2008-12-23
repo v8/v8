@@ -3875,6 +3875,8 @@ void Reference::GetValue(TypeofState typeof_state) {
       // distinction between expressions in a typeof and not in a
       // typeof.
       Variable* var = expression_->AsVariableProxy()->AsVariable();
+      bool is_global = var != NULL;
+      ASSERT(!is_global || var->is_global());
       // Inline array load code if inside of a loop.  We do not know
       // the receiver map yet, so we initially generate the code with
       // a check against an invalid map.  In the inline cache code, we
@@ -3882,11 +3884,12 @@ void Reference::GetValue(TypeofState typeof_state) {
       if (cgen_->loop_nesting() > 0) {
         Comment cmnt(masm, "[ Inlined array index load");
         DeferredReferenceGetKeyedValue* deferred =
-            new DeferredReferenceGetKeyedValue(cgen_, var != NULL);
+            new DeferredReferenceGetKeyedValue(cgen_, is_global);
         // Load receiver and check that it is not a smi (only needed
-        // if not contextual) and that it has the expected map.
+        // if this is not a load from the global context) and that it
+        // has the expected map.
         __ mov(edx, Operand(esp, kPointerSize));
-        if (var == NULL) {
+        if (!is_global) {
           __ test(edx, Immediate(kSmiTagMask));
           __ j(zero, deferred->enter(), not_taken);
         }
@@ -3921,8 +3924,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       } else {
         Comment cmnt(masm, "[ Load from keyed Property");
         Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-        if (var != NULL) {
-          ASSERT(var->is_global());
+        if (is_global) {
           __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
         } else {
           __ call(ic, RelocInfo::CODE_TARGET);
