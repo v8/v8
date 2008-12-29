@@ -92,7 +92,7 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
 
 
 void CodeGenerator::SetFrame(VirtualFrame* new_frame) {
-  if (frame_ != NULL) {
+  if (has_valid_frame()) {
     frame_->DetachFromCodeGenerator();
   }
   if (new_frame != NULL) {
@@ -103,7 +103,7 @@ void CodeGenerator::SetFrame(VirtualFrame* new_frame) {
 
 
 void CodeGenerator::DeleteFrame() {
-  if (frame_ != NULL) {
+  if (has_valid_frame()) {
     frame_->DetachFromCodeGenerator();
     delete frame_;
     frame_ = NULL;
@@ -290,7 +290,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       // Generate a return statement if necessary.  A NULL frame indicates
       // that control flow leaves the body on all paths and cannot fall
       // through.
-      if (frame_ != NULL) {
+      if (has_valid_frame()) {
         Literal undefined(Factory::undefined_value());
         ReturnStatement statement(&undefined);
         statement.set_statement_pos(fun->end_position());
@@ -389,7 +389,7 @@ void CodeGenerator::LoadCondition(Expression* x,
     Visit(x);
   }
 
-  if (force_cc && frame_ != NULL && !has_cc()) {
+  if (force_cc && has_valid_frame() && !has_cc()) {
     // Convert the TOS value to a boolean in the condition code register.
     VirtualFrame::SpilledScope spilled_scope(this);
     ToBoolean(true_target, false_target);
@@ -406,7 +406,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   LoadCondition(x, typeof_state, &true_target, &false_target, false);
 
   if (has_cc()) {
-    ASSERT(frame_ != NULL);
+    ASSERT(has_valid_frame());
     VirtualFrame::SpilledScope spilled_scope(this);
     // Convert cc_reg_ into a boolean value.
     JumpTarget loaded(this);
@@ -424,7 +424,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // We have at least one condition value that has been "translated" into
     // a branch, thus it needs to be loaded explicitly.
     JumpTarget loaded(this);
-    if (frame_ != NULL) {
+    if (has_valid_frame()) {
       loaded.Jump();  // Don't lose the current TOS.
     }
     bool both = true_target.is_linked() && false_target.is_linked();
@@ -448,7 +448,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // A value is loaded on all paths reaching this point.
     loaded.Bind();
   }
-  ASSERT(frame_ != NULL);
+  ASSERT(has_valid_frame());
   ASSERT(!has_cc());
 }
 
@@ -1357,7 +1357,7 @@ void CodeGenerator::CheckStack() {
 
 void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
   ASSERT(!in_spilled_code());
-  for (int i = 0; frame_ != NULL && i < statements->length(); i++) {
+  for (int i = 0; has_valid_frame() && i < statements->length(); i++) {
     Visit(statements->at(i));
   }
 }
@@ -1488,23 +1488,24 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     // if (cond)
     LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                           &then, &else_, true);
-    if (frame_ != NULL) {
-      // A NULL frame here indicates that the code for the condition cannot
-      // fall-through, i.e. it causes unconditional branchs to targets.
+    // An invalid frame here indicates that the code for the condition
+    // cannot fall-through, i.e. it caused unconditional jumps to the
+    // targets.
+    if (has_valid_frame()) {
       Branch(false, &else_);
     }
     // then
-    if (frame_ != NULL || then.is_linked()) {
+    if (has_valid_frame() || then.is_linked()) {
       // If control flow can reach the then part via fall-through from the
       // test or a branch to the target, compile it.
       then.Bind();
       VisitAndSpill(node->then_statement());
     }
-    if (frame_ != NULL) {
-      // A NULL frame here indicates that control did not fall out of the
-      // then statement, it escaped on all branches.  In that case, a jump
-      // to the exit label would be dead code (and impossible, because we
-      // don't have a current virtual frame to set at the exit label).
+    // A NULL frame here indicates that control did not fall out of the then
+    // statement, it escaped on all branches.  In that case, a jump to the
+    // exit label would be dead code (and impossible, because we don't have
+    // a current virtual frame to set at the exit label).
+    if (has_valid_frame()) {
       exit.Jump();
     }
     // else
@@ -1521,11 +1522,11 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     // if (cond)
     LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                           &then, &exit, true);
-    if (frame_ != NULL) {
+    if (has_valid_frame()) {
       Branch(false, &exit);
     }
     // then
-    if (frame_ != NULL || then.is_linked()) {
+    if (has_valid_frame() || then.is_linked()) {
       then.Bind();
       VisitAndSpill(node->then_statement());
     }
@@ -1536,11 +1537,11 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     // if (!cond)
     LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                           &exit, &else_, true);
-    if (frame_ != NULL) {
+    if (has_valid_frame()) {
       Branch(true, &exit);
     }
     // else
-    if (frame_ != NULL || else_.is_linked()) {
+    if (has_valid_frame() || else_.is_linked()) {
       else_.Bind();
       VisitAndSpill(node->else_statement());
     }
@@ -1550,7 +1551,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     // if (cond)
     LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                           &exit, &exit, false);
-    if (frame_ != NULL) {
+    if (has_valid_frame()) {
       if (has_cc()) {
         cc_reg_ = no_condition;
       } else {
@@ -1806,7 +1807,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
     // If control flow can fall through from the body, jump to the next body
     // or the end of the statement.
-    if (frame_ != NULL) {
+    if (has_valid_frame()) {
       if (i < length - 1 && cases->at(i + 1)->is_default()) {
         default_entry.Jump();
       } else {
@@ -1824,11 +1825,9 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     Comment cmnt(masm_, "[ Default clause");
     default_entry.Bind();
     VisitStatementsAndSpill(default_clause->statements());
-    if (frame_ != NULL) {
-    }
     // If control flow can fall out of the default and there is a case after
     // it, jump to that case's body.
-    if (frame_ != NULL && default_exit.is_bound()) {
+    if (has_valid_frame() && default_exit.is_bound()) {
       default_exit.Jump();
     }
   }
@@ -1888,7 +1887,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
       // Compile the "test".
       if (info == ALWAYS_TRUE) {
-        if (frame_ != NULL) {
+        if (has_valid_frame()) {
           // If control flow can fall off the end of the body, jump back to
           // the top.
           node->continue_target()->Jump();
@@ -1903,13 +1902,13 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         ASSERT(info == DONT_KNOW);
         // We have to compile the test expression if it can be reached by
         // control flow falling out of the body or via continue.
-        if (frame_ != NULL || node->continue_target()->is_linked()) {
+        if (has_valid_frame() || node->continue_target()->is_linked()) {
           node->continue_target()->Bind();
           LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
                                 &body, node->break_target(), true);
-          if (frame_ != NULL) {
-            // A NULL frame here indicates that control flow did not fall
-            // out of the test expression.
+          // An invalid frame here indicates that control flow did not fall
+          // out of the test expression.
+          if (has_valid_frame()) {
             Branch(true, &body);
           }
         }
@@ -1936,21 +1935,21 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         node->continue_target()->Bind();
         LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
                               &body, node->break_target(), true);
-        if (frame_ != NULL) {
-          // A NULL frame indicates that control did not fall out of the
-          // test expression.
+        // An invalid frame indicates that control did not fall out of the
+        // test expression.
+        if (has_valid_frame()) {
           Branch(false, node->break_target());
         }
-        if (frame_ != NULL || body.is_linked()) {
+        if (has_valid_frame() || body.is_linked()) {
           body.Bind();
         }
       }
-      if (frame_ != NULL) {
+      if (has_valid_frame()) {
         CheckStack();  // TODO(1222600): ignore if body contains calls.
         VisitAndSpill(node->body());
 
         // If control flow can fall out of the body, jump back to the top.
-        if (frame_ != NULL) {
+        if (has_valid_frame()) {
           node->continue_target()->Jump();
         }
       }
@@ -1981,29 +1980,29 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       if (info == DONT_KNOW) {
         LoadCondition(node->cond(), NOT_INSIDE_TYPEOF,
                       &body, node->break_target(), true);
-        if (frame_ != NULL) {
+        if (has_valid_frame()) {
           Branch(false, node->break_target());
         }
-        if (frame_ != NULL || body.is_linked()) {
+        if (has_valid_frame() || body.is_linked()) {
           body.Bind();
         }
       }
 
-      if (frame_ != NULL) {
+      if (has_valid_frame()) {
         CheckStack();  // TODO(1222600): ignore if body contains calls.
         Visit(node->body());
 
         if (node->next() == NULL) {
           // If there is no update statement and control flow can fall out
           // of the loop, jump to the continue label.
-          if (frame_ != NULL) {
+          if (has_valid_frame()) {
             node->continue_target()->Jump();
           }
         } else {
           // If there is an update statement and control flow can reach it
           // via falling out of the body of the loop or continuing, we
           // compile the update statement.
-          if (frame_ != NULL || node->continue_target()->is_linked()) {
+          if (has_valid_frame() || node->continue_target()->is_linked()) {
             node->continue_target()->Bind();
             // Record source position of the statement as this code which is
             // after the code for the body actually belongs to the loop
@@ -2239,7 +2238,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   frame_->Drop();
 
   VisitStatementsAndSpill(node->catch_block()->statements());
-  if (frame_ != NULL) {
+  if (has_valid_frame()) {
     exit.Jump();
   }
 
@@ -2294,7 +2293,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   }
 
   // If we can fall off the end of the try block, unlink from try chain.
-  if (frame_ != NULL) {
+  if (has_valid_frame()) {
     frame_->EmitPop(eax);
     __ mov(Operand::StaticVariable(handler_address), eax);  // TOS == next_sp
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
@@ -2392,7 +2391,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
   // If we can fall off the end of the try block, set the state on the stack
   // to FALLING.
-  if (frame_ != NULL) {
+  if (has_valid_frame()) {
     frame_->EmitPush(Immediate(Factory::undefined_value()));  // fake TOS
     __ Set(ecx, Immediate(Smi::FromInt(FALLING)));
     if (nof_unlinks > 0) {
@@ -2453,7 +2452,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   VisitStatementsAndSpill(node->finally_block()->statements());
 
   break_stack_height_ -= kFinallyStackSize;
-  if (frame_ != NULL) {
+  if (has_valid_frame()) {
     JumpTarget exit(this);
     // Restore state and return value or faked TOS.
     frame_->EmitPop(ecx);
@@ -2533,10 +2532,10 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   JumpTarget exit(this);
   LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
                         &then, &else_, true);
-  if (frame_ != NULL) {
+  if (has_valid_frame()) {
     Branch(false, &else_);
   }
-  if (frame_ != NULL || then.is_linked()) {
+  if (has_valid_frame() || then.is_linked()) {
     then.Bind();
     LoadAndSpill(node->then_expression(), typeof_state());
     exit.Jump();
@@ -2699,7 +2698,7 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
     // safe as long as variable proxies can't rewrite into typeof
     // comparisons or unary logical not expressions.
     Visit(expr);
-    ASSERT(frame_ != NULL);
+    ASSERT(has_valid_frame());
   } else {
     ASSERT(var->is_global());
     Reference ref(this, node);
@@ -3875,11 +3874,11 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
                           &is_true, false_target(), false);
     if (has_cc() || frame_ == NULL) {
       if (has_cc()) {
-        ASSERT(frame_ != NULL);
+        ASSERT(has_valid_frame());
         Branch(false, false_target());
       }
 
-      if (frame_ != NULL || is_true.is_linked()) {
+      if (has_valid_frame() || is_true.is_linked()) {
         // Evaluate right side expression.
         is_true.Bind();
         LoadConditionAndSpill(node->right(), NOT_INSIDE_TYPEOF,
@@ -3918,11 +3917,11 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
                           true_target(), &is_false, false);
     if (has_cc() || frame_ == NULL) {
       if (has_cc()) {
-        ASSERT(frame_ != NULL);
+        ASSERT(has_valid_frame());
         Branch(true, true_target());
       }
 
-      if (frame_ != NULL || is_false.is_linked()) {
+      if (has_valid_frame() || is_false.is_linked()) {
         // Evaluate right side expression.
         is_false.Bind();
         LoadConditionAndSpill(node->right(), NOT_INSIDE_TYPEOF,

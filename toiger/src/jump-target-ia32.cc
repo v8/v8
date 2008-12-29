@@ -95,7 +95,7 @@ void JumpTarget::Jump() {
 
 void JumpTarget::Jump(Result* arg) {
   ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->frame() != NULL);
+  ASSERT(cgen_->has_valid_frame());
 
   cgen_->frame()->Push(arg);
   Jump();
@@ -150,7 +150,7 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
 
 void JumpTarget::Branch(Condition cc, Result* arg, Hint hint) {
   ASSERT(cgen_ != NULL);
-  ASSERT(cgen_->frame() != NULL);
+  ASSERT(cgen_->has_valid_frame());
 
 #ifdef DEBUG
   // We want register results at the call site to stay in the same registers
@@ -245,7 +245,7 @@ void JumpTarget::Bind(Result* arg) {
   Register arg_reg;
 #endif
 
-  if (cgen_->frame() != NULL) {
+  if (cgen_->has_valid_frame()) {
 #ifdef DEBUG
     had_entry_frame = true;
     arg_type = arg->type();

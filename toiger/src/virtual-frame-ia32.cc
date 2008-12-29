@@ -41,7 +41,7 @@ namespace v8 { namespace internal {
 VirtualFrame::SpilledScope::SpilledScope(CodeGenerator* cgen)
     : cgen_(cgen),
       previous_state_(cgen->in_spilled_code()) {
-  ASSERT(cgen->frame() != NULL);
+  ASSERT(cgen->has_valid_frame());
   cgen->frame()->SpillAll();
   cgen->set_in_spilled_code(true);
 }

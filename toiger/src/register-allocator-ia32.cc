@@ -93,7 +93,7 @@ void Result::ToRegister(Register target) {
     }
     *this = fresh;
   } else if (is_register() && reg().is(target)) {
-    ASSERT(cgen_->frame() != NULL);
+    ASSERT(cgen_->has_valid_frame());
     cgen_->frame()->Spill(target);
     ASSERT(cgen_->allocator()->count(target) == 1);
   }
@@ -130,7 +130,7 @@ Result RegisterAllocator::Allocate() {
   Result result = AllocateWithoutSpilling();
   if (!result.is_valid()) {
     // Ask the current frame to spill a register.
-    ASSERT(cgen_->frame() != NULL);
+    ASSERT(cgen_->has_valid_frame());
     Register free_reg = cgen_->frame()->SpillAnyRegister();
     if (free_reg.is_valid()) {
       ASSERT(!is_used(free_reg));
@@ -148,7 +148,7 @@ Result RegisterAllocator::Allocate(Register target) {
   }
   // If the target is only referenced in the frame, it can be spilled and
   // then allocated.
-  ASSERT(cgen_->frame() != NULL);
+  ASSERT(cgen_->has_valid_frame());
   if (count(target) == cgen_->frame()->register_count(target)) {
     cgen_->frame()->Spill(target);
     ASSERT(!is_used(target));

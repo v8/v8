@@ -185,6 +185,8 @@ class CodeGenerator: public AstVisitor {
 
   VirtualFrame* frame() const { return frame_; }
 
+  bool has_valid_frame() const { return frame_ != NULL; }
+
   void SetFrame(VirtualFrame* frame);
 
   void DeleteFrame();
