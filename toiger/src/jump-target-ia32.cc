@@ -168,6 +168,32 @@ void JumpTarget::Branch(Condition cc, Result* arg, Hint hint) {
 }
 
 
+void JumpTarget::Branch(Condition cc, Result* arg0, Result* arg1, Hint hint) {
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->frame() != NULL);
+
+#ifdef DEBUG
+  // We want register results at the call site to stay in the same registers
+  // on the fall-through branch.
+  Result::Type arg0_type = arg0->type();
+  Register arg0_reg = arg0->is_register() ? arg0->reg() : no_reg;
+  Result::Type arg1_type = arg1->type();
+  Register arg1_reg = arg1->is_register() ? arg1->reg() : no_reg;
+#endif
+
+  cgen_->frame()->Push(arg0);
+  cgen_->frame()->Push(arg1);
+  Branch(cc, hint);
+  *arg1 = cgen_->frame()->Pop();
+  *arg0 = cgen_->frame()->Pop();
+
+  ASSERT(arg0->type() == arg0_type);
+  ASSERT(!arg0->is_register() || arg0->reg().is(arg0_reg));
+  ASSERT(arg1->type() == arg1_type);
+  ASSERT(!arg1->is_register() || arg1->reg().is(arg1_reg));
+}
+
+
 void JumpTarget::Call() {
   // Precondition: there is a current frame, and there is no expected frame
   // at the label.
@@ -258,6 +284,45 @@ void JumpTarget::Bind(Result* arg) {
 
   ASSERT(!had_entry_frame || arg->type() == arg_type);
   ASSERT(!had_entry_frame || !arg->is_register() || arg->reg().is(arg_reg));
+}
+
+
+void JumpTarget::Bind(Result* arg0, Result* arg1) {
+  ASSERT(cgen_ != NULL);
+
+#ifdef DEBUG
+  // We want register results at the call site to stay in the same
+  // registers.
+  bool had_entry_frame = false;
+  Result::Type arg0_type;
+  Register arg0_reg;
+  Result::Type arg1_type;
+  Register arg1_reg;
+#endif
+
+  if (cgen_->frame() != NULL) {
+#ifdef DEBUG
+    had_entry_frame = true;
+    arg0_type = arg0->type();
+    arg0_reg = arg0->is_register() ? arg0->reg() : no_reg;
+    arg1_type = arg1->type();
+    arg1_reg = arg1->is_register() ? arg1->reg() : no_reg;
+#endif
+    cgen_->frame()->Push(arg0);
+    cgen_->frame()->Push(arg1);
+  }
+  Bind();
+  *arg1 = cgen_->frame()->Pop();
+  *arg0 = cgen_->frame()->Pop();
+
+  ASSERT(!had_entry_frame || arg0->type() == arg0_type);
+  ASSERT(!had_entry_frame ||
+         !arg0->is_register() ||
+         arg0->reg().is(arg0_reg));
+  ASSERT(!had_entry_frame || arg1->type() == arg1_type);
+  ASSERT(!had_entry_frame ||
+         !arg1->is_register() ||
+         arg1->reg().is(arg1_reg));
 }
 
 

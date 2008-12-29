@@ -499,6 +499,9 @@ class Assembler : public Malloced {
   void cmov(Condition cc, Register dst, Handle<Object> handle);
   void cmov(Condition cc, Register dst, const Operand& src);
 
+  // Exchange two registers
+  void xchg(Register dst, Register src);
+
   // Arithmetics
   void adc(Register dst, int32_t imm32);
   void adc(Register dst, const Operand& src);

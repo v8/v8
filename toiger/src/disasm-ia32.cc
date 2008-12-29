@@ -65,6 +65,7 @@ static ByteMnemonic two_operands_instr[] = {
   {0x85, "test", REG_OPER_OP_ORDER},
   {0x31, "xor", OPER_REG_OP_ORDER},
   {0x33, "xor", REG_OPER_OP_ORDER},
+  {0x87, "xchg", REG_OPER_OP_ORDER},
   {0x8A, "mov_b", REG_OPER_OP_ORDER},
   {0x8B, "mov", REG_OPER_OP_ORDER},
   {-1, "", UNSET_OP_ORDER}
@@ -177,6 +178,7 @@ void InstructionTable::Init() {
   SetTableRange(REGISTER_INSTR, 0x48, 0x4F, "dec");
   SetTableRange(REGISTER_INSTR, 0x50, 0x57, "push");
   SetTableRange(REGISTER_INSTR, 0x58, 0x5F, "pop");
+  SetTableRange(REGISTER_INSTR, 0x91, 0x97, "xchg eax,");  // 0x90 is nop.
   SetTableRange(MOVE_REG_INSTR, 0xB8, 0xBF, "mov");
 }
 

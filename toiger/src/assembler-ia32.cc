@@ -743,6 +743,18 @@ void Assembler::cmov(Condition cc, Register dst, const Operand& src) {
 }
 
 
+void Assembler::xchg(Register dst, Register src) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  if (src.is(eax) || dst.is(eax)) {  // Single-byte encoding
+    EMIT(0x90 | (src.is(eax) ? dst.code() : src.code()));
+  } else {
+    EMIT(0x87);
+    EMIT(0xC0 | src.code() << 3 | dst.code());
+  }
+}
+
+
 void Assembler::adc(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;

@@ -98,11 +98,13 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // there must be one expected at the target.
   void Branch(Condition cc, Hint hint = no_hint);
   void Branch(Condition cc, Result* arg, Hint hint = no_hint);
+  void Branch(Condition cc, Result* arg0, Result* arg1, Hint hint = no_hint);
 
   // Bind a jump target.  There must be a current frame and no expected
   // frame at the target (targets are only bound once).
   void Bind();
   void Bind(Result* arg);
+  void Bind(Result* arg0, Result* arg1);
 
   // Emit a call to a jump target.  There must be a current frame.  The
   // frame at the target is the same as the current frame except for an

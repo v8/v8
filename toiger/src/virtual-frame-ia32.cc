@@ -132,6 +132,7 @@ void VirtualFrame::Unuse(Register reg) {
 
 
 void VirtualFrame::Spill(Register target) {
+  if (!frame_registers_.is_used(target)) return;
   for (int i = 0; i < elements_.length(); i++) {
     if (elements_[i].is_register() && elements_[i].reg().is(target)) {
       SpillElementAt(i);

@@ -1185,38 +1185,64 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == equal);
 
+  Result left_side(this);
+  Result right_side(this);
   // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
   if (cc == greater || cc == less_equal) {
     cc = ReverseCondition(cc);
-    frame_->EmitPop(edx);
-    frame_->EmitPop(eax);
+    left_side = frame_->Pop();
+    right_side = frame_->Pop();
   } else {
-    frame_->EmitPop(eax);
-    frame_->EmitPop(edx);
+    right_side = frame_->Pop();
+    left_side = frame_->Pop();
   }
-
+  left_side.ToRegister();
+  right_side.ToRegister();
+  ASSERT(left_side.is_valid());
+  ASSERT(right_side.is_valid());
   // Check for the smi case.
   JumpTarget is_smi(this);
   JumpTarget done(this);
-  __ mov(ecx, Operand(eax));
-  __ or_(ecx, Operand(edx));
-  __ test(ecx, Immediate(kSmiTagMask));
-  is_smi.Branch(zero, taken);
+  Result temp = allocator_->Allocate();
+  ASSERT(temp.is_valid());
+  __ mov(temp.reg(), left_side.reg());
+  __ or_(temp.reg(), Operand(right_side.reg()));
+  __ test(temp.reg(), Immediate(kSmiTagMask));
+  temp.Unuse();
+  is_smi.Branch(zero, &left_side, &right_side, taken);
 
   // When non-smi, call out to the compare stub.  "parameters" setup by
   // calling code in edx and eax and "result" is returned in the flags.
-  CompareStub stub(cc, strict);
-  frame_->CallStub(&stub, 0);
-  if (cc == equal) {
-    __ test(eax, Operand(eax));
+  if (!left_side.reg().is(eax)) {
+    right_side.ToRegister(eax);
+    left_side.ToRegister(edx);
+  } else if (!right_side.reg().is(edx)) {
+    left_side.ToRegister(edx);
+    right_side.ToRegister(eax);
   } else {
-    __ cmp(eax, 0);
+    frame_->Spill(eax);  // Can be multiply referenced, even now.
+    frame_->Spill(edx);
+    __ xchg(eax, edx);
+    // If left_side and right_side become real (non-dummy) arguments
+    // to CallStub, they need to be swapped in this case.
   }
+  CompareStub stub(cc, strict);
+  Result answer = frame_->CallStub(&stub, &right_side, &left_side, 0);
+  if (cc == equal) {
+    __ test(answer.reg(), Operand(answer.reg()));
+  } else {
+    __ cmp(answer.reg(), 0);
+  }
+  answer.Unuse();
+  // The expected frame at JumpTarget "done" is bound to the current frame.
+  // This current frame is spilled, due to the call to CallStub.
+  // It would be better if the fast SMI case controlled the expected frame.
   done.Jump();
 
-  // Test smi equality by pointer comparison.
-  is_smi.Bind();
-  __ cmp(edx, Operand(eax));
+  is_smi.Bind(&left_side, &right_side);
+  __ cmp(left_side.reg(), Operand(right_side.reg()));
+  right_side.Unuse();
+  left_side.Unuse();
   // Fall through to |done|.
 
   done.Bind();
@@ -4172,17 +4198,15 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       cc = greater_equal;
       break;
     case Token::IN: {
-      VirtualFrame::SpilledScope spilled_scope(this);
-      LoadAndSpill(left);
-      LoadAndSpill(right);
+      Load(left);
+      Load(right);
       frame_->InvokeBuiltin(Builtins::IN, CALL_FUNCTION, 2);
-      frame_->EmitPush(eax);  // push the result
+      frame_->Push(eax);  // push the result
       return;
     }
     case Token::INSTANCEOF: {
-      VirtualFrame::SpilledScope spilled_scope(this);
-      LoadAndSpill(left);
-      LoadAndSpill(right);
+      Load(left);
+      Load(right);
       InstanceofStub stub;
       frame_->CallStub(&stub, 2);
       __ test(eax, Operand(eax));
@@ -4206,9 +4230,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     return;
   }
 
-  VirtualFrame::SpilledScope spilled_scope(this);
-  LoadAndSpill(left);
-  LoadAndSpill(right);
+  Load(left);
+  Load(right);
   Comparison(cc, strict);
 }
 
