@@ -196,7 +196,7 @@ void VirtualFrame::RawSyncElementAt(int index) {
       // Write elements below the stack pointer to their (already allocated)
       // actual frame location.
       if (element.is_constant()) {
-        __ Set(Operand(ebp, fp_relative(index)), Immediate(element.handle()));
+        __ mov(Operand(ebp, fp_relative(index)), Immediate(element.handle()));
       } else {
         ASSERT(element.is_register());
         __ mov(Operand(ebp, fp_relative(index)), element.reg());
@@ -365,7 +365,7 @@ void VirtualFrame::MakeMergable() {
     ASSERT(!target.is_valid() || target.is_register() || target.is_memory());
     if (target.is_register()) {
       if (source.is_constant()) {
-        __ Set(target.reg(), Immediate(source.handle()));
+        __ mov(target.reg(), Immediate(source.handle()));
       } else if (source.is_register() && !source.reg().is(target.reg())) {
         __ mov(target.reg(), source.reg());
       }
