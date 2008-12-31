@@ -1490,7 +1490,6 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
 
 void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "// EmptyStatement");
   CodeForStatement(node);
   // nothing to do
@@ -1499,7 +1498,6 @@ void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
 
 void CodeGenerator::VisitIfStatement(IfStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ IfStatement");
   // Generate different code depending on which parts of the if statement
   // are present or not.
@@ -1511,84 +1509,84 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
   if (has_then_stm && has_else_stm) {
     JumpTarget then(this);
     JumpTarget else_(this);
-    // if (cond)
-    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
-                          &then, &else_, true);
-    // An invalid frame here indicates that the code for the condition
-    // cannot fall-through, i.e. it caused unconditional jumps to the
-    // targets.
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
     if (has_valid_frame()) {
+      // We have fallen through from the condition (with a value in cc_reg).
+      // Emit a branch if false around the then block and compile both
+      // blocks.
       Branch(false, &else_);
     }
-    // then
-    if (has_valid_frame() || then.is_linked()) {
-      // If control flow can reach the then part via fall-through from the
-      // test or a branch to the target, compile it.
+    if (then.is_linked()) {
       then.Bind();
-      VisitAndSpill(node->then_statement());
     }
-    // A NULL frame here indicates that control did not fall out of the then
-    // statement, it escaped on all branches.  In that case, a jump to the
-    // exit label would be dead code (and impossible, because we don't have
-    // a current virtual frame to set at the exit label).
     if (has_valid_frame()) {
+      // We have fallen through from the condition or reached here by a
+      // direct jump to the then target.
+      Visit(node->then_statement());
+    }
+    if (has_valid_frame() && else_.is_linked()) {
+      // We have fallen through from the then block and we need to compile
+      // the else block.  Emit an unconditional jump around it.
       exit.Jump();
     }
-    // else
     if (else_.is_linked()) {
-      // Control flow for if-then-else does not fall-through to the else
-      // part, it can only reach here via jump if at all.
       else_.Bind();
-      VisitAndSpill(node->else_statement());
+      Visit(node->else_statement());
     }
 
   } else if (has_then_stm) {
     ASSERT(!has_else_stm);
     JumpTarget then(this);
-    // if (cond)
-    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
-                          &then, &exit, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &exit, true);
     if (has_valid_frame()) {
+      // We have fallen through from the condition (with a value in cc_reg).
+      // Emit a branch if false around the then block.
       Branch(false, &exit);
     }
-    // then
-    if (has_valid_frame() || then.is_linked()) {
+    if (then.is_linked()) {
       then.Bind();
-      VisitAndSpill(node->then_statement());
+    }
+    if (has_valid_frame()) {
+      // We have fallen through from the condition or reached here by a
+      // direct jump to the then target.
+      Visit(node->then_statement());
     }
 
   } else if (has_else_stm) {
     ASSERT(!has_then_stm);
     JumpTarget else_(this);
-    // if (!cond)
-    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
-                          &exit, &else_, true);
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &else_, true);
     if (has_valid_frame()) {
+      // We have fallen through from the condition (with a value in cc_reg).
+      // Emit a branch if true around the else block.
       Branch(true, &exit);
     }
-    // else
-    if (has_valid_frame() || else_.is_linked()) {
+    if (else_.is_linked()) {
       else_.Bind();
-      VisitAndSpill(node->else_statement());
+    }
+    if (has_valid_frame()) {
+      // We have fallen through from the condition or reached here by a
+      // direct jump to the else target.
+      Visit(node->else_statement());
     }
 
   } else {
     ASSERT(!has_then_stm && !has_else_stm);
-    // if (cond)
-    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
-                          &exit, &exit, false);
+    // We only care about the condition's side effects (not its value or
+    // control flow effect).  LoadCondition is called without forcing a
+    // value into cc_reg.
+    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &exit, false);
     if (has_valid_frame()) {
+      // Control flow can fall off the end of the condition.  We discard its
+      // value, which may be in cc_reg or else on top of the virtual frame.
       if (has_cc()) {
         cc_reg_ = no_condition;
       } else {
-        // No cc value set up, that means the boolean was pushed.
-        // Pop it again, since it is not going to be used.
         frame_->Drop();
       }
     }
   }
 
-  // end
   if (exit.is_linked()) {
     exit.Bind();
   }
