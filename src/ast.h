@@ -703,7 +703,7 @@ class RegExpLiteral: public MaterializedLiteral {
 };
 
 // An array literal has a literals object that is used
-// used for minimizing the work when contructing it at runtime.
+// for minimizing the work when constructing it at runtime.
 class ArrayLiteral: public Expression {
  public:
   ArrayLiteral(Handle<FixedArray> literals,
@@ -1294,16 +1294,36 @@ class RegExpAssertion: public RegExpTree {
 };
 
 
+class CharacterSet BASE_EMBEDDED {
+ public:
+  explicit CharacterSet(uc16 standard_set_type)
+      : ranges_(NULL),
+        standard_set_type_(standard_set_type) {}
+  explicit CharacterSet(ZoneList<CharacterRange>* ranges)
+      : ranges_(ranges),
+        standard_set_type_(0) {}
+  ZoneList<CharacterRange>* ranges();
+  uc16 standard_set_type() { return standard_set_type_; }
+  void set_standard_set_type(uc16 special_set_type) {
+    standard_set_type_ = special_set_type;
+  }
+  bool is_standard() { return standard_set_type_ != 0; }
+ private:
+  ZoneList<CharacterRange>* ranges_;
+  // If non-zero, the value represents a standard set (e.g., all whitespace
+  // characters) without having to expand the ranges.
+  uc16 standard_set_type_;
+};
+
+
 class RegExpCharacterClass: public RegExpTree {
  public:
   RegExpCharacterClass(ZoneList<CharacterRange>* ranges, bool is_negated)
-      : ranges_(ranges),
+      : set_(ranges),
         is_negated_(is_negated) { }
   explicit RegExpCharacterClass(uc16 type)
-      : ranges_(new ZoneList<CharacterRange>(2)),
-        is_negated_(false) {
-    CharacterRange::AddClassEscape(type, ranges_);
-  }
+      : set_(type),
+        is_negated_(false) { }
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success);
@@ -1313,10 +1333,26 @@ class RegExpCharacterClass: public RegExpTree {
   virtual int min_match() { return 1; }
   virtual int max_match() { return 1; }
   virtual void AppendToText(RegExpText* text);
-  ZoneList<CharacterRange>* ranges() { return ranges_; }
+  CharacterSet character_set() { return set_; }
+  // TODO(lrn): Remove need for complex version if is_standard that
+  // recognizes a mangled standard set and just do { return set_.is_special(); }
+  bool is_standard();
+  // Returns a value representing the standard character set if is_standard()
+  // returns true.
+  // Currently used values are:
+  // s : unicode whitespace
+  // S : unicode non-whitespace
+  // w : ASCII word character (digit, letter, underscore)
+  // W : non-ASCII word character
+  // d : ASCII digit
+  // D : non-ASCII digit
+  // . : non-unicode newline
+  // * : All characters
+  uc16 standard_type() { return set_.standard_set_type(); }
+  ZoneList<CharacterRange>* ranges() { return set_.ranges(); }
   bool is_negated() { return is_negated_; }
  private:
-  ZoneList<CharacterRange>* ranges_;
+  CharacterSet set_;
   bool is_negated_;
 };
 

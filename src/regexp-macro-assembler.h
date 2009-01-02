@@ -99,6 +99,16 @@ class RegExpMacroAssembler {
   virtual void CheckNotRegistersEqual(int reg1,
                                       int reg2,
                                       Label* on_not_equal) = 0;
+  // Check whether a standard/default character class matches the current
+  // character. Returns false if the type of special character class does
+  // not have custom support.
+  // May clobber the current loaded character.
+  virtual bool CheckSpecialCharacterClass(uc16 type,
+                                          int cp_offset,
+                                          bool check_offset,
+                                          Label* on_no_match) {
+    return false;
+  }
   // Dispatch after looking the current character up in a byte map.  The
   // destinations vector has up to 256 labels.
   virtual void DispatchByteMap(

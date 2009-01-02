@@ -267,11 +267,9 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     } else if (parse_result.tree->IsAtom() &&
         !flags.is_ignore_case() &&
         parse_result.capture_count == 0) {
-      // TODO(lrn) Accept capture_count > 0 on atoms.
       RegExpAtom* atom = parse_result.tree->AsAtom();
       Vector<const uc16> atom_pattern = atom->data();
-      Handle<String> atom_string =
-          Factory::NewStringFromTwoByte(atom_pattern);
+      Handle<String> atom_string = Factory::NewStringFromTwoByte(atom_pattern);
       result = AtomCompile(re, pattern, flags, atom_string);
     } else if (FLAG_irregexp) {
       result = IrregexpPrepare(re, pattern, flags);
@@ -512,8 +510,9 @@ Handle<Object> RegExpImpl::JscreCompile(Handle<JSRegExp> re) {
     // Throw an exception.
     Handle<JSArray> array = Factory::NewJSArray(2);
     SetElement(array, 0, pattern);
-    SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(
-        (error_message == NULL) ? "Unknown regexp error" : error_message)));
+    const char* message =
+        (error_message == NULL) ? "Unknown regexp error" : error_message;
+    SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(message)));
     Handle<Object> regexp_err =
         Factory::NewSyntaxError("malformed_regexp", array);
     Top::Throw(*regexp_err);
@@ -1744,6 +1743,14 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
                           bool check_offset,
                           bool ascii,
                           bool preloaded) {
+  if (cc->is_standard() &&
+      macro_assembler->CheckSpecialCharacterClass(cc->standard_type(),
+                                                  cp_offset,
+                                                  check_offset,
+                                                  on_failure)) {
+    return;
+  }
+
   ZoneList<CharacterRange>* ranges = cc->ranges();
   int max_char;
   if (ascii) {
@@ -3345,6 +3352,22 @@ void RegExpEngine::DotPrint(const char* label,
 // -------------------------------------------------------------------
 // Tree to graph conversion
 
+static const int kSpaceRangeCount = 20;
+static const int kSpaceRangeAsciiCount = 4;
+static const uc16 kSpaceRanges[kSpaceRangeCount] = { 0x0009, 0x000D, 0x0020,
+    0x0020, 0x00A0, 0x00A0, 0x1680, 0x1680, 0x180E, 0x180E, 0x2000, 0x200A,
+    0x2028, 0x2029, 0x202F, 0x202F, 0x205F, 0x205F, 0x3000, 0x3000 };
+
+static const int kWordRangeCount = 8;
+static const uc16 kWordRanges[kWordRangeCount] = { '0', '9', 'A', 'Z', '_',
+    '_', 'a', 'z' };
+
+static const int kDigitRangeCount = 2;
+static const uc16 kDigitRanges[kDigitRangeCount] = { '0', '9' };
+
+static const int kLineTerminatorRangeCount = 6;
+static const uc16 kLineTerminatorRanges[kLineTerminatorRangeCount] = { 0x000A,
+    0x000A, 0x000D, 0x000D, 0x2028, 0x2029 };
 
 RegExpNode* RegExpAtom::ToNode(RegExpCompiler* compiler,
                                RegExpNode* on_success) {
@@ -3357,6 +3380,77 @@ RegExpNode* RegExpAtom::ToNode(RegExpCompiler* compiler,
 RegExpNode* RegExpText::ToNode(RegExpCompiler* compiler,
                                RegExpNode* on_success) {
   return new TextNode(elements(), on_success);
+}
+
+static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
+                                 const uc16* special_class,
+                                 int length) {
+  ASSERT(ranges->length() != 0);
+  ASSERT(length != 0);
+  ASSERT(special_class[0] != 0);
+  if (ranges->length() != (length >> 1) + 1) {
+    return false;
+  }
+  CharacterRange range = ranges->at(0);
+  if (range.from() != 0) {
+    return false;
+  }
+  for (int i = 0; i < length; i += 2) {
+    if (special_class[i] != (range.to() + 1)) {
+      return false;
+    }
+    range = ranges->at((i >> 1) + 1);
+    if (special_class[i+1] != range.from() - 1) {
+      return false;
+    }
+  }
+  if (range.to() != 0xffff) {
+    return false;
+  }
+  return true;
+}
+
+
+static bool CompareRanges(ZoneList<CharacterRange>* ranges,
+                          const uc16* special_class,
+                          int length) {
+  if (ranges->length() * 2 != length) {
+    return false;
+  }
+  for (int i = 0; i < length; i += 2) {
+    CharacterRange range = ranges->at(i >> 1);
+    if (range.from() != special_class[i] || range.to() != special_class[i+1]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+bool RegExpCharacterClass::is_standard() {
+  // TODO(lrn): Remove need for this function, by not throwing away information
+  // along the way.
+  if (is_negated_) {
+    return false;
+  }
+  if (set_.is_standard()) {
+    return true;
+  }
+  if (CompareRanges(set_.ranges(), kSpaceRanges, kSpaceRangeCount)) {
+    set_.set_standard_set_type('s');
+    return true;
+  }
+  if (CompareInverseRanges(set_.ranges(), kSpaceRanges, kSpaceRangeCount)) {
+    set_.set_standard_set_type('S');
+    return true;
+  }
+  if (CompareInverseRanges(set_.ranges(),
+                           kLineTerminatorRanges,
+                           kLineTerminatorRangeCount)) {
+    set_.set_standard_set_type('.');
+    return true;
+  }
+  return false;
 }
 
 
@@ -3600,32 +3694,6 @@ RegExpNode* RegExpAlternative::ToNode(RegExpCompiler* compiler,
 }
 
 
-static const int kSpaceRangeCount = 20;
-static const uc16 kSpaceRanges[kSpaceRangeCount] = {
-  0x0009, 0x000D, 0x0020, 0x0020, 0x00A0, 0x00A0, 0x1680,
-  0x1680, 0x180E, 0x180E, 0x2000, 0x200A, 0x2028, 0x2029,
-  0x202F, 0x202F, 0x205F, 0x205F, 0x3000, 0x3000
-};
-
-
-static const int kWordRangeCount = 8;
-static const uc16 kWordRanges[kWordRangeCount] = {
-  '0', '9', 'A', 'Z', '_', '_', 'a', 'z'
-};
-
-
-static const int kDigitRangeCount = 2;
-static const uc16 kDigitRanges[kDigitRangeCount] = {
-  '0', '9'
-};
-
-
-static const int kLineTerminatorRangeCount = 6;
-static const uc16 kLineTerminatorRanges[kLineTerminatorRangeCount] = {
-  0x000A, 0x000A, 0x000D, 0x000D, 0x2028, 0x2029
-};
-
-
 static void AddClass(const uc16* elmv,
                      int elmc,
                      ZoneList<CharacterRange>* ranges) {
@@ -3819,6 +3887,16 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
     // TODO(plesner) when we've fixed the 2^11 bug in unibrow.
   }
 }
+
+
+ZoneList<CharacterRange>* CharacterSet::ranges() {
+  if (ranges_ == NULL) {
+    ranges_ = new ZoneList<CharacterRange>(2);
+    CharacterRange::AddClassEscape(standard_set_type_, ranges_);
+  }
+  return ranges_;
+}
+
 
 
 // -------------------------------------------------------------------

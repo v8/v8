@@ -295,8 +295,28 @@ void RegExpMacroAssemblerTracer::CheckCharacters(Vector<const uc16> str,
 
 void RegExpMacroAssemblerTracer::CheckBitmap(uc16 start, Label* bitmap,
                                              Label* on_zero) {
-  PrintF(" CheckBitmap(start=u$04x, <bitmap>, label[%08x]);\n", start, on_zero);
+  PrintF(" CheckBitmap(start=u%04x, <bitmap>, label[%08x]);\n", start, on_zero);
   assembler_->CheckBitmap(start, bitmap, on_zero);
+}
+
+
+bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
+    uc16 type,
+    int cp_offset,
+    bool check_offset,
+    Label* on_no_match) {
+  bool supported = assembler_->CheckSpecialCharacterClass(type,
+                                                          cp_offset,
+                                                          check_offset,
+                                                          on_no_match);
+  PrintF(" CheckSpecialCharacterClass(type='%c', offset=%d, "
+             "check_offset=%s, label[%08x]): %s;\n",
+         type,
+         cp_offset,
+         check_offset ? "true" : "false",
+         on_no_match,
+         supported ? "true" : "false");
+  return supported;
 }
 
 
@@ -304,7 +324,7 @@ void RegExpMacroAssemblerTracer::DispatchHalfNibbleMap(
     uc16 start,
     Label* half_nibble_map,
     const Vector<Label*>& destinations) {
-  PrintF(" DispatchHalfNibbleMap(start=u$04x, <half_nibble_map>, [", start);
+  PrintF(" DispatchHalfNibbleMap(start=u%04x, <half_nibble_map>, [", start);
   for (int i = 0; i < destinations.length(); i++) {
     if (i > 0)
       PrintF(", ");
@@ -319,7 +339,7 @@ void RegExpMacroAssemblerTracer::DispatchByteMap(
     uc16 start,
     Label* byte_map,
     const Vector<Label*>& destinations) {
-  PrintF(" DispatchByteMap(start=u$04x, <byte_map>, [", start);
+  PrintF(" DispatchByteMap(start=u%04x, <byte_map>, [", start);
   for (int i = 0; i < destinations.length(); i++) {
     if (i > 0)
       PrintF(", ");
@@ -334,7 +354,7 @@ void RegExpMacroAssemblerTracer::DispatchHighByteMap(
     byte start,
     Label* byte_map,
     const Vector<Label*>& destinations) {
-  PrintF(" DispatchHighByteMap(start=u$04x, <byte_map>, [", start);
+  PrintF(" DispatchHighByteMap(start=u%04x, <byte_map>, [", start);
   for (int i = 0; i < destinations.length(); i++) {
     if (i > 0)
       PrintF(", ");

@@ -67,6 +67,10 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
                                               uc16 minus,
                                               uc16 mask,
                                               Label* on_not_equal);
+  virtual bool CheckSpecialCharacterClass(uc16 type,
+                                          int cp_offset,
+                                          bool check_offset,
+                                          Label* on_no_match);
   virtual void DispatchByteMap(uc16 start,
                                Label* byte_map,
                                const Vector<Label*>& destinations);
@@ -144,10 +148,18 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
 
   void LoadCurrentCharacterUnchecked(int cp_offset, int characters);
 
+  // Adds code that checks whether preemption has been requested
+  // (and checks if we have hit the stack limit too).
+  void CheckStackLimit();
+
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.
   static int CheckStackGuardState(Address return_address, Code* re_code);
+
+  // Checks whether the given offset from the current position is before
+  // the end of the string.
+  void CheckPosition(int cp_offset, Label* on_outside_input);
 
   // The ebp-relative location of a regexp register.
   Operand register_location(int register_index);
@@ -166,10 +178,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // into a register. The address is computed from the ByteArray* address
   // and an offset. Uses no extra registers.
   void LoadConstantBufferAddress(Register reg, ArraySlice* buffer);
-
-  // Adds code that checks whether preemption has been requested
-  // (and checks if we have hit the stack limit too).
-  void CheckStackLimit();
 
   // Call and return internally in the generated code in a way that
   // is GC-safe (i.e., doesn't leave absolute code addresses on the stack)

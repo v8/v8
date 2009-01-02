@@ -406,6 +406,105 @@ void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusAnd(
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
+bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
+                                                          int cp_offset,
+                                                          bool check_offset,
+                                                          Label* on_no_match) {
+  // Range checks (c in min..max) are generally implemented by an unsigned
+  // (c - min) <= (max - min) check
+  switch (type) {
+  case 's':
+    // Match space-characters
+    if (mode_ == ASCII) {
+      // ASCII space characters are '\t'..'\r' and ' '.
+      if (check_offset) {
+        LoadCurrentCharacter(cp_offset, on_no_match);
+      } else {
+        LoadCurrentCharacterUnchecked(cp_offset, 1);
+      }
+      Label success;
+      __ cmp(current_character(), ' ');
+      __ j(equal, &success);
+      // Check range 0x09..0x0d
+      __ sub(Operand(current_character()), Immediate('\t'));
+      __ cmp(current_character(), '\r' - '\t');
+      BranchOrBacktrack(above_equal, on_no_match);
+      __ bind(&success);
+      return true;
+    }
+    return false;
+  case 'S':
+    // Match non-space characters.
+    if (check_offset) {
+      LoadCurrentCharacter(cp_offset, on_no_match, 1);
+    } else {
+      LoadCurrentCharacterUnchecked(cp_offset, 1);
+    }
+    if (mode_ == ASCII) {
+      // ASCII space characters are '\t'..'\r' and ' '.
+      __ cmp(current_character(), ' ');
+      BranchOrBacktrack(equal, on_no_match);
+      __ sub(Operand(current_character()), Immediate('\t'));
+      __ cmp(current_character(), '\r' - '\t');
+      BranchOrBacktrack(below, on_no_match);
+      return true;
+    }
+    return false;
+  case 'd':
+    // Match ASCII digits ('0'..'9')
+    if (check_offset) {
+      LoadCurrentCharacter(cp_offset, on_no_match, 1);
+    } else {
+      LoadCurrentCharacterUnchecked(cp_offset, 1);
+    }
+    __ sub(Operand(current_character()), Immediate('0'));
+    __ cmp(current_character(), '9' - '0');
+    BranchOrBacktrack(greater_equal, on_no_match);
+    return true;
+  case 'D':
+    // Match non ASCII-digits
+    if (check_offset) {
+      LoadCurrentCharacter(cp_offset, on_no_match, 1);
+    } else {
+      LoadCurrentCharacterUnchecked(cp_offset, 1);
+    }
+    __ sub(Operand(current_character()), Immediate('0'));
+    __ cmp(current_character(), '9' - '0');
+    BranchOrBacktrack(below, on_no_match);
+    return true;
+  case '.': {
+    // Match non-newlines (not 0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    if (check_offset) {
+      LoadCurrentCharacter(cp_offset, on_no_match, 1);
+    } else {
+      LoadCurrentCharacterUnchecked(cp_offset, 1);
+    }
+    // Compute hash value so exactly 0x0a and 0x0d become zero.
+    __ sub(Operand(current_character()), Immediate('\n'));
+    __ mov(eax, current_character());
+    __ and_(current_character(), 0x01);
+    __ shr(eax, 1);
+    __ xor_(current_character(), Operand(eax));
+    BranchOrBacktrack(equal, on_no_match);
+    if (mode_ == UC16) {
+      // Compare original value to 0x2028 and 0x2029, using the already
+      // computed ((current_char - '\n') >> 1) in eax.
+      __ cmp(eax, (0x2028 - '\n') >> 1);
+      BranchOrBacktrack(equal, on_no_match);
+    }
+    return true;
+  }
+  case '*':
+    // Match any character.
+    if (check_offset) {
+      CheckPosition(cp_offset, on_no_match);
+    }
+    return true;
+  // No custom implementation (yet): w, W, s(UC16), S(UC16).
+  default:
+    return false;
+  }
+}
 
 void RegExpMacroAssemblerIA32::DispatchHalfNibbleMap(
     uc16 start,
@@ -657,10 +756,7 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacter(int cp_offset,
                                                     int characters) {
   ASSERT(cp_offset >= 0);
   ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
-  if (check_bounds) {
-    __ cmp(edi, -(cp_offset + characters) * char_size());
-    BranchOrBacktrack(greater, on_end_of_input);
-  }
+  CheckPosition(cp_offset + characters - 1, on_end_of_input);
   LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
 
@@ -812,6 +908,13 @@ Register RegExpMacroAssemblerIA32::current_character() {
 
 size_t RegExpMacroAssemblerIA32::char_size() {
   return static_cast<size_t>(mode_);
+}
+
+
+void RegExpMacroAssemblerIA32::CheckPosition(int cp_offset,
+                                             Label* on_outside_input) {
+  __ cmp(edi, -cp_offset * char_size());
+  BranchOrBacktrack(greater_equal, on_outside_input);
 }
 
 
