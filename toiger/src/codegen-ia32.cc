@@ -1601,7 +1601,6 @@ void CodeGenerator::CleanStack(int num_bytes) {
 
 void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ContinueStatement");
   CodeForStatement(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
@@ -1611,7 +1610,6 @@ void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
 
 void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ BreakStatement");
   CodeForStatement(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
@@ -1893,11 +1891,12 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
   switch (node->type()) {
     case LoopStatement::DO_LOOP: {
-      // The new code generator does not yet compile do loops.
-      VirtualFrame::SpilledScope spilled_scope(this);
       JumpTarget body(this);
       IncrementLoopNesting();
-      // Label the body.
+
+      // Label the top of the loop for the backward CFG edge.  If the test
+      // is always true we can use the continue target, and if the test is
+      // always false there is no need.
       if (info == ALWAYS_TRUE) {
         node->continue_target()->Bind();
       } else if (info == ALWAYS_FALSE) {
@@ -1906,19 +1905,19 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         ASSERT(info == DONT_KNOW);
         body.Bind();
       }
-      CheckStack();  // TODO(1222600): ignore if body contains calls.
-      VisitAndSpill(node->body());
 
-      // Compile the "test".
+      CheckStack();  // TODO(1222600): ignore if body contains calls.
+      Visit(node->body());
+
+      // Compile the test.
       if (info == ALWAYS_TRUE) {
+        // If control flow can fall off the end of the body, jump back to
+        // the top.
         if (has_valid_frame()) {
-          // If control flow can fall off the end of the body, jump back to
-          // the top.
           node->continue_target()->Jump();
         }
       } else if (info == ALWAYS_FALSE) {
-        // If we have a continue in the body, we only have to bind its jump
-        // target.
+        // If we had a continue in the body we have to bind its jump target.
         if (node->continue_target()->is_linked()) {
           node->continue_target()->Bind();
         }
@@ -1926,10 +1925,12 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         ASSERT(info == DONT_KNOW);
         // We have to compile the test expression if it can be reached by
         // control flow falling out of the body or via continue.
-        if (has_valid_frame() || node->continue_target()->is_linked()) {
+        if (node->continue_target()->is_linked()) {
           node->continue_target()->Bind();
-          LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
-                                &body, node->break_target(), true);
+        }
+        if (has_valid_frame()) {
+          LoadCondition(node->cond(), NOT_INSIDE_TYPEOF,
+                        &body, node->break_target(), true);
           // An invalid frame here indicates that control flow did not fall
           // out of the test expression.
           if (has_valid_frame()) {
@@ -1941,36 +1942,36 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::WHILE_LOOP: {
-      // The new code generator does not yet compile while loops.
-      VirtualFrame::SpilledScope spilled_scope(this);
-      JumpTarget body(this);
       IncrementLoopNesting();
-      // Generate the loop header.
-      if (info == ALWAYS_TRUE) {
-        // Merely label the body with the continue target.
-        node->continue_target()->Bind();
-      } else if (info == ALWAYS_FALSE) {
-        // There is no need to even compile the test or body.
-        break;
-      } else {
-        // Compile the test labeled with the continue target and label the
-        // body with the body target.
-        ASSERT(info == DONT_KNOW);
-        node->continue_target()->Bind();
-        LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
-                              &body, node->break_target(), true);
+
+      // If the test is never true and has no side effects there is no need
+      // to compile the test or body.
+      if (info == ALWAYS_FALSE) break;
+
+      // Label the top of the loop with the continue target for the backward
+      // CFG edge.
+      node->continue_target()->Bind();
+
+      // If the test is always true and has no side effects there is no need
+      // to compile it.  We only compile the test when we do not know its
+      // outcome or it may have side effects.
+      if (info == DONT_KNOW) {
+        JumpTarget body(this);
+        LoadCondition(node->cond(), NOT_INSIDE_TYPEOF,
+                      &body, node->break_target(), true);
         // An invalid frame indicates that control did not fall out of the
         // test expression.
         if (has_valid_frame()) {
           Branch(false, node->break_target());
         }
-        if (has_valid_frame() || body.is_linked()) {
+        if (body.is_linked()) {
           body.Bind();
         }
       }
+
       if (has_valid_frame()) {
         CheckStack();  // TODO(1222600): ignore if body contains calls.
-        VisitAndSpill(node->body());
+        Visit(node->body());
 
         // If control flow can fall out of the body, jump back to the top.
         if (has_valid_frame()) {
@@ -1982,32 +1983,34 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
     case LoopStatement::FOR_LOOP: {
       JumpTarget loop(this);
-      JumpTarget body(this);
       if (node->init() != NULL) {
         Visit(node->init());
       }
 
       IncrementLoopNesting();
-      // There is no need to compile the test or body.
+      // If the test is never true and has no side effects there is no need
+      // to compile the test or body.
       if (info == ALWAYS_FALSE) break;
 
       // Label the top of the loop for the backward CFG edge.  If there is
-      // no update expression label it with the continue target, otherwise
-      // with the loop target.
+      // no update expression we can use the continue target.
       if (node->next() == NULL) {
         node->continue_target()->Bind();
       } else {
         loop.Bind();
       }
 
-      // If the test is always true, there is no need to compile it.
+      // If the test is always true and has no side effects there is no need
+      // to compile it.  We only compile the test when we do not know its
+      // outcome or it has side effects.
       if (info == DONT_KNOW) {
+        JumpTarget body(this);
         LoadCondition(node->cond(), NOT_INSIDE_TYPEOF,
                       &body, node->break_target(), true);
         if (has_valid_frame()) {
           Branch(false, node->break_target());
         }
-        if (has_valid_frame() || body.is_linked()) {
+        if (body.is_linked()) {
           body.Bind();
         }
       }
@@ -2026,8 +2029,10 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
           // If there is an update statement and control flow can reach it
           // via falling out of the body of the loop or continuing, we
           // compile the update statement.
-          if (has_valid_frame() || node->continue_target()->is_linked()) {
+          if (node->continue_target()->is_linked()) {
             node->continue_target()->Bind();
+          }
+          if (has_valid_frame()) {
             // Record source position of the statement as this code which is
             // after the code for the body actually belongs to the loop
             // statement and not the body.
@@ -2332,7 +2337,11 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       // Unlink from try chain; be careful not to destroy the TOS.
+      //
+      // Because we can be jumping here (to spilled code) from unspilled
+      // code, we need to reestablish a spilled frame at this block.
       shadows[i]->Bind();
+      frame_->SpillAll();
 
       // Reload sp from the top handler, because some statements that we
       // break from (eg, for...in) may have left stuff on the stack.
@@ -2427,7 +2436,10 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // have been jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
+      // Because we can be jumping here (to spilled code) from unspilled
+      // code, we need to reestablish a spilled frame at this block.
       shadows[i]->Bind();
+      frame_->SpillAll();
       if (shadows[i]->original_target() == &function_return_) {
         // If this target shadowed the function return, materialize the
         // return value on the stack.

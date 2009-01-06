@@ -137,11 +137,27 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
   } else {
     // No code needs to be emitted to merge to the expected frame at the
     // actual function return.
-    if (!cgen_->IsActualFunctionReturn(this)) {
-      current_frame->MergeTo(expected_frame_);
-    }
-    ASSERT(cgen_->HasValidEntryRegisters());
+    if (cgen_->IsActualFunctionReturn(this)) {
+      ASSERT(cgen_->HasValidEntryRegisters());
       __ j(cc, &label_, hint);
+    } else {
+      // We negate the condition and emit the code to merge to the expected
+      // frame immediately.
+      //
+      // TODO(): This should be replaced with a solution that emits the
+      // merge code for forward CFG edges at the appropriate entry to the
+      // target block.
+      Label original_fall_through;
+      __ j(NegateCondition(cc), &original_fall_through, NegateHint(hint));
+      VirtualFrame* working_frame = new VirtualFrame(current_frame);
+      cgen_->SetFrame(working_frame);
+      working_frame->MergeTo(expected_frame_);
+      ASSERT(cgen_->HasValidEntryRegisters());
+      __ jmp(&label_);
+      cgen_->SetFrame(current_frame);
+      delete working_frame;
+      __ bind(&original_fall_through);
+    }
   }
   // Postcondition: there is both a current frame and an expected frame at
   // the label and they match.
