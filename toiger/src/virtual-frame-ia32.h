@@ -281,8 +281,12 @@ class VirtualFrame : public Malloced {
   // The function frame slot.
   Operand Function() const { return Operand(ebp, kFunctionOffset); }
 
-  // The context frame slot.
-  Operand Context() const { return Operand(ebp, kContextOffset); }
+  // Lazily save the value of the esi register to the context frame slot.
+  void SaveContextRegister();
+
+  // Eagerly restore the esi register from the value of the frame context
+  // slot.
+  void RestoreContextRegister();
 
   // A parameter as an assembly operand.
   Operand ParameterAt(int index) const {
@@ -326,8 +330,8 @@ class VirtualFrame : public Malloced {
 
   // Call the runtime, given the number of arguments expected on (and
   // removed from) the top of the physical frame.
-  void CallRuntime(Runtime::Function* f, int frame_arg_count);
-  void CallRuntime(Runtime::FunctionId id, int frame_arg_count);
+  Result CallRuntime(Runtime::Function* f, int frame_arg_count);
+  Result CallRuntime(Runtime::FunctionId id, int frame_arg_count);
 
   // Invoke a builtin, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.

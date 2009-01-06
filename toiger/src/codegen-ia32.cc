@@ -194,7 +194,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         verified_true.Bind();
       }
       // Update context local.
-      __ mov(frame_->Context(), esi);
+      frame_->SaveContextRegister();
     }
 
     // TODO(1241774): Improve this code:
@@ -1351,7 +1351,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   frame_->CallStub(&call_function, arg_count + 1);
 
   // Restore context and pop function from the stack.
-  __ mov(esi, frame_->Context());
+  frame_->RestoreContextRegister();
   __ mov(frame_->Top(), eax);
 }
 
@@ -1660,39 +1660,41 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 
 void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ WithEnterStatement");
   CodeForStatement(node);
-  LoadAndSpill(node->expression());
+  Load(node->expression());
+  Result context(this);
   if (node->is_catch_block()) {
-    frame_->CallRuntime(Runtime::kPushCatchContext, 1);
+    context = frame_->CallRuntime(Runtime::kPushCatchContext, 1);
   } else {
-    frame_->CallRuntime(Runtime::kPushContext, 1);
+    context = frame_->CallRuntime(Runtime::kPushContext, 1);
   }
 
   if (kDebug) {
     JumpTarget verified_true(this);
-    // Verify eax and esi are the same in debug mode
-    __ cmp(eax, Operand(esi));
-    verified_true.Branch(equal);
+    // Verify that the result of the runtime call and the esi register are
+    // the same in debug mode.
+    __ cmp(context.reg(), Operand(esi));
+    verified_true.Branch(equal, &context);
+    frame_->SpillAll();
     __ int3();
-    verified_true.Bind();
+    verified_true.Bind(&context);
   }
+  context.Unuse();
 
   // Update context local.
-  __ mov(frame_->Context(), esi);
+  frame_->SaveContextRegister();
 }
 
 
 void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ WithExitStatement");
   CodeForStatement(node);
   // Pop context.
   __ mov(esi, ContextOperand(esi, Context::PREVIOUS_INDEX));
   // Update context local.
-  __ mov(frame_->Context(), esi);
+  frame_->SaveContextRegister();
 }
 
 
@@ -2640,7 +2642,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
 
     // For now, just do a runtime call.
     VirtualFrame::SpilledScope spilled_scope(this);
-    frame_->EmitPush(frame_->Context());
+    frame_->EmitPush(esi);
     frame_->EmitPush(Immediate(slot->var()->name()));
 
     if (init_state == CONST_INIT) {
@@ -3122,7 +3124,7 @@ void CodeGenerator::VisitCall(Call* node) {
     CodeForSourcePosition(node->position());
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
                            arg_count + 1);
-    __ mov(esi, frame_->Context());
+    frame_->RestoreContextRegister();
 
     // Overwrite the function on the stack with the result.
     __ mov(frame_->Top(), eax);
@@ -3171,7 +3173,7 @@ void CodeGenerator::VisitCall(Call* node) {
         : ComputeCallInitialize(arg_count);
       CodeForSourcePosition(node->position());
       frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
-      __ mov(esi, frame_->Context());
+      frame_->RestoreContextRegister();
 
       // Overwrite the function on the stack with the result.
       __ mov(frame_->Top(), eax);
@@ -3299,7 +3301,7 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   frame_->CallStub(&call_function, arg_count + 1);
 
   // Restore context and pop function from the stack.
-  __ mov(esi, frame_->Context());
+  frame_->RestoreContextRegister();
   __ mov(frame_->Top(), eax);
 }
 
@@ -3582,7 +3584,7 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     Handle<Code> stub = ComputeCallInitialize(arg_count);
     __ Set(eax, Immediate(args->length()));
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
-    __ mov(esi, frame_->Context());
+    frame_->RestoreContextRegister();
     __ mov(frame_->Top(), eax);
   } else {
     // Call the C runtime function.

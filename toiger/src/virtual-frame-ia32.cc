@@ -590,11 +590,10 @@ void VirtualFrame::Enter() {
   frame_pointer_ = stack_pointer_;
   __ mov(ebp, Operand(esp));
 
-  // Store the context in the frame.  The context is kept in esi, so the
-  // register reference is not owned by the frame (ie, the frame is not free
-  // to spill it).  This is implemented by making the in-frame value be
-  // memory.
-  EmitPush(esi);
+  // Store the context in the frame.  The context is kept in esi and a
+  // copy is stored in the frame.  The external reference to esi
+  // remains in addition to the cached copy in the frame.
+  Push(esi);
 
   // Store the function in the frame.  The frame owns the register reference
   // now (ie, it can keep it in edi or spill it later).
@@ -678,6 +677,38 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
   }
 
   value->Unuse();
+}
+
+
+void VirtualFrame::SaveContextRegister() {
+  FrameElement current = elements_[context_index()];
+  ASSERT(current.is_register() || current.is_memory());
+  if (!current.is_register() || !current.reg().is(esi)) {
+    if (current.is_register()) {
+      Unuse(current.reg());
+    }
+    Use(esi);
+    elements_[context_index()] =
+        FrameElement::RegisterElement(esi, FrameElement::NOT_SYNCED);
+  }
+}
+
+
+void VirtualFrame::RestoreContextRegister() {
+  FrameElement current = elements_[context_index()];
+  ASSERT(current.is_register() || current.is_memory());
+  if (current.is_register() && !current.reg().is(esi)) {
+    Unuse(current.reg());
+    Use(esi);
+    __ mov(esi, current.reg());
+    elements_[context_index()] =
+        FrameElement::RegisterElement(esi, FrameElement::NOT_SYNCED);
+  } else if (current.is_memory()) {
+    Use(esi);
+    __ mov(esi, Operand(ebp, fp_relative(context_index())));
+    elements_[context_index()] =
+        FrameElement::RegisterElement(esi, FrameElement::SYNCED);
+  }
 }
 
 
@@ -806,17 +837,25 @@ Result VirtualFrame::CallStub(CodeStub* stub,
 }
 
 
-void VirtualFrame::CallRuntime(Runtime::Function* f, int frame_arg_count) {
+Result VirtualFrame::CallRuntime(Runtime::Function* f,
+                                 int frame_arg_count) {
   ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ CallRuntime(f, frame_arg_count);
+  Result result = cgen_->allocator()->Allocate(eax);
+  ASSERT(result.is_valid());
+  return result;
 }
 
 
-void VirtualFrame::CallRuntime(Runtime::FunctionId id, int frame_arg_count) {
+Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
+                                 int frame_arg_count) {
   ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ CallRuntime(id, frame_arg_count);
+  Result result = cgen_->allocator()->Allocate(eax);
+  ASSERT(result.is_valid());
+  return result;
 }
 
 
