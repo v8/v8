@@ -66,18 +66,26 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void ReadCurrentPositionFromRegister(int reg);
   virtual void WriteStackPointerToRegister(int reg);
   virtual void ReadStackPointerFromRegister(int reg);
-  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
-  virtual void LoadCurrentCharacterUnchecked(int cp_offset);
-  virtual void CheckCharacterLT(uc16 limit, Label* on_less);
+  virtual void LoadCurrentCharacter(int cp_offset,
+                                    Label* on_end_of_input,
+                                    bool check_bounds = true,
+                                    int characters = 1);
+  virtual void CheckCharacter(uint32_t c, Label* on_equal);
+  virtual void CheckCharacterAfterAnd(uint32_t c,
+                                      uint32_t mask,
+                                      Label* on_equal);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
-  virtual void CheckCharacter(uc16 c, Label* on_equal);
+  virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
   virtual void CheckNotAtStart(Label* on_not_at_start);
-  virtual void CheckNotCharacter(uc16 c, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterOr(uc16 c, uc16 mask, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterMinusOr(uc16 c,
-                                             uc16 mask,
-                                             Label* on_not_equal);
+  virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
+  virtual void CheckNotCharacterAfterAnd(uint32_t c,
+                                         uint32_t mask,
+                                         Label* on_not_equal);
+  virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
+                                              uc16 minus,
+                                              uc16 mask,
+                                              Label* on_not_equal);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);

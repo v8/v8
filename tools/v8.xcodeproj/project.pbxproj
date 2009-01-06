@@ -43,6 +43,8 @@
 		897FF1C60E719D7100D62E90 /* pcre_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0ED0E719B3500D62E90 /* pcre_tables.cpp */; };
 		897FF1C70E719D7300D62E90 /* pcre_ucp_searchfuncs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0EE0E719B3500D62E90 /* pcre_ucp_searchfuncs.cpp */; };
 		897FF1C80E719D7600D62E90 /* pcre_xclass.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0EF0E719B3500D62E90 /* pcre_xclass.cpp */; };
+		898BD20E0EF6CC930068B00A /* debug-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 898BD20D0EF6CC850068B00A /* debug-ia32.cc */; };
+		898BD20F0EF6CC9A0068B00A /* debug-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 898BD20C0EF6CC850068B00A /* debug-arm.cc */; };
 		89A15C7B0EE466EB00B48DEB /* regexp-macro-assembler-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C720EE466D000B48DEB /* regexp-macro-assembler-ia32.cc */; };
 		89A15C810EE4674900B48DEB /* regexp-macro-assembler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */; };
 		89A15C830EE4675E00B48DEB /* regexp-macro-assembler-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C750EE466D000B48DEB /* regexp-macro-assembler-irregexp.cc */; };
@@ -470,6 +472,8 @@
 		897FF1B60E719C2300D62E90 /* js2c.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = js2c.py; sourceTree = "<group>"; };
 		897FF1B70E719C2E00D62E90 /* macros.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = macros.py; path = ../src/macros.py; sourceTree = "<group>"; };
 		897FF1BF0E719CB600D62E90 /* libjscre.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libjscre.a; sourceTree = BUILT_PRODUCTS_DIR; };
+		898BD20C0EF6CC850068B00A /* debug-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-arm.cc"; sourceTree = "<group>"; };
+		898BD20D0EF6CC850068B00A /* debug-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-ia32.cc"; sourceTree = "<group>"; };
 		89A15C630EE4661A00B48DEB /* bytecodes-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "bytecodes-irregexp.h"; sourceTree = "<group>"; };
 		89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "interpreter-irregexp.cc"; sourceTree = "<group>"; };
 		89A15C670EE4665300B48DEB /* interpreter-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "interpreter-irregexp.h"; sourceTree = "<group>"; };
@@ -636,6 +640,8 @@
 				897FF1250E719B8F00D62E90 /* cpu.h */,
 				897FF1260E719B8F00D62E90 /* dateparser.cc */,
 				897FF1270E719B8F00D62E90 /* dateparser.h */,
+				898BD20C0EF6CC850068B00A /* debug-arm.cc */,
+				898BD20D0EF6CC850068B00A /* debug-ia32.cc */,
 				897FF1280E719B8F00D62E90 /* debug.cc */,
 				897FF1290E719B8F00D62E90 /* debug.h */,
 				897FF12A0E719B8F00D62E90 /* disasm-arm.cc */,
@@ -1046,6 +1052,7 @@
 				89A88DFC0E71A6460043BA31 /* counters.cc in Sources */,
 				89A88DFD0E71A6470043BA31 /* cpu-ia32.cc in Sources */,
 				89A88DFE0E71A6480043BA31 /* dateparser.cc in Sources */,
+				898BD20E0EF6CC930068B00A /* debug-ia32.cc in Sources */,
 				89A88DFF0E71A6530043BA31 /* debug.cc in Sources */,
 				89A88E000E71A6540043BA31 /* disasm-ia32.cc in Sources */,
 				89A88E010E71A6550043BA31 /* disassembler.cc in Sources */,
@@ -1147,6 +1154,7 @@
 				89F23C4F0E78D5B2006B2466 /* counters.cc in Sources */,
 				89F23C9A0E78D5EC006B2466 /* cpu-arm.cc in Sources */,
 				89F23C510E78D5B2006B2466 /* dateparser.cc in Sources */,
+				898BD20F0EF6CC9A0068B00A /* debug-arm.cc in Sources */,
 				89F23C520E78D5B2006B2466 /* debug.cc in Sources */,
 				89F23C9B0E78D5EE006B2466 /* disasm-arm.cc in Sources */,
 				89F23C540E78D5B2006B2466 /* disassembler.cc in Sources */,

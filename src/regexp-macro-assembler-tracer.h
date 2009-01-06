@@ -41,7 +41,10 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void Backtrack();
   virtual void Bind(Label* label);
   virtual void CheckBitmap(uc16 start, Label* bitmap, Label* on_zero);
-  virtual void CheckCharacter(uc16 c, Label* on_equal);
+  virtual void CheckCharacter(uint32_t c, Label* on_equal);
+  virtual void CheckCharacterAfterAnd(uint32_t c,
+                                      uint32_t and_with,
+                                      Label* on_equal);
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckCharacters(
@@ -55,13 +58,18 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void CheckNotBackReferenceIgnoreCase(int start_reg,
                                                Label* on_no_match);
   virtual void CheckNotRegistersEqual(int reg1, int reg2, Label* on_not_equal);
-  virtual void CheckNotCharacter(uc16 c, Label* on_not_equal);
-  virtual void CheckNotCharacterAfterOr(uc16 c,
-                                        uc16 or_with,
-                                        Label* on_not_equal);
-  virtual void CheckNotCharacterAfterMinusOr(uc16 c,
-                                             uc16 minus_then_or_with,
-                                             Label* on_not_equal);
+  virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
+  virtual void CheckNotCharacterAfterAnd(uint32_t c,
+                                         uint32_t and_with,
+                                         Label* on_not_equal);
+  virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
+                                              uc16 minus,
+                                              uc16 and_with,
+                                              Label* on_not_equal);
+  virtual bool CheckSpecialCharacterClass(uc16 type,
+                                          int cp_offset,
+                                          bool check_offset,
+                                          Label* on_no_match);
   virtual void DispatchByteMap(
       uc16 start,
       Label* byte_map,
@@ -81,8 +89,10 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
   virtual IrregexpImplementation Implementation();
-  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input);
-  virtual void LoadCurrentCharacterUnchecked(int cp_offset);
+  virtual void LoadCurrentCharacter(int cp_offset,
+                                    Label* on_end_of_input,
+                                    bool check_bounds = true,
+                                    int characters = 1);
   virtual void PopCurrentPosition();
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);

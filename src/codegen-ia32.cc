@@ -186,7 +186,7 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
 
 void CodeGenerator::GenCode(FunctionLiteral* fun) {
   // Record the position for debugging purposes.
-  __ RecordPosition(fun->start_position());
+  CodeForSourcePosition(fun->start_position());
 
   ZoneList<Statement*>* body = fun->body();
 
@@ -1322,14 +1322,14 @@ class CallFunctionStub: public CodeStub {
 // Call the function just below TOS on the stack with the given
 // arguments. The receiver is the TOS.
 void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
-                                          int position) {
+                                      int position) {
   // Push the arguments ("left-to-right") on the stack.
   for (int i = 0; i < args->length(); i++) {
     Load(args->at(i));
   }
 
   // Record the position for debugging purposes.
-  __ RecordPosition(position);
+  CodeForSourcePosition(position);
 
   // Use the shared code stub to call the function.
   CallFunctionStub call_function(args->length());
@@ -1365,7 +1365,7 @@ void CodeGenerator::CheckStack() {
 
 void CodeGenerator::VisitBlock(Block* node) {
   Comment cmnt(masm_, "[ Block");
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   node->set_break_stack_height(break_stack_height_);
   VisitStatements(node->statements());
   __ bind(node->break_target());
@@ -1383,6 +1383,7 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 
 void CodeGenerator::VisitDeclaration(Declaration* node) {
   Comment cmnt(masm_, "[ Declaration");
+  CodeForStatement(node);
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
   Slot* slot = var->slot();
@@ -1444,7 +1445,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
 
 void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   Comment cmnt(masm_, "[ ExpressionStatement");
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   Expression* expression = node->expression();
   expression->MarkAsStatement();
   Load(expression);
@@ -1455,6 +1456,7 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
 
 void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
   Comment cmnt(masm_, "// EmptyStatement");
+  CodeForStatement(node);
   // nothing to do
 }
 
@@ -1466,7 +1468,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
   bool has_then_stm = node->HasThenStatement();
   bool has_else_stm = node->HasElseStatement();
 
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   Label exit;
   if (has_then_stm && has_else_stm) {
     Label then;
@@ -1528,7 +1530,7 @@ void CodeGenerator::CleanStack(int num_bytes) {
 
 void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
   Comment cmnt(masm_, "[ ContinueStatement");
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
   __ jmp(node->target()->continue_target());
 }
@@ -1536,7 +1538,7 @@ void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
 
 void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
   Comment cmnt(masm_, "[ BreakStatement");
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
   __ jmp(node->target()->break_target());
 }
@@ -1544,7 +1546,7 @@ void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
 
 void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   Comment cmnt(masm_, "[ ReturnStatement");
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   Load(node->expression());
 
   // Move the function result into eax
@@ -1582,9 +1584,13 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 
 void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   Load(node->expression());
-  __ CallRuntime(Runtime::kPushContext, 1);
+  if (node->is_catch_block()) {
+    __ CallRuntime(Runtime::kPushCatchContext, 1);
+  } else {
+    __ CallRuntime(Runtime::kPushContext, 1);
+  }
 
   if (kDebug) {
     Label verified_true;
@@ -1602,6 +1608,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
 
 void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
   Comment cmnt(masm_, "[ WithExitStatement");
+  CodeForStatement(node);
   // Pop context.
   __ mov(esi, ContextOperand(esi, Context::PREVIOUS_INDEX));
   // Update context local.
@@ -1684,7 +1691,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
 
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   Comment cmnt(masm_, "[ SwitchStatement");
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   node->set_break_stack_height(break_stack_height_);
 
   Load(node->tag());
@@ -1751,7 +1758,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
 void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   Comment cmnt(masm_, "[ LoopStatement");
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   node->set_break_stack_height(break_stack_height_);
 
   // simple condition analysis
@@ -1794,8 +1801,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     // Record source position of the statement as this code which is after the
     // code for the body actually belongs to the loop statement and not the
     // body.
-    RecordStatementPosition(node);
-    __ RecordPosition(node->statement_pos());
+    CodeForStatement(node);
     ASSERT(node->type() == LoopStatement::FOR_LOOP);
     Visit(node->next());
   }
@@ -1824,7 +1830,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
 void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   Comment cmnt(masm_, "[ ForInStatement");
-  RecordStatementPosition(node);
+  CodeForStatement(node);
 
   // We keep stuff on the stack while the body is executing.
   // Record it, so that a break/continue crossing this statement
@@ -2012,6 +2018,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
 void CodeGenerator::VisitTryCatch(TryCatch* node) {
   Comment cmnt(masm_, "[ TryCatch");
+  CodeForStatement(node);
 
   Label try_block, exit;
 
@@ -2057,10 +2064,9 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   }
 
   // Generate code for the statements in the try block.
-  bool was_inside_try = is_inside_try_;
-  is_inside_try_ = true;
-  VisitStatements(node->try_block()->statements());
-  is_inside_try_ = was_inside_try;
+  { TempAssign<bool> temp(&is_inside_try_, true);
+    VisitStatements(node->try_block()->statements());
+  }
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
@@ -2117,6 +2123,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
 void CodeGenerator::VisitTryFinally(TryFinally* node) {
   Comment cmnt(masm_, "[ TryFinally");
+  CodeForStatement(node);
 
   // State: Used to keep track of reason for entering the finally
   // block. Should probably be extended to hold information for
@@ -2155,10 +2162,9 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   }
 
   // Generate code for the statements in the try block.
-  bool was_inside_try = is_inside_try_;
-  is_inside_try_ = true;
-  VisitStatements(node->try_block()->statements());
-  is_inside_try_ = was_inside_try;
+  { TempAssign<bool> temp(&is_inside_try_, true);
+    VisitStatements(node->try_block()->statements());
+  }
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
@@ -2254,7 +2260,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
 void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatement");
-  RecordStatementPosition(node);
+  CodeForStatement(node);
   __ CallRuntime(Runtime::kDebugBreak, 0);
   // Ignore the return value.
 }
@@ -2610,8 +2616,8 @@ bool CodeGenerator::IsInlineSmi(Literal* literal) {
 
 void CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
+  CodeForStatement(node);
 
-  RecordStatementPosition(node);
   Reference target(this, node->target());
   if (target.is_illegal()) return;
 
@@ -2638,7 +2644,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
     // Assignment ignored - leave the value on the stack.
   } else {
-    __ RecordPosition(node->position());
+    CodeForSourcePosition(node->position());
     if (node->op() == Token::INIT_CONST) {
       // Dynamic constant initializations must use the function context
       // and initialize the actual constant declared. Dynamic variable
@@ -2653,9 +2659,9 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
 
 void CodeGenerator::VisitThrow(Throw* node) {
   Comment cmnt(masm_, "[ Throw");
+  CodeForStatement(node);
 
   Load(node->exception());
-  __ RecordPosition(node->position());
   __ CallRuntime(Runtime::kThrow, 1);
   frame_->Push(eax);
 }
@@ -2674,7 +2680,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
   ZoneList<Expression*>* args = node->arguments();
 
-  RecordStatementPosition(node);
+  CodeForStatement(node);
 
   // Check if the function is a variable or a property.
   Expression* function = node->expression();
@@ -2711,7 +2717,7 @@ void CodeGenerator::VisitCall(Call* node) {
     Handle<Code> stub = (loop_nesting() > 0)
         ? ComputeCallInitializeInLoop(args->length())
         : ComputeCallInitialize(args->length());
-    __ RecordPosition(node->position());
+    CodeForSourcePosition(node->position());
     __ call(stub, RelocInfo::CODE_TARGET_CONTEXT);
     __ mov(esi, frame_->Context());
 
@@ -2757,7 +2763,7 @@ void CodeGenerator::VisitCall(Call* node) {
       Handle<Code> stub = (loop_nesting() > 0)
         ? ComputeCallInitializeInLoop(args->length())
         : ComputeCallInitialize(args->length());
-      __ RecordPosition(node->position());
+      CodeForSourcePosition(node->position());
       __ call(stub, RelocInfo::CODE_TARGET);
       __ mov(esi, frame_->Context());
 
@@ -2800,6 +2806,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
 void CodeGenerator::VisitCallNew(CallNew* node) {
   Comment cmnt(masm_, "[ CallNew");
+  CodeForStatement(node);
 
   // According to ECMA-262, section 11.2.2, page 44, the function
   // expression in new calls must be evaluated before the
@@ -2828,7 +2835,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
-  __ RecordPosition(node->position());
+  CodeForSourcePosition(node->position());
   __ call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
           RelocInfo::CONSTRUCT_CALL);
   // Discard the function and "push" the newly created object.
@@ -2846,7 +2853,7 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   ZoneList<Expression*>* args = node->arguments();
   Expression* function = node->expression();
 
-  RecordStatementPosition(node);
+  CodeForStatement(node);
 
   // Prepare stack for call to resolved function.
   Load(function);
@@ -2873,7 +2880,7 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   __ mov(Operand(esp, args->length() * kPointerSize), edx);
 
   // Call the function.
-  __ RecordPosition(node->position());
+  CodeForSourcePosition(node->position());
 
   CallFunctionStub call_function(args->length());
   __ CallStub(&call_function);
@@ -2890,6 +2897,25 @@ void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   frame_->Pop(eax);
   __ test(eax, Immediate(kSmiTagMask));
   cc_reg_ = zero;
+}
+
+
+void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
+  // Conditionally generate a log call.
+  // Args:
+  //   0 (literal string): The type of logging (corresponds to the flags).
+  //     This is used to determine whether or not to generate the log call.
+  //   1 (string): Format string.  Access the string at argument index 2
+  //     with '%2s' (see Logger::LogRuntime for all the formats).
+  //   2 (array): Arguments to the format string.
+  ASSERT_EQ(args->length(), 3);
+  if (ShouldGenerateLog(args->at(0))) {
+    Load(args->at(1));
+    Load(args->at(2));
+    __ CallRuntime(Runtime::kLog, 2);
+  }
+  // Finally, we're expected to leave a value on the top of the stack.
+  frame_->Push(Immediate(Factory::undefined_value()));
 }
 
 
@@ -3771,14 +3797,38 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 }
 
 
-void CodeGenerator::RecordStatementPosition(Node* node) {
-  if (FLAG_debug_info) {
-    int pos = node->statement_pos();
-    if (pos != RelocInfo::kNoPosition) {
-      __ RecordStatementPosition(pos);
-    }
+class DeferredReferenceGetKeyedValue: public DeferredCode {
+ public:
+  DeferredReferenceGetKeyedValue(CodeGenerator* generator, bool is_global)
+      : DeferredCode(generator), is_global_(is_global) {
+    set_comment("[ DeferredReferenceGetKeyedValue");
   }
-}
+
+  virtual void Generate() {
+    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    // Calculate the delta from the IC call instruction to the map
+    // check cmp instruction in the inlined version.  This delta is
+    // stored in a test(eax, delta) instruction after the call so that
+    // we can find it in the IC initialization code and patch the cmp
+    // instruction.  This means that we cannot allow test instructions
+    // after calls to KeyedLoadIC stubs in other places.
+    int delta_to_patch_site = __ SizeOfCodeGeneratedSince(patch_site());
+    if (is_global_) {
+      __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+    } else {
+      __ call(ic, RelocInfo::CODE_TARGET);
+    }
+    __ test(eax, Immediate(-delta_to_patch_site));
+    __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
+  }
+
+  Label* patch_site() { return &patch_site_; }
+
+ private:
+  Label patch_site_;
+  bool is_global_;
+};
+
 
 
 #undef __
@@ -3794,8 +3844,6 @@ Handle<String> Reference::GetName() {
     ASSERT(proxy->AsVariable()->is_global());
     return proxy->name();
   } else {
-    MacroAssembler* masm = cgen_->masm();
-    __ RecordPosition(property->position());
     Literal* raw_name = property->key()->AsLiteral();
     ASSERT(raw_name != NULL);
     return Handle<String>(String::cast(*raw_name->handle()));
@@ -3818,45 +3866,97 @@ void Reference::GetValue(TypeofState typeof_state) {
     }
 
     case NAMED: {
-      // TODO(1241834): Make sure that this it is safe to ignore the
-      // distinction between expressions in a typeof and not in a typeof. If
-      // there is a chance that reference errors can be thrown below, we
-      // must distinguish between the two kinds of loads (typeof expression
-      // loads must not throw a reference error).
+      // TODO(1241834): Make sure that it is safe to ignore the
+      // distinction between expressions in a typeof and not in a
+      // typeof. If there is a chance that reference errors can be
+      // thrown below, we must distinguish between the two kinds of
+      // loads (typeof expression loads must not throw a reference
+      // error).
       Comment cmnt(masm, "[ Load from named Property");
       Handle<String> name(GetName());
+      Variable* var = expression_->AsVariableProxy()->AsVariable();
       Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
       // Setup the name register.
       __ mov(ecx, name);
-
-      Variable* var = expression_->AsVariableProxy()->AsVariable();
       if (var != NULL) {
         ASSERT(var->is_global());
         __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
       } else {
         __ call(ic, RelocInfo::CODE_TARGET);
       }
-      frame->Push(eax);  // IC call leaves result in eax, push it out
+      // Push the result.
+      frame->Push(eax);
       break;
     }
 
     case KEYED: {
-      // TODO(1241834): Make sure that this it is safe to ignore the
-      // distinction between expressions in a typeof and not in a typeof.
-      Comment cmnt(masm, "[ Load from keyed Property");
-      Property* property = expression_->AsProperty();
-      ASSERT(property != NULL);
-      __ RecordPosition(property->position());
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-
+      // TODO(1241834): Make sure that it is safe to ignore the
+      // distinction between expressions in a typeof and not in a
+      // typeof.
       Variable* var = expression_->AsVariableProxy()->AsVariable();
-      if (var != NULL) {
-        ASSERT(var->is_global());
-        __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+      bool is_global = var != NULL;
+      ASSERT(!is_global || var->is_global());
+      // Inline array load code if inside of a loop.  We do not know
+      // the receiver map yet, so we initially generate the code with
+      // a check against an invalid map.  In the inline cache code, we
+      // patch the map check if appropriate.
+      if (cgen_->loop_nesting() > 0) {
+        Comment cmnt(masm, "[ Inlined array index load");
+        DeferredReferenceGetKeyedValue* deferred =
+            new DeferredReferenceGetKeyedValue(cgen_, is_global);
+        // Load receiver and check that it is not a smi (only needed
+        // if this is not a load from the global context) and that it
+        // has the expected map.
+        __ mov(edx, Operand(esp, kPointerSize));
+        if (!is_global) {
+          __ test(edx, Immediate(kSmiTagMask));
+          __ j(zero, deferred->enter(), not_taken);
+        }
+        // Initially, use an invalid map. The map is patched in the IC
+        // initialization code.
+        __ bind(deferred->patch_site());
+        __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+               Immediate(Factory::null_value()));
+        __ j(not_equal, deferred->enter(), not_taken);
+        // Load key and check that it is a smi.
+        __ mov(eax, Operand(esp, 0));
+        __ test(eax, Immediate(kSmiTagMask));
+        __ j(not_zero, deferred->enter(), not_taken);
+        // Shift to get actual index value.
+        __ sar(eax, kSmiTagSize);
+        // Get the elements array from the receiver and check that it
+        // is not a dictionary.
+        __ mov(edx, FieldOperand(edx, JSObject::kElementsOffset));
+        __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+               Immediate(Factory::hash_table_map()));
+        __ j(equal, deferred->enter(), not_taken);
+        // Check that key is within bounds.
+        __ cmp(eax, FieldOperand(edx, Array::kLengthOffset));
+        __ j(above_equal, deferred->enter(), not_taken);
+        // Load and check that the result is not the hole.
+        __ mov(eax,
+               Operand(edx, eax, times_4, Array::kHeaderSize - kHeapObjectTag));
+        __ cmp(Operand(eax), Immediate(Factory::the_hole_value()));
+        __ j(equal, deferred->enter(), not_taken);
+        __ IncrementCounter(&Counters::keyed_load_inline, 1);
+        __ bind(deferred->exit());
       } else {
-        __ call(ic, RelocInfo::CODE_TARGET);
+        Comment cmnt(masm, "[ Load from keyed Property");
+        Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+        if (is_global) {
+          __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+        } else {
+          __ call(ic, RelocInfo::CODE_TARGET);
+        }
+        // Make sure that we do not have a test instruction after the
+        // call.  A test instruction after the call is used to
+        // indicate that we have generated an inline version of the
+        // keyed load.  The explicit nop instruction is here because
+        // the push that follows might be peep-hole optimized away.
+        __ nop();
       }
-      frame->Push(eax);  // IC call leaves result in eax, push it out
+      // Push the result.
+      frame->Push(eax);
       break;
     }
 
@@ -3963,9 +4063,6 @@ void Reference::SetValue(InitState init_state) {
 
     case KEYED: {
       Comment cmnt(masm, "[ Store to keyed Property");
-      Property* property = expression_->AsProperty();
-      ASSERT(property != NULL);
-      __ RecordPosition(property->position());
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.

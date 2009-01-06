@@ -29,6 +29,7 @@
 #include <stdlib.h>
 
 #include "d8.h"
+#include "d8-debug.h"
 #include "debug.h"
 #include "api.h"
 #include "natives.h"
@@ -98,17 +99,21 @@ bool Shell::ExecuteString(Handle<String> source,
                           bool report_exceptions) {
   HandleScope handle_scope;
   TryCatch try_catch;
+  if (i::FLAG_debugger) {
+    // When debugging make exceptions appear to be uncaught.
+    try_catch.SetVerbose(true);
+  }
   Handle<Script> script = Script::Compile(source, name);
   if (script.IsEmpty()) {
     // Print errors that happened during compilation.
-    if (report_exceptions)
+    if (report_exceptions && !i::FLAG_debugger)
       ReportException(&try_catch);
     return false;
   } else {
     Handle<Value> result = script->Run();
     if (result.IsEmpty()) {
       // Print errors that happened during execution.
-      if (report_exceptions)
+      if (report_exceptions && !i::FLAG_debugger)
         ReportException(&try_catch);
       return false;
     } else {
@@ -209,6 +214,46 @@ Handle<Array> Shell::GetCompletions(Handle<String> text, Handle<String> full) {
   Handle<Value> argv[kArgc] = { evaluation_context_->Global(), text, full };
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
   return handle_scope.Close(Handle<Array>::Cast(val));
+}
+
+
+Handle<String> Shell::DebugEventToText(Handle<Object> event) {
+  HandleScope handle_scope;
+  Context::Scope context_scope(utility_context_);
+  Handle<Object> global = utility_context_->Global();
+  Handle<Value> fun = global->Get(String::New("DebugEventToText"));
+  TryCatch try_catch;
+  try_catch.SetVerbose(true);
+  static const int kArgc = 1;
+  Handle<Value> argv[kArgc] = { event };
+  Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
+  if (try_catch.HasCaught()) {
+    return handle_scope.Close(try_catch.Exception()->ToString());
+  } else {
+    return handle_scope.Close(Handle<String>::Cast(val));
+  }
+}
+
+
+Handle<Value> Shell::DebugCommandToJSONRequest(Handle<String> command) {
+  Context::Scope context_scope(utility_context_);
+  Handle<Object> global = utility_context_->Global();
+  Handle<Value> fun = global->Get(String::New("DebugCommandToJSONRequest"));
+  static const int kArgc = 1;
+  Handle<Value> argv[kArgc] = { command };
+  Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
+  return val;
+}
+
+
+Handle<Object> Shell::DebugResponseDetails(Handle<String> response) {
+  Context::Scope context_scope(utility_context_);
+  Handle<Object> global = utility_context_->Global();
+  Handle<Value> fun = global->Get(String::New("DebugResponseDetails"));
+  static const int kArgc = 1;
+  Handle<Value> argv[kArgc] = { response };
+  Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
+  return Handle<Object>::Cast(val);
 }
 
 
@@ -322,16 +367,16 @@ void Shell::Initialize() {
 
 void Shell::OnExit() {
   if (i::FLAG_dump_counters) {
-    ::printf("+----------------------------------------+----------+\n");
-    ::printf("| Name                                   | Value    |\n");
-    ::printf("+----------------------------------------+----------+\n");
+    ::printf("+----------------------------------------+-------------+\n");
+    ::printf("| Name                                   | Value       |\n");
+    ::printf("+----------------------------------------+-------------+\n");
     for (CounterMap::iterator i = counter_map_.begin();
          i != counter_map_.end();
          i++) {
       Counter* counter = (*i).second;
-      ::printf("| %-38s | %8i |\n", (*i).first, counter->value());
+      ::printf("| %-38s | %11i |\n", (*i).first, counter->value());
     }
-    ::printf("+----------------------------------------+----------+\n");
+    ::printf("+----------------------------------------+-------------+\n");
   }
   if (counters_file_ != NULL)
     delete counters_file_;
@@ -388,7 +433,9 @@ int Shell::Main(int argc, char* argv[]) {
   Context::Scope context_scope(evaluation_context_);
   for (int i = 1; i < argc; i++) {
     char* str = argv[i];
-    if (strcmp(str, "-f") == 0) {
+    if (strcmp(str, "--shell") == 0) {
+      run_shell = true;
+    } else if (strcmp(str, "-f") == 0) {
       // Ignore any -f flags for compatibility with other stand-alone
       // JavaScript engines.
       continue;
@@ -415,6 +462,8 @@ int Shell::Main(int argc, char* argv[]) {
         return 1;
     }
   }
+  if (i::FLAG_debugger)
+    v8::Debug::AddDebugEventListener(HandleDebugEvent);
   if (run_shell)
     RunShell();
   OnExit();

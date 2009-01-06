@@ -160,6 +160,7 @@ namespace v8 { namespace internal {
   F(FunctionGetSourceCode, 1) \
   F(FunctionGetScript, 1) \
   F(FunctionGetScriptSourcePosition, 1) \
+  F(FunctionIsAPIFunction, 1) \
   F(GetScript, 1) \
   \
   F(ClassOf, 1) \
@@ -263,6 +264,7 @@ namespace v8 { namespace internal {
   /* Contexts */ \
   F(NewContext, 1) \
   F(PushContext, 1) \
+  F(PushCatchContext, 1) \
   F(LookupContext, 2) \
   F(LoadContextSlot, 2) \
   F(LoadContextSlotNoReferenceError, 2) \
@@ -283,6 +285,8 @@ namespace v8 { namespace internal {
   F(DebugBreak, 0) \
   F(FunctionGetAssemblerCode, 1) \
   F(Abort, 2) \
+  /* Logging */ \
+  F(Log, 2) \
   \
   /* Pseudo functions - handled as macros by parser */ \
   F(IS_VAR, 1)

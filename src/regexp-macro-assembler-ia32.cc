@@ -93,6 +93,7 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(
       entry_label_(),
       start_label_(),
       success_label_(),
+      backtrack_label_(),
       exit_label_(),
       self_(Heap::undefined_value()) {
   __ jmp(&entry_label_);   // We'll write the entry code later.
@@ -106,7 +107,9 @@ RegExpMacroAssemblerIA32::~RegExpMacroAssemblerIA32() {
   entry_label_.Unuse();
   start_label_.Unuse();
   success_label_.Unuse();
+  backtrack_label_.Unuse();
   exit_label_.Unuse();
+  check_preempt_label_.Unuse();
 }
 
 
@@ -126,9 +129,7 @@ void RegExpMacroAssemblerIA32::AdvanceRegister(int reg, int by) {
 
 
 void RegExpMacroAssemblerIA32::Backtrack() {
-  __ pop(ecx);
-  __ add(Operand(ecx), Immediate(self_));
-  __ jmp(Operand(ecx));
+  SafeReturn();
 }
 
 
@@ -155,7 +156,7 @@ void RegExpMacroAssemblerIA32::CheckBitmap(uc16 start,
 }
 
 
-void RegExpMacroAssemblerIA32::CheckCharacter(uc16 c, Label* on_equal) {
+void RegExpMacroAssemblerIA32::CheckCharacter(uint32_t c, Label* on_equal) {
   __ cmp(current_character(), c);
   BranchOrBacktrack(equal, on_equal);
 }
@@ -194,46 +195,28 @@ void RegExpMacroAssemblerIA32::CheckCharacters(Vector<const uc16> str,
     BranchOrBacktrack(greater, on_failure);
   }
 
-  if (str.length() <= kMaxInlineStringTests) {
-    for (int i = 0; i < str.length(); i++) {
-      if (mode_ == ASCII) {
-        __ cmpb(Operand(esi, edi, times_1, byte_offset + i),
-                static_cast<int8_t>(str[i]));
-      } else {
-        ASSERT(mode_ == UC16);
-        __ cmpw(Operand(esi, edi, times_1, byte_offset + i * sizeof(uc16)),
-                Immediate(str[i]));
-      }
-      BranchOrBacktrack(not_equal, on_failure);
-    }
-    return;
+  Label backtrack;
+  if (on_failure == NULL) {
+    // Avoid inlining the Backtrack macro for each test.
+    Label skip_backtrack;
+    __ jmp(&skip_backtrack);
+    __ bind(&backtrack);
+    Backtrack();
+    __ bind(&skip_backtrack);
+    on_failure = &backtrack;
   }
 
-  ArraySlice constant_buffer = constants_.GetBuffer(str.length(), char_size());
-  if (mode_ == ASCII) {
-    for (int i = 0; i < str.length(); i++) {
-      constant_buffer.at<char>(i) = static_cast<char>(str[i]);
+  for (int i = 0; i < str.length(); i++) {
+    if (mode_ == ASCII) {
+      __ cmpb(Operand(esi, edi, times_1, byte_offset + i),
+              static_cast<int8_t>(str[i]));
+    } else {
+      ASSERT(mode_ == UC16);
+      __ cmpw(Operand(esi, edi, times_1, byte_offset + i * sizeof(uc16)),
+              Immediate(str[i]));
     }
-  } else {
-    memcpy(constant_buffer.location(),
-           str.start(),
-           str.length() * sizeof(uc16));
+    BranchOrBacktrack(not_equal, on_failure);
   }
-
-  __ mov(eax, edi);
-  __ mov(ebx, esi);
-  __ lea(edi, Operand(esi, edi, times_1, byte_offset));
-  LoadConstantBufferAddress(esi, &constant_buffer);
-  __ mov(ecx, str.length());
-  if (char_size() == 1) {
-    __ rep_cmpsb();
-  } else {
-    ASSERT(char_size() == 2);
-    __ rep_cmpsw();
-  }
-  __ mov(esi, ebx);
-  __ mov(edi, eax);
-  BranchOrBacktrack(not_equal, on_failure);
 }
 
 
@@ -251,62 +234,58 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     int start_reg,
     Label* on_no_match) {
   Label fallthrough;
-  __ mov(eax, register_location(start_reg));
+  __ mov(edx, register_location(start_reg));
   __ mov(ecx, register_location(start_reg + 1));
-  __ sub(ecx, Operand(eax));  // Length to check.
+  __ sub(ecx, Operand(edx));  // Length to check.
   BranchOrBacktrack(less, on_no_match);
   __ j(equal, &fallthrough);
 
   if (mode_ == ASCII) {
     Label success;
     Label fail;
-    __ push(esi);
+    Label loop_increment;
     __ push(edi);
+    __ add(edx, Operand(esi));
     __ add(edi, Operand(esi));
-    __ add(esi, Operand(eax));
+    __ add(ecx, Operand(edi));
+
     Label loop;
     __ bind(&loop);
-    __ rep_cmpsb();
-    __ j(equal, &success);
+    __ movzx_b(eax, Operand(edi, 0));
+    __ cmpb_al(Operand(edx, 0));
+    __ j(equal, &loop_increment);
+
     // Compare lower-case if letters.
-    __ movzx_b(eax, Operand(edi, -1));
-    __ or_(eax, 0x20);  // To-lower-case
+    __ or_(eax, 0x20);  // To lower-case.
     __ lea(ebx, Operand(eax, -'a'));
     __ cmp(ebx, static_cast<int32_t>('z' - 'a'));
     __ j(above, &fail);
-    __ movzx_b(ebx, Operand(esi, -1));
+    __ movzx_b(ebx, Operand(edx, 0));
     __ or_(ebx, 0x20);  // To-lower-case
     __ cmp(eax, Operand(ebx));
     __ j(not_equal, &fail);
-    __ or_(ecx, Operand(ecx));
-    __ j(not_equal, &loop);
+
+    __ bind(&loop_increment);
+    __ add(Operand(edx), Immediate(1));
+    __ add(Operand(edi), Immediate(1));
+    __ cmp(edi, Operand(ecx));
+    __ j(below, &loop, taken);
     __ jmp(&success);
 
     __ bind(&fail);
     __ pop(edi);
-    __ pop(esi);
     BranchOrBacktrack(no_condition, on_no_match);
 
     __ bind(&success);
     __ pop(eax);  // discard original value of edi
-    __ pop(esi);
     __ sub(edi, Operand(esi));
   } else {
-    // store state
+    ASSERT(mode_ == UC16);
     __ push(esi);
     __ push(edi);
     __ push(ecx);
-    // align stack
-    int frameAlignment = OS::ActivationFrameAlignment();
-    if (frameAlignment != 0) {
-      __ mov(ebx, esp);
-      __ sub(Operand(esp), Immediate(5 * kPointerSize));  // args + esp.
-      ASSERT(IsPowerOf2(frameAlignment));
-      __ and_(esp, -frameAlignment);
-      __ mov(Operand(esp, 4 * kPointerSize), ebx);
-    } else {
-      __ sub(Operand(esp), Immediate(4 * kPointerSize));
-    }
+    const int four_arguments = 4;
+    FrameAlign(four_arguments);
     // Put arguments on stack.
     __ mov(Operand(esp, 3 * kPointerSize), ecx);
     __ mov(ebx, Operand(ebp, kInputEndOffset));
@@ -317,17 +296,11 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ mov(eax, Operand(ebp, kInputBuffer));
     __ mov(Operand(esp, 0 * kPointerSize), eax);
     Address function_address = FUNCTION_ADDR(&CaseInsensitiveCompareUC16);
-    __ mov(Operand(eax),
-        Immediate(reinterpret_cast<int32_t>(function_address)));
-    __ call(Operand(eax));
-    if (frameAlignment != 0) {
-      __ mov(esp, Operand(esp, 4 * kPointerSize));
-    } else {
-      __ add(Operand(esp), Immediate(4 * sizeof(int32_t)));
-    }
+    CallCFunction(function_address, four_arguments);
     __ pop(ecx);
     __ pop(edi);
     __ pop(esi);
+
     __ or_(eax, Operand(eax));
     BranchOrBacktrack(zero, on_no_match);
     __ add(edi, Operand(ecx));
@@ -340,30 +313,47 @@ void RegExpMacroAssemblerIA32::CheckNotBackReference(
     int start_reg,
     Label* on_no_match) {
   Label fallthrough;
-  __ mov(eax, register_location(start_reg));
+  Label success;
+  Label fail;
+  __ mov(edx, register_location(start_reg));
   __ mov(ecx, register_location(start_reg + 1));
-  __ sub(ecx, Operand(eax));  // Length to check.
+  __ sub(ecx, Operand(edx));  // Length to check.
   BranchOrBacktrack(less, on_no_match);
   __ j(equal, &fallthrough);
   // Check that there are sufficient characters left in the input.
+
   __ mov(ebx, edi);
   __ add(ebx, Operand(ecx));
   BranchOrBacktrack(greater, on_no_match);
 
   __ mov(ebx, edi);
-  __ mov(edx, esi);
   __ add(edi, Operand(esi));
-  __ add(esi, Operand(eax));
-  __ rep_cmpsb();
-  __ mov(esi, edx);
-  Label success;
-  __ j(equal, &success);
+  __ add(edx, Operand(esi));
+  __ add(ecx, Operand(edi));
+
+  Label loop;
+  __ bind(&loop);
+  if (mode_ == ASCII) {
+    __ movzx_b(eax, Operand(edx, 0));
+    __ cmpb_al(Operand(edi, 0));
+  } else {
+    ASSERT(mode_ == UC16);
+    __ movzx_w(eax, Operand(edx, 0));
+    __ cmpw_ax(Operand(edi, 0));
+  }
+  __ j(not_equal, &fail);
+  __ add(Operand(edx), Immediate(char_size()));
+  __ add(Operand(edi), Immediate(char_size()));
+  __ cmp(edi, Operand(ecx));
+  __ j(below, &loop);
+  __ jmp(&success);
+
+  __ bind(&fail);
   __ mov(edi, ebx);
   BranchOrBacktrack(no_condition, on_no_match);
 
   __ bind(&success);
   __ sub(edi, Operand(esi));
-
   __ bind(&fallthrough);
 }
 
@@ -377,32 +367,144 @@ void RegExpMacroAssemblerIA32::CheckNotRegistersEqual(int reg1,
 }
 
 
-void RegExpMacroAssemblerIA32::CheckNotCharacter(uc16 c, Label* on_not_equal) {
+void RegExpMacroAssemblerIA32::CheckNotCharacter(uint32_t c,
+                                                 Label* on_not_equal) {
   __ cmp(current_character(), c);
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
 
-void RegExpMacroAssemblerIA32::CheckNotCharacterAfterOr(uc16 c,
-                                                        uc16 mask,
-                                                        Label* on_not_equal) {
+void RegExpMacroAssemblerIA32::CheckCharacterAfterAnd(uint32_t c,
+                                                      uint32_t mask,
+                                                      Label* on_equal) {
   __ mov(eax, current_character());
-  __ or_(eax, mask);
+  __ and_(eax, mask);
+  __ cmp(eax, c);
+  BranchOrBacktrack(equal, on_equal);
+}
+
+
+void RegExpMacroAssemblerIA32::CheckNotCharacterAfterAnd(uint32_t c,
+                                                         uint32_t mask,
+                                                         Label* on_not_equal) {
+  __ mov(eax, current_character());
+  __ and_(eax, mask);
   __ cmp(eax, c);
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
 
-void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusOr(
+void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusAnd(
     uc16 c,
+    uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  __ lea(eax, Operand(current_character(), -mask));
-  __ or_(eax, mask);
+  ASSERT(minus < String::kMaxUC16CharCode);
+  __ lea(eax, Operand(current_character(), -minus));
+  __ and_(eax, mask);
   __ cmp(eax, c);
   BranchOrBacktrack(not_equal, on_not_equal);
 }
 
+bool RegExpMacroAssemblerIA32::CheckSpecialCharacterClass(uc16 type,
+                                                          int cp_offset,
+                                                          bool check_offset,
+                                                          Label* on_no_match) {
+  // Range checks (c in min..max) are generally implemented by an unsigned
+  // (c - min) <= (max - min) check
+  switch (type) {
+  case 's':
+    // Match space-characters
+    if (mode_ == ASCII) {
+      // ASCII space characters are '\t'..'\r' and ' '.
+      if (check_offset) {
+        LoadCurrentCharacter(cp_offset, on_no_match);
+      } else {
+        LoadCurrentCharacterUnchecked(cp_offset, 1);
+      }
+      Label success;
+      __ cmp(current_character(), ' ');
+      __ j(equal, &success);
+      // Check range 0x09..0x0d
+      __ sub(Operand(current_character()), Immediate('\t'));
+      __ cmp(current_character(), '\r' - '\t');
+      BranchOrBacktrack(above_equal, on_no_match);
+      __ bind(&success);
+      return true;
+    }
+    return false;
+  case 'S':
+    // Match non-space characters.
+    if (check_offset) {
+      LoadCurrentCharacter(cp_offset, on_no_match, 1);
+    } else {
+      LoadCurrentCharacterUnchecked(cp_offset, 1);
+    }
+    if (mode_ == ASCII) {
+      // ASCII space characters are '\t'..'\r' and ' '.
+      __ cmp(current_character(), ' ');
+      BranchOrBacktrack(equal, on_no_match);
+      __ sub(Operand(current_character()), Immediate('\t'));
+      __ cmp(current_character(), '\r' - '\t');
+      BranchOrBacktrack(below, on_no_match);
+      return true;
+    }
+    return false;
+  case 'd':
+    // Match ASCII digits ('0'..'9')
+    if (check_offset) {
+      LoadCurrentCharacter(cp_offset, on_no_match, 1);
+    } else {
+      LoadCurrentCharacterUnchecked(cp_offset, 1);
+    }
+    __ sub(Operand(current_character()), Immediate('0'));
+    __ cmp(current_character(), '9' - '0');
+    BranchOrBacktrack(greater_equal, on_no_match);
+    return true;
+  case 'D':
+    // Match non ASCII-digits
+    if (check_offset) {
+      LoadCurrentCharacter(cp_offset, on_no_match, 1);
+    } else {
+      LoadCurrentCharacterUnchecked(cp_offset, 1);
+    }
+    __ sub(Operand(current_character()), Immediate('0'));
+    __ cmp(current_character(), '9' - '0');
+    BranchOrBacktrack(below, on_no_match);
+    return true;
+  case '.': {
+    // Match non-newlines (not 0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    if (check_offset) {
+      LoadCurrentCharacter(cp_offset, on_no_match, 1);
+    } else {
+      LoadCurrentCharacterUnchecked(cp_offset, 1);
+    }
+    // Compute hash value so exactly 0x0a and 0x0d become zero.
+    __ sub(Operand(current_character()), Immediate('\n'));
+    __ mov(eax, current_character());
+    __ and_(current_character(), 0x01);
+    __ shr(eax, 1);
+    __ xor_(current_character(), Operand(eax));
+    BranchOrBacktrack(equal, on_no_match);
+    if (mode_ == UC16) {
+      // Compare original value to 0x2028 and 0x2029, using the already
+      // computed ((current_char - '\n') >> 1) in eax.
+      __ cmp(eax, (0x2028 - '\n') >> 1);
+      BranchOrBacktrack(equal, on_no_match);
+    }
+    return true;
+  }
+  case '*':
+    // Match any character.
+    if (check_offset) {
+      CheckPosition(cp_offset, on_no_match);
+    }
+    return true;
+  // No custom implementation (yet): w, W, s(UC16), S(UC16).
+  default:
+    return false;
+  }
+}
 
 void RegExpMacroAssemblerIA32::DispatchHalfNibbleMap(
     uc16 start,
@@ -528,7 +630,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   Label at_start;
   __ cmp(Operand(ebp, kAtStart), Immediate(0));
   __ j(not_equal, &at_start);
-  LoadCurrentCharacterUnchecked(-1);  // Load previous char.
+  LoadCurrentCharacterUnchecked(-1, 1);  // Load previous char.
   __ jmp(&start_label_);
   __ bind(&at_start);
   __ mov(current_character(), '\n');
@@ -536,25 +638,25 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
 
   // Exit code:
-  // Success
-  __ bind(&success_label_);
-  if (num_saved_registers_ > 0) {
-    // copy captures to output
-    __ mov(ebx, Operand(ebp, kRegisterOutput));
-    __ mov(ecx, Operand(ebp, kInputEndOffset));
-    __ sub(ecx, Operand(ebp, kInputStartOffset));
-    for (int i = 0; i < num_saved_registers_; i++) {
-      __ mov(eax, register_location(i));
-      __ add(eax, Operand(ecx));  // Convert to index from start, not end.
-      if (char_size() > 1) {
-        ASSERT(char_size() == 2);
-        __ sar(eax, 1);  // Convert to character index, not byte.
+  if (success_label_.is_linked()) {
+    // Success
+    __ bind(&success_label_);
+    if (num_saved_registers_ > 0) {
+      // copy captures to output
+      __ mov(ebx, Operand(ebp, kRegisterOutput));
+      __ mov(ecx, Operand(ebp, kInputEndOffset));
+      __ sub(ecx, Operand(ebp, kInputStartOffset));
+      for (int i = 0; i < num_saved_registers_; i++) {
+        __ mov(eax, register_location(i));
+        __ add(eax, Operand(ecx));  // Convert to index from start, not end.
+        if (mode_ == UC16) {
+          __ sar(eax, 1);  // Convert byte index to character index.
+        }
+        __ mov(Operand(ebx, i * kPointerSize), eax);
       }
-      __ mov(Operand(ebx, i * kPointerSize), eax);
     }
+    __ mov(eax, Immediate(1));
   }
-  __ mov(eax, Immediate(1));
-
   // Exit and return eax
   __ bind(&exit_label_);
   __ leave();
@@ -562,6 +664,53 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ pop(edi);
   __ pop(esi);
   __ ret(0);
+
+  // Backtrack code (branch target for conditional backtracks).
+  if (backtrack_label_.is_linked()) {
+    __ bind(&backtrack_label_);
+    Backtrack();
+  }
+
+  // Preempt-code
+  if (check_preempt_label_.is_linked()) {
+    __ bind(&check_preempt_label_);
+    // TODO(lrn): call C function to check the stack guard and return current
+    // stack state (0 = ok, positive = out of stack, negative = preempt).
+    // Then dispatch to an action depending on state, and loop.
+    __ push(edi);
+
+    Label retry;
+    Label stack_overflow;
+
+    __ bind(&retry);
+    int num_arguments = 2;
+    FrameAlign(num_arguments);
+    __ mov(Operand(esp, 1 * kPointerSize), Immediate(self_));
+    __ lea(eax, Operand(esp, -kPointerSize));
+    __ mov(Operand(esp, 0 * kPointerSize), eax);
+    CallCFunction(FUNCTION_ADDR(&CheckStackGuardState), num_arguments);
+
+    ExternalReference stack_guard_limit =
+        ExternalReference::address_of_stack_guard_limit();
+
+    __ or_(eax, Operand(eax));
+    __ j(not_equal, &stack_overflow);
+
+    __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
+    __ j(below_equal, &retry);
+
+    __ pop(edi);
+    // String might have moved: Recompute esi from scratch.
+    __ mov(esi, Operand(esp, kInputBuffer));
+    __ mov(esi, Operand(esi, 0));
+    __ add(esi, Operand(esp, kInputEndOffset));
+    SafeReturn();
+
+    __ bind(&stack_overflow);
+    // Exit with result -1 to signal thrown exception.
+    __ mov(eax, -1);
+    __ jmp(&exit_label_);
+  }
 
   CodeDesc code_desc;
   masm_->GetCode(&code_desc);
@@ -602,12 +751,13 @@ RegExpMacroAssembler::IrregexpImplementation
 
 
 void RegExpMacroAssemblerIA32::LoadCurrentCharacter(int cp_offset,
-                                                    Label* on_end_of_input) {
+                                                    Label* on_end_of_input,
+                                                    bool check_bounds,
+                                                    int characters) {
   ASSERT(cp_offset >= 0);
   ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
-  __ cmp(edi, -cp_offset * char_size());
-  BranchOrBacktrack(greater_equal, on_end_of_input);
-  LoadCurrentCharacterUnchecked(cp_offset);
+  CheckPosition(cp_offset + characters - 1, on_end_of_input);
+  LoadCurrentCharacterUnchecked(cp_offset, characters);
 }
 
 
@@ -622,8 +772,8 @@ void RegExpMacroAssemblerIA32::PopRegister(int register_index) {
 
 
 void RegExpMacroAssemblerIA32::PushBacktrack(Label* label) {
-  // CheckStackLimit();  // Not ready yet.
-  __ push(label, RelocInfo::NONE);
+  __ push(Immediate::CodeRelativeOffset(label));
+  CheckStackLimit();
 }
 
 
@@ -710,6 +860,38 @@ int RegExpMacroAssemblerIA32::CaseInsensitiveCompareUC16(uc16** buffer,
 }
 
 
+int RegExpMacroAssemblerIA32::CheckStackGuardState(Address return_address,
+                                                   Code* re_code) {
+  if (StackGuard::IsStackOverflow()) {
+    Top::StackOverflow();
+    return 1;
+  }
+
+  // If not real stack overflow the stack guard was used to interrupt
+  // execution for another purpose.
+
+  // Prepare for possible GC.
+  Handle<Code> code_handle(re_code);
+#ifdef DEBUG
+  CHECK(re_code->instruction_start() <= return_address);
+  CHECK(return_address <=
+      re_code->instruction_start() + re_code->instruction_size());
+#endif
+
+  Object* result = Execution::HandleStackGuardInterrupt();
+
+  if (*code_handle != re_code) {  // Return address no longer valid
+    int delta = *code_handle - re_code;
+    *reinterpret_cast<int32_t*>(return_address) += delta;
+  }
+
+  if (result->IsException()) {
+    return 1;
+  }
+  return 0;
+}
+
+
 Operand RegExpMacroAssemblerIA32::register_location(int register_index) {
   ASSERT(register_index < (1<<30));
   if (num_registers_ <= register_index) {
@@ -729,6 +911,13 @@ size_t RegExpMacroAssemblerIA32::char_size() {
 }
 
 
+void RegExpMacroAssemblerIA32::CheckPosition(int cp_offset,
+                                             Label* on_outside_input) {
+  __ cmp(edi, -cp_offset * char_size());
+  BranchOrBacktrack(greater_equal, on_outside_input);
+}
+
+
 void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
                                                  Label* to) {
   if (condition < 0) {  // No condition
@@ -740,13 +929,25 @@ void RegExpMacroAssemblerIA32::BranchOrBacktrack(Condition condition,
     return;
   }
   if (to == NULL) {
-    Label skip;
-    __ j(NegateCondition(condition), &skip);
-    Backtrack();
-    __ bind(&skip);
+    __ j(condition, &backtrack_label_);
     return;
   }
   __ j(condition, to);
+}
+
+
+void RegExpMacroAssemblerIA32::SafeCall(Label* to) {
+  Label return_to;
+  __ push(Immediate::CodeRelativeOffset(&return_to));
+  __ jmp(to);
+  __ bind(&return_to);
+}
+
+
+void RegExpMacroAssemblerIA32::SafeReturn() {
+  __ pop(ecx);
+  __ add(Operand(ecx), Immediate(self_));
+  __ jmp(Operand(ecx));
 }
 
 
@@ -754,47 +955,69 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
   if (FLAG_check_stack) {
     // Check for preemption first.
     Label no_preempt;
-    Label retry_preempt;
     // Check for preemption.
     ExternalReference stack_guard_limit =
         ExternalReference::address_of_stack_guard_limit();
     __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
     __ j(above, &no_preempt, taken);
-    __ push(edi);  // Current position.
-    __ push(edx);  // Current character.
-    // Restore original edi, esi.
-    __ mov(edi, Operand(ebp, kBackup_edi));
-    __ mov(esi, Operand(ebp, kBackup_esi));
 
-    __ bind(&retry_preempt);
-    // simulate stack for Runtime call.
-    __ push(eax);
-    __ push(Immediate(Smi::FromInt(0)));  // Dummy receiver
-    __ CallRuntime(Runtime::kStackGuard, 1);
-    __ pop(eax);
-
-    __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
-    __ j(below_equal, &retry_preempt);
-
-    __ pop(edx);
-    __ pop(edi);
-    __ mov(esi, Operand(ebp, kInputBuffer));
-    __ mov(esi, Operand(esi, 0));
-    __ add(esi, Operand(ebp, kInputEndOffset));
+    SafeCall(&check_preempt_label_);
 
     __ bind(&no_preempt);
   }
 }
 
 
-void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset) {
-  if (mode_ == ASCII) {
-    __ movzx_b(current_character(), Operand(esi, edi, times_1, cp_offset));
-    return;
+void RegExpMacroAssemblerIA32::FrameAlign(int num_arguments) {
+  int frameAlignment = OS::ActivationFrameAlignment();
+  if (frameAlignment != 0) {
+    // Make stack end at alignment and make room for num_arguments words
+    // and the original value of esp.
+    __ mov(ebx, esp);
+    __ sub(Operand(esp), Immediate((num_arguments + 1) * kPointerSize));
+    ASSERT(IsPowerOf2(frameAlignment));
+    __ and_(esp, -frameAlignment);
+    __ mov(Operand(esp, num_arguments * kPointerSize), ebx);
+  } else {
+    __ sub(Operand(esp), Immediate(num_arguments * kPointerSize));
   }
-  ASSERT(mode_ == UC16);
-  __ movzx_w(current_character(),
+}
+
+
+void RegExpMacroAssemblerIA32::CallCFunction(Address function_address,
+                                             int num_arguments) {
+  __ mov(Operand(eax), Immediate(reinterpret_cast<int32_t>(function_address)));
+  __ call(Operand(eax));
+  if (OS::ActivationFrameAlignment() != 0) {
+    __ mov(esp, Operand(esp, num_arguments * kPointerSize));
+  } else {
+    __ add(Operand(esp), Immediate(num_arguments * sizeof(int32_t)));
+  }
+}
+
+
+void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
+                                                             int characters) {
+  if (mode_ == ASCII) {
+    if (characters == 4) {
+      __ mov(current_character(), Operand(esi, edi, times_1, cp_offset));
+    } else if (characters == 2) {
+      __ movzx_w(current_character(), Operand(esi, edi, times_1, cp_offset));
+    } else {
+      ASSERT(characters == 1);
+      __ movzx_b(current_character(), Operand(esi, edi, times_1, cp_offset));
+    }
+  } else {
+    ASSERT(mode_ == UC16);
+    if (characters == 2) {
+      __ mov(current_character(),
              Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
+    } else {
+      ASSERT(characters == 1);
+      __ movzx_w(current_character(),
+                 Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
+    }
+  }
 }
 
 

@@ -118,6 +118,12 @@ class Execution : public AllStatic {
                                           Handle<Object> pos,
                                           Handle<Object> is_global);
 
+  static Object* DebugBreakHelper();
+
+  // If the stack guard is triggered, but it is not an actual
+  // stack overflow, then handle the interruption accordingly.
+  static Object* HandleStackGuardInterrupt();
+
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.
   static Handle<Object> GetFunctionDelegate(Handle<Object> object);

@@ -233,6 +233,10 @@ void CallIC::Clear(Address address, Code* target) {
 
 void KeyedLoadIC::Clear(Address address, Code* target) {
   if (target->ic_state() == UNINITIALIZED) return;
+  // Make sure to also clear the map used in inline fast cases.  If we
+  // do not clear these maps, cached code can keep objects alive
+  // through the embedded maps.
+  PatchInlinedMapCheck(address, Heap::null_value());
   SetTargetAtAddress(address, initialize_stub());
 }
 
@@ -352,17 +356,16 @@ Object* CallIC::LoadFunction(State state,
       if (opt->IsJSFunction()) return opt;
     }
 
-    // If performing debug step into then flood this function with one-shot
-    // break points if it is called from where step into was requested.
-    if (Debug::StepInActive() && fp() == Debug::step_in_fp()) {
-      // Don't allow step into functions in the native context.
-      if (JSFunction::cast(result)->context()->global() !=
-          Top::context()->builtins()) {
-        HandleScope scope;
-        Handle<SharedFunctionInfo> shared(JSFunction::cast(result)->shared());
-        Debug::FloodWithOneShot(shared);
-      }
+    // Handle stepping into a function if step into is active.
+    if (Debug::StepInActive()) {
+      // Protect the result in a handle as the debugger can allocate and might
+      // cause GC.
+      HandleScope scope;
+      Handle<JSFunction> function(JSFunction::cast(result));
+      Debug::HandleStepIn(function, fp(), false);
+      return *function;
     }
+
     return result;
   }
 
@@ -719,7 +722,18 @@ Object* KeyedLoadIC::Load(State state,
   // the global object).
   bool use_ic = FLAG_use_ic && !object->IsAccessCheckNeeded();
 
-  if (use_ic) set_target(generic_stub());
+  if (use_ic) {
+    set_target(generic_stub());
+    // For JSObjects that are not value wrappers and that do not have
+    // indexed interceptors, we initialize the inlined fast case (if
+    // present) by patching the inlined map check.
+    if (object->IsJSObject() &&
+        !object->IsJSValue() &&
+        !JSObject::cast(*object)->HasIndexedInterceptor()) {
+      Map* map = JSObject::cast(*object)->map();
+      PatchInlinedMapCheck(address(), map);
+    }
+  }
 
   // Get the property.
   return Runtime::GetObjectProperty(object, key);

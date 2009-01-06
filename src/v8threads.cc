@@ -269,62 +269,64 @@ void ThreadManager::MarkCompactEpilogue() {
 }
 
 
+// This is the ContextSwitcher singleton. There is at most a single thread
+// running which delivers preemption events to V8 threads.
+ContextSwitcher* ContextSwitcher::singleton_ = NULL;
+
+
 ContextSwitcher::ContextSwitcher(int every_n_ms)
-  : preemption_semaphore_(OS::CreateSemaphore(0)),
-    keep_going_(true),
+  : keep_going_(true),
     sleep_ms_(every_n_ms) {
 }
 
 
-static v8::internal::ContextSwitcher* switcher;
-
-
+// Set the scheduling interval of V8 threads. This function starts the
+// ContextSwitcher thread if needed.
 void ContextSwitcher::StartPreemption(int every_n_ms) {
   ASSERT(Locker::IsLocked());
-  if (switcher == NULL) {
-    switcher = new ContextSwitcher(every_n_ms);
-    switcher->Start();
+  if (singleton_ == NULL) {
+    // If the ContextSwitcher thread is not running at the moment start it now.
+    singleton_ = new ContextSwitcher(every_n_ms);
+    singleton_->Start();
   } else {
-    switcher->sleep_ms_ = every_n_ms;
+    // ContextSwitcher thread is already running, so we just change the
+    // scheduling interval.
+    singleton_->sleep_ms_ = every_n_ms;
   }
 }
 
 
+// Disable preemption of V8 threads. If multiple threads want to use V8 they
+// must cooperatively schedule amongst them from this point on.
 void ContextSwitcher::StopPreemption() {
   ASSERT(Locker::IsLocked());
-  if (switcher != NULL) {
-    switcher->Stop();
-    delete(switcher);
-    switcher = NULL;
+  if (singleton_ != NULL) {
+    // The ContextSwitcher thread is running. We need to stop it and release
+    // its resources.
+    singleton_->keep_going_ = false;
+    singleton_->Join();  // Wait for the ContextSwitcher thread to exit.
+    // Thread has exited, now we can delete it.
+    delete(singleton_);
+    singleton_ = NULL;
   }
 }
 
 
+// Main loop of the ContextSwitcher thread: Preempt the currently running V8
+// thread at regular intervals.
 void ContextSwitcher::Run() {
   while (keep_going_) {
     OS::Sleep(sleep_ms_);
     StackGuard::Preempt();
-    WaitForPreemption();
   }
 }
 
 
-void ContextSwitcher::Stop() {
-  ASSERT(Locker::IsLocked());
-  keep_going_ = false;
-  preemption_semaphore_->Signal();
-  Join();
-}
-
-
-void ContextSwitcher::WaitForPreemption() {
-  preemption_semaphore_->Wait();
-}
-
-
+// Acknowledge the preemption by the receiving thread.
 void ContextSwitcher::PreemptionReceived() {
   ASSERT(Locker::IsLocked());
-  switcher->preemption_semaphore_->Signal();
+  // There is currently no accounting being done for this. But could be in the
+  // future, which is why we leave this in.
 }
 
 

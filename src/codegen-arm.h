@@ -195,6 +195,8 @@ class CodeGenerator: public AstVisitor {
                                Handle<Script> script,
                                bool is_eval);
 
+  static bool ShouldGenerateLog(Expression* type);
+
   static void SetFunctionInfo(Handle<JSFunction> fun,
                               int length,
                               int function_token_position,
@@ -324,6 +326,8 @@ class CodeGenerator: public AstVisitor {
   // Fast support for object equality testing.
   void GenerateObjectEquals(ZoneList<Expression*>* args);
 
+  void GenerateLog(ZoneList<Expression*>* args);
+
   // Methods and constants for fast case switch statement support.
   //
   // Only allow fast-case switch if the range of labels is at most
@@ -376,10 +380,11 @@ class CodeGenerator: public AstVisitor {
   bool TryGenerateFastCaseSwitchStatement(SwitchStatement* node);
 
 
-  // Bottle-neck interface to call the Assembler to generate the statement
-  // position. This allows us to easily control whether statement positions
-  // should be generated or not.
-  void RecordStatementPosition(Node* node);
+  // Methods used to indicate which source code is generated for. Source
+  // positions are collected by the assembler and emitted with the relocation
+  // information.
+  void CodeForStatement(Node* node);
+  void CodeForSourcePosition(int pos);
 
   bool is_eval_;  // Tells whether code is generated for eval.
   Handle<Script> script_;

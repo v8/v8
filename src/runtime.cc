@@ -919,6 +919,18 @@ static Object* Runtime_FunctionSetPrototype(Arguments args) {
 }
 
 
+static Object* Runtime_FunctionIsAPIFunction(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+
+  CONVERT_CHECKED(JSFunction, f, args[0]);
+  // The function_data field of the shared function info is used exclusively by
+  // the API.
+  return !f->shared()->function_data()->IsUndefined() ? Heap::true_value()
+                                                      : Heap::false_value();
+}
+
+
 static Object* Runtime_SetCode(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 2);
@@ -1049,7 +1061,7 @@ class BMGoodSuffixBuffers {
 };
 
 // buffers reused by BoyerMoore
-static int bad_char_occurence[kBMAlphabetSize];
+static int bad_char_occurrence[kBMAlphabetSize];
 static BMGoodSuffixBuffers bmgs_buffers;
 
 // Compute the bad-char table for Boyer-Moore in the static buffer.
@@ -1062,16 +1074,16 @@ static void BoyerMoorePopulateBadCharTable(Vector<const pchar> pattern,
   int table_size = (sizeof(pchar) == 1) ? String::kMaxAsciiCharCode + 1
                                         : kBMAlphabetSize;
   if (start == 0) {  // All patterns less than kBMMaxShift in length.
-    memset(bad_char_occurence, -1, table_size * sizeof(*bad_char_occurence));
+    memset(bad_char_occurrence, -1, table_size * sizeof(*bad_char_occurrence));
   } else {
     for (int i = 0; i < table_size; i++) {
-      bad_char_occurence[i] = start - 1;
+      bad_char_occurrence[i] = start - 1;
     }
   }
   for (int i = start; i < pattern.length() - 1; i++) {
     pchar c = pattern[i];
     int bucket = (sizeof(pchar) ==1) ? c : c % kBMAlphabetSize;
-    bad_char_occurence[bucket] = i;
+    bad_char_occurrence[bucket] = i;
   }
 }
 
@@ -1126,28 +1138,27 @@ static void BoyerMoorePopulateGoodSuffixTable(Vector<const pchar> pattern,
 }
 
 template <typename schar, typename pchar>
-static inline int CharOccurence(int char_code) {
+static inline int CharOccurrence(int char_code) {
   if (sizeof(schar) == 1) {
-    return bad_char_occurence[char_code];
+    return bad_char_occurrence[char_code];
   }
   if (sizeof(pchar) == 1) {
     if (char_code > String::kMaxAsciiCharCode) {
       return -1;
     }
-    return bad_char_occurence[char_code];
+    return bad_char_occurrence[char_code];
   }
-  return bad_char_occurence[char_code % kBMAlphabetSize];
+  return bad_char_occurrence[char_code % kBMAlphabetSize];
 }
 
-// Restricted simplified Boyer-Moore string matching. Restricts tables to a
-// suffix of long pattern strings and handles only equivalence classes
-// of the full alphabet. This allows us to ensure that tables take only
-// a fixed amount of space.
+// Restricted simplified Boyer-Moore string matching.
+// Uses only the bad-shift table of Boyer-Moore and only uses it
+// for the character compared to the last character of the needle.
 template <typename schar, typename pchar>
-static int BoyerMooreSimplified(Vector<const schar> subject,
-                                Vector<const pchar> pattern,
-                                int start_index,
-                                bool* complete) {
+static int BoyerMooreHorsepool(Vector<const schar> subject,
+                               Vector<const pchar> pattern,
+                               int start_index,
+                               bool* complete) {
   int n = subject.length();
   int m = pattern.length();
   // Only preprocess at most kBMMaxShift last characters of pattern.
@@ -1158,12 +1169,13 @@ static int BoyerMooreSimplified(Vector<const schar> subject,
   int badness = -m;  // How bad we are doing without a good-suffix table.
   int idx;  // No matches found prior to this index.
   pchar last_char = pattern[m - 1];
+  int last_char_shift = m - 1 - CharOccurrence<schar, pchar>(last_char);
   // Perform search
   for (idx = start_index; idx <= n - m;) {
     int j = m - 1;
     int c;
     while (last_char != (c = subject[idx + j])) {
-      int bc_occ = CharOccurence<schar, pchar>(c);
+      int bc_occ = CharOccurrence<schar, pchar>(c);
       int shift = j - bc_occ;
       idx += shift;
       badness += 1 - shift;  // at most zero, so badness cannot increase.
@@ -1173,19 +1185,17 @@ static int BoyerMooreSimplified(Vector<const schar> subject,
       }
     }
     j--;
-    while (j >= 0 && pattern[j] == (c = subject[idx + j])) j--;
+    while (j >= 0 && pattern[j] == (subject[idx + j])) j--;
     if (j < 0) {
       *complete = true;
       return idx;
     } else {
-      int bc_occ = CharOccurence<schar, pchar>(c);
-      int shift = bc_occ < j ? j - bc_occ : 1;
-      idx += shift;
+      idx += last_char_shift;
       // Badness increases by the number of characters we have
       // checked, and decreases by the number of characters we
       // can skip by shifting. It's a measure of how we are doing
       // compared to reading each character exactly once.
-      badness += (m - j) - shift;
+      badness += (m - j) - last_char_shift;
       if (badness > 0) {
         *complete = false;
         return idx;
@@ -1214,7 +1224,7 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
     int j = m - 1;
     schar c;
     while (last_char != (c = subject[idx + j])) {
-      int shift = j - CharOccurence<schar, pchar>(c);
+      int shift = j - CharOccurrence<schar, pchar>(c);
       idx += shift;
       if (idx > n - m) {
         return -1;
@@ -1225,12 +1235,15 @@ static int BoyerMooreIndexOf(Vector<const schar> subject,
       return idx;
     } else if (j < start) {
       // we have matched more than our tables allow us to be smart about.
-      idx += 1;
+      // Fall back on BMH shift.
+      idx += m - 1 - CharOccurrence<schar, pchar>(last_char);
     } else {
       int gs_shift = bmgs_buffers.shift(j + 1);       // Good suffix shift.
-      int bc_occ = CharOccurence<schar, pchar>(c);
+      int bc_occ = CharOccurrence<schar, pchar>(c);
       int shift = j - bc_occ;                         // Bad-char shift.
-      shift = (gs_shift > shift) ? gs_shift : shift;
+      if (gs_shift > shift) {
+        shift = gs_shift;
+      }
       idx += shift;
     }
   } while (idx <= n - m);
@@ -1274,7 +1287,7 @@ static int SimpleIndexOf(Vector<const schar> subject,
     badness++;
     if (badness > 0) {
       *complete = false;
-      return (i);
+      return i;
     }
     if (subject[i] != pattern_first_char) continue;
     int j = 1;
@@ -1345,7 +1358,7 @@ static int StringMatchStrategy(Vector<const schar> sub,
   bool complete;
   int idx = SimpleIndexOf(sub, pat, start_index, &complete);
   if (complete) return idx;
-  idx = BoyerMooreSimplified(sub, pat, idx, &complete);
+  idx = BoyerMooreHorsepool(sub, pat, idx, &complete);
   if (complete) return idx;
   return BoyerMooreIndexOf(sub, pat, idx);
 }
@@ -3310,16 +3323,10 @@ static Object* Runtime_NewObject(Arguments args) {
   if (constructor->IsJSFunction()) {
     JSFunction* function = JSFunction::cast(constructor);
 
-    // Handle steping into constructors.
+    // Handle steping into constructors if step into is active.
     if (Debug::StepInActive()) {
-      StackFrameIterator it;
-      it.Advance();
-      ASSERT(it.frame()->is_construct());
-      it.Advance();
-      if (it.frame()->fp() == Debug::step_in_fp()) {
-        HandleScope scope;
-        Debug::FloodWithOneShot(Handle<SharedFunctionInfo>(function->shared()));
-      }
+      HandleScope scope;
+      Debug::HandleStepIn(Handle<JSFunction>(function), 0, true);
     }
 
     if (function->has_initial_map() &&
@@ -3415,19 +3422,15 @@ static Object* Runtime_NewContext(Arguments args) {
   return result;  // non-failure
 }
 
-
-static Object* Runtime_PushContext(Arguments args) {
-  NoHandleAllocation ha;
-  ASSERT(args.length() == 1);
-
+static Object* PushContextHelper(Object* object, bool is_catch_context) {
   // Convert the object to a proper JavaScript object.
-  Object* object = args[0];
-  if (!object->IsJSObject()) {
-    object = object->ToObject();
-    if (object->IsFailure()) {
-      if (!Failure::cast(object)->IsInternalError()) return object;
+  Object* js_object = object;
+  if (!js_object->IsJSObject()) {
+    js_object = js_object->ToObject();
+    if (js_object->IsFailure()) {
+      if (!Failure::cast(js_object)->IsInternalError()) return js_object;
       HandleScope scope;
-      Handle<Object> handle(args[0]);
+      Handle<Object> handle(object);
       Handle<Object> result =
           Factory::NewTypeError("with_expression", HandleVector(&handle, 1));
       return Top::Throw(*result);
@@ -3435,12 +3438,29 @@ static Object* Runtime_PushContext(Arguments args) {
   }
 
   Object* result =
-      Heap::AllocateWithContext(Top::context(), JSObject::cast(object));
+      Heap::AllocateWithContext(Top::context(),
+                                JSObject::cast(js_object),
+                                is_catch_context);
   if (result->IsFailure()) return result;
 
-  Top::set_context(Context::cast(result));
+  Context* context = Context::cast(result);
+  Top::set_context(context);
 
   return result;
+}
+
+
+static Object* Runtime_PushContext(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  return PushContextHelper(args[0], false);
+}
+
+
+static Object* Runtime_PushCatchContext(Arguments args) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 1);
+  return PushContextHelper(args[0], true);
 }
 
 
@@ -3541,9 +3561,14 @@ static ObjectPair LoadContextSlotHelper(Arguments args, bool throw_error) {
   if (!holder.is_null() && holder->IsJSObject()) {
     ASSERT(Handle<JSObject>::cast(holder)->HasProperty(*name));
     JSObject* object = JSObject::cast(*holder);
-    JSObject* receiver = (object->IsGlobalObject())
-        ? GlobalObject::cast(object)->global_receiver()
-        : ComputeReceiverForNonGlobal(object);
+    JSObject* receiver;
+    if (object->IsGlobalObject()) {
+      receiver = GlobalObject::cast(object)->global_receiver();
+    } else if (context->is_exception_holder(*holder)) {
+      receiver = Top::context()->global()->global_receiver();
+    } else {
+      receiver = ComputeReceiverForNonGlobal(object);
+    }
     // No need to unhole the value here. This is taken care of by the
     // GetProperty function.
     Object* value = object->GetProperty(*name);
@@ -3664,61 +3689,9 @@ static Object* Runtime_StackOverflow(Arguments args) {
 }
 
 
-static Object* RuntimePreempt(Arguments args) {
-  // Clear the preempt request flag.
-  StackGuard::Continue(PREEMPT);
-
-  ContextSwitcher::PreemptionReceived();
-
-  {
-    v8::Unlocker unlocker;
-    Thread::YieldCPU();
-  }
-
-  return Heap::undefined_value();
-}
-
-
-static Object* DebugBreakHelper() {
-  // Just continue if breaks are disabled.
-  if (Debug::disable_break()) {
-    return Heap::undefined_value();
-  }
-
-  // Don't break in system functions. If the current function is
-  // either in the builtins object of some context or is in the debug
-  // context just return with the debug break stack guard active.
-  JavaScriptFrameIterator it;
-  JavaScriptFrame* frame = it.frame();
-  Object* fun = frame->function();
-  if (fun->IsJSFunction()) {
-    GlobalObject* global = JSFunction::cast(fun)->context()->global();
-    if (global->IsJSBuiltinsObject() || Debug::IsDebugGlobal(global)) {
-      return Heap::undefined_value();
-    }
-  }
-
-  // Clear the debug request flag.
-  StackGuard::Continue(DEBUGBREAK);
-
-  HandleScope scope;
-  // Enter the debugger. Just continue if we fail to enter the debugger.
-  EnterDebugger debugger;
-  if (debugger.FailedToEnter()) {
-    return Heap::undefined_value();
-  }
-
-  // Notify the debug event listeners.
-  Debugger::OnDebugBreak(Factory::undefined_value());
-
-  // Return to continue execution.
-  return Heap::undefined_value();
-}
-
-
 static Object* Runtime_DebugBreak(Arguments args) {
   ASSERT(args.length() == 0);
-  return DebugBreakHelper();
+  return Execution::DebugBreakHelper();
 }
 
 
@@ -3728,16 +3701,7 @@ static Object* Runtime_StackGuard(Arguments args) {
   // First check if this is a real stack overflow.
   if (StackGuard::IsStackOverflow()) return Runtime_StackOverflow(args);
 
-  // If not real stack overflow the stack guard was used to interrupt
-  // execution for another purpose.
-  if (StackGuard::IsDebugBreak()) DebugBreakHelper();
-  if (StackGuard::IsPreempted()) RuntimePreempt(args);
-  if (StackGuard::IsInterrupted()) {
-    // interrupt
-    StackGuard::Continue(INTERRUPT);
-    return Top::StackOverflow();
-  }
-  return Heap::undefined_value();
+  return Execution::HandleStackGuardInterrupt();
 }
 
 
@@ -5268,7 +5232,9 @@ static Handle<Context> CopyWithContextChain(Handle<Context> context_chain,
   Handle<Context> previous(context_chain->previous());
   Handle<JSObject> extension(JSObject::cast(context_chain->extension()));
   return Factory::NewWithContext(
-      CopyWithContextChain(function_context, previous), extension);
+      CopyWithContextChain(function_context, previous),
+      extension,
+      context_chain->IsCatchContext());
 }
 
 
@@ -5872,6 +5838,16 @@ static Object* Runtime_ListNatives(Arguments args) {
   return *result;
 }
 #endif
+
+
+static Object* Runtime_Log(Arguments args) {
+  ASSERT(args.length() == 2);
+  String* format = String::cast(args[0]);
+  Vector<const char> chars = format->ToAsciiVector();
+  JSArray* elms = JSArray::cast(args[1]);
+  Logger::LogRuntime(chars, elms);
+  return Heap::undefined_value();
+}
 
 
 static Object* Runtime_IS_VAR(Arguments args) {

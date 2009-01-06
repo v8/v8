@@ -44,6 +44,7 @@ RegExpMacroAssemblerIrregexp::RegExpMacroAssemblerIrregexp(Vector<byte> buffer)
 
 
 RegExpMacroAssemblerIrregexp::~RegExpMacroAssemblerIrregexp() {
+  if (backtrack_.is_linked()) backtrack_.Unuse();
 }
 
 
@@ -196,17 +197,32 @@ void RegExpMacroAssemblerIrregexp::CheckGreedyLoop(
 
 
 void RegExpMacroAssemblerIrregexp::LoadCurrentCharacter(int cp_offset,
-                                                        Label* on_failure) {
-  Emit(BC_LOAD_CURRENT_CHAR);
+                                                        Label* on_failure,
+                                                        bool check_bounds,
+                                                        int characters) {
+  int bytecode;
+  if (check_bounds) {
+    if (characters == 4) {
+      bytecode = BC_LOAD_4_CURRENT_CHARS;
+    } else if (characters == 2) {
+      bytecode = BC_LOAD_2_CURRENT_CHARS;
+    } else {
+      ASSERT(characters == 1);
+      bytecode = BC_LOAD_CURRENT_CHAR;
+    }
+  } else {
+    if (characters == 4) {
+      bytecode = BC_LOAD_4_CURRENT_CHARS_UNCHECKED;
+    } else if (characters == 2) {
+      bytecode = BC_LOAD_2_CURRENT_CHARS_UNCHECKED;
+    } else {
+      ASSERT(characters == 1);
+      bytecode = BC_LOAD_CURRENT_CHAR_UNCHECKED;
+    }
+  }
+  Emit(bytecode);
   Emit32(cp_offset);
-  EmitOrLink(on_failure);
-}
-
-
-void RegExpMacroAssemblerIrregexp::LoadCurrentCharacterUnchecked(
-      int cp_offset) {
-  Emit(BC_LOAD_CURRENT_CHAR_UNCHECKED);
-  Emit32(cp_offset);
+  if (check_bounds) EmitOrLink(on_failure);
 }
 
 
@@ -226,9 +242,9 @@ void RegExpMacroAssemblerIrregexp::CheckCharacterGT(uc16 limit,
 }
 
 
-void RegExpMacroAssemblerIrregexp::CheckCharacter(uc16 c, Label* on_equal) {
+void RegExpMacroAssemblerIrregexp::CheckCharacter(uint32_t c, Label* on_equal) {
   Emit(BC_CHECK_CHAR);
-  Emit16(c);
+  Emit32(c);
   EmitOrLink(on_equal);
 }
 
@@ -239,31 +255,44 @@ void RegExpMacroAssemblerIrregexp::CheckNotAtStart(Label* on_not_at_start) {
 }
 
 
-void RegExpMacroAssemblerIrregexp::CheckNotCharacter(uc16 c,
+void RegExpMacroAssemblerIrregexp::CheckNotCharacter(uint32_t c,
                                                      Label* on_not_equal) {
   Emit(BC_CHECK_NOT_CHAR);
-  Emit16(c);
+  Emit32(c);
   EmitOrLink(on_not_equal);
 }
 
 
-void RegExpMacroAssemblerIrregexp::CheckNotCharacterAfterOr(
-    uc16 c,
-    uc16 mask,
+void RegExpMacroAssemblerIrregexp::CheckCharacterAfterAnd(
+    uint32_t c,
+    uint32_t mask,
+    Label* on_equal) {
+  Emit(BC_AND_CHECK_CHAR);
+  Emit32(c);
+  Emit32(mask);
+  EmitOrLink(on_equal);
+}
+
+
+void RegExpMacroAssemblerIrregexp::CheckNotCharacterAfterAnd(
+    uint32_t c,
+    uint32_t mask,
     Label* on_not_equal) {
-  Emit(BC_OR_CHECK_NOT_CHAR);
-  Emit16(c);
-  Emit16(mask);
+  Emit(BC_AND_CHECK_NOT_CHAR);
+  Emit32(c);
+  Emit32(mask);
   EmitOrLink(on_not_equal);
 }
 
 
-void RegExpMacroAssemblerIrregexp::CheckNotCharacterAfterMinusOr(
+void RegExpMacroAssemblerIrregexp::CheckNotCharacterAfterMinusAnd(
     uc16 c,
+    uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  Emit(BC_MINUS_OR_CHECK_NOT_CHAR);
+  Emit(BC_MINUS_AND_CHECK_NOT_CHAR);
   Emit16(c);
+  Emit16(minus);
   Emit16(mask);
   EmitOrLink(on_not_equal);
 }
@@ -344,7 +373,7 @@ void RegExpMacroAssemblerIrregexp::CheckCharacters(
       Emit32(cp_offset + i);
     }
     Emit(BC_CHECK_NOT_CHAR);
-    Emit16(str[i]);
+    Emit32(str[i]);
     EmitOrLink(on_failure);
   }
 }

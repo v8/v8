@@ -474,10 +474,18 @@ Debug.findBreakPoint = function(break_point_number, remove) {
 
 Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
   if (!IS_FUNCTION(func)) throw new Error('Parameters have wrong types.');
+  // Break points in API functions are not supported.
+  if (%FunctionIsAPIFunction(func)) {
+    throw new Error('Cannot set break point in native code.');
+  }
   var source_position = this.findFunctionSourcePosition(func, opt_line, opt_column) -
                         this.sourcePosition(func);
   // Find the script for the function.
   var script = %FunctionGetScript(func);
+  // Break in builtin JavaScript code is not supported.
+  if (script.type == Debug.ScriptType.Native) {
+    throw new Error('Cannot set break point in native code.');
+  }
   // If the script for the function has a name convert this to a script break
   // point.
   if (script && script.name) {
@@ -1321,6 +1329,9 @@ DebugCommandProcessor.prototype.clearBreakPointRequest_ = function(request, resp
 
   // Clear break point.
   Debug.clearBreakPoint(break_point);
+
+  // Add the cleared break point number to the response.
+  response.body = { breakpoint: break_point }
 }
 
 
@@ -1380,6 +1391,11 @@ DebugCommandProcessor.prototype.backtracec = function(cmd, args) {
 
 
 DebugCommandProcessor.prototype.frameRequest_ = function(request, response) {
+  // No frames no source.
+  if (this.exec_state_.frameCount() == 0) {
+    return response.failed('No frames');
+  }
+
   // With no arguments just keep the selected frame.
   if (request.arguments && request.arguments.number >= 0) {
     this.exec_state_.setSelectedFrame(request.arguments.number);
@@ -1445,6 +1461,11 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
 
 
 DebugCommandProcessor.prototype.sourceRequest_ = function(request, response) {
+  // No frames no source.
+  if (this.exec_state_.frameCount() == 0) {
+    return response.failed('No source');
+  }
+
   var from_line;
   var to_line;
   var frame = this.exec_state_.frame();

@@ -185,6 +185,10 @@ class Immediate BASE_EMBEDDED {
   inline explicit Immediate(Handle<Object> handle);
   inline explicit Immediate(Smi* value);
 
+  static Immediate CodeRelativeOffset(Label* label) {
+    return Immediate(label);
+  }
+
   bool is_zero() const { return x_ == 0 && rmode_ == RelocInfo::NONE; }
   bool is_int8() const {
     return -128 <= x_ && x_ < 128 && rmode_ == RelocInfo::NONE;
@@ -194,6 +198,8 @@ class Immediate BASE_EMBEDDED {
   }
 
  private:
+  inline explicit Immediate(Label* value);
+
   int x_;
   RelocInfo::Mode rmode_;
 
@@ -497,14 +503,13 @@ class Assembler : public Malloced {
   void and_(const Operand& dst, const Immediate& x);
 
   void cmpb(const Operand& op, int8_t imm8);
+  void cmpb_al(const Operand& op);
+  void cmpw_ax(const Operand& op);
   void cmpw(const Operand& op, Immediate imm16);
   void cmp(Register reg, int32_t imm32);
   void cmp(Register reg, Handle<Object> handle);
   void cmp(Register reg, const Operand& op);
   void cmp(const Operand& op, const Immediate& imm);
-
-  void rep_cmpsb();
-  void rep_cmpsw();
 
   void dec_b(Register dst);
 
@@ -707,8 +712,8 @@ class Assembler : public Malloced {
   void WriteInternalReference(int position, const Label& bound_label);
 
   int pc_offset() const  { return pc_ - buffer_; }
-  int last_statement_position() const  { return last_statement_position_; }
-  int last_position() const  { return last_position_; }
+  int current_statement_position() const { return current_statement_position_; }
+  int current_position() const  { return current_position_; }
 
   // Check if there is less than kGap bytes available in the buffer.
   // If this is the case, we need to grow the buffer before emitting
@@ -731,24 +736,6 @@ class Assembler : public Malloced {
 
 
  private:
-  // Code buffer:
-  // The buffer into which code and relocation info are generated.
-  byte* buffer_;
-  int buffer_size_;
-  // True if the assembler owns the buffer, false if buffer is external.
-  bool own_buffer_;
-
-  // code generation
-  byte* pc_;  // the program counter; moves forward
-  RelocInfoWriter reloc_info_writer;
-
-  // push-pop elimination
-  byte* last_pc_;
-
-  // source position information
-  int last_position_;
-  int last_statement_position_;
-
   byte* addr_at(int pos)  { return buffer_ + pos; }
   byte byte_at(int pos)  { return buffer_[pos]; }
   uint32_t long_at(int pos)  {
@@ -765,6 +752,9 @@ class Assembler : public Malloced {
   inline void emit(uint32_t x, RelocInfo::Mode rmode);
   inline void emit(const Immediate& x);
   inline void emit_w(const Immediate& x);
+
+  // Emit the code-object-relative offset of the label's position
+  inline void emit_code_relative_offset(Label* label);
 
   // instruction generation
   void emit_arith_b(int op1, int op2, Register dst, int imm8);
@@ -794,6 +784,26 @@ class Assembler : public Malloced {
 
   friend class CodePatcher;
   friend class EnsureSpace;
+
+  // Code buffer:
+  // The buffer into which code and relocation info are generated.
+  byte* buffer_;
+  int buffer_size_;
+  // True if the assembler owns the buffer, false if buffer is external.
+  bool own_buffer_;
+
+  // code generation
+  byte* pc_;  // the program counter; moves forward
+  RelocInfoWriter reloc_info_writer;
+
+  // push-pop elimination
+  byte* last_pc_;
+
+  // source position information
+  int current_statement_position_;
+  int current_position_;
+  int written_statement_position_;
+  int written_position_;
 };
 
 

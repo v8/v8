@@ -316,8 +316,10 @@ Assembler::Assembler(void* buffer, int buffer_size) {
   reloc_info_writer.Reposition(buffer_ + buffer_size, pc_);
 
   last_pc_ = NULL;
-  last_position_ = RelocInfo::kNoPosition;
-  last_statement_position_ = RelocInfo::kNoPosition;
+  current_statement_position_ = RelocInfo::kNoPosition;
+  current_position_ = RelocInfo::kNoPosition;
+  written_statement_position_ = current_statement_position_;
+  written_position_ = current_position_;
 }
 
 
@@ -342,6 +344,7 @@ void Assembler::GetCode(CodeDesc* desc) {
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
   desc->reloc_size = (buffer_ + buffer_size_) - reloc_info_writer.pos();
+  desc->origin = this;
 
   Counters::reloc_info_size.Increment(desc->reloc_size);
 }
@@ -417,29 +420,6 @@ void Assembler::push(const Operand& src) {
   last_pc_ = pc_;
   EMIT(0xFF);
   emit_operand(esi, src);
-}
-
-
-void Assembler::push(Label* label, RelocInfo::Mode reloc_mode) {
-  ASSERT_NOT_NULL(label);
-  EnsureSpace ensure_space(this);
-  last_pc_ = pc_;
-  // If reloc_mode == NONE, the label is stored as buffer relative.
-  ASSERT(reloc_mode == RelocInfo::NONE);
-  if (label->is_bound()) {
-    // Index of position relative to Code Object-pointer.
-    int rel_pos = label->pos() + Code::kHeaderSize - kHeapObjectTag;
-    if (rel_pos >= 0 && rel_pos < 256) {
-      EMIT(0x6a);
-      EMIT(rel_pos);
-    } else {
-      EMIT(0x68);
-      emit(rel_pos);
-    }
-  } else {
-    EMIT(0x68);
-    emit_disp(label, Displacement::CODE_RELATIVE);
-  }
 }
 
 
@@ -889,21 +869,20 @@ void Assembler::cmp(const Operand& op, const Immediate& imm) {
 }
 
 
-void Assembler::rep_cmpsb() {
+void Assembler::cmpb_al(const Operand& op) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0xFC);  // CLD to ensure forward operation
-  EMIT(0xF3);  // REP
-  EMIT(0xA6);  // CMPSB
+  EMIT(0x38);  // CMP r/m8, r8
+  emit_operand(eax, op);  // eax has same code as register al.
 }
 
-void Assembler::rep_cmpsw() {
+
+void Assembler::cmpw_ax(const Operand& op) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
-  EMIT(0xFC);  // CLD to ensure forward operation
-  EMIT(0xF3);  // REP
-  EMIT(0x66);  // Operand size overide.
-  EMIT(0xA7);  // CMPS
+  EMIT(0x66);
+  EMIT(0x39);  // CMP r/m16, r16
+  emit_operand(eax, op);  // eax has same code as register ax.
 }
 
 
@@ -1988,31 +1967,36 @@ void Assembler::RecordComment(const char* msg) {
 
 
 void Assembler::RecordPosition(int pos) {
-  if (pos == RelocInfo::kNoPosition) return;
+  ASSERT(pos != RelocInfo::kNoPosition);
   ASSERT(pos >= 0);
-  last_position_ = pos;
+  current_position_ = pos;
 }
 
 
 void Assembler::RecordStatementPosition(int pos) {
-  if (pos == RelocInfo::kNoPosition) return;
+  ASSERT(pos != RelocInfo::kNoPosition);
   ASSERT(pos >= 0);
-  last_statement_position_ = pos;
+  current_statement_position_ = pos;
 }
 
 
 void Assembler::WriteRecordedPositions() {
-  if (last_statement_position_ != RelocInfo::kNoPosition) {
+  // Write the statement position if it is different from what was written last
+  // time.
+  if (current_statement_position_ != written_statement_position_) {
     EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::STATEMENT_POSITION, last_statement_position_);
+    RecordRelocInfo(RelocInfo::STATEMENT_POSITION, current_statement_position_);
+    written_statement_position_ = current_statement_position_;
   }
-  if ((last_position_ != RelocInfo::kNoPosition) &&
-      (last_position_ != last_statement_position_)) {
+
+  // Write the position if it is different from what was written last time and
+  // also diferent from the written statement position.
+  if (current_position_ != written_position_ &&
+      current_position_ != written_statement_position_) {
     EnsureSpace ensure_space(this);
-    RecordRelocInfo(RelocInfo::POSITION, last_position_);
+    RecordRelocInfo(RelocInfo::POSITION, current_position_);
+    written_position_ = current_position_;
   }
-  last_statement_position_ = RelocInfo::kNoPosition;
-  last_position_ = RelocInfo::kNoPosition;
 }
 
 

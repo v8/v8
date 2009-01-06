@@ -164,18 +164,19 @@ void RegExpMacroAssemblerTracer::ReadStackPointerFromRegister(int reg) {
 
 
 void RegExpMacroAssemblerTracer::LoadCurrentCharacter(int cp_offset,
-                                                      Label* on_end_of_input) {
-  PrintF(" LoadCurrentCharacter(cp_offset=%d, label[%08x]);\n",
+                                                      Label* on_end_of_input,
+                                                      bool check_bounds,
+                                                      int characters) {
+  const char* check_msg = check_bounds ? "" : " (unchecked)";
+  PrintF(" LoadCurrentCharacter(cp_offset=%d, label[%08x]%s (%d chars));\n",
          cp_offset,
-         on_end_of_input);
-  assembler_->LoadCurrentCharacter(cp_offset, on_end_of_input);
-}
-
-
-void RegExpMacroAssemblerTracer::LoadCurrentCharacterUnchecked(int cp_offset) {
-  PrintF(" LoadCurrentCharacterUnchecked(cp_offset=%d);\n",
-         cp_offset);
-  assembler_->LoadCurrentCharacterUnchecked(cp_offset);
+         on_end_of_input,
+         check_msg,
+         characters);
+  assembler_->LoadCurrentCharacter(cp_offset,
+                                   on_end_of_input,
+                                   check_bounds,
+                                   characters);
 }
 
 
@@ -192,7 +193,7 @@ void RegExpMacroAssemblerTracer::CheckCharacterGT(uc16 limit,
 }
 
 
-void RegExpMacroAssemblerTracer::CheckCharacter(uc16 c, Label* on_equal) {
+void RegExpMacroAssemblerTracer::CheckCharacter(uint32_t c, Label* on_equal) {
   PrintF(" CheckCharacter(c='u%04x', label[%08x]);\n", c, on_equal);
   assembler_->CheckCharacter(c, on_equal);
 }
@@ -204,28 +205,49 @@ void RegExpMacroAssemblerTracer::CheckNotAtStart(Label* on_not_at_start) {
 }
 
 
-void RegExpMacroAssemblerTracer::CheckNotCharacter(uc16 c,
+void RegExpMacroAssemblerTracer::CheckNotCharacter(uint32_t c,
                                                    Label* on_not_equal) {
   PrintF(" CheckNotCharacter(c='u%04x', label[%08x]);\n", c, on_not_equal);
   assembler_->CheckNotCharacter(c, on_not_equal);
 }
 
 
-void RegExpMacroAssemblerTracer::CheckNotCharacterAfterOr(uc16 c, uc16 mask,
-                                                          Label* on_not_equal) {
-  PrintF(" CheckNotCharacterAfterOr(c='u%04x', mask=0x%04x, label[%08x]);\n", c,
-         mask, on_not_equal);
-  assembler_->CheckNotCharacterAfterOr(c, mask, on_not_equal);
+void RegExpMacroAssemblerTracer::CheckCharacterAfterAnd(
+    uint32_t c,
+    uint32_t mask,
+    Label* on_equal) {
+  PrintF(" CheckCharacterAfterAnd(c='u%04x', mask=0x%04x, label[%08x]);\n",
+         c,
+         mask,
+         on_equal);
+  assembler_->CheckCharacterAfterAnd(c, mask, on_equal);
 }
 
 
-void RegExpMacroAssemblerTracer::CheckNotCharacterAfterMinusOr(
+void RegExpMacroAssemblerTracer::CheckNotCharacterAfterAnd(
+    uint32_t c,
+    uint32_t mask,
+    Label* on_not_equal) {
+  PrintF(" CheckNotCharacterAfterAnd(c='u%04x', mask=0x%04x, label[%08x]);\n",
+         c,
+         mask,
+         on_not_equal);
+  assembler_->CheckNotCharacterAfterAnd(c, mask, on_not_equal);
+}
+
+
+void RegExpMacroAssemblerTracer::CheckNotCharacterAfterMinusAnd(
     uc16 c,
+    uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  PrintF(" CheckNotCharacterAfterMinusOr(c='u%04x', mask=0x%04x, "
-    "label[%08x]);\n", c, mask, on_not_equal);
-  assembler_->CheckNotCharacterAfterMinusOr(c, mask, on_not_equal);
+  PrintF(" CheckNotCharacterAfterMinusAnd(c='u%04x', minus=%04x, mask=0x%04x, "
+             "label[%08x]);\n",
+         c,
+         minus,
+         mask,
+         on_not_equal);
+  assembler_->CheckNotCharacterAfterMinusAnd(c, minus, mask, on_not_equal);
 }
 
 
@@ -273,8 +295,28 @@ void RegExpMacroAssemblerTracer::CheckCharacters(Vector<const uc16> str,
 
 void RegExpMacroAssemblerTracer::CheckBitmap(uc16 start, Label* bitmap,
                                              Label* on_zero) {
-  PrintF(" CheckBitmap(start=u$04x, <bitmap>, label[%08x]);\n", start, on_zero);
+  PrintF(" CheckBitmap(start=u%04x, <bitmap>, label[%08x]);\n", start, on_zero);
   assembler_->CheckBitmap(start, bitmap, on_zero);
+}
+
+
+bool RegExpMacroAssemblerTracer::CheckSpecialCharacterClass(
+    uc16 type,
+    int cp_offset,
+    bool check_offset,
+    Label* on_no_match) {
+  bool supported = assembler_->CheckSpecialCharacterClass(type,
+                                                          cp_offset,
+                                                          check_offset,
+                                                          on_no_match);
+  PrintF(" CheckSpecialCharacterClass(type='%c', offset=%d, "
+             "check_offset=%s, label[%08x]): %s;\n",
+         type,
+         cp_offset,
+         check_offset ? "true" : "false",
+         on_no_match,
+         supported ? "true" : "false");
+  return supported;
 }
 
 
@@ -282,7 +324,7 @@ void RegExpMacroAssemblerTracer::DispatchHalfNibbleMap(
     uc16 start,
     Label* half_nibble_map,
     const Vector<Label*>& destinations) {
-  PrintF(" DispatchHalfNibbleMap(start=u$04x, <half_nibble_map>, [", start);
+  PrintF(" DispatchHalfNibbleMap(start=u%04x, <half_nibble_map>, [", start);
   for (int i = 0; i < destinations.length(); i++) {
     if (i > 0)
       PrintF(", ");
@@ -297,7 +339,7 @@ void RegExpMacroAssemblerTracer::DispatchByteMap(
     uc16 start,
     Label* byte_map,
     const Vector<Label*>& destinations) {
-  PrintF(" DispatchByteMap(start=u$04x, <byte_map>, [", start);
+  PrintF(" DispatchByteMap(start=u%04x, <byte_map>, [", start);
   for (int i = 0; i < destinations.length(); i++) {
     if (i > 0)
       PrintF(", ");
@@ -312,7 +354,7 @@ void RegExpMacroAssemblerTracer::DispatchHighByteMap(
     byte start,
     Label* byte_map,
     const Vector<Label*>& destinations) {
-  PrintF(" DispatchHighByteMap(start=u$04x, <byte_map>, [", start);
+  PrintF(" DispatchHighByteMap(start=u%04x, <byte_map>, [", start);
   for (int i = 0; i < destinations.length(); i++) {
     if (i > 0)
       PrintF(", ");

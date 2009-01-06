@@ -68,7 +68,7 @@ function g() {
 
 break_break_point_hit_count = 0;
 g();
-assertEquals(5, break_break_point_hit_count);
+assertEquals(4, break_break_point_hit_count);
 
 // Get rid of the debug event listener.
 Debug.removeListener(listener);

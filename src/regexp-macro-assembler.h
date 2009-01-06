@@ -58,7 +58,12 @@ class RegExpMacroAssembler {
       Label* on_zero) = 0;  // Where to go if the bit is 0.  Fall through on 1.
   // Dispatch after looking the current character up in a 2-bits-per-entry
   // map.  The destinations vector has up to 4 labels.
-  virtual void CheckCharacter(uc16 c, Label* on_equal) = 0;
+  virtual void CheckCharacter(uint32_t c, Label* on_equal) = 0;
+  // Bitwise and the current character with the given constant and then
+  // check for a match with c.
+  virtual void CheckCharacterAfterAnd(uint32_t c,
+                                      uint32_t and_with,
+                                      Label* on_equal) = 0;
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacterLT(uc16 limit, Label* on_less) = 0;
   // Check the current character for a match with a literal string.  If we
@@ -81,20 +86,29 @@ class RegExpMacroAssembler {
   // fail to match then goto the on_failure label.  End of input always
   // matches.  If the label is NULL then we should pop a backtrack address off
   // the stack and go to that.
-  virtual void CheckNotCharacter(uc16 c, Label* on_not_equal) = 0;
-  // Bitwise or the current character with the given constant and then
-  // check for a match with c.
-  virtual void CheckNotCharacterAfterOr(uc16 c,
-                                        uc16 or_with,
-                                        Label* on_not_equal) = 0;
+  virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal) = 0;
+  virtual void CheckNotCharacterAfterAnd(uint32_t c,
+                                         uint32_t and_with,
+                                         Label* on_not_equal) = 0;
   // Subtract a constant from the current character, then or with the given
   // constant and then check for a match with c.
-  virtual void CheckNotCharacterAfterMinusOr(uc16 c,
-                                             uc16 minus_then_or_with,
-                                             Label* on_not_equal) = 0;
+  virtual void CheckNotCharacterAfterMinusAnd(uc16 c,
+                                              uc16 minus,
+                                              uc16 and_with,
+                                              Label* on_not_equal) = 0;
   virtual void CheckNotRegistersEqual(int reg1,
                                       int reg2,
                                       Label* on_not_equal) = 0;
+  // Check whether a standard/default character class matches the current
+  // character. Returns false if the type of special character class does
+  // not have custom support.
+  // May clobber the current loaded character.
+  virtual bool CheckSpecialCharacterClass(uc16 type,
+                                          int cp_offset,
+                                          bool check_offset,
+                                          Label* on_no_match) {
+    return false;
+  }
   // Dispatch after looking the current character up in a byte map.  The
   // destinations vector has up to 256 labels.
   virtual void DispatchByteMap(
@@ -122,8 +136,10 @@ class RegExpMacroAssembler {
   // Backtracks instead if the label is NULL.
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt) = 0;
   virtual IrregexpImplementation Implementation() = 0;
-  virtual void LoadCurrentCharacter(int cp_offset, Label* on_end_of_input) = 0;
-  virtual void LoadCurrentCharacterUnchecked(int cp_offset) = 0;
+  virtual void LoadCurrentCharacter(int cp_offset,
+                                    Label* on_end_of_input,
+                                    bool check_bounds = true,
+                                    int characters = 1) = 0;
   virtual void PopCurrentPosition() = 0;
   virtual void PopRegister(int register_index) = 0;
   virtual void PushBacktrack(Label* label) = 0;

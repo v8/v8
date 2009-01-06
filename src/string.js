@@ -152,6 +152,7 @@ function StringMatch(regexp) {
   var subject = ToString(this);
 
   if (!regexp.global) return regexp.exec(subject);
+  %_Log('regexp', 'regexp-match,%0S,%1r', [subject, regexp]);
   var matches = DoRegExpExecGlobal(regexp, subject);
 
   // If the regexp did not match, return null.
@@ -185,6 +186,7 @@ function StringReplace(search, replace) {
 
   // Delegate to one of the regular expression variants if necessary.
   if (IS_REGEXP(search)) {
+    %_Log('regexp', 'regexp-replace,%0r,%1S', [search, subject]);
     if (IS_FUNCTION(replace)) {
       return StringReplaceRegExpWithFunction(subject, search, replace);
     } else {
@@ -513,7 +515,13 @@ function StringSplit(separator, limit) {
   var currentIndex = 0;
   var startIndex = 0;
 
-  var sep = IS_REGEXP(separator) ? separator : ToString(separator);
+  var sep;
+  if (IS_REGEXP(separator)) {
+    sep = separator;
+    %_Log('regexp', 'regexp-split,%0S,%1r', [subject, sep]);
+  } else {
+    sep = ToString(separator);
+  }
 
   if (length === 0) {
     if (splitMatch(sep, subject, 0, 0) != null) return result;

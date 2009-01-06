@@ -120,7 +120,10 @@ class Parser {
   Statement* ParseContinueStatement(bool* ok);
   Statement* ParseBreakStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseReturnStatement(bool* ok);
-  Block* WithHelper(Expression* obj, ZoneStringList* labels, bool* ok);
+  Block* WithHelper(Expression* obj,
+                    ZoneStringList* labels,
+                    bool is_catch_block,
+                    bool* ok);
   Statement* ParseWithStatement(ZoneStringList* labels, bool* ok);
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
   SwitchStatement* ParseSwitchStatement(ZoneStringList* labels, bool* ok);
@@ -470,9 +473,8 @@ void RegExpBuilder::AddQuantifierToAtom(int min, int max, bool is_greedy) {
   } else if (terms_.length() > 0) {
     ASSERT(last_added_ == ADD_ATOM);
     atom = terms_.RemoveLast();
-    if (atom->IsLookahead() || atom->IsAssertion()) {
-      // Guaranteed not to match a non-empty string.
-      // Assertion as an atom can happen as, e.g., (?:\b)
+    if (atom->max_match() == 0) {
+      // Guaranteed to only match an empty string.
       LAST(ADD_TERM);
       if (min == 0) {
         return;
@@ -527,7 +529,9 @@ class RegExpParser {
   void Advance(int dist);
   void Reset(int pos);
 
-  bool HasCharacterEscapes();
+  // Reports whether the pattern might be used as a literal search string.
+  // Only use if the result of the parse is a single atom node.
+  bool simple();
 
   int captures_started() { return captures_ == NULL ? 0 : captures_->length(); }
   int position() { return next_pos_ - 1; }
@@ -548,7 +552,7 @@ class RegExpParser {
   int next_pos_;
   FlatStringReader* in_;
   Handle<String>* error_;
-  bool has_character_escapes_;
+  bool simple_;
   ZoneList<RegExpCapture*>* captures_;
   bool is_scanned_for_captures_;
   // The capture count is only valid after we have scanned for captures.
@@ -1318,6 +1322,9 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       Block* result = NEW(Block(labels, 1, false));
       Target target(this, result);
       TryStatement* statement = ParseTryStatement(CHECK_OK);
+      if (statement) {
+        statement->set_statement_pos(statement_pos);
+      }
       if (result) result->AddStatement(statement);
       return result;
     }
@@ -1919,7 +1926,10 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
 }
 
 
-Block* Parser::WithHelper(Expression* obj, ZoneStringList* labels, bool* ok) {
+Block* Parser::WithHelper(Expression* obj,
+                          ZoneStringList* labels,
+                          bool is_catch_block,
+                          bool* ok) {
   // Parse the statement and collect escaping labels.
   ZoneList<Label*>* label_list = NEW(ZoneList<Label*>(0));
   LabelCollector collector(label_list);
@@ -1936,7 +1946,7 @@ Block* Parser::WithHelper(Expression* obj, ZoneStringList* labels, bool* ok) {
   Block* result = NEW(Block(NULL, 2, false));
 
   if (result) {
-    result->AddStatement(NEW(WithEnterStatement(obj)));
+    result->AddStatement(NEW(WithEnterStatement(obj, is_catch_block)));
 
     // Create body block.
     Block* body = NEW(Block(NULL, 1, false));
@@ -1972,7 +1982,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   Expression* expr = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  return WithHelper(expr, labels, CHECK_OK);
+  return WithHelper(expr, labels, false, CHECK_OK);
 }
 
 
@@ -2133,7 +2143,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       catch_var = top_scope_->NewTemporary(Factory::catch_var_symbol());
       Expression* obj = MakeCatchContext(name, catch_var);
       { Target target(this, &catch_collector);
-        catch_block = WithHelper(obj, NULL, CHECK_OK);
+        catch_block = WithHelper(obj, NULL, true, CHECK_OK);
       }
     } else {
       Expect(Token::LBRACE, CHECK_OK);
@@ -3502,7 +3512,7 @@ RegExpParser::RegExpParser(FlatStringReader* in,
     next_pos_(0),
     in_(in),
     error_(error),
-    has_character_escapes_(false),
+    simple_(true),
     captures_(NULL),
     is_scanned_for_captures_(false),
     capture_count_(0),
@@ -3550,11 +3560,8 @@ void RegExpParser::Advance(int dist) {
 }
 
 
-// Reports whether the parsed string atoms contain any characters that were
-// escaped in the original pattern. If not, all atoms are proper substrings
-// of the original pattern.
-bool RegExpParser::HasCharacterEscapes() {
-  return has_character_escapes_;
+bool RegExpParser::simple() {
+  return simple_;
 }
 
 RegExpTree* RegExpParser::ReportError(Vector<const char> message) {
@@ -3769,7 +3776,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         Advance(2);
         break;
       }
-      has_character_escapes_ = true;
+      simple_ = false;
       break;
     case '{': {
       int dummy;
@@ -3795,12 +3802,12 @@ RegExpTree* RegExpParser::ParseDisjunction() {
     //   {
     case '*':
       min = 0;
-      max = RegExpQuantifier::kInfinity;
+      max = RegExpTree::kInfinity;
       Advance();
       break;
     case '+':
       min = 1;
-      max = RegExpQuantifier::kInfinity;
+      max = RegExpTree::kInfinity;
       Advance();
       break;
     case '?':
@@ -3822,6 +3829,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       is_greedy = false;
       Advance();
     }
+    simple_ = false;  // Adding quantifier might *remove* look-ahead.
     builder.AddQuantifierToAtom(min, max, is_greedy);
   }
 }
@@ -3965,7 +3973,7 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
   } else if (current() == ',') {
     Advance();
     if (current() == '}') {
-      max = RegExpQuantifier::kInfinity;
+      max = RegExpTree::kInfinity;
       Advance();
     } else {
       while (IsDecimalDigit(current())) {
@@ -4184,6 +4192,8 @@ CharacterRange RegExpParser::ParseClassAtom(uc16* char_class) {
         Advance(2);
         return CharacterRange::Singleton(0);  // Return dummy value.
       }
+      case kEndMarker:
+        ReportError(CStrVector("\\ at end of pattern") CHECK_FAILED);
       default:
         uc32 c = ParseClassCharacterEscape(CHECK_FAILED);
         return CharacterRange::Singleton(c);
@@ -4307,15 +4317,17 @@ bool ParseRegExp(FlatStringReader* input,
   // Make sure we have a stack guard.
   StackGuard guard;
   RegExpParser parser(input, &result->error, multiline);
-  result->tree = parser.ParsePattern();
+  RegExpTree* tree = parser.ParsePattern();
   if (parser.failed()) {
-    ASSERT(result->tree == NULL);
+    ASSERT(tree == NULL);
     ASSERT(!result->error.is_null());
   } else {
-    ASSERT(result->tree != NULL);
+    ASSERT(tree != NULL);
     ASSERT(result->error.is_null());
-    result->has_character_escapes = parser.HasCharacterEscapes();
-    result->capture_count = parser.captures_started();
+    result->tree = tree;
+    int capture_count = parser.captures_started();
+    result->simple = tree->IsAtom() && parser.simple() && capture_count == 0;
+    result->capture_count = capture_count;
   }
   return !parser.failed();
 }

@@ -35,8 +35,11 @@ class CodeEntry(object):
     self.tick_count = 0
     self.name = name
 
-  def IncrementTickCount(self):
+  def Tick(self, pc):
     self.tick_count += 1
+
+  def RegionTicks(self):
+    return None
 
   def SetStartAddress(self, start_addr):
     self.start_addr = start_addr
@@ -59,15 +62,72 @@ class SharedLibraryEntry(CodeEntry):
 
 class JSCodeEntry(CodeEntry):
 
-  def __init__(self, start_addr, name, type, size):
+  def __init__(self, start_addr, name, type, size, assembler):
     CodeEntry.__init__(self, start_addr, name)
     self.type = type
     self.size = size
+    self.assembler = assembler
+    self.region_ticks = None
+
+  def Tick(self, pc):
+    super(JSCodeEntry, self).Tick(pc)
+    if not pc is None:
+      offset = pc - self.start_addr
+      seen = []
+      narrowest = None
+      narrowest_width = None
+      for region in self.Regions():
+        if region.Contains(offset):
+          if (not region.name in seen):
+            seen.append(region.name)
+          if narrowest is None or region.Width() < narrowest.Width():
+            narrowest = region
+      if len(seen) == 0:
+        return
+      if self.region_ticks is None:
+        self.region_ticks = {}
+      for name in seen:
+        if not name in self.region_ticks:
+          self.region_ticks[name] = [0, 0]
+        self.region_ticks[name][0] += 1
+        if name == narrowest.name:
+          self.region_ticks[name][1] += 1
+
+  def RegionTicks(self):
+    return self.region_ticks
+
+  def Regions(self):
+    if self.assembler:
+      return self.assembler.regions
+    else:
+      return []
 
   def ToString(self):
     name = self.name
     if name == '': name = '<anonymous>'
     return self.type + ': ' + name
+
+
+class CodeRegion(object):
+
+  def __init__(self, start_offset, name):
+    self.start_offset = start_offset
+    self.name = name
+    self.end_offset = None
+
+  def Contains(self, pc):
+    return (self.start_offset <= pc) and (pc <= self.end_offset)
+
+  def Width(self):
+    return self.end_offset - self.start_offset
+
+
+class Assembler(object):
+
+  def __init__(self):
+    # Mapping from region ids to open regions
+    self.pending_regions = {}
+    self.regions = []
 
 
 class TickProcessor(object):
@@ -76,6 +136,11 @@ class TickProcessor(object):
     self.log_file = ''
     self.deleted_code = []
     self.vm_extent = {}
+    # Map from assembler ids to the pending assembler objects
+    self.pending_assemblers = {}
+    # Map from code addresses the have been allocated but not yet officially
+    # created to their assemblers.
+    self.assemblers = {}
     self.js_entries = splaytree.SplayTree()
     self.cpp_entries = splaytree.SplayTree()
     self.total_number_of_ticks = 0
@@ -104,6 +169,12 @@ class TickProcessor(object):
         elif row[0] == 'shared-library':
           self.AddSharedLibraryEntry(row[1], int(row[2], 16), int(row[3], 16))
           self.ParseVMSymbols(row[1], int(row[2], 16), int(row[3], 16))
+        elif row[0] == 'begin-code-region':
+          self.ProcessBeginCodeRegion(int(row[1], 16), int(row[2], 16), int(row[3], 16), row[4])
+        elif row[0] == 'end-code-region':
+          self.ProcessEndCodeRegion(int(row[1], 16), int(row[2], 16), int(row[3], 16))
+        elif row[0] == 'code-allocate':
+          self.ProcessCodeAllocate(int(row[1], 16), int(row[2], 16))
     finally:
       logfile.close()
 
@@ -121,8 +192,17 @@ class TickProcessor(object):
   def ParseVMSymbols(self, filename, start, end):
     return
 
+  def ProcessCodeAllocate(self, addr, assem):
+    if assem in self.pending_assemblers:
+      assembler = self.pending_assemblers.pop(assem)
+      self.assemblers[addr] = assembler
+
   def ProcessCodeCreation(self, type, addr, size, name):
-    self.js_entries.Insert(addr, JSCodeEntry(addr, name, type, size))
+    if addr in self.assemblers:
+      assembler = self.assemblers.pop(addr)
+    else:
+      assembler = None
+    self.js_entries.Insert(addr, JSCodeEntry(addr, name, type, size, assembler))
 
   def ProcessCodeMove(self, from_addr, to_addr):
     try:
@@ -139,6 +219,18 @@ class TickProcessor(object):
     except 'KeyNotFound':
       print('Code delete event for unknown code: 0x%x' % from_addr)
 
+  def ProcessBeginCodeRegion(self, id, assm, start, name):
+    if not assm in self.pending_assemblers:
+      self.pending_assemblers[assm] = Assembler()
+    assembler = self.pending_assemblers[assm]
+    assembler.pending_regions[id] = CodeRegion(start, name)
+
+  def ProcessEndCodeRegion(self, id, assm, end):
+    assm = self.pending_assemblers[assm]
+    region = assm.pending_regions.pop(id)
+    region.end_offset = end
+    assm.regions.append(region)
+
   def IncludeTick(self, pc, sp, state):
     return (self.included_state is None) or (self.included_state == state)
 
@@ -152,12 +244,13 @@ class TickProcessor(object):
       entry = self.cpp_entries.FindGreatestsLessThan(pc).value
       if entry.IsSharedLibraryEntry():
         self.number_of_library_ticks += 1
-      entry.IncrementTickCount()
+      entry.Tick(None)
       return
     max = self.js_entries.FindMax()
     min = self.js_entries.FindMin()
     if max != None and pc < max.key and pc > min.key:
-      self.js_entries.FindGreatestsLessThan(pc).value.IncrementTickCount()
+      code_obj = self.js_entries.FindGreatestsLessThan(pc).value
+      code_obj.Tick(pc)
       return
     self.unaccounted_number_of_ticks += 1
 
@@ -201,6 +294,17 @@ class TickProcessor(object):
           'nonlib' : non_library_percentage,
           'name' : entry.ToString()
         })
+        region_ticks = entry.RegionTicks()
+        if not region_ticks is None:
+          items = region_ticks.items()
+          items.sort(key=lambda e: e[1][1], reverse=True)
+          for (name, ticks) in items:
+            print('                      flat   cum')
+            print('                     %(flat)5.1f%% %(accum)5.1f%% %(name)s' % {
+              'flat' : ticks[1] * 100.0 / entry.tick_count,
+              'accum' : ticks[0] * 100.0 / entry.tick_count,
+              'name': name
+            })
 
 if __name__ == '__main__':
   sys.exit('You probably want to run windows-tick-processor.py or linux-tick-processor.py.')

@@ -205,6 +205,9 @@ class Debug {
   inline static bool has_break_points() { return has_break_points_; }
 
   static bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
+  static void HandleStepIn(Handle<JSFunction> function,
+                           Address fp,
+                           bool is_constructor);
   static Address step_in_fp() { return thread_local_.step_into_fp_; }
   static Address* step_in_fp_addr() { return &thread_local_.step_into_fp_; }
 
