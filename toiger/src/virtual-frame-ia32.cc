@@ -727,15 +727,14 @@ void VirtualFrame::LoadFrameSlotAt(int index) {
     ASSERT(temp.is_valid());
     FrameElement new_element
         = FrameElement::RegisterElement(temp.reg(),
-                                        FrameElement::NOT_SYNCED);
+                                        FrameElement::SYNCED);
     Use(temp.reg());
     elements_[index] = new_element;
-    Use(temp.reg());
-    elements_.Add(new_element);
-
-    // Finally, move the element at the index into its new location.
-    elements_[index].set_sync();
     __ mov(temp.reg(), Operand(ebp, fp_relative(index)));
+
+    Use(temp.reg());
+    new_element.clear_sync();
+    elements_.Add(new_element);
   } else {
     // For constants and registers, add an (unsynced) copy of the element to
     // the top of the frame.
@@ -896,9 +895,6 @@ void VirtualFrame::Drop(int count) {
     }
   }
 }
-
-
-void VirtualFrame::Drop() { Drop(1); }
 
 
 Result VirtualFrame::Pop() {

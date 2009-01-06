@@ -222,8 +222,8 @@ function f6(N) {
 assertEquals(190, f6(20), "largeSwitch.20");
 assertEquals(2016, f6(64), "largeSwitch.64");
 assertEquals(4032, f6(128), "largeSwitch.128");
-assertEquals(4222, f6(148), "largeSwitch.148"); 
- 
+assertEquals(4222, f6(148), "largeSwitch.148");
+
 
 function f7(value) {
   switch (value) {
@@ -252,7 +252,7 @@ function f7(value) {
   case 11:
   case 12:
   case 13:
-  case 14: 
+  case 14:
   case 15:  // Dummy fillers
   }
   return "default";
@@ -270,7 +270,7 @@ assertEquals("A", f7((170/16)-(170%16/16)), "0-1-switch.heapnum");
 
 function makeVeryLong(length) {
   var res = "function() {\n" +
-            "  var res = 0;\n" + 
+            "  var res = 0;\n" +
             "  for (var i = 0; i <= " + length + "; i++) {\n" +
             "    switch(i) {\n";
   for (var i = 0; i < length; i++) {

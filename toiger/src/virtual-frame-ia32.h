@@ -351,7 +351,10 @@ class VirtualFrame : public Malloced {
   void Drop(int count);
 
   // Drop one element.
-  void Drop();
+  void Drop() { Drop(1); }
+
+  // Duplicate the top element of the frame.
+  void Dup() { LoadFrameSlotAt(elements_.length() - 1); }
 
   // Pop an element from the top of the expression stack.
   // Returns a Result, which may be a constant or a register.

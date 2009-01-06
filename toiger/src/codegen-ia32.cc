@@ -1675,12 +1675,12 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
     // Verify that the result of the runtime call and the esi register are
     // the same in debug mode.
     __ cmp(context.reg(), Operand(esi));
-    verified_true.Branch(equal, &context);
+    context.Unuse();
+    verified_true.Branch(equal);
     frame_->SpillAll();
     __ int3();
-    verified_true.Bind(&context);
+    verified_true.Bind();
   }
-  context.Unuse();
 
   // Update context local.
   frame_->SaveContextRegister();
@@ -1724,6 +1724,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // placeholders, and fill in the addresses after the labels have been
   // bound.
 
+  VirtualFrame::SpilledScope spilled_scope(this);
   frame_->EmitPop(eax);  // supposed Smi
   // check range of value, if outside [0..length-1] jump to default/end label.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
@@ -1738,8 +1739,8 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   __ cmp(ebx, HEAP_NUMBER_TYPE);
   fail_label->Branch(not_equal);
   // eax points to a heap number.
-  __ push(eax);
-  __ CallRuntime(Runtime::kNumberToSmi, 1);
+  frame_->EmitPush(eax);
+  frame_->CallRuntime(Runtime::kNumberToSmi, 1);
   is_smi.Bind();
 
   if (min_index != 0) {
@@ -1777,13 +1778,12 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
 
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ SwitchStatement");
   CodeForStatement(node);
   node->set_break_stack_height(break_stack_height_);
   node->break_target()->set_code_generator(this);
 
-  LoadAndSpill(node->tag());
+  Load(node->tag());
 
   if (TryGenerateFastCaseSwitchStatement(node)) {
     return;
@@ -1805,34 +1805,42 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
       continue;
     }
 
+    // Compile each non-default clause.
     Comment cmnt(masm_, "[ Case clause");
-    // Compile the test.
-    next_test.Bind();
-    next_test.Unuse();
-    // Duplicate TOS.
-    __ mov(eax, frame_->Top());
-    frame_->EmitPush(eax);
-    LoadAndSpill(clause->label());
+    // Label and compile the test.
+    if (next_test.is_linked()) {
+      // Recycle the same label for each test.
+      next_test.Bind();
+      next_test.Unuse();
+    }
+    // Duplicate the switch value.
+    frame_->Dup();
+    Load(clause->label());
     Comparison(equal, true);
     Branch(false, &next_test);
 
-    // Before entering the body from the test, remove the switch value from
-    // the stack.
+    // Before entering the body from the test remove the switch value from
+    // the frame.
     frame_->Drop();
 
     // Label the body so that fall through is enabled.
     if (i > 0 && cases->at(i - 1)->is_default()) {
+      // The previous case was the default.  This will be the target of a
+      // possible backward edge.
       default_exit.Bind();
-    } else {
+    } else if (fall_through.is_linked()) {
+      // Recycle the same label for each fall through except for the default
+      // case.
       fall_through.Bind();
       fall_through.Unuse();
     }
-    VisitStatementsAndSpill(clause->statements());
+    VisitStatements(clause->statements());
 
-    // If control flow can fall through from the body, jump to the next body
+    // If control flow can fall through from the body jump to the next body
     // or the end of the statement.
     if (has_valid_frame()) {
       if (i < length - 1 && cases->at(i + 1)->is_default()) {
+        // The next case is the default.
         default_entry.Jump();
       } else {
         fall_through.Jump();
@@ -1840,15 +1848,15 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     }
   }
 
-  // The final "test" removes the switch value.
+  // The block at the final "test" label removes the switch value.
   next_test.Bind();
   frame_->Drop();
 
-  // If there is a default clause, compile it.
+  // If there is a default clause, compile it now.
   if (default_clause != NULL) {
     Comment cmnt(masm_, "[ Default clause");
     default_entry.Bind();
-    VisitStatementsAndSpill(default_clause->statements());
+    VisitStatements(default_clause->statements());
     // If control flow can fall out of the default and there is a case after
     // it, jump to that case's body.
     if (has_valid_frame() && default_exit.is_bound()) {

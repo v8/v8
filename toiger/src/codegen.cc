@@ -442,9 +442,10 @@ bool CodeGenerator::TryGenerateFastCaseSwitchStatement(SwitchStatement* node) {
     CaseClause* clause = cases->at(i);
     if (clause->is_default()) {
       if (default_index >= 0) {
-        return false;  // More than one default label:
-                       // Defer to normal case for error.
-    }
+        // There is more than one default label. Defer to the normal case
+        // for error.
+        return false;
+      }
       default_index = i;
     } else {
       Expression* label = clause->label();
@@ -456,9 +457,9 @@ bool CodeGenerator::TryGenerateFastCaseSwitchStatement(SwitchStatement* node) {
       if (!value->IsSmi()) {
         return false;
       }
-      int smi = Smi::cast(value)->value();
-      if (smi < min_index) { min_index = smi; }
-      if (smi > max_index) { max_index = smi; }
+      int int_value = Smi::cast(value)->value();
+      min_index = Min(int_value, min_index);
+      max_index = Max(int_value, max_index);
     }
   }
 
