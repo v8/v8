@@ -503,10 +503,9 @@ void CodeGenerator::LoadReference(Reference* ref) {
   Variable* var = e->AsVariableProxy()->AsVariable();
 
   if (property != NULL) {
-    VirtualFrame::SpilledScope spilled_scope(this);
     // The expression is either a property or a variable proxy that rewrites
     // to a property.
-    LoadAndSpill(property->obj());
+    Load(property->obj());
     // We use a named reference if the key is a literal symbol, unless it is
     // a string that can be legally parsed as an integer.  This is because
     // otherwise we will not get into the slow case code that handles [] on
@@ -518,7 +517,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
         !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
       ref->set_type(Reference::NAMED);
     } else {
-      LoadAndSpill(property->key());
+      Load(property->key());
       ref->set_type(Reference::KEYED);
     }
   } else if (var != NULL) {
@@ -533,9 +532,8 @@ void CodeGenerator::LoadReference(Reference* ref) {
       ref->set_type(Reference::SLOT);
     }
   } else {
-    VirtualFrame::SpilledScope spilled_scope(this);
     // Anything else is a runtime error.
-    LoadAndSpill(e);
+    Load(e);
     frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
   }
 }
@@ -546,9 +544,11 @@ void CodeGenerator::UnloadReference(Reference* ref) {
   Comment cmnt(masm_, "[ UnloadReference");
   int size = ref->size();
   if (size == 1) {
+    VirtualFrame::SpilledScope spilled_scope(this);
     frame_->EmitPop(eax);
     __ mov(frame_->Top(), eax);
   } else if (size > 1) {
+    VirtualFrame::SpilledScope spilled_scope(this);
     frame_->EmitPop(eax);
     frame_->Drop(size);
     frame_->EmitPush(eax);
@@ -2206,6 +2206,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   // loop.  edx: i'th entry of the enum cache (or string there of)
   frame_->EmitPush(ebx);
   { Reference each(this, node->each());
+    // Loading a reference may leave the frame in an unspilled state.
+    frame_->SpillAll();
     if (!each.is_illegal()) {
       if (each.size() > 0) {
         frame_->EmitPush(frame_->ElementAt(each.size()));
@@ -2224,6 +2226,9 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
       }
     }
   }
+  // Unloading a reference may leave the frame in an unspilled state.
+  frame_->SpillAll();
+
   // Discard the i'th entry pushed above or else the remainder of the
   // reference, whichever is currently on top of the stack.
   frame_->Drop();
@@ -2529,9 +2534,10 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
 void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ DebuggerStatement");
   CodeForStatement(node);
+  // Spill everything, even constants, to the frame.
+  frame_->SpillAll();
   frame_->CallRuntime(Runtime::kDebugBreak, 0);
   // Ignore the return value.
 }
@@ -2541,17 +2547,16 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
   ASSERT(boilerplate->IsBoilerplate());
 
   // Push the boilerplate on the stack.
-  frame_->EmitPush(Immediate(boilerplate));
+  frame_->Push(boilerplate);
 
   // Create a new closure.
-  frame_->EmitPush(esi);
-  frame_->CallRuntime(Runtime::kNewClosure, 2);
-  frame_->EmitPush(eax);
+  frame_->Push(esi);
+  Result result = frame_->CallRuntime(Runtime::kNewClosure, 2);
+  frame_->Push(&result);
 }
 
 
 void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
@@ -2564,31 +2569,30 @@ void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
 
 void CodeGenerator::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
   InstantiateBoilerplate(node->boilerplate());
 }
 
 
 void CodeGenerator::VisitConditional(Conditional* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Conditional");
   JumpTarget then(this);
   JumpTarget else_(this);
   JumpTarget exit(this);
-  LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
-                        &then, &else_, true);
+  LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
   if (has_valid_frame()) {
     Branch(false, &else_);
   }
-  if (has_valid_frame() || then.is_linked()) {
+  if (then.is_linked()) {
     then.Bind();
-    LoadAndSpill(node->then_expression(), typeof_state());
+  }
+  if (has_valid_frame()) {
+    Load(node->then_expression(), typeof_state());
     exit.Jump();
   }
   if (else_.is_linked()) {
     else_.Bind();
-    LoadAndSpill(node->else_expression(), typeof_state());
+    Load(node->else_expression(), typeof_state());
   }
   exit.Bind();
 }
@@ -2599,47 +2603,47 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     ASSERT(slot->var()->mode() == Variable::DYNAMIC);
 
     // For now, just do a runtime call.
-    VirtualFrame::SpilledScope spilled_scope(this);
-    frame_->EmitPush(esi);
-    frame_->EmitPush(Immediate(slot->var()->name()));
+    frame_->Push(esi);
+    frame_->Push(slot->var()->name());
 
+    Result value(this);
     if (typeof_state == INSIDE_TYPEOF) {
-      frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+      value =
+          frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
     } else {
-      frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
+      value = frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     }
-    frame_->EmitPush(eax);
+    frame_->Push(&value);
+
+  } else if (slot->var()->mode() == Variable::CONST) {
+    // Const slots may contain 'the hole' value (the constant hasn't been
+    // initialized yet) which needs to be converted into the 'undefined'
+    // value.
+    Comment cmnt(masm_, "[ Load const");
+    JumpTarget exit(this);
+    Result temp = allocator_->Allocate();
+    ASSERT(temp.is_valid());
+    __ mov(temp.reg(), SlotOperand(slot, temp.reg()));
+    __ cmp(temp.reg(), Factory::the_hole_value());
+    exit.Branch(not_equal, &temp);
+    __ mov(temp.reg(), Factory::undefined_value());
+    exit.Bind(&temp);
+    frame_->Push(&temp);
+
+  } else if (slot->type() == Slot::PARAMETER) {
+    frame_->LoadParameterAt(slot->index());
+
+  } else if (slot->type() == Slot::LOCAL) {
+    frame_->LoadLocalAt(slot->index());
 
   } else {
-    // Note: We would like to keep the assert below, but it fires because of
-    // some nasty code in LoadTypeofExpression() which should be removed...
-    // ASSERT(slot->var()->mode() != Variable::DYNAMIC);
-    if (slot->var()->mode() == Variable::CONST) {
-      // Const slots may contain 'the hole' value (the constant hasn't been
-      // initialized yet) which needs to be converted into the 'undefined'
-      // value.
-      VirtualFrame::SpilledScope spilled_scope(this);
-      Comment cmnt(masm_, "[ Load const");
-      JumpTarget exit(this);
-      __ mov(eax, SlotOperand(slot, ecx));
-      __ cmp(eax, Factory::the_hole_value());
-      exit.Branch(not_equal);
-      __ mov(eax, Factory::undefined_value());
-      exit.Bind();
-      frame_->EmitPush(eax);
-    } else {
-      if (slot->type() == Slot::PARAMETER) {
-        frame_->LoadParameterAt(slot->index());
-      } else if (slot->type() == Slot::LOCAL) {
-        frame_->LoadLocalAt(slot->index());
-      } else {
-        // The other remaining slot types (LOOKUP and GLOBAL) cannot reach
-        // here.
-        ASSERT(slot->type() == Slot::CONTEXT);
-        VirtualFrame::SpilledScope spilled_scope(this);
-        frame_->EmitPush(SlotOperand(slot, ecx));
-      }
-    }
+    // The other remaining slot types (LOOKUP and GLOBAL) cannot reach
+    // here.
+    ASSERT(slot->type() == Slot::CONTEXT);
+    Result temp = allocator_->Allocate();
+    ASSERT(temp.is_valid());
+    __ mov(temp.reg(), SlotOperand(slot, temp.reg()));
+    frame_->Push(&temp);
   }
 }
 
@@ -2649,10 +2653,10 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
     ASSERT(slot->var()->mode() == Variable::DYNAMIC);
 
     // For now, just do a runtime call.
-    VirtualFrame::SpilledScope spilled_scope(this);
-    frame_->EmitPush(esi);
-    frame_->EmitPush(Immediate(slot->var()->name()));
+    frame_->Push(esi);
+    frame_->Push(slot->var()->name());
 
+    Result value(this);
     if (init_state == CONST_INIT) {
       // Same as the case for a normal store, but ignores attribute
       // (e.g. READ_ONLY) of context slot so that we can initialize const
@@ -2668,14 +2672,14 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       // the expression operands are defined and valid, and thus we need the
       // split into 2 operations: declaration of the context slot followed
       // by initialization.
-      frame_->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+      value = frame_->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
     } else {
-      frame_->CallRuntime(Runtime::kStoreContextSlot, 3);
+      value = frame_->CallRuntime(Runtime::kStoreContextSlot, 3);
     }
     // Storing a variable must keep the (new) value on the expression
     // stack. This is necessary for compiling chained assignment
     // expressions.
-    frame_->EmitPush(eax);
+    frame_->Push(&value);
 
   } else {
     ASSERT(slot->var()->mode() != Variable::DYNAMIC);
@@ -2687,9 +2691,11 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       // still contains 'the hole' value). When the assignment is executed,
       // the code is identical to a normal store (see below).
       Comment cmnt(masm_, "[ Init const");
-      VirtualFrame::SpilledScope spilled_scope(this);
-      __ mov(eax, SlotOperand(slot, ecx));
-      __ cmp(eax, Factory::the_hole_value());
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ mov(temp.reg(), SlotOperand(slot, temp.reg()));
+      __ cmp(temp.reg(), Factory::the_hole_value());
+      temp.Unuse();
       exit.Branch(not_equal);
     }
 
@@ -2707,18 +2713,29 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
     } else {
       // The other slot types (LOOKUP and GLOBAL) cannot reach here.
       ASSERT(slot->type() == Slot::CONTEXT);
-      VirtualFrame::SpilledScope spilled_scope(this);
-      frame_->EmitPop(eax);
-      __ mov(SlotOperand(slot, ecx), eax);
-      frame_->EmitPush(eax);  // RecordWrite may destroy the value in eax.
+      frame_->Dup();
+      Result value = frame_->Pop();
+      value.ToRegister();
+      Result start = allocator_->Allocate();
+      ASSERT(start.is_valid());
+      __ mov(SlotOperand(slot, start.reg()), value.reg());
+      // RecordWrite may destroy the value registers.
+      //
+      // TODO(): Avoid actually spilling when the value is not needed
+      // (probably the common case).
+      frame_->Spill(value.reg());
       int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-      __ RecordWrite(ecx, offset, eax, ebx);
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ RecordWrite(start.reg(), offset, value.reg(), temp.reg());
+      // The results start, value, and temp are unused by going out of
+      // scope.
     }
 
     // If we definitely did not jump over the assignment, we do not need
     // to bind the exit label.  Doing so can defeat peephole
     // optimization.
-    if (init_state == CONST_INIT) {
+    if (exit.is_linked()) {
       exit.Bind();
     }
   }
@@ -3024,7 +3041,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     if (target.is_illegal()) {
       // Fool the virtual frame into thinking that we left the assignment's
       // value on the frame.
-      frame_->EmitPush(Immediate(Smi::FromInt(0)));
+      frame_->Push(Handle<Object>(Smi::FromInt(0)));
       return;
     }
 
@@ -3078,10 +3095,9 @@ void CodeGenerator::VisitThrow(Throw* node) {
 
 
 void CodeGenerator::VisitProperty(Property* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Property");
   Reference property(this, node);
-  property.GetValueAndSpill(typeof_state());
+  property.GetValue(typeof_state());
 }
 
 
@@ -3193,6 +3209,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
+      frame_->SpillAll();
       ref.GetValueAndSpill(NOT_INSIDE_TYPEOF);
 
       // Pass receiver to called function.
