@@ -350,11 +350,19 @@ void Logger::SharedLibraryEvent(const wchar_t* library_path,
 
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
-void Logger::LogString(Handle<String> str) {
+void Logger::LogString(Handle<String> str, bool show_impl_info) {
   StringShape shape(*str);
   int len = str->length(shape);
-  if (len > 256)
-    len = 256;
+  if (len > 0x1000)
+    len = 0x1000;
+  if (show_impl_info) {
+    fputc(shape.IsAsciiRepresentation() ? 'a' : '2', logfile_);
+    if (shape.IsExternal())
+      fputc('e', logfile_);
+    if (shape.IsSymbol())
+      fputc('#', logfile_);
+    fprintf(logfile_, ":%i:", str->length());
+  }
   for (int i = 0; i < len; i++) {
     uc32 c = str->Get(shape, i);
     if (c > 0xff) {
@@ -389,7 +397,7 @@ void Logger::LogRegExpSource(Handle<JSRegExp> regexp) {
       break;
   }
   fprintf(logfile_, "/");
-  LogString(Handle<String>::cast(source));
+  LogString(Handle<String>::cast(source), false);
   fprintf(logfile_, "/");
 
   // global flag
@@ -423,19 +431,40 @@ void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
 }
 
 
-void Logger::RegExpExecEvent(Handle<JSRegExp> regexp,
-                             int start_index,
-                             Handle<String> input_string) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL || !FLAG_log_regexp) return;
+void Logger::LogRuntime(Vector<const char> format, JSArray* args) {
   ScopedLock sl(mutex_);
-
-  fprintf(logfile_, "regexp-run,");
-  LogRegExpSource(regexp);
-  fprintf(logfile_, ",");
-  LogString(input_string);
-  fprintf(logfile_, ",%d..%d\n", start_index, input_string->length());
-#endif
+  HandleScope scope;
+  for (int i = 0; i < format.length(); i++) {
+    char c = format[i];
+    if (c == '%' && i <= format.length() - 2) {
+      i++;
+      ASSERT('0' <= format[i] && format[i] <= '9');
+      Object* obj = args->GetElement(format[i] - '0');
+      i++;
+      switch (format[i]) {
+        case 's':
+          Logger::LogString(Handle<String>(String::cast(obj)), false);
+          break;
+        case 'S':
+          Logger::LogString(Handle<String>(String::cast(obj)), true);
+          break;
+        case 'r':
+          Logger::LogRegExpSource(Handle<JSRegExp>(JSRegExp::cast(obj)));
+          break;
+        case 'x':
+          fprintf(logfile_, "0x%x", Smi::cast(obj)->value());
+          break;
+        case 'i':
+          fprintf(logfile_, "%i", Smi::cast(obj)->value());
+          break;
+        default:
+          UNREACHABLE();
+      }
+    } else {
+      fputc(c, logfile_);
+    }
+  }
+  fputc('\n', logfile_);
 }
 
 

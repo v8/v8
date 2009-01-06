@@ -163,6 +163,19 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
 }
 
 
+bool CodeGenerator::ShouldGenerateLog(Expression* type) {
+  ASSERT(type != NULL);
+  if (!Logger::is_enabled()) return false;
+  Handle<String> name = Handle<String>::cast(type->AsLiteral()->handle());
+  if (FLAG_log_regexp) {
+    static Vector<const char> kRegexp = CStrVector("regexp");
+    if (name->IsEqualTo(kRegexp))
+      return true;
+  }
+  return false;
+}
+
+
 // Sets the function info on a function.
 // The start_position points to the first '(' character after the function name
 // in the full script source. When counting characters in the script source the
@@ -338,7 +351,9 @@ bool CodeGenerator::CheckForInlineRuntimeCall(CallRuntime* node) {
     {&v8::internal::CodeGenerator::GenerateFastCharCodeAt,
      "_FastCharCodeAt"},
     {&v8::internal::CodeGenerator::GenerateObjectEquals,
-     "_ObjectEquals"}
+     "_ObjectEquals"},
+    {&v8::internal::CodeGenerator::GenerateLog,
+     "_Log"}
   };
   Handle<String> name = node->name();
   StringShape shape(*name);

@@ -2900,6 +2900,25 @@ void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
+  // Conditionally generate a log call.
+  // Args:
+  //   0 (literal string): The type of logging (corresponds to the flags).
+  //     This is used to determine whether or not to generate the log call.
+  //   1 (string): Format string.  Access the string at argument index 2
+  //     with '%2s' (see Logger::LogRuntime for all the formats).
+  //   2 (array): Arguments to the format string.
+  ASSERT_EQ(args->length(), 3);
+  if (ShouldGenerateLog(args->at(0))) {
+    Load(args->at(1));
+    Load(args->at(2));
+    __ CallRuntime(Runtime::kLog, 2);
+  }
+  // Finally, we're expected to leave a value on the top of the stack.
+  frame_->Push(Immediate(Factory::undefined_value()));
+}
+
+
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));

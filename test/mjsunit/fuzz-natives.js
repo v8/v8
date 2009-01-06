@@ -123,7 +123,8 @@ var knownProblems = {
   "CreateObjectLiteralBoilerplate": true,
   "CloneObjectLiteralBoilerplate": true,
   "IS_VAR": true,
-  "ResolvePossiblyDirectEval": true
+  "ResolvePossiblyDirectEval": true,
+  "Log": true
 };
 
 var currentlyUncallable = {

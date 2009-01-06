@@ -72,7 +72,11 @@ class SlidingStateWindow;
 
 #undef LOG
 #ifdef ENABLE_LOGGING_AND_PROFILING
-#define LOG(Call) v8::internal::Logger::Call
+#define LOG(Call)                           \
+  do {                                      \
+    if (v8::internal::Logger::is_enabled()) \
+      v8::internal::Logger::Call;           \
+  } while (false)
 #else
 #define LOG(Call) ((void) 0)
 #endif
@@ -189,9 +193,8 @@ class Logger {
 
   static void RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache);
 
-  static void RegExpExecEvent(Handle<JSRegExp> regexp,
-                              int start_index,
-                              Handle<String> input_string);
+  // Log an event reported from generated code
+  static void LogRuntime(Vector<const char> format, JSArray* args);
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
   static StateTag state() {
@@ -199,13 +202,15 @@ class Logger {
   }
 #endif
 
+  static bool is_enabled() { return logfile_ != NULL; }
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
  private:
 
   // Emits the source code of a regexp. Used by regexp events.
   static void LogRegExpSource(Handle<JSRegExp> regexp);
 
-  static void LogString(Handle<String> str);
+  static void LogString(Handle<String> str, bool show_impl_info);
 
   // Emits a profiler tick event. Used by the profiler thread.
   static void TickEvent(TickSample* sample, bool overflow);

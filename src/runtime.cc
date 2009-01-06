@@ -5840,6 +5840,16 @@ static Object* Runtime_ListNatives(Arguments args) {
 #endif
 
 
+static Object* Runtime_Log(Arguments args) {
+  ASSERT(args.length() == 2);
+  String* format = String::cast(args[0]);
+  Vector<const char> chars = format->ToAsciiVector();
+  JSArray* elms = JSArray::cast(args[1]);
+  Logger::LogRuntime(chars, elms);
+  return Heap::undefined_value();
+}
+
+
 static Object* Runtime_IS_VAR(Arguments args) {
   UNREACHABLE();  // implemented as macro in the parser
   return NULL;

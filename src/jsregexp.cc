@@ -373,7 +373,6 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
     return Handle<Smi>(Smi::FromInt(-1));
   }
 
-  LOG(RegExpExecEvent(re, start_index, subject));
   int value = Runtime::StringMatch(subject, needle, start_index);
   if (value == -1) return Factory::null_value();
 
@@ -393,7 +392,6 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
   int subject_length = subject->length();
   int needle_length = needle->length();
   while (true) {
-    LOG(RegExpExecEvent(re, index, subject));
     int value = -1;
     if (index + needle_length <= subject_length) {
       value = Runtime::StringMatch(subject, needle, index);
@@ -574,8 +572,6 @@ Handle<Object> RegExpImpl::JscreExecOnce(Handle<JSRegExp> regexp,
     const v8::jscre::JscreRegExp* js_regexp =
         reinterpret_cast<v8::jscre::JscreRegExp*>(
             internal->GetDataStartAddress());
-
-    LOG(RegExpExecEvent(regexp, previous_index, subject));
 
     rc = v8::jscre::jsRegExpExecute(js_regexp,
                                     two_byte_subject,
@@ -791,7 +787,6 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
     PrintF("\n\nSubject string: '%s'\n\n", *(subject->ToCString()));
   }
 #endif
-  LOG(RegExpExecEvent(regexp, previous_index, subject));
 
   if (!subject->IsFlat(StringShape(*subject))) {
     FlattenString(subject);
@@ -845,7 +840,6 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
         PrintF("\n\nSubject string: '%s'\n\n", *(subject->ToCString()));
       }
 #endif
-      LOG(RegExpExecEvent(regexp, previous_index, subject));
       matches = IrregexpExecOnce(irregexp,
                                  IrregexpNumberOfCaptures(irregexp),
                                  subject,

@@ -178,6 +178,7 @@ function RegExpExec(string) {
     return null;
   }
 
+  %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
   // matchIndices is an array of integers with length of captures*2,
   // each pair of integers specified the start and the end of index
   // in the string.

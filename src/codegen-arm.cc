@@ -2577,6 +2577,19 @@ void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
+  // See comment in CodeGenerator::GenerateLog in codegen-ia32.cc.
+  ASSERT_EQ(args->length(), 3);
+  if (ShouldGenerateLog(args->at(0))) {
+    Load(args->at(1));
+    Load(args->at(2));
+    __ CallRuntime(Runtime::kLog, 2);
+  }
+  __ mov(r0, Operand(Factory::undefined_value()));
+  frame_->Push(r0);
+}
+
+
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
