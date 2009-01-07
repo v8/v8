@@ -957,7 +957,7 @@ function DateSetYear(year) {
   if ($isNaN(year)) return %_SetValueOf(this, $NaN);
   year = (0 <= TO_INTEGER(year) && TO_INTEGER(year) <= 99)
       ? 1900 + TO_INTEGER(year) : year;
-  var day = MakeDay(year, GetMonthFrom(this), GetDateFrom(this));
+  var day = MakeDay(year, MonthFromTime(t), DateFromTime(t));
   return %_SetValueOf(this, TimeClip(UTC(MakeDate(day, TimeWithinDay(t)))));
 }
 

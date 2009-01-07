@@ -47,7 +47,7 @@ function testArrayMirror(a, names) {
   assertTrue(mirror.constructorFunction() instanceof debug.ObjectMirror);
   assertTrue(mirror.protoObject() instanceof debug.Mirror);
   assertTrue(mirror.prototypeObject() instanceof debug.Mirror);
-  assertEquals(mirror.length(), a.length);
+  assertEquals(mirror.length(), a.length, "Length mismatch");
   
   var indexedValueMirrors = mirror.indexedPropertiesFromRange();
   assertEquals(indexedValueMirrors.length, a.length);
@@ -64,7 +64,7 @@ function testArrayMirror(a, names) {
   assertEquals('Array', fromJSON.className);
   assertEquals('function', fromJSON.constructorFunction.type);
   assertEquals('Array', fromJSON.constructorFunction.name);
-  assertEquals(a.length, fromJSON.length);
+  assertEquals(a.length, fromJSON.length, "Length mismatch in parsed JSON");
 
   // Check that the serialization contains all indexed properties.
   for (var i = 0; i < fromJSON.indexedProperties.length; i++) {

@@ -119,7 +119,7 @@ function testObjectMirror(o, cls_name, ctor_name, hasSpecialProperties) {
         found = true;
       }
     }
-    assertTrue(found, '"' + name + '" not found');
+    assertTrue(found, '"' + name + '" not found (' + json + ')');
   }
 }
 
@@ -138,6 +138,11 @@ testObjectMirror(new Point(-1.2,2.003), 'Object', 'Point');
 testObjectMirror(this, 'global', undefined, true);  // Global object has special properties
 testObjectMirror([], 'Array', 'Array');
 testObjectMirror([1,2], 'Array', 'Array');
+
+// Test circular references.
+o = {};
+o.o = o;
+testObjectMirror(o, 'Object', 'Object');
 
 // Test that non enumerable properties are part of the mirror
 global_mirror = debug.MakeMirror(this);
