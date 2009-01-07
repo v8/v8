@@ -106,14 +106,14 @@ bool Shell::ExecuteString(Handle<String> source,
   Handle<Script> script = Script::Compile(source, name);
   if (script.IsEmpty()) {
     // Print errors that happened during compilation.
-    if (report_exceptions)
+    if (report_exceptions && !i::FLAG_debugger)
       ReportException(&try_catch);
     return false;
   } else {
     Handle<Value> result = script->Run();
     if (result.IsEmpty()) {
       // Print errors that happened during execution.
-      if (report_exceptions)
+      if (report_exceptions && !i::FLAG_debugger)
         ReportException(&try_catch);
       return false;
     } else {
@@ -367,16 +367,16 @@ void Shell::Initialize() {
 
 void Shell::OnExit() {
   if (i::FLAG_dump_counters) {
-    ::printf("+----------------------------------------+----------+\n");
-    ::printf("| Name                                   | Value    |\n");
-    ::printf("+----------------------------------------+----------+\n");
+    ::printf("+----------------------------------------+-------------+\n");
+    ::printf("| Name                                   | Value       |\n");
+    ::printf("+----------------------------------------+-------------+\n");
     for (CounterMap::iterator i = counter_map_.begin();
          i != counter_map_.end();
          i++) {
       Counter* counter = (*i).second;
-      ::printf("| %-38s | %8i |\n", (*i).first, counter->value());
+      ::printf("| %-38s | %11i |\n", (*i).first, counter->value());
     }
-    ::printf("+----------------------------------------+----------+\n");
+    ::printf("+----------------------------------------+-------------+\n");
   }
   if (counters_file_ != NULL)
     delete counters_file_;

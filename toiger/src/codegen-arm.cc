@@ -2716,6 +2716,19 @@ void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 }
 
 
+void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
+  // See comment in CodeGenerator::GenerateLog in codegen-ia32.cc.
+  ASSERT_EQ(args->length(), 3);
+  if (ShouldGenerateLog(args->at(0))) {
+    Load(args->at(1));
+    Load(args->at(2));
+    __ CallRuntime(Runtime::kLog, 2);
+  }
+  __ mov(r0, Operand(Factory::undefined_value()));
+  frame_->Push(r0);
+}
+
+
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
@@ -3445,6 +3458,9 @@ void Reference::GetValue(TypeofState typeof_state) {
     case KEYED: {
       // TODO(1241834): Make sure that this it is safe to ignore the
       // distinction between expressions in a typeof and not in a typeof.
+
+      // TODO(181): Implement inlined version of array indexing once
+      // loop nesting is properly tracked on ARM.
       Comment cmnt(masm, "[ Load from keyed Property");
       ASSERT(property != NULL);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));

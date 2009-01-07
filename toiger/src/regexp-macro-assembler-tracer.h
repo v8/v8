@@ -66,6 +66,10 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
                                               uc16 minus,
                                               uc16 and_with,
                                               Label* on_not_equal);
+  virtual bool CheckSpecialCharacterClass(uc16 type,
+                                          int cp_offset,
+                                          bool check_offset,
+                                          Label* on_no_match);
   virtual void DispatchByteMap(
       uc16 start,
       Label* byte_map,

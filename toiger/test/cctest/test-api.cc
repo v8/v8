@@ -5094,6 +5094,12 @@ THREADED_TEST(LockUnlockLock) {
 
 static int GetSurvivingGlobalObjectsCount() {
   int count = 0;
+  // We need to collect all garbage twice to be sure that everything
+  // has been collected.  This is because inline caches are cleared in
+  // the first garbage collection but some of the maps have already
+  // been marked at that point.  Therefore some of the maps are not
+  // collected until the second garbage collection.
+  v8::internal::Heap::CollectAllGarbage();
   v8::internal::Heap::CollectAllGarbage();
   v8::internal::HeapIterator it;
   while (it.has_next()) {
@@ -5114,10 +5120,6 @@ TEST(DontLeakGlobalObjects) {
 
   v8::V8::Initialize();
 
-  // TODO(121): when running "cctest test-api", the initial count is 2,
-  // after second GC, the counter drops to 1. Needs to figure out why
-  // one GC is not enough to collect all garbage.
-  GetSurvivingGlobalObjectsCount();
   int count = GetSurvivingGlobalObjectsCount();
 
   for (int i = 0; i < 5; i++) {

@@ -615,6 +615,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   // Use inline caching to speed up access to arguments.
   Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
   __ call(ic, RelocInfo::CODE_TARGET);
+  // It is important that we do not have a test instruction after the
+  // call.  A test instruction after the call is used to indicate that
+  // we have generated an inline version of the keyed load.  In this
+  // case, we know that we are not generating a test instruction next.
 
   // Remove IC arguments from the stack and push the nth argument.
   __ add(Operand(esp), Immediate(2 * kPointerSize));

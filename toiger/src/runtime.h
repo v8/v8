@@ -285,6 +285,8 @@ namespace v8 { namespace internal {
   F(DebugBreak, 0) \
   F(FunctionGetAssemblerCode, 1) \
   F(Abort, 2) \
+  /* Logging */ \
+  F(Log, 2) \
   \
   /* Pseudo functions - handled as macros by parser */ \
   F(IS_VAR, 1)

@@ -705,9 +705,14 @@ function DebugResponseDetails(json_response) {
         details.text = result;
         break;
 
+      case 'continue':
+        details.text = "(running)";
+        break;
+        
       default:
         details.text =
-            'Response for unknown command \'' + response.command + '\'';
+            'Response for unknown command \'' + response.command + '\'' +
+            ' (' + json_response + ')';
     }
   } catch (e) {
     details.text = 'Error: "' + e + '" formatting response';

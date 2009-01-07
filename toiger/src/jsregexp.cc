@@ -267,11 +267,9 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
     } else if (parse_result.tree->IsAtom() &&
         !flags.is_ignore_case() &&
         parse_result.capture_count == 0) {
-      // TODO(lrn) Accept capture_count > 0 on atoms.
       RegExpAtom* atom = parse_result.tree->AsAtom();
       Vector<const uc16> atom_pattern = atom->data();
-      Handle<String> atom_string =
-          Factory::NewStringFromTwoByte(atom_pattern);
+      Handle<String> atom_string = Factory::NewStringFromTwoByte(atom_pattern);
       result = AtomCompile(re, pattern, flags, atom_string);
     } else if (FLAG_irregexp) {
       result = IrregexpPrepare(re, pattern, flags);
@@ -375,7 +373,6 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
     return Handle<Smi>(Smi::FromInt(-1));
   }
 
-  LOG(RegExpExecEvent(re, start_index, subject));
   int value = Runtime::StringMatch(subject, needle, start_index);
   if (value == -1) return Factory::null_value();
 
@@ -395,7 +392,6 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
   int subject_length = subject->length();
   int needle_length = needle->length();
   while (true) {
-    LOG(RegExpExecEvent(re, index, subject));
     int value = -1;
     if (index + needle_length <= subject_length) {
       value = Runtime::StringMatch(subject, needle, index);
@@ -512,8 +508,9 @@ Handle<Object> RegExpImpl::JscreCompile(Handle<JSRegExp> re) {
     // Throw an exception.
     Handle<JSArray> array = Factory::NewJSArray(2);
     SetElement(array, 0, pattern);
-    SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(
-        (error_message == NULL) ? "Unknown regexp error" : error_message)));
+    const char* message =
+        (error_message == NULL) ? "Unknown regexp error" : error_message;
+    SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(message)));
     Handle<Object> regexp_err =
         Factory::NewSyntaxError("malformed_regexp", array);
     Top::Throw(*regexp_err);
@@ -575,8 +572,6 @@ Handle<Object> RegExpImpl::JscreExecOnce(Handle<JSRegExp> regexp,
     const v8::jscre::JscreRegExp* js_regexp =
         reinterpret_cast<v8::jscre::JscreRegExp*>(
             internal->GetDataStartAddress());
-
-    LOG(RegExpExecEvent(regexp, previous_index, subject));
 
     rc = v8::jscre::jsRegExpExecute(js_regexp,
                                     two_byte_subject,
@@ -792,7 +787,6 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
     PrintF("\n\nSubject string: '%s'\n\n", *(subject->ToCString()));
   }
 #endif
-  LOG(RegExpExecEvent(regexp, previous_index, subject));
 
   if (!subject->IsFlat(StringShape(*subject))) {
     FlattenString(subject);
@@ -846,7 +840,6 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
         PrintF("\n\nSubject string: '%s'\n\n", *(subject->ToCString()));
       }
 #endif
-      LOG(RegExpExecEvent(regexp, previous_index, subject));
       matches = IrregexpExecOnce(irregexp,
                                  IrregexpNumberOfCaptures(irregexp),
                                  subject,
@@ -1423,7 +1416,8 @@ bool GenerationVariant::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
          cp_offset_ != 0 ||
          backtrack() != NULL ||
          characters_preloaded_ != 0 ||
-         quick_check_performed_.characters() != 0);
+         quick_check_performed_.characters() != 0 ||
+         bound_checked_up_to_ != 0);
 
   if (actions_ == NULL && backtrack() == NULL) {
     // Here we just have some deferred cp advances to fix and we are back to
@@ -1647,16 +1641,23 @@ static inline bool EmitAtomNonLetter(
 
 
 static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
+                                      bool ascii,
                                       uc16 c1,
                                       uc16 c2,
                                       Label* on_failure) {
+  uc16 char_mask;
+  if (ascii) {
+    char_mask = String::kMaxAsciiCharCode;
+  } else {
+    char_mask = String::kMaxUC16CharCode;
+  }
   uc16 exor = c1 ^ c2;
   // Check whether exor has only one bit set.
   if (((exor - 1) & exor) == 0) {
     // If c1 and c2 differ only by one bit.
     // Ecma262UnCanonicalize always gives the highest number last.
     ASSERT(c2 > c1);
-    uc16 mask = String::kMaxUC16CharCode ^ exor;
+    uc16 mask = char_mask ^ exor;
     macro_assembler->CheckNotCharacterAfterAnd(c1, mask, on_failure);
     return true;
   }
@@ -1667,7 +1668,7 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
     // subtract the difference from the found character, then do the or
     // trick.  We avoid the theoretical case where negative numbers are
     // involved in order to simplify code generation.
-    uc16 mask = String::kMaxUC16CharCode ^ diff;
+    uc16 mask = char_mask ^ diff;
     macro_assembler->CheckNotCharacterAfterMinusAnd(c1 - diff,
                                                     diff,
                                                     mask,
@@ -1682,6 +1683,7 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
 // matches.
 static inline bool EmitAtomLetter(
     RegExpMacroAssembler* macro_assembler,
+    bool ascii,
     uc16 c,
     Label* on_failure,
     int cp_offset,
@@ -1700,6 +1702,7 @@ static inline bool EmitAtomLetter(
   switch (length) {
     case 2: {
       if (ShortCutEmitCharacterPair(macro_assembler,
+                                    ascii,
                                     chars[0],
                                     chars[1],
                                     on_failure)) {
@@ -1734,6 +1737,14 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
                           bool check_offset,
                           bool ascii,
                           bool preloaded) {
+  if (cc->is_standard() &&
+      macro_assembler->CheckSpecialCharacterClass(cc->standard_type(),
+                                                  cp_offset,
+                                                  check_offset,
+                                                  on_failure)) {
+    return;
+  }
+
   ZoneList<CharacterRange>* ranges = cc->ranges();
   int max_char;
   if (ascii) {
@@ -2007,6 +2018,7 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
       char_mask = String::kMaxUC16CharCode;
     }
     if ((mask & char_mask) == char_mask) need_mask = false;
+    mask &= char_mask;
   } else {
     // For 2-character preloads in ASCII mode we also use a 16 bit load with
     // zero extend.
@@ -2323,6 +2335,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
             ASSERT_EQ(pass, CASE_CHARACTER_MATCH);
             ASSERT(compiler->ignore_case());
             bound_checked = EmitAtomLetter(assembler,
+                                           compiler->ascii(),
                                            quarks[j],
                                            backtrack,
                                            cp_offset + j,
@@ -2403,9 +2416,7 @@ bool TextNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
 
   bool first_elt_done = false;
   int bound_checked_to = variant->cp_offset() - 1;
-  QuickCheckDetails* quick_check = variant->quick_check_performed();
-  bound_checked_to += Max(quick_check->characters(),
-                          variant->characters_preloaded());
+  bound_checked_to += variant->bound_checked_up_to();
 
   // If a character is preloaded into the current character register then
   // check that now.
@@ -2472,6 +2483,7 @@ void GenerationVariant::AdvanceVariant(int by, bool ascii) {
   // characters by means of mask and compare.
   quick_check_performed_.Advance(by, ascii);
   cp_offset_ += by;
+  bound_checked_up_to_ = Max(0, bound_checked_up_to_ - by);
 }
 
 
@@ -2779,8 +2791,9 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   int first_normal_choice = greedy_loop ? 1 : 0;
 
   int preload_characters = CalculatePreloadCharacters(compiler);
-  bool preload_is_current = false;
-  bool preload_has_checked_bounds = false;
+  bool preload_is_current =
+      (current_variant->characters_preloaded() == preload_characters);
+  bool preload_has_checked_bounds = preload_is_current;
 
   AlternativeGenerationList alt_gens(choice_count);
 
@@ -2792,11 +2805,13 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
     alt_gen->quick_check_details.set_characters(preload_characters);
     ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == NULL) ? 0 : guards->length();
-
     GenerationVariant new_variant(*current_variant);
     new_variant.set_characters_preloaded(preload_is_current ?
                                          preload_characters :
                                          0);
+    if (preload_has_checked_bounds) {
+      new_variant.set_bound_checked_up_to(preload_characters);
+    }
     new_variant.quick_check_performed()->Clear();
     alt_gen->expects_preload = preload_is_current;
     bool generate_full_check_inline = false;
@@ -2816,19 +2831,25 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
         macro_assembler->Bind(&alt_gen->possible_success);
         new_variant.set_quick_check_performed(&alt_gen->quick_check_details);
         new_variant.set_characters_preloaded(preload_characters);
+        new_variant.set_bound_checked_up_to(preload_characters);
         generate_full_check_inline = true;
       }
     } else {
       // No quick check was generated.  Put the full code here.
+      // If this is not the first choice then there could be slow checks from
+      // previous cases that go here when they fail.  There's no reason to
+      // insist that they preload characters since the slow check we are about
+      // to generate probably can't use it.
+      if (i != first_normal_choice) {
+        alt_gen->expects_preload = false;
+        new_variant.set_characters_preloaded(0);
+      }
       if (i < choice_count - 1) {
         new_variant.set_backtrack(&alt_gen->after);
       }
       generate_full_check_inline = true;
     }
     if (generate_full_check_inline) {
-      if (preload_is_current) {
-        new_variant.set_characters_preloaded(preload_characters);
-      }
       for (int j = 0; j < guard_count; j++) {
         GenerateGuard(macro_assembler, guards->at(j), &new_variant);
       }
@@ -3325,6 +3346,22 @@ void RegExpEngine::DotPrint(const char* label,
 // -------------------------------------------------------------------
 // Tree to graph conversion
 
+static const int kSpaceRangeCount = 20;
+static const int kSpaceRangeAsciiCount = 4;
+static const uc16 kSpaceRanges[kSpaceRangeCount] = { 0x0009, 0x000D, 0x0020,
+    0x0020, 0x00A0, 0x00A0, 0x1680, 0x1680, 0x180E, 0x180E, 0x2000, 0x200A,
+    0x2028, 0x2029, 0x202F, 0x202F, 0x205F, 0x205F, 0x3000, 0x3000 };
+
+static const int kWordRangeCount = 8;
+static const uc16 kWordRanges[kWordRangeCount] = { '0', '9', 'A', 'Z', '_',
+    '_', 'a', 'z' };
+
+static const int kDigitRangeCount = 2;
+static const uc16 kDigitRanges[kDigitRangeCount] = { '0', '9' };
+
+static const int kLineTerminatorRangeCount = 6;
+static const uc16 kLineTerminatorRanges[kLineTerminatorRangeCount] = { 0x000A,
+    0x000A, 0x000D, 0x000D, 0x2028, 0x2029 };
 
 RegExpNode* RegExpAtom::ToNode(RegExpCompiler* compiler,
                                RegExpNode* on_success) {
@@ -3337,6 +3374,77 @@ RegExpNode* RegExpAtom::ToNode(RegExpCompiler* compiler,
 RegExpNode* RegExpText::ToNode(RegExpCompiler* compiler,
                                RegExpNode* on_success) {
   return new TextNode(elements(), on_success);
+}
+
+static bool CompareInverseRanges(ZoneList<CharacterRange>* ranges,
+                                 const uc16* special_class,
+                                 int length) {
+  ASSERT(ranges->length() != 0);
+  ASSERT(length != 0);
+  ASSERT(special_class[0] != 0);
+  if (ranges->length() != (length >> 1) + 1) {
+    return false;
+  }
+  CharacterRange range = ranges->at(0);
+  if (range.from() != 0) {
+    return false;
+  }
+  for (int i = 0; i < length; i += 2) {
+    if (special_class[i] != (range.to() + 1)) {
+      return false;
+    }
+    range = ranges->at((i >> 1) + 1);
+    if (special_class[i+1] != range.from() - 1) {
+      return false;
+    }
+  }
+  if (range.to() != 0xffff) {
+    return false;
+  }
+  return true;
+}
+
+
+static bool CompareRanges(ZoneList<CharacterRange>* ranges,
+                          const uc16* special_class,
+                          int length) {
+  if (ranges->length() * 2 != length) {
+    return false;
+  }
+  for (int i = 0; i < length; i += 2) {
+    CharacterRange range = ranges->at(i >> 1);
+    if (range.from() != special_class[i] || range.to() != special_class[i+1]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+
+bool RegExpCharacterClass::is_standard() {
+  // TODO(lrn): Remove need for this function, by not throwing away information
+  // along the way.
+  if (is_negated_) {
+    return false;
+  }
+  if (set_.is_standard()) {
+    return true;
+  }
+  if (CompareRanges(set_.ranges(), kSpaceRanges, kSpaceRangeCount)) {
+    set_.set_standard_set_type('s');
+    return true;
+  }
+  if (CompareInverseRanges(set_.ranges(), kSpaceRanges, kSpaceRangeCount)) {
+    set_.set_standard_set_type('S');
+    return true;
+  }
+  if (CompareInverseRanges(set_.ranges(),
+                           kLineTerminatorRanges,
+                           kLineTerminatorRangeCount)) {
+    set_.set_standard_set_type('.');
+    return true;
+  }
+  return false;
 }
 
 
@@ -3580,32 +3688,6 @@ RegExpNode* RegExpAlternative::ToNode(RegExpCompiler* compiler,
 }
 
 
-static const int kSpaceRangeCount = 20;
-static const uc16 kSpaceRanges[kSpaceRangeCount] = {
-  0x0009, 0x000D, 0x0020, 0x0020, 0x00A0, 0x00A0, 0x1680,
-  0x1680, 0x180E, 0x180E, 0x2000, 0x200A, 0x2028, 0x2029,
-  0x202F, 0x202F, 0x205F, 0x205F, 0x3000, 0x3000
-};
-
-
-static const int kWordRangeCount = 8;
-static const uc16 kWordRanges[kWordRangeCount] = {
-  '0', '9', 'A', 'Z', '_', '_', 'a', 'z'
-};
-
-
-static const int kDigitRangeCount = 2;
-static const uc16 kDigitRanges[kDigitRangeCount] = {
-  '0', '9'
-};
-
-
-static const int kLineTerminatorRangeCount = 6;
-static const uc16 kLineTerminatorRanges[kLineTerminatorRangeCount] = {
-  0x000A, 0x000A, 0x000D, 0x000D, 0x2028, 0x2029
-};
-
-
 static void AddClass(const uc16* elmv,
                      int elmc,
                      ZoneList<CharacterRange>* ranges) {
@@ -3799,6 +3881,16 @@ void CharacterRange::AddCaseEquivalents(ZoneList<CharacterRange>* ranges) {
     // TODO(plesner) when we've fixed the 2^11 bug in unibrow.
   }
 }
+
+
+ZoneList<CharacterRange>* CharacterSet::ranges() {
+  if (ranges_ == NULL) {
+    ranges_ = new ZoneList<CharacterRange>(2);
+    CharacterRange::AddClassEscape(standard_set_type_, ranges_);
+  }
+  return ranges_;
+}
+
 
 
 // -------------------------------------------------------------------
