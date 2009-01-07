@@ -410,6 +410,24 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   MergeMoveRegistersToRegisters(expected);
   MergeMoveMemoryToRegisters(expected);
 
+  int height_difference = stack_pointer_ - expected->stack_pointer_;
+  if (stack_pointer_ > expected->stack_pointer_) {
+#ifdef DEBUG
+    for (int i = stack_pointer_; i > expected->stack_pointer_; i--) {
+      ASSERT(!elements_[i].is_memory());
+      ASSERT(!elements_[i].is_synced());
+    }
+#endif
+    __ add(Operand(esp), Immediate(height_difference * kPointerSize));
+    stack_pointer_ = expected->stack_pointer_;
+  } else if (stack_pointer_ < expected->stack_pointer_) {
+    // Put valid data on the stack, that will only be accessed by GC.
+    while (stack_pointer_ < expected->stack_pointer_) {
+      __ push(Immediate(Smi::FromInt(0)));
+      stack_pointer_++;
+    }
+  }
+
   // At this point, the frames should be identical.
   // TODO(): Consider an "equals" method for frames.
   ASSERT(stack_pointer_ == expected->stack_pointer_);
@@ -674,25 +692,33 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
   ASSERT(frame_index >= 0);
   ASSERT(frame_index < elements_.length());
   ASSERT(value->is_valid());
+  FrameElement target = elements_[frame_index];
 
-  // TODO(): if the element is backed by the same register or the same
-  // constant, consider preserving the sync bit.
-  if (elements_[frame_index].is_register()) {
-    Unuse(elements_[frame_index].reg());
+  if (target.is_register()) {
+    Unuse(target.reg());
   }
 
   if (value->is_register()) {
     Use(value->reg());
-    elements_[frame_index] =
-        FrameElement::RegisterElement(value->reg(),
-                                      FrameElement::NOT_SYNCED);
+    // Write the new value to the frame, if it is changed.
+    // Otherwise, if target equals value, keep its current sync state.
+    if (!target.is_register() ||
+        !value->reg().is(target.reg())) {
+      elements_[frame_index] =
+          FrameElement::RegisterElement(value->reg(),
+                                        FrameElement::NOT_SYNCED);
+    }
   } else {
     ASSERT(value->is_constant());
-    elements_[frame_index] =
-        FrameElement::ConstantElement(value->handle(),
-                                      FrameElement::NOT_SYNCED);
+    // Write the new value to the frame element, if it is a change.
+    // Otherwise, do nothing, and keep the current sync state.
+    if (!target.is_constant() ||
+        !value->handle().is_identical_to(target.handle())) {
+      elements_[frame_index] =
+          FrameElement::ConstantElement(value->handle(),
+                                        FrameElement::NOT_SYNCED);
+    }
   }
-
   value->Unuse();
 }
 
@@ -1004,6 +1030,17 @@ void VirtualFrame::Push(Result* result) {
     Push(result->handle());
   }
   result->Unuse();
+}
+
+
+void VirtualFrame::Nip(int num_dropped) {
+  ASSERT(num_dropped >= 0);
+  if (num_dropped == 0) return;
+  Result tos = Pop();
+  if (num_dropped > 1) {
+    Drop(num_dropped - 1);
+  }
+  SetElementAt(0, &tos);
 }
 
 

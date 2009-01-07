@@ -549,17 +549,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
 void CodeGenerator::UnloadReference(Reference* ref) {
   // Pop a reference from the stack while preserving TOS.
   Comment cmnt(masm_, "[ UnloadReference");
-  int size = ref->size();
-  if (size == 1) {
-    VirtualFrame::SpilledScope spilled_scope(this);
-    frame_->EmitPop(eax);
-    __ mov(frame_->Top(), eax);
-  } else if (size > 1) {
-    VirtualFrame::SpilledScope spilled_scope(this);
-    frame_->EmitPop(eax);
-    frame_->Drop(size);
-    frame_->EmitPush(eax);
-  }
+  frame_->Nip(ref->size());
 }
 
 
@@ -3114,7 +3104,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
         var->mode() == Variable::CONST &&
         node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
       // Assignment ignored - leave the value on the stack.
-  } else {
+    } else {
       CodeForSourcePosition(node->position());
       if (node->op() == Token::INIT_CONST) {
         // Dynamic constant initializations must use the function context

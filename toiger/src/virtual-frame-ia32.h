@@ -385,6 +385,11 @@ class VirtualFrame : public Malloced {
   // frame).
   void Push(Result* result);
 
+  // Nip removes zero or more elements from immediately below the top
+  // of the frame, leaving the previous top-of-frame value on top of
+  // the frame.  Nip(k) is equivalent to x = Pop(), Drop(k), Push(x).
+  void Nip(int num_dropped);
+
 #ifdef DEBUG
   bool IsSpilled();
 #endif
