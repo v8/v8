@@ -69,20 +69,12 @@ void JumpTarget::Jump() {
   ASSERT(cgen_->HasValidEntryRegisters());
 
   if (expected_frame_ == NULL) {
-    // The frame at the actual function return will always have height zero.
-    if (cgen_->IsActualFunctionReturn(this)) {
-      current_frame->Forget(current_frame->height());
-    }
     current_frame->MakeMergable();
     expected_frame_ = current_frame;
     ASSERT(cgen_->HasValidEntryRegisters());
     cgen_->SetFrame(NULL);
   } else {
-    // No code needs to be emitted to merge to the expected frame at the
-    // actual function return.
-    if (!cgen_->IsActualFunctionReturn(this)) {
-      current_frame->MergeTo(expected_frame_);
-    }
+    current_frame->MergeTo(expected_frame_);
     ASSERT(cgen_->HasValidEntryRegisters());
     cgen_->DeleteFrame();
   }
@@ -114,10 +106,6 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
 
   if (expected_frame_ == NULL) {
     expected_frame_ = new VirtualFrame(current_frame);
-    // The frame at the actual function return will always have height zero.
-    if (cgen_->IsActualFunctionReturn(this)) {
-      expected_frame_->Forget(expected_frame_->height());
-    }
     // For a branch, the frame at the fall-through basic block (not labeled)
     // does not need to be mergable, but only the other (labeled) one.  That
     // is achieved by reversing the condition and emitting the make mergable
@@ -135,29 +123,22 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
       __ j(cc, &label_, hint);
     }
   } else {
-    // No code needs to be emitted to merge to the expected frame at the
-    // actual function return.
-    if (cgen_->IsActualFunctionReturn(this)) {
-      ASSERT(cgen_->HasValidEntryRegisters());
-      __ j(cc, &label_, hint);
-    } else {
-      // We negate the condition and emit the code to merge to the expected
-      // frame immediately.
-      //
-      // TODO(): This should be replaced with a solution that emits the
-      // merge code for forward CFG edges at the appropriate entry to the
-      // target block.
-      Label original_fall_through;
-      __ j(NegateCondition(cc), &original_fall_through, NegateHint(hint));
-      VirtualFrame* working_frame = new VirtualFrame(current_frame);
-      cgen_->SetFrame(working_frame);
-      working_frame->MergeTo(expected_frame_);
-      ASSERT(cgen_->HasValidEntryRegisters());
-      __ jmp(&label_);
-      cgen_->SetFrame(current_frame);
-      delete working_frame;
-      __ bind(&original_fall_through);
-    }
+    // We negate the condition and emit the code to merge to the expected
+    // frame immediately.
+    //
+    // TODO(): This should be replaced with a solution that emits the
+    // merge code for forward CFG edges at the appropriate entry to the
+    // target block.
+    Label original_fall_through;
+    __ j(NegateCondition(cc), &original_fall_through, NegateHint(hint));
+    VirtualFrame* working_frame = new VirtualFrame(current_frame);
+    cgen_->SetFrame(working_frame);
+    working_frame->MergeTo(expected_frame_);
+    ASSERT(cgen_->HasValidEntryRegisters());
+    __ jmp(&label_);
+    cgen_->SetFrame(current_frame);
+    delete working_frame;
+    __ bind(&original_fall_through);
   }
   // Postcondition: there is both a current frame and an expected frame at
   // the label and they match.
@@ -215,7 +196,6 @@ void JumpTarget::Call() {
   // at the label.
   ASSERT(cgen_ != NULL);
   ASSERT(masm_ != NULL);
-  ASSERT(!cgen_->IsActualFunctionReturn(this));
 
   VirtualFrame* current_frame = cgen_->frame();
   ASSERT(current_frame != NULL);
@@ -250,10 +230,6 @@ void JumpTarget::Bind() {
     ASSERT(cgen_->HasValidEntryRegisters());
     // When a label is bound the current frame becomes the expected frame at
     // the label.  This requires the current frame to be mergable.
-    // The frame at the actual function return will always have height zero.
-    if (cgen_->IsActualFunctionReturn(this)) {
-      current_frame->Forget(current_frame->height());
-    }
     current_frame->MakeMergable();
     ASSERT(cgen_->HasValidEntryRegisters());
     expected_frame_ = new VirtualFrame(current_frame);
@@ -262,11 +238,7 @@ void JumpTarget::Bind() {
     ASSERT(cgen_->HasValidEntryRegisters());
   } else {
     ASSERT(cgen_->HasValidEntryRegisters());
-    // No code needs to be emitted to merge to the expected frame at the
-    // actual function return.
-    if (!cgen_->IsActualFunctionReturn(this)) {
-      current_frame->MergeTo(expected_frame_);
-    }
+    current_frame->MergeTo(expected_frame_);
     ASSERT(cgen_->HasValidEntryRegisters());
   }
 

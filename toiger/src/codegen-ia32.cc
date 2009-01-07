@@ -83,7 +83,6 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
       allocator_(NULL),
       cc_reg_(no_condition),
       state_(NULL),
-      is_inside_try_(false),
       break_stack_height_(0),
       loop_nesting_(0),
       function_return_is_shadowed_(false),
@@ -1627,41 +1626,58 @@ void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
 
 void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   ASSERT(!in_spilled_code());
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ReturnStatement");
-  CodeForStatement(node);
-  LoadAndSpill(node->expression());
 
-  // Move the function result into eax
-  frame_->EmitPop(eax);
-
-  // If we're inside a try statement or the return instruction
-  // sequence has been generated, we just jump to that
-  // point. Otherwise, we generate the return instruction sequence and
-  // bind the function return label.
-  if (is_inside_try_ || function_return_.is_bound()) {
+  if (function_return_is_shadowed_) {
+    // If the function return is shadowed, we spill all information
+    // and just jump to the label.
+    VirtualFrame::SpilledScope spilled_scope(this);
+    CodeForStatement(node);
+    LoadAndSpill(node->expression());
+    frame_->EmitPop(eax);
     function_return_.Jump();
   } else {
-    function_return_.Bind();
-    if (FLAG_trace) {
-      frame_->EmitPush(eax);  // undo the pop(eax) from above
-      frame_->CallRuntime(Runtime::kTraceExit, 1);
+    // Load the returned value.
+    CodeForStatement(node);
+    Load(node->expression());
+
+    // Pop the result from the frame and prepare the frame for
+    // returning thus making it easier to merge.
+    Result result = frame_->Pop();
+    frame_->PrepareForReturn();
+
+    // Move the result into register eax where it belongs.
+    result.ToRegister(eax);
+    // TODO(): Instead of explictly calling Unuse on the result, it
+    // might be better to pass the result to Jump and Bind below.
+    result.Unuse();
+
+    // If the function return label is already bound, we reuse the
+    // code by jumping to the return site.
+    if (function_return_.is_bound()) {
+      function_return_.Jump();
+    } else {
+      function_return_.Bind();
+      if (FLAG_trace) {
+        frame_->Push(eax);  // Materialize result on the stack.
+        frame_->CallRuntime(Runtime::kTraceExit, 1);
+      }
+
+      // Add a label for checking the size of the code used for returning.
+      Label check_exit_codesize;
+      __ bind(&check_exit_codesize);
+
+      // Leave the frame and return popping the arguments and the
+      // receiver.
+      frame_->Exit();
+      __ ret((scope_->num_parameters() + 1) * kPointerSize);
+      DeleteFrame();
+
+      // Check that the size of the code used for returning matches what is
+      // expected by the debugger.
+      ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
+                __ SizeOfCodeGeneratedSince(&check_exit_codesize));
     }
-
-    // Add a label for checking the size of the code used for returning.
-    Label check_exit_codesize;
-    __ bind(&check_exit_codesize);
-
-    // Leave the frame and return popping the arguments and the
-    // receiver.
-    frame_->Exit();
-    __ ret((scope_->num_parameters() + 1) * kPointerSize);
-    DeleteFrame();
-
-    // Check that the size of the code used for returning matches what is
-    // expected by the debugger.
-    ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
-              __ SizeOfCodeGeneratedSince(&check_exit_codesize));
   }
 }
 
@@ -2310,17 +2326,21 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // target.
   int nof_escapes = node->escaping_targets()->length();
   List<ShadowTarget*> shadows(1 + nof_escapes);
+
+  // Add the shadow target for the function return.
+  static const int kReturnShadowIndex = 0;
   shadows.Add(new ShadowTarget(&function_return_));
+  bool function_return_was_shadowed = function_return_is_shadowed_;
+  function_return_is_shadowed_ = true;
+  ASSERT(shadows[kReturnShadowIndex]->original_target() == &function_return_);
+
+  // Add the remaining shadow targets.
   for (int i = 0; i < nof_escapes; i++) {
     shadows.Add(new ShadowTarget(node->escaping_targets()->at(i)));
   }
-  bool function_return_was_shadowed = function_return_is_shadowed_;
-  function_return_is_shadowed_ = true;
 
   // Generate code for the statements in the try block.
-  { TempAssign<bool> temp(&is_inside_try_, true);
-    VisitStatementsAndSpill(node->try_block()->statements());
-  }
+  VisitStatementsAndSpill(node->try_block()->statements());
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original targets are unshadowed and the
@@ -2377,6 +2397,10 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       frame_->EmitPop(Operand::StaticVariable(handler_address));
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
       // next_sp popped.
+
+      if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
+        frame_->PrepareForReturn();
+      }
       shadows[i]->original_target()->Jump();
     }
   }
@@ -2423,17 +2447,21 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // target.
   int nof_escapes = node->escaping_targets()->length();
   List<ShadowTarget*> shadows(1 + nof_escapes);
+
+  // Add the shadow target for the function return.
+  static const int kReturnShadowIndex = 0;
   shadows.Add(new ShadowTarget(&function_return_));
+  bool function_return_was_shadowed = function_return_is_shadowed_;
+  function_return_is_shadowed_ = true;
+  ASSERT(shadows[kReturnShadowIndex]->original_target() == &function_return_);
+
+  // Add the remaining shadow targets.
   for (int i = 0; i < nof_escapes; i++) {
     shadows.Add(new ShadowTarget(node->escaping_targets()->at(i)));
   }
-  bool function_return_was_shadowed = function_return_is_shadowed_;
-  function_return_is_shadowed_ = true;
 
   // Generate code for the statements in the try block.
-  { TempAssign<bool> temp(&is_inside_try_, true);
-    VisitStatementsAndSpill(node->try_block()->statements());
-  }
+  VisitStatementsAndSpill(node->try_block()->statements());
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original targets are unshadowed and the
@@ -2459,13 +2487,14 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // have been jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
-      // Because we can be jumping here (to spilled code) from unspilled
-      // code, we need to reestablish a spilled frame at this block.
+      // Because we can be jumping here (to spilled code) from
+      // unspilled code, we need to reestablish a spilled frame at
+      // this block.
       shadows[i]->Bind();
       frame_->SpillAll();
-      if (shadows[i]->original_target() == &function_return_) {
-        // If this target shadowed the function return, materialize the
-        // return value on the stack.
+      if (i == kReturnShadowIndex) {
+        // If this target shadowed the function return, materialize
+        // the return value on the stack.
         frame_->EmitPush(eax);
       } else {
         // Fake TOS for targets that shadowed breaks and continues.
@@ -2518,11 +2547,20 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     frame_->EmitPop(eax);
 
     // Generate code to jump to the right destination for all used
-    // (formerly) shadowing targets.
+    // formerly shadowing targets.
     for (int i = 0; i <= nof_escapes; i++) {
       if (shadows[i]->is_bound()) {
+        JumpTarget* original = shadows[i]->original_target();
         __ cmp(Operand(ecx), Immediate(Smi::FromInt(JUMPING + i)));
-        shadows[i]->original_target()->Branch(equal);
+        if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
+          JumpTarget skip(this);
+          skip.Branch(not_equal);
+          frame_->PrepareForReturn();
+          original->Jump();
+          skip.Bind();
+        } else {
+          original->Branch(equal);
+        }
       }
     }
 
@@ -4300,18 +4338,13 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 }
 
 
-bool CodeGenerator::IsActualFunctionReturn(JumpTarget* target) {
-  return (target == &function_return_ && !function_return_is_shadowed_);
-}
-
-
 #ifdef DEBUG
 bool CodeGenerator::HasValidEntryRegisters() {
-  return (allocator()->count(eax) - frame()->register_count(eax) == 0)
-      && (allocator()->count(ebx) - frame()->register_count(ebx) == 0)
-      && (allocator()->count(ecx) - frame()->register_count(ecx) == 0)
-      && (allocator()->count(edx) - frame()->register_count(edx) == 0)
-      && (allocator()->count(edi) - frame()->register_count(edi) == 0);
+  return (allocator()->count(eax) == frame()->register_count(eax))
+      && (allocator()->count(ebx) == frame()->register_count(ebx))
+      && (allocator()->count(ecx) == frame()->register_count(ecx))
+      && (allocator()->count(edx) == frame()->register_count(edx))
+      && (allocator()->count(edi) == frame()->register_count(edi));
 }
 #endif
 

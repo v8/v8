@@ -64,33 +64,33 @@ function testRequest(dcp, arguments, success, result) {
 
 function listener(event, exec_state, event_data, data) {
   try {
-  if (event == Debug.DebugEvent.Break) {
-    // Get the debug command processor.
-    var dcp = exec_state.debugCommandProcessor();
+    if (event == Debug.DebugEvent.Break) {
+      // Get the debug command processor.
+      var dcp = exec_state.debugCommandProcessor();
 
-    // Test some illegal evaluate requests.
-    testRequest(dcp, void 0, false);
-    testRequest(dcp, '{"expression":"1","global"=true}', false);
-    testRequest(dcp, '{"expression":"a","frame":4}', false);
+      // Test some illegal evaluate requests.
+      testRequest(dcp, void 0, false);
+      testRequest(dcp, '{"expression":"1","global"=true}', false);
+      testRequest(dcp, '{"expression":"a","frame":4}', false);
 
-    // Test some legal evaluate requests.
-    testRequest(dcp, '{"expression":"1+2"}', true, 3);
-    testRequest(dcp, '{"expression":"a+2"}', true, 5);
-    testRequest(dcp, '{"expression":"({\\"a\\":1,\\"b\\":2}).b+2"}', true, 4);
+      // Test some legal evaluate requests.
+      testRequest(dcp, '{"expression":"1+2"}', true, 3);
+      testRequest(dcp, '{"expression":"a+2"}', true, 5);
+      testRequest(dcp, '{"expression":"({\\"a\\":1,\\"b\\":2}).b+2"}', true, 4);
 
-    // Test evaluation of a in the stack frames and the global context.
-    testRequest(dcp, '{"expression":"a"}', true, 3);
-    testRequest(dcp, '{"expression":"a","frame":0}', true, 3);
-    testRequest(dcp, '{"expression":"a","frame":1}', true, 2);
-    testRequest(dcp, '{"expression":"a","frame":2}', true, 1);
-    testRequest(dcp, '{"expression":"a","global":true}', true, 1);
-    testRequest(dcp, '{"expression":"this.a","global":true}', true, 1);
+      // Test evaluation of a in the stack frames and the global context.
+      testRequest(dcp, '{"expression":"a"}', true, 3);
+      testRequest(dcp, '{"expression":"a","frame":0}', true, 3);
+      testRequest(dcp, '{"expression":"a","frame":1}', true, 2);
+      testRequest(dcp, '{"expression":"a","frame":2}', true, 1);
+      testRequest(dcp, '{"expression":"a","global":true}', true, 1);
+      testRequest(dcp, '{"expression":"this.a","global":true}', true, 1);
 
-    // Indicate that all was processed.
-    listenerComplete = true;
-  }
+      // Indicate that all was processed.
+      listenerComplete = true;
+    }
   } catch (e) {
-    exception = e
+   exception = e
   };
 };
 

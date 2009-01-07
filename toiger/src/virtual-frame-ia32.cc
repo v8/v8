@@ -594,11 +594,13 @@ void VirtualFrame::Enter() {
   // copy is stored in the frame.  The external reference to esi
   // remains in addition to the cached copy in the frame.
   Push(esi);
+  SyncElementAt(elements_.length() - 1);
 
-  // Store the function in the frame.  The frame owns the register reference
-  // now (ie, it can keep it in edi or spill it later).
+  // Store the function in the frame.  The frame owns the register
+  // reference now (ie, it can keep it in edi or spill it later).
   Push(edi);
   cgen_->allocator()->Unuse(edi);
+  SpillElementAt(elements_.length() - 1);
 }
 
 
@@ -623,6 +625,21 @@ void VirtualFrame::Exit() {
 
   frame_pointer_ = kIllegalIndex;
   EmitPop(ebp);
+}
+
+
+void VirtualFrame::PrepareForReturn() {
+  // Spill all locals. This is necessary to make sure all locals have
+  // the right value when breaking at the return site in the debugger.
+  for (int i = 0; i < expression_base_index(); i++) SpillElementAt(i);
+
+  // Drop all non-local stack elements.
+  Drop(height());
+
+  // Validate state: The expression stack should be empty and the
+  // stack pointer should have been updated to reflect this.
+  ASSERT(height() == 0);
+  ASSERT(stack_pointer_ == expression_base_index() - 1);
 }
 
 

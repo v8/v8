@@ -237,6 +237,12 @@ class VirtualFrame : public Malloced {
   void Enter();
   void Exit();
 
+  // Prepare for returning from the frame by spilling locals and
+  // dropping all non-locals elements in the virtual frame.  This
+  // avoids generating unnecessary merge code when jumping to the
+  // shared return site.  Emits code for spills.
+  void PrepareForReturn();
+
   // Allocate and initialize the frame-allocated locals.  The eax register
   // us clobbered.
   void AllocateStackSlots(int count);
@@ -495,7 +501,7 @@ class VirtualFrame : public Malloced {
 
   // Move frame elements currently in registers or constants, that
   // should be in memory in the expected frame, to memory.
-  void MergeMoveRegistersToMemory(VirtualFrame *expected);
+  void MergeMoveRegistersToMemory(VirtualFrame* expected);
 
   // Make the register-to-register moves necessary to
   // merge this frame with the expected frame.
@@ -504,14 +510,14 @@ class VirtualFrame : public Malloced {
   // This is because some new memory-to-register moves are
   // created in order to break cycles of register moves.
   // Used in the implementation of MergeTo().
-  void MergeMoveRegistersToRegisters(VirtualFrame *expected);
+  void MergeMoveRegistersToRegisters(VirtualFrame* expected);
 
   // Make the memory-to-register and constant-to-register moves
   // needed to make this frame equal the expected frame.
   // Called after all register-to-memory and register-to-register
   // moves have been made.  After this function returns, the frames
   // should be equal.
-  void MergeMoveMemoryToRegisters(VirtualFrame *expected);
+  void MergeMoveMemoryToRegisters(VirtualFrame* expected);
 };
 
 

@@ -454,10 +454,6 @@ class CodeGenerator: public AstVisitor {
   void CodeForStatement(Node* node);
   void CodeForSourcePosition(int pos);
 
-  // Is the given jump target the actual (ie, non-shadowed) function return
-  // target?
-  bool IsActualFunctionReturn(JumpTarget* target);
-
   bool is_eval_;  // Tells whether code is generated for eval.
 
 #ifdef DEBUG
@@ -478,7 +474,6 @@ class CodeGenerator: public AstVisitor {
   RegisterAllocator* allocator_;
   Condition cc_reg_;
   CodeGenState* state_;
-  bool is_inside_try_;
   int break_stack_height_;
   int loop_nesting_;
 
