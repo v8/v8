@@ -31,7 +31,6 @@
 function testFunctionMirror(f) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(f);
-  print(mirror.toJSONProtocol(true));
   var json = mirror.toJSONProtocol(true);
 
   // Check the mirror hierachy.
