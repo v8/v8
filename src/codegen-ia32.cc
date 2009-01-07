@@ -2909,11 +2909,13 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
   //     with '%2s' (see Logger::LogRuntime for all the formats).
   //   2 (array): Arguments to the format string.
   ASSERT_EQ(args->length(), 3);
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (ShouldGenerateLog(args->at(0))) {
     Load(args->at(1));
     Load(args->at(2));
     __ CallRuntime(Runtime::kLog, 2);
   }
+#endif
   // Finally, we're expected to leave a value on the top of the stack.
   frame_->Push(Immediate(Factory::undefined_value()));
 }

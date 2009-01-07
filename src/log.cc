@@ -432,6 +432,7 @@ void Logger::RegExpCompileEvent(Handle<JSRegExp> regexp, bool in_cache) {
 
 
 void Logger::LogRuntime(Vector<const char> format, JSArray* args) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
   ScopedLock sl(mutex_);
   HandleScope scope;
   for (int i = 0; i < format.length(); i++) {
@@ -465,6 +466,7 @@ void Logger::LogRuntime(Vector<const char> format, JSArray* args) {
     }
   }
   fputc('\n', logfile_);
+#endif
 }
 
 

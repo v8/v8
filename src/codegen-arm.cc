@@ -2580,11 +2580,13 @@ void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
   // See comment in CodeGenerator::GenerateLog in codegen-ia32.cc.
   ASSERT_EQ(args->length(), 3);
+#ifdef ENABLE_LOGGING_AND_PROFILING
   if (ShouldGenerateLog(args->at(0))) {
     Load(args->at(1));
     Load(args->at(2));
     __ CallRuntime(Runtime::kLog, 2);
   }
+#endif
   __ mov(r0, Operand(Factory::undefined_value()));
   frame_->Push(r0);
 }

@@ -163,6 +163,8 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
 }
 
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   ASSERT(type != NULL);
   if (!Logger::is_enabled()) return false;
@@ -174,6 +176,8 @@ bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   }
   return false;
 }
+
+#endif
 
 
 // Sets the function info on a function.
