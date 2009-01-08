@@ -103,14 +103,30 @@ void Result::ToRegister(Register target) {
 
 
 // -------------------------------------------------------------------------
+// RegisterFile implementation.
+
+
+void RegisterFile::CopyTo(RegisterFile* other) {
+  for (int i = 0; i < kNumRegisters; i++) {
+    other->ref_counts_[i] = ref_counts_[i];
+  }
+}
+
+
+// -------------------------------------------------------------------------
 // RegisterAllocator implementation.
 
 void RegisterAllocator::Initialize() {
+  Reset();
+  Use(edi);
+}
+
+
+void RegisterAllocator::Reset() {
   registers_.Reset();
   Use(esp);
   Use(ebp);
   Use(esi);
-  Use(edi);
 }
 
 

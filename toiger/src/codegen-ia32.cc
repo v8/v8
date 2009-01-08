@@ -90,14 +90,23 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
 }
 
 
-void CodeGenerator::SetFrame(VirtualFrame* new_frame) {
+void CodeGenerator::SetFrame(VirtualFrame* new_frame,
+                             RegisterFile* non_frame_registers) {
+  RegisterFile saved_counts;
   if (has_valid_frame()) {
     frame_->DetachFromCodeGenerator();
+    // The remaining register reference counts are the non-frame ones.
+    allocator_->SaveTo(&saved_counts);
   }
+
   if (new_frame != NULL) {
+    // Restore the non-frame register references that go with the new frame.
+    allocator_->RestoreFrom(non_frame_registers);
     new_frame->AttachToCodeGenerator();
   }
+
   frame_ = new_frame;
+  saved_counts.CopyTo(non_frame_registers);
 }
 
 
@@ -129,7 +138,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   RegisterAllocator register_allocator(this);
   allocator_ = &register_allocator;
   ASSERT(frame_ == NULL);
-  SetFrame(new VirtualFrame(this));
+  frame_ = new VirtualFrame(this);
   cc_reg_ = no_condition;
   function_return_.set_code_generator(this);
   function_return_is_shadowed_ = false;

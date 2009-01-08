@@ -157,6 +157,9 @@ class RegisterFile BASE_EMBEDDED {
     }
   }
 
+  // Copy the reference counts from this register file to the other.
+  void CopyTo(RegisterFile* other);
+
   static const int kNumRegisters = 8;
 
  private:
@@ -191,6 +194,11 @@ class RegisterAllocator BASE_EMBEDDED {
   // the virtual frame); and the other registers are free.
   void Initialize();
 
+  // Reset the register reference counts to free all non-reserved registers.
+  // A frame-external reference is kept to each of the reserved registers
+  // (esp, ebp, and esi).
+  void Reset();
+
   // Allocate a free register and return a register result if possible or
   // fail and return an invalid result.
   Result Allocate();
@@ -202,6 +210,16 @@ class RegisterAllocator BASE_EMBEDDED {
   // Allocate a free register without spilling any from the current frame or
   // fail and return an invalid result.
   Result AllocateWithoutSpilling();
+
+  // Copy the internal state to a register file, to be restored later by
+  // RestoreFrom.
+  void SaveTo(RegisterFile* register_file) {
+    registers_.CopyTo(register_file);
+  }
+
+  void RestoreFrom(RegisterFile* register_file) {
+    register_file->CopyTo(&registers_);
+  }
 
  private:
   CodeGenerator* cgen_;

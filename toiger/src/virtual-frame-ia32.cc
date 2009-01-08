@@ -308,8 +308,11 @@ void VirtualFrame::MakeMergable() {
   // with the frame.  We simply save the current frame and restore it at the
   // end of this function.  We should find a better way to deal with this.
   VirtualFrame* original_frame = cgen_->frame();
-  ASSERT(cgen_->HasValidEntryRegisters());
-  cgen_->SetFrame(this);
+  RegisterFile non_frame_registers;
+  non_frame_registers.Use(esi);
+  non_frame_registers.Use(ebp);
+  non_frame_registers.Use(esp);
+  cgen_->SetFrame(this, &non_frame_registers);
   ASSERT(cgen_->HasValidEntryRegisters());
 
   // Remove constants from the frame and ensure that no registers are
@@ -383,8 +386,7 @@ void VirtualFrame::MakeMergable() {
 
   delete[] new_elements;
   ASSERT(cgen_->HasValidEntryRegisters());
-  cgen_->SetFrame(original_frame);
-  ASSERT(cgen_->HasValidEntryRegisters());
+  cgen_->SetFrame(original_frame, &non_frame_registers);
 }
 
 

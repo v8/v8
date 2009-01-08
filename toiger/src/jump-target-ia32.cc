@@ -72,7 +72,8 @@ void JumpTarget::Jump() {
     current_frame->MakeMergable();
     expected_frame_ = current_frame;
     ASSERT(cgen_->HasValidEntryRegisters());
-    cgen_->SetFrame(NULL);
+    RegisterFile ignored;
+    cgen_->SetFrame(NULL, &ignored);
   } else {
     current_frame->MergeTo(expected_frame_);
     ASSERT(cgen_->HasValidEntryRegisters());
@@ -102,7 +103,6 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
 
   VirtualFrame* current_frame = cgen_->frame();
   ASSERT(current_frame != NULL);
-  ASSERT(cgen_->HasValidEntryRegisters());
 
   if (expected_frame_ == NULL) {
     expected_frame_ = new VirtualFrame(current_frame);
@@ -132,11 +132,22 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
     Label original_fall_through;
     __ j(NegateCondition(cc), &original_fall_through, NegateHint(hint));
     VirtualFrame* working_frame = new VirtualFrame(current_frame);
-    cgen_->SetFrame(working_frame);
+
+    // Switch to the working frame for the merge code with only the reserved
+    // registers referenced outside the frame.  Explicitly setting
+    // references here is ugly, but temporary.
+    RegisterFile non_frame_registers;
+    non_frame_registers.Use(esi);
+    non_frame_registers.Use(ebp);
+    non_frame_registers.Use(esp);
+    cgen_->SetFrame(working_frame, &non_frame_registers);
+
     working_frame->MergeTo(expected_frame_);
     ASSERT(cgen_->HasValidEntryRegisters());
     __ jmp(&label_);
-    cgen_->SetFrame(current_frame);
+
+    // Restore the current frame and its associated non-frame registers.
+    cgen_->SetFrame(current_frame, &non_frame_registers);
     delete working_frame;
     __ bind(&original_fall_through);
   }
@@ -234,7 +245,14 @@ void JumpTarget::Bind() {
     ASSERT(cgen_->HasValidEntryRegisters());
     expected_frame_ = new VirtualFrame(current_frame);
   } else if (current_frame == NULL) {
-    cgen_->SetFrame(new VirtualFrame(expected_frame_));
+    // Pick up the frame from the label.  No merge code is necessary.
+    // Manually setting the reserved register reference counts is clumsy but
+    // temporary.
+    RegisterFile non_frame_registers;
+    non_frame_registers.Use(esi);
+    non_frame_registers.Use(ebp);
+    non_frame_registers.Use(esp);
+    cgen_->SetFrame(new VirtualFrame(expected_frame_), &non_frame_registers);
     ASSERT(cgen_->HasValidEntryRegisters());
   } else {
     ASSERT(cgen_->HasValidEntryRegisters());
