@@ -379,6 +379,13 @@ static bool RawMatch(const byte* code_base,
           pc += BC_CHECK_REGISTER_GE_LENGTH;
         }
         break;
+      BYTECODE(CHECK_REGISTER_EQ_POS)
+        if (registers[pc[1]] == current) {
+          pc = code_base + Load32(pc + 2);
+        } else {
+          pc += BC_CHECK_REGISTER_EQ_POS_LENGTH;
+        }
+        break;
       BYTECODE(LOOKUP_MAP1) {
         // Look up character in a bitmap.  If we find a 0, then jump to the
         // location at pc + 7.  Otherwise fall through!

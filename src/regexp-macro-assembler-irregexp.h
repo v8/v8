@@ -106,6 +106,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
                                    const Vector<Label*>& destinations);
   virtual void IfRegisterLT(int register_index, int comparand, Label* if_lt);
   virtual void IfRegisterGE(int register_index, int comparand, Label* if_ge);
+  virtual void IfRegisterEqPos(int register_index, Label* if_eq);
 
   virtual IrregexpImplementation Implementation();
   virtual Handle<Object> GetCode(Handle<String> source);

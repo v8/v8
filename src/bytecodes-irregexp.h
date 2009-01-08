@@ -71,8 +71,9 @@ V(LOOKUP_MAP8,       35, 99) /* l_map8 start16 byte_map addr32*             */ \
 V(LOOKUP_HI_MAP8,    36, 99) /* l_himap8 start8 byte_map_addr32 addr32*     */ \
 V(CHECK_REGISTER_LT, 37, 8) /* check_reg_lt register_index value16 addr32   */ \
 V(CHECK_REGISTER_GE, 38, 8) /* check_reg_ge register_index value16 addr32   */ \
-V(CHECK_NOT_AT_START, 39, 5) /* check_not_at_start addr32                   */ \
-V(CHECK_GREEDY,      40, 5) /* check_greedy addr32                          */
+V(CHECK_REGISTER_EQ_POS, 39, 6) /* check_register_eq_pos index addr32       */ \
+V(CHECK_NOT_AT_START, 40, 5) /* check_not_at_start addr32                   */ \
+V(CHECK_GREEDY,      41, 5) /* check_greedy addr32                          */
 
 #define DECLARE_BYTECODES(name, code, length) \
   static const int BC_##name = code;

@@ -86,6 +86,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void GoTo(Label* label);
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
+  virtual void IfRegisterEqPos(int reg, Label* if_eq);
   virtual IrregexpImplementation Implementation();
   virtual void LoadCurrentCharacter(int cp_offset,
                                     Label* on_end_of_input,

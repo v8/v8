@@ -135,6 +135,9 @@ class RegExpMacroAssembler {
   // Check whether a register is < a given constant and go to a label if it is.
   // Backtracks instead if the label is NULL.
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt) = 0;
+  // Check whether a register is == to the current position and go to a
+  // label if it is.
+  virtual void IfRegisterEqPos(int reg, Label* if_eq) = 0;
   virtual IrregexpImplementation Implementation() = 0;
   virtual void LoadCurrentCharacter(int cp_offset,
                                     Label* on_end_of_input,

@@ -373,6 +373,14 @@ void RegExpMacroAssemblerTracer::IfRegisterLT(int register_index,
 }
 
 
+void RegExpMacroAssemblerTracer::IfRegisterEqPos(int register_index,
+                                                 Label* if_eq) {
+  PrintF(" IfRegisterEqPos(register=%d, label[%08x]);\n",
+         register_index, if_eq);
+  assembler_->IfRegisterEqPos(register_index, if_eq);
+}
+
+
 void RegExpMacroAssemblerTracer::IfRegisterGE(int register_index,
                                               int comparand, Label* if_ge) {
   PrintF(" IfRegisterGE(register=%d, number=%d, label[%08x]);\n",

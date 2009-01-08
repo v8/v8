@@ -401,6 +401,14 @@ void RegExpMacroAssemblerIrregexp::IfRegisterGE(int register_index,
 }
 
 
+void RegExpMacroAssemblerIrregexp::IfRegisterEqPos(int register_index,
+                                                   Label* on_eq) {
+  Emit(BC_CHECK_REGISTER_EQ_POS);
+  Emit(register_index);
+  EmitOrLink(on_eq);
+}
+
+
 Handle<Object> RegExpMacroAssemblerIrregexp::GetCode(Handle<String> source) {
   Bind(&backtrack_);
   Emit(BC_POP_BT);

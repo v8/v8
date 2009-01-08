@@ -682,7 +682,8 @@ class ActionNode: public SeqRegExpNode {
     INCREMENT_REGISTER,
     STORE_POSITION,
     BEGIN_SUBMATCH,
-    POSITIVE_SUBMATCH_SUCCESS
+    POSITIVE_SUBMATCH_SUCCESS,
+    EMPTY_MATCH_CHECK
   };
   static ActionNode* SetRegister(int reg, int val, RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
@@ -694,6 +695,11 @@ class ActionNode: public SeqRegExpNode {
   static ActionNode* PositiveSubmatchSuccess(
       int stack_pointer_reg,
       int restore_reg,
+      RegExpNode* on_success);
+  static ActionNode* EmptyMatchCheck(
+      int start_register,
+      int repetition_register,
+      int repetition_limit,
       RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
@@ -725,6 +731,11 @@ class ActionNode: public SeqRegExpNode {
       int stack_pointer_register;
       int current_position_register;
     } u_submatch;
+    struct {
+      int start_register;
+      int repetition_register;
+      int repetition_limit;
+    } u_empty_match_check;
   } data_;
   ActionNode(Type type, RegExpNode* on_success)
       : SeqRegExpNode(on_success),
@@ -1031,6 +1042,10 @@ class GenerationVariant {
   int bound_checked_up_to() { return bound_checked_up_to_; }
   QuickCheckDetails* quick_check_performed() { return &quick_check_performed_; }
   bool mentions_reg(int reg);
+  // Returns true if a deferred position store exists to the specified
+  // register and stores the offset in the out-parameter.  Otherwise
+  // returns false.
+  bool GetStoredPosition(int reg, int* cp_offset);
   // These set methods and AdvanceVariant should be used only on new
   // GenerationVariants - the intention is that GenerationVariants are
   // immutable after creation.

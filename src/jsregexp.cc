@@ -1222,6 +1222,7 @@ class RegExpCompiler {
   inline bool ignore_case() { return ignore_case_; }
   inline bool ascii() { return ascii_; }
 
+  static const int kNoRegister = -1;
  private:
   EndNode* accept_;
   int next_register_;
@@ -1313,8 +1314,26 @@ bool GenerationVariant::mentions_reg(int reg) {
 }
 
 
+bool GenerationVariant::GetStoredPosition(int reg, int* cp_offset) {
+  ASSERT_EQ(0, *cp_offset);
+  for (DeferredAction* action = actions_;
+       action != NULL;
+       action = action->next()) {
+    if (reg == action->reg()) {
+      if (action->type() == ActionNode::STORE_POSITION) {
+        *cp_offset = static_cast<DeferredCapture*>(action)->cp_offset();
+        return true;
+      } else {
+        return false;
+      }
+    }
+  }
+  return false;
+}
+
+
 int GenerationVariant::FindAffectedRegisters(OutSet* affected_registers) {
-  int max_register = -1;
+  int max_register = RegExpCompiler::kNoRegister;
   for (DeferredAction* action = actions_;
        action != NULL;
        action = action->next()) {
@@ -1572,6 +1591,18 @@ ActionNode* ActionNode::PositiveSubmatchSuccess(int stack_reg,
   ActionNode* result = new ActionNode(POSITIVE_SUBMATCH_SUCCESS, on_success);
   result->data_.u_submatch.stack_pointer_register = stack_reg;
   result->data_.u_submatch.current_position_register = position_reg;
+  return result;
+}
+
+
+ActionNode* ActionNode::EmptyMatchCheck(int start_register,
+                                        int repetition_register,
+                                        int repetition_limit,
+                                        RegExpNode* on_success) {
+  ActionNode* result = new ActionNode(EMPTY_MATCH_CHECK, on_success);
+  result->data_.u_empty_match_check.start_register = start_register;
+  result->data_.u_empty_match_check.repetition_register = repetition_register;
+  result->data_.u_empty_match_check.repetition_limit = repetition_limit;
   return result;
 }
 
@@ -2967,6 +2998,37 @@ bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
       assembler->WriteStackPointerToRegister(
           data_.u_submatch.stack_pointer_register);
       return on_success()->Emit(compiler, variant);
+    case EMPTY_MATCH_CHECK: {
+      int start_pos_reg = data_.u_empty_match_check.start_register;
+      int stored_pos = 0;
+      int rep_reg = data_.u_empty_match_check.repetition_register;
+      bool has_minimum = (rep_reg != RegExpCompiler::kNoRegister);
+      bool know_dist = variant->GetStoredPosition(start_pos_reg, &stored_pos);
+      if (know_dist && !has_minimum && stored_pos == variant->cp_offset()) {
+        // If we know we haven't advanced and there is no minimum we
+        // can just backtrack immediately.
+        assembler->GoTo(variant->backtrack());
+        return true;
+      } else if (know_dist && stored_pos < variant->cp_offset()) {
+        // If we know we've advanced we can generate the continuation
+        // immediately.
+        return on_success()->Emit(compiler, variant);
+      }
+      if (!variant->is_trivial()) return variant->Flush(compiler, this);
+      Label skip_empty_check;
+      // If we have a minimum number of repetitions we check the current
+      // number first and skip the empty check if it's not enough.
+      if (has_minimum) {
+        int limit = data_.u_empty_match_check.repetition_limit;
+        assembler->IfRegisterLT(rep_reg, limit, &skip_empty_check);
+      }
+      // If the match is empty we bail out, otherwise we fall through
+      // to the on-success continuation.
+      assembler->IfRegisterEqPos(data_.u_empty_match_check.start_register,
+                                 variant->backtrack());
+      assembler->Bind(&skip_empty_check);
+      return on_success()->Emit(compiler, variant);
+    }
     case POSITIVE_SUBMATCH_SUCCESS:
       if (!variant->is_trivial()) return variant->Flush(compiler, this);
       // TODO(erikcorry): Implement support.
@@ -3286,6 +3348,12 @@ void DotPrinter::VisitAction(ActionNode* that) {
     case ActionNode::POSITIVE_SUBMATCH_SUCCESS:
       stream()->Add("label=\"escape\", shape=septagon");
       break;
+    case ActionNode::EMPTY_MATCH_CHECK:
+      stream()->Add("label=\"$%i=$pos?,$%i<%i?\", shape=septagon",
+                    that->data_.u_empty_match_check.start_register,
+                    that->data_.u_empty_match_check.repetition_register,
+                    that->data_.u_empty_match_check.repetition_limit);
+      break;
   }
   stream()->Add("];\n");
   PrintAttributes(that);
@@ -3511,7 +3579,11 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   static const int kMaxUnrolledMinMatches = 3;  // Unroll (foo)+ and (foo){3,}
   static const int kMaxUnrolledMaxMatches = 3;  // Unroll (foo)? and (foo){x,3}
   if (max == 0) return on_success;  // This can happen due to recursion.
-  if (body->min_match() > 0) {
+  bool body_can_be_empty = (body->min_match() == 0);
+  int body_start_reg = RegExpCompiler::kNoRegister;
+  if (body_can_be_empty) {
+    body_start_reg = compiler->AllocateRegister();
+  } else {
     if (min > 0 && min <= kMaxUnrolledMinMatches) {
       int new_max = (max == kInfinity) ? max : max - min;
       // Recurse once to get the loop or optional matches after the fixed ones.
@@ -3548,12 +3620,27 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   bool has_min = min > 0;
   bool has_max = max < RegExpTree::kInfinity;
   bool needs_counter = has_min || has_max;
-  int reg_ctr = needs_counter ? compiler->AllocateRegister() : -1;
+  int reg_ctr = needs_counter
+      ? compiler->AllocateRegister()
+      : RegExpCompiler::kNoRegister;
   LoopChoiceNode* center = new LoopChoiceNode(body->min_match() == 0);
   RegExpNode* loop_return = needs_counter
       ? static_cast<RegExpNode*>(ActionNode::IncrementRegister(reg_ctr, center))
       : static_cast<RegExpNode*>(center);
+  if (body_can_be_empty) {
+    // If the body can be empty we need to check if it was and then
+    // backtrack.
+    loop_return = ActionNode::EmptyMatchCheck(body_start_reg,
+                                              reg_ctr,
+                                              min,
+                                              loop_return);
+  }
   RegExpNode* body_node = body->ToNode(compiler, loop_return);
+  if (body_can_be_empty) {
+    // If the body can be empty we need to store the start position
+    // so we can bail out if it was empty.
+    body_node = ActionNode::StorePosition(body_start_reg, body_node);
+  }
   GuardedAlternative body_alt(body_node);
   if (has_max) {
     Guard* body_guard = new Guard(reg_ctr, Guard::LT, max);

@@ -744,6 +744,13 @@ void RegExpMacroAssemblerIA32::IfRegisterLT(int reg,
 }
 
 
+void RegExpMacroAssemblerIA32::IfRegisterEqPos(int reg,
+                                               Label* if_eq) {
+  __ cmp(edi, register_location(reg));
+  BranchOrBacktrack(equal, if_eq);
+}
+
+
 RegExpMacroAssembler::IrregexpImplementation
     RegExpMacroAssemblerIA32::Implementation() {
   return kIA32Implementation;
