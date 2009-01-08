@@ -958,40 +958,6 @@ DebugCommandProcessor.prototype.responseIsRunning = function (response) {
 }
 
 
-function RequestPacket(command) {
-  this.seq = 0;
-  this.type = 'request';
-  this.command = command;
-}
-
-
-RequestPacket.prototype.toJSONProtocol = function() {
-  // Encode the protocol header.
-  var json = '{';
-  json += '"seq":' + this.seq;
-  json += ',"type":"' + this.type + '"';
-  if (this.command) {
-    json += ',"command":' + StringToJSON_(this.command);
-  }
-  if (this.arguments) {
-    json += ',"arguments":';
-    // Encode the arguments part.
-    if (this.arguments.toJSONProtocol) {
-      json += this.arguments.toJSONProtocol()
-    } else {
-      json += SimpleObjectToJSON_(this.arguments);
-    }
-  }
-  json += '}';
-  return json;
-}
-
-
-DebugCommandProcessor.prototype.createRequest = function(command) {
-  return new RequestPacket(command);
-};
-
-
 function ResponsePacket(request) {
   // Build the initial response from the request.
   this.seq = next_response_seq++;
