@@ -286,14 +286,29 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
 #endif
       VisitStatements(body);
 
-      // Generate a return statement if necessary.  A NULL frame indicates
-      // that control flow leaves the body on all paths and cannot fall
-      // through.
+      // Handle the return from the function.
       if (has_valid_frame()) {
+        // If there is a valid frame, control flow can fall off the end of
+        // the body.  In that case there is an implicit return statement.
+        // Compiling a return statement will jump to the return sequence if
+        // it is already generated or generate it if not.
+        ASSERT(!function_return_is_shadowed_);
         Literal undefined(Factory::undefined_value());
         ReturnStatement statement(&undefined);
         statement.set_statement_pos(fun->end_position());
         VisitReturnStatement(&statement);
+      } else if (function_return_.is_linked()) {
+        // If the return target has dangling jumps to it, then we have not
+        // yet generated the return sequence.  This can happen when (a)
+        // control does not flow off the end of the body so we did not
+        // compile an artificial return statement just above, and (b) there
+        // are return statements in the body but (c) they are all shadowed.
+        //
+        // There is no valid frame here but it is safe (also necessary) to
+        // load the return value into eax.
+        __ mov(eax, Immediate(Factory::undefined_value()));
+        function_return_.Bind();
+        GenerateReturnSequence();
       }
     }
   }
@@ -1648,27 +1663,37 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
       function_return_.Jump();
     } else {
       function_return_.Bind();
-      if (FLAG_trace) {
-        frame_->Push(eax);  // Materialize result on the stack.
-        frame_->CallRuntime(Runtime::kTraceExit, 1);
-      }
-
-      // Add a label for checking the size of the code used for returning.
-      Label check_exit_codesize;
-      __ bind(&check_exit_codesize);
-
-      // Leave the frame and return popping the arguments and the
-      // receiver.
-      frame_->Exit();
-      __ ret((scope_->num_parameters() + 1) * kPointerSize);
-      DeleteFrame();
-
-      // Check that the size of the code used for returning matches what is
-      // expected by the debugger.
-      ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
-                __ SizeOfCodeGeneratedSince(&check_exit_codesize));
+      GenerateReturnSequence();
     }
   }
+}
+
+
+void CodeGenerator::GenerateReturnSequence() {
+  // The return value is a live (but not currently reference counted)
+  // reference to eax.  This is safe because the current frame does not
+  // contain a reference to eax (it is prepared for the return by spilling
+  // all registers).
+  ASSERT(has_valid_frame());
+  if (FLAG_trace) {
+    frame_->Push(eax);  // Materialize result on the stack.
+    frame_->CallRuntime(Runtime::kTraceExit, 1);
+  }
+
+  // Add a label for checking the size of the code used for returning.
+  Label check_exit_codesize;
+  __ bind(&check_exit_codesize);
+
+  // Leave the frame and return popping the arguments and the
+  // receiver.
+  frame_->Exit();
+  __ ret((scope_->num_parameters() + 1) * kPointerSize);
+  DeleteFrame();
+
+  // Check that the size of the code used for returning matches what is
+  // expected by the debugger.
+  ASSERT_EQ(Debug::kIa32JSReturnSequenceLength,
+            __ SizeOfCodeGeneratedSince(&check_exit_codesize));
 }
 
 
