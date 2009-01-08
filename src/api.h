@@ -309,7 +309,8 @@ MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 // Implementations of OpenHandle
 
 #define MAKE_OPEN_HANDLE(From, To) \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(const v8::From* that) { \
+  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(\
+    const v8::From* that) { \
     return v8::internal::Handle<v8::internal::To>( \
         reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that))); \
   }
