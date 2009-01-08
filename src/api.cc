@@ -174,7 +174,7 @@ static inline bool EmptyCheck(const char* location, v8::Handle<v8::Data> obj) {
 }
 
 
-static inline bool EmptyCheck(const char* location, v8::Data* obj) {
+static inline bool EmptyCheck(const char* location, const v8::Data* obj) {
   return (obj == 0) ? ReportEmptyHandle(location) : false;
 }
 
@@ -1137,7 +1137,7 @@ void v8::TryCatch::SetCaptureMessage(bool value) {
 // --- M e s s a g e ---
 
 
-Local<String> Message::Get() {
+Local<String> Message::Get() const {
   ON_BAILOUT("v8::Message::Get()", return Local<String>());
   HandleScope scope;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1147,7 +1147,7 @@ Local<String> Message::Get() {
 }
 
 
-v8::Handle<Value> Message::GetScriptResourceName() {
+v8::Handle<Value> Message::GetScriptResourceName() const {
   if (IsDeadCheck("v8::Message::GetScriptResourceName()")) {
     return Local<String>();
   }
@@ -1189,7 +1189,7 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
 }
 
 
-int Message::GetLineNumber() {
+int Message::GetLineNumber() const {
   ON_BAILOUT("v8::Message::GetLineNumber()", return -1);
   HandleScope scope;
   EXCEPTION_PREAMBLE();
@@ -1201,7 +1201,7 @@ int Message::GetLineNumber() {
 }
 
 
-int Message::GetStartPosition() {
+int Message::GetStartPosition() const {
   if (IsDeadCheck("v8::Message::GetStartPosition()")) return 0;
   HandleScope scope;
 
@@ -1210,7 +1210,7 @@ int Message::GetStartPosition() {
 }
 
 
-int Message::GetEndPosition() {
+int Message::GetEndPosition() const {
   if (IsDeadCheck("v8::Message::GetEndPosition()")) return 0;
   HandleScope scope;
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
@@ -1218,7 +1218,7 @@ int Message::GetEndPosition() {
 }
 
 
-int Message::GetStartColumn() {
+int Message::GetStartColumn() const {
   if (IsDeadCheck("v8::Message::GetStartColumn()")) return 0;
   HandleScope scope;
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
@@ -1232,7 +1232,7 @@ int Message::GetStartColumn() {
 }
 
 
-int Message::GetEndColumn() {
+int Message::GetEndColumn() const {
   if (IsDeadCheck("v8::Message::GetEndColumn()")) return 0;
   HandleScope scope;
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
@@ -1248,7 +1248,7 @@ int Message::GetEndColumn() {
 }
 
 
-Local<String> Message::GetSourceLine() {
+Local<String> Message::GetSourceLine() const {
   ON_BAILOUT("v8::Message::GetSourceLine()", return Local<String>());
   HandleScope scope;
   EXCEPTION_PREAMBLE();
@@ -1272,73 +1272,73 @@ void Message::PrintCurrentStackTrace(FILE* out) {
 
 // --- D a t a ---
 
-bool Value::IsUndefined() {
+bool Value::IsUndefined() const {
   if (IsDeadCheck("v8::Value::IsUndefined()")) return false;
   return Utils::OpenHandle(this)->IsUndefined();
 }
 
 
-bool Value::IsNull() {
+bool Value::IsNull() const {
   if (IsDeadCheck("v8::Value::IsNull()")) return false;
   return Utils::OpenHandle(this)->IsNull();
 }
 
 
-bool Value::IsTrue() {
+bool Value::IsTrue() const {
   if (IsDeadCheck("v8::Value::IsTrue()")) return false;
   return Utils::OpenHandle(this)->IsTrue();
 }
 
 
-bool Value::IsFalse() {
+bool Value::IsFalse() const {
   if (IsDeadCheck("v8::Value::IsFalse()")) return false;
   return Utils::OpenHandle(this)->IsFalse();
 }
 
 
-bool Value::IsFunction() {
+bool Value::IsFunction() const {
   if (IsDeadCheck("v8::Value::IsFunction()")) return false;
   return Utils::OpenHandle(this)->IsJSFunction();
 }
 
 
-bool Value::IsString() {
+bool Value::IsString() const {
   if (IsDeadCheck("v8::Value::IsString()")) return false;
   return Utils::OpenHandle(this)->IsString();
 }
 
 
-bool Value::IsArray() {
+bool Value::IsArray() const {
   if (IsDeadCheck("v8::Value::IsArray()")) return false;
   return Utils::OpenHandle(this)->IsJSArray();
 }
 
 
-bool Value::IsObject() {
+bool Value::IsObject() const {
   if (IsDeadCheck("v8::Value::IsObject()")) return false;
   return Utils::OpenHandle(this)->IsJSObject();
 }
 
 
-bool Value::IsNumber() {
+bool Value::IsNumber() const {
   if (IsDeadCheck("v8::Value::IsNumber()")) return false;
   return Utils::OpenHandle(this)->IsNumber();
 }
 
 
-bool Value::IsBoolean() {
+bool Value::IsBoolean() const {
   if (IsDeadCheck("v8::Value::IsBoolean()")) return false;
   return Utils::OpenHandle(this)->IsBoolean();
 }
 
 
-bool Value::IsExternal() {
+bool Value::IsExternal() const {
   if (IsDeadCheck("v8::Value::IsExternal()")) return false;
   return Utils::OpenHandle(this)->IsProxy();
 }
 
 
-bool Value::IsInt32() {
+bool Value::IsInt32() const {
   if (IsDeadCheck("v8::Value::IsInt32()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return true;
@@ -1350,14 +1350,14 @@ bool Value::IsInt32() {
 }
 
 
-bool Value::IsDate() {
+bool Value::IsDate() const {
   if (IsDeadCheck("v8::Value::IsDate()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->HasSpecificClassOf(i::Heap::Date_symbol());
 }
 
 
-Local<String> Value::ToString() {
+Local<String> Value::ToString() const {
   if (IsDeadCheck("v8::Value::ToString()")) return Local<String>();
   LOG_API("ToString");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1373,7 +1373,7 @@ Local<String> Value::ToString() {
 }
 
 
-Local<String> Value::ToDetailString() {
+Local<String> Value::ToDetailString() const {
   if (IsDeadCheck("v8::Value::ToDetailString()")) return Local<String>();
   LOG_API("ToDetailString");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1389,7 +1389,7 @@ Local<String> Value::ToDetailString() {
 }
 
 
-Local<v8::Object> Value::ToObject() {
+Local<v8::Object> Value::ToObject() const {
   if (IsDeadCheck("v8::Value::ToObject()")) return Local<v8::Object>();
   LOG_API("ToObject");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1405,7 +1405,7 @@ Local<v8::Object> Value::ToObject() {
 }
 
 
-Local<Boolean> Value::ToBoolean() {
+Local<Boolean> Value::ToBoolean() const {
   if (IsDeadCheck("v8::Value::ToBoolean()")) return Local<Boolean>();
   LOG_API("ToBoolean");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1415,7 +1415,7 @@ Local<Boolean> Value::ToBoolean() {
 }
 
 
-Local<Number> Value::ToNumber() {
+Local<Number> Value::ToNumber() const {
   if (IsDeadCheck("v8::Value::ToNumber()")) return Local<Number>();
   LOG_API("ToNumber");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1431,7 +1431,7 @@ Local<Number> Value::ToNumber() {
 }
 
 
-Local<Integer> Value::ToInteger() {
+Local<Integer> Value::ToInteger() const {
   if (IsDeadCheck("v8::Value::ToInteger()")) return Local<Integer>();
   LOG_API("ToInteger");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1527,7 +1527,7 @@ v8::Date* v8::Date::Cast(v8::Value* that) {
 }
 
 
-bool Value::BooleanValue() {
+bool Value::BooleanValue() const {
   if (IsDeadCheck("v8::Value::BooleanValue()")) return false;
   LOG_API("BooleanValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1537,7 +1537,7 @@ bool Value::BooleanValue() {
 }
 
 
-double Value::NumberValue() {
+double Value::NumberValue() const {
   if (IsDeadCheck("v8::Value::NumberValue()")) return i::OS::nan_value();
   LOG_API("NumberValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1553,7 +1553,7 @@ double Value::NumberValue() {
 }
 
 
-int64_t Value::IntegerValue() {
+int64_t Value::IntegerValue() const {
   if (IsDeadCheck("v8::Value::IntegerValue()")) return 0;
   LOG_API("IntegerValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1573,7 +1573,7 @@ int64_t Value::IntegerValue() {
 }
 
 
-Local<Int32> Value::ToInt32() {
+Local<Int32> Value::ToInt32() const {
   if (IsDeadCheck("v8::Value::ToInt32()")) return Local<Int32>();
   LOG_API("ToInt32");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1589,7 +1589,7 @@ Local<Int32> Value::ToInt32() {
 }
 
 
-Local<Uint32> Value::ToUint32() {
+Local<Uint32> Value::ToUint32() const {
   if (IsDeadCheck("v8::Value::ToUint32()")) return Local<Uint32>();
   LOG_API("ToUInt32");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1605,7 +1605,7 @@ Local<Uint32> Value::ToUint32() {
 }
 
 
-Local<Uint32> Value::ToArrayIndex() {
+Local<Uint32> Value::ToArrayIndex() const {
   if (IsDeadCheck("v8::Value::ToArrayIndex()")) return Local<Uint32>();
   LOG_API("ToArrayIndex");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1632,7 +1632,7 @@ Local<Uint32> Value::ToArrayIndex() {
 }
 
 
-int32_t Value::Int32Value() {
+int32_t Value::Int32Value() const {
   if (IsDeadCheck("v8::Value::Int32Value()")) return 0;
   LOG_API("Int32Value");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1653,7 +1653,7 @@ int32_t Value::Int32Value() {
 }
 
 
-bool Value::Equals(Handle<Value> that) {
+bool Value::Equals(Handle<Value> that) const {
   if (IsDeadCheck("v8::Value::Equals()")
       || EmptyCheck("v8::Value::Equals()", this)
       || EmptyCheck("v8::Value::Equals()", that))
@@ -1670,7 +1670,7 @@ bool Value::Equals(Handle<Value> that) {
 }
 
 
-bool Value::StrictEquals(Handle<Value> that) {
+bool Value::StrictEquals(Handle<Value> that) const {
   if (IsDeadCheck("v8::Value::StrictEquals()")
       || EmptyCheck("v8::Value::StrictEquals()", this)
       || EmptyCheck("v8::Value::StrictEquals()", that))
@@ -1700,7 +1700,7 @@ bool Value::StrictEquals(Handle<Value> that) {
 }
 
 
-uint32_t Value::Uint32Value() {
+uint32_t Value::Uint32Value() const {
   if (IsDeadCheck("v8::Value::Uint32Value()")) return 0;
   LOG_API("Uint32Value");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -1922,13 +1922,13 @@ void v8::Object::TurnOnAccessCheck() {
 }
 
 
-Local<v8::Object> Function::NewInstance() {
+Local<v8::Object> Function::NewInstance() const {
   return NewInstance(0, NULL);
 }
 
 
 Local<v8::Object> Function::NewInstance(int argc,
-                                        v8::Handle<v8::Value> argv[]) {
+                                        v8::Handle<v8::Value> argv[]) const {
   ON_BAILOUT("v8::Function::NewInstance()", return Local<v8::Object>());
   LOG_API("Function::NewInstance");
   HandleScope scope;
@@ -1971,25 +1971,25 @@ void Function::SetName(v8::Handle<v8::String> name) {
 }
 
 
-Handle<Value> Function::GetName() {
+Handle<Value> Function::GetName() const {
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   return Utils::ToLocal(i::Handle<i::Object>(func->shared()->name()));
 }
 
 
-int String::Length() {
+int String::Length() const {
   if (IsDeadCheck("v8::String::Length()")) return 0;
   return Utils::OpenHandle(this)->length();
 }
 
 
-int String::Utf8Length() {
+int String::Utf8Length() const {
   if (IsDeadCheck("v8::String::Utf8Length()")) return 0;
   return Utils::OpenHandle(this)->Utf8Length();
 }
 
 
-int String::WriteUtf8(char* buffer, int capacity) {
+int String::WriteUtf8(char* buffer, int capacity) const {
   if (IsDeadCheck("v8::String::WriteUtf8()")) return 0;
   LOG_API("String::WriteUtf8");
   i::Handle<i::String> str = Utils::OpenHandle(this);
@@ -2030,7 +2030,7 @@ int String::WriteUtf8(char* buffer, int capacity) {
 }
 
 
-int String::WriteAscii(char* buffer, int start, int length) {
+int String::WriteAscii(char* buffer, int start, int length) const {
   if (IsDeadCheck("v8::String::WriteAscii()")) return 0;
   LOG_API("String::WriteAscii");
   ASSERT(start >= 0 && length >= -1);
@@ -2055,7 +2055,7 @@ int String::WriteAscii(char* buffer, int start, int length) {
 }
 
 
-int String::Write(uint16_t* buffer, int start, int length) {
+int String::Write(uint16_t* buffer, int start, int length) const {
   if (IsDeadCheck("v8::String::Write()")) return 0;
   LOG_API("String::Write");
   ASSERT(start >= 0 && length >= -1);
@@ -2077,7 +2077,7 @@ int String::Write(uint16_t* buffer, int start, int length) {
 }
 
 
-bool v8::String::IsExternal() {
+bool v8::String::IsExternal() const {
   EnsureInitialized("v8::String::IsExternal()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
   i::StringShape shape(*str);
@@ -2085,7 +2085,7 @@ bool v8::String::IsExternal() {
 }
 
 
-bool v8::String::IsExternalAscii() {
+bool v8::String::IsExternalAscii() const {
   EnsureInitialized("v8::String::IsExternalAscii()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
   i::StringShape shape(*str);
@@ -2093,7 +2093,8 @@ bool v8::String::IsExternalAscii() {
 }
 
 
-v8::String::ExternalStringResource* v8::String::GetExternalStringResource() {
+v8::String::ExternalStringResource*
+v8::String::GetExternalStringResource() const {
   EnsureInitialized("v8::String::GetExternalStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
   ASSERT(str->IsExternalTwoByteString());
@@ -2103,7 +2104,7 @@ v8::String::ExternalStringResource* v8::String::GetExternalStringResource() {
 
 
 v8::String::ExternalAsciiStringResource*
-      v8::String::GetExternalAsciiStringResource() {
+      v8::String::GetExternalAsciiStringResource() const {
   EnsureInitialized("v8::String::GetExternalAsciiStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
   ASSERT(str->IsExternalAsciiString());
@@ -2112,21 +2113,21 @@ v8::String::ExternalAsciiStringResource*
 }
 
 
-double Number::Value() {
+double Number::Value() const {
   if (IsDeadCheck("v8::Number::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->Number();
 }
 
 
-bool Boolean::Value() {
+bool Boolean::Value() const {
   if (IsDeadCheck("v8::Boolean::Value()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->IsTrue();
 }
 
 
-int64_t Integer::Value() {
+int64_t Integer::Value() const {
   if (IsDeadCheck("v8::Integer::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
@@ -2137,7 +2138,7 @@ int64_t Integer::Value() {
 }
 
 
-int32_t Int32::Value() {
+int32_t Int32::Value() const {
   if (IsDeadCheck("v8::Int32::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
@@ -2148,7 +2149,7 @@ int32_t Int32::Value() {
 }
 
 
-void* External::Value() {
+void* External::Value() const {
   if (IsDeadCheck("v8::External::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return reinterpret_cast<void*>(i::Proxy::cast(*obj)->proxy());
@@ -2529,7 +2530,7 @@ Local<v8::Value> v8::Date::New(double time) {
 }
 
 
-double v8::Date::NumberValue() {
+double v8::Date::NumberValue() const {
   if (IsDeadCheck("v8::Date::NumberValue()")) return 0;
   LOG_API("Date::NumberValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -2546,7 +2547,7 @@ Local<v8::Array> v8::Array::New(int length) {
 }
 
 
-uint32_t v8::Array::Length() {
+uint32_t v8::Array::Length() const {
   if (IsDeadCheck("v8::Array::Length()")) return 0;
   i::Handle<i::JSArray> obj = Utils::OpenHandle(this);
   i::Object* length = obj->length();
