@@ -477,13 +477,22 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
 
 
 void CodeGenerator::LoadGlobal() {
-  frame_->EmitPush(GlobalObject());
+  if (in_spilled_code()) {
+    frame_->EmitPush(GlobalObject());
+  } else {
+    Result temp = allocator_->Allocate();
+    __ mov(temp.reg(), GlobalObject());
+    frame_->Push(&temp);
+  }
 }
 
 
-void CodeGenerator::LoadGlobalReceiver(Register scratch) {
-  __ mov(scratch, GlobalObject());
-  frame_->EmitPush(FieldOperand(scratch, GlobalObject::kGlobalReceiverOffset));
+void CodeGenerator::LoadGlobalReceiver() {
+  Result temp = allocator_->Allocate();
+  Register reg = temp.reg();
+  __ mov(reg, GlobalObject());
+  __ mov(reg, FieldOperand(reg, GlobalObject::kGlobalReceiverOffset));
+  frame_->Push(&temp);
 }
 
 
@@ -1361,7 +1370,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   // Push the arguments ("left-to-right") on the stack.
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
-    LoadAndSpill(args->at(i));
+    Load(args->at(i));
   }
 
   // Record the position for debugging purposes.
@@ -1370,10 +1379,12 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   // Use the shared code stub to call the function.
   CallFunctionStub call_function(arg_count);
   frame_->CallStub(&call_function, arg_count + 1);
+  Result result = allocator_->Allocate(eax);
 
-  // Restore context and pop function from the stack.
+  // Restore context and replace function on the stack with the
+  // result of the stub invocation.
   frame_->RestoreContextRegister();
-  __ mov(frame_->Top(), eax);
+  frame_->SetElementAt(0, &result);
 }
 
 
@@ -3172,7 +3183,6 @@ void CodeGenerator::VisitProperty(Property* node) {
 
 
 void CodeGenerator::VisitCall(Call* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Call");
 
   ZoneList<Expression*>* args = node->arguments();
@@ -3199,16 +3209,17 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
 
     // Push the name of the function and the receiver onto the stack.
-    frame_->EmitPush(Immediate(var->name()));
+    frame_->Push(var->name());
 
     // Pass the global object as the receiver and let the IC stub
     // patch the stack to use the global proxy as 'this' in the
     // invoked function.
     LoadGlobal();
+
     // Load the arguments.
     int arg_count = args->length();
     for (int i = 0; i < arg_count; i++) {
-      LoadAndSpill(args->at(i));
+      Load(args->at(i));
     }
 
     // Setup the receiver register and call the IC initialization code.
@@ -3218,10 +3229,11 @@ void CodeGenerator::VisitCall(Call* node) {
     CodeForSourcePosition(node->position());
     frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
                            arg_count + 1);
+    Result result = allocator_->Allocate(eax);
     frame_->RestoreContextRegister();
 
-    // Overwrite the function on the stack with the result.
-    __ mov(frame_->Top(), eax);
+    // Replace the function on the stack with the result.
+    frame_->SetElementAt(0, &result);
 
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
@@ -3230,14 +3242,14 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
 
     // Load the function
-    frame_->EmitPush(esi);
-    frame_->EmitPush(Immediate(var->name()));
+    frame_->Push(esi);
+    frame_->Push(var->name());
     frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     // eax: slot value; edx: receiver
 
     // Load the receiver.
-    frame_->EmitPush(eax);
-    frame_->EmitPush(edx);
+    frame_->Push(eax);
+    frame_->Push(edx);
 
     // Call the function.
     CallWithArguments(args, node->position());
@@ -3252,13 +3264,13 @@ void CodeGenerator::VisitCall(Call* node) {
       // ------------------------------------------------------------------
 
       // Push the name of the function and the receiver onto the stack.
-      frame_->EmitPush(Immediate(literal->handle()));
-      LoadAndSpill(property->obj());
+      frame_->Push(literal->handle());
+      Load(property->obj());
 
       // Load the arguments.
       int arg_count = args->length();
       for (int i = 0; i < arg_count; i++) {
-        LoadAndSpill(args->at(i));
+        Load(args->at(i));
       }
 
       // Call the IC initialization code.
@@ -3267,10 +3279,11 @@ void CodeGenerator::VisitCall(Call* node) {
         : ComputeCallInitialize(arg_count);
       CodeForSourcePosition(node->position());
       frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
+      Result result = allocator_->Allocate(eax);
       frame_->RestoreContextRegister();
 
-      // Overwrite the function on the stack with the result.
-      __ mov(frame_->Top(), eax);
+      // Replace the function on the stack with the result.
+      frame_->SetElementAt(0, &result);
 
     } else {
       // -------------------------------------------
@@ -3279,11 +3292,11 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
-      frame_->SpillAll();
-      ref.GetValueAndSpill(NOT_INSIDE_TYPEOF);
+      ref.GetValue(NOT_INSIDE_TYPEOF);
 
       // Pass receiver to called function.
       // The reference's size is non-negative.
+      frame_->SpillAll();
       frame_->EmitPush(frame_->ElementAt(ref.size()));
 
       // Call the function.
@@ -3296,10 +3309,10 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
 
     // Load the function.
-    LoadAndSpill(function);
+    Load(function);
 
     // Pass the global proxy as the receiver.
-    LoadGlobalReceiver(eax);
+    LoadGlobalReceiver();
 
     // Call the function.
     CallWithArguments(args, node->position());
@@ -3308,7 +3321,6 @@ void CodeGenerator::VisitCall(Call* node) {
 
 
 void CodeGenerator::VisitCallNew(CallNew* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CallNew");
   CodeForStatement(node);
 
@@ -3321,15 +3333,19 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // Compute function to call and use the global object as the
   // receiver. There is no need to use the global proxy here because
   // it will always be replaced with a newly allocated object.
-  LoadAndSpill(node->expression());
+  Load(node->expression());
   LoadGlobal();
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = node->arguments();
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
-    LoadAndSpill(args->at(i));
+    Load(args->at(i));
   }
+
+  // TODO(): Get rid of this spilling. It is only necessary because we
+  // load the function from the non-virtual stack.
+  frame_->SpillAll();
 
   // Constructors are called with the number of arguments in register
   // eax for now. Another option would be to have separate construct
@@ -3345,8 +3361,10 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   CodeForSourcePosition(node->position());
   Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
   frame_->CallCodeObject(ic, RelocInfo::CONSTRUCT_CALL, args->length() + 1);
-  // Discard the function and "push" the newly created object.
-  __ mov(frame_->Top(), eax);
+  Result result = allocator_->Allocate(eax);
+
+  // Replace the function on the stack with the result.
+  frame_->SetElementAt(0, &result);
 }
 
 
@@ -3365,6 +3383,7 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 
   // Prepare stack for call to resolved function.
   LoadAndSpill(function);
+
   // Allocate a frame slot for the receiver.
   frame_->EmitPush(Immediate(Factory::undefined_value()));
   int arg_count = args->length();

@@ -250,10 +250,16 @@ void VirtualFrame::SpillAll() {
 void VirtualFrame::PrepareForCall(int frame_arg_count) {
   ASSERT(height() >= frame_arg_count);
 
-  // Below the stack pointer, spill all registers.
+  // Below the stack pointer, spill all registers and make sure that
+  // locals have the right values by sync'ing them. The sync'ing is
+  // necessary to give the debugger a consistent view of the values of
+  // locals in the frame.
   for (int i = 0; i <= stack_pointer_; i++) {
-    if (elements_[i].is_register()) {
+    FrameElement element = elements_[i];
+    if (element.is_register()) {
       SpillElementAt(i);
+    } else if (element.is_valid() && i < expression_base_index()) {
+      SyncElementAt(i);
     }
   }
 
