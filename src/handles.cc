@@ -99,8 +99,9 @@ void SetExpectedNofPropertiesFromEstimate(Handle<JSFunction> func,
 }
 
 
-void NormalizeProperties(Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION_VOID(object->NormalizeProperties());
+void NormalizeProperties(Handle<JSObject> object,
+                         PropertyNormalizationMode mode) {
+  CALL_HEAP_FUNCTION_VOID(object->NormalizeProperties(mode));
 }
 
 
@@ -454,7 +455,7 @@ OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
     // Normalize the properties of object to avoid n^2 behavior
     // when extending the object multiple properties.
     unused_property_fields_ = object->map()->unused_property_fields();
-    NormalizeProperties(object_);
+    NormalizeProperties(object_, KEEP_INOBJECT_PROPERTIES);
     has_been_transformed_ = true;
 
   } else {

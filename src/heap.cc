@@ -2293,6 +2293,7 @@ Object* Heap::CopyFixedArray(FixedArray* src) {
 
 
 Object* Heap::AllocateFixedArray(int length) {
+  if (length == 0) return empty_fixed_array();
   Object* result = AllocateRawFixedArray(length);
   if (!result->IsFailure()) {
     // Initialize header.

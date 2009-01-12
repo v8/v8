@@ -96,7 +96,8 @@ class Handle {
 // an object of expected type, or the handle is an error if running out
 // of space or encounting an internal error.
 
-void NormalizeProperties(Handle<JSObject> object);
+void NormalizeProperties(Handle<JSObject> object,
+                         PropertyNormalizationMode mode);
 void NormalizeElements(Handle<JSObject> object);
 void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields);

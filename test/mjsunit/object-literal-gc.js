@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,7 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that we can create object literals of various sizes.
+// Flags: --expose-gc
+
+// Test that the clearing of object literal when normalizing objects
+// works.  In particular, test that the garbage collector handles the
+// normalized object literals correctly.
 function testLiteral(size) {
 
   // Build object-literal string.
@@ -40,8 +44,14 @@ function testLiteral(size) {
   // Create the object literal.
   eval(literal);
 
+  // Force normalization of the properties.
+  delete o["a" + (size - 1)];
+
+  // Perform GC.
+  gc();
+
   // Check that the properties have the expected values.
-  for (var i = 0; i < size; i++) {
+  for (var i = 0; i < size - 1; i++) {
     assertEquals(i, o["a"+i]);
   }
 }

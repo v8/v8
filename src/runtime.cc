@@ -102,9 +102,9 @@ static Handle<Map> ComputeObjectLiteralMap(
     Handle<Context> context,
     Handle<FixedArray> constant_properties,
     bool* is_result_from_cache) {
+  int number_of_properties = constant_properties->length() / 2;
   if (FLAG_canonicalize_object_literal_maps) {
     // First find prefix of consecutive symbol keys.
-    int number_of_properties = constant_properties->length()/2;
     int number_of_symbol_keys = 0;
     while ((number_of_symbol_keys < number_of_properties) &&
            (constant_properties->get(number_of_symbol_keys*2)->IsSymbol())) {
@@ -125,7 +125,9 @@ static Handle<Map> ComputeObjectLiteralMap(
     }
   }
   *is_result_from_cache = false;
-  return Handle<Map>(context->object_function()->initial_map());
+  return Factory::CopyMap(
+      Handle<Map>(context->object_function()->initial_map()),
+      number_of_properties);
 }
 
 

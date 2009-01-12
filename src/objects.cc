@@ -43,6 +43,22 @@
 
 namespace v8 { namespace internal {
 
+#define FIELD_ADDR(p, offset) \
+  (reinterpret_cast<byte*>(p) + offset - kHeapObjectTag)
+
+
+#define WRITE_FIELD(p, offset, value) \
+  (*reinterpret_cast<Object**>(FIELD_ADDR(p, offset)) = value)
+
+
+#define WRITE_INT_FIELD(p, offset, value) \
+  (*reinterpret_cast<int*>(FIELD_ADDR(p, offset)) = value)
+
+
+#define WRITE_BARRIER(object, offset) \
+  Heap::RecordWrite(object->address(), offset);
+
+
 // Getters and setters are stored in a fixed array property.  These are
 // constants for their indices.
 const int kGetterIndex = 0;
@@ -1040,7 +1056,7 @@ Object* JSObject::AddFastProperty(String* name,
   // Normalize the object if the name is not a real identifier.
   StringInputBuffer buffer(name);
   if (!Scanner::IsIdentifier(&buffer)) {
-    Object* obj = NormalizeProperties();
+    Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
     if (obj->IsFailure()) return obj;
     return AddSlowProperty(name, value, attributes);
   }
@@ -1078,7 +1094,7 @@ Object* JSObject::AddFastProperty(String* name,
 
   if (map()->unused_property_fields() == 0) {
     if (properties()->length() > kMaxFastProperties) {
-      Object* obj = NormalizeProperties();
+      Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
       if (obj->IsFailure()) return obj;
       return AddSlowProperty(name, value, attributes);
     }
@@ -1180,7 +1196,7 @@ Object* JSObject::AddProperty(String* name,
     } else {
       // Normalize the object to prevent very large instance descriptors.
       // This eliminates unwanted N^2 allocation and lookup behavior.
-      Object* obj = NormalizeProperties();
+      Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
       if (obj->IsFailure()) return obj;
     }
   }
@@ -1253,7 +1269,7 @@ Object* JSObject::ConvertDescriptorToField(String* name,
                                            PropertyAttributes attributes) {
   if (map()->unused_property_fields() == 0 &&
       properties()->length() > kMaxFastProperties) {
-    Object* obj = NormalizeProperties();
+    Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
     if (obj->IsFailure()) return obj;
     return ReplaceSlowProperty(name, new_value, attributes);
   }
@@ -1848,7 +1864,7 @@ PropertyAttributes JSObject::GetLocalPropertyAttribute(String* name) {
 }
 
 
-Object* JSObject::NormalizeProperties() {
+Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
   if (!HasFastProperties()) return this;
 
   // Allocate new content
@@ -1908,13 +1924,33 @@ Object* JSObject::NormalizeProperties() {
   // Allocate new map.
   obj = map()->Copy();
   if (obj->IsFailure()) return obj;
+  Map* new_map = Map::cast(obj);
+
+  // Clear inobject properties if needed by adjusting the instance
+  // size and putting in a filler or byte array instead of the
+  // inobject properties.
+  if (mode == CLEAR_INOBJECT_PROPERTIES && map()->inobject_properties() > 0) {
+    int instance_size_delta = map()->inobject_properties() * kPointerSize;
+    int new_instance_size = map()->instance_size() - instance_size_delta;
+    new_map->set_inobject_properties(0);
+    new_map->set_instance_size(new_instance_size);
+    if (instance_size_delta == kPointerSize) {
+      WRITE_FIELD(this, new_instance_size, Heap::one_word_filler_map());
+    } else {
+      int byte_array_length = ByteArray::LengthFor(instance_size_delta);
+      int byte_array_length_offset = new_instance_size + kPointerSize;
+      WRITE_FIELD(this, new_instance_size, Heap::byte_array_map());
+      WRITE_INT_FIELD(this, byte_array_length_offset, byte_array_length);
+    }
+    WRITE_BARRIER(this, new_instance_size);
+  }
+  new_map->set_unused_property_fields(0);
 
   // We have now sucessfully allocated all the necessary objects.
   // Changes can now be made with the guarantee that all of them take effect.
-  set_map(Map::cast(obj));
+  set_map(new_map);
   map()->set_instance_descriptors(Heap::empty_descriptor_array());
 
-  map()->set_unused_property_fields(0);
   set_properties(dictionary);
 
   Counters::props_to_dictionary.Increment();
@@ -1982,7 +2018,7 @@ Object* JSObject::DeletePropertyPostInterceptor(String* name) {
   if (!result.IsValid()) return Heap::true_value();
 
   // Normalize object if needed.
-  Object* obj = NormalizeProperties();
+  Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
   if (obj->IsFailure()) return obj;
 
   ASSERT(!HasFastProperties());
@@ -2145,7 +2181,7 @@ Object* JSObject::DeleteProperty(String* name) {
       return JSObject::cast(this)->DeleteLazyProperty(&result, name);
     }
     // Normalize object if needed.
-    Object* obj = NormalizeProperties();
+    Object* obj = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
     if (obj->IsFailure()) return obj;
     // Make sure the properties are normalized before removing the entry.
     Dictionary* dictionary = property_dictionary();
@@ -2411,7 +2447,7 @@ Object* JSObject::DefineGetterSetter(String* name,
   }
 
   // Normalize object to make this operation simple.
-  Object* ok = NormalizeProperties();
+  Object* ok = NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
   if (ok->IsFailure()) return ok;
 
   // Allocate the fixed array to hold getter and setter.
@@ -6664,7 +6700,9 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
   if (descriptors_unchecked->IsFailure()) return descriptors_unchecked;
   DescriptorArray* descriptors = DescriptorArray::cast(descriptors_unchecked);
 
-  int number_of_allocated_fields = number_of_fields + unused_property_fields;
+  int inobject_props = obj->map()->inobject_properties();
+  int number_of_allocated_fields =
+      number_of_fields + unused_property_fields - inobject_props;
 
   // Allocate the fixed array for the fields.
   Object* fields = Heap::AllocateFixedArray(number_of_allocated_fields);
@@ -6682,6 +6720,7 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
       if (key->IsFailure()) return key;
       PropertyDetails details = DetailsAt(i);
       PropertyType type = details.type();
+
       if (value->IsJSFunction()) {
         ConstantFunctionDescriptor d(String::cast(key),
                                      JSFunction::cast(value),
@@ -6689,7 +6728,14 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
                                      details.index());
         w.Write(&d);
       } else if (type == NORMAL) {
-        FixedArray::cast(fields)->set(current_offset, value);
+        if (current_offset < inobject_props) {
+          obj->InObjectPropertyAtPut(current_offset,
+                                     value,
+                                     UPDATE_WRITE_BARRIER);
+        } else {
+          int offset = current_offset - inobject_props;
+          FixedArray::cast(fields)->set(offset, value);
+        }
         FieldDescriptor d(String::cast(key),
                           current_offset++,
                           details.attributes(),
@@ -6722,8 +6768,9 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
   ASSERT(obj->IsJSObject());
 
   descriptors->SetNextEnumerationIndex(NextEnumerationIndex());
-  // Check it really works.
+  // Check that it really works.
   ASSERT(obj->HasFastProperties());
+
   return obj;
 }
 
