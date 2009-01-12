@@ -211,6 +211,10 @@ class RegisterAllocator BASE_EMBEDDED {
   // fail and return an invalid result.
   Result AllocateWithoutSpilling();
 
+  // Allocate a free byte register without spilling any from the
+  // current frame or fail and return an invalid result.
+  Result AllocateByteRegisterWithoutSpilling();
+
   // Copy the internal state to a register file, to be restored later by
   // RestoreFrom.
   void SaveTo(RegisterFile* register_file) {

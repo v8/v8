@@ -4001,6 +4001,20 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     // writable.
     frame_->Spill(value.reg());
     ASSERT(allocator_->count(value.reg()) == 1);
+
+    // In order to combine the overflow and the smi check, we need to
+    // be able to allocate a byte register.  We attempt to do so
+    // without spilling.  If we fail, we will generate separate
+    // overflow and smi checks.
+    //
+    // We need to allocate and clear the temporary byte register
+    // before performing the count operation since clearing the
+    // register using xor will clear the overflow flag.
+    Result tmp = allocator_->AllocateByteRegisterWithoutSpilling();
+    if (tmp.is_valid()) {
+      __ Set(tmp.reg(), Immediate(0));
+    }
+
     if (is_increment) {
       __ add(Operand(value.reg()), Immediate(Smi::FromInt(1)));
     } else {
@@ -4010,9 +4024,20 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     // If the count operation didn't overflow and the result is a
     // valid smi, we're done. Otherwise, we jump to the deferred
     // slow-case code.
-    deferred->enter()->Branch(overflow, &value, not_taken);
-    __ test(value.reg(), Immediate(kSmiTagMask));
-    deferred->enter()->Branch(not_zero, &value, not_taken);
+    //
+    // We combine the overflow and the smi check if we could
+    // successfully allocate a temporary byte register.
+    if (tmp.is_valid()) {
+      __ setcc(overflow, tmp.reg());
+      __ or_(Operand(value.reg()), tmp.reg());
+      tmp.Unuse();
+      __ test(value.reg(), Immediate(kSmiTagMask));
+      deferred->enter()->Branch(not_zero, &value, not_taken);
+    } else {
+      deferred->enter()->Branch(overflow, &value, not_taken);
+      __ test(value.reg(), Immediate(kSmiTagMask));
+      deferred->enter()->Branch(not_zero, &value, not_taken);
+    }
 
     // Store the new value in the target if not const.
     deferred->exit()->Bind(&value);

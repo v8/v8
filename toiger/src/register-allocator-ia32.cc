@@ -142,6 +142,18 @@ Result RegisterAllocator::AllocateWithoutSpilling() {
 }
 
 
+Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
+  Result result = AllocateWithoutSpilling();
+  // Check that the register is a byte register.  If not, unuse the
+  // register if valid and return an invalid result.
+  if (result.is_valid() && !result.reg().is_byte_register()) {
+    result.Unuse();
+    return Result(cgen_);
+  }
+  return result;
+}
+
+
 Result RegisterAllocator::Allocate() {
   Result result = AllocateWithoutSpilling();
   if (!result.is_valid()) {

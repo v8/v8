@@ -63,6 +63,8 @@ namespace v8 { namespace internal {
 struct Register {
   bool is_valid() const  { return 0 <= code_ && code_ < 8; }
   bool is(Register reg) const  { return code_ == reg.code_; }
+  // eax, ebx, ecx and edx are byte registers, the rest are not.
+  bool is_byte_register() const  { return code_ <= 3; }
   int code() const  {
     ASSERT(is_valid());
     return code_;
@@ -679,6 +681,7 @@ class Assembler : public Malloced {
   void frndint();
 
   void sahf();
+  void setcc(Condition cc, Register reg);
 
   void cpuid();
 

@@ -1834,6 +1834,16 @@ void Assembler::sahf() {
 }
 
 
+void Assembler::setcc(Condition cc, Register reg) {
+  ASSERT(reg.is_byte_register());
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0x0F);
+  EMIT(0x90 | cc);
+  EMIT(0xC0 | reg.code());
+}
+
+
 void Assembler::cvttss2si(Register dst, const Operand& src) {
   ASSERT(CpuFeatures::IsEnabled(CpuFeatures::SSE2));
   EnsureSpace ensure_space(this);

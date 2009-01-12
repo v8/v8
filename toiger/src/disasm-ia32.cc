@@ -294,6 +294,7 @@ class DisassemblerIA32 {
   int JumpShort(byte* data);
   int JumpConditional(byte* data, const char* comment);
   int JumpConditionalShort(byte* data, const char* comment);
+  int SetCC(byte* data);
   int FPUInstruction(byte* data);
   void AppendToBuffer(const char* format, ...);
 
@@ -577,6 +578,17 @@ int DisassemblerIA32::JumpConditionalShort(byte* data, const char* comment) {
 
 
 // Returns number of bytes used, including *data.
+int DisassemblerIA32::SetCC(byte* data) {
+  assert(*data == 0x0F);
+  byte cond = *(data+1) & 0x0F;
+  const char* mnem = jump_conditional_mnem[cond];
+  AppendToBuffer("set%s ", mnem);
+  PrintRightOperand(data+2);
+  return 3;  // includes 0x0F
+}
+
+
+// Returns number of bytes used, including *data.
 int DisassemblerIA32::FPUInstruction(byte* data) {
   byte b1 = *data;
   byte b2 = *(data + 1);
@@ -821,6 +833,8 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                      f0byte == 0xB7 || f0byte == 0xAF) {
             data += 2;
             data += PrintOperands(f0mnem, REG_OPER_OP_ORDER, data);
+          } else if ((f0byte & 0xF0) == 0x90) {
+            data += SetCC(data);
           } else {
             data += 2;
             if (f0byte == 0xAB || f0byte == 0xA5 || f0byte == 0xAD) {
