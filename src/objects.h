@@ -171,9 +171,8 @@ class PropertyDetails BASE_EMBEDDED {
 enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
 
 
-// PropertyNormalizationMode is used to specify wheter or not to
-// keep inobject properties when normalizing properties of a
-// JSObject.
+// PropertyNormalizationMode is used to specify whether to keep
+// inobject properties when normalizing properties of a JSObject.
 enum PropertyNormalizationMode {
   CLEAR_INOBJECT_PROPERTIES,
   KEEP_INOBJECT_PROPERTIES
