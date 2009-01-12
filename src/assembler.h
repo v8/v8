@@ -442,6 +442,9 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable StackGuard::address_of_limit()
   static ExternalReference address_of_stack_guard_limit();
 
+  // Static variable RegExpStack::limit_address()
+  static ExternalReference address_of_regexp_stack_limit();
+
   // Function Debug::Break()
   static ExternalReference debug_break();
 

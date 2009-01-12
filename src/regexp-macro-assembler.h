@@ -30,7 +30,6 @@
 
 namespace v8 { namespace internal {
 
-
 struct DisjunctDecisionRow {
   RegExpCharacterClass cc;
   Label* on_match;
@@ -42,12 +41,24 @@ class RegExpMacroAssembler {
   enum IrregexpImplementation {
     kIA32Implementation,
     kARMImplementation,
-    kBytecodeImplementation};
+    kBytecodeImplementation
+  };
+
+  enum StackCheckFlag {
+    kNoStackLimitCheck = false,
+    kCheckStackLimit = true
+  };
 
   RegExpMacroAssembler();
   virtual ~RegExpMacroAssembler();
+  // The maximal number of pushes between stack checks. Users must supply
+  // kCheckStackLimit flag to push operations (instead of kNoStackLimitCheck)
+  // at least once for every stack_limit() pushes that are executed.
+  virtual int stack_limit_slack() = 0;
   virtual void AdvanceCurrentPosition(int by) = 0;  // Signed cp change.
   virtual void AdvanceRegister(int reg, int by) = 0;  // r[reg] += by.
+  // Continues execution from the position pushed on the top of the backtrack
+  // stack by an earlier PushBacktrack(Label*).
   virtual void Backtrack() = 0;
   virtual void Bind(Label* label) = 0;
   // Check the current character against a bitmap.  The range of the current
@@ -145,9 +156,12 @@ class RegExpMacroAssembler {
                                     int characters = 1) = 0;
   virtual void PopCurrentPosition() = 0;
   virtual void PopRegister(int register_index) = 0;
+  // Pushes the label on the backtrack stack, so that a following Backtrack
+  // will go to this label. Always checks the backtrack stack limit.
   virtual void PushBacktrack(Label* label) = 0;
   virtual void PushCurrentPosition() = 0;
-  virtual void PushRegister(int register_index) = 0;
+  virtual void PushRegister(int register_index,
+                            StackCheckFlag check_stack_limit) = 0;
   virtual void ReadCurrentPositionFromRegister(int reg) = 0;
   virtual void ReadStackPointerFromRegister(int reg) = 0;
   virtual void SetRegister(int register_index, int to) = 0;

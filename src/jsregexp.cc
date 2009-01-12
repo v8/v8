@@ -40,6 +40,7 @@
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-tracer.h"
 #include "regexp-macro-assembler-irregexp.h"
+#include "regexp-stack.h"
 
 #ifdef ARM
 #include "regexp-macro-assembler-arm.h"
@@ -913,7 +914,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
         }
         res = RegExpMacroAssemblerIA32::Execute(
             *code,
-            &address,
+            const_cast<Address*>(&address),
             start_offset << char_size_shift,
             end_offset << char_size_shift,
             offsets_vector,
@@ -925,7 +926,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
         int byte_offset = char_address - reinterpret_cast<Address>(*subject);
         res = RegExpMacroAssemblerIA32::Execute(
             *code,
-            subject.location(),
+            reinterpret_cast<Address*>(subject.location()),
             byte_offset + (start_offset << char_size_shift),
             byte_offset + (end_offset << char_size_shift),
             offsets_vector,
@@ -1347,8 +1348,18 @@ int GenerationVariant::FindAffectedRegisters(OutSet* affected_registers) {
 void GenerationVariant::PushAffectedRegisters(RegExpMacroAssembler* assembler,
                                               int max_register,
                                               OutSet& affected_registers) {
-  for (int reg = 0; reg <= max_register; reg++) {
-    if (affected_registers.Get(reg)) assembler->PushRegister(reg);
+  // Stay safe and check every half times the limit.
+  // (Round up in case the limit is 1).
+  int push_limit = (assembler->stack_limit_slack() + 1) / 2;
+  for (int reg = 0, pushes = 0; reg <= max_register; reg++) {
+    if (affected_registers.Get(reg)) {
+      pushes++;
+      RegExpMacroAssembler::StackCheckFlag check_stack_limit =
+          (pushes % push_limit) == 0 ?
+                RegExpMacroAssembler::kCheckStackLimit :
+                RegExpMacroAssembler::kNoStackLimitCheck;
+      assembler->PushRegister(reg, check_stack_limit);
+    }
   }
 }
 

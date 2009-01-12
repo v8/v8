@@ -31,6 +31,7 @@
 #include "debug.h"
 #include "execution.h"
 #include "v8threads.h"
+#include "regexp-stack.h"
 
 namespace v8 {
 
@@ -125,6 +126,7 @@ bool ThreadManager::RestoreThread() {
   from = Top::RestoreThread(from);
   from = Debug::RestoreDebug(from);
   from = StackGuard::RestoreStackGuard(from);
+  from = RegExpStack::RestoreStack(from);
   Thread::SetThreadLocal(thread_state_key, NULL);
   state->Unlink();
   state->LinkInto(ThreadState::FREE_LIST);
@@ -149,7 +151,8 @@ static int ArchiveSpacePerThread() {
   return HandleScopeImplementer::ArchiveSpacePerThread() +
                             Top::ArchiveSpacePerThread() +
                           Debug::ArchiveSpacePerThread() +
-                     StackGuard::ArchiveSpacePerThread();
+                     StackGuard::ArchiveSpacePerThread() +
+                    RegExpStack::ArchiveSpacePerThread();
 }
 
 
@@ -230,6 +233,7 @@ void ThreadManager::EagerlyArchiveThread() {
   to = Top::ArchiveThread(to);
   to = Debug::ArchiveDebug(to);
   to = StackGuard::ArchiveStackGuard(to);
+  to = RegExpStack::ArchiveStack(to);
   lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
   lazily_archived_thread_state_ = NULL;
 }

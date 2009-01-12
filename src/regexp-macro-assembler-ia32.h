@@ -38,6 +38,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
 
   RegExpMacroAssemblerIA32(Mode mode, int registers_to_save);
   virtual ~RegExpMacroAssemblerIA32();
+  virtual int stack_limit_slack();
   virtual void AdvanceCurrentPosition(int by);
   virtual void AdvanceRegister(int reg, int by);
   virtual void Backtrack();
@@ -53,6 +54,8 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
                                int cp_offset,
                                Label* on_failure,
                                bool check_end_of_string);
+  // A "greedy loop" is a loop that is both greedy and with a simple
+  // body. It has a particularly simple implementation.
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
   virtual void CheckNotAtStart(Label* on_not_at_start);
   virtual void CheckNotBackReference(int start_reg, Label* on_no_match);
@@ -96,7 +99,8 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);
   virtual void PushCurrentPosition();
-  virtual void PushRegister(int register_index);
+  virtual void PushRegister(int register_index,
+                            StackCheckFlag check_stack_limit);
   virtual void ReadCurrentPositionFromRegister(int reg);
   virtual void ReadStackPointerFromRegister(int reg);
   virtual void SetRegister(int register_index, int to);
@@ -104,26 +108,15 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
   virtual void WriteStackPointerToRegister(int reg);
 
-  template <typename T>
-  static inline Result Execute(Code* code,
-                               T** input,
-                               int start_offset,
-                               int end_offset,
-                               int* output,
-                               bool at_start) {
-    typedef int (*matcher)(T**, int, int, int*, int);
-    matcher matcher_func = FUNCTION_CAST<matcher>(code->entry());
-    int at_start_val = at_start ? 1 : 0;
-    int result = matcher_func(input,
-                              start_offset,
-                              end_offset,
-                              output,
-                              at_start_val);
-    return (result < 0) ? EXCEPTION : (result ? SUCCESS : FAILURE);
-  }
+  static Result Execute(Code* code,
+                        Address* input,
+                        int start_offset,
+                        int end_offset,
+                        int* output,
+                        bool at_start);
 
  private:
-  // Offsets from ebp of arguments to function.
+  // Offsets from ebp of arguments to function and stored registers.
   static const int kBackup_ebx = sizeof(uint32_t);
   static const int kBackup_edi = kBackup_ebx + sizeof(uint32_t);
   static const int kBackup_esi = kBackup_edi + sizeof(uint32_t);
@@ -133,30 +126,42 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   static const int kInputEndOffset = kInputStartOffset + sizeof(uint32_t);
   static const int kRegisterOutput = kInputEndOffset + sizeof(uint32_t);
   static const int kAtStart = kRegisterOutput + sizeof(uint32_t);
+  static const int kStackHighEnd = kAtStart + sizeof(uint32_t);
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
   // Initial size of constant buffers allocated during compilation.
   static const int kRegExpConstantsSize = 256;
-  // Only unroll loops up to this length. TODO(lrn): Actually use this.
+  // Only unroll loops up to this length.
   static const int kMaxInlineStringTests = 32;
 
   // Compares two-byte strings case insensitively.
+  // Called from generated RegExp code.
   static int CaseInsensitiveCompareUC16(uc16** buffer,
                                         int byte_offset1,
                                         int byte_offset2,
                                         size_t byte_length);
 
-  void LoadCurrentCharacterUnchecked(int cp_offset, int characters);
+  // Load a number of characters at the given offset from the
+  // current position, into the current-character register.
+  void LoadCurrentCharacterUnchecked(int cp_offset, int character_count);
 
-  // Adds code that checks whether preemption has been requested
-  // (and checks if we have hit the stack limit too).
+  // Check whether preemption has been requested.
+  void CheckPreemption();
+
+  // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.
   static int CheckStackGuardState(Address return_address, Code* re_code);
+
+  // Called from RegExp if the backtrack stack limit is hit.
+  // Tries to expand the stack. Returns the new stack-top pointer if
+  // successful, or 0 if unable to grow the stack.
+  // This function must not trigger a garbage collection.
+  static Address GrowStack(Address stack_top);
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
@@ -166,14 +171,18 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   Operand register_location(int register_index);
 
   // The register containing the current character after LoadCurrentCharacter.
-  Register current_character();
+  inline Register current_character() { return edx; }
+
+  // The register containing the backtrack stack top. Provides a meaningful
+  // name to the register.
+  inline Register backtrack_stackpointer() { return ecx; }
 
   // Byte size of chars in the string to match (decided by the Mode argument)
-  size_t char_size();
+  inline size_t char_size() { return static_cast<size_t>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
   // is NULL, in which case it is a conditional Backtrack.
-  void BranchOrBacktrack(Condition condition, Label* to);
+  void BranchOrBacktrack(Condition condition, Label* to, Hint hint = no_hint);
 
   // Load the address of a "constant buffer" (a slice of a byte array)
   // into a register. The address is computed from the ByteArray* address
@@ -182,30 +191,50 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
 
   // Call and return internally in the generated code in a way that
   // is GC-safe (i.e., doesn't leave absolute code addresses on the stack)
-  void SafeCall(Label* to);
-  void SafeReturn();
+  inline void SafeCall(Label* to);
+  inline void SafeReturn();
+
+  // Pushes the value of a register on the backtrack stack. Decrements the
+  // stack pointer (ecx) by a word size and stores the register's value there.
+  inline void Push(Register source);
+
+  // Pushes a value on the backtrack stack. Decrements the stack pointer (ecx)
+  // by a word size and stores the value there.
+  inline void Push(Immediate value);
+
+  // Pops a value from the backtrack stack. Reads the word at the stack pointer
+  // (ecx) and increments it by a word size.
+  inline void Pop(Register target);
 
   // Before calling a C-function from generated code, align arguments on stack.
   // After aligning the frame, arguments must be stored in esp[0], esp[4],
   // etc., not pushed. The argument count assumes all arguments are word sized.
-  void FrameAlign(int num_arguments);
+  // Some compilers/platforms require the stack to be aligned when calling
+  // C++ code.
+  inline void FrameAlign(int num_arguments);
+
   // Calls a C function and cleans up the space for arguments allocated
   // by FrameAlign. The called function is not allowed to trigger a garbage
   // collection, since that might move the code and invalidate the return
-  // address
-  void CallCFunction(Address function_address, int num_arguments);
+  // address (unless this is somehow accounted for).
+  inline void CallCFunction(Address function_address, int num_arguments);
 
   MacroAssembler* masm_;
+
   // Constant buffer provider. Allocates external storage for storing
   // constants.
   ByteArrayProvider constants_;
+
   // Which mode to generate code for (ASCII or UTF16).
   Mode mode_;
+
   // One greater than maximal register index actually used.
   int num_registers_;
+
   // Number of registers to output at the end (the saved registers
   // are always 0..num_saved_registers_-1)
   int num_saved_registers_;
+
   // Labels used internally.
   Label entry_label_;
   Label start_label_;
@@ -213,6 +242,8 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   Label backtrack_label_;
   Label exit_label_;
   Label check_preempt_label_;
+  Label stack_overflow_label_;
+
   // Handle used to represent the generated code object itself.
   Handle<Object> self_;
 };

@@ -89,7 +89,9 @@ void RegExpMacroAssemblerIrregexp::PopRegister(int register_index) {
 }
 
 
-void RegExpMacroAssemblerIrregexp::PushRegister(int register_index) {
+void RegExpMacroAssemblerIrregexp::PushRegister(
+    int register_index,
+    StackCheckFlag check_stack_limit) {
   ASSERT(register_index >= 0);
   Emit(BC_PUSH_REGISTER);
   Emit(register_index);
