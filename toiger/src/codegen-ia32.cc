@@ -407,22 +407,29 @@ void CodeGenerator::LoadCondition(Expression* x,
                                   bool force_cc) {
   ASSERT(!in_spilled_code());
   ASSERT(!has_cc());
-
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   { CodeGenState new_state(this, typeof_state, true_target, false_target);
     Visit(x);
   }
 
   if (force_cc && has_valid_frame() && !has_cc()) {
     // Convert the TOS value to a boolean in the condition code register.
-    VirtualFrame::SpilledScope spilled_scope(this);
     ToBoolean(true_target, false_target);
   }
 
   ASSERT(!force_cc || frame_ == NULL || has_cc());
+  ASSERT(!has_valid_frame() ||
+         (has_cc() && frame_->height() == original_height) ||
+         (!has_cc() && frame_->height() == original_height + 1));
 }
 
 
 void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(!in_spilled_code());
   JumpTarget true_target(this);
   JumpTarget false_target(this);
@@ -473,6 +480,7 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   }
   ASSERT(has_valid_frame());
   ASSERT(!has_cc());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
@@ -606,34 +614,36 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
   Comment cmnt(masm_, "[ ToBoolean");
 
   // The value to convert should be popped from the stack.
-  frame_->EmitPop(eax);
-
+  Result value = frame_->Pop();
+  value.ToRegister();
   // Fast case checks.
 
   // 'false' => false.
-  __ cmp(eax, Factory::false_value());
+  __ cmp(value.reg(), Factory::false_value());
   false_target->Branch(equal);
 
   // 'true' => true.
-  __ cmp(eax, Factory::true_value());
+  __ cmp(value.reg(), Factory::true_value());
   true_target->Branch(equal);
 
   // 'undefined' => false.
-  __ cmp(eax, Factory::undefined_value());
+  __ cmp(value.reg(), Factory::undefined_value());
   false_target->Branch(equal);
 
   // Smi => false iff zero.
   ASSERT(kSmiTag == 0);
-  __ test(eax, Operand(eax));
+  __ test(value.reg(), Operand(value.reg()));
   false_target->Branch(zero);
-  __ test(eax, Immediate(kSmiTagMask));
+  __ test(value.reg(), Immediate(kSmiTagMask));
   true_target->Branch(zero);
 
   // Call the stub for all other cases.
-  frame_->EmitPush(eax);  // Undo the pop(eax) from above.
+  frame_->Push(&value);  // Undo the Pop() from above.
   ToBooleanStub stub;
   frame_->CallStub(&stub, 1);
   // Convert the result (eax) to condition code.
+  Result temp = allocator_->Allocate(eax);
+  ASSERT(temp.is_valid());
   __ test(eax, Operand(eax));
 
   ASSERT(not_equal == not_zero);
@@ -4020,7 +4030,6 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
 
 void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   // Note that due to an optimization in comparison operations (typeof
   // compared to a string literal), we can evaluate a binary expression such
   // as AND or OR and not leave a value on the frame or in the cc register.
@@ -4041,19 +4050,21 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
   if (op == Token::AND) {
     JumpTarget is_true(this);
-    LoadConditionAndSpill(node->left(), NOT_INSIDE_TYPEOF,
-                          &is_true, false_target(), false);
+    LoadCondition(node->left(), NOT_INSIDE_TYPEOF,
+                  &is_true, false_target(), false);
     if (has_cc() || frame_ == NULL) {
       if (has_cc()) {
         ASSERT(has_valid_frame());
         Branch(false, false_target());
       }
 
-      if (has_valid_frame() || is_true.is_linked()) {
-        // Evaluate right side expression.
+      if (is_true.is_linked()) {
         is_true.Bind();
-        LoadConditionAndSpill(node->right(), NOT_INSIDE_TYPEOF,
-                              true_target(), false_target(), false);
+      }
+      if (has_valid_frame()) {
+        // Evaluate right side expression.
+        LoadCondition(node->right(), NOT_INSIDE_TYPEOF,
+                      true_target(), false_target(), false);
       }
     } else {
       // We have a materialized value on the frame.
@@ -4065,8 +4076,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // 9.2, page 30.
       //
       // Duplicate the TOS value. The duplicate will be popped by ToBoolean.
-      __ mov(eax, frame_->Top());
-      frame_->EmitPush(eax);
+      frame_->Dup();
       ToBoolean(&pop_and_continue, &exit);
       Branch(false, &exit);
 
@@ -4076,7 +4086,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
       // Evaluate right side expression.
       is_true.Bind();
-      LoadAndSpill(node->right());
+      Load(node->right());
 
       // Exit (always with a materialized value).
       exit.Bind();
@@ -4084,21 +4094,22 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
   } else if (op == Token::OR) {
     JumpTarget is_false(this);
-    LoadConditionAndSpill(node->left(), NOT_INSIDE_TYPEOF,
-                          true_target(), &is_false, false);
+    LoadCondition(node->left(), NOT_INSIDE_TYPEOF,
+                  true_target(), &is_false, false);
     if (has_cc() || frame_ == NULL) {
       if (has_cc()) {
         ASSERT(has_valid_frame());
         Branch(true, true_target());
       }
 
-      if (has_valid_frame() || is_false.is_linked()) {
+      if (is_false.is_linked()) {
         // Evaluate right side expression.
         is_false.Bind();
-        LoadConditionAndSpill(node->right(), NOT_INSIDE_TYPEOF,
-                              true_target(), false_target(), false);
       }
-
+      if (has_valid_frame()) {
+        LoadCondition(node->right(), NOT_INSIDE_TYPEOF,
+                      true_target(), false_target(), false);
+      }
     } else {
       // We have a materialized value on the frame.
       JumpTarget pop_and_continue(this);
@@ -4108,8 +4119,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // standard ToBoolean() conversion as described in ECMA-262,
       // section 9.2, page 30.
       // Duplicate the TOS value. The duplicate will be popped by ToBoolean.
-      __ mov(eax, frame_->Top());
-      frame_->EmitPush(eax);
+      frame_->Dup();
       ToBoolean(&exit, &pop_and_continue);
       Branch(true, &exit);
 
@@ -4119,13 +4129,14 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
       // Evaluate right side expression.
       is_false.Bind();
-      LoadAndSpill(node->right());
+      Load(node->right());
 
       // Exit (always with a materialized value).
       exit.Bind();
     }
 
   } else {
+    VirtualFrame::SpilledScope spilled_scope(this);
     // NOTE: The code below assumes that the slow cases (calls to runtime)
     // never return a constant/immutable object.
     OverwriteMode overwrite_mode = NO_OVERWRITE;
