@@ -109,19 +109,14 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
     // For a branch, the frame at the fall-through basic block (not labeled)
     // does not need to be mergable, but only the other (labeled) one.  That
     // is achieved by reversing the condition and emitting the make mergable
-    // code as the actual fall-through block.  This is necessary only when
-    // MakeMergable will generate code.
-    if (expected_frame_->RequiresMergeCode()) {
-      Label original_fall_through;
-      __ j(NegateCondition(cc), &original_fall_through, NegateHint(hint));
-      expected_frame_->MakeMergable();
-      __ jmp(&label_);
-      __ bind(&original_fall_through);
-    } else {
-      expected_frame_->MakeMergable();
-      ASSERT(cgen_->HasValidEntryRegisters());
-      __ j(cc, &label_, hint);
-    }
+    // code as the actual fall-through block.
+    //
+    // TODO(): This is necessary only when MakeMergable will generate code.
+    Label original_fall_through;
+    __ j(NegateCondition(cc), &original_fall_through, NegateHint(hint));
+    expected_frame_->MakeMergable();
+    __ jmp(&label_);
+    __ bind(&original_fall_through);
   } else {
     // We negate the condition and emit the code to merge to the expected
     // frame immediately.
