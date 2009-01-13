@@ -781,12 +781,11 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 
   if (op == Token::COMMA) {
     // Simply discard left value.
-    frame_->EmitPop(eax);
-    frame_->Drop();
-    frame_->EmitPush(eax);
+    frame_->Nip(1);
     return;
   }
 
+  VirtualFrame::SpilledScope spilled_scope(this);
   // Set the flags based on the operation, type and loop nesting level.
   GenericBinaryFlags flags;
   switch (op) {
@@ -1028,6 +1027,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
   // TODO(1217802): Optimize some special cases of operations
   // involving a smi literal (multiply by 2, shift by 0, etc.).
+  VirtualFrame::SpilledScope spilled_scope(this);
 
   // Get the literal value.
   int int_value = Smi::cast(*value)->value();
@@ -4163,7 +4163,6 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     }
 
   } else {
-    VirtualFrame::SpilledScope spilled_scope(this);
     // NOTE: The code below assumes that the slow cases (calls to runtime)
     // never return a constant/immutable object.
     OverwriteMode overwrite_mode = NO_OVERWRITE;
@@ -4181,16 +4180,16 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     Literal* rliteral = node->right()->AsLiteral();
 
     if (IsInlineSmi(rliteral)) {
-      LoadAndSpill(node->left());
+      Load(node->left());
       SmiOperation(node->op(), node->type(), rliteral->handle(), false,
                    overwrite_mode);
     } else if (IsInlineSmi(lliteral)) {
-      LoadAndSpill(node->right());
+      Load(node->right());
       SmiOperation(node->op(), node->type(), lliteral->handle(), true,
                    overwrite_mode);
     } else {
-      LoadAndSpill(node->left());
-      LoadAndSpill(node->right());
+      Load(node->left());
+      Load(node->right());
       GenericBinaryOperation(node->op(), node->type(), overwrite_mode);
     }
   }
