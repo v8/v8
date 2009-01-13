@@ -63,10 +63,10 @@ namespace v8 { namespace internal {
  *                            to *string_base)
  *       - void** string_base (location of a handle containing the string)
  *       - return address
+ * ebp-> - old ebp
  *       - backup of caller esi
  *       - backup of caller edi
  *       - backup of caller ebx
- * ebp-> - old ebp
  *       - register 0  ebp[-4]  (Only positions must be stored in the first
  *       - register 1  ebp[-8]   num_saved_registers_ registers)
  *       - ...
@@ -600,6 +600,9 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
   // Entry code:
   __ bind(&entry_label_);
+  // Start new stack frame.
+  __ push(ebp);
+  __ mov(ebp, esp);
   // Save callee-save registers.  Order here should correspond to order of
   // kBackup_ebx etc.
   __ push(esi);
@@ -624,8 +627,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ j(above_equal, &stack_ok, taken);
   // Exit with exception.
   __ mov(eax, EXCEPTION);
-  Label exit_without_leave;
-  __ jmp(&exit_without_leave);
+  __ jmp(&exit_label_);
 
   __ bind(&stack_limit_hit);
   int num_arguments = 2;
@@ -641,12 +643,12 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ j(equal, &retry_stack_check);
   // Return value was non-zero. Exit with exception.
   __ mov(eax, EXCEPTION);
-  __ jmp(&exit_without_leave);
+  __ jmp(&exit_label_);
 
   __ bind(&stack_ok);
 
   // Allocate space on stack for registers.
-  __ enter(Immediate(num_registers_ * kPointerSize));
+  __ sub(Operand(esp), Immediate(num_registers_ * kPointerSize));
   // Load string length.
   __ mov(esi, Operand(ebp, kInputEndOffset));
   // Load input position.
@@ -663,19 +665,19 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     // Fill saved registers with initial value = start offset - 1
     // Fill in stack push order, to avoid accessing across an unwritten
     // page (a problem on Windows).
-    const int kRegisterZeroEBPOffset = -1;
-    __ mov(ecx, kRegisterZeroEBPOffset);
-    // Set eax to address of char before start of input.
+    __ mov(ecx, kRegisterZero);
+    // Set eax to address of char before start of input
+    // (effectively string position -1).
     __ lea(eax, Operand(edi, -char_size()));
     Label init_loop;
     __ bind(&init_loop);
-    __ mov(Operand(ebp, ecx, times_4, +0), eax);
-    __ sub(Operand(ecx), Immediate(1));
-    __ cmp(ecx, -num_saved_registers_);
-    __ j(greater_equal, &init_loop);
+    __ mov(Operand(ebp, ecx, times_1, +0), eax);
+    __ sub(Operand(ecx), Immediate(kPointerSize));
+    __ cmp(ecx, kRegisterZero - num_saved_registers_ * kPointerSize);
+    __ j(greater, &init_loop);
   }
-  // Ensure that we have written to each stack page. Skipping a page on
-  // Windows can cause segmentation faults. Assuming page size is 4k.
+  // Ensure that we have written to each stack page, in order. Skipping a page
+  // on Windows can cause segmentation faults. Assuming page size is 4k.
   const int kPageSize = 4096;
   const int kRegistersPerPage = kPageSize / kPointerSize;
   for (int i = num_saved_registers_ + kRegistersPerPage - 1;
@@ -700,7 +702,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
   // Exit code:
   if (success_label_.is_linked()) {
-    // Success
+    // Save captures when successful.
     __ bind(&success_label_);
     if (num_saved_registers_ > 0) {
       // copy captures to output
@@ -720,11 +722,14 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   }
   // Exit and return eax
   __ bind(&exit_label_);
-  __ leave();
-  __ bind(&exit_without_leave);  // For exiting before doing enter.
+  // Skip esp past regexp registers.
+  __ lea(esp, Operand(ebp, kBackup_ebx));
+  // Restore callee-save registers.
   __ pop(ebx);
   __ pop(edi);
   __ pop(esi);
+  // Exit function frame, restore previus one.
+  __ pop(ebp);
   __ ret(0);
 
   // Backtrack code (branch target for conditional backtracks).
@@ -1043,7 +1048,7 @@ Operand RegExpMacroAssemblerIA32::register_location(int register_index) {
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
   }
-  return Operand(ebp, -(register_index + 1) * kPointerSize);
+  return Operand(ebp, kRegisterZero - register_index * kPointerSize);
 }
 
 

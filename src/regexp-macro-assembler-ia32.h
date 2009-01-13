@@ -116,24 +116,27 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
                         bool at_start);
 
  private:
-  // Offsets from ebp of arguments to function and stored registers.
-  static const int kBackup_ebx = sizeof(uint32_t);
-  static const int kBackup_edi = kBackup_ebx + sizeof(uint32_t);
-  static const int kBackup_esi = kBackup_edi + sizeof(uint32_t);
-  static const int kReturn_eip = kBackup_esi + sizeof(uint32_t);
-  static const int kInputBuffer = kReturn_eip + sizeof(uint32_t);
-  static const int kInputStartOffset = kInputBuffer + sizeof(uint32_t);
-  static const int kInputEndOffset = kInputStartOffset + sizeof(uint32_t);
-  static const int kRegisterOutput = kInputEndOffset + sizeof(uint32_t);
-  static const int kAtStart = kRegisterOutput + sizeof(uint32_t);
-  static const int kStackHighEnd = kAtStart + sizeof(uint32_t);
+  // Offsets from ebp of function parameters and stored registers.
+  static const int kFramePointer = 0;
+  // Above the frame pointer - function parameters and return address.
+  static const int kReturn_eip = kFramePointer + kPointerSize;
+  static const int kInputBuffer = kReturn_eip + kPointerSize;
+  static const int kInputStartOffset = kInputBuffer + kPointerSize;
+  static const int kInputEndOffset = kInputStartOffset + kPointerSize;
+  static const int kRegisterOutput = kInputEndOffset + kPointerSize;
+  static const int kAtStart = kRegisterOutput + kPointerSize;
+  static const int kStackHighEnd = kAtStart + kPointerSize;
+  // Below the frame pointer - local stack variables.
+  static const int kBackup_esi = kFramePointer - kPointerSize;
+  static const int kBackup_edi = kBackup_esi - kPointerSize;
+  static const int kBackup_ebx = kBackup_edi - kPointerSize;
+  // First register address. Following registers are below it on the stack.
+  static const int kRegisterZero = kBackup_ebx - kPointerSize;
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;
   // Initial size of constant buffers allocated during compilation.
   static const int kRegExpConstantsSize = 256;
-  // Only unroll loops up to this length.
-  static const int kMaxInlineStringTests = 32;
 
   // Compares two-byte strings case insensitively.
   // Called from generated RegExp code.
