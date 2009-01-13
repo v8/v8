@@ -135,8 +135,6 @@ PropertyAttribute.DontDelete = DONT_DELETE;
 //         - RegExpMirror
 //         - ErrorMirror
 //     - PropertyMirror
-//       - InterceptorPropertyMirror
-//     - AccessorMirror
 //     - FrameMirror
 //     - ScriptMirror
 
@@ -270,25 +268,6 @@ Mirror.prototype.isError = function() {
  */
 Mirror.prototype.isProperty = function() {
   return this instanceof PropertyMirror;
-}
-
-
-/**
- * Check whether the mirror reflects a property from an interceptor.
- * @returns {boolean} True if the mirror reflects a property from an
- *     interceptor
- */
-Mirror.prototype.isInterceptorProperty = function() {
-  return this instanceof InterceptorPropertyMirror;
-}
-
-
-/**
- * Check whether the mirror reflects an accessor.
- * @returns {boolean} True if the mirror reflects an accessor
- */
-Mirror.prototype.isAccessor = function() {
-  return this instanceof AccessorMirror;
 }
 
 
@@ -519,13 +498,39 @@ ObjectMirror.prototype.propertyNames = function(kind, limit) {
   var propertyNames;
   var elementNames;
   var total = 0;
+  
+  // Find all the named properties.
   if (kind & PropertyKind.Named) {
+    // Get the local property names.
     propertyNames = %DebugLocalPropertyNames(this.value_);
     total += propertyNames.length;
+
+    // Get names for named interceptor properties if any.
+    if (this.hasNamedInterceptor() && (kind & PropertyKind.Named)) {
+      var namedInterceptorNames =
+          %DebugNamedInterceptorPropertyNames(this.value_);
+      if (namedInterceptorNames) {
+        propertyNames = propertyNames.concat(namedInterceptorNames);
+        total += namedInterceptorNames.length;
+      }
+    }
   }
+
+  // Find all the indexed properties.
   if (kind & PropertyKind.Indexed) {
-    elementNames = %DebugLocalElementNames(this.value_)
+    // Get the local element names.
+    elementNames = %DebugLocalElementNames(this.value_);
     total += elementNames.length;
+
+    // Get names for indexed interceptor properties.
+    if (this.hasIndexedInterceptor() && (kind & PropertyKind.Indexed)) {
+      var indexedInterceptorNames =
+          %DebugIndexedInterceptorElementNames(this.value_);
+      if (indexedInterceptorNames) {
+        elementNames = elementNames.concat(indexedInterceptorNames);
+        total += indexedInterceptorNames.length;
+      }
+    }
   }
   limit = Math.min(limit || total, total);
 
@@ -569,95 +574,10 @@ ObjectMirror.prototype.properties = function(kind, limit) {
 };
 
 
-/**
- * Return the interceptor property names for this object.
- * @param {number} kind Indicate whether named, indexed or both kinds of
- *     interceptor properties are requested
- * @param {number} limit Limit the number of names returend to the specified
-       value
- * @return {Array} interceptor property names for this object
- */
-ObjectMirror.prototype.interceptorPropertyNames = function(kind, limit) {
-  // Find kind.
-  kind = kind || PropertyKind.Named | PropertyKind.Indexed;
-  var namedInterceptorNames;
-  var indexedInterceptorNames;
-
-  // Get names for named interceptor properties.
-  if (this.hasNamedInterceptor() && kind & PropertyKind.Named) {
-    namedInterceptorNames = %DebugNamedInterceptorPropertyNames(this.value_);
-  }
-
-  // Get names for indexed interceptor properties.
-  if (this.hasIndexedInterceptor() && kind & PropertyKind.Indexed) {
-    indexedInterceptorNames = %DebugIndexedInterceptorElementNames(this.value_);
-  }
-
-  // Return either retult or both concattenated.
-  if (namedInterceptorNames && indexedInterceptorNames) {
-    return namedInterceptorNames.concat(indexedInterceptorNames);
-  } else if (namedInterceptorNames) {
-    return namedInterceptorNames;
-  } else if (indexedInterceptorNames) {
-    return indexedInterceptorNames;
-  } else {
-    return new Array(0);
-  }
-};
-
-
-/**
- * Return interceptor properties this object.
- * @param {number} opt_kind Indicate whether named, indexed or both kinds of
- *     interceptor properties are requested
- * @param {Array} opt_names Limit the number of properties returned to the
-       specified value
- * @return {Array} properties this object as an array of PropertyMirror objects
- */
-ObjectMirror.prototype.interceptorProperties = function(opt_kind, opt_names) {
-  // Find kind.
-  var kind = opt_kind || PropertyKind.Named | PropertyKind.Indexed;
-  var namedInterceptorProperties;
-  var indexedInterceptorProperties;
-
-  // Get values for named interceptor properties.
-  if (kind & PropertyKind.Named) {
-    var names = opt_names || this.interceptorPropertyNames(PropertyKind.Named);
-    namedInterceptorProperties = new Array(names.length);
-    for (i = 0; i < names.length; i++) {
-      var value = %DebugNamedInterceptorPropertyValue(this.value_, names[i]);
-      namedInterceptorProperties[i] = new InterceptorPropertyMirror(this, names[i], value);
-    }
-  }
-
-  // Get values for indexed interceptor properties.
-  if (kind & PropertyKind.Indexed) {
-    var names = opt_names || this.interceptorPropertyNames(PropertyKind.Indexed);
-    indexedInterceptorProperties = new Array(names.length);
-    for (i = 0; i < names.length; i++) {
-      // Don't try to get the value if the name is not a number.
-      if (IS_NUMBER(names[i])) {
-        var value = %DebugIndexedInterceptorElementValue(this.value_, names[i]);
-        indexedInterceptorProperties[i] = new InterceptorPropertyMirror(this, names[i], value);
-      }
-    }
-  }
-
-  // Return either result or both concattenated.
-  if (namedInterceptorProperties && indexedInterceptorProperties) {
-    return namedInterceptorProperties.concat(indexedInterceptorProperties);
-  } else if (namedInterceptorProperties) {
-    return namedInterceptorProperties;
-  } else {
-    return indexedInterceptorProperties;
-  }
-};
-
-
 ObjectMirror.prototype.property = function(name) {
   var details = %DebugGetPropertyDetails(this.value_, %ToString(name));
   if (details) {
-    return new PropertyMirror(this, name, details[0], details[1]);
+    return new PropertyMirror(this, name, details);
   }
 
   // Nothing found.
@@ -893,7 +813,7 @@ ArrayMirror.prototype.indexedPropertiesFromRange = function(opt_from_index, opt_
     var details = %DebugGetPropertyDetails(this.value_, %ToString(i));
     var value;
     if (details) {
-      value = new PropertyMirror(this, i, details[0], details[1]);
+      value = new PropertyMirror(this, i, details);
     } else {
       value = new UndefinedMirror();
     }
@@ -1011,16 +931,21 @@ ErrorMirror.prototype.toText = function() {
  * Base mirror object for properties.
  * @param {ObjectMirror} mirror The mirror object having this property
  * @param {string} name The name of the property
- * @param {Object} value The value of the property
+ * @param {Array} details Details about the property
  * @constructor
  * @extends Mirror
  */
-function PropertyMirror(mirror, name, value, details) {
+function PropertyMirror(mirror, name, details) {
   Mirror.call(this, PROPERTY_TYPE);
   this.mirror_ = mirror;
   this.name_ = name;
-  this.value_ = value;
-  this.details_ = details;
+  this.value_ = details[0];
+  this.details_ = details[1];
+  if (details.length > 2) {
+    this.exception_ = details[2]
+    this.getter_ = details[3];
+    this.setter_ = details[4];
+  }
 }
 inherits(PropertyMirror, Mirror);
 
@@ -1056,14 +981,16 @@ PropertyMirror.prototype.isIndexed = function() {
 
 
 PropertyMirror.prototype.value = function() {
-  if (this.propertyType() == PropertyType.Callbacks) {
-    // TODO(1242933): AccessorMirror should have getter/setter values.
-    return new AccessorMirror();
-  } else if (this.type() == PropertyType.Interceptor) {
-    return new UndefinedMirror();
-  } else {
-    return MakeMirror(this.value_);
-  }
+  return MakeMirror(this.value_);
+}
+
+
+/**
+ * Returns whether this property value is an exception.
+ * @return {booolean} True if this property value is an exception
+ */
+PropertyMirror.prototype.isException = function() {
+  return this.exception_ ? true : false;
 }
 
 
@@ -1083,62 +1010,61 @@ PropertyMirror.prototype.insertionIndex = function() {
 
 
 /**
- * Mirror object for interceptor named properties.
- * @param {ObjectMirror} mirror The mirror object having this property
- * @param {String} name The name of the property
- * @param {value} value The value of the property
- * @constructor
- * @extends PropertyMirror
+ * Returns whether this property has a getter defined through __defineGetter__.
+ * @return {booolean} True if this property has a getter
  */
-function InterceptorPropertyMirror(mirror, name, value) {
-  PropertyMirror.call(this, mirror, name, value, PropertyType.Interceptor);
-}
-inherits(InterceptorPropertyMirror, PropertyMirror);
-
-
-/**
- * Mirror object for property accessors.
- * @param {Function} getter The getter function for this accessor
- * @param {Function} setter The setter function for this accessor
- * @constructor
- * @extends Mirror
- */
-function AccessorMirror(getter, setter) {
-  Mirror.call(this, ACCESSOR_TYPE);
-  this.getter_ = getter;
-  this.setter_ = setter;
-}
-inherits(AccessorMirror, Mirror);
-
-
-/**
- * Returns whether this accessor is native or not. A native accessor is either
- * a VM buildin or provided through the API. A non native accessor is defined
- * in JavaScript using the __defineGetter__ and/or __defineGetter__ functions.
- * @return {boolean} True is the accessor is native
- */
-AccessorMirror.prototype.isNative = function() {
-  return IS_UNDEFINED(this.getter_) && IS_UNDEFINED(this.setter_);
+PropertyMirror.prototype.hasGetter = function() {
+  return this.getter_ ? true : false;
 }
 
 
 /**
- * Returns a mirror for the function of a non native getter.
- * @return {FunctionMirror} Function mirror for the getter set using
- *     __defineGetter__.
+ * Returns whether this property has a setter defined through __defineSetter__.
+ * @return {booolean} True if this property has a setter
  */
-AccessorMirror.prototype.getter = function(details) {
-  return MakeMirror(this.getter_);
+PropertyMirror.prototype.hasSetter = function() {
+  return this.setter_ ? true : false;
 }
 
 
 /**
- * Returns a mirror for the function of a non native setter.
- * @return {FunctionMirror} Function mirror for the getter set using
- *     __defineSetter__.
+ * Returns the getter for this property defined through __defineGetter__.
+ * @return {Mirror} FunctionMirror reflecting the getter function or
+ *     UndefinedMirror if there is no getter for this property
  */
-AccessorMirror.prototype.setter = function(details) {
-  return MakeMirror(this.setter_);
+PropertyMirror.prototype.getter = function() {
+  if (this.hasGetter()) {
+    return MakeMirror(this.getter_);
+  } else {
+    return new UndefinedMirror();
+  }
+}
+
+
+/**
+ * Returns the setter for this property defined through __defineSetter__.
+ * @return {Mirror} FunctionMirror reflecting the setter function or
+ *     UndefinedMirror if there is no setter for this property
+ */
+PropertyMirror.prototype.setter = function() {
+  if (this.hasSetter()) {
+    return MakeMirror(this.setter_);
+  } else {
+    return new UndefinedMirror();
+  }
+}
+
+
+/**
+ * Returns whether this property is natively implemented by the host or a set
+ * through JavaScript code.
+ * @return {boolean} True if the property is 
+ *     UndefinedMirror if there is no setter for this property
+ */
+PropertyMirror.prototype.isNative = function() {
+  return (this.propertyType() == PropertyType.Interceptor) ||
+         ((this.propertyType() == PropertyType.Callbacks) &&
+          !this.hasGetter() && !this.hasSetter());
 }
 
 
@@ -1731,14 +1657,6 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content) {
       x[i] = mirror.property(propertyNames[i]).toJSONProtocol(false);
     }
     content.push(MakeJSONPair_('properties', ArrayToJSONArray_(x)));
-
-    // Add interceptor properties.
-    propertyNames = mirror.interceptorPropertyNames();
-    var x = new Array(propertyNames.length);
-    for (var i = 0; i < propertyNames.length; i++) {
-      x[i] = properties[i].toJSONProtocol(details);
-    }
-    content.push(MakeJSONPair_('interceptorProperties', ArrayToJSONArray_(x)));
 
     // For arrays the indexed properties are added separately and the length is
     // added as well.

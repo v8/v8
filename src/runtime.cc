@@ -4503,30 +4503,32 @@ static Object* Runtime_Break(Arguments args) {
 }
 
 
-static Object* DebugLookupResultValue(LookupResult* result) {
-  Object* value;
+static Object* DebugLookupResultValue(Object* obj, String* name,
+                                      LookupResult* result,
+                                      bool* caught_exception) {
   switch (result->type()) {
-    case NORMAL: {
-      Dictionary* dict =
-          JSObject::cast(result->holder())->property_dictionary();
-      value = dict->ValueAt(result->GetDictionaryEntry());
-      if (value->IsTheHole()) {
-        return Heap::undefined_value();
+    case NORMAL:
+    case FIELD:
+    case CONSTANT_FUNCTION:
+      return obj->GetProperty(name);
+    case CALLBACKS: {
+      // Get the property value. If there is an exception it must be thown from
+      // a JavaScript getter.
+      Object* value;
+      value = obj->GetProperty(name);
+      if (value->IsException()) {
+        if (caught_exception != NULL) {
+          *caught_exception = true;
+        }
+        value = Top::pending_exception();
+        Top::optional_reschedule_exception(true);
       }
+      ASSERT(!Top::has_pending_exception());
+      ASSERT(!Top::external_caught_exception());
       return value;
     }
-    case FIELD:
-      value =
-          JSObject::cast(
-              result->holder())->FastPropertyAt(result->GetFieldIndex());
-      if (value->IsTheHole()) {
-        return Heap::undefined_value();
-      }
-      return value;
-    case CONSTANT_FUNCTION:
-      return result->GetConstantFunction();
-    case CALLBACKS:
     case INTERCEPTOR:
+      return obj->GetProperty(name);
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
@@ -4539,6 +4541,18 @@ static Object* DebugLookupResultValue(LookupResult* result) {
 }
 
 
+// Get debugger related details for an object property.
+// args[0]: object holding property
+// args[1]: name of the property
+//
+// The array returned contains the following information:
+// 0: Property value
+// 1: Property details
+// 2: Property value is exception
+// 3: Getter function if defined
+// 4: Setter function if defined
+// Items 2-4 are only filled if the property has either a getter or a setter
+// defined through __defineGetter__ and/or __defineSetter__.
 static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   HandleScope scope;
 
@@ -4559,12 +4573,26 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
 
   // Perform standard local lookup on the object.
   LookupResult result;
-  obj->Lookup(*name, &result);
+  obj->LocalLookup(*name, &result);
   if (result.IsProperty()) {
-    Handle<Object> value(DebugLookupResultValue(&result));
-    Handle<FixedArray> details = Factory::NewFixedArray(2);
+    bool caught_exception = false;
+    Handle<Object> value(DebugLookupResultValue(*obj, *name, &result,
+                                                &caught_exception));
+    // If the callback object is a fixed array then it contains JavaScript
+    // getter and/or setter.
+    bool hasJavaScriptAccessors = result.type() == CALLBACKS &&
+                                  result.GetCallbackObject()->IsFixedArray();
+    Handle<FixedArray> details =
+        Factory::NewFixedArray(hasJavaScriptAccessors ? 5 : 2);
     details->set(0, *value);
     details->set(1, result.GetPropertyDetails().AsSmi());
+    if (hasJavaScriptAccessors) {
+      details->set(2,
+                   caught_exception ? Heap::true_value() : Heap::false_value());
+      details->set(3, FixedArray::cast(result.GetCallbackObject())->get(0));
+      details->set(4, FixedArray::cast(result.GetCallbackObject())->get(1));
+    }
+
     return *Factory::NewJSArrayWithElements(details);
   }
   return Heap::undefined_value();
@@ -4582,7 +4610,7 @@ static Object* Runtime_DebugGetProperty(Arguments args) {
   LookupResult result;
   obj->Lookup(*name, &result);
   if (result.IsProperty()) {
-    return DebugLookupResultValue(&result);
+    return DebugLookupResultValue(*obj, *name, &result, NULL);
   }
   return Heap::undefined_value();
 }
@@ -4676,10 +4704,11 @@ static Object* Runtime_DebugNamedInterceptorPropertyNames(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  RUNTIME_ASSERT(obj->HasNamedInterceptor());
 
-  v8::Handle<v8::Array> result = GetKeysForNamedInterceptor(obj, obj);
-  if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+  if (obj->HasNamedInterceptor()) {
+    v8::Handle<v8::Array> result = GetKeysForNamedInterceptor(obj, obj);
+    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+  }
   return Heap::undefined_value();
 }
 
@@ -4690,10 +4719,11 @@ static Object* Runtime_DebugIndexedInterceptorElementNames(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  RUNTIME_ASSERT(obj->HasIndexedInterceptor());
 
-  v8::Handle<v8::Array> result = GetKeysForIndexedInterceptor(obj, obj);
-  if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+  if (obj->HasIndexedInterceptor()) {
+    v8::Handle<v8::Array> result = GetKeysForIndexedInterceptor(obj, obj);
+    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+  }
   return Heap::undefined_value();
 }
 
