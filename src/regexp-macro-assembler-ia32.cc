@@ -618,8 +618,9 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ sub(ecx, Operand::StaticVariable(stack_guard_limit));
   // Handle it if the stack pointer is already below the stack limit.
   __ j(below_equal, &stack_limit_hit, not_taken);
-  // Check if there is room for num_registers + ebp above the stack limit.
-  __ cmp(ecx, (num_registers_ + 1) * kPointerSize);
+  // Check if there is room for the variable number of registers above
+  // the stack limit.
+  __ cmp(ecx, num_registers_ * kPointerSize);
   __ j(above_equal, &stack_ok, taken);
   // Exit with exception.
   __ mov(eax, EXCEPTION);

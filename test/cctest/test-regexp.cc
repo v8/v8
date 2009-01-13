@@ -1055,8 +1055,6 @@ TEST(MacroAssemblerIA32AtStart) {
 }
 
 
-
-
 TEST(MacroAssemblerIA32BackRefNoCase) {
   v8::V8::Initialize();
   ContextInitializer initializer;

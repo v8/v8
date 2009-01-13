@@ -178,7 +178,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   inline Register backtrack_stackpointer() { return ecx; }
 
   // Byte size of chars in the string to match (decided by the Mode argument)
-  inline size_t char_size() { return static_cast<size_t>(mode_); }
+  inline int char_size() { return static_cast<int>(mode_); }
 
   // Equivalent to a conditional branch to the label, unless the label
   // is NULL, in which case it is a conditional Backtrack.
@@ -225,7 +225,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // constants.
   ByteArrayProvider constants_;
 
-  // Which mode to generate code for (ASCII or UTF16).
+  // Which mode to generate code for (ASCII or UC16).
   Mode mode_;
 
   // One greater than maximal register index actually used.
