@@ -3237,9 +3237,9 @@ void CodeGenerator::VisitCall(Call* node) {
         ? ComputeCallInitializeInLoop(arg_count)
         : ComputeCallInitialize(arg_count);
     CodeForSourcePosition(node->position());
-    frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
-                           arg_count + 1);
-    Result result = allocator_->Allocate(eax);
+    Result result = frame_->CallCodeObject(stub,
+                                           RelocInfo::CODE_TARGET_CONTEXT,
+                                           arg_count + 1);
     frame_->RestoreContextRegister();
 
     // Replace the function on the stack with the result.
@@ -3288,8 +3288,9 @@ void CodeGenerator::VisitCall(Call* node) {
         ? ComputeCallInitializeInLoop(arg_count)
         : ComputeCallInitialize(arg_count);
       CodeForSourcePosition(node->position());
-      frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
-      Result result = allocator_->Allocate(eax);
+      Result result = frame_->CallCodeObject(stub,
+                                             RelocInfo::CODE_TARGET,
+                                             arg_count + 1);
       frame_->RestoreContextRegister();
 
       // Replace the function on the stack with the result.
@@ -3370,8 +3371,9 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // constructor invocation.
   CodeForSourcePosition(node->position());
   Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
-  frame_->CallCodeObject(ic, RelocInfo::CONSTRUCT_CALL, args->length() + 1);
-  Result result = allocator_->Allocate(eax);
+  Result result = frame_->CallCodeObject(ic,
+                                         RelocInfo::CONSTRUCT_CALL,
+                                         args->length() + 1);
 
   // Replace the function on the stack with the result.
   frame_->SetElementAt(0, &result);
@@ -4436,27 +4438,40 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
   }
 
   virtual void Generate() {
-    // The argument are actually passed in edx and on top of the frame.
-    enter()->Bind();
-    VirtualFrame::SpilledScope spilled_scope(generator());
+    CodeGenerator* cgen = generator();
     Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+    Result receiver(cgen);
+    Result key(cgen);
+    enter()->Bind(&receiver, &key);
+    VirtualFrame* frame = generator()->frame();
+    frame->Push(&receiver);  // First IC argument.
+    frame->Push(&key);       // Second IC argument.
+
     // Calculate the delta from the IC call instruction to the map
     // check cmp instruction in the inlined version.  This delta is
     // stored in a test(eax, delta) instruction after the call so that
     // we can find it in the IC initialization code and patch the cmp
     // instruction.  This means that we cannot allow test instructions
     // after calls to KeyedLoadIC stubs in other places.
+    //
+    // The virtual frame should be spilled fully before the call so
+    // that the call itself does not generate extra code to spill
+    // values.
+    frame->SpillAll();
     int delta_to_patch_site = __ SizeOfCodeGeneratedSince(patch_site());
-    VirtualFrame* frame = generator()->frame();
+    Result value(cgen);
     if (is_global_) {
-      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, 0);
+      value = frame->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, 0);
     } else {
-      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+      value = frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
     }
-    __ test(eax, Immediate(-delta_to_patch_site));
+    // The result needs to be specifically the eax register because
+    // the offset to the patch site will be expected in a test eax
+    // instruction.
+    ASSERT(value.is_register() && value.reg().is(eax));
+    __ test(value.reg(), Immediate(-delta_to_patch_site));
     __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
-    // The result is result is actually returned in eax.
-    exit()->Jump();
+    exit()->Jump(&value);
   }
 
   Label* patch_site() { return &patch_site_; }
@@ -4492,7 +4507,6 @@ void Reference::GetValue(TypeofState typeof_state) {
   ASSERT(!is_illegal());
   ASSERT(!cgen_->has_cc());
   MacroAssembler* masm = cgen_->masm();
-  VirtualFrame* frame = cgen_->frame();
   switch (type_) {
     case SLOT: {
       Comment cmnt(masm, "[ Load from Slot");
@@ -4510,6 +4524,7 @@ void Reference::GetValue(TypeofState typeof_state) {
       // loads (typeof expression loads must not throw a reference
       // error).
       VirtualFrame::SpilledScope spilled_scope(cgen_);
+      VirtualFrame* frame = cgen_->frame();
       Comment cmnt(masm, "[ Load from named Property");
       Handle<String> name(GetName());
       Variable* var = expression_->AsVariableProxy()->AsVariable();
@@ -4529,9 +4544,7 @@ void Reference::GetValue(TypeofState typeof_state) {
     case KEYED: {
       // TODO(1241834): Make sure that this it is safe to ignore the
       // distinction between expressions in a typeof and not in a typeof.
-      VirtualFrame::SpilledScope spilled_scope(cgen_);
       Comment cmnt(masm, "[ Load from keyed Property");
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       bool is_global = var != NULL;
       ASSERT(!is_global || var->is_global());
@@ -4543,43 +4556,79 @@ void Reference::GetValue(TypeofState typeof_state) {
         Comment cmnt(masm, "[ Inlined array index load");
         DeferredReferenceGetKeyedValue* deferred =
             new DeferredReferenceGetKeyedValue(cgen_, is_global);
-        // Load receiver and check that it is not a smi (only needed
-        // if this is not a load from the global context) and that it
-        // has the expected map.
-        __ mov(edx, Operand(esp, kPointerSize));
+
+        Result key = cgen_->frame()->Pop();
+        Result receiver = cgen_->frame()->Pop();
+        key.ToRegister();
+        receiver.ToRegister();
+
+        // Check that the receiver is not a smi (only needed if this
+        // is not a load from the global context) and that it has the
+        // expected map.
         if (!is_global) {
-          __ test(edx, Immediate(kSmiTagMask));
-          deferred->enter()->Branch(zero, not_taken);
+          __ test(receiver.reg(), Immediate(kSmiTagMask));
+          deferred->enter()->Branch(zero, &receiver, &key, not_taken);
         }
+
         // Initially, use an invalid map. The map is patched in the IC
         // initialization code.
         __ bind(deferred->patch_site());
-        __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+        __ cmp(FieldOperand(receiver.reg(), HeapObject::kMapOffset),
                Immediate(Factory::null_value()));
-        deferred->enter()->Branch(not_equal, not_taken);
-        // Load key and check that it is a smi.
-        __ mov(eax, Operand(esp, 0));
-        __ test(eax, Immediate(kSmiTagMask));
-        deferred->enter()->Branch(not_zero, not_taken);
-        // Shift to get actual index value.
-        __ sar(eax, kSmiTagSize);
+        deferred->enter()->Branch(not_equal, &receiver, &key, not_taken);
+
+        // Check that the key is a smi.
+        __ test(key.reg(), Immediate(kSmiTagMask));
+        deferred->enter()->Branch(not_zero, &receiver, &key, not_taken);
+
         // Get the elements array from the receiver and check that it
         // is not a dictionary.
-        __ mov(edx, FieldOperand(edx, JSObject::kElementsOffset));
-        __ cmp(FieldOperand(edx, HeapObject::kMapOffset),
+        Result elements = cgen_->allocator()->Allocate();
+        ASSERT(elements.is_valid());
+        __ mov(elements.reg(),
+               FieldOperand(receiver.reg(), JSObject::kElementsOffset));
+        __ cmp(FieldOperand(elements.reg(), HeapObject::kMapOffset),
                Immediate(Factory::hash_table_map()));
-        deferred->enter()->Branch(equal, not_taken);
-        // Check that key is within bounds.
-        __ cmp(eax, FieldOperand(edx, Array::kLengthOffset));
-        deferred->enter()->Branch(above_equal, not_taken);
-        // Load and check that the result is not the hole.
-        __ mov(eax,
-               Operand(edx, eax, times_4, Array::kHeaderSize - kHeapObjectTag));
-        __ cmp(Operand(eax), Immediate(Factory::the_hole_value()));
-        deferred->enter()->Branch(equal, not_taken);
+        deferred->enter()->Branch(equal, &receiver, &key, not_taken);
+
+        // Shift the key to get the actual index value and check that
+        // it is within bounds.
+        Result index = cgen_->allocator()->Allocate();
+        ASSERT(index.is_valid());
+        __ mov(index.reg(), key.reg());
+        __ sar(index.reg(), kSmiTagSize);
+        __ cmp(index.reg(),
+               FieldOperand(elements.reg(), Array::kLengthOffset));
+        deferred->enter()->Branch(above_equal, &receiver, &key, not_taken);
+
+        // Load and check that the result is not the hole.  We could
+        // reuse the index or elements register for the value.
+        //
+        // TODO(): Consider whether it makes sense to try some
+        // heuristic about which register to reuse.  For example, if
+        // one is eax, the we can reuse that one because the value
+        // coming from the deferred code will be in eax.
+        Result value = index;
+        __ mov(value.reg(), Operand(elements.reg(),
+                                    index.reg(),
+                                    times_4,
+                                    Array::kHeaderSize - kHeapObjectTag));
+        elements.Unuse();
+        index.Unuse();
+        __ cmp(Operand(value.reg()), Immediate(Factory::the_hole_value()));
+        deferred->enter()->Branch(equal, &receiver, &key, not_taken);
         __ IncrementCounter(&Counters::keyed_load_inline, 1);
-        deferred->exit()->Bind();
+
+        // Restore the receiver and key to the frame and push the
+        // result on top of it.
+        cgen_->frame()->Push(&receiver);
+        cgen_->frame()->Push(&key);
+        deferred->exit()->Bind(&value);
+        cgen_->frame()->Push(&value);
+
       } else {
+        VirtualFrame::SpilledScope spilled_scope(cgen_);
+        VirtualFrame* frame = cgen_->frame();
         Comment cmnt(masm, "[ Load from keyed Property");
         Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
         if (is_global) {
@@ -4593,8 +4642,8 @@ void Reference::GetValue(TypeofState typeof_state) {
         // keyed load.  The explicit nop instruction is here because
         // the push that follows might be peep-hole optimized away.
         __ nop();
+        frame->EmitPush(eax);  // IC call leaves result in eax, push it out
       }
-      frame->EmitPush(eax);  // IC call leaves result in eax, push it out
       break;
     }
 

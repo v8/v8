@@ -70,7 +70,6 @@ class Result BASE_EMBEDDED {
     if (this != &other) {
       Unuse();
       other.CopyTo(this);
-      // other.Unuse();
     }
     return *this;
   }

@@ -347,9 +347,9 @@ class VirtualFrame : public Malloced {
 
   // Call into a JS code object, given the number of arguments it expects on
   // (and removes from) the top of the physical frame.
-  void CallCodeObject(Handle<Code> ic,
-                      RelocInfo::Mode rmode,
-                      int frame_arg_count);
+  Result CallCodeObject(Handle<Code> ic,
+                        RelocInfo::Mode rmode,
+                        int frame_arg_count);
 
   // Drop a number of elements from the top of the expression stack.  May
   // emit code to affect the physical frame.  Does not clobber any registers

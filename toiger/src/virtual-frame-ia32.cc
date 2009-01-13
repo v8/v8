@@ -918,12 +918,15 @@ void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 }
 
 
-void VirtualFrame::CallCodeObject(Handle<Code> code,
-                                  RelocInfo::Mode rmode,
-                                  int frame_arg_count) {
+Result VirtualFrame::CallCodeObject(Handle<Code> code,
+                                    RelocInfo::Mode rmode,
+                                    int frame_arg_count) {
   ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ call(code, rmode);
+  Result result = cgen_->allocator()->Allocate(eax);
+  ASSERT(result.is_valid());
+  return result;
 }
 
 
