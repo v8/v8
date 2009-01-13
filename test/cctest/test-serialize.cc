@@ -109,9 +109,9 @@ TEST(ExternalReferenceEncoder) {
       ExternalReference::address_of_stack_guard_limit();
   CHECK_EQ(make_code(UNCLASSIFIED, 3),
            encoder.Encode(stack_guard_limit_address.address()));
-  CHECK_EQ(make_code(UNCLASSIFIED, 4),
-           encoder.Encode(ExternalReference::debug_break().address()));
   CHECK_EQ(make_code(UNCLASSIFIED, 5),
+           encoder.Encode(ExternalReference::debug_break().address()));
+  CHECK_EQ(make_code(UNCLASSIFIED, 6),
            encoder.Encode(ExternalReference::new_space_start().address()));
 }
 
@@ -141,9 +141,9 @@ TEST(ExternalReferenceDecoder) {
   CHECK_EQ(ExternalReference::address_of_stack_guard_limit().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 3)));
   CHECK_EQ(ExternalReference::debug_break().address(),
-           decoder.Decode(make_code(UNCLASSIFIED, 4)));
-  CHECK_EQ(ExternalReference::new_space_start().address(),
            decoder.Decode(make_code(UNCLASSIFIED, 5)));
+  CHECK_EQ(ExternalReference::new_space_start().address(),
+           decoder.Decode(make_code(UNCLASSIFIED, 6)));
 }
 
 

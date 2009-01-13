@@ -61,13 +61,19 @@ void RelocInfo::apply(int delta) {
 
 
 Address RelocInfo::target_address() {
-  ASSERT(IsCodeTarget(rmode_));
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   return Assembler::target_address_at(pc_);
 }
 
 
+Address RelocInfo::target_address_address() {
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  return reinterpret_cast<Address>(Assembler::target_address_address_at(pc_));
+}
+
+
 void RelocInfo::set_target_address(Address target) {
-  ASSERT(IsCodeTarget(rmode_));
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   Assembler::set_target_address_at(pc_, target);
 }
 
@@ -92,7 +98,7 @@ void RelocInfo::set_target_object(Object* target) {
 
 Address* RelocInfo::target_reference_address() {
   ASSERT(rmode_ == EXTERNAL_REFERENCE);
-  return reinterpret_cast<Address*>(pc_);
+  return reinterpret_cast<Address*>(Assembler::target_address_address_at(pc_));
 }
 
 

@@ -230,13 +230,18 @@ class RelocInfo BASE_EMBEDDED {
   // Apply a relocation by delta bytes
   INLINE(void apply(int delta));
 
-  // Read/modify the code target in the branch/call instruction this relocation
-  // applies to; can only be called if IsCodeTarget(rmode_)
+  // Read/modify the code target in the branch/call instruction
+  // this relocation applies to;
+  // can only be called if IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
   INLINE(Address target_address());
   INLINE(void set_target_address(Address target));
   INLINE(Object* target_object());
   INLINE(Object** target_object_address());
   INLINE(void set_target_object(Object* target));
+
+  // Read the address of the word containing the target_address. Can only
+  // be called if IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY.
+  INLINE(Address target_address_address());
 
   // Read/modify the reference in the instruction this relocation
   // applies to; can only be called if rmode_ is external_reference
