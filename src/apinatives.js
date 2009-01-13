@@ -59,23 +59,34 @@ function Instantiate(data, name) {
 
 
 function InstantiateFunction(data, name) {
+  // We need a reference to kApiFunctionCache in the stack frame
+  // if we need to bail out from a stack overflow.
+  var cache = kApiFunctionCache;
   var serialNumber = %GetTemplateField(data, kApiSerialNumberOffset);
-  if (!(serialNumber in kApiFunctionCache)) {
-    kApiFunctionCache[serialNumber] = null;
-    var fun = %CreateApiFunction(data);
-    if (name) %FunctionSetName(fun, name);
-    kApiFunctionCache[serialNumber] = fun;
-    var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
-    fun.prototype = prototype ? Instantiate(prototype) : {};
-    %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
-    var parent = %GetTemplateField(data, kApiParentTemplateOffset);
-    if (parent) {
-      var parent_fun = Instantiate(parent);
-      fun.prototype.__proto__ = parent_fun.prototype;
+  var isFunctionCached =
+   (serialNumber in cache) &&
+   (cache[serialNumber] != -1);
+  if (!isFunctionCached) {
+    try {
+      cache[serialNumber] = null;
+      var fun = %CreateApiFunction(data);
+      if (name) %FunctionSetName(fun, name);
+      cache[serialNumber] = fun;
+      var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
+      fun.prototype = prototype ? Instantiate(prototype) : {};
+      %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
+      var parent = %GetTemplateField(data, kApiParentTemplateOffset);
+      if (parent) {
+        var parent_fun = Instantiate(parent);
+        fun.prototype.__proto__ = parent_fun.prototype;
+      }
+      ConfigureTemplateInstance(fun, data);
+    } catch (e) {
+      cache[serialNumber] = -1;
+      throw e;
     }
-    ConfigureTemplateInstance(fun, data);
   }
-  return kApiFunctionCache[serialNumber];
+  return cache[serialNumber];
 }
 
 
