@@ -64,8 +64,7 @@ function InstantiateFunction(data, name) {
   var cache = kApiFunctionCache;
   var serialNumber = %GetTemplateField(data, kApiSerialNumberOffset);
   var isFunctionCached =
-   (serialNumber in cache) &&
-   (cache[serialNumber] != -1);
+   (serialNumber in cache) && (cache[serialNumber] != kUninitialized);
   if (!isFunctionCached) {
     try {
       cache[serialNumber] = null;
@@ -82,7 +81,7 @@ function InstantiateFunction(data, name) {
       }
       ConfigureTemplateInstance(fun, data);
     } catch (e) {
-      cache[serialNumber] = -1;
+      cache[serialNumber] = kUninitialized;
       throw e;
     }
   }
