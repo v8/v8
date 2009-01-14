@@ -608,6 +608,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ push(esi);
   __ push(edi);
   __ push(ebx);  // Callee-save on MacOS.
+  __ push(Immediate(0));  // Make room for input start minus one
 
   // Check if we have space on the stack for registers.
   Label retry_stack_check;
@@ -669,6 +670,9 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     // Set eax to address of char before start of input
     // (effectively string position -1).
     __ lea(eax, Operand(edi, -char_size()));
+    // Store this value in a local variable, for use when clearing
+    // position registers.
+    __ mov(Operand(ebp, kInputStartMinusOne), eax);
     Label init_loop;
     __ bind(&init_loop);
     __ mov(Operand(ebp, ecx, times_1, +0), eax);
@@ -925,6 +929,12 @@ void RegExpMacroAssemblerIA32::WriteCurrentPositionToRegister(int reg,
     __ lea(eax, Operand(edi, cp_offset * char_size()));
     __ mov(register_location(reg), eax);
   }
+}
+
+
+void RegExpMacroAssemblerIA32::ClearRegister(int reg) {
+  __ mov(eax, Operand(ebp, kInputStartMinusOne));
+  __ mov(register_location(reg), eax);
 }
 
 

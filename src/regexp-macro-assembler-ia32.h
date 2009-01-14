@@ -106,6 +106,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void SetRegister(int register_index, int to);
   virtual void Succeed();
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
+  virtual void ClearRegister(int reg);
   virtual void WriteStackPointerToRegister(int reg);
 
   static Result Execute(Code* code,
@@ -127,11 +128,14 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   static const int kAtStart = kRegisterOutput + kPointerSize;
   static const int kStackHighEnd = kAtStart + kPointerSize;
   // Below the frame pointer - local stack variables.
+  // When adding local variables remember to push space for them in
+  // the frame in GetCode.
   static const int kBackup_esi = kFramePointer - kPointerSize;
   static const int kBackup_edi = kBackup_esi - kPointerSize;
   static const int kBackup_ebx = kBackup_edi - kPointerSize;
+  static const int kInputStartMinusOne = kBackup_ebx - kPointerSize;
   // First register address. Following registers are below it on the stack.
-  static const int kRegisterZero = kBackup_ebx - kPointerSize;
+  static const int kRegisterZero = kInputStartMinusOne - kPointerSize;
 
   // Initial size of code buffer.
   static const size_t kRegExpCodeSize = 1024;

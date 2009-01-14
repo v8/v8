@@ -1304,12 +1304,22 @@ Handle<FixedArray> RegExpCompiler::Assemble(
   return array;
 }
 
+bool GenerationVariant::DeferredAction::Mentions(int that) {
+  if (type() == ActionNode::CLEAR_CAPTURES) {
+    Interval range = static_cast<DeferredClearCaptures*>(this)->range();
+    return range.Contains(that);
+  } else {
+    return reg() == that;
+  }
+}
+
 
 bool GenerationVariant::mentions_reg(int reg) {
   for (DeferredAction* action = actions_;
        action != NULL;
        action = action->next()) {
-    if (reg == action->reg()) return true;
+    if (action->Mentions(reg))
+      return true;
   }
   return false;
 }
@@ -1320,7 +1330,7 @@ bool GenerationVariant::GetStoredPosition(int reg, int* cp_offset) {
   for (DeferredAction* action = actions_;
        action != NULL;
        action = action->next()) {
-    if (reg == action->reg()) {
+    if (action->Mentions(reg)) {
       if (action->type() == ActionNode::STORE_POSITION) {
         *cp_offset = static_cast<DeferredCapture*>(action)->cp_offset();
         return true;
@@ -1338,8 +1348,15 @@ int GenerationVariant::FindAffectedRegisters(OutSet* affected_registers) {
   for (DeferredAction* action = actions_;
        action != NULL;
        action = action->next()) {
-    affected_registers->Set(action->reg());
-    if (action->reg() > max_register) max_register = action->reg();
+    if (action->type() == ActionNode::CLEAR_CAPTURES) {
+      Interval range = static_cast<DeferredClearCaptures*>(action)->range();
+      for (int i = range.from(); i <= range.to(); i++)
+        affected_registers->Set(i);
+      if (range.to() > max_register) max_register = range.to();
+    } else {
+      affected_registers->Set(action->reg());
+      if (action->reg() > max_register) max_register = action->reg();
+    }
   }
   return max_register;
 }
@@ -1383,13 +1400,14 @@ void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* assembler,
     }
     int value = 0;
     bool absolute = false;
+    bool clear = false;
     int store_position = -1;
     // This is a little tricky because we are scanning the actions in reverse
     // historical order (newest first).
     for (DeferredAction* action = actions_;
          action != NULL;
          action = action->next()) {
-      if (action->reg() == reg) {
+      if (action->Mentions(reg)) {
         switch (action->type()) {
           case ActionNode::SET_REGISTER: {
             GenerationVariant::DeferredSetRegister* psr =
@@ -1397,6 +1415,7 @@ void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* assembler,
             value += psr->value();
             absolute = true;
             ASSERT_EQ(store_position, -1);
+            ASSERT(!clear);
             break;
           }
           case ActionNode::INCREMENT_REGISTER:
@@ -1404,13 +1423,24 @@ void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* assembler,
               value++;
             }
             ASSERT_EQ(store_position, -1);
+            ASSERT(!clear);
             break;
           case ActionNode::STORE_POSITION: {
             GenerationVariant::DeferredCapture* pc =
                 static_cast<GenerationVariant::DeferredCapture*>(action);
-            if (store_position == -1) {
+            if (!clear && store_position == -1) {
               store_position = pc->cp_offset();
             }
+            ASSERT(!absolute);
+            ASSERT_EQ(value, 0);
+            break;
+          }
+          case ActionNode::CLEAR_CAPTURES: {
+            // Since we're scanning in reverse order, if we've already
+            // set the position we have to ignore historically earlier
+            // clearing operations.
+            if (store_position == -1)
+              clear = true;
             ASSERT(!absolute);
             ASSERT_EQ(value, 0);
             break;
@@ -1423,14 +1453,12 @@ void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* assembler,
     }
     if (store_position != -1) {
       assembler->WriteCurrentPositionToRegister(reg, store_position);
-    } else {
-      if (absolute) {
-        assembler->SetRegister(reg, value);
-      } else {
-        if (value != 0) {
-          assembler->AdvanceRegister(reg, value);
-        }
-      }
+    } else if (clear) {
+      assembler->ClearRegister(reg);
+    } else if (absolute) {
+      assembler->SetRegister(reg, value);
+    } else if (value != 0) {
+      assembler->AdvanceRegister(reg, value);
     }
   }
 }
@@ -1582,6 +1610,15 @@ ActionNode* ActionNode::IncrementRegister(int reg, RegExpNode* on_success) {
 ActionNode* ActionNode::StorePosition(int reg, RegExpNode* on_success) {
   ActionNode* result = new ActionNode(STORE_POSITION, on_success);
   result->data_.u_position_register.reg = reg;
+  return result;
+}
+
+
+ActionNode* ActionNode::ClearCaptures(Interval range,
+                                      RegExpNode* on_success) {
+  ActionNode* result = new ActionNode(CLEAR_CAPTURES, on_success);
+  result->data_.u_clear_captures.range_from = range.from();
+  result->data_.u_clear_captures.range_to = range.to();
   return result;
 }
 
@@ -2267,10 +2304,25 @@ void QuickCheckDetails::Merge(QuickCheckDetails* other, int from_index) {
 }
 
 
+class VisitMarker {
+ public:
+  explicit VisitMarker(NodeInfo* info) : info_(info) {
+    ASSERT(!info->visited);
+    info->visited = true;
+  }
+  ~VisitMarker() {
+    info_->visited = false;
+  }
+ private:
+  NodeInfo* info_;
+};
+
+
 void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                           RegExpCompiler* compiler,
                                           int characters_filled_in) {
-  if (body_can_be_zero_length_) return;
+  if (body_can_be_zero_length_ || info()->visited) return;
+  VisitMarker marker(info());
   return ChoiceNode::GetQuickCheckDetails(details,
                                           compiler,
                                           characters_filled_in);
@@ -2843,7 +2895,7 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   // is to use the Dispatch table to try only the relevant ones.
   for (int i = first_normal_choice; i < choice_count; i++) {
     GuardedAlternative alternative = alternatives_->at(i);
-    AlternativeGeneration* alt_gen(alt_gens.at(i));
+    AlternativeGeneration* alt_gen = alt_gens.at(i);
     alt_gen->quick_check_details.set_characters(preload_characters);
     ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == NULL) ? 0 : guards->length();
@@ -3000,6 +3052,14 @@ bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
           new_set(data_.u_store_register.reg, data_.u_store_register.value);
       GenerationVariant new_variant = *variant;
       new_variant.add_action(&new_set);
+      return on_success()->Emit(compiler, &new_variant);
+    }
+    case CLEAR_CAPTURES: {
+      GenerationVariant::DeferredClearCaptures
+        new_capture(Interval(data_.u_clear_captures.range_from,
+                             data_.u_clear_captures.range_to));
+      GenerationVariant new_variant = *variant;
+      new_variant.add_action(&new_capture);
       return on_success()->Emit(compiler, &new_variant);
     }
     case BEGIN_SUBMATCH:
@@ -3365,6 +3425,12 @@ void DotPrinter::VisitAction(ActionNode* that) {
                     that->data_.u_empty_match_check.repetition_register,
                     that->data_.u_empty_match_check.repetition_limit);
       break;
+    case ActionNode::CLEAR_CAPTURES: {
+      stream()->Add("label=\"clear $%i to $%i\", shape=septagon",
+                    that->data_.u_clear_captures.range_from,
+                    that->data_.u_clear_captures.range_to);
+      break;
+    }
   }
   stream()->Add("];\n");
   PrintAttributes(that);
@@ -3592,9 +3658,13 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   if (max == 0) return on_success;  // This can happen due to recursion.
   bool body_can_be_empty = (body->min_match() == 0);
   int body_start_reg = RegExpCompiler::kNoRegister;
+  Interval capture_registers = body->CaptureRegisters();
+  bool needs_capture_clearing = !capture_registers.is_empty();
   if (body_can_be_empty) {
     body_start_reg = compiler->AllocateRegister();
-  } else {
+  } else if (!needs_capture_clearing) {
+    // Only unroll if there are no captures and the body can't be
+    // empty.
     if (min > 0 && min <= kMaxUnrolledMinMatches) {
       int new_max = (max == kInfinity) ? max : max - min;
       // Recurse once to get the loop or optional matches after the fixed ones.
@@ -3651,6 +3721,10 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
     // If the body can be empty we need to store the start position
     // so we can bail out if it was empty.
     body_node = ActionNode::StorePosition(body_start_reg, body_node);
+  }
+  if (needs_capture_clearing) {
+    // Before entering the body of this loop we need to clear captures.
+    body_node = ActionNode::ClearCaptures(capture_registers, body_node);
   }
   GuardedAlternative body_alt(body_node);
   if (has_max) {

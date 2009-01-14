@@ -664,6 +664,33 @@ class RegExpNode: public ZoneObject {
 };
 
 
+// A simple closed interval.
+class Interval {
+ public:
+  Interval() : from_(kNone), to_(kNone) { }
+  Interval(int from, int to) : from_(from), to_(to) { }
+  Interval Union(Interval that) {
+    if (that.from_ == kNone)
+      return *this;
+    else if (from_ == kNone)
+      return that;
+    else
+      return Interval(Min(from_, that.from_), Max(to_, that.to_));
+  }
+  bool Contains(int value) {
+    return (from_ <= value) && (value <= to_);
+  }
+  bool is_empty() { return from_ == kNone; }
+  int from() { return from_; }
+  int to() { return to_; }
+  static Interval Empty() { return Interval(); }
+  static const int kNone = -1;
+ private:
+  int from_;
+  int to_;
+};
+
+
 class SeqRegExpNode: public RegExpNode {
  public:
   explicit SeqRegExpNode(RegExpNode* on_success)
@@ -683,24 +710,23 @@ class ActionNode: public SeqRegExpNode {
     STORE_POSITION,
     BEGIN_SUBMATCH,
     POSITIVE_SUBMATCH_SUCCESS,
-    EMPTY_MATCH_CHECK
+    EMPTY_MATCH_CHECK,
+    CLEAR_CAPTURES
   };
   static ActionNode* SetRegister(int reg, int val, RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
   static ActionNode* StorePosition(int reg, RegExpNode* on_success);
-  static ActionNode* BeginSubmatch(
-      int stack_pointer_reg,
-      int position_reg,
-      RegExpNode* on_success);
-  static ActionNode* PositiveSubmatchSuccess(
-      int stack_pointer_reg,
-      int restore_reg,
-      RegExpNode* on_success);
-  static ActionNode* EmptyMatchCheck(
-      int start_register,
-      int repetition_register,
-      int repetition_limit,
-      RegExpNode* on_success);
+  static ActionNode* ClearCaptures(Interval range, RegExpNode* on_success);
+  static ActionNode* BeginSubmatch(int stack_pointer_reg,
+                                   int position_reg,
+                                   RegExpNode* on_success);
+  static ActionNode* PositiveSubmatchSuccess(int stack_pointer_reg,
+                                             int restore_reg,
+                                             RegExpNode* on_success);
+  static ActionNode* EmptyMatchCheck(int start_register,
+                                     int repetition_register,
+                                     int repetition_limit,
+                                     RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
   virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
   virtual int EatsAtLeast(int recursion_depth);
@@ -736,6 +762,10 @@ class ActionNode: public SeqRegExpNode {
       int repetition_register;
       int repetition_limit;
     } u_empty_match_check;
+    struct {
+      int range_from;
+      int range_to;
+    } u_clear_captures;
   } data_;
   ActionNode(Type type, RegExpNode* on_success)
       : SeqRegExpNode(on_success),
@@ -980,6 +1010,7 @@ class GenerationVariant {
     DeferredAction(ActionNode::Type type, int reg)
         : type_(type), reg_(reg), next_(NULL) { }
     DeferredAction* next() { return next_; }
+    bool Mentions(int reg);
     int reg() { return reg_; }
     ActionNode::Type type() { return type_; }
    private:
@@ -1008,6 +1039,16 @@ class GenerationVariant {
     int value() { return value_; }
    private:
     int value_;
+  };
+
+  class DeferredClearCaptures : public DeferredAction {
+   public:
+    explicit DeferredClearCaptures(Interval range)
+        : DeferredAction(ActionNode::CLEAR_CAPTURES, -1),
+          range_(range) { }
+    Interval range() { return range_; }
+   private:
+    Interval range_;
   };
 
   class DeferredIncrementRegister: public DeferredAction {

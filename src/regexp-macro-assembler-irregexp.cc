@@ -107,6 +107,11 @@ void RegExpMacroAssemblerIrregexp::WriteCurrentPositionToRegister(
 }
 
 
+void RegExpMacroAssemblerIrregexp::ClearRegister(int reg) {
+  SetRegister(reg, -1);
+}
+
+
 void RegExpMacroAssemblerIrregexp::ReadCurrentPositionFromRegister(
     int register_index) {
   ASSERT(register_index >= 0);

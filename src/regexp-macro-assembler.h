@@ -167,6 +167,7 @@ class RegExpMacroAssembler {
   virtual void SetRegister(int register_index, int to) = 0;
   virtual void Succeed() = 0;
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset) = 0;
+  virtual void ClearRegister(int reg) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
 
  private:

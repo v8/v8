@@ -51,8 +51,32 @@ function fail(expected, found, name_opt) {
 }
 
 
+function deepEquals(a, b) {
+  if (a == b) return true;
+  if ((typeof a) !== 'object' || (typeof b) !== 'object' ||
+      (a === null) || (b === null))
+    return false;
+  if (a.constructor === Array) {
+    if (b.constructor !== Array)
+      return false;
+    if (a.length != b.length)
+      return false;
+    for (var i = 0; i < a.length; i++) {
+      if (i in a) {
+        if (!(i in b) || !(deepEquals(a[i], b[i])))
+          return false;
+      } else if (i in b) {
+        return false;
+      }
+    }
+    return true;
+  }
+  return false;
+}
+
+
 function assertEquals(expected, found, name_opt) {
-  if (expected != found) {
+  if (!deepEquals(found, expected)) {
     fail(expected, found, name_opt);
   }
 }
