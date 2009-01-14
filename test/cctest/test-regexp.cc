@@ -291,8 +291,8 @@ TEST(Parser) {
   CHECK_MIN_MAX("(?:ab)|cde", 2, 3);
   CHECK_MIN_MAX("(ab)", 2, 2);
   CHECK_MIN_MAX("(ab|cde)", 2, 3);
-  CHECK_MIN_MAX("(ab)\\1", 4, 4);
-  CHECK_MIN_MAX("(ab|cde)\\1", 4, 6);
+  CHECK_MIN_MAX("(ab)\\1", 2, 4);
+  CHECK_MIN_MAX("(ab|cde)\\1", 2, 6);
   CHECK_MIN_MAX("(?:ab)?", 0, 2);
   CHECK_MIN_MAX("(?:ab)*", 0, RegExpTree::kInfinity);
   CHECK_MIN_MAX("(?:ab)+", 2, RegExpTree::kInfinity);
