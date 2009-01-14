@@ -117,6 +117,7 @@ void HeapObject::HeapObjectPrint() {
       PrintF("filler");
       break;
     case JS_OBJECT_TYPE:  // fall through
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:
       JSObject::cast(this)->JSObjectPrint();
@@ -193,6 +194,7 @@ void HeapObject::HeapObjectVerify() {
       Oddball::cast(this)->OddballVerify();
       break;
     case JS_OBJECT_TYPE:
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       JSObject::cast(this)->JSObjectVerify();
       break;
     case JS_VALUE_TYPE:
@@ -382,6 +384,7 @@ static const char* TypeToString(InstanceType type) {
     case BYTE_ARRAY_TYPE: return "BYTE_ARRAY";
     case FILLER_TYPE: return "FILLER";
     case JS_OBJECT_TYPE: return "JS_OBJECT";
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE: return "JS_CONTEXT_EXTENSION_OBJECT";
     case ODDBALL_TYPE: return "ODDBALL";
     case SHARED_FUNCTION_INFO_TYPE: return "SHARED_FUNCTION_INFO";
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";

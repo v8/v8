@@ -33,12 +33,27 @@ var setterCalled = false;
 var o = {};
 o.__defineSetter__("x", function() { setterCalled = true; });
 
+function runTest(test) {
+  setterCalled = false;
+  test();
+}
+
 function testLocal() {
   // Add property called __proto__ to the extension object.
   eval("var __proto__ = o");
   // Check that the extension object's prototype did not change.
   eval("var x = 27");
   assertFalse(setterCalled, "prototype of extension object changed");
+  assertEquals(o, eval("__proto__"));
+}
+
+function testConstLocal() {
+  // Add const property called __proto__ to the extension object.
+  eval("const __proto__ = o");
+  // Check that the extension object's prototype did not change.
+  eval("var x = 27");
+  assertFalse(setterCalled, "prototype of extension object changed");
+  assertEquals(o, eval("__proto__"));
 }
 
 function testGlobal() {
@@ -48,8 +63,10 @@ function testGlobal() {
   eval("x = 27");
   assertTrue(setterCalled, "prototype of global object did not change");
   setterCalled = false;
+  assertEquals(o, eval("__proto__"));
 }
 
-testLocal();
-testGlobal();
+runTest(testLocal);
+runTest(testConstLocal);
+runTest(testGlobal);
 

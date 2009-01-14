@@ -940,6 +940,7 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       reinterpret_cast<FixedArray*>(this)->FixedArrayIterateBody(v);
       break;
     case JS_OBJECT_TYPE:
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
     case JS_VALUE_TYPE:
     case JS_ARRAY_TYPE:
     case JS_REGEXP_TYPE:
@@ -2360,7 +2361,7 @@ void JSObject::LocalLookup(String* name, LookupResult* result) {
   }
 
   // Check __proto__ before interceptor.
-  if (name->Equals(Heap::Proto_symbol())) {
+  if (name->Equals(Heap::Proto_symbol()) && !IsJSContextExtensionObject()) {
     result->ConstantResult(this);
     return;
   }

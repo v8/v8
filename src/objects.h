@@ -278,6 +278,7 @@ enum PropertyNormalizationMode {
                                                 \
   V(JS_VALUE_TYPE)                              \
   V(JS_OBJECT_TYPE)                             \
+  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)           \
   V(JS_GLOBAL_OBJECT_TYPE)                      \
   V(JS_BUILTINS_OBJECT_TYPE)                    \
   V(JS_GLOBAL_PROXY_TYPE)                       \
@@ -535,6 +536,7 @@ enum InstanceType {
 
   JS_VALUE_TYPE,
   JS_OBJECT_TYPE,
+  JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
@@ -622,6 +624,7 @@ class Object BASE_EMBEDDED {
   inline bool IsOutOfMemoryFailure();
   inline bool IsException();
   inline bool IsJSObject();
+  inline bool IsJSContextExtensionObject();
   inline bool IsMap();
   inline bool IsFixedArray();
   inline bool IsDescriptorArray();

@@ -328,6 +328,13 @@ bool Object::IsJSObject() {
 }
 
 
+bool Object::IsJSContextExtensionObject() {
+  return IsHeapObject()
+    && (HeapObject::cast(this)->map()->instance_type() ==
+        JS_CONTEXT_EXTENSION_OBJECT_TYPE);
+}
+
+
 bool Object::IsMap() {
   return Object::IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() == MAP_TYPE;
@@ -1018,6 +1025,7 @@ int JSObject::GetHeaderSize() {
     case JS_REGEXP_TYPE:
       return JSValue::kSize;
     case JS_OBJECT_TYPE:
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     default:
       UNREACHABLE();
