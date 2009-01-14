@@ -63,6 +63,7 @@ void JumpTarget::Jump() {
   // Precondition: there is a current frame.  There may or may not be an
   // expected frame at the label.
   ASSERT(cgen_ != NULL);
+  ASSERT(!cgen_->has_cc());
 
   VirtualFrame* current_frame = cgen_->frame();
   ASSERT(current_frame != NULL);
@@ -100,6 +101,7 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
   // expected frame at the label.
   ASSERT(cgen_ != NULL);
   ASSERT(masm_ != NULL);
+  ASSERT(!cgen_->has_cc());
 
   VirtualFrame* current_frame = cgen_->frame();
   ASSERT(current_frame != NULL);
@@ -202,6 +204,7 @@ void JumpTarget::Call() {
   // at the label.
   ASSERT(cgen_ != NULL);
   ASSERT(masm_ != NULL);
+  ASSERT(!cgen_->has_cc());
 
   VirtualFrame* current_frame = cgen_->frame();
   ASSERT(current_frame != NULL);
@@ -227,6 +230,7 @@ void JumpTarget::Bind() {
   // the label (and possibly both).  The label is unbound.
   ASSERT(cgen_ != NULL);
   ASSERT(masm_ != NULL);
+  ASSERT(!cgen_->has_cc());
 
   VirtualFrame* current_frame = cgen_->frame();
   ASSERT(current_frame != NULL || expected_frame_ != NULL);
@@ -264,66 +268,24 @@ void JumpTarget::Bind() {
 void JumpTarget::Bind(Result* arg) {
   ASSERT(cgen_ != NULL);
 
-#ifdef DEBUG
-  // We want register results at the call site to stay in the same
-  // registers.
-  bool had_entry_frame = false;
-  Result::Type arg_type;
-  Register arg_reg;
-#endif
-
   if (cgen_->has_valid_frame()) {
-#ifdef DEBUG
-    had_entry_frame = true;
-    arg_type = arg->type();
-    arg_reg = arg->is_register() ? arg->reg() : no_reg;
-#endif
     cgen_->frame()->Push(arg);
   }
   Bind();
   *arg = cgen_->frame()->Pop();
-
-  ASSERT(!had_entry_frame || arg->type() == arg_type);
-  ASSERT(!had_entry_frame || !arg->is_register() || arg->reg().is(arg_reg));
 }
 
 
 void JumpTarget::Bind(Result* arg0, Result* arg1) {
   ASSERT(cgen_ != NULL);
 
-#ifdef DEBUG
-  // We want register results at the call site to stay in the same
-  // registers.
-  bool had_entry_frame = false;
-  Result::Type arg0_type;
-  Register arg0_reg;
-  Result::Type arg1_type;
-  Register arg1_reg;
-#endif
-
   if (cgen_->frame() != NULL) {
-#ifdef DEBUG
-    had_entry_frame = true;
-    arg0_type = arg0->type();
-    arg0_reg = arg0->is_register() ? arg0->reg() : no_reg;
-    arg1_type = arg1->type();
-    arg1_reg = arg1->is_register() ? arg1->reg() : no_reg;
-#endif
     cgen_->frame()->Push(arg0);
     cgen_->frame()->Push(arg1);
   }
   Bind();
   *arg1 = cgen_->frame()->Pop();
   *arg0 = cgen_->frame()->Pop();
-
-  ASSERT(!had_entry_frame || arg0->type() == arg0_type);
-  ASSERT(!had_entry_frame ||
-         !arg0->is_register() ||
-         arg0->reg().is(arg0_reg));
-  ASSERT(!had_entry_frame || arg1->type() == arg1_type);
-  ASSERT(!had_entry_frame ||
-         !arg1->is_register() ||
-         arg1->reg().is(arg1_reg));
 }
 
 

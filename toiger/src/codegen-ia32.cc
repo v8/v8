@@ -441,13 +441,14 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // Convert cc_reg_ into a boolean value.
     JumpTarget loaded(this);
     JumpTarget materialize_true(this);
-    materialize_true.Branch(cc_reg_);
+    Condition cc = cc_reg_;
+    cc_reg_ = no_condition;
+    materialize_true.Branch(cc);
     frame_->EmitPush(Immediate(Factory::false_value()));
     loaded.Jump();
     materialize_true.Bind();
     frame_->EmitPush(Immediate(Factory::true_value()));
     loaded.Bind();
-    cc_reg_ = no_condition;
   }
 
   if (true_target.is_linked() || false_target.is_linked()) {
@@ -1401,8 +1402,8 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 void CodeGenerator::Branch(bool if_true, JumpTarget* target) {
   ASSERT(has_cc());
   Condition cc = if_true ? cc_reg_ : NegateCondition(cc_reg_);
-  target->Branch(cc);
   cc_reg_ = no_condition;
+  target->Branch(cc);
 }
 
 
