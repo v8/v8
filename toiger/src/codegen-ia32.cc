@@ -1269,25 +1269,46 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
   }
   CompareStub stub(cc, strict);
   Result answer = frame_->CallStub(&stub, &right_side, &left_side, 0);
+  ASSERT(answer.is_register() && answer.reg().is_byte_register());
+  frame_->Spill(answer.reg());
   if (cc == equal) {
     __ test(answer.reg(), Operand(answer.reg()));
   } else {
     __ cmp(answer.reg(), 0);
   }
-  answer.Unuse();
+  __ setcc(cc, answer.reg());
+  __ and_(Operand(answer.reg()), Immediate(1));
   // The expected frame at JumpTarget "done" is bound to the current frame.
   // This current frame is spilled, due to the call to CallStub.
   // It would be better if the fast SMI case controlled the expected frame.
-  done.Jump();
+  done.Jump(&answer);
 
   is_smi.Bind(&left_side, &right_side);
+  left_side.ToRegister();
+  right_side.ToRegister();
+  // Find a byte register for the flag value.
+  if (!left_side.reg().is_byte_register() &&
+      !right_side.reg().is_byte_register()) {
+    // If we allocate a register here, it should be a byte register
+    // because there is only one non-reserved register on IA32 that
+    // does not have a byte part (namely edi) and it must be left_side
+    // (and right_side).
+    answer = allocator_->Allocate();
+    ASSERT(answer.is_register() && answer.reg().is_byte_register());
+  } else {
+    answer = left_side.reg().is_byte_register() ? left_side : right_side;
+    frame_->Spill(answer.reg());
+  }
   __ cmp(left_side.reg(), Operand(right_side.reg()));
   right_side.Unuse();
   left_side.Unuse();
-  // Fall through to |done|.
+  __ setcc(cc, answer.reg());
+  __ and_(Operand(answer.reg()), Immediate(1));
 
-  done.Bind();
-  cc_reg_ = cc;
+  done.Bind(&answer);
+  answer.ToRegister();
+  __ test(answer.reg(), Operand(answer.reg()));
+  cc_reg_ = not_zero;
 }
 
 
@@ -1324,11 +1345,12 @@ void DeferredSmiComparison::Generate() {
   ASSERT(value.is_valid());
   __ Set(value.reg(), Immediate(Smi::FromInt(int_value_)));
   Result result = cgen->frame()->CallStub(&stub, &argument, &value, 0);
-  ASSERT(result.is_register());
+  ASSERT(result.is_register() && result.reg().is_byte_register());
+  cgen->frame()->Spill(result.reg());
   __ cmp(result.reg(), 0);
-  result.Unuse();
-  // The actual result is returned in the flags.
-  exit()->Jump();
+  __ setcc(cc_, result.reg());
+  __ and_(Operand(result.reg()), Immediate(1));
+  exit()->Jump(&result);
 }
 
 
@@ -1348,11 +1370,28 @@ void CodeGenerator::SmiComparison(Condition cc,
   comparee.ToRegister();
   __ test(comparee.reg(), Immediate(kSmiTagMask));
   deferred->enter()->Branch(not_zero, &comparee, not_taken);
+  // Find a byte register to hold the flag value.  If the comparee is
+  // a byte register we can use it, otherwise allocating will give us
+  // one since there is only one non-reserved IA32 register that does
+  // not have a byte part (namely edi).
+  Result flag(this);
+  if (comparee.reg().is_byte_register()) {
+    flag = comparee;
+    frame_->Spill(flag.reg());
+  } else {
+    flag = allocator_->Allocate();
+    ASSERT(flag.is_register() && flag.reg().is_byte_register());
+  }
   // Test smi equality and comparison by signed int comparison.
   __ cmp(Operand(comparee.reg()), Immediate(value));
   comparee.Unuse();
-  deferred->exit()->Bind();
-  cc_reg_ = cc;
+  __ setcc(cc, flag.reg());
+  __ and_(Operand(flag.reg()), Immediate(1));
+
+  deferred->exit()->Bind(&flag);
+  flag.ToRegister();
+  __ test(flag.reg(), Operand(flag.reg()));
+  cc_reg_ = not_zero;
 }
 
 
@@ -3590,7 +3629,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   LoadAndSpill(args->at(0));
-  JumpTarget answer(this);
+  Label answer;
   // We need the CC bits to come out as not_equal in the case where the
   // object is a smi.  This can't be done with the usual test opcode so
   // we copy the object to ecx and do some destructive ops on it that
@@ -3599,13 +3638,13 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   __ mov(ecx, Operand(eax));
   __ and_(ecx, kSmiTagMask);
   __ xor_(ecx, kSmiTagMask);
-  answer.Branch(not_equal, not_taken);
+  __ j(not_equal, &answer, not_taken);
   // It is a heap object - get map.
   __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
   // Check if the object is a JS array or not.
   __ cmp(eax, JS_ARRAY_TYPE);
-  answer.Bind();
+  __ bind(&answer);
   cc_reg_ = equal;
 }
 
