@@ -852,10 +852,13 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 }
 
 
-void VirtualFrame::CallStub(CodeStub* stub, int frame_arg_count) {
+Result VirtualFrame::CallStub(CodeStub* stub, int frame_arg_count) {
   ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ CallStub(stub);
+  Result result = cgen_->allocator()->Allocate(eax);
+  ASSERT(result.is_valid());
+  return result;
 }
 
 
@@ -863,10 +866,7 @@ Result VirtualFrame::CallStub(CodeStub* stub,
                               Result* arg,
                               int frame_arg_count) {
   arg->Unuse();
-  CallStub(stub, frame_arg_count);
-  Result result = cgen_->allocator()->Allocate(eax);
-  ASSERT(result.is_valid());
-  return result;
+  return CallStub(stub, frame_arg_count);
 }
 
 
@@ -876,10 +876,7 @@ Result VirtualFrame::CallStub(CodeStub* stub,
                               int frame_arg_count) {
   arg0->Unuse();
   arg1->Unuse();
-  CallStub(stub, frame_arg_count);
-  Result result = cgen_->allocator()->Allocate(eax);
-  ASSERT(result.is_valid());
-  return result;
+  return CallStub(stub, frame_arg_count);
 }
 
 

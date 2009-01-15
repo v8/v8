@@ -327,7 +327,7 @@ class VirtualFrame : public Malloced {
 
   // Call a code stub, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.
-  void CallStub(CodeStub* stub, int frame_arg_count);
+  Result CallStub(CodeStub* stub, int frame_arg_count);
   Result CallStub(CodeStub* stub, Result* arg, int frame_arg_count);
   Result CallStub(CodeStub* stub,
                   Result* arg0,

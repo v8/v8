@@ -99,6 +99,16 @@ void JumpTarget::Jump(Result* arg) {
 }
 
 
+void JumpTarget::Jump(Result* arg0, Result* arg1) {
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->has_valid_frame());
+
+  cgen_->frame()->Push(arg0);
+  cgen_->frame()->Push(arg1);
+  Jump();
+}
+
+
 void JumpTarget::Branch(Condition cc, Hint hint) {
   ASSERT(cgen_ != NULL);
   ASSERT(cgen_->has_valid_frame());

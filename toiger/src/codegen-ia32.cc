@@ -181,8 +181,8 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       frame_->EmitPush(frame_->Function());
       frame_->EmitPush(eax);
       frame_->EmitPush(Immediate(Smi::FromInt(scope_->num_parameters())));
-      frame_->CallStub(&stub, 3);
-      frame_->Push(eax);
+      Result answer = frame_->CallStub(&stub, 3);
+      frame_->Push(&answer);
     }
 
     if (scope_->num_heap_slots() > 0) {
@@ -641,11 +641,9 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
   // Call the stub for all other cases.
   frame_->Push(&value);  // Undo the Pop() from above.
   ToBooleanStub stub;
-  frame_->CallStub(&stub, 1);
-  // Convert the result (eax) to condition code.
-  Result temp = allocator_->Allocate(eax);
-  ASSERT(temp.is_valid());
-  __ test(eax, Operand(eax));
+  Result temp = frame_->CallStub(&stub, 1);
+  // Convert the result to a condition code.
+  __ test(temp.reg(), Operand(temp.reg()));
 
   ASSERT(not_equal == not_zero);
   cc_reg_ = not_equal;
@@ -751,21 +749,17 @@ class DeferredInlineBinaryOperation: public DeferredCode {
         op_(op) {
   }
 
-  void GenerateInlineCode();
+  // The binary operation's arguments are on top of the code generator's frame.
+  Result GenerateInlineCode();
 
   virtual void Generate() {
-    // The arguments are is actually passed in ebx and the top of the stack.
-    enter()->Bind();
-    VirtualFrame::SpilledScope spilled_scope(generator());
-    generator()->frame()->EmitPush(ebx);
-    generator()->frame()->CallStub(&stub_, 2);
-    // We must preserve the eax value here, because it will be written
-    // to the top-of-stack element when getting back to the fast case
-    // code. See comment in GenericBinaryOperation where
-    // deferred->exit() is bound.
-    generator()->frame()->EmitPush(eax);
-    // The result is actually returned on the top of the stack.
-    exit()->Jump();
+    Result left(generator());
+    Result right(generator());
+    enter()->Bind(&left, &right);
+    generator()->frame()->Push(&left);
+    generator()->frame()->Push(&right);
+    Result answer = generator()->frame()->CallStub(&stub_, 2);
+    exit()->Jump(&answer);
   }
 
  private:
@@ -786,7 +780,6 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     return;
   }
 
-  VirtualFrame::SpilledScope spilled_scope(this);
   // Set the flags based on the operation, type and loop nesting level.
   GenericBinaryFlags flags;
   switch (op) {
@@ -814,28 +807,18 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 
   if (flags == SMI_CODE_INLINED) {
     // Create a new deferred code for the slow-case part.
-    //
-    // TODO(): When this code is updated to use the virtual frame, it
-    // has to properly flow to the inline code from this deferred code
-    // stub.
     DeferredInlineBinaryOperation* deferred =
         new DeferredInlineBinaryOperation(this, op, overwrite_mode, flags);
-    // Fetch the operands from the stack.
-    frame_->EmitPop(ebx);  // get y
-    __ mov(eax, frame_->Top());  // get x
     // Generate the inline part of the code.
-    deferred->GenerateInlineCode();
-    // Put result back on the stack. It seems somewhat weird to let
-    // the deferred code jump back before the assignment to the frame
-    // top, but this is just to let the peephole optimizer get rid of
-    // more code.
-    deferred->exit()->Bind();
-    __ mov(frame_->Top(), eax);
+    // The operands are on the frame.
+    Result answer = deferred->GenerateInlineCode();
+    deferred->exit()->Bind(&answer);
+    frame_->Push(&answer);
   } else {
     // Call the stub and push the result to the stack.
     GenericBinaryOpStub stub(op, overwrite_mode, flags);
-    frame_->CallStub(&stub, 2);
-    frame_->EmitPush(eax);
+    Result answer = frame_->CallStub(&stub, 2);
+    frame_->Push(&answer);
   }
 }
 
@@ -1428,13 +1411,11 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 
   // Use the shared code stub to call the function.
   CallFunctionStub call_function(arg_count);
-  frame_->CallStub(&call_function, arg_count + 1);
-  Result result = allocator_->Allocate(eax);
-
+  Result answer = frame_->CallStub(&call_function, arg_count + 1);
   // Restore context and replace function on the stack with the
   // result of the stub invocation.
   frame_->RestoreContextRegister();
-  frame_->SetElementAt(0, &result);
+  frame_->SetElementAt(0, &answer);
 }
 
 
@@ -4830,153 +4811,262 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 #undef __
 #define __ masm_->
 
-// This function's implementation is a copy of
-// GenericBinaryOpStub::GenerateSmiCode, with the slow-case label replaced
-// with the deferred code's entry target.  The duplicated code is a
-// temporary intermediate stage on the way to using the virtual frame in
-// more places.
-void DeferredInlineBinaryOperation::GenerateInlineCode() {
-  // Perform fast-case smi code for the operation (eax <op> ebx) and
-  // leave result in register eax.
+Result DeferredInlineBinaryOperation::GenerateInlineCode() {
+  // Perform fast-case smi code for the operation (left <op> right) and
+  // returns the result in a Result.
+  // If any fast-case tests fail, it jumps to the slow-case deferred code,
+  // which calls the binary operation stub, with the arguments (in registers)
+  // on top of the frame.
 
-  // Prepare the smi check of both operands by or'ing them together
-  // before checking against the smi mask.
-  __ mov(ecx, Operand(ebx));
-  __ or_(ecx, Operand(eax));
+  VirtualFrame* frame = generator()->frame();
+  // If operation is division or modulus, ensure
+  // that the special registers needed are free.
+  Result reg_eax(generator());  // Valid only if op is DIV or MOD.
+  Result reg_edx(generator());  // Valid only if op is DIV or MOD.
+  if (op_ == Token::DIV || op_ == Token::MOD) {
+    reg_eax = generator()->allocator()->Allocate(eax);
+    ASSERT(reg_eax.is_valid());
+    reg_edx = generator()->allocator()->Allocate(edx);
+    ASSERT(reg_edx.is_valid());
+  }
 
+  Result right = frame->Pop();
+  Result left = frame->Pop();
+  left.ToRegister();
+  right.ToRegister();
+  // Answer is used to compute the answer, leaving left and right unchanged.
+  // It is also returned from this function.
+  // It is used as a temporary register in a few places, as well.
+  Result answer(generator());
+  if (reg_eax.is_valid()) {
+    answer = reg_eax;
+  } else {
+    answer = generator()->allocator()->Allocate();
+  }
+  ASSERT(answer.is_valid());
+  // Perform the smi check.
+  __ mov(answer.reg(), Operand(left.reg()));
+  __ or_(answer.reg(), Operand(right.reg()));
+  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
+  __ test(answer.reg(), Immediate(kSmiTagMask));
+  enter()->Branch(not_zero, &left, &right, not_taken);
+
+  // All operations start by copying the left argument into answer.
+  __ mov(answer.reg(), Operand(left.reg()));
   switch (op_) {
     case Token::ADD:
-      __ add(eax, Operand(ebx));  // add optimistically
-      enter()->Branch(overflow, not_taken);
+      __ add(answer.reg(), Operand(right.reg()));  // add optimistically
+      enter()->Branch(overflow, &left, &right, not_taken);
       break;
 
     case Token::SUB:
-      __ sub(eax, Operand(ebx));  // subtract optimistically
-      enter()->Branch(overflow, not_taken);
+      __ sub(answer.reg(), Operand(right.reg()));  // subtract optimistically
+      enter()->Branch(overflow, &left, &right, not_taken);
       break;
 
-    case Token::DIV:
-    case Token::MOD:
+
+    case Token::MUL: {
+      // If the smi tag is 0 we can just leave the tag on one operand.
+      ASSERT(kSmiTag == 0);  // adjust code below if not the case
+      // Remove tag from the left operand (but keep sign).
+      // Left hand operand has been copied into answer.
+      __ sar(answer.reg(), kSmiTagSize);
+      // Do multiplication of smis, leaving result in answer.
+      __ imul(answer.reg(), Operand(right.reg()));
+      // Go slow on overflows.
+      enter()->Branch(overflow, &left, &right, not_taken);
+      // Check for negative zero result.  If product is zero,
+      // and one argument is negative, go to slow case.
+      // The frame is unchanged in this block, so local control flow can
+      // use a Label rather than a JumpTarget.
+      Label non_zero_result;
+      __ test(answer.reg(), Operand(answer.reg()));
+      __ j(not_zero, &non_zero_result, taken);
+      __ mov(answer.reg(), Operand(left.reg()));
+      __ or_(answer.reg(), Operand(right.reg()));
+      enter()->Branch(negative, &left, &right, not_taken);
+      __ xor_(answer.reg(), Operand(answer.reg()));  // Positive 0 is correct.
+      __ bind(&non_zero_result);
+      break;
+    }
+
+    case Token::DIV: {
+      // Left hand argument has been copied into answer, which is eax.
       // Sign extend eax into edx:eax.
       __ cdq();
       // Check for 0 divisor.
-      __ test(ebx, Operand(ebx));
-      enter()->Branch(zero, not_taken);
-      break;
-
-    default:
-      // Fall-through to smi check.
-      break;
-  }
-
-  // Perform the actual smi check.
-  ASSERT(kSmiTag == 0);  // adjust zero check if not the case
-  __ test(ecx, Immediate(kSmiTagMask));
-  enter()->Branch(not_zero, not_taken);
-
-  switch (op_) {
-    case Token::ADD:
-    case Token::SUB:
-      // Do nothing here.
-      break;
-
-    case Token::MUL:
-      // If the smi tag is 0 we can just leave the tag on one operand.
-      ASSERT(kSmiTag == 0);  // adjust code below if not the case
-      // Remove tag from one of the operands (but keep sign).
-      __ sar(eax, kSmiTagSize);
-      // Do multiplication.
-      __ imul(eax, Operand(ebx));  // multiplication of smis; result in eax
-      // Go slow on overflows.
-      enter()->Branch(overflow, not_taken);
-      // Check for negative zero result.  Use ecx = x | y.
-      __ NegativeZeroTest(generator(), eax, ecx, enter());
-      break;
-
-    case Token::DIV:
+      __ test(right.reg(), Operand(right.reg()));
+      enter()->Branch(zero, &left, &right, not_taken);
       // Divide edx:eax by ebx.
-      __ idiv(ebx);
+      __ idiv(right.reg());
+      // Check for negative zero result.  If result is zero, and divisor
+      // is negative, return a floating point negative zero.
+      // The frame is unchanged in this block, so local control flow can
+      // use a Label rather than a JumpTarget.
+      Label non_zero_result;
+      __ test(left.reg(), Operand(left.reg()));
+      __ j(not_zero, &non_zero_result, taken);
+      __ test(right.reg(), Operand(right.reg()));
+      enter()->Branch(negative, &left, &right, not_taken);
+      __ bind(&non_zero_result);
       // Check for the corner case of dividing the most negative smi
       // by -1. We cannot use the overflow flag, since it is not set
       // by idiv instruction.
       ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-      __ cmp(eax, 0x40000000);
-      enter()->Branch(equal);
-      // Check for negative zero result.  Use ecx = x | y.
-      __ NegativeZeroTest(generator(), eax, ecx, enter());
+      __ cmp(reg_eax.reg(), 0x40000000);
+      enter()->Branch(equal, &left, &right, not_taken);
       // Check that the remainder is zero.
-      __ test(edx, Operand(edx));
-      enter()->Branch(not_zero);
-      // Tag the result and store it in register eax.
+      __ test(reg_edx.reg(), Operand(reg_edx.reg()));
+      enter()->Branch(not_zero, &left, &right, not_taken);
+      // Tag the result and store it in register temp.
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
+      __ lea(answer.reg(), Operand(eax, eax, times_1, kSmiTag));
       break;
+    }
 
-    case Token::MOD:
+    case Token::MOD: {
+      // Left hand argument has been copied into answer, which is eax.
+      // Sign extend eax into edx:eax.
+      __ cdq();
+      // Check for 0 divisor.
+      __ test(right.reg(), Operand(right.reg()));
+      enter()->Branch(zero, &left, &right, not_taken);
+
       // Divide edx:eax by ebx.
-      __ idiv(ebx);
-      // Check for negative zero result.  Use ecx = x | y.
-      __ NegativeZeroTest(generator(), edx, ecx, enter());
-      // Move remainder to register eax.
-      __ mov(eax, Operand(edx));
+      __ idiv(right.reg());
+      // Check for negative zero result.  If result is zero, and divisor
+      // is negative, return a floating point negative zero.
+      // The frame is unchanged in this block, so local control flow can
+      // use a Label rather than a JumpTarget.
+      Label non_zero_result;
+      __ test(reg_edx.reg(), Operand(reg_edx.reg()));
+      __ j(not_zero, &non_zero_result, taken);
+      __ test(left.reg(), Operand(left.reg()));
+      enter()->Branch(negative, &left, &right, not_taken);
+      __ bind(&non_zero_result);
+      // The answer is in edx.
+      answer = reg_edx;
       break;
+    }
 
     case Token::BIT_OR:
-      __ or_(eax, Operand(ebx));
+      __ or_(answer.reg(), Operand(right.reg()));
       break;
 
     case Token::BIT_AND:
-      __ and_(eax, Operand(ebx));
+      __ and_(answer.reg(), Operand(right.reg()));
       break;
 
     case Token::BIT_XOR:
-      __ xor_(eax, Operand(ebx));
+      __ xor_(answer.reg(), Operand(right.reg()));
       break;
 
     case Token::SHL:
     case Token::SHR:
     case Token::SAR:
-      // Move the second operand into register ecx.
-      __ mov(ecx, Operand(ebx));
+      // Move right into ecx.
+      // Left is in two registers already, so even if left or answer is ecx,
+      // we can move right to it, and use the other one.
+      // Right operand must be in register cl because x86 likes it that way.
+      if (right.reg().is(ecx)) {
+        // Right is already in the right place.  Left may be in the
+        // same register, which causes problems.  Use answer instead.
+        if (left.reg().is(ecx)) {
+          left = answer;
+        }
+      } else if (left.reg().is(ecx)) {
+        __ mov(left.reg(), Operand(right.reg()));
+        right = left;
+        left = answer;  // Use copy of left in answer as left.
+      } else if (answer.reg().is(ecx)) {
+        __ mov(answer.reg(), Operand(right.reg()));
+        right = answer;
+      } else {
+        Result reg_ecx = generator()->allocator()->Allocate(ecx);
+        ASSERT(reg_ecx.is_valid());
+        __ mov(reg_ecx.reg(), Operand(right.reg()));
+        right = reg_ecx;
+      }
+      ASSERT(left.reg().is_valid());
+      ASSERT(!left.reg().is(ecx));
+      ASSERT(right.reg().is(ecx));
+      answer.Unuse();  // Answer may now be being used for left or right.
+      // We will modify left and right, which we do not do in any other
+      // binary operation.  The exits to slow code need to restore the
+      // original values of left and right, or at least values that give
+      // the same answer.
+
+      // We are modifying left and right.  They must be spilled!
+      generator()->frame()->Spill(left.reg());
+      generator()->frame()->Spill(right.reg());
+
       // Remove tags from operands (but keep sign).
-      __ sar(eax, kSmiTagSize);
+      __ sar(left.reg(), kSmiTagSize);
       __ sar(ecx, kSmiTagSize);
       // Perform the operation.
       switch (op_) {
         case Token::SAR:
-          __ sar(eax);
+          __ sar(left.reg());
           // No checks of result necessary
           break;
-        case Token::SHR:
-          __ shr(eax);
+        case Token::SHR: {
+          __ shr(left.reg());
           // Check that the *unsigned* result fits in a smi.
           // Neither of the two high-order bits can be set:
           // - 0x80000000: high bit would be lost when smi tagging.
           // - 0x40000000: this number would convert to negative when
           // Smi tagging these two cases can only happen with shifts
           // by 0 or 1 when handed a valid smi.
-          __ test(eax, Immediate(0xc0000000));
-          enter()->Branch(not_zero, not_taken);
+          // If the answer cannot be represented by a SMI, restore
+          // the left and right arguments, and jump to slow case.
+          // The low bit of the left argument may be lost, but only
+          // in a case where it is dropped anyway.
+          JumpTarget result_ok(generator());
+          __ test(left.reg(), Immediate(0xc0000000));
+          result_ok.Branch(zero, &left, &right, taken);
+          __ shl(left.reg());
+          ASSERT(kSmiTag == 0);
+          __ shl(left.reg(), kSmiTagSize);
+          __ shl(right.reg(), kSmiTagSize);
+          enter()->Jump(&left, &right);
+          result_ok.Bind(&left, &right);
           break;
-        case Token::SHL:
-          __ shl(eax);
+        }
+        case Token::SHL: {
+          __ shl(left.reg());
           // Check that the *signed* result fits in a smi.
-          __ lea(ecx, Operand(eax, 0x40000000));
-          __ test(ecx, Immediate(0x80000000));
-          enter()->Branch(not_zero, not_taken);
+          // TODO(): Can reduce registers from 4 to 3 by preallocating ecx.
+          JumpTarget result_ok(generator());
+          Result smi_test_reg = generator()->allocator()->Allocate();
+          ASSERT(smi_test_reg.is_valid());
+          __ lea(smi_test_reg.reg(), Operand(left.reg(), 0x40000000));
+          __ test(smi_test_reg.reg(), Immediate(0x80000000));
+          smi_test_reg.Unuse();
+          result_ok.Branch(zero, &left, &right, taken);
+          __ shr(left.reg());
+          ASSERT(kSmiTag == 0);
+          __ shl(left.reg(), kSmiTagSize);
+          __ shl(right.reg(), kSmiTagSize);
+          enter()->Jump(&left, &right);
+          result_ok.Bind(&left, &right);
           break;
+        }
         default:
           UNREACHABLE();
       }
-      // Tag the result and store it in register eax.
+      // Smi-tag the result, in left, and make answer an alias for left.
+      answer = left;
+      answer.ToRegister();
       ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-      __ lea(eax, Operand(eax, eax, times_1, kSmiTag));
+      __ lea(answer.reg(),
+             Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
       break;
 
     default:
       UNREACHABLE();
       break;
   }
+  return answer;
 }
 
 

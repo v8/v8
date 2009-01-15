@@ -114,6 +114,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // jump and there will be no current frame after the jump.
   void Jump();
   void Jump(Result* arg);
+  void Jump(Result* arg0, Result* arg1);
 
   // Emit a conditional branch to the target.  There must be a current
   // frame at the branch.  The current frame will fall through to the
