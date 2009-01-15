@@ -657,7 +657,7 @@ class RegExpNode: public ZoneObject {
 
   // Returns a clone of this node initialized using the copy constructor
   // of its concrete class.  Note that the node may have to be pre-
-  // processed before it is on a useable state.
+  // processed before it is on a usable state.
   virtual RegExpNode* Clone() = 0;
 
  private:

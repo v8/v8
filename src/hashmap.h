@@ -59,7 +59,7 @@ class HashMap {
 
   ~HashMap();
 
-  // HashMap entries are (key, value, hash) tripplets.
+  // HashMap entries are (key, value, hash) triplets.
   // Some clients may not need to use the value slot
   // (e.g. implementers of sets, where the key is the value).
   struct Entry {

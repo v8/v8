@@ -640,7 +640,7 @@ class ZoneListWrapper {
 // Allocation macro that should be used to allocate objects that must
 // only be allocated in real parsing mode.  Note that in preparse mode
 // not only is the syntax tree not created but the constructor
-// arguments are not evaulated.
+// arguments are not evaluated.
 #define NEW(expr) (is_pre_parsing_ ? NULL : new expr)
 
 
@@ -1254,7 +1254,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
   // statements, which themselves are only valid within blocks,
   // iterations or 'switch' statements (i.e., BreakableStatements),
   // labels can be simply ignored in all other cases; except for
-  // trivial labelled break statements 'label: break label' which is
+  // trivial labeled break statements 'label: break label' which is
   // parsed into an empty statement.
 
   // Keep the source position of the statement
@@ -1869,7 +1869,7 @@ Statement* Parser::ParseBreakStatement(ZoneStringList* labels, bool* ok) {
       tok != Token::SEMICOLON && tok != Token::RBRACE && tok != Token::EOS) {
     label = ParseIdentifier(CHECK_OK);
   }
-  // Parse labelled break statements that target themselves into
+  // Parse labeled break statements that target themselves into
   // empty statements, e.g. 'l1: l2: l3: break l2;'
   if (!label.is_null() && ContainsLabel(labels, label)) {
     return factory()->EmptyStatement();

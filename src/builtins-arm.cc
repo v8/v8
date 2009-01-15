@@ -565,7 +565,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ cmp(r2, Operand(SharedFunctionInfo::kDontAdaptArgumentsSentinel));
   __ b(eq, &dont_adapt_arguments);
 
-  {  // Enough parameters: actual >= excpected
+  {  // Enough parameters: actual >= expected
     __ bind(&enough);
     EnterArgumentsAdaptorFrame(masm);
 

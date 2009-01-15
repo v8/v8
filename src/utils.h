@@ -421,7 +421,7 @@ inline Vector< Handle<Object> > HandleVector(v8::internal::Handle<T>* elms,
 
 // Simple support to read a file into a 0-terminated C-string.
 // The returned buffer must be freed by the caller.
-// On return, *exits tells whether the file exisited.
+// On return, *exits tells whether the file existed.
 Vector<const char> ReadFile(const char* filename,
                             bool* exists,
                             bool verbose = true);

@@ -777,7 +777,7 @@ Token::Value Scanner::ScanIdentifier() {
 
 
 bool Scanner::IsIdentifier(unibrow::CharacterStream* buffer) {
-  // Checks whether the buffer contains an identifier (no escapse).
+  // Checks whether the buffer contains an identifier (no escape).
   if (!buffer->has_more()) return false;
   if (!kIsIdentifierStart.get(buffer->GetNext())) return false;
   while (buffer->has_more()) {

@@ -99,7 +99,7 @@ class ContextSwitcher: public Thread {
   // Stop sending preemption requests to threads.
   static void StopPreemption();
 
-  // Preempted thread needs to call back to the ContextSwitcher to acknowlege
+  // Preempted thread needs to call back to the ContextSwitcher to acknowledge
   // the handling of a preemption request.
   static void PreemptionReceived();
 

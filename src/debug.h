@@ -179,7 +179,7 @@ class Debug {
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
   static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
 
-  // Returns whether the operation succedded.
+  // Returns whether the operation succeeded.
   static bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
 
   static bool IsDebugBreak(Address addr);
@@ -283,7 +283,7 @@ class Debug {
   static void ActivateStepIn(StackFrame* frame);
   static void ClearStepIn();
   static void ClearStepNext();
-  // Returns whether the compile succedded.
+  // Returns whether the compile succeeded.
   static bool EnsureCompiled(Handle<SharedFunctionInfo> shared);
   static void RemoveDebugInfo(Handle<DebugInfo> debug_info);
   static void SetAfterBreakTarget(JavaScriptFrame* frame);

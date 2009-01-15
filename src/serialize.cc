@@ -743,7 +743,7 @@ class SnapshotWriter {
 
  private:
   char* str_;  // the snapshot
-  int len_;   // the curent length of str_
+  int len_;   // the current length of str_
   int max_;   // the allocated size of str_
 };
 

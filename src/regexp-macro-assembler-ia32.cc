@@ -732,7 +732,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ pop(ebx);
   __ pop(edi);
   __ pop(esi);
-  // Exit function frame, restore previus one.
+  // Exit function frame, restore previous one.
   __ pop(ebp);
   __ ret(0);
 

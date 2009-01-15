@@ -154,7 +154,7 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
                                             &is_result_from_cache);
 
   Handle<JSObject> boilerplate = Factory::NewJSObjectFromMap(map);
-  {  // Add the constant propeties to the boilerplate.
+  {  // Add the constant properties to the boilerplate.
     int length = constant_properties->length();
     OptimizedObjectForAddingMultipleProperties opt(boilerplate,
                                                    !is_result_from_cache);
@@ -1735,7 +1735,7 @@ Object* Runtime::GetObjectProperty(Handle<Object> object, Handle<Object> key) {
     name = Handle<String>::cast(converted);
   }
 
-  // Check if the name is trivially convertable to an index and get
+  // Check if the name is trivially convertible to an index and get
   // the element if so.
   if (name->AsArrayIndex(&index)) {
     return GetElementOrCharAt(object, index);
@@ -1767,7 +1767,7 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
   // itself.
   //
   // The global proxy objects has to be excluded since LocalLookup on
-  // the global proxy object can return a valid result eventhough the
+  // the global proxy object can return a valid result even though the
   // global proxy object never has properties.  This is the case
   // because the global proxy object forwards everything to its hidden
   // prototype including local lookups.
@@ -3003,7 +3003,7 @@ static Object* Runtime_SmiLexicographicCompare(Arguments args) {
   // same as the lexicographic order of the string representations.
   if (x_value == 0 || y_value == 0) return Smi::FromInt(x_value - y_value);
 
-  // If only one of the intergers is negative the negative number is
+  // If only one of the integers is negative the negative number is
   // smallest because the char code of '-' is less than the char code
   // of any digit.  Otherwise, we make both values positive.
   if (x_value < 0 || y_value < 0) {
@@ -3341,7 +3341,7 @@ static Object* Runtime_NewObject(Arguments args) {
   if (constructor->IsJSFunction()) {
     JSFunction* function = JSFunction::cast(constructor);
 
-    // Handle steping into constructors if step into is active.
+    // Handle stepping into constructors if step into is active.
     if (Debug::StepInActive()) {
       HandleScope scope;
       Debug::HandleStepIn(Handle<JSFunction>(function), 0, true);
@@ -4528,7 +4528,7 @@ static Object* DebugLookupResultValue(Object* obj, String* name,
     case CONSTANT_FUNCTION:
       return obj->GetProperty(name);
     case CALLBACKS: {
-      // Get the property value. If there is an exception it must be thown from
+      // Get the property value. If there is an exception it must be thrown from
       // a JavaScript getter.
       Object* value;
       value = obj->GetProperty(name);
@@ -5107,7 +5107,7 @@ static Object* FindSharedFunctionInfoInScript(Handle<Script> script,
           }
           if (start_position <= position &&
               position <= shared->end_position()) {
-            // If there is no candidate or this function is within the currrent
+            // If there is no candidate or this function is within the current
             // candidate this is the new candidate.
             if (target.is_null()) {
               target_start_position = start_position;
@@ -5325,7 +5325,7 @@ static Handle<Object> GetArgumentsObject(JavaScriptFrame* frame,
 
 
 // Evaluate a piece of JavaScript in the context of a stack frame for
-// debugging. This is acomplished by creating a new context which in its
+// debugging. This is accomplished by creating a new context which in its
 // extension part has all the parameters and locals of the function on the
 // stack frame. A function which calls eval with the code to evaluate is then
 // compiled in this context and called in this context. As this context
@@ -5436,7 +5436,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   // Wrap the evaluation statement in a new function compiled in the newly
   // created context. The function has one parameter which has to be called
   // 'arguments'. This it to have access to what would have been 'arguments' in
-  // the function beeing debugged.
+  // the function being debugged.
   // function(arguments,__source__) {return eval(__source__);}
   static const char* source_str =
       "function(arguments,__source__){return eval(__source__);}";
@@ -5551,7 +5551,7 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
   ASSERT(args.length() == 0);
 
   // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
-  // rid of all the cached script wrappes and the second gets rid of the
+  // rid of all the cached script wrappers and the second gets rid of the
   // scripts which is no longer referenced.
   Heap::CollectAllGarbage();
   Heap::CollectAllGarbage();

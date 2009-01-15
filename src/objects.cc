@@ -1947,7 +1947,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
   }
   new_map->set_unused_property_fields(0);
 
-  // We have now sucessfully allocated all the necessary objects.
+  // We have now successfully allocated all the necessary objects.
   // Changes can now be made with the guarantee that all of them take effect.
   set_map(new_map);
   map()->set_instance_descriptors(Heap::empty_descriptor_array());
@@ -2424,7 +2424,7 @@ Object* JSObject::DefineGetterSetter(String* name,
   // callback overwriting in this object or it's prototype chain.
   // This mechanism is needed for instance in a browser setting, where
   // certain accessors such as window.location should not be allowed
-  // to be overwriten because allowing overwriting could potentially
+  // to be overwritten because allowing overwriting could potentially
   // cause security problems.
   LookupResult callback_result;
   LookupCallback(name, &callback_result);

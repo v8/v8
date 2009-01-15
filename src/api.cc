@@ -140,7 +140,7 @@ static inline bool ApiCheck(bool condition,
 
 static bool ReportV8Dead(const char* location) {
   FatalErrorCallback callback = GetFatalErrorHandler();
-  callback(location, "V8 is no longer useable");
+  callback(location, "V8 is no longer usable");
   return true;
 }
 
@@ -153,7 +153,7 @@ static bool ReportEmptyHandle(const char* location) {
 
 
 /**
- * IsDeadCheck checks that the vm is useable.  If, for instance, the vm has been
+ * IsDeadCheck checks that the vm is usable.  If, for instance, the vm has been
  * out of memory at some point this check will fail.  It should be called on
  * entry to all methods that touch anything in the heap, except destructors
  * which you sometimes can't avoid calling after the vm has crashed.  Functions

@@ -45,7 +45,7 @@ using ::v8::internal::ReadLine;
 using ::v8::internal::DeleteArray;
 
 // This macro provides a platform independent use of sscanf. The reason for
-// SScanF not beeing implemented in a platform independent was through
+// SScanF not being implemented in a platform independent was through
 // ::v8::internal::OS in the same way as SNPrintF is that the Windows C Run-Time
 // Library does not provide vsscanf.
 #define SScanF sscanf  // NOLINT

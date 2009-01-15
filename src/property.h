@@ -324,7 +324,7 @@ class DescriptorStream BASE_EMBEDDED {
  protected:
   DescriptorArray* descriptors_;
   int pos_;   // Current position.
-  int limit_;  // Limit for posistion.
+  int limit_;  // Limit for position.
 };
 
 

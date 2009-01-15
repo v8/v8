@@ -129,7 +129,7 @@ class Factory : public AllStatic {
                                         Handle<JSObject> extension,
                                         bool is_catch_context);
 
-  // Return the Symbol maching the passed in string.
+  // Return the Symbol matching the passed in string.
   static Handle<String> SymbolFromString(Handle<String> value);
 
   // Allocate a new struct.  The struct is pretenured (allocated directly in
@@ -293,7 +293,7 @@ class Factory : public AllStatic {
 
   // Installs interceptors on the instance.  'desc' is a function template,
   // and instance is an object instance created by the function of this
-  // function tempalte.
+  // function template.
   static void ConfigureInstance(Handle<FunctionTemplateInfo> desc,
                                 Handle<JSObject> instance,
                                 bool* pending_exception);

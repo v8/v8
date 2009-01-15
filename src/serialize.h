@@ -262,7 +262,7 @@ class Deserializer: public ObjectVisitor {
   virtual ~Deserializer();
 
   // Read the flags from the header of the file, and set those that
-  // should be inhereted from the snapshot.
+  // should be inherited from the snapshot.
   void GetFlags();
 
   // Read saved profiling information from the file and log it if required.

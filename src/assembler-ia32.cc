@@ -1990,7 +1990,7 @@ void Assembler::WriteRecordedPositions() {
   }
 
   // Write the position if it is different from what was written last time and
-  // also diferent from the written statement position.
+  // also different from the written statement position.
   if (current_position_ != written_position_ &&
       current_position_ != written_statement_position_) {
     EnsureSpace ensure_space(this);

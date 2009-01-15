@@ -1656,7 +1656,7 @@ class DescriptorArray: public FixedArray {
   int BinarySearch(String* name, int low, int high);
 
   // Perform a linear search in the instance descriptors represented
-  // by this fixed array.  len is the number of descriptor indeces that are
+  // by this fixed array.  len is the number of descriptor indices that are
   // valid.  Does not require the descriptors to be sorted.
   int LinearSearch(String* name, int len);
 
@@ -1793,7 +1793,7 @@ class HashTable: public FixedArray {
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }
 
-  // Tells wheter k is a real key.  Null and undefined are not allowed
+  // Tells whether k is a real key.  Null and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
   bool IsKey(Object* k) {
     return !k->IsNull() && !k->IsUndefined();
@@ -2060,7 +2060,7 @@ class Dictionary: public DictionaryBase {
 
   void UpdateMaxNumberKey(uint32_t key);
 
-  // Generate new enumneration indices to avoid enumeration insdex overflow.
+  // Generate new enumeration indices to avoid enumeration index overflow.
   Object* GenerateNewEnumerationIndices();
 
   static const int kMaxNumberKeyIndex = kPrefixStartIndex;
@@ -2233,7 +2233,7 @@ class Code: public HeapObject {
   // Returns true if pc is inside this object's instructions.
   inline bool contains(byte* pc);
 
-  // Returns the adddress of the scope information.
+  // Returns the address of the scope information.
   inline byte* sinfo_start();
 
   // Convert inline cache target from address to code object before GC.
@@ -3774,7 +3774,7 @@ class JSArray: public JSObject {
 };
 
 
-// An accesor must have a getter, but can have no setter.
+// An accessor must have a getter, but can have no setter.
 //
 // When setting a property, V8 searches accessors in prototypes.
 // If an accessor was found and it does not have a setter,
@@ -4037,11 +4037,11 @@ class TypeSwitchInfo: public Struct {
 };
 
 
-// The DebugInfo class holds additional information for a function beeing
+// The DebugInfo class holds additional information for a function being
 // debugged.
 class DebugInfo: public Struct {
  public:
-  // The shared function info for the source beeing debugged.
+  // The shared function info for the source being debugged.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
   // Code object for the original code.
   DECL_ACCESSORS(original_code, Code)

@@ -27,7 +27,7 @@
 //
 // Review notes:
 //
-// - The use of macros in these inline fuctions may seem superfluous
+// - The use of macros in these inline functions may seem superfluous
 // but it is absolutely needed to make sure gcc generates optimal
 // code. gcc is not happy when attempting to inline too deep.
 //

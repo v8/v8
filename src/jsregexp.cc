@@ -1462,7 +1462,7 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
 
 
 // This is called as we come into a loop choice node and some other tricky
-// nodes.  It normalises the state of the code generator to ensure we can
+// nodes.  It normalizes the state of the code generator to ensure we can
 // generate generic code.
 bool Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();

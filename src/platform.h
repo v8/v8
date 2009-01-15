@@ -33,7 +33,7 @@
 // implementation for a particular platform is put in platform_<os>.cc.
 // The build system then uses the implementation for the target platform.
 //
-// This design has been choosen because it is simple and fast. Alternatively,
+// This design has been chosen because it is simple and fast. Alternatively,
 // the platform dependent classes could have been implemented using abstract
 // superclasses with virtual methods and having specializations for each
 // platform. This design was rejected because it was more complicated and
@@ -145,7 +145,7 @@ class OS {
   static void PrintError(const char* format, ...);
   static void VPrintError(const char* format, va_list args);
 
-  // Allocate/Free memory used by JS heap. Pages are readable/writeable, but
+  // Allocate/Free memory used by JS heap. Pages are readable/writable, but
   // they are not guaranteed to be executable unless 'executable' is true.
   // Returns the address of allocated memory, or NULL if failed.
   static void* Allocate(const size_t requested,
@@ -162,8 +162,8 @@ class OS {
   // heap corruption.
   static bool IsOutsideAllocatedSpace(void* pointer);
 
-  // Sleep for a number of miliseconds.
-  static void Sleep(const int miliseconds);
+  // Sleep for a number of milliseconds.
+  static void Sleep(const int milliseconds);
 
   // Abort the current process.
   static void Abort();

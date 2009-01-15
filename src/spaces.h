@@ -800,7 +800,7 @@ class PagedSpace : public Space {
 
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS. Newly allocated
-  // pages are appened to the last_page;
+  // pages are append to the last_page;
   bool Expand(Page* last_page);
 
   // Generic fast case allocation function that tries linear allocation in
@@ -896,7 +896,7 @@ class SemiSpace : public Space {
 
   // Double the size of the semispace by committing extra virtual memory.
   // Assumes that the caller has checked that the semispace has not reached
-  // its maxmimum capacity (and thus there is space available in the reserved
+  // its maximum capacity (and thus there is space available in the reserved
   // address range to grow).
   bool Double();
 
@@ -922,7 +922,7 @@ class SemiSpace : public Space {
     return (reinterpret_cast<uint32_t>(o) & object_mask_) == object_expected_;
   }
 
-  // The offset of an address from the begining of the space.
+  // The offset of an address from the beginning of the space.
   int SpaceOffsetForAddress(Address addr) { return addr - low(); }
 
   // If we don't have this here then SemiSpace will be abstract.  However
@@ -1526,11 +1526,11 @@ class LargeObjectChunk {
   // Returns the object in this chunk.
   inline HeapObject* GetObject();
 
-  // Given a requested size (including any extra remembereed set words),
+  // Given a requested size (including any extra remembered set words),
   // returns the physical size of a chunk to be allocated.
   static int ChunkSizeFor(int size_in_bytes);
 
-  // Given a chunk size, returns the object size it can accomodate (not
+  // Given a chunk size, returns the object size it can accommodate (not
   // including any extra remembered set words).  Used by
   // LargeObjectSpace::Available.  Note that this can overestimate the size
   // of object that will fit in a chunk---if the object requires extra

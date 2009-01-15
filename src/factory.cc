@@ -822,7 +822,7 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
     Handle<MapCache> new_cache = NewMapCache(24);
     context->set_map_cache(*new_cache);
   }
-  // Check to see whether there is a maching element in the cache.
+  // Check to see whether there is a matching element in the cache.
   Handle<MapCache> cache =
       Handle<MapCache>(MapCache::cast(context->map_cache()));
   Handle<Object> result = Handle<Object>(cache->Lookup(*keys));

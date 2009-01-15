@@ -61,7 +61,7 @@
 #include <dbghelp.h>  // For SymLoadModule64 and al.
 #include <tlhelp32.h>  // For Module32First and al.
 
-// These aditional WIN32 includes have to be right here as the #undef's below
+// These additional WIN32 includes have to be right here as the #undef's below
 // makes it impossible to have them elsewhere.
 #include <winsock2.h>
 #include <process.h>  // for _beginthreadex()
@@ -490,7 +490,7 @@ bool Time::InDST() {
 }
 
 
-// Return the dalight savings time offset for this time.
+// Return the daylight savings time offset for this time.
 int64_t Time::DaylightSavingsOffset() {
   return InDST() ? 60 * kMsPerMinute : 0;
 }
@@ -859,7 +859,7 @@ Win32MemoryMappedFile::~Win32MemoryMappedFile() {
 
 
 // The following code loads functions defined in DbhHelp.h and TlHelp32.h
-// dynamically. This is to avoid beeing depending on dbghelp.dll and
+// dynamically. This is to avoid being depending on dbghelp.dll and
 // tlhelp32.dll when running (the functions in tlhelp32.dll have been moved to
 // kernel32.dll at some point so loading functions defines in TlHelp32.h
 // dynamically might not be necessary any more - for some versions of Windows?).
@@ -1013,7 +1013,7 @@ TLHELP32_FUNCTION_LIST(DLL_FUNC_LOADED)
 
   dbghelp_loaded = result;
   return result;
-  // NOTE: The modules are never unloaded and will stay arround until the
+  // NOTE: The modules are never unloaded and will stay around until the
   // application is closed.
 }
 

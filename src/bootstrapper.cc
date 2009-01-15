@@ -1083,7 +1083,7 @@ bool Genesis::InstallNatives() {
     call->shared()->DontAdaptArguments();
     ASSERT(call->is_compiled());
 
-    // Set the expected paramters for apply to 2; required by builtin.
+    // Set the expected parameters for apply to 2; required by builtin.
     apply->shared()->set_formal_parameter_count(2);
 
     // Set the lengths for the functions to satisfy ECMA-262.
@@ -1437,7 +1437,7 @@ Genesis::Genesis(Handle<Object> global_object,
                  v8::Handle<v8::ObjectTemplate> global_template,
                  v8::ExtensionConfiguration* extensions) {
   // Link this genesis object into the stacked genesis chain. This
-  // must be done before any early exits because the deconstructor
+  // must be done before any early exits because the destructor
   // will always do unlinking.
   previous_ = current_;
   current_  = this;

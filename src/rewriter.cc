@@ -282,7 +282,7 @@ void AstOptimizer::VisitAssignment(Assignment* node) {
     case Token::INIT_VAR:
     case Token::INIT_CONST:
     case Token::ASSIGN:
-      // Pure assigment copies the type from the value.
+      // Pure assignment copies the type from the value.
       node->type()->CopyFrom(node->value()->type());
       break;
     case Token::ASSIGN_BIT_OR:
@@ -420,7 +420,7 @@ void AstOptimizer::VisitBinaryOperation(BinaryOperation* node) {
       node->type()->SetAsLikelySmi();
     }
     if (node->type()->IsLikelySmi()) {
-      // The type of this node changed to LIKELY_SMI. Propagate this knowlege
+      // The type of this node changed to LIKELY_SMI. Propagate this knowledge
       // down through the nodes.
       if (node->left()->type()->IsUnknown()) {
         node->left()->type()->SetAsLikelySmi();
@@ -455,7 +455,7 @@ void AstOptimizer::VisitCompareOperation(CompareOperation* node) {
       node->type()->SetAsLikelySmi();
     }
     if (node->type()->IsLikelySmi()) {
-      // The type of this node changed to LIKELY_SMI. Propagate this knowlege
+      // The type of this node changed to LIKELY_SMI. Propagate this knowledge
       // down through the nodes.
       if (node->left()->type()->IsUnknown()) {
         node->left()->type()->SetAsLikelySmi();
