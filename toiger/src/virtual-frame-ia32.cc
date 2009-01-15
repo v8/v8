@@ -196,7 +196,8 @@ void VirtualFrame::RawSyncElementAt(int index) {
       // Write elements below the stack pointer to their (already allocated)
       // actual frame location.
       if (element.is_constant()) {
-        __ mov(Operand(ebp, fp_relative(index)), Immediate(element.handle()));
+        ASSERT(!cgen_->has_cc());
+        __ Set(Operand(ebp, fp_relative(index)), Immediate(element.handle()));
       } else {
         ASSERT(element.is_register());
         __ mov(Operand(ebp, fp_relative(index)), element.reg());
@@ -312,6 +313,7 @@ void VirtualFrame::MakeMergable() {
   // We should always be merging the code generator's current frame to an
   // expected frame.
   ASSERT(cgen_->frame() == this);
+  ASSERT(!cgen_->has_cc());
   ASSERT(cgen_->HasValidEntryRegisters());
 
   // Remove constants from the frame and ensure that no registers are
@@ -367,7 +369,7 @@ void VirtualFrame::MakeMergable() {
     ASSERT(!target.is_valid() || target.is_register() || target.is_memory());
     if (target.is_register()) {
       if (source.is_constant()) {
-        __ mov(target.reg(), Immediate(source.handle()));
+        __ Set(target.reg(), Immediate(source.handle()));
       } else if (source.is_register() && !source.reg().is(target.reg())) {
         __ mov(target.reg(), source.reg());
       }
@@ -393,6 +395,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   // We should always be merging the code generator's current frame to an
   // expected frame.
   ASSERT(cgen_->frame() == this);
+  ASSERT(!cgen_->has_cc());
 
   ASSERT(cgen_ == expected->cgen_);
   ASSERT(masm_ == expected->masm_);
@@ -418,7 +421,6 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
       ASSERT(!elements_[i].is_synced());
     }
 #endif
-    ASSERT(!cgen_->has_cc());
     __ add(Operand(esp), Immediate(height_difference * kPointerSize));
     stack_pointer_ = expected->stack_pointer_;
   } else if (stack_pointer_ < expected->stack_pointer_) {
@@ -557,7 +559,6 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
             }
 #endif
             int difference = stack_pointer_ - i;
-            ASSERT(!cgen_->has_cc());
             __ add(Operand(esp), Immediate(difference * kPointerSize));
             stack_pointer_ = i;
           }
@@ -664,6 +665,7 @@ void VirtualFrame::PrepareForReturn() {
 
 
 void VirtualFrame::AllocateStackSlots(int count) {
+  ASSERT(!cgen_->has_cc());
   ASSERT(height() == 0);
   local_count_ = count;
 
@@ -925,6 +927,7 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
 
 
 void VirtualFrame::Drop(int count) {
+  ASSERT(!cgen_->has_cc());
   ASSERT(height() >= count);
   int num_virtual_elements = (elements_.length() - 1) - stack_pointer_;
 
@@ -932,7 +935,6 @@ void VirtualFrame::Drop(int count) {
   if (num_virtual_elements < count) {
     int num_dropped = count - num_virtual_elements;
     stack_pointer_ -= num_dropped;
-    ASSERT(!cgen_->has_cc());
     __ add(Operand(esp), Immediate(num_dropped * kPointerSize));
   }
 
@@ -947,13 +949,13 @@ void VirtualFrame::Drop(int count) {
 
 
 Result VirtualFrame::Pop() {
+  ASSERT(!cgen_->has_cc());
   FrameElement popped = elements_.RemoveLast();
   bool pop_needed = (stack_pointer_ == elements_.length());
 
   if (popped.is_constant()) {
     if (pop_needed) {
       stack_pointer_--;
-      ASSERT(!cgen_->has_cc());
       __ add(Operand(esp), Immediate(kPointerSize));
     }
     return Result(popped.handle(), cgen_);
@@ -961,7 +963,6 @@ Result VirtualFrame::Pop() {
     Unuse(popped.reg());
     if (pop_needed) {
       stack_pointer_--;
-      ASSERT(!cgen_->has_cc());
       __ add(Operand(esp), Immediate(kPointerSize));
     }
     return Result(popped.reg(), cgen_);

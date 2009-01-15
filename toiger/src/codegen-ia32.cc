@@ -2909,7 +2909,7 @@ void CodeGenerator::VisitLiteral(Literal* node) {
     Result temp = allocator_->Allocate();
     ASSERT(temp.is_valid());
     int bits = reinterpret_cast<int>(*node->handle());
-    __ mov(temp.reg(), bits & 0x0000FFFF);
+    __ Set(temp.reg(), Immediate(bits & 0x0000FFFF));
     __ xor_(temp.reg(), bits & 0xFFFF0000);
     frame_->Push(&temp);
   } else {
