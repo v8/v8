@@ -28,24 +28,10 @@
 // Flags: --expose-debug-as debug
 // Test the mirror object for regular error objects
 
-function MirrorRefCache(json_refs) {
-  var tmp = eval('(' + json_refs + ')');
-  this.refs_ = [];
-  for (var i = 0; i < tmp.length; i++) {
-    this.refs_[tmp[i].handle] = tmp[i];
-  }
-}
-
-MirrorRefCache.prototype.lookup = function(handle) {
-  return this.refs_[handle];
-}
-
 function testErrorMirror(e) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(e);
-  var serializer = debug.MakeMirrorSerializer();
-  var json = serializer.serializeValue(mirror);
-  var refs = new MirrorRefCache(serializer.serializeReferencedObjects());
+  var json = mirror.toJSONProtocol(true);
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror);
@@ -63,18 +49,7 @@ function testErrorMirror(e) {
   var fromJSON = eval('(' + json + ')');
   assertEquals('error', fromJSON.type);
   assertEquals('Error', fromJSON.className);
-  if (e.message) {
-    var found_message = false;
-    for (var i in fromJSON.properties) {
-      var p = fromJSON.properties[i];
-      print(p.name);
-      if (p.name == 'message') {
-        assertEquals(e.message, refs.lookup(p.ref).value);
-        found_message = true;
-      }
-    }
-    assertTrue(found_message, 'Property message not found');
-  }
+  assertEquals(fromJSON.message, e.message, 'message');
   
   // Check the formatted text (regress 1231579).
   assertEquals(fromJSON.text, e.toString(), 'toString');

@@ -31,8 +31,7 @@
 function testDateMirror(d, iso8601) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(d);
-  var serializer = debug.MakeMirrorSerializer();
-  var json = serializer.serializeValue(mirror);
+  var json = mirror.toJSONProtocol(true);
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror);

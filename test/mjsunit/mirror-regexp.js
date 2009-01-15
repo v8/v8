@@ -39,24 +39,10 @@ var expected_attributes = {
   'lastIndex': debug.PropertyAttribute.DontEnum | debug.PropertyAttribute.DontDelete
 };
 
-function MirrorRefCache(json_refs) {
-  var tmp = eval('(' + json_refs + ')');
-  this.refs_ = [];
-  for (var i = 0; i < tmp.length; i++) {
-    this.refs_[tmp[i].handle] = tmp[i];
-  }
-}
-
-MirrorRefCache.prototype.lookup = function(handle) {
-  return this.refs_[handle];
-}
-
 function testRegExpMirror(r) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(r);
-  var serializer = debug.MakeMirrorSerializer();
-  var json = serializer.serializeValue(mirror);
-  var refs = new MirrorRefCache(serializer.serializeReferencedObjects());
+  var json = mirror.toJSONProtocol(true);
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror);
@@ -68,6 +54,10 @@ function testRegExpMirror(r) {
   assertTrue(mirror.isRegExp());
   assertEquals('regexp', mirror.type());
   assertFalse(mirror.isPrimitive());
+  assertEquals(mirror.source(), r.source, 'source');
+  assertEquals(mirror.global(), r.global, 'global');
+  assertEquals(mirror.ignoreCase(), r.ignoreCase, 'ignoreCase');
+  assertEquals(mirror.multiline(), r.multiline, 'multiline');
   for (var p in expected_attributes) {
     assertEquals(mirror.property(p).attributes(),
                  expected_attributes[p],
@@ -81,21 +71,16 @@ function testRegExpMirror(r) {
   var fromJSON = eval('(' + json + ')');
   assertEquals('regexp', fromJSON.type);
   assertEquals('RegExp', fromJSON.className);
+  assertEquals(fromJSON.source, r.source, 'source');
+  assertEquals(fromJSON.global, r.global, 'global');
+  assertEquals(fromJSON.ignoreCase, r.ignoreCase, 'ignoreCase');
+  assertEquals(fromJSON.multiline, r.multiline, 'multiline');
   for (var p in expected_attributes) {
     for (var i = 0; i < fromJSON.properties.length; i++) {
       if (fromJSON.properties[i].name == p) {
-        assertEquals(expected_attributes[p],
-                     fromJSON.properties[i].attributes,
-                     'Unexpected value for ' + p + ' attributes');
-        assertEquals(mirror.property(p).propertyType(),
-                     fromJSON.properties[i].propertyType,
-                     'Unexpected value for ' + p + ' propertyType');
-        assertEquals(mirror.property(p).value().handle(),
-                     fromJSON.properties[i].ref,
-                     'Unexpected handle for ' + p);
-        assertEquals(mirror.property(p).value().value(),
-                     refs.lookup(fromJSON.properties[i].ref).value,
-                     'Unexpected value for ' + p);
+        assertEquals(fromJSON.properties[i].attributes,
+                     expected_attributes[p],
+                     p + ' attributes');
       }
     }
   }

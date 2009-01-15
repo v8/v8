@@ -260,9 +260,6 @@ class Debug {
   static char* RestoreDebug(char* from);
   static int ArchiveSpacePerThread();
 
-  // Mirror cache handling.
-  static void ClearMirrorCache();
-
   // Code generation assumptions.
   static const int kIa32CallInstructionLength = 5;
   static const int kIa32JSReturnSequenceLength = 6;

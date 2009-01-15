@@ -994,25 +994,22 @@ ResponsePacket.prototype.toJSONProtocol = function() {
   if (this.body) {
     json += ',"body":';
     // Encode the body part.
-    var serializer = MakeMirrorSerializer(true);
-    if (this.body instanceof Mirror) {
-      json += serializer.serializeValue(this.body);
+    if (this.body.toJSONProtocol) {
+      json += this.body.toJSONProtocol(true);
     } else if (this.body instanceof Array) {
       json += '[';
       for (var i = 0; i < this.body.length; i++) {
         if (i != 0) json += ',';
-        if (this.body[i] instanceof Mirror) {
-          json += serializer.serializeValue(this.body[i]);
+        if (this.body[i].toJSONProtocol) {
+          json += this.body[i].toJSONProtocol(true)
         } else {
-          json += SimpleObjectToJSON_(this.body[i], serializer);
+          json += SimpleObjectToJSON_(this.body[i]);
         }
       }
       json += ']';
     } else {
-      json += SimpleObjectToJSON_(this.body, serializer);
+      json += SimpleObjectToJSON_(this.body);
     }
-    json += ',"refs":';
-    json += serializer.serializeReferencedObjects();
   }
   if (this.message) {
     json += ',"message":' + StringToJSON_(this.message) ;
@@ -1571,11 +1568,9 @@ DebugCommandProcessor.prototype.formatCFrame = function(cframe_value) {
  * a general implementation but sufficient for the debugger. Note that circular
  * structures will cause infinite recursion.
  * @param {Object} object The object to format as JSON
- * @param {MirrorSerializer} mirror_serializer The serializer to use if any
- *     mirror objects are encountered.
  * @return {string} JSON formatted object value
  */
-function SimpleObjectToJSON_(object, mirror_serializer) {
+function SimpleObjectToJSON_(object) {
   var content = [];
   for (var key in object) {
     // Only consider string keys.
@@ -1589,9 +1584,9 @@ function SimpleObjectToJSON_(object, mirror_serializer) {
           if (typeof property_value.toJSONProtocol == 'function') {
             property_value_json = property_value.toJSONProtocol(true)
           } else if (IS_ARRAY(property_value)){
-            property_value_json = SimpleArrayToJSON_(property_value, mirror_serializer);
+            property_value_json = SimpleArrayToJSON_(property_value);
           } else {
-            property_value_json = SimpleObjectToJSON_(property_value, mirror_serializer);
+            property_value_json = SimpleObjectToJSON_(property_value);
           }
           break;
 
@@ -1625,12 +1620,10 @@ function SimpleObjectToJSON_(object, mirror_serializer) {
 /**
  * Convert an array to its JSON representation. This is a VERY simple
  * implementation just to support what is needed for the debugger.
- * @param {Array} array The array to format as JSON
- * @param {MirrorSerializer} mirror_serializer The serializer to use if any
- *     mirror objects are encountered.
+ * @param {Array} arrya The array to format as JSON
  * @return {string} JSON formatted array value
  */
-function SimpleArrayToJSON_(array, mirror_serializer) {
+function SimpleArrayToJSON_(array) {
   // Make JSON array representation.
   var json = '[';
   for (var i = 0; i < array.length; i++) {
@@ -1638,8 +1631,8 @@ function SimpleArrayToJSON_(array, mirror_serializer) {
       json += ',';
     }
     var elem = array[i];
-    if (elem instanceof Mirror) {
-      json += mirror_serializer.serializeValue(elem);
+    if (elem.toJSONProtocol) {
+      json += elem.toJSONProtocol(true)
     } else if (IS_OBJECT(elem))  {
       json += SimpleObjectToJSON_(elem);
     } else if (IS_BOOLEAN(elem)) {

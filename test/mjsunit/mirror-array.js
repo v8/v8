@@ -28,80 +28,50 @@
 // Flags: --expose-debug-as debug
 // Test the mirror object for objects
 
-function MirrorRefCache(json_refs) {
-  var tmp = eval('(' + json_refs + ')');
-  this.refs_ = [];
-  for (var i = 0; i < tmp.length; i++) {
-    this.refs_[tmp[i].handle] = tmp[i];
-  }
-}
-
-MirrorRefCache.prototype.lookup = function(handle) {
-  return this.refs_[handle];
-}
-
 function testArrayMirror(a, names) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(a);
-  var serializer = debug.MakeMirrorSerializer();
-  var json = serializer.serializeValue(mirror);
-  var refs = new MirrorRefCache(serializer.serializeReferencedObjects());
+  var json = mirror.toJSONProtocol(true);
 
   // Check the mirror hierachy.
-  assertTrue(mirror instanceof debug.Mirror, 'Unexpected mirror hierachy');
-  assertTrue(mirror instanceof debug.ValueMirror, 'Unexpected mirror hierachy');
-  assertTrue(mirror instanceof debug.ObjectMirror, 'Unexpected mirror hierachy');
-  assertTrue(mirror instanceof debug.ArrayMirror, 'Unexpected mirror hierachy');
+  assertTrue(mirror instanceof debug.Mirror);
+  assertTrue(mirror instanceof debug.ValueMirror);
+  assertTrue(mirror instanceof debug.ObjectMirror);
+  assertTrue(mirror instanceof debug.ArrayMirror);
 
   // Check the mirror properties.
-  assertTrue(mirror.isArray(), 'Unexpected mirror');
-  assertEquals('object', mirror.type(), 'Unexpected mirror type');
-  assertFalse(mirror.isPrimitive(), 'Unexpected primitive mirror');
-  assertEquals('Array', mirror.className(), 'Unexpected mirror class name');
-  assertTrue(mirror.constructorFunction() instanceof debug.ObjectMirror, 'Unexpected mirror hierachy');
-  assertEquals('Array', mirror.constructorFunction().name(), 'Unexpected constructor function name');
-  assertTrue(mirror.protoObject() instanceof debug.Mirror, 'Unexpected mirror hierachy');
-  assertTrue(mirror.prototypeObject() instanceof debug.Mirror, 'Unexpected mirror hierachy');
+  assertTrue(mirror.isArray());
+  assertEquals('object', mirror.type());
+  assertFalse(mirror.isPrimitive());
+  assertEquals('Array', mirror.className());
+  assertTrue(mirror.constructorFunction() instanceof debug.ObjectMirror);
+  assertTrue(mirror.protoObject() instanceof debug.Mirror);
+  assertTrue(mirror.prototypeObject() instanceof debug.Mirror);
   assertEquals(mirror.length(), a.length, "Length mismatch");
   
-  var indexedProperties = mirror.indexedPropertiesFromRange();
-  assertEquals(indexedProperties.length, a.length);
-  for (var i = 0; i < indexedProperties.length; i++) {
-    assertTrue(indexedProperties[i] instanceof debug.Mirror, 'Unexpected mirror hierachy');
-    assertTrue(indexedProperties[i] instanceof debug.PropertyMirror, 'Unexpected mirror hierachy');
+  var indexedValueMirrors = mirror.indexedPropertiesFromRange();
+  assertEquals(indexedValueMirrors.length, a.length);
+  for (var i = 0; i < indexedValueMirrors.length; i++) {
+    assertTrue(indexedValueMirrors[i] instanceof debug.Mirror);
+    if (a[i]) {
+      assertTrue(indexedValueMirrors[i] instanceof debug.PropertyMirror);
+    }
   }
 
   // Parse JSON representation and check.
   var fromJSON = eval('(' + json + ')');
-  assertEquals('object', fromJSON.type, 'Unexpected mirror type in JSON');
-  assertEquals('Array', fromJSON.className, 'Unexpected mirror class name in JSON');
-  assertEquals(mirror.constructorFunction().handle(), fromJSON.constructorFunction.ref, 'Unexpected constructor function handle in JSON');
-  assertEquals('function', refs.lookup(fromJSON.constructorFunction.ref).type, 'Unexpected constructor function type in JSON');
-  assertEquals('Array', refs.lookup(fromJSON.constructorFunction.ref).name, 'Unexpected constructor function name in JSON');
-  assertEquals(void 0, fromJSON.namedInterceptor, 'No named interceptor expected in JSON');
-  assertEquals(void 0, fromJSON.indexedInterceptor, 'No indexed interceptor expected in JSON');
+  assertEquals('object', fromJSON.type);
+  assertEquals('Array', fromJSON.className);
+  assertEquals('function', fromJSON.constructorFunction.type);
+  assertEquals('Array', fromJSON.constructorFunction.name);
+  assertEquals(a.length, fromJSON.length, "Length mismatch in parsed JSON");
 
-  // Check that the serialization contains all indexed properties and the length property.
-  var length_found = false;
-  for (var i = 0; i < fromJSON.properties.length; i++) {
-    if (fromJSON.properties[i].name == 'length') {
-      length_found = true;
-      assertEquals('number', refs.lookup(fromJSON.properties[i].ref).type, "Unexpected type of the length property");
-      assertEquals(a.length, refs.lookup(fromJSON.properties[i].ref).value, "Length mismatch in parsed JSON");
-    } else {
-      var index = parseInt(fromJSON.properties[i].name);
-        print(index);
-      if (!isNaN(index)) {
-        print(index);
-        // This test assumes that the order of the indexeed properties is in the
-        // same order in the serialization as returned from
-        // indexedPropertiesFromRange()
-        assertEquals(indexedProperties[index].name(), index);
-        assertEquals(indexedProperties[index].value().type(), refs.lookup(fromJSON.properties[i].ref).type, 'Unexpected serialized type');
-      }
-    }
+  // Check that the serialization contains all indexed properties.
+  for (var i = 0; i < fromJSON.indexedProperties.length; i++) {
+    var index = fromJSON.indexedProperties[i].name;
+    assertEquals(indexedValueMirrors[index].name(), index);
+    assertEquals(indexedValueMirrors[index].value().type(), fromJSON.indexedProperties[i].value.type, index);
   }
-  assertTrue(length_found, 'Property length not found');
 
   // Check that the serialization contains all names properties.
   if (names) {
@@ -114,6 +84,8 @@ function testArrayMirror(a, names) {
       }
       assertTrue(found, names[i])
     }
+  } else {
+    assertEquals(1, fromJSON.properties.length)
   }
 }
 
