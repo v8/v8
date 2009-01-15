@@ -1110,11 +1110,10 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
 // Execution state virtualization.
 //
 //   Instead of emitting code, nodes that manipulate the state can record their
-//   manipulation in an object called the GenerationVariant.  The
-//   GenerationVariant object can record a current position offset, an
-//   optional backtrack code location on the top of the virtualized backtrack
-//   stack and some register changes.  When a node is to be emitted it can flush
-//   the GenerationVariant or update it.  Flushing the GenerationVariant
+//   manipulation in an object called the Trace.  The Trace object can record a
+//   current position offset, an optional backtrack code location on the top of
+//   the virtualized backtrack stack and some register changes.  When a node is
+//   to be emitted it can flush the Trace or update it.  Flushing the Trace
 //   will emit code to bring the actual state into line with the virtual state.
 //   Avoiding flushing the state can postpone some work (eg updates of capture
 //   registers).  Postponing work can save time when executing the regular
@@ -1123,20 +1122,19 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
 //   known backtrack code location than it is to pop an unknown backtrack
 //   location from the stack and jump there.
 //
-//   The virtual state found in the GenerationVariant affects code generation.
-//   For example the virtual state contains the difference between the actual
-//   current position and the virtual current position, and matching code needs
-//   to use this offset to attempt a match in the correct location of the input
-//   string.  Therefore code generated for a non-trivial GenerationVariant is
-//   specialized to that GenerationVariant.  The code generator therefore
-//   has the ability to generate code for each node several times.  In order to
-//   limit the size of the generated code there is an arbitrary limit on how
-//   many specialized sets of code may be generated for a given node.  If the
-//   limit is reached, the GenerationVariant is flushed and a generic version of
-//   the code for a node is emitted.  This is subsequently used for that node.
-//   The code emitted for non-generic GenerationVariants is not recorded in the
-//   node and so it cannot currently be reused in the event that code generation
-//   is requested for an identical GenerationVariant.
+//   The virtual state found in the Trace affects code generation.  For example
+//   the virtual state contains the difference between the actual current
+//   position and the virtual current position, and matching code needs to use
+//   this offset to attempt a match in the correct location of the input
+//   string.  Therefore code generated for a non-trivial trace is specialized
+//   to that trace.  The code generator therefore has the ability to generate
+//   code for each node several times.  In order to limit the size of the
+//   generated code there is an arbitrary limit on how many specialized sets of
+//   code may be generated for a given node.  If the limit is reached, the
+//   trace is flushed and a generic version of the code for a node is emitted.
+//   This is subsequently used for that node.  The code emitted for non-generic
+//   trace is not recorded in the node and so it cannot currently be reused in
+//   the event that code generation is requested for an identical trace.
 
 
 void RegExpTree::AppendToText(RegExpText* text) {
@@ -1273,15 +1271,15 @@ Handle<FixedArray> RegExpCompiler::Assemble(
   work_list_ = &work_list;
   Label fail;
   macro_assembler->PushBacktrack(&fail);
-  GenerationVariant generic_variant;
-  if (!start->Emit(this, &generic_variant)) {
+  Trace new_trace;
+  if (!start->Emit(this, &new_trace)) {
     fail.Unuse();
     return Handle<FixedArray>::null();
   }
   macro_assembler_->Bind(&fail);
   macro_assembler_->Fail();
   while (!work_list.is_empty()) {
-    if (!work_list.RemoveLast()->Emit(this, &generic_variant)) {
+    if (!work_list.RemoveLast()->Emit(this, &new_trace)) {
       return Handle<FixedArray>::null();
     }
   }
@@ -1304,7 +1302,7 @@ Handle<FixedArray> RegExpCompiler::Assemble(
   return array;
 }
 
-bool GenerationVariant::DeferredAction::Mentions(int that) {
+bool Trace::DeferredAction::Mentions(int that) {
   if (type() == ActionNode::CLEAR_CAPTURES) {
     Interval range = static_cast<DeferredClearCaptures*>(this)->range();
     return range.Contains(that);
@@ -1314,7 +1312,7 @@ bool GenerationVariant::DeferredAction::Mentions(int that) {
 }
 
 
-bool GenerationVariant::mentions_reg(int reg) {
+bool Trace::mentions_reg(int reg) {
   for (DeferredAction* action = actions_;
        action != NULL;
        action = action->next()) {
@@ -1325,7 +1323,7 @@ bool GenerationVariant::mentions_reg(int reg) {
 }
 
 
-bool GenerationVariant::GetStoredPosition(int reg, int* cp_offset) {
+bool Trace::GetStoredPosition(int reg, int* cp_offset) {
   ASSERT_EQ(0, *cp_offset);
   for (DeferredAction* action = actions_;
        action != NULL;
@@ -1343,7 +1341,7 @@ bool GenerationVariant::GetStoredPosition(int reg, int* cp_offset) {
 }
 
 
-int GenerationVariant::FindAffectedRegisters(OutSet* affected_registers) {
+int Trace::FindAffectedRegisters(OutSet* affected_registers) {
   int max_register = RegExpCompiler::kNoRegister;
   for (DeferredAction* action = actions_;
        action != NULL;
@@ -1362,9 +1360,9 @@ int GenerationVariant::FindAffectedRegisters(OutSet* affected_registers) {
 }
 
 
-void GenerationVariant::PushAffectedRegisters(RegExpMacroAssembler* assembler,
-                                              int max_register,
-                                              OutSet& affected_registers) {
+void Trace::PushAffectedRegisters(RegExpMacroAssembler* assembler,
+                                  int max_register,
+                                  OutSet& affected_registers) {
   // Stay safe and check every half times the limit.
   // (Round up in case the limit is 1).
   int push_limit = (assembler->stack_limit_slack() + 1) / 2;
@@ -1381,19 +1379,18 @@ void GenerationVariant::PushAffectedRegisters(RegExpMacroAssembler* assembler,
 }
 
 
-void GenerationVariant::RestoreAffectedRegisters(
-    RegExpMacroAssembler* assembler,
-    int max_register,
-    OutSet& affected_registers) {
+void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
+                                     int max_register,
+                                     OutSet& affected_registers) {
   for (int reg = max_register; reg >= 0; reg--) {
     if (affected_registers.Get(reg)) assembler->PopRegister(reg);
   }
 }
 
 
-void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* assembler,
-                                               int max_register,
-                                               OutSet& affected_registers) {
+void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
+                                   int max_register,
+                                   OutSet& affected_registers) {
   for (int reg = 0; reg <= max_register; reg++) {
     if (!affected_registers.Get(reg)) {
       continue;
@@ -1410,8 +1407,8 @@ void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* assembler,
       if (action->Mentions(reg)) {
         switch (action->type()) {
           case ActionNode::SET_REGISTER: {
-            GenerationVariant::DeferredSetRegister* psr =
-                static_cast<GenerationVariant::DeferredSetRegister*>(action);
+            Trace::DeferredSetRegister* psr =
+                static_cast<Trace::DeferredSetRegister*>(action);
             value += psr->value();
             absolute = true;
             ASSERT_EQ(store_position, -1);
@@ -1426,8 +1423,8 @@ void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* assembler,
             ASSERT(!clear);
             break;
           case ActionNode::STORE_POSITION: {
-            GenerationVariant::DeferredCapture* pc =
-                static_cast<GenerationVariant::DeferredCapture*>(action);
+            Trace::DeferredCapture* pc =
+                static_cast<Trace::DeferredCapture*>(action);
             if (!clear && store_position == -1) {
               store_position = pc->cp_offset();
             }
@@ -1467,7 +1464,7 @@ void GenerationVariant::PerformDeferredActions(RegExpMacroAssembler* assembler,
 // This is called as we come into a loop choice node and some other tricky
 // nodes.  It normalises the state of the code generator to ensure we can
 // generate generic code.
-bool GenerationVariant::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
+bool Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
 
   ASSERT(actions_ != NULL ||
@@ -1483,7 +1480,7 @@ bool GenerationVariant::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
     // through a quick check that was already performed.
     if (cp_offset_ != 0) assembler->AdvanceCurrentPosition(cp_offset_);
     // Create a new trivial state and generate the node with that.
-    GenerationVariant new_state;
+    Trace new_state;
     return successor->Emit(compiler, &new_state);
   }
 
@@ -1505,7 +1502,7 @@ bool GenerationVariant::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   // Create a new trivial state and generate the node with that.
   Label undo;
   assembler->PushBacktrack(&undo);
-  GenerationVariant new_state;
+  Trace new_state;
   bool ok = successor->Emit(compiler, &new_state);
 
   // On backtrack we need to restore state.
@@ -1525,29 +1522,27 @@ bool GenerationVariant::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
 }
 
 
-void EndNode::EmitInfoChecks(RegExpMacroAssembler* assembler,
-                             GenerationVariant* variant) {
+void EndNode::EmitInfoChecks(RegExpMacroAssembler* assembler, Trace* trace) {
   if (info()->at_end) {
     Label succeed;
     // LoadCurrentCharacter will go to the label if we are at the end of the
     // input string.
     assembler->LoadCurrentCharacter(0, &succeed);
-    assembler->GoTo(variant->backtrack());
+    assembler->GoTo(trace->backtrack());
     assembler->Bind(&succeed);
   }
 }
 
 
-bool NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler,
-                                   GenerationVariant* variant) {
-  if (!variant->is_trivial()) {
-    return variant->Flush(compiler, this);
+bool NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler, Trace* trace) {
+  if (!trace->is_trivial()) {
+    return trace->Flush(compiler, this);
   }
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   if (!label()->is_bound()) {
     assembler->Bind(label());
   }
-  EmitInfoChecks(assembler, variant);
+  EmitInfoChecks(assembler, trace);
   assembler->ReadCurrentPositionFromRegister(current_position_register_);
   assembler->ReadStackPointerFromRegister(stack_pointer_register_);
   // Now that we have unwound the stack we find at the top of the stack the
@@ -1557,9 +1552,9 @@ bool NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler,
 }
 
 
-bool EndNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
-  if (!variant->is_trivial()) {
-    return variant->Flush(compiler, this);
+bool EndNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  if (!trace->is_trivial()) {
+    return trace->Flush(compiler, this);
   }
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   if (!label()->is_bound()) {
@@ -1567,12 +1562,12 @@ bool EndNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   }
   switch (action_) {
     case ACCEPT:
-      EmitInfoChecks(assembler, variant);
+      EmitInfoChecks(assembler, trace);
       assembler->Succeed();
       return true;
     case BACKTRACK:
       ASSERT(!info()->at_end);
-      assembler->GoTo(variant->backtrack());
+      assembler->GoTo(trace->backtrack());
       return true;
     case NEGATIVE_SUBMATCH_SUCCESS:
       // This case is handled in a different virtual method.
@@ -1674,19 +1669,19 @@ void LoopChoiceNode::Accept(NodeVisitor* visitor) {
 
 void ChoiceNode::GenerateGuard(RegExpMacroAssembler* macro_assembler,
                                Guard* guard,
-                               GenerationVariant* variant) {
+                               Trace* trace) {
   switch (guard->op()) {
     case Guard::LT:
-      ASSERT(!variant->mentions_reg(guard->reg()));
+      ASSERT(!trace->mentions_reg(guard->reg()));
       macro_assembler->IfRegisterGE(guard->reg(),
                                     guard->value(),
-                                    variant->backtrack());
+                                    trace->backtrack());
       break;
     case Guard::GEQ:
-      ASSERT(!variant->mentions_reg(guard->reg()));
+      ASSERT(!trace->mentions_reg(guard->reg()));
       macro_assembler->IfRegisterLT(guard->reg(),
                                     guard->value(),
-                                    variant->backtrack());
+                                    trace->backtrack());
       break;
   }
 }
@@ -1939,7 +1934,7 @@ RegExpNode::~RegExpNode() {
 
 
 RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
-                                                  GenerationVariant* variant) {
+                                                  Trace* trace) {
   // TODO(erikcorry): Implement support.
   if (info_.follows_word_interest ||
       info_.follows_newline_interest ||
@@ -1948,12 +1943,12 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
   }
 
   // If we are generating a greedy loop then don't stop and don't reuse code.
-  if (variant->stop_node() != NULL) {
+  if (trace->stop_node() != NULL) {
     return CONTINUE;
   }
 
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
-  if (variant->is_trivial()) {
+  if (trace->is_trivial()) {
     if (label_.is_bound()) {
       // We are being asked to generate a generic version, but that's already
       // been done so just go to it.
@@ -1974,16 +1969,16 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
 
   // We are being asked to make a non-generic version.  Keep track of how many
   // non-generic versions we generate so as not to overdo it.
-  variants_generated_++;
-  if (variants_generated_ < kMaxVariantsGenerated &&
+  trace_count_++;
+  if (trace_count_ < kMaxCopiesCodeGenerated &&
       compiler->recursion_depth() <= RegExpCompiler::kMaxRecursion) {
     return CONTINUE;
   }
 
-  // If we get here there have been too many variants generated or recursion
-  // is too deep.  Time to switch to a generic version.  The code for
+  // If we get here code has been generated for this node too many times or
+  // recursion is too deep.  Time to switch to a generic version.  The code for
   // generic versions above can handle deep recursion properly.
-  bool ok = variant->Flush(compiler, this);
+  bool ok = trace->Flush(compiler, this);
   return ok ? DONE : FAIL;
 }
 
@@ -2064,7 +2059,7 @@ bool QuickCheckDetails::Rationalize(bool asc) {
 
 
 bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
-                                GenerationVariant* variant,
+                                Trace* trace,
                                 bool preload_has_checked_bounds,
                                 Label* on_possible_success,
                                 QuickCheckDetails* details,
@@ -2077,9 +2072,9 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
 
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
 
-  if (variant->characters_preloaded() != details->characters()) {
-    assembler->LoadCurrentCharacter(variant->cp_offset(),
-                                    variant->backtrack(),
+  if (trace->characters_preloaded() != details->characters()) {
+    assembler->LoadCurrentCharacter(trace->cp_offset(),
+                                    trace->backtrack(),
                                     !preload_has_checked_bounds,
                                     details->characters());
   }
@@ -2116,9 +2111,9 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
     }
   } else {
     if (need_mask) {
-      assembler->CheckNotCharacterAfterAnd(value, mask, variant->backtrack());
+      assembler->CheckNotCharacterAfterAnd(value, mask, trace->backtrack());
     } else {
-      assembler->CheckNotCharacter(value, variant->backtrack());
+      assembler->CheckNotCharacter(value, trace->backtrack());
     }
   }
   return true;
@@ -2368,7 +2363,7 @@ void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
 // first_element_checked to indicate that that character does not need to be
 // checked again.
 //
-// In addition to all this we are passed a GenerationVariant, which can
+// In addition to all this we are passed a Trace, which can
 // contain an AlternativeGeneration object.  In this AlternativeGeneration
 // object we can see details of any quick check that was already passed in
 // order to get to the code we are now generating.  The quick check can involve
@@ -2379,17 +2374,17 @@ void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
 void TextNode::TextEmitPass(RegExpCompiler* compiler,
                             TextEmitPassType pass,
                             bool preloaded,
-                            GenerationVariant* variant,
+                            Trace* trace,
                             bool first_element_checked,
                             int* checked_up_to) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   bool ascii = compiler->ascii();
-  Label* backtrack = variant->backtrack();
-  QuickCheckDetails* quick_check = variant->quick_check_performed();
+  Label* backtrack = trace->backtrack();
+  QuickCheckDetails* quick_check = trace->quick_check_performed();
   int element_count = elms_->length();
   for (int i = preloaded ? 0 : element_count - 1; i >= 0; i--) {
     TextElement elm = elms_->at(i);
-    int cp_offset = variant->cp_offset() + elm.cp_offset;
+    int cp_offset = trace->cp_offset() + elm.cp_offset;
     if (elm.type == TextElement::ATOM) {
       if (pass == NON_ASCII_MATCH ||
           pass == CHARACTER_MATCH ||
@@ -2486,8 +2481,8 @@ int TextNode::Length() {
 // pass from left to right.  Instead we pass over the text node several times,
 // emitting code for some character positions every time.  See the comment on
 // TextEmitPass for details.
-bool TextNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
-  LimitResult limit_result = LimitVersions(compiler, variant);
+bool TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == FAIL) return false;
   if (limit_result == DONE) return true;
   ASSERT(limit_result == CONTINUE);
@@ -2499,40 +2494,40 @@ bool TextNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   }
 
   if (info()->at_end) {
-    compiler->macro_assembler()->GoTo(variant->backtrack());
+    compiler->macro_assembler()->GoTo(trace->backtrack());
     return true;
   }
 
   if (compiler->ascii()) {
     int dummy = 0;
-    TextEmitPass(compiler, NON_ASCII_MATCH, false, variant, false, &dummy);
+    TextEmitPass(compiler, NON_ASCII_MATCH, false, trace, false, &dummy);
   }
 
   bool first_elt_done = false;
-  int bound_checked_to = variant->cp_offset() - 1;
-  bound_checked_to += variant->bound_checked_up_to();
+  int bound_checked_to = trace->cp_offset() - 1;
+  bound_checked_to += trace->bound_checked_up_to();
 
   // If a character is preloaded into the current character register then
   // check that now.
-  if (variant->characters_preloaded() == 1) {
+  if (trace->characters_preloaded() == 1) {
     TextEmitPass(compiler,
                  CHARACTER_MATCH,
                  true,
-                 variant,
+                 trace,
                  false,
                  &bound_checked_to);
     if (compiler->ignore_case()) {
       TextEmitPass(compiler,
                    CASE_CHARACTER_MATCH,
                    true,
-                   variant,
+                   trace,
                    false,
                    &bound_checked_to);
     }
     TextEmitPass(compiler,
                  CHARACTER_CLASS_MATCH,
                  true,
-                 variant,
+                 trace,
                  false,
                  &bound_checked_to);
     first_elt_done = true;
@@ -2541,32 +2536,32 @@ bool TextNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   TextEmitPass(compiler,
                CHARACTER_MATCH,
                false,
-               variant,
+               trace,
                first_elt_done,
                &bound_checked_to);
   if (compiler->ignore_case()) {
     TextEmitPass(compiler,
                  CASE_CHARACTER_MATCH,
                  false,
-                 variant,
+                 trace,
                  first_elt_done,
                  &bound_checked_to);
   }
   TextEmitPass(compiler,
                CHARACTER_CLASS_MATCH,
                false,
-               variant,
+               trace,
                first_elt_done,
                &bound_checked_to);
 
-  GenerationVariant successor_variant(*variant);
-  successor_variant.AdvanceVariant(Length(), compiler->ascii());
+  Trace successor_trace(*trace);
+  successor_trace.AdvanceCurrentPositionInTrace(Length(), compiler->ascii());
   RecursionCheck rc(compiler);
-  return on_success()->Emit(compiler, &successor_variant);
+  return on_success()->Emit(compiler, &successor_trace);
 }
 
 
-void GenerationVariant::AdvanceVariant(int by, bool ascii) {
+void Trace::AdvanceCurrentPositionInTrace(int by, bool ascii) {
   ASSERT(by > 0);
   // We don't have an instruction for shifting the current character register
   // down or for using a shifted value for anything so lets just forget that
@@ -2653,24 +2648,23 @@ void LoopChoiceNode::AddContinueAlternative(GuardedAlternative alt) {
 }
 
 
-bool LoopChoiceNode::Emit(RegExpCompiler* compiler,
-                          GenerationVariant* variant) {
+bool LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
-  if (variant->stop_node() == this) {
+  if (trace->stop_node() == this) {
     int text_length = GreedyLoopTextLength(&(alternatives_->at(0)));
     ASSERT(text_length != kNodeIsTooComplexForGreedyLoops);
     // Update the counter-based backtracking info on the stack.  This is an
     // optimization for greedy loops (see below).
-    ASSERT(variant->cp_offset() == text_length);
+    ASSERT(trace->cp_offset() == text_length);
     macro_assembler->AdvanceCurrentPosition(text_length);
-    macro_assembler->GoTo(variant->loop_label());
+    macro_assembler->GoTo(trace->loop_label());
     return true;
   }
-  ASSERT(variant->stop_node() == NULL);
-  if (!variant->is_trivial()) {
-    return variant->Flush(compiler, this);
+  ASSERT(trace->stop_node() == NULL);
+  if (!trace->is_trivial()) {
+    return trace->Flush(compiler, this);
   }
-  return ChoiceNode::Emit(compiler, variant);
+  return ChoiceNode::Emit(compiler, trace);
 }
 
 
@@ -2823,7 +2817,7 @@ class AlternativeGenerationList {
  */
 
 
-bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
+bool ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   int choice_count = alternatives_->length();
 #ifdef DEBUG
@@ -2832,25 +2826,25 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
     ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == NULL) ? 0 : guards->length();
     for (int j = 0; j < guard_count; j++) {
-      ASSERT(!variant->mentions_reg(guards->at(j)->reg()));
+      ASSERT(!trace->mentions_reg(guards->at(j)->reg()));
     }
   }
 #endif
 
-  LimitResult limit_result = LimitVersions(compiler, variant);
+  LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == DONE) return true;
   if (limit_result == FAIL) return false;
   ASSERT(limit_result == CONTINUE);
 
   RecursionCheck rc(compiler);
 
-  GenerationVariant* current_variant = variant;
+  Trace* current_trace = trace;
 
   int text_length = GreedyLoopTextLength(&(alternatives_->at(0)));
   bool greedy_loop = false;
   Label greedy_loop_label;
-  GenerationVariant counter_backtrack_variant;
-  counter_backtrack_variant.set_backtrack(&greedy_loop_label);
+  Trace counter_backtrack_trace;
+  counter_backtrack_trace.set_backtrack(&greedy_loop_label);
   if (choice_count > 1 && text_length != kNodeIsTooComplexForGreedyLoops) {
     // Here we have special handling for greedy loops containing only text nodes
     // and other simple nodes.  These are handled by pushing the current
@@ -2860,18 +2854,18 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
     // information for each iteration of the loop, which could take up a lot of
     // space.
     greedy_loop = true;
-    ASSERT(variant->stop_node() == NULL);
+    ASSERT(trace->stop_node() == NULL);
     macro_assembler->PushCurrentPosition();
-    current_variant = &counter_backtrack_variant;
+    current_trace = &counter_backtrack_trace;
     Label greedy_match_failed;
-    GenerationVariant greedy_match_variant;
-    greedy_match_variant.set_backtrack(&greedy_match_failed);
+    Trace greedy_match_trace;
+    greedy_match_trace.set_backtrack(&greedy_match_failed);
     Label loop_label;
     macro_assembler->Bind(&loop_label);
-    greedy_match_variant.set_stop_node(this);
-    greedy_match_variant.set_loop_label(&loop_label);
+    greedy_match_trace.set_stop_node(this);
+    greedy_match_trace.set_loop_label(&loop_label);
     bool ok = alternatives_->at(0).node()->Emit(compiler,
-                                                &greedy_match_variant);
+                                                &greedy_match_trace);
     macro_assembler->Bind(&greedy_match_failed);
     if (!ok) {
       greedy_loop_label.Unuse();
@@ -2886,7 +2880,7 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
 
   int preload_characters = CalculatePreloadCharacters(compiler);
   bool preload_is_current =
-      (current_variant->characters_preloaded() == preload_characters);
+      (current_trace->characters_preloaded() == preload_characters);
   bool preload_has_checked_bounds = preload_is_current;
 
   AlternativeGenerationList alt_gens(choice_count);
@@ -2899,18 +2893,18 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
     alt_gen->quick_check_details.set_characters(preload_characters);
     ZoneList<Guard*>* guards = alternative.guards();
     int guard_count = (guards == NULL) ? 0 : guards->length();
-    GenerationVariant new_variant(*current_variant);
-    new_variant.set_characters_preloaded(preload_is_current ?
+    Trace new_trace(*current_trace);
+    new_trace.set_characters_preloaded(preload_is_current ?
                                          preload_characters :
                                          0);
     if (preload_has_checked_bounds) {
-      new_variant.set_bound_checked_up_to(preload_characters);
+      new_trace.set_bound_checked_up_to(preload_characters);
     }
-    new_variant.quick_check_performed()->Clear();
+    new_trace.quick_check_performed()->Clear();
     alt_gen->expects_preload = preload_is_current;
     bool generate_full_check_inline = false;
     if (alternative.node()->EmitQuickCheck(compiler,
-                                           &new_variant,
+                                           &new_trace,
                                            preload_has_checked_bounds,
                                            &alt_gen->possible_success,
                                            &alt_gen->quick_check_details,
@@ -2923,9 +2917,9 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
       // generate the full check inline.
       if (i == choice_count - 1) {
         macro_assembler->Bind(&alt_gen->possible_success);
-        new_variant.set_quick_check_performed(&alt_gen->quick_check_details);
-        new_variant.set_characters_preloaded(preload_characters);
-        new_variant.set_bound_checked_up_to(preload_characters);
+        new_trace.set_quick_check_performed(&alt_gen->quick_check_details);
+        new_trace.set_characters_preloaded(preload_characters);
+        new_trace.set_bound_checked_up_to(preload_characters);
         generate_full_check_inline = true;
       }
     } else {
@@ -2936,18 +2930,18 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
       // to generate probably can't use it.
       if (i != first_normal_choice) {
         alt_gen->expects_preload = false;
-        new_variant.set_characters_preloaded(0);
+        new_trace.set_characters_preloaded(0);
       }
       if (i < choice_count - 1) {
-        new_variant.set_backtrack(&alt_gen->after);
+        new_trace.set_backtrack(&alt_gen->after);
       }
       generate_full_check_inline = true;
     }
     if (generate_full_check_inline) {
       for (int j = 0; j < guard_count; j++) {
-        GenerateGuard(macro_assembler, guards->at(j), &new_variant);
+        GenerateGuard(macro_assembler, guards->at(j), &new_trace);
       }
-      if (!alternative.node()->Emit(compiler, &new_variant)) {
+      if (!alternative.node()->Emit(compiler, &new_trace)) {
         greedy_loop_label.Unuse();
         return false;
       }
@@ -2958,7 +2952,7 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   if (greedy_loop) {
     macro_assembler->Bind(&greedy_loop_label);
     // If we have unwound to the bottom then backtrack.
-    macro_assembler->CheckGreedyLoop(variant->backtrack());
+    macro_assembler->CheckGreedyLoop(trace->backtrack());
     // Otherwise try the second priority at an earlier position.
     macro_assembler->AdvanceCurrentPosition(-text_length);
     macro_assembler->GoTo(&second_choice);
@@ -2969,7 +2963,7 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
   for (int i = first_normal_choice; i < choice_count - 1; i++) {
     AlternativeGeneration* alt_gen = alt_gens.at(i);
     if (!EmitOutOfLineContinuation(compiler,
-                                   current_variant,
+                                   current_trace,
                                    alternatives_->at(i),
                                    alt_gen,
                                    preload_characters,
@@ -2982,7 +2976,7 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
 
 
 bool ChoiceNode::EmitOutOfLineContinuation(RegExpCompiler* compiler,
-                                           GenerationVariant* variant,
+                                           Trace* trace,
                                            GuardedAlternative alternative,
                                            AlternativeGeneration* alt_gen,
                                            int preload_characters,
@@ -2991,41 +2985,41 @@ bool ChoiceNode::EmitOutOfLineContinuation(RegExpCompiler* compiler,
 
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
   macro_assembler->Bind(&alt_gen->possible_success);
-  GenerationVariant out_of_line_variant(*variant);
-  out_of_line_variant.set_characters_preloaded(preload_characters);
-  out_of_line_variant.set_quick_check_performed(&alt_gen->quick_check_details);
+  Trace out_of_line_trace(*trace);
+  out_of_line_trace.set_characters_preloaded(preload_characters);
+  out_of_line_trace.set_quick_check_performed(&alt_gen->quick_check_details);
   ZoneList<Guard*>* guards = alternative.guards();
   int guard_count = (guards == NULL) ? 0 : guards->length();
   if (next_expects_preload) {
     Label reload_current_char;
-    out_of_line_variant.set_backtrack(&reload_current_char);
+    out_of_line_trace.set_backtrack(&reload_current_char);
     for (int j = 0; j < guard_count; j++) {
-      GenerateGuard(macro_assembler, guards->at(j), &out_of_line_variant);
+      GenerateGuard(macro_assembler, guards->at(j), &out_of_line_trace);
     }
-    bool ok = alternative.node()->Emit(compiler, &out_of_line_variant);
+    bool ok = alternative.node()->Emit(compiler, &out_of_line_trace);
     macro_assembler->Bind(&reload_current_char);
     // Reload the current character, since the next quick check expects that.
     // We don't need to check bounds here because we only get into this
     // code through a quick check which already did the checked load.
-    macro_assembler->LoadCurrentCharacter(variant->cp_offset(),
+    macro_assembler->LoadCurrentCharacter(trace->cp_offset(),
                                           NULL,
                                           false,
                                           preload_characters);
     macro_assembler->GoTo(&(alt_gen->after));
     return ok;
   } else {
-    out_of_line_variant.set_backtrack(&(alt_gen->after));
+    out_of_line_trace.set_backtrack(&(alt_gen->after));
     for (int j = 0; j < guard_count; j++) {
-      GenerateGuard(macro_assembler, guards->at(j), &out_of_line_variant);
+      GenerateGuard(macro_assembler, guards->at(j), &out_of_line_trace);
     }
-    return alternative.node()->Emit(compiler, &out_of_line_variant);
+    return alternative.node()->Emit(compiler, &out_of_line_trace);
   }
 }
 
 
-bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
+bool ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
-  LimitResult limit_result = LimitVersions(compiler, variant);
+  LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == DONE) return true;
   if (limit_result == FAIL) return false;
   ASSERT(limit_result == CONTINUE);
@@ -3034,58 +3028,58 @@ bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
 
   switch (type_) {
     case STORE_POSITION: {
-      GenerationVariant::DeferredCapture
-          new_capture(data_.u_position_register.reg, variant);
-      GenerationVariant new_variant = *variant;
-      new_variant.add_action(&new_capture);
-      return on_success()->Emit(compiler, &new_variant);
+      Trace::DeferredCapture
+          new_capture(data_.u_position_register.reg, trace);
+      Trace new_trace = *trace;
+      new_trace.add_action(&new_capture);
+      return on_success()->Emit(compiler, &new_trace);
     }
     case INCREMENT_REGISTER: {
-      GenerationVariant::DeferredIncrementRegister
+      Trace::DeferredIncrementRegister
           new_increment(data_.u_increment_register.reg);
-      GenerationVariant new_variant = *variant;
-      new_variant.add_action(&new_increment);
-      return on_success()->Emit(compiler, &new_variant);
+      Trace new_trace = *trace;
+      new_trace.add_action(&new_increment);
+      return on_success()->Emit(compiler, &new_trace);
     }
     case SET_REGISTER: {
-      GenerationVariant::DeferredSetRegister
+      Trace::DeferredSetRegister
           new_set(data_.u_store_register.reg, data_.u_store_register.value);
-      GenerationVariant new_variant = *variant;
-      new_variant.add_action(&new_set);
-      return on_success()->Emit(compiler, &new_variant);
+      Trace new_trace = *trace;
+      new_trace.add_action(&new_set);
+      return on_success()->Emit(compiler, &new_trace);
     }
     case CLEAR_CAPTURES: {
-      GenerationVariant::DeferredClearCaptures
+      Trace::DeferredClearCaptures
         new_capture(Interval(data_.u_clear_captures.range_from,
                              data_.u_clear_captures.range_to));
-      GenerationVariant new_variant = *variant;
-      new_variant.add_action(&new_capture);
-      return on_success()->Emit(compiler, &new_variant);
+      Trace new_trace = *trace;
+      new_trace.add_action(&new_capture);
+      return on_success()->Emit(compiler, &new_trace);
     }
     case BEGIN_SUBMATCH:
-      if (!variant->is_trivial()) return variant->Flush(compiler, this);
+      if (!trace->is_trivial()) return trace->Flush(compiler, this);
       assembler->WriteCurrentPositionToRegister(
           data_.u_submatch.current_position_register, 0);
       assembler->WriteStackPointerToRegister(
           data_.u_submatch.stack_pointer_register);
-      return on_success()->Emit(compiler, variant);
+      return on_success()->Emit(compiler, trace);
     case EMPTY_MATCH_CHECK: {
       int start_pos_reg = data_.u_empty_match_check.start_register;
       int stored_pos = 0;
       int rep_reg = data_.u_empty_match_check.repetition_register;
       bool has_minimum = (rep_reg != RegExpCompiler::kNoRegister);
-      bool know_dist = variant->GetStoredPosition(start_pos_reg, &stored_pos);
-      if (know_dist && !has_minimum && stored_pos == variant->cp_offset()) {
+      bool know_dist = trace->GetStoredPosition(start_pos_reg, &stored_pos);
+      if (know_dist && !has_minimum && stored_pos == trace->cp_offset()) {
         // If we know we haven't advanced and there is no minimum we
         // can just backtrack immediately.
-        assembler->GoTo(variant->backtrack());
+        assembler->GoTo(trace->backtrack());
         return true;
-      } else if (know_dist && stored_pos < variant->cp_offset()) {
+      } else if (know_dist && stored_pos < trace->cp_offset()) {
         // If we know we've advanced we can generate the continuation
         // immediately.
-        return on_success()->Emit(compiler, variant);
+        return on_success()->Emit(compiler, trace);
       }
-      if (!variant->is_trivial()) return variant->Flush(compiler, this);
+      if (!trace->is_trivial()) return trace->Flush(compiler, this);
       Label skip_empty_check;
       // If we have a minimum number of repetitions we check the current
       // number first and skip the empty check if it's not enough.
@@ -3096,12 +3090,12 @@ bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
       // If the match is empty we bail out, otherwise we fall through
       // to the on-success continuation.
       assembler->IfRegisterEqPos(data_.u_empty_match_check.start_register,
-                                 variant->backtrack());
+                                 trace->backtrack());
       assembler->Bind(&skip_empty_check);
-      return on_success()->Emit(compiler, variant);
+      return on_success()->Emit(compiler, trace);
     }
     case POSITIVE_SUBMATCH_SUCCESS:
-      if (!variant->is_trivial()) return variant->Flush(compiler, this);
+      if (!trace->is_trivial()) return trace->Flush(compiler, this);
       // TODO(erikcorry): Implement support.
       if (info()->follows_word_interest ||
           info()->follows_newline_interest ||
@@ -3113,14 +3107,14 @@ bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
         // Load current character jumps to the label if we are beyond the string
         // end.
         assembler->LoadCurrentCharacter(0, &at_end);
-        assembler->GoTo(variant->backtrack());
+        assembler->GoTo(trace->backtrack());
         assembler->Bind(&at_end);
       }
       assembler->ReadCurrentPositionFromRegister(
           data_.u_submatch.current_position_register);
       assembler->ReadStackPointerFromRegister(
           data_.u_submatch.stack_pointer_register);
-      return on_success()->Emit(compiler, variant);
+      return on_success()->Emit(compiler, trace);
     default:
       UNREACHABLE();
       return false;
@@ -3128,14 +3122,13 @@ bool ActionNode::Emit(RegExpCompiler* compiler, GenerationVariant* variant) {
 }
 
 
-bool BackReferenceNode::Emit(RegExpCompiler* compiler,
-                             GenerationVariant* variant) {
+bool BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
-  if (!variant->is_trivial()) {
-    return variant->Flush(compiler, this);
+  if (!trace->is_trivial()) {
+    return trace->Flush(compiler, this);
   }
 
-  LimitResult limit_result = LimitVersions(compiler, variant);
+  LimitResult limit_result = LimitVersions(compiler, trace);
   if (limit_result == DONE) return true;
   if (limit_result == FAIL) return false;
   ASSERT(limit_result == CONTINUE);
@@ -3148,16 +3141,16 @@ bool BackReferenceNode::Emit(RegExpCompiler* compiler,
     // iff the back reference is empty.
     assembler->CheckNotRegistersEqual(start_reg_,
                                       end_reg_,
-                                      variant->backtrack());
+                                      trace->backtrack());
   } else {
     if (compiler->ignore_case()) {
       assembler->CheckNotBackReferenceIgnoreCase(start_reg_,
-                                                 variant->backtrack());
+                                                 trace->backtrack());
     } else {
-      assembler->CheckNotBackReference(start_reg_, variant->backtrack());
+      assembler->CheckNotBackReference(start_reg_, trace->backtrack());
     }
   }
-  return on_success()->Emit(compiler, variant);
+  return on_success()->Emit(compiler, trace);
 }
 
 
