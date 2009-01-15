@@ -35,18 +35,20 @@ namespace v8 { namespace internal {
 // -------------------------------------------------------------------------
 // Jump targets
 //
-// A jump target is an abstraction of a control-flow target in generated
-// code.  It encapsulates an assembler label and an expected virtual frame
-// layout at that label.  The first time control flow reaches the target,
-// either via jumping or branching or by binding the target, the expected
-// frame is set.  If control flow subsequently reaches the target, code may
-// be emitted to ensure that the current frame matches the expected frame.
+// TODO(): Update this comment.
 //
-// A jump target must have been reached via control flow (either by jumping,
-// branching, or falling through) when it is bound.  In particular, this
-// means that at least one of the control-flow graph edges reaching the
-// target must be a forward edge and must be compiled before any backward
-// edges.
+// A jump target is an abstraction of a basic-block entry in generated
+// code.  It collects all the virtual frames reaching the block by
+// forward jumps and pairs them with labels for the merge code along
+// all forward-reaching paths.  When bound, an expected frame for the
+// block is determined and code is generated to merge to the expected
+// frame.  For backward jumps, the merge code is generated at the edge
+// leaving the predecessor block.
+//
+// A jump target must have been reached via control flow (either by
+// jumping, branching, or falling through) at the time it is bound.
+// In particular, this means that at least one of the control-flow
+// graph edges reaching the target must be a forward edge.
 
 class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
  public:
@@ -59,7 +61,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // useful, eg, when jump targets are embedded in AST nodes.
   JumpTarget();
 
-  virtual ~JumpTarget() { delete expected_frame_; }
+  virtual ~JumpTarget() { Unuse(); }
 
   // Supply a code generator.  This function expects to be given a non-null
   // code generator, and to be called only when the code generator is not
@@ -69,7 +71,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // Accessors.
   CodeGenerator* code_generator() const { return cgen_; }
 
-  Label* label() { return &label_; }
+  Label* entry_label() { return &entry_label_; }
 
   VirtualFrame* expected_frame() const { return expected_frame_; }
   void set_expected_frame(VirtualFrame* frame) {
@@ -77,53 +79,88 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   }
 
   // Predicates testing the state of the encapsulated label.
-  bool is_bound() const { return label_.is_bound(); }
-  bool is_linked() const { return label_.is_linked(); }
-  bool is_unused() const { return label_.is_unused(); }
+  bool is_bound() const { return expected_frame_ != NULL; }
+  bool is_linked() const { return reaching_frames_.length() > 0; }
+  bool is_unused() const { return !is_bound() && !is_linked(); }
 
-  // Treat the jump target as a fresh one---the label is unused and the
-  // expected frame if any is reset.
+  // Treat the jump target as a fresh one.  The expected frame if any
+  // will be deallocated and there should be no dangling jumps to the
+  // target (thus no reaching frames).
   void Unuse() {
-    label_.Unuse();
+    ASSERT(!is_linked());
+    entry_label_.Unuse();
     delete expected_frame_;
     expected_frame_ = NULL;
   }
 
-  // Emit a jump to the target.  There must be a current frame before the
+  // Reset the internal state of this jump target.  Pointed-to virtual
+  // frames are not deallocated and dangling jumps to the target are
+  // left dangling.
+  void Reset() {
+    reaching_frames_.Clear();
+    merge_labels_.Clear();
+    expected_frame_ = NULL;
+    entry_label_.Unuse();
+  }
+
+  // Copy the state of this jump target to the destination.  The lists
+  // of forward-reaching frames and merge-point labels are copied.
+  // All virtual frame pointers are copied, not the pointed-to frames.
+  // The previous state of the destination is overwritten, without
+  // deallocating pointed-to virtual frames.
+  void CopyTo(JumpTarget* destination);
+
+  // Emit a jump to the target.  There must be a current frame at the
   // jump and there will be no current frame after the jump.
   void Jump();
   void Jump(Result* arg);
 
-  // Emit a conditional branch to the target.  If there is no current frame,
-  // there must be one expected at the target.
+  // Emit a conditional branch to the target.  There must be a current
+  // frame at the branch.  The current frame will fall through to the
+  // code after the branch.
   void Branch(Condition cc, Hint hint = no_hint);
   void Branch(Condition cc, Result* arg, Hint hint = no_hint);
   void Branch(Condition cc, Result* arg0, Result* arg1, Hint hint = no_hint);
 
-  // Bind a jump target.  There must be a current frame and no expected
-  // frame at the target (targets are only bound once).
+  // Bind a jump target.  If there is no current frame at the binding
+  // site, there must be at least one frame reaching via a forward
+  // jump.  This frame will be used to establish an expected frame for
+  // the block, which will be the current frame after the bind.
   void Bind();
   void Bind(Result* arg);
   void Bind(Result* arg0, Result* arg1);
 
-  // Emit a call to a jump target.  There must be a current frame.  The
-  // frame at the target is the same as the current frame except for an
-  // extra return address on top of it.
+  // Emit a call to a jump target.  There must be a current frame at
+  // the call.  The frame at the target is the same as the current
+  // frame except for an extra return address on top of it.  The frame
+  // after the call is the same as the frame before the call.
   void Call();
 
  protected:
-  // The encapsulated assembler label.
-  Label label_;
-
-  // The expected frame where the label is bound, or NULL.
-  VirtualFrame* expected_frame_;
-
- private:
-  // The code generator gives access to the current frame.
+  // The code generator gives access to its current frame.
   CodeGenerator* cgen_;
 
   // Used to emit code.
   MacroAssembler* masm_;
+
+ private:
+  // A list of frames reaching this block via forward jumps.
+  List<VirtualFrame*> reaching_frames_;
+
+  // A parallel list of labels for merge code.
+  List<Label> merge_labels_;
+
+  // The (mergable) frame expected at backward jumps to the block.
+  VirtualFrame* expected_frame_;
+
+  // The actual entry label of the block.
+  Label entry_label_;
+
+  // Add a virtual frame reaching this labeled block via a forward
+  // jump, and a fresh label for its merge code.
+  void AddReachingFrame(VirtualFrame* frame);
+
+  DISALLOW_COPY_AND_ASSIGN(JumpTarget);
 };
 
 
@@ -139,39 +176,35 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
 class ShadowTarget : public JumpTarget {
  public:
-  // Construct a shadow a jump target.  After construction, the original
-  // jump target shadows the former target, which is hidden as the
-  // newly-constructed shadow target.
-  explicit ShadowTarget(JumpTarget* original);
+  // Construct a shadow jump target.  After construction the shadow
+  // target object holds the state of the original jump target, and
+  // the original target is actually a fresh one that intercepts jumps
+  // intended for the shadowed one.
+  explicit ShadowTarget(JumpTarget* shadowed);
 
   virtual ~ShadowTarget() {
     ASSERT(!is_shadowing_);
   }
 
-  // End shadowing.  After shadowing ends, the original jump target gives
-  // access to the formerly shadowed target and the shadow target object
-  // gives access to the formerly shadowing target.
+  // End shadowing.  After shadowing ends, the original jump target
+  // again gives access to the formerly shadowed target and the shadow
+  // target object gives access to the formerly shadowing target.
   void StopShadowing();
 
-  // During shadowing, the currently shadowing target.  After shadowing, the
-  // target that was shadowed.
-  JumpTarget* original_target() const { return original_target_; }
+  // During shadowing, the currently shadowing target.  After
+  // shadowing, the target that was shadowed.
+  JumpTarget* other_target() const { return other_target_; }
 
  private:
-  // During shadowing, the currently shadowing target.  After shadowing, the
-  // target that was shadowed.
-  JumpTarget* original_target_;
-
-  // During shadowing, the saved state of the shadowed target's label.
-  int original_pos_;
-
-  // During shadowing, the saved state of the shadowed target's expected
-  // frame.
-  VirtualFrame* original_expected_frame_;
+  // During shadowing, the currently shadowing target.  After
+  // shadowing, the target that was shadowed.
+  JumpTarget* other_target_;
 
 #ifdef DEBUG
   bool is_shadowing_;
 #endif
+
+  DISALLOW_COPY_AND_ASSIGN(ShadowTarget);
 };
 
 

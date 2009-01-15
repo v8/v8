@@ -174,6 +174,14 @@ class RegisterAllocator BASE_EMBEDDED {
  public:
   explicit RegisterAllocator(CodeGenerator* cgen) : cgen_(cgen) {}
 
+  static RegisterFile Reserved() {
+    RegisterFile reserved;
+    reserved.Use(esi);
+    reserved.Use(ebp);
+    reserved.Use(esp);
+    return reserved;
+  }
+
   int num_registers() const { return RegisterFile::kNumRegisters; }
 
   // Predicates and accessors for the registers' reference counts.

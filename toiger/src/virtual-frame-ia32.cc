@@ -309,16 +309,9 @@ bool VirtualFrame::RequiresMergeCode() {
 
 void VirtualFrame::MakeMergable() {
   Comment cmnt(masm_, "[ Make frame mergable");
-  // We can call MakeMergable on a frame that is not the code generator's
-  // current frame, which will leave the global register counts out of sync
-  // with the frame.  We simply save the current frame and restore it at the
-  // end of this function.  We should find a better way to deal with this.
-  VirtualFrame* original_frame = cgen_->frame();
-  RegisterFile non_frame_registers;
-  non_frame_registers.Use(esi);
-  non_frame_registers.Use(ebp);
-  non_frame_registers.Use(esp);
-  cgen_->SetFrame(this, &non_frame_registers);
+  // We should always be merging the code generator's current frame to an
+  // expected frame.
+  ASSERT(cgen_->frame() == this);
   ASSERT(cgen_->HasValidEntryRegisters());
 
   // Remove constants from the frame and ensure that no registers are
@@ -392,7 +385,6 @@ void VirtualFrame::MakeMergable() {
 
   delete[] new_elements;
   ASSERT(cgen_->HasValidEntryRegisters());
-  cgen_->SetFrame(original_frame, &non_frame_registers);
 }
 
 
@@ -426,6 +418,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
       ASSERT(!elements_[i].is_synced());
     }
 #endif
+    ASSERT(!cgen_->has_cc());
     __ add(Operand(esp), Immediate(height_difference * kPointerSize));
     stack_pointer_ = expected->stack_pointer_;
   } else if (stack_pointer_ < expected->stack_pointer_) {
@@ -563,10 +556,11 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
               ASSERT(!elements_[j].is_memory());
             }
 #endif
-            __ add(Operand(esp),
-                   Immediate((stack_pointer_ - i) * kPointerSize));
+            int difference = stack_pointer_ - i;
+            ASSERT(!cgen_->has_cc());
+            __ add(Operand(esp), Immediate(difference * kPointerSize));
             stack_pointer_ = i;
-            }
+          }
           stack_pointer_--;
           __ pop(target.reg());
         }
@@ -938,6 +932,7 @@ void VirtualFrame::Drop(int count) {
   if (num_virtual_elements < count) {
     int num_dropped = count - num_virtual_elements;
     stack_pointer_ -= num_dropped;
+    ASSERT(!cgen_->has_cc());
     __ add(Operand(esp), Immediate(num_dropped * kPointerSize));
   }
 
@@ -958,6 +953,7 @@ Result VirtualFrame::Pop() {
   if (popped.is_constant()) {
     if (pop_needed) {
       stack_pointer_--;
+      ASSERT(!cgen_->has_cc());
       __ add(Operand(esp), Immediate(kPointerSize));
     }
     return Result(popped.handle(), cgen_);
@@ -965,6 +961,7 @@ Result VirtualFrame::Pop() {
     Unuse(popped.reg());
     if (pop_needed) {
       stack_pointer_--;
+      ASSERT(!cgen_->has_cc());
       __ add(Operand(esp), Immediate(kPointerSize));
     }
     return Result(popped.reg(), cgen_);

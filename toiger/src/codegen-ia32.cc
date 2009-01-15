@@ -1868,7 +1868,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   __ Align(4);
   JumpTarget table_start(this);
   table_start.Bind();
-  __ WriteInternalReference(jump_table_ref, *table_start.label());
+  __ WriteInternalReference(jump_table_ref, *table_start.entry_label());
 
   for (int i = 0; i < range; i++) {
     // table entry, 0 is placeholder for case address
@@ -1877,10 +1877,10 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
 
   GenerateFastCaseSwitchCases(node, case_labels, &table_start);
 
-  for (int i = 0, entry_pos = table_start.label()->pos();
+  for (int i = 0, entry_pos = table_start.entry_label()->pos();
        i < range;
        i++, entry_pos += sizeof(uint32_t)) {
-    __ WriteInternalReference(entry_pos, *case_targets[i]->label());
+    __ WriteInternalReference(entry_pos, *case_targets[i]->entry_label());
   }
 }
 
@@ -2417,7 +2417,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   shadows.Add(new ShadowTarget(&function_return_));
   bool function_return_was_shadowed = function_return_is_shadowed_;
   function_return_is_shadowed_ = true;
-  ASSERT(shadows[kReturnShadowIndex]->original_target() == &function_return_);
+  ASSERT(shadows[kReturnShadowIndex]->other_target() == &function_return_);
 
   // Add the remaining shadow targets.
   for (int i = 0; i < nof_escapes; i++) {
@@ -2486,7 +2486,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
         frame_->PrepareForReturn();
       }
-      shadows[i]->original_target()->Jump();
+      shadows[i]->other_target()->Jump();
     }
   }
 
@@ -2538,7 +2538,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   shadows.Add(new ShadowTarget(&function_return_));
   bool function_return_was_shadowed = function_return_is_shadowed_;
   function_return_is_shadowed_ = true;
-  ASSERT(shadows[kReturnShadowIndex]->original_target() == &function_return_);
+  ASSERT(shadows[kReturnShadowIndex]->other_target() == &function_return_);
 
   // Add the remaining shadow targets.
   for (int i = 0; i < nof_escapes; i++) {
@@ -2635,7 +2635,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     // formerly shadowing targets.
     for (int i = 0; i <= nof_escapes; i++) {
       if (shadows[i]->is_bound()) {
-        JumpTarget* original = shadows[i]->original_target();
+        JumpTarget* original = shadows[i]->other_target();
         __ cmp(Operand(ecx), Immediate(Smi::FromInt(JUMPING + i)));
         if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
           JumpTarget skip(this);
