@@ -1599,7 +1599,7 @@ Object* JSObject::SetProperty(LookupResult* result,
     return JSObject::cast(proto)->SetProperty(result, name, value, attributes);
   }
 
-  if (result->IsNotFound() || !result->IsProperty()) {
+  if (!result->IsProperty() && !IsJSContextExtensionObject()) {
     // We could not find a local property so let's check whether there is an
     // accessor that wants to handle the property.
     LookupResult accessor_result;
