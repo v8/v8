@@ -26,25 +26,60 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug
-// Test the mirror object for undefined
+// The functions used for testing backtraces. They are at the top to make the
+// testing of source line/column easier.
+function f(x, y) {
+  a=1;
+};
 
-// Create mirror and JSON representation.
-var mirror = debug.MakeMirror(void 0);
-var serializer = debug.MakeMirrorSerializer();
-var json = serializer.serializeValue(mirror);
+function g() {
+  new f(1);
+};
 
-// Check the mirror hierachy.
-assertTrue(mirror instanceof debug.Mirror);
-assertTrue(mirror instanceof debug.UndefinedMirror);
 
-// Check the mirror properties.
-assertTrue(mirror.isUndefined());
-assertEquals('undefined', mirror.type());
-assertTrue(mirror.isPrimitive());
+// Get the Debug object exposed from the debug context global object.
+Debug = debug.Debug
 
-// Test text representation
-assertEquals('undefined', mirror.toText());
+listenerCallCount = 0;
+listenerExceptionCount = 0;
 
-// Parse JSON representation and check.
-var fromJSON = eval('(' + json + ')');
-assertEquals('undefined', fromJSON.type);
+
+function listener(event, exec_state, event_data, data) {
+  try {
+  if (event == Debug.DebugEvent.Break)
+  {
+    listenerCallCount++;
+
+    // Check that mirror cache is cleared when entering debugger.
+    assertEquals(0, debug.next_handle_, "Mirror cache not cleared");
+    assertEquals(0, debug.mirror_cache_.length, "Mirror cache not cleared");
+
+    // Get the debug command processor.
+    var dcp = exec_state.debugCommandProcessor();
+
+    // Make a backtrace request to create some mirrors.
+    var json;
+    json = '{"seq":0,"type":"request","command":"backtrace"}'
+    dcp.processDebugJSONRequest(json);
+
+    // Some mirrors where cached.
+    assertFalse(debug.next_handle_ == 0, "Mirror cache not used");
+    assertFalse(debug.mirror_cache_.length == 0, "Mirror cache not used");
+  }
+  } catch (e) {
+    print(e);
+    listenerExceptionCount++;
+  };
+};
+
+// Add the debug event listener.
+Debug.addListener(listener);
+
+// Enter the debugger twice.
+debugger;
+debugger;
+
+// Make sure that the debug event listener vas invoked.
+assertEquals(2, listenerCallCount, "Listener not called");
+assertEquals(0, listenerExceptionCount, "Exception in listener");
+

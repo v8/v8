@@ -1303,6 +1303,22 @@ bool Debug::IsDebugGlobal(GlobalObject* global) {
 }
 
 
+void Debug::ClearMirrorCache() {
+  ASSERT(Top::context() == *Debug::debug_context());
+
+  // Clear the mirror cache.
+  Handle<String> function_name =
+      Factory::LookupSymbol(CStrVector("ClearMirrorCache"));
+  Handle<Object> fun(Top::global()->GetProperty(*function_name));
+  ASSERT(fun->IsJSFunction());
+  bool caught_exception;
+  Handle<Object> js_object = Execution::TryCall(
+      Handle<JSFunction>::cast(fun),
+      Handle<JSObject>(Debug::debug_context()->global()),
+      0, NULL, &caught_exception);
+}
+
+
 bool Debugger::debugger_active_ = false;
 bool Debugger::compiling_natives_ = false;
 bool Debugger::is_loading_debugger_ = false;
@@ -1628,6 +1644,9 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
       }
     }
   }
+
+  // Clear the mirror cache.
+  Debug::ClearMirrorCache();
 }
 
 
