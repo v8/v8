@@ -5474,10 +5474,18 @@ THREADED_TEST(AccessChecksReenabledCorrectly) {
   templ->Set(v8_str("a"), v8_str("a"));
   // Add more than 8 (see kMaxFastProperties) properties
   // so that the constructor will force copying map.
+  // Cannot sprintf, gcc complains unsafety.
   char buf[5];
-  for (int i = 0; i < 999; i++) {
-    sprintf_s(buf, 5, "x%3d", i);
-    templ->Set(v8_str(buf), v8::Number::New(i));
+  for (char i = '0'; i <= '9' ; i++) {
+    buf[1] = i;
+    for (char j = '0'; j <= '9'; j++) {
+      buf[2] = j;
+      for (char k = '0'; k <= '9'; k++) {
+        buf[3] = k;
+        buf[4] = 0;
+        templ->Set(v8_str(buf), v8::Number::New(k));
+      }
+    }
   }
 
   Local<v8::Object> instance_1 = templ->NewInstance();
