@@ -1220,6 +1220,16 @@ class ThisFunction: public Expression {
 // Regular expressions
 
 
+class RegExpVisitor BASE_EMBEDDED {
+ public:
+  virtual ~RegExpVisitor() { }
+#define MAKE_CASE(Name)                                              \
+  virtual void* Visit##Name(RegExp##Name*, void* data) = 0;
+  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
+#undef MAKE_CASE
+};
+
+
 class RegExpTree: public ZoneObject {
  public:
   static const int kInfinity = kMaxInt;
@@ -1230,6 +1240,9 @@ class RegExpTree: public ZoneObject {
   virtual bool IsTextElement() { return false; }
   virtual int min_match() = 0;
   virtual int max_match() = 0;
+  // Returns the interval of registers used for captures within this
+  // expression.
+  virtual Interval CaptureRegisters() { return Interval::Empty(); }
   virtual void AppendToText(RegExpText* text);
   SmartPointer<const char> ToString();
 #define MAKE_ASTYPE(Name)                                                  \
@@ -1247,6 +1260,7 @@ class RegExpDisjunction: public RegExpTree {
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success);
   virtual RegExpDisjunction* AsDisjunction();
+  virtual Interval CaptureRegisters();
   virtual bool IsDisjunction();
   virtual int min_match() { return min_match_; }
   virtual int max_match() { return max_match_; }
@@ -1265,6 +1279,7 @@ class RegExpAlternative: public RegExpTree {
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success);
   virtual RegExpAlternative* AsAlternative();
+  virtual Interval CaptureRegisters();
   virtual bool IsAlternative();
   virtual int min_match() { return min_match_; }
   virtual int max_match() { return max_match_; }
@@ -1429,6 +1444,7 @@ class RegExpQuantifier: public RegExpTree {
                             RegExpCompiler* compiler,
                             RegExpNode* on_success);
   virtual RegExpQuantifier* AsQuantifier();
+  virtual Interval CaptureRegisters();
   virtual bool IsQuantifier();
   virtual int min_match() { return min_match_; }
   virtual int max_match() { return max_match_; }
@@ -1464,6 +1480,7 @@ class RegExpCapture: public RegExpTree {
                             RegExpCompiler* compiler,
                             RegExpNode* on_success);
   virtual RegExpCapture* AsCapture();
+  virtual Interval CaptureRegisters();
   virtual bool IsCapture();
   virtual int min_match() { return body_->min_match(); }
   virtual int max_match() { return body_->max_match(); }
@@ -1491,6 +1508,7 @@ class RegExpLookahead: public RegExpTree {
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success);
   virtual RegExpLookahead* AsLookahead();
+  virtual Interval CaptureRegisters();
   virtual bool IsLookahead();
   virtual int min_match() { return 0; }
   virtual int max_match() { return 0; }
@@ -1511,7 +1529,7 @@ class RegExpBackReference: public RegExpTree {
                              RegExpNode* on_success);
   virtual RegExpBackReference* AsBackReference();
   virtual bool IsBackReference();
-  virtual int min_match() { return capture_->min_match(); }
+  virtual int min_match() { return 0; }
   virtual int max_match() { return capture_->max_match(); }
   int index() { return capture_->index(); }
   RegExpCapture* capture() { return capture_; }
@@ -1533,16 +1551,6 @@ class RegExpEmpty: public RegExpTree {
   static RegExpEmpty* GetInstance() { return &kInstance; }
  private:
   static RegExpEmpty kInstance;
-};
-
-
-class RegExpVisitor BASE_EMBEDDED {
- public:
-  virtual ~RegExpVisitor() { }
-#define MAKE_CASE(Name)                                              \
-  virtual void* Visit##Name(RegExp##Name*, void* data) = 0;
-  FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
-#undef MAKE_CASE
 };
 
 

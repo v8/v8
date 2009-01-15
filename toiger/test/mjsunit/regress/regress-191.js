@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that we can create object literals of various sizes.
-function testLiteral(size) {
+// Make sure that accessor setters are ignored on context extension
+// objects.
+// See http://code.google.com/p/v8/issues/detail?id=191
 
-  // Build object-literal string.
-  var literal = "var o = { ";
+var setterCalled = false;
 
-  for (var i = 0; i < size; i++) {
-    if (i > 0) literal += ",";
-    literal += ("a" + i + ":" + i);
-  }
-  literal += "}";
+Object.prototype.__defineSetter__("x", function() { setterCalled = true; });
 
-  // Create the object literal.
-  eval(literal);
-
-  // Check that the properties have the expected values.
-  for (var i = 0; i < size; i++) {
-    assertEquals(i, o["a"+i]);
-  }
+function test() {
+  eval("var x = 42");
+  assertFalse(setterCalled, "accessor setter call on context object");
+  assertEquals(42, eval("x"));
 }
 
-// The sizes to test.
-var sizes = [0, 1, 2, 100, 200, 400, 1000];
-
-// Run the test.
-for (var i = 0; i < sizes.length; i++) {
-  testLiteral(sizes[i]);
-}
-
+test();

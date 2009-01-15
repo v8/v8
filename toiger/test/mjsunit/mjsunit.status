@@ -38,6 +38,10 @@ fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 # no longer using JSCRE.
 regexp-UC16: PASS || FAIL
 
+# These tests pass with irregexp but fail with jscre
+regress/regress-176: PASS || FAIL
+regexp-loop-capture: PASS || FAIL
+
 [ $arch == arm ]
 
 # Slow tests which times out in debug mode.

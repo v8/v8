@@ -95,7 +95,8 @@ void RegExpMacroAssemblerTracer::GoTo(Label* label) {
 
 
 void RegExpMacroAssemblerTracer::PushBacktrack(Label* label) {
-  PrintF(" PushBacktrack(label[%08x]);\n", label);
+  PrintF(" PushBacktrack(label[%08x]);\n",
+         label);
   assembler_->PushBacktrack(label);
 }
 
@@ -118,9 +119,13 @@ void RegExpMacroAssemblerTracer::PopRegister(int register_index) {
 }
 
 
-void RegExpMacroAssemblerTracer::PushRegister(int register_index) {
-  PrintF(" PushRegister(register=%d);\n", register_index);
-  assembler_->PushRegister(register_index);
+void RegExpMacroAssemblerTracer::PushRegister(
+    int register_index,
+    StackCheckFlag check_stack_limit) {
+  PrintF(" PushRegister(register=%d, %s);\n",
+         register_index,
+         check_stack_limit ? "check stack limit" : "");
+  assembler_->PushRegister(register_index, check_stack_limit);
 }
 
 
@@ -142,6 +147,12 @@ void RegExpMacroAssemblerTracer::WriteCurrentPositionToRegister(int reg,
          reg,
          cp_offset);
   assembler_->WriteCurrentPositionToRegister(reg, cp_offset);
+}
+
+
+void RegExpMacroAssemblerTracer::ClearRegister(int reg) {
+  PrintF(" ClearRegister(register=%d);\n", reg);
+  assembler_->ClearRegister(reg);
 }
 
 
@@ -370,6 +381,14 @@ void RegExpMacroAssemblerTracer::IfRegisterLT(int register_index,
   PrintF(" IfRegisterLT(register=%d, number=%d, label[%08x]);\n",
          register_index, comparand, if_lt);
   assembler_->IfRegisterLT(register_index, comparand, if_lt);
+}
+
+
+void RegExpMacroAssemblerTracer::IfRegisterEqPos(int register_index,
+                                                 Label* if_eq) {
+  PrintF(" IfRegisterEqPos(register=%d, label[%08x]);\n",
+         register_index, if_eq);
+  assembler_->IfRegisterEqPos(register_index, if_eq);
 }
 
 

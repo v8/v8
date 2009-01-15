@@ -349,7 +349,7 @@ class OutSet: public ZoneObject {
   uint32_t first_;
   ZoneList<unsigned>* remaining_;
   ZoneList<OutSet*>* successors_;
-  friend class GenerationVariant;
+  friend class Trace;
 };
 
 
@@ -449,7 +449,7 @@ class TextElement {
 };
 
 
-class GenerationVariant;
+class Trace;
 
 
 struct NodeInfo {
@@ -583,13 +583,13 @@ class QuickCheckDetails {
 
 class RegExpNode: public ZoneObject {
  public:
-  RegExpNode() : variants_generated_(0) { }
+  RegExpNode() : trace_count_(0) { }
   virtual ~RegExpNode();
   virtual void Accept(NodeVisitor* visitor) = 0;
   // Generates a goto to this node or actually generates the code at this point.
   // Until the implementation is complete we will return true for success and
   // false for failure.
-  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant) = 0;
+  virtual bool Emit(RegExpCompiler* compiler, Trace* trace) = 0;
   // How many characters must this node consume at a minimum in order to
   // succeed.
   virtual int EatsAtLeast(int recursion_depth) = 0;
@@ -597,7 +597,7 @@ class RegExpNode: public ZoneObject {
   // Falls through on certain failure, jumps to the label on possible success.
   // If the node cannot make a quick check it does nothing and returns false.
   bool EmitQuickCheck(RegExpCompiler* compiler,
-                      GenerationVariant* variant,
+                      Trace* trace,
                       bool preload_has_checked_bounds,
                       Label* on_possible_success,
                       QuickCheckDetails* details_return,
@@ -612,7 +612,12 @@ class RegExpNode: public ZoneObject {
   static const int kNodeIsTooComplexForGreedyLoops = -1;
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
   Label* label() { return &label_; }
-  static const int kMaxVariantsGenerated = 10;
+  // If non-generic code is generated for a node (ie the node is not at the
+  // start of the trace) then it cannot be reused.  This variable sets a limit
+  // on how often we allow that to happen before we insist on starting a new
+  // trace and generating generic code for a node that can be reused by flushing
+  // the deferred actions in the current trace and generating a goto.
+  static const int kMaxCopiesCodeGenerated = 10;
 
   // Propagates the given interest information forward.  When seeing
   // \bfoo for instance, the \b is implemented by propagating forward
@@ -636,8 +641,7 @@ class RegExpNode: public ZoneObject {
 
  protected:
   enum LimitResult { DONE, FAIL, CONTINUE };
-  LimitResult LimitVersions(RegExpCompiler* compiler,
-                            GenerationVariant* variant);
+  LimitResult LimitVersions(RegExpCompiler* compiler, Trace* trace);
 
   // Returns a sibling of this node whose interests and assumptions
   // match the ones in the given node info.  If no sibling exists NULL
@@ -660,7 +664,39 @@ class RegExpNode: public ZoneObject {
   Label label_;
   NodeInfo info_;
   SiblingList siblings_;
-  int variants_generated_;
+  // This variable keeps track of how many times code has been generated for
+  // this node (in different traces).  We don't keep track of where the
+  // generated code is located unless the code is generated at the start of
+  // a trace, in which case it is generic and can be reused by flushing the
+  // deferred operations in the current trace and generating a goto.
+  int trace_count_;
+};
+
+
+// A simple closed interval.
+class Interval {
+ public:
+  Interval() : from_(kNone), to_(kNone) { }
+  Interval(int from, int to) : from_(from), to_(to) { }
+  Interval Union(Interval that) {
+    if (that.from_ == kNone)
+      return *this;
+    else if (from_ == kNone)
+      return that;
+    else
+      return Interval(Min(from_, that.from_), Max(to_, that.to_));
+  }
+  bool Contains(int value) {
+    return (from_ <= value) && (value <= to_);
+  }
+  bool is_empty() { return from_ == kNone; }
+  int from() { return from_; }
+  int to() { return to_; }
+  static Interval Empty() { return Interval(); }
+  static const int kNone = -1;
+ private:
+  int from_;
+  int to_;
 };
 
 
@@ -682,21 +718,26 @@ class ActionNode: public SeqRegExpNode {
     INCREMENT_REGISTER,
     STORE_POSITION,
     BEGIN_SUBMATCH,
-    POSITIVE_SUBMATCH_SUCCESS
+    POSITIVE_SUBMATCH_SUCCESS,
+    EMPTY_MATCH_CHECK,
+    CLEAR_CAPTURES
   };
   static ActionNode* SetRegister(int reg, int val, RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
   static ActionNode* StorePosition(int reg, RegExpNode* on_success);
-  static ActionNode* BeginSubmatch(
-      int stack_pointer_reg,
-      int position_reg,
-      RegExpNode* on_success);
-  static ActionNode* PositiveSubmatchSuccess(
-      int stack_pointer_reg,
-      int restore_reg,
-      RegExpNode* on_success);
+  static ActionNode* ClearCaptures(Interval range, RegExpNode* on_success);
+  static ActionNode* BeginSubmatch(int stack_pointer_reg,
+                                   int position_reg,
+                                   RegExpNode* on_success);
+  static ActionNode* PositiveSubmatchSuccess(int stack_pointer_reg,
+                                             int restore_reg,
+                                             RegExpNode* on_success);
+  static ActionNode* EmptyMatchCheck(int start_register,
+                                     int repetition_register,
+                                     int repetition_limit,
+                                     RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
-  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
@@ -725,6 +766,15 @@ class ActionNode: public SeqRegExpNode {
       int stack_pointer_register;
       int current_position_register;
     } u_submatch;
+    struct {
+      int start_register;
+      int repetition_register;
+      int repetition_limit;
+    } u_empty_match_check;
+    struct {
+      int range_from;
+      int range_to;
+    } u_clear_captures;
   } data_;
   ActionNode(Type type, RegExpNode* on_success)
       : SeqRegExpNode(on_success),
@@ -748,7 +798,7 @@ class TextNode: public SeqRegExpNode {
   }
   virtual void Accept(NodeVisitor* visitor);
   virtual RegExpNode* PropagateForward(NodeInfo* info);
-  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
@@ -773,7 +823,7 @@ class TextNode: public SeqRegExpNode {
   void TextEmitPass(RegExpCompiler* compiler,
                     TextEmitPassType pass,
                     bool preloaded,
-                    GenerationVariant* variant,
+                    Trace* trace,
                     bool first_element_checked,
                     int* checked_up_to);
   int Length();
@@ -792,7 +842,7 @@ class BackReferenceNode: public SeqRegExpNode {
   virtual void Accept(NodeVisitor* visitor);
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
-  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int recursion_depth) { return 0; }
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
@@ -813,7 +863,7 @@ class EndNode: public RegExpNode {
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
   explicit EndNode(Action action) : action_(action) { }
   virtual void Accept(NodeVisitor* visitor);
-  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int recursion_depth) { return 0; }
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
@@ -825,7 +875,7 @@ class EndNode: public RegExpNode {
   virtual EndNode* Clone() { return new EndNode(*this); }
 
  protected:
-  void EmitInfoChecks(RegExpMacroAssembler* macro, GenerationVariant* variant);
+  void EmitInfoChecks(RegExpMacroAssembler* macro, Trace* trace);
 
  private:
   Action action_;
@@ -838,7 +888,7 @@ class NegativeSubmatchSuccess: public EndNode {
       : EndNode(NEGATIVE_SUBMATCH_SUCCESS),
         stack_pointer_register_(stack_pointer_reg),
         current_position_register_(position_reg) { }
-  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
 
  private:
   int stack_pointer_register_;
@@ -891,7 +941,7 @@ class ChoiceNode: public RegExpNode {
   void AddAlternative(GuardedAlternative node) { alternatives()->Add(node); }
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
   DispatchTable* GetTable(bool ignore_case);
-  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int recursion_depth);
   int EatsAtLeastHelper(int recursion_depth, RegExpNode* ignore_this_node);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
@@ -912,10 +962,10 @@ class ChoiceNode: public RegExpNode {
   friend class Analysis;
   void GenerateGuard(RegExpMacroAssembler* macro_assembler,
                      Guard *guard,
-                     GenerationVariant* variant);
+                     Trace* trace);
   int CalculatePreloadCharacters(RegExpCompiler* compiler);
   bool EmitOutOfLineContinuation(RegExpCompiler* compiler,
-                                 GenerationVariant* variant,
+                                 Trace* trace,
                                  GuardedAlternative alternative,
                                  AlternativeGeneration* alt_gen,
                                  int preload_characters,
@@ -934,7 +984,7 @@ class LoopChoiceNode: public ChoiceNode {
         body_can_be_zero_length_(body_can_be_zero_length) { }
   void AddLoopAlternative(GuardedAlternative alt);
   void AddContinueAlternative(GuardedAlternative alt);
-  virtual bool Emit(RegExpCompiler* compiler, GenerationVariant* variant);
+  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int recursion_depth);  // Returns 0.
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
@@ -961,28 +1011,37 @@ class LoopChoiceNode: public ChoiceNode {
 
 // There are many ways to generate code for a node.  This class encapsulates
 // the current way we should be generating.  In other words it encapsulates
-// the current state of the code generator.
-class GenerationVariant {
+// the current state of the code generator.  The effect of this is that we
+// generate code for paths that the matcher can take through the regular
+// expression.  A given node in the regexp can be code-generated several times
+// as it can be part of several traces.  For example for the regexp:
+// /foo(bar|ip)baz/ the code to match baz will be generated twice, once as part
+// of the foo-bar-baz trace and once as part of the foo-ip-baz trace.  The code
+// to match foo is generated only once (the traces have a common prefix).  The
+// code to store the capture is deferred and generated (twice) after the places
+// where baz has been matched.
+class Trace {
  public:
   class DeferredAction {
    public:
     DeferredAction(ActionNode::Type type, int reg)
         : type_(type), reg_(reg), next_(NULL) { }
     DeferredAction* next() { return next_; }
+    bool Mentions(int reg);
     int reg() { return reg_; }
     ActionNode::Type type() { return type_; }
    private:
     ActionNode::Type type_;
     int reg_;
     DeferredAction* next_;
-    friend class GenerationVariant;
+    friend class Trace;
   };
 
   class DeferredCapture: public DeferredAction {
    public:
-    DeferredCapture(int reg, GenerationVariant* variant)
+    DeferredCapture(int reg, Trace* trace)
         : DeferredAction(ActionNode::STORE_POSITION, reg),
-          cp_offset_(variant->cp_offset()) { }
+          cp_offset_(trace->cp_offset()) { }
     int cp_offset() { return cp_offset_; }
    private:
     int cp_offset_;
@@ -999,13 +1058,23 @@ class GenerationVariant {
     int value_;
   };
 
+  class DeferredClearCaptures : public DeferredAction {
+   public:
+    explicit DeferredClearCaptures(Interval range)
+        : DeferredAction(ActionNode::CLEAR_CAPTURES, -1),
+          range_(range) { }
+    Interval range() { return range_; }
+   private:
+    Interval range_;
+  };
+
   class DeferredIncrementRegister: public DeferredAction {
    public:
     explicit DeferredIncrementRegister(int reg)
         : DeferredAction(ActionNode::INCREMENT_REGISTER, reg) { }
   };
 
-  GenerationVariant()
+  Trace()
       : cp_offset_(0),
         actions_(NULL),
         backtrack_(NULL),
@@ -1013,9 +1082,23 @@ class GenerationVariant {
         loop_label_(NULL),
         characters_preloaded_(0),
         bound_checked_up_to_(0) { }
+  // End the trace.  This involves flushing the deferred actions in the trace
+  // and pushing a backtrack location onto the backtrack stack.  Once this is
+  // done we can start a new trace or go to one that has already been
+  // generated.
   bool Flush(RegExpCompiler* compiler, RegExpNode* successor);
   int cp_offset() { return cp_offset_; }
   DeferredAction* actions() { return actions_; }
+  // A trivial trace is one that has no deferred actions or other state that
+  // affects the assumptions used when generating code.  There is no recorded
+  // backtrack location in a trivial trace, so with a trivial trace we will
+  // generate code that, on a failure to match, gets the backtrack location
+  // from the backtrack stack rather than using a direct jump instruction.  We
+  // always start code generation with a trivial trace and non-trivial traces
+  // are created as we emit code for nodes or add to the list of deferred
+  // actions in the trace.  The location of the code generated for a node using
+  // a trivial trace is recorded in a label in the node so that gotos can be
+  // generated to that code.
   bool is_trivial() {
     return backtrack_ == NULL &&
            actions_ == NULL &&
@@ -1031,9 +1114,12 @@ class GenerationVariant {
   int bound_checked_up_to() { return bound_checked_up_to_; }
   QuickCheckDetails* quick_check_performed() { return &quick_check_performed_; }
   bool mentions_reg(int reg);
-  // These set methods and AdvanceVariant should be used only on new
-  // GenerationVariants - the intention is that GenerationVariants are
-  // immutable after creation.
+  // Returns true if a deferred position store exists to the specified
+  // register and stores the offset in the out-parameter.  Otherwise
+  // returns false.
+  bool GetStoredPosition(int reg, int* cp_offset);
+  // These set methods and AdvanceCurrentPositionInTrace should be used only on
+  // new traces - the intention is that traces are immutable after creation.
   void add_action(DeferredAction* new_action) {
     ASSERT(new_action->next_ == NULL);
     new_action->next_ = actions_;
@@ -1049,7 +1135,7 @@ class GenerationVariant {
   }
   void clear_quick_check_performed() {
   }
-  void AdvanceVariant(int by, bool ascii);
+  void AdvanceCurrentPositionInTrace(int by, bool ascii);
  private:
   int FindAffectedRegisters(OutSet* affected_registers);
   void PerformDeferredActions(RegExpMacroAssembler* macro,

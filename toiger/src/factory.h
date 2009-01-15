@@ -157,6 +157,10 @@ class Factory : public AllStatic {
 
   static Handle<Map> CopyMap(Handle<Map> map);
 
+  // Copy the map adding more inobject properties if possible without
+  // overflowing the instance size.
+  static Handle<Map> CopyMap(Handle<Map> map, int extra_inobject_props);
+
   static Handle<Map> CopyMapDropTransitions(Handle<Map> map);
 
   static Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
@@ -181,10 +185,6 @@ class Factory : public AllStatic {
   // JS objects are pretenured when allocated by the bootstrapper and
   // runtime.
   static Handle<JSObject> NewJSObjectFromMap(Handle<Map> map);
-
-  // Allocate a JS object representing an object literal.  The object is
-  // pretenured (allocated directly in the old generation).
-  static Handle<JSObject> NewObjectLiteral(int expected_number_of_properties);
 
   // Allocate a JS array representing an array literal.  The array is
   // pretenured (allocated directly in the old generation).

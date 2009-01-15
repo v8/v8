@@ -120,7 +120,8 @@ BenchmarkSuite.RunSuites = function(runner) {
     }
     if (runner.NotifyScore) {
       var score = BenchmarkSuite.GeometricMean(BenchmarkSuite.scores);
-      runner.NotifyScore(100 * score);
+      var formatted = BenchmarkSuite.FormatScore(100 * score);
+      runner.NotifyScore(formatted);
     }
   }
   RunStep();
@@ -149,6 +150,16 @@ BenchmarkSuite.GeometricMean = function(numbers) {
 }
 
 
+// Converts a score value to a string with at least three significant
+// digits.
+BenchmarkSuite.FormatScore = function(value) {
+  if (value > 100) {
+    return value.toFixed(0);
+  } else {
+    return value.toPrecision(3);
+  }
+}
+
 // Notifies the runner that we're done running a single benchmark in
 // the benchmark suite. This can be useful to report progress.
 BenchmarkSuite.prototype.NotifyStep = function(result) {
@@ -164,7 +175,8 @@ BenchmarkSuite.prototype.NotifyResult = function() {
   var score = this.reference / mean;
   BenchmarkSuite.scores.push(score);
   if (this.runner.NotifyResult) {
-    this.runner.NotifyResult(this.name, 100 * score);
+    var formatted = BenchmarkSuite.FormatScore(100 * score);
+    this.runner.NotifyResult(this.name, formatted);
   }
 }
 
@@ -218,15 +230,4 @@ BenchmarkSuite.prototype.RunStep = function(runner) {
     return null;
   }
   return RunNext();
-}
-
-
-// Converts a score value to a string with at least three significant
-// digits.
-function formatScore(value) {
-  if (value > 100) {
-    return value.toFixed(0);
-  } else {
-    return value.toPrecision(3);
-  }
 }

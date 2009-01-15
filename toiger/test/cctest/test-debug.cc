@@ -2660,58 +2660,76 @@ TEST(InterceptorPropertyMirror) {
 
   // Get the property names from the interceptors
   CompileRun(
-      "named_names = named_mirror.interceptorPropertyNames();"
-      "indexed_names = indexed_mirror.interceptorPropertyNames();"
-      "both_names = both_mirror.interceptorPropertyNames()");
+      "named_names = named_mirror.propertyNames();"
+      "indexed_names = indexed_mirror.propertyNames();"
+      "both_names = both_mirror.propertyNames()");
   CHECK_EQ(3, CompileRun("named_names.length")->Int32Value());
   CHECK_EQ(2, CompileRun("indexed_names.length")->Int32Value());
   CHECK_EQ(5, CompileRun("both_names.length")->Int32Value());
 
   // Check the expected number of properties.
   const char* source;
-  source = "named_mirror.interceptorProperties().length";
+  source = "named_mirror.properties().length";
   CHECK_EQ(3, CompileRun(source)->Int32Value());
 
-  source = "indexed_mirror.interceptorProperties().length";
+  source = "indexed_mirror.properties().length";
   CHECK_EQ(2, CompileRun(source)->Int32Value());
 
-  source = "both_mirror.interceptorProperties().length";
+  source = "both_mirror.properties().length";
   CHECK_EQ(5, CompileRun(source)->Int32Value());
 
-  source = "both_mirror.interceptorProperties(1).length";
+  // 1 is PropertyKind.Named;
+  source = "both_mirror.properties(1).length";
   CHECK_EQ(3, CompileRun(source)->Int32Value());
 
-  source = "both_mirror.interceptorProperties(2).length";
+  // 2 is PropertyKind.Indexed;
+  source = "both_mirror.properties(2).length";
   CHECK_EQ(2, CompileRun(source)->Int32Value());
 
-  source = "both_mirror.interceptorProperties(3).length";
+  // 3 is PropertyKind.Named  | PropertyKind.Indexed;
+  source = "both_mirror.properties(3).length";
   CHECK_EQ(5, CompileRun(source)->Int32Value());
+
+  // Get the interceptor properties for the object with only named interceptor.
+  CompileRun("named_values = named_mirror.properties()");
+
+  // Check that the properties are interceptor properties.
+  for (int i = 0; i < 3; i++) {
+    EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
+    OS::SNPrintF(buffer,
+                 "named_values[%d] instanceof debug.PropertyMirror", i);
+    CHECK(CompileRun(buffer.start())->BooleanValue());
+
+    // 4 is PropertyType.Interceptor
+    OS::SNPrintF(buffer, "named_values[%d].propertyType()", i);
+    CHECK_EQ(4, CompileRun(buffer.start())->Int32Value());
+
+    OS::SNPrintF(buffer, "named_values[%d].isNative()", i);
+    CHECK(CompileRun(buffer.start())->BooleanValue());
+  }
+
+  // Get the interceptor properties for the object with only indexed
+  // interceptor.
+  CompileRun("indexed_values = indexed_mirror.properties()");
+
+  // Check that the properties are interceptor properties.
+  for (int i = 0; i < 2; i++) {
+    EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
+    OS::SNPrintF(buffer,
+                 "indexed_values[%d] instanceof debug.PropertyMirror", i);
+    CHECK(CompileRun(buffer.start())->BooleanValue());
+  }
 
   // Get the interceptor properties for the object with both types of
   // interceptors.
-  CompileRun("both_values = both_mirror.interceptorProperties()");
+  CompileRun("both_values = both_mirror.properties()");
 
-  // Check the mirror hierachy
-  source = "both_values[0] instanceof debug.PropertyMirror";
-  CHECK(CompileRun(source)->BooleanValue());
-
-  source = "both_values[0] instanceof debug.InterceptorPropertyMirror";
-  CHECK(CompileRun(source)->BooleanValue());
-
-  source = "both_values[1] instanceof debug.InterceptorPropertyMirror";
-  CHECK(CompileRun(source)->BooleanValue());
-
-  source = "both_values[2] instanceof debug.InterceptorPropertyMirror";
-  CHECK(CompileRun(source)->BooleanValue());
-
-  source = "both_values[3] instanceof debug.PropertyMirror";
-  CHECK(CompileRun(source)->BooleanValue());
-
-  source = "both_values[3] instanceof debug.InterceptorPropertyMirror";
-  CHECK(CompileRun(source)->BooleanValue());
-
-  source = "both_values[4] instanceof debug.InterceptorPropertyMirror";
-  CHECK(CompileRun(source)->BooleanValue());
+  // Check that the properties are interceptor properties.
+  for (int i = 0; i < 5; i++) {
+    EmbeddedVector<char, SMALL_STRING_BUFFER_SIZE> buffer;
+    OS::SNPrintF(buffer, "both_values[%d] instanceof debug.PropertyMirror", i);
+    CHECK(CompileRun(buffer.start())->BooleanValue());
+  }
 
   // Check the property names.
   source = "both_values[0].name() == 'a'";

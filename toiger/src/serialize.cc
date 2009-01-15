@@ -586,29 +586,33 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
       UNCLASSIFIED,
       3,
       "StackGuard::address_of_limit()");
-  Add(ExternalReference::debug_break().address(),
+  Add(ExternalReference::address_of_regexp_stack_limit().address(),
       UNCLASSIFIED,
       4,
+      "RegExpStack::limit_address()");
+  Add(ExternalReference::debug_break().address(),
+      UNCLASSIFIED,
+      5,
       "Debug::Break()");
   Add(ExternalReference::new_space_start().address(),
       UNCLASSIFIED,
-      5,
+      6,
       "Heap::NewSpaceStart()");
   Add(ExternalReference::heap_always_allocate_scope_depth().address(),
       UNCLASSIFIED,
-      6,
+      7,
       "Heap::always_allocate_scope_depth()");
   Add(ExternalReference::new_space_allocation_limit_address().address(),
       UNCLASSIFIED,
-      7,
+      8,
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address().address(),
       UNCLASSIFIED,
-      8,
+      9,
       "Heap::NewSpaceAllocationTopAddress()");
   Add(ExternalReference::debug_step_in_fp_address().address(),
       UNCLASSIFIED,
-      9,
+      10,
       "Debug::step_in_fp_addr()");
 }
 
@@ -804,7 +808,7 @@ class ReferenceUpdater: public ObjectVisitor {
     Address target = rinfo->target_address();
     uint32_t encoding = reference_encoder_->Encode(target);
     CHECK(target == NULL ? encoding == 0 : encoding != 0);
-    offsets_.Add(reinterpret_cast<Address>(rinfo->pc()) - obj_address_);
+    offsets_.Add(rinfo->target_address_address() - obj_address_);
     addresses_.Add(reinterpret_cast<Address>(encoding));
   }
 
@@ -1269,7 +1273,7 @@ void Deserializer::VisitExternalReferences(Address* start, Address* end) {
 
 
 void Deserializer::VisitRuntimeEntry(RelocInfo* rinfo) {
-  uint32_t* pc = reinterpret_cast<uint32_t*>(rinfo->pc());
+  uint32_t* pc = reinterpret_cast<uint32_t*>(rinfo->target_address_address());
   uint32_t encoding = *pc;
   Address target = reference_decoder_->Decode(encoding);
   rinfo->set_target_address(target);

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that we can create object literals of various sizes.
-function testLiteral(size) {
-
-  // Build object-literal string.
-  var literal = "var o = { ";
-
-  for (var i = 0; i < size; i++) {
-    if (i > 0) literal += ",";
-    literal += ("a" + i + ":" + i);
-  }
-  literal += "}";
-
-  // Create the object literal.
-  eval(literal);
-
-  // Check that the properties have the expected values.
-  for (var i = 0; i < size; i++) {
-    assertEquals(i, o["a"+i]);
-  }
-}
-
-// The sizes to test.
-var sizes = [0, 1, 2, 100, 200, 400, 1000];
-
-// Run the test.
-for (var i = 0; i < sizes.length; i++) {
-  testLiteral(sizes[i]);
-}
-
+var date = new Date();
+var year = date.getYear();
+date.setMilliseconds(Number.NaN);
+date.setYear(1900 + year);
+assertEquals(year, date.getYear());
+assertEquals(0, date.getMonth());
+assertEquals(1, date.getDate());
+assertEquals(0, date.getHours());
+assertEquals(0, date.getMinutes());
+assertEquals(0, date.getSeconds());
+assertEquals(0, date.getMilliseconds());

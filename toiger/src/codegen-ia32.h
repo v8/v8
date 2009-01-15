@@ -171,7 +171,9 @@ class CodeGenerator: public AstVisitor {
                                Handle<Script> script,
                                bool is_eval);
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
+#endif
 
   static void SetFunctionInfo(Handle<JSFunction> fun,
                               int length,

@@ -107,8 +107,7 @@ function testObjectMirror(o, cls_name, ctor_name, hasSpecialProperties) {
         } else {
           assertTrue(typeof(fromJSON.properties[i].attributes) === 'undefined');
         }
-        if (!properties[i].value() instanceof debug.AccessorMirror &&
-            properties[i].value().isPrimitive()) {
+        if (!properties[i].value().isPrimitive()) {
           // NaN is not equal to NaN.
           if (isNaN(properties[i].value().value())) {
             assertTrue(isNaN(fromJSON.properties[i].value.value));
@@ -119,7 +118,7 @@ function testObjectMirror(o, cls_name, ctor_name, hasSpecialProperties) {
         found = true;
       }
     }
-    assertTrue(found, '"' + name + '" not found');
+    assertTrue(found, '"' + name + '" not found (' + json + ')');
   }
 }
 
@@ -139,6 +138,11 @@ testObjectMirror(this, 'global', undefined, true);  // Global object has special
 testObjectMirror([], 'Array', 'Array');
 testObjectMirror([1,2], 'Array', 'Array');
 
+// Test circular references.
+o = {};
+o.o = o;
+testObjectMirror(o, 'Object', 'Object');
+
 // Test that non enumerable properties are part of the mirror
 global_mirror = debug.MakeMirror(this);
 assertEquals('property', global_mirror.property("Math").type());
@@ -152,27 +156,46 @@ assertFalse(math_mirror.property("E").canDelete());
 
 // Test objects with JavaScript accessors.
 o = {}
-o.__defineGetter__('a', function(){throw 'a';})
-o.__defineSetter__('b', function(){throw 'b';})
-o.__defineGetter__('c', function(){throw 'c';})
-o.__defineSetter__('c', function(){throw 'c';})
+o.__defineGetter__('a', function(){return 'a';});
+o.__defineSetter__('b', function(){});
+o.__defineGetter__('c', function(){throw 'c';});
+o.__defineSetter__('c', function(){throw 'c';});
 testObjectMirror(o, 'Object', 'Object');
 mirror = debug.MakeMirror(o);
 // a has getter but no setter.
-assertTrue(mirror.property('a').value() instanceof debug.AccessorMirror);
+assertTrue(mirror.property('a').hasGetter());
+assertFalse(mirror.property('a').hasSetter());
 assertEquals(debug.PropertyType.Callbacks, mirror.property('a').propertyType());
+assertEquals('function', mirror.property('a').getter().type());
+assertEquals('undefined', mirror.property('a').setter().type());
+assertEquals('function (){return \'a\';}', mirror.property('a').getter().source());
+assertEquals('a', mirror.property('a').value().value());
+assertFalse(mirror.property('a').isException());
 // b has setter but no getter.
-assertTrue(mirror.property('b').value() instanceof debug.AccessorMirror);
+assertFalse(mirror.property('b').hasGetter());
+assertTrue(mirror.property('b').hasSetter());
 assertEquals(debug.PropertyType.Callbacks, mirror.property('b').propertyType());
-// c has both getter and setter.
-assertTrue(mirror.property('c').value() instanceof debug.AccessorMirror);
+assertEquals('undefined', mirror.property('b').getter().type());
+assertEquals('function', mirror.property('b').setter().type());
+assertEquals('function (){}', mirror.property('b').setter().source());
+assertFalse(mirror.property('b').isException());
+// c has both getter and setter. The getter throws an exception.
+assertTrue(mirror.property('c').hasGetter());
+assertTrue(mirror.property('c').hasSetter());
 assertEquals(debug.PropertyType.Callbacks, mirror.property('c').propertyType());
+assertEquals('function', mirror.property('c').getter().type());
+assertEquals('function', mirror.property('c').setter().type());
+assertEquals('function (){throw \'c\';}', mirror.property('c').getter().source());
+assertEquals('function (){throw \'c\';}', mirror.property('c').setter().source());
+assertEquals('c', mirror.property('c').value().value());
+assertTrue(mirror.property('c').isException());
 
 // Test objects with native accessors.
 mirror = debug.MakeMirror(new String('abc'));
 assertTrue(mirror instanceof debug.ObjectMirror);
-assertTrue(mirror.property('length').value() instanceof debug.AccessorMirror);
-assertTrue(mirror.property('length').value().isNative());
+assertFalse(mirror.property('length').hasGetter());
+assertFalse(mirror.property('length').hasSetter());
+assertTrue(mirror.property('length').isNative());
 assertEquals('a', mirror.property(0).value().value());
 assertEquals('b', mirror.property(1).value().value());
 assertEquals('c', mirror.property(2).value().value());

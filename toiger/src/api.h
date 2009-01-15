@@ -237,33 +237,33 @@ class Utils {
       v8::internal::Handle<v8::internal::TypeSwitchInfo> obj);
 
   static inline v8::internal::Handle<v8::internal::TemplateInfo>
-      OpenHandle(Template* that);
+      OpenHandle(const Template* that);
   static inline v8::internal::Handle<v8::internal::FunctionTemplateInfo>
-      OpenHandle(FunctionTemplate* that);
+      OpenHandle(const FunctionTemplate* that);
   static inline v8::internal::Handle<v8::internal::ObjectTemplateInfo>
-      OpenHandle(ObjectTemplate* that);
+      OpenHandle(const ObjectTemplate* that);
   static inline v8::internal::Handle<v8::internal::Object>
-      OpenHandle(Data* data);
+      OpenHandle(const Data* data);
   static inline v8::internal::Handle<v8::internal::JSObject>
-      OpenHandle(v8::Object* data);
+      OpenHandle(const v8::Object* data);
   static inline v8::internal::Handle<v8::internal::JSArray>
-      OpenHandle(v8::Array* data);
+      OpenHandle(const v8::Array* data);
   static inline v8::internal::Handle<v8::internal::String>
-      OpenHandle(String* data);
+      OpenHandle(const String* data);
   static inline v8::internal::Handle<v8::internal::JSFunction>
-      OpenHandle(Script* data);
+      OpenHandle(const Script* data);
   static inline v8::internal::Handle<v8::internal::JSFunction>
-      OpenHandle(Function* data);
+      OpenHandle(const Function* data);
   static inline v8::internal::Handle<v8::internal::JSObject>
-      OpenHandle(Message* message);
+      OpenHandle(const Message* message);
   static inline v8::internal::Handle<v8::internal::Context>
-      OpenHandle(v8::Context* context);
+      OpenHandle(const v8::Context* context);
   static inline v8::internal::Handle<v8::internal::SignatureInfo>
-      OpenHandle(v8::Signature* sig);
+      OpenHandle(const v8::Signature* sig);
   static inline v8::internal::Handle<v8::internal::TypeSwitchInfo>
-      OpenHandle(v8::TypeSwitch* that);
+      OpenHandle(const v8::TypeSwitch* that);
   static inline v8::internal::Handle<v8::internal::Proxy>
-      OpenHandle(v8::External* that);
+      OpenHandle(const v8::External* that);
 };
 
 
@@ -309,9 +309,10 @@ MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
 // Implementations of OpenHandle
 
 #define MAKE_OPEN_HANDLE(From, To) \
-  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(v8::From* that) { \
+  v8::internal::Handle<v8::internal::To> Utils::OpenHandle(\
+    const v8::From* that) { \
     return v8::internal::Handle<v8::internal::To>( \
-        reinterpret_cast<v8::internal::To**>(that)); \
+        reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that))); \
   }
 
 MAKE_OPEN_HANDLE(Template, TemplateInfo)

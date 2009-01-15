@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,32 +25,48 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that we can create object literals of various sizes.
-function testLiteral(size) {
+// Make sure that eval can introduce a local variable called __proto__.
+// See http://code.google.com/p/v8/issues/detail?id=186
 
-  // Build object-literal string.
-  var literal = "var o = { ";
+var setterCalled = false;
 
-  for (var i = 0; i < size; i++) {
-    if (i > 0) literal += ",";
-    literal += ("a" + i + ":" + i);
-  }
-  literal += "}";
+var o = {};
+o.__defineSetter__("x", function() { setterCalled = true; });
 
-  // Create the object literal.
-  eval(literal);
-
-  // Check that the properties have the expected values.
-  for (var i = 0; i < size; i++) {
-    assertEquals(i, o["a"+i]);
-  }
+function runTest(test) {
+  setterCalled = false;
+  test();
 }
 
-// The sizes to test.
-var sizes = [0, 1, 2, 100, 200, 400, 1000];
-
-// Run the test.
-for (var i = 0; i < sizes.length; i++) {
-  testLiteral(sizes[i]);
+function testLocal() {
+  // Add property called __proto__ to the extension object.
+  eval("var __proto__ = o");
+  // Check that the extension object's prototype did not change.
+  eval("var x = 27");
+  assertFalse(setterCalled, "prototype of extension object changed");
+  assertEquals(o, eval("__proto__"));
 }
+
+function testConstLocal() {
+  // Add const property called __proto__ to the extension object.
+  eval("const __proto__ = o");
+  // Check that the extension object's prototype did not change.
+  eval("var x = 27");
+  assertFalse(setterCalled, "prototype of extension object changed");
+  assertEquals(o, eval("__proto__"));
+}
+
+function testGlobal() {
+  // Assign to the global __proto__ property.
+  eval("__proto__ = o");
+  // Check that the prototype of the global object changed.
+  eval("x = 27");
+  assertTrue(setterCalled, "prototype of global object did not change");
+  setterCalled = false;
+  assertEquals(o, eval("__proto__"));
+}
+
+runTest(testLocal);
+runTest(testConstLocal);
+runTest(testGlobal);
 

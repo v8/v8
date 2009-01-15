@@ -26,63 +26,45 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --expose-debug-as debug
-// Test the mirror object for string values
+// Test the mirror object for scripts.
 
-const kMaxProtocolStringLength = 80; // Constant from mirror-delay.js
-
-function testStringMirror(s) {
+function testScriptMirror(f, file_name, file_lines, script_type) {
   // Create mirror and JSON representation.
-  var mirror = debug.MakeMirror(s);
+  var mirror = debug.MakeMirror(f).script();
   var json = mirror.toJSONProtocol(true);
+  print(json);
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror);
-  assertTrue(mirror instanceof debug.ValueMirror);
-  assertTrue(mirror instanceof debug.StringMirror);
+  assertFalse(mirror instanceof debug.ValueMirror);
+  assertTrue(mirror instanceof debug.ScriptMirror);
 
   // Check the mirror properties.
-  assertTrue(mirror.isString());
-  assertEquals('string', mirror.type());
-  assertTrue(mirror.isPrimitive());
-
-  // Test text representation
-  if (s.length <= kMaxProtocolStringLength) {
-    assertEquals(s, mirror.toText());
-  } else {
-    assertEquals(s.substring(0, kMaxProtocolStringLength),
-                 mirror.toText().substring(0, kMaxProtocolStringLength));
+  assertTrue(mirror.isScript());
+  assertEquals('script', mirror.type());
+  var name = mirror.name();
+  assertEquals(file_name, name.substring(name.length - file_name.length));
+  assertEquals(0, mirror.lineOffset());
+  assertEquals(0, mirror.columnOffset());
+  if (file_lines > 0) {
+    assertEquals(file_lines, mirror.lineCount());
   }
-
+  assertEquals(script_type, mirror.scriptType());
+  
   // Parse JSON representation and check.
   var fromJSON = eval('(' + json + ')');
-  assertEquals('string', fromJSON.type);
-  if (s.length <= kMaxProtocolStringLength) {
-    assertEquals(s, fromJSON.value);
-  } else {
-    assertEquals(s.substring(0, kMaxProtocolStringLength),
-                 fromJSON.value.substring(0, kMaxProtocolStringLength));
-    assertEquals(fromJSON.fromIndex, 0);
-    assertEquals(fromJSON.toIndex, kMaxProtocolStringLength);
+  assertEquals('script', fromJSON.type);
+  name = fromJSON.name;
+  assertEquals(file_name, name.substring(name.length - file_name.length));
+  assertEquals(0, fromJSON.lineOffset);
+  assertEquals(0, fromJSON.columnOffset);
+  if (file_lines > 0) {
+    assertEquals(file_lines, fromJSON.lineCount);
   }
+  assertEquals(script_type, fromJSON.scriptType);  
 }
 
-// Test a number of different strings.
-testStringMirror('');
-testStringMirror('abcdABCD');
-testStringMirror('1234');
-testStringMirror('"');
-testStringMirror('"""');
-testStringMirror("'");
-testStringMirror("'''");
-testStringMirror("'\"'");
-testStringMirror('\\');
-testStringMirror('\b\t\n\f\r');
-testStringMirror('\u0001\u0002\u001E\u001F');
-testStringMirror('"a":1,"b":2');
 
-var s = "1234567890"
-s = s + s + s + s + s + s + s + s;
-assertEquals(kMaxProtocolStringLength, s.length);
-testStringMirror(s);
-s = s + 'X';
-testStringMirror(s);
+// Test the script mirror for different functions.
+testScriptMirror(function(){}, 'mirror-script.js', 70, 2);
+testScriptMirror(Math.sin, 'native math.js', -1, 0);

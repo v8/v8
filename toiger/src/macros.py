@@ -61,6 +61,9 @@ const msPerMinute      = 60000;
 const msPerHour        = 3600000;
 const msPerDay         = 86400000;
 
+# For apinatives.js
+const kUninitialized = -1;
+
 # Note: kDayZeroInJulianDay = ToJulianDay(1970, 0, 1).
 const kInvalidDate        = 'Invalid Date';
 const kDayZeroInJulianDay = 2440588;

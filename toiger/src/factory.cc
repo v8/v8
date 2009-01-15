@@ -195,6 +195,29 @@ Handle<Map> Factory::CopyMap(Handle<Map> src) {
 }
 
 
+Handle<Map> Factory::CopyMap(Handle<Map> src,
+                             int extra_inobject_properties) {
+  Handle<Map> copy = CopyMap(src);
+  // Check that we do not overflow the instance size when adding the
+  // extra inobject properties.
+  int instance_size_delta = extra_inobject_properties * kPointerSize;
+  int max_instance_size_delta =
+      JSObject::kMaxInstanceSize - copy->instance_size();
+  if (instance_size_delta > max_instance_size_delta) {
+    // If the instance size overflows, we allocate as many properties
+    // as we can as inobject properties.
+    instance_size_delta = max_instance_size_delta;
+    extra_inobject_properties = max_instance_size_delta >> kPointerSizeLog2;
+  }
+  // Adjust the map with the extra inobject properties.
+  int inobject_properties =
+      copy->inobject_properties() + extra_inobject_properties;
+  copy->set_inobject_properties(inobject_properties);
+  copy->set_unused_property_fields(inobject_properties);
+  copy->set_instance_size(copy->instance_size() + instance_size_delta);
+  return copy;
+}
+
 Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
   CALL_HEAP_FUNCTION(src->CopyDropTransitions(), Map);
 }
@@ -577,16 +600,6 @@ Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
 }
 
 
-Handle<JSObject> Factory::NewObjectLiteral(int expected_number_of_properties) {
-  Handle<Map> map = Handle<Map>(Top::object_function()->initial_map());
-  map = Factory::CopyMap(map);
-  map->set_instance_descriptors(Heap::empty_descriptor_array());
-  map->set_unused_property_fields(expected_number_of_properties);
-  CALL_HEAP_FUNCTION(Heap::AllocateJSObjectFromMap(*map, TENURED),
-                     JSObject);
-}
-
-
 Handle<JSArray> Factory::NewArrayLiteral(int length) {
   return NewJSArrayWithElements(NewFixedArray(length), TENURED);
 }
@@ -816,7 +829,8 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> context,
   if (result->IsMap()) return Handle<Map>::cast(result);
   // Create a new map and add it to the cache.
   Handle<Map> map =
-      CopyMap(Handle<Map>(context->object_function()->initial_map()));
+      CopyMap(Handle<Map>(context->object_function()->initial_map()),
+              keys->length());
   AddToMapCache(context, keys, map);
   return Handle<Map>(map);
 }

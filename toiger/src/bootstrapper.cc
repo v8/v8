@@ -794,8 +794,11 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
     // Create a function for the context extension objects.
     Handle<Code> code = Handle<Code>(Builtins::builtin(Builtins::Illegal));
     Handle<JSFunction> context_extension_fun =
-        Factory::NewFunction(Factory::empty_symbol(), JS_OBJECT_TYPE,
-                             JSObject::kHeaderSize, code, true);
+        Factory::NewFunction(Factory::empty_symbol(),
+                             JS_CONTEXT_EXTENSION_OBJECT_TYPE,
+                             JSObject::kHeaderSize,
+                             code,
+                             true);
 
     Handle<String> name = Factory::LookupAsciiSymbol("context_extension");
     context_extension_fun->shared()->set_instance_class_name(*name);

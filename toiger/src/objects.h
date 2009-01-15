@@ -166,8 +166,18 @@ class PropertyDetails BASE_EMBEDDED {
   uint32_t value_;
 };
 
+
 // Setter that skips the write barrier if mode is SKIP_WRITE_BARRIER.
 enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
+
+
+// PropertyNormalizationMode is used to specify whether to keep
+// inobject properties when normalizing properties of a JSObject.
+enum PropertyNormalizationMode {
+  CLEAR_INOBJECT_PROPERTIES,
+  KEEP_INOBJECT_PROPERTIES
+};
+
 
 // All Maps have a field instance_type containing a InstanceType.
 // It describes the type of the instances.
@@ -268,6 +278,7 @@ enum WriteBarrierMode { SKIP_WRITE_BARRIER, UPDATE_WRITE_BARRIER };
                                                 \
   V(JS_VALUE_TYPE)                              \
   V(JS_OBJECT_TYPE)                             \
+  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)           \
   V(JS_GLOBAL_OBJECT_TYPE)                      \
   V(JS_BUILTINS_OBJECT_TYPE)                    \
   V(JS_GLOBAL_PROXY_TYPE)                       \
@@ -525,6 +536,7 @@ enum InstanceType {
 
   JS_VALUE_TYPE,
   JS_OBJECT_TYPE,
+  JS_CONTEXT_EXTENSION_OBJECT_TYPE,
   JS_GLOBAL_OBJECT_TYPE,
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
@@ -560,9 +572,9 @@ enum CompareResult {
   inline void set_##name(bool value);  \
 
 
-#define DECL_ACCESSORS(name, type)    \
-  inline type* name();                \
-  inline void set_##name(type* value, \
+#define DECL_ACCESSORS(name, type)                                      \
+  inline type* name();                                                  \
+  inline void set_##name(type* value,                                   \
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER); \
 
 
@@ -612,6 +624,7 @@ class Object BASE_EMBEDDED {
   inline bool IsOutOfMemoryFailure();
   inline bool IsException();
   inline bool IsJSObject();
+  inline bool IsJSContextExtensionObject();
   inline bool IsMap();
   inline bool IsFixedArray();
   inline bool IsDescriptorArray();
@@ -1357,7 +1370,7 @@ class JSObject: public HeapObject {
 
   // Convert the object to use the canonical dictionary
   // representation.
-  Object* NormalizeProperties();
+  Object* NormalizeProperties(PropertyNormalizationMode mode);
   Object* NormalizeElements();
 
   // Transform slow named properties to fast variants.
@@ -2291,7 +2304,7 @@ class Code: public HeapObject {
 //  - How to iterate over an object (for garbage collection)
 class Map: public HeapObject {
  public:
-  // instance size.
+  // Instance size.
   inline int instance_size();
   inline void set_instance_size(int value);
 
@@ -2299,16 +2312,16 @@ class Map: public HeapObject {
   inline int inobject_properties();
   inline void set_inobject_properties(int value);
 
-  // instance type.
+  // Instance type.
   inline InstanceType instance_type();
   inline void set_instance_type(InstanceType value);
 
-  // tells how many unused property fields are available in the instance.
-  // (only used for JSObject in fast mode).
+  // Tells how many unused property fields are available in the
+  // instance (only used for JSObject in fast mode).
   inline int unused_property_fields();
   inline void set_unused_property_fields(int value);
 
-  // bit field.
+  // Bit field.
   inline byte bit_field();
   inline void set_bit_field(byte value);
 
@@ -2460,7 +2473,6 @@ class Map: public HeapObject {
   static const int kInstanceSizeOffset = kInstanceSizesOffset + 0;
   static const int kInObjectPropertiesOffset = kInstanceSizesOffset + 1;
   // The bytes at positions 2 and 3 are not in use at the moment.
-
 
   // Byte offsets within kInstanceAttributesOffset attributes.
   static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;

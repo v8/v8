@@ -200,11 +200,9 @@ class Logger {
   static StateTag state() {
     return current_state_ ? current_state_->state() : OTHER;
   }
-#endif
 
   static bool is_enabled() { return logfile_ != NULL; }
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
  private:
 
   // Emits the source code of a regexp. Used by regexp events.
