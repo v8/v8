@@ -343,8 +343,16 @@ static Object* Runtime_GetTemplateField(Arguments args) {
 static Object* Runtime_DisableAccessChecks(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(HeapObject, object, args[0]);
-  bool needs_access_checks = object->map()->is_access_check_needed();
-  object->map()->set_is_access_check_needed(false);
+  Map* old_map = object->map();
+  bool needs_access_checks = old_map->is_access_check_needed();
+  if (needs_access_checks) {
+    // Copy map so it won't interfere constructor's initial map.
+    Object* new_map = old_map->CopyDropTransitions();
+    if (new_map->IsFailure()) return new_map;
+
+    Map::cast(new_map)->set_is_access_check_needed(false);
+    object->set_map(Map::cast(new_map));
+  }
   return needs_access_checks ? Heap::true_value() : Heap::false_value();
 }
 
@@ -352,7 +360,15 @@ static Object* Runtime_DisableAccessChecks(Arguments args) {
 static Object* Runtime_EnableAccessChecks(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(HeapObject, object, args[0]);
-  object->map()->set_is_access_check_needed(true);
+  Map* old_map = object->map();
+  if (!old_map->is_access_check_needed()) {
+    // Copy map so it won't interfere constructor's initial map.
+    Object* new_map = old_map->CopyDropTransitions();
+    if (new_map->IsFailure()) return new_map;
+
+    Map::cast(new_map)->set_is_access_check_needed(true);
+    object->set_map(Map::cast(new_map));
+  }
   return Heap::undefined_value();
 }
 

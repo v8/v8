@@ -5448,6 +5448,50 @@ THREADED_TEST(DisableAccessChecksWhileConfiguring) {
   CHECK(value->BooleanValue());
 }
 
+static bool NamedGetAccessBlocker(Local<v8::Object> obj,
+                                  Local<Value> name,
+                                  v8::AccessType type,
+                                  Local<Value> data) {
+  return false;
+}
+
+
+static bool IndexedGetAccessBlocker(Local<v8::Object> obj,
+                                    uint32_t key,
+                                    v8::AccessType type,
+                                    Local<Value> data) {
+  return false;
+}
+
+
+
+THREADED_TEST(AccessChecksReenabledCorrectly) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessCheckCallbacks(NamedGetAccessBlocker,
+                                 IndexedGetAccessBlocker);
+  templ->Set(v8_str("a"), v8_str("a"));
+  // Add more than 8 (see kMaxFastProperties) properties
+  // so that the constructor will force copying map.
+  char buf[5];
+  for (int i = 0; i < 999; i++) {
+    sprintf_s(buf, 5, "x%3d", i);
+    templ->Set(v8_str(buf), v8::Number::New(i));
+  }
+
+  Local<v8::Object> instance_1 = templ->NewInstance();
+  context->Global()->Set(v8_str("obj_1"), instance_1);
+
+  Local<Value> value_1 = CompileRun("obj_1.a");
+  CHECK(value_1->IsUndefined());
+
+  Local<v8::Object> instance_2 = templ->NewInstance();
+  context->Global()->Set(v8_str("obj_2"), instance_2);
+
+  Local<Value> value_2 = CompileRun("obj_2.a");
+  CHECK(value_2->IsUndefined());
+}
 
 // This tests that access check information remains on the global
 // object template when creating contexts.
