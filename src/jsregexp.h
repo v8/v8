@@ -1082,9 +1082,10 @@ class Trace {
         loop_label_(NULL),
         characters_preloaded_(0),
         bound_checked_up_to_(0) { }
-  // End the trace.  This involves flushing the deferred actions in the trace and
-  // pushing a backtrack location onto the backtrack stack.  Once this is done we
-  // can start a new trace or go to one that has already been generated.
+  // End the trace.  This involves flushing the deferred actions in the trace
+  // and pushing a backtrack location onto the backtrack stack.  Once this is
+  // done we can start a new trace or go to one that has already been
+  // generated.
   bool Flush(RegExpCompiler* compiler, RegExpNode* successor);
   int cp_offset() { return cp_offset_; }
   DeferredAction* actions() { return actions_; }
