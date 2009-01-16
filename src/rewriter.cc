@@ -243,6 +243,12 @@ void AstOptimizer::VisitObjectLiteral(ObjectLiteral* node) {
 }
 
 
+void AstOptimizer::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  Visit(node->key());
+  Visit(node->value());
+}
+
+
 void AstOptimizer::VisitAssignment(Assignment* node) {
   switch (node->op()) {
     case Token::INIT_VAR:
@@ -679,6 +685,12 @@ void Processor::VisitArrayLiteral(ArrayLiteral* node) {
 
 
 void Processor::VisitObjectLiteral(ObjectLiteral* node) {
+  USE(node);
+  UNREACHABLE();
+}
+
+
+void Processor::VisitCatchExtensionObject(CatchExtensionObject* node) {
   USE(node);
   UNREACHABLE();
 }

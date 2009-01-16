@@ -77,6 +77,7 @@ namespace v8 { namespace internal {
   V(RegExpLiteral)                              \
   V(ObjectLiteral)                              \
   V(ArrayLiteral)                               \
+  V(CatchExtensionObject)                       \
   V(Assignment)                                 \
   V(Throw)                                      \
   V(Property)                                   \
@@ -719,6 +720,26 @@ class ArrayLiteral: public Expression {
  private:
   Handle<FixedArray> literals_;
   ZoneList<Expression*>* values_;
+};
+
+
+// Node for constructing a context extension object for a catch block.
+// The catch context extension object has one property, the catch
+// variable, which should be DontDelete.
+class CatchExtensionObject: public Expression {
+ public:
+  CatchExtensionObject(Literal* key, VariableProxy* value)
+      : key_(key), value_(value) {
+  }
+
+  virtual void Accept(AstVisitor* v);
+
+  Literal* key() const { return key_; }
+  VariableProxy* value() const { return value_; }
+
+ private:
+  Literal* key_;
+  VariableProxy* value_;
 };
 
 

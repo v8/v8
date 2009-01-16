@@ -2454,7 +2454,7 @@ TEST(StepWithException) {
   ChangeBreakOnException(false, true);
   step_action = StepIn;
   break_point_hit_count = 0;
-  expected_step_sequence = "ddedd";
+  expected_step_sequence = "dded";
   d->Call(env->Global(), 0, NULL);
   CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
 
@@ -2462,7 +2462,7 @@ TEST(StepWithException) {
   ChangeBreakOnException(true, true);
   step_action = StepIn;
   break_point_hit_count = 0;
-  expected_step_sequence = "ddeedd";
+  expected_step_sequence = "ddeed";
   d->Call(env->Global(), 0, NULL);
   CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
 
@@ -2472,7 +2472,7 @@ TEST(StepWithException) {
   ChangeBreakOnException(false, true);
   step_action = StepIn;
   break_point_hit_count = 0;
-  expected_step_sequence = "ffghff";
+  expected_step_sequence = "ffghf";
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
 
@@ -2480,7 +2480,7 @@ TEST(StepWithException) {
   ChangeBreakOnException(true, true);
   step_action = StepIn;
   break_point_hit_count = 0;
-  expected_step_sequence = "ffghhff";
+  expected_step_sequence = "ffghhf";
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
 

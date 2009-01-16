@@ -215,6 +215,23 @@ static Object* Runtime_CreateArrayLiteral(Arguments args) {
 }
 
 
+static Object* Runtime_CreateCatchExtensionObject(Arguments args) {
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(String, key, args[0]);
+  Object* value = args[1];
+  // Create a catch context extension object.
+  JSFunction* constructor =
+      Top::context()->global_context()->context_extension_function();
+  Object* object = Heap::AllocateJSObject(constructor);
+  if (object->IsFailure()) return object;
+  // Assign the exception value to the catch variable and make sure
+  // that the catch variable is DontDelete.
+  value = JSObject::cast(object)->SetProperty(key, value, DONT_DELETE);
+  if (value->IsFailure()) return value;
+  return object;
+}
+
+
 static Object* Runtime_ClassOf(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);

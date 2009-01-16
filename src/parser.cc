@@ -2064,32 +2064,6 @@ Statement* Parser::ParseThrowStatement(bool* ok) {
 }
 
 
-Expression* Parser::MakeCatchContext(Handle<String> id, VariableProxy* value) {
-  ZoneListWrapper<ObjectLiteral::Property> properties =
-      factory()->NewList<ObjectLiteral::Property>(1);
-  Literal* key = NEW(Literal(id));
-  ObjectLiteral::Property* property = NEW(ObjectLiteral::Property(key, value));
-  properties.Add(property);
-
-  // This must be called always, even during pre-parsing!
-  // (Computation of literal index must happen before pre-parse bailout.)
-  int literal_index = temp_scope_->NextMaterializedLiteralIndex();
-  if (is_pre_parsing_) {
-    return NULL;
-  }
-
-  // Construct the expression for calling Runtime::CreateObjectLiteral
-  // with the literal array as argument.
-  Handle<FixedArray> constant_properties = Factory::empty_fixed_array();
-  ZoneList<Expression*>* arguments = new ZoneList<Expression*>(1);
-  arguments->Add(new Literal(constant_properties));
-
-  return new ObjectLiteral(constant_properties,
-                           properties.elements(),
-                           literal_index);
-}
-
-
 TryStatement* Parser::ParseTryStatement(bool* ok) {
   // TryStatement ::
   //   'try' Block Catch
@@ -2141,7 +2115,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       // Allocate a temporary for holding the finally state while
       // executing the finally block.
       catch_var = top_scope_->NewTemporary(Factory::catch_var_symbol());
-      Expression* obj = MakeCatchContext(name, catch_var);
+      Literal* name_literal = NEW(Literal(name));
+      Expression* obj = NEW(CatchExtensionObject(name_literal, catch_var));
       { Target target(this, &catch_collector);
         catch_block = WithHelper(obj, NULL, true, CHECK_OK);
       }
@@ -3103,10 +3078,6 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     constant_properties->set(position++, *literal->handle());
   }
 
-  // Construct the expression for calling Runtime::CreateObjectLiteral
-  // with the literal array as argument.
-  ZoneList<Expression*>* arguments = new ZoneList<Expression*>(1);
-  arguments->Add(new Literal(constant_properties));
   return new ObjectLiteral(constant_properties,
                            properties.elements(),
                            literal_index);
