@@ -34,13 +34,31 @@ Debug = debug.Debug
 listenerCalled = false;
 exception = false;
 
-function safeEval(code) {
-  try {
-    return eval('(' + code + ')');
-  } catch (e) {
-    return undefined;
+function ParsedResponse(json) {
+  this.response_ = eval('(' + json + ')');
+  this.refs_ = [];
+  if (this.response_.refs) {
+    for (var i = 0; i < this.response_.refs.length; i++) {
+      this.refs_[this.response_.refs[i].handle] = this.response_.refs[i];
+    }
   }
 }
+
+
+ParsedResponse.prototype.response = function() {
+  return this.response_;
+}
+
+
+ParsedResponse.prototype.body = function() {
+  return this.response_.body;
+}
+
+
+ParsedResponse.prototype.lookup = function(handle) {
+  return this.refs_[handle];
+}
+
 
 function listener(event, exec_state, event_data, data) {
   try {
@@ -56,12 +74,13 @@ function listener(event, exec_state, event_data, data) {
     // Get the backtrace.
     var json;
     json = '{"seq":0,"type":"request","command":"backtrace"}'
-    var backtrace = safeEval(dcp.processDebugJSONRequest(json)).body;
+    var response = new ParsedResponse(dcp.processDebugJSONRequest(json));
+    var backtrace = response.body();
     assertEquals(2, backtrace.totalFrames);
     assertEquals(2, backtrace.frames.length);
 
-    assertEquals("g", backtrace.frames[0].func.name);
-    assertEquals("", backtrace.frames[1].func.name);
+    assertEquals("g", response.lookup(backtrace.frames[0].func.ref).name);
+    assertEquals("", response.lookup(backtrace.frames[1].func.ref).name);
 
     listenerCalled = true;
   }

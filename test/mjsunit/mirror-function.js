@@ -28,10 +28,24 @@
 // Flags: --expose-debug-as debug
 // Test the mirror object for functions.
 
+function MirrorRefCache(json_refs) {
+  var tmp = eval('(' + json_refs + ')');
+  this.refs_ = [];
+  for (var i = 0; i < tmp.length; i++) {
+    this.refs_[tmp[i].handle] = tmp[i];
+  }
+}
+
+MirrorRefCache.prototype.lookup = function(handle) {
+  return this.refs_[handle];
+}
+
 function testFunctionMirror(f) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(f);
-  var json = mirror.toJSONProtocol(true);
+  var serializer = debug.MakeMirrorSerializer();
+  var json = serializer.serializeValue(mirror);
+  var refs = new MirrorRefCache(serializer.serializeReferencedObjects());
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror);
@@ -58,8 +72,8 @@ function testFunctionMirror(f) {
   var fromJSON = eval('(' + json + ')');
   assertEquals('function', fromJSON.type);
   assertEquals('Function', fromJSON.className);
-  assertEquals('function', fromJSON.constructorFunction.type);
-  assertEquals('Function', fromJSON.constructorFunction.name);
+  assertEquals('function', refs.lookup(fromJSON.constructorFunction.ref).type);
+  assertEquals('Function', refs.lookup(fromJSON.constructorFunction.ref).name);
   assertTrue(fromJSON.resolved);
   assertEquals(f.name, fromJSON.name);
   assertEquals(f.toString(), fromJSON.source);
