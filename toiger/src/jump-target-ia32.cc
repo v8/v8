@@ -67,7 +67,6 @@ void JumpTarget::set_code_generator(CodeGenerator* cgen) {
 void JumpTarget::Jump() {
   ASSERT(cgen_ != NULL);
   ASSERT(cgen_->has_valid_frame());
-  ASSERT(!cgen_->has_cc());
   // Live non-frame registers are not allowed at unconditional jumps
   // because we have no way of invalidating the corresponding results
   // which are still live in the C++ code.
@@ -112,7 +111,6 @@ void JumpTarget::Jump(Result* arg0, Result* arg1) {
 void JumpTarget::Branch(Condition cc, Hint hint) {
   ASSERT(cgen_ != NULL);
   ASSERT(cgen_->has_valid_frame());
-  ASSERT(!cgen_->has_cc());
 
   if (is_bound()) {
     // Backward branch.  We have an expected frame to merge to on the
@@ -214,7 +212,6 @@ void JumpTarget::Call() {
   // at the return site is the spilled current frame.
   ASSERT(cgen_ != NULL);
   ASSERT(cgen_->has_valid_frame());
-  ASSERT(!cgen_->has_cc());
   // There are no non-frame references across the call.
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_linked());
@@ -230,9 +227,7 @@ void JumpTarget::Call() {
 void JumpTarget::Bind() {
   ASSERT(cgen_ != NULL);
   ASSERT(is_linked() || cgen_->has_valid_frame());
-  ASSERT(!cgen_->has_cc());
   ASSERT(!is_bound());
-  ASSERT(!cgen_->has_cc());
 
   if (is_linked()) {
     // There were forward jumps.  A mergable frame is created and all

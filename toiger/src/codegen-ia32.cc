@@ -81,7 +81,6 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
       scope_(NULL),
       frame_(NULL),
       allocator_(NULL),
-      cc_reg_(no_condition),
       state_(NULL),
       break_stack_height_(0),
       loop_nesting_(0),
@@ -139,7 +138,6 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   allocator_ = &register_allocator;
   ASSERT(frame_ == NULL);
   frame_ = new VirtualFrame(this);
-  cc_reg_ = no_condition;
   function_return_.set_code_generator(this);
   function_return_is_shadowed_ = false;
   set_in_spilled_code(false);
@@ -330,7 +328,6 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   ASSERT(loop_nesting() == 0);
   ASSERT(!function_return_is_shadowed_);
   function_return_.Unuse();
-  ASSERT(!has_cc());
   DeleteFrame();
 
   // Process any deferred code using the register allocator.
@@ -394,19 +391,16 @@ Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
 }
 
 
-// Loads a value on TOS. If it is a boolean value, the result may have been
-// (partially) translated into branches, or it may have set the condition
-// code register. If force_cc is set, the value is forced to set the
-// condition code register and no value is pushed. If the condition code
-// register was set, has_cc() is true and cc_reg_ contains the condition to
-// test for 'true'.
+// Loads a value on TOS. If the result is a boolean value it may have
+// been translated into control flow to the true and/or false targets.
+// If force_control is true, control flow is forced and the function
+// exits without a valid frame.
 void CodeGenerator::LoadCondition(Expression* x,
                                   TypeofState typeof_state,
                                   JumpTarget* true_target,
                                   JumpTarget* false_target,
-                                  bool force_cc) {
+                                  bool force_control) {
   ASSERT(!in_spilled_code());
-  ASSERT(!has_cc());
 #ifdef DEBUG
   int original_height = frame_->height();
 #endif
@@ -414,15 +408,13 @@ void CodeGenerator::LoadCondition(Expression* x,
     Visit(x);
   }
 
-  if (force_cc && has_valid_frame() && !has_cc()) {
+  if (force_control && has_valid_frame()) {
     // Convert the TOS value to a boolean in the condition code register.
     ToBoolean(true_target, false_target);
   }
 
-  ASSERT(!force_cc || frame_ == NULL || has_cc());
-  ASSERT(!has_valid_frame() ||
-         (has_cc() && frame_->height() == original_height) ||
-         (!has_cc() && frame_->height() == original_height + 1));
+  ASSERT(!(force_control && has_valid_frame()));
+  ASSERT(!has_valid_frame() || frame_->height() == original_height + 1);
 }
 
 
@@ -434,22 +426,6 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
   JumpTarget true_target(this);
   JumpTarget false_target(this);
   LoadCondition(x, typeof_state, &true_target, &false_target, false);
-
-  if (has_cc()) {
-    ASSERT(has_valid_frame());
-    VirtualFrame::SpilledScope spilled_scope(this);
-    // Convert cc_reg_ into a boolean value.
-    JumpTarget loaded(this);
-    JumpTarget materialize_true(this);
-    Condition cc = cc_reg_;
-    cc_reg_ = no_condition;
-    materialize_true.Branch(cc);
-    frame_->EmitPush(Immediate(Factory::false_value()));
-    loaded.Jump();
-    materialize_true.Bind();
-    frame_->EmitPush(Immediate(Factory::true_value()));
-    loaded.Bind();
-  }
 
   if (true_target.is_linked() || false_target.is_linked()) {
     // We have at least one condition value that has been "translated" into
@@ -480,7 +456,6 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     loaded.Bind();
   }
   ASSERT(has_valid_frame());
-  ASSERT(!has_cc());
   ASSERT(frame_->height() == original_height + 1);
 }
 
@@ -644,9 +619,9 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
   Result temp = frame_->CallStub(&stub, 1);
   // Convert the result to a condition code.
   __ test(temp.reg(), Operand(temp.reg()));
-
-  ASSERT(not_equal == not_zero);
-  cc_reg_ = not_equal;
+  temp.Unuse();
+  true_target->Branch(not_equal);
+  false_target->Jump();
 }
 
 
@@ -1205,7 +1180,10 @@ class CompareStub: public CodeStub {
 };
 
 
-void CodeGenerator::Comparison(Condition cc, bool strict) {
+void CodeGenerator::Comparison(Condition cc,
+                               bool strict,
+                               JumpTarget* true_target,
+                               JumpTarget* false_target) {
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == equal);
 
@@ -1291,7 +1269,9 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
   done.Bind(&answer);
   answer.ToRegister();
   __ test(answer.reg(), Operand(answer.reg()));
-  cc_reg_ = not_zero;
+  answer.Unuse();
+  true_target->Branch(not_zero);
+  false_target->Jump();
 }
 
 
@@ -1374,7 +1354,9 @@ void CodeGenerator::SmiComparison(Condition cc,
   deferred->exit()->Bind(&flag);
   flag.ToRegister();
   __ test(flag.reg(), Operand(flag.reg()));
-  cc_reg_ = not_zero;
+  flag.Unuse();
+  true_target()->Branch(not_zero);
+  false_target()->Jump();
 }
 
 
@@ -1416,14 +1398,6 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
   // result of the stub invocation.
   frame_->RestoreContextRegister();
   frame_->SetElementAt(0, &answer);
-}
-
-
-void CodeGenerator::Branch(bool if_true, JumpTarget* target) {
-  ASSERT(has_cc());
-  Condition cc = if_true ? cc_reg_ : NegateCondition(cc_reg_);
-  cc_reg_ = no_condition;
-  target->Branch(cc);
 }
 
 
@@ -1573,24 +1547,14 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     JumpTarget then(this);
     JumpTarget else_(this);
     LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
-    if (has_valid_frame()) {
-      // We have fallen through from the condition (with a value in cc_reg).
-      // Emit a branch if false around the then block and compile both
-      // blocks.
-      Branch(false, &else_);
-    }
     if (then.is_linked()) {
       then.Bind();
-    }
-    if (has_valid_frame()) {
-      // We have fallen through from the condition or reached here by a
-      // direct jump to the then target.
       Visit(node->then_statement());
-    }
-    if (has_valid_frame() && else_.is_linked()) {
-      // We have fallen through from the then block and we need to compile
-      // the else block.  Emit an unconditional jump around it.
-      exit.Jump();
+      if (has_valid_frame() && else_.is_linked()) {
+        // We have fallen through from the then block and we need to compile
+        // the else block.  Emit an unconditional jump around it.
+        exit.Jump();
+      }
     }
     if (else_.is_linked()) {
       else_.Bind();
@@ -1601,17 +1565,8 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_else_stm);
     JumpTarget then(this);
     LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &exit, true);
-    if (has_valid_frame()) {
-      // We have fallen through from the condition (with a value in cc_reg).
-      // Emit a branch if false around the then block.
-      Branch(false, &exit);
-    }
     if (then.is_linked()) {
       then.Bind();
-    }
-    if (has_valid_frame()) {
-      // We have fallen through from the condition or reached here by a
-      // direct jump to the then target.
       Visit(node->then_statement());
     }
 
@@ -1619,34 +1574,21 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     ASSERT(!has_then_stm);
     JumpTarget else_(this);
     LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &else_, true);
-    if (has_valid_frame()) {
-      // We have fallen through from the condition (with a value in cc_reg).
-      // Emit a branch if true around the else block.
-      Branch(true, &exit);
-    }
     if (else_.is_linked()) {
       else_.Bind();
-    }
-    if (has_valid_frame()) {
-      // We have fallen through from the condition or reached here by a
-      // direct jump to the else target.
       Visit(node->else_statement());
     }
 
   } else {
     ASSERT(!has_then_stm && !has_else_stm);
-    // We only care about the condition's side effects (not its value or
-    // control flow effect).  LoadCondition is called without forcing a
-    // value into cc_reg.
+    // We only care about the condition's side effects (not its value
+    // or control flow effect).  LoadCondition is called without
+    // forcing control flow.
     LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &exit, false);
     if (has_valid_frame()) {
-      // Control flow can fall off the end of the condition.  We discard its
-      // value, which may be in cc_reg or else on top of the virtual frame.
-      if (has_cc()) {
-        cc_reg_ = no_condition;
-      } else {
-        frame_->Drop();
-      }
+      // Control flow can fall off the end of the condition with a
+      // value on the frame.
+      frame_->Drop();
     }
   }
 
@@ -1906,11 +1848,12 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     // Duplicate the switch value.
     frame_->Dup();
     Load(clause->label());
-    Comparison(equal, true);
-    Branch(false, &next_test);
+    JumpTarget enter_body(this);
+    Comparison(equal, true, &enter_body, &next_test);
 
     // Before entering the body from the test remove the switch value from
     // the frame.
+    enter_body.Bind();
     frame_->Drop();
 
     // Label the body so that fall through is enabled.
@@ -2031,11 +1974,6 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         if (has_valid_frame()) {
           LoadCondition(node->cond(), NOT_INSIDE_TYPEOF,
                         &body, node->break_target(), true);
-          // An invalid frame here indicates that control flow did not fall
-          // out of the test expression.
-          if (has_valid_frame()) {
-            Branch(true, &body);
-          }
         }
       }
       break;
@@ -2059,11 +1997,6 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         JumpTarget body(this);
         LoadCondition(node->cond(), NOT_INSIDE_TYPEOF,
                       &body, node->break_target(), true);
-        // An invalid frame indicates that control did not fall out of the
-        // test expression.
-        if (has_valid_frame()) {
-          Branch(false, node->break_target());
-        }
         if (body.is_linked()) {
           body.Bind();
         }
@@ -2107,9 +2040,6 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         JumpTarget body(this);
         LoadCondition(node->cond(), NOT_INSIDE_TYPEOF,
                       &body, node->break_target(), true);
-        if (has_valid_frame()) {
-          Branch(false, node->break_target());
-        }
         if (body.is_linked()) {
           body.Bind();
         }
@@ -2692,21 +2622,22 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   JumpTarget else_(this);
   JumpTarget exit(this);
   LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
-  if (has_valid_frame()) {
-    Branch(false, &else_);
-  }
   if (then.is_linked()) {
     then.Bind();
-  }
-  if (has_valid_frame()) {
     Load(node->then_expression(), typeof_state());
-    exit.Jump();
+    if (else_.is_linked()) {
+      exit.Jump();
+    }
   }
+
   if (else_.is_linked()) {
     else_.Bind();
     Load(node->else_expression(), typeof_state());
   }
-  exit.Bind();
+
+  if (exit.is_linked()) {
+    exit.Bind();
+  }
 }
 
 
@@ -3458,7 +3389,8 @@ void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   LoadAndSpill(args->at(0));
   frame_->EmitPop(eax);
   __ test(eax, Immediate(kSmiTagMask));
-  cc_reg_ = zero;
+  true_target()->Branch(zero);
+  false_target()->Jump();
 }
 
 
@@ -3488,7 +3420,8 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   LoadAndSpill(args->at(0));
   frame_->EmitPop(eax);
   __ test(eax, Immediate(kSmiTagMask | 0x80000000));
-  cc_reg_ = zero;
+  true_target()->Branch(zero);
+  false_target()->Jump();
 }
 
 
@@ -3612,7 +3545,6 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   LoadAndSpill(args->at(0));
-  Label answer;
   // We need the CC bits to come out as not_equal in the case where the
   // object is a smi.  This can't be done with the usual test opcode so
   // we copy the object to ecx and do some destructive ops on it that
@@ -3621,14 +3553,14 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   __ mov(ecx, Operand(eax));
   __ and_(ecx, kSmiTagMask);
   __ xor_(ecx, kSmiTagMask);
-  __ j(not_equal, &answer, not_taken);
+  false_target()->Branch(not_equal);
   // It is a heap object - get map.
   __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
   // Check if the object is a JS array or not.
   __ cmp(eax, JS_ARRAY_TYPE);
-  __ bind(&answer);
-  cc_reg_ = equal;
+  true_target()->Branch(equal);
+  false_target()->Jump();
 }
 
 
@@ -3719,7 +3651,8 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   frame_->EmitPop(eax);
   frame_->EmitPop(ecx);
   __ cmp(eax, Operand(ecx));
-  cc_reg_ = equal;
+  true_target()->Branch(equal);
+  false_target()->Jump();
 }
 
 
@@ -3774,7 +3707,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     VirtualFrame::SpilledScope spilled_scope(this);
     LoadConditionAndSpill(node->expression(), NOT_INSIDE_TYPEOF,
                           false_target(), true_target(), true);
-    cc_reg_ = NegateCondition(cc_reg_);
 
   } else if (op == Token::DELETE) {
     VirtualFrame::SpilledScope spilled_scope(this);
@@ -4109,17 +4041,10 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     JumpTarget is_true(this);
     LoadCondition(node->left(), NOT_INSIDE_TYPEOF,
                   &is_true, false_target(), false);
-    if (has_cc() || frame_ == NULL) {
-      if (has_cc()) {
-        ASSERT(has_valid_frame());
-        Branch(false, false_target());
-      }
-
+    if (!has_valid_frame()) {
       if (is_true.is_linked()) {
-        is_true.Bind();
-      }
-      if (has_valid_frame()) {
         // Evaluate right side expression.
+        is_true.Bind();
         LoadCondition(node->right(), NOT_INSIDE_TYPEOF,
                       true_target(), false_target(), false);
       }
@@ -4135,7 +4060,6 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Duplicate the TOS value. The duplicate will be popped by ToBoolean.
       frame_->Dup();
       ToBoolean(&pop_and_continue, &exit);
-      Branch(false, &exit);
 
       // Pop the result of evaluating the first part.
       pop_and_continue.Bind();
@@ -4153,17 +4077,10 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     JumpTarget is_false(this);
     LoadCondition(node->left(), NOT_INSIDE_TYPEOF,
                   true_target(), &is_false, false);
-    if (has_cc() || frame_ == NULL) {
-      if (has_cc()) {
-        ASSERT(has_valid_frame());
-        Branch(true, true_target());
-      }
-
+    if (!has_valid_frame()) {
       if (is_false.is_linked()) {
         // Evaluate right side expression.
         is_false.Bind();
-      }
-      if (has_valid_frame()) {
         LoadCondition(node->right(), NOT_INSIDE_TYPEOF,
                       true_target(), false_target(), false);
       }
@@ -4178,7 +4095,6 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Duplicate the TOS value. The duplicate will be popped by ToBoolean.
       frame_->Dup();
       ToBoolean(&exit, &pop_and_continue);
-      Branch(true, &exit);
 
       // Pop the result of evaluating the first part.
       pop_and_continue.Bind();
@@ -4286,7 +4202,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
         __ cmp(eax, 1 << Map::kIsUndetectable);
       }
 
-      cc_reg_ = equal;
+      true_target()->Branch(equal);
+      false_target()->Jump();
       return;
     }
   }
@@ -4311,7 +4228,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       true_target()->Branch(zero);
       __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
       __ cmp(edx, Factory::heap_number_map());
-      cc_reg_ = equal;
+      true_target()->Branch(equal);
+      false_target()->Jump();
 
     } else if (check->Equals(Heap::string_symbol())) {
       __ test(edx, Immediate(kSmiTagMask));
@@ -4327,13 +4245,15 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
       __ movzx_b(ecx, FieldOperand(edx, Map::kInstanceTypeOffset));
       __ cmp(ecx, FIRST_NONSTRING_TYPE);
-      cc_reg_ = less;
+      true_target()->Branch(less);
+      false_target()->Jump();
 
     } else if (check->Equals(Heap::boolean_symbol())) {
       __ cmp(edx, Factory::true_value());
       true_target()->Branch(equal);
       __ cmp(edx, Factory::false_value());
-      cc_reg_ = equal;
+      true_target()->Branch(equal);
+      false_target()->Jump();
 
     } else if (check->Equals(Heap::undefined_symbol())) {
       __ cmp(edx, Factory::undefined_value());
@@ -4347,8 +4267,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
       __ and_(ecx, 1 << Map::kIsUndetectable);
       __ cmp(ecx, 1 << Map::kIsUndetectable);
-
-      cc_reg_ = equal;
+      true_target()->Branch(equal);
+      false_target()->Jump();
 
     } else if (check->Equals(Heap::function_symbol())) {
       __ test(edx, Immediate(kSmiTagMask));
@@ -4356,7 +4276,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
       __ movzx_b(edx, FieldOperand(edx, Map::kInstanceTypeOffset));
       __ cmp(edx, JS_FUNCTION_TYPE);
-      cc_reg_ = equal;
+      true_target()->Branch(equal);
+      false_target()->Jump();
 
     } else if (check->Equals(Heap::object_symbol())) {
       __ test(edx, Immediate(kSmiTagMask));
@@ -4376,14 +4297,13 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
       false_target()->Branch(less);
       __ cmp(ecx, LAST_JS_OBJECT_TYPE);
-      cc_reg_ = less_equal;
+      true_target()->Branch(less_equal);
+      false_target()->Jump();
 
     } else {
       // Uncommon case: typeof testing against a string literal that is
       // never returned from the typeof operator.
       false_target()->Jump();
-      // TODO(kmilliken) : Can this cause a problem because it is an expression
-      // that exits without a virtual frame in place?
     }
     return;
   }
@@ -4422,7 +4342,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       InstanceofStub stub;
       frame_->CallStub(&stub, 2);
       __ test(eax, Operand(eax));
-      cc_reg_ = zero;
+      true_target()->Branch(zero);
+      false_target()->Jump();
       return;
     }
     default:
@@ -4434,17 +4355,14 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   if (IsInlineSmi(left->AsLiteral())) {
     Load(right);
     SmiComparison(ReverseCondition(cc), left->AsLiteral()->handle(), strict);
-    return;
-  }
-  if (IsInlineSmi(right->AsLiteral())) {
+  } else if (IsInlineSmi(right->AsLiteral())) {
     Load(left);
     SmiComparison(cc, right->AsLiteral()->handle(), strict);
-    return;
+  } else {
+    Load(left);
+    Load(right);
+    Comparison(cc, strict, true_target(), false_target());
   }
-
-  Load(left);
-  Load(right);
-  Comparison(cc, strict);
 }
 
 
@@ -4534,7 +4452,6 @@ Handle<String> Reference::GetName() {
 void Reference::GetValue(TypeofState typeof_state) {
   ASSERT(!cgen_->in_spilled_code());
   ASSERT(!is_illegal());
-  ASSERT(!cgen_->has_cc());
   MacroAssembler* masm = cgen_->masm();
   switch (type_) {
     case SLOT: {
@@ -4687,7 +4604,6 @@ void Reference::TakeValue(TypeofState typeof_state) {
   // slot.  For all others, we fall back on GetValue.
   ASSERT(!cgen_->in_spilled_code());
   ASSERT(!is_illegal());
-  ASSERT(!cgen_->has_cc());
   if (type_ != SLOT) {
     GetValue(typeof_state);
     return;
@@ -4715,7 +4631,6 @@ void Reference::TakeValue(TypeofState typeof_state) {
 
 void Reference::SetValue(InitState init_state) {
   ASSERT(!is_illegal());
-  ASSERT(!cgen_->has_cc());
   MacroAssembler* masm = cgen_->masm();
   VirtualFrame* frame = cgen_->frame();
   switch (type_) {

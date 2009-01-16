@@ -221,7 +221,6 @@ class CodeGenerator: public AstVisitor {
   bool is_eval() { return is_eval_; }
 
   // State
-  bool has_cc() const  { return cc_reg_ >= 0; }
   TypeofState typeof_state() const { return state_->typeof_state(); }
   JumpTarget* true_target() const  { return state_->true_target(); }
   JumpTarget* false_target() const  { return state_->false_target(); }
@@ -295,7 +294,7 @@ class CodeGenerator: public AstVisitor {
                      TypeofState typeof_state,
                      JumpTarget* true_target,
                      JumpTarget* false_target,
-                     bool force_cc);
+                     bool force_control);
   void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
   void LoadGlobalReceiver();
@@ -351,7 +350,10 @@ class CodeGenerator: public AstVisitor {
       StaticType* type,
       const OverwriteMode overwrite_mode = NO_OVERWRITE);
 
-  void Comparison(Condition cc, bool strict = false);
+  void Comparison(Condition cc,
+                  bool strict,
+                  JumpTarget* true_target,
+                  JumpTarget* false_target);
 
   // Inline small integer literals. To prevent long attacker-controlled byte
   // sequences, we only inline small Smis.
@@ -366,8 +368,6 @@ class CodeGenerator: public AstVisitor {
 
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
 
-  // Control flow
-  void Branch(bool if_true, JumpTarget* target);
   void CheckStack();
   void CleanStack(int num_bytes);
 
@@ -483,7 +483,6 @@ class CodeGenerator: public AstVisitor {
   Scope* scope_;
   VirtualFrame* frame_;
   RegisterAllocator* allocator_;
-  Condition cc_reg_;
   CodeGenState* state_;
   int break_stack_height_;
   int loop_nesting_;
