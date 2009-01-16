@@ -128,9 +128,9 @@ static int WriteInternalSnapshotToFile(const char* filename,
   fprintf(f, "namespace v8 {\nnamespace internal {\n\n");
   fprintf(f, "const char Snapshot::data_[] = {");
   int written = 0;
-  written += fprintf(f, "0x%x", str[0]);
+  written += fprintf(f, "%i", str[0]);
   for (int i = 1; i < size; ++i) {
-    written += fprintf(f, ",0x%x", str[i]);
+    written += fprintf(f, ",%i", str[i]);
     // The following is needed to keep the line length low on Visual C++:
     if (i % 512 == 0) fprintf(f, "\n");
   }
