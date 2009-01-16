@@ -3763,7 +3763,6 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
 
 void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   // Note that because of NOT and an optimization in comparison of a typeof
   // expression to a literal string, this function can fail to leave a value
   // on top of the frame or in the cc register.
@@ -3772,11 +3771,13 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
   Token::Value op = node->op();
 
   if (op == Token::NOT) {
+    VirtualFrame::SpilledScope spilled_scope(this);
     LoadConditionAndSpill(node->expression(), NOT_INSIDE_TYPEOF,
                           false_target(), true_target(), true);
     cc_reg_ = NegateCondition(cc_reg_);
 
   } else if (op == Token::DELETE) {
+    VirtualFrame::SpilledScope spilled_scope(this);
     Property* property = node->expression()->AsProperty();
     if (property != NULL) {
       LoadAndSpill(property->obj());
@@ -3820,6 +3821,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     }
 
   } else if (op == Token::TYPEOF) {
+    VirtualFrame::SpilledScope spilled_scope(this);
     // Special case for loading the typeof expression; see comment on
     // LoadTypeofExpression().
     LoadTypeofExpression(node->expression());
@@ -3827,7 +3829,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     frame_->EmitPush(eax);
 
   } else {
-    LoadAndSpill(node->expression());
+    Load(node->expression());
     switch (op) {
       case Token::NOT:
       case Token::DELETE:
@@ -3836,6 +3838,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
 
       case Token::SUB: {
+        VirtualFrame::SpilledScope spilled_scope(this);
         UnarySubStub stub;
         // TODO(1222589): remove dependency of TOS being cached inside stub
         frame_->EmitPop(eax);
@@ -3845,6 +3848,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       }
 
       case Token::BIT_NOT: {
+        VirtualFrame::SpilledScope spilled_scope(this);
         // Smi check.
         JumpTarget smi_label(this);
         JumpTarget continue_label(this);
@@ -3864,11 +3868,14 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
       }
 
-      case Token::VOID:
+      case Token::VOID: {
+        VirtualFrame::SpilledScope spilled_scope(this);
         __ mov(frame_->Top(), Factory::undefined_value());
         break;
+      }
 
       case Token::ADD: {
+        VirtualFrame::SpilledScope spilled_scope(this);
         // Smi check.
         JumpTarget continue_label(this);
         frame_->EmitPop(eax);
