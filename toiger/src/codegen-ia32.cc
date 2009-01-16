@@ -1204,7 +1204,6 @@ void CodeGenerator::Comparison(Condition cc,
   ASSERT(right_side.is_valid());
   // Check for the smi case.
   JumpTarget is_smi(this);
-  JumpTarget done(this);
   Result temp = allocator_->Allocate();
   ASSERT(temp.is_valid());
   __ mov(temp.reg(), left_side.reg());
@@ -1230,132 +1229,59 @@ void CodeGenerator::Comparison(Condition cc,
   }
   CompareStub stub(cc, strict);
   Result answer = frame_->CallStub(&stub, &right_side, &left_side, 0);
-  ASSERT(answer.is_register() && answer.reg().is_byte_register());
-  frame_->Spill(answer.reg());
   if (cc == equal) {
     __ test(answer.reg(), Operand(answer.reg()));
   } else {
     __ cmp(answer.reg(), 0);
   }
-  __ setcc(cc, answer.reg());
-  __ and_(Operand(answer.reg()), Immediate(1));
-  // The expected frame at JumpTarget "done" is bound to the current frame.
-  // This current frame is spilled, due to the call to CallStub.
-  // It would be better if the fast SMI case controlled the expected frame.
-  done.Jump(&answer);
+  answer.Unuse();
+  true_target->Branch(cc);
+  false_target->Jump();
 
   is_smi.Bind(&left_side, &right_side);
   left_side.ToRegister();
   right_side.ToRegister();
-  // Find a byte register for the flag value.
-  if (!left_side.reg().is_byte_register() &&
-      !right_side.reg().is_byte_register()) {
-    // If we allocate a register here, it should be a byte register
-    // because there is only one non-reserved register on IA32 that
-    // does not have a byte part (namely edi) and it must be left_side
-    // (and right_side).
-    answer = allocator_->Allocate();
-    ASSERT(answer.is_register() && answer.reg().is_byte_register());
-  } else {
-    answer = left_side.reg().is_byte_register() ? left_side : right_side;
-    frame_->Spill(answer.reg());
-  }
   __ cmp(left_side.reg(), Operand(right_side.reg()));
   right_side.Unuse();
   left_side.Unuse();
-  __ setcc(cc, answer.reg());
-  __ and_(Operand(answer.reg()), Immediate(1));
-
-  done.Bind(&answer);
-  answer.ToRegister();
-  __ test(answer.reg(), Operand(answer.reg()));
-  answer.Unuse();
-  true_target->Branch(not_zero);
+  true_target->Branch(cc);
   false_target->Jump();
 }
 
 
-class DeferredSmiComparison: public DeferredCode {
- public:
-  DeferredSmiComparison(CodeGenerator* generator,
-                        Condition cc,
-                        bool strict,
-                        int int_value) :
-      DeferredCode(generator),
-      cc_(cc),
-      strict_(strict),
-      int_value_(int_value) {
-    set_comment("[ ComparisonDeferred");
-  }
-  virtual void Generate();
-
- private:
-  Condition cc_;
-  bool strict_;
-  int int_value_;
-};
-
-
-void DeferredSmiComparison::Generate() {
-  CodeGenerator* cgen = generator();
-  CompareStub stub(cc_, strict_);
-  Result argument(cgen);
-  enter()->Bind(&argument);
-
-  // Setup parameters and call stub.
-  argument.ToRegister(edx);
-  Result value = cgen->allocator()->Allocate(eax);
-  ASSERT(value.is_valid());
-  __ Set(value.reg(), Immediate(Smi::FromInt(int_value_)));
-  Result result = cgen->frame()->CallStub(&stub, &argument, &value, 0);
-  ASSERT(result.is_register() && result.reg().is_byte_register());
-  cgen->frame()->Spill(result.reg());
-  __ cmp(result.reg(), 0);
-  __ setcc(cc_, result.reg());
-  __ and_(Operand(result.reg()), Immediate(1));
-  exit()->Jump(&result);
-}
-
-
 void CodeGenerator::SmiComparison(Condition cc,
-                                  Handle<Object> value,
+                                  Handle<Object> smi_value,
                                   bool strict) {
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == equal);
+  ASSERT(is_intn(Smi::cast(*smi_value)->value(), kMaxSmiInlinedBits));
 
-  int int_value = Smi::cast(*value)->value();
-  ASSERT(is_intn(int_value, kMaxSmiInlinedBits));
-
-  DeferredSmiComparison* deferred =
-      new DeferredSmiComparison(this, cc, strict, int_value);
-
+  JumpTarget is_smi(this);
   Result comparee = frame_->Pop();
   comparee.ToRegister();
+  // Check whether the other operand is a smi.
   __ test(comparee.reg(), Immediate(kSmiTagMask));
-  deferred->enter()->Branch(not_zero, &comparee, not_taken);
-  // Find a byte register to hold the flag value.  If the comparee is
-  // a byte register we can use it, otherwise allocating will give us
-  // one since there is only one non-reserved IA32 register that does
-  // not have a byte part (namely edi).
-  Result flag(this);
-  if (comparee.reg().is_byte_register()) {
-    flag = comparee;
-    frame_->Spill(flag.reg());
-  } else {
-    flag = allocator_->Allocate();
-    ASSERT(flag.is_register() && flag.reg().is_byte_register());
-  }
-  // Test smi equality and comparison by signed int comparison.
-  __ cmp(Operand(comparee.reg()), Immediate(value));
-  comparee.Unuse();
-  __ setcc(cc, flag.reg());
-  __ and_(Operand(flag.reg()), Immediate(1));
+  is_smi.Branch(zero, &comparee, taken);
 
-  deferred->exit()->Bind(&flag);
-  flag.ToRegister();
-  __ test(flag.reg(), Operand(flag.reg()));
-  flag.Unuse();
-  true_target()->Branch(not_zero);
+  // Setup and call the compare stub, which expects arguments in edx
+  // and eax.
+  CompareStub stub(cc, strict);
+  comparee.ToRegister(edx);
+  Result value = allocator_->Allocate(eax);
+  ASSERT(value.is_valid());
+  __ Set(value.reg(), Immediate(smi_value));
+  Result result = frame_->CallStub(&stub, &comparee, &value, 0);
+  __ cmp(result.reg(), 0);
+  result.Unuse();
+  true_target()->Branch(cc);
+  false_target()->Jump();
+
+  is_smi.Bind(&comparee);
+  comparee.ToRegister();
+  // Test smi equality and comparison by signed int comparison.
+  __ cmp(Operand(comparee.reg()), Immediate(smi_value));
+  comparee.Unuse();
+  true_target()->Branch(cc);
   false_target()->Jump();
 }
 
