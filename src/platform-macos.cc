@@ -259,8 +259,8 @@ void OS::Free(void* buf, const size_t length) {
 }
 
 
-void OS::Sleep(int miliseconds) {
-  usleep(1000 * miliseconds);
+void OS::Sleep(int milliseconds) {
+  usleep(1000 * milliseconds);
 }
 
 

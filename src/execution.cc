@@ -439,7 +439,7 @@ Handle<JSFunction> Execution::InstantiateFunction(
   int serial_number = Smi::cast(data->serial_number())->value();
   Object* elm =
       Top::global_context()->function_cache()->GetElement(serial_number);
-  if (!elm->IsUndefined()) return Handle<JSFunction>(JSFunction::cast(elm));
+  if (elm->IsJSFunction()) return Handle<JSFunction>(JSFunction::cast(elm));
   // The function has not yet been instantiated in this context; do it.
   Object** args[1] = { Handle<Object>::cast(data).location() };
   Handle<Object> result =

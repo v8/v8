@@ -2505,7 +2505,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 
 
   for (int i = 0; i < node->properties()->length(); i++) {
-    ObjectLiteral::Property* property  = node->properties()->at(i);
+    ObjectLiteral::Property* property = node->properties()->at(i);
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT: break;
       case ObjectLiteral::Property::COMPUTED: {
@@ -2604,6 +2604,17 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
       __ RecordWrite(ecx, offset, eax, ebx);
     }
   }
+}
+
+
+void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  // Call runtime routine to allocate the catch extension object and
+  // assign the exception value to the catch variable.
+  Comment cmnt(masm_, "[CatchExtensionObject ");
+  Load(node->key());
+  Load(node->value());
+  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+  frame_->Push(eax);
 }
 
 

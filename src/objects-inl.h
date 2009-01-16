@@ -27,7 +27,7 @@
 //
 // Review notes:
 //
-// - The use of macros in these inline fuctions may seem superfluous
+// - The use of macros in these inline functions may seem superfluous
 // but it is absolutely needed to make sure gcc generates optimal
 // code. gcc is not happy when attempting to inline too deep.
 //
@@ -325,6 +325,13 @@ bool Object::IsException() {
 bool Object::IsJSObject() {
   return IsHeapObject()
     && HeapObject::cast(this)->map()->instance_type() >= FIRST_JS_OBJECT_TYPE;
+}
+
+
+bool Object::IsJSContextExtensionObject() {
+  return IsHeapObject()
+    && (HeapObject::cast(this)->map()->instance_type() ==
+        JS_CONTEXT_EXTENSION_OBJECT_TYPE);
 }
 
 
@@ -1018,6 +1025,7 @@ int JSObject::GetHeaderSize() {
     case JS_REGEXP_TYPE:
       return JSValue::kSize;
     case JS_OBJECT_TYPE:
+    case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     default:
       UNREACHABLE();

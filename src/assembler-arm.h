@@ -389,7 +389,7 @@ class Assembler : public Malloced {
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
-  // Assembler functions are invoked inbetween GetCode() calls.
+  // Assembler functions are invoked in between GetCode() calls.
   void GetCode(CodeDesc* desc);
 
   // Label operations & relative jumps (PPUM Appendix D)

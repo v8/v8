@@ -2235,6 +2235,17 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 }
 
 
+void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  // Call runtime routine to allocate the catch extension object and
+  // assign the exception value to the catch variable.
+  Comment cmnt(masm_, "[CatchExtensionObject ");
+  Load(node->key());
+  Load(node->value());
+  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+  frame_->Push(r0);
+}
+
+
 void CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
   CodeForStatement(node);
@@ -4028,9 +4039,9 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ b(ne, &continue_exception);
 
   // Retrieve the pending exception and clear the variable.
-  __ mov(ip, Operand(Factory::the_hole_value().location()));
+  __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
   __ ldr(r3, MemOperand(ip));
-  __ mov(ip, Operand(Top::pending_exception_address()));
+  __ mov(ip, Operand(ExternalReference(Top::k_pending_exception_address)));
   __ ldr(r0, MemOperand(ip));
   __ str(r3, MemOperand(ip));
 
@@ -4160,7 +4171,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // exception field in the JSEnv and return a failure sentinel.
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
-  __ mov(ip, Operand(Top::pending_exception_address()));
+  __ mov(ip, Operand(ExternalReference(Top::k_pending_exception_address)));
   __ str(r0, MemOperand(ip));
   __ mov(r0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
   __ b(&exit);
@@ -4177,7 +4188,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Clear any pending exceptions.
   __ mov(ip, Operand(ExternalReference::the_hole_value_location()));
   __ ldr(r5, MemOperand(ip));
-  __ mov(ip, Operand(Top::pending_exception_address()));
+  __ mov(ip, Operand(ExternalReference(Top::k_pending_exception_address)));
   __ str(r5, MemOperand(ip));
 
   // Invoke the function by calling through JS entry trampoline builtin.

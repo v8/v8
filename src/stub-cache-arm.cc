@@ -312,20 +312,24 @@ static void GenerateStringCheck(MacroAssembler* masm,
 }
 
 
+// Generate code to load the length from a string object and return the length.
+// If the receiver object is not a string or a wrapped string object the
+// execution continues at the miss label. The register containing the
+// receiver is potentially clobbered.
 void StubCompiler::GenerateLoadStringLength2(MacroAssembler* masm,
                                              Register receiver,
                                              Register scratch1,
                                              Register scratch2,
                                              Label* miss) {
-  Label load_length, check_wrapper;
+  Label check_string, check_wrapper;
 
+  __ bind(&check_string);
   // Check if the object is a string leaving the instance type in the
   // scratch1 register.
   GenerateStringCheck(masm, receiver, scratch1, scratch2,
                       miss, &check_wrapper);
 
   // Load length directly from the string.
-  __ bind(&load_length);
   __ and_(scratch1, scratch1, Operand(kStringSizeMask));
   __ add(scratch1, scratch1, Operand(String::kHashShift));
   __ ldr(r0, FieldMemOperand(receiver, String::kLengthOffset));
@@ -338,11 +342,9 @@ void StubCompiler::GenerateLoadStringLength2(MacroAssembler* masm,
   __ cmp(scratch1, Operand(JS_VALUE_TYPE));
   __ b(ne, miss);
 
-  // Check if the wrapped value is a string and load the length
-  // directly if it is.
-  __ ldr(r0, FieldMemOperand(receiver, JSValue::kValueOffset));
-  GenerateStringCheck(masm, receiver, scratch1, scratch1, miss, miss);
-  __ b(&load_length);
+  // Unwrap the value in place and check if the wrapped value is a string.
+  __ ldr(receiver, FieldMemOperand(receiver, JSValue::kValueOffset));
+  __ b(&check_string);
 }
 
 
@@ -382,7 +384,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   // Perform map transition for the receiver if necessary.
   if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
     // The properties must be extended before we can store the value.
-    // We jump to a runtime call that extends the propeties array.
+    // We jump to a runtime call that extends the properties array.
     __ mov(r2, Operand(Handle<Map>(transition)));
     // Please note, if we implement keyed store for arm we need
     // to call the Builtins::KeyedStoreIC_ExtendStorage.

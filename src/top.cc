@@ -644,7 +644,7 @@ Failure* Top::Throw(Object* exception, MessageLocation* location) {
 
 
 Failure* Top::ReThrow(Object* exception, MessageLocation* location) {
-  // Set the exception beeing re-thrown.
+  // Set the exception being re-thrown.
   set_pending_exception(exception);
   return Failure::Exception();
 }
@@ -705,7 +705,7 @@ void Top::PrintCurrentStackTrace(FILE* out) {
     Handle<Object> is_top_level = it.done()
         ? Factory::true_value()
         : Factory::false_value();
-    // Generate and print strack trace line.
+    // Generate and print stack trace line.
     Handle<String> line =
         Execution::GetStackTraceLine(recv, fun, pos_obj, is_top_level);
     if (line->length() > 0) {

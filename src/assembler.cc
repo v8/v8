@@ -41,6 +41,7 @@
 #include "runtime.h"
 #include "serialize.h"
 #include "stub-cache.h"
+#include "regexp-stack.h"
 
 namespace v8 { namespace internal {
 
@@ -548,6 +549,11 @@ ExternalReference ExternalReference::the_hole_value_location() {
 
 ExternalReference ExternalReference::address_of_stack_guard_limit() {
   return ExternalReference(StackGuard::address_of_jslimit());
+}
+
+
+ExternalReference ExternalReference::address_of_regexp_stack_limit() {
+  return ExternalReference(RegExpStack::limit_address());
 }
 
 

@@ -35,6 +35,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
  public:
   explicit RegExpMacroAssemblerTracer(RegExpMacroAssembler* assembler);
   virtual ~RegExpMacroAssemblerTracer();
+  virtual int stack_limit_slack() { return assembler_->stack_limit_slack(); }
 
   virtual void AdvanceCurrentPosition(int by);  // Signed cp change.
   virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
@@ -88,6 +89,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void GoTo(Label* label);
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
+  virtual void IfRegisterEqPos(int reg, Label* if_eq);
   virtual IrregexpImplementation Implementation();
   virtual void LoadCurrentCharacter(int cp_offset,
                                     Label* on_end_of_input,
@@ -97,12 +99,14 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void PopRegister(int register_index);
   virtual void PushBacktrack(Label* label);
   virtual void PushCurrentPosition();
-  virtual void PushRegister(int register_index);
+  virtual void PushRegister(int register_index,
+                            StackCheckFlag check_stack_limit);
   virtual void ReadCurrentPositionFromRegister(int reg);
   virtual void ReadStackPointerFromRegister(int reg);
   virtual void SetRegister(int register_index, int to);
   virtual void Succeed();
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
+  virtual void ClearRegister(int reg);
   virtual void WriteStackPointerToRegister(int reg);
  private:
   RegExpMacroAssembler* assembler_;

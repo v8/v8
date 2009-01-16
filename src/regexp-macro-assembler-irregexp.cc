@@ -89,7 +89,9 @@ void RegExpMacroAssemblerIrregexp::PopRegister(int register_index) {
 }
 
 
-void RegExpMacroAssemblerIrregexp::PushRegister(int register_index) {
+void RegExpMacroAssemblerIrregexp::PushRegister(
+    int register_index,
+    StackCheckFlag check_stack_limit) {
   ASSERT(register_index >= 0);
   Emit(BC_PUSH_REGISTER);
   Emit(register_index);
@@ -102,6 +104,11 @@ void RegExpMacroAssemblerIrregexp::WriteCurrentPositionToRegister(
   Emit(BC_SET_REGISTER_TO_CP);
   Emit(register_index);
   Emit32(cp_offset);  // Current position offset.
+}
+
+
+void RegExpMacroAssemblerIrregexp::ClearRegister(int reg) {
+  SetRegister(reg, -1);
 }
 
 
@@ -398,6 +405,14 @@ void RegExpMacroAssemblerIrregexp::IfRegisterGE(int register_index,
   Emit(register_index);
   Emit16(comparand);
   EmitOrLink(on_greater_or_equal);
+}
+
+
+void RegExpMacroAssemblerIrregexp::IfRegisterEqPos(int register_index,
+                                                   Label* on_eq) {
+  Emit(BC_CHECK_REGISTER_EQ_POS);
+  Emit(register_index);
+  EmitOrLink(on_eq);
 }
 
 

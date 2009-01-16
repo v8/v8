@@ -210,6 +210,40 @@ FOR_EACH_REG_EXP_TREE_TYPE(MAKE_TYPE_CASE)
 RegExpEmpty RegExpEmpty::kInstance;
 
 
+static Interval ListCaptureRegisters(ZoneList<RegExpTree*>* children) {
+  Interval result = Interval::Empty();
+  for (int i = 0; i < children->length(); i++)
+    result = result.Union(children->at(i)->CaptureRegisters());
+  return result;
+}
+
+
+Interval RegExpAlternative::CaptureRegisters() {
+  return ListCaptureRegisters(nodes());
+}
+
+
+Interval RegExpDisjunction::CaptureRegisters() {
+  return ListCaptureRegisters(alternatives());
+}
+
+
+Interval RegExpLookahead::CaptureRegisters() {
+  return body()->CaptureRegisters();
+}
+
+
+Interval RegExpCapture::CaptureRegisters() {
+  Interval self(StartRegister(index()), EndRegister(index()));
+  return self.Union(body()->CaptureRegisters());
+}
+
+
+Interval RegExpQuantifier::CaptureRegisters() {
+  return body()->CaptureRegisters();
+}
+
+
 // Convert regular expression trees to a simple sexp representation.
 // This representation should be different from the input grammar
 // in as many cases as possible, to make it more difficult for incorrect

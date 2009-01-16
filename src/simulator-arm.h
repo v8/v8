@@ -106,7 +106,7 @@ class Simulator {
   void Execute();
 
   // V8 generally calls into generated code with 5 parameters. This is a
-  // convenience funtion, which sets up the simulator state and grabs the
+  // convenience function, which sets up the simulator state and grabs the
   // result on return.
   v8::internal::Object* Call(int32_t entry, int32_t p0, int32_t p1,
                              int32_t p2, int32_t p3, int32_t p4);

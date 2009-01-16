@@ -1904,7 +1904,7 @@ Object* Heap::CopyJSObject(JSObject* source) {
     if (clone->IsFailure()) return clone;
     ASSERT(Heap::InNewSpace(clone));
     // Since we know the clone is allocated in new space, we can copy
-    // the contents without worring about updating the write barrier.
+    // the contents without worrying about updating the write barrier.
     CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(clone)->address()),
               reinterpret_cast<Object**>(source->address()),
               object_size);
@@ -2293,6 +2293,7 @@ Object* Heap::CopyFixedArray(FixedArray* src) {
 
 
 Object* Heap::AllocateFixedArray(int length) {
+  if (length == 0) return empty_fixed_array();
   Object* result = AllocateRawFixedArray(length);
   if (!result->IsFailure()) {
     // Initialize header.

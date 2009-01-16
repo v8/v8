@@ -38,7 +38,7 @@ namespace v8 { namespace internal {
 
 // Top has static variables used for JavaScript execution.
 
-class SaveContext;  // Forward decleration.
+class SaveContext;  // Forward declaration.
 
 class ThreadLocalTop BASE_EMBEDDED {
  public:
@@ -318,7 +318,7 @@ class Top {
 
 
 // If the GCC version is 4.1.x or 4.2.x an additional field is added to the
-// class as a workarround for a bug in the generated code found with these
+// class as a work around for a bug in the generated code found with these
 // versions of GCC. See V8 issue 122 for details.
 class SaveContext BASE_EMBEDDED {
  public:

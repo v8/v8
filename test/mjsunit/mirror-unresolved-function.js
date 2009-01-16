@@ -28,8 +28,22 @@
 // Flags: --expose-debug-as debug
 // Test the mirror object for unresolved functions.
 
+function MirrorRefCache(json_refs) {
+  var tmp = eval('(' + json_refs + ')');
+  this.refs_ = [];
+  for (var i = 0; i < tmp.length; i++) {
+    this.refs_[tmp[i].handle] = tmp[i];
+  }
+}
+
+MirrorRefCache.prototype.lookup = function(handle) {
+  return this.refs_[handle];
+}
+
 var mirror = new debug.UnresolvedFunctionMirror("f");
-var json = mirror.toJSONProtocol(true);
+var serializer = debug.MakeMirrorSerializer();
+var json = serializer.serializeValue(mirror);
+var refs = new MirrorRefCache(serializer.serializeReferencedObjects());
 
 // Check the mirror hierachy for unresolved functions.
 assertTrue(mirror instanceof debug.Mirror);
@@ -50,12 +64,15 @@ assertEquals('undefined', mirror.protoObject().type());
 assertEquals('undefined', mirror.prototypeObject().type());
   
 // Parse JSON representation of unresolved functions and check.
-/*var fromJSON = eval('(' + json + ')');
-assertEquals('function', fromJSON.type);
-assertEquals('Function', fromJSON.className);
-assertEquals('undefined', fromJSON.constructorFunction.type);
-assertEquals('undefined', fromJSON.protoObject.type);
-assertEquals('undefined', fromJSON.prototypeObject.type);
+var fromJSON = eval('(' + json + ')');
+assertEquals('function', fromJSON.type, 'Unexpected mirror type in JSON');
+assertEquals('Function', fromJSON.className, 'Unexpected mirror class name in JSON');
+assertEquals(mirror.constructorFunction().handle(), fromJSON.constructorFunction.ref, 'Unexpected constructor function handle in JSON');
+assertEquals('undefined', refs.lookup(fromJSON.constructorFunction.ref).type, 'Unexpected constructor function type in JSON');
+assertEquals(mirror.protoObject().handle(), fromJSON.protoObject.ref, 'Unexpected proto object handle in JSON');
+assertEquals('undefined', refs.lookup(fromJSON.protoObject.ref).type, 'Unexpected proto object type in JSON');
+assertEquals(mirror.prototypeObject().handle(), fromJSON.prototypeObject.ref, 'Unexpected prototype object handle in JSON');
+assertEquals('undefined', refs.lookup(fromJSON.prototypeObject.ref).type, 'Unexpected prototype object type in JSON');
 assertFalse(fromJSON.resolved);
 assertEquals("f", fromJSON.name);
-assertEquals(void 0, fromJSON.source);*/
+assertEquals(void 0, fromJSON.source);

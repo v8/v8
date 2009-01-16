@@ -297,6 +297,10 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\regexp-stack.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\regexp-macro-assembler-irregexp-inl.h"
 				>
 			</File>
@@ -746,6 +750,10 @@
 			</File>
 			<File
 				RelativePath="..\..\src\regexp-macro-assembler-tracer.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\regexp-stack.cc"
 				>
 			</File>
 			<File

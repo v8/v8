@@ -102,9 +102,9 @@ static Handle<Map> ComputeObjectLiteralMap(
     Handle<Context> context,
     Handle<FixedArray> constant_properties,
     bool* is_result_from_cache) {
+  int number_of_properties = constant_properties->length() / 2;
   if (FLAG_canonicalize_object_literal_maps) {
     // First find prefix of consecutive symbol keys.
-    int number_of_properties = constant_properties->length()/2;
     int number_of_symbol_keys = 0;
     while ((number_of_symbol_keys < number_of_properties) &&
            (constant_properties->get(number_of_symbol_keys*2)->IsSymbol())) {
@@ -125,7 +125,9 @@ static Handle<Map> ComputeObjectLiteralMap(
     }
   }
   *is_result_from_cache = false;
-  return Handle<Map>(context->object_function()->initial_map());
+  return Factory::CopyMap(
+      Handle<Map>(context->object_function()->initial_map()),
+      number_of_properties);
 }
 
 
@@ -152,7 +154,7 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
                                             &is_result_from_cache);
 
   Handle<JSObject> boilerplate = Factory::NewJSObjectFromMap(map);
-  {  // Add the constant propeties to the boilerplate.
+  {  // Add the constant properties to the boilerplate.
     int length = constant_properties->length();
     OptimizedObjectForAddingMultipleProperties opt(boilerplate,
                                                    !is_result_from_cache);
@@ -209,6 +211,23 @@ static Object* Runtime_CreateArrayLiteral(Arguments args) {
 
   // Set the elements.
   JSArray::cast(object)->SetContent(FixedArray::cast(content));
+  return object;
+}
+
+
+static Object* Runtime_CreateCatchExtensionObject(Arguments args) {
+  ASSERT(args.length() == 2);
+  CONVERT_CHECKED(String, key, args[0]);
+  Object* value = args[1];
+  // Create a catch context extension object.
+  JSFunction* constructor =
+      Top::context()->global_context()->context_extension_function();
+  Object* object = Heap::AllocateJSObject(constructor);
+  if (object->IsFailure()) return object;
+  // Assign the exception value to the catch variable and make sure
+  // that the catch variable is DontDelete.
+  value = JSObject::cast(object)->SetProperty(key, value, DONT_DELETE);
+  if (value->IsFailure()) return value;
   return object;
 }
 
@@ -341,8 +360,16 @@ static Object* Runtime_GetTemplateField(Arguments args) {
 static Object* Runtime_DisableAccessChecks(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(HeapObject, object, args[0]);
-  bool needs_access_checks = object->map()->is_access_check_needed();
-  object->map()->set_is_access_check_needed(false);
+  Map* old_map = object->map();
+  bool needs_access_checks = old_map->is_access_check_needed();
+  if (needs_access_checks) {
+    // Copy map so it won't interfere constructor's initial map.
+    Object* new_map = old_map->CopyDropTransitions();
+    if (new_map->IsFailure()) return new_map;
+
+    Map::cast(new_map)->set_is_access_check_needed(false);
+    object->set_map(Map::cast(new_map));
+  }
   return needs_access_checks ? Heap::true_value() : Heap::false_value();
 }
 
@@ -350,7 +377,15 @@ static Object* Runtime_DisableAccessChecks(Arguments args) {
 static Object* Runtime_EnableAccessChecks(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(HeapObject, object, args[0]);
-  object->map()->set_is_access_check_needed(true);
+  Map* old_map = object->map();
+  if (!old_map->is_access_check_needed()) {
+    // Copy map so it won't interfere constructor's initial map.
+    Object* new_map = old_map->CopyDropTransitions();
+    if (new_map->IsFailure()) return new_map;
+
+    Map::cast(new_map)->set_is_access_check_needed(true);
+    object->set_map(Map::cast(new_map));
+  }
   return Heap::undefined_value();
 }
 
@@ -1717,7 +1752,7 @@ Object* Runtime::GetObjectProperty(Handle<Object> object, Handle<Object> key) {
     name = Handle<String>::cast(converted);
   }
 
-  // Check if the name is trivially convertable to an index and get
+  // Check if the name is trivially convertible to an index and get
   // the element if so.
   if (name->AsArrayIndex(&index)) {
     return GetElementOrCharAt(object, index);
@@ -1749,7 +1784,7 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
   // itself.
   //
   // The global proxy objects has to be excluded since LocalLookup on
-  // the global proxy object can return a valid result eventhough the
+  // the global proxy object can return a valid result even though the
   // global proxy object never has properties.  This is the case
   // because the global proxy object forwards everything to its hidden
   // prototype including local lookups.
@@ -2985,7 +3020,7 @@ static Object* Runtime_SmiLexicographicCompare(Arguments args) {
   // same as the lexicographic order of the string representations.
   if (x_value == 0 || y_value == 0) return Smi::FromInt(x_value - y_value);
 
-  // If only one of the intergers is negative the negative number is
+  // If only one of the integers is negative the negative number is
   // smallest because the char code of '-' is less than the char code
   // of any digit.  Otherwise, we make both values positive.
   if (x_value < 0 || y_value < 0) {
@@ -3323,7 +3358,7 @@ static Object* Runtime_NewObject(Arguments args) {
   if (constructor->IsJSFunction()) {
     JSFunction* function = JSFunction::cast(constructor);
 
-    // Handle steping into constructors if step into is active.
+    // Handle stepping into constructors if step into is active.
     if (Debug::StepInActive()) {
       HandleScope scope;
       Debug::HandleStepIn(Handle<JSFunction>(function), 0, true);
@@ -4501,30 +4536,32 @@ static Object* Runtime_Break(Arguments args) {
 }
 
 
-static Object* DebugLookupResultValue(LookupResult* result) {
-  Object* value;
+static Object* DebugLookupResultValue(Object* obj, String* name,
+                                      LookupResult* result,
+                                      bool* caught_exception) {
   switch (result->type()) {
-    case NORMAL: {
-      Dictionary* dict =
-          JSObject::cast(result->holder())->property_dictionary();
-      value = dict->ValueAt(result->GetDictionaryEntry());
-      if (value->IsTheHole()) {
-        return Heap::undefined_value();
+    case NORMAL:
+    case FIELD:
+    case CONSTANT_FUNCTION:
+      return obj->GetProperty(name);
+    case CALLBACKS: {
+      // Get the property value. If there is an exception it must be thrown from
+      // a JavaScript getter.
+      Object* value;
+      value = obj->GetProperty(name);
+      if (value->IsException()) {
+        if (caught_exception != NULL) {
+          *caught_exception = true;
+        }
+        value = Top::pending_exception();
+        Top::optional_reschedule_exception(true);
       }
+      ASSERT(!Top::has_pending_exception());
+      ASSERT(!Top::external_caught_exception());
       return value;
     }
-    case FIELD:
-      value =
-          JSObject::cast(
-              result->holder())->FastPropertyAt(result->GetFieldIndex());
-      if (value->IsTheHole()) {
-        return Heap::undefined_value();
-      }
-      return value;
-    case CONSTANT_FUNCTION:
-      return result->GetConstantFunction();
-    case CALLBACKS:
     case INTERCEPTOR:
+      return obj->GetProperty(name);
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
@@ -4537,6 +4574,18 @@ static Object* DebugLookupResultValue(LookupResult* result) {
 }
 
 
+// Get debugger related details for an object property.
+// args[0]: object holding property
+// args[1]: name of the property
+//
+// The array returned contains the following information:
+// 0: Property value
+// 1: Property details
+// 2: Property value is exception
+// 3: Getter function if defined
+// 4: Setter function if defined
+// Items 2-4 are only filled if the property has either a getter or a setter
+// defined through __defineGetter__ and/or __defineSetter__.
 static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   HandleScope scope;
 
@@ -4557,12 +4606,26 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
 
   // Perform standard local lookup on the object.
   LookupResult result;
-  obj->Lookup(*name, &result);
+  obj->LocalLookup(*name, &result);
   if (result.IsProperty()) {
-    Handle<Object> value(DebugLookupResultValue(&result));
-    Handle<FixedArray> details = Factory::NewFixedArray(2);
+    bool caught_exception = false;
+    Handle<Object> value(DebugLookupResultValue(*obj, *name, &result,
+                                                &caught_exception));
+    // If the callback object is a fixed array then it contains JavaScript
+    // getter and/or setter.
+    bool hasJavaScriptAccessors = result.type() == CALLBACKS &&
+                                  result.GetCallbackObject()->IsFixedArray();
+    Handle<FixedArray> details =
+        Factory::NewFixedArray(hasJavaScriptAccessors ? 5 : 2);
     details->set(0, *value);
     details->set(1, result.GetPropertyDetails().AsSmi());
+    if (hasJavaScriptAccessors) {
+      details->set(2,
+                   caught_exception ? Heap::true_value() : Heap::false_value());
+      details->set(3, FixedArray::cast(result.GetCallbackObject())->get(0));
+      details->set(4, FixedArray::cast(result.GetCallbackObject())->get(1));
+    }
+
     return *Factory::NewJSArrayWithElements(details);
   }
   return Heap::undefined_value();
@@ -4580,7 +4643,7 @@ static Object* Runtime_DebugGetProperty(Arguments args) {
   LookupResult result;
   obj->Lookup(*name, &result);
   if (result.IsProperty()) {
-    return DebugLookupResultValue(&result);
+    return DebugLookupResultValue(*obj, *name, &result, NULL);
   }
   return Heap::undefined_value();
 }
@@ -4674,10 +4737,11 @@ static Object* Runtime_DebugNamedInterceptorPropertyNames(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  RUNTIME_ASSERT(obj->HasNamedInterceptor());
 
-  v8::Handle<v8::Array> result = GetKeysForNamedInterceptor(obj, obj);
-  if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+  if (obj->HasNamedInterceptor()) {
+    v8::Handle<v8::Array> result = GetKeysForNamedInterceptor(obj, obj);
+    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+  }
   return Heap::undefined_value();
 }
 
@@ -4688,10 +4752,11 @@ static Object* Runtime_DebugIndexedInterceptorElementNames(Arguments args) {
   HandleScope scope;
   ASSERT(args.length() == 1);
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  RUNTIME_ASSERT(obj->HasIndexedInterceptor());
 
-  v8::Handle<v8::Array> result = GetKeysForIndexedInterceptor(obj, obj);
-  if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+  if (obj->HasIndexedInterceptor()) {
+    v8::Handle<v8::Array> result = GetKeysForIndexedInterceptor(obj, obj);
+    if (!result.IsEmpty()) return *v8::Utils::OpenHandle(*result);
+  }
   return Heap::undefined_value();
 }
 
@@ -5059,7 +5124,7 @@ static Object* FindSharedFunctionInfoInScript(Handle<Script> script,
           }
           if (start_position <= position &&
               position <= shared->end_position()) {
-            // If there is no candidate or this function is within the currrent
+            // If there is no candidate or this function is within the current
             // candidate this is the new candidate.
             if (target.is_null()) {
               target_start_position = start_position;
@@ -5277,7 +5342,7 @@ static Handle<Object> GetArgumentsObject(JavaScriptFrame* frame,
 
 
 // Evaluate a piece of JavaScript in the context of a stack frame for
-// debugging. This is acomplished by creating a new context which in its
+// debugging. This is accomplished by creating a new context which in its
 // extension part has all the parameters and locals of the function on the
 // stack frame. A function which calls eval with the code to evaluate is then
 // compiled in this context and called in this context. As this context
@@ -5388,7 +5453,7 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
   // Wrap the evaluation statement in a new function compiled in the newly
   // created context. The function has one parameter which has to be called
   // 'arguments'. This it to have access to what would have been 'arguments' in
-  // the function beeing debugged.
+  // the function being debugged.
   // function(arguments,__source__) {return eval(__source__);}
   static const char* source_str =
       "function(arguments,__source__){return eval(__source__);}";
@@ -5503,7 +5568,7 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
   ASSERT(args.length() == 0);
 
   // Perform two GCs to get rid of all unreferenced scripts. The first GC gets
-  // rid of all the cached script wrappes and the second gets rid of the
+  // rid of all the cached script wrappers and the second gets rid of the
   // scripts which is no longer referenced.
   Heap::CollectAllGarbage();
   Heap::CollectAllGarbage();

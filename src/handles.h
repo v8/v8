@@ -94,9 +94,10 @@ class Handle {
 // Handle operations.
 // They might invoke garbage collection. The result is an handle to
 // an object of expected type, or the handle is an error if running out
-// of space or encounting an internal error.
+// of space or encountering an internal error.
 
-void NormalizeProperties(Handle<JSObject> object);
+void NormalizeProperties(Handle<JSObject> object,
+                         PropertyNormalizationMode mode);
 void NormalizeElements(Handle<JSObject> object);
 void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields);

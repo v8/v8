@@ -36,7 +36,7 @@ load('earley-boyer.js');
 var success = true;
 
 function PrintResult(name, result) {
-  print(name + ': ' + formatScore(result));
+  print(name + ': ' + result);
 }
 
 
@@ -49,8 +49,7 @@ function PrintError(name, error) {
 function PrintScore(score) {
   if (success) {
     print('----');
-    print('Score (version ' + BenchmarkSuite.version + '): '
-          + formatScore(score));
+    print('Score (version ' + BenchmarkSuite.version + '): ' + score);
   }
 }
 

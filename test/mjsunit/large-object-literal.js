@@ -25,25 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Make sure that we can create large object literals.
-var nofProperties = 150;
+// Test that we can create object literals of various sizes.
+function testLiteral(size) {
 
-// Build large object literal string.
-var literal = "var o = { ";
+  // Build object-literal string.
+  var literal = "var o = { ";
 
-for (var i = 0; i < nofProperties; i++) {
-  if (i > 0) literal += ",";
-  literal += ("a" + i + ":" + i);
+  for (var i = 0; i < size; i++) {
+    if (i > 0) literal += ",";
+    literal += ("a" + i + ":" + i);
+  }
+  literal += "}";
+
+  // Create the object literal.
+  eval(literal);
+
+  // Check that the properties have the expected values.
+  for (var i = 0; i < size; i++) {
+    assertEquals(i, o["a"+i]);
+  }
 }
-literal += "}";
 
+// The sizes to test.
+var sizes = [0, 1, 2, 100, 200, 400, 1000];
 
-// Create the large object literal
-eval(literal);
-
-// Check that the properties have the expected values.
-for (var i = 0; i < nofProperties; i++) {
-  assertEquals(o["a"+i], i);
+// Run the test.
+for (var i = 0; i < sizes.length; i++) {
+  testLiteral(sizes[i]);
 }
-
 

@@ -68,10 +68,11 @@ ArraySlice ByteArrayProvider::GetBuffer(unsigned int size,
   return ArraySlice(current_byte_array_, free_offset);
 }
 
+
 template <typename T>
 ArraySlice ByteArrayProvider::GetBuffer(Vector<T> values) {
   ArraySlice slice = GetBuffer(values.length(), sizeof(T));
   memcpy(slice.location(), values.start(), values.length() * sizeof(T));
   return slice;
 }
-} }
+} }  // namespace v8::internal

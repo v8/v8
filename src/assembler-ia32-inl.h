@@ -70,6 +70,12 @@ Address RelocInfo::target_address() {
 }
 
 
+Address RelocInfo::target_address_address() {
+  ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
+  return reinterpret_cast<Address>(pc_);
+}
+
+
 void RelocInfo::set_target_address(Address target) {
   ASSERT(IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY);
   Assembler::set_target_address_at(pc_, target);

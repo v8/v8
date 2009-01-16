@@ -49,7 +49,7 @@ class Bootstrapper : public AllStatic {
   // Detach the environment from its outer global object.
   static void DetachGlobal(Handle<Context> env);
 
-  // Traverses the pointers for memory manangment.
+  // Traverses the pointers for memory management.
   static void Iterate(ObjectVisitor* v);
 
   // Accessors for the native scripts cache. Used in lazy loading.
@@ -61,7 +61,7 @@ class Bootstrapper : public AllStatic {
   // Append code that needs fixup at the end of boot strapping.
   static void AddFixup(Code* code, MacroAssembler* masm);
 
-  // Tells whether boostrapping is active.
+  // Tells whether bootstrapping is active.
   static bool IsActive();
 
   // Encoding/decoding support for fixup flags.

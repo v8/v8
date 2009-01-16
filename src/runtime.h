@@ -253,6 +253,9 @@ namespace v8 { namespace internal {
   F(CreateObjectLiteralBoilerplate, 3) \
   F(CloneObjectLiteralBoilerplate, 1) \
   \
+  /* Catch context extension objects */ \
+  F(CreateCatchExtensionObject, 2) \
+  \
   /* Statements */ \
   F(NewClosure, 2) \
   F(NewObject, 1) \

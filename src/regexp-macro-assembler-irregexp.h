@@ -48,6 +48,8 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   // upon destruction of the assembler.
   explicit RegExpMacroAssemblerIrregexp(Vector<byte>);
   virtual ~RegExpMacroAssemblerIrregexp();
+  // The byte-code interpreter checks on each push anyway.
+  virtual int stack_limit_slack() { return 1; }
   virtual void Bind(Label* label);
   virtual void EmitOrLink(Label* label);
   virtual void AdvanceCurrentPosition(int by);  // Signed cp change.
@@ -59,10 +61,12 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void Succeed();
   virtual void Fail();
   virtual void PopRegister(int register_index);
-  virtual void PushRegister(int register_index);
+  virtual void PushRegister(int register_index,
+                            StackCheckFlag check_stack_limit);
   virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
   virtual void SetRegister(int register_index, int to);
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
+  virtual void ClearRegister(int reg);
   virtual void ReadCurrentPositionFromRegister(int reg);
   virtual void WriteStackPointerToRegister(int reg);
   virtual void ReadStackPointerFromRegister(int reg);
@@ -106,6 +110,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
                                    const Vector<Label*>& destinations);
   virtual void IfRegisterLT(int register_index, int comparand, Label* if_lt);
   virtual void IfRegisterGE(int register_index, int comparand, Label* if_ge);
+  virtual void IfRegisterEqPos(int register_index, Label* if_eq);
 
   virtual IrregexpImplementation Implementation();
   virtual Handle<Object> GetCode(Handle<String> source);

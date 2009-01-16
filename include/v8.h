@@ -200,11 +200,11 @@ template <class T> class EXPORT_INLINE Handle {
   /**
    * Returns true if the handle is empty.
    */
-  bool IsEmpty() { return val_ == 0; }
+  bool IsEmpty() const { return val_ == 0; }
 
-  T* operator->();
+  T* operator->() const;
 
-  T* operator*();
+  T* operator*() const;
 
   /**
    * Sets the handle to be empty. IsEmpty() will then return true.
@@ -217,7 +217,7 @@ template <class T> class EXPORT_INLINE Handle {
    * to which they refer are identical.
    * The handles' references are not checked.
    */
-  template <class S> bool operator==(Handle<S> that) {
+  template <class S> bool operator==(Handle<S> that) const {
     void** a = reinterpret_cast<void**>(**this);
     void** b = reinterpret_cast<void**>(*that);
     if (a == 0) return b == 0;
@@ -231,7 +231,7 @@ template <class T> class EXPORT_INLINE Handle {
    * the objects to which they refer are different.
    * The handles' references are not checked.
    */
-  template <class S> bool operator!=(Handle<S> that) {
+  template <class S> bool operator!=(Handle<S> that) const {
     return !operator==(that);
   }
 
@@ -367,12 +367,12 @@ template <class T> class EXPORT_INLINE Persistent : public Handle<T> {
   /**
    *Checks if the handle holds the only reference to an object.
    */
-  bool IsNearDeath();
+  bool IsNearDeath() const;
 
   /**
    * Returns true if the handle's reference is weak.
    */
-  bool IsWeak();
+  bool IsWeak() const;
 
  private:
   friend class ImplementationUtilities;
@@ -556,39 +556,39 @@ class EXPORT Script {
  */
 class EXPORT Message {
  public:
-  Local<String> Get();
-  Local<String> GetSourceLine();
+  Local<String> Get() const;
+  Local<String> GetSourceLine() const;
 
-  Handle<Value> GetScriptResourceName();
+  Handle<Value> GetScriptResourceName() const;
 
   /**
    * Returns the number, 1-based, of the line where the error occurred.
    */
-  int GetLineNumber();
+  int GetLineNumber() const;
 
   /**
    * Returns the index within the script of the first character where
    * the error occurred.
    */
-  int GetStartPosition();
+  int GetStartPosition() const;
 
   /**
    * Returns the index within the script of the last character where
    * the error occurred.
    */
-  int GetEndPosition();
+  int GetEndPosition() const;
 
   /**
    * Returns the index within the line of the first character where
    * the error occurred.
    */
-  int GetStartColumn();
+  int GetStartColumn() const;
 
   /**
    * Returns the index within the line of the last character where
    * the error occurred.
    */
-  int GetEndColumn();
+  int GetEndColumn() const;
 
   // TODO(1245381): Print to a string instead of on a FILE.
   static void PrintCurrentStackTrace(FILE* out);
@@ -608,94 +608,94 @@ class EXPORT Value : public Data {
    * Returns true if this value is the undefined value.  See ECMA-262
    * 4.3.10.
    */
-  bool IsUndefined();
+  bool IsUndefined() const;
 
   /**
    * Returns true if this value is the null value.  See ECMA-262
    * 4.3.11.
    */
-  bool IsNull();
+  bool IsNull() const;
 
    /**
    * Returns true if this value is true.
    */
-  bool IsTrue();
+  bool IsTrue() const;
 
   /**
    * Returns true if this value is false.
    */
-  bool IsFalse();
+  bool IsFalse() const;
 
   /**
    * Returns true if this value is an instance of the String type.
    * See ECMA-262 8.4.
    */
-  bool IsString();
+  bool IsString() const;
 
   /**
    * Returns true if this value is a function.
    */
-  bool IsFunction();
+  bool IsFunction() const;
 
   /**
    * Returns true if this value is an array.
    */
-  bool IsArray();
+  bool IsArray() const;
 
   /**
    * Returns true if this value is an object.
    */
-  bool IsObject();
+  bool IsObject() const;
 
   /**
    * Returns true if this value is boolean.
    */
-  bool IsBoolean();
+  bool IsBoolean() const;
 
   /**
    * Returns true if this value is a number.
    */
-  bool IsNumber();
+  bool IsNumber() const;
 
   /**
    * Returns true if this value is external.
    */
-  bool IsExternal();
+  bool IsExternal() const;
 
   /**
    * Returns true if this value is a 32-bit signed integer.
    */
-  bool IsInt32();
+  bool IsInt32() const;
 
   /**
    * Returns true if this value is a Date.
    */
-  bool IsDate();
+  bool IsDate() const;
 
-  Local<Boolean> ToBoolean();
-  Local<Number> ToNumber();
-  Local<String> ToString();
-  Local<String> ToDetailString();
-  Local<Object> ToObject();
-  Local<Integer> ToInteger();
-  Local<Uint32> ToUint32();
-  Local<Int32> ToInt32();
+  Local<Boolean> ToBoolean() const;
+  Local<Number> ToNumber() const;
+  Local<String> ToString() const;
+  Local<String> ToDetailString() const;
+  Local<Object> ToObject() const;
+  Local<Integer> ToInteger() const;
+  Local<Uint32> ToUint32() const;
+  Local<Int32> ToInt32() const;
 
   /**
    * Attempts to convert a string to an array index.
    * Returns an empty handle if the conversion fails.
    */
-  Local<Uint32> ToArrayIndex();
+  Local<Uint32> ToArrayIndex() const;
 
-  bool BooleanValue();
-  double NumberValue();
-  int64_t IntegerValue();
-  uint32_t Uint32Value();
-  int32_t Int32Value();
+  bool BooleanValue() const;
+  double NumberValue() const;
+  int64_t IntegerValue() const;
+  uint32_t Uint32Value() const;
+  int32_t Int32Value() const;
 
   /** JS == */
-  bool Equals(Handle<Value> that);
-  bool StrictEquals(Handle<Value> that);
+  bool Equals(Handle<Value> that) const;
+  bool StrictEquals(Handle<Value> that) const;
 };
 
 
@@ -711,7 +711,7 @@ class EXPORT Primitive : public Value { };
  */
 class EXPORT Boolean : public Primitive {
  public:
-  bool Value();
+  bool Value() const;
   static inline Handle<Boolean> New(bool value);
 };
 
@@ -725,13 +725,13 @@ class EXPORT String : public Primitive {
   /**
    * Returns the number of characters in this string.
    */
-  int Length();
+  int Length() const;
 
   /**
    * Returns the number of bytes in the UTF-8 encoded
    * representation of this string.
    */
-  int Utf8Length();
+  int Utf8Length() const;
 
   /**
    * Write the contents of the string to an external buffer.
@@ -750,19 +750,19 @@ class EXPORT String : public Primitive {
    * \return The number of characters copied to the buffer
    * excluding the NULL terminator.
    */
-  int Write(uint16_t* buffer, int start = 0, int length = -1);  // UTF-16
-  int WriteAscii(char* buffer, int start = 0, int length = -1);  // ASCII
-  int WriteUtf8(char* buffer, int length = -1); // UTF-8
+  int Write(uint16_t* buffer, int start = 0, int length = -1) const;  // UTF-16
+  int WriteAscii(char* buffer, int start = 0, int length = -1) const;  // ASCII
+  int WriteUtf8(char* buffer, int length = -1) const; // UTF-8
 
   /**
    * Returns true if the string is external
    */
-  bool IsExternal();
+  bool IsExternal() const;
 
   /**
    * Returns true if the string is both external and ascii
    */
-  bool IsExternalAscii();
+  bool IsExternalAscii() const;
   /**
    * An ExternalStringResource is a wrapper around a two-byte string
    * buffer that resides outside V8's heap. Implement an
@@ -822,13 +822,13 @@ class EXPORT String : public Primitive {
    * Get the ExternalStringResource for an external string.  Only
    * valid if IsExternal() returns true.
    */
-  ExternalStringResource* GetExternalStringResource();
+  ExternalStringResource* GetExternalStringResource() const;
 
   /**
    * Get the ExternalAsciiStringResource for an external ascii string.
    * Only valid if IsExternalAscii() returns true.
    */
-  ExternalAsciiStringResource* GetExternalAsciiStringResource();
+  ExternalAsciiStringResource* GetExternalAsciiStringResource() const;
 
   static String* Cast(v8::Value* obj);
 
@@ -938,7 +938,7 @@ class EXPORT String : public Primitive {
  */
 class EXPORT Number : public Primitive {
  public:
-  double Value();
+  double Value() const;
   static Local<Number> New(double value);
   static Number* Cast(v8::Value* obj);
  private:
@@ -952,7 +952,7 @@ class EXPORT Number : public Primitive {
 class EXPORT Integer : public Number {
  public:
   static Local<Integer> New(int32_t value);
-  int64_t Value();
+  int64_t Value() const;
   static Integer* Cast(v8::Value* obj);
  private:
   Integer();
@@ -964,7 +964,7 @@ class EXPORT Integer : public Number {
  */
 class EXPORT Int32 : public Integer {
  public:
-  int32_t Value();
+  int32_t Value() const;
  private:
   Int32();
 };
@@ -975,7 +975,7 @@ class EXPORT Int32 : public Integer {
  */
 class EXPORT Uint32 : public Integer {
  public:
-  uint32_t Value();
+  uint32_t Value() const;
  private:
   Uint32();
 };
@@ -992,7 +992,7 @@ class EXPORT Date : public Value {
    * A specialization of Value::NumberValue that is more efficient
    * because we know the structure of this object.
    */
-  double NumberValue();
+  double NumberValue() const;
 
   static Date* Cast(v8::Value* obj);
 };
@@ -1087,7 +1087,7 @@ class EXPORT Object : public Value {
  */
 class EXPORT Array : public Object {
  public:
-  uint32_t Length();
+  uint32_t Length() const;
 
   static Local<Array> New(int length = 0);
   static Array* Cast(Value* obj);
@@ -1101,11 +1101,11 @@ class EXPORT Array : public Object {
  */
 class EXPORT Function : public Object {
  public:
-  Local<Object> NewInstance();
-  Local<Object> NewInstance(int argc, Handle<Value> argv[]);
+  Local<Object> NewInstance() const;
+  Local<Object> NewInstance(int argc, Handle<Value> argv[]) const;
   Local<Value> Call(Handle<Object> recv, int argc, Handle<Value> argv[]);
   void SetName(Handle<String> name);
-  Handle<Value> GetName();
+  Handle<Value> GetName() const;
   static Function* Cast(Value* obj);
  private:
   Function();
@@ -1121,7 +1121,7 @@ class EXPORT External : public Value {
  public:
   static Local<External> New(void* value);
   static External* Cast(Value* obj);
-  void* Value();
+  void* Value() const;
  private:
   External();
 };
@@ -2322,14 +2322,14 @@ Persistent<T> Persistent<T>::New(Handle<T> that) {
 
 
 template <class T>
-bool Persistent<T>::IsNearDeath() {
+bool Persistent<T>::IsNearDeath() const {
   if (this->IsEmpty()) return false;
   return V8::IsGlobalNearDeath(reinterpret_cast<void**>(**this));
 }
 
 
 template <class T>
-bool Persistent<T>::IsWeak() {
+bool Persistent<T>::IsWeak() const {
   if (this->IsEmpty()) return false;
   return V8::IsGlobalWeak(reinterpret_cast<void**>(**this));
 }
@@ -2356,13 +2356,13 @@ void Persistent<T>::ClearWeak() {
 }
 
 template <class T>
-T* Handle<T>::operator->() {
+T* Handle<T>::operator->() const {
   return val_;
 }
 
 
 template <class T>
-T* Handle<T>::operator*() {
+T* Handle<T>::operator*() const {
   return val_;
 }
 
