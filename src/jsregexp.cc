@@ -1522,18 +1522,6 @@ bool Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
 }
 
 
-void EndNode::EmitInfoChecks(RegExpMacroAssembler* assembler, Trace* trace) {
-  if (info()->at_end) {
-    Label succeed;
-    // LoadCurrentCharacter will go to the label if we are at the end of the
-    // input string.
-    assembler->LoadCurrentCharacter(0, &succeed);
-    assembler->GoTo(trace->backtrack());
-    assembler->Bind(&succeed);
-  }
-}
-
-
 bool NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler, Trace* trace) {
   if (!trace->is_trivial()) {
     return trace->Flush(compiler, this);
@@ -1542,7 +1530,6 @@ bool NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler, Trace* trace) {
   if (!label()->is_bound()) {
     assembler->Bind(label());
   }
-  EmitInfoChecks(assembler, trace);
   assembler->ReadCurrentPositionFromRegister(current_position_register_);
   assembler->ReadStackPointerFromRegister(stack_pointer_register_);
   // Now that we have unwound the stack we find at the top of the stack the
@@ -1562,11 +1549,9 @@ bool EndNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   }
   switch (action_) {
     case ACCEPT:
-      EmitInfoChecks(assembler, trace);
       assembler->Succeed();
       return true;
     case BACKTRACK:
-      ASSERT(!info()->at_end);
       assembler->GoTo(trace->backtrack());
       return true;
     case NEGATIVE_SUBMATCH_SUCCESS:
@@ -1935,13 +1920,6 @@ RegExpNode::~RegExpNode() {
 
 RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
                                                   Trace* trace) {
-  // TODO(erikcorry): Implement support.
-  if (info_.follows_word_interest ||
-      info_.follows_newline_interest ||
-      info_.follows_start_interest) {
-    return FAIL;
-  }
-
   // If we are generating a greedy loop then don't stop and don't reuse code.
   if (trace->stop_node() != NULL) {
     return CONTINUE;
@@ -1988,6 +1966,19 @@ int ActionNode::EatsAtLeast(int recursion_depth) {
   if (type_ == POSITIVE_SUBMATCH_SUCCESS) return 0;  // Rewinds input!
   return on_success()->EatsAtLeast(recursion_depth + 1);
 }
+
+
+int AssertionNode::EatsAtLeast(int recursion_depth) {
+  if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
+  return on_success()->EatsAtLeast(recursion_depth + 1);
+}
+
+
+int BackReferenceNode::EatsAtLeast(int recursion_depth) {
+  if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
+  return on_success()->EatsAtLeast(recursion_depth + 1);
+}
+
 
 
 int TextNode::EatsAtLeast(int recursion_depth) {
@@ -2257,7 +2248,7 @@ void QuickCheckDetails::Clear() {
 
 
 void QuickCheckDetails::Advance(int by, bool ascii) {
-  ASSERT(by > 0);
+  ASSERT(by >= 0);
   if (by >= characters_) {
     Clear();
     return;
@@ -2339,6 +2330,148 @@ void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
     // Here we merge the quick match details of the two branches.
     details->Merge(&new_details, characters_filled_in);
   }
+}
+
+
+// Check for [0-9A-Z_a-z].
+static void EmitWordCheck(RegExpMacroAssembler* assembler,
+                          Label* word,
+                          Label* non_word,
+                          bool fall_through_on_word) {
+  assembler->CheckCharacterGT('z', non_word);
+  assembler->CheckCharacterLT('0', non_word);
+  assembler->CheckCharacterGT('a' - 1, word);
+  assembler->CheckCharacterLT('9' + 1, word);
+  assembler->CheckCharacterLT('A', non_word);
+  assembler->CheckCharacterLT('Z' + 1, word);
+  if (fall_through_on_word) {
+    assembler->CheckNotCharacter('_', non_word);
+  } else {
+    assembler->CheckCharacter('_', word);
+  }
+}
+
+
+// Emit the code to check for a ^ in multiline mode (1-character lookbehind
+// that matches newline or the start of input).
+static bool EmitHat(RegExpCompiler* compiler,
+                    RegExpNode* on_success,
+                    Trace* trace) {
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
+  // We will be loading the previous character into the current character
+  // register.
+  Trace new_trace(*trace);
+  new_trace.InvalidateCurrentCharacter();
+
+  Label ok;
+  if (new_trace.cp_offset() == 0) {
+    // The start of input counts as a newline in this context, so skip to
+    // ok if we are at the start.
+    assembler->CheckAtStart(&ok);
+  }
+  // We already checked that we are not at the start of input so it must be
+  // OK to load the previous character.
+  assembler->LoadCurrentCharacter(new_trace.cp_offset() -1,
+                                  new_trace.backtrack(),
+                                  false);
+  // Newline means \n, \r, 0x2028 or 0x2029.
+  if (!compiler->ascii()) {
+    assembler->CheckCharacterAfterAnd(0x2028, 0xfffe, &ok);
+  }
+  assembler->CheckCharacter('\n', &ok);
+  assembler->CheckNotCharacter('\r', new_trace.backtrack());
+  assembler->Bind(&ok);
+  return on_success->Emit(compiler, &new_trace);
+}
+
+
+// Emit the code to handle \b and \B (word-boundary or non-word-boundary).
+static bool EmitBoundaryCheck(AssertionNode::AssertionNodeType type,
+                              RegExpCompiler* compiler,
+                              RegExpNode* on_success,
+                              Trace* trace) {
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
+  Label before_non_word;
+  Label before_word;
+  if (trace->characters_preloaded() != 1) {
+    assembler->LoadCurrentCharacter(trace->cp_offset(), &before_non_word);
+  }
+  // Fall through on non-word.
+  EmitWordCheck(assembler, &before_word, &before_non_word, false);
+
+  // We will be loading the previous character into the current character
+  // register.
+  Trace new_trace(*trace);
+  new_trace.InvalidateCurrentCharacter();
+
+  Label ok;
+  Label* boundary;
+  Label* not_boundary;
+  if (type == AssertionNode::AT_BOUNDARY) {
+    boundary = &ok;
+    not_boundary = new_trace.backtrack();
+  } else {
+    not_boundary = &ok;
+    boundary = new_trace.backtrack();
+  }
+
+  // Next character is not a word character.
+  assembler->Bind(&before_non_word);
+  if (new_trace.cp_offset() == 0) {
+    // The start of input counts as a non-word character, so the question is
+    // decided if we are at the start.
+    assembler->CheckAtStart(not_boundary);
+  }
+  // We already checked that we are not at the start of input so it must be
+  // OK to load the previous character.
+  assembler->LoadCurrentCharacter(new_trace.cp_offset() - 1,
+                                  &ok,  // Unused dummy label in this call.
+                                  false);
+  // Fall through on non-word.
+  EmitWordCheck(assembler, boundary, not_boundary, false);
+  assembler->GoTo(not_boundary);
+
+  // Next character is a word character.
+  assembler->Bind(&before_word);
+  if (new_trace.cp_offset() == 0) {
+    // The start of input counts as a non-word character, so the question is
+    // decided if we are at the start.
+    assembler->CheckAtStart(boundary);
+  }
+  // We already checked that we are not at the start of input so it must be
+  // OK to load the previous character.
+  assembler->LoadCurrentCharacter(new_trace.cp_offset() - 1,
+                                  &ok,  // Unused dummy label in this call.
+                                  false);
+  bool fall_through_on_word = (type == AssertionNode::AT_NON_BOUNDARY);
+  EmitWordCheck(assembler, not_boundary, boundary, fall_through_on_word);
+
+  assembler->Bind(&ok);
+
+  return on_success->Emit(compiler, &new_trace);
+}
+
+
+bool AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
+  switch (type_) {
+    case AT_END: {
+      Label ok;
+      assembler->LoadCurrentCharacter(trace->cp_offset(), &ok);
+      assembler->GoTo(trace->backtrack());
+      assembler->Bind(&ok);
+      break;
+    }
+    case AT_START:
+      assembler->CheckNotAtStart(trace->backtrack());
+      break;
+    case AFTER_NEWLINE:
+      return EmitHat(compiler, on_success(), trace);
+    case AT_NON_BOUNDARY:
+    case AT_BOUNDARY:
+      return EmitBoundaryCheck(type_, compiler, on_success(), trace);
+  }
+  return on_success()->Emit(compiler, trace);
 }
 
 
@@ -2487,17 +2620,6 @@ bool TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   if (limit_result == DONE) return true;
   ASSERT(limit_result == CONTINUE);
 
-  if (info()->follows_word_interest ||
-      info()->follows_newline_interest ||
-      info()->follows_start_interest) {
-    return false;
-  }
-
-  if (info()->at_end) {
-    compiler->macro_assembler()->GoTo(trace->backtrack());
-    return true;
-  }
-
   if (compiler->ascii()) {
     int dummy = 0;
     TextEmitPass(compiler, NON_ASCII_MATCH, false, trace, false, &dummy);
@@ -2561,6 +2683,11 @@ bool TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 }
 
 
+void Trace::InvalidateCurrentCharacter() {
+  characters_preloaded_ = 0;
+}
+
+
 void Trace::AdvanceCurrentPositionInTrace(int by, bool ascii) {
   ASSERT(by > 0);
   // We don't have an instruction for shifting the current character register
@@ -2614,12 +2741,6 @@ int ChoiceNode::GreedyLoopTextLength(GuardedAlternative* alternative) {
   int recursion_depth = 0;
   while (node != this) {
     if (recursion_depth++ > RegExpCompiler::kMaxRecursion) {
-      return kNodeIsTooComplexForGreedyLoops;
-    }
-    NodeInfo* info = node->info();
-    if (info->follows_word_interest ||
-        info->follows_newline_interest ||
-        info->follows_start_interest) {
       return kNodeIsTooComplexForGreedyLoops;
     }
     int node_length = node->GreedyLoopTextLength();
@@ -3096,20 +3217,6 @@ bool ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     }
     case POSITIVE_SUBMATCH_SUCCESS:
       if (!trace->is_trivial()) return trace->Flush(compiler, this);
-      // TODO(erikcorry): Implement support.
-      if (info()->follows_word_interest ||
-          info()->follows_newline_interest ||
-          info()->follows_start_interest) {
-        return false;
-      }
-      if (info()->at_end) {
-        Label at_end;
-        // Load current character jumps to the label if we are beyond the string
-        // end.
-        assembler->LoadCurrentCharacter(0, &at_end);
-        assembler->GoTo(trace->backtrack());
-        assembler->Bind(&at_end);
-      }
       assembler->ReadCurrentPositionFromRegister(
           data_.u_submatch.current_position_register);
       assembler->ReadStackPointerFromRegister(
@@ -3136,19 +3243,11 @@ bool BackReferenceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RecursionCheck rc(compiler);
 
   ASSERT_EQ(start_reg_ + 1, end_reg_);
-  if (info()->at_end) {
-    // If we are constrained to match at the end of the input then succeed
-    // iff the back reference is empty.
-    assembler->CheckNotRegistersEqual(start_reg_,
-                                      end_reg_,
-                                      trace->backtrack());
+  if (compiler->ignore_case()) {
+    assembler->CheckNotBackReferenceIgnoreCase(start_reg_,
+                                               trace->backtrack());
   } else {
-    if (compiler->ignore_case()) {
-      assembler->CheckNotBackReferenceIgnoreCase(start_reg_,
-                                                 trace->backtrack());
-    } else {
-      assembler->CheckNotBackReference(start_reg_, trace->backtrack());
-    }
+    assembler->CheckNotBackReference(start_reg_, trace->backtrack());
   }
   return on_success()->Emit(compiler, trace);
 }
@@ -3386,6 +3485,33 @@ void DotPrinter::VisitBackReference(BackReferenceNode* that) {
 void DotPrinter::VisitEnd(EndNode* that) {
   stream()->Add("  n%p [style=bold, shape=point];\n", that);
   PrintAttributes(that);
+}
+
+
+void DotPrinter::VisitAssertion(AssertionNode* that) {
+  stream()->Add("  n%p [", that);
+  switch (that->type()) {
+    case AssertionNode::AT_END:
+      stream()->Add("label=\"$\", shape=septagon");
+      break;
+    case AssertionNode::AT_START:
+      stream()->Add("label=\"^\", shape=septagon");
+      break;
+    case AssertionNode::AT_BOUNDARY:
+      stream()->Add("label=\"\\b\", shape=septagon");
+      break;
+    case AssertionNode::AT_NON_BOUNDARY:
+      stream()->Add("label=\"\\B\", shape=septagon");
+      break;
+    case AssertionNode::AFTER_NEWLINE:
+      stream()->Add("label=\"(?<=\\n)\", shape=septagon");
+      break;
+  }
+  stream()->Add("];\n");
+  PrintAttributes(that);
+  RegExpNode* successor = that->on_success();
+  stream()->Add("  n%p -> n%p;\n", that, successor);
+  Visit(successor);
 }
 
 
@@ -3749,22 +3875,49 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
   NodeInfo info;
   switch (type()) {
     case START_OF_LINE:
-      info.follows_newline_interest = true;
-      break;
+      return AssertionNode::AfterNewline(on_success);
     case START_OF_INPUT:
-      info.follows_start_interest = true;
-      break;
-    case BOUNDARY: case NON_BOUNDARY:
-      info.follows_word_interest = true;
-      break;
+      return AssertionNode::AtStart(on_success);
+    case BOUNDARY:
+      return AssertionNode::AtBoundary(on_success);
+    case NON_BOUNDARY:
+      return AssertionNode::AtNonBoundary(on_success);
     case END_OF_INPUT:
-      info.at_end = true;
-      break;
-    case END_OF_LINE:
-      // This is wrong but has the effect of making the compiler abort.
-      info.at_end = true;
+      return AssertionNode::AtEnd(on_success);
+    case END_OF_LINE: {
+      // Compile $ in multiline regexps as an alternation with a positive
+      // lookahead in one side and an end-of-input on the other side.
+      // We need two registers for the lookahead.
+      int stack_pointer_register = compiler->AllocateRegister();
+      int position_register = compiler->AllocateRegister();
+      // The ChoiceNode to distinguish between a newline and end-of-input.
+      ChoiceNode* result = new ChoiceNode(2);
+      // Create a newline atom.
+      ZoneList<CharacterRange>* newline_ranges =
+          new ZoneList<CharacterRange>(3);
+      CharacterRange::AddClassEscape('n', newline_ranges);
+      RegExpCharacterClass* newline_atom = new RegExpCharacterClass('n');
+      TextNode* newline_matcher = new TextNode(
+         newline_atom,
+         ActionNode::PositiveSubmatchSuccess(stack_pointer_register,
+                                             position_register,
+                                             on_success));
+      // Create an end-of-input matcher.
+      RegExpNode* end_of_line = ActionNode::BeginSubmatch(
+          stack_pointer_register,
+          position_register,
+          newline_matcher);
+      // Add the two alternatives to the ChoiceNode.
+      GuardedAlternative eol_alternative(end_of_line);
+      result->AddAlternative(eol_alternative);
+      GuardedAlternative end_alternative(AssertionNode::AtEnd(on_success));
+      result->AddAlternative(end_alternative);
+      return result;
+    }
+    default:
+      UNREACHABLE();
   }
-  return on_success->PropagateForward(&info);
+  return on_success;
 }
 
 
@@ -3910,6 +4063,13 @@ void CharacterRange::AddClassEscape(uc16 type,
     // character.
     case '*':
       ranges->Add(CharacterRange::Everything());
+      break;
+    // This is the set of characters matched by the $ and ^ symbols
+    // in multiline mode.
+    case 'n':
+      AddClass(kLineTerminatorRanges,
+               kLineTerminatorRangeCount,
+               ranges);
       break;
     default:
       UNREACHABLE();
@@ -4093,62 +4253,6 @@ static RegExpNode* PropagateToEndpoint(C* node, NodeInfo* info) {
   full_info.AddFromPreceding(info);
   bool cloned = false;
   return RegExpNode::EnsureSibling(node, &full_info, &cloned);
-}
-
-
-RegExpNode* ActionNode::PropagateForward(NodeInfo* info) {
-  NodeInfo full_info(*this->info());
-  full_info.AddFromPreceding(info);
-  bool cloned = false;
-  ActionNode* action = EnsureSibling(this, &full_info, &cloned);
-  action->set_on_success(action->on_success()->PropagateForward(info));
-  return action;
-}
-
-
-RegExpNode* ChoiceNode::PropagateForward(NodeInfo* info) {
-  NodeInfo full_info(*this->info());
-  full_info.AddFromPreceding(info);
-  bool cloned = false;
-  ChoiceNode* choice = EnsureSibling(this, &full_info, &cloned);
-  if (cloned) {
-    ZoneList<GuardedAlternative>* old_alternatives = alternatives();
-    int count = old_alternatives->length();
-    choice->alternatives_ = new ZoneList<GuardedAlternative>(count);
-    for (int i = 0; i < count; i++) {
-      GuardedAlternative alternative = old_alternatives->at(i);
-      alternative.set_node(alternative.node()->PropagateForward(info));
-      choice->alternatives()->Add(alternative);
-    }
-  }
-  return choice;
-}
-
-
-RegExpNode* EndNode::PropagateForward(NodeInfo* info) {
-  return PropagateToEndpoint(this, info);
-}
-
-
-RegExpNode* BackReferenceNode::PropagateForward(NodeInfo* info) {
-  NodeInfo full_info(*this->info());
-  full_info.AddFromPreceding(info);
-  bool cloned = false;
-  BackReferenceNode* back_ref = EnsureSibling(this, &full_info, &cloned);
-  if (cloned) {
-    // TODO(erikcorry): A back reference has to have two successors (by default
-    // the same node).  The first is used if the back reference matches a non-
-    // empty back reference, the second if it matches an empty one.  This
-    // doesn't matter for at_end, which is the only one implemented right now,
-    // but it will matter for other pieces of info.
-    back_ref->set_on_success(back_ref->on_success()->PropagateForward(info));
-  }
-  return back_ref;
-}
-
-
-RegExpNode* TextNode::PropagateForward(NodeInfo* info) {
-  return PropagateToEndpoint(this, info);
 }
 
 
@@ -4389,6 +4493,11 @@ void Analysis::VisitBackReference(BackReferenceNode* that) {
 }
 
 
+void Analysis::VisitAssertion(AssertionNode* that) {
+  EnsureAnalyzed(that->on_success());
+}
+
+
 // -------------------------------------------------------------------
 // Dispatch table construction
 
@@ -4438,6 +4547,12 @@ void DispatchTableConstructor::VisitBackReference(BackReferenceNode* that) {
   // TODO(160): Find the node that we refer back to and propagate its start
   // set back to here.  For now we just accept anything.
   AddRange(CharacterRange::Everything());
+}
+
+
+void DispatchTableConstructor::VisitAssertion(AssertionNode* that) {
+  RegExpNode* target = that->on_success();
+  target->Accept(this);
 }
 
 
@@ -4526,10 +4641,6 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
   analysis.EnsureAnalyzed(node);
 
   NodeInfo info = *node->info();
-
-  if (is_multiline && !FLAG_attempt_multiline_irregexp) {
-    return Handle<FixedArray>::null();
-  }
 
   if (FLAG_irregexp_native) {
 #ifdef ARM

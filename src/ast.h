@@ -1382,7 +1382,7 @@ class RegExpCharacterClass: public RegExpTree {
   // W : non-ASCII word character
   // d : ASCII digit
   // D : non-ASCII digit
-  // . : non-unicode newline
+  // . : non-unicode non-newline
   // * : All characters
   uc16 standard_type() { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges() { return set_.ranges(); }

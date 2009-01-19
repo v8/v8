@@ -210,6 +210,12 @@ void RegExpMacroAssemblerTracer::CheckCharacter(uint32_t c, Label* on_equal) {
 }
 
 
+void RegExpMacroAssemblerTracer::CheckAtStart(Label* on_at_start) {
+  PrintF(" CheckAtStart(label[%08x]);\n", on_at_start);
+  assembler_->CheckAtStart(on_at_start);
+}
+
+
 void RegExpMacroAssemblerTracer::CheckNotAtStart(Label* on_not_at_start) {
   PrintF(" CheckNotAtStart(label[%08x]);\n", on_not_at_start);
   assembler_->CheckNotAtStart(on_not_at_start);

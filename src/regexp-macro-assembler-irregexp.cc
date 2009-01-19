@@ -256,6 +256,12 @@ void RegExpMacroAssemblerIrregexp::CheckCharacter(uint32_t c, Label* on_equal) {
 }
 
 
+void RegExpMacroAssemblerIrregexp::CheckAtStart(Label* on_at_start) {
+  Emit(BC_CHECK_AT_START);
+  EmitOrLink(on_at_start);
+}
+
+
 void RegExpMacroAssemblerIrregexp::CheckNotAtStart(Label* on_not_at_start) {
   Emit(BC_CHECK_NOT_AT_START);
   EmitOrLink(on_not_at_start);

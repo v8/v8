@@ -490,6 +490,13 @@ static bool RawMatch(const byte* code_base,
         }
         break;
       }
+      BYTECODE(CHECK_AT_START)
+        if (current == 0) {
+          pc = code_base + Load32(pc + 1);
+        } else {
+          pc += BC_CHECK_AT_START_LENGTH;
+        }
+        break;
       BYTECODE(CHECK_NOT_AT_START)
         if (current == 0) {
           pc += BC_CHECK_NOT_AT_START_LENGTH;

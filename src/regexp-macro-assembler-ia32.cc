@@ -174,6 +174,20 @@ void RegExpMacroAssemblerIA32::CheckCharacterGT(uc16 limit, Label* on_greater) {
 }
 
 
+void RegExpMacroAssemblerIA32::CheckAtStart(Label* on_at_start) {
+  Label ok;
+  // Did we start the match at the start of the string at all?
+  __ cmp(Operand(ebp, kAtStart), Immediate(0));
+  BranchOrBacktrack(equal, &ok);
+  // If we did, are we still at the start of the input?
+  __ mov(eax, Operand(ebp, kInputEndOffset));
+  __ add(eax, Operand(edi));
+  __ cmp(eax, Operand(ebp, kInputStartOffset));
+  BranchOrBacktrack(equal, on_at_start);
+  __ bind(&ok);
+}
+
+
 void RegExpMacroAssemblerIA32::CheckNotAtStart(Label* on_not_at_start) {
   // Did we start the match at the start of the string at all?
   __ cmp(Operand(ebp, kAtStart), Immediate(0));

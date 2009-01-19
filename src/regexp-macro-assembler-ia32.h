@@ -43,6 +43,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void AdvanceRegister(int reg, int by);
   virtual void Backtrack();
   virtual void Bind(Label* label);
+  virtual void CheckAtStart(Label* on_at_start);
   virtual void CheckBitmap(uc16 start, Label* bitmap, Label* on_zero);
   virtual void CheckCharacter(uint32_t c, Label* on_equal);
   virtual void CheckCharacterAfterAnd(uint32_t c,

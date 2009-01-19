@@ -410,6 +410,7 @@ class DispatchTable : public ZoneObject {
   VISIT(Action)                                                      \
   VISIT(Choice)                                                      \
   VISIT(BackReference)                                               \
+  VISIT(Assertion)                                                   \
   VISIT(Text)
 
 
@@ -619,12 +620,6 @@ class RegExpNode: public ZoneObject {
   // the deferred actions in the current trace and generating a goto.
   static const int kMaxCopiesCodeGenerated = 10;
 
-  // Propagates the given interest information forward.  When seeing
-  // \bfoo for instance, the \b is implemented by propagating forward
-  // to the 'foo' string that it should only succeed if its first
-  // character is a letter xor the previous character was a letter.
-  virtual RegExpNode* PropagateForward(NodeInfo* info) = 0;
-
   NodeInfo* info() { return &info_; }
 
   void AddSibling(RegExpNode* node) { siblings_.Add(node); }
@@ -744,7 +739,6 @@ class ActionNode: public SeqRegExpNode {
                                     int filled_in) {
     return on_success()->GetQuickCheckDetails(details, compiler, filled_in);
   }
-  virtual RegExpNode* PropagateForward(NodeInfo* info);
   Type type() { return type_; }
   // TODO(erikcorry): We should allow some action nodes in greedy loops.
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
@@ -797,7 +791,6 @@ class TextNode: public SeqRegExpNode {
     elms_->Add(TextElement::CharClass(that));
   }
   virtual void Accept(NodeVisitor* visitor);
-  virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
@@ -831,6 +824,47 @@ class TextNode: public SeqRegExpNode {
 };
 
 
+class AssertionNode: public SeqRegExpNode {
+ public:
+  enum AssertionNodeType {
+    AT_END,
+    AT_START,
+    AT_BOUNDARY,
+    AT_NON_BOUNDARY,
+    AFTER_NEWLINE
+  };
+  static AssertionNode* AtEnd(RegExpNode* on_success) {
+    return new AssertionNode(AT_END, on_success);
+  }
+  static AssertionNode* AtStart(RegExpNode* on_success) {
+    return new AssertionNode(AT_START, on_success);
+  }
+  static AssertionNode* AtBoundary(RegExpNode* on_success) {
+    return new AssertionNode(AT_BOUNDARY, on_success);
+  }
+  static AssertionNode* AtNonBoundary(RegExpNode* on_success) {
+    return new AssertionNode(AT_NON_BOUNDARY, on_success);
+  }
+  static AssertionNode* AfterNewline(RegExpNode* on_success) {
+    return new AssertionNode(AFTER_NEWLINE, on_success);
+  }
+  virtual void Accept(NodeVisitor* visitor);
+  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
+  virtual int EatsAtLeast(int recursion_depth);
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int filled_in) {
+    return on_success()->GetQuickCheckDetails(details, compiler, filled_in);
+  }
+  virtual AssertionNode* Clone() { return new AssertionNode(*this); }
+  AssertionNodeType type() { return type_; }
+ private:
+  AssertionNode(AssertionNodeType t, RegExpNode* on_success)
+      : SeqRegExpNode(on_success), type_(t) { }
+  AssertionNodeType type_;
+};
+
+
 class BackReferenceNode: public SeqRegExpNode {
  public:
   BackReferenceNode(int start_reg,
@@ -843,13 +877,12 @@ class BackReferenceNode: public SeqRegExpNode {
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
   virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int recursion_depth) { return 0; }
+  virtual int EatsAtLeast(int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in) {
     return;
   }
-  virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
 
  private:
@@ -871,11 +904,7 @@ class EndNode: public RegExpNode {
     // Returning 0 from EatsAtLeast should ensure we never get here.
     UNREACHABLE();
   }
-  virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual EndNode* Clone() { return new EndNode(*this); }
-
- protected:
-  void EmitInfoChecks(RegExpMacroAssembler* macro, Trace* trace);
 
  private:
   Action action_;
@@ -947,7 +976,6 @@ class ChoiceNode: public RegExpNode {
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in);
-  virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual ChoiceNode* Clone() { return new ChoiceNode(*this); }
 
   bool being_calculated() { return being_calculated_; }
@@ -1133,8 +1161,7 @@ class Trace {
   void set_quick_check_performed(QuickCheckDetails* d) {
     quick_check_performed_ = *d;
   }
-  void clear_quick_check_performed() {
-  }
+  void InvalidateCurrentCharacter();
   void AdvanceCurrentPositionInTrace(int by, bool ascii);
  private:
   int FindAffectedRegisters(OutSet* affected_registers);

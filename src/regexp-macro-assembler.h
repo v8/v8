@@ -61,6 +61,7 @@ class RegExpMacroAssembler {
   // stack by an earlier PushBacktrack(Label*).
   virtual void Backtrack() = 0;
   virtual void Bind(Label* label) = 0;
+  virtual void CheckAtStart(Label* on_at_start) = 0;
   // Check the current character against a bitmap.  The range of the current
   // character must be from start to start + length_of_bitmap_in_bits.
   virtual void CheckBitmap(
