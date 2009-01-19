@@ -1,3 +1,8 @@
+2009-01-19: Version 0.4.8.1
+
+        Minor patch to debugger support.
+
+
 2009-01-16: Version 0.4.8
 
         Fixed string length bug on ARM (issue 171).
@@ -7,11 +12,11 @@
         Optimized object literals by improving data locality.
 
         Fixed bug that caused incomplete functions to be cached in case of
-	stack overflow exceptions.
+        stack overflow exceptions.
 
         Fixed bugs that caused catch variables and variables introduced by
-	eval to behave incorrectly when using accessors (issues 186, 190
-	and 191).
+        eval to behave incorrectly when using accessors (issues 186, 190
+        and 191).
 
 
 2009-01-06: Version 0.4.7
