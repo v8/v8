@@ -4536,32 +4536,49 @@ static Object* Runtime_Break(Arguments args) {
 }
 
 
-static Object* DebugLookupResultValue(Object* obj, String* name,
-                                      LookupResult* result,
+static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
                                       bool* caught_exception) {
+  Object* value;
   switch (result->type()) {
-    case NORMAL:
-    case FIELD:
-    case CONSTANT_FUNCTION:
-      return obj->GetProperty(name);
-    case CALLBACKS: {
-      // Get the property value. If there is an exception it must be thrown from
-      // a JavaScript getter.
-      Object* value;
-      value = obj->GetProperty(name);
-      if (value->IsException()) {
-        if (caught_exception != NULL) {
-          *caught_exception = true;
-        }
-        value = Top::pending_exception();
-        Top::optional_reschedule_exception(true);
+    case NORMAL: {
+      Dictionary* dict =
+          JSObject::cast(result->holder())->property_dictionary();
+      value = dict->ValueAt(result->GetDictionaryEntry());
+      if (value->IsTheHole()) {
+        return Heap::undefined_value();
       }
-      ASSERT(!Top::has_pending_exception());
-      ASSERT(!Top::external_caught_exception());
       return value;
     }
+    case FIELD:
+      value =
+          JSObject::cast(
+              result->holder())->FastPropertyAt(result->GetFieldIndex());
+      if (value->IsTheHole()) {
+        return Heap::undefined_value();
+      }
+      return value;
+    case CONSTANT_FUNCTION:
+      return result->GetConstantFunction();
+    case CALLBACKS: {
+      Object* structure = result->GetCallbackObject();
+      if (structure->IsProxy()) {
+        AccessorDescriptor* callback =
+            reinterpret_cast<AccessorDescriptor*>(
+                Proxy::cast(structure)->proxy());
+        value = (callback->getter)(receiver, callback->data);
+        if (value->IsFailure()) {
+          value = Top::pending_exception();
+          Top::clear_pending_exception();
+          if (caught_exception != NULL) {
+            *caught_exception = true;
+          }
+        }
+        return value;
+      } else {
+        return Heap::undefined_value();
+      }
+    }
     case INTERCEPTOR:
-      return obj->GetProperty(name);
     case MAP_TRANSITION:
     case CONSTANT_TRANSITION:
     case NULL_DESCRIPTOR:
@@ -4609,7 +4626,7 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   obj->LocalLookup(*name, &result);
   if (result.IsProperty()) {
     bool caught_exception = false;
-    Handle<Object> value(DebugLookupResultValue(*obj, *name, &result,
+    Handle<Object> value(DebugLookupResultValue(*obj, &result,
                                                 &caught_exception));
     // If the callback object is a fixed array then it contains JavaScript
     // getter and/or setter.
@@ -4643,7 +4660,7 @@ static Object* Runtime_DebugGetProperty(Arguments args) {
   LookupResult result;
   obj->Lookup(*name, &result);
   if (result.IsProperty()) {
-    return DebugLookupResultValue(*obj, *name, &result, NULL);
+    return DebugLookupResultValue(*obj, &result, NULL);
   }
   return Heap::undefined_value();
 }

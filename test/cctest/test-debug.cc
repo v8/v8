@@ -2746,22 +2746,6 @@ TEST(InterceptorPropertyMirror) {
 
   source = "both_values[4].name() == 10";
   CHECK(CompileRun(source)->BooleanValue());
-
-  // Check the property values.
-  source = "both_values[0].value().value() == 'AA'";
-  CHECK(CompileRun(source)->BooleanValue());
-
-  source = "both_values[1].value().value() == 'BB'";
-  CHECK(CompileRun(source)->BooleanValue());
-
-  source = "both_values[2].value().value() == 'CC'";
-  CHECK(CompileRun(source)->BooleanValue());
-
-  source = "both_values[3].value().value() == 2";
-  CHECK(CompileRun(source)->BooleanValue());
-
-  source = "both_values[4].value().value() == 11";
-  CHECK(CompileRun(source)->BooleanValue());
 }
 
 

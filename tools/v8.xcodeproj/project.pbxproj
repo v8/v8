@@ -32,6 +32,8 @@
 		890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C770EE466D000B48DEB /* regexp-macro-assembler-tracer.cc */; };
 		890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */; };
 		893CCE640E71D83700357A03 /* code-stubs.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1110E719B8F00D62E90 /* code-stubs.cc */; };
+		8944AD100F1D4D500028D560 /* regexp-stack.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */; };
+		8944AD110F1D4D570028D560 /* regexp-stack.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */; };
 		89495E480E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
 		89495E490E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
 		896FD03A0E78D717003DFB6A /* libv8-arm.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 89F23C870E78D5B2006B2466 /* libv8-arm.a */; };
@@ -257,6 +259,8 @@
 
 /* Begin PBXFileReference section */
 		8900116B0E71CA2300F91F35 /* libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libraries.cc; sourceTree = "<group>"; };
+		8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-stack.cc"; sourceTree = "<group>"; };
+		8944AD0F0F1D4D3A0028D560 /* regexp-stack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-stack.h"; sourceTree = "<group>"; };
 		89471C7F0EB23EE400B6874B /* flag-definitions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "flag-definitions.h"; sourceTree = "<group>"; };
 		89495E460E79FC23001F68C3 /* compilation-cache.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "compilation-cache.cc"; sourceTree = "<group>"; };
 		89495E470E79FC23001F68C3 /* compilation-cache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "compilation-cache.h"; sourceTree = "<group>"; };
@@ -728,6 +732,8 @@
 				89A15C780EE466D000B48DEB /* regexp-macro-assembler-tracer.h */,
 				89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */,
 				89A15C7A0EE466D000B48DEB /* regexp-macro-assembler.h */,
+				8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */,
+				8944AD0F0F1D4D3A0028D560 /* regexp-stack.h */,
 				897FF16F0E719B8F00D62E90 /* rewriter.cc */,
 				897FF1700E719B8F00D62E90 /* rewriter.h */,
 				897FF1710E719B8F00D62E90 /* runtime.cc */,
@@ -1085,6 +1091,7 @@
 				89A15C830EE4675E00B48DEB /* regexp-macro-assembler-irregexp.cc in Sources */,
 				89A15C8A0EE467D100B48DEB /* regexp-macro-assembler-tracer.cc in Sources */,
 				89A15C810EE4674900B48DEB /* regexp-macro-assembler.cc in Sources */,
+				8944AD100F1D4D500028D560 /* regexp-stack.cc in Sources */,
 				89A88E190E71A6970043BA31 /* rewriter.cc in Sources */,
 				89A88E1A0E71A69B0043BA31 /* runtime.cc in Sources */,
 				89A88E1B0E71A69D0043BA31 /* scanner.cc in Sources */,
@@ -1187,6 +1194,7 @@
 				890A14020EE9C4B400E49346 /* regexp-macro-assembler-irregexp.cc in Sources */,
 				890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */,
 				890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */,
+				8944AD110F1D4D570028D560 /* regexp-stack.cc in Sources */,
 				89F23C6D0E78D5B2006B2466 /* rewriter.cc in Sources */,
 				89F23C6E0E78D5B2006B2466 /* runtime.cc in Sources */,
 				89F23C6F0E78D5B2006B2466 /* scanner.cc in Sources */,
