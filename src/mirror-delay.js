@@ -1660,7 +1660,7 @@ JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
   // mirror to the referenced mirrors.
   if (reference && mirror.isValue()) {
     this.add_(mirror);
-    return '{ref:' + mirror.handle() + '}';
+    return '{"ref":' + mirror.handle() + '}';
   }
   
   // Collect the JSON property/value pairs in an array.
@@ -1922,7 +1922,26 @@ function BooleanToJSON_(value) {
 }
 
 
+/**
+ * Convert a number to a JSON string value. For all finite numbers the number
+ * literal representation is used. For non finite numbers NaN, Infinite and
+ * -Infinite the string representation "NaN", "Infinite" or "-Infinite"
+ * (including the quotes) is returned.
+ *
+ * @param {number} value The number value to convert to a JSON value
+ * @returns {String} JSON value
+ */
 function NumberToJSON_(value) {
+  if (isNaN(value)) {
+    return '"NaN"';
+  }
+  if (!isFinite(value)) {
+    if (value > 0) {
+      return '"Infinity"';
+    } else {
+      return '"-Infinity"';
+    }
+  }
   return String(value); 
 }
 

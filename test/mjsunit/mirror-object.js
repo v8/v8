@@ -193,8 +193,6 @@ assertEquals(debug.PropertyType.Callbacks, mirror.property('a').propertyType());
 assertEquals('function', mirror.property('a').getter().type());
 assertEquals('undefined', mirror.property('a').setter().type());
 assertEquals('function (){return \'a\';}', mirror.property('a').getter().source());
-assertEquals('a', mirror.property('a').value().value());
-assertFalse(mirror.property('a').isException());
 // b has setter but no getter.
 assertFalse(mirror.property('b').hasGetter());
 assertTrue(mirror.property('b').hasSetter());
@@ -211,8 +209,6 @@ assertEquals('function', mirror.property('c').getter().type());
 assertEquals('function', mirror.property('c').setter().type());
 assertEquals('function (){throw \'c\';}', mirror.property('c').getter().source());
 assertEquals('function (){throw \'c\';}', mirror.property('c').setter().source());
-assertEquals('c', mirror.property('c').value().value());
-assertTrue(mirror.property('c').isException());
 
 // Test objects with native accessors.
 mirror = debug.MakeMirror(new String('abc'));
