@@ -120,7 +120,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   // Code and bitmap emission.
   inline void Emit32(uint32_t x);
   inline void Emit16(uint32_t x);
-  inline void Emit(uint32_t x);
+  inline void Emit(uint32_t bc, uint32_t arg);
   // Bytecode buffer.
   int length();
   void Copy(Address a);
