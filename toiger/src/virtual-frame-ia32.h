@@ -259,6 +259,12 @@ class VirtualFrame : public Malloced {
   // becomes owned by the frame and is invalidated.
   void SetElementAt(int index, Result* value);
 
+  // Set a frame element to a constant.  The index is frame-top relative.
+  void SetElementAt(int index, Handle<Object> value) {
+    Result temp(value, cgen_);
+    SetElementAt(index, &temp);
+  }
+
   // A frame-allocated local as an assembly operand.
   Operand LocalAt(int index) const {
     ASSERT(0 <= index);
@@ -341,9 +347,9 @@ class VirtualFrame : public Malloced {
 
   // Invoke a builtin, given the number of arguments it expects on (and
   // removes from) the top of the physical frame.
-  void InvokeBuiltin(Builtins::JavaScript id,
-                     InvokeFlag flag,
-                     int frame_arg_count);
+  Result InvokeBuiltin(Builtins::JavaScript id,
+                       InvokeFlag flag,
+                       int frame_arg_count);
 
   // Call into a JS code object, given the number of arguments it expects on
   // (and removes from) the top of the physical frame.

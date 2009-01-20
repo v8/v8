@@ -494,9 +494,9 @@ void CodeGenerator::LoadTypeofExpression(Expression* x) {
     // TODO(1241834): Fetch the position from the variable instead of using
     // no position.
     Property property(&global, &key, RelocInfo::kNoPosition);
-    LoadAndSpill(&property);
+    Load(&property);
   } else {
-    LoadAndSpill(x, INSIDE_TYPEOF);
+    Load(x, INSIDE_TYPEOF);
   }
 }
 
@@ -3630,18 +3630,16 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
   Token::Value op = node->op();
 
   if (op == Token::NOT) {
-    VirtualFrame::SpilledScope spilled_scope(this);
-    LoadConditionAndSpill(node->expression(), NOT_INSIDE_TYPEOF,
-                          false_target(), true_target(), true);
+    LoadCondition(node->expression(), NOT_INSIDE_TYPEOF,
+                  false_target(), true_target(), true);
 
   } else if (op == Token::DELETE) {
-    VirtualFrame::SpilledScope spilled_scope(this);
     Property* property = node->expression()->AsProperty();
     if (property != NULL) {
-      LoadAndSpill(property->obj());
-      LoadAndSpill(property->key());
-      frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
-      frame_->EmitPush(eax);
+      Load(property->obj());
+      Load(property->key());
+      Result answer = frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
+      frame_->Push(&answer);
       return;
     }
 
@@ -3650,41 +3648,41 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
       Slot* slot = variable->slot();
       if (variable->is_global()) {
         LoadGlobal();
-        frame_->EmitPush(Immediate(variable->name()));
-        frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
-        frame_->EmitPush(eax);
+        frame_->Push(variable->name());
+        Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
+                                              CALL_FUNCTION, 2);
+        frame_->Push(&answer);
         return;
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
         // lookup the context holding the named variable
-        frame_->EmitPush(esi);
-        frame_->EmitPush(Immediate(variable->name()));
-        frame_->CallRuntime(Runtime::kLookupContext, 2);
-        // eax: context
-        frame_->EmitPush(eax);
-        frame_->EmitPush(Immediate(variable->name()));
-        frame_->InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, 2);
-        frame_->EmitPush(eax);
+        frame_->Push(esi);
+        frame_->Push(variable->name());
+        Result context = frame_->CallRuntime(Runtime::kLookupContext, 2);
+        frame_->Push(&context);
+        frame_->Push(variable->name());
+        Result answer = frame_->InvokeBuiltin(Builtins::DELETE,
+                                              CALL_FUNCTION, 2);
+        frame_->Push(&answer);
         return;
       }
 
       // Default: Result of deleting non-global, not dynamically
       // introduced variables is false.
-      frame_->EmitPush(Immediate(Factory::false_value()));
+      frame_->Push(Factory::false_value());
 
     } else {
       // Default: Result of deleting expressions is true.
-      LoadAndSpill(node->expression());  // may have side-effects
-      __ Set(frame_->Top(), Immediate(Factory::true_value()));
+      Load(node->expression());  // may have side-effects
+      frame_->SetElementAt(0, Factory::true_value());
     }
 
   } else if (op == Token::TYPEOF) {
-    VirtualFrame::SpilledScope spilled_scope(this);
     // Special case for loading the typeof expression; see comment on
     // LoadTypeofExpression().
     LoadTypeofExpression(node->expression());
-    frame_->CallRuntime(Runtime::kTypeof, 1);
-    frame_->EmitPush(eax);
+    Result answer = frame_->CallRuntime(Runtime::kTypeof, 1);
+    frame_->Push(&answer);
 
   } else {
     Load(node->expression());
@@ -3696,55 +3694,58 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         break;
 
       case Token::SUB: {
-        VirtualFrame::SpilledScope spilled_scope(this);
         UnarySubStub stub;
         // TODO(1222589): remove dependency of TOS being cached inside stub
-        frame_->EmitPop(eax);
-        frame_->CallStub(&stub, 0);
-        frame_->EmitPush(eax);
+        Result operand = frame_->Pop();
+        operand.ToRegister(eax);
+        Result answer = frame_->CallStub(&stub, &operand, 0);
+        frame_->Push(&answer);
         break;
       }
 
       case Token::BIT_NOT: {
-        VirtualFrame::SpilledScope spilled_scope(this);
         // Smi check.
         JumpTarget smi_label(this);
         JumpTarget continue_label(this);
-        frame_->EmitPop(eax);
-        __ test(eax, Immediate(kSmiTagMask));
-        smi_label.Branch(zero, taken);
+        Result operand = frame_->Pop();
+        operand.ToRegister();
+        __ test(operand.reg(), Immediate(kSmiTagMask));
+        smi_label.Branch(zero, &operand, taken);
 
-        frame_->EmitPush(eax);  // undo popping of TOS
-        frame_->InvokeBuiltin(Builtins::BIT_NOT, CALL_FUNCTION, 1);
+        frame_->Push(&operand);  // undo popping of TOS
+        Result answer = frame_->InvokeBuiltin(Builtins::BIT_NOT,
+                                              CALL_FUNCTION, 1);
 
-        continue_label.Jump();
-        smi_label.Bind();
-        __ not_(eax);
-        __ and_(eax, ~kSmiTagMask);  // Remove inverted smi-tag.
-        continue_label.Bind();
-        frame_->EmitPush(eax);
+        continue_label.Jump(&answer);
+        smi_label.Bind(&answer);
+        answer.ToRegister();
+        frame_->Spill(answer.reg());
+        __ not_(answer.reg());
+        __ and_(answer.reg(), ~kSmiTagMask);  // Remove inverted smi-tag.
+        continue_label.Bind(&answer);
+        frame_->Push(&answer);
         break;
       }
 
       case Token::VOID: {
-        VirtualFrame::SpilledScope spilled_scope(this);
-        __ mov(frame_->Top(), Factory::undefined_value());
+        frame_->SetElementAt(0, Factory::undefined_value());
         break;
       }
 
       case Token::ADD: {
-        VirtualFrame::SpilledScope spilled_scope(this);
         // Smi check.
         JumpTarget continue_label(this);
-        frame_->EmitPop(eax);
-        __ test(eax, Immediate(kSmiTagMask));
-        continue_label.Branch(zero);
+        Result operand = frame_->Pop();
+        operand.ToRegister();
+        __ test(operand.reg(), Immediate(kSmiTagMask));
+        continue_label.Branch(zero, &operand, taken);
 
-        frame_->EmitPush(eax);
-        frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_FUNCTION, 1);
+        frame_->Push(&operand);
+        Result answer = frame_->InvokeBuiltin(Builtins::TO_NUMBER,
+                                              CALL_FUNCTION, 1);
 
-        continue_label.Bind();
-        frame_->EmitPush(eax);
+        continue_label.Bind(&answer);
+        frame_->Push(&answer);
         break;
       }
 
@@ -4144,10 +4145,13 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
        right->AsLiteral()->handle()->IsString())) {
     Handle<String> check(String::cast(*right->AsLiteral()->handle()));
 
-    VirtualFrame::SpilledScope spilled_scope(this);
     // Load the operand and move it to register edx.
     LoadTypeofExpression(operation->expression());
-    frame_->EmitPop(edx);
+    Result type_returned = frame_->Pop();
+    type_returned.ToRegister(edx);
+
+    VirtualFrame::SpilledScope spilled_scope(this);
+    type_returned.Unuse();
 
     if (check->Equals(Heap::number_symbol())) {
       __ test(edx, Immediate(kSmiTagMask));

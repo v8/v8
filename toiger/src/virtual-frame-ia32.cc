@@ -250,27 +250,22 @@ void VirtualFrame::SpillAll() {
 void VirtualFrame::PrepareForCall(int frame_arg_count) {
   ASSERT(height() >= frame_arg_count);
 
-  // Below the stack pointer, spill all registers and make sure that
-  // locals have the right values by sync'ing them. The sync'ing is
-  // necessary to give the debugger a consistent view of the values of
-  // locals in the frame.
-  for (int i = 0; i <= stack_pointer_; i++) {
+  // Below the arguments to the function being called, spill all registers and
+  // make sure that locals have the right values by synching them. The synching
+  // is necessary to give the debugger a consistent view of the values of
+  // locals in the frame.  Spill the arguments to the function being called.
+  int arg_base_index = elements_.length() - frame_arg_count;
+  for (int i = 0; i < arg_base_index; i++) {
     FrameElement element = elements_[i];
     if (element.is_register()) {
       SpillElementAt(i);
-    } else if (element.is_valid() && i < expression_base_index()) {
+    } else if (element.is_valid()) {
       SyncElementAt(i);
     }
   }
-
-  // Above the stack pointer, spill registers and sync everything else (ie,
-  // constants).
-  for (int i = stack_pointer_ + 1; i < elements_.length(); i++) {
-    if (elements_[i].is_register()) {
-      SpillElementAt(i);
-    } else {
-      SyncElementAt(i);
-    }
+  // The arguments are spilled.
+  for (int i = arg_base_index; i < elements_.length(); i++) {
+    SpillElementAt(i);
   }
 
   // Forget the frame elements that will be popped by the call.
@@ -898,12 +893,15 @@ Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
 }
 
 
-void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
-                                 InvokeFlag flag,
-                                 int frame_arg_count) {
+Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
+                                   InvokeFlag flag,
+                                   int frame_arg_count) {
   ASSERT(cgen_->HasValidEntryRegisters());
   PrepareForCall(frame_arg_count);
   __ InvokeBuiltin(id, flag);
+  Result result = cgen_->allocator()->Allocate(eax);
+  ASSERT(result.is_valid());
+  return result;
 }
 
 
