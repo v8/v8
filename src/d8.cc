@@ -33,6 +33,7 @@
 #include "debug.h"
 #include "api.h"
 #include "natives.h"
+#include "platform.h"
 
 
 namespace v8 {
@@ -383,10 +384,9 @@ void Shell::OnExit() {
 }
 
 
-// Reads a file into a v8 string.
-Handle<String> Shell::ReadFile(const char* name) {
+static char* ReadChars(const char *name, int* size_out) {
   FILE* file = i::OS::FOpen(name, "rb");
-  if (file == NULL) return Handle<String>();
+  if (file == NULL) return NULL;
 
   fseek(file, 0, SEEK_END);
   int size = ftell(file);
@@ -399,7 +399,17 @@ Handle<String> Shell::ReadFile(const char* name) {
     i += read;
   }
   fclose(file);
-  Handle<String> result = String::New(chars, size);
+  *size_out = size;
+  return chars;
+}
+
+
+// Reads a file into a v8 string.
+Handle<String> Shell::ReadFile(const char* name) {
+  int size = 0;
+  char* chars = ReadChars(name, &size);
+  if (chars == NULL) return Handle<String>();
+  Handle<String> result = String::New(chars);
   delete[] chars;
   return result;
 }
@@ -410,6 +420,7 @@ void Shell::RunShell() {
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), editor->name());
   editor->Open();
   while (true) {
+    Locker locker;
     HandleScope handle_scope;
     i::SmartPointer<char> input = editor->Prompt(Shell::kPrompt);
     if (input.is_empty())
@@ -423,6 +434,37 @@ void Shell::RunShell() {
 }
 
 
+class ShellThread : public i::Thread {
+ public:
+  ShellThread(int no, i::Vector<const char> files)
+    : no_(no), files_(files) { }
+  virtual void Run();
+ private:
+  int no_;
+  i::Vector<const char> files_;
+};
+
+
+void ShellThread::Run() {
+  char* ptr = const_cast<char*>(files_.start());
+  while (ptr != NULL) {
+    // For each newline-separated line.
+    char *filename = ptr;
+    char* next = ::strchr(ptr, '\n');
+    if (next != NULL) {
+      *next = '\0';
+      ptr = (next + 1);
+    } else {
+      ptr = NULL;
+    }
+    Locker locker;
+    HandleScope scope;
+    Handle<String> str = Shell::ReadFile(filename);
+    Shell::ExecuteString(str, String::New(filename), false, false);
+  }
+}
+
+
 int Shell::Main(int argc, char* argv[]) {
   i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
   if (i::FLAG_help) {
@@ -430,6 +472,7 @@ int Shell::Main(int argc, char* argv[]) {
   }
   Initialize();
   bool run_shell = (argc == 1);
+  i::List<i::Thread*> threads(1);
   Context::Scope context_scope(evaluation_context_);
   for (int i = 1; i < argc; i++) {
     char* str = argv[i];
@@ -443,14 +486,26 @@ int Shell::Main(int argc, char* argv[]) {
       printf("Warning: unknown flag %s.\nTry --help for options\n", str);
     } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
       // Execute argument given to -e option directly.
+      Locker locker;
       v8::HandleScope handle_scope;
       v8::Handle<v8::String> file_name = v8::String::New("unnamed");
       v8::Handle<v8::String> source = v8::String::New(argv[i + 1]);
       if (!ExecuteString(source, file_name, false, true))
         return 1;
       i++;
+    } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
+      Locker locker;
+      Locker::StartPreemption(10);
+      int size = 0;
+      const char *files = ReadChars(argv[++i], &size);
+      if (files == NULL) return 1;
+      ShellThread *thread =
+        new ShellThread(threads.length(), i::Vector<const char>(files, size));
+      thread->Start();
+      threads.Add(thread);
     } else {
       // Use all other arguments as names of files to load and run.
+      Locker locker;
       HandleScope handle_scope;
       Handle<String> file_name = v8::String::New(str);
       Handle<String> source = ReadFile(str);
@@ -466,6 +521,11 @@ int Shell::Main(int argc, char* argv[]) {
     v8::Debug::AddDebugEventListener(HandleDebugEvent);
   if (run_shell)
     RunShell();
+  for (int i = 0; i < threads.length(); i++) {
+    i::Thread *thread = threads[i];
+    thread->Join();
+    delete thread;
+  }
   OnExit();
   return 0;
 }
