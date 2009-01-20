@@ -829,6 +829,12 @@ const char* NameConverter::NameOfCPURegister(int reg) const {
 }
 
 
+const char* NameConverter::NameOfByteCPURegister(int reg) const {
+  UNREACHABLE();  // ARM does not have the concept of a byte register
+  return "nobytereg";
+}
+
+
 const char* NameConverter::NameOfXMMRegister(int reg) const {
   UNREACHABLE();  // ARM does not have any XMM registers
   return "noxmmreg";
