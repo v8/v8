@@ -281,6 +281,10 @@ void JSObject::PrintProperties() {
         PrintF(" (callback)\n");
       } else if (r.type() == MAP_TRANSITION) {
         PrintF(" (map transition)\n");
+      } else if (r.type() == CONSTANT_TRANSITION) {
+        PrintF(" (constant transition)\n");
+      } else if (r.type() == NULL_DESCRIPTOR) {
+        PrintF(" (null descriptor)\n");
       } else {
         UNREACHABLE();
       }
