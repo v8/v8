@@ -980,6 +980,7 @@ class ChoiceNode: public RegExpNode {
 
   bool being_calculated() { return being_calculated_; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
+  virtual bool try_to_emit_quick_check_for_alternative(int i) { return true; }
 
  protected:
   int GreedyLoopTextLength(GuardedAlternative *alternative);
@@ -1000,6 +1001,27 @@ class ChoiceNode: public RegExpNode {
                                  bool next_expects_preload);
   DispatchTable* table_;
   bool being_calculated_;
+};
+
+
+class NegativeLookaheadChoiceNode: public ChoiceNode {
+ public:
+  explicit NegativeLookaheadChoiceNode(GuardedAlternative this_must_fail,
+                                       GuardedAlternative then_do_this)
+      : ChoiceNode(2) {
+    AddAlternative(this_must_fail);
+    AddAlternative(then_do_this);
+  }
+  virtual int EatsAtLeast(int recursion_depth);
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int characters_filled_in);
+  // For a negative lookahead we don't emit the quick check for the
+  // alternative that is expected to fail.  This is because quick check code
+  // starts by loading enough characters for the alternative that takes fewest
+  // characters, but on a negative lookahead the negative branch did not take
+  // part in that calculation (EatsAtLeast) so the assumptions don't hold.
+  virtual bool try_to_emit_quick_check_for_alternative(int i) { return i != 0; }
 };
 
 

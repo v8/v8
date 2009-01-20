@@ -1980,12 +1980,31 @@ int BackReferenceNode::EatsAtLeast(int recursion_depth) {
 }
 
 
-
 int TextNode::EatsAtLeast(int recursion_depth) {
   int answer = Length();
   if (answer >= 4) return answer;
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return answer;
   return answer + on_success()->EatsAtLeast(recursion_depth + 1);
+}
+
+
+int NegativeLookaheadChoiceNode:: EatsAtLeast(int recursion_depth) {
+  if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
+  // Alternative 0 is the negative lookahead, alternative 1 is what comes
+  // afterwards.
+  RegExpNode* node = alternatives_->at(1).node();
+  return node->EatsAtLeast(recursion_depth + 1);
+}
+
+
+void NegativeLookaheadChoiceNode::GetQuickCheckDetails(
+    QuickCheckDetails* details,
+    RegExpCompiler* compiler,
+    int filled_in) {
+  // Alternative 0 is the negative lookahead, alternative 1 is what comes
+  // afterwards.
+  RegExpNode* node = alternatives_->at(1).node();
+  return node->GetQuickCheckDetails(details, compiler, filled_in);
 }
 
 
@@ -3024,7 +3043,8 @@ bool ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     new_trace.quick_check_performed()->Clear();
     alt_gen->expects_preload = preload_is_current;
     bool generate_full_check_inline = false;
-    if (alternative.node()->EmitQuickCheck(compiler,
+    if (try_to_emit_quick_check_for_alternative(i) &&
+        alternative.node()->EmitQuickCheck(compiler,
                                            &new_trace,
                                            preload_has_checked_bounds,
                                            &alt_gen->possible_success,
@@ -3957,19 +3977,17 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
     // NegativeSubmatchSuccess will unwind the stack including everything the
     // choice node set up and backtrack.  If the first alternative fails then
     // the second alternative is tried, which is exactly the desired result
-    // for a negative lookahead.  In the case where the dispatch table
-    // determines that the first alternative cannot match we will save time
-    // by not trying it.  Things are not quite so well-optimized if the
-    // dispatch table determines that the second alternative cannot match.
-    // In this case we could optimize by immediately backtracking.
-    ChoiceNode* choice_node = new ChoiceNode(2);
+    // for a negative lookahead.  The NegativeLookaheadChoiceNode is a special
+    // ChoiceNode that knows to ignore the first exit when calculating quick
+    // checks.
     GuardedAlternative body_alt(
         body()->ToNode(
             compiler,
             success = new NegativeSubmatchSuccess(stack_pointer_register,
                                                   position_register)));
-    choice_node->AddAlternative(body_alt);
-    choice_node->AddAlternative(GuardedAlternative(on_success));
+    ChoiceNode* choice_node =
+        new NegativeLookaheadChoiceNode(body_alt,
+                                        GuardedAlternative(on_success));
     return ActionNode::BeginSubmatch(stack_pointer_register,
                                      position_register,
                                      choice_node);

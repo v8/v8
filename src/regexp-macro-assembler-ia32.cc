@@ -877,7 +877,7 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacter(int cp_offset,
                                                     Label* on_end_of_input,
                                                     bool check_bounds,
                                                     int characters) {
-  ASSERT(cp_offset >= 0);
+  ASSERT(cp_offset >= -1);      // ^ and \b can look behind one character.
   ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
   CheckPosition(cp_offset + characters - 1, on_end_of_input);
   LoadCurrentCharacterUnchecked(cp_offset, characters);
