@@ -4106,30 +4106,34 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
         right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
     // The 'null' value can only be equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
-      VirtualFrame::SpilledScope spilled_scope(this);
-      LoadAndSpill(left_is_null ? right : left);
-      frame_->EmitPop(eax);
-      __ cmp(eax, Factory::null_value());
+      Load(left_is_null ? right : left);
+      Result operand = frame_->Pop();
+      operand.ToRegister();
+      __ cmp(operand.reg(), Factory::null_value());
+      Condition cc = equal;
 
       // The 'null' value is only equal to 'undefined' if using non-strict
       // comparisons.
       if (op != Token::EQ_STRICT) {
+        true_target()->Branch(cc);
+        __ cmp(operand.reg(), Factory::undefined_value());
         true_target()->Branch(equal);
-
-        __ cmp(eax, Factory::undefined_value());
-        true_target()->Branch(equal);
-
-        __ test(eax, Immediate(kSmiTagMask));
+        __ test(operand.reg(), Immediate(kSmiTagMask));
         false_target()->Branch(equal);
 
         // It can be an undetectable object.
-        __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
-        __ movzx_b(eax, FieldOperand(eax, Map::kBitFieldOffset));
-        __ and_(eax, 1 << Map::kIsUndetectable);
-        __ cmp(eax, 1 << Map::kIsUndetectable);
+        // Use a scratch register in preference to spilling operand.reg().
+        Result temp = allocator()->Allocate();
+        ASSERT(temp.is_valid());
+        __ mov(temp.reg(),
+               FieldOperand(operand.reg(), HeapObject::kMapOffset));
+        __ movzx_b(temp.reg(),
+                   FieldOperand(temp.reg(), Map::kBitFieldOffset));
+        __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
+        cc = not_zero;
       }
-
-      true_target()->Branch(equal);
+      operand.Unuse();
+      true_target()->Branch(cc);
       false_target()->Jump();
       return;
     }
@@ -4145,94 +4149,104 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
        right->AsLiteral()->handle()->IsString())) {
     Handle<String> check(String::cast(*right->AsLiteral()->handle()));
 
-    // Load the operand and move it to register edx.
+    // Load the operand and move it to a register.
     LoadTypeofExpression(operation->expression());
-    Result type_returned = frame_->Pop();
-    type_returned.ToRegister(edx);
-
-    VirtualFrame::SpilledScope spilled_scope(this);
-    type_returned.Unuse();
+    Result answer = frame_->Pop();
+    answer.ToRegister();
 
     if (check->Equals(Heap::number_symbol())) {
-      __ test(edx, Immediate(kSmiTagMask));
+      __ test(answer.reg(), Immediate(kSmiTagMask));
       true_target()->Branch(zero);
-      __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
-      __ cmp(edx, Factory::heap_number_map());
+      frame_->Spill(answer.reg());
+      __ mov(answer.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ cmp(answer.reg(), Factory::heap_number_map());
+      answer.Unuse();
       true_target()->Branch(equal);
       false_target()->Jump();
 
     } else if (check->Equals(Heap::string_symbol())) {
-      __ test(edx, Immediate(kSmiTagMask));
+      __ test(answer.reg(), Immediate(kSmiTagMask));
       false_target()->Branch(zero);
 
-      __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
-
       // It can be an undetectable string object.
-      __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
-      __ and_(ecx, 1 << Map::kIsUndetectable);
-      __ cmp(ecx, 1 << Map::kIsUndetectable);
-      false_target()->Branch(equal);
-
-      __ movzx_b(ecx, FieldOperand(edx, Map::kInstanceTypeOffset));
-      __ cmp(ecx, FIRST_NONSTRING_TYPE);
+      Result temp = allocator()->Allocate();
+      ASSERT(temp.is_valid());
+      __ mov(temp.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kBitFieldOffset));
+      __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
+      false_target()->Branch(not_zero);
+      __ mov(temp.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ movzx_b(temp.reg(),
+                 FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
+      __ cmp(temp.reg(), FIRST_NONSTRING_TYPE);
+      temp.Unuse();
+      answer.Unuse();
       true_target()->Branch(less);
       false_target()->Jump();
 
     } else if (check->Equals(Heap::boolean_symbol())) {
-      __ cmp(edx, Factory::true_value());
+      __ cmp(answer.reg(), Factory::true_value());
       true_target()->Branch(equal);
-      __ cmp(edx, Factory::false_value());
+      __ cmp(answer.reg(), Factory::false_value());
+      answer.Unuse();
       true_target()->Branch(equal);
       false_target()->Jump();
 
     } else if (check->Equals(Heap::undefined_symbol())) {
-      __ cmp(edx, Factory::undefined_value());
+      __ cmp(answer.reg(), Factory::undefined_value());
       true_target()->Branch(equal);
 
-      __ test(edx, Immediate(kSmiTagMask));
+      __ test(answer.reg(), Immediate(kSmiTagMask));
       false_target()->Branch(zero);
 
       // It can be an undetectable object.
-      __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
-      __ movzx_b(ecx, FieldOperand(edx, Map::kBitFieldOffset));
-      __ and_(ecx, 1 << Map::kIsUndetectable);
-      __ cmp(ecx, 1 << Map::kIsUndetectable);
-      true_target()->Branch(equal);
+      frame_->Spill(answer.reg());
+      __ mov(answer.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ movzx_b(answer.reg(),
+                 FieldOperand(answer.reg(), Map::kBitFieldOffset));
+      __ test(answer.reg(), Immediate(1 << Map::kIsUndetectable));
+      answer.Unuse();
+      true_target()->Branch(not_zero);
       false_target()->Jump();
 
     } else if (check->Equals(Heap::function_symbol())) {
-      __ test(edx, Immediate(kSmiTagMask));
+      __ test(answer.reg(), Immediate(kSmiTagMask));
       false_target()->Branch(zero);
-      __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
-      __ movzx_b(edx, FieldOperand(edx, Map::kInstanceTypeOffset));
-      __ cmp(edx, JS_FUNCTION_TYPE);
+      frame_->Spill(answer.reg());
+      __ mov(answer.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ movzx_b(answer.reg(),
+                 FieldOperand(answer.reg(), Map::kInstanceTypeOffset));
+      __ cmp(answer.reg(), JS_FUNCTION_TYPE);
+      answer.Unuse();
       true_target()->Branch(equal);
       false_target()->Jump();
 
     } else if (check->Equals(Heap::object_symbol())) {
-      __ test(edx, Immediate(kSmiTagMask));
+      __ test(answer.reg(), Immediate(kSmiTagMask));
       false_target()->Branch(zero);
-
-      __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-      __ cmp(edx, Factory::null_value());
+      __ cmp(answer.reg(), Factory::null_value());
       true_target()->Branch(equal);
 
       // It can be an undetectable object.
-      __ movzx_b(edx, FieldOperand(ecx, Map::kBitFieldOffset));
-      __ and_(edx, 1 << Map::kIsUndetectable);
-      __ cmp(edx, 1 << Map::kIsUndetectable);
-      false_target()->Branch(equal);
-
-      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-      __ cmp(ecx, FIRST_JS_OBJECT_TYPE);
+      Result map = allocator()->Allocate();
+      ASSERT(map.is_valid());
+      __ mov(map.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kBitFieldOffset));
+      __ test(map.reg(), Immediate(1 << Map::kIsUndetectable));
+      false_target()->Branch(not_zero);
+      __ mov(map.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
+      __ movzx_b(map.reg(), FieldOperand(map.reg(), Map::kInstanceTypeOffset));
+      __ cmp(map.reg(), FIRST_JS_OBJECT_TYPE);
       false_target()->Branch(less);
-      __ cmp(ecx, LAST_JS_OBJECT_TYPE);
+      __ cmp(map.reg(), LAST_JS_OBJECT_TYPE);
+      answer.Unuse();
+      map.Unuse();
       true_target()->Branch(less_equal);
       false_target()->Jump();
-
     } else {
       // Uncommon case: typeof testing against a string literal that is
       // never returned from the typeof operator.
+      answer.Unuse();
       false_target()->Jump();
     }
     return;
@@ -4262,16 +4276,18 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     case Token::IN: {
       Load(left);
       Load(right);
-      frame_->InvokeBuiltin(Builtins::IN, CALL_FUNCTION, 2);
-      frame_->Push(eax);  // push the result
+      Result answer = frame_->InvokeBuiltin(Builtins::IN, CALL_FUNCTION, 2);
+      frame_->Push(&answer);  // push the result
       return;
     }
     case Token::INSTANCEOF: {
       Load(left);
       Load(right);
       InstanceofStub stub;
-      frame_->CallStub(&stub, 2);
-      __ test(eax, Operand(eax));
+      Result answer = frame_->CallStub(&stub, 2);
+      answer.ToRegister();
+      __ test(answer.reg(), Operand(answer.reg()));
+      answer.Unuse();
       true_target()->Branch(zero);
       false_target()->Jump();
       return;
