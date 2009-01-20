@@ -488,7 +488,8 @@ static bool RawMatch(const byte* code_base,
         break;
       }
       BYTECODE(CHECK_NOT_REGS_EQUAL)
-        if (registers[insn >> BYTECODE_SHIFT] == registers[Load32Aligned(pc + 4)]) {
+        if (registers[insn >> BYTECODE_SHIFT] ==
+            registers[Load32Aligned(pc + 4)]) {
           pc += BC_CHECK_NOT_REGS_EQUAL_LENGTH;
         } else {
           pc = code_base + Load32Aligned(pc + 8);

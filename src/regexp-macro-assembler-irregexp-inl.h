@@ -36,7 +36,8 @@
 namespace v8 { namespace internal {
 
 
-void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte, uint32_t twenty_four_bits) {
+void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,
+                                        uint32_t twenty_four_bits) {
   uint32_t word = ((twenty_four_bits << BYTECODE_SHIFT) | byte);
   ASSERT(pc_ <= buffer_.length());
   if (pc_  + 3 >= buffer_.length()) {
