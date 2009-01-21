@@ -1119,7 +1119,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                    temp_scope.materialized_literal_count(),
                                    temp_scope.contains_array_literal(),
                                    temp_scope.expected_property_count(),
-                                   0, 0, source->length(shape), false));
+                                   0, 0, source->length(), false));
     } else if (scanner().stack_overflow()) {
       Top::StackOverflow();
     }
