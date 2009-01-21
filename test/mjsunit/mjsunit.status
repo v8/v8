@@ -44,6 +44,10 @@ regexp-loop-capture: PASS || FAIL
 
 [ $arch == arm ]
 
+# Optimize regexp search for non-multiline initial ^.
+# http://code.google.com/p/v8/issues/detail?id=198
+ascii-regexp-subject: PASS || FAIL
+
 # Slow tests which times out in debug mode.
 try: PASS, SKIP if $mode == debug
 debug-scripts-request: PASS, SKIP if $mode == debug
