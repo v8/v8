@@ -5055,6 +5055,89 @@ THREADED_TEST(DisableAccessChecksWhileConfiguring) {
   CHECK(value->BooleanValue());
 }
 
+static bool NamedGetAccessBlocker(Local<v8::Object> obj,
+                                  Local<Value> name,
+                                  v8::AccessType type,
+                                  Local<Value> data) {
+  return false;
+}
+
+static bool IndexedGetAccessBlocker(Local<v8::Object> obj,
+                                    uint32_t key,
+                                    v8::AccessType type,
+                                    Local<Value> data) {
+  return false;
+}
+
+
+
+THREADED_TEST(AccessChecksReenabledCorrectly) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessCheckCallbacks(NamedGetAccessBlocker,
+                                 IndexedGetAccessBlocker);
+  templ->Set(v8_str("a"), v8_str("a"));
+  // Add more than 8 (see kMaxFastProperties) properties
+  // so that the constructor will force copying map.
+  // Cannot sprintf, gcc complains unsafety.
+  char buf[5];
+  for (char i = '0'; i <= '9' ; i++) {
+    buf[1] = i;
+    for (char j = '0'; j <= '9'; j++) {
+      buf[2] = j;
+      for (char k = '0'; k <= '9'; k++) {
+        buf[3] = k;
+        buf[4] = 0;
+        templ->Set(v8_str(buf), v8::Number::New(k));
+      }
+    }
+  }
+
+  Local<v8::Object> instance_1 = templ->NewInstance();
+  context->Global()->Set(v8_str("obj_1"), instance_1);
+
+  Local<Value> value_1 = CompileRun("obj_1.a");
+  CHECK(value_1->IsUndefined());
+
+  Local<v8::Object> instance_2 = templ->NewInstance();
+  context->Global()->Set(v8_str("obj_2"), instance_2);
+
+  Local<Value> value_2 = CompileRun("obj_2.a");
+  CHECK(value_2->IsUndefined());
+}
+
+// This tests that access check information remains on the global
+// object template when creating contexts.
+THREADED_TEST(AccessControlRepeatedContextCreation) {
+  v8::HandleScope handle_scope;
+  v8::Handle<v8::ObjectTemplate> global_template = v8::ObjectTemplate::New();
+  global_template->SetAccessCheckCallbacks(NamedSetAccessBlocker,
+                                           IndexedSetAccessBlocker);
+  i::Handle<i::ObjectTemplateInfo> internal_template =
+      v8::Utils::OpenHandle(*global_template);
+  CHECK(!internal_template->constructor()->IsUndefined());
+  i::Handle<i::FunctionTemplateInfo> constructor(
+      i::FunctionTemplateInfo::cast(internal_template->constructor()));
+  CHECK(!constructor->access_check_info()->IsUndefined());
+  v8::Persistent<Context> context0 = Context::New(NULL, global_template);
+  CHECK(!constructor->access_check_info()->IsUndefined());
+}
+
+
+// This test verifies that pre-compilation (aka preparsing) can be called
+// without initializing the whole VM. Thus we cannot run this test in a
+// multi-threaded setup.
+TEST(PreCompile) {
+  // TODO(155): This test would break without the initialization of V8. This is
+  // a workaround for now to make this test not fail.
+  v8::V8::Initialize();
+  const char *script = "function foo(a) { return a+1; }";
+  v8::ScriptData *sd = v8::ScriptData::PreCompile(script, strlen(script));
+  CHECK_NE(sd->Length(), 0);
+  CHECK_NE(sd->Data(), NULL);
+}
+
 
 // This tests that we do not allow dictionary load/call inline caches
 // to use functions that have not yet been compiled.  The potential
