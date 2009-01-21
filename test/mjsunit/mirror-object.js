@@ -135,7 +135,12 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
 
         assertEquals(properties[i].value().type(), o.type, 'Unexpected serialized property type for ' + name);
         if (properties[i].value().isPrimitive()) {
-          assertEquals(properties[i].value().value(), o.value, 'Unexpected serialized property value for ' + name);
+          // Special check for NaN as NaN == NaN is false.
+          if (properties[i].value().isNumber() && isNaN(properties[i].value().value())) {
+            assertEquals('NaN', o.value, 'Unexpected serialized property value for ' + name);
+          } else {
+            assertEquals(properties[i].value().value(), o.value, 'Unexpected serialized property value for ' + name);
+          }
         } else if (properties[i].value().isFunction()) {
           assertEquals(properties[i].value().source(), o.source, 'Unexpected serialized property value for ' + name);
         }
@@ -159,6 +164,7 @@ testObjectMirror({'a':1,'b':2}, 'Object', 'Object');
 testObjectMirror({'1':void 0,'2':null,'f':function pow(x,y){return Math.pow(x,y);}}, 'Object', 'Object');
 testObjectMirror(new Point(-1.2,2.003), 'Object', 'Point');
 testObjectMirror(this, 'global', '', true);  // Global object has special properties
+testObjectMirror(this.__proto__, 'Object', '');
 testObjectMirror([], 'Array', 'Array');
 testObjectMirror([1,2], 'Array', 'Array');
 

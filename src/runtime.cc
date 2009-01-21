@@ -4676,6 +4676,9 @@ static Object* Runtime_DebugLocalPropertyNames(Arguments args) {
   }
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
 
+  if (obj->IsJSGlobalProxy()) {
+    obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
+  }
   int n = obj->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
   Handle<FixedArray> names = Factory::NewFixedArray(n);
   obj->GetLocalPropertyNames(*names);
