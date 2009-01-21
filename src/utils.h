@@ -527,55 +527,6 @@ static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
 }
 
 
-static inline int Load16(const byte* ptr) {
-#ifdef CAN_READ_UNALIGNED
-  return *reinterpret_cast<const uint16_t*>(ptr);
-#else
-  uint32_t word;
-  word  = ptr[1];
-  word |= ptr[0] << 8;
-  return word;
-#endif
-}
-
-
-static inline int Load32(const byte* ptr) {
-#ifdef CAN_READ_UNALIGNED
-  return *reinterpret_cast<const uint32_t*>(ptr);
-#else
-  uint32_t word;
-  word  = ptr[3];
-  word |= ptr[2] << 8;
-  word |= ptr[1] << 16;
-  word |= ptr[0] << 24;
-  return word;
-#endif
-}
-
-
-static inline void Store16(byte* ptr, uint16_t value) {
-#ifdef CAN_READ_UNALIGNED
-  *reinterpret_cast<uint16_t*>(ptr) = value;
-#else
-  // Cast to avoid warning C4244 when compiling with Microsoft Visual C++.
-  ptr[1] = static_cast<byte>(value);
-  ptr[0] = value >> 8;
-#endif
-}
-
-
-static inline void Store32(byte* ptr, uint32_t value) {
-#ifdef CAN_READ_UNALIGNED
-  *reinterpret_cast<uint32_t*>(ptr) = value;
-#else
-  ptr[3] = value;
-  ptr[2] = value >> 8;
-  ptr[1] = value >> 16;
-  ptr[0] = value >> 24;
-#endif
-}
-
-
 } }  // namespace v8::internal
 
 #endif  // V8_UTILS_H_

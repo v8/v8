@@ -60,8 +60,8 @@ void RegExpMacroAssemblerIrregexp::Bind(Label* l) {
     int pos = l->pos();
     while (pos != 0) {
       int fixup = pos;
-      pos = Load32(buffer_.start() + fixup);
-      Store32(buffer_.start() + fixup, pc_);
+      pos = *reinterpret_cast<int32_t*>(buffer_.start() + fixup);
+      *reinterpret_cast<uint32_t*>(buffer_.start() + fixup) = pc_;
     }
   }
   l->bind_to(pc_);

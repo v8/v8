@@ -43,7 +43,7 @@ void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,
   if (pc_  + 3 >= buffer_.length()) {
     Expand();
   }
-  Store32(buffer_.start() + pc_, word);
+  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
   pc_ += 4;
 }
 
@@ -53,7 +53,7 @@ void RegExpMacroAssemblerIrregexp::Emit16(uint32_t word) {
   if (pc_ + 1 >= buffer_.length()) {
     Expand();
   }
-  Store16(buffer_.start() + pc_, word);
+  *reinterpret_cast<uint16_t*>(buffer_.start() + pc_) = word;
   pc_ += 2;
 }
 
@@ -63,7 +63,7 @@ void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
   if (pc_ + 3 >= buffer_.length()) {
     Expand();
   }
-  Store32(buffer_.start() + pc_, word);
+  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
   pc_ += 4;
 }
 
