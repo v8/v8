@@ -41,7 +41,7 @@ DeferredCode::DeferredCode(CodeGenerator* generator)
   : masm_(generator->masm()),
     generator_(generator),
     enter_(generator),
-    exit_(generator),
+    exit_(generator, JumpTarget::BIDIRECTIONAL),
     statement_position_(masm_->current_statement_position()),
     position_(masm_->current_position()) {
   generator->AddDeferred(this);
@@ -385,7 +385,7 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
   // JumpTarget per switch case.
   SmartPointer<JumpTarget> case_labels(NewArray<JumpTarget>(length));
   for (int i = 0; i < length; i++) {
-    case_labels[i].set_code_generator(this);
+    case_labels[i].Initialize(this);
   }
 
   JumpTarget* fail_label = default_index >= 0 ? &(case_labels[default_index])

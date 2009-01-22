@@ -138,7 +138,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   allocator_ = &register_allocator;
   ASSERT(frame_ == NULL);
   frame_ = new VirtualFrame(this);
-  function_return_.set_code_generator(this);
+  function_return_.Initialize(this, JumpTarget::BIDIRECTIONAL);
   function_return_is_shadowed_ = false;
   set_in_spilled_code(false);
 
@@ -1357,7 +1357,7 @@ void CodeGenerator::VisitBlock(Block* node) {
   Comment cmnt(masm_, "[ Block");
   CodeForStatement(node);
   node->set_break_stack_height(break_stack_height_);
-  node->break_target()->set_code_generator(this);
+  node->break_target()->Initialize(this);
   VisitStatements(node->statements());
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
@@ -1739,7 +1739,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   Comment cmnt(masm_, "[ SwitchStatement");
   CodeForStatement(node);
   node->set_break_stack_height(break_stack_height_);
-  node->break_target()->set_code_generator(this);
+  node->break_target()->Initialize(this);
 
   Load(node->tag());
 
@@ -1750,7 +1750,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   JumpTarget next_test(this);
   JumpTarget fall_through(this);
   JumpTarget default_entry(this);
-  JumpTarget default_exit(this);
+  JumpTarget default_exit(this, JumpTarget::BIDIRECTIONAL);
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
   CaseClause* default_clause = NULL;
@@ -1838,8 +1838,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   Comment cmnt(masm_, "[ LoopStatement");
   CodeForStatement(node);
   node->set_break_stack_height(break_stack_height_);
-  node->break_target()->set_code_generator(this);
-  node->continue_target()->set_code_generator(this);
+  node->break_target()->Initialize(this);
 
   // Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
   // known result for the test expression, with no side effects.
@@ -1860,18 +1859,21 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
   switch (node->type()) {
     case LoopStatement::DO_LOOP: {
-      JumpTarget body(this);
+      JumpTarget body(this, JumpTarget::BIDIRECTIONAL);
       IncrementLoopNesting();
 
       // Label the top of the loop for the backward CFG edge.  If the test
       // is always true we can use the continue target, and if the test is
       // always false there is no need.
       if (info == ALWAYS_TRUE) {
+        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else if (info == ALWAYS_FALSE) {
+        node->continue_target()->Initialize(this);
         // There is no need, we will never jump back.
       } else {
         ASSERT(info == DONT_KNOW);
+        node->continue_target()->Initialize(this);
         body.Bind();
       }
 
@@ -1914,6 +1916,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
       // Label the top of the loop with the continue target for the backward
       // CFG edge.
+      node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
       node->continue_target()->Bind();
 
       // If the test is always true and has no side effects there is no need
@@ -1941,7 +1944,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::FOR_LOOP: {
-      JumpTarget loop(this);
+      JumpTarget loop(this, JumpTarget::BIDIRECTIONAL);
       if (node->init() != NULL) {
         Visit(node->init());
       }
@@ -1954,8 +1957,10 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       // Label the top of the loop for the backward CFG edge.  If there is
       // no update expression we can use the continue target.
       if (node->next() == NULL) {
+        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else {
+        node->continue_target()->Initialize(this);
         loop.Bind();
       }
 
@@ -2022,13 +2027,13 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   const int kForInStackSize = 5 * kPointerSize;
   break_stack_height_ += kForInStackSize;
   node->set_break_stack_height(break_stack_height_);
-  node->break_target()->set_code_generator(this);
-  node->continue_target()->set_code_generator(this);
+  node->break_target()->Initialize(this);
+  node->continue_target()->Initialize(this);
 
   JumpTarget primitive(this);
   JumpTarget jsobject(this);
   JumpTarget fixed_array(this);
-  JumpTarget entry(this);
+  JumpTarget entry(this, JumpTarget::BIDIRECTIONAL);
   JumpTarget end_del_check(this);
   JumpTarget cleanup(this);
   JumpTarget exit(this);
@@ -3364,7 +3369,7 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   JumpTarget end(this);
   JumpTarget not_a_flat_string(this);
   JumpTarget not_a_cons_string_either(this);
-  JumpTarget try_again_with_new_string(this);
+  JumpTarget try_again_with_new_string(this, JumpTarget::BIDIRECTIONAL);
   JumpTarget ascii_string(this);
   JumpTarget got_char_code(this);
 

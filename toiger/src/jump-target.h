@@ -52,9 +52,13 @@ namespace v8 { namespace internal {
 
 class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
  public:
+  // Forward-only jump targets can only be reached by forward CFG edges.
+  enum Directionality { FORWARD_ONLY, BIDIRECTIONAL };
+
   // Construct a jump target with a given code generator used to generate
   // code and to provide access to a current frame.
-  explicit JumpTarget(CodeGenerator* cgen);
+  explicit JumpTarget(CodeGenerator* cgen,
+                      Directionality direction = FORWARD_ONLY);
 
   // Construct a jump target without a code generator.  A code generator
   // must be supplied before using the jump target as a label.  This is
@@ -63,10 +67,12 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
   virtual ~JumpTarget() { Unuse(); }
 
-  // Supply a code generator.  This function expects to be given a non-null
-  // code generator, and to be called only when the code generator is not
-  // yet set.
-  void set_code_generator(CodeGenerator* cgen);
+  // Supply a code generator and directionality to an already
+  // constructed jump target.  This function expects to be given a
+  // non-null code generator, and to be called only when the code
+  // generator is not yet set.
+  void Initialize(CodeGenerator* cgen,
+                  Directionality direction = FORWARD_ONLY);
 
   // Accessors.
   CodeGenerator* code_generator() const { return cgen_; }
@@ -145,6 +151,9 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   MacroAssembler* masm_;
 
  private:
+  // Directionality flag set at initialization time.
+  Directionality direction_;
+
   // A list of frames reaching this block via forward jumps.
   List<VirtualFrame*> reaching_frames_;
 

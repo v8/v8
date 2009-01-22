@@ -37,8 +37,9 @@ namespace v8 { namespace internal {
 
 #define __ masm_->
 
-JumpTarget::JumpTarget(CodeGenerator* cgen)
+JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
     : cgen_(cgen),
+      direction_(direction),
       reaching_frames_(0),
       merge_labels_(0),
       expected_frame_(NULL) {
@@ -50,17 +51,19 @@ JumpTarget::JumpTarget(CodeGenerator* cgen)
 JumpTarget::JumpTarget()
     : cgen_(NULL),
       masm_(NULL),
+      direction_(FORWARD_ONLY),
       reaching_frames_(0),
       merge_labels_(0),
       expected_frame_(NULL) {
 }
 
 
-void JumpTarget::set_code_generator(CodeGenerator* cgen) {
+void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
   ASSERT(cgen != NULL);
   ASSERT(cgen_ == NULL);
   cgen_ = cgen;
   masm_ = cgen->masm();
+  direction_ = direction;
 }
 
 
@@ -74,6 +77,7 @@ void JumpTarget::Jump() {
 
   if (is_bound()) {
     // Backward jump.  There is an expected frame to merge to.
+    ASSERT(direction_ == BIDIRECTIONAL);
     cgen_->frame()->MergeTo(expected_frame_);
     cgen_->DeleteFrame();
     __ jmp(&entry_label_);
@@ -120,6 +124,7 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
     // TODO(): we should try to avoid negating the condition in the case
     // where there is no merge code to emit.  Otherwise, we emit a
     // branch around an unconditional jump.
+    ASSERT(direction_ == BIDIRECTIONAL);
     Label original_fall_through;
     __ j(NegateCondition(cc), &original_fall_through, NegateHint(hint));
     // Swap the current frame for a copy of it, saving non-frame
@@ -305,7 +310,7 @@ void JumpTarget::CopyTo(JumpTarget* destination) {
   ASSERT(destination != NULL);
   destination->cgen_ = cgen_;
   destination->masm_ = masm_;
-
+  destination->direction_ = direction_;
   destination->reaching_frames_.Clear();
   destination->merge_labels_.Clear();
   ASSERT(reaching_frames_.length() == merge_labels_.length());
@@ -354,17 +359,19 @@ ShadowTarget::ShadowTarget(JumpTarget* shadowed) {
 void ShadowTarget::StopShadowing() {
   ASSERT(is_shadowing_);
 
+  // This target does not have a valid code generator yet.
+  cgen_ = other_target_->code_generator();
+  ASSERT(cgen_ != NULL);
+  masm_ = cgen_->masm();
+
   // The states of this target, which was shadowed, and the original
   // target, which was shadowing, are swapped.
   JumpTarget temp;
-
   other_target_->CopyTo(&temp);
   CopyTo(other_target_);
   temp.CopyTo(this);
   temp.Reset();  // So the destructor does not deallocate virtual frames.
 
-  // The shadowing target does not have a valid code generator yet.
-  other_target_->set_code_generator(cgen_);
 #ifdef DEBUG
   is_shadowing_ = false;
 #endif
