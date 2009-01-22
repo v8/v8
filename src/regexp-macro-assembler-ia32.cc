@@ -331,7 +331,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ push(backtrack_stackpointer());
     __ push(ebx);
     const int four_arguments = 4;
-    FrameAlign(four_arguments);
+    FrameAlign(four_arguments, ecx);
     // Put arguments into allocated stack area.
     __ mov(Operand(esp, 3 * kPointerSize), ebx);
     __ mov(ecx, Operand(ebp, kInputEndOffset));
@@ -646,7 +646,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
   __ bind(&stack_limit_hit);
   int num_arguments = 2;
-  FrameAlign(num_arguments);
+  FrameAlign(num_arguments, ebx);
   __ mov(Operand(esp, 1 * kPointerSize), Immediate(self_));
   __ lea(eax, Operand(esp, -kPointerSize));
   __ mov(Operand(esp, 0 * kPointerSize), eax);
@@ -769,7 +769,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
     __ bind(&retry);
     int num_arguments = 2;
-    FrameAlign(num_arguments);
+    FrameAlign(num_arguments, ebx);
     __ mov(Operand(esp, 1 * kPointerSize), Immediate(self_));
     __ lea(eax, Operand(esp, -kPointerSize));
     __ mov(Operand(esp, 0 * kPointerSize), eax);
@@ -805,7 +805,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
     // Call GrowStack(backtrack_stackpointer())
     int num_arguments = 1;
-    FrameAlign(num_arguments);
+    FrameAlign(num_arguments, ebx);
     __ mov(Operand(esp, 0), backtrack_stackpointer());
     CallCFunction(FUNCTION_ADDR(&GrowStack), num_arguments);
     // If return NULL, we have failed to grow the stack, and
@@ -1169,16 +1169,16 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
 }
 
 
-void RegExpMacroAssemblerIA32::FrameAlign(int num_arguments) {
+void RegExpMacroAssemblerIA32::FrameAlign(int num_arguments, Register scratch) {
   int frameAlignment = OS::ActivationFrameAlignment();
   if (frameAlignment != 0) {
     // Make stack end at alignment and make room for num_arguments words
     // and the original value of esp.
-    __ mov(ebx, esp);
+    __ mov(scratch, esp);
     __ sub(Operand(esp), Immediate((num_arguments + 1) * kPointerSize));
     ASSERT(IsPowerOf2(frameAlignment));
     __ and_(esp, -frameAlignment);
-    __ mov(Operand(esp, num_arguments * kPointerSize), ebx);
+    __ mov(Operand(esp, num_arguments * kPointerSize), scratch);
   } else {
     __ sub(Operand(esp), Immediate(num_arguments * kPointerSize));
   }

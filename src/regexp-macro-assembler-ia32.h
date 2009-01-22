@@ -219,7 +219,9 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // etc., not pushed. The argument count assumes all arguments are word sized.
   // Some compilers/platforms require the stack to be aligned when calling
   // C++ code.
-  inline void FrameAlign(int num_arguments);
+  // Needs a scratch register to do some arithmetic. This register will be
+  // trashed.
+  inline void FrameAlign(int num_arguments, Register scratch);
 
   // Calls a C function and cleans up the space for arguments allocated
   // by FrameAlign. The called function is not allowed to trigger a garbage
