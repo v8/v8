@@ -293,6 +293,12 @@ class VirtualFrame : public Malloced {
   // The function frame slot.
   Operand Function() const { return Operand(ebp, kFunctionOffset); }
 
+  // Push the address of the receiver slot on the frame.
+  void PushReceiverSlotAddress();
+
+  // Push the function on top of the frame.
+  void PushFunction() { LoadFrameSlotAt(function_index()); }
+
   // Lazily save the value of the esi register to the context frame slot.
   void SaveContextRegister();
 
@@ -386,6 +392,7 @@ class VirtualFrame : public Malloced {
   // Push an element on the virtual frame.
   void Push(Register reg);
   void Push(Handle<Object> value);
+  void Push(Smi* value) { Push(Handle<Object>(value)); }
 
   // Pushing a result invalidates it (its contents become owned by the
   // frame).

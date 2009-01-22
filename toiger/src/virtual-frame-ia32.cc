@@ -750,6 +750,14 @@ void VirtualFrame::RestoreContextRegister() {
 }
 
 
+void VirtualFrame::PushReceiverSlotAddress() {
+  Result temp = cgen_->allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  __ lea(temp.reg(), ParameterAt(-1));
+  Push(&temp);
+}
+
+
 void VirtualFrame::LoadFrameSlotAt(int index) {
   ASSERT(index >= 0);
   ASSERT(index < elements_.length());

@@ -174,11 +174,9 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       ASSERT(scope_->arguments_shadow() != NULL);
       Comment cmnt(masm_, "[ Allocate arguments object");
       ArgumentsAccessStub stub(ArgumentsAccessStub::NEW_OBJECT);
-      VirtualFrame::SpilledScope spilled_scope(this);
-      __ lea(eax, frame_->Receiver());
-      frame_->EmitPush(frame_->Function());
-      frame_->EmitPush(eax);
-      frame_->EmitPush(Immediate(Smi::FromInt(scope_->num_parameters())));
+      frame_->PushFunction();
+      frame_->PushReceiverSlotAddress();
+      frame_->Push(Smi::FromInt(scope_->num_parameters()));
       Result answer = frame_->CallStub(&stub, 3);
       frame_->Push(&answer);
     }
@@ -187,14 +185,15 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       Comment cmnt(masm_, "[ allocate local context");
       // Allocate local context.
       // Get outer context and create a new context based on it.
-      VirtualFrame::SpilledScope spilled_scope(this);
-      frame_->EmitPush(frame_->Function());
-      frame_->CallRuntime(Runtime::kNewContext, 1);  // eax holds the result
+      frame_->PushFunction();
+      Result context = frame_->CallRuntime(Runtime::kNewContext, 1);
 
       if (kDebug) {
+        frame_->SpillAll();  // Needed for breakpoint below.
         JumpTarget verified_true(this);
         // Verify eax and esi are the same in debug mode
-        __ cmp(eax, Operand(esi));
+        __ cmp(context.reg(), Operand(esi));
+        context.Unuse();
         verified_true.Branch(equal);
         __ int3();
         verified_true.Bind();
@@ -863,18 +862,17 @@ class DeferredInlinedSmiAdd: public DeferredCode {
   }
 
   virtual void Generate() {
-    // The argument is actually passed in eax.
-    enter()->Bind();
-    VirtualFrame::SpilledScope spilled_scope(generator());
+    Result arg(generator());
+    enter()->Bind(&arg);
+    arg.ToRegister();
+    generator()->frame()->Spill(arg.reg());
     // Undo the optimistic add operation and call the shared stub.
-    Immediate immediate(Smi::FromInt(value_));
-    __ sub(Operand(eax), immediate);
-    generator()->frame()->EmitPush(eax);
-    generator()->frame()->EmitPush(immediate);
+    __ sub(Operand(arg.reg()), Immediate(Smi::FromInt(value_)));
+    generator()->frame()->Push(&arg);
+    generator()->frame()->Push(Smi::FromInt(value_));
     GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-    generator()->frame()->CallStub(&igostub, 2);
-    // The result is actually returned in eax.
-    exit()->Jump();
+    Result result = generator()->frame()->CallStub(&igostub, 2);
+    exit()->Jump(&result);
   }
 
  private:
@@ -892,18 +890,18 @@ class DeferredInlinedSmiAddReversed: public DeferredCode {
   }
 
   virtual void Generate() {
-    // The argument is actually passed in eax.
-    enter()->Bind();
-    VirtualFrame::SpilledScope spilled_scope(generator());
+    Result arg(generator());
+    enter()->Bind(&arg);
+    arg.ToRegister();
+    generator()->frame()->Spill(arg.reg());  // Should not be needed.
     // Undo the optimistic add operation and call the shared stub.
     Immediate immediate(Smi::FromInt(value_));
-    __ sub(Operand(eax), immediate);
-    generator()->frame()->EmitPush(immediate);
-    generator()->frame()->EmitPush(eax);
+    __ sub(Operand(arg.reg()), immediate);
+    generator()->frame()->Push(Smi::FromInt(value_));
+    generator()->frame()->Push(&arg);
     GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-    generator()->frame()->CallStub(&igostub, 2);
-    // The result is actually returned in eax.
-    exit()->Jump();
+    arg = generator()->frame()->CallStub(&igostub, 2);
+    exit()->Jump(&arg);
   }
 
  private:
@@ -1001,13 +999,15 @@ void CodeGenerator::SmiOperation(Token::Value op,
         deferred = new DeferredInlinedSmiAddReversed(this, int_value,
                                                      overwrite_mode);
       }
-      frame_->EmitPop(eax);
-      __ add(Operand(eax), Immediate(value));
-      deferred->enter()->Branch(overflow, not_taken);
-      __ test(eax, Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, not_taken);
-      deferred->exit()->Bind();
-      frame_->EmitPush(eax);
+      Result operand = frame_->Pop();
+      operand.ToRegister();
+      frame_->Spill(operand.reg());
+      __ add(Operand(operand.reg()), Immediate(value));
+      deferred->enter()->Branch(overflow, &operand, not_taken);
+      __ test(Operand(operand.reg()), Immediate(kSmiTagMask));
+      deferred->enter()->Branch(not_zero, &operand, not_taken);
+      deferred->exit()->Bind(&operand);
+      frame_->Push(&operand);
       break;
     }
 
@@ -3015,7 +3015,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     if (target.is_illegal()) {
       // Fool the virtual frame into thinking that we left the assignment's
       // value on the frame.
-      frame_->Push(Handle<Object>(Smi::FromInt(0)));
+      frame_->Push(Smi::FromInt(0));
       return;
     }
 
@@ -3865,7 +3865,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
   // Postfix: Make room for the result.
   if (is_postfix) {
-    frame_->Push(Handle<Object>(Smi::FromInt(0)));
+    frame_->Push(Smi::FromInt(0));
   }
 
   { Reference target(this, node->expression());
@@ -3873,7 +3873,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       // Spoof the virtual frame to have the expected height (one higher
       // than on entry).
       if (!is_postfix) {
-        frame_->Push(Handle<Object>(Smi::FromInt(0)));
+        frame_->Push(Smi::FromInt(0));
       }
       return;
     }
