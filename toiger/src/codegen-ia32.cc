@@ -1327,19 +1327,36 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 }
 
 
+class DeferredStackCheck: public DeferredCode {
+ public:
+  DeferredStackCheck(CodeGenerator* generator)
+      : DeferredCode(generator) {
+    set_comment("[ DeferredStackCheck");
+  }
+
+  virtual void Generate();
+};
+
+
+void DeferredStackCheck::Generate() {
+  enter()->Bind();
+  // The stack check can trigger the debugger.  Before calling it, all
+  // values including constants must be spilled to the frame.
+  generator()->frame()->SpillAll();
+  StackCheckStub stub;
+  Result ignored = generator()->frame()->CallStub(&stub, 0);
+  exit()->Jump();
+}
+
+
 void CodeGenerator::CheckStack() {
   if (FLAG_check_stack) {
-    JumpTarget stack_is_ok(this);
-    StackCheckStub stub;
+    DeferredStackCheck* deferred = new DeferredStackCheck(this);
     ExternalReference stack_guard_limit =
         ExternalReference::address_of_stack_guard_limit();
     __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
-    stack_is_ok.Branch(above_equal, taken);
-    // The stack check can trigger the debugger.  Before calling it, all
-    // values including constants must be spilled to the frame.
-    frame_->SpillAll();
-    frame_->CallStub(&stub, 0);
-    stack_is_ok.Bind();
+    deferred->enter()->Branch(below, not_taken);
+    deferred->exit()->Bind();
   }
 }
 
@@ -2765,7 +2782,7 @@ class DeferredRegExpLiteral: public DeferredCode {
  public:
   DeferredRegExpLiteral(CodeGenerator* generator, RegExpLiteral* node)
       : DeferredCode(generator), node_(node) {
-    set_comment("[ RegExpDeferred");
+    set_comment("[ DeferredRegExpLiteral");
   }
   virtual void Generate();
  private:
@@ -2834,7 +2851,7 @@ class DeferredObjectLiteral: public DeferredCode {
   DeferredObjectLiteral(CodeGenerator* generator,
                         ObjectLiteral* node)
       : DeferredCode(generator), node_(node) {
-    set_comment("[ ObjectLiteralDeferred");
+    set_comment("[ DeferredObjectLiteral");
   }
   virtual void Generate();
  private:
@@ -3771,7 +3788,7 @@ class DeferredCountOperation: public DeferredCode {
         is_postfix_(is_postfix),
         is_increment_(is_increment),
         result_offset_(result_offset) {
-    set_comment("[ CountOperationDeferred");
+    set_comment("[ DeferredCountOperation");
   }
 
   virtual void Generate();
