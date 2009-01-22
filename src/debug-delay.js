@@ -1366,7 +1366,12 @@ DebugCommandProcessor.prototype.frameRequest_ = function(request, response) {
   }
 
   // With no arguments just keep the selected frame.
-  if (request.arguments && request.arguments.number >= 0) {
+  if (request.arguments) {
+    index = request.arguments.number;
+    if (index < 0 || this.exec_state_.frameCount() <= index) {
+      return response.failed('Invalid frame number');
+    }
+    
     this.exec_state_.setSelectedFrame(request.arguments.number);
   }
   response.body = this.exec_state_.frame();
