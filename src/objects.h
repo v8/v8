@@ -1298,8 +1298,9 @@ class JSObject: public HeapObject {
   int NumberOfLocalProperties(PropertyAttributes filter);
   // Returns the number of enumerable properties (ignoring interceptors).
   int NumberOfEnumProperties();
-  // Fill in details for properties into storage.
-  void GetLocalPropertyNames(FixedArray* storage);
+  // Fill in details for properties into storage starting at the specified
+  // index.
+  void GetLocalPropertyNames(FixedArray* storage, int index);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).

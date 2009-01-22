@@ -5695,10 +5695,10 @@ void FixedArray::SortPairs(FixedArray* smis) {
 // Fill in the names of local properties into the supplied storage. The main
 // purpose of this function is to provide reflection information for the object
 // mirrors.
-void JSObject::GetLocalPropertyNames(FixedArray* storage) {
-  ASSERT(storage->length() ==
-         NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE)));
-  int index = 0;
+void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
+  ASSERT(storage->length() >=
+         NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE)) -
+             index);
   if (HasFastProperties()) {
     for (DescriptorReader r(map()->instance_descriptors());
          !r.eos();
@@ -5707,7 +5707,7 @@ void JSObject::GetLocalPropertyNames(FixedArray* storage) {
         storage->set(index++, r.GetKey());
       }
     }
-    ASSERT(storage->length() == index);
+    ASSERT(storage->length() >= index);
   } else {
     property_dictionary()->CopyKeysTo(storage);
   }

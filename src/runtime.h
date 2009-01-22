@@ -244,7 +244,7 @@ namespace v8 { namespace internal {
   F(DebugGetLoadedScripts, 0) \
   F(DebugReferencedBy, 3) \
   F(DebugConstructedBy, 2) \
-  F(GetPrototype, 1) \
+  F(DebugGetPrototype, 1) \
   F(SystemBreak, 0) \
   \
   /* Literals */ \

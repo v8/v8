@@ -414,6 +414,24 @@ void Map::MapPrint() {
   PrintF(" - type: %s\n", TypeToString(instance_type()));
   PrintF(" - instance size: %d\n", instance_size());
   PrintF(" - unused property fields: %d\n", unused_property_fields());
+  if (is_hidden_prototype()) {
+    PrintF(" - hidden_prototype\n");
+  }
+  if (has_named_interceptor()) {
+    PrintF(" - named_interceptor\n");
+  }
+  if (has_indexed_interceptor()) {
+    PrintF(" - indexed_interceptor\n");
+  }
+  if (is_undetectable()) {
+    PrintF(" - undetectable\n");
+  }
+  if (has_instance_call_handler()) {
+    PrintF(" - instance_call_handler\n");
+  }
+  if (is_access_check_needed()) {
+    PrintF(" - access_check_needed\n");
+  }
   PrintF(" - instance descriptors: ");
   instance_descriptors()->ShortPrint();
   PrintF("\n - prototype: ");

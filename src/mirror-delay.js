@@ -525,7 +525,7 @@ ObjectMirror.prototype.prototypeObject = function() {
 
 
 ObjectMirror.prototype.protoObject = function() {
-  return MakeMirror(%GetPrototype(this.value_));
+  return MakeMirror(%DebugGetPrototype(this.value_));
 };
 
 

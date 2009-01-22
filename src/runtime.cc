@@ -4536,6 +4536,21 @@ static Object* Runtime_Break(Arguments args) {
 }
 
 
+// Find the length of the prototype chain that is to to handled as one. If a
+// prototype object is hidden it is to be viewed as part of the the object it
+// is prototype for.
+static int LocalPrototypeChainLength(JSObject* obj) {
+  int count = 1;
+  Object* proto = obj->GetPrototype();
+  while (proto->IsJSObject() &&
+         JSObject::cast(proto)->map()->is_hidden_prototype()) {
+    count++;
+    proto = JSObject::cast(proto)->GetPrototype();
+  }
+  return count;
+}
+
+
 static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
                                       bool* caught_exception) {
   Object* value;
@@ -4611,6 +4626,13 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
 
+  // Skip the global proxy as it has no properties and always delegates to the
+  // real global object.
+  if (obj->IsJSGlobalProxy()) {
+    obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
+  }
+
+
   // Check if the name is trivially convertible to an index and get the element
   // if so.
   uint32_t index;
@@ -4621,9 +4643,22 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
     return *Factory::NewJSArrayWithElements(details);
   }
 
-  // Perform standard local lookup on the object.
+  // Find the number of objects making up this.
+  int length = LocalPrototypeChainLength(*obj);
+
+  // Try local lookup on each of the objects.
   LookupResult result;
-  obj->LocalLookup(*name, &result);
+  Handle<JSObject> jsproto = obj;
+  for (int i = 0; i < length; i++) {
+    jsproto->LocalLookup(*name, &result);
+    if (result.IsProperty()) {
+      break;
+    }
+    if (i < length - 1) {
+      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+    }
+  }
+
   if (result.IsProperty()) {
     bool caught_exception = false;
     Handle<Object> value(DebugLookupResultValue(*obj, &result,
@@ -4676,12 +4711,43 @@ static Object* Runtime_DebugLocalPropertyNames(Arguments args) {
   }
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
 
+  // Skip the global proxy as it has no properties and always delegates to the
+  // real global object.
   if (obj->IsJSGlobalProxy()) {
     obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
   }
-  int n = obj->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
-  Handle<FixedArray> names = Factory::NewFixedArray(n);
-  obj->GetLocalPropertyNames(*names);
+
+  // Find the number of objects making up this.
+  int length = LocalPrototypeChainLength(*obj);
+
+  // Find the number of local properties for each of the objects.
+  int* local_property_count = NewArray<int>(length);
+  int total_property_count = 0;
+  Handle<JSObject> jsproto = obj;
+  for (int i = 0; i < length; i++) {
+    int n;
+    n = jsproto->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
+    local_property_count[i] = n;
+    total_property_count += n;
+    if (i < length - 1) {
+      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+    }
+  }
+
+  // Allocate an array with storage for all the property names.
+  Handle<FixedArray> names = Factory::NewFixedArray(total_property_count);
+
+  // Get the property names.
+  jsproto = obj;
+  for (int i = 0; i < length; i++) {
+    jsproto->GetLocalPropertyNames(*names,
+                                   i == 0 ? 0 : local_property_count[i - 1]);
+    if (i < length - 1) {
+      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+    }
+  }
+
+  DeleteArray(local_property_count);
   return *Factory::NewJSArrayWithElements(names);
 }
 
@@ -5809,12 +5875,15 @@ static Object* Runtime_DebugConstructedBy(Arguments args) {
 }
 
 
-static Object* Runtime_GetPrototype(Arguments args) {
+// Find the effective prototype object as returned by __proto__.
+// args[0]: the object to find the prototype for.
+static Object* Runtime_DebugGetPrototype(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_CHECKED(JSObject, obj, args[0]);
 
-  return obj->GetPrototype();
+  // Use the __proto__ accessor.
+  return Accessors::ObjectPrototype.getter(obj, NULL);
 }
 
 
