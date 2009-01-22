@@ -1014,8 +1014,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
   // code size is increased by ~1% (measured on a combination of
   // different benchmarks).
 
-  // TODO(1217802): Optimize some special cases of operations
-  // involving a smi literal (multiply by 2, shift by 0, etc.).
+  // TODO(199): Optimize some special cases of operations involving a
+  // smi literal (multiply by 2, shift by 0, etc.).
 
   // Get the literal value.
   int int_value = Smi::cast(*value)->value();
