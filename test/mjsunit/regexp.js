@@ -94,6 +94,22 @@ assertFalse(/\ca/.test( "\\ca" ));
 //assertTrue(/\c[a/]/.test( "\x1ba/]" ));
 
 
+// Test \c in character class
+re = /^[\cM]$/;
+assertTrue(re.test("\r"));
+assertFalse(re.test("M"));
+assertFalse(re.test("c"));
+assertFalse(re.test("\\"));
+assertFalse(re.test("\x03"));  // I.e., read as \cc
+
+re = /^[\c]]$/;
+assertTrue(re.test("c]"));
+assertFalse(re.test("\\]"));
+assertFalse(re.test("\x1d"));  // ']' & 0x1f
+assertFalse(re.test("\\]"));
+assertFalse(re.test("\x03]"));  // I.e., read as \cc
+
+
 // Test that we handle \s and \S correctly inside some bizarre
 // character classes.
 re = /[\s-:]/;
