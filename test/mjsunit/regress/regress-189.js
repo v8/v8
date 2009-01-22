@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,46 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test const properties and pre/postfix operation.
+// Test that we can handle initialization of a deleted const variable.
+
+// See http://code.google.com/p/v8/issues/detail?id=189.
+
 function f() {
-  const x = 1;
-  x++;
-  assertEquals(1, x);
-  x--;
-  assertEquals(1, x);
-  ++x;
-  assertEquals(1, x);
-  --x;
-  assertEquals(1, x);
-  assertEquals(1, x++);
-  assertEquals(1, x--);
-  assertEquals(2, ++x);
-  assertEquals(0, --x);
+  eval("delete x; const x = 32");
 }
 
 f();
-
-// Test that the value is read eventhough assignment is disallowed.
-// Spidermonkey does not do this, but it seems like the right thing to
-// do so that 'o++' is equivalent to 'o = o + 1'.
-var valueOfCount = 0;
-
-function g() {
-  const o = { valueOf: function() { valueOfCount++; return 42; } }
-  assertEquals(42, o);
-  assertEquals(1, valueOfCount);
-  o++;
-  assertEquals(42, o);
-  assertEquals(3, valueOfCount);
-  ++o;
-  assertEquals(42, o);
-  assertEquals(5, valueOfCount);
-  o--;
-  assertEquals(42, o);
-  assertEquals(7, valueOfCount);
-  --o;
-  assertEquals(42, o);
-  assertEquals(9, valueOfCount);
-}
-
-g();

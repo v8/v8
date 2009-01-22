@@ -758,56 +758,94 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
 
   int index;
   PropertyAttributes attributes;
-  ContextLookupFlags flags = DONT_FOLLOW_CHAINS;
+  ContextLookupFlags flags = FOLLOW_CHAINS;
   Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes);
 
-  // The property should always be present. It is always declared
-  // before being initialized through DeclareContextSlot.
-  ASSERT(attributes != ABSENT && (attributes & READ_ONLY) != 0);
-
-  // If the slot is in the context, we set it but only if it hasn't
-  // been set before.
+  // In most situations, the property introduced by the const
+  // declaration should be present in the context extension object.
+  // However, because declaration and initialization are separate, the
+  // property might have been deleted (if it was introduced by eval)
+  // before we reach the initialization point.
+  //
+  // Example:
+  //
+  //    function f() { eval("delete x; const x;"); }
+  //
+  // In that case, the initialization behaves like a normal assignment
+  // to property 'x'.
   if (index >= 0) {
-    // The constant context slot should always be in the function
-    // context; not in any outer context nor in the arguments object.
-    ASSERT(holder.is_identical_to(context));
-    if (context->get(index)->IsTheHole()) {
-      context->set(index, *value);
+    // Property was found in a context.
+    if (holder->IsContext()) {
+      // The holder cannot be the function context.  If it is, there
+      // should have been a const redeclaration error when declaring
+      // the const property.
+      ASSERT(!holder.is_identical_to(context));
+      if ((attributes & READ_ONLY) == 0) {
+        Handle<Context>::cast(holder)->set(index, *value);
+      }
+    } else {
+      // The holder is an arguments object.
+      ASSERT((attributes & READ_ONLY) == 0);
+      Handle<JSObject>::cast(holder)->SetElement(index, *value);
     }
     return *value;
   }
 
-  // Otherwise, the slot must be in a JS object extension.
-  Handle<JSObject> context_ext(JSObject::cast(*holder));
+  // The property could not be found, we introduce it in the global
+  // context.
+  if (attributes == ABSENT) {
+    Handle<JSObject> global = Handle<JSObject>(Top::context()->global());
+    SetProperty(global, name, value, NONE);
+    return *value;
+  }
 
-  // We must initialize the value only if it wasn't initialized
-  // before, e.g. for const declarations in a loop. The property has
-  // the hole value if it wasn't initialized yet. NOTE: We cannot use
-  // GetProperty() to get the current value as it 'unholes' the value.
-  LookupResult lookup;
-  context_ext->LocalLookupRealNamedProperty(*name, &lookup);
-  ASSERT(lookup.IsProperty());  // the property was declared
-  ASSERT(lookup.IsReadOnly());  // and it was declared as read-only
+  // The property was present in a context extension object.
+  Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
 
-  PropertyType type = lookup.type();
-  if (type == FIELD) {
-    FixedArray* properties = context_ext->properties();
-    int index = lookup.GetFieldIndex();
-    if (properties->get(index)->IsTheHole()) {
-      properties->set(index, *value);
-    }
-  } else if (type == NORMAL) {
-    Dictionary* dictionary = context_ext->property_dictionary();
-    int entry = lookup.GetDictionaryEntry();
-    if (dictionary->ValueAt(entry)->IsTheHole()) {
-      dictionary->ValueAtPut(entry, *value);
+  if (*context_ext == context->extension()) {
+    // This is the property that was introduced by the const
+    // declaration.  Set it if it hasn't been set before.  NOTE: We
+    // cannot use GetProperty() to get the current value as it
+    // 'unholes' the value.
+    LookupResult lookup;
+    context_ext->LocalLookupRealNamedProperty(*name, &lookup);
+    ASSERT(lookup.IsProperty());  // the property was declared
+    ASSERT(lookup.IsReadOnly());  // and it was declared as read-only
+
+    PropertyType type = lookup.type();
+    if (type == FIELD) {
+      FixedArray* properties = context_ext->properties();
+      int index = lookup.GetFieldIndex();
+      if (properties->get(index)->IsTheHole()) {
+        properties->set(index, *value);
+      }
+    } else if (type == NORMAL) {
+      Dictionary* dictionary = context_ext->property_dictionary();
+      int entry = lookup.GetDictionaryEntry();
+      if (dictionary->ValueAt(entry)->IsTheHole()) {
+        dictionary->ValueAtPut(entry, *value);
+      }
+    } else {
+      // We should not reach here. Any real, named property should be
+      // either a field or a dictionary slot.
+      UNREACHABLE();
     }
   } else {
-    // We should not reach here. Any real, named property should be
-    // either a field or a dictionary slot.
-    UNREACHABLE();
+    // The property was found in a different context extension object.
+    // Set it if it is not a read-only property.
+    if ((attributes & READ_ONLY) == 0) {
+      Handle<Object> set = SetProperty(context_ext, name, value, attributes);
+      // Setting a property might throw an exception.  Exceptions
+      // are converted to empty handles in handle operations.  We
+      // need to convert back to exceptions here.
+      if (set.is_null()) {
+        ASSERT(Top::has_pending_exception());
+        return Failure::Exception();
+      }
+    }
   }
+
   return *value;
 }
 
