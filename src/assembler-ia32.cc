@@ -255,12 +255,6 @@ void Operand::set_disp8(int8_t disp) {
 }
 
 
-void Operand::set_reg(Register reg) const {
-  ASSERT(len_ > 0);
-  buf_[0] = (buf_[0] & ~0x38) | static_cast<byte>(reg.code() << 3);
-}
-
-
 bool Operand::is_reg(Register reg) const {
   return ((buf_[0] & 0xF8) == 0xC0)  // addressing mode is register only.
       && ((buf_[0] & 0x07) == reg.code());  // register codes match.
@@ -2098,10 +2092,18 @@ void Assembler::emit_arith(int sel, Operand dst, const Immediate& x) {
 
 
 void Assembler::emit_operand(Register reg, const Operand& adr) {
-  adr.set_reg(reg);
-  memmove(pc_, adr.buf_, adr.len_);
-  pc_ += adr.len_;
-  if (adr.len_ >= sizeof(int32_t) && adr.rmode_ != RelocInfo::NONE) {
+  const unsigned length = adr.len_;
+  ASSERT(length > 0);
+
+  // Emit updated ModRM byte containing the given register.
+  pc_[0] = (adr.buf_[0] & ~0x38) | (reg.code() << 3);
+
+  // Emit the rest of the encoded operand.
+  for (unsigned i = 1; i < length; i++) pc_[i] = adr.buf_[i];
+  pc_ += length;
+
+  // Emit relocation information if necessary.
+  if (length >= sizeof(int32_t) && adr.rmode_ != RelocInfo::NONE) {
     pc_ -= sizeof(int32_t);  // pc_ must be *at* disp32
     RecordRelocInfo(adr.rmode_);
     pc_ += sizeof(int32_t);

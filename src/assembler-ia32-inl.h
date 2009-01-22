@@ -270,8 +270,7 @@ void Assembler::emit_disp(Label* L, Displacement::Type type) {
 }
 
 
-void Operand::set_modrm(int mod,  // reg == 0
-                        Register rm) {
+void Operand::set_modrm(int mod, Register rm) {
   ASSERT((mod & -4) == 0);
   buf_[0] = mod << 6 | rm.code();
   len_ = 1;
