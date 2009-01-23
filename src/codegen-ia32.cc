@@ -1127,14 +1127,14 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ j(not_zero, deferred->enter(), not_taken);
         __ sar(ebx, kSmiTagSize);
         __ shl(ebx, shift_value);
-        // This is the Smi check for the shifted result.
-        // After signed subtraction of 0xc0000000, the valid 
-        // Smis are positive.
-        __ cmp(ebx, 0xc0000000);
-        __ j(sign, deferred->enter(), not_taken); 
-        // tag result and store it in TOS (eax)
-        ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
+        // Convert the int to a Smi, and check that it is in
+        // the range of valid Smis.
+        ASSERT(kSmiTagSize == times_2);  // Adjust code if not true.
+        ASSERT(kSmiTag == 0);  // Adjust code if not true.
+        __ add(ebx, Operand(ebx));
+        __ j(overflow, deferred->enter(), not_taken);
+        __ mov(eax, Operand(ebx));
+
         __ bind(deferred->exit());
         frame_->Push(eax);
       }
