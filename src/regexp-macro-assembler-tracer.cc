@@ -150,9 +150,9 @@ void RegExpMacroAssemblerTracer::WriteCurrentPositionToRegister(int reg,
 }
 
 
-void RegExpMacroAssemblerTracer::ClearRegister(int reg) {
-  PrintF(" ClearRegister(register=%d);\n", reg);
-  assembler_->ClearRegister(reg);
+void RegExpMacroAssemblerTracer::ClearRegisters(int reg_from, int reg_to) {
+  PrintF(" ClearRegister(from=%d, to=%d);\n", reg_from, reg_to);
+  assembler_->ClearRegisters(reg_from, reg_to);
 }
 
 

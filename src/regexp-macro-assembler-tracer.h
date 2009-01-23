@@ -107,7 +107,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual void SetRegister(int register_index, int to);
   virtual void Succeed();
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
-  virtual void ClearRegister(int reg);
+  virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
  private:
   RegExpMacroAssembler* assembler_;

@@ -719,13 +719,17 @@ class ActionNode: public SeqRegExpNode {
   };
   static ActionNode* SetRegister(int reg, int val, RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
-  static ActionNode* StorePosition(int reg, RegExpNode* on_success);
+  static ActionNode* StorePosition(int reg,
+                                   bool is_capture,
+                                   RegExpNode* on_success);
   static ActionNode* ClearCaptures(Interval range, RegExpNode* on_success);
   static ActionNode* BeginSubmatch(int stack_pointer_reg,
                                    int position_reg,
                                    RegExpNode* on_success);
   static ActionNode* PositiveSubmatchSuccess(int stack_pointer_reg,
                                              int restore_reg,
+                                             int clear_capture_count,
+                                             int clear_capture_from,
                                              RegExpNode* on_success);
   static ActionNode* EmptyMatchCheck(int start_register,
                                      int repetition_register,
@@ -755,10 +759,13 @@ class ActionNode: public SeqRegExpNode {
     } u_increment_register;
     struct {
       int reg;
+      bool is_capture;
     } u_position_register;
     struct {
       int stack_pointer_register;
       int current_position_register;
+      int clear_register_count;
+      int clear_register_from;
     } u_submatch;
     struct {
       int start_register;
@@ -913,15 +920,22 @@ class EndNode: public RegExpNode {
 
 class NegativeSubmatchSuccess: public EndNode {
  public:
-  NegativeSubmatchSuccess(int stack_pointer_reg, int position_reg)
+  NegativeSubmatchSuccess(int stack_pointer_reg,
+                          int position_reg,
+                          int clear_capture_count,
+                          int clear_capture_start)
       : EndNode(NEGATIVE_SUBMATCH_SUCCESS),
         stack_pointer_register_(stack_pointer_reg),
-        current_position_register_(position_reg) { }
+        current_position_register_(position_reg),
+        clear_capture_count_(clear_capture_count),
+        clear_capture_start_(clear_capture_start) { }
   virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
 
  private:
   int stack_pointer_register_;
   int current_position_register_;
+  int clear_capture_count_;
+  int clear_capture_start_;
 };
 
 
@@ -1087,18 +1101,20 @@ class Trace {
     friend class Trace;
   };
 
-  class DeferredCapture: public DeferredAction {
+  class DeferredCapture : public DeferredAction {
    public:
-    DeferredCapture(int reg, Trace* trace)
+    DeferredCapture(int reg, bool is_capture, Trace* trace)
         : DeferredAction(ActionNode::STORE_POSITION, reg),
           cp_offset_(trace->cp_offset()) { }
     int cp_offset() { return cp_offset_; }
+    bool is_capture() { return is_capture_; }
    private:
     int cp_offset_;
+    bool is_capture_;
     void set_cp_offset(int cp_offset) { cp_offset_ = cp_offset; }
   };
 
-  class DeferredSetRegister :public DeferredAction {
+  class DeferredSetRegister : public DeferredAction {
    public:
     DeferredSetRegister(int reg, int value)
         : DeferredAction(ActionNode::SET_REGISTER, reg),
@@ -1118,7 +1134,7 @@ class Trace {
     Interval range_;
   };
 
-  class DeferredIncrementRegister: public DeferredAction {
+  class DeferredIncrementRegister : public DeferredAction {
    public:
     explicit DeferredIncrementRegister(int reg)
         : DeferredAction(ActionNode::INCREMENT_REGISTER, reg) { }
@@ -1189,13 +1205,13 @@ class Trace {
   int FindAffectedRegisters(OutSet* affected_registers);
   void PerformDeferredActions(RegExpMacroAssembler* macro,
                                int max_register,
-                               OutSet& affected_registers);
+                               OutSet& affected_registers,
+                               OutSet* registers_to_pop,
+                               OutSet* registers_to_clear);
   void RestoreAffectedRegisters(RegExpMacroAssembler* macro,
                                 int max_register,
-                                OutSet& affected_registers);
-  void PushAffectedRegisters(RegExpMacroAssembler* macro,
-                             int max_register,
-                             OutSet& affected_registers);
+                                OutSet& registers_to_pop,
+                                OutSet& registers_to_clear);
   int cp_offset_;
   DeferredAction* actions_;
   Label* backtrack_;
