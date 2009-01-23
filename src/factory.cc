@@ -327,7 +327,7 @@ Handle<Object> Factory::NewReferenceError(Handle<String> message) {
 
 Handle<Object> Factory::NewError(const char* maker, const char* type,
     Vector< Handle<Object> > args) {
-  HandleScope scope;
+  v8::HandleScope scope;  // Instantiate a closeable HandleScope for EscapeFrom.
   Handle<FixedArray> array = Factory::NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
     array->set(i, *args[i]);

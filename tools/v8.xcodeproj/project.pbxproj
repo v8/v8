@@ -259,6 +259,7 @@
 
 /* Begin PBXFileReference section */
 		8900116B0E71CA2300F91F35 /* libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libraries.cc; sourceTree = "<group>"; };
+		893986D40F29020C007D5254 /* apiutils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = apiutils.h; sourceTree = "<group>"; };
 		8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-stack.cc"; sourceTree = "<group>"; };
 		8944AD0F0F1D4D3A0028D560 /* regexp-stack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-stack.h"; sourceTree = "<group>"; };
 		89471C7F0EB23EE400B6874B /* flag-definitions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "flag-definitions.h"; sourceTree = "<group>"; };
@@ -595,6 +596,7 @@
 				897FF0F90E719B8F00D62E90 /* allocation.h */,
 				897FF0FA0E719B8F00D62E90 /* api.cc */,
 				897FF0FB0E719B8F00D62E90 /* api.h */,
+				893986D40F29020C007D5254 /* apiutils.h */,
 				897FF0FC0E719B8F00D62E90 /* arguments.h */,
 				897FF0FD0E719B8F00D62E90 /* assembler-arm-inl.h */,
 				897FF0FE0E719B8F00D62E90 /* assembler-arm.cc */,

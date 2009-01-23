@@ -38,9 +38,17 @@ namespace v8 {
 static internal::Thread::LocalStorageKey thread_state_key =
     internal::Thread::CreateThreadLocalKey();
 
+
+// Track whether this V8 instance has ever called v8::Locker. This allows the
+// API code to verify that the lock is always held when V8 is being entered.
+bool Locker::active_ = false;
+
+
 // Constructor for the Locker object.  Once the Locker is constructed the
 // current thread will be guaranteed to have the big V8 lock.
 Locker::Locker() : has_lock_(false), top_level_(true) {
+  // Record that the Locker has been used at least once.
+  active_ = true;
   // Get the big lock if necessary.
   if (!internal::ThreadManager::IsLockedByCurrentThread()) {
     internal::ThreadManager::Lock();

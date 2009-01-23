@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,52 +24,46 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
-#ifndef V8_HANDLES_INL_H_
-#define V8_HANDLES_INL_H_
+#ifndef V8_APIUTILS_H_
+#define V8_APIUTILS_H_
 
-#include "apiutils.h"
-#include "handles.h"
-#include "api.h"
+namespace v8 {
 
-namespace v8 { namespace internal {
+class ImplementationUtilities {
+ public:
+  static v8::Handle<v8::Primitive> Undefined();
+  static v8::Handle<v8::Primitive> Null();
+  static v8::Handle<v8::Boolean> True();
+  static v8::Handle<v8::Boolean> False();
 
-template<class T>
-Handle<T>::Handle(T* obj) {
-  ASSERT(!obj->IsFailure());
-  location_ = reinterpret_cast<T**>(HandleScope::CreateHandle(obj));
-}
+  static int GetNameCount(ExtensionConfiguration* that) {
+    return that->name_count_;
+  }
 
+  static const char** GetNames(ExtensionConfiguration* that) {
+    return that->names_;
+  }
 
-template <class T>
-inline T* Handle<T>::operator*() const {
-  ASSERT(location_ != NULL);
-  ASSERT(reinterpret_cast<Address>(*location_) != kHandleZapValue);
-  return *location_;
-}
+  static v8::Arguments NewArguments(Local<Value> data,
+                                    Local<Object> holder,
+                                    Local<Function> callee,
+                                    bool is_construct_call,
+                                    void** argv, int argc) {
+    return v8::Arguments(data, holder, callee, is_construct_call, argv, argc);
+  }
 
+  // Introduce an alias for the handle scope data to allow non-friends
+  // to access the HandleScope data.
+  typedef v8::HandleScope::Data HandleScopeData;
+
+  static HandleScopeData* CurrentHandleScope();
 
 #ifdef DEBUG
-inline NoHandleAllocation::NoHandleAllocation() {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      v8::ImplementationUtilities::CurrentHandleScope();
-  extensions_ = current->extensions;
-  // Shrink the current handle scope to make it impossible to do
-  // handle allocations without an explicit handle scope.
-  current->limit = current->next;
-  current->extensions = -1;
-}
-
-
-inline NoHandleAllocation::~NoHandleAllocation() {
-  // Restore state in current handle scope to re-enable handle
-  // allocations.
-  v8::ImplementationUtilities::CurrentHandleScope()->extensions = extensions_;
-}
+  static void ZapHandleRange(void** begin, void** end);
 #endif
+};
 
+}  // namespace v8
 
-} }  // namespace v8::internal
-
-#endif  // V8_HANDLES_INL_H_
+#endif  // V8_APIUTILS_H_
