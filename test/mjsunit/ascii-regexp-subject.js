@@ -37,9 +37,13 @@ for (i = 0; i < 18; i++) {
   s = s + s;
 }
 
-var re = /^bar/;
-
-for (i = 0; i < 1000; i++) {
-  re.test(s);
-  re = new RegExp("^bar");
+function repeatRegexp(re) {
+  for (i = 0; i < 1000; i++) {
+    re.test(s);
+  }
 }
+
+repeatRegexp(/^bar/);
+repeatRegexp(/^foo|^bar|^baz/);
+repeatRegexp(/(^bar)/);
+repeatRegexp(/(?=^bar)\w+/);

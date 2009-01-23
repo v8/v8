@@ -4643,17 +4643,17 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
                                                     0,
                                                     &compiler,
                                                     compiler.accept());
-  // Add a .*? at the beginning, outside the body capture.
-  // Note: We could choose to not add this if the regexp is anchored at
-  //   the start of the input but I'm not sure how best to do that and
-  //   since we don't even handle ^ yet I'm saving that optimization for
-  //   later.
-  RegExpNode* node = RegExpQuantifier::ToNode(0,
-                                              RegExpTree::kInfinity,
-                                              false,
-                                              new RegExpCharacterClass('*'),
-                                              &compiler,
-                                              captured_body);
+  RegExpNode* node = captured_body;
+  if (!data->tree->IsAnchored()) {
+    // Add a .*? at the beginning, outside the body capture, unless
+    // this expression is anchored at the beginning.
+    node = RegExpQuantifier::ToNode(0,
+                                    RegExpTree::kInfinity,
+                                    false,
+                                    new RegExpCharacterClass('*'),
+                                    &compiler,
+                                    captured_body);
+  }
   data->node = node;
   Analysis analysis(ignore_case);
   analysis.EnsureAnalyzed(node);

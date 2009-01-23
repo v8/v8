@@ -244,6 +244,36 @@ Interval RegExpQuantifier::CaptureRegisters() {
 }
 
 
+bool RegExpAssertion::IsAnchored() {
+  return type() == RegExpAssertion::START_OF_INPUT;
+}
+
+
+bool RegExpAlternative::IsAnchored() {
+  return this->nodes()->at(0)->IsAnchored();
+}
+
+
+bool RegExpDisjunction::IsAnchored() {
+  ZoneList<RegExpTree*>* alternatives = this->alternatives();
+  for (int i = 0; i < alternatives->length(); i++) {
+    if (!alternatives->at(i)->IsAnchored())
+      return false;
+  }
+  return true;
+}
+
+
+bool RegExpLookahead::IsAnchored() {
+  return is_positive() && body()->IsAnchored();
+}
+
+
+bool RegExpCapture::IsAnchored() {
+  return body()->IsAnchored();
+}
+
+
 // Convert regular expression trees to a simple sexp representation.
 // This representation should be different from the input grammar
 // in as many cases as possible, to make it more difficult for incorrect
@@ -417,6 +447,7 @@ SmartPointer<const char> RegExpTree::ToString() {
 
 RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
     : alternatives_(alternatives) {
+  ASSERT(alternatives->length() > 1);
   RegExpTree* first_alternative = alternatives->at(0);
   min_match_ = first_alternative->min_match();
   max_match_ = first_alternative->max_match();
@@ -430,6 +461,7 @@ RegExpDisjunction::RegExpDisjunction(ZoneList<RegExpTree*>* alternatives)
 
 RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
     : nodes_(nodes) {
+  ASSERT(nodes->length() > 1);
   min_match_ = 0;
   max_match_ = 0;
   for (int i = 0; i < nodes->length(); i++) {
