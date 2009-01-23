@@ -189,12 +189,12 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       Result context = frame_->CallRuntime(Runtime::kNewContext, 1);
 
       if (kDebug) {
-        frame_->SpillAll();  // Needed for breakpoint below.
         JumpTarget verified_true(this);
         // Verify eax and esi are the same in debug mode
         __ cmp(context.reg(), Operand(esi));
         context.Unuse();
         verified_true.Branch(equal);
+        frame_->SpillAll();
         __ int3();
         verified_true.Bind();
       }
@@ -855,7 +855,7 @@ class DeferredInlinedSmiOperationReversed: public DeferredCode {
 
 class DeferredInlinedSmiAdd: public DeferredCode {
  public:
-  DeferredInlinedSmiAdd(CodeGenerator* generator, int value,
+  DeferredInlinedSmiAdd(CodeGenerator* generator, Smi* value,
                         OverwriteMode overwrite_mode) :
       DeferredCode(generator), value_(value), overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiAdd");
@@ -867,23 +867,23 @@ class DeferredInlinedSmiAdd: public DeferredCode {
     arg.ToRegister();
     generator()->frame()->Spill(arg.reg());
     // Undo the optimistic add operation and call the shared stub.
-    __ sub(Operand(arg.reg()), Immediate(Smi::FromInt(value_)));
+    __ sub(Operand(arg.reg()), Immediate(value_));
     generator()->frame()->Push(&arg);
-    generator()->frame()->Push(Smi::FromInt(value_));
+    generator()->frame()->Push(value_);
     GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
     Result result = generator()->frame()->CallStub(&igostub, 2);
     exit()->Jump(&result);
   }
 
  private:
-  int value_;
+  Smi* value_;
   OverwriteMode overwrite_mode_;
 };
 
 
 class DeferredInlinedSmiAddReversed: public DeferredCode {
  public:
-  DeferredInlinedSmiAddReversed(CodeGenerator* generator, int value,
+  DeferredInlinedSmiAddReversed(CodeGenerator* generator, Smi* value,
                         OverwriteMode overwrite_mode) :
       DeferredCode(generator), value_(value), overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiAddReversed");
@@ -893,11 +893,10 @@ class DeferredInlinedSmiAddReversed: public DeferredCode {
     Result arg(generator());
     enter()->Bind(&arg);
     arg.ToRegister();
-    generator()->frame()->Spill(arg.reg());  // Should not be needed.
+    generator()->frame()->Spill(arg.reg());
     // Undo the optimistic add operation and call the shared stub.
-    Immediate immediate(Smi::FromInt(value_));
-    __ sub(Operand(arg.reg()), immediate);
-    generator()->frame()->Push(Smi::FromInt(value_));
+    __ sub(Operand(arg.reg()), Immediate(value_));
+    generator()->frame()->Push(value_);
     generator()->frame()->Push(&arg);
     GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
     arg = generator()->frame()->CallStub(&igostub, 2);
@@ -905,67 +904,63 @@ class DeferredInlinedSmiAddReversed: public DeferredCode {
   }
 
  private:
-  int value_;
+  Smi* value_;
   OverwriteMode overwrite_mode_;
 };
 
 
 class DeferredInlinedSmiSub: public DeferredCode {
  public:
-  DeferredInlinedSmiSub(CodeGenerator* generator, int value,
+  DeferredInlinedSmiSub(CodeGenerator* generator,
+                        Smi* value,
                         OverwriteMode overwrite_mode) :
       DeferredCode(generator), value_(value), overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiSub");
   }
 
   virtual void Generate() {
-    // The argument is actually passed in eax.
-    enter()->Bind();
-    VirtualFrame::SpilledScope spilled_scope(generator());
+    Result argument(generator());
+    enter()->Bind(&argument);
+    argument.ToRegister();
+    generator()->frame()->Spill(argument.reg());
     // Undo the optimistic sub operation and call the shared stub.
-    Immediate immediate(Smi::FromInt(value_));
-    __ add(Operand(eax), immediate);
-    generator()->frame()->EmitPush(eax);
-    generator()->frame()->EmitPush(immediate);
+    __ add(Operand(argument.reg()), Immediate(value_));
+    generator()->frame()->Push(&argument);
+    generator()->frame()->Push(value_);
     GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-    generator()->frame()->CallStub(&igostub, 2);
+    Result answer = generator()->frame()->CallStub(&igostub, 2);
     // The result is actually returned in eax.
-    exit()->Jump();
+    exit()->Jump(&answer);
   }
 
  private:
-  int value_;
+  Smi* value_;
   OverwriteMode overwrite_mode_;
 };
 
 
 class DeferredInlinedSmiSubReversed: public DeferredCode {
  public:
-  // tos_reg is used to save the TOS value before reversing the operands
-  // eax will contain the immediate value after undoing the optimistic sub.
-  DeferredInlinedSmiSubReversed(CodeGenerator* generator, Register tos_reg,
+  DeferredInlinedSmiSubReversed(CodeGenerator* generator,
+                                Smi* value,
                                 OverwriteMode overwrite_mode) :
-      DeferredCode(generator), tos_reg_(tos_reg),
+      DeferredCode(generator), value_(value),
       overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiSubReversed");
   }
 
   virtual void Generate() {
-    // The arguments are actually passed in eax and tos_reg.
-    enter()->Bind();
-    VirtualFrame::SpilledScope spilled_scope(generator());
-    // Undo the optimistic sub operation and call the shared stub.
-    __ add(eax, Operand(tos_reg_));
-    generator()->frame()->EmitPush(eax);
-    generator()->frame()->EmitPush(tos_reg_);
+    Result rhs(generator());
+    enter()->Bind(&rhs);
+    generator()->frame()->Push(value_);
+    generator()->frame()->Push(&rhs);
     GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-    generator()->frame()->CallStub(&igostub, 2);
-    // The result is actually returned in eax.
-    exit()->Jump();
+    Result answer = generator()->frame()->CallStub(&igostub, 2);
+    exit()->Jump(&answer);
   }
 
  private:
-  Register tos_reg_;
+  Smi* value_;
   OverwriteMode overwrite_mode_;
 };
 
@@ -984,19 +979,19 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
   // TODO(1217802): Optimize some special cases of operations
   // involving a smi literal (multiply by 2, shift by 0, etc.).
-  VirtualFrame::SpilledScope spilled_scope(this);
 
   // Get the literal value.
-  int int_value = Smi::cast(*value)->value();
+  Smi* smi_value = Smi::cast(*value);
+  int int_value = smi_value->value();
   ASSERT(is_intn(int_value, kMaxSmiInlinedBits));
 
   switch (op) {
     case Token::ADD: {
       DeferredCode* deferred = NULL;
       if (!reversed) {
-        deferred = new DeferredInlinedSmiAdd(this, int_value, overwrite_mode);
+        deferred = new DeferredInlinedSmiAdd(this, smi_value, overwrite_mode);
       } else {
-        deferred = new DeferredInlinedSmiAddReversed(this, int_value,
+        deferred = new DeferredInlinedSmiAddReversed(this, smi_value,
                                                      overwrite_mode);
       }
       Result operand = frame_->Pop();
@@ -1013,31 +1008,47 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SUB: {
       DeferredCode* deferred = NULL;
-      frame_->EmitPop(eax);
+      Result operand = frame_->Pop();
+      Result answer(this);  // Only allocated a new register if reversed.
       if (!reversed) {
-        deferred = new DeferredInlinedSmiSub(this, int_value, overwrite_mode);
-        __ sub(Operand(eax), Immediate(value));
+        operand.ToRegister();
+        frame_->Spill(operand.reg());
+        deferred = new DeferredInlinedSmiSub(this,
+                                             smi_value,
+                                             overwrite_mode);
+        __ sub(Operand(operand.reg()), Immediate(value));
+        answer = operand;
       } else {
-        deferred = new DeferredInlinedSmiSubReversed(this, edx, overwrite_mode);
-        __ mov(edx, Operand(eax));
-        __ mov(eax, Immediate(value));
-        __ sub(eax, Operand(edx));
+        answer = allocator()->Allocate();
+        ASSERT(answer.is_valid());
+        deferred = new DeferredInlinedSmiSubReversed(this,
+                                                     smi_value,
+                                                     overwrite_mode);
+        __ mov(answer.reg(), Immediate(value));
+        if (operand.is_register()) {
+          __ sub(answer.reg(), Operand(operand.reg()));
+        } else {
+          ASSERT(operand.is_constant());
+          __ sub(Operand(answer.reg()), Immediate(operand.handle()));
+        }
       }
-      deferred->enter()->Branch(overflow, not_taken);
-      __ test(eax, Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, not_taken);
-      deferred->exit()->Bind();
-      frame_->EmitPush(eax);
+      deferred->enter()->Branch(overflow, &operand, not_taken);
+      __ test(answer.reg(), Immediate(kSmiTagMask));
+      deferred->enter()->Branch(not_zero, &operand, not_taken);
+      operand.Unuse();
+      deferred->exit()->Bind(&answer);
+      frame_->Push(&answer);
       break;
     }
 
     case Token::SAR: {
       if (reversed) {
-        frame_->EmitPop(eax);
-        frame_->EmitPush(Immediate(value));
-        frame_->EmitPush(eax);
+        Result top = frame_->Pop();
+        frame_->Push(value);
+        frame_->Push(&top);
         GenericBinaryOperation(op, type, overwrite_mode);
       } else {
+        VirtualFrame::SpilledScope spilled_scope(this);
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
           new DeferredInlinedSmiOperation(this, Token::SAR, shift_value,
@@ -1055,11 +1066,12 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SHR: {
       if (reversed) {
-        frame_->EmitPop(eax);
-        frame_->EmitPush(Immediate(value));
-        frame_->EmitPush(eax);
+        Result top = frame_->Pop();
+        frame_->Push(value);
+        frame_->Push(&top);
         GenericBinaryOperation(op, type, overwrite_mode);
       } else {
+        VirtualFrame::SpilledScope spilled_scope(this);
         int shift_value = int_value & 0x1f;  // only least significant 5 bits
         DeferredCode* deferred =
         new DeferredInlinedSmiOperation(this, Token::SHR, shift_value,
@@ -1082,6 +1094,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
     }
 
     case Token::SHL: {
+      VirtualFrame::SpilledScope spilled_scope(this);
       if (reversed) {
         frame_->EmitPop(eax);
         frame_->EmitPush(Immediate(value));
@@ -1113,6 +1126,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND: {
+      VirtualFrame::SpilledScope spilled_scope(this);
       DeferredCode* deferred = NULL;
       if (!reversed) {
         deferred =  new DeferredInlinedSmiOperation(this, op, int_value,
@@ -1139,11 +1153,11 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     default: {
       if (!reversed) {
-        frame_->EmitPush(Immediate(value));
+        frame_->Push(value);
       } else {
-        frame_->EmitPop(eax);
-        frame_->EmitPush(Immediate(value));
-        frame_->EmitPush(eax);
+        Result top = frame_->Pop();
+        frame_->Push(value);
+        frame_->Push(&top);
       }
       GenericBinaryOperation(op, type, overwrite_mode);
       break;
