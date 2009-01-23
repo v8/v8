@@ -5160,6 +5160,7 @@ Object* JSObject::SetElement(uint32_t index, Object* value) {
     uint32_t new_length = 0;
     if (IsJSArray()) {
       CHECK(Array::IndexFromObject(JSArray::cast(this)->length(), &new_length));
+      JSArray::cast(this)->set_length(Smi::FromInt(new_length));
     } else {
       new_length = Dictionary::cast(elements())->max_number_key() + 1;
     }
