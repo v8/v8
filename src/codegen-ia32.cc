@@ -1127,9 +1127,11 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ j(not_zero, deferred->enter(), not_taken);
         __ sar(ebx, kSmiTagSize);
         __ shl(ebx, shift_value);
-        __ lea(ecx, Operand(ebx, 0x40000000));
-        __ test(ecx, Immediate(0x80000000));
-        __ j(not_zero, deferred->enter(), not_taken);
+        // This is the Smi check for the shifted result.
+        // After signed subtraction of 0xc0000000, the valid 
+        // Smis are positive.
+        __ cmp(ebx, 0xc0000000);
+        __ j(sign, deferred->enter(), not_taken); 
         // tag result and store it in TOS (eax)
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
         __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
@@ -4274,9 +4276,8 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
         case Token::SHL:
           __ shl(eax);
           // Check that the *signed* result fits in a smi.
-          __ lea(ecx, Operand(eax, 0x40000000));
-          __ test(ecx, Immediate(0x80000000));
-          __ j(not_zero, slow, not_taken);
+          __ cmp(eax, 0xc0000000);
+          __ j(sign, slow, not_taken);
           break;
         default:
           UNREACHABLE();
