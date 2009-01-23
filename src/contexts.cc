@@ -94,7 +94,11 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     // check extension/with object
     if (context->has_extension()) {
       Handle<JSObject> extension = Handle<JSObject>(context->extension());
-      if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0) {
+      // Context extension objects needs to behave as if they have no
+      // prototype.  So even if we want to follow prototype chains, we
+      // need to only do a local lookup for context extension objects.
+      if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
+          extension->IsJSContextExtensionObject()) {
         *attributes = extension->GetLocalPropertyAttribute(*name);
       } else {
         *attributes = extension->GetPropertyAttribute(*name);
