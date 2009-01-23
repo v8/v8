@@ -1360,44 +1360,41 @@ int Trace::FindAffectedRegisters(OutSet* affected_registers) {
 }
 
 
+void Trace::PushAffectedRegisters(RegExpMacroAssembler* assembler,
+                                  int max_register,
+                                  OutSet& affected_registers) {
+  // Stay safe and check every half times the limit.
+  // (Round up in case the limit is 1).
+  int push_limit = (assembler->stack_limit_slack() + 1) / 2;
+  for (int reg = 0, pushes = 0; reg <= max_register; reg++) {
+    if (affected_registers.Get(reg)) {
+      pushes++;
+      RegExpMacroAssembler::StackCheckFlag check_stack_limit =
+          (pushes % push_limit) == 0 ?
+                RegExpMacroAssembler::kCheckStackLimit :
+                RegExpMacroAssembler::kNoStackLimitCheck;
+      assembler->PushRegister(reg, check_stack_limit);
+    }
+  }
+}
+
+
 void Trace::RestoreAffectedRegisters(RegExpMacroAssembler* assembler,
                                      int max_register,
-                                     OutSet& registers_to_pop,
-                                     OutSet& registers_to_clear) {
+                                     OutSet& affected_registers) {
   for (int reg = max_register; reg >= 0; reg--) {
-    if (registers_to_pop.Get(reg)) assembler->PopRegister(reg);
-    else if (registers_to_clear.Get(reg)) {
-      int clear_to = reg;
-      while (reg > 0 && registers_to_pop.Get(reg - 1)) {
-        reg--;
-      }
-      assembler->ClearRegisters(reg, clear_to);
-    }
+    if (affected_registers.Get(reg)) assembler->PopRegister(reg);
   }
 }
 
 
 void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
                                    int max_register,
-                                   OutSet& affected_registers,
-                                   OutSet* registers_to_pop,
-                                   OutSet* registers_to_clear) {
-  // The "+1" is to avoid a push_limit of zero if stack_limit_slack() is 1.
-  const int push_limit = (assembler->stack_limit_slack() + 1) / 2;
-
+                                   OutSet& affected_registers) {
   for (int reg = 0; reg <= max_register; reg++) {
     if (!affected_registers.Get(reg)) {
       continue;
     }
-    // Count pushes performed to force a stack limit check occasionally.
-    int pushes = 0;
-
-    // The chronologically first deferred action in the trace
-    // is used to infer the action needed to restore a register
-    // to its previous state (or not, if it's safe to ignore it).
-    enum DeferredActionUndoType { IGNORE, RESTORE, CLEAR };
-    DeferredActionUndoType undo_action = IGNORE;
-
     int value = 0;
     bool absolute = false;
     bool clear = false;
@@ -1412,16 +1409,8 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
           case ActionNode::SET_REGISTER: {
             Trace::DeferredSetRegister* psr =
                 static_cast<Trace::DeferredSetRegister*>(action);
-            if (!absolute) {
-              value += psr->value();
-              absolute = true;
-            }
-            // SET_REGISTER is currently only used for newly introduced loop
-            // counters. They can have a significant previous value if they
-            // occour in a loop. TODO(lrn): Propagate this information, so
-            // we can set undo_action to IGNORE if we know there is no value to
-            // restore.
-            undo_action = RESTORE;
+            value += psr->value();
+            absolute = true;
             ASSERT_EQ(store_position, -1);
             ASSERT(!clear);
             break;
@@ -1432,26 +1421,12 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
             }
             ASSERT_EQ(store_position, -1);
             ASSERT(!clear);
-            undo_action = RESTORE;
             break;
           case ActionNode::STORE_POSITION: {
             Trace::DeferredCapture* pc =
                 static_cast<Trace::DeferredCapture*>(action);
             if (!clear && store_position == -1) {
               store_position = pc->cp_offset();
-            }
-
-            // For captures we know that stores and clears alternate.
-            // Other register, are never cleared, and if the occur
-            // inside a loop, they might be assigned more than once.
-            if (reg <= 1) {
-              // Registers zero and one, aka "capture zero", is
-              // always set correctly if we succeed. There is no
-              // need to undo a setting on backtrack, because we
-              // will set it again or fail.
-              undo_action = IGNORE;
-            } else {
-              undo_action = pc->is_capture() ? CLEAR : RESTORE;
             }
             ASSERT(!absolute);
             ASSERT_EQ(value, 0);
@@ -1461,10 +1436,8 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
             // Since we're scanning in reverse order, if we've already
             // set the position we have to ignore historically earlier
             // clearing operations.
-            if (store_position == -1) {
+            if (store_position == -1)
               clear = true;
-            }
-            undo_action = RESTORE;
             ASSERT(!absolute);
             ASSERT_EQ(value, 0);
             break;
@@ -1475,27 +1448,10 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
         }
       }
     }
-    // Prepare for the undo-action (e.g., push if it's going to be popped).
-    if (undo_action == RESTORE) {
-      pushes++;
-      RegExpMacroAssembler::StackCheckFlag stack_check =
-          RegExpMacroAssembler::kNoStackLimitCheck;
-      if (pushes == push_limit) {
-        stack_check = RegExpMacroAssembler::kCheckStackLimit;
-        pushes = 0;
-      }
-
-      assembler->PushRegister(reg, stack_check);
-      registers_to_pop->Set(reg);
-    } else if (undo_action == CLEAR) {
-      registers_to_clear->Set(reg);
-    }
-    // Perform the chronologically last action (or accumulated increment)
-    // for the register.
     if (store_position != -1) {
       assembler->WriteCurrentPositionToRegister(reg, store_position);
     } else if (clear) {
-      assembler->ClearRegisters(reg, reg);
+      assembler->ClearRegister(reg);
     } else if (absolute) {
       assembler->SetRegister(reg, value);
     } else if (value != 0) {
@@ -1530,15 +1486,9 @@ bool Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
 
   // Generate deferred actions here along with code to undo them again.
   OutSet affected_registers;
-
   int max_register = FindAffectedRegisters(&affected_registers);
-  OutSet registers_to_pop;
-  OutSet registers_to_clear;
-  PerformDeferredActions(assembler,
-                         max_register,
-                         affected_registers,
-                         &registers_to_pop,
-                         &registers_to_clear);
+  PushAffectedRegisters(assembler, max_register, affected_registers);
+  PerformDeferredActions(assembler, max_register, affected_registers);
   if (backtrack() != NULL) {
     // Here we have a concrete backtrack location.  These are set up by choice
     // nodes and so they indicate that we have a deferred save of the current
@@ -1561,10 +1511,7 @@ bool Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   if (backtrack() != NULL) {
     assembler->PopCurrentPosition();
   }
-  RestoreAffectedRegisters(assembler,
-                           max_register,
-                           registers_to_pop,
-                           registers_to_clear);
+  RestoreAffectedRegisters(assembler, max_register, affected_registers);
   if (backtrack() == NULL) {
     assembler->Backtrack();
   } else {
@@ -1576,26 +1523,15 @@ bool Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
 
 
 bool NegativeSubmatchSuccess::Emit(RegExpCompiler* compiler, Trace* trace) {
+  if (!trace->is_trivial()) {
+    return trace->Flush(compiler, this);
+  }
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
-
-  // Omit flushing the trace. We discard the entire stack frame anyway.
-
   if (!label()->is_bound()) {
-    // We are completely independent of the trace, since we ignore it,
-    // so this code can be used as the generic version.
     assembler->Bind(label());
   }
-
-  // Throw away everything on the backtrack stack since the start
-  // of the negative submatch and restore the character position.
   assembler->ReadCurrentPositionFromRegister(current_position_register_);
   assembler->ReadStackPointerFromRegister(stack_pointer_register_);
-  if (clear_capture_count_ > 0) {
-    // Clear any captures that might have been performed during the success
-    // of the body of the negative look-ahead.
-    int clear_capture_end = clear_capture_start_ + clear_capture_count_ - 1;
-    assembler->ClearRegisters(clear_capture_start_, clear_capture_end);
-  }
   // Now that we have unwound the stack we find at the top of the stack the
   // backtrack that the BeginSubmatch node got.
   assembler->Backtrack();
@@ -1651,12 +1587,9 @@ ActionNode* ActionNode::IncrementRegister(int reg, RegExpNode* on_success) {
 }
 
 
-ActionNode* ActionNode::StorePosition(int reg,
-                                      bool is_capture,
-                                      RegExpNode* on_success) {
+ActionNode* ActionNode::StorePosition(int reg, RegExpNode* on_success) {
   ActionNode* result = new ActionNode(STORE_POSITION, on_success);
   result->data_.u_position_register.reg = reg;
-  result->data_.u_position_register.is_capture = is_capture;
   return result;
 }
 
@@ -1682,14 +1615,10 @@ ActionNode* ActionNode::BeginSubmatch(int stack_reg,
 
 ActionNode* ActionNode::PositiveSubmatchSuccess(int stack_reg,
                                                 int position_reg,
-                                                int clear_register_count,
-                                                int clear_register_from,
                                                 RegExpNode* on_success) {
   ActionNode* result = new ActionNode(POSITIVE_SUBMATCH_SUCCESS, on_success);
   result->data_.u_submatch.stack_pointer_register = stack_reg;
   result->data_.u_submatch.current_position_register = position_reg;
-  result->data_.u_submatch.clear_register_count = clear_register_count;
-  result->data_.u_submatch.clear_register_from = clear_register_from;
   return result;
 }
 
@@ -3241,9 +3170,7 @@ bool ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   switch (type_) {
     case STORE_POSITION: {
       Trace::DeferredCapture
-          new_capture(data_.u_position_register.reg,
-                      data_.u_position_register.is_capture,
-                      trace);
+          new_capture(data_.u_position_register.reg, trace);
       Trace new_trace = *trace;
       new_trace.add_action(&new_capture);
       return on_success()->Emit(compiler, &new_trace);
@@ -3308,31 +3235,13 @@ bool ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       assembler->Bind(&skip_empty_check);
       return on_success()->Emit(compiler, trace);
     }
-    case POSITIVE_SUBMATCH_SUCCESS: {
+    case POSITIVE_SUBMATCH_SUCCESS:
       if (!trace->is_trivial()) return trace->Flush(compiler, this);
       assembler->ReadCurrentPositionFromRegister(
           data_.u_submatch.current_position_register);
       assembler->ReadStackPointerFromRegister(
           data_.u_submatch.stack_pointer_register);
-      int clear_register_count = data_.u_submatch.clear_register_count;
-      if (clear_register_count == 0) {
-        return on_success()->Emit(compiler, trace);
-      }
-      int clear_registers_from = data_.u_submatch.clear_register_from;
-      Label clear_registers_backtrack;
-      Trace new_trace = *trace;
-      new_trace.set_backtrack(&clear_registers_backtrack);
-      bool ok = on_success()->Emit(compiler, &new_trace);
-      if (!ok) { return false; }
-
-      assembler->Bind(&clear_registers_backtrack);
-      int clear_registers_to = clear_registers_from + clear_register_count - 1;
-      assembler->ClearRegisters(clear_registers_from, clear_registers_to);
-
-      ASSERT(trace->backtrack() == NULL);
-      assembler->Backtrack();
-      return true;
-    }
+      return on_success()->Emit(compiler, trace);
     default:
       UNREACHABLE();
       return false;
@@ -3950,7 +3859,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   if (body_can_be_empty) {
     // If the body can be empty we need to store the start position
     // so we can bail out if it was empty.
-    body_node = ActionNode::StorePosition(body_start_reg, false, body_node);
+    body_node = ActionNode::StorePosition(body_start_reg, body_node);
   }
   if (needs_capture_clearing) {
     // Before entering the body of this loop we need to clear captures.
@@ -4012,8 +3921,6 @@ RegExpNode* RegExpAssertion::ToNode(RegExpCompiler* compiler,
          newline_atom,
          ActionNode::PositiveSubmatchSuccess(stack_pointer_register,
                                              position_register,
-                                             0,  // No captures inside.
-                                             -1,  // Ignored if no captures.
                                              on_success));
       // Create an end-of-input matcher.
       RegExpNode* end_of_line = ActionNode::BeginSubmatch(
@@ -4052,26 +3959,16 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
                                     RegExpNode* on_success) {
   int stack_pointer_register = compiler->AllocateRegister();
   int position_register = compiler->AllocateRegister();
-
-  const int registers_per_capture = 2;
-  const int register_of_first_capture = 2;
-  int register_count = capture_count_ * registers_per_capture;
-  int register_start =
-    register_of_first_capture + capture_from_ * registers_per_capture;
-
   RegExpNode* success;
   if (is_positive()) {
-    RegExpNode* node = ActionNode::BeginSubmatch(
+    return ActionNode::BeginSubmatch(
         stack_pointer_register,
         position_register,
         body()->ToNode(
             compiler,
             ActionNode::PositiveSubmatchSuccess(stack_pointer_register,
                                                 position_register,
-                                                register_count,
-                                                register_start,
                                                 on_success)));
-    return node;
   } else {
     // We use a ChoiceNode for a negative lookahead because it has most of
     // the characteristics we need.  It has the body of the lookahead as its
@@ -4087,9 +3984,7 @@ RegExpNode* RegExpLookahead::ToNode(RegExpCompiler* compiler,
         body()->ToNode(
             compiler,
             success = new NegativeSubmatchSuccess(stack_pointer_register,
-                                                  position_register,
-                                                  register_count,
-                                                  register_start)));
+                                                  position_register)));
     ChoiceNode* choice_node =
         new NegativeLookaheadChoiceNode(body_alt,
                                         GuardedAlternative(on_success));
@@ -4112,9 +4007,9 @@ RegExpNode* RegExpCapture::ToNode(RegExpTree* body,
                                   RegExpNode* on_success) {
   int start_reg = RegExpCapture::StartRegister(index);
   int end_reg = RegExpCapture::EndRegister(index);
-  RegExpNode* store_end = ActionNode::StorePosition(end_reg, true, on_success);
+  RegExpNode* store_end = ActionNode::StorePosition(end_reg, on_success);
   RegExpNode* body_node = body->ToNode(compiler, store_end);
-  return ActionNode::StorePosition(start_reg, true, body_node);
+  return ActionNode::StorePosition(start_reg, body_node);
 }
 
 
