@@ -85,7 +85,7 @@ class Handle {
 
   // Closes the given scope, but lets this handle escape. See
   // implementation in api.h.
-  inline Handle<T> EscapeFrom(HandleScope* scope);
+  inline Handle<T> EscapeFrom(v8::HandleScope* scope);
 
  private:
   T** location_;
