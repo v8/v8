@@ -2034,39 +2034,40 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
 }
 
 
-int ActionNode::EatsAtLeast(int recursion_depth) {
+int ActionNode::EatsAtLeast(int still_to_find, int recursion_depth) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
   if (type_ == POSITIVE_SUBMATCH_SUCCESS) return 0;  // Rewinds input!
-  return on_success()->EatsAtLeast(recursion_depth + 1);
+  return on_success()->EatsAtLeast(still_to_find, recursion_depth + 1);
 }
 
 
-int AssertionNode::EatsAtLeast(int recursion_depth) {
+int AssertionNode::EatsAtLeast(int still_to_find, int recursion_depth) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
-  return on_success()->EatsAtLeast(recursion_depth + 1);
+  return on_success()->EatsAtLeast(still_to_find, recursion_depth + 1);
 }
 
 
-int BackReferenceNode::EatsAtLeast(int recursion_depth) {
+int BackReferenceNode::EatsAtLeast(int still_to_find, int recursion_depth) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
-  return on_success()->EatsAtLeast(recursion_depth + 1);
+  return on_success()->EatsAtLeast(still_to_find, recursion_depth + 1);
 }
 
 
-int TextNode::EatsAtLeast(int recursion_depth) {
+int TextNode::EatsAtLeast(int still_to_find, int recursion_depth) {
   int answer = Length();
-  if (answer >= 4) return answer;
+  if (answer >= still_to_find) return answer;
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return answer;
-  return answer + on_success()->EatsAtLeast(recursion_depth + 1);
+  return answer + on_success()->EatsAtLeast(still_to_find - answer,
+                                            recursion_depth + 1);
 }
 
 
-int NegativeLookaheadChoiceNode:: EatsAtLeast(int recursion_depth) {
+int NegativeLookaheadChoiceNode:: EatsAtLeast(int still_to_find, int recursion_depth) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
   RegExpNode* node = alternatives_->at(1).node();
-  return node->EatsAtLeast(recursion_depth + 1);
+  return node->EatsAtLeast(still_to_find, recursion_depth + 1);
 }
 
 
@@ -2081,7 +2082,8 @@ void NegativeLookaheadChoiceNode::GetQuickCheckDetails(
 }
 
 
-int ChoiceNode::EatsAtLeastHelper(int recursion_depth,
+int ChoiceNode::EatsAtLeastHelper(int still_to_find,
+                                  int recursion_depth,
                                   RegExpNode* ignore_this_node) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
   int min = 100;
@@ -2089,20 +2091,20 @@ int ChoiceNode::EatsAtLeastHelper(int recursion_depth,
   for (int i = 0; i < choice_count; i++) {
     RegExpNode* node = alternatives_->at(i).node();
     if (node == ignore_this_node) continue;
-    int node_eats_at_least = node->EatsAtLeast(recursion_depth + 1);
+    int node_eats_at_least = node->EatsAtLeast(still_to_find, recursion_depth + 1);
     if (node_eats_at_least < min) min = node_eats_at_least;
   }
   return min;
 }
 
 
-int LoopChoiceNode::EatsAtLeast(int recursion_depth) {
-  return EatsAtLeastHelper(recursion_depth, loop_node_);
+int LoopChoiceNode::EatsAtLeast(int still_to_find, int recursion_depth) {
+  return EatsAtLeastHelper(still_to_find, recursion_depth, loop_node_);
 }
 
 
-int ChoiceNode::EatsAtLeast(int recursion_depth) {
-  return EatsAtLeastHelper(recursion_depth, NULL);
+int ChoiceNode::EatsAtLeast(int still_to_find, int recursion_depth) {
+  return EatsAtLeastHelper(still_to_find, recursion_depth, NULL);
 }
 
 
@@ -2882,7 +2884,7 @@ bool LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
 
 int ChoiceNode::CalculatePreloadCharacters(RegExpCompiler* compiler) {
-  int preload_characters = EatsAtLeast(0);
+  int preload_characters = EatsAtLeast(4, 0);
 #ifdef CAN_READ_UNALIGNED
   bool ascii = compiler->ascii();
   if (ascii) {
