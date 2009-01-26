@@ -4149,7 +4149,10 @@ RegExpTree* RegExpParser::ParseGroup() {
   } else {
     ASSERT(type == '=' || type == '!');
     bool is_positive = (type == '=');
-    return new RegExpLookahead(body, is_positive);
+    return new RegExpLookahead(body,
+                               is_positive,
+                               end_capture_index - capture_index,
+                               capture_index);
   }
 }
 

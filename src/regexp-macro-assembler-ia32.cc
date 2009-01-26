@@ -332,15 +332,29 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ push(ebx);
     const int four_arguments = 4;
     FrameAlign(four_arguments, ecx);
-    // Put arguments into allocated stack area.
+    // Put arguments into allocated stack area, last argument highest on stack.
+    // Parameters are
+    //   UC16** buffer - really the String** of the input string
+    //   int byte_offset1 - byte offset from *buffer of start of capture
+    //   int byte_offset2 - byte offset from *buffer of current position
+    //   size_t byte_length - length of capture in bytes(!)
+
+    // Set byte_length.
     __ mov(Operand(esp, 3 * kPointerSize), ebx);
+    // Set byte_offset2.
+    // Found by adding negative string-end offset of current position (edi)
+    // to String** offset of end of string.
     __ mov(ecx, Operand(ebp, kInputEndOffset));
     __ add(edi, Operand(ecx));
     __ mov(Operand(esp, 2 * kPointerSize), edi);
+    // Set byte_offset1.
+    // Start of capture, where eax already holds string-end negative offset.
     __ add(eax, Operand(ecx));
     __ mov(Operand(esp, 1 * kPointerSize), eax);
+    // Set buffer. Original String** parameter to regexp code.
     __ mov(eax, Operand(ebp, kInputBuffer));
     __ mov(Operand(esp, 0 * kPointerSize), eax);
+
     Address function_address = FUNCTION_ADDR(&CaseInsensitiveCompareUC16);
     CallCFunction(function_address, four_arguments);
     // Pop original values before reacting on result value.
@@ -946,9 +960,12 @@ void RegExpMacroAssemblerIA32::WriteCurrentPositionToRegister(int reg,
 }
 
 
-void RegExpMacroAssemblerIA32::ClearRegister(int reg) {
+void RegExpMacroAssemblerIA32::ClearRegisters(int reg_from, int reg_to) {
+  ASSERT(reg_from <= reg_to);
   __ mov(eax, Operand(ebp, kInputStartMinusOne));
-  __ mov(register_location(reg), eax);
+  for (int reg = reg_from; reg <= reg_to; reg++) {
+    __ mov(register_location(reg), eax);
+  }
 }
 
 
@@ -987,8 +1004,8 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Execute(
                             stack_top);
 
   if (result < 0 && !Top::has_pending_exception()) {
-    // We detected a stack overflow in RegExp code, but haven't created
-    // the exception yet.
+    // We detected a stack overflow (on the backtrack stack) in RegExp code,
+    // but haven't created the exception yet.
     Top::StackOverflow();
   }
   return (result < 0) ? EXCEPTION : (result ? SUCCESS : FAILURE);
@@ -1170,6 +1187,9 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
 
 
 void RegExpMacroAssemblerIA32::FrameAlign(int num_arguments, Register scratch) {
+  // TODO(lrn): Since we no longer use the system stack arbitrarily, we
+  // know the current stack alignment - esp points to the last regexp register.
+  // We can do this simpler then.
   int frameAlignment = OS::ActivationFrameAlignment();
   if (frameAlignment != 0) {
     // Make stack end at alignment and make room for num_arguments words

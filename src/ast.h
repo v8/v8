@@ -1521,9 +1521,15 @@ class RegExpCapture: public RegExpTree {
 
 class RegExpLookahead: public RegExpTree {
  public:
-  RegExpLookahead(RegExpTree* body, bool is_positive)
+  RegExpLookahead(RegExpTree* body,
+                  bool is_positive,
+                  int capture_count,
+                  int capture_from)
       : body_(body),
-        is_positive_(is_positive) { }
+        is_positive_(is_positive),
+        capture_count_(capture_count),
+        capture_from_(capture_from) { }
+
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success);
@@ -1535,9 +1541,13 @@ class RegExpLookahead: public RegExpTree {
   virtual int max_match() { return 0; }
   RegExpTree* body() { return body_; }
   bool is_positive() { return is_positive_; }
+  int capture_count() { return capture_count_; }
+  int capture_from() { return capture_from_; }
  private:
   RegExpTree* body_;
   bool is_positive_;
+  int capture_count_;
+  int capture_from_;
 };
 
 
