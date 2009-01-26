@@ -262,6 +262,10 @@ function DebugRequest(cmd_line) {
       this.request_ = this.printCommandToJSONRequest_(args);
       break;
 
+    case 'dir':
+      this.request_ = this.dirCommandToJSONRequest_(args);
+      break;
+
     case 'source':
       this.request_ = this.sourceCommandToJSONRequest_(args);
       break;
@@ -289,6 +293,8 @@ function DebugRequest(cmd_line) {
     default:
       throw new Error('Unknown command "' + cmd + '"');
   }
+  
+  last_cmd = cmd;
 }
 
 DebugRequest.prototype.JSONRequest = function() {
@@ -328,6 +334,27 @@ RequestPacket.prototype.toJSONProtocol = function() {
 DebugRequest.prototype.createRequest = function(command) {
   return new RequestPacket(command);
 };
+
+
+// Create a JSON request for the evaluation command.
+DebugRequest.prototype.makeEvaluateJSONRequest_ = function(expression) {
+  // Check if the expression is a handle id in the form #<handle>#.
+  var handle_match = expression.match(/^#([0-9]*)#$/);
+  if (handle_match) {
+    // Build an evaluate request.
+    var request = this.createRequest('lookup');
+    request.arguments = {};
+    request.arguments.handle = parseInt(handle_match[1]);
+    return request.toJSONProtocol();
+  } else {
+    // Build an evaluate request.
+    var request = this.createRequest('evaluate');
+    request.arguments = {};
+    request.arguments.expression = expression;
+    return request.toJSONProtocol();
+  }
+};
+
 
 
 // Create a JSON request for the continue command.
@@ -438,16 +465,21 @@ DebugRequest.prototype.frameCommandToJSONRequest_ = function(args) {
 
 // Create a JSON request for the print command.
 DebugRequest.prototype.printCommandToJSONRequest_ = function(args) {
-  // Build a evaluate request from the text command.
-  var request = this.createRequest('evaluate');
+  // Build an evaluate request from the text command.
   if (args.length == 0) {
     throw new Error('Missing expression.');
   }
+  return this.makeEvaluateJSONRequest_(args);
+};
 
-  request.arguments = {};
-  request.arguments.expression = args;
 
-  return request.toJSONProtocol();
+// Create a JSON request for the dir command.
+DebugRequest.prototype.dirCommandToJSONRequest_ = function(args) {
+  // Build an evaluate request from the text command.
+  if (args.length == 0) {
+    throw new Error('Missing expression.');
+  }
+  return this.makeEvaluateJSONRequest_(args);
 };
 
 
@@ -585,39 +617,43 @@ DebugRequest.prototype.helpCommand_ = function(args) {
 }
 
 
+function formatHandleReference_(value) {
+  return '#' + value.handle() + '#';
+}
+
+
 // Convert a JSON response to text for display in a text based debugger.
 function DebugResponseDetails(json_response) {
   details = {text:'', running:false}
 
   try {
     // Convert the JSON string to an object.
-    response = eval('(' + json_response + ')');
+    var response = new ProtocolPackage(json_response);
 
-    if (!response.success) {
-      details.text = response.message;
+    if (!response.success()) {
+      details.text = response.message();
       return details;
     }
 
     // Get the running state.
-    details.running = response.running;
+    details.running = response.running();
 
-    switch (response.command) {
+    var body = response.body();
+    var result = '';
+    switch (response.command()) {
       case 'setbreakpoint':
-        var body = response.body;
         result = 'set breakpoint #';
         result += body.breakpoint;
         details.text = result;
         break;
         
       case 'clearbreakpoint':
-        var body = response.body;
         result = 'cleared breakpoint #';
         result += body.breakpoint;
         details.text = result;
         break;
         
       case 'backtrace':
-        var body = response.body;
         if (body.totalFrames == 0) {
           result = '(empty stack)';
         } else {
@@ -632,20 +668,67 @@ function DebugResponseDetails(json_response) {
         break;
         
       case 'frame':
-        details.text = SourceUnderline(response.body.sourceLineText,
-                                       response.body.column);
-        Debug.State.currentSourceLine = response.body.line;
-        Debug.State.currentFrame = response.body.index;
+        details.text = SourceUnderline(body.sourceLineText,
+                                       body.column);
+        Debug.State.currentSourceLine = body.line;
+        Debug.State.currentFrame = body.index;
         break;
         
       case 'evaluate':
-        details.text =  response.body.text;
+      case 'lookup':
+        if (last_cmd == 'p' || last_cmd == 'print') {
+          details.text =  body.text;
+        } else {
+          var value = response.bodyValue();
+          if (value.isObject()) {
+            result += formatHandleReference_(value);
+            result += ', type: object'
+            result += ', constructor ';
+            var ctor = value.constructorFunctionValue();
+            result += formatHandleReference_(ctor);
+            result += ', __proto__ ';
+            var proto = value.protoObjectValue();
+            result += formatHandleReference_(proto);
+            result += ', ';
+            result += value.propertyCount();
+            result +=  ' properties.\n';
+            for (var i = 0; i < value.propertyCount(); i++) {
+              result += '  ';
+              result += value.propertyName(i);
+              result += ': ';
+              var property_value = value.propertyValue(i);
+              if (property_value && property_value.type()) {
+                result += property_value.type();
+              } else {
+                result += '<no type>';
+              }
+              result += ' ';
+              result += formatHandleReference_(property_value);
+              result += '\n';
+            }
+          } else {
+            result += 'type: ';
+            result += value.type();
+            if (!value.isUndefined() && !value.isNull()) {
+              result += ', ';
+              if (value.isString()) {
+                result += '"';
+              }
+              result += value.value();
+              if (value.isString()) {
+                result += '"';
+              }
+            }
+            result += '\n';
+          }
+        }
+        details.text = result;
         break;
         
       case 'source':
         // Get the source from the response.
-        var source = response.body.source;
-        var from_line = response.body.fromLine + 1;
+        var source = body.source;
+        var from_line = body.fromLine + 1;
         var lines = source.split('\n');
         var maxdigits = 1 + Math.floor(log10(from_line + lines.length));
         if (maxdigits < 3) {
@@ -679,25 +762,25 @@ function DebugResponseDetails(json_response) {
         
       case 'scripts':
         var result = '';
-        for (i = 0; i < response.body.length; i++) {
+        for (i = 0; i < body.length; i++) {
           if (i != 0) result += '\n';
-          if (response.body[i].name) {
-            result += response.body[i].name;
+          if (body[i].name) {
+            result += body[i].name;
           } else {
             result += '[unnamed] ';
-            var sourceStart = response.body[i].sourceStart;
+            var sourceStart = body[i].sourceStart;
             if (sourceStart.length > 40) {
               sourceStart = sourceStart.substring(0, 37) + '...';
             }
             result += sourceStart;
           }
           result += ' (lines: ';
-          result += response.body[i].sourceLines;
+          result += body[i].sourceLines;
           result += ', length: ';
-          result += response.body[i].sourceLength;
-          if (response.body[i].type == Debug.ScriptType.Native) {
+          result += body[i].sourceLength;
+          if (body[i].type == Debug.ScriptType.Native) {
             result += ', native';
-          } else if (response.body[i].type == Debug.ScriptType.Extension) {
+          } else if (body[i].type == Debug.ScriptType.Extension) {
             result += ', extension';
           }
           result += ')';
@@ -720,6 +803,270 @@ function DebugResponseDetails(json_response) {
   
   return details;
 };
+
+
+/**
+ * Protocol packages send from the debugger.
+ * @param {string} json - raw protocol packet as JSON string.
+ * @constructor
+ */
+function ProtocolPackage(json) {
+  this.packet_ = eval('(' + json + ')');
+  this.refs_ = [];
+  if (this.packet_.refs) {
+    for (var i = 0; i < this.packet_.refs.length; i++) {
+      this.refs_[this.packet_.refs[i].handle] = this.packet_.refs[i];
+    }
+  }
+}
+
+
+/**
+ * Get the packet type.
+ * @return {String} the packet type
+ */
+ProtocolPackage.prototype.type = function() {
+  return this.packet_.type;
+}
+
+
+/**
+ * Get the packet event.
+ * @return {Object} the packet event
+ */
+ProtocolPackage.prototype.event = function() {
+  return this.packet_.event;
+}
+
+
+/**
+ * Get the packet request sequence.
+ * @return {number} the packet request sequence
+ */
+ProtocolPackage.prototype.requestSeq = function() {
+  return this.packet_.request_seq;
+}
+
+
+/**
+ * Get the packet request sequence.
+ * @return {number} the packet request sequence
+ */
+ProtocolPackage.prototype.running = function() {
+  return this.packet_.running ? true : false;
+}
+
+
+ProtocolPackage.prototype.success = function() {
+  return this.packet_.success ? true : false;
+}
+
+
+ProtocolPackage.prototype.message = function() {
+  return this.packet_.message;
+}
+
+
+ProtocolPackage.prototype.command = function() {
+  return this.packet_.command;
+}
+
+
+ProtocolPackage.prototype.body = function() {
+  return this.packet_.body;
+}
+
+
+ProtocolPackage.prototype.bodyValue = function() {
+  return new ProtocolValue(this.packet_.body, this);
+}
+
+
+ProtocolPackage.prototype.body = function() {
+  return this.packet_.body;
+}
+
+
+ProtocolPackage.prototype.lookup = function(handle) {
+  var value = this.refs_[handle];
+  if (value) {
+    return new ProtocolValue(value, this);
+  } else {
+    return new ProtocolReference(handle);
+  }
+}
+
+
+function ProtocolValue(value, packet) {
+  this.value_ = value;
+  this.packet_ = packet;
+}
+
+
+/**
+ * Get the value type.
+ * @return {String} the value type
+ */
+ProtocolValue.prototype.type = function() {
+  return this.value_.type;
+}
+
+
+/**
+ * Check is the value is a primitive value.
+ * @return {boolean} true if the value is primitive
+ */
+ProtocolValue.prototype.isPrimitive = function() {
+  return this.isUndefined() || this.isNull() || this.isBoolean() ||
+         this.isNumber() || this.isString();
+}
+
+
+/**
+ * Get the object handle.
+ * @return {number} the value handle
+ */
+ProtocolValue.prototype.handle = function() {
+  return this.value_.handle;
+}
+
+
+/**
+ * Check is the value is undefined.
+ * @return {boolean} true if the value is undefined
+ */
+ProtocolValue.prototype.isUndefined = function() {
+  return this.value_.type == 'undefined';
+}
+
+
+/**
+ * Check is the value is null.
+ * @return {boolean} true if the value is null
+ */
+ProtocolValue.prototype.isNull = function() {
+  return this.value_.type == 'null';
+}
+
+
+/**
+ * Check is the value is a boolean.
+ * @return {boolean} true if the value is a boolean
+ */
+ProtocolValue.prototype.isBoolean = function() {
+  return this.value_.type == 'boolean';
+}
+
+
+/**
+ * Check is the value is a number.
+ * @return {boolean} true if the value is a number
+ */
+ProtocolValue.prototype.isNumber = function() {
+  return this.value_.type == 'number';
+}
+
+
+/**
+ * Check is the value is a string.
+ * @return {boolean} true if the value is a string
+ */
+ProtocolValue.prototype.isString = function() {
+  return this.value_.type == 'string';
+}
+
+
+/**
+ * Check is the value is an object.
+ * @return {boolean} true if the value is an object
+ */
+ProtocolValue.prototype.isObject = function() {
+  return this.value_.type == 'object' || this.value_.type == 'function' ||
+         this.value_.type == 'error' || this.value_.type == 'regexp';
+}
+
+
+/**
+ * Get the constructor function
+ * @return {ProtocolValue} constructor function
+ */
+ProtocolValue.prototype.constructorFunctionValue = function() {
+  var ctor = this.value_.constructorFunction;
+  return this.packet_.lookup(ctor.ref);
+}
+
+
+/**
+ * Get the __proto__ value
+ * @return {ProtocolValue} __proto__ value
+ */
+ProtocolValue.prototype.protoObjectValue = function() {
+  var proto = this.value_.protoObject;
+  return this.packet_.lookup(proto.ref);
+}
+
+
+/**
+ * Get the number og properties.
+ * @return {number} the number of properties
+ */
+ProtocolValue.prototype.propertyCount = function() {
+  return this.value_.properties ? this.value_.properties.length : 0;
+}
+
+
+/**
+ * Get the specified property name.
+ * @return {string} property name
+ */
+ProtocolValue.prototype.propertyName = function(index) {
+  var property = this.value_.properties[index];
+  return property.name;
+}
+
+
+/**
+ * Return index for the property name.
+ * @param name The property name to look for
+ * @return {number} index for the property name
+ */
+ProtocolValue.prototype.propertyIndex = function(name) {
+  for (var i = 0; i < this.propertyCount(); i++) {
+    if (this.value_.properties[i].name == name) {
+      return i;
+    }
+  }
+  return null;
+}
+
+
+/**
+ * Get the specified property value.
+ * @return {ProtocolValue} property value
+ */
+ProtocolValue.prototype.propertyValue = function(index) {
+  var property = this.value_.properties[index];
+  return this.packet_.lookup(property.ref);
+}
+
+
+/**
+ * Check is the value is a string.
+ * @return {boolean} true if the value is a string
+ */
+ProtocolValue.prototype.value = function() {
+  return this.value_.value;
+}
+
+
+function ProtocolReference(handle) {
+  this.handle_ = handle;
+}
+
+
+ProtocolReference.prototype.handle = function() {
+  return this.handle_;
+}
 
 
 function MakeJSONPair_(name, value) {
