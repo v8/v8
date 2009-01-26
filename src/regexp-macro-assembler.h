@@ -38,6 +38,10 @@ struct DisjunctDecisionRow {
 
 class RegExpMacroAssembler {
  public:
+  // The implementation must be able to handle at least:
+  static const int kMaxRegister = (1 << 16) - 1;
+  static const int kMaxCPOffset = (1 << 15) - 1;
+  static const int kMinCPOffset = -(1 << 15);
   enum IrregexpImplementation {
     kIA32Implementation,
     kARMImplementation,
