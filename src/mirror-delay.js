@@ -95,6 +95,18 @@ function MakeMirror(value) {
 
 
 /**
+ * Returns the mirror for a specified mirror handle.
+ *
+ * @param {number} handle the handle to find the mirror for
+ * @returns {Mirror or undefiend} the mirror with the requested handle or
+ *     undefined if no mirror with the requested handle was found
+ */
+function LookupMirror(handle) {
+  return mirror_cache_[handle];
+}
+
+  
+/**
  * Returns the mirror for the undefined value.
  *
  * @returns {Mirror} the mirror reflects the undefined value

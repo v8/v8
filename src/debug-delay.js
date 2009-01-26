@@ -1071,6 +1071,8 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request,
         this.frameRequest_(request, response);
       } else if (request.command == 'evaluate') {
         this.evaluateRequest_(request, response);
+      } else if (request.command == 'lookup') {
+        this.lookupRequest_(request, response);
       } else if (request.command == 'source') {
         this.sourceRequest_(request, response);
       } else if (request.command == 'scripts') {
@@ -1430,6 +1432,29 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
     response.body = this.exec_state_.frame().evaluate(
         expression, Boolean(disable_break));
     return;
+  }
+};
+
+
+DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
+  if (!request.arguments) {
+    return response.failed('Missing arguments');
+  }
+
+  // Pull out arguments.
+  var handle = request.arguments.handle;
+
+  // Check for legal arguments.
+  if (IS_UNDEFINED(handle)) {
+    return response.failed('Argument "handle" missing');
+  }
+
+  // Lookup handle.
+  var mirror = LookupMirror(handle);
+  if (mirror) {
+    response.body = mirror;
+  } else {
+    return response.failed('Object #' + handle + '# not found');
   }
 };
 
