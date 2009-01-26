@@ -225,8 +225,8 @@ class SnapshotReader {
   }
 
   int GetInt() {
-    int result = *reinterpret_cast<const int*>(str_);
-    str_ += sizeof(result);
+    int result;
+    GetBytes(reinterpret_cast<Address>(&result), sizeof(result));
     return result;
   }
 

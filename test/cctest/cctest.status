@@ -33,10 +33,6 @@ test-debug/ThreadedDebugging: PASS || FAIL
 [ $arch == arm ]
 
 test-debug: SKIP
-test-serialize/Deserialize: SKIP
-test-serialize/DeserializeAndRunScript: SKIP
-test-serialize/DeserializeNatives: SKIP
-test-serialize/DeserializeExtensions: SKIP
 
 # BUG(113): Test seems flaky on ARM.
 test-spaces/LargeObjectSpace: PASS || FAIL
