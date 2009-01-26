@@ -71,6 +71,9 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
                                               uc16 minus,
                                               uc16 mask,
                                               Label* on_not_equal);
+  // Checks whether the given offset from the current position is before
+  // the end of the string.
+  virtual void CheckPosition(int cp_offset, Label* on_outside_input);
   virtual bool CheckSpecialCharacterClass(uc16 type,
                                           int cp_offset,
                                           bool check_offset,
@@ -170,10 +173,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // successful, or 0 if unable to grow the stack.
   // This function must not trigger a garbage collection.
   static Address GrowStack(Address stack_top);
-
-  // Checks whether the given offset from the current position is before
-  // the end of the string.
-  void CheckPosition(int cp_offset, Label* on_outside_input);
 
   // The ebp-relative location of a regexp register.
   Operand register_location(int register_index);

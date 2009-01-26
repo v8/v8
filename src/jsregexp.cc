@@ -1835,6 +1835,9 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
       // ASCII optimizations for us.
       macro_assembler->GoTo(on_failure);
     }
+    if (check_offset) {
+      macro_assembler->CheckPosition(cp_offset, on_failure);
+    }
     return;
   }
 
@@ -1842,10 +1845,8 @@ static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
       !cc->is_negated() &&
       ranges->at(0).IsEverything(max_char)) {
     // This is a common case hit by non-anchored expressions.
-    // TODO(erikcorry): We should have a macro assembler instruction that just
-    // checks for end of string without loading the character.
     if (check_offset) {
-      macro_assembler->LoadCurrentCharacter(cp_offset, on_failure);
+      macro_assembler->CheckPosition(cp_offset, on_failure);
     }
     return;
   }
@@ -2477,7 +2478,7 @@ bool AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   switch (type_) {
     case AT_END: {
       Label ok;
-      assembler->LoadCurrentCharacter(trace->cp_offset(), &ok);
+      assembler->CheckPosition(trace->cp_offset(), &ok);
       assembler->GoTo(trace->backtrack());
       assembler->Bind(&ok);
       break;
