@@ -2056,7 +2056,8 @@ int TextNode::EatsAtLeast(int still_to_find, int recursion_depth) {
 }
 
 
-int NegativeLookaheadChoiceNode:: EatsAtLeast(int still_to_find, int recursion_depth) {
+int NegativeLookaheadChoiceNode:: EatsAtLeast(int still_to_find,
+                                              int recursion_depth) {
   if (recursion_depth > RegExpCompiler::kMaxRecursion) return 0;
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
@@ -2085,7 +2086,8 @@ int ChoiceNode::EatsAtLeastHelper(int still_to_find,
   for (int i = 0; i < choice_count; i++) {
     RegExpNode* node = alternatives_->at(i).node();
     if (node == ignore_this_node) continue;
-    int node_eats_at_least = node->EatsAtLeast(still_to_find, recursion_depth + 1);
+    int node_eats_at_least = node->EatsAtLeast(still_to_find,
+                                               recursion_depth + 1);
     if (node_eats_at_least < min) min = node_eats_at_least;
   }
   return min;
