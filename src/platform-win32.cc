@@ -704,12 +704,14 @@ char* OS::StrNDup(const char* str, size_t n) {
   // Stupid implementation of strndup since windows isn't born with
   // one.
   size_t len = strlen(str);
-  if (len <= n)
+  if (len <= n) {
     return StrDup(str);
+  }
   char* result = new char[n+1];
   size_t i;
-  for (i = 0; i <= n; i++)
+  for (i = 0; i <= n; i++) {
     result[i] = str[i];
+  }
   result[i] = '\0';
   return result;
 }
