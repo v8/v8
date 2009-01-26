@@ -224,16 +224,24 @@ void Flush();
 char* ReadLine(const char* prompt);
 
 
-// Read and return the raw chars in a file. the size of the buffer is returned
+// Read and return the raw bytes in a file. the size of the buffer is returned
 // in size.
-// The returned buffer is not 0-terminated. It must be freed by the caller.
-char* ReadChars(const char* filename, int* size, bool verbose = true);
+// The returned buffer must be freed by the caller.
+byte* ReadBytes(const char* filename, int* size, bool verbose = true);
 
 
 // Write size chars from str to the file given by filename.
 // The file is overwritten. Returns the number of chars written.
 int WriteChars(const char* filename,
                const char* str,
+               int size,
+               bool verbose = true);
+
+
+// Write size bytes to the file given by filename.
+// The file is overwritten. Returns the number of bytes written.
+int WriteBytes(const char* filename,
+               const byte* bytes,
                int size,
                bool verbose = true);
 

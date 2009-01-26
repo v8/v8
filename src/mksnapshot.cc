@@ -114,7 +114,7 @@ static int* counter_callback(const char* name) {
 // Write C++ code that defines Snapshot::snapshot_ to contain the snapshot
 // to the file given by filename. Only the first size chars are written.
 static int WriteInternalSnapshotToFile(const char* filename,
-                                       const char* str,
+                                       const v8::internal::byte* bytes,
                                        int size) {
   FILE* f = i::OS::FOpen(filename, "wb");
   if (f == NULL) {
@@ -126,11 +126,11 @@ static int WriteInternalSnapshotToFile(const char* filename,
   fprintf(f, "#include \"platform.h\"\n\n");
   fprintf(f, "#include \"snapshot.h\"\n\n");
   fprintf(f, "namespace v8 {\nnamespace internal {\n\n");
-  fprintf(f, "const char Snapshot::data_[] = {");
+  fprintf(f, "const byte Snapshot::data_[] = {");
   int written = 0;
-  written += fprintf(f, "%i", str[0]);
+  written += fprintf(f, "0x%x", bytes[0]);
   for (int i = 1; i < size; ++i) {
-    written += fprintf(f, ",%i", str[i]);
+    written += fprintf(f, ",0x%x", bytes[i]);
     // The following is needed to keep the line length low on Visual C++:
     if (i % 512 == 0) fprintf(f, "\n");
   }
@@ -174,13 +174,13 @@ int main(int argc, char** argv) {
   i::Heap::CollectAllGarbage();
   i::Serializer ser;
   ser.Serialize();
-  char* str;
+  v8::internal::byte* bytes;
   int len;
-  ser.Finalize(&str, &len);
+  ser.Finalize(&bytes, &len);
 
-  WriteInternalSnapshotToFile(argv[1], str, len);
+  WriteInternalSnapshotToFile(argv[1], bytes, len);
 
-  i::DeleteArray(str);
+  i::DeleteArray(bytes);
 
   return 0;
 }
