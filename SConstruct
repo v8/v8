@@ -52,7 +52,7 @@ LIBRARY_FLAGS = {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER', 'DEBUG']
     },
     'mode:release': {
-      'CCFLAGS':      ['-O3', '-fomit-frame-pointer']
+      'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections']
     },
     'os:freebsd': {
       'LIBS':         ['execinfo']
