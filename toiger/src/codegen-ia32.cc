@@ -718,28 +718,29 @@ class DeferredInlineBinaryOperation: public DeferredCode {
                                 Token::Value op,
                                 OverwriteMode mode,
                                 GenericBinaryFlags flags)
-      : DeferredCode(generator),
-        stub_(op, mode, flags),
-        op_(op) {
+      : DeferredCode(generator), stub_(op, mode, flags), op_(op) {
+    set_comment("[ DeferredInlineBinaryOperation");
   }
 
-  // The binary operation's arguments are on top of the code generator's frame.
   Result GenerateInlineCode();
 
-  virtual void Generate() {
-    Result left(generator());
-    Result right(generator());
-    enter()->Bind(&left, &right);
-    generator()->frame()->Push(&left);
-    generator()->frame()->Push(&right);
-    Result answer = generator()->frame()->CallStub(&stub_, 2);
-    exit()->Jump(&answer);
-  }
+  virtual void Generate();
 
  private:
   GenericBinaryOpStub stub_;
   Token::Value op_;
 };
+
+
+void DeferredInlineBinaryOperation::Generate() {
+  Result left(generator());
+  Result right(generator());
+  enter()->Bind(&left, &right);
+  generator()->frame()->Push(&left);
+  generator()->frame()->Push(&right);
+  Result answer = generator()->frame()->CallStub(&stub_, 2);
+  exit()->Jump(&answer);
+}
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op,
@@ -800,51 +801,52 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 class DeferredInlinedSmiOperation: public DeferredCode {
  public:
   DeferredInlinedSmiOperation(CodeGenerator* generator,
-                              Token::Value op, int value,
-                              OverwriteMode overwrite_mode) :
-      DeferredCode(generator), op_(op), value_(value),
-      overwrite_mode_(overwrite_mode) {
+                              Token::Value op,
+                              int value,
+                              OverwriteMode overwrite_mode)
+      : DeferredCode(generator),
+        op_(op),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiOperation");
   }
-  virtual void Generate() {
-    // The argument is actually passed in eax.
-    enter()->Bind();
-    VirtualFrame::SpilledScope spilled_scope(generator());
-    generator()->frame()->EmitPush(eax);
-    generator()->frame()->EmitPush(Immediate(Smi::FromInt(value_)));
-    GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
-    generator()->frame()->CallStub(&igostub, 2);
-    // The result is actually returned in eax.
-    exit()->Jump();
-  }
+
+  virtual void Generate();
 
  private:
   Token::Value op_;
   int value_;
   OverwriteMode overwrite_mode_;
 };
+
+
+void DeferredInlinedSmiOperation::Generate() {
+  // The argument is passed in eax.
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
+  generator()->frame()->EmitPush(eax);
+  generator()->frame()->EmitPush(Immediate(Smi::FromInt(value_)));
+  GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
+  generator()->frame()->CallStub(&igostub, 2);
+  // The result is returned in eax.
+  exit()->Jump();
+}
 
 
 class DeferredInlinedSmiOperationReversed: public DeferredCode {
  public:
   DeferredInlinedSmiOperationReversed(CodeGenerator* generator,
-                                      Token::Value op, int value,
-                                      OverwriteMode overwrite_mode) :
-      DeferredCode(generator), op_(op), value_(value),
-      overwrite_mode_(overwrite_mode) {
+                                      Token::Value op,
+                                      int value,
+                                      OverwriteMode overwrite_mode)
+      : DeferredCode(generator),
+        op_(op),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiOperationReversed");
   }
-  virtual void Generate() {
-    // The argument is actually passed in eax.
-    enter()->Bind();
-    VirtualFrame::SpilledScope spilled_scope(generator());
-    generator()->frame()->EmitPush(Immediate(Smi::FromInt(value_)));
-    generator()->frame()->EmitPush(eax);
-    GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
-    generator()->frame()->CallStub(&igostub, 2);
-    // The result is actually returned in eax.
-    exit()->Jump();
-  }
+
+  virtual void Generate();
 
  private:
   Token::Value op_;
@@ -853,116 +855,150 @@ class DeferredInlinedSmiOperationReversed: public DeferredCode {
 };
 
 
+void DeferredInlinedSmiOperationReversed::Generate() {
+  // The argument is passed in eax.
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
+  generator()->frame()->EmitPush(Immediate(Smi::FromInt(value_)));
+  generator()->frame()->EmitPush(eax);
+  GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
+  generator()->frame()->CallStub(&igostub, 2);
+  // The result is returned in eax.
+  exit()->Jump();
+}
+
+
 class DeferredInlinedSmiAdd: public DeferredCode {
  public:
-  DeferredInlinedSmiAdd(CodeGenerator* generator, Smi* value,
-                        OverwriteMode overwrite_mode) :
-      DeferredCode(generator), value_(value), overwrite_mode_(overwrite_mode) {
+  DeferredInlinedSmiAdd(CodeGenerator* generator,
+                        Smi* value,
+                        OverwriteMode overwrite_mode)
+      : DeferredCode(generator),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiAdd");
   }
 
-  virtual void Generate() {
-    Result arg(generator());
-    enter()->Bind(&arg);
-    arg.ToRegister();
-    generator()->frame()->Spill(arg.reg());
-    // Undo the optimistic add operation and call the shared stub.
-    __ sub(Operand(arg.reg()), Immediate(value_));
-    generator()->frame()->Push(&arg);
-    generator()->frame()->Push(value_);
-    GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-    Result result = generator()->frame()->CallStub(&igostub, 2);
-    exit()->Jump(&result);
-  }
+  virtual void Generate();
 
  private:
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
+
+
+void DeferredInlinedSmiAdd::Generate() {
+  // Undo the optimistic add operation and call the shared stub.
+  Result left(generator());  // Initially left + value_.
+  enter()->Bind(&left);
+  left.ToRegister();
+  generator()->frame()->Spill(left.reg());
+  __ sub(Operand(left.reg()), Immediate(value_));
+  generator()->frame()->Push(&left);
+  generator()->frame()->Push(value_);
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
+  Result answer = generator()->frame()->CallStub(&igostub, 2);
+  exit()->Jump(&answer);
+}
 
 
 class DeferredInlinedSmiAddReversed: public DeferredCode {
  public:
-  DeferredInlinedSmiAddReversed(CodeGenerator* generator, Smi* value,
-                        OverwriteMode overwrite_mode) :
-      DeferredCode(generator), value_(value), overwrite_mode_(overwrite_mode) {
+  DeferredInlinedSmiAddReversed(CodeGenerator* generator,
+                                Smi* value,
+                                OverwriteMode overwrite_mode)
+      : DeferredCode(generator),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiAddReversed");
   }
 
-  virtual void Generate() {
-    Result arg(generator());
-    enter()->Bind(&arg);
-    arg.ToRegister();
-    generator()->frame()->Spill(arg.reg());
-    // Undo the optimistic add operation and call the shared stub.
-    __ sub(Operand(arg.reg()), Immediate(value_));
-    generator()->frame()->Push(value_);
-    generator()->frame()->Push(&arg);
-    GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
-    arg = generator()->frame()->CallStub(&igostub, 2);
-    exit()->Jump(&arg);
-  }
+  virtual void Generate();
 
  private:
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
+
+
+void DeferredInlinedSmiAddReversed::Generate() {
+  // Undo the optimistic add operation and call the shared stub.
+  Result right(generator());  // Initially value_ + right.
+  enter()->Bind(&right);
+  right.ToRegister();
+  generator()->frame()->Spill(right.reg());
+  __ sub(Operand(right.reg()), Immediate(value_));
+  generator()->frame()->Push(value_);
+  generator()->frame()->Push(&right);
+  GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
+  Result answer = generator()->frame()->CallStub(&igostub, 2);
+  exit()->Jump(&answer);
+}
 
 
 class DeferredInlinedSmiSub: public DeferredCode {
  public:
   DeferredInlinedSmiSub(CodeGenerator* generator,
                         Smi* value,
-                        OverwriteMode overwrite_mode) :
-      DeferredCode(generator), value_(value), overwrite_mode_(overwrite_mode) {
+                        OverwriteMode overwrite_mode)
+      : DeferredCode(generator),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiSub");
   }
 
-  virtual void Generate() {
-    Result argument(generator());
-    enter()->Bind(&argument);
-    argument.ToRegister();
-    generator()->frame()->Spill(argument.reg());
-    // Undo the optimistic sub operation and call the shared stub.
-    __ add(Operand(argument.reg()), Immediate(value_));
-    generator()->frame()->Push(&argument);
-    generator()->frame()->Push(value_);
-    GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-    Result answer = generator()->frame()->CallStub(&igostub, 2);
-    // The result is actually returned in eax.
-    exit()->Jump(&answer);
-  }
+  virtual void Generate();
 
  private:
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
+
+
+void DeferredInlinedSmiSub::Generate() {
+  // Undo the optimistic sub operation and call the shared stub.
+  Result left(generator());  // Initially left - value_.
+  enter()->Bind(&left);
+  left.ToRegister();
+  generator()->frame()->Spill(left.reg());
+  __ add(Operand(left.reg()), Immediate(value_));
+  generator()->frame()->Push(&left);
+  generator()->frame()->Push(value_);
+  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
+  Result answer = generator()->frame()->CallStub(&igostub, 2);
+  exit()->Jump(&answer);
+}
 
 
 class DeferredInlinedSmiSubReversed: public DeferredCode {
  public:
   DeferredInlinedSmiSubReversed(CodeGenerator* generator,
                                 Smi* value,
-                                OverwriteMode overwrite_mode) :
-      DeferredCode(generator), value_(value),
-      overwrite_mode_(overwrite_mode) {
+                                OverwriteMode overwrite_mode)
+      : DeferredCode(generator),
+        value_(value),
+        overwrite_mode_(overwrite_mode) {
     set_comment("[ DeferredInlinedSmiSubReversed");
   }
 
-  virtual void Generate() {
-    Result rhs(generator());
-    enter()->Bind(&rhs);
-    generator()->frame()->Push(value_);
-    generator()->frame()->Push(&rhs);
-    GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
-    Result answer = generator()->frame()->CallStub(&igostub, 2);
-    exit()->Jump(&answer);
-  }
+  virtual void Generate();
 
  private:
   Smi* value_;
   OverwriteMode overwrite_mode_;
 };
+
+
+void DeferredInlinedSmiSubReversed::Generate() {
+  // Call the shared stub.
+  Result right(generator());
+  enter()->Bind(&right);
+  generator()->frame()->Push(value_);
+  generator()->frame()->Push(&right);
+  GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
+  Result answer = generator()->frame()->CallStub(&igostub, 2);
+  exit()->Jump(&answer);
+}
 
 
 void CodeGenerator::SmiOperation(Token::Value op,
@@ -1343,7 +1379,7 @@ void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
 
 class DeferredStackCheck: public DeferredCode {
  public:
-  DeferredStackCheck(CodeGenerator* generator)
+  explicit DeferredStackCheck(CodeGenerator* generator)
       : DeferredCode(generator) {
     set_comment("[ DeferredStackCheck");
   }
@@ -1603,7 +1639,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 
     // Move the result into register eax where it belongs.
     result.ToRegister(eax);
-    // TODO(): Instead of explictly calling Unuse on the result, it
+    // TODO(203): Instead of explictly calling Unuse on the result, it
     // might be better to pass the result to Jump and Bind below.
     result.Unuse();
 
@@ -2726,8 +2762,8 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       __ mov(SlotOperand(slot, start.reg()), value.reg());
       // RecordWrite may destroy the value registers.
       //
-      // TODO(): Avoid actually spilling when the value is not needed
-      // (probably the common case).
+      // TODO(204): Avoid actually spilling when the value is not
+      // needed (probably the common case).
       frame_->Spill(value.reg());
       int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
       Result temp = allocator_->Allocate();
@@ -2798,7 +2834,9 @@ class DeferredRegExpLiteral: public DeferredCode {
       : DeferredCode(generator), node_(node) {
     set_comment("[ DeferredRegExpLiteral");
   }
+
   virtual void Generate();
+
  private:
   RegExpLiteral* node_;
 };
@@ -2867,7 +2905,9 @@ class DeferredObjectLiteral: public DeferredCode {
       : DeferredCode(generator), node_(node) {
     set_comment("[ DeferredObjectLiteral");
   }
+
   virtual void Generate();
+
  private:
   ObjectLiteral* node_;
 };
@@ -3268,8 +3308,8 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
     Load(args->at(i));
   }
 
-  // TODO(): Get rid of this spilling. It is only necessary because we
-  // load the function from the non-virtual stack.
+  // TODO(205): Get rid of this spilling. It is only necessary because
+  // we load the function from the non-virtual stack.
   frame_->SpillAll();
 
   // Constructors are called with the number of arguments in register
@@ -4366,42 +4406,7 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
     set_comment("[ DeferredReferenceGetKeyedValue");
   }
 
-  virtual void Generate() {
-    CodeGenerator* cgen = generator();
-    Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-    Result receiver(cgen);
-    Result key(cgen);
-    enter()->Bind(&receiver, &key);
-    VirtualFrame* frame = generator()->frame();
-    frame->Push(&receiver);  // First IC argument.
-    frame->Push(&key);       // Second IC argument.
-
-    // Calculate the delta from the IC call instruction to the map
-    // check cmp instruction in the inlined version.  This delta is
-    // stored in a test(eax, delta) instruction after the call so that
-    // we can find it in the IC initialization code and patch the cmp
-    // instruction.  This means that we cannot allow test instructions
-    // after calls to KeyedLoadIC stubs in other places.
-    //
-    // The virtual frame should be spilled fully before the call so
-    // that the call itself does not generate extra code to spill
-    // values.
-    frame->SpillAll();
-    int delta_to_patch_site = __ SizeOfCodeGeneratedSince(patch_site());
-    Result value(cgen);
-    if (is_global_) {
-      value = frame->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, 0);
-    } else {
-      value = frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-    }
-    // The result needs to be specifically the eax register because
-    // the offset to the patch site will be expected in a test eax
-    // instruction.
-    ASSERT(value.is_register() && value.reg().is(eax));
-    __ test(value.reg(), Immediate(-delta_to_patch_site));
-    __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
-    exit()->Jump(&value);
-  }
+  virtual void Generate();
 
   Label* patch_site() { return &patch_site_; }
 
@@ -4409,6 +4414,45 @@ class DeferredReferenceGetKeyedValue: public DeferredCode {
   Label patch_site_;
   bool is_global_;
 };
+
+
+void DeferredReferenceGetKeyedValue::Generate() {
+  CodeGenerator* cgen = generator();
+  Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
+  Result receiver(cgen);
+  Result key(cgen);
+  enter()->Bind(&receiver, &key);
+  cgen->frame()->Push(&receiver);  // First IC argument.
+  cgen->frame()->Push(&key);       // Second IC argument.
+
+  // Calculate the delta from the IC call instruction to the map check
+  // cmp instruction in the inlined version.  This delta is stored in
+  // a test(eax, delta) instruction after the call so that we can find
+  // it in the IC initialization code and patch the cmp instruction.
+  // This means that we cannot allow test instructions after calls to
+  // KeyedLoadIC stubs in other places.
+  //
+  // The virtual frame should be spilled fully before the call so that
+  // the call itself does not generate extra code to spill values,
+  // which would invalidate the delta calculation.
+  cgen->frame()->SpillAll();
+  int delta_to_patch_site = __ SizeOfCodeGeneratedSince(patch_site());
+  Result value(cgen);
+  if (is_global_) {
+    value = cgen->frame()->CallCodeObject(ic,
+                                          RelocInfo::CODE_TARGET_CONTEXT,
+                                          0);
+  } else {
+    value = cgen->frame()->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+  }
+  // The result needs to be specifically the eax register because the
+  // offset to the patch site will be expected in a test eax
+  // instruction.
+  ASSERT(value.is_register() && value.reg().is(eax));
+  __ test(value.reg(), Immediate(-delta_to_patch_site));
+  __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
+  exit()->Jump(&value);
+}
 
 
 #undef __
@@ -4532,7 +4576,7 @@ void Reference::GetValue(TypeofState typeof_state) {
         // Load and check that the result is not the hole.  We could
         // reuse the index or elements register for the value.
         //
-        // TODO(): Consider whether it makes sense to try some
+        // TODO(206): Consider whether it makes sense to try some
         // heuristic about which register to reuse.  For example, if
         // one is eax, the we can reuse that one because the value
         // coming from the deferred code will be in eax.
@@ -4941,7 +4985,9 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode() {
         case Token::SHL: {
           __ shl(left.reg());
           // Check that the *signed* result fits in a smi.
-          // TODO(): Can reduce registers from 4 to 3 by preallocating ecx.
+          //
+          // TODO(207): Can reduce registers from 4 to 3 by
+          // preallocating ecx.
           JumpTarget result_ok(generator());
           Result smi_test_reg = generator()->allocator()->Allocate();
           ASSERT(smi_test_reg.is_valid());
