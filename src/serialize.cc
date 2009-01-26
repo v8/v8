@@ -814,8 +814,7 @@ class ReferenceUpdater: public ObjectVisitor {
 
   void Update(Address start_address) {
     for (int i = 0; i < offsets_.length(); i++) {
-      Address* p = reinterpret_cast<Address*>(start_address + offsets_[i]);
-      *p = addresses_[i];
+      memcpy(start_address + offsets_[i], &addresses_[i], sizeof(Address));
     }
   }
 
