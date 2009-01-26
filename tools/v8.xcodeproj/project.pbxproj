@@ -16,6 +16,7 @@
 				7BF8919B0E7309AD000BAF8A /* PBXTargetDependency */,
 				7BF891970E73099F000BAF8A /* PBXTargetDependency */,
 				7BF891990E73099F000BAF8A /* PBXTargetDependency */,
+				893988100F2A3647007D5254 /* PBXTargetDependency */,
 				896FD03E0E78D731003DFB6A /* PBXTargetDependency */,
 				896FD0400E78D735003DFB6A /* PBXTargetDependency */,
 			);
@@ -31,6 +32,11 @@
 		890A14020EE9C4B400E49346 /* regexp-macro-assembler-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C750EE466D000B48DEB /* regexp-macro-assembler-irregexp.cc */; };
 		890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C770EE466D000B48DEB /* regexp-macro-assembler-tracer.cc */; };
 		890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */; };
+		893988060F2A35FA007D5254 /* libjscre.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 897FF1BF0E719CB600D62E90 /* libjscre.a */; };
+		893988070F2A35FA007D5254 /* libv8.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8970F2F00E719FB2006AE7B5 /* libv8.a */; };
+		8939880D0F2A362A007D5254 /* d8.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C920EE46A1700B48DEB /* d8.cc */; };
+		893988160F2A3688007D5254 /* d8-debug.cc in Sources */ = {isa = PBXBuildFile; fileRef = 893988150F2A3686007D5254 /* d8-debug.cc */; };
+		893988330F2A3B8F007D5254 /* d8-js.cc in Sources */ = {isa = PBXBuildFile; fileRef = 893988320F2A3B8B007D5254 /* d8-js.cc */; };
 		893CCE640E71D83700357A03 /* code-stubs.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1110E719B8F00D62E90 /* code-stubs.cc */; };
 		8944AD100F1D4D500028D560 /* regexp-stack.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */; };
 		8944AD110F1D4D570028D560 /* regexp-stack.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */; };
@@ -213,6 +219,27 @@
 			remoteGlobalIDString = 897FF1BE0E719CB600D62E90;
 			remoteInfo = jscre;
 		};
+		893988000F2A35FA007D5254 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 897FF1BE0E719CB600D62E90;
+			remoteInfo = jscre;
+		};
+		893988020F2A35FA007D5254 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 8970F2EF0E719FB2006AE7B5;
+			remoteInfo = v8;
+		};
+		8939880F0F2A3647007D5254 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 893987FE0F2A35FA007D5254;
+			remoteInfo = d8_shell;
+		};
 		896FD03B0E78D71F003DFB6A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
@@ -260,6 +287,9 @@
 /* Begin PBXFileReference section */
 		8900116B0E71CA2300F91F35 /* libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libraries.cc; sourceTree = "<group>"; };
 		893986D40F29020C007D5254 /* apiutils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = apiutils.h; sourceTree = "<group>"; };
+		8939880B0F2A35FA007D5254 /* v8_shell */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = v8_shell; sourceTree = BUILT_PRODUCTS_DIR; };
+		893988150F2A3686007D5254 /* d8-debug.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = "d8-debug.cc"; path = "../src/d8-debug.cc"; sourceTree = "<group>"; };
+		893988320F2A3B8B007D5254 /* d8-js.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "d8-js.cc"; sourceTree = "<group>"; };
 		8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "regexp-stack.cc"; sourceTree = "<group>"; };
 		8944AD0F0F1D4D3A0028D560 /* regexp-stack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "regexp-stack.h"; sourceTree = "<group>"; };
 		89471C7F0EB23EE400B6874B /* flag-definitions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "flag-definitions.h"; sourceTree = "<group>"; };
@@ -505,6 +535,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		893988050F2A35FA007D5254 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				893988060F2A35FA007D5254 /* libjscre.a in Frameworks */,
+				893988070F2A35FA007D5254 /* libv8.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8970F2EE0E719FB2006AE7B5 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -856,6 +895,7 @@
 			isa = PBXGroup;
 			children = (
 				89A15C910EE46A1700B48DEB /* d8-readline.cc */,
+				893988150F2A3686007D5254 /* d8-debug.cc */,
 				89A15C920EE46A1700B48DEB /* d8.cc */,
 				89A15C930EE46A1700B48DEB /* d8.h */,
 				89A15C940EE46A1700B48DEB /* d8.js */,
@@ -882,6 +922,7 @@
 				897F767A0E71B4CC007ACF34 /* v8_shell */,
 				89F23C870E78D5B2006B2466 /* libv8-arm.a */,
 				89F23C950E78D5B6006B2466 /* v8_shell-arm */,
+				8939880B0F2A35FA007D5254 /* v8_shell */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -889,6 +930,7 @@
 		89A9C1630E71C8E300BE6CCA /* generated */ = {
 			isa = PBXGroup;
 			children = (
+				893988320F2A3B8B007D5254 /* d8-js.cc */,
 				8900116B0E71CA2300F91F35 /* libraries.cc */,
 			);
 			path = generated;
@@ -897,6 +939,25 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		893987FE0F2A35FA007D5254 /* d8_shell */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 893988080F2A35FA007D5254 /* Build configuration list for PBXNativeTarget "d8_shell" */;
+			buildPhases = (
+				893988220F2A376C007D5254 /* ShellScript */,
+				893988030F2A35FA007D5254 /* Sources */,
+				893988050F2A35FA007D5254 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				893987FF0F2A35FA007D5254 /* PBXTargetDependency */,
+				893988010F2A35FA007D5254 /* PBXTargetDependency */,
+			);
+			name = d8_shell;
+			productName = v8_shell;
+			productReference = 8939880B0F2A35FA007D5254 /* v8_shell */;
+			productType = "com.apple.product-type.tool";
+		};
 		8970F2EF0E719FB2006AE7B5 /* v8 */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 8970F2F70E719FC1006AE7B5 /* Build configuration list for PBXNativeTarget "v8" */;
@@ -1000,6 +1061,7 @@
 				897FF1BE0E719CB600D62E90 /* jscre */,
 				8970F2EF0E719FB2006AE7B5 /* v8 */,
 				897F76790E71B4CC007ACF34 /* v8_shell */,
+				893987FE0F2A35FA007D5254 /* d8_shell */,
 				89F23C3C0E78D5B2006B2466 /* v8-arm */,
 				89F23C880E78D5B6006B2466 /* v8_shell-arm */,
 			);
@@ -1007,6 +1069,19 @@
 /* End PBXProject section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		893988220F2A376C007D5254 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -ex\nJS_FILES=\"d8.js\"\\\n\" macros.py\"\n\nV8ROOT=\"${SRCROOT}/..\"\n\nSRC_DIR=\"${V8ROOT}/src\"\n\nNATIVE_JS_FILES=\"\"\n\nfor i in ${JS_FILES} ; do\n  NATIVE_JS_FILES+=\"${SRC_DIR}/${i} \"\ndone\n\nV8_GENERATED_SOURCES_DIR=\"${CONFIGURATION_TEMP_DIR}/generated\"\nmkdir -p \"${V8_GENERATED_SOURCES_DIR}\"\n\nD8_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js.cc\"\nD8_EMPTY_CC=\"${V8_GENERATED_SOURCES_DIR}/d8-js-empty.cc\"\n\npython \"${V8ROOT}/tools/js2c.py\" \\\n  \"${D8_CC}.new\" \\\n  \"${D8_EMPTY_CC}.new\" \\\n  \"D8\" \\\n  ${NATIVE_JS_FILES}\n\n# Only use the new files if they're different from the existing files (if any),\n# preserving the existing files' timestamps when there are no changes.  This\n# minimizes unnecessary build activity for a no-change build.\n\nif ! diff -q \"${D8_CC}.new\" \"${D8_CC}\" >& /dev/null ; then\n  mv \"${D8_CC}.new\" \"${D8_CC}\"\nelse\n  rm \"${D8_CC}.new\"\nfi\n\nif ! diff -q \"${D8_EMPTY_CC}.new\" \"${D8_EMPTY_CC}\" >& /dev/null ; then\n  mv \"${D8_EMPTY_CC}.new\" \"${D8_EMPTY_CC}\"\nelse\n  rm \"${D8_EMPTY_CC}.new\"\nfi\n";
+		};
 		89EA6FB50E71AA1F00F59E1B /* ShellScript */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
@@ -1036,6 +1111,16 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		893988030F2A35FA007D5254 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8939880D0F2A362A007D5254 /* d8.cc in Sources */,
+				893988160F2A3688007D5254 /* d8-debug.cc in Sources */,
+				893988330F2A3B8F007D5254 /* d8-js.cc in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		8970F2ED0E719FB2006AE7B5 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -1249,6 +1334,21 @@
 			target = 897FF1BE0E719CB600D62E90 /* jscre */;
 			targetProxy = 7BF8919A0E7309AD000BAF8A /* PBXContainerItemProxy */;
 		};
+		893987FF0F2A35FA007D5254 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 897FF1BE0E719CB600D62E90 /* jscre */;
+			targetProxy = 893988000F2A35FA007D5254 /* PBXContainerItemProxy */;
+		};
+		893988010F2A35FA007D5254 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 8970F2EF0E719FB2006AE7B5 /* v8 */;
+			targetProxy = 893988020F2A35FA007D5254 /* PBXContainerItemProxy */;
+		};
+		893988100F2A3647007D5254 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 893987FE0F2A35FA007D5254 /* d8_shell */;
+			targetProxy = 8939880F0F2A3647007D5254 /* PBXContainerItemProxy */;
+		};
 		896FD03C0E78D71F003DFB6A /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 89F23C3C0E78D5B2006B2466 /* v8-arm */;
@@ -1365,6 +1465,22 @@
 					"-Wall",
 					"-Wendif-labels",
 				);
+			};
+			name = Release;
+		};
+		893988090F2A35FA007D5254 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				HEADER_SEARCH_PATHS = ../src;
+				PRODUCT_NAME = v8_shell;
+			};
+			name = Debug;
+		};
+		8939880A0F2A35FA007D5254 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				HEADER_SEARCH_PATHS = ../src;
+				PRODUCT_NAME = v8_shell;
 			};
 			name = Release;
 		};
@@ -1502,6 +1618,15 @@
 			buildConfigurations = (
 				8915B8690E719336009C4E19 /* Debug */,
 				8915B86A0E719336009C4E19 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		893988080F2A35FA007D5254 /* Build configuration list for PBXNativeTarget "d8_shell" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				893988090F2A35FA007D5254 /* Debug */,
+				8939880A0F2A35FA007D5254 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

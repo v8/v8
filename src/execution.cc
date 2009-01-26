@@ -191,12 +191,24 @@ StackGuard::ThreadLocal StackGuard::thread_local_;
 
 
 StackGuard::StackGuard() {
+  // NOTE: Overall the StackGuard code assumes that the stack grows towards
+  // lower addresses.
   ExecutionAccess access;
-  if (thread_local_.nesting_++ == 0 &&
-      thread_local_.jslimit_ != kInterruptLimit) {
-    // NOTE: We assume that the stack grows towards lower addresses.
-    ASSERT(thread_local_.jslimit_ == kIllegalLimit);
-    ASSERT(thread_local_.climit_ == kIllegalLimit);
+  if (thread_local_.nesting_++ == 0) {
+    // Initial StackGuard is being set. We will set the stack limits based on
+    // the current stack pointer allowing the stack to grow kLimitSize from
+    // here.
+    
+    // Ensure that either the stack limits are unset (kIllegalLimit) or that
+    // they indicate a pending interruption. The interrupt limit will be
+    // temporarily reset through the code below and reestablished if the
+    // interrupt flags indicate that an interrupt is pending.
+    ASSERT(thread_local_.jslimit_ == kIllegalLimit ||
+           (thread_local_.jslimit_ == kInterruptLimit &&
+            thread_local_.interrupt_flags_ != 0));
+    ASSERT(thread_local_.climit_ == kIllegalLimit ||
+           (thread_local_.climit_ == kInterruptLimit &&
+            thread_local_.interrupt_flags_ != 0));
 
     thread_local_.initial_jslimit_ = thread_local_.jslimit_ =
         GENERATED_CODE_STACK_LIMIT(kLimitSize);
@@ -210,9 +222,11 @@ StackGuard::StackGuard() {
       set_limits(kInterruptLimit, access);
     }
   }
-  // make sure we have proper limits setup
+  // Ensure that proper limits have been set.
   ASSERT(thread_local_.jslimit_ != kIllegalLimit &&
          thread_local_.climit_ != kIllegalLimit);
+  ASSERT(thread_local_.initial_jslimit_ != kIllegalLimit &&
+         thread_local_.initial_climit_ != kIllegalLimit);
 }
 
 

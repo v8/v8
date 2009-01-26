@@ -265,6 +265,11 @@ class Genesis BASE_EMBEDDED {
   Genesis* previous() { return previous_; }
   static Genesis* current() { return current_; }
 
+  // Support for thread preemption.
+  static int ArchiveSpacePerThread();
+  static char* ArchiveState(char* to);
+  static char* RestoreState(char* from);
+
  private:
   Handle<Context> global_context_;
 
@@ -1464,6 +1469,47 @@ Genesis::Genesis(Handle<Object> global_object,
   if (!InstallSpecialObjects()) return;
 
   result_ = global_context_;
+}
+
+
+// Support for thread preemption.
+
+// Reserve space for statics needing saving and restoring.
+int Bootstrapper::ArchiveSpacePerThread() {
+  return Genesis::ArchiveSpacePerThread();
+}
+
+
+// Archive statics that are thread local.
+char* Bootstrapper::ArchiveState(char* to) {
+  return Genesis::ArchiveState(to);
+}
+
+
+// Restore statics that are thread local.
+char* Bootstrapper::RestoreState(char* from) {
+  return Genesis::RestoreState(from);
+}
+
+
+// Reserve space for statics needing saving and restoring.
+int Genesis::ArchiveSpacePerThread() {
+  return sizeof(current_);
+}
+
+
+// Archive statics that are thread local.
+char* Genesis::ArchiveState(char* to) {
+  *reinterpret_cast<Genesis**>(to) = current_;
+  current_ = NULL;
+  return to + sizeof(current_);
+}
+
+
+// Restore statics that are thread local.
+char* Genesis::RestoreState(char* from) {
+  current_ = *reinterpret_cast<Genesis**>(from);
+  return from + sizeof(current_);
 }
 
 } }  // namespace v8::internal

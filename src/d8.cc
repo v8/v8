@@ -385,6 +385,7 @@ void Shell::OnExit() {
 
 
 static char* ReadChars(const char *name, int* size_out) {
+  v8::Unlocker unlocker;  // Release the V8 lock while reading files.
   FILE* file = i::OS::FOpen(name, "rb");
   if (file == NULL) return NULL;
 
@@ -422,6 +423,7 @@ void Shell::RunShell() {
   while (true) {
     Locker locker;
     HandleScope handle_scope;
+    Context::Scope context_scope(evaluation_context_);
     i::SmartPointer<char> input = editor->Prompt(Shell::kPrompt);
     if (input.is_empty())
       break;
@@ -446,8 +448,24 @@ class ShellThread : public i::Thread {
 
 
 void ShellThread::Run() {
+  // Prepare the context for this thread.
+  Locker locker;
+  HandleScope scope;
+  Handle<ObjectTemplate> global_template = ObjectTemplate::New();
+  global_template->Set(String::New("print"),
+                       FunctionTemplate::New(Shell::Print));
+  global_template->Set(String::New("load"),
+                       FunctionTemplate::New(Shell::Load));
+  global_template->Set(String::New("version"),
+                       FunctionTemplate::New(Shell::Version));
+
+  Persistent<Context> thread_context = Context::New(NULL, global_template);
+  thread_context->SetSecurityToken(Undefined());
+  
+  Context::Scope context_scope(thread_context);
+  
   char* ptr = const_cast<char*>(files_.start());
-  while (ptr != NULL) {
+  while ((ptr != NULL) && (*ptr != '\0')) {
     // For each newline-separated line.
     char *filename = ptr;
     char* next = ::strchr(ptr, '\n');
@@ -457,11 +475,11 @@ void ShellThread::Run() {
     } else {
       ptr = NULL;
     }
-    Locker locker;
-    HandleScope scope;
     Handle<String> str = Shell::ReadFile(filename);
     Shell::ExecuteString(str, String::New(filename), false, false);
   }
+  
+  thread_context.Dispose();
 }
 
 
@@ -473,52 +491,59 @@ int Shell::Main(int argc, char* argv[]) {
   Initialize();
   bool run_shell = (argc == 1);
   i::List<i::Thread*> threads(1);
-  Context::Scope context_scope(evaluation_context_);
-  for (int i = 1; i < argc; i++) {
-    char* str = argv[i];
-    if (strcmp(str, "--shell") == 0) {
-      run_shell = true;
-    } else if (strcmp(str, "-f") == 0) {
-      // Ignore any -f flags for compatibility with other stand-alone
-      // JavaScript engines.
-      continue;
-    } else if (strncmp(str, "--", 2) == 0) {
-      printf("Warning: unknown flag %s.\nTry --help for options\n", str);
-    } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
-      // Execute argument given to -e option directly.
-      Locker locker;
-      v8::HandleScope handle_scope;
-      v8::Handle<v8::String> file_name = v8::String::New("unnamed");
-      v8::Handle<v8::String> source = v8::String::New(argv[i + 1]);
-      if (!ExecuteString(source, file_name, false, true))
-        return 1;
-      i++;
-    } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
-      Locker locker;
-      Locker::StartPreemption(10);
-      int size = 0;
-      const char *files = ReadChars(argv[++i], &size);
-      if (files == NULL) return 1;
-      ShellThread *thread =
-        new ShellThread(threads.length(), i::Vector<const char>(files, size));
-      thread->Start();
-      threads.Add(thread);
-    } else {
-      // Use all other arguments as names of files to load and run.
-      Locker locker;
-      HandleScope handle_scope;
-      Handle<String> file_name = v8::String::New(str);
-      Handle<String> source = ReadFile(str);
-      if (source.IsEmpty()) {
-        printf("Error reading '%s'\n", str);
-        return 1;
+
+  {
+    // Acquire the V8 lock once initialization has finished. Since the thread
+    // below may spawn new threads accessing V8 holding the V8 lock here is
+    // mandatory.
+    Locker locker;
+    Context::Scope context_scope(evaluation_context_);
+    for (int i = 1; i < argc; i++) {
+      char* str = argv[i];
+      if (strcmp(str, "--shell") == 0) {
+        run_shell = true;
+      } else if (strcmp(str, "-f") == 0) {
+        // Ignore any -f flags for compatibility with other stand-alone
+        // JavaScript engines.
+        continue;
+      } else if (strncmp(str, "--", 2) == 0) {
+        printf("Warning: unknown flag %s.\nTry --help for options\n", str);
+      } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
+        // Execute argument given to -e option directly.
+        v8::HandleScope handle_scope;
+        v8::Handle<v8::String> file_name = v8::String::New("unnamed");
+        v8::Handle<v8::String> source = v8::String::New(argv[i + 1]);
+        if (!ExecuteString(source, file_name, false, true))
+          return 1;
+        i++;
+      } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
+        // Use the lowest possible thread preemption interval to test as many
+        // edgecases as possible.
+        Locker::StartPreemption(1);
+        int size = 0;
+        const char *files = ReadChars(argv[++i], &size);
+        if (files == NULL) return 1;
+        ShellThread *thread =
+            new ShellThread(threads.length(),
+                            i::Vector<const char>(files, size));
+        thread->Start();
+        threads.Add(thread);
+      } else {
+        // Use all other arguments as names of files to load and run.
+        HandleScope handle_scope;
+        Handle<String> file_name = v8::String::New(str);
+        Handle<String> source = ReadFile(str);
+        if (source.IsEmpty()) {
+          printf("Error reading '%s'\n", str);
+          return 1;
+        }
+        if (!ExecuteString(source, file_name, false, true))
+          return 1;
       }
-      if (!ExecuteString(source, file_name, false, true))
-        return 1;
     }
+    if (i::FLAG_debugger)
+      v8::Debug::AddDebugEventListener(HandleDebugEvent);
   }
-  if (i::FLAG_debugger)
-    v8::Debug::AddDebugEventListener(HandleDebugEvent);
   if (run_shell)
     RunShell();
   for (int i = 0; i < threads.length(); i++) {

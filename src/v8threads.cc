@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "bootstrapper.h"
 #include "debug.h"
 #include "execution.h"
 #include "v8threads.h"
@@ -119,6 +120,11 @@ bool ThreadManager::RestoreThread() {
     Thread::SetThreadLocal(thread_state_key, NULL);
     return true;
   }
+  
+  // Make sure that the preemption thread cannot modify the thread state while
+  // it is being archived or restored.
+  ExecutionAccess access;
+  
   // If there is another thread that was lazily archived then we have to really
   // archive it now.
   if (lazily_archived_thread_.IsValid()) {
@@ -135,6 +141,7 @@ bool ThreadManager::RestoreThread() {
   from = Debug::RestoreDebug(from);
   from = StackGuard::RestoreStackGuard(from);
   from = RegExpStack::RestoreStack(from);
+  from = Bootstrapper::RestoreState(from);
   Thread::SetThreadLocal(thread_state_key, NULL);
   state->Unlink();
   state->LinkInto(ThreadState::FREE_LIST);
@@ -160,7 +167,8 @@ static int ArchiveSpacePerThread() {
                             Top::ArchiveSpacePerThread() +
                           Debug::ArchiveSpacePerThread() +
                      StackGuard::ArchiveSpacePerThread() +
-                    RegExpStack::ArchiveSpacePerThread();
+                    RegExpStack::ArchiveSpacePerThread() +
+                   Bootstrapper::ArchiveSpacePerThread();
 }
 
 
@@ -242,6 +250,7 @@ void ThreadManager::EagerlyArchiveThread() {
   to = Debug::ArchiveDebug(to);
   to = StackGuard::ArchiveStackGuard(to);
   to = RegExpStack::ArchiveStack(to);
+  to = Bootstrapper::ArchiveState(to);
   lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
   lazily_archived_thread_state_ = NULL;
 }

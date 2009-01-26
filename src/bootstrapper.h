@@ -68,6 +68,11 @@ class Bootstrapper : public AllStatic {
   class FixupFlagsIsPCRelative: public BitField<bool, 0, 1> {};
   class FixupFlagsUseCodeObject: public BitField<bool, 1, 1> {};
   class FixupFlagsArgumentsCount: public BitField<uint32_t, 2, 32-2> {};
+  
+  // Support for thread preemption.
+  static int ArchiveSpacePerThread();
+  static char* ArchiveState(char* to);
+  static char* RestoreState(char* from);
 };
 
 }}  // namespace v8::internal

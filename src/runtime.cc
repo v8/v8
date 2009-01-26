@@ -3778,7 +3778,9 @@ static Object* Runtime_StackGuard(Arguments args) {
   ASSERT(args.length() == 1);
 
   // First check if this is a real stack overflow.
-  if (StackGuard::IsStackOverflow()) return Runtime_StackOverflow(args);
+  if (StackGuard::IsStackOverflow()) {
+    return Runtime_StackOverflow(args);
+  }
 
   return Execution::HandleStackGuardInterrupt();
 }
