@@ -198,7 +198,7 @@ StackGuard::StackGuard() {
     // Initial StackGuard is being set. We will set the stack limits based on
     // the current stack pointer allowing the stack to grow kLimitSize from
     // here.
-    
+
     // Ensure that either the stack limits are unset (kIllegalLimit) or that
     // they indicate a pending interruption. The interrupt limit will be
     // temporarily reset through the code below and reestablished if the

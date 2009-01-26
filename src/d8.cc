@@ -461,9 +461,9 @@ void ShellThread::Run() {
 
   Persistent<Context> thread_context = Context::New(NULL, global_template);
   thread_context->SetSecurityToken(Undefined());
-  
+
   Context::Scope context_scope(thread_context);
-  
+
   char* ptr = const_cast<char*>(files_.start());
   while ((ptr != NULL) && (*ptr != '\0')) {
     // For each newline-separated line.
@@ -478,7 +478,7 @@ void ShellThread::Run() {
     Handle<String> str = Shell::ReadFile(filename);
     Shell::ExecuteString(str, String::New(filename), false, false);
   }
-  
+
   thread_context.Dispose();
 }
 

@@ -120,11 +120,11 @@ bool ThreadManager::RestoreThread() {
     Thread::SetThreadLocal(thread_state_key, NULL);
     return true;
   }
-  
+
   // Make sure that the preemption thread cannot modify the thread state while
   // it is being archived or restored.
   ExecutionAccess access;
-  
+
   // If there is another thread that was lazily archived then we have to really
   // archive it now.
   if (lazily_archived_thread_.IsValid()) {
