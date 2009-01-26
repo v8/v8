@@ -802,7 +802,7 @@ class DeferredInlinedSmiOperation: public DeferredCode {
  public:
   DeferredInlinedSmiOperation(CodeGenerator* generator,
                               Token::Value op,
-                              int value,
+                              Smi* value,
                               OverwriteMode overwrite_mode)
       : DeferredCode(generator),
         op_(op),
@@ -815,21 +815,19 @@ class DeferredInlinedSmiOperation: public DeferredCode {
 
  private:
   Token::Value op_;
-  int value_;
+  Smi* value_;
   OverwriteMode overwrite_mode_;
 };
 
 
 void DeferredInlinedSmiOperation::Generate() {
-  // The argument is passed in eax.
-  enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope(generator());
-  generator()->frame()->EmitPush(eax);
-  generator()->frame()->EmitPush(Immediate(Smi::FromInt(value_)));
+  Result left(generator());
+  enter()->Bind(&left);
+  generator()->frame()->Push(&left);
+  generator()->frame()->Push(value_);
   GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
-  generator()->frame()->CallStub(&igostub, 2);
-  // The result is returned in eax.
-  exit()->Jump();
+  Result answer = generator()->frame()->CallStub(&igostub, 2);
+  exit()->Jump(&answer);
 }
 
 
@@ -837,7 +835,7 @@ class DeferredInlinedSmiOperationReversed: public DeferredCode {
  public:
   DeferredInlinedSmiOperationReversed(CodeGenerator* generator,
                                       Token::Value op,
-                                      int value,
+                                      Smi* value,
                                       OverwriteMode overwrite_mode)
       : DeferredCode(generator),
         op_(op),
@@ -850,21 +848,19 @@ class DeferredInlinedSmiOperationReversed: public DeferredCode {
 
  private:
   Token::Value op_;
-  int value_;
+  Smi* value_;
   OverwriteMode overwrite_mode_;
 };
 
 
 void DeferredInlinedSmiOperationReversed::Generate() {
-  // The argument is passed in eax.
-  enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope(generator());
-  generator()->frame()->EmitPush(Immediate(Smi::FromInt(value_)));
-  generator()->frame()->EmitPush(eax);
+  Result right(generator());
+  enter()->Bind(&right);
+  generator()->frame()->Push(value_);
+  generator()->frame()->Push(&right);
   GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
-  generator()->frame()->CallStub(&igostub, 2);
-  // The result is returned in eax.
-  exit()->Jump();
+  Result answer = generator()->frame()->CallStub(&igostub, 2);
+  exit()->Jump(&answer);
 }
 
 
@@ -1084,18 +1080,21 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Push(&top);
         GenericBinaryOperation(op, type, overwrite_mode);
       } else {
-        VirtualFrame::SpilledScope spilled_scope(this);
-        int shift_value = int_value & 0x1f;  // only least significant 5 bits
+        // Only the least significant 5 bits of the shift value are used.
+        // In the slow case, this masking is done inside the runtime call.
+        int shift_value = int_value & 0x1f;
         DeferredCode* deferred =
-          new DeferredInlinedSmiOperation(this, Token::SAR, shift_value,
+          new DeferredInlinedSmiOperation(this, Token::SAR, smi_value,
                                           overwrite_mode);
-        frame_->EmitPop(eax);
-        __ test(eax, Immediate(kSmiTagMask));
-        deferred->enter()->Branch(not_zero, not_taken);
-        __ sar(eax, shift_value);
-        __ and_(eax, ~kSmiTagMask);
-        deferred->exit()->Bind();
-        frame_->EmitPush(eax);
+        Result result = frame_->Pop();
+        result.ToRegister();
+        __ test(result.reg(), Immediate(kSmiTagMask));
+        deferred->enter()->Branch(not_zero, &result, not_taken);
+        frame_->Spill(result.reg());
+        __ sar(result.reg(), shift_value);
+        __ and_(result.reg(), ~kSmiTagMask);
+        deferred->exit()->Bind(&result);
+        frame_->Push(&result);
       }
       break;
     }
@@ -1107,54 +1106,68 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Push(&top);
         GenericBinaryOperation(op, type, overwrite_mode);
       } else {
-        VirtualFrame::SpilledScope spilled_scope(this);
-        int shift_value = int_value & 0x1f;  // only least significant 5 bits
+        // Only the least significant 5 bits of the shift value are used.
+        // In the slow case, this masking is done inside the runtime call.
+        int shift_value = int_value & 0x1f;
         DeferredCode* deferred =
-        new DeferredInlinedSmiOperation(this, Token::SHR, shift_value,
+        new DeferredInlinedSmiOperation(this, Token::SHR, smi_value,
                                         overwrite_mode);
-        frame_->EmitPop(eax);
-        __ test(eax, Immediate(kSmiTagMask));
-        __ mov(ebx, Operand(eax));
-        deferred->enter()->Branch(not_zero, not_taken);
-        __ sar(ebx, kSmiTagSize);
-        __ shr(ebx, shift_value);
-        __ test(ebx, Immediate(0xc0000000));
-        deferred->enter()->Branch(not_zero, not_taken);
-        // tag result and store it in TOS (eax)
-        ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
-        deferred->exit()->Bind();
-        frame_->EmitPush(eax);
+        Result operand = frame_->Pop();
+        operand.ToRegister();
+        __ test(operand.reg(), Immediate(kSmiTagMask));
+        deferred->enter()->Branch(not_zero, &operand, not_taken);
+        Result answer = allocator()->Allocate();
+        ASSERT(answer.is_valid());
+        __ mov(answer.reg(), Operand(operand.reg()));
+        __ sar(answer.reg(), kSmiTagSize);
+        __ shr(answer.reg(), shift_value);
+        // A negative Smi shifted right two is in the positive Smi range.
+        if (shift_value < 2) {
+          __ test(answer.reg(), Immediate(0xc0000000));
+          deferred->enter()->Branch(not_zero, &operand, not_taken);
+        }
+        operand.Unuse();
+        ASSERT(kSmiTagSize == times_2);  // Adjust the code if not true.
+        __ lea(answer.reg(),
+               Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
+        deferred->exit()->Bind(&answer);
+        frame_->Push(&answer);
       }
       break;
     }
 
     case Token::SHL: {
-      VirtualFrame::SpilledScope spilled_scope(this);
       if (reversed) {
-        frame_->EmitPop(eax);
-        frame_->EmitPush(Immediate(value));
-        frame_->EmitPush(eax);
+        Result top = frame_->Pop();
+        frame_->Push(value);
+        frame_->Push(&top);
         GenericBinaryOperation(op, type, overwrite_mode);
       } else {
-        int shift_value = int_value & 0x1f;  // only least significant 5 bits
+        // Only the least significant 5 bits of the shift value are used.
+        // In the slow case, this masking is done inside the runtime call.
+        int shift_value = int_value & 0x1f;
         DeferredCode* deferred =
-        new DeferredInlinedSmiOperation(this, Token::SHL, shift_value,
+        new DeferredInlinedSmiOperation(this, Token::SHL, smi_value,
                                         overwrite_mode);
-        frame_->EmitPop(eax);
-        __ test(eax, Immediate(kSmiTagMask));
-        __ mov(ebx, Operand(eax));
-        deferred->enter()->Branch(not_zero, not_taken);
-        __ sar(ebx, kSmiTagSize);
-        __ shl(ebx, shift_value);
-        __ lea(ecx, Operand(ebx, 0x40000000));
-        __ test(ecx, Immediate(0x80000000));
-        deferred->enter()->Branch(not_zero, not_taken);
-        // tag result and store it in TOS (eax)
+        Result operand = frame_->Pop();
+        operand.ToRegister();
+        __ test(operand.reg(), Immediate(kSmiTagMask));
+        deferred->enter()->Branch(not_zero, &operand, not_taken);
+        Result answer = allocator()->Allocate();
+        ASSERT(answer.is_valid());
+        __ mov(answer.reg(), Operand(operand.reg()));
+        ASSERT(kSmiTag == 0);  // adjust code if not the case
+        if (shift_value == 0) {
+          __ sar(answer.reg(), kSmiTagSize);
+        } else if (shift_value > 1) {
+          __ shl(answer.reg(), shift_value - 1);
+        }  // We do no shifts, only the Smi conversion, if shift_value is 1.
+        // Convert int result to Smi, checking that it is in int range.
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
-        __ lea(eax, Operand(ebx, ebx, times_1, kSmiTag));
-        deferred->exit()->Bind();
-        frame_->EmitPush(eax);
+        __ add(answer.reg(), Operand(answer.reg()));
+        deferred->enter()->Branch(overflow, &operand, not_taken);
+        deferred->exit()->Bind(&answer);
+        frame_->Push(&answer);
       }
       break;
     }
@@ -1162,28 +1175,29 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::BIT_OR:
     case Token::BIT_XOR:
     case Token::BIT_AND: {
-      VirtualFrame::SpilledScope spilled_scope(this);
       DeferredCode* deferred = NULL;
       if (!reversed) {
-        deferred =  new DeferredInlinedSmiOperation(this, op, int_value,
+        deferred =  new DeferredInlinedSmiOperation(this, op, smi_value,
                                                     overwrite_mode);
       } else {
-        deferred = new DeferredInlinedSmiOperationReversed(this, op, int_value,
+        deferred = new DeferredInlinedSmiOperationReversed(this, op, smi_value,
                                                            overwrite_mode);
       }
-      frame_->EmitPop(eax);
-      __ test(eax, Immediate(kSmiTagMask));
-      deferred->enter()->Branch(not_zero, not_taken);
+      Result operand = frame_->Pop();
+      operand.ToRegister();
+      __ test(operand.reg(), Immediate(kSmiTagMask));
+      deferred->enter()->Branch(not_zero, &operand, not_taken);
+      frame_->Spill(operand.reg());
       if (op == Token::BIT_AND) {
-        __ and_(Operand(eax), Immediate(value));
+        __ and_(Operand(operand.reg()), Immediate(value));
       } else if (op == Token::BIT_XOR) {
-        __ xor_(Operand(eax), Immediate(value));
+        __ xor_(Operand(operand.reg()), Immediate(value));
       } else {
         ASSERT(op == Token::BIT_OR);
-        __ or_(Operand(eax), Immediate(value));
+        __ or_(Operand(operand.reg()), Immediate(value));
       }
-      deferred->exit()->Bind();
-      frame_->EmitPush(eax);
+      deferred->exit()->Bind(&operand);
+      frame_->Push(&operand);
       break;
     }
 
