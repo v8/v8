@@ -424,7 +424,7 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   }
 
   // At this point, the frames should be identical.
-  // TODO(): Consider an "equals" method for frames.
+  // TODO(208): Consider an "equals" method for frames.
   ASSERT(stack_pointer_ == expected->stack_pointer_);
 #ifdef DEBUG
   for (int i = 0; i < elements_.length(); i++) {
@@ -819,7 +819,7 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
   elements_[index] = top;
 
   if (top.is_memory()) {
-    // TODO(): consider allocating the slot to a register.
+    // TODO(209): consider allocating the slot to a register.
     //
     // Emit code to store memory values into the required frame slot.
     Result temp = cgen_->allocator()->Allocate();

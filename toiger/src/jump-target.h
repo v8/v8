@@ -35,8 +35,6 @@ namespace v8 { namespace internal {
 // -------------------------------------------------------------------------
 // Jump targets
 //
-// TODO(): Update this comment.
-//
 // A jump target is an abstraction of a basic-block entry in generated
 // code.  It collects all the virtual frames reaching the block by
 // forward jumps and pairs them with labels for the merge code along

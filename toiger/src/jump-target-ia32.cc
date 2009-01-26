@@ -121,9 +121,9 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
     // backward edge.  We negate the condition and emit the merge code
     // here.
     //
-    // TODO(): we should try to avoid negating the condition in the case
-    // where there is no merge code to emit.  Otherwise, we emit a
-    // branch around an unconditional jump.
+    // TODO(210): we should try to avoid negating the condition in the
+    // case where there is no merge code to emit.  Otherwise, we emit
+    // a branch around an unconditional jump.
     ASSERT(direction_ == BIDIRECTIONAL);
     Label original_fall_through;
     __ j(NegateCondition(cc), &original_fall_through, NegateHint(hint));
