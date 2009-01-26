@@ -494,7 +494,18 @@ bool CodeGenerator::TryGenerateFastCaseSwitchStatement(SwitchStatement* node) {
 }
 
 
-void CodeGenerator::CodeForStatement(Node* node) {
+void CodeGenerator::CodeForFunctionPosition(FunctionLiteral* fun) {
+  if (FLAG_debug_info) {
+    int pos = fun->start_position();
+    if (pos != RelocInfo::kNoPosition) {
+      masm()->RecordStatementPosition(pos);
+      masm()->RecordPosition(pos);
+    }
+  }
+}
+
+
+void CodeGenerator::CodeForStatementPosition(Node* node) {
   if (FLAG_debug_info) {
     int pos = node->statement_pos();
     if (pos != RelocInfo::kNoPosition) {

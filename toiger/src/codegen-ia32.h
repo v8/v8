@@ -462,7 +462,8 @@ class CodeGenerator: public AstVisitor {
   // Methods used to indicate which source code is generated for. Source
   // positions are collected by the assembler and emitted with the relocation
   // information.
-  void CodeForStatement(Node* node);
+  void CodeForFunctionPosition(FunctionLiteral* fun);
+  void CodeForStatementPosition(Node* node);
   void CodeForSourcePosition(int pos);
 
   bool is_eval_;  // Tells whether code is generated for eval.
