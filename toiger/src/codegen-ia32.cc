@@ -1166,6 +1166,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
         __ add(answer.reg(), Operand(answer.reg()));
         deferred->enter()->Branch(overflow, &operand, not_taken);
+        operand.Unuse();
         deferred->exit()->Bind(&answer);
         frame_->Push(&answer);
       }
