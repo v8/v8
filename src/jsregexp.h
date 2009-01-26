@@ -1105,7 +1105,8 @@ class Trace {
    public:
     DeferredCapture(int reg, bool is_capture, Trace* trace)
         : DeferredAction(ActionNode::STORE_POSITION, reg),
-          cp_offset_(trace->cp_offset()) { }
+          cp_offset_(trace->cp_offset()),
+          is_capture_(is_capture) { }
     int cp_offset() { return cp_offset_; }
     bool is_capture() { return is_capture_; }
    private:
