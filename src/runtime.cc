@@ -161,15 +161,16 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
     for (int index = 0; index < length; index +=2) {
       Handle<Object> key(constant_properties->get(index+0));
       Handle<Object> value(constant_properties->get(index+1));
+      Handle<Object> result;
       uint32_t element_index = 0;
       if (key->IsSymbol()) {
         // If key is a symbol it is not an array element.
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
-        SetProperty(boilerplate, name, value, NONE);
+        result = SetProperty(boilerplate, name, value, NONE);
       } else if (Array::IndexFromObject(*key, &element_index)) {
         // Array index (uint32).
-        SetElement(boilerplate, element_index, value);
+        result = SetElement(boilerplate, element_index, value);
       } else {
         // Non-uint32 number.
         ASSERT(key->IsNumber());
@@ -178,8 +179,13 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
         Vector<char> buffer(arr, ARRAY_SIZE(arr));
         const char* str = DoubleToCString(num, buffer);
         Handle<String> name = Factory::NewStringFromAscii(CStrVector(str));
-        SetProperty(boilerplate, name, value, NONE);
+        result = SetProperty(boilerplate, name, value, NONE);
       }
+      // If setting the property on the boilerplate throws an
+      // exception, the exception is converted to an empty handle in
+      // the handle based operations.  In that case, we need to
+      // convert back to an exception.
+      if (result.is_null()) return Failure::Exception();
     }
   }
 

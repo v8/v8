@@ -2965,7 +2965,6 @@ class JSRegExp: public JSObject {
 
   // Dispatched behavior.
 #ifdef DEBUG
-  void JSRegExpPrint();
   void JSRegExpVerify();
 #endif
 
