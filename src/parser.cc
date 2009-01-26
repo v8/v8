@@ -1092,7 +1092,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
   Counters::total_parse_size.Increment(source->length(shape));
 
   // Initialize parser state.
-  source->TryFlatten(shape);
+  source->TryFlattenIfNotFlat(shape);
   scanner_.Init(source, stream, 0);
   ASSERT(target_stack_ == NULL);
 
@@ -1141,7 +1141,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    bool is_expression) {
   ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   StatsRateScope timer(&Counters::parse_lazy);
-  source->TryFlatten(StringShape(*source));
+  source->TryFlattenIfNotFlat(StringShape(*source));
   StringShape shape(*source);
   Counters::total_parse_size.Increment(source->length(shape));
   SafeStringInputBuffer buffer(source.location());

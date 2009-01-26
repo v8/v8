@@ -697,7 +697,7 @@ static Handle<FixedArray> GetCompiledIrregexp(Handle<JSRegExp> re,
   Handle<String> pattern(re->Pattern());
   StringShape shape(*pattern);
   if (!pattern->IsFlat(shape)) {
-    pattern->Flatten(shape);
+    FlattenString(pattern);
   }
 
   RegExpCompileData compile_data;
@@ -824,7 +824,7 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
   Handle<Object> matches;
 
   if (!subject->IsFlat(shape)) {
-    subject->Flatten(shape);
+    FlattenString(subject);
   }
 
   while (true) {
@@ -920,6 +920,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
             offsets_vector,
             previous_index == 0);
       } else {  // Sequential string
+        ASSERT(StringShape(*subject).IsSequential());
         Address char_address =
             is_ascii ? SeqAsciiString::cast(*subject)->GetCharsAddress()
                      : SeqTwoByteString::cast(*subject)->GetCharsAddress();

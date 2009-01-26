@@ -587,7 +587,7 @@ static bool AnWord(String* str) {
 }
 
 
-Object* String::Flatten(StringShape shape) {
+Object* String::TryFlatten(StringShape shape) {
 #ifdef DEBUG
   // Do not attempt to flatten in debug mode when allocation is not
   // allowed.  This is to avoid an assertion failure when allocating.
@@ -604,11 +604,11 @@ Object* String::Flatten(StringShape shape) {
       // SlicedStrings.
       String* buf = ss->buffer();
       ASSERT(!buf->IsSlicedString());
-      Object* ok = buf->Flatten(StringShape(buf));
+      Object* ok = buf->TryFlatten(StringShape(buf));
       if (ok->IsFailure()) return ok;
-      // Under certain circumstances (TryFlatten fails in String::Slice)
-      // we can have a cons string under a slice.  In this case we need
-      // to get the flat string out of the cons!
+      // Under certain circumstances (TryFlattenIfNotFlat fails in
+      // String::Slice) we can have a cons string under a slice.
+      // In this case we need to get the flat string out of the cons!
       if (StringShape(String::cast(ok)).IsCons()) {
         ss->set_buffer(ConsString::cast(ok)->first());
       }
@@ -2413,8 +2413,8 @@ Object* JSObject::DefineGetterSetter(String* name,
     return Heap::undefined_value();
   }
 
-  // TryFlatten before operating on the string.
-  name->TryFlatten(StringShape(name));
+  // Try to flatten before operating on the string.
+  name->TryFlattenIfNotFlat(StringShape(name));
 
   // Make sure name is not an index.
   uint32_t index;
@@ -3065,9 +3065,7 @@ int String::Utf8Length() {
   // doesn't make Utf8Length faster, but it is very likely that
   // the string will be accessed later (for example by WriteUtf8)
   // so it's still a good idea.
-  if (!IsFlat(shape)) {
-    TryFlatten(shape);  // shape is now no longer valid.
-  }
+  TryFlattenIfNotFlat(shape);  // shape is now no longer valid.
   Access<StringInputBuffer> buffer(&string_input_buffer);
   buffer->Reset(0, this);
   int result = 0;

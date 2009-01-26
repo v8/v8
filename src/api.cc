@@ -2017,7 +2017,7 @@ int String::WriteAscii(char* buffer, int start, int length) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlatten(i::StringShape(*str));
+  str->TryFlattenIfNotFlat(i::StringShape(*str));
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2042,7 +2042,7 @@ int String::Write(uint16_t* buffer, int start, int length) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlatten(i::StringShape(*str));
+  str->TryFlattenIfNotFlat(i::StringShape(*str));
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;

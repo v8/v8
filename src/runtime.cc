@@ -1060,7 +1060,7 @@ static Object* CharCodeAt(String* subject, Object* index) {
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
-  subject->TryFlatten(StringShape(subject));
+  subject->TryFlattenIfNotFlat(StringShape(subject));
   StringShape shape(subject);
   if (i >= static_cast<uint32_t>(subject->length(shape))) {
     return Heap::nan_value();
@@ -1531,8 +1531,8 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   CONVERT_CHECKED(String, pat, args[1]);
   Object* index = args[2];
 
-  sub->TryFlatten(StringShape(sub));
-  pat->TryFlatten(StringShape(pat));
+  sub->TryFlattenIfNotFlat(StringShape(sub));
+  pat->TryFlattenIfNotFlat(StringShape(pat));
 
   StringShape sub_shape(sub);
   StringShape pat_shape(pat);
@@ -1591,8 +1591,8 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
   int d = str1->Get(shape1, 0) - str2->Get(shape2, 0);
   if (d != 0) return Smi::FromInt(d);
 
-  str1->TryFlatten(shape1);  // Shapes are no longer valid now!
-  str2->TryFlatten(shape2);
+  str1->TryFlattenIfNotFlat(shape1);  // Shapes are no longer valid now!
+  str2->TryFlattenIfNotFlat(shape2);
 
   static StringInputBuffer buf1;
   static StringInputBuffer buf2;
@@ -1729,7 +1729,7 @@ static Object* Runtime_NumberToPrecision(Arguments args) {
 static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
   StringShape shape(*string);
   if (index < static_cast<uint32_t>(string->length(shape))) {
-    string->TryFlatten(shape);  // Invalidates shape!
+    string->TryFlattenIfNotFlat(shape);  // Invalidates shape!
     return LookupSingleCharacterStringFromCode(
         string->Get(StringShape(*string), index));
   }
@@ -1922,7 +1922,7 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
       result = SetElement(js_object, index, value);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
-      key_string->TryFlatten(StringShape(*key_string));
+      key_string->TryFlattenIfNotFlat(StringShape(*key_string));
       result = SetProperty(js_object, key_string, value, attr);
     }
     if (result.is_null()) return Failure::Exception();
@@ -2194,7 +2194,7 @@ static Object* Runtime_StringToNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, subject, args[0]);
-  subject->TryFlatten(StringShape(subject));
+  subject->TryFlattenIfNotFlat(StringShape(subject));
   return Heap::NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
 }
 
@@ -2277,7 +2277,7 @@ static Object* Runtime_URIEscape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlatten(StringShape(source));
+  source->TryFlattenIfNotFlat(StringShape(source));
 
   int escaped_length = 0;
   int length = source->length();
@@ -2391,7 +2391,7 @@ static Object* Runtime_URIUnescape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlatten(StringShape(source));
+  source->TryFlattenIfNotFlat(StringShape(source));
   StringShape source_shape(source);
 
   bool ascii = true;
@@ -2440,7 +2440,7 @@ static Object* Runtime_StringParseInt(Arguments args) {
   CONVERT_DOUBLE_CHECKED(n, args[1]);
   int radix = FastD2I(n);
 
-  s->TryFlatten(StringShape(s));
+  s->TryFlattenIfNotFlat(StringShape(s));
 
   StringShape shape(s);
 
@@ -2513,7 +2513,7 @@ static Object* ConvertCase(Arguments args,
   NoHandleAllocation ha;
 
   CONVERT_CHECKED(String, s, args[0]);
-  s->TryFlatten(StringShape(s));
+  s->TryFlattenIfNotFlat(StringShape(s));
   StringShape shape(s);
 
   int raw_string_length = s->length(shape);
@@ -3117,8 +3117,8 @@ static Object* Runtime_StringCompare(Arguments args) {
   if (d < 0) return Smi::FromInt(LESS);
   else if (d > 0) return Smi::FromInt(GREATER);
 
-  x->TryFlatten(x_shape);  // Shapes are no longer valid!
-  y->TryFlatten(y_shape);
+  x->TryFlattenIfNotFlat(x_shape);  // Shapes are no longer valid!
+  y->TryFlattenIfNotFlat(y_shape);
 
   static StringInputBuffer bufx;
   static StringInputBuffer bufy;

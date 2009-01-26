@@ -188,7 +188,7 @@ void TransformToFastProperties(Handle<JSObject> object,
 void FlattenString(Handle<String> string) {
   StringShape shape(*string);
   if (string->IsFlat(shape)) return;
-  CALL_HEAP_FUNCTION_VOID(string->Flatten(shape));
+  CALL_HEAP_FUNCTION_VOID(string->TryFlatten(shape));
   ASSERT(string->IsFlat(StringShape(*string)));
 }
 
