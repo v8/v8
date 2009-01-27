@@ -35,7 +35,7 @@
 
 namespace v8 { namespace internal {
 
-bool Snapshot::Deserialize(const char* content, int len) {
+bool Snapshot::Deserialize(const byte* content, int len) {
   Deserializer des(content, len);
   des.GetFlags();
   return V8::Initialize(&des);
@@ -45,7 +45,7 @@ bool Snapshot::Deserialize(const char* content, int len) {
 bool Snapshot::Initialize(const char* snapshot_file) {
   if (snapshot_file) {
     int len;
-    char* str = ReadChars(snapshot_file, &len);
+    byte* str = ReadBytes(snapshot_file, &len);
     if (!str) return false;
     bool result = Deserialize(str, len);
     DeleteArray(str);
@@ -60,11 +60,11 @@ bool Snapshot::Initialize(const char* snapshot_file) {
 bool Snapshot::WriteToFile(const char* snapshot_file) {
   Serializer ser;
   ser.Serialize();
-  char* str;
+  byte* str;
   int len;
   ser.Finalize(&str, &len);
 
-  int written = WriteChars(snapshot_file, str, len);
+  int written = WriteBytes(snapshot_file, str, len);
 
   DeleteArray(str);
   return written == len;

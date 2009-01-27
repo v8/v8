@@ -43,6 +43,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void AdvanceRegister(int reg, int by);
   virtual void Backtrack();
   virtual void Bind(Label* label);
+  virtual void CheckAtStart(Label* on_at_start);
   virtual void CheckBitmap(uc16 start, Label* bitmap, Label* on_zero);
   virtual void CheckCharacter(uint32_t c, Label* on_equal);
   virtual void CheckCharacterAfterAnd(uint32_t c,
@@ -70,6 +71,9 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
                                               uc16 minus,
                                               uc16 mask,
                                               Label* on_not_equal);
+  // Checks whether the given offset from the current position is before
+  // the end of the string.
+  virtual void CheckPosition(int cp_offset, Label* on_outside_input);
   virtual bool CheckSpecialCharacterClass(uc16 type,
                                           int cp_offset,
                                           bool check_offset,
@@ -106,7 +110,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   virtual void SetRegister(int register_index, int to);
   virtual void Succeed();
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
-  virtual void ClearRegister(int reg);
+  virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void WriteStackPointerToRegister(int reg);
 
   static Result Execute(Code* code,
@@ -170,10 +174,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // This function must not trigger a garbage collection.
   static Address GrowStack(Address stack_top);
 
-  // Checks whether the given offset from the current position is before
-  // the end of the string.
-  void CheckPosition(int cp_offset, Label* on_outside_input);
-
   // The ebp-relative location of a regexp register.
   Operand register_location(int register_index);
 
@@ -218,7 +218,9 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // etc., not pushed. The argument count assumes all arguments are word sized.
   // Some compilers/platforms require the stack to be aligned when calling
   // C++ code.
-  inline void FrameAlign(int num_arguments);
+  // Needs a scratch register to do some arithmetic. This register will be
+  // trashed.
+  inline void FrameAlign(int num_arguments, Register scratch);
 
   // Calls a C function and cleans up the space for arguments allocated
   // by FrameAlign. The called function is not allowed to trigger a garbage

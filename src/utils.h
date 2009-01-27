@@ -224,16 +224,24 @@ void Flush();
 char* ReadLine(const char* prompt);
 
 
-// Read and return the raw chars in a file. the size of the buffer is returned
+// Read and return the raw bytes in a file. the size of the buffer is returned
 // in size.
-// The returned buffer is not 0-terminated. It must be freed by the caller.
-char* ReadChars(const char* filename, int* size, bool verbose = true);
+// The returned buffer must be freed by the caller.
+byte* ReadBytes(const char* filename, int* size, bool verbose = true);
 
 
 // Write size chars from str to the file given by filename.
 // The file is overwritten. Returns the number of chars written.
 int WriteChars(const char* filename,
                const char* str,
+               int size,
+               bool verbose = true);
+
+
+// Write size bytes to the file given by filename.
+// The file is overwritten. Returns the number of bytes written.
+int WriteBytes(const char* filename,
+               const byte* bytes,
                int size,
                bool verbose = true);
 
@@ -524,55 +532,6 @@ static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
   while (dest < limit) {
     *dest++ = static_cast<sinkchar>(*src++);
   }
-}
-
-
-static inline int Load16(const byte* ptr) {
-#ifdef CAN_READ_UNALIGNED
-  return *reinterpret_cast<const uint16_t*>(ptr);
-#else
-  uint32_t word;
-  word  = ptr[1];
-  word |= ptr[0] << 8;
-  return word;
-#endif
-}
-
-
-static inline int Load32(const byte* ptr) {
-#ifdef CAN_READ_UNALIGNED
-  return *reinterpret_cast<const uint32_t*>(ptr);
-#else
-  uint32_t word;
-  word  = ptr[3];
-  word |= ptr[2] << 8;
-  word |= ptr[1] << 16;
-  word |= ptr[0] << 24;
-  return word;
-#endif
-}
-
-
-static inline void Store16(byte* ptr, uint16_t value) {
-#ifdef CAN_READ_UNALIGNED
-  *reinterpret_cast<uint16_t*>(ptr) = value;
-#else
-  // Cast to avoid warning C4244 when compiling with Microsoft Visual C++.
-  ptr[1] = static_cast<byte>(value);
-  ptr[0] = value >> 8;
-#endif
-}
-
-
-static inline void Store32(byte* ptr, uint32_t value) {
-#ifdef CAN_READ_UNALIGNED
-  *reinterpret_cast<uint32_t*>(ptr) = value;
-#else
-  ptr[3] = value;
-  ptr[2] = value >> 8;
-  ptr[1] = value >> 16;
-  ptr[0] = value >> 24;
-#endif
 }
 
 

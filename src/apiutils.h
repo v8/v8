@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,47 +25,45 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A light-weight assembler for the Irregexp byte code.
+#ifndef V8_APIUTILS_H_
+#define V8_APIUTILS_H_
 
+namespace v8 {
 
-#include "v8.h"
-#include "ast.h"
-#include "bytecodes-irregexp.h"
+class ImplementationUtilities {
+ public:
+  static v8::Handle<v8::Primitive> Undefined();
+  static v8::Handle<v8::Primitive> Null();
+  static v8::Handle<v8::Boolean> True();
+  static v8::Handle<v8::Boolean> False();
 
-
-namespace v8 { namespace internal {
-
-
-void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,
-                                        uint32_t twenty_four_bits) {
-  uint32_t word = ((twenty_four_bits << BYTECODE_SHIFT) | byte);
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_  + 3 >= buffer_.length()) {
-    Expand();
+  static int GetNameCount(ExtensionConfiguration* that) {
+    return that->name_count_;
   }
-  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
-  pc_ += 4;
-}
 
-
-void RegExpMacroAssemblerIrregexp::Emit16(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_ + 1 >= buffer_.length()) {
-    Expand();
+  static const char** GetNames(ExtensionConfiguration* that) {
+    return that->names_;
   }
-  *reinterpret_cast<uint16_t*>(buffer_.start() + pc_) = word;
-  pc_ += 2;
-}
 
-
-void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_ + 3 >= buffer_.length()) {
-    Expand();
+  static v8::Arguments NewArguments(Local<Value> data,
+                                    Local<Object> holder,
+                                    Local<Function> callee,
+                                    bool is_construct_call,
+                                    void** argv, int argc) {
+    return v8::Arguments(data, holder, callee, is_construct_call, argv, argc);
   }
-  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
-  pc_ += 4;
-}
 
+  // Introduce an alias for the handle scope data to allow non-friends
+  // to access the HandleScope data.
+  typedef v8::HandleScope::Data HandleScopeData;
 
-} }  // namespace v8::internal
+  static HandleScopeData* CurrentHandleScope();
+
+#ifdef DEBUG
+  static void ZapHandleRange(void** begin, void** end);
+#endif
+};
+
+}  // namespace v8
+
+#endif  // V8_APIUTILS_H_

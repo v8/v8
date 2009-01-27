@@ -53,7 +53,15 @@ function testNumberMirror(n) {
   if (!isNaN(n)) {
     assertEquals(n, fromJSON.value);
   } else {
-    assertTrue(isNaN(fromJSON.value));
+    // NaN values are encoded as strings.
+    assertTrue(typeof fromJSON.value == 'string');
+    if (n === Infinity) {
+      assertEquals('Infinity', fromJSON.value);
+    } else if (n === -Infinity) {
+      assertEquals('-Infinity', fromJSON.value);
+    } else {
+      assertEquals('NaN', fromJSON.value);
+    }
   }
 }
 

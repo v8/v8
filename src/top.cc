@@ -37,7 +37,7 @@
 namespace v8 { namespace internal {
 
 ThreadLocalTop Top::thread_local_;
-Mutex* Top::break_access_;
+Mutex* Top::break_access_ = OS::CreateMutex();
 StackFrame::Id Top::break_frame_id_;
 int Top::break_count_;
 int Top::break_id_;
@@ -225,7 +225,6 @@ void Top::Initialize() {
 
   InitializeThreadLocal();
 
-  break_access_ = OS::CreateMutex();
   break_frame_id_ = StackFrame::NO_ID;
   break_count_ = 0;
   break_id_ = 0;

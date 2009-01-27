@@ -40,6 +40,74 @@
 namespace v8 { namespace internal {
 
 
+v8::ImplementationUtilities::HandleScopeData HandleScope::current_ =
+    { -1, NULL, NULL };
+
+
+int HandleScope::NumberOfHandles() {
+  int n = HandleScopeImplementer::instance()->Blocks()->length();
+  if (n == 0) return 0;
+  return ((n - 1) * kHandleBlockSize) +
+      (current_.next - HandleScopeImplementer::instance()->Blocks()->last());
+}
+
+
+void** HandleScope::CreateHandle(void* value) {
+  void** result = current_.next;
+  if (result == current_.limit) {
+    // Make sure there's at least one scope on the stack and that the
+    // top of the scope stack isn't a barrier.
+    if (current_.extensions < 0) {
+      Utils::ReportApiFailure("v8::HandleScope::CreateHandle()",
+                              "Cannot create a handle without a HandleScope");
+      return NULL;
+    }
+    HandleScopeImplementer* impl = HandleScopeImplementer::instance();
+    // If there's more room in the last block, we use that. This is used
+    // for fast creation of scopes after scope barriers.
+    if (!impl->Blocks()->is_empty()) {
+      void** limit = &impl->Blocks()->last()[kHandleBlockSize];
+      if (current_.limit != limit) {
+        current_.limit = limit;
+      }
+    }
+
+    // If we still haven't found a slot for the handle, we extend the
+    // current handle scope by allocating a new handle block.
+    if (result == current_.limit) {
+      // If there's a spare block, use it for growing the current scope.
+      result = impl->GetSpareOrNewBlock();
+      // Add the extension to the global list of blocks, but count the
+      // extension as part of the current scope.
+      impl->Blocks()->Add(result);
+      current_.extensions++;
+      current_.limit = &result[kHandleBlockSize];
+    }
+  }
+
+  // Update the current next field, set the value in the created
+  // handle, and return the result.
+  ASSERT(result < current_.limit);
+  current_.next = result + 1;
+  *result = value;
+  return result;
+}
+
+
+void HandleScope::DeleteExtensions() {
+  ASSERT(current_.extensions != 0);
+  HandleScopeImplementer::instance()->DeleteExtensions(current_.extensions);
+}
+
+
+void HandleScope::ZapRange(void** start, void** end) {
+  if (start == NULL) return;
+  for (void** p = start; p < end; p++) {
+    *p = reinterpret_cast<void*>(v8::internal::kHandleZapValue);
+  }
+}
+
+
 Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray> content,
                                       Handle<JSArray> array) {
   CALL_HEAP_FUNCTION(content->AddKeysFromJSArray(*array), FixedArray);
@@ -120,7 +188,7 @@ void TransformToFastProperties(Handle<JSObject> object,
 void FlattenString(Handle<String> string) {
   StringShape shape(*string);
   if (string->IsFlat(shape)) return;
-  CALL_HEAP_FUNCTION_VOID(string->Flatten(shape));
+  CALL_HEAP_FUNCTION_VOID(string->TryFlatten(shape));
   ASSERT(string->IsFlat(StringShape(*string)));
 }
 

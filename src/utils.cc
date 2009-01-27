@@ -182,8 +182,9 @@ char* ReadCharsFromFile(const char* filename,
 }
 
 
-char* ReadChars(const char* filename, int* size, bool verbose) {
-  return ReadCharsFromFile(filename, size, 0, verbose);
+byte* ReadBytes(const char* filename, int* size, bool verbose) {
+  char* chars = ReadCharsFromFile(filename, size, 0, verbose);
+  return reinterpret_cast<byte*>(chars);
 }
 
 
@@ -230,6 +231,15 @@ int WriteChars(const char* filename,
   int written = WriteCharsToFile(str, size, f);
   fclose(f);
   return written;
+}
+
+
+int WriteBytes(const char* filename,
+               const byte* bytes,
+               int size,
+               bool verbose) {
+  const char* str = reinterpret_cast<const char*>(bytes);
+  return WriteChars(filename, str, size, verbose);
 }
 
 

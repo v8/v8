@@ -58,6 +58,11 @@ function MakeMirror(value) {
     if (mirror.value() === value) {
       return mirror;
     }
+    // Special check for NaN as NaN == NaN is false.
+    if (mirror.isNumber() && isNaN(mirror.value()) &&
+        typeof value == 'number' && isNaN(value)) {
+      return mirror;
+    }
   }
   
   if (IS_UNDEFINED(value)) {
@@ -89,6 +94,18 @@ function MakeMirror(value) {
 }
 
 
+/**
+ * Returns the mirror for a specified mirror handle.
+ *
+ * @param {number} handle the handle to find the mirror for
+ * @returns {Mirror or undefiend} the mirror with the requested handle or
+ *     undefined if no mirror with the requested handle was found
+ */
+function LookupMirror(handle) {
+  return mirror_cache_[handle];
+}
+
+  
 /**
  * Returns the mirror for the undefined value.
  *
@@ -342,6 +359,14 @@ Mirror.prototype.isScript = function() {
 }
 
 
+/**
+ * Allocate a handle id for this object.
+ */
+Mirror.prototype.allocateHandle_ = function() {
+  this.handle_ = next_handle_++;
+}
+
+
 Mirror.prototype.toText = function() {
   // Simpel to text which is used when on specialization in subclass.
   return "#<" + builtins.GetInstanceName(this.constructor.name) + ">";
@@ -357,8 +382,8 @@ Mirror.prototype.toText = function() {
  */
 function ValueMirror(type, value) {
   Mirror.call(this, type);
-  this.handle_ = next_handle_++;
   this.value_ = value;
+  this.allocateHandle_();
 }
 inherits(ValueMirror, Mirror);
 
@@ -512,7 +537,7 @@ ObjectMirror.prototype.prototypeObject = function() {
 
 
 ObjectMirror.prototype.protoObject = function() {
-  return MakeMirror(%GetPrototype(this.value_));
+  return MakeMirror(%DebugGetPrototype(this.value_));
 };
 
 
@@ -1516,6 +1541,7 @@ FrameMirror.prototype.toText = function(opt_locals) {
 function ScriptMirror(script) {
   Mirror.call(this, SCRIPT_TYPE);
   this.script_ = script;
+  this.allocateHandle_();
 }
 inherits(ScriptMirror, Mirror);
 
@@ -1656,9 +1682,10 @@ JSONProtocolSerializer.prototype.add_ = function(mirror) {
 
 JSONProtocolSerializer.prototype.serialize_ = function(mirror, reference,
                                                        details) {
-  // If serializing a reference to a value just return the reference and add the
-  // mirror to the referenced mirrors.
-  if (reference && mirror.isValue()) {
+  // If serializing a reference to a mirror just return the reference and add
+  // the mirror to the referenced mirrors.
+  if (reference &&
+      (mirror.isValue() || mirror.isScript())) {
     this.add_(mirror);
     return '{"ref":' + mirror.handle() + '}';
   }
@@ -1785,7 +1812,7 @@ JSONProtocolSerializer.prototype.serializeObject_ = function(mirror, content,
       content.push(MakeJSONPair_('source', StringToJSON_(mirror.source())));
     }
     if (mirror.script()) {
-      content.push(MakeJSONPair_('script', this.serializeValue(mirror.script())));
+      content.push(MakeJSONPair_('script', this.serializeReference(mirror.script())));
     }
   }
 

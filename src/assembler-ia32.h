@@ -260,19 +260,19 @@ class Operand BASE_EMBEDDED {
   bool is_reg(Register reg) const;
 
  private:
-  // Mutable because reg in ModR/M byte is set by Assembler via set_reg().
-  mutable byte buf_[6];
+  byte buf_[6];
   // The number of bytes in buf_.
   unsigned int len_;
   // Only valid if len_ > 4.
   RelocInfo::Mode rmode_;
 
-  inline void set_modrm(int mod,  // reg == 0
-                        Register rm);
+  // Set the ModRM byte without an encoded 'reg' register. The
+  // register is encoded later as part of the emit_operand operation.
+  inline void set_modrm(int mod, Register rm);
+
   inline void set_sib(ScaleFactor scale, Register index, Register base);
   inline void set_disp8(int8_t disp);
   inline void set_dispr(int32_t disp, RelocInfo::Mode rmode);
-  inline void set_reg(Register reg) const;
 
   friend class Assembler;
 };

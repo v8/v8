@@ -52,17 +52,19 @@ var valueOfCount = 0;
 function g() {
   const o = { valueOf: function() { valueOfCount++; return 42; } }
   assertEquals(42, o);
-  assertEquals(0, valueOfCount);
+  assertEquals(1, valueOfCount);
   o++;
   assertEquals(42, o);
-  assertEquals(1, valueOfCount);
+  assertEquals(3, valueOfCount);
   ++o;
   assertEquals(42, o);
-  assertEquals(2, valueOfCount);
+  assertEquals(5, valueOfCount);
   o--;
   assertEquals(42, o);
-  assertEquals(3, valueOfCount);
+  assertEquals(7, valueOfCount);
   --o;
   assertEquals(42, o);
-  assertEquals(4, valueOfCount);
+  assertEquals(9, valueOfCount);
 }
+
+g();

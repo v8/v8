@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
+#include "bootstrapper.h"
 #include "debug.h"
 #include "execution.h"
 #include "v8threads.h"
@@ -38,9 +39,17 @@ namespace v8 {
 static internal::Thread::LocalStorageKey thread_state_key =
     internal::Thread::CreateThreadLocalKey();
 
+
+// Track whether this V8 instance has ever called v8::Locker. This allows the
+// API code to verify that the lock is always held when V8 is being entered.
+bool Locker::active_ = false;
+
+
 // Constructor for the Locker object.  Once the Locker is constructed the
 // current thread will be guaranteed to have the big V8 lock.
 Locker::Locker() : has_lock_(false), top_level_(true) {
+  // Record that the Locker has been used at least once.
+  active_ = true;
   // Get the big lock if necessary.
   if (!internal::ThreadManager::IsLockedByCurrentThread()) {
     internal::ThreadManager::Lock();
@@ -111,6 +120,11 @@ bool ThreadManager::RestoreThread() {
     Thread::SetThreadLocal(thread_state_key, NULL);
     return true;
   }
+
+  // Make sure that the preemption thread cannot modify the thread state while
+  // it is being archived or restored.
+  ExecutionAccess access;
+
   // If there is another thread that was lazily archived then we have to really
   // archive it now.
   if (lazily_archived_thread_.IsValid()) {
@@ -127,6 +141,7 @@ bool ThreadManager::RestoreThread() {
   from = Debug::RestoreDebug(from);
   from = StackGuard::RestoreStackGuard(from);
   from = RegExpStack::RestoreStack(from);
+  from = Bootstrapper::RestoreState(from);
   Thread::SetThreadLocal(thread_state_key, NULL);
   state->Unlink();
   state->LinkInto(ThreadState::FREE_LIST);
@@ -152,7 +167,8 @@ static int ArchiveSpacePerThread() {
                             Top::ArchiveSpacePerThread() +
                           Debug::ArchiveSpacePerThread() +
                      StackGuard::ArchiveSpacePerThread() +
-                    RegExpStack::ArchiveSpacePerThread();
+                    RegExpStack::ArchiveSpacePerThread() +
+                   Bootstrapper::ArchiveSpacePerThread();
 }
 
 
@@ -234,6 +250,7 @@ void ThreadManager::EagerlyArchiveThread() {
   to = Debug::ArchiveDebug(to);
   to = StackGuard::ArchiveStackGuard(to);
   to = RegExpStack::ArchiveStack(to);
+  to = Bootstrapper::ArchiveState(to);
   lazily_archived_thread_.Initialize(ThreadHandle::INVALID);
   lazily_archived_thread_state_ = NULL;
 }

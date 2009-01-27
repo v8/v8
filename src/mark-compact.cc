@@ -35,16 +35,7 @@
 
 namespace v8 { namespace internal {
 
-#ifdef DEBUG
-// The verification code used between phases of the m-c collector does not
-// currently work.
-//
-// TODO(1240833): Fix the heap verification code and turn this into a real
-// flag.
-static const bool FLAG_verify_global_gc = false;
-#endif  // DEBUG
-
-// ----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // MarkCompactCollector
 
 bool MarkCompactCollector::compacting_collection_ = false;
@@ -177,7 +168,7 @@ void MarkCompactCollector::Finish() {
 }
 
 
-// ----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // Phase 1: tracing and marking live objects.
 //   before: all objects are in normal state.
 //   after: a live object's map pointer is marked as '00'.
@@ -729,10 +720,6 @@ void MarkCompactCollector::MarkLiveObjects() {
   symbol_table->IterateElements(&v);
   symbol_table->ElementsRemoved(v.PointersRemoved());
 
-#ifdef DEBUG
-  if (FLAG_verify_global_gc) VerifyHeapAfterMarkingPhase();
-#endif
-
   // Remove object groups after marking phase.
   GlobalHandles::RemoveObjectGroups();
 }
@@ -764,46 +751,6 @@ void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
   } else {
     UNREACHABLE();
   }
-}
-
-
-void MarkCompactCollector::VerifyHeapAfterMarkingPhase() {
-  Heap::new_space()->Verify();
-  Heap::old_pointer_space()->Verify();
-  Heap::old_data_space()->Verify();
-  Heap::code_space()->Verify();
-  Heap::map_space()->Verify();
-
-  int live_objects;
-
-#define CHECK_LIVE_OBJECTS(it, expected)                   \
-          live_objects = 0;                                \
-          while (it.has_next()) {                          \
-            HeapObject* obj = HeapObject::cast(it.next()); \
-            if (obj->IsMarked()) live_objects++;           \
-          }                                                \
-          ASSERT(live_objects == expected);
-
-  SemiSpaceIterator new_it(Heap::new_space(), &CountMarkedCallback);
-  CHECK_LIVE_OBJECTS(new_it, live_young_objects_);
-
-  HeapObjectIterator old_pointer_it(Heap::old_pointer_space(),
-                                    &CountMarkedCallback);
-  CHECK_LIVE_OBJECTS(old_pointer_it, live_old_pointer_objects_);
-
-  HeapObjectIterator old_data_it(Heap::old_data_space(), &CountMarkedCallback);
-  CHECK_LIVE_OBJECTS(old_data_it, live_old_data_objects_);
-
-  HeapObjectIterator code_it(Heap::code_space(), &CountMarkedCallback);
-  CHECK_LIVE_OBJECTS(code_it, live_code_objects_);
-
-  HeapObjectIterator map_it(Heap::map_space(), &CountMarkedCallback);
-  CHECK_LIVE_OBJECTS(map_it, live_map_objects_);
-
-  LargeObjectIterator lo_it(Heap::lo_space(), &CountMarkedCallback);
-  CHECK_LIVE_OBJECTS(lo_it, live_lo_objects_);
-
-#undef CHECK_LIVE_OBJECTS
 }
 #endif  // DEBUG
 
@@ -1325,54 +1272,7 @@ int MarkCompactCollector::IterateLiveObjects(PagedSpace* space,
 }
 
 
-#ifdef DEBUG
-static int VerifyMapObject(HeapObject* obj) {
-  InstanceType type = reinterpret_cast<Map*>(obj)->instance_type();
-  ASSERT(FIRST_TYPE <= type && type <= LAST_TYPE);
-  return Map::kSize;
-}
-
-
-void MarkCompactCollector::VerifyHeapAfterEncodingForwardingAddresses() {
-  AllSpaces spaces;
-  while (Space* space = spaces.next()) space->Verify();
-
-  ASSERT(state_ == ENCODE_FORWARDING_ADDRESSES);
-  int live_maps = IterateLiveObjects(Heap::map_space(), &VerifyMapObject);
-  ASSERT(live_maps == live_map_objects_);
-
-  // Verify page headers in paged spaces.
-  PagedSpaces paged_spaces;
-  while (PagedSpace* space = paged_spaces.next()) VerifyPageHeaders(space);
-}
-
-
-void MarkCompactCollector::VerifyPageHeaders(PagedSpace* space) {
-  PageIterator mc_it(space, PageIterator::PAGES_USED_BY_MC);
-  while (mc_it.has_next()) {
-    Page* p = mc_it.next();
-    Address mc_alloc_top = p->mc_relocation_top;
-    ASSERT(p->ObjectAreaStart() <= mc_alloc_top &&
-           mc_alloc_top <= p->ObjectAreaEnd());
-  }
-
-  int page_count = 0;
-  PageIterator it(space, PageIterator::PAGES_IN_USE);
-  while (it.has_next()) {
-    Page* p = it.next();
-    ASSERT(p->mc_page_index == page_count);
-    page_count++;
-
-    // first_forwarded could be 'deadbeed' if no live objects in this page
-    Address first_forwarded = p->mc_first_forwarded;
-    ASSERT(first_forwarded == kZapValue ||
-           space->Contains(first_forwarded));
-  }
-}
-#endif
-
-
-// ----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // Phase 3: Update pointers
 
 // Helper class for updating pointers in HeapObjects.
@@ -1494,8 +1394,6 @@ void MarkCompactCollector::UpdatePointers() {
   ASSERT(live_pointer_olds == live_old_pointer_objects_);
   ASSERT(live_codes == live_code_objects_);
   ASSERT(live_news == live_young_objects_);
-
-  if (FLAG_verify_global_gc) VerifyHeapAfterUpdatingPointers();
 #endif
 }
 
@@ -1601,19 +1499,7 @@ Address MarkCompactCollector::GetForwardingAddressInOldSpace(HeapObject* obj) {
 }
 
 
-#ifdef DEBUG
-void MarkCompactCollector::VerifyHeapAfterUpdatingPointers() {
-  ASSERT(state_ == UPDATE_POINTERS);
-
-  AllSpaces spaces;
-  while (Space* space = spaces.next()) space->Verify();
-  PagedSpaces paged_spaces;
-  while (PagedSpace* space = paged_spaces.next()) VerifyPageHeaders(space);
-}
-#endif
-
-
-// ----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // Phase 4: Relocate objects
 
 void MarkCompactCollector::RelocateObjects() {
@@ -1664,10 +1550,6 @@ void MarkCompactCollector::RelocateObjects() {
 #endif
   PagedSpaces spaces;
   while (PagedSpace* space = spaces.next()) space->MCCommitRelocationInfo();
-
-#ifdef DEBUG
-  if (FLAG_verify_global_gc) VerifyHeapAfterRelocatingObjects();
-#endif
 }
 
 
@@ -1804,18 +1686,6 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
 }
 
 
-#ifdef DEBUG
-class VerifyCopyingVisitor: public ObjectVisitor {
- public:
-  void VisitPointers(Object** start, Object** end) {
-    for (Object** p = start; p < end; p++) {
-      MarkCompactCollector::VerifyCopyingObjects(p);
-    }
-  }
-};
-
-#endif
-
 int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
   int obj_size = obj->Size();
 
@@ -1845,44 +1715,13 @@ int MarkCompactCollector::RelocateNewObject(HeapObject* obj) {
   if (FLAG_gc_verbose) {
     PrintF("relocate %p -> %p\n", old_addr, new_addr);
   }
-  if (FLAG_verify_global_gc) {
-    VerifyCopyingVisitor v;
-    HeapObject* copied_to = HeapObject::FromAddress(new_addr);
-    copied_to->Iterate(&v);
-  }
 #endif
 
   return obj_size;
 }
 
 
-#ifdef DEBUG
-void MarkCompactCollector::VerifyHeapAfterRelocatingObjects() {
-  ASSERT(state_ == RELOCATE_OBJECTS);
-
-  Heap::new_space()->Verify();
-  PagedSpaces spaces;
-  while (PagedSpace* space = spaces.next()) {
-    space->Verify();
-    PageIterator it(space, PageIterator::PAGES_IN_USE);
-    while (it.has_next()) {
-      Page* p = it.next();
-      ASSERT_PAGE_OFFSET(p->Offset(p->AllocationTop()));
-    }
-  }
-}
-#endif
-
-
-#ifdef DEBUG
-void MarkCompactCollector::VerifyCopyingObjects(Object** p) {
-  if (!(*p)->IsHeapObject()) return;
-  ASSERT(!Heap::InToSpace(*p));
-}
-#endif  // DEBUG
-
-
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 // Phase 5: rebuild remembered sets
 
 void MarkCompactCollector::RebuildRSets() {

@@ -94,6 +94,22 @@ assertFalse(/\ca/.test( "\\ca" ));
 //assertTrue(/\c[a/]/.test( "\x1ba/]" ));
 
 
+// Test \c in character class
+re = /^[\cM]$/;
+assertTrue(re.test("\r"));
+assertFalse(re.test("M"));
+assertFalse(re.test("c"));
+assertFalse(re.test("\\"));
+assertFalse(re.test("\x03"));  // I.e., read as \cc
+
+re = /^[\c]]$/;
+assertTrue(re.test("c]"));
+assertFalse(re.test("\\]"));
+assertFalse(re.test("\x1d"));  // ']' & 0x1f
+assertFalse(re.test("\\]"));
+assertFalse(re.test("\x03]"));  // I.e., read as \cc
+
+
 // Test that we handle \s and \S correctly inside some bizarre
 // character classes.
 re = /[\s-:]/;
@@ -316,3 +332,7 @@ assertFalse(/()x\1(y([0-7]%%%x|[0-6]%%%y)|dkjasldkas)/.test('xy%%%y'), 'qt5');
 assertFalse(/()x\1y([0-7]%%%x|[0-6]%%%y)/.test('xy7%%%y'), 'qt6');
 assertFalse(/xy([0-7]%%%x|[0-6]%%%y)/.test('xy7%%%y'), 'qt7');
 assertFalse(/x([0-7]%%%x|[0-6]%%%y)/.test('x7%%%y'), 'qt8');
+
+
+// Don't hang on this one.
+/[^\xfe-\xff]*/.test("");

@@ -5607,3 +5607,36 @@ THREADED_TEST(DictionaryICLoadedFunction) {
     CompileRun("for (var j = 0; j < 10; j++) RegExp('')");
   }
 }
+
+
+// Test that cross-context new calls use the context of the callee to
+// create the new JavaScript object.
+THREADED_TEST(CrossContextNew) {
+  v8::HandleScope scope;
+  v8::Persistent<Context> context0 = Context::New();
+  v8::Persistent<Context> context1 = Context::New();
+
+  // Allow cross-domain access.
+  Local<String> token = v8_str("<security token>");
+  context0->SetSecurityToken(token);
+  context1->SetSecurityToken(token);
+
+  // Set an 'x' property on the Object prototype and define a
+  // constructor function in context0.
+  context0->Enter();
+  CompileRun("Object.prototype.x = 42; function C() {};");
+  context0->Exit();
+
+  // Call the constructor function from context0 and check that the
+  // result has the 'x' property.
+  context1->Enter();
+  context1->Global()->Set(v8_str("other"), context0->Global());
+  Local<Value> value = CompileRun("var instance = new other.C(); instance.x");
+  CHECK(value->IsInt32());
+  CHECK_EQ(42, value->Int32Value());
+  context1->Exit();
+
+  // Dispose the contexts to allow them to be garbage collected.
+  context0.Dispose();
+  context1.Dispose();
+}

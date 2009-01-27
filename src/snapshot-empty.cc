@@ -33,7 +33,7 @@
 
 namespace v8 { namespace internal {
 
-const char Snapshot::data_[] = { 0 };
+const byte Snapshot::data_[] = { 0 };
 int Snapshot::size_ = 0;
 
 } }  // namespace v8::internal

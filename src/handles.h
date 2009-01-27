@@ -28,12 +28,14 @@
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
+#include "apiutils.h"
+
 namespace v8 { namespace internal {
 
 // ----------------------------------------------------------------------------
 // A Handle provides a reference to an object that survives relocation by
 // the garbage collector.
-// Handles are only valid withing a HandleScope.
+// Handles are only valid within a HandleScope.
 // When a handle is created for an object a cell is allocated in the heap.
 
 template<class T>
@@ -83,10 +85,79 @@ class Handle {
 
   // Closes the given scope, but lets this handle escape. See
   // implementation in api.h.
-  inline Handle<T> EscapeFrom(HandleScope* scope);
+  inline Handle<T> EscapeFrom(v8::HandleScope* scope);
 
  private:
   T** location_;
+};
+
+
+// A stack-allocated class that governs a number of local handles.
+// After a handle scope has been created, all local handles will be
+// allocated within that handle scope until either the handle scope is
+// deleted or another handle scope is created.  If there is already a
+// handle scope and a new one is created, all allocations will take
+// place in the new handle scope until it is deleted.  After that,
+// new handles will again be allocated in the original handle scope.
+//
+// After the handle scope of a local handle has been deleted the
+// garbage collector will no longer track the object stored in the
+// handle and may deallocate it.  The behavior of accessing a handle
+// for which the handle scope has been deleted is undefined.
+class HandleScope {
+ public:
+  HandleScope() : previous_(current_) {
+    current_.extensions = 0;
+  }
+
+  ~HandleScope() {
+    Leave(&previous_);
+  }
+
+  // Counts the number of allocated handles.
+  static int NumberOfHandles();
+
+  // Creates a new handle with the given value.
+  static void** CreateHandle(void* value);
+
+ private:
+  // Prevent heap allocation or illegal handle scopes.
+  HandleScope(const HandleScope&);
+  void operator=(const HandleScope&);
+  void* operator new(size_t size);
+  void operator delete(void* size_t);
+
+  static v8::ImplementationUtilities::HandleScopeData current_;
+  const v8::ImplementationUtilities::HandleScopeData previous_;
+
+  // Pushes a fresh handle scope to be used when allocating new handles.
+  static void Enter(
+      v8::ImplementationUtilities::HandleScopeData* previous) {
+    *previous = current_;
+    current_.extensions = 0;
+  }
+
+  // Re-establishes the previous scope state. Should be called only
+  // once, and only for the current scope.
+  static void Leave(
+      const v8::ImplementationUtilities::HandleScopeData* previous) {
+    if (current_.extensions > 0) {
+      DeleteExtensions();
+    }
+    current_ = *previous;
+#ifdef DEBUG
+    ZapRange(current_.next, current_.limit);
+#endif
+  }
+
+  // Deallocates any extensions used by the current scope.
+  static void DeleteExtensions();
+
+  // Zaps the handles in the half-open interval [start, end).
+  static void ZapRange(void** start, void** end);
+
+  friend class v8::HandleScope;
+  friend class v8::ImplementationUtilities;
 };
 
 

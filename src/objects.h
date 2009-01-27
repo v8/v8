@@ -1298,8 +1298,9 @@ class JSObject: public HeapObject {
   int NumberOfLocalProperties(PropertyAttributes filter);
   // Returns the number of enumerable properties (ignoring interceptors).
   int NumberOfEnumProperties();
-  // Fill in details for properties into storage.
-  void GetLocalPropertyNames(FixedArray* storage);
+  // Fill in details for properties into storage starting at the specified
+  // index.
+  void GetLocalPropertyNames(FixedArray* storage, int index);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -2964,7 +2965,6 @@ class JSRegExp: public JSObject {
 
   // Dispatched behavior.
 #ifdef DEBUG
-  void JSRegExpPrint();
   void JSRegExpVerify();
 #endif
 
@@ -3130,15 +3130,17 @@ class String: public HeapObject {
   // to this method are not efficient unless the string is flat.
   inline uint16_t Get(StringShape shape, int index);
 
-  // Flatten the top level ConsString that is hiding behind this
+  // Try to flatten the top level ConsString that is hiding behind this
   // string.  This is a no-op unless the string is a ConsString or a
   // SlicedString.  Flatten mutates the ConsString and might return a
   // failure.
-  Object* Flatten(StringShape shape);
-  // Try to flatten the string.  Do not allow handling of allocation
-  // failures.  After calling TryFlatten, the string could still be a
-  // ConsString.
-  inline void TryFlatten(StringShape shape);
+  Object* TryFlatten(StringShape shape);
+
+  // Try to flatten the string.  Checks first inline to see if it is necessary.
+  // Do not handle allocation failures.  After calling TryFlattenIfNotFlat, the
+  // string could still be a ConsString, in which case a failure is returned.
+  // Use FlattenString from Handles.cc to be sure to flatten.
+  inline Object* TryFlattenIfNotFlat(StringShape shape);
 
   Vector<const char> ToAsciiVector();
   Vector<const uc16> ToUC16Vector();

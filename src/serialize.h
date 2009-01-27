@@ -135,7 +135,7 @@ class Serializer: public ObjectVisitor {
 
   // Returns the serialized buffer. Ownership is transferred to the
   // caller. Only the destructor and getters may be called after this call.
-  void Finalize(char** str, int* len);
+  void Finalize(byte** str, int* len);
 
   int roots() { return roots_; }
   int objects() { return objects_; }
@@ -211,7 +211,7 @@ class Serializer: public ObjectVisitor {
 
 class SnapshotReader {
  public:
-  SnapshotReader(const char* str, int len): str_(str), end_(str + len) {}
+  SnapshotReader(const byte* str, int len): str_(str), end_(str + len) {}
 
   void ExpectC(char expected) {
     int c = GetC();
@@ -225,8 +225,8 @@ class SnapshotReader {
   }
 
   int GetInt() {
-    int result = *reinterpret_cast<const int*>(str_);
-    str_ += sizeof(result);
+    int result;
+    GetBytes(reinterpret_cast<Address>(&result), sizeof(result));
     return result;
   }
 
@@ -247,8 +247,8 @@ class SnapshotReader {
   }
 
  private:
-  const char* str_;
-  const char* end_;
+  const byte* str_;
+  const byte* end_;
 };
 
 
@@ -257,7 +257,7 @@ class SnapshotReader {
 class Deserializer: public ObjectVisitor {
  public:
   // Create a deserializer. The snapshot is held in str and has size len.
-  Deserializer(const char* str, int len);
+  Deserializer(const byte* str, int len);
 
   virtual ~Deserializer();
 

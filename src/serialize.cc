@@ -686,15 +686,15 @@ class SnapshotWriter {
   SnapshotWriter() {
     len_ = 0;
     max_ = 8 << 10;  // 8K initial size
-    str_ = NewArray<char>(max_);
+    str_ = NewArray<byte>(max_);
   }
 
   ~SnapshotWriter() {
     DeleteArray(str_);
   }
 
-  void GetString(char** str, int* len) {
-    *str = NewArray<char>(len_);
+  void GetBytes(byte** str, int* len) {
+    *str = NewArray<byte>(len_);
     memcpy(*str, str_, len_);
     *len = len_;
   }
@@ -742,7 +742,7 @@ class SnapshotWriter {
   Address position() { return reinterpret_cast<Address>(&str_[len_]); }
 
  private:
-  char* str_;  // the snapshot
+  byte* str_;  // the snapshot
   int len_;   // the current length of str_
   int max_;   // the allocated size of str_
 };
@@ -752,14 +752,14 @@ void SnapshotWriter::Reserve(int bytes, int pos) {
   CHECK(0 <= pos && pos <= len_);
   while (len_ + bytes >= max_) {
     max_ *= 2;
-    char* old = str_;
-    str_ = NewArray<char>(max_);
+    byte* old = str_;
+    str_ = NewArray<byte>(max_);
     memcpy(str_, old, len_);
     DeleteArray(old);
   }
   if (pos < len_) {
-    char* old = str_;
-    str_ = NewArray<char>(max_);
+    byte* old = str_;
+    str_ = NewArray<byte>(max_);
     memcpy(str_, old, pos);
     memcpy(str_ + pos + bytes, old + pos, len_ - pos);
     DeleteArray(old);
@@ -814,8 +814,7 @@ class ReferenceUpdater: public ObjectVisitor {
 
   void Update(Address start_address) {
     for (int i = 0; i < offsets_.length(); i++) {
-      Address* p = reinterpret_cast<Address*>(start_address + offsets_[i]);
-      *p = addresses_[i];
+      memcpy(start_address + offsets_[i], &addresses_[i], sizeof(Address));
     }
   }
 
@@ -929,8 +928,8 @@ void Serializer::Serialize() {
 }
 
 
-void Serializer::Finalize(char** str, int* len) {
-  writer_->GetString(str, len);
+void Serializer::Finalize(byte** str, int* len) {
+  writer_->GetBytes(str, len);
 }
 
 
@@ -1180,7 +1179,7 @@ RelativeAddress Serializer::Allocate(HeapObject* obj) {
 static const int kInitArraySize = 32;
 
 
-Deserializer::Deserializer(const char* str, int len)
+Deserializer::Deserializer(const byte* str, int len)
   : reader_(str, len),
     map_pages_(kInitArraySize),
     old_pointer_pages_(kInitArraySize),

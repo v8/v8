@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,47 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A light-weight assembler for the Irregexp byte code.
+// See http://code.google.com/p/v8/issues/detail?id=201.
 
-
-#include "v8.h"
-#include "ast.h"
-#include "bytecodes-irregexp.h"
-
-
-namespace v8 { namespace internal {
-
-
-void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,
-                                        uint32_t twenty_four_bits) {
-  uint32_t word = ((twenty_four_bits << BYTECODE_SHIFT) | byte);
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_  + 3 >= buffer_.length()) {
-    Expand();
-  }
-  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
-  pc_ += 4;
+function testsort(n) {
+  n=1*n;
+  var numbers=new Array(n);
+  for (var i=0;i<n;i++) numbers[i]=i;
+  numbers.sort();
 }
 
-
-void RegExpMacroAssemblerIrregexp::Emit16(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_ + 1 >= buffer_.length()) {
-    Expand();
-  }
-  *reinterpret_cast<uint16_t*>(buffer_.start() + pc_) = word;
-  pc_ += 2;
-}
-
-
-void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_ + 3 >= buffer_.length()) {
-    Expand();
-  }
-  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
-  pc_ += 4;
-}
-
-
-} }  // namespace v8::internal
+testsort("5001")

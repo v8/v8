@@ -136,9 +136,9 @@ static inline void CheckEqualsHelper(const char* file,
                                      void* value) {
   if (expected != value) {
     V8_Fatal(file, line,
-             "CHECK_EQ(%s, %s) failed\n#   Expected: %i\n#   Found: %i",
+             "CHECK_EQ(%s, %s) failed\n#   Expected: %p\n#   Found: %p",
              expected_source, value_source,
-             reinterpret_cast<int>(expected), reinterpret_cast<int>(value));
+             expected, value);
   }
 }
 
@@ -150,8 +150,8 @@ static inline void CheckNonEqualsHelper(const char* file,
                                         const char* value_source,
                                         void* value) {
   if (expected == value) {
-    V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %i",
-             expected_source, value_source, reinterpret_cast<int>(value));
+    V8_Fatal(file, line, "CHECK_NE(%s, %s) failed\n#   Value: %p",
+             expected_source, value_source, value);
   }
 }
 

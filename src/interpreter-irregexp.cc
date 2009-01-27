@@ -97,7 +97,7 @@ static void TraceInterpreter(const byte* code_base,
            current_char,
            printable ? current_char : '.',
            bytecode_name);
-    for (int i = 1; i < bytecode_length; i++) {
+    for (int i = 0; i < bytecode_length; i++) {
       printf(", %02x", pc[i]);
     }
     printf(" ");
@@ -129,6 +129,17 @@ static void TraceInterpreter(const byte* code_base,
 #endif
 
 
+static int32_t Load32Aligned(const byte* pc) {
+  ASSERT((reinterpret_cast<int>(pc) & 3) == 0);
+  return *reinterpret_cast<const int32_t *>(pc);
+}
+
+
+static int32_t Load16Aligned(const byte* pc) {
+  ASSERT((reinterpret_cast<int>(pc) & 1) == 0);
+  return *reinterpret_cast<const uint16_t *>(pc);
+}
+
 
 template <typename Char>
 static bool RawMatch(const byte* code_base,
@@ -147,7 +158,8 @@ static bool RawMatch(const byte* code_base,
   }
 #endif
   while (true) {
-    switch (*pc) {
+    int32_t insn = Load32Aligned(pc);
+    switch (insn & BYTECODE_MASK) {
       BYTECODE(BREAK)
         UNREACHABLE();
         return false;
@@ -155,45 +167,45 @@ static bool RawMatch(const byte* code_base,
         if (--backtrack_stack_space < 0) {
           return false;  // No match on backtrack stack overflow.
         }
-        *backtrack_sp++ = current + Load32(pc + 1);
+        *backtrack_sp++ = current;
         pc += BC_PUSH_CP_LENGTH;
         break;
       BYTECODE(PUSH_BT)
         if (--backtrack_stack_space < 0) {
           return false;  // No match on backtrack stack overflow.
         }
-        *backtrack_sp++ = Load32(pc + 1);
+        *backtrack_sp++ = Load32Aligned(pc + 4);
         pc += BC_PUSH_BT_LENGTH;
         break;
       BYTECODE(PUSH_REGISTER)
         if (--backtrack_stack_space < 0) {
           return false;  // No match on backtrack stack overflow.
         }
-        *backtrack_sp++ = registers[pc[1]];
+        *backtrack_sp++ = registers[insn >> BYTECODE_SHIFT];
         pc += BC_PUSH_REGISTER_LENGTH;
         break;
       BYTECODE(SET_REGISTER)
-        registers[pc[1]] = Load32(pc + 2);
+        registers[insn >> BYTECODE_SHIFT] = Load32Aligned(pc + 4);
         pc += BC_SET_REGISTER_LENGTH;
         break;
       BYTECODE(ADVANCE_REGISTER)
-        registers[pc[1]] += Load32(pc + 2);
+        registers[insn >> BYTECODE_SHIFT] += Load32Aligned(pc + 4);
         pc += BC_ADVANCE_REGISTER_LENGTH;
         break;
       BYTECODE(SET_REGISTER_TO_CP)
-        registers[pc[1]] = current + Load32(pc + 2);
+        registers[insn >> BYTECODE_SHIFT] = current + Load32Aligned(pc + 4);
         pc += BC_SET_REGISTER_TO_CP_LENGTH;
         break;
       BYTECODE(SET_CP_TO_REGISTER)
-        current = registers[pc[1]];
+        current = registers[insn >> BYTECODE_SHIFT];
         pc += BC_SET_CP_TO_REGISTER_LENGTH;
         break;
       BYTECODE(SET_REGISTER_TO_SP)
-        registers[pc[1]] = backtrack_sp - backtrack_stack;
+        registers[insn >> BYTECODE_SHIFT] = backtrack_sp - backtrack_stack;
         pc += BC_SET_REGISTER_TO_SP_LENGTH;
         break;
       BYTECODE(SET_SP_TO_REGISTER)
-        backtrack_sp = backtrack_stack + registers[pc[1]];
+        backtrack_sp = backtrack_stack + registers[insn >> BYTECODE_SHIFT];
         backtrack_stack_space = kBacktrackStackSize -
                                 (backtrack_sp - backtrack_stack);
         pc += BC_SET_SP_TO_REGISTER_LENGTH;
@@ -212,7 +224,7 @@ static bool RawMatch(const byte* code_base,
       BYTECODE(POP_REGISTER)
         backtrack_stack_space++;
         --backtrack_sp;
-        registers[pc[1]] = *backtrack_sp;
+        registers[insn >> BYTECODE_SHIFT] = *backtrack_sp;
         pc += BC_POP_REGISTER_LENGTH;
         break;
       BYTECODE(FAIL)
@@ -220,25 +232,25 @@ static bool RawMatch(const byte* code_base,
       BYTECODE(SUCCEED)
         return true;
       BYTECODE(ADVANCE_CP)
-        current += Load32(pc + 1);
+        current += insn >> BYTECODE_SHIFT;
         pc += BC_ADVANCE_CP_LENGTH;
         break;
       BYTECODE(GOTO)
-        pc = code_base + Load32(pc + 1);
+        pc = code_base + Load32Aligned(pc + 4);
         break;
       BYTECODE(CHECK_GREEDY)
         if (current == backtrack_sp[-1]) {
           backtrack_sp--;
           backtrack_stack_space++;
-          pc = code_base + Load32(pc + 1);
+          pc = code_base + Load32Aligned(pc + 4);
         } else {
           pc += BC_CHECK_GREEDY_LENGTH;
         }
         break;
       BYTECODE(LOAD_CURRENT_CHAR) {
-        int pos = current + Load32(pc + 1);
+        int pos = current + (insn >> BYTECODE_SHIFT);
         if (pos >= subject.length()) {
-          pc = code_base + Load32(pc + 5);
+          pc = code_base + Load32Aligned(pc + 4);
         } else {
           current_char = subject[pos];
           pc += BC_LOAD_CURRENT_CHAR_LENGTH;
@@ -246,15 +258,15 @@ static bool RawMatch(const byte* code_base,
         break;
       }
       BYTECODE(LOAD_CURRENT_CHAR_UNCHECKED) {
-        int pos = current + Load32(pc + 1);
+        int pos = current + (insn >> BYTECODE_SHIFT);
         current_char = subject[pos];
         pc += BC_LOAD_CURRENT_CHAR_UNCHECKED_LENGTH;
         break;
       }
       BYTECODE(LOAD_2_CURRENT_CHARS) {
-        int pos = current + Load32(pc + 1);
+        int pos = current + (insn >> BYTECODE_SHIFT);
         if (pos + 2 > subject.length()) {
-          pc = code_base + Load32(pc + 5);
+          pc = code_base + Load32Aligned(pc + 4);
         } else {
           Char next = subject[pos + 1];
           current_char =
@@ -264,7 +276,7 @@ static bool RawMatch(const byte* code_base,
         break;
       }
       BYTECODE(LOAD_2_CURRENT_CHARS_UNCHECKED) {
-        int pos = current + Load32(pc + 1);
+        int pos = current + (insn >> BYTECODE_SHIFT);
         Char next = subject[pos + 1];
         current_char = (subject[pos] | (next << (kBitsPerByte * sizeof(Char))));
         pc += BC_LOAD_2_CURRENT_CHARS_UNCHECKED_LENGTH;
@@ -272,9 +284,9 @@ static bool RawMatch(const byte* code_base,
       }
       BYTECODE(LOAD_4_CURRENT_CHARS) {
         ASSERT(sizeof(Char) == 1);
-        int pos = current + Load32(pc + 1);
+        int pos = current + (insn >> BYTECODE_SHIFT);
         if (pos + 4 > subject.length()) {
-          pc = code_base + Load32(pc + 5);
+          pc = code_base + Load32Aligned(pc + 4);
         } else {
           Char next1 = subject[pos + 1];
           Char next2 = subject[pos + 2];
@@ -289,7 +301,7 @@ static bool RawMatch(const byte* code_base,
       }
       BYTECODE(LOAD_4_CURRENT_CHARS_UNCHECKED) {
         ASSERT(sizeof(Char) == 1);
-        int pos = current + Load32(pc + 1);
+        int pos = current + (insn >> BYTECODE_SHIFT);
         Char next1 = subject[pos + 1];
         Char next2 = subject[pos + 2];
         Char next3 = subject[pos + 3];
@@ -300,100 +312,136 @@ static bool RawMatch(const byte* code_base,
         pc += BC_LOAD_4_CURRENT_CHARS_UNCHECKED_LENGTH;
         break;
       }
-      BYTECODE(CHECK_CHAR) {
-        uint32_t c = Load32(pc + 1);
+      BYTECODE(CHECK_4_CHARS) {
+        uint32_t c = Load32Aligned(pc + 4);
         if (c == current_char) {
-          pc = code_base + Load32(pc + 5);
+          pc = code_base + Load32Aligned(pc + 8);
+        } else {
+          pc += BC_CHECK_4_CHARS_LENGTH;
+        }
+        break;
+      }
+      BYTECODE(CHECK_CHAR) {
+        uint32_t c = (insn >> BYTECODE_SHIFT);
+        if (c == current_char) {
+          pc = code_base + Load32Aligned(pc + 4);
         } else {
           pc += BC_CHECK_CHAR_LENGTH;
         }
         break;
       }
-      BYTECODE(CHECK_NOT_CHAR) {
-        uint32_t c = Load32(pc + 1);
+      BYTECODE(CHECK_NOT_4_CHARS) {
+        uint32_t c = Load32Aligned(pc + 4);
         if (c != current_char) {
-          pc = code_base + Load32(pc + 5);
+          pc = code_base + Load32Aligned(pc + 8);
+        } else {
+          pc += BC_CHECK_NOT_4_CHARS_LENGTH;
+        }
+        break;
+      }
+      BYTECODE(CHECK_NOT_CHAR) {
+        uint32_t c = (insn >> BYTECODE_SHIFT);
+        if (c != current_char) {
+          pc = code_base + Load32Aligned(pc + 4);
         } else {
           pc += BC_CHECK_NOT_CHAR_LENGTH;
         }
         break;
       }
+      BYTECODE(AND_CHECK_4_CHARS) {
+        uint32_t c = Load32Aligned(pc + 4);
+        if (c == (current_char & Load32Aligned(pc + 8))) {
+          pc = code_base + Load32Aligned(pc + 12);
+        } else {
+          pc += BC_AND_CHECK_4_CHARS_LENGTH;
+        }
+        break;
+      }
       BYTECODE(AND_CHECK_CHAR) {
-        uint32_t c = Load32(pc + 1);
-        if (c == (current_char & Load32(pc + 5))) {
-          pc = code_base + Load32(pc + 9);
+        uint32_t c = (insn >> BYTECODE_SHIFT);
+        if (c == (current_char & Load32Aligned(pc + 4))) {
+          pc = code_base + Load32Aligned(pc + 8);
         } else {
           pc += BC_AND_CHECK_CHAR_LENGTH;
         }
         break;
       }
+      BYTECODE(AND_CHECK_NOT_4_CHARS) {
+        uint32_t c = Load32Aligned(pc + 4);
+        if (c != (current_char & Load32Aligned(pc + 8))) {
+          pc = code_base + Load32Aligned(pc + 12);
+        } else {
+          pc += BC_AND_CHECK_NOT_4_CHARS_LENGTH;
+        }
+        break;
+      }
       BYTECODE(AND_CHECK_NOT_CHAR) {
-        uint32_t c = Load32(pc + 1);
-        if (c != (current_char & Load32(pc + 5))) {
-          pc = code_base + Load32(pc + 9);
+        uint32_t c = (insn >> BYTECODE_SHIFT);
+        if (c != (current_char & Load32Aligned(pc + 4))) {
+          pc = code_base + Load32Aligned(pc + 8);
         } else {
           pc += BC_AND_CHECK_NOT_CHAR_LENGTH;
         }
         break;
       }
       BYTECODE(MINUS_AND_CHECK_NOT_CHAR) {
-        uint32_t c = Load16(pc + 1);
-        uint32_t minus = Load16(pc + 3);
-        uint32_t mask = Load16(pc + 5);
+        uint32_t c = (insn >> BYTECODE_SHIFT);
+        uint32_t minus = Load16Aligned(pc + 4);
+        uint32_t mask = Load16Aligned(pc + 6);
         if (c != ((current_char - minus) & mask)) {
-          pc = code_base + Load32(pc + 7);
+          pc = code_base + Load32Aligned(pc + 8);
         } else {
           pc += BC_MINUS_AND_CHECK_NOT_CHAR_LENGTH;
         }
         break;
       }
       BYTECODE(CHECK_LT) {
-        uint32_t limit = Load16(pc + 1);
+        uint32_t limit = (insn >> BYTECODE_SHIFT);
         if (current_char < limit) {
-          pc = code_base + Load32(pc + 3);
+          pc = code_base + Load32Aligned(pc + 4);
         } else {
           pc += BC_CHECK_LT_LENGTH;
         }
         break;
       }
       BYTECODE(CHECK_GT) {
-        uint32_t limit = Load16(pc + 1);
+        uint32_t limit = (insn >> BYTECODE_SHIFT);
         if (current_char > limit) {
-          pc = code_base + Load32(pc + 3);
+          pc = code_base + Load32Aligned(pc + 4);
         } else {
           pc += BC_CHECK_GT_LENGTH;
         }
         break;
       }
       BYTECODE(CHECK_REGISTER_LT)
-        if (registers[pc[1]] < Load16(pc + 2)) {
-          pc = code_base + Load32(pc + 4);
+        if (registers[insn >> BYTECODE_SHIFT] < Load32Aligned(pc + 4)) {
+          pc = code_base + Load32Aligned(pc + 8);
         } else {
           pc += BC_CHECK_REGISTER_LT_LENGTH;
         }
         break;
       BYTECODE(CHECK_REGISTER_GE)
-        if (registers[pc[1]] >= Load16(pc + 2)) {
-          pc = code_base + Load32(pc + 4);
+        if (registers[insn >> BYTECODE_SHIFT] >= Load32Aligned(pc + 4)) {
+          pc = code_base + Load32Aligned(pc + 8);
         } else {
           pc += BC_CHECK_REGISTER_GE_LENGTH;
         }
         break;
       BYTECODE(CHECK_REGISTER_EQ_POS)
-        if (registers[pc[1]] == current) {
-          pc = code_base + Load32(pc + 2);
+        if (registers[insn >> BYTECODE_SHIFT] == current) {
+          pc = code_base + Load32Aligned(pc + 4);
         } else {
           pc += BC_CHECK_REGISTER_EQ_POS_LENGTH;
         }
         break;
       BYTECODE(LOOKUP_MAP1) {
         // Look up character in a bitmap.  If we find a 0, then jump to the
-        // location at pc + 7.  Otherwise fall through!
-        int index = current_char - Load16(pc + 1);
-        byte map = code_base[Load32(pc + 3) + (index >> 3)];
+        // location at pc + 8.  Otherwise fall through!
+        int index = current_char - (insn >> BYTECODE_SHIFT);
+        byte map = code_base[Load32Aligned(pc + 4) + (index >> 3)];
         map = ((map >> (index & 7)) & 1);
         if (map == 0) {
-          pc = code_base + Load32(pc + 7);
+          pc = code_base + Load32Aligned(pc + 8);
         } else {
           pc += BC_LOOKUP_MAP1_LENGTH;
         }
@@ -401,22 +449,22 @@ static bool RawMatch(const byte* code_base,
       }
       BYTECODE(LOOKUP_MAP2) {
         // Look up character in a half-nibble map.  If we find 00, then jump to
-        // the location at pc + 7.   If we find 01 then jump to location at
+        // the location at pc + 8.   If we find 01 then jump to location at
         // pc + 11, etc.
-        int index = (current_char - Load16(pc + 1)) << 1;
-        byte map = code_base[Load32(pc + 3) + (index >> 3)];
+        int index = (current_char - (insn >> BYTECODE_SHIFT)) << 1;
+        byte map = code_base[Load32Aligned(pc + 3) + (index >> 3)];
         map = ((map >> (index & 7)) & 3);
         if (map < 2) {
           if (map == 0) {
-            pc = code_base + Load32(pc + 7);
+            pc = code_base + Load32Aligned(pc + 8);
           } else {
-            pc = code_base + Load32(pc + 11);
+            pc = code_base + Load32Aligned(pc + 12);
           }
         } else {
           if (map == 2) {
-            pc = code_base + Load32(pc + 15);
+            pc = code_base + Load32Aligned(pc + 16);
           } else {
-            pc = code_base + Load32(pc + 19);
+            pc = code_base + Load32Aligned(pc + 20);
           }
         }
         break;
@@ -424,43 +472,44 @@ static bool RawMatch(const byte* code_base,
       BYTECODE(LOOKUP_MAP8) {
         // Look up character in a byte map.  Use the byte as an index into a
         // table that follows this instruction immediately.
-        int index = current_char - Load16(pc + 1);
-        byte map = code_base[Load32(pc + 3) + index];
-        const byte* new_pc = code_base + Load32(pc + 7) + (map << 2);
-        pc = code_base + Load32(new_pc);
+        int index = current_char - (insn >> BYTECODE_SHIFT);
+        byte map = code_base[Load32Aligned(pc + 4) + index];
+        const byte* new_pc = code_base + Load32Aligned(pc + 8) + (map << 2);
+        pc = code_base + Load32Aligned(new_pc);
         break;
       }
       BYTECODE(LOOKUP_HI_MAP8) {
         // Look up high byte of this character in a byte map.  Use the byte as
         // an index into a table that follows this instruction immediately.
-        int index = (current_char >> 8) - pc[1];
-        byte map = code_base[Load32(pc + 2) + index];
-        const byte* new_pc = code_base + Load32(pc + 6) + (map << 2);
-        pc = code_base + Load32(new_pc);
+        int index = (current_char >> 8) - (insn >> BYTECODE_SHIFT);
+        byte map = code_base[Load32Aligned(pc + 4) + index];
+        const byte* new_pc = code_base + Load32Aligned(pc + 8) + (map << 2);
+        pc = code_base + Load32Aligned(new_pc);
         break;
       }
       BYTECODE(CHECK_NOT_REGS_EQUAL)
-        if (registers[pc[1]] == registers[pc[2]]) {
+        if (registers[insn >> BYTECODE_SHIFT] ==
+            registers[Load32Aligned(pc + 4)]) {
           pc += BC_CHECK_NOT_REGS_EQUAL_LENGTH;
         } else {
-          pc = code_base + Load32(pc + 3);
+          pc = code_base + Load32Aligned(pc + 8);
         }
         break;
       BYTECODE(CHECK_NOT_BACK_REF) {
-        int from = registers[pc[1]];
-        int len = registers[pc[1] + 1] - from;
+        int from = registers[insn >> BYTECODE_SHIFT];
+        int len = registers[(insn >> BYTECODE_SHIFT) + 1] - from;
         if (from < 0 || len <= 0) {
           pc += BC_CHECK_NOT_BACK_REF_LENGTH;
           break;
         }
         if (current + len > subject.length()) {
-          pc = code_base + Load32(pc + 2);
+          pc = code_base + Load32Aligned(pc + 4);
           break;
         } else {
           int i;
           for (i = 0; i < len; i++) {
             if (subject[from + i] != subject[current + i]) {
-              pc = code_base + Load32(pc + 2);
+              pc = code_base + Load32Aligned(pc + 4);
               break;
             }
           }
@@ -471,30 +520,37 @@ static bool RawMatch(const byte* code_base,
         break;
       }
       BYTECODE(CHECK_NOT_BACK_REF_NO_CASE) {
-        int from = registers[pc[1]];
-        int len = registers[pc[1] + 1] - from;
+        int from = registers[insn >> BYTECODE_SHIFT];
+        int len = registers[(insn >> BYTECODE_SHIFT) + 1] - from;
         if (from < 0 || len <= 0) {
           pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
           break;
         }
         if (current + len > subject.length()) {
-          pc = code_base + Load32(pc + 2);
+          pc = code_base + Load32Aligned(pc + 4);
           break;
         } else {
           if (BackRefMatchesNoCase(from, current, len, subject)) {
             current += len;
             pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
           } else {
-            pc = code_base + Load32(pc + 2);
+            pc = code_base + Load32Aligned(pc + 4);
           }
         }
         break;
       }
+      BYTECODE(CHECK_AT_START)
+        if (current == 0) {
+          pc = code_base + Load32Aligned(pc + 4);
+        } else {
+          pc += BC_CHECK_AT_START_LENGTH;
+        }
+        break;
       BYTECODE(CHECK_NOT_AT_START)
         if (current == 0) {
           pc += BC_CHECK_NOT_AT_START_LENGTH;
         } else {
-          pc = code_base + Load32(pc + 1);
+          pc = code_base + Load32Aligned(pc + 4);
         }
         break;
       default:

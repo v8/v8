@@ -1092,7 +1092,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
   Counters::total_parse_size.Increment(source->length(shape));
 
   // Initialize parser state.
-  source->TryFlatten(shape);
+  source->TryFlattenIfNotFlat(shape);
   scanner_.Init(source, stream, 0);
   ASSERT(target_stack_ == NULL);
 
@@ -1119,7 +1119,7 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
                                    temp_scope.materialized_literal_count(),
                                    temp_scope.contains_array_literal(),
                                    temp_scope.expected_property_count(),
-                                   0, 0, source->length(shape), false));
+                                   0, 0, source->length(), false));
     } else if (scanner().stack_overflow()) {
       Top::StackOverflow();
     }
@@ -1141,7 +1141,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<String> source,
                                    bool is_expression) {
   ZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   StatsRateScope timer(&Counters::parse_lazy);
-  source->TryFlatten(StringShape(*source));
+  source->TryFlattenIfNotFlat(StringShape(*source));
   StringShape shape(*source);
   Counters::total_parse_size.Increment(source->length(shape));
   SafeStringInputBuffer buffer(source.location());
@@ -4052,6 +4052,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       Advance();
       return '\v';
     case 'c':
+      Advance();
       return ParseControlLetterEscape();
     case '0': case '1': case '2': case '3': case '4': case '5':
     case '6': case '7':
@@ -4148,7 +4149,10 @@ RegExpTree* RegExpParser::ParseGroup() {
   } else {
     ASSERT(type == '=' || type == '!');
     bool is_positive = (type == '=');
-    return new RegExpLookahead(body, is_positive);
+    return new RegExpLookahead(body,
+                               is_positive,
+                               end_capture_index - capture_index,
+                               capture_index);
   }
 }
 

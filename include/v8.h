@@ -396,19 +396,11 @@ template <class T> class EXPORT_INLINE Persistent : public Handle<T> {
  */
 class EXPORT HandleScope {
  public:
-  HandleScope() : previous_(current_), is_closed_(false) {
-    current_.extensions = 0;
-  }
+  HandleScope();
 
-  ~HandleScope() {
-    // TODO(1245391): In a perfect world, there would be a way of not
-    // having to check for explicitly closed scopes maybe through
-    // subclassing HandleScope?
-    if (!is_closed_) RestorePreviousState();
-  }
+  ~HandleScope();
 
   /**
-   * TODO(1245391): Consider introducing a subclass for this.
    * Closes the handle scope and returns the value as a handle in the
    * previous scope, which is the new current scope after the call.
    */
@@ -432,6 +424,8 @@ class EXPORT HandleScope {
   void* operator new(size_t size);
   void operator delete(void*, size_t);
 
+  // This Data class is accessible internally through a typedef in the
+  // ImplementationUtilities class.
   class EXPORT Data {
    public:
     int extensions;
@@ -443,30 +437,12 @@ class EXPORT HandleScope {
     }
   };
 
-  static Data current_;
-  const Data previous_;
+  Data previous_;
 
-  /**
-   * Re-establishes the previous scope state. Should be called only
-   * once, and only for the current scope.
-   */
-  void RestorePreviousState() {
-    if (current_.extensions > 0) DeleteExtensions();
-    current_ = previous_;
-#ifdef DEBUG
-    ZapRange(current_.next, current_.limit);
-#endif
-  }
-
-  // TODO(1245391): Consider creating a subclass for this.
+  // Allow for the active closing of HandleScopes which allows to pass a handle
+  // from the HandleScope being closed to the next top most HandleScope.
   bool is_closed_;
   void** RawClose(void** value);
-
-  /** Deallocates any extensions used by the current scope.*/
-  static void DeleteExtensions();
-
-  // Zaps the handles in the half-open interval [start, end).
-  static void ZapRange(void** start, void** end);
 
   friend class ImplementationUtilities;
 };
@@ -2284,9 +2260,16 @@ class EXPORT Locker {
    */
   static bool IsLocked();
 
+  /**
+   * Returns whether v8::Locker is being used by this V8 instance.
+   */
+  static bool IsActive() { return active_; }
+
  private:
   bool has_lock_;
   bool top_level_;
+
+  static bool active_;
 
   // Disallow copying and assigning.
   Locker(const Locker&);

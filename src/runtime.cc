@@ -161,15 +161,16 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
     for (int index = 0; index < length; index +=2) {
       Handle<Object> key(constant_properties->get(index+0));
       Handle<Object> value(constant_properties->get(index+1));
+      Handle<Object> result;
       uint32_t element_index = 0;
       if (key->IsSymbol()) {
         // If key is a symbol it is not an array element.
         Handle<String> name(String::cast(*key));
         ASSERT(!name->AsArrayIndex(&element_index));
-        SetProperty(boilerplate, name, value, NONE);
+        result = SetProperty(boilerplate, name, value, NONE);
       } else if (Array::IndexFromObject(*key, &element_index)) {
         // Array index (uint32).
-        SetElement(boilerplate, element_index, value);
+        result = SetElement(boilerplate, element_index, value);
       } else {
         // Non-uint32 number.
         ASSERT(key->IsNumber());
@@ -178,8 +179,13 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
         Vector<char> buffer(arr, ARRAY_SIZE(arr));
         const char* str = DoubleToCString(num, buffer);
         Handle<String> name = Factory::NewStringFromAscii(CStrVector(str));
-        SetProperty(boilerplate, name, value, NONE);
+        result = SetProperty(boilerplate, name, value, NONE);
       }
+      // If setting the property on the boilerplate throws an
+      // exception, the exception is converted to an empty handle in
+      // the handle based operations.  In that case, we need to
+      // convert back to an exception.
+      if (result.is_null()) return Failure::Exception();
     }
   }
 
@@ -758,56 +764,94 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
 
   int index;
   PropertyAttributes attributes;
-  ContextLookupFlags flags = DONT_FOLLOW_CHAINS;
+  ContextLookupFlags flags = FOLLOW_CHAINS;
   Handle<Object> holder =
       context->Lookup(name, flags, &index, &attributes);
 
-  // The property should always be present. It is always declared
-  // before being initialized through DeclareContextSlot.
-  ASSERT(attributes != ABSENT && (attributes & READ_ONLY) != 0);
-
-  // If the slot is in the context, we set it but only if it hasn't
-  // been set before.
+  // In most situations, the property introduced by the const
+  // declaration should be present in the context extension object.
+  // However, because declaration and initialization are separate, the
+  // property might have been deleted (if it was introduced by eval)
+  // before we reach the initialization point.
+  //
+  // Example:
+  //
+  //    function f() { eval("delete x; const x;"); }
+  //
+  // In that case, the initialization behaves like a normal assignment
+  // to property 'x'.
   if (index >= 0) {
-    // The constant context slot should always be in the function
-    // context; not in any outer context nor in the arguments object.
-    ASSERT(holder.is_identical_to(context));
-    if (context->get(index)->IsTheHole()) {
-      context->set(index, *value);
+    // Property was found in a context.
+    if (holder->IsContext()) {
+      // The holder cannot be the function context.  If it is, there
+      // should have been a const redeclaration error when declaring
+      // the const property.
+      ASSERT(!holder.is_identical_to(context));
+      if ((attributes & READ_ONLY) == 0) {
+        Handle<Context>::cast(holder)->set(index, *value);
+      }
+    } else {
+      // The holder is an arguments object.
+      ASSERT((attributes & READ_ONLY) == 0);
+      Handle<JSObject>::cast(holder)->SetElement(index, *value);
     }
     return *value;
   }
 
-  // Otherwise, the slot must be in a JS object extension.
-  Handle<JSObject> context_ext(JSObject::cast(*holder));
+  // The property could not be found, we introduce it in the global
+  // context.
+  if (attributes == ABSENT) {
+    Handle<JSObject> global = Handle<JSObject>(Top::context()->global());
+    SetProperty(global, name, value, NONE);
+    return *value;
+  }
 
-  // We must initialize the value only if it wasn't initialized
-  // before, e.g. for const declarations in a loop. The property has
-  // the hole value if it wasn't initialized yet. NOTE: We cannot use
-  // GetProperty() to get the current value as it 'unholes' the value.
-  LookupResult lookup;
-  context_ext->LocalLookupRealNamedProperty(*name, &lookup);
-  ASSERT(lookup.IsProperty());  // the property was declared
-  ASSERT(lookup.IsReadOnly());  // and it was declared as read-only
+  // The property was present in a context extension object.
+  Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
 
-  PropertyType type = lookup.type();
-  if (type == FIELD) {
-    FixedArray* properties = context_ext->properties();
-    int index = lookup.GetFieldIndex();
-    if (properties->get(index)->IsTheHole()) {
-      properties->set(index, *value);
-    }
-  } else if (type == NORMAL) {
-    Dictionary* dictionary = context_ext->property_dictionary();
-    int entry = lookup.GetDictionaryEntry();
-    if (dictionary->ValueAt(entry)->IsTheHole()) {
-      dictionary->ValueAtPut(entry, *value);
+  if (*context_ext == context->extension()) {
+    // This is the property that was introduced by the const
+    // declaration.  Set it if it hasn't been set before.  NOTE: We
+    // cannot use GetProperty() to get the current value as it
+    // 'unholes' the value.
+    LookupResult lookup;
+    context_ext->LocalLookupRealNamedProperty(*name, &lookup);
+    ASSERT(lookup.IsProperty());  // the property was declared
+    ASSERT(lookup.IsReadOnly());  // and it was declared as read-only
+
+    PropertyType type = lookup.type();
+    if (type == FIELD) {
+      FixedArray* properties = context_ext->properties();
+      int index = lookup.GetFieldIndex();
+      if (properties->get(index)->IsTheHole()) {
+        properties->set(index, *value);
+      }
+    } else if (type == NORMAL) {
+      Dictionary* dictionary = context_ext->property_dictionary();
+      int entry = lookup.GetDictionaryEntry();
+      if (dictionary->ValueAt(entry)->IsTheHole()) {
+        dictionary->ValueAtPut(entry, *value);
+      }
+    } else {
+      // We should not reach here. Any real, named property should be
+      // either a field or a dictionary slot.
+      UNREACHABLE();
     }
   } else {
-    // We should not reach here. Any real, named property should be
-    // either a field or a dictionary slot.
-    UNREACHABLE();
+    // The property was found in a different context extension object.
+    // Set it if it is not a read-only property.
+    if ((attributes & READ_ONLY) == 0) {
+      Handle<Object> set = SetProperty(context_ext, name, value, attributes);
+      // Setting a property might throw an exception.  Exceptions
+      // are converted to empty handles in handle operations.  We
+      // need to convert back to exceptions here.
+      if (set.is_null()) {
+        ASSERT(Top::has_pending_exception());
+        return Failure::Exception();
+      }
+    }
   }
+
   return *value;
 }
 
@@ -1022,7 +1066,7 @@ static Object* CharCodeAt(String* subject, Object* index) {
   // Flatten the string.  If someone wants to get a char at an index
   // in a cons string, it is likely that more indices will be
   // accessed.
-  subject->TryFlatten(StringShape(subject));
+  subject->TryFlattenIfNotFlat(StringShape(subject));
   StringShape shape(subject);
   if (i >= static_cast<uint32_t>(subject->length(shape))) {
     return Heap::nan_value();
@@ -1493,8 +1537,8 @@ static Object* Runtime_StringLastIndexOf(Arguments args) {
   CONVERT_CHECKED(String, pat, args[1]);
   Object* index = args[2];
 
-  sub->TryFlatten(StringShape(sub));
-  pat->TryFlatten(StringShape(pat));
+  sub->TryFlattenIfNotFlat(StringShape(sub));
+  pat->TryFlattenIfNotFlat(StringShape(pat));
 
   StringShape sub_shape(sub);
   StringShape pat_shape(pat);
@@ -1553,8 +1597,8 @@ static Object* Runtime_StringLocaleCompare(Arguments args) {
   int d = str1->Get(shape1, 0) - str2->Get(shape2, 0);
   if (d != 0) return Smi::FromInt(d);
 
-  str1->TryFlatten(shape1);  // Shapes are no longer valid now!
-  str2->TryFlatten(shape2);
+  str1->TryFlattenIfNotFlat(shape1);  // Shapes are no longer valid now!
+  str2->TryFlattenIfNotFlat(shape2);
 
   static StringInputBuffer buf1;
   static StringInputBuffer buf2;
@@ -1691,7 +1735,7 @@ static Object* Runtime_NumberToPrecision(Arguments args) {
 static Handle<Object> GetCharAt(Handle<String> string, uint32_t index) {
   StringShape shape(*string);
   if (index < static_cast<uint32_t>(string->length(shape))) {
-    string->TryFlatten(shape);  // Invalidates shape!
+    string->TryFlattenIfNotFlat(shape);  // Invalidates shape!
     return LookupSingleCharacterStringFromCode(
         string->Get(StringShape(*string), index));
   }
@@ -1884,7 +1928,7 @@ Object* Runtime::SetObjectProperty(Handle<Object> object,
       result = SetElement(js_object, index, value);
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
-      key_string->TryFlatten(StringShape(*key_string));
+      key_string->TryFlattenIfNotFlat(StringShape(*key_string));
       result = SetProperty(js_object, key_string, value, attr);
     }
     if (result.is_null()) return Failure::Exception();
@@ -2156,7 +2200,7 @@ static Object* Runtime_StringToNumber(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, subject, args[0]);
-  subject->TryFlatten(StringShape(subject));
+  subject->TryFlattenIfNotFlat(StringShape(subject));
   return Heap::NumberFromDouble(StringToDouble(subject, ALLOW_HEX));
 }
 
@@ -2239,7 +2283,7 @@ static Object* Runtime_URIEscape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlatten(StringShape(source));
+  source->TryFlattenIfNotFlat(StringShape(source));
 
   int escaped_length = 0;
   int length = source->length();
@@ -2353,7 +2397,7 @@ static Object* Runtime_URIUnescape(Arguments args) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(String, source, args[0]);
 
-  source->TryFlatten(StringShape(source));
+  source->TryFlattenIfNotFlat(StringShape(source));
   StringShape source_shape(source);
 
   bool ascii = true;
@@ -2402,7 +2446,7 @@ static Object* Runtime_StringParseInt(Arguments args) {
   CONVERT_DOUBLE_CHECKED(n, args[1]);
   int radix = FastD2I(n);
 
-  s->TryFlatten(StringShape(s));
+  s->TryFlattenIfNotFlat(StringShape(s));
 
   StringShape shape(s);
 
@@ -2475,7 +2519,7 @@ static Object* ConvertCase(Arguments args,
   NoHandleAllocation ha;
 
   CONVERT_CHECKED(String, s, args[0]);
-  s->TryFlatten(StringShape(s));
+  s->TryFlattenIfNotFlat(StringShape(s));
   StringShape shape(s);
 
   int raw_string_length = s->length(shape);
@@ -3079,8 +3123,8 @@ static Object* Runtime_StringCompare(Arguments args) {
   if (d < 0) return Smi::FromInt(LESS);
   else if (d > 0) return Smi::FromInt(GREATER);
 
-  x->TryFlatten(x_shape);  // Shapes are no longer valid!
-  y->TryFlatten(y_shape);
+  x->TryFlattenIfNotFlat(x_shape);  // Shapes are no longer valid!
+  y->TryFlattenIfNotFlat(y_shape);
 
   static StringInputBuffer bufx;
   static StringInputBuffer bufy;
@@ -3734,7 +3778,9 @@ static Object* Runtime_StackGuard(Arguments args) {
   ASSERT(args.length() == 1);
 
   // First check if this is a real stack overflow.
-  if (StackGuard::IsStackOverflow()) return Runtime_StackOverflow(args);
+  if (StackGuard::IsStackOverflow()) {
+    return Runtime_StackOverflow(args);
+  }
 
   return Execution::HandleStackGuardInterrupt();
 }
@@ -4536,6 +4582,21 @@ static Object* Runtime_Break(Arguments args) {
 }
 
 
+// Find the length of the prototype chain that is to to handled as one. If a
+// prototype object is hidden it is to be viewed as part of the the object it
+// is prototype for.
+static int LocalPrototypeChainLength(JSObject* obj) {
+  int count = 1;
+  Object* proto = obj->GetPrototype();
+  while (proto->IsJSObject() &&
+         JSObject::cast(proto)->map()->is_hidden_prototype()) {
+    count++;
+    proto = JSObject::cast(proto)->GetPrototype();
+  }
+  return count;
+}
+
+
 static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
                                       bool* caught_exception) {
   Object* value;
@@ -4611,6 +4672,13 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
 
+  // Skip the global proxy as it has no properties and always delegates to the
+  // real global object.
+  if (obj->IsJSGlobalProxy()) {
+    obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
+  }
+
+
   // Check if the name is trivially convertible to an index and get the element
   // if so.
   uint32_t index;
@@ -4621,9 +4689,22 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
     return *Factory::NewJSArrayWithElements(details);
   }
 
-  // Perform standard local lookup on the object.
+  // Find the number of objects making up this.
+  int length = LocalPrototypeChainLength(*obj);
+
+  // Try local lookup on each of the objects.
   LookupResult result;
-  obj->LocalLookup(*name, &result);
+  Handle<JSObject> jsproto = obj;
+  for (int i = 0; i < length; i++) {
+    jsproto->LocalLookup(*name, &result);
+    if (result.IsProperty()) {
+      break;
+    }
+    if (i < length - 1) {
+      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+    }
+  }
+
   if (result.IsProperty()) {
     bool caught_exception = false;
     Handle<Object> value(DebugLookupResultValue(*obj, &result,
@@ -4676,9 +4757,43 @@ static Object* Runtime_DebugLocalPropertyNames(Arguments args) {
   }
   CONVERT_ARG_CHECKED(JSObject, obj, 0);
 
-  int n = obj->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
-  Handle<FixedArray> names = Factory::NewFixedArray(n);
-  obj->GetLocalPropertyNames(*names);
+  // Skip the global proxy as it has no properties and always delegates to the
+  // real global object.
+  if (obj->IsJSGlobalProxy()) {
+    obj = Handle<JSObject>(JSObject::cast(obj->GetPrototype()));
+  }
+
+  // Find the number of objects making up this.
+  int length = LocalPrototypeChainLength(*obj);
+
+  // Find the number of local properties for each of the objects.
+  int* local_property_count = NewArray<int>(length);
+  int total_property_count = 0;
+  Handle<JSObject> jsproto = obj;
+  for (int i = 0; i < length; i++) {
+    int n;
+    n = jsproto->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
+    local_property_count[i] = n;
+    total_property_count += n;
+    if (i < length - 1) {
+      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+    }
+  }
+
+  // Allocate an array with storage for all the property names.
+  Handle<FixedArray> names = Factory::NewFixedArray(total_property_count);
+
+  // Get the property names.
+  jsproto = obj;
+  for (int i = 0; i < length; i++) {
+    jsproto->GetLocalPropertyNames(*names,
+                                   i == 0 ? 0 : local_property_count[i - 1]);
+    if (i < length - 1) {
+      jsproto = Handle<JSObject>(JSObject::cast(jsproto->GetPrototype()));
+    }
+  }
+
+  DeleteArray(local_property_count);
   return *Factory::NewJSArrayWithElements(names);
 }
 
@@ -5806,12 +5921,15 @@ static Object* Runtime_DebugConstructedBy(Arguments args) {
 }
 
 
-static Object* Runtime_GetPrototype(Arguments args) {
+// Find the effective prototype object as returned by __proto__.
+// args[0]: the object to find the prototype for.
+static Object* Runtime_DebugGetPrototype(Arguments args) {
   ASSERT(args.length() == 1);
 
   CONVERT_CHECKED(JSObject, obj, args[0]);
 
-  return obj->GetPrototype();
+  // Use the __proto__ accessor.
+  return Accessors::ObjectPrototype.getter(obj, NULL);
 }
 
 

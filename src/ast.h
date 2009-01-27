@@ -1253,6 +1253,7 @@ class RegExpTree: public ZoneObject {
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success) = 0;
   virtual bool IsTextElement() { return false; }
+  virtual bool IsAnchored() { return false; }
   virtual int min_match() = 0;
   virtual int max_match() = 0;
   // Returns the interval of registers used for captures within this
@@ -1277,6 +1278,7 @@ class RegExpDisjunction: public RegExpTree {
   virtual RegExpDisjunction* AsDisjunction();
   virtual Interval CaptureRegisters();
   virtual bool IsDisjunction();
+  virtual bool IsAnchored();
   virtual int min_match() { return min_match_; }
   virtual int max_match() { return max_match_; }
   ZoneList<RegExpTree*>* alternatives() { return alternatives_; }
@@ -1296,6 +1298,7 @@ class RegExpAlternative: public RegExpTree {
   virtual RegExpAlternative* AsAlternative();
   virtual Interval CaptureRegisters();
   virtual bool IsAlternative();
+  virtual bool IsAnchored();
   virtual int min_match() { return min_match_; }
   virtual int max_match() { return max_match_; }
   ZoneList<RegExpTree*>* nodes() { return nodes_; }
@@ -1322,6 +1325,7 @@ class RegExpAssertion: public RegExpTree {
                              RegExpNode* on_success);
   virtual RegExpAssertion* AsAssertion();
   virtual bool IsAssertion();
+  virtual bool IsAnchored();
   virtual int min_match() { return 0; }
   virtual int max_match() { return 0; }
   Type type() { return type_; }
@@ -1382,7 +1386,7 @@ class RegExpCharacterClass: public RegExpTree {
   // W : non-ASCII word character
   // d : ASCII digit
   // D : non-ASCII digit
-  // . : non-unicode newline
+  // . : non-unicode non-newline
   // * : All characters
   uc16 standard_type() { return set_.standard_set_type(); }
   ZoneList<CharacterRange>* ranges() { return set_.ranges(); }
@@ -1495,6 +1499,7 @@ class RegExpCapture: public RegExpTree {
                             RegExpCompiler* compiler,
                             RegExpNode* on_success);
   virtual RegExpCapture* AsCapture();
+  virtual bool IsAnchored();
   virtual Interval CaptureRegisters();
   virtual bool IsCapture();
   virtual int min_match() { return body_->min_match(); }
@@ -1516,22 +1521,33 @@ class RegExpCapture: public RegExpTree {
 
 class RegExpLookahead: public RegExpTree {
  public:
-  RegExpLookahead(RegExpTree* body, bool is_positive)
+  RegExpLookahead(RegExpTree* body,
+                  bool is_positive,
+                  int capture_count,
+                  int capture_from)
       : body_(body),
-        is_positive_(is_positive) { }
+        is_positive_(is_positive),
+        capture_count_(capture_count),
+        capture_from_(capture_from) { }
+
   virtual void* Accept(RegExpVisitor* visitor, void* data);
   virtual RegExpNode* ToNode(RegExpCompiler* compiler,
                              RegExpNode* on_success);
   virtual RegExpLookahead* AsLookahead();
   virtual Interval CaptureRegisters();
   virtual bool IsLookahead();
+  virtual bool IsAnchored();
   virtual int min_match() { return 0; }
   virtual int max_match() { return 0; }
   RegExpTree* body() { return body_; }
   bool is_positive() { return is_positive_; }
+  int capture_count() { return capture_count_; }
+  int capture_from() { return capture_from_; }
  private:
   RegExpTree* body_;
   bool is_positive_;
+  int capture_count_;
+  int capture_from_;
 };
 
 

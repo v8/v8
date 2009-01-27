@@ -31,49 +31,59 @@
 
 namespace v8 { namespace internal {
 
+
+static const int BYTECODE_MASK = 0xff;
+static const unsigned int MAX_FIRST_ARG = 0xffffffu;
+static const int BYTECODE_SHIFT = 8;
+
 #define BYTECODE_ITERATOR(V)                                                   \
-V(BREAK,              0, 1) /* break                                        */ \
-V(PUSH_CP,            1, 5) /* push_cp offset32                             */ \
-V(PUSH_BT,            2, 5) /* push_bt addr32                               */ \
-V(PUSH_REGISTER,      3, 2) /* push_register register_index                 */ \
-V(SET_REGISTER_TO_CP, 4, 6) /* set_register_to_cp register_index offset32   */ \
-V(SET_CP_TO_REGISTER, 5, 2) /* set_cp_to_registger register_index           */ \
-V(SET_REGISTER_TO_SP, 6, 2) /* set_register_to_sp register_index            */ \
-V(SET_SP_TO_REGISTER, 7, 2) /* set_sp_to_registger register_index           */ \
-V(SET_REGISTER,       8, 6) /* set_register register_index value32          */ \
-V(ADVANCE_REGISTER,   9, 6) /* advance_register register_index value32      */ \
-V(POP_CP,            10, 1) /* pop_cp                                       */ \
-V(POP_BT,            11, 1) /* pop_bt                                       */ \
-V(POP_REGISTER,      12, 2) /* pop_register register_index                  */ \
-V(FAIL,              13, 1) /* fail                                         */ \
-V(SUCCEED,           14, 1) /* succeed                                      */ \
-V(ADVANCE_CP,        15, 5) /* advance_cp offset32                          */ \
-V(GOTO,              16, 5) /* goto addr32                                  */ \
-V(LOAD_CURRENT_CHAR, 17, 9) /* load offset32 addr32                         */ \
-V(LOAD_CURRENT_CHAR_UNCHECKED, 18, 5) /* load offset32                      */ \
-V(LOAD_2_CURRENT_CHARS, 19, 9) /* load offset32 addr32                      */ \
-V(LOAD_2_CURRENT_CHARS_UNCHECKED, 20, 5) /* load offset32                   */ \
-V(LOAD_4_CURRENT_CHARS, 21, 9) /* load offset32 addr32                      */ \
-V(LOAD_4_CURRENT_CHARS_UNCHECKED, 22, 5) /* load offset32                   */ \
-V(CHECK_CHAR,        23, 9) /* check_char uint32 addr32                     */ \
-V(CHECK_NOT_CHAR,    24, 9) /* check_not_char uint32 addr32                 */ \
-V(AND_CHECK_CHAR,    25, 13) /* and_check_char uint32 uint32 addr32         */ \
-V(AND_CHECK_NOT_CHAR, 26, 13) /* and_check_not_char uint32 uint32 addr32    */ \
-V(MINUS_AND_CHECK_NOT_CHAR, 27, 11) /* minus_and_check_not_char uc16 uc16...*/ \
-V(CHECK_LT,          28, 7) /* check_lt uc16 addr32                         */ \
-V(CHECK_GT,          29, 7) /* check_gr uc16 addr32                         */ \
-V(CHECK_NOT_BACK_REF, 30, 6) /* check_not_back_ref capture_idx addr32       */ \
-V(CHECK_NOT_BACK_REF_NO_CASE, 31, 6) /* check_not_back_ref_no_case captu... */ \
-V(CHECK_NOT_REGS_EQUAL, 32, 7) /* check_not_regs_equal reg1 reg2 addr32     */ \
-V(LOOKUP_MAP1,       33, 11) /* l_map1 start16 bit_map_addr32 addr32        */ \
-V(LOOKUP_MAP2,       34, 99) /* l_map2 start16 half_nibble_map_addr32*      */ \
-V(LOOKUP_MAP8,       35, 99) /* l_map8 start16 byte_map addr32*             */ \
-V(LOOKUP_HI_MAP8,    36, 99) /* l_himap8 start8 byte_map_addr32 addr32*     */ \
-V(CHECK_REGISTER_LT, 37, 8) /* check_reg_lt register_index value16 addr32   */ \
-V(CHECK_REGISTER_GE, 38, 8) /* check_reg_ge register_index value16 addr32   */ \
-V(CHECK_REGISTER_EQ_POS, 39, 6) /* check_register_eq_pos index addr32       */ \
-V(CHECK_NOT_AT_START, 40, 5) /* check_not_at_start addr32                   */ \
-V(CHECK_GREEDY,      41, 5) /* check_greedy addr32                          */
+V(BREAK,              0, 4)   /* bc8                                        */ \
+V(PUSH_CP,            1, 4)   /* bc8 pad24                                  */ \
+V(PUSH_BT,            2, 8)   /* bc8 pad24 offset32                         */ \
+V(PUSH_REGISTER,      3, 4)   /* bc8 reg_idx24                              */ \
+V(SET_REGISTER_TO_CP, 4, 8)   /* bc8 reg_idx24 offset32                     */ \
+V(SET_CP_TO_REGISTER, 5, 4)   /* bc8 reg_idx24                              */ \
+V(SET_REGISTER_TO_SP, 6, 4)   /* bc8 reg_idx24                              */ \
+V(SET_SP_TO_REGISTER, 7, 4)   /* bc8 reg_idx24                              */ \
+V(SET_REGISTER,       8, 8)   /* bc8 reg_idx24 value32                      */ \
+V(ADVANCE_REGISTER,   9, 8)   /* bc8 reg_idx24 value32                      */ \
+V(POP_CP,            10, 4)   /* bc8 pad24                                  */ \
+V(POP_BT,            11, 4)   /* bc8 pad24                                  */ \
+V(POP_REGISTER,      12, 4)   /* bc8 reg_idx24                              */ \
+V(FAIL,              13, 4)   /* bc8 pad24                                  */ \
+V(SUCCEED,           14, 4)   /* bc8 pad24                                  */ \
+V(ADVANCE_CP,        15, 4)   /* bc8 offset24                               */ \
+V(GOTO,              16, 8)   /* bc8 pad24 addr32                           */ \
+V(LOAD_CURRENT_CHAR, 17, 8)   /* bc8 offset24 addr32                        */ \
+V(LOAD_CURRENT_CHAR_UNCHECKED, 18, 4) /* bc8 offset24                       */ \
+V(LOAD_2_CURRENT_CHARS, 19, 8) /* bc8 offset24 addr32                       */ \
+V(LOAD_2_CURRENT_CHARS_UNCHECKED, 20, 4) /* bc8 offset24                    */ \
+V(LOAD_4_CURRENT_CHARS, 21, 8) /* bc8 offset24 addr32                       */ \
+V(LOAD_4_CURRENT_CHARS_UNCHECKED, 22, 4) /* bc8 offset24                    */ \
+V(CHECK_4_CHARS,     23, 12)  /* bc8 pad24 uint32 addr32                    */ \
+V(CHECK_CHAR,        24, 8)   /* bc8 pad8 uint16 addr32                     */ \
+V(CHECK_NOT_4_CHARS, 25, 12)  /* bc8 pad24 uint32 addr32                    */ \
+V(CHECK_NOT_CHAR,    26, 8)   /* bc8 pad8 uint16 addr32                     */ \
+V(AND_CHECK_4_CHARS, 27, 16)  /* bc8 pad24 uint32 uint32 addr32             */ \
+V(AND_CHECK_CHAR,    28, 12)  /* bc8 pad8 uint16 uint32 addr32              */ \
+V(AND_CHECK_NOT_4_CHARS, 29, 16) /* bc8 pad24 uint32 uint32 addr32          */ \
+V(AND_CHECK_NOT_CHAR, 30, 12) /* bc8 pad8 uint16 uint32 addr32              */ \
+V(MINUS_AND_CHECK_NOT_CHAR, 31, 12) /* bc8 pad8 uc16 uc16 addr32            */ \
+V(CHECK_LT,          32, 8)   /* bc8 pad8 uc16 addr32                       */ \
+V(CHECK_GT,          33, 8)   /* bc8 pad8 uc16 addr32                       */ \
+V(CHECK_NOT_BACK_REF, 34, 8)  /* bc8 reg_idx24 addr32                       */ \
+V(CHECK_NOT_BACK_REF_NO_CASE, 35, 8) /* bc8 reg_idx24 addr32                */ \
+V(CHECK_NOT_REGS_EQUAL, 36, 12) /* bc8 regidx24 reg_idx32 addr32            */ \
+V(LOOKUP_MAP1,       37, 12)  /* bc8 pad8 start16 bit_map_addr32 addr32     */ \
+V(LOOKUP_MAP2,       38, 96)  /* bc8 pad8 start16 half_nibble_map_addr32*   */ \
+V(LOOKUP_MAP8,       39, 96)  /* bc8 pad8  start16 byte_map addr32*         */ \
+V(LOOKUP_HI_MAP8,    40, 96)  /* bc8 start24 byte_map_addr32 addr32*        */ \
+V(CHECK_REGISTER_LT, 41, 12)  /* bc8 reg_idx24 value32 addr32               */ \
+V(CHECK_REGISTER_GE, 42, 12)  /* bc8 reg_idx24 value32 addr32               */ \
+V(CHECK_REGISTER_EQ_POS, 43, 8) /* bc8 reg_idx24 addr32                     */ \
+V(CHECK_AT_START,    44, 8)   /* bc8 pad24 addr32                           */ \
+V(CHECK_NOT_AT_START, 45, 8)  /* bc8 pad24 addr32                           */ \
+V(CHECK_GREEDY,      46, 8)   /* bc8 pad24 addr32                           */
 
 #define DECLARE_BYTECODES(name, code, length) \
   static const int BC_##name = code;
