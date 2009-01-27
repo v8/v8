@@ -31,7 +31,8 @@
 function testNumberMirror(n) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(n);
-  var json = mirror.toJSONProtocol(true);
+  var serializer = debug.MakeMirrorSerializer();
+  var json = serializer.serializeValue(mirror);
 
   // Check the mirror hierachy.
   assertTrue(mirror instanceof debug.Mirror);
@@ -52,7 +53,15 @@ function testNumberMirror(n) {
   if (!isNaN(n)) {
     assertEquals(n, fromJSON.value);
   } else {
-    assertTrue(isNaN(fromJSON.value));
+    // NaN values are encoded as strings.
+    assertTrue(typeof fromJSON.value == 'string');
+    if (n === Infinity) {
+      assertEquals('Infinity', fromJSON.value);
+    } else if (n === -Infinity) {
+      assertEquals('-Infinity', fromJSON.value);
+    } else {
+      assertEquals('NaN', fromJSON.value);
+    }
   }
 }
 

@@ -1009,8 +1009,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
   // code size is increased by ~1% (measured on a combination of
   // different benchmarks).
 
-  // TODO(1217802): Optimize some special cases of operations
-  // involving a smi literal (multiply by 2, shift by 0, etc.).
+  // TODO(199): Optimize some special cases of operations involving a
+  // smi literal (multiply by 2, shift by 0, etc.).
 
   // Get the literal value.
   Smi* smi_value = Smi::cast(*value);
@@ -1157,11 +1157,12 @@ void CodeGenerator::SmiOperation(Token::Value op,
         ASSERT(answer.is_valid());
         __ mov(answer.reg(), Operand(operand.reg()));
         ASSERT(kSmiTag == 0);  // adjust code if not the case
+        // We do no shifts, only the Smi conversion, if shift_value is 1.
         if (shift_value == 0) {
           __ sar(answer.reg(), kSmiTagSize);
         } else if (shift_value > 1) {
           __ shl(answer.reg(), shift_value - 1);
-        }  // We do no shifts, only the Smi conversion, if shift_value is 1.
+        }
         // Convert int result to Smi, checking that it is in int range.
         ASSERT(kSmiTagSize == times_2);  // adjust code if not the case
         __ add(answer.reg(), Operand(answer.reg()));
@@ -2995,7 +2996,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 
 
   for (int i = 0; i < node->properties()->length(); i++) {
-    ObjectLiteral::Property* property  = node->properties()->at(i);
+    ObjectLiteral::Property* property = node->properties()->at(i);
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT: break;
       case ObjectLiteral::Property::COMPUTED: {
@@ -3095,6 +3096,17 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
       __ RecordWrite(ecx, offset, eax, ebx);
     }
   }
+}
+
+
+void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  // Call runtime routine to allocate the catch extension object and
+  // assign the exception value to the catch variable.
+  Comment cmnt(masm_, "[CatchExtensionObject ");
+  Load(node->key());
+  Load(node->value());
+  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+  frame_->Push(eax);
 }
 
 
@@ -5178,9 +5190,8 @@ void GenericBinaryOpStub::GenerateSmiCode(MacroAssembler* masm, Label* slow) {
         case Token::SHL:
           __ shl(eax);
           // Check that the *signed* result fits in a smi.
-          __ lea(ecx, Operand(eax, 0x40000000));
-          __ test(ecx, Immediate(0x80000000));
-          __ j(not_zero, slow, not_taken);
+          __ cmp(eax, 0xc0000000);
+          __ j(sign, slow, not_taken);
           break;
         default:
           UNREACHABLE();

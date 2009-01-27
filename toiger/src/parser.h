@@ -153,7 +153,7 @@ bool ParseRegExp(FlatStringReader* input,
 // Support for doing lazy compilation. The script is the script containing full
 // source of the script where the function is declared. The start_position and
 // end_position specifies the part of the script source which has the source
-// for the function decleration in the form:
+// for the function declaration in the form:
 //
 //    (<formal parameters>) { <function body> }
 //

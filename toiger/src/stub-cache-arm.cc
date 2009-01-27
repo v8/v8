@@ -384,7 +384,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   // Perform map transition for the receiver if necessary.
   if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
     // The properties must be extended before we can store the value.
-    // We jump to a runtime call that extends the propeties array.
+    // We jump to a runtime call that extends the properties array.
     __ mov(r2, Operand(Handle<Map>(transition)));
     // Please note, if we implement keyed store for arm we need
     // to call the Builtins::KeyedStoreIC_ExtendStorage.

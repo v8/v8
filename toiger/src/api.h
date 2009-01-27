@@ -28,6 +28,7 @@
 #ifndef V8_API_H_
 #define V8_API_H_
 
+#include "apiutils.h"
 #include "factory.h"
 
 namespace v8 {
@@ -159,45 +160,6 @@ class RegisteredExtension {
 };
 
 
-class ImplementationUtilities {
- public:
-  static v8::Handle<v8::Primitive> Undefined();
-  static v8::Handle<v8::Primitive> Null();
-  static v8::Handle<v8::Boolean> True();
-  static v8::Handle<v8::Boolean> False();
-
-  static int GetNameCount(ExtensionConfiguration* that) {
-    return that->name_count_;
-  }
-
-  static const char** GetNames(ExtensionConfiguration* that) {
-    return that->names_;
-  }
-
-  static v8::Arguments NewArguments(Local<Value> data,
-                                    Local<Object> holder,
-                                    Local<Function> callee,
-                                    bool is_construct_call,
-                                    void** argv, int argc) {
-    return v8::Arguments(data, holder, callee, is_construct_call, argv, argc);
-  }
-
-  // Introduce an alias for the handle scope data to allow non-friends
-  // to access the HandleScope data.
-  typedef v8::HandleScope::Data HandleScopeData;
-
-  static HandleScopeData* CurrentHandleScope() {
-    return &v8::HandleScope::current_;
-  }
-
-#ifdef DEBUG
-  static void ZapHandleRange(void** begin, void** end) {
-    v8::HandleScope::ZapRange(begin, end);
-  }
-#endif
-};
-
-
 class Utils {
  public:
   static bool ReportApiFailure(const char* location, const char* message);
@@ -275,7 +237,7 @@ static inline T* ToApi(v8::internal::Handle<v8::internal::Object> obj) {
 
 template <class T>
 v8::internal::Handle<T> v8::internal::Handle<T>::EscapeFrom(
-    HandleScope* scope) {
+    v8::HandleScope* scope) {
   return Utils::OpenHandle(*scope->Close(Utils::ToLocal(*this)));
 }
 
@@ -408,11 +370,11 @@ class HandleScopeImplementer {
   List<Handle<Object> > saved_contexts_;
   bool ignore_out_of_memory;
   // This is only used for threading support.
-  ImplementationUtilities::HandleScopeData handle_scope_data_;
+  v8::ImplementationUtilities::HandleScopeData handle_scope_data_;
 
   static void Iterate(ObjectVisitor* v,
-                      List<void**>* blocks,
-                      ImplementationUtilities::HandleScopeData* handle_data);
+      List<void**>* blocks,
+      v8::ImplementationUtilities::HandleScopeData* handle_data);
   char* RestoreThreadHelper(char* from);
   char* ArchiveThreadHelper(char* to);
 
@@ -474,13 +436,14 @@ void HandleScopeImplementer::DeleteExtensions(int extensions) {
   for (int i = extensions; i > 1; --i) {
     void** block = blocks.RemoveLast();
 #ifdef DEBUG
-    ImplementationUtilities::ZapHandleRange(block, &block[kHandleBlockSize]);
+    v8::ImplementationUtilities::ZapHandleRange(block,
+                                                &block[kHandleBlockSize]);
 #endif
     DeleteArray(block);
   }
   spare = reinterpret_cast<Object**>(blocks.RemoveLast());
 #ifdef DEBUG
-  ImplementationUtilities::ZapHandleRange(
+  v8::ImplementationUtilities::ZapHandleRange(
       reinterpret_cast<void**>(spare),
       reinterpret_cast<void**>(&spare[kHandleBlockSize]));
 #endif

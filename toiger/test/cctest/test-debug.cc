@@ -2454,7 +2454,7 @@ TEST(StepWithException) {
   ChangeBreakOnException(false, true);
   step_action = StepIn;
   break_point_hit_count = 0;
-  expected_step_sequence = "ddedd";
+  expected_step_sequence = "dded";
   d->Call(env->Global(), 0, NULL);
   CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
 
@@ -2462,7 +2462,7 @@ TEST(StepWithException) {
   ChangeBreakOnException(true, true);
   step_action = StepIn;
   break_point_hit_count = 0;
-  expected_step_sequence = "ddeedd";
+  expected_step_sequence = "ddeed";
   d->Call(env->Global(), 0, NULL);
   CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
 
@@ -2472,7 +2472,7 @@ TEST(StepWithException) {
   ChangeBreakOnException(false, true);
   step_action = StepIn;
   break_point_hit_count = 0;
-  expected_step_sequence = "ffghff";
+  expected_step_sequence = "ffghf";
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
 
@@ -2480,7 +2480,7 @@ TEST(StepWithException) {
   ChangeBreakOnException(true, true);
   step_action = StepIn;
   break_point_hit_count = 0;
-  expected_step_sequence = "ffghhff";
+  expected_step_sequence = "ffghhf";
   f->Call(env->Global(), 0, NULL);
   CHECK_EQ(strlen(expected_step_sequence), break_point_hit_count);
 
@@ -2746,22 +2746,101 @@ TEST(InterceptorPropertyMirror) {
 
   source = "both_values[4].name() == 10";
   CHECK(CompileRun(source)->BooleanValue());
+}
 
-  // Check the property values.
-  source = "both_values[0].value().value() == 'AA'";
-  CHECK(CompileRun(source)->BooleanValue());
 
-  source = "both_values[1].value().value() == 'BB'";
-  CHECK(CompileRun(source)->BooleanValue());
+TEST(HiddenPrototypePropertyMirror) {
+  // Create a V8 environment with debug access.
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  env.ExposeDebug();
 
-  source = "both_values[2].value().value() == 'CC'";
-  CHECK(CompileRun(source)->BooleanValue());
+  v8::Handle<v8::FunctionTemplate> t0 = v8::FunctionTemplate::New();
+  t0->InstanceTemplate()->Set(v8::String::New("x"), v8::Number::New(0));
+  v8::Handle<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
+  t1->SetHiddenPrototype(true);
+  t1->InstanceTemplate()->Set(v8::String::New("y"), v8::Number::New(1));
+  v8::Handle<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New();
+  t2->SetHiddenPrototype(true);
+  t2->InstanceTemplate()->Set(v8::String::New("z"), v8::Number::New(2));
+  v8::Handle<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New();
+  t3->InstanceTemplate()->Set(v8::String::New("u"), v8::Number::New(3));
 
-  source = "both_values[3].value().value() == 2";
-  CHECK(CompileRun(source)->BooleanValue());
+  // Create object and set them on the global object.
+  v8::Handle<v8::Object> o0 = t0->GetFunction()->NewInstance();
+  env->Global()->Set(v8::String::New("o0"), o0);
+  v8::Handle<v8::Object> o1 = t1->GetFunction()->NewInstance();
+  env->Global()->Set(v8::String::New("o1"), o1);
+  v8::Handle<v8::Object> o2 = t2->GetFunction()->NewInstance();
+  env->Global()->Set(v8::String::New("o2"), o2);
+  v8::Handle<v8::Object> o3 = t3->GetFunction()->NewInstance();
+  env->Global()->Set(v8::String::New("o3"), o3);
 
-  source = "both_values[4].value().value() == 11";
-  CHECK(CompileRun(source)->BooleanValue());
+  // Get mirrors for the four objects.
+  CompileRun(
+      "o0_mirror = debug.MakeMirror(o0);"
+      "o1_mirror = debug.MakeMirror(o1);"
+      "o2_mirror = debug.MakeMirror(o2);"
+      "o3_mirror = debug.MakeMirror(o3)");
+  CHECK(CompileRun("o0_mirror instanceof debug.ObjectMirror")->BooleanValue());
+  CHECK(CompileRun("o1_mirror instanceof debug.ObjectMirror")->BooleanValue());
+  CHECK(CompileRun("o2_mirror instanceof debug.ObjectMirror")->BooleanValue());
+  CHECK(CompileRun("o3_mirror instanceof debug.ObjectMirror")->BooleanValue());
+
+  // Check that each object has one property.
+  CHECK_EQ(1, CompileRun(
+              "o0_mirror.propertyNames().length")->Int32Value());
+  CHECK_EQ(1, CompileRun(
+              "o1_mirror.propertyNames().length")->Int32Value());
+  CHECK_EQ(1, CompileRun(
+              "o2_mirror.propertyNames().length")->Int32Value());
+  CHECK_EQ(1, CompileRun(
+              "o3_mirror.propertyNames().length")->Int32Value());
+
+  // Set o1 as prototype for o0. o1 has the hidden prototype flag so all
+  // properties on o1 should be seen on o0.
+  o0->Set(v8::String::New("__proto__"), o1);
+  CHECK_EQ(2, CompileRun(
+              "o0_mirror.propertyNames().length")->Int32Value());
+  CHECK_EQ(0, CompileRun(
+              "o0_mirror.property('x').value().value()")->Int32Value());
+  CHECK_EQ(1, CompileRun(
+              "o0_mirror.property('y').value().value()")->Int32Value());
+
+  // Set o2 as prototype for o0 (it will end up after o1 as o1 has the hidden
+  // prototype flag. o2 also has the hidden prototype flag so all properties
+  // on o2 should be seen on o0 as well as properties on o1.
+  o0->Set(v8::String::New("__proto__"), o2);
+  CHECK_EQ(3, CompileRun(
+              "o0_mirror.propertyNames().length")->Int32Value());
+  CHECK_EQ(0, CompileRun(
+              "o0_mirror.property('x').value().value()")->Int32Value());
+  CHECK_EQ(1, CompileRun(
+              "o0_mirror.property('y').value().value()")->Int32Value());
+  CHECK_EQ(2, CompileRun(
+              "o0_mirror.property('z').value().value()")->Int32Value());
+
+  // Set o3 as prototype for o0 (it will end up after o1 and o2 as both o1 and
+  // o2 has the hidden prototype flag. o3 does not have the hidden prototype
+  // flag so properties on o3 should not be seen on o0 whereas the properties
+  // from o1 and o2 should still be seen on o0.
+  // Final prototype chain: o0 -> o1 -> o2 -> o3
+  // Hidden prototypes:           ^^    ^^
+  o0->Set(v8::String::New("__proto__"), o3);
+  CHECK_EQ(3, CompileRun(
+              "o0_mirror.propertyNames().length")->Int32Value());
+  CHECK_EQ(1, CompileRun(
+              "o3_mirror.propertyNames().length")->Int32Value());
+  CHECK_EQ(0, CompileRun(
+              "o0_mirror.property('x').value().value()")->Int32Value());
+  CHECK_EQ(1, CompileRun(
+              "o0_mirror.property('y').value().value()")->Int32Value());
+  CHECK_EQ(2, CompileRun(
+              "o0_mirror.property('z').value().value()")->Int32Value());
+  CHECK(CompileRun("o0_mirror.property('u').isUndefined()")->BooleanValue());
+
+  // The prototype (__proto__) for o0 should be o3 as o1 and o2 are hidden.
+  CHECK(CompileRun("o0_mirror.protoObject() == o3_mirror")->BooleanValue());
 }
 
 

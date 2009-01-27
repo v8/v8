@@ -36,6 +36,7 @@
 #include "platform.h"
 #include "serialize.h"
 #include "snapshot.h"
+#include "v8threads.h"
 
 
 namespace i = v8::internal;
@@ -72,6 +73,15 @@ namespace v8 {
     }                                                                          \
   } while (false)
 
+
+#define API_ENTRY_CHECK(msg)                                                   \
+  do {                                                                         \
+    if (v8::Locker::IsActive()) {                                              \
+      ApiCheck(i::ThreadManager::IsLockedByCurrentThread(),                    \
+               msg,                                                            \
+               "Entering the V8 API without proper locking in place");         \
+    }                                                                          \
+  } while (false)
 
 // --- D a t a   t h a t   i s   s p e c i f i c   t o   a   t h r e a d ---
 
@@ -140,7 +150,7 @@ static inline bool ApiCheck(bool condition,
 
 static bool ReportV8Dead(const char* location) {
   FatalErrorCallback callback = GetFatalErrorHandler();
-  callback(location, "V8 is no longer useable");
+  callback(location, "V8 is no longer usable");
   return true;
 }
 
@@ -153,7 +163,7 @@ static bool ReportEmptyHandle(const char* location) {
 
 
 /**
- * IsDeadCheck checks that the vm is useable.  If, for instance, the vm has been
+ * IsDeadCheck checks that the vm is usable.  If, for instance, the vm has been
  * out of memory at some point this check will fail.  It should be called on
  * entry to all methods that touch anything in the heap, except destructors
  * which you sometimes can't avoid calling after the vm has crashed.  Functions
@@ -188,6 +198,19 @@ static void EnsureInitialized(const char* location) {
   if (IsDeadCheck(location)) return;
   ApiCheck(v8::V8::Initialize(), location, "Error initializing V8");
 }
+
+
+ImplementationUtilities::HandleScopeData*
+    ImplementationUtilities::CurrentHandleScope() {
+  return &i::HandleScope::current_;
+}
+
+
+#ifdef DEBUG
+void ImplementationUtilities::ZapHandleRange(void** begin, void** end) {
+  i::HandleScope::ZapRange(begin, end);
+}
+#endif
 
 
 v8::Handle<v8::Primitive> ImplementationUtilities::Undefined() {
@@ -359,55 +382,26 @@ void V8::DisposeGlobal(void** obj) {
 // --- H a n d l e s ---
 
 
-HandleScope::Data HandleScope::current_ = { -1, NULL, NULL };
+HandleScope::HandleScope() : is_closed_(false) {
+  API_ENTRY_CHECK("HandleScope::HandleScope");
+  i::HandleScope::Enter(&previous_);
+}
+
+
+HandleScope::~HandleScope() {
+  if (!is_closed_) {
+    i::HandleScope::Leave(&previous_);
+  }
+}
 
 
 int HandleScope::NumberOfHandles() {
-  int n = thread_local.Blocks()->length();
-  if (n == 0) return 0;
-  return ((n - 1) * i::kHandleBlockSize) +
-       (current_.next - thread_local.Blocks()->last());
+  return i::HandleScope::NumberOfHandles();
 }
 
 
 void** v8::HandleScope::CreateHandle(void* value) {
-  void** result = current_.next;
-  if (result == current_.limit) {
-    // Make sure there's at least one scope on the stack and that the
-    // top of the scope stack isn't a barrier.
-    if (!ApiCheck(current_.extensions >= 0,
-                  "v8::HandleScope::CreateHandle()",
-                  "Cannot create a handle without a HandleScope")) {
-      return NULL;
-    }
-    // If there's more room in the last block, we use that. This is used
-    // for fast creation of scopes after scope barriers.
-    if (!thread_local.Blocks()->is_empty()) {
-      void** limit = &thread_local.Blocks()->last()[i::kHandleBlockSize];
-      if (current_.limit != limit) {
-        current_.limit = limit;
-      }
-    }
-
-    // If we still haven't found a slot for the handle, we extend the
-    // current handle scope by allocating a new handle block.
-    if (result == current_.limit) {
-      // If there's a spare block, use it for growing the current scope.
-      result = thread_local.GetSpareOrNewBlock();
-      // Add the extension to the global list of blocks, but count the
-      // extension as part of the current scope.
-      thread_local.Blocks()->Add(result);
-      current_.extensions++;
-      current_.limit = &result[i::kHandleBlockSize];
-    }
-  }
-
-  // Update the current next field, set the value in the created
-  // handle, and return the result.
-  ASSERT(result < current_.limit);
-  current_.next = result + 1;
-  *result = value;
-  return result;
+  return i::HandleScope::CreateHandle(value);
 }
 
 
@@ -436,20 +430,6 @@ void Context::Exit() {
 }
 
 
-void v8::HandleScope::DeleteExtensions() {
-  ASSERT(current_.extensions != 0);
-  thread_local.DeleteExtensions(current_.extensions);
-}
-
-
-void HandleScope::ZapRange(void** start, void** end) {
-  if (start == NULL) return;
-  for (void** p = start; p < end; p++) {
-    *p = reinterpret_cast<void*>(v8::internal::kHandleZapValue);
-  }
-}
-
-
 void** v8::HandleScope::RawClose(void** value) {
   if (!ApiCheck(!is_closed_,
                 "v8::HandleScope::Close()",
@@ -461,7 +441,7 @@ void** v8::HandleScope::RawClose(void** value) {
   // Read the result before popping the handle block.
   i::Object* result = reinterpret_cast<i::Object*>(*value);
   is_closed_ = true;
-  RestorePreviousState();
+  i::HandleScope::Leave(&previous_);
 
   // Allocate a new handle on the previous handle block.
   i::Handle<i::Object> handle(result);
@@ -2037,7 +2017,7 @@ int String::WriteAscii(char* buffer, int start, int length) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlatten(i::StringShape(*str));
+  str->TryFlattenIfNotFlat(i::StringShape(*str));
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2062,7 +2042,7 @@ int String::Write(uint16_t* buffer, int start, int length) const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
   // Flatten the string for efficiency.  This applies whether we are
   // using StringInputBuffer or Get(i) to access the characters.
-  str->TryFlatten(i::StringShape(*str));
+  str->TryFlattenIfNotFlat(i::StringShape(*str));
   int end = length;
   if ( (length == -1) || (length > str->length() - start) )
     end = str->length() - start;
@@ -2204,7 +2184,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.4.7";
+  return "0.4.9 (candidate)";
 }
 
 
@@ -2951,8 +2931,8 @@ char* HandleScopeImplementer::ArchiveThread(char* storage) {
 
 
 char* HandleScopeImplementer::ArchiveThreadHelper(char* storage) {
-  ImplementationUtilities::HandleScopeData* current =
-      ImplementationUtilities::CurrentHandleScope();
+  v8::ImplementationUtilities::HandleScopeData* current =
+      v8::ImplementationUtilities::CurrentHandleScope();
   handle_scope_data_ = *current;
   memcpy(storage, this, sizeof(*this));
 
@@ -2975,7 +2955,7 @@ char* HandleScopeImplementer::RestoreThread(char* storage) {
 
 char* HandleScopeImplementer::RestoreThreadHelper(char* storage) {
   memcpy(this, storage, sizeof(*this));
-  *ImplementationUtilities::CurrentHandleScope() = handle_scope_data_;
+  *v8::ImplementationUtilities::CurrentHandleScope() = handle_scope_data_;
   return storage + ArchiveSpacePerThread();
 }
 
@@ -2983,7 +2963,7 @@ char* HandleScopeImplementer::RestoreThreadHelper(char* storage) {
 void HandleScopeImplementer::Iterate(
     ObjectVisitor* v,
     List<void**>* blocks,
-    ImplementationUtilities::HandleScopeData* handle_data) {
+    v8::ImplementationUtilities::HandleScopeData* handle_data) {
   // Iterate over all handles in the blocks except for the last.
   for (int i = blocks->length() - 2; i >= 0; --i) {
     Object** block =
@@ -3000,8 +2980,8 @@ void HandleScopeImplementer::Iterate(
 
 
 void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
-  ImplementationUtilities::HandleScopeData* current =
-      ImplementationUtilities::CurrentHandleScope();
+  v8::ImplementationUtilities::HandleScopeData* current =
+      v8::ImplementationUtilities::CurrentHandleScope();
   Iterate(v, thread_local.Blocks(), current);
 }
 
@@ -3010,7 +2990,7 @@ char* HandleScopeImplementer::Iterate(ObjectVisitor* v, char* storage) {
   HandleScopeImplementer* thread_local =
       reinterpret_cast<HandleScopeImplementer*>(storage);
   List<void**>* blocks_of_archived_thread = thread_local->Blocks();
-  ImplementationUtilities::HandleScopeData* handle_data_of_archived_thread =
+  v8::ImplementationUtilities::HandleScopeData* handle_data_of_archived_thread =
       &thread_local->handle_scope_data_;
   Iterate(v, blocks_of_archived_thread, handle_data_of_archived_thread);
 

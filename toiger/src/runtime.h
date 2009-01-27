@@ -244,7 +244,7 @@ namespace v8 { namespace internal {
   F(DebugGetLoadedScripts, 0) \
   F(DebugReferencedBy, 3) \
   F(DebugConstructedBy, 2) \
-  F(GetPrototype, 1) \
+  F(DebugGetPrototype, 1) \
   F(SystemBreak, 0) \
   \
   /* Literals */ \
@@ -252,6 +252,9 @@ namespace v8 { namespace internal {
   F(CreateArrayLiteral, 2) \
   F(CreateObjectLiteralBoilerplate, 3) \
   F(CloneObjectLiteralBoilerplate, 1) \
+  \
+  /* Catch context extension objects */ \
+  F(CreateCatchExtensionObject, 2) \
   \
   /* Statements */ \
   F(NewClosure, 2) \

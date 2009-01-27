@@ -734,7 +734,7 @@ class Heap : public AllStatic {
   static void TracePathToGlobal();
 #endif
 
-  // Callback function pased to Heap::Iterate etc.  Copies an object if
+  // Callback function passed to Heap::Iterate etc.  Copies an object if
   // necessary, the object might be promoted to an old space.  The caller must
   // ensure the precondition that the object is (a) a heap object and (b) in
   // the heap's from space.

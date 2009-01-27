@@ -38,6 +38,10 @@ struct DisjunctDecisionRow {
 
 class RegExpMacroAssembler {
  public:
+  // The implementation must be able to handle at least:
+  static const int kMaxRegister = (1 << 16) - 1;
+  static const int kMaxCPOffset = (1 << 15) - 1;
+  static const int kMinCPOffset = -(1 << 15);
   enum IrregexpImplementation {
     kIA32Implementation,
     kARMImplementation,
@@ -61,6 +65,7 @@ class RegExpMacroAssembler {
   // stack by an earlier PushBacktrack(Label*).
   virtual void Backtrack() = 0;
   virtual void Bind(Label* label) = 0;
+  virtual void CheckAtStart(Label* on_at_start) = 0;
   // Check the current character against a bitmap.  The range of the current
   // character must be from start to start + length_of_bitmap_in_bits.
   virtual void CheckBitmap(
@@ -110,6 +115,12 @@ class RegExpMacroAssembler {
   virtual void CheckNotRegistersEqual(int reg1,
                                       int reg2,
                                       Label* on_not_equal) = 0;
+
+  // Checks whether the given offset from the current position is before
+  // the end of the string.  May overwrite the current character.
+  virtual void CheckPosition(int cp_offset, Label* on_outside_input) {
+    LoadCurrentCharacter(cp_offset, on_outside_input, true);
+  }
   // Check whether a standard/default character class matches the current
   // character. Returns false if the type of special character class does
   // not have custom support.
@@ -167,7 +178,7 @@ class RegExpMacroAssembler {
   virtual void SetRegister(int register_index, int to) = 0;
   virtual void Succeed() = 0;
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset) = 0;
-  virtual void ClearRegister(int reg) = 0;
+  virtual void ClearRegisters(int reg_from, int reg_to) = 0;
   virtual void WriteStackPointerToRegister(int reg) = 0;
 
  private:

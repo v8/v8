@@ -240,11 +240,8 @@ ecma_3/RegExp/regress-119909: PASS || FAIL_OK
 # 'minimum repeat count' is reached, the empty string must not match.
 # In this case, we are similar but not identical to JSC.  Hard to
 # support the JS behavior with PCRE, so maybe emulate JSC?
-#
-# Note: We do not support toSource currently so we cannot run this
-# test. We should make an isolated test case for the regexp issue.
-ecma_3/RegExp/regress-209919: FAIL_OK
-js1_5/extensions/regress-459606: FAIL_OK
+ecma_3/RegExp/regress-209919: PASS || FAIL_OK
+js1_5/extensions/regress-459606: PASS || FAIL_OK
 
 
 # PCRE's match limit is reached.  SpiderMonkey hangs on the first one,
@@ -263,11 +260,6 @@ ecma_3/RegExp/regress-307456: PASS || FAIL_OK
 # We do not detect overflow in bounds for back references and {}
 # quantifiers.  Might fix by parsing numbers differently?
 js1_5/Regress/regress-230216-2: FAIL_OK
-
-
-# According to ECMA-262, \b is a 'word' boundary, where words are only
-# ASCII characters.  PCRE supports non-ASCII word characters.
-js1_5/Regress/regress-247179: FAIL_OK
 
 
 # Regexp too long for PCRE.
@@ -471,7 +463,7 @@ ecma_3/Unicode/uc-001: FAIL_OK
 # A non-breaking space doesn't match \s in a regular expression.  This behaviour
 # matches JSC.  All the VMs have different behaviours in which characters match
 # \s so we do the same as JSC until they change.
-ecma_3/Unicode/uc-002: FAIL_OK
+ecma_3/Unicode/uc-002: PASS || FAIL_OK
 
 
 # String.prototype.split on empty strings always returns an array
@@ -521,10 +513,12 @@ js1_5/Regress/regress-336100: FAIL_OK
 
 # Regular expression test failures due to PCRE. We match JSC (ie, perl)
 # behavior and not the ECMA spec.
-ecma_3/RegExp/15.10.2-1: FAIL_OK
-ecma_3/RegExp/perlstress-001: FAIL_OK
+ecma_3/RegExp/perlstress-001: PASS || FAIL_OK
 ecma_3/RegExp/regress-334158: PASS || FAIL
 
+# This test fails due to http://code.google.com/p/v8/issues/detail?id=187
+# Failure to clear captures when a lookahead is unwound.
+ecma_3/RegExp/15.10.2-1: PASS || FAIL_OK
 
 # This test requires a failure if we try to compile a function with more
 # than 65536 arguments.  This seems to be a Mozilla restriction.

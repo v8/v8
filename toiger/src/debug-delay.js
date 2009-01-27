@@ -994,22 +994,25 @@ ResponsePacket.prototype.toJSONProtocol = function() {
   if (this.body) {
     json += ',"body":';
     // Encode the body part.
-    if (this.body.toJSONProtocol) {
-      json += this.body.toJSONProtocol(true);
+    var serializer = MakeMirrorSerializer(true);
+    if (this.body instanceof Mirror) {
+      json += serializer.serializeValue(this.body);
     } else if (this.body instanceof Array) {
       json += '[';
       for (var i = 0; i < this.body.length; i++) {
         if (i != 0) json += ',';
-        if (this.body[i].toJSONProtocol) {
-          json += this.body[i].toJSONProtocol(true)
+        if (this.body[i] instanceof Mirror) {
+          json += serializer.serializeValue(this.body[i]);
         } else {
-          json += SimpleObjectToJSON_(this.body[i]);
+          json += SimpleObjectToJSON_(this.body[i], serializer);
         }
       }
       json += ']';
     } else {
-      json += SimpleObjectToJSON_(this.body);
+      json += SimpleObjectToJSON_(this.body, serializer);
     }
+    json += ',"refs":';
+    json += serializer.serializeReferencedObjects();
   }
   if (this.message) {
     json += ',"message":' + StringToJSON_(this.message) ;
@@ -1068,6 +1071,8 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request,
         this.frameRequest_(request, response);
       } else if (request.command == 'evaluate') {
         this.evaluateRequest_(request, response);
+      } else if (request.command == 'lookup') {
+        this.lookupRequest_(request, response);
       } else if (request.command == 'source') {
         this.sourceRequest_(request, response);
       } else if (request.command == 'scripts') {
@@ -1363,7 +1368,12 @@ DebugCommandProcessor.prototype.frameRequest_ = function(request, response) {
   }
 
   // With no arguments just keep the selected frame.
-  if (request.arguments && request.arguments.number >= 0) {
+  if (request.arguments) {
+    index = request.arguments.number;
+    if (index < 0 || this.exec_state_.frameCount() <= index) {
+      return response.failed('Invalid frame number');
+    }
+    
     this.exec_state_.setSelectedFrame(request.arguments.number);
   }
   response.body = this.exec_state_.frame();
@@ -1422,6 +1432,29 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
     response.body = this.exec_state_.frame().evaluate(
         expression, Boolean(disable_break));
     return;
+  }
+};
+
+
+DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
+  if (!request.arguments) {
+    return response.failed('Missing arguments');
+  }
+
+  // Pull out arguments.
+  var handle = request.arguments.handle;
+
+  // Check for legal arguments.
+  if (IS_UNDEFINED(handle)) {
+    return response.failed('Argument "handle" missing');
+  }
+
+  // Lookup handle.
+  var mirror = LookupMirror(handle);
+  if (mirror) {
+    response.body = mirror;
+  } else {
+    return response.failed('Object #' + handle + '# not found');
   }
 };
 
@@ -1568,9 +1601,11 @@ DebugCommandProcessor.prototype.formatCFrame = function(cframe_value) {
  * a general implementation but sufficient for the debugger. Note that circular
  * structures will cause infinite recursion.
  * @param {Object} object The object to format as JSON
+ * @param {MirrorSerializer} mirror_serializer The serializer to use if any
+ *     mirror objects are encountered.
  * @return {string} JSON formatted object value
  */
-function SimpleObjectToJSON_(object) {
+function SimpleObjectToJSON_(object, mirror_serializer) {
   var content = [];
   for (var key in object) {
     // Only consider string keys.
@@ -1584,9 +1619,9 @@ function SimpleObjectToJSON_(object) {
           if (typeof property_value.toJSONProtocol == 'function') {
             property_value_json = property_value.toJSONProtocol(true)
           } else if (IS_ARRAY(property_value)){
-            property_value_json = SimpleArrayToJSON_(property_value);
+            property_value_json = SimpleArrayToJSON_(property_value, mirror_serializer);
           } else {
-            property_value_json = SimpleObjectToJSON_(property_value);
+            property_value_json = SimpleObjectToJSON_(property_value, mirror_serializer);
           }
           break;
 
@@ -1620,10 +1655,12 @@ function SimpleObjectToJSON_(object) {
 /**
  * Convert an array to its JSON representation. This is a VERY simple
  * implementation just to support what is needed for the debugger.
- * @param {Array} arrya The array to format as JSON
+ * @param {Array} array The array to format as JSON
+ * @param {MirrorSerializer} mirror_serializer The serializer to use if any
+ *     mirror objects are encountered.
  * @return {string} JSON formatted array value
  */
-function SimpleArrayToJSON_(array) {
+function SimpleArrayToJSON_(array, mirror_serializer) {
   // Make JSON array representation.
   var json = '[';
   for (var i = 0; i < array.length; i++) {
@@ -1631,8 +1668,8 @@ function SimpleArrayToJSON_(array) {
       json += ',';
     }
     var elem = array[i];
-    if (elem.toJSONProtocol) {
-      json += elem.toJSONProtocol(true)
+    if (elem instanceof Mirror) {
+      json += mirror_serializer.serializeValue(elem);
     } else if (IS_OBJECT(elem))  {
       json += SimpleObjectToJSON_(elem);
     } else if (IS_BOOLEAN(elem)) {

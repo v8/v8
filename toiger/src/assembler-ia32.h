@@ -271,19 +271,19 @@ class Operand BASE_EMBEDDED {
   bool is_reg(Register reg) const;
 
  private:
-  // Mutable because reg in ModR/M byte is set by Assembler via set_reg().
-  mutable byte buf_[6];
+  byte buf_[6];
   // The number of bytes in buf_.
   unsigned int len_;
   // Only valid if len_ > 4.
   RelocInfo::Mode rmode_;
 
-  inline void set_modrm(int mod,  // reg == 0
-                        Register rm);
+  // Set the ModRM byte without an encoded 'reg' register. The
+  // register is encoded later as part of the emit_operand operation.
+  inline void set_modrm(int mod, Register rm);
+
   inline void set_sib(ScaleFactor scale, Register index, Register base);
   inline void set_disp8(int8_t disp);
   inline void set_dispr(int32_t disp, RelocInfo::Mode rmode);
-  inline void set_reg(Register reg) const;
 
   friend class Assembler;
 };
@@ -416,7 +416,7 @@ class Assembler : public Malloced {
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
-  // Assembler functions are invoked inbetween GetCode() calls.
+  // Assembler functions are invoked in between GetCode() calls.
   void GetCode(CodeDesc* desc);
 
   // Read/Modify the code target in the branch/call instruction at pc.
@@ -441,10 +441,10 @@ class Assembler : public Malloced {
   // in the sense that some operations (e.g. mov()) can be called in more
   // the one way to generate the same instruction: The Register argument
   // can in some cases be replaced with an Operand(Register) argument.
-  // This should be cleaned up and made more othogonal. The questions
+  // This should be cleaned up and made more orthogonal. The questions
   // is: should we always use Operands instead of Registers where an
   // Operand is possible, or should we have a Register (overloaded) form
-  // instead? We must be carefull to make sure that the selected instruction
+  // instead? We must be careful to make sure that the selected instruction
   // is obvious from the parameters to avoid hard-to-find code generation
   // bugs.
 

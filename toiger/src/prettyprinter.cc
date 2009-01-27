@@ -285,6 +285,15 @@ void PrettyPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 }
 
 
+void PrettyPrinter::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  Print("{ ");
+  Visit(node->key());
+  Print(": ");
+  Visit(node->value());
+  Print(" }");
+}
+
+
 void PrettyPrinter::VisitSlot(Slot* node) {
   switch (node->type()) {
     case Slot::PARAMETER:
@@ -952,6 +961,13 @@ void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
       Visit(node->values()->at(i));
     }
   }
+}
+
+
+void AstPrinter::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  IndentedScope indent("CatchExtensionObject");
+  PrintIndentedVisit("KEY", node->key());
+  PrintIndentedVisit("VALUE", node->value());
 }
 
 

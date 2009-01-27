@@ -990,7 +990,7 @@ void MacroAssembler::Abort(const char* msg) {
   // We want to pass the msg string like a smi to avoid GC
   // problems, however msg is not guaranteed to be aligned
   // properly. Instead, we pass an aligned pointer that is
-  // a proper v8 smi, but also pass the aligment difference
+  // a proper v8 smi, but also pass the alignment difference
   // from the real pointer as a smi.
   intptr_t p1 = reinterpret_cast<intptr_t>(msg);
   intptr_t p0 = (p1 & ~kSmiTagMask) + kSmiTag;
@@ -1011,7 +1011,7 @@ void MacroAssembler::Abort(const char* msg) {
 
 CodePatcher::CodePatcher(byte* address, int size)
   : address_(address), size_(size), masm_(address, size + Assembler::kGap) {
-  // Create a new macro assembler pointing to the assress of the code to patch.
+  // Create a new macro assembler pointing to the address of the code to patch.
   // The size is adjusted with kGap on order for the assembler to generate size
   // bytes of instructions without failing with buffer size constraints.
   ASSERT(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);

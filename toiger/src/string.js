@@ -572,6 +572,9 @@ function splitMatch(separator, subject, current_index, start_index) {
     if (ovector == null) return null;
     var nof_results = ovector.length >> 1;
     var result = new $Array(nof_results + 1);
+    // Section 15.5.4.14 paragraph two says that we do not allow zero length
+    // matches at the end of the string.
+    if (ovector[0] === subject.length) return null;
     result[0] = ovector[1];
     result[1] = subject.slice(current_index, ovector[0]);
     for (var i = 1; i < nof_results; i++) {

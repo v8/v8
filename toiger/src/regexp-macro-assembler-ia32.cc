@@ -174,6 +174,20 @@ void RegExpMacroAssemblerIA32::CheckCharacterGT(uc16 limit, Label* on_greater) {
 }
 
 
+void RegExpMacroAssemblerIA32::CheckAtStart(Label* on_at_start) {
+  Label ok;
+  // Did we start the match at the start of the string at all?
+  __ cmp(Operand(ebp, kAtStart), Immediate(0));
+  BranchOrBacktrack(equal, &ok);
+  // If we did, are we still at the start of the input?
+  __ mov(eax, Operand(ebp, kInputEndOffset));
+  __ add(eax, Operand(edi));
+  __ cmp(eax, Operand(ebp, kInputStartOffset));
+  BranchOrBacktrack(equal, on_at_start);
+  __ bind(&ok);
+}
+
+
 void RegExpMacroAssemblerIA32::CheckNotAtStart(Label* on_not_at_start) {
   // Did we start the match at the start of the string at all?
   __ cmp(Operand(ebp, kAtStart), Immediate(0));
@@ -317,16 +331,30 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ push(backtrack_stackpointer());
     __ push(ebx);
     const int four_arguments = 4;
-    FrameAlign(four_arguments);
-    // Put arguments into allocated stack area.
+    FrameAlign(four_arguments, ecx);
+    // Put arguments into allocated stack area, last argument highest on stack.
+    // Parameters are
+    //   UC16** buffer - really the String** of the input string
+    //   int byte_offset1 - byte offset from *buffer of start of capture
+    //   int byte_offset2 - byte offset from *buffer of current position
+    //   size_t byte_length - length of capture in bytes(!)
+
+    // Set byte_length.
     __ mov(Operand(esp, 3 * kPointerSize), ebx);
+    // Set byte_offset2.
+    // Found by adding negative string-end offset of current position (edi)
+    // to String** offset of end of string.
     __ mov(ecx, Operand(ebp, kInputEndOffset));
     __ add(edi, Operand(ecx));
     __ mov(Operand(esp, 2 * kPointerSize), edi);
+    // Set byte_offset1.
+    // Start of capture, where eax already holds string-end negative offset.
     __ add(eax, Operand(ecx));
     __ mov(Operand(esp, 1 * kPointerSize), eax);
+    // Set buffer. Original String** parameter to regexp code.
     __ mov(eax, Operand(ebp, kInputBuffer));
     __ mov(Operand(esp, 0 * kPointerSize), eax);
+
     Address function_address = FUNCTION_ADDR(&CaseInsensitiveCompareUC16);
     CallCFunction(function_address, four_arguments);
     // Pop original values before reacting on result value.
@@ -632,7 +660,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
   __ bind(&stack_limit_hit);
   int num_arguments = 2;
-  FrameAlign(num_arguments);
+  FrameAlign(num_arguments, ebx);
   __ mov(Operand(esp, 1 * kPointerSize), Immediate(self_));
   __ lea(eax, Operand(esp, -kPointerSize));
   __ mov(Operand(esp, 0 * kPointerSize), eax);
@@ -732,7 +760,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ pop(ebx);
   __ pop(edi);
   __ pop(esi);
-  // Exit function frame, restore previus one.
+  // Exit function frame, restore previous one.
   __ pop(ebp);
   __ ret(0);
 
@@ -755,7 +783,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
     __ bind(&retry);
     int num_arguments = 2;
-    FrameAlign(num_arguments);
+    FrameAlign(num_arguments, ebx);
     __ mov(Operand(esp, 1 * kPointerSize), Immediate(self_));
     __ lea(eax, Operand(esp, -kPointerSize));
     __ mov(Operand(esp, 0 * kPointerSize), eax);
@@ -791,7 +819,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
 
     // Call GrowStack(backtrack_stackpointer())
     int num_arguments = 1;
-    FrameAlign(num_arguments);
+    FrameAlign(num_arguments, ebx);
     __ mov(Operand(esp, 0), backtrack_stackpointer());
     CallCFunction(FUNCTION_ADDR(&GrowStack), num_arguments);
     // If return NULL, we have failed to grow the stack, and
@@ -863,7 +891,7 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacter(int cp_offset,
                                                     Label* on_end_of_input,
                                                     bool check_bounds,
                                                     int characters) {
-  ASSERT(cp_offset >= 0);
+  ASSERT(cp_offset >= -1);      // ^ and \b can look behind one character.
   ASSERT(cp_offset < (1<<30));  // Be sane! (And ensure negation works)
   CheckPosition(cp_offset + characters - 1, on_end_of_input);
   LoadCurrentCharacterUnchecked(cp_offset, characters);
@@ -932,9 +960,12 @@ void RegExpMacroAssemblerIA32::WriteCurrentPositionToRegister(int reg,
 }
 
 
-void RegExpMacroAssemblerIA32::ClearRegister(int reg) {
+void RegExpMacroAssemblerIA32::ClearRegisters(int reg_from, int reg_to) {
+  ASSERT(reg_from <= reg_to);
   __ mov(eax, Operand(ebp, kInputStartMinusOne));
-  __ mov(register_location(reg), eax);
+  for (int reg = reg_from; reg <= reg_to; reg++) {
+    __ mov(register_location(reg), eax);
+  }
 }
 
 
@@ -973,8 +1004,8 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Execute(
                             stack_top);
 
   if (result < 0 && !Top::has_pending_exception()) {
-    // We detected a stack overflow in RegExp code, but haven't created
-    // the exception yet.
+    // We detected a stack overflow (on the backtrack stack) in RegExp code,
+    // but haven't created the exception yet.
     Top::StackOverflow();
   }
   return (result < 0) ? EXCEPTION : (result ? SUCCESS : FAILURE);
@@ -1155,16 +1186,19 @@ void RegExpMacroAssemblerIA32::CheckStackLimit() {
 }
 
 
-void RegExpMacroAssemblerIA32::FrameAlign(int num_arguments) {
+void RegExpMacroAssemblerIA32::FrameAlign(int num_arguments, Register scratch) {
+  // TODO(lrn): Since we no longer use the system stack arbitrarily, we
+  // know the current stack alignment - esp points to the last regexp register.
+  // We can do this simpler then.
   int frameAlignment = OS::ActivationFrameAlignment();
   if (frameAlignment != 0) {
     // Make stack end at alignment and make room for num_arguments words
     // and the original value of esp.
-    __ mov(ebx, esp);
+    __ mov(scratch, esp);
     __ sub(Operand(esp), Immediate((num_arguments + 1) * kPointerSize));
     ASSERT(IsPowerOf2(frameAlignment));
     __ and_(esp, -frameAlignment);
-    __ mov(Operand(esp, num_arguments * kPointerSize), ebx);
+    __ mov(Operand(esp, num_arguments * kPointerSize), scratch);
   } else {
     __ sub(Operand(esp), Immediate(num_arguments * kPointerSize));
   }

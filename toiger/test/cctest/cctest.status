@@ -33,7 +33,6 @@ test-debug/ThreadedDebugging: PASS || FAIL
 [ $arch == arm ]
 
 test-debug: SKIP
-test-serialize: SKIP
 
 # BUG(113): Test seems flaky on ARM.
 test-spaces/LargeObjectSpace: PASS || FAIL

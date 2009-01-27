@@ -265,6 +265,11 @@ class Genesis BASE_EMBEDDED {
   Genesis* previous() { return previous_; }
   static Genesis* current() { return current_; }
 
+  // Support for thread preemption.
+  static int ArchiveSpacePerThread();
+  static char* ArchiveState(char* to);
+  static char* RestoreState(char* from);
+
  private:
   Handle<Context> global_context_;
 
@@ -1083,7 +1088,7 @@ bool Genesis::InstallNatives() {
     call->shared()->DontAdaptArguments();
     ASSERT(call->is_compiled());
 
-    // Set the expected paramters for apply to 2; required by builtin.
+    // Set the expected parameters for apply to 2; required by builtin.
     apply->shared()->set_formal_parameter_count(2);
 
     // Set the lengths for the functions to satisfy ECMA-262.
@@ -1437,7 +1442,7 @@ Genesis::Genesis(Handle<Object> global_object,
                  v8::Handle<v8::ObjectTemplate> global_template,
                  v8::ExtensionConfiguration* extensions) {
   // Link this genesis object into the stacked genesis chain. This
-  // must be done before any early exits because the deconstructor
+  // must be done before any early exits because the destructor
   // will always do unlinking.
   previous_ = current_;
   current_  = this;
@@ -1464,6 +1469,47 @@ Genesis::Genesis(Handle<Object> global_object,
   if (!InstallSpecialObjects()) return;
 
   result_ = global_context_;
+}
+
+
+// Support for thread preemption.
+
+// Reserve space for statics needing saving and restoring.
+int Bootstrapper::ArchiveSpacePerThread() {
+  return Genesis::ArchiveSpacePerThread();
+}
+
+
+// Archive statics that are thread local.
+char* Bootstrapper::ArchiveState(char* to) {
+  return Genesis::ArchiveState(to);
+}
+
+
+// Restore statics that are thread local.
+char* Bootstrapper::RestoreState(char* from) {
+  return Genesis::RestoreState(from);
+}
+
+
+// Reserve space for statics needing saving and restoring.
+int Genesis::ArchiveSpacePerThread() {
+  return sizeof(current_);
+}
+
+
+// Archive statics that are thread local.
+char* Genesis::ArchiveState(char* to) {
+  *reinterpret_cast<Genesis**>(to) = current_;
+  current_ = NULL;
+  return to + sizeof(current_);
+}
+
+
+// Restore statics that are thread local.
+char* Genesis::RestoreState(char* from) {
+  current_ = *reinterpret_cast<Genesis**>(from);
+  return from + sizeof(current_);
 }
 
 } }  // namespace v8::internal

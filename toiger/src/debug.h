@@ -179,7 +179,7 @@ class Debug {
   static Handle<DebugInfo> GetDebugInfo(Handle<SharedFunctionInfo> shared);
   static bool HasDebugInfo(Handle<SharedFunctionInfo> shared);
 
-  // Returns whether the operation succedded.
+  // Returns whether the operation succeeded.
   static bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
 
   static bool IsDebugBreak(Address addr);
@@ -261,6 +261,9 @@ class Debug {
   static char* RestoreDebug(char* from);
   static int ArchiveSpacePerThread();
 
+  // Mirror cache handling.
+  static void ClearMirrorCache();
+
   // Code generation assumptions.
   static const int kIa32CallInstructionLength = 5;
   static const int kIa32JSReturnSequenceLength = 6;
@@ -284,7 +287,7 @@ class Debug {
   static void ActivateStepIn(StackFrame* frame);
   static void ClearStepIn();
   static void ClearStepNext();
-  // Returns whether the compile succedded.
+  // Returns whether the compile succeeded.
   static bool EnsureCompiled(Handle<SharedFunctionInfo> shared);
   static void RemoveDebugInfo(Handle<DebugInfo> debug_info);
   static void SetAfterBreakTarget(JavaScriptFrame* frame);

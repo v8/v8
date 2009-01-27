@@ -27,7 +27,7 @@
 //
 // Review notes:
 //
-// - The use of macros in these inline fuctions may seem superfluous
+// - The use of macros in these inline functions may seem superfluous
 // but it is absolutely needed to make sure gcc generates optimal
 // code. gcc is not happy when attempting to inline too deep.
 //
@@ -1431,13 +1431,14 @@ void String::set_length_field(uint32_t value) {
 }
 
 
-void String::TryFlatten(StringShape shape) {
+Object* String::TryFlattenIfNotFlat(StringShape shape) {
   ASSERT(shape.type() == StringShape(this).type());
   // We don't need to flatten strings that are already flat.  Since this code
   // is inlined, it can be helpful in the flat case to not call out to Flatten.
   if (!IsFlat(shape)) {
-    Flatten(shape);
+    return TryFlatten(shape);
   }
+  return this;
 }
 
 

@@ -69,6 +69,7 @@ class UsageComputer: public AstVisitor {
   void VisitRegExpLiteral(RegExpLiteral* node);
   void VisitObjectLiteral(ObjectLiteral* node);
   void VisitArrayLiteral(ArrayLiteral* node);
+  void VisitCatchExtensionObject(CatchExtensionObject* node);
   void VisitAssignment(Assignment* node);
   void VisitThrow(Throw* node);
   void VisitProperty(Property* node);
@@ -285,6 +286,11 @@ void UsageComputer::VisitObjectLiteral(ObjectLiteral* node) {
 
 void UsageComputer::VisitArrayLiteral(ArrayLiteral* node) {
   ReadList(node->values());
+}
+
+
+void UsageComputer::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  Read(node->value());
 }
 
 

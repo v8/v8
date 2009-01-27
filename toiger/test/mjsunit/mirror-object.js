@@ -28,38 +28,53 @@
 // Flags: --expose-debug-as debug
 // Test the mirror object for objects
 
-function testObjectMirror(o, cls_name, ctor_name, hasSpecialProperties) {
+function MirrorRefCache(json_refs) {
+  var tmp = eval('(' + json_refs + ')');
+  this.refs_ = [];
+  for (var i = 0; i < tmp.length; i++) {
+    this.refs_[tmp[i].handle] = tmp[i];
+  }
+}
+
+MirrorRefCache.prototype.lookup = function(handle) {
+  return this.refs_[handle];
+}
+
+function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
   // Create mirror and JSON representation.
-  var mirror = debug.MakeMirror(o);
-  var json = mirror.toJSONProtocol(true);
+  var mirror = debug.MakeMirror(obj);
+  var serializer = debug.MakeMirrorSerializer();
+  var json = serializer.serializeValue(mirror);
+  var refs = new MirrorRefCache(serializer.serializeReferencedObjects());
 
   // Check the mirror hierachy.
-  assertTrue(mirror instanceof debug.Mirror);
-  assertTrue(mirror instanceof debug.ValueMirror);
-  assertTrue(mirror instanceof debug.ObjectMirror);
+  assertTrue(mirror instanceof debug.Mirror, 'Unexpected mirror hierachy');
+  assertTrue(mirror instanceof debug.ValueMirror, 'Unexpected mirror hierachy');
+  assertTrue(mirror instanceof debug.ObjectMirror, 'Unexpected mirror hierachy');
 
   // Check the mirror properties.
-  assertTrue(mirror.isObject());
-  assertEquals('object', mirror.type());
-  assertFalse(mirror.isPrimitive());
-  assertEquals(cls_name, mirror.className());
-  assertTrue(mirror.constructorFunction() instanceof debug.ObjectMirror);
-  assertTrue(mirror.protoObject() instanceof debug.Mirror);
-  assertTrue(mirror.prototypeObject() instanceof debug.Mirror);
-  assertFalse(mirror.hasNamedInterceptor(), "hasNamedInterceptor()");
-  assertFalse(mirror.hasIndexedInterceptor(), "hasIndexedInterceptor()");
+  assertTrue(mirror.isObject(), 'Unexpected mirror');
+  assertEquals('object', mirror.type(), 'Unexpected mirror type');
+  assertFalse(mirror.isPrimitive(), 'Unexpected primitive mirror');
+  assertEquals(cls_name, mirror.className(), 'Unexpected mirror class name');
+  assertTrue(mirror.constructorFunction() instanceof debug.ObjectMirror, 'Unexpected mirror hierachy');
+  assertEquals(ctor_name, mirror.constructorFunction().name(), 'Unexpected constructor function name');
+  assertTrue(mirror.protoObject() instanceof debug.Mirror, 'Unexpected mirror hierachy');
+  assertTrue(mirror.prototypeObject() instanceof debug.Mirror, 'Unexpected mirror hierachy');
+  assertFalse(mirror.hasNamedInterceptor(), 'No named interceptor expected');
+  assertFalse(mirror.hasIndexedInterceptor(), 'No indexed interceptor expected');
 
   var names = mirror.propertyNames();
   var properties = mirror.properties()
   assertEquals(names.length, properties.length);
   for (var i = 0; i < properties.length; i++) {
-    assertTrue(properties[i] instanceof debug.Mirror);
-    assertTrue(properties[i] instanceof debug.PropertyMirror);
-    assertEquals('property', properties[i].type());
-    assertEquals(names[i], properties[i].name());
+    assertTrue(properties[i] instanceof debug.Mirror, 'Unexpected mirror hierachy');
+    assertTrue(properties[i] instanceof debug.PropertyMirror, 'Unexpected mirror hierachy');
+    assertEquals('property', properties[i].type(), 'Unexpected mirror type');
+    assertEquals(names[i], properties[i].name(), 'Unexpected property name');
   }
   
-  for (var p in o) {
+  for (var p in obj) {
     var property_mirror = mirror.property(p);
     assertTrue(property_mirror instanceof debug.PropertyMirror);
     assertEquals(p, property_mirror.name());
@@ -74,46 +89,60 @@ function testObjectMirror(o, cls_name, ctor_name, hasSpecialProperties) {
 
   // Parse JSON representation and check.
   var fromJSON = eval('(' + json + ')');
-  assertEquals('object', fromJSON.type);
-  assertEquals(cls_name, fromJSON.className);
-  assertEquals('function', fromJSON.constructorFunction.type);
-  if (ctor_name !== undefined)
-    assertEquals(ctor_name, fromJSON.constructorFunction.name);
-  assertEquals(void 0, fromJSON.namedInterceptor);
-  assertEquals(void 0, fromJSON.indexedInterceptor);
-
-  // For array the index properties are seperate from named properties.
-  if (!cls_name == 'Array') {
-    assertEquals(names.length, fromJSON.properties.length, 'Some properties missing in JSON');
-  }
+  assertEquals('object', fromJSON.type, 'Unexpected mirror type in JSON');
+  assertEquals(cls_name, fromJSON.className, 'Unexpected mirror class name in JSON');
+  assertEquals(mirror.constructorFunction().handle(), fromJSON.constructorFunction.ref, 'Unexpected constructor function handle in JSON');
+  assertEquals('function', refs.lookup(fromJSON.constructorFunction.ref).type, 'Unexpected constructor function type in JSON');
+  assertEquals(ctor_name, refs.lookup(fromJSON.constructorFunction.ref).name, 'Unexpected constructor function name in JSON');
+  assertEquals(mirror.protoObject().handle(), fromJSON.protoObject.ref, 'Unexpected proto object handle in JSON');
+  assertEquals(mirror.protoObject().type(), refs.lookup(fromJSON.protoObject.ref).type, 'Unexpected proto object type in JSON');
+  assertEquals(mirror.prototypeObject().handle(), fromJSON.prototypeObject.ref, 'Unexpected prototype object handle in JSON');
+  assertEquals(mirror.prototypeObject().type(), refs.lookup(fromJSON.prototypeObject.ref).type, 'Unexpected prototype object type in JSON');
+  assertEquals(void 0, fromJSON.namedInterceptor, 'No named interceptor expected in JSON');
+  assertEquals(void 0, fromJSON.indexedInterceptor, 'No indexed interceptor expected in JSON');
 
   // Check that the serialization contains all properties.
+  assertEquals(names.length, fromJSON.properties.length, 'Some properties missing in JSON');
   for (var i = 0; i < fromJSON.properties.length; i++) {
     var name = fromJSON.properties[i].name;
     if (!name) name = fromJSON.properties[i].index;
     var found = false;
     for (var j = 0; j < names.length; j++) {
       if (names[j] == name) {
-        assertEquals(properties[i].value().type(), fromJSON.properties[i].value.type);
-        // If property type is normal nothing is serialized.
+        // Check that serialized handle is correct.
+        assertEquals(properties[i].value().handle(), fromJSON.properties[i].ref, 'Unexpected serialized handle');
+
+        // Check that serialized name is correct.
+        assertEquals(properties[i].name(), fromJSON.properties[i].name, 'Unexpected serialized name');
+
+        // If property type is normal property type is not serialized.
         if (properties[i].propertyType() != debug.PropertyType.Normal) {
-          assertEquals(properties[i].propertyType(), fromJSON.properties[i].propertyType);
+          assertEquals(properties[i].propertyType(), fromJSON.properties[i].propertyType, 'Unexpected serialized property type');
         } else {
-          assertTrue(typeof(fromJSON.properties[i].propertyType) === 'undefined');
+          assertTrue(typeof(fromJSON.properties[i].propertyType) === 'undefined', 'Unexpected serialized property type');
         }
-        // If there are no attributes nothing is serialized.
+
+        // If there are no attributes attributes are not serialized.
         if (properties[i].attributes() != debug.PropertyAttribute.None) {
-          assertEquals(properties[i].attributes(), fromJSON.properties[i].attributes);
+          assertEquals(properties[i].attributes(), fromJSON.properties[i].attributes, 'Unexpected serialized attributes');
         } else {
-          assertTrue(typeof(fromJSON.properties[i].attributes) === 'undefined');
+          assertTrue(typeof(fromJSON.properties[i].attributes) === 'undefined', 'Unexpected serialized attributes');
         }
-        if (!properties[i].value().isPrimitive()) {
-          // NaN is not equal to NaN.
-          if (isNaN(properties[i].value().value())) {
-            assertTrue(isNaN(fromJSON.properties[i].value.value));
+
+        // Lookup the serialized object from the handle reference.        
+        var o = refs.lookup(fromJSON.properties[i].ref);
+        assertTrue(o != void 0, 'Referenced object is not serialized');
+
+        assertEquals(properties[i].value().type(), o.type, 'Unexpected serialized property type for ' + name);
+        if (properties[i].value().isPrimitive()) {
+          // Special check for NaN as NaN == NaN is false.
+          if (properties[i].value().isNumber() && isNaN(properties[i].value().value())) {
+            assertEquals('NaN', o.value, 'Unexpected serialized property value for ' + name);
           } else {
-            assertEquals(properties[i].value().value(), fromJSON.properties[i].value.value);
+            assertEquals(properties[i].value().value(), o.value, 'Unexpected serialized property value for ' + name);
           }
+        } else if (properties[i].value().isFunction()) {
+          assertEquals(properties[i].value().source(), o.source, 'Unexpected serialized property value for ' + name);
         }
         found = true;
       }
@@ -134,7 +163,8 @@ testObjectMirror({}, 'Object', 'Object');
 testObjectMirror({'a':1,'b':2}, 'Object', 'Object');
 testObjectMirror({'1':void 0,'2':null,'f':function pow(x,y){return Math.pow(x,y);}}, 'Object', 'Object');
 testObjectMirror(new Point(-1.2,2.003), 'Object', 'Point');
-testObjectMirror(this, 'global', undefined, true);  // Global object has special properties
+testObjectMirror(this, 'global', '', true);  // Global object has special properties
+testObjectMirror(this.__proto__, 'Object', '');
 testObjectMirror([], 'Array', 'Array');
 testObjectMirror([1,2], 'Array', 'Array');
 
@@ -169,8 +199,6 @@ assertEquals(debug.PropertyType.Callbacks, mirror.property('a').propertyType());
 assertEquals('function', mirror.property('a').getter().type());
 assertEquals('undefined', mirror.property('a').setter().type());
 assertEquals('function (){return \'a\';}', mirror.property('a').getter().source());
-assertEquals('a', mirror.property('a').value().value());
-assertFalse(mirror.property('a').isException());
 // b has setter but no getter.
 assertFalse(mirror.property('b').hasGetter());
 assertTrue(mirror.property('b').hasSetter());
@@ -187,8 +215,6 @@ assertEquals('function', mirror.property('c').getter().type());
 assertEquals('function', mirror.property('c').setter().type());
 assertEquals('function (){throw \'c\';}', mirror.property('c').getter().source());
 assertEquals('function (){throw \'c\';}', mirror.property('c').setter().source());
-assertEquals('c', mirror.property('c').value().value());
-assertTrue(mirror.property('c').isException());
 
 // Test objects with native accessors.
 mirror = debug.MakeMirror(new String('abc'));

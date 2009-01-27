@@ -199,12 +199,14 @@ char* OS::StrNDup(const char* str, size_t n) {
   // Stupid implementation of strndup since macos isn't born with
   // one.
   size_t len = strlen(str);
-  if (len <= n)
+  if (len <= n) {
     return StrDup(str);
+  }
   char* result = new char[n+1];
   size_t i;
-  for (i = 0; i <= n; i++)
+  for (i = 0; i <= n; i++) {
     result[i] = str[i];
+  }
   result[i] = '\0';
   return result;
 }
@@ -259,8 +261,8 @@ void OS::Free(void* buf, const size_t length) {
 }
 
 
-void OS::Sleep(int miliseconds) {
-  usleep(1000 * miliseconds);
+void OS::Sleep(int milliseconds) {
+  usleep(1000 * milliseconds);
 }
 
 

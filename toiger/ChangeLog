@@ -1,16 +1,37 @@
+2009-01-19: Version 0.4.8.1
+
+        Minor patch to debugger support.
+
+
+2009-01-16: Version 0.4.8
+
+        Fixed string length bug on ARM (issue 171).
+
+        Made most methods in the API const.
+
+        Optimized object literals by improving data locality.
+
+        Fixed bug that caused incomplete functions to be cached in case of
+        stack overflow exceptions.
+
+        Fixed bugs that caused catch variables and variables introduced by
+        eval to behave incorrectly when using accessors (issues 186, 190
+        and 191).
+
+
 2009-01-06: Version 0.4.7
 
-	Minor bugfixes and optimizations.
+        Minor bugfixes and optimizations.
 
-	Added command line debugger to D8 shell.
+        Added command line debugger to D8 shell.
 
-	Fixed subtle bug that caused the wrong 'this' to be used when
-	calling a caught function in a catch clause.
+        Fixed subtle bug that caused the wrong 'this' to be used when
+        calling a caught function in a catch clause.
 
-	Inline array loads within loops directly in the code instead of
-	always calling a stub.
+        Inline array loads within loops directly in the code instead of
+        always calling a stub.
 
-	
+
 2008-12-11: Version 0.4.6
 
         Fixed exception reporting bug where certain exceptions were
@@ -32,7 +53,7 @@
         collection.  Entire object groups are now passed to V8 instead of
         individual members of the groups.
 
-        
+
 2008-12-03: Version 0.4.5
 
         Added experimental API support for allocating V8 symbols as
@@ -51,7 +72,7 @@
 
         Added support for building V8 on Windows with either the shared or
         static version of MSVCRT
-        
+
         Added the v8::jscre namespace around the jscre functions to avoid
         link errors (duplicate symbols) when building Google Chrome.
 
@@ -94,8 +115,8 @@
         context of the associated global object.
 
         Treat byte-order marks as whitespace characters.
-        
-        
+
+
 2008-11-04: Version 0.4.3
 
         Added support for API accessors that prohibit overwriting by
@@ -111,7 +132,7 @@
 
         Fixed bug in fast-case code for switch statements that only have
         integer labels.
-        
+
 
 2008-10-30: Version 0.4.2
 
@@ -160,7 +181,7 @@
         Fixed issues with message reporting for exceptions in try-finally
         blocks (issues 73 and 75).
 
-        Optimized flattening of strings and string equality checking. 
+        Optimized flattening of strings and string equality checking.
 
         Improved Boyer-Moore implementation for faster indexOf operations.
 
@@ -200,7 +221,7 @@
         to print [native code] instead of the actual source.  Some web
         applications do not like constructors with complex toString
         results.
-        
+
 
 2008-10-06: Version 0.3.4
 
@@ -249,7 +270,7 @@
         literal maps.  This will allow JSON objects with the same set of
         properties to share the same map making inline caching work better
         for JSON objects.
-        
+
 
 2008-09-17: Version 0.3.2
 
@@ -322,8 +343,8 @@
 
         Fixed bug in error reporting when attempting to convert null to an
         object.
-        
-        
+
+
 2008-09-04: Version 0.3.0
 
         Added support for running tests on the ARM simulator.
@@ -389,7 +410,7 @@
         Fixed bug in the runtime system where the prototype chain was not
         always searched for a setter when setting a property that does not
         exist locally.
-        
+
 
 2008-08-14: Version 0.2.3
 

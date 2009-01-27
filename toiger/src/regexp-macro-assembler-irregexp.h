@@ -66,7 +66,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void AdvanceRegister(int reg, int by);  // r[reg] += by.
   virtual void SetRegister(int register_index, int to);
   virtual void WriteCurrentPositionToRegister(int reg, int cp_offset);
-  virtual void ClearRegister(int reg);
+  virtual void ClearRegisters(int reg_from, int reg_to);
   virtual void ReadCurrentPositionFromRegister(int reg);
   virtual void WriteStackPointerToRegister(int reg);
   virtual void ReadStackPointerFromRegister(int reg);
@@ -81,6 +81,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void CheckCharacterGT(uc16 limit, Label* on_greater);
   virtual void CheckCharacterLT(uc16 limit, Label* on_less);
   virtual void CheckGreedyLoop(Label* on_tos_equals_current_position);
+  virtual void CheckAtStart(Label* on_at_start);
   virtual void CheckNotAtStart(Label* on_not_at_start);
   virtual void CheckNotCharacter(uint32_t c, Label* on_not_equal);
   virtual void CheckNotCharacterAfterAnd(uint32_t c,
@@ -119,7 +120,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   // Code and bitmap emission.
   inline void Emit32(uint32_t x);
   inline void Emit16(uint32_t x);
-  inline void Emit(uint32_t x);
+  inline void Emit(uint32_t bc, uint32_t arg);
   // Bytecode buffer.
   int length();
   void Copy(Address a);

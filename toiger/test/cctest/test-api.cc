@@ -5448,6 +5448,58 @@ THREADED_TEST(DisableAccessChecksWhileConfiguring) {
   CHECK(value->BooleanValue());
 }
 
+static bool NamedGetAccessBlocker(Local<v8::Object> obj,
+                                  Local<Value> name,
+                                  v8::AccessType type,
+                                  Local<Value> data) {
+  return false;
+}
+
+
+static bool IndexedGetAccessBlocker(Local<v8::Object> obj,
+                                    uint32_t key,
+                                    v8::AccessType type,
+                                    Local<Value> data) {
+  return false;
+}
+
+
+
+THREADED_TEST(AccessChecksReenabledCorrectly) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetAccessCheckCallbacks(NamedGetAccessBlocker,
+                                 IndexedGetAccessBlocker);
+  templ->Set(v8_str("a"), v8_str("a"));
+  // Add more than 8 (see kMaxFastProperties) properties
+  // so that the constructor will force copying map.
+  // Cannot sprintf, gcc complains unsafety.
+  char buf[5];
+  for (char i = '0'; i <= '9' ; i++) {
+    buf[1] = i;
+    for (char j = '0'; j <= '9'; j++) {
+      buf[2] = j;
+      for (char k = '0'; k <= '9'; k++) {
+        buf[3] = k;
+        buf[4] = 0;
+        templ->Set(v8_str(buf), v8::Number::New(k));
+      }
+    }
+  }
+
+  Local<v8::Object> instance_1 = templ->NewInstance();
+  context->Global()->Set(v8_str("obj_1"), instance_1);
+
+  Local<Value> value_1 = CompileRun("obj_1.a");
+  CHECK(value_1->IsUndefined());
+
+  Local<v8::Object> instance_2 = templ->NewInstance();
+  context->Global()->Set(v8_str("obj_2"), instance_2);
+
+  Local<Value> value_2 = CompileRun("obj_2.a");
+  CHECK(value_2->IsUndefined());
+}
 
 // This tests that access check information remains on the global
 // object template when creating contexts.
@@ -5554,4 +5606,37 @@ THREADED_TEST(DictionaryICLoadedFunction) {
     context->Global()->Delete(v8_str("tmp"));
     CompileRun("for (var j = 0; j < 10; j++) RegExp('')");
   }
+}
+
+
+// Test that cross-context new calls use the context of the callee to
+// create the new JavaScript object.
+THREADED_TEST(CrossContextNew) {
+  v8::HandleScope scope;
+  v8::Persistent<Context> context0 = Context::New();
+  v8::Persistent<Context> context1 = Context::New();
+
+  // Allow cross-domain access.
+  Local<String> token = v8_str("<security token>");
+  context0->SetSecurityToken(token);
+  context1->SetSecurityToken(token);
+
+  // Set an 'x' property on the Object prototype and define a
+  // constructor function in context0.
+  context0->Enter();
+  CompileRun("Object.prototype.x = 42; function C() {};");
+  context0->Exit();
+
+  // Call the constructor function from context0 and check that the
+  // result has the 'x' property.
+  context1->Enter();
+  context1->Global()->Set(v8_str("other"), context0->Global());
+  Local<Value> value = CompileRun("var instance = new other.C(); instance.x");
+  CHECK(value->IsInt32());
+  CHECK_EQ(42, value->Int32Value());
+  context1->Exit();
+
+  // Dispose the contexts to allow them to be garbage collected.
+  context0.Dispose();
+  context1.Dispose();
 }

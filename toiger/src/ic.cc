@@ -121,7 +121,7 @@ Address IC::OriginalCodeAddress() {
   // normally would be.
   Address addr = pc() - Assembler::kTargetAddrToReturnAddrDist;
   // Return the address in the original code. This is the place where
-  // the call which has been overwriten by the DebugBreakXXX resides
+  // the call which has been overwritten by the DebugBreakXXX resides
   // and the place where the inline cache system should look.
   int delta = original_code->instruction_start() - code->instruction_start();
   return addr + delta;
@@ -1162,7 +1162,7 @@ Object* SharedStoreIC_ExtendStorage(Arguments args) {
   FixedArray* new_storage = FixedArray::cast(result);
   new_storage->set(old_storage->length(), value);
 
-  // Set the new property value and do the map tranistion.
+  // Set the new property value and do the map transition.
   object->set_properties(new_storage);
   object->set_map(transition);
 

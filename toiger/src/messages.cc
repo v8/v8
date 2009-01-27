@@ -66,7 +66,7 @@ Handle<Object> MessageHandler::MakeMessageObject(
     Vector< Handle<Object> > args,
     Handle<String> stack_trace) {
   // Build error message object
-  HandleScope scope;
+  v8::HandleScope scope;  // Instantiate a closeable HandleScope for EscapeFrom.
   Handle<Object> type_str = Factory::LookupAsciiSymbol(type);
   Handle<Object> array = Factory::NewJSArray(args.length());
   for (int i = 0; i < args.length(); i++)

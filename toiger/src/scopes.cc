@@ -542,7 +542,7 @@ Variable* Scope::LookupRecursive(Handle<String> name, bool inner_lookup) {
     // This lookup corresponds to a lookup in the "intermediate" scope sitting
     // between this scope and the outer scope. (ECMA-262, 3rd., requires that
     // the name of named function literal is kept in an intermediate scope
-    // inbetween this scope and the next outer scope.)
+    // in between this scope and the next outer scope.)
     if (function_ != NULL && function_->name().is_identical_to(name)) {
       var = function_;
 

@@ -261,7 +261,7 @@ class ExitFrame: public StackFrame {
 
   virtual Code* FindCode() const;
 
-  // Garbage colletion support.
+  // Garbage collection support.
   virtual void Iterate(ObjectVisitor* v) const;
 
   static ExitFrame* cast(StackFrame* frame) {
@@ -390,7 +390,7 @@ class JavaScriptFrame: public StandardFrame {
   // frame below it on the stack.
   inline bool has_adapted_arguments() const;
 
-  // Garbage colletion support.
+  // Garbage collection support.
   virtual void Iterate(ObjectVisitor* v) const;
 
   // Printing support.
@@ -459,7 +459,7 @@ class InternalFrame: public StandardFrame {
  public:
   virtual Type type() const { return INTERNAL; }
 
-  // Garbage colletion support.
+  // Garbage collection support.
   virtual void Iterate(ObjectVisitor* v) const;
 
   // Determine the code for the frame.

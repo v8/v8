@@ -117,7 +117,7 @@ class ZoneObject {
   void* operator new(size_t size) { return Zone::New(size); }
 
   // Ideally, the delete operator should be private instead of
-  // public, but unfortuately the compiler sometimes synthesizes
+  // public, but unfortunately the compiler sometimes synthesizes
   // (unused) destructors for classes derived from ZoneObject, which
   // require the operator to be visible. MSVC requires the delete
   // operator to be public.

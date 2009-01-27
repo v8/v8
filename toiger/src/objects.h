@@ -1298,8 +1298,9 @@ class JSObject: public HeapObject {
   int NumberOfLocalProperties(PropertyAttributes filter);
   // Returns the number of enumerable properties (ignoring interceptors).
   int NumberOfEnumProperties();
-  // Fill in details for properties into storage.
-  void GetLocalPropertyNames(FixedArray* storage);
+  // Fill in details for properties into storage starting at the specified
+  // index.
+  void GetLocalPropertyNames(FixedArray* storage, int index);
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
@@ -1656,7 +1657,7 @@ class DescriptorArray: public FixedArray {
   int BinarySearch(String* name, int low, int high);
 
   // Perform a linear search in the instance descriptors represented
-  // by this fixed array.  len is the number of descriptor indeces that are
+  // by this fixed array.  len is the number of descriptor indices that are
   // valid.  Does not require the descriptors to be sorted.
   int LinearSearch(String* name, int len);
 
@@ -1793,7 +1794,7 @@ class HashTable: public FixedArray {
   // Returns the key at entry.
   Object* KeyAt(int entry) { return get(EntryToIndex(entry)); }
 
-  // Tells wheter k is a real key.  Null and undefined are not allowed
+  // Tells whether k is a real key.  Null and undefined are not allowed
   // as keys and can be used to indicate missing or deleted elements.
   bool IsKey(Object* k) {
     return !k->IsNull() && !k->IsUndefined();
@@ -2060,7 +2061,7 @@ class Dictionary: public DictionaryBase {
 
   void UpdateMaxNumberKey(uint32_t key);
 
-  // Generate new enumneration indices to avoid enumeration insdex overflow.
+  // Generate new enumeration indices to avoid enumeration index overflow.
   Object* GenerateNewEnumerationIndices();
 
   static const int kMaxNumberKeyIndex = kPrefixStartIndex;
@@ -2231,7 +2232,7 @@ class Code: public HeapObject {
   // Returns true if pc is inside this object's instructions.
   inline bool contains(byte* pc);
 
-  // Returns the adddress of the scope information.
+  // Returns the address of the scope information.
   inline byte* sinfo_start();
 
   // Convert inline cache target from address to code object before GC.
@@ -2962,7 +2963,6 @@ class JSRegExp: public JSObject {
 
   // Dispatched behavior.
 #ifdef DEBUG
-  void JSRegExpPrint();
   void JSRegExpVerify();
 #endif
 
@@ -3128,15 +3128,17 @@ class String: public HeapObject {
   // to this method are not efficient unless the string is flat.
   inline uint16_t Get(StringShape shape, int index);
 
-  // Flatten the top level ConsString that is hiding behind this
+  // Try to flatten the top level ConsString that is hiding behind this
   // string.  This is a no-op unless the string is a ConsString or a
   // SlicedString.  Flatten mutates the ConsString and might return a
   // failure.
-  Object* Flatten(StringShape shape);
-  // Try to flatten the string.  Do not allow handling of allocation
-  // failures.  After calling TryFlatten, the string could still be a
-  // ConsString.
-  inline void TryFlatten(StringShape shape);
+  Object* TryFlatten(StringShape shape);
+
+  // Try to flatten the string.  Checks first inline to see if it is necessary.
+  // Do not handle allocation failures.  After calling TryFlattenIfNotFlat, the
+  // string could still be a ConsString, in which case a failure is returned.
+  // Use FlattenString from Handles.cc to be sure to flatten.
+  inline Object* TryFlattenIfNotFlat(StringShape shape);
 
   Vector<const char> ToAsciiVector();
   Vector<const uc16> ToUC16Vector();
@@ -3772,7 +3774,7 @@ class JSArray: public JSObject {
 };
 
 
-// An accesor must have a getter, but can have no setter.
+// An accessor must have a getter, but can have no setter.
 //
 // When setting a property, V8 searches accessors in prototypes.
 // If an accessor was found and it does not have a setter,
@@ -4035,11 +4037,11 @@ class TypeSwitchInfo: public Struct {
 };
 
 
-// The DebugInfo class holds additional information for a function beeing
+// The DebugInfo class holds additional information for a function being
 // debugged.
 class DebugInfo: public Struct {
  public:
-  // The shared function info for the source beeing debugged.
+  // The shared function info for the source being debugged.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
   // Code object for the original code.
   DECL_ACCESSORS(original_code, Code)

@@ -1724,9 +1724,12 @@ Object* Heap::InitializeFunction(JSFunction* function,
 
 
 Object* Heap::AllocateFunctionPrototype(JSFunction* function) {
-  // Allocate the prototype.
-  Object* prototype =
-      AllocateJSObject(Top::context()->global_context()->object_function());
+  // Allocate the prototype.  Make sure to use the object function
+  // from the function's context, since the function can be from a
+  // different context.
+  JSFunction* object_function =
+      function->context()->global_context()->object_function();
+  Object* prototype = AllocateJSObject(object_function);
   if (prototype->IsFailure()) return prototype;
   // When creating the prototype for the function we must set its
   // constructor to the function.
@@ -1904,7 +1907,7 @@ Object* Heap::CopyJSObject(JSObject* source) {
     if (clone->IsFailure()) return clone;
     ASSERT(Heap::InNewSpace(clone));
     // Since we know the clone is allocated in new space, we can copy
-    // the contents without worring about updating the write barrier.
+    // the contents without worrying about updating the write barrier.
     CopyBlock(reinterpret_cast<Object**>(HeapObject::cast(clone)->address()),
               reinterpret_cast<Object**>(source->address()),
               object_size);

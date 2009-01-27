@@ -150,9 +150,9 @@ void RegExpMacroAssemblerTracer::WriteCurrentPositionToRegister(int reg,
 }
 
 
-void RegExpMacroAssemblerTracer::ClearRegister(int reg) {
-  PrintF(" ClearRegister(register=%d);\n", reg);
-  assembler_->ClearRegister(reg);
+void RegExpMacroAssemblerTracer::ClearRegisters(int reg_from, int reg_to) {
+  PrintF(" ClearRegister(from=%d, to=%d);\n", reg_from, reg_to);
+  assembler_->ClearRegisters(reg_from, reg_to);
 }
 
 
@@ -207,6 +207,12 @@ void RegExpMacroAssemblerTracer::CheckCharacterGT(uc16 limit,
 void RegExpMacroAssemblerTracer::CheckCharacter(uint32_t c, Label* on_equal) {
   PrintF(" CheckCharacter(c='u%04x', label[%08x]);\n", c, on_equal);
   assembler_->CheckCharacter(c, on_equal);
+}
+
+
+void RegExpMacroAssemblerTracer::CheckAtStart(Label* on_at_start) {
+  PrintF(" CheckAtStart(label[%08x]);\n", on_at_start);
+  assembler_->CheckAtStart(on_at_start);
 }
 
 

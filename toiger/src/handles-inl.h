@@ -29,6 +29,7 @@
 #ifndef V8_HANDLES_INL_H_
 #define V8_HANDLES_INL_H_
 
+#include "apiutils.h"
 #include "handles.h"
 #include "api.h"
 
@@ -51,8 +52,8 @@ inline T* Handle<T>::operator*() const {
 
 #ifdef DEBUG
 inline NoHandleAllocation::NoHandleAllocation() {
-  ImplementationUtilities::HandleScopeData* current =
-      ImplementationUtilities::CurrentHandleScope();
+  v8::ImplementationUtilities::HandleScopeData* current =
+      v8::ImplementationUtilities::CurrentHandleScope();
   extensions_ = current->extensions;
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.
@@ -64,7 +65,7 @@ inline NoHandleAllocation::NoHandleAllocation() {
 inline NoHandleAllocation::~NoHandleAllocation() {
   // Restore state in current handle scope to re-enable handle
   // allocations.
-  ImplementationUtilities::CurrentHandleScope()->extensions = extensions_;
+  v8::ImplementationUtilities::CurrentHandleScope()->extensions = extensions_;
 }
 #endif
 

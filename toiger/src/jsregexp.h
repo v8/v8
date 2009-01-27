@@ -410,6 +410,7 @@ class DispatchTable : public ZoneObject {
   VISIT(Action)                                                      \
   VISIT(Choice)                                                      \
   VISIT(BackReference)                                               \
+  VISIT(Assertion)                                                   \
   VISIT(Text)
 
 
@@ -587,12 +588,12 @@ class RegExpNode: public ZoneObject {
   virtual ~RegExpNode();
   virtual void Accept(NodeVisitor* visitor) = 0;
   // Generates a goto to this node or actually generates the code at this point.
-  // Until the implementation is complete we will return true for success and
-  // false for failure.
-  virtual bool Emit(RegExpCompiler* compiler, Trace* trace) = 0;
+  virtual void Emit(RegExpCompiler* compiler, Trace* trace) = 0;
   // How many characters must this node consume at a minimum in order to
-  // succeed.
-  virtual int EatsAtLeast(int recursion_depth) = 0;
+  // succeed.  If we have found at least 'still_to_find' characters that
+  // must be consumed there is no need to ask any following nodes whether
+  // they are sure to eat any more characters.
+  virtual int EatsAtLeast(int still_to_find, int recursion_depth) = 0;
   // Emits some quick code that checks whether the preloaded characters match.
   // Falls through on certain failure, jumps to the label on possible success.
   // If the node cannot make a quick check it does nothing and returns false.
@@ -619,12 +620,6 @@ class RegExpNode: public ZoneObject {
   // the deferred actions in the current trace and generating a goto.
   static const int kMaxCopiesCodeGenerated = 10;
 
-  // Propagates the given interest information forward.  When seeing
-  // \bfoo for instance, the \b is implemented by propagating forward
-  // to the 'foo' string that it should only succeed if its first
-  // character is a letter xor the previous character was a letter.
-  virtual RegExpNode* PropagateForward(NodeInfo* info) = 0;
-
   NodeInfo* info() { return &info_; }
 
   void AddSibling(RegExpNode* node) { siblings_.Add(node); }
@@ -640,7 +635,7 @@ class RegExpNode: public ZoneObject {
   void set_siblings(SiblingList* other) { siblings_ = *other; }
 
  protected:
-  enum LimitResult { DONE, FAIL, CONTINUE };
+  enum LimitResult { DONE, CONTINUE };
   LimitResult LimitVersions(RegExpCompiler* compiler, Trace* trace);
 
   // Returns a sibling of this node whose interests and assumptions
@@ -657,7 +652,7 @@ class RegExpNode: public ZoneObject {
 
   // Returns a clone of this node initialized using the copy constructor
   // of its concrete class.  Note that the node may have to be pre-
-  // processed before it is on a useable state.
+  // processed before it is on a usable state.
   virtual RegExpNode* Clone() = 0;
 
  private:
@@ -724,27 +719,30 @@ class ActionNode: public SeqRegExpNode {
   };
   static ActionNode* SetRegister(int reg, int val, RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
-  static ActionNode* StorePosition(int reg, RegExpNode* on_success);
+  static ActionNode* StorePosition(int reg,
+                                   bool is_capture,
+                                   RegExpNode* on_success);
   static ActionNode* ClearCaptures(Interval range, RegExpNode* on_success);
   static ActionNode* BeginSubmatch(int stack_pointer_reg,
                                    int position_reg,
                                    RegExpNode* on_success);
   static ActionNode* PositiveSubmatchSuccess(int stack_pointer_reg,
                                              int restore_reg,
+                                             int clear_capture_count,
+                                             int clear_capture_from,
                                              RegExpNode* on_success);
   static ActionNode* EmptyMatchCheck(int start_register,
                                      int repetition_register,
                                      int repetition_limit,
                                      RegExpNode* on_success);
   virtual void Accept(NodeVisitor* visitor);
-  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int recursion_depth);
+  virtual void Emit(RegExpCompiler* compiler, Trace* trace);
+  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int filled_in) {
     return on_success()->GetQuickCheckDetails(details, compiler, filled_in);
   }
-  virtual RegExpNode* PropagateForward(NodeInfo* info);
   Type type() { return type_; }
   // TODO(erikcorry): We should allow some action nodes in greedy loops.
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
@@ -761,10 +759,13 @@ class ActionNode: public SeqRegExpNode {
     } u_increment_register;
     struct {
       int reg;
+      bool is_capture;
     } u_position_register;
     struct {
       int stack_pointer_register;
       int current_position_register;
+      int clear_register_count;
+      int clear_register_from;
     } u_submatch;
     struct {
       int start_register;
@@ -797,9 +798,8 @@ class TextNode: public SeqRegExpNode {
     elms_->Add(TextElement::CharClass(that));
   }
   virtual void Accept(NodeVisitor* visitor);
-  virtual RegExpNode* PropagateForward(NodeInfo* info);
-  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int recursion_depth);
+  virtual void Emit(RegExpCompiler* compiler, Trace* trace);
+  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in);
@@ -831,6 +831,47 @@ class TextNode: public SeqRegExpNode {
 };
 
 
+class AssertionNode: public SeqRegExpNode {
+ public:
+  enum AssertionNodeType {
+    AT_END,
+    AT_START,
+    AT_BOUNDARY,
+    AT_NON_BOUNDARY,
+    AFTER_NEWLINE
+  };
+  static AssertionNode* AtEnd(RegExpNode* on_success) {
+    return new AssertionNode(AT_END, on_success);
+  }
+  static AssertionNode* AtStart(RegExpNode* on_success) {
+    return new AssertionNode(AT_START, on_success);
+  }
+  static AssertionNode* AtBoundary(RegExpNode* on_success) {
+    return new AssertionNode(AT_BOUNDARY, on_success);
+  }
+  static AssertionNode* AtNonBoundary(RegExpNode* on_success) {
+    return new AssertionNode(AT_NON_BOUNDARY, on_success);
+  }
+  static AssertionNode* AfterNewline(RegExpNode* on_success) {
+    return new AssertionNode(AFTER_NEWLINE, on_success);
+  }
+  virtual void Accept(NodeVisitor* visitor);
+  virtual void Emit(RegExpCompiler* compiler, Trace* trace);
+  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int filled_in) {
+    return on_success()->GetQuickCheckDetails(details, compiler, filled_in);
+  }
+  virtual AssertionNode* Clone() { return new AssertionNode(*this); }
+  AssertionNodeType type() { return type_; }
+ private:
+  AssertionNode(AssertionNodeType t, RegExpNode* on_success)
+      : SeqRegExpNode(on_success), type_(t) { }
+  AssertionNodeType type_;
+};
+
+
 class BackReferenceNode: public SeqRegExpNode {
  public:
   BackReferenceNode(int start_reg,
@@ -842,14 +883,13 @@ class BackReferenceNode: public SeqRegExpNode {
   virtual void Accept(NodeVisitor* visitor);
   int start_register() { return start_reg_; }
   int end_register() { return end_reg_; }
-  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int recursion_depth) { return 0; }
+  virtual void Emit(RegExpCompiler* compiler, Trace* trace);
+  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in) {
     return;
   }
-  virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
 
  private:
@@ -863,19 +903,15 @@ class EndNode: public RegExpNode {
   enum Action { ACCEPT, BACKTRACK, NEGATIVE_SUBMATCH_SUCCESS };
   explicit EndNode(Action action) : action_(action) { }
   virtual void Accept(NodeVisitor* visitor);
-  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int recursion_depth) { return 0; }
+  virtual void Emit(RegExpCompiler* compiler, Trace* trace);
+  virtual int EatsAtLeast(int still_to_find, int recursion_depth) { return 0; }
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in) {
     // Returning 0 from EatsAtLeast should ensure we never get here.
     UNREACHABLE();
   }
-  virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual EndNode* Clone() { return new EndNode(*this); }
-
- protected:
-  void EmitInfoChecks(RegExpMacroAssembler* macro, Trace* trace);
 
  private:
   Action action_;
@@ -884,15 +920,22 @@ class EndNode: public RegExpNode {
 
 class NegativeSubmatchSuccess: public EndNode {
  public:
-  NegativeSubmatchSuccess(int stack_pointer_reg, int position_reg)
+  NegativeSubmatchSuccess(int stack_pointer_reg,
+                          int position_reg,
+                          int clear_capture_count,
+                          int clear_capture_start)
       : EndNode(NEGATIVE_SUBMATCH_SUCCESS),
         stack_pointer_register_(stack_pointer_reg),
-        current_position_register_(position_reg) { }
-  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
+        current_position_register_(position_reg),
+        clear_capture_count_(clear_capture_count),
+        clear_capture_start_(clear_capture_start) { }
+  virtual void Emit(RegExpCompiler* compiler, Trace* trace);
 
  private:
   int stack_pointer_register_;
   int current_position_register_;
+  int clear_capture_count_;
+  int clear_capture_start_;
 };
 
 
@@ -941,17 +984,19 @@ class ChoiceNode: public RegExpNode {
   void AddAlternative(GuardedAlternative node) { alternatives()->Add(node); }
   ZoneList<GuardedAlternative>* alternatives() { return alternatives_; }
   DispatchTable* GetTable(bool ignore_case);
-  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int recursion_depth);
-  int EatsAtLeastHelper(int recursion_depth, RegExpNode* ignore_this_node);
+  virtual void Emit(RegExpCompiler* compiler, Trace* trace);
+  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
+  int EatsAtLeastHelper(int still_to_find,
+                        int recursion_depth,
+                        RegExpNode* ignore_this_node);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in);
-  virtual RegExpNode* PropagateForward(NodeInfo* info);
   virtual ChoiceNode* Clone() { return new ChoiceNode(*this); }
 
   bool being_calculated() { return being_calculated_; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
+  virtual bool try_to_emit_quick_check_for_alternative(int i) { return true; }
 
  protected:
   int GreedyLoopTextLength(GuardedAlternative *alternative);
@@ -964,7 +1009,7 @@ class ChoiceNode: public RegExpNode {
                      Guard *guard,
                      Trace* trace);
   int CalculatePreloadCharacters(RegExpCompiler* compiler);
-  bool EmitOutOfLineContinuation(RegExpCompiler* compiler,
+  void EmitOutOfLineContinuation(RegExpCompiler* compiler,
                                  Trace* trace,
                                  GuardedAlternative alternative,
                                  AlternativeGeneration* alt_gen,
@@ -972,6 +1017,27 @@ class ChoiceNode: public RegExpNode {
                                  bool next_expects_preload);
   DispatchTable* table_;
   bool being_calculated_;
+};
+
+
+class NegativeLookaheadChoiceNode: public ChoiceNode {
+ public:
+  explicit NegativeLookaheadChoiceNode(GuardedAlternative this_must_fail,
+                                       GuardedAlternative then_do_this)
+      : ChoiceNode(2) {
+    AddAlternative(this_must_fail);
+    AddAlternative(then_do_this);
+  }
+  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
+  virtual void GetQuickCheckDetails(QuickCheckDetails* details,
+                                    RegExpCompiler* compiler,
+                                    int characters_filled_in);
+  // For a negative lookahead we don't emit the quick check for the
+  // alternative that is expected to fail.  This is because quick check code
+  // starts by loading enough characters for the alternative that takes fewest
+  // characters, but on a negative lookahead the negative branch did not take
+  // part in that calculation (EatsAtLeast) so the assumptions don't hold.
+  virtual bool try_to_emit_quick_check_for_alternative(int i) { return i != 0; }
 };
 
 
@@ -984,8 +1050,8 @@ class LoopChoiceNode: public ChoiceNode {
         body_can_be_zero_length_(body_can_be_zero_length) { }
   void AddLoopAlternative(GuardedAlternative alt);
   void AddContinueAlternative(GuardedAlternative alt);
-  virtual bool Emit(RegExpCompiler* compiler, Trace* trace);
-  virtual int EatsAtLeast(int recursion_depth);  // Returns 0.
+  virtual void Emit(RegExpCompiler* compiler, Trace* trace);
+  virtual int EatsAtLeast(int still_to_find, int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
                                     int characters_filled_in);
@@ -1037,18 +1103,21 @@ class Trace {
     friend class Trace;
   };
 
-  class DeferredCapture: public DeferredAction {
+  class DeferredCapture : public DeferredAction {
    public:
-    DeferredCapture(int reg, Trace* trace)
+    DeferredCapture(int reg, bool is_capture, Trace* trace)
         : DeferredAction(ActionNode::STORE_POSITION, reg),
-          cp_offset_(trace->cp_offset()) { }
+          cp_offset_(trace->cp_offset()),
+          is_capture_(is_capture) { }
     int cp_offset() { return cp_offset_; }
+    bool is_capture() { return is_capture_; }
    private:
     int cp_offset_;
+    bool is_capture_;
     void set_cp_offset(int cp_offset) { cp_offset_ = cp_offset; }
   };
 
-  class DeferredSetRegister :public DeferredAction {
+  class DeferredSetRegister : public DeferredAction {
    public:
     DeferredSetRegister(int reg, int value)
         : DeferredAction(ActionNode::SET_REGISTER, reg),
@@ -1068,7 +1137,7 @@ class Trace {
     Interval range_;
   };
 
-  class DeferredIncrementRegister: public DeferredAction {
+  class DeferredIncrementRegister : public DeferredAction {
    public:
     explicit DeferredIncrementRegister(int reg)
         : DeferredAction(ActionNode::INCREMENT_REGISTER, reg) { }
@@ -1086,7 +1155,7 @@ class Trace {
   // and pushing a backtrack location onto the backtrack stack.  Once this is
   // done we can start a new trace or go to one that has already been
   // generated.
-  bool Flush(RegExpCompiler* compiler, RegExpNode* successor);
+  void Flush(RegExpCompiler* compiler, RegExpNode* successor);
   int cp_offset() { return cp_offset_; }
   DeferredAction* actions() { return actions_; }
   // A trivial trace is one that has no deferred actions or other state that
@@ -1133,20 +1202,19 @@ class Trace {
   void set_quick_check_performed(QuickCheckDetails* d) {
     quick_check_performed_ = *d;
   }
-  void clear_quick_check_performed() {
-  }
-  void AdvanceCurrentPositionInTrace(int by, bool ascii);
+  void InvalidateCurrentCharacter();
+  void AdvanceCurrentPositionInTrace(int by, RegExpCompiler* compiler);
  private:
   int FindAffectedRegisters(OutSet* affected_registers);
   void PerformDeferredActions(RegExpMacroAssembler* macro,
                                int max_register,
-                               OutSet& affected_registers);
+                               OutSet& affected_registers,
+                               OutSet* registers_to_pop,
+                               OutSet* registers_to_clear);
   void RestoreAffectedRegisters(RegExpMacroAssembler* macro,
                                 int max_register,
-                                OutSet& affected_registers);
-  void PushAffectedRegisters(RegExpMacroAssembler* macro,
-                             int max_register,
-                             OutSet& affected_registers);
+                                OutSet& registers_to_pop,
+                                OutSet& registers_to_clear);
   int cp_offset_;
   DeferredAction* actions_;
   Label* backtrack_;

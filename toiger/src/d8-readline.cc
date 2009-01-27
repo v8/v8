@@ -35,7 +35,7 @@
 
 
 // There are incompatibilities between different versions and different
-// implementations of readline.  This smoothes out one known incompatibility.
+// implementations of readline.  This smooths out one known incompatibility.
 #if RL_READLINE_VERSION >= 0x0500
 #define completion_matches rl_completion_matches
 #endif
