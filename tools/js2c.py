@@ -50,6 +50,7 @@ def CompressScript(lines):
   # Note that we could easily compress the scripts mode but don't
   # since we want it to remain readable.
   lines = re.sub('//.*\n', '\n', lines) # end-of-line comments
+  lines = re.sub(re.compile(r'/\*.*?\*/', re.DOTALL), '', lines) # comments.
   lines = re.sub('\s+\n+', '\n', lines) # trailing whitespace
   return lines
 
