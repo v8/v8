@@ -1,3 +1,21 @@
+2009-01-27: Version 0.4.9
+
+        Enabled new regular expression engine.
+
+        Made a number of changes to the debugger protocol.
+
+        Fixed a number of bugs in the preemption support.
+
+        Added -p option to the developer shell to run files in parallel
+        using preemption.
+
+        Fixed a number of minor bugs (including issues 176, 187, 189, 192,
+        193, 198 and 201).
+
+        Fixed a number of bugs in the serialization/deserialization
+        support for the ARM platform.
+
+
 2009-01-19: Version 0.4.8.1
 
         Minor patch to debugger support.
