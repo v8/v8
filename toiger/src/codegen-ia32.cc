@@ -3100,13 +3100,15 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
 
 void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  ASSERT(!in_spilled_code());
   // Call runtime routine to allocate the catch extension object and
   // assign the exception value to the catch variable.
-  Comment cmnt(masm_, "[CatchExtensionObject ");
+  Comment cmnt(masm_, "[ CatchExtensionObject");
   Load(node->key());
   Load(node->value());
-  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
-  frame_->Push(eax);
+  Result result =
+      frame_->CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+  frame_->Push(&result);
 }
 
 
