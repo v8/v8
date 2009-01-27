@@ -1765,45 +1765,56 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // placeholders, and fill in the addresses after the labels have been
   // bound.
 
-  VirtualFrame::SpilledScope spilled_scope(this);
-  frame_->EmitPop(eax);  // supposed Smi
-  // check range of value, if outside [0..length-1] jump to default/end label.
+  Result switch_value = frame_->Pop();  // supposed Smi
+  // If value is not in range [0..length-1] then jump to the default/end label.
   ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
 
   // Test whether input is a HeapNumber that is really a Smi
   JumpTarget is_smi(this);
-  __ test(eax, Immediate(kSmiTagMask));
-  is_smi.Branch(equal);
+  switch_value.ToRegister();
+  __ test(switch_value.reg(), Immediate(kSmiTagMask));
+  is_smi.Branch(equal, &switch_value, taken);
   // It's a heap object, not a Smi or a Failure
-  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(ebx, HEAP_NUMBER_TYPE);
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  __ mov(temp.reg(), FieldOperand(switch_value.reg(), HeapObject::kMapOffset));
+  __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
+  __ cmp(temp.reg(), HEAP_NUMBER_TYPE);
+  temp.Unuse();
   fail_label->Branch(not_equal);
-  // eax points to a heap number.
-  frame_->EmitPush(eax);
-  frame_->CallRuntime(Runtime::kNumberToSmi, 1);
-  is_smi.Bind();
+  // Result switch_value is a heap number.
+  frame_->Push(&switch_value);
+  Result smi_value = frame_->CallRuntime(Runtime::kNumberToSmi, 1);
+  is_smi.Bind(&smi_value);
+  smi_value.ToRegister();
 
   if (min_index != 0) {
-    __ sub(Operand(eax), Immediate(min_index << kSmiTagSize));
+    frame_->Spill(smi_value.reg());
+    __ sub(Operand(smi_value.reg()), Immediate(min_index << kSmiTagSize));
   }
-  __ test(eax, Immediate(0x80000000 | kSmiTagMask));  // negative or not Smi
+  __ test(smi_value.reg(), Immediate(0x80000000 | kSmiTagMask));
+  // Go to slow case if adjusted index is negative or not a Smi.
   fail_label->Branch(not_equal, not_taken);
-  __ cmp(eax, range << kSmiTagSize);
+  __ cmp(smi_value.reg(), range << kSmiTagSize);
   fail_label->Branch(greater_equal, not_taken);
 
   // 0 is placeholder.
-  __ jmp(Operand(eax, eax, times_1, 0x0, RelocInfo::INTERNAL_REFERENCE));
-  // calculate address to overwrite later with actual address of table.
+  // Jump to the address at table_address + 2 * smi_value.reg().
+  // The target of the jump is read from table_address + 4 * switch_value.
+  // The Smi encoding of smi_value.reg() is 2 * switch_value.
+  __ jmp(Operand(smi_value.reg(), smi_value.reg(),
+                 times_1, 0x0, RelocInfo::INTERNAL_REFERENCE));
+  // Calculate address to overwrite later with actual address of table.
   int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t);
 
   __ Align(4);
   JumpTarget table_start(this);
+  smi_value.Unuse();
   table_start.Bind();
   __ WriteInternalReference(jump_table_ref, *table_start.entry_label());
 
   for (int i = 0; i < range; i++) {
-    // table entry, 0 is placeholder for case address
+    // These are the table entries. 0x0 is the placeholder for case address.
     __ dd(0x0, RelocInfo::INTERNAL_REFERENCE);
   }
 
