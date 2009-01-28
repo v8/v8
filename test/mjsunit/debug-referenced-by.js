@@ -87,9 +87,7 @@ assertEquals(6, mirror.referencedBy().length);
 // Adds a reference when set.
 h("x_ = a");
 var x = mirror.referencedBy();
-// TODO(1323070) This should be 7 and not 8. 8 is caused by the context
-// extension object beeing part of the result.
-assertEquals(8, mirror.referencedBy().length);
+assertEquals(7, mirror.referencedBy().length);
 // Removes a reference when cleared.
 h("x_ = null");
 assertEquals(6, mirror.referencedBy().length);

@@ -5738,7 +5738,6 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
 static int DebugReferencedBy(JSObject* target,
                              Object* instance_filter, int max_references,
                              FixedArray* instances, int instances_size,
-                             JSFunction* context_extension_function,
                              JSFunction* arguments_function) {
   NoHandleAllocation ha;
   AssertNoAllocation no_alloc;
@@ -5755,7 +5754,7 @@ static int DebugReferencedBy(JSObject* target,
       // Skip context extension objects and argument arrays as these are
       // checked in the context of functions using them.
       JSObject* obj = JSObject::cast(heap_obj);
-      if (obj->map()->constructor() == context_extension_function ||
+      if (obj->IsJSContextExtensionObject() ||
           obj->map()->constructor() == arguments_function) {
         continue;
       }
@@ -5824,8 +5823,6 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
   RUNTIME_ASSERT(max_references >= 0);
 
   // Get the constructor function for context extension and arguments array.
-  JSFunction* context_extension_function =
-      Top::context()->global_context()->context_extension_function();
   JSObject* arguments_boilerplate =
       Top::context()->global_context()->arguments_boilerplate();
   JSFunction* arguments_function =
@@ -5834,8 +5831,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
   // Get the number of referencing objects.
   int count;
   count = DebugReferencedBy(target, instance_filter, max_references,
-                            NULL, 0,
-                            context_extension_function, arguments_function);
+                            NULL, 0, arguments_function);
 
   // Allocate an array to hold the result.
   Object* object = Heap::AllocateFixedArray(count);
@@ -5844,8 +5840,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
 
   // Fill the referencing objects.
   count = DebugReferencedBy(target, instance_filter, max_references,
-                            instances, count,
-                            context_extension_function, arguments_function);
+                            instances, count, arguments_function);
 
   // Return result as JS array.
   Object* result =
