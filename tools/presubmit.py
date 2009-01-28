@@ -175,7 +175,7 @@ class SourceProcessor(SourceFileProcessor):
               or (name == 'obj'))
 
   IGNORE_COPYRIGHTS = ['earley-boyer.js', 'raytrace.js', 'crypto.js',
-      'libraries.cc', 'libraries-empty.cc']
+      'libraries.cc', 'libraries-empty.cc', 'jsmin.py']
   IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js',
       'html-comments.js']
 
