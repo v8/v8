@@ -3788,6 +3788,10 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       break;
     case '{':
       if (ParseIntervalQuantifier(&min, &max)) {
+        if (max < min) {
+          ReportError(CStrVector("numbers out of order in {} quantifier.")
+                      CHECK_FAILED);
+        }
         break;
       } else {
         continue;
