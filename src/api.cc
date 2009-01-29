@@ -2652,6 +2652,18 @@ void V8::SetExternalSymbolCallback(ExternalSymbolCallback callback) {
   i::Heap::SetExternalSymbolCallback(callback);
 }
 
+void V8::PauseProfiler() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Logger::PauseProfiler();
+#endif
+}
+
+void V8::ResumeProfiler() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Logger::ResumeProfiler();
+#endif
+}
+
 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");

@@ -324,6 +324,8 @@ DEFINE_bool(log_state_changes, false, "Log state changes.")
 DEFINE_bool(log_suspect, false, "Log suspect operations.")
 DEFINE_bool(prof, false,
             "Log statistical profiling information (implies --log-code).")
+DEFINE_bool(prof_auto, true,
+            "Used with --prof, starts profiling automatically")
 DEFINE_bool(log_regexp, false, "Log regular expression execution.")
 DEFINE_bool(sliding_state_window, false,
             "Update sliding state window counters.")

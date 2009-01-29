@@ -1970,6 +1970,23 @@ class EXPORT V8 {
    */
   static int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
 
+  /**
+   * Suspends recording of tick samples in the profiler.
+   * When the V8 profiling mode is enabled (usually via command line
+   * switches) this function suspends recording of tick samples.
+   * Profiling ticks are discarded until ResumeProfiler() is called.
+   *
+   * See also the --prof and --prof_auto command line switches to
+   * enable V8 profiling.
+   */
+  static void PauseProfiler();
+
+  /**
+   * Resumes recording of tick samples in the profiler.
+   * See also PauseProfiler().
+   */
+  static void ResumeProfiler();
+
  private:
   V8();
 

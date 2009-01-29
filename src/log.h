@@ -203,6 +203,13 @@ class Logger {
 
   static bool is_enabled() { return logfile_ != NULL; }
 
+  // Pause/Resume collection of profiling data.
+  // When data collection is paused, Tick events are discarded until
+  // data collection is Resumed.
+  static bool IsProfilerPaused();
+  static void PauseProfiler();
+  static void ResumeProfiler();
+
  private:
 
   // Emits the source code of a regexp. Used by regexp events.
