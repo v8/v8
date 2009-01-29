@@ -3429,9 +3429,12 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 
 void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
-  LoadAndSpill(args->at(0));
-  frame_->EmitPop(eax);
-  __ test(eax, Immediate(kSmiTagMask));
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  __ test(value.reg(), Immediate(kSmiTagMask));
+  value.Unuse();
   true_target()->Branch(zero);
   false_target()->Jump();
 }
@@ -3448,21 +3451,24 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 3);
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (ShouldGenerateLog(args->at(0))) {
-    LoadAndSpill(args->at(1));
-    LoadAndSpill(args->at(2));
+    Load(args->at(1));
+    Load(args->at(2));
     frame_->CallRuntime(Runtime::kLog, 2);
   }
 #endif
   // Finally, we're expected to leave a value on the top of the stack.
-  frame_->EmitPush(Immediate(Factory::undefined_value()));
+  frame_->Push(Factory::undefined_value());
 }
 
 
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
-  LoadAndSpill(args->at(0));
-  frame_->EmitPop(eax);
-  __ test(eax, Immediate(kSmiTagMask | 0x80000000));
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  __ test(value.reg(), Immediate(kSmiTagMask | 0x80000000));
+  value.Unuse();
   true_target()->Branch(zero);
   false_target()->Jump();
 }
@@ -3475,6 +3481,7 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 // cons.  The slow case will flatten the string, which will ensure that
 // the answer is in the left hand side the next time around.
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 2);
 
   JumpTarget slow_case(this);
@@ -3587,21 +3594,21 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
-  LoadAndSpill(args->at(0));
-  // We need the CC bits to come out as not_equal in the case where the
-  // object is a smi.  This can't be done with the usual test opcode so
-  // we copy the object to ecx and do some destructive ops on it that
-  // result in the right CC bits.
-  frame_->EmitPop(eax);
-  __ mov(ecx, Operand(eax));
-  __ and_(ecx, kSmiTagMask);
-  __ xor_(ecx, kSmiTagMask);
-  false_target()->Branch(not_equal);
+  Load(args->at(0));
+  Result value = frame_->Pop();
+  value.ToRegister();
+  ASSERT(value.is_valid());
+  __ test(value.reg(), Immediate(kSmiTagMask));
+  false_target()->Branch(equal);
   // It is a heap object - get map.
-  __ mov(eax, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  __ mov(temp.reg(), FieldOperand(value.reg(), HeapObject::kMapOffset));
+  __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
   // Check if the object is a JS array or not.
-  __ cmp(eax, JS_ARRAY_TYPE);
+  __ cmp(temp.reg(), JS_ARRAY_TYPE);
+  value.Unuse();
+  temp.Unuse();
   true_target()->Branch(equal);
   false_target()->Jump();
 }
@@ -3609,53 +3616,60 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
 
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 0);
-
-  // Seed the result with the formal parameters count, which will be
-  // used in case no arguments adaptor frame is found below the
-  // current frame.
-  __ Set(eax, Immediate(Smi::FromInt(scope_->num_parameters())));
-
+  Result initial_value = allocator()->Allocate(eax);
+  ASSERT(initial_value.is_valid());
+  __ Set(initial_value.reg(),
+         Immediate(Smi::FromInt(scope_->num_parameters())));
+  // ArgumentsAccessStub takes the parameter count as an input argument
+  // in register eax.
   // Call the shared stub to get to the arguments.length.
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
-  frame_->CallStub(&stub, 0);
-  frame_->EmitPush(eax);
+  Result result = frame_->CallStub(&stub, &initial_value, 0);
+  frame_->Push(&result);
 }
 
 
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   JumpTarget leave(this);
-  LoadAndSpill(args->at(0));  // Load the object.
-  __ mov(eax, frame_->Top());
+  Load(args->at(0));  // Load the object.
+  frame_->Dup();
+  Result object = frame_->Pop();
+  object.ToRegister();
+  ASSERT(object.is_valid());
   // if (object->IsSmi()) return object.
-  __ test(eax, Immediate(kSmiTagMask));
+  __ test(object.reg(), Immediate(kSmiTagMask));
   leave.Branch(zero, taken);
   // It is a heap object - get map.
-  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
+  Result temp = allocator()->Allocate();
+  ASSERT(temp.is_valid());
+  __ mov(temp.reg(), FieldOperand(object.reg(), HeapObject::kMapOffset));
+  __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
   // if (!object->IsJSValue()) return object.
-  __ cmp(ecx, JS_VALUE_TYPE);
+  __ cmp(temp.reg(), JS_VALUE_TYPE);
   leave.Branch(not_equal, not_taken);
-  __ mov(eax, FieldOperand(eax, JSValue::kValueOffset));
-  __ mov(frame_->Top(), eax);
+  __ mov(temp.reg(), FieldOperand(object.reg(), JSValue::kValueOffset));
+  object.Unuse();
+  frame_->SetElementAt(0, &temp);
   leave.Bind();
 }
 
 
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 2);
   JumpTarget leave(this);
   LoadAndSpill(args->at(0));  // Load the object.
   LoadAndSpill(args->at(1));  // Load the value.
   __ mov(eax, frame_->ElementAt(1));
   __ mov(ecx, frame_->Top());
-  // if (object->IsSmi()) return object.
+  // if (object->IsSmi()) return value.
   __ test(eax, Immediate(kSmiTagMask));
   leave.Branch(zero, taken);
   // It is a heap object - get map.
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  // if (!object->IsJSValue()) return object.
+  // if (!object->IsJSValue()) return value.
   __ cmp(ebx, JS_VALUE_TYPE);
   leave.Branch(not_equal, not_taken);
   // Store the value.
@@ -3675,13 +3689,16 @@ void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
 
   // Load the key onto the stack and set register eax to the formal
   // parameters count for the currently executing function.
-  LoadAndSpill(args->at(0));
-  __ Set(eax, Immediate(Smi::FromInt(scope_->num_parameters())));
+  Load(args->at(0));
+  Result parameters_count = allocator()->Allocate(eax);
+  ASSERT(parameters_count.is_valid());
+  __ Set(parameters_count.reg(),
+         Immediate(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
-  frame_->CallStub(&stub, 0);
-  __ mov(frame_->Top(), eax);
+  Result result = frame_->CallStub(&stub, &parameters_count, 0);
+  frame_->SetElementAt(0, &result);
 }
 
 
@@ -3689,21 +3706,25 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 2);
 
   // Load the two objects into registers and perform the comparison.
-  LoadAndSpill(args->at(0));
-  LoadAndSpill(args->at(1));
-  frame_->EmitPop(eax);
-  frame_->EmitPop(ecx);
-  __ cmp(eax, Operand(ecx));
+  Load(args->at(0));
+  Load(args->at(1));
+  Result right = frame_->Pop();
+  Result left = frame_->Pop();
+  right.ToRegister();
+  left.ToRegister();
+  __ cmp(right.reg(), Operand(left.reg()));
+  right.Unuse();
+  left.Unuse();
   true_target()->Branch(equal);
   false_target()->Jump();
 }
 
 
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   if (CheckForInlineRuntimeCall(node)) {
     return;
   }
+  VirtualFrame::SpilledScope spilled_scope(this);
 
   ZoneList<Expression*>* args = node->arguments();
   Comment cmnt(masm_, "[ CallRuntime");
