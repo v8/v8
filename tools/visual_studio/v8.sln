@@ -14,7 +14,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_mksnapshot", "v8_mksnaps
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_snapshot", "v8_snapshot.vcproj", "{C0334F9A-1168-4101-9DD8-C30FB252D435}"
 	ProjectSection(ProjectDependencies) = postProject
-		{865575D0-37E2-405E-8CBA-5F6C485B5A26} = {865575D0-37E2-405E-8CBA-5F6C485B5A26}
+		{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F} = {0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}
 		{EC8B7909-62AF-470D-A75D-E1D89C837142} = {EC8B7909-62AF-470D-A75D-E1D89C837142}
 	EndProjectSection
 EndProject
@@ -42,12 +42,21 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "d8", "d8.vcproj", "{7E4C7D2
 		{C0334F9A-1168-4101-9DD8-C30FB252D435} = {C0334F9A-1168-4101-9DD8-C30FB252D435}
 	EndProjectSection
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "v8_snapshot_cc", "v8_snapshot_cc.vcproj", "{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}"
+	ProjectSection(ProjectDependencies) = postProject
+		{865575D0-37E2-405E-8CBA-5F6C485B5A26} = {865575D0-37E2-405E-8CBA-5F6C485B5A26}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
 		Release|Win32 = Release|Win32
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}.Debug|Win32.Build.0 = Debug|Win32
+		{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}.Release|Win32.ActiveCfg = Release|Win32
+		{0DDBDA8B-A49F-4CC7-A1D5-5BB8297C8A3F}.Release|Win32.Build.0 = Release|Win32
 		{21E22961-22BF-4493-BD3A-868F93DA5179}.Debug|Win32.ActiveCfg = Debug|Win32
 		{21E22961-22BF-4493-BD3A-868F93DA5179}.Debug|Win32.Build.0 = Debug|Win32
 		{21E22961-22BF-4493-BD3A-868F93DA5179}.Release|Win32.ActiveCfg = Release|Win32
