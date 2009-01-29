@@ -206,9 +206,6 @@ class VirtualFrame : public Malloced {
   // (ie, they all have frame-external references).
   Register SpillAnyRegister();
 
-  // True if making the frame mergable via MakeMergable will generate code.
-  bool RequiresMergeCode();
-
   // Ensure that this frame is in a state where an arbitrary frame of the
   // right size could be merged to it.  May emit code.
   void MakeMergable();

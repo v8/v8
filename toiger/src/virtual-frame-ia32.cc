@@ -273,35 +273,6 @@ void VirtualFrame::PrepareForCall(int frame_arg_count) {
 }
 
 
-bool VirtualFrame::RequiresMergeCode() {
-  // A frame requires code to be generated to make the frame mergable if
-  // there are duplicated non-synched registers or else valid elements not
-  // in a (memory or register) location in the frame.  We look for valid
-  // non-synced non-location elements and count occurrences of non-synced
-  // registers.
-  RegisterFile non_synced_regs;
-  for (int i = 0; i < elements_.length(); i++) {
-    FrameElement element = elements_[i];
-    if (element.is_valid() && !element.is_synced()) {
-      if (element.is_register()) {
-        non_synced_regs.Use(elements_[i].reg());
-      } else if (!element.is_memory()) {
-        // Not memory or register and not synced.
-        return true;
-      }
-    }
-  }
-
-  for (int i = 0; i < RegisterFile::kNumRegisters; i++) {
-    if (non_synced_regs.count(i) > 1) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-
 void VirtualFrame::MakeMergable() {
   Comment cmnt(masm_, "[ Make frame mergable");
   // We should always be merging the code generator's current frame to an
