@@ -303,6 +303,12 @@ for (var i = 0; i < 128; i++) {
 
 assertFalse(/f(o)$\1/.test('foo'), "backref detects at_end");
 
+// Check decimal escapes doesn't overflow.
+
+assertEquals(/\2147483648/.exec("\x8c7483648"),
+             ["\x8c7483648"],
+             "Overflow decimal escape");
+
 // Check that we don't read past the end of the string.
 assertFalse(/f/.test('b'));
 assertFalse(/[abc]f/.test('x'));

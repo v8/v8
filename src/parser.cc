@@ -537,8 +537,10 @@ class RegExpParser {
   int position() { return next_pos_ - 1; }
   bool failed() { return failed_; }
 
+  static const int kMaxCaptures = 1 << 16;
   static const uc32 kEndMarker = (1 << 21);
  private:
+
   uc32 current() { return current_; }
   bool has_more() { return has_more_; }
   bool has_next() { return next_pos_ < in()->length(); }
@@ -3891,11 +3893,8 @@ void RegExpParser::ScanForCaptures() {
 bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
   ASSERT_EQ('\\', current());
   ASSERT('1' <= Next() && Next() <= '9');
-  // Try to parse a decimal literal that is no greater than the number
-  // of previously encountered left capturing parentheses.
-  // This is a not according the the ECMAScript specification. According to
-  // that, one must accept values up to the total number of left capturing
-  // parentheses in the entire input, even if they are meaningless.
+  // Try to parse a decimal literal that is no greater than the total number
+  // of left capturing parentheses in the input.
   int start = position();
   int value = Next() - '0';
   Advance(2);
@@ -3903,6 +3902,10 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
     uc32 c = current();
     if (IsDecimalDigit(c)) {
       value = 10 * value + (c - '0');
+      if (value > kMaxCaptures) {
+        Reset(start);
+        return false;
+      }
       Advance();
     } else {
       break;
@@ -4114,6 +4117,9 @@ RegExpTree* RegExpParser::ParseGroup() {
   } else {
     if (captures_ == NULL) {
       captures_ = new ZoneList<RegExpCapture*>(2);
+    }
+    if (captures_started() >= kMaxCaptures) {
+      ReportError(CStrVector("Too many captures") CHECK_FAILED);
     }
     captures_->Add(NULL);
   }
