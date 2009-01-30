@@ -119,6 +119,7 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   void Jump();
   void Jump(Result* arg);
   void Jump(Result* arg0, Result* arg1);
+  void Jump(Result* arg0, Result* arg1, Result* arg2);
 
   // Emit a conditional branch to the target.  There must be a current
   // frame at the branch.  The current frame will fall through to the
@@ -126,6 +127,17 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   void Branch(Condition cc, Hint hint = no_hint);
   void Branch(Condition cc, Result* arg, Hint hint = no_hint);
   void Branch(Condition cc, Result* arg0, Result* arg1, Hint hint = no_hint);
+  void Branch(Condition cc,
+              Result* arg0,
+              Result* arg1,
+              Result* arg2,
+              Hint hint = no_hint);
+  void Branch(Condition cc,
+              Result* arg0,
+              Result* arg1,
+              Result* arg2,
+              Result* arg3,
+              Hint hint = no_hint);
 
   // Bind a jump target.  If there is no current frame at the binding
   // site, there must be at least one frame reaching via a forward
@@ -134,6 +146,8 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   void Bind();
   void Bind(Result* arg);
   void Bind(Result* arg0, Result* arg1);
+  void Bind(Result* arg0, Result* arg1, Result* arg2);
+  void Bind(Result* arg0, Result* arg1, Result* arg2, Result* arg3);
 
   // Emit a call to a jump target.  There must be a current frame at
   // the call.  The frame at the target is the same as the current

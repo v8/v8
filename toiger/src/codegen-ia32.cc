@@ -3488,113 +3488,135 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 // cons.  The slow case will flatten the string, which will ensure that
 // the answer is in the left hand side the next time around.
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 2);
 
   JumpTarget slow_case(this);
   JumpTarget end(this);
   JumpTarget not_a_flat_string(this);
-  JumpTarget not_a_cons_string_either(this);
+  JumpTarget a_cons_string(this);
   JumpTarget try_again_with_new_string(this, JumpTarget::BIDIRECTIONAL);
   JumpTarget ascii_string(this);
   JumpTarget got_char_code(this);
 
-  // Load the string into eax and the index into ebx.
-  LoadAndSpill(args->at(0));
-  LoadAndSpill(args->at(1));
-  frame_->EmitPop(ebx);
-  frame_->EmitPop(eax);
+  Load(args->at(0));
+  Load(args->at(1));
+  // Reserve register ecx, to use as shift amount later
+  Result shift_amount = allocator()->Allocate(ecx);
+  ASSERT(shift_amount.is_valid());
+  Result index = frame_->Pop();
+  index.ToRegister();
+  Result object = frame_->Pop();
+  object.ToRegister();
   // If the receiver is a smi return undefined.
   ASSERT(kSmiTag == 0);
-  __ test(eax, Immediate(kSmiTagMask));
+  __ test(object.reg(), Immediate(kSmiTagMask));
   slow_case.Branch(zero, not_taken);
 
   // Check for negative or non-smi index.
   ASSERT(kSmiTag == 0);
-  __ test(ebx, Immediate(kSmiTagMask | 0x80000000));
+  __ test(index.reg(), Immediate(kSmiTagMask | 0x80000000));
   slow_case.Branch(not_zero, not_taken);
   // Get rid of the smi tag on the index.
-  __ sar(ebx, kSmiTagSize);
+  frame_->Spill(index.reg());
+  __ sar(index.reg(), kSmiTagSize);
 
-  try_again_with_new_string.Bind();
-  // Get the type of the heap object into edi.
-  __ mov(edx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(edi, FieldOperand(edx, Map::kInstanceTypeOffset));
+  try_again_with_new_string.Bind(&object, &index, &shift_amount);
+  // Get the type of the heap object.
+  Result object_type = allocator()->Allocate();
+  ASSERT(object_type.is_valid());
+  __ mov(object_type.reg(), FieldOperand(object.reg(), HeapObject::kMapOffset));
+  __ movzx_b(object_type.reg(),
+             FieldOperand(object_type.reg(), Map::kInstanceTypeOffset));
   // We don't handle non-strings.
-  __ test(edi, Immediate(kIsNotStringMask));
+  __ test(object_type.reg(), Immediate(kIsNotStringMask));
   slow_case.Branch(not_zero, not_taken);
 
   // Here we make assumptions about the tag values and the shifts needed.
   // See the comment in objects.h.
   ASSERT(kLongStringTag == 0);
   ASSERT(kMediumStringTag + String::kLongLengthShift ==
-             String::kMediumLengthShift);
+         String::kMediumLengthShift);
   ASSERT(kShortStringTag + String::kLongLengthShift ==
-             String::kShortLengthShift);
-  __ mov(ecx, Operand(edi));
-  __ and_(ecx, kStringSizeMask);
-  __ add(Operand(ecx), Immediate(String::kLongLengthShift));
-  // Get the length field.
-  __ mov(edx, FieldOperand(eax, String::kLengthOffset));
-  __ shr(edx);  // ecx is implicit operand.
-  // edx is now the length of the string.
-
+         String::kShortLengthShift);
+  __ mov(shift_amount.reg(), Operand(object_type.reg()));
+  __ and_(shift_amount.reg(), kStringSizeMask);
+  __ add(Operand(shift_amount.reg()), Immediate(String::kLongLengthShift));
+  // Get the length field. Temporary register now used for length.
+  Result length = object_type;
+  __ mov(length.reg(), FieldOperand(object.reg(), String::kLengthOffset));
+  __ shr(length.reg());  // shift_amount, in ecx, is implicit operand.
   // Check for index out of range.
-  __ cmp(ebx, Operand(edx));
+  __ cmp(index.reg(), Operand(length.reg()));
   slow_case.Branch(greater_equal, not_taken);
+  length.Unuse();
+  // Load the object type into object_type again.
+  // These two instructions are duplicated from above, to save a register.
+  __ mov(object_type.reg(), FieldOperand(object.reg(), HeapObject::kMapOffset));
+  __ movzx_b(object_type.reg(),
+             FieldOperand(object_type.reg(), Map::kInstanceTypeOffset));
 
   // We need special handling for non-flat strings.
   ASSERT(kSeqStringTag == 0);
-  __ test(edi, Immediate(kStringRepresentationMask));
-  not_a_flat_string.Branch(not_zero, not_taken);
-
+  __ test(object_type.reg(), Immediate(kStringRepresentationMask));
+  not_a_flat_string.Branch(not_zero, &object, &index, &object_type,
+                           &shift_amount, not_taken);
+  shift_amount.Unuse();
   // Check for 1-byte or 2-byte string.
-  __ test(edi, Immediate(kStringEncodingMask));
-  ascii_string.Branch(not_zero, taken);
+  __ test(object_type.reg(), Immediate(kStringEncodingMask));
+  ascii_string.Branch(not_zero, &object, &index, &object_type, taken);
 
   // 2-byte string.
   // Load the 2-byte character code.
-  __ movzx_w(eax,
-             FieldOperand(eax, ebx, times_2, SeqTwoByteString::kHeaderSize));
-  got_char_code.Jump();
+  __ movzx_w(object_type.reg(), FieldOperand(object.reg(),
+                                             index.reg(),
+                                             times_2,
+                                             SeqTwoByteString::kHeaderSize));
+  object.Unuse();
+  index.Unuse();
+  got_char_code.Jump(&object_type);
 
   // ASCII string.
-  ascii_string.Bind();
+  ascii_string.Bind(&object, &index, &object_type);
   // Load the byte.
-  __ movzx_b(eax, FieldOperand(eax, ebx, times_1, SeqAsciiString::kHeaderSize));
-
-  got_char_code.Bind();
+  __ movzx_b(object_type.reg(), FieldOperand(object.reg(),
+                                             index.reg(),
+                                             times_1,
+                                             SeqAsciiString::kHeaderSize));
+  object.Unuse();
+  index.Unuse();
+  got_char_code.Bind(&object_type);
   ASSERT(kSmiTag == 0);
-  __ shl(eax, kSmiTagSize);
-  frame_->EmitPush(eax);
+  __ shl(object_type.reg(), kSmiTagSize);
+  frame_->Push(&object_type);
   end.Jump();
 
   // Handle non-flat strings.
-  not_a_flat_string.Bind();
-  __ and_(edi, kStringRepresentationMask);
-  __ cmp(edi, kConsStringTag);
-  not_a_cons_string_either.Branch(not_equal, not_taken);
-
-  // ConsString.
-  // Get the first of the two strings.
-  __ mov(eax, FieldOperand(eax, ConsString::kFirstOffset));
-  try_again_with_new_string.Jump();
-
-  not_a_cons_string_either.Bind();
-  __ cmp(edi, kSlicedStringTag);
+  not_a_flat_string.Bind(&object, &index, &object_type, &shift_amount);
+  __ and_(object_type.reg(), kStringRepresentationMask);
+  __ cmp(object_type.reg(), kConsStringTag);
+  a_cons_string.Branch(equal, &object, &index, &shift_amount, taken);
+  __ cmp(object_type.reg(), kSlicedStringTag);
   slow_case.Branch(not_equal, not_taken);
+  object_type.Unuse();
 
   // SlicedString.
   // Add the offset to the index.
-  __ add(ebx, FieldOperand(eax, SlicedString::kStartOffset));
+  __ add(index.reg(), FieldOperand(object.reg(), SlicedString::kStartOffset));
   slow_case.Branch(overflow);
-  // Get the underlying string.
-  __ mov(eax, FieldOperand(eax, SlicedString::kBufferOffset));
-  try_again_with_new_string.Jump();
+  // Getting the underlying string is done by running the cons string code.
 
+  // ConsString.
+  a_cons_string.Bind(&object, &index, &shift_amount);
+  // Get the first of the two strings.
+  frame_->Spill(object.reg());
+  // Both sliced and cons strings store their source string at the same place.
+  ASSERT(SlicedString::kBufferOffset == ConsString::kFirstOffset);
+  __ mov(object.reg(), FieldOperand(object.reg(), ConsString::kFirstOffset));
+  try_again_with_new_string.Jump(&object, &index, &shift_amount);
+
+  // No results live at this point.
   slow_case.Bind();
-  frame_->EmitPush(Immediate(Factory::undefined_value()));
-
+  frame_->Push(Factory::undefined_value());
   end.Bind();
 }
 

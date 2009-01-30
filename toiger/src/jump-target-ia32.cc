@@ -112,6 +112,17 @@ void JumpTarget::Jump(Result* arg0, Result* arg1) {
 }
 
 
+void JumpTarget::Jump(Result* arg0, Result* arg1, Result* arg2) {
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->has_valid_frame());
+
+  cgen_->frame()->Push(arg0);
+  cgen_->frame()->Push(arg1);
+  cgen_->frame()->Push(arg2);
+  Jump();
+}
+
+
 void JumpTarget::Branch(Condition cc, Hint hint) {
   ASSERT(cgen_ != NULL);
   ASSERT(cgen_->has_valid_frame());
@@ -202,6 +213,67 @@ void JumpTarget::Branch(Condition cc, Result* arg0, Result* arg1, Hint hint) {
 
   ASSERT_ARGCHECK(arg0);
   ASSERT_ARGCHECK(arg1);
+}
+
+
+void JumpTarget::Branch(Condition cc,
+                        Result* arg0,
+                        Result* arg1,
+                        Result* arg2,
+                        Hint hint) {
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->frame() != NULL);
+
+  // We want to check that non-frame registers at the call site stay in
+  // the same registers on the fall-through branch.
+  DECLARE_ARGCHECK_VARS(arg0);
+  DECLARE_ARGCHECK_VARS(arg1);
+  DECLARE_ARGCHECK_VARS(arg2);
+
+  cgen_->frame()->Push(arg0);
+  cgen_->frame()->Push(arg1);
+  cgen_->frame()->Push(arg2);
+  Branch(cc, hint);
+  *arg2 = cgen_->frame()->Pop();
+  *arg1 = cgen_->frame()->Pop();
+  *arg0 = cgen_->frame()->Pop();
+
+  ASSERT_ARGCHECK(arg0);
+  ASSERT_ARGCHECK(arg1);
+  ASSERT_ARGCHECK(arg2);
+}
+
+
+void JumpTarget::Branch(Condition cc,
+                        Result* arg0,
+                        Result* arg1,
+                        Result* arg2,
+                        Result* arg3,
+                        Hint hint) {
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->frame() != NULL);
+
+  // We want to check that non-frame registers at the call site stay in
+  // the same registers on the fall-through branch.
+  DECLARE_ARGCHECK_VARS(arg0);
+  DECLARE_ARGCHECK_VARS(arg1);
+  DECLARE_ARGCHECK_VARS(arg2);
+  DECLARE_ARGCHECK_VARS(arg3);
+
+  cgen_->frame()->Push(arg0);
+  cgen_->frame()->Push(arg1);
+  cgen_->frame()->Push(arg2);
+  cgen_->frame()->Push(arg3);
+  Branch(cc, hint);
+  *arg3 = cgen_->frame()->Pop();
+  *arg2 = cgen_->frame()->Pop();
+  *arg1 = cgen_->frame()->Pop();
+  *arg0 = cgen_->frame()->Pop();
+
+  ASSERT_ARGCHECK(arg0);
+  ASSERT_ARGCHECK(arg1);
+  ASSERT_ARGCHECK(arg2);
+  ASSERT_ARGCHECK(arg3);
 }
 
 #undef DECLARE_ARGCHECK_VARS
@@ -301,6 +373,38 @@ void JumpTarget::Bind(Result* arg0, Result* arg1) {
     cgen_->frame()->Push(arg1);
   }
   Bind();
+  *arg1 = cgen_->frame()->Pop();
+  *arg0 = cgen_->frame()->Pop();
+}
+
+
+void JumpTarget::Bind(Result* arg0, Result* arg1, Result* arg2) {
+  ASSERT(cgen_ != NULL);
+
+  if (cgen_->has_valid_frame()) {
+    cgen_->frame()->Push(arg0);
+    cgen_->frame()->Push(arg1);
+    cgen_->frame()->Push(arg2);
+  }
+  Bind();
+  *arg2 = cgen_->frame()->Pop();
+  *arg1 = cgen_->frame()->Pop();
+  *arg0 = cgen_->frame()->Pop();
+}
+
+
+void JumpTarget::Bind(Result* arg0, Result* arg1, Result* arg2, Result* arg3) {
+  ASSERT(cgen_ != NULL);
+
+  if (cgen_->has_valid_frame()) {
+    cgen_->frame()->Push(arg0);
+    cgen_->frame()->Push(arg1);
+    cgen_->frame()->Push(arg2);
+    cgen_->frame()->Push(arg3);
+  }
+  Bind();
+  *arg3 = cgen_->frame()->Pop();
+  *arg2 = cgen_->frame()->Pop();
   *arg1 = cgen_->frame()->Pop();
   *arg0 = cgen_->frame()->Pop();
 }
