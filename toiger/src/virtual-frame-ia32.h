@@ -262,6 +262,10 @@ class VirtualFrame : public Malloced {
     SetElementAt(index, &temp);
   }
 
+  void PushElementAt(int index) {
+    LoadFrameSlotAt(elements_.length() - index - 1);
+  }
+
   // A frame-allocated local as an assembly operand.
   Operand LocalAt(int index) const {
     ASSERT(0 <= index);
@@ -354,11 +358,23 @@ class VirtualFrame : public Malloced {
                        InvokeFlag flag,
                        int frame_arg_count);
 
-  // Call into a JS code object, given the number of arguments it expects on
-  // (and removes from) the top of the physical frame.
+  // Call into a JS code object, given the number of arguments it
+  // removes from the top of the physical frame.
+  // Register arguments are passed as results and consumed by the call.
   Result CallCodeObject(Handle<Code> ic,
                         RelocInfo::Mode rmode,
-                        int frame_arg_count);
+                        int dropped_args);
+  Result CallCodeObject(Handle<Code> ic,
+                        RelocInfo::Mode rmode,
+                        Result* arg,
+                        int dropped_args);
+  Result CallCodeObject(Handle<Code> ic,
+                        RelocInfo::Mode rmode,
+                        Result* arg0,
+                        Result* arg1,
+                        int dropped_args);
+
+
 
   // Drop a number of elements from the top of the expression stack.  May
   // emit code to affect the physical frame.  Does not clobber any registers
@@ -510,9 +526,11 @@ class VirtualFrame : public Malloced {
   // or parameter).
   void StoreToFrameSlotAt(int index);
 
-  // Spill the topmost elements of the frame to memory (eg, they are the
-  // arguments to a call) and all registers.
-  void PrepareForCall(int count);
+  // Spill all elements in registers. Spill the top spilled_args elements
+  // on the frame.  Sync all other frame elements.
+  // Then drop dropped_args elements from the virtual frame, to match
+  // the effect of an upcoming call that will drop them from the stack.
+  void PrepareForCall(int spilled_args, int dropped_args);
 
   // Move frame elements currently in registers or constants, that
   // should be in memory in the expected frame, to memory.
@@ -533,8 +551,14 @@ class VirtualFrame : public Malloced {
   // moves have been made.  After this function returns, the frames
   // should be equal.
   void MergeMoveMemoryToRegisters(VirtualFrame* expected);
-};
 
+  // Calls a code object which takes spilled_args frame arguments
+  // and which drops dropped_args of them.
+  Result RawCallCodeObject(Handle<Code> code,
+                           RelocInfo::Mode rmode,
+                           int spilled_args,
+                           int dropped_args);
+};
 
 } }  // namespace v8::internal
 

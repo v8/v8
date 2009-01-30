@@ -3008,7 +3008,11 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
           LoadAndSpill(property->value());
           frame_->EmitPop(eax);
           __ Set(ecx, Immediate(key));
-          frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
+          Result name = allocator()->Allocate(ecx);
+          ASSERT(name.is_valid());
+          Result value = allocator()->Allocate(eax);
+          ASSERT(value.is_valid());
+          frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, &value, &name, 0);
           frame_->Drop();
           // Ignore result.
           break;
@@ -3349,18 +3353,19 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
     Load(args->at(i));
   }
 
-  // TODO(205): Get rid of this spilling. It is only necessary because
-  // we load the function from the non-virtual stack.
-  frame_->SpillAll();
-
   // Constructors are called with the number of arguments in register
   // eax for now. Another option would be to have separate construct
   // call trampolines per different arguments counts encountered.
-  __ Set(eax, Immediate(arg_count));
+  Result num_args = allocator()->Allocate(eax);
+  ASSERT(num_args.is_valid());
+  __ Set(num_args.reg(), Immediate(arg_count));
 
   // Load the function into temporary function slot as per calling
   // convention.
-  __ mov(edi, frame_->ElementAt(arg_count + 1));
+  frame_->PushElementAt(arg_count + 1);
+  Result function = frame_->Pop();
+  function.ToRegister(edi);
+  ASSERT(function.is_valid());
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
@@ -3368,6 +3373,8 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
   Result result = frame_->CallCodeObject(ic,
                                          RelocInfo::CONSTRUCT_CALL,
+                                         &num_args,
+                                         &function,
                                          args->length() + 1);
 
   // Replace the function on the stack with the result.
@@ -3724,7 +3731,6 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
   if (CheckForInlineRuntimeCall(node)) {
     return;
   }
-  VirtualFrame::SpilledScope spilled_scope(this);
 
   ZoneList<Expression*>* args = node->arguments();
   Comment cmnt(masm_, "[ CallRuntime");
@@ -3732,29 +3738,36 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function == NULL) {
     // Prepare stack for calling JS runtime function.
-    frame_->EmitPush(Immediate(node->name()));
+    frame_->Push(node->name());
     // Push the builtins object found in the current global object.
-    __ mov(edx, GlobalObject());
-    frame_->EmitPush(FieldOperand(edx, GlobalObject::kBuiltinsOffset));
+    Result temp = allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    __ mov(temp.reg(), GlobalObject());
+    __ mov(temp.reg(), FieldOperand(temp.reg(), GlobalObject::kBuiltinsOffset));
+    frame_->Push(&temp);
   }
 
   // Push the arguments ("left-to-right").
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
-    LoadAndSpill(args->at(i));
+    Load(args->at(i));
   }
 
   if (function == NULL) {
     // Call the JS runtime function.
     Handle<Code> stub = ComputeCallInitialize(arg_count);
-    __ Set(eax, Immediate(args->length()));
-    frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
+
+    Result num_args = allocator()->Allocate(eax);
+    ASSERT(num_args.is_valid());
+    __ Set(num_args.reg(), Immediate(args->length()));
+    Result answer = frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET,
+                                           &num_args, arg_count + 1);
     frame_->RestoreContextRegister();
-    __ mov(frame_->Top(), eax);
+    frame_->SetElementAt(0, &answer);
   } else {
     // Call the C runtime function.
-    frame_->CallRuntime(function, arg_count);
-    frame_->EmitPush(eax);
+    Result answer = frame_->CallRuntime(function, arg_count);
+    frame_->Push(&answer);
   }
 }
 
@@ -4539,6 +4552,7 @@ Handle<String> Reference::GetName() {
 
 void Reference::GetValue(TypeofState typeof_state) {
   ASSERT(!cgen_->in_spilled_code());
+  ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
   MacroAssembler* masm = cgen_->masm();
   switch (type_) {
@@ -4557,21 +4571,21 @@ void Reference::GetValue(TypeofState typeof_state) {
       // thrown below, we must distinguish between the two kinds of
       // loads (typeof expression loads must not throw a reference
       // error).
-      VirtualFrame::SpilledScope spilled_scope(cgen_);
       VirtualFrame* frame = cgen_->frame();
       Comment cmnt(masm, "[ Load from named Property");
       Handle<String> name(GetName());
       Variable* var = expression_->AsVariableProxy()->AsVariable();
       Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
       // Setup the name register.
-      __ mov(ecx, name);
-      if (var != NULL) {
-        ASSERT(var->is_global());
-        frame->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, 0);
-      } else {
-        frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-      }
-      frame->EmitPush(eax);  // IC call leaves result in eax, push it out
+      Result name_reg = cgen_->allocator()->Allocate(ecx);
+      ASSERT(name_reg.is_valid());
+      __ mov(name_reg.reg(), name);
+      ASSERT(var == NULL || var->is_global());
+      RelocInfo::Mode rmode = (var == NULL)
+                            ? RelocInfo::CODE_TARGET
+                            : RelocInfo::CODE_TARGET_CONTEXT;
+      Result answer = frame->CallCodeObject(ic, rmode, &name_reg, 0);
+      frame->Push(&answer);
       break;
     }
 
@@ -4661,22 +4675,20 @@ void Reference::GetValue(TypeofState typeof_state) {
         cgen_->frame()->Push(&value);
 
       } else {
-        VirtualFrame::SpilledScope spilled_scope(cgen_);
         VirtualFrame* frame = cgen_->frame();
         Comment cmnt(masm, "[ Load from keyed Property");
         Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-        if (is_global) {
-          frame->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, 0);
-        } else {
-          frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-        }
+        RelocInfo::Mode rmode = is_global
+                              ? RelocInfo::CODE_TARGET_CONTEXT
+                              : RelocInfo::CODE_TARGET;
+        Result answer = frame->CallCodeObject(ic, rmode, 0);
         // Make sure that we do not have a test instruction after the
         // call.  A test instruction after the call is used to
         // indicate that we have generated an inline version of the
         // keyed load.  The explicit nop instruction is here because
         // the push that follows might be peep-hole optimized away.
         __ nop();
-        frame->EmitPush(eax);  // IC call leaves result in eax, push it out
+        frame->Push(&answer);
       }
       break;
     }
@@ -4718,6 +4730,7 @@ void Reference::TakeValue(TypeofState typeof_state) {
 
 
 void Reference::SetValue(InitState init_state) {
+  ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
   MacroAssembler* masm = cgen_->masm();
   VirtualFrame* frame = cgen_->frame();
@@ -4731,29 +4744,35 @@ void Reference::SetValue(InitState init_state) {
     }
 
     case NAMED: {
-      VirtualFrame::SpilledScope spilled_scope(cgen_);
       Comment cmnt(masm, "[ Store to named Property");
       // Call the appropriate IC code.
       Handle<String> name(GetName());
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      frame->EmitPop(eax);
+      Result argument = frame->Pop();
+      argument.ToRegister(eax);
+      ASSERT(argument.is_valid());
+      Result property_name = cgen_->allocator()->Allocate(ecx);
+      ASSERT(property_name.is_valid());
       // Setup the name register.
-      __ mov(ecx, name);
-      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-      frame->EmitPush(eax);  // IC call leaves result in eax, push it out
+      __ mov(property_name.reg(), name);
+      Result answer = frame->CallCodeObject(ic, RelocInfo::CODE_TARGET,
+                                            &argument, &property_name, 0);
+      frame->Push(&answer);
       break;
     }
 
     case KEYED: {
-      VirtualFrame::SpilledScope spilled_scope(cgen_);
       Comment cmnt(masm, "[ Store to keyed Property");
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      frame->EmitPop(eax);
-      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-      frame->EmitPush(eax);  // IC call leaves result in eax, push it out
+      Result arg = frame->Pop();
+      arg.ToRegister(eax);
+      ASSERT(arg.is_valid());
+      Result answer = frame->CallCodeObject(ic, RelocInfo::CODE_TARGET,
+                                            &arg, 0);
+      frame->Push(&answer);
       break;
     }
 

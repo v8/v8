@@ -247,14 +247,16 @@ void VirtualFrame::SpillAll() {
 }
 
 
-void VirtualFrame::PrepareForCall(int frame_arg_count) {
-  ASSERT(height() >= frame_arg_count);
+void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
+  ASSERT(height() >= dropped_args);
+  ASSERT(height() >= spilled_args);
+  ASSERT(dropped_args <= spilled_args);
 
   // Below the arguments to the function being called, spill all registers and
   // make sure that locals have the right values by synching them. The synching
   // is necessary to give the debugger a consistent view of the values of
   // locals in the frame.  Spill the arguments to the function being called.
-  int arg_base_index = elements_.length() - frame_arg_count;
+  int arg_base_index = elements_.length() - spilled_args;
   for (int i = 0; i < arg_base_index; i++) {
     FrameElement element = elements_[i];
     if (element.is_register()) {
@@ -269,7 +271,7 @@ void VirtualFrame::PrepareForCall(int frame_arg_count) {
   }
 
   // Forget the frame elements that will be popped by the call.
-  Forget(frame_arg_count);
+  Forget(dropped_args);
 }
 
 
@@ -824,7 +826,7 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 
 Result VirtualFrame::CallStub(CodeStub* stub, int frame_arg_count) {
   ASSERT(cgen_->HasValidEntryRegisters());
-  PrepareForCall(frame_arg_count);
+  PrepareForCall(frame_arg_count, frame_arg_count);
   __ CallStub(stub);
   Result result = cgen_->allocator()->Allocate(eax);
   ASSERT(result.is_valid());
@@ -853,7 +855,7 @@ Result VirtualFrame::CallStub(CodeStub* stub,
 Result VirtualFrame::CallRuntime(Runtime::Function* f,
                                  int frame_arg_count) {
   ASSERT(cgen_->HasValidEntryRegisters());
-  PrepareForCall(frame_arg_count);
+  PrepareForCall(frame_arg_count, frame_arg_count);
   __ CallRuntime(f, frame_arg_count);
   Result result = cgen_->allocator()->Allocate(eax);
   ASSERT(result.is_valid());
@@ -864,7 +866,7 @@ Result VirtualFrame::CallRuntime(Runtime::Function* f,
 Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
                                  int frame_arg_count) {
   ASSERT(cgen_->HasValidEntryRegisters());
-  PrepareForCall(frame_arg_count);
+  PrepareForCall(frame_arg_count, frame_arg_count);
   __ CallRuntime(id, frame_arg_count);
   Result result = cgen_->allocator()->Allocate(eax);
   ASSERT(result.is_valid());
@@ -876,8 +878,21 @@ Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
                                    int frame_arg_count) {
   ASSERT(cgen_->HasValidEntryRegisters());
-  PrepareForCall(frame_arg_count);
+  PrepareForCall(frame_arg_count, frame_arg_count);
   __ InvokeBuiltin(id, flag);
+  Result result = cgen_->allocator()->Allocate(eax);
+  ASSERT(result.is_valid());
+  return result;
+}
+
+
+Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
+                                       RelocInfo::Mode rmode,
+                                       int spilled_args,
+                                       int dropped_args) {
+  ASSERT(cgen_->HasValidEntryRegisters());
+  PrepareForCall(spilled_args, dropped_args);
+  __ call(code, rmode);
   Result result = cgen_->allocator()->Allocate(eax);
   ASSERT(result.is_valid());
   return result;
@@ -886,13 +901,89 @@ Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 
 Result VirtualFrame::CallCodeObject(Handle<Code> code,
                                     RelocInfo::Mode rmode,
-                                    int frame_arg_count) {
-  ASSERT(cgen_->HasValidEntryRegisters());
-  PrepareForCall(frame_arg_count);
-  __ call(code, rmode);
-  Result result = cgen_->allocator()->Allocate(eax);
-  ASSERT(result.is_valid());
-  return result;
+                                    int dropped_args) {
+  int spilled_args = 0;
+  switch (code->kind()) {
+    case Code::CALL_IC:
+      spilled_args = dropped_args + 1;
+      break;
+    case Code::FUNCTION:
+      spilled_args = dropped_args + 1;
+      break;
+    case Code::KEYED_LOAD_IC:
+      ASSERT(dropped_args == 0);
+      spilled_args = 2;
+      break;
+    default:
+      // The other types of code objects are called with values
+      // in specific registers, and are handled in functions with
+      // a different signature.
+      UNREACHABLE();
+      break;
+  }
+  return RawCallCodeObject(code, rmode, spilled_args, dropped_args);
+}
+
+
+Result VirtualFrame::CallCodeObject(Handle<Code> code,
+                                    RelocInfo::Mode rmode,
+                                    Result* arg,
+                                    int dropped_args) {
+  int spilled_args = 0;
+  switch (code->kind()) {
+    case Code::CALL_IC:
+      ASSERT(arg->reg().is(eax));
+      spilled_args = dropped_args + 1;
+      break;
+    case Code::LOAD_IC:
+      ASSERT(arg->reg().is(ecx));
+      ASSERT(dropped_args == 0);
+      spilled_args = 1;
+      break;
+    case Code::KEYED_STORE_IC:
+      ASSERT(arg->reg().is(eax));
+      ASSERT(dropped_args == 0);
+      spilled_args = 2;
+      break;
+    default:
+      // No other types of code objects are called with values
+      // in exactly one register.
+      UNREACHABLE();
+      break;
+  }
+  arg->Unuse();
+  return RawCallCodeObject(code, rmode, spilled_args, dropped_args);
+}
+
+
+Result VirtualFrame::CallCodeObject(Handle<Code> code,
+                                    RelocInfo::Mode rmode,
+                                    Result* arg0,
+                                    Result* arg1,
+                                    int dropped_args) {
+  int spilled_args = 1;
+  switch (code->kind()) {
+    case Code::STORE_IC:
+      ASSERT(arg0->reg().is(eax));
+      ASSERT(arg1->reg().is(ecx));
+      ASSERT(dropped_args == 0);
+      spilled_args = 1;
+      break;
+    case Code::BUILTIN:
+      ASSERT(*code == Builtins::builtin(Builtins::JSConstructCall));
+      ASSERT(arg0->reg().is(eax));
+      ASSERT(arg1->reg().is(edi));
+      spilled_args = dropped_args + 1;
+      break;
+    default:
+      // No other types of code objects are called with values
+      // in exactly two registers.
+      UNREACHABLE();
+      break;
+  }
+  arg0->Unuse();
+  arg1->Unuse();
+  return RawCallCodeObject(code, rmode, spilled_args, dropped_args);
 }
 
 
