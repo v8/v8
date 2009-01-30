@@ -49,7 +49,9 @@ class CcTestCase(test.TestCase):
     return self.path[-1]
 
   def GetCommand(self):
-    result = [ self.executable, self.raw_name ]
+    serialization_file = join('obj', 'test', self.mode, 'serdes')
+    serialization_option = '--testing_serialization_file=' + serialization_file
+    result = [ self.executable, self.raw_name, serialization_option ]
     if self.mode == 'debug':
       result += DEBUG_FLAGS
     return result
