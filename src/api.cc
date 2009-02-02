@@ -2184,7 +2184,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.4.9.2";
+  return "0.4.9.3";
 }
 
 
