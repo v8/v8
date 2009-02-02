@@ -4061,12 +4061,23 @@ static Object* Runtime_ResolvePossiblyDirectEval(Arguments args) {
   while (!context.is_null()) {
     receiver = context->Lookup(Factory::eval_symbol(), FOLLOW_PROTOTYPE_CHAIN,
                                &index, &attributes);
-    if (attributes != ABSENT) break;
+    // Stop search when eval is found or when the global context is
+    // reached.
+    if (attributes != ABSENT || context->IsGlobalContext()) break;
     if (context->is_function_context()) {
       context = Handle<Context>(Context::cast(context->closure()->context()));
     } else {
       context = Handle<Context>(context->previous());
     }
+  }
+
+  // If eval could not be resolved, it has been deleted and we need to
+  // throw a reference error.
+  if (attributes == ABSENT) {
+    Handle<Object> name = Factory::eval_symbol();
+    Handle<Object> reference_error =
+        Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
+    return Top::Throw(*reference_error);
   }
 
   if (context->IsGlobalContext()) {
