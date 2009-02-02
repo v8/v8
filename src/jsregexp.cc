@@ -672,8 +672,7 @@ static Handle<FixedArray> GetCompiledIrregexp(Handle<JSRegExp> re,
   JSRegExp::Flags flags = re->GetFlags();
 
   Handle<String> pattern(re->Pattern());
-  StringShape shape(*pattern);
-  if (!pattern->IsFlat(shape)) {
+  if (!pattern->IsFlat(StringShape(*pattern))) {
     FlattenString(pattern);
   }
 
@@ -783,8 +782,7 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
                                               Handle<String> subject) {
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
-  StringShape shape(*subject);
-  bool is_ascii = shape.IsAsciiRepresentation();
+  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
   Handle<FixedArray> irregexp = GetCompiledIrregexp(regexp, is_ascii);
   if (irregexp.is_null()) {
     return Handle<Object>::null();
@@ -800,7 +798,7 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
   int i = 0;
   Handle<Object> matches;
 
-  if (!subject->IsFlat(shape)) {
+  if (!subject->IsFlat(StringShape(*subject))) {
     FlattenString(subject);
   }
 
