@@ -345,12 +345,14 @@ class TestCase(object):
 
   def GetSource(self):
     return "(no source available)"
-
-  def Run(self):
-    command = self.GetCommand()
+    
+  def RunCommand(self, command):
     full_command = self.context.processor(command)
     output = Execute(full_command, self.context, self.context.timeout)
     return TestOutput(self, full_command, output)
+
+  def Run(self):
+    return self.RunCommand(self.GetCommand())
 
 
 class TestOutput(object):
