@@ -438,6 +438,7 @@ int FlagList::SetFlagsFromCommandLine(int* argc,
 
   if (FLAG_help) {
     PrintHelp();
+    exit(0);
   }
   // parsed all flags successfully
   return 0;

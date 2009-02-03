@@ -1461,7 +1461,8 @@ class RegExpQuantifier: public RegExpTree {
                             bool is_greedy,
                             RegExpTree* body,
                             RegExpCompiler* compiler,
-                            RegExpNode* on_success);
+                            RegExpNode* on_success,
+                            bool not_at_start = false);
   virtual RegExpQuantifier* AsQuantifier();
   virtual Interval CaptureRegisters();
   virtual bool IsQuantifier();

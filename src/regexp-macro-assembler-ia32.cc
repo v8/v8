@@ -636,7 +636,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ push(esi);
   __ push(edi);
   __ push(ebx);  // Callee-save on MacOS.
-  __ push(Immediate(0));  // Make room for input start minus one
+  __ push(Immediate(0));  // Make room for "input start - 1" constant.
 
   // Check if we have space on the stack for registers.
   Label retry_stack_check;

@@ -532,7 +532,8 @@ class RegExpParser {
   // Reports whether the pattern might be used as a literal search string.
   // Only use if the result of the parse is a single atom node.
   bool simple();
-
+  bool contains_anchor() { return contains_anchor_; }
+  void set_contains_anchor() { contains_anchor_ = true; }
   int captures_started() { return captures_ == NULL ? 0 : captures_->length(); }
   int position() { return next_pos_ - 1; }
   bool failed() { return failed_; }
@@ -555,6 +556,7 @@ class RegExpParser {
   FlatStringReader* in_;
   Handle<String>* error_;
   bool simple_;
+  bool contains_anchor_;
   ZoneList<RegExpCapture*>* captures_;
   bool is_scanned_for_captures_;
   // The capture count is only valid after we have scanned for captures.
@@ -3486,6 +3488,7 @@ RegExpParser::RegExpParser(FlatStringReader* in,
     in_(in),
     error_(error),
     simple_(true),
+    contains_anchor_(false),
     captures_(NULL),
     is_scanned_for_captures_(false),
     capture_count_(0),
@@ -3603,10 +3606,14 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       ReportError(CStrVector("Nothing to repeat") CHECK_FAILED);
     case '^': {
       Advance();
-      RegExpAssertion::Type type =
-          multiline_ ? RegExpAssertion::START_OF_LINE :
-                       RegExpAssertion::START_OF_INPUT;
-      builder.AddAssertion(new RegExpAssertion(type));
+      if (multiline_) {
+        builder.AddAssertion(
+            new RegExpAssertion(RegExpAssertion::START_OF_LINE));
+      } else {
+        builder.AddAssertion(
+            new RegExpAssertion(RegExpAssertion::START_OF_INPUT));
+        set_contains_anchor();
+      }
       continue;
     }
     case '$': {
@@ -4312,6 +4319,7 @@ bool ParseRegExp(FlatStringReader* input,
     result->tree = tree;
     int capture_count = parser.captures_started();
     result->simple = tree->IsAtom() && parser.simple() && capture_count == 0;
+    result->contains_anchor = parser.contains_anchor();
     result->capture_count = capture_count;
   }
   return !parser.failed();
