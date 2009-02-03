@@ -1507,12 +1507,7 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
 void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
 
-  ASSERT(actions_ != NULL ||
-         cp_offset_ != 0 ||
-         backtrack() != NULL ||
-         characters_preloaded_ != 0 ||
-         quick_check_performed_.characters() != 0 ||
-         bound_checked_up_to_ != 0);
+  ASSERT(!is_trivial());
 
   if (actions_ == NULL && backtrack() == NULL) {
     // Here we just have some deferred cp advances to fix and we are back to
