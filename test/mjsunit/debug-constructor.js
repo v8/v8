@@ -40,7 +40,7 @@ function listener(event, exec_state, event_data, data) {
 };
 
 // Add the debug event listener.
-Debug.addListener(listener);
+Debug.setListener(listener);
 
 // Test debug event for constructor.
 function a() {
@@ -75,4 +75,4 @@ Debug.clearStepping();  // Clear stepping as the listener leaves it on.
 assertEquals("bbccdcb", call_graph);
 
 // Get rid of the debug event listener.
-Debug.removeListener(listener);
+Debug.setListener(null);

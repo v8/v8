@@ -609,10 +609,8 @@ void Debug::Unload() {
 
 
 void Debug::Iterate(ObjectVisitor* v) {
-#define VISIT(field) v->VisitPointer(bit_cast<Object**, Code**>(&(field)));
-  VISIT(debug_break_return_entry_);
-  VISIT(debug_break_return_);
-#undef VISIT
+  v->VisitPointer(bit_cast<Object**, Code**>(&(debug_break_return_entry_)));
+  v->VisitPointer(bit_cast<Object**, Code**>(&(debug_break_return_)));
 }
 
 
@@ -1319,6 +1317,8 @@ void Debug::ClearMirrorCache() {
 }
 
 
+Handle<Object> Debugger::event_listener_ = Handle<Object>();
+Handle<Object> Debugger::event_listener_data_ = Handle<Object>();
 bool Debugger::debugger_active_ = false;
 bool Debugger::compiling_natives_ = false;
 bool Debugger::is_loading_debugger_ = false;
@@ -1609,34 +1609,29 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
   if (message_thread_ != NULL) {
     message_thread_->DebugEvent(event, exec_state, event_data);
   }
-  // Notify registered debug event listeners. The list can contain both C and
-  // JavaScript functions.
-  v8::NeanderArray listeners(Factory::debug_event_listeners());
-  int length = listeners.length();
-  for (int i = 0; i < length; i++) {
-    if (listeners.get(i)->IsUndefined()) continue;   // Skip deleted ones.
-    v8::NeanderObject listener(JSObject::cast(listeners.get(i)));
-    Handle<Object> callback_data(listener.get(1));
-    if (listener.get(0)->IsProxy()) {
+  // Notify registered debug event listener. This can be either a C or a
+  // JavaScript function.
+  if (!event_listener_.is_null()) {
+    if (event_listener_->IsProxy()) {
       // C debug event listener.
-      Handle<Proxy> callback_obj(Proxy::cast(listener.get(0)));
+      Handle<Proxy> callback_obj(Handle<Proxy>::cast(event_listener_));
       v8::DebugEventCallback callback =
             FUNCTION_CAST<v8::DebugEventCallback>(callback_obj->proxy());
       callback(event,
                v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
                v8::Utils::ToLocal(Handle<JSObject>::cast(event_data)),
-               v8::Utils::ToLocal(callback_data));
+               v8::Utils::ToLocal(Handle<Object>::cast(event_listener_data_)));
     } else {
       // JavaScript debug event listener.
-      ASSERT(listener.get(0)->IsJSFunction());
-      Handle<JSFunction> fun(JSFunction::cast(listener.get(0)));
+      ASSERT(event_listener_->IsJSFunction());
+      Handle<JSFunction> fun(Handle<JSFunction>::cast(event_listener_));
 
       // Invoke the JavaScript debug event listener.
       const int argc = 4;
       Object** argv[argc] = { Handle<Object>(Smi::FromInt(event)).location(),
                               exec_state.location(),
                               event_data.location(),
-                              callback_data.location() };
+                              event_listener_data_.location() };
       Handle<Object> result = Execution::TryCall(fun, Top::global(),
                                                  argc, argv, &caught_exception);
       if (caught_exception) {
@@ -1650,11 +1645,42 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
 }
 
 
+void Debugger::SetEventListener(Handle<Object> callback,
+                                Handle<Object> data) {
+  HandleScope scope;
+
+  // Clear the global handles for the event listener and the event listener data
+  // object.
+  if (!event_listener_.is_null()) {
+    GlobalHandles::Destroy(
+        reinterpret_cast<Object**>(event_listener_.location()));
+    event_listener_ = Handle<Object>();
+  }
+  if (!event_listener_data_.is_null()) {
+    GlobalHandles::Destroy(
+        reinterpret_cast<Object**>(event_listener_data_.location()));
+    event_listener_data_ = Handle<Object>();
+  }
+
+  // If there is a new debug event listener register it together with its data
+  // object.
+  if (!callback->IsUndefined() && !callback->IsNull()) {
+    event_listener_ = Handle<Object>::cast(GlobalHandles::Create(*callback));
+    if (data.is_null()) {
+      data = Factory::undefined_value();
+    }
+    event_listener_data_ = Handle<Object>::cast(GlobalHandles::Create(*data));
+  }
+
+  UpdateActiveDebugger();
+}
+
+
 void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
   debug_message_handler_ = handler;
   debug_message_handler_data_ = data;
   if (!message_thread_) {
-    message_thread_  = new DebugMessageThread();
+    message_thread_ = new DebugMessageThread();
     message_thread_->Start();
   }
   UpdateActiveDebugger();
@@ -1683,17 +1709,12 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command) {
 
 
 void Debugger::UpdateActiveDebugger() {
-  v8::NeanderArray listeners(Factory::debug_event_listeners());
-  int length = listeners.length();
-  bool active_listener = false;
-  for (int i = 0; i < length && !active_listener; i++) {
-    active_listener = !listeners.get(i)->IsUndefined();
-  }
-  set_debugger_active((Debugger::message_thread_ != NULL &&
-                       Debugger::debug_message_handler_ != NULL) ||
-                       active_listener);
-  if (!debugger_active() && message_thread_)
+  set_debugger_active((message_thread_ != NULL &&
+                       debug_message_handler_ != NULL) ||
+                       !event_listener_.is_null());
+  if (!debugger_active() && message_thread_) {
     message_thread_->OnDebuggerInactive();
+  }
 }
 
 

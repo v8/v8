@@ -542,7 +542,7 @@ int Shell::Main(int argc, char* argv[]) {
       }
     }
     if (i::FLAG_debugger)
-      v8::Debug::AddDebugEventListener(HandleDebugEvent);
+      v8::Debug::SetDebugEventListener(HandleDebugEvent);
   }
   if (run_shell)
     RunShell();

@@ -1089,14 +1089,6 @@ bool Heap::CreateApiObjects() {
   JSObject::cast(obj)->set_elements(FixedArray::cast(elements));
   message_listeners_ = JSObject::cast(obj);
 
-  obj = Heap::AllocateJSObjectFromMap(neander_map_);
-  if (obj->IsFailure()) return false;
-  elements = AllocateFixedArray(2);
-  if (elements->IsFailure()) return false;
-  FixedArray::cast(elements)->set(0, Smi::FromInt(0));
-  JSObject::cast(obj)->set_elements(FixedArray::cast(elements));
-  debug_event_listeners_ = JSObject::cast(obj);
-
   return true;
 }
 

@@ -174,7 +174,7 @@ function listener(event, exec_state, event_data, data) {
 };
 
 // Add the debug event listener.
-Debug.addListener(listener);
+Debug.setListener(listener);
 
 function f(a) {
   debugger;

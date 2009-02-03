@@ -86,7 +86,7 @@ enum DebugEvent {
  *   (enum DebugEvent)
  * \param exec_state execution state (JavaScript object)
  * \param event_data event specific data (JavaScript object)
- * \param data value passed by the user to AddDebugEventListener
+ * \param data value passed by the user to SetDebugEventListener
  */
 typedef void (*DebugEventCallback)(DebugEvent event,
                                    Handle<Object> exec_state,
@@ -108,19 +108,13 @@ typedef void (*DebugMessageHandler)(const uint16_t* message, int length,
 
 class EXPORT Debug {
  public:
-  // Add a C debug event listener.
-  static bool AddDebugEventListener(DebugEventCallback that,
+  // Set a C debug event listener.
+  static bool SetDebugEventListener(DebugEventCallback that,
                                     Handle<Value> data = Handle<Value>());
 
-  // Add a JavaScript debug event listener.
-  static bool AddDebugEventListener(v8::Handle<v8::Function> that,
+  // Set a JavaScript debug event listener.
+  static bool SetDebugEventListener(v8::Handle<v8::Object> that,
                                     Handle<Value> data = Handle<Value>());
-
-  // Remove a C debug event listener.
-  static void RemoveDebugEventListener(DebugEventCallback that);
-
-  // Remove a JavaScript debug event listener.
-  static void RemoveDebugEventListener(v8::Handle<v8::Function> that);
 
   // Break execution of JavaScript.
   static void DebugBreak();

@@ -129,7 +129,7 @@ function listener_recurse(event, exec_state, event_data, data) {
 };
 
 // Add the debug event listener.
-Debug.addListener(listener);
+Debug.setListener(listener);
 
 // Test functions - one with break point and one with debugger statement.
 function f() {
@@ -151,11 +151,11 @@ assertTrue(listenerComplete);
 assertFalse(exception, "exception in listener")
 
 // Remove the debug event listener.
-Debug.removeListener(listener);
+Debug.setListener(null);
 
 // Add debug event listener wich uses recursive breaks.
 listenerComplete = false;
-Debug.addListener(listener_recurse);
+Debug.setListener(listener_recurse);
 
 debugger;
 

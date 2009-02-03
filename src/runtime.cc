@@ -4557,30 +4557,17 @@ static StackFrame::Id UnwrapFrameId(Smi* wrapped) {
 
 
 // Adds a JavaScript function as a debug event listener.
-// args[0]: debug event listener function
+// args[0]: debug event listener function to set or null or undefined for
+//          clearing the event listener function
 // args[1]: object supplied during callback
-static Object* Runtime_AddDebugEventListener(Arguments args) {
+static Object* Runtime_SetDebugEventListener(Arguments args) {
   ASSERT(args.length() == 2);
-  // Convert the parameters to API objects to call the API function for adding
-  // a JavaScript function as debug event listener.
-  CONVERT_ARG_CHECKED(JSFunction, raw_fun, 0);
-  v8::Handle<v8::Function> fun(ToApi<v8::Function>(raw_fun));
-  v8::Handle<v8::Value> data(ToApi<v8::Value>(args.at<Object>(0)));
-  v8::Debug::AddDebugEventListener(fun, data);
-
-  return Heap::undefined_value();
-}
-
-
-// Removes a JavaScript function debug event listener.
-// args[0]: debug event listener function
-static Object* Runtime_RemoveDebugEventListener(Arguments args) {
-  ASSERT(args.length() == 1);
-  // Convert the parameter to an API object to call the API function for
-  // removing a JavaScript function debug event listener.
-  CONVERT_ARG_CHECKED(JSFunction, raw_fun, 0);
-  v8::Handle<v8::Function> fun(ToApi<v8::Function>(raw_fun));
-  v8::Debug::RemoveDebugEventListener(fun);
+  RUNTIME_ASSERT(args[0]->IsJSFunction() ||
+                 args[0]->IsUndefined() ||
+                 args[0]->IsNull());
+  Handle<Object> callback = args.at<Object>(0);
+  Handle<Object> data = args.at<Object>(1);
+  Debugger::SetEventListener(callback, data);
 
   return Heap::undefined_value();
 }

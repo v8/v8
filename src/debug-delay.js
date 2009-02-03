@@ -363,15 +363,13 @@ function UpdateScriptBreakPoints(script) {
 }
 
 
-Debug.addListener = function(listener, opt_data) {
-  if (!IS_FUNCTION(listener)) throw new Error('Parameters have wrong types.');
-  %AddDebugEventListener(listener, opt_data);
+Debug.setListener = function(listener, opt_data) {
+  if (!IS_FUNCTION(listener) && !IS_UNDEFINED(listener) && !IS_NULL(listener)) {
+    throw new Error('Parameters have wrong types.');
+  }
+  %SetDebugEventListener(listener, opt_data);
 };
 
-Debug.removeListener = function(listener) {
-  if (!IS_FUNCTION(listener)) throw new Error('Parameters have wrong types.');
-  %RemoveDebugEventListener(listener);
-};
 
 Debug.breakExecution = function(f) {
   %Break();
