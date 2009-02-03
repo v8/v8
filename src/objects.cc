@@ -6802,7 +6802,7 @@ void Script::InitLineEnds() {
   }
 
   Handle<FixedArray> fixed_array = Factory::NewFixedArray(0);
-  set_line_ends(fixed_array->AddKeysFromJSArray(*array));
+  set_line_ends(*AddKeysFromJSArray(fixed_array, array));
   ASSERT(line_ends()->IsFixedArray());
 }
 
