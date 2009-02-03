@@ -293,7 +293,18 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   }
 
   // Generate the code, update the function info, and return the code.
-  LOG(CodeCreateEvent("LazyCompile", *code, *lit->name()));
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (script->name()->IsString()) {
+    int lineNum = script->GetLineNumber(start_position);
+    if (lineNum > 0) {
+      lineNum += script->line_offset()->value() + 1;
+    }
+    LOG(CodeCreateEvent("LazyCompile", *code, *lit->name(),
+                        String::cast(script->name()), lineNum));
+  } else {
+    LOG(CodeCreateEvent("LazyCompile", *code, *lit->name()));
+  }
+#endif
 
   // Update the shared function info with the compiled code.
   shared->set_code(*code);

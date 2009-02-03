@@ -588,6 +588,22 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
 }
 
 
+void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
+                             String* source, int line) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL || !FLAG_log_code) return;
+  ScopedLock sl(mutex_);
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  SmartPointer<char> sourcestr =
+      source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  fprintf(logfile_, "code-creation,%s,0x%x,%d,\"%s %s:%d\"\n", tag,
+          reinterpret_cast<unsigned int>(code->address()),
+          code->instruction_size(), *str, *sourcestr, line);
+#endif
+}
+
+
 void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;

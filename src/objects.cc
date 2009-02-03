@@ -6775,6 +6775,61 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
 }
 
 
+// Init line_ends array with code positions of line ends inside script source
+void Script::InitLineEnds() {
+  if (!line_ends()->IsUndefined()) return;
+
+  Handle<String> src(String::cast(source()));
+  const int src_len = src->length();
+  Handle<JSArray> array = Factory::NewJSArray(0);
+  int array_index = 0;
+  Handle<String> new_line = Factory::NewStringFromAscii(CStrVector("\n"));
+  int position = 0;
+  while (position < src_len) {
+    position = Runtime::StringMatch(src, new_line, position);
+    if (position != -1) {
+      SetElement(array, array_index++, Handle<Smi>(Smi::FromInt(position++)));
+    } else {
+      break;
+    }
+  }
+
+  // If the script does not end with a line ending add the final end position
+  // as just past the last line ending.
+  if (array_index == 0 ||
+      (Smi::cast(array->GetElement(array_index - 1))->value() != src_len - 1)) {
+    SetElement(array, array_index++, Handle<Smi>(Smi::FromInt(src_len)));
+  }
+
+  Handle<FixedArray> fixed_array = Factory::NewFixedArray(0);
+  set_line_ends(fixed_array->AddKeysFromJSArray(*array));
+  ASSERT(line_ends()->IsFixedArray());
+}
+
+
+// Convert code position into line number
+int Script::GetLineNumber(int code_pos) {
+  InitLineEnds();
+  FixedArray* line_ends_array = FixedArray::cast(line_ends());
+
+  int line = -1;
+  if (code_pos <= (Smi::cast(line_ends_array->get(0)))->value()) {
+    line = 0;
+  } else {
+    const int line_ends_length = line_ends_array->length();
+    for (int i = 1; i < line_ends_length; ++i) {
+      if ((Smi::cast(line_ends_array->get(i - 1)))->value() < code_pos &&
+          code_pos <= (Smi::cast(line_ends_array->get(i)))->value()) {
+        line = i;
+        break;
+      }
+    }
+  }
+
+  return line != -1 ? line + line_offset()->value() : line;
+}
+
+
 // Check if there is a break point at this code position.
 bool DebugInfo::HasBreakPoint(int code_position) {
   // Get the break point info object for this code position.

@@ -104,7 +104,10 @@ class JSCodeEntry(CodeEntry):
 
   def ToString(self):
     name = self.name
-    if name == '': name = '<anonymous>'
+    if name == '':
+      name = '<anonymous>'
+    elif name.startswith(' '):
+      name = '<anonymous>' + name
     return self.type + ': ' + name
 
 

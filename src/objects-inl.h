@@ -1989,6 +1989,7 @@ ACCESSORS(Script, line_offset, Smi, kLineOffsetOffset)
 ACCESSORS(Script, column_offset, Smi, kColumnOffsetOffset)
 ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
 ACCESSORS(Script, type, Smi, kTypeOffset)
+ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, original_code, Code, kOriginalCodeIndex)

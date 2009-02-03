@@ -163,6 +163,8 @@ class Logger {
   // Emits a code create event.
   static void CodeCreateEvent(const char* tag, Code* code, const char* source);
   static void CodeCreateEvent(const char* tag, Code* code, String* name);
+  static void CodeCreateEvent(const char* tag, Code* code, String* name,
+                              String* source, int line);
   static void CodeCreateEvent(const char* tag, Code* code, int args_count);
   static void CodeAllocateEvent(Code* code, Assembler* assem);
   // Emits a code move event.
