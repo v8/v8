@@ -121,13 +121,19 @@ static Handle<JSFunction> MakeFunction(bool is_global,
     return Handle<JSFunction>::null();
   }
 
-  if (script->name()->IsString()) {
-    SmartPointer<char> data =
-        String::cast(script->name())->ToCString(DISALLOW_NULLS);
-    LOG(CodeCreateEvent(is_eval ? "Eval" : "Script", *code, *data));
-  } else {
-    LOG(CodeCreateEvent(is_eval ? "Eval" : "Script", *code, ""));
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  // Log the code generation for the script. Check explicit whether logging is
+  // to avoid allocating when not required.
+  if (Logger::is_enabled()) {
+    if (script->name()->IsString()) {
+      SmartPointer<char> data =
+          String::cast(script->name())->ToCString(DISALLOW_NULLS);
+      LOG(CodeCreateEvent(is_eval ? "Eval" : "Script", *code, *data));
+    } else {
+      LOG(CodeCreateEvent(is_eval ? "Eval" : "Script", *code, ""));
+    }
   }
+#endif
 
   // Allocate function.
   Handle<JSFunction> fun =
@@ -292,17 +298,21 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
     return false;
   }
 
-  // Generate the code, update the function info, and return the code.
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (script->name()->IsString()) {
-    int lineNum = script->GetLineNumber(start_position);
-    if (lineNum > 0) {
-      lineNum += script->line_offset()->value() + 1;
+  // Log the code generation. If source information is available include script
+  // name and line number. Check explicit whether logging is enabled as finding
+  // the line number is not for free.
+  if (Logger::is_enabled()) {
+    if (script->name()->IsString()) {
+      int lineNum = script->GetLineNumber(start_position);
+      if (lineNum > 0) {
+        lineNum += script->line_offset()->value() + 1;
+      }
+      LOG(CodeCreateEvent("LazyCompile", *code, *lit->name(),
+                          String::cast(script->name()), lineNum));
+    } else {
+      LOG(CodeCreateEvent("LazyCompile", *code, *lit->name()));
     }
-    LOG(CodeCreateEvent("LazyCompile", *code, *lit->name(),
-                        String::cast(script->name()), lineNum));
-  } else {
-    LOG(CodeCreateEvent("LazyCompile", *code, *lit->name()));
   }
 #endif
 

@@ -1111,6 +1111,7 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
         }
       } else {
         if (object->IsCode()) {
+          // Notify the logger that compiled code has been collected.
           LOG(CodeDeleteEvent(Code::cast(object)->address()));
         }
         if (is_previous_alive) {  // Transition from live to free.
@@ -1678,7 +1679,7 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
   if (copied_to->IsCode()) {
     // may also update inline cache target.
     Code::cast(copied_to)->Relocate(new_addr - old_addr);
-    // Notify the logger that compile code has moved.
+    // Notify the logger that compiled code has moved.
     LOG(CodeMoveEvent(old_addr, new_addr));
   }
 
