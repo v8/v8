@@ -3136,26 +3136,34 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       frame_->Push(Smi::FromInt(0));
       return;
     }
+    Variable* var = node->target()->AsVariableProxy()->AsVariable();
 
     if (node->op() == Token::ASSIGN ||
         node->op() == Token::INIT_VAR ||
         node->op() == Token::INIT_CONST) {
       Load(node->value());
-
     } else {
-      VirtualFrame::SpilledScope spilled_scope(this);
-      target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
       Literal* literal = node->value()->AsLiteral();
+      Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
+      // There are two cases where the target is not read in the right hand
+      // side, that are easy to test for: the right hand side is a literal,
+      // or the right hand side is a different variable.  TakeValue invalidates
+      // the target, with an implicit promise that it will be written to again
+      // before it is read.
+      if (literal != NULL || (right_var != NULL && right_var != var)) {
+        target.TakeValue(NOT_INSIDE_TYPEOF);
+      } else {
+        target.GetValue(NOT_INSIDE_TYPEOF);
+      }
       if (IsInlineSmi(literal)) {
         SmiOperation(node->binary_op(), node->type(), literal->handle(), false,
                      NO_OVERWRITE);
       } else {
-        LoadAndSpill(node->value());
+        Load(node->value());
         GenericBinaryOperation(node->binary_op(), node->type());
       }
     }
 
-    Variable* var = node->target()->AsVariableProxy()->AsVariable();
     if (var != NULL &&
         var->mode() == Variable::CONST &&
         node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {

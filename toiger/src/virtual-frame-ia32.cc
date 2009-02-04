@@ -170,9 +170,11 @@ Register VirtualFrame::SpillAnyRegister() {
 // Spill an element, making its type be MEMORY.
 // Does not decrement usage counts, if element is a register.
 void VirtualFrame::RawSpillElementAt(int index) {
-  SyncElementAt(index);
-  // The element is now in memory.
-  elements_[index] = FrameElement::MemoryElement();
+  if (elements_[index].is_valid()) {
+    SyncElementAt(index);
+    // The element is now in memory.
+    elements_[index] = FrameElement::MemoryElement();
+  }
 }
 
 
@@ -190,8 +192,7 @@ void VirtualFrame::SpillElementAt(int index) {
 // element below the stack pointer (created by a single push).
 void VirtualFrame::RawSyncElementAt(int index) {
   FrameElement element = elements_[index];
-
-  if (!element.is_synced()) {
+  if (element.is_valid() && !element.is_synced()) {
     if (index <= stack_pointer_) {
       // Write elements below the stack pointer to their (already allocated)
       // actual frame location.
