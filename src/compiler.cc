@@ -304,12 +304,12 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   // the line number is not for free.
   if (Logger::is_enabled()) {
     if (script->name()->IsString()) {
-      int lineNum = script->GetLineNumber(start_position);
-      if (lineNum > 0) {
-        lineNum += script->line_offset()->value() + 1;
+      int line_num = script->GetLineNumber(start_position);
+      if (line_num > 0) {
+        line_num += script->line_offset()->value() + 1;
       }
       LOG(CodeCreateEvent("LazyCompile", *code, *lit->name(),
-                          String::cast(script->name()), lineNum));
+                          String::cast(script->name()), line_num));
     } else {
       LOG(CodeCreateEvent("LazyCompile", *code, *lit->name()));
     }

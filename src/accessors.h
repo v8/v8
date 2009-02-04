@@ -45,6 +45,7 @@ namespace v8 { namespace internal {
   V(ScriptLineOffset)    \
   V(ScriptColumnOffset)  \
   V(ScriptType)          \
+  V(ScriptLineEnds)      \
   V(ObjectPrototype)
 
 // Accessors contains all predefined proxy accessors.
@@ -82,6 +83,7 @@ class Accessors : public AllStatic {
   static Object* ScriptGetLineOffset(Object* object, void*);
   static Object* ScriptGetColumnOffset(Object* object, void*);
   static Object* ScriptGetType(Object* object, void*);
+  static Object* ScriptGetLineEnds(Object* object, void*);
   static Object* ObjectGetPrototype(Object* receiver, void*);
   static Object* ObjectSetPrototype(JSObject* receiver, Object* value, void*);
 
