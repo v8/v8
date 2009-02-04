@@ -277,7 +277,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     // Save register contents to make the registers available below.
     __ push(edi);
     __ push(backtrack_stackpointer());
-    // After this, the eax, ebx, ecx, edx and edi registers are available.
+    // After this, the eax, ecx, and edi registers are available.
 
     __ add(edx, Operand(esi));  // Start of capture
     __ add(edi, Operand(esi));  // Start of text to match against capture.
@@ -348,9 +348,9 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ add(edi, Operand(ecx));
     __ mov(Operand(esp, 2 * kPointerSize), edi);
     // Set byte_offset1.
-    // Start of capture, where eax already holds string-end negative offset.
-    __ add(eax, Operand(ecx));
-    __ mov(Operand(esp, 1 * kPointerSize), eax);
+    // Start of capture, where edx already holds string-end negative offset.
+    __ add(edx, Operand(ecx));
+    __ mov(Operand(esp, 1 * kPointerSize), edx);
     // Set buffer. Original String** parameter to regexp code.
     __ mov(eax, Operand(ebp, kInputBuffer));
     __ mov(Operand(esp, 0 * kPointerSize), eax);
@@ -978,7 +978,6 @@ void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
 
 
 static unibrow::Mapping<unibrow::Ecma262Canonicalize> canonicalize;
-
 
 RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Execute(
     Code* code,
