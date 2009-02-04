@@ -1443,9 +1443,7 @@ void CodeGenerator::VisitBlock(Block* node) {
   node->set_break_stack_height(break_stack_height_);
   node->break_target()->Initialize(this);
   VisitStatements(node->statements());
-  if (node->break_target()->is_linked()) {
-    node->break_target()->Bind();
-  }
+  node->break_target()->Bind();
 }
 
 
@@ -1602,9 +1600,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     }
   }
 
-  if (exit.is_linked()) {
-    exit.Bind();
-  }
+  exit.Bind();
 }
 
 
@@ -1755,9 +1751,9 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     SwitchStatement* node,
     int min_index,
     int range,
-    JumpTarget* fail_label,
-    Vector<JumpTarget*> case_targets,
-    Vector<JumpTarget> case_labels) {
+    Label* default_label,
+    Vector<Label*> case_targets,
+    Vector<Label> case_labels) {
   // Notice: Internal references, used by both the jmp instruction and
   // the table entries, need to be relocated if the buffer grows. This
   // prevents the forward use of Labels, since a displacement cannot
@@ -1766,38 +1762,48 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // placeholders, and fill in the addresses after the labels have been
   // bound.
 
-  Result switch_value = frame_->Pop();  // supposed Smi
-  // If value is not in range [0..length-1] then jump to the default/end label.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
-
-  // Test whether input is a HeapNumber that is really a Smi
+  JumpTarget setup_default(this);
   JumpTarget is_smi(this);
+
+  // A non-null default label pointer indicates a default case among
+  // the case labels.  Otherwise we use the break target as a
+  // "default".
+  JumpTarget* default_target =
+      (default_label == NULL) ? node->break_target() : &setup_default;
+
+  // Test whether input is a smi.
+  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  Result switch_value = frame_->Pop();
   switch_value.ToRegister();
   __ test(switch_value.reg(), Immediate(kSmiTagMask));
   is_smi.Branch(equal, &switch_value, taken);
-  // It's a heap object, not a Smi or a Failure
+
+  // It's a heap object, not a smi or a failure.  Check if it is a
+  // heap number.
   Result temp = allocator()->Allocate();
   ASSERT(temp.is_valid());
   __ mov(temp.reg(), FieldOperand(switch_value.reg(), HeapObject::kMapOffset));
   __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
   __ cmp(temp.reg(), HEAP_NUMBER_TYPE);
   temp.Unuse();
-  fail_label->Branch(not_equal);
-  // Result switch_value is a heap number.
+  default_target->Branch(not_equal);
+
+  // The switch value is a heap number.  Convert it to a smi.
   frame_->Push(&switch_value);
   Result smi_value = frame_->CallRuntime(Runtime::kNumberToSmi, 1);
+
   is_smi.Bind(&smi_value);
   smi_value.ToRegister();
-
+  // Convert the switch value to a 0-based table index.
   if (min_index != 0) {
     frame_->Spill(smi_value.reg());
     __ sub(Operand(smi_value.reg()), Immediate(min_index << kSmiTagSize));
   }
+  // Go to the default case if the table index is negative or not a smi.
   __ test(smi_value.reg(), Immediate(0x80000000 | kSmiTagMask));
-  // Go to slow case if adjusted index is negative or not a Smi.
-  fail_label->Branch(not_equal, not_taken);
+  default_target->Branch(not_equal, not_taken);
   __ cmp(smi_value.reg(), range << kSmiTagSize);
-  fail_label->Branch(greater_equal, not_taken);
+  default_target->Branch(greater_equal, not_taken);
 
   // 0 is placeholder.
   // Jump to the address at table_address + 2 * smi_value.reg().
@@ -1805,27 +1811,50 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // The Smi encoding of smi_value.reg() is 2 * switch_value.
   __ jmp(Operand(smi_value.reg(), smi_value.reg(),
                  times_1, 0x0, RelocInfo::INTERNAL_REFERENCE));
+  smi_value.Unuse();
+
+  // The expected frame at all the case labels is the (mergable
+  // version of the) current one.  Keep a copy to restore at the start
+  // of every label.
+  frame_->MakeMergable();
+  VirtualFrame* start_frame = new VirtualFrame(frame_);
+
   // Calculate address to overwrite later with actual address of table.
   int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t);
-
   __ Align(4);
-  JumpTarget table_start(this);
-  smi_value.Unuse();
-  table_start.Bind();
-  __ WriteInternalReference(jump_table_ref, *table_start.entry_label());
+  Label table_start;
+  __ bind(&table_start);
+  __ WriteInternalReference(jump_table_ref, table_start);
 
   for (int i = 0; i < range; i++) {
     // These are the table entries. 0x0 is the placeholder for case address.
     __ dd(0x0, RelocInfo::INTERNAL_REFERENCE);
   }
 
-  GenerateFastCaseSwitchCases(node, case_labels, &table_start);
+  GenerateFastCaseSwitchCases(node, case_labels, start_frame);
 
-  for (int i = 0, entry_pos = table_start.entry_label()->pos();
+  // If there was a default case, we need to emit the code to match it.
+  if (default_label != NULL) {
+    node->break_target()->Jump();
+    setup_default.Bind();
+    frame_->MergeTo(start_frame);
+    __ jmp(default_label);
+    DeleteFrame();
+  }
+  node->break_target()->Bind();
+
+  for (int i = 0, entry_pos = table_start.pos();
        i < range;
        i++, entry_pos += sizeof(uint32_t)) {
-    __ WriteInternalReference(entry_pos, *case_targets[i]->entry_label());
+    if (case_targets[i] == NULL) {
+      __ WriteInternalReference(entry_pos,
+                                *node->break_target()->entry_label());
+    } else {
+      __ WriteInternalReference(entry_pos, *case_targets[i]);
+    }
   }
+
+  delete start_frame;
 }
 
 
@@ -1837,7 +1866,6 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   node->break_target()->Initialize(this);
 
   Load(node->tag());
-
   if (TryGenerateFastCaseSwitchStatement(node)) {
     return;
   }
@@ -1918,13 +1946,8 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     }
   }
 
-  if (fall_through.is_linked()) {
-    fall_through.Bind();
-  }
-
-  if (node->break_target()->is_linked()) {
-    node->break_target()->Bind();
-  }
+  fall_through.Bind();
+  node->break_target()->Bind();
 }
 
 
@@ -1984,16 +2007,12 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         }
       } else if (info == ALWAYS_FALSE) {
         // If we had a continue in the body we have to bind its jump target.
-        if (node->continue_target()->is_linked()) {
-          node->continue_target()->Bind();
-        }
+        node->continue_target()->Bind();
       } else {
         ASSERT(info == DONT_KNOW);
         // We have to compile the test expression if it can be reached by
         // control flow falling out of the body or via continue.
-        if (node->continue_target()->is_linked()) {
-          node->continue_target()->Bind();
-        }
+        node->continue_target()->Bind();
         if (has_valid_frame()) {
           LoadCondition(node->cond(), NOT_INSIDE_TYPEOF,
                         &body, node->break_target(), true);
@@ -2021,9 +2040,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         JumpTarget body(this);
         LoadCondition(node->cond(), NOT_INSIDE_TYPEOF,
                       &body, node->break_target(), true);
-        if (body.is_linked()) {
-          body.Bind();
-        }
+        body.Bind();
       }
 
       if (has_valid_frame()) {
@@ -2066,9 +2083,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         JumpTarget body(this);
         LoadCondition(node->cond(), NOT_INSIDE_TYPEOF,
                       &body, node->break_target(), true);
-        if (body.is_linked()) {
-          body.Bind();
-        }
+        body.Bind();
       }
 
       if (has_valid_frame()) {
@@ -2085,9 +2100,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
           // If there is an update statement and control flow can reach it
           // via falling out of the body of the loop or continuing, we
           // compile the update statement.
-          if (node->continue_target()->is_linked()) {
-            node->continue_target()->Bind();
-          }
+          node->continue_target()->Bind();
           if (has_valid_frame()) {
             // Record source position of the statement as this code which is
             // after the code for the body actually belongs to the loop
@@ -2104,9 +2117,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   }
 
   DecrementLoopNesting();
-  if (node->break_target()->is_linked()) {
-    node->break_target()->Bind();
-  }
+  node->break_target()->Bind();
 }
 
 
@@ -2130,7 +2141,6 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   JumpTarget fixed_array(this);
   JumpTarget entry(this, JumpTarget::BIDIRECTIONAL);
   JumpTarget end_del_check(this);
-  JumpTarget cleanup(this);
   JumpTarget exit(this);
 
   // Get the object to enumerate over (converted to JSObject).
@@ -2216,7 +2226,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   entry.Bind();
   __ mov(eax, frame_->ElementAt(0));  // load the current count
   __ cmp(eax, frame_->ElementAt(1));  // compare to the array length
-  cleanup.Branch(above_equal);
+  node->break_target()->Branch(above_equal);
 
   // Get the i'th entry of the array.
   __ mov(edx, frame_->ElementAt(2));
@@ -2291,7 +2301,6 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   entry.Jump();
 
   // Cleanup.
-  cleanup.Bind();
   node->break_target()->Bind();
   frame_->Drop(5);
 
@@ -2661,9 +2670,7 @@ void CodeGenerator::VisitConditional(Conditional* node) {
     Load(node->else_expression(), typeof_state());
   }
 
-  if (exit.is_linked()) {
-    exit.Bind();
-  }
+  exit.Bind();
 }
 
 
@@ -2801,12 +2808,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       // scope.
     }
 
-    // If we definitely did not jump over the assignment, we do not need
-    // to bind the exit label.  Doing so can defeat peephole
-    // optimization.
-    if (exit.is_linked()) {
-      exit.Bind();
-    }
+    exit.Bind();
   }
 }
 

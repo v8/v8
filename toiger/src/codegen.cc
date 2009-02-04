@@ -379,17 +379,14 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
-  // JumpTarget pointer per number in range.
-  SmartPointer<JumpTarget*> case_targets(NewArray<JumpTarget*>(range));
+  // Label pointer per number in range.
+  SmartPointer<Label*> case_targets(NewArray<Label*>(range));
 
-  // JumpTarget per switch case.
-  SmartPointer<JumpTarget> case_labels(NewArray<JumpTarget>(length));
-  for (int i = 0; i < length; i++) {
-    case_labels[i].Initialize(this);
-  }
+  // Label per switch case.
+  SmartPointer<Label> case_labels(NewArray<Label>(length));
 
-  JumpTarget* fail_label = default_index >= 0 ? &(case_labels[default_index])
-                                              : node->break_target();
+  Label* fail_label =
+      default_index >= 0 ? &(case_labels[default_index]) : NULL;
 
   // Populate array of label pointers for each number in the range.
   // Initally put the failure label everywhere.
@@ -400,7 +397,7 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
   // Overwrite with label of a case for the number value of that case.
   // (In reverse order, so that if the same label occurs twice, the
   // first one wins).
-  for (int i = length-1; i >= 0 ; i--) {
+  for (int i = length - 1; i >= 0 ; i--) {
     CaseClause* clause = cases->at(i);
     if (!clause->is_default()) {
       Object* label_value = *(clause->label()->AsLiteral()->handle());
@@ -413,35 +410,33 @@ void CodeGenerator::GenerateFastCaseSwitchStatement(SwitchStatement* node,
                                   min_index,
                                   range,
                                   fail_label,
-                                  Vector<JumpTarget*>(*case_targets, range),
-                                  Vector<JumpTarget>(*case_labels, length));
+                                  Vector<Label*>(*case_targets, range),
+                                  Vector<Label>(*case_labels, length));
 }
 
 
 void CodeGenerator::GenerateFastCaseSwitchCases(
     SwitchStatement* node,
-    Vector<JumpTarget> case_labels,
-    JumpTarget* table_start) {
+    Vector<Label> case_labels,
+    VirtualFrame* start_frame) {
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
   for (int i = 0; i < length; i++) {
     Comment cmnt(masm(), "[ Case clause");
-    case_labels[i].Bind();
+    masm()->bind(&case_labels[i]);
     VisitStatements(cases->at(i)->statements());
 
-    // All of the labels match the same expected frame as the table start.
-    // If control flow cannot fall off the end of the case statement, we
-    // pick up the expected frame from the table start.  Otherwise we have
-    // to generate merge code to match the next label.
+    // If control flow did not fall off the end of the case statement,
+    // we restore the expected frame for the next iteration (or exit
+    // of the loop).  Otherwise we have to generate merge code to
+    // expectation at the next case.
     if (frame_ == NULL) {
-      frame_ = new VirtualFrame(table_start->expected_frame());
+      frame_ = new VirtualFrame(start_frame);
     } else {
-      frame_->MergeTo(table_start->expected_frame());
+      frame_->MergeTo(start_frame);
     }
   }
-
-  node->break_target()->Bind();
 }
 
 

@@ -83,29 +83,19 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   }
 
   // Predicates testing the state of the encapsulated label.
-  bool is_bound() const { return expected_frame_ != NULL; }
-  bool is_linked() const { return reaching_frames_.length() > 0; }
+  bool is_bound() const { return is_bound_; }
+  bool is_linked() const { return is_linked_; }
   bool is_unused() const { return !is_bound() && !is_linked(); }
 
   // Treat the jump target as a fresh one.  The expected frame if any
   // will be deallocated and there should be no dangling jumps to the
   // target (thus no reaching frames).
-  void Unuse() {
-    ASSERT(!is_linked());
-    entry_label_.Unuse();
-    delete expected_frame_;
-    expected_frame_ = NULL;
-  }
+  void Unuse();
 
   // Reset the internal state of this jump target.  Pointed-to virtual
   // frames are not deallocated and dangling jumps to the target are
   // left dangling.
-  void Reset() {
-    reaching_frames_.Clear();
-    merge_labels_.Clear();
-    expected_frame_ = NULL;
-    entry_label_.Unuse();
-  }
+  void Reset();
 
   // Copy the state of this jump target to the destination.  The lists
   // of forward-reaching frames and merge-point labels are copied.
@@ -177,6 +167,12 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
   // The actual entry label of the block.
   Label entry_label_;
+
+  // A target is bound if its Bind member function has been called.
+  // It is linked if it is not bound but its Jump, Branch, or Call
+  // member functions have been called.
+  bool is_bound_;
+  bool is_linked_;
 
   // Add a virtual frame reaching this labeled block via a forward
   // jump, and a fresh label for its merge code.

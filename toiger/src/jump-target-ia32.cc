@@ -42,7 +42,9 @@ JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
       direction_(direction),
       reaching_frames_(0),
       merge_labels_(0),
-      expected_frame_(NULL) {
+      expected_frame_(NULL),
+      is_bound_(false),
+      is_linked_(false) {
   ASSERT(cgen_ != NULL);
   masm_ = cgen_->masm();
 }
@@ -54,7 +56,9 @@ JumpTarget::JumpTarget()
       direction_(FORWARD_ONLY),
       reaching_frames_(0),
       merge_labels_(0),
-      expected_frame_(NULL) {
+      expected_frame_(NULL),
+      is_bound_(false),
+      is_linked_(false) {
 }
 
 
@@ -64,6 +68,26 @@ void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
   cgen_ = cgen;
   masm_ = cgen->masm();
   direction_ = direction;
+}
+
+
+void JumpTarget::Unuse() {
+  ASSERT(!is_linked());
+  entry_label_.Unuse();
+  delete expected_frame_;
+  expected_frame_ = NULL;
+  is_bound_ = false;
+  is_linked_ = false;
+}
+
+
+void JumpTarget::Reset() {
+  reaching_frames_.Clear();
+  merge_labels_.Clear();
+  expected_frame_ = NULL;
+  entry_label_.Unuse();
+  is_bound_ = false;
+  is_linked_ = false;
 }
 
 
@@ -90,6 +114,8 @@ void JumpTarget::Jump() {
     cgen_->SetFrame(NULL, &empty);
     __ jmp(&merge_labels_.last());
   }
+
+  is_linked_ = !is_bound_;
 }
 
 
@@ -160,6 +186,8 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
     AddReachingFrame(new VirtualFrame(cgen_->frame()));
     __ j(cc, &merge_labels_.last(), hint);
   }
+
+  is_linked_ = !is_bound_;
 }
 
 
@@ -298,12 +326,13 @@ void JumpTarget::Call() {
   target_frame->Adjust(1);
   AddReachingFrame(target_frame);
   __ call(&merge_labels_.last());
+
+  is_linked_ = !is_bound_;
 }
 
 
 void JumpTarget::Bind() {
   ASSERT(cgen_ != NULL);
-  ASSERT(is_linked() || cgen_->has_valid_frame());
   ASSERT(!is_bound());
 
   if (is_linked()) {
@@ -311,46 +340,71 @@ void JumpTarget::Bind() {
     // the frames reaching the block via forward jumps are merged to it.
     ASSERT(reaching_frames_.length() == merge_labels_.length());
 
-    // Choose a frame as the basis of the expected frame, and make it
-    // mergable.  If there is a current frame use it, otherwise use the
-    // first in the list (there will be at least one).
-    int start_index = 0;
-    if (cgen_->has_valid_frame()) {
-      // Live non-frame registers are not allowed at the start of a labeled
-      // basic block.
-      ASSERT(cgen_->HasValidEntryRegisters());
+    // A special case is that there was only one jump to the block so
+    // far, no fall-through, and there cannot be another entry because
+    // the block is forward only.  In that case, simply use the single
+    // frame.
+    bool single_entry = (direction_ == FORWARD_ONLY) &&
+                        !cgen_->has_valid_frame() &&
+                        (reaching_frames_.length() == 1);
+    if (single_entry) {
+      // Pick up the only forward reaching frame and bind its merge
+      // label.  No merge code is emitted.
+      RegisterFile reserved_registers = RegisterAllocator::Reserved();
+      cgen_->SetFrame(reaching_frames_[0], &reserved_registers);
+      __ bind(&merge_labels_[0]);
     } else {
-      RegisterFile reserved_registers = RegisterAllocator::Reserved();
-      cgen_->SetFrame(reaching_frames_[start_index], &reserved_registers);
-      __ bind(&merge_labels_[start_index++]);
+      // Otherwise, choose a frame as the basis of the expected frame,
+      // and make it mergable.  If there is a current frame use it,
+      // otherwise use the first in the list (there will be at least
+      // one).
+      int start_index = 0;
+      if (cgen_->has_valid_frame()) {
+        // Live non-frame registers are not allowed at the start of a
+        // labeled basic block.
+        ASSERT(cgen_->HasValidEntryRegisters());
+      } else {
+        RegisterFile reserved_registers = RegisterAllocator::Reserved();
+        cgen_->SetFrame(reaching_frames_[start_index], &reserved_registers);
+        __ bind(&merge_labels_[start_index++]);
+      }
+      cgen_->frame()->MakeMergable();
+      expected_frame_ = new VirtualFrame(cgen_->frame());
+
+      for (int i = start_index; i < reaching_frames_.length(); i++) {
+        cgen_->DeleteFrame();
+        __ jmp(&entry_label_);
+
+        RegisterFile reserved_registers = RegisterAllocator::Reserved();
+        cgen_->SetFrame(reaching_frames_[i], &reserved_registers);
+        __ bind(&merge_labels_[i]);
+
+        cgen_->frame()->MergeTo(expected_frame_);
+      }
+
+      __ bind(&entry_label_);
     }
-    cgen_->frame()->MakeMergable();
-    expected_frame_ = new VirtualFrame(cgen_->frame());
-
-    for (int i = start_index; i < reaching_frames_.length(); i++) {
-      cgen_->DeleteFrame();
-      __ jmp(&entry_label_);
-
-      RegisterFile reserved_registers = RegisterAllocator::Reserved();
-      cgen_->SetFrame(reaching_frames_[i], &reserved_registers);
-      __ bind(&merge_labels_[i]);
-
-      cgen_->frame()->MergeTo(expected_frame_);
-    }
-    __ bind(&entry_label_);
 
     // All but the last reaching virtual frame have been deleted, and
     // the last one is the current frame.
     reaching_frames_.Clear();
     merge_labels_.Clear();
+
   } else {
-    // There were no forward jumps.  There must be a current frame,
-    // which is made mergable and used as the expected frame.
-    ASSERT(cgen_->HasValidEntryRegisters());
-    cgen_->frame()->MakeMergable();
-    expected_frame_ = new VirtualFrame(cgen_->frame());
-    __ bind(&entry_label_);
+    // There were no forward jumps.  If this jump target is not
+    // bidirectional, there is no need to do anything.  For
+    // bidirectional jump targets, the current frame is made mergable
+    // and used for the expected frame.
+    if (direction_ == BIDIRECTIONAL) {
+      ASSERT(cgen_->HasValidEntryRegisters());
+      cgen_->frame()->MakeMergable();
+      expected_frame_ = new VirtualFrame(cgen_->frame());
+      __ bind(&entry_label_);
+    }
   }
+
+  is_linked_ = false;
+  is_bound_ = true;
 }
 
 
@@ -424,6 +478,8 @@ void JumpTarget::CopyTo(JumpTarget* destination) {
   }
   destination->expected_frame_ = expected_frame_;
   destination->entry_label_ = entry_label_;
+  destination->is_bound_ = is_bound_;
+  destination->is_linked_ = is_linked_;
 }
 
 

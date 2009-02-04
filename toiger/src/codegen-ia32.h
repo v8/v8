@@ -438,15 +438,15 @@ class CodeGenerator: public AstVisitor {
   void GenerateFastCaseSwitchJumpTable(SwitchStatement* node,
                                        int min_index,
                                        int range,
-                                       JumpTarget* fail_label,
-                                       Vector<JumpTarget*> case_targets,
-                                       Vector<JumpTarget> case_labels);
+                                       Label* fail_label,
+                                       Vector<Label*> case_targets,
+                                       Vector<Label> case_labels);
 
   // Generate the code for cases for the fast case switch.
   // Called by GenerateFastCaseSwitchJumpTable.
   void GenerateFastCaseSwitchCases(SwitchStatement* node,
-                                   Vector<JumpTarget> case_labels,
-                                   JumpTarget* table_start);
+                                   Vector<Label> case_labels,
+                                   VirtualFrame* start_frame);
 
   // Fast support for constant-Smi switches.
   void GenerateFastCaseSwitchStatement(SwitchStatement* node,
