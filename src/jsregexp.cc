@@ -2418,7 +2418,7 @@ void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                       RegExpCompiler* compiler,
                                       int characters_filled_in,
                                       bool not_at_start) {
-  not_at_start = not_at_start || not_at_start_;
+  not_at_start = (not_at_start || not_at_start_);
   int choice_count = alternatives_->length();
   ASSERT(choice_count > 0);
   alternatives_->at(0).node()->GetQuickCheckDetails(details,
@@ -3161,6 +3161,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       new_trace.set_bound_checked_up_to(preload_characters);
     }
     new_trace.quick_check_performed()->Clear();
+    if (not_at_start_) new_trace.set_at_start(Trace::FALSE);
     alt_gen->expects_preload = preload_is_current;
     bool generate_full_check_inline = false;
     if (FLAG_irregexp_optimization &&
@@ -3249,6 +3250,7 @@ void ChoiceNode::EmitOutOfLineContinuation(RegExpCompiler* compiler,
   Trace out_of_line_trace(*trace);
   out_of_line_trace.set_characters_preloaded(preload_characters);
   out_of_line_trace.set_quick_check_performed(&alt_gen->quick_check_details);
+  if (not_at_start_) out_of_line_trace.set_at_start(Trace::FALSE);
   ZoneList<Guard*>* guards = alternative.guards();
   int guard_count = (guards == NULL) ? 0 : guards->length();
   if (next_expects_preload) {
