@@ -945,16 +945,12 @@ NewFunctionEvent.prototype.setBreakPoint = function(p) {
 
 function DebugCommandProcessor(exec_state) {
   this.exec_state_ = exec_state;
+  this.running_ = false;
 };
 
 
 DebugCommandProcessor.prototype.processDebugRequest = function (request) {
   return this.processDebugJSONRequest(request);
-}
-
-
-DebugCommandProcessor.prototype.responseIsRunning = function (response) {
-  return this.isRunning(response);
 }
 
 
@@ -1032,7 +1028,7 @@ DebugCommandProcessor.prototype.createResponse = function(request) {
 };
 
 
-DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request, stopping) {
+DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request) {
   var request;  // Current request.
   var response;  // Generated response.
   try {
@@ -1091,10 +1087,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request,
 
     // Return the response as a JSON encoded string.
     try {
-      // Set the running state to what indicated.
-      if (!IS_UNDEFINED(stopping)) {
-        response.running = !stopping;
-      }
+      this.running_ = response.running;  // Store the running state.
       return response.toJSONProtocol();
     } catch (e) {
       // Failed to generate response - return generic error.
@@ -1538,18 +1531,10 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
 };
 
 
-// Check whether the JSON response indicate that the VM should be running.
-DebugCommandProcessor.prototype.isRunning = function(json_response) {
-  try {
-    // Convert the JSON string to an object.
-    response = %CompileString('(' + json_response + ')', 0)();
-
-    // Return whether VM should be running after this request.
-    return response.running;
-
-  } catch (e) {
-     return false;
-  }
+// Check whether the previously processed command caused the VM to become
+// running.
+DebugCommandProcessor.prototype.isRunning = function() {
+  return this.running_;
 }
 
 
