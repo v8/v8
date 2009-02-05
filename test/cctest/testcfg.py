@@ -51,6 +51,7 @@ class CcTestCase(test.TestCase):
     
   def BuildCommand(self, name):
     serialization_file = join('obj', 'test', self.mode, 'serdes')
+    serialization_file += '_' + self.GetName()
     serialization_option = '--testing_serialization_file=' + serialization_file
     result = [ self.executable, name, serialization_option ]
     if self.mode == 'debug':
