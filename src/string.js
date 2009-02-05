@@ -399,7 +399,13 @@ function StringReplaceRegExpWithFunction(subject, regexp, replace) {
       previous = captures[1];
       // Increment previous if we matched an empty string, as per ECMA-262
       // 15.5.4.10.
-      if (captures[0] == captures[1]) previous++;
+      if (previous == captures[0]) {
+        // Add the skipped character to the output, if any.
+        if (previous < subject.length) {
+          result.addSpecialSlice(previous, previous + 1);
+        }
+        previous++;
+      }
 
       // Per ECMA-262 15.10.6.2, if the previous index is greater than the
       // string length, there is no match
