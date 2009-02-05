@@ -690,15 +690,16 @@ ObjectMirror.prototype.lookupProperty = function(value) {
 
 /**
  * Returns objects which has direct references to this object
- * @param {number} opt_max_instances Optional parameter specifying the maximum
- *     number of instances to return.
+ * @param {number} opt_max_objects Optional parameter specifying the maximum
+ *     number of referencing objects to return.
  * @return {Array} The objects which has direct references to this object.
  */
-ObjectMirror.prototype.referencedBy = function(opt_max_instances) {
-  // Find all objects constructed from this function.
-  var result = %DebugReferencedBy(this.value_, Mirror.prototype, opt_max_instances || 0);
+ObjectMirror.prototype.referencedBy = function(opt_max_objects) {
+  // Find all objects with direct references to this object.
+  var result = %DebugReferencedBy(this.value_,
+                                  Mirror.prototype, opt_max_objects || 0);
 
-  // Make mirrors for all the instances found.
+  // Make mirrors for all the references found.
   for (var i = 0; i < result.length; i++) {
     result[i] = MakeMirror(result[i]);
   }

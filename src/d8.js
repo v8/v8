@@ -282,6 +282,14 @@ function DebugRequest(cmd_line) {
       this.request_ = this.dirCommandToJSONRequest_(args);
       break;
 
+    case 'references':
+      this.request_ = this.referencesCommandToJSONRequest_(args);
+      break;
+
+    case 'instances':
+      this.request_ = this.instancesCommandToJSONRequest_(args);
+      break;
+
     case 'source':
       this.request_ = this.sourceCommandToJSONRequest_(args);
       break;
@@ -363,7 +371,7 @@ DebugRequest.prototype.makeEvaluateJSONRequest_ = function(expression) {
   // Check if the expression is a handle id in the form #<handle>#.
   var handle_match = expression.match(/^#([0-9]*)#$/);
   if (handle_match) {
-    // Build an evaluate request.
+    // Build a lookup request.
     var request = this.createRequest('lookup');
     request.arguments = {};
     request.arguments.handle = parseInt(handle_match[1]);
@@ -377,6 +385,21 @@ DebugRequest.prototype.makeEvaluateJSONRequest_ = function(expression) {
   }
 };
 
+
+// Create a JSON request for the references/instances command.
+DebugRequest.prototype.makeReferencesJSONRequest_ = function(handle, type) {
+  // Build a references request.
+  var handle_match = handle.match(/^#([0-9]*)#$/);
+  if (handle_match) {
+    var request = this.createRequest('references');
+    request.arguments = {};
+    request.arguments.type = type;
+    request.arguments.handle = parseInt(handle_match[1]);
+    return request.toJSONProtocol();
+  } else {
+    throw new Error('Invalid object id.');
+  }
+};
 
 
 // Create a JSON request for the continue command.
@@ -502,6 +525,29 @@ DebugRequest.prototype.dirCommandToJSONRequest_ = function(args) {
     throw new Error('Missing expression.');
   }
   return this.makeEvaluateJSONRequest_(args);
+};
+
+
+// Create a JSON request for the references command.
+DebugRequest.prototype.referencesCommandToJSONRequest_ = function(args) {
+  // Build an evaluate request from the text command.
+  if (args.length == 0) {
+    throw new Error('Missing object id.');
+  }
+  
+  return this.makeReferencesJSONRequest_(args, 'referencedBy');
+};
+
+
+// Create a JSON request for the instances command.
+DebugRequest.prototype.instancesCommandToJSONRequest_ = function(args) {
+  // Build an evaluate request from the text command.
+  if (args.length == 0) {
+    throw new Error('Missing object id.');
+  }
+  
+  // Build a references request.
+  return this.makeReferencesJSONRequest_(args, 'constructedBy');
 };
 
 
@@ -660,6 +706,40 @@ function formatHandleReference_(value) {
 }
 
 
+function formatObject_(value, include_properties) {
+  var result = '';
+  result += formatHandleReference_(value);
+  result += ', type: object'
+  result += ', constructor ';
+  var ctor = value.constructorFunctionValue();
+  result += formatHandleReference_(ctor);
+  result += ', __proto__ ';
+  var proto = value.protoObjectValue();
+  result += formatHandleReference_(proto);
+  result += ', ';
+  result += value.propertyCount();
+  result +=  ' properties.';
+  if (include_properties) {
+    result +=  '\n';
+    for (var i = 0; i < value.propertyCount(); i++) {
+      result += '  ';
+      result += value.propertyName(i);
+      result += ': ';
+      var property_value = value.propertyValue(i);
+      if (property_value && property_value.type()) {
+        result += property_value.type();
+      } else {
+        result += '<no type>';
+      }
+      result += ' ';
+      result += formatHandleReference_(property_value);
+      result += '\n';
+    }
+  }
+  return result;
+}
+
+
 // Convert a JSON response to text for display in a text based debugger.
 function DebugResponseDetails(json_response) {
   details = {text:'', running:false}
@@ -719,31 +799,7 @@ function DebugResponseDetails(json_response) {
         } else {
           var value = response.bodyValue();
           if (value.isObject()) {
-            result += formatHandleReference_(value);
-            result += ', type: object'
-            result += ', constructor ';
-            var ctor = value.constructorFunctionValue();
-            result += formatHandleReference_(ctor);
-            result += ', __proto__ ';
-            var proto = value.protoObjectValue();
-            result += formatHandleReference_(proto);
-            result += ', ';
-            result += value.propertyCount();
-            result +=  ' properties.\n';
-            for (var i = 0; i < value.propertyCount(); i++) {
-              result += '  ';
-              result += value.propertyName(i);
-              result += ': ';
-              var property_value = value.propertyValue(i);
-              if (property_value && property_value.type()) {
-                result += property_value.type();
-              } else {
-                result += '<no type>';
-              }
-              result += ' ';
-              result += formatHandleReference_(property_value);
-              result += '\n';
-            }
+            result += formatObject_(value, true);
           } else {
             result += 'type: ';
             result += value.type();
@@ -759,6 +815,18 @@ function DebugResponseDetails(json_response) {
             }
             result += '\n';
           }
+        }
+        details.text = result;
+        break;
+
+      case 'references':
+        var count = body.length;
+        result += 'found ' + count + ' objects';
+        result += '\n';
+        for (var i = 0; i < count; i++) {
+          var value = response.bodyValue(i);
+          result += formatObject_(value, false);
+          result += '\n';
         }
         details.text = result;
         break;
@@ -915,8 +983,12 @@ ProtocolPackage.prototype.body = function() {
 }
 
 
-ProtocolPackage.prototype.bodyValue = function() {
-  return new ProtocolValue(this.packet_.body, this);
+ProtocolPackage.prototype.bodyValue = function(index) {
+  if (IS_UNDEFINED(index)) {
+    return new ProtocolValue(this.packet_.body, this);
+  } else {
+    return new ProtocolValue(this.packet_.body[index], this);
+  }
 }
 
 

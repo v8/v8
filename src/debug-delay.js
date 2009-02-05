@@ -1078,6 +1078,8 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         this.evaluateRequest_(request, response);
       } else if (request.command == 'lookup') {
         this.lookupRequest_(request, response);
+      } else if (request.command == 'references') {
+        this.referencesRequest_(request, response);
       } else if (request.command == 'source') {
         this.sourceRequest_(request, response);
       } else if (request.command == 'scripts') {
@@ -1455,6 +1457,41 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
   var mirror = LookupMirror(handle);
   if (mirror) {
     response.body = mirror;
+  } else {
+    return response.failed('Object #' + handle + '# not found');
+  }
+};
+
+
+DebugCommandProcessor.prototype.referencesRequest_ =
+    function(request, response) {
+  if (!request.arguments) {
+    return response.failed('Missing arguments');
+  }
+
+  // Pull out arguments.
+  var type = request.arguments.type;
+  var handle = request.arguments.handle;
+
+  // Check for legal arguments.
+  if (IS_UNDEFINED(type)) {
+    return response.failed('Argument "type" missing');
+  }
+  if (IS_UNDEFINED(handle)) {
+    return response.failed('Argument "handle" missing');
+  }
+  if (type != 'referencedBy' && type != 'constructedBy') {
+    return response.failed('Invalid type "' + type + '"');
+  }
+
+  // Lookup handle and return objects with references the object.
+  var mirror = LookupMirror(handle);
+  if (mirror) {
+    if (type == 'referencedBy') {
+      response.body = mirror.referencedBy();
+    } else {
+      response.body = mirror.constructedBy();
+    }
   } else {
     return response.failed('Object #' + handle + '# not found');
   }
