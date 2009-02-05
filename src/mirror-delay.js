@@ -87,6 +87,8 @@ function MakeMirror(value) {
     mirror = new RegExpMirror(value);
   } else if (IS_ERROR(value)) {
     mirror = new ErrorMirror(value);
+  } else if (IS_SCRIPT(value)) {
+    mirror = new ScriptMirror(value);
   } else {
     mirror = new ObjectMirror(value);
   }
@@ -777,7 +779,7 @@ FunctionMirror.prototype.script = function() {
   if (this.resolved()) {
     var script = %FunctionGetScript(this.value_);
     if (script) {
-      return new ScriptMirror(script);
+      return MakeMirror(script);
     }
   }
 };
@@ -1548,8 +1550,18 @@ function ScriptMirror(script) {
 inherits(ScriptMirror, Mirror);
 
 
+ScriptMirror.prototype.value = function() {
+  return this.script_;
+};
+
+
 ScriptMirror.prototype.name = function() {
   return this.script_.name;
+};
+
+
+ScriptMirror.prototype.source = function() {
+  return this.script_.source;
 };
 
 

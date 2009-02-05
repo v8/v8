@@ -28,7 +28,7 @@
 // Flags: --expose-debug-as debug
 // Test the mirror object for scripts.
 
-function testScriptMirror(f, file_name, file_lines, script_type) {
+function testScriptMirror(f, file_name, file_lines, script_type, script_source) {
   // Create mirror and JSON representation.
   var mirror = debug.MakeMirror(f).script();
   var serializer = debug.MakeMirrorSerializer();
@@ -43,19 +43,30 @@ function testScriptMirror(f, file_name, file_lines, script_type) {
   assertTrue(mirror.isScript());
   assertEquals('script', mirror.type());
   var name = mirror.name();
-  assertEquals(file_name, name.substring(name.length - file_name.length));
+  if (name) {
+    assertEquals(file_name, name.substring(name.length - file_name.length));
+  } else {
+    assertTrue(file_name === null);
+  }
   assertEquals(0, mirror.lineOffset());
   assertEquals(0, mirror.columnOffset());
   if (file_lines > 0) {
     assertEquals(file_lines, mirror.lineCount());
   }
   assertEquals(script_type, mirror.scriptType());
+  if (script_source) {
+    assertEquals(script_source, mirror.source());
+  }
   
   // Parse JSON representation and check.
   var fromJSON = eval('(' + json + ')');
   assertEquals('script', fromJSON.type);
   name = fromJSON.name;
-  assertEquals(file_name, name.substring(name.length - file_name.length));
+  if (name) {
+    assertEquals(file_name, name.substring(name.length - file_name.length));
+  } else {
+    assertTrue(file_name === null);
+  }
   assertEquals(0, fromJSON.lineOffset);
   assertEquals(0, fromJSON.columnOffset);
   if (file_lines > 0) {
@@ -66,5 +77,16 @@ function testScriptMirror(f, file_name, file_lines, script_type) {
 
 
 // Test the script mirror for different functions.
-testScriptMirror(function(){}, 'mirror-script.js', 70, 2);
+testScriptMirror(function(){}, 'mirror-script.js', 92, 2);
 testScriptMirror(Math.sin, 'native math.js', -1, 0);
+testScriptMirror(eval('function(){}'), null, 1, 2, 'function(){}');
+testScriptMirror(eval('function(){\n  }'), null, 2, 2, 'function(){\n  }');
+
+// Test taking slices of source.
+var mirror = debug.MakeMirror(eval('function(){\n  1;\n}')).script();
+assertEquals('function(){\n', mirror.sourceSlice(0, 1).sourceText());
+assertEquals('  1;\n', mirror.sourceSlice(1, 2).sourceText());
+assertEquals('}', mirror.sourceSlice(2, 3).sourceText());
+assertEquals('function(){\n  1;\n', mirror.sourceSlice(0, 2).sourceText());
+assertEquals('  1;\n}', mirror.sourceSlice(1, 3).sourceText());
+assertEquals('function(){\n  1;\n}', mirror.sourceSlice(0, 3).sourceText());
