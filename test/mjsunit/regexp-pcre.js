@@ -2110,7 +2110,8 @@ assertEquals(null, res[255].exec("ab\ncd", 463));
 assertEquals(null, res[255].exec("AbCd", 464));
 assertEquals(null, res[255].exec("** Failers", 465));
 assertEquals(null, res[255].exec("abcd", 466));
-assertThrows("var re = /(){2,4294967295}/;", 467);
+// We are compatible with JSC, and don't throw an exception in this case.
+// assertThrows("var re = /(){2,4294967295}/;", 467);
 assertEquals(null, res[255].exec("abcdefghijklAkB", 468));
 assertEquals(null, res[255].exec("abcdefghijklAkB", 469));
 assertEquals(null, res[255].exec("abcdefghijklAkB", 470));

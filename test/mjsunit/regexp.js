@@ -304,10 +304,43 @@ for (var i = 0; i < 128; i++) {
 assertFalse(/f(o)$\1/.test('foo'), "backref detects at_end");
 
 // Check decimal escapes doesn't overflow.
-
+// (Note: \214 is interpreted as octal).
 assertEquals(/\2147483648/.exec("\x8c7483648"),
              ["\x8c7483648"],
              "Overflow decimal escape");
+
+
+// Check numbers in quantifiers doesn't overflow and doesn't throw on
+// too large numbers.
+assertFalse(/a{111111111111111111111111111111111111111111111}/.test('b'),
+            "overlarge1");
+assertFalse(/a{999999999999999999999999999999999999999999999}/.test('b'),
+            "overlarge2");
+assertFalse(/a{1,111111111111111111111111111111111111111111111}/.test('b'),
+            "overlarge3");
+assertFalse(/a{1,999999999999999999999999999999999999999999999}/.test('b'),
+            "overlarge4");
+assertFalse(/a{2147483648}/.test('b'),
+            "overlarge5");
+assertFalse(/a{21474836471}/.test('b'),
+            "overlarge6");
+assertFalse(/a{1,2147483648}/.test('b'),
+            "overlarge7");
+assertFalse(/a{1,21474836471}/.test('b'),
+            "overlarge8");
+assertFalse(/a{2147483648,2147483648}/.test('b'),
+            "overlarge9");
+assertFalse(/a{21474836471,21474836471}/.test('b'),
+            "overlarge10");
+assertFalse(/a{2147483647}/.test('b'),
+            "overlarge11");
+assertFalse(/a{1,2147483647}/.test('b'),
+            "overlarge12");
+assertTrue(/a{1,2147483647}/.test('a'),
+            "overlarge13");
+assertFalse(/a{2147483647,2147483647}/.test('a'),
+            "overlarge14");
+
 
 // Check that we don't read past the end of the string.
 assertFalse(/f/.test('b'));

@@ -3938,6 +3938,9 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
 //   { DecimalDigits }
 //   { DecimalDigits , }
 //   { DecimalDigits , DecimalDigits }
+//
+// Returns true if parsing succeeds, and set the min_out and max_out
+// values. Values are truncated to RegExpTree::kInfinity if they overflow.
 bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
   ASSERT_EQ(current(), '{');
   int start = position();
@@ -3948,7 +3951,14 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
     return false;
   }
   while (IsDecimalDigit(current())) {
-    min = 10 * min + (current() - '0');
+    int next = current() - '0';
+    if (min > (RegExpTree::kInfinity - next) / 10) {
+      // Overflow. Skip past remaining decimal digits and return -1.
+      do { Advance(); } while (IsDecimalDigit(current()));
+      min = RegExpTree::kInfinity;
+      break;
+    }
+    min = 10 * min + next;
     Advance();
   }
   int max = 0;
@@ -3962,7 +3972,13 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
       Advance();
     } else {
       while (IsDecimalDigit(current())) {
-        max = 10 * max + (current() - '0');
+        int next = current() - '0';
+        if (max > (RegExpTree::kInfinity - next) / 10) {
+          do { Advance(); } while (IsDecimalDigit(current()));
+          max = RegExpTree::kInfinity;;
+          break;
+        }
+        max = 10 * max + next;
         Advance();
       }
       if (current() != '}') {
