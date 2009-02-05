@@ -79,7 +79,7 @@ const Debug = {};
 
 
 // Debug events which can occour in the V8 JavaScript engine. These originate
-// from the API include file debug.h.
+// from the API include file v8-debug.h.
 Debug.DebugEvent = { Break: 1,
                      Exception: 2,
                      NewFunction: 3,
@@ -99,75 +99,91 @@ Debug.State = {
   currentFrame: kNoFrame,
   currentSourceLine: -1
 }
+var trace_compile = false;  // Tracing all compile events?
 
 
 function DebugEventToText(event) {
-  if (event.eventType() == 1) {
-    // Build the break details.
-    var details = '';
-    if (event.breakPointsHit()) {
-      details += 'breakpoint';
-      if (event.breakPointsHit().length > 1) {
-        details += 's';
-      }
-      details += ' #';
-      for (var i = 0; i < event.breakPointsHit().length; i++) {
-        if (i > 0) {
-          details += ', #';
+  switch (event.eventType()) {
+    case Debug.DebugEvent.Break:
+      // Build the break details.
+      var details = '';
+      if (event.breakPointsHit()) {
+        details += 'breakpoint';
+        if (event.breakPointsHit().length > 1) {
+          details += 's';
         }
-        // Find the break point number. For break points originating from a
-        // script break point display the script break point number.
-        var break_point = event.breakPointsHit()[i];
-        var script_break_point = break_point.script_break_point();
-        if (script_break_point) {
-          details += script_break_point.number();
-        } else {
-          details += break_point.number();
+        details += ' #';
+        for (var i = 0; i < event.breakPointsHit().length; i++) {
+          if (i > 0) {
+            details += ', #';
+          }
+          // Find the break point number. For break points originating from a
+          // script break point display the script break point number.
+          var break_point = event.breakPointsHit()[i];
+          var script_break_point = break_point.script_break_point();
+          if (script_break_point) {
+            details += script_break_point.number();
+          } else {
+            details += break_point.number();
+          }
         }
+      } else {
+        details += 'break';
       }
-    } else {
-      details += 'break';
-    }
-    details += ' in ';
-    details += event.executionState().frame(0).invocationText();
-    details += ' at ';
-    details += event.executionState().frame(0).sourceAndPositionText();
-    details += '\n'
-    if (event.func().script()) {
-      details += FrameSourceUnderline(event.executionState().frame(0));
-    }
-    Debug.State.currentSourceLine =
-        event.executionState().frame(0).sourceLine();
-    Debug.State.currentFrame = 0;
-    return details;
-  } else if (event.eventType() == 2) {
-    var details = '';
-    if (event.uncaught_) {
-      details += 'Uncaught: ';
-    } else {
-      details += 'Exception: ';
-    }
-
-    details += '"';
-    details += event.exception();
-    details += '"';
-    if (event.executionState().frameCount() > 0) {
-      details += '"';
-      details += event.exception();
+      details += ' in ';
+      details += event.executionState().frame(0).invocationText();
       details += ' at ';
       details += event.executionState().frame(0).sourceAndPositionText();
-      details += '\n';
-      details += FrameSourceUnderline(event.executionState().frame(0));
+      details += '\n'
+      if (event.func().script()) {
+        details += FrameSourceUnderline(event.executionState().frame(0));
+      }
       Debug.State.currentSourceLine =
           event.executionState().frame(0).sourceLine();
       Debug.State.currentFrame = 0;
-    } else {
-      details += ' (empty stack)';
-      Debug.State.currentSourceLine = -1;
-      Debug.State.currentFrame = kNoFrame;
-    }
+      return details;
 
-    return details;
+    case Debug.DebugEvent.Exception:
+      var details = '';
+      if (event.uncaught_) {
+        details += 'Uncaught: ';
+      } else {
+        details += 'Exception: ';
+      }
+
+      details += '"';
+      details += event.exception();
+      details += '"';
+      if (event.executionState().frameCount() > 0) {
+        details += '"';
+        details += event.exception();
+        details += ' at ';
+        details += event.executionState().frame(0).sourceAndPositionText();
+        details += '\n';
+        details += FrameSourceUnderline(event.executionState().frame(0));
+        Debug.State.currentSourceLine =
+            event.executionState().frame(0).sourceLine();
+        Debug.State.currentFrame = 0;
+      } else {
+        details += ' (empty stack)';
+        Debug.State.currentSourceLine = -1;
+        Debug.State.currentFrame = kNoFrame;
+      }
+      return details;
+      
+    case Debug.DebugEvent.AfterCompile:
+      if (trace_compile) {
+        details = 'Source ' + event.script().name() + ' compiled:\n'
+        var source = event.script().source();
+        if (!(source[source.length - 1] == '\n')) {
+          details += source;
+        } else {
+          details += source.substring(0, source.length - 1);
+        }
+        return details;
+      } else {
+        return '';
+      }
   }
 
   return 'Unknown debug event ' + event.eventType();
@@ -283,11 +299,17 @@ function DebugRequest(cmd_line) {
       this.request_ = this.clearCommandToJSONRequest_(args);
       break;
 
+    case 'trace':
+      // Return undefined to indicate command handled internally (no JSON).
+      this.request_ = void 0;
+      this.traceCommand_(args);
+      break;
+
     case 'help':
     case '?':
       this.helpCommand_(args);
-      // Return null to indicate no JSON to send (command handled internally). 
-      this.request_ = void 0;  
+      // Return undefined to indicate command handled internally (no JSON).
+      this.request_ = void 0;
       break;
 
     default:
@@ -597,7 +619,22 @@ DebugRequest.prototype.clearCommandToJSONRequest_ = function(args) {
 };
 
 
-// Create a JSON request for the break command.
+// Handle the trace command.
+DebugRequest.prototype.traceCommand_ = function(args) {
+  // Process arguments.
+  if (args && args.length > 0) {
+    if (args == 'compile') {
+      trace_compile = !trace_compile;
+      print('Tracing of compiled scripts ' + (trace_compile ? 'on' : 'off'));
+    } else {
+      throw new Error('Invalid trace arguments.');
+    }
+  } else {
+    throw new Error('Invalid trace arguments.');
+  }
+}
+
+// Handle the help command.
 DebugRequest.prototype.helpCommand_ = function(args) {
   // Help os quite simple.
   if (args && args.length > 0) {
@@ -613,6 +650,7 @@ DebugRequest.prototype.helpCommand_ = function(args) {
   print('source [from line [num lines]]');
   print('scripts');
   print('continue');
+  print('trace compile');
   print('help');
 }
 

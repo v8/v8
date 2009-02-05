@@ -39,13 +39,19 @@ void HandleDebugEvent(DebugEvent event,
                       Handle<Value> data) {
   HandleScope scope;
 
-  // Currently only handles break and exception events.
-  if (event != Break && event != Exception) return;
+  // Check for handled event.
+  if (event != Break && event != Exception && event != AfterCompile) {
+    return;
+  }
 
   TryCatch try_catch;
 
   // Print the event details.
   Handle<String> details = Shell::DebugEventToText(event_data);
+  if (details->Length() == 0) {
+    // Empty string is used to signal not to process this event.
+    return;
+  }
   String::Utf8Value str(details);
   printf("%s\n", *str);
 

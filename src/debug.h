@@ -362,7 +362,7 @@ class Debugger {
   static Handle<Object> MakeNewFunctionEvent(Handle<Object> func,
                                              bool* caught_exception);
   static Handle<Object> MakeCompileEvent(Handle<Script> script,
-                                         Handle<Object> script_function,
+                                         bool before,
                                          bool* caught_exception);
   static void OnDebugBreak(Handle<Object> break_points_hit);
   static void OnException(Handle<Object> exception, bool uncaught);

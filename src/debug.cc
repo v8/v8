@@ -1398,16 +1398,17 @@ Handle<Object> Debugger::MakeNewFunctionEvent(Handle<Object> function,
 
 
 Handle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
-                                          Handle<Object> script_function,
+                                          bool before,
                                           bool* caught_exception) {
   // Create the compile event object.
   Handle<Object> exec_state = MakeExecutionState(caught_exception);
-  Handle<Object> script_source(script->source());
-  Handle<Object> script_name(script->name());
+  Handle<Object> script_wrapper = GetScriptWrapper(script);
   const int argc = 3;
-  Object** argv[argc] = { script_source.location(),
-                          script_name.location(),
-                          script_function.location() };
+  Object** argv[argc] = { exec_state.location(),
+                          script_wrapper.location(),
+                          before ? Factory::true_value().location() :
+                                   Factory::false_value().location() };
+
   return MakeJSObject(CStrVector("MakeCompileEvent"),
                       argc,
                       argv,
@@ -1501,9 +1502,7 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
 
   // Create the event data object.
   bool caught_exception = false;
-  Handle<Object> event_data = MakeCompileEvent(script,
-                                               Factory::undefined_value(),
-                                               &caught_exception);
+  Handle<Object> event_data = MakeCompileEvent(script, true, &caught_exception);
   // Bail out and don't call debugger if exception.
   if (caught_exception) {
     return;
@@ -1523,6 +1522,9 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
 
   // No more to do if not debugging.
   if (!debugger_active()) return;
+
+  // Store whether in debugger before entering debugger.
+  bool in_debugger = Debug::InDebugger();
 
   // Enter the debugger.
   EnterDebugger debugger;
@@ -1556,12 +1558,12 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
     return;
   }
   // Bail out based on state or if there is no listener for this event
-  if (Debug::InDebugger()) return;
+  if (in_debugger) return;
   if (!Debugger::EventActive(v8::AfterCompile)) return;
 
   // Create the compile state object.
   Handle<Object> event_data = MakeCompileEvent(script,
-                                               Factory::undefined_value(),
+                                               false,
                                                &caught_exception);
   // Bail out and don't call debugger if exception.
   if (caught_exception) {

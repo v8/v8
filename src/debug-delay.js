@@ -896,25 +896,34 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
 };
 
 
-function MakeCompileEvent(script_source, script_name, script_function, before) {
-  return new CompileEvent(script_source, script_name, script_function, before);
+function MakeCompileEvent(exec_state, script, before) {
+  return new CompileEvent(exec_state, script, before);
 }
 
 
-function CompileEvent(script_source, script_name, script_function, before) {
-  this.scriptSource = script_source;
-  this.scriptName = script_name;
-  this.scriptFunction = script_function;
-  this.before = before;
+function CompileEvent(exec_state, script, before) {
+  this.exec_state_ = exec_state;
+  this.script_ = MakeMirror(script);
+  this.before_ = before;
 }
+
+
+CompileEvent.prototype.executionState = function() {
+  return this.exec_state_;
+};
 
 
 CompileEvent.prototype.eventType = function() {
-  if (this.before) {
-    return Debug.DebugEvent.BeforeComplie;
+  if (this.before_) {
+    return Debug.DebugEvent.BeforeCompile;
   } else {
-    return Debug.DebugEvent.AfterComplie;
+    return Debug.DebugEvent.AfterCompile;
   }
+};
+
+
+CompileEvent.prototype.script = function() {
+  return this.script_;
 };
 
 
