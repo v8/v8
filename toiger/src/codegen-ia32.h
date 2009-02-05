@@ -128,7 +128,8 @@ class CodeGenState BASE_EMBEDDED {
   CodeGenState(CodeGenerator* owner,
                TypeofState typeof_state,
                JumpTarget* true_target,
-               JumpTarget* false_target);
+               JumpTarget* false_target,
+               JumpTarget* fall_through);
 
   // Destroy a code generator state and restore the owning code generator's
   // previous state.
@@ -138,6 +139,7 @@ class CodeGenState BASE_EMBEDDED {
   TypeofState typeof_state() const { return typeof_state_; }
   JumpTarget* true_target() const { return true_target_; }
   JumpTarget* false_target() const { return false_target_; }
+  JumpTarget* fall_through() const { return fall_through_; }
 
  private:
   // The owning code generator.
@@ -151,6 +153,8 @@ class CodeGenState BASE_EMBEDDED {
   // effect.
   JumpTarget* true_target_;
   JumpTarget* false_target_;
+
+  JumpTarget* fall_through_;
 
   // The previous state of the owning code generator, restored when
   // this state is destroyed.
@@ -224,6 +228,7 @@ class CodeGenerator: public AstVisitor {
   TypeofState typeof_state() const { return state_->typeof_state(); }
   JumpTarget* true_target() const  { return state_->true_target(); }
   JumpTarget* false_target() const  { return state_->false_target(); }
+  JumpTarget* fall_through() const { return state_->fall_through(); }
 
   // Track loop nesting level.
   int loop_nesting() const { return loop_nesting_; }
@@ -294,6 +299,7 @@ class CodeGenerator: public AstVisitor {
                      TypeofState typeof_state,
                      JumpTarget* true_target,
                      JumpTarget* false_target,
+                     JumpTarget* fall_through,
                      bool force_control);
   void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
@@ -318,11 +324,12 @@ class CodeGenerator: public AstVisitor {
                              TypeofState typeof_state,
                              JumpTarget* true_target,
                              JumpTarget* false_target,
-                             bool force_cc) {
+                             JumpTarget* fall_through,
+                             bool force_control) {
     ASSERT(in_spilled_code());
     set_in_spilled_code(false);
     LoadCondition(expression, typeof_state, true_target, false_target,
-                  force_cc);
+                  fall_through, force_control);
     if (frame_ != NULL) {
       frame_->SpillAll();
     }
@@ -344,7 +351,25 @@ class CodeGenerator: public AstVisitor {
   // through the context chain.
   void LoadTypeofExpression(Expression* x);
 
-  void ToBoolean(JumpTarget* true_target, JumpTarget* false_target);
+  // Emit a branch to one of the true or false targets, and bind the
+  // other target.  The fall-through target is either the true or
+  // false target, and is the one that will be bound.  Because this
+  // binds the fall-through target, it should be emitted as the last
+  // thing when visiting an expression.
+  static void Branch(Condition cc,
+                     JumpTarget* true_target,
+                     JumpTarget* false_target,
+                     JumpTarget* fall_through);
+
+  // Branch based on the true and false targets and preferred
+  // fall-through in the code generator's state.
+  void Branch(Condition cc) {
+    Branch(cc, true_target(), false_target(), fall_through());
+  }
+
+  void ToBoolean(JumpTarget* true_target,
+                 JumpTarget* false_target,
+                 JumpTarget* fall_through);
 
   void GenericBinaryOperation(Token::Value op,
       StaticType* type,
@@ -353,13 +378,14 @@ class CodeGenerator: public AstVisitor {
   void Comparison(Condition cc,
                   bool strict,
                   JumpTarget* true_target,
-                  JumpTarget* false_target);
+                  JumpTarget* false_target,
+                  JumpTarget* fall_through);
 
   // Inline small integer literals. To prevent long attacker-controlled byte
   // sequences, we only inline small Smis.
   static const int kMaxSmiInlinedBits = 16;
   bool IsInlineSmi(Literal* literal);
-  void SmiComparison(Condition cc,  Handle<Object> value, bool strict = false);
+  void SmiComparison(Condition cc,  Handle<Object> value, bool strict);
   void SmiOperation(Token::Value op,
                     StaticType* type,
                     Handle<Object> value,
