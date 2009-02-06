@@ -1626,9 +1626,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     if (then.is_bound()) {
       Visit(node->then_statement());
       if (else_.is_linked()) {
-        if (has_valid_frame()) {
-          exit.Jump();
-        }
+        if (has_valid_frame()) exit.Jump();
         else_.Bind();
       }
     }
