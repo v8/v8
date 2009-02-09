@@ -150,8 +150,10 @@ def ConfigureObjectFiles():
 
   # Create snapshot if necessary.
   empty_snapshot_obj = context.ConfigureObject(env, 'snapshot-empty.cc')
+  mksnapshot_env = env.Copy()
+  mksnapshot_env.Replace(**context.flags['mksnapshot'])
   mksnapshot_src = 'mksnapshot.cc'
-  mksnapshot = env.Program('mksnapshot', [mksnapshot_src, libraries_obj, non_snapshot_files, empty_snapshot_obj], PDB='mksnapshot.exe.pdb')
+  mksnapshot = mksnapshot_env.Program('mksnapshot', [mksnapshot_src, libraries_obj, non_snapshot_files, empty_snapshot_obj], PDB='mksnapshot.exe.pdb')
   if context.use_snapshot:
     if context.build_snapshot:
       snapshot_cc = env.Snapshot('snapshot.cc', mksnapshot, LOGFILE=File('snapshot.log').abspath)

@@ -144,6 +144,29 @@ V8_EXTRA_FLAGS = {
 }
 
 
+MKSNAPSHOT_EXTRA_FLAGS = {
+  'gcc': {
+    'os:linux': {
+      'LIBS': ['pthread'],
+    },
+    'os:macos': {
+      'LIBS': ['pthread'],
+    },
+    'os:freebsd': {
+      'LIBS': ['pthread'],
+    },
+    'os:win32': {
+      'LIBS': ['winmm'],
+    },
+  },
+  'msvc': {
+    'all': {
+      'LIBS': ['winmm']
+    }
+  }
+}
+
+
 JSCRE_EXTRA_FLAGS = {
   'gcc': {
     'all': {
@@ -540,6 +563,7 @@ def BuildSpecific(env, mode, env_overrides):
 
   library_flags = context.AddRelevantFlags(os.environ, LIBRARY_FLAGS)
   v8_flags = context.AddRelevantFlags(library_flags, V8_EXTRA_FLAGS)
+  mksnapshot_flags = context.AddRelevantFlags(library_flags, MKSNAPSHOT_EXTRA_FLAGS)
   jscre_flags = context.AddRelevantFlags(library_flags, JSCRE_EXTRA_FLAGS)
   dtoa_flags = context.AddRelevantFlags(library_flags, DTOA_EXTRA_FLAGS)
   cctest_flags = context.AddRelevantFlags(v8_flags, CCTEST_EXTRA_FLAGS)
@@ -548,7 +572,7 @@ def BuildSpecific(env, mode, env_overrides):
 
   context.flags = {
     'v8': v8_flags,
-    'mksnapshot': v8_flags,
+    'mksnapshot': mksnapshot_flags,
     'jscre': jscre_flags,
     'dtoa': dtoa_flags,
     'cctest': cctest_flags,
