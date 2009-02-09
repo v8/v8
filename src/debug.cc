@@ -285,15 +285,8 @@ void BreakLocationIterator::SetDebugBreak() {
   }
 
   if (RelocInfo::IsJSReturn(rmode())) {
-    // This path is currently only used on IA32 as JSExitFrame on ARM uses a
-    // stub.
-    // Patch the JS frame exit code with a debug break call. See
-    // VisitReturnStatement and ExitJSFrame in codegen-ia32.cc for the
-    // precise return instructions sequence.
-    ASSERT(Debug::kIa32JSReturnSequenceLength >=
-           Debug::kIa32CallInstructionLength);
-    rinfo()->patch_code_with_call(Debug::debug_break_return_entry()->entry(),
-        Debug::kIa32JSReturnSequenceLength - Debug::kIa32CallInstructionLength);
+    // Patch the frame exit code with a break point.
+    SetDebugBreakAtReturn();
   } else {
     // Patch the original code with the current address as the current address
     // might have changed by the inline caching since the code was copied.
@@ -310,9 +303,8 @@ void BreakLocationIterator::SetDebugBreak() {
 
 void BreakLocationIterator::ClearDebugBreak() {
   if (RelocInfo::IsJSReturn(rmode())) {
-    // Restore the JS frame exit code.
-    rinfo()->patch_code(original_rinfo()->pc(),
-                        Debug::kIa32JSReturnSequenceLength);
+    // Restore the frame exit code.
+    ClearDebugBreakAtReturn();
   } else {
     // Patch the code to the original invoke.
     rinfo()->set_target_address(original_rinfo()->target_address());
@@ -359,12 +351,7 @@ bool BreakLocationIterator::HasBreakPoint() {
 // Check whether there is a debug break at the current position.
 bool BreakLocationIterator::IsDebugBreak() {
   if (RelocInfo::IsJSReturn(rmode())) {
-    // This is IA32 specific but works as long as the ARM version
-    // still uses a stub for JSExitFrame.
-    //
-    // TODO(1240753): Make the test architecture independent or split
-    // parts of the debugger into architecture dependent files.
-    return (*(rinfo()->pc()) == 0xE8);
+    return IsDebugBreakAtReturn();
   } else {
     return Debug::IsDebugBreak(rinfo()->target_address());
   }

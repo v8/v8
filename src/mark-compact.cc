@@ -287,7 +287,7 @@ class MarkingVisitor : public ObjectVisitor {
 
   void VisitDebugTarget(RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) &&
-           rinfo->is_call_instruction());
+           rinfo->IsCallInstruction());
     HeapObject* code = CodeFromDerivedPointer(rinfo->call_address());
     MarkCompactCollector::MarkObject(code);
     // When compacting we convert the call to a real object pointer.

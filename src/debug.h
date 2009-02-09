@@ -123,6 +123,9 @@ class BreakLocationIterator {
  private:
   void SetDebugBreak();
   void ClearDebugBreak();
+  bool IsDebugBreakAtReturn();
+  void SetDebugBreakAtReturn();
+  void ClearDebugBreakAtReturn();
 
   DISALLOW_COPY_AND_ASSIGN(BreakLocationIterator);
 };

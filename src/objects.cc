@@ -4480,7 +4480,7 @@ void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
 
 
 void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) && rinfo->is_call_instruction());
+  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) && rinfo->IsCallInstruction());
   VisitPointer(rinfo->call_object_address());
 }
 
@@ -4504,7 +4504,7 @@ void Code::ConvertICTargetsFromAddressToObject() {
     for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
          !it.done();
          it.next()) {
-      if (it.rinfo()->is_call_instruction()) {
+      if (it.rinfo()->IsCallInstruction()) {
         Address addr = it.rinfo()->call_address();
         ASSERT(addr != NULL);
         HeapObject* code = HeapObject::FromAddress(addr - Code::kHeaderSize);
@@ -4536,7 +4536,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
       v->VisitExternalReference(it.rinfo()->target_reference_address());
     } else if (Debug::has_break_points() &&
                RelocInfo::IsJSReturn(rmode) &&
-               it.rinfo()->is_call_instruction()) {
+               it.rinfo()->IsCallInstruction()) {
       v->VisitDebugTarget(it.rinfo());
     } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
       v->VisitRuntimeEntry(it.rinfo());
@@ -4566,7 +4566,7 @@ void Code::ConvertICTargetsFromObjectToAddress() {
     for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
          !it.done();
          it.next()) {
-      if (it.rinfo()->is_call_instruction()) {
+      if (it.rinfo()->IsCallInstruction()) {
         Code* code = reinterpret_cast<Code*>(it.rinfo()->call_object());
         ASSERT((code != NULL) && code->IsHeapObject());
         it.rinfo()->set_call_address(code->instruction_start());
