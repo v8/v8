@@ -44,7 +44,11 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
+// Windows specific stuff.
 #ifdef WIN32
+
+// Microsoft Visual C++ specific stuff.
+#ifdef _MSC_VER
 
 enum {
   FP_NAN,
@@ -66,11 +70,26 @@ int isgreater(double x, double y);
 int fpclassify(double x);
 int signbit(double x);
 
-int random();
-
 int strncasecmp(const char* s1, const char* s2, int n);
 
-#else
+#endif  // _MSC_VER
+
+// MinGW specific stuff.
+#ifdef __MINGW32__
+
+// Needed for va_list.
+#include <stdarg.h>
+
+#endif  // __MINGW32__
+
+// Random is missing on both Visual Studio and MinGW.
+int random();
+
+#endif  // WIN32
+
+// GCC specific stuff
+#ifdef __GNUC__
+#define __GNUC_VERSION__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
 
 // Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
 // warning flag and certain versions of GCC due to a bug:
@@ -78,17 +97,13 @@ int strncasecmp(const char* s1, const char* s2, int n);
 // For now, we use the more involved template-based version from <limits>, but
 // only when compiling with GCC versions affected by the bug (2.96.x - 4.0.x)
 // __GNUC_PREREQ is not defined in GCC for Mac OS X, so we define our own macro
-#if defined(__GNUC__)
-#define __GNUC_VERSION__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
-#endif
-
 #if __GNUC_VERSION__ >= 29600 && __GNUC_VERSION__ < 40100
 #include <limits>
 #undef INFINITY
 #define INFINITY std::numeric_limits<double>::infinity()
 #endif
 
-#endif  // WIN32
+#endif  // __GNUC__
 
 namespace v8 { namespace internal {
 

@@ -42,10 +42,8 @@ LIBRARY_FLAGS = {
   },
   'gcc': {
     'all': {
-      'DIALECTFLAGS': ['-ansi'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
       'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
-      'LIBS':         ['pthread']
     },
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0'],
@@ -54,8 +52,18 @@ LIBRARY_FLAGS = {
     'mode:release': {
       'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections']
     },
+    'os:linux': {
+      'CCFLAGS':      ['-ansi'],
+    },
+    'os:macos': {
+      'CCFLAGS':      ['-ansi'],
+    },
     'os:freebsd': {
-      'LIBS':         ['execinfo']
+      'CCFLAGS':      ['-ansi'],
+    },
+    'os:win32': {
+      'CCFLAGS':      ['-DWIN32'],
+      'CXXFLAGS':     ['-DWIN32'],
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -108,6 +116,9 @@ V8_EXTRA_FLAGS = {
     },
     'arch:arm': {
       'CPPDEFINES':   ['ARM']
+    },
+    'os:win32': {
+      'WARNINGFLAGS': ['-Wno-long-long']
     },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
@@ -175,6 +186,18 @@ CCTEST_EXTRA_FLAGS = {
     'all': {
       'LIBPATH': [abspath('.')]
     },
+    'os:linux': {
+      'LIBS':         ['pthread'],
+    },
+    'os:macos': {
+      'LIBS':         ['pthread'],
+    },
+    'os:freebsd': {
+      'LIBS':         ['execinfo', 'pthread']
+    },
+    'os:win32': {
+      'LIBS': ['winmm']
+    },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
@@ -182,7 +205,8 @@ CCTEST_EXTRA_FLAGS = {
   },
   'msvc': {
     'all': {
-      'CPPDEFINES': ['_HAS_EXCEPTIONS=0']
+      'CPPDEFINES': ['_HAS_EXCEPTIONS=0'],
+      'LIBS': ['winmm']
     },
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
@@ -198,11 +222,19 @@ SAMPLE_FLAGS = {
   },
   'gcc': {
     'all': {
-      'LIBS': ['pthread'],
       'LIBPATH': ['.']
     },
+    'os:linux': {
+      'LIBS':         ['pthread'],
+    },
+    'os:macos': {
+      'LIBS':         ['pthread'],
+    },
     'os:freebsd': {
-      'LIBS':         ['execinfo']
+      'LIBS':         ['execinfo', 'pthread']
+    },
+    'os:win32': {
+      'LIBS':         ['winmm']
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -219,6 +251,7 @@ SAMPLE_FLAGS = {
     'all': {
       'CCFLAGS': ['/nologo'],
       'LINKFLAGS': ['/nologo'],
+      'LIBS': ['winmm']
     },
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
@@ -254,8 +287,25 @@ D8_FLAGS = {
   'gcc': {
     'console:readline': {
       'LIBS': ['readline']
-    }
+    },
+    'os:linux': {
+      'LIBS': ['pthread'],
+    },
+    'os:macos': {
+      'LIBS': ['pthread'],
+    },
+    'os:freebsd': {
+      'LIBS': ['pthread'],
+    },
+    'os:win32': {
+      'LIBS': ['winmm'],
+    },
   },
+  'msvc': {
+    'all': {
+      'LIBS': ['winmm']
+    }
+  }
 }
 
 

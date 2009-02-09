@@ -49,6 +49,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="winmm.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -109,6 +110,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
+				AdditionalDependencies="winmm.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
