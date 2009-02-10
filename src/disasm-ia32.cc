@@ -858,6 +858,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           switch (regop) {
             case esi: mnem = "push"; break;
             case eax: mnem = "inc"; break;
+            case ecx: mnem = "dec"; break;
             case edx: mnem = "call"; break;
             case esp: mnem = "jmp"; break;
             default: mnem = "???";
