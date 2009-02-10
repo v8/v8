@@ -222,10 +222,6 @@ class Scope: public ZoneObject {
   int num_stack_slots() const  { return num_stack_slots_; }
   int num_heap_slots() const  { return num_heap_slots_; }
 
-  // True if this scope supports calling eval (has a properly
-  // initialized context).
-  bool SupportsEval() const;
-
   // Make sure this scope and all outer scopes are eagerly compiled.
   void ForceEagerCompilation()  { force_eager_compilation_ = true; }
 

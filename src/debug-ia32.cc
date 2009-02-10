@@ -34,6 +34,31 @@
 namespace v8 { namespace internal {
 
 
+// A debug break in the frame exit code is identified by a call instruction.
+bool BreakLocationIterator::IsDebugBreakAtReturn() {
+  // Opcode E8 is call.
+  return (*(rinfo()->pc()) == 0xE8);
+}
+
+
+// Patch the JS frame exit code with a debug break call. See
+// CodeGenerator::VisitReturnStatement and VirtualFrame::Exit in codegen-ia32.cc
+// for the precise return instructions sequence.
+void BreakLocationIterator::SetDebugBreakAtReturn() {
+  ASSERT(Debug::kIa32JSReturnSequenceLength >=
+         Debug::kIa32CallInstructionLength);
+  rinfo()->PatchCodeWithCall(Debug::debug_break_return_entry()->entry(),
+      Debug::kIa32JSReturnSequenceLength - Debug::kIa32CallInstructionLength);
+}
+
+
+// Restore the JS frame exit code.
+void BreakLocationIterator::ClearDebugBreakAtReturn() {
+  rinfo()->PatchCode(original_rinfo()->pc(),
+                     Debug::kIa32JSReturnSequenceLength);
+}
+
+
 #define __ masm->
 
 

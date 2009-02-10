@@ -252,6 +252,25 @@ const AccessorDescriptor Accessors::ScriptType = {
 
 
 //
+// Accessors::ScriptGetLineEnds
+//
+
+
+Object* Accessors::ScriptGetLineEnds(Object* object, void*) {
+  Object* script = JSValue::cast(object)->value();
+  Script::cast(script)->InitLineEnds();
+  return Script::cast(script)->line_ends();
+}
+
+
+const AccessorDescriptor Accessors::ScriptLineEnds = {
+  ScriptGetLineEnds,
+  IllegalSetter,
+  0
+};
+
+
+//
 // Accessors::FunctionPrototype
 //
 

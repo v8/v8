@@ -150,18 +150,22 @@ def ConfigureObjectFiles():
 
   # Create snapshot if necessary.
   empty_snapshot_obj = context.ConfigureObject(env, 'snapshot-empty.cc')
+  mksnapshot_env = env.Copy()
+  mksnapshot_env.Replace(**context.flags['mksnapshot'])
+  mksnapshot_src = 'mksnapshot.cc'
+  mksnapshot = mksnapshot_env.Program('mksnapshot', [mksnapshot_src, libraries_obj, non_snapshot_files, empty_snapshot_obj], PDB='mksnapshot.exe.pdb')
   if context.use_snapshot:
-    mksnapshot_src = 'mksnapshot.cc'
-    mksnapshot = env.Program('mksnapshot', [mksnapshot_src, libraries_obj, non_snapshot_files, empty_snapshot_obj], PDB='mksnapshot.exe.pdb')
-    snapshot_cc = env.Snapshot('snapshot.cc', mksnapshot, LOGFILE=File('snapshot.log').abspath)
+    if context.build_snapshot:
+      snapshot_cc = env.Snapshot('snapshot.cc', mksnapshot, LOGFILE=File('snapshot.log').abspath)
+    else:
+      snapshot_cc = Command('snapshot.cc', [], [])
     snapshot_obj = context.ConfigureObject(env, snapshot_cc, CPPPATH=['.'])
     libraries_obj = context.ConfigureObject(env, libraries_empty_src, CPPPATH=['.'])
   else:
     snapshot_obj = empty_snapshot_obj
-
   library_objs = [non_snapshot_files, libraries_obj, snapshot_obj]
-  return (library_objs, d8_objs)
+  return (library_objs, d8_objs, [mksnapshot])
 
 
-(library_objs, d8_objs) = ConfigureObjectFiles()
-Return('library_objs d8_objs')
+(library_objs, d8_objs, mksnapshot) = ConfigureObjectFiles()
+Return('library_objs d8_objs mksnapshot')

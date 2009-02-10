@@ -472,10 +472,6 @@ void Genesis::CreateRoots(v8::Handle<v8::ObjectTemplate> global_template,
   v8::NeanderArray listeners;
   global_context()->set_message_listeners(*listeners.value());
 
-  // Allocate the debug event listeners object.
-  v8::NeanderArray debug_event_listeners;
-  global_context()->set_debug_event_listeners(*debug_event_listeners.value());
-
   // Allocate the map for function instances.
   Handle<Map> fm = Factory::NewMap(JS_FUNCTION_TYPE, JSFunction::kSize);
   global_context()->set_function_instance_map(*fm);
@@ -1017,6 +1013,14 @@ bool Genesis::InstallNatives() {
             script_descriptors,
             Factory::LookupAsciiSymbol("type"),
             proxy_type,
+            common_attributes);
+    Handle<Proxy> proxy_line_ends =
+        Factory::NewProxy(&Accessors::ScriptLineEnds);
+    script_descriptors =
+        Factory::CopyAppendProxyDescriptor(
+            script_descriptors,
+            Factory::LookupAsciiSymbol("line_ends"),
+            proxy_line_ends,
             common_attributes);
 
     Handle<Map> script_map = Handle<Map>(script_fun->initial_map());

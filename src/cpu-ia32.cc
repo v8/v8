@@ -51,7 +51,7 @@ void CPU::FlushICache(void* start, size_t size) {
 
 
 void CPU::DebugBreak() {
-#ifdef WIN32
+#ifdef _MSC_VER
   // To avoid Visual Studio runtime support the following code can be used
   // instead
   // __asm { int 3 }

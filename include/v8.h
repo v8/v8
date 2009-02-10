@@ -859,7 +859,7 @@ class EXPORT String : public Primitive {
    public:
     explicit Utf8Value(Handle<v8::Value> obj);
     ~Utf8Value();
-    char* operator*() { return str_; }
+    char* operator*() const { return str_; }
     int length() { return length_; }
    private:
     char* str_;
@@ -878,7 +878,7 @@ class EXPORT String : public Primitive {
    public:
     explicit AsciiValue(Handle<v8::Value> obj);
     ~AsciiValue();
-    char* operator*() { return str_; }
+    char* operator*() const { return str_; }
     int length() { return length_; }
    private:
     char* str_;
@@ -896,7 +896,7 @@ class EXPORT String : public Primitive {
    public:
     explicit Value(Handle<v8::Value> obj);
     ~Value();
-    uint16_t* operator*() { return str_; }
+    uint16_t* operator*() const { return str_; }
     int length() { return length_; }
    private:
     uint16_t* str_;
@@ -1969,6 +1969,23 @@ class EXPORT V8 {
    * \returns the adjusted value.
    */
   static int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
+
+  /**
+   * Suspends recording of tick samples in the profiler.
+   * When the V8 profiling mode is enabled (usually via command line
+   * switches) this function suspends recording of tick samples.
+   * Profiling ticks are discarded until ResumeProfiler() is called.
+   *
+   * See also the --prof and --prof_auto command line switches to
+   * enable V8 profiling.
+   */
+  static void PauseProfiler();
+
+  /**
+   * Resumes recording of tick samples in the profiler.
+   * See also PauseProfiler().
+   */
+  static void ResumeProfiler();
 
  private:
   V8();

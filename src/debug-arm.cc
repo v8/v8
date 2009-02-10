@@ -33,6 +33,24 @@
 namespace v8 { namespace internal {
 
 
+// Currently debug break is not supported in frame exit code on ARM.
+bool BreakLocationIterator::IsDebugBreakAtReturn() {
+  return false;
+}
+
+
+// Currently debug break is not supported in frame exit code on ARM.
+void BreakLocationIterator::SetDebugBreakAtReturn() {
+  UNIMPLEMENTED();
+}
+
+
+// Currently debug break is not supported in frame exit code on ARM.
+void BreakLocationIterator::ClearDebugBreakAtReturn() {
+  UNIMPLEMENTED();
+}
+
+
 #define __ masm->
 
 

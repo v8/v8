@@ -93,6 +93,12 @@ Persistent<Context> Shell::utility_context_;
 Persistent<Context> Shell::evaluation_context_;
 
 
+// Converts a V8 value to a C string.
+const char* ToCString(const v8::String::Utf8Value& value) {
+  return *value ? *value : "<string conversion failed>";
+}
+
+
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Handle<String> source,
                           Handle<Value> name,
@@ -121,8 +127,9 @@ bool Shell::ExecuteString(Handle<String> source,
       if (print_result && !result->IsUndefined()) {
         // If all went well and the result wasn't undefined then print
         // the returned value.
-        String::Utf8Value str(result);
-        printf("%s\n", *str);
+        v8::String::Utf8Value str(result);
+        const char* cstr = ToCString(str);
+        printf("%s\n", cstr);
       }
       return true;
     }
@@ -139,8 +146,9 @@ Handle<Value> Shell::Print(const Arguments& args) {
     } else {
       printf(" ");
     }
-    String::Utf8Value str(args[i]);
-    printf("%s", *str);
+    v8::String::Utf8Value str(args[i]);
+    const char* cstr = ToCString(str);
+    printf("%s", cstr);
   }
   printf("\n");
   return Undefined();
@@ -151,6 +159,9 @@ Handle<Value> Shell::Load(const Arguments& args) {
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope;
     String::Utf8Value file(args[i]);
+    if (*file == NULL) {
+      return ThrowException(String::New("Error loading file"));
+    }
     Handle<String> source = ReadFile(*file);
     if (source.IsEmpty()) {
       return ThrowException(String::New("Error loading file"));
@@ -178,20 +189,23 @@ Handle<Value> Shell::Version(const Arguments& args) {
 
 void Shell::ReportException(v8::TryCatch* try_catch) {
   HandleScope handle_scope;
-  String::Utf8Value exception(try_catch->Exception());
+  v8::String::Utf8Value exception(try_catch->Exception());
+  const char* exception_string = ToCString(exception);
   Handle<Message> message = try_catch->Message();
   if (message.IsEmpty()) {
     // V8 didn't provide any extra information about this error; just
     // print the exception.
-    printf("%s\n", *exception);
+    printf("%s\n", exception_string);
   } else {
     // Print (filename):(line number): (message).
-    String::Utf8Value filename(message->GetScriptResourceName());
+    v8::String::Utf8Value filename(message->GetScriptResourceName());
+    const char* filename_string = ToCString(filename);
     int linenum = message->GetLineNumber();
-    printf("%s:%i: %s\n", *filename, linenum, *exception);
+    printf("%s:%i: %s\n", filename_string, linenum, exception_string);
     // Print line of source code.
-    String::Utf8Value sourceline(message->GetSourceLine());
-    printf("%s\n", *sourceline);
+    v8::String::Utf8Value sourceline(message->GetSourceLine());
+    const char* sourceline_string = ToCString(sourceline);
+    printf("%s\n", sourceline_string);
     // Print wavy underline (GetUnderline is deprecated).
     int start = message->GetStartColumn();
     for (int i = 0; i < start; i++) {
@@ -542,7 +556,7 @@ int Shell::Main(int argc, char* argv[]) {
       }
     }
     if (i::FLAG_debugger)
-      v8::Debug::AddDebugEventListener(HandleDebugEvent);
+      v8::Debug::SetDebugEventListener(HandleDebugEvent);
   }
   if (run_shell)
     RunShell();

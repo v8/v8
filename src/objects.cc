@@ -4480,7 +4480,7 @@ void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
 
 
 void ObjectVisitor::VisitDebugTarget(RelocInfo* rinfo) {
-  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) && rinfo->is_call_instruction());
+  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) && rinfo->IsCallInstruction());
   VisitPointer(rinfo->call_object_address());
 }
 
@@ -4504,7 +4504,7 @@ void Code::ConvertICTargetsFromAddressToObject() {
     for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
          !it.done();
          it.next()) {
-      if (it.rinfo()->is_call_instruction()) {
+      if (it.rinfo()->IsCallInstruction()) {
         Address addr = it.rinfo()->call_address();
         ASSERT(addr != NULL);
         HeapObject* code = HeapObject::FromAddress(addr - Code::kHeaderSize);
@@ -4536,7 +4536,7 @@ void Code::CodeIterateBody(ObjectVisitor* v) {
       v->VisitExternalReference(it.rinfo()->target_reference_address());
     } else if (Debug::has_break_points() &&
                RelocInfo::IsJSReturn(rmode) &&
-               it.rinfo()->is_call_instruction()) {
+               it.rinfo()->IsCallInstruction()) {
       v->VisitDebugTarget(it.rinfo());
     } else if (rmode == RelocInfo::RUNTIME_ENTRY) {
       v->VisitRuntimeEntry(it.rinfo());
@@ -4566,7 +4566,7 @@ void Code::ConvertICTargetsFromObjectToAddress() {
     for (RelocIterator it(this, RelocInfo::ModeMask(RelocInfo::JS_RETURN));
          !it.done();
          it.next()) {
-      if (it.rinfo()->is_call_instruction()) {
+      if (it.rinfo()->IsCallInstruction()) {
         Code* code = reinterpret_cast<Code*>(it.rinfo()->call_object());
         ASSERT((code != NULL) && code->IsHeapObject());
         it.rinfo()->set_call_address(code->instruction_start());
@@ -6772,6 +6772,69 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
   ASSERT(obj->HasFastProperties());
 
   return obj;
+}
+
+
+// Init line_ends array with code positions of line ends inside script source
+void Script::InitLineEnds() {
+  if (!line_ends()->IsUndefined()) return;
+
+  Handle<String> src(String::cast(source()));
+  const int src_len = src->length();
+  Handle<String> new_line = Factory::NewStringFromAscii(CStrVector("\n"));
+
+  // Pass 1: Identify line count
+  int line_count = 0;
+  int position = 0;
+  while (position != -1 && position < src_len) {
+    position = Runtime::StringMatch(src, new_line, position);
+    if (position != -1) {
+      position++;
+    }
+    // Even if the last line misses a line end, it is counted
+    line_count++;
+  }
+
+  // Pass 2: Fill in line ends positions
+  Handle<FixedArray> array = Factory::NewFixedArray(line_count);
+  int array_index = 0;
+  position = 0;
+  while (position != -1 && position < src_len) {
+    position = Runtime::StringMatch(src, new_line, position);
+    // If the script does not end with a line ending add the final end position
+    // as just past the last line ending.
+    array->set(array_index++,
+               Smi::FromInt(position != -1 ? position++ : src_len));
+  }
+  ASSERT(array_index == line_count);
+
+  Handle<JSArray> object = Factory::NewJSArrayWithElements(array);
+  set_line_ends(*object);
+  ASSERT(line_ends()->IsJSArray());
+}
+
+
+// Convert code position into line number
+int Script::GetLineNumber(int code_pos) {
+  InitLineEnds();
+  JSArray* line_ends_array = JSArray::cast(line_ends());
+  const int line_ends_len = (Smi::cast(line_ends_array->length()))->value();
+
+  int line = -1;
+  if (line_ends_len > 0 &&
+      code_pos <= (Smi::cast(line_ends_array->GetElement(0)))->value()) {
+    line = 0;
+  } else {
+    for (int i = 1; i < line_ends_len; ++i) {
+      if ((Smi::cast(line_ends_array->GetElement(i - 1)))->value() < code_pos &&
+          code_pos <= (Smi::cast(line_ends_array->GetElement(i)))->value()) {
+        line = i;
+        break;
+      }
+    }
+  }
+
+  return line != -1 ? line + line_offset()->value() : line;
 }
 
 

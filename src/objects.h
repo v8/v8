@@ -2537,6 +2537,9 @@ class Script: public Struct {
   // [type]: the script type.
   DECL_ACCESSORS(type, Smi)
 
+  // [line_ends]: array of line ends positions
+  DECL_ACCESSORS(line_ends, Object)
+
   static inline Script* cast(Object* obj);
 
 #ifdef DEBUG
@@ -2544,13 +2547,17 @@ class Script: public Struct {
   void ScriptVerify();
 #endif
 
+  void InitLineEnds();
+  int GetLineNumber(int code_position);
+
   static const int kSourceOffset = HeapObject::kHeaderSize;
   static const int kNameOffset = kSourceOffset + kPointerSize;
   static const int kLineOffsetOffset = kNameOffset + kPointerSize;
   static const int kColumnOffsetOffset = kLineOffsetOffset + kPointerSize;
   static const int kWrapperOffset = kColumnOffsetOffset + kPointerSize;
   static const int kTypeOffset = kWrapperOffset + kPointerSize;
-  static const int kSize = kTypeOffset + kPointerSize;
+  static const int kLineEndsOffset = kTypeOffset + kPointerSize;
+  static const int kSize = kLineEndsOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Script);

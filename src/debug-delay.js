@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// jsminify this file, js2c: jsmin
+
 // Default number of frames to include in the response to backtrace request.
 const kDefaultBacktraceLength = 10;
 
@@ -361,15 +363,13 @@ function UpdateScriptBreakPoints(script) {
 }
 
 
-Debug.addListener = function(listener, opt_data) {
-  if (!IS_FUNCTION(listener)) throw new Error('Parameters have wrong types.');
-  %AddDebugEventListener(listener, opt_data);
+Debug.setListener = function(listener, opt_data) {
+  if (!IS_FUNCTION(listener) && !IS_UNDEFINED(listener) && !IS_NULL(listener)) {
+    throw new Error('Parameters have wrong types.');
+  }
+  %SetDebugEventListener(listener, opt_data);
 };
 
-Debug.removeListener = function(listener) {
-  if (!IS_FUNCTION(listener)) throw new Error('Parameters have wrong types.');
-  %RemoveDebugEventListener(listener);
-};
 
 Debug.breakExecution = function(f) {
   %Break();
@@ -896,25 +896,34 @@ ExceptionEvent.prototype.toJSONProtocol = function() {
 };
 
 
-function MakeCompileEvent(script_source, script_name, script_function, before) {
-  return new CompileEvent(script_source, script_name, script_function, before);
+function MakeCompileEvent(exec_state, script, before) {
+  return new CompileEvent(exec_state, script, before);
 }
 
 
-function CompileEvent(script_source, script_name, script_function, before) {
-  this.scriptSource = script_source;
-  this.scriptName = script_name;
-  this.scriptFunction = script_function;
-  this.before = before;
+function CompileEvent(exec_state, script, before) {
+  this.exec_state_ = exec_state;
+  this.script_ = MakeMirror(script);
+  this.before_ = before;
 }
+
+
+CompileEvent.prototype.executionState = function() {
+  return this.exec_state_;
+};
 
 
 CompileEvent.prototype.eventType = function() {
-  if (this.before) {
-    return Debug.DebugEvent.BeforeComplie;
+  if (this.before_) {
+    return Debug.DebugEvent.BeforeCompile;
   } else {
-    return Debug.DebugEvent.AfterComplie;
+    return Debug.DebugEvent.AfterCompile;
   }
+};
+
+
+CompileEvent.prototype.script = function() {
+  return this.script_;
 };
 
 
@@ -945,16 +954,12 @@ NewFunctionEvent.prototype.setBreakPoint = function(p) {
 
 function DebugCommandProcessor(exec_state) {
   this.exec_state_ = exec_state;
+  this.running_ = false;
 };
 
 
 DebugCommandProcessor.prototype.processDebugRequest = function (request) {
   return this.processDebugJSONRequest(request);
-}
-
-
-DebugCommandProcessor.prototype.responseIsRunning = function (response) {
-  return this.isRunning(response);
 }
 
 
@@ -1032,7 +1037,7 @@ DebugCommandProcessor.prototype.createResponse = function(request) {
 };
 
 
-DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request, stopping) {
+DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request) {
   var request;  // Current request.
   var response;  // Generated response.
   try {
@@ -1073,6 +1078,8 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request,
         this.evaluateRequest_(request, response);
       } else if (request.command == 'lookup') {
         this.lookupRequest_(request, response);
+      } else if (request.command == 'references') {
+        this.referencesRequest_(request, response);
       } else if (request.command == 'source') {
         this.sourceRequest_(request, response);
       } else if (request.command == 'scripts') {
@@ -1091,10 +1098,7 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request,
 
     // Return the response as a JSON encoded string.
     try {
-      // Set the running state to what indicated.
-      if (!IS_UNDEFINED(stopping)) {
-        response.running = !stopping;
-      }
+      this.running_ = response.running;  // Store the running state.
       return response.toJSONProtocol();
     } catch (e) {
       // Failed to generate response - return generic error.
@@ -1459,6 +1463,41 @@ DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
 };
 
 
+DebugCommandProcessor.prototype.referencesRequest_ =
+    function(request, response) {
+  if (!request.arguments) {
+    return response.failed('Missing arguments');
+  }
+
+  // Pull out arguments.
+  var type = request.arguments.type;
+  var handle = request.arguments.handle;
+
+  // Check for legal arguments.
+  if (IS_UNDEFINED(type)) {
+    return response.failed('Argument "type" missing');
+  }
+  if (IS_UNDEFINED(handle)) {
+    return response.failed('Argument "handle" missing');
+  }
+  if (type != 'referencedBy' && type != 'constructedBy') {
+    return response.failed('Invalid type "' + type + '"');
+  }
+
+  // Lookup handle and return objects with references the object.
+  var mirror = LookupMirror(handle);
+  if (mirror) {
+    if (type == 'referencedBy') {
+      response.body = mirror.referencedBy();
+    } else {
+      response.body = mirror.constructedBy();
+    }
+  } else {
+    return response.failed('Object #' + handle + '# not found');
+  }
+};
+
+
 DebugCommandProcessor.prototype.sourceRequest_ = function(request, response) {
   // No frames no source.
   if (this.exec_state_.frameCount() == 0) {
@@ -1538,18 +1577,10 @@ DebugCommandProcessor.prototype.scriptsRequest_ = function(request, response) {
 };
 
 
-// Check whether the JSON response indicate that the VM should be running.
-DebugCommandProcessor.prototype.isRunning = function(json_response) {
-  try {
-    // Convert the JSON string to an object.
-    response = %CompileString('(' + json_response + ')', 0)();
-
-    // Return whether VM should be running after this request.
-    return response.running;
-
-  } catch (e) {
-     return false;
-  }
+// Check whether the previously processed command caused the VM to become
+// running.
+DebugCommandProcessor.prototype.isRunning = function() {
+  return this.running_;
 }
 
 

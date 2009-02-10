@@ -32,6 +32,7 @@ load('deltablue.js');
 load('crypto.js');
 load('raytrace.js');
 load('earley-boyer.js');
+load('regexp.js');
 
 var success = true;
 

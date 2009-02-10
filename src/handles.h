@@ -218,6 +218,9 @@ Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index);
 
 Handle<JSObject> Copy(Handle<JSObject> obj);
 
+Handle<FixedArray> AddKeysFromJSArray(Handle<FixedArray>,
+                                      Handle<JSArray> array);
+
 // Get the JS object corresponding to the given script; create it
 // if none exists.
 Handle<JSValue> GetScriptWrapper(Handle<Script> script);

@@ -58,7 +58,10 @@
 
 #include <time.h>  // For LocalOffset() implementation.
 #include <mmsystem.h>  // For timeGetTime().
+#ifndef __MINGW32__
 #include <dbghelp.h>  // For SymLoadModule64 and al.
+#endif  // __MINGW32__
+#include <limits.h>  // For INT_MAX and al.
 #include <tlhelp32.h>  // For Module32First and al.
 
 // These additional WIN32 includes have to be right here as the #undef's below
@@ -66,8 +69,6 @@
 #include <winsock2.h>
 #include <process.h>  // for _beginthreadex()
 #include <stdlib.h>
-
-#pragma comment(lib, "winmm.lib")  // force linkage with winmm.
 
 #undef VOID
 #undef DELETE
@@ -83,15 +84,16 @@
 
 #include "platform.h"
 
-// Extra POSIX/ANSI routines for Win32. Please refer to The Open Group Base
-// Specification for specification of the correct semantics for these
-// functions.
+// Extra POSIX/ANSI routines for Win32 when when using Visual Studio C++. Please
+// refer to The Open Group Base Specification for specification of the correct
+// semantics for these functions.
 // (http://www.opengroup.org/onlinepubs/000095399/)
+#ifdef _MSC_VER
 
-// Test for finite value - usually defined in math.h
 namespace v8 {
 namespace internal {
 
+// Test for finite value - usually defined in math.h
 int isfinite(double x) {
   return _finite(x);
 }
@@ -152,18 +154,60 @@ int signbit(double x) {
 }
 
 
-// Generate a pseudo-random number in the range 0-2^31-1. Usually
-// defined in stdlib.h
-int random() {
-  return rand();
-}
-
-
 // Case-insensitive bounded string comparisons. Use stricmp() on Win32. Usually
 // defined in strings.h.
 int strncasecmp(const char* s1, const char* s2, int n) {
   return _strnicmp(s1, s2, n);
 }
+
+#endif  // _MSC_VER
+
+
+// Extra functions for MinGW. Most of these are the _s functions which are in
+// the Microsoft Visual Studio C++ CRT.
+#ifdef __MINGW32__
+
+int localtime_s(tm* out_tm, const time_t* time) {
+  tm* posix_local_time_struct = localtime(time);
+  if (posix_local_time_struct == NULL) return 1;
+  *out_tm = *posix_local_time_struct;
+  return 0;
+}
+
+
+// Not sure this the correct interpretation of _mkgmtime
+time_t _mkgmtime(tm* timeptr) {
+  return mktime(timeptr);
+}
+
+
+int fopen_s(FILE** pFile, const char* filename, const char* mode) {
+  *pFile = fopen(filename, mode);
+  return *pFile != NULL ? 0 : 1;
+}
+
+
+int _vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count,
+                 const char* format, va_list argptr) {
+  return _vsnprintf(buffer, sizeOfBuffer, format, argptr);
+}
+#define _TRUNCATE 0
+
+
+int strncpy_s(char* strDest, size_t numberOfElements,
+              const char* strSource, size_t count) {
+  strncpy(strDest, strSource, count);
+  return 0;
+}
+
+#endif  // __MINGW32__
+
+// Generate a pseudo-random number in the range 0-2^31-1. Usually
+// defined in stdlib.h. Missing in both Microsoft Visual Studio C++ and MinGW.
+int random() {
+  return rand();
+}
+
 
 namespace v8 { namespace internal {
 
@@ -206,7 +250,7 @@ class Time {
 
  private:
   // Constants for time conversion.
-  static const int64_t kTimeEpoc = 116444736000000000;
+  static const int64_t kTimeEpoc = 116444736000000000LL;
   static const int64_t kTimeScaler = 10000;
   static const int64_t kMsPerMinute = 60000;
 
@@ -807,9 +851,11 @@ void OS::Sleep(int milliseconds) {
 
 void OS::Abort() {
   if (!IsDebuggerPresent()) {
+#ifdef _MSC_VER
     // Make the MSVCRT do a silent abort.
     _set_abort_behavior(0, _WRITE_ABORT_MSG);
     _set_abort_behavior(0, _CALL_REPORTFAULT);
+#endif  // _MSC_VER
     abort();
   } else {
     DebugBreak();
@@ -818,7 +864,11 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
+#ifdef _MSC_VER
   __debugbreak();
+#else
+  ::DebugBreak();
+#endif
 }
 
 
@@ -901,6 +951,8 @@ Win32MemoryMappedFile::~Win32MemoryMappedFile() {
 #define VOID void
 #endif
 
+// DbgHelp isn't supported on MinGW yet
+#ifndef __MINGW32__
 // DbgHelp.h functions.
 typedef BOOL (__stdcall *DLL_FUNC_TYPE(SymInitialize))(IN HANDLE hProcess,
                                                        IN PSTR UserSearchPath,
@@ -1223,10 +1275,19 @@ int OS::StackWalk(OS::StackFrame* frames, int frames_size) {
 // Restore warnings to previous settings.
 #pragma warning(pop)
 
+#else  // __MINGW32__
+void OS::LogSharedLibraryAddresses() { }
+int OS::StackWalk(OS::StackFrame* frames, int frames_size) { return 0; }
+#endif  // __MINGW32__
+
 
 double OS::nan_value() {
+#ifdef _MSC_VER
   static const __int64 nanval = 0xfff8000000000000;
   return *reinterpret_cast<const double*>(&nanval);
+#else  // _MSC_VER
+  return NAN;
+#endif  // _MSC_VER
 }
 
 
@@ -1267,7 +1328,7 @@ bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   ASSERT(IsReserved());
-  return VirtualFree(address, size, MEM_DECOMMIT) != NULL;
+  return VirtualFree(address, size, MEM_DECOMMIT) != FALSE;
 }
 
 

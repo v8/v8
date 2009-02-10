@@ -81,6 +81,9 @@ class Profiler: public Thread {
 
   // Inserts collected profiling data into buffer.
   void Insert(TickSample* sample) {
+    if (paused_)
+      return;
+
     if (Succ(head_) == tail_) {
       overflow_ = true;
     } else {
@@ -102,6 +105,11 @@ class Profiler: public Thread {
 
   void Run();
 
+  // Pause and Resume TickSample data collection.
+  static bool paused() { return paused_; }
+  static void pause() { paused_ = true; }
+  static void resume() { paused_ = false; }
+
  private:
   // Returns the next index in the cyclic buffer.
   int Succ(int index) { return (index + 1) % kBufferSize; }
@@ -117,7 +125,12 @@ class Profiler: public Thread {
 
   // Tells whether worker thread should continue running.
   bool running_;
+
+  // Tells whether we are currently recording tick samples.
+  static bool paused_;
 };
+
+bool Profiler::paused_ = false;
 
 
 //
@@ -575,6 +588,22 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
 }
 
 
+void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
+                             String* source, int line) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL || !FLAG_log_code) return;
+  ScopedLock sl(mutex_);
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  SmartPointer<char> sourcestr =
+      source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  fprintf(logfile_, "code-creation,%s,0x%x,%d,\"%s %s:%d\"\n", tag,
+          reinterpret_cast<unsigned int>(code->address()),
+          code->instruction_size(), *str, *sourcestr, line);
+#endif
+}
+
+
 void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
@@ -744,6 +773,21 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (overflow) fprintf(logfile_, ",overflow");
   fprintf(logfile_, "\n");
 }
+
+
+bool Logger::IsProfilerPaused() {
+  return profiler_->paused();
+}
+
+
+void Logger::PauseProfiler() {
+  profiler_->pause();
+}
+
+
+void Logger::ResumeProfiler() {
+  profiler_->resume();
+}
 #endif
 
 
@@ -822,6 +866,8 @@ bool Logger::Setup() {
 
   if (FLAG_prof) {
     profiler_ = new Profiler();
+    if (!FLAG_prof_auto)
+      profiler_->pause();
     profiler_->Engage();
   }
 

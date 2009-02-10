@@ -454,10 +454,6 @@ class Trace;
 
 
 struct NodeInfo {
-  enum TriBool {
-    UNKNOWN = -1, FALSE = 0, TRUE = 1
-  };
-
   NodeInfo()
       : being_analyzed(false),
         been_analyzed(false),
@@ -544,17 +540,21 @@ class QuickCheckDetails {
   QuickCheckDetails()
       : characters_(0),
         mask_(0),
-        value_(0) { }
+        value_(0),
+        cannot_match_(false) { }
   explicit QuickCheckDetails(int characters)
       : characters_(characters),
         mask_(0),
-        value_(0) { }
+        value_(0),
+        cannot_match_(false) { }
   bool Rationalize(bool ascii);
   // Merge in the information from another branch of an alternation.
   void Merge(QuickCheckDetails* other, int from_index);
   // Advance the current position by some amount.
   void Advance(int by, bool ascii);
   void Clear();
+  bool cannot_match() { return cannot_match_; }
+  void set_cannot_match() { cannot_match_ = true; }
   struct Position {
     Position() : mask(0), value(0), determines_perfectly(false) { }
     uc16 mask;
@@ -579,6 +579,9 @@ class QuickCheckDetails {
   // These values are the condensate of the above array after Rationalize().
   uint32_t mask_;
   uint32_t value_;
+  // If set to true, there is no way this quick check can match at all.
+  // E.g., if it requires to be at the start of the input, and isn't.
+  bool cannot_match_;
 };
 
 
@@ -609,7 +612,8 @@ class RegExpNode: public ZoneObject {
   // A comparison success indicates the node may match.
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in) = 0;
+                                    int characters_filled_in,
+                                    bool not_at_start) = 0;
   static const int kNodeIsTooComplexForGreedyLoops = -1;
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
   Label* label() { return &label_; }
@@ -740,8 +744,10 @@ class ActionNode: public SeqRegExpNode {
   virtual int EatsAtLeast(int still_to_find, int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int filled_in) {
-    return on_success()->GetQuickCheckDetails(details, compiler, filled_in);
+                                    int filled_in,
+                                    bool not_at_start) {
+    return on_success()->GetQuickCheckDetails(
+        details, compiler, filled_in, not_at_start);
   }
   Type type() { return type_; }
   // TODO(erikcorry): We should allow some action nodes in greedy loops.
@@ -802,7 +808,8 @@ class TextNode: public SeqRegExpNode {
   virtual int EatsAtLeast(int still_to_find, int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in);
+                                    int characters_filled_in,
+                                    bool not_at_start);
   ZoneList<TextElement>* elements() { return elms_; }
   void MakeCaseIndependent();
   virtual int GreedyLoopTextLength();
@@ -860,9 +867,8 @@ class AssertionNode: public SeqRegExpNode {
   virtual int EatsAtLeast(int still_to_find, int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int filled_in) {
-    return on_success()->GetQuickCheckDetails(details, compiler, filled_in);
-  }
+                                    int filled_in,
+                                    bool not_at_start);
   virtual AssertionNode* Clone() { return new AssertionNode(*this); }
   AssertionNodeType type() { return type_; }
  private:
@@ -887,7 +893,8 @@ class BackReferenceNode: public SeqRegExpNode {
   virtual int EatsAtLeast(int still_to_find, int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in) {
+                                    int characters_filled_in,
+                                    bool not_at_start) {
     return;
   }
   virtual BackReferenceNode* Clone() { return new BackReferenceNode(*this); }
@@ -907,7 +914,8 @@ class EndNode: public RegExpNode {
   virtual int EatsAtLeast(int still_to_find, int recursion_depth) { return 0; }
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in) {
+                                    int characters_filled_in,
+                                    bool not_at_start) {
     // Returning 0 from EatsAtLeast should ensure we never get here.
     UNREACHABLE();
   }
@@ -979,6 +987,7 @@ class ChoiceNode: public RegExpNode {
   explicit ChoiceNode(int expected_size)
       : alternatives_(new ZoneList<GuardedAlternative>(expected_size)),
         table_(NULL),
+        not_at_start_(false),
         being_calculated_(false) { }
   virtual void Accept(NodeVisitor* visitor);
   void AddAlternative(GuardedAlternative node) { alternatives()->Add(node); }
@@ -991,10 +1000,13 @@ class ChoiceNode: public RegExpNode {
                         RegExpNode* ignore_this_node);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in);
+                                    int characters_filled_in,
+                                    bool not_at_start);
   virtual ChoiceNode* Clone() { return new ChoiceNode(*this); }
 
   bool being_calculated() { return being_calculated_; }
+  bool not_at_start() { return not_at_start_; }
+  void set_not_at_start() { not_at_start_ = true; }
   void set_being_calculated(bool b) { being_calculated_ = b; }
   virtual bool try_to_emit_quick_check_for_alternative(int i) { return true; }
 
@@ -1016,6 +1028,9 @@ class ChoiceNode: public RegExpNode {
                                  int preload_characters,
                                  bool next_expects_preload);
   DispatchTable* table_;
+  // If true, this node is never checked at the start of the input.
+  // Allows a new trace to start with at_start() set to false.
+  bool not_at_start_;
   bool being_calculated_;
 };
 
@@ -1031,7 +1046,8 @@ class NegativeLookaheadChoiceNode: public ChoiceNode {
   virtual int EatsAtLeast(int still_to_find, int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in);
+                                    int characters_filled_in,
+                                    bool not_at_start);
   // For a negative lookahead we don't emit the quick check for the
   // alternative that is expected to fail.  This is because quick check code
   // starts by loading enough characters for the alternative that takes fewest
@@ -1054,7 +1070,8 @@ class LoopChoiceNode: public ChoiceNode {
   virtual int EatsAtLeast(int still_to_find, int recursion_depth);
   virtual void GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in);
+                                    int characters_filled_in,
+                                    bool not_at_start);
   virtual LoopChoiceNode* Clone() { return new LoopChoiceNode(*this); }
   RegExpNode* loop_node() { return loop_node_; }
   RegExpNode* continue_node() { return continue_node_; }
@@ -1088,6 +1105,12 @@ class LoopChoiceNode: public ChoiceNode {
 // where baz has been matched.
 class Trace {
  public:
+  // A value for a property that is either known to be true, know to be false,
+  // or not known.
+  enum TriBool {
+    UNKNOWN = -1, FALSE = 0, TRUE = 1
+  };
+
   class DeferredAction {
    public:
     DeferredAction(ActionNode::Type type, int reg)
@@ -1150,7 +1173,9 @@ class Trace {
         stop_node_(NULL),
         loop_label_(NULL),
         characters_preloaded_(0),
-        bound_checked_up_to_(0) { }
+        bound_checked_up_to_(0),
+        at_start_(UNKNOWN) { }
+
   // End the trace.  This involves flushing the deferred actions in the trace
   // and pushing a backtrack location onto the backtrack stack.  Once this is
   // done we can start a new trace or go to one that has already been
@@ -1174,8 +1199,11 @@ class Trace {
            cp_offset_ == 0 &&
            characters_preloaded_ == 0 &&
            bound_checked_up_to_ == 0 &&
-           quick_check_performed_.characters() == 0;
+           quick_check_performed_.characters() == 0 &&
+           at_start_ == UNKNOWN;
   }
+  TriBool at_start() { return at_start_; }
+  void set_at_start(bool at_start) { at_start_ = at_start ? TRUE : FALSE; }
   Label* backtrack() { return backtrack_; }
   Label* loop_label() { return loop_label_; }
   RegExpNode* stop_node() { return stop_node_; }
@@ -1223,6 +1251,7 @@ class Trace {
   int characters_preloaded_;
   int bound_checked_up_to_;
   QuickCheckDetails quick_check_performed_;
+  TriBool at_start_;
 };
 
 
@@ -1305,10 +1334,12 @@ struct RegExpCompileData {
     : tree(NULL),
       node(NULL),
       simple(true),
+      contains_anchor(false),
       capture_count(0) { }
   RegExpTree* tree;
   RegExpNode* node;
   bool simple;
+  bool contains_anchor;
   Handle<String> error;
   int capture_count;
 };

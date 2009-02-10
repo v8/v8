@@ -4061,12 +4061,23 @@ static Object* Runtime_ResolvePossiblyDirectEval(Arguments args) {
   while (!context.is_null()) {
     receiver = context->Lookup(Factory::eval_symbol(), FOLLOW_PROTOTYPE_CHAIN,
                                &index, &attributes);
-    if (attributes != ABSENT) break;
+    // Stop search when eval is found or when the global context is
+    // reached.
+    if (attributes != ABSENT || context->IsGlobalContext()) break;
     if (context->is_function_context()) {
       context = Handle<Context>(Context::cast(context->closure()->context()));
     } else {
       context = Handle<Context>(context->previous());
     }
+  }
+
+  // If eval could not be resolved, it has been deleted and we need to
+  // throw a reference error.
+  if (attributes == ABSENT) {
+    Handle<Object> name = Factory::eval_symbol();
+    Handle<Object> reference_error =
+        Factory::NewReferenceError("not_defined", HandleVector(&name, 1));
+    return Top::Throw(*reference_error);
   }
 
   if (context->IsGlobalContext()) {
@@ -4546,30 +4557,17 @@ static StackFrame::Id UnwrapFrameId(Smi* wrapped) {
 
 
 // Adds a JavaScript function as a debug event listener.
-// args[0]: debug event listener function
+// args[0]: debug event listener function to set or null or undefined for
+//          clearing the event listener function
 // args[1]: object supplied during callback
-static Object* Runtime_AddDebugEventListener(Arguments args) {
+static Object* Runtime_SetDebugEventListener(Arguments args) {
   ASSERT(args.length() == 2);
-  // Convert the parameters to API objects to call the API function for adding
-  // a JavaScript function as debug event listener.
-  CONVERT_ARG_CHECKED(JSFunction, raw_fun, 0);
-  v8::Handle<v8::Function> fun(ToApi<v8::Function>(raw_fun));
-  v8::Handle<v8::Value> data(ToApi<v8::Value>(args.at<Object>(0)));
-  v8::Debug::AddDebugEventListener(fun, data);
-
-  return Heap::undefined_value();
-}
-
-
-// Removes a JavaScript function debug event listener.
-// args[0]: debug event listener function
-static Object* Runtime_RemoveDebugEventListener(Arguments args) {
-  ASSERT(args.length() == 1);
-  // Convert the parameter to an API object to call the API function for
-  // removing a JavaScript function debug event listener.
-  CONVERT_ARG_CHECKED(JSFunction, raw_fun, 0);
-  v8::Handle<v8::Function> fun(ToApi<v8::Function>(raw_fun));
-  v8::Debug::RemoveDebugEventListener(fun);
+  RUNTIME_ASSERT(args[0]->IsJSFunction() ||
+                 args[0]->IsUndefined() ||
+                 args[0]->IsNull());
+  Handle<Object> callback = args.at<Object>(0);
+  Handle<Object> data = args.at<Object>(1);
+  Debugger::SetEventListener(callback, data);
 
   return Heap::undefined_value();
 }
@@ -5738,7 +5736,6 @@ static Object* Runtime_DebugGetLoadedScripts(Arguments args) {
 static int DebugReferencedBy(JSObject* target,
                              Object* instance_filter, int max_references,
                              FixedArray* instances, int instances_size,
-                             JSFunction* context_extension_function,
                              JSFunction* arguments_function) {
   NoHandleAllocation ha;
   AssertNoAllocation no_alloc;
@@ -5755,7 +5752,7 @@ static int DebugReferencedBy(JSObject* target,
       // Skip context extension objects and argument arrays as these are
       // checked in the context of functions using them.
       JSObject* obj = JSObject::cast(heap_obj);
-      if (obj->map()->constructor() == context_extension_function ||
+      if (obj->IsJSContextExtensionObject() ||
           obj->map()->constructor() == arguments_function) {
         continue;
       }
@@ -5824,8 +5821,6 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
   RUNTIME_ASSERT(max_references >= 0);
 
   // Get the constructor function for context extension and arguments array.
-  JSFunction* context_extension_function =
-      Top::context()->global_context()->context_extension_function();
   JSObject* arguments_boilerplate =
       Top::context()->global_context()->arguments_boilerplate();
   JSFunction* arguments_function =
@@ -5834,8 +5829,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
   // Get the number of referencing objects.
   int count;
   count = DebugReferencedBy(target, instance_filter, max_references,
-                            NULL, 0,
-                            context_extension_function, arguments_function);
+                            NULL, 0, arguments_function);
 
   // Allocate an array to hold the result.
   Object* object = Heap::AllocateFixedArray(count);
@@ -5844,8 +5838,7 @@ static Object* Runtime_DebugReferencedBy(Arguments args) {
 
   // Fill the referencing objects.
   count = DebugReferencedBy(target, instance_filter, max_references,
-                            instances, count,
-                            context_extension_function, arguments_function);
+                            instances, count, arguments_function);
 
   // Return result as JS array.
   Object* result =

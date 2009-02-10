@@ -42,10 +42,8 @@ LIBRARY_FLAGS = {
   },
   'gcc': {
     'all': {
-      'DIALECTFLAGS': ['-ansi'],
       'CCFLAGS':      ['$DIALECTFLAGS', '$WARNINGFLAGS'],
       'CXXFLAGS':     ['$CCFLAGS', '-fno-rtti', '-fno-exceptions'],
-      'LIBS':         ['pthread']
     },
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0'],
@@ -54,8 +52,18 @@ LIBRARY_FLAGS = {
     'mode:release': {
       'CCFLAGS':      ['-O3', '-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections']
     },
+    'os:linux': {
+      'CCFLAGS':      ['-ansi'],
+    },
+    'os:macos': {
+      'CCFLAGS':      ['-ansi'],
+    },
     'os:freebsd': {
-      'LIBS':         ['execinfo']
+      'CCFLAGS':      ['-ansi'],
+    },
+    'os:win32': {
+      'CCFLAGS':      ['-DWIN32'],
+      'CXXFLAGS':     ['-DWIN32'],
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -109,6 +117,9 @@ V8_EXTRA_FLAGS = {
     'arch:arm': {
       'CPPDEFINES':   ['ARM']
     },
+    'os:win32': {
+      'WARNINGFLAGS': ['-Wno-long-long']
+    },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
     }
@@ -128,6 +139,29 @@ V8_EXTRA_FLAGS = {
     },
     'disassembler:on': {
       'CPPDEFINES':   ['ENABLE_DISASSEMBLER']
+    }
+  }
+}
+
+
+MKSNAPSHOT_EXTRA_FLAGS = {
+  'gcc': {
+    'os:linux': {
+      'LIBS': ['pthread'],
+    },
+    'os:macos': {
+      'LIBS': ['pthread'],
+    },
+    'os:freebsd': {
+      'LIBS': ['pthread'],
+    },
+    'os:win32': {
+      'LIBS': ['winmm'],
+    },
+  },
+  'msvc': {
+    'all': {
+      'LIBS': ['winmm']
     }
   }
 }
@@ -175,6 +209,18 @@ CCTEST_EXTRA_FLAGS = {
     'all': {
       'LIBPATH': [abspath('.')]
     },
+    'os:linux': {
+      'LIBS':         ['pthread'],
+    },
+    'os:macos': {
+      'LIBS':         ['pthread'],
+    },
+    'os:freebsd': {
+      'LIBS':         ['execinfo', 'pthread']
+    },
+    'os:win32': {
+      'LIBS': ['winmm']
+    },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
@@ -182,7 +228,8 @@ CCTEST_EXTRA_FLAGS = {
   },
   'msvc': {
     'all': {
-      'CPPDEFINES': ['_HAS_EXCEPTIONS=0']
+      'CPPDEFINES': ['_HAS_EXCEPTIONS=0'],
+      'LIBS': ['winmm']
     },
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
@@ -198,11 +245,19 @@ SAMPLE_FLAGS = {
   },
   'gcc': {
     'all': {
-      'LIBS': ['pthread'],
       'LIBPATH': ['.']
     },
+    'os:linux': {
+      'LIBS':         ['pthread'],
+    },
+    'os:macos': {
+      'LIBS':         ['pthread'],
+    },
     'os:freebsd': {
-      'LIBS':         ['execinfo']
+      'LIBS':         ['execinfo', 'pthread']
+    },
+    'os:win32': {
+      'LIBS':         ['winmm']
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -219,6 +274,7 @@ SAMPLE_FLAGS = {
     'all': {
       'CCFLAGS': ['/nologo'],
       'LINKFLAGS': ['/nologo'],
+      'LIBS': ['winmm']
     },
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
@@ -254,8 +310,25 @@ D8_FLAGS = {
   'gcc': {
     'console:readline': {
       'LIBS': ['readline']
-    }
+    },
+    'os:linux': {
+      'LIBS': ['pthread'],
+    },
+    'os:macos': {
+      'LIBS': ['pthread'],
+    },
+    'os:freebsd': {
+      'LIBS': ['pthread'],
+    },
+    'os:win32': {
+      'LIBS': ['winmm'],
+    },
   },
+  'msvc': {
+    'all': {
+      'LIBS': ['winmm']
+    }
+  }
 }
 
 
@@ -303,7 +376,7 @@ SIMPLE_OPTIONS = {
     'help': 'the architecture to build for'
   },
   'snapshot': {
-    'values': ['on', 'off'],
+    'values': ['on', 'off', 'nobuild'],
     'default': 'off',
     'help': 'build using snapshots for faster start-up'
   },
@@ -396,13 +469,15 @@ class BuildContext(object):
 
   def __init__(self, options, env_overrides, samples):
     self.library_targets = []
+    self.mksnapshot_targets = []
     self.cctest_targets = []
     self.sample_targets = []
     self.d8_targets = []
     self.options = options
     self.env_overrides = env_overrides
     self.samples = samples
-    self.use_snapshot = (options['snapshot'] == 'on')
+    self.use_snapshot = (options['snapshot'] != 'off')
+    self.build_snapshot = (options['snapshot'] == 'on')
     self.flags = None
 
   def AddRelevantFlags(self, initial, flags):
@@ -488,6 +563,7 @@ def BuildSpecific(env, mode, env_overrides):
 
   library_flags = context.AddRelevantFlags(os.environ, LIBRARY_FLAGS)
   v8_flags = context.AddRelevantFlags(library_flags, V8_EXTRA_FLAGS)
+  mksnapshot_flags = context.AddRelevantFlags(library_flags, MKSNAPSHOT_EXTRA_FLAGS)
   jscre_flags = context.AddRelevantFlags(library_flags, JSCRE_EXTRA_FLAGS)
   dtoa_flags = context.AddRelevantFlags(library_flags, DTOA_EXTRA_FLAGS)
   cctest_flags = context.AddRelevantFlags(v8_flags, CCTEST_EXTRA_FLAGS)
@@ -496,6 +572,7 @@ def BuildSpecific(env, mode, env_overrides):
 
   context.flags = {
     'v8': v8_flags,
+    'mksnapshot': mksnapshot_flags,
     'jscre': jscre_flags,
     'dtoa': dtoa_flags,
     'cctest': cctest_flags,
@@ -509,12 +586,14 @@ def BuildSpecific(env, mode, env_overrides):
   env['LIBRARY'] = library_name
 
   # Build the object files by invoking SCons recursively.  
-  (object_files, shell_files) = env.SConscript(
+  (object_files, shell_files, mksnapshot) = env.SConscript(
     join('src', 'SConscript'),
     build_dir=join('obj', target_id),
     exports='context',
     duplicate=False
   )
+
+  context.mksnapshot_targets.append(mksnapshot)
 
   # Link the object files into a library.
   env.Replace(**context.flags['v8'])
@@ -570,6 +649,7 @@ def Build():
   SourceSignatures(env['sourcesignatures'])
 
   libraries = []
+  mksnapshots = []
   cctests = []
   samples = []
   d8s = []
@@ -577,11 +657,13 @@ def Build():
   for mode in modes:
     context = BuildSpecific(env.Copy(), mode, env_overrides)
     libraries += context.library_targets
+    mksnapshots += context.mksnapshot_targets
     cctests += context.cctest_targets
     samples += context.sample_targets
     d8s += context.d8_targets
 
   env.Alias('library', libraries)
+  env.Alias('mksnapshot', mksnapshots)
   env.Alias('cctests', cctests)
   env.Alias('sample', samples)
   env.Alias('d8', d8s)

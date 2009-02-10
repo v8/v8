@@ -2184,7 +2184,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "0.4.9.3";
+  return "1.0.0";
 }
 
 
@@ -2652,6 +2652,18 @@ void V8::SetExternalSymbolCallback(ExternalSymbolCallback callback) {
   i::Heap::SetExternalSymbolCallback(callback);
 }
 
+void V8::PauseProfiler() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Logger::PauseProfiler();
+#endif
+}
+
+void V8::ResumeProfiler() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Logger::ResumeProfiler();
+#endif
+}
+
 
 String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
   EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
@@ -2804,78 +2816,22 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 // --- D e b u g   S u p p o r t ---
 
 
-bool Debug::AddDebugEventListener(DebugEventCallback that, Handle<Value> data) {
-  EnsureInitialized("v8::Debug::AddDebugEventListener()");
-  ON_BAILOUT("v8::Debug::AddDebugEventListener()", return false);
+bool Debug::SetDebugEventListener(DebugEventCallback that, Handle<Value> data) {
+  EnsureInitialized("v8::Debug::SetDebugEventListener()");
+  ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
   HandleScope scope;
-  NeanderArray listeners(i::Factory::debug_event_listeners());
-  NeanderObject obj(2);
-  obj.set(0, *i::Factory::NewProxy(FUNCTION_ADDR(that)));
-  obj.set(1, data.IsEmpty() ?
-             i::Heap::undefined_value() :
-             *Utils::OpenHandle(*data));
-  listeners.add(obj.value());
-  i::Debugger::UpdateActiveDebugger();
+  i::Debugger::SetEventListener(i::Factory::NewProxy(FUNCTION_ADDR(that)),
+                                Utils::OpenHandle(*data));
   return true;
 }
 
 
-bool Debug::AddDebugEventListener(v8::Handle<v8::Function> that,
+bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
                                   Handle<Value> data) {
-  ON_BAILOUT("v8::Debug::AddDebugEventListener()", return false);
-  HandleScope scope;
-  NeanderArray listeners(i::Factory::debug_event_listeners());
-  NeanderObject obj(2);
-  obj.set(0, *Utils::OpenHandle(*that));
-  obj.set(1, data.IsEmpty() ?
-             i::Heap::undefined_value() :
-             *Utils::OpenHandle(*data));
-  listeners.add(obj.value());
-  i::Debugger::UpdateActiveDebugger();
+  ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
+  i::Debugger::SetEventListener(Utils::OpenHandle(*that),
+                                Utils::OpenHandle(*data));
   return true;
-}
-
-
-void Debug::RemoveDebugEventListener(DebugEventCallback that) {
-  EnsureInitialized("v8::Debug::RemoveDebugEventListener()");
-  ON_BAILOUT("v8::Debug::RemoveDebugEventListener()", return);
-  HandleScope scope;
-  NeanderArray listeners(i::Factory::debug_event_listeners());
-  for (int i = 0; i < listeners.length(); i++) {
-    if (listeners.get(i)->IsUndefined()) continue;  // skip deleted ones
-
-    NeanderObject listener(i::JSObject::cast(listeners.get(i)));
-    // When removing a C debug event listener only consider proxy objects.
-    if (listener.get(0)->IsProxy()) {
-      i::Handle<i::Proxy> callback_obj(i::Proxy::cast(listener.get(0)));
-      if (callback_obj->proxy() == FUNCTION_ADDR(that)) {
-        listeners.set(i, i::Heap::undefined_value());
-      }
-    }
-  }
-  i::Debugger::UpdateActiveDebugger();
-}
-
-
-void Debug::RemoveDebugEventListener(v8::Handle<v8::Function> that) {
-  ON_BAILOUT("v8::Debug::RemoveDebugEventListener()", return);
-  HandleScope scope;
-  NeanderArray listeners(i::Factory::debug_event_listeners());
-  for (int i = 0; i < listeners.length(); i++) {
-    if (listeners.get(i)->IsUndefined()) continue;  // skip deleted ones
-
-    NeanderObject listener(i::JSObject::cast(listeners.get(i)));
-    // When removing a JavaScript debug event listener only consider JavaScript
-    // function objects.
-    if (listener.get(0)->IsJSFunction()) {
-      i::JSFunction* callback = i::JSFunction::cast(listener.get(0));
-      i::Handle<i::JSFunction> callback_fun(callback);
-      if (callback_fun.is_identical_to(Utils::OpenHandle(*that))) {
-        listeners.set(i, i::Heap::undefined_value());
-      }
-    }
-  }
-  i::Debugger::UpdateActiveDebugger();
 }
 
 

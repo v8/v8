@@ -35,9 +35,9 @@
 CcTest* CcTest::last_ = NULL;
 
 
-CcTest::CcTest(TestFunction* callback, const char* file,
-               const char* name, bool enabled)
-    : callback_(callback), name_(name), prev_(last_) {
+CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
+               const char* dependency, bool enabled)
+    : callback_(callback), name_(name), dependency_(dependency), prev_(last_) {
   // Find the base name of this test (const_cast required on Windows).
   char *basename = strrchr(const_cast<char *>(file), '/');
   if (!basename) {
@@ -62,7 +62,12 @@ CcTest::CcTest(TestFunction* callback, const char* file,
 static void PrintTestList(CcTest* current) {
   if (current == NULL) return;
   PrintTestList(current->prev());
-  printf("%s/%s\n", current->file(), current->name());
+  if (current->dependency() != NULL) {
+    printf("%s/%s<%s\n",
+           current->file(), current->name(), current->dependency());
+  } else {
+    printf("%s/%s<\n", current->file(), current->name());
+  }
 }
 
 

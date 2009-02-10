@@ -102,7 +102,7 @@ const kMessages = {
   invalid_array_length:         "Invalid array length",
   invalid_array_apply_length:   "Function.prototype.apply supports only up to 1024 arguments",
   stack_overflow:               "Maximum call stack size exceeded",
-  apply_overflow:               "Function.prototype.apply cannot support %0 arguments", 
+  apply_overflow:               "Function.prototype.apply cannot support %0 arguments",
   // SyntaxError
   unable_to_parse:              "Parse error",
   duplicate_regexp_flag:        "Duplicate RegExp flag %0",
@@ -228,47 +228,19 @@ function MakeError(type, args) {
 
 
 /**
- * Initialize the cached source information in a script. Currently all line
- * end positions are cached.
- */
-Script.prototype.initSourceInfo_ = function () {
-  // Just return if initialized.
-  if (this.lineEnds_) return;
-
-  // Collect all line endings.
-  this.lineEnds_ = [];
-  for (var i = 0; i < this.source.length; i++) {
-    var current = this.source.charAt(i);
-    if (current == '\n') {
-      this.lineEnds_.push(i);
-    }
-  }
-
-  // If the script does not end with a line ending add the final end position
-  // as just past the last line ending.
-  if (this.lineEnds_[this.lineEnds_.length - 1] != this.source.length - 1) {
-    this.lineEnds_.push(this.source.length);
-  }
-};
-
-
-/**
  * Get information on a specific source position.
  * @param {number} position The source position
  * @return {SourceLocation}
  *     If line is negative or not in the source null is returned.
  */
 Script.prototype.locationFromPosition = function (position) {
-  // Make sure source info has been initialized.
-  this.initSourceInfo_();
-
   var lineCount = this.lineCount();
   var line = -1;
-  if (position <= this.lineEnds_[0]) {
+  if (position <= this.line_ends[0]) {
     line = 0;
   } else {
     for (var i = 1; i < lineCount; i++) {
-      if (this.lineEnds_[i - 1] < position && position <= this.lineEnds_[i]) {
+      if (this.line_ends[i - 1] < position && position <= this.line_ends[i]) {
         line = i;
         break;
       }
@@ -278,8 +250,8 @@ Script.prototype.locationFromPosition = function (position) {
   if (line == -1) return null;
 
   // Determine start, end and column.
-  var start = line == 0 ? 0 : this.lineEnds_[line - 1] + 1;
-  var end = this.lineEnds_[line];
+  var start = line == 0 ? 0 : this.line_ends[line - 1] + 1;
+  var end = this.line_ends[line];
   if (end > 0 && this.source.charAt(end - 1) == '\r') end--;
   var column = position - start;
 
@@ -308,9 +280,6 @@ Script.prototype.locationFromPosition = function (position) {
  *     If line is negative or not in the source null is returned.
  */
 Script.prototype.locationFromLine = function (opt_line, opt_column, opt_offset_position) {
-  // Make soure source info has been initialized.
-  this.initSourceInfo_();
-
   // Default is the first line in the script. Lines in the script is relative
   // to the offset within the resource.
   var line = 0;
@@ -334,13 +303,13 @@ Script.prototype.locationFromLine = function (opt_line, opt_column, opt_offset_p
     var lineCount = this.lineCount();
     var offset_line;
     for (var i = 0; i < lineCount; i++) {
-      if (offset_position <= this.lineEnds_[i]) {
+      if (offset_position <= this.line_ends[i]) {
         offset_line = i;
         break;
       }
     }
     if (offset_line + line >= lineCount) return null;
-    return this.locationFromPosition(this.lineEnds_[offset_line + line - 1] + 1 + column);  // line > 0 here.
+    return this.locationFromPosition(this.line_ends[offset_line + line - 1] + 1 + column);  // line > 0 here.
   }
 }
 
@@ -356,9 +325,6 @@ Script.prototype.locationFromLine = function (opt_line, opt_column, opt_offset_p
  *     invalid
  */
 Script.prototype.sourceSlice = function (opt_from_line, opt_to_line) {
-  // Make soure source info has been initialized.
-  this.initSourceInfo_();
-
   var from_line = IS_UNDEFINED(opt_from_line) ? this.line_offset : opt_from_line;
   var to_line = IS_UNDEFINED(opt_to_line) ? this.line_offset + this.lineCount() : opt_to_line
 
@@ -368,15 +334,15 @@ Script.prototype.sourceSlice = function (opt_from_line, opt_to_line) {
   if (from_line < 0) from_line = 0;
   if (to_line > this.lineCount()) to_line = this.lineCount();
 
-  // Check parameters.  
+  // Check parameters.
   if (from_line >= this.lineCount() ||
       to_line < 0 ||
       from_line > to_line) {
     return null;
   }
 
-  var from_position = from_line == 0 ? 0 : this.lineEnds_[from_line - 1] + 1;
-  var to_position = to_line == 0 ? 0 : this.lineEnds_[to_line - 1] + 1;
+  var from_position = from_line == 0 ? 0 : this.line_ends[from_line - 1] + 1;
+  var to_position = to_line == 0 ? 0 : this.line_ends[to_line - 1] + 1;
 
   // Return a source slice with line numbers re-adjusted to the resource.
   return new SourceSlice(this, from_line + this.line_offset, to_line + this.line_offset,
@@ -391,15 +357,15 @@ Script.prototype.sourceLine = function (opt_line) {
   if (!IS_UNDEFINED(opt_line)) {
     line = opt_line - this.line_offset;
   }
-  
-  // Check parameter.  
+
+  // Check parameter.
   if (line < 0 || this.lineCount() <= line) {
     return null;
   }
 
-  // Return the source line.  
-  var start = line == 0 ? 0 : this.lineEnds_[line - 1] + 1;
-  var end = this.lineEnds_[line];
+  // Return the source line.
+  var start = line == 0 ? 0 : this.line_ends[line - 1] + 1;
+  var end = this.line_ends[line];
   return this.source.substring(start, end);
 }
 
@@ -410,11 +376,8 @@ Script.prototype.sourceLine = function (opt_line) {
  *     Number of source lines.
  */
 Script.prototype.lineCount = function() {
-  // Make soure source info has been initialized.
-  this.initSourceInfo_();
-
-  // Return number of source lines.  
-  return this.lineEnds_.length;
+  // Return number of source lines.
+  return this.line_ends.length;
 };
 
 
@@ -430,7 +393,7 @@ Script.prototype.lineCount = function() {
  * Source text for the source context is the character interval [start, end[. In
  * most cases end will point to a newline character. It might point just past
  * the final position of the source if the last source line does not end with a
- * newline character. 
+ * newline character.
  * @param {Script} script The Script object for which this is a location
  * @param {number} position Source position for the location
  * @param {number} line The line number for the location

@@ -324,11 +324,6 @@ void Scope::AllocateVariables() {
 }
 
 
-bool Scope::SupportsEval() const {
-  return scope_calls_eval_ || inner_scope_calls_eval_;
-}
-
-
 bool Scope::AllowsLazyCompilation() const {
   return !force_eager_compilation_ && HasTrivialOuterContext();
 }

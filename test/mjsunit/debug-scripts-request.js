@@ -85,7 +85,7 @@ function listener(event, exec_state, event_data, data) {
 };
 
 // Add the debug event listener.
-Debug.addListener(listener);
+Debug.setListener(listener);
 
 // Call debugger to invoke the debug event listener.
 debugger;

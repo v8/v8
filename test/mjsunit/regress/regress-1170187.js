@@ -69,7 +69,7 @@ function listener(event, exec_state, event_data, data) {
 };
 
 // Add the debug event listener.
-Debug.addListener(listener);
+Debug.setListener(listener);
 
 // Call a function with local variables passing a different number parameters
 // that the number of arguments.

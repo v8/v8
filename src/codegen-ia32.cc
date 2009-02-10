@@ -1431,15 +1431,15 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
   }
 
   if (val != NULL) {
-    // Set initial value.
-    Reference target(this, node->proxy());
-    ASSERT(target.is_slot());
-    Load(val);
-    target.SetValue(NOT_CONST_INIT);
-    // Get rid of the assigned value (declarations are statements).  It's
-    // safe to pop the value lying on top of the reference before unloading
-    // the reference itself (which preserves the top of stack) because we
-    // know that it is a zero-sized reference.
+    {
+      // Set initial value.
+      Reference target(this, node->proxy());
+      Load(val);
+      target.SetValue(NOT_CONST_INIT);
+      // The reference is removed from the stack (preserving TOS) when
+      // it goes out of scope.
+    }
+    // Get rid of the assigned value (declarations are statements).
     frame_->Pop();
   }
 }

@@ -62,8 +62,6 @@ char* Top::Iterate(ObjectVisitor* v, char* thread_storage) {
 }
 
 
-#define VISIT(field) v->VisitPointer(reinterpret_cast<Object**>(&(field)));
-
 void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   v->VisitPointer(&(thread->pending_exception_));
   v->VisitPointer(&(thread->pending_message_obj_));
@@ -84,7 +82,6 @@ void Top::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
     it.frame()->Iterate(v);
   }
 }
-#undef VISIT
 
 
 void Top::Iterate(ObjectVisitor* v) {

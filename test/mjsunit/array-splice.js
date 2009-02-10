@@ -45,7 +45,7 @@ function PseudoArray() {
 };
 
 for (var use_real_arrays = 0; use_real_arrays <= 1; use_real_arrays++) {
-  var poses = [0, 140, 40000, VERYLARGE];
+  var poses = [0, 140, 20000, VERYLARGE];
   var the_prototype;
   var new_function;
   var push_function;
@@ -309,5 +309,3 @@ Array.prototype[1] = 1;
 assertEquals(1, arr.pop());
 assertEquals(0, arr.pop());
 Array.prototype[1] = undefined;
-
-

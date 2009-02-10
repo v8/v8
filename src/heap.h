@@ -114,7 +114,6 @@ namespace v8 { namespace internal {
   V(Map, neander_map)                                   \
   V(JSObject, message_listeners)                        \
   V(Proxy, prototype_accessors)                         \
-  V(JSObject, debug_event_listeners)                    \
   V(Dictionary, code_stubs)                             \
   V(Dictionary, non_monomorphic_cache)                  \
   V(Code, js_entry_code)                                \

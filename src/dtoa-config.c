@@ -72,6 +72,11 @@
 #include "stdlib.h"
 #endif
 
+/* For MinGW, turn on __NO_ISOCEXT so that its strtod doesn't get added */
+#ifdef __MINGW32__
+#define __NO_ISOCEXT
+#endif  /* __MINGW32__ */
+
 /* Make sure we use the David M. Gay version of strtod(). On Linux, we
  * cannot use the same name (maybe the function does not have weak
  * linkage?). */
