@@ -107,15 +107,21 @@ class FrameElement BASE_EMBEDDED {
   bool is_memory() const { return type() == MEMORY; }
   bool is_register() const { return type() == REGISTER; }
   bool is_constant() const { return type() == CONSTANT; }
+  bool is_copy() const { return type() == COPY; }
 
   Register reg() const {
-    ASSERT(type() == REGISTER);
+    ASSERT(is_register());
     return data_.reg_;
   }
 
   Handle<Object> handle() const {
-    ASSERT(type() == CONSTANT);
+    ASSERT(is_constant());
     return Handle<Object>(data_.handle_);
+  }
+
+  int index() const {
+    ASSERT(is_copy());
+    return data_.index_;
   }
 
  private:
@@ -123,7 +129,8 @@ class FrameElement BASE_EMBEDDED {
     INVALID,
     MEMORY,
     REGISTER,
-    CONSTANT
+    CONSTANT,
+    COPY
   };
 
   // BitField is <type, shift, size>.
@@ -140,7 +147,10 @@ class FrameElement BASE_EMBEDDED {
   union {
     Register reg_;
     Object** handle_;
+    int index_;
   } data_;
+
+  friend class VirtualFrame;
 };
 
 
@@ -176,6 +186,9 @@ class VirtualFrame : public Malloced {
 
   // Construct a virtual frame as a clone of an existing one.
   explicit VirtualFrame(VirtualFrame* original);
+
+  // Create a duplicate of an existing valid frame element.
+  FrameElement CopyElementAt(int index);
 
   // The height of the virtual expression stack.
   int height() const {
@@ -498,10 +511,6 @@ class VirtualFrame : public Malloced {
   // constant.
   void SpillElementAt(int index);
 
-  // Spill the element at an index without modifying its reference count (if
-  // it was in a register).
-  void RawSpillElementAt(int index);
-
   // Sync the element at a particular index.  If it is a register or
   // constant that disagrees with the value on the stack, write it to memory.
   // Keep the element type as register or constant, and clear the dirty bit.
@@ -552,12 +561,21 @@ class VirtualFrame : public Malloced {
   // should be equal.
   void MergeMoveMemoryToRegisters(VirtualFrame* expected);
 
-  // Calls a code object which takes spilled_args frame arguments
-  // and which drops dropped_args of them.
-  Result RawCallCodeObject(Handle<Code> code,
-                           RelocInfo::Mode rmode,
-                           int spilled_args,
-                           int dropped_args);
+  // Helper function to implement the copy-on-write semantics of an
+  // element's copies just before writing to the element.  The copies
+  // are updated, but the element is not changed.  A copy of the new
+  // backing store of all the copies is returned if there were any
+  // copies and in invalid frame element is returned if there were no
+  // copies.
+  FrameElement AdjustCopies(int index);
+
+  // Call a code stub that has already been prepared for calling (via
+  // PrepareForCall).
+  Result RawCallStub(CodeStub* stub, int frame_arg_count);
+
+  // Calls a code object which has already been prepared for calling
+  // (via PrepareForCall).
+  Result RawCallCodeObject(Handle<Code> code, RelocInfo::Mode rmode);
 };
 
 } }  // namespace v8::internal
