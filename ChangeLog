@@ -1,3 +1,20 @@
+2009-02-09: Version 1.0.0
+
+        Fixed crash-bug in the code generation for case independent 16 bit
+        backreferences.
+        
+        Made shells more robust in the presence of string conversion
+        failures (issue 224).
+        
+        Fixed a potential infinite loop when attempting to resolve
+        eval (issue 221).
+        
+        Miscellaneous fixes to the new regular expression engine.
+        
+        Reduced binary by stripping unneeded text from JavaScript library and
+        minifying some JavaScript files.
+
+
 2009-01-27: Version 0.4.9
 
         Enabled new regular expression engine.
