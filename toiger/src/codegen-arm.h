@@ -162,12 +162,11 @@ class CodeGenerator: public AstVisitor {
 
   VirtualFrame* frame() const { return frame_; }
 
-  void set_frame(VirtualFrame* frame) { frame_ = frame; }
+  bool has_valid_frame() const { return frame_ != NULL; }
 
-  void delete_frame() {
-    delete frame_;
-    frame_ = NULL;
-  }
+  void SetFrame(VirtualFrame* frame);
+
+  void DeleteFrame();
 
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
@@ -319,15 +318,15 @@ class CodeGenerator: public AstVisitor {
   void GenerateFastCaseSwitchJumpTable(SwitchStatement* node,
                                        int min_index,
                                        int range,
-                                       JumpTarget* fail_label,
-                                       Vector<JumpTarget*> case_targets,
-                                       Vector<JumpTarget> case_labels);
+                                       Label* default_label,
+                                       Vector<Label*> case_targets,
+                                       Vector<Label> case_labels);
 
   // Generate the code for cases for the fast case switch.
   // Called by GenerateFastCaseSwitchJumpTable.
   void GenerateFastCaseSwitchCases(SwitchStatement* node,
-                                   Vector<JumpTarget> case_labels,
-                                   JumpTarget* table_start);
+                                   Vector<Label> case_labels,
+                                   VirtualFrame* start_frame);
 
   // Fast support for constant-Smi switches.
   void GenerateFastCaseSwitchStatement(SwitchStatement* node,
@@ -344,7 +343,8 @@ class CodeGenerator: public AstVisitor {
   // Methods used to indicate which source code is generated for. Source
   // positions are collected by the assembler and emitted with the relocation
   // information.
-  void CodeForStatement(Node* node);
+  void CodeForFunctionPosition(FunctionLiteral* fun);
+  void CodeForStatementPosition(Node* node);
   void CodeForSourcePosition(int pos);
 
   // Is the given jump target the actual (ie, non-shadowed) function return
@@ -352,6 +352,12 @@ class CodeGenerator: public AstVisitor {
   bool IsActualFunctionReturn(JumpTarget* target);
 
   bool is_eval_;  // Tells whether code is generated for eval.
+
+#ifdef DEBUG
+  // True if the registers are valid for entry to a block.
+  bool HasValidEntryRegisters();
+#endif
+
   Handle<Script> script_;
   List<DeferredCode*> deferred_;
 

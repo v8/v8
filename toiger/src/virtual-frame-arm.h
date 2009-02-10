@@ -29,6 +29,7 @@
 #define V8_VIRTUAL_FRAME_ARM_H_
 
 #include "macro-assembler.h"
+#include "register-allocator.h"
 
 namespace v8 { namespace internal {
 
@@ -76,6 +77,10 @@ class VirtualFrame : public Malloced {
 
   // Forget frame elements without generating code.
   void Forget(int count);
+
+  // Ensure that this frame is in a state where an arbitrary frame of the
+  // right size could be merged to it.  May emit code.
+  void MakeMergable() { }
 
   // Make this virtual frame have a state identical to an expected virtual
   // frame.  As a side effect, code may be emitted to make this frame match

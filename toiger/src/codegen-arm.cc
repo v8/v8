@@ -87,6 +87,17 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
 }
 
 
+void CodeGenerator::SetFrame(VirtualFrame* new_frame) {
+  frame_ = new_frame;
+}
+
+
+void CodeGenerator::DeleteFrame() {
+  delete frame_;
+  frame_ = NULL;
+}
+
+
 // Calling conventions:
 // r0: the number of arguments
 // fp: frame pointer
@@ -101,9 +112,9 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   ASSERT(scope_ == NULL);
   scope_ = fun->scope();
   ASSERT(frame_ == NULL);
-  set_frame(new VirtualFrame(this));
+  frame_ = new VirtualFrame(this);
   cc_reg_ = al;
-  function_return_.set_code_generator(this);
+  function_return_.Initialize(this, JumpTarget::BIDIRECTIONAL);
   function_return_is_shadowed_ = false;
   {
     CodeGenState state(this);
@@ -771,10 +782,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
         new DeferredInlinedSmiOperation(this, op, int_value, reversed);
 
       __ add(r0, r0, Operand(value), SetCC);
-      __ b(vs, deferred->enter());
+      deferred->enter()->Branch(vs);
       __ tst(r0, Operand(kSmiTagMask));
-      __ b(ne, deferred->enter());
-      __ bind(deferred->exit());
+      deferred->enter()->Branch(ne);
+      deferred->exit()->Bind();
       break;
     }
 
@@ -787,10 +798,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
       } else {
         __ rsb(r0, r0, Operand(value), SetCC);
       }
-      __ b(vs, deferred->enter());
+      deferred->enter()->Branch(vs);
       __ tst(r0, Operand(kSmiTagMask));
-      __ b(ne, deferred->enter());
-      __ bind(deferred->exit());
+      deferred->enter()->Branch(ne);
+      deferred->exit()->Bind();
       break;
     }
 
@@ -800,14 +811,14 @@ void CodeGenerator::SmiOperation(Token::Value op,
       DeferredCode* deferred =
         new DeferredInlinedSmiOperation(this, op, int_value, reversed);
       __ tst(r0, Operand(kSmiTagMask));
-      __ b(ne, deferred->enter());
+      deferred->enter()->Branch(ne);
       switch (op) {
         case Token::BIT_OR:  __ orr(r0, r0, Operand(value)); break;
         case Token::BIT_XOR: __ eor(r0, r0, Operand(value)); break;
         case Token::BIT_AND: __ and_(r0, r0, Operand(value)); break;
         default: UNREACHABLE();
       }
-      __ bind(deferred->exit());
+      deferred->exit()->Bind();
       break;
     }
 
@@ -825,14 +836,14 @@ void CodeGenerator::SmiOperation(Token::Value op,
         DeferredCode* deferred =
           new DeferredInlinedSmiOperation(this, op, shift_value, false);
         __ tst(r0, Operand(kSmiTagMask));
-        __ b(ne, deferred->enter());
+        deferred->enter()->Branch(ne);
         __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // remove tags
         switch (op) {
           case Token::SHL: {
             __ mov(r2, Operand(r2, LSL, shift_value));
             // check that the *unsigned* result fits in a smi
             __ add(r3, r2, Operand(0x40000000), SetCC);
-            __ b(mi, deferred->enter());
+            deferred->enter()->Branch(mi);
             break;
           }
           case Token::SHR: {
@@ -847,7 +858,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
             // smi tagging these two cases can only happen with shifts
             // by 0 or 1 when handed a valid smi
             __ and_(r3, r2, Operand(0xc0000000), SetCC);
-            __ b(ne, deferred->enter());
+            deferred->enter()->Branch(ne);
             break;
           }
           case Token::SAR: {
@@ -860,7 +871,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
           default: UNREACHABLE();
         }
         __ mov(r0, Operand(r2, LSL, kSmiTagSize));
-        __ bind(deferred->exit());
+        deferred->exit()->Bind();
       }
       break;
     }
@@ -1011,13 +1022,11 @@ void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
 
 void CodeGenerator::VisitBlock(Block* node) {
   Comment cmnt(masm_, "[ Block");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
-  node->break_target()->set_code_generator(this);
+  node->break_target()->Initialize(this);
   VisitStatements(node->statements());
-  if (node->break_target()->is_linked()) {
-    node->break_target()->Bind();
-  }
+  node->break_target()->Bind();
 }
 
 
@@ -1034,7 +1043,7 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 
 void CodeGenerator::VisitDeclaration(Declaration* node) {
   Comment cmnt(masm_, "[ Declaration");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
   Slot* slot = var->slot();
@@ -1100,7 +1109,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
 
 void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   Comment cmnt(masm_, "[ ExpressionStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   Expression* expression = node->expression();
   expression->MarkAsStatement();
   Load(expression);
@@ -1110,7 +1119,7 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
 
 void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
   Comment cmnt(masm_, "// EmptyStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   // nothing to do
 }
 
@@ -1122,7 +1131,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
   bool has_then_stm = node->HasThenStatement();
   bool has_else_stm = node->HasElseStatement();
 
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   JumpTarget exit(this);
   if (has_then_stm && has_else_stm) {
@@ -1207,7 +1216,7 @@ void CodeGenerator::CleanStack(int num_bytes) {
 
 void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
   Comment cmnt(masm_, "[ ContinueStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
   node->target()->continue_target()->Jump();
 }
@@ -1215,7 +1224,7 @@ void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
 
 void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
   Comment cmnt(masm_, "[ BreakStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
   node->target()->break_target()->Jump();
 }
@@ -1223,7 +1232,7 @@ void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
 
 void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   Comment cmnt(masm_, "[ ReturnStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   Load(node->expression());
   // Move the function result into r0.
   frame_->Pop(r0);
@@ -1234,7 +1243,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 
 void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   Comment cmnt(masm_, "[ WithEnterStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   Load(node->expression());
   if (node->is_catch_block()) {
     frame_->CallRuntime(Runtime::kPushCatchContext, 1);
@@ -1255,7 +1264,7 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
 
 void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
   Comment cmnt(masm_, "[ WithExitStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   // Pop context.
   __ ldr(cp, ContextOperand(cp, Context::PREVIOUS_INDEX));
   // Update context local.
@@ -1276,9 +1285,9 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     SwitchStatement* node,
     int min_index,
     int range,
-    JumpTarget* fail_label,
-    Vector<JumpTarget*> case_targets,
-    Vector<JumpTarget> case_labels) {
+    Label* default_label,
+    Vector<Label*> case_targets,
+    Vector<Label> case_labels) {
 
   ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
 
@@ -1291,7 +1300,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   __ ldr(r1, MemOperand(r0, HeapObject::kMapOffset - kHeapObjectTag));
   __ ldrb(r1, MemOperand(r1, Map::kInstanceTypeOffset - kHeapObjectTag));
   __ cmp(r1, Operand(HEAP_NUMBER_TYPE));
-  fail_label->Branch(ne);
+  __ b(ne, default_label);
   frame_->EmitPush(r0);
   frame_->CallRuntime(Runtime::kNumberToSmi, 1);
   is_smi.Bind();
@@ -1311,32 +1320,31 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     }
   }
   __ tst(r0, Operand(0x80000000 | kSmiTagMask));
-  fail_label->Branch(ne);
+  __ b(ne, default_label);
   __ cmp(r0, Operand(Smi::FromInt(range)));
-  fail_label->Branch(ge);
+  __ b(ge, default_label);
   __ SmiJumpTable(r0, case_targets);
 
-  JumpTarget table_start(this);
-  table_start.Bind();
+  frame_->MakeMergable();
+  VirtualFrame* start_frame = new VirtualFrame(frame_);
   // Table containing branch operations.
   for (int i = 0; i < range; i++) {
-    case_targets[i]->Jump();
-    frame_ = new VirtualFrame(table_start.expected_frame());
+    __ jmp(case_targets[i]);
   }
-  GenerateFastCaseSwitchCases(node, case_labels, &table_start);
+  GenerateFastCaseSwitchCases(node, case_labels, start_frame);
+  delete start_frame;
 }
 
 
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   Comment cmnt(masm_, "[ SwitchStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
-  node->break_target()->set_code_generator(this);
+  node->break_target()->Initialize(this);
 
   Load(node->tag());
-
   if (TryGenerateFastCaseSwitchStatement(node)) {
-      return;
+    return;
   }
 
   JumpTarget next_test(this);
@@ -1418,10 +1426,10 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
 void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   Comment cmnt(masm_, "[ LoopStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
-  node->break_target()->set_code_generator(this);
-  node->continue_target()->set_code_generator(this);
+  node->break_target()->Initialize(this);
+  node->continue_target()->Initialize(this);
 
   // Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
   // known result for the test expression, with no side effects.
@@ -1572,10 +1580,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
             // Record source position of the statement as this code which is
             // after the code for the body actually belongs to the loop
             // statement and not the body.
-            CodeForStatement(node);
+            CodeForStatementPosition(node);
 
-
-            ASSERT(node->type() == LoopStatement::FOR_LOOP);
             Visit(node->next());
             loop.Jump();
           }
@@ -1593,7 +1599,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
 void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   Comment cmnt(masm_, "[ ForInStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   // We keep stuff on the stack while the body is executing.
   // Record it, so that a break/continue crossing this statement
@@ -1601,8 +1607,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   const int kForInStackSize = 5 * kPointerSize;
   break_stack_height_ += kForInStackSize;
   node->set_break_stack_height(break_stack_height_);
-  node->break_target()->set_code_generator(this);
-  node->continue_target()->set_code_generator(this);
+  node->break_target()->Initialize(this);
+  node->continue_target()->Initialize(this);
 
   JumpTarget primitive(this);
   JumpTarget jsobject(this);
@@ -1782,7 +1788,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
 void CodeGenerator::VisitTryCatch(TryCatch* node) {
   Comment cmnt(masm_, "[ TryCatch");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   JumpTarget try_block(this);
   JumpTarget exit(this);
@@ -1882,7 +1888,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
       // Code slot popped.
       frame_->Forget(1);
-      shadows[i]->original_target()->Jump();
+      shadows[i]->other_target()->Jump();
     }
   }
 
@@ -1892,7 +1898,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
 void CodeGenerator::VisitTryFinally(TryFinally* node) {
   Comment cmnt(masm_, "[ TryFinally");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   // State: Used to keep track of reason for entering the finally
   // block. Should probably be extended to hold information for
@@ -1961,7 +1967,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       shadows[i]->Bind();
-      if (shadows[i]->original_target() == &function_return_) {
+      if (shadows[i]->other_target() == &function_return_) {
         // If this label shadowed the function return, materialize the
         // return value on the stack.
         frame_->EmitPush(r0);
@@ -2023,13 +2029,13 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     for (int i = 0; i <= nof_escapes; i++) {
       if (shadows[i]->is_bound()) {
         __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
-        if (shadows[i]->original_target() != &function_return_) {
+        if (shadows[i]->other_target() != &function_return_) {
           JumpTarget next(this);
           next.Branch(ne);
-          shadows[i]->original_target()->Jump();
+          shadows[i]->other_target()->Jump();
           next.Bind();
         } else {
-          shadows[i]->original_target()->Branch(eq);
+          shadows[i]->other_target()->Branch(eq);
         }
       }
     }
@@ -2050,7 +2056,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
 void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
   Comment cmnt(masm_, "[ DebuggerStatament");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   frame_->CallRuntime(Runtime::kDebugBreak, 0);
   // Ignore the return value.
 }
@@ -2262,8 +2268,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // Check whether we need to materialize the object literal boilerplate.
   // If so, jump to the deferred code.
   __ cmp(r2, Operand(Factory::undefined_value()));
-  __ b(eq, deferred->enter());
-  __ bind(deferred->exit());
+  deferred->enter()->Branch(eq);
+  deferred->exit()->Bind();
 
   // Push the object literal boilerplate.
   frame_->EmitPush(r2);
@@ -2365,13 +2371,13 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
   Load(node->key());
   Load(node->value());
   __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::VisitAssignment(Assignment* node) {
   Comment cmnt(masm_, "[ Assignment");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   Reference target(this, node->target());
   if (target.is_illegal()) {
@@ -2444,7 +2450,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
   ZoneList<Expression*>* args = node->arguments();
 
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   // Standard function call.
 
   // Check if the function is a variable or a property.
@@ -2588,7 +2594,7 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   ZoneList<Expression*>* args = node->arguments();
   Expression* function = node->expression();
 
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   // Prepare stack for call to resolved function.
   Load(function);
@@ -2625,14 +2631,14 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 
   __ ldr(cp, frame_->Context());
   // Remove the function from the stack.
-  frame_->Pop();
-  frame_->Push(r0);
+  frame_->Drop();
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::VisitCallNew(CallNew* node) {
   Comment cmnt(masm_, "[ CallNew");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   // According to ECMA-262, section 11.2.2, page 44, the function
   // expression in new calls must be evaluated before the
@@ -2738,7 +2744,7 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
   }
 #endif
   __ mov(r0, Operand(Factory::undefined_value()));
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
 }
 
 
@@ -3399,6 +3405,11 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       UNREACHABLE();
   }
 }
+
+
+#ifdef DEBUG
+bool CodeGenerator::HasValidEntryRegisters() { return true; }
+#endif
 
 
 bool CodeGenerator::IsActualFunctionReturn(JumpTarget* target) {

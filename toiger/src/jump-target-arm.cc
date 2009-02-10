@@ -37,171 +37,358 @@ namespace v8 { namespace internal {
 
 #define __ masm_->
 
-JumpTarget::JumpTarget(CodeGenerator* cgen)
-    : expected_frame_(NULL),
-      code_generator_(cgen),
-      masm_(cgen->masm()) {
+JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
+    : cgen_(cgen),
+      direction_(direction),
+      reaching_frames_(0),
+      merge_labels_(0),
+      expected_frame_(NULL),
+      is_bound_(false),
+      is_linked_(false) {
+  ASSERT(cgen_ != NULL);
+  masm_ = cgen_->masm();
 }
 
 
 JumpTarget::JumpTarget()
-    : expected_frame_(NULL),
-      code_generator_(NULL),
-      masm_(NULL) {
+    : cgen_(NULL),
+      masm_(NULL),
+      direction_(FORWARD_ONLY),
+      reaching_frames_(0),
+      merge_labels_(0),
+      expected_frame_(NULL),
+      is_bound_(false),
+      is_linked_(false) {
 }
 
 
-void JumpTarget::set_code_generator(CodeGenerator* cgen) {
+void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
   ASSERT(cgen != NULL);
-  ASSERT(code_generator_ == NULL);
-  code_generator_ = cgen;
+  ASSERT(cgen_ == NULL);
+  cgen_ = cgen;
   masm_ = cgen->masm();
+  direction_ = direction;
+}
+
+
+void JumpTarget::Unuse() {
+  ASSERT(!is_linked());
+  entry_label_.Unuse();
+  delete expected_frame_;
+  expected_frame_ = NULL;
+  is_bound_ = false;
+  is_linked_ = false;
+}
+
+
+void JumpTarget::Reset() {
+  reaching_frames_.Clear();
+  merge_labels_.Clear();
+  expected_frame_ = NULL;
+  entry_label_.Unuse();
+  is_bound_ = false;
+  is_linked_ = false;
 }
 
 
 void JumpTarget::Jump() {
-  // Precondition: there is a current frame.  There may or may not be an
-  // expected frame at the label.
-  ASSERT(code_generator_ != NULL);
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->has_valid_frame());
+  // Live non-frame registers are not allowed at unconditional jumps
+  // because we have no way of invalidating the corresponding results
+  // which are still live in the C++ code.
+  ASSERT(cgen_->HasValidEntryRegisters());
 
-  VirtualFrame* current_frame = code_generator_->frame();
-  ASSERT(current_frame != NULL);
-
-  if (expected_frame_ == NULL) {
-    expected_frame_ = current_frame;
-    code_generator_->set_frame(NULL);
-    // The frame at the actual function return will always have height zero.
-    if (code_generator_->IsActualFunctionReturn(this)) {
-      expected_frame_->Forget(expected_frame_->height());
-    }
+  if (is_bound()) {
+    // Backward jump.  There is an expected frame to merge to.
+    ASSERT(direction_ == BIDIRECTIONAL);
+    cgen_->frame()->MergeTo(expected_frame_);
+    cgen_->DeleteFrame();
+    __ jmp(&entry_label_);
   } else {
-    // No code needs to be emitted to merge to the expected frame at the
-    // actual function return.
-    if (!code_generator_->IsActualFunctionReturn(this)) {
-      current_frame->MergeTo(expected_frame_);
-    }
-    code_generator_->delete_frame();
+    // Forward jump.  The current frame is added to the end of the list
+    // of frames reaching the target block and a jump to the merge code
+    // is emitted.
+    AddReachingFrame(cgen_->frame());
+    cgen_->SetFrame(NULL);
+    __ jmp(&merge_labels_.last());
   }
 
-  __ b(&label_);
-  // Postcondition: there is no current frame but there is an expected frame
-  // at the label.
+  is_linked_ = !is_bound_;
+}
+
+
+void JumpTarget::Jump(Result* arg) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Jump(Result* arg0, Result* arg1) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Jump(Result* arg0, Result* arg1, Result* arg2) {
+  UNIMPLEMENTED();
 }
 
 
 void JumpTarget::Branch(Condition cc, Hint ignored) {
-  // Precondition: there is a current frame.  There may or may not be an
-  // expected frame at the label.
-  ASSERT(code_generator_ != NULL);
-  ASSERT(masm_ != NULL);
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->has_valid_frame());
 
-  VirtualFrame* current_frame = code_generator_->frame();
-  ASSERT(current_frame != NULL);
+  if (is_bound()) {
+    // Backward branch.  We have an expected frame to merge to on the
+    // backward edge.  We negate the condition and emit the merge code
+    // here.
+    //
+    // TODO(210): we should try to avoid negating the condition in the
+    // case where there is no merge code to emit.  Otherwise, we emit
+    // a branch around an unconditional jump.
+    ASSERT(direction_ == BIDIRECTIONAL);
+    Label original_fall_through;
+    __ b(NegateCondition(cc), &original_fall_through);
+    // Swap the current frame for a copy of it, saving non-frame
+    // register reference counts and invalidating all non-frame register
+    // references except the reserved ones on the backward edge.
+    VirtualFrame* original_frame = cgen_->frame();
+    VirtualFrame* working_frame = new VirtualFrame(original_frame);
+    cgen_->SetFrame(working_frame);
 
-  if (expected_frame_ == NULL) {
-    expected_frame_ = new VirtualFrame(current_frame);
-    // The frame at the actual function return will always have height zero.
-    if (code_generator_->IsActualFunctionReturn(this)) {
-      expected_frame_->Forget(expected_frame_->height());
-    }
+    working_frame->MergeTo(expected_frame_);
+    cgen_->DeleteFrame();
+    __ jmp(&entry_label_);
+
+    // Restore the frame and its associated non-frame registers.
+    cgen_->SetFrame(original_frame);
+    __ bind(&original_fall_through);
   } else {
-    // No code needs to be emitted to merge to the expected frame at the
-    // actual function return.
-    if (!code_generator_->IsActualFunctionReturn(this)) {
-      current_frame->MergeTo(expected_frame_);
-    }
+    // Forward branch.  A copy of the current frame is added to the end
+    // of the list of frames reaching the target block and a branch to
+    // the merge code is emitted.
+    AddReachingFrame(new VirtualFrame(cgen_->frame()));
+    __ b(cc, &merge_labels_.last());
   }
 
-  __ b(cc, &label_);
-  // Postcondition: there is both a current frame and an expected frame at
-  // the label and they match.
+  is_linked_ = !is_bound_;
+}
+
+
+void JumpTarget::Branch(Condition cc, Result* arg, Hint ignored) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Branch(Condition cc,
+                        Result* arg0,
+                        Result* arg1,
+                        Hint ignored) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Branch(Condition cc,
+                        Result* arg0,
+                        Result* arg1,
+                        Result* arg2,
+                        Hint ignored) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Branch(Condition cc,
+                        Result* arg0,
+                        Result* arg1,
+                        Result* arg2,
+                        Result* arg3,
+                        Hint ignored) {
+  UNIMPLEMENTED();
 }
 
 
 void JumpTarget::Call() {
-  // Precondition: there is a current frame, and there is no expected frame
-  // at the label.
-  ASSERT(code_generator_ != NULL);
-  ASSERT(masm_ != NULL);
-  ASSERT(!code_generator_->IsActualFunctionReturn(this));
+  // Call is used to push the address of the catch block on the stack as
+  // a return address when compiling try/catch and try/finally.  We
+  // fully spill the frame before making the call.  The expected frame
+  // at the label (which should be the only one) is the spilled current
+  // frame plus an in-memory return address.  The "fall-through" frame
+  // at the return site is the spilled current frame.
+  ASSERT(cgen_ != NULL);
+  ASSERT(cgen_->has_valid_frame());
+  // There are no non-frame references across the call.
+  ASSERT(cgen_->HasValidEntryRegisters());
+  ASSERT(!is_linked());
 
-  VirtualFrame* current_frame = code_generator_->frame();
-  ASSERT(current_frame != NULL);
-  ASSERT(expected_frame_ == NULL);
+  VirtualFrame* target_frame = new VirtualFrame(cgen_->frame());
+  target_frame->Adjust(1);
+  AddReachingFrame(target_frame);
+  __ bl(&merge_labels_.last());
 
-  expected_frame_ = new VirtualFrame(current_frame);
-  // Adjust the expected frame's height to account for the return address
-  // pushed by the call instruction.
-  expected_frame_->Adjust(1);
-
-  __ bl(&label_);
-  // Postcondition: there is both a current frame and an expected frame at
-  // the label.  The current frame is one shorter than the one at the label
-  // (which contains the return address in memory).
+  is_linked_ = !is_bound_;
 }
 
 
 void JumpTarget::Bind() {
-  // Precondition: there is either a current frame or an expected frame at
-  // the label (and possibly both).  The label is unbound.
-  ASSERT(code_generator_ != NULL);
-  ASSERT(masm_ != NULL);
+  ASSERT(cgen_ != NULL);
+  ASSERT(!is_bound());
 
-  VirtualFrame* current_frame = code_generator_->frame();
-  ASSERT(current_frame != NULL || expected_frame_ != NULL);
-  ASSERT(!label_.is_bound());
+  if (is_linked()) {
+    // There were forward jumps.  A mergable frame is created and all
+    // the frames reaching the block via forward jumps are merged to it.
+    ASSERT(reaching_frames_.length() == merge_labels_.length());
 
-  if (expected_frame_ == NULL) {
-    expected_frame_ = new VirtualFrame(current_frame);
-    // The frame at the actual function return will always have height zero.
-    if (code_generator_->IsActualFunctionReturn(this)) {
-      expected_frame_->Forget(expected_frame_->height());
+    // A special case is that there was only one jump to the block so
+    // far, no fall-through, and there cannot be another entry because
+    // the block is forward only.  In that case, simply use the single
+    // frame.
+    bool single_entry = (direction_ == FORWARD_ONLY) &&
+                        !cgen_->has_valid_frame() &&
+                        (reaching_frames_.length() == 1);
+    if (single_entry) {
+      // Pick up the only forward reaching frame and bind its merge
+      // label.  No merge code is emitted.
+      cgen_->SetFrame(reaching_frames_[0]);
+      __ bind(&merge_labels_[0]);
+    } else {
+      // Otherwise, choose a frame as the basis of the expected frame,
+      // and make it mergable.  If there is a current frame use it,
+      // otherwise use the first in the list (there will be at least
+      // one).
+      int start_index = 0;
+      if (cgen_->has_valid_frame()) {
+        // Live non-frame registers are not allowed at the start of a
+        // labeled basic block.
+        ASSERT(cgen_->HasValidEntryRegisters());
+      } else {
+        cgen_->SetFrame(reaching_frames_[start_index]);
+        __ bind(&merge_labels_[start_index++]);
+      }
+      cgen_->frame()->MakeMergable();
+      expected_frame_ = new VirtualFrame(cgen_->frame());
+
+      for (int i = start_index; i < reaching_frames_.length(); i++) {
+        cgen_->DeleteFrame();
+        __ jmp(&entry_label_);
+
+        cgen_->SetFrame(reaching_frames_[i]);
+        __ bind(&merge_labels_[i]);
+
+        cgen_->frame()->MergeTo(expected_frame_);
+      }
+
+      __ bind(&entry_label_);
     }
-  } else if (current_frame == NULL) {
-    code_generator_->set_frame(new VirtualFrame(expected_frame_));
+
+    // All but the last reaching virtual frame have been deleted, and
+    // the last one is the current frame.
+    reaching_frames_.Clear();
+    merge_labels_.Clear();
+
   } else {
-    // No code needs to be emitted to merge to the expected frame at the
-    // actual function return.
-    if (!code_generator_->IsActualFunctionReturn(this)) {
-      current_frame->MergeTo(expected_frame_);
+    // There were no forward jumps.  If this jump target is not
+    // bidirectional, there is no need to do anything.  For
+    // bidirectional jump targets, the current frame is made mergable
+    // and used for the expected frame.
+    if (direction_ == BIDIRECTIONAL) {
+      ASSERT(cgen_->HasValidEntryRegisters());
+      cgen_->frame()->MakeMergable();
+      expected_frame_ = new VirtualFrame(cgen_->frame());
+      __ bind(&entry_label_);
     }
   }
 
-  __ bind(&label_);
-  // Postcondition: there is both a current frame and an expected frame at
-  // the label and they match.  The label is bound.
+  is_linked_ = false;
+  is_bound_ = true;
+}
+
+
+void JumpTarget::Bind(Result* arg) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Bind(Result* arg0, Result* arg1) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Bind(Result* arg0, Result* arg1, Result* arg2) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::Bind(Result* arg0, Result* arg1, Result* arg2, Result* arg3) {
+  UNIMPLEMENTED();
+}
+
+
+void JumpTarget::CopyTo(JumpTarget* destination) {
+  ASSERT(destination != NULL);
+  destination->cgen_ = cgen_;
+  destination->masm_ = masm_;
+  destination->direction_ = direction_;
+  destination->reaching_frames_.Clear();
+  destination->merge_labels_.Clear();
+  ASSERT(reaching_frames_.length() == merge_labels_.length());
+  for (int i = 0; i < reaching_frames_.length(); i++) {
+    destination->reaching_frames_.Add(reaching_frames_[i]);
+    destination->merge_labels_.Add(merge_labels_[i]);
+  }
+  destination->expected_frame_ = expected_frame_;
+  destination->entry_label_ = entry_label_;
+  destination->is_bound_ = is_bound_;
+  destination->is_linked_ = is_linked_;
+}
+
+
+void JumpTarget::AddReachingFrame(VirtualFrame* frame) {
+  ASSERT(reaching_frames_.length() == merge_labels_.length());
+  Label fresh;
+  merge_labels_.Add(fresh);
+  reaching_frames_.Add(frame);
 }
 
 
 // -------------------------------------------------------------------------
 // ShadowTarget implementation.
 
-ShadowTarget::ShadowTarget(JumpTarget* original) {
-  ASSERT(original != NULL);
-  original_target_ = original;
-  original_pos_ = original->label()->pos_;
-  original_expected_frame_ = original->expected_frame();
+ShadowTarget::ShadowTarget(JumpTarget* shadowed) {
+  ASSERT(shadowed != NULL);
+  other_target_ = shadowed;
 
-  // We do not call Unuse() on the orginal jump target, because we do not
-  // want to delete the expected frame.
-  original->label()->pos_ = 0;
-  original->set_expected_frame(NULL);
 #ifdef DEBUG
   is_shadowing_ = true;
 #endif
+  // While shadowing this shadow target saves the state of the original.
+  shadowed->CopyTo(this);
+
+  // Setting the code generator to null prevents the shadow target from
+  // being used until shadowing stops.
+  cgen_ = NULL;
+  masm_ = NULL;
+
+  // The original's state is reset.  We do not Unuse it because that
+  // would delete the expected frame and assert that the target is not
+  // linked.
+  shadowed->Reset();
 }
 
 
 void ShadowTarget::StopShadowing() {
   ASSERT(is_shadowing_);
-  ASSERT(is_unused());
 
-  set_code_generator(original_target_->code_generator());
-  label_.pos_ = original_target_->label()->pos_;
-  expected_frame_ = original_target_->expected_frame();
+  // This target does not have a valid code generator yet.
+  cgen_ = other_target_->code_generator();
+  ASSERT(cgen_ != NULL);
+  masm_ = cgen_->masm();
 
-  original_target_->label()->pos_ = original_pos_;
-  original_target_->set_expected_frame(original_expected_frame_);
+  // The states of this target, which was shadowed, and the original
+  // target, which was shadowing, are swapped.
+  JumpTarget temp;
+  other_target_->CopyTo(&temp);
+  CopyTo(other_target_);
+  temp.CopyTo(this);
+  temp.Reset();  // So the destructor does not deallocate virtual frames.
 
 #ifdef DEBUG
   is_shadowing_ = false;

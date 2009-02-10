@@ -28,7 +28,98 @@
 #ifndef V8_REGISTER_ALLOCATOR_H_
 #define V8_REGISTER_ALLOCATOR_H_
 
-#if defined(ARM) || defined(__arm__) || defined(__thumb__)
+#include "macro-assembler.h"
+
+namespace v8 { namespace internal {
+
+// -------------------------------------------------------------------------
+// Results
+//
+// Results encapsulate the compile-time values manipulated by the code
+// generator.  They can represent registers or constants.
+
+class Result BASE_EMBEDDED {
+ public:
+  enum Type {
+    INVALID,
+    REGISTER,
+    CONSTANT
+  };
+
+  // Construct an invalid result.
+  explicit Result(CodeGenerator* cgen) : type_(INVALID), cgen_(cgen) {}
+
+  // Construct a register Result.
+  Result(Register reg, CodeGenerator* cgen);
+
+  // Construct a Result whose value is a compile-time constant.
+  Result(Handle<Object> value, CodeGenerator * cgen)
+      : type_(CONSTANT),
+        cgen_(cgen) {
+    data_.handle_ = value.location();
+  }
+
+  // The copy constructor and assignment operators could each create a new
+  // register reference.
+  Result(const Result& other) {
+    other.CopyTo(this);
+  }
+
+  Result& operator=(const Result& other) {
+    if (this != &other) {
+      Unuse();
+      other.CopyTo(this);
+    }
+    return *this;
+  }
+
+  ~Result() { Unuse(); }
+
+  void Unuse();
+
+  Type type() const { return type_; }
+
+  bool is_valid() const { return type() != INVALID; }
+  bool is_register() const { return type() == REGISTER; }
+  bool is_constant() const { return type() == CONSTANT; }
+
+  Register reg() const {
+    ASSERT(type() == REGISTER);
+    return data_.reg_;
+  }
+
+  Handle<Object> handle() const {
+    ASSERT(type() == CONSTANT);
+    return Handle<Object>(data_.handle_);
+  }
+
+  // Move this result to an arbitrary register.  The register is not
+  // necessarily spilled from the frame or even singly-referenced outside
+  // it.
+  void ToRegister();
+
+  // Move this result to a specified register.  The register is spilled from
+  // the frame, and the register is singly-referenced (by this result)
+  // outside the frame.
+  void ToRegister(Register reg);
+
+ private:
+  Type type_;
+
+  union {
+    Register reg_;
+    Object** handle_;
+  } data_;
+
+  CodeGenerator* cgen_;
+
+  void CopyTo(Result* destination) const;
+};
+
+} }  // namespace v8::internal
+
+
+#ifdef ARM
 #else  // ia32
 #include "register-allocator-ia32.h"
 #endif

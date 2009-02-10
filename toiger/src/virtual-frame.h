@@ -28,7 +28,7 @@
 #ifndef V8_VIRTUAL_FRAME_H_
 #define V8_VIRTUAL_FRAME_H_
 
-#if defined(ARM) || defined (__arm__) || defined(__thumb__)
+#ifdef ARM
 #include "virtual-frame-arm.h"
 #else  // ia32
 #include "virtual-frame-ia32.h"
