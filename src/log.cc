@@ -226,7 +226,7 @@ void Profiler::Engage() {
   // Register to get ticks.
   Logger::ticker_->SetProfiler(this);
 
-  LOG(StringEvent("profiler", "begin"));
+  LOG(UncheckedStringEvent("profiler", "begin"));
 }
 
 
@@ -245,7 +245,7 @@ void Profiler::Disengage() {
   Insert(&sample);
   Join();
 
-  LOG(StringEvent("profiler", "end"));
+  LOG(UncheckedStringEvent("profiler", "end"));
 }
 
 
@@ -282,11 +282,18 @@ void Logger::Preamble(const char* content) {
 
 void Logger::StringEvent(const char* name, const char* value) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL || !FLAG_log) return;
-  ScopedLock sl(mutex_);
-  fprintf(logfile_, "%s,\"%s\"\n", name, value);
+  if (FLAG_log) UncheckedStringEvent(name, value);
 #endif
 }
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+void Logger::UncheckedStringEvent(const char* name, const char* value) {
+  if (logfile_ == NULL) return;
+  ScopedLock sl(mutex_);
+  fprintf(logfile_, "%s,\"%s\"\n", name, value);
+}
+#endif
 
 
 void Logger::IntEvent(const char* name, int value) {
@@ -808,7 +815,7 @@ bool Logger::Setup() {
 
   bool open_log_file = FLAG_log || FLAG_log_api || FLAG_log_code
       || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-      || FLAG_log_regexp;
+      || FLAG_log_regexp || FLAG_log_state_changes;
 
   // If we're logging anything, we need to open the log file.
   if (open_log_file) {
@@ -931,6 +938,8 @@ void Logger::EnableSlidingStateWindow() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 static const char* StateToString(StateTag state) {
   switch (state) {
+    case JS:
+      return "JS";
     case GC:
       return "GC";
     case COMPILER:
@@ -949,9 +958,9 @@ VMState::VMState(StateTag state) {
   Logger::current_state_ = this;
 
   if (FLAG_log_state_changes) {
-    LOG(StringEvent("Entering", StateToString(state_)));
+    LOG(UncheckedStringEvent("Entering", StateToString(state_)));
     if (previous_) {
-      LOG(StringEvent("From", StateToString(previous_->state_)));
+      LOG(UncheckedStringEvent("From", StateToString(previous_->state_)));
     }
   }
 }
@@ -961,9 +970,9 @@ VMState::~VMState() {
   Logger::current_state_ = previous_;
 
   if (FLAG_log_state_changes) {
-    LOG(StringEvent("Leaving", StateToString(state_)));
+    LOG(UncheckedStringEvent("Leaving", StateToString(state_)));
     if (previous_) {
-      LOG(StringEvent("To", StateToString(previous_->state_)));
+      LOG(UncheckedStringEvent("To", StateToString(previous_->state_)));
     }
   }
 }

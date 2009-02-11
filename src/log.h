@@ -224,6 +224,9 @@ class Logger {
 
   static void ApiEvent(const char* name, ...);
 
+  // Logs a StringEvent regardless of whether FLAG_log is true.
+  static void UncheckedStringEvent(const char* name, const char* value);
+
   // When logging is active, logfile_ refers the file
   // events are written to.
   static FILE* logfile_;
