@@ -190,6 +190,8 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       // Get outer context and create a new context based on it.
       frame_->PushFunction();
       Result context = frame_->CallRuntime(Runtime::kNewContext, 1);
+      // Update context local.
+      frame_->SaveContextRegister();
 
       if (kDebug) {
         JumpTarget verified_true(this);
@@ -201,8 +203,6 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         __ int3();
         verified_true.Bind();
       }
-      // Update context local.
-      frame_->SaveContextRegister();
     }
 
     // TODO(1241774): Improve this code:
@@ -1841,6 +1841,9 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
     context = frame_->CallRuntime(Runtime::kPushContext, 1);
   }
 
+  // Update context local.
+  frame_->SaveContextRegister();
+
   if (kDebug) {
     JumpTarget verified_true(this);
     // Verify that the result of the runtime call and the esi register are
@@ -1852,9 +1855,6 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
     __ int3();
     verified_true.Bind();
   }
-
-  // Update context local.
-  frame_->SaveContextRegister();
 }
 
 

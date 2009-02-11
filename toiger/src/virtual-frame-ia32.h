@@ -124,6 +124,10 @@ class FrameElement BASE_EMBEDDED {
     return data_.index_;
   }
 
+#ifdef DEBUG
+  bool Equals(FrameElement other);
+#endif
+
  private:
   enum Type {
     INVALID,
@@ -313,10 +317,10 @@ class VirtualFrame : public Malloced {
   // Push the function on top of the frame.
   void PushFunction() { LoadFrameSlotAt(function_index()); }
 
-  // Lazily save the value of the esi register to the context frame slot.
+  // Save the value of the esi register to the context frame slot.
   void SaveContextRegister();
 
-  // Eagerly restore the esi register from the value of the frame context
+  // Restore the esi register from the value of the context frame
   // slot.
   void RestoreContextRegister();
 
@@ -428,10 +432,6 @@ class VirtualFrame : public Malloced {
   // of the frame, leaving the previous top-of-frame value on top of
   // the frame.  Nip(k) is equivalent to x = Pop(), Drop(k), Push(x).
   void Nip(int num_dropped);
-
-#ifdef DEBUG
-  bool IsSpilled();
-#endif
 
  private:
   // An illegal index into the virtual frame.
@@ -576,6 +576,10 @@ class VirtualFrame : public Malloced {
   // Calls a code object which has already been prepared for calling
   // (via PrepareForCall).
   Result RawCallCodeObject(Handle<Code> code, RelocInfo::Mode rmode);
+
+#ifdef DEBUG
+  bool Equals(VirtualFrame* other);
+#endif
 };
 
 } }  // namespace v8::internal

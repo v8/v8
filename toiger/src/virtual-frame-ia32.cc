@@ -541,18 +541,6 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   // expected frame.
   ASSERT(cgen_->frame() == this);
 
-  ASSERT(cgen_ == expected->cgen_);
-  ASSERT(masm_ == expected->masm_);
-  ASSERT(elements_.length() == expected->elements_.length());
-  ASSERT(parameter_count_ == expected->parameter_count_);
-  ASSERT(local_count_ == expected->local_count_);
-  ASSERT(frame_pointer_ == expected->frame_pointer_);
-
-  // Mergable frames have all elements in locations, either memory or
-  // register.  We thus have a series of to-memory and to-register moves.
-  // First perform all to-memory moves, register-to-memory moves because
-  // they can free registers and constant-to-memory moves because they do
-  // not use registers.
   MergeMoveRegistersToMemory(expected);
   MergeMoveRegistersToRegisters(expected);
   MergeMoveMemoryToRegisters(expected);
@@ -576,48 +564,91 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   }
 
   // At this point, the frames should be identical.
-  // TODO(208): Consider an "equals" method for frames.
-  ASSERT(stack_pointer_ == expected->stack_pointer_);
-#ifdef DEBUG
-  for (int i = 0; i < elements_.length(); i++) {
-    FrameElement expect = expected->elements_[i];
-    if (!expect.is_valid()) {
-      ASSERT(!elements_[i].is_valid());
-    } else if (expect.is_memory()) {
-      ASSERT(elements_[i].is_memory());
-      ASSERT(elements_[i].is_synced() && expect.is_synced());
-    } else if (expect.is_register()) {
-      ASSERT(elements_[i].is_register());
-      ASSERT(elements_[i].reg().is(expect.reg()));
-      ASSERT(elements_[i].is_synced() == expect.is_synced());
-    } else {
-      ASSERT(expect.is_constant());
-      ASSERT(elements_[i].is_constant());
-      ASSERT(elements_[i].handle().location() ==
-             expect.handle().location());
-      ASSERT(elements_[i].is_synced() == expect.is_synced());
-    }
-  }
-#endif
+  ASSERT(Equals(expected));
 }
 
 
-void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame *expected) {
-  // Move registers, constants, and copies to memory.
-  for (int i = 0; i < elements_.length(); i++) {
-    FrameElement source = elements_[i];
+void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
+  // Adjust the stack pointer upward (toward the top of the virtual
+  // frame) if necessary.
+  if (stack_pointer_ < expected->stack_pointer_) {
+    int difference = expected->stack_pointer_ - stack_pointer_;
+    stack_pointer_ = expected->stack_pointer_;
+    __ sub(Operand(esp), Immediate(difference * kPointerSize));
+  }
+  ASSERT(stack_pointer_ >= expected->stack_pointer_);
+
+  // Move registers, constants, and copies to memory.  Perform moves
+  // from the top downward in the frame in order to leave the backing
+  // stores of copies in registers.
+  //
+  // Moving memory-backed copies to memory requires a spare register
+  // for the memory-to-memory moves.  Since we are performing a merge,
+  // we use esi (which is already saved in the frame).  We keep track
+  // of the index of the frame element esi is caching or kIllegalIndex
+  // if esi has not been disturbed.
+  int esi_caches = kIllegalIndex;
+  // A "singleton" memory element.
+  FrameElement memory_element = FrameElement::MemoryElement();
+  for (int i = stack_pointer_; i >= 0; i--) {
     FrameElement target = expected->elements_[i];
-    if (target.is_memory() && !source.is_memory()) {
-      ASSERT(source.is_register() ||
-             source.is_constant() ||
-             source.is_copy());
-      SpillElementAt(i);
+    if (target.is_memory()) {
+      FrameElement source = elements_[i];
+      switch (source.type()) {
+        case FrameElement::INVALID:
+          // Not a legal merge move.
+          UNREACHABLE();
+          break;
+
+        case FrameElement::MEMORY:
+          // Already in place.
+          break;
+
+        case FrameElement::REGISTER:
+          Unuse(source.reg());
+          if (!source.is_synced()) {
+            __ mov(Operand(ebp, fp_relative(i)), source.reg());
+          }
+          break;
+
+        case FrameElement::CONSTANT:
+          if (!source.is_synced()) {
+            __ Set(Operand(ebp, fp_relative(i)), Immediate(source.handle()));
+          }
+          break;
+
+        case FrameElement::COPY:
+          if (!source.is_synced()) {
+            int backing_index = source.index();
+            FrameElement backing_element = elements_[backing_index];
+            if (backing_element.is_memory()) {
+              // If we have to spill a register, we spill esi.
+              if (esi_caches != backing_index) {
+                esi_caches = backing_index;
+                __ mov(esi, Operand(ebp, fp_relative(backing_index)));
+              }
+              __ mov(Operand(ebp, fp_relative(i)), esi);
+            } else {
+              ASSERT(backing_element.is_register());
+              __ mov(Operand(ebp, fp_relative(i)), backing_element.reg());
+            }
+          }
+          break;
+      }
+      elements_[i] = memory_element;
     }
+  }
+
+  if (esi_caches != kIllegalIndex) {
+    __ mov(esi, Operand(ebp, fp_relative(context_index())));
   }
 }
 
 
-void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame *expected) {
+void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
+  // We have already done X-to-memory moves.
+  ASSERT(stack_pointer_ >= expected->stack_pointer_);
+
   // Perform register-to-register moves.
   int start = 0;
   int end = elements_.length() - 1;
@@ -635,7 +666,7 @@ void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame *expected) {
       if (source.is_register() && target.is_register()) {
         if (target.reg().is(source.reg())) {
           if (target.is_synced() && !source.is_synced()) {
-            SyncElementAt(i);
+            __ mov(Operand(ebp, fp_relative(i)), source.reg());
           }
           elements_[i] = target;
         } else {
@@ -760,15 +791,14 @@ void VirtualFrame::Enter() {
 
   // Store the context in the frame.  The context is kept in esi and a
   // copy is stored in the frame.  The external reference to esi
-  // remains in addition to the cached copy in the frame.
-  Push(esi);
-  SyncElementAt(elements_.length() - 1);
+  // remains.
+  EmitPush(esi);
 
   // Store the function in the frame.  The frame owns the register
   // reference now (ie, it can keep it in edi or spill it later).
   Push(edi);
+  SyncElementAt(elements_.length() - 1);
   cgen_->allocator()->Unuse(edi);
-  SpillElementAt(elements_.length() - 1);
 }
 
 
@@ -908,34 +938,14 @@ void VirtualFrame::SetElementAt(int index, Result* value) {
 
 
 void VirtualFrame::SaveContextRegister() {
-  FrameElement current = elements_[context_index()];
-  ASSERT(current.is_register() || current.is_memory());
-  if (!current.is_register() || !current.reg().is(esi)) {
-    if (current.is_register()) {
-      Unuse(current.reg());
-    }
-    Use(esi);
-    elements_[context_index()] =
-        FrameElement::RegisterElement(esi, FrameElement::NOT_SYNCED);
-  }
+  ASSERT(elements_[context_index()].is_memory());
+  __ mov(Operand(ebp, fp_relative(context_index())), esi);
 }
 
 
 void VirtualFrame::RestoreContextRegister() {
-  FrameElement current = elements_[context_index()];
-  ASSERT(current.is_register() || current.is_memory());
-  if (current.is_register() && !current.reg().is(esi)) {
-    Unuse(current.reg());
-    Use(esi);
-    __ mov(esi, current.reg());
-    elements_[context_index()] =
-        FrameElement::RegisterElement(esi, FrameElement::NOT_SYNCED);
-  } else if (current.is_memory()) {
-    Use(esi);
-    __ mov(esi, Operand(ebp, fp_relative(context_index())));
-    elements_[context_index()] =
-        FrameElement::RegisterElement(esi, FrameElement::SYNCED);
-  }
+  ASSERT(elements_[context_index()].is_memory());
+  __ mov(esi, Operand(ebp, fp_relative(context_index())));
 }
 
 
@@ -1547,12 +1557,42 @@ void VirtualFrame::Nip(int num_dropped) {
 
 
 #ifdef DEBUG
-bool VirtualFrame::IsSpilled() {
+bool FrameElement::Equals(FrameElement other) {
+  if (type() != other.type()) return false;
+  if (is_synced() != other.is_synced()) return false;
+
+  if (is_register()) {
+    if (!reg().is(other.reg())) return false;
+  } else if (is_constant()) {
+    if (!handle().is_identical_to(other.handle())) return false;
+  } else if (is_copy()) {
+    if (index() != other.index()) return false;
+  }
+
+  return true;
+}
+
+
+bool VirtualFrame::Equals(VirtualFrame* other) {
+  if (cgen_ != other->cgen_) return false;
+  if (masm_ != other->masm_) return false;
+  if (elements_.length() != other->elements_.length()) return false;
+
   for (int i = 0; i < elements_.length(); i++) {
-    if (!elements_[i].is_memory()) {
+    if (!elements_[i].Equals(other->elements_[i])) return false;
+  }
+
+  if (parameter_count_ != other->parameter_count_) return false;
+  if (local_count_ != other->local_count_) return false;
+  if (stack_pointer_ != other->stack_pointer_) return false;
+  if (frame_pointer_ != other->frame_pointer_) return false;
+
+  for (int i = 0; i < RegisterFile::kNumRegisters; i++) {
+    if (frame_registers_.count(i) != other->frame_registers_.count(i)) {
       return false;
     }
   }
+
   return true;
 }
 #endif
