@@ -491,6 +491,76 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
 }
 
 
+THREADED_TEST(ScriptMakingExternalString) {
+  TestResource::dispose_count = 0;
+  uint16_t* two_byte_source = AsciiToTwoByteString("1 + 2 * 3");
+  {
+    v8::HandleScope scope;
+    LocalContext env;
+    Local<String> source = String::New(two_byte_source);
+    bool success = source->MakeExternal(new TestResource(two_byte_source));
+    CHECK(success);
+    Local<Script> script = Script::Compile(source);
+    Local<Value> value = script->Run();
+    CHECK(value->IsNumber());
+    CHECK_EQ(7, value->Int32Value());
+    v8::internal::Heap::CollectAllGarbage();
+    CHECK_EQ(0, TestResource::dispose_count);
+  }
+  v8::internal::Heap::CollectAllGarbage();
+  CHECK_EQ(1, TestResource::dispose_count);
+}
+
+
+THREADED_TEST(ScriptMakingExternalAsciiString) {
+  TestAsciiResource::dispose_count = 0;
+  const char* c_source = "1 + 2 * 3";
+  {
+    v8::HandleScope scope;
+    LocalContext env;
+    Local<String> source = v8_str(c_source);
+    bool success = source->MakeExternal(
+        new TestAsciiResource(i::StrDup(c_source)));
+    CHECK(success);
+    Local<Script> script = Script::Compile(source);
+    Local<Value> value = script->Run();
+    CHECK(value->IsNumber());
+    CHECK_EQ(7, value->Int32Value());
+    v8::internal::Heap::CollectAllGarbage();
+    CHECK_EQ(0, TestAsciiResource::dispose_count);
+  }
+  v8::internal::Heap::CollectAllGarbage();
+  CHECK_EQ(1, TestAsciiResource::dispose_count);
+}
+
+
+THREADED_TEST(UsingExternalString) {
+  v8::HandleScope scope;
+  uint16_t* two_byte_string = AsciiToTwoByteString("test string");
+  Local<String> string = String::NewExternal(new TestResource(two_byte_string));
+  i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
+  // Trigger GCs so that the newly allocated string moves to old gen.
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+  i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
+  CHECK(isymbol->IsSymbol());
+}
+
+
+THREADED_TEST(UsingExternalAsciiString) {
+  v8::HandleScope scope;
+  const char* one_byte_string = "test string";
+  Local<String> string = String::NewExternal(
+      new TestAsciiResource(i::StrDup(one_byte_string)));
+  i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
+  // Trigger GCs so that the newly allocated string moves to old gen.
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+  i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
+  CHECK(isymbol->IsSymbol());
+}
+
+
 THREADED_TEST(GlobalProperties) {
   v8::HandleScope scope;
   LocalContext env;

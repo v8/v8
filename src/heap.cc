@@ -1519,16 +1519,9 @@ Object* Heap::AllocateExternalStringFromAscii(
 
 Object* Heap::AllocateExternalStringFromTwoByte(
     ExternalTwoByteString::Resource* resource) {
-  Map* map;
   int length = resource->length();
-  if (length <= String::kMaxShortStringSize) {
-    map = short_external_string_map();
-  } else if (length <= String::kMaxMediumStringSize) {
-    map = medium_external_string_map();
-  } else {
-    map = long_external_string_map();
-  }
 
+  Map* map = ExternalTwoByteString::StringMap(length);
   Object* result = Allocate(map, NEW_SPACE);
   if (result->IsFailure()) return result;
 
@@ -1542,16 +1535,9 @@ Object* Heap::AllocateExternalStringFromTwoByte(
 
 Object* Heap::AllocateExternalSymbolFromTwoByte(
     ExternalTwoByteString::Resource* resource) {
-  Map* map;
   int length = resource->length();
-  if (length <= String::kMaxShortStringSize) {
-    map = short_external_symbol_map();
-  } else if (length <= String::kMaxMediumStringSize) {
-    map = medium_external_symbol_map();
-  } else {
-    map = long_external_symbol_map();
-  }
 
+  Map* map = ExternalTwoByteString::SymbolMap(length);
   Object* result = Allocate(map, OLD_DATA_SPACE);
   if (result->IsFailure()) return result;
 
@@ -1615,6 +1601,18 @@ Object* Heap::AllocateByteArray(int length) {
   reinterpret_cast<Array*>(result)->set_map(byte_array_map());
   reinterpret_cast<Array*>(result)->set_length(length);
   return result;
+}
+
+
+void Heap::CreateFillerObjectAt(Address addr, int size) {
+  if (size == 0) return;
+  HeapObject* filler = HeapObject::FromAddress(addr);
+  if (size == kPointerSize) {
+    filler->set_map(Heap::one_word_filler_map());
+  } else {
+    filler->set_map(Heap::byte_array_map());
+    ByteArray::cast(filler)->set_length(ByteArray::LengthFor(size));
+  }
 }
 
 
@@ -2069,18 +2067,24 @@ Map* Heap::SymbolMapForString(String* string) {
     return long_sliced_ascii_symbol_map();
   }
 
-  if (map == short_external_string_map()) return short_external_string_map();
-  if (map == medium_external_string_map()) return medium_external_string_map();
-  if (map == long_external_string_map()) return long_external_string_map();
+  if (map == short_external_string_map()) {
+    return short_external_symbol_map();
+  }
+  if (map == medium_external_string_map()) {
+    return medium_external_symbol_map();
+  }
+  if (map == long_external_string_map()) {
+    return long_external_symbol_map();
+  }
 
   if (map == short_external_ascii_string_map()) {
-    return short_external_ascii_string_map();
+    return short_external_ascii_symbol_map();
   }
   if (map == medium_external_ascii_string_map()) {
-    return medium_external_ascii_string_map();
+    return medium_external_ascii_symbol_map();
   }
   if (map == long_external_ascii_string_map()) {
-    return long_external_ascii_string_map();
+    return long_external_ascii_symbol_map();
   }
 
   // No match found.

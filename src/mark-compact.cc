@@ -390,6 +390,34 @@ class SymbolTableCleaner : public ObjectVisitor {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
       if ((*p)->IsHeapObject() && !HeapObject::cast(*p)->IsMarked()) {
+        // Check if the symbol being pruned is an external symbol. We need to
+        // delete the associated external data as this symbol is going away.
+
+        // Since the object is not marked we can access its map word safely
+        // without having to worry about marking bits in the object header.
+        Map* map = HeapObject::cast(*p)->map();
+        // Since no objects have yet been moved we can safely access the map of
+        // the object.
+        uint32_t type = map->instance_type();
+        bool is_external = (type & kStringRepresentationMask) ==
+                           kExternalStringTag;
+        if (is_external) {
+          bool is_two_byte = (type & kStringEncodingMask) == kTwoByteStringTag;
+          byte* resource_addr = reinterpret_cast<byte*>(*p) +
+                                ExternalString::kResourceOffset -
+                                kHeapObjectTag;
+          if (is_two_byte) {
+            v8::String::ExternalStringResource* resource =
+                *reinterpret_cast<v8::String::ExternalStringResource**>
+                (resource_addr);
+            delete resource;
+          } else {
+            v8::String::ExternalAsciiStringResource* resource =
+                *reinterpret_cast<v8::String::ExternalAsciiStringResource**>
+                (resource_addr);
+            delete resource;
+          }
+        }
         // Set the entry to null_value (as deleted).
         *p = Heap::null_value();
         pointers_removed_++;

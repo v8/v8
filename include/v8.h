@@ -834,6 +834,16 @@ class EXPORT String : public Primitive {
    * external string resource.
    */
   static Local<String> NewExternal(ExternalStringResource* resource);
+  
+  /**
+   * Associate an external string resource with this string by transforming it
+   * in place so that existing references to this string in the JavaScript heap
+   * will use the external string resource. The external string resource's
+   * character contents needs to be equivalent to this string.
+   * Returns true if the string has been changed to be an external string.
+   * The string is not modified if the operation fails.
+   */
+  bool MakeExternal(ExternalStringResource* resource);
 
   /**
    * Creates a new external string using the ascii data defined in the given
@@ -844,6 +854,16 @@ class EXPORT String : public Primitive {
    * external string resource.
    */
   static Local<String> NewExternal(ExternalAsciiStringResource* resource);
+  
+  /**
+   * Associate an external string resource with this string by transforming it
+   * in place so that existing references to this string in the JavaScript heap
+   * will use the external string resource. The external string resource's
+   * character contents needs to be equivalent to this string.
+   * Returns true if the string has been changed to be an external string.
+   * The string is not modified if the operation fails.
+   */
+  bool MakeExternal(ExternalAsciiStringResource* resource);
 
   /** Creates an undetectable string from the supplied ascii or utf-8 data.*/
   static Local<String> NewUndetectable(const char* data, int length = -1);

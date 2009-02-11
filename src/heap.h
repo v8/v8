@@ -556,6 +556,10 @@ class Heap : public AllStatic {
                                     AllocationSpace space,
                                     AllocationSpace retry_space);
 
+  // Initialize a filler object to keep the ability to iterate over the heap
+  // when shortening objects.
+  static void CreateFillerObjectAt(Address addr, int size);
+
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed. On success, the pointer to the Code object is stored in the
