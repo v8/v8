@@ -1333,53 +1333,122 @@ void CodeGenerator::Comparison(Condition cc,
     right_side = frame_->Pop();
     left_side = frame_->Pop();
   }
-  left_side.ToRegister();
-  right_side.ToRegister();
-  ASSERT(left_side.is_valid());
-  ASSERT(right_side.is_valid());
-  // Check for the smi case.
-  JumpTarget is_smi(this);
-  Result temp = allocator_->Allocate();
-  ASSERT(temp.is_valid());
-  __ mov(temp.reg(), left_side.reg());
-  __ or_(temp.reg(), Operand(right_side.reg()));
-  __ test(temp.reg(), Immediate(kSmiTagMask));
-  temp.Unuse();
-  is_smi.Branch(zero, &left_side, &right_side, taken);
+  // If either side is a constant smi, optimize the comparison.
+  bool left_side_constant_smi =
+      left_side.is_constant() && left_side.handle()->IsSmi();
+  bool right_side_constant_smi =
+      right_side.is_constant() && right_side.handle()->IsSmi();
 
-  // When non-smi, call out to the compare stub.  "parameters" setup by
-  // calling code in edx and eax and "result" is returned in the flags.
-  if (!left_side.reg().is(eax)) {
-    right_side.ToRegister(eax);
-    left_side.ToRegister(edx);
-  } else if (!right_side.reg().is(edx)) {
-    left_side.ToRegister(edx);
-    right_side.ToRegister(eax);
-  } else {
-    frame_->Spill(eax);  // Can be multiply referenced, even now.
-    frame_->Spill(edx);
-    __ xchg(eax, edx);
-    // If left_side and right_side become real (non-dummy) arguments
-    // to CallStub, they need to be swapped in this case.
-  }
-  CompareStub stub(cc, strict);
-  Result answer = frame_->CallStub(&stub, &right_side, &left_side, 0);
-  if (cc == equal) {
-    __ test(answer.reg(), Operand(answer.reg()));
-  } else {
-    __ cmp(answer.reg(), 0);
-  }
-  answer.Unuse();
-  true_target->Branch(cc);
-  false_target->Jump();
+  if (left_side_constant_smi || right_side_constant_smi) {
+    if (left_side_constant_smi && right_side_constant_smi) {
+      // Trivial case, comparing two constants.
+      int left_value = Smi::cast(*left_side.handle())->value();
+      int right_value = Smi::cast(*right_side.handle())->value();
+      if (left_value < right_value &&
+          (cc == less || cc == less_equal || cc == not_equal) ||
+          left_value == right_value &&
+          (cc == less_equal || cc == equal || cc == greater_equal) ||
+          left_value > right_value &&
+          (cc == greater || cc == greater_equal || cc == not_equal)) {
+        // Comparison is unconditionally true.
+        if (true_target->is_bound()) {
+          true_target->Jump();
+        } else {
+          true_target->Bind();
+        }
+      } else {  // Comparison is always false.
+        if (false_target->is_bound()) {
+          false_target->Jump();
+        } else {
+          false_target->Bind();
+        }
+      }
+    } else {  // Only one side is a constant Smi.
+      // If left side is a constant Smi, reverse the operands.
+      // Since one side is a constant Smi, conversion order does not matter.
+      if (left_side_constant_smi) {
+        Result temp = left_side;
+        left_side = right_side;
+        right_side = temp;
+        cc = ReverseCondition(cc);
+      }
+      // Implement comparison against a constant Smi, inlining the case
+      // where both sides are Smis.
+      left_side.ToRegister();
+      ASSERT(left_side.is_valid());
+      JumpTarget is_smi(this);
+      __ test(left_side.reg(), Immediate(kSmiTagMask));
+      is_smi.Branch(zero, &left_side, &right_side, taken);
 
-  is_smi.Bind(&left_side, &right_side);
-  left_side.ToRegister();
-  right_side.ToRegister();
-  __ cmp(left_side.reg(), Operand(right_side.reg()));
-  right_side.Unuse();
-  left_side.Unuse();
-  Branch(cc, true_target, false_target, fall_through);
+      // Setup and call the compare stub, which expects arguments in edx
+      // and eax.
+      CompareStub stub(cc, strict);
+      left_side.ToRegister(eax);
+      right_side.ToRegister(edx);
+      Result result = frame_->CallStub(&stub, &left_side, &right_side, 0);
+      result.ToRegister();
+      __ cmp(result.reg(), 0);
+      result.Unuse();
+      true_target->Branch(cc);
+      false_target->Jump();
+
+      is_smi.Bind(&left_side, &right_side);
+      left_side.ToRegister();
+      // Test smi equality and comparison by signed int comparison.
+      __ cmp(Operand(left_side.reg()), Immediate(right_side.handle()));
+      left_side.Unuse();
+      right_side.Unuse();
+      Branch(cc, true_target, false_target, fall_through);
+    }
+  } else {  // Neither side is a constant Smi, normal comparison operation.
+    left_side.ToRegister();
+    right_side.ToRegister();
+    ASSERT(left_side.is_valid());
+    ASSERT(right_side.is_valid());
+    // Check for the smi case.
+    JumpTarget is_smi(this);
+    Result temp = allocator_->Allocate();
+    ASSERT(temp.is_valid());
+    __ mov(temp.reg(), left_side.reg());
+    __ or_(temp.reg(), Operand(right_side.reg()));
+    __ test(temp.reg(), Immediate(kSmiTagMask));
+    temp.Unuse();
+    is_smi.Branch(zero, &left_side, &right_side, taken);
+
+    // When non-smi, call out to the compare stub.  "parameters" setup by
+    // calling code in edx and eax and "result" is returned in the flags.
+    if (!left_side.reg().is(eax)) {
+      right_side.ToRegister(eax);
+      left_side.ToRegister(edx);
+    } else if (!right_side.reg().is(edx)) {
+      left_side.ToRegister(edx);
+      right_side.ToRegister(eax);
+    } else {
+      frame_->Spill(eax);  // Can be multiply referenced, even now.
+      frame_->Spill(edx);
+      __ xchg(eax, edx);
+      // If left_side and right_side become real (non-dummy) arguments
+      // to CallStub, they need to be swapped in this case.
+    }
+    CompareStub stub(cc, strict);
+    Result answer = frame_->CallStub(&stub, &right_side, &left_side, 0);
+    if (cc == equal) {
+      __ test(answer.reg(), Operand(answer.reg()));
+    } else {
+      __ cmp(answer.reg(), 0);
+    }
+    answer.Unuse();
+    true_target->Branch(cc);
+    false_target->Jump();
+
+    is_smi.Bind(&left_side, &right_side);
+    left_side.ToRegister();
+    right_side.ToRegister();
+    __ cmp(left_side.reg(), Operand(right_side.reg()));
+    right_side.Unuse();
+    left_side.Unuse();
+    Branch(cc, true_target, false_target, fall_through);
+  }
 }
 
 
@@ -1952,30 +2021,54 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
     // Compile each non-default clause.
     Comment cmnt(masm_, "[ Case clause");
-    // Label and compile the test.
     if (next_test.is_linked()) {
       // Recycle the same label for each test.
       next_test.Bind();
       next_test.Unuse();
     }
-    // Duplicate the switch value.
-    frame_->Dup();
-    Load(clause->label());
-    JumpTarget enter_body(this);
-    Comparison(equal, true, &enter_body, &next_test, &enter_body);
 
-    // Before entering the body from the test remove the switch value from
-    // the frame.
-    frame_->Drop();
+    JumpTarget enter_body(this);
+    // Control flow reaches this test if it is the first non-default case,
+    // or if a previous test links to this as the next test through the
+    // next_test JumpTarget.  If so, then has_valid_frame() is true.
+    if (has_valid_frame()) {
+      // Duplicate the switch value.
+      frame_->Dup();
+      Load(clause->label());
+      Comparison(equal, true, &enter_body, &next_test, &enter_body);
+    }
+
+    bool previous_was_default = (i > 0 && cases->at(i - 1)->is_default());
+    // If the body is unreachable, don't compile it.
+    if (!enter_body.is_bound() &&
+        !previous_was_default &&
+        !fall_through.is_linked()) {
+      next_test.Unuse();
+      continue;
+    }
+    // Compile the body, since it is reachable from the test or a fall-through.
+    if (next_test.is_bound()) {
+      // The test unconditionally failed, we should go to the next test.
+      // We still need to compile the body for the fall-through cases.
+      // In this case, we need to jump over the body.
+      next_test.Unuse();
+      next_test.Jump();
+    } else if (enter_body.is_bound()) {
+      // Otherwise we got here by passing the test.
+      frame_->Drop();  // The switch value is no longer needed.
+    } else {
+      // The tests are being skipped due to an earlier unconditional match,
+      // and only fall-through to bodies is generating control flow.
+      ASSERT(!has_valid_frame());
+    }
 
     // Label the body so that fall through is enabled.
-    if (i > 0 && cases->at(i - 1)->is_default()) {
-      // The previous case was the default.  This will be the target of a
-      // possible backward edge.
+    if (previous_was_default) {
+      // Because the default is compiled last, there is always a potential
+      // backwards edge to here, falling through from the default.
       default_exit.Bind();
     } else if (fall_through.is_linked()) {
-      // Recycle the same label for each fall through except for the default
-      // case.
+      // Recycle the same label for each fall through.
       fall_through.Bind();
       fall_through.Unuse();
     }
@@ -1994,14 +2087,23 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   }
 
   // The block at the final "test" label removes the switch value.
-  next_test.Bind();
-  frame_->Drop();
-
-  // If there is a default clause, compile it now.
+  if (next_test.is_linked()) {
+    // JumpTarget next_test could have been bound, rather than linked to,
+    // if the previous test was unconditionally false.
+    next_test.Bind();
+  }
+  if (has_valid_frame()) {
+    frame_->Drop();
+  }
+  // If there is a default clause, compile it now.  If it is determined
+  // at compile time to be unreachable, then it has no valid entry frame,
+  // and it is not compiled.
   if (default_clause != NULL) {
     Comment cmnt(masm_, "[ Default clause");
     default_entry.Bind();
-    VisitStatements(default_clause->statements());
+    if (has_valid_frame()) {
+      VisitStatements(default_clause->statements());
+    }
     // If control flow can fall out of the default and there is a case after
     // it, jump to that case's body.
     if (has_valid_frame() && default_exit.is_bound()) {
