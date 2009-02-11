@@ -2227,9 +2227,17 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
       for (int i = 0; i < characters && i < quarks.length(); i++) {
         QuickCheckDetails::Position* pos =
             details->positions(characters_filled_in);
+        uc16 c = quarks[i];
+        if (c > char_mask) {
+          // If we expect a non-ASCII character from an ASCII string,
+          // there is no way we can match. Not even case independent
+          // matching can turn an ASCII character into non-ASCII or
+          // vice versa.
+          details->set_cannot_match();
+          return;
+        }
         if (compiler->ignore_case()) {
           unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-          uc16 c = quarks[i];
           int length = uncanonicalize.get(c, '\0', chars);
           if (length < 2) {
             // This letter has no case equivalents, so it's nice and simple
@@ -2262,7 +2270,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           // determine definitely whether we have a match at this character
           // position.
           pos->mask = char_mask;
-          pos->value = quarks[i];
+          pos->value = c;
           pos->determines_perfectly = true;
         }
         characters_filled_in++;
@@ -2658,47 +2666,52 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
         for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
           bool bound_checked = true;  // Most ops will check their bounds.
           if (first_element_checked && i == 0 && j == 0) continue;
-          if (quick_check != NULL &&
-              elm.cp_offset + j < quick_check->characters() &&
-              quick_check->positions(elm.cp_offset + j)->determines_perfectly) {
-            continue;
-          }
           if (pass == NON_ASCII_MATCH) {
             ASSERT(ascii);
             if (quarks[j] > String::kMaxAsciiCharCode) {
               assembler->GoTo(backtrack);
               return;
             }
-          } else if (pass == CHARACTER_MATCH) {
-            if (compiler->ignore_case()) {
-              bound_checked = EmitAtomNonLetter(assembler,
-                                                quarks[j],
-                                                backtrack,
-                                                cp_offset + j,
-                                                *checked_up_to < cp_offset + j,
-                                                preloaded);
-            } else {
-              if (!preloaded) {
-                assembler->LoadCurrentCharacter(cp_offset + j,
-                                                backtrack,
-                                                *checked_up_to < cp_offset + j);
-              }
-              assembler->CheckNotCharacter(quarks[j], backtrack);
-            }
           } else {
-            ASSERT_EQ(pass, CASE_CHARACTER_MATCH);
-            ASSERT(compiler->ignore_case());
-            bound_checked = EmitAtomLetter(assembler,
-                                           compiler->ascii(),
-                                           quarks[j],
-                                           backtrack,
-                                           cp_offset + j,
-                                           *checked_up_to < cp_offset + j,
-                                           preloaded);
-          }
-          if (pass != NON_ASCII_MATCH && bound_checked) {
-            if (cp_offset + j > *checked_up_to) {
-              *checked_up_to = cp_offset + j;
+            if (quick_check != NULL &&
+                elm.cp_offset + j < quick_check->characters() &&
+                quick_check->positions(elm.cp_offset + j)->
+                    determines_perfectly) {
+              continue;
+            }
+            if (pass == CHARACTER_MATCH) {
+              if (compiler->ignore_case()) {
+                bound_checked = EmitAtomNonLetter(
+                    assembler,
+                    quarks[j],
+                    backtrack,
+                    cp_offset + j,
+                    *checked_up_to < cp_offset + j,
+                    preloaded);
+              } else {
+                if (!preloaded) {
+                  assembler->LoadCurrentCharacter(
+                      cp_offset + j,
+                      backtrack,
+                      *checked_up_to < cp_offset + j);
+                }
+                assembler->CheckNotCharacter(quarks[j], backtrack);
+              }
+            } else {
+              ASSERT_EQ(pass, CASE_CHARACTER_MATCH);
+              ASSERT(compiler->ignore_case());
+              bound_checked = EmitAtomLetter(assembler,
+                                             compiler->ascii(),
+                                             quarks[j],
+                                             backtrack,
+                                             cp_offset + j,
+                                             *checked_up_to < cp_offset + j,
+                                             preloaded);
+            }
+            if (bound_checked) {
+              if (cp_offset + j > *checked_up_to) {
+                *checked_up_to = cp_offset + j;
+              }
             }
           }
         }
