@@ -106,6 +106,120 @@ class Reference BASE_EMBEDDED {
 
 
 // -------------------------------------------------------------------------
+// Control destinations.
+
+// A control destination encapsulates a pair of jump targets and a
+// flag indicating which one is the preferred fall-through.  The
+// preferred fall-through must be unbound, the other may be already
+// bound (ie, a backward target).
+//
+// The true and false targets may be jumped to unconditionally or
+// control may split conditionally.  Unconditional jumping and
+// splitting should be emitted in tail position (as the last thing
+// when compiling an expression) because they can cause either label
+// to be bound or the non-fall through to be jumped to leaving an
+// invalid virtual frame.
+//
+// The labels in the control destination can be extracted and
+// manipulated normally without affecting the state of the
+// destination.
+
+class ControlDestination BASE_EMBEDDED {
+ public:
+  ControlDestination(JumpTarget* true_target,
+                     JumpTarget* false_target,
+                     bool true_is_fall_through)
+      : true_target_(true_target),
+        false_target_(false_target),
+        true_is_fall_through_(true_is_fall_through),
+        is_used_(false) {
+    ASSERT(true_is_fall_through ? !true_target->is_bound()
+                                : !false_target->is_bound());
+  }
+
+  // Accessors for the jump targets.  Directly jumping or branching to
+  // or binding the targets will not update the destination's state.
+  JumpTarget* true_target() const { return true_target_; }
+  JumpTarget* false_target() const { return false_target_; }
+
+  // True if the the destination has been jumped to unconditionally or
+  // control has been split to both targets.  This predicate does not
+  // test whether the targets have been extracted and manipulated as
+  // raw jump targets.
+  bool is_used() const { return is_used_; }
+
+  // True if the destination is used and the true target (respectively
+  // false target) was the fall through.  If the target is backward,
+  // "fall through" included jumping unconditionally to it.
+  bool true_was_fall_through() const {
+    return is_used_ && true_is_fall_through_;
+  }
+
+  bool false_was_fall_through() const {
+    return is_used_ && !true_is_fall_through_;
+  }
+
+  // Emit a branch to one of the true or false targets, and bind the
+  // other target.  Because this binds the fall-through target, it
+  // should be emitted in tail position (as the last thing when
+  // compiling an expression).
+  void Split(Condition cc) {
+    ASSERT(!is_used_);
+    if (true_is_fall_through_) {
+      false_target_->Branch(NegateCondition(cc));
+      true_target_->Bind();
+    } else {
+      true_target_->Branch(cc);
+      false_target_->Bind();
+    }
+    is_used_ = true;
+  }
+
+  // Emit an unconditional jump in tail position, to the true target
+  // (if the argument is true) or the false target.  The "jump" will
+  // actually bind the jump target if it is forward, jump to it if it
+  // is backward.
+  void Goto(bool where) {
+    ASSERT(!is_used_);
+    JumpTarget* target = where ? true_target_ : false_target_;
+    if (target->is_bound()) {
+      target->Jump();
+    } else {
+      target->Bind();
+    }
+    is_used_ = true;
+    true_is_fall_through_ = where;
+  }
+
+  // Swap the true and false targets but keep the same actual label as
+  // the fall through.  This is used when compiling negated
+  // expressions, where we want to swap the targets but preserve the
+  // state.
+  void Invert() {
+    JumpTarget* temp_target = true_target_;
+    true_target_ = false_target_;
+    false_target_ = temp_target;
+
+    true_is_fall_through_ = !true_is_fall_through_;
+  }
+
+ private:
+  // True and false jump targets.
+  JumpTarget* true_target_;
+  JumpTarget* false_target_;
+
+  // Before using the destination: true if the true target is the
+  // preferred fall through, false if the false target is.  After
+  // using the destination: true if the true target was actually used
+  // as the fall through, false if the false target was.
+  bool true_is_fall_through_;
+
+  // True if the Split or Goto functions have been called.
+  bool is_used_;
+};
+
+
+// -------------------------------------------------------------------------
 // Code generation state
 
 // The state is passed down the AST by the code generator (and back up, in
@@ -124,12 +238,10 @@ class CodeGenState BASE_EMBEDDED {
 
   // Create a code generator state based on a code generator's current
   // state.  The new state may or may not be inside a typeof, and has its
-  // own pair of branch targets.
+  // own control destination.
   CodeGenState(CodeGenerator* owner,
                TypeofState typeof_state,
-               JumpTarget* true_target,
-               JumpTarget* false_target,
-               JumpTarget* fall_through);
+               ControlDestination* destination);
 
   // Destroy a code generator state and restore the owning code generator's
   // previous state.
@@ -137,9 +249,7 @@ class CodeGenState BASE_EMBEDDED {
 
   // Accessors for the state.
   TypeofState typeof_state() const { return typeof_state_; }
-  JumpTarget* true_target() const { return true_target_; }
-  JumpTarget* false_target() const { return false_target_; }
-  JumpTarget* fall_through() const { return fall_through_; }
+  ControlDestination* destination() const { return destination_; }
 
  private:
   // The owning code generator.
@@ -149,12 +259,9 @@ class CodeGenState BASE_EMBEDDED {
   // of a typeof expression.
   TypeofState typeof_state_;
 
-  // A pair of jump targets in case the expression has a control-flow
+  // A control destination in case the expression has a control-flow
   // effect.
-  JumpTarget* true_target_;
-  JumpTarget* false_target_;
-
-  JumpTarget* fall_through_;
+  ControlDestination* destination_;
 
   // The previous state of the owning code generator, restored when
   // this state is destroyed.
@@ -226,9 +333,7 @@ class CodeGenerator: public AstVisitor {
 
   // State
   TypeofState typeof_state() const { return state_->typeof_state(); }
-  JumpTarget* true_target() const  { return state_->true_target(); }
-  JumpTarget* false_target() const  { return state_->false_target(); }
-  JumpTarget* fall_through() const { return state_->fall_through(); }
+  ControlDestination* destination() const { return state_->destination(); }
 
   // Track loop nesting level.
   int loop_nesting() const { return loop_nesting_; }
@@ -297,9 +402,7 @@ class CodeGenerator: public AstVisitor {
 
   void LoadCondition(Expression* x,
                      TypeofState typeof_state,
-                     JumpTarget* true_target,
-                     JumpTarget* false_target,
-                     JumpTarget* fall_through,
+                     ControlDestination* destination,
                      bool force_control);
   void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
@@ -322,14 +425,11 @@ class CodeGenerator: public AstVisitor {
   // unconditional jumps to the control targets).
   void LoadConditionAndSpill(Expression* expression,
                              TypeofState typeof_state,
-                             JumpTarget* true_target,
-                             JumpTarget* false_target,
-                             JumpTarget* fall_through,
+                             ControlDestination* destination,
                              bool force_control) {
     ASSERT(in_spilled_code());
     set_in_spilled_code(false);
-    LoadCondition(expression, typeof_state, true_target, false_target,
-                  fall_through, force_control);
+    LoadCondition(expression, typeof_state, destination, force_control);
     if (frame_ != NULL) {
       frame_->SpillAll();
     }
@@ -351,25 +451,9 @@ class CodeGenerator: public AstVisitor {
   // through the context chain.
   void LoadTypeofExpression(Expression* x);
 
-  // Emit a branch to one of the true or false targets, and bind the
-  // other target.  The fall-through target is either the true or
-  // false target, and is the one that will be bound.  Because this
-  // binds the fall-through target, it should be emitted as the last
-  // thing when visiting an expression.
-  static void Branch(Condition cc,
-                     JumpTarget* true_target,
-                     JumpTarget* false_target,
-                     JumpTarget* fall_through);
-
-  // Branch based on the true and false targets and preferred
-  // fall-through in the code generator's state.
-  void Branch(Condition cc) {
-    Branch(cc, true_target(), false_target(), fall_through());
-  }
-
-  void ToBoolean(JumpTarget* true_target,
-                 JumpTarget* false_target,
-                 JumpTarget* fall_through);
+  // Translate the value on top of the frame into control flow to the
+  // control destination.
+  void ToBoolean(ControlDestination* destination);
 
   void GenericBinaryOperation(Token::Value op,
       StaticType* type,
@@ -377,9 +461,7 @@ class CodeGenerator: public AstVisitor {
 
   void Comparison(Condition cc,
                   bool strict,
-                  JumpTarget* true_target,
-                  JumpTarget* false_target,
-                  JumpTarget* fall_through);
+                  ControlDestination* destination);
 
   // Inline small integer literals. To prevent long attacker-controlled byte
   // sequences, we only inline small Smis.
