@@ -776,7 +776,7 @@ class Smi: public Object {
 };
 
 
-// Failure is used for reporing out of memory situations and
+// Failure is used for reporting out of memory situations and
 // propagating exceptions through the runtime system.  Failure objects
 // are transient and cannot occur as part of the objects graph.
 //
