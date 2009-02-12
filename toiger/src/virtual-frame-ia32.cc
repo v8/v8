@@ -1079,10 +1079,12 @@ void VirtualFrame::TakeFrameSlotAt(int index) {
     }
 
     case FrameElement::CONSTANT:
+      original.clear_sync();
       elements_.Add(original);
       break;
 
     case FrameElement::COPY:
+      original.clear_sync();
       elements_.Add(original);
       break;
   }
