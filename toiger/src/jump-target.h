@@ -77,9 +77,9 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
   Label* entry_label() { return &entry_label_; }
 
-  VirtualFrame* expected_frame() const { return expected_frame_; }
-  void set_expected_frame(VirtualFrame* frame) {
-    expected_frame_ = frame;
+  VirtualFrame* entry_frame() const { return entry_frame_; }
+  void set_entry_frame(VirtualFrame* frame) {
+    entry_frame_ = frame;
   }
 
   // Predicates testing the state of the encapsulated label.
@@ -162,8 +162,10 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // A parallel list of labels for merge code.
   List<Label> merge_labels_;
 
-  // The (mergable) frame expected at backward jumps to the block.
-  VirtualFrame* expected_frame_;
+  // The frame used on entry to the block and expected at backward
+  // jumps to the block.  Set when the jump target is bound, but may
+  // or may not be set for forward-only blocks.
+  VirtualFrame* entry_frame_;
 
   // The actual entry label of the block.
   Label entry_label_;
@@ -177,6 +179,13 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // Add a virtual frame reaching this labeled block via a forward
   // jump, and a fresh label for its merge code.
   void AddReachingFrame(VirtualFrame* frame);
+
+  // Choose an element from a pair of frame elements to be in the
+  // expected frame.  Return null if they are incompatible.
+  FrameElement* Combine(FrameElement* left, FrameElement* right);
+
+  // Compute a frame to use for entry to this block.
+  void ComputeEntryFrame();
 
   DISALLOW_COPY_AND_ASSIGN(JumpTarget);
 };

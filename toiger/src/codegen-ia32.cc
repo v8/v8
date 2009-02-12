@@ -1520,7 +1520,9 @@ void CodeGenerator::VisitBlock(Block* node) {
   node->set_break_stack_height(break_stack_height_);
   node->break_target()->Initialize(this);
   VisitStatements(node->statements());
-  node->break_target()->Bind();
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
 }
 
 
@@ -1709,7 +1711,9 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
     }
   }
 
-  exit.Bind();
+  if (exit.is_linked()) {
+    exit.Bind();
+  }
 }
 
 
@@ -1914,20 +1918,23 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   __ cmp(smi_value.reg(), range << kSmiTagSize);
   default_target->Branch(greater_equal, not_taken);
 
+  // The expected frame at all the case labels is a version of the
+  // current one (the bidirectional entry frame, which an arbitrary
+  // frame of the correct height can be merged to).  Keep a copy to
+  // restore at the start of every label.  Create a jump target and
+  // bind it to set its entry frame properly.
+  JumpTarget entry_target(this, JumpTarget::BIDIRECTIONAL);
+  entry_target.Bind(&smi_value);
+  VirtualFrame* start_frame = new VirtualFrame(frame_);
+
   // 0 is placeholder.
   // Jump to the address at table_address + 2 * smi_value.reg().
   // The target of the jump is read from table_address + 4 * switch_value.
   // The Smi encoding of smi_value.reg() is 2 * switch_value.
+  smi_value.ToRegister();
   __ jmp(Operand(smi_value.reg(), smi_value.reg(),
                  times_1, 0x0, RelocInfo::INTERNAL_REFERENCE));
   smi_value.Unuse();
-
-  // The expected frame at all the case labels is the (mergable
-  // version of the) current one.  Keep a copy to restore at the start
-  // of every label.
-  frame_->MakeMergable();
-  VirtualFrame* start_frame = new VirtualFrame(frame_);
-
   // Calculate address to overwrite later with actual address of table.
   int32_t jump_table_ref = __ pc_offset() - sizeof(int32_t);
   __ Align(4);
@@ -2099,8 +2106,12 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
     }
   }
 
-  fall_through.Bind();
-  node->break_target()->Bind();
+  if (fall_through.is_linked()) {
+    fall_through.Bind();
+  }
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
 }
 
 
@@ -2157,24 +2168,30 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         if (has_valid_frame()) {
           node->continue_target()->Jump();
         }
-        node->break_target()->Bind();
+        if (node->break_target()->is_linked()) {
+          node->break_target()->Bind();
+        }
 
       } else if (info == ALWAYS_FALSE) {
         // We may have had continues or breaks in the body.
-        node->continue_target()->Bind();
-        node->break_target()->Bind();
+        if (node->continue_target()->is_linked()) {
+          node->continue_target()->Bind();
+        }
+        if (node->break_target()->is_linked()) {
+          node->break_target()->Bind();
+        }
 
       } else {
         ASSERT(info == DONT_KNOW);
         // We have to compile the test expression if it can be reached by
         // control flow falling out of the body or via continue.
+        if (node->continue_target()->is_linked()) {
         node->continue_target()->Bind();
-        ControlDestination dest(&body, node->break_target(), false);
+        }
         if (has_valid_frame()) {
+          ControlDestination dest(&body, node->break_target(), false);
           LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
         }
-        // If the test was unconditionally true or not compiled, the
-        // break target did not become bound.
         if (node->break_target()->is_linked()) {
           node->break_target()->Bind();
         }
@@ -2223,7 +2240,9 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       if (has_valid_frame()) {
         node->continue_target()->Jump();
       }
-      node->break_target()->Bind();
+      if (node->break_target()->is_linked()) {
+        node->break_target()->Bind();
+      }
       break;
     }
 
@@ -2278,13 +2297,17 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         if (has_valid_frame()) {
           node->continue_target()->Jump();
         }
-        node->break_target()->Bind();
+        if (node->break_target()->is_linked()) {
+          node->break_target()->Bind();
+        }
 
       } else {
         // If there is an update statement and control flow can reach it
         // via falling out of the body of the loop or continuing, we
         // compile the update statement.
-        node->continue_target()->Bind();
+        if (node->continue_target()->is_linked()) {
+          node->continue_target()->Bind();
+        }
         if (has_valid_frame()) {
           // Record source position of the statement as this code which is
           // after the code for the body actually belongs to the loop
@@ -2293,7 +2316,9 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
           Visit(node->next());
           loop.Jump();
         }
-        node->break_target()->Bind();
+        if (node->break_target()->is_linked()) {
+          node->break_target()->Bind();
+        }
       }
 
       break;

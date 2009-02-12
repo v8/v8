@@ -432,7 +432,8 @@ void CodeGenerator::GenerateFastCaseSwitchCases(
     // of the loop).  Otherwise we have to generate merge code to
     // expectation at the next case.
     if (frame_ == NULL) {
-      frame_ = new VirtualFrame(start_frame);
+      RegisterFile non_frame_registers = RegisterAllocator::Reserved();
+      SetFrame(new VirtualFrame(start_frame), &non_frame_registers);
     } else {
       frame_->MergeTo(start_frame);
     }

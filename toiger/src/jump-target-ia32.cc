@@ -42,7 +42,7 @@ JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
       direction_(direction),
       reaching_frames_(0),
       merge_labels_(0),
-      expected_frame_(NULL),
+      entry_frame_(NULL),
       is_bound_(false),
       is_linked_(false) {
   ASSERT(cgen_ != NULL);
@@ -56,7 +56,7 @@ JumpTarget::JumpTarget()
       direction_(FORWARD_ONLY),
       reaching_frames_(0),
       merge_labels_(0),
-      expected_frame_(NULL),
+      entry_frame_(NULL),
       is_bound_(false),
       is_linked_(false) {
 }
@@ -74,8 +74,8 @@ void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
 void JumpTarget::Unuse() {
   ASSERT(!is_linked());
   entry_label_.Unuse();
-  delete expected_frame_;
-  expected_frame_ = NULL;
+  delete entry_frame_;
+  entry_frame_ = NULL;
   is_bound_ = false;
   is_linked_ = false;
 }
@@ -84,10 +84,178 @@ void JumpTarget::Unuse() {
 void JumpTarget::Reset() {
   reaching_frames_.Clear();
   merge_labels_.Clear();
-  expected_frame_ = NULL;
+  entry_frame_ = NULL;
   entry_label_.Unuse();
   is_bound_ = false;
   is_linked_ = false;
+}
+
+
+FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
+  // Given a pair of non-null frame element pointers, return one of
+  // them as an entry frame candidate or null if they are
+  // incompatible.
+
+  // If either is invalid, the result is.
+  if (!left->is_valid()) return left;
+  if (!right->is_valid()) return right;
+
+  // If they have the same value, the result is the same.  (Exception:
+  // bidirectional frames cannot have constants or copies.)  If either
+  // is unsynced, the result is.
+  if (left->is_memory() && right->is_memory()) return left;
+
+  if (left->is_register() && right->is_register() &&
+      left->reg().is(right->reg())) {
+    if (!left->is_synced()) {
+      return left;
+    } else {
+      return right;
+    }
+  }
+
+  if (direction_ == FORWARD_ONLY &&
+      left->is_constant() &&
+      right->is_constant() &&
+      left->handle().is_identical_to(right->handle())) {
+    if (!left->is_synced()) {
+      return left;
+    } else {
+      return right;
+    }
+  }
+
+  if (direction_ == FORWARD_ONLY &&
+      left->is_copy() &&
+      right->is_copy() &&
+      left->index() == right->index()) {
+    if (!left->is_synced()) {
+      return left;
+    } else {
+      return right;
+    }
+  }
+
+  // Otherwise they are incompatible and we will reallocate them.
+  return NULL;
+}
+
+
+void JumpTarget::ComputeEntryFrame() {
+  // Given: a collection of frames reaching by forward CFG edges
+  // (including the code generator's current frame) and the
+  // directionality of the block.  Compute: an entry frame for the
+  // block.
+
+  // Choose an initial frame, either the code generator's current
+  // frame if there is one, or the first reaching frame if not.
+  VirtualFrame* initial_frame = cgen_->frame();
+  int start_index = 0;  // Begin iteration with the 1st reaching frame.
+  if (initial_frame == NULL) {
+    initial_frame = reaching_frames_[0];
+    start_index = 1;  // Begin iteration with the 2nd reaching frame.
+  }
+
+  // A list of pointers to frame elements in the entry frame.  NULL
+  // indicates that the element has not yet been determined.
+  int length = initial_frame->elements_.length();
+  List<FrameElement*> elements(length);
+
+  // Initially populate the list of elements based on the initial
+  // frame.
+  for (int i = 0; i < length; i++) {
+    FrameElement element = initial_frame->elements_[i];
+    // We do not allow copies or constants in bidirectional frames.
+    if (direction_ == BIDIRECTIONAL &&
+        (element.is_constant() || element.is_copy())) {
+      elements.Add(NULL);
+    } else {
+      elements.Add(&initial_frame->elements_[i]);
+    }
+  }
+
+  // Compute elements based on the other reaching frames.
+  if (start_index < reaching_frames_.length()) {
+    for (int i = 0; i < length; i++) {
+      for (int j = start_index; j < reaching_frames_.length(); j++) {
+        FrameElement* element = elements[i];
+
+        // Element computation is monotonic: new information will not
+        // change our decision about undetermined or invalid elements.
+        if (element == NULL || !element->is_valid()) break;
+
+        elements[i] = Combine(element, &reaching_frames_[j]->elements_[i]);
+      }
+    }
+  }
+
+  // Compute the registers already reserved by values in the frame.
+  // Count the reserved registers to avoid using them.
+  RegisterFile frame_registers = RegisterAllocator::Reserved();
+  for (int i = 0; i < length; i++) {
+    FrameElement* element = elements[i];
+    if (element != NULL && element->is_register()) {
+      frame_registers.Use(element->reg());
+    }
+  }
+
+  // Build the new frame.  The frame already has memory elements for
+  // the parameters (including the receiver) and the return address.
+  // We will fill it up with memory elements.
+  entry_frame_ = new VirtualFrame(cgen_);
+  while (entry_frame_->elements_.length() < length) {
+    entry_frame_->elements_.Add(FrameElement::MemoryElement());
+  }
+
+
+  // Copy the already-determined frame elements to the entry frame,
+  // and allocate any still-undetermined frame elements to registers
+  // or memory, from the top down.
+  for (int i = length - 1; i >= 0; i--) {
+    if (elements[i] == NULL) {
+      // Look for an available register.
+      int reg_code = no_reg.code_;
+      for (int j = 0; j < RegisterFile::kNumRegisters; j++) {
+        if (!frame_registers.is_used(j)) {
+          reg_code = j;
+          break;
+        }
+      }
+
+      // If there was an available register, use it.  If not, the
+      // element is already recorded as in memory.
+      if (reg_code != no_reg.code_) {
+        Register reg = { reg_code };
+        frame_registers.Use(reg);
+        entry_frame_->elements_[i] =
+            FrameElement::RegisterElement(reg,
+                                          FrameElement::NOT_SYNCED);
+      }
+    } else {
+      // The element is already determined.
+      entry_frame_->elements_[i] = *elements[i];
+    }
+  }
+
+  // Fill in the other fields of the entry frame.
+  entry_frame_->local_count_ = initial_frame->local_count_;
+  entry_frame_->frame_pointer_ = initial_frame->frame_pointer_;
+
+  // The stack pointer is at the highest synced element or the base of
+  // the expression stack.
+  int stack_pointer = length - 1;
+  while (stack_pointer >= entry_frame_->expression_base_index() &&
+         !entry_frame_->elements_[stack_pointer].is_synced()) {
+    stack_pointer--;
+  }
+  entry_frame_->stack_pointer_ = stack_pointer;
+
+  // Unuse the reserved registers---they do not actually appear in
+  // the entry frame.
+  frame_registers.Unuse(esi);
+  frame_registers.Unuse(ebp);
+  frame_registers.Unuse(esp);
+  entry_frame_->frame_registers_ = frame_registers;
 }
 
 
@@ -102,7 +270,7 @@ void JumpTarget::Jump() {
   if (is_bound()) {
     // Backward jump.  There is an expected frame to merge to.
     ASSERT(direction_ == BIDIRECTIONAL);
-    cgen_->frame()->MergeTo(expected_frame_);
+    cgen_->frame()->MergeTo(entry_frame_);
     cgen_->DeleteFrame();
     __ jmp(&entry_label_);
   } else {
@@ -172,7 +340,7 @@ void JumpTarget::Branch(Condition cc, Hint hint) {
     RegisterFile non_frame_registers = RegisterAllocator::Reserved();
     cgen_->SetFrame(working_frame, &non_frame_registers);
 
-    working_frame->MergeTo(expected_frame_);
+    working_frame->MergeTo(entry_frame_);
     cgen_->DeleteFrame();
     __ jmp(&entry_label_);
 
@@ -335,72 +503,53 @@ void JumpTarget::Bind() {
   ASSERT(cgen_ != NULL);
   ASSERT(!is_bound());
 
-  if (is_linked()) {
-    // There were forward jumps.  A mergable frame is created and all
-    // the frames reaching the block via forward jumps are merged to it.
-    ASSERT(reaching_frames_.length() == merge_labels_.length());
+  // Live non-frame registers are not allowed at the start of a basic
+  // block.
+  ASSERT(!cgen_->has_valid_frame() || cgen_->HasValidEntryRegisters());
 
-    // A special case is that there was only one jump to the block so
-    // far, no fall-through, and there cannot be another entry because
-    // the block is forward only.  In that case, simply use the single
-    // frame.
-    bool single_entry = (direction_ == FORWARD_ONLY) &&
-                        !cgen_->has_valid_frame() &&
-                        (reaching_frames_.length() == 1);
-    if (single_entry) {
-      // Pick up the only forward reaching frame and bind its merge
-      // label.  No merge code is emitted.
+  // Compute the frame to use for entry to the block.
+  ComputeEntryFrame();
+
+  if (is_linked()) {
+    // There were forward jumps.  All the reaching frames, beginning
+    // with the current frame if any, are merged to the expected one.
+    int start_index = 0;
+    if (!cgen_->has_valid_frame()) {
+      // Pick up the first reaching frame as the code generator's
+      // current frame.
       RegisterFile reserved_registers = RegisterAllocator::Reserved();
       cgen_->SetFrame(reaching_frames_[0], &reserved_registers);
       __ bind(&merge_labels_[0]);
-    } else {
-      // Otherwise, choose a frame as the basis of the expected frame,
-      // and make it mergable.  If there is a current frame use it,
-      // otherwise use the first in the list (there will be at least
-      // one).
-      int start_index = 0;
-      if (cgen_->has_valid_frame()) {
-        // Live non-frame registers are not allowed at the start of a
-        // labeled basic block.
-        ASSERT(cgen_->HasValidEntryRegisters());
-      } else {
-        RegisterFile reserved_registers = RegisterAllocator::Reserved();
-        cgen_->SetFrame(reaching_frames_[start_index], &reserved_registers);
-        __ bind(&merge_labels_[start_index++]);
-      }
-      cgen_->frame()->MakeMergable();
-      expected_frame_ = new VirtualFrame(cgen_->frame());
-
-      for (int i = start_index; i < reaching_frames_.length(); i++) {
-        cgen_->DeleteFrame();
-        __ jmp(&entry_label_);
-
-        RegisterFile reserved_registers = RegisterAllocator::Reserved();
-        cgen_->SetFrame(reaching_frames_[i], &reserved_registers);
-        __ bind(&merge_labels_[i]);
-
-        cgen_->frame()->MergeTo(expected_frame_);
-      }
-
-      __ bind(&entry_label_);
+      start_index = 1;
     }
+
+    cgen_->frame()->MergeTo(entry_frame_);
+
+    for (int i = start_index; i < reaching_frames_.length(); i++) {
+      // Delete the current frame and jump to the block entry.
+      cgen_->DeleteFrame();
+      __ jmp(&entry_label_);
+
+      // Pick up the next reaching frame as the code generator's
+      // current frame.
+      RegisterFile reserved_registers = RegisterAllocator::Reserved();
+      cgen_->SetFrame(reaching_frames_[i], &reserved_registers);
+      __ bind(&merge_labels_[i]);
+
+      cgen_->frame()->MergeTo(entry_frame_);
+    }
+
+    __ bind(&entry_label_);
 
     // All but the last reaching virtual frame have been deleted, and
     // the last one is the current frame.
     reaching_frames_.Clear();
     merge_labels_.Clear();
-
   } else {
-    // There were no forward jumps.  If this jump target is not
-    // bidirectional, there is no need to do anything.  For
-    // bidirectional jump targets, the current frame is made mergable
-    // and used for the expected frame.
-    if (direction_ == BIDIRECTIONAL) {
-      ASSERT(cgen_->HasValidEntryRegisters());
-      cgen_->frame()->MakeMergable();
-      expected_frame_ = new VirtualFrame(cgen_->frame());
-      __ bind(&entry_label_);
-    }
+    // There were no forward jumps.  The current frame is merged to
+    // the entry frame.
+    cgen_->frame()->MergeTo(entry_frame_);
+    __ bind(&entry_label_);
   }
 
   is_linked_ = false;
@@ -476,7 +625,7 @@ void JumpTarget::CopyTo(JumpTarget* destination) {
     destination->reaching_frames_.Add(reaching_frames_[i]);
     destination->merge_labels_.Add(merge_labels_[i]);
   }
-  destination->expected_frame_ = expected_frame_;
+  destination->entry_frame_ = entry_frame_;
   destination->entry_label_ = entry_label_;
   destination->is_bound_ = is_bound_;
   destination->is_linked_ = is_linked_;

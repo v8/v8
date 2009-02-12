@@ -223,10 +223,6 @@ class VirtualFrame : public Malloced {
   // (ie, they all have frame-external references).
   Register SpillAnyRegister();
 
-  // Ensure that this frame is in a state where an arbitrary frame of the
-  // right size could be merged to it.  May emit code.
-  void MakeMergable();
-
   // Make this virtual frame have a state identical to an expected virtual
   // frame.  As a side effect, code may be emitted to make this frame match
   // the expected one.
@@ -580,6 +576,8 @@ class VirtualFrame : public Malloced {
 #ifdef DEBUG
   bool Equals(VirtualFrame* other);
 #endif
+
+  friend class JumpTarget;
 };
 
 } }  // namespace v8::internal

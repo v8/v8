@@ -362,205 +362,40 @@ void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
 }
 
 
-void VirtualFrame::MakeMergable() {
-  Comment cmnt(masm_, "[ Make frame mergable");
-  // We should always be merging the code generator's current frame to an
-  // expected frame.
-  ASSERT(cgen_->frame() == this);
-  ASSERT(cgen_->HasValidEntryRegisters());
-
-  // Remove constants from the frame and ensure that there are no
-  // copies.  Allocate elements to their new locations from the top
-  // down so that the topmost elements have a chance to be in
-  // registers, then fill them into memory from the bottom up.
-  //
-  // Compute the new frame elements first.  The elements of
-  // new_elements are initially invalid.
-  FrameElement* new_elements = new FrameElement[elements_.length()];
-  // Array of flags, true if we have found a the topmost copy of a
-  // register.  Every element after the first is initialized to 0 (ie,
-  // false).
-  bool topmost_found[RegisterFile::kNumRegisters] = { false };
-  // "Singleton" memory element.  They have no internal state.
-  FrameElement memory_element = FrameElement::MemoryElement();
-
-  for (int i = elements_.length() - 1; i >= 0; i--) {
-    FrameElement element = elements_[i];
-
-    switch (element.type()) {
-      case FrameElement::INVALID:  // Fall through.
-      case FrameElement::MEMORY:
-        new_elements[i] = element;
-        break;
-
-      case FrameElement::REGISTER:
-        // If this is not the first (and only) register reference we
-        // try to find a good home for it, otherwise it can stay in
-        // the register.
-        if (topmost_found[element.reg().code()]) {
-          // A simple strategy is to spill to memory if it is already
-          // synced (avoiding a spill now), and otherwise to prefer a
-          // register if one is available.
-          if (element.is_synced()) {
-            // We do not unuse this register reference because we want
-            // the register allocator to count the other one (higher
-            // up in the new frame).
-            new_elements[i] = memory_element;
-          } else {
-            Result fresh = cgen_->allocator()->AllocateWithoutSpilling();
-            if (fresh.is_valid()) {
-              // We immediately record the frame's use of the register
-              // so that the register allocator will not try to use it
-              // again.
-              Use(fresh.reg());
-              new_elements[i] =
-                  FrameElement::RegisterElement(fresh.reg(),
-                                                FrameElement::NOT_SYNCED);
-            } else {
-              new_elements[i] = memory_element;
-            }
-          }
-        } else {
-          // The only occurrence can stay in the register.
-          new_elements[i] = element;
-        }
-        break;
-
-      case FrameElement::CONSTANT:
-        // Prefer spilling synced constants and registers for the rest.
-        if (element.is_synced()) {
-          new_elements[i] = memory_element;
-        } else {
-          Result fresh = cgen_->allocator()->AllocateWithoutSpilling();
-          if (fresh.is_valid()) {
-            // We immediately record the frame's use of the register
-            // so that the register allocator will not try to use it
-            // again.
-            Use(fresh.reg());
-            new_elements[i] =
-                FrameElement::RegisterElement(fresh.reg(),
-                                              FrameElement::NOT_SYNCED);
-          } else {
-            new_elements[i] = memory_element;
-          }
-        }
-        break;
-
-      case FrameElement::COPY: {
-        FrameElement backing = elements_[element.index()];
-        if (backing.is_memory()) {
-          new_elements[i] = memory_element;
-        } else {
-          ASSERT(backing.is_register());
-          if (topmost_found[backing.reg().code()]) {
-            if (element.is_synced()) {
-              new_elements[i] = memory_element;
-            } else {
-              Result fresh = cgen_->allocator()->AllocateWithoutSpilling();
-              if (fresh.is_valid()) {
-                // We immediately record the frame's use of the
-                // register so that the register allocator will not
-                // try to use it again.
-                Use(fresh.reg());
-                new_elements[i] =
-                    FrameElement::RegisterElement(fresh.reg(),
-                                                  FrameElement::NOT_SYNCED);
-              } else {
-                new_elements[i] = memory_element;
-              }
-            }
-            // When performing the moves (from bottom to top) later,
-            // we will need to know what register this one is a copy
-            // of and the original backing element will already be
-            // overwritten.  We store that information in this
-            // elements frame slot so that it looks like this is a
-            // move from a register rather than a copy.
-            if (element.is_synced()) {
-              backing.set_sync();
-            } else {
-              backing.clear_sync();
-            }
-            Use(backing.reg());
-            elements_[i] = backing;
-
-          } else {
-            // This is the top occurrence of the register.
-            topmost_found[backing.reg().code()] = true;
-            if (element.is_synced()) {
-              backing.set_sync();
-            } else {
-              backing.clear_sync();
-            }
-            // Record the register reference immediately so that
-            // register allocator does not try to use this register as
-            // a temp register when performing the moves.
-            Use(backing.reg());
-            new_elements[i] = backing;
-          }
-        }
-        break;
-      }
-    }
-  }
-
-  // Perform the moves.  Reference counts for register targets have
-  // already been incremented.
-  for (int i = 0; i < elements_.length(); i++) {
-    FrameElement source = elements_[i];
-    FrameElement target = new_elements[i];
-    ASSERT(!target.is_valid() || target.is_register() || target.is_memory());
-    if (target.is_register()) {
-      if (source.is_constant()) {
-        __ Set(target.reg(), Immediate(source.handle()));
-      } else if (source.is_register() && !source.reg().is(target.reg())) {
-        Unuse(source.reg());
-        __ mov(target.reg(), source.reg());
-      }
-      // Otherwise the source and target are the same register or the
-      // source is a copy.  If the source is a copy that implies that
-      // it is the same register as the target (copies that are moved
-      // to other registers appear as register-to-register moves).
-      elements_[i] = target;
-      ASSERT(target.is_synced() == source.is_synced());
-    } else if (target.is_memory()) {
-      if (!source.is_memory()) {
-        SpillElementAt(i);
-      }
-    }
-    // Invalid elements do not need to be moved.
-  }
-
-  delete[] new_elements;
-  ASSERT(cgen_->HasValidEntryRegisters());
-}
-
-
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
   Comment cmnt(masm_, "[ Merge frame");
   // We should always be merging the code generator's current frame to an
   // expected frame.
   ASSERT(cgen_->frame() == this);
 
+  // Adjust the stack pointer upward (toward the top of the virtual
+  // frame) if necessary.
+  if (stack_pointer_ < expected->stack_pointer_) {
+    int difference = expected->stack_pointer_ - stack_pointer_;
+    stack_pointer_ = expected->stack_pointer_;
+    __ sub(Operand(esp), Immediate(difference * kPointerSize));
+  }
+
   MergeMoveRegistersToMemory(expected);
   MergeMoveRegistersToRegisters(expected);
   MergeMoveMemoryToRegisters(expected);
 
-  int height_difference = stack_pointer_ - expected->stack_pointer_;
+  // Fix any sync bit problems.
+  for (int i = 0; i <= stack_pointer_; i++) {
+    FrameElement source = elements_[i];
+    FrameElement target = expected->elements_[i];
+    if (source.is_synced() && !target.is_synced()) {
+      elements_[i].clear_sync();
+    } else if (!source.is_synced() && target.is_synced()) {
+      SyncElementAt(i);
+    }
+  }
+
+  // Adjust the stack point downard if necessary.
   if (stack_pointer_ > expected->stack_pointer_) {
-#ifdef DEBUG
-    for (int i = stack_pointer_; i > expected->stack_pointer_; i--) {
-      ASSERT(!elements_[i].is_memory());
-      ASSERT(!elements_[i].is_synced());
-    }
-#endif
-    __ add(Operand(esp), Immediate(height_difference * kPointerSize));
+    int difference = stack_pointer_ - expected->stack_pointer_;
     stack_pointer_ = expected->stack_pointer_;
-  } else if (stack_pointer_ < expected->stack_pointer_) {
-    // Put valid data on the stack, that will only be accessed by GC.
-    while (stack_pointer_ < expected->stack_pointer_) {
-      __ push(Immediate(Smi::FromInt(0)));
-      stack_pointer_++;
-    }
+    __ add(Operand(esp), Immediate(difference * kPointerSize));
   }
 
   // At this point, the frames should be identical.
@@ -569,13 +404,6 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
 
 
 void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
-  // Adjust the stack pointer upward (toward the top of the virtual
-  // frame) if necessary.
-  if (stack_pointer_ < expected->stack_pointer_) {
-    int difference = expected->stack_pointer_ - stack_pointer_;
-    stack_pointer_ = expected->stack_pointer_;
-    __ sub(Operand(esp), Immediate(difference * kPointerSize));
-  }
   ASSERT(stack_pointer_ >= expected->stack_pointer_);
 
   // Move registers, constants, and copies to memory.  Perform moves
