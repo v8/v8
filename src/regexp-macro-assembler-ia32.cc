@@ -818,9 +818,11 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ push(edi);
 
     // Call GrowStack(backtrack_stackpointer())
-    int num_arguments = 1;
+    int num_arguments = 2;
     FrameAlign(num_arguments, ebx);
-    __ mov(Operand(esp, 0), backtrack_stackpointer());
+    __ lea(eax, Operand(ebp, kStackHighEnd));
+    __ mov(Operand(esp, 1 * kPointerSize), eax);
+    __ mov(Operand(esp, 0 * kPointerSize), backtrack_stackpointer());
     CallCFunction(FUNCTION_ADDR(&GrowStack), num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
@@ -935,6 +937,7 @@ void RegExpMacroAssemblerIA32::ReadCurrentPositionFromRegister(int reg) {
 
 void RegExpMacroAssemblerIA32::ReadStackPointerFromRegister(int reg) {
   __ mov(backtrack_stackpointer(), register_location(reg));
+  __ add(backtrack_stackpointer(), Operand(ebp, kStackHighEnd));
 }
 
 
@@ -970,7 +973,9 @@ void RegExpMacroAssemblerIA32::ClearRegisters(int reg_from, int reg_to) {
 
 
 void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
-  __ mov(register_location(reg), backtrack_stackpointer());
+  __ mov(eax, backtrack_stackpointer());
+  __ sub(eax, Operand(ebp, kStackHighEnd));
+  __ mov(register_location(reg), eax);
 }
 
 
@@ -986,14 +991,14 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Execute(
     int end_offset,
     int* output,
     bool at_start) {
-  typedef int (*matcher)(Address*, int, int, int*, int, void*);
+  typedef int (*matcher)(Address*, int, int, int*, int, Address);
   matcher matcher_func = FUNCTION_CAST<matcher>(code->entry());
 
   int at_start_val = at_start ? 1 : 0;
 
   // Ensure that the minimum stack has been allocated.
   RegExpStack stack;
-  void* stack_top = RegExpStack::stack_top();
+  Address stack_top = RegExpStack::stack_top();
 
   int result = matcher_func(input,
                             start_offset,
@@ -1072,14 +1077,19 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address return_address,
 }
 
 
-Address RegExpMacroAssemblerIA32::GrowStack(Address stack_top) {
+Address RegExpMacroAssemblerIA32::GrowStack(Address stack_pointer,
+                                            Address* stack_top) {
   size_t size = RegExpStack::stack_capacity();
-  Address old_stack_end = RegExpStack::stack_top();
-  Address new_stack_end = RegExpStack::EnsureCapacity(size * 2);
-  if (new_stack_end == NULL) {
+  Address old_stack_top = RegExpStack::stack_top();
+  ASSERT(old_stack_top == *stack_top);
+  ASSERT(stack_pointer <= old_stack_top);
+  ASSERT(static_cast<size_t>(old_stack_top - stack_pointer) <= size);
+  Address new_stack_top = RegExpStack::EnsureCapacity(size * 2);
+  if (new_stack_top == NULL) {
     return NULL;
   }
-  return stack_top + (new_stack_end - old_stack_end);
+  *stack_top = new_stack_top;
+  return new_stack_top - (old_stack_top - stack_pointer);
 }
 
 

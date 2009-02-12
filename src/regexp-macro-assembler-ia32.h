@@ -169,10 +169,11 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   static int CheckStackGuardState(Address return_address, Code* re_code);
 
   // Called from RegExp if the backtrack stack limit is hit.
-  // Tries to expand the stack. Returns the new stack-top pointer if
-  // successful, or 0 if unable to grow the stack.
+  // Tries to expand the stack. Returns the new stack-pointer if
+  // successful, and updates the stack_top address, or returns 0 if unable
+  // to grow the stack.
   // This function must not trigger a garbage collection.
-  static Address GrowStack(Address stack_top);
+  static Address GrowStack(Address stack_pointer, Address* stack_top);
 
   // The ebp-relative location of a regexp register.
   Operand register_location(int register_index);
