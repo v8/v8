@@ -84,8 +84,6 @@ int Heap::initial_semispace_size_ = 256*KB;
 GCCallback Heap::global_gc_prologue_callback_ = NULL;
 GCCallback Heap::global_gc_epilogue_callback_ = NULL;
 
-ExternalSymbolCallback Heap::global_external_symbol_callback_ = NULL;
-
 // Variables set based on semispace_size_ and old_generation_size_ in
 // ConfigureHeap.
 int Heap::young_generation_size_ = 0;  // Will be 2 * semispace_size_.
@@ -1533,22 +1531,6 @@ Object* Heap::AllocateExternalStringFromTwoByte(
 }
 
 
-Object* Heap::AllocateExternalSymbolFromTwoByte(
-    ExternalTwoByteString::Resource* resource) {
-  int length = resource->length();
-
-  Map* map = ExternalTwoByteString::SymbolMap(length);
-  Object* result = Allocate(map, OLD_DATA_SPACE);
-  if (result->IsFailure()) return result;
-
-  ExternalTwoByteString* external_string = ExternalTwoByteString::cast(result);
-  external_string->set_length(length);
-  external_string->set_resource(resource);
-
-  return result;
-}
-
-
 Object* Heap::LookupSingleCharacterStringFromCode(uint16_t code) {
   if (code <= String::kMaxAsciiCharCode) {
     Object* value = Heap::single_character_string_cache()->get(code);
@@ -2099,7 +2081,7 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   ASSERT(static_cast<unsigned>(chars) == buffer->Length());
   // Determine whether the string is ascii.
   bool is_ascii = true;
-  while (buffer->has_more()) {
+  while (buffer->has_more() && is_ascii) {
     if (buffer->GetNext() > unibrow::Utf8::kMaxOneByteChar) is_ascii = false;
   }
   buffer->Rewind();
@@ -2147,44 +2129,6 @@ Object* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
     answer->Set(answer_shape, i, buffer->GetNext());
   }
   return answer;
-}
-
-
-// External string resource that only contains a length field.  These
-// are used temporarily when allocating external symbols.
-class DummyExternalStringResource
-    : public v8::String::ExternalStringResource {
- public:
-  explicit DummyExternalStringResource(size_t length) : length_(length) { }
-
-  virtual const uint16_t* data() const {
-    UNREACHABLE();
-    return NULL;
-  }
-
-  virtual size_t length() const { return length_; }
- private:
-  size_t length_;
-};
-
-
-Object* Heap::AllocateExternalSymbol(Vector<const char> string, int chars) {
-  // Attempt to allocate the resulting external string first.  Use a
-  // dummy string resource that has the correct length so that we only
-  // have to patch the external string resource after the callback.
-  DummyExternalStringResource dummy_resource(chars);
-  Object* obj = AllocateExternalSymbolFromTwoByte(&dummy_resource);
-  if (obj->IsFailure()) return obj;
-  // Perform callback.
-  v8::String::ExternalStringResource* resource =
-      global_external_symbol_callback_(string.start(), string.length());
-  // Patch the resource pointer of the result.
-  ExternalTwoByteString* result = ExternalTwoByteString::cast(obj);
-  result->set_resource(resource);
-  // Force hash code to be computed.
-  result->Hash();
-  ASSERT(result->IsEqualTo(string));
-  return result;
 }
 
 

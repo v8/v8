@@ -5589,58 +5589,6 @@ THREADED_TEST(AccessControlRepeatedContextCreation) {
 }
 
 
-static String::ExternalStringResource* SymbolCallback(const char* chars,
-                                                      size_t length) {
-  uint16_t* buffer = i::NewArray<uint16_t>(length + 1);
-  for (size_t i = 0; i < length; i++) {
-    buffer[i] = chars[i];
-  }
-  buffer[length] = '\0';
-  return new TestResource(buffer);
-}
-
-
-static v8::Handle<Value> ExternalSymbolGetter(Local<String> name,
-                                              const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(!name->Equals(v8_str("externalSymbol722")) || name->IsExternal());
-  return v8::True();
-}
-
-
-static void ExternalSymbolSetter(Local<String> name,
-                                 Local<Value> value,
-                                 const AccessorInfo&) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(!name->Equals(v8_str("externalSymbol722")) || name->IsExternal());
-}
-
-
-THREADED_TEST(ExternalSymbols) {
-  TestResource::dispose_count = 0;
-  v8::V8::SetExternalSymbolCallback(SymbolCallback);
-  v8::HandleScope scope;
-  LocalContext context;
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
-  // Use a bizare name so that the name does not clash with names used
-  // in natives files.  If running with snapshots enabled, variable
-  // names used in the native files will be normal symbols instead of
-  // external ones.  Also, make sure that the bizare name is used from
-  // JavaScript code before using it from C++ code.
-  Local<Value> value =
-      CompileRun("var o = { externalSymbol722: 42 }; o.externalSymbol722");
-  CHECK_EQ(42, value->Int32Value());
-  templ->SetAccessor(v8_str("externalSymbol722"),
-                     ExternalSymbolGetter,
-                     ExternalSymbolSetter);
-  context->Global()->Set(v8_str("obj"), templ->NewInstance());
-  value = CompileRun("obj.externalSymbol722");
-  CHECK_EQ(true, value->BooleanValue());
-  value = CompileRun("obj.externalSymbol722 = 42");
-  v8::V8::SetExternalSymbolCallback(NULL);
-}
-
-
 // This test verifies that pre-compilation (aka preparsing) can be called
 // without initializing the whole VM. Thus we cannot run this test in a
 // multi-threaded setup.

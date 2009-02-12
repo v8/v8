@@ -2720,11 +2720,6 @@ void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
 }
 
 
-void V8::SetExternalSymbolCallback(ExternalSymbolCallback callback) {
-  if (IsDeadCheck("v8::V8::SetExternalSymbolCallback()")) return;
-  i::Heap::SetExternalSymbolCallback(callback);
-}
-
 void V8::PauseProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   i::Logger::PauseProfiler();

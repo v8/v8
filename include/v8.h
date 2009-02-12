@@ -1828,23 +1828,6 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
 typedef void (*GCCallback)();
 
 
-// --- E x t e r n a l  S y m b o l  C a l l b a c k ---
-
-/**
- * Callback used to allocate certain V8 symbols as external strings.
- *
- * The data passed to the callback is utf8 encoded.
- *
- * Allocations are not allowed in the callback function, you therefore
- * cannot manipulate objects (set or delete properties for example)
- * since it is possible such operations will result in the allocation
- * of objects.
- */
-typedef String::ExternalStringResource* (*ExternalSymbolCallback)(
-    const char* utf8,
-    size_t length);
-
-
 // --- C o n t e x t  G e n e r a t o r ---
 
 /**
@@ -1943,20 +1926,6 @@ class EXPORT V8 {
    * operations will result in the allocation of objects.
    */
   static void SetGlobalGCEpilogueCallback(GCCallback);
-
-  /**
-   * Applications can register a callback that will be used when
-   * allocating most of the V8 symbols.  The callback must return an
-   * external string resource that represents the symbols.
-   *
-   * Most often when performing a property lookup the key will be a
-   * symbol.  Allocating symbols as external strings can reduce the
-   * amount of string conversions needed when using interceptors and
-   * accessors.
-   *
-   * \note This is an experimental feature and it might be removed.
-   */
-  static void SetExternalSymbolCallback(ExternalSymbolCallback);
 
   /**
    * Allows the host application to group objects together. If one

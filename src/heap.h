@@ -544,8 +544,6 @@ class Heap : public AllStatic {
       ExternalAsciiString::Resource* resource);
   static Object* AllocateExternalStringFromTwoByte(
       ExternalTwoByteString::Resource* resource);
-  static Object* AllocateExternalSymbolFromTwoByte(
-      ExternalTwoByteString::Resource* resource);
 
   // Allocates an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.
@@ -622,10 +620,6 @@ class Heap : public AllStatic {
   }
   static void SetGlobalGCEpilogueCallback(GCCallback callback) {
     global_gc_epilogue_callback_ = callback;
-  }
-
-  static void SetExternalSymbolCallback(ExternalSymbolCallback callback) {
-    global_external_symbol_callback_ = callback;
   }
 
   // Heap roots
@@ -886,9 +880,6 @@ class Heap : public AllStatic {
   // Allocations in the callback function are disallowed.
   static GCCallback global_gc_prologue_callback_;
   static GCCallback global_gc_epilogue_callback_;
-
-  // Callback function used for allocating external symbols.
-  static ExternalSymbolCallback global_external_symbol_callback_;
 
   // Checks whether a global GC is necessary
   static GarbageCollector SelectGarbageCollector(AllocationSpace space);
