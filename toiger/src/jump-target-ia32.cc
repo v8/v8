@@ -213,6 +213,19 @@ void JumpTarget::ComputeEntryFrame() {
   // or memory, from the top down.
   for (int i = length - 1; i >= 0; i--) {
     if (elements[i] == NULL) {
+      // If the value is synced on all frames, put it in memory.  This
+      // costs nothing at the merge code but will incur a
+      // memory-to-register move when the value is needed later.
+      bool is_synced = initial_frame->elements_[i].is_synced();
+      int j = start_index;
+      while (is_synced && j < reaching_frames_.length()) {
+        is_synced = reaching_frames_[j]->elements_[i].is_synced();
+        j++;
+      }
+      // There is nothing to be done if the elements are all synced.
+      // It is already recorded as a memory element.
+      if (is_synced) continue;
+
       // Look for an available register.
       int reg_code = no_reg.code_;
       for (int j = 0; j < RegisterFile::kNumRegisters; j++) {
