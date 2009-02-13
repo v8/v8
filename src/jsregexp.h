@@ -55,7 +55,6 @@ class RegExpImpl {
                                 Handle<String> pattern,
                                 Handle<String> flags);
 
-  // Implements RegExp.prototype.exec(string) function.
   // See ECMA-262 section 15.10.6.2.
   // This function calls the garbage collector if necessary.
   static Handle<Object> Exec(Handle<JSRegExp> regexp,
@@ -155,6 +154,9 @@ class RegExpImpl {
                                       int* ovector,
                                       int ovector_length);
 
+  // On a successful match, the result is a JSArray containing
+  // captured positions. On a failure, the result is the null value.
+  // Returns an empty handle in case of an exception.
   static Handle<Object> IrregexpExecOnce(Handle<FixedArray> regexp,
                                          int num_captures,
                                          Handle<String> subject16,

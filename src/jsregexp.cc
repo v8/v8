@@ -298,7 +298,7 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
       return AtomExec(regexp, subject, index);
     case JSRegExp::IRREGEXP: {
       Handle<Object> result = IrregexpExec(regexp, subject, index);
-      if (result.is_null()) ASSERT(Top::has_pending_exception());
+      ASSERT(!result.is_null() || Top::has_pending_exception());
       return result;
     }
     case JSRegExp::JSCRE:
@@ -317,7 +317,7 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
       return AtomExecGlobal(regexp, subject);
     case JSRegExp::IRREGEXP: {
       Handle<Object> result = IrregexpExecGlobal(regexp, subject);
-      if (result.is_null()) ASSERT(Top::has_pending_exception());
+      ASSERT(!result.is_null() || Top::has_pending_exception());
       return result;
     }
     case JSRegExp::JSCRE:
@@ -823,6 +823,11 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
                                  offsets.vector(),
                                  offsets.length());
 
+      if (matches.is_null()) {
+        ASSERT(Top::has_pending_exception());
+        return matches;
+      }
+
       if (matches->IsJSArray()) {
         SetElement(result, i, matches);
         i++;
@@ -830,10 +835,9 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
         if (offsets.vector()[0] == offsets.vector()[1]) {
           previous_index++;
         }
-      } else if (matches->IsNull()) {
-        return result;
       } else {
-        return matches;
+        ASSERT(matches->IsNull());
+        return result;
       }
     }
   }
