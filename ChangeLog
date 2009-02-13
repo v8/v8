@@ -1,16 +1,28 @@
+2009-02-13: Version 1.0.1
+
+        Fixed two crash-bugs in irregexp (issue 231 and 233).
+
+        Fixed a number of minor bugs (issue 87, 227 and 228).
+
+        Added support for morphing strings to external strings on demand
+        to avoid having to create copies in the embedding code.
+
+        Removed experimental support for external symbol callbacks.
+
+
 2009-02-09: Version 1.0.0
 
         Fixed crash-bug in the code generation for case independent 16 bit
         backreferences.
-        
+
         Made shells more robust in the presence of string conversion
         failures (issue 224).
-        
+
         Fixed a potential infinite loop when attempting to resolve
         eval (issue 221).
-        
+
         Miscellaneous fixes to the new regular expression engine.
-        
+
         Reduced binary by stripping unneeded text from JavaScript library and
         minifying some JavaScript files.
 
