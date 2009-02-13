@@ -125,6 +125,13 @@ RegisterFile RegisterAllocator::Reserved() {
 }
 
 
+void RegisterAllocator::UnuseReserved(RegisterFile* register_file) {
+  register_file->ref_counts_[esp.code()] = 0;
+  register_file->ref_counts_[ebp.code()] = 0;
+  register_file->ref_counts_[esi.code()] = 0;
+}
+
+
 void RegisterAllocator::Initialize() {
   Reset();
   Use(edi);

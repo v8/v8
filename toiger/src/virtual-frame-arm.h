@@ -28,135 +28,7 @@
 #ifndef V8_VIRTUAL_FRAME_ARM_H_
 #define V8_VIRTUAL_FRAME_ARM_H_
 
-#include "macro-assembler.h"
-#include "register-allocator.h"
-
 namespace v8 { namespace internal {
-
-// -------------------------------------------------------------------------
-// Virtual frame elements
-//
-// The internal elements of the virtual frames.  There are several kinds of
-// elements:
-//   * Invalid: elements that are uninitialized or not actually part
-//     of the virtual frame.  They should not be read.
-//   * Memory: an element that resides in the actual frame.  Its address is
-//     given by its position in the virtual frame.
-//   * Register: an element that resides in a register.
-//   * Constant: an element whose value is known at compile time.
-
-class FrameElement BASE_EMBEDDED {
- public:
-  enum SyncFlag {
-    SYNCED,
-    NOT_SYNCED
-  };
-
-  // The default constructor creates an invalid frame element.
-  FrameElement() {
-    type_ = TypeField::encode(INVALID) | SyncField::encode(NOT_SYNCED);
-    data_.reg_ = no_reg;
-  }
-
-  // Factory function to construct an invalid frame element.
-  static FrameElement InvalidElement() {
-    FrameElement result;
-    return result;
-  }
-
-  // Factory function to construct an in-memory frame element.
-  static FrameElement MemoryElement() {
-    FrameElement result;
-    result.type_ = TypeField::encode(MEMORY) | SyncField::encode(SYNCED);
-    // In-memory elements have no useful data.
-    result.data_.reg_ = no_reg;
-    return result;
-  }
-
-  // Factory function to construct an in-register frame element.
-  static FrameElement RegisterElement(Register reg, SyncFlag is_synced) {
-    FrameElement result;
-    result.type_ = TypeField::encode(REGISTER) | SyncField::encode(is_synced);
-    result.data_.reg_ = reg;
-    return result;
-  }
-
-  // Factory function to construct a frame element whose value is known at
-  // compile time.
-  static FrameElement ConstantElement(Handle<Object> value,
-                                      SyncFlag is_synced) {
-    FrameElement result;
-    result.type_ = TypeField::encode(CONSTANT) | SyncField::encode(is_synced);
-    result.data_.handle_ = value.location();
-    return result;
-  }
-
-  bool is_synced() const { return SyncField::decode(type_) == SYNCED; }
-
-  void set_sync() {
-    ASSERT(type() != MEMORY);
-    type_ = (type_ & ~SyncField::mask()) | SyncField::encode(SYNCED);
-  }
-
-  void clear_sync() {
-    ASSERT(type() != MEMORY);
-    type_ = (type_ & ~SyncField::mask()) | SyncField::encode(NOT_SYNCED);
-  }
-
-  bool is_valid() const { return type() != INVALID; }
-  bool is_memory() const { return type() == MEMORY; }
-  bool is_register() const { return type() == REGISTER; }
-  bool is_constant() const { return type() == CONSTANT; }
-  bool is_copy() const { return type() == COPY; }
-
-  Register reg() const {
-    ASSERT(is_register());
-    return data_.reg_;
-  }
-
-  Handle<Object> handle() const {
-    ASSERT(is_constant());
-    return Handle<Object>(data_.handle_);
-  }
-
-  int index() const {
-    ASSERT(is_copy());
-    return data_.index_;
-  }
-
-#ifdef DEBUG
-  bool Equals(FrameElement other);
-#endif
-
- private:
-  enum Type {
-    INVALID,
-    MEMORY,
-    REGISTER,
-    CONSTANT,
-    COPY
-  };
-
-  // BitField is <type, shift, size>.
-  class SyncField : public BitField<SyncFlag, 0, 1> {};
-  class TypeField : public BitField<Type, 1, 32 - 1> {};
-
-  Type type() const { return TypeField::decode(type_); }
-
-  // The element's type and a dirty bit.  The dirty bit can be cleared
-  // for non-memory elements to indicate that the element agrees with
-  // the value in memory in the actual frame.
-  int type_;
-
-  union {
-    Register reg_;
-    Object** handle_;
-    int index_;
-  } data_;
-
-  friend class VirtualFrame;
-};
-
 
 // -------------------------------------------------------------------------
 // Virtual frames
@@ -187,6 +59,9 @@ class VirtualFrame : public Malloced {
 
   // Forget frame elements without generating code.
   void Forget(int count);
+
+  // Spill all values from the frame to memory.
+  void SpillAll();
 
   // Ensure that this frame is in a state where an arbitrary frame of the
   // right size could be merged to it.  May emit code.
@@ -281,21 +156,33 @@ class VirtualFrame : public Malloced {
   // Drop one element.
   void Drop();
 
-  // Pop and save an element from the top of the expression stack.  May emit
-  // code.
-  void Pop(Register reg);
+  // Pop an element from the top of the expression stack.  Returns a
+  // Result, which may be a constant or a register.
+  Result Pop();
 
-  // Push an element on top of the expression stack and emit a corresponding
-  // push instruction.
+  // Pop and save an element from the top of the expression stack and
+  // emit a corresponding pop instruction.
+  void EmitPop(Register reg);
+
+  // Push an element on top of the expression stack and emit a
+  // corresponding push instruction.
   void EmitPush(Register reg);
 
+  // Pushing a result invalidates it (its contents become owned by the
+  // frame).
+  void Push(Result* result);
+
  private:
+  // An illegal index into the virtual frame.
+  static const int kIllegalIndex = -1;
+
   static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
   static const int kFunctionOffset = JavaScriptFrameConstants::kFunctionOffset;
   static const int kContextOffset = StandardFrameConstants::kContextOffset;
 
   static const int kHandlerSize = StackHandlerConstants::kSize / kPointerSize;
 
+  CodeGenerator* cgen_;
   MacroAssembler* masm_;
 
   List<FrameElement> elements_;
@@ -304,7 +191,17 @@ class VirtualFrame : public Malloced {
   int parameter_count_;
   int local_count_;
 
+  // The index of the element that is at the processor's stack pointer
+  // (the sp register).
+  int stack_pointer_;
+
+  // The index of the element that is at the processor's frame pointer
+  // (the fp register).
   int frame_pointer_;
+
+  // The frame has an embedded register file that it uses to track registers
+  // used in the frame.
+  RegisterFile frame_registers_;
 
   // The index of the first parameter.  The receiver lies below the first
   // parameter.
@@ -317,6 +214,8 @@ class VirtualFrame : public Malloced {
 
   // The index of the base of the expression stack.
   int expression_base_index() const { return local0_index() + local_count_; }
+
+  friend class JumpTarget;
 };
 
 

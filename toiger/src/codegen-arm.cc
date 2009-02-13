@@ -499,7 +499,7 @@ void CodeGenerator::UnloadReference(Reference* ref) {
   Comment cmnt(masm_, "[ UnloadReference");
   int size = ref->size();
   if (size > 0) {
-    frame_->Pop(r0);
+    frame_->EmitPop(r0);
     frame_->Drop(size);
     frame_->EmitPush(r0);
   }
@@ -513,7 +513,7 @@ void CodeGenerator::ToBoolean(JumpTarget* true_target,
                               JumpTarget* false_target) {
   // Note: The generated code snippet does not change stack variables.
   //       Only the condition code should be set.
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
 
   // Fast case checks
 
@@ -639,8 +639,8 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op) {
     case Token::SHL:
     case Token::SHR:
     case Token::SAR: {
-      frame_->Pop(r0);  // r0 : y
-      frame_->Pop(r1);  // r1 : x
+      frame_->EmitPop(r0);  // r0 : y
+      frame_->EmitPop(r1);  // r1 : x
       GenericBinaryOpStub stub(op);
       frame_->CallStub(&stub, 0);
       break;
@@ -659,7 +659,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op) {
     }
 
     case Token::COMMA:
-      frame_->Pop(r0);
+      frame_->EmitPop(r0);
       // simply discard left value
       frame_->Drop();
       break;
@@ -763,7 +763,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
   int int_value = Smi::cast(*value)->value();
 
   JumpTarget exit(this);
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
 
   switch (op) {
     case Token::ADD: {
@@ -896,11 +896,11 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
   // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
   if (cc == gt || cc == le) {
     cc = ReverseCondition(cc);
-    frame_->Pop(r1);
-    frame_->Pop(r0);
+    frame_->EmitPop(r1);
+    frame_->EmitPop(r0);
   } else {
-    frame_->Pop(r0);
-    frame_->Pop(r1);
+    frame_->EmitPop(r0);
+    frame_->EmitPop(r1);
   }
   __ orr(r2, r0, Operand(r1));
   __ tst(r2, Operand(kSmiTagMask));
@@ -1224,7 +1224,7 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   CodeForStatementPosition(node);
   Load(node->expression());
   // Move the function result into r0.
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
 
   function_return_.Jump();
 }
@@ -1280,7 +1280,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
 
   ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
 
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
 
   // Test for a Smi value in a HeapNumber.
   JumpTarget is_smi(this);
@@ -1612,7 +1612,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Both SpiderMonkey and kjs ignore null and undefined in contrast
   // to the specification.  12.6.4 mandates a call to ToObject.
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
   __ cmp(r0, Operand(Factory::undefined_value()));
   exit.Branch(eq);
   __ cmp(r0, Operand(Factory::null_value()));
@@ -1744,7 +1744,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
         // ie, now the topmost value of the non-zero sized reference), since
         // we will discard the top of stack after unloading the reference
         // anyway.
-        frame_->Pop(r0);
+        frame_->EmitPop(r0);
       }
     }
   }
@@ -1758,7 +1758,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Next.
   node->continue_target()->Bind();
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
   __ add(r0, r0, Operand(Smi::FromInt(1)));
   frame_->EmitPush(r0);
   entry.Jump();
@@ -1973,7 +1973,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // Unlink from try chain;
   unlink.Bind();
 
-  frame_->Pop(r0);  // Store TOS in r0 across stack manipulation
+  frame_->EmitPop(r0);  // Store TOS in r0 across stack manipulation
   // Reload sp from the top handler, because some statements that we
   // break from (eg, for...in) may have left stuff on the stack.
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
@@ -2010,8 +2010,8 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   if (frame_ != NULL) {
     JumpTarget exit(this);
     // Restore state and return value or faked TOS.
-    frame_->Pop(r2);
-    frame_->Pop(r0);
+    frame_->EmitPop(r2);
+    frame_->EmitPop(r0);
 
     // Generate code to jump to the right destination for all used (formerly)
     // shadowing labels.
@@ -2128,7 +2128,7 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
       // initialized yet) which needs to be converted into the 'undefined'
       // value.
       Comment cmnt(masm_, "[ Unhole const");
-      frame_->Pop(r0);
+      frame_->EmitPop(r0);
       __ cmp(r0, Operand(Factory::the_hole_value()));
       __ mov(r0, Operand(Factory::undefined_value()), LeaveCC, eq);
       frame_->EmitPush(r0);
@@ -2334,7 +2334,7 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     if (value->AsLiteral() == NULL) {
       // The property must be set by generated code.
       Load(value);
-      frame_->Pop(r0);
+      frame_->EmitPop(r0);
 
       // Fetch the object literal
       __ ldr(r1, frame_->Top());
@@ -2669,7 +2669,7 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   JumpTarget leave(this);
   Load(args->at(0));
-  frame_->Pop(r0);  // r0 contains object.
+  frame_->EmitPop(r0);  // r0 contains object.
   // if (object->IsSmi()) return the object.
   __ tst(r0, Operand(kSmiTagMask));
   leave.Branch(eq);
@@ -2691,8 +2691,8 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   JumpTarget leave(this);
   Load(args->at(0));  // Load the object.
   Load(args->at(1));  // Load the value.
-  frame_->Pop(r0);  // r0 contains value
-  frame_->Pop(r1);  // r1 contains object
+  frame_->EmitPop(r0);  // r0 contains value
+  frame_->EmitPop(r1);  // r1 contains object
   // if (object->IsSmi()) return object.
   __ tst(r1, Operand(kSmiTagMask));
   leave.Branch(eq);
@@ -2716,7 +2716,7 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
   __ tst(r0, Operand(kSmiTagMask));
   cc_reg_ = eq;
 }
@@ -2740,7 +2740,7 @@ void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   Load(args->at(0));
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
   __ tst(r0, Operand(kSmiTagMask | 0x80000000));
   cc_reg_ = eq;
 }
@@ -2763,7 +2763,7 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   // We need the CC bits to come out as not_equal in the case where the
   // object is a smi.  This can't be done with the usual test opcode so
   // we use XOR to get the right CC bits.
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
   __ and_(r1, r0, Operand(kSmiTagMask));
   __ eor(r1, r1, Operand(kSmiTagMask), SetCC);
   answer.Branch(ne);
@@ -2797,7 +2797,7 @@ void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
   // Satisfy contract with ArgumentsAccessStub:
   // Load the key into r1 and the formal parameters count into r0.
   Load(args->at(0));
-  frame_->Pop(r1);
+  frame_->EmitPop(r1);
   __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
@@ -2813,8 +2813,8 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
   // Load the two objects into registers and perform the comparison.
   Load(args->at(0));
   Load(args->at(1));
-  frame_->Pop(r0);
-  frame_->Pop(r1);
+  frame_->EmitPop(r0);
+  frame_->EmitPop(r1);
   __ cmp(r0, Operand(r1));
   cc_reg_ = eq;
 }
@@ -2931,7 +2931,7 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
   } else {
     Load(node->expression());
-    frame_->Pop(r0);
+    frame_->EmitPop(r0);
     switch (op) {
       case Token::NOT:
       case Token::DELETE:
@@ -3015,7 +3015,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       return;
     }
     target.GetValue(NOT_INSIDE_TYPEOF);
-    frame_->Pop(r0);
+    frame_->EmitPop(r0);
 
     JumpTarget slow(this);
     JumpTarget exit(this);
@@ -3076,7 +3076,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
   }
 
   // Postfix: Discard the new value and use the old.
-  if (is_postfix) frame_->Pop(r0);
+  if (is_postfix) frame_->EmitPop(r0);
 }
 
 
@@ -3128,7 +3128,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
       // Pop the result of evaluating the first part.
       pop_and_continue.Bind();
-      frame_->Pop(r0);
+      frame_->EmitPop(r0);
 
       // Evaluate right side expression.
       is_true.Bind();
@@ -3170,7 +3170,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
       // Pop the result of evaluating the first part.
       pop_and_continue.Bind();
-      frame_->Pop(r0);
+      frame_->EmitPop(r0);
 
       // Evaluate right side expression.
       is_false.Bind();
@@ -3230,7 +3230,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     // The 'null' value can only be equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
       Load(left_is_null ? right : left);
-      frame_->Pop(r0);
+      frame_->EmitPop(r0);
       __ cmp(r0, Operand(Factory::null_value()));
 
       // The 'null' value is only equal to 'undefined' if using non-strict
@@ -3268,7 +3268,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
     // Load the operand, move it to register r1.
     LoadTypeofExpression(operation->expression());
-    frame_->Pop(r1);
+    frame_->EmitPop(r1);
 
     if (check->Equals(Heap::number_symbol())) {
       __ tst(r1, Operand(kSmiTagMask));
@@ -3566,7 +3566,7 @@ void Reference::SetValue(InitState init_state) {
         // initialize consts to 'the hole' value and by doing so, end up
         // calling this code.  r2 may be loaded with context; used below in
         // RecordWrite.
-        frame->Pop(r0);
+        frame->EmitPop(r0);
         __ str(r0, cgen_->SlotOperand(slot, r2));
         frame->EmitPush(r0);
         if (slot->type() == Slot::CONTEXT) {
@@ -3592,7 +3592,7 @@ void Reference::SetValue(InitState init_state) {
       Comment cmnt(masm, "[ Store to named Property");
       // Call the appropriate IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      frame->Pop(r0);  // value
+      frame->EmitPop(r0);  // value
       // Setup the name register.
       Handle<String> name(GetName());
       __ mov(r2, Operand(name));
@@ -3610,7 +3610,7 @@ void Reference::SetValue(InitState init_state) {
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      frame->Pop(r0);  // value
+      frame->EmitPop(r0);  // value
       frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
       frame->EmitPush(r0);
       break;

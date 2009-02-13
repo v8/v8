@@ -160,6 +160,8 @@ class RegisterFile BASE_EMBEDDED {
 
  private:
   int ref_counts_[kNumRegisters];
+
+  friend class RegisterAllocator;
 };
 
 
@@ -171,7 +173,11 @@ class RegisterAllocator BASE_EMBEDDED {
  public:
   explicit RegisterAllocator(CodeGenerator* cgen) : cgen_(cgen) {}
 
+  // A register file with each of the reserved registers counted once.
   static RegisterFile Reserved();
+
+  // Unuse all the reserved registers in a register file.
+  static void UnuseReserved(RegisterFile* register_file);
 
   // Predicates and accessors for the registers' reference counts.
   bool is_used(int reg_code) const { return registers_.is_used(reg_code); }

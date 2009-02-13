@@ -37,60 +37,6 @@ namespace v8 { namespace internal {
 
 #define __ masm_->
 
-JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
-    : cgen_(cgen),
-      direction_(direction),
-      reaching_frames_(0),
-      merge_labels_(0),
-      entry_frame_(NULL),
-      is_bound_(false),
-      is_linked_(false) {
-  ASSERT(cgen_ != NULL);
-  masm_ = cgen_->masm();
-}
-
-
-JumpTarget::JumpTarget()
-    : cgen_(NULL),
-      masm_(NULL),
-      direction_(FORWARD_ONLY),
-      reaching_frames_(0),
-      merge_labels_(0),
-      entry_frame_(NULL),
-      is_bound_(false),
-      is_linked_(false) {
-}
-
-
-void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
-  ASSERT(cgen != NULL);
-  ASSERT(cgen_ == NULL);
-  cgen_ = cgen;
-  masm_ = cgen->masm();
-  direction_ = direction;
-}
-
-
-void JumpTarget::Unuse() {
-  ASSERT(!is_linked());
-  entry_label_.Unuse();
-  delete entry_frame_;
-  entry_frame_ = NULL;
-  is_bound_ = false;
-  is_linked_ = false;
-}
-
-
-void JumpTarget::Reset() {
-  reaching_frames_.Clear();
-  merge_labels_.Clear();
-  entry_frame_ = NULL;
-  entry_label_.Unuse();
-  is_bound_ = false;
-  is_linked_ = false;
-}
-
-
 void JumpTarget::Jump() {
   ASSERT(cgen_ != NULL);
   ASSERT(cgen_->has_valid_frame());
@@ -110,27 +56,12 @@ void JumpTarget::Jump() {
     // of frames reaching the target block and a jump to the merge code
     // is emitted.
     AddReachingFrame(cgen_->frame());
-    RegisterFile ignored;
-    cgen_->SetFrame(NULL, &ignored);
+    RegisterFile empty;
+    cgen_->SetFrame(NULL, &empty);
     __ jmp(&merge_labels_.last());
   }
 
   is_linked_ = !is_bound_;
-}
-
-
-void JumpTarget::Jump(Result* arg) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Jump(Result* arg0, Result* arg1) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Jump(Result* arg0, Result* arg1, Result* arg2) {
-  UNIMPLEMENTED();
 }
 
 
@@ -154,15 +85,15 @@ void JumpTarget::Branch(Condition cc, Hint ignored) {
     // references except the reserved ones on the backward edge.
     VirtualFrame* original_frame = cgen_->frame();
     VirtualFrame* working_frame = new VirtualFrame(original_frame);
-    RegisterFile ignored;
-    cgen_->SetFrame(working_frame, &ignored);
+    RegisterFile non_frame_registers = RegisterAllocator::Reserved();
+    cgen_->SetFrame(working_frame, &non_frame_registers);
 
     working_frame->MergeTo(entry_frame_);
     cgen_->DeleteFrame();
     __ jmp(&entry_label_);
 
     // Restore the frame and its associated non-frame registers.
-    cgen_->SetFrame(original_frame, &ignored);
+    cgen_->SetFrame(original_frame, &non_frame_registers);
     __ bind(&original_fall_through);
   } else {
     // Forward branch.  A copy of the current frame is added to the end
@@ -173,38 +104,6 @@ void JumpTarget::Branch(Condition cc, Hint ignored) {
   }
 
   is_linked_ = !is_bound_;
-}
-
-
-void JumpTarget::Branch(Condition cc, Result* arg, Hint ignored) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Branch(Condition cc,
-                        Result* arg0,
-                        Result* arg1,
-                        Hint ignored) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Branch(Condition cc,
-                        Result* arg0,
-                        Result* arg1,
-                        Result* arg2,
-                        Hint ignored) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Branch(Condition cc,
-                        Result* arg0,
-                        Result* arg1,
-                        Result* arg2,
-                        Result* arg3,
-                        Hint ignored) {
-  UNIMPLEMENTED();
 }
 
 
@@ -221,6 +120,7 @@ void JumpTarget::Call() {
   ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_linked());
 
+  cgen_->frame()->SpillAll();
   VirtualFrame* target_frame = new VirtualFrame(cgen_->frame());
   target_frame->Adjust(1);
   AddReachingFrame(target_frame);
@@ -234,170 +134,57 @@ void JumpTarget::Bind() {
   ASSERT(cgen_ != NULL);
   ASSERT(!is_bound());
 
+  // Live non-frame registers are not allowed at the start of a basic
+  // block.
+  ASSERT(!cgen_->has_valid_frame() || cgen_->HasValidEntryRegisters());
+
+  // Compute the frame to use for entry to the block.
+  ComputeEntryFrame();
+
   if (is_linked()) {
-    // There were forward jumps.  A mergable frame is created and all
-    // the frames reaching the block via forward jumps are merged to it.
-    ASSERT(reaching_frames_.length() == merge_labels_.length());
-
-    // A special case is that there was only one jump to the block so
-    // far, no fall-through, and there cannot be another entry because
-    // the block is forward only.  In that case, simply use the single
-    // frame.
-    bool single_entry = (direction_ == FORWARD_ONLY) &&
-                        !cgen_->has_valid_frame() &&
-                        (reaching_frames_.length() == 1);
-    if (single_entry) {
-      // Pick up the only forward reaching frame and bind its merge
-      // label.  No merge code is emitted.
-      RegisterFile ignored;
-      cgen_->SetFrame(reaching_frames_[0], &ignored);
+    // There were forward jumps.  All the reaching frames, beginning
+    // with the current frame if any, are merged to the expected one.
+    int start_index = 0;
+    if (!cgen_->has_valid_frame()) {
+      // Pick up the first reaching frame as the code generator's
+      // current frame.
+      RegisterFile reserved_registers = RegisterAllocator::Reserved();
+      cgen_->SetFrame(reaching_frames_[0], &reserved_registers);
       __ bind(&merge_labels_[0]);
-    } else {
-      // Otherwise, choose a frame as the basis of the expected frame,
-      // and make it mergable.  If there is a current frame use it,
-      // otherwise use the first in the list (there will be at least
-      // one).
-      int start_index = 0;
-      if (cgen_->has_valid_frame()) {
-        // Live non-frame registers are not allowed at the start of a
-        // labeled basic block.
-        ASSERT(cgen_->HasValidEntryRegisters());
-      } else {
-        RegisterFile ignored;
-        cgen_->SetFrame(reaching_frames_[start_index], &ignored);
-        __ bind(&merge_labels_[start_index++]);
-      }
-      cgen_->frame()->MakeMergable();
-      entry_frame_ = new VirtualFrame(cgen_->frame());
-
-      for (int i = start_index; i < reaching_frames_.length(); i++) {
-        cgen_->DeleteFrame();
-        __ jmp(&entry_label_);
-
-        RegisterFile ignored;
-        cgen_->SetFrame(reaching_frames_[i], &ignored);
-        __ bind(&merge_labels_[i]);
-
-        cgen_->frame()->MergeTo(entry_frame_);
-      }
-
-      __ bind(&entry_label_);
+      start_index = 1;
     }
+
+    cgen_->frame()->MergeTo(entry_frame_);
+
+    for (int i = start_index; i < reaching_frames_.length(); i++) {
+      // Delete the current frame and jump to the block entry.
+      cgen_->DeleteFrame();
+      __ jmp(&entry_label_);
+
+      // Pick up the next reaching frame as the code generator's
+      // current frame.
+      RegisterFile reserved_registers = RegisterAllocator::Reserved();
+      cgen_->SetFrame(reaching_frames_[i], &reserved_registers);
+      __ bind(&merge_labels_[i]);
+
+      cgen_->frame()->MergeTo(entry_frame_);
+    }
+
+    __ bind(&entry_label_);
 
     // All but the last reaching virtual frame have been deleted, and
     // the last one is the current frame.
     reaching_frames_.Clear();
     merge_labels_.Clear();
-
   } else {
-    // There were no forward jumps.  If this jump target is not
-    // bidirectional, there is no need to do anything.  For
-    // bidirectional jump targets, the current frame is made mergable
-    // and used for the expected frame.
-    if (direction_ == BIDIRECTIONAL) {
-      ASSERT(cgen_->HasValidEntryRegisters());
-      cgen_->frame()->MakeMergable();
-      entry_frame_ = new VirtualFrame(cgen_->frame());
-      __ bind(&entry_label_);
-    }
+    // There were no forward jumps.  The current frame is merged to
+    // the entry frame.
+    cgen_->frame()->MergeTo(entry_frame_);
+    __ bind(&entry_label_);
   }
 
   is_linked_ = false;
   is_bound_ = true;
-}
-
-
-void JumpTarget::Bind(Result* arg) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Bind(Result* arg0, Result* arg1) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Bind(Result* arg0, Result* arg1, Result* arg2) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::Bind(Result* arg0, Result* arg1, Result* arg2, Result* arg3) {
-  UNIMPLEMENTED();
-}
-
-
-void JumpTarget::CopyTo(JumpTarget* destination) {
-  ASSERT(destination != NULL);
-  destination->cgen_ = cgen_;
-  destination->masm_ = masm_;
-  destination->direction_ = direction_;
-  destination->reaching_frames_.Clear();
-  destination->merge_labels_.Clear();
-  ASSERT(reaching_frames_.length() == merge_labels_.length());
-  for (int i = 0; i < reaching_frames_.length(); i++) {
-    destination->reaching_frames_.Add(reaching_frames_[i]);
-    destination->merge_labels_.Add(merge_labels_[i]);
-  }
-  destination->entry_frame_ = entry_frame_;
-  destination->entry_label_ = entry_label_;
-  destination->is_bound_ = is_bound_;
-  destination->is_linked_ = is_linked_;
-}
-
-
-void JumpTarget::AddReachingFrame(VirtualFrame* frame) {
-  ASSERT(reaching_frames_.length() == merge_labels_.length());
-  Label fresh;
-  merge_labels_.Add(fresh);
-  reaching_frames_.Add(frame);
-}
-
-
-// -------------------------------------------------------------------------
-// ShadowTarget implementation.
-
-ShadowTarget::ShadowTarget(JumpTarget* shadowed) {
-  ASSERT(shadowed != NULL);
-  other_target_ = shadowed;
-
-#ifdef DEBUG
-  is_shadowing_ = true;
-#endif
-  // While shadowing this shadow target saves the state of the original.
-  shadowed->CopyTo(this);
-
-  // Setting the code generator to null prevents the shadow target from
-  // being used until shadowing stops.
-  cgen_ = NULL;
-  masm_ = NULL;
-
-  // The original's state is reset.  We do not Unuse it because that
-  // would delete the expected frame and assert that the target is not
-  // linked.
-  shadowed->Reset();
-}
-
-
-void ShadowTarget::StopShadowing() {
-  ASSERT(is_shadowing_);
-
-  // This target does not have a valid code generator yet.
-  cgen_ = other_target_->code_generator();
-  ASSERT(cgen_ != NULL);
-  masm_ = cgen_->masm();
-
-  // The states of this target, which was shadowed, and the original
-  // target, which was shadowing, are swapped.
-  JumpTarget temp;
-  other_target_->CopyTo(&temp);
-  CopyTo(other_target_);
-  temp.CopyTo(this);
-  temp.Reset();  // So the destructor does not deallocate virtual frames.
-
-#ifdef DEBUG
-  is_shadowing_ = false;
-#endif
 }
 
 #undef __

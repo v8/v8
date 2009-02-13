@@ -77,6 +77,11 @@ void VirtualFrame::Forget(int count) {
 }
 
 
+void VirtualFrame::SpillAll() {
+  UNIMPLEMENTED();
+}
+
+
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
   ASSERT(masm_ == expected->masm_);
   ASSERT(elements_.length() == expected->elements_.length());
@@ -205,9 +210,15 @@ void VirtualFrame::Drop(int count) {
 void VirtualFrame::Drop() { Drop(1); }
 
 
-void VirtualFrame::Pop(Register reg) {
-  Forget(1);
-  __ pop(reg);
+Result VirtualFrame::Pop() {
+  UNIMPLEMENTED();
+  Result result(cgen_);
+  return result;
+}
+
+
+void VirtualFrame::EmitPop(Register reg) {
+  UNIMPLEMENTED();
 }
 
 
@@ -216,6 +227,10 @@ void VirtualFrame::EmitPush(Register reg) {
   __ push(reg);
 }
 
+
+void VirtualFrame::Push(Result* result) {
+  UNIMPLEMENTED();
+}
 
 #undef __
 
