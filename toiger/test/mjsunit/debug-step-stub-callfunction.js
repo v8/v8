@@ -42,7 +42,7 @@ function listener(event, exec_state, event_data, data) {
 };
 
 // Add the debug event listener.
-Debug.addListener(listener);
+Debug.setListener(listener);
 
 // Use 'eval' to ensure that the call to print is through CodeStub CallFunction.
 // See Ia32CodeGenerator::VisitCall and Ia32CodeGenerator::CallWithArguments.
@@ -70,4 +70,4 @@ g();
 assertEquals(4, break_break_point_hit_count);
 
 // Get rid of the debug event listener.
-Debug.removeListener(listener);
+Debug.setListener(null);

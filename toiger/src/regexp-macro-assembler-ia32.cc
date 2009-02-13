@@ -277,7 +277,7 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     // Save register contents to make the registers available below.
     __ push(edi);
     __ push(backtrack_stackpointer());
-    // After this, the eax, ebx, ecx, edx and edi registers are available.
+    // After this, the eax, ecx, and edi registers are available.
 
     __ add(edx, Operand(esi));  // Start of capture
     __ add(edi, Operand(esi));  // Start of text to match against capture.
@@ -348,9 +348,9 @@ void RegExpMacroAssemblerIA32::CheckNotBackReferenceIgnoreCase(
     __ add(edi, Operand(ecx));
     __ mov(Operand(esp, 2 * kPointerSize), edi);
     // Set byte_offset1.
-    // Start of capture, where eax already holds string-end negative offset.
-    __ add(eax, Operand(ecx));
-    __ mov(Operand(esp, 1 * kPointerSize), eax);
+    // Start of capture, where edx already holds string-end negative offset.
+    __ add(edx, Operand(ecx));
+    __ mov(Operand(esp, 1 * kPointerSize), edx);
     // Set buffer. Original String** parameter to regexp code.
     __ mov(eax, Operand(ebp, kInputBuffer));
     __ mov(Operand(esp, 0 * kPointerSize), eax);
@@ -636,7 +636,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ push(esi);
   __ push(edi);
   __ push(ebx);  // Callee-save on MacOS.
-  __ push(Immediate(0));  // Make room for input start minus one
+  __ push(Immediate(0));  // Make room for "input start - 1" constant.
 
   // Check if we have space on the stack for registers.
   Label retry_stack_check;
@@ -818,9 +818,11 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ push(edi);
 
     // Call GrowStack(backtrack_stackpointer())
-    int num_arguments = 1;
+    int num_arguments = 2;
     FrameAlign(num_arguments, ebx);
-    __ mov(Operand(esp, 0), backtrack_stackpointer());
+    __ lea(eax, Operand(ebp, kStackHighEnd));
+    __ mov(Operand(esp, 1 * kPointerSize), eax);
+    __ mov(Operand(esp, 0 * kPointerSize), backtrack_stackpointer());
     CallCFunction(FUNCTION_ADDR(&GrowStack), num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
@@ -935,6 +937,7 @@ void RegExpMacroAssemblerIA32::ReadCurrentPositionFromRegister(int reg) {
 
 void RegExpMacroAssemblerIA32::ReadStackPointerFromRegister(int reg) {
   __ mov(backtrack_stackpointer(), register_location(reg));
+  __ add(backtrack_stackpointer(), Operand(ebp, kStackHighEnd));
 }
 
 
@@ -970,7 +973,9 @@ void RegExpMacroAssemblerIA32::ClearRegisters(int reg_from, int reg_to) {
 
 
 void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
-  __ mov(register_location(reg), backtrack_stackpointer());
+  __ mov(eax, backtrack_stackpointer());
+  __ sub(eax, Operand(ebp, kStackHighEnd));
+  __ mov(register_location(reg), eax);
 }
 
 
@@ -979,7 +984,6 @@ void RegExpMacroAssemblerIA32::WriteStackPointerToRegister(int reg) {
 
 static unibrow::Mapping<unibrow::Ecma262Canonicalize> canonicalize;
 
-
 RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Execute(
     Code* code,
     Address* input,
@@ -987,14 +991,14 @@ RegExpMacroAssemblerIA32::Result RegExpMacroAssemblerIA32::Execute(
     int end_offset,
     int* output,
     bool at_start) {
-  typedef int (*matcher)(Address*, int, int, int*, int, void*);
+  typedef int (*matcher)(Address*, int, int, int*, int, Address);
   matcher matcher_func = FUNCTION_CAST<matcher>(code->entry());
 
   int at_start_val = at_start ? 1 : 0;
 
   // Ensure that the minimum stack has been allocated.
   RegExpStack stack;
-  void* stack_top = RegExpStack::stack_top();
+  Address stack_top = RegExpStack::stack_top();
 
   int result = matcher_func(input,
                             start_offset,
@@ -1073,14 +1077,19 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address return_address,
 }
 
 
-Address RegExpMacroAssemblerIA32::GrowStack(Address stack_top) {
+Address RegExpMacroAssemblerIA32::GrowStack(Address stack_pointer,
+                                            Address* stack_top) {
   size_t size = RegExpStack::stack_capacity();
-  Address old_stack_end = RegExpStack::stack_top();
-  Address new_stack_end = RegExpStack::EnsureCapacity(size * 2);
-  if (new_stack_end == NULL) {
+  Address old_stack_top = RegExpStack::stack_top();
+  ASSERT(old_stack_top == *stack_top);
+  ASSERT(stack_pointer <= old_stack_top);
+  ASSERT(static_cast<size_t>(old_stack_top - stack_pointer) <= size);
+  Address new_stack_top = RegExpStack::EnsureCapacity(size * 2);
+  if (new_stack_top == NULL) {
     return NULL;
   }
-  return stack_top + (new_stack_end - old_stack_end);
+  *stack_top = new_stack_top;
+  return new_stack_top - (old_stack_top - stack_pointer);
 }
 
 

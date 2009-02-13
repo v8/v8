@@ -42,7 +42,7 @@ function listener(event, exec_state, event_data, data) {
 };
 
 // Add the debug event listener.
-Debug.addListener(listener);
+Debug.setListener(listener);
 // Get events from handled exceptions.
 Debug.setBreakOnException();
 
@@ -70,4 +70,4 @@ a();
 assertTrue(lastDebugEvent.event == Debug.DebugEvent.Break);
 assertEquals(lastDebugEvent.frameFuncName, "a");
 
-Debug.removeListener(listener);
+Debug.setListener(null);

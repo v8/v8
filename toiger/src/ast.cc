@@ -250,7 +250,13 @@ bool RegExpAssertion::IsAnchored() {
 
 
 bool RegExpAlternative::IsAnchored() {
-  return this->nodes()->at(0)->IsAnchored();
+  ZoneList<RegExpTree*>* nodes = this->nodes();
+  for (int i = 0; i < nodes->length(); i++) {
+    RegExpTree* node = nodes->at(i);
+    if (node->IsAnchored()) { return true; }
+    if (node->max_match() > 0) { return false; }
+  }
+  return false;
 }
 
 

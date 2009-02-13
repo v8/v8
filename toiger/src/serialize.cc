@@ -417,7 +417,8 @@ class ExternalReferenceTable {
  private:
   static ExternalReferenceTable* instance_;
 
-  ExternalReferenceTable();
+  ExternalReferenceTable() : refs_(64) { PopulateTable(); }
+  ~ExternalReferenceTable() { }
 
   struct ExternalReferenceEntry {
     Address address;
@@ -425,16 +426,13 @@ class ExternalReferenceTable {
     const char* name;
   };
 
-  void Add(Address address, TypeCode type, uint16_t id, const char* name) {
-    CHECK_NE(NULL, address);
-    ExternalReferenceEntry entry;
-    entry.address = address;
-    entry.code = EncodeExternal(type, id);
-    entry.name = name;
-    CHECK_NE(0, entry.code);
-    refs_.Add(entry);
-    if (id > max_id_[type]) max_id_[type] = id;
-  }
+  void PopulateTable();
+
+  // For a few types of references, we can get their address from their id.
+  void AddFromId(TypeCode type, uint16_t id, const char* name);
+
+  // For other types of references, the caller will figure out the address.
+  void Add(Address address, TypeCode type, uint16_t id, const char* name);
 
   List<ExternalReferenceEntry> refs_;
   int max_id_[kTypeCodeCount];
@@ -444,28 +442,81 @@ class ExternalReferenceTable {
 ExternalReferenceTable* ExternalReferenceTable::instance_ = NULL;
 
 
-ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
+void ExternalReferenceTable::AddFromId(TypeCode type,
+                                       uint16_t id,
+                                       const char* name) {
+  Address address;
+  switch (type) {
+    case C_BUILTIN:
+      address = Builtins::c_function_address(
+          static_cast<Builtins::CFunctionId>(id));
+      break;
+    case BUILTIN:
+      address = Builtins::builtin_address(static_cast<Builtins::Name>(id));
+      break;
+    case RUNTIME_FUNCTION:
+      address = Runtime::FunctionForId(
+          static_cast<Runtime::FunctionId>(id))->entry;
+      break;
+    case IC_UTILITY:
+      address = IC::AddressFromUtilityId(static_cast<IC::UtilityId>(id));
+      break;
+    default:
+      UNREACHABLE();
+      return;
+  }
+  Add(address, type, id, name);
+}
+
+
+void ExternalReferenceTable::Add(Address address,
+                                 TypeCode type,
+                                 uint16_t id,
+                                 const char* name) {
+  CHECK_NE(NULL, address);
+  ExternalReferenceEntry entry;
+  entry.address = address;
+  entry.code = EncodeExternal(type, id);
+  entry.name = name;
+  CHECK_NE(0, entry.code);
+  refs_.Add(entry);
+  if (id > max_id_[type]) max_id_[type] = id;
+}
+
+
+void ExternalReferenceTable::PopulateTable() {
   for (int type_code = 0; type_code < kTypeCodeCount; type_code++) {
     max_id_[type_code] = 0;
   }
 
-  // Define all entries in the table.
+  // The following populates all of the different type of external references
+  // into the ExternalReferenceTable.
+  //
+  // NOTE: This function was originally 100k of code.  It has since been
+  // rewritten to be mostly table driven, as the callback macro style tends to
+  // very easily cause code bloat.  Please be careful in the future when adding
+  // new references.
 
+  struct RefTableEntry {
+    TypeCode type;
+    uint16_t id;
+    const char* name;
+  };
+
+  static const RefTableEntry ref_table[] = {
   // Builtins
 #define DEF_ENTRY_C(name) \
-  Add(Builtins::c_function_address(Builtins::c_##name), \
-      C_BUILTIN, \
-      Builtins::c_##name, \
-      "Builtins::" #name);
+  { C_BUILTIN, \
+    Builtins::c_##name, \
+    "Builtins::" #name },
 
   BUILTIN_LIST_C(DEF_ENTRY_C)
 #undef DEF_ENTRY_C
 
 #define DEF_ENTRY_C(name) \
-  Add(Builtins::builtin_address(Builtins::name), \
-      BUILTIN, \
-      Builtins::name, \
-      "Builtins::" #name);
+  { BUILTIN, \
+    Builtins::name, \
+    "Builtins::" #name },
 #define DEF_ENTRY_A(name, kind, state) DEF_ENTRY_C(name)
 
   BUILTIN_LIST_C(DEF_ENTRY_C)
@@ -476,23 +527,26 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
 
   // Runtime functions
 #define RUNTIME_ENTRY(name, nargs) \
-  Add(Runtime::FunctionForId(Runtime::k##name)->entry, \
-      RUNTIME_FUNCTION, \
-      Runtime::k##name, \
-      "Runtime::" #name);
+  { RUNTIME_FUNCTION, \
+    Runtime::k##name, \
+    "Runtime::" #name },
 
   RUNTIME_FUNCTION_LIST(RUNTIME_ENTRY)
 #undef RUNTIME_ENTRY
 
   // IC utilities
 #define IC_ENTRY(name) \
-  Add(IC::AddressFromUtilityId(IC::k##name), \
-      IC_UTILITY, \
-      IC::k##name, \
-      "IC::" #name);
+  { IC_UTILITY, \
+    IC::k##name, \
+    "IC::" #name },
 
   IC_UTIL_LIST(IC_ENTRY)
 #undef IC_ENTRY
+  };  // end of ref_table[].
+
+  for (size_t i = 0; i < ARRAY_SIZE(ref_table); ++i) {
+    AddFromId(ref_table[i].type, ref_table[i].id, ref_table[i].name);
+  }
 
   // Debug addresses
   Add(Debug_Address(Debug::k_after_break_target_address).address(),
@@ -515,15 +569,30 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
   }
 
   // Stat counters
+  struct StatsRefTableEntry {
+    StatsCounter* counter;
+    uint16_t id;
+    const char* name;
+  };
+
+  static const StatsRefTableEntry stats_ref_table[] = {
 #define COUNTER_ENTRY(name, caption) \
-  Add(reinterpret_cast<Address>(GetInternalPointer(&Counters::name)), \
-      STATS_COUNTER, \
-      Counters::k_##name, \
-      "Counters::" #name);
+  { &Counters::name, \
+    Counters::k_##name, \
+    "Counters::" #name },
 
   STATS_COUNTER_LIST_1(COUNTER_ENTRY)
   STATS_COUNTER_LIST_2(COUNTER_ENTRY)
 #undef COUNTER_ENTRY
+  };  // end of stats_ref_table[].
+
+  for (size_t i = 0; i < ARRAY_SIZE(stats_ref_table); ++i) {
+    Add(reinterpret_cast<Address>(
+            GetInternalPointer(stats_ref_table[i].counter)),
+        STATS_COUNTER,
+        stats_ref_table[i].id,
+        stats_ref_table[i].name);
+  }
 
   // Top addresses
   const char* top_address_format = "Top::get_address_from_id(%i)";
@@ -585,7 +654,7 @@ ExternalReferenceTable::ExternalReferenceTable() : refs_(64) {
   Add(ExternalReference::address_of_stack_guard_limit().address(),
       UNCLASSIFIED,
       3,
-      "StackGuard::address_of_limit()");
+      "StackGuard::address_of_jslimit()");
   Add(ExternalReference::address_of_regexp_stack_limit().address(),
       UNCLASSIFIED,
       4,

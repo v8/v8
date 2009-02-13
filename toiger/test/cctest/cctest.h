@@ -29,16 +29,23 @@
 #define CCTEST_H_
 
 #ifndef TEST
-#define TEST(Name)                                                   \
-  static void Test##Name();                                          \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, true);    \
+#define TEST(Name)                                                       \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, true);  \
+  static void Test##Name()
+#endif
+
+#ifndef DEPENDENT_TEST
+#define DEPENDENT_TEST(Name, Dep)                                        \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, #Dep, true);  \
   static void Test##Name()
 #endif
 
 #ifndef DISABLED_TEST
-#define DISABLED_TEST(Name)                                          \
-  static void Test##Name();                                          \
-  CcTest register_test_##Name(Test##Name, __FILE__, #Name, false);   \
+#define DISABLED_TEST(Name)                                              \
+  static void Test##Name();                                              \
+  CcTest register_test_##Name(Test##Name, __FILE__, #Name, NULL, false); \
   static void Test##Name()
 #endif
 
@@ -46,18 +53,20 @@ class CcTest {
  public:
   typedef void (TestFunction)();
   CcTest(TestFunction* callback, const char* file, const char* name,
-         bool enabled);
+         const char* dependency, bool enabled);
   void Run() { callback_(); }
   static int test_count();
   static CcTest* last() { return last_; }
   CcTest* prev() { return prev_; }
   const char* file() { return file_; }
   const char* name() { return name_; }
+  const char* dependency() { return dependency_; }
   bool enabled() { return enabled_; }
  private:
   TestFunction* callback_;
   const char* file_;
   const char* name_;
+  const char* dependency_;
   bool enabled_;
   static CcTest* last_;
   CcTest* prev_;

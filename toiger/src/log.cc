@@ -81,6 +81,9 @@ class Profiler: public Thread {
 
   // Inserts collected profiling data into buffer.
   void Insert(TickSample* sample) {
+    if (paused_)
+      return;
+
     if (Succ(head_) == tail_) {
       overflow_ = true;
     } else {
@@ -102,6 +105,11 @@ class Profiler: public Thread {
 
   void Run();
 
+  // Pause and Resume TickSample data collection.
+  static bool paused() { return paused_; }
+  static void pause() { paused_ = true; }
+  static void resume() { paused_ = false; }
+
  private:
   // Returns the next index in the cyclic buffer.
   int Succ(int index) { return (index + 1) % kBufferSize; }
@@ -117,7 +125,12 @@ class Profiler: public Thread {
 
   // Tells whether worker thread should continue running.
   bool running_;
+
+  // Tells whether we are currently recording tick samples.
+  static bool paused_;
 };
+
+bool Profiler::paused_ = false;
 
 
 //
@@ -213,7 +226,7 @@ void Profiler::Engage() {
   // Register to get ticks.
   Logger::ticker_->SetProfiler(this);
 
-  LOG(StringEvent("profiler", "begin"));
+  LOG(UncheckedStringEvent("profiler", "begin"));
 }
 
 
@@ -232,7 +245,7 @@ void Profiler::Disengage() {
   Insert(&sample);
   Join();
 
-  LOG(StringEvent("profiler", "end"));
+  LOG(UncheckedStringEvent("profiler", "end"));
 }
 
 
@@ -269,11 +282,18 @@ void Logger::Preamble(const char* content) {
 
 void Logger::StringEvent(const char* name, const char* value) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  if (logfile_ == NULL || !FLAG_log) return;
-  ScopedLock sl(mutex_);
-  fprintf(logfile_, "%s,\"%s\"\n", name, value);
+  if (FLAG_log) UncheckedStringEvent(name, value);
 #endif
 }
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+void Logger::UncheckedStringEvent(const char* name, const char* value) {
+  if (logfile_ == NULL) return;
+  ScopedLock sl(mutex_);
+  fprintf(logfile_, "%s,\"%s\"\n", name, value);
+}
+#endif
 
 
 void Logger::IntEvent(const char* name, int value) {
@@ -575,6 +595,22 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
 }
 
 
+void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
+                             String* source, int line) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  if (logfile_ == NULL || !FLAG_log_code) return;
+  ScopedLock sl(mutex_);
+  SmartPointer<char> str =
+      name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  SmartPointer<char> sourcestr =
+      source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  fprintf(logfile_, "code-creation,%s,0x%x,%d,\"%s %s:%d\"\n", tag,
+          reinterpret_cast<unsigned int>(code->address()),
+          code->instruction_size(), *str, *sourcestr, line);
+#endif
+}
+
+
 void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
@@ -744,6 +780,21 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (overflow) fprintf(logfile_, ",overflow");
   fprintf(logfile_, "\n");
 }
+
+
+bool Logger::IsProfilerPaused() {
+  return profiler_->paused();
+}
+
+
+void Logger::PauseProfiler() {
+  profiler_->pause();
+}
+
+
+void Logger::ResumeProfiler() {
+  profiler_->resume();
+}
 #endif
 
 
@@ -764,7 +815,7 @@ bool Logger::Setup() {
 
   bool open_log_file = FLAG_log || FLAG_log_api || FLAG_log_code
       || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-      || FLAG_log_regexp;
+      || FLAG_log_regexp || FLAG_log_state_changes;
 
   // If we're logging anything, we need to open the log file.
   if (open_log_file) {
@@ -822,6 +873,8 @@ bool Logger::Setup() {
 
   if (FLAG_prof) {
     profiler_ = new Profiler();
+    if (!FLAG_prof_auto)
+      profiler_->pause();
     profiler_->Engage();
   }
 
@@ -885,6 +938,8 @@ void Logger::EnableSlidingStateWindow() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 static const char* StateToString(StateTag state) {
   switch (state) {
+    case JS:
+      return "JS";
     case GC:
       return "GC";
     case COMPILER:
@@ -903,9 +958,9 @@ VMState::VMState(StateTag state) {
   Logger::current_state_ = this;
 
   if (FLAG_log_state_changes) {
-    LOG(StringEvent("Entering", StateToString(state_)));
+    LOG(UncheckedStringEvent("Entering", StateToString(state_)));
     if (previous_) {
-      LOG(StringEvent("From", StateToString(previous_->state_)));
+      LOG(UncheckedStringEvent("From", StateToString(previous_->state_)));
     }
   }
 }
@@ -915,9 +970,9 @@ VMState::~VMState() {
   Logger::current_state_ = previous_;
 
   if (FLAG_log_state_changes) {
-    LOG(StringEvent("Leaving", StateToString(state_)));
+    LOG(UncheckedStringEvent("Leaving", StateToString(state_)));
     if (previous_) {
-      LOG(StringEvent("To", StateToString(previous_->state_)));
+      LOG(UncheckedStringEvent("To", StateToString(previous_->state_)));
     }
   }
 }

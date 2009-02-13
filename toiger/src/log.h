@@ -163,6 +163,8 @@ class Logger {
   // Emits a code create event.
   static void CodeCreateEvent(const char* tag, Code* code, const char* source);
   static void CodeCreateEvent(const char* tag, Code* code, String* name);
+  static void CodeCreateEvent(const char* tag, Code* code, String* name,
+                              String* source, int line);
   static void CodeCreateEvent(const char* tag, Code* code, int args_count);
   static void CodeAllocateEvent(Code* code, Assembler* assem);
   // Emits a code move event.
@@ -203,6 +205,13 @@ class Logger {
 
   static bool is_enabled() { return logfile_ != NULL; }
 
+  // Pause/Resume collection of profiling data.
+  // When data collection is paused, Tick events are discarded until
+  // data collection is Resumed.
+  static bool IsProfilerPaused();
+  static void PauseProfiler();
+  static void ResumeProfiler();
+
  private:
 
   // Emits the source code of a regexp. Used by regexp events.
@@ -214,6 +223,9 @@ class Logger {
   static void TickEvent(TickSample* sample, bool overflow);
 
   static void ApiEvent(const char* name, ...);
+
+  // Logs a StringEvent regardless of whether FLAG_log is true.
+  static void UncheckedStringEvent(const char* name, const char* value);
 
   // When logging is active, logfile_ refers the file
   // events are written to.

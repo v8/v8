@@ -50,3 +50,8 @@ assertEquals("undefined", "y".replace(/(x)?y/,
     function($0, $1){ 
         return $1; 
     }));
+
+// See https://bugzilla.mozilla.org/show_bug.cgi?id=476146
+assertEquals("bbc,b", /^(b+|a){1,2}?bc/.exec("bbc"));
+assertEquals("bbaa,a,,a", /((\3|b)\2(a)){2,}/.exec("bbaababbabaaaaabbaaaabba"));
+

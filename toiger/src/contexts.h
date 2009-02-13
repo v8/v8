@@ -83,7 +83,6 @@ enum ContextLookupFlags {
   V(SPECIAL_FUNCTION_TABLE_INDEX, FixedArray, special_function_table) \
   V(ARGUMENTS_BOILERPLATE_INDEX, JSObject, arguments_boilerplate) \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners) \
-  V(DEBUG_EVENT_LISTENERS_INDEX, JSObject, debug_event_listeners) \
   V(MAKE_MESSAGE_FUN_INDEX, JSFunction, make_message_fun) \
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun) \
   V(CONFIGURE_GLOBAL_INDEX, JSFunction, configure_global_fun) \
@@ -201,7 +200,6 @@ class Context: public FixedArray {
     CONFIGURE_INSTANCE_FUN_INDEX,
     SPECIAL_FUNCTION_TABLE_INDEX,
     MESSAGE_LISTENERS_INDEX,
-    DEBUG_EVENT_LISTENERS_INDEX,
     MAKE_MESSAGE_FUN_INDEX,
     GET_STACK_TRACE_LINE_INDEX,
     CONFIGURE_GLOBAL_INDEX,

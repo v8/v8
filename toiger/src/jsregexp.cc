@@ -672,8 +672,7 @@ static Handle<FixedArray> GetCompiledIrregexp(Handle<JSRegExp> re,
   JSRegExp::Flags flags = re->GetFlags();
 
   Handle<String> pattern(re->Pattern());
-  StringShape shape(*pattern);
-  if (!pattern->IsFlat(shape)) {
+  if (!pattern->IsFlat(StringShape(*pattern))) {
     FlattenString(pattern);
   }
 
@@ -783,8 +782,7 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
                                               Handle<String> subject) {
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
-  StringShape shape(*subject);
-  bool is_ascii = shape.IsAsciiRepresentation();
+  bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
   Handle<FixedArray> irregexp = GetCompiledIrregexp(regexp, is_ascii);
   if (irregexp.is_null()) {
     return Handle<Object>::null();
@@ -800,7 +798,7 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
   int i = 0;
   Handle<Object> matches;
 
-  if (!subject->IsFlat(shape)) {
+  if (!subject->IsFlat(StringShape(*subject))) {
     FlattenString(subject);
   }
 
@@ -1271,7 +1269,7 @@ Handle<FixedArray> RegExpCompiler::Assemble(
   List <RegExpNode*> work_list(0);
   work_list_ = &work_list;
   Label fail;
-  macro_assembler->PushBacktrack(&fail);
+  macro_assembler_->PushBacktrack(&fail);
   Trace new_trace;
   start->Emit(this, &new_trace);
   macro_assembler_->Bind(&fail);
@@ -1509,12 +1507,7 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
 void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
 
-  ASSERT(actions_ != NULL ||
-         cp_offset_ != 0 ||
-         backtrack() != NULL ||
-         characters_preloaded_ != 0 ||
-         quick_check_performed_.characters() != 0 ||
-         bound_checked_up_to_ != 0);
+  ASSERT(!is_trivial());
 
   if (actions_ == NULL && backtrack() == NULL) {
     // Here we just have some deferred cp advances to fix and we are back to
@@ -2015,7 +2008,8 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
   // We are being asked to make a non-generic version.  Keep track of how many
   // non-generic versions we generate so as not to overdo it.
   trace_count_++;
-  if (trace_count_ < kMaxCopiesCodeGenerated &&
+  if (FLAG_irregexp_optimization &&
+      trace_count_ < kMaxCopiesCodeGenerated &&
       compiler->recursion_depth() <= RegExpCompiler::kMaxRecursion) {
     return CONTINUE;
   }
@@ -2069,11 +2063,12 @@ int NegativeLookaheadChoiceNode:: EatsAtLeast(int still_to_find,
 void NegativeLookaheadChoiceNode::GetQuickCheckDetails(
     QuickCheckDetails* details,
     RegExpCompiler* compiler,
-    int filled_in) {
+    int filled_in,
+    bool not_at_start) {
   // Alternative 0 is the negative lookahead, alternative 1 is what comes
   // afterwards.
   RegExpNode* node = alternatives_->at(1).node();
-  return node->GetQuickCheckDetails(details, compiler, filled_in);
+  return node->GetQuickCheckDetails(details, compiler, filled_in, not_at_start);
 }
 
 
@@ -2146,7 +2141,8 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
                                 QuickCheckDetails* details,
                                 bool fall_through_on_failure) {
   if (details->characters() == 0) return false;
-  GetQuickCheckDetails(details, compiler, 0);
+  GetQuickCheckDetails(details, compiler, 0, trace->at_start() == Trace::FALSE);
+  if (details->cannot_match()) return false;
   if (!details->Rationalize(compiler->ascii())) return false;
   uint32_t mask = details->mask();
   uint32_t value = details->value();
@@ -2211,7 +2207,8 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
 // generating a quick check.
 void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                     RegExpCompiler* compiler,
-                                    int characters_filled_in) {
+                                    int characters_filled_in,
+                                    bool not_at_start) {
   ASSERT(characters_filled_in < details->characters());
   int characters = details->characters();
   int char_mask;
@@ -2230,9 +2227,17 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
       for (int i = 0; i < characters && i < quarks.length(); i++) {
         QuickCheckDetails::Position* pos =
             details->positions(characters_filled_in);
+        uc16 c = quarks[i];
+        if (c > char_mask) {
+          // If we expect a non-ASCII character from an ASCII string,
+          // there is no way we can match. Not even case independent
+          // matching can turn an ASCII character into non-ASCII or
+          // vice versa.
+          details->set_cannot_match();
+          return;
+        }
         if (compiler->ignore_case()) {
           unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-          uc16 c = quarks[i];
           int length = uncanonicalize.get(c, '\0', chars);
           if (length < 2) {
             // This letter has no case equivalents, so it's nice and simple
@@ -2265,7 +2270,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           // determine definitely whether we have a match at this character
           // position.
           pos->mask = char_mask;
-          pos->value = quarks[i];
+          pos->value = c;
           pos->determines_perfectly = true;
         }
         characters_filled_in++;
@@ -2323,7 +2328,10 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
     }
   }
   ASSERT(characters_filled_in != details->characters());
-  on_success()-> GetQuickCheckDetails(details, compiler, characters_filled_in);
+  on_success()-> GetQuickCheckDetails(details,
+                                      compiler,
+                                      characters_filled_in,
+                                      true);
 }
 
 
@@ -2360,6 +2368,13 @@ void QuickCheckDetails::Advance(int by, bool ascii) {
 
 void QuickCheckDetails::Merge(QuickCheckDetails* other, int from_index) {
   ASSERT(characters_ == other->characters_);
+  if (other->cannot_match_) {
+    return;
+  }
+  if (cannot_match_) {
+    *this = *other;
+    return;
+  }
   for (int i = from_index; i < characters_; i++) {
     QuickCheckDetails::Position* pos = positions(i);
     QuickCheckDetails::Position* other_pos = other->positions(i);
@@ -2396,27 +2411,34 @@ class VisitMarker {
 
 void LoopChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                           RegExpCompiler* compiler,
-                                          int characters_filled_in) {
+                                          int characters_filled_in,
+                                          bool not_at_start) {
   if (body_can_be_zero_length_ || info()->visited) return;
   VisitMarker marker(info());
   return ChoiceNode::GetQuickCheckDetails(details,
                                           compiler,
-                                          characters_filled_in);
+                                          characters_filled_in,
+                                          not_at_start);
 }
 
 
 void ChoiceNode::GetQuickCheckDetails(QuickCheckDetails* details,
                                       RegExpCompiler* compiler,
-                                      int characters_filled_in) {
+                                      int characters_filled_in,
+                                      bool not_at_start) {
+  not_at_start = (not_at_start || not_at_start_);
   int choice_count = alternatives_->length();
   ASSERT(choice_count > 0);
   alternatives_->at(0).node()->GetQuickCheckDetails(details,
                                                     compiler,
-                                                    characters_filled_in);
+                                                    characters_filled_in,
+                                                    not_at_start);
   for (int i = 1; i < choice_count; i++) {
     QuickCheckDetails new_details(details->characters());
     RegExpNode* node = alternatives_->at(i).node();
-    node->GetQuickCheckDetails(&new_details, compiler, characters_filled_in);
+    node->GetQuickCheckDetails(&new_details, compiler,
+                               characters_filled_in,
+                               not_at_start);
     // Here we merge the quick match details of the two branches.
     details->Merge(&new_details, characters_filled_in);
   }
@@ -2542,6 +2564,21 @@ static void EmitBoundaryCheck(AssertionNode::AssertionNodeType type,
 }
 
 
+void AssertionNode::GetQuickCheckDetails(QuickCheckDetails* details,
+                                         RegExpCompiler* compiler,
+                                         int filled_in,
+                                         bool not_at_start) {
+  if (type_ == AT_START && not_at_start) {
+    details->set_cannot_match();
+    return;
+  }
+  return on_success()->GetQuickCheckDetails(details,
+                                            compiler,
+                                            filled_in,
+                                            not_at_start);
+}
+
+
 void AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* assembler = compiler->macro_assembler();
   switch (type_) {
@@ -2552,9 +2589,20 @@ void AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       assembler->Bind(&ok);
       break;
     }
-    case AT_START:
-      assembler->CheckNotAtStart(trace->backtrack());
-      break;
+    case AT_START: {
+      if (trace->at_start() == Trace::FALSE) {
+        assembler->GoTo(trace->backtrack());
+        return;
+      }
+      if (trace->at_start() == Trace::UNKNOWN) {
+        assembler->CheckNotAtStart(trace->backtrack());
+        Trace at_start_trace = *trace;
+        at_start_trace.set_at_start(true);
+        on_success()->Emit(compiler, &at_start_trace);
+        return;
+      }
+    }
+    break;
     case AFTER_NEWLINE:
       EmitHat(compiler, on_success(), trace);
       return;
@@ -2618,47 +2666,52 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
         for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
           bool bound_checked = true;  // Most ops will check their bounds.
           if (first_element_checked && i == 0 && j == 0) continue;
-          if (quick_check != NULL &&
-              elm.cp_offset + j < quick_check->characters() &&
-              quick_check->positions(elm.cp_offset + j)->determines_perfectly) {
-            continue;
-          }
           if (pass == NON_ASCII_MATCH) {
             ASSERT(ascii);
             if (quarks[j] > String::kMaxAsciiCharCode) {
               assembler->GoTo(backtrack);
               return;
             }
-          } else if (pass == CHARACTER_MATCH) {
-            if (compiler->ignore_case()) {
-              bound_checked = EmitAtomNonLetter(assembler,
-                                                quarks[j],
-                                                backtrack,
-                                                cp_offset + j,
-                                                *checked_up_to < cp_offset + j,
-                                                preloaded);
-            } else {
-              if (!preloaded) {
-                assembler->LoadCurrentCharacter(cp_offset + j,
-                                                backtrack,
-                                                *checked_up_to < cp_offset + j);
-              }
-              assembler->CheckNotCharacter(quarks[j], backtrack);
-            }
           } else {
-            ASSERT_EQ(pass, CASE_CHARACTER_MATCH);
-            ASSERT(compiler->ignore_case());
-            bound_checked = EmitAtomLetter(assembler,
-                                           compiler->ascii(),
-                                           quarks[j],
-                                           backtrack,
-                                           cp_offset + j,
-                                           *checked_up_to < cp_offset + j,
-                                           preloaded);
-          }
-          if (pass != NON_ASCII_MATCH && bound_checked) {
-            if (cp_offset + j > *checked_up_to) {
-              *checked_up_to = cp_offset + j;
+            if (quick_check != NULL &&
+                elm.cp_offset + j < quick_check->characters() &&
+                quick_check->positions(elm.cp_offset + j)->
+                    determines_perfectly) {
+              continue;
+            }
+            if (pass == CHARACTER_MATCH) {
+              if (compiler->ignore_case()) {
+                bound_checked = EmitAtomNonLetter(
+                    assembler,
+                    quarks[j],
+                    backtrack,
+                    cp_offset + j,
+                    *checked_up_to < cp_offset + j,
+                    preloaded);
+              } else {
+                if (!preloaded) {
+                  assembler->LoadCurrentCharacter(
+                      cp_offset + j,
+                      backtrack,
+                      *checked_up_to < cp_offset + j);
+                }
+                assembler->CheckNotCharacter(quarks[j], backtrack);
+              }
+            } else {
+              ASSERT_EQ(pass, CASE_CHARACTER_MATCH);
+              ASSERT(compiler->ignore_case());
+              bound_checked = EmitAtomLetter(assembler,
+                                             compiler->ascii(),
+                                             quarks[j],
+                                             backtrack,
+                                             cp_offset + j,
+                                             *checked_up_to < cp_offset + j,
+                                             preloaded);
+            }
+            if (bound_checked) {
+              if (cp_offset + j > *checked_up_to) {
+                *checked_up_to = cp_offset + j;
+              }
             }
           }
         }
@@ -2773,6 +2826,7 @@ void TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
                &bound_checked_to);
 
   Trace successor_trace(*trace);
+  successor_trace.set_at_start(false);
   successor_trace.AdvanceCurrentPositionInTrace(Length(), compiler);
   RecursionCheck rc(compiler);
   on_success()->Emit(compiler, &successor_trace);
@@ -3066,6 +3120,8 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   Label greedy_loop_label;
   Trace counter_backtrack_trace;
   counter_backtrack_trace.set_backtrack(&greedy_loop_label);
+  if (not_at_start()) counter_backtrack_trace.set_at_start(false);
+
   if (choice_count > 1 && text_length != kNodeIsTooComplexForGreedyLoops) {
     // Here we have special handling for greedy loops containing only text nodes
     // and other simple nodes.  These are handled by pushing the current
@@ -3080,6 +3136,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     current_trace = &counter_backtrack_trace;
     Label greedy_match_failed;
     Trace greedy_match_trace;
+    if (not_at_start()) greedy_match_trace.set_at_start(false);
     greedy_match_trace.set_backtrack(&greedy_match_failed);
     Label loop_label;
     macro_assembler->Bind(&loop_label);
@@ -3117,9 +3174,11 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       new_trace.set_bound_checked_up_to(preload_characters);
     }
     new_trace.quick_check_performed()->Clear();
+    if (not_at_start_) new_trace.set_at_start(Trace::FALSE);
     alt_gen->expects_preload = preload_is_current;
     bool generate_full_check_inline = false;
-    if (try_to_emit_quick_check_for_alternative(i) &&
+    if (FLAG_irregexp_optimization &&
+        try_to_emit_quick_check_for_alternative(i) &&
         alternative.node()->EmitQuickCheck(compiler,
                                            &new_trace,
                                            preload_has_checked_bounds,
@@ -3139,6 +3198,11 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
         new_trace.set_bound_checked_up_to(preload_characters);
         generate_full_check_inline = true;
       }
+    } else if (alt_gen->quick_check_details.cannot_match()) {
+      if (i == choice_count - 1 && !greedy_loop) {
+        macro_assembler->GoTo(trace->backtrack());
+      }
+      continue;
     } else {
       // No quick check was generated.  Put the full code here.
       // If this is not the first choice then there could be slow checks from
@@ -3199,6 +3263,7 @@ void ChoiceNode::EmitOutOfLineContinuation(RegExpCompiler* compiler,
   Trace out_of_line_trace(*trace);
   out_of_line_trace.set_characters_preloaded(preload_characters);
   out_of_line_trace.set_quick_check_performed(&alt_gen->quick_check_details);
+  if (not_at_start_) out_of_line_trace.set_at_start(Trace::FALSE);
   ZoneList<Guard*>* guards = alternative.guards();
   int guard_count = (guards == NULL) ? 0 : guards->length();
   if (next_expects_preload) {
@@ -3868,7 +3933,8 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
                                      bool is_greedy,
                                      RegExpTree* body,
                                      RegExpCompiler* compiler,
-                                     RegExpNode* on_success) {
+                                     RegExpNode* on_success,
+                                     bool not_at_start) {
   // x{f, t} becomes this:
   //
   //             (r++)<-.
@@ -3901,14 +3967,14 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   bool needs_capture_clearing = !capture_registers.is_empty();
   if (body_can_be_empty) {
     body_start_reg = compiler->AllocateRegister();
-  } else if (!needs_capture_clearing) {
+  } else if (FLAG_irregexp_optimization && !needs_capture_clearing) {
     // Only unroll if there are no captures and the body can't be
     // empty.
     if (min > 0 && min <= kMaxUnrolledMinMatches) {
       int new_max = (max == kInfinity) ? max : max - min;
       // Recurse once to get the loop or optional matches after the fixed ones.
-      RegExpNode* answer =
-          ToNode(0, new_max, is_greedy, body, compiler, on_success);
+      RegExpNode* answer = ToNode(
+          0, new_max, is_greedy, body, compiler, on_success, true);
       // Unroll the forced matches from 0 to min.  This can cause chains of
       // TextNodes (which the parser does not generate).  These should be
       // combined if it turns out they hinder good code generation.
@@ -3933,6 +3999,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
                                                                       answer)));
         }
         answer = alternation;
+        if (not_at_start) alternation->set_not_at_start();
       }
       return answer;
     }
@@ -3944,6 +4011,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
       ? compiler->AllocateRegister()
       : RegExpCompiler::kNoRegister;
   LoopChoiceNode* center = new LoopChoiceNode(body->min_match() == 0);
+  if (not_at_start) center->set_not_at_start();
   RegExpNode* loop_return = needs_counter
       ? static_cast<RegExpNode*>(ActionNode::IncrementRegister(reg_ctr, center))
       : static_cast<RegExpNode*>(center);
@@ -4764,12 +4832,26 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
   if (!data->tree->IsAnchored()) {
     // Add a .*? at the beginning, outside the body capture, unless
     // this expression is anchored at the beginning.
-    node = RegExpQuantifier::ToNode(0,
-                                    RegExpTree::kInfinity,
-                                    false,
-                                    new RegExpCharacterClass('*'),
-                                    &compiler,
-                                    captured_body);
+    RegExpNode* loop_node =
+        RegExpQuantifier::ToNode(0,
+                                 RegExpTree::kInfinity,
+                                 false,
+                                 new RegExpCharacterClass('*'),
+                                 &compiler,
+                                 captured_body,
+                                 data->contains_anchor);
+
+    if (data->contains_anchor) {
+      // Unroll loop once, to take care of the case that might start
+      // at the start of input.
+      ChoiceNode* first_step_node = new ChoiceNode(2);
+      first_step_node->AddAlternative(GuardedAlternative(captured_body));
+      first_step_node->AddAlternative(GuardedAlternative(
+          new TextNode(new RegExpCharacterClass('*'), loop_node)));
+      node = first_step_node;
+    } else {
+      node = loop_node;
+    }
   }
   data->node = node;
   Analysis analysis(ignore_case);

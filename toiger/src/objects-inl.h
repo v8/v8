@@ -1639,6 +1639,34 @@ void ExternalAsciiString::set_resource(
 }
 
 
+Map* ExternalAsciiString::StringMap(int length) {
+  Map* map;
+  // Number of characters: determines the map.
+  if (length <= String::kMaxShortStringSize) {
+    map = Heap::short_external_ascii_string_map();
+  } else if (length <= String::kMaxMediumStringSize) {
+    map = Heap::medium_external_ascii_string_map();
+  } else {
+    map = Heap::long_external_ascii_string_map();
+  }
+  return map;
+}
+
+
+Map* ExternalAsciiString::SymbolMap(int length) {
+  Map* map;
+  // Number of characters: determines the map.
+  if (length <= String::kMaxShortStringSize) {
+    map = Heap::short_external_ascii_symbol_map();
+  } else if (length <= String::kMaxMediumStringSize) {
+    map = Heap::medium_external_ascii_symbol_map();
+  } else {
+    map = Heap::long_external_ascii_symbol_map();
+  }
+  return map;
+}
+
+
 ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
   return *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset));
 }
@@ -1647,6 +1675,34 @@ ExternalTwoByteString::Resource* ExternalTwoByteString::resource() {
 void ExternalTwoByteString::set_resource(
     ExternalTwoByteString::Resource* resource) {
   *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset)) = resource;
+}
+
+
+Map* ExternalTwoByteString::StringMap(int length) {
+  Map* map;
+  // Number of characters: determines the map.
+  if (length <= String::kMaxShortStringSize) {
+    map = Heap::short_external_string_map();
+  } else if (length <= String::kMaxMediumStringSize) {
+    map = Heap::medium_external_string_map();
+  } else {
+    map = Heap::long_external_string_map();
+  }
+  return map;
+}
+
+
+Map* ExternalTwoByteString::SymbolMap(int length) {
+  Map* map;
+  // Number of characters: determines the map.
+  if (length <= String::kMaxShortStringSize) {
+    map = Heap::short_external_symbol_map();
+  } else if (length <= String::kMaxMediumStringSize) {
+    map = Heap::medium_external_symbol_map();
+  } else {
+    map = Heap::long_external_symbol_map();
+  }
+  return map;
 }
 
 
@@ -1978,6 +2034,7 @@ ACCESSORS(Script, line_offset, Smi, kLineOffsetOffset)
 ACCESSORS(Script, column_offset, Smi, kColumnOffsetOffset)
 ACCESSORS(Script, wrapper, Proxy, kWrapperOffset)
 ACCESSORS(Script, type, Smi, kTypeOffset)
+ACCESSORS(Script, line_ends, Object, kLineEndsOffset)
 
 ACCESSORS(DebugInfo, shared, SharedFunctionInfo, kSharedFunctionInfoIndex)
 ACCESSORS(DebugInfo, original_code, Code, kOriginalCodeIndex)

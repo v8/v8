@@ -210,11 +210,11 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(void set_call_object(Object* target));
 
   // Patch the code with some other code.
-  void patch_code(byte* instructions, int instruction_count);
+  void PatchCode(byte* instructions, int instruction_count);
 
   // Patch the code with a call.
-  void patch_code_with_call(Address target, int guard_bytes);
-  INLINE(bool is_call_instruction());
+  void PatchCodeWithCall(Address target, int guard_bytes);
+  INLINE(bool IsCallInstruction());
 
 #ifdef ENABLE_DISASSEMBLER
   // Printing
@@ -397,7 +397,7 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable Factory::the_hole_value.location()
   static ExternalReference the_hole_value_location();
 
-  // Static variable StackGuard::address_of_limit()
+  // Static variable StackGuard::address_of_jslimit()
   static ExternalReference address_of_stack_guard_limit();
 
   // Static variable RegExpStack::limit_address()

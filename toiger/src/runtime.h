@@ -213,8 +213,7 @@ namespace v8 { namespace internal {
   F(LookupAccessor, 3) \
   \
   /* Debugging */ \
-  F(AddDebugEventListener, 2) \
-  F(RemoveDebugEventListener, 1) \
+  F(SetDebugEventListener, 2) \
   F(Break, 0) \
   F(DebugGetPropertyDetails, 2) \
   F(DebugGetProperty, 2) \

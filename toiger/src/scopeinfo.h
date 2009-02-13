@@ -75,8 +75,6 @@ class ScopeInfo BASE_EMBEDDED {
 
   Handle<String> function_name() const  { return function_name_; }
 
-  bool supports_eval() const  { return supports_eval_; }
-
   Handle<String> parameter_name(int i) const  { return parameters_[i]; }
   int number_of_parameters() const  { return parameters_.length(); }
 
@@ -103,8 +101,6 @@ class ScopeInfo BASE_EMBEDDED {
   // ScopeInfo is the only class which should have to know about the
   // encoding of it's information in a Code object, which is why these
   // functions are in this class.
-
-  static bool SupportsEval(Code* code);
 
   // Return the number of stack slots for code.
   static int NumberOfStackSlots(Code* code);
@@ -146,7 +142,6 @@ class ScopeInfo BASE_EMBEDDED {
 
  private:
   Handle<String> function_name_;
-  bool supports_eval_;
   List<Handle<String>, Allocator > parameters_;
   List<Handle<String>, Allocator > stack_slots_;
   List<Handle<String>, Allocator > context_slots_;

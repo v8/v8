@@ -50,7 +50,6 @@ static int CompareLocal(Variable* const* v, Variable* const* w) {
 template<class Allocator>
 ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
     : function_name_(Factory::empty_symbol()),
-      supports_eval_(scope->SupportsEval()),
       parameters_(scope->num_parameters()),
       stack_slots_(scope->num_stack_slots()),
       context_slots_(scope->num_heap_slots()),
@@ -151,7 +150,6 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
 // Encoding format in the Code object:
 //
 // - function name
-// - supports eval info
 //
 // - number of variables in the context object (smi) (= function context
 //   slot index + 1)
@@ -247,7 +245,6 @@ static Object** ReadList(Object** p,
 template<class Allocator>
 ScopeInfo<Allocator>::ScopeInfo(Code* code)
   : function_name_(Factory::empty_symbol()),
-    supports_eval_(false),
     parameters_(4),
     stack_slots_(8),
     context_slots_(8),
@@ -257,7 +254,6 @@ ScopeInfo<Allocator>::ScopeInfo(Code* code)
   Object** p0 = &Memory::Object_at(code->sinfo_start());
   Object** p = p0;
   p = ReadSymbol(p, &function_name_);
-  p = ReadBool(p, &supports_eval_);
   p = ReadList<Allocator>(p, &context_slots_, &context_modes_);
   p = ReadList<Allocator>(p, &parameters_);
   p = ReadList<Allocator>(p, &stack_slots_);
@@ -310,8 +306,8 @@ static Object** WriteList(Object** p,
 
 template<class Allocator>
 int ScopeInfo<Allocator>::Serialize(Code* code) {
-  // function name, supports eval, length & sentinel for 3 tables:
-  const int extra_slots = 1 + 1 + 2 * 3;
+  // function name, length & sentinel for 3 tables:
+  const int extra_slots = 1 + 2 * 3;
   int size = (extra_slots +
               context_slots_.length() * 2 +
               parameters_.length() +
@@ -322,7 +318,6 @@ int ScopeInfo<Allocator>::Serialize(Code* code) {
     Object** p0 = &Memory::Object_at(code->sinfo_start());
     Object** p = p0;
     p = WriteSymbol(p, function_name_);
-    p = WriteInt(p, supports_eval_);
     p = WriteList(p, &context_slots_, &context_modes_);
     p = WriteList(p, &parameters_);
     p = WriteList(p, &stack_slots_);
@@ -343,8 +338,8 @@ void ScopeInfo<Allocator>::IterateScopeInfo(Code* code, ObjectVisitor* v) {
 
 static Object** ContextEntriesAddr(Code* code) {
   ASSERT(code->sinfo_size() > 0);
-  // +2 for function name, supports eval:
-  return &Memory::Object_at(code->sinfo_start()) + 2;
+  // +1 for function name:
+  return &Memory::Object_at(code->sinfo_start()) + 1;
 }
 
 
@@ -363,21 +358,6 @@ static Object** StackSlotEntriesAddr(Code* code) {
   int n;  // number of parameter slots;
   p = ReadInt(p, &n);
   return p + n + 1;  // +1 for sentinel
-}
-
-
-template<class Allocator>
-bool ScopeInfo<Allocator>::SupportsEval(Code* code) {
-  bool result = false;
-  if (code->sinfo_size() > 0) {
-    ReadBool(&Memory::Object_at(code->sinfo_start()) + 1, &result);
-  }
-#ifdef DEBUG
-  { ScopeInfo info(code);
-    ASSERT(result == info.supports_eval_);
-  }
-#endif
-  return result;
 }
 
 
@@ -550,9 +530,6 @@ void ScopeInfo<Allocator>::Print() {
   else
     PrintF("/* no function name */");
   PrintF("{");
-
-  if (supports_eval_)
-    PrintF("\n  // supports eval\n");
 
   PrintList<Allocator>("parameters", 0, parameters_);
   PrintList<Allocator>("stack slots", 0, stack_slots_);

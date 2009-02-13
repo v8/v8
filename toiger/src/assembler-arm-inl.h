@@ -103,39 +103,39 @@ Address* RelocInfo::target_reference_address() {
 
 
 Address RelocInfo::call_address() {
-  ASSERT(is_call_instruction());
+  ASSERT(IsCallInstruction());
   UNIMPLEMENTED();
   return NULL;
 }
 
 
 void RelocInfo::set_call_address(Address target) {
-  ASSERT(is_call_instruction());
+  ASSERT(IsCallInstruction());
   UNIMPLEMENTED();
 }
 
 
 Object* RelocInfo::call_object() {
-  ASSERT(is_call_instruction());
+  ASSERT(IsCallInstruction());
   UNIMPLEMENTED();
   return NULL;
 }
 
 
 Object** RelocInfo::call_object_address() {
-  ASSERT(is_call_instruction());
+  ASSERT(IsCallInstruction());
   UNIMPLEMENTED();
   return NULL;
 }
 
 
 void RelocInfo::set_call_object(Object* target) {
-  ASSERT(is_call_instruction());
+  ASSERT(IsCallInstruction());
   UNIMPLEMENTED();
 }
 
 
-bool RelocInfo::is_call_instruction() {
+bool RelocInfo::IsCallInstruction() {
   UNIMPLEMENTED();
   return false;
 }

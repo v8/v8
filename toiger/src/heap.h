@@ -114,7 +114,6 @@ namespace v8 { namespace internal {
   V(Map, neander_map)                                   \
   V(JSObject, message_listeners)                        \
   V(Proxy, prototype_accessors)                         \
-  V(JSObject, debug_event_listeners)                    \
   V(Dictionary, code_stubs)                             \
   V(Dictionary, non_monomorphic_cache)                  \
   V(Code, js_entry_code)                                \
@@ -545,8 +544,6 @@ class Heap : public AllStatic {
       ExternalAsciiString::Resource* resource);
   static Object* AllocateExternalStringFromTwoByte(
       ExternalTwoByteString::Resource* resource);
-  static Object* AllocateExternalSymbolFromTwoByte(
-      ExternalTwoByteString::Resource* resource);
 
   // Allocates an uninitialized object.  The memory is non-executable if the
   // hardware and OS allow.
@@ -556,6 +553,10 @@ class Heap : public AllStatic {
   static inline Object* AllocateRaw(int size_in_bytes,
                                     AllocationSpace space,
                                     AllocationSpace retry_space);
+
+  // Initialize a filler object to keep the ability to iterate over the heap
+  // when shortening objects.
+  static void CreateFillerObjectAt(Address addr, int size);
 
   // Makes a new native code object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -619,10 +620,6 @@ class Heap : public AllStatic {
   }
   static void SetGlobalGCEpilogueCallback(GCCallback callback) {
     global_gc_epilogue_callback_ = callback;
-  }
-
-  static void SetExternalSymbolCallback(ExternalSymbolCallback callback) {
-    global_external_symbol_callback_ = callback;
   }
 
   // Heap roots
@@ -883,9 +880,6 @@ class Heap : public AllStatic {
   // Allocations in the callback function are disallowed.
   static GCCallback global_gc_prologue_callback_;
   static GCCallback global_gc_epilogue_callback_;
-
-  // Callback function used for allocating external symbols.
-  static ExternalSymbolCallback global_external_symbol_callback_;
 
   // Checks whether a global GC is necessary
   static GarbageCollector SelectGarbageCollector(AllocationSpace space);

@@ -55,20 +55,18 @@ function DoConstructRegExp(object, pattern, flags, isConstructorCall) {
     var c = flags.charAt(i);
     switch (c) {
       case 'g':
-        if (global) throw MakeSyntaxError('duplicate_regexp_flag', ['g']);
+        // Allow duplicate flags to be consistent with JSC and others.
         global = true;
         break;
       case 'i':
-        if (ignoreCase) throw MakeSyntaxError('duplicate_regexp_flag', ['i']);
         ignoreCase = true;
         break;
       case 'm':
-        if (multiline) throw MakeSyntaxError('duplicate_regexp_flag', ['m']);
         multiline = true;
         break;
       default:
         // Ignore flags that have no meaning to be consistent with
-        // KJS.
+        // JSC.
         break;
     }
   }

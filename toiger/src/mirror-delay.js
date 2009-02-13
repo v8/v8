@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// jsminify this file, js2c: jsmin
+
 // Touch the RegExp and Date functions to make sure that date-delay.js and
 // regexp-delay.js has been loaded. This is required as the mirrors use
 // functions within these files through the builtins object. See the
@@ -85,6 +87,8 @@ function MakeMirror(value) {
     mirror = new RegExpMirror(value);
   } else if (IS_ERROR(value)) {
     mirror = new ErrorMirror(value);
+  } else if (IS_SCRIPT(value)) {
+    mirror = new ScriptMirror(value);
   } else {
     mirror = new ObjectMirror(value);
   }
@@ -686,15 +690,16 @@ ObjectMirror.prototype.lookupProperty = function(value) {
 
 /**
  * Returns objects which has direct references to this object
- * @param {number} opt_max_instances Optional parameter specifying the maximum
- *     number of instances to return.
+ * @param {number} opt_max_objects Optional parameter specifying the maximum
+ *     number of referencing objects to return.
  * @return {Array} The objects which has direct references to this object.
  */
-ObjectMirror.prototype.referencedBy = function(opt_max_instances) {
-  // Find all objects constructed from this function.
-  var result = %DebugReferencedBy(this.value_, Mirror.prototype, opt_max_instances || 0);
+ObjectMirror.prototype.referencedBy = function(opt_max_objects) {
+  // Find all objects with direct references to this object.
+  var result = %DebugReferencedBy(this.value_,
+                                  Mirror.prototype, opt_max_objects || 0);
 
-  // Make mirrors for all the instances found.
+  // Make mirrors for all the references found.
   for (var i = 0; i < result.length; i++) {
     result[i] = MakeMirror(result[i]);
   }
@@ -775,7 +780,7 @@ FunctionMirror.prototype.script = function() {
   if (this.resolved()) {
     var script = %FunctionGetScript(this.value_);
     if (script) {
-      return new ScriptMirror(script);
+      return MakeMirror(script);
     }
   }
 };
@@ -1546,8 +1551,18 @@ function ScriptMirror(script) {
 inherits(ScriptMirror, Mirror);
 
 
+ScriptMirror.prototype.value = function() {
+  return this.script_;
+};
+
+
 ScriptMirror.prototype.name = function() {
   return this.script_.name;
+};
+
+
+ScriptMirror.prototype.source = function() {
+  return this.script_.source;
 };
 
 

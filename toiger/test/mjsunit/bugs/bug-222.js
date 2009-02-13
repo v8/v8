@@ -25,5 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-assertTrue((/(?:)/g).global);
-assertTrue((/(?:)/\u0067).global);
+function Foo(a, b) { }
+Foo();
+var oldArgs = Foo.arguments;
+Foo();
+var newArgs = Foo.arguments
+
+assertTrue(oldArgs !== newArgs);
+
+// Don't allow arguments to be overwritten.
+Foo.arguments = oldArgs;
+assertEquals(Foo.arguments, newArgs);
+
+// Don't allow arguments to be deleted.
+assertFalse(delete Foo.arguments);
+assertEquals(Foo.arguments, newArgs);

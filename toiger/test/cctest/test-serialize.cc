@@ -221,7 +221,7 @@ static void SanityCheck() {
 }
 
 
-TEST(Deserialize) {
+DEPENDENT_TEST(Deserialize, Serialize) {
   v8::HandleScope scope;
 
   Deserialize();
@@ -229,7 +229,7 @@ TEST(Deserialize) {
   SanityCheck();
 }
 
-TEST(DeserializeAndRunScript) {
+DEPENDENT_TEST(DeserializeAndRunScript, Serialize) {
   v8::HandleScope scope;
 
   Deserialize();
@@ -241,7 +241,7 @@ TEST(DeserializeAndRunScript) {
 }
 
 
-TEST(DeserializeNatives) {
+DEPENDENT_TEST(DeserializeNatives, Serialize) {
   v8::HandleScope scope;
 
   Deserialize();
@@ -254,7 +254,7 @@ TEST(DeserializeNatives) {
 }
 
 
-TEST(DeserializeExtensions) {
+DEPENDENT_TEST(DeserializeExtensions, Serialize) {
   v8::HandleScope scope;
 
   Deserialize();

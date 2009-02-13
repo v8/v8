@@ -125,58 +125,17 @@
 	<Files>
 		<Filter
 			Name="generated files"
+			SourceControlFiles="false"
 			>
 			<File
 				RelativePath="$(IntDir)\..\v8\DerivedSources\natives-empty.cc"
 				>
 			</File>
 			<File
-				RelativePath="$(IntDir)\DerivedSources\snapshot.cc"
+				RelativePath="$(IntDir)\..\v8_snapshot_cc\DerivedSources\snapshot.cc"
 				>
-				<FileConfiguration
-					Name="Debug|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories="$(SolutionDir)..\v8\src"
-					/>
-				</FileConfiguration>
-				<FileConfiguration
-					Name="Release|Win32"
-					>
-					<Tool
-						Name="VCCLCompilerTool"
-						AdditionalIncludeDirectories="$(SolutionDir)..\v8\src"
-					/>
-				</FileConfiguration>
 			</File>
 		</Filter>
-		<File
-			RelativePath="$(OutDir)\v8_mksnapshot.exe"
-			>
-			<FileConfiguration
-				Name="Debug|Win32"
-				>
-				<Tool
-					Name="VCCustomBuildTool"
-					Description="Building snapshot..."
-					CommandLine="&quot;$(OutDir)\v8_mksnapshot.exe&quot; &quot;$(IntDir)\DerivedSources\snapshot.cc&quot;&#x0D;&#x0A;"
-					AdditionalDependencies="$(OutDir)\v8_mksnapshot.exe"
-					Outputs="$(IntDir)\DerivedSources\snapshot.cc"
-				/>
-			</FileConfiguration>
-			<FileConfiguration
-				Name="Release|Win32"
-				>
-				<Tool
-					Name="VCCustomBuildTool"
-					Description="Building snapshot..."
-					CommandLine="&quot;$(OutDir)\v8_mksnapshot.exe&quot; &quot;$(IntDir)\DerivedSources\snapshot.cc&quot;&#x0D;&#x0A;"
-					AdditionalDependencies="$(OutDir)\v8_mksnapshot.exe"
-					Outputs="$(IntDir)\DerivedSources\snapshot.cc"
-				/>
-			</FileConfiguration>
-		</File>
 	</Files>
 	<Globals>
 	</Globals>

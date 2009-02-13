@@ -156,7 +156,7 @@ const int RelocInfo::kApplyMask =
     1 << RelocInfo::JS_RETURN | 1 << RelocInfo::INTERNAL_REFERENCE;
 
 
-void RelocInfo::patch_code(byte* instructions, int instruction_count) {
+void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Patch the code at the current address with the supplied instructions.
   for (int i = 0; i < instruction_count; i++) {
     *(pc_ + i) = *(instructions + i);
@@ -166,7 +166,7 @@ void RelocInfo::patch_code(byte* instructions, int instruction_count) {
 
 // Patch the code at the current PC with a call to the target address.
 // Additional guard int3 instructions can be added if required.
-void RelocInfo::patch_code_with_call(Address target, int guard_bytes) {
+void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
   // Call instruction takes up 5 bytes and int3 takes up one byte.
   int code_size = 5 + guard_bytes;
 

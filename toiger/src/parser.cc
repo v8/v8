@@ -532,13 +532,16 @@ class RegExpParser {
   // Reports whether the pattern might be used as a literal search string.
   // Only use if the result of the parse is a single atom node.
   bool simple();
-
+  bool contains_anchor() { return contains_anchor_; }
+  void set_contains_anchor() { contains_anchor_ = true; }
   int captures_started() { return captures_ == NULL ? 0 : captures_->length(); }
   int position() { return next_pos_ - 1; }
   bool failed() { return failed_; }
 
+  static const int kMaxCaptures = 1 << 16;
   static const uc32 kEndMarker = (1 << 21);
  private:
+
   uc32 current() { return current_; }
   bool has_more() { return has_more_; }
   bool has_next() { return next_pos_ < in()->length(); }
@@ -553,6 +556,7 @@ class RegExpParser {
   FlatStringReader* in_;
   Handle<String>* error_;
   bool simple_;
+  bool contains_anchor_;
   ZoneList<RegExpCapture*>* captures_;
   bool is_scanned_for_captures_;
   // The capture count is only valid after we have scanned for captures.
@@ -3096,7 +3100,12 @@ Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
   if (is_pre_parsing_) {
     // If we're preparsing we just do all the parsing stuff without
     // building anything.
-    scanner_.ScanRegExpFlags();
+    if (!scanner_.ScanRegExpFlags()) {
+      Next();
+      ReportMessage("invalid_regexp_flags", Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
     Next();
     return NULL;
   }
@@ -3483,6 +3492,7 @@ RegExpParser::RegExpParser(FlatStringReader* in,
     in_(in),
     error_(error),
     simple_(true),
+    contains_anchor_(false),
     captures_(NULL),
     is_scanned_for_captures_(false),
     capture_count_(0),
@@ -3600,10 +3610,14 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       ReportError(CStrVector("Nothing to repeat") CHECK_FAILED);
     case '^': {
       Advance();
-      RegExpAssertion::Type type =
-          multiline_ ? RegExpAssertion::START_OF_LINE :
-                       RegExpAssertion::START_OF_INPUT;
-      builder.AddAssertion(new RegExpAssertion(type));
+      if (multiline_) {
+        builder.AddAssertion(
+            new RegExpAssertion(RegExpAssertion::START_OF_LINE));
+      } else {
+        builder.AddAssertion(
+            new RegExpAssertion(RegExpAssertion::START_OF_INPUT));
+        set_contains_anchor();
+      }
       continue;
     }
     case '$': {
@@ -3787,6 +3801,10 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       break;
     case '{':
       if (ParseIntervalQuantifier(&min, &max)) {
+        if (max < min) {
+          ReportError(CStrVector("numbers out of order in {} quantifier.")
+                      CHECK_FAILED);
+        }
         break;
       } else {
         continue;
@@ -3886,11 +3904,8 @@ void RegExpParser::ScanForCaptures() {
 bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
   ASSERT_EQ('\\', current());
   ASSERT('1' <= Next() && Next() <= '9');
-  // Try to parse a decimal literal that is no greater than the number
-  // of previously encountered left capturing parentheses.
-  // This is a not according the the ECMAScript specification. According to
-  // that, one must accept values up to the total number of left capturing
-  // parentheses in the entire input, even if they are meaningless.
+  // Try to parse a decimal literal that is no greater than the total number
+  // of left capturing parentheses in the input.
   int start = position();
   int value = Next() - '0';
   Advance(2);
@@ -3898,6 +3913,10 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
     uc32 c = current();
     if (IsDecimalDigit(c)) {
       value = 10 * value + (c - '0');
+      if (value > kMaxCaptures) {
+        Reset(start);
+        return false;
+      }
       Advance();
     } else {
       break;
@@ -3923,6 +3942,9 @@ bool RegExpParser::ParseBackReferenceIndex(int* index_out) {
 //   { DecimalDigits }
 //   { DecimalDigits , }
 //   { DecimalDigits , DecimalDigits }
+//
+// Returns true if parsing succeeds, and set the min_out and max_out
+// values. Values are truncated to RegExpTree::kInfinity if they overflow.
 bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
   ASSERT_EQ(current(), '{');
   int start = position();
@@ -3933,7 +3955,16 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
     return false;
   }
   while (IsDecimalDigit(current())) {
-    min = 10 * min + (current() - '0');
+    int next = current() - '0';
+    if (min > (RegExpTree::kInfinity - next) / 10) {
+      // Overflow. Skip past remaining decimal digits and return -1.
+      do {
+        Advance();
+      } while (IsDecimalDigit(current()));
+      min = RegExpTree::kInfinity;
+      break;
+    }
+    min = 10 * min + next;
     Advance();
   }
   int max = 0;
@@ -3947,7 +3978,15 @@ bool RegExpParser::ParseIntervalQuantifier(int* min_out, int* max_out) {
       Advance();
     } else {
       while (IsDecimalDigit(current())) {
-        max = 10 * max + (current() - '0');
+        int next = current() - '0';
+        if (max > (RegExpTree::kInfinity - next) / 10) {
+          do {
+            Advance();
+          } while (IsDecimalDigit(current()));
+          max = RegExpTree::kInfinity;
+          break;
+        }
+        max = 10 * max + next;
         Advance();
       }
       if (current() != '}') {
@@ -4109,6 +4148,9 @@ RegExpTree* RegExpParser::ParseGroup() {
   } else {
     if (captures_ == NULL) {
       captures_ = new ZoneList<RegExpCapture*>(2);
+    }
+    if (captures_started() >= kMaxCaptures) {
+      ReportError(CStrVector("Too many captures") CHECK_FAILED);
     }
     captures_->Add(NULL);
   }
@@ -4301,6 +4343,7 @@ bool ParseRegExp(FlatStringReader* input,
     result->tree = tree;
     int capture_count = parser.captures_started();
     result->simple = tree->IsAtom() && parser.simple() && capture_count == 0;
+    result->contains_anchor = parser.contains_anchor();
     result->capture_count = capture_count;
   }
   return !parser.failed();

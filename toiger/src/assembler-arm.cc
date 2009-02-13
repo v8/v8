@@ -139,15 +139,15 @@ int PcStoreOffset() {
 const int RelocInfo::kApplyMask = 0;
 
 
-void RelocInfo::patch_code(byte* instructions, int instruction_count) {
+void RelocInfo::PatchCode(byte* instructions, int instruction_count) {
   // Patch the code at the current address with the supplied instructions.
   UNIMPLEMENTED();
 }
 
 
 // Patch the code at the current PC with a call to the target address.
-// Additional guard int3 instructions can be added if required.
-void RelocInfo::patch_code_with_call(Address target, int guard_bytes) {
+// Additional guard instructions can be added if required.
+void RelocInfo::PatchCodeWithCall(Address target, int guard_bytes) {
   // Patch the code at the current address with a call to the target.
   UNIMPLEMENTED();
 }

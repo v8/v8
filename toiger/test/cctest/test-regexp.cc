@@ -31,6 +31,7 @@
 
 #include "v8.h"
 
+#include "string-stream.h"
 #include "cctest.h"
 #include "zone-inl.h"
 #include "parser.h"
@@ -371,6 +372,17 @@ TEST(Errors) {
   ExpectError("{1}", kNothingToRepeat);
   ExpectError("{1,2}", kNothingToRepeat);
   ExpectError("{1,}", kNothingToRepeat);
+
+  // Check that we don't allow more than kMaxCapture captures
+  const int kMaxCaptures = 1 << 16;  // Must match RegExpParser::kMaxCaptures.
+  const char* kTooManyCaptures = "Too many captures";
+  HeapStringAllocator allocator;
+  StringStream accumulator(&allocator);
+  for (int i = 0; i <= kMaxCaptures; i++) {
+    accumulator.Add("()");
+  }
+  SmartPointer<const char> many_captures(accumulator.ToCString());
+  ExpectError(*many_captures, kTooManyCaptures);
 }
 
 

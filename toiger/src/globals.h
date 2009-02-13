@@ -30,10 +30,10 @@
 
 // -----------------------------------------------------------------------------
 // Types
-// Windows is missing the stdint.h header file. Instead we define standard
-// integer types for Windows here.
+// Visual Studio C++ is missing the stdint.h header file. Instead we define
+// standard integer types for Windows here.
 
-#ifdef WIN32
+#ifdef _MSC_VER
 typedef signed char int8_t;
 typedef unsigned char uint8_t;
 typedef short int16_t;  // NOLINT
@@ -42,9 +42,9 @@ typedef int int32_t;
 typedef unsigned int uint32_t;
 typedef __int64 int64_t;
 typedef unsigned __int64 uint64_t;
-#else
+#else  // _MSC_VER
 #include <stdint.h>  // for intptr_t
-#endif
+#endif  // _MSC_VER
 
 
 namespace v8 { namespace internal {
@@ -463,8 +463,10 @@ F FUNCTION_CAST(Address addr) {
 #define TRACK_MEMORY(name)
 #endif
 
-// define used for helping GCC to make better inlining.
-#ifdef __GNUC__
+// define used for helping GCC to make better inlining. Don't bother for debug
+// builds. On GCC 3.4.5 using __attribute__((always_inline)) causes compilation
+// errors in debug build.
+#if defined(__GNUC__) && !defined(DEBUG)
 #if (__GNUC__ >= 4)
 #define INLINE(header) inline header  __attribute__((always_inline))
 #else

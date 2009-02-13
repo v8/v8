@@ -834,6 +834,16 @@ class EXPORT String : public Primitive {
    * external string resource.
    */
   static Local<String> NewExternal(ExternalStringResource* resource);
+  
+  /**
+   * Associate an external string resource with this string by transforming it
+   * in place so that existing references to this string in the JavaScript heap
+   * will use the external string resource. The external string resource's
+   * character contents needs to be equivalent to this string.
+   * Returns true if the string has been changed to be an external string.
+   * The string is not modified if the operation fails.
+   */
+  bool MakeExternal(ExternalStringResource* resource);
 
   /**
    * Creates a new external string using the ascii data defined in the given
@@ -844,6 +854,16 @@ class EXPORT String : public Primitive {
    * external string resource.
    */
   static Local<String> NewExternal(ExternalAsciiStringResource* resource);
+  
+  /**
+   * Associate an external string resource with this string by transforming it
+   * in place so that existing references to this string in the JavaScript heap
+   * will use the external string resource. The external string resource's
+   * character contents needs to be equivalent to this string.
+   * Returns true if the string has been changed to be an external string.
+   * The string is not modified if the operation fails.
+   */
+  bool MakeExternal(ExternalAsciiStringResource* resource);
 
   /** Creates an undetectable string from the supplied ascii or utf-8 data.*/
   static Local<String> NewUndetectable(const char* data, int length = -1);
@@ -859,7 +879,7 @@ class EXPORT String : public Primitive {
    public:
     explicit Utf8Value(Handle<v8::Value> obj);
     ~Utf8Value();
-    char* operator*() { return str_; }
+    char* operator*() const { return str_; }
     int length() { return length_; }
    private:
     char* str_;
@@ -878,7 +898,7 @@ class EXPORT String : public Primitive {
    public:
     explicit AsciiValue(Handle<v8::Value> obj);
     ~AsciiValue();
-    char* operator*() { return str_; }
+    char* operator*() const { return str_; }
     int length() { return length_; }
    private:
     char* str_;
@@ -896,7 +916,7 @@ class EXPORT String : public Primitive {
    public:
     explicit Value(Handle<v8::Value> obj);
     ~Value();
-    uint16_t* operator*() { return str_; }
+    uint16_t* operator*() const { return str_; }
     int length() { return length_; }
    private:
     uint16_t* str_;
@@ -1808,23 +1828,6 @@ typedef void (*FailedAccessCheckCallback)(Local<Object> target,
 typedef void (*GCCallback)();
 
 
-// --- E x t e r n a l  S y m b o l  C a l l b a c k ---
-
-/**
- * Callback used to allocate certain V8 symbols as external strings.
- *
- * The data passed to the callback is utf8 encoded.
- *
- * Allocations are not allowed in the callback function, you therefore
- * cannot manipulate objects (set or delete properties for example)
- * since it is possible such operations will result in the allocation
- * of objects.
- */
-typedef String::ExternalStringResource* (*ExternalSymbolCallback)(
-    const char* utf8,
-    size_t length);
-
-
 // --- C o n t e x t  G e n e r a t o r ---
 
 /**
@@ -1925,20 +1928,6 @@ class EXPORT V8 {
   static void SetGlobalGCEpilogueCallback(GCCallback);
 
   /**
-   * Applications can register a callback that will be used when
-   * allocating most of the V8 symbols.  The callback must return an
-   * external string resource that represents the symbols.
-   *
-   * Most often when performing a property lookup the key will be a
-   * symbol.  Allocating symbols as external strings can reduce the
-   * amount of string conversions needed when using interceptors and
-   * accessors.
-   *
-   * \note This is an experimental feature and it might be removed.
-   */
-  static void SetExternalSymbolCallback(ExternalSymbolCallback);
-
-  /**
    * Allows the host application to group objects together. If one
    * object in the group is alive, all objects in the group are alive.
    * After each garbage collection, object groups are removed. It is
@@ -1969,6 +1958,23 @@ class EXPORT V8 {
    * \returns the adjusted value.
    */
   static int AdjustAmountOfExternalAllocatedMemory(int change_in_bytes);
+
+  /**
+   * Suspends recording of tick samples in the profiler.
+   * When the V8 profiling mode is enabled (usually via command line
+   * switches) this function suspends recording of tick samples.
+   * Profiling ticks are discarded until ResumeProfiler() is called.
+   *
+   * See also the --prof and --prof_auto command line switches to
+   * enable V8 profiling.
+   */
+  static void PauseProfiler();
+
+  /**
+   * Resumes recording of tick samples in the profiler.
+   * See also PauseProfiler().
+   */
+  static void ResumeProfiler();
 
  private:
   V8();

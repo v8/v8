@@ -123,6 +123,9 @@ class BreakLocationIterator {
  private:
   void SetDebugBreak();
   void ClearDebugBreak();
+  bool IsDebugBreakAtReturn();
+  void SetDebugBreakAtReturn();
+  void ClearDebugBreakAtReturn();
 
   DISALLOW_COPY_AND_ASSIGN(BreakLocationIterator);
 };
@@ -363,7 +366,7 @@ class Debugger {
   static Handle<Object> MakeNewFunctionEvent(Handle<Object> func,
                                              bool* caught_exception);
   static Handle<Object> MakeCompileEvent(Handle<Script> script,
-                                         Handle<Object> script_function,
+                                         bool before,
                                          bool* caught_exception);
   static void OnDebugBreak(Handle<Object> break_points_hit);
   static void OnException(Handle<Object> exception, bool uncaught);
@@ -373,6 +376,7 @@ class Debugger {
   static void OnNewFunction(Handle<JSFunction> fun);
   static void ProcessDebugEvent(v8::DebugEvent event,
                                 Handle<Object> event_data);
+  static void SetEventListener(Handle<Object> callback, Handle<Object> data);
   static void SetMessageHandler(v8::DebugMessageHandler handler, void* data);
   static void SendMessage(Vector<uint16_t> message);
   static void ProcessCommand(Vector<const uint16_t> command);
@@ -398,6 +402,8 @@ class Debugger {
   static bool is_loading_debugger() { return Debugger::is_loading_debugger_; }
 
  private:
+  static Handle<Object> event_listener_;  // Global handle to listener
+  static Handle<Object> event_listener_data_;
   static bool debugger_active_;  // Are there any active debugger?
   static bool compiling_natives_;  // Are we compiling natives?
   static bool is_loading_debugger_;  // Are we loading the debugger?

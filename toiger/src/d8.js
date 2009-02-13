@@ -79,7 +79,7 @@ const Debug = {};
 
 
 // Debug events which can occour in the V8 JavaScript engine. These originate
-// from the API include file debug.h.
+// from the API include file v8-debug.h.
 Debug.DebugEvent = { Break: 1,
                      Exception: 2,
                      NewFunction: 3,
@@ -99,75 +99,91 @@ Debug.State = {
   currentFrame: kNoFrame,
   currentSourceLine: -1
 }
+var trace_compile = false;  // Tracing all compile events?
 
 
 function DebugEventToText(event) {
-  if (event.eventType() == 1) {
-    // Build the break details.
-    var details = '';
-    if (event.breakPointsHit()) {
-      details += 'breakpoint';
-      if (event.breakPointsHit().length > 1) {
-        details += 's';
-      }
-      details += ' #';
-      for (var i = 0; i < event.breakPointsHit().length; i++) {
-        if (i > 0) {
-          details += ', #';
+  switch (event.eventType()) {
+    case Debug.DebugEvent.Break:
+      // Build the break details.
+      var details = '';
+      if (event.breakPointsHit()) {
+        details += 'breakpoint';
+        if (event.breakPointsHit().length > 1) {
+          details += 's';
         }
-        // Find the break point number. For break points originating from a
-        // script break point display the script break point number.
-        var break_point = event.breakPointsHit()[i];
-        var script_break_point = break_point.script_break_point();
-        if (script_break_point) {
-          details += script_break_point.number();
-        } else {
-          details += break_point.number();
+        details += ' #';
+        for (var i = 0; i < event.breakPointsHit().length; i++) {
+          if (i > 0) {
+            details += ', #';
+          }
+          // Find the break point number. For break points originating from a
+          // script break point display the script break point number.
+          var break_point = event.breakPointsHit()[i];
+          var script_break_point = break_point.script_break_point();
+          if (script_break_point) {
+            details += script_break_point.number();
+          } else {
+            details += break_point.number();
+          }
         }
+      } else {
+        details += 'break';
       }
-    } else {
-      details += 'break';
-    }
-    details += ' in ';
-    details += event.executionState().frame(0).invocationText();
-    details += ' at ';
-    details += event.executionState().frame(0).sourceAndPositionText();
-    details += '\n'
-    if (event.func().script()) {
-      details += FrameSourceUnderline(event.executionState().frame(0));
-    }
-    Debug.State.currentSourceLine =
-        event.executionState().frame(0).sourceLine();
-    Debug.State.currentFrame = 0;
-    return details;
-  } else if (event.eventType() == 2) {
-    var details = '';
-    if (event.uncaught_) {
-      details += 'Uncaught: ';
-    } else {
-      details += 'Exception: ';
-    }
-
-    details += '"';
-    details += event.exception();
-    details += '"';
-    if (event.executionState().frameCount() > 0) {
-      details += '"';
-      details += event.exception();
+      details += ' in ';
+      details += event.executionState().frame(0).invocationText();
       details += ' at ';
       details += event.executionState().frame(0).sourceAndPositionText();
-      details += '\n';
-      details += FrameSourceUnderline(event.executionState().frame(0));
+      details += '\n'
+      if (event.func().script()) {
+        details += FrameSourceUnderline(event.executionState().frame(0));
+      }
       Debug.State.currentSourceLine =
           event.executionState().frame(0).sourceLine();
       Debug.State.currentFrame = 0;
-    } else {
-      details += ' (empty stack)';
-      Debug.State.currentSourceLine = -1;
-      Debug.State.currentFrame = kNoFrame;
-    }
+      return details;
 
-    return details;
+    case Debug.DebugEvent.Exception:
+      var details = '';
+      if (event.uncaught_) {
+        details += 'Uncaught: ';
+      } else {
+        details += 'Exception: ';
+      }
+
+      details += '"';
+      details += event.exception();
+      details += '"';
+      if (event.executionState().frameCount() > 0) {
+        details += '"';
+        details += event.exception();
+        details += ' at ';
+        details += event.executionState().frame(0).sourceAndPositionText();
+        details += '\n';
+        details += FrameSourceUnderline(event.executionState().frame(0));
+        Debug.State.currentSourceLine =
+            event.executionState().frame(0).sourceLine();
+        Debug.State.currentFrame = 0;
+      } else {
+        details += ' (empty stack)';
+        Debug.State.currentSourceLine = -1;
+        Debug.State.currentFrame = kNoFrame;
+      }
+      return details;
+      
+    case Debug.DebugEvent.AfterCompile:
+      if (trace_compile) {
+        details = 'Source ' + event.script().name() + ' compiled:\n'
+        var source = event.script().source();
+        if (!(source[source.length - 1] == '\n')) {
+          details += source;
+        } else {
+          details += source.substring(0, source.length - 1);
+        }
+        return details;
+      } else {
+        return '';
+      }
   }
 
   return 'Unknown debug event ' + event.eventType();
@@ -266,6 +282,14 @@ function DebugRequest(cmd_line) {
       this.request_ = this.dirCommandToJSONRequest_(args);
       break;
 
+    case 'references':
+      this.request_ = this.referencesCommandToJSONRequest_(args);
+      break;
+
+    case 'instances':
+      this.request_ = this.instancesCommandToJSONRequest_(args);
+      break;
+
     case 'source':
       this.request_ = this.sourceCommandToJSONRequest_(args);
       break;
@@ -283,11 +307,17 @@ function DebugRequest(cmd_line) {
       this.request_ = this.clearCommandToJSONRequest_(args);
       break;
 
+    case 'trace':
+      // Return undefined to indicate command handled internally (no JSON).
+      this.request_ = void 0;
+      this.traceCommand_(args);
+      break;
+
     case 'help':
     case '?':
       this.helpCommand_(args);
-      // Return null to indicate no JSON to send (command handled internally). 
-      this.request_ = void 0;  
+      // Return undefined to indicate command handled internally (no JSON).
+      this.request_ = void 0;
       break;
 
     default:
@@ -341,7 +371,7 @@ DebugRequest.prototype.makeEvaluateJSONRequest_ = function(expression) {
   // Check if the expression is a handle id in the form #<handle>#.
   var handle_match = expression.match(/^#([0-9]*)#$/);
   if (handle_match) {
-    // Build an evaluate request.
+    // Build a lookup request.
     var request = this.createRequest('lookup');
     request.arguments = {};
     request.arguments.handle = parseInt(handle_match[1]);
@@ -355,6 +385,21 @@ DebugRequest.prototype.makeEvaluateJSONRequest_ = function(expression) {
   }
 };
 
+
+// Create a JSON request for the references/instances command.
+DebugRequest.prototype.makeReferencesJSONRequest_ = function(handle, type) {
+  // Build a references request.
+  var handle_match = handle.match(/^#([0-9]*)#$/);
+  if (handle_match) {
+    var request = this.createRequest('references');
+    request.arguments = {};
+    request.arguments.type = type;
+    request.arguments.handle = parseInt(handle_match[1]);
+    return request.toJSONProtocol();
+  } else {
+    throw new Error('Invalid object id.');
+  }
+};
 
 
 // Create a JSON request for the continue command.
@@ -483,6 +528,29 @@ DebugRequest.prototype.dirCommandToJSONRequest_ = function(args) {
 };
 
 
+// Create a JSON request for the references command.
+DebugRequest.prototype.referencesCommandToJSONRequest_ = function(args) {
+  // Build an evaluate request from the text command.
+  if (args.length == 0) {
+    throw new Error('Missing object id.');
+  }
+  
+  return this.makeReferencesJSONRequest_(args, 'referencedBy');
+};
+
+
+// Create a JSON request for the instances command.
+DebugRequest.prototype.instancesCommandToJSONRequest_ = function(args) {
+  // Build an evaluate request from the text command.
+  if (args.length == 0) {
+    throw new Error('Missing object id.');
+  }
+  
+  // Build a references request.
+  return this.makeReferencesJSONRequest_(args, 'constructedBy');
+};
+
+
 // Create a JSON request for the source command.
 DebugRequest.prototype.sourceCommandToJSONRequest_ = function(args) {
   // Build a evaluate request from the text command.
@@ -597,7 +665,22 @@ DebugRequest.prototype.clearCommandToJSONRequest_ = function(args) {
 };
 
 
-// Create a JSON request for the break command.
+// Handle the trace command.
+DebugRequest.prototype.traceCommand_ = function(args) {
+  // Process arguments.
+  if (args && args.length > 0) {
+    if (args == 'compile') {
+      trace_compile = !trace_compile;
+      print('Tracing of compiled scripts ' + (trace_compile ? 'on' : 'off'));
+    } else {
+      throw new Error('Invalid trace arguments.');
+    }
+  } else {
+    throw new Error('Invalid trace arguments.');
+  }
+}
+
+// Handle the help command.
 DebugRequest.prototype.helpCommand_ = function(args) {
   // Help os quite simple.
   if (args && args.length > 0) {
@@ -613,12 +696,47 @@ DebugRequest.prototype.helpCommand_ = function(args) {
   print('source [from line [num lines]]');
   print('scripts');
   print('continue');
+  print('trace compile');
   print('help');
 }
 
 
 function formatHandleReference_(value) {
   return '#' + value.handle() + '#';
+}
+
+
+function formatObject_(value, include_properties) {
+  var result = '';
+  result += formatHandleReference_(value);
+  result += ', type: object'
+  result += ', constructor ';
+  var ctor = value.constructorFunctionValue();
+  result += formatHandleReference_(ctor);
+  result += ', __proto__ ';
+  var proto = value.protoObjectValue();
+  result += formatHandleReference_(proto);
+  result += ', ';
+  result += value.propertyCount();
+  result +=  ' properties.';
+  if (include_properties) {
+    result +=  '\n';
+    for (var i = 0; i < value.propertyCount(); i++) {
+      result += '  ';
+      result += value.propertyName(i);
+      result += ': ';
+      var property_value = value.propertyValue(i);
+      if (property_value && property_value.type()) {
+        result += property_value.type();
+      } else {
+        result += '<no type>';
+      }
+      result += ' ';
+      result += formatHandleReference_(property_value);
+      result += '\n';
+    }
+  }
+  return result;
 }
 
 
@@ -681,31 +799,7 @@ function DebugResponseDetails(json_response) {
         } else {
           var value = response.bodyValue();
           if (value.isObject()) {
-            result += formatHandleReference_(value);
-            result += ', type: object'
-            result += ', constructor ';
-            var ctor = value.constructorFunctionValue();
-            result += formatHandleReference_(ctor);
-            result += ', __proto__ ';
-            var proto = value.protoObjectValue();
-            result += formatHandleReference_(proto);
-            result += ', ';
-            result += value.propertyCount();
-            result +=  ' properties.\n';
-            for (var i = 0; i < value.propertyCount(); i++) {
-              result += '  ';
-              result += value.propertyName(i);
-              result += ': ';
-              var property_value = value.propertyValue(i);
-              if (property_value && property_value.type()) {
-                result += property_value.type();
-              } else {
-                result += '<no type>';
-              }
-              result += ' ';
-              result += formatHandleReference_(property_value);
-              result += '\n';
-            }
+            result += formatObject_(value, true);
           } else {
             result += 'type: ';
             result += value.type();
@@ -721,6 +815,18 @@ function DebugResponseDetails(json_response) {
             }
             result += '\n';
           }
+        }
+        details.text = result;
+        break;
+
+      case 'references':
+        var count = body.length;
+        result += 'found ' + count + ' objects';
+        result += '\n';
+        for (var i = 0; i < count; i++) {
+          var value = response.bodyValue(i);
+          result += formatObject_(value, false);
+          result += '\n';
         }
         details.text = result;
         break;
@@ -877,8 +983,12 @@ ProtocolPackage.prototype.body = function() {
 }
 
 
-ProtocolPackage.prototype.bodyValue = function() {
-  return new ProtocolValue(this.packet_.body, this);
+ProtocolPackage.prototype.bodyValue = function(index) {
+  if (IS_UNDEFINED(index)) {
+    return new ProtocolValue(this.packet_.body, this);
+  } else {
+    return new ProtocolValue(this.packet_.body[index], this);
+  }
 }
 
 

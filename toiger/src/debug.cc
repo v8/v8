@@ -285,15 +285,8 @@ void BreakLocationIterator::SetDebugBreak() {
   }
 
   if (RelocInfo::IsJSReturn(rmode())) {
-    // This path is currently only used on IA32 as JSExitFrame on ARM uses a
-    // stub.
-    // Patch the JS frame exit code with a debug break call. See
-    // VisitReturnStatement and ExitJSFrame in codegen-ia32.cc for the
-    // precise return instructions sequence.
-    ASSERT(Debug::kIa32JSReturnSequenceLength >=
-           Debug::kIa32CallInstructionLength);
-    rinfo()->patch_code_with_call(Debug::debug_break_return_entry()->entry(),
-        Debug::kIa32JSReturnSequenceLength - Debug::kIa32CallInstructionLength);
+    // Patch the frame exit code with a break point.
+    SetDebugBreakAtReturn();
   } else {
     // Patch the original code with the current address as the current address
     // might have changed by the inline caching since the code was copied.
@@ -310,9 +303,8 @@ void BreakLocationIterator::SetDebugBreak() {
 
 void BreakLocationIterator::ClearDebugBreak() {
   if (RelocInfo::IsJSReturn(rmode())) {
-    // Restore the JS frame exit code.
-    rinfo()->patch_code(original_rinfo()->pc(),
-                        Debug::kIa32JSReturnSequenceLength);
+    // Restore the frame exit code.
+    ClearDebugBreakAtReturn();
   } else {
     // Patch the code to the original invoke.
     rinfo()->set_target_address(original_rinfo()->target_address());
@@ -359,12 +351,7 @@ bool BreakLocationIterator::HasBreakPoint() {
 // Check whether there is a debug break at the current position.
 bool BreakLocationIterator::IsDebugBreak() {
   if (RelocInfo::IsJSReturn(rmode())) {
-    // This is IA32 specific but works as long as the ARM version
-    // still uses a stub for JSExitFrame.
-    //
-    // TODO(1240753): Make the test architecture independent or split
-    // parts of the debugger into architecture dependent files.
-    return (*(rinfo()->pc()) == 0xE8);
+    return IsDebugBreakAtReturn();
   } else {
     return Debug::IsDebugBreak(rinfo()->target_address());
   }
@@ -609,10 +596,8 @@ void Debug::Unload() {
 
 
 void Debug::Iterate(ObjectVisitor* v) {
-#define VISIT(field) v->VisitPointer(bit_cast<Object**, Code**>(&(field)));
-  VISIT(debug_break_return_entry_);
-  VISIT(debug_break_return_);
-#undef VISIT
+  v->VisitPointer(bit_cast<Object**, Code**>(&(debug_break_return_entry_)));
+  v->VisitPointer(bit_cast<Object**, Code**>(&(debug_break_return_)));
 }
 
 
@@ -1327,6 +1312,8 @@ void Debug::ClearMirrorCache() {
 }
 
 
+Handle<Object> Debugger::event_listener_ = Handle<Object>();
+Handle<Object> Debugger::event_listener_data_ = Handle<Object>();
 bool Debugger::debugger_active_ = false;
 bool Debugger::compiling_natives_ = false;
 bool Debugger::is_loading_debugger_ = false;
@@ -1406,16 +1393,17 @@ Handle<Object> Debugger::MakeNewFunctionEvent(Handle<Object> function,
 
 
 Handle<Object> Debugger::MakeCompileEvent(Handle<Script> script,
-                                          Handle<Object> script_function,
+                                          bool before,
                                           bool* caught_exception) {
   // Create the compile event object.
   Handle<Object> exec_state = MakeExecutionState(caught_exception);
-  Handle<Object> script_source(script->source());
-  Handle<Object> script_name(script->name());
+  Handle<Object> script_wrapper = GetScriptWrapper(script);
   const int argc = 3;
-  Object** argv[argc] = { script_source.location(),
-                          script_name.location(),
-                          script_function.location() };
+  Object** argv[argc] = { exec_state.location(),
+                          script_wrapper.location(),
+                          before ? Factory::true_value().location() :
+                                   Factory::false_value().location() };
+
   return MakeJSObject(CStrVector("MakeCompileEvent"),
                       argc,
                       argv,
@@ -1509,9 +1497,7 @@ void Debugger::OnBeforeCompile(Handle<Script> script) {
 
   // Create the event data object.
   bool caught_exception = false;
-  Handle<Object> event_data = MakeCompileEvent(script,
-                                               Factory::undefined_value(),
-                                               &caught_exception);
+  Handle<Object> event_data = MakeCompileEvent(script, true, &caught_exception);
   // Bail out and don't call debugger if exception.
   if (caught_exception) {
     return;
@@ -1531,6 +1517,9 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
 
   // No more to do if not debugging.
   if (!debugger_active()) return;
+
+  // Store whether in debugger before entering debugger.
+  bool in_debugger = Debug::InDebugger();
 
   // Enter the debugger.
   EnterDebugger debugger;
@@ -1564,12 +1553,12 @@ void Debugger::OnAfterCompile(Handle<Script> script, Handle<JSFunction> fun) {
     return;
   }
   // Bail out based on state or if there is no listener for this event
-  if (Debug::InDebugger()) return;
+  if (in_debugger) return;
   if (!Debugger::EventActive(v8::AfterCompile)) return;
 
   // Create the compile state object.
   Handle<Object> event_data = MakeCompileEvent(script,
-                                               Factory::undefined_value(),
+                                               false,
                                                &caught_exception);
   // Bail out and don't call debugger if exception.
   if (caught_exception) {
@@ -1617,34 +1606,29 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
   if (message_thread_ != NULL) {
     message_thread_->DebugEvent(event, exec_state, event_data);
   }
-  // Notify registered debug event listeners. The list can contain both C and
-  // JavaScript functions.
-  v8::NeanderArray listeners(Factory::debug_event_listeners());
-  int length = listeners.length();
-  for (int i = 0; i < length; i++) {
-    if (listeners.get(i)->IsUndefined()) continue;   // Skip deleted ones.
-    v8::NeanderObject listener(JSObject::cast(listeners.get(i)));
-    Handle<Object> callback_data(listener.get(1));
-    if (listener.get(0)->IsProxy()) {
+  // Notify registered debug event listener. This can be either a C or a
+  // JavaScript function.
+  if (!event_listener_.is_null()) {
+    if (event_listener_->IsProxy()) {
       // C debug event listener.
-      Handle<Proxy> callback_obj(Proxy::cast(listener.get(0)));
+      Handle<Proxy> callback_obj(Handle<Proxy>::cast(event_listener_));
       v8::DebugEventCallback callback =
             FUNCTION_CAST<v8::DebugEventCallback>(callback_obj->proxy());
       callback(event,
                v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
                v8::Utils::ToLocal(Handle<JSObject>::cast(event_data)),
-               v8::Utils::ToLocal(callback_data));
+               v8::Utils::ToLocal(Handle<Object>::cast(event_listener_data_)));
     } else {
       // JavaScript debug event listener.
-      ASSERT(listener.get(0)->IsJSFunction());
-      Handle<JSFunction> fun(JSFunction::cast(listener.get(0)));
+      ASSERT(event_listener_->IsJSFunction());
+      Handle<JSFunction> fun(Handle<JSFunction>::cast(event_listener_));
 
       // Invoke the JavaScript debug event listener.
       const int argc = 4;
       Object** argv[argc] = { Handle<Object>(Smi::FromInt(event)).location(),
                               exec_state.location(),
                               event_data.location(),
-                              callback_data.location() };
+                              event_listener_data_.location() };
       Handle<Object> result = Execution::TryCall(fun, Top::global(),
                                                  argc, argv, &caught_exception);
       if (caught_exception) {
@@ -1658,11 +1642,42 @@ void Debugger::ProcessDebugEvent(v8::DebugEvent event,
 }
 
 
+void Debugger::SetEventListener(Handle<Object> callback,
+                                Handle<Object> data) {
+  HandleScope scope;
+
+  // Clear the global handles for the event listener and the event listener data
+  // object.
+  if (!event_listener_.is_null()) {
+    GlobalHandles::Destroy(
+        reinterpret_cast<Object**>(event_listener_.location()));
+    event_listener_ = Handle<Object>();
+  }
+  if (!event_listener_data_.is_null()) {
+    GlobalHandles::Destroy(
+        reinterpret_cast<Object**>(event_listener_data_.location()));
+    event_listener_data_ = Handle<Object>();
+  }
+
+  // If there is a new debug event listener register it together with its data
+  // object.
+  if (!callback->IsUndefined() && !callback->IsNull()) {
+    event_listener_ = Handle<Object>::cast(GlobalHandles::Create(*callback));
+    if (data.is_null()) {
+      data = Factory::undefined_value();
+    }
+    event_listener_data_ = Handle<Object>::cast(GlobalHandles::Create(*data));
+  }
+
+  UpdateActiveDebugger();
+}
+
+
 void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
   debug_message_handler_ = handler;
   debug_message_handler_data_ = data;
   if (!message_thread_) {
-    message_thread_  = new DebugMessageThread();
+    message_thread_ = new DebugMessageThread();
     message_thread_->Start();
   }
   UpdateActiveDebugger();
@@ -1691,17 +1706,12 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command) {
 
 
 void Debugger::UpdateActiveDebugger() {
-  v8::NeanderArray listeners(Factory::debug_event_listeners());
-  int length = listeners.length();
-  bool active_listener = false;
-  for (int i = 0; i < length && !active_listener; i++) {
-    active_listener = !listeners.get(i)->IsUndefined();
-  }
-  set_debugger_active((Debugger::message_thread_ != NULL &&
-                       Debugger::debug_message_handler_ != NULL) ||
-                       active_listener);
-  if (!debugger_active() && message_thread_)
+  set_debugger_active((message_thread_ != NULL &&
+                       debug_message_handler_ != NULL) ||
+                       !event_listener_.is_null());
+  if (!debugger_active() && message_thread_) {
     message_thread_->OnDebuggerInactive();
+  }
 }
 
 

@@ -99,6 +99,12 @@ int main(int argc, char* argv[]) {
 }
 
 
+// Extracts a C string from a V8 Utf8Value.
+const char* ToCString(const v8::String::Utf8Value& value) {
+  return *value ? *value : "<string conversion failed>";
+}
+
+
 // The callback that is invoked by v8 whenever the JavaScript 'print'
 // function is called.  Prints its arguments on stdout separated by
 // spaces and ending with a newline.
@@ -112,7 +118,8 @@ v8::Handle<v8::Value> Print(const v8::Arguments& args) {
       printf(" ");
     }
     v8::String::Utf8Value str(args[i]);
-    printf("%s", *str);
+    const char* cstr = ToCString(str);
+    printf("%s", cstr);
   }
   printf("\n");
   return v8::Undefined();
@@ -126,6 +133,9 @@ v8::Handle<v8::Value> Load(const v8::Arguments& args) {
   for (int i = 0; i < args.Length(); i++) {
     v8::HandleScope handle_scope;
     v8::String::Utf8Value file(args[i]);
+    if (*file == NULL) {
+      return v8::ThrowException(v8::String::New("Error loading file"));
+    }
     v8::Handle<v8::String> source = ReadFile(*file);
     if (source.IsEmpty()) {
       return v8::ThrowException(v8::String::New("Error loading file"));
@@ -220,7 +230,8 @@ bool ExecuteString(v8::Handle<v8::String> source,
         // If all went well and the result wasn't undefined then print
         // the returned value.
         v8::String::Utf8Value str(result);
-        printf("%s\n", *str);
+        const char* cstr = ToCString(str);
+        printf("%s\n", cstr);
       }
       return true;
     }
@@ -231,19 +242,22 @@ bool ExecuteString(v8::Handle<v8::String> source,
 void ReportException(v8::TryCatch* try_catch) {
   v8::HandleScope handle_scope;
   v8::String::Utf8Value exception(try_catch->Exception());
+  const char* exception_string = ToCString(exception);
   v8::Handle<v8::Message> message = try_catch->Message();
   if (message.IsEmpty()) {
     // V8 didn't provide any extra information about this error; just
     // print the exception.
-    printf("%s\n", *exception);
+    printf("%s\n", exception_string);
   } else {
     // Print (filename):(line number): (message).
     v8::String::Utf8Value filename(message->GetScriptResourceName());
+    const char* filename_string = ToCString(filename);
     int linenum = message->GetLineNumber();
-    printf("%s:%i: %s\n", *filename, linenum, *exception);
+    printf("%s:%i: %s\n", filename_string, linenum, exception_string);
     // Print line of source code.
     v8::String::Utf8Value sourceline(message->GetSourceLine());
-    printf("%s\n", *sourceline);
+    const char* sourceline_string = ToCString(sourceline);
+    printf("%s\n", sourceline_string);
     // Print wavy underline (GetUnderline is deprecated).
     int start = message->GetStartColumn();
     for (int i = 0; i < start; i++) {

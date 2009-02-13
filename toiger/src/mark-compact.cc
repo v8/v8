@@ -287,7 +287,7 @@ class MarkingVisitor : public ObjectVisitor {
 
   void VisitDebugTarget(RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()) &&
-           rinfo->is_call_instruction());
+           rinfo->IsCallInstruction());
     HeapObject* code = CodeFromDerivedPointer(rinfo->call_address());
     MarkCompactCollector::MarkObject(code);
     // When compacting we convert the call to a real object pointer.
@@ -390,6 +390,34 @@ class SymbolTableCleaner : public ObjectVisitor {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
       if ((*p)->IsHeapObject() && !HeapObject::cast(*p)->IsMarked()) {
+        // Check if the symbol being pruned is an external symbol. We need to
+        // delete the associated external data as this symbol is going away.
+
+        // Since the object is not marked we can access its map word safely
+        // without having to worry about marking bits in the object header.
+        Map* map = HeapObject::cast(*p)->map();
+        // Since no objects have yet been moved we can safely access the map of
+        // the object.
+        uint32_t type = map->instance_type();
+        bool is_external = (type & kStringRepresentationMask) ==
+                           kExternalStringTag;
+        if (is_external) {
+          bool is_two_byte = (type & kStringEncodingMask) == kTwoByteStringTag;
+          byte* resource_addr = reinterpret_cast<byte*>(*p) +
+                                ExternalString::kResourceOffset -
+                                kHeapObjectTag;
+          if (is_two_byte) {
+            v8::String::ExternalStringResource* resource =
+                *reinterpret_cast<v8::String::ExternalStringResource**>
+                (resource_addr);
+            delete resource;
+          } else {
+            v8::String::ExternalAsciiStringResource* resource =
+                *reinterpret_cast<v8::String::ExternalAsciiStringResource**>
+                (resource_addr);
+            delete resource;
+          }
+        }
         // Set the entry to null_value (as deleted).
         *p = Heap::null_value();
         pointers_removed_++;
@@ -1111,6 +1139,7 @@ static void SweepSpace(PagedSpace* space, DeallocateFunction dealloc) {
         }
       } else {
         if (object->IsCode()) {
+          // Notify the logger that compiled code has been collected.
           LOG(CodeDeleteEvent(Code::cast(object)->address()));
         }
         if (is_previous_alive) {  // Transition from live to free.
@@ -1678,7 +1707,7 @@ int MarkCompactCollector::RelocateCodeObject(HeapObject* obj) {
   if (copied_to->IsCode()) {
     // may also update inline cache target.
     Code::cast(copied_to)->Relocate(new_addr - old_addr);
-    // Notify the logger that compile code has moved.
+    // Notify the logger that compiled code has moved.
     LOG(CodeMoveEvent(old_addr, new_addr));
   }
 

@@ -6,6 +6,11 @@ are:
     by the University of Cambridge and Apple Inc. and released under a
     2-clause BSD license.
 
+  - PCRE test suite, located in test/mjsunit/regexp-pcre.js.  This is
+    based on the test suite from PCRE-7.3, which is copyrighted by the
+    University of Cambridge and Google, Inc.  The copyright notive and
+    license are embedded in regexp-pcre.js.
+
   - Dtoa, located under third_party/dtoa.  This code is copyrighted by
     David M. Gay and released under an MIT license.
 
@@ -15,10 +20,14 @@ are:
     This code is copyrighted by Sun Microsystems Inc. and released
     under a 3-clause BSD license.
 
+  - JSMin JavaScript minifier, located at tools/jsmin.py.  This code is
+    copyrighted by Douglas Crockford and Baruch Even and released under
+    an MIT license.
+
 These libraries have their own licenses; we recommend you read them,
 as their terms may differ from the terms below.
 
-Copyright 2006-2008, Google Inc. All rights reserved.
+Copyright 2006-2009, Google Inc. All rights reserved.
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are
 met:
