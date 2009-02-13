@@ -5232,6 +5232,7 @@ Result DeferredInlineBinaryOperation::GenerateInlineCode() {
           left = answer;
         }
       } else if (left.reg().is(ecx)) {
+        generator()->frame()->Spill(left.reg());
         __ mov(left.reg(), Operand(right.reg()));
         right = left;
         left = answer;  // Use copy of left in answer as left.
