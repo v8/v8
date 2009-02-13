@@ -37,7 +37,7 @@ namespace v8 { namespace internal {
 // A debug break in the frame exit code is identified by a call instruction.
 bool BreakLocationIterator::IsDebugBreakAtReturn() {
   // Opcode E8 is call.
-  return (*(rinfo()->pc()) == 0xE8);
+  return Debug::IsDebugBreakAtReturn(rinfo());
 }
 
 
@@ -56,6 +56,14 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
 void BreakLocationIterator::ClearDebugBreakAtReturn() {
   rinfo()->PatchCode(original_rinfo()->pc(),
                      Debug::kIa32JSReturnSequenceLength);
+}
+
+
+// Check whether the JS frame exit code has been patched with a debug break.
+bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
+  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
+  // Opcode E8 is call.
+  return (*(rinfo->pc()) == 0xE8);
 }
 
 

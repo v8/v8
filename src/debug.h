@@ -89,6 +89,7 @@ class BreakLocationIterator {
   bool HasBreakPoint();
   bool IsDebugBreak();
   Object* BreakPointObjects();
+  void ClearAllDebugBreak();
 
 
   inline int code_position() { return pc() - debug_info_->code()->entry(); }
@@ -172,6 +173,7 @@ class Debug {
                             int source_position,
                             Handle<Object> break_point_object);
   static void ClearBreakPoint(Handle<Object> break_point_object);
+  static void ClearAllBreakPoints();
   static void FloodWithOneShot(Handle<SharedFunctionInfo> shared);
   static void FloodHandlerWithOneShot();
   static void ChangeBreakOnException(ExceptionBreakType type, bool enable);
@@ -186,6 +188,7 @@ class Debug {
   static bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
 
   static bool IsDebugBreak(Address addr);
+  static bool IsDebugBreakAtReturn(RelocInfo* rinfo);
 
   // Check whether a code stub with the specified major key is a possible break
   // point location.
@@ -257,6 +260,7 @@ class Debug {
 
   friend class Debugger;
   friend Handle<FixedArray> GetDebuggedFunctions();  // Found in test-debug.cc
+  friend void CheckDebuggerUnloaded(bool);  // Found in test-debug.cc
 
   // Threading support.
   static char* ArchiveDebug(char* to);
