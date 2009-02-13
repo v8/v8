@@ -226,19 +226,46 @@ void JumpTarget::ComputeEntryFrame() {
       // It is already recorded as a memory element.
       if (is_synced) continue;
 
-      // Look for an available register.
-      int reg_code = no_reg.code_;
-      for (int j = 0; j < RegisterFile::kNumRegisters; j++) {
-        if (!frame_registers.is_used(j)) {
-          reg_code = j;
-          break;
+      // Choose an available register.  Prefer ones that the element
+      // is already occupying on some reaching frame.
+      RegisterFile candidate_registers;
+      int max_count = kMinInt;
+      int best_reg_code = no_reg.code_;
+
+      // Consider the initial frame.
+      FrameElement element = initial_frame->elements_[i];
+      if (element.is_register() &&
+          !frame_registers.is_used(element.reg())) {
+        candidate_registers.Use(element.reg());
+        max_count = 1;
+        best_reg_code = element.reg().code();
+      }
+      // Consider the other frames.
+      for (int j = start_index; j < reaching_frames_.length(); j++) {
+        element = reaching_frames_[j]->elements_[i];
+        if (element.is_register() &&
+            !frame_registers.is_used(element.reg())) {
+          candidate_registers.Use(element.reg());
+          if (candidate_registers.count(element.reg()) > max_count) {
+            max_count = candidate_registers.count(element.reg());
+            best_reg_code = element.reg().code();
+          }
+        }
+      }
+      // If there was no preferred choice consider any free register.
+      if (best_reg_code == no_reg.code_) {
+        for (int j = 0; j < RegisterFile::kNumRegisters; j++) {
+          if (!frame_registers.is_used(j)) {
+            best_reg_code = j;
+            break;
+          }
         }
       }
 
-      // If there was an available register, use it.  If not, the
-      // element is already recorded as in memory.
-      if (reg_code != no_reg.code_) {
-        Register reg = { reg_code };
+      // If there was a register choice, use it.  If not do nothing
+      // (the element is already recorded as in memory)
+      if (best_reg_code != no_reg.code_) {
+        Register reg = { best_reg_code };
         frame_registers.Use(reg);
         entry_frame_->elements_[i] =
             FrameElement::RegisterElement(reg,
