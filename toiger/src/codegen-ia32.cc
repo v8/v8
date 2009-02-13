@@ -3124,58 +3124,63 @@ class DeferredObjectLiteral: public DeferredCode {
 
 
 void DeferredObjectLiteral::Generate() {
-  // The argument is actually passed in ecx.
-  enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope(generator());
-  // If the entry is undefined we call the runtime system to compute
-  // the literal.
+  Result literals(generator());
+  enter()->Bind(&literals);
+  // Since the entry is undefined we call the runtime system to
+  // compute the literal.
 
+  VirtualFrame* frame = generator()->frame();
   // Literal array (0).
-  generator()->frame()->EmitPush(ecx);
+  frame->Push(&literals);
   // Literal index (1).
-  generator()->frame()->EmitPush(
-      Immediate(Smi::FromInt(node_->literal_index())));
+  frame->Push(Smi::FromInt(node_->literal_index()));
   // Constant properties (2).
-  generator()->frame()->EmitPush(Immediate(node_->constant_properties()));
-  generator()->frame()->CallRuntime(Runtime::kCreateObjectLiteralBoilerplate,
-                                    3);
-  __ mov(ebx, Operand(eax));
-  // The result is actually returned in ebx.
-  exit()->Jump();
+  frame->Push(node_->constant_properties());
+  Result boilerplate =
+      frame->CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
+  exit()->Jump(&boilerplate);
 }
 
 
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ObjectLiteral");
   DeferredObjectLiteral* deferred = new DeferredObjectLiteral(this, node);
 
-  // Retrieve the literal array and check the allocated entry.
-
-  // Load the function of this activation.
-  __ mov(ecx, frame_->Function());
+  // Retrieve the literals array and check the allocated entry.  Begin
+  // with a writable copy of the function of this activation in a
+  // register.
+  frame_->PushFunction();
+  Result literals = frame_->Pop();
+  literals.ToRegister();
+  frame_->Spill(literals.reg());
 
   // Load the literals array of the function.
-  __ mov(ecx, FieldOperand(ecx, JSFunction::kLiteralsOffset));
+  __ mov(literals.reg(),
+         FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
 
   // Load the literal at the ast saved index.
   int literal_offset =
       FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
-  __ mov(ebx, FieldOperand(ecx, literal_offset));
+  Result boilerplate = allocator_->Allocate();
+  ASSERT(boilerplate.is_valid());
+  __ mov(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
 
   // Check whether we need to materialize the object literal boilerplate.
-  // If so, jump to the deferred code.
-  __ cmp(ebx, Factory::undefined_value());
-  deferred->enter()->Branch(equal, not_taken);
-  deferred->exit()->Bind();
+  // If so, jump to the deferred code passing the literals array.
+  __ cmp(boilerplate.reg(), Factory::undefined_value());
+  deferred->enter()->Branch(equal, &literals, not_taken);
 
-  // Push the literal.
-  frame_->EmitPush(ebx);
+  literals.Unuse();
+  // The deferred code returns the boilerplate object.
+  deferred->exit()->Bind(&boilerplate);
+
+  // Push the boilerplate object.
+  frame_->Push(&boilerplate);
   // Clone the boilerplate object.
-  frame_->CallRuntime(Runtime::kCloneObjectLiteralBoilerplate, 1);
-  // Push the new cloned literal object as the result.
-  frame_->EmitPush(eax);
-
+  Result clone =
+      frame_->CallRuntime(Runtime::kCloneObjectLiteralBoilerplate, 1);
+  // Push the newly cloned literal object as the result.
+  frame_->Push(&clone);
 
   for (int i = 0; i < node->properties()->length(); i++) {
     ObjectLiteral::Property* property = node->properties()->at(i);
@@ -3185,53 +3190,51 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
         Handle<Object> key(property->key()->handle());
         Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
         if (key->IsSymbol()) {
-          __ mov(eax, frame_->Top());
-          frame_->EmitPush(eax);
-          LoadAndSpill(property->value());
-          frame_->EmitPop(eax);
-          __ Set(ecx, Immediate(key));
-          Result name = allocator()->Allocate(ecx);
+          // Duplicate the object as the IC receiver.
+          frame_->Dup();
+          Load(property->value());
+          Result value = frame_->Pop();
+          value.ToRegister(eax);
+
+          Result name = allocator_->Allocate(ecx);
           ASSERT(name.is_valid());
-          Result value = allocator()->Allocate(eax);
-          ASSERT(value.is_valid());
-          frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, &value, &name, 0);
+          __ Set(name.reg(), Immediate(key));
+          Result ignored =
+              frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET,
+                                     &value, &name, 0);
+          // Drop the duplicated receiver and ignore the result.
           frame_->Drop();
-          // Ignore result.
           break;
         }
         // Fall through
       }
       case ObjectLiteral::Property::PROTOTYPE: {
-        __ mov(eax, frame_->Top());
-        frame_->EmitPush(eax);
-        LoadAndSpill(property->key());
-        LoadAndSpill(property->value());
-        frame_->CallRuntime(Runtime::kSetProperty, 3);
-        // Ignore result.
+        // Duplicate the object as an argument to the runtime call.
+        frame_->Dup();
+        Load(property->key());
+        Load(property->value());
+        Result ignored = frame_->CallRuntime(Runtime::kSetProperty, 3);
+        // Ignore the result.
         break;
       }
       case ObjectLiteral::Property::SETTER: {
-        // Duplicate the resulting object on the stack. The runtime
-        // function will pop the three arguments passed in.
-        __ mov(eax, frame_->Top());
-        frame_->EmitPush(eax);
-        LoadAndSpill(property->key());
-        frame_->EmitPush(Immediate(Smi::FromInt(1)));
-        LoadAndSpill(property->value());
-        frame_->CallRuntime(Runtime::kDefineAccessor, 4);
-        // Ignore result.
+        // Duplicate the object as an argument to the runtime call.
+        frame_->Dup();
+        Load(property->key());
+        frame_->Push(Smi::FromInt(1));
+        Load(property->value());
+        Result ignored = frame_->CallRuntime(Runtime::kDefineAccessor, 4);
+        // Ignore the result.
         break;
       }
       case ObjectLiteral::Property::GETTER: {
-        // Duplicate the resulting object on the stack. The runtime
-        // function will pop the three arguments passed in.
-        __ mov(eax, frame_->Top());
-        frame_->EmitPush(eax);
-        LoadAndSpill(property->key());
-        frame_->EmitPush(Immediate(Smi::FromInt(0)));
-        LoadAndSpill(property->value());
-        frame_->CallRuntime(Runtime::kDefineAccessor, 4);
-        // Ignore result.
+        // Duplicate the object as an argument to the runtime call.
+        frame_->Dup();
+        Load(property->key());
+        frame_->Push(Smi::FromInt(0));
+        Load(property->value());
+        Result ignored = frame_->CallRuntime(Runtime::kDefineAccessor, 4);
+        // Ignore the result.
         break;
       }
       default: UNREACHABLE();
