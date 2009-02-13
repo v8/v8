@@ -381,6 +381,10 @@ DebugRequest.prototype.makeEvaluateJSONRequest_ = function(expression) {
     var request = this.createRequest('evaluate');
     request.arguments = {};
     request.arguments.expression = expression;
+    // Request a global evaluation if there is no current frame.
+    if (Debug.State.currentFrame == kNoFrame) {
+      request.arguments.global = true;
+    }
     return request.toJSONProtocol();
   }
 };
@@ -795,7 +799,7 @@ function DebugResponseDetails(json_response) {
       case 'evaluate':
       case 'lookup':
         if (last_cmd == 'p' || last_cmd == 'print') {
-          details.text =  body.text;
+          result = body.text;
         } else {
           var value = response.bodyValue();
           if (value.isObject()) {
@@ -984,10 +988,10 @@ ProtocolPackage.prototype.body = function() {
 
 
 ProtocolPackage.prototype.bodyValue = function(index) {
-  if (IS_UNDEFINED(index)) {
-    return new ProtocolValue(this.packet_.body, this);
-  } else {
+  if (index) {
     return new ProtocolValue(this.packet_.body[index], this);
+  } else {
+    return new ProtocolValue(this.packet_.body, this);
   }
 }
 

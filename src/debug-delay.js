@@ -1421,6 +1421,11 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
     disable_break = true;
   }
 
+  // No frames no evaluate in frame.
+  if (this.exec_state_.frameCount() == 0) {
+    return response.failed('No frames');
+  }
+
   // Check whether a frame was specified.
   if (!IS_UNDEFINED(frame)) {
     var frame_number = %ToNumber(frame);
