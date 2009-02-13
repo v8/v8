@@ -129,9 +129,6 @@ class VirtualFrame : public Malloced {
   // us clobbered.
   void AllocateStackSlots(int count);
 
-  // The current top of the expression stack as an assembly operand.
-  Operand Top() const { return Operand(esp, 0); }
-
   // An element of the expression stack as an assembly operand.
   Operand ElementAt(int index) const {
     return Operand(esp, index * kPointerSize);
@@ -148,7 +145,7 @@ class VirtualFrame : public Malloced {
   }
 
   void PushElementAt(int index) {
-    LoadFrameSlotAt(elements_.length() - index - 1);
+    PushFrameSlotAt(elements_.length() - index - 1);
   }
 
   // A frame-allocated local as an assembly operand.
@@ -159,8 +156,8 @@ class VirtualFrame : public Malloced {
   }
 
   // Push a copy of the value of a local frame slot on top of the frame.
-  void LoadLocalAt(int index) {
-    LoadFrameSlotAt(local0_index() + index);
+  void PushLocalAt(int index) {
+    PushFrameSlotAt(local0_index() + index);
   }
 
   // Push the value of a local frame slot on top of the frame and invalidate
@@ -176,14 +173,11 @@ class VirtualFrame : public Malloced {
     StoreToFrameSlotAt(local0_index() + index);
   }
 
-  // The function frame slot.
-  Operand Function() const { return Operand(ebp, kFunctionOffset); }
-
   // Push the address of the receiver slot on the frame.
   void PushReceiverSlotAddress();
 
   // Push the function on top of the frame.
-  void PushFunction() { LoadFrameSlotAt(function_index()); }
+  void PushFunction() { PushFrameSlotAt(function_index()); }
 
   // Save the value of the esi register to the context frame slot.
   void SaveContextRegister();
@@ -200,8 +194,8 @@ class VirtualFrame : public Malloced {
   }
 
   // Push a copy of the value of a parameter frame slot on top of the frame.
-  void LoadParameterAt(int index) {
-    LoadFrameSlotAt(param0_index() + index);
+  void PushParameterAt(int index) {
+    PushFrameSlotAt(param0_index() + index);
   }
 
   // Push the value of a paramter frame slot on top of the frame and
@@ -270,7 +264,7 @@ class VirtualFrame : public Malloced {
   void Drop() { Drop(1); }
 
   // Duplicate the top element of the frame.
-  void Dup() { LoadFrameSlotAt(elements_.length() - 1); }
+  void Dup() { PushFrameSlotAt(elements_.length() - 1); }
 
   // Pop an element from the top of the expression stack.  Returns a
   // Result, which may be a constant or a register.
@@ -394,7 +388,7 @@ class VirtualFrame : public Malloced {
 
   // Push a copy of a frame slot (typically a local or parameter) on top of
   // the frame.
-  void LoadFrameSlotAt(int index);
+  void PushFrameSlotAt(int index);
 
   // Push a the value of a frame slot (typically a local or parameter) on
   // top of the frame and invalidate the slot.

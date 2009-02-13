@@ -2883,26 +2883,31 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // Const slots may contain 'the hole' value (the constant hasn't been
     // initialized yet) which needs to be converted into the 'undefined'
     // value.
+    //
+    // We currently spill the virtual frame because constants use the
+    // potentially unsafe direct-frame access of SlotOperand.
+    VirtualFrame::SpilledScope spilled_scope(this);
     Comment cmnt(masm_, "[ Load const");
     JumpTarget exit(this);
-    Result temp = allocator_->Allocate();
-    ASSERT(temp.is_valid());
-    __ mov(temp.reg(), SlotOperand(slot, temp.reg()));
-    __ cmp(temp.reg(), Factory::the_hole_value());
-    exit.Branch(not_equal, &temp);
-    __ mov(temp.reg(), Factory::undefined_value());
-    exit.Bind(&temp);
-    frame_->Push(&temp);
+    __ mov(ecx, SlotOperand(slot, ecx));
+    __ cmp(ecx, Factory::the_hole_value());
+    exit.Branch(not_equal);
+    __ mov(ecx, Factory::undefined_value());
+    exit.Bind();
+    frame_->EmitPush(ecx);
 
   } else if (slot->type() == Slot::PARAMETER) {
-    frame_->LoadParameterAt(slot->index());
+    frame_->PushParameterAt(slot->index());
 
   } else if (slot->type() == Slot::LOCAL) {
-    frame_->LoadLocalAt(slot->index());
+    frame_->PushLocalAt(slot->index());
 
   } else {
     // The other remaining slot types (LOOKUP and GLOBAL) cannot reach
     // here.
+    //
+    // The use of SlotOperand below is safe for an unspilled frame
+    // because it will always be a context slot.
     ASSERT(slot->type() == Slot::CONTEXT);
     Result temp = allocator_->Allocate();
     ASSERT(temp.is_valid());
@@ -2954,12 +2959,14 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       // Only the first const initialization must be executed (the slot
       // still contains 'the hole' value). When the assignment is executed,
       // the code is identical to a normal store (see below).
+      //
+      // We spill the frame in the code below because the direct-frame
+      // access of SlotOperand is potentially unsafe with an unspilled
+      // frame.
+      VirtualFrame::SpilledScope spilled_scope(this);
       Comment cmnt(masm_, "[ Init const");
-      Result temp = allocator_->Allocate();
-      ASSERT(temp.is_valid());
-      __ mov(temp.reg(), SlotOperand(slot, temp.reg()));
-      __ cmp(temp.reg(), Factory::the_hole_value());
-      temp.Unuse();
+      __ mov(ecx, SlotOperand(slot, ecx));
+      __ cmp(ecx, Factory::the_hole_value());
       exit.Branch(not_equal);
     }
 
@@ -2976,6 +2983,9 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
       frame_->StoreToLocalAt(slot->index());
     } else {
       // The other slot types (LOOKUP and GLOBAL) cannot reach here.
+      //
+      // The use of SlotOperand below is safe for an unspilled frame
+      // because the slot is a context slot.
       ASSERT(slot->type() == Slot::CONTEXT);
       frame_->Dup();
       Result value = frame_->Pop();
@@ -3053,54 +3063,60 @@ class DeferredRegExpLiteral: public DeferredCode {
 
 
 void DeferredRegExpLiteral::Generate() {
-  // The argument is actually passed in ecx.
-  enter()->Bind();
-  VirtualFrame::SpilledScope spilled_scope(generator());
-  // If the entry is undefined we call the runtime system to compute the
-  // literal.
+  Result literals(generator());
+  enter()->Bind(&literals);
+  // Since the entry is undefined we call the runtime system to
+  // compute the literal.
 
+  VirtualFrame* frame = generator()->frame();
   // Literal array (0).
-  generator()->frame()->EmitPush(ecx);
+  frame->Push(&literals);
   // Literal index (1).
-  generator()->frame()->EmitPush(
-      Immediate(Smi::FromInt(node_->literal_index())));
+  frame->Push(Smi::FromInt(node_->literal_index()));
   // RegExp pattern (2).
-  generator()->frame()->EmitPush(Immediate(node_->pattern()));
+  frame->Push(node_->pattern());
   // RegExp flags (3).
-  generator()->frame()->EmitPush(Immediate(node_->flags()));
-  generator()->frame()->CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  __ mov(ebx, Operand(eax));  // "caller" expects result in ebx
-  // The result is actually returned in ebx.
-  exit()->Jump();
+  frame->Push(node_->flags());
+  Result boilerplate =
+      frame->CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  exit()->Jump(&boilerplate);
 }
 
 
 void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ RegExp Literal");
   DeferredRegExpLiteral* deferred = new DeferredRegExpLiteral(this, node);
 
-  // Retrieve the literal array and check the allocated entry.
-
-  // Load the function of this activation.
-  __ mov(ecx, frame_->Function());
+  // Retrieve the literals array and check the allocated entry.  Begin
+  // with a writable copy of the function of this activation in a
+  // register.
+  frame_->PushFunction();
+  Result literals = frame_->Pop();
+  literals.ToRegister();
+  frame_->Spill(literals.reg());
 
   // Load the literals array of the function.
-  __ mov(ecx, FieldOperand(ecx, JSFunction::kLiteralsOffset));
+  __ mov(literals.reg(),
+         FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
 
   // Load the literal at the ast saved index.
   int literal_offset =
       FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
-  __ mov(ebx, FieldOperand(ecx, literal_offset));
+  Result boilerplate = allocator_->Allocate();
+  ASSERT(boilerplate.is_valid());
+  __ mov(boilerplate.reg(), FieldOperand(literals.reg(), literal_offset));
 
-  // Check whether we need to materialize the RegExp object.
-  // If so, jump to the deferred code.
-  __ cmp(ebx, Factory::undefined_value());
-  deferred->enter()->Branch(equal, not_taken);
-  deferred->exit()->Bind();
+  // Check whether we need to materialize the RegExp object.  If so,
+  // jump to the deferred code passing the literals array.
+  __ cmp(boilerplate.reg(), Factory::undefined_value());
+  deferred->enter()->Branch(equal, &literals, not_taken);
 
-  // Push the literal.
-  frame_->EmitPush(ebx);
+  literals.Unuse();
+  // The deferred code returns the boilerplate object.
+  deferred->exit()->Bind(&boilerplate);
+
+  // Push the boilerplate object.
+  frame_->Push(&boilerplate);
 }
 
 
@@ -3244,45 +3260,57 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 
 
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ArrayLiteral");
 
-  // Call runtime to create the array literal.
-  frame_->EmitPush(Immediate(node->literals()));
-  // Load the function of this frame.
-  __ mov(ecx, frame_->Function());
-  // Load the literals array of the function.
-  __ mov(ecx, FieldOperand(ecx, JSFunction::kLiteralsOffset));
-  frame_->EmitPush(ecx);
-  frame_->CallRuntime(Runtime::kCreateArrayLiteral, 2);
+  // Call the runtime to create the array literal.
+  frame_->Push(node->literals());
+  // Load the literals array of the current function.
+  frame_->PushFunction();
+  Result literals = frame_->Pop();
+  literals.ToRegister();
+  frame_->Spill(literals.reg());  // Make it writable.
+  __ mov(literals.reg(),
+         FieldOperand(literals.reg(), JSFunction::kLiteralsOffset));
+  frame_->Push(&literals);
+  Result array = frame_->CallRuntime(Runtime::kCreateArrayLiteral, 2);
 
   // Push the resulting array literal on the stack.
-  frame_->EmitPush(eax);
+  frame_->Push(&array);
 
   // Generate code to set the elements in the array that are not
   // literals.
   for (int i = 0; i < node->values()->length(); i++) {
     Expression* value = node->values()->at(i);
 
-    // If value is literal the property value is already
-    // set in the boilerplate object.
+    // If value is literal the property value is already set in the
+    // boilerplate object.
     if (value->AsLiteral() == NULL) {
       // The property must be set by generated code.
-      LoadAndSpill(value);
+      Load(value);
 
-      // Get the value off the stack.
-      frame_->EmitPop(eax);
-      // Fetch the object literal while leaving on the stack.
-      __ mov(ecx, frame_->Top());
+      // Get the property value off the stack.
+      Result prop_value = frame_->Pop();
+      prop_value.ToRegister();
+
+      // Fetch the array literal while leaving a copy on the stack and
+      // use it to get the elements array.
+      frame_->Dup();
+      Result elements = frame_->Pop();
+      elements.ToRegister();
+      frame_->Spill(elements.reg());
       // Get the elements array.
-      __ mov(ecx, FieldOperand(ecx, JSObject::kElementsOffset));
+      __ mov(elements.reg(),
+             FieldOperand(elements.reg(), JSObject::kElementsOffset));
 
       // Write to the indexed properties array.
       int offset = i * kPointerSize + Array::kHeaderSize;
-      __ mov(FieldOperand(ecx, offset), eax);
+      __ mov(FieldOperand(elements.reg(), offset), prop_value.reg());
 
       // Update the write barrier for the array address.
-      __ RecordWrite(ecx, offset, eax, ebx);
+      frame_->Spill(prop_value.reg());  // Overwritten by the write barrier.
+      Result scratch = allocator_->Allocate();
+      ASSERT(scratch.is_valid());
+      __ RecordWrite(elements.reg(), offset, prop_value.reg(), scratch.reg());
     }
   }
 }
@@ -3576,7 +3604,6 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
 
 void CodeGenerator::VisitCallEval(CallEval* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CallEval");
 
   // In a call to eval, we first call %ResolvePossiblyDirectEval to resolve
@@ -3588,42 +3615,50 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
 
   CodeForStatementPosition(node);
 
-  // Prepare stack for call to resolved function.
-  LoadAndSpill(function);
+  // Prepare the stack for the call to the resolved function.
+  Load(function);
 
   // Allocate a frame slot for the receiver.
-  frame_->EmitPush(Immediate(Factory::undefined_value()));
+  frame_->Push(Factory::undefined_value());
   int arg_count = args->length();
   for (int i = 0; i < arg_count; i++) {
-    LoadAndSpill(args->at(i));
+    Load(args->at(i));
   }
 
-  // Prepare stack for call to ResolvePossiblyDirectEval.
-  frame_->EmitPush(frame_->ElementAt(arg_count + 1));
+  // Prepare the stack for the call to ResolvePossiblyDirectEval.
+  frame_->PushElementAt(arg_count + 1);
   if (arg_count > 0) {
-    frame_->EmitPush(frame_->ElementAt(arg_count));
+    frame_->PushElementAt(arg_count);
   } else {
-    frame_->EmitPush(Immediate(Factory::undefined_value()));
+    frame_->Push(Factory::undefined_value());
   }
 
   // Resolve the call.
-  frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+  Result result =
+      frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
 
-  // Touch up stack with the right values for the function and the receiver.
-  __ mov(edx, FieldOperand(eax, FixedArray::kHeaderSize));
-  __ mov(frame_->ElementAt(arg_count + 1), edx);
-  __ mov(edx, FieldOperand(eax, FixedArray::kHeaderSize + kPointerSize));
-  __ mov(frame_->ElementAt(arg_count), edx);
+  // Touch up the stack with the right values for the function and the
+  // receiver.  Use a scratch register to avoid destroying the result.
+  Result scratch = allocator_->Allocate();
+  ASSERT(scratch.is_valid());
+  __ mov(scratch.reg(), FieldOperand(result.reg(), FixedArray::kHeaderSize));
+  frame_->SetElementAt(arg_count + 1, &scratch);
+
+  // We can reuse the result register now.
+  frame_->Spill(result.reg());
+  __ mov(result.reg(),
+         FieldOperand(result.reg(), FixedArray::kHeaderSize + kPointerSize));
+  frame_->SetElementAt(arg_count, &result);
 
   // Call the function.
   CodeForSourcePosition(node->position());
-
   CallFunctionStub call_function(arg_count);
-  frame_->CallStub(&call_function, arg_count + 1);
+  result = frame_->CallStub(&call_function, arg_count + 1);
 
-  // Restore context and pop function from the stack.
+  // Restore the context and overwrite the function on the stack with
+  // the result.
   frame_->RestoreContextRegister();
-  __ mov(frame_->Top(), eax);
+  frame_->SetElementAt(0, &result);
 }
 
 
@@ -3875,31 +3910,48 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 2);
   JumpTarget leave(this);
-  LoadAndSpill(args->at(0));  // Load the object.
-  LoadAndSpill(args->at(1));  // Load the value.
-  __ mov(eax, frame_->ElementAt(1));
-  __ mov(ecx, frame_->Top());
+  Load(args->at(0));  // Load the object.
+  Load(args->at(1));  // Load the value.
+  Result value = frame_->Pop();
+  Result object = frame_->Pop();
+  value.ToRegister();
+  object.ToRegister();
+
   // if (object->IsSmi()) return value.
-  __ test(eax, Immediate(kSmiTagMask));
-  leave.Branch(zero, taken);
-  // It is a heap object - get map.
-  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
+  __ test(object.reg(), Immediate(kSmiTagMask));
+  leave.Branch(zero, &value, taken);
+
+  // It is a heap object - get its map.
+  Result scratch = allocator_->Allocate();
+  ASSERT(scratch.is_valid());
+  __ mov(scratch.reg(), FieldOperand(object.reg(), HeapObject::kMapOffset));
+  __ movzx_b(scratch.reg(),
+             FieldOperand(scratch.reg(), Map::kInstanceTypeOffset));
   // if (!object->IsJSValue()) return value.
-  __ cmp(ebx, JS_VALUE_TYPE);
-  leave.Branch(not_equal, not_taken);
+  __ cmp(scratch.reg(), JS_VALUE_TYPE);
+  leave.Branch(not_equal, &value, not_taken);
+
   // Store the value.
-  __ mov(FieldOperand(eax, JSValue::kValueOffset), ecx);
-  // Update the write barrier.
-  __ RecordWrite(eax, JSValue::kValueOffset, ecx, ebx);
+  __ mov(FieldOperand(object.reg(), JSValue::kValueOffset), value.reg());
+  // Update the write barrier.  Save the value as it will be
+  // overwritten by the write barrier code and is needed afterward.
+  Result duplicate_value = allocator_->Allocate();
+  ASSERT(duplicate_value.is_valid());
+  __ mov(duplicate_value.reg(), value.reg());
+  // The object register is also overwritten by the write barrier and
+  // possibly aliased in the frame.
+  frame_->Spill(object.reg());
+  __ RecordWrite(object.reg(), JSValue::kValueOffset, duplicate_value.reg(),
+                 scratch.reg());
+  object.Unuse();
+  scratch.Unuse();
+  duplicate_value.Unuse();
+
   // Leave.
-  leave.Bind();
-  __ mov(ecx, frame_->Top());
-  frame_->Drop();
-  __ mov(frame_->Top(), ecx);
+  leave.Bind(&value);
+  frame_->Push(&value);
 }
 
 
@@ -4454,8 +4506,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
 
 
 void CodeGenerator::VisitThisFunction(ThisFunction* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
-  frame_->EmitPush(frame_->Function());
+  frame_->PushFunction();
 }
 
 

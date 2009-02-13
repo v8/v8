@@ -785,7 +785,7 @@ void VirtualFrame::PushReceiverSlotAddress() {
 }
 
 
-void VirtualFrame::LoadFrameSlotAt(int index) {
+void VirtualFrame::PushFrameSlotAt(int index) {
   FrameElement new_element = CopyElementAt(index);
   elements_.Add(new_element);
 }
@@ -1022,7 +1022,7 @@ void VirtualFrame::StoreToFrameSlotAt(int index) {
     // Emit code to move the value down in the frame.
     Result temp = cgen_->allocator()->Allocate();
     ASSERT(temp.is_valid());
-    __ mov(temp.reg(), Top());
+    __ mov(temp.reg(), Operand(esp, 0));
     __ mov(Operand(ebp, fp_relative(index)), temp.reg());
   } else if (top.is_register()) {
     // The stored-to slot has the (unsynced) register reference and
