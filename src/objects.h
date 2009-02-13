@@ -776,7 +776,7 @@ class Smi: public Object {
 };
 
 
-// Failure is used for reporing out of memory situations and
+// Failure is used for reporting out of memory situations and
 // propagating exceptions through the runtime system.  Failure objects
 // are transient and cannot occur as part of the objects graph.
 //
@@ -945,7 +945,7 @@ class MapWord BASE_EMBEDDED {
 
   // Bits used by the marking phase of the garbage collector.
   //
-  // The first word of a heap object is normall a map pointer. The last two
+  // The first word of a heap object is normally a map pointer. The last two
   // bits are tagged as '01' (kHeapObjectTag). We reuse the last two bits to
   // mark an object as live and/or overflowed:
   //   last bit = 0, marked as alive
@@ -3205,6 +3205,10 @@ class String: public HeapObject {
                                 uint32_t* index,
                                 int length);
 
+  // Externalization.
+  bool MakeExternal(v8::String::ExternalStringResource* resource);
+  bool MakeExternal(v8::String::ExternalAsciiStringResource* resource);
+
   // Conversion.
   inline bool AsArrayIndex(uint32_t* index);
 
@@ -3584,6 +3588,9 @@ class ExternalAsciiString: public ExternalString {
                                                      unsigned* offset,
                                                      unsigned chars);
 
+  // Identify the map for the external string/symbol with a particular length.
+  static inline Map* StringMap(int length);
+  static inline Map* SymbolMap(int length);
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalAsciiString);
 };
@@ -3613,6 +3620,9 @@ class ExternalTwoByteString: public ExternalString {
                                                 unsigned* offset_ptr,
                                                 unsigned chars);
 
+  // Identify the map for the external string/symbol with a particular length.
+  static inline Map* StringMap(int length);
+  static inline Map* SymbolMap(int length);
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ExternalTwoByteString);
 };

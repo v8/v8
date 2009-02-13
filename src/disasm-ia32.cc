@@ -700,14 +700,14 @@ static const char* F0Mnem(byte f0byte) {
 }
 
 
-// Disassembled instruction '*instr' and writes it intro 'out_buffer'.
+// Disassembled instruction '*instr' and writes it into 'out_buffer'.
 int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                                         byte* instr) {
   tmp_buffer_pos_ = 0;  // starting to write as position 0
   byte* data = instr;
   // Check for hints.
   const char* branch_hint = NULL;
-  // We use this two prefixes only with branch prediction
+  // We use these two prefixes only with branch prediction
   if (*data == 0x3E /*ds*/) {
     branch_hint = "predicted taken";
     data++;
@@ -858,6 +858,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
           switch (regop) {
             case esi: mnem = "push"; break;
             case eax: mnem = "inc"; break;
+            case ecx: mnem = "dec"; break;
             case edx: mnem = "call"; break;
             case esp: mnem = "jmp"; break;
             default: mnem = "???";

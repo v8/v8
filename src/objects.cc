@@ -667,6 +667,92 @@ Object* String::TryFlatten(StringShape shape) {
 }
 
 
+bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
+#ifdef DEBUG
+  {  // NOLINT (presubmit.py gets confused about if and braces)
+    // Assert that the resource and the string are equivalent.
+    ASSERT(static_cast<size_t>(this->length()) == resource->length());
+    SmartPointer<uc16> smart_chars = this->ToWideCString();
+    ASSERT(memcmp(*smart_chars,
+                  resource->data(),
+                  resource->length()*sizeof(**smart_chars)) == 0);
+  }
+#endif  // DEBUG
+
+  int size = this->Size();  // Byte size of the original string.
+  if (size < ExternalString::kSize) {
+    // The string is too small to fit an external String in its place. This can
+    // only happen for zero length strings.
+    return false;
+  }
+  ASSERT(size >= ExternalString::kSize);
+  bool is_symbol = this->IsSymbol();
+  int length = this->length();
+
+  // Morph the object to an external string by adjusting the map and
+  // reinitializing the fields.
+  this->set_map(ExternalTwoByteString::StringMap(length));
+  ExternalTwoByteString* self = ExternalTwoByteString::cast(this);
+  self->set_length(length);
+  self->set_resource(resource);
+  // Additionally make the object into an external symbol if the original string
+  // was a symbol to start with.
+  if (is_symbol) {
+    self->Hash();  // Force regeneration of the hash value.
+    // Now morph this external string into a external symbol.
+    self->set_map(ExternalTwoByteString::SymbolMap(length));
+  }
+
+  // Fill the remainder of the string with dead wood.
+  int new_size = this->Size();  // Byte size of the external String object.
+  Heap::CreateFillerObjectAt(this->address() + new_size, size - new_size);
+  return true;
+}
+
+
+bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
+#ifdef DEBUG
+  {  // NOLINT (presubmit.py gets confused about if and braces)
+    // Assert that the resource and the string are equivalent.
+    ASSERT(static_cast<size_t>(this->length()) == resource->length());
+    SmartPointer<char> smart_chars = this->ToCString();
+    ASSERT(memcmp(*smart_chars,
+                  resource->data(),
+                  resource->length()*sizeof(**smart_chars)) == 0);
+  }
+#endif  // DEBUG
+
+  int size = this->Size();  // Byte size of the original string.
+  if (size < ExternalString::kSize) {
+    // The string is too small to fit an external String in its place. This can
+    // only happen for zero length strings.
+    return false;
+  }
+  ASSERT(size >= ExternalString::kSize);
+  bool is_symbol = this->IsSymbol();
+  int length = this->length();
+
+  // Morph the object to an external string by adjusting the map and
+  // reinitializing the fields.
+  this->set_map(ExternalAsciiString::StringMap(length));
+  ExternalAsciiString* self = ExternalAsciiString::cast(this);
+  self->set_length(length);
+  self->set_resource(resource);
+  // Additionally make the object into an external symbol if the original string
+  // was a symbol to start with.
+  if (is_symbol) {
+    self->Hash();  // Force regeneration of the hash value.
+    // Now morph this external string into a external symbol.
+    self->set_map(ExternalAsciiString::SymbolMap(length));
+  }
+
+  // Fill the remainder of the string with dead wood.
+  int new_size = this->Size();  // Byte size of the external String object.
+  Heap::CreateFillerObjectAt(this->address() + new_size, size - new_size);
+  return true;
+}
+
+
 void String::StringShortPrint(StringStream* accumulator) {
   StringShape shape(this);
   int len = length(shape);
@@ -1927,23 +2013,15 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
   if (obj->IsFailure()) return obj;
   Map* new_map = Map::cast(obj);
 
-  // Clear inobject properties if needed by adjusting the instance
-  // size and putting in a filler or byte array instead of the
-  // inobject properties.
+  // Clear inobject properties if needed by adjusting the instance size and
+  // putting in a filler object instead of the inobject properties.
   if (mode == CLEAR_INOBJECT_PROPERTIES && map()->inobject_properties() > 0) {
     int instance_size_delta = map()->inobject_properties() * kPointerSize;
     int new_instance_size = map()->instance_size() - instance_size_delta;
     new_map->set_inobject_properties(0);
     new_map->set_instance_size(new_instance_size);
-    if (instance_size_delta == kPointerSize) {
-      WRITE_FIELD(this, new_instance_size, Heap::one_word_filler_map());
-    } else {
-      int byte_array_length = ByteArray::LengthFor(instance_size_delta);
-      int byte_array_length_offset = new_instance_size + kPointerSize;
-      WRITE_FIELD(this, new_instance_size, Heap::byte_array_map());
-      WRITE_INT_FIELD(this, byte_array_length_offset, byte_array_length);
-    }
-    WRITE_BARRIER(this, new_instance_size);
+    Heap::CreateFillerObjectAt(this->address() + new_instance_size,
+                               instance_size_delta);
   }
   new_map->set_unused_property_fields(0);
 

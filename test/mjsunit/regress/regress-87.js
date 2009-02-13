@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,5 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-assertTrue((/(?:)/g).global);
-assertTrue((/(?:)/\u0067).global);
+function testFlags(flagstring, global, ignoreCase, multiline) {
+  var text = "/x/"+flagstring;
+  var re = eval(text);
+  assertEquals(global, re.global, text + ".global");
+  assertEquals(ignoreCase, re.ignoreCase, text + ".ignoreCase");
+  assertEquals(multiline, re.multiline, text + ".multiline");
+}
+
+testFlags("", false, false, false);
+
+testFlags("\u0067", true, false, false);
+
+testFlags("\u0069", false, true, false)
+
+testFlags("\u006d", false, false, true);
+
+testFlags("\u0068", false, false, false);
+
+testFlags("\u0020", false, false, false);
+
+
+testFlags("\u0067g", true, false, false);
+
+testFlags("g\u0067", true, false, false);
+
+testFlags("abc\u0067efg", true, false, false);
+
+testFlags("i\u0067", true, true, false);
+
+testFlags("\u0067i", true, true, false);
+

@@ -654,7 +654,7 @@ void ExternalReferenceTable::PopulateTable() {
   Add(ExternalReference::address_of_stack_guard_limit().address(),
       UNCLASSIFIED,
       3,
-      "StackGuard::address_of_limit()");
+      "StackGuard::address_of_jslimit()");
   Add(ExternalReference::address_of_regexp_stack_limit().address(),
       UNCLASSIFIED,
       4,

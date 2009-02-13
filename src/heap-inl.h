@@ -41,9 +41,6 @@ int Heap::MaxHeapObjectSize() {
 Object* Heap::AllocateSymbol(Vector<const char> str,
                              int chars,
                              uint32_t length_field) {
-  if (global_external_symbol_callback_) {
-    return AllocateExternalSymbol(str, chars);
-  }
   unibrow::Utf8InputBuffer<> buffer(str.start(),
                                     static_cast<unsigned>(str.length()));
   return AllocateInternalSymbol(&buffer, chars, length_field);

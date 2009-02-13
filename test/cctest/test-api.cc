@@ -491,6 +491,76 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
 }
 
 
+THREADED_TEST(ScriptMakingExternalString) {
+  TestResource::dispose_count = 0;
+  uint16_t* two_byte_source = AsciiToTwoByteString("1 + 2 * 3");
+  {
+    v8::HandleScope scope;
+    LocalContext env;
+    Local<String> source = String::New(two_byte_source);
+    bool success = source->MakeExternal(new TestResource(two_byte_source));
+    CHECK(success);
+    Local<Script> script = Script::Compile(source);
+    Local<Value> value = script->Run();
+    CHECK(value->IsNumber());
+    CHECK_EQ(7, value->Int32Value());
+    v8::internal::Heap::CollectAllGarbage();
+    CHECK_EQ(0, TestResource::dispose_count);
+  }
+  v8::internal::Heap::CollectAllGarbage();
+  CHECK_EQ(1, TestResource::dispose_count);
+}
+
+
+THREADED_TEST(ScriptMakingExternalAsciiString) {
+  TestAsciiResource::dispose_count = 0;
+  const char* c_source = "1 + 2 * 3";
+  {
+    v8::HandleScope scope;
+    LocalContext env;
+    Local<String> source = v8_str(c_source);
+    bool success = source->MakeExternal(
+        new TestAsciiResource(i::StrDup(c_source)));
+    CHECK(success);
+    Local<Script> script = Script::Compile(source);
+    Local<Value> value = script->Run();
+    CHECK(value->IsNumber());
+    CHECK_EQ(7, value->Int32Value());
+    v8::internal::Heap::CollectAllGarbage();
+    CHECK_EQ(0, TestAsciiResource::dispose_count);
+  }
+  v8::internal::Heap::CollectAllGarbage();
+  CHECK_EQ(1, TestAsciiResource::dispose_count);
+}
+
+
+THREADED_TEST(UsingExternalString) {
+  v8::HandleScope scope;
+  uint16_t* two_byte_string = AsciiToTwoByteString("test string");
+  Local<String> string = String::NewExternal(new TestResource(two_byte_string));
+  i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
+  // Trigger GCs so that the newly allocated string moves to old gen.
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+  i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
+  CHECK(isymbol->IsSymbol());
+}
+
+
+THREADED_TEST(UsingExternalAsciiString) {
+  v8::HandleScope scope;
+  const char* one_byte_string = "test string";
+  Local<String> string = String::NewExternal(
+      new TestAsciiResource(i::StrDup(one_byte_string)));
+  i::Handle<i::String> istring = v8::Utils::OpenHandle(*string);
+  // Trigger GCs so that the newly allocated string moves to old gen.
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in survivor space now
+  i::Heap::CollectGarbage(0, i::NEW_SPACE);  // in old gen now
+  i::Handle<i::String> isymbol = i::Factory::SymbolFromString(istring);
+  CHECK(isymbol->IsSymbol());
+}
+
+
 THREADED_TEST(GlobalProperties) {
   v8::HandleScope scope;
   LocalContext env;
@@ -5516,58 +5586,6 @@ THREADED_TEST(AccessControlRepeatedContextCreation) {
   CHECK(!constructor->access_check_info()->IsUndefined());
   v8::Persistent<Context> context0 = Context::New(NULL, global_template);
   CHECK(!constructor->access_check_info()->IsUndefined());
-}
-
-
-static String::ExternalStringResource* SymbolCallback(const char* chars,
-                                                      size_t length) {
-  uint16_t* buffer = i::NewArray<uint16_t>(length + 1);
-  for (size_t i = 0; i < length; i++) {
-    buffer[i] = chars[i];
-  }
-  buffer[length] = '\0';
-  return new TestResource(buffer);
-}
-
-
-static v8::Handle<Value> ExternalSymbolGetter(Local<String> name,
-                                              const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(!name->Equals(v8_str("externalSymbol722")) || name->IsExternal());
-  return v8::True();
-}
-
-
-static void ExternalSymbolSetter(Local<String> name,
-                                 Local<Value> value,
-                                 const AccessorInfo&) {
-  ApiTestFuzzer::Fuzz();
-  CHECK(!name->Equals(v8_str("externalSymbol722")) || name->IsExternal());
-}
-
-
-THREADED_TEST(ExternalSymbols) {
-  TestResource::dispose_count = 0;
-  v8::V8::SetExternalSymbolCallback(SymbolCallback);
-  v8::HandleScope scope;
-  LocalContext context;
-  Local<ObjectTemplate> templ = ObjectTemplate::New();
-  // Use a bizare name so that the name does not clash with names used
-  // in natives files.  If running with snapshots enabled, variable
-  // names used in the native files will be normal symbols instead of
-  // external ones.  Also, make sure that the bizare name is used from
-  // JavaScript code before using it from C++ code.
-  Local<Value> value =
-      CompileRun("var o = { externalSymbol722: 42 }; o.externalSymbol722");
-  CHECK_EQ(42, value->Int32Value());
-  templ->SetAccessor(v8_str("externalSymbol722"),
-                     ExternalSymbolGetter,
-                     ExternalSymbolSetter);
-  context->Global()->Set(v8_str("obj"), templ->NewInstance());
-  value = CompileRun("obj.externalSymbol722");
-  CHECK_EQ(true, value->BooleanValue());
-  value = CompileRun("obj.externalSymbol722 = 42");
-  v8::V8::SetExternalSymbolCallback(NULL);
 }
 
 

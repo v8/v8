@@ -3101,7 +3101,12 @@ Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
   if (is_pre_parsing_) {
     // If we're preparsing we just do all the parsing stuff without
     // building anything.
-    scanner_.ScanRegExpFlags();
+    if (!scanner_.ScanRegExpFlags()) {
+      Next();
+      ReportMessage("invalid_regexp_flags", Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
     Next();
     return NULL;
   }

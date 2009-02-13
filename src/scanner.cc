@@ -384,7 +384,7 @@ uc32 Scanner::ScanHexEscape(uc32 c, int length) {
       for (int j = i-1; j >= 0; j--) {
         PushBack(digits[j]);
       }
-
+      // Notice: No handling of error - treat it as "\u"->"u".
       return c;
     }
     x = x * 16 + d;
@@ -829,8 +829,18 @@ bool Scanner::ScanRegExpPattern(bool seen_equal) {
 bool Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   StartLiteral();
-  while (kIsIdentifierPart.get(c0_))
+  while (kIsIdentifierPart.get(c0_)) {
+    if (c0_ == '\\') {
+      uc32 c = ScanIdentifierUnicodeEscape();
+      if (c != static_cast<uc32>(unibrow::Utf8::kBadChar)) {
+        // We allow any escaped character, unlike the restriction on
+        // IdentifierPart when it is used to build an IdentifierName.
+        AddChar(c);
+        continue;
+      }
+    }
     AddCharAdvance();
+  }
   TerminateLiteral();
 
   next_.location.end_pos = source_pos() - 1;
