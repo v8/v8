@@ -926,7 +926,9 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
       break;
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
+    accumulator->Put('<');                 \
     accumulator->Add(#Name);               \
+    accumulator->Put('>');                 \
     break;
   STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
