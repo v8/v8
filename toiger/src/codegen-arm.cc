@@ -87,17 +87,6 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
 }
 
 
-void CodeGenerator::SetFrame(VirtualFrame* new_frame) {
-  frame_ = new_frame;
-}
-
-
-void CodeGenerator::DeleteFrame() {
-  delete frame_;
-  frame_ = NULL;
-}
-
-
 // Calling conventions:
 // r0: the number of arguments
 // fp: frame pointer

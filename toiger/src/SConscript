@@ -54,8 +54,8 @@ SOURCES = {
     'assembler-arm.cc', 'builtins-arm.cc', 'codegen-arm.cc', 'cpu-arm.cc',
     'disasm-arm.cc', 'debug-arm.cc', 'frames-arm.cc', 'ic-arm.cc',
     'jump-target-arm.cc', 'macro-assembler-arm.cc',
-    'regexp-macro-assembler-arm.cc', 'stub-cache-arm.cc',
-    'virtual-frame-arm.cc'
+    'regexp-macro-assembler-arm.cc', 'register-allocator-arm.cc',
+    'stub-cache-arm.cc', 'virtual-frame-arm.cc'
   ],
   'arch:ia32': [
     'assembler-ia32.cc', 'builtins-ia32.cc', 'codegen-ia32.cc', 'cpu-ia32.cc',

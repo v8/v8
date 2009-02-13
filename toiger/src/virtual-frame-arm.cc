@@ -64,10 +64,7 @@ VirtualFrame::VirtualFrame(VirtualFrame* original)
 
 
 void VirtualFrame::Adjust(int count) {
-  ASSERT(count >= 0);
-  for (int i = 0; i < count; i++) {
-    elements_.Add(Element());
-  }
+  UNIMPLEMENTED();
 }
 
 
@@ -86,9 +83,17 @@ void VirtualFrame::MergeTo(VirtualFrame* expected) {
   ASSERT(parameter_count_ == expected->parameter_count_);
   ASSERT(local_count_ == expected->local_count_);
   ASSERT(frame_pointer_ == expected->frame_pointer_);
-  for (int i = 0; i < elements_.length(); i++) {
-    ASSERT(elements_[i].matches(expected->elements_[i]));
-  }
+  UNIMPLEMENTED();
+}
+
+
+void VirtualFrame::DetachFromCodeGenerator() {
+  UNIMPLEMENTED();
+}
+
+
+void VirtualFrame::AttachToCodeGenerator() {
+  UNIMPLEMENTED();
 }
 
 

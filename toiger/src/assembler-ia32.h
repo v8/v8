@@ -78,6 +78,8 @@ struct Register {
   int code_;
 };
 
+const int kNumRegisters = 8;
+
 extern Register eax;
 extern Register ecx;
 extern Register edx;

@@ -116,6 +116,15 @@ void RegisterFile::CopyTo(RegisterFile* other) {
 // -------------------------------------------------------------------------
 // RegisterAllocator implementation.
 
+RegisterFile RegisterAllocator::Reserved() {
+  RegisterFile reserved;
+  reserved.Use(esp);
+  reserved.Use(ebp);
+  reserved.Use(esi);
+  return reserved;
+}
+
+
 void RegisterAllocator::Initialize() {
   Reset();
   Use(edi);
@@ -132,7 +141,7 @@ void RegisterAllocator::Reset() {
 
 Result RegisterAllocator::AllocateWithoutSpilling() {
   // Return the first free register, if any.
-  for (int i = 0; i < num_registers(); i++) {
+  for (int i = 0; i < kNumRegisters; i++) {
     if (!is_used(i)) {
       Register free_reg = { i };
       return Result(free_reg, cgen_);

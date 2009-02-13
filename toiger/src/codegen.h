@@ -37,8 +37,13 @@
 // of Visitor and that the following methods are available publicly:
 // CodeGenerator::MakeCode
 // CodeGenerator::SetFunctionInfo
-// CodeGenerator::AddDeferred
 // CodeGenerator::masm
+// CodeGenerator::frame
+// CodeGenerator::has_valid_frame
+// CodeGenerator::SetFrame
+// CodeGenerator::DeleteFrame
+// CodeGenerator::allocator
+// CodeGenerator::AddDeferred
 //
 // These methods are either used privately by the shared code or implemented as
 // shared code:

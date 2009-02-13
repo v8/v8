@@ -83,6 +83,8 @@ struct Register {
 };
 
 
+const int kNumRegisters = 16;
+
 extern Register no_reg;
 extern Register r0;
 extern Register r1;

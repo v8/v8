@@ -254,7 +254,7 @@ void JumpTarget::ComputeEntryFrame() {
       }
       // If there was no preferred choice consider any free register.
       if (best_reg_code == no_reg.code_) {
-        for (int j = 0; j < RegisterFile::kNumRegisters; j++) {
+        for (int j = 0; j < kNumRegisters; j++) {
           if (!frame_registers.is_used(j)) {
             best_reg_code = j;
             break;

@@ -36,15 +36,125 @@ namespace v8 { namespace internal {
 // -------------------------------------------------------------------------
 // Virtual frame elements
 //
-// The internal elements of the virtual frames.  Elements are (currently) of
-// only one kind, in-memory.  Their actual location is given by their
-// position in the virtual frame.
+// The internal elements of the virtual frames.  There are several kinds of
+// elements:
+//   * Invalid: elements that are uninitialized or not actually part
+//     of the virtual frame.  They should not be read.
+//   * Memory: an element that resides in the actual frame.  Its address is
+//     given by its position in the virtual frame.
+//   * Register: an element that resides in a register.
+//   * Constant: an element whose value is known at compile time.
 
-class Element BASE_EMBEDDED {
+class FrameElement BASE_EMBEDDED {
  public:
-  Element() {}
+  enum SyncFlag {
+    SYNCED,
+    NOT_SYNCED
+  };
 
-  bool matches(const Element& other) { return true; }
+  // The default constructor creates an invalid frame element.
+  FrameElement() {
+    type_ = TypeField::encode(INVALID) | SyncField::encode(NOT_SYNCED);
+    data_.reg_ = no_reg;
+  }
+
+  // Factory function to construct an invalid frame element.
+  static FrameElement InvalidElement() {
+    FrameElement result;
+    return result;
+  }
+
+  // Factory function to construct an in-memory frame element.
+  static FrameElement MemoryElement() {
+    FrameElement result;
+    result.type_ = TypeField::encode(MEMORY) | SyncField::encode(SYNCED);
+    // In-memory elements have no useful data.
+    result.data_.reg_ = no_reg;
+    return result;
+  }
+
+  // Factory function to construct an in-register frame element.
+  static FrameElement RegisterElement(Register reg, SyncFlag is_synced) {
+    FrameElement result;
+    result.type_ = TypeField::encode(REGISTER) | SyncField::encode(is_synced);
+    result.data_.reg_ = reg;
+    return result;
+  }
+
+  // Factory function to construct a frame element whose value is known at
+  // compile time.
+  static FrameElement ConstantElement(Handle<Object> value,
+                                      SyncFlag is_synced) {
+    FrameElement result;
+    result.type_ = TypeField::encode(CONSTANT) | SyncField::encode(is_synced);
+    result.data_.handle_ = value.location();
+    return result;
+  }
+
+  bool is_synced() const { return SyncField::decode(type_) == SYNCED; }
+
+  void set_sync() {
+    ASSERT(type() != MEMORY);
+    type_ = (type_ & ~SyncField::mask()) | SyncField::encode(SYNCED);
+  }
+
+  void clear_sync() {
+    ASSERT(type() != MEMORY);
+    type_ = (type_ & ~SyncField::mask()) | SyncField::encode(NOT_SYNCED);
+  }
+
+  bool is_valid() const { return type() != INVALID; }
+  bool is_memory() const { return type() == MEMORY; }
+  bool is_register() const { return type() == REGISTER; }
+  bool is_constant() const { return type() == CONSTANT; }
+  bool is_copy() const { return type() == COPY; }
+
+  Register reg() const {
+    ASSERT(is_register());
+    return data_.reg_;
+  }
+
+  Handle<Object> handle() const {
+    ASSERT(is_constant());
+    return Handle<Object>(data_.handle_);
+  }
+
+  int index() const {
+    ASSERT(is_copy());
+    return data_.index_;
+  }
+
+#ifdef DEBUG
+  bool Equals(FrameElement other);
+#endif
+
+ private:
+  enum Type {
+    INVALID,
+    MEMORY,
+    REGISTER,
+    CONSTANT,
+    COPY
+  };
+
+  // BitField is <type, shift, size>.
+  class SyncField : public BitField<SyncFlag, 0, 1> {};
+  class TypeField : public BitField<Type, 1, 32 - 1> {};
+
+  Type type() const { return TypeField::decode(type_); }
+
+  // The element's type and a dirty bit.  The dirty bit can be cleared
+  // for non-memory elements to indicate that the element agrees with
+  // the value in memory in the actual frame.
+  int type_;
+
+  union {
+    Register reg_;
+    Object** handle_;
+    int index_;
+  } data_;
+
+  friend class VirtualFrame;
 };
 
 
@@ -86,6 +196,18 @@ class VirtualFrame : public Malloced {
   // frame.  As a side effect, code may be emitted to make this frame match
   // the expected one.
   void MergeTo(VirtualFrame* expected);
+
+  // Detach a frame from its code generator, perhaps temporarily.  This
+  // tells the register allocator that it is free to use frame-internal
+  // registers.  Used when the code generator's frame is switched from this
+  // one to NULL by an unconditional jump.
+  void DetachFromCodeGenerator();
+
+  // (Re)attach a frame to its code generator.  This informs the register
+  // allocator that the frame-internal register references are active again.
+  // Used when a code generator's frame is switched from NULL to this one by
+  // binding a label.
+  void AttachToCodeGenerator();
 
   // Emit code for the physical JS entry and exit frame sequences.  After
   // calling Enter, the virtual frame is ready for use; and after calling
@@ -176,7 +298,7 @@ class VirtualFrame : public Malloced {
 
   MacroAssembler* masm_;
 
-  List<Element> elements_;
+  List<FrameElement> elements_;
 
   // The number of frame-allocated locals and parameters respectively.
   int parameter_count_;

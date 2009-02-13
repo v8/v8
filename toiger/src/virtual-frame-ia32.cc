@@ -190,7 +190,7 @@ Register VirtualFrame::SpillAnyRegister() {
   int min_count = kMaxInt;
   int best_register_code = no_reg.code_;
 
-  for (int i = 0; i < RegisterFile::kNumRegisters; i++) {
+  for (int i = 0; i < kNumRegisters; i++) {
     int count = frame_registers_.count(i);
     if (count < min_count && count == cgen_->allocator()->count(i)) {
       min_count = count;
@@ -1417,7 +1417,7 @@ bool VirtualFrame::Equals(VirtualFrame* other) {
   if (stack_pointer_ != other->stack_pointer_) return false;
   if (frame_pointer_ != other->frame_pointer_) return false;
 
-  for (int i = 0; i < RegisterFile::kNumRegisters; i++) {
+  for (int i = 0; i < kNumRegisters; i++) {
     if (frame_registers_.count(i) != other->frame_registers_.count(i)) {
       return false;
     }

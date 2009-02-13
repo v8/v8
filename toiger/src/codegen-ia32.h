@@ -303,8 +303,9 @@ class CodeGenerator: public AstVisitor {
   bool has_valid_frame() const { return frame_ != NULL; }
 
   // Set the virtual frame to be new_frame, with non-frame register
-  // reference counts given by non_frame_registers.  The non-frame register
-  // reference counts of the old frame are returned in non_frame_registers.
+  // reference counts given by non_frame_registers.  The non-frame
+  // register reference counts of the old frame are returned in
+  // non_frame_registers.
   void SetFrame(VirtualFrame* new_frame, RegisterFile* non_frame_registers);
 
   void DeleteFrame();

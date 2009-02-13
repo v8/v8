@@ -42,7 +42,7 @@ JumpTarget::JumpTarget(CodeGenerator* cgen, Directionality direction)
       direction_(direction),
       reaching_frames_(0),
       merge_labels_(0),
-      expected_frame_(NULL),
+      entry_frame_(NULL),
       is_bound_(false),
       is_linked_(false) {
   ASSERT(cgen_ != NULL);
@@ -56,7 +56,7 @@ JumpTarget::JumpTarget()
       direction_(FORWARD_ONLY),
       reaching_frames_(0),
       merge_labels_(0),
-      expected_frame_(NULL),
+      entry_frame_(NULL),
       is_bound_(false),
       is_linked_(false) {
 }
@@ -74,8 +74,8 @@ void JumpTarget::Initialize(CodeGenerator* cgen, Directionality direction) {
 void JumpTarget::Unuse() {
   ASSERT(!is_linked());
   entry_label_.Unuse();
-  delete expected_frame_;
-  expected_frame_ = NULL;
+  delete entry_frame_;
+  entry_frame_ = NULL;
   is_bound_ = false;
   is_linked_ = false;
 }
@@ -84,7 +84,7 @@ void JumpTarget::Unuse() {
 void JumpTarget::Reset() {
   reaching_frames_.Clear();
   merge_labels_.Clear();
-  expected_frame_ = NULL;
+  entry_frame_ = NULL;
   entry_label_.Unuse();
   is_bound_ = false;
   is_linked_ = false;
@@ -102,7 +102,7 @@ void JumpTarget::Jump() {
   if (is_bound()) {
     // Backward jump.  There is an expected frame to merge to.
     ASSERT(direction_ == BIDIRECTIONAL);
-    cgen_->frame()->MergeTo(expected_frame_);
+    cgen_->frame()->MergeTo(entry_frame_);
     cgen_->DeleteFrame();
     __ jmp(&entry_label_);
   } else {
@@ -110,7 +110,8 @@ void JumpTarget::Jump() {
     // of frames reaching the target block and a jump to the merge code
     // is emitted.
     AddReachingFrame(cgen_->frame());
-    cgen_->SetFrame(NULL);
+    RegisterFile ignored;
+    cgen_->SetFrame(NULL, &ignored);
     __ jmp(&merge_labels_.last());
   }
 
@@ -153,14 +154,15 @@ void JumpTarget::Branch(Condition cc, Hint ignored) {
     // references except the reserved ones on the backward edge.
     VirtualFrame* original_frame = cgen_->frame();
     VirtualFrame* working_frame = new VirtualFrame(original_frame);
-    cgen_->SetFrame(working_frame);
+    RegisterFile ignored;
+    cgen_->SetFrame(working_frame, &ignored);
 
-    working_frame->MergeTo(expected_frame_);
+    working_frame->MergeTo(entry_frame_);
     cgen_->DeleteFrame();
     __ jmp(&entry_label_);
 
     // Restore the frame and its associated non-frame registers.
-    cgen_->SetFrame(original_frame);
+    cgen_->SetFrame(original_frame, &ignored);
     __ bind(&original_fall_through);
   } else {
     // Forward branch.  A copy of the current frame is added to the end
@@ -247,7 +249,8 @@ void JumpTarget::Bind() {
     if (single_entry) {
       // Pick up the only forward reaching frame and bind its merge
       // label.  No merge code is emitted.
-      cgen_->SetFrame(reaching_frames_[0]);
+      RegisterFile ignored;
+      cgen_->SetFrame(reaching_frames_[0], &ignored);
       __ bind(&merge_labels_[0]);
     } else {
       // Otherwise, choose a frame as the basis of the expected frame,
@@ -260,20 +263,22 @@ void JumpTarget::Bind() {
         // labeled basic block.
         ASSERT(cgen_->HasValidEntryRegisters());
       } else {
-        cgen_->SetFrame(reaching_frames_[start_index]);
+        RegisterFile ignored;
+        cgen_->SetFrame(reaching_frames_[start_index], &ignored);
         __ bind(&merge_labels_[start_index++]);
       }
       cgen_->frame()->MakeMergable();
-      expected_frame_ = new VirtualFrame(cgen_->frame());
+      entry_frame_ = new VirtualFrame(cgen_->frame());
 
       for (int i = start_index; i < reaching_frames_.length(); i++) {
         cgen_->DeleteFrame();
         __ jmp(&entry_label_);
 
-        cgen_->SetFrame(reaching_frames_[i]);
+        RegisterFile ignored;
+        cgen_->SetFrame(reaching_frames_[i], &ignored);
         __ bind(&merge_labels_[i]);
 
-        cgen_->frame()->MergeTo(expected_frame_);
+        cgen_->frame()->MergeTo(entry_frame_);
       }
 
       __ bind(&entry_label_);
@@ -292,7 +297,7 @@ void JumpTarget::Bind() {
     if (direction_ == BIDIRECTIONAL) {
       ASSERT(cgen_->HasValidEntryRegisters());
       cgen_->frame()->MakeMergable();
-      expected_frame_ = new VirtualFrame(cgen_->frame());
+      entry_frame_ = new VirtualFrame(cgen_->frame());
       __ bind(&entry_label_);
     }
   }
@@ -334,7 +339,7 @@ void JumpTarget::CopyTo(JumpTarget* destination) {
     destination->reaching_frames_.Add(reaching_frames_[i]);
     destination->merge_labels_.Add(merge_labels_[i]);
   }
-  destination->expected_frame_ = expected_frame_;
+  destination->entry_frame_ = entry_frame_;
   destination->entry_label_ = entry_label_;
   destination->is_bound_ = is_bound_;
   destination->is_linked_ = is_linked_;
