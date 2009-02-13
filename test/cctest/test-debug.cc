@@ -370,8 +370,8 @@ static void CheckDebuggerLoaded() {
 }
 
 
-// Check that the debugger has been fully unloaded. 
-static void CheckDebuggerUnloaded(bool check_functions) {
+// Check that the debugger has been fully unloaded.
+void CheckDebuggerUnloaded(bool check_functions) {
   // Check that the debugger context is cleared and that there is no debug
   // information stored for the debugger.
   CHECK(Debug::debug_context().is_null());

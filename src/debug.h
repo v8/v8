@@ -259,8 +259,8 @@ class Debug {
   static void HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data);
 
   friend class Debugger;
-  friend Handle<FixedArray> GetDebuggedFunctions();  // Found in test-debug.cc
-  friend void CheckDebuggerUnloaded(bool);  // Found in test-debug.cc
+  friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
+  friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
 
   // Threading support.
   static char* ArchiveDebug(char* to);
