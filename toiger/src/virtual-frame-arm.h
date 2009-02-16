@@ -336,14 +336,14 @@ class VirtualFrame : public Malloced {
   // The index of the context slot in the frame.
   int context_index() const {
     ASSERT(frame_pointer_ != kIllegalIndex);
-    return frame_pointer_ + 1;
+    return frame_pointer_ - 1;
   }
 
   // The index of the function slot in the frame.  It lies above the context
   // slot.
   int function_index() const {
     ASSERT(frame_pointer_ != kIllegalIndex);
-    return frame_pointer_ + 2;
+    return frame_pointer_ - 2;
   }
 
   // The index of the first local.  Between the parameters and the locals
@@ -351,7 +351,7 @@ class VirtualFrame : public Malloced {
   // function.
   int local0_index() const {
     ASSERT(frame_pointer_ != kIllegalIndex);
-    return frame_pointer_ + 3;
+    return frame_pointer_ + 2;
   }
 
   // The index of the base of the expression stack.

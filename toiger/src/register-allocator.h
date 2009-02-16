@@ -192,13 +192,13 @@ class RegisterAllocator BASE_EMBEDDED {
   void Unuse(Register reg) { registers_.Unuse(reg); }
 
   // Initialize the register allocator for entry to a JS function.  On
-  // entry, esp, ebp, esi, and edi are externally referenced (ie, outside
-  // the virtual frame); and the other registers are free.
+  // entry, the registers used by the JS calling convention are
+  // externally referenced (ie, outside the virtual frame); and the
+  // other registers are free.
   void Initialize();
 
   // Reset the register reference counts to free all non-reserved registers.
-  // A frame-external reference is kept to each of the reserved registers
-  // (esp, ebp, and esi).
+  // A frame-external reference is kept to each of the reserved registers.
   void Reset();
 
   // Allocate a free register and return a register result if possible or

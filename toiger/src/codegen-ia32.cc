@@ -90,9 +90,9 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
 
 
 // Calling conventions:
-// ebp: frame pointer
+// ebp: caller's frame pointer
 // esp: stack pointer
-// edi: caller's parameter pointer
+// edi: called JS function
 // esi: callee's context
 
 void CodeGenerator::GenCode(FunctionLiteral* fun) {
@@ -119,13 +119,12 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   {
     CodeGenState state(this);
 
-    // Entry
-    // stack: function, receiver, arguments, return address
+    // Entry:
+    // Stack: receiver, arguments, return address.
+    // ebp: caller's frame pointer
     // esp: stack pointer
-    // ebp: frame pointer
-    // edi: caller's parameter pointer
+    // edi: called JS function
     // esi: callee's context
-
     allocator_->Initialize();
     frame_->Enter();
     // tos: code slot

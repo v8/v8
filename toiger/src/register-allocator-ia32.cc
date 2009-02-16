@@ -105,7 +105,6 @@ void Result::ToRegister(Register target) {
 // -------------------------------------------------------------------------
 // RegisterFile implementation.
 
-
 void RegisterFile::CopyTo(RegisterFile* other) {
   for (int i = 0; i < kNumRegisters; i++) {
     other->ref_counts_[i] = ref_counts_[i];
@@ -134,15 +133,19 @@ void RegisterAllocator::UnuseReserved(RegisterFile* register_file) {
 
 void RegisterAllocator::Initialize() {
   Reset();
-  Use(edi);
+  // The following register is live on function entry, saved in the
+  // frame, and available for allocation during execution.
+  Use(edi);  // JS function.
 }
 
 
 void RegisterAllocator::Reset() {
   registers_.Reset();
-  Use(esp);
-  Use(ebp);
-  Use(esi);
+  // The following registers are live on function entry and reserved
+  // during execution.
+  Use(esp);  // Stack pointer.
+  Use(ebp);  // Frame pointer (caller's frame pointer on entry).
+  Use(esi);  // Context (callee's context on entry).
 }
 
 

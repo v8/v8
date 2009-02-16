@@ -50,22 +50,6 @@ VirtualFrame::SpilledScope::~SpilledScope() {
 }
 
 
-// On entry to a function, the virtual frame already contains the receiver,
-// the parameters, and a return address.  All frame elements are in memory.
-VirtualFrame::VirtualFrame(CodeGenerator* cgen)
-    : cgen_(cgen),
-      masm_(cgen->masm()),
-      elements_(0),
-      parameter_count_(cgen->scope()->num_parameters()),
-      local_count_(0),
-      stack_pointer_(parameter_count_ + 1),  // 0-based index of TOS.
-      frame_pointer_(kIllegalIndex) {
-  for (int i = 0; i < parameter_count_ + 2; i++) {
-    elements_.Add(FrameElement::MemoryElement());
-  }
-}
-
-
 // When cloned, a frame is a deep copy of the original.
 VirtualFrame::VirtualFrame(VirtualFrame* original)
     : cgen_(original->cgen_),
