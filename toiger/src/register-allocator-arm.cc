@@ -75,4 +75,9 @@ void RegisterAllocator::UnuseReserved(RegisterFile* register_file) {
 }
 
 
+void RegisterAllocator::Initialize() {
+  UNIMPLEMENTED();
+}
+
+
 } }  // namespace v8::internal
