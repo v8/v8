@@ -1156,12 +1156,20 @@ void CodeGenerator::SmiOperation(Token::Value op,
       __ test(eax, Immediate(kSmiTagMask));
       __ j(not_zero, deferred->enter(), not_taken);
       if (op == Token::BIT_AND) {
-        __ and_(Operand(eax), Immediate(value));
+        if (int_value == 0) {
+          __ xor_(Operand(eax), eax);
+        } else {
+          __ and_(Operand(eax), Immediate(value));
+        }
       } else if (op == Token::BIT_XOR) {
-        __ xor_(Operand(eax), Immediate(value));
+        if (int_value != 0) {
+          __ xor_(Operand(eax), Immediate(value));
+        }
       } else {
         ASSERT(op == Token::BIT_OR);
-        __ or_(Operand(eax), Immediate(value));
+        if (int_value != 0) {
+          __ or_(Operand(eax), Immediate(value));
+        }
       }
       __ bind(deferred->exit());
       frame_->Push(eax);
@@ -3268,6 +3276,23 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     __ CallRuntime(Runtime::kTypeof, 1);
     frame_->Push(eax);
 
+  } else if (op == Token::VOID) {
+    Expression* expression = node->expression();
+    if (expression && expression->AsLiteral() && (
+        expression->AsLiteral()->IsTrue() ||
+        expression->AsLiteral()->IsFalse() ||
+        expression->AsLiteral()->handle()->IsNumber() ||
+        expression->AsLiteral()->handle()->IsString() ||
+        expression->AsLiteral()->handle()->IsJSRegExp() ||
+        expression->AsLiteral()->IsNull())) {
+      // Omit evaluating the value of the primitive literal.
+      // It will be discarded anyway, and can have no side effect.
+      frame_->Push(Immediate(Factory::undefined_value()));
+    } else {
+      Load(node->expression());
+      __ mov(frame_->Top(), Factory::undefined_value());
+    }
+
   } else {
     Load(node->expression());
     switch (op) {
@@ -3305,10 +3330,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         frame_->Push(eax);
         break;
       }
-
-      case Token::VOID:
-        __ mov(frame_->Top(), Factory::undefined_value());
-        break;
 
       case Token::ADD: {
         // Smi check.

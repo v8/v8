@@ -232,7 +232,7 @@ function TimeInYear(year) {
 function ToJulianDay(year, month, date) {
   var jy = (month > 1) ? year : year - 1;
   var jm = (month > 1) ? month + 2 : month + 14;
-  var ja = FLOOR(0.01*jy);
+  var ja = FLOOR(jy / 100);
   return FLOOR(FLOOR(365.25*jy) + FLOOR(30.6001*jm) + date + 1720995) + 2 - ja + FLOOR(0.25*ja);
 }
 
@@ -247,22 +247,22 @@ function CalculateDateTable() {
   var position = 0;
   var leap_position = 0;
   for (var month = 0; month < 12; month++) {
+    var month_bits = month << kMonthShift;
     var length = month_lengths[month];
     for (var day = 1; day <= length; day++) {
       four_year_cycle_table[leap_position] =
-        (month << kMonthShift) + day;
+        month_bits + day;
       four_year_cycle_table[366 + position] =
-        (1 << kYearShift) + (month << kMonthShift) + day;
+        (1 << kYearShift) + month_bits + day;
       four_year_cycle_table[731 + position] =
-        (2 << kYearShift) + (month << kMonthShift) + day;
+        (2 << kYearShift) + month_bits + day;
       four_year_cycle_table[1096 + position] =
-        (3 << kYearShift) + (month << kMonthShift) + day;
+        (3 << kYearShift) + month_bits + day;
       leap_position++;
       position++;
     }
     if (month == 1) {
-      four_year_cycle_table[leap_position++] =
-        (month << kMonthShift) + 29;
+      four_year_cycle_table[leap_position++] = month_bits + 29;
     }
   }
   return four_year_cycle_table;
@@ -277,10 +277,16 @@ function DayTriplet(year, month, date) {
   this.date = date;
 }
 
+var julian_day_cache_triplet;
+var julian_day_cache_day = $NaN;
 
 // Compute year, month, and day from modified Julian day.
 // The missing days in 1582 are ignored for JavaScript compatibility.
 function FromJulianDay(julian) {
+  if (julian_day_cache_day == julian) {
+    return julian_day_cache_triplet;
+  }
+  var result;
   // Avoid floating point and non-Smi maths in common case.  This is also a period of
   // time where leap years are very regular.  The range is not too large to avoid overflow
   // when doing the multiply-to-divide trick.
@@ -293,21 +299,25 @@ function FromJulianDay(julian) {
     y += after_1968 << 2;
     jsimple -= 1461 * after_1968;
     var four_year_cycle = four_year_cycle_table[jsimple];
-    return new DayTriplet(y + (four_year_cycle >> kYearShift),
-                           (four_year_cycle & kMonthMask) >> kMonthShift,
-                           four_year_cycle & kDayMask);
+    result = new DayTriplet(y + (four_year_cycle >> kYearShift),
+                            (four_year_cycle & kMonthMask) >> kMonthShift,
+                            four_year_cycle & kDayMask);
+  } else {
+    var jalpha = FLOOR((julian - 1867216.25) / 36524.25);
+    var jb = julian + 1 + jalpha - FLOOR(0.25 * jalpha) + 1524;
+    var jc = FLOOR(6680.0 + ((jb-2439870) - 122.1)/365.25);
+    var jd = FLOOR(365 * jc + (0.25 * jc));
+    var je = FLOOR((jb - jd)/30.6001);
+    var m = je - 1;
+    if (m > 12) m -= 13;
+    var y = jc - 4715;
+    if (m > 2) { --y; --m; }
+    var d = jb - jd - FLOOR(30.6001 * je);
+    result = new DayTriplet(y, m, d);
   }
-  var jalpha = FLOOR((julian - 1867216.25) / 36524.25);
-  var jb = julian + 1 + jalpha - FLOOR(0.25 * jalpha) + 1524;
-  var jc = FLOOR(6680.0 + ((jb-2439870) - 122.1)/365.25);
-  var jd = FLOOR(365 * jc + (0.25 * jc));
-  var je = FLOOR((jb - jd)/30.6001);
-  var m = je - 1;
-  if (m > 12) m -= 13;
-  var y = jc - 4715;
-  if (m > 2) { --y; --m; }
-  var d = jb - jd - FLOOR(30.6001 * je);
-  return new DayTriplet(y, m, d);
+  julian_day_cache_day = julian;
+  julian_day_cache_triplet = result;
+  return result;
 }
 
 

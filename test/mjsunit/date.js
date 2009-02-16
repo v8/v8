@@ -42,6 +42,20 @@ assertEquals(date0, date1);
 assertEquals(date1, date2);
 assertEquals(date2, date3);
 
+// Test limits (+/-1e8 days from epoch)
+
+var dMax = new Date(8.64e15);
+assertEquals(8.64e15, dMax.getTime());
+
+var dOverflow = new Date(8.64e15+1);
+assertTrue(isNaN(dOverflow.getTime()));
+
+var dMin = new Date(-8.64e15);
+assertEquals(-8.64e15, dMin.getTime());
+
+var dUnderflow = new Date(-8.64e15-1);
+assertTrue(isNaN(dUnderflow.getTime()));
+
 
 // Tests inspired by js1_5/Date/regress-346363.js
 
