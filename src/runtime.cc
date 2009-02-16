@@ -4625,7 +4625,7 @@ static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
             reinterpret_cast<AccessorDescriptor*>(
                 Proxy::cast(structure)->proxy());
         value = (callback->getter)(receiver, callback->data);
-        if (value->IsFailure()) {
+        if (value->IsException()) {
           value = Top::pending_exception();
           Top::clear_pending_exception();
           if (caught_exception != NULL) {
@@ -4705,15 +4705,17 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
 
   if (result.IsProperty()) {
     bool caught_exception = false;
-    Handle<Object> value(DebugLookupResultValue(*obj, &result,
-                                                &caught_exception));
+    Object* value = DebugLookupResultValue(*obj, &result,
+                                           &caught_exception);
+    if (value->IsFailure()) return value;
+    Handle<Object> value_handle(value);
     // If the callback object is a fixed array then it contains JavaScript
     // getter and/or setter.
     bool hasJavaScriptAccessors = result.type() == CALLBACKS &&
                                   result.GetCallbackObject()->IsFixedArray();
     Handle<FixedArray> details =
         Factory::NewFixedArray(hasJavaScriptAccessors ? 5 : 2);
-    details->set(0, *value);
+    details->set(0, *value_handle);
     details->set(1, result.GetPropertyDetails().AsSmi());
     if (hasJavaScriptAccessors) {
       details->set(2,

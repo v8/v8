@@ -2997,9 +2997,9 @@ void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
   // See the comment in objects.h.
   ASSERT(kLongStringTag == 0);
   ASSERT(kMediumStringTag + String::kLongLengthShift ==
-             String::kMediumLengthShift);
+         String::kMediumLengthShift);
   ASSERT(kShortStringTag + String::kLongLengthShift ==
-             String::kShortLengthShift);
+         String::kShortLengthShift);
   __ mov(ecx, Operand(edi));
   __ and_(ecx, kStringSizeMask);
   __ add(Operand(ecx), Immediate(String::kLongLengthShift));
