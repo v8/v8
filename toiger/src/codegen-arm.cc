@@ -2209,7 +2209,7 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
   } else {
     ASSERT(var->is_global());
     Reference ref(this, node);
-    ref.GetValue(typeof_state());
+    ref.GetValueAndSpill(typeof_state());
   }
 }
 
@@ -2445,7 +2445,7 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     LoadAndSpill(node->value());
 
   } else {
-    target.GetValue(NOT_INSIDE_TYPEOF);
+    target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
     Literal* literal = node->value()->AsLiteral();
     if (literal != NULL && literal->handle()->IsSmi()) {
       SmiOperation(node->binary_op(), literal->handle(), false);
@@ -2494,7 +2494,7 @@ void CodeGenerator::VisitProperty(Property* node) {
   Comment cmnt(masm_, "[ Property");
 
   Reference property(this, node);
-  property.GetValue(typeof_state());
+  property.GetValueAndSpill(typeof_state());
 }
 
 
@@ -2610,7 +2610,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
-      ref.GetValue(NOT_INSIDE_TYPEOF);  // receiver
+      ref.GetValueAndSpill(NOT_INSIDE_TYPEOF);  // receiver
 
       // Pass receiver to called function.
       __ ldr(r0, frame_->ElementAt(ref.size()));
@@ -3094,7 +3094,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
       }
       return;
     }
-    target.GetValue(NOT_INSIDE_TYPEOF);
+    target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
     frame_->EmitPop(r0);
 
     JumpTarget slow(this);
@@ -3510,10 +3510,11 @@ Handle<String> Reference::GetName() {
 
 
 void Reference::GetValue(TypeofState typeof_state) {
+  ASSERT(!cgen_->in_spilled_code());
+  ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
   ASSERT(!cgen_->has_cc());
   MacroAssembler* masm = cgen_->masm();
-  VirtualFrame* frame = cgen_->frame();
   Property* property = expression_->AsProperty();
   if (property != NULL) {
     cgen_->CodeForSourcePosition(property->position());
@@ -3534,20 +3535,21 @@ void Reference::GetValue(TypeofState typeof_state) {
       // there is a chance that reference errors can be thrown below, we
       // must distinguish between the two kinds of loads (typeof expression
       // loads must not throw a reference error).
+      VirtualFrame* frame = cgen_->frame();
       Comment cmnt(masm, "[ Load from named Property");
-      // Setup the name register.
       Handle<String> name(GetName());
-      __ mov(r2, Operand(name));
-      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-
       Variable* var = expression_->AsVariableProxy()->AsVariable();
-      if (var != NULL) {
-        ASSERT(var->is_global());
-        frame->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, 0);
-      } else {
-        frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-      }
-      frame->EmitPush(r0);
+      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+      // Setup the name register.
+      Result name_reg = cgen_->allocator()->Allocate(r2);
+      ASSERT(name_reg.is_valid());
+      __ mov(name_reg.reg(), Operand(name));
+      ASSERT(var == NULL || var->is_global());
+      RelocInfo::Mode rmode = (var == NULL)
+                            ? RelocInfo::CODE_TARGET
+                            : RelocInfo::CODE_TARGET_CONTEXT;
+      Result answer = frame->CallCodeObject(ic, rmode, &name_reg, 0);
+      frame->EmitPush(answer.reg());
       break;
     }
 
@@ -3557,18 +3559,17 @@ void Reference::GetValue(TypeofState typeof_state) {
 
       // TODO(181): Implement inlined version of array indexing once
       // loop nesting is properly tracked on ARM.
+      VirtualFrame* frame = cgen_->frame();
       Comment cmnt(masm, "[ Load from keyed Property");
       ASSERT(property != NULL);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-
       Variable* var = expression_->AsVariableProxy()->AsVariable();
-      if (var != NULL) {
-        ASSERT(var->is_global());
-        frame->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, 0);
-      } else {
-        frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-      }
-      frame->EmitPush(r0);
+      ASSERT(var == NULL || var->is_global());
+      RelocInfo::Mode rmode = (var == NULL)
+                            ? RelocInfo::CODE_TARGET
+                            : RelocInfo::CODE_TARGET_CONTEXT;
+      Result answer = frame->CallCodeObject(ic, rmode, 0);
+      frame->EmitPush(answer.reg());
       break;
     }
 

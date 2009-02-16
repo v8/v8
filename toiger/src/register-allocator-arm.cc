@@ -35,33 +35,12 @@ namespace v8 { namespace internal {
 // -------------------------------------------------------------------------
 // Result implementation.
 
-void Result::CopyTo(Result* destination) const {
-  destination->type_ = type();
-  destination->cgen_ = cgen_;
-
-  if (is_register()) {
-    destination->data_.reg_ = reg();
-    cgen_->allocator()->Use(reg());
-  } else if (is_constant()) {
-    destination->data_.handle_ = data_.handle_;
-  } else {
-    ASSERT(!is_valid());
-  }
+void Result::ToRegister() {
+  UNIMPLEMENTED();
 }
 
 
-void Result::Unuse() {
-  if (is_register()) {
-    cgen_->allocator()->Unuse(reg());
-  }
-  type_ = INVALID;
-}
-
-
-// -------------------------------------------------------------------------
-// RegisterFile implementation.
-
-void RegisterFile::CopyTo(RegisterFile* other) {
+void Result::ToRegister(Register target) {
   UNIMPLEMENTED();
 }
 
@@ -104,6 +83,13 @@ void RegisterAllocator::Reset() {
   Use(fp);  // Frame pointer (caller's frame pointer on entry).
   Use(cp);  // Context context (callee's context on entry).
   Use(pc);  // Program counter.
+}
+
+
+Result RegisterAllocator::AllocateByteRegisterWithoutSpilling() {
+  UNIMPLEMENTED();
+  Result invalid(cgen_);
+  return invalid;
 }
 
 

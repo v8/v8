@@ -60,7 +60,93 @@ VirtualFrame::VirtualFrame(CodeGenerator* cgen)
 // be allocated on the physical stack, or the first element above the
 // stack pointer so it can be allocated by a single push instruction.
 void VirtualFrame::RawSyncElementAt(int index) {
-  UNIMPLEMENTED();
+  FrameElement element = elements_[index];
+
+  if (!element.is_valid() || element.is_synced()) return;
+
+  if (index <= stack_pointer_) {
+    // Emit code to write elements below the stack pointer to their
+    // (already allocated) stack address.
+    switch (element.type()) {
+      case FrameElement::INVALID:  // Fall through.
+      case FrameElement::MEMORY:
+        // There was an early bailout for invalid and synced elements
+        // (memory elements are always synced).
+        UNREACHABLE();
+        break;
+
+      case FrameElement::REGISTER:
+        __ str(element.reg(), MemOperand(fp, fp_relative(index)));
+        break;
+
+      case FrameElement::CONSTANT: {
+        Result temp = cgen_->allocator()->Allocate();
+        ASSERT(temp.is_valid());
+        __ mov(temp.reg(), Operand(element.handle()));
+        __ str(temp.reg(), MemOperand(fp, fp_relative(index)));
+        break;
+      }
+
+      case FrameElement::COPY: {
+        int backing_index = element.index();
+        FrameElement backing_element = elements_[backing_index];
+        if (backing_element.is_memory()) {
+          Result temp = cgen_->allocator()->Allocate();
+          ASSERT(temp.is_valid());
+          __ ldr(temp.reg(), MemOperand(fp, fp_relative(backing_index)));
+          __ str(temp.reg(), MemOperand(fp, fp_relative(index)));
+        } else {
+          ASSERT(backing_element.is_register());
+          __ str(backing_element.reg(), MemOperand(fp, fp_relative(index)));
+        }
+        break;
+      }
+    }
+
+  } else {
+    // Push elements above the stack pointer to allocate space and
+    // sync them.  Space should have already been allocated in the
+    // actual frame for all the elements below this one.
+    ASSERT(index == stack_pointer_ + 1);
+    stack_pointer_++;
+    switch (element.type()) {
+      case FrameElement::INVALID:  // Fall through.
+      case FrameElement::MEMORY:
+        // There was an early bailout for invalid and synced elements
+        // (memory elements are always synced).
+        UNREACHABLE();
+        break;
+
+      case FrameElement::REGISTER:
+        __ push(element.reg());
+        break;
+
+      case FrameElement::CONSTANT: {
+        Result temp = cgen_->allocator()->Allocate();
+        ASSERT(temp.is_valid());
+        __ mov(temp.reg(), Operand(element.handle()));
+        __ push(temp.reg());
+        break;
+      }
+
+      case FrameElement::COPY: {
+        int backing_index = element.index();
+        FrameElement backing = elements_[backing_index];
+        ASSERT(backing.is_memory() || backing.is_register());
+        if (backing.is_memory()) {
+          Result temp = cgen_->allocator()->Allocate();
+          ASSERT(temp.is_valid());
+          __ ldr(temp.reg(), MemOperand(fp, fp_relative(backing_index)));
+          __ push(temp.reg());
+        } else {
+          __ push(backing.reg());
+        }
+        break;
+      }
+    }
+  }
+
+  elements_[index].set_sync();
 }
 
 
@@ -178,25 +264,33 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 
 
 Result VirtualFrame::RawCallStub(CodeStub* stub, int frame_arg_count) {
-  UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  ASSERT(cgen_->HasValidEntryRegisters());
+  __ CallStub(stub);
+  Result result = cgen_->allocator()->Allocate(r0);
+  ASSERT(result.is_valid());
+  return result;
 }
 
 
 Result VirtualFrame::CallRuntime(Runtime::Function* f,
                                  int frame_arg_count) {
-  UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  PrepareForCall(frame_arg_count, frame_arg_count);
+  ASSERT(cgen_->HasValidEntryRegisters());
+  __ CallRuntime(f, frame_arg_count);
+  Result result = cgen_->allocator()->Allocate(r0);
+  ASSERT(result.is_valid());
+  return result;
 }
 
 
 Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
                                  int frame_arg_count) {
-  UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  PrepareForCall(frame_arg_count, frame_arg_count);
+  ASSERT(cgen_->HasValidEntryRegisters());
+  __ CallRuntime(id, frame_arg_count);
+  Result result = cgen_->allocator()->Allocate(r0);
+  ASSERT(result.is_valid());
+  return result;
 }
 
 
@@ -211,9 +305,11 @@ Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
 
 Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
                                        RelocInfo::Mode rmode) {
-  UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  ASSERT(cgen_->HasValidEntryRegisters());
+  __ Call(code, rmode);
+  Result result = cgen_->allocator()->Allocate(r0);
+  ASSERT(result.is_valid());
+  return result;
 }
 
 
@@ -221,9 +317,27 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
                                     RelocInfo::Mode rmode,
                                     Result* arg,
                                     int dropped_args) {
-  UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  int spilled_args = 0;
+  switch (code->kind()) {
+    case Code::LOAD_IC:
+      ASSERT(arg->reg().is(r2));
+      ASSERT(dropped_args == 0);
+      spilled_args = 1;
+      break;
+    case Code::KEYED_STORE_IC:
+      ASSERT(arg->reg().is(r0));
+      ASSERT(dropped_args == 0);
+      spilled_args = 2;
+      break;
+    default:
+      // No other types of code objects are called with values
+      // in exactly one register.
+      UNREACHABLE();
+      break;
+  }
+  PrepareForCall(spilled_args, dropped_args);
+  arg->Unuse();
+  return RawCallCodeObject(code, rmode);
 }
 
 
@@ -239,7 +353,23 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
 
 
 void VirtualFrame::Drop(int count) {
-  UNIMPLEMENTED();
+  ASSERT(height() >= count);
+  int num_virtual_elements = (elements_.length() - 1) - stack_pointer_;
+
+  // Emit code to lower the stack pointer if necessary.
+  if (num_virtual_elements < count) {
+    int num_dropped = count - num_virtual_elements;
+    stack_pointer_ -= num_dropped;
+    __ add(sp, sp, Operand(num_dropped * kPointerSize));
+  }
+
+  // Discard elements from the virtual frame and free any registers.
+  for (int i = 0; i < count; i++) {
+    FrameElement dropped = elements_.RemoveLast();
+    if (dropped.is_register()) {
+      Unuse(dropped.reg());
+    }
+  }
 }
 
 
@@ -251,12 +381,18 @@ Result VirtualFrame::Pop() {
 
 
 void VirtualFrame::EmitPop(Register reg) {
-  UNIMPLEMENTED();
+  ASSERT(stack_pointer_ == elements_.length() - 1);
+  stack_pointer_--;
+  elements_.RemoveLast();
+  __ pop(reg);
 }
 
 
 void VirtualFrame::EmitPush(Register reg) {
-  UNIMPLEMENTED();
+  ASSERT(stack_pointer_ == elements_.length() - 1);
+  elements_.Add(FrameElement::MemoryElement());
+  stack_pointer_++;
+  __ push(reg);
 }
 
 
