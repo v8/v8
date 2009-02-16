@@ -43,9 +43,9 @@ class VirtualFrame : public Malloced {
  public:
   // A utility class to introduce a scope where the virtual frame is
   // expected to remain spilled.  The constructor spills the code
-  // generator's current frame, but no attempt is made to require it to stay
-  // stay spilled.  It is intended as documentation while the code generator
-  // is being transformed.
+  // generator's current frame, but no attempt is made to require it
+  // to stay spilled.  It is intended as documentation while the code
+  // generator is being transformed.
   class SpilledScope BASE_EMBEDDED {
    public:
     explicit SpilledScope(CodeGenerator* cgen);
@@ -125,8 +125,7 @@ class VirtualFrame : public Malloced {
   // shared return site.  Emits code for spills.
   void PrepareForReturn();
 
-  // Allocate and initialize the frame-allocated locals.  The eax register
-  // us clobbered.
+  // Allocate and initialize the frame-allocated locals.
   void AllocateStackSlots(int count);
 
   // An element of the expression stack as an assembly operand.
@@ -252,8 +251,6 @@ class VirtualFrame : public Malloced {
                         Result* arg0,
                         Result* arg1,
                         int dropped_args);
-
-
 
   // Drop a number of elements from the top of the expression stack.  May
   // emit code to affect the physical frame.  Does not clobber any registers

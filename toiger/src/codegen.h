@@ -44,6 +44,8 @@
 // CodeGenerator::DeleteFrame
 // CodeGenerator::allocator
 // CodeGenerator::AddDeferred
+// CodeGenerator::in_spilled_code
+// CodeGenerator::set_in_spilled_code
 //
 // These methods are either used privately by the shared code or implemented as
 // shared code:

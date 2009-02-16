@@ -38,66 +38,31 @@ namespace v8 { namespace internal {
 
 #define __ masm_->
 
-VirtualFrame::VirtualFrame(CodeGenerator* cgen)
-    : masm_(cgen->masm()),
-      elements_(0),
-      parameter_count_(cgen->scope()->num_parameters()),
-      local_count_(0),
-      frame_pointer_(-1) {
-  // The virtual frame contains a receiver and the parameters (all in
-  // memory) when it is created.
-  Adjust(parameter_count_ + 1);
-}
-
-
-VirtualFrame::VirtualFrame(VirtualFrame* original)
-    : masm_(original->masm_),
-      elements_(original->elements_.length()),
-      parameter_count_(original->parameter_count_),
-      local_count_(original->local_count_),
-      frame_pointer_(original->frame_pointer_) {
-  // Copy all the elements.
-  for (int i = 0; i < original->elements_.length(); i++) {
-    elements_.Add(original->elements_[i]);
-  }
-}
-
-
-void VirtualFrame::Adjust(int count) {
-  UNIMPLEMENTED();
-}
-
-
-void VirtualFrame::Forget(int count) {
-  ASSERT(count >= 0);
-  ASSERT(elements_.length() >= count);
-  for (int i = 0; i < count; i++) {
-    elements_.RemoveLast();
-  }
-}
-
-
-void VirtualFrame::SpillAll() {
+// Clear the dirty bit for the element at a given index if it is a
+// valid element.  The stack address corresponding to the element must
+// be allocated on the physical stack, or the first element above the
+// stack pointer so it can be allocated by a single push instruction.
+void VirtualFrame::RawSyncElementAt(int index) {
   UNIMPLEMENTED();
 }
 
 
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
-  ASSERT(masm_ == expected->masm_);
-  ASSERT(elements_.length() == expected->elements_.length());
-  ASSERT(parameter_count_ == expected->parameter_count_);
-  ASSERT(local_count_ == expected->local_count_);
-  ASSERT(frame_pointer_ == expected->frame_pointer_);
   UNIMPLEMENTED();
 }
 
 
-void VirtualFrame::DetachFromCodeGenerator() {
+void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
   UNIMPLEMENTED();
 }
 
 
-void VirtualFrame::AttachToCodeGenerator() {
+void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
+  UNIMPLEMENTED();
+}
+
+
+void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
   UNIMPLEMENTED();
 }
 
@@ -151,6 +116,42 @@ void VirtualFrame::AllocateStackSlots(int count) {
 }
 
 
+void VirtualFrame::SaveContextRegister() {
+  UNIMPLEMENTED();
+}
+
+
+void VirtualFrame::RestoreContextRegister() {
+  UNIMPLEMENTED();
+}
+
+
+void VirtualFrame::PushReceiverSlotAddress() {
+  UNIMPLEMENTED();
+}
+
+
+// Before changing an element which is copied, adjust so that the
+// first copy becomes the new backing store and all the other copies
+// are updated.  If the original was in memory, the new backing store
+// is allocated to a register.  Return a copy of the new backing store
+// or an invalid element if the original was not a copy.
+FrameElement VirtualFrame::AdjustCopies(int index) {
+  UNIMPLEMENTED();
+  return FrameElement::InvalidElement();
+}
+
+
+void VirtualFrame::TakeFrameSlotAt(int index) {
+  UNIMPLEMENTED();
+}
+
+
+void VirtualFrame::StoreToFrameSlotAt(int index) {
+  UNIMPLEMENTED();
+}
+
+
 void VirtualFrame::PushTryHandler(HandlerType type) {
   // Grow the expression stack by handler size less one (the return address
   // is already pushed by a call instruction).
@@ -159,61 +160,76 @@ void VirtualFrame::PushTryHandler(HandlerType type) {
 }
 
 
-void VirtualFrame::CallStub(CodeStub* stub, int frame_arg_count) {
-  ASSERT(height() >= frame_arg_count);
-  Forget(frame_arg_count);
-  __ CallStub(stub);
+Result VirtualFrame::RawCallStub(CodeStub* stub, int frame_arg_count) {
+  UNIMPLEMENTED();
+  Result invalid(cgen_);
+  return invalid;
 }
 
 
-void VirtualFrame::CallRuntime(Runtime::Function* f, int frame_arg_count) {
-  ASSERT(height() >= frame_arg_count);
-  Forget(frame_arg_count);
-  __ CallRuntime(f, frame_arg_count);
-}
-
-
-void VirtualFrame::CallRuntime(Runtime::FunctionId id, int frame_arg_count) {
-  ASSERT(height() >= frame_arg_count);
-  Forget(frame_arg_count);
-  __ CallRuntime(id, frame_arg_count);
-}
-
-
-void VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
-                                 InvokeJSFlags flags,
+Result VirtualFrame::CallRuntime(Runtime::Function* f,
                                  int frame_arg_count) {
-  ASSERT(height() >= frame_arg_count);
-  Forget(frame_arg_count);
-  __ InvokeBuiltin(id, flags);
+  UNIMPLEMENTED();
+  Result invalid(cgen_);
+  return invalid;
 }
 
 
-void VirtualFrame::CallCodeObject(Handle<Code> code,
-                                  RelocInfo::Mode rmode,
-                                  int frame_arg_count) {
-  ASSERT(height() >= frame_arg_count);
-  Forget(frame_arg_count);
-  __ Call(code, rmode);
+Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
+                                 int frame_arg_count) {
+  UNIMPLEMENTED();
+  Result invalid(cgen_);
+  return invalid;
+}
+
+
+Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
+                                   InvokeJSFlags flags,
+                                   int frame_arg_count) {
+  UNIMPLEMENTED();
+  Result invalid(cgen_);
+  return invalid;
+}
+
+
+Result VirtualFrame::RawCallCodeObject(Handle<Code> code,
+                                       RelocInfo::Mode rmode) {
+  UNIMPLEMENTED();
+  Result invalid(cgen_);
+  return invalid;
+}
+
+
+Result VirtualFrame::CallCodeObject(Handle<Code> code,
+                                    RelocInfo::Mode rmode,
+                                    Result* arg,
+                                    int dropped_args) {
+  UNIMPLEMENTED();
+  Result invalid(cgen_);
+  return invalid;
+}
+
+
+Result VirtualFrame::CallCodeObject(Handle<Code> code,
+                                    RelocInfo::Mode rmode,
+                                    Result* arg0,
+                                    Result* arg1,
+                                    int dropped_args) {
+  UNIMPLEMENTED();
+  Result invalid(cgen_);
+  return invalid;
 }
 
 
 void VirtualFrame::Drop(int count) {
-  ASSERT(height() >= count);
-  Forget(count);
-  if (count > 0) {
-    __ add(sp, sp, Operand(count * kPointerSize));
-  }
+  UNIMPLEMENTED();
 }
-
-
-void VirtualFrame::Drop() { Drop(1); }
 
 
 Result VirtualFrame::Pop() {
   UNIMPLEMENTED();
-  Result result(cgen_);
-  return result;
+  Result invalid(cgen_);
+  return invalid;
 }
 
 
@@ -223,14 +239,9 @@ void VirtualFrame::EmitPop(Register reg) {
 
 
 void VirtualFrame::EmitPush(Register reg) {
-  Adjust(1);
-  __ push(reg);
-}
-
-
-void VirtualFrame::Push(Result* result) {
   UNIMPLEMENTED();
 }
+
 
 #undef __
 

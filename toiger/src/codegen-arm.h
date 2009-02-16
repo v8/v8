@@ -179,6 +179,9 @@ class CodeGenerator: public AstVisitor {
 
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
 
+  bool in_spilled_code() const { return in_spilled_code_; }
+  void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
+
  private:
   // Construction/Destruction
   CodeGenerator(int buffer_size, Handle<Script> script, bool is_eval);
@@ -386,6 +389,12 @@ class CodeGenerator: public AstVisitor {
   // function_return_ does not jump to the true function return, but rather
   // to some unlinking code).
   bool function_return_is_shadowed_;
+
+  // True when we are in code that expects the virtual frame to be fully
+  // spilled.  Some virtual frame function are disabled in DEBUG builds when
+  // called from spilled code, because they do not leave the virtual frame
+  // in a spilled state.
+  bool in_spilled_code_;
 
   friend class VirtualFrame;
   friend class JumpTarget;

@@ -1314,7 +1314,6 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   __ b(ge, default_label);
   __ SmiJumpTable(r0, case_targets);
 
-  frame_->MakeMergable();
   VirtualFrame* start_frame = new VirtualFrame(frame_);
   // Table containing branch operations.
   for (int i = 0; i < range; i++) {
