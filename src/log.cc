@@ -259,10 +259,73 @@ void Profiler::Run() {
 }
 
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+// Utility class for formatting log messages. It fills the message into the
+// static buffer in Logger.
+class LogMessageBuilder BASE_EMBEDDED {
+ public:
+  explicit LogMessageBuilder();
+  ~LogMessageBuilder() { }
+
+  void Append(const char* format, ...);
+  void Append(const char c);
+
+  void WriteToLogFile();
+
+ private:
+  ScopedLock sl;
+  int pos_;
+};
+
+
+// Create a message builder starting from position 0. This acquires the mutex
+// in the logger as well.
+LogMessageBuilder::LogMessageBuilder(): pos_(0), sl(Logger::mutex_) {
+  ASSERT(Logger::message_buffer_ != NULL);
+}
+
+
+// Append string data to the log message.
+void LogMessageBuilder::Append(const char* format, ...) {
+  Vector<char> buf(Logger::message_buffer_ + pos_,
+                   Logger::kMessageBufferSize - pos_);
+  va_list args;
+  va_start(args, format);
+  int result = v8::internal::OS::VSNPrintF(buf, format, args);
+  va_end(args);
+
+  // Result is -1 if output was truncated.
+  if (result >= 0) {
+    pos_ += result;
+  } else {
+    pos_ = Logger::kMessageBufferSize;
+  }
+  ASSERT(pos_ <= Logger::kMessageBufferSize);
+}
+
+
+// Append a character to the log message.
+void LogMessageBuilder::Append(const char c) {
+  if (pos_ < Logger::kMessageBufferSize) {
+    Logger::message_buffer_[pos_++] = c;
+  }
+  ASSERT(pos_ <= Logger::kMessageBufferSize);
+}
+
+
+// Write the log message to the log file currently opened.
+void LogMessageBuilder::WriteToLogFile() {
+  ASSERT(pos_ <= Logger::kMessageBufferSize);
+  fwrite(Logger::message_buffer_, 1, pos_, Logger::logfile_);
+}
+#endif
+
+
 //
 // Logger class implementation.
 //
 Ticker* Logger::ticker_ = NULL;
+char* Logger::message_buffer_ = NULL;
 FILE* Logger::logfile_ = NULL;
 Profiler* Logger::profiler_ = NULL;
 Mutex* Logger::mutex_ = NULL;
@@ -270,6 +333,7 @@ VMState* Logger::current_state_ = NULL;
 SlidingStateWindow* Logger::sliding_state_window_ = NULL;
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
+
 
 void Logger::Preamble(const char* content) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -568,16 +632,17 @@ void Logger::DeleteEvent(const char* name, void* object) {
 void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  ScopedLock sl(mutex_);
-
-  fprintf(logfile_, "code-creation,%s,0x%x,%d,\"", tag,
-          reinterpret_cast<unsigned int>(code->address()),
-          code->instruction_size());
+  LogMessageBuilder msg;
+  msg.Append("code-creation,%s,0x%x,%d,\"", tag,
+             reinterpret_cast<unsigned int>(code->address()),
+             code->instruction_size());
   for (const char* p = comment; *p != '\0'; p++) {
     if (*p == '\"') fprintf(logfile_, "\\");
-    fprintf(logfile_, "%c", *p);
+    msg.Append(*p);
   }
-  fprintf(logfile_, "\"\n");
+  msg.Append('"');
+  msg.Append('\n');
+  msg.WriteToLogFile();
 #endif
 }
 
@@ -585,12 +650,13 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  ScopedLock sl(mutex_);
+  LogMessageBuilder msg;
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  fprintf(logfile_, "code-creation,%s,0x%x,%d,\"%s\"\n", tag,
-          reinterpret_cast<unsigned int>(code->address()),
-          code->instruction_size(), *str);
+  msg.Append("code-creation,%s,0x%x,%d,\"%s\"\n", tag,
+             reinterpret_cast<unsigned int>(code->address()),
+             code->instruction_size(), *str);
+  msg.WriteToLogFile();
 #endif
 }
 
@@ -599,14 +665,15 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
                              String* source, int line) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  ScopedLock sl(mutex_);
+  LogMessageBuilder msg;
   SmartPointer<char> str =
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   SmartPointer<char> sourcestr =
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  fprintf(logfile_, "code-creation,%s,0x%x,%d,\"%s %s:%d\"\n", tag,
-          reinterpret_cast<unsigned int>(code->address()),
-          code->instruction_size(), *str, *sourcestr, line);
+  msg.Append("code-creation,%s,0x%x,%d,\"%s %s:%d\"\n", tag,
+             reinterpret_cast<unsigned int>(code->address()),
+             code->instruction_size(), *str, *sourcestr, line);
+  msg.WriteToLogFile();
 #endif
 }
 
@@ -614,12 +681,12 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
 void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  ScopedLock sl(mutex_);
-
-  fprintf(logfile_, "code-creation,%s,0x%x,%d,\"args_count: %d\"\n", tag,
-          reinterpret_cast<unsigned int>(code->address()),
-          code->instruction_size(),
-          args_count);
+  LogMessageBuilder msg;
+  msg.Append("code-creation,%s,0x%x,%d,\"args_count: %d\"\n", tag,
+             reinterpret_cast<unsigned int>(code->address()),
+             code->instruction_size(),
+             args_count);
+  msg.WriteToLogFile();
 #endif
 }
 
@@ -627,11 +694,11 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
 void Logger::CodeAllocateEvent(Code* code, Assembler* assem) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  ScopedLock sl(mutex_);
-
-  fprintf(logfile_, "code-allocate,0x%x,0x%x\n",
-          reinterpret_cast<unsigned int>(code->address()),
-          reinterpret_cast<unsigned int>(assem));
+  LogMessageBuilder msg;
+  msg.Append("code-allocate,0x%x,0x%x\n",
+             reinterpret_cast<unsigned int>(code->address()),
+             reinterpret_cast<unsigned int>(assem));
+  msg.WriteToLogFile();
 #endif
 }
 
@@ -639,10 +706,11 @@ void Logger::CodeAllocateEvent(Code* code, Assembler* assem) {
 void Logger::CodeMoveEvent(Address from, Address to) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  ScopedLock sl(mutex_);
-  fprintf(logfile_, "code-move,0x%x,0x%x\n",
-          reinterpret_cast<unsigned int>(from),
-          reinterpret_cast<unsigned int>(to));
+  LogMessageBuilder msg;
+  msg.Append("code-move,0x%x,0x%x\n",
+             reinterpret_cast<unsigned int>(from),
+             reinterpret_cast<unsigned int>(to));
+  msg.WriteToLogFile();
 #endif
 }
 
@@ -650,8 +718,9 @@ void Logger::CodeMoveEvent(Address from, Address to) {
 void Logger::CodeDeleteEvent(Address from) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  ScopedLock sl(mutex_);
-  fprintf(logfile_, "code-delete,0x%x\n", reinterpret_cast<unsigned int>(from));
+  LogMessageBuilder msg;
+  msg.Append("code-delete,0x%x\n", reinterpret_cast<unsigned int>(from));
+  msg.WriteToLogFile();
 #endif
 }
 
@@ -661,12 +730,13 @@ void Logger::BeginCodeRegionEvent(CodeRegion* region,
                                   const char* name) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  ScopedLock sl(mutex_);
-  fprintf(logfile_, "begin-code-region,0x%x,0x%x,0x%x,%s\n",
-          reinterpret_cast<unsigned int>(region),
-          reinterpret_cast<unsigned int>(masm),
-          masm->pc_offset(),
-          name);
+  LogMessageBuilder msg;
+  msg.Append("begin-code-region,0x%x,0x%x,0x%x,%s\n",
+             reinterpret_cast<unsigned int>(region),
+             reinterpret_cast<unsigned int>(masm),
+             masm->pc_offset(),
+             name);
+  msg.WriteToLogFile();
 #endif
 }
 
@@ -674,11 +744,12 @@ void Logger::BeginCodeRegionEvent(CodeRegion* region,
 void Logger::EndCodeRegionEvent(CodeRegion* region, Assembler* masm) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
-  ScopedLock sl(mutex_);
-  fprintf(logfile_, "end-code-region,0x%x,0x%x,0x%x\n",
-          reinterpret_cast<unsigned int>(region),
-          reinterpret_cast<unsigned int>(masm),
-          masm->pc_offset());
+  LogMessageBuilder msg;
+  msg.Append("end-code-region,0x%x,0x%x,0x%x\n",
+             reinterpret_cast<unsigned int>(region),
+             reinterpret_cast<unsigned int>(masm),
+             masm->pc_offset());
+  msg.WriteToLogFile();
 #endif
 }
 
@@ -860,6 +931,7 @@ bool Logger::Setup() {
     } else {
       logfile_ = OS::FOpen(FLAG_logfile, "w");
     }
+    message_buffer_ = NewArray<char>(kMessageBufferSize);
     mutex_ = OS::CreateMutex();
   }
 
@@ -906,6 +978,7 @@ void Logger::TearDown() {
     logfile_ = NULL;
     delete mutex_;
     mutex_ = NULL;
+    DeleteArray(message_buffer_);
   }
 #endif
 }
