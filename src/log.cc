@@ -139,12 +139,14 @@ bool Profiler::paused_ = false;
 //
 class Ticker: public Sampler {
  public:
-  explicit Ticker(int interval):
-      Sampler(interval, FLAG_prof), window_(NULL), profiler_(NULL) {}
+  explicit Ticker(int interval, unsigned int low_stack_bound):
+      Sampler(interval, FLAG_prof), window_(NULL), profiler_(NULL),
+      low_stack_bound_(low_stack_bound) {}
 
   ~Ticker() { if (IsActive()) Stop(); }
 
   void Tick(TickSample* sample) {
+    if (IsProfiling()) SampleStack(sample);
     if (profiler_) profiler_->Insert(sample);
     if (window_) window_->AddState(sample->state);
   }
@@ -170,8 +172,21 @@ class Ticker: public Sampler {
   }
 
  private:
+  void SampleStack(TickSample* sample) {
+    // Assuming that stack grows from lower addresses
+    if (sample->sp < sample->fp && sample->fp < low_stack_bound_) {
+      sample->InitStack(1);
+      sample->stack[0] = Memory::Address_at(
+          (Address)(sample->fp + StandardFrameConstants::kCallerPCOffset));
+    } else {
+      // FP seems to be in some intermediate state, better discard this sample
+      sample->InitStack(0);
+    }
+  }
+
   SlidingStateWindow* window_;
   Profiler* profiler_;
+  unsigned int low_stack_bound_;
 };
 
 
@@ -239,9 +254,6 @@ void Profiler::Disengage() {
   // the thread to terminate.
   running_ = false;
   TickSample sample;
-  sample.pc = 0;
-  sample.sp = 0;
-  sample.state = OTHER;
   Insert(&sample);
   Join();
 
@@ -900,6 +912,11 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (overflow) {
     msg.Append(",overflow");
   }
+  if (*(sample->stack)) {
+    for (size_t i = 0; sample->stack[i]; ++i) {
+      msg.Append(",0x%x", reinterpret_cast<unsigned int>(sample->stack[i]));
+    }
+  }
   msg.Append('\n');
   msg.WriteToLogFile();
 }
@@ -990,7 +1007,10 @@ bool Logger::Setup() {
 
   current_state_ = new VMState(OTHER);
 
-  ticker_ = new Ticker(10);
+  // as log is initialized early with V8, we can assume that JS execution
+  // frames can never reach this point on stack
+  int stack_var;
+  ticker_ = new Ticker(10, reinterpret_cast<unsigned int>(&stack_var));
 
   if (FLAG_sliding_state_window && sliding_state_window_ == NULL) {
     sliding_state_window_ = new SlidingStateWindow();

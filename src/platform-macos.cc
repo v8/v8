@@ -583,9 +583,11 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #if __DARWIN_UNIX03
     sample.pc = mcontext->__ss.__eip;
     sample.sp = mcontext->__ss.__esp;
+    sample.fp = mcontext->__ss.__ebp;
 #else  // !__DARWIN_UNIX03
     sample.pc = mcontext->ss.eip;
     sample.sp = mcontext->ss.esp;
+    sample.fp = mcontext->ss.ebp;
 #endif  // __DARWIN_UNIX03
   }
 

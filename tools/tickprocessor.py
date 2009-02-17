@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 import csv, splaytree, sys
+from operator import itemgetter
 
 
 class CodeEntry(object):
@@ -34,9 +35,14 @@ class CodeEntry(object):
     self.start_addr = start_addr
     self.tick_count = 0
     self.name = name
+    self.stacks = {}
 
-  def Tick(self, pc):
+  def Tick(self, pc, stack):
     self.tick_count += 1
+    if len(stack) > 0:
+      stack.insert(0, self.ToString())
+      stack_key = tuple(stack)
+      self.stacks[stack_key] = self.stacks.setdefault(stack_key, 0) + 1
 
   def RegionTicks(self):
     return None
@@ -69,8 +75,8 @@ class JSCodeEntry(CodeEntry):
     self.assembler = assembler
     self.region_ticks = None
 
-  def Tick(self, pc):
-    super(JSCodeEntry, self).Tick(pc)
+  def Tick(self, pc, stack):
+    super(JSCodeEntry, self).Tick(pc, stack)
     if not pc is None:
       offset = pc - self.start_addr
       seen = []
@@ -162,7 +168,7 @@ class TickProcessor(object):
       logreader = csv.reader(logfile)
       for row in logreader:
         if row[0] == 'tick':
-          self.ProcessTick(int(row[1], 16), int(row[2], 16), int(row[3]))
+          self.ProcessTick(int(row[1], 16), int(row[2], 16), int(row[3]), row[4:])
         elif row[0] == 'code-creation':
           self.ProcessCodeCreation(row[1], int(row[2], 16), int(row[3]), row[4])
         elif row[0] == 'code-move':
@@ -237,25 +243,41 @@ class TickProcessor(object):
   def IncludeTick(self, pc, sp, state):
     return (self.included_state is None) or (self.included_state == state)
 
-  def ProcessTick(self, pc, sp, state):
+  def FindEntry(self, pc):
+    page = pc >> 12
+    if page in self.vm_extent:
+      entry = self.cpp_entries.FindGreatestsLessThan(pc)
+      if entry != None:
+        return entry.value
+      else:
+        return entry
+    max = self.js_entries.FindMax()
+    min = self.js_entries.FindMin()
+    if max != None and pc < max.key and pc > min.key:
+      return self.js_entries.FindGreatestsLessThan(pc).value
+    return None
+
+  def ProcessStack(self, stack):
+    result = []
+    for frame in stack:
+      if frame.startswith('0x'):
+        entry = self.FindEntry(int(frame, 16))
+        if entry != None:
+          result.append(entry.ToString())
+    return result
+
+  def ProcessTick(self, pc, sp, state, stack):
     if not self.IncludeTick(pc, sp, state):
       self.excluded_number_of_ticks += 1;
       return
     self.total_number_of_ticks += 1
-    page = pc >> 12
-    if page in self.vm_extent:
-      entry = self.cpp_entries.FindGreatestsLessThan(pc).value
-      if entry.IsSharedLibraryEntry():
-        self.number_of_library_ticks += 1
-      entry.Tick(None)
+    entry = self.FindEntry(pc)
+    if entry == None:
+      self.unaccounted_number_of_ticks += 1
       return
-    max = self.js_entries.FindMax()
-    min = self.js_entries.FindMin()
-    if max != None and pc < max.key and pc > min.key:
-      code_obj = self.js_entries.FindGreatestsLessThan(pc).value
-      code_obj.Tick(pc)
-      return
-    self.unaccounted_number_of_ticks += 1
+    if entry.IsSharedLibraryEntry():
+      self.number_of_library_ticks += 1
+    entry.Tick(pc, self.ProcessStack(stack))
 
   def PrintResults(self):
     print('Statistical profiling result from %s, (%d ticks, %d unaccounted, %d excluded).' %
@@ -276,6 +298,11 @@ class TickProcessor(object):
       # Print the C++ ticks.
       self.PrintHeader('C++')
       self.PrintEntries(cpp_entries, lambda e:not e.IsSharedLibraryEntry())
+      # Print call profile.
+      print('\n [Call profile]:')
+      print('   total  call path')
+      js_entries.extend(cpp_entries)
+      self.PrintCallProfile(js_entries)
 
   def PrintHeader(self, header_title):
     print('\n [%s]:' % header_title)
@@ -308,6 +335,22 @@ class TickProcessor(object):
               'accum' : ticks[0] * 100.0 / entry.tick_count,
               'name': name
             })
+
+  def PrintCallProfile(self, entries):
+    all_stacks = {}
+    total_stacks = 0
+    for entry in entries:
+      all_stacks.update(entry.stacks)
+      for count in entry.stacks.itervalues():
+        total_stacks += count
+    all_stacks_items = all_stacks.items();
+    all_stacks_items.sort(key = itemgetter(1), reverse=True)
+    for stack, count in all_stacks_items:
+      total_percentage = count * 100.0 / total_stacks
+      print('  %(total)5.1f%%  %(call_path)s' % {
+        'total' : total_percentage,
+        'call_path' : stack[0] + '  <-  ' + stack[1]
+      })
 
 if __name__ == '__main__':
   sys.exit('You probably want to run windows-tick-processor.py or linux-tick-processor.py.')
