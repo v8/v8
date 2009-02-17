@@ -243,6 +243,7 @@ class VirtualFrame : public Malloced {
   // removes from) the top of the physical frame.
   Result InvokeBuiltin(Builtins::JavaScript id,
                        InvokeJSFlags flag,
+                       Result* arg_count_register,
                        int frame_arg_count);
 
   // Call into a JS code object, given the number of arguments it

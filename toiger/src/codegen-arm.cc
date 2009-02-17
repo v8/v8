@@ -668,14 +668,18 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op) {
     }
 
     case Token::DIV: {
-      __ mov(r0, Operand(1));
-      frame_->InvokeBuiltin(Builtins::DIV, CALL_JS, 2);
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(1));
+      frame_->InvokeBuiltin(Builtins::DIV, CALL_JS, &arg_count, 2);
       break;
     }
 
     case Token::MOD: {
-      __ mov(r0, Operand(1));
-      frame_->InvokeBuiltin(Builtins::MOD, CALL_JS, 2);
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(1));
+      frame_->InvokeBuiltin(Builtins::MOD, CALL_JS, &arg_count, 2);
       break;
     }
 
@@ -693,80 +697,96 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op) {
 }
 
 
-class DeferredInlinedSmiOperation: public DeferredCode {
+class DeferredInlineSmiOperation: public DeferredCode {
  public:
-  DeferredInlinedSmiOperation(CodeGenerator* generator, Token::Value op,
-                              int value, bool reversed) :
-      DeferredCode(generator), op_(op), value_(value), reversed_(reversed) {
+  DeferredInlineSmiOperation(CodeGenerator* generator,
+                             Token::Value op,
+                             int value,
+                             bool reversed)
+      : DeferredCode(generator),
+        op_(op),
+        value_(value),
+        reversed_(reversed) {
     set_comment("[ DeferredInlinedSmiOperation");
   }
 
-  virtual void Generate() {
-    switch (op_) {
-      case Token::ADD: {
-        if (reversed_) {
-          // revert optimistic add
-          __ sub(r0, r0, Operand(Smi::FromInt(value_)));
-          __ mov(r1, Operand(Smi::FromInt(value_)));  // x
-        } else {
-          // revert optimistic add
-          __ sub(r1, r0, Operand(Smi::FromInt(value_)));
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-        }
-        break;
-      }
-
-      case Token::SUB: {
-        if (reversed_) {
-          // revert optimistic sub
-          __ rsb(r0, r0, Operand(Smi::FromInt(value_)));
-          __ mov(r1, Operand(Smi::FromInt(value_)));
-        } else {
-          __ add(r1, r0, Operand(Smi::FromInt(value_)));
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-        }
-        break;
-      }
-
-      case Token::BIT_OR:
-      case Token::BIT_XOR:
-      case Token::BIT_AND: {
-        if (reversed_) {
-          __ mov(r1, Operand(Smi::FromInt(value_)));
-        } else {
-          __ mov(r1, Operand(r0));
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-        }
-        break;
-      }
-
-      case Token::SHL:
-      case Token::SHR:
-      case Token::SAR: {
-        if (!reversed_) {
-          __ mov(r1, Operand(r0));
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-        } else {
-          UNREACHABLE();  // should have been handled in SmiOperation
-        }
-        break;
-      }
-
-      default:
-        // other cases should have been handled before this point.
-        UNREACHABLE();
-        break;
-    }
-
-    GenericBinaryOpStub igostub(op_);
-    __ CallStub(&igostub);
-  }
+  virtual void Generate();
 
  private:
   Token::Value op_;
   int value_;
   bool reversed_;
 };
+
+
+void DeferredInlineSmiOperation::Generate() {
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
+
+  switch (op_) {
+    case Token::ADD: {
+      if (reversed_) {
+        // revert optimistic add
+        __ sub(r0, r0, Operand(Smi::FromInt(value_)));
+        __ mov(r1, Operand(Smi::FromInt(value_)));
+      } else {
+        // revert optimistic add
+        __ sub(r1, r0, Operand(Smi::FromInt(value_)));
+        __ mov(r0, Operand(Smi::FromInt(value_)));
+      }
+      break;
+    }
+
+    case Token::SUB: {
+      if (reversed_) {
+        // revert optimistic sub
+        __ rsb(r0, r0, Operand(Smi::FromInt(value_)));
+        __ mov(r1, Operand(Smi::FromInt(value_)));
+      } else {
+        __ add(r1, r0, Operand(Smi::FromInt(value_)));
+        __ mov(r0, Operand(Smi::FromInt(value_)));
+      }
+      break;
+    }
+
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND: {
+      if (reversed_) {
+        __ mov(r1, Operand(Smi::FromInt(value_)));
+      } else {
+        __ mov(r1, Operand(r0));
+        __ mov(r0, Operand(Smi::FromInt(value_)));
+      }
+      break;
+    }
+
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR: {
+      if (!reversed_) {
+        __ mov(r1, Operand(r0));
+        __ mov(r0, Operand(Smi::FromInt(value_)));
+      } else {
+        UNREACHABLE();  // should have been handled in SmiOperation
+      }
+      break;
+    }
+
+    default:
+      // other cases should have been handled before this point.
+      UNREACHABLE();
+      break;
+  }
+
+  GenericBinaryOpStub igostub(op_);
+  Result arg0 = generator()->allocator()->Allocate(r0);
+  ASSERT(arg0.is_valid());
+  Result arg1 = generator()->allocator()->Allocate(r1);
+  ASSERT(arg1.is_valid());
+  generator()->frame()->CallStub(&igostub, &arg0, &arg1, 0);
+  exit()->Jump();
+}
 
 
 void CodeGenerator::SmiOperation(Token::Value op,
@@ -790,7 +810,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
   switch (op) {
     case Token::ADD: {
       DeferredCode* deferred =
-        new DeferredInlinedSmiOperation(this, op, int_value, reversed);
+        new DeferredInlineSmiOperation(this, op, int_value, reversed);
 
       __ add(r0, r0, Operand(value), SetCC);
       deferred->enter()->Branch(vs);
@@ -802,7 +822,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
     case Token::SUB: {
       DeferredCode* deferred =
-        new DeferredInlinedSmiOperation(this, op, int_value, reversed);
+        new DeferredInlineSmiOperation(this, op, int_value, reversed);
 
       if (!reversed) {
         __ sub(r0, r0, Operand(value), SetCC);
@@ -820,7 +840,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::BIT_XOR:
     case Token::BIT_AND: {
       DeferredCode* deferred =
-        new DeferredInlinedSmiOperation(this, op, int_value, reversed);
+        new DeferredInlineSmiOperation(this, op, int_value, reversed);
       __ tst(r0, Operand(kSmiTagMask));
       deferred->enter()->Branch(ne);
       switch (op) {
@@ -845,7 +865,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       } else {
         int shift_value = int_value & 0x1f;  // least significant 5 bits
         DeferredCode* deferred =
-          new DeferredInlinedSmiOperation(this, op, shift_value, false);
+          new DeferredInlineSmiOperation(this, op, shift_value, false);
         __ tst(r0, Operand(kSmiTagMask));
         deferred->enter()->Branch(ne);
         __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // remove tags
@@ -954,9 +974,15 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
   frame_->EmitPush(r0);
-  __ mov(r0, Operand(arg_count));
-  frame_->InvokeBuiltin(native, CALL_JS, arg_count + 1);
-  __ cmp(r0, Operand(0));
+  Result arg_count_register = allocator_->Allocate(r0);
+  ASSERT(arg_count_register.is_valid());
+  __ mov(arg_count_register.reg(), Operand(arg_count));
+  Result result = frame_->InvokeBuiltin(native,
+                                        CALL_JS,
+                                        &arg_count_register,
+                                        arg_count + 1);
+  __ cmp(result.reg(), Operand(0));
+  result.Unuse();
   exit.Jump();
 
   // test smi equality by pointer comparison.
@@ -1043,7 +1069,9 @@ void CodeGenerator::VisitBlock(Block* node) {
   node->set_break_stack_height(break_stack_height_);
   node->break_target()->Initialize(this);
   VisitStatementsAndSpill(node->statements());
-  node->break_target()->Bind();
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
 }
 
 
@@ -1462,7 +1490,6 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   CodeForStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
   node->break_target()->Initialize(this);
-  node->continue_target()->Initialize(this);
 
   // Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
   // known result for the test expression, with no side effects.
@@ -1483,22 +1510,28 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
   switch (node->type()) {
     case LoopStatement::DO_LOOP: {
-      JumpTarget body(this);
-      // Label the body.
+      JumpTarget body(this, JumpTarget::BIDIRECTIONAL);
+
+      // Label the top of the loop for the backward CFG edge.  If the test
+      // is always true we can use the continue target, and if the test is
+      // always false there is no need.
       if (info == ALWAYS_TRUE) {
+        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else if (info == ALWAYS_FALSE) {
-        // There is no need, we will never jump back.
+        node->continue_target()->Initialize(this);
       } else {
         ASSERT(info == DONT_KNOW);
+        node->continue_target()->Initialize(this);
         body.Bind();
       }
+
       CheckStack();  // TODO(1222600): ignore if body contains calls.
       VisitAndSpill(node->body());
 
-      // Compile the "test".
+      // Compile the test.
       if (info == ALWAYS_TRUE) {
-        if (frame_ != NULL) {
+        if (has_valid_frame()) {
           // If control can fall off the end of the body, jump back to the
           // top.
           node->continue_target()->Jump();
@@ -1513,13 +1546,15 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         ASSERT(info == DONT_KNOW);
         // We have to compile the test expression if it can be reached by
         // control flow falling out of the body or via continue.
-        if (frame_ != NULL || node->continue_target()->is_linked()) {
+        if (node->continue_target()->is_linked()) {
           node->continue_target()->Bind();
+        }
+        if (has_valid_frame()) {
           LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
                                 &body, node->break_target(), true);
-          if (frame_ != NULL) {
-            // A NULL frame here indicates that control did not fall out of
-            // the test expression.
+          if (has_valid_frame()) {
+            // A invalid frame here indicates that control did not
+            // fall out of the test expression.
             Branch(true, &body);
           }
         }
@@ -1528,36 +1563,35 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::WHILE_LOOP: {
-      JumpTarget body(this);
-      // Generate the loop header.
-      if (info == ALWAYS_TRUE) {
-        // Merely label the body with the continue target.
-        node->continue_target()->Bind();
-      } else if (info == ALWAYS_FALSE) {
-        // There is no need to even compile the test or body.
-        break;
-      } else {
-        // Compile the test labeled with the continue target and label the
-        // body with the body target.
-        ASSERT(info == DONT_KNOW);
-        node->continue_target()->Bind();
+      // If the test is never true and has no side effects there is no need
+      // to compile the test or body.
+      if (info == ALWAYS_FALSE) break;
+
+      // Label the top of the loop with the continue target for the backward
+      // CFG edge.
+      node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+      node->continue_target()->Bind();
+
+      if (info == DONT_KNOW) {
+        JumpTarget body(this);
         LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
                               &body, node->break_target(), true);
-        if (frame_ != NULL) {
+        if (has_valid_frame()) {
           // A NULL frame indicates that control did not fall out of the
           // test expression.
           Branch(false, node->break_target());
         }
-        if (frame_ != NULL || body.is_linked()) {
+        if (has_valid_frame() || body.is_linked()) {
           body.Bind();
         }
       }
-      if (frame_ != NULL) {
+
+      if (has_valid_frame()) {
         CheckStack();  // TODO(1222600): ignore if body contains calls.
         VisitAndSpill(node->body());
 
         // If control flow can fall out of the body, jump back to the top.
-        if (frame_ != NULL) {
+        if (has_valid_frame()) {
           node->continue_target()->Jump();
         }
       }
@@ -1565,8 +1599,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::FOR_LOOP: {
-      JumpTarget loop(this);
-      JumpTarget body(this);
+      JumpTarget loop(this, JumpTarget::BIDIRECTIONAL);
+
       if (node->init() != NULL) {
         VisitAndSpill(node->init());
       }
@@ -1577,44 +1611,48 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       // If there is no update statement, label the top of the loop with the
       // continue target, otherwise with the loop target.
       if (node->next() == NULL) {
+        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else {
+        node->continue_target()->Initialize(this);
         loop.Bind();
       }
 
       // If the test is always true, there is no need to compile it.
       if (info == DONT_KNOW) {
+        JumpTarget body(this);
         LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
                               &body, node->break_target(), true);
-        if (frame_ != NULL) {
+        if (has_valid_frame()) {
           Branch(false, node->break_target());
         }
-        if (frame_ != NULL || body.is_linked()) {
+        if (has_valid_frame() || body.is_linked()) {
           body.Bind();
         }
       }
 
-      if (frame_ != NULL) {
+      if (has_valid_frame()) {
         CheckStack();  // TODO(1222600): ignore if body contains calls.
         VisitAndSpill(node->body());
 
         if (node->next() == NULL) {
           // If there is no update statement and control flow can fall out
           // of the loop, jump directly to the continue label.
-          if (frame_ != NULL) {
+          if (has_valid_frame()) {
             node->continue_target()->Jump();
           }
         } else {
           // If there is an update statement and control flow can reach it
           // via falling out of the body of the loop or continuing, we
           // compile the update statement.
-          if (frame_ != NULL || node->continue_target()->is_linked()) {
+          if (node->continue_target()->is_linked()) {
             node->continue_target()->Bind();
+          }
+          if (has_valid_frame()) {
             // Record source position of the statement as this code which is
             // after the code for the body actually belongs to the loop
             // statement and not the body.
             CodeForStatementPosition(node);
-
             VisitAndSpill(node->next());
             loop.Jump();
           }
@@ -1680,8 +1718,10 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   primitive.Bind();
   frame_->EmitPush(r0);
-  __ mov(r0, Operand(0));
-  frame_->InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS, 1);
+  Result arg_count = allocator_->Allocate(r0);
+  ASSERT(arg_count.is_valid());
+  __ mov(arg_count.reg(), Operand(0));
+  frame_->InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS, &arg_count, 1);
 
 
   jsobject.Bind();
@@ -1761,9 +1801,15 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ ldr(r0, frame_->ElementAt(4));  // push enumerable
   frame_->EmitPush(r0);
   frame_->EmitPush(r3);  // push entry
-  __ mov(r0, Operand(1));
-  frame_->InvokeBuiltin(Builtins::FILTER_KEY, CALL_JS, 2);
-  __ mov(r3, Operand(r0));
+  Result arg_count_register = allocator_->Allocate(r0);
+  ASSERT(arg_count_register.is_valid());
+  __ mov(arg_count_register.reg(), Operand(1));
+  Result result = frame_->InvokeBuiltin(Builtins::FILTER_KEY,
+                                        CALL_JS,
+                                        &arg_count_register,
+                                        2);
+  __ mov(r3, Operand(result.reg()));
+  result.Unuse();
 
   // If the property has been removed while iterating, we just skip it.
   __ cmp(r3, Operand(Factory::null_value()));
@@ -2271,26 +2317,36 @@ class ObjectLiteralDeferred: public DeferredCode {
       : DeferredCode(generator), node_(node) {
     set_comment("[ ObjectLiteralDeferred");
   }
+
   virtual void Generate();
+
  private:
   ObjectLiteral* node_;
 };
 
 
 void ObjectLiteralDeferred::Generate() {
+  // Argument is passed in r1.
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
+
   // If the entry is undefined we call the runtime system to computed
   // the literal.
 
+  VirtualFrame* frame = generator()->frame();
   // Literal array (0).
-  __ push(r1);
+  frame->Push(r1);
   // Literal index (1).
   __ mov(r0, Operand(Smi::FromInt(node_->literal_index())));
-  __ push(r0);
+  frame->Push(r0);
   // Constant properties (2).
   __ mov(r0, Operand(node_->constant_properties()));
-  __ push(r0);
-  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
-  __ mov(r2, Operand(r0));
+  frame->Push(r0);
+  Result boilerplate =
+      frame->CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
+  __ mov(r2, Operand(boilerplate.reg()));
+  // Result is returned in r2.
+  exit()->Jump();
 }
 
 
@@ -2716,16 +2772,24 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   }
 
   // r0: the number of arguments.
-  __ mov(r0, Operand(arg_count));
+  Result num_args = allocator_->Allocate(r0);
+  ASSERT(num_args.is_valid());
+  __ mov(num_args.reg(), Operand(arg_count));
 
   // Load the function into r1 as per calling convention.
-  __ ldr(r1, frame_->ElementAt(arg_count + 1));
+  Result function = allocator_->Allocate(r1);
+  ASSERT(function.is_valid());
+  __ ldr(function.reg(), frame_->ElementAt(arg_count + 1));
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   CodeForSourcePosition(node->position());
   Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
-  frame_->CallCodeObject(ic, RelocInfo::CONSTRUCT_CALL, arg_count + 1);
+  Result result = frame_->CallCodeObject(ic,
+                                         RelocInfo::CONSTRUCT_CALL,
+                                         &num_args,
+                                         &function,
+                                         arg_count + 1);
 
   // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
   __ str(r0, frame_->Top());
@@ -2962,8 +3026,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     if (property != NULL) {
       LoadAndSpill(property->obj());
       LoadAndSpill(property->key());
-      __ mov(r0, Operand(1));  // not counting receiver
-      frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 2);
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+      frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
 
     } else if (variable != NULL) {
       Slot* slot = variable->slot();
@@ -2971,8 +3037,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         LoadGlobal();
         __ mov(r0, Operand(variable->name()));
         frame_->EmitPush(r0);
-        __ mov(r0, Operand(1));  // not counting receiver
-        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 2);
+        Result arg_count = allocator_->Allocate(r0);
+        ASSERT(arg_count.is_valid());
+        __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
         // lookup the context holding the named variable
@@ -2984,8 +3052,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         frame_->EmitPush(r0);
         __ mov(r0, Operand(variable->name()));
         frame_->EmitPush(r0);
-        __ mov(r0, Operand(1));  // not counting receiver
-        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, 2);
+        Result arg_count = allocator_->Allocate(r0);
+        ASSERT(arg_count.is_valid());
+        __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
 
       } else {
         // Default: Result of deleting non-global, not dynamically
@@ -3032,8 +3102,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         smi_label.Branch(eq);
 
         frame_->EmitPush(r0);
-        __ mov(r0, Operand(0));  // not counting receiver
-        frame_->InvokeBuiltin(Builtins::BIT_NOT, CALL_JS, 1);
+        Result arg_count = allocator_->Allocate(r0);
+        ASSERT(arg_count.is_valid());
+        __ mov(arg_count.reg(), Operand(0));  // not counting receiver
+        frame_->InvokeBuiltin(Builtins::BIT_NOT, CALL_JS, &arg_count, 1);
 
         continue_label.Jump();
         smi_label.Bind();
@@ -3055,8 +3127,10 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ tst(r0, Operand(kSmiTagMask));
         continue_label.Branch(eq);
         frame_->EmitPush(r0);
-        __ mov(r0, Operand(0));  // not counting receiver
-        frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, 1);
+        Result arg_count = allocator_->Allocate(r0);
+        ASSERT(arg_count.is_valid());
+        __ mov(arg_count.reg(), Operand(0));  // not counting receiver
+        frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, &arg_count, 1);
         continue_label.Bind();
         break;
       }
@@ -3460,18 +3534,30 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       Comparison(eq, true);
       break;
 
-    case Token::IN:
-      __ mov(r0, Operand(1));  // not counting receiver
-      frame_->InvokeBuiltin(Builtins::IN, CALL_JS, 2);
-      frame_->EmitPush(r0);
+    case Token::IN: {
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+      Result result = frame_->InvokeBuiltin(Builtins::IN,
+                                            CALL_JS,
+                                            &arg_count,
+                                            2);
+      frame_->EmitPush(result.reg());
       break;
+    }
 
-    case Token::INSTANCEOF:
-      __ mov(r0, Operand(1));  // not counting receiver
-      frame_->InvokeBuiltin(Builtins::INSTANCE_OF, CALL_JS, 2);
-      __ tst(r0, Operand(r0));
+    case Token::INSTANCEOF: {
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+      Result result = frame_->InvokeBuiltin(Builtins::INSTANCE_OF,
+                                            CALL_JS,
+                                            &arg_count,
+                                            2);
+      __ tst(result.reg(), Operand(result.reg()));
       cc_reg_ = eq;
       break;
+    }
 
     default:
       UNREACHABLE();
@@ -3676,12 +3762,22 @@ void Reference::SetValue(InitState init_state) {
       Comment cmnt(masm, "[ Store to named Property");
       // Call the appropriate IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      frame->EmitPop(r0);  // value
-      // Setup the name register.
       Handle<String> name(GetName());
-      __ mov(r2, Operand(name));
-      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-      frame->EmitPush(r0);
+
+      Result value = cgen_->allocator()->Allocate(r0);
+      ASSERT(value.is_valid());
+      frame->EmitPop(value.reg());
+
+      // Setup the name register.
+      Result property_name = cgen_->allocator()->Allocate(r2);
+      ASSERT(property_name.is_valid());
+      __ mov(property_name.reg(), Operand(name));
+      Result answer = frame->CallCodeObject(ic,
+                                            RelocInfo::CODE_TARGET,
+                                            &value,
+                                            &property_name,
+                                            0);
+      frame->EmitPush(answer.reg());
       break;
     }
 
@@ -3694,9 +3790,12 @@ void Reference::SetValue(InitState init_state) {
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      frame->EmitPop(r0);  // value
-      frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, 0);
-      frame->EmitPush(r0);
+      Result value = cgen_->allocator()->Allocate(r0);
+      ASSERT(value.is_valid());
+      frame->EmitPop(value.reg());  // value
+      Result result =
+          frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, &value, 0);
+      frame->EmitPush(result.reg());
       break;
     }
 

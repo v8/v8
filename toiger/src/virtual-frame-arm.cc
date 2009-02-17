@@ -151,22 +151,71 @@ void VirtualFrame::RawSyncElementAt(int index) {
 
 
 void VirtualFrame::MergeTo(VirtualFrame* expected) {
-  UNIMPLEMENTED();
+  Comment cmnt(masm_, "[ Merge frame");
+  // We should always be merging the code generator's current frame to an
+  // expected frame.
+  ASSERT(cgen_->frame() == this);
+
+  // Adjust the stack pointer upward (toward the top of the virtual
+  // frame) if necessary.
+  if (stack_pointer_ < expected->stack_pointer_) {
+    int difference = expected->stack_pointer_ - stack_pointer_;
+    stack_pointer_ = expected->stack_pointer_;
+    __ sub(sp, sp, Operand(difference * kPointerSize));
+  }
+
+  MergeMoveRegistersToMemory(expected);
+  MergeMoveRegistersToRegisters(expected);
+  MergeMoveMemoryToRegisters(expected);
+
+  // Fix any sync bit problems.
+  for (int i = 0; i <= stack_pointer_; i++) {
+    FrameElement source = elements_[i];
+    FrameElement target = expected->elements_[i];
+    if (source.is_synced() && !target.is_synced()) {
+      elements_[i].clear_sync();
+    } else if (!source.is_synced() && target.is_synced()) {
+      SyncElementAt(i);
+    }
+  }
+
+  // Adjust the stack point downard if necessary.
+  if (stack_pointer_ > expected->stack_pointer_) {
+    int difference = stack_pointer_ - expected->stack_pointer_;
+    stack_pointer_ = expected->stack_pointer_;
+    __ add(sp, sp, Operand(difference * kPointerSize));
+  }
+
+  // At this point, the frames should be identical.
+  ASSERT(Equals(expected));
 }
 
 
 void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
-  UNIMPLEMENTED();
+  ASSERT(stack_pointer_ >= expected->stack_pointer_);
+
+  // Move registers, constants, and copies to memory.  Perform moves
+  // from the top downward in the frame in order to leave the backing
+  // stores of copies in registers.
+  //
+  // Moving memory-backed copies to memory requires a spare register
+  // for the memory-to-memory moves.  Since we are performing a merge,
+  // we use esi (which is already saved in the frame).  We keep track
+  // of the index of the frame element esi is caching or kIllegalIndex
+  // if esi has not been disturbed.
+
+  for (int i = 0; i < elements_.length(); i++) {
+    ASSERT(elements_[i].is_memory());
+    ASSERT(expected->elements_[i].is_memory());
+  }
 }
 
 
 void VirtualFrame::MergeMoveRegistersToRegisters(VirtualFrame* expected) {
-  UNIMPLEMENTED();
 }
 
 
 void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
-  UNIMPLEMENTED();
 }
 
 
@@ -192,6 +241,8 @@ void VirtualFrame::Enter() {
   // Adjust FP to point to saved FP.
   frame_pointer_ = elements_.length() - 2;
   __ add(fp, sp, Operand(2 * kPointerSize));
+  cgen_->allocator()->Unuse(r1);
+  cgen_->allocator()->Unuse(lr);
 }
 
 
@@ -296,10 +347,14 @@ Result VirtualFrame::CallRuntime(Runtime::FunctionId id,
 
 Result VirtualFrame::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeJSFlags flags,
+                                   Result* arg_count_register,
                                    int frame_arg_count) {
-  UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  ASSERT(arg_count_register->reg().is(r0));
+  PrepareForCall(frame_arg_count, frame_arg_count);
+  arg_count_register->Unuse();
+  __ InvokeBuiltin(id, flags);
+  Result result = cgen_->allocator()->Allocate(r0);
+  return result;
 }
 
 
@@ -346,9 +401,30 @@ Result VirtualFrame::CallCodeObject(Handle<Code> code,
                                     Result* arg0,
                                     Result* arg1,
                                     int dropped_args) {
-  UNIMPLEMENTED();
-  Result invalid(cgen_);
-  return invalid;
+  int spilled_args = 1;
+  switch (code->kind()) {
+    case Code::STORE_IC:
+      ASSERT(arg0->reg().is(r0));
+      ASSERT(arg1->reg().is(r2));
+      ASSERT(dropped_args == 0);
+      spilled_args = 1;
+      break;
+    case Code::BUILTIN:
+      ASSERT(*code == Builtins::builtin(Builtins::JSConstructCall));
+      ASSERT(arg0->reg().is(r0));
+      ASSERT(arg1->reg().is(r1));
+      spilled_args = dropped_args + 1;
+      break;
+    default:
+      // No other types of code objects are called with values
+      // in exactly two registers.
+      UNREACHABLE();
+      break;
+  }
+  PrepareForCall(spilled_args, dropped_args);
+  arg0->Unuse();
+  arg1->Unuse();
+  return RawCallCodeObject(code, rmode);
 }
 
 

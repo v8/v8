@@ -786,9 +786,9 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 }
 
 
-class DeferredInlinedSmiOperation: public DeferredCode {
+class DeferredInlineSmiOperation: public DeferredCode {
  public:
-  DeferredInlinedSmiOperation(CodeGenerator* generator,
+  DeferredInlineSmiOperation(CodeGenerator* generator,
                               Token::Value op,
                               Smi* value,
                               OverwriteMode overwrite_mode)
@@ -796,7 +796,7 @@ class DeferredInlinedSmiOperation: public DeferredCode {
         op_(op),
         value_(value),
         overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlinedSmiOperation");
+    set_comment("[ DeferredInlineSmiOperation");
   }
 
   virtual void Generate();
@@ -808,7 +808,7 @@ class DeferredInlinedSmiOperation: public DeferredCode {
 };
 
 
-void DeferredInlinedSmiOperation::Generate() {
+void DeferredInlineSmiOperation::Generate() {
   Result left(generator());
   enter()->Bind(&left);
   generator()->frame()->Push(&left);
@@ -819,17 +819,17 @@ void DeferredInlinedSmiOperation::Generate() {
 }
 
 
-class DeferredInlinedSmiOperationReversed: public DeferredCode {
+class DeferredInlineSmiOperationReversed: public DeferredCode {
  public:
-  DeferredInlinedSmiOperationReversed(CodeGenerator* generator,
-                                      Token::Value op,
-                                      Smi* value,
-                                      OverwriteMode overwrite_mode)
+  DeferredInlineSmiOperationReversed(CodeGenerator* generator,
+                                     Token::Value op,
+                                     Smi* value,
+                                     OverwriteMode overwrite_mode)
       : DeferredCode(generator),
         op_(op),
         value_(value),
         overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlinedSmiOperationReversed");
+    set_comment("[ DeferredInlineSmiOperationReversed");
   }
 
   virtual void Generate();
@@ -841,7 +841,7 @@ class DeferredInlinedSmiOperationReversed: public DeferredCode {
 };
 
 
-void DeferredInlinedSmiOperationReversed::Generate() {
+void DeferredInlineSmiOperationReversed::Generate() {
   Result right(generator());
   enter()->Bind(&right);
   generator()->frame()->Push(value_);
@@ -852,15 +852,15 @@ void DeferredInlinedSmiOperationReversed::Generate() {
 }
 
 
-class DeferredInlinedSmiAdd: public DeferredCode {
+class DeferredInlineSmiAdd: public DeferredCode {
  public:
-  DeferredInlinedSmiAdd(CodeGenerator* generator,
-                        Smi* value,
-                        OverwriteMode overwrite_mode)
+  DeferredInlineSmiAdd(CodeGenerator* generator,
+                       Smi* value,
+                       OverwriteMode overwrite_mode)
       : DeferredCode(generator),
         value_(value),
         overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlinedSmiAdd");
+    set_comment("[ DeferredInlineSmiAdd");
   }
 
   virtual void Generate();
@@ -871,7 +871,7 @@ class DeferredInlinedSmiAdd: public DeferredCode {
 };
 
 
-void DeferredInlinedSmiAdd::Generate() {
+void DeferredInlineSmiAdd::Generate() {
   // Undo the optimistic add operation and call the shared stub.
   Result left(generator());  // Initially left + value_.
   enter()->Bind(&left);
@@ -886,15 +886,15 @@ void DeferredInlinedSmiAdd::Generate() {
 }
 
 
-class DeferredInlinedSmiAddReversed: public DeferredCode {
+class DeferredInlineSmiAddReversed: public DeferredCode {
  public:
-  DeferredInlinedSmiAddReversed(CodeGenerator* generator,
-                                Smi* value,
-                                OverwriteMode overwrite_mode)
+  DeferredInlineSmiAddReversed(CodeGenerator* generator,
+                               Smi* value,
+                               OverwriteMode overwrite_mode)
       : DeferredCode(generator),
         value_(value),
         overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlinedSmiAddReversed");
+    set_comment("[ DeferredInlineSmiAddReversed");
   }
 
   virtual void Generate();
@@ -905,7 +905,7 @@ class DeferredInlinedSmiAddReversed: public DeferredCode {
 };
 
 
-void DeferredInlinedSmiAddReversed::Generate() {
+void DeferredInlineSmiAddReversed::Generate() {
   // Undo the optimistic add operation and call the shared stub.
   Result right(generator());  // Initially value_ + right.
   enter()->Bind(&right);
@@ -920,15 +920,15 @@ void DeferredInlinedSmiAddReversed::Generate() {
 }
 
 
-class DeferredInlinedSmiSub: public DeferredCode {
+class DeferredInlineSmiSub: public DeferredCode {
  public:
-  DeferredInlinedSmiSub(CodeGenerator* generator,
-                        Smi* value,
-                        OverwriteMode overwrite_mode)
+  DeferredInlineSmiSub(CodeGenerator* generator,
+                       Smi* value,
+                       OverwriteMode overwrite_mode)
       : DeferredCode(generator),
         value_(value),
         overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlinedSmiSub");
+    set_comment("[ DeferredInlineSmiSub");
   }
 
   virtual void Generate();
@@ -939,7 +939,7 @@ class DeferredInlinedSmiSub: public DeferredCode {
 };
 
 
-void DeferredInlinedSmiSub::Generate() {
+void DeferredInlineSmiSub::Generate() {
   // Undo the optimistic sub operation and call the shared stub.
   Result left(generator());  // Initially left - value_.
   enter()->Bind(&left);
@@ -954,15 +954,15 @@ void DeferredInlinedSmiSub::Generate() {
 }
 
 
-class DeferredInlinedSmiSubReversed: public DeferredCode {
+class DeferredInlineSmiSubReversed: public DeferredCode {
  public:
-  DeferredInlinedSmiSubReversed(CodeGenerator* generator,
-                                Smi* value,
-                                OverwriteMode overwrite_mode)
+  DeferredInlineSmiSubReversed(CodeGenerator* generator,
+                               Smi* value,
+                               OverwriteMode overwrite_mode)
       : DeferredCode(generator),
         value_(value),
         overwrite_mode_(overwrite_mode) {
-    set_comment("[ DeferredInlinedSmiSubReversed");
+    set_comment("[ DeferredInlineSmiSubReversed");
   }
 
   virtual void Generate();
@@ -973,7 +973,7 @@ class DeferredInlinedSmiSubReversed: public DeferredCode {
 };
 
 
-void DeferredInlinedSmiSubReversed::Generate() {
+void DeferredInlineSmiSubReversed::Generate() {
   // Call the shared stub.
   Result right(generator());
   enter()->Bind(&right);
@@ -1009,10 +1009,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::ADD: {
       DeferredCode* deferred = NULL;
       if (!reversed) {
-        deferred = new DeferredInlinedSmiAdd(this, smi_value, overwrite_mode);
+        deferred = new DeferredInlineSmiAdd(this, smi_value, overwrite_mode);
       } else {
-        deferred = new DeferredInlinedSmiAddReversed(this, smi_value,
-                                                     overwrite_mode);
+        deferred = new DeferredInlineSmiAddReversed(this, smi_value,
+                                                    overwrite_mode);
       }
       Result operand = frame_->Pop();
       operand.ToRegister();
@@ -1033,17 +1033,17 @@ void CodeGenerator::SmiOperation(Token::Value op,
       if (!reversed) {
         operand.ToRegister();
         frame_->Spill(operand.reg());
-        deferred = new DeferredInlinedSmiSub(this,
-                                             smi_value,
-                                             overwrite_mode);
+        deferred = new DeferredInlineSmiSub(this,
+                                            smi_value,
+                                            overwrite_mode);
         __ sub(Operand(operand.reg()), Immediate(value));
         answer = operand;
       } else {
         answer = allocator()->Allocate();
         ASSERT(answer.is_valid());
-        deferred = new DeferredInlinedSmiSubReversed(this,
-                                                     smi_value,
-                                                     overwrite_mode);
+        deferred = new DeferredInlineSmiSubReversed(this,
+                                                    smi_value,
+                                                    overwrite_mode);
         __ mov(answer.reg(), Immediate(value));
         if (operand.is_register()) {
           __ sub(answer.reg(), Operand(operand.reg()));
@@ -1072,8 +1072,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
         // In the slow case, this masking is done inside the runtime call.
         int shift_value = int_value & 0x1f;
         DeferredCode* deferred =
-          new DeferredInlinedSmiOperation(this, Token::SAR, smi_value,
-                                          overwrite_mode);
+          new DeferredInlineSmiOperation(this, Token::SAR, smi_value,
+                                         overwrite_mode);
         Result result = frame_->Pop();
         result.ToRegister();
         __ test(result.reg(), Immediate(kSmiTagMask));
@@ -1098,8 +1098,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
         // In the slow case, this masking is done inside the runtime call.
         int shift_value = int_value & 0x1f;
         DeferredCode* deferred =
-        new DeferredInlinedSmiOperation(this, Token::SHR, smi_value,
-                                        overwrite_mode);
+        new DeferredInlineSmiOperation(this, Token::SHR, smi_value,
+                                       overwrite_mode);
         Result operand = frame_->Pop();
         operand.ToRegister();
         __ test(operand.reg(), Immediate(kSmiTagMask));
@@ -1135,8 +1135,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
         // In the slow case, this masking is done inside the runtime call.
         int shift_value = int_value & 0x1f;
         DeferredCode* deferred =
-        new DeferredInlinedSmiOperation(this, Token::SHL, smi_value,
-                                        overwrite_mode);
+        new DeferredInlineSmiOperation(this, Token::SHL, smi_value,
+                                       overwrite_mode);
         Result operand = frame_->Pop();
         operand.ToRegister();
         __ test(operand.reg(), Immediate(kSmiTagMask));
@@ -1167,11 +1167,11 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::BIT_AND: {
       DeferredCode* deferred = NULL;
       if (!reversed) {
-        deferred =  new DeferredInlinedSmiOperation(this, op, smi_value,
-                                                    overwrite_mode);
+        deferred =  new DeferredInlineSmiOperation(this, op, smi_value,
+                                                   overwrite_mode);
       } else {
-        deferred = new DeferredInlinedSmiOperationReversed(this, op, smi_value,
-                                                           overwrite_mode);
+        deferred = new DeferredInlineSmiOperationReversed(this, op, smi_value,
+                                                          overwrite_mode);
       }
       Result operand = frame_->Pop();
       operand.ToRegister();
@@ -2156,7 +2156,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         // We have to compile the test expression if it can be reached by
         // control flow falling out of the body or via continue.
         if (node->continue_target()->is_linked()) {
-        node->continue_target()->Bind();
+          node->continue_target()->Bind();
         }
         if (has_valid_frame()) {
           ControlDestination dest(&body, node->break_target(), false);
@@ -3595,7 +3595,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
                                          RelocInfo::CONSTRUCT_CALL,
                                          &num_args,
                                          &function,
-                                         args->length() + 1);
+                                         arg_count + 1);
 
   // Replace the function on the stack with the result.
   frame_->SetElementAt(0, &result);
