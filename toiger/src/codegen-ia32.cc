@@ -191,13 +191,26 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         Variable* par = scope_->parameter(i);
         Slot* slot = par->slot();
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
-          VirtualFrame::SpilledScope spilled_scope(this);
-          ASSERT(!scope_->is_global_scope());  // no parameters in global scope
-          __ mov(eax, frame_->ParameterAt(i));
-          // Loads ecx with context; used below in RecordWrite.
-          __ mov(SlotOperand(slot, edx), eax);
+          // The use of SlotOperand below is safe in unspilled code
+          // because the slot is guaranteed to be a context slot.
+          //
+          // There are no parameters in the global scope.
+          ASSERT(!scope_->is_global_scope());
+          frame_->PushParameterAt(i);
+          Result value = frame_->Pop();
+          value.ToRegister();
+
+          // SlotOperand loads context.reg() with the context object
+          // stored to, used below in RecordWrite.
+          Result context = allocator_->Allocate();
+          ASSERT(context.is_valid());
+          __ mov(SlotOperand(slot, context.reg()), value.reg());
           int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
-          __ RecordWrite(edx, offset, eax, ebx);
+          Result scratch = allocator_->Allocate();
+          ASSERT(scratch.is_valid());
+          frame_->Spill(context.reg());
+          frame_->Spill(value.reg());
+          __ RecordWrite(context.reg(), offset, value.reg(), scratch.reg());
         }
       }
     }
@@ -210,7 +223,6 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     // initialization because the arguments object may be stored in the
     // context.
     if (scope_->arguments() != NULL) {
-      VirtualFrame::SpilledScope spilled_scope(this);
       Comment cmnt(masm_, "[ store arguments object");
       { Reference shadow_ref(this, scope_->arguments_shadow());
         ASSERT(shadow_ref.is_slot());
@@ -535,7 +547,6 @@ void CodeGenerator::LoadReference(Reference* ref) {
     // The expression is a variable proxy that does not rewrite to a
     // property.  Global variables are treated as named property references.
     if (var->is_global()) {
-      VirtualFrame::SpilledScope spilled_scope(this);
       LoadGlobal();
       ref->set_type(Reference::NAMED);
     } else {
@@ -1497,11 +1508,14 @@ void CodeGenerator::VisitBlock(Block* node) {
 
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
-  VirtualFrame::SpilledScope spilled_scope(this);
-  frame_->EmitPush(Immediate(pairs));
-  frame_->EmitPush(esi);
-  frame_->EmitPush(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
-  frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
+  frame_->Push(pairs);
+
+  // Duplicate the context register.
+  Result context(esi, this);
+  frame_->Push(&context);
+
+  frame_->Push(Smi::FromInt(is_eval() ? 1 : 0));
+  Result ignored = frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // Return value is ignored.
 }
 
@@ -1520,26 +1534,26 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // Variables with a "LOOKUP" slot were introduced as non-locals
     // during variable resolution and must have mode DYNAMIC.
     ASSERT(var->mode() == Variable::DYNAMIC);
-    // For now, just do a runtime call.
-    VirtualFrame::SpilledScope spilled_scope(this);
-    frame_->EmitPush(esi);
-    frame_->EmitPush(Immediate(var->name()));
+    // For now, just do a runtime call.  Duplicate the context register.
+    Result context(esi, this);
+    frame_->Push(&context);
+    frame_->Push(var->name());
     // Declaration nodes are always introduced in one of two modes.
     ASSERT(node->mode() == Variable::VAR || node->mode() == Variable::CONST);
     PropertyAttributes attr = node->mode() == Variable::VAR ? NONE : READ_ONLY;
-    frame_->EmitPush(Immediate(Smi::FromInt(attr)));
+    frame_->Push(Smi::FromInt(attr));
     // Push initial value, if any.
     // Note: For variables we must not push an initial value (such as
     // 'undefined') because we may have a (legal) redeclaration and we
     // must not destroy the current value.
     if (node->mode() == Variable::CONST) {
-      frame_->EmitPush(Immediate(Factory::the_hole_value()));
+      frame_->Push(Factory::the_hole_value());
     } else if (node->fun() != NULL) {
-      LoadAndSpill(node->fun());
+      Load(node->fun());
     } else {
-      frame_->EmitPush(Immediate(0));  // no initial value!
+      frame_->Push(Smi::FromInt(0));  // no initial value!
     }
-    frame_->CallRuntime(Runtime::kDeclareContextSlot, 4);
+    Result ignored = frame_->CallRuntime(Runtime::kDeclareContextSlot, 4);
     // Ignore the return value (declarations are statements).
     return;
   }
@@ -1555,11 +1569,10 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
   }
 
   if (val != NULL) {
-    VirtualFrame::SpilledScope spilled_scope(this);
     {
-      // Set initial value.
+      // Set the initial value.
       Reference target(this, node->proxy());
-      LoadAndSpill(val);
+      Load(val);
       target.SetValue(NOT_CONST_INIT);
       // The reference is removed from the stack (preserving TOS) when
       // it goes out of scope.
@@ -3394,13 +3407,12 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
 
 
 void CodeGenerator::VisitThrow(Throw* node) {
-  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Throw");
   CodeForStatementPosition(node);
 
-  LoadAndSpill(node->exception());
-  frame_->CallRuntime(Runtime::kThrow, 1);
-  frame_->EmitPush(eax);
+  Load(node->exception());
+  Result result = frame_->CallRuntime(Runtime::kThrow, 1);
+  frame_->Push(&result);
 }
 
 
