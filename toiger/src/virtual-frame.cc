@@ -193,10 +193,10 @@ Register VirtualFrame::SpillAnyRegister() {
 void VirtualFrame::SpillElementAt(int index) {
   if (!elements_[index].is_valid()) return;
 
+  SyncElementAt(index);
   if (elements_[index].is_register()) {
     Unuse(elements_[index].reg());
   }
-  SyncElementAt(index);
   // The element is now in memory.
   elements_[index] = FrameElement::MemoryElement();
 }
