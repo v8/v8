@@ -1669,6 +1669,7 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
 
 void CodeGenerator::VisitForInStatement(ForInStatement* node) {
+  ASSERT(!in_spilled_code());
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ForInStatement");
   CodeForStatementPosition(node);
@@ -1685,9 +1686,8 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   JumpTarget primitive(this);
   JumpTarget jsobject(this);
   JumpTarget fixed_array(this);
-  JumpTarget entry(this);
+  JumpTarget entry(this, JumpTarget::BIDIRECTIONAL);
   JumpTarget end_del_check(this);
-  JumpTarget cleanup(this);
   JumpTarget exit(this);
 
   // Get the object to enumerate over (converted to JSObject).
@@ -1779,7 +1779,7 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ ldr(r0, frame_->ElementAt(0));  // load the current count
   __ ldr(r1, frame_->ElementAt(1));  // load the length
   __ cmp(r0, Operand(r1));  // compare to the array length
-  cleanup.Branch(hs);
+  node->break_target()->Branch(hs);
 
   __ ldr(r0, frame_->ElementAt(0));
 
@@ -1855,7 +1855,6 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   entry.Jump();
 
   // Cleanup.
-  cleanup.Bind();
   node->break_target()->Bind();
   frame_->Drop(5);
 
@@ -2470,14 +2469,16 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
 
 
 void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
+  ASSERT(!in_spilled_code());
   VirtualFrame::SpilledScope spilled_scope(this);
   // Call runtime routine to allocate the catch extension object and
   // assign the exception value to the catch variable.
-  Comment cmnt(masm_, "[CatchExtensionObject ");
+  Comment cmnt(masm_, "[ CatchExtensionObject");
   LoadAndSpill(node->key());
   LoadAndSpill(node->value());
-  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
-  frame_->EmitPush(r0);
+  Result result =
+      frame_->CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+  frame_->EmitPush(result.reg());
 }
 
 
