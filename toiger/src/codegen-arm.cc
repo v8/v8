@@ -2311,11 +2311,11 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 // by calling Runtime_CreateObjectLiteral.
 // Each created boilerplate is stored in the JSFunction and they are
 // therefore context dependent.
-class ObjectLiteralDeferred: public DeferredCode {
+class DeferredObjectLiteral: public DeferredCode {
  public:
-  ObjectLiteralDeferred(CodeGenerator* generator, ObjectLiteral* node)
+  DeferredObjectLiteral(CodeGenerator* generator, ObjectLiteral* node)
       : DeferredCode(generator), node_(node) {
-    set_comment("[ ObjectLiteralDeferred");
+    set_comment("[ DeferredObjectLiteral");
   }
 
   virtual void Generate();
@@ -2325,7 +2325,7 @@ class ObjectLiteralDeferred: public DeferredCode {
 };
 
 
-void ObjectLiteralDeferred::Generate() {
+void DeferredObjectLiteral::Generate() {
   // Argument is passed in r1.
   enter()->Bind();
   VirtualFrame::SpilledScope spilled_scope(generator());
@@ -2335,13 +2335,13 @@ void ObjectLiteralDeferred::Generate() {
 
   VirtualFrame* frame = generator()->frame();
   // Literal array (0).
-  frame->Push(r1);
+  frame->EmitPush(r1);
   // Literal index (1).
   __ mov(r0, Operand(Smi::FromInt(node_->literal_index())));
-  frame->Push(r0);
+  frame->EmitPush(r0);
   // Constant properties (2).
   __ mov(r0, Operand(node_->constant_properties()));
-  frame->Push(r0);
+  frame->EmitPush(r0);
   Result boilerplate =
       frame->CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
   __ mov(r2, Operand(boilerplate.reg()));
@@ -2354,7 +2354,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  ObjectLiteralDeferred* deferred = new ObjectLiteralDeferred(this, node);
+  DeferredObjectLiteral* deferred = new DeferredObjectLiteral(this, node);
 
   // Retrieve the literal array and check the allocated entry.
 
