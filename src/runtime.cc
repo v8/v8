@@ -6037,9 +6037,9 @@ static Object* Runtime_ListNatives(Arguments args) {
 
 static Object* Runtime_Log(Arguments args) {
   ASSERT(args.length() == 2);
-  String* format = String::cast(args[0]);
+  CONVERT_CHECKED(String, format, args[0]);
+  CONVERT_CHECKED(JSArray, elms, args[1]);
   Vector<const char> chars = format->ToAsciiVector();
-  JSArray* elms = JSArray::cast(args[1]);
   Logger::LogRuntime(chars, elms);
   return Heap::undefined_value();
 }
