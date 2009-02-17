@@ -1305,8 +1305,8 @@ void CodeGenerator::Comparison(Condition cc,
       // Setup and call the compare stub, which expects arguments in edx
       // and eax.
       CompareStub stub(cc, strict);
-      left_side.ToRegister(eax);
-      right_side.ToRegister(edx);
+      left_side.ToRegister(edx);  // Only left_side currently uses a register.
+      right_side.ToRegister(eax);  // left_side is not in eax.  eax is free.
       Result result = frame_->CallStub(&stub, &left_side, &right_side, 0);
       result.ToRegister();
       __ cmp(result.reg(), 0);
