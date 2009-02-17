@@ -280,7 +280,7 @@ class LogMessageBuilder BASE_EMBEDDED {
 
 // Create a message builder starting from position 0. This acquires the mutex
 // in the logger as well.
-LogMessageBuilder::LogMessageBuilder(): pos_(0), sl(Logger::mutex_) {
+LogMessageBuilder::LogMessageBuilder(): sl(Logger::mutex_), pos_(0) {
   ASSERT(Logger::message_buffer_ != NULL);
 }
 
