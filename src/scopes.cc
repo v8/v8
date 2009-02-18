@@ -139,7 +139,6 @@ Scope::Scope(Scope* outer_scope, Type type)
     scope_calls_eval_(false),
     outer_scope_calls_eval_(false),
     inner_scope_calls_eval_(false),
-    outer_scope_is_eval_scope_(false),
     force_eager_compilation_(false),
     num_stack_slots_(0),
     num_heap_slots_(0) {
@@ -313,8 +312,7 @@ void Scope::AllocateVariables() {
   // and assume they may invoke eval themselves. Eventually we could capture
   // this information in the ScopeInfo and then use it here (by traversing
   // the call chain stack, at compile time).
-  bool eval_scope = is_eval_scope();
-  PropagateScopeInfo(eval_scope, eval_scope);
+  PropagateScopeInfo(is_eval_scope());
 
   // 2) Resolve variables.
   Scope* global_scope = NULL;
@@ -444,9 +442,6 @@ void Scope::Print(int n) {
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (outer_scope_calls_eval_) Indent(n1, "// outer scope calls 'eval'\n");
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
-  if (outer_scope_is_eval_scope_) {
-    Indent(n1, "// outer scope is 'eval' scope\n");
-  }
   if (num_stack_slots_ > 0) { Indent(n1, "// ");
   PrintF("%d stack slots\n", num_stack_slots_); }
   if (num_heap_slots_ > 0) { Indent(n1, "// ");
@@ -487,18 +482,20 @@ void Scope::Print(int n) {
 #endif  // DEBUG
 
 
-Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
-  // Space optimization: reuse existing non-local with the same name
-  // and mode.
+Variable* Scope::NonLocal(Handle<String> name) {
+  // Space optimization: reuse existing non-local with the same name.
   for (int i = 0; i < nonlocals_.length(); i++) {
     Variable* var = nonlocals_[i];
-    if (var->name().is_identical_to(name) && var->mode() == mode) {
+    if (var->name().is_identical_to(name)) {
+      ASSERT(var->mode() == Variable::DYNAMIC);
       return var;
     }
   }
 
-  // Otherwise create a new non-local and add it to the list.
-  Variable* var = new Variable(NULL, name, mode, true, false);
+  // Otherwise create a new new-local and add it to the list.
+  Variable* var = new Variable(
+    NULL /* we don't know the scope */,
+    name, Variable::DYNAMIC, true, false);
   nonlocals_.Add(var);
 
   // Allocate it by giving it a dynamic lookup.
@@ -514,9 +511,7 @@ Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
 // because the variable is just a guess (and may be shadowed by another
 // variable that is introduced dynamically via an 'eval' call or a 'with'
 // statement).
-Variable* Scope::LookupRecursive(Handle<String> name,
-                                 bool inner_lookup,
-                                 Variable** invalidated_local) {
+Variable* Scope::LookupRecursive(Handle<String> name, bool inner_lookup) {
   // If we find a variable, but the current scope calls 'eval', the found
   // variable may not be the correct one (the 'eval' may introduce a
   // property with the same name). In that case, remember that the variable
@@ -547,7 +542,7 @@ Variable* Scope::LookupRecursive(Handle<String> name,
       var = function_;
 
     } else if (outer_scope_ != NULL) {
-      var = outer_scope_->LookupRecursive(name, true, invalidated_local);
+      var = outer_scope_->LookupRecursive(name, true /* inner lookup */);
       // We may have found a variable in an outer scope. However, if
       // the current scope is inside a 'with', the actual variable may
       // be a property introduced via the 'with' statement. Then, the
@@ -568,10 +563,8 @@ Variable* Scope::LookupRecursive(Handle<String> name,
     var->is_accessed_from_inner_scope_ = true;
 
   // If the variable we have found is just a guess, invalidate the result.
-  if (guess) {
-    *invalidated_local = var;
+  if (guess)
     var = NULL;
-  }
 
   return var;
 }
@@ -585,8 +578,7 @@ void Scope::ResolveVariable(Scope* global_scope, VariableProxy* proxy) {
   if (proxy->var() != NULL) return;
 
   // Otherwise, try to resolve the variable.
-  Variable* invalidated_local = NULL;
-  Variable* var = LookupRecursive(proxy->name(), false, &invalidated_local);
+  Variable* var = LookupRecursive(proxy->name(), false);
 
   if (proxy->inside_with()) {
     // If we are inside a local 'with' statement, all bets are off
@@ -595,7 +587,7 @@ void Scope::ResolveVariable(Scope* global_scope, VariableProxy* proxy) {
     // Note that we must do a lookup anyway, because if we find one,
     // we must mark that variable as potentially accessed from this
     // inner scope (the property may not be in the 'with' object).
-    var = NonLocal(proxy->name(), Variable::DYNAMIC);
+    var = NonLocal(proxy->name());
 
   } else {
     // We are not inside a local 'with' statement.
@@ -609,22 +601,11 @@ void Scope::ResolveVariable(Scope* global_scope, VariableProxy* proxy) {
       // or we don't know about the outer scope (because we are
       // in an eval scope).
       if (!is_global_scope() &&
-          (scope_inside_with_ || outer_scope_is_eval_scope_)) {
-        // If we are inside a with statement or the code is executed
-        // using eval, we give up and look up the variable at runtime.
-        var = NonLocal(proxy->name(), Variable::DYNAMIC);
-
-      } else if (!is_global_scope() &&
-                 (scope_calls_eval_ || outer_scope_calls_eval_)) {
-        // If the code is not executed using eval and there are no
-        // with scopes, either we have a local or a global variable
-        // that might be shadowed by an eval-introduced variable.
-        if (invalidated_local != NULL) {
-          var = NonLocal(proxy->name(), Variable::DYNAMIC_LOCAL);
-          var->set_local_if_not_shadowed(invalidated_local);
-        } else {
-          var = NonLocal(proxy->name(), Variable::DYNAMIC_GLOBAL);
-        }
+          (is_eval_scope() || outer_scope_calls_eval_ ||
+           scope_calls_eval_ || scope_inside_with_)) {
+        // We must look up the variable at runtime, and we don't
+        // know anything else.
+        var = NonLocal(proxy->name());
 
       } else {
         // We must have a global variable.
@@ -662,21 +643,15 @@ void Scope::ResolveVariablesRecursively(Scope* global_scope) {
 }
 
 
-bool Scope::PropagateScopeInfo(bool outer_scope_calls_eval,
-                               bool outer_scope_is_eval_scope) {
+bool Scope::PropagateScopeInfo(bool outer_scope_calls_eval) {
   if (outer_scope_calls_eval) {
     outer_scope_calls_eval_ = true;
   }
 
-  if (outer_scope_is_eval_scope) {
-    outer_scope_is_eval_scope_ = true;
-  }
-
-  bool calls_eval = scope_calls_eval_ || outer_scope_calls_eval_;
-  bool is_eval = is_eval_scope() || outer_scope_is_eval_scope_;
+  bool b = scope_calls_eval_ || outer_scope_calls_eval_;
   for (int i = 0; i < inner_scopes_.length(); i++) {
     Scope* inner_scope = inner_scopes_[i];
-    if (inner_scope->PropagateScopeInfo(calls_eval, is_eval)) {
+    if (inner_scope->PropagateScopeInfo(b)) {
       inner_scope_calls_eval_ = true;
     }
     if (inner_scope->force_eager_compilation_) {

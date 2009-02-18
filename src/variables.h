@@ -113,27 +113,13 @@ class Variable: public ZoneObject {
   enum Mode {
     // User declared variables:
     VAR,       // declared via 'var', and 'function' declarations
-
     CONST,     // declared via 'const' declarations
 
     // Variables introduced by the compiler:
-    DYNAMIC,         // always require dynamic lookup (we don't know
-                     // the declaration)
-
-    DYNAMIC_GLOBAL,  // requires dynamic lookup, but we know that the
-                     // variable is global unless it has been shadowed
-                     // by an eval-introduced variable
-
-    DYNAMIC_LOCAL,   // requires dynamic lookup, but we know that the
-                     // variable is local and where it is unless it
-                     // has been shadowed by an eval-introduced
-                     // variable
-
-    INTERNAL,        // like VAR, but not user-visible (may or may not
-                     // be in a context)
-
-    TEMPORARY        // temporary variables (not user-visible), never
-                     // in a context
+    DYNAMIC,   // always require dynamic lookup (we don't know the declaration)
+    INTERNAL,  // like VAR, but not user-visible (may or may not be in a
+               // context)
+    TEMPORARY  // temporary variables (not user-visible), never in a context
   };
 
   // Printing support
@@ -164,23 +150,8 @@ class Variable: public ZoneObject {
     return !is_this() && name().is_identical_to(n);
   }
 
-  bool is_dynamic() const {
-    return (mode_ == DYNAMIC ||
-            mode_ == DYNAMIC_GLOBAL ||
-            mode_ == DYNAMIC_LOCAL);
-  }
-
   bool is_global() const;
   bool is_this() const { return is_this_; }
-
-  Variable* local_if_not_shadowed() const {
-    ASSERT(mode_ == DYNAMIC_LOCAL && local_if_not_shadowed_ != NULL);
-    return local_if_not_shadowed_;
-  }
-
-  void set_local_if_not_shadowed(Variable* local) {
-    local_if_not_shadowed_ = local;
-  }
 
   Expression* rewrite() const  { return rewrite_; }
   Slot* slot() const;
@@ -196,8 +167,6 @@ class Variable: public ZoneObject {
   Mode mode_;
   bool is_valid_LHS_;
   bool is_this_;
-
-  Variable* local_if_not_shadowed_;
 
   // Usage info.
   bool is_accessed_from_inner_scope_;  // set by variable resolver
