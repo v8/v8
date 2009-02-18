@@ -113,9 +113,10 @@ def Usage():
 
 def Main():
   # parse command line options
+  ignore_unknown = False
   state = None;
   try:
-    opts, args = getopt.getopt(sys.argv[1:], "jgco", ["js", "gc", "compiler", "other"])
+    opts, args = getopt.getopt(sys.argv[1:], "jgco", ["js", "gc", "compiler", "other", "ignore-unknown"])
   except getopt.GetoptError:
     usage()
   # process options.
@@ -128,12 +129,14 @@ def Main():
       state = 2
     if key in ("-o", "--other"):
       state = 3
+    if key in ("--ignore-unknown"):
+      ignore_unknown = True
   # do the processing.
   if len(args) != 2:
       Usage();
   tickprocessor = WindowsTickProcessor()
   tickprocessor.ParseMapFile(args[0])
-  tickprocessor.ProcessLogfile(args[1], state)
+  tickprocessor.ProcessLogfile(args[1], state, ignore_unknown)
   tickprocessor.PrintResults()
 
 if __name__ == '__main__':

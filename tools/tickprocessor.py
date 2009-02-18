@@ -156,10 +156,14 @@ class TickProcessor(object):
     self.number_of_library_ticks = 0
     self.unaccounted_number_of_ticks = 0
     self.excluded_number_of_ticks = 0
+    # Flag indicating whether to ignore unaccounted ticks in the report
+    self.ignore_unknown = False
 
-  def ProcessLogfile(self, filename, included_state = None):
+  def ProcessLogfile(self, filename, included_state = None, ignore_unknown = False):
     self.log_file = filename
     self.included_state = included_state
+    self.ignore_unknown = ignore_unknown
+
     try:
       logfile = open(filename, 'rb')
     except IOError:
@@ -253,7 +257,7 @@ class TickProcessor(object):
         return entry
     max = self.js_entries.FindMax()
     min = self.js_entries.FindMin()
-    if max != None and pc < max.key and pc > min.key:
+    if max != None and pc < (max.key + max.value.size) and pc > min.key:
       return self.js_entries.FindGreatestsLessThan(pc).value
     return None
 
@@ -289,6 +293,13 @@ class TickProcessor(object):
       js_entries = self.js_entries.ExportValueList()
       js_entries.extend(self.deleted_code)
       cpp_entries = self.cpp_entries.ExportValueList()
+      # Print the unknown ticks percentage if they are not ignored.
+      if not self.ignore_unknown and self.unaccounted_number_of_ticks > 0:
+        self.PrintHeader('Unknown')
+        unknown_percentage = self.unaccounted_number_of_ticks * 100.0 / self.total_number_of_ticks
+        print('  %(total)5.1f%%' % {
+          'total' : unknown_percentage,
+        })
       # Print the library ticks.
       self.PrintHeader('Shared libraries')
       self.PrintEntries(cpp_entries, lambda e:e.IsSharedLibraryEntry())
@@ -309,7 +320,12 @@ class TickProcessor(object):
     print('   total  nonlib   name')
 
   def PrintEntries(self, entries, condition):
-    number_of_accounted_ticks = self.total_number_of_ticks - self.unaccounted_number_of_ticks
+    # If ignoring unaccounted ticks don't include these in percentage
+    # calculations
+    number_of_accounted_ticks = self.total_number_of_ticks
+    if self.ignore_unknown:
+      number_of_accounted_ticks -= self.unaccounted_number_of_ticks
+
     number_of_non_library_ticks = number_of_accounted_ticks - self.number_of_library_ticks
     entries.sort(key=lambda e:e.tick_count, reverse=True)
     for entry in entries:
