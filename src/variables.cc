@@ -110,6 +110,8 @@ const char* Variable::Mode2String(Mode mode) {
     case VAR: return "VAR";
     case CONST: return "CONST";
     case DYNAMIC: return "DYNAMIC";
+    case DYNAMIC_GLOBAL: return "DYNAMIC_GLOBAL";
+    case DYNAMIC_LOCAL: return "DYNAMIC_LOCAL";
     case INTERNAL: return "INTERNAL";
     case TEMPORARY: return "TEMPORARY";
   }
@@ -143,6 +145,7 @@ Variable::Variable(Scope* scope,
     mode_(mode),
     is_valid_LHS_(is_valid_LHS),
     is_this_(is_this),
+    local_if_not_shadowed_(NULL),
     is_accessed_from_inner_scope_(false),
     rewrite_(NULL) {
   // names must be canonicalized for fast equality checks
@@ -155,6 +158,5 @@ bool Variable::is_global() const {
   // activation frame.
   return mode_ != TEMPORARY && scope_ != NULL && scope_->is_global_scope();
 }
-
 
 } }  // namespace v8::internal
