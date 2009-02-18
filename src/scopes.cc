@@ -444,7 +444,9 @@ void Scope::Print(int n) {
   if (scope_calls_eval_) Indent(n1, "// scope calls 'eval'\n");
   if (outer_scope_calls_eval_) Indent(n1, "// outer scope calls 'eval'\n");
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
-  if (outer_scope_is_eval_scope_) Indent(n1, "// outer scope is 'eval' scope\n");
+  if (outer_scope_is_eval_scope_) {
+    Indent(n1, "// outer scope is 'eval' scope\n");
+  }
   if (num_stack_slots_ > 0) { Indent(n1, "// ");
   PrintF("%d stack slots\n", num_stack_slots_); }
   if (num_heap_slots_ > 0) { Indent(n1, "// ");
