@@ -4805,12 +4805,6 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // it in the IC initialization code and patch the cmp instruction.
   // This means that we cannot allow test instructions after calls to
   // KeyedLoadIC stubs in other places.
-  //
-  // The virtual frame should be spilled fully before the call so that
-  // the call itself does not generate extra code to spill values,
-  // which would invalidate the delta calculation.
-  cgen->frame()->SpillAll();
-  int delta_to_patch_site = __ SizeOfCodeGeneratedSince(patch_site());
   Result value(cgen);
   if (is_global_) {
     value = cgen->frame()->CallCodeObject(ic,
@@ -4823,6 +4817,9 @@ void DeferredReferenceGetKeyedValue::Generate() {
   // offset to the patch site will be expected in a test eax
   // instruction.
   ASSERT(value.is_register() && value.reg().is(eax));
+  // The delta from the start of the map-compare instruction to the
+  // test eax instruction.
+  int delta_to_patch_site = __ SizeOfCodeGeneratedSince(patch_site());
   __ test(value.reg(), Immediate(-delta_to_patch_site));
   __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
   exit()->Jump(&value);

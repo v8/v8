@@ -739,15 +739,15 @@ void KeyedLoadIC::PatchInlinedMapCheck(Address address, Object* value) {
   // The keyed load has a fast inlined case if the IC call instruction
   // is immediately followed by a test instruction.
   if (*test_instruction_address == kTestEaxByte) {
-    // Fetch the offset from the call instruction to the map cmp
+    // Fetch the offset from the test instruction to the map cmp
     // instruction.  This offset is stored in the last 4 bytes of the
     // 5 byte test instruction.
     Address offset_address = test_instruction_address + 1;
     int offset_value = *(reinterpret_cast<int*>(offset_address));
-    // Compute the map address.  The operand-immediate compare
-    // instruction is two bytes larger than a call instruction so we
-    // add 2 to get to the map address.
-    Address map_address = address + offset_value + 2;
+    // Compute the map address.  The map address is in the last 4
+    // bytes of the 7-byte operand-immediate compare instruction, so
+    // we add 3 to the offset to get the map address.
+    Address map_address = test_instruction_address + offset_value + 3;
     // patch the map check.
     (*(reinterpret_cast<Object**>(map_address))) = value;
   }
