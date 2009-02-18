@@ -785,7 +785,7 @@ void DeferredInlineSmiOperation::Generate() {
   Result arg1 = generator()->allocator()->Allocate(r1);
   ASSERT(arg1.is_valid());
   generator()->frame()->CallStub(&igostub, &arg0, &arg1, 0);
-  exit()->Jump();
+  exit_.Jump();
 }
 
 
@@ -816,7 +816,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       deferred->enter()->Branch(vs);
       __ tst(r0, Operand(kSmiTagMask));
       deferred->enter()->Branch(ne);
-      deferred->exit()->Bind();
+      deferred->BindExit();
       break;
     }
 
@@ -832,7 +832,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       deferred->enter()->Branch(vs);
       __ tst(r0, Operand(kSmiTagMask));
       deferred->enter()->Branch(ne);
-      deferred->exit()->Bind();
+      deferred->BindExit();
       break;
     }
 
@@ -849,7 +849,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         case Token::BIT_AND: __ and_(r0, r0, Operand(value)); break;
         default: UNREACHABLE();
       }
-      deferred->exit()->Bind();
+      deferred->BindExit();
       break;
     }
 
@@ -902,7 +902,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
           default: UNREACHABLE();
         }
         __ mov(r0, Operand(r2, LSL, kSmiTagSize));
-        deferred->exit()->Bind();
+        deferred->BindExit();
       }
       break;
     }
@@ -2345,7 +2345,7 @@ void DeferredObjectLiteral::Generate() {
       frame->CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
   __ mov(r2, Operand(boilerplate.reg()));
   // Result is returned in r2.
-  exit()->Jump();
+  exit_.Jump();
 }
 
 
@@ -2372,7 +2372,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // If so, jump to the deferred code.
   __ cmp(r2, Operand(Factory::undefined_value()));
   deferred->enter()->Branch(eq);
-  deferred->exit()->Bind();
+  deferred->BindExit();
 
   // Push the object literal boilerplate.
   frame_->EmitPush(r2);

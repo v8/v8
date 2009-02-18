@@ -96,7 +96,11 @@ class DeferredCode: public ZoneObject {
   CodeGenerator* generator() const { return generator_; }
 
   JumpTarget* enter() { return &enter_; }
-  JumpTarget* exit() { return &exit_; }
+  void BindExit() { exit_.Bind(0); }
+  void BindExit(Result* result) { exit_.Bind(result, 1); }
+  void BindExit(Result* result0, Result* result1, Result* result2) {
+    exit_.Bind(result0, result1, result2, 3);
+  }
 
   int statement_position() const { return statement_position_; }
   int position() const { return position_; }
@@ -110,15 +114,12 @@ class DeferredCode: public ZoneObject {
 #endif
 
  protected:
-  // The masm_ field is manipulated when compiling stubs with the
-  // BEGIN_STUB and END_STUB macros. For that reason, it cannot be
-  // constant.
-  MacroAssembler* masm_;
-
- private:
   CodeGenerator* const generator_;
+  MacroAssembler* const masm_;
   JumpTarget enter_;
   JumpTarget exit_;
+
+ private:
   int statement_position_;
   int position_;
 #ifdef DEBUG

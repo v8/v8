@@ -131,19 +131,37 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
 
   // Bind a jump target.  If there is no current frame at the binding
   // site, there must be at least one frame reaching via a forward
-  // jump.  This frame will be used to establish an expected frame for
-  // the block, which will be the current frame after the bind.
-  void Bind();
-  void Bind(Result* arg);
-  void Bind(Result* arg0, Result* arg1);
-  void Bind(Result* arg0, Result* arg1, Result* arg2);
-  void Bind(Result* arg0, Result* arg1, Result* arg2, Result* arg3);
+  // jump.
+  //
+  // The number of mergable elements is a number of frame elements
+  // counting from the top down which must be "mergable" (not
+  // constants or copies) in the entry frame at the jump target.
+  // Backward jumps to the target must contain the same constants and
+  // sharing as the entry frame, except for the mergable elements.
+  //
+  // A mergable elements argument of kAllElements indicates that all
+  // frame elements must be mergable.  Mergable elements are ignored
+  // completely for forward-only jump targets.
+  void Bind(int mergable_elements = kAllElements);
+  void Bind(Result* arg, int mergable_elements = kAllElements);
+  void Bind(Result* arg0, Result* arg1, int mergable_elements = kAllElements);
+  void Bind(Result* arg0,
+            Result* arg1,
+            Result* arg2,
+            int mergable_elements = kAllElements);
+  void Bind(Result* arg0,
+            Result* arg1,
+            Result* arg2,
+            Result* arg3,
+            int mergable_elements = kAllElements);
 
   // Emit a call to a jump target.  There must be a current frame at
   // the call.  The frame at the target is the same as the current
   // frame except for an extra return address on top of it.  The frame
   // after the call is the same as the frame before the call.
   void Call();
+
+  static const int kAllElements = -1;  // Not a valid number of elements.
 
  protected:
   // The code generator gives access to its current frame.
@@ -184,8 +202,9 @@ class JumpTarget : public ZoneObject {  // Shadows are dynamically allocated.
   // expected frame.  Return null if they are incompatible.
   FrameElement* Combine(FrameElement* left, FrameElement* right);
 
-  // Compute a frame to use for entry to this block.
-  void ComputeEntryFrame();
+  // Compute a frame to use for entry to this block.  Mergable
+  // elements is as described for the Bind function.
+  void ComputeEntryFrame(int mergable_elements);
 
   DISALLOW_COPY_AND_ASSIGN(JumpTarget);
 };

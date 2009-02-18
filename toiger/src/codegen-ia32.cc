@@ -738,7 +738,7 @@ void DeferredInlineBinaryOperation::Generate() {
   generator()->frame()->Push(&left);
   generator()->frame()->Push(&right);
   Result answer = generator()->frame()->CallStub(&stub_, 2);
-  exit()->Jump(&answer);
+  exit_.Jump(&answer);
 }
 
 
@@ -786,7 +786,7 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
     // Generate the inline part of the code.
     // The operands are on the frame.
     Result answer = deferred->GenerateInlineCode();
-    deferred->exit()->Bind(&answer);
+    deferred->BindExit(&answer);
     frame_->Push(&answer);
   } else {
     // Call the stub and push the result to the stack.
@@ -826,7 +826,7 @@ void DeferredInlineSmiOperation::Generate() {
   generator()->frame()->Push(value_);
   GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
   Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit()->Jump(&answer);
+  exit_.Jump(&answer);
 }
 
 
@@ -859,7 +859,7 @@ void DeferredInlineSmiOperationReversed::Generate() {
   generator()->frame()->Push(&right);
   GenericBinaryOpStub igostub(op_, overwrite_mode_, SMI_CODE_INLINED);
   Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit()->Jump(&answer);
+  exit_.Jump(&answer);
 }
 
 
@@ -893,7 +893,7 @@ void DeferredInlineSmiAdd::Generate() {
   generator()->frame()->Push(value_);
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
   Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit()->Jump(&answer);
+  exit_.Jump(&answer);
 }
 
 
@@ -927,7 +927,7 @@ void DeferredInlineSmiAddReversed::Generate() {
   generator()->frame()->Push(&right);
   GenericBinaryOpStub igostub(Token::ADD, overwrite_mode_, SMI_CODE_INLINED);
   Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit()->Jump(&answer);
+  exit_.Jump(&answer);
 }
 
 
@@ -961,7 +961,7 @@ void DeferredInlineSmiSub::Generate() {
   generator()->frame()->Push(value_);
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
   Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit()->Jump(&answer);
+  exit_.Jump(&answer);
 }
 
 
@@ -992,7 +992,7 @@ void DeferredInlineSmiSubReversed::Generate() {
   generator()->frame()->Push(&right);
   GenericBinaryOpStub igostub(Token::SUB, overwrite_mode_, SMI_CODE_INLINED);
   Result answer = generator()->frame()->CallStub(&igostub, 2);
-  exit()->Jump(&answer);
+  exit_.Jump(&answer);
 }
 
 
@@ -1032,7 +1032,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       deferred->enter()->Branch(overflow, &operand, not_taken);
       __ test(Operand(operand.reg()), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, &operand, not_taken);
-      deferred->exit()->Bind(&operand);
+      deferred->BindExit(&operand);
       frame_->Push(&operand);
       break;
     }
@@ -1067,7 +1067,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       __ test(answer.reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, &operand, not_taken);
       operand.Unuse();
-      deferred->exit()->Bind(&answer);
+      deferred->BindExit(&answer);
       frame_->Push(&answer);
       break;
     }
@@ -1092,7 +1092,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         frame_->Spill(result.reg());
         __ sar(result.reg(), shift_value);
         __ and_(result.reg(), ~kSmiTagMask);
-        deferred->exit()->Bind(&result);
+        deferred->BindExit(&result);
         frame_->Push(&result);
       }
       break;
@@ -1129,7 +1129,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         ASSERT(kSmiTagSize == times_2);  // Adjust the code if not true.
         __ lea(answer.reg(),
                Operand(answer.reg(), answer.reg(), times_1, kSmiTag));
-        deferred->exit()->Bind(&answer);
+        deferred->BindExit(&answer);
         frame_->Push(&answer);
       }
       break;
@@ -1167,7 +1167,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         __ add(answer.reg(), Operand(answer.reg()));
         deferred->enter()->Branch(overflow, &operand, not_taken);
         operand.Unuse();
-        deferred->exit()->Bind(&answer);
+        deferred->BindExit(&answer);
         frame_->Push(&answer);
       }
       break;
@@ -1197,7 +1197,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
         ASSERT(op == Token::BIT_OR);
         __ or_(Operand(operand.reg()), Immediate(value));
       }
-      deferred->exit()->Bind(&operand);
+      deferred->BindExit(&operand);
       frame_->Push(&operand);
       break;
     }
@@ -1470,13 +1470,10 @@ class DeferredStackCheck: public DeferredCode {
 
 void DeferredStackCheck::Generate() {
   enter()->Bind();
-  // The stack check can trigger the debugger.  Before calling it, all
-  // values including constants must be spilled to the frame.
-  generator()->frame()->SpillAll();
   StackCheckStub stub;
   Result ignored = generator()->frame()->CallStub(&stub, 0);
   ignored.Unuse();
-  exit()->Jump();
+  exit_.Jump();
 }
 
 
@@ -1487,7 +1484,7 @@ void CodeGenerator::CheckStack() {
         ExternalReference::address_of_stack_guard_limit();
     __ cmp(esp, Operand::StaticVariable(stack_guard_limit));
     deferred->enter()->Branch(below, not_taken);
-    deferred->exit()->Bind();
+    deferred->BindExit();
   }
 }
 
@@ -3102,7 +3099,7 @@ void DeferredRegExpLiteral::Generate() {
   frame->Push(node_->flags());
   Result boilerplate =
       frame->CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
-  exit()->Jump(&boilerplate);
+  exit_.Jump(&boilerplate);
 }
 
 
@@ -3136,7 +3133,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 
   literals.Unuse();
   // The deferred code returns the boilerplate object.
-  deferred->exit()->Bind(&boilerplate);
+  deferred->BindExit(&boilerplate);
 
   // Push the boilerplate object.
   frame_->Push(&boilerplate);
@@ -3177,7 +3174,7 @@ void DeferredObjectLiteral::Generate() {
   frame->Push(node_->constant_properties());
   Result boilerplate =
       frame->CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
-  exit()->Jump(&boilerplate);
+  exit_.Jump(&boilerplate);
 }
 
 
@@ -3211,7 +3208,7 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
 
   literals.Unuse();
   // The deferred code returns the boilerplate object.
-  deferred->exit()->Bind(&boilerplate);
+  deferred->BindExit(&boilerplate);
 
   // Push the boilerplate object.
   frame_->Push(&boilerplate);
@@ -4285,7 +4282,7 @@ void DeferredCountOperation::Generate() {
 
   CounterOpStub stub(result_offset_, is_postfix_, is_increment_);
   value = generator()->frame()->CallStub(&stub, &value, 0);
-  exit()->Jump(&value);
+  exit_.Jump(&value);
 }
 
 
@@ -4371,7 +4368,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     }
 
     // Store the new value in the target if not const.
-    deferred->exit()->Bind(&value);
+    deferred->BindExit(&value);
     frame_->Push(&value);
     if (!is_const) {
       target.SetValue(NOT_CONST_INIT);
@@ -4822,7 +4819,14 @@ void DeferredReferenceGetKeyedValue::Generate() {
   int delta_to_patch_site = __ SizeOfCodeGeneratedSince(patch_site());
   __ test(value.reg(), Immediate(-delta_to_patch_site));
   __ IncrementCounter(&Counters::keyed_load_inline_miss, 1);
-  exit()->Jump(&value);
+
+  // The receiver and key were spilled by the call, so their state as
+  // constants or copies has been changed.  Thus, they need to be
+  // "mergable" in the block at the exit label and are therefore
+  // passed as return results here.
+  key = cgen->frame()->Pop();
+  receiver = cgen->frame()->Pop();
+  exit_.Jump(&receiver, &key, &value);
 }
 
 
@@ -4965,9 +4969,9 @@ void Reference::GetValue(TypeofState typeof_state) {
 
         // Restore the receiver and key to the frame and push the
         // result on top of it.
+        deferred->BindExit(&receiver, &key, &value);
         cgen_->frame()->Push(&receiver);
         cgen_->frame()->Push(&key);
-        deferred->exit()->Bind(&value);
         cgen_->frame()->Push(&value);
 
       } else {

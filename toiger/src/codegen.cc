@@ -38,8 +38,8 @@
 namespace v8 { namespace internal {
 
 DeferredCode::DeferredCode(CodeGenerator* generator)
-  : masm_(generator->masm()),
-    generator_(generator),
+  : generator_(generator),
+    masm_(generator->masm()),
     enter_(generator),
     exit_(generator, JumpTarget::BIDIRECTIONAL),
     statement_position_(masm_->current_statement_position()),

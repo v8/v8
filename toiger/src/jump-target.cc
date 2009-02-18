@@ -139,7 +139,7 @@ FrameElement* JumpTarget::Combine(FrameElement* left, FrameElement* right) {
 }
 
 
-void JumpTarget::ComputeEntryFrame() {
+void JumpTarget::ComputeEntryFrame(int mergable_elements) {
   // Given: a collection of frames reaching by forward CFG edges
   // (including the code generator's current frame) and the
   // directionality of the block.  Compute: an entry frame for the
@@ -159,12 +159,21 @@ void JumpTarget::ComputeEntryFrame() {
   int length = initial_frame->elements_.length();
   List<FrameElement*> elements(length);
 
+  // Convert the number of mergable elements (counted from the top
+  // down) to a frame high-water mark (counted from the bottom up).
+  // Elements strictly above the high-water index will be mergable in
+  // entry frames for bidirectional jump targets.
+  int high_water_mark = (mergable_elements == kAllElements)
+      ? VirtualFrame::kIllegalIndex  // All frame indices are above this.
+      : length - mergable_elements - 1;  // Top index if m_e == 0.
+
   // Initially populate the list of elements based on the initial
   // frame.
   for (int i = 0; i < length; i++) {
     FrameElement element = initial_frame->elements_[i];
     // We do not allow copies or constants in bidirectional frames.
     if (direction_ == BIDIRECTIONAL &&
+        i > high_water_mark &&
         (element.is_constant() || element.is_copy())) {
       elements.Add(NULL);
     } else {
@@ -440,31 +449,34 @@ void JumpTarget::Branch(Condition cc,
 #undef ASSERT_ARGCHECK
 
 
-void JumpTarget::Bind(Result* arg) {
+void JumpTarget::Bind(Result* arg, int mergable_elements) {
   ASSERT(cgen_ != NULL);
 
   if (cgen_->has_valid_frame()) {
     cgen_->frame()->Push(arg);
   }
-  Bind();
+  Bind(mergable_elements);
   *arg = cgen_->frame()->Pop();
 }
 
 
-void JumpTarget::Bind(Result* arg0, Result* arg1) {
+void JumpTarget::Bind(Result* arg0, Result* arg1, int mergable_elements) {
   ASSERT(cgen_ != NULL);
 
   if (cgen_->has_valid_frame()) {
     cgen_->frame()->Push(arg0);
     cgen_->frame()->Push(arg1);
   }
-  Bind();
+  Bind(mergable_elements);
   *arg1 = cgen_->frame()->Pop();
   *arg0 = cgen_->frame()->Pop();
 }
 
 
-void JumpTarget::Bind(Result* arg0, Result* arg1, Result* arg2) {
+void JumpTarget::Bind(Result* arg0,
+                      Result* arg1,
+                      Result* arg2,
+                      int mergable_elements) {
   ASSERT(cgen_ != NULL);
 
   if (cgen_->has_valid_frame()) {
@@ -472,14 +484,18 @@ void JumpTarget::Bind(Result* arg0, Result* arg1, Result* arg2) {
     cgen_->frame()->Push(arg1);
     cgen_->frame()->Push(arg2);
   }
-  Bind();
+  Bind(mergable_elements);
   *arg2 = cgen_->frame()->Pop();
   *arg1 = cgen_->frame()->Pop();
   *arg0 = cgen_->frame()->Pop();
 }
 
 
-void JumpTarget::Bind(Result* arg0, Result* arg1, Result* arg2, Result* arg3) {
+void JumpTarget::Bind(Result* arg0,
+                      Result* arg1,
+                      Result* arg2,
+                      Result* arg3,
+                      int mergable_elements) {
   ASSERT(cgen_ != NULL);
 
   if (cgen_->has_valid_frame()) {
@@ -488,7 +504,7 @@ void JumpTarget::Bind(Result* arg0, Result* arg1, Result* arg2, Result* arg3) {
     cgen_->frame()->Push(arg2);
     cgen_->frame()->Push(arg3);
   }
-  Bind();
+  Bind(mergable_elements);
   *arg3 = cgen_->frame()->Pop();
   *arg2 = cgen_->frame()->Pop();
   *arg1 = cgen_->frame()->Pop();

@@ -130,7 +130,7 @@ void JumpTarget::Call() {
 }
 
 
-void JumpTarget::Bind() {
+void JumpTarget::Bind(int mergable_elements) {
   ASSERT(cgen_ != NULL);
   ASSERT(!is_bound());
 
@@ -139,7 +139,7 @@ void JumpTarget::Bind() {
   ASSERT(!cgen_->has_valid_frame() || cgen_->HasValidEntryRegisters());
 
   // Compute the frame to use for entry to the block.
-  ComputeEntryFrame();
+  ComputeEntryFrame(mergable_elements);
 
   if (is_linked()) {
     // There were forward jumps.  All the reaching frames, beginning
