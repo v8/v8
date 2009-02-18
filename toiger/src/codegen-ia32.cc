@@ -1317,7 +1317,13 @@ void CodeGenerator::Comparison(Condition cc,
       is_smi.Bind(&left_side, &right_side);
       left_side.ToRegister();
       // Test smi equality and comparison by signed int comparison.
+      if (IsUnsafeSmi(right_side.handle())) {
+        right_side.ToRegister();
+        ASSERT(right_side.is_valid());
+        __ cmp(left_side.reg(), Operand(right_side.reg()));
+      } else {
       __ cmp(Operand(left_side.reg()), Immediate(right_side.handle()));
+      }
       left_side.Unuse();
       right_side.Unuse();
       dest->Split(cc);
@@ -3045,18 +3051,23 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 
 void CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
-  if (node->handle()->IsSmi() && !IsInlineSmi(node)) {
-    // To prevent long attacker-controlled byte sequences in code, larger
-    // Smis are loaded in two steps via a temporary register.
-    Result temp = allocator_->Allocate();
-    ASSERT(temp.is_valid());
-    int bits = reinterpret_cast<int>(*node->handle());
-    __ Set(temp.reg(), Immediate(bits & 0x0000FFFF));
-    __ xor_(temp.reg(), bits & 0xFFFF0000);
-    frame_->Push(&temp);
-  } else {
     frame_->Push(node->handle());
   }
+
+
+void CodeGenerator::LoadUnsafeSmi(Register target, Handle<Object> value) {
+  ASSERT(target.is_valid());
+  ASSERT(value->IsSmi());
+  int bits = reinterpret_cast<int>(*value);
+  __ Set(target, Immediate(bits & 0x0000FFFF));
+  __ xor_(target, bits & 0xFFFF0000);
+}
+
+
+bool CodeGenerator::IsUnsafeSmi(Handle<Object> value) {
+  if (!value->IsSmi()) return false;
+  int int_value = Smi::cast(*value)->value();
+  return !is_intn(int_value, kMaxSmiInlinedBits);
 }
 
 

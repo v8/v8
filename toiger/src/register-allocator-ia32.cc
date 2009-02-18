@@ -40,7 +40,11 @@ void Result::ToRegister() {
   if (is_constant()) {
     Result fresh = cgen_->allocator()->Allocate();
     ASSERT(fresh.is_valid());
-    cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
+    if (cgen_->IsUnsafeSmi(handle())) {
+      cgen_->LoadUnsafeSmi(fresh.reg(), handle());
+    } else {
+      cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
+    }
     // This result becomes a copy of the fresh one.
     *this = fresh;
   }
@@ -57,7 +61,11 @@ void Result::ToRegister(Register target) {
       cgen_->masm()->mov(fresh.reg(), reg());
     } else {
       ASSERT(is_constant());
-      cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
+      if (cgen_->IsUnsafeSmi(handle())) {
+        cgen_->LoadUnsafeSmi(fresh.reg(), handle());
+      } else {
+        cgen_->masm()->Set(fresh.reg(), Immediate(handle()));
+      }
     }
     *this = fresh;
   } else if (is_register() && reg().is(target)) {

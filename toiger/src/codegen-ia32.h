@@ -464,9 +464,15 @@ class CodeGenerator: public AstVisitor {
                   bool strict,
                   ControlDestination* destination);
 
-  // Inline small integer literals. To prevent long attacker-controlled byte
-  // sequences, we only inline small Smis.
+  // To prevent long attacker-controlled byte sequences, integer constants
+  // from the JavaScript source are loaded in two parts if they are larger
+  // than 16 bits.
   static const int kMaxSmiInlinedBits = 16;
+  bool IsUnsafeSmi(Handle<Object> value);
+  // Load an integer constant x into a register target using
+  // at most 16 bits of user-controlled data per assembly operation.
+  void LoadUnsafeSmi(Register target, Handle<Object> value);
+
   bool IsInlineSmi(Literal* literal);
   void SmiComparison(Condition cc,  Handle<Object> value, bool strict);
   void SmiOperation(Token::Value op,
@@ -615,6 +621,7 @@ class CodeGenerator: public AstVisitor {
   friend class VirtualFrame;
   friend class JumpTarget;
   friend class Reference;
+  friend class Result;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };

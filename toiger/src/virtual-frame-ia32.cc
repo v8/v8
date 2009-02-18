@@ -79,7 +79,15 @@ void VirtualFrame::RawSyncElementAt(int index) {
         break;
 
       case FrameElement::CONSTANT:
-        __ Set(Operand(ebp, fp_relative(index)), Immediate(element.handle()));
+        if (cgen_->IsUnsafeSmi(element.handle())) {
+          Result temp = cgen_->allocator()->Allocate();
+          ASSERT(temp.is_valid());
+          cgen_->LoadUnsafeSmi(temp.reg(), element.handle());
+          __ mov(Operand(ebp, fp_relative(index)), temp.reg());
+        } else {
+          __ Set(Operand(ebp, fp_relative(index)),
+                 Immediate(element.handle()));
+        }
         break;
 
       case FrameElement::COPY: {
@@ -117,7 +125,14 @@ void VirtualFrame::RawSyncElementAt(int index) {
         break;
 
       case FrameElement::CONSTANT:
-        __ push(Immediate(element.handle()));
+        if (cgen_->IsUnsafeSmi(element.handle())) {
+          Result temp = cgen_->allocator()->Allocate();
+          ASSERT(temp.is_valid());
+          cgen_->LoadUnsafeSmi(temp.reg(), element.handle());
+          __ push(temp.reg());
+        } else {
+          __ push(Immediate(element.handle()));
+        }
         break;
 
       case FrameElement::COPY: {
@@ -217,7 +232,13 @@ void VirtualFrame::MergeMoveRegistersToMemory(VirtualFrame* expected) {
 
         case FrameElement::CONSTANT:
           if (!source.is_synced()) {
-            __ Set(Operand(ebp, fp_relative(i)), Immediate(source.handle()));
+            if (cgen_->IsUnsafeSmi(source.handle())) {
+              esi_caches = i;
+              cgen_->LoadUnsafeSmi(esi, source.handle());
+              __ mov(Operand(ebp, fp_relative(i)), esi);
+            } else {
+              __ Set(Operand(ebp, fp_relative(i)), Immediate(source.handle()));
+            }
           }
           break;
 
@@ -335,7 +356,11 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
           break;
 
         case FrameElement::CONSTANT:
-          __ Set(target.reg(), Immediate(source.handle()));
+          if (cgen_->IsUnsafeSmi(source.handle())) {
+            cgen_->LoadUnsafeSmi(target.reg(), source.handle());
+          } else {
+           __ Set(target.reg(), Immediate(source.handle()));
+          }
           break;
 
         case FrameElement::COPY: {
