@@ -166,9 +166,12 @@ class Scope: public ZoneObject {
   bool is_function_scope() const  { return type_ == FUNCTION_SCOPE; }
   bool is_global_scope() const  { return type_ == GLOBAL_SCOPE; }
 
+  // Information about which scopes calls eval.
+  bool calls_eval() const  { return scope_calls_eval_; }
+  bool outer_scope_calls_eval() const  { return outer_scope_calls_eval_; }
+
   // The scope immediately surrounding this scope, or NULL.
   Scope* outer_scope() const  { return outer_scope_; }
-
 
   // ---------------------------------------------------------------------------
   // Accessors.
@@ -290,6 +293,7 @@ class Scope: public ZoneObject {
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_eval_;
   bool inner_scope_calls_eval_;
+  bool outer_scope_is_eval_scope_;
   bool force_eager_compilation_;
 
   // Computed via AllocateVariables; function scopes only.
@@ -298,15 +302,18 @@ class Scope: public ZoneObject {
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
-  Variable* NonLocal(Handle<String> name);
+  Variable* NonLocal(Handle<String> name, Variable::Mode mode);
 
   // Variable resolution.
-  Variable* LookupRecursive(Handle<String> name, bool inner_lookup);
+  Variable* LookupRecursive(Handle<String> name,
+                            bool inner_lookup,
+                            Variable** invalidated_local);
   void ResolveVariable(Scope* global_scope, VariableProxy* proxy);
   void ResolveVariablesRecursively(Scope* global_scope);
 
   // Scope analysis.
-  bool PropagateScopeInfo(bool outer_scope_calls_eval);
+  bool PropagateScopeInfo(bool outer_scope_calls_eval,
+                          bool outer_scope_is_eval_scope);
   bool HasTrivialContext() const;
 
   // Predicates.

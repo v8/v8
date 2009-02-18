@@ -134,10 +134,12 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         // declared variables that were introduced through declaration nodes)
         // must not appear here.
         switch (mode) {
-          case Variable::INTERNAL :  // fall through
-          case Variable::VAR      : *attributes = NONE; break;
-          case Variable::CONST    : *attributes = READ_ONLY; break;
-          case Variable::DYNAMIC  : UNREACHABLE(); break;
+          case Variable::INTERNAL:  // fall through
+          case Variable::VAR: *attributes = NONE; break;
+          case Variable::CONST: *attributes = READ_ONLY; break;
+          case Variable::DYNAMIC: UNREACHABLE(); break;
+          case Variable::DYNAMIC_GLOBAL: UNREACHABLE(); break;
+          case Variable::DYNAMIC_LOCAL: UNREACHABLE(); break;
           case Variable::TEMPORARY: UNREACHABLE(); break;
         }
         return context;

@@ -1105,7 +1105,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
   if (slot != NULL && slot->type() == Slot::LOOKUP) {
     // Variables with a "LOOKUP" slot were introduced as non-locals
     // during variable resolution and must have mode DYNAMIC.
-    ASSERT(var->mode() == Variable::DYNAMIC);
+    ASSERT(var->is_dynamic());
     // For now, just do a runtime call.
     frame_->Push(cp);
     __ mov(r0, Operand(var->name()));
@@ -1983,7 +1983,7 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   if (slot->type() == Slot::LOOKUP) {
-    ASSERT(slot->var()->mode() == Variable::DYNAMIC);
+    ASSERT(slot->var()->is_dynamic());
 
     // For now, just do a runtime call.
     frame_->Push(cp);
@@ -2000,7 +2000,7 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   } else {
     // Note: We would like to keep the assert below, but it fires because of
     // some nasty code in LoadTypeofExpression() which should be removed...
-    // ASSERT(slot->var()->mode() != Variable::DYNAMIC);
+    // ASSERT(!slot->var()->is_dynamic());
 
     // Special handling for locals allocated in registers.
     __ ldr(r0, SlotOperand(slot, r2));
@@ -3348,7 +3348,7 @@ void Reference::SetValue(InitState init_state) {
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       if (slot->type() == Slot::LOOKUP) {
-        ASSERT(slot->var()->mode() == Variable::DYNAMIC);
+        ASSERT(slot->var()->is_dynamic());
 
         // For now, just do a runtime call.
         frame->Push(cp);
@@ -3380,7 +3380,7 @@ void Reference::SetValue(InitState init_state) {
         frame->Push(r0);
 
       } else {
-        ASSERT(slot->var()->mode() != Variable::DYNAMIC);
+        ASSERT(!slot->var()->is_dynamic());
 
         Label exit;
         if (init_state == CONST_INIT) {

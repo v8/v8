@@ -422,7 +422,7 @@ Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
       ASSERT(!tmp.is(esi));  // do not overwrite context register
       Register context = esi;
       int chain_length = scope()->ContextChainLength(slot->var()->scope());
-      for (int i = chain_length; i-- > 0;) {
+      for (int i = 0; i < chain_length; i++) {
         // Load the closure.
         // (All contexts, even 'with' contexts, have a closure,
         // and it is the same for all contexts inside a function.
@@ -448,6 +448,32 @@ Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
       return Operand(eax);
   }
 }
+
+
+Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
+                                                         Register tmp,
+                                                         Label* slow) {
+  ASSERT(slot->type() == Slot::CONTEXT);
+  int index = slot->index();
+  __ mov(tmp, Operand(esi));
+  for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmp(ContextOperand(tmp, Context::EXTENSION_INDEX), Immediate(0));
+        __ j(not_equal, slow, not_taken);
+      }
+      __ mov(tmp, ContextOperand(tmp, Context::CLOSURE_INDEX));
+      __ mov(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
+    }
+  }
+  // Check that last extension is NULL.
+  __ cmp(ContextOperand(tmp, Context::EXTENSION_INDEX), Immediate(0));
+  __ j(not_equal, slow, not_taken);
+  __ mov(tmp, ContextOperand(tmp, Context::FCONTEXT_INDEX));
+  return ContextOperand(tmp, index);
+}
+
 
 
 // Loads a value on TOS. If it is a boolean value, the result may have been
@@ -1404,7 +1430,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
   if (slot != NULL && slot->type() == Slot::LOOKUP) {
     // Variables with a "LOOKUP" slot were introduced as non-locals
     // during variable resolution and must have mode DYNAMIC.
-    ASSERT(var->mode() == Variable::DYNAMIC);
+    ASSERT(var->is_dynamic());
     // For now, just do a runtime call.
     frame_->Push(esi);
     frame_->Push(Immediate(var->name()));
@@ -2323,23 +2349,44 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   if (slot->type() == Slot::LOOKUP) {
-    ASSERT(slot->var()->mode() == Variable::DYNAMIC);
+    ASSERT(slot->var()->is_dynamic());
 
-    // For now, just do a runtime call.
+    Label slow, done;
+
+    // Generate fast-case code for variables that might be shadowed by
+    // eval-introduced variables.  Eval is used a lot without
+    // introducing variables.  In those cases, we do not want to
+    // perform a runtime call for all variables in the scope
+    // containing the eval.
+    if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+      LoadFromGlobalSlotCheckExtensions(slot, typeof_state, ebx, &slow);
+      __ jmp(&done);
+
+    } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+      Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+      __ mov(eax,
+             ContextSlotOperandCheckExtensions(potential_slot,
+                                               ebx,
+                                               &slow));
+      __ jmp(&done);
+    }
+
+    __ bind(&slow);
     frame_->Push(esi);
     frame_->Push(Immediate(slot->var()->name()));
-
     if (typeof_state == INSIDE_TYPEOF) {
       __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
     } else {
       __ CallRuntime(Runtime::kLoadContextSlot, 2);
     }
+
+    __ bind(&done);
     frame_->Push(eax);
 
   } else {
     // Note: We would like to keep the assert below, but it fires because of
     // some nasty code in LoadTypeofExpression() which should be removed...
-    // ASSERT(slot->var()->mode() != Variable::DYNAMIC);
+    // ASSERT(!slot->var()->is_dynamic());
     if (slot->var()->mode() == Variable::CONST) {
       // Const slots may contain 'the hole' value (the constant hasn't been
       // initialized yet) which needs to be converted into the 'undefined'
@@ -2356,6 +2403,48 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
       frame_->Push(SlotOperand(slot, ecx));
     }
   }
+}
+
+
+void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
+                                                      TypeofState typeof_state,
+                                                      Register tmp,
+                                                      Label* slow) {
+  // Check that no extension objects have been created by calls to
+  // eval from the current scope to the global scope.
+  __ mov(tmp, Operand(esi));
+  for (Scope* s = scope(); s != NULL; s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmp(ContextOperand(tmp, Context::EXTENSION_INDEX), Immediate(0));
+        __ j(not_equal, slow, not_taken);
+      }
+      // Load next context in chain.
+      __ mov(tmp, ContextOperand(tmp, Context::CLOSURE_INDEX));
+      __ mov(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.
+    if (!s->outer_scope_calls_eval()) break;
+  }
+
+  // All extension objects were empty and it is safe to use a global
+  // load IC call.
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  // Load the global object.
+  LoadGlobal();
+  // Setup the name register.
+  __ mov(ecx, slot->var()->name());
+  // Call IC stub.
+  if (typeof_state == INSIDE_TYPEOF) {
+    __ call(ic, RelocInfo::CODE_TARGET);
+  } else {
+    __ call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+  }
+
+  // Pop the global object. The result is in eax.
+  frame_->Pop();
 }
 
 
@@ -4013,7 +4102,7 @@ void Reference::SetValue(InitState init_state) {
       Slot* slot = expression_->AsVariableProxy()->AsVariable()->slot();
       ASSERT(slot != NULL);
       if (slot->type() == Slot::LOOKUP) {
-        ASSERT(slot->var()->mode() == Variable::DYNAMIC);
+        ASSERT(slot->var()->is_dynamic());
 
         // For now, just do a runtime call.
         frame->Push(esi);
@@ -4045,7 +4134,7 @@ void Reference::SetValue(InitState init_state) {
         frame->Push(eax);
 
       } else {
-        ASSERT(slot->var()->mode() != Variable::DYNAMIC);
+        ASSERT(!slot->var()->is_dynamic());
 
         Label exit;
         if (init_state == CONST_INIT) {
