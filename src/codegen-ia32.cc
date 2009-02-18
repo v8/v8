@@ -455,16 +455,17 @@ Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
                                                          Label* slow) {
   ASSERT(slot->type() == Slot::CONTEXT);
   int index = slot->index();
-  __ mov(tmp, Operand(esi));
+  Register context = esi;
   for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
         // Check that extension is NULL.
-        __ cmp(ContextOperand(tmp, Context::EXTENSION_INDEX), Immediate(0));
+        __ cmp(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
         __ j(not_equal, slow, not_taken);
       }
-      __ mov(tmp, ContextOperand(tmp, Context::CLOSURE_INDEX));
+      __ mov(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
       __ mov(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
+      context = tmp;
     }
   }
   // Check that last extension is NULL.
@@ -2412,17 +2413,18 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                                       Label* slow) {
   // Check that no extension objects have been created by calls to
   // eval from the current scope to the global scope.
-  __ mov(tmp, Operand(esi));
+  Register context = esi;
   for (Scope* s = scope(); s != NULL; s = s->outer_scope()) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
         // Check that extension is NULL.
-        __ cmp(ContextOperand(tmp, Context::EXTENSION_INDEX), Immediate(0));
+        __ cmp(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
         __ j(not_equal, slow, not_taken);
       }
       // Load next context in chain.
-      __ mov(tmp, ContextOperand(tmp, Context::CLOSURE_INDEX));
+      __ mov(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
       __ mov(tmp, FieldOperand(tmp, JSFunction::kContextOffset));
+      context = tmp;
     }
     // If no outer scope calls eval, we do not need to check more
     // context extensions.

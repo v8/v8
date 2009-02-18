@@ -369,7 +369,7 @@ MemOperand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
       ASSERT(!tmp.is(cp));  // do not overwrite context register
       Register context = cp;
       int chain_length = scope()->ContextChainLength(slot->var()->scope());
-      for (int i = chain_length; i-- > 0;) {
+      for (int i = 0; i < chain_length; i++) {
         // Load the closure.
         // (All contexts, even 'with' contexts, have a closure,
         // and it is the same for all contexts inside a function.
@@ -394,6 +394,35 @@ MemOperand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
       UNREACHABLE();
       return MemOperand(r0, 0);
   }
+}
+
+
+MemOperand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
+                                                            Register tmp,
+                                                            Register tmp2,
+                                                            Label* slow) {
+  ASSERT(slot->type() == Slot::CONTEXT);
+  int index = slot->index();
+  Register context = cp;
+  for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ ldr(tmp2, ContextOperand(context, Context::EXTENSION_INDEX));
+        __ tst(tmp2, tmp2);
+        __ b(ne, slow);
+      }
+      __ ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+      __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
+      context = tmp;
+    }
+  }
+  // Check that last extension is NULL.
+  __ ldr(tmp2, ContextOperand(tmp, Context::EXTENSION_INDEX));
+  __ tst(tmp2, tmp2);
+  __ b(ne, slow);
+  __ ldr(tmp, ContextOperand(tmp, Context::FCONTEXT_INDEX));
+  return ContextOperand(tmp, index);
 }
 
 
@@ -1985,7 +2014,28 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
 
-    // For now, just do a runtime call.
+    Label slow, done;
+
+    // Generate fast-case code for variables that might be shadowed by
+    // eval-introduced variables.  Eval is used a lot without
+    // introducing variables.  In those cases, we do not want to
+    // perform a runtime call for all variables in the scope
+    // containing the eval.
+    if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+      LoadFromGlobalSlotCheckExtensions(slot, typeof_state, r1, r2, &slow);
+      __ b(&done);
+
+    } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+      Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+      __ ldr(r0,
+             ContextSlotOperandCheckExtensions(potential_slot,
+                                               r1,
+                                               r2,
+                                               &slow));
+      __ b(&done);
+    }
+
+    __ bind(&slow);
     frame_->Push(cp);
     __ mov(r0, Operand(slot->var()->name()));
     frame_->Push(r0);
@@ -1995,6 +2045,8 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     } else {
       __ CallRuntime(Runtime::kLoadContextSlot, 2);
     }
+
+    __ bind(&done);
     frame_->Push(r0);
 
   } else {
@@ -2016,6 +2068,51 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
       frame_->Push(r0);
     }
   }
+}
+
+
+void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
+                                                      TypeofState typeof_state,
+                                                      Register tmp,
+                                                      Register tmp2,
+                                                      Label* slow) {
+  // Check that no extension objects have been created by calls to
+  // eval from the current scope to the global scope.
+  Register context = cp;
+  for (Scope* s = scope(); s != NULL; s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ ldr(tmp2, ContextOperand(context, Context::EXTENSION_INDEX));
+        __ tst(tmp2, tmp2);
+        __ b(ne, slow);
+      }
+      // Load next context in chain.
+      __ ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
+      __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
+      context = tmp;
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.
+    if (!s->outer_scope_calls_eval()) break;
+  }
+
+  // All extension objects were empty and it is safe to use a global
+  // load IC call.
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  // Load the global object.
+  LoadGlobal();
+  // Setup the name register.
+  __ mov(r2, Operand(slot->var()->name()));
+  // Call IC stub.
+  if (typeof_state == INSIDE_TYPEOF) {
+    __ Call(ic, RelocInfo::CODE_TARGET);
+  } else {
+    __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+  }
+
+  // Pop the global object. The result is in r0.
+  frame_->Pop();
 }
 
 
