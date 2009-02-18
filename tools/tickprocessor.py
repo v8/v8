@@ -27,7 +27,7 @@
 
 import csv, splaytree, sys
 from operator import itemgetter
-
+import getopt, os
 
 class CodeEntry(object):
 
@@ -367,6 +367,50 @@ class TickProcessor(object):
         'total' : total_percentage,
         'call_path' : stack[0] + '  <-  ' + stack[1]
       })
+
+
+class CmdLineProcessor(object):
+
+  def __init__(self):
+    # default values
+    self.state = None
+    self.ignore_unknown = False
+    self.log_file = None
+
+  def ProcessArguments(self):
+    try:
+      opts, args = getopt.getopt(sys.argv[1:], "jgco", ["js", "gc", "compiler", "other", "ignore-unknown"])
+    except getopt.GetoptError:
+      self.PrintUsageAndExit()
+    for key, value in opts:
+      if key in ("-j", "--js"):
+        self.state = 0
+      if key in ("-g", "--gc"):
+        self.state = 1
+      if key in ("-c", "--compiler"):
+        self.state = 2
+      if key in ("-o", "--other"):
+        self.state = 3
+      if key in ("--ignore-unknown"):
+        self.ignore_unknown = True
+    self.ProcessRequiredArgs(args)
+
+  def ProcessRequiredArgs(self, args):
+    return
+
+  def GetRequiredArgsNames(self):
+    return
+
+  def PrintUsageAndExit(self):
+    print('Usage: %(script_name)s --{js,gc,compiler,other} %(req_opts)s' % {
+        'script_name': os.path.basename(sys.argv[0]),
+        'req_opts': self.GetRequiredArgsNames()
+    })
+    sys.exit(2)
+
+  def RunLogfileProcessing(self, tick_processor):
+    tick_processor.ProcessLogfile(self.log_file, self.state, self.ignore_unknown)
+
 
 if __name__ == '__main__':
   sys.exit('You probably want to run windows-tick-processor.py or linux-tick-processor.py.')
