@@ -25,9 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import csv, splaytree, sys
+import csv, splaytree, sys, re
 from operator import itemgetter
-import getopt, os
+import getopt, os, string
 
 class CodeEntry(object):
 
@@ -56,6 +56,9 @@ class CodeEntry(object):
   def IsSharedLibraryEntry(self):
     return False
 
+  def IsICEntry(self):
+    return False
+
 
 class SharedLibraryEntry(CodeEntry):
 
@@ -74,6 +77,7 @@ class JSCodeEntry(CodeEntry):
     self.size = size
     self.assembler = assembler
     self.region_ticks = None
+    self.builtin_ic_re = re.compile('^(Keyed)?(Call|Load|Store)IC_')
 
   def Tick(self, pc, stack):
     super(JSCodeEntry, self).Tick(pc, stack)
@@ -115,6 +119,10 @@ class JSCodeEntry(CodeEntry):
     elif name.startswith(' '):
       name = '<anonymous>' + name
     return self.type + ': ' + name
+
+  def IsICEntry(self):
+    return self.type in ('CallIC', 'LoadIC', 'StoreIC') or \
+      (self.type == 'Builtin' and self.builtin_ic_re.match(self.name))
 
 
 class CodeRegion(object):
@@ -159,10 +167,11 @@ class TickProcessor(object):
     # Flag indicating whether to ignore unaccounted ticks in the report
     self.ignore_unknown = False
 
-  def ProcessLogfile(self, filename, included_state = None, ignore_unknown = False):
+  def ProcessLogfile(self, filename, included_state = None, ignore_unknown = False, separate_ic = False):
     self.log_file = filename
     self.included_state = included_state
     self.ignore_unknown = ignore_unknown
+    self.separate_ic = separate_ic
 
     try:
       logfile = open(filename, 'rb')
@@ -172,7 +181,7 @@ class TickProcessor(object):
       logreader = csv.reader(logfile)
       for row in logreader:
         if row[0] == 'tick':
-          self.ProcessTick(int(row[1], 16), int(row[2], 16), int(row[3]), row[4:])
+          self.ProcessTick(int(row[1], 16), int(row[2], 16), int(row[3]), self.PreprocessStack(row[4:]))
         elif row[0] == 'code-creation':
           self.ProcessCodeCreation(row[1], int(row[2], 16), int(row[3]), row[4])
         elif row[0] == 'code-move':
@@ -261,13 +270,20 @@ class TickProcessor(object):
       return self.js_entries.FindGreatestsLessThan(pc).value
     return None
 
-  def ProcessStack(self, stack):
+  def PreprocessStack(self, stack):
+    # remove all non-addresses (e.g. 'overflow') and convert to int
     result = []
     for frame in stack:
       if frame.startswith('0x'):
-        entry = self.FindEntry(int(frame, 16))
-        if entry != None:
-          result.append(entry.ToString())
+        result.append(int(frame, 16))
+    return result
+
+  def ProcessStack(self, stack):
+    result = []
+    for frame in stack:
+      entry = self.FindEntry(frame)
+      if entry != None:
+        result.append(entry.ToString())
     return result
 
   def ProcessTick(self, pc, sp, state, stack):
@@ -281,7 +297,15 @@ class TickProcessor(object):
       return
     if entry.IsSharedLibraryEntry():
       self.number_of_library_ticks += 1
-    entry.Tick(pc, self.ProcessStack(stack))
+    if entry.IsICEntry() and not self.separate_ic:
+      if len(stack) > 0:
+        caller_pc = stack.pop(0)
+        self.total_number_of_ticks -= 1
+        self.ProcessTick(caller_pc, sp, state, stack)
+      else:
+        self.unaccounted_number_of_ticks += 1
+    else:
+      entry.Tick(pc, self.ProcessStack(stack))
 
   def PrintResults(self):
     print('Statistical profiling result from %s, (%d ticks, %d unaccounted, %d excluded).' %
@@ -372,14 +396,16 @@ class TickProcessor(object):
 class CmdLineProcessor(object):
 
   def __init__(self):
+    self.options = ["js", "gc", "compiler", "other", "ignore-unknown", "separate-ic"]
     # default values
     self.state = None
     self.ignore_unknown = False
     self.log_file = None
+    self.separate_ic = False
 
   def ProcessArguments(self):
     try:
-      opts, args = getopt.getopt(sys.argv[1:], "jgco", ["js", "gc", "compiler", "other", "ignore-unknown"])
+      opts, args = getopt.getopt(sys.argv[1:], "jgco", self.options)
     except getopt.GetoptError:
       self.PrintUsageAndExit()
     for key, value in opts:
@@ -393,6 +419,8 @@ class CmdLineProcessor(object):
         self.state = 3
       if key in ("--ignore-unknown"):
         self.ignore_unknown = True
+      if key in ("--separate-ic"):
+        self.separate_ic = True
     self.ProcessRequiredArgs(args)
 
   def ProcessRequiredArgs(self, args):
@@ -402,14 +430,15 @@ class CmdLineProcessor(object):
     return
 
   def PrintUsageAndExit(self):
-    print('Usage: %(script_name)s --{js,gc,compiler,other} %(req_opts)s' % {
+    print('Usage: %(script_name)s --{%(opts)s} %(req_opts)s' % {
         'script_name': os.path.basename(sys.argv[0]),
+        'opts': string.join(self.options, ','),
         'req_opts': self.GetRequiredArgsNames()
     })
     sys.exit(2)
 
   def RunLogfileProcessing(self, tick_processor):
-    tick_processor.ProcessLogfile(self.log_file, self.state, self.ignore_unknown)
+    tick_processor.ProcessLogfile(self.log_file, self.state, self.ignore_unknown, self.separate_ic)
 
 
 if __name__ == '__main__':
