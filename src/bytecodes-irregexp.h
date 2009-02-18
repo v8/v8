@@ -33,7 +33,10 @@ namespace v8 { namespace internal {
 
 
 static const int BYTECODE_MASK = 0xff;
-static const unsigned int MAX_FIRST_ARG = 0xffffffu;
+// The first argument is packed in with the byte code in one word, but so it
+// has 24 bits, but it can be positive and negative so only use 23 bits for
+// positive values.
+static const unsigned int MAX_FIRST_ARG = 0x7fffffu;
 static const int BYTECODE_SHIFT = 8;
 
 #define BYTECODE_ITERATOR(V)                                                   \

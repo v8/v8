@@ -41,3 +41,7 @@ var longUC16String = "x\u03a3\u03c2\u039b\u03c2\u03c3\u03bb\u03c3\u03a3\u03bb";
 assertEquals(longUC16String + "," + longUC16String.substring(1,4),
              String(/x(...)\1\1/i.exec(longUC16String)),
              "backref-UC16-twice");
+
+assertFalse(/\xc1/i.test('fooA'), "quickcheck-uc16-pattern-ascii-subject");
+assertFalse(/[\xe9]/.test('i'), "charclass-uc16-pattern-ascii-subject");
+assertFalse(/\u5e74|\u6708/.test('t'), "alternation-uc16-pattern-ascii-subject");
