@@ -474,7 +474,6 @@ class CodeGenerator: public AstVisitor {
   void LoadUnsafeSmi(Register target, Handle<Object> value);
 
   bool IsInlineSmi(Literal* literal);
-  void SmiComparison(Condition cc,  Handle<Object> value, bool strict);
   void SmiOperation(Token::Value op,
                     StaticType* type,
                     Handle<Object> value,

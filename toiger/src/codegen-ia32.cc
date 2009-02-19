@@ -1329,20 +1329,23 @@ void CodeGenerator::Comparison(Condition cc,
       dest->Split(cc);
     }
   } else {  // Neither side is a constant Smi, normal comparison operation.
+    // If either side is a non-smi constant, skip the smi check.
+    bool known_non_smi =
+      left_side.is_constant() && !left_side.handle()->IsSmi() ||
+      right_side.is_constant() && !right_side.handle()->IsSmi();
     left_side.ToRegister();
     right_side.ToRegister();
-    ASSERT(left_side.is_valid());
-    ASSERT(right_side.is_valid());
-    // Check for the smi case.
     JumpTarget is_smi(this);
-    Result temp = allocator_->Allocate();
-    ASSERT(temp.is_valid());
-    __ mov(temp.reg(), left_side.reg());
-    __ or_(temp.reg(), Operand(right_side.reg()));
-    __ test(temp.reg(), Immediate(kSmiTagMask));
-    temp.Unuse();
-    is_smi.Branch(zero, &left_side, &right_side, taken);
-
+    if (!known_non_smi) {
+      // Check for the smi case.
+      Result temp = allocator_->Allocate();
+      ASSERT(temp.is_valid());
+      __ mov(temp.reg(), left_side.reg());
+      __ or_(temp.reg(), Operand(right_side.reg()));
+      __ test(temp.reg(), Immediate(kSmiTagMask));
+      temp.Unuse();
+      is_smi.Branch(zero, &left_side, &right_side, taken);
+    }
     // When non-smi, call out to the compare stub.  "parameters" setup by
     // calling code in edx and eax and "result" is returned in the flags.
     if (!left_side.reg().is(eax)) {
@@ -1366,53 +1369,20 @@ void CodeGenerator::Comparison(Condition cc,
       __ cmp(answer.reg(), 0);
     }
     answer.Unuse();
-    dest->true_target()->Branch(cc);
-    dest->false_target()->Jump();
-
-    is_smi.Bind(&left_side, &right_side);
-    left_side.ToRegister();
-    right_side.ToRegister();
-    __ cmp(left_side.reg(), Operand(right_side.reg()));
-    right_side.Unuse();
-    left_side.Unuse();
-    dest->Split(cc);
+    if (known_non_smi) {
+      dest->Split(cc);
+    } else {
+      dest->true_target()->Branch(cc);
+      dest->false_target()->Jump();
+      is_smi.Bind(&left_side, &right_side);
+      left_side.ToRegister();
+      right_side.ToRegister();
+      __ cmp(left_side.reg(), Operand(right_side.reg()));
+      right_side.Unuse();
+      left_side.Unuse();
+      dest->Split(cc);
+    }
   }
-}
-
-
-void CodeGenerator::SmiComparison(Condition cc,
-                                  Handle<Object> smi_value,
-                                  bool strict) {
-  // Strict only makes sense for equality comparisons.
-  ASSERT(!strict || cc == equal);
-  ASSERT(is_intn(Smi::cast(*smi_value)->value(), kMaxSmiInlinedBits));
-
-  JumpTarget is_smi(this);
-  Result comparee = frame_->Pop();
-  comparee.ToRegister();
-  // Check whether the other operand is a smi.
-  __ test(comparee.reg(), Immediate(kSmiTagMask));
-  is_smi.Branch(zero, &comparee, taken);
-
-  // Setup and call the compare stub, which expects arguments in edx
-  // and eax.
-  CompareStub stub(cc, strict);
-  comparee.ToRegister(edx);
-  Result value = allocator_->Allocate(eax);
-  ASSERT(value.is_valid());
-  __ Set(value.reg(), Immediate(smi_value));
-  Result result = frame_->CallStub(&stub, &comparee, &value, 0);
-  __ cmp(result.reg(), 0);
-  result.Unuse();
-  destination()->true_target()->Branch(cc);
-  destination()->false_target()->Jump();
-
-  is_smi.Bind(&comparee);
-  comparee.ToRegister();
-  // Test smi equality and comparison by signed int comparison.
-  __ cmp(Operand(comparee.reg()), Immediate(smi_value));
-  comparee.Unuse();
-  destination()->Split(cc);
 }
 
 
@@ -4742,20 +4712,9 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     default:
       UNREACHABLE();
   }
-
-  // Optimize for the case where (at least) one of the expressions
-  // is a literal small integer.
-  if (IsInlineSmi(left->AsLiteral())) {
-    Load(right);
-    SmiComparison(ReverseCondition(cc), left->AsLiteral()->handle(), strict);
-  } else if (IsInlineSmi(right->AsLiteral())) {
-    Load(left);
-    SmiComparison(cc, right->AsLiteral()->handle(), strict);
-  } else {
-    Load(left);
-    Load(right);
-    Comparison(cc, strict, destination());
-  }
+  Load(left);
+  Load(right);
+  Comparison(cc, strict, destination());
 }
 
 
