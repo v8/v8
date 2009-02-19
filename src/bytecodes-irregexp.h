@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2008-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -86,7 +86,8 @@ V(CHECK_REGISTER_GE, 42, 12)  /* bc8 reg_idx24 value32 addr32               */ \
 V(CHECK_REGISTER_EQ_POS, 43, 8) /* bc8 reg_idx24 addr32                     */ \
 V(CHECK_AT_START,    44, 8)   /* bc8 pad24 addr32                           */ \
 V(CHECK_NOT_AT_START, 45, 8)  /* bc8 pad24 addr32                           */ \
-V(CHECK_GREEDY,      46, 8)   /* bc8 pad24 addr32                           */
+V(CHECK_GREEDY,      46, 8)   /* bc8 pad24 addr32                           */ \
+V(ADVANCE_CP_AND_GOTO, 47, 8) /* bc8 offset24 addr32                        */
 
 #define DECLARE_BYTECODES(name, code, length) \
   static const int BC_##name = code;

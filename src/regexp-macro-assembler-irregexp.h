@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2008-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -132,6 +132,12 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
   Label backtrack_;
+
+  int advance_current_start_;
+  int advance_current_offset_;
+  int advance_current_end_;
+
+  static const int kInvalidPC = -1;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(RegExpMacroAssemblerIrregexp);
 };
