@@ -1275,6 +1275,10 @@ void CodeGenerator::Comparison(Condition cc,
       left_side.is_constant() && left_side.handle()->IsSmi();
   bool right_side_constant_smi =
       right_side.is_constant() && right_side.handle()->IsSmi();
+  bool left_side_constant_null =
+      left_side.is_constant() && left_side.handle()->IsNull();
+  bool right_side_constant_null =
+      right_side.is_constant() && right_side.handle()->IsNull();
 
   if (left_side_constant_smi || right_side_constant_smi) {
     if (left_side_constant_smi && right_side_constant_smi) {
@@ -1301,6 +1305,8 @@ void CodeGenerator::Comparison(Condition cc,
         left_side = right_side;
         right_side = temp;
         cc = ReverseCondition(cc);
+        // This may reintroduce greater or less_equal as the value of cc.
+        // CompareStub and the inline code both support all values of cc.
       }
       // Implement comparison against a constant Smi, inlining the case
       // where both sides are Smis.
@@ -1336,7 +1342,43 @@ void CodeGenerator::Comparison(Condition cc,
       right_side.Unuse();
       dest->Split(cc);
     }
-  } else {  // Neither side is a constant Smi, normal comparison operation.
+  } else if (cc == equal &&
+             (left_side_constant_null || right_side_constant_null)) {
+    // To make null checks efficient, we check if either the left side or
+    // the right side is the constant 'null'.
+    // If so, we optimize the code by inlining a null check instead of
+    // calling the (very) general runtime routine for checking equality.
+    Result operand = left_side_constant_null ? right_side : left_side;
+    right_side.Unuse();
+    left_side.Unuse();
+    operand.ToRegister();
+    __ cmp(operand.reg(), Factory::null_value());
+    if (strict) {
+      operand.Unuse();
+      dest->Split(equal);
+    } else {
+      // The 'null' value is only equal to 'undefined' if using non-strict
+      // comparisons.
+      dest->true_target()->Branch(equal);
+      __ cmp(operand.reg(), Factory::undefined_value());
+      dest->true_target()->Branch(equal);
+      __ test(operand.reg(), Immediate(kSmiTagMask));
+      dest->false_target()->Branch(equal);
+
+      // It can be an undetectable object.
+      // Use a scratch register in preference to spilling operand.reg().
+      Result temp = allocator()->Allocate();
+      ASSERT(temp.is_valid());
+      __ mov(temp.reg(),
+             FieldOperand(operand.reg(), HeapObject::kMapOffset));
+      __ movzx_b(temp.reg(),
+                 FieldOperand(temp.reg(), Map::kBitFieldOffset));
+      __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
+      temp.Unuse();
+      operand.Unuse();
+      dest->Split(not_zero);
+    }
+  } else {  // Neither side is a constant Smi or null.
     // If either side is a non-smi constant, skip the smi check.
     bool known_non_smi =
       left_side.is_constant() && !left_side.handle()->IsSmi() ||
@@ -4538,51 +4580,6 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
   Expression* left = node->left();
   Expression* right = node->right();
   Token::Value op = node->op();
-
-  // To make null checks efficient, we check if either left or right is the
-  // literal 'null'. If so, we optimize the code by inlining a null check
-  // instead of calling the (very) general runtime routine for checking
-  // equality.
-  if (op == Token::EQ || op == Token::EQ_STRICT) {
-    bool left_is_null =
-        left->AsLiteral() != NULL && left->AsLiteral()->IsNull();
-    bool right_is_null =
-        right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
-    // The 'null' value can only be equal to 'null' or 'undefined'.
-    if (left_is_null || right_is_null) {
-      Load(left_is_null ? right : left);
-      Result operand = frame_->Pop();
-      operand.ToRegister();
-      __ cmp(operand.reg(), Factory::null_value());
-      Condition cc = equal;
-
-      // The 'null' value is only equal to 'undefined' if using non-strict
-      // comparisons.
-      if (op != Token::EQ_STRICT) {
-        destination()->true_target()->Branch(cc);
-        __ cmp(operand.reg(), Factory::undefined_value());
-        destination()->true_target()->Branch(equal);
-        __ test(operand.reg(), Immediate(kSmiTagMask));
-        destination()->false_target()->Branch(equal);
-
-        // It can be an undetectable object.
-        // Use a scratch register in preference to spilling operand.reg().
-        Result temp = allocator()->Allocate();
-        ASSERT(temp.is_valid());
-        __ mov(temp.reg(),
-               FieldOperand(operand.reg(), HeapObject::kMapOffset));
-        __ movzx_b(temp.reg(),
-                   FieldOperand(temp.reg(), Map::kBitFieldOffset));
-        __ test(temp.reg(), Immediate(1 << Map::kIsUndetectable));
-        cc = not_zero;
-      }
-
-      operand.Unuse();
-      destination()->Split(cc);
-      return;
-    }
-  }
-
   // To make typeof testing for natives implemented in JavaScript really
   // efficient, we generate special code for expressions of the form:
   // 'typeof <expression> == <string>'.
