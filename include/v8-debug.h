@@ -99,11 +99,22 @@ typedef void (*DebugEventCallback)(DebugEvent event,
  *
  * \param message the debug message
  * \param length length of the message
+ * \param data the data value passed when registering the message handler
  * A DebugMessageHandler does not take posession of the message string,
  * and must not rely on the data persisting after the handler returns.
  */
 typedef void (*DebugMessageHandler)(const uint16_t* message, int length,
                                     void* data);
+
+/**
+ * Debug host dispatch callback function.
+ *
+ * \param dispatch the dispatch value
+ * \param data the data value passed when registering the dispatch handler
+ */
+typedef void (*DebugHostDispatchHandler)(void* dispatch,
+                                         void* data);
+
 
 
 class EXPORT Debug {
@@ -122,6 +133,11 @@ class EXPORT Debug {
   // Message based interface. The message protocol is JSON.
   static void SetMessageHandler(DebugMessageHandler handler, void* data = NULL);
   static void SendCommand(const uint16_t* command, int length);
+
+  // Dispatch interface.
+  static void SetHostDispatchHandler(DebugHostDispatchHandler handler,
+                                     void* data = NULL);
+  static void SendHostDispatch(void* dispatch);
 
  /**
   * Run a JavaScript function in the debugger.

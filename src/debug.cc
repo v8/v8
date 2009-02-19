@@ -1351,8 +1351,10 @@ bool Debugger::debugger_active_ = false;
 bool Debugger::compiling_natives_ = false;
 bool Debugger::is_loading_debugger_ = false;
 DebugMessageThread* Debugger::message_thread_ = NULL;
-v8::DebugMessageHandler Debugger::debug_message_handler_ = NULL;
-void* Debugger::debug_message_handler_data_ = NULL;
+v8::DebugMessageHandler Debugger::message_handler_ = NULL;
+void* Debugger::message_handler_data_ = NULL;
+v8::DebugHostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
+void* Debugger::host_dispatch_handler_data_ = NULL;
 
 
 Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
@@ -1709,8 +1711,8 @@ void Debugger::SetEventListener(Handle<Object> callback,
 
 
 void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
-  debug_message_handler_ = handler;
-  debug_message_handler_data_ = data;
+  message_handler_ = handler;
+  message_handler_data_ = data;
   if (!message_thread_) {
     message_thread_ = new DebugMessageThread();
     message_thread_->Start();
@@ -1719,14 +1721,20 @@ void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
 }
 
 
+void Debugger::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
+                                      void* data) {
+  host_dispatch_handler_ = handler;
+  host_dispatch_handler_data_ = data;
+}
+
+
 // Posts an output message from the debugger to the debug_message_handler
 // callback.  This callback is part of the public API.  Messages are
 // kept internally as Vector<uint16_t> strings, which are allocated in various
 // places and deallocated by the calling function sometime after this call.
 void Debugger::SendMessage(Vector< uint16_t> message) {
-  if (debug_message_handler_ != NULL) {
-    debug_message_handler_(message.start(), message.length(),
-                           debug_message_handler_data_);
+  if (message_handler_ != NULL) {
+    message_handler_(message.start(), message.length(), message_handler_data_);
   }
 }
 
@@ -1740,9 +1748,16 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command) {
 }
 
 
+void Debugger::ProcessHostDispatch(void* dispatch) {
+  if (message_thread_ != NULL) {
+    message_thread_->ProcessHostDispatch(dispatch);
+  }
+}
+
+
 void Debugger::UpdateActiveDebugger() {
   set_debugger_active((message_thread_ != NULL &&
-                       debug_message_handler_ != NULL) ||
+                       message_handler_ != NULL) ||
                        !event_listener_.is_null());
   if (!debugger_active() && message_thread_) {
     message_thread_->OnDebuggerInactive();
@@ -1914,6 +1929,16 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
       return;
     }
 
+    // Check if the command is a host dispatch.
+    if (command[0] == 0) {
+      if (Debugger::host_dispatch_handler_) {
+        int32_t dispatch = (command[1] << 16) | command[2];
+        Debugger::host_dispatch_handler_(reinterpret_cast<void*>(dispatch),
+                                         Debugger::host_dispatch_handler_data_);
+      }
+      continue;
+    }
+
     // Invoke the JavaScript to process the debug request.
     v8::Local<v8::String> fun_name;
     v8::Local<v8::Function> fun;
@@ -1987,6 +2012,18 @@ void DebugMessageThread::ProcessCommand(Vector<uint16_t> command) {
   Vector<uint16_t> command_copy = command.Clone();
   Logger::DebugTag("Put command on command_queue.");
   command_queue_.Put(command_copy);
+  command_received_->Signal();
+}
+
+
+// Puts a host dispatch comming from the public API on the queue.
+void DebugMessageThread::ProcessHostDispatch(void* dispatch) {
+  uint16_t hack[3];
+  hack[0] = 0;
+  hack[1] = reinterpret_cast<uint32_t>(dispatch) >> 16;
+  hack[2] = reinterpret_cast<uint32_t>(dispatch) & 0xFFFF;
+  Logger::DebugTag("Put dispatch on command_queue.");
+  command_queue_.Put(Vector<uint16_t>(hack, 3).Clone());
   command_received_->Signal();
 }
 
