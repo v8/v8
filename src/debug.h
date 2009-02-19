@@ -419,7 +419,7 @@ class Debugger {
   static v8::DebugHostDispatchHandler host_dispatch_handler_;
   static void* host_dispatch_handler_data_;
 
- friend class DebugMessageThread;
+  friend class DebugMessageThread;
 };
 
 
