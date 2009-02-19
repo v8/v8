@@ -608,25 +608,9 @@ void Scope::ResolveVariable(Scope* global_scope, VariableProxy* proxy) {
       // a local or outer eval() call, or an outer 'with' statement),
       // or we don't know about the outer scope (because we are
       // in an eval scope).
-      if (!is_global_scope() &&
-          (scope_inside_with_ || outer_scope_is_eval_scope_)) {
-        // If we are inside a with statement or the code is executed
-        // using eval, we give up and look up the variable at runtime.
-        var = NonLocal(proxy->name(), Variable::DYNAMIC);
-
-      } else if (!is_global_scope() &&
-                 (scope_calls_eval_ || outer_scope_calls_eval_)) {
-        // If the code is not executed using eval and there are no
-        // with scopes, either we have a local or a global variable
-        // that might be shadowed by an eval-introduced variable.
-        if (invalidated_local != NULL) {
-          var = NonLocal(proxy->name(), Variable::DYNAMIC_LOCAL);
-          var->set_local_if_not_shadowed(invalidated_local);
-        } else {
-          var = NonLocal(proxy->name(), Variable::DYNAMIC_GLOBAL);
-        }
-
-      } else {
+      if (is_global_scope() ||
+          !(scope_inside_with_ || outer_scope_is_eval_scope_ ||
+            scope_calls_eval_ || outer_scope_calls_eval_)) {
         // We must have a global variable.
         ASSERT(global_scope != NULL);
         var = new Variable(global_scope, proxy->name(),
@@ -639,6 +623,32 @@ void Scope::ResolveVariable(Scope* global_scope, VariableProxy* proxy) {
         // latter returns undefined. Sigh...
         // var->rewrite_ = new Property(new Literal(env_->global()),
         //                              new Literal(proxy->name()));
+
+      } else if (scope_inside_with_) {
+        // If we are inside a with statement we give up and look up
+        // the variable at runtime.
+        var = NonLocal(proxy->name(), Variable::DYNAMIC);
+
+      } else if (invalidated_local != NULL) {
+        // No with statements are involved and we found a local
+        // variable that might be shadowed by eval introduced
+        // variables.
+        var = NonLocal(proxy->name(), Variable::DYNAMIC_LOCAL);
+        var->set_local_if_not_shadowed(invalidated_local);
+
+      } else if (outer_scope_is_eval_scope_) {
+        // No with statements and we did not find a local and the code
+        // is executed with a call to eval.  We don't know anything
+        // because we do not have information about the scopes
+        // surrounding the eval call.
+        var = NonLocal(proxy->name(), Variable::DYNAMIC);
+
+      } else {
+        // No with statements and we did not find a local and the code
+        // is not executed with a call to eval.  We know that this
+        // variable is global unless it is shadowed by eval-introduced
+        // variables.
+        var = NonLocal(proxy->name(), Variable::DYNAMIC_GLOBAL);
       }
     }
   }
