@@ -145,6 +145,17 @@ void JumpTarget::Bind(int mergable_elements) {
     // There were forward jumps.  Handle merging the reaching frames
     // and possible fall through to the entry frame.
 
+    // Some moves required to merge to an expected frame require
+    // purely frame state changes, and do not require any code
+    // generation.  Perform those first to increase the possibility of
+    // finding equal frames below.
+    if (cgen_->has_valid_frame()) {
+      cgen_->frame()->PrepareMergeTo(entry_frame_);
+    }
+    for (int i = 0; i < reaching_frames_.length(); i++) {
+      reaching_frames_[i]->PrepareMergeTo(entry_frame_);
+    }
+
     // If there is a fall through to the jump target and it needs
     // merge code, process it first.
     if (cgen_->has_valid_frame() && !cgen_->frame()->Equals(entry_frame_)) {

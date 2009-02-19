@@ -95,6 +95,11 @@ class VirtualFrame : public Malloced {
   // (ie, they all have frame-external references).
   Register SpillAnyRegister();
 
+  // Prepare this virtual frame for merging to an expected frame by
+  // performing some state changes that do not require generating
+  // code.  It is guaranteed that no code will be generated.
+  void PrepareMergeTo(VirtualFrame* expected);
+
   // Make this virtual frame have a state identical to an expected virtual
   // frame.  As a side effect, code may be emitted to make this frame match
   // the expected one.

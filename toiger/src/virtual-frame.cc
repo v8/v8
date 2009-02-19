@@ -229,6 +229,31 @@ void VirtualFrame::SpillAll() {
 }
 
 
+void VirtualFrame::PrepareMergeTo(VirtualFrame* expected) {
+  // No code needs to be generated to invalidate valid elements.  No
+  // code needs to be generated to move values to memory if they are
+  // already synced.
+  for (int i = 0; i < elements_.length(); i++) {
+    FrameElement source = elements_[i];
+    FrameElement target = expected->elements_[i];
+    if (!target.is_valid() ||
+        (target.is_memory() && !source.is_memory() && source.is_synced())) {
+      if (source.is_register()) {
+        // If the frame is the code generator's current frame, we have
+        // to decrement both the frame-internal and global register
+        // counts.
+        if (cgen_->frame() == this) {
+          Unuse(source.reg());
+        } else {
+          frame_registers_.Unuse(source.reg());
+        }
+      }
+      elements_[i] = target;
+    }
+  }
+}
+
+
 void VirtualFrame::PrepareForCall(int spilled_args, int dropped_args) {
   ASSERT(height() >= dropped_args);
   ASSERT(height() >= spilled_args);
