@@ -1290,12 +1290,24 @@ void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
 void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ReturnStatement");
-  CodeForStatementPosition(node);
-  LoadAndSpill(node->expression());
-  // Move the function result into r0.
-  frame_->EmitPop(r0);
 
-  function_return_.Jump();
+  if (function_return_is_shadowed_) {
+    CodeForStatementPosition(node);
+    LoadAndSpill(node->expression());
+    frame_->EmitPop(r0);
+    function_return_.Jump();
+  } else {
+    // Load the returned value.
+    CodeForStatementPosition(node);
+    LoadAndSpill(node->expression());
+
+    // Pop the result from the frame and prepare the frame for
+    // returning thus making it easier to merge.
+    frame_->EmitPop(r0);
+    frame_->PrepareForReturn();
+
+    function_return_.Jump();
+  }
 }
 
 
