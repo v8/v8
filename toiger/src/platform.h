@@ -422,10 +422,29 @@ class Semaphore {
 // TickSample captures the information collected for each sample.
 class TickSample {
  public:
-  TickSample() : pc(0), sp(0), state(OTHER) {}
+  TickSample() : pc(0), sp(0), fp(0), state(OTHER) {}
   unsigned int pc;  // Instruction pointer.
   unsigned int sp;  // Stack pointer.
+  unsigned int fp;  // Frame pointer.
   StateTag state;   // The state of the VM.
+  SmartPointer<Address> stack;  // Call stack, null-terminated.
+
+  inline TickSample& operator=(const TickSample& rhs) {
+    if (this == &rhs) return *this;
+    pc = rhs.pc;
+    sp = rhs.sp;
+    fp = rhs.fp;
+    state = rhs.state;
+    DeleteArray(stack.Detach());
+    stack = rhs.stack;
+    return *this;
+  }
+
+  inline void InitStack(int depth) {
+    stack = SmartPointer<Address>(NewArray<Address>(depth + 1));
+    // null-terminate
+    stack[depth] = 0;
+  }
 };
 
 class Sampler {

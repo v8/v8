@@ -617,9 +617,11 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #if defined (__arm__) || defined(__thumb__)
     sample.pc = mcontext.gregs[R15];
     sample.sp = mcontext.gregs[R13];
+    sample.fp = mcontext.gregs[R11];
 #else
     sample.pc = mcontext.gregs[REG_EIP];
     sample.sp = mcontext.gregs[REG_ESP];
+    sample.fp = mcontext.gregs[REG_EBP];
 #endif
   }
 

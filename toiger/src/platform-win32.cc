@@ -1585,6 +1585,7 @@ class Sampler::PlatformData : public Malloced {
         // Invoke tick handler with program counter and stack pointer.
         sample.pc = context.Eip;
         sample.sp = context.Esp;
+        sample.fp = context.Ebp;
       }
 
       // We always sample the VM state.

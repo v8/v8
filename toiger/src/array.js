@@ -683,29 +683,26 @@ function ArraySort(comparefn) {
       (custom_compare || %_IsSmi(pivot)) ? pivot : ToString(pivot);
     // Issue 95: Keep the pivot element out of the comparisons to avoid
     // infinite recursion if comparefn(pivot, pivot) != 0.
-    var low_end = from; // Upper bound of the elements lower than pivot.
-    var high_start = to; // Lower bound of the elements greater than pivot.
-    var eq_start = to - 1; // Lower bound of elements equal to pivot.
-    a[pivot_index] = a[eq_start];
-    a[eq_start] = pivot;
-    // From eq_start to high_start are elements equal to the pivot
-    // (including the pivot).
-    // From low_end to eq_start are elements that have not been compared yet.
-    while (low_end < eq_start) {
-      var element = a[low_end];
+    a[pivot_index] = a[from];
+    a[from] = pivot;
+    var low_end = from;   // Upper bound of the elements lower than pivot.
+    var high_start = to;  // Lower bound of the elements greater than pivot.
+    // From low_end to i are elements equal to pivot.
+    // From i to high_start are elements that haven't been compared yet.
+    for (var i = from + 1; i < high_start; ) {
+      var element = a[i];
       var order = Compare(element, pivot_key);
       if (order < 0) {
+        a[i] = a[low_end];
+        a[low_end] = element;
+        i++;
         low_end++;
       } else if (order > 0) {
-        eq_start--;
         high_start--;
-        a[low_end] = a[eq_start];
-        a[eq_start] = a[high_start];
+        a[i] = a[high_start];
         a[high_start] = element;
       } else {  // order == 0
-        eq_start--;
-        a[low_end] = a[eq_start];
-        a[eq_start] = element;
+        i++;
       }
     }
     QuickSort(a, from, low_end);
