@@ -1180,6 +1180,7 @@ class Trace {
         loop_label_(NULL),
         characters_preloaded_(0),
         bound_checked_up_to_(0),
+        flush_budget_(100),
         at_start_(UNKNOWN) { }
 
   // End the trace.  This involves flushing the deferred actions in the trace
@@ -1215,6 +1216,7 @@ class Trace {
   RegExpNode* stop_node() { return stop_node_; }
   int characters_preloaded() { return characters_preloaded_; }
   int bound_checked_up_to() { return bound_checked_up_to_; }
+  int flush_budget() { return flush_budget_; }
   QuickCheckDetails* quick_check_performed() { return &quick_check_performed_; }
   bool mentions_reg(int reg);
   // Returns true if a deferred position store exists to the specified
@@ -1233,6 +1235,7 @@ class Trace {
   void set_loop_label(Label* label) { loop_label_ = label; }
   void set_characters_preloaded(int cpre) { characters_preloaded_ = cpre; }
   void set_bound_checked_up_to(int to) { bound_checked_up_to_ = to; }
+  void set_flush_budget(int to) { flush_budget_ = to; }
   void set_quick_check_performed(QuickCheckDetails* d) {
     quick_check_performed_ = *d;
   }
@@ -1257,6 +1260,7 @@ class Trace {
   int characters_preloaded_;
   int bound_checked_up_to_;
   QuickCheckDetails quick_check_performed_;
+  int flush_budget_;
   TriBool at_start_;
 };
 
