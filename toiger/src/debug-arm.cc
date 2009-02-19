@@ -51,6 +51,13 @@ void BreakLocationIterator::ClearDebugBreakAtReturn() {
 }
 
 
+bool Debug::IsDebugBreakAtReturn(RelocInfo* rinfo) {
+  ASSERT(RelocInfo::IsJSReturn(rinfo->rmode()));
+  // Currently debug break is not supported in frame exit code on ARM.
+  return false;
+}
+
+
 #define __ masm->
 
 

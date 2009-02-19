@@ -314,6 +314,8 @@ void BreakLocationIterator::ClearDebugBreak() {
 
 
 void BreakLocationIterator::PrepareStepIn() {
+  HandleScope scope;
+
   // Step in can only be prepared if currently positioned on an IC call or
   // construct call.
   Address target = rinfo()->target_address();
@@ -360,6 +362,17 @@ bool BreakLocationIterator::IsDebugBreak() {
 
 Object* BreakLocationIterator::BreakPointObjects() {
   return debug_info_->GetBreakPointObjects(code_position());
+}
+
+
+// Clear out all the debug break code. This is ONLY supposed to be used when
+// shutting down the debugger as it will leave the break point information in
+// DebugInfo even though the code is patched back to the non break point state.
+void BreakLocationIterator::ClearAllDebugBreak() {
+  while (!Done()) {
+    ClearDebugBreak();
+    Next();
+  }
 }
 
 
@@ -589,6 +602,9 @@ void Debug::Unload() {
     return;
   }
 
+  // Get rid of all break points and related information.
+  ClearAllBreakPoints();
+
   // Clear debugger context global handle.
   GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_context_.location()));
   debug_context_ = Handle<Context>();
@@ -715,6 +731,8 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
 
 // Check whether a single break point object is triggered.
 bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
+  HandleScope scope;
+
   // Ignore check if break point object is not a JSObject.
   if (!break_point_object->IsJSObject()) return true;
 
@@ -765,6 +783,8 @@ Handle<DebugInfo> Debug::GetDebugInfo(Handle<SharedFunctionInfo> shared) {
 void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
                           int source_position,
                           Handle<Object> break_point_object) {
+  HandleScope scope;
+
   if (!EnsureDebugInfo(shared)) {
     // Return if retrieving debug info failed.
     return;
@@ -785,6 +805,8 @@ void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
 
 
 void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
+  HandleScope scope;
+
   DebugInfoListNode* node = debug_info_list_;
   while (node != NULL) {
     Object* result = DebugInfo::FindBreakPointInfo(node->debug_info(),
@@ -813,6 +835,22 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
       return;
     }
     node = node->next();
+  }
+}
+
+
+void Debug::ClearAllBreakPoints() {
+  DebugInfoListNode* node = debug_info_list_;
+  while (node != NULL) {
+    // Remove all debug break code.
+    BreakLocationIterator it(node->debug_info(), ALL_BREAK_LOCATIONS);
+    it.ClearAllDebugBreak();
+    node = node->next();
+  }
+
+  // Remove all debug info.
+  while (debug_info_list_ != NULL) {
+    RemoveDebugInfo(debug_info_list_->debug_info());
   }
 }
 
@@ -1214,6 +1252,8 @@ void Debug::RemoveDebugInfo(Handle<DebugInfo> debug_info) {
 
 
 void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
+  HandleScope scope;
+
   // Get the executing function in which the debug break occurred.
   Handle<SharedFunctionInfo> shared =
       Handle<SharedFunctionInfo>(JSFunction::cast(frame->function())->shared());
@@ -1297,6 +1337,7 @@ bool Debug::IsDebugGlobal(GlobalObject* global) {
 
 
 void Debug::ClearMirrorCache() {
+  HandleScope scope;
   ASSERT(Top::context() == *Debug::debug_context());
 
   // Clear the mirror cache.
@@ -1596,6 +1637,8 @@ void Debugger::OnNewFunction(Handle<JSFunction> function) {
 
 void Debugger::ProcessDebugEvent(v8::DebugEvent event,
                                  Handle<Object> event_data) {
+  HandleScope scope;
+
   // Create the execution state.
   bool caught_exception = false;
   Handle<Object> exec_state = MakeExecutionState(&caught_exception);
@@ -1712,6 +1755,9 @@ void Debugger::UpdateActiveDebugger() {
   if (!debugger_active() && message_thread_) {
     message_thread_->OnDebuggerInactive();
   }
+  if (!debugger_active()) {
+    Debug::Unload();
+  }
 }
 
 
@@ -1816,6 +1862,8 @@ void DebugMessageThread::Run() {
 void DebugMessageThread::DebugEvent(v8::DebugEvent event,
                                     Handle<Object> exec_state,
                                     Handle<Object> event_data) {
+  HandleScope scope;
+
   if (!Debug::Load()) return;
 
   // Process the individual events.

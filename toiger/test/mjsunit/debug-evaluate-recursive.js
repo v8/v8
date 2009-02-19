@@ -153,9 +153,11 @@ assertFalse(exception, "exception in listener")
 // Remove the debug event listener.
 Debug.setListener(null);
 
-// Add debug event listener wich uses recursive breaks.
-listenerComplete = false;
+// Set debug event listener wich uses recursive breaks.
 Debug.setListener(listener_recurse);
+listenerComplete = false;
+
+Debug.setBreakPoint(f, 2, 0);
 
 debugger;
 
