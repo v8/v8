@@ -1030,7 +1030,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
       frame_->Spill(operand.reg());
       __ add(Operand(operand.reg()), Immediate(value));
       deferred->enter()->Branch(overflow, &operand, not_taken);
-      __ test(Operand(operand.reg()), Immediate(kSmiTagMask));
+      __ test(operand.reg(), Immediate(kSmiTagMask));
       deferred->enter()->Branch(not_zero, &operand, not_taken);
       deferred->BindExit(&operand);
       frame_->Push(&operand);
