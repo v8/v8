@@ -418,10 +418,10 @@ MemOperand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
     }
   }
   // Check that last extension is NULL.
-  __ ldr(tmp2, ContextOperand(tmp, Context::EXTENSION_INDEX));
+  __ ldr(tmp2, ContextOperand(context, Context::EXTENSION_INDEX));
   __ tst(tmp2, tmp2);
   __ b(ne, slow);
-  __ ldr(tmp, ContextOperand(tmp, Context::FCONTEXT_INDEX));
+  __ ldr(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
   return ContextOperand(tmp, index);
 }
 

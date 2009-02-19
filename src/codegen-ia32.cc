@@ -469,9 +469,9 @@ Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
     }
   }
   // Check that last extension is NULL.
-  __ cmp(ContextOperand(tmp, Context::EXTENSION_INDEX), Immediate(0));
+  __ cmp(ContextOperand(context, Context::EXTENSION_INDEX), Immediate(0));
   __ j(not_equal, slow, not_taken);
-  __ mov(tmp, ContextOperand(tmp, Context::FCONTEXT_INDEX));
+  __ mov(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
   return ContextOperand(tmp, index);
 }
 
