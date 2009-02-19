@@ -475,7 +475,6 @@ void VirtualFrame::Nip(int num_dropped) {
 }
 
 
-#ifdef DEBUG
 bool FrameElement::Equals(FrameElement other) {
   if (type() != other.type()) return false;
   if (is_synced() != other.is_synced()) return false;
@@ -514,6 +513,5 @@ bool VirtualFrame::Equals(VirtualFrame* other) {
 
   return true;
 }
-#endif
 
 } }  // namespace v8::internal

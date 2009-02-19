@@ -437,9 +437,7 @@ class VirtualFrame : public Malloced {
   // (via PrepareForCall).
   Result RawCallCodeObject(Handle<Code> code, RelocInfo::Mode rmode);
 
-#ifdef DEBUG
   bool Equals(VirtualFrame* other);
-#endif
 
   friend class JumpTarget;
 };

@@ -124,9 +124,7 @@ class FrameElement BASE_EMBEDDED {
     return data_.index_;
   }
 
-#ifdef DEBUG
   bool Equals(FrameElement other);
-#endif
 
  private:
   enum Type {
