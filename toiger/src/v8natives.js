@@ -81,11 +81,11 @@ function GlobalParseInt(string, radix) {
     // non-Smi number 9 times faster (230ns vs 2070ns).  Together
     // they make parseInt on a string 1.4% slower (274ns vs 270ns).
     if (%_IsSmi(string)) return string;
-    if (IS_NUMBER(string)) {
-      if (string >= 0.01 && string < 1e9)
-        return $floor(string);
-      if (string <= -0.01 && string > -1e9)
-        return - $floor(-string);
+    if (IS_NUMBER(string) &&
+        ((string < -0.01 && -1e9 < string) ||
+            (0.01 < string && string < 1e9))) {
+      // Truncate number.
+      return string | 0;
     }
   } else {
     radix = TO_INT32(radix);

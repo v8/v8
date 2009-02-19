@@ -62,10 +62,14 @@ function StringValueOf() {
 
 // ECMA-262, section 15.5.4.4
 function StringCharAt(pos) {
-  var subject = ToString(this);
-  var index = TO_INTEGER(pos);
-  if (index >= subject.length || index < 0) return "";
-  return %CharFromCode(%StringCharCodeAt(subject, index));
+  var char_code = %_FastCharCodeAt(subject, index);
+  if (!%_IsSmi(char_code)) {
+    var subject = ToString(this);
+    var index = TO_INTEGER(pos);
+    if (index >= subject.length || index < 0) return "";
+    char_code = %StringCharCodeAt(subject, index);
+  }
+  return %CharFromCode(char_code);
 }
 
 
@@ -175,7 +179,13 @@ function StringMatch(regexp) {
 // otherwise we call the runtime system.
 function SubString(string, start, end) {
   // Use the one character string cache.
-  if (start + 1 == end) return %CharFromCode(%StringCharCodeAt(string, start));
+  if (start + 1 == end) {
+    var char_code = %_FastCharCodeAt(string, start);
+    if (!%_IsSmi(char_code)) {
+      char_code = %StringCharCodeAt(string, start);
+    }
+    return %CharFromCode(char_code);
+  }
   return %StringSlice(string, start, end);
 }
 
@@ -280,7 +290,10 @@ function ExpandReplacement(string, subject, captures, builder) {
     var expansion = '$';
     var position = next + 1;
     if (position < length) {
-      var peek = %StringCharCodeAt(string, position);
+      var peek = %_FastCharCodeAt(string, position);
+      if (!%_IsSmi(peek)) {
+        peek = %StringCharCodeAt(string, position);
+      }
       if (peek == 36) {         // $$
         ++position;
         builder.add('$');
@@ -297,7 +310,10 @@ function ExpandReplacement(string, subject, captures, builder) {
         ++position;
         var n = peek - 48;
         if (position < length) {
-          peek = %StringCharCodeAt(string, position);
+          peek = %_FastCharCodeAt(string, position);
+          if (!%_IsSmi(peek)) {
+            peek = %StringCharCodeAt(string, position);
+          }
           // $nn, 01 <= nn <= 99
           if (n != 0 && peek == 48 || peek >= 49 && peek <= 57) {
             var nn = n * 10 + (peek - 48);
@@ -366,7 +382,7 @@ function addCaptureString(builder, captures, index) {
   var start = captures[scaled];
   var end = captures[scaled + 1];
   // If either start or end is missing return.
-  if (start < 0 || end < 0) return;
+  if (start < 0 || end <= start) return;
   builder.addSpecialSlice(start, end);
 };
 
@@ -437,6 +453,7 @@ function ApplyReplacementFunction(replace, captures, subject) {
   var m = captures.length >> 1;
   if (m == 1) {
     var s = CaptureString(subject, captures, 0);
+    // Don't call directly to avoid exposing the built-in global object.
     return ToString(replace.call(null, s, index, subject));
   }
   var parameters = $Array(m + 2);

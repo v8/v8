@@ -1190,12 +1190,20 @@ void CodeGenerator::SmiOperation(Token::Value op,
       deferred->enter()->Branch(not_zero, &operand, not_taken);
       frame_->Spill(operand.reg());
       if (op == Token::BIT_AND) {
-        __ and_(Operand(operand.reg()), Immediate(value));
+        if (int_value == 0) {
+          __ xor_(Operand(operand.reg()), operand.reg());
+        } else {
+          __ and_(Operand(operand.reg()), Immediate(value));
+        }
       } else if (op == Token::BIT_XOR) {
-        __ xor_(Operand(operand.reg()), Immediate(value));
+        if (int_value != 0) {
+          __ xor_(Operand(operand.reg()), Immediate(value));
+        }
       } else {
         ASSERT(op == Token::BIT_OR);
-        __ or_(Operand(operand.reg()), Immediate(value));
+        if (int_value != 0) {
+          __ or_(Operand(operand.reg()), Immediate(value));
+        }
       }
       deferred->BindExit(&operand);
       frame_->Push(&operand);
@@ -4091,6 +4099,23 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     Result answer = frame_->CallRuntime(Runtime::kTypeof, 1);
     frame_->Push(&answer);
 
+  } else if (op == Token::VOID) {
+    Expression* expression = node->expression();
+    if (expression && expression->AsLiteral() && (
+        expression->AsLiteral()->IsTrue() ||
+        expression->AsLiteral()->IsFalse() ||
+        expression->AsLiteral()->handle()->IsNumber() ||
+        expression->AsLiteral()->handle()->IsString() ||
+        expression->AsLiteral()->handle()->IsJSRegExp() ||
+        expression->AsLiteral()->IsNull())) {
+      // Omit evaluating the value of the primitive literal.
+      // It will be discarded anyway, and can have no side effect.
+      frame_->Push(Factory::undefined_value());
+    } else {
+      Load(node->expression());
+      frame_->SetElementAt(0, Factory::undefined_value());
+    }
+
   } else {
     Load(node->expression());
     switch (op) {
@@ -4131,11 +4156,6 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
         __ and_(answer.reg(), ~kSmiTagMask);  // Remove inverted smi-tag.
         continue_label.Bind(&answer);
         frame_->Push(&answer);
-        break;
-      }
-
-      case Token::VOID: {
-        frame_->SetElementAt(0, Factory::undefined_value());
         break;
       }
 
