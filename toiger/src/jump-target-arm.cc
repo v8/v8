@@ -142,40 +142,94 @@ void JumpTarget::Bind(int mergable_elements) {
   ComputeEntryFrame(mergable_elements);
 
   if (is_linked()) {
-    // There were forward jumps.  All the reaching frames, beginning
-    // with the current frame if any, are merged to the expected one.
-    int start_index = 0;
-    if (!cgen_->has_valid_frame()) {
-      // Pick up the first reaching frame as the code generator's
-      // current frame.
-      RegisterFile reserved_registers = RegisterAllocator::Reserved();
-      cgen_->SetFrame(reaching_frames_[0], &reserved_registers);
-      __ bind(&merge_labels_[0]);
-      start_index = 1;
-    }
+    // There were forward jumps.  Handle merging the reaching frames
+    // and possible fall through to the entry frame.
 
-    cgen_->frame()->MergeTo(entry_frame_);
+    // If there is a fall through to the jump target and it needs
+    // merge code, process it first.
+    if (cgen_->has_valid_frame() && !cgen_->frame()->Equals(entry_frame_)) {
+      // Loop over all the reaching frames, looking for any that can
+      // share merge code with this one.
+      for (int i = 0; i < reaching_frames_.length(); i++) {
+        if (cgen_->frame()->Equals(reaching_frames_[i])) {
+          // Set the reaching frames element to null to avoid
+          // processing it later, and then bind its entry label.
+          delete reaching_frames_[i];
+          reaching_frames_[i] = NULL;
+          __ bind(&merge_labels_[i]);
+        }
+      }
 
-    for (int i = start_index; i < reaching_frames_.length(); i++) {
-      // Delete the current frame and jump to the block entry.
-      cgen_->DeleteFrame();
-      __ jmp(&entry_label_);
-
-      // Pick up the next reaching frame as the code generator's
-      // current frame.
-      RegisterFile reserved_registers = RegisterAllocator::Reserved();
-      cgen_->SetFrame(reaching_frames_[i], &reserved_registers);
-      __ bind(&merge_labels_[i]);
-
+      // Emit the merge code.
       cgen_->frame()->MergeTo(entry_frame_);
     }
 
+    // Loop over the (non-null) reaching frames and process any that
+    // need merge code.
+    for (int i = 0; i < reaching_frames_.length(); i++) {
+      VirtualFrame* frame = reaching_frames_[i];
+      if (frame != NULL && !frame->Equals(entry_frame_)) {
+        // Set the reaching frames element to null to avoid processing
+        // it later.  Do not delete it as it is needed for merging.
+        reaching_frames_[i] = NULL;
+
+        // If the code generator has a current frame (a fall-through
+        // or a previously merged frame), insert a jump around the
+        // merge code we are about to generate.
+        if (cgen_->has_valid_frame()) {
+          cgen_->DeleteFrame();
+          __ jmp(&entry_label_);
+        }
+
+        // Set the frame to merge as the code generator's current
+        // frame and bind its merge label.
+        RegisterFile reserved_registers = RegisterAllocator::Reserved();
+        cgen_->SetFrame(frame, &reserved_registers);
+        __ bind(&merge_labels_[i]);
+
+        // Loop over the remaining (non-null) reaching frames, looking
+        // for any that can share merge code with this one.
+        for (int j = i + 1; j < reaching_frames_.length(); j++) {
+          VirtualFrame* other = reaching_frames_[j];
+          if (other != NULL && frame->Equals(other)) {
+            delete other;
+            reaching_frames_[j] = NULL;
+            __ bind(&merge_labels_[j]);
+          }
+        }
+
+        // Emit the merge code.
+        cgen_->frame()->MergeTo(entry_frame_);
+      }
+    }
+
+    // The code generator may not have a current frame if there was no
+    // fall through and none of the reaching frames needed merging.
+    // In that case, clone the entry frame as the current frame.
+    if (!cgen_->has_valid_frame()) {
+      RegisterFile reserved_registers = RegisterAllocator::Reserved();
+      cgen_->SetFrame(new VirtualFrame(entry_frame_), &reserved_registers);
+    }
+
+    // There is certainly a current frame equal to the entry frame.
+    // Bind the entry frame label.
     __ bind(&entry_label_);
 
-    // All but the last reaching virtual frame have been deleted, and
-    // the last one is the current frame.
+    // There may be unprocessed reaching frames that did not need
+    // merge code.  Bind their merge labels to be the same as the
+    // entry label.
+    for (int i = 0; i < reaching_frames_.length(); i++) {
+      if (reaching_frames_[i] != NULL) {
+        delete reaching_frames_[i];
+        __ bind(&merge_labels_[i]);
+      }
+    }
+
+    // All the reaching frames except the one that is the current
+    // frame (if it is one of the reaching frames) have been deleted.
     reaching_frames_.Clear();
     merge_labels_.Clear();
+
   } else {
     // There were no forward jumps.  The current frame is merged to
     // the entry frame.
