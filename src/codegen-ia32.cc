@@ -4482,57 +4482,23 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
       FloatingPointHelper::LoadFloatOperands(masm, ecx);
 
-      Label non_smi_result, skip_allocation, operands_too_large;
-
-      // Make sure that the operands can be truncated into 64-bit
-      // integers. Otherwise, the fistt instruction will signal an IA
-      // exception which will cause us to overwrite the operand with
-      // zero.
-      __ push(Immediate(0x7fffffff));
-      __ push(Immediate(-1));
-      __ fild_d(Operand(esp, 0));
-      __ add(Operand(esp), Immediate(2 * kPointerSize));
-
-      // Convert the operands to absolute values before comparing
-      // against the limit.
-      __ fld(2);
-      __ fabs();
-      __ fld(2);
-      __ fabs();
-
-      // Do the comparison. If the operands are too large we go
-      // slow-case through the runtime system.
-      __ fucomp(2);
-      __ fnstsw_ax();
-      __ sahf();
-      __ j(above, &operands_too_large);
-      __ fucompp();
-      __ fnstsw_ax();
-      __ sahf();
-      __ j(above, &operands_too_large);
+      Label non_smi_result, skip_allocation, operands_failed_conversion;
 
       // Reserve space for converted numbers.
       __ sub(Operand(esp), Immediate(4 * kPointerSize));
 
       // Convert right operand to int32.
-      Label done_right;
       __ fnclex();
       __ fisttp_d(Operand(esp, 2 * kPointerSize));
       __ fnstsw_ax();
       __ test(eax, Immediate(1));
-      __ j(zero, &done_right);
-      __ fnclex();
-      __ mov(Operand(esp, 2 * kPointerSize), Immediate(0));
-      __ bind(&done_right);
+      __ j(not_zero, &operands_failed_conversion);
 
       // Convert left operand to int32.
-      Label done_left;
       __ fisttp_d(Operand(esp, 0 * kPointerSize));
       __ fnstsw_ax();
       __ test(eax, Immediate(1));
-      __ j(zero, &done_left);
-      __ mov(Operand(esp, 0 * kPointerSize), Immediate(0));
-      __ bind(&done_left);
+      __ j(not_zero, &operands_failed_conversion);
 
       // Get int32 operands and perform bitop.
       __ pop(eax);
@@ -4587,10 +4553,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ ret(2 * kPointerSize);
       }
 
-      // Free ST(0) and ST(1) before calling runtime.
-      __ bind(&operands_too_large);
+      // Free ST(0) before calling runtime.
+      __ bind(&operands_failed_conversion);
+      __ add(Operand(esp), Immediate(4 * kPointerSize));
       __ ffree(0);
-      __ ffree(1);
 
       // SHR should return uint32 - go to runtime for non-smi/negative result.
       if (op_ == Token::SHR) __ bind(&non_smi_result);
