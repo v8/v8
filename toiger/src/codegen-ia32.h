@@ -395,6 +395,9 @@ class CodeGenerator: public AstVisitor {
 
   Operand SlotOperand(Slot* slot, Register tmp);
 
+  Operand ContextSlotOperandCheckExtensions(Slot* slot,
+                                            Result tmp,
+                                            JumpTarget* slow);
 
   // Expressions
   Operand GlobalObject() const {
@@ -439,6 +442,9 @@ class CodeGenerator: public AstVisitor {
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
+  Result LoadFromGlobalSlotCheckExtensions(Slot* slot,
+                                           TypeofState typeof_state,
+                                           JumpTarget* slow);
 
   // Store the value on top of the expression stack into a slot, leaving the
   // value in place.

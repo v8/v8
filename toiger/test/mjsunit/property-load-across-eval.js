@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,23 +25,61 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// UC16
-// Characters used:
-// "\u03a3\u03c2\u03c3\u039b\u03bb" - Sigma, final sigma, sigma, Lambda, lamda
-assertEquals("x\u03a3\u03c3x,\u03a3",
-              String(/x(.)\1x/i.exec("x\u03a3\u03c3x")), "backref-UC16");
-assertFalse(/x(...)\1/i.test("x\u03a3\u03c2\u03c3\u03c2\u03c3"),
-            "\\1 ASCII, string short");
-assertTrue(/\u03a3((?:))\1\1x/i.test("\u03c2x"), "backref-UC16-empty");
-assertTrue(/x(?:...|(...))\1x/i.test("x\u03a3\u03c2\u03c3x"),
-           "backref-UC16-uncaptured");
-assertTrue(/x(?:...|(...))\1x/i.test("x\u03c2\u03c3\u039b\u03a3\u03c2\u03bbx"),
-           "backref-UC16-backtrack");
-var longUC16String = "x\u03a3\u03c2\u039b\u03c2\u03c3\u03bb\u03c3\u03a3\u03bb";
-assertEquals(longUC16String + "," + longUC16String.substring(1,4),
-             String(/x(...)\1\1/i.exec(longUC16String)),
-             "backref-UC16-twice");
+// Tests loading of properties across eval calls.
 
-assertFalse(/\xc1/i.test('fooA'), "quickcheck-uc16-pattern-ascii-subject");
-assertFalse(/[\xe9]/.test('i'), "charclass-uc16-pattern-ascii-subject");
-assertFalse(/\u5e74|\u6708/.test('t'), "alternation-uc16-pattern-ascii-subject");
+var x = 1;
+
+// Test loading across an eval call that does not shadow variables.
+function testNoShadowing() {
+  var y = 2;
+  function f() {
+    eval('1');
+    assertEquals(1, x);
+    assertEquals(2, y);
+    function g() {
+      assertEquals(1, x);
+      assertEquals(2, y);
+    }
+    g();
+  }
+  f();
+}
+
+testNoShadowing();
+
+// Test loading across eval calls that do not shadow variables.
+function testNoShadowing2() {
+  var y = 2;
+  eval('1');
+  function f() {
+    eval('1');
+    assertEquals(1, x);
+    assertEquals(2, y);
+    function g() {
+      assertEquals(1, x);
+      assertEquals(2, y);
+    }
+    g();
+  }
+  f();
+}
+
+testNoShadowing2();
+
+// Test loading across an eval call that shadows variables.
+function testShadowing() {
+  var y = 2;
+  function f() {
+    eval('var x = 3; var y = 4;');
+    assertEquals(3, x);
+    assertEquals(4, y);
+    function g() {
+      assertEquals(3, x);
+      assertEquals(4, y);
+    }
+    g();
+  }
+  f();
+}
+
+testShadowing();

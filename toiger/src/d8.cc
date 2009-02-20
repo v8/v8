@@ -419,6 +419,27 @@ static char* ReadChars(const char *name, int* size_out) {
 }
 
 
+static char* ReadToken(const char* data, char token) {
+  char* next = ::strchr(data, token);
+  if (next != NULL) {
+    *next = '\0';
+    return (next + 1);
+  }
+
+  return NULL;
+}
+
+
+static char* ReadLine(const char* data) {
+  return ReadToken(data, '\n');
+}
+
+
+static char* ReadWord(const char* data) {
+  return ReadToken(data, ' ');
+}
+
+
 // Reads a file into a v8 string.
 Handle<String> Shell::ReadFile(const char* name) {
   int size = 0;
@@ -473,27 +494,42 @@ void ShellThread::Run() {
   global_template->Set(String::New("version"),
                        FunctionTemplate::New(Shell::Version));
 
-  Persistent<Context> thread_context = Context::New(NULL, global_template);
-  thread_context->SetSecurityToken(Undefined());
-
-  Context::Scope context_scope(thread_context);
-
   char* ptr = const_cast<char*>(files_.start());
   while ((ptr != NULL) && (*ptr != '\0')) {
     // For each newline-separated line.
-    char *filename = ptr;
-    char* next = ::strchr(ptr, '\n');
-    if (next != NULL) {
-      *next = '\0';
-      ptr = (next + 1);
-    } else {
-      ptr = NULL;
-    }
-    Handle<String> str = Shell::ReadFile(filename);
-    Shell::ExecuteString(str, String::New(filename), false, false);
-  }
+    char* next_line = ReadLine(ptr);
 
-  thread_context.Dispose();
+    if (*ptr == '#') {
+      // Skip comment lines.
+      ptr = next_line;
+      continue;
+    }
+
+    Persistent<Context> thread_context = Context::New(NULL, global_template);
+    thread_context->SetSecurityToken(Undefined());
+    Context::Scope context_scope(thread_context);
+
+    while ((ptr != NULL) && (*ptr != '\0')) {
+      char* filename = ptr;
+      ptr = ReadWord(ptr);
+
+      // Skip empty strings.
+      if (strlen(filename) == 0) {
+        break;
+      }
+
+      Handle<String> str = Shell::ReadFile(filename);
+      if (str.IsEmpty()) {
+        printf("WARNING: %s not found\n", filename);
+        break;
+      }
+
+      Shell::ExecuteString(str, String::New(filename), false, false);
+    }
+
+    thread_context.Dispose();
+    ptr = next_line;
+  }
 }
 
 

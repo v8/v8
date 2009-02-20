@@ -824,11 +824,15 @@ class TextNode: public SeqRegExpNode {
 
  private:
   enum TextEmitPassType {
-    NON_ASCII_MATCH,
-    CHARACTER_MATCH,
-    CASE_CHARACTER_MATCH,
-    CHARACTER_CLASS_MATCH
+    NON_ASCII_MATCH,             // Check for characters that can't match.
+    SIMPLE_CHARACTER_MATCH,      // Case-dependent single character check.
+    NON_LETTER_CHARACTER_MATCH,  // Check characters that have no case equivs.
+    CASE_CHARACTER_MATCH,        // Case-independent single character check.
+    CHARACTER_CLASS_MATCH        // Character class.
   };
+  static bool SkipPass(int pass, bool ignore_case);
+  static const int kFirstRealPass = SIMPLE_CHARACTER_MATCH;
+  static const int kLastPass = CHARACTER_CLASS_MATCH;
   void TextEmitPass(RegExpCompiler* compiler,
                     TextEmitPassType pass,
                     bool preloaded,

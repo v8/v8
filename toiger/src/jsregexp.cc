@@ -1739,19 +1739,71 @@ static unibrow::Mapping<unibrow::Ecma262UnCanonicalize> uncanonicalize;
 static unibrow::Mapping<unibrow::CanonicalizationRange> canonrange;
 
 
+// Returns the number of characters in the equivalence class, omitting those
+// that cannot occur in the source string because it is ASCII.
+static int GetCaseIndependentLetters(uc16 character,
+                                     bool ascii_subject,
+                                     unibrow::uchar* letters) {
+  int length = uncanonicalize.get(character, '\0', letters);
+  // Unibrow returns 0 or 1 for characters where case independependence is
+  // trivial.
+  if (length == 0) {
+    letters[0] = character;
+    length = 1;
+  }
+  if (!ascii_subject || character <= String::kMaxAsciiCharCode) {
+    return length;
+  }
+  // The standard requires that non-ASCII characters cannot have ASCII
+  // character codes in their equivalence class.
+  return 0;
+}
+
+
+static inline bool EmitSimpleCharacter(RegExpCompiler* compiler,
+                                       uc16 c,
+                                       Label* on_failure,
+                                       int cp_offset,
+                                       bool check,
+                                       bool preloaded) {
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
+  bool bound_checked = false;
+  if (!preloaded) {
+    assembler->LoadCurrentCharacter(
+        cp_offset,
+        on_failure,
+        check);
+    bound_checked = true;
+  }
+  assembler->CheckNotCharacter(c, on_failure);
+  return bound_checked;
+}
+
+
 // Only emits non-letters (things that don't have case).  Only used for case
 // independent matches.
-static inline bool EmitAtomNonLetter(
-    RegExpMacroAssembler* macro_assembler,
-    uc16 c,
-    Label* on_failure,
-    int cp_offset,
-    bool check,
-    bool preloaded) {
+static inline bool EmitAtomNonLetter(RegExpCompiler* compiler,
+                                     uc16 c,
+                                     Label* on_failure,
+                                     int cp_offset,
+                                     bool check,
+                                     bool preloaded) {
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  bool ascii = compiler->ascii();
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  int length = uncanonicalize.get(c, '\0', chars);
+  int length = GetCaseIndependentLetters(c, ascii, chars);
+  if (length < 1) {
+    // This can't match.  Must be an ASCII subject and a non-ASCII character.
+    // We do not need to do anything since the ASCII pass already handled this.
+    return false;  // Bounds not checked.
+  }
   bool checked = false;
-  if (length <= 1) {
+  // We handle the length > 1 case in a later pass.
+  if (length == 1) {
+    if (ascii && c > String::kMaxAsciiCharCodeU) {
+      // Can't match - see above.
+      return false;  // Bounds not checked.
+    }
     if (!preloaded) {
       macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
       checked = check;
@@ -1801,18 +1853,25 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
 }
 
 
+typedef bool EmitCharacterFunction(RegExpCompiler* compiler,
+                                   uc16 c,
+                                   Label* on_failure,
+                                   int cp_offset,
+                                   bool check,
+                                   bool preloaded);
+
 // Only emits letters (things that have case).  Only used for case independent
 // matches.
-static inline bool EmitAtomLetter(
-    RegExpMacroAssembler* macro_assembler,
-    bool ascii,
-    uc16 c,
-    Label* on_failure,
-    int cp_offset,
-    bool check,
-    bool preloaded) {
+static inline bool EmitAtomLetter(RegExpCompiler* compiler,
+                                  uc16 c,
+                                  Label* on_failure,
+                                  int cp_offset,
+                                  bool check,
+                                  bool preloaded) {
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  bool ascii = compiler->ascii();
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  int length = uncanonicalize.get(c, '\0', chars);
+  int length = GetCaseIndependentLetters(c, ascii, chars);
   if (length <= 1) return false;
   // We may not need to check against the end of the input string
   // if this character lies before a character that matched.
@@ -1854,10 +1913,10 @@ static inline bool EmitAtomLetter(
 
 static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
                           RegExpCharacterClass* cc,
-                          int cp_offset,
-                          Label* on_failure,
-                          bool check_offset,
                           bool ascii,
+                          Label* on_failure,
+                          int cp_offset,
+                          bool check_offset,
                           bool preloaded) {
   if (cc->is_standard() &&
       macro_assembler->CheckSpecialCharacterClass(cc->standard_type(),
@@ -2238,12 +2297,14 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           // matching can turn an ASCII character into non-ASCII or
           // vice versa.
           details->set_cannot_match();
+          pos->determines_perfectly = false;
           return;
         }
         if (compiler->ignore_case()) {
           unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-          int length = uncanonicalize.get(c, '\0', chars);
-          if (length < 2) {
+          int length = GetCaseIndependentLetters(c, compiler->ascii(), chars);
+          ASSERT(length != 0);  // Can only happen if c > char_mask (see above).
+          if (length == 1) {
             // This letter has no case equivalents, so it's nice and simple
             // and the mask-compare will determine definitely whether we have
             // a match at this character position.
@@ -2288,7 +2349,6 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           details->positions(characters_filled_in);
       RegExpCharacterClass* tree = elm.data.u_char_class;
       ZoneList<CharacterRange>* ranges = tree->ranges();
-      CharacterRange range = ranges->at(0);
       if (tree->is_negated()) {
         // A quick check uses multi-character mask and compare.  There is no
         // useful way to incorporate a negative char class into this scheme
@@ -2297,27 +2357,46 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         pos->mask = 0;
         pos->value = 0;
       } else {
-        uint32_t differing_bits = (range.from() ^ range.to());
+        int first_range = 0;
+        while (ranges->at(first_range).from() > char_mask) {
+          first_range++;
+          if (first_range == ranges->length()) {
+            details->set_cannot_match();
+            pos->determines_perfectly = false;
+            return;
+          }
+        }
+        CharacterRange range = ranges->at(first_range);
+        uc16 from = range.from();
+        uc16 to = range.to();
+        if (to > char_mask) {
+          to = char_mask;
+        }
+        uint32_t differing_bits = (from ^ to);
         // A mask and compare is only perfect if the differing bits form a
         // number like 00011111 with one single block of trailing 1s.
         if ((differing_bits & (differing_bits + 1)) == 0) {
           pos->determines_perfectly = true;
         }
         uint32_t common_bits = ~SmearBitsRight(differing_bits);
-        uint32_t bits = (range.from() & common_bits);
-        for (int i = 1; i < ranges->length(); i++) {
+        uint32_t bits = (from & common_bits);
+        for (int i = first_range + 1; i < ranges->length(); i++) {
+          CharacterRange range = ranges->at(i);
+          uc16 from = range.from();
+          uc16 to = range.to();
+          if (from > char_mask) continue;
+          if (to > char_mask) to = char_mask;
           // Here we are combining more ranges into the mask and compare
           // value.  With each new range the mask becomes more sparse and
           // so the chances of a false positive rise.  A character class
           // with multiple ranges is assumed never to be equivalent to a
           // mask and compare operation.
           pos->determines_perfectly = false;
-          CharacterRange range = ranges->at(i);
-          uint32_t new_common_bits = (range.from() ^ range.to());
+          uint32_t new_common_bits = (from ^ to);
           new_common_bits = ~SmearBitsRight(new_common_bits);
           common_bits &= new_common_bits;
           bits &= new_common_bits;
-          uint32_t differing_bits = (range.from() & common_bits) ^ bits;
+          uint32_t differing_bits = (from & common_bits) ^ bits;
           common_bits ^= differing_bits;
           bits &= common_bits;
         }
@@ -2619,6 +2698,20 @@ void AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 }
 
 
+static bool DeterminedAlready(QuickCheckDetails* quick_check, int offset) {
+  if (quick_check == NULL) return false;
+  if (offset >= quick_check->characters()) return false;
+  return quick_check->positions(offset)->determines_perfectly;
+}
+
+
+static void UpdateBoundsCheck(int index, int* checked_up_to) {
+  if (index > *checked_up_to) {
+    *checked_up_to = index;
+  }
+}
+
+
 // We call this repeatedly to generate code for each pass over the text node.
 // The passes are in increasing order of difficulty because we hope one
 // of the first passes will fail in which case we are saved the work of the
@@ -2663,83 +2756,55 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
     TextElement elm = elms_->at(i);
     int cp_offset = trace->cp_offset() + elm.cp_offset;
     if (elm.type == TextElement::ATOM) {
-      if (pass == NON_ASCII_MATCH ||
-          pass == CHARACTER_MATCH ||
-          pass == CASE_CHARACTER_MATCH) {
-        Vector<const uc16> quarks = elm.data.u_atom->data();
-        for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
-          bool bound_checked = true;  // Most ops will check their bounds.
-          if (first_element_checked && i == 0 && j == 0) continue;
-          if (pass == NON_ASCII_MATCH) {
+      Vector<const uc16> quarks = elm.data.u_atom->data();
+      for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
+        if (first_element_checked && i == 0 && j == 0) continue;
+        if (DeterminedAlready(quick_check, elm.cp_offset + j)) continue;
+        EmitCharacterFunction* emit_function = NULL;
+        switch (pass) {
+          case NON_ASCII_MATCH:
             ASSERT(ascii);
             if (quarks[j] > String::kMaxAsciiCharCode) {
               assembler->GoTo(backtrack);
               return;
             }
-          } else {
-            if (quick_check != NULL &&
-                elm.cp_offset + j < quick_check->characters() &&
-                quick_check->positions(elm.cp_offset + j)->
-                    determines_perfectly) {
-              continue;
-            }
-            if (pass == CHARACTER_MATCH) {
-              if (compiler->ignore_case()) {
-                bound_checked = EmitAtomNonLetter(
-                    assembler,
-                    quarks[j],
-                    backtrack,
-                    cp_offset + j,
-                    *checked_up_to < cp_offset + j,
-                    preloaded);
-              } else {
-                if (!preloaded) {
-                  assembler->LoadCurrentCharacter(
-                      cp_offset + j,
-                      backtrack,
-                      *checked_up_to < cp_offset + j);
-                }
-                assembler->CheckNotCharacter(quarks[j], backtrack);
-              }
-            } else {
-              ASSERT_EQ(pass, CASE_CHARACTER_MATCH);
-              ASSERT(compiler->ignore_case());
-              bound_checked = EmitAtomLetter(assembler,
-                                             compiler->ascii(),
+            break;
+          case NON_LETTER_CHARACTER_MATCH:
+            emit_function = &EmitAtomNonLetter;
+            break;
+          case SIMPLE_CHARACTER_MATCH:
+            emit_function = &EmitSimpleCharacter;
+            break;
+          case CASE_CHARACTER_MATCH:
+            emit_function = &EmitAtomLetter;
+            break;
+          default:
+            break;
+        }
+        if (emit_function != NULL) {
+          bool bound_checked = emit_function(compiler,
                                              quarks[j],
                                              backtrack,
                                              cp_offset + j,
                                              *checked_up_to < cp_offset + j,
                                              preloaded);
-            }
-            if (bound_checked) {
-              if (cp_offset + j > *checked_up_to) {
-                *checked_up_to = cp_offset + j;
-              }
-            }
-          }
+          if (bound_checked) UpdateBoundsCheck(cp_offset + j, checked_up_to);
         }
       }
     } else {
       ASSERT_EQ(elm.type, TextElement::CHAR_CLASS);
-      if (first_element_checked && i == 0) continue;
-      if (quick_check != NULL &&
-          elm.cp_offset < quick_check->characters() &&
-          quick_check->positions(elm.cp_offset)->determines_perfectly) {
-        continue;
-      }
       if (pass == CHARACTER_CLASS_MATCH) {
+        if (first_element_checked && i == 0) continue;
+        if (DeterminedAlready(quick_check, elm.cp_offset)) continue;
         RegExpCharacterClass* cc = elm.data.u_char_class;
         EmitCharClass(assembler,
                       cc,
-                      cp_offset,
-                      backtrack,
-                      *checked_up_to < cp_offset,
                       ascii,
+                      backtrack,
+                      cp_offset,
+                      *checked_up_to < cp_offset,
                       preloaded);
-        if (cp_offset > *checked_up_to) {
-          *checked_up_to = cp_offset;
-        }
+        UpdateBoundsCheck(cp_offset, checked_up_to);
       }
     }
   }
@@ -2753,6 +2818,16 @@ int TextNode::Length() {
     return elm.cp_offset + elm.data.u_atom->data().length();
   } else {
     return elm.cp_offset + 1;
+  }
+}
+
+
+bool TextNode::SkipPass(int int_pass, bool ignore_case) {
+  TextEmitPassType pass = static_cast<TextEmitPassType>(int_pass);
+  if (ignore_case) {
+    return pass == SIMPLE_CHARACTER_MATCH;
+  } else {
+    return pass == NON_LETTER_CHARACTER_MATCH || pass == CASE_CHARACTER_MATCH;
   }
 }
 
@@ -2785,49 +2860,29 @@ void TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   // If a character is preloaded into the current character register then
   // check that now.
   if (trace->characters_preloaded() == 1) {
-    TextEmitPass(compiler,
-                 CHARACTER_MATCH,
-                 true,
-                 trace,
-                 false,
-                 &bound_checked_to);
-    if (compiler->ignore_case()) {
-      TextEmitPass(compiler,
-                   CASE_CHARACTER_MATCH,
-                   true,
-                   trace,
-                   false,
-                   &bound_checked_to);
+    for (int pass = kFirstRealPass; pass <= kLastPass; pass++) {
+      if (!SkipPass(pass, compiler->ignore_case())) {
+        TextEmitPass(compiler,
+                     static_cast<TextEmitPassType>(pass),
+                     true,
+                     trace,
+                     false,
+                     &bound_checked_to);
+      }
     }
-    TextEmitPass(compiler,
-                 CHARACTER_CLASS_MATCH,
-                 true,
-                 trace,
-                 false,
-                 &bound_checked_to);
     first_elt_done = true;
   }
 
-  TextEmitPass(compiler,
-               CHARACTER_MATCH,
-               false,
-               trace,
-               first_elt_done,
-               &bound_checked_to);
-  if (compiler->ignore_case()) {
-    TextEmitPass(compiler,
-                 CASE_CHARACTER_MATCH,
-                 false,
-                 trace,
-                 first_elt_done,
-                 &bound_checked_to);
+  for (int pass = kFirstRealPass; pass <= kLastPass; pass++) {
+    if (!SkipPass(pass, compiler->ignore_case())) {
+      TextEmitPass(compiler,
+                   static_cast<TextEmitPassType>(pass),
+                   false,
+                   trace,
+                   first_elt_done,
+                   &bound_checked_to);
+    }
   }
-  TextEmitPass(compiler,
-               CHARACTER_CLASS_MATCH,
-               false,
-               trace,
-               first_elt_done,
-               &bound_checked_to);
 
   Trace successor_trace(*trace);
   successor_trace.set_at_start(false);

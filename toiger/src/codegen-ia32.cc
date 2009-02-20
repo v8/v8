@@ -344,7 +344,7 @@ Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
       ASSERT(!tmp.is(esi));  // do not overwrite context register
       Register context = esi;
       int chain_length = scope()->ContextChainLength(slot->var()->scope());
-      for (int i = chain_length; i-- > 0;) {
+      for (int i = 0; i < chain_length; i++) {
         // Load the closure.
         // (All contexts, even 'with' contexts, have a closure,
         // and it is the same for all contexts inside a function.
@@ -369,6 +369,35 @@ Operand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
       UNREACHABLE();
       return Operand(eax);
   }
+}
+
+
+Operand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
+                                                         Result tmp,
+                                                         JumpTarget* slow) {
+  ASSERT(slot->type() == Slot::CONTEXT);
+  ASSERT(tmp.is_register());
+  Result context(esi, this);
+
+  for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmp(ContextOperand(context.reg(), Context::EXTENSION_INDEX),
+               Immediate(0));
+        slow->Branch(not_equal, not_taken);
+      }
+      __ mov(tmp.reg(), ContextOperand(context.reg(), Context::CLOSURE_INDEX));
+      __ mov(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+      context = tmp;
+    }
+  }
+  // Check that last extension is NULL.
+  __ cmp(ContextOperand(context.reg(), Context::EXTENSION_INDEX),
+         Immediate(0));
+  slow->Branch(not_equal, not_taken);
+  __ mov(tmp.reg(), ContextOperand(context.reg(), Context::FCONTEXT_INDEX));
+  return ContextOperand(tmp.reg(), slot->index());
 }
 
 
@@ -1556,7 +1585,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
   if (slot != NULL && slot->type() == Slot::LOOKUP) {
     // Variables with a "LOOKUP" slot were introduced as non-locals
     // during variable resolution and must have mode DYNAMIC.
-    ASSERT(var->mode() == Variable::DYNAMIC);
+    ASSERT(var->is_dynamic());
     // For now, just do a runtime call.  Duplicate the context register.
     Result context(esi, this);
     frame_->Push(&context);
@@ -2899,19 +2928,52 @@ void CodeGenerator::VisitConditional(Conditional* node) {
 
 void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
   if (slot->type() == Slot::LOOKUP) {
-    ASSERT(slot->var()->mode() == Variable::DYNAMIC);
+    ASSERT(slot->var()->is_dynamic());
 
-    // For now, just do a runtime call.
+    JumpTarget slow(this);
+    JumpTarget done(this);
+    Result value(this);
+
+    // Generate fast-case code for variables that might be shadowed by
+    // eval-introduced variables.  Eval is used a lot without
+    // introducing variables.  In those cases, we do not want to
+    // perform a runtime call for all variables in the scope
+    // containing the eval.
+    if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
+      value = LoadFromGlobalSlotCheckExtensions(slot, typeof_state, &slow);
+      // If there was no control flow to slow, we can exit early.
+      if (!slow.is_linked()) {
+        frame_->Push(&value);
+        return;
+      }
+
+      done.Jump(&value);
+
+    } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
+      Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
+      // Allocate a fresh register to use as a temp in
+      // ContextSlotOperandCheckExtensions and to hold the result
+      // value.
+      value = allocator_->Allocate();
+      ASSERT(value.is_valid());
+      __ mov(value.reg(),
+             ContextSlotOperandCheckExtensions(potential_slot, value, &slow));
+      // There is always control flow to slow from
+      // ContextSlotOperandCheckExtensions.
+      done.Jump(&value);
+    }
+
+    slow.Bind();
     frame_->Push(esi);
     frame_->Push(slot->var()->name());
-
-    Result value(this);
     if (typeof_state == INSIDE_TYPEOF) {
       value =
           frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
     } else {
       value = frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     }
+
+    done.Bind(&value);
     frame_->Push(&value);
 
   } else if (slot->var()->mode() == Variable::CONST) {
@@ -2952,9 +3014,59 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 }
 
 
+Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
+    Slot* slot,
+    TypeofState typeof_state,
+    JumpTarget* slow) {
+  // Check that no extension objects have been created by calls to
+  // eval from the current scope to the global scope.
+  Result context(esi, this);
+  Result tmp = allocator_->Allocate();
+  ASSERT(tmp.is_valid());  // Called with all non-reserved registers available.
+
+  for (Scope* s = scope(); s != NULL; s = s->outer_scope()) {
+    if (s->num_heap_slots() > 0) {
+      if (s->calls_eval()) {
+        // Check that extension is NULL.
+        __ cmp(ContextOperand(context.reg(), Context::EXTENSION_INDEX),
+               Immediate(0));
+        slow->Branch(not_equal, not_taken);
+      }
+      // Load next context in chain.
+      __ mov(tmp.reg(), ContextOperand(context.reg(), Context::CLOSURE_INDEX));
+      __ mov(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+      context = tmp;
+    }
+    // If no outer scope calls eval, we do not need to check more
+    // context extensions.
+    if (!s->outer_scope_calls_eval()) break;
+  }
+  context.Unuse();
+  tmp.Unuse();
+
+  // All extension objects were empty and it is safe to use a global
+  // load IC call.
+  Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+  // Load the global object.
+  LoadGlobal();
+  // Setup the name register.  All non-reserved registers are available.
+  Result name = allocator_->Allocate(ecx);
+  ASSERT(name.is_valid());
+  __ mov(name.reg(), slot->var()->name());
+  RelocInfo::Mode rmode = (typeof_state == INSIDE_TYPEOF)
+                        ? RelocInfo::CODE_TARGET
+                        : RelocInfo::CODE_TARGET_CONTEXT;
+  Result answer = frame_->CallCodeObject(ic, rmode, &name, 0);
+
+  // Discard the global object. The result is in answer.
+  frame_->Drop();
+  return answer;
+}
+
+
 void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
   if (slot->type() == Slot::LOOKUP) {
-    ASSERT(slot->var()->mode() == Variable::DYNAMIC);
+    ASSERT(slot->var()->is_dynamic());
 
     // For now, just do a runtime call.
     frame_->Push(esi);
@@ -2986,7 +3098,7 @@ void CodeGenerator::StoreToSlot(Slot* slot, InitState init_state) {
     frame_->Push(&value);
 
   } else {
-    ASSERT(slot->var()->mode() != Variable::DYNAMIC);
+    ASSERT(!slot->var()->is_dynamic());
 
     JumpTarget exit(this);
     if (init_state == CONST_INIT) {
