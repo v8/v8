@@ -341,7 +341,7 @@ class TickProcessor(object):
 
   def PrintHeader(self, header_title):
     print('\n [%s]:' % header_title)
-    print('   total  nonlib   name')
+    print('   ticks  total  nonlib   name')
 
   def PrintEntries(self, entries, condition):
     # If ignoring unaccounted ticks don't include these in percentage
@@ -359,7 +359,8 @@ class TickProcessor(object):
           non_library_percentage = 0
         else:
           non_library_percentage = entry.tick_count * 100.0 / number_of_non_library_ticks
-        print('  %(total)5.1f%% %(nonlib)6.1f%%   %(name)s' % {
+        print('  %(ticks)5d  %(total)5.1f%% %(nonlib)6.1f%%  %(name)s' % {
+          'ticks' : entry.tick_count,
           'total' : total_percentage,
           'nonlib' : non_library_percentage,
           'name' : entry.ToString()
