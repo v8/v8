@@ -1614,6 +1614,14 @@ void Assembler::fistp_s(const Operand& adr) {
 }
 
 
+void Assembler::fisttp_d(const Operand& adr) {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xDD);
+  emit_operand(ecx, adr);
+}
+
+
 void Assembler::fist_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1806,6 +1814,14 @@ void Assembler::frndint() {
   last_pc_ = pc_;
   EMIT(0xD9);
   EMIT(0xFC);
+}
+
+
+void Assembler::fnclex() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xDB);
+  EMIT(0xE2);
 }
 
 
