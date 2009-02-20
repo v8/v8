@@ -419,8 +419,8 @@ static char* ReadChars(const char *name, int* size_out) {
 }
 
 
-static char* ReadToken(const char* data, char token) {
-  char* next = ::strchr(data, token);
+static char* ReadToken(char* data, char token) {
+  char* next = i::OS::StrChr(data, token);
   if (next != NULL) {
     *next = '\0';
     return (next + 1);
@@ -430,12 +430,12 @@ static char* ReadToken(const char* data, char token) {
 }
 
 
-static char* ReadLine(const char* data) {
+static char* ReadLine(char* data) {
   return ReadToken(data, '\n');
 }
 
 
-static char* ReadWord(const char* data) {
+static char* ReadWord(char* data) {
   return ReadToken(data, ' ');
 }
 

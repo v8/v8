@@ -219,6 +219,7 @@ class OS {
                        const char* format,
                        va_list args);
 
+  static char* StrChr(char* str, int c);
   static void StrNCpy(Vector<char> dest, const char* src, size_t n);
   static char* StrDup(const char* str);
   static char* StrNDup(const char* str, size_t n);
