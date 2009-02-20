@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1527,6 +1527,13 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   // Generate deferred actions here along with code to undo them again.
   OutSet affected_registers;
 
+  if (backtrack() != NULL) {
+    // Here we have a concrete backtrack location.  These are set up by choice
+    // nodes and so they indicate that we have a deferred save of the current
+    // position which we may need to emit here.
+    assembler->PushCurrentPosition();
+  }
+
   int max_register = FindAffectedRegisters(&affected_registers);
   OutSet registers_to_pop;
   OutSet registers_to_clear;
@@ -1535,12 +1542,6 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
                          affected_registers,
                          &registers_to_pop,
                          &registers_to_clear);
-  if (backtrack() != NULL) {
-    // Here we have a concrete backtrack location.  These are set up by choice
-    // nodes and so they indicate that we have a deferred save of the current
-    // position which we may need to emit here.
-    assembler->PushCurrentPosition();
-  }
   if (cp_offset_ != 0) {
     assembler->AdvanceCurrentPosition(cp_offset_);
   }
@@ -1553,9 +1554,6 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
 
   // On backtrack we need to restore state.
   assembler->Bind(&undo);
-  if (backtrack() != NULL) {
-    assembler->PopCurrentPosition();
-  }
   RestoreAffectedRegisters(assembler,
                            max_register,
                            registers_to_pop,
@@ -1563,6 +1561,7 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   if (backtrack() == NULL) {
     assembler->Backtrack();
   } else {
+    assembler->PopCurrentPosition();
     assembler->GoTo(backtrack());
   }
 }
@@ -3053,10 +3052,6 @@ class AlternativeGenerationList {
     }
   }
   ~AlternativeGenerationList() {
-    for (int i = 0; i < alt_gens_.length(); i++) {
-      alt_gens_[i]->possible_success.Unuse();
-      alt_gens_[i]->after.Unuse();
-    }
     for (int i = kAFew; i < alt_gens_.length(); i++) {
       delete alt_gens_[i];
       alt_gens_[i] = NULL;
@@ -3170,6 +3165,12 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   if (limit_result == DONE) return;
   ASSERT(limit_result == CONTINUE);
 
+  int new_flush_budget = trace->flush_budget() / choice_count;
+  if (trace->flush_budget() == 0 && trace->actions() != NULL) {
+    trace->Flush(compiler, this);
+    return;
+  }
+
   RecursionCheck rc(compiler);
 
   Trace* current_trace = trace;
@@ -3278,6 +3279,9 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       generate_full_check_inline = true;
     }
     if (generate_full_check_inline) {
+      if (new_trace.actions() != NULL) {
+        new_trace.set_flush_budget(new_flush_budget);
+      }
       for (int j = 0; j < guard_count; j++) {
         GenerateGuard(macro_assembler, guards->at(j), &new_trace);
       }
@@ -3294,13 +3298,21 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     macro_assembler->AdvanceCurrentPosition(-text_length);
     macro_assembler->GoTo(&second_choice);
   }
+
   // At this point we need to generate slow checks for the alternatives where
   // the quick check was inlined.  We can recognize these because the associated
   // label was bound.
   for (int i = first_normal_choice; i < choice_count - 1; i++) {
     AlternativeGeneration* alt_gen = alt_gens.at(i);
+    Trace new_trace(*current_trace);
+    // If there are actions to be flushed we have to limit how many times
+    // they are flushed.  Take the budget of the parent trace and distribute
+    // it fairly amongst the children.
+    if (new_trace.actions() != NULL) {
+      new_trace.set_flush_budget(new_flush_budget);
+    }
     EmitOutOfLineContinuation(compiler,
-                              current_trace,
+                              &new_trace,
                               alternatives_->at(i),
                               alt_gen,
                               preload_characters,

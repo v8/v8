@@ -3660,3 +3660,39 @@ TEST(DebuggerUnload) {
   v8::Debug::SetDebugEventListener(NULL);
   CheckDebuggerUnloaded(true);
 }
+
+
+int host_dispatch_hit_count = 0;
+static void HostDispatchHandlerHitCount(void* dispatch, void *data) {
+  host_dispatch_hit_count++;
+}
+
+
+// Test that clearing the debug event listener actually clears all break points
+// and related information.
+TEST(DebuggerHostDispatch) {
+  v8::HandleScope scope;
+  DebugLocalContext env;
+
+  const int kBufferSize = 1000;
+  uint16_t buffer[kBufferSize];
+  const char* command_continue =
+    "{\"seq\":106,"
+     "\"type\":\"request\","
+     "\"command\":\"continue\"}";
+
+  // Setup message and host dispatch handlers.
+  v8::Debug::SetMessageHandler(DummyMessageHandler);
+  v8::Debug::SetHostDispatchHandler(HostDispatchHandlerHitCount,
+                                    NULL);
+
+  // Fill a host dispatch and a continue command on the command queue before
+  // generating a debug break.
+  v8::Debug::SendHostDispatch(NULL);
+  v8::Debug::SendCommand(buffer, AsciiToUtf16(command_continue, buffer));
+  CompileRun("debugger");
+
+  // The host dispatch callback should be called.
+  CHECK_EQ(1, host_dispatch_hit_count);
+}
+

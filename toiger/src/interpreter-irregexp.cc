@@ -238,6 +238,10 @@ static bool RawMatch(const byte* code_base,
       BYTECODE(GOTO)
         pc = code_base + Load32Aligned(pc + 4);
         break;
+      BYTECODE(ADVANCE_CP_AND_GOTO)
+        current += insn >> BYTECODE_SHIFT;
+        pc = code_base + Load32Aligned(pc + 4);
+        break;
       BYTECODE(CHECK_GREEDY)
         if (current == backtrack_sp[-1]) {
           backtrack_sp--;

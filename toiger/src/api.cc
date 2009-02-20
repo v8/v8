@@ -2924,6 +2924,19 @@ void Debug::SendCommand(const uint16_t* command, int length) {
 }
 
 
+void Debug::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
+                                   void* data) {
+  EnsureInitialized("v8::Debug::SetHostDispatchHandler");
+  i::Debugger::SetHostDispatchHandler(handler, data);
+}
+
+
+void Debug::SendHostDispatch(void* dispatch) {
+  if (!i::V8::HasBeenSetup()) return;
+  i::Debugger::ProcessHostDispatch(dispatch);
+}
+
+
 Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
                           v8::Handle<v8::Value> data) {
   if (!i::V8::HasBeenSetup()) return Handle<Value>();
