@@ -679,6 +679,7 @@ void Logger::DeleteEvent(const char* name, void* object) {
 }
 
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
 int Logger::CodeObjectSize(Code* code) {
   // Check that the assumptions about the layout of the code object holds.
   ASSERT_EQ(reinterpret_cast<unsigned int>(code->instruction_start()) -
@@ -686,6 +687,7 @@ int Logger::CodeObjectSize(Code* code) {
             Code::kHeaderSize);
   return code->instruction_size() + Code::kHeaderSize;
 }
+#endif
 
 
 void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
