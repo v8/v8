@@ -460,7 +460,7 @@ void CodeGenerator::GenerateFastCaseSwitchCases(
     // we restore the expected frame for the next iteration (or exit
     // of the loop).  Otherwise we have to generate merge code to
     // expectation at the next case.
-    if (frame_ == NULL) {
+    if (!has_valid_frame()) {
       RegisterFile non_frame_registers = RegisterAllocator::Reserved();
       SetFrame(new VirtualFrame(start_frame), &non_frame_registers);
     } else {

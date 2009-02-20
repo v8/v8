@@ -382,6 +382,9 @@ void CodeGenerator::LoadCondition(Expression* x,
                                   JumpTarget* true_target,
                                   JumpTarget* false_target,
                                   bool force_cc) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(!in_spilled_code());
   ASSERT(!has_cc());
 
@@ -392,11 +395,17 @@ void CodeGenerator::LoadCondition(Expression* x,
     // Convert the TOS value to a boolean in the condition code register.
     ToBoolean(true_target, false_target);
   }
-  ASSERT(!force_cc || frame_ == NULL || has_cc());
+  ASSERT(!force_cc || !has_valid_frame() || has_cc());
+  ASSERT(!has_valid_frame() ||
+         (has_cc() && frame_->height() == original_height) ||
+         (!has_cc() && frame_->height() == original_height + 1));
 }
 
 
 void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(!in_spilled_code());
   JumpTarget true_target(this);
   JumpTarget false_target(this);
@@ -445,8 +454,9 @@ void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
     // A value is loaded on all paths reaching this point.
     loaded.Bind();
   }
-  ASSERT(frame_ != NULL);
+  ASSERT(has_valid_frame());
   ASSERT(!has_cc());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
@@ -1085,14 +1095,21 @@ void CodeGenerator::CheckStack() {
 
 
 void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   for (int i = 0; frame_ != NULL && i < statements->length(); i++) {
     VisitAndSpill(statements->at(i));
   }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitBlock(Block* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Block");
   CodeForStatementPosition(node);
@@ -1102,6 +1119,7 @@ void CodeGenerator::VisitBlock(Block* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
@@ -1118,6 +1136,9 @@ void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
 
 
 void CodeGenerator::VisitDeclaration(Declaration* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Declaration");
   CodeForStatementPosition(node);
@@ -1156,6 +1177,7 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     }
     frame_->CallRuntime(Runtime::kDeclareContextSlot, 4);
     // Ignore the return value (declarations are statements).
+    ASSERT(frame_->height() == original_height);
     return;
   }
 
@@ -1181,10 +1203,14 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // Get rid of the assigned value (declarations are statements).
     frame_->Drop();
   }
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ExpressionStatement");
   CodeForStatementPosition(node);
@@ -1192,18 +1218,26 @@ void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
   expression->MarkAsStatement();
   LoadAndSpill(expression);
   frame_->Drop();
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "// EmptyStatement");
   CodeForStatementPosition(node);
   // nothing to do
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitIfStatement(IfStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ IfStatement");
   // Generate different code depending on which parts of the if statement
@@ -1289,6 +1323,7 @@ void CodeGenerator::VisitIfStatement(IfStatement* node) {
   if (exit.is_linked()) {
     exit.Bind();
   }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
@@ -1342,6 +1377,9 @@ void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
 
 
 void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ WithEnterStatement");
   CodeForStatementPosition(node);
@@ -1360,10 +1398,14 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   }
   // Update context local.
   __ str(cp, frame_->Context());
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ WithExitStatement");
   CodeForStatementPosition(node);
@@ -1371,6 +1413,7 @@ void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
   __ ldr(cp, ContextOperand(cp, Context::PREVIOUS_INDEX));
   // Update context local.
   __ str(cp, frame_->Context());
+  ASSERT(frame_->height() == original_height);
 }
 
 
@@ -1438,6 +1481,9 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
 
 
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ SwitchStatement");
   CodeForStatementPosition(node);
@@ -1446,6 +1492,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
   LoadAndSpill(node->tag());
   if (TryGenerateFastCaseSwitchStatement(node)) {
+    ASSERT(frame_->height() == original_height);
     return;
   }
 
@@ -1523,10 +1570,14 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ LoopStatement");
   CodeForStatementPosition(node);
@@ -1707,10 +1758,14 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitForInStatement(ForInStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(!in_spilled_code());
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ForInStatement");
@@ -1904,10 +1959,14 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   exit.Bind();
 
   break_stack_height_ -= kForInStackSize;
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitTryCatch(TryCatch* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ TryCatch");
   CodeForStatementPosition(node);
@@ -2015,10 +2074,14 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   }
 
   exit.Bind();
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitTryFinally(TryFinally* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ TryFinally");
   CodeForStatementPosition(node);
@@ -2174,15 +2237,20 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     // Done.
     exit.Bind();
   }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ DebuggerStatament");
   CodeForStatementPosition(node);
   frame_->CallRuntime(Runtime::kDebugBreak, 0);
   // Ignore the return value.
+  ASSERT(frame_->height() == original_height);
 }
 
 
@@ -2202,26 +2270,40 @@ void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
 
 
 void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
   Handle<JSFunction> boilerplate = BuildBoilerplate(node);
   // Check for stack-overflow exception.
-  if (HasStackOverflow()) return;
+  if (HasStackOverflow()) {
+    ASSERT(frame_->height() == original_height);
+    return;
+  }
   InstantiateBoilerplate(boilerplate);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
   InstantiateBoilerplate(node->boilerplate());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitConditional(Conditional* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Conditional");
   JumpTarget then(this);
@@ -2236,6 +2318,7 @@ void CodeGenerator::VisitConditional(Conditional* node) {
   else_.Bind();
   LoadAndSpill(node->else_expression(), typeof_state());
   exit.Bind();
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
@@ -2358,13 +2441,20 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
 
 
 void CodeGenerator::VisitSlot(Slot* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Slot");
   LoadFromSlot(node, typeof_state());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ VariableProxy");
 
@@ -2377,18 +2467,26 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
     Reference ref(this, node);
     ref.GetValueAndSpill(typeof_state());
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitLiteral(Literal* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Literal");
   __ mov(r0, Operand(node->handle()));
   frame_->EmitPush(r0);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ RexExp Literal");
 
@@ -2424,6 +2522,7 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
   done.Bind();
   // Push the literal.
   frame_->EmitPush(r2);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
@@ -2471,6 +2570,9 @@ void DeferredObjectLiteral::Generate() {
 
 
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ObjectLiteral");
 
@@ -2541,10 +2643,14 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
       }
     }
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ArrayLiteral");
 
@@ -2586,10 +2692,14 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
       __ RecordWrite(r1, r3, r2);
     }
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   ASSERT(!in_spilled_code());
   VirtualFrame::SpilledScope spilled_scope(this);
   // Call runtime routine to allocate the catch extension object and
@@ -2600,63 +2710,73 @@ void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
   Result result =
       frame_->CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
   frame_->EmitPush(result.reg());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Assignment");
   CodeForStatementPosition(node);
 
-  Reference target(this, node->target());
-  if (target.is_illegal()) {
-    // Fool the virtual frame into thinking that we left the assignment's
-    // value on the frame.
-    __ mov(r0, Operand(Smi::FromInt(0)));
-    frame_->EmitPush(r0);
-    return;
-  }
-
-  if (node->op() == Token::ASSIGN ||
-      node->op() == Token::INIT_VAR ||
-      node->op() == Token::INIT_CONST) {
-    LoadAndSpill(node->value());
-
-  } else {
-    target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
-    Literal* literal = node->value()->AsLiteral();
-    if (literal != NULL && literal->handle()->IsSmi()) {
-      SmiOperation(node->binary_op(), literal->handle(), false);
+  { Reference target(this, node->target());
+    if (target.is_illegal()) {
+      // Fool the virtual frame into thinking that we left the assignment's
+      // value on the frame.
+      __ mov(r0, Operand(Smi::FromInt(0)));
       frame_->EmitPush(r0);
+      ASSERT(frame_->height() == original_height + 1);
+      return;
+    }
 
-    } else {
+    if (node->op() == Token::ASSIGN ||
+        node->op() == Token::INIT_VAR ||
+        node->op() == Token::INIT_CONST) {
       LoadAndSpill(node->value());
-      GenericBinaryOperation(node->binary_op());
-      frame_->EmitPush(r0);
-    }
-  }
 
-  Variable* var = node->target()->AsVariableProxy()->AsVariable();
-  if (var != NULL &&
-      (var->mode() == Variable::CONST) &&
-      node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
-    // Assignment ignored - leave the value on the stack.
-
-  } else {
-    CodeForSourcePosition(node->position());
-    if (node->op() == Token::INIT_CONST) {
-      // Dynamic constant initializations must use the function context
-      // and initialize the actual constant declared. Dynamic variable
-      // initializations are simply assignments and use SetValue.
-      target.SetValue(CONST_INIT);
     } else {
-      target.SetValue(NOT_CONST_INIT);
+      target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
+      Literal* literal = node->value()->AsLiteral();
+      if (literal != NULL && literal->handle()->IsSmi()) {
+        SmiOperation(node->binary_op(), literal->handle(), false);
+        frame_->EmitPush(r0);
+
+      } else {
+        LoadAndSpill(node->value());
+        GenericBinaryOperation(node->binary_op());
+        frame_->EmitPush(r0);
+      }
+    }
+
+    Variable* var = node->target()->AsVariableProxy()->AsVariable();
+    if (var != NULL &&
+        (var->mode() == Variable::CONST) &&
+        node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
+      // Assignment ignored - leave the value on the stack.
+
+    } else {
+      CodeForSourcePosition(node->position());
+      if (node->op() == Token::INIT_CONST) {
+        // Dynamic constant initializations must use the function context
+        // and initialize the actual constant declared. Dynamic variable
+        // initializations are simply assignments and use SetValue.
+        target.SetValue(CONST_INIT);
+      } else {
+        target.SetValue(NOT_CONST_INIT);
+      }
     }
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitThrow(Throw* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Throw");
 
@@ -2664,19 +2784,28 @@ void CodeGenerator::VisitThrow(Throw* node) {
   CodeForSourcePosition(node->position());
   frame_->CallRuntime(Runtime::kThrow, 1);
   frame_->EmitPush(r0);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitProperty(Property* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Property");
 
-  Reference property(this, node);
-  property.GetValueAndSpill(typeof_state());
+  { Reference property(this, node);
+    property.GetValueAndSpill(typeof_state());
+  }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitCall(Call* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Call");
 
@@ -2813,10 +2942,14 @@ void CodeGenerator::VisitCall(Call* node) {
     CallWithArguments(args, node->position());
     frame_->EmitPush(r0);
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitCallEval(CallEval* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CallEval");
 
@@ -2832,44 +2965,49 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   // Prepare stack for call to resolved function.
   LoadAndSpill(function);
   __ mov(r2, Operand(Factory::undefined_value()));
-  __ push(r2);  // Slot for receiver
-  for (int i = 0; i < args->length(); i++) {
+  frame_->EmitPush(r2);  // Slot for receiver
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
     LoadAndSpill(args->at(i));
   }
 
   // Prepare stack for call to ResolvePossiblyDirectEval.
-  __ ldr(r1, MemOperand(sp, args->length() * kPointerSize + kPointerSize));
-  __ push(r1);
-  if (args->length() > 0) {
-    __ ldr(r1, MemOperand(sp, args->length() * kPointerSize));
-    __ push(r1);
+  __ ldr(r1, MemOperand(sp, arg_count * kPointerSize + kPointerSize));
+  frame_->EmitPush(r1);
+  if (arg_count > 0) {
+    __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
+    frame_->EmitPush(r1);
   } else {
-    __ push(r2);
+    frame_->EmitPush(r2);
   }
 
   // Resolve the call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+  frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
 
   // Touch up stack with the right values for the function and the receiver.
   __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize));
-  __ str(r1, MemOperand(sp, (args->length() + 1) * kPointerSize));
+  __ str(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize + kPointerSize));
-  __ str(r1, MemOperand(sp, args->length() * kPointerSize));
+  __ str(r1, MemOperand(sp, arg_count * kPointerSize));
 
   // Call the function.
   CodeForSourcePosition(node->position());
 
-  CallFunctionStub call_function(args->length());
-  __ CallStub(&call_function);
+  CallFunctionStub call_function(arg_count);
+  frame_->CallStub(&call_function, arg_count + 1);
 
   __ ldr(cp, frame_->Context());
   // Remove the function from the stack.
   frame_->Drop();
   frame_->EmitPush(r0);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitCallNew(CallNew* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CallNew");
   CodeForStatementPosition(node);
@@ -2915,6 +3053,7 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
 
   // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
   __ str(r0, frame_->Top());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
@@ -3084,8 +3223,13 @@ void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
 
 
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   if (CheckForInlineRuntimeCall(node)) {
+    ASSERT((has_cc() && frame_->height() == original_height) ||
+           (!has_cc() && frame_->height() == original_height + 1));
     return;
   }
 
@@ -3125,10 +3269,14 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
     frame_->Drop();
     frame_->EmitPush(r0);
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ UnaryOperation");
 
@@ -3261,10 +3409,15 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
     }
     frame_->EmitPush(r0);  // r0 has result
   }
+  ASSERT((has_cc() && frame_->height() == original_height) ||
+         (!has_cc() && frame_->height() == original_height + 1));
 }
 
 
 void CodeGenerator::VisitCountOperation(CountOperation* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CountOperation");
 
@@ -3288,6 +3441,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
         __ mov(r0, Operand(Smi::FromInt(0)));
         frame_->EmitPush(r0);
       }
+      ASSERT(frame_->height() == original_height + 1);
       return;
     }
     target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
@@ -3353,10 +3507,14 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
 
   // Postfix: Discard the new value and use the old.
   if (is_postfix) frame_->EmitPop(r0);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ BinaryOperation");
   Token::Value op = node->op();
@@ -3478,17 +3636,26 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     }
     frame_->EmitPush(r0);
   }
+  ASSERT((has_cc() && frame_->height() == original_height) ||
+         (!has_cc() && frame_->height() == original_height + 1));
 }
 
 
 void CodeGenerator::VisitThisFunction(ThisFunction* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   __ ldr(r0, frame_->Function());
   frame_->EmitPush(r0);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
   VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CompareOperation");
 
@@ -3531,6 +3698,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       }
 
       cc_reg_ = eq;
+      ASSERT(has_cc() && frame_->height() == original_height);
       return;
     }
   }
@@ -3626,6 +3794,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       // never returned from the typeof operator.
       false_target()->Jump();
     }
+    ASSERT(!has_valid_frame() ||
+           (has_cc() && frame_->height() == original_height));
     return;
   }
 
@@ -3684,6 +3854,8 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
     default:
       UNREACHABLE();
   }
+  ASSERT((has_cc() && frame_->height() == original_height) ||
+         (!has_cc() && frame_->height() == original_height + 1));
 }
 
 
