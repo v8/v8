@@ -166,7 +166,7 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   // Called from RegExp if the stack-guard is triggered.
   // If the code object is relocated, the return address is fixed before
   // returning.
-  static int CheckStackGuardState(Address return_address, Code* re_code);
+  static int CheckStackGuardState(Address* return_address, Code* re_code);
 
   // Called from RegExp if the backtrack stack limit is hit.
   // Tries to expand the stack. Returns the new stack-pointer if

@@ -5658,3 +5658,123 @@ THREADED_TEST(CrossContextNew) {
   context0.Dispose();
   context1.Dispose();
 }
+
+
+class RegExpInterruptTest {
+ public:
+  void RunTest() {
+    block_ = i::OS::CreateSemaphore(0);
+    gc_count_ = 0;
+    gc_during_regexp_ = 0;
+    regexp_success_ = false;
+    gc_success_ = false;
+    GCThread gc_thread(this);
+    gc_thread.Start();
+    v8::Locker::StartPreemption(1);
+
+    LongRunningRegExp();
+    {
+      v8::Unlocker unlock;
+      gc_thread.Join();
+    }
+    v8::Locker::StopPreemption();
+    CHECK(regexp_success_);
+    CHECK(gc_success_);
+  }
+ private:
+  // Number of garbage collections required.
+  static const int kRequiredGCs = 5;
+
+  class GCThread : public i::Thread {
+   public:
+    explicit GCThread(RegExpInterruptTest* test)
+        : test_(test) {}
+    virtual void Run() {
+      test_->CollectGarbage();
+    }
+   private:
+     RegExpInterruptTest* test_;
+  };
+
+  void CollectGarbage() {
+    block_->Wait();
+    while (gc_during_regexp_ < kRequiredGCs) {
+      {
+        v8::Locker lock;
+        // TODO(lrn): Perhaps create some garbage before collecting.
+        i::Heap::CollectAllGarbage();
+        gc_count_++;
+      }
+      i::OS::Sleep(1);
+    }
+    gc_success_ = true;
+  }
+
+  void LongRunningRegExp() {
+    block_->Signal();  // Enable garbage collection thread on next preemption.
+    int rounds = 0;
+    while (gc_during_regexp_ < kRequiredGCs) {
+      int gc_before = gc_count_;
+      {
+        // match 15-30 "a"'s against 14 and a "b".
+        const char* c_source =
+            "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"
+            ".exec('aaaaaaaaaaaaaaab') === null";
+        Local<String> source = String::New(c_source);
+        Local<Script> script = Script::Compile(source);
+        Local<Value> result = script->Run();
+        if (!result->BooleanValue()) {
+          gc_during_regexp_ = kRequiredGCs;  // Allow gc thread to exit.
+          return;
+        }
+      }
+      {
+        // match 15-30 "a"'s against 15 and a "b".
+        const char* c_source =
+            "/a?a?a?a?a?a?a?a?a?a?a?a?a?a?aaaaaaaaaaaaaaaa/"
+            ".exec('aaaaaaaaaaaaaaaab')[0] === 'aaaaaaaaaaaaaaaa'";
+        Local<String> source = String::New(c_source);
+        Local<Script> script = Script::Compile(source);
+        Local<Value> result = script->Run();
+        if (!result->BooleanValue()) {
+          gc_during_regexp_ = kRequiredGCs;
+          return;
+        }
+      }
+      int gc_after = gc_count_;
+      gc_during_regexp_ += gc_after - gc_before;
+      rounds++;
+      i::OS::Sleep(1);
+    }
+    regexp_success_ = true;
+  }
+
+  i::Semaphore* block_;
+  int gc_count_;
+  int gc_during_regexp_;
+  bool regexp_success_;
+  bool gc_success_;
+};
+
+
+// Test that a regular expression execution can be interrupted and
+// survive a garbage collection.
+TEST(RegExpInterruption) {
+  v8::Locker lock;
+  v8::V8::Initialize();
+  v8::HandleScope scope;
+  Local<Context> local_env;
+  {
+    LocalContext env;
+    local_env = env.local();
+  }
+
+  // Local context should still be live.
+  CHECK(!local_env.IsEmpty());
+  local_env->Enter();
+
+  // Should complete without problems.
+  RegExpInterruptTest().RunTest();
+
+  local_env->Exit();
+}
