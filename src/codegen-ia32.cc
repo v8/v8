@@ -4482,29 +4482,31 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
       FloatingPointHelper::LoadFloatOperands(masm, ecx);
 
-      Label non_smi_result, skip_allocation, operands_failed_conversion;
-
+      Label non_int32_operands, non_smi_result, skip_allocation;
       // Reserve space for converted numbers.
-      __ sub(Operand(esp), Immediate(4 * kPointerSize));
+      __ sub(Operand(esp), Immediate(2 * kPointerSize));
 
-      // Convert right operand to int32.
-      __ fnclex();
-      __ fisttp_d(Operand(esp, 2 * kPointerSize));
+      // Check if right operand is int32.
+      __ fist_s(Operand(esp, 1 * kPointerSize));
+      __ fild_s(Operand(esp, 1 * kPointerSize));
+      __ fucompp();
       __ fnstsw_ax();
-      __ test(eax, Immediate(1));
-      __ j(not_zero, &operands_failed_conversion);
+      __ sahf();
+      __ j(not_zero, &non_int32_operands);
+      __ j(parity_even, &non_int32_operands);
 
-      // Convert left operand to int32.
-      __ fisttp_d(Operand(esp, 0 * kPointerSize));
+      // Check if left operand is int32.
+      __ fist_s(Operand(esp, 0 * kPointerSize));
+      __ fild_s(Operand(esp, 0 * kPointerSize));
+      __ fucompp();
       __ fnstsw_ax();
-      __ test(eax, Immediate(1));
-      __ j(not_zero, &operands_failed_conversion);
+      __ sahf();
+      __ j(not_zero, &non_int32_operands);
+      __ j(parity_even, &non_int32_operands);
 
       // Get int32 operands and perform bitop.
       __ pop(eax);
-      __ add(Operand(esp), Immediate(kPointerSize));
       __ pop(ecx);
-      __ add(Operand(esp), Immediate(kPointerSize));
       switch (op_) {
         case Token::BIT_OR:  __ or_(eax, Operand(ecx)); break;
         case Token::BIT_AND: __ and_(eax, Operand(ecx)); break;
@@ -4552,11 +4554,10 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
         __ ret(2 * kPointerSize);
       }
-
-      // Free ST(0) before calling runtime.
-      __ bind(&operands_failed_conversion);
-      __ add(Operand(esp), Immediate(4 * kPointerSize));
+      __ bind(&non_int32_operands);
+      // Restore stacks and operands before calling runtime.
       __ ffree(0);
+      __ add(Operand(esp), Immediate(2 * kPointerSize));
 
       // SHR should return uint32 - go to runtime for non-smi/negative result.
       if (op_ == Token::SHR) __ bind(&non_smi_result);

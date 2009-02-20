@@ -635,8 +635,6 @@ class Assembler : public Malloced {
   void fistp_s(const Operand& adr);
   void fistp_d(const Operand& adr);
 
-  void fisttp_d(const Operand& adr);
-
   void fabs();
   void fchs();
 
@@ -665,7 +663,6 @@ class Assembler : public Malloced {
   void fcompp();
   void fnstsw_ax();
   void fwait();
-  void fnclex();
 
   void frndint();
 
