@@ -113,3 +113,17 @@ assertEquals(28672, toInt32(base + 27925));
 assertEquals(28672, toInt32(base + 29042));
 assertEquals(28672, toInt32(base + 30159));
 assertEquals(32768, toInt32(base + 31276));
+
+// bignum is (2^53 - 1) * 2^31 - highest number with bit 31 set.
+var bignum = Math.pow(2, 84) - Math.pow(2, 31);
+assertEquals(-Math.pow(2,31), toInt32(bignum));
+assertEquals(-Math.pow(2,31), toInt32(-bignum));
+assertEquals(0, toInt32(2 * bignum));
+assertEquals(0, toInt32(-(2 * bignum)));
+assertEquals(0, toInt32(bignum - Math.pow(2,31)));
+assertEquals(0, toInt32(-(bignum - Math.pow(2,31))));
+
+// max_fraction is largest number below 1.
+var max_fraction = (1 - Math.pow(2,-53));
+assertEquals(0, toInt32(max_fraction));
+assertEquals(0, toInt32(-max_fraction));
