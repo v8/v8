@@ -1046,7 +1046,7 @@ int RegExpMacroAssemblerIA32::CaseInsensitiveCompareUC16(uc16** buffer,
 }
 
 
-int RegExpMacroAssemblerIA32::CheckStackGuardState(Address return_address,
+int RegExpMacroAssemblerIA32::CheckStackGuardState(Address* return_address,
                                                    Code* re_code) {
   if (StackGuard::IsStackOverflow()) {
     Top::StackOverflow();
@@ -1059,15 +1059,16 @@ int RegExpMacroAssemblerIA32::CheckStackGuardState(Address return_address,
   // Prepare for possible GC.
   Handle<Code> code_handle(re_code);
 
-  ASSERT(re_code->instruction_start() <= return_address);
-  ASSERT(return_address <=
+  ASSERT(re_code->instruction_start() <= *return_address);
+  ASSERT(*return_address <=
       re_code->instruction_start() + re_code->instruction_size());
 
   Object* result = Execution::HandleStackGuardInterrupt();
 
   if (*code_handle != re_code) {  // Return address no longer valid
     int delta = *code_handle - re_code;
-    *reinterpret_cast<int32_t*>(return_address) += delta;
+    // Overwrite the return address on the stack.
+    *return_address += delta;
   }
 
   if (result->IsException()) {

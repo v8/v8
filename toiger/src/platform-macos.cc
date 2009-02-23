@@ -185,6 +185,11 @@ int OS::VSNPrintF(Vector<char> str,
 }
 
 
+char* OS::StrChr(char* str, int c) {
+  return strchr(str, c);
+}
+
+
 void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
   strncpy(dest.start(), src, n);
 }

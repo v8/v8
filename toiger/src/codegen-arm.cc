@@ -2086,6 +2086,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
       // been dropped.
       __ ldr(r1, frame_->ElementAt(kNextIndex - 1));
       __ str(r1, MemOperand(r3));
+      // The code slot has already been dropped from the handler.
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
 
       if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {

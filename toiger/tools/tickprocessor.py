@@ -386,9 +386,15 @@ class TickProcessor(object):
         total_stacks += count
     all_stacks_items = all_stacks.items();
     all_stacks_items.sort(key = itemgetter(1), reverse=True)
+    missing_percentage = (self.total_number_of_ticks - total_stacks) * 100.0 / self.total_number_of_ticks
+    print('  %(ticks)5d  %(total)5.1f%%  <no call path information>' % {
+      'ticks' : self.total_number_of_ticks - total_stacks,
+      'total' : missing_percentage
+    })
     for stack, count in all_stacks_items:
-      total_percentage = count * 100.0 / total_stacks
-      print('  %(total)5.1f%%  %(call_path)s' % {
+      total_percentage = count * 100.0 / self.total_number_of_ticks
+      print('  %(ticks)5d  %(total)5.1f%%  %(call_path)s' % {
+        'ticks' : count,
         'total' : total_percentage,
         'call_path' : stack[0] + '  <-  ' + stack[1]
       })

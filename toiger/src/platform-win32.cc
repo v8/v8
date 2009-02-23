@@ -732,6 +732,11 @@ int OS::VSNPrintF(Vector<char> str, const char* format, va_list args) {
 }
 
 
+char* OS::StrChr(char* str, int c) {
+  return const_cast<char*>(strchr(str, c));
+}
+
+
 void OS::StrNCpy(Vector<char> dest, const char* src, size_t n) {
   int result = strncpy_s(dest.start(), dest.length(), src, n);
   USE(result);
