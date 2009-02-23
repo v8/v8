@@ -382,14 +382,28 @@ void CodeGenerator::LoadCondition(Expression* x,
                                   JumpTarget* true_target,
                                   JumpTarget* false_target,
                                   bool force_cc) {
-#ifdef DEBUG
-  int original_height = frame_->height();
-#endif
   ASSERT(!in_spilled_code());
   ASSERT(!has_cc());
+  int original_height = frame_->height();
 
   { CodeGenState new_state(this, typeof_state, true_target, false_target);
     Visit(x);
+
+    // If we hit a stack overflow, we may not have actually visited
+    // the expression.  In that case, we ensure that we have a
+    // valid-looking frame state because we will continue to generate
+    // code as we unwind the C++ stack.
+    //
+    // It's possible to have both a stack overflow and a valid frame
+    // state (eg, a subexpression overflowed, visiting it returned
+    // with a dummied frame state, and visiting this expression
+    // returned with a normal-looking state).
+    if (HasStackOverflow() &&
+        has_valid_frame() &&
+        !has_cc() &&
+        frame_->height() == original_height) {
+      true_target->Jump();
+    }
   }
   if (force_cc && frame_ != NULL && !has_cc()) {
     // Convert the TOS value to a boolean in the condition code register.

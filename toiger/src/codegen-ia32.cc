@@ -410,11 +410,25 @@ void CodeGenerator::LoadCondition(Expression* x,
                                   ControlDestination* dest,
                                   bool force_control) {
   ASSERT(!in_spilled_code());
-#ifdef DEBUG
   int original_height = frame_->height();
-#endif
+
   { CodeGenState new_state(this, typeof_state, dest);
     Visit(x);
+
+    // If we hit a stack overflow, we may not have actually visited
+    // the expression.  In that case, we ensure that we have a
+    // valid-looking frame state because we will continue to generate
+    // code as we unwind the C++ stack.
+    //
+    // It's possible to have both a stack overflow and a valid frame
+    // state (eg, a subexpression overflowed, visiting it returned
+    // with a dummied frame state, and visiting this expression
+    // returned with a normal-looking state).
+    if (HasStackOverflow() &&
+        !dest->is_used() &&
+        frame_->height() == original_height) {
+      dest->Goto(true);
+    }
   }
 
   if (force_control && !dest->is_used()) {
