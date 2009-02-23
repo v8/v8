@@ -1764,7 +1764,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
   // Generate code for the statements in the try block.
   VisitStatements(node->try_block()->statements());
-  frame_->Pop();  // Discard the result.
+  // Discard the code slot from the handler.
+  frame_->Pop();
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
@@ -1776,16 +1777,15 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   }
 
   // Unlink from try chain.
-  // TOS contains code slot
-  const int kNextIndex = (StackHandlerConstants::kNextOffset
-                          + StackHandlerConstants::kAddressDisplacement)
-                       / kPointerSize;
+  // The code slot has already been discarded, so the next index is
+  // adjusted by 1.
+  const int kNextIndex =
+      (StackHandlerConstants::kNextOffset / kPointerSize) - 1;
   __ ldr(r1, frame_->Element(kNextIndex));  // read next_sp
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
   __ str(r1, MemOperand(r3));
-  ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
+  // The code slot has already been dropped from the handler.
   frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-  // Code slot popped.
   if (nof_unlinks > 0) __ b(&exit);
 
   // Generate unlink code for the (formerly) shadowing labels that have been
@@ -1802,9 +1802,8 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
       __ ldr(r1, frame_->Element(kNextIndex));
       __ str(r1, MemOperand(r3));
-      ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
+      // The code slot has already been dropped from the handler.
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-      // Code slot popped.
 
       __ b(shadows[i]->original_label());
     }
@@ -1891,7 +1890,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // Unlink from try chain;
   __ bind(&unlink);
 
-  frame_->Pop(r0);  // Store TOS in r0 across stack manipulation
+  frame_->Pop(r0);  // Preserve TOS result in r0 across stack manipulation.
   // Reload sp from the top handler, because some statements that we
   // break from (eg, for...in) may have left stuff on the stack.
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
@@ -1902,8 +1901,11 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   __ ldr(r1, frame_->Element(kNextIndex));
   __ str(r1, MemOperand(r3));
   ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
+  // The stack pointer was restored to just below the code slot (the
+  // topmost slot) of the handler, so all but the code slot need to be
+  // dropped.
   frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-  // Code slot popped.
+  // Restore result to TOS.
   frame_->Push(r0);
 
   // --- Finally block ---
@@ -1932,14 +1934,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_bound()) {
       __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
-      if (shadows[i]->original_label() != &function_return_) {
-        Label next;
-        __ b(ne, &next);
-        __ b(shadows[i]->original_label());
-        __ bind(&next);
-      } else {
-        __ b(eq, shadows[i]->original_label());
-      }
+      __ b(eq, shadows[i]->original_label());
     }
   }
 
