@@ -2025,18 +2025,21 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // label.
   int nof_escapes = node->escaping_targets()->length();
   List<ShadowTarget*> shadows(1 + nof_escapes);
+
+  // Add the shadow target for the function return.
+  static const int kReturnShadowIndex = 0;
   shadows.Add(new ShadowTarget(&function_return_));
+  bool function_return_was_shadowed = function_return_is_shadowed_;
+  function_return_is_shadowed_ = true;
+  ASSERT(shadows[kReturnShadowIndex]->other_target() == &function_return_);
+
+  // Add the remaining shadow targets.
   for (int i = 0; i < nof_escapes; i++) {
     shadows.Add(new ShadowTarget(node->escaping_targets()->at(i)));
   }
-  bool function_return_was_shadowed = function_return_is_shadowed_;
-  function_return_is_shadowed_ = true;
 
   // Generate code for the statements in the try block.
   VisitStatementsAndSpill(node->try_block()->statements());
-  if (frame_ != NULL) {
-    frame_->Drop();  // Discard the result.
-  }
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
@@ -2048,17 +2051,14 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   }
   function_return_is_shadowed_ = function_return_was_shadowed;
 
-  const int kNextIndex = (StackHandlerConstants::kNextOffset
-                          + StackHandlerConstants::kAddressDisplacement)
-                       / kPointerSize;
+  const int kNextIndex = StackHandlerConstants::kNextOffset / kPointerSize;
   // If we can fall off the end of the try block, unlink from try chain.
-  if (frame_ != NULL) {
-    __ ldr(r1, frame_->ElementAt(kNextIndex));  // read next_sp
+  if (has_valid_frame()) {
+    // The next handler address is at kNextIndex in the stack.
+    __ ldr(r1, frame_->ElementAt(kNextIndex));
     __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
     __ str(r1, MemOperand(r3));
-    ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
-    frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-    // Code slot popped.
+    frame_->Drop(StackHandlerConstants::kSize / kPointerSize);
     if (nof_unlinks > 0) {
       exit.Jump();
     }
@@ -2070,19 +2070,27 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
     if (shadows[i]->is_linked()) {
       // Unlink from try chain;
       shadows[i]->Bind();
+      // Because we can be jumping here (to spilled code) from unspilled
+      // code, we need to reestablish a spilled frame at this block.
+      frame_->SpillAll();
 
       // Reload sp from the top handler, because some statements that we
       // break from (eg, for...in) may have left stuff on the stack.
       __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
       __ ldr(sp, MemOperand(r3));
-      frame_->Forget(frame_->height() - handler_height);
+      // The stack pointer was restored to just below the code slot
+      // (the topmost slot) in the handler.
+      frame_->Forget(frame_->height() - handler_height + 1);
 
-      __ ldr(r1, frame_->ElementAt(kNextIndex));
+      // kNextIndex is off by one because the code slot has already
+      // been dropped.
+      __ ldr(r1, frame_->ElementAt(kNextIndex - 1));
       __ str(r1, MemOperand(r3));
-      ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-      // Code slot popped.
-      frame_->Forget(1);
+
+      if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
+        frame_->PrepareForReturn();
+      }
       shadows[i]->other_target()->Jump();
     }
   }
@@ -2116,7 +2124,6 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   __ mov(r2, Operand(Smi::FromInt(THROWING)));
   finally_block.Jump();
 
-
   // --- Try block ---
   try_block.Bind();
 
@@ -2131,12 +2138,18 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // label.
   int nof_escapes = node->escaping_targets()->length();
   List<ShadowTarget*> shadows(1 + nof_escapes);
+
+  // Add the shadow target for the function return.
+  static const int kReturnShadowIndex = 0;
   shadows.Add(new ShadowTarget(&function_return_));
+  bool function_return_was_shadowed = function_return_is_shadowed_;
+  function_return_is_shadowed_ = true;
+  ASSERT(shadows[kReturnShadowIndex]->other_target() == &function_return_);
+
+  // Add the remaining shadow targets.
   for (int i = 0; i < nof_escapes; i++) {
     shadows.Add(new ShadowTarget(node->escaping_targets()->at(i)));
   }
-  bool function_return_was_shadowed = function_return_is_shadowed_;
-  function_return_is_shadowed_ = true;
 
   // Generate code for the statements in the try block.
   VisitStatementsAndSpill(node->try_block()->statements());
@@ -2153,7 +2166,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
 
   // If we can fall off the end of the try block, set the state on the stack
   // to FALLING.
-  if (frame_ != NULL) {
+  if (has_valid_frame()) {
     __ mov(r0, Operand(Factory::undefined_value()));  // fake TOS
     frame_->EmitPush(r0);
     __ mov(r2, Operand(Smi::FromInt(FALLING)));
@@ -2166,13 +2179,17 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // have been jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
+      // Because we can be jumping here (to spilled code) from
+      // unspilled code, we need to reestablish a spilled frame at
+      // this block.
       shadows[i]->Bind();
-      if (shadows[i]->other_target() == &function_return_) {
+      frame_->SpillAll();
+      if (i == kReturnShadowIndex) {
         // If this label shadowed the function return, materialize the
         // return value on the stack.
         frame_->EmitPush(r0);
       } else {
-        // Fake TOS for labels that shadowed breaks and continues.
+        // Fake TOS for targets that shadowed breaks and continues.
         __ mov(r0, Operand(Factory::undefined_value()));
         frame_->EmitPush(r0);
       }
@@ -2184,21 +2201,25 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // Unlink from try chain;
   unlink.Bind();
 
-  frame_->EmitPop(r0);  // Store TOS in r0 across stack manipulation
+  // Preserve TOS result in r0 across stack manipulation.
+  frame_->EmitPop(r0);
   // Reload sp from the top handler, because some statements that we
   // break from (eg, for...in) may have left stuff on the stack.
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
   __ ldr(sp, MemOperand(r3));
-  frame_->Forget(frame_->height() - handler_height);
+  // The stack pointer was restored to just below the code slot
+  // (the topmost slot) in the handler.
+  frame_->Forget(frame_->height() - handler_height + 1);
   const int kNextIndex = (StackHandlerConstants::kNextOffset
                           + StackHandlerConstants::kAddressDisplacement)
                        / kPointerSize;
   __ ldr(r1, frame_->ElementAt(kNextIndex));
   __ str(r1, MemOperand(r3));
   ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
+  // Drop the rest of the handler (not including the already dropped
+  // code slot).
   frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-  // Code slot popped.
-  frame_->Forget(1);
+  // Restore the result to TOS.
   frame_->EmitPush(r0);
 
   // --- Finally block ---
@@ -2218,7 +2239,7 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   VisitStatementsAndSpill(node->finally_block()->statements());
 
   break_stack_height_ -= kFinallyStackSize;
-  if (frame_ != NULL) {
+  if (has_valid_frame()) {
     JumpTarget exit(this);
     // Restore state and return value or faked TOS.
     frame_->EmitPop(r2);
@@ -2228,14 +2249,16 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     // shadowing labels.
     for (int i = 0; i <= nof_escapes; i++) {
       if (shadows[i]->is_bound()) {
+        JumpTarget* original = shadows[i]->other_target();
         __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
-        if (shadows[i]->other_target() != &function_return_) {
-          JumpTarget next(this);
-          next.Branch(ne);
-          shadows[i]->other_target()->Jump();
-          next.Bind();
+        if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
+          JumpTarget skip(this);
+          skip.Branch(ne);
+          frame_->PrepareForReturn();
+          original->Jump();
+          skip.Bind();
         } else {
-          shadows[i]->other_target()->Branch(eq);
+          original->Branch(eq);
         }
       }
     }

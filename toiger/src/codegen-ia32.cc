@@ -2654,10 +2654,10 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
   // If we can fall off the end of the try block, unlink from try chain.
   if (has_valid_frame()) {
+    // The TOS is the next handler address.
     frame_->EmitPop(eax);
-    __ mov(Operand::StaticVariable(handler_address), eax);  // TOS == next_sp
+    __ mov(Operand::StaticVariable(handler_address), eax);
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-    // next_sp popped.
     if (nof_unlinks > 0) {
       exit.Jump();
     }
@@ -2668,10 +2668,9 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       // Unlink from try chain; be careful not to destroy the TOS.
-      //
+      shadows[i]->Bind();
       // Because we can be jumping here (to spilled code) from unspilled
       // code, we need to reestablish a spilled frame at this block.
-      shadows[i]->Bind();
       frame_->SpillAll();
 
       // Reload sp from the top handler, because some statements that we
@@ -2718,7 +2717,6 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // In case of thrown exceptions, this is where we continue.
   __ Set(ecx, Immediate(Smi::FromInt(THROWING)));
   finally_block.Jump();
-
 
   // --- Try block ---
   try_block.Bind();
