@@ -428,7 +428,7 @@ class Socket {
   virtual ~Socket() {}
 
   // Server initialization.
-  virtual bool Bind (const int port) = 0;
+  virtual bool Bind(const int port) = 0;
   virtual bool Listen(int backlog) const = 0;
   virtual Socket* Accept() const = 0;
 

@@ -13,9 +13,9 @@ static const char* kLocalhost = "localhost";
 
 class SocketListenerThread : public Thread {
  public:
-  SocketListenerThread(int data_size) : data_size_(data_size),
-                                        server_(NULL), client_(NULL),
-                                        listening_(OS::CreateSemaphore(0)) {
+  explicit SocketListenerThread(int data_size)
+      : data_size_(data_size), server_(NULL), client_(NULL),
+        listening_(OS::CreateSemaphore(0)) {
     data_ = new char[data_size_];
   }
   ~SocketListenerThread() {
@@ -50,7 +50,7 @@ void SocketListenerThread::Run() {
   ok = server_->Listen(1);
   CHECK(ok);
   listening_->Signal();
-  
+
   // Accept a connection.
   client_ = server_->Accept();
   CHECK(client_ != NULL);
@@ -70,7 +70,7 @@ static void SendAndReceive(char *data, int len) {
   SocketListenerThread* listener = new SocketListenerThread(len);
   listener->Start();
   listener->WaitForListening();
-  
+
   // Connect and write some data.
   Socket* client = OS::CreateSocket();
   CHECK(client != NULL);

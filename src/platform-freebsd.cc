@@ -647,9 +647,9 @@ class FreeBSDSocket : public Socket {
   }
 
   // Server initialization.
-  bool Bind (const int port);
+  bool Bind(const int port);
   bool Listen(int backlog) const;
-  Socket* Accept () const;
+  Socket* Accept() const;
 
   // Client initialization.
   bool Connect(const char* host, const char* port);
@@ -678,7 +678,7 @@ bool FreeBSDSocket::Bind(const int port) {
   addr.sin_port = htons(port);
   int status = bind(socket_,
                     reinterpret_cast<struct sockaddr *>(&addr),
-                    sizeof (addr));
+                    sizeof(addr));
   return status == 0;
 }
 
@@ -723,7 +723,7 @@ bool FreeBSDSocket::Connect(const char* host, const char* port) {
   if (status != 0) {
     return false;
   }
-  
+
   // Connect.
   status = connect(socket_, result->ai_addr, result->ai_addrlen);
   return status == 0;
