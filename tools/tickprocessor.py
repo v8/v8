@@ -321,7 +321,8 @@ class TickProcessor(object):
       if not self.ignore_unknown and self.unaccounted_number_of_ticks > 0:
         self.PrintHeader('Unknown')
         unknown_percentage = self.unaccounted_number_of_ticks * 100.0 / self.total_number_of_ticks
-        print('  %(total)5.1f%%' % {
+        print('  %(ticks)5d  %(total)5.1f%%' % {
+          'ticks' : self.unaccounted_number_of_ticks,
           'total' : unknown_percentage,
         })
       # Print the library ticks.
