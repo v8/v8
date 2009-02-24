@@ -1526,7 +1526,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
 
   LoadAndSpill(node->tag());
   if (TryGenerateFastCaseSwitchStatement(node)) {
-    ASSERT(frame_->height() == original_height);
+    ASSERT(!has_valid_frame() || frame_->height() == original_height);
     return;
   }
 
