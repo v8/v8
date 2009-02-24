@@ -156,12 +156,12 @@ MKSNAPSHOT_EXTRA_FLAGS = {
       'LIBS': ['pthread'],
     },
     'os:win32': {
-      'LIBS': ['winmm'],
+      'LIBS': ['winmm', 'ws2_32'],
     },
   },
   'msvc': {
     'all': {
-      'LIBS': ['winmm']
+      'LIBS': ['winmm', 'ws2_32']
     }
   }
 }
@@ -219,7 +219,7 @@ CCTEST_EXTRA_FLAGS = {
       'LIBS':         ['execinfo', 'pthread']
     },
     'os:win32': {
-      'LIBS': ['winmm']
+      'LIBS': ['winmm', 'ws2_32']
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -229,7 +229,7 @@ CCTEST_EXTRA_FLAGS = {
   'msvc': {
     'all': {
       'CPPDEFINES': ['_HAS_EXCEPTIONS=0'],
-      'LIBS': ['winmm']
+      'LIBS': ['winmm', 'ws2_32']
     },
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
@@ -257,7 +257,7 @@ SAMPLE_FLAGS = {
       'LIBS':         ['execinfo', 'pthread']
     },
     'os:win32': {
-      'LIBS':         ['winmm']
+      'LIBS':         ['winmm', 'ws2_32']
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -274,7 +274,7 @@ SAMPLE_FLAGS = {
     'all': {
       'CCFLAGS': ['/nologo'],
       'LINKFLAGS': ['/nologo'],
-      'LIBS': ['winmm']
+      'LIBS': ['winmm', 'ws2_32']
     },
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
@@ -321,12 +321,12 @@ D8_FLAGS = {
       'LIBS': ['pthread'],
     },
     'os:win32': {
-      'LIBS': ['winmm'],
+      'LIBS': ['winmm', 'ws2_32'],
     },
   },
   'msvc': {
     'all': {
-      'LIBS': ['winmm']
+      'LIBS': ['winmm', 'ws2_32']
     }
   }
 }

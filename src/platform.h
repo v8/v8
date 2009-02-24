@@ -109,6 +109,9 @@ namespace v8 { namespace internal {
 
 double ceiling(double x);
 
+// Forward declarations.
+class Socket;
+
 // ----------------------------------------------------------------------------
 // OS
 //
@@ -204,6 +207,10 @@ class OS {
   // Factory method for creating platform dependent Semaphore.
   // Please use delete to reclaim the storage for the returned Semaphore.
   static Semaphore* CreateSemaphore(int count);
+
+  // Factory method for creating platform dependent Socket.
+  // Please use delete to reclaim the storage for the returned Socket.
+  static Socket* CreateSocket();
 
   class MemoryMappedFile {
    public:
@@ -409,6 +416,38 @@ class Semaphore {
 
   // Increments the semaphore counter.
   virtual void Signal() = 0;
+};
+
+
+// ----------------------------------------------------------------------------
+// Socket
+//
+
+class Socket {
+ public:
+  virtual ~Socket() {}
+
+  // Server initialization.
+  virtual bool Bind (const int port) = 0;
+  virtual bool Listen(int backlog) const = 0;
+  virtual Socket* Accept() const = 0;
+
+  // Client initialization.
+  virtual bool Connect(const char* host, const char* port) = 0;
+
+  // Data Transimission
+  virtual int Send(const char* data, int len) const = 0;
+  virtual bool SendAll(const char* data, int len) const = 0;
+  virtual int Receive(char* data, int len) const = 0;
+
+  virtual bool IsValid() const = 0;
+
+  static bool Setup();
+  static int LastError();
+  static uint16_t HToN(uint16_t value);
+  static uint16_t NToH(uint16_t value);
+  static uint32_t HToN(uint32_t value);
+  static uint32_t NToH(uint32_t value);
 };
 
 
