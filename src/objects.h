@@ -2994,8 +2994,10 @@ class CompilationCacheTable: public HashTable<0, 2> {
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(String* src);
+  Object* LookupEval(String* src, Context* context);
   Object* LookupRegExp(String* source, JSRegExp::Flags flags);
   Object* Put(String* src, Object* value);
+  Object* PutEval(String* src, Context* context, Object* value);
   Object* PutRegExp(String* src, JSRegExp::Flags flags, FixedArray* value);
 
   static inline CompilationCacheTable* cast(Object* obj);

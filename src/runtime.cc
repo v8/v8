@@ -4007,11 +4007,11 @@ static Object* Runtime_CompileString(Arguments args) {
   CONVERT_ARG_CHECKED(String, source, 0);
   CONVERT_ARG_CHECKED(Smi, line_offset, 1);
 
-  // Compile source string.
-  Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, line_offset->value(), true);
-  if (boilerplate.is_null()) return Failure::Exception();
+  // Compile source string in the global context.
   Handle<Context> context(Top::context()->global_context());
+  Handle<JSFunction> boilerplate =
+      Compiler::CompileEval(source, context, line_offset->value(), true);
+  if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
   return *fun;
@@ -4033,8 +4033,9 @@ static Object* CompileDirectEval(Handle<String> source) {
   Handle<Context> context(Context::cast(frame->context()));
   bool is_global = context->IsGlobalContext();
 
-  // Compile source string.
-  Handle<JSFunction> boilerplate = Compiler::CompileEval(source, 0, is_global);
+  // Compile source string in the current context.
+  Handle<JSFunction> boilerplate =
+      Compiler::CompileEval(source, context, 0, is_global);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
     Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -5594,7 +5595,10 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
       Factory::NewStringFromAscii(Vector<const char>(source_str,
                                                      source_str_length));
   Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(function_source, 0, context->IsGlobalContext());
+      Compiler::CompileEval(function_source,
+                            context,
+                            0,
+                            context->IsGlobalContext());
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -5651,7 +5655,8 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   Handle<Context> context = Top::global_context();
 
   // Compile the source to be evaluated.
-  Handle<JSFunction> boilerplate(Compiler::CompileEval(source, 0, true));
+  Handle<JSFunction> boilerplate =
+      Handle<JSFunction>(Compiler::CompileEval(source, context, 0, true));
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(Factory::NewFunctionFromBoilerplate(boilerplate,

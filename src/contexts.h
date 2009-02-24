@@ -304,6 +304,15 @@ class Context: public FixedArray {
   Handle<Object> Lookup(Handle<String> name, ContextLookupFlags flags,
                         int* index_, PropertyAttributes* attributes);
 
+  // Determine if a local variable with the given name exists in a
+  // context.  Do not consider context extension objects.  This is
+  // used for compiling code using eval.  If the context surrounding
+  // the eval call does not have a local variable with this name and
+  // does not contain a with statement the property is global unless
+  // it is shadowed by a property in an extension object introduced by
+  // eval.
+  bool GlobalIfNotShadowedByEval(Handle<String> name);
+
   // Code generation support.
   static int SlotOffset(int index) {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;

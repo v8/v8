@@ -2022,12 +2022,16 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
-      __ ldr(r0,
-             ContextSlotOperandCheckExtensions(potential_slot,
-                                               r1,
-                                               r2,
-                                               &slow));
-      __ b(&done);
+      // Only generate the fast case for locals that rewrite to slots.
+      // This rules out argument loads.
+      if (potential_slot != NULL) {
+        __ ldr(r0,
+               ContextSlotOperandCheckExtensions(potential_slot,
+                                                 r1,
+                                                 r2,
+                                                 &slow));
+        __ b(&done);
+      }
     }
 
     __ bind(&slow);
@@ -2074,7 +2078,8 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
   // Check that no extension objects have been created by calls to
   // eval from the current scope to the global scope.
   Register context = cp;
-  for (Scope* s = scope(); s != NULL; s = s->outer_scope()) {
+  Scope* s = scope();
+  while (s != NULL) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
         // Check that extension is NULL.
@@ -2089,7 +2094,27 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
     }
     // If no outer scope calls eval, we do not need to check more
     // context extensions.
-    if (!s->outer_scope_calls_eval()) break;
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
+    s = s->outer_scope();
+  }
+
+  if (s->is_eval_scope()) {
+    Label next, fast;
+    if (!context.is(tmp)) __ mov(tmp, Operand(context));
+    __ bind(&next);
+    // Terminate at global context.
+    __ ldr(tmp2, FieldMemOperand(tmp, HeapObject::kMapOffset));
+    __ cmp(tmp2, Operand(Factory::global_context_map()));
+    __ b(eq, &fast);
+    // Check that extension is NULL.
+    __ ldr(tmp2, ContextOperand(tmp, Context::EXTENSION_INDEX));
+    __ tst(tmp2, tmp2);
+    __ b(ne, slow);
+    // Load next context in chain.
+    __ ldr(tmp, ContextOperand(tmp, Context::CLOSURE_INDEX));
+    __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
+    __ b(&next);
+    __ bind(&fast);
   }
 
   // All extension objects were empty and it is safe to use a global

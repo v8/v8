@@ -5850,6 +5850,20 @@ int JSObject::GetEnumElementKeys(FixedArray* storage) {
 }
 
 
+// Thomas Wang, Integer Hash Functions.
+// http://www.concentric.net/~Ttwang/tech/inthash.htm
+static uint32_t ComputeIntegerHash(uint32_t key) {
+  uint32_t hash = key;
+  hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
+  hash = hash ^ (hash >> 12);
+  hash = hash + (hash << 2);
+  hash = hash ^ (hash >> 4);
+  hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
+  hash = hash ^ (hash >> 16);
+  return hash;
+}
+
+
 // The NumberKey uses carries the uint32_t as key.
 // This avoids allocation in HasProperty.
 class NumberKey : public HashTableKey {
@@ -5861,20 +5875,7 @@ class NumberKey : public HashTableKey {
     return number_ == ToUint32(number);
   }
 
-  // Thomas Wang, Integer Hash Functions.
-  // http://www.concentric.net/~Ttwang/tech/inthash.htm
-  static uint32_t ComputeHash(uint32_t key) {
-    uint32_t hash = key;
-    hash = ~hash + (hash << 15);  // hash = (hash << 15) - hash - 1;
-    hash = hash ^ (hash >> 12);
-    hash = hash + (hash << 2);
-    hash = hash ^ (hash >> 4);
-    hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
-    hash = hash ^ (hash >> 16);
-    return hash;
-  }
-
-  uint32_t Hash() { return ComputeHash(number_); }
+  uint32_t Hash() { return ComputeIntegerHash(number_); }
 
   HashFunction GetHashFunction() { return NumberHash; }
 
@@ -5883,7 +5884,7 @@ class NumberKey : public HashTableKey {
   }
 
   static uint32_t NumberHash(Object* obj) {
-    return ComputeHash(ToUint32(obj));
+    return ComputeIntegerHash(ToUint32(obj));
   }
 
   static uint32_t ToUint32(Object* obj) {
@@ -5920,6 +5921,70 @@ class StringKey : public HashTableKey {
 
   String* string_;
 };
+
+
+// StringSharedKeys are used as keys in the eval cache.
+class StringSharedKey : public HashTableKey {
+ public:
+  StringSharedKey(String* source, SharedFunctionInfo* shared)
+      : source_(source), shared_(shared) { }
+
+  bool IsMatch(Object* other) {
+    if (!other->IsFixedArray()) return false;
+    FixedArray* pair = FixedArray::cast(other);
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(pair->get(0));
+    if (shared != shared_) return false;
+    String* source = String::cast(pair->get(1));
+    return source->Equals(source_);
+  }
+
+  typedef uint32_t (*HashFunction)(Object* obj);
+
+  virtual HashFunction GetHashFunction() { return StringSharedHash; }
+
+  static uint32_t StringSharedHashHelper(String* source,
+                                         SharedFunctionInfo* shared) {
+    uint32_t hash = source->Hash();
+    if (shared->HasSourceCode()) {
+      // Instead of using the SharedFunctionInfo pointer in the hash
+      // code computation, we use a combination of the hash of the
+      // script source code and the start and end positions.  We do
+      // this to ensure that the cache entries can survive garbage
+      // collection.
+      Script* script = Script::cast(shared->script());
+      hash ^= String::cast(script->source())->Hash();
+      hash += shared->start_position();
+    }
+    return hash;
+  }
+
+  static uint32_t StringSharedHash(Object* obj) {
+    FixedArray* pair = FixedArray::cast(obj);
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(pair->get(0));
+    String* source = String::cast(pair->get(1));
+    return StringSharedHashHelper(source, shared);
+  }
+
+  virtual uint32_t Hash() {
+    return StringSharedHashHelper(source_, shared_);
+  }
+
+  virtual Object* GetObject() {
+    Object* obj = Heap::AllocateFixedArray(2);
+    if (obj->IsFailure()) return obj;
+    FixedArray* pair = FixedArray::cast(obj);
+    pair->set(0, shared_);
+    pair->set(1, source_);
+    return pair;
+  }
+
+  virtual bool IsStringKey() { return false; }
+
+ private:
+  String* source_;
+  SharedFunctionInfo* shared_;
+};
+
 
 // RegExpKey carries the source and flags of a regular expression as key.
 class RegExpKey : public HashTableKey {
@@ -6234,6 +6299,14 @@ Object* CompilationCacheTable::Lookup(String* src) {
 }
 
 
+Object* CompilationCacheTable::LookupEval(String* src, Context* context) {
+  StringSharedKey key(src, context->closure()->shared());
+  int entry = FindEntry(&key);
+  if (entry == -1) return Heap::undefined_value();
+  return get(EntryToIndex(entry) + 1);
+}
+
+
 Object* CompilationCacheTable::LookupRegExp(String* src,
                                             JSRegExp::Flags flags) {
   RegExpKey key(src, flags);
@@ -6252,6 +6325,27 @@ Object* CompilationCacheTable::Put(String* src, Object* value) {
       reinterpret_cast<CompilationCacheTable*>(obj);
   int entry = cache->FindInsertionEntry(src, key.Hash());
   cache->set(EntryToIndex(entry), src);
+  cache->set(EntryToIndex(entry) + 1, value);
+  cache->ElementAdded();
+  return cache;
+}
+
+
+Object* CompilationCacheTable::PutEval(String* src,
+                                       Context* context,
+                                       Object* value) {
+  StringSharedKey key(src, context->closure()->shared());
+  Object* obj = EnsureCapacity(1, &key);
+  if (obj->IsFailure()) return obj;
+
+  CompilationCacheTable* cache =
+      reinterpret_cast<CompilationCacheTable*>(obj);
+  int entry = cache->FindInsertionEntry(src, key.Hash());
+
+  Object* k = key.GetObject();
+  if (k->IsFailure()) return k;
+
+  cache->set(EntryToIndex(entry), k);
   cache->set(EntryToIndex(entry) + 1, value);
   cache->ElementAdded();
   return cache;
