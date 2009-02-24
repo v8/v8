@@ -186,10 +186,6 @@ class Factory : public AllStatic {
   // runtime.
   static Handle<JSObject> NewJSObjectFromMap(Handle<Map> map);
 
-  // Allocate a JS array representing an array literal.  The array is
-  // pretenured (allocated directly in the old generation).
-  static Handle<JSArray> NewArrayLiteral(int length);
-
   // JS arrays are pretenured when allocated by the parser.
   static Handle<JSArray> NewJSArray(int init_length,
                                     PretenureFlag pretenure = NOT_TENURED);
