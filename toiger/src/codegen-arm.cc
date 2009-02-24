@@ -1448,18 +1448,25 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     Vector<Label*> case_targets,
     Vector<Label> case_labels) {
   VirtualFrame::SpilledScope spilled_scope(this);
-  ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
+  JumpTarget setup_default(this);
+  JumpTarget is_smi(this);
 
+  // A non-null default label pointer indicates a default case among
+  // the case labels.  Otherwise we use the break target as a
+  // "default" for failure to hit the jump table.
+  JumpTarget* default_target =
+      (default_label == NULL) ? node->break_target() : &setup_default;
+
+  ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
   frame_->EmitPop(r0);
 
   // Test for a Smi value in a HeapNumber.
-  JumpTarget is_smi(this);
   __ tst(r0, Operand(kSmiTagMask));
   is_smi.Branch(eq);
   __ ldr(r1, MemOperand(r0, HeapObject::kMapOffset - kHeapObjectTag));
   __ ldrb(r1, MemOperand(r1, Map::kInstanceTypeOffset - kHeapObjectTag));
   __ cmp(r1, Operand(HEAP_NUMBER_TYPE));
-  __ b(ne, default_label);
+  default_target->Branch(ne);
   frame_->EmitPush(r0);
   frame_->CallRuntime(Runtime::kNumberToSmi, 1);
   is_smi.Bind();
@@ -1479,17 +1486,30 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     }
   }
   __ tst(r0, Operand(0x80000000 | kSmiTagMask));
-  __ b(ne, default_label);
+  default_target->Branch(ne);
   __ cmp(r0, Operand(Smi::FromInt(range)));
-  __ b(ge, default_label);
+  default_target->Branch(ge);
+  VirtualFrame* start_frame = new VirtualFrame(frame_);
   __ SmiJumpTable(r0, case_targets);
 
-  VirtualFrame* start_frame = new VirtualFrame(frame_);
-  // Table containing branch operations.
-  for (int i = 0; i < range; i++) {
-    __ jmp(case_targets[i]);
-  }
   GenerateFastCaseSwitchCases(node, case_labels, start_frame);
+
+  // If there was a default case among the case labels, we need to
+  // emit code to jump to it from the default target used for failure
+  // to hit the jump table.
+  if (default_label != NULL) {
+    if (has_valid_frame()) {
+      node->break_target()->Jump();
+    }
+    setup_default.Bind();
+    frame_->MergeTo(start_frame);
+    __ b(default_label);
+    DeleteFrame();
+  }
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
+
   delete start_frame;
 }
 
@@ -1513,7 +1533,7 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   JumpTarget next_test(this);
   JumpTarget fall_through(this);
   JumpTarget default_entry(this);
-  JumpTarget default_exit(this);
+  JumpTarget default_exit(this, JumpTarget::BIDIRECTIONAL);
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
   CaseClause* default_clause = NULL;

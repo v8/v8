@@ -2000,13 +2000,17 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
 
   // If there was a default case, we need to emit the code to match it.
   if (default_label != NULL) {
-    node->break_target()->Jump();
+    if (has_valid_frame()) {
+      node->break_target()->Jump();
+    }
     setup_default.Bind();
     frame_->MergeTo(start_frame);
     __ jmp(default_label);
     DeleteFrame();
   }
-  node->break_target()->Bind();
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
 
   for (int i = 0, entry_pos = table_start.pos();
        i < range;

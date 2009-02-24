@@ -453,19 +453,19 @@ void CodeGenerator::GenerateFastCaseSwitchCases(
 
   for (int i = 0; i < length; i++) {
     Comment cmnt(masm(), "[ Case clause");
-    masm()->bind(&case_labels[i]);
-    VisitStatements(cases->at(i)->statements());
 
-    // If control flow did not fall off the end of the case statement,
-    // we restore the expected frame for the next iteration (or exit
-    // of the loop).  Otherwise we have to generate merge code to
-    // expectation at the next case.
+    // We may not have a virtual frame if control flow did not fall
+    // off the end of the previous case.  In that case, use the start
+    // frame.  Otherwise, we have to merge the existing one to the
+    // start frame as part of the previous case.
     if (!has_valid_frame()) {
       RegisterFile non_frame_registers = RegisterAllocator::Reserved();
       SetFrame(new VirtualFrame(start_frame), &non_frame_registers);
     } else {
       frame_->MergeTo(start_frame);
     }
+    masm()->bind(&case_labels[i]);
+    VisitStatements(cases->at(i)->statements());
   }
 }
 

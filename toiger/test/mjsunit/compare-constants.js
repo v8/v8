@@ -25,13 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test comparison operations that involve one or two constant Smis.
+// Test comparison operations that involve one or two constant smis.
 
-
-function foo() {
+function test() {
   var i = 5;
   var j = 3;
-  
+
   assertTrue( j < i );
   i = 5; j = 3;
   assertTrue( j <= i );
@@ -61,8 +60,7 @@ function foo() {
     ++i;
   }
   j = 21;
-  
-  
+
   assertTrue( j < i );
   j = 21;
   assertTrue( j <= i );
@@ -116,8 +114,8 @@ function foo() {
       assertUnreachable();
       break;
   }
-  assertEquals(17, j, "switch with constant value");      
+  assertEquals(17, j, "switch with constant value");
 }
 
-foo();
+test();
 
