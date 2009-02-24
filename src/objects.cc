@@ -6953,6 +6953,12 @@ Object* Dictionary::TransformPropertiesToFastFor(JSObject* obj,
 void Script::InitLineEnds() {
   if (!line_ends()->IsUndefined()) return;
 
+  if (source()->IsUndefined()) {
+    set_line_ends(*(Factory::NewArrayLiteral(0)));
+    ASSERT(line_ends()->IsJSArray());
+    return;
+  }
+
   Handle<String> src(String::cast(source()));
   const int src_len = src->length();
   Handle<String> new_line = Factory::NewStringFromAscii(CStrVector("\n"));
