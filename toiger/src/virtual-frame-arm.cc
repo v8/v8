@@ -221,16 +221,20 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
 
 void VirtualFrame::Enter() {
   Comment cmnt(masm_, "[ Enter JS frame");
+
 #ifdef DEBUG
-  { Label done, fail;
+  // Verify that r1 contains a JS function.  The following code relies
+  // on r2 being available for use.
+  { Label map_check, done;
     __ tst(r1, Operand(kSmiTagMask));
-    __ b(eq, &fail);
+    __ b(ne, &map_check);
+    __ stop("VirtualFrame::Enter - r1 is not a function (smi check).");
+    __ bind(&map_check);
     __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
     __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
     __ cmp(r2, Operand(JS_FUNCTION_TYPE));
     __ b(eq, &done);
-    __ bind(&fail);
-    __ stop("CodeGenerator::EnterJSFrame - r1 not a function");
+    __ stop("VirtualFrame::Enter - r1 is not a function (map check).");
     __ bind(&done);
   }
 #endif  // DEBUG

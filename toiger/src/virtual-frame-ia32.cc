@@ -389,6 +389,20 @@ void VirtualFrame::MergeMoveMemoryToRegisters(VirtualFrame *expected) {
 void VirtualFrame::Enter() {
   // Registers live on entry: esp, ebp, esi, edi.
   Comment cmnt(masm_, "[ Enter JS frame");
+
+#ifdef DEBUG
+  // Verify that edi contains a JS function.  The following code
+  // relies on eax being available for use.
+  __ test(edi, Immediate(kSmiTagMask));
+  __ Check(not_zero,
+           "VirtualFrame::Enter - edi is not a function (smi check).");
+  __ mov(eax, FieldOperand(edi, HeapObject::kMapOffset));
+  __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
+  __ cmp(eax, JS_FUNCTION_TYPE);
+  __ Check(equal,
+           "VirtualFrame::Enter - edi is not a function (map check).");
+#endif
+
   EmitPush(ebp);
 
   frame_pointer_ = stack_pointer_;
