@@ -32,7 +32,6 @@
 		890A14020EE9C4B400E49346 /* regexp-macro-assembler-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C750EE466D000B48DEB /* regexp-macro-assembler-irregexp.cc */; };
 		890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C770EE466D000B48DEB /* regexp-macro-assembler-tracer.cc */; };
 		890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C790EE466D000B48DEB /* regexp-macro-assembler.cc */; };
-		893988060F2A35FA007D5254 /* libjscre.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 897FF1BF0E719CB600D62E90 /* libjscre.a */; };
 		893988070F2A35FA007D5254 /* libv8.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8970F2F00E719FB2006AE7B5 /* libv8.a */; };
 		8939880D0F2A362A007D5254 /* d8.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C920EE46A1700B48DEB /* d8.cc */; };
 		893988160F2A3688007D5254 /* d8-debug.cc in Sources */ = {isa = PBXBuildFile; fileRef = 893988150F2A3686007D5254 /* d8-debug.cc */; };
@@ -44,7 +43,6 @@
 		89495E490E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
 		896FD03A0E78D717003DFB6A /* libv8-arm.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 89F23C870E78D5B2006B2466 /* libv8-arm.a */; };
 		897F767F0E71B690007ACF34 /* shell.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1B50E719C0900D62E90 /* shell.cc */; };
-		897F76840E71B6B1007ACF34 /* libjscre.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 897FF1BF0E719CB600D62E90 /* libjscre.a */; };
 		897F76850E71B6B1007ACF34 /* libv8.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8970F2F00E719FB2006AE7B5 /* libv8.a */; };
 		897FF1C40E719D6B00D62E90 /* pcre_compile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0EA0E719B3500D62E90 /* pcre_compile.cpp */; };
 		897FF1C50E719D6E00D62E90 /* pcre_exec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0EB0E719B3500D62E90 /* pcre_exec.cpp */; };
@@ -184,7 +182,6 @@
 		89F23C810E78D5B2006B2466 /* variables.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF19F0E719B8F00D62E90 /* variables.cc */; };
 		89F23C820E78D5B2006B2466 /* zone.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1A20E719B8F00D62E90 /* zone.cc */; };
 		89F23C8E0E78D5B6006B2466 /* shell.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1B50E719C0900D62E90 /* shell.cc */; };
-		89F23C900E78D5B6006B2466 /* libjscre.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 897FF1BF0E719CB600D62E90 /* libjscre.a */; };
 		89F23C970E78D5E3006B2466 /* assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0FE0E719B8F00D62E90 /* assembler-arm.cc */; };
 		89F23C980E78D5E7006B2466 /* builtins-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1090E719B8F00D62E90 /* builtins-arm.cc */; };
 		89F23C990E78D5E9006B2466 /* codegen-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1140E719B8F00D62E90 /* codegen-arm.cc */; };
@@ -211,20 +208,6 @@
 			proxyType = 1;
 			remoteGlobalIDString = 897F76790E71B4CC007ACF34;
 			remoteInfo = v8_shell;
-		};
-		7BF8919A0E7309AD000BAF8A /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 897FF1BE0E719CB600D62E90;
-			remoteInfo = jscre;
-		};
-		893988000F2A35FA007D5254 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 897FF1BE0E719CB600D62E90;
-			remoteInfo = jscre;
 		};
 		893988020F2A35FA007D5254 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -261,26 +244,12 @@
 			remoteGlobalIDString = 89F23C880E78D5B6006B2466;
 			remoteInfo = "v8_shell-arm";
 		};
-		897F76800E71B6AC007ACF34 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 897FF1BE0E719CB600D62E90;
-			remoteInfo = jscre;
-		};
 		897F76820E71B6AC007ACF34 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = 8970F2EF0E719FB2006AE7B5;
 			remoteInfo = v8;
-		};
-		89F23C8A0E78D5B6006B2466 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 8915B8680E719336009C4E19 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 897FF1BE0E719CB600D62E90;
-			remoteInfo = jscre;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -506,7 +475,6 @@
 		897FF1B50E719C0900D62E90 /* shell.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = shell.cc; sourceTree = "<group>"; };
 		897FF1B60E719C2300D62E90 /* js2c.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = js2c.py; sourceTree = "<group>"; };
 		897FF1B70E719C2E00D62E90 /* macros.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; name = macros.py; path = ../src/macros.py; sourceTree = "<group>"; };
-		897FF1BF0E719CB600D62E90 /* libjscre.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libjscre.a; sourceTree = BUILT_PRODUCTS_DIR; };
 		898BD20C0EF6CC850068B00A /* debug-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-arm.cc"; sourceTree = "<group>"; };
 		898BD20D0EF6CC850068B00A /* debug-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-ia32.cc"; sourceTree = "<group>"; };
 		89A15C630EE4661A00B48DEB /* bytecodes-irregexp.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "bytecodes-irregexp.h"; sourceTree = "<group>"; };
@@ -539,7 +507,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				893988060F2A35FA007D5254 /* libjscre.a in Frameworks */,
 				893988070F2A35FA007D5254 /* libv8.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -555,7 +522,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				897F76840E71B6B1007ACF34 /* libjscre.a in Frameworks */,
 				897F76850E71B6B1007ACF34 /* libv8.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -578,7 +544,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				89F23C900E78D5B6006B2466 /* libjscre.a in Frameworks */,
 				896FD03A0E78D717003DFB6A /* libv8-arm.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -855,7 +820,6 @@
 			isa = PBXGroup;
 			children = (
 				897FF0DF0E719B3400D62E90 /* dtoa */,
-				897FF0E20E719B3500D62E90 /* jscre */,
 			);
 			path = third_party;
 			sourceTree = "<group>";
@@ -867,28 +831,6 @@
 				897FF0E10E719B3500D62E90 /* dtoa.c */,
 			);
 			path = dtoa;
-			sourceTree = "<group>";
-		};
-		897FF0E20E719B3500D62E90 /* jscre */ = {
-			isa = PBXGroup;
-			children = (
-				897FF0E30E719B3500D62E90 /* ASCIICType.h */,
-				897FF0E40E719B3500D62E90 /* AUTHORS */,
-				897FF0E50E719B3500D62E90 /* config.h */,
-				897FF0E60E719B3500D62E90 /* COPYING */,
-				897FF0E70E719B3500D62E90 /* LICENSE */,
-				897FF0E80E719B3500D62E90 /* pcre.h */,
-				897FF0E90E719B3500D62E90 /* pcre_chartables.c */,
-				897FF0EA0E719B3500D62E90 /* pcre_compile.cpp */,
-				897FF0EB0E719B3500D62E90 /* pcre_exec.cpp */,
-				897FF0EC0E719B3500D62E90 /* pcre_internal.h */,
-				897FF0ED0E719B3500D62E90 /* pcre_tables.cpp */,
-				897FF0EE0E719B3500D62E90 /* pcre_ucp_searchfuncs.cpp */,
-				897FF0EF0E719B3500D62E90 /* pcre_xclass.cpp */,
-				897FF0F00E719B3500D62E90 /* ucpinternal.h */,
-				897FF0F10E719B3500D62E90 /* ucptable.cpp */,
-			);
-			path = jscre;
 			sourceTree = "<group>";
 		};
 		897FF1B30E719BCE00D62E90 /* samples */ = {
@@ -917,7 +859,6 @@
 		897FF1C00E719CB600D62E90 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				897FF1BF0E719CB600D62E90 /* libjscre.a */,
 				8970F2F00E719FB2006AE7B5 /* libv8.a */,
 				897F767A0E71B4CC007ACF34 /* v8_shell */,
 				89F23C870E78D5B2006B2466 /* libv8-arm.a */,
@@ -993,22 +934,6 @@
 			productReference = 897F767A0E71B4CC007ACF34 /* v8_shell */;
 			productType = "com.apple.product-type.tool";
 		};
-		897FF1BE0E719CB600D62E90 /* jscre */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 897FF1C30E719CB600D62E90 /* Build configuration list for PBXNativeTarget "jscre" */;
-			buildPhases = (
-				897FF1BC0E719CB600D62E90 /* Sources */,
-				897FF1BD0E719CB600D62E90 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = jscre;
-			productName = jscre;
-			productReference = 897FF1BF0E719CB600D62E90 /* libjscre.a */;
-			productType = "com.apple.product-type.library.static";
-		};
 		89F23C3C0E78D5B2006B2466 /* v8-arm */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 89F23C840E78D5B2006B2466 /* Build configuration list for PBXNativeTarget "v8-arm" */;
@@ -1058,7 +983,6 @@
 			projectRoot = ..;
 			targets = (
 				7BF891930E73098D000BAF8A /* All */,
-				897FF1BE0E719CB600D62E90 /* jscre */,
 				8970F2EF0E719FB2006AE7B5 /* v8 */,
 				897F76790E71B4CC007ACF34 /* v8_shell */,
 				893987FE0F2A35FA007D5254 /* d8_shell */,
@@ -1329,16 +1253,6 @@
 			target = 897F76790E71B4CC007ACF34 /* v8_shell */;
 			targetProxy = 7BF891980E73099F000BAF8A /* PBXContainerItemProxy */;
 		};
-		7BF8919B0E7309AD000BAF8A /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 897FF1BE0E719CB600D62E90 /* jscre */;
-			targetProxy = 7BF8919A0E7309AD000BAF8A /* PBXContainerItemProxy */;
-		};
-		893987FF0F2A35FA007D5254 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 897FF1BE0E719CB600D62E90 /* jscre */;
-			targetProxy = 893988000F2A35FA007D5254 /* PBXContainerItemProxy */;
-		};
 		893988010F2A35FA007D5254 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 8970F2EF0E719FB2006AE7B5 /* v8 */;
@@ -1364,20 +1278,10 @@
 			target = 89F23C880E78D5B6006B2466 /* v8_shell-arm */;
 			targetProxy = 896FD03F0E78D735003DFB6A /* PBXContainerItemProxy */;
 		};
-		897F76810E71B6AC007ACF34 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 897FF1BE0E719CB600D62E90 /* jscre */;
-			targetProxy = 897F76800E71B6AC007ACF34 /* PBXContainerItemProxy */;
-		};
 		897F76830E71B6AC007ACF34 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 8970F2EF0E719FB2006AE7B5 /* v8 */;
 			targetProxy = 897F76820E71B6AC007ACF34 /* PBXContainerItemProxy */;
-		};
-		89F23C890E78D5B6006B2466 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 897FF1BE0E719CB600D62E90 /* jscre */;
-			targetProxy = 89F23C8A0E78D5B6006B2466 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1525,36 +1429,6 @@
 			};
 			name = Release;
 		};
-		897FF1C10E719CB600D62E90 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				DEPLOYMENT_POSTPROCESSING = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(GCC_PREPROCESSOR_DEFINITIONS)",
-					SUPPORT_UTF8,
-					SUPPORT_UCP,
-					NO_RECURSE,
-				);
-				PRODUCT_NAME = jscre;
-				STRIP_STYLE = debugging;
-			};
-			name = Debug;
-		};
-		897FF1C20E719CB600D62E90 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				DEPLOYMENT_POSTPROCESSING = NO;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(GCC_PREPROCESSOR_DEFINITIONS)",
-					SUPPORT_UTF8,
-					SUPPORT_UCP,
-					NO_RECURSE,
-				);
-				PRODUCT_NAME = jscre;
-				STRIP_STYLE = debugging;
-			};
-			name = Release;
-		};
 		89F23C850E78D5B2006B2466 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -1645,15 +1519,6 @@
 			buildConfigurations = (
 				897F767C0E71B4CC007ACF34 /* Debug */,
 				897F767D0E71B4CC007ACF34 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		897FF1C30E719CB600D62E90 /* Build configuration list for PBXNativeTarget "jscre" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				897FF1C10E719CB600D62E90 /* Debug */,
-				897FF1C20E719CB600D62E90 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

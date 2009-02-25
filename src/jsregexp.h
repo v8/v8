@@ -67,21 +67,11 @@ class RegExpImpl {
   static Handle<Object> ExecGlobal(Handle<JSRegExp> regexp,
                                    Handle<String> subject);
 
-  // Stores an uncompiled RegExp pattern in the JSRegExp object.
-  // It will be compiled by JSCRE when first executed.
-  static Handle<Object> JscrePrepare(Handle<JSRegExp> re,
-                                     Handle<String> pattern,
-                                     JSRegExp::Flags flags);
-
   // Prepares a JSRegExp object with Irregexp-specific data.
   static Handle<Object> IrregexpPrepare(Handle<JSRegExp> re,
                                         Handle<String> pattern,
                                         JSRegExp::Flags flags);
 
-
-  // Compile the pattern using JSCRE and store the result in the
-  // JSRegExp object.
-  static Handle<Object> JscreCompile(Handle<JSRegExp> re);
 
   static Handle<Object> AtomCompile(Handle<JSRegExp> re,
                                     Handle<String> pattern,
@@ -94,22 +84,10 @@ class RegExpImpl {
   static Handle<Object> AtomExecGlobal(Handle<JSRegExp> regexp,
                                        Handle<String> subject);
 
-  static Handle<Object> JscreCompile(Handle<JSRegExp> re,
-                                     Handle<String> pattern,
-                                     JSRegExp::Flags flags);
-
-  // Execute a compiled JSCRE pattern.
-  static Handle<Object> JscreExec(Handle<JSRegExp> regexp,
-                                  Handle<String> subject,
-                                  Handle<Object> index);
-
   // Execute an Irregexp bytecode pattern.
   static Handle<Object> IrregexpExec(Handle<JSRegExp> regexp,
                                      Handle<String> subject,
                                      Handle<Object> index);
-
-  static Handle<Object> JscreExecGlobal(Handle<JSRegExp> regexp,
-                                        Handle<String> subject);
 
   static Handle<Object> IrregexpExecGlobal(Handle<JSRegExp> regexp,
                                            Handle<String> subject);
@@ -129,30 +107,14 @@ class RegExpImpl {
   static const int kIrregexpCodeIndex = 3;
   static const int kIrregexpDataLength = 4;
 
-  static const int kJscreNumberOfCapturesIndex = 0;
-  static const int kJscreInternalIndex = 1;
-  static const int kJscreDataLength = 2;
-
  private:
   static String* last_ascii_string_;
   static String* two_byte_cached_string_;
-
-  static int JscreNumberOfCaptures(Handle<JSRegExp> re);
-  static ByteArray* JscreInternal(Handle<JSRegExp> re);
 
   static int IrregexpNumberOfCaptures(Handle<FixedArray> re);
   static int IrregexpNumberOfRegisters(Handle<FixedArray> re);
   static Handle<ByteArray> IrregexpByteCode(Handle<FixedArray> re);
   static Handle<Code> IrregexpNativeCode(Handle<FixedArray> re);
-
-  // Call jsRegExpExecute once
-  static Handle<Object> JscreExecOnce(Handle<JSRegExp> regexp,
-                                      int num_captures,
-                                      Handle<String> subject,
-                                      int previous_index,
-                                      const uc16* utf8_subject,
-                                      int* ovector,
-                                      int ovector_length);
 
   // On a successful match, the result is a JSArray containing
   // captured positions. On a failure, the result is the null value.

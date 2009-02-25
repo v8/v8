@@ -167,25 +167,6 @@ MKSNAPSHOT_EXTRA_FLAGS = {
 }
 
 
-JSCRE_EXTRA_FLAGS = {
-  'gcc': {
-    'all': {
-      'CPPDEFINES':   ['SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
-      'WARNINGFLAGS': ['-w']
-    },
-  },
-  'msvc': {
-    'all': {
-      'CPPDEFINES':   ['SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
-      'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800']
-    },
-    'library:shared': {
-      'CPPDEFINES':   ['BUILDING_V8_SHARED']
-    }
-  }
-}
-
-
 DTOA_EXTRA_FLAGS = {
   'gcc': {
     'all': {
@@ -564,7 +545,6 @@ def BuildSpecific(env, mode, env_overrides):
   library_flags = context.AddRelevantFlags(os.environ, LIBRARY_FLAGS)
   v8_flags = context.AddRelevantFlags(library_flags, V8_EXTRA_FLAGS)
   mksnapshot_flags = context.AddRelevantFlags(library_flags, MKSNAPSHOT_EXTRA_FLAGS)
-  jscre_flags = context.AddRelevantFlags(library_flags, JSCRE_EXTRA_FLAGS)
   dtoa_flags = context.AddRelevantFlags(library_flags, DTOA_EXTRA_FLAGS)
   cctest_flags = context.AddRelevantFlags(v8_flags, CCTEST_EXTRA_FLAGS)
   sample_flags = context.AddRelevantFlags(os.environ, SAMPLE_FLAGS)
@@ -573,7 +553,6 @@ def BuildSpecific(env, mode, env_overrides):
   context.flags = {
     'v8': v8_flags,
     'mksnapshot': mksnapshot_flags,
-    'jscre': jscre_flags,
     'dtoa': dtoa_flags,
     'cctest': cctest_flags,
     'sample': sample_flags,

@@ -8,8 +8,7 @@ be performed by Visual Studio.
 v8_base.vcproj
 --------------
 Base V8 library containing all the V8 code but no JavaScript library code. This
-includes third party code for regular expression handling (jscre) and
-string/number convertions (dtoa).
+includes third party code for string/number convertions (dtoa).
 
 v8.vcproj
 ---------
