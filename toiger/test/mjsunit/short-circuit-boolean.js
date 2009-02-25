@@ -34,7 +34,7 @@ function andTest0() {
   return a != 0 && "failure";
 }
 
-assertTrue(andTest0());
+assertFalse(andTest0());
 
 
 function orTest0() {
