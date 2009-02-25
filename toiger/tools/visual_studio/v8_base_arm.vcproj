@@ -593,6 +593,18 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\jump-target.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jump-target.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\jump-target-arm.cc"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\jsregexp-inl.h"
 				>
 			</File>
@@ -754,6 +766,18 @@
 			</File>
 			<File
 				RelativePath="..\..\src\regexp-stack.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\register-allocator.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\register-allocator.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\register-allocator-arm.cc"
 				>
 			</File>
 			<File
@@ -926,6 +950,22 @@
 			</File>
 			<File
 				RelativePath="..\..\src\variables.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame-arm.h"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\virtual-frame-arm.cc"
 				>
 			</File>
 			<File
