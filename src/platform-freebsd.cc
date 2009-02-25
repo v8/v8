@@ -32,6 +32,8 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/ucontext.h>
 #include <stdlib.h>
 
@@ -42,6 +44,9 @@
 #include <unistd.h>     // getpagesize
 #include <execinfo.h>   // backtrace, backtrace_symbols
 #include <strings.h>    // index
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netdb.h>
 #include <errno.h>
 #include <stdarg.h>
 #include <limits.h>
@@ -181,6 +186,11 @@ int OS::VSNPrintF(Vector<char> str,
   } else {
     return n;
   }
+}
+
+
+char* OS::StrChr(char* str, int c) {
+  return strchr(str, c);
 }
 
 
@@ -615,6 +625,172 @@ Semaphore* OS::CreateSemaphore(int count) {
   return new FreeBSDSemaphore(count);
 }
 
+
+// ----------------------------------------------------------------------------
+// FreeBSD socket support.
+//
+
+class FreeBSDSocket : public Socket {
+ public:
+  explicit FreeBSDSocket() {
+    // Create the socket.
+    socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  }
+  explicit FreeBSDSocket(int socket): socket_(socket) { }
+
+
+  virtual ~FreeBSDSocket() {
+    if (IsValid()) {
+      // Close socket.
+      close(socket_);
+    }
+  }
+
+  // Server initialization.
+  bool Bind(const int port);
+  bool Listen(int backlog) const;
+  Socket* Accept() const;
+
+  // Client initialization.
+  bool Connect(const char* host, const char* port);
+
+  // Data Transimission
+  int Send(const char* data, int len) const;
+  bool SendAll(const char* data, int len) const;
+  int Receive(char* data, int len) const;
+
+  bool IsValid() const { return socket_ != -1; }
+
+ private:
+  int socket_;
+};
+
+
+bool FreeBSDSocket::Bind(const int port) {
+  if (!IsValid())  {
+    return false;
+  }
+
+  sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  addr.sin_port = htons(port);
+  int status = bind(socket_,
+                    reinterpret_cast<struct sockaddr *>(&addr),
+                    sizeof(addr));
+  return status == 0;
+}
+
+
+bool FreeBSDSocket::Listen(int backlog) const {
+  if (!IsValid()) {
+    return false;
+  }
+
+  int status = listen(socket_, backlog);
+  return status == 0;
+}
+
+
+Socket* FreeBSDSocket::Accept() const {
+  if (!IsValid()) {
+    return NULL;
+  }
+
+  int socket = accept(socket_, NULL, NULL);
+  if (socket == -1) {
+    return NULL;
+  } else {
+    return new FreeBSDSocket(socket);
+  }
+}
+
+
+bool FreeBSDSocket::Connect(const char* host, const char* port) {
+  if (!IsValid()) {
+    return false;
+  }
+
+  // Lookup host and port.
+  struct addrinfo *result = NULL;
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(addrinfo));
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+  int status = getaddrinfo(host, port, &hints, &result);
+  if (status != 0) {
+    return false;
+  }
+
+  // Connect.
+  status = connect(socket_, result->ai_addr, result->ai_addrlen);
+  return status == 0;
+}
+
+
+int FreeBSDSocket::Send(const char* data, int len) const {
+  int status = send(socket_, data, len, 0);
+  return status;
+}
+
+
+bool FreeBSDSocket::SendAll(const char* data, int len) const {
+  int sent_len = 0;
+  while (sent_len < len) {
+    int status = Send(data, len);
+    if (status <= 0) {
+      return false;
+    }
+    sent_len += status;
+  }
+  return true;
+}
+
+
+int FreeBSDSocket::Receive(char* data, int len) const {
+  int status = recv(socket_, data, len, 0);
+  return status;
+}
+
+
+bool Socket::Setup() {
+  // Nothing to do on FreeBSD.
+  return true;
+}
+
+
+int Socket::LastError() {
+  return errno;
+}
+
+
+uint16_t Socket::HToN(uint16_t value) {
+  return htons(value);
+}
+
+
+uint16_t Socket::NToH(uint16_t value) {
+  return ntohs(value);
+}
+
+
+uint32_t Socket::HToN(uint32_t value) {
+  return htonl(value);
+}
+
+
+uint32_t Socket::NToH(uint32_t value) {
+  return ntohl(value);
+}
+
+
+Socket* OS::CreateSocket() {
+  return new FreeBSDSocket();
+}
+
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 static Sampler* active_sampler_ = NULL;
@@ -634,9 +810,11 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #if defined (__arm__) || defined(__thumb__)
     sample.pc = mcontext.mc_r15;
     sample.sp = mcontext.mc_r13;
+    sample.fp = mcontext.mc_r11;
 #else
     sample.pc = mcontext.mc_eip;
     sample.sp = mcontext.mc_esp;
+    sample.fp = mcontext.mc_ebp;
 #endif
   }
 

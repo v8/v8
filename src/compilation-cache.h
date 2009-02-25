@@ -55,10 +55,11 @@ class CompilationCache {
                                          int line_offset,
                                          int column_offset);
 
-  // Finds the function boilerplate for a source string for
-  // eval. Returns an empty handle if the cache doesn't contain a
-  // script for the given source string.
+  // Finds the function boilerplate for a source string for eval in a
+  // given context.  Returns an empty handle if the cache doesn't
+  // contain a script for the given source string.
   static Handle<JSFunction> LookupEval(Handle<String> source,
+                                       Handle<Context> context,
                                        Entry entry);
 
   // Returns the regexp data associated with the given regexp if it
@@ -77,6 +78,14 @@ class CompilationCache {
   static void PutFunction(Handle<String> source,
                           Entry entry,
                           Handle<JSFunction> boilerplate);
+
+  // Associate the (source, context->closure()->shared(), kind)
+  // triple with the boilerplate. This may overwrite an existing
+  // mapping.
+  static void PutEvalFunction(Handle<String> source,
+                              Handle<Context> context,
+                              Entry entry,
+                              Handle<JSFunction> boilerplate);
 
   // Clear the cache - also used to initialize the cache at startup.
   static void Clear();

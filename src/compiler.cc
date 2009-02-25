@@ -40,6 +40,7 @@ namespace v8 { namespace internal {
 
 static Handle<Code> MakeCode(FunctionLiteral* literal,
                              Handle<Script> script,
+                             Handle<Context> context,
                              bool is_eval) {
   ASSERT(literal != NULL);
 
@@ -55,7 +56,7 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
   // so this doesn't re-allocate variables repeatedly.
   Scope* top = literal->scope();
   while (top->outer_scope() != NULL) top = top->outer_scope();
-  top->AllocateVariables();
+  top->AllocateVariables(context);
 
 #ifdef DEBUG
   if (Bootstrapper::IsActive() ?
@@ -81,6 +82,7 @@ static Handle<Code> MakeCode(FunctionLiteral* literal,
 static Handle<JSFunction> MakeFunction(bool is_global,
                                        bool is_eval,
                                        Handle<Script> script,
+                                       Handle<Context> context,
                                        v8::Extension* extension,
                                        ScriptDataImpl* pre_data) {
   ZoneScope zone_scope(DELETE_ON_EXIT);
@@ -113,7 +115,7 @@ static Handle<JSFunction> MakeFunction(bool is_global,
   StatsRateScope timer(rate);
 
   // Compile the code.
-  Handle<Code> code = MakeCode(lit, script, is_eval);
+  Handle<Code> code = MakeCode(lit, script, context, is_eval);
 
   // Check for stack-overflow exceptions.
   if (code.is_null()) {
@@ -201,7 +203,12 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
     }
 
     // Compile the function and add it to the cache.
-    result = MakeFunction(true, false, script, extension, pre_data);
+    result = MakeFunction(true,
+                          false,
+                          script,
+                          Handle<Context>::null(),
+                          extension,
+                          pre_data);
     if (extension == NULL && !result.is_null()) {
       CompilationCache::PutFunction(source, CompilationCache::SCRIPT, result);
     }
@@ -219,6 +226,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
 
 
 Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
+                                         Handle<Context> context,
                                          int line_offset,
                                          bool is_global) {
   int source_length = source->length();
@@ -233,14 +241,15 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
 
   // Do a lookup in the compilation cache; if the entry is not there,
   // invoke the compiler and add the result to the cache.
-  Handle<JSFunction> result = CompilationCache::LookupEval(source, entry);
+  Handle<JSFunction> result =
+      CompilationCache::LookupEval(source, context, entry);
   if (result.is_null()) {
     // Create a script object describing the script to be compiled.
     Handle<Script> script = Factory::NewScript(source);
     script->set_line_offset(Smi::FromInt(line_offset));
-    result = MakeFunction(is_global, true, script, NULL, NULL);
+    result = MakeFunction(is_global, true, script, context, NULL, NULL);
     if (!result.is_null()) {
-      CompilationCache::PutFunction(source, entry, result);
+      CompilationCache::PutEvalFunction(source, context, entry, result);
     }
   }
 
@@ -290,7 +299,7 @@ bool Compiler::CompileLazy(Handle<SharedFunctionInfo> shared,
   StatsRateScope timer(&Counters::compile_lazy);
 
   // Compile the code.
-  Handle<Code> code = MakeCode(lit, script, false);
+  Handle<Code> code = MakeCode(lit, script, Handle<Context>::null(), false);
 
   // Check for stack-overflow exception.
   if (code.is_null()) {

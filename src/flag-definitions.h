@@ -199,11 +199,10 @@ DEFINE_bool(usage_computation, true, "compute variable usage counts")
 DEFINE_bool(preemption, false,
             "activate a 100ms timer that switches between V8 threads")
 
-// Irregexp
-DEFINE_bool(irregexp, true, "new regular expression code")
-DEFINE_bool(trace_regexps, false, "trace Irregexp execution")
-DEFINE_bool(irregexp_native, true, "use native code Irregexp implementation (IA32 only)")
-DEFINE_bool(irregexp_optimization, true, "generate optimized regexp code")
+// Regexp
+DEFINE_bool(trace_regexps, false, "trace regexp execution")
+DEFINE_bool(regexp_native, true, "use native code regexp implementation (IA32 only)")
+DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_bool(testing_bool_flag, true, "testing_bool_flag")
@@ -296,10 +295,11 @@ DEFINE_bool(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
 
-// irregexp
-DEFINE_bool(trace_regexp_bytecodes, false, "trace Irregexp bytecode execution")
-DEFINE_bool(trace_regexp_assembler, false,
-            "trace Irregexp macro assembler calls.")
+// Regexp
+DEFINE_bool(trace_regexp_bytecodes, false, "trace regexp bytecode execution")
+DEFINE_bool(trace_regexp_assembler,
+            false,
+            "trace regexp macro assembler calls.")
 
 //
 // Logging and profiling only flags
@@ -315,6 +315,7 @@ DEFINE_bool(trace_regexp_assembler, false,
 DEFINE_bool(log, false,
             "Minimal logging (no API, code, GC, suspect, or handles samples).")
 DEFINE_bool(log_all, false, "Log all events to the log file.")
+DEFINE_bool(log_runtime, false, "Activate runtime system %Log call.")
 DEFINE_bool(log_api, false, "Log API events to the log file.")
 DEFINE_bool(log_code, false,
             "Log code events to the log file without profiling.")

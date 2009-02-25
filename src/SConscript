@@ -97,15 +97,6 @@ regexp-delay.js
 '''.split()
 
 
-JSCRE_FILES = '''
-pcre_compile.cpp
-pcre_exec.cpp
-pcre_tables.cpp
-pcre_ucp_searchfuncs.cpp
-pcre_xclass.cpp
-'''.split()
-
-
 def Abort(message):
   print message
   sys.exit(1)
@@ -133,12 +124,6 @@ def ConfigureObjectFiles():
   libraries_src, libraries_empty_src = env.JS2C(['libraries.cc', 'libraries-empty.cc'], library_files, TYPE='CORE')
   libraries_obj = context.ConfigureObject(env, libraries_src, CPPPATH=['.'])
 
-  # Build JSCRE.
-  jscre_env = env.Copy()
-  jscre_env.Replace(**context.flags['jscre'])
-  jscre_files = [join('third_party', 'jscre', s) for s in JSCRE_FILES]
-  jscre_obj = context.ConfigureObject(jscre_env, jscre_files)
-
   # Build dtoa.
   dtoa_env = env.Copy()
   dtoa_env.Replace(**context.flags['dtoa'])
@@ -146,7 +131,7 @@ def ConfigureObjectFiles():
   dtoa_obj = context.ConfigureObject(dtoa_env, dtoa_files)
 
   source_objs = context.ConfigureObject(env, source_files)
-  non_snapshot_files = [jscre_obj, dtoa_obj, source_objs]
+  non_snapshot_files = [dtoa_obj, source_objs]
 
   # Create snapshot if necessary.
   empty_snapshot_obj = context.ConfigureObject(env, 'snapshot-empty.cc')

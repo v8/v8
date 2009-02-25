@@ -1,4 +1,4 @@
-// Copyright 2008-2009 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,47 +25,35 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A light-weight assembler for the Irregexp byte code.
+// Tests global loads from eval inside of a with statement.
 
+var x = 27;
 
-#include "v8.h"
-#include "ast.h"
-#include "bytecodes-irregexp.h"
-
-
-namespace v8 { namespace internal {
-
-
-void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,
-                                        uint32_t twenty_four_bits) {
-  uint32_t word = ((twenty_four_bits << BYTECODE_SHIFT) | byte);
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_  + 3 >= buffer_.length()) {
-    Expand();
+function test(obj, source) {
+  with (obj) {
+    eval(source);
   }
-  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
-  pc_ += 4;
 }
 
+// Test shadowing in eval scope.
+test({ x: 42 }, "assertEquals(42, x)");
+test({ y: 42 }, "assertEquals(27, x)");
 
-void RegExpMacroAssemblerIrregexp::Emit16(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_ + 1 >= buffer_.length()) {
-    Expand();
-  }
-  *reinterpret_cast<uint16_t*>(buffer_.start() + pc_) = word;
-  pc_ += 2;
-}
+// Test shadowing in local scope inside an eval scope.
+test({ x: 42 }, "function f() { assertEquals(42, x) }; f();");
+test({ y: 42 }, "function f() { assertEquals(27, x) }; f();");
 
+// Test shadowing in local scope inside an eval scope.  Deeper nesting
+// this time.
+test({ x: 42 }, "function f() { function g() { assertEquals(42, x) }; g() }; f();");
+test({ y: 42 }, "function f() { function g() { assertEquals(27, x) }; g() }; f();");
 
-void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_ + 3 >= buffer_.length()) {
-    Expand();
-  }
-  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
-  pc_ += 4;
-}
+// Test shadowing in local scope inside an eval scope with eval calls in the eval scopes.
+test({ x: 42 }, "function f() { eval('1'); assertEquals(42, x) }; f();");
+test({ y: 42 }, "function f() { eval('1'); assertEquals(27, x) }; f();");
 
+// Test shadowing in local scope inside an eval scope with eval calls
+// in the eval scopes.  Deeper nesting this time.
+test({ x: 42 }, "function f() { function g() { eval('1'); assertEquals(42, x) }; g() }; f();");
+test({ y: 42 }, "function f() { function g() { eval('1'); assertEquals(27, x) }; g() }; f();");
 
-} }  // namespace v8::internal

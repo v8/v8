@@ -552,11 +552,11 @@ void SharedFunctionInfo::SharedFunctionInfoPrint() {
   PrintF(" - name: ");
   name()->ShortPrint();
   PrintF("\n - expected_nof_properties: %d", expected_nof_properties());
-  PrintF("\n - instance class name =");
+  PrintF("\n - instance class name = ");
   instance_class_name()->Print();
-  PrintF("\n - code =");
+  PrintF("\n - code = ");
   code()->ShortPrint();
-  PrintF("\n - source code =");
+  PrintF("\n - source code = ");
   GetSourceCode()->ShortPrint();
   PrintF("\n - lazy load: %s",
          lazy_load_data() == Heap::undefined_value() ? "no" : "yes");
@@ -568,7 +568,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint() {
   PrintF("\n - end position = %d", end_position());
   PrintF("\n - is expression = %d", is_expression());
   PrintF("\n - debug info = ");
-  debug_info()->Print();
+  debug_info()->ShortPrint();
   PrintF("\n - length = %d", length());
   PrintF("\n");
 }
@@ -693,16 +693,10 @@ void JSRegExp::JSRegExpVerify() {
       ASSERT(arr->get(JSRegExp::kAtomPatternIndex)->IsString());
       break;
     }
-    case JSRegExp::JSCRE: {
-      FixedArray* arr = FixedArray::cast(data());
-      Object* jscre_data = arr->get(JSRegExp::kJscreDataIndex);
-      ASSERT(jscre_data->IsFixedArray() || jscre_data->IsUndefined());
-      break;
-    }
     case JSRegExp::IRREGEXP: {
       FixedArray* arr = FixedArray::cast(data());
-      Object* jscre_data = arr->get(JSRegExp::kJscreDataIndex);
-      ASSERT(jscre_data->IsFixedArray());
+      Object* irregexp_data = arr->get(JSRegExp::kIrregexpDataIndex);
+      ASSERT(irregexp_data->IsFixedArray());
       break;
     }
     default:
@@ -752,7 +746,7 @@ void AccessorInfo::AccessorInfoVerify() {
 }
 
 void AccessorInfo::AccessorInfoPrint() {
-  PrintF("AccessorInfo");
+  HeapObject::PrintHeader("AccessorInfo");
   PrintF("\n - getter: ");
   getter()->ShortPrint();
   PrintF("\n - setter: ");
@@ -773,7 +767,7 @@ void AccessCheckInfo::AccessCheckInfoVerify() {
 }
 
 void AccessCheckInfo::AccessCheckInfoPrint() {
-  PrintF("AccessCheckInfo");
+  HeapObject::PrintHeader("AccessCheckInfo");
   PrintF("\n - named_callback: ");
   named_callback()->ShortPrint();
   PrintF("\n - indexed_callback: ");
@@ -793,7 +787,7 @@ void InterceptorInfo::InterceptorInfoVerify() {
 }
 
 void InterceptorInfo::InterceptorInfoPrint() {
-  PrintF("InterceptorInfo");
+  HeapObject::PrintHeader("InterceptorInfo");
   PrintF("\n - getter: ");
   getter()->ShortPrint();
   PrintF("\n - setter: ");
@@ -815,7 +809,7 @@ void CallHandlerInfo::CallHandlerInfoVerify() {
 }
 
 void CallHandlerInfo::CallHandlerInfoPrint() {
-  PrintF("CallHandlerInfo");
+  HeapObject::PrintHeader("CallHandlerInfo");
   PrintF("\n - callback: ");
   callback()->ShortPrint();
   PrintF("\n - data: ");
@@ -843,7 +837,7 @@ void FunctionTemplateInfo::FunctionTemplateInfoVerify() {
 }
 
 void FunctionTemplateInfo::FunctionTemplateInfoPrint() {
-  PrintF("FunctionTemplateInfo");
+  HeapObject::PrintHeader("FunctionTemplateInfo");
   PrintF("\n - tag: ");
   tag()->ShortPrint();
   PrintF("\n - property_list: ");
@@ -881,7 +875,7 @@ void ObjectTemplateInfo::ObjectTemplateInfoVerify() {
 }
 
 void ObjectTemplateInfo::ObjectTemplateInfoPrint() {
-  PrintF("ObjectTemplateInfo");
+  HeapObject::PrintHeader("ObjectTemplateInfo");
   PrintF("\n - constructor: ");
   constructor()->ShortPrint();
   PrintF("\n - internal_field_count: ");
@@ -895,7 +889,7 @@ void SignatureInfo::SignatureInfoVerify() {
 }
 
 void SignatureInfo::SignatureInfoPrint() {
-  PrintF("SignatureInfo");
+  HeapObject::PrintHeader("SignatureInfo");
   PrintF("\n - receiver: ");
   receiver()->ShortPrint();
   PrintF("\n - args: ");
@@ -908,7 +902,7 @@ void TypeSwitchInfo::TypeSwitchInfoVerify() {
 }
 
 void TypeSwitchInfo::TypeSwitchInfoPrint() {
-  PrintF("TypeSwitchInfo");
+  HeapObject::PrintHeader("TypeSwitchInfo");
   PrintF("\n - types: ");
   types()->ShortPrint();
 }
@@ -950,15 +944,15 @@ void DebugInfo::DebugInfoVerify() {
 
 
 void DebugInfo::DebugInfoPrint() {
-  PrintF("DebugInfo");
-  PrintF("\n - shared");
+  HeapObject::PrintHeader("DebugInfo");
+  PrintF("\n - shared: ");
   shared()->ShortPrint();
-  PrintF("\n - original_code");
+  PrintF("\n - original_code: ");
   original_code()->ShortPrint();
-  PrintF("\n - code");
+  PrintF("\n - code: ");
   code()->ShortPrint();
-  PrintF("\n - break_points");
-  break_points()->ShortPrint();
+  PrintF("\n - break_points: ");
+  break_points()->Print();
 }
 
 
@@ -972,11 +966,11 @@ void BreakPointInfo::BreakPointInfoVerify() {
 
 
 void BreakPointInfo::BreakPointInfoPrint() {
-  PrintF("BreakPointInfo");
-  PrintF("\n - code_position %d", code_position());
-  PrintF("\n - source_position %d", source_position());
-  PrintF("\n - statement_position %d", statement_position());
-  PrintF("\n - break_point_objects ");
+  HeapObject::PrintHeader("BreakPointInfo");
+  PrintF("\n - code_position: %d", code_position());
+  PrintF("\n - source_position: %d", source_position());
+  PrintF("\n - statement_position: %d", statement_position());
+  PrintF("\n - break_point_objects: ");
   break_point_objects()->ShortPrint();
 }
 

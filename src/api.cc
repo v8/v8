@@ -2184,7 +2184,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.0.1";
+  return "1.0.2";
 }
 
 
@@ -2888,8 +2888,11 @@ bool Debug::SetDebugEventListener(DebugEventCallback that, Handle<Value> data) {
   EnsureInitialized("v8::Debug::SetDebugEventListener()");
   ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
   HandleScope scope;
-  i::Debugger::SetEventListener(i::Factory::NewProxy(FUNCTION_ADDR(that)),
-                                Utils::OpenHandle(*data));
+  i::Handle<i::Object> proxy = i::Factory::undefined_value();
+  if (that != NULL) {
+    proxy = i::Factory::NewProxy(FUNCTION_ADDR(that));
+  }
+  i::Debugger::SetEventListener(proxy, Utils::OpenHandle(*data));
   return true;
 }
 
@@ -2918,6 +2921,19 @@ void Debug::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
 void Debug::SendCommand(const uint16_t* command, int length) {
   if (!i::V8::HasBeenSetup()) return;
   i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length));
+}
+
+
+void Debug::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
+                                   void* data) {
+  EnsureInitialized("v8::Debug::SetHostDispatchHandler");
+  i::Debugger::SetHostDispatchHandler(handler, data);
+}
+
+
+void Debug::SendHostDispatch(void* dispatch) {
+  if (!i::V8::HasBeenSetup()) return;
+  i::Debugger::ProcessHostDispatch(dispatch);
 }
 
 

@@ -544,7 +544,7 @@ class TestRepository(TestSuite):
     file = None
     try:
       (file, pathname, description) = imp.find_module('testcfg', [ self.path ])
-      module = imp.load_module(self.path, file, pathname, description)
+      module = imp.load_module('testcfg', file, pathname, description)
       self.config = module.GetConfiguration(context, self.path)
     finally:
       if file:

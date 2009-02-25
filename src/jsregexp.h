@@ -67,21 +67,11 @@ class RegExpImpl {
   static Handle<Object> ExecGlobal(Handle<JSRegExp> regexp,
                                    Handle<String> subject);
 
-  // Stores an uncompiled RegExp pattern in the JSRegExp object.
-  // It will be compiled by JSCRE when first executed.
-  static Handle<Object> JscrePrepare(Handle<JSRegExp> re,
-                                     Handle<String> pattern,
-                                     JSRegExp::Flags flags);
-
   // Prepares a JSRegExp object with Irregexp-specific data.
   static Handle<Object> IrregexpPrepare(Handle<JSRegExp> re,
                                         Handle<String> pattern,
                                         JSRegExp::Flags flags);
 
-
-  // Compile the pattern using JSCRE and store the result in the
-  // JSRegExp object.
-  static Handle<Object> JscreCompile(Handle<JSRegExp> re);
 
   static Handle<Object> AtomCompile(Handle<JSRegExp> re,
                                     Handle<String> pattern,
@@ -94,22 +84,10 @@ class RegExpImpl {
   static Handle<Object> AtomExecGlobal(Handle<JSRegExp> regexp,
                                        Handle<String> subject);
 
-  static Handle<Object> JscreCompile(Handle<JSRegExp> re,
-                                     Handle<String> pattern,
-                                     JSRegExp::Flags flags);
-
-  // Execute a compiled JSCRE pattern.
-  static Handle<Object> JscreExec(Handle<JSRegExp> regexp,
-                                  Handle<String> subject,
-                                  Handle<Object> index);
-
   // Execute an Irregexp bytecode pattern.
   static Handle<Object> IrregexpExec(Handle<JSRegExp> regexp,
                                      Handle<String> subject,
                                      Handle<Object> index);
-
-  static Handle<Object> JscreExecGlobal(Handle<JSRegExp> regexp,
-                                        Handle<String> subject);
 
   static Handle<Object> IrregexpExecGlobal(Handle<JSRegExp> regexp,
                                            Handle<String> subject);
@@ -129,30 +107,14 @@ class RegExpImpl {
   static const int kIrregexpCodeIndex = 3;
   static const int kIrregexpDataLength = 4;
 
-  static const int kJscreNumberOfCapturesIndex = 0;
-  static const int kJscreInternalIndex = 1;
-  static const int kJscreDataLength = 2;
-
  private:
   static String* last_ascii_string_;
   static String* two_byte_cached_string_;
-
-  static int JscreNumberOfCaptures(Handle<JSRegExp> re);
-  static ByteArray* JscreInternal(Handle<JSRegExp> re);
 
   static int IrregexpNumberOfCaptures(Handle<FixedArray> re);
   static int IrregexpNumberOfRegisters(Handle<FixedArray> re);
   static Handle<ByteArray> IrregexpByteCode(Handle<FixedArray> re);
   static Handle<Code> IrregexpNativeCode(Handle<FixedArray> re);
-
-  // Call jsRegExpExecute once
-  static Handle<Object> JscreExecOnce(Handle<JSRegExp> regexp,
-                                      int num_captures,
-                                      Handle<String> subject,
-                                      int previous_index,
-                                      const uc16* utf8_subject,
-                                      int* ovector,
-                                      int ovector_length);
 
   // On a successful match, the result is a JSArray containing
   // captured positions. On a failure, the result is the null value.
@@ -824,11 +786,15 @@ class TextNode: public SeqRegExpNode {
 
  private:
   enum TextEmitPassType {
-    NON_ASCII_MATCH,
-    CHARACTER_MATCH,
-    CASE_CHARACTER_MATCH,
-    CHARACTER_CLASS_MATCH
+    NON_ASCII_MATCH,             // Check for characters that can't match.
+    SIMPLE_CHARACTER_MATCH,      // Case-dependent single character check.
+    NON_LETTER_CHARACTER_MATCH,  // Check characters that have no case equivs.
+    CASE_CHARACTER_MATCH,        // Case-independent single character check.
+    CHARACTER_CLASS_MATCH        // Character class.
   };
+  static bool SkipPass(int pass, bool ignore_case);
+  static const int kFirstRealPass = SIMPLE_CHARACTER_MATCH;
+  static const int kLastPass = CHARACTER_CLASS_MATCH;
   void TextEmitPass(RegExpCompiler* compiler,
                     TextEmitPassType pass,
                     bool preloaded,
@@ -1176,6 +1142,7 @@ class Trace {
         loop_label_(NULL),
         characters_preloaded_(0),
         bound_checked_up_to_(0),
+        flush_budget_(100),
         at_start_(UNKNOWN) { }
 
   // End the trace.  This involves flushing the deferred actions in the trace
@@ -1211,6 +1178,7 @@ class Trace {
   RegExpNode* stop_node() { return stop_node_; }
   int characters_preloaded() { return characters_preloaded_; }
   int bound_checked_up_to() { return bound_checked_up_to_; }
+  int flush_budget() { return flush_budget_; }
   QuickCheckDetails* quick_check_performed() { return &quick_check_performed_; }
   bool mentions_reg(int reg);
   // Returns true if a deferred position store exists to the specified
@@ -1229,6 +1197,7 @@ class Trace {
   void set_loop_label(Label* label) { loop_label_ = label; }
   void set_characters_preloaded(int cpre) { characters_preloaded_ = cpre; }
   void set_bound_checked_up_to(int to) { bound_checked_up_to_ = to; }
+  void set_flush_budget(int to) { flush_budget_ = to; }
   void set_quick_check_performed(QuickCheckDetails* d) {
     quick_check_performed_ = *d;
   }
@@ -1253,6 +1222,7 @@ class Trace {
   int characters_preloaded_;
   int bound_checked_up_to_;
   QuickCheckDetails quick_check_performed_;
+  int flush_budget_;
   TriBool at_start_;
 };
 

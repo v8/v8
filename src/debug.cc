@@ -314,6 +314,8 @@ void BreakLocationIterator::ClearDebugBreak() {
 
 
 void BreakLocationIterator::PrepareStepIn() {
+  HandleScope scope;
+
   // Step in can only be prepared if currently positioned on an IC call or
   // construct call.
   Address target = rinfo()->target_address();
@@ -360,6 +362,17 @@ bool BreakLocationIterator::IsDebugBreak() {
 
 Object* BreakLocationIterator::BreakPointObjects() {
   return debug_info_->GetBreakPointObjects(code_position());
+}
+
+
+// Clear out all the debug break code. This is ONLY supposed to be used when
+// shutting down the debugger as it will leave the break point information in
+// DebugInfo even though the code is patched back to the non break point state.
+void BreakLocationIterator::ClearAllDebugBreak() {
+  while (!Done()) {
+    ClearDebugBreak();
+    Next();
+  }
 }
 
 
@@ -589,6 +602,9 @@ void Debug::Unload() {
     return;
   }
 
+  // Get rid of all break points and related information.
+  ClearAllBreakPoints();
+
   // Clear debugger context global handle.
   GlobalHandles::Destroy(reinterpret_cast<Object**>(debug_context_.location()));
   debug_context_ = Handle<Context>();
@@ -715,6 +731,8 @@ Handle<Object> Debug::CheckBreakPoints(Handle<Object> break_point_objects) {
 
 // Check whether a single break point object is triggered.
 bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
+  HandleScope scope;
+
   // Ignore check if break point object is not a JSObject.
   if (!break_point_object->IsJSObject()) return true;
 
@@ -765,6 +783,8 @@ Handle<DebugInfo> Debug::GetDebugInfo(Handle<SharedFunctionInfo> shared) {
 void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
                           int source_position,
                           Handle<Object> break_point_object) {
+  HandleScope scope;
+
   if (!EnsureDebugInfo(shared)) {
     // Return if retrieving debug info failed.
     return;
@@ -785,6 +805,8 @@ void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
 
 
 void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
+  HandleScope scope;
+
   DebugInfoListNode* node = debug_info_list_;
   while (node != NULL) {
     Object* result = DebugInfo::FindBreakPointInfo(node->debug_info(),
@@ -813,6 +835,22 @@ void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
       return;
     }
     node = node->next();
+  }
+}
+
+
+void Debug::ClearAllBreakPoints() {
+  DebugInfoListNode* node = debug_info_list_;
+  while (node != NULL) {
+    // Remove all debug break code.
+    BreakLocationIterator it(node->debug_info(), ALL_BREAK_LOCATIONS);
+    it.ClearAllDebugBreak();
+    node = node->next();
+  }
+
+  // Remove all debug info.
+  while (debug_info_list_ != NULL) {
+    RemoveDebugInfo(debug_info_list_->debug_info());
   }
 }
 
@@ -1214,6 +1252,8 @@ void Debug::RemoveDebugInfo(Handle<DebugInfo> debug_info) {
 
 
 void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
+  HandleScope scope;
+
   // Get the executing function in which the debug break occurred.
   Handle<SharedFunctionInfo> shared =
       Handle<SharedFunctionInfo>(JSFunction::cast(frame->function())->shared());
@@ -1289,6 +1329,7 @@ bool Debug::IsDebugGlobal(GlobalObject* global) {
 
 
 void Debug::ClearMirrorCache() {
+  HandleScope scope;
   ASSERT(Top::context() == *Debug::debug_context());
 
   // Clear the mirror cache.
@@ -1310,8 +1351,10 @@ bool Debugger::debugger_active_ = false;
 bool Debugger::compiling_natives_ = false;
 bool Debugger::is_loading_debugger_ = false;
 DebugMessageThread* Debugger::message_thread_ = NULL;
-v8::DebugMessageHandler Debugger::debug_message_handler_ = NULL;
-void* Debugger::debug_message_handler_data_ = NULL;
+v8::DebugMessageHandler Debugger::message_handler_ = NULL;
+void* Debugger::message_handler_data_ = NULL;
+v8::DebugHostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
+void* Debugger::host_dispatch_handler_data_ = NULL;
 
 
 Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
@@ -1588,6 +1631,8 @@ void Debugger::OnNewFunction(Handle<JSFunction> function) {
 
 void Debugger::ProcessDebugEvent(v8::DebugEvent event,
                                  Handle<Object> event_data) {
+  HandleScope scope;
+
   // Create the execution state.
   bool caught_exception = false;
   Handle<Object> exec_state = MakeExecutionState(&caught_exception);
@@ -1666,8 +1711,8 @@ void Debugger::SetEventListener(Handle<Object> callback,
 
 
 void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
-  debug_message_handler_ = handler;
-  debug_message_handler_data_ = data;
+  message_handler_ = handler;
+  message_handler_data_ = data;
   if (!message_thread_) {
     message_thread_ = new DebugMessageThread();
     message_thread_->Start();
@@ -1676,14 +1721,20 @@ void Debugger::SetMessageHandler(v8::DebugMessageHandler handler, void* data) {
 }
 
 
+void Debugger::SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
+                                      void* data) {
+  host_dispatch_handler_ = handler;
+  host_dispatch_handler_data_ = data;
+}
+
+
 // Posts an output message from the debugger to the debug_message_handler
 // callback.  This callback is part of the public API.  Messages are
 // kept internally as Vector<uint16_t> strings, which are allocated in various
 // places and deallocated by the calling function sometime after this call.
 void Debugger::SendMessage(Vector< uint16_t> message) {
-  if (debug_message_handler_ != NULL) {
-    debug_message_handler_(message.start(), message.length(),
-                           debug_message_handler_data_);
+  if (message_handler_ != NULL) {
+    message_handler_(message.start(), message.length(), message_handler_data_);
   }
 }
 
@@ -1697,12 +1748,22 @@ void Debugger::ProcessCommand(Vector<const uint16_t> command) {
 }
 
 
+void Debugger::ProcessHostDispatch(void* dispatch) {
+  if (message_thread_ != NULL) {
+    message_thread_->ProcessHostDispatch(dispatch);
+  }
+}
+
+
 void Debugger::UpdateActiveDebugger() {
   set_debugger_active((message_thread_ != NULL &&
-                       debug_message_handler_ != NULL) ||
+                       message_handler_ != NULL) ||
                        !event_listener_.is_null());
   if (!debugger_active() && message_thread_) {
     message_thread_->OnDebuggerInactive();
+  }
+  if (!debugger_active()) {
+    Debug::Unload();
   }
 }
 
@@ -1808,6 +1869,8 @@ void DebugMessageThread::Run() {
 void DebugMessageThread::DebugEvent(v8::DebugEvent event,
                                     Handle<Object> exec_state,
                                     Handle<Object> event_data) {
+  HandleScope scope;
+
   if (!Debug::Load()) return;
 
   // Process the individual events.
@@ -1864,6 +1927,16 @@ void DebugMessageThread::DebugEvent(v8::DebugEvent event,
     if (!Debugger::debugger_active()) {
       host_running_ = true;
       return;
+    }
+
+    // Check if the command is a host dispatch.
+    if (command[0] == 0) {
+      if (Debugger::host_dispatch_handler_) {
+        int32_t dispatch = (command[1] << 16) | command[2];
+        Debugger::host_dispatch_handler_(reinterpret_cast<void*>(dispatch),
+                                         Debugger::host_dispatch_handler_data_);
+      }
+      continue;
     }
 
     // Invoke the JavaScript to process the debug request.
@@ -1939,6 +2012,18 @@ void DebugMessageThread::ProcessCommand(Vector<uint16_t> command) {
   Vector<uint16_t> command_copy = command.Clone();
   Logger::DebugTag("Put command on command_queue.");
   command_queue_.Put(command_copy);
+  command_received_->Signal();
+}
+
+
+// Puts a host dispatch comming from the public API on the queue.
+void DebugMessageThread::ProcessHostDispatch(void* dispatch) {
+  uint16_t hack[3];
+  hack[0] = 0;
+  hack[1] = reinterpret_cast<uint32_t>(dispatch) >> 16;
+  hack[2] = reinterpret_cast<uint32_t>(dispatch) & 0xFFFF;
+  Logger::DebugTag("Put dispatch on command_queue.");
+  command_queue_.Put(Vector<uint16_t>(hack, 3).Clone());
   command_received_->Signal();
 }
 

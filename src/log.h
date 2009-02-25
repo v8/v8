@@ -69,6 +69,7 @@ class Ticker;
 class Profiler;
 class Semaphore;
 class SlidingStateWindow;
+class LogMessageBuilder;
 
 #undef LOG
 #ifdef ENABLE_LOGGING_AND_PROFILING
@@ -214,10 +215,12 @@ class Logger {
 
  private:
 
+  // Calculate the size of the code object to report for log events. This takes
+  // the layout of the code object into account.
+  static int CodeObjectSize(Code* code);
+
   // Emits the source code of a regexp. Used by regexp events.
   static void LogRegExpSource(Handle<JSRegExp> regexp);
-
-  static void LogString(Handle<String> str, bool show_impl_info);
 
   // Emits a profiler tick event. Used by the profiler thread.
   static void TickEvent(TickSample* sample, bool overflow);
@@ -227,8 +230,15 @@ class Logger {
   // Logs a StringEvent regardless of whether FLAG_log is true.
   static void UncheckedStringEvent(const char* name, const char* value);
 
-  // When logging is active, logfile_ refers the file
-  // events are written to.
+  // Size of buffer used for formatting log messages.
+  static const int kMessageBufferSize = 256;
+
+  // Buffer used for formatting log messages. This is a singleton buffer and
+  // mutex_ should be acquired before using it.
+  static char* message_buffer_;
+
+  // When logging is active, logfile_ refers the file events are written to.
+  // mutex_ should be acquired before using logfile_.
   static FILE* logfile_;
 
   // The sampler used by the profiler and the sliding state window.
@@ -240,7 +250,7 @@ class Logger {
   static Profiler* profiler_;
 
   // mutex_ is a Mutex used for enforcing exclusive
-  // access to the log file.
+  // access to the formatting buffer and the log file.
   static Mutex* mutex_;
 
   // A stack of VM states.
@@ -252,6 +262,7 @@ class Logger {
 
   // Internal implementation classes with access to
   // private members.
+  friend class LogMessageBuilder;
   friend class EventLog;
   friend class TimeLog;
   friend class Profiler;

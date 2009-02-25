@@ -4007,11 +4007,11 @@ static Object* Runtime_CompileString(Arguments args) {
   CONVERT_ARG_CHECKED(String, source, 0);
   CONVERT_ARG_CHECKED(Smi, line_offset, 1);
 
-  // Compile source string.
-  Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, line_offset->value(), true);
-  if (boilerplate.is_null()) return Failure::Exception();
+  // Compile source string in the global context.
   Handle<Context> context(Top::context()->global_context());
+  Handle<JSFunction> boilerplate =
+      Compiler::CompileEval(source, context, line_offset->value(), true);
+  if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
   return *fun;
@@ -4033,8 +4033,9 @@ static Object* CompileDirectEval(Handle<String> source) {
   Handle<Context> context(Context::cast(frame->context()));
   bool is_global = context->IsGlobalContext();
 
-  // Compile source string.
-  Handle<JSFunction> boilerplate = Compiler::CompileEval(source, 0, is_global);
+  // Compile source string in the current context.
+  Handle<JSFunction> boilerplate =
+      Compiler::CompileEval(source, context, 0, is_global);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
     Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -4625,7 +4626,7 @@ static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
             reinterpret_cast<AccessorDescriptor*>(
                 Proxy::cast(structure)->proxy());
         value = (callback->getter)(receiver, callback->data);
-        if (value->IsFailure()) {
+        if (value->IsException()) {
           value = Top::pending_exception();
           Top::clear_pending_exception();
           if (caught_exception != NULL) {
@@ -4705,15 +4706,17 @@ static Object* Runtime_DebugGetPropertyDetails(Arguments args) {
 
   if (result.IsProperty()) {
     bool caught_exception = false;
-    Handle<Object> value(DebugLookupResultValue(*obj, &result,
-                                                &caught_exception));
+    Object* value = DebugLookupResultValue(*obj, &result,
+                                           &caught_exception);
+    if (value->IsFailure()) return value;
+    Handle<Object> value_handle(value);
     // If the callback object is a fixed array then it contains JavaScript
     // getter and/or setter.
     bool hasJavaScriptAccessors = result.type() == CALLBACKS &&
                                   result.GetCallbackObject()->IsFixedArray();
     Handle<FixedArray> details =
         Factory::NewFixedArray(hasJavaScriptAccessors ? 5 : 2);
-    details->set(0, *value);
+    details->set(0, *value_handle);
     details->set(1, result.GetPropertyDetails().AsSmi());
     if (hasJavaScriptAccessors) {
       details->set(2,
@@ -5592,7 +5595,10 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
       Factory::NewStringFromAscii(Vector<const char>(source_str,
                                                      source_str_length));
   Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(function_source, 0, context->IsGlobalContext());
+      Compiler::CompileEval(function_source,
+                            context,
+                            0,
+                            context->IsGlobalContext());
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -5649,7 +5655,8 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   Handle<Context> context = Top::global_context();
 
   // Compile the source to be evaluated.
-  Handle<JSFunction> boilerplate(Compiler::CompileEval(source, 0, true));
+  Handle<JSFunction> boilerplate =
+      Handle<JSFunction>(Compiler::CompileEval(source, context, 0, true));
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(Factory::NewFunctionFromBoilerplate(boilerplate,
@@ -6035,9 +6042,9 @@ static Object* Runtime_ListNatives(Arguments args) {
 
 static Object* Runtime_Log(Arguments args) {
   ASSERT(args.length() == 2);
-  String* format = String::cast(args[0]);
+  CONVERT_CHECKED(String, format, args[0]);
+  CONVERT_CHECKED(JSArray, elms, args[1]);
   Vector<const char> chars = format->ToAsciiVector();
-  JSArray* elms = JSArray::cast(args[1]);
   Logger::LogRuntime(chars, elms);
   return Heap::undefined_value();
 }

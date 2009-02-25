@@ -38,7 +38,7 @@
 # only works for statically linked executables - no information about
 # shared libraries is logged from v8 on Windows.
 
-import os, re, sys, tickprocessor, getopt
+import os, re, sys, tickprocessor
 
 class WindowsTickProcessor(tickprocessor.TickProcessor):
 
@@ -107,33 +107,30 @@ class WindowsTickProcessor(tickprocessor.TickProcessor):
     finally:
       map_file.close()
 
-def Usage():
-  print("Usage: windows-tick-processor.py binary logfile-name");
-  sys.exit(2)
+
+class WindowsCmdLineProcessor(tickprocessor.CmdLineProcessor):
+
+  def __init__(self):
+    super(WindowsCmdLineProcessor, self).__init__()
+    self.binary_file = None
+
+  def GetRequiredArgsNames(self):
+    return 'binary log_file'
+
+  def ProcessRequiredArgs(self, args):
+    if len(args) != 2:
+      self.PrintUsageAndExit()
+    else:
+      self.binary_file = args[0]
+      self.log_file = args[1]
+
 
 def Main():
-  # parse command line options
-  state = None;
-  try:
-    opts, args = getopt.getopt(sys.argv[1:], "jgco", ["js", "gc", "compiler", "other"])
-  except getopt.GetoptError:
-    usage()
-  # process options.
-  for key, value in opts:
-    if key in ("-j", "--js"):
-      state = 0
-    if key in ("-g", "--gc"):
-      state = 1
-    if key in ("-c", "--compiler"):
-      state = 2
-    if key in ("-o", "--other"):
-      state = 3
-  # do the processing.
-  if len(args) != 2:
-      Usage();
+  cmdline_processor = WindowsCmdLineProcessor()
+  cmdline_processor.ProcessArguments()
   tickprocessor = WindowsTickProcessor()
-  tickprocessor.ParseMapFile(args[0])
-  tickprocessor.ProcessLogfile(args[1], state)
+  tickprocessor.ParseMapFile(cmdline_processor.binary_file)
+  cmdline_processor.RunLogfileProcessing(tickprocessor)
   tickprocessor.PrintResults()
 
 if __name__ == '__main__':

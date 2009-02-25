@@ -1,4 +1,4 @@
-// Copyright 2008-2009 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,47 +25,61 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A light-weight assembler for the Irregexp byte code.
+// Tests global loads from eval.
 
+var x = 27;
 
-#include "v8.h"
-#include "ast.h"
-#include "bytecodes-irregexp.h"
-
-
-namespace v8 { namespace internal {
-
-
-void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,
-                                        uint32_t twenty_four_bits) {
-  uint32_t word = ((twenty_four_bits << BYTECODE_SHIFT) | byte);
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_  + 3 >= buffer_.length()) {
-    Expand();
+function test() {
+  function g() {
+    assertEquals(27, eval('x'));
+    function h() {
+      // Shadow with local variable.
+      var x = 22;
+      assertEquals(22, eval('x'));
+      function i(x) {
+        // Shadow with parameter.
+        assertEquals(44, eval('x'));
+        function j() {
+          assertEquals(x, eval('x'));
+          // Shadow with function name.
+          function x() {
+            assertEquals(x, eval('x'));
+          }
+          x();
+        }
+        j();
+      }
+      i(44);
+    }
+    h();
   }
-  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
-  pc_ += 4;
+  g();
 }
 
+test();
 
-void RegExpMacroAssemblerIrregexp::Emit16(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_ + 1 >= buffer_.length()) {
-    Expand();
+// Test loading of globals from deeply nested eval.  This code is a
+// bit complicated, but the complication is needed to check that the
+// code that loads the global variable accounts for the fact that the
+// global variable becomes shadowed by an eval-introduced variable.
+var result = 0;
+function testDeep(source, load, test) {
+  eval(source);
+  function f() {
+    var y = 23;
+    function g() {
+      var z = 25;
+      function h() {
+        eval(load);
+        eval(test);
+      }
+      h();
+    }
+    g();
   }
-  *reinterpret_cast<uint16_t*>(buffer_.start() + pc_) = word;
-  pc_ += 2;
+  f();
 }
-
-
-void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_ + 3 >= buffer_.length()) {
-    Expand();
-  }
-  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
-  pc_ += 4;
-}
-
-
-} }  // namespace v8::internal
+testDeep('1', 'result = x', 'assertEquals(27, result)');
+// Because of the eval-cache, the 'result = x' code gets reused.  This
+// time in a context where the 'x' variable has been shadowed.
+testDeep('var x = 1', 'result = x', 'assertEquals(1, result)');

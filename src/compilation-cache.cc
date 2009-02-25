@@ -102,6 +102,25 @@ static Handle<JSFunction> Lookup(Handle<String> source,
 }
 
 
+static Handle<JSFunction> Lookup(Handle<String> source,
+                                 Handle<Context> context,
+                                 CompilationCache::Entry entry) {
+  // Make sure not to leak the table into the surrounding handle
+  // scope. Otherwise, we risk keeping old tables around even after
+  // having cleared the cache.
+  Object* result;
+  { HandleScope scope;
+    Handle<CompilationCacheTable> table = GetTable(entry);
+    result = table->LookupEval(*source, *context);
+  }
+  if (result->IsJSFunction()) {
+    return Handle<JSFunction>(JSFunction::cast(result));
+  } else {
+    return Handle<JSFunction>::null();
+  }
+}
+
+
 Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
                                                   Handle<Object> name,
                                                   int line_offset,
@@ -120,9 +139,10 @@ Handle<JSFunction> CompilationCache::LookupScript(Handle<String> source,
 
 
 Handle<JSFunction> CompilationCache::LookupEval(Handle<String> source,
+                                                Handle<Context> context,
                                                 Entry entry) {
   ASSERT(entry == EVAL_GLOBAL || entry == EVAL_CONTEXTUAL);
-  Handle<JSFunction> result = Lookup(source, entry);
+  Handle<JSFunction> result = Lookup(source, context, entry);
   if (result.is_null()) {
     Counters::compilation_cache_misses.Increment();
   } else {
@@ -139,6 +159,17 @@ void CompilationCache::PutFunction(Handle<String> source,
   ASSERT(boilerplate->IsBoilerplate());
   Handle<CompilationCacheTable> table = GetTable(entry);
   CALL_HEAP_FUNCTION_VOID(table->Put(*source, *boilerplate));
+}
+
+
+void CompilationCache::PutEvalFunction(Handle<String> source,
+                                       Handle<Context> context,
+                                       Entry entry,
+                                       Handle<JSFunction> boilerplate) {
+  HandleScope scope;
+  ASSERT(boilerplate->IsBoilerplate());
+  Handle<CompilationCacheTable> table = GetTable(entry);
+  CALL_HEAP_FUNCTION_VOID(table->PutEval(*source, *context, *boilerplate));
 }
 
 

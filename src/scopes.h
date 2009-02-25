@@ -166,9 +166,17 @@ class Scope: public ZoneObject {
   bool is_function_scope() const  { return type_ == FUNCTION_SCOPE; }
   bool is_global_scope() const  { return type_ == GLOBAL_SCOPE; }
 
+  // Information about which scopes calls eval.
+  bool calls_eval() const  { return scope_calls_eval_; }
+  bool outer_scope_calls_eval() const  { return outer_scope_calls_eval_; }
+
+  // Is this scope inside a with statement.
+  bool inside_with() const  { return scope_inside_with_; }
+  // Does this scope contain a with statement.
+  bool contains_with() const  { return scope_contains_with_; }
+
   // The scope immediately surrounding this scope, or NULL.
   Scope* outer_scope() const  { return outer_scope_; }
-
 
   // ---------------------------------------------------------------------------
   // Accessors.
@@ -213,10 +221,15 @@ class Scope: public ZoneObject {
   template<class Allocator>
   void CollectUsedVariables(List<Variable*, Allocator>* locals);
 
-  // Resolve and fill in the allocation information for all variables in
-  // this scopes. Must be called *after* all scopes have been processed
-  // (parsed) to ensure that unresolved variables can be resolved properly.
-  void AllocateVariables();
+  // Resolve and fill in the allocation information for all variables
+  // in this scopes. Must be called *after* all scopes have been
+  // processed (parsed) to ensure that unresolved variables can be
+  // resolved properly.
+  //
+  // In the case of code compiled and run using 'eval', the context
+  // parameter is the context in which eval was called.  In all other
+  // cases the context parameter is an empty handle.
+  void AllocateVariables(Handle<Context> context);
 
   // Result of variable allocation.
   int num_stack_slots() const  { return num_stack_slots_; }
@@ -290,6 +303,7 @@ class Scope: public ZoneObject {
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_eval_;
   bool inner_scope_calls_eval_;
+  bool outer_scope_is_eval_scope_;
   bool force_eager_compilation_;
 
   // Computed via AllocateVariables; function scopes only.
@@ -298,15 +312,21 @@ class Scope: public ZoneObject {
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
-  Variable* NonLocal(Handle<String> name);
+  Variable* NonLocal(Handle<String> name, Variable::Mode mode);
 
   // Variable resolution.
-  Variable* LookupRecursive(Handle<String> name, bool inner_lookup);
-  void ResolveVariable(Scope* global_scope, VariableProxy* proxy);
-  void ResolveVariablesRecursively(Scope* global_scope);
+  Variable* LookupRecursive(Handle<String> name,
+                            bool inner_lookup,
+                            Variable** invalidated_local);
+  void ResolveVariable(Scope* global_scope,
+                       Handle<Context> context,
+                       VariableProxy* proxy);
+  void ResolveVariablesRecursively(Scope* global_scope,
+                                   Handle<Context> context);
 
   // Scope analysis.
-  bool PropagateScopeInfo(bool outer_scope_calls_eval);
+  bool PropagateScopeInfo(bool outer_scope_calls_eval,
+                          bool outer_scope_is_eval_scope);
   bool HasTrivialContext() const;
 
   // Predicates.

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2006-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -51,42 +51,8 @@
 
 #include "interpreter-irregexp.h"
 
-// Including pcre.h undefines DEBUG to avoid getting debug output from
-// the JSCRE implementation. Make sure to redefine it in debug mode
-// after having included the header file.
-#ifdef DEBUG
-#include "third_party/jscre/pcre.h"
-#define DEBUG
-#else
-#include "third_party/jscre/pcre.h"
-#endif
-
 
 namespace v8 { namespace internal {
-
-
-static Failure* malloc_failure;
-
-static void* JSREMalloc(size_t size) {
-  Object* obj = Heap::AllocateByteArray(size);
-
-  // If allocation failed, return a NULL pointer to JSRE, and jsRegExpCompile
-  // will return NULL to the caller, performs GC there.
-  // Also pass failure information to the caller.
-  if (obj->IsFailure()) {
-    malloc_failure = Failure::cast(obj);
-    return NULL;
-  }
-
-  // Note: object is unrooted, the caller of jsRegExpCompile must
-  // create a handle for the return value before doing heap allocation.
-  return reinterpret_cast<void*>(ByteArray::cast(obj)->GetDataStartAddress());
-}
-
-
-static void JSREFree(void* p) {
-  USE(p);  // Do nothing, memory is garbage collected.
-}
 
 
 String* RegExpImpl::last_ascii_string_ = NULL;
@@ -272,10 +238,8 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
       Vector<const uc16> atom_pattern = atom->data();
       Handle<String> atom_string = Factory::NewStringFromTwoByte(atom_pattern);
       result = AtomCompile(re, pattern, flags, atom_string);
-    } else if (FLAG_irregexp) {
-      result = IrregexpPrepare(re, pattern, flags);
     } else {
-      result = JscrePrepare(re, pattern, flags);
+      result = IrregexpPrepare(re, pattern, flags);
     }
     Object* data = re->data();
     if (data->IsFixedArray()) {
@@ -301,8 +265,6 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
       ASSERT(!result.is_null() || Top::has_pending_exception());
       return result;
     }
-    case JSRegExp::JSCRE:
-      return JscreExec(regexp, subject, index);
     default:
       UNREACHABLE();
       return Handle<Object>::null();
@@ -320,8 +282,6 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
       ASSERT(!result.is_null() || Top::has_pending_exception());
       return result;
     }
-    case JSRegExp::JSCRE:
-      return JscreExecGlobal(regexp, subject);
     default:
       UNREACHABLE();
       return Handle<Object>::null();
@@ -388,259 +348,6 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
     if (needle_length == 0) index++;
   }
   return result;
-}
-
-
-// JSCRE implementation.
-
-
-int RegExpImpl::JscreNumberOfCaptures(Handle<JSRegExp> re) {
-  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
-  return Smi::cast(value->get(kJscreNumberOfCapturesIndex))->value();
-}
-
-
-ByteArray* RegExpImpl::JscreInternal(Handle<JSRegExp> re) {
-  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
-  return ByteArray::cast(value->get(kJscreInternalIndex));
-}
-
-
-Handle<Object>RegExpImpl::JscrePrepare(Handle<JSRegExp> re,
-                                       Handle<String> pattern,
-                                       JSRegExp::Flags flags) {
-  Handle<Object> value(Heap::undefined_value());
-  Factory::SetRegExpData(re, JSRegExp::JSCRE, pattern, flags, value);
-  return re;
-}
-
-
-static inline Object* JscreDoCompile(String* pattern,
-                                     JSRegExp::Flags flags,
-                                     unsigned* number_of_captures,
-                                     const char** error_message,
-                                     v8::jscre::JscreRegExp** code) {
-  v8::jscre::JSRegExpIgnoreCaseOption case_option = flags.is_ignore_case()
-    ? v8::jscre::JSRegExpIgnoreCase
-    : v8::jscre::JSRegExpDoNotIgnoreCase;
-  v8::jscre::JSRegExpMultilineOption multiline_option = flags.is_multiline()
-    ? v8::jscre::JSRegExpMultiline
-    : v8::jscre::JSRegExpSingleLine;
-  *error_message = NULL;
-  malloc_failure = Failure::Exception();
-  *code = v8::jscre::jsRegExpCompile(pattern->GetTwoByteData(),
-                                     pattern->length(),
-                                     case_option,
-                                     multiline_option,
-                                     number_of_captures,
-                                     error_message,
-                                     &JSREMalloc,
-                                     &JSREFree);
-  if (*code == NULL && (malloc_failure->IsRetryAfterGC() ||
-                        malloc_failure->IsOutOfMemoryFailure())) {
-    return malloc_failure;
-  } else {
-    // It doesn't matter which object we return here, we just need to return
-    // a non-failure to indicate to the GC-retry code that there was no
-    // allocation failure.
-    return pattern;
-  }
-}
-
-
-static void JscreCompileWithRetryAfterGC(Handle<String> pattern,
-                                         JSRegExp::Flags flags,
-                                         unsigned* number_of_captures,
-                                         const char** error_message,
-                                         v8::jscre::JscreRegExp** code) {
-  CALL_HEAP_FUNCTION_VOID(JscreDoCompile(*pattern,
-                                         flags,
-                                         number_of_captures,
-                                         error_message,
-                                         code));
-}
-
-
-Handle<Object> RegExpImpl::JscreCompile(Handle<JSRegExp> re) {
-  ASSERT_EQ(re->TypeTag(), JSRegExp::JSCRE);
-  ASSERT(re->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined());
-
-  Handle<String> pattern(re->Pattern());
-  JSRegExp::Flags flags = re->GetFlags();
-
-  Handle<String> two_byte_pattern = StringToTwoByte(pattern);
-
-  unsigned number_of_captures;
-  const char* error_message = NULL;
-
-  v8::jscre::JscreRegExp* code = NULL;
-  FlattenString(pattern);
-
-  JscreCompileWithRetryAfterGC(two_byte_pattern,
-                               flags,
-                               &number_of_captures,
-                               &error_message,
-                               &code);
-
-  if (code == NULL) {
-    // Throw an exception.
-    Handle<JSArray> array = Factory::NewJSArray(2);
-    SetElement(array, 0, pattern);
-    const char* message =
-        (error_message == NULL) ? "Unknown regexp error" : error_message;
-    SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(message)));
-    Handle<Object> regexp_err =
-        Factory::NewSyntaxError("malformed_regexp", array);
-    Top::Throw(*regexp_err);
-    return Handle<Object>();
-  }
-
-  // Convert the return address to a ByteArray pointer.
-  Handle<ByteArray> internal(
-      ByteArray::FromDataStartAddress(reinterpret_cast<Address>(code)));
-
-  Handle<FixedArray> value = Factory::NewFixedArray(kJscreDataLength);
-  value->set(kJscreNumberOfCapturesIndex, Smi::FromInt(number_of_captures));
-  value->set(kJscreInternalIndex, *internal);
-  Factory::SetRegExpData(re, JSRegExp::JSCRE, pattern, flags, value);
-
-  return re;
-}
-
-
-Handle<Object> RegExpImpl::JscreExec(Handle<JSRegExp> regexp,
-                                     Handle<String> subject,
-                                     Handle<Object> index) {
-  ASSERT_EQ(regexp->TypeTag(), JSRegExp::JSCRE);
-  if (regexp->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined()) {
-    Handle<Object> compile_result = JscreCompile(regexp);
-    if (compile_result.is_null()) return compile_result;
-  }
-  ASSERT(regexp->DataAt(JSRegExp::kJscreDataIndex)->IsFixedArray());
-
-  int num_captures = JscreNumberOfCaptures(regexp);
-
-  OffsetsVector offsets((num_captures + 1) * 3);
-
-  int previous_index = static_cast<int>(DoubleToInteger(index->Number()));
-
-  Handle<String> subject16 = CachedStringToTwoByte(subject);
-
-  return JscreExecOnce(regexp,
-                       num_captures,
-                       subject,
-                       previous_index,
-                       subject16->GetTwoByteData(),
-                       offsets.vector(),
-                       offsets.length());
-}
-
-
-Handle<Object> RegExpImpl::JscreExecOnce(Handle<JSRegExp> regexp,
-                                         int num_captures,
-                                         Handle<String> subject,
-                                         int previous_index,
-                                         const uc16* two_byte_subject,
-                                         int* offsets_vector,
-                                         int offsets_vector_length) {
-  int rc;
-  {
-    AssertNoAllocation a;
-    ByteArray* internal = JscreInternal(regexp);
-    const v8::jscre::JscreRegExp* js_regexp =
-        reinterpret_cast<v8::jscre::JscreRegExp*>(
-            internal->GetDataStartAddress());
-
-    rc = v8::jscre::jsRegExpExecute(js_regexp,
-                                    two_byte_subject,
-                                    subject->length(),
-                                    previous_index,
-                                    offsets_vector,
-                                    offsets_vector_length);
-  }
-
-  // The KJS JavaScript engine returns null (ie, a failed match) when
-  // JSRE's internal match limit is exceeded.  We duplicate that behavior here.
-  if (rc == v8::jscre::JSRegExpErrorNoMatch
-      || rc == v8::jscre::JSRegExpErrorHitLimit) {
-    return Factory::null_value();
-  }
-
-  // Other JSRE errors:
-  if (rc < 0) {
-    // Throw an exception.
-    Handle<Object> code(Smi::FromInt(rc));
-    Handle<Object> args[2] = { Factory::LookupAsciiSymbol("jsre_exec"), code };
-    Handle<Object> regexp_err(
-        Factory::NewTypeError("jsre_error", HandleVector(args, 2)));
-    return Handle<Object>(Top::Throw(*regexp_err));
-  }
-
-  Handle<FixedArray> array = Factory::NewFixedArray(2 * (num_captures+1));
-  // The captures come in (start, end+1) pairs.
-  for (int i = 0; i < 2 * (num_captures+1); i += 2) {
-    array->set(i, Smi::FromInt(offsets_vector[i]));
-    array->set(i+1, Smi::FromInt(offsets_vector[i+1]));
-  }
-  return Factory::NewJSArrayWithElements(array);
-}
-
-
-Handle<Object> RegExpImpl::JscreExecGlobal(Handle<JSRegExp> regexp,
-                                           Handle<String> subject) {
-  ASSERT_EQ(regexp->TypeTag(), JSRegExp::JSCRE);
-  if (regexp->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined()) {
-    Handle<Object> compile_result = JscreCompile(regexp);
-    if (compile_result.is_null()) return compile_result;
-  }
-  ASSERT(regexp->DataAt(JSRegExp::kJscreDataIndex)->IsFixedArray());
-
-  // Prepare space for the return values.
-  int num_captures = JscreNumberOfCaptures(regexp);
-
-  OffsetsVector offsets((num_captures + 1) * 3);
-
-  int previous_index = 0;
-
-  Handle<JSArray> result = Factory::NewJSArray(0);
-  int i = 0;
-  Handle<Object> matches;
-
-  Handle<String> subject16 = CachedStringToTwoByte(subject);
-
-  do {
-    if (previous_index > subject->length() || previous_index < 0) {
-      // Per ECMA-262 15.10.6.2, if the previous index is greater than the
-      // string length, there is no match.
-      matches = Factory::null_value();
-    } else {
-      matches = JscreExecOnce(regexp,
-                              num_captures,
-                              subject,
-                              previous_index,
-                              subject16->GetTwoByteData(),
-                              offsets.vector(),
-                              offsets.length());
-
-      if (matches->IsJSArray()) {
-        SetElement(result, i, matches);
-        i++;
-        previous_index = offsets.vector()[1];
-        if (offsets.vector()[0] == offsets.vector()[1]) {
-          previous_index++;
-        }
-      }
-    }
-  } while (matches->IsJSArray());
-
-  // If we exited the loop with an exception, throw it.
-  if (matches->IsNull()) {
-    // Exited loop normally.
-    return result;
-  } else {
-    // Exited loop with the exception in matches.
-    return matches;
-  }
 }
 
 
@@ -1527,6 +1234,13 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   // Generate deferred actions here along with code to undo them again.
   OutSet affected_registers;
 
+  if (backtrack() != NULL) {
+    // Here we have a concrete backtrack location.  These are set up by choice
+    // nodes and so they indicate that we have a deferred save of the current
+    // position which we may need to emit here.
+    assembler->PushCurrentPosition();
+  }
+
   int max_register = FindAffectedRegisters(&affected_registers);
   OutSet registers_to_pop;
   OutSet registers_to_clear;
@@ -1535,12 +1249,6 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
                          affected_registers,
                          &registers_to_pop,
                          &registers_to_clear);
-  if (backtrack() != NULL) {
-    // Here we have a concrete backtrack location.  These are set up by choice
-    // nodes and so they indicate that we have a deferred save of the current
-    // position which we may need to emit here.
-    assembler->PushCurrentPosition();
-  }
   if (cp_offset_ != 0) {
     assembler->AdvanceCurrentPosition(cp_offset_);
   }
@@ -1553,9 +1261,6 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
 
   // On backtrack we need to restore state.
   assembler->Bind(&undo);
-  if (backtrack() != NULL) {
-    assembler->PopCurrentPosition();
-  }
   RestoreAffectedRegisters(assembler,
                            max_register,
                            registers_to_pop,
@@ -1563,6 +1268,7 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
   if (backtrack() == NULL) {
     assembler->Backtrack();
   } else {
+    assembler->PopCurrentPosition();
     assembler->GoTo(backtrack());
   }
 }
@@ -1739,19 +1445,71 @@ static unibrow::Mapping<unibrow::Ecma262UnCanonicalize> uncanonicalize;
 static unibrow::Mapping<unibrow::CanonicalizationRange> canonrange;
 
 
+// Returns the number of characters in the equivalence class, omitting those
+// that cannot occur in the source string because it is ASCII.
+static int GetCaseIndependentLetters(uc16 character,
+                                     bool ascii_subject,
+                                     unibrow::uchar* letters) {
+  int length = uncanonicalize.get(character, '\0', letters);
+  // Unibrow returns 0 or 1 for characters where case independependence is
+  // trivial.
+  if (length == 0) {
+    letters[0] = character;
+    length = 1;
+  }
+  if (!ascii_subject || character <= String::kMaxAsciiCharCode) {
+    return length;
+  }
+  // The standard requires that non-ASCII characters cannot have ASCII
+  // character codes in their equivalence class.
+  return 0;
+}
+
+
+static inline bool EmitSimpleCharacter(RegExpCompiler* compiler,
+                                       uc16 c,
+                                       Label* on_failure,
+                                       int cp_offset,
+                                       bool check,
+                                       bool preloaded) {
+  RegExpMacroAssembler* assembler = compiler->macro_assembler();
+  bool bound_checked = false;
+  if (!preloaded) {
+    assembler->LoadCurrentCharacter(
+        cp_offset,
+        on_failure,
+        check);
+    bound_checked = true;
+  }
+  assembler->CheckNotCharacter(c, on_failure);
+  return bound_checked;
+}
+
+
 // Only emits non-letters (things that don't have case).  Only used for case
 // independent matches.
-static inline bool EmitAtomNonLetter(
-    RegExpMacroAssembler* macro_assembler,
-    uc16 c,
-    Label* on_failure,
-    int cp_offset,
-    bool check,
-    bool preloaded) {
+static inline bool EmitAtomNonLetter(RegExpCompiler* compiler,
+                                     uc16 c,
+                                     Label* on_failure,
+                                     int cp_offset,
+                                     bool check,
+                                     bool preloaded) {
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  bool ascii = compiler->ascii();
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  int length = uncanonicalize.get(c, '\0', chars);
+  int length = GetCaseIndependentLetters(c, ascii, chars);
+  if (length < 1) {
+    // This can't match.  Must be an ASCII subject and a non-ASCII character.
+    // We do not need to do anything since the ASCII pass already handled this.
+    return false;  // Bounds not checked.
+  }
   bool checked = false;
-  if (length <= 1) {
+  // We handle the length > 1 case in a later pass.
+  if (length == 1) {
+    if (ascii && c > String::kMaxAsciiCharCodeU) {
+      // Can't match - see above.
+      return false;  // Bounds not checked.
+    }
     if (!preloaded) {
       macro_assembler->LoadCurrentCharacter(cp_offset, on_failure, check);
       checked = check;
@@ -1801,18 +1559,25 @@ static bool ShortCutEmitCharacterPair(RegExpMacroAssembler* macro_assembler,
 }
 
 
+typedef bool EmitCharacterFunction(RegExpCompiler* compiler,
+                                   uc16 c,
+                                   Label* on_failure,
+                                   int cp_offset,
+                                   bool check,
+                                   bool preloaded);
+
 // Only emits letters (things that have case).  Only used for case independent
 // matches.
-static inline bool EmitAtomLetter(
-    RegExpMacroAssembler* macro_assembler,
-    bool ascii,
-    uc16 c,
-    Label* on_failure,
-    int cp_offset,
-    bool check,
-    bool preloaded) {
+static inline bool EmitAtomLetter(RegExpCompiler* compiler,
+                                  uc16 c,
+                                  Label* on_failure,
+                                  int cp_offset,
+                                  bool check,
+                                  bool preloaded) {
+  RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
+  bool ascii = compiler->ascii();
   unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-  int length = uncanonicalize.get(c, '\0', chars);
+  int length = GetCaseIndependentLetters(c, ascii, chars);
   if (length <= 1) return false;
   // We may not need to check against the end of the input string
   // if this character lies before a character that matched.
@@ -1854,10 +1619,10 @@ static inline bool EmitAtomLetter(
 
 static void EmitCharClass(RegExpMacroAssembler* macro_assembler,
                           RegExpCharacterClass* cc,
-                          int cp_offset,
-                          Label* on_failure,
-                          bool check_offset,
                           bool ascii,
+                          Label* on_failure,
+                          int cp_offset,
+                          bool check_offset,
                           bool preloaded) {
   if (cc->is_standard() &&
       macro_assembler->CheckSpecialCharacterClass(cc->standard_type(),
@@ -2012,7 +1777,7 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
   // We are being asked to make a non-generic version.  Keep track of how many
   // non-generic versions we generate so as not to overdo it.
   trace_count_++;
-  if (FLAG_irregexp_optimization &&
+  if (FLAG_regexp_optimization &&
       trace_count_ < kMaxCopiesCodeGenerated &&
       compiler->recursion_depth() <= RegExpCompiler::kMaxRecursion) {
     return CONTINUE;
@@ -2238,12 +2003,14 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           // matching can turn an ASCII character into non-ASCII or
           // vice versa.
           details->set_cannot_match();
+          pos->determines_perfectly = false;
           return;
         }
         if (compiler->ignore_case()) {
           unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
-          int length = uncanonicalize.get(c, '\0', chars);
-          if (length < 2) {
+          int length = GetCaseIndependentLetters(c, compiler->ascii(), chars);
+          ASSERT(length != 0);  // Can only happen if c > char_mask (see above).
+          if (length == 1) {
             // This letter has no case equivalents, so it's nice and simple
             // and the mask-compare will determine definitely whether we have
             // a match at this character position.
@@ -2288,7 +2055,6 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           details->positions(characters_filled_in);
       RegExpCharacterClass* tree = elm.data.u_char_class;
       ZoneList<CharacterRange>* ranges = tree->ranges();
-      CharacterRange range = ranges->at(0);
       if (tree->is_negated()) {
         // A quick check uses multi-character mask and compare.  There is no
         // useful way to incorporate a negative char class into this scheme
@@ -2297,27 +2063,46 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
         pos->mask = 0;
         pos->value = 0;
       } else {
-        uint32_t differing_bits = (range.from() ^ range.to());
+        int first_range = 0;
+        while (ranges->at(first_range).from() > char_mask) {
+          first_range++;
+          if (first_range == ranges->length()) {
+            details->set_cannot_match();
+            pos->determines_perfectly = false;
+            return;
+          }
+        }
+        CharacterRange range = ranges->at(first_range);
+        uc16 from = range.from();
+        uc16 to = range.to();
+        if (to > char_mask) {
+          to = char_mask;
+        }
+        uint32_t differing_bits = (from ^ to);
         // A mask and compare is only perfect if the differing bits form a
         // number like 00011111 with one single block of trailing 1s.
         if ((differing_bits & (differing_bits + 1)) == 0) {
           pos->determines_perfectly = true;
         }
         uint32_t common_bits = ~SmearBitsRight(differing_bits);
-        uint32_t bits = (range.from() & common_bits);
-        for (int i = 1; i < ranges->length(); i++) {
+        uint32_t bits = (from & common_bits);
+        for (int i = first_range + 1; i < ranges->length(); i++) {
+          CharacterRange range = ranges->at(i);
+          uc16 from = range.from();
+          uc16 to = range.to();
+          if (from > char_mask) continue;
+          if (to > char_mask) to = char_mask;
           // Here we are combining more ranges into the mask and compare
           // value.  With each new range the mask becomes more sparse and
           // so the chances of a false positive rise.  A character class
           // with multiple ranges is assumed never to be equivalent to a
           // mask and compare operation.
           pos->determines_perfectly = false;
-          CharacterRange range = ranges->at(i);
-          uint32_t new_common_bits = (range.from() ^ range.to());
+          uint32_t new_common_bits = (from ^ to);
           new_common_bits = ~SmearBitsRight(new_common_bits);
           common_bits &= new_common_bits;
           bits &= new_common_bits;
-          uint32_t differing_bits = (range.from() & common_bits) ^ bits;
+          uint32_t differing_bits = (from & common_bits) ^ bits;
           common_bits ^= differing_bits;
           bits &= common_bits;
         }
@@ -2619,6 +2404,20 @@ void AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 }
 
 
+static bool DeterminedAlready(QuickCheckDetails* quick_check, int offset) {
+  if (quick_check == NULL) return false;
+  if (offset >= quick_check->characters()) return false;
+  return quick_check->positions(offset)->determines_perfectly;
+}
+
+
+static void UpdateBoundsCheck(int index, int* checked_up_to) {
+  if (index > *checked_up_to) {
+    *checked_up_to = index;
+  }
+}
+
+
 // We call this repeatedly to generate code for each pass over the text node.
 // The passes are in increasing order of difficulty because we hope one
 // of the first passes will fail in which case we are saved the work of the
@@ -2663,83 +2462,55 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
     TextElement elm = elms_->at(i);
     int cp_offset = trace->cp_offset() + elm.cp_offset;
     if (elm.type == TextElement::ATOM) {
-      if (pass == NON_ASCII_MATCH ||
-          pass == CHARACTER_MATCH ||
-          pass == CASE_CHARACTER_MATCH) {
-        Vector<const uc16> quarks = elm.data.u_atom->data();
-        for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
-          bool bound_checked = true;  // Most ops will check their bounds.
-          if (first_element_checked && i == 0 && j == 0) continue;
-          if (pass == NON_ASCII_MATCH) {
+      Vector<const uc16> quarks = elm.data.u_atom->data();
+      for (int j = preloaded ? 0 : quarks.length() - 1; j >= 0; j--) {
+        if (first_element_checked && i == 0 && j == 0) continue;
+        if (DeterminedAlready(quick_check, elm.cp_offset + j)) continue;
+        EmitCharacterFunction* emit_function = NULL;
+        switch (pass) {
+          case NON_ASCII_MATCH:
             ASSERT(ascii);
             if (quarks[j] > String::kMaxAsciiCharCode) {
               assembler->GoTo(backtrack);
               return;
             }
-          } else {
-            if (quick_check != NULL &&
-                elm.cp_offset + j < quick_check->characters() &&
-                quick_check->positions(elm.cp_offset + j)->
-                    determines_perfectly) {
-              continue;
-            }
-            if (pass == CHARACTER_MATCH) {
-              if (compiler->ignore_case()) {
-                bound_checked = EmitAtomNonLetter(
-                    assembler,
-                    quarks[j],
-                    backtrack,
-                    cp_offset + j,
-                    *checked_up_to < cp_offset + j,
-                    preloaded);
-              } else {
-                if (!preloaded) {
-                  assembler->LoadCurrentCharacter(
-                      cp_offset + j,
-                      backtrack,
-                      *checked_up_to < cp_offset + j);
-                }
-                assembler->CheckNotCharacter(quarks[j], backtrack);
-              }
-            } else {
-              ASSERT_EQ(pass, CASE_CHARACTER_MATCH);
-              ASSERT(compiler->ignore_case());
-              bound_checked = EmitAtomLetter(assembler,
-                                             compiler->ascii(),
+            break;
+          case NON_LETTER_CHARACTER_MATCH:
+            emit_function = &EmitAtomNonLetter;
+            break;
+          case SIMPLE_CHARACTER_MATCH:
+            emit_function = &EmitSimpleCharacter;
+            break;
+          case CASE_CHARACTER_MATCH:
+            emit_function = &EmitAtomLetter;
+            break;
+          default:
+            break;
+        }
+        if (emit_function != NULL) {
+          bool bound_checked = emit_function(compiler,
                                              quarks[j],
                                              backtrack,
                                              cp_offset + j,
                                              *checked_up_to < cp_offset + j,
                                              preloaded);
-            }
-            if (bound_checked) {
-              if (cp_offset + j > *checked_up_to) {
-                *checked_up_to = cp_offset + j;
-              }
-            }
-          }
+          if (bound_checked) UpdateBoundsCheck(cp_offset + j, checked_up_to);
         }
       }
     } else {
       ASSERT_EQ(elm.type, TextElement::CHAR_CLASS);
-      if (first_element_checked && i == 0) continue;
-      if (quick_check != NULL &&
-          elm.cp_offset < quick_check->characters() &&
-          quick_check->positions(elm.cp_offset)->determines_perfectly) {
-        continue;
-      }
       if (pass == CHARACTER_CLASS_MATCH) {
+        if (first_element_checked && i == 0) continue;
+        if (DeterminedAlready(quick_check, elm.cp_offset)) continue;
         RegExpCharacterClass* cc = elm.data.u_char_class;
         EmitCharClass(assembler,
                       cc,
-                      cp_offset,
-                      backtrack,
-                      *checked_up_to < cp_offset,
                       ascii,
+                      backtrack,
+                      cp_offset,
+                      *checked_up_to < cp_offset,
                       preloaded);
-        if (cp_offset > *checked_up_to) {
-          *checked_up_to = cp_offset;
-        }
+        UpdateBoundsCheck(cp_offset, checked_up_to);
       }
     }
   }
@@ -2753,6 +2524,16 @@ int TextNode::Length() {
     return elm.cp_offset + elm.data.u_atom->data().length();
   } else {
     return elm.cp_offset + 1;
+  }
+}
+
+
+bool TextNode::SkipPass(int int_pass, bool ignore_case) {
+  TextEmitPassType pass = static_cast<TextEmitPassType>(int_pass);
+  if (ignore_case) {
+    return pass == SIMPLE_CHARACTER_MATCH;
+  } else {
+    return pass == NON_LETTER_CHARACTER_MATCH || pass == CASE_CHARACTER_MATCH;
   }
 }
 
@@ -2785,49 +2566,29 @@ void TextNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   // If a character is preloaded into the current character register then
   // check that now.
   if (trace->characters_preloaded() == 1) {
-    TextEmitPass(compiler,
-                 CHARACTER_MATCH,
-                 true,
-                 trace,
-                 false,
-                 &bound_checked_to);
-    if (compiler->ignore_case()) {
-      TextEmitPass(compiler,
-                   CASE_CHARACTER_MATCH,
-                   true,
-                   trace,
-                   false,
-                   &bound_checked_to);
+    for (int pass = kFirstRealPass; pass <= kLastPass; pass++) {
+      if (!SkipPass(pass, compiler->ignore_case())) {
+        TextEmitPass(compiler,
+                     static_cast<TextEmitPassType>(pass),
+                     true,
+                     trace,
+                     false,
+                     &bound_checked_to);
+      }
     }
-    TextEmitPass(compiler,
-                 CHARACTER_CLASS_MATCH,
-                 true,
-                 trace,
-                 false,
-                 &bound_checked_to);
     first_elt_done = true;
   }
 
-  TextEmitPass(compiler,
-               CHARACTER_MATCH,
-               false,
-               trace,
-               first_elt_done,
-               &bound_checked_to);
-  if (compiler->ignore_case()) {
-    TextEmitPass(compiler,
-                 CASE_CHARACTER_MATCH,
-                 false,
-                 trace,
-                 first_elt_done,
-                 &bound_checked_to);
+  for (int pass = kFirstRealPass; pass <= kLastPass; pass++) {
+    if (!SkipPass(pass, compiler->ignore_case())) {
+      TextEmitPass(compiler,
+                   static_cast<TextEmitPassType>(pass),
+                   false,
+                   trace,
+                   first_elt_done,
+                   &bound_checked_to);
+    }
   }
-  TextEmitPass(compiler,
-               CHARACTER_CLASS_MATCH,
-               false,
-               trace,
-               first_elt_done,
-               &bound_checked_to);
 
   Trace successor_trace(*trace);
   successor_trace.set_at_start(false);
@@ -2998,10 +2759,6 @@ class AlternativeGenerationList {
     }
   }
   ~AlternativeGenerationList() {
-    for (int i = 0; i < alt_gens_.length(); i++) {
-      alt_gens_[i]->possible_success.Unuse();
-      alt_gens_[i]->after.Unuse();
-    }
     for (int i = kAFew; i < alt_gens_.length(); i++) {
       delete alt_gens_[i];
       alt_gens_[i] = NULL;
@@ -3115,6 +2872,12 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   if (limit_result == DONE) return;
   ASSERT(limit_result == CONTINUE);
 
+  int new_flush_budget = trace->flush_budget() / choice_count;
+  if (trace->flush_budget() == 0 && trace->actions() != NULL) {
+    trace->Flush(compiler, this);
+    return;
+  }
+
   RecursionCheck rc(compiler);
 
   Trace* current_trace = trace;
@@ -3181,7 +2944,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     if (not_at_start_) new_trace.set_at_start(Trace::FALSE);
     alt_gen->expects_preload = preload_is_current;
     bool generate_full_check_inline = false;
-    if (FLAG_irregexp_optimization &&
+    if (FLAG_regexp_optimization &&
         try_to_emit_quick_check_for_alternative(i) &&
         alternative.node()->EmitQuickCheck(compiler,
                                            &new_trace,
@@ -3223,6 +2986,9 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
       generate_full_check_inline = true;
     }
     if (generate_full_check_inline) {
+      if (new_trace.actions() != NULL) {
+        new_trace.set_flush_budget(new_flush_budget);
+      }
       for (int j = 0; j < guard_count; j++) {
         GenerateGuard(macro_assembler, guards->at(j), &new_trace);
       }
@@ -3239,13 +3005,21 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     macro_assembler->AdvanceCurrentPosition(-text_length);
     macro_assembler->GoTo(&second_choice);
   }
+
   // At this point we need to generate slow checks for the alternatives where
   // the quick check was inlined.  We can recognize these because the associated
   // label was bound.
   for (int i = first_normal_choice; i < choice_count - 1; i++) {
     AlternativeGeneration* alt_gen = alt_gens.at(i);
+    Trace new_trace(*current_trace);
+    // If there are actions to be flushed we have to limit how many times
+    // they are flushed.  Take the budget of the parent trace and distribute
+    // it fairly amongst the children.
+    if (new_trace.actions() != NULL) {
+      new_trace.set_flush_budget(new_flush_budget);
+    }
     EmitOutOfLineContinuation(compiler,
-                              current_trace,
+                              &new_trace,
                               alternatives_->at(i),
                               alt_gen,
                               preload_characters,
@@ -3971,7 +3745,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   bool needs_capture_clearing = !capture_registers.is_empty();
   if (body_can_be_empty) {
     body_start_reg = compiler->AllocateRegister();
-  } else if (FLAG_irregexp_optimization && !needs_capture_clearing) {
+  } else if (FLAG_regexp_optimization && !needs_capture_clearing) {
     // Only unroll if there are no captures and the body can't be
     // empty.
     if (min > 0 && min <= kMaxUnrolledMinMatches) {
@@ -4863,7 +4637,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
 
   NodeInfo info = *node->info();
 
-  if (FLAG_irregexp_native) {
+  if (FLAG_regexp_native) {
 #ifdef ARM
     // Unimplemented, fall-through to bytecode implementation.
 #else  // IA32

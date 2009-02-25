@@ -1,4 +1,4 @@
-// Copyright 2008-2009 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,47 +25,61 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// A light-weight assembler for the Irregexp byte code.
+// Tests loading of properties across eval calls.
 
+var x = 1;
 
-#include "v8.h"
-#include "ast.h"
-#include "bytecodes-irregexp.h"
-
-
-namespace v8 { namespace internal {
-
-
-void RegExpMacroAssemblerIrregexp::Emit(uint32_t byte,
-                                        uint32_t twenty_four_bits) {
-  uint32_t word = ((twenty_four_bits << BYTECODE_SHIFT) | byte);
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_  + 3 >= buffer_.length()) {
-    Expand();
+// Test loading across an eval call that does not shadow variables.
+function testNoShadowing() {
+  var y = 2;
+  function f() {
+    eval('1');
+    assertEquals(1, x);
+    assertEquals(2, y);
+    function g() {
+      assertEquals(1, x);
+      assertEquals(2, y);
+    }
+    g();
   }
-  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
-  pc_ += 4;
+  f();
 }
 
+testNoShadowing();
 
-void RegExpMacroAssemblerIrregexp::Emit16(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_ + 1 >= buffer_.length()) {
-    Expand();
+// Test loading across eval calls that do not shadow variables.
+function testNoShadowing2() {
+  var y = 2;
+  eval('1');
+  function f() {
+    eval('1');
+    assertEquals(1, x);
+    assertEquals(2, y);
+    function g() {
+      assertEquals(1, x);
+      assertEquals(2, y);
+    }
+    g();
   }
-  *reinterpret_cast<uint16_t*>(buffer_.start() + pc_) = word;
-  pc_ += 2;
+  f();
 }
 
+testNoShadowing2();
 
-void RegExpMacroAssemblerIrregexp::Emit32(uint32_t word) {
-  ASSERT(pc_ <= buffer_.length());
-  if (pc_ + 3 >= buffer_.length()) {
-    Expand();
+// Test loading across an eval call that shadows variables.
+function testShadowing() {
+  var y = 2;
+  function f() {
+    eval('var x = 3; var y = 4;');
+    assertEquals(3, x);
+    assertEquals(4, y);
+    function g() {
+      assertEquals(3, x);
+      assertEquals(4, y);
+    }
+    g();
   }
-  *reinterpret_cast<uint32_t*>(buffer_.start() + pc_) = word;
-  pc_ += 4;
+  f();
 }
 
-
-} }  // namespace v8::internal
+testShadowing();

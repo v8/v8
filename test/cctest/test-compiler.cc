@@ -302,3 +302,17 @@ TEST(C2JSFrames) {
                   &has_pending_exception);
   CHECK(!has_pending_exception);
 }
+
+
+// Regression 236. Calling InitLineEnds on a Script with undefined
+// source resulted in crash.
+TEST(Regression236) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  Handle<Script> script = Factory::NewScript(Factory::empty_string());
+  script->set_source(Heap::undefined_value());
+  CHECK_EQ(-1, script->GetLineNumber(0));
+  CHECK_EQ(-1, script->GetLineNumber(100));
+  CHECK_EQ(-1, script->GetLineNumber(-1));
+}

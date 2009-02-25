@@ -32,6 +32,8 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 #include <stdlib.h>
 
 // Ubuntu Dapper requires memory pages to be marked as
@@ -46,6 +48,10 @@
 #include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netdb.h>
 
 #undef MAP_TYPE
 
@@ -177,6 +183,11 @@ int OS::VSNPrintF(Vector<char> str,
   } else {
     return n;
   }
+}
+
+
+char* OS::StrChr(char* str, int c) {
+  return strchr(str, c);
 }
 
 
@@ -598,6 +609,172 @@ Semaphore* OS::CreateSemaphore(int count) {
   return new LinuxSemaphore(count);
 }
 
+
+// ----------------------------------------------------------------------------
+// Linux socket support.
+//
+
+class LinuxSocket : public Socket {
+ public:
+  explicit LinuxSocket() {
+    // Create the socket.
+    socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  }
+  explicit LinuxSocket(int socket): socket_(socket) { }
+
+
+  virtual ~LinuxSocket() {
+    if (IsValid()) {
+      // Close socket.
+      close(socket_);
+    }
+  }
+
+  // Server initialization.
+  bool Bind(const int port);
+  bool Listen(int backlog) const;
+  Socket* Accept() const;
+
+  // Client initialization.
+  bool Connect(const char* host, const char* port);
+
+  // Data Transimission
+  int Send(const char* data, int len) const;
+  bool SendAll(const char* data, int len) const;
+  int Receive(char* data, int len) const;
+
+  bool IsValid() const { return socket_ != -1; }
+
+ private:
+  int socket_;
+};
+
+
+bool LinuxSocket::Bind(const int port) {
+  if (!IsValid())  {
+    return false;
+  }
+
+  sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  addr.sin_port = htons(port);
+  int status = bind(socket_,
+                    reinterpret_cast<struct sockaddr *>(&addr),
+                    sizeof(addr));
+  return status == 0;
+}
+
+
+bool LinuxSocket::Listen(int backlog) const {
+  if (!IsValid()) {
+    return false;
+  }
+
+  int status = listen(socket_, backlog);
+  return status == 0;
+}
+
+
+Socket* LinuxSocket::Accept() const {
+  if (!IsValid()) {
+    return NULL;
+  }
+
+  int socket = accept(socket_, NULL, NULL);
+  if (socket == -1) {
+    return NULL;
+  } else {
+    return new LinuxSocket(socket);
+  }
+}
+
+
+bool LinuxSocket::Connect(const char* host, const char* port) {
+  if (!IsValid()) {
+    return false;
+  }
+
+  // Lookup host and port.
+  struct addrinfo *result = NULL;
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(addrinfo));
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+  int status = getaddrinfo(host, port, &hints, &result);
+  if (status != 0) {
+    return false;
+  }
+
+  // Connect.
+  status = connect(socket_, result->ai_addr, result->ai_addrlen);
+  return status == 0;
+}
+
+
+int LinuxSocket::Send(const char* data, int len) const {
+  int status = send(socket_, data, len, 0);
+  return status;
+}
+
+
+bool LinuxSocket::SendAll(const char* data, int len) const {
+  int sent_len = 0;
+  while (sent_len < len) {
+    int status = Send(data, len);
+    if (status <= 0) {
+      return false;
+    }
+    sent_len += status;
+  }
+  return true;
+}
+
+
+int LinuxSocket::Receive(char* data, int len) const {
+  int status = recv(socket_, data, len, 0);
+  return status;
+}
+
+
+bool Socket::Setup() {
+  // Nothing to do on Linux.
+  return true;
+}
+
+
+int Socket::LastError() {
+  return errno;
+}
+
+
+uint16_t Socket::HToN(uint16_t value) {
+  return htons(value);
+}
+
+
+uint16_t Socket::NToH(uint16_t value) {
+  return ntohs(value);
+}
+
+
+uint32_t Socket::HToN(uint32_t value) {
+  return htonl(value);
+}
+
+
+uint32_t Socket::NToH(uint32_t value) {
+  return ntohl(value);
+}
+
+
+Socket* OS::CreateSocket() {
+  return new LinuxSocket();
+}
+
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 static Sampler* active_sampler_ = NULL;
@@ -617,9 +794,11 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 #if defined (__arm__) || defined(__thumb__)
     sample.pc = mcontext.gregs[R15];
     sample.sp = mcontext.gregs[R13];
+    sample.fp = mcontext.gregs[R11];
 #else
     sample.pc = mcontext.gregs[REG_EIP];
     sample.sp = mcontext.gregs[REG_ESP];
+    sample.fp = mcontext.gregs[REG_EBP];
 #endif
   }
 

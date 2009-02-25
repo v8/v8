@@ -25,8 +25,9 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import csv, splaytree, sys
-
+import csv, splaytree, sys, re
+from operator import itemgetter
+import getopt, os, string
 
 class CodeEntry(object):
 
@@ -34,9 +35,14 @@ class CodeEntry(object):
     self.start_addr = start_addr
     self.tick_count = 0
     self.name = name
+    self.stacks = {}
 
-  def Tick(self, pc):
+  def Tick(self, pc, stack):
     self.tick_count += 1
+    if len(stack) > 0:
+      stack.insert(0, self.ToString())
+      stack_key = tuple(stack)
+      self.stacks[stack_key] = self.stacks.setdefault(stack_key, 0) + 1
 
   def RegionTicks(self):
     return None
@@ -48,6 +54,9 @@ class CodeEntry(object):
     return self.name
 
   def IsSharedLibraryEntry(self):
+    return False
+
+  def IsICEntry(self):
     return False
 
 
@@ -68,9 +77,10 @@ class JSCodeEntry(CodeEntry):
     self.size = size
     self.assembler = assembler
     self.region_ticks = None
+    self.builtin_ic_re = re.compile('^(Keyed)?(Call|Load|Store)IC_')
 
-  def Tick(self, pc):
-    super(JSCodeEntry, self).Tick(pc)
+  def Tick(self, pc, stack):
+    super(JSCodeEntry, self).Tick(pc, stack)
     if not pc is None:
       offset = pc - self.start_addr
       seen = []
@@ -109,6 +119,10 @@ class JSCodeEntry(CodeEntry):
     elif name.startswith(' '):
       name = '<anonymous>' + name
     return self.type + ': ' + name
+
+  def IsICEntry(self):
+    return self.type in ('CallIC', 'LoadIC', 'StoreIC') or \
+      (self.type == 'Builtin' and self.builtin_ic_re.match(self.name))
 
 
 class CodeRegion(object):
@@ -150,10 +164,15 @@ class TickProcessor(object):
     self.number_of_library_ticks = 0
     self.unaccounted_number_of_ticks = 0
     self.excluded_number_of_ticks = 0
+    # Flag indicating whether to ignore unaccounted ticks in the report
+    self.ignore_unknown = False
 
-  def ProcessLogfile(self, filename, included_state = None):
+  def ProcessLogfile(self, filename, included_state = None, ignore_unknown = False, separate_ic = False):
     self.log_file = filename
     self.included_state = included_state
+    self.ignore_unknown = ignore_unknown
+    self.separate_ic = separate_ic
+
     try:
       logfile = open(filename, 'rb')
     except IOError:
@@ -162,7 +181,7 @@ class TickProcessor(object):
       logreader = csv.reader(logfile)
       for row in logreader:
         if row[0] == 'tick':
-          self.ProcessTick(int(row[1], 16), int(row[2], 16), int(row[3]))
+          self.ProcessTick(int(row[1], 16), int(row[2], 16), int(row[3]), self.PreprocessStack(row[4:]))
         elif row[0] == 'code-creation':
           self.ProcessCodeCreation(row[1], int(row[2], 16), int(row[3]), row[4])
         elif row[0] == 'code-move':
@@ -237,25 +256,56 @@ class TickProcessor(object):
   def IncludeTick(self, pc, sp, state):
     return (self.included_state is None) or (self.included_state == state)
 
-  def ProcessTick(self, pc, sp, state):
+  def FindEntry(self, pc):
+    page = pc >> 12
+    if page in self.vm_extent:
+      entry = self.cpp_entries.FindGreatestsLessThan(pc)
+      if entry != None:
+        return entry.value
+      else:
+        return entry
+    max = self.js_entries.FindMax()
+    min = self.js_entries.FindMin()
+    if max != None and pc < (max.key + max.value.size) and pc > min.key:
+      return self.js_entries.FindGreatestsLessThan(pc).value
+    return None
+
+  def PreprocessStack(self, stack):
+    # remove all non-addresses (e.g. 'overflow') and convert to int
+    result = []
+    for frame in stack:
+      if frame.startswith('0x'):
+        result.append(int(frame, 16))
+    return result
+
+  def ProcessStack(self, stack):
+    result = []
+    for frame in stack:
+      entry = self.FindEntry(frame)
+      if entry != None:
+        result.append(entry.ToString())
+    return result
+
+  def ProcessTick(self, pc, sp, state, stack):
     if not self.IncludeTick(pc, sp, state):
       self.excluded_number_of_ticks += 1;
       return
     self.total_number_of_ticks += 1
-    page = pc >> 12
-    if page in self.vm_extent:
-      entry = self.cpp_entries.FindGreatestsLessThan(pc).value
-      if entry.IsSharedLibraryEntry():
-        self.number_of_library_ticks += 1
-      entry.Tick(None)
+    entry = self.FindEntry(pc)
+    if entry == None:
+      self.unaccounted_number_of_ticks += 1
       return
-    max = self.js_entries.FindMax()
-    min = self.js_entries.FindMin()
-    if max != None and pc < max.key and pc > min.key:
-      code_obj = self.js_entries.FindGreatestsLessThan(pc).value
-      code_obj.Tick(pc)
-      return
-    self.unaccounted_number_of_ticks += 1
+    if entry.IsSharedLibraryEntry():
+      self.number_of_library_ticks += 1
+    if entry.IsICEntry() and not self.separate_ic:
+      if len(stack) > 0:
+        caller_pc = stack.pop(0)
+        self.total_number_of_ticks -= 1
+        self.ProcessTick(caller_pc, sp, state, stack)
+      else:
+        self.unaccounted_number_of_ticks += 1
+    else:
+      entry.Tick(pc, self.ProcessStack(stack))
 
   def PrintResults(self):
     print('Statistical profiling result from %s, (%d ticks, %d unaccounted, %d excluded).' %
@@ -267,6 +317,14 @@ class TickProcessor(object):
       js_entries = self.js_entries.ExportValueList()
       js_entries.extend(self.deleted_code)
       cpp_entries = self.cpp_entries.ExportValueList()
+      # Print the unknown ticks percentage if they are not ignored.
+      if not self.ignore_unknown and self.unaccounted_number_of_ticks > 0:
+        self.PrintHeader('Unknown')
+        unknown_percentage = self.unaccounted_number_of_ticks * 100.0 / self.total_number_of_ticks
+        print('  %(ticks)5d  %(total)5.1f%%' % {
+          'ticks' : self.unaccounted_number_of_ticks,
+          'total' : unknown_percentage,
+        })
       # Print the library ticks.
       self.PrintHeader('Shared libraries')
       self.PrintEntries(cpp_entries, lambda e:e.IsSharedLibraryEntry())
@@ -276,13 +334,23 @@ class TickProcessor(object):
       # Print the C++ ticks.
       self.PrintHeader('C++')
       self.PrintEntries(cpp_entries, lambda e:not e.IsSharedLibraryEntry())
+      # Print call profile.
+      print('\n [Call profile]:')
+      print('   total  call path')
+      js_entries.extend(cpp_entries)
+      self.PrintCallProfile(js_entries)
 
   def PrintHeader(self, header_title):
     print('\n [%s]:' % header_title)
-    print('   total  nonlib   name')
+    print('   ticks  total  nonlib   name')
 
   def PrintEntries(self, entries, condition):
-    number_of_accounted_ticks = self.total_number_of_ticks - self.unaccounted_number_of_ticks
+    # If ignoring unaccounted ticks don't include these in percentage
+    # calculations
+    number_of_accounted_ticks = self.total_number_of_ticks
+    if self.ignore_unknown:
+      number_of_accounted_ticks -= self.unaccounted_number_of_ticks
+
     number_of_non_library_ticks = number_of_accounted_ticks - self.number_of_library_ticks
     entries.sort(key=lambda e:e.tick_count, reverse=True)
     for entry in entries:
@@ -292,7 +360,8 @@ class TickProcessor(object):
           non_library_percentage = 0
         else:
           non_library_percentage = entry.tick_count * 100.0 / number_of_non_library_ticks
-        print('  %(total)5.1f%% %(nonlib)6.1f%%   %(name)s' % {
+        print('  %(ticks)5d  %(total)5.1f%% %(nonlib)6.1f%%  %(name)s' % {
+          'ticks' : entry.tick_count,
           'total' : total_percentage,
           'nonlib' : non_library_percentage,
           'name' : entry.ToString()
@@ -308,6 +377,77 @@ class TickProcessor(object):
               'accum' : ticks[0] * 100.0 / entry.tick_count,
               'name': name
             })
+
+  def PrintCallProfile(self, entries):
+    all_stacks = {}
+    total_stacks = 0
+    for entry in entries:
+      all_stacks.update(entry.stacks)
+      for count in entry.stacks.itervalues():
+        total_stacks += count
+    all_stacks_items = all_stacks.items();
+    all_stacks_items.sort(key = itemgetter(1), reverse=True)
+    missing_percentage = (self.total_number_of_ticks - total_stacks) * 100.0 / self.total_number_of_ticks
+    print('  %(ticks)5d  %(total)5.1f%%  <no call path information>' % {
+      'ticks' : self.total_number_of_ticks - total_stacks,
+      'total' : missing_percentage
+    })
+    for stack, count in all_stacks_items:
+      total_percentage = count * 100.0 / self.total_number_of_ticks
+      print('  %(ticks)5d  %(total)5.1f%%  %(call_path)s' % {
+        'ticks' : count,
+        'total' : total_percentage,
+        'call_path' : stack[0] + '  <-  ' + stack[1]
+      })
+
+
+class CmdLineProcessor(object):
+
+  def __init__(self):
+    self.options = ["js", "gc", "compiler", "other", "ignore-unknown", "separate-ic"]
+    # default values
+    self.state = None
+    self.ignore_unknown = False
+    self.log_file = None
+    self.separate_ic = False
+
+  def ProcessArguments(self):
+    try:
+      opts, args = getopt.getopt(sys.argv[1:], "jgco", self.options)
+    except getopt.GetoptError:
+      self.PrintUsageAndExit()
+    for key, value in opts:
+      if key in ("-j", "--js"):
+        self.state = 0
+      if key in ("-g", "--gc"):
+        self.state = 1
+      if key in ("-c", "--compiler"):
+        self.state = 2
+      if key in ("-o", "--other"):
+        self.state = 3
+      if key in ("--ignore-unknown"):
+        self.ignore_unknown = True
+      if key in ("--separate-ic"):
+        self.separate_ic = True
+    self.ProcessRequiredArgs(args)
+
+  def ProcessRequiredArgs(self, args):
+    return
+
+  def GetRequiredArgsNames(self):
+    return
+
+  def PrintUsageAndExit(self):
+    print('Usage: %(script_name)s --{%(opts)s} %(req_opts)s' % {
+        'script_name': os.path.basename(sys.argv[0]),
+        'opts': string.join(self.options, ','),
+        'req_opts': self.GetRequiredArgsNames()
+    })
+    sys.exit(2)
+
+  def RunLogfileProcessing(self, tick_processor):
+    tick_processor.ProcessLogfile(self.log_file, self.state, self.ignore_unknown, self.separate_ic)
+
 
 if __name__ == '__main__':
   sys.exit('You probably want to run windows-tick-processor.py or linux-tick-processor.py.')

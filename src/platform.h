@@ -109,6 +109,9 @@ namespace v8 { namespace internal {
 
 double ceiling(double x);
 
+// Forward declarations.
+class Socket;
+
 // ----------------------------------------------------------------------------
 // OS
 //
@@ -205,6 +208,10 @@ class OS {
   // Please use delete to reclaim the storage for the returned Semaphore.
   static Semaphore* CreateSemaphore(int count);
 
+  // Factory method for creating platform dependent Socket.
+  // Please use delete to reclaim the storage for the returned Socket.
+  static Socket* CreateSocket();
+
   class MemoryMappedFile {
    public:
     static MemoryMappedFile* create(const char* name, int size, void* initial);
@@ -219,6 +226,7 @@ class OS {
                        const char* format,
                        va_list args);
 
+  static char* StrChr(char* str, int c);
   static void StrNCpy(Vector<char> dest, const char* src, size_t n);
   static char* StrDup(const char* str);
   static char* StrNDup(const char* str, size_t n);
@@ -411,6 +419,38 @@ class Semaphore {
 };
 
 
+// ----------------------------------------------------------------------------
+// Socket
+//
+
+class Socket {
+ public:
+  virtual ~Socket() {}
+
+  // Server initialization.
+  virtual bool Bind(const int port) = 0;
+  virtual bool Listen(int backlog) const = 0;
+  virtual Socket* Accept() const = 0;
+
+  // Client initialization.
+  virtual bool Connect(const char* host, const char* port) = 0;
+
+  // Data Transimission
+  virtual int Send(const char* data, int len) const = 0;
+  virtual bool SendAll(const char* data, int len) const = 0;
+  virtual int Receive(char* data, int len) const = 0;
+
+  virtual bool IsValid() const = 0;
+
+  static bool Setup();
+  static int LastError();
+  static uint16_t HToN(uint16_t value);
+  static uint16_t NToH(uint16_t value);
+  static uint32_t HToN(uint32_t value);
+  static uint32_t NToH(uint32_t value);
+};
+
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
 // ----------------------------------------------------------------------------
 // Sampler
@@ -422,10 +462,29 @@ class Semaphore {
 // TickSample captures the information collected for each sample.
 class TickSample {
  public:
-  TickSample() : pc(0), sp(0), state(OTHER) {}
+  TickSample() : pc(0), sp(0), fp(0), state(OTHER) {}
   unsigned int pc;  // Instruction pointer.
   unsigned int sp;  // Stack pointer.
+  unsigned int fp;  // Frame pointer.
   StateTag state;   // The state of the VM.
+  SmartPointer<Address> stack;  // Call stack, null-terminated.
+
+  inline TickSample& operator=(const TickSample& rhs) {
+    if (this == &rhs) return *this;
+    pc = rhs.pc;
+    sp = rhs.sp;
+    fp = rhs.fp;
+    state = rhs.state;
+    DeleteArray(stack.Detach());
+    stack = rhs.stack;
+    return *this;
+  }
+
+  inline void InitStack(int depth) {
+    stack = SmartPointer<Address>(NewArray<Address>(depth + 1));
+    // null-terminate
+    stack[depth] = 0;
+  }
 };
 
 class Sampler {

@@ -89,6 +89,7 @@ class BreakLocationIterator {
   bool HasBreakPoint();
   bool IsDebugBreak();
   Object* BreakPointObjects();
+  void ClearAllDebugBreak();
 
 
   inline int code_position() { return pc() - debug_info_->code()->entry(); }
@@ -172,6 +173,7 @@ class Debug {
                             int source_position,
                             Handle<Object> break_point_object);
   static void ClearBreakPoint(Handle<Object> break_point_object);
+  static void ClearAllBreakPoints();
   static void FloodWithOneShot(Handle<SharedFunctionInfo> shared);
   static void FloodHandlerWithOneShot();
   static void ChangeBreakOnException(ExceptionBreakType type, bool enable);
@@ -186,6 +188,7 @@ class Debug {
   static bool EnsureDebugInfo(Handle<SharedFunctionInfo> shared);
 
   static bool IsDebugBreak(Address addr);
+  static bool IsDebugBreakAtReturn(RelocInfo* rinfo);
 
   // Check whether a code stub with the specified major key is a possible break
   // point location.
@@ -256,7 +259,8 @@ class Debug {
   static void HandleWeakDebugInfo(v8::Persistent<v8::Value> obj, void* data);
 
   friend class Debugger;
-  friend Handle<FixedArray> GetDebuggedFunctions();  // Found in test-debug.cc
+  friend Handle<FixedArray> GetDebuggedFunctions();  // In test-debug.cc
+  friend void CheckDebuggerUnloaded(bool check_functions);  // In test-debug.cc
 
   // Threading support.
   static char* ArchiveDebug(char* to);
@@ -377,8 +381,11 @@ class Debugger {
                                 Handle<Object> event_data);
   static void SetEventListener(Handle<Object> callback, Handle<Object> data);
   static void SetMessageHandler(v8::DebugMessageHandler handler, void* data);
+  static void SetHostDispatchHandler(v8::DebugHostDispatchHandler handler,
+                                     void* data);
   static void SendMessage(Vector<uint16_t> message);
   static void ProcessCommand(Vector<const uint16_t> command);
+  static void ProcessHostDispatch(void* dispatch);
   static void UpdateActiveDebugger();
   static Handle<Object> Call(Handle<JSFunction> fun,
                              Handle<Object> data,
@@ -407,8 +414,12 @@ class Debugger {
   static bool compiling_natives_;  // Are we compiling natives?
   static bool is_loading_debugger_;  // Are we loading the debugger?
   static DebugMessageThread* message_thread_;
-  static v8::DebugMessageHandler debug_message_handler_;
-  static void* debug_message_handler_data_;
+  static v8::DebugMessageHandler message_handler_;
+  static void* message_handler_data_;
+  static v8::DebugHostDispatchHandler host_dispatch_handler_;
+  static void* host_dispatch_handler_data_;
+
+  friend class DebugMessageThread;
 };
 
 
@@ -477,6 +488,7 @@ class DebugMessageThread: public Thread {
   // by the API client thread.  This is where the API client hands off
   // processing of the command to the DebugMessageThread thread.
   void ProcessCommand(Vector<uint16_t> command);
+  void ProcessHostDispatch(void* dispatch);
   void OnDebuggerInactive();
 
   // Main function of DebugMessageThread thread.

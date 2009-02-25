@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2008-2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -39,7 +39,8 @@ namespace v8 { namespace internal {
 RegExpMacroAssemblerIrregexp::RegExpMacroAssemblerIrregexp(Vector<byte> buffer)
     : buffer_(buffer),
       pc_(0),
-      own_buffer_(false) {
+      own_buffer_(false),
+      advance_current_end_(kInvalidPC) {
 }
 
 
@@ -55,6 +56,7 @@ RegExpMacroAssemblerIrregexp::Implementation() {
 
 
 void RegExpMacroAssemblerIrregexp::Bind(Label* l) {
+  advance_current_end_ = kInvalidPC;
   ASSERT(!l->is_bound());
   if (l->is_linked()) {
     int pos = l->pos();
@@ -172,8 +174,17 @@ void RegExpMacroAssemblerIrregexp::Backtrack() {
 
 
 void RegExpMacroAssemblerIrregexp::GoTo(Label* l) {
-  Emit(BC_GOTO, 0);
-  EmitOrLink(l);
+  if (advance_current_end_ == pc_) {
+    // Combine advance current and goto.
+    pc_ = advance_current_start_;
+    Emit(BC_ADVANCE_CP_AND_GOTO, advance_current_offset_);
+    EmitOrLink(l);
+    advance_current_end_ = kInvalidPC;
+  } else {
+    // Regular goto.
+    Emit(BC_GOTO, 0);
+    EmitOrLink(l);
+  }
 }
 
 
@@ -196,7 +207,10 @@ void RegExpMacroAssemblerIrregexp::Fail() {
 void RegExpMacroAssemblerIrregexp::AdvanceCurrentPosition(int by) {
   ASSERT(by >= kMinCPOffset);
   ASSERT(by <= kMaxCPOffset);
+  advance_current_start_ = pc_;
+  advance_current_offset_ = by;
   Emit(BC_ADVANCE_CP, by);
+  advance_current_end_ = pc_;
 }
 
 

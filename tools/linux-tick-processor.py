@@ -30,7 +30,7 @@
 # Usage: process-ticks.py <logfile>
 # Where <logfile> is the log file name (eg, v8.log).
 
-import subprocess, re, sys, tickprocessor, getopt
+import subprocess, re, sys, tickprocessor
 
 class LinuxTickProcessor(tickprocessor.TickProcessor):
 
@@ -54,33 +54,25 @@ class LinuxTickProcessor(tickprocessor.TickProcessor):
       pipe.close()
 
 
-def Usage():
-  print("Usage: linux-tick-processor.py --{js,gc,compiler,other}  logfile-name");
-  sys.exit(2)
+class LinuxCmdLineProcessor(tickprocessor.CmdLineProcessor):
+
+  def GetRequiredArgsNames(self):
+    return 'log_file'
+
+  def ProcessRequiredArgs(self, args):
+    if len(args) != 1:
+      self.PrintUsageAndExit()
+    else:
+      self.log_file = args[0]
+
 
 def Main():
-  # parse command line options
-  state = None;
-  try:
-    opts, args = getopt.getopt(sys.argv[1:], "jgco", ["js", "gc", "compiler", "other"])
-  except getopt.GetoptError:
-    usage()
-  # process options.
-  for key, value in opts:
-    if key in ("-j", "--js"):
-      state = 0
-    if key in ("-g", "--gc"):
-      state = 1
-    if key in ("-c", "--compiler"):
-      state = 2
-    if key in ("-o", "--other"):
-      state = 3
-  # do the processing.
-  if len(args) != 1:
-      Usage();
+  cmdline_processor = LinuxCmdLineProcessor()
+  cmdline_processor.ProcessArguments()
   tick_processor = LinuxTickProcessor()
-  tick_processor.ProcessLogfile(args[0], state)
+  cmdline_processor.RunLogfileProcessing(tick_processor)
   tick_processor.PrintResults()
+
 
 if __name__ == '__main__':
   Main()

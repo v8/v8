@@ -92,7 +92,6 @@ class ScopeInfo BASE_EMBEDDED {
   Handle<String> LocalName(int i) const;
   int NumberOfLocals() const;
 
-
   // --------------------------------------------------------------------------
   // The following functions provide quick access to scope info details
   // for runtime routines w/o the need to explicitly create a ScopeInfo
@@ -101,6 +100,9 @@ class ScopeInfo BASE_EMBEDDED {
   // ScopeInfo is the only class which should have to know about the
   // encoding of it's information in a Code object, which is why these
   // functions are in this class.
+
+  // Does this scope call eval.
+  static bool CallsEval(Code* code);
 
   // Return the number of stack slots for code.
   static int NumberOfStackSlots(Code* code);
@@ -132,7 +134,6 @@ class ScopeInfo BASE_EMBEDDED {
   // must be a symbol (canonicalized).
   static int FunctionContextSlotIndex(Code* code, String* name);
 
-
   // --------------------------------------------------------------------------
   // Debugging support
 
@@ -142,6 +143,7 @@ class ScopeInfo BASE_EMBEDDED {
 
  private:
   Handle<String> function_name_;
+  bool calls_eval_;
   List<Handle<String>, Allocator > parameters_;
   List<Handle<String>, Allocator > stack_slots_;
   List<Handle<String>, Allocator > context_slots_;

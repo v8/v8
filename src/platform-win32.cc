@@ -67,6 +67,7 @@
 // These additional WIN32 includes have to be right here as the #undef's below
 // makes it impossible to have them elsewhere.
 #include <winsock2.h>
+#include <ws2tcpip.h>
 #include <process.h>  // for _beginthreadex()
 #include <stdlib.h>
 
@@ -729,6 +730,11 @@ int OS::VSNPrintF(Vector<char> str, const char* format, va_list args) {
   } else {
     return n;
   }
+}
+
+
+char* OS::StrChr(char* str, int c) {
+  return const_cast<char*>(strchr(str, c));
 }
 
 
@@ -1546,6 +1552,180 @@ Semaphore* OS::CreateSemaphore(int count) {
   return new Win32Semaphore(count);
 }
 
+
+// ----------------------------------------------------------------------------
+// Win32 socket support.
+//
+
+class Win32Socket : public Socket {
+ public:
+  explicit Win32Socket() {
+    // Create the socket.
+    socket_ = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+  }
+  explicit Win32Socket(SOCKET socket): socket_(socket) { }
+
+
+  virtual ~Win32Socket() {
+    if (IsValid()) {
+      // Close socket.
+      closesocket(socket_);
+    }
+  }
+
+  // Server initialization.
+  bool Bind(const int port);
+  bool Listen(int backlog) const;
+  Socket* Accept() const;
+
+  // Client initialization.
+  bool Connect(const char* host, const char* port);
+
+  // Data Transimission
+  int Send(const char* data, int len) const;
+  bool SendAll(const char* data, int len) const;
+  int Receive(char* data, int len) const;
+
+  bool IsValid() const { return socket_ != INVALID_SOCKET; }
+
+ private:
+  SOCKET socket_;
+};
+
+
+bool Win32Socket::Bind(const int port) {
+  if (!IsValid())  {
+    return false;
+  }
+
+  sockaddr_in addr;
+  memset(&addr, 0, sizeof(addr));
+  addr.sin_family = AF_INET;
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+  addr.sin_port = htons(port);
+  int status = bind(socket_,
+                    reinterpret_cast<struct sockaddr *>(&addr),
+                    sizeof(addr));
+  return status == 0;
+}
+
+
+bool Win32Socket::Listen(int backlog) const {
+  if (!IsValid()) {
+    return false;
+  }
+
+  int status = listen(socket_, backlog);
+  return status == 0;
+}
+
+
+Socket* Win32Socket::Accept() const {
+  if (!IsValid()) {
+    return NULL;
+  }
+
+  SOCKET socket = accept(socket_, NULL, NULL);
+  if (socket == INVALID_SOCKET) {
+    return NULL;
+  } else {
+    return new Win32Socket(socket);
+  }
+}
+
+
+bool Win32Socket::Connect(const char* host, const char* port) {
+  if (!IsValid()) {
+    return false;
+  }
+
+  // Lookup host and port.
+  struct addrinfo *result = NULL;
+  struct addrinfo hints;
+  memset(&hints, 0, sizeof(addrinfo));
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
+  hints.ai_protocol = IPPROTO_TCP;
+  int status = getaddrinfo(host, port, &hints, &result);
+  if (status != 0) {
+    return false;
+  }
+
+  // Connect.
+  status = connect(socket_, result->ai_addr, result->ai_addrlen);
+  return status == 0;
+}
+
+
+int Win32Socket::Send(const char* data, int len) const {
+  int status = send(socket_, data, len, 0);
+  return status;
+}
+
+
+bool Win32Socket::SendAll(const char* data, int len) const {
+  int sent_len = 0;
+  while (sent_len < len) {
+    int status = Send(data, len);
+    if (status <= 0) {
+      return false;
+    }
+    sent_len += status;
+  }
+  return true;
+}
+
+
+int Win32Socket::Receive(char* data, int len) const {
+  int status = recv(socket_, data, len, 0);
+  return status;
+}
+
+
+bool Socket::Setup() {
+  // Initialize Winsock32
+  int err;
+  WSADATA winsock_data;
+  WORD version_requested = MAKEWORD(1, 0);
+  err = WSAStartup(version_requested, &winsock_data);
+  if (err != 0) {
+    PrintF("Unable to initialize Winsock, err = %d\n", Socket::LastError());
+  }
+
+  return err == 0;
+}
+
+
+int Socket::LastError() {
+  return WSAGetLastError();
+}
+
+
+uint16_t Socket::HToN(uint16_t value) {
+  return htons(value);
+}
+
+
+uint16_t Socket::NToH(uint16_t value) {
+  return ntohs(value);
+}
+
+
+uint32_t Socket::HToN(uint32_t value) {
+  return htonl(value);
+}
+
+
+uint32_t Socket::NToH(uint32_t value) {
+  return ntohl(value);
+}
+
+
+Socket* OS::CreateSocket() {
+  return new Win32Socket();
+}
+
+
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
 // ----------------------------------------------------------------------------
@@ -1585,6 +1765,7 @@ class Sampler::PlatformData : public Malloced {
         // Invoke tick handler with program counter and stack pointer.
         sample.pc = context.Eip;
         sample.sp = context.Esp;
+        sample.fp = context.Ebp;
       }
 
       // We always sample the VM state.

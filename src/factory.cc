@@ -601,11 +601,6 @@ Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
 }
 
 
-Handle<JSArray> Factory::NewArrayLiteral(int length) {
-  return NewJSArrayWithElements(NewFixedArray(length), TENURED);
-}
-
-
 Handle<JSArray> Factory::NewJSArray(int length,
                                     PretenureFlag pretenure) {
   Handle<JSObject> obj = NewJSObject(Top::array_function(), pretenure);

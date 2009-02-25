@@ -2943,11 +2943,10 @@ class JSRegExp: public JSObject {
  public:
   // Meaning of Type:
   // NOT_COMPILED: Initial value. No data has been stored in the JSRegExp yet.
-  // JSCRE: A complex RegExp for JSCRE
   // ATOM: A simple string to match against using an indexOf operation.
   // IRREGEXP: Compiled with Irregexp.
   // IRREGEXP_NATIVE: Compiled to native code with Irregexp.
-  enum Type { NOT_COMPILED, JSCRE, ATOM, IRREGEXP };
+  enum Type { NOT_COMPILED, ATOM, IRREGEXP };
   enum Flag { NONE = 0, GLOBAL = 1, IGNORE_CASE = 2, MULTILINE = 4 };
 
   class Flags {
@@ -2981,10 +2980,9 @@ class JSRegExp: public JSObject {
   static const int kTagIndex = 0;
   static const int kSourceIndex = kTagIndex + 1;
   static const int kFlagsIndex = kSourceIndex + 1;
-  // These three are the same since the same entry is shared for
+  // These two are the same since the same entry is shared for
   // different purposes in different types of regexps.
   static const int kAtomPatternIndex = kFlagsIndex + 1;
-  static const int kJscreDataIndex = kFlagsIndex + 1;
   static const int kIrregexpDataIndex = kFlagsIndex + 1;
   static const int kDataSize = kAtomPatternIndex + 1;
 };
@@ -2994,8 +2992,10 @@ class CompilationCacheTable: public HashTable<0, 2> {
  public:
   // Find cached value for a string key, otherwise return null.
   Object* Lookup(String* src);
+  Object* LookupEval(String* src, Context* context);
   Object* LookupRegExp(String* source, JSRegExp::Flags flags);
   Object* Put(String* src, Object* value);
+  Object* PutEval(String* src, Context* context, Object* value);
   Object* PutRegExp(String* src, JSRegExp::Flags flags, FixedArray* value);
 
   static inline CompilationCacheTable* cast(Object* obj);
@@ -3240,6 +3240,7 @@ class String: public HeapObject {
 
   // Max ascii char code.
   static const int kMaxAsciiCharCode = unibrow::Utf8::kMaxOneByteChar;
+  static const unsigned kMaxAsciiCharCodeU = unibrow::Utf8::kMaxOneByteChar;
   static const int kMaxUC16CharCode = 0xffff;
 
   // Minimum length for a cons or sliced string.

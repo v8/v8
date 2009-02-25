@@ -134,10 +134,12 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
         // declared variables that were introduced through declaration nodes)
         // must not appear here.
         switch (mode) {
-          case Variable::INTERNAL :  // fall through
-          case Variable::VAR      : *attributes = NONE; break;
-          case Variable::CONST    : *attributes = READ_ONLY; break;
-          case Variable::DYNAMIC  : UNREACHABLE(); break;
+          case Variable::INTERNAL:  // fall through
+          case Variable::VAR: *attributes = NONE; break;
+          case Variable::CONST: *attributes = READ_ONLY; break;
+          case Variable::DYNAMIC: UNREACHABLE(); break;
+          case Variable::DYNAMIC_GLOBAL: UNREACHABLE(); break;
+          case Variable::DYNAMIC_LOCAL: UNREACHABLE(); break;
           case Variable::TEMPORARY: UNREACHABLE(); break;
         }
         return context;
@@ -193,6 +195,42 @@ Handle<Object> Context::Lookup(Handle<String> name, ContextLookupFlags flags,
     PrintF("=> no property/slot found\n");
   }
   return Handle<Object>::null();
+}
+
+
+bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
+  Context* context = this;
+
+  // Check that there is no local with the given name in contexts
+  // before the global context and check that there are no context
+  // extension objects (conservative check for with statements).
+  while (!context->IsGlobalContext()) {
+    // Check if the context is a potentially a with context.
+    if (context->has_extension()) return false;
+
+    // Not a with context so it must be a function context.
+    ASSERT(context->is_function_context());
+
+    // Check non-parameter locals.
+    Handle<Code> code(context->closure()->code());
+    Variable::Mode mode;
+    int index = ScopeInfo<>::ContextSlotIndex(*code, *name, &mode);
+    ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
+    if (index >= 0) return false;
+
+    // Check parameter locals.
+    int param_index = ScopeInfo<>::ParameterIndex(*code, *name);
+    if (param_index >= 0) return false;
+
+    // Check context only holding the function name variable.
+    index = ScopeInfo<>::FunctionContextSlotIndex(*code, *name);
+    if (index >= 0) return false;
+    context = Context::cast(context->closure()->context());
+  }
+
+  // No local or potential with statement found so the variable is
+  // global unless it is shadowed by an eval-introduced variable.
+  return true;
 }
 
 
