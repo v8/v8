@@ -567,7 +567,7 @@ class Heap : public AllStatic {
   static Object* CreateCode(const CodeDesc& desc,
                             ScopeInfo<>* sinfo,
                             Code::Flags flags,
-                            Code** self_reference = NULL);
+                            Handle<Object> self_reference);
 
   static Object* CopyCode(Code* code);
   // Finds the symbol for string in the symbol table.
@@ -923,8 +923,8 @@ class Heap : public AllStatic {
   static void MarkCompact(GCTracer* tracer);
 
   // Code to be run before and after mark-compact.
-  static void MarkCompactPrologue();
-  static void MarkCompactEpilogue();
+  static void MarkCompactPrologue(bool is_compacting);
+  static void MarkCompactEpilogue(bool is_compacting);
 
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source

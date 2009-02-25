@@ -333,33 +333,37 @@ int Top::break_id() {
 }
 
 
-void Top::MarkCompactPrologue() {
-  MarkCompactPrologue(&thread_local_);
+void Top::MarkCompactPrologue(bool is_compacting) {
+  MarkCompactPrologue(is_compacting, &thread_local_);
 }
 
 
-void Top::MarkCompactPrologue(char* data) {
-  MarkCompactPrologue(reinterpret_cast<ThreadLocalTop*>(data));
+void Top::MarkCompactPrologue(bool is_compacting, char* data) {
+  MarkCompactPrologue(is_compacting, reinterpret_cast<ThreadLocalTop*>(data));
 }
 
 
-void Top::MarkCompactPrologue(ThreadLocalTop* thread) {
-  StackFrame::CookFramesForThread(thread);
+void Top::MarkCompactPrologue(bool is_compacting, ThreadLocalTop* thread) {
+  if (is_compacting) {
+    StackFrame::CookFramesForThread(thread);
+  }
 }
 
 
-void Top::MarkCompactEpilogue(char* data) {
-  MarkCompactEpilogue(reinterpret_cast<ThreadLocalTop*>(data));
+void Top::MarkCompactEpilogue(bool is_compacting, char* data) {
+  MarkCompactEpilogue(is_compacting, reinterpret_cast<ThreadLocalTop*>(data));
 }
 
 
-void Top::MarkCompactEpilogue() {
-  MarkCompactEpilogue(&thread_local_);
+void Top::MarkCompactEpilogue(bool is_compacting) {
+  MarkCompactEpilogue(is_compacting, &thread_local_);
 }
 
 
-void Top::MarkCompactEpilogue(ThreadLocalTop* thread) {
-  StackFrame::UncookFramesForThread(thread);
+void Top::MarkCompactEpilogue(bool is_compacting, ThreadLocalTop* thread) {
+  if (is_compacting) {
+    StackFrame::UncookFramesForThread(thread);
+  }
 }
 
 
@@ -690,7 +694,7 @@ void Top::PrintCurrentStackTrace(FILE* out) {
     HandleScope scope;
     // Find code position if recorded in relocation info.
     JavaScriptFrame* frame = it.frame();
-    int pos = frame->FindCode()->SourcePosition(frame->pc());
+    int pos = frame->code()->SourcePosition(frame->pc());
     Handle<Object> pos_obj(Smi::FromInt(pos));
     // Fetch function and receiver.
     Handle<JSFunction> fun(JSFunction::cast(frame->function()));
@@ -721,7 +725,7 @@ void Top::ComputeLocation(MessageLocation* target) {
     Object* script = fun->shared()->script();
     if (script->IsScript() &&
         !(Script::cast(script)->source()->IsUndefined())) {
-      int pos = frame->FindCode()->SourcePosition(frame->pc());
+      int pos = frame->code()->SourcePosition(frame->pc());
       // Compute the location from the function and the reloc info.
       Handle<Script> casted_script(Script::cast(script));
       *target = MessageLocation(casted_script, pos, pos + 1);

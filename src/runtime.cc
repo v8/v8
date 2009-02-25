@@ -5015,13 +5015,13 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   Handle<Object> frame_id(WrapFrameId(it.frame()->id()));
 
   // Find source position.
-  int position = it.frame()->FindCode()->SourcePosition(it.frame()->pc());
+  int position = it.frame()->code()->SourcePosition(it.frame()->pc());
 
   // Check for constructor frame.
   bool constructor = it.frame()->IsConstructor();
 
   // Get code and read scope info from it for local variable information.
-  Handle<Code> code(it.frame()->FindCode());
+  Handle<Code> code(it.frame()->code());
   ScopeInfo<> info(*code);
 
   // Get the context.

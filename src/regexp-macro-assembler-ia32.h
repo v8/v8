@@ -253,9 +253,6 @@ class RegExpMacroAssemblerIA32: public RegExpMacroAssembler {
   Label exit_label_;
   Label check_preempt_label_;
   Label stack_overflow_label_;
-
-  // Handle used to represent the generated code object itself.
-  Handle<Object> self_;
 };
 
 }}  // namespace v8::internal

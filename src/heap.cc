@@ -419,11 +419,15 @@ void Heap::MarkCompact(GCTracer* tracer) {
   tracer->set_full_gc_count(mc_count_);
   LOG(ResourceEvent("markcompact", "begin"));
 
-  MarkCompactPrologue();
+  MarkCompactCollector::Prepare(tracer);
 
-  MarkCompactCollector::CollectGarbage(tracer);
+  bool is_compacting = MarkCompactCollector::IsCompacting();
 
-  MarkCompactEpilogue();
+  MarkCompactPrologue(is_compacting);
+
+  MarkCompactCollector::CollectGarbage();
+
+  MarkCompactEpilogue(is_compacting);
 
   LOG(ResourceEvent("markcompact", "end"));
 
@@ -435,18 +439,22 @@ void Heap::MarkCompact(GCTracer* tracer) {
 }
 
 
-void Heap::MarkCompactPrologue() {
+void Heap::MarkCompactPrologue(bool is_compacting) {
+  // At any old GC clear the keyed lookup cache to enable collection of unused
+  // maps.
   ClearKeyedLookupCache();
+
   CompilationCache::MarkCompactPrologue();
   RegExpImpl::OldSpaceCollectionPrologue();
-  Top::MarkCompactPrologue();
-  ThreadManager::MarkCompactPrologue();
+
+  Top::MarkCompactPrologue(is_compacting);
+  ThreadManager::MarkCompactPrologue(is_compacting);
 }
 
 
-void Heap::MarkCompactEpilogue() {
-  Top::MarkCompactEpilogue();
-  ThreadManager::MarkCompactEpilogue();
+void Heap::MarkCompactEpilogue(bool is_compacting) {
+  Top::MarkCompactEpilogue(is_compacting);
+  ThreadManager::MarkCompactEpilogue(is_compacting);
 }
 
 
@@ -1601,7 +1609,7 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
 Object* Heap::CreateCode(const CodeDesc& desc,
                          ScopeInfo<>* sinfo,
                          Code::Flags flags,
-                         Code** self_reference) {
+                         Handle<Object> self_reference) {
   // Compute size
   int body_size = RoundUp(desc.instr_size + desc.reloc_size, kObjectAlignment);
   int sinfo_size = 0;
@@ -1624,9 +1632,10 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   code->set_sinfo_size(sinfo_size);
   code->set_flags(flags);
   code->set_ic_flag(Code::IC_TARGET_IS_ADDRESS);
-  // Allow self references to created code object.
-  if (self_reference != NULL) {
-    *self_reference = code;
+  // Allow self references to created code object by patching the handle to
+  // point to the newly allocated Code object.
+  if (!self_reference.is_null()) {
+    *(self_reference.location()) = code;
   }
   // Migrate generated code.
   // The generated code can contain Object** values (typically from handles)

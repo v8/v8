@@ -43,7 +43,8 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       unresolved_(0),
       generating_stub_(false),
-      allow_stub_calls_(true) {
+      allow_stub_calls_(true),
+      code_object_(Heap::undefined_value()) {
 }
 
 
@@ -270,8 +271,8 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   stm(db_w, sp, cp.bit() | fp.bit() | lr.bit());
   mov(ip, Operand(Smi::FromInt(type)));
   push(ip);
-  mov(ip, Operand(0));
-  push(ip);  // Push an empty code cache slot.
+  mov(ip, Operand(CodeObject()));
+  push(ip);
   add(fp, sp, Operand(3 * kPointerSize));  // Adjust FP to point to saved FP.
 }
 
