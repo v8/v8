@@ -191,6 +191,18 @@ class ControlDestination BASE_EMBEDDED {
     true_is_fall_through_ = where;
   }
 
+  // Mark this jump target as used as if Goto had been called, but
+  // without generating a jump or binding a label (the control effect
+  // should have already happened).  This is used when the left
+  // subexpression of the short-circuit boolean operators are
+  // compiled.
+  void Use(bool where) {
+    ASSERT(!is_used_);
+    ASSERT((where ? true_target_ : false_target_)->is_bound());
+    is_used_ = true;
+    true_is_fall_through_ = where;
+  }
+
   // Swap the true and false targets but keep the same actual label as
   // the fall through.  This is used when compiling negated
   // expressions, where we want to swap the targets but preserve the

@@ -4621,18 +4621,35 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     LoadCondition(node->left(), NOT_INSIDE_TYPEOF, &dest, false);
 
     if (dest.false_was_fall_through()) {
-      // We have just bound the false target.  There may be dangling
-      // jumps to is_true.
+      // The current false target was used as the fall-through.  If
+      // there are no dangling jumps to is_true then the left
+      // subexpression was unconditionally false.  Otherwise we have
+      // paths where we do have to evaluate the right subexpression.
       if (is_true.is_linked()) {
-        destination()->false_target()->Unuse();
-        destination()->false_target()->Jump();
+        // We need to compile the right subexpression.  If the jump to
+        // the current false target was a forward jump then we have a
+        // valid frame, we have just bound the false target, and we
+        // have to jump around the code for the right subexpression.
+        if (has_valid_frame()) {
+          destination()->false_target()->Unuse();
+          destination()->false_target()->Jump();
+        }
         is_true.Bind();
-        destination()->Goto(true);
+        // The left subexpression compiled to control flow, so the
+        // right one is free to do so as well.
+        LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+      } else {
+        // We have actually just jumped to or bound the current false
+        // target but the current control destination is not marked as
+        // used.
+        destination()->Use(false);
       }
+
     } else if (dest.is_used()) {
-      // The first subexpression compiled to control flow (is_true was
-      // just bound), so the second is free to do so as well.
+      // The left subexpression compiled to control flow (and is_true
+      // was just bound), so the right is free to do so as well.
       LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+
     } else {
       // We have a materialized value on the frame, so we exit with
       // one on all paths.  There are possibly also jumps to is_true
@@ -4653,7 +4670,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Pop the result of evaluating the first part.
       frame_->Drop();
 
-      // Evaluate right side expression.
+      // Compile right side expression.
       is_true.Bind();
       Load(node->right());
 
@@ -4667,18 +4684,34 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     LoadCondition(node->left(), NOT_INSIDE_TYPEOF, &dest, false);
 
     if (dest.true_was_fall_through()) {
-      // We have just bound the true target.  There may be dangling
-      // jumps to is_false.
+      // The current true target was used as the fall-through.  If
+      // there are no dangling jumps to is_false then the left
+      // subexpression was unconditionally true.  Otherwise we have
+      // paths where we do have to evaluate the right subexpression.
       if (is_false.is_linked()) {
-        destination()->true_target()->Unuse();
-        destination()->true_target()->Jump();
+        // We need to compile the right subexpression.  If the jump to
+        // the current true target was a forward jump then we have a
+        // valid frame, we have just bound the true target, and we
+        // have to jump around the code for the right subexpression.
+        if (has_valid_frame()) {
+          destination()->true_target()->Unuse();
+          destination()->true_target()->Jump();
+        }
         is_false.Bind();
-        destination()->Goto(false);
+        // The left subexpression compiled to control flow, so the
+        // right one is free to do so as well.
+        LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+      } else {
+        // We have just jumped to or bound the current true target but
+        // the current control destination is not marked as used.
+        destination()->Use(true);
       }
+
     } else if (dest.is_used()) {
-      // The first subexpression compiled to control flow (is_false
-      // was just bound), so the second is free to do so as well.
+      // The left subexpression compiled to control flow (and is_false
+      // was just bound), so the right is free to do so as well.
       LoadCondition(node->right(), NOT_INSIDE_TYPEOF, destination(), false);
+
     } else {
       // We have a materialized value on the frame, so we exit with
       // one on all paths.  There are possibly also jumps to is_false
@@ -4699,7 +4732,7 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       // Pop the result of evaluating the first part.
       frame_->Drop();
 
-      // Evaluate right side expression.
+      // Compile right side expression.
       is_false.Bind();
       Load(node->right());
 
