@@ -162,6 +162,8 @@ int main(int argc, char** argv) {
   const int kExtensionCount = 1;
   const char* extension_list[kExtensionCount] = { "v8/gc" };
   v8::ExtensionConfiguration extensions(kExtensionCount, extension_list);
+
+  i::Serializer::Enable();
   v8::Context::New(&extensions);
 
   // Make sure all builtin scripts are cached.

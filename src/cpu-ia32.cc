@@ -30,11 +30,12 @@
 #include "v8.h"
 
 #include "cpu.h"
+#include "macro-assembler.h"
 
 namespace v8 { namespace internal {
 
 void CPU::Setup() {
-  // Nothing to do.
+  CpuFeatures::Probe();
 }
 
 

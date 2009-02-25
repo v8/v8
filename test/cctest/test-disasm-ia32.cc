@@ -56,8 +56,6 @@ static void DummyStaticFunction(Object* result) {
 
 TEST(DisasmIa320) {
   InitializeVM();
-  Serializer::disable();  // Needed for Probe when running without snapshot.
-  CpuFeatures::Probe();
   v8::HandleScope scope;
   v8::internal::byte buffer[1024];
   Assembler assm(buffer, sizeof buffer);

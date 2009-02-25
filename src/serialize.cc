@@ -930,7 +930,7 @@ Serializer::~Serializer() {
 }
 
 
-bool Serializer::serialization_enabled_ = true;
+bool Serializer::serialization_enabled_ = false;
 
 
 #ifdef DEBUG
@@ -993,7 +993,7 @@ void Serializer::Serialize() {
   Heap::IterateRoots(this);
   PutLog();
   PutContextStack();
-  disable();
+  Disable();
 }
 
 

@@ -2175,7 +2175,6 @@ bool v8::V8::Initialize() {
   if (i::V8::HasBeenSetup()) return true;
   HandleScope scope;
   if (i::Snapshot::Initialize()) {
-    i::Serializer::disable();
     return true;
   } else {
     return i::V8::Initialize(NULL);

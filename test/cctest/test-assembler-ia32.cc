@@ -164,8 +164,6 @@ TEST(AssemblerIa323) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  Serializer::disable();  // Needed for Probe when running without snapshot.
-  CpuFeatures::Probe();
   CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
   { CpuFeatures::Scope fscope(CpuFeatures::SSE2);
     __ cvttss2si(eax, Operand(esp, 4));
@@ -197,8 +195,6 @@ TEST(AssemblerIa324) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  Serializer::disable();  // Needed for Probe when running without snapshot.
-  CpuFeatures::Probe();
   CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
   CpuFeatures::Scope fscope(CpuFeatures::SSE2);
   __ cvttsd2si(eax, Operand(esp, 4));
@@ -246,8 +242,6 @@ typedef double (*F5)(double x, double y);
 TEST(AssemblerIa326) {
   InitializeVM();
   v8::HandleScope scope;
-  Serializer::disable();  // Needed for Probe when running without snapshot.
-  CpuFeatures::Probe();
   CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
   CpuFeatures::Scope fscope(CpuFeatures::SSE2);
   v8::internal::byte buffer[256];
@@ -290,8 +284,6 @@ typedef double (*F6)(int x);
 TEST(AssemblerIa328) {
   InitializeVM();
   v8::HandleScope scope;
-  Serializer::disable();  // Needed for Probe when running without snapshot.
-  CpuFeatures::Probe();
   CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
   CpuFeatures::Scope fscope(CpuFeatures::SSE2);
   v8::internal::byte buffer[256];

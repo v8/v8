@@ -147,7 +147,8 @@ class Serializer: public ObjectVisitor {
 
   static bool enabled() { return serialization_enabled_; }
 
-  static void disable() { serialization_enabled_ = false; }
+  static void Enable() { serialization_enabled_ = true; }
+  static void Disable() { serialization_enabled_ = false; }
 
  private:
   friend class ReferenceUpdater;
