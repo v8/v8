@@ -134,6 +134,22 @@ bool Profiler::paused_ = false;
 
 
 //
+// StackTracer implementation
+//
+void StackTracer::Trace(TickSample* sample) {
+  // Assuming that stack grows from lower addresses
+  if (sample->sp < sample->fp && sample->fp < low_stack_bound_) {
+    sample->InitStack(1);
+    sample->stack[0] = Memory::Address_at(
+        (Address)(sample->fp + StandardFrameConstants::kCallerPCOffset));
+  } else {
+    // FP seems to be in some intermediate state, better discard this sample
+    sample->InitStack(0);
+  }
+}
+
+
+//
 // Ticker used to provide ticks to the profiler and the sliding state
 // window.
 //
@@ -141,12 +157,12 @@ class Ticker: public Sampler {
  public:
   explicit Ticker(int interval, unsigned int low_stack_bound):
       Sampler(interval, FLAG_prof), window_(NULL), profiler_(NULL),
-      low_stack_bound_(low_stack_bound) {}
+      stack_tracer_(low_stack_bound) {}
 
   ~Ticker() { if (IsActive()) Stop(); }
 
   void Tick(TickSample* sample) {
-    if (IsProfiling()) SampleStack(sample);
+    if (IsProfiling()) stack_tracer_.Trace(sample);
     if (profiler_) profiler_->Insert(sample);
     if (window_) window_->AddState(sample->state);
   }
@@ -172,21 +188,9 @@ class Ticker: public Sampler {
   }
 
  private:
-  void SampleStack(TickSample* sample) {
-    // Assuming that stack grows from lower addresses
-    if (sample->sp < sample->fp && sample->fp < low_stack_bound_) {
-      sample->InitStack(1);
-      sample->stack[0] = Memory::Address_at(
-          (Address)(sample->fp + StandardFrameConstants::kCallerPCOffset));
-    } else {
-      // FP seems to be in some intermediate state, better discard this sample
-      sample->InitStack(0);
-    }
-  }
-
   SlidingStateWindow* window_;
   Profiler* profiler_;
-  unsigned int low_stack_bound_;
+  StackTracer stack_tracer_;
 };
 
 
