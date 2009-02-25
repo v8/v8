@@ -471,6 +471,11 @@ void CodeGenerator::GenerateFastCaseSwitchCases(
 
 
 bool CodeGenerator::TryGenerateFastCaseSwitchStatement(SwitchStatement* node) {
+  // TODO(238): Due to issue 238, fast case switches can crash on ARM
+  // and possibly IA32.  They are disabled for now.
+  // See http://code.google.com/p/v8/issues/detail?id=238
+  return false;
+
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
 
