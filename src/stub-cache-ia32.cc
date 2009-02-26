@@ -448,8 +448,6 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 // TODO(1241006): Avoid having lazy compile stubs specialized by the
 // number of arguments. It is not needed anymore.
 Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
-  HandleScope scope;
-
   // Enter an internal frame.
   __ EnterInternalFrame();
 
@@ -476,8 +474,6 @@ Object* CallStubCompiler::CompileCallField(Object* object,
                                            int index) {
   // ----------- S t a t e -------------
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // Get the receiver from the stack.
@@ -528,8 +524,6 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
                                               CheckType check) {
   // ----------- S t a t e -------------
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // Get the receiver from the stack.
@@ -649,8 +643,6 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
                                                  String* name) {
   // ----------- S t a t e -------------
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // Get the number of arguments.
@@ -729,8 +721,6 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // Get the object from the stack.
@@ -765,8 +755,6 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // Get the object from the stack.
@@ -821,8 +809,6 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // Get the object from the stack.
@@ -878,7 +864,6 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   //  -- esp[4] : key
   //  -- esp[8] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ IncrementCounter(&Counters::keyed_store_field, 1);
@@ -920,8 +905,6 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -942,8 +925,6 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -965,8 +946,6 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -987,7 +966,6 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   //  -- esp[0] : return address
   //  -- esp[4] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -1009,7 +987,6 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -1039,7 +1016,6 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -1070,7 +1046,6 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -1099,7 +1074,6 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -1128,7 +1102,6 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -1155,7 +1128,6 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
@@ -1182,7 +1154,6 @@ Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   //  -- esp[4] : name
   //  -- esp[8] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ mov(eax, (Operand(esp, kPointerSize)));
