@@ -51,7 +51,7 @@ static void CFuncDoTrace() {
 #ifdef __GNUC__
   fp = reinterpret_cast<unsigned int>(__builtin_frame_address(0));
 #elif defined _MSC_VER
-  __asm mov [fp], ebp
+  __asm mov [fp], ebp  // NOLINT
 #endif
   DoTrace(fp);
 }
@@ -75,7 +75,7 @@ static void CheckRetAddrIsInFunction(unsigned int ret_addr,
 
 
 #ifdef DEBUG
-static const int kMaxCFuncLen = 0x40; // seems enough for a small C function
+static const int kMaxCFuncLen = 0x40;  // seems enough for a small C function
 
 static void CheckRetAddrIsInCFunction(unsigned int ret_addr,
                                       unsigned int func_start_addr) {
@@ -166,10 +166,14 @@ static void SetGlobalProperty(const char* name, Local<Value> value) {
 }
 
 
-static bool Patch(byte* from, size_t num, byte* original, byte* patch, size_t patch_len) {
+static bool Patch(byte* from,
+                  size_t num,
+                  byte* original,
+                  byte* patch,
+                  size_t patch_len) {
   byte* to = from + num;
   do {
-    from = (byte*)memchr(from, *original, to - from);
+    from = static_cast<byte*>(memchr(from, *original, to - from));
     CHECK(from != NULL);
     if (memcmp(original, from, patch_len) == 0) {
       memcpy(from, patch, patch_len);
@@ -194,8 +198,10 @@ TEST(PureJSStackTrace) {
   v8::internal::Code* call_trace_code = call_trace->code();
   CHECK(call_trace_code->IsCode());
 
-  byte original[] = { 0x68, 0xcc, 0xcc, 0x00, 0x00 }; // push 0xcccc (= 0x6666 << 1)
-  byte patch[] = { 0x89, 0xe8, 0xd1, 0xe8, 0x50 }; // mov eax,ebp; shr eax; push eax;
+  // push 0xcccc (= 0x6666 << 1)
+  byte original[] = { 0x68, 0xcc, 0xcc, 0x00, 0x00 };
+  // mov eax,ebp; shr eax; push eax;
+  byte patch[] = { 0x89, 0xe8, 0xd1, 0xe8, 0x50 };
   // Patch generated code to replace pushing of a constant with
   // pushing of ebp contents in a Smi
   CHECK(Patch(call_trace_code->instruction_start(),
@@ -212,8 +218,9 @@ TEST(PureJSStackTrace) {
   Handle<JSFunction> js_trace(JSFunction::cast(*(v8::Utils::OpenHandle(
       *GetGlobalProperty("JSTrace")))));
   v8::internal::Code* js_trace_code = js_trace->code();
-  CheckRetAddrIsInFunction(reinterpret_cast<unsigned int>(sample.stack[0]),
-                           reinterpret_cast<unsigned int>(js_trace_code->instruction_start()),
-                           js_trace_code->instruction_size());
+  CheckRetAddrIsInFunction(
+      reinterpret_cast<unsigned int>(sample.stack[0]),
+      reinterpret_cast<unsigned int>(js_trace_code->instruction_start()),
+      js_trace_code->instruction_size());
   CHECK_EQ(0, sample.stack[1]);
 }
