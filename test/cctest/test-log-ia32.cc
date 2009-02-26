@@ -2,6 +2,8 @@
 //
 // Tests of profiler-related functions from log.h
 
+#ifdef ENABLE_LOGGING_AND_PROFILING
+
 #include <stdlib.h>
 
 #include "v8.h"
@@ -224,3 +226,5 @@ TEST(PureJSStackTrace) {
       js_trace_code->instruction_size());
   CHECK_EQ(0, sample.stack[1]);
 }
+
+#endif  // ENABLE_LOGGING_AND_PROFILING
