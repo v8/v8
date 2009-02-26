@@ -13,7 +13,6 @@
 			buildPhases = (
 			);
 			dependencies = (
-				7BF8919B0E7309AD000BAF8A /* PBXTargetDependency */,
 				7BF891970E73099F000BAF8A /* PBXTargetDependency */,
 				7BF891990E73099F000BAF8A /* PBXTargetDependency */,
 				893988100F2A3647007D5254 /* PBXTargetDependency */,
@@ -44,11 +43,6 @@
 		896FD03A0E78D717003DFB6A /* libv8-arm.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 89F23C870E78D5B2006B2466 /* libv8-arm.a */; };
 		897F767F0E71B690007ACF34 /* shell.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1B50E719C0900D62E90 /* shell.cc */; };
 		897F76850E71B6B1007ACF34 /* libv8.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8970F2F00E719FB2006AE7B5 /* libv8.a */; };
-		897FF1C40E719D6B00D62E90 /* pcre_compile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0EA0E719B3500D62E90 /* pcre_compile.cpp */; };
-		897FF1C50E719D6E00D62E90 /* pcre_exec.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0EB0E719B3500D62E90 /* pcre_exec.cpp */; };
-		897FF1C60E719D7100D62E90 /* pcre_tables.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0ED0E719B3500D62E90 /* pcre_tables.cpp */; };
-		897FF1C70E719D7300D62E90 /* pcre_ucp_searchfuncs.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0EE0E719B3500D62E90 /* pcre_ucp_searchfuncs.cpp */; };
-		897FF1C80E719D7600D62E90 /* pcre_xclass.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 897FF0EF0E719B3500D62E90 /* pcre_xclass.cpp */; };
 		898BD20E0EF6CC930068B00A /* debug-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 898BD20D0EF6CC850068B00A /* debug-ia32.cc */; };
 		898BD20F0EF6CC9A0068B00A /* debug-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 898BD20C0EF6CC850068B00A /* debug-arm.cc */; };
 		89A15C7B0EE466EB00B48DEB /* regexp-macro-assembler-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C720EE466D000B48DEB /* regexp-macro-assembler-ia32.cc */; };
@@ -272,21 +266,6 @@
 		897FF0D50E719A8500D62E90 /* v8.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = v8.h; sourceTree = "<group>"; };
 		897FF0E00E719B3500D62E90 /* COPYING */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = COPYING; sourceTree = "<group>"; };
 		897FF0E10E719B3500D62E90 /* dtoa.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = dtoa.c; sourceTree = "<group>"; };
-		897FF0E30E719B3500D62E90 /* ASCIICType.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ASCIICType.h; sourceTree = "<group>"; };
-		897FF0E40E719B3500D62E90 /* AUTHORS */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = AUTHORS; sourceTree = "<group>"; };
-		897FF0E50E719B3500D62E90 /* config.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = config.h; sourceTree = "<group>"; };
-		897FF0E60E719B3500D62E90 /* COPYING */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = COPYING; sourceTree = "<group>"; };
-		897FF0E70E719B3500D62E90 /* LICENSE */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = LICENSE; sourceTree = "<group>"; };
-		897FF0E80E719B3500D62E90 /* pcre.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = pcre.h; sourceTree = "<group>"; };
-		897FF0E90E719B3500D62E90 /* pcre_chartables.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = pcre_chartables.c; sourceTree = "<group>"; };
-		897FF0EA0E719B3500D62E90 /* pcre_compile.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = pcre_compile.cpp; sourceTree = "<group>"; };
-		897FF0EB0E719B3500D62E90 /* pcre_exec.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = pcre_exec.cpp; sourceTree = "<group>"; };
-		897FF0EC0E719B3500D62E90 /* pcre_internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = pcre_internal.h; sourceTree = "<group>"; };
-		897FF0ED0E719B3500D62E90 /* pcre_tables.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = pcre_tables.cpp; sourceTree = "<group>"; };
-		897FF0EE0E719B3500D62E90 /* pcre_ucp_searchfuncs.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = pcre_ucp_searchfuncs.cpp; sourceTree = "<group>"; };
-		897FF0EF0E719B3500D62E90 /* pcre_xclass.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = pcre_xclass.cpp; sourceTree = "<group>"; };
-		897FF0F00E719B3500D62E90 /* ucpinternal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ucpinternal.h; sourceTree = "<group>"; };
-		897FF0F10E719B3500D62E90 /* ucptable.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ucptable.cpp; sourceTree = "<group>"; };
 		897FF0F60E719B8F00D62E90 /* accessors.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = accessors.cc; sourceTree = "<group>"; };
 		897FF0F70E719B8F00D62E90 /* accessors.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = accessors.h; sourceTree = "<group>"; };
 		897FF0F80E719B8F00D62E90 /* allocation.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = allocation.cc; sourceTree = "<group>"; };
@@ -523,13 +502,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				897F76850E71B6B1007ACF34 /* libv8.a in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		897FF1BD0E719CB600D62E90 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -891,7 +863,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				893987FF0F2A35FA007D5254 /* PBXTargetDependency */,
 				893988010F2A35FA007D5254 /* PBXTargetDependency */,
 			);
 			name = d8_shell;
@@ -926,7 +897,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				897F76810E71B6AC007ACF34 /* PBXTargetDependency */,
 				897F76830E71B6AC007ACF34 /* PBXTargetDependency */,
 			);
 			name = v8_shell;
@@ -961,7 +931,6 @@
 			buildRules = (
 			);
 			dependencies = (
-				89F23C890E78D5B6006B2466 /* PBXTargetDependency */,
 				896FD03C0E78D71F003DFB6A /* PBXTargetDependency */,
 			);
 			name = "v8_shell-arm";
@@ -1133,18 +1102,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				897F767F0E71B690007ACF34 /* shell.cc in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		897FF1BC0E719CB600D62E90 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				897FF1C40E719D6B00D62E90 /* pcre_compile.cpp in Sources */,
-				897FF1C50E719D6E00D62E90 /* pcre_exec.cpp in Sources */,
-				897FF1C60E719D7100D62E90 /* pcre_tables.cpp in Sources */,
-				897FF1C70E719D7300D62E90 /* pcre_ucp_searchfuncs.cpp in Sources */,
-				897FF1C80E719D7600D62E90 /* pcre_xclass.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
