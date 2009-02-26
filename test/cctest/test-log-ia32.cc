@@ -228,3 +228,4 @@ TEST(PureJSStackTrace) {
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
+
