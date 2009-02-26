@@ -871,28 +871,32 @@ ExceptionEvent.prototype.sourceLineText = function() {
 
 
 ExceptionEvent.prototype.toJSONProtocol = function() {
-  var o = { seq: next_response_seq++,
-            type: "event",
-            event: "exception",
-            body: { uncaught: this.uncaught_,
-                    exception: MakeMirror(this.exception_),
-                    sourceLine: this.sourceLine(),
-                    sourceColumn: this.sourceColumn(),
-                    sourceLineText: this.sourceLineText(),
-                  }
-          }
+  var o = new ProtocolMessage();
+  o.event = "exception";
+  o.body = { uncaught: this.uncaught_,
+             exception: MakeMirror(this.exception_)
+           }
+           
+  // Exceptions might happen whithout any JavaScript frames.
+  if (this.exec_state_.frameCount() > 0) {
+    o.body.sourceLine = this.sourceLine();
+    o.body.sourceColumn = this.sourceColumn();
+    o.body.sourceLineText = this.sourceLineText();
 
-  // Add script information to the event if available.
-  var script = this.func().script();
-  if (script) {
-    o.body.script = { name: script.name(),
-                      lineOffset: script.lineOffset(),
-                      columnOffset: script.columnOffset(),
-                      lineCount: script.lineCount()
-                    };
+    // Add script information to the event if available.
+    var script = this.func().script();
+    if (script) {
+      o.body.script = { name: script.name(),
+                        lineOffset: script.lineOffset(),
+                        columnOffset: script.columnOffset(),
+                        lineCount: script.lineCount()
+                      };
+    }
+  } else {
+    o.body.sourceLine = -1;
   }
 
-  return SimpleObjectToJSON_(o);
+  return o.toJSONProtocol();
 };
 
 
@@ -925,6 +929,25 @@ CompileEvent.prototype.eventType = function() {
 CompileEvent.prototype.script = function() {
   return this.script_;
 };
+
+
+CompileEvent.prototype.toJSONProtocol = function() {
+  var o = new ProtocolMessage();
+  if (this.before_) {
+    o.event = "beforeCompile";
+  } else {
+    o.event = "afterCompile";
+  }
+  o.body = {};
+  o.body.script = { name: this.script_.name(),
+                    lineOffset: this.script_.lineOffset(),
+                    columnOffset: this.script_.columnOffset(),
+                    lineCount: this.script_.lineCount(),
+                    source: this.script_.source()
+                   };
+
+  return o.toJSONProtocol();
+}
 
 
 function MakeNewFunctionEvent(func) {
@@ -963,24 +986,32 @@ DebugCommandProcessor.prototype.processDebugRequest = function (request) {
 }
 
 
-function ResponsePacket(request) {
-  // Build the initial response from the request.
+function ProtocolMessage(request) {
+  // Update sequence number.
   this.seq = next_response_seq++;
-  this.type = 'response';
-  if (request) this.request_seq = request.seq;
-  if (request) this.command = request.command;
+  
+  if (request) {
+    // If message is based on a request this is a response. Fill the initial
+    // response from the request.
+    this.type = 'response';
+    this.request_seq = request.seq;
+    this.command = request.command;
+  } else {
+    // If message is not based on a request it is a dabugger generated event.
+    this.type = 'event';
+  }
   this.success = true;
   this.running = false;
 }
 
 
-ResponsePacket.prototype.failed = function(message) {
+ProtocolMessage.prototype.failed = function(message) {
   this.success = false;
   this.message = message;
 }
 
 
-ResponsePacket.prototype.toJSONProtocol = function() {
+ProtocolMessage.prototype.toJSONProtocol = function() {
   // Encode the protocol header.
   var json = '{';
   json += '"seq":' + this.seq;
@@ -988,6 +1019,9 @@ ResponsePacket.prototype.toJSONProtocol = function() {
     json += ',"request_seq":' + this.request_seq;
   }
   json += ',"type":"' + this.type + '"';
+  if (this.event) {
+    json += ',"event":' + StringToJSON_(this.event);
+  }
   if (this.command) {
     json += ',"command":' + StringToJSON_(this.command);
   }
@@ -1033,7 +1067,7 @@ ResponsePacket.prototype.toJSONProtocol = function() {
 
 
 DebugCommandProcessor.prototype.createResponse = function(request) {
-  return new ResponsePacket(request);
+  return new ProtocolMessage(request);
 };
 
 
@@ -1652,7 +1686,9 @@ function SimpleObjectToJSON_(object, mirror_serializer) {
       var property_value_json;
       switch (typeof property_value) {
         case 'object':
-          if (typeof property_value.toJSONProtocol == 'function') {
+          if (property_value instanceof Mirror) {
+            property_value_json = mirror_serializer.serializeValue(property_value);
+          } else if (typeof property_value.toJSONProtocol == 'function') {
             property_value_json = property_value.toJSONProtocol(true)
           } else if (IS_ARRAY(property_value)){
             property_value_json = SimpleArrayToJSON_(property_value, mirror_serializer);
