@@ -2151,6 +2151,22 @@ static Object* Runtime_GetArgumentsProperty(Arguments args) {
 }
 
 
+static Object* Runtime_ToFastProperties(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  object->TransformToFastProperties(0);
+  return *object;
+}
+
+
+static Object* Runtime_ToSlowProperties(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+  return *object;
+}
+
+
 static Object* Runtime_ToBool(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);

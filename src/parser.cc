@@ -69,6 +69,11 @@ class Parser {
                              Handle<String> name,
                              int start_position, bool is_expression);
 
+  // The minimum number of contiguous assignment that will
+  // be treated as an initialization block. Benchmarks show that
+  // the overhead exceeds the savings below this limit.
+  static const int kMinInitializationBlock = 3;
+
  protected:
 
   enum Mode {
@@ -1215,6 +1220,110 @@ void PreParser::ReportMessageAt(Scanner::Location source_location,
 }
 
 
+// An InitializationBlockFinder finds and marks sequences of statements of the
+// form x.y.z.a = ...; x.y.z.b = ...; etc.
+class InitializationBlockFinder {
+ public:
+  InitializationBlockFinder()
+    : first_in_block_(NULL), last_in_block_(NULL), block_size_(0) {}
+
+  ~InitializationBlockFinder() {
+    if (InBlock()) EndBlock();
+  }
+
+  void Update(Statement* stat) {
+    Assignment* assignment = AsAssignment(stat);
+    if (InBlock()) {
+      if (BlockContinues(assignment)) {
+        UpdateBlock(assignment);
+      } else {
+        EndBlock();
+      }
+    }
+    if (!InBlock() && (assignment != NULL) &&
+        (assignment->op() == Token::ASSIGN)) {
+      StartBlock(assignment);
+    }
+  }
+
+ private:
+  static Assignment* AsAssignment(Statement* stat) {
+    if (stat == NULL) return NULL;
+    ExpressionStatement* exp_stat = stat->AsExpressionStatement();
+    if (exp_stat == NULL) return NULL;
+    return exp_stat->expression()->AsAssignment();
+  }
+
+  // Returns true if the expressions appear to denote the same object.
+  // In the context of initialization blocks, we only consider expressions
+  // of the form 'x.y.z'.
+  static bool SameObject(Expression* e1, Expression* e2) {
+    VariableProxy* v1 = e1->AsVariableProxy();
+    VariableProxy* v2 = e2->AsVariableProxy();
+    if (v1 != NULL && v2 != NULL) {
+      return v1->name()->Equals(*v2->name());
+    }
+    Property* p1 = e1->AsProperty();
+    Property* p2 = e2->AsProperty();
+    if ((p1 == NULL) || (p2 == NULL)) return false;
+    Literal* key1 = p1->key()->AsLiteral();
+    Literal* key2 = p2->key()->AsLiteral();
+    if ((key1 == NULL) || (key2 == NULL)) return false;
+    if (!key1->handle()->IsString() || !key2->handle()->IsString()) {
+      return false;
+    }
+    String* name1 = String::cast(*key1->handle());
+    String* name2 = String::cast(*key2->handle());
+    if (!name1->Equals(name2)) return false;
+    return SameObject(p1->obj(), p2->obj());
+  }
+
+  // Returns true if the expressions appear to denote different properties
+  // of the same object.
+  static bool PropertyOfSameObject(Expression* e1, Expression* e2) {
+    Property* p1 = e1->AsProperty();
+    Property* p2 = e2->AsProperty();
+    if ((p1 == NULL) || (p2 == NULL)) return false;
+    return SameObject(p1->obj(), p2->obj());
+  }
+
+  bool BlockContinues(Assignment* assignment) {
+    if ((assignment == NULL) || (first_in_block_ == NULL)) return false;
+    if (assignment->op() != Token::ASSIGN) return false;
+    return PropertyOfSameObject(first_in_block_->target(),
+                                assignment->target());
+  }
+
+  void StartBlock(Assignment* assignment) {
+    first_in_block_ = assignment;
+    last_in_block_ = assignment;
+    block_size_ = 1;
+  }
+
+  void UpdateBlock(Assignment* assignment) {
+    last_in_block_ = assignment;
+    ++block_size_;
+  }
+
+  void EndBlock() {
+    if (block_size_ >= Parser::kMinInitializationBlock) {
+      first_in_block_->mark_block_start();
+      last_in_block_->mark_block_end();
+    }
+    last_in_block_ = first_in_block_ = NULL;
+    block_size_ = 0;
+  }
+
+  bool InBlock() { return first_in_block_ != NULL; }
+
+  Assignment* first_in_block_;
+  Assignment* last_in_block_;
+  int block_size_;
+
+  DISALLOW_COPY_AND_ASSIGN(InitializationBlockFinder);
+};
+
+
 void* Parser::ParseSourceElements(ZoneListWrapper<Statement>* processor,
                                   int end_token,
                                   bool* ok) {
@@ -1228,9 +1337,15 @@ void* Parser::ParseSourceElements(ZoneListWrapper<Statement>* processor,
   TargetScope scope(this);
 
   ASSERT(processor != NULL);
+  InitializationBlockFinder block_finder;
   while (peek() != end_token) {
     Statement* stat = ParseStatement(NULL, CHECK_OK);
-    if (stat && !stat->IsEmpty()) processor->Add(stat);
+    if (stat == NULL || stat->IsEmpty()) continue;
+    // We find and mark the initialization blocks on top level code only.
+    // This is because the optimization prevents reuse of the map transitions,
+    // so it should be used only for code that will only be run once.
+    if (top_scope_->is_global_scope()) block_finder.Update(stat);
+    processor->Add(stat);
   }
   return 0;
 }

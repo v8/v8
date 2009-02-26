@@ -49,6 +49,8 @@ namespace v8 { namespace internal {
   F(GetPropertyNames, 1) \
   F(GetPropertyNamesFast, 1) \
   F(GetArgumentsProperty, 1) \
+  F(ToFastProperties, 1) \
+  F(ToSlowProperties, 1) \
   \
   F(IsInPrototypeChain, 2) \
   \

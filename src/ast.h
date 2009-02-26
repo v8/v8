@@ -1106,7 +1106,8 @@ class Conditional: public Expression {
 class Assignment: public Expression {
  public:
   Assignment(Token::Value op, Expression* target, Expression* value, int pos)
-      : op_(op), target_(target), value_(value), pos_(pos) {
+      : op_(op), target_(target), value_(value), pos_(pos),
+        block_start_(false), block_end_(false) {
     ASSERT(Token::IsAssignmentOp(op));
   }
 
@@ -1120,11 +1121,22 @@ class Assignment: public Expression {
   Expression* value() const { return value_; }
   int position() { return pos_; }
 
+  // An initialization block is a series of statments of the form
+  // x.y.z.a = ...; x.y.z.b = ...; etc. The parser marks the beginning and
+  // ending of these blocks to allow for optimizations of initialization
+  // blocks.
+  bool starts_initialization_block() { return block_start_; }
+  bool ends_initialization_block() { return block_end_; }
+  void mark_block_start() { block_start_ = true; }
+  void mark_block_end() { block_end_ = true; }
+
  private:
   Token::Value op_;
   Expression* target_;
   Expression* value_;
   int pos_;
+  bool block_start_;
+  bool block_end_;
 };
 
 

@@ -2758,6 +2758,15 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
   Reference target(this, node->target());
   if (target.is_illegal()) return;
 
+  if (node->starts_initialization_block()) {
+    ASSERT(target.type() == Reference::NAMED ||
+           target.type() == Reference::KEYED);
+    // Change to slow case in the beginning of an initialization block
+    // to avoid the quadratic behavior of repeatedly adding fast properties.
+    int stack_position = (target.type() == Reference::NAMED) ? 0 : 1;
+    frame_->Push(Operand(esp, stack_position * kPointerSize));
+    __ CallRuntime(Runtime::kToSlowProperties, 1);
+  }
   if (node->op() == Token::ASSIGN ||
       node->op() == Token::INIT_VAR ||
       node->op() == Token::INIT_CONST) {
@@ -2789,6 +2798,14 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       target.SetValue(CONST_INIT);
     } else {
       target.SetValue(NOT_CONST_INIT);
+      if (node->ends_initialization_block()) {
+        ASSERT(target.type() == Reference::NAMED ||
+               target.type() == Reference::KEYED);
+        // End of initialization block. Revert to fast case.
+        int stack_position = (target.type() == Reference::NAMED) ? 1 : 2;
+        frame_->Push(Operand(esp, stack_position * kPointerSize));
+        __ CallRuntime(Runtime::kToFastProperties, 1);
+      }
     }
   }
 }
