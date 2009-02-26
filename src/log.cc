@@ -138,12 +138,14 @@ bool Profiler::paused_ = false;
 //
 void StackTracer::Trace(TickSample* sample) {
   // Assuming that stack grows from lower addresses
-  if (sample->sp < sample->fp && sample->fp < low_stack_bound_) {
+  if (sample->state != GC
+      && (sample->sp < sample->fp && sample->fp < low_stack_bound_)) {
     sample->InitStack(1);
     sample->stack[0] = Memory::Address_at(
         (Address)(sample->fp + StandardFrameConstants::kCallerPCOffset));
   } else {
-    // FP seems to be in some intermediate state, better discard this sample
+    // GC runs or FP seems to be in some intermediate state,
+    // better discard this sample
     sample->InitStack(0);
   }
 }
