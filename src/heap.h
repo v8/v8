@@ -606,6 +606,13 @@ class Heap : public AllStatic {
   // Performs a full garbage collection.
   static void CollectAllGarbage();
 
+  // Performs a full garbage collection if a context has been disposed
+  // since the last time the check was performed.
+  static void CollectAllGarbageIfContextDisposed();
+
+  // Notify the heap that a context has been disposed.
+  static void NotifyContextDisposed();
+
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
   static void PerformScavenge();
@@ -808,6 +815,7 @@ class Heap : public AllStatic {
   static int scavenge_count_;
 
   static int always_allocate_scope_depth_;
+  static bool context_disposed_pending_;
 
   static const int kMaxMapSpaceSize = 8*MB;
 

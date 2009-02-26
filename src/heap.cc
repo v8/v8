@@ -97,6 +97,7 @@ int Heap::mc_count_ = 0;
 int Heap::gc_count_ = 0;
 
 int Heap::always_allocate_scope_depth_ = 0;
+bool Heap::context_disposed_pending_ = false;
 
 #ifdef DEBUG
 bool Heap::allocation_allowed_ = true;
@@ -293,6 +294,20 @@ void Heap::CollectAllGarbage() {
 }
 
 
+void Heap::CollectAllGarbageIfContextDisposed() {
+  if (context_disposed_pending_) {
+    StatsRateScope scope(&Counters::gc_context);
+    CollectAllGarbage();
+    context_disposed_pending_ = false;
+  }
+}
+
+
+void Heap::NotifyContextDisposed() {
+  context_disposed_pending_ = true;
+}
+
+
 bool Heap::CollectGarbage(int requested_size, AllocationSpace space) {
   // The VM is in the GC state until exiting this function.
   VMState state(GC);
@@ -436,6 +451,7 @@ void Heap::MarkCompact(GCTracer* tracer) {
   Shrink();
 
   Counters::objs_since_last_full.Set(0);
+  context_disposed_pending_ = false;
 }
 
 
