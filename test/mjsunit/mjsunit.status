@@ -40,6 +40,9 @@ fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 try: PASS, SKIP if $mode == debug
 debug-scripts-request: PASS, SKIP if $mode == debug
 
+# Flaky test that can hit compilation-time stack overflow in debug mode.
+unicode-test: PASS, (PASS || FAIL) if $mode == debug
+
 # Bug number 1020483: Debug tests fail on ARM.
 debug-constructor: CRASH, FAIL
 debug-continue: SKIP
