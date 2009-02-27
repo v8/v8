@@ -2494,7 +2494,7 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
     // Check that extension is NULL.
     __ ldr(tmp2, ContextOperand(tmp, Context::EXTENSION_INDEX));
     __ tst(tmp2, tmp2);
-    __ b(ne, slow);
+    slow->Branch(ne);
     // Load next context in chain.
     __ ldr(tmp, ContextOperand(tmp, Context::CLOSURE_INDEX));
     __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
