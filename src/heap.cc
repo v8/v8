@@ -1631,6 +1631,7 @@ Object* Heap::CreateCode(const CodeDesc& desc,
   int sinfo_size = 0;
   if (sinfo != NULL) sinfo_size = sinfo->Serialize(NULL);
   int obj_size = Code::SizeFor(body_size, sinfo_size);
+  ASSERT(IsAligned(obj_size, Code::kCodeAlignment));
   Object* result;
   if (obj_size > MaxHeapObjectSize()) {
     result = lo_space_->AllocateRawCode(obj_size);

@@ -2281,7 +2281,7 @@ int Code::body_size() {
 
 
 byte* Code::relocation_start() {
-  return FIELD_ADDR(this, CodeSize() - sinfo_size() - relocation_size());
+  return FIELD_ADDR(this, kHeaderSize + instruction_size());
 }
 
 
@@ -2297,7 +2297,7 @@ bool Code::contains(byte* pc) {
 
 
 byte* Code::sinfo_start() {
-  return FIELD_ADDR(this, CodeSize() - sinfo_size());
+  return FIELD_ADDR(this, kHeaderSize + body_size());
 }
 
 
