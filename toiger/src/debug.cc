@@ -1266,7 +1266,7 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   Handle<Code> original_code(debug_info->original_code());
 #ifdef DEBUG
   // Get the code which is actually executing.
-  Handle<Code> frame_code(frame->FindCode());
+  Handle<Code> frame_code(frame->code());
   ASSERT(frame_code.is_identical_to(code));
 #endif
 

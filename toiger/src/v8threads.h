@@ -74,8 +74,8 @@ class ThreadManager : public AllStatic {
   static bool RestoreThread();
 
   static void Iterate(ObjectVisitor* v);
-  static void MarkCompactPrologue();
-  static void MarkCompactEpilogue();
+  static void MarkCompactPrologue(bool is_compacting);
+  static void MarkCompactEpilogue(bool is_compacting);
   static bool IsLockedByCurrentThread() { return mutex_owner_.IsSelf(); }
  private:
   static void EagerlyArchiveThread();

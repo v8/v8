@@ -304,7 +304,7 @@ template void Scope::CollectUsedVariables(
     List<Variable*, PreallocatedStorage>* locals);
 
 
-void Scope::AllocateVariables() {
+void Scope::AllocateVariables(Handle<Context> context) {
   ASSERT(outer_scope_ == NULL);  // eval or global scopes only
 
   // 1) Propagate scope information.
@@ -319,7 +319,7 @@ void Scope::AllocateVariables() {
   // 2) Resolve variables.
   Scope* global_scope = NULL;
   if (is_global_scope()) global_scope = this;
-  ResolveVariablesRecursively(global_scope);
+  ResolveVariablesRecursively(global_scope, context);
 
   // 3) Allocate variables.
   AllocateVariablesRecursively();
@@ -577,7 +577,9 @@ Variable* Scope::LookupRecursive(Handle<String> name,
 }
 
 
-void Scope::ResolveVariable(Scope* global_scope, VariableProxy* proxy) {
+void Scope::ResolveVariable(Scope* global_scope,
+                            Handle<Context> context,
+                            VariableProxy* proxy) {
   ASSERT(global_scope == NULL || global_scope->is_global_scope());
 
   // If the proxy is already resolved there's nothing to do
@@ -638,10 +640,16 @@ void Scope::ResolveVariable(Scope* global_scope, VariableProxy* proxy) {
 
       } else if (outer_scope_is_eval_scope_) {
         // No with statements and we did not find a local and the code
-        // is executed with a call to eval.  We don't know anything
-        // because we do not have information about the scopes
-        // surrounding the eval call.
-        var = NonLocal(proxy->name(), Variable::DYNAMIC);
+        // is executed with a call to eval.  The context contains
+        // scope information that we can use to determine if the
+        // variable is global if it is not shadowed by eval-introduced
+        // variables.
+        if (context->GlobalIfNotShadowedByEval(proxy->name())) {
+          var = NonLocal(proxy->name(), Variable::DYNAMIC_GLOBAL);
+
+        } else {
+          var = NonLocal(proxy->name(), Variable::DYNAMIC);
+        }
 
       } else {
         // No with statements and we did not find a local and the code
@@ -657,17 +665,18 @@ void Scope::ResolveVariable(Scope* global_scope, VariableProxy* proxy) {
 }
 
 
-void Scope::ResolveVariablesRecursively(Scope* global_scope) {
+void Scope::ResolveVariablesRecursively(Scope* global_scope,
+                                        Handle<Context> context) {
   ASSERT(global_scope == NULL || global_scope->is_global_scope());
 
   // Resolve unresolved variables for this scope.
   for (int i = 0; i < unresolved_.length(); i++) {
-    ResolveVariable(global_scope, unresolved_[i]);
+    ResolveVariable(global_scope, context, unresolved_[i]);
   }
 
   // Resolve unresolved variables for inner scopes.
   for (int i = 0; i < inner_scopes_.length(); i++) {
-    inner_scopes_[i]->ResolveVariablesRecursively(global_scope);
+    inner_scopes_[i]->ResolveVariablesRecursively(global_scope, context);
   }
 }
 

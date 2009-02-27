@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,41 +25,61 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// CPU specific code for ia32 independent of OS goes here.
+// Tests global loads from eval.
 
-#include "v8.h"
+var x = 27;
 
-#include "cpu.h"
-#include "macro-assembler.h"
-
-namespace v8 { namespace internal {
-
-void CPU::Setup() {
-  CpuFeatures::Probe();
+function test() {
+  function g() {
+    assertEquals(27, eval('x'));
+    function h() {
+      // Shadow with local variable.
+      var x = 22;
+      assertEquals(22, eval('x'));
+      function i(x) {
+        // Shadow with parameter.
+        assertEquals(44, eval('x'));
+        function j() {
+          assertEquals(x, eval('x'));
+          // Shadow with function name.
+          function x() {
+            assertEquals(x, eval('x'));
+          }
+          x();
+        }
+        j();
+      }
+      i(44);
+    }
+    h();
+  }
+  g();
 }
 
+test();
 
-void CPU::FlushICache(void* start, size_t size) {
-  // No need to flush the instruction cache on Intel. On Intel instruction
-  // cache flushing is only necessary when multiple cores running the same
-  // code simultaneously. V8 (and JavaScript) is single threaded and when code
-  // is patched on an intel CPU the core performing the patching will have its
-  // own instruction cache updated automatically.
-
-  // If flushing of the instruction cache becomes necessary Windows have the
-  // API function FlushInstructionCache.
+// Test loading of globals from deeply nested eval.  This code is a
+// bit complicated, but the complication is needed to check that the
+// code that loads the global variable accounts for the fact that the
+// global variable becomes shadowed by an eval-introduced variable.
+var result = 0;
+function testDeep(source, load, test) {
+  eval(source);
+  function f() {
+    var y = 23;
+    function g() {
+      var z = 25;
+      function h() {
+        eval(load);
+        eval(test);
+      }
+      h();
+    }
+    g();
+  }
+  f();
 }
-
-
-void CPU::DebugBreak() {
-#ifdef _MSC_VER
-  // To avoid Visual Studio runtime support the following code can be used
-  // instead
-  // __asm { int 3 }
-  __debugbreak();
-#else
-  asm("int $3");
-#endif
-}
-
-} }  // namespace v8::internal
+testDeep('1', 'result = x', 'assertEquals(27, result)');
+// Because of the eval-cache, the 'result = x' code gets reused.  This
+// time in a context where the 'x' variable has been shadowed.
+testDeep('var x = 1', 'result = x', 'assertEquals(1, result)');

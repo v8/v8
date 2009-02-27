@@ -50,6 +50,7 @@ static int CompareLocal(Variable* const* v, Variable* const* w) {
 template<class Allocator>
 ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
     : function_name_(Factory::empty_symbol()),
+      calls_eval_(scope->calls_eval()),
       parameters_(scope->num_parameters()),
       stack_slots_(scope->num_stack_slots()),
       context_slots_(scope->num_heap_slots()),
@@ -254,6 +255,7 @@ ScopeInfo<Allocator>::ScopeInfo(Code* code)
   Object** p0 = &Memory::Object_at(code->sinfo_start());
   Object** p = p0;
   p = ReadSymbol(p, &function_name_);
+  p = ReadBool(p, &calls_eval_);
   p = ReadList<Allocator>(p, &context_slots_, &context_modes_);
   p = ReadList<Allocator>(p, &parameters_);
   p = ReadList<Allocator>(p, &stack_slots_);
@@ -263,6 +265,12 @@ ScopeInfo<Allocator>::ScopeInfo(Code* code)
 
 static inline Object** WriteInt(Object** p, int x) {
   *p++ = Smi::FromInt(x);
+  return p;
+}
+
+
+static inline Object** WriteBool(Object** p, bool b) {
+  *p++ = Smi::FromInt(b ? 1 : 0);
   return p;
 }
 
@@ -306,8 +314,8 @@ static Object** WriteList(Object** p,
 
 template<class Allocator>
 int ScopeInfo<Allocator>::Serialize(Code* code) {
-  // function name, length & sentinel for 3 tables:
-  const int extra_slots = 1 + 2 * 3;
+  // function name, calls eval, length & sentinel for 3 tables:
+  const int extra_slots = 1 + 1 + 2 * 3;
   int size = (extra_slots +
               context_slots_.length() * 2 +
               parameters_.length() +
@@ -318,6 +326,7 @@ int ScopeInfo<Allocator>::Serialize(Code* code) {
     Object** p0 = &Memory::Object_at(code->sinfo_start());
     Object** p = p0;
     p = WriteSymbol(p, function_name_);
+    p = WriteBool(p, calls_eval_);
     p = WriteList(p, &context_slots_, &context_modes_);
     p = WriteList(p, &parameters_);
     p = WriteList(p, &stack_slots_);
@@ -338,8 +347,8 @@ void ScopeInfo<Allocator>::IterateScopeInfo(Code* code, ObjectVisitor* v) {
 
 static Object** ContextEntriesAddr(Code* code) {
   ASSERT(code->sinfo_size() > 0);
-  // +1 for function name:
-  return &Memory::Object_at(code->sinfo_start()) + 1;
+  // +2 for function name and calls eval:
+  return &Memory::Object_at(code->sinfo_start()) + 2;
 }
 
 
@@ -358,6 +367,19 @@ static Object** StackSlotEntriesAddr(Code* code) {
   int n;  // number of parameter slots;
   p = ReadInt(p, &n);
   return p + n + 1;  // +1 for sentinel
+}
+
+
+template<class Allocator>
+bool ScopeInfo<Allocator>::CallsEval(Code* code) {
+  if (code->sinfo_size() > 0) {
+    // +1 for function name:
+    Object** p = &Memory::Object_at(code->sinfo_start()) + 1;
+    bool calls_eval;
+    p = ReadBool(p, &calls_eval);
+    return calls_eval;
+  }
+  return true;
 }
 
 

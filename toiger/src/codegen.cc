@@ -155,7 +155,10 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
   cgen.masm()->GetCode(&desc);
   ScopeInfo<> sinfo(flit->scope());
   Code::Flags flags = Code::ComputeFlags(Code::FUNCTION);
-  Handle<Code> code = Factory::NewCode(desc, &sinfo, flags);
+  Handle<Code> code = Factory::NewCode(desc,
+                                       &sinfo,
+                                       flags,
+                                       cgen.masm()->CodeObject());
 
   // Add unresolved entries in the code to the fixup list.
   Bootstrapper::AddFixup(*code, cgen.masm());

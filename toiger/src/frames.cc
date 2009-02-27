@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "frames-inl.h"
+#include "mark-compact.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
 #include "top.h"
@@ -162,12 +163,14 @@ void JavaScriptFrameIterator::Reset() {
 
 
 void StackHandler::Cook(Code* code) {
+  ASSERT(MarkCompactCollector::IsCompacting());
   ASSERT(code->contains(pc()));
   set_pc(AddressFrom<Address>(pc() - code->instruction_start()));
 }
 
 
 void StackHandler::Uncook(Code* code) {
+  ASSERT(MarkCompactCollector::IsCompacting());
   set_pc(code->instruction_start() + OffsetFrom(pc()));
   ASSERT(code->contains(pc()));
 }
@@ -183,6 +186,9 @@ bool StackFrame::HasHandler() const {
 
 
 void StackFrame::CookFramesForThread(ThreadLocalTop* thread) {
+  // Only cooking frames when the collector is compacting and thus moving code
+  // around.
+  ASSERT(MarkCompactCollector::IsCompacting());
   ASSERT(!thread->stack_is_cooked());
   for (StackFrameIterator it(thread); !it.done(); it.Advance()) {
     it.frame()->Cook();
@@ -192,6 +198,9 @@ void StackFrame::CookFramesForThread(ThreadLocalTop* thread) {
 
 
 void StackFrame::UncookFramesForThread(ThreadLocalTop* thread) {
+  // Only uncooking frames when the collector is compacting and thus moving code
+  // around.
+  ASSERT(MarkCompactCollector::IsCompacting());
   ASSERT(thread->stack_is_cooked());
   for (StackFrameIterator it(thread); !it.done(); it.Advance()) {
     it.frame()->Uncook();
@@ -201,7 +210,7 @@ void StackFrame::UncookFramesForThread(ThreadLocalTop* thread) {
 
 
 void StackFrame::Cook() {
-  Code* code = FindCode();
+  Code* code = this->code();
   for (StackHandlerIterator it(this, top_handler()); !it.done(); it.Advance()) {
     it.handler()->Cook(code);
   }
@@ -211,7 +220,7 @@ void StackFrame::Cook() {
 
 
 void StackFrame::Uncook() {
-  Code* code = FindCode();
+  Code* code = this->code();
   for (StackHandlerIterator it(this, top_handler()); !it.done(); it.Advance()) {
     it.handler()->Uncook(code);
   }
@@ -220,7 +229,7 @@ void StackFrame::Uncook() {
 }
 
 
-Code* EntryFrame::FindCode() const {
+Code* EntryFrame::code() const {
   return Heap::js_entry_code();
 }
 
@@ -232,12 +241,12 @@ StackFrame::Type EntryFrame::GetCallerState(State* state) const {
 }
 
 
-Code* EntryConstructFrame::FindCode() const {
+Code* EntryConstructFrame::code() const {
   return Heap::js_construct_entry_code();
 }
 
 
-Code* ExitFrame::FindCode() const {
+Code* ExitFrame::code() const {
   return Heap::c_entry_code();
 }
 
@@ -257,7 +266,7 @@ Address ExitFrame::GetCallerStackPointer() const {
 }
 
 
-Code* ExitDebugFrame::FindCode() const {
+Code* ExitDebugFrame::code() const {
   return Heap::c_entry_debug_break_code();
 }
 
@@ -320,20 +329,20 @@ bool JavaScriptFrame::IsConstructor() const {
 }
 
 
-Code* ArgumentsAdaptorFrame::FindCode() const {
+Code* JavaScriptFrame::code() const {
+  JSFunction* function = JSFunction::cast(this->function());
+  return function->shared()->code();
+}
+
+
+Code* ArgumentsAdaptorFrame::code() const {
   return Builtins::builtin(Builtins::ArgumentsAdaptorTrampoline);
 }
 
 
-Code* InternalFrame::FindCode() const {
+Code* InternalFrame::code() const {
   const int offset = InternalFrameConstants::kCodeOffset;
   Object* code = Memory::Object_at(fp() + offset);
-  if (code == NULL) {
-    // The code object isn't set; find it and set it.
-    code = Heap::FindCodeObject(pc());
-    ASSERT(!code->IsFailure());
-    Memory::Object_at(fp() + offset) = code;
-  }
   ASSERT(code != NULL);
   return Code::cast(code);
 }

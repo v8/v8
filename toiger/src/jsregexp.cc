@@ -51,42 +51,8 @@
 
 #include "interpreter-irregexp.h"
 
-// Including pcre.h undefines DEBUG to avoid getting debug output from
-// the JSCRE implementation. Make sure to redefine it in debug mode
-// after having included the header file.
-#ifdef DEBUG
-#include "third_party/jscre/pcre.h"
-#define DEBUG
-#else
-#include "third_party/jscre/pcre.h"
-#endif
-
 
 namespace v8 { namespace internal {
-
-
-static Failure* malloc_failure;
-
-static void* JSREMalloc(size_t size) {
-  Object* obj = Heap::AllocateByteArray(size);
-
-  // If allocation failed, return a NULL pointer to JSRE, and jsRegExpCompile
-  // will return NULL to the caller, performs GC there.
-  // Also pass failure information to the caller.
-  if (obj->IsFailure()) {
-    malloc_failure = Failure::cast(obj);
-    return NULL;
-  }
-
-  // Note: object is unrooted, the caller of jsRegExpCompile must
-  // create a handle for the return value before doing heap allocation.
-  return reinterpret_cast<void*>(ByteArray::cast(obj)->GetDataStartAddress());
-}
-
-
-static void JSREFree(void* p) {
-  USE(p);  // Do nothing, memory is garbage collected.
-}
 
 
 String* RegExpImpl::last_ascii_string_ = NULL;
@@ -272,10 +238,8 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
       Vector<const uc16> atom_pattern = atom->data();
       Handle<String> atom_string = Factory::NewStringFromTwoByte(atom_pattern);
       result = AtomCompile(re, pattern, flags, atom_string);
-    } else if (FLAG_irregexp) {
-      result = IrregexpPrepare(re, pattern, flags);
     } else {
-      result = JscrePrepare(re, pattern, flags);
+      result = IrregexpPrepare(re, pattern, flags);
     }
     Object* data = re->data();
     if (data->IsFixedArray()) {
@@ -301,8 +265,6 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
       ASSERT(!result.is_null() || Top::has_pending_exception());
       return result;
     }
-    case JSRegExp::JSCRE:
-      return JscreExec(regexp, subject, index);
     default:
       UNREACHABLE();
       return Handle<Object>::null();
@@ -320,8 +282,6 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
       ASSERT(!result.is_null() || Top::has_pending_exception());
       return result;
     }
-    case JSRegExp::JSCRE:
-      return JscreExecGlobal(regexp, subject);
     default:
       UNREACHABLE();
       return Handle<Object>::null();
@@ -388,259 +348,6 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
     if (needle_length == 0) index++;
   }
   return result;
-}
-
-
-// JSCRE implementation.
-
-
-int RegExpImpl::JscreNumberOfCaptures(Handle<JSRegExp> re) {
-  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
-  return Smi::cast(value->get(kJscreNumberOfCapturesIndex))->value();
-}
-
-
-ByteArray* RegExpImpl::JscreInternal(Handle<JSRegExp> re) {
-  FixedArray* value = FixedArray::cast(re->DataAt(JSRegExp::kJscreDataIndex));
-  return ByteArray::cast(value->get(kJscreInternalIndex));
-}
-
-
-Handle<Object>RegExpImpl::JscrePrepare(Handle<JSRegExp> re,
-                                       Handle<String> pattern,
-                                       JSRegExp::Flags flags) {
-  Handle<Object> value(Heap::undefined_value());
-  Factory::SetRegExpData(re, JSRegExp::JSCRE, pattern, flags, value);
-  return re;
-}
-
-
-static inline Object* JscreDoCompile(String* pattern,
-                                     JSRegExp::Flags flags,
-                                     unsigned* number_of_captures,
-                                     const char** error_message,
-                                     v8::jscre::JscreRegExp** code) {
-  v8::jscre::JSRegExpIgnoreCaseOption case_option = flags.is_ignore_case()
-    ? v8::jscre::JSRegExpIgnoreCase
-    : v8::jscre::JSRegExpDoNotIgnoreCase;
-  v8::jscre::JSRegExpMultilineOption multiline_option = flags.is_multiline()
-    ? v8::jscre::JSRegExpMultiline
-    : v8::jscre::JSRegExpSingleLine;
-  *error_message = NULL;
-  malloc_failure = Failure::Exception();
-  *code = v8::jscre::jsRegExpCompile(pattern->GetTwoByteData(),
-                                     pattern->length(),
-                                     case_option,
-                                     multiline_option,
-                                     number_of_captures,
-                                     error_message,
-                                     &JSREMalloc,
-                                     &JSREFree);
-  if (*code == NULL && (malloc_failure->IsRetryAfterGC() ||
-                        malloc_failure->IsOutOfMemoryFailure())) {
-    return malloc_failure;
-  } else {
-    // It doesn't matter which object we return here, we just need to return
-    // a non-failure to indicate to the GC-retry code that there was no
-    // allocation failure.
-    return pattern;
-  }
-}
-
-
-static void JscreCompileWithRetryAfterGC(Handle<String> pattern,
-                                         JSRegExp::Flags flags,
-                                         unsigned* number_of_captures,
-                                         const char** error_message,
-                                         v8::jscre::JscreRegExp** code) {
-  CALL_HEAP_FUNCTION_VOID(JscreDoCompile(*pattern,
-                                         flags,
-                                         number_of_captures,
-                                         error_message,
-                                         code));
-}
-
-
-Handle<Object> RegExpImpl::JscreCompile(Handle<JSRegExp> re) {
-  ASSERT_EQ(re->TypeTag(), JSRegExp::JSCRE);
-  ASSERT(re->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined());
-
-  Handle<String> pattern(re->Pattern());
-  JSRegExp::Flags flags = re->GetFlags();
-
-  Handle<String> two_byte_pattern = StringToTwoByte(pattern);
-
-  unsigned number_of_captures;
-  const char* error_message = NULL;
-
-  v8::jscre::JscreRegExp* code = NULL;
-  FlattenString(pattern);
-
-  JscreCompileWithRetryAfterGC(two_byte_pattern,
-                               flags,
-                               &number_of_captures,
-                               &error_message,
-                               &code);
-
-  if (code == NULL) {
-    // Throw an exception.
-    Handle<JSArray> array = Factory::NewJSArray(2);
-    SetElement(array, 0, pattern);
-    const char* message =
-        (error_message == NULL) ? "Unknown regexp error" : error_message;
-    SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(message)));
-    Handle<Object> regexp_err =
-        Factory::NewSyntaxError("malformed_regexp", array);
-    Top::Throw(*regexp_err);
-    return Handle<Object>();
-  }
-
-  // Convert the return address to a ByteArray pointer.
-  Handle<ByteArray> internal(
-      ByteArray::FromDataStartAddress(reinterpret_cast<Address>(code)));
-
-  Handle<FixedArray> value = Factory::NewFixedArray(kJscreDataLength);
-  value->set(kJscreNumberOfCapturesIndex, Smi::FromInt(number_of_captures));
-  value->set(kJscreInternalIndex, *internal);
-  Factory::SetRegExpData(re, JSRegExp::JSCRE, pattern, flags, value);
-
-  return re;
-}
-
-
-Handle<Object> RegExpImpl::JscreExec(Handle<JSRegExp> regexp,
-                                     Handle<String> subject,
-                                     Handle<Object> index) {
-  ASSERT_EQ(regexp->TypeTag(), JSRegExp::JSCRE);
-  if (regexp->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined()) {
-    Handle<Object> compile_result = JscreCompile(regexp);
-    if (compile_result.is_null()) return compile_result;
-  }
-  ASSERT(regexp->DataAt(JSRegExp::kJscreDataIndex)->IsFixedArray());
-
-  int num_captures = JscreNumberOfCaptures(regexp);
-
-  OffsetsVector offsets((num_captures + 1) * 3);
-
-  int previous_index = static_cast<int>(DoubleToInteger(index->Number()));
-
-  Handle<String> subject16 = CachedStringToTwoByte(subject);
-
-  return JscreExecOnce(regexp,
-                       num_captures,
-                       subject,
-                       previous_index,
-                       subject16->GetTwoByteData(),
-                       offsets.vector(),
-                       offsets.length());
-}
-
-
-Handle<Object> RegExpImpl::JscreExecOnce(Handle<JSRegExp> regexp,
-                                         int num_captures,
-                                         Handle<String> subject,
-                                         int previous_index,
-                                         const uc16* two_byte_subject,
-                                         int* offsets_vector,
-                                         int offsets_vector_length) {
-  int rc;
-  {
-    AssertNoAllocation a;
-    ByteArray* internal = JscreInternal(regexp);
-    const v8::jscre::JscreRegExp* js_regexp =
-        reinterpret_cast<v8::jscre::JscreRegExp*>(
-            internal->GetDataStartAddress());
-
-    rc = v8::jscre::jsRegExpExecute(js_regexp,
-                                    two_byte_subject,
-                                    subject->length(),
-                                    previous_index,
-                                    offsets_vector,
-                                    offsets_vector_length);
-  }
-
-  // The KJS JavaScript engine returns null (ie, a failed match) when
-  // JSRE's internal match limit is exceeded.  We duplicate that behavior here.
-  if (rc == v8::jscre::JSRegExpErrorNoMatch
-      || rc == v8::jscre::JSRegExpErrorHitLimit) {
-    return Factory::null_value();
-  }
-
-  // Other JSRE errors:
-  if (rc < 0) {
-    // Throw an exception.
-    Handle<Object> code(Smi::FromInt(rc));
-    Handle<Object> args[2] = { Factory::LookupAsciiSymbol("jsre_exec"), code };
-    Handle<Object> regexp_err(
-        Factory::NewTypeError("jsre_error", HandleVector(args, 2)));
-    return Handle<Object>(Top::Throw(*regexp_err));
-  }
-
-  Handle<FixedArray> array = Factory::NewFixedArray(2 * (num_captures+1));
-  // The captures come in (start, end+1) pairs.
-  for (int i = 0; i < 2 * (num_captures+1); i += 2) {
-    array->set(i, Smi::FromInt(offsets_vector[i]));
-    array->set(i+1, Smi::FromInt(offsets_vector[i+1]));
-  }
-  return Factory::NewJSArrayWithElements(array);
-}
-
-
-Handle<Object> RegExpImpl::JscreExecGlobal(Handle<JSRegExp> regexp,
-                                           Handle<String> subject) {
-  ASSERT_EQ(regexp->TypeTag(), JSRegExp::JSCRE);
-  if (regexp->DataAt(JSRegExp::kJscreDataIndex)->IsUndefined()) {
-    Handle<Object> compile_result = JscreCompile(regexp);
-    if (compile_result.is_null()) return compile_result;
-  }
-  ASSERT(regexp->DataAt(JSRegExp::kJscreDataIndex)->IsFixedArray());
-
-  // Prepare space for the return values.
-  int num_captures = JscreNumberOfCaptures(regexp);
-
-  OffsetsVector offsets((num_captures + 1) * 3);
-
-  int previous_index = 0;
-
-  Handle<JSArray> result = Factory::NewJSArray(0);
-  int i = 0;
-  Handle<Object> matches;
-
-  Handle<String> subject16 = CachedStringToTwoByte(subject);
-
-  do {
-    if (previous_index > subject->length() || previous_index < 0) {
-      // Per ECMA-262 15.10.6.2, if the previous index is greater than the
-      // string length, there is no match.
-      matches = Factory::null_value();
-    } else {
-      matches = JscreExecOnce(regexp,
-                              num_captures,
-                              subject,
-                              previous_index,
-                              subject16->GetTwoByteData(),
-                              offsets.vector(),
-                              offsets.length());
-
-      if (matches->IsJSArray()) {
-        SetElement(result, i, matches);
-        i++;
-        previous_index = offsets.vector()[1];
-        if (offsets.vector()[0] == offsets.vector()[1]) {
-          previous_index++;
-        }
-      }
-    }
-  } while (matches->IsJSArray());
-
-  // If we exited the loop with an exception, throw it.
-  if (matches->IsNull()) {
-    // Exited loop normally.
-    return result;
-  } else {
-    // Exited loop with the exception in matches.
-    return matches;
-  }
 }
 
 
@@ -2070,7 +1777,7 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
   // We are being asked to make a non-generic version.  Keep track of how many
   // non-generic versions we generate so as not to overdo it.
   trace_count_++;
-  if (FLAG_irregexp_optimization &&
+  if (FLAG_regexp_optimization &&
       trace_count_ < kMaxCopiesCodeGenerated &&
       compiler->recursion_depth() <= RegExpCompiler::kMaxRecursion) {
     return CONTINUE;
@@ -3237,7 +2944,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     if (not_at_start_) new_trace.set_at_start(Trace::FALSE);
     alt_gen->expects_preload = preload_is_current;
     bool generate_full_check_inline = false;
-    if (FLAG_irregexp_optimization &&
+    if (FLAG_regexp_optimization &&
         try_to_emit_quick_check_for_alternative(i) &&
         alternative.node()->EmitQuickCheck(compiler,
                                            &new_trace,
@@ -4038,7 +3745,7 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   bool needs_capture_clearing = !capture_registers.is_empty();
   if (body_can_be_empty) {
     body_start_reg = compiler->AllocateRegister();
-  } else if (FLAG_irregexp_optimization && !needs_capture_clearing) {
+  } else if (FLAG_regexp_optimization && !needs_capture_clearing) {
     // Only unroll if there are no captures and the body can't be
     // empty.
     if (min > 0 && min <= kMaxUnrolledMinMatches) {
@@ -4930,7 +4637,7 @@ Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
 
   NodeInfo info = *node->info();
 
-  if (FLAG_irregexp_native) {
+  if (FLAG_regexp_native) {
 #ifdef ARM
     // Unimplemented, fall-through to bytecode implementation.
 #else  // IA32

@@ -114,10 +114,4 @@ Address InternalFrame::GetCallerStackPointer() const {
 }
 
 
-Code* JavaScriptFrame::FindCode() const {
-  JSFunction* function = JSFunction::cast(this->function());
-  return function->shared()->code();
-}
-
-
 } }  // namespace v8::internal

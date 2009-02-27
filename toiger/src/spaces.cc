@@ -538,11 +538,9 @@ void PagedSpace::ClearRSet() {
 
 
 Object* PagedSpace::FindObject(Address addr) {
-#ifdef DEBUG
   // Note: this function can only be called before or after mark-compact GC
   // because it accesses map pointers.
   ASSERT(!MarkCompactCollector::in_use());
-#endif
 
   if (!Contains(addr)) return Failure::Exception();
 

@@ -147,6 +147,9 @@ class Assembler(object):
     self.regions = []
 
 
+VMStates = { 'JS': 0, 'GC': 1, 'COMPILER': 2, 'OTHER': 3 }
+
+
 class TickProcessor(object):
 
   def __init__(self):
@@ -164,6 +167,7 @@ class TickProcessor(object):
     self.number_of_library_ticks = 0
     self.unaccounted_number_of_ticks = 0
     self.excluded_number_of_ticks = 0
+    self.number_of_gc_ticks = 0
     # Flag indicating whether to ignore unaccounted ticks in the report
     self.ignore_unknown = False
 
@@ -287,6 +291,8 @@ class TickProcessor(object):
     return result
 
   def ProcessTick(self, pc, sp, state, stack):
+    if state == VMStates['GC']:
+      self.number_of_gc_ticks += 1
     if not self.IncludeTick(pc, sp, state):
       self.excluded_number_of_ticks += 1;
       return
@@ -320,10 +326,7 @@ class TickProcessor(object):
       # Print the unknown ticks percentage if they are not ignored.
       if not self.ignore_unknown and self.unaccounted_number_of_ticks > 0:
         self.PrintHeader('Unknown')
-        unknown_percentage = self.unaccounted_number_of_ticks * 100.0 / self.total_number_of_ticks
-        print('  %(total)5.1f%%' % {
-          'total' : unknown_percentage,
-        })
+        self.PrintCounter(self.unaccounted_number_of_ticks)
       # Print the library ticks.
       self.PrintHeader('Shared libraries')
       self.PrintEntries(cpp_entries, lambda e:e.IsSharedLibraryEntry())
@@ -333,6 +336,9 @@ class TickProcessor(object):
       # Print the C++ ticks.
       self.PrintHeader('C++')
       self.PrintEntries(cpp_entries, lambda e:not e.IsSharedLibraryEntry())
+      # Print the GC ticks.
+      self.PrintHeader('GC')
+      self.PrintCounter(self.number_of_gc_ticks)
       # Print call profile.
       print('\n [Call profile]:')
       print('   total  call path')
@@ -342,6 +348,13 @@ class TickProcessor(object):
   def PrintHeader(self, header_title):
     print('\n [%s]:' % header_title)
     print('   ticks  total  nonlib   name')
+
+  def PrintCounter(self, ticks_count):
+    percentage = ticks_count * 100.0 / self.total_number_of_ticks
+    print('  %(ticks)5d  %(total)5.1f%%' % {
+      'ticks' : ticks_count,
+      'total' : percentage,
+    })
 
   def PrintEntries(self, entries, condition):
     # If ignoring unaccounted ticks don't include these in percentage
@@ -417,13 +430,13 @@ class CmdLineProcessor(object):
       self.PrintUsageAndExit()
     for key, value in opts:
       if key in ("-j", "--js"):
-        self.state = 0
+        self.state = VMStates['JS']
       if key in ("-g", "--gc"):
-        self.state = 1
+        self.state = VMStates['GC']
       if key in ("-c", "--compiler"):
-        self.state = 2
+        self.state = VMStates['COMPILER']
       if key in ("-o", "--other"):
-        self.state = 3
+        self.state = VMStates['OTHER']
       if key in ("--ignore-unknown"):
         self.ignore_unknown = True
       if key in ("--separate-ic"):

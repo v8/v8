@@ -38,10 +38,11 @@ SOURCES = {
     'test-ast.cc', 'test-heap.cc', 'test-utils.cc', 'test-compiler.cc',
     'test-spaces.cc', 'test-mark-compact.cc', 'test-lock.cc',
     'test-conversions.cc', 'test-strings.cc', 'test-serialize.cc',
-    'test-decls.cc', 'test-alloc.cc', 'test-regexp.cc', 'test-threads.cc'
+    'test-decls.cc', 'test-alloc.cc', 'test-regexp.cc', 'test-threads.cc',
+    'test-sockets.cc'
   ],
   'arch:arm':  ['test-assembler-arm.cc', 'test-disasm-arm.cc'],
-  'arch:ia32': ['test-assembler-ia32.cc', 'test-disasm-ia32.cc'],
+  'arch:ia32': ['test-assembler-ia32.cc', 'test-disasm-ia32.cc', 'test-log-ia32.cc'],
   'os:linux':  ['test-platform-linux.cc'],
   'os:macos':  ['test-platform-macos.cc'],
   'os:nullos': ['test-platform-nullos.cc'],

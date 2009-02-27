@@ -49,7 +49,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="winmm.lib"
+				AdditionalDependencies="winmm.lib Ws2_32.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -110,7 +110,7 @@
 			/>
 			<Tool
 				Name="VCLinkerTool"
-				AdditionalDependencies="winmm.lib"
+				AdditionalDependencies="winmm.lib Ws2_32.lib"
 			/>
 			<Tool
 				Name="VCALinkTool"
@@ -198,6 +198,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\test\cctest\test-log-ia32.cc"
+			>
+		</File>
+		<File
 			RelativePath="..\..\test\cctest\test-mark-compact.cc"
 			>
 		</File>
@@ -207,6 +211,10 @@
 		</File>
 		<File
 			RelativePath="..\..\test\cctest\test-serialize.cc"
+			>
+		</File>
+		<File
+			RelativePath="..\..\test\cctest\test-sockets.cc"
 			>
 		</File>
 		<File

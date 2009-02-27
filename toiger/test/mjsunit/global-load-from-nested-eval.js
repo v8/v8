@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,41 +25,42 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// CPU specific code for ia32 independent of OS goes here.
+// Tests global loads from nested eval.
 
-#include "v8.h"
+var x = 42;
 
-#include "cpu.h"
-#include "macro-assembler.h"
-
-namespace v8 { namespace internal {
-
-void CPU::Setup() {
-  CpuFeatures::Probe();
+// Load the global.
+function test(source) {
+  eval('eval(' + source +')');
 }
+test('assertEquals(42, x)');
 
-
-void CPU::FlushICache(void* start, size_t size) {
-  // No need to flush the instruction cache on Intel. On Intel instruction
-  // cache flushing is only necessary when multiple cores running the same
-  // code simultaneously. V8 (and JavaScript) is single threaded and when code
-  // is patched on an intel CPU the core performing the patching will have its
-  // own instruction cache updated automatically.
-
-  // If flushing of the instruction cache becomes necessary Windows have the
-  // API function FlushInstructionCache.
+// Shadow variable with a with statement.
+function testWith(source) {
+  with ({ x: 1 }) {
+    eval('eval(' + source +')');
+  }
 }
+testWith('assertEquals(1, x)');
 
-
-void CPU::DebugBreak() {
-#ifdef _MSC_VER
-  // To avoid Visual Studio runtime support the following code can be used
-  // instead
-  // __asm { int 3 }
-  __debugbreak();
-#else
-  asm("int $3");
-#endif
+// Shadow variable with an eval-introduced variable.
+function testEval(source) {
+  eval('var x = 1');
+  function f() {
+    eval('eval('+ source + ')');
+  }
+  f();
 }
+testEval('assertEquals(1, x)');
 
-} }  // namespace v8::internal
+// Eval that does not shadow.
+function testEvalDontShadow(source) {
+  eval('1');
+  eval('eval(' + source +')');
+}
+testEvalDontShadow('assertEquals(42, x)');
+
+
+
+
+

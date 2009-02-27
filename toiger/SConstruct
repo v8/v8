@@ -156,31 +156,12 @@ MKSNAPSHOT_EXTRA_FLAGS = {
       'LIBS': ['pthread'],
     },
     'os:win32': {
-      'LIBS': ['winmm'],
+      'LIBS': ['winmm', 'ws2_32'],
     },
   },
   'msvc': {
     'all': {
-      'LIBS': ['winmm']
-    }
-  }
-}
-
-
-JSCRE_EXTRA_FLAGS = {
-  'gcc': {
-    'all': {
-      'CPPDEFINES':   ['SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
-      'WARNINGFLAGS': ['-w']
-    },
-  },
-  'msvc': {
-    'all': {
-      'CPPDEFINES':   ['SUPPORT_UTF8', 'NO_RECURSE', 'SUPPORT_UCP'],
-      'WARNINGFLAGS': ['/W3', '/WX', '/wd4355', '/wd4800']
-    },
-    'library:shared': {
-      'CPPDEFINES':   ['BUILDING_V8_SHARED']
+      'LIBS': ['winmm', 'ws2_32']
     }
   }
 }
@@ -219,7 +200,7 @@ CCTEST_EXTRA_FLAGS = {
       'LIBS':         ['execinfo', 'pthread']
     },
     'os:win32': {
-      'LIBS': ['winmm']
+      'LIBS': ['winmm', 'ws2_32']
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -229,7 +210,7 @@ CCTEST_EXTRA_FLAGS = {
   'msvc': {
     'all': {
       'CPPDEFINES': ['_HAS_EXCEPTIONS=0'],
-      'LIBS': ['winmm']
+      'LIBS': ['winmm', 'ws2_32']
     },
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
@@ -257,7 +238,7 @@ SAMPLE_FLAGS = {
       'LIBS':         ['execinfo', 'pthread']
     },
     'os:win32': {
-      'LIBS':         ['winmm']
+      'LIBS':         ['winmm', 'ws2_32']
     },
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
@@ -274,7 +255,7 @@ SAMPLE_FLAGS = {
     'all': {
       'CCFLAGS': ['/nologo'],
       'LINKFLAGS': ['/nologo'],
-      'LIBS': ['winmm']
+      'LIBS': ['winmm', 'ws2_32']
     },
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
@@ -321,12 +302,12 @@ D8_FLAGS = {
       'LIBS': ['pthread'],
     },
     'os:win32': {
-      'LIBS': ['winmm'],
+      'LIBS': ['winmm', 'ws2_32'],
     },
   },
   'msvc': {
     'all': {
-      'LIBS': ['winmm']
+      'LIBS': ['winmm', 'ws2_32']
     }
   }
 }
@@ -564,7 +545,6 @@ def BuildSpecific(env, mode, env_overrides):
   library_flags = context.AddRelevantFlags(os.environ, LIBRARY_FLAGS)
   v8_flags = context.AddRelevantFlags(library_flags, V8_EXTRA_FLAGS)
   mksnapshot_flags = context.AddRelevantFlags(library_flags, MKSNAPSHOT_EXTRA_FLAGS)
-  jscre_flags = context.AddRelevantFlags(library_flags, JSCRE_EXTRA_FLAGS)
   dtoa_flags = context.AddRelevantFlags(library_flags, DTOA_EXTRA_FLAGS)
   cctest_flags = context.AddRelevantFlags(v8_flags, CCTEST_EXTRA_FLAGS)
   sample_flags = context.AddRelevantFlags(os.environ, SAMPLE_FLAGS)
@@ -573,7 +553,6 @@ def BuildSpecific(env, mode, env_overrides):
   context.flags = {
     'v8': v8_flags,
     'mksnapshot': mksnapshot_flags,
-    'jscre': jscre_flags,
     'dtoa': dtoa_flags,
     'cctest': cctest_flags,
     'sample': sample_flags,

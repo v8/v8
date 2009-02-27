@@ -56,8 +56,6 @@ static void DummyStaticFunction(Object* result) {
 
 TEST(DisasmIa320) {
   InitializeVM();
-  Serializer::disable();  // Needed for Probe when running without snapshot.
-  CpuFeatures::Probe();
   v8::HandleScope scope;
   v8::internal::byte buffer[1024];
   Assembler assm(buffer, sizeof buffer);
@@ -370,7 +368,10 @@ TEST(DisasmIa320) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB));
+  Object* code = Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>(Heap::undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();

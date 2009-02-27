@@ -69,27 +69,27 @@ XMMRegister xmm7 = { 7 };
 // Implementation of CpuFeatures
 
 // Safe default is no features.
-uint32_t CpuFeatures::supported_ = 0;
-uint32_t CpuFeatures::enabled_ = 0;
+uint64_t CpuFeatures::supported_ = 0;
+uint64_t CpuFeatures::enabled_ = 0;
 
-
-typedef int (*F0)();
 
 // The Probe method needs executable memory, so it uses Heap::CreateCode.
 // Allocation failure is silent and leads to safe default.
 void CpuFeatures::Probe() {
-  supported_ = 0;
+  ASSERT(Heap::HasBeenSetup());
+  ASSERT(supported_ == 0);
   if (Serializer::enabled()) return;  // No features if we might serialize.
+
   Assembler assm(NULL, 0);
-  Label done;
+  Label cpuid, done;
 #define __ assm.
   // Save old esp, since we are going to modify the stack.
   __ push(ebp);
   __ pushfd();
   __ push(ecx);
-  __ push(edx);
   __ push(ebx);
   __ mov(ebp, Operand(esp));
+
   // If we can modify bit 21 of the EFLAGS register, then CPUID is supported.
   __ pushfd();
   __ pop(eax);
@@ -100,34 +100,48 @@ void CpuFeatures::Probe() {
   __ pushfd();
   __ pop(eax);
   __ xor_(eax, Operand(edx));  // Different if CPUID is supported.
-  __ j(zero, &done);
-  // Invoke CPUID with 1 in eax to get feature information in edx.
+  __ j(not_zero, &cpuid);
+
+  // CPUID not supported. Clear the supported features in edx:eax.
+  __ xor_(eax, Operand(eax));
+  __ xor_(edx, Operand(edx));
+  __ jmp(&done);
+
+  // Invoke CPUID with 1 in eax to get feature information in
+  // ecx:edx. Temporarily enable CPUID support because we know it's
+  // safe here.
+  __ bind(&cpuid);
   __ mov(eax, 1);
-  // Temporarily force CPUID support, since we know it is safe here.
   supported_ = (1 << CPUID);
   { Scope fscope(CPUID);
     __ cpuid();
   }
   supported_ = 0;
-  // Return result in eax.
+
+  // Move the result from ecx:edx to edx:eax and make sure to mark the
+  // CPUID feature as supported.
   __ mov(eax, Operand(edx));
+  __ or_(eax, 1 << CPUID);
+  __ mov(edx, Operand(ecx));
+
+  // Done.
   __ bind(&done);
   __ mov(esp, Operand(ebp));
   __ pop(ebx);
-  __ pop(edx);
   __ pop(ecx);
   __ popfd();
   __ pop(ebp);
   __ ret(0);
 #undef __
+
   CodeDesc desc;
   assm.GetCode(&desc);
   Object* code =
       Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB), NULL);
   if (!code->IsCode()) return;
-  F0 f = FUNCTION_CAST<F0>(Code::cast(code)->entry());
-  uint32_t res = f();
-  supported_ = (res | (1 << CPUID));
+  typedef uint64_t (*F0)();
+  F0 probe = FUNCTION_CAST<F0>(Code::cast(code)->entry());
+  supported_ = probe();
 }
 
 
@@ -1626,6 +1640,15 @@ void Assembler::fistp_s(const Operand& adr) {
 }
 
 
+void Assembler::fisttp_s(const Operand& adr) {
+  ASSERT(CpuFeatures::IsEnabled(CpuFeatures::SSE3));
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xDB);
+  emit_operand(ecx, adr);
+}
+
+
 void Assembler::fist_s(const Operand& adr) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
@@ -1818,6 +1841,14 @@ void Assembler::frndint() {
   last_pc_ = pc_;
   EMIT(0xD9);
   EMIT(0xFC);
+}
+
+
+void Assembler::fnclex() {
+  EnsureSpace ensure_space(this);
+  last_pc_ = pc_;
+  EMIT(0xDB);
+  EMIT(0xE2);
 }
 
 

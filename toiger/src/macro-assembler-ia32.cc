@@ -42,7 +42,8 @@ MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       unresolved_(0),
       generating_stub_(false),
-      allow_stub_calls_(true) {
+      allow_stub_calls_(true),
+      code_object_(Heap::undefined_value()) {
 }
 
 
@@ -319,7 +320,11 @@ void MacroAssembler::EnterFrame(StackFrame::Type type) {
   mov(ebp, Operand(esp));
   push(esi);
   push(Immediate(Smi::FromInt(type)));
-  push(Immediate(0));  // Push an empty code cache slot.
+  push(Immediate(CodeObject()));
+  if (FLAG_debug_code) {
+    cmp(Operand(esp, 0), Immediate(Factory::undefined_value()));
+    Check(not_equal, "code object not properly patched");
+  }
 }
 
 

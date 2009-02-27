@@ -99,8 +99,7 @@ RegExpMacroAssemblerIA32::RegExpMacroAssemblerIA32(
       start_label_(),
       success_label_(),
       backtrack_label_(),
-      exit_label_(),
-      self_(Heap::undefined_value()) {
+      exit_label_() {
   __ jmp(&entry_label_);   // We'll write the entry code later.
   __ bind(&start_label_);  // And then continue from here.
 }
@@ -145,7 +144,7 @@ void RegExpMacroAssemblerIA32::Backtrack() {
   CheckPreemption();
   // Pop Code* offset from backtrack stack, add Code* and jump to location.
   Pop(ebx);
-  __ add(Operand(ebx), Immediate(self_));
+  __ add(Operand(ebx), Immediate(masm_->CodeObject()));
   __ jmp(Operand(ebx));
 }
 
@@ -661,7 +660,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   __ bind(&stack_limit_hit);
   int num_arguments = 2;
   FrameAlign(num_arguments, ebx);
-  __ mov(Operand(esp, 1 * kPointerSize), Immediate(self_));
+  __ mov(Operand(esp, 1 * kPointerSize), Immediate(masm_->CodeObject()));
   __ lea(eax, Operand(esp, -kPointerSize));
   __ mov(Operand(esp, 0 * kPointerSize), eax);
   CallCFunction(FUNCTION_ADDR(&CheckStackGuardState), num_arguments);
@@ -784,7 +783,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
     __ bind(&retry);
     int num_arguments = 2;
     FrameAlign(num_arguments, ebx);
-    __ mov(Operand(esp, 1 * kPointerSize), Immediate(self_));
+    __ mov(Operand(esp, 1 * kPointerSize), Immediate(masm_->CodeObject()));
     __ lea(eax, Operand(esp, -kPointerSize));
     __ mov(Operand(esp, 0 * kPointerSize), eax);
     CallCFunction(FUNCTION_ADDR(&CheckStackGuardState), num_arguments);
@@ -849,7 +848,7 @@ Handle<Object> RegExpMacroAssemblerIA32::GetCode(Handle<String> source) {
   Handle<Code> code = Factory::NewCode(code_desc,
                                        NULL,
                                        Code::ComputeFlags(Code::REGEXP),
-                                       self_);
+                                       masm_->CodeObject());
   LOG(CodeCreateEvent("RegExp", *code, *(source->ToCString())));
   return Handle<Object>::cast(code);
 }
@@ -1139,7 +1138,7 @@ void RegExpMacroAssemblerIA32::SafeCall(Label* to) {
 
 void RegExpMacroAssemblerIA32::SafeReturn() {
   __ pop(ebx);
-  __ add(Operand(ebx), Immediate(self_));
+  __ add(Operand(ebx), Immediate(masm_->CodeObject()));
   __ jmp(Operand(ebx));
 }
 

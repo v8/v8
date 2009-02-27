@@ -3089,16 +3089,22 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
-      // Allocate a fresh register to use as a temp in
-      // ContextSlotOperandCheckExtensions and to hold the result
-      // value.
-      value = allocator_->Allocate();
-      ASSERT(value.is_valid());
-      __ mov(value.reg(),
-             ContextSlotOperandCheckExtensions(potential_slot, value, &slow));
-      // There is always control flow to slow from
-      // ContextSlotOperandCheckExtensions.
-      done.Jump(&value);
+      // Only generate the fast case for locals that rewrite to slots.
+      // This rules out argument loads.
+      if (potential_slot != NULL) {
+        // Allocate a fresh register to use as a temp in
+        // ContextSlotOperandCheckExtensions and to hold the result
+        // value.
+        value = allocator_->Allocate();
+        ASSERT(value.is_valid());
+        __ mov(value.reg(),
+               ContextSlotOperandCheckExtensions(potential_slot,
+                                                 value,
+                                                 &slow));
+        // There is always control flow to slow from
+        // ContextSlotOperandCheckExtensions.
+        done.Jump(&value);
+      }
     }
 
     slow.Bind();
@@ -3160,9 +3166,10 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
   // eval from the current scope to the global scope.
   Result context(esi, this);
   Result tmp = allocator_->Allocate();
-  ASSERT(tmp.is_valid());  // Called with all non-reserved registers available.
+  ASSERT(tmp.is_valid());  // All non-reserved registers were available.
 
-  for (Scope* s = scope(); s != NULL; s = s->outer_scope()) {
+  Scope* s = scope();
+  while (s != NULL) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
         // Check that extension is NULL.
@@ -3176,8 +3183,30 @@ Result CodeGenerator::LoadFromGlobalSlotCheckExtensions(
       context = tmp;
     }
     // If no outer scope calls eval, we do not need to check more
-    // context extensions.
-    if (!s->outer_scope_calls_eval()) break;
+    // context extensions.  If we have reached an eval scope, we check
+    // all extensions from this point.
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
+    s = s->outer_scope();
+  }
+
+  if (s->is_eval_scope()) {
+    // Loop up the context chain.  There is no frame effect so it is
+    // safe to use raw labels here.
+    Label next, fast;
+    if (!context.reg().is(tmp.reg())) __ mov(tmp.reg(), context.reg());
+    __ bind(&next);
+    // Terminate at global context.
+    __ cmp(FieldOperand(tmp.reg(), HeapObject::kMapOffset),
+           Immediate(Factory::global_context_map()));
+    __ j(equal, &fast);
+    // Check that extension is NULL.
+    __ cmp(ContextOperand(tmp.reg(), Context::EXTENSION_INDEX), Immediate(0));
+    slow->Branch(not_equal, not_taken);
+    // Load next context in chain.
+    __ mov(tmp.reg(), ContextOperand(tmp.reg(), Context::CLOSURE_INDEX));
+    __ mov(tmp.reg(), FieldOperand(tmp.reg(), JSFunction::kContextOffset));
+    __ jmp(&next);
+    __ bind(&fast);
   }
   context.Unuse();
   tmp.Unuse();
@@ -3639,10 +3668,24 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
     }
     Variable* var = node->target()->AsVariableProxy()->AsVariable();
 
+    if (node->starts_initialization_block()) {
+      ASSERT(target.type() == Reference::NAMED ||
+             target.type() == Reference::KEYED);
+      // Change to slow case in the beginning of an initialization
+      // block to avoid the quadratic behavior of repeatedly adding
+      // fast properties.
+
+      // The receiver is the argument to the runtime call.  It is the
+      // first value pushed when the reference was loaded to the
+      // frame.
+      frame_->PushElementAt(target.size() - 1);
+      Result ignored = frame_->CallRuntime(Runtime::kToSlowProperties, 1);
+    }
     if (node->op() == Token::ASSIGN ||
         node->op() == Token::INIT_VAR ||
         node->op() == Token::INIT_CONST) {
       Load(node->value());
+
     } else {
       Literal* literal = node->value()->AsLiteral();
       Variable* right_var = node->value()->AsVariableProxy()->AsVariable();
@@ -3678,6 +3721,16 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
         target.SetValue(CONST_INIT);
       } else {
         target.SetValue(NOT_CONST_INIT);
+      }
+      if (node->ends_initialization_block()) {
+        ASSERT(target.type() == Reference::NAMED ||
+               target.type() == Reference::KEYED);
+        // End of initialization block. Revert to fast case.  The
+        // argument to the runtime call is the receiver, which is the
+        // first value pushed as part of the reference, which is below
+        // the lhs value.
+        frame_->PushElementAt(target.size());
+        Result ignored = frame_->CallRuntime(Runtime::kToFastProperties, 1);
       }
     }
   }
@@ -5886,31 +5939,44 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
       FloatingPointHelper::LoadFloatOperands(masm, ecx);
 
-      Label non_int32_operands, non_smi_result, skip_allocation;
+      Label skip_allocation, non_smi_result, operand_conversion_failure;
+
       // Reserve space for converted numbers.
       __ sub(Operand(esp), Immediate(2 * kPointerSize));
 
-      // Check if right operand is int32.
-      __ fist_s(Operand(esp, 1 * kPointerSize));
-      __ fild_s(Operand(esp, 1 * kPointerSize));
-      __ fucompp();
-      __ fnstsw_ax();
-      __ sahf();
-      __ j(not_zero, &non_int32_operands);
-      __ j(parity_even, &non_int32_operands);
+      bool use_sse3 = CpuFeatures::IsSupported(CpuFeatures::SSE3);
+      if (use_sse3) {
+        // Truncate the operands to 32-bit integers and check for
+        // exceptions in doing so.
+         CpuFeatures::Scope scope(CpuFeatures::SSE3);
+        __ fisttp_s(Operand(esp, 0 * kPointerSize));
+        __ fisttp_s(Operand(esp, 1 * kPointerSize));
+        __ fnstsw_ax();
+        __ test(eax, Immediate(1));
+        __ j(not_zero, &operand_conversion_failure);
+      } else {
+        // Check if right operand is int32.
+        __ fist_s(Operand(esp, 0 * kPointerSize));
+        __ fild_s(Operand(esp, 0 * kPointerSize));
+        __ fucompp();
+        __ fnstsw_ax();
+        __ sahf();
+        __ j(not_zero, &operand_conversion_failure);
+        __ j(parity_even, &operand_conversion_failure);
 
-      // Check if left operand is int32.
-      __ fist_s(Operand(esp, 0 * kPointerSize));
-      __ fild_s(Operand(esp, 0 * kPointerSize));
-      __ fucompp();
-      __ fnstsw_ax();
-      __ sahf();
-      __ j(not_zero, &non_int32_operands);
-      __ j(parity_even, &non_int32_operands);
+        // Check if left operand is int32.
+        __ fist_s(Operand(esp, 1 * kPointerSize));
+        __ fild_s(Operand(esp, 1 * kPointerSize));
+        __ fucompp();
+        __ fnstsw_ax();
+        __ sahf();
+        __ j(not_zero, &operand_conversion_failure);
+        __ j(parity_even, &operand_conversion_failure);
+      }
 
       // Get int32 operands and perform bitop.
-      __ pop(eax);
       __ pop(ecx);
+      __ pop(eax);
       switch (op_) {
         case Token::BIT_OR:  __ or_(eax, Operand(ecx)); break;
         case Token::BIT_AND: __ and_(eax, Operand(ecx)); break;
@@ -5958,10 +6024,22 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
         __ ret(2 * kPointerSize);
       }
-      __ bind(&non_int32_operands);
-      // Restore stacks and operands before calling runtime.
-      __ ffree(0);
+
+      // Clear the FPU exception flag and reset the stack before calling
+      // the runtime system.
+      __ bind(&operand_conversion_failure);
       __ add(Operand(esp), Immediate(2 * kPointerSize));
+      if (use_sse3) {
+        // If we've used the SSE3 instructions for truncating the
+        // floating point values to integers and it failed, we have a
+        // pending #IA exception. Clear it.
+        __ fnclex();
+      } else {
+        // The non-SSE3 variant does early bailout if the right
+        // operand isn't a 32-bit integer, so we may have a single
+        // value on the FPU stack we need to get rid of.
+        __ ffree(0);
+      }
 
       // SHR should return uint32 - go to runtime for non-smi/negative result.
       if (op_ == Token::SHR) __ bind(&non_smi_result);

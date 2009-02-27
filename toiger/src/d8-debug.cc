@@ -46,8 +46,19 @@ void HandleDebugEvent(DebugEvent event,
 
   TryCatch try_catch;
 
+  // Get the toJSONProtocol function on the event and get the JSON format.
+  Local<String> to_json_fun_name = String::New("toJSONProtocol");
+  Local<Function> to_json_fun =
+      Function::Cast(*event_data->Get(to_json_fun_name));
+  Local<Value> event_json = to_json_fun->Call(event_data, 0, NULL);
+  if (try_catch.HasCaught()) {
+    Shell::ReportException(&try_catch);
+    return;
+  }
+
   // Print the event details.
-  Handle<String> details = Shell::DebugEventToText(event_data);
+  Handle<String> details =
+      Shell::DebugEventToText(Handle<String>::Cast(event_json));
   if (details->Length() == 0) {
     // Empty string is used to signal not to process this event.
     return;

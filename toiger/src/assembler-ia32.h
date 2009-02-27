@@ -360,14 +360,18 @@ class CpuFeatures : public AllStatic {
   // Feature flags bit positions. They are mostly based on the CPUID spec.
   // (We assign CPUID itself to one of the currently reserved bits --
   // feel free to change this if needed.)
-  enum Feature { SSE2 = 26, CMOV = 15, RDTSC = 4, CPUID = 10 };
+  enum Feature { SSE3 = 32, SSE2 = 26, CMOV = 15, RDTSC = 4, CPUID = 10 };
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
   static void Probe();
   // Check whether a feature is supported by the target CPU.
-  static bool IsSupported(Feature f) { return supported_ & (1 << f); }
+  static bool IsSupported(Feature f) {
+    return (supported_ & (static_cast<uint64_t>(1) << f)) != 0;
+  }
   // Check whether a feature is currently enabled.
-  static bool IsEnabled(Feature f) { return enabled_ & (1 << f); }
+  static bool IsEnabled(Feature f) {
+    return (enabled_ & (static_cast<uint64_t>(1) << f)) != 0;
+  }
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
@@ -375,19 +379,19 @@ class CpuFeatures : public AllStatic {
     explicit Scope(Feature f) {
       ASSERT(CpuFeatures::IsSupported(f));
       old_enabled_ = CpuFeatures::enabled_;
-      CpuFeatures::enabled_ |= (1 << f);
+      CpuFeatures::enabled_ |= (static_cast<uint64_t>(1) << f);
     }
     ~Scope() { CpuFeatures::enabled_ = old_enabled_; }
    private:
-    uint32_t old_enabled_;
+    uint64_t old_enabled_;
 #else
    public:
     explicit Scope(Feature f) {}
 #endif
   };
  private:
-  static uint32_t supported_;
-  static uint32_t enabled_;
+  static uint64_t supported_;
+  static uint64_t enabled_;
 };
 
 
@@ -651,6 +655,8 @@ class Assembler : public Malloced {
   void fistp_s(const Operand& adr);
   void fistp_d(const Operand& adr);
 
+  void fisttp_s(const Operand& adr);
+
   void fabs();
   void fchs();
 
@@ -679,6 +685,7 @@ class Assembler : public Malloced {
   void fcompp();
   void fnstsw_ax();
   void fwait();
+  void fnclex();
 
   void frndint();
 

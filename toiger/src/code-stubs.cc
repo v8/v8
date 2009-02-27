@@ -59,7 +59,7 @@ Handle<Code> CodeStub::GetCode() {
 
     // Copy the generated code into a heap object, and store the major key.
     Code::Flags flags = Code::ComputeFlags(Code::STUB);
-    Handle<Code> code = Factory::NewCode(desc, NULL, flags);
+    Handle<Code> code = Factory::NewCode(desc, NULL, flags, masm.CodeObject());
     code->set_major_key(MajorKey());
 
     // Add unresolved entries in the code to the fixup list.

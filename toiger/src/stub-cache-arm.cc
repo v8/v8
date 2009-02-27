@@ -466,8 +466,6 @@ Object* StubCompiler::CompileLazyCompile(Code::Flags flags) {
   //  -- lr: return address
   // -----------------------------------
 
-  HandleScope scope;
-
   // Enter an internal frame.
   __ EnterInternalFrame();
 
@@ -500,8 +498,6 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   // ----------- S t a t e -------------
   //  -- lr: return address
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   const int argc = arguments().immediate();
@@ -553,8 +549,6 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
   // ----------- S t a t e -------------
   //  -- lr: return address
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // Get the receiver from the stack
@@ -675,8 +669,6 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   // ----------- S t a t e -------------
   //  -- lr: return address
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // TODO(1224669): Implement.
@@ -701,8 +693,6 @@ Object* StoreStubCompiler::CompileStoreField(JSObject* object,
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // Get the receiver from the stack.
@@ -735,8 +725,6 @@ Object* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // Get the object from the stack.
@@ -791,8 +779,6 @@ Object* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   // Get the object from the stack.
@@ -845,8 +831,6 @@ Object* LoadStubCompiler::CompileLoadField(JSObject* object,
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   __ ldr(r0, MemOperand(sp, 0));
@@ -868,8 +852,6 @@ Object* LoadStubCompiler::CompileLoadCallback(JSObject* object,
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   __ ldr(r0, MemOperand(sp, 0));
@@ -890,8 +872,6 @@ Object* LoadStubCompiler::CompileLoadConstant(JSObject* object,
   //  -- lr    : return address
   //  -- [sp] : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   __ ldr(r0, MemOperand(sp, 0));
@@ -913,8 +893,6 @@ Object* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-
-  HandleScope scope;
   Label miss;
 
   __ ldr(r0, MemOperand(sp, 0));
@@ -939,7 +917,6 @@ Object* KeyedLoadStubCompiler::CompileLoadField(String* name,
   //  -- sp[0] : key
   //  -- sp[4] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ ldr(r2, MemOperand(sp, 0));
@@ -965,7 +942,6 @@ Object* KeyedLoadStubCompiler::CompileLoadCallback(String* name,
   //  -- sp[0] : key
   //  -- sp[4] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ ldr(r2, MemOperand(sp, 0));
@@ -992,7 +968,6 @@ Object* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
   //  -- sp[0] : key
   //  -- sp[4] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   // Check the key is the cached one
@@ -1019,7 +994,6 @@ Object* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   //  -- sp[0] : key
   //  -- sp[4] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   // Check the key is the cached one
@@ -1043,7 +1017,6 @@ Object* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   //  -- sp[0] : key
   //  -- sp[4] : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   // Check the key is the cached one
@@ -1067,8 +1040,6 @@ Object* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   //  -- sp[0] : key
   //  -- sp[4] : receiver
   // -----------------------------------
-  HandleScope scope;
-
   Label miss;
   __ IncrementCounter(&Counters::keyed_load_string_length, 1, r1, r3);
 
@@ -1095,7 +1066,6 @@ Object* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   //  -- sp[0] : key
   //  -- sp[4] : receiver
   // -----------------------------------
-  HandleScope scope;
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
   return GetCode(CALLBACKS);
@@ -1112,7 +1082,6 @@ Object* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   //  -- lr    : return address
   //  -- [sp]  : receiver
   // -----------------------------------
-  HandleScope scope;
   Label miss;
 
   __ IncrementCounter(&Counters::keyed_store_field, 1, r1, r3);

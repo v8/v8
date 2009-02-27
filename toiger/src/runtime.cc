@@ -2151,6 +2151,22 @@ static Object* Runtime_GetArgumentsProperty(Arguments args) {
 }
 
 
+static Object* Runtime_ToFastProperties(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  object->TransformToFastProperties(0);
+  return *object;
+}
+
+
+static Object* Runtime_ToSlowProperties(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+  return *object;
+}
+
+
 static Object* Runtime_ToBool(Arguments args) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -4007,11 +4023,11 @@ static Object* Runtime_CompileString(Arguments args) {
   CONVERT_ARG_CHECKED(String, source, 0);
   CONVERT_ARG_CHECKED(Smi, line_offset, 1);
 
-  // Compile source string.
-  Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(source, line_offset->value(), true);
-  if (boilerplate.is_null()) return Failure::Exception();
+  // Compile source string in the global context.
   Handle<Context> context(Top::context()->global_context());
+  Handle<JSFunction> boilerplate =
+      Compiler::CompileEval(source, context, line_offset->value(), true);
+  if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
   return *fun;
@@ -4033,8 +4049,9 @@ static Object* CompileDirectEval(Handle<String> source) {
   Handle<Context> context(Context::cast(frame->context()));
   bool is_global = context->IsGlobalContext();
 
-  // Compile source string.
-  Handle<JSFunction> boilerplate = Compiler::CompileEval(source, 0, is_global);
+  // Compile source string in the current context.
+  Handle<JSFunction> boilerplate =
+      Compiler::CompileEval(source, context, 0, is_global);
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> fun =
     Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -5014,13 +5031,13 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   Handle<Object> frame_id(WrapFrameId(it.frame()->id()));
 
   // Find source position.
-  int position = it.frame()->FindCode()->SourcePosition(it.frame()->pc());
+  int position = it.frame()->code()->SourcePosition(it.frame()->pc());
 
   // Check for constructor frame.
   bool constructor = it.frame()->IsConstructor();
 
   // Get code and read scope info from it for local variable information.
-  Handle<Code> code(it.frame()->FindCode());
+  Handle<Code> code(it.frame()->code());
   ScopeInfo<> info(*code);
 
   // Get the context.
@@ -5594,7 +5611,10 @@ static Object* Runtime_DebugEvaluate(Arguments args) {
       Factory::NewStringFromAscii(Vector<const char>(source_str,
                                                      source_str_length));
   Handle<JSFunction> boilerplate =
-      Compiler::CompileEval(function_source, 0, context->IsGlobalContext());
+      Compiler::CompileEval(function_source,
+                            context,
+                            0,
+                            context->IsGlobalContext());
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Factory::NewFunctionFromBoilerplate(boilerplate, context);
@@ -5651,7 +5671,8 @@ static Object* Runtime_DebugEvaluateGlobal(Arguments args) {
   Handle<Context> context = Top::global_context();
 
   // Compile the source to be evaluated.
-  Handle<JSFunction> boilerplate(Compiler::CompileEval(source, 0, true));
+  Handle<JSFunction> boilerplate =
+      Handle<JSFunction>(Compiler::CompileEval(source, context, 0, true));
   if (boilerplate.is_null()) return Failure::Exception();
   Handle<JSFunction> compiled_function =
       Handle<JSFunction>(Factory::NewFunctionFromBoilerplate(boilerplate,

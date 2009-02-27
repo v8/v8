@@ -189,10 +189,12 @@ class Top {
   static StackFrame::Id break_frame_id();
   static int break_id();
 
-  static void MarkCompactPrologue();
-  static void MarkCompactEpilogue();
-  static void MarkCompactPrologue(char* archived_thread_data);
-  static void MarkCompactEpilogue(char* archived_thread_data);
+  static void MarkCompactPrologue(bool is_compacting);
+  static void MarkCompactEpilogue(bool is_compacting);
+  static void MarkCompactPrologue(bool is_compacting,
+                                  char* archived_thread_data);
+  static void MarkCompactEpilogue(bool is_compacting,
+                                  char* archived_thread_data);
   static void PrintCurrentStackTrace(FILE* out);
   static void PrintStackTrace(FILE* out, char* thread_data);
   static void PrintStack(StringStream* accumulator);
@@ -293,8 +295,10 @@ class Top {
   static ThreadLocalTop thread_local_;
   static void InitializeThreadLocal();
   static void PrintStackTrace(FILE* out, ThreadLocalTop* thread);
-  static void MarkCompactPrologue(ThreadLocalTop* archived_thread_data);
-  static void MarkCompactEpilogue(ThreadLocalTop* archived_thread_data);
+  static void MarkCompactPrologue(bool is_compacting,
+                                  ThreadLocalTop* archived_thread_data);
+  static void MarkCompactEpilogue(bool is_compacting,
+                                  ThreadLocalTop* archived_thread_data);
 
   // Debug.
   // Mutex for serializing access to break control structures.

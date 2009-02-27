@@ -32,14 +32,15 @@
 
 namespace v8 { namespace internal {
 
-#define STATS_RATE_LIST(SR)                                \
-  SR(gc_compactor, V8.GCCompactor) /* GC Compactor time */ \
-  SR(gc_scavenger, V8.GCScavenger) /* GC Scavenger time */ \
-  SR(compile, V8.Compile)          /* Compile time*/       \
-  SR(compile_eval, V8.CompileEval) /* Eval compile time */ \
-  SR(compile_lazy, V8.CompileLazy) /* Lazy compile time */ \
-  SR(parse, V8.Parse)              /* Parse time */        \
-  SR(parse_lazy, V8.ParseLazy)     /* Lazy parse time */   \
+#define STATS_RATE_LIST(SR)                                             \
+  SR(gc_compactor, V8.GCCompactor) /* GC Compactor time */              \
+  SR(gc_scavenger, V8.GCScavenger) /* GC Scavenger time */              \
+  SR(gc_context, V8.GCContext)     /* GC context cleanup time */        \
+  SR(compile, V8.Compile)          /* Compile time*/                    \
+  SR(compile_eval, V8.CompileEval) /* Eval compile time */              \
+  SR(compile_lazy, V8.CompileLazy) /* Lazy compile time */              \
+  SR(parse, V8.Parse)              /* Parse time */                     \
+  SR(parse_lazy, V8.ParseLazy)     /* Lazy parse time */                \
   SR(pre_parse, V8.PreParse)       /* Pre-parse time */
 
 // WARNING: STATS_COUNTER_LIST_* is a very large macro that is causing MSVC

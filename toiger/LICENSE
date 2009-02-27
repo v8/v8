@@ -2,13 +2,9 @@ This license applies to all parts of V8 that are not externally
 maintained libraries.  The externally maintained libraries used by V8
 are:
 
-  - Jscre, located under third_party/jscre.  This code is copyrighted
-    by the University of Cambridge and Apple Inc. and released under a
-    2-clause BSD license.
-
   - PCRE test suite, located in test/mjsunit/regexp-pcre.js.  This is
     based on the test suite from PCRE-7.3, which is copyrighted by the
-    University of Cambridge and Google, Inc.  The copyright notive and
+    University of Cambridge and Google, Inc.  The copyright notice and
     license are embedded in regexp-pcre.js.
 
   - Dtoa, located under third_party/dtoa.  This code is copyrighted by

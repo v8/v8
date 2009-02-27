@@ -58,11 +58,11 @@ int MarkCompactCollector::live_map_objects_ = 0;
 int MarkCompactCollector::live_lo_objects_ = 0;
 #endif
 
-void MarkCompactCollector::CollectGarbage(GCTracer* tracer) {
-  // Rather than passing the tracer around we stash it in a static member
-  // variable.
-  tracer_ = tracer;
-  Prepare();
+void MarkCompactCollector::CollectGarbage() {
+  // Make sure that Prepare() has been called. The individual steps below will
+  // update the state as they proceed.
+  ASSERT(state_ == PREPARE_GC);
+
   // Prepare has selected whether to compact the old generation or not.
   // Tell the tracer.
   if (IsCompacting()) tracer_->set_is_compacting();
@@ -96,7 +96,11 @@ void MarkCompactCollector::CollectGarbage(GCTracer* tracer) {
 }
 
 
-void MarkCompactCollector::Prepare() {
+void MarkCompactCollector::Prepare(GCTracer* tracer) {
+  // Rather than passing the tracer around we stash it in a static member
+  // variable.
+  tracer_ = tracer;
+
   static const int kFragmentationLimit = 50;  // Percent.
 #ifdef DEBUG
   ASSERT(state_ == IDLE);
@@ -241,7 +245,6 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
 // Helper class for marking pointers in HeapObjects.
 class MarkingVisitor : public ObjectVisitor {
  public:
-
   void VisitPointer(Object** p) {
     MarkObjectByPointer(p);
   }

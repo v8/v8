@@ -1,3 +1,23 @@
+2009-02-25: Version 1.0.2
+
+        Improved profiling support by performing simple call stack
+        sampling for ticks and by fixing a bug in the logging of code
+        addresses.
+
+        Fixed a number of debugger issues.
+
+        Optimized code that uses eval.
+
+        Fixed a couple of bugs in the regular expression engine.
+
+        Reduced the size of generated code for certain regular expressions.
+
+        Removed JSCRE completely.
+
+        Fixed issue where test could not be run if there was a dot in the
+        checkout path.
+
+
 2009-02-13: Version 1.0.1
 
         Fixed two crash-bugs in irregexp (issue 231 and 233).

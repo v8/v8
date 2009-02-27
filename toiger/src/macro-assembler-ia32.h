@@ -244,6 +244,8 @@ class MacroAssembler: public Assembler {
   };
   List<Unresolved>* unresolved() { return &unresolved_; }
 
+  Handle<Object> CodeObject() { return code_object_; }
+
 
   // ---------------------------------------------------------------------------
   // StatsCounter support
@@ -276,6 +278,8 @@ class MacroAssembler: public Assembler {
   List<Unresolved> unresolved_;
   bool generating_stub_;
   bool allow_stub_calls_;
+  Handle<Object> code_object_;  // This handle will be patched with the code
+                                // code object on installation.
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,
