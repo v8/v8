@@ -1,3 +1,18 @@
+2009-02-27: Version 1.0.3
+
+        Optimized double-to-integer conversions in bit operations by using
+        SSE3 instructions if available.
+
+        Optimized initialization sequences that store to multiple
+        properties of the same object.
+
+        Changed the D8 debugger frontend to use JSON messages.
+
+        Force garbage collections when disposing contexts.
+
+        Align code objects at 32-byte boundaries.
+
+
 2009-02-25: Version 1.0.2
 
         Improved profiling support by performing simple call stack
