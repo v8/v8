@@ -57,10 +57,10 @@ class List {
     ASSERT(0 <= i && i < length_);
     return data_[i];
   }
-  inline T& at(int i) const  { return this->operator[](i); }
-  INLINE(const T& last() const)  {
+  inline T& at(int i) const  { return operator[](i); }
+  inline T& last() const {
     ASSERT(!is_empty());
-    return this->at(length_ - 1);
+    return at(length_ - 1);
   }
 
   INLINE(bool is_empty() const) { return length_ == 0; }

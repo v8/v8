@@ -35,6 +35,9 @@
 
 namespace v8 { namespace internal {
 
+// -------------------------------------------------------------------------
+// MacroAssembler implementation.
+
 MacroAssembler::MacroAssembler(void* buffer, int size)
     : Assembler(buffer, size),
       unresolved_(0),
@@ -111,8 +114,7 @@ class RecordWriteStub : public CodeStub {
   // scratch) OOOOAAAASSSS.
   class ScratchBits: public BitField<uint32_t, 0, 4> {};
   class AddressBits: public BitField<uint32_t, 4, 4> {};
-  class ObjectBits: public BitField<uint32_t, 8, 4> {
-};
+  class ObjectBits: public BitField<uint32_t, 8, 4> {};
 
   Major MajorKey() { return RecordWrite; }
 
@@ -603,6 +605,19 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
   j(not_equal, miss, not_taken);
 
   bind(&same_contexts);
+}
+
+
+void MacroAssembler::NegativeZeroTest(CodeGenerator* cgen,
+                                      Register result,
+                                      Register op,
+                                      JumpTarget* then_target) {
+  JumpTarget ok(cgen);
+  test(result, Operand(result));
+  ok.Branch(not_zero, taken);
+  test(op, Operand(op));
+  then_target->Branch(sign, not_taken);
+  ok.Bind();
 }
 
 

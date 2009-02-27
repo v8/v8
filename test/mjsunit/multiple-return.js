@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,22 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function f() { return this; }
+function F() {
+  for (var x in [1,2,3]) {
+    return 42;
+  }
+  return 87;
+}
 
-assertFalse(this == null);  // the global object shouldn't be null or undefined
-assertEquals('[object global]', String(this));
 
-assertTrue(this === this);
-assertTrue(this === (function() { return this; })());
-assertTrue(this === f());
+function G() {
+  for (var x in [1,2,3]) {
+    try {
+      return 42;
+    } finally {
+      // Do nothing.
+    }
+  }
+  return 87;
+}
 
-var x = {}, y = {};
-x.f = y.f = f;
-assertFalse(x === f());
-assertFalse(y === f());
-assertTrue(x === x.f());
-assertTrue(x === x[new String('f')]());
-assertTrue(y === y.f(), "y.f()");
-assertTrue(y === y[new String('f')]());
-assertFalse(x === y.f());
-assertFalse(y === x.f());
+
+function H() {
+  for (var x in [1,2,3]) {
+    try {
+      return 42;
+    } catch (e) {
+      // Do nothing.
+    }
+  }
+  return 87;
+}
+
+
+assertEquals(42, F());
+assertEquals(42, G());
+assertEquals(42, H());

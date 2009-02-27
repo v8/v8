@@ -83,6 +83,8 @@ struct Register {
 };
 
 
+const int kNumRegisters = 16;
+
 extern Register no_reg;
 extern Register r0;
 extern Register r1;
@@ -209,6 +211,12 @@ inline Condition ReverseCondition(Condition cc) {
       return cc;
   };
 }
+
+
+// Branch hints are not used on the ARM.  They are defined so that they can
+// appear in shared function signatures, but will be ignored in ARM
+// implementations.
+enum Hint { no_hint };
 
 
 // The pc store offset may be 8 or 12 depending on the processor implementation.

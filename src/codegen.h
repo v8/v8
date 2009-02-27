@@ -37,8 +37,15 @@
 // of Visitor and that the following methods are available publicly:
 // CodeGenerator::MakeCode
 // CodeGenerator::SetFunctionInfo
-// CodeGenerator::AddDeferred
 // CodeGenerator::masm
+// CodeGenerator::frame
+// CodeGenerator::has_valid_frame
+// CodeGenerator::SetFrame
+// CodeGenerator::DeleteFrame
+// CodeGenerator::allocator
+// CodeGenerator::AddDeferred
+// CodeGenerator::in_spilled_code
+// CodeGenerator::set_in_spilled_code
 //
 // These methods are either used privately by the shared code or implemented as
 // shared code:
@@ -88,8 +95,12 @@ class DeferredCode: public ZoneObject {
   MacroAssembler* masm() const { return masm_; }
   CodeGenerator* generator() const { return generator_; }
 
-  Label* enter() { return &enter_; }
-  Label* exit() { return &exit_; }
+  JumpTarget* enter() { return &enter_; }
+  void BindExit() { exit_.Bind(0); }
+  void BindExit(Result* result) { exit_.Bind(result, 1); }
+  void BindExit(Result* result0, Result* result1, Result* result2) {
+    exit_.Bind(result0, result1, result2, 3);
+  }
 
   int statement_position() const { return statement_position_; }
   int position() const { return position_; }
@@ -103,15 +114,12 @@ class DeferredCode: public ZoneObject {
 #endif
 
  protected:
-  // The masm_ field is manipulated when compiling stubs with the
-  // BEGIN_STUB and END_STUB macros. For that reason, it cannot be
-  // constant.
-  MacroAssembler* masm_;
+  CodeGenerator* const generator_;
+  MacroAssembler* const masm_;
+  JumpTarget enter_;
+  JumpTarget exit_;
 
  private:
-  CodeGenerator* const generator_;
-  Label enter_;
-  Label exit_;
   int statement_position_;
   int position_;
 #ifdef DEBUG

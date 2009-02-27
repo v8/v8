@@ -43,57 +43,6 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 
 // -------------------------------------------------------------------------
-// Virtual frame
-
-class VirtualFrame BASE_EMBEDDED {
- public:
-  explicit VirtualFrame(CodeGenerator* cgen);
-
-  void Enter();
-  void Exit();
-
-  void AllocateLocals();
-
-  MemOperand Top() const { return MemOperand(sp, 0); }
-
-  MemOperand Element(int index) const {
-    return MemOperand(sp, index * kPointerSize);
-  }
-
-  MemOperand Local(int index) const {
-    ASSERT(0 <= index && index < frame_local_count_);
-    return MemOperand(fp, kLocal0Offset - index * kPointerSize);
-  }
-
-  MemOperand Function() const { return MemOperand(fp, kFunctionOffset); }
-
-  MemOperand Context() const { return MemOperand(fp, kContextOffset); }
-
-  MemOperand Parameter(int index) const {
-    // Index -1 corresponds to the receiver.
-    ASSERT(-1 <= index && index <= parameter_count_);
-    return MemOperand(fp, (1 + parameter_count_ - index) * kPointerSize);
-  }
-
-  inline void Drop(int count);
-
-  inline void Pop();
-  inline void Pop(Register reg);
-
-  inline void Push(Register reg);
-
- private:
-  static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
-  static const int kFunctionOffset = JavaScriptFrameConstants::kFunctionOffset;
-  static const int kContextOffset = StandardFrameConstants::kContextOffset;
-
-  MacroAssembler* masm_;
-  int frame_local_count_;
-  int parameter_count_;
-};
-
-
-// -------------------------------------------------------------------------
 // Reference support
 
 // A reference is a C++ stack-allocated object that keeps an ECMA
@@ -132,6 +81,11 @@ class Reference BASE_EMBEDDED {
   // the expression stack, and it is left in place with its value above it.
   void GetValue(TypeofState typeof_state);
 
+  // Generate code to push the value of a reference on top of the expression
+  // stack and then spill the stack frame.  This function is used temporarily
+  // while the code generator is being transformed.
+  inline void GetValueAndSpill(TypeofState typeof_state);
+
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
   // on the expression stack.  The stored value is left in place (with the
@@ -164,22 +118,22 @@ class CodeGenState BASE_EMBEDDED {
   // labels.
   CodeGenState(CodeGenerator* owner,
                TypeofState typeof_state,
-               Label* true_target,
-               Label* false_target);
+               JumpTarget* true_target,
+               JumpTarget* false_target);
 
   // Destroy a code generator state and restore the owning code generator's
   // previous state.
   ~CodeGenState();
 
   TypeofState typeof_state() const { return typeof_state_; }
-  Label* true_target() const { return true_target_; }
-  Label* false_target() const { return false_target_; }
+  JumpTarget* true_target() const { return true_target_; }
+  JumpTarget* false_target() const { return false_target_; }
 
  private:
   CodeGenerator* owner_;
   TypeofState typeof_state_;
-  Label* true_target_;
-  Label* false_target_;
+  JumpTarget* true_target_;
+  JumpTarget* false_target_;
   CodeGenState* previous_;
 };
 
@@ -213,10 +167,25 @@ class CodeGenerator: public AstVisitor {
 
   VirtualFrame* frame() const { return frame_; }
 
+  bool has_valid_frame() const { return frame_ != NULL; }
+
+  // Set the virtual frame to be new_frame, with non-frame register
+  // reference counts given by non_frame_registers.  The non-frame
+  // register reference counts of the old frame are returned in
+  // non_frame_registers.
+  void SetFrame(VirtualFrame* new_frame, RegisterFile* non_frame_registers);
+
+  void DeleteFrame();
+
+  RegisterAllocator* allocator() const { return allocator_; }
+
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
 
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
+
+  bool in_spilled_code() const { return in_spilled_code_; }
+  void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
 
  private:
   // Construction/Destruction
@@ -233,15 +202,43 @@ class CodeGenerator: public AstVisitor {
   // State
   bool has_cc() const  { return cc_reg_ != al; }
   TypeofState typeof_state() const { return state_->typeof_state(); }
-  Label* true_target() const  { return state_->true_target(); }
-  Label* false_target() const  { return state_->false_target(); }
+  JumpTarget* true_target() const  { return state_->true_target(); }
+  JumpTarget* false_target() const  { return state_->false_target(); }
 
 
   // Node visitors.
+  void VisitStatements(ZoneList<Statement*>* statements);
+
 #define DEF_VISIT(type) \
   void Visit##type(type* node);
   NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
+
+  // Visit a statement and then spill the virtual frame if control flow can
+  // reach the end of the statement (ie, it does not exit via break,
+  // continue, return, or throw).  This function is used temporarily while
+  // the code generator is being transformed.
+  void VisitAndSpill(Statement* statement) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    Visit(statement);
+    if (frame_ != NULL) {
+      frame_->SpillAll();
+    }
+    set_in_spilled_code(true);
+  }
+
+  // Visit a list of statements and then spill the virtual frame if control
+  // flow can reach the end of the list.
+  void VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    VisitStatements(statements);
+    if (frame_ != NULL) {
+      frame_->SpillAll();
+    }
+    set_in_spilled_code(true);
+  }
 
   // Main code generation function
   void GenCode(FunctionLiteral* fun);
@@ -259,7 +256,7 @@ class CodeGenerator: public AstVisitor {
   MemOperand ContextSlotOperandCheckExtensions(Slot* slot,
                                                Register tmp,
                                                Register tmp2,
-                                               Label* slow);
+                                               JumpTarget* slow);
 
   // Expressions
   MemOperand GlobalObject() const  {
@@ -268,12 +265,42 @@ class CodeGenerator: public AstVisitor {
 
   void LoadCondition(Expression* x,
                      TypeofState typeof_state,
-                     Label* true_target,
-                     Label* false_target,
+                     JumpTarget* true_target,
+                     JumpTarget* false_target,
                      bool force_cc);
   void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
   void LoadGlobalReceiver(Register scratch);
+
+  // Generate code to push the value of an expression on top of the frame
+  // and then spill the frame fully to memory.  This function is used
+  // temporarily while the code generator is being transformed.
+  void LoadAndSpill(Expression* expression,
+                    TypeofState typeof_state = NOT_INSIDE_TYPEOF) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    Load(expression, typeof_state);
+    frame_->SpillAll();
+    set_in_spilled_code(true);
+  }
+
+  // Call LoadCondition and then spill the virtual frame unless control flow
+  // cannot reach the end of the expression (ie, by emitting only
+  // unconditional jumps to the control targets).
+  void LoadConditionAndSpill(Expression* expression,
+                             TypeofState typeof_state,
+                             JumpTarget* true_target,
+                             JumpTarget* false_target,
+                             bool force_control) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    LoadCondition(expression, typeof_state, true_target, false_target,
+                  force_control);
+    if (frame_ != NULL) {
+      frame_->SpillAll();
+    }
+    set_in_spilled_code(true);
+  }
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
@@ -281,7 +308,7 @@ class CodeGenerator: public AstVisitor {
                                          TypeofState typeof_state,
                                          Register tmp,
                                          Register tmp2,
-                                         Label* slow);
+                                         JumpTarget* slow);
 
   // Special code for typeof expressions: Unfortunately, we must
   // be careful when loading the expression in 'typeof'
@@ -291,7 +318,7 @@ class CodeGenerator: public AstVisitor {
   // through the context chain.
   void LoadTypeofExpression(Expression* x);
 
-  void ToBoolean(Label* true_target, Label* false_target);
+  void ToBoolean(JumpTarget* true_target, JumpTarget* false_target);
 
   void GenericBinaryOperation(Token::Value op);
   void Comparison(Condition cc, bool strict = false);
@@ -301,7 +328,7 @@ class CodeGenerator: public AstVisitor {
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
 
   // Control flow
-  void Branch(bool if_true, Label* L);
+  void Branch(bool if_true, JumpTarget* target);
   void CheckStack();
   void CleanStack(int num_bytes);
 
@@ -371,14 +398,15 @@ class CodeGenerator: public AstVisitor {
   void GenerateFastCaseSwitchJumpTable(SwitchStatement* node,
                                        int min_index,
                                        int range,
-                                       Label* fail_label,
+                                       Label* default_label,
                                        Vector<Label*> case_targets,
                                        Vector<Label> case_labels);
 
   // Generate the code for cases for the fast case switch.
   // Called by GenerateFastCaseSwitchJumpTable.
   void GenerateFastCaseSwitchCases(SwitchStatement* node,
-                                   Vector<Label> case_labels);
+                                   Vector<Label> case_labels,
+                                   VirtualFrame* start_frame);
 
   // Fast support for constant-Smi switches.
   void GenerateFastCaseSwitchStatement(SwitchStatement* node,
@@ -395,10 +423,21 @@ class CodeGenerator: public AstVisitor {
   // Methods used to indicate which source code is generated for. Source
   // positions are collected by the assembler and emitted with the relocation
   // information.
-  void CodeForStatement(Node* node);
+  void CodeForFunctionPosition(FunctionLiteral* fun);
+  void CodeForStatementPosition(Node* node);
   void CodeForSourcePosition(int pos);
 
+  // Is the given jump target the actual (ie, non-shadowed) function return
+  // target?
+  bool IsActualFunctionReturn(JumpTarget* target);
+
+#ifdef DEBUG
+  // True if the registers are valid for entry to a block.
+  bool HasValidEntryRegisters();
+#endif
+
   bool is_eval_;  // Tells whether code is generated for eval.
+
   Handle<Script> script_;
   List<DeferredCode*> deferred_;
 
@@ -408,19 +447,41 @@ class CodeGenerator: public AstVisitor {
   // Code generation state
   Scope* scope_;
   VirtualFrame* frame_;
+  RegisterAllocator* allocator_;
   Condition cc_reg_;
   CodeGenState* state_;
-  bool is_inside_try_;
   int break_stack_height_;
 
-  // Labels
-  Label function_return_;
+  // Jump targets
+  JumpTarget function_return_;
+
+  // True if the function return is shadowed (ie, jumping to the target
+  // function_return_ does not jump to the true function return, but rather
+  // to some unlinking code).
+  bool function_return_is_shadowed_;
+
+  // True when we are in code that expects the virtual frame to be fully
+  // spilled.  Some virtual frame function are disabled in DEBUG builds when
+  // called from spilled code, because they do not leave the virtual frame
+  // in a spilled state.
+  bool in_spilled_code_;
 
   friend class VirtualFrame;
+  friend class JumpTarget;
   friend class Reference;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };
+
+
+void Reference::GetValueAndSpill(TypeofState typeof_state) {
+  ASSERT(cgen_->in_spilled_code());
+  cgen_->set_in_spilled_code(false);
+  GetValue(typeof_state);
+  cgen_->frame()->SpillAll();
+  cgen_->set_in_spilled_code(true);
+}
+
 
 } }  // namespace v8::internal
 

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,22 +25,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-function f() { return this; }
+// Test some code paths through the compiler for short-circuited
+// boolean expressions.
 
-assertFalse(this == null);  // the global object shouldn't be null or undefined
-assertEquals('[object global]', String(this));
+function andTest0() {
+  var a = 0;
+  // Left subexpression is known false at compile time.
+  return a != 0 && "failure";
+}
 
-assertTrue(this === this);
-assertTrue(this === (function() { return this; })());
-assertTrue(this === f());
+assertFalse(andTest0());
 
-var x = {}, y = {};
-x.f = y.f = f;
-assertFalse(x === f());
-assertFalse(y === f());
-assertTrue(x === x.f());
-assertTrue(x === x[new String('f')]());
-assertTrue(y === y.f(), "y.f()");
-assertTrue(y === y[new String('f')]());
-assertFalse(x === y.f());
-assertFalse(y === x.f());
+
+function orTest0() {
+  var a = 0;
+  // Left subexpression is known true at compile time.
+  return a == 0 || "failure";
+}
+
+assertTrue(orTest0());

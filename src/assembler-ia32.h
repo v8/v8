@@ -63,6 +63,8 @@ namespace v8 { namespace internal {
 struct Register {
   bool is_valid() const  { return 0 <= code_ && code_ < 8; }
   bool is(Register reg) const  { return code_ == reg.code_; }
+  // eax, ebx, ecx and edx are byte registers, the rest are not.
+  bool is_byte_register() const  { return code_ <= 3; }
   int code() const  {
     ASSERT(is_valid());
     return code_;
@@ -75,6 +77,8 @@ struct Register {
   // (unfortunately we can't make this private in a struct)
   int code_;
 };
+
+const int kNumRegisters = 8;
 
 extern Register eax;
 extern Register ecx;
@@ -173,6 +177,15 @@ enum Hint {
   taken = 0x3e
 };
 
+
+// The result of negating a hint is as if the corresponding condition
+// were negated by NegateCondition.  That is, no_hint is mapped to
+// itself and not_taken and taken are mapped to each other.
+inline Hint NegateHint(Hint hint) {
+  return (hint == no_hint)
+      ? no_hint
+      : ((hint == not_taken) ? taken : not_taken);
+}
 
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
@@ -494,6 +507,9 @@ class Assembler : public Malloced {
   void cmov(Condition cc, Register dst, Handle<Object> handle);
   void cmov(Condition cc, Register dst, const Operand& src);
 
+  // Exchange two registers
+  void xchg(Register dst, Register src);
+
   // Arithmetics
   void adc(Register dst, int32_t imm32);
   void adc(Register dst, const Operand& src);
@@ -674,6 +690,7 @@ class Assembler : public Malloced {
   void frndint();
 
   void sahf();
+  void setcc(Condition cc, Register reg);
 
   void cpuid();
 

@@ -205,7 +205,7 @@ class Parser {
   BreakableStatement* LookupBreakTarget(Handle<String> label, bool* ok);
   IterationStatement* LookupContinueTarget(Handle<String> label, bool* ok);
 
-  void RegisterLabelUse(Label* label, int index);
+  void RegisterTargetUse(JumpTarget* target, int index);
 
   // Create a number literal.
   Literal* NewNumberLiteral(double value);
@@ -2050,8 +2050,8 @@ Block* Parser::WithHelper(Expression* obj,
                           bool is_catch_block,
                           bool* ok) {
   // Parse the statement and collect escaping labels.
-  ZoneList<Label*>* label_list = NEW(ZoneList<Label*>(0));
-  LabelCollector collector(label_list);
+  ZoneList<JumpTarget*>* target_list = NEW(ZoneList<JumpTarget*>(0));
+  TargetCollector collector(target_list);
   Statement* stat;
   { Target target(this, &collector);
     with_nesting_level_++;
@@ -2064,7 +2064,7 @@ Block* Parser::WithHelper(Expression* obj,
   // 2: The try-finally block evaluating the body.
   Block* result = NEW(Block(NULL, 2, false));
 
-  if (result) {
+  if (result != NULL) {
     result->AddStatement(NEW(WithEnterStatement(obj, is_catch_block)));
 
     // Create body block.
@@ -2077,12 +2077,10 @@ Block* Parser::WithHelper(Expression* obj,
 
     // Return a try-finally statement.
     TryFinally* wrapper = NEW(TryFinally(body, exit));
-    wrapper->set_escaping_labels(collector.labels());
+    wrapper->set_escaping_targets(collector.targets());
     result->AddStatement(wrapper);
-    return result;
-  } else {
-    return NULL;
   }
+  return result;
 }
 
 
@@ -2197,8 +2195,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   Expect(Token::TRY, CHECK_OK);
 
-  ZoneList<Label*>* label_list = NEW(ZoneList<Label*>(0));
-  LabelCollector collector(label_list);
+  ZoneList<JumpTarget*>* target_list = NEW(ZoneList<JumpTarget*>(0));
+  TargetCollector collector(target_list);
   Block* try_block;
 
   { Target target(this, &collector);
@@ -2217,10 +2215,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   }
 
   // If we can break out from the catch block and there is a finally block,
-  // then we will need to collect labels from the catch block. Since we don't
-  // know yet if there will be a finally block, we always collect the labels.
-  ZoneList<Label*>* catch_label_list = NEW(ZoneList<Label*>(0));
-  LabelCollector catch_collector(catch_label_list);
+  // then we will need to collect jump targets from the catch block. Since
+  // we don't know yet if there will be a finally block, we always collect
+  // the jump targets.
+  ZoneList<JumpTarget*>* catch_target_list = NEW(ZoneList<JumpTarget*>(0));
+  TargetCollector catch_collector(catch_target_list);
   bool has_catch = false;
   if (tok == Token::CATCH) {
     has_catch = true;
@@ -2260,7 +2259,7 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
   if (!is_pre_parsing_ && catch_block != NULL && finally_block != NULL) {
     TryCatch* statement = NEW(TryCatch(try_block, catch_var, catch_block));
-    statement->set_escaping_labels(collector.labels());
+    statement->set_escaping_targets(collector.targets());
     try_block = NEW(Block(NULL, 1, false));
     try_block->AddStatement(statement);
     catch_block = NULL;
@@ -2271,15 +2270,15 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     if (catch_block != NULL) {
       ASSERT(finally_block == NULL);
       result = NEW(TryCatch(try_block, catch_var, catch_block));
-      result->set_escaping_labels(collector.labels());
+      result->set_escaping_targets(collector.targets());
     } else {
       ASSERT(finally_block != NULL);
       result = NEW(TryFinally(try_block, finally_block));
-      // Add the labels of the try block and the catch block.
-      for (int i = 0; i < collector.labels()->length(); i++) {
-        catch_collector.labels()->Add(collector.labels()->at(i));
+      // Add the jump targets of the try block and the catch block.
+      for (int i = 0; i < collector.targets()->length(); i++) {
+        catch_collector.targets()->Add(collector.targets()->at(i));
       }
-      result->set_escaping_labels(catch_collector.labels());
+      result->set_escaping_targets(catch_collector.targets());
     }
   }
 
@@ -3506,7 +3505,7 @@ BreakableStatement* Parser::LookupBreakTarget(Handle<String> label, bool* ok) {
 
     if ((anonymous && stat->is_target_for_anonymous()) ||
         (!anonymous && ContainsLabel(stat->labels(), label))) {
-      RegisterLabelUse(stat->break_target(), i);
+      RegisterTargetUse(stat->break_target(), i);
       return stat;
     }
   }
@@ -3523,7 +3522,7 @@ IterationStatement* Parser::LookupContinueTarget(Handle<String> label,
 
     ASSERT(stat->is_target_for_anonymous());
     if (anonymous || ContainsLabel(stat->labels(), label)) {
-      RegisterLabelUse(stat->continue_target(), i);
+      RegisterTargetUse(stat->continue_target(), i);
       return stat;
     }
   }
@@ -3531,13 +3530,13 @@ IterationStatement* Parser::LookupContinueTarget(Handle<String> label,
 }
 
 
-void Parser::RegisterLabelUse(Label* label, int index) {
-  // Register that a label found at the given index in the target
-  // stack has been used from the top of the target stack. Add the
-  // label to any LabelCollectors passed on the stack.
+void Parser::RegisterTargetUse(JumpTarget* target, int index) {
+  // Register that a jump target found at the given index in the target
+  // stack has been used from the top of the target stack. Add the jump
+  // target to any TargetCollectors passed on the stack.
   for (int i = target_stack_->length(); i-- > index;) {
-    LabelCollector* collector = target_stack_->at(i)->AsLabelCollector();
-    if (collector != NULL) collector->AddLabel(label);
+    TargetCollector* collector = target_stack_->at(i)->AsTargetCollector();
+    if (collector != NULL) collector->AddTarget(target);
   }
 }
 

@@ -29,6 +29,7 @@
 #define V8_CODEGEN_IA32_H_
 
 #include "scopes.h"
+#include "register-allocator.h"
 
 namespace v8 { namespace internal {
 
@@ -40,61 +41,6 @@ enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
 
 enum InitState { CONST_INIT, NOT_CONST_INIT };
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
-
-
-// -------------------------------------------------------------------------
-// Virtual frame
-
-class VirtualFrame BASE_EMBEDDED {
- public:
-  explicit VirtualFrame(CodeGenerator* cgen);
-
-  void Enter();
-  void Exit();
-
-  void AllocateLocals();
-
-  Operand Top() const { return Operand(esp, 0); }
-
-  Operand Element(int index) const {
-    return Operand(esp, index * kPointerSize);
-  }
-
-  Operand Local(int index) const {
-    ASSERT(0 <= index && index < frame_local_count_);
-    return Operand(ebp, kLocal0Offset - index * kPointerSize);
-  }
-
-  Operand Function() const { return Operand(ebp, kFunctionOffset); }
-
-  Operand Context() const { return Operand(ebp, kContextOffset); }
-
-  Operand Parameter(int index) const {
-    ASSERT(-1 <= index && index < parameter_count_);
-    return Operand(ebp, (1 + parameter_count_ - index) * kPointerSize);
-  }
-
-  Operand Receiver() const { return Parameter(-1); }
-
-  inline void Drop(int count);
-
-  inline void Pop();
-  inline void Pop(Register reg);
-  inline void Pop(Operand operand);
-
-  inline void Push(Register reg);
-  inline void Push(Operand operand);
-  inline void Push(Immediate immediate);
-
- private:
-  static const int kLocal0Offset = JavaScriptFrameConstants::kLocal0Offset;
-  static const int kFunctionOffset = JavaScriptFrameConstants::kFunctionOffset;
-  static const int kContextOffset = StandardFrameConstants::kContextOffset;
-
-  MacroAssembler* masm_;
-  int frame_local_count_;
-  int parameter_count_;
-};
 
 
 // -------------------------------------------------------------------------
@@ -136,6 +82,16 @@ class Reference BASE_EMBEDDED {
   // the expression stack, and it is left in place with its value above it.
   void GetValue(TypeofState typeof_state);
 
+  // Generate code to push the value of a reference on top of the expression
+  // stack and then spill the stack frame.  This function is used temporarily
+  // while the code generator is being transformed.
+  inline void GetValueAndSpill(TypeofState typeof_state);
+
+  // Like GetValue except that the slot is expected to be written to before
+  // being read from again.  Thae value of the reference may be invalidated,
+  // causing subsequent attempts to read it to fail.
+  void TakeValue(TypeofState typeof_state);
+
   // Generate code to store the value on top of the expression stack in the
   // reference.  The reference is expected to be immediately below the value
   // on the expression stack.  The stored value is left in place (with the
@@ -150,12 +106,141 @@ class Reference BASE_EMBEDDED {
 
 
 // -------------------------------------------------------------------------
+// Control destinations.
+
+// A control destination encapsulates a pair of jump targets and a
+// flag indicating which one is the preferred fall-through.  The
+// preferred fall-through must be unbound, the other may be already
+// bound (ie, a backward target).
+//
+// The true and false targets may be jumped to unconditionally or
+// control may split conditionally.  Unconditional jumping and
+// splitting should be emitted in tail position (as the last thing
+// when compiling an expression) because they can cause either label
+// to be bound or the non-fall through to be jumped to leaving an
+// invalid virtual frame.
+//
+// The labels in the control destination can be extracted and
+// manipulated normally without affecting the state of the
+// destination.
+
+class ControlDestination BASE_EMBEDDED {
+ public:
+  ControlDestination(JumpTarget* true_target,
+                     JumpTarget* false_target,
+                     bool true_is_fall_through)
+      : true_target_(true_target),
+        false_target_(false_target),
+        true_is_fall_through_(true_is_fall_through),
+        is_used_(false) {
+    ASSERT(true_is_fall_through ? !true_target->is_bound()
+                                : !false_target->is_bound());
+  }
+
+  // Accessors for the jump targets.  Directly jumping or branching to
+  // or binding the targets will not update the destination's state.
+  JumpTarget* true_target() const { return true_target_; }
+  JumpTarget* false_target() const { return false_target_; }
+
+  // True if the the destination has been jumped to unconditionally or
+  // control has been split to both targets.  This predicate does not
+  // test whether the targets have been extracted and manipulated as
+  // raw jump targets.
+  bool is_used() const { return is_used_; }
+
+  // True if the destination is used and the true target (respectively
+  // false target) was the fall through.  If the target is backward,
+  // "fall through" included jumping unconditionally to it.
+  bool true_was_fall_through() const {
+    return is_used_ && true_is_fall_through_;
+  }
+
+  bool false_was_fall_through() const {
+    return is_used_ && !true_is_fall_through_;
+  }
+
+  // Emit a branch to one of the true or false targets, and bind the
+  // other target.  Because this binds the fall-through target, it
+  // should be emitted in tail position (as the last thing when
+  // compiling an expression).
+  void Split(Condition cc) {
+    ASSERT(!is_used_);
+    if (true_is_fall_through_) {
+      false_target_->Branch(NegateCondition(cc));
+      true_target_->Bind();
+    } else {
+      true_target_->Branch(cc);
+      false_target_->Bind();
+    }
+    is_used_ = true;
+  }
+
+  // Emit an unconditional jump in tail position, to the true target
+  // (if the argument is true) or the false target.  The "jump" will
+  // actually bind the jump target if it is forward, jump to it if it
+  // is backward.
+  void Goto(bool where) {
+    ASSERT(!is_used_);
+    JumpTarget* target = where ? true_target_ : false_target_;
+    if (target->is_bound()) {
+      target->Jump();
+    } else {
+      target->Bind();
+    }
+    is_used_ = true;
+    true_is_fall_through_ = where;
+  }
+
+  // Mark this jump target as used as if Goto had been called, but
+  // without generating a jump or binding a label (the control effect
+  // should have already happened).  This is used when the left
+  // subexpression of the short-circuit boolean operators are
+  // compiled.
+  void Use(bool where) {
+    ASSERT(!is_used_);
+    ASSERT((where ? true_target_ : false_target_)->is_bound());
+    is_used_ = true;
+    true_is_fall_through_ = where;
+  }
+
+  // Swap the true and false targets but keep the same actual label as
+  // the fall through.  This is used when compiling negated
+  // expressions, where we want to swap the targets but preserve the
+  // state.
+  void Invert() {
+    JumpTarget* temp_target = true_target_;
+    true_target_ = false_target_;
+    false_target_ = temp_target;
+
+    true_is_fall_through_ = !true_is_fall_through_;
+  }
+
+ private:
+  // True and false jump targets.
+  JumpTarget* true_target_;
+  JumpTarget* false_target_;
+
+  // Before using the destination: true if the true target is the
+  // preferred fall through, false if the false target is.  After
+  // using the destination: true if the true target was actually used
+  // as the fall through, false if the false target was.
+  bool true_is_fall_through_;
+
+  // True if the Split or Goto functions have been called.
+  bool is_used_;
+};
+
+
+// -------------------------------------------------------------------------
 // Code generation state
 
 // The state is passed down the AST by the code generator (and back up, in
-// the form of the state of the label pair).  It is threaded through the
-// call stack.  Constructing a state implicitly pushes it on the owning code
-// generator's stack of states, and destroying one implicitly pops it.
+// the form of the state of the jump target pair).  It is threaded through
+// the call stack.  Constructing a state implicitly pushes it on the owning
+// code generator's stack of states, and destroying one implicitly pops it.
+//
+// The code generator state is only used for expressions, so statements have
+// the initial state.
 
 class CodeGenState BASE_EMBEDDED {
  public:
@@ -164,26 +249,34 @@ class CodeGenState BASE_EMBEDDED {
   explicit CodeGenState(CodeGenerator* owner);
 
   // Create a code generator state based on a code generator's current
-  // state.  The new state has its own access type and pair of branch
-  // labels, and no reference.
+  // state.  The new state may or may not be inside a typeof, and has its
+  // own control destination.
   CodeGenState(CodeGenerator* owner,
                TypeofState typeof_state,
-               Label* true_target,
-               Label* false_target);
+               ControlDestination* destination);
 
   // Destroy a code generator state and restore the owning code generator's
   // previous state.
   ~CodeGenState();
 
+  // Accessors for the state.
   TypeofState typeof_state() const { return typeof_state_; }
-  Label* true_target() const { return true_target_; }
-  Label* false_target() const { return false_target_; }
+  ControlDestination* destination() const { return destination_; }
 
  private:
+  // The owning code generator.
   CodeGenerator* owner_;
+
+  // A flag indicating whether we are compiling the immediate subexpression
+  // of a typeof expression.
   TypeofState typeof_state_;
-  Label* true_target_;
-  Label* false_target_;
+
+  // A control destination in case the expression has a control-flow
+  // effect.
+  ControlDestination* destination_;
+
+  // The previous state of the owning code generator, restored when
+  // this state is destroyed.
   CodeGenState* previous_;
 };
 
@@ -219,10 +312,25 @@ class CodeGenerator: public AstVisitor {
 
   VirtualFrame* frame() const { return frame_; }
 
+  bool has_valid_frame() const { return frame_ != NULL; }
+
+  // Set the virtual frame to be new_frame, with non-frame register
+  // reference counts given by non_frame_registers.  The non-frame
+  // register reference counts of the old frame are returned in
+  // non_frame_registers.
+  void SetFrame(VirtualFrame* new_frame, RegisterFile* non_frame_registers);
+
+  void DeleteFrame();
+
+  RegisterAllocator* allocator() const { return allocator_; }
+
   CodeGenState* state() { return state_; }
   void set_state(CodeGenState* state) { state_ = state; }
 
   void AddDeferred(DeferredCode* code) { deferred_.Add(code); }
+
+  bool in_spilled_code() const { return in_spilled_code_; }
+  void set_in_spilled_code(bool flag) { in_spilled_code_ = flag; }
 
  private:
   // Construction/Destruction
@@ -237,10 +345,8 @@ class CodeGenerator: public AstVisitor {
   bool is_eval() { return is_eval_; }
 
   // State
-  bool has_cc() const  { return cc_reg_ >= 0; }
   TypeofState typeof_state() const { return state_->typeof_state(); }
-  Label* true_target() const  { return state_->true_target(); }
-  Label* false_target() const  { return state_->false_target(); }
+  ControlDestination* destination() const { return state_->destination(); }
 
   // Track loop nesting level.
   int loop_nesting() const { return loop_nesting_; }
@@ -249,13 +355,47 @@ class CodeGenerator: public AstVisitor {
 
 
   // Node visitors.
+  void VisitStatements(ZoneList<Statement*>* statements);
+
 #define DEF_VISIT(type) \
   void Visit##type(type* node);
   NODE_LIST(DEF_VISIT)
 #undef DEF_VISIT
 
+  // Visit a statement and then spill the virtual frame if control flow can
+  // reach the end of the statement (ie, it does not exit via break,
+  // continue, return, or throw).  This function is used temporarily while
+  // the code generator is being transformed.
+  void VisitAndSpill(Statement* statement) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    Visit(statement);
+    if (frame_ != NULL) {
+      frame_->SpillAll();
+    }
+    set_in_spilled_code(true);
+  }
+
+  // Visit a list of statements and then spill the virtual frame if control
+  // flow can reach the end of the list.
+  void VisitStatementsAndSpill(ZoneList<Statement*>* statements) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    VisitStatements(statements);
+    if (frame_ != NULL) {
+      frame_->SpillAll();
+    }
+    set_in_spilled_code(true);
+  }
+
   // Main code generation function
   void GenCode(FunctionLiteral* fun);
+
+  // Generate the return sequence code.  Should be called no more than once
+  // per compiled function (it binds the return target, which can not be
+  // done more than once).  The return value is assumed to be in eax by the
+  // code generated.
+  void GenerateReturnSequence();
 
   // The following are used by class Reference.
   void LoadReference(Reference* ref);
@@ -268,8 +408,8 @@ class CodeGenerator: public AstVisitor {
   Operand SlotOperand(Slot* slot, Register tmp);
 
   Operand ContextSlotOperandCheckExtensions(Slot* slot,
-                                            Register tmp,
-                                            Label* slow);
+                                            Result tmp,
+                                            JumpTarget* slow);
 
   // Expressions
   Operand GlobalObject() const {
@@ -278,19 +418,49 @@ class CodeGenerator: public AstVisitor {
 
   void LoadCondition(Expression* x,
                      TypeofState typeof_state,
-                     Label* true_target,
-                     Label* false_target,
-                     bool force_cc);
+                     ControlDestination* destination,
+                     bool force_control);
   void Load(Expression* x, TypeofState typeof_state = NOT_INSIDE_TYPEOF);
   void LoadGlobal();
-  void LoadGlobalReceiver(Register scratch);
+  void LoadGlobalReceiver();
+
+  // Generate code to push the value of an expression on top of the frame
+  // and then spill the frame fully to memory.  This function is used
+  // temporarily while the code generator is being transformed.
+  void LoadAndSpill(Expression* expression,
+                    TypeofState typeof_state = NOT_INSIDE_TYPEOF) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    Load(expression, typeof_state);
+    frame_->SpillAll();
+    set_in_spilled_code(true);
+  }
+
+  // Call LoadCondition and then spill the virtual frame unless control flow
+  // cannot reach the end of the expression (ie, by emitting only
+  // unconditional jumps to the control targets).
+  void LoadConditionAndSpill(Expression* expression,
+                             TypeofState typeof_state,
+                             ControlDestination* destination,
+                             bool force_control) {
+    ASSERT(in_spilled_code());
+    set_in_spilled_code(false);
+    LoadCondition(expression, typeof_state, destination, force_control);
+    if (frame_ != NULL) {
+      frame_->SpillAll();
+    }
+    set_in_spilled_code(true);
+  }
 
   // Read a value from a slot and leave it on top of the expression stack.
   void LoadFromSlot(Slot* slot, TypeofState typeof_state);
-  void LoadFromGlobalSlotCheckExtensions(Slot* slot,
-                                         TypeofState typeof_state,
-                                         Register tmp,
-                                         Label* slow);
+  Result LoadFromGlobalSlotCheckExtensions(Slot* slot,
+                                           TypeofState typeof_state,
+                                           JumpTarget* slow);
+
+  // Store the value on top of the expression stack into a slot, leaving the
+  // value in place.
+  void StoreToSlot(Slot* slot, InitState init_state);
 
   // Special code for typeof expressions: Unfortunately, we must
   // be careful when loading the expression in 'typeof'
@@ -300,19 +470,28 @@ class CodeGenerator: public AstVisitor {
   // through the context chain.
   void LoadTypeofExpression(Expression* x);
 
-  void ToBoolean(Label* true_target, Label* false_target);
+  // Translate the value on top of the frame into control flow to the
+  // control destination.
+  void ToBoolean(ControlDestination* destination);
 
   void GenericBinaryOperation(Token::Value op,
       StaticType* type,
       const OverwriteMode overwrite_mode = NO_OVERWRITE);
 
-  void Comparison(Condition cc, bool strict = false);
+  void Comparison(Condition cc,
+                  bool strict,
+                  ControlDestination* destination);
 
-  // Inline small integer literals. To prevent long attacker-controlled byte
-  // sequences, we only inline small Smis.
+  // To prevent long attacker-controlled byte sequences, integer constants
+  // from the JavaScript source are loaded in two parts if they are larger
+  // than 16 bits.
   static const int kMaxSmiInlinedBits = 16;
+  bool IsUnsafeSmi(Handle<Object> value);
+  // Load an integer constant x into a register target using
+  // at most 16 bits of user-controlled data per assembly operation.
+  void LoadUnsafeSmi(Register target, Handle<Object> value);
+
   bool IsInlineSmi(Literal* literal);
-  void SmiComparison(Condition cc,  Handle<Object> value, bool strict = false);
   void SmiOperation(Token::Value op,
                     StaticType* type,
                     Handle<Object> value,
@@ -321,8 +500,6 @@ class CodeGenerator: public AstVisitor {
 
   void CallWithArguments(ZoneList<Expression*>* arguments, int position);
 
-  // Control flow
-  void Branch(bool if_true, Label* L);
   void CheckStack();
   void CleanStack(int num_bytes);
 
@@ -400,7 +577,8 @@ class CodeGenerator: public AstVisitor {
   // Generate the code for cases for the fast case switch.
   // Called by GenerateFastCaseSwitchJumpTable.
   void GenerateFastCaseSwitchCases(SwitchStatement* node,
-                                   Vector<Label> case_labels);
+                                   Vector<Label> case_labels,
+                                   VirtualFrame* start_frame);
 
   // Fast support for constant-Smi switches.
   void GenerateFastCaseSwitchStatement(SwitchStatement* node,
@@ -416,10 +594,18 @@ class CodeGenerator: public AstVisitor {
   // Methods used to indicate which source code is generated for. Source
   // positions are collected by the assembler and emitted with the relocation
   // information.
-  void CodeForStatement(Node* node);
+  void CodeForFunctionPosition(FunctionLiteral* fun);
+  void CodeForStatementPosition(Node* node);
   void CodeForSourcePosition(int pos);
 
+#ifdef DEBUG
+  // True if the registers are valid for entry to a block.  There should be
+  // no frame-external references to eax, ebx, ecx, edx, or edi.
+  bool HasValidEntryRegisters();
+#endif
+
   bool is_eval_;  // Tells whether code is generated for eval.
+
   Handle<Script> script_;
   List<DeferredCode*> deferred_;
 
@@ -429,20 +615,42 @@ class CodeGenerator: public AstVisitor {
   // Code generation state
   Scope* scope_;
   VirtualFrame* frame_;
-  Condition cc_reg_;
+  RegisterAllocator* allocator_;
   CodeGenState* state_;
-  bool is_inside_try_;
   int break_stack_height_;
   int loop_nesting_;
 
-  // Labels
-  Label function_return_;
+  // Jump targets.
+  // The target of the return from the function.
+  JumpTarget function_return_;
+
+  // True if the function return is shadowed (ie, jumping to the target
+  // function_return_ does not jump to the true function return, but rather
+  // to some unlinking code).
+  bool function_return_is_shadowed_;
+
+  // True when we are in code that expects the virtual frame to be fully
+  // spilled.  Some virtual frame function are disabled in DEBUG builds when
+  // called from spilled code, because they do not leave the virtual frame
+  // in a spilled state.
+  bool in_spilled_code_;
 
   friend class VirtualFrame;
+  friend class JumpTarget;
   friend class Reference;
+  friend class Result;
 
   DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
 };
+
+
+void Reference::GetValueAndSpill(TypeofState typeof_state) {
+  ASSERT(cgen_->in_spilled_code());
+  cgen_->set_in_spilled_code(false);
+  GetValue(typeof_state);
+  cgen_->frame()->SpillAll();
+  cgen_->set_in_spilled_code(true);
+}
 
 
 } }  // namespace v8::internal

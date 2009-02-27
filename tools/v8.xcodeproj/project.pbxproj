@@ -25,6 +25,18 @@
 /* End PBXAggregateTarget section */
 
 /* Begin PBXBuildFile section */
+		58950D5E0F55519800F3E8BA /* jump-target.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D500F55514900F3E8BA /* jump-target.cc */; };
+		58950D5F0F55519D00F3E8BA /* jump-target-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */; };
+		58950D600F5551A300F3E8BA /* jump-target.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D500F55514900F3E8BA /* jump-target.cc */; };
+		58950D610F5551A400F3E8BA /* jump-target-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D4E0F55514900F3E8BA /* jump-target-arm.cc */; };
+		58950D620F5551AF00F3E8BA /* register-allocator-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D530F55514900F3E8BA /* register-allocator-ia32.cc */; };
+		58950D630F5551AF00F3E8BA /* register-allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D540F55514900F3E8BA /* register-allocator.cc */; };
+		58950D640F5551B500F3E8BA /* register-allocator.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D540F55514900F3E8BA /* register-allocator.cc */; };
+		58950D650F5551B600F3E8BA /* register-allocator-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D520F55514900F3E8BA /* register-allocator-arm.cc */; };
+		58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D5A0F55514900F3E8BA /* virtual-frame.cc */; };
+		58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */; };
+		58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D5A0F55514900F3E8BA /* virtual-frame.cc */; };
+		58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 58950D560F55514900F3E8BA /* virtual-frame-arm.cc */; };
 		8900116C0E71CA2300F91F35 /* libraries.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8900116B0E71CA2300F91F35 /* libraries.cc */; };
 		890A13FE0EE9C47F00E49346 /* interpreter-irregexp.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C660EE4665300B48DEB /* interpreter-irregexp.cc */; };
 		890A14010EE9C4B000E49346 /* regexp-macro-assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89A15C700EE466D000B48DEB /* regexp-macro-assembler-arm.cc */; };
@@ -248,6 +260,20 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		58950D4E0F55514900F3E8BA /* jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target-arm.cc"; sourceTree = "<group>"; };
+		58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target-ia32.cc"; sourceTree = "<group>"; };
+		58950D500F55514900F3E8BA /* jump-target.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target.cc"; sourceTree = "<group>"; };
+		58950D510F55514900F3E8BA /* jump-target.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "jump-target.h"; sourceTree = "<group>"; };
+		58950D520F55514900F3E8BA /* register-allocator-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "register-allocator-arm.cc"; sourceTree = "<group>"; };
+		58950D530F55514900F3E8BA /* register-allocator-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "register-allocator-ia32.cc"; sourceTree = "<group>"; };
+		58950D540F55514900F3E8BA /* register-allocator.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "register-allocator.cc"; sourceTree = "<group>"; };
+		58950D550F55514900F3E8BA /* register-allocator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "register-allocator.h"; sourceTree = "<group>"; };
+		58950D560F55514900F3E8BA /* virtual-frame-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame-arm.cc"; sourceTree = "<group>"; };
+		58950D570F55514900F3E8BA /* virtual-frame-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame-arm.h"; sourceTree = "<group>"; };
+		58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame-ia32.cc"; sourceTree = "<group>"; };
+		58950D590F55514900F3E8BA /* virtual-frame-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame-ia32.h"; sourceTree = "<group>"; };
+		58950D5A0F55514900F3E8BA /* virtual-frame.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "virtual-frame.cc"; sourceTree = "<group>"; };
+		58950D5B0F55514900F3E8BA /* virtual-frame.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "virtual-frame.h"; sourceTree = "<group>"; };
 		8900116B0E71CA2300F91F35 /* libraries.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = libraries.cc; sourceTree = "<group>"; };
 		893986D40F29020C007D5254 /* apiutils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = apiutils.h; sourceTree = "<group>"; };
 		8939880B0F2A35FA007D5254 /* v8_shell */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = v8_shell; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -667,6 +693,10 @@
 				89A15C680EE4665300B48DEB /* jsregexp-inl.h */,
 				897FF14E0E719B8F00D62E90 /* jsregexp.cc */,
 				897FF14F0E719B8F00D62E90 /* jsregexp.h */,
+				58950D4E0F55514900F3E8BA /* jump-target-arm.cc */,
+				58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */,
+				58950D500F55514900F3E8BA /* jump-target.cc */,
+				58950D510F55514900F3E8BA /* jump-target.h */,
 				897FF1500E719B8F00D62E90 /* list-inl.h */,
 				897FF1510E719B8F00D62E90 /* list.h */,
 				897FF1520E719B8F00D62E90 /* log.cc */,
@@ -712,6 +742,10 @@
 				89A15C7A0EE466D000B48DEB /* regexp-macro-assembler.h */,
 				8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */,
 				8944AD0F0F1D4D3A0028D560 /* regexp-stack.h */,
+				58950D520F55514900F3E8BA /* register-allocator-arm.cc */,
+				58950D530F55514900F3E8BA /* register-allocator-ia32.cc */,
+				58950D540F55514900F3E8BA /* register-allocator.cc */,
+				58950D550F55514900F3E8BA /* register-allocator.h */,
 				897FF16F0E719B8F00D62E90 /* rewriter.cc */,
 				897FF1700E719B8F00D62E90 /* rewriter.h */,
 				897FF1710E719B8F00D62E90 /* runtime.cc */,
@@ -762,6 +796,12 @@
 				897FF19E0E719B8F00D62E90 /* v8threads.h */,
 				897FF19F0E719B8F00D62E90 /* variables.cc */,
 				897FF1A00E719B8F00D62E90 /* variables.h */,
+				58950D560F55514900F3E8BA /* virtual-frame-arm.cc */,
+				58950D570F55514900F3E8BA /* virtual-frame-arm.h */,
+				58950D580F55514900F3E8BA /* virtual-frame-ia32.cc */,
+				58950D590F55514900F3E8BA /* virtual-frame-ia32.h */,
+				58950D5A0F55514900F3E8BA /* virtual-frame.cc */,
+				58950D5B0F55514900F3E8BA /* virtual-frame.h */,
 				897FF1A10E719B8F00D62E90 /* zone-inl.h */,
 				897FF1A20E719B8F00D62E90 /* zone.cc */,
 				897FF1A30E719B8F00D62E90 /* zone.h */,
@@ -1056,6 +1096,8 @@
 				89A88E0D0E71A66E0043BA31 /* ic.cc in Sources */,
 				89A15C850EE4678B00B48DEB /* interpreter-irregexp.cc in Sources */,
 				89A88E0E0E71A66F0043BA31 /* jsregexp.cc in Sources */,
+				58950D5E0F55519800F3E8BA /* jump-target.cc in Sources */,
+				58950D5F0F55519D00F3E8BA /* jump-target-ia32.cc in Sources */,
 				8900116C0E71CA2300F91F35 /* libraries.cc in Sources */,
 				89A88E0F0E71A6740043BA31 /* log.cc in Sources */,
 				89A88E100E71A6770043BA31 /* macro-assembler-ia32.cc in Sources */,
@@ -1072,6 +1114,8 @@
 				89A15C8A0EE467D100B48DEB /* regexp-macro-assembler-tracer.cc in Sources */,
 				89A15C810EE4674900B48DEB /* regexp-macro-assembler.cc in Sources */,
 				8944AD100F1D4D500028D560 /* regexp-stack.cc in Sources */,
+				58950D620F5551AF00F3E8BA /* register-allocator-ia32.cc in Sources */,
+				58950D630F5551AF00F3E8BA /* register-allocator.cc in Sources */,
 				89A88E190E71A6970043BA31 /* rewriter.cc in Sources */,
 				89A88E1A0E71A69B0043BA31 /* runtime.cc in Sources */,
 				89A88E1B0E71A69D0043BA31 /* scanner.cc in Sources */,
@@ -1093,6 +1137,8 @@
 				89A88E2B0E71A6D10043BA31 /* v8.cc in Sources */,
 				89A88E2C0E71A6D20043BA31 /* v8threads.cc in Sources */,
 				89A88E2D0E71A6D50043BA31 /* variables.cc in Sources */,
+				58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */,
+				58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */,
 				89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1147,6 +1193,8 @@
 				89F23C600E78D5B2006B2466 /* ic.cc in Sources */,
 				890A13FE0EE9C47F00E49346 /* interpreter-irregexp.cc in Sources */,
 				89F23C610E78D5B2006B2466 /* jsregexp.cc in Sources */,
+				58950D600F5551A300F3E8BA /* jump-target.cc in Sources */,
+				58950D610F5551A400F3E8BA /* jump-target-arm.cc in Sources */,
 				89F23C620E78D5B2006B2466 /* libraries.cc in Sources */,
 				89F23C630E78D5B2006B2466 /* log.cc in Sources */,
 				89F23C9E0E78D5FD006B2466 /* macro-assembler-arm.cc in Sources */,
@@ -1163,6 +1211,8 @@
 				890A14030EE9C4B500E49346 /* regexp-macro-assembler-tracer.cc in Sources */,
 				890A14040EE9C4B700E49346 /* regexp-macro-assembler.cc in Sources */,
 				8944AD110F1D4D570028D560 /* regexp-stack.cc in Sources */,
+				58950D640F5551B500F3E8BA /* register-allocator.cc in Sources */,
+				58950D650F5551B600F3E8BA /* register-allocator-arm.cc in Sources */,
 				89F23C6D0E78D5B2006B2466 /* rewriter.cc in Sources */,
 				89F23C6E0E78D5B2006B2466 /* runtime.cc in Sources */,
 				89F23C6F0E78D5B2006B2466 /* scanner.cc in Sources */,
@@ -1185,6 +1235,8 @@
 				89F23C7F0E78D5B2006B2466 /* v8.cc in Sources */,
 				89F23C800E78D5B2006B2466 /* v8threads.cc in Sources */,
 				89F23C810E78D5B2006B2466 /* variables.cc in Sources */,
+				58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */,
+				58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */,
 				89F23C820E78D5B2006B2466 /* zone.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

@@ -38,82 +38,6 @@ namespace v8 { namespace internal {
 #define __ masm_->
 
 // -------------------------------------------------------------------------
-// VirtualFrame implementation.
-
-VirtualFrame::VirtualFrame(CodeGenerator* cgen) {
-  ASSERT(cgen->scope() != NULL);
-
-  masm_ = cgen->masm();
-  frame_local_count_ = cgen->scope()->num_stack_slots();
-  parameter_count_ = cgen->scope()->num_parameters();
-}
-
-
-void VirtualFrame::Enter() {
-  Comment cmnt(masm_, "[ Enter JS frame");
-#ifdef DEBUG
-  { Label done, fail;
-    __ tst(r1, Operand(kSmiTagMask));
-    __ b(eq, &fail);
-    __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
-    __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
-    __ cmp(r2, Operand(JS_FUNCTION_TYPE));
-    __ b(eq, &done);
-    __ bind(&fail);
-    __ stop("CodeGenerator::EnterJSFrame - r1 not a function");
-    __ bind(&done);
-  }
-#endif  // DEBUG
-
-  __ stm(db_w, sp, r1.bit() | cp.bit() | fp.bit() | lr.bit());
-  // Adjust FP to point to saved FP.
-  __ add(fp, sp, Operand(2 * kPointerSize));
-}
-
-
-void VirtualFrame::Exit() {
-  Comment cmnt(masm_, "[ Exit JS frame");
-  // Drop the execution stack down to the frame pointer and restore the caller
-  // frame pointer and return address.
-  __ mov(sp, fp);
-  __ ldm(ia_w, sp, fp.bit() | lr.bit());
-}
-
-
-void VirtualFrame::AllocateLocals() {
-  if (frame_local_count_ > 0) {
-    Comment cmnt(masm_, "[ Allocate space for locals");
-      // Initialize stack slots with 'undefined' value.
-    __ mov(ip, Operand(Factory::undefined_value()));
-    for (int i = 0; i < frame_local_count_; i++) {
-      __ push(ip);
-    }
-  }
-}
-
-
-void VirtualFrame::Drop(int count) {
-  ASSERT(count >= 0);
-  if (count > 0) {
-    __ add(sp, sp, Operand(count * kPointerSize));
-  }
-}
-
-
-void VirtualFrame::Pop() { Drop(1); }
-
-
-void VirtualFrame::Pop(Register reg) {
-  __ pop(reg);
-}
-
-
-void VirtualFrame::Push(Register reg) {
-  __ push(reg);
-}
-
-
-// -------------------------------------------------------------------------
 // CodeGenState implementation.
 
 CodeGenState::CodeGenState(CodeGenerator* owner)
@@ -128,8 +52,8 @@ CodeGenState::CodeGenState(CodeGenerator* owner)
 
 CodeGenState::CodeGenState(CodeGenerator* owner,
                            TypeofState typeof_state,
-                           Label* true_target,
-                           Label* false_target)
+                           JumpTarget* true_target,
+                           JumpTarget* false_target)
     : owner_(owner),
       typeof_state_(typeof_state),
       true_target_(true_target),
@@ -156,17 +80,19 @@ CodeGenerator::CodeGenerator(int buffer_size, Handle<Script> script,
       masm_(new MacroAssembler(NULL, buffer_size)),
       scope_(NULL),
       frame_(NULL),
+      allocator_(NULL),
       cc_reg_(al),
       state_(NULL),
-      break_stack_height_(0) {
+      break_stack_height_(0),
+      function_return_is_shadowed_(false),
+      in_spilled_code_(false) {
 }
 
 
 // Calling conventions:
-// r0: the number of arguments
-// fp: frame pointer
+// fp: caller's frame pointer
 // sp: stack pointer
-// pp: caller's parameter pointer
+// r1: called JS function
 // cp: callee's context
 
 void CodeGenerator::GenCode(FunctionLiteral* fun) {
@@ -175,46 +101,53 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
   // Initialize state.
   ASSERT(scope_ == NULL);
   scope_ = fun->scope();
+  ASSERT(allocator_ == NULL);
+  RegisterAllocator register_allocator(this);
+  allocator_ = &register_allocator;
   ASSERT(frame_ == NULL);
-  VirtualFrame virtual_frame(this);
-  frame_ = &virtual_frame;
+  frame_ = new VirtualFrame(this);
   cc_reg_ = al;
+  function_return_.Initialize(this, JumpTarget::BIDIRECTIONAL);
+  function_return_is_shadowed_ = false;
+  set_in_spilled_code(false);
   {
     CodeGenState state(this);
 
-    // Entry
-    // stack: function, receiver, arguments, return address
-    // r0: number of arguments
+    // Entry:
+    // Stack: receiver, arguments
+    // lr: return address
+    // fp: caller's frame pointer
     // sp: stack pointer
-    // fp: frame pointer
-    // pp: caller's parameter pointer
+    // r1: called JS function
     // cp: callee's context
-
+    allocator_->Initialize();
     frame_->Enter();
     // tos: code slot
 #ifdef DEBUG
     if (strlen(FLAG_stop_at) > 0 &&
         fun->name()->IsEqualTo(CStrVector(FLAG_stop_at))) {
+      frame_->SpillAll();
       __ stop("stop-at");
     }
 #endif
 
     // Allocate space for locals and initialize them.
-    frame_->AllocateLocals();
+    frame_->AllocateStackSlots(scope_->num_stack_slots());
 
+    VirtualFrame::SpilledScope spilled_scope(this);
     if (scope_->num_heap_slots() > 0) {
       // Allocate local context.
       // Get outer context and create a new context based on it.
       __ ldr(r0, frame_->Function());
-      frame_->Push(r0);
-      __ CallRuntime(Runtime::kNewContext, 1);  // r0 holds the result
+      frame_->EmitPush(r0);
+      frame_->CallRuntime(Runtime::kNewContext, 1);  // r0 holds the result
 
       if (kDebug) {
-        Label verified_true;
+        JumpTarget verified_true(this);
         __ cmp(r0, Operand(cp));
-        __ b(eq, &verified_true);
+        verified_true.Branch(eq);
         __ stop("NewContext: r0 is expected to be the same as cp");
-        __ bind(&verified_true);
+        verified_true.Bind();
       }
       // Update context local.
       __ str(cp, frame_->Context());
@@ -240,7 +173,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
         Slot* slot = par->slot();
         if (slot != NULL && slot->type() == Slot::CONTEXT) {
           ASSERT(!scope_->is_global_scope());  // no parameters in global scope
-          __ ldr(r1, frame_->Parameter(i));
+          __ ldr(r1, frame_->ParameterAt(i));
           // Loads r2 with context; used below in RecordWrite.
           __ str(r1, SlotOperand(slot, r2));
           // Load the offset into r3.
@@ -267,14 +200,15 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
           const int kReceiverDisplacement = 2 + scope_->num_parameters();
           __ add(r1, fp, Operand(kReceiverDisplacement * kPointerSize));
           __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
+          frame_->Adjust(3);
           __ stm(db_w, sp, r0.bit() | r1.bit() | r2.bit());
-          __ CallStub(&stub);
-          frame_->Push(r0);
+          frame_->CallStub(&stub, 3);
+          frame_->EmitPush(r0);
           arguments_ref.SetValue(NOT_CONST_INIT);
         }
         shadow_ref.SetValue(NOT_CONST_INIT);
       }
-      frame_->Pop();  // Value is no longer needed.
+      frame_->Drop();  // Value is no longer needed.
     }
 
     // Generate code to 'execute' declarations and initialize functions
@@ -292,7 +226,7 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
     }
 
     if (FLAG_trace) {
-      __ CallRuntime(Runtime::kTraceEnter, 0);
+      frame_->CallRuntime(Runtime::kTraceEnter, 0);
       // Ignore the return value.
     }
     CheckStack();
@@ -307,42 +241,52 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       bool should_trace =
           is_builtin ? FLAG_trace_builtin_calls : FLAG_trace_calls;
       if (should_trace) {
-        __ CallRuntime(Runtime::kDebugTrace, 0);
+        frame_->CallRuntime(Runtime::kDebugTrace, 0);
         // Ignore the return value.
       }
 #endif
-      VisitStatements(body);
+      VisitStatementsAndSpill(body);
     }
   }
 
-  // exit
-  // r0: result
-  // sp: stack pointer
-  // fp: frame pointer
-  // pp: parameter pointer
-  // cp: callee's context
-  __ mov(r0, Operand(Factory::undefined_value()));
+  // Generate the return sequence if necessary.
+  if (frame_ != NULL || function_return_.is_linked()) {
+    // exit
+    // r0: result
+    // sp: stack pointer
+    // fp: frame pointer
+    // pp: parameter pointer
+    // cp: callee's context
+    __ mov(r0, Operand(Factory::undefined_value()));
 
-  __ bind(&function_return_);
-  if (FLAG_trace) {
-    // Push the return value on the stack as the parameter.
-    // Runtime::TraceExit returns the parameter as it is.
-    frame_->Push(r0);
-    __ CallRuntime(Runtime::kTraceExit, 1);
+    function_return_.Bind();
+    if (FLAG_trace) {
+      // Push the return value on the stack as the parameter.
+      // Runtime::TraceExit returns the parameter as it is.
+      frame_->EmitPush(r0);
+      frame_->CallRuntime(Runtime::kTraceExit, 1);
+    }
+
+    // Tear down the frame which will restore the caller's frame pointer and
+    // the link register.
+    frame_->Exit();
+
+    __ add(sp, sp, Operand((scope_->num_parameters() + 1) * kPointerSize));
+    __ mov(pc, lr);
   }
 
-  // Tear down the frame which will restore the caller's frame pointer and the
-  // link register.
-  frame_->Exit();
-
-  __ add(sp, sp, Operand((scope_->num_parameters() + 1) * kPointerSize));
-  __ mov(pc, lr);
-
   // Code generation state must be reset.
-  scope_ = NULL;
-  frame_ = NULL;
   ASSERT(!has_cc());
   ASSERT(state_ == NULL);
+  ASSERT(!function_return_is_shadowed_);
+  function_return_.Unuse();
+  DeleteFrame();
+
+  // Process any deferred code using the register allocator.
+  ProcessDeferred();
+
+  allocator_ = NULL;
+  scope_ = NULL;
 }
 
 
@@ -359,10 +303,10 @@ MemOperand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
   int index = slot->index();
   switch (slot->type()) {
     case Slot::PARAMETER:
-      return frame_->Parameter(index);
+      return frame_->ParameterAt(index);
 
     case Slot::LOCAL:
-      return frame_->Local(index);
+      return frame_->LocalAt(index);
 
     case Slot::CONTEXT: {
       // Follow the context chain if necessary.
@@ -397,20 +341,21 @@ MemOperand CodeGenerator::SlotOperand(Slot* slot, Register tmp) {
 }
 
 
-MemOperand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
-                                                            Register tmp,
-                                                            Register tmp2,
-                                                            Label* slow) {
+MemOperand CodeGenerator::ContextSlotOperandCheckExtensions(
+    Slot* slot,
+    Register tmp,
+    Register tmp2,
+    JumpTarget* slow) {
   ASSERT(slot->type() == Slot::CONTEXT);
-  int index = slot->index();
   Register context = cp;
+
   for (Scope* s = scope(); s != slot->var()->scope(); s = s->outer_scope()) {
     if (s->num_heap_slots() > 0) {
       if (s->calls_eval()) {
         // Check that extension is NULL.
         __ ldr(tmp2, ContextOperand(context, Context::EXTENSION_INDEX));
         __ tst(tmp2, tmp2);
-        __ b(ne, slow);
+        slow->Branch(ne);
       }
       __ ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
       __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
@@ -420,9 +365,9 @@ MemOperand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
   // Check that last extension is NULL.
   __ ldr(tmp2, ContextOperand(context, Context::EXTENSION_INDEX));
   __ tst(tmp2, tmp2);
-  __ b(ne, slow);
+  slow->Branch(ne);
   __ ldr(tmp, ContextOperand(context, Context::FCONTEXT_INDEX));
-  return ContextOperand(tmp, index);
+  return ContextOperand(tmp, slot->index());
 }
 
 
@@ -434,89 +379,114 @@ MemOperand CodeGenerator::ContextSlotOperandCheckExtensions(Slot* slot,
 // test for 'true'.
 void CodeGenerator::LoadCondition(Expression* x,
                                   TypeofState typeof_state,
-                                  Label* true_target,
-                                  Label* false_target,
+                                  JumpTarget* true_target,
+                                  JumpTarget* false_target,
                                   bool force_cc) {
+  ASSERT(!in_spilled_code());
   ASSERT(!has_cc());
+  int original_height = frame_->height();
 
   { CodeGenState new_state(this, typeof_state, true_target, false_target);
     Visit(x);
+
+    // If we hit a stack overflow, we may not have actually visited
+    // the expression.  In that case, we ensure that we have a
+    // valid-looking frame state because we will continue to generate
+    // code as we unwind the C++ stack.
+    //
+    // It's possible to have both a stack overflow and a valid frame
+    // state (eg, a subexpression overflowed, visiting it returned
+    // with a dummied frame state, and visiting this expression
+    // returned with a normal-looking state).
+    if (HasStackOverflow() &&
+        has_valid_frame() &&
+        !has_cc() &&
+        frame_->height() == original_height) {
+      true_target->Jump();
+    }
   }
-  if (force_cc && !has_cc()) {
+  if (force_cc && frame_ != NULL && !has_cc()) {
     // Convert the TOS value to a boolean in the condition code register.
-    // Visiting an expression may possibly choose neither (a) to leave a
-    // value in the condition code register nor (b) to leave a value in TOS
-    // (eg, by compiling to only jumps to the targets).  In that case the
-    // code generated by ToBoolean is wrong because it assumes the value of
-    // the expression in TOS.  So long as there is always a value in TOS or
-    // the condition code register when control falls through to here (there
-    // is), the code generated by ToBoolean is dead and therefore safe.
     ToBoolean(true_target, false_target);
   }
-  ASSERT(has_cc() || !force_cc);
+  ASSERT(!force_cc || !has_valid_frame() || has_cc());
+  ASSERT(!has_valid_frame() ||
+         (has_cc() && frame_->height() == original_height) ||
+         (!has_cc() && frame_->height() == original_height + 1));
 }
 
 
 void CodeGenerator::Load(Expression* x, TypeofState typeof_state) {
-  Label true_target;
-  Label false_target;
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  ASSERT(!in_spilled_code());
+  JumpTarget true_target(this);
+  JumpTarget false_target(this);
   LoadCondition(x, typeof_state, &true_target, &false_target, false);
 
   if (has_cc()) {
-    // convert cc_reg_ into a bool
-    Label loaded, materialize_true;
-    __ b(cc_reg_, &materialize_true);
+    // Convert cc_reg_ into a boolean value.
+    JumpTarget loaded(this);
+    JumpTarget materialize_true(this);
+    materialize_true.Branch(cc_reg_);
     __ mov(r0, Operand(Factory::false_value()));
-    frame_->Push(r0);
-    __ b(&loaded);
-    __ bind(&materialize_true);
+    frame_->EmitPush(r0);
+    loaded.Jump();
+    materialize_true.Bind();
     __ mov(r0, Operand(Factory::true_value()));
-    frame_->Push(r0);
-    __ bind(&loaded);
+    frame_->EmitPush(r0);
+    loaded.Bind();
     cc_reg_ = al;
   }
 
   if (true_target.is_linked() || false_target.is_linked()) {
-    // we have at least one condition value
-    // that has been "translated" into a branch,
-    // thus it needs to be loaded explicitly again
-    Label loaded;
-    __ b(&loaded);  // don't lose current TOS
+    // We have at least one condition value that has been "translated"
+    // into a branch, thus it needs to be loaded explicitly.
+    JumpTarget loaded(this);
+    if (frame_ != NULL) {
+      loaded.Jump();  // Don't lose the current TOS.
+    }
     bool both = true_target.is_linked() && false_target.is_linked();
-    // reincarnate "true", if necessary
+    // Load "true" if necessary.
     if (true_target.is_linked()) {
-      __ bind(&true_target);
+      true_target.Bind();
       __ mov(r0, Operand(Factory::true_value()));
-      frame_->Push(r0);
+      frame_->EmitPush(r0);
     }
-    // if both "true" and "false" need to be reincarnated,
-    // jump across code for "false"
-    if (both)
-      __ b(&loaded);
-    // reincarnate "false", if necessary
+    // If both "true" and "false" need to be loaded jump across the code for
+    // "false".
+    if (both) {
+      loaded.Jump();
+    }
+    // Load "false" if necessary.
     if (false_target.is_linked()) {
-      __ bind(&false_target);
+      false_target.Bind();
       __ mov(r0, Operand(Factory::false_value()));
-      frame_->Push(r0);
+      frame_->EmitPush(r0);
     }
-    // everything is loaded at this point
-    __ bind(&loaded);
+    // A value is loaded on all paths reaching this point.
+    loaded.Bind();
   }
+  ASSERT(has_valid_frame());
   ASSERT(!has_cc());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::LoadGlobal() {
+  VirtualFrame::SpilledScope spilled_scope(this);
   __ ldr(r0, GlobalObject());
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::LoadGlobalReceiver(Register scratch) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   __ ldr(scratch, ContextOperand(cp, Context::GLOBAL_INDEX));
   __ ldr(scratch,
          FieldMemOperand(scratch, GlobalObject::kGlobalReceiverOffset));
-  frame_->Push(scratch);
+  frame_->EmitPush(scratch);
 }
 
 
@@ -524,6 +494,7 @@ void CodeGenerator::LoadGlobalReceiver(Register scratch) {
 // that we have the INSIDE_TYPEOF typeof state. => Need to handle global
 // variables w/o reference errors elsewhere.
 void CodeGenerator::LoadTypeofExpression(Expression* x) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   Variable* variable = x->AsVariableProxy()->AsVariable();
   if (variable != NULL && !variable->is_this() && variable->is_global()) {
     // NOTE: This is somewhat nasty. We force the compiler to load
@@ -534,9 +505,9 @@ void CodeGenerator::LoadTypeofExpression(Expression* x) {
     // TODO(1241834): Fetch the position from the variable instead of using
     // no position.
     Property property(&global, &key, RelocInfo::kNoPosition);
-    Load(&property);
+    LoadAndSpill(&property);
   } else {
-    Load(x, INSIDE_TYPEOF);
+    LoadAndSpill(x, INSIDE_TYPEOF);
   }
 }
 
@@ -553,6 +524,7 @@ Reference::~Reference() {
 
 
 void CodeGenerator::LoadReference(Reference* ref) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ LoadReference");
   Expression* e = ref->expression();
   Property* property = e->AsProperty();
@@ -561,7 +533,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
   if (property != NULL) {
     // The expression is either a property or a variable proxy that rewrites
     // to a property.
-    Load(property->obj());
+    LoadAndSpill(property->obj());
     // We use a named reference if the key is a literal symbol, unless it is
     // a string that can be legally parsed as an integer.  This is because
     // otherwise we will not get into the slow case code that handles [] on
@@ -573,7 +545,7 @@ void CodeGenerator::LoadReference(Reference* ref) {
         !String::cast(*(literal->handle()))->AsArrayIndex(&dummy)) {
       ref->set_type(Reference::NAMED);
     } else {
-      Load(property->key());
+      LoadAndSpill(property->key());
       ref->set_type(Reference::KEYED);
     }
   } else if (var != NULL) {
@@ -588,20 +560,21 @@ void CodeGenerator::LoadReference(Reference* ref) {
     }
   } else {
     // Anything else is a runtime error.
-    Load(e);
-    __ CallRuntime(Runtime::kThrowReferenceError, 1);
+    LoadAndSpill(e);
+    frame_->CallRuntime(Runtime::kThrowReferenceError, 1);
   }
 }
 
 
 void CodeGenerator::UnloadReference(Reference* ref) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   // Pop a reference from the stack while preserving TOS.
   Comment cmnt(masm_, "[ UnloadReference");
   int size = ref->size();
   if (size > 0) {
-    frame_->Pop(r0);
+    frame_->EmitPop(r0);
     frame_->Drop(size);
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
   }
 }
 
@@ -609,35 +582,36 @@ void CodeGenerator::UnloadReference(Reference* ref) {
 // ECMA-262, section 9.2, page 30: ToBoolean(). Convert the given
 // register to a boolean in the condition code register. The code
 // may jump to 'false_target' in case the register converts to 'false'.
-void CodeGenerator::ToBoolean(Label* true_target,
-                              Label* false_target) {
+void CodeGenerator::ToBoolean(JumpTarget* true_target,
+                              JumpTarget* false_target) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   // Note: The generated code snippet does not change stack variables.
   //       Only the condition code should be set.
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
 
   // Fast case checks
 
   // Check if the value is 'false'.
   __ cmp(r0, Operand(Factory::false_value()));
-  __ b(eq, false_target);
+  false_target->Branch(eq);
 
   // Check if the value is 'true'.
   __ cmp(r0, Operand(Factory::true_value()));
-  __ b(eq, true_target);
+  true_target->Branch(eq);
 
   // Check if the value is 'undefined'.
   __ cmp(r0, Operand(Factory::undefined_value()));
-  __ b(eq, false_target);
+  false_target->Branch(eq);
 
   // Check if the value is a smi.
   __ cmp(r0, Operand(Smi::FromInt(0)));
-  __ b(eq, false_target);
+  false_target->Branch(eq);
   __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, true_target);
+  true_target->Branch(eq);
 
   // Slow case: call the runtime.
-  frame_->Push(r0);
-  __ CallRuntime(Runtime::kToBool, 1);
+  frame_->EmitPush(r0);
+  frame_->CallRuntime(Runtime::kToBool, 1);
   // Convert the result (r0) to a condition code.
   __ cmp(r0, Operand(Factory::false_value()));
 
@@ -724,6 +698,7 @@ class InvokeBuiltinStub : public CodeStub {
 
 
 void CodeGenerator::GenericBinaryOperation(Token::Value op) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   // sp[0] : y
   // sp[1] : x
   // result : r0
@@ -739,29 +714,33 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op) {
     case Token::SHL:
     case Token::SHR:
     case Token::SAR: {
-      frame_->Pop(r0);  // r0 : y
-      frame_->Pop(r1);  // r1 : x
+      frame_->EmitPop(r0);  // r0 : y
+      frame_->EmitPop(r1);  // r1 : x
       GenericBinaryOpStub stub(op);
-      __ CallStub(&stub);
+      frame_->CallStub(&stub, 0);
       break;
     }
 
     case Token::DIV: {
-      __ mov(r0, Operand(1));
-      __ InvokeBuiltin(Builtins::DIV, CALL_JS);
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(1));
+      frame_->InvokeBuiltin(Builtins::DIV, CALL_JS, &arg_count, 2);
       break;
     }
 
     case Token::MOD: {
-      __ mov(r0, Operand(1));
-      __ InvokeBuiltin(Builtins::MOD, CALL_JS);
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(1));
+      frame_->InvokeBuiltin(Builtins::MOD, CALL_JS, &arg_count, 2);
       break;
     }
 
     case Token::COMMA:
-      frame_->Pop(r0);
+      frame_->EmitPop(r0);
       // simply discard left value
-      frame_->Pop();
+      frame_->Drop();
       break;
 
     default:
@@ -772,74 +751,20 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op) {
 }
 
 
-class DeferredInlinedSmiOperation: public DeferredCode {
+class DeferredInlineSmiOperation: public DeferredCode {
  public:
-  DeferredInlinedSmiOperation(CodeGenerator* generator, Token::Value op,
-                              int value, bool reversed) :
-      DeferredCode(generator), op_(op), value_(value), reversed_(reversed) {
+  DeferredInlineSmiOperation(CodeGenerator* generator,
+                             Token::Value op,
+                             int value,
+                             bool reversed)
+      : DeferredCode(generator),
+        op_(op),
+        value_(value),
+        reversed_(reversed) {
     set_comment("[ DeferredInlinedSmiOperation");
   }
 
-  virtual void Generate() {
-    switch (op_) {
-      case Token::ADD: {
-        if (reversed_) {
-          // revert optimistic add
-          __ sub(r0, r0, Operand(Smi::FromInt(value_)));
-          __ mov(r1, Operand(Smi::FromInt(value_)));  // x
-        } else {
-          // revert optimistic add
-          __ sub(r1, r0, Operand(Smi::FromInt(value_)));
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-        }
-        break;
-      }
-
-      case Token::SUB: {
-        if (reversed_) {
-          // revert optimistic sub
-          __ rsb(r0, r0, Operand(Smi::FromInt(value_)));
-          __ mov(r1, Operand(Smi::FromInt(value_)));
-        } else {
-          __ add(r1, r0, Operand(Smi::FromInt(value_)));
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-        }
-        break;
-      }
-
-      case Token::BIT_OR:
-      case Token::BIT_XOR:
-      case Token::BIT_AND: {
-        if (reversed_) {
-          __ mov(r1, Operand(Smi::FromInt(value_)));
-        } else {
-          __ mov(r1, Operand(r0));
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-        }
-        break;
-      }
-
-      case Token::SHL:
-      case Token::SHR:
-      case Token::SAR: {
-        if (!reversed_) {
-          __ mov(r1, Operand(r0));
-          __ mov(r0, Operand(Smi::FromInt(value_)));
-        } else {
-          UNREACHABLE();  // should have been handled in SmiOperation
-        }
-        break;
-      }
-
-      default:
-        // other cases should have been handled before this point.
-        UNREACHABLE();
-        break;
-    }
-
-    GenericBinaryOpStub igostub(op_);
-    __ CallStub(&igostub);
-  }
+  virtual void Generate();
 
  private:
   Token::Value op_;
@@ -848,9 +773,80 @@ class DeferredInlinedSmiOperation: public DeferredCode {
 };
 
 
+void DeferredInlineSmiOperation::Generate() {
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
+
+  switch (op_) {
+    case Token::ADD: {
+      if (reversed_) {
+        // revert optimistic add
+        __ sub(r0, r0, Operand(Smi::FromInt(value_)));
+        __ mov(r1, Operand(Smi::FromInt(value_)));
+      } else {
+        // revert optimistic add
+        __ sub(r1, r0, Operand(Smi::FromInt(value_)));
+        __ mov(r0, Operand(Smi::FromInt(value_)));
+      }
+      break;
+    }
+
+    case Token::SUB: {
+      if (reversed_) {
+        // revert optimistic sub
+        __ rsb(r0, r0, Operand(Smi::FromInt(value_)));
+        __ mov(r1, Operand(Smi::FromInt(value_)));
+      } else {
+        __ add(r1, r0, Operand(Smi::FromInt(value_)));
+        __ mov(r0, Operand(Smi::FromInt(value_)));
+      }
+      break;
+    }
+
+    case Token::BIT_OR:
+    case Token::BIT_XOR:
+    case Token::BIT_AND: {
+      if (reversed_) {
+        __ mov(r1, Operand(Smi::FromInt(value_)));
+      } else {
+        __ mov(r1, Operand(r0));
+        __ mov(r0, Operand(Smi::FromInt(value_)));
+      }
+      break;
+    }
+
+    case Token::SHL:
+    case Token::SHR:
+    case Token::SAR: {
+      if (!reversed_) {
+        __ mov(r1, Operand(r0));
+        __ mov(r0, Operand(Smi::FromInt(value_)));
+      } else {
+        UNREACHABLE();  // should have been handled in SmiOperation
+      }
+      break;
+    }
+
+    default:
+      // other cases should have been handled before this point.
+      UNREACHABLE();
+      break;
+  }
+
+  GenericBinaryOpStub igostub(op_);
+  Result arg0 = generator()->allocator()->Allocate(r0);
+  ASSERT(arg0.is_valid());
+  Result arg1 = generator()->allocator()->Allocate(r1);
+  ASSERT(arg1.is_valid());
+  generator()->frame()->CallStub(&igostub, &arg0, &arg1, 0);
+  exit_.Jump();
+}
+
+
 void CodeGenerator::SmiOperation(Token::Value op,
                                  Handle<Object> value,
                                  bool reversed) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   // NOTE: This is an attempt to inline (a bit) more of the code for
   // some possible smi operations (like + and -) when (at least) one
   // of the operands is a literal smi. With this optimization, the
@@ -862,35 +858,35 @@ void CodeGenerator::SmiOperation(Token::Value op,
 
   int int_value = Smi::cast(*value)->value();
 
-  Label exit;
-  frame_->Pop(r0);
+  JumpTarget exit(this);
+  frame_->EmitPop(r0);
 
   switch (op) {
     case Token::ADD: {
       DeferredCode* deferred =
-        new DeferredInlinedSmiOperation(this, op, int_value, reversed);
+        new DeferredInlineSmiOperation(this, op, int_value, reversed);
 
       __ add(r0, r0, Operand(value), SetCC);
-      __ b(vs, deferred->enter());
+      deferred->enter()->Branch(vs);
       __ tst(r0, Operand(kSmiTagMask));
-      __ b(ne, deferred->enter());
-      __ bind(deferred->exit());
+      deferred->enter()->Branch(ne);
+      deferred->BindExit();
       break;
     }
 
     case Token::SUB: {
       DeferredCode* deferred =
-        new DeferredInlinedSmiOperation(this, op, int_value, reversed);
+        new DeferredInlineSmiOperation(this, op, int_value, reversed);
 
       if (!reversed) {
         __ sub(r0, r0, Operand(value), SetCC);
       } else {
         __ rsb(r0, r0, Operand(value), SetCC);
       }
-      __ b(vs, deferred->enter());
+      deferred->enter()->Branch(vs);
       __ tst(r0, Operand(kSmiTagMask));
-      __ b(ne, deferred->enter());
-      __ bind(deferred->exit());
+      deferred->enter()->Branch(ne);
+      deferred->BindExit();
       break;
     }
 
@@ -898,16 +894,16 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::BIT_XOR:
     case Token::BIT_AND: {
       DeferredCode* deferred =
-        new DeferredInlinedSmiOperation(this, op, int_value, reversed);
+        new DeferredInlineSmiOperation(this, op, int_value, reversed);
       __ tst(r0, Operand(kSmiTagMask));
-      __ b(ne, deferred->enter());
+      deferred->enter()->Branch(ne);
       switch (op) {
         case Token::BIT_OR:  __ orr(r0, r0, Operand(value)); break;
         case Token::BIT_XOR: __ eor(r0, r0, Operand(value)); break;
         case Token::BIT_AND: __ and_(r0, r0, Operand(value)); break;
         default: UNREACHABLE();
       }
-      __ bind(deferred->exit());
+      deferred->BindExit();
       break;
     }
 
@@ -916,23 +912,23 @@ void CodeGenerator::SmiOperation(Token::Value op,
     case Token::SAR: {
       if (reversed) {
         __ mov(ip, Operand(value));
-        frame_->Push(ip);
-        frame_->Push(r0);
+        frame_->EmitPush(ip);
+        frame_->EmitPush(r0);
         GenericBinaryOperation(op);
 
       } else {
         int shift_value = int_value & 0x1f;  // least significant 5 bits
         DeferredCode* deferred =
-          new DeferredInlinedSmiOperation(this, op, shift_value, false);
+          new DeferredInlineSmiOperation(this, op, shift_value, false);
         __ tst(r0, Operand(kSmiTagMask));
-        __ b(ne, deferred->enter());
+        deferred->enter()->Branch(ne);
         __ mov(r2, Operand(r0, ASR, kSmiTagSize));  // remove tags
         switch (op) {
           case Token::SHL: {
             __ mov(r2, Operand(r2, LSL, shift_value));
             // check that the *unsigned* result fits in a smi
             __ add(r3, r2, Operand(0x40000000), SetCC);
-            __ b(mi, deferred->enter());
+            deferred->enter()->Branch(mi);
             break;
           }
           case Token::SHR: {
@@ -947,7 +943,7 @@ void CodeGenerator::SmiOperation(Token::Value op,
             // smi tagging these two cases can only happen with shifts
             // by 0 or 1 when handed a valid smi
             __ and_(r3, r2, Operand(0xc0000000), SetCC);
-            __ b(ne, deferred->enter());
+            deferred->enter()->Branch(ne);
             break;
           }
           case Token::SAR: {
@@ -960,30 +956,31 @@ void CodeGenerator::SmiOperation(Token::Value op,
           default: UNREACHABLE();
         }
         __ mov(r0, Operand(r2, LSL, kSmiTagSize));
-        __ bind(deferred->exit());
+        deferred->BindExit();
       }
       break;
     }
 
     default:
       if (!reversed) {
-        frame_->Push(r0);
+        frame_->EmitPush(r0);
         __ mov(r0, Operand(value));
-        frame_->Push(r0);
+        frame_->EmitPush(r0);
       } else {
         __ mov(ip, Operand(value));
-        frame_->Push(ip);
-        frame_->Push(r0);
+        frame_->EmitPush(ip);
+        frame_->EmitPush(r0);
       }
       GenericBinaryOperation(op);
       break;
   }
 
-  __ bind(&exit);
+  exit.Bind();
 }
 
 
 void CodeGenerator::Comparison(Condition cc, bool strict) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   // sp[0] : y
   // sp[1] : x
   // result : cc register
@@ -991,29 +988,29 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
   // Strict only makes sense for equality comparisons.
   ASSERT(!strict || cc == eq);
 
-  Label exit, smi;
+  JumpTarget exit(this);
+  JumpTarget smi(this);
   // Implement '>' and '<=' by reversal to obtain ECMA-262 conversion order.
   if (cc == gt || cc == le) {
     cc = ReverseCondition(cc);
-    frame_->Pop(r1);
-    frame_->Pop(r0);
+    frame_->EmitPop(r1);
+    frame_->EmitPop(r0);
   } else {
-    frame_->Pop(r0);
-    frame_->Pop(r1);
+    frame_->EmitPop(r0);
+    frame_->EmitPop(r1);
   }
   __ orr(r2, r0, Operand(r1));
   __ tst(r2, Operand(kSmiTagMask));
-  __ b(eq, &smi);
+  smi.Branch(eq);
 
   // Perform non-smi comparison by runtime call.
-  frame_->Push(r1);
+  frame_->EmitPush(r1);
 
   // Figure out which native to call and setup the arguments.
   Builtins::JavaScript native;
-  int argc;
+  int arg_count = 1;
   if (cc == eq) {
     native = strict ? Builtins::STRICT_EQUALS : Builtins::EQUALS;
-    argc = 1;
   } else {
     native = Builtins::COMPARE;
     int ncr;  // NaN compare result
@@ -1023,24 +1020,30 @@ void CodeGenerator::Comparison(Condition cc, bool strict) {
       ASSERT(cc == gt || cc == ge);  // remaining cases
       ncr = LESS;
     }
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
+    arg_count++;
     __ mov(r0, Operand(Smi::FromInt(ncr)));
-    argc = 2;
   }
 
   // Call the native; it returns -1 (less), 0 (equal), or 1 (greater)
   // tagged as a small integer.
-  frame_->Push(r0);
-  __ mov(r0, Operand(argc));
-  __ InvokeBuiltin(native, CALL_JS);
-  __ cmp(r0, Operand(0));
-  __ b(&exit);
+  frame_->EmitPush(r0);
+  Result arg_count_register = allocator_->Allocate(r0);
+  ASSERT(arg_count_register.is_valid());
+  __ mov(arg_count_register.reg(), Operand(arg_count));
+  Result result = frame_->InvokeBuiltin(native,
+                                        CALL_JS,
+                                        &arg_count_register,
+                                        arg_count + 1);
+  __ cmp(result.reg(), Operand(0));
+  result.Unuse();
+  exit.Jump();
 
   // test smi equality by pointer comparison.
-  __ bind(&smi);
+  smi.Bind();
   __ cmp(r1, Operand(r0));
 
-  __ bind(&exit);
+  exit.Bind();
   cc_reg_ = cc;
 }
 
@@ -1066,64 +1069,93 @@ class CallFunctionStub: public CodeStub {
 // Call the function on the stack with the given arguments.
 void CodeGenerator::CallWithArguments(ZoneList<Expression*>* args,
                                          int position) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   // Push the arguments ("left-to-right") on the stack.
-  for (int i = 0; i < args->length(); i++) {
-    Load(args->at(i));
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    LoadAndSpill(args->at(i));
   }
 
   // Record the position for debugging purposes.
   CodeForSourcePosition(position);
 
   // Use the shared code stub to call the function.
-  CallFunctionStub call_function(args->length());
-  __ CallStub(&call_function);
+  CallFunctionStub call_function(arg_count);
+  frame_->CallStub(&call_function, arg_count + 1);
 
   // Restore context and pop function from the stack.
   __ ldr(cp, frame_->Context());
-  frame_->Pop();  // discard the TOS
+  frame_->Drop();  // discard the TOS
 }
 
 
-void CodeGenerator::Branch(bool if_true, Label* L) {
+void CodeGenerator::Branch(bool if_true, JumpTarget* target) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(has_cc());
   Condition cc = if_true ? cc_reg_ : NegateCondition(cc_reg_);
-  __ b(cc, L);
+  target->Branch(cc);
   cc_reg_ = al;
 }
 
 
 void CodeGenerator::CheckStack() {
+  VirtualFrame::SpilledScope spilled_scope(this);
   if (FLAG_check_stack) {
     Comment cmnt(masm_, "[ check stack");
     StackCheckStub stub;
-    __ CallStub(&stub);
+    frame_->CallStub(&stub, 0);
   }
 }
 
 
+void CodeGenerator::VisitStatements(ZoneList<Statement*>* statements) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
+  for (int i = 0; frame_ != NULL && i < statements->length(); i++) {
+    VisitAndSpill(statements->at(i));
+  }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
+}
+
+
 void CodeGenerator::VisitBlock(Block* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Block");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
-  VisitStatements(node->statements());
-  __ bind(node->break_target());
+  node->break_target()->Initialize(this);
+  VisitStatementsAndSpill(node->statements());
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   __ mov(r0, Operand(pairs));
-  frame_->Push(r0);
-  frame_->Push(cp);
+  frame_->EmitPush(r0);
+  frame_->EmitPush(cp);
   __ mov(r0, Operand(Smi::FromInt(is_eval() ? 1 : 0)));
-  frame_->Push(r0);
-  __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  frame_->EmitPush(r0);
+  frame_->CallRuntime(Runtime::kDeclareGlobals, 3);
   // The result is discarded.
 }
 
 
 void CodeGenerator::VisitDeclaration(Declaration* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Declaration");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   Variable* var = node->proxy()->var();
   ASSERT(var != NULL);  // must have been resolved
   Slot* slot = var->slot();
@@ -1136,29 +1168,30 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     // during variable resolution and must have mode DYNAMIC.
     ASSERT(var->is_dynamic());
     // For now, just do a runtime call.
-    frame_->Push(cp);
+    frame_->EmitPush(cp);
     __ mov(r0, Operand(var->name()));
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
     // Declaration nodes are always declared in only two modes.
     ASSERT(node->mode() == Variable::VAR || node->mode() == Variable::CONST);
     PropertyAttributes attr = node->mode() == Variable::VAR ? NONE : READ_ONLY;
     __ mov(r0, Operand(Smi::FromInt(attr)));
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
     // Push initial value, if any.
     // Note: For variables we must not push an initial value (such as
     // 'undefined') because we may have a (legal) redeclaration and we
     // must not destroy the current value.
     if (node->mode() == Variable::CONST) {
       __ mov(r0, Operand(Factory::the_hole_value()));
-      frame_->Push(r0);
+      frame_->EmitPush(r0);
     } else if (node->fun() != NULL) {
-      Load(node->fun());
+      LoadAndSpill(node->fun());
     } else {
       __ mov(r0, Operand(0));  // no initial value!
-      frame_->Push(r0);
+      frame_->EmitPush(r0);
     }
-    __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+    frame_->CallRuntime(Runtime::kDeclareContextSlot, 4);
     // Ignore the return value (declarations are statements).
+    ASSERT(frame_->height() == original_height);
     return;
   }
 
@@ -1176,168 +1209,234 @@ void CodeGenerator::VisitDeclaration(Declaration* node) {
     {
       // Set initial value.
       Reference target(this, node->proxy());
-      Load(val);
+      LoadAndSpill(val);
       target.SetValue(NOT_CONST_INIT);
       // The reference is removed from the stack (preserving TOS) when
       // it goes out of scope.
     }
     // Get rid of the assigned value (declarations are statements).
-    frame_->Pop();
+    frame_->Drop();
   }
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitExpressionStatement(ExpressionStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ExpressionStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   Expression* expression = node->expression();
   expression->MarkAsStatement();
-  Load(expression);
-  frame_->Pop();
+  LoadAndSpill(expression);
+  frame_->Drop();
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitEmptyStatement(EmptyStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "// EmptyStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   // nothing to do
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitIfStatement(IfStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ IfStatement");
-  // Generate different code depending on which
-  // parts of the if statement are present or not.
+  // Generate different code depending on which parts of the if statement
+  // are present or not.
   bool has_then_stm = node->HasThenStatement();
   bool has_else_stm = node->HasElseStatement();
 
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
-  Label exit;
+  JumpTarget exit(this);
   if (has_then_stm && has_else_stm) {
     Comment cmnt(masm_, "[ IfThenElse");
-    Label then;
-    Label else_;
+    JumpTarget then(this);
+    JumpTarget else_(this);
     // if (cond)
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
-    Branch(false, &else_);
+    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
+                          &then, &else_, true);
+    if (frame_ != NULL) {
+      Branch(false, &else_);
+    }
     // then
-    __ bind(&then);
-    Visit(node->then_statement());
-    __ b(&exit);
+    if (frame_ != NULL || then.is_linked()) {
+      then.Bind();
+      VisitAndSpill(node->then_statement());
+    }
+    if (frame_ != NULL) {
+      exit.Jump();
+    }
     // else
-    __ bind(&else_);
-    Visit(node->else_statement());
+    if (else_.is_linked()) {
+      else_.Bind();
+      VisitAndSpill(node->else_statement());
+    }
 
   } else if (has_then_stm) {
     Comment cmnt(masm_, "[ IfThen");
     ASSERT(!has_else_stm);
-    Label then;
+    JumpTarget then(this);
     // if (cond)
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &exit, true);
-    Branch(false, &exit);
+    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
+                          &then, &exit, true);
+    if (frame_ != NULL) {
+      Branch(false, &exit);
+    }
     // then
-    __ bind(&then);
-    Visit(node->then_statement());
+    if (frame_ != NULL || then.is_linked()) {
+      then.Bind();
+      VisitAndSpill(node->then_statement());
+    }
 
   } else if (has_else_stm) {
     Comment cmnt(masm_, "[ IfElse");
     ASSERT(!has_then_stm);
-    Label else_;
+    JumpTarget else_(this);
     // if (!cond)
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &else_, true);
-    Branch(true, &exit);
+    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
+                          &exit, &else_, true);
+    if (frame_ != NULL) {
+      Branch(true, &exit);
+    }
     // else
-    __ bind(&else_);
-    Visit(node->else_statement());
+    if (frame_ != NULL || else_.is_linked()) {
+      else_.Bind();
+      VisitAndSpill(node->else_statement());
+    }
 
   } else {
     Comment cmnt(masm_, "[ If");
     ASSERT(!has_then_stm && !has_else_stm);
     // if (cond)
-    LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &exit, &exit, false);
-    if (has_cc()) {
-      cc_reg_ = al;
-    } else {
-      frame_->Pop();
+    LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
+                          &exit, &exit, false);
+    if (frame_ != NULL) {
+      if (has_cc()) {
+        cc_reg_ = al;
+      } else {
+        frame_->Drop();
+      }
     }
   }
 
   // end
-  __ bind(&exit);
+  if (exit.is_linked()) {
+    exit.Bind();
+  }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::CleanStack(int num_bytes) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(num_bytes % kPointerSize == 0);
   frame_->Drop(num_bytes / kPointerSize);
 }
 
 
 void CodeGenerator::VisitContinueStatement(ContinueStatement* node) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ContinueStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
-  __ b(node->target()->continue_target());
+  node->target()->continue_target()->Jump();
 }
 
 
 void CodeGenerator::VisitBreakStatement(BreakStatement* node) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ BreakStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   CleanStack(break_stack_height_ - node->target()->break_stack_height());
-  __ b(node->target()->break_target());
+  node->target()->break_target()->Jump();
 }
 
 
 void CodeGenerator::VisitReturnStatement(ReturnStatement* node) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ReturnStatement");
-  CodeForStatement(node);
-  Load(node->expression());
-  // Move the function result into r0.
-  frame_->Pop(r0);
 
-  __ b(&function_return_);
+  if (function_return_is_shadowed_) {
+    CodeForStatementPosition(node);
+    LoadAndSpill(node->expression());
+    frame_->EmitPop(r0);
+    function_return_.Jump();
+  } else {
+    // Load the returned value.
+    CodeForStatementPosition(node);
+    LoadAndSpill(node->expression());
+
+    // Pop the result from the frame and prepare the frame for
+    // returning thus making it easier to merge.
+    frame_->EmitPop(r0);
+    frame_->PrepareForReturn();
+
+    function_return_.Jump();
+  }
 }
 
 
 void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ WithEnterStatement");
-  CodeForStatement(node);
-  Load(node->expression());
+  CodeForStatementPosition(node);
+  LoadAndSpill(node->expression());
   if (node->is_catch_block()) {
-    __ CallRuntime(Runtime::kPushCatchContext, 1);
+    frame_->CallRuntime(Runtime::kPushCatchContext, 1);
   } else {
-    __ CallRuntime(Runtime::kPushContext, 1);
+    frame_->CallRuntime(Runtime::kPushContext, 1);
   }
   if (kDebug) {
-    Label verified_true;
+    JumpTarget verified_true(this);
     __ cmp(r0, Operand(cp));
-    __ b(eq, &verified_true);
+    verified_true.Branch(eq);
     __ stop("PushContext: r0 is expected to be the same as cp");
-    __ bind(&verified_true);
+    verified_true.Bind();
   }
   // Update context local.
   __ str(cp, frame_->Context());
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitWithExitStatement(WithExitStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ WithExitStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   // Pop context.
   __ ldr(cp, ContextOperand(cp, Context::PREVIOUS_INDEX));
   // Update context local.
   __ str(cp, frame_->Context());
+  ASSERT(frame_->height() == original_height);
 }
 
 
 int CodeGenerator::FastCaseSwitchMaxOverheadFactor() {
-    return kFastSwitchMaxOverheadFactor;
+  return kFastSwitchMaxOverheadFactor;
 }
 
 int CodeGenerator::FastCaseSwitchMinCaseCount() {
-    return kFastSwitchMinCaseCount;
+  return kFastSwitchMinCaseCount;
 }
 
 
@@ -1345,25 +1444,32 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     SwitchStatement* node,
     int min_index,
     int range,
-    Label* fail_label,
+    Label* default_label,
     Vector<Label*> case_targets,
     Vector<Label> case_labels) {
+  VirtualFrame::SpilledScope spilled_scope(this);
+  JumpTarget setup_default(this);
+  JumpTarget is_smi(this);
+
+  // A non-null default label pointer indicates a default case among
+  // the case labels.  Otherwise we use the break target as a
+  // "default" for failure to hit the jump table.
+  JumpTarget* default_target =
+      (default_label == NULL) ? node->break_target() : &setup_default;
 
   ASSERT(kSmiTag == 0 && kSmiTagSize <= 2);
-
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
 
   // Test for a Smi value in a HeapNumber.
-  Label is_smi;
   __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &is_smi);
+  is_smi.Branch(eq);
   __ ldr(r1, MemOperand(r0, HeapObject::kMapOffset - kHeapObjectTag));
   __ ldrb(r1, MemOperand(r1, Map::kInstanceTypeOffset - kHeapObjectTag));
   __ cmp(r1, Operand(HEAP_NUMBER_TYPE));
-  __ b(ne, fail_label);
-  frame_->Push(r0);
-  __ CallRuntime(Runtime::kNumberToSmi, 1);
-  __ bind(&is_smi);
+  default_target->Branch(ne);
+  frame_->EmitPush(r0);
+  frame_->CallRuntime(Runtime::kNumberToSmi, 1);
+  is_smi.Bind();
 
   if (min_index != 0) {
     // Small positive numbers can be immediate operands.
@@ -1380,89 +1486,140 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
     }
   }
   __ tst(r0, Operand(0x80000000 | kSmiTagMask));
-  __ b(ne, fail_label);
+  default_target->Branch(ne);
   __ cmp(r0, Operand(Smi::FromInt(range)));
-  __ b(ge, fail_label);
+  default_target->Branch(ge);
+  VirtualFrame* start_frame = new VirtualFrame(frame_);
   __ SmiJumpTable(r0, case_targets);
 
-  GenerateFastCaseSwitchCases(node, case_labels);
+  GenerateFastCaseSwitchCases(node, case_labels, start_frame);
+
+  // If there was a default case among the case labels, we need to
+  // emit code to jump to it from the default target used for failure
+  // to hit the jump table.
+  if (default_label != NULL) {
+    if (has_valid_frame()) {
+      node->break_target()->Jump();
+    }
+    setup_default.Bind();
+    frame_->MergeTo(start_frame);
+    __ b(default_label);
+    DeleteFrame();
+  }
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
+
+  delete start_frame;
 }
 
 
 void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ SwitchStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
+  node->break_target()->Initialize(this);
 
-  Load(node->tag());
-
+  LoadAndSpill(node->tag());
   if (TryGenerateFastCaseSwitchStatement(node)) {
-      return;
+    ASSERT(!has_valid_frame() || frame_->height() == original_height);
+    return;
   }
 
-  Label next, fall_through, default_case;
+  JumpTarget next_test(this);
+  JumpTarget fall_through(this);
+  JumpTarget default_entry(this);
+  JumpTarget default_exit(this, JumpTarget::BIDIRECTIONAL);
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
+  CaseClause* default_clause = NULL;
 
   for (int i = 0; i < length; i++) {
     CaseClause* clause = cases->at(i);
-
-    Comment cmnt(masm_, "[ case clause");
-
     if (clause->is_default()) {
-      // Continue matching cases. The program will execute the default case's
-      // statements if it does not match any of the cases.
-      __ b(&next);
-
-      // Bind the default case label, so we can branch to it when we
-      // have compared against all other cases.
-      ASSERT(default_case.is_unused());  // at most one default clause
-      __ bind(&default_case);
-    } else {
-      __ bind(&next);
-      next.Unuse();
-      __ ldr(r0, frame_->Top());
-      frame_->Push(r0);  // duplicate TOS
-      Load(clause->label());
-      Comparison(eq, true);
-      Branch(false, &next);
+      // Remember the default clause and compile it at the end.
+      default_clause = clause;
+      continue;
     }
 
-    // Entering the case statement for the first time. Remove the switch value
-    // from the stack.
-    frame_->Pop();
+    Comment cmnt(masm_, "[ Case clause");
+    // Compile the test.
+    next_test.Bind();
+    next_test.Unuse();
+    // Duplicate TOS.
+    __ ldr(r0, frame_->Top());
+    frame_->EmitPush(r0);
+    LoadAndSpill(clause->label());
+    Comparison(eq, true);
+    Branch(false, &next_test);
 
-    // Generate code for the body.
-    // This is also the target for the fall through from the previous case's
-    // statements which has to skip over the matching code and the popping of
-    // the switch value.
-    __ bind(&fall_through);
-    fall_through.Unuse();
-    VisitStatements(clause->statements());
-    __ b(&fall_through);
+    // Before entering the body from the test, remove the switch value from
+    // the stack.
+    frame_->Drop();
+
+    // Label the body so that fall through is enabled.
+    if (i > 0 && cases->at(i - 1)->is_default()) {
+      default_exit.Bind();
+    } else {
+      fall_through.Bind();
+      fall_through.Unuse();
+    }
+    VisitStatementsAndSpill(clause->statements());
+
+    // If control flow can fall through from the body, jump to the next body
+    // or the end of the statement.
+    if (frame_ != NULL) {
+      if (i < length - 1 && cases->at(i + 1)->is_default()) {
+        default_entry.Jump();
+      } else {
+        fall_through.Jump();
+      }
+    }
   }
 
-  __ bind(&next);
-  // Reached the end of the case statements without matching any of the cases.
-  if (default_case.is_bound()) {
-    // A default case exists -> execute its statements.
-    __ b(&default_case);
-  } else {
-    // Remove the switch value from the stack.
-    frame_->Pop();
+  // The final "test" removes the switch value.
+  next_test.Bind();
+  frame_->Drop();
+
+  // If there is a default clause, compile it.
+  if (default_clause != NULL) {
+    Comment cmnt(masm_, "[ Default clause");
+    default_entry.Bind();
+    VisitStatementsAndSpill(default_clause->statements());
+    // If control flow can fall out of the default and there is a case after
+    // it, jup to that case's body.
+    if (frame_ != NULL && default_exit.is_bound()) {
+      default_exit.Jump();
+    }
   }
 
-  __ bind(&fall_through);
-  __ bind(node->break_target());
+  if (fall_through.is_linked()) {
+    fall_through.Bind();
+  }
+
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ LoopStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   node->set_break_stack_height(break_stack_height_);
+  node->break_target()->Initialize(this);
 
-  // simple condition analysis
+  // Simple condition analysis.  ALWAYS_TRUE and ALWAYS_FALSE represent a
+  // known result for the test expression, with no side effects.
   enum { ALWAYS_TRUE, ALWAYS_FALSE, DONT_KNOW } info = DONT_KNOW;
   if (node->cond() == NULL) {
     ASSERT(node->type() == LoopStatement::FOR_LOOP);
@@ -1478,60 +1635,175 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
   }
 
-  Label loop, entry;
+  switch (node->type()) {
+    case LoopStatement::DO_LOOP: {
+      JumpTarget body(this, JumpTarget::BIDIRECTIONAL);
 
-  // init
-  if (node->init() != NULL) {
-    ASSERT(node->type() == LoopStatement::FOR_LOOP);
-    Visit(node->init());
-  }
-  if (node->type() != LoopStatement::DO_LOOP && info != ALWAYS_TRUE) {
-    __ b(&entry);
-  }
+      // Label the top of the loop for the backward CFG edge.  If the test
+      // is always true we can use the continue target, and if the test is
+      // always false there is no need.
+      if (info == ALWAYS_TRUE) {
+        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+        node->continue_target()->Bind();
+      } else if (info == ALWAYS_FALSE) {
+        node->continue_target()->Initialize(this);
+      } else {
+        ASSERT(info == DONT_KNOW);
+        node->continue_target()->Initialize(this);
+        body.Bind();
+      }
 
-  // body
-  __ bind(&loop);
-  Visit(node->body());
-
-  // next
-  __ bind(node->continue_target());
-  if (node->next() != NULL) {
-    // Record source position of the statement as this code which is after the
-    // code for the body actually belongs to the loop statement and not the
-    // body.
-    CodeForStatement(node);
-    ASSERT(node->type() == LoopStatement::FOR_LOOP);
-    Visit(node->next());
-  }
-
-  // cond
-  __ bind(&entry);
-  switch (info) {
-    case ALWAYS_TRUE:
       CheckStack();  // TODO(1222600): ignore if body contains calls.
-      __ b(&loop);
+      VisitAndSpill(node->body());
+
+      // Compile the test.
+      if (info == ALWAYS_TRUE) {
+        if (has_valid_frame()) {
+          // If control can fall off the end of the body, jump back to the
+          // top.
+          node->continue_target()->Jump();
+        }
+      } else if (info == ALWAYS_FALSE) {
+        // If we have a continue in the body, we only have to bind its jump
+        // target.
+        if (node->continue_target()->is_linked()) {
+          node->continue_target()->Bind();
+        }
+      } else {
+        ASSERT(info == DONT_KNOW);
+        // We have to compile the test expression if it can be reached by
+        // control flow falling out of the body or via continue.
+        if (node->continue_target()->is_linked()) {
+          node->continue_target()->Bind();
+        }
+        if (has_valid_frame()) {
+          LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
+                                &body, node->break_target(), true);
+          if (has_valid_frame()) {
+            // A invalid frame here indicates that control did not
+            // fall out of the test expression.
+            Branch(true, &body);
+          }
+        }
+      }
       break;
-    case ALWAYS_FALSE:
+    }
+
+    case LoopStatement::WHILE_LOOP: {
+      // If the test is never true and has no side effects there is no need
+      // to compile the test or body.
+      if (info == ALWAYS_FALSE) break;
+
+      // Label the top of the loop with the continue target for the backward
+      // CFG edge.
+      node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+      node->continue_target()->Bind();
+
+      if (info == DONT_KNOW) {
+        JumpTarget body(this);
+        LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
+                              &body, node->break_target(), true);
+        if (has_valid_frame()) {
+          // A NULL frame indicates that control did not fall out of the
+          // test expression.
+          Branch(false, node->break_target());
+        }
+        if (has_valid_frame() || body.is_linked()) {
+          body.Bind();
+        }
+      }
+
+      if (has_valid_frame()) {
+        CheckStack();  // TODO(1222600): ignore if body contains calls.
+        VisitAndSpill(node->body());
+
+        // If control flow can fall out of the body, jump back to the top.
+        if (has_valid_frame()) {
+          node->continue_target()->Jump();
+        }
+      }
       break;
-    case DONT_KNOW:
-      CheckStack();  // TODO(1222600): ignore if body contains calls.
-      LoadCondition(node->cond(),
-                    NOT_INSIDE_TYPEOF,
-                    &loop,
-                    node->break_target(),
-                    true);
-      Branch(true, &loop);
+    }
+
+    case LoopStatement::FOR_LOOP: {
+      JumpTarget loop(this, JumpTarget::BIDIRECTIONAL);
+
+      if (node->init() != NULL) {
+        VisitAndSpill(node->init());
+      }
+
+      // There is no need to compile the test or body.
+      if (info == ALWAYS_FALSE) break;
+
+      // If there is no update statement, label the top of the loop with the
+      // continue target, otherwise with the loop target.
+      if (node->next() == NULL) {
+        node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+        node->continue_target()->Bind();
+      } else {
+        node->continue_target()->Initialize(this);
+        loop.Bind();
+      }
+
+      // If the test is always true, there is no need to compile it.
+      if (info == DONT_KNOW) {
+        JumpTarget body(this);
+        LoadConditionAndSpill(node->cond(), NOT_INSIDE_TYPEOF,
+                              &body, node->break_target(), true);
+        if (has_valid_frame()) {
+          Branch(false, node->break_target());
+        }
+        if (has_valid_frame() || body.is_linked()) {
+          body.Bind();
+        }
+      }
+
+      if (has_valid_frame()) {
+        CheckStack();  // TODO(1222600): ignore if body contains calls.
+        VisitAndSpill(node->body());
+
+        if (node->next() == NULL) {
+          // If there is no update statement and control flow can fall out
+          // of the loop, jump directly to the continue label.
+          if (has_valid_frame()) {
+            node->continue_target()->Jump();
+          }
+        } else {
+          // If there is an update statement and control flow can reach it
+          // via falling out of the body of the loop or continuing, we
+          // compile the update statement.
+          if (node->continue_target()->is_linked()) {
+            node->continue_target()->Bind();
+          }
+          if (has_valid_frame()) {
+            // Record source position of the statement as this code which is
+            // after the code for the body actually belongs to the loop
+            // statement and not the body.
+            CodeForStatementPosition(node);
+            VisitAndSpill(node->next());
+            loop.Jump();
+          }
+        }
+      }
       break;
+    }
   }
 
-  // exit
-  __ bind(node->break_target());
+  if (node->break_target()->is_linked()) {
+    node->break_target()->Bind();
+  }
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitForInStatement(ForInStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  ASSERT(!in_spilled_code());
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ForInStatement");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   // We keep stuff on the stack while the body is executing.
   // Record it, so that a break/continue crossing this statement
@@ -1539,20 +1811,26 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   const int kForInStackSize = 5 * kPointerSize;
   break_stack_height_ += kForInStackSize;
   node->set_break_stack_height(break_stack_height_);
+  node->break_target()->Initialize(this);
+  node->continue_target()->Initialize(this);
 
-  Label loop, next, entry, cleanup, exit, primitive, jsobject;
-  Label filter_key, end_del_check, fixed_array, non_string;
+  JumpTarget primitive(this);
+  JumpTarget jsobject(this);
+  JumpTarget fixed_array(this);
+  JumpTarget entry(this, JumpTarget::BIDIRECTIONAL);
+  JumpTarget end_del_check(this);
+  JumpTarget exit(this);
 
   // Get the object to enumerate over (converted to JSObject).
-  Load(node->enumerable());
-  frame_->Pop(r0);
+  LoadAndSpill(node->enumerable());
 
   // Both SpiderMonkey and kjs ignore null and undefined in contrast
   // to the specification.  12.6.4 mandates a call to ToObject.
+  frame_->EmitPop(r0);
   __ cmp(r0, Operand(Factory::undefined_value()));
-  __ b(eq, &exit);
+  exit.Branch(eq);
   __ cmp(r0, Operand(Factory::null_value()));
-  __ b(eq, &exit);
+  exit.Branch(eq);
 
   // Stack layout in body:
   // [iteration counter (Smi)]
@@ -1563,31 +1841,31 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
 
   // Check if enumerable is already a JSObject
   __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &primitive);
+  primitive.Branch(eq);
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
   __ cmp(r1, Operand(FIRST_JS_OBJECT_TYPE));
-  __ b(hs, &jsobject);
+  jsobject.Branch(hs);
 
-  __ bind(&primitive);
-  frame_->Push(r0);
-  __ mov(r0, Operand(0));
-  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS);
+  primitive.Bind();
+  frame_->EmitPush(r0);
+  Result arg_count = allocator_->Allocate(r0);
+  ASSERT(arg_count.is_valid());
+  __ mov(arg_count.reg(), Operand(0));
+  frame_->InvokeBuiltin(Builtins::TO_OBJECT, CALL_JS, &arg_count, 1);
 
-
-  __ bind(&jsobject);
-
+  jsobject.Bind();
   // Get the set of properties (as a FixedArray or Map).
-  frame_->Push(r0);  // duplicate the object being enumerated
-  frame_->Push(r0);
-  __ CallRuntime(Runtime::kGetPropertyNamesFast, 1);
+  frame_->EmitPush(r0);  // duplicate the object being enumerated
+  frame_->EmitPush(r0);
+  frame_->CallRuntime(Runtime::kGetPropertyNamesFast, 1);
 
   // If we got a Map, we can do a fast modification check.
   // Otherwise, we got a FixedArray, and we have to do a slow check.
   __ mov(r2, Operand(r0));
   __ ldr(r1, FieldMemOperand(r2, HeapObject::kMapOffset));
   __ cmp(r1, Operand(Factory::meta_map()));
-  __ b(ne, &fixed_array);
+  fixed_array.Branch(ne);
 
   // Get enum cache
   __ mov(r1, Operand(r0));
@@ -1596,94 +1874,82 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
   __ ldr(r2,
          FieldMemOperand(r1, DescriptorArray::kEnumCacheBridgeCacheOffset));
 
-  frame_->Push(r0);  // map
-  frame_->Push(r2);  // enum cache bridge cache
+  frame_->EmitPush(r0);  // map
+  frame_->EmitPush(r2);  // enum cache bridge cache
   __ ldr(r0, FieldMemOperand(r2, FixedArray::kLengthOffset));
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
   __ mov(r0, Operand(Smi::FromInt(0)));
-  frame_->Push(r0);
-  __ b(&entry);
+  frame_->EmitPush(r0);
+  entry.Jump();
 
-
-  __ bind(&fixed_array);
-
+  fixed_array.Bind();
   __ mov(r1, Operand(Smi::FromInt(0)));
-  frame_->Push(r1);  // insert 0 in place of Map
-  frame_->Push(r0);
+  frame_->EmitPush(r1);  // insert 0 in place of Map
+  frame_->EmitPush(r0);
 
   // Push the length of the array and the initial index onto the stack.
   __ ldr(r0, FieldMemOperand(r0, FixedArray::kLengthOffset));
   __ mov(r0, Operand(r0, LSL, kSmiTagSize));
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
   __ mov(r0, Operand(Smi::FromInt(0)));  // init index
-  frame_->Push(r0);
-
-  __ b(&entry);
-
-  // Body.
-  __ bind(&loop);
-  Visit(node->body());
-
-  // Next.
-  __ bind(node->continue_target());
-  __ bind(&next);
-  frame_->Pop(r0);
-  __ add(r0, r0, Operand(Smi::FromInt(1)));
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
 
   // Condition.
-  __ bind(&entry);
-
+  entry.Bind();
   // sp[0] : index
   // sp[1] : array/enum cache length
   // sp[2] : array or enum cache
   // sp[3] : 0 or map
   // sp[4] : enumerable
-  __ ldr(r0, frame_->Element(0));  // load the current count
-  __ ldr(r1, frame_->Element(1));  // load the length
+  __ ldr(r0, frame_->ElementAt(0));  // load the current count
+  __ ldr(r1, frame_->ElementAt(1));  // load the length
   __ cmp(r0, Operand(r1));  // compare to the array length
-  __ b(hs, &cleanup);
+  node->break_target()->Branch(hs);
 
-  __ ldr(r0, frame_->Element(0));
+  __ ldr(r0, frame_->ElementAt(0));
 
   // Get the i'th entry of the array.
-  __ ldr(r2, frame_->Element(2));
+  __ ldr(r2, frame_->ElementAt(2));
   __ add(r2, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ ldr(r3, MemOperand(r2, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
 
   // Get Map or 0.
-  __ ldr(r2, frame_->Element(3));
+  __ ldr(r2, frame_->ElementAt(3));
   // Check if this (still) matches the map of the enumerable.
   // If not, we have to filter the key.
-  __ ldr(r1, frame_->Element(4));
+  __ ldr(r1, frame_->ElementAt(4));
   __ ldr(r1, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ cmp(r1, Operand(r2));
-  __ b(eq, &end_del_check);
+  end_del_check.Branch(eq);
 
   // Convert the entry to a string (or null if it isn't a property anymore).
-  __ ldr(r0, frame_->Element(4));  // push enumerable
-  frame_->Push(r0);
-  frame_->Push(r3);  // push entry
-  __ mov(r0, Operand(1));
-  __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_JS);
-  __ mov(r3, Operand(r0));
+  __ ldr(r0, frame_->ElementAt(4));  // push enumerable
+  frame_->EmitPush(r0);
+  frame_->EmitPush(r3);  // push entry
+  Result arg_count_register = allocator_->Allocate(r0);
+  ASSERT(arg_count_register.is_valid());
+  __ mov(arg_count_register.reg(), Operand(1));
+  Result result = frame_->InvokeBuiltin(Builtins::FILTER_KEY,
+                                        CALL_JS,
+                                        &arg_count_register,
+                                        2);
+  __ mov(r3, Operand(result.reg()));
+  result.Unuse();
 
   // If the property has been removed while iterating, we just skip it.
   __ cmp(r3, Operand(Factory::null_value()));
-  __ b(eq, &next);
+  node->continue_target()->Branch(eq);
 
-
-  __ bind(&end_del_check);
-
-  // Store the entry in the 'each' expression and take another spin in the loop.
-  // r3: i'th entry of the enum cache (or string there of)
-  frame_->Push(r3);  // push entry
+  end_del_check.Bind();
+  // Store the entry in the 'each' expression and take another spin in the
+  // loop.  r3: i'th entry of the enum cache (or string there of)
+  frame_->EmitPush(r3);  // push entry
   { Reference each(this, node->each());
     if (!each.is_illegal()) {
       if (each.size() > 0) {
-        __ ldr(r0, frame_->Element(each.size()));
-        frame_->Push(r0);
+        __ ldr(r0, frame_->ElementAt(each.size()));
+        frame_->EmitPush(r0);
       }
       // If the reference was to a slot we rely on the convenient property
       // that it doesn't matter whether a value (eg, r3 pushed above) is
@@ -1695,37 +1961,50 @@ void CodeGenerator::VisitForInStatement(ForInStatement* node) {
         // ie, now the topmost value of the non-zero sized reference), since
         // we will discard the top of stack after unloading the reference
         // anyway.
-        frame_->Pop(r0);
+        frame_->EmitPop(r0);
       }
     }
   }
   // Discard the i'th entry pushed above or else the remainder of the
   // reference, whichever is currently on top of the stack.
-  frame_->Pop();
+  frame_->Drop();
+
+  // Body.
   CheckStack();  // TODO(1222600): ignore if body contains calls.
-  __ jmp(&loop);
+  VisitAndSpill(node->body());
+
+  // Next.
+  node->continue_target()->Bind();
+  frame_->EmitPop(r0);
+  __ add(r0, r0, Operand(Smi::FromInt(1)));
+  frame_->EmitPush(r0);
+  entry.Jump();
 
   // Cleanup.
-  __ bind(&cleanup);
-  __ bind(node->break_target());
+  node->break_target()->Bind();
   frame_->Drop(5);
 
   // Exit.
-  __ bind(&exit);
-
+  exit.Bind();
   break_stack_height_ -= kForInStackSize;
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitTryCatch(TryCatch* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ TryCatch");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
-  Label try_block, exit;
+  JumpTarget try_block(this);
+  JumpTarget exit(this);
 
-  __ bl(&try_block);
+  try_block.Call();
   // --- Catch block ---
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
 
   // Store the caught exception in the catch variable.
   { Reference ref(this, node->catch_var());
@@ -1737,16 +2016,19 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   }
 
   // Remove the exception from the stack.
-  frame_->Pop();
+  frame_->Drop();
 
-  VisitStatements(node->catch_block()->statements());
-  __ b(&exit);
+  VisitStatementsAndSpill(node->catch_block()->statements());
+  if (frame_ != NULL) {
+    exit.Jump();
+  }
 
 
   // --- Try block ---
-  __ bind(&try_block);
+  try_block.Bind();
 
-  __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER);
+  frame_->PushTryHandler(TRY_CATCH_HANDLER);
+  int handler_height = frame_->height();
 
   // Shadow the labels for all escapes from the try block, including
   // returns. During shadowing, the original label is hidden as the
@@ -1755,17 +2037,23 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   //
   // We should probably try to unify the escaping labels and the return
   // label.
-  int nof_escapes = node->escaping_labels()->length();
-  List<LabelShadow*> shadows(1 + nof_escapes);
-  shadows.Add(new LabelShadow(&function_return_));
+  int nof_escapes = node->escaping_targets()->length();
+  List<ShadowTarget*> shadows(1 + nof_escapes);
+
+  // Add the shadow target for the function return.
+  static const int kReturnShadowIndex = 0;
+  shadows.Add(new ShadowTarget(&function_return_));
+  bool function_return_was_shadowed = function_return_is_shadowed_;
+  function_return_is_shadowed_ = true;
+  ASSERT(shadows[kReturnShadowIndex]->other_target() == &function_return_);
+
+  // Add the remaining shadow targets.
   for (int i = 0; i < nof_escapes; i++) {
-    shadows.Add(new LabelShadow(node->escaping_labels()->at(i)));
+    shadows.Add(new ShadowTarget(node->escaping_targets()->at(i)));
   }
 
   // Generate code for the statements in the try block.
-  VisitStatements(node->try_block()->statements());
-  // Discard the code slot from the handler.
-  frame_->Pop();
+  VisitStatementsAndSpill(node->try_block()->statements());
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
@@ -1775,67 +2063,87 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
     shadows[i]->StopShadowing();
     if (shadows[i]->is_linked()) nof_unlinks++;
   }
+  function_return_is_shadowed_ = function_return_was_shadowed;
 
-  // Unlink from try chain.
-  // The code slot has already been discarded, so the next index is
-  // adjusted by 1.
-  const int kNextIndex =
-      (StackHandlerConstants::kNextOffset / kPointerSize) - 1;
-  __ ldr(r1, frame_->Element(kNextIndex));  // read next_sp
-  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
-  __ str(r1, MemOperand(r3));
-  // The code slot has already been dropped from the handler.
-  frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-  if (nof_unlinks > 0) __ b(&exit);
+  const int kNextIndex = StackHandlerConstants::kNextOffset / kPointerSize;
+  // If we can fall off the end of the try block, unlink from try chain.
+  if (has_valid_frame()) {
+    // The next handler address is at kNextIndex in the stack.
+    __ ldr(r1, frame_->ElementAt(kNextIndex));
+    __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+    __ str(r1, MemOperand(r3));
+    frame_->Drop(StackHandlerConstants::kSize / kPointerSize);
+    if (nof_unlinks > 0) {
+      exit.Jump();
+    }
+  }
 
   // Generate unlink code for the (formerly) shadowing labels that have been
   // jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
       // Unlink from try chain;
-      __ bind(shadows[i]);
+      shadows[i]->Bind();
+      // Because we can be jumping here (to spilled code) from unspilled
+      // code, we need to reestablish a spilled frame at this block.
+      frame_->SpillAll();
 
       // Reload sp from the top handler, because some statements that we
       // break from (eg, for...in) may have left stuff on the stack.
       __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
       __ ldr(sp, MemOperand(r3));
+      // The stack pointer was restored to just below the code slot
+      // (the topmost slot) in the handler.
+      frame_->Forget(frame_->height() - handler_height + 1);
 
-      __ ldr(r1, frame_->Element(kNextIndex));
+      // kNextIndex is off by one because the code slot has already
+      // been dropped.
+      __ ldr(r1, frame_->ElementAt(kNextIndex - 1));
       __ str(r1, MemOperand(r3));
       // The code slot has already been dropped from the handler.
       frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
 
-      __ b(shadows[i]->original_label());
+      if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
+        frame_->PrepareForReturn();
+      }
+      shadows[i]->other_target()->Jump();
     }
   }
 
-  __ bind(&exit);
+  exit.Bind();
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitTryFinally(TryFinally* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ TryFinally");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   // State: Used to keep track of reason for entering the finally
   // block. Should probably be extended to hold information for
   // break/continue from within the try block.
   enum { FALLING, THROWING, JUMPING };
 
-  Label exit, unlink, try_block, finally_block;
+  JumpTarget unlink(this);
+  JumpTarget try_block(this);
+  JumpTarget finally_block(this);
 
-  __ bl(&try_block);
+  try_block.Call();
 
-  frame_->Push(r0);  // save exception object on the stack
+  frame_->EmitPush(r0);  // save exception object on the stack
   // In case of thrown exceptions, this is where we continue.
   __ mov(r2, Operand(Smi::FromInt(THROWING)));
-  __ b(&finally_block);
-
+  finally_block.Jump();
 
   // --- Try block ---
-  __ bind(&try_block);
+  try_block.Bind();
 
-  __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
+  frame_->PushTryHandler(TRY_FINALLY_HANDLER);
+  int handler_height = frame_->height();
 
   // Shadow the labels for all escapes from the try block, including
   // returns.  Shadowing hides the original label as the LabelShadow and
@@ -1843,15 +2151,23 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   //
   // We should probably try to unify the escaping labels and the return
   // label.
-  int nof_escapes = node->escaping_labels()->length();
-  List<LabelShadow*> shadows(1 + nof_escapes);
-  shadows.Add(new LabelShadow(&function_return_));
+  int nof_escapes = node->escaping_targets()->length();
+  List<ShadowTarget*> shadows(1 + nof_escapes);
+
+  // Add the shadow target for the function return.
+  static const int kReturnShadowIndex = 0;
+  shadows.Add(new ShadowTarget(&function_return_));
+  bool function_return_was_shadowed = function_return_is_shadowed_;
+  function_return_is_shadowed_ = true;
+  ASSERT(shadows[kReturnShadowIndex]->other_target() == &function_return_);
+
+  // Add the remaining shadow targets.
   for (int i = 0; i < nof_escapes; i++) {
-    shadows.Add(new LabelShadow(node->escaping_labels()->at(i)));
+    shadows.Add(new ShadowTarget(node->escaping_targets()->at(i)));
   }
 
   // Generate code for the statements in the try block.
-  VisitStatements(node->try_block()->statements());
+  VisitStatementsAndSpill(node->try_block()->statements());
 
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
@@ -1861,58 +2177,71 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
     shadows[i]->StopShadowing();
     if (shadows[i]->is_linked()) nof_unlinks++;
   }
+  function_return_is_shadowed_ = function_return_was_shadowed;
 
-  // Set the state on the stack to FALLING.
-  __ mov(r0, Operand(Factory::undefined_value()));  // fake TOS
-  frame_->Push(r0);
-  __ mov(r2, Operand(Smi::FromInt(FALLING)));
-  if (nof_unlinks > 0) __ b(&unlink);
+  // If we can fall off the end of the try block, set the state on the stack
+  // to FALLING.
+  if (has_valid_frame()) {
+    __ mov(r0, Operand(Factory::undefined_value()));  // fake TOS
+    frame_->EmitPush(r0);
+    __ mov(r2, Operand(Smi::FromInt(FALLING)));
+    if (nof_unlinks > 0) {
+      unlink.Jump();
+    }
+  }
 
   // Generate code to set the state for the (formerly) shadowing labels that
   // have been jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
-      __ bind(shadows[i]);
-      if (shadows[i]->original_label() == &function_return_) {
+      // Because we can be jumping here (to spilled code) from
+      // unspilled code, we need to reestablish a spilled frame at
+      // this block.
+      shadows[i]->Bind();
+      frame_->SpillAll();
+      if (i == kReturnShadowIndex) {
         // If this label shadowed the function return, materialize the
         // return value on the stack.
-        frame_->Push(r0);
+        frame_->EmitPush(r0);
       } else {
-        // Fake TOS for labels that shadowed breaks and continues.
+        // Fake TOS for targets that shadowed breaks and continues.
         __ mov(r0, Operand(Factory::undefined_value()));
-        frame_->Push(r0);
+        frame_->EmitPush(r0);
       }
       __ mov(r2, Operand(Smi::FromInt(JUMPING + i)));
-      __ b(&unlink);
+      unlink.Jump();
     }
   }
 
   // Unlink from try chain;
-  __ bind(&unlink);
+  unlink.Bind();
 
-  frame_->Pop(r0);  // Preserve TOS result in r0 across stack manipulation.
+  // Preserve TOS result in r0 across stack manipulation.
+  frame_->EmitPop(r0);
   // Reload sp from the top handler, because some statements that we
   // break from (eg, for...in) may have left stuff on the stack.
   __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
   __ ldr(sp, MemOperand(r3));
+  // The stack pointer was restored to just below the code slot
+  // (the topmost slot) in the handler.
+  frame_->Forget(frame_->height() - handler_height + 1);
   const int kNextIndex = (StackHandlerConstants::kNextOffset
                           + StackHandlerConstants::kAddressDisplacement)
                        / kPointerSize;
-  __ ldr(r1, frame_->Element(kNextIndex));
+  __ ldr(r1, frame_->ElementAt(kNextIndex));
   __ str(r1, MemOperand(r3));
   ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
-  // The stack pointer was restored to just below the code slot (the
-  // topmost slot) of the handler, so all but the code slot need to be
-  // dropped.
+  // Drop the rest of the handler (not including the already dropped
+  // code slot).
   frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-  // Restore result to TOS.
-  frame_->Push(r0);
+  // Restore the result to TOS.
+  frame_->EmitPush(r0);
 
   // --- Finally block ---
-  __ bind(&finally_block);
+  finally_block.Bind();
 
   // Push the state on the stack.
-  frame_->Push(r2);
+  frame_->EmitPush(r2);
 
   // We keep two elements on the stack - the (possibly faked) result
   // and the state - while evaluating the finally block. Record it, so
@@ -1922,94 +2251,136 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   break_stack_height_ += kFinallyStackSize;
 
   // Generate code for the statements in the finally block.
-  VisitStatements(node->finally_block()->statements());
+  VisitStatementsAndSpill(node->finally_block()->statements());
 
-  // Restore state and return value or faked TOS.
-  frame_->Pop(r2);
-  frame_->Pop(r0);
   break_stack_height_ -= kFinallyStackSize;
+  if (has_valid_frame()) {
+    JumpTarget exit(this);
+    // Restore state and return value or faked TOS.
+    frame_->EmitPop(r2);
+    frame_->EmitPop(r0);
 
-  // Generate code to jump to the right destination for all used (formerly)
-  // shadowing labels.
-  for (int i = 0; i <= nof_escapes; i++) {
-    if (shadows[i]->is_bound()) {
-      __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
-      __ b(eq, shadows[i]->original_label());
+    // Generate code to jump to the right destination for all used (formerly)
+    // shadowing labels.
+    for (int i = 0; i <= nof_escapes; i++) {
+      if (shadows[i]->is_bound()) {
+        JumpTarget* original = shadows[i]->other_target();
+        __ cmp(r2, Operand(Smi::FromInt(JUMPING + i)));
+        if (!function_return_is_shadowed_ && i == kReturnShadowIndex) {
+          JumpTarget skip(this);
+          skip.Branch(ne);
+          frame_->PrepareForReturn();
+          original->Jump();
+          skip.Bind();
+        } else {
+          original->Branch(eq);
+        }
+      }
     }
+
+    // Check if we need to rethrow the exception.
+    __ cmp(r2, Operand(Smi::FromInt(THROWING)));
+    exit.Branch(ne);
+
+    // Rethrow exception.
+    frame_->EmitPush(r0);
+    frame_->CallRuntime(Runtime::kReThrow, 1);
+
+    // Done.
+    exit.Bind();
   }
-
-  // Check if we need to rethrow the exception.
-  __ cmp(r2, Operand(Smi::FromInt(THROWING)));
-  __ b(ne, &exit);
-
-  // Rethrow exception.
-  frame_->Push(r0);
-  __ CallRuntime(Runtime::kReThrow, 1);
-
-  // Done.
-  __ bind(&exit);
+  ASSERT(!has_valid_frame() || frame_->height() == original_height);
 }
 
 
 void CodeGenerator::VisitDebuggerStatement(DebuggerStatement* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ DebuggerStatament");
-  CodeForStatement(node);
-  __ CallRuntime(Runtime::kDebugBreak, 0);
+  CodeForStatementPosition(node);
+  frame_->CallRuntime(Runtime::kDebugBreak, 0);
   // Ignore the return value.
+  ASSERT(frame_->height() == original_height);
 }
 
 
 void CodeGenerator::InstantiateBoilerplate(Handle<JSFunction> boilerplate) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(boilerplate->IsBoilerplate());
 
   // Push the boilerplate on the stack.
   __ mov(r0, Operand(boilerplate));
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
 
   // Create a new closure.
-  frame_->Push(cp);
-  __ CallRuntime(Runtime::kNewClosure, 2);
-  frame_->Push(r0);
+  frame_->EmitPush(cp);
+  frame_->CallRuntime(Runtime::kNewClosure, 2);
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::VisitFunctionLiteral(FunctionLiteral* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ FunctionLiteral");
 
   // Build the function boilerplate and instantiate it.
   Handle<JSFunction> boilerplate = BuildBoilerplate(node);
   // Check for stack-overflow exception.
-  if (HasStackOverflow()) return;
+  if (HasStackOverflow()) {
+    ASSERT(frame_->height() == original_height);
+    return;
+  }
   InstantiateBoilerplate(boilerplate);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitFunctionBoilerplateLiteral(
     FunctionBoilerplateLiteral* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ FunctionBoilerplateLiteral");
   InstantiateBoilerplate(node->boilerplate());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitConditional(Conditional* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Conditional");
-  Label then, else_, exit;
-  LoadCondition(node->condition(), NOT_INSIDE_TYPEOF, &then, &else_, true);
+  JumpTarget then(this);
+  JumpTarget else_(this);
+  JumpTarget exit(this);
+  LoadConditionAndSpill(node->condition(), NOT_INSIDE_TYPEOF,
+                        &then, &else_, true);
   Branch(false, &else_);
-  __ bind(&then);
-  Load(node->then_expression(), typeof_state());
-  __ b(&exit);
-  __ bind(&else_);
-  Load(node->else_expression(), typeof_state());
-  __ bind(&exit);
+  then.Bind();
+  LoadAndSpill(node->then_expression(), typeof_state());
+  exit.Jump();
+  else_.Bind();
+  LoadAndSpill(node->else_expression(), typeof_state());
+  exit.Bind();
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   if (slot->type() == Slot::LOOKUP) {
     ASSERT(slot->var()->is_dynamic());
 
-    Label slow, done;
+    JumpTarget slow(this);
+    JumpTarget done(this);
 
     // Generate fast-case code for variables that might be shadowed by
     // eval-introduced variables.  Eval is used a lot without
@@ -2018,7 +2389,13 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
     // containing the eval.
     if (slot->var()->mode() == Variable::DYNAMIC_GLOBAL) {
       LoadFromGlobalSlotCheckExtensions(slot, typeof_state, r1, r2, &slow);
-      __ b(&done);
+      // If there was no control flow to slow, we can exit early.
+      if (!slow.is_linked()) {
+        frame_->EmitPush(r0);
+        return;
+      }
+
+      done.Jump();
 
     } else if (slot->var()->mode() == Variable::DYNAMIC_LOCAL) {
       Slot* potential_slot = slot->var()->local_if_not_shadowed()->slot();
@@ -2030,23 +2407,25 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
                                                  r1,
                                                  r2,
                                                  &slow));
-        __ b(&done);
+        // There is always control flow to slow from
+        // ContextSlotOperandCheckExtensions.
+        done.Jump();
       }
     }
 
-    __ bind(&slow);
-    frame_->Push(cp);
+    slow.Bind();
+    frame_->EmitPush(cp);
     __ mov(r0, Operand(slot->var()->name()));
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
 
     if (typeof_state == INSIDE_TYPEOF) {
-      __ CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
+      frame_->CallRuntime(Runtime::kLoadContextSlotNoReferenceError, 2);
     } else {
-      __ CallRuntime(Runtime::kLoadContextSlot, 2);
+      frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     }
 
-    __ bind(&done);
-    frame_->Push(r0);
+    done.Bind();
+    frame_->EmitPush(r0);
 
   } else {
     // Note: We would like to keep the assert below, but it fires because of
@@ -2055,16 +2434,16 @@ void CodeGenerator::LoadFromSlot(Slot* slot, TypeofState typeof_state) {
 
     // Special handling for locals allocated in registers.
     __ ldr(r0, SlotOperand(slot, r2));
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
     if (slot->var()->mode() == Variable::CONST) {
       // Const slots may contain 'the hole' value (the constant hasn't been
       // initialized yet) which needs to be converted into the 'undefined'
       // value.
       Comment cmnt(masm_, "[ Unhole const");
-      frame_->Pop(r0);
+      frame_->EmitPop(r0);
       __ cmp(r0, Operand(Factory::the_hole_value()));
       __ mov(r0, Operand(Factory::undefined_value()), LeaveCC, eq);
-      frame_->Push(r0);
+      frame_->EmitPush(r0);
     }
   }
 }
@@ -2074,7 +2453,7 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
                                                       TypeofState typeof_state,
                                                       Register tmp,
                                                       Register tmp2,
-                                                      Label* slow) {
+                                                      JumpTarget* slow) {
   // Check that no extension objects have been created by calls to
   // eval from the current scope to the global scope.
   Register context = cp;
@@ -2085,7 +2464,7 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
         // Check that extension is NULL.
         __ ldr(tmp2, ContextOperand(context, Context::EXTENSION_INDEX));
         __ tst(tmp2, tmp2);
-        __ b(ne, slow);
+        slow->Branch(ne);
       }
       // Load next context in chain.
       __ ldr(tmp, ContextOperand(context, Context::CLOSURE_INDEX));
@@ -2109,7 +2488,7 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
     // Check that extension is NULL.
     __ ldr(tmp2, ContextOperand(tmp, Context::EXTENSION_INDEX));
     __ tst(tmp2, tmp2);
-    __ b(ne, slow);
+    slow->Branch(ne);
     // Load next context in chain.
     __ ldr(tmp, ContextOperand(tmp, Context::CLOSURE_INDEX));
     __ ldr(tmp, FieldMemOperand(tmp, JSFunction::kContextOffset));
@@ -2123,26 +2502,37 @@ void CodeGenerator::LoadFromGlobalSlotCheckExtensions(Slot* slot,
   // Load the global object.
   LoadGlobal();
   // Setup the name register.
-  __ mov(r2, Operand(slot->var()->name()));
+  Result name = allocator_->Allocate(r2);
+  ASSERT(name.is_valid());  // We are in spilled code.
+  __ mov(name.reg(), Operand(slot->var()->name()));
   // Call IC stub.
   if (typeof_state == INSIDE_TYPEOF) {
-    __ Call(ic, RelocInfo::CODE_TARGET);
+    frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET, &name, 0);
   } else {
-    __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
+    frame_->CallCodeObject(ic, RelocInfo::CODE_TARGET_CONTEXT, &name, 0);
   }
 
-  // Pop the global object. The result is in r0.
-  frame_->Pop();
+  // Drop the global object. The result is in r0.
+  frame_->Drop();
 }
 
 
 void CodeGenerator::VisitSlot(Slot* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Slot");
   LoadFromSlot(node, typeof_state());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ VariableProxy");
 
   Variable* var = node->var();
@@ -2152,19 +2542,29 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
   } else {
     ASSERT(var->is_global());
     Reference ref(this, node);
-    ref.GetValue(typeof_state());
+    ref.GetValueAndSpill(typeof_state());
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitLiteral(Literal* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Literal");
   __ mov(r0, Operand(node->handle()));
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ RexExp Literal");
 
   // Retrieve the literal array and check the allocated entry.
@@ -2180,25 +2580,26 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
       FixedArray::kHeaderSize + node->literal_index() * kPointerSize;
   __ ldr(r2, FieldMemOperand(r1, literal_offset));
 
-  Label done;
+  JumpTarget done(this);
   __ cmp(r2, Operand(Factory::undefined_value()));
-  __ b(ne, &done);
+  done.Branch(ne);
 
   // If the entry is undefined we call the runtime system to computed
   // the literal.
-  frame_->Push(r1);  // literal array  (0)
+  frame_->EmitPush(r1);  // literal array  (0)
   __ mov(r0, Operand(Smi::FromInt(node->literal_index())));
-  frame_->Push(r0);  // literal index  (1)
+  frame_->EmitPush(r0);  // literal index  (1)
   __ mov(r0, Operand(node->pattern()));  // RegExp pattern (2)
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
   __ mov(r0, Operand(node->flags()));  // RegExp flags   (3)
-  frame_->Push(r0);
-  __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  frame_->EmitPush(r0);
+  frame_->CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
   __ mov(r2, Operand(r0));
 
-  __ bind(&done);
+  done.Bind();
   // Push the literal.
-  frame_->Push(r2);
+  frame_->EmitPush(r2);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
@@ -2206,39 +2607,53 @@ void CodeGenerator::VisitRegExpLiteral(RegExpLiteral* node) {
 // by calling Runtime_CreateObjectLiteral.
 // Each created boilerplate is stored in the JSFunction and they are
 // therefore context dependent.
-class ObjectLiteralDeferred: public DeferredCode {
+class DeferredObjectLiteral: public DeferredCode {
  public:
-  ObjectLiteralDeferred(CodeGenerator* generator, ObjectLiteral* node)
+  DeferredObjectLiteral(CodeGenerator* generator, ObjectLiteral* node)
       : DeferredCode(generator), node_(node) {
-    set_comment("[ ObjectLiteralDeferred");
+    set_comment("[ DeferredObjectLiteral");
   }
+
   virtual void Generate();
+
  private:
   ObjectLiteral* node_;
 };
 
 
-void ObjectLiteralDeferred::Generate() {
+void DeferredObjectLiteral::Generate() {
+  // Argument is passed in r1.
+  enter()->Bind();
+  VirtualFrame::SpilledScope spilled_scope(generator());
+
   // If the entry is undefined we call the runtime system to computed
   // the literal.
 
+  VirtualFrame* frame = generator()->frame();
   // Literal array (0).
-  __ push(r1);
+  frame->EmitPush(r1);
   // Literal index (1).
   __ mov(r0, Operand(Smi::FromInt(node_->literal_index())));
-  __ push(r0);
+  frame->EmitPush(r0);
   // Constant properties (2).
   __ mov(r0, Operand(node_->constant_properties()));
-  __ push(r0);
-  __ CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
-  __ mov(r2, Operand(r0));
+  frame->EmitPush(r0);
+  Result boilerplate =
+      frame->CallRuntime(Runtime::kCreateObjectLiteralBoilerplate, 3);
+  __ mov(r2, Operand(boilerplate.reg()));
+  // Result is returned in r2.
+  exit_.Jump();
 }
 
 
 void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ObjectLiteral");
 
-  ObjectLiteralDeferred* deferred = new ObjectLiteralDeferred(this, node);
+  DeferredObjectLiteral* deferred = new DeferredObjectLiteral(this, node);
 
   // Retrieve the literal array and check the allocated entry.
 
@@ -2256,15 +2671,15 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   // Check whether we need to materialize the object literal boilerplate.
   // If so, jump to the deferred code.
   __ cmp(r2, Operand(Factory::undefined_value()));
-  __ b(eq, deferred->enter());
-  __ bind(deferred->exit());
+  deferred->enter()->Branch(eq);
+  deferred->BindExit();
 
   // Push the object literal boilerplate.
-  frame_->Push(r2);
+  frame_->EmitPush(r2);
 
   // Clone the boilerplate object.
-  __ CallRuntime(Runtime::kCloneObjectLiteralBoilerplate, 1);
-  frame_->Push(r0);  // save the result
+  frame_->CallRuntime(Runtime::kCloneObjectLiteralBoilerplate, 1);
+  frame_->EmitPush(r0);  // save the result
   // r0: cloned object literal
 
   for (int i = 0; i < node->properties()->length(); i++) {
@@ -2275,53 +2690,58 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
       case ObjectLiteral::Property::CONSTANT: break;
       case ObjectLiteral::Property::COMPUTED:  // fall through
       case ObjectLiteral::Property::PROTOTYPE: {
-        frame_->Push(r0);  // dup the result
-        Load(key);
-        Load(value);
-        __ CallRuntime(Runtime::kSetProperty, 3);
+        frame_->EmitPush(r0);  // dup the result
+        LoadAndSpill(key);
+        LoadAndSpill(value);
+        frame_->CallRuntime(Runtime::kSetProperty, 3);
         // restore r0
         __ ldr(r0, frame_->Top());
         break;
       }
       case ObjectLiteral::Property::SETTER: {
-        frame_->Push(r0);
-        Load(key);
+        frame_->EmitPush(r0);
+        LoadAndSpill(key);
         __ mov(r0, Operand(Smi::FromInt(1)));
-        frame_->Push(r0);
-        Load(value);
-        __ CallRuntime(Runtime::kDefineAccessor, 4);
+        frame_->EmitPush(r0);
+        LoadAndSpill(value);
+        frame_->CallRuntime(Runtime::kDefineAccessor, 4);
         __ ldr(r0, frame_->Top());
         break;
       }
       case ObjectLiteral::Property::GETTER: {
-        frame_->Push(r0);
-        Load(key);
+        frame_->EmitPush(r0);
+        LoadAndSpill(key);
         __ mov(r0, Operand(Smi::FromInt(0)));
-        frame_->Push(r0);
-        Load(value);
-        __ CallRuntime(Runtime::kDefineAccessor, 4);
+        frame_->EmitPush(r0);
+        LoadAndSpill(value);
+        frame_->CallRuntime(Runtime::kDefineAccessor, 4);
         __ ldr(r0, frame_->Top());
         break;
       }
     }
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ ArrayLiteral");
 
   // Call runtime to create the array literal.
   __ mov(r0, Operand(node->literals()));
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
   // Load the function of this frame.
   __ ldr(r0, frame_->Function());
   __ ldr(r0, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
-  frame_->Push(r0);
-  __ CallRuntime(Runtime::kCreateArrayLiteral, 2);
+  frame_->EmitPush(r0);
+  frame_->CallRuntime(Runtime::kCreateArrayLiteral, 2);
 
   // Push the resulting array literal on the stack.
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
 
   // Generate code to set the elements in the array that are not
   // literals.
@@ -2332,8 +2752,8 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
     // set in the boilerplate object.
     if (value->AsLiteral() == NULL) {
       // The property must be set by generated code.
-      Load(value);
-      frame_->Pop(r0);
+      LoadAndSpill(value);
+      frame_->EmitPop(r0);
 
       // Fetch the object literal
       __ ldr(r1, frame_->Top());
@@ -2349,90 +2769,126 @@ void CodeGenerator::VisitArrayLiteral(ArrayLiteral* node) {
       __ RecordWrite(r1, r3, r2);
     }
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitCatchExtensionObject(CatchExtensionObject* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  ASSERT(!in_spilled_code());
+  VirtualFrame::SpilledScope spilled_scope(this);
   // Call runtime routine to allocate the catch extension object and
   // assign the exception value to the catch variable.
-  Comment cmnt(masm_, "[CatchExtensionObject ");
-  Load(node->key());
-  Load(node->value());
-  __ CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
-  frame_->Push(r0);
+  Comment cmnt(masm_, "[ CatchExtensionObject");
+  LoadAndSpill(node->key());
+  LoadAndSpill(node->value());
+  Result result =
+      frame_->CallRuntime(Runtime::kCreateCatchExtensionObject, 2);
+  frame_->EmitPush(result.reg());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitAssignment(Assignment* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Assignment");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
-  Reference target(this, node->target());
-  if (target.is_illegal()) return;
+  { Reference target(this, node->target());
+    if (target.is_illegal()) {
+      // Fool the virtual frame into thinking that we left the assignment's
+      // value on the frame.
+      __ mov(r0, Operand(Smi::FromInt(0)));
+      frame_->EmitPush(r0);
+      ASSERT(frame_->height() == original_height + 1);
+      return;
+    }
 
-  if (node->op() == Token::ASSIGN ||
-      node->op() == Token::INIT_VAR ||
-      node->op() == Token::INIT_CONST) {
-    Load(node->value());
-
-  } else {
-    target.GetValue(NOT_INSIDE_TYPEOF);
-    Literal* literal = node->value()->AsLiteral();
-    if (literal != NULL && literal->handle()->IsSmi()) {
-      SmiOperation(node->binary_op(), literal->handle(), false);
-      frame_->Push(r0);
+    if (node->op() == Token::ASSIGN ||
+        node->op() == Token::INIT_VAR ||
+        node->op() == Token::INIT_CONST) {
+      LoadAndSpill(node->value());
 
     } else {
-      Load(node->value());
-      GenericBinaryOperation(node->binary_op());
-      frame_->Push(r0);
+      target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
+      Literal* literal = node->value()->AsLiteral();
+      if (literal != NULL && literal->handle()->IsSmi()) {
+        SmiOperation(node->binary_op(), literal->handle(), false);
+        frame_->EmitPush(r0);
+
+      } else {
+        LoadAndSpill(node->value());
+        GenericBinaryOperation(node->binary_op());
+        frame_->EmitPush(r0);
+      }
     }
-  }
 
-  Variable* var = node->target()->AsVariableProxy()->AsVariable();
-  if (var != NULL &&
-      (var->mode() == Variable::CONST) &&
-      node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
-    // Assignment ignored - leave the value on the stack.
+    Variable* var = node->target()->AsVariableProxy()->AsVariable();
+    if (var != NULL &&
+        (var->mode() == Variable::CONST) &&
+        node->op() != Token::INIT_VAR && node->op() != Token::INIT_CONST) {
+      // Assignment ignored - leave the value on the stack.
 
-  } else {
-    CodeForSourcePosition(node->position());
-    if (node->op() == Token::INIT_CONST) {
-      // Dynamic constant initializations must use the function context
-      // and initialize the actual constant declared. Dynamic variable
-      // initializations are simply assignments and use SetValue.
-      target.SetValue(CONST_INIT);
     } else {
-      target.SetValue(NOT_CONST_INIT);
+      CodeForSourcePosition(node->position());
+      if (node->op() == Token::INIT_CONST) {
+        // Dynamic constant initializations must use the function context
+        // and initialize the actual constant declared. Dynamic variable
+        // initializations are simply assignments and use SetValue.
+        target.SetValue(CONST_INIT);
+      } else {
+        target.SetValue(NOT_CONST_INIT);
+      }
     }
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitThrow(Throw* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Throw");
 
-  Load(node->exception());
+  LoadAndSpill(node->exception());
   CodeForSourcePosition(node->position());
-  __ CallRuntime(Runtime::kThrow, 1);
-  frame_->Push(r0);
+  frame_->CallRuntime(Runtime::kThrow, 1);
+  frame_->EmitPush(r0);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitProperty(Property* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Property");
 
-  Reference property(this, node);
-  property.GetValue(typeof_state());
+  { Reference property(this, node);
+    property.GetValueAndSpill(typeof_state());
+  }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitCall(Call* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ Call");
 
   ZoneList<Expression*>* args = node->arguments();
 
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
   // Standard function call.
 
   // Check if the function is a variable or a property.
@@ -2456,7 +2912,7 @@ void CodeGenerator::VisitCall(Call* node) {
 
     // Push the name of the function and the receiver onto the stack.
     __ mov(r0, Operand(var->name()));
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
 
     // Pass the global object as the receiver and let the IC stub
     // patch the stack to use the global proxy as 'this' in the
@@ -2464,16 +2920,20 @@ void CodeGenerator::VisitCall(Call* node) {
     LoadGlobal();
 
     // Load the arguments.
-    for (int i = 0; i < args->length(); i++) Load(args->at(i));
+    int arg_count = args->length();
+    for (int i = 0; i < arg_count; i++) {
+      LoadAndSpill(args->at(i));
+    }
 
     // Setup the receiver register and call the IC initialization code.
-    Handle<Code> stub = ComputeCallInitialize(args->length());
+    Handle<Code> stub = ComputeCallInitialize(arg_count);
     CodeForSourcePosition(node->position());
-    __ Call(stub, RelocInfo::CODE_TARGET_CONTEXT);
+    frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET_CONTEXT,
+                           arg_count + 1);
     __ ldr(cp, frame_->Context());
     // Remove the function from the stack.
-    frame_->Pop();
-    frame_->Push(r0);
+    frame_->Drop();
+    frame_->EmitPush(r0);
 
   } else if (var != NULL && var->slot() != NULL &&
              var->slot()->type() == Slot::LOOKUP) {
@@ -2482,19 +2942,19 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
 
     // Load the function
-    frame_->Push(cp);
+    frame_->EmitPush(cp);
     __ mov(r0, Operand(var->name()));
-    frame_->Push(r0);
-    __ CallRuntime(Runtime::kLoadContextSlot, 2);
+    frame_->EmitPush(r0);
+    frame_->CallRuntime(Runtime::kLoadContextSlot, 2);
     // r0: slot value; r1: receiver
 
     // Load the receiver.
-    frame_->Push(r0);  // function
-    frame_->Push(r1);  // receiver
+    frame_->EmitPush(r0);  // function
+    frame_->EmitPush(r1);  // receiver
 
     // Call the function.
     CallWithArguments(args, node->position());
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
 
   } else if (property != NULL) {
     // Check if the key is a literal string.
@@ -2507,22 +2967,25 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Push the name of the function and the receiver onto the stack.
       __ mov(r0, Operand(literal->handle()));
-      frame_->Push(r0);
-      Load(property->obj());
+      frame_->EmitPush(r0);
+      LoadAndSpill(property->obj());
 
       // Load the arguments.
-      for (int i = 0; i < args->length(); i++) Load(args->at(i));
+      int arg_count = args->length();
+      for (int i = 0; i < arg_count; i++) {
+        LoadAndSpill(args->at(i));
+      }
 
       // Set the receiver register and call the IC initialization code.
-      Handle<Code> stub = ComputeCallInitialize(args->length());
+      Handle<Code> stub = ComputeCallInitialize(arg_count);
       CodeForSourcePosition(node->position());
-      __ Call(stub, RelocInfo::CODE_TARGET);
+      frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
       __ ldr(cp, frame_->Context());
 
       // Remove the function from the stack.
-      frame_->Pop();
+      frame_->Drop();
 
-      frame_->Push(r0);  // push after get rid of function from the stack
+      frame_->EmitPush(r0);  // push after get rid of function from the stack
 
     } else {
       // -------------------------------------------
@@ -2531,14 +2994,14 @@ void CodeGenerator::VisitCall(Call* node) {
 
       // Load the function to call from the property through a reference.
       Reference ref(this, property);
-      ref.GetValue(NOT_INSIDE_TYPEOF);  // receiver
+      ref.GetValueAndSpill(NOT_INSIDE_TYPEOF);  // receiver
 
       // Pass receiver to called function.
-      __ ldr(r0, frame_->Element(ref.size()));
-      frame_->Push(r0);
+      __ ldr(r0, frame_->ElementAt(ref.size()));
+      frame_->EmitPush(r0);
       // Call the function.
       CallWithArguments(args, node->position());
-      frame_->Push(r0);
+      frame_->EmitPush(r0);
     }
 
   } else {
@@ -2547,19 +3010,24 @@ void CodeGenerator::VisitCall(Call* node) {
     // ----------------------------------
 
     // Load the function.
-    Load(function);
+    LoadAndSpill(function);
 
     // Pass the global proxy as the receiver.
     LoadGlobalReceiver(r0);
 
     // Call the function.
     CallWithArguments(args, node->position());
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitCallEval(CallEval* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CallEval");
 
   // In a call to eval, we first call %ResolvePossiblyDirectEval to resolve
@@ -2569,51 +3037,57 @@ void CodeGenerator::VisitCallEval(CallEval* node) {
   ZoneList<Expression*>* args = node->arguments();
   Expression* function = node->expression();
 
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   // Prepare stack for call to resolved function.
-  Load(function);
+  LoadAndSpill(function);
   __ mov(r2, Operand(Factory::undefined_value()));
-  __ push(r2);  // Slot for receiver
-  for (int i = 0; i < args->length(); i++) {
-    Load(args->at(i));
+  frame_->EmitPush(r2);  // Slot for receiver
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    LoadAndSpill(args->at(i));
   }
 
   // Prepare stack for call to ResolvePossiblyDirectEval.
-  __ ldr(r1, MemOperand(sp, args->length() * kPointerSize + kPointerSize));
-  __ push(r1);
-  if (args->length() > 0) {
-    __ ldr(r1, MemOperand(sp, args->length() * kPointerSize));
-    __ push(r1);
+  __ ldr(r1, MemOperand(sp, arg_count * kPointerSize + kPointerSize));
+  frame_->EmitPush(r1);
+  if (arg_count > 0) {
+    __ ldr(r1, MemOperand(sp, arg_count * kPointerSize));
+    frame_->EmitPush(r1);
   } else {
-    __ push(r2);
+    frame_->EmitPush(r2);
   }
 
   // Resolve the call.
-  __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
+  frame_->CallRuntime(Runtime::kResolvePossiblyDirectEval, 2);
 
   // Touch up stack with the right values for the function and the receiver.
   __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize));
-  __ str(r1, MemOperand(sp, (args->length() + 1) * kPointerSize));
+  __ str(r1, MemOperand(sp, (arg_count + 1) * kPointerSize));
   __ ldr(r1, FieldMemOperand(r0, FixedArray::kHeaderSize + kPointerSize));
-  __ str(r1, MemOperand(sp, args->length() * kPointerSize));
+  __ str(r1, MemOperand(sp, arg_count * kPointerSize));
 
   // Call the function.
   CodeForSourcePosition(node->position());
 
-  CallFunctionStub call_function(args->length());
-  __ CallStub(&call_function);
+  CallFunctionStub call_function(arg_count);
+  frame_->CallStub(&call_function, arg_count + 1);
 
   __ ldr(cp, frame_->Context());
   // Remove the function from the stack.
-  frame_->Pop();
-  frame_->Push(r0);
+  frame_->Drop();
+  frame_->EmitPush(r0);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitCallNew(CallNew* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CallNew");
-  CodeForStatement(node);
+  CodeForStatementPosition(node);
 
   // According to ECMA-262, section 11.2.2, page 44, the function
   // expression in new calls must be evaluated before the
@@ -2624,106 +3098,123 @@ void CodeGenerator::VisitCallNew(CallNew* node) {
   // Compute function to call and use the global object as the
   // receiver. There is no need to use the global proxy here because
   // it will always be replaced with a newly allocated object.
-  Load(node->expression());
+  LoadAndSpill(node->expression());
   LoadGlobal();
 
   // Push the arguments ("left-to-right") on the stack.
   ZoneList<Expression*>* args = node->arguments();
-  for (int i = 0; i < args->length(); i++) Load(args->at(i));
+  int arg_count = args->length();
+  for (int i = 0; i < arg_count; i++) {
+    LoadAndSpill(args->at(i));
+  }
 
   // r0: the number of arguments.
-  __ mov(r0, Operand(args->length()));
+  Result num_args = allocator_->Allocate(r0);
+  ASSERT(num_args.is_valid());
+  __ mov(num_args.reg(), Operand(arg_count));
 
   // Load the function into r1 as per calling convention.
-  __ ldr(r1, frame_->Element(args->length() + 1));
+  Result function = allocator_->Allocate(r1);
+  ASSERT(function.is_valid());
+  __ ldr(function.reg(), frame_->ElementAt(arg_count + 1));
 
   // Call the construct call builtin that handles allocation and
   // constructor invocation.
   CodeForSourcePosition(node->position());
-  __ Call(Handle<Code>(Builtins::builtin(Builtins::JSConstructCall)),
-          RelocInfo::CONSTRUCT_CALL);
+  Handle<Code> ic(Builtins::builtin(Builtins::JSConstructCall));
+  Result result = frame_->CallCodeObject(ic,
+                                         RelocInfo::CONSTRUCT_CALL,
+                                         &num_args,
+                                         &function,
+                                         arg_count + 1);
 
   // Discard old TOS value and push r0 on the stack (same as Pop(), push(r0)).
   __ str(r0, frame_->Top());
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 1);
-  Label leave;
-  Load(args->at(0));
-  frame_->Pop(r0);  // r0 contains object.
+  JumpTarget leave(this);
+  LoadAndSpill(args->at(0));
+  frame_->EmitPop(r0);  // r0 contains object.
   // if (object->IsSmi()) return the object.
   __ tst(r0, Operand(kSmiTagMask));
-  __ b(eq, &leave);
+  leave.Branch(eq);
   // It is a heap object - get map.
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
   // if (!object->IsJSValue()) return the object.
   __ cmp(r1, Operand(JS_VALUE_TYPE));
-  __ b(ne, &leave);
+  leave.Branch(ne);
   // Load the value.
   __ ldr(r0, FieldMemOperand(r0, JSValue::kValueOffset));
-  __ bind(&leave);
-  frame_->Push(r0);
+  leave.Bind();
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 2);
-  Label leave;
-  Load(args->at(0));  // Load the object.
-  Load(args->at(1));  // Load the value.
-  frame_->Pop(r0);  // r0 contains value
-  frame_->Pop(r1);  // r1 contains object
+  JumpTarget leave(this);
+  LoadAndSpill(args->at(0));  // Load the object.
+  LoadAndSpill(args->at(1));  // Load the value.
+  frame_->EmitPop(r0);  // r0 contains value
+  frame_->EmitPop(r1);  // r1 contains object
   // if (object->IsSmi()) return object.
   __ tst(r1, Operand(kSmiTagMask));
-  __ b(eq, &leave);
+  leave.Branch(eq);
   // It is a heap object - get map.
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
   __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
   // if (!object->IsJSValue()) return object.
   __ cmp(r2, Operand(JS_VALUE_TYPE));
-  __ b(ne, &leave);
+  leave.Branch(ne);
   // Store the value.
   __ str(r0, FieldMemOperand(r1, JSValue::kValueOffset));
   // Update the write barrier.
   __ mov(r2, Operand(JSValue::kValueOffset - kHeapObjectTag));
   __ RecordWrite(r1, r2, r3);
   // Leave.
-  __ bind(&leave);
-  frame_->Push(r0);
+  leave.Bind();
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::GenerateIsSmi(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 1);
-  Load(args->at(0));
-  frame_->Pop(r0);
+  LoadAndSpill(args->at(0));
+  frame_->EmitPop(r0);
   __ tst(r0, Operand(kSmiTagMask));
   cc_reg_ = eq;
 }
 
 
 void CodeGenerator::GenerateLog(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   // See comment in CodeGenerator::GenerateLog in codegen-ia32.cc.
   ASSERT_EQ(args->length(), 3);
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (ShouldGenerateLog(args->at(0))) {
-    Load(args->at(1));
-    Load(args->at(2));
+    LoadAndSpill(args->at(1));
+    LoadAndSpill(args->at(2));
     __ CallRuntime(Runtime::kLog, 2);
   }
 #endif
   __ mov(r0, Operand(Factory::undefined_value()));
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 1);
-  Load(args->at(0));
-  frame_->Pop(r0);
+  LoadAndSpill(args->at(0));
+  frame_->EmitPop(r0);
   __ tst(r0, Operand(kSmiTagMask | 0x80000000));
   cc_reg_ = eq;
 }
@@ -2733,34 +3224,37 @@ void CodeGenerator::GenerateIsNonNegativeSmi(ZoneList<Expression*>* args) {
 // undefined in order to trigger the slow case, Runtime_StringCharCodeAt.
 // It is not yet implemented on ARM, so it always goes to the slow case.
 void CodeGenerator::GenerateFastCharCodeAt(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 2);
   __ mov(r0, Operand(Factory::undefined_value()));
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 1);
-  Load(args->at(0));
-  Label answer;
+  LoadAndSpill(args->at(0));
+  JumpTarget answer(this);
   // We need the CC bits to come out as not_equal in the case where the
   // object is a smi.  This can't be done with the usual test opcode so
   // we use XOR to get the right CC bits.
-  frame_->Pop(r0);
+  frame_->EmitPop(r0);
   __ and_(r1, r0, Operand(kSmiTagMask));
   __ eor(r1, r1, Operand(kSmiTagMask), SetCC);
-  __ b(ne, &answer);
+  answer.Branch(ne);
   // It is a heap object - get the map.
   __ ldr(r1, FieldMemOperand(r0, HeapObject::kMapOffset));
   __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
   // Check if the object is a JS array or not.
   __ cmp(r1, Operand(JS_ARRAY_TYPE));
-  __ bind(&answer);
+  answer.Bind();
   cc_reg_ = eq;
 }
 
 
 void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 0);
 
   // Seed the result with the formal parameters count, which will be used
@@ -2769,42 +3263,52 @@ void CodeGenerator::GenerateArgumentsLength(ZoneList<Expression*>* args) {
 
   // Call the shared stub to get to the arguments.length.
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_LENGTH);
-  __ CallStub(&stub);
-  frame_->Push(r0);
+  frame_->CallStub(&stub, 0);
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::GenerateArgumentsAccess(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 1);
 
   // Satisfy contract with ArgumentsAccessStub:
   // Load the key into r1 and the formal parameters count into r0.
-  Load(args->at(0));
-  frame_->Pop(r1);
+  LoadAndSpill(args->at(0));
+  frame_->EmitPop(r1);
   __ mov(r0, Operand(Smi::FromInt(scope_->num_parameters())));
 
   // Call the shared stub to get to arguments[key].
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
-  __ CallStub(&stub);
-  frame_->Push(r0);
+  frame_->CallStub(&stub, 0);
+  frame_->EmitPush(r0);
 }
 
 
 void CodeGenerator::GenerateObjectEquals(ZoneList<Expression*>* args) {
+  VirtualFrame::SpilledScope spilled_scope(this);
   ASSERT(args->length() == 2);
 
   // Load the two objects into registers and perform the comparison.
-  Load(args->at(0));
-  Load(args->at(1));
-  frame_->Pop(r0);
-  frame_->Pop(r1);
+  LoadAndSpill(args->at(0));
+  LoadAndSpill(args->at(1));
+  frame_->EmitPop(r0);
+  frame_->EmitPop(r1);
   __ cmp(r0, Operand(r1));
   cc_reg_ = eq;
 }
 
 
 void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
-  if (CheckForInlineRuntimeCall(node)) return;
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
+  if (CheckForInlineRuntimeCall(node)) {
+    ASSERT((has_cc() && frame_->height() == original_height) ||
+           (!has_cc() && frame_->height() == original_height + 1));
+    return;
+  }
 
   ZoneList<Expression*>* args = node->arguments();
   Comment cmnt(masm_, "[ CallRuntime");
@@ -2812,76 +3316,93 @@ void CodeGenerator::VisitCallRuntime(CallRuntime* node) {
 
   if (function != NULL) {
     // Push the arguments ("left-to-right").
-    for (int i = 0; i < args->length(); i++) Load(args->at(i));
+    int arg_count = args->length();
+    for (int i = 0; i < arg_count; i++) {
+      LoadAndSpill(args->at(i));
+    }
 
     // Call the C runtime function.
-    __ CallRuntime(function, args->length());
-    frame_->Push(r0);
+    frame_->CallRuntime(function, arg_count);
+    frame_->EmitPush(r0);
 
   } else {
     // Prepare stack for calling JS runtime function.
     __ mov(r0, Operand(node->name()));
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
     // Push the builtins object found in the current global object.
     __ ldr(r1, GlobalObject());
     __ ldr(r0, FieldMemOperand(r1, GlobalObject::kBuiltinsOffset));
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
 
-    for (int i = 0; i < args->length(); i++) Load(args->at(i));
+    int arg_count = args->length();
+    for (int i = 0; i < arg_count; i++) {
+      LoadAndSpill(args->at(i));
+    }
 
     // Call the JS runtime function.
     Handle<Code> stub = ComputeCallInitialize(args->length());
-    __ Call(stub, RelocInfo::CODE_TARGET);
+    frame_->CallCodeObject(stub, RelocInfo::CODE_TARGET, arg_count + 1);
     __ ldr(cp, frame_->Context());
-    frame_->Pop();
-    frame_->Push(r0);
+    frame_->Drop();
+    frame_->EmitPush(r0);
   }
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ UnaryOperation");
 
   Token::Value op = node->op();
 
   if (op == Token::NOT) {
-    LoadCondition(node->expression(),
-                  NOT_INSIDE_TYPEOF,
-                  false_target(),
-                  true_target(),
-                  true);
+    LoadConditionAndSpill(node->expression(),
+                          NOT_INSIDE_TYPEOF,
+                          false_target(),
+                          true_target(),
+                          true);
     cc_reg_ = NegateCondition(cc_reg_);
 
   } else if (op == Token::DELETE) {
     Property* property = node->expression()->AsProperty();
     Variable* variable = node->expression()->AsVariableProxy()->AsVariable();
     if (property != NULL) {
-      Load(property->obj());
-      Load(property->key());
-      __ mov(r0, Operand(1));  // not counting receiver
-      __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
+      LoadAndSpill(property->obj());
+      LoadAndSpill(property->key());
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+      frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
 
     } else if (variable != NULL) {
       Slot* slot = variable->slot();
       if (variable->is_global()) {
         LoadGlobal();
         __ mov(r0, Operand(variable->name()));
-        frame_->Push(r0);
-        __ mov(r0, Operand(1));  // not counting receiver
-        __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
+        frame_->EmitPush(r0);
+        Result arg_count = allocator_->Allocate(r0);
+        ASSERT(arg_count.is_valid());
+        __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
 
       } else if (slot != NULL && slot->type() == Slot::LOOKUP) {
         // lookup the context holding the named variable
-        frame_->Push(cp);
+        frame_->EmitPush(cp);
         __ mov(r0, Operand(variable->name()));
-        frame_->Push(r0);
-        __ CallRuntime(Runtime::kLookupContext, 2);
+        frame_->EmitPush(r0);
+        frame_->CallRuntime(Runtime::kLookupContext, 2);
         // r0: context
-        frame_->Push(r0);
+        frame_->EmitPush(r0);
         __ mov(r0, Operand(variable->name()));
-        frame_->Push(r0);
-        __ mov(r0, Operand(1));  // not counting receiver
-        __ InvokeBuiltin(Builtins::DELETE, CALL_JS);
+        frame_->EmitPush(r0);
+        Result arg_count = allocator_->Allocate(r0);
+        ASSERT(arg_count.is_valid());
+        __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+        frame_->InvokeBuiltin(Builtins::DELETE, CALL_JS, &arg_count, 2);
 
       } else {
         // Default: Result of deleting non-global, not dynamically
@@ -2891,22 +3412,22 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
     } else {
       // Default: Result of deleting expressions is true.
-      Load(node->expression());  // may have side-effects
-      frame_->Pop();
+      LoadAndSpill(node->expression());  // may have side-effects
+      frame_->Drop();
       __ mov(r0, Operand(Factory::true_value()));
     }
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
 
   } else if (op == Token::TYPEOF) {
     // Special case for loading the typeof expression; see comment on
     // LoadTypeofExpression().
     LoadTypeofExpression(node->expression());
-    __ CallRuntime(Runtime::kTypeof, 1);
-    frame_->Push(r0);  // r0 has result
+    frame_->CallRuntime(Runtime::kTypeof, 1);
+    frame_->EmitPush(r0);  // r0 has result
 
   } else {
-    Load(node->expression());
-    frame_->Pop(r0);
+    LoadAndSpill(node->expression());
+    frame_->EmitPop(r0);
     switch (op) {
       case Token::NOT:
       case Token::DELETE:
@@ -2916,26 +3437,28 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::SUB: {
         UnarySubStub stub;
-        __ CallStub(&stub);
+        frame_->CallStub(&stub, 0);
         break;
       }
 
       case Token::BIT_NOT: {
         // smi check
-        Label smi_label;
-        Label continue_label;
+        JumpTarget smi_label(this);
+        JumpTarget continue_label(this);
         __ tst(r0, Operand(kSmiTagMask));
-        __ b(eq, &smi_label);
+        smi_label.Branch(eq);
 
-        frame_->Push(r0);
-        __ mov(r0, Operand(0));  // not counting receiver
-        __ InvokeBuiltin(Builtins::BIT_NOT, CALL_JS);
+        frame_->EmitPush(r0);
+        Result arg_count = allocator_->Allocate(r0);
+        ASSERT(arg_count.is_valid());
+        __ mov(arg_count.reg(), Operand(0));  // not counting receiver
+        frame_->InvokeBuiltin(Builtins::BIT_NOT, CALL_JS, &arg_count, 1);
 
-        __ b(&continue_label);
-        __ bind(&smi_label);
+        continue_label.Jump();
+        smi_label.Bind();
         __ mvn(r0, Operand(r0));
         __ bic(r0, r0, Operand(kSmiTagMask));  // bit-clear inverted smi-tag
-        __ bind(&continue_label);
+        continue_label.Bind();
         break;
       }
 
@@ -2947,24 +3470,32 @@ void CodeGenerator::VisitUnaryOperation(UnaryOperation* node) {
 
       case Token::ADD: {
         // Smi check.
-        Label continue_label;
+        JumpTarget continue_label(this);
         __ tst(r0, Operand(kSmiTagMask));
-        __ b(eq, &continue_label);
-        frame_->Push(r0);
-        __ mov(r0, Operand(0));  // not counting receiver
-        __ InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS);
-        __ bind(&continue_label);
+        continue_label.Branch(eq);
+        frame_->EmitPush(r0);
+        Result arg_count = allocator_->Allocate(r0);
+        ASSERT(arg_count.is_valid());
+        __ mov(arg_count.reg(), Operand(0));  // not counting receiver
+        frame_->InvokeBuiltin(Builtins::TO_NUMBER, CALL_JS, &arg_count, 1);
+        continue_label.Bind();
         break;
       }
       default:
         UNREACHABLE();
     }
-    frame_->Push(r0);  // r0 has result
+    frame_->EmitPush(r0);  // r0 has result
   }
+  ASSERT((has_cc() && frame_->height() == original_height) ||
+         (!has_cc() && frame_->height() == original_height + 1));
 }
 
 
 void CodeGenerator::VisitCountOperation(CountOperation* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CountOperation");
 
   bool is_postfix = node->is_postfix();
@@ -2976,26 +3507,36 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
   // Postfix: Make room for the result.
   if (is_postfix) {
      __ mov(r0, Operand(0));
-     frame_->Push(r0);
+     frame_->EmitPush(r0);
   }
 
   { Reference target(this, node->expression());
-    if (target.is_illegal()) return;
-    target.GetValue(NOT_INSIDE_TYPEOF);
-    frame_->Pop(r0);
+    if (target.is_illegal()) {
+      // Spoof the virtual frame to have the expected height (one higher
+      // than on entry).
+      if (!is_postfix) {
+        __ mov(r0, Operand(Smi::FromInt(0)));
+        frame_->EmitPush(r0);
+      }
+      ASSERT(frame_->height() == original_height + 1);
+      return;
+    }
+    target.GetValueAndSpill(NOT_INSIDE_TYPEOF);
+    frame_->EmitPop(r0);
 
-    Label slow, exit;
+    JumpTarget slow(this);
+    JumpTarget exit(this);
 
     // Load the value (1) into register r1.
     __ mov(r1, Operand(Smi::FromInt(1)));
 
     // Check for smi operand.
     __ tst(r0, Operand(kSmiTagMask));
-    __ b(ne, &slow);
+    slow.Branch(ne);
 
     // Postfix: Store the old value as the result.
     if (is_postfix) {
-      __ str(r0, frame_->Element(target.size()));
+      __ str(r0, frame_->ElementAt(target.size()));
     }
 
     // Perform optimistic increment/decrement.
@@ -3006,7 +3547,7 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     }
 
     // If the increment/decrement didn't overflow, we're done.
-    __ b(vc, &exit);
+    exit.Branch(vc);
 
     // Revert optimistic increment/decrement.
     if (is_increment) {
@@ -3016,37 +3557,42 @@ void CodeGenerator::VisitCountOperation(CountOperation* node) {
     }
 
     // Slow case: Convert to number.
-    __ bind(&slow);
+    slow.Bind();
 
     // Postfix: Convert the operand to a number and store it as the result.
     if (is_postfix) {
       InvokeBuiltinStub stub(InvokeBuiltinStub::ToNumber, 2);
-      __ CallStub(&stub);
+      frame_->CallStub(&stub, 0);
       // Store to result (on the stack).
-      __ str(r0, frame_->Element(target.size()));
+      __ str(r0, frame_->ElementAt(target.size()));
     }
 
     // Compute the new value by calling the right JavaScript native.
     if (is_increment) {
       InvokeBuiltinStub stub(InvokeBuiltinStub::Inc, 1);
-      __ CallStub(&stub);
+      frame_->CallStub(&stub, 0);
     } else {
       InvokeBuiltinStub stub(InvokeBuiltinStub::Dec, 1);
-      __ CallStub(&stub);
+      frame_->CallStub(&stub, 0);
     }
 
     // Store the new value in the target if not const.
-    __ bind(&exit);
-    frame_->Push(r0);
+    exit.Bind();
+    frame_->EmitPush(r0);
     if (!is_const) target.SetValue(NOT_CONST_INIT);
   }
 
   // Postfix: Discard the new value and use the old.
-  if (is_postfix) frame_->Pop(r0);
+  if (is_postfix) frame_->EmitPop(r0);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ BinaryOperation");
   Token::Value op = node->op();
 
@@ -3063,28 +3609,29 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
   // of compiling the binary operation is materialized or not.
 
   if (op == Token::AND) {
-    Label is_true;
-    LoadCondition(node->left(),
-                  NOT_INSIDE_TYPEOF,
-                  &is_true,
-                  false_target(),
-                  false);
+    JumpTarget is_true(this);
+    LoadConditionAndSpill(node->left(),
+                          NOT_INSIDE_TYPEOF,
+                          &is_true,
+                          false_target(),
+                          false);
     if (has_cc()) {
       Branch(false, false_target());
 
       // Evaluate right side expression.
-      __ bind(&is_true);
-      LoadCondition(node->right(),
-                    NOT_INSIDE_TYPEOF,
-                    true_target(),
-                    false_target(),
-                    false);
+      is_true.Bind();
+      LoadConditionAndSpill(node->right(),
+                            NOT_INSIDE_TYPEOF,
+                            true_target(),
+                            false_target(),
+                            false);
 
     } else {
-      Label pop_and_continue, exit;
+      JumpTarget pop_and_continue(this);
+      JumpTarget exit(this);
 
       __ ldr(r0, frame_->Top());  // dup the stack top
-      frame_->Push(r0);
+      frame_->EmitPush(r0);
       // Avoid popping the result if it converts to 'false' using the
       // standard ToBoolean() conversion as described in ECMA-262,
       // section 9.2, page 30.
@@ -3092,40 +3639,41 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       Branch(false, &exit);
 
       // Pop the result of evaluating the first part.
-      __ bind(&pop_and_continue);
-      frame_->Pop(r0);
+      pop_and_continue.Bind();
+      frame_->EmitPop(r0);
 
       // Evaluate right side expression.
-      __ bind(&is_true);
-      Load(node->right());
+      is_true.Bind();
+      LoadAndSpill(node->right());
 
       // Exit (always with a materialized value).
-      __ bind(&exit);
+      exit.Bind();
     }
 
   } else if (op == Token::OR) {
-    Label is_false;
-    LoadCondition(node->left(),
-                  NOT_INSIDE_TYPEOF,
-                  true_target(),
-                  &is_false,
-                  false);
+    JumpTarget is_false(this);
+    LoadConditionAndSpill(node->left(),
+                          NOT_INSIDE_TYPEOF,
+                          true_target(),
+                          &is_false,
+                          false);
     if (has_cc()) {
       Branch(true, true_target());
 
       // Evaluate right side expression.
-      __ bind(&is_false);
-      LoadCondition(node->right(),
-                    NOT_INSIDE_TYPEOF,
-                    true_target(),
-                    false_target(),
-                    false);
+      is_false.Bind();
+      LoadConditionAndSpill(node->right(),
+                            NOT_INSIDE_TYPEOF,
+                            true_target(),
+                            false_target(),
+                            false);
 
     } else {
-      Label pop_and_continue, exit;
+      JumpTarget pop_and_continue(this);
+      JumpTarget exit(this);
 
       __ ldr(r0, frame_->Top());
-      frame_->Push(r0);
+      frame_->EmitPush(r0);
       // Avoid popping the result if it converts to 'true' using the
       // standard ToBoolean() conversion as described in ECMA-262,
       // section 9.2, page 30.
@@ -3133,15 +3681,15 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
       Branch(true, &exit);
 
       // Pop the result of evaluating the first part.
-      __ bind(&pop_and_continue);
-      frame_->Pop(r0);
+      pop_and_continue.Bind();
+      frame_->EmitPop(r0);
 
       // Evaluate right side expression.
-      __ bind(&is_false);
-      Load(node->right());
+      is_false.Bind();
+      LoadAndSpill(node->right());
 
       // Exit (always with a materialized value).
-      __ bind(&exit);
+      exit.Bind();
     }
 
   } else {
@@ -3151,30 +3699,41 @@ void CodeGenerator::VisitBinaryOperation(BinaryOperation* node) {
     Literal* rliteral = node->right()->AsLiteral();
 
     if (rliteral != NULL && rliteral->handle()->IsSmi()) {
-      Load(node->left());
+      LoadAndSpill(node->left());
       SmiOperation(node->op(), rliteral->handle(), false);
 
     } else if (lliteral != NULL && lliteral->handle()->IsSmi()) {
-      Load(node->right());
+      LoadAndSpill(node->right());
       SmiOperation(node->op(), lliteral->handle(), true);
 
     } else {
-      Load(node->left());
-      Load(node->right());
+      LoadAndSpill(node->left());
+      LoadAndSpill(node->right());
       GenericBinaryOperation(node->op());
     }
-    frame_->Push(r0);
+    frame_->EmitPush(r0);
   }
+  ASSERT((has_cc() && frame_->height() == original_height) ||
+         (!has_cc() && frame_->height() == original_height + 1));
 }
 
 
 void CodeGenerator::VisitThisFunction(ThisFunction* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   __ ldr(r0, frame_->Function());
-  frame_->Push(r0);
+  frame_->EmitPush(r0);
+  ASSERT(frame_->height() == original_height + 1);
 }
 
 
 void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
+#ifdef DEBUG
+  int original_height = frame_->height();
+#endif
+  VirtualFrame::SpilledScope spilled_scope(this);
   Comment cmnt(masm_, "[ CompareOperation");
 
   // Get the expressions from the node.
@@ -3193,20 +3752,20 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
         right->AsLiteral() != NULL && right->AsLiteral()->IsNull();
     // The 'null' value can only be equal to 'null' or 'undefined'.
     if (left_is_null || right_is_null) {
-      Load(left_is_null ? right : left);
-      frame_->Pop(r0);
+      LoadAndSpill(left_is_null ? right : left);
+      frame_->EmitPop(r0);
       __ cmp(r0, Operand(Factory::null_value()));
 
       // The 'null' value is only equal to 'undefined' if using non-strict
       // comparisons.
       if (op != Token::EQ_STRICT) {
-        __ b(eq, true_target());
+        true_target()->Branch(eq);
 
         __ cmp(r0, Operand(Factory::undefined_value()));
-        __ b(eq, true_target());
+        true_target()->Branch(eq);
 
         __ tst(r0, Operand(kSmiTagMask));
-        __ b(eq, false_target());
+        false_target()->Branch(eq);
 
         // It can be an undetectable object.
         __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
@@ -3216,6 +3775,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       }
 
       cc_reg_ = eq;
+      ASSERT(has_cc() && frame_->height() == original_height);
       return;
     }
   }
@@ -3232,18 +3792,18 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
     // Load the operand, move it to register r1.
     LoadTypeofExpression(operation->expression());
-    frame_->Pop(r1);
+    frame_->EmitPop(r1);
 
     if (check->Equals(Heap::number_symbol())) {
       __ tst(r1, Operand(kSmiTagMask));
-      __ b(eq, true_target());
+      true_target()->Branch(eq);
       __ ldr(r1, FieldMemOperand(r1, HeapObject::kMapOffset));
       __ cmp(r1, Operand(Factory::heap_number_map()));
       cc_reg_ = eq;
 
     } else if (check->Equals(Heap::string_symbol())) {
       __ tst(r1, Operand(kSmiTagMask));
-      __ b(eq, false_target());
+      false_target()->Branch(eq);
 
       __ ldr(r1, FieldMemOperand(r1, HeapObject::kMapOffset));
 
@@ -3251,7 +3811,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ ldrb(r2, FieldMemOperand(r1, Map::kBitFieldOffset));
       __ and_(r2, r2, Operand(1 << Map::kIsUndetectable));
       __ cmp(r2, Operand(1 << Map::kIsUndetectable));
-      __ b(eq, false_target());
+      false_target()->Branch(eq);
 
       __ ldrb(r2, FieldMemOperand(r1, Map::kInstanceTypeOffset));
       __ cmp(r2, Operand(FIRST_NONSTRING_TYPE));
@@ -3259,16 +3819,16 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
     } else if (check->Equals(Heap::boolean_symbol())) {
       __ cmp(r1, Operand(Factory::true_value()));
-      __ b(eq, true_target());
+      true_target()->Branch(eq);
       __ cmp(r1, Operand(Factory::false_value()));
       cc_reg_ = eq;
 
     } else if (check->Equals(Heap::undefined_symbol())) {
       __ cmp(r1, Operand(Factory::undefined_value()));
-      __ b(eq, true_target());
+      true_target()->Branch(eq);
 
       __ tst(r1, Operand(kSmiTagMask));
-      __ b(eq, false_target());
+      false_target()->Branch(eq);
 
       // It can be an undetectable object.
       __ ldr(r1, FieldMemOperand(r1, HeapObject::kMapOffset));
@@ -3280,7 +3840,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
     } else if (check->Equals(Heap::function_symbol())) {
       __ tst(r1, Operand(kSmiTagMask));
-      __ b(eq, false_target());
+      false_target()->Branch(eq);
       __ ldr(r1, FieldMemOperand(r1, HeapObject::kMapOffset));
       __ ldrb(r1, FieldMemOperand(r1, Map::kInstanceTypeOffset));
       __ cmp(r1, Operand(JS_FUNCTION_TYPE));
@@ -3288,34 +3848,36 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
 
     } else if (check->Equals(Heap::object_symbol())) {
       __ tst(r1, Operand(kSmiTagMask));
-      __ b(eq, false_target());
+      false_target()->Branch(eq);
 
       __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
       __ cmp(r1, Operand(Factory::null_value()));
-      __ b(eq, true_target());
+      true_target()->Branch(eq);
 
       // It can be an undetectable object.
       __ ldrb(r1, FieldMemOperand(r2, Map::kBitFieldOffset));
       __ and_(r1, r1, Operand(1 << Map::kIsUndetectable));
       __ cmp(r1, Operand(1 << Map::kIsUndetectable));
-      __ b(eq, false_target());
+      false_target()->Branch(eq);
 
       __ ldrb(r2, FieldMemOperand(r2, Map::kInstanceTypeOffset));
       __ cmp(r2, Operand(FIRST_JS_OBJECT_TYPE));
-      __ b(lt, false_target());
+      false_target()->Branch(lt);
       __ cmp(r2, Operand(LAST_JS_OBJECT_TYPE));
       cc_reg_ = le;
 
     } else {
       // Uncommon case: typeof testing against a string literal that is
       // never returned from the typeof operator.
-      __ b(false_target());
+      false_target()->Jump();
     }
+    ASSERT(!has_valid_frame() ||
+           (has_cc() && frame_->height() == original_height));
     return;
   }
 
-  Load(left);
-  Load(right);
+  LoadAndSpill(left);
+  LoadAndSpill(right);
   switch (op) {
     case Token::EQ:
       Comparison(eq, false);
@@ -3341,22 +3903,46 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       Comparison(eq, true);
       break;
 
-    case Token::IN:
-      __ mov(r0, Operand(1));  // not counting receiver
-      __ InvokeBuiltin(Builtins::IN, CALL_JS);
-      frame_->Push(r0);
+    case Token::IN: {
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+      Result result = frame_->InvokeBuiltin(Builtins::IN,
+                                            CALL_JS,
+                                            &arg_count,
+                                            2);
+      frame_->EmitPush(result.reg());
       break;
+    }
 
-    case Token::INSTANCEOF:
-      __ mov(r0, Operand(1));  // not counting receiver
-      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_JS);
-      __ tst(r0, Operand(r0));
+    case Token::INSTANCEOF: {
+      Result arg_count = allocator_->Allocate(r0);
+      ASSERT(arg_count.is_valid());
+      __ mov(arg_count.reg(), Operand(1));  // not counting receiver
+      Result result = frame_->InvokeBuiltin(Builtins::INSTANCE_OF,
+                                            CALL_JS,
+                                            &arg_count,
+                                            2);
+      __ tst(result.reg(), Operand(result.reg()));
       cc_reg_ = eq;
       break;
+    }
 
     default:
       UNREACHABLE();
   }
+  ASSERT((has_cc() && frame_->height() == original_height) ||
+         (!has_cc() && frame_->height() == original_height + 1));
+}
+
+
+#ifdef DEBUG
+bool CodeGenerator::HasValidEntryRegisters() { return true; }
+#endif
+
+
+bool CodeGenerator::IsActualFunctionReturn(JumpTarget* target) {
+  return (target == &function_return_ && !function_return_is_shadowed_);
 }
 
 
@@ -3381,10 +3967,11 @@ Handle<String> Reference::GetName() {
 
 
 void Reference::GetValue(TypeofState typeof_state) {
+  ASSERT(!cgen_->in_spilled_code());
+  ASSERT(cgen_->HasValidEntryRegisters());
   ASSERT(!is_illegal());
   ASSERT(!cgen_->has_cc());
   MacroAssembler* masm = cgen_->masm();
-  VirtualFrame* frame = cgen_->frame();
   Property* property = expression_->AsProperty();
   if (property != NULL) {
     cgen_->CodeForSourcePosition(property->position());
@@ -3405,20 +3992,21 @@ void Reference::GetValue(TypeofState typeof_state) {
       // there is a chance that reference errors can be thrown below, we
       // must distinguish between the two kinds of loads (typeof expression
       // loads must not throw a reference error).
+      VirtualFrame* frame = cgen_->frame();
       Comment cmnt(masm, "[ Load from named Property");
-      // Setup the name register.
       Handle<String> name(GetName());
-      __ mov(r2, Operand(name));
-      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
-
       Variable* var = expression_->AsVariableProxy()->AsVariable();
-      if (var != NULL) {
-        ASSERT(var->is_global());
-        __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-      } else {
-        __ Call(ic, RelocInfo::CODE_TARGET);
-      }
-      frame->Push(r0);
+      Handle<Code> ic(Builtins::builtin(Builtins::LoadIC_Initialize));
+      // Setup the name register.
+      Result name_reg = cgen_->allocator()->Allocate(r2);
+      ASSERT(name_reg.is_valid());
+      __ mov(name_reg.reg(), Operand(name));
+      ASSERT(var == NULL || var->is_global());
+      RelocInfo::Mode rmode = (var == NULL)
+                            ? RelocInfo::CODE_TARGET
+                            : RelocInfo::CODE_TARGET_CONTEXT;
+      Result answer = frame->CallCodeObject(ic, rmode, &name_reg, 0);
+      frame->EmitPush(answer.reg());
       break;
     }
 
@@ -3428,18 +4016,17 @@ void Reference::GetValue(TypeofState typeof_state) {
 
       // TODO(181): Implement inlined version of array indexing once
       // loop nesting is properly tracked on ARM.
+      VirtualFrame* frame = cgen_->frame();
       Comment cmnt(masm, "[ Load from keyed Property");
       ASSERT(property != NULL);
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedLoadIC_Initialize));
-
       Variable* var = expression_->AsVariableProxy()->AsVariable();
-      if (var != NULL) {
-        ASSERT(var->is_global());
-        __ Call(ic, RelocInfo::CODE_TARGET_CONTEXT);
-      } else {
-        __ Call(ic, RelocInfo::CODE_TARGET);
-      }
-      frame->Push(r0);
+      ASSERT(var == NULL || var->is_global());
+      RelocInfo::Mode rmode = (var == NULL)
+                            ? RelocInfo::CODE_TARGET
+                            : RelocInfo::CODE_TARGET_CONTEXT;
+      Result answer = frame->CallCodeObject(ic, rmode, 0);
+      frame->EmitPush(answer.reg());
       break;
     }
 
@@ -3468,9 +4055,9 @@ void Reference::SetValue(InitState init_state) {
         ASSERT(slot->var()->is_dynamic());
 
         // For now, just do a runtime call.
-        frame->Push(cp);
+        frame->EmitPush(cp);
         __ mov(r0, Operand(slot->var()->name()));
-        frame->Push(r0);
+        frame->EmitPush(r0);
 
         if (init_state == CONST_INIT) {
           // Same as the case for a normal store, but ignores attribute
@@ -3488,18 +4075,18 @@ void Reference::SetValue(InitState init_state) {
           // and when the expression operands are defined and valid, and
           // thus we need the split into 2 operations: declaration of the
           // context slot followed by initialization.
-          __ CallRuntime(Runtime::kInitializeConstContextSlot, 3);
+          frame->CallRuntime(Runtime::kInitializeConstContextSlot, 3);
         } else {
-          __ CallRuntime(Runtime::kStoreContextSlot, 3);
+          frame->CallRuntime(Runtime::kStoreContextSlot, 3);
         }
         // Storing a variable must keep the (new) value on the expression
         // stack. This is necessary for compiling assignment expressions.
-        frame->Push(r0);
+        frame->EmitPush(r0);
 
       } else {
         ASSERT(!slot->var()->is_dynamic());
 
-        Label exit;
+        JumpTarget exit(cgen_);
         if (init_state == CONST_INIT) {
           ASSERT(slot->var()->mode() == Variable::CONST);
           // Only the first const initialization must be executed (the slot
@@ -3508,7 +4095,7 @@ void Reference::SetValue(InitState init_state) {
           Comment cmnt(masm, "[ Init const");
           __ ldr(r2, cgen_->SlotOperand(slot, r2));
           __ cmp(r2, Operand(Factory::the_hole_value()));
-          __ b(ne, &exit);
+          exit.Branch(ne);
         }
 
         // We must execute the store.  Storing a variable must keep the
@@ -3520,13 +4107,13 @@ void Reference::SetValue(InitState init_state) {
         // initialize consts to 'the hole' value and by doing so, end up
         // calling this code.  r2 may be loaded with context; used below in
         // RecordWrite.
-        frame->Pop(r0);
+        frame->EmitPop(r0);
         __ str(r0, cgen_->SlotOperand(slot, r2));
-        frame->Push(r0);
+        frame->EmitPush(r0);
         if (slot->type() == Slot::CONTEXT) {
           // Skip write barrier if the written value is a smi.
           __ tst(r0, Operand(kSmiTagMask));
-          __ b(eq, &exit);
+          exit.Branch(eq);
           // r2 is loaded with context when calling SlotOperand above.
           int offset = FixedArray::kHeaderSize + slot->index() * kPointerSize;
           __ mov(r3, Operand(offset));
@@ -3536,7 +4123,7 @@ void Reference::SetValue(InitState init_state) {
         // to bind the exit label.  Doing so can defeat peephole
         // optimization.
         if (init_state == CONST_INIT || slot->type() == Slot::CONTEXT) {
-          __ bind(&exit);
+          exit.Bind();
         }
       }
       break;
@@ -3545,13 +4132,23 @@ void Reference::SetValue(InitState init_state) {
     case NAMED: {
       Comment cmnt(masm, "[ Store to named Property");
       // Call the appropriate IC code.
-      frame->Pop(r0);  // value
-      // Setup the name register.
-      Handle<String> name(GetName());
-      __ mov(r2, Operand(name));
       Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
-      __ Call(ic, RelocInfo::CODE_TARGET);
-      frame->Push(r0);
+      Handle<String> name(GetName());
+
+      Result value = cgen_->allocator()->Allocate(r0);
+      ASSERT(value.is_valid());
+      frame->EmitPop(value.reg());
+
+      // Setup the name register.
+      Result property_name = cgen_->allocator()->Allocate(r2);
+      ASSERT(property_name.is_valid());
+      __ mov(property_name.reg(), Operand(name));
+      Result answer = frame->CallCodeObject(ic,
+                                            RelocInfo::CODE_TARGET,
+                                            &value,
+                                            &property_name,
+                                            0);
+      frame->EmitPush(answer.reg());
       break;
     }
 
@@ -3564,9 +4161,12 @@ void Reference::SetValue(InitState init_state) {
       // Call IC code.
       Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
       // TODO(1222589): Make the IC grab the values from the stack.
-      frame->Pop(r0);  // value
-      __ Call(ic, RelocInfo::CODE_TARGET);
-      frame->Push(r0);
+      Result value = cgen_->allocator()->Allocate(r0);
+      ASSERT(value.is_valid());
+      frame->EmitPop(value.reg());  // value
+      Result result =
+          frame->CallCodeObject(ic, RelocInfo::CODE_TARGET, &value, 0);
+      frame->EmitPush(result.reg());
       break;
     }
 

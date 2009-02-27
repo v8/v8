@@ -65,6 +65,7 @@ static ByteMnemonic two_operands_instr[] = {
   {0x85, "test", REG_OPER_OP_ORDER},
   {0x31, "xor", OPER_REG_OP_ORDER},
   {0x33, "xor", REG_OPER_OP_ORDER},
+  {0x87, "xchg", REG_OPER_OP_ORDER},
   {0x8A, "mov_b", REG_OPER_OP_ORDER},
   {0x8B, "mov", REG_OPER_OP_ORDER},
   {-1, "", UNSET_OP_ORDER}
@@ -112,6 +113,14 @@ static const char* jump_conditional_mnem[] = {
   /*4*/ "jz", "jnz", "jna", "ja",
   /*8*/ "js", "jns", "jpe", "jpo",
   /*12*/ "jl", "jnl", "jng", "jg"
+};
+
+
+static const char* set_conditional_mnem[] = {
+  /*0*/ "seto", "setno", "setc", "setnc",
+  /*4*/ "setz", "setnz", "setna", "seta",
+  /*8*/ "sets", "setns", "setpe", "setpo",
+  /*12*/ "setl", "setnl", "setng", "setg"
 };
 
 
@@ -177,6 +186,7 @@ void InstructionTable::Init() {
   SetTableRange(REGISTER_INSTR, 0x48, 0x4F, "dec");
   SetTableRange(REGISTER_INSTR, 0x50, 0x57, "push");
   SetTableRange(REGISTER_INSTR, 0x58, 0x5F, "pop");
+  SetTableRange(REGISTER_INSTR, 0x91, 0x97, "xchg eax,");  // 0x90 is nop.
   SetTableRange(MOVE_REG_INSTR, 0xB8, 0xBF, "mov");
 }
 
@@ -259,6 +269,11 @@ class DisassemblerIA32 {
   }
 
 
+  const char* NameOfByteCPURegister(int reg) const {
+    return converter_.NameOfByteCPURegister(reg);
+  }
+
+
   const char* NameOfXMMRegister(int reg) const {
     return converter_.NameOfXMMRegister(reg);
   }
@@ -283,8 +298,11 @@ class DisassemblerIA32 {
     *base = data & 7;
   }
 
+  typedef const char* (DisassemblerIA32::*RegisterNameMapping)(int reg) const;
 
+  int PrintRightOperandHelper(byte* modrmp, RegisterNameMapping register_name);
   int PrintRightOperand(byte* modrmp);
+  int PrintRightByteOperand(byte* modrmp);
   int PrintOperands(const char* mnem, OperandOrder op_order, byte* data);
   int PrintImmediateOp(byte* data);
   int F7Instruction(byte* data);
@@ -292,6 +310,7 @@ class DisassemblerIA32 {
   int JumpShort(byte* data);
   int JumpConditional(byte* data, const char* comment);
   int JumpConditionalShort(byte* data, const char* comment);
+  int SetCC(byte* data);
   int FPUInstruction(byte* data);
   void AppendToBuffer(const char* format, ...);
 
@@ -315,10 +334,9 @@ void DisassemblerIA32::AppendToBuffer(const char* format, ...) {
   tmp_buffer_pos_ += result;
 }
 
-
-// Returns number of bytes used including the current *modrmp.
-// Writes instruction's right operand to 'tmp_buffer_'.
-int DisassemblerIA32::PrintRightOperand(byte* modrmp) {
+int DisassemblerIA32::PrintRightOperandHelper(
+    byte* modrmp,
+    RegisterNameMapping register_name) {
   int mod, regop, rm;
   get_modrm(*modrmp, &mod, &regop, &rm);
   switch (mod) {
@@ -332,20 +350,20 @@ int DisassemblerIA32::PrintRightOperand(byte* modrmp) {
         int scale, index, base;
         get_sib(sib, &scale, &index, &base);
         if (index == esp && base == esp && scale == 0 /*times_1*/) {
-          AppendToBuffer("[%s]", NameOfCPURegister(rm));
+          AppendToBuffer("[%s]", (this->*register_name)(rm));
           return 2;
         } else if (base == ebp) {
           int32_t disp = *reinterpret_cast<int32_t*>(modrmp + 2);
           AppendToBuffer("[%s*%d+0x%x]",
-                         NameOfCPURegister(index),
+                         (this->*register_name)(index),
                          1 << scale,
                          disp);
           return 6;
         } else if (index != esp && base != ebp) {
           // [base+index*scale]
           AppendToBuffer("[%s+%s*%d]",
-                         NameOfCPURegister(base),
-                         NameOfCPURegister(index),
+                         (this->*register_name)(base),
+                         (this->*register_name)(index),
                          1 << scale);
           return 2;
         } else {
@@ -353,7 +371,7 @@ int DisassemblerIA32::PrintRightOperand(byte* modrmp) {
           return 1;
         }
       } else {
-        AppendToBuffer("[%s]", NameOfCPURegister(rm));
+        AppendToBuffer("[%s]", (this->*register_name)(rm));
         return 1;
       }
       break;
@@ -366,11 +384,11 @@ int DisassemblerIA32::PrintRightOperand(byte* modrmp) {
         int disp =
             mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 2) : *(modrmp + 2);
         if (index == base && index == rm /*esp*/ && scale == 0 /*times_1*/) {
-          AppendToBuffer("[%s+0x%x]", NameOfCPURegister(rm), disp);
+          AppendToBuffer("[%s+0x%x]", (this->*register_name)(rm), disp);
         } else {
           AppendToBuffer("[%s+%s*%d+0x%x]",
-                         NameOfCPURegister(base),
-                         NameOfCPURegister(index),
+                         (this->*register_name)(base),
+                         (this->*register_name)(index),
                          1 << scale,
                          disp);
         }
@@ -379,18 +397,29 @@ int DisassemblerIA32::PrintRightOperand(byte* modrmp) {
         // No sib.
         int disp =
             mod == 2 ? *reinterpret_cast<int32_t*>(modrmp + 1) : *(modrmp + 1);
-        AppendToBuffer("[%s+0x%x]", NameOfCPURegister(rm), disp);
+        AppendToBuffer("[%s+0x%x]", (this->*register_name)(rm), disp);
         return mod == 2 ? 5 : 2;
       }
       break;
     case 3:
-      AppendToBuffer("%s", NameOfCPURegister(rm));
+      AppendToBuffer("%s", (this->*register_name)(rm));
       return 1;
     default:
       UnimplementedInstruction();
       return 1;
   }
   UNREACHABLE();
+}
+
+
+int DisassemblerIA32::PrintRightOperand(byte* modrmp) {
+  return PrintRightOperandHelper(modrmp, &DisassemblerIA32::NameOfCPURegister);
+}
+
+
+int DisassemblerIA32::PrintRightByteOperand(byte* modrmp) {
+  return PrintRightOperandHelper(modrmp,
+                                 &DisassemblerIA32::NameOfByteCPURegister);
 }
 
 
@@ -571,6 +600,17 @@ int DisassemblerIA32::JumpConditionalShort(byte* data, const char* comment) {
     AppendToBuffer(", %s", comment);
   }
   return 2;
+}
+
+
+// Returns number of bytes used, including *data.
+int DisassemblerIA32::SetCC(byte* data) {
+  assert(*data == 0x0F);
+  byte cond = *(data+1) & 0x0F;
+  const char* mnem = set_conditional_mnem[cond];
+  AppendToBuffer("%s ", mnem);
+  PrintRightByteOperand(data+2);
+  return 3;  // includes 0x0F
 }
 
 
@@ -819,6 +859,8 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                      f0byte == 0xB7 || f0byte == 0xAF) {
             data += 2;
             data += PrintOperands(f0mnem, REG_OPER_OP_ORDER, data);
+          } else if ((f0byte & 0xF0) == 0x90) {
+            data += SetCC(data);
           } else {
             data += 2;
             if (f0byte == 0xAB || f0byte == 0xA5 || f0byte == 0xAD) {
@@ -1054,12 +1096,17 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
 
 static const char* cpu_regs[8] = {
-  "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi",
+  "eax", "ecx", "edx", "ebx", "esp", "ebp", "esi", "edi"
+};
+
+
+static const char* byte_cpu_regs[8] = {
+  "al", "cl", "dl", "bl", "ah", "ch", "dh", "bh"
 };
 
 
 static const char* xmm_regs[8] = {
-  "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7",
+  "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"
 };
 
 
@@ -1077,6 +1124,12 @@ const char* NameConverter::NameOfConstant(byte* addr) const {
 
 const char* NameConverter::NameOfCPURegister(int reg) const {
   if (0 <= reg && reg < 8) return cpu_regs[reg];
+  return "noreg";
+}
+
+
+const char* NameConverter::NameOfByteCPURegister(int reg) const {
+  if (0 <= reg && reg < 8) return byte_cpu_regs[reg];
   return "noreg";
 }
 
