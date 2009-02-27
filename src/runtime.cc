@@ -858,14 +858,21 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
 
 static Object* Runtime_RegExpExec(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
   CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  Handle<Object> index(args[2]);
-  ASSERT(index->IsNumber());
-  Handle<Object> result = RegExpImpl::Exec(regexp, subject, index);
+  // Due to the way the JS files are constructed this must be less than the
+  // length of a string, i.e. it is always a Smi.  We check anyway for security.
+  CONVERT_CHECKED(Smi, index, args[2]);
+  CONVERT_CHECKED(JSArray, raw_last_match_info, args[3]);
+  Handle<JSArray> last_match_info(raw_last_match_info);
+  CHECK(last_match_info->HasFastElements());
+  Handle<Object> result = RegExpImpl::Exec(regexp,
+                                           subject,
+                                           index->value(),
+                                           last_match_info);
   if (result.is_null()) return Failure::Exception();
   return *result;
 }
@@ -873,12 +880,16 @@ static Object* Runtime_RegExpExec(Arguments args) {
 
 static Object* Runtime_RegExpExecGlobal(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 2);
+  ASSERT(args.length() == 3);
   CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  Handle<Object> result = RegExpImpl::ExecGlobal(regexp, subject);
+  CONVERT_CHECKED(JSArray, raw_last_match_info, args[2]);
+  Handle<JSArray> last_match_info(raw_last_match_info);
+  CHECK(last_match_info->HasFastElements());
+  Handle<Object> result =
+      RegExpImpl::ExecGlobal(regexp, subject, last_match_info);
   if (result.is_null()) return Failure::Exception();
   return *result;
 }
@@ -2148,6 +2159,22 @@ static Object* Runtime_GetArgumentsProperty(Arguments args) {
 
   // Lookup in the initial Object.prototype object.
   return Top::initial_object_prototype()->GetProperty(*key);
+}
+
+
+static Object* Runtime_ToFastProperties(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  object->TransformToFastProperties(0);
+  return *object;
+}
+
+
+static Object* Runtime_ToSlowProperties(Arguments args) {
+  ASSERT(args.length() == 1);
+  CONVERT_ARG_CHECKED(JSObject, object, 0);
+  object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+  return *object;
 }
 
 
@@ -5015,13 +5042,13 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   Handle<Object> frame_id(WrapFrameId(it.frame()->id()));
 
   // Find source position.
-  int position = it.frame()->FindCode()->SourcePosition(it.frame()->pc());
+  int position = it.frame()->code()->SourcePosition(it.frame()->pc());
 
   // Check for constructor frame.
   bool constructor = it.frame()->IsConstructor();
 
   // Get code and read scope info from it for local variable information.
-  Handle<Code> code(it.frame()->FindCode());
+  Handle<Code> code(it.frame()->code());
   ScopeInfo<> info(*code);
 
   // Get the context.

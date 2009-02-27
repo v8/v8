@@ -2255,7 +2255,7 @@ class Code: public HeapObject {
   static int SizeFor(int body_size, int sinfo_size) {
     ASSERT_SIZE_TAG_ALIGNED(body_size);
     ASSERT_SIZE_TAG_ALIGNED(sinfo_size);
-    return kHeaderSize + body_size + sinfo_size;
+    return RoundUp(kHeaderSize + body_size + sinfo_size, kCodeAlignment);
   }
 
   // Locating source position.
@@ -2279,7 +2279,14 @@ class Code: public HeapObject {
   static const int kSInfoSizeOffset = kRelocationSizeOffset + kIntSize;
   static const int kFlagsOffset = kSInfoSizeOffset + kIntSize;
   static const int kKindSpecificFlagsOffset  = kFlagsOffset + kIntSize;
-  static const int kHeaderSize = kKindSpecificFlagsOffset + kIntSize;
+  // Add filler objects to align the instruction start following right after
+  // the Code object header.
+  static const int kFiller6Offset = kKindSpecificFlagsOffset + kIntSize;
+  static const int kFiller7Offset = kFiller6Offset + kIntSize;
+  static const int kHeaderSize = kFiller7Offset + kIntSize;
+
+  // Code entry points are aligned to 32 bytes.
+  static const int kCodeAlignment = 32;
 
   // Byte offsets within kKindSpecificFlagsOffset.
   static const int kICFlagOffset = kKindSpecificFlagsOffset + 0;
@@ -3778,6 +3785,10 @@ class JSArray: public JSObject {
 
   // Casting.
   static inline JSArray* cast(Object* obj);
+
+  // Uses handles.  Ensures that the fixed array backing the JSArray has at
+  // least the stated size.
+  void EnsureSize(int minimum_size_of_backing_fixed_array);
 
   // Dispatched behavior.
 #ifdef DEBUG

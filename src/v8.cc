@@ -51,9 +51,6 @@ bool V8::Initialize(Deserializer *des) {
   Logger::Setup();
   if (des) des->GetLog();
 
-  // Setup the CPU support.
-  CPU::Setup();
-
   // Setup the platform OS support.
   OS::Setup();
 
@@ -82,6 +79,11 @@ bool V8::Initialize(Deserializer *des) {
     des->Deserialize();
     StubCache::Clear();
   }
+
+  // Setup the CPU support. Must be done after heap setup and after
+  // any deserialization because we have to have the initial heap
+  // objects in place for creating the code object used for probing.
+  CPU::Setup();
 
   return true;
 }

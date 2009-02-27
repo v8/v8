@@ -69,7 +69,10 @@ TEST(AssemblerIa320) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB));
+  Object* code = Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>(Heap::undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -104,7 +107,10 @@ TEST(AssemblerIa321) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB));
+  Object* code = Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>(Heap::undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -143,7 +149,10 @@ TEST(AssemblerIa322) {
 
   CodeDesc desc;
   assm.GetCode(&desc);
-  Object* code = Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB));
+  Object* code = Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>(Heap::undefined_value()));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -164,8 +173,6 @@ TEST(AssemblerIa323) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  Serializer::disable();  // Needed for Probe when running without snapshot.
-  CpuFeatures::Probe();
   CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
   { CpuFeatures::Scope fscope(CpuFeatures::SSE2);
     __ cvttss2si(eax, Operand(esp, 4));
@@ -175,7 +182,10 @@ TEST(AssemblerIa323) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Code* code =
-      Code::cast(Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB)));
+      Code::cast(Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>(Heap::undefined_value())));
   // don't print the code - our disassembler can't handle cvttss2si
   // instead print bytes
   Disassembler::Dump(stdout,
@@ -197,8 +207,6 @@ TEST(AssemblerIa324) {
   v8::internal::byte buffer[256];
   Assembler assm(buffer, sizeof buffer);
 
-  Serializer::disable();  // Needed for Probe when running without snapshot.
-  CpuFeatures::Probe();
   CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
   CpuFeatures::Scope fscope(CpuFeatures::SSE2);
   __ cvttsd2si(eax, Operand(esp, 4));
@@ -207,7 +215,10 @@ TEST(AssemblerIa324) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Code* code =
-      Code::cast(Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB)));
+      Code::cast(Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>(Heap::undefined_value())));
   // don't print the code - our disassembler can't handle cvttsd2si
   // instead print bytes
   Disassembler::Dump(stdout,
@@ -234,7 +245,10 @@ TEST(AssemblerIa325) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Code* code =
-      Code::cast(Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB)));
+      Code::cast(Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>(Heap::undefined_value())));
   F0 f = FUNCTION_CAST<F0>(code->entry());
   int res = f();
   CHECK_EQ(42, res);
@@ -246,8 +260,6 @@ typedef double (*F5)(double x, double y);
 TEST(AssemblerIa326) {
   InitializeVM();
   v8::HandleScope scope;
-  Serializer::disable();  // Needed for Probe when running without snapshot.
-  CpuFeatures::Probe();
   CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
   CpuFeatures::Scope fscope(CpuFeatures::SSE2);
   v8::internal::byte buffer[256];
@@ -269,7 +281,10 @@ TEST(AssemblerIa326) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Code* code =
-      Code::cast(Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB)));
+      Code::cast(Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>(Heap::undefined_value())));
 #ifdef DEBUG
   ::printf("\n---\n");
   // don't print the code - our disassembler can't handle SSE instructions
@@ -290,8 +305,6 @@ typedef double (*F6)(int x);
 TEST(AssemblerIa328) {
   InitializeVM();
   v8::HandleScope scope;
-  Serializer::disable();  // Needed for Probe when running without snapshot.
-  CpuFeatures::Probe();
   CHECK(CpuFeatures::IsSupported(CpuFeatures::SSE2));
   CpuFeatures::Scope fscope(CpuFeatures::SSE2);
   v8::internal::byte buffer[256];
@@ -307,7 +320,10 @@ TEST(AssemblerIa328) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Code* code =
-      Code::cast(Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB)));
+      Code::cast(Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>(Heap::undefined_value())));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();
@@ -360,7 +376,10 @@ TEST(AssemblerIa329) {
   CodeDesc desc;
   assm.GetCode(&desc);
   Code* code =
-      Code::cast(Heap::CreateCode(desc, NULL, Code::ComputeFlags(Code::STUB)));
+      Code::cast(Heap::CreateCode(desc,
+                                  NULL,
+                                  Code::ComputeFlags(Code::STUB),
+                                  Handle<Object>(Heap::undefined_value())));
   CHECK(code->IsCode());
 #ifdef DEBUG
   Code::cast(code)->Print();

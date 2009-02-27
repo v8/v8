@@ -232,7 +232,7 @@ Handle<Array> Shell::GetCompletions(Handle<String> text, Handle<String> full) {
 }
 
 
-Handle<String> Shell::DebugEventToText(Handle<Object> event) {
+Handle<String> Shell::DebugEventToText(Handle<String> event) {
   HandleScope handle_scope;
   Context::Scope context_scope(utility_context_);
   Handle<Object> global = utility_context_->Global();

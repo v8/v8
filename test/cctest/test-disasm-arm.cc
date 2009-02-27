@@ -74,7 +74,6 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 // in the rest of the macros.
 #define SETUP() \
   InitializeVM(); \
-  Serializer::disable(); \
   v8::HandleScope scope; \
   byte *buffer = reinterpret_cast<byte*>(malloc(4*1024)); \
   Assembler assm(buffer, 4*1024); \

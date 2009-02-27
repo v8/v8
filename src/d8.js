@@ -103,66 +103,54 @@ var trace_compile = false;  // Tracing all compile events?
 
 
 function DebugEventToText(event) {
-  switch (event.eventType()) {
-    case Debug.DebugEvent.Break:
-      // Build the break details.
-      var details = '';
-      if (event.breakPointsHit()) {
+  // Convert the JSON string to an object.
+  var response = new ProtocolPackage(event);
+
+  // Build the text.
+  var body = response.body();
+  var details = '';
+  switch (response.event()) {
+    case 'break':
+      if (body.breakpoints) {
         details += 'breakpoint';
-        if (event.breakPointsHit().length > 1) {
+        if (body.breakpoints.length > 1) {
           details += 's';
         }
         details += ' #';
-        for (var i = 0; i < event.breakPointsHit().length; i++) {
+        for (var i = 0; i < body.breakpoints.length; i++) {
           if (i > 0) {
             details += ', #';
           }
-          // Find the break point number. For break points originating from a
-          // script break point display the script break point number.
-          var break_point = event.breakPointsHit()[i];
-          var script_break_point = break_point.script_break_point();
-          if (script_break_point) {
-            details += script_break_point.number();
-          } else {
-            details += break_point.number();
-          }
+          details += body.breakpoints[i];
         }
       } else {
         details += 'break';
       }
       details += ' in ';
-      details += event.executionState().frame(0).invocationText();
-      details += ' at ';
-      details += event.executionState().frame(0).sourceAndPositionText();
-      details += '\n'
-      if (event.func().script()) {
-        details += FrameSourceUnderline(event.executionState().frame(0));
-      }
-      Debug.State.currentSourceLine =
-          event.executionState().frame(0).sourceLine();
+      details += body.invocationText;
+      details += ', ';
+      details += SourceInfo(body);
+      details += '\n';
+      details += SourceUnderline(body.sourceLineText, body.sourceColumn);
+      Debug.State.currentSourceLine = body.sourceLine;
       Debug.State.currentFrame = 0;
       return details;
-
-    case Debug.DebugEvent.Exception:
-      var details = '';
-      if (event.uncaught_) {
+      
+    case 'exception':
+      if (body.uncaught) {
         details += 'Uncaught: ';
       } else {
         details += 'Exception: ';
       }
-
       details += '"';
-      details += event.exception();
+      details += body.exception.text;
       details += '"';
-      if (event.executionState().frameCount() > 0) {
-        details += '"';
-        details += event.exception();
-        details += ' at ';
-        details += event.executionState().frame(0).sourceAndPositionText();
+      if (body.sourceLine >= 0) {
+        details += ', ';
+        details += SourceInfo(body);
         details += '\n';
-        details += FrameSourceUnderline(event.executionState().frame(0));
-        Debug.State.currentSourceLine =
-            event.executionState().frame(0).sourceLine();
+        details += SourceUnderline(body.sourceLineText, body.sourceColumn);
+        Debug.State.currentSourceLine = body.sourceLine;
         Debug.State.currentFrame = 0;
       } else {
         details += ' (empty stack)';
@@ -170,11 +158,18 @@ function DebugEventToText(event) {
         Debug.State.currentFrame = kNoFrame;
       }
       return details;
-      
-    case Debug.DebugEvent.AfterCompile:
+
+    case 'exception':
+      if (trace_compile) {
+        details = 'Source ' + body.script.name + ' compiled:\n'
+      } else {
+        return '';
+      }
+     
+    case 'afterCompile':
       if (trace_compile) {
         details = 'Source ' + event.script().name() + ' compiled:\n'
-        var source = event.script().source();
+        var source = body.script.source;
         if (!(source[source.length - 1] == '\n')) {
           details += source;
         } else {
@@ -185,9 +180,27 @@ function DebugEventToText(event) {
         return '';
       }
   }
-
-  return 'Unknown debug event ' + event.eventType();
+  return 'Unknown debug event ' + response.event();
 };
+
+
+function SourceInfo(body) {
+  var result = '';
+  
+  if (body.script) {
+    if (body.script.name) {
+      result += body.script.name;
+    } else {
+      result += '[unnamed]';
+    }
+  }
+  result += ' line ';
+  result += body.sourceLine + 1;
+  result += ' column ';
+  result += body.sourceColumn + 1;
+  
+  return result;
+}
 
 
 function SourceUnderline(source_text, position) {
@@ -210,15 +223,6 @@ function SourceUnderline(source_text, position) {
 
   // Return the source line text with the underline beneath.
   return source_text + '\n' + underline;
-};
-
-
-function FrameSourceUnderline(frame) {
-  var location = frame.sourceLocation();
-  if (location) {
-    return SourceUnderline(location.sourceText(),
-                           location.position - location.start);
-  }
 };
 
 

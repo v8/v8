@@ -74,8 +74,12 @@ class MarkCompactCollector: public AllStatic {
   // Type of functions to process non-live objects.
   typedef void (*ProcessNonLiveFunction)(HeapObject* object);
 
+  // Prepares for GC by resetting relocation info in old and map spaces and
+  // choosing spaces to compact.
+  static void Prepare(GCTracer* tracer);
+
   // Performs a global garbage collection.
-  static void CollectGarbage(GCTracer* tracer);
+  static void CollectGarbage();
 
   // True if the last full GC performed heap compaction.
   static bool HasCompacted() { return compacting_collection_; }
@@ -122,10 +126,6 @@ class MarkCompactCollector: public AllStatic {
   // A pointer to the current stack-allocated GC tracer object during a full
   // collection (NULL before and after).
   static GCTracer* tracer_;
-
-  // Prepares for GC by resetting relocation info in old and map spaces and
-  // choosing spaces to compact.
-  static void Prepare();
 
   // Finishes GC, performs heap verification if enabled.
   static void Finish();

@@ -49,6 +49,8 @@ namespace v8 { namespace internal {
   F(GetPropertyNames, 1) \
   F(GetPropertyNamesFast, 1) \
   F(GetArgumentsProperty, 1) \
+  F(ToFastProperties, 1) \
+  F(ToSlowProperties, 1) \
   \
   F(IsInPrototypeChain, 2) \
   \
@@ -135,8 +137,8 @@ namespace v8 { namespace internal {
   \
   /* Regular expressions */ \
   F(RegExpCompile, 3) \
-  F(RegExpExec, 3) \
-  F(RegExpExecGlobal, 2) \
+  F(RegExpExec, 4) \
+  F(RegExpExecGlobal, 3) \
   \
   /* Strings */ \
   F(StringCharCodeAt, 2) \

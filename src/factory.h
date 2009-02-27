@@ -206,9 +206,6 @@ class Factory : public AllStatic {
   static Handle<Code> NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
                               Code::Flags flags, Handle<Object> self_reference);
 
-  static Handle<Code> NewCode(const CodeDesc& desc, ScopeInfo<>* sinfo,
-                              Code::Flags flags);
-
   static Handle<Code> CopyCode(Handle<Code> code);
 
   static Handle<Object> ToObject(Handle<Object> object,

@@ -892,7 +892,7 @@ Object* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
 Object* StubCompiler::GetCodeWithFlags(Code::Flags flags) {
   CodeDesc desc;
   masm_.GetCode(&desc);
-  Object* result = Heap::CreateCode(desc, NULL, flags, NULL);
+  Object* result = Heap::CreateCode(desc, NULL, flags, masm_.CodeObject());
 #ifdef DEBUG
   if (FLAG_print_code_stubs && !result->IsFailure()) {
     Code::cast(result)->Print();

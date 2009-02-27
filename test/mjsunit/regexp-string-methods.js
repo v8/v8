@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,41 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// CPU specific code for ia32 independent of OS goes here.
+// Regexp shouldn't use String.prototype.slice()
+var s = new String("foo");
+assertEquals("f", s.slice(0,1));
+String.prototype.slice = function() { return "x"; }
+assertEquals("x", s.slice(0,1));
+assertEquals("g", /g/.exec("gg"));
 
-#include "v8.h"
+// Regexp shouldn't use String.prototype.charAt()
+var f1 = new RegExp("f", "i");
+assertEquals("F", f1.exec("F"));
+assertEquals("f", "foo".charAt(0));
+String.prototype.charAt = function(idx) { return 'g'; };
+assertEquals("g", "foo".charAt(0));
+var f2 = new RegExp("[g]", "i");
+assertEquals("G", f2.exec("G"));
+assertTrue(f2.ignoreCase);
 
-#include "cpu.h"
-#include "macro-assembler.h"
-
-namespace v8 { namespace internal {
-
-void CPU::Setup() {
-  CpuFeatures::Probe();
-}
-
-
-void CPU::FlushICache(void* start, size_t size) {
-  // No need to flush the instruction cache on Intel. On Intel instruction
-  // cache flushing is only necessary when multiple cores running the same
-  // code simultaneously. V8 (and JavaScript) is single threaded and when code
-  // is patched on an intel CPU the core performing the patching will have its
-  // own instruction cache updated automatically.
-
-  // If flushing of the instruction cache becomes necessary Windows have the
-  // API function FlushInstructionCache.
-}
-
-
-void CPU::DebugBreak() {
-#ifdef _MSC_VER
-  // To avoid Visual Studio runtime support the following code can be used
-  // instead
-  // __asm { int 3 }
-  __debugbreak();
-#else
-  asm("int $3");
-#endif
-}
-
-} }  // namespace v8::internal
+// On the other hand test is defined in a semi-coherent way as a call to exec.
+// 15.10.6.3
+// SpiderMonkey fails this one.
+RegExp.prototype.exec = function(string) { return 'x'; }
+assertTrue(/f/.test('x'));

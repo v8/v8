@@ -376,7 +376,9 @@ bool V8::IsGlobalWeak(void** obj) {
 void V8::DisposeGlobal(void** obj) {
   LOG_API("DisposeGlobal");
   if (has_shut_down) return;
-  i::GlobalHandles::Destroy(reinterpret_cast<i::Object**>(obj));
+  i::Object** ptr = reinterpret_cast<i::Object**>(obj);
+  if ((*ptr)->IsGlobalContext()) i::Heap::NotifyContextDisposed();
+  i::GlobalHandles::Destroy(ptr);
 }
 
 // --- H a n d l e s ---
@@ -2175,7 +2177,6 @@ bool v8::V8::Initialize() {
   if (i::V8::HasBeenSetup()) return true;
   HandleScope scope;
   if (i::Snapshot::Initialize()) {
-    i::Serializer::disable();
     return true;
   } else {
     return i::V8::Initialize(NULL);
@@ -2184,7 +2185,7 @@ bool v8::V8::Initialize() {
 
 
 const char* v8::V8::GetVersion() {
-  return "1.0.2";
+  return "1.0.3";
 }
 
 
@@ -2207,6 +2208,9 @@ Persistent<Context> v8::Context::New(
   EnsureInitialized("v8::Context::New()");
   LOG_API("Context::New");
   ON_BAILOUT("v8::Context::New()", return Persistent<Context>());
+
+  // Give the heap a chance to cleanup if we've disposed contexts.
+  i::Heap::CollectAllGarbageIfContextDisposed();
 
   v8::Handle<ObjectTemplate> proxy_template = global_template;
   i::Handle<i::FunctionTemplateInfo> proxy_constructor;

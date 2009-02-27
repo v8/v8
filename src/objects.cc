@@ -4879,6 +4879,20 @@ Object* JSArray::Initialize(int capacity) {
 }
 
 
+void JSArray::EnsureSize(int required_size) {
+  ASSERT(HasFastElements());
+  if (elements()->length() >= required_size) return;
+  Handle<FixedArray> old_backing(elements());
+  int old_size = old_backing->length();
+  // Doubling in size would be overkill, but leave some slack to avoid
+  // constantly growing.
+  int new_size = required_size + (required_size >> 3);
+  Handle<FixedArray> new_backing = Factory::NewFixedArray(new_size);
+  for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
+  SetContent(*new_backing);
+}
+
+
 // Computes the new capacity when expanding the elements of a JSObject.
 static int NewElementsCapacity(int old_capacity) {
   // (old_capacity + 50%) + 16

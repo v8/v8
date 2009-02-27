@@ -198,6 +198,10 @@
 			>
 		</File>
 		<File
+			RelativePath="..\..\test\cctest\test-log-ia32.cc"
+			>
+		</File>
+		<File
 			RelativePath="..\..\test\cctest\test-mark-compact.cc"
 			>
 		</File>

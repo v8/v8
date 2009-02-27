@@ -2758,6 +2758,15 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
   Reference target(this, node->target());
   if (target.is_illegal()) return;
 
+  if (node->starts_initialization_block()) {
+    ASSERT(target.type() == Reference::NAMED ||
+           target.type() == Reference::KEYED);
+    // Change to slow case in the beginning of an initialization block
+    // to avoid the quadratic behavior of repeatedly adding fast properties.
+    int stack_position = (target.type() == Reference::NAMED) ? 0 : 1;
+    frame_->Push(Operand(esp, stack_position * kPointerSize));
+    __ CallRuntime(Runtime::kToSlowProperties, 1);
+  }
   if (node->op() == Token::ASSIGN ||
       node->op() == Token::INIT_VAR ||
       node->op() == Token::INIT_CONST) {
@@ -2789,6 +2798,14 @@ void CodeGenerator::VisitAssignment(Assignment* node) {
       target.SetValue(CONST_INIT);
     } else {
       target.SetValue(NOT_CONST_INIT);
+      if (node->ends_initialization_block()) {
+        ASSERT(target.type() == Reference::NAMED ||
+               target.type() == Reference::KEYED);
+        // End of initialization block. Revert to fast case.
+        int stack_position = (target.type() == Reference::NAMED) ? 1 : 2;
+        frame_->Push(Operand(esp, stack_position * kPointerSize));
+        __ CallRuntime(Runtime::kToFastProperties, 1);
+      }
     }
   }
 }
@@ -4507,31 +4524,44 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
       FloatingPointHelper::CheckFloatOperands(masm, &call_runtime, ebx);
       FloatingPointHelper::LoadFloatOperands(masm, ecx);
 
-      Label non_int32_operands, non_smi_result, skip_allocation;
+      Label skip_allocation, non_smi_result, operand_conversion_failure;
+
       // Reserve space for converted numbers.
       __ sub(Operand(esp), Immediate(2 * kPointerSize));
 
-      // Check if right operand is int32.
-      __ fist_s(Operand(esp, 1 * kPointerSize));
-      __ fild_s(Operand(esp, 1 * kPointerSize));
-      __ fucompp();
-      __ fnstsw_ax();
-      __ sahf();
-      __ j(not_zero, &non_int32_operands);
-      __ j(parity_even, &non_int32_operands);
+      bool use_sse3 = CpuFeatures::IsSupported(CpuFeatures::SSE3);
+      if (use_sse3) {
+        // Truncate the operands to 32-bit integers and check for
+        // exceptions in doing so.
+         CpuFeatures::Scope scope(CpuFeatures::SSE3);
+        __ fisttp_s(Operand(esp, 0 * kPointerSize));
+        __ fisttp_s(Operand(esp, 1 * kPointerSize));
+        __ fnstsw_ax();
+        __ test(eax, Immediate(1));
+        __ j(not_zero, &operand_conversion_failure);
+      } else {
+        // Check if right operand is int32.
+        __ fist_s(Operand(esp, 0 * kPointerSize));
+        __ fild_s(Operand(esp, 0 * kPointerSize));
+        __ fucompp();
+        __ fnstsw_ax();
+        __ sahf();
+        __ j(not_zero, &operand_conversion_failure);
+        __ j(parity_even, &operand_conversion_failure);
 
-      // Check if left operand is int32.
-      __ fist_s(Operand(esp, 0 * kPointerSize));
-      __ fild_s(Operand(esp, 0 * kPointerSize));
-      __ fucompp();
-      __ fnstsw_ax();
-      __ sahf();
-      __ j(not_zero, &non_int32_operands);
-      __ j(parity_even, &non_int32_operands);
+        // Check if left operand is int32.
+        __ fist_s(Operand(esp, 1 * kPointerSize));
+        __ fild_s(Operand(esp, 1 * kPointerSize));
+        __ fucompp();
+        __ fnstsw_ax();
+        __ sahf();
+        __ j(not_zero, &operand_conversion_failure);
+        __ j(parity_even, &operand_conversion_failure);
+      }
 
       // Get int32 operands and perform bitop.
-      __ pop(eax);
       __ pop(ecx);
+      __ pop(eax);
       switch (op_) {
         case Token::BIT_OR:  __ or_(eax, Operand(ecx)); break;
         case Token::BIT_AND: __ and_(eax, Operand(ecx)); break;
@@ -4579,10 +4609,22 @@ void GenericBinaryOpStub::Generate(MacroAssembler* masm) {
         __ fstp_d(FieldOperand(eax, HeapNumber::kValueOffset));
         __ ret(2 * kPointerSize);
       }
-      __ bind(&non_int32_operands);
-      // Restore stacks and operands before calling runtime.
-      __ ffree(0);
+
+      // Clear the FPU exception flag and reset the stack before calling
+      // the runtime system.
+      __ bind(&operand_conversion_failure);
       __ add(Operand(esp), Immediate(2 * kPointerSize));
+      if (use_sse3) {
+        // If we've used the SSE3 instructions for truncating the
+        // floating point values to integers and it failed, we have a
+        // pending #IA exception. Clear it.
+        __ fnclex();
+      } else {
+        // The non-SSE3 variant does early bailout if the right
+        // operand isn't a 32-bit integer, so we may have a single
+        // value on the FPU stack we need to get rid of.
+        __ ffree(0);
+      }
 
       // SHR should return uint32 - go to runtime for non-smi/negative result.
       if (op_ == Token::SHR) __ bind(&non_smi_result);

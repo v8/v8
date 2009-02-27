@@ -567,7 +567,7 @@ class Heap : public AllStatic {
   static Object* CreateCode(const CodeDesc& desc,
                             ScopeInfo<>* sinfo,
                             Code::Flags flags,
-                            Code** self_reference = NULL);
+                            Handle<Object> self_reference);
 
   static Object* CopyCode(Code* code);
   // Finds the symbol for string in the symbol table.
@@ -605,6 +605,13 @@ class Heap : public AllStatic {
 
   // Performs a full garbage collection.
   static void CollectAllGarbage();
+
+  // Performs a full garbage collection if a context has been disposed
+  // since the last time the check was performed.
+  static void CollectAllGarbageIfContextDisposed();
+
+  // Notify the heap that a context has been disposed.
+  static void NotifyContextDisposed();
 
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
@@ -808,6 +815,7 @@ class Heap : public AllStatic {
   static int scavenge_count_;
 
   static int always_allocate_scope_depth_;
+  static bool context_disposed_pending_;
 
   static const int kMaxMapSpaceSize = 8*MB;
 
@@ -923,8 +931,8 @@ class Heap : public AllStatic {
   static void MarkCompact(GCTracer* tracer);
 
   // Code to be run before and after mark-compact.
-  static void MarkCompactPrologue();
-  static void MarkCompactEpilogue();
+  static void MarkCompactPrologue(bool is_compacting);
+  static void MarkCompactEpilogue(bool is_compacting);
 
   // Helper function used by CopyObject to copy a source object to an
   // allocated target object and update the forwarding pointer in the source

@@ -268,24 +268,24 @@ void ThreadManager::Iterate(ObjectVisitor* v) {
 }
 
 
-void ThreadManager::MarkCompactPrologue() {
+void ThreadManager::MarkCompactPrologue(bool is_compacting) {
   for (ThreadState* state = ThreadState::FirstInUse();
        state != NULL;
        state = state->Next()) {
     char* data = state->data();
     data += HandleScopeImplementer::ArchiveSpacePerThread();
-    Top::MarkCompactPrologue(data);
+    Top::MarkCompactPrologue(is_compacting, data);
   }
 }
 
 
-void ThreadManager::MarkCompactEpilogue() {
+void ThreadManager::MarkCompactEpilogue(bool is_compacting) {
   for (ThreadState* state = ThreadState::FirstInUse();
        state != NULL;
        state = state->Next()) {
     char* data = state->data();
     data += HandleScopeImplementer::ArchiveSpacePerThread();
-    Top::MarkCompactEpilogue(data);
+    Top::MarkCompactEpilogue(is_compacting, data);
   }
 }
 

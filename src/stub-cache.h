@@ -281,7 +281,7 @@ class StubCompiler BASE_EMBEDDED {
     JSARRAY_HAS_FAST_ELEMENTS_CHECK
   };
 
-  StubCompiler() : masm_(NULL, 256) { }
+  StubCompiler() : scope_(), masm_(NULL, 256) { }
 
   Object* CompileCallInitialize(Code::Flags flags);
   Object* CompileCallPreMonomorphic(Code::Flags flags);
@@ -367,6 +367,7 @@ class StubCompiler BASE_EMBEDDED {
   MacroAssembler* masm() { return &masm_; }
 
  private:
+  HandleScope scope_;
   MacroAssembler masm_;
 };
 

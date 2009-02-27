@@ -157,6 +157,7 @@ static void Serialize() {
   const int kExtensionCount = 1;
   const char* extension_list[kExtensionCount] = { "v8/gc" };
   v8::ExtensionConfiguration extensions(kExtensionCount, extension_list);
+  Serializer::Enable();
   v8::Persistent<v8::Context> env = v8::Context::New(&extensions);
   env->Enter();
 
@@ -187,6 +188,7 @@ TEST(SerializeNondestructive) {
   if (Snapshot::IsEnabled()) return;
   StatsTable::SetCounterFunction(counter_function);
   v8::HandleScope scope;
+  Serializer::Enable();
   v8::Persistent<v8::Context> env = v8::Context::New();
   v8::Context::Scope context_scope(env);
   Serializer().Serialize();
