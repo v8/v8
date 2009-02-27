@@ -132,3 +132,8 @@ for (var i = 4; i < 10; ++i) {
 re = /(.)/g;
 function f() { return RegExp.$1; };
 assertEquals('abcd', 'abcd'.replace(re, f));
+
+RegExp.multiline = "foo";
+assertTrue(typeof RegExp.multiline == typeof Boolean(), "RegExp.multiline coerces values to booleans");
+RegExp.input = Number();
+assertTrue(typeof RegExp.input == typeof String(), "RegExp.input coerces values to booleans");
