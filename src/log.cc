@@ -386,7 +386,9 @@ void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
 // Write the log message to the log file currently opened.
 void LogMessageBuilder::WriteToLogFile() {
   ASSERT(pos_ <= Logger::kMessageBufferSize);
-  fwrite(Logger::message_buffer_, 1, pos_, Logger::logfile_);
+  size_t rv = fwrite(Logger::message_buffer_, 1, pos_, Logger::logfile_);
+  ASSERT(rv == static_cast<size_t>(pos_));
+  USE(rv);
 }
 #endif
 
