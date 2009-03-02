@@ -51,6 +51,7 @@ class RegExpImpl {
   // Parses the RegExp pattern and prepares the JSRegExp object with
   // generic data and choice of implementation - as well as what
   // the implementation wants to store in the data field.
+  // Returns false if compilation fails.
   static Handle<Object> Compile(Handle<JSRegExp> re,
                                 Handle<String> pattern,
                                 Handle<String> flags);
@@ -70,15 +71,16 @@ class RegExpImpl {
                                    Handle<JSArray> lastMatchInfo);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
-  static Handle<Object> IrregexpPrepare(Handle<JSRegExp> re,
-                                        Handle<String> pattern,
-                                        JSRegExp::Flags flags);
+  static void IrregexpPrepare(Handle<JSRegExp> re,
+                              Handle<String> pattern,
+                              JSRegExp::Flags flags,
+                              int capture_register_count);
 
 
-  static Handle<Object> AtomCompile(Handle<JSRegExp> re,
-                                    Handle<String> pattern,
-                                    JSRegExp::Flags flags,
-                                    Handle<String> match_pattern);
+  static void AtomCompile(Handle<JSRegExp> re,
+                          Handle<String> pattern,
+                          JSRegExp::Flags flags,
+                          Handle<String> match_pattern);
   static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject,
                                  int index,
@@ -106,12 +108,6 @@ class RegExpImpl {
   // by a flat string.
   static Handle<String> StringToTwoByte(Handle<String> pattern);
   static Handle<String> CachedStringToTwoByte(Handle<String> pattern);
-
-  static const int kIrregexpImplementationIndex = 0;
-  static const int kIrregexpNumberOfCapturesIndex = 1;
-  static const int kIrregexpNumberOfRegistersIndex = 2;
-  static const int kIrregexpCodeIndex = 3;
-  static const int kIrregexpDataLength = 4;
 
   // Offsets in the lastMatchInfo array.
   static const int kLastCaptureCount = 0;
@@ -141,10 +137,15 @@ class RegExpImpl {
   static String* last_ascii_string_;
   static String* two_byte_cached_string_;
 
+  static bool EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii);
+
+  static int IrregexpMaxRegisterCount(Handle<FixedArray> re);
+  static void SetIrregexpMaxRegisterCount(Handle<FixedArray> re, int value);
   static int IrregexpNumberOfCaptures(Handle<FixedArray> re);
   static int IrregexpNumberOfRegisters(Handle<FixedArray> re);
-  static Handle<ByteArray> IrregexpByteCode(Handle<FixedArray> re);
-  static Handle<Code> IrregexpNativeCode(Handle<FixedArray> re);
+  static Handle<ByteArray> IrregexpByteCode(Handle<FixedArray> re,
+                                            bool is_ascii);
+  static Handle<Code> IrregexpNativeCode(Handle<FixedArray> re, bool is_ascii);
 
   // On a successful match, the result is a JSArray containing
   // captured positions. On a failure, the result is the null value.
@@ -1354,11 +1355,25 @@ struct RegExpCompileData {
 
 class RegExpEngine: public AllStatic {
  public:
-  static Handle<FixedArray> Compile(RegExpCompileData* input,
-                                    bool ignore_case,
-                                    bool multiline,
-                                    Handle<String> pattern,
-                                    bool is_ascii);
+  struct CompilationResult {
+    explicit CompilationResult(const char* error_message)
+        : error_message(error_message),
+          code(Heap::the_hole_value()),
+          num_registers(0) {}
+    CompilationResult(Object* code, int registers)
+      : error_message(NULL),
+        code(code),
+        num_registers(registers) {}
+    const char* error_message;
+    Object* code;
+    int num_registers;
+  };
+
+  static CompilationResult Compile(RegExpCompileData* input,
+                                   bool ignore_case,
+                                   bool multiline,
+                                   Handle<String> pattern,
+                                   bool is_ascii);
 
   static void DotPrint(const char* label, RegExpNode* node, bool ignore_case);
 };

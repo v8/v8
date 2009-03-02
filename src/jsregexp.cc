@@ -213,44 +213,41 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   Handle<Object> result;
   if (in_cache) {
     re->set_data(*cached);
-    result = re;
-  } else {
-    FlattenString(pattern);
-    ZoneScope zone_scope(DELETE_ON_EXIT);
-    RegExpCompileData parse_result;
-    FlatStringReader reader(pattern);
-    if (!ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
-      // Throw an exception if we fail to parse the pattern.
-      ThrowRegExpException(re,
-                           pattern,
-                           parse_result.error,
-                           "malformed_regexp");
-      return Handle<Object>::null();
-    }
-
-    if (parse_result.simple && !flags.is_ignore_case()) {
-      // Parse-tree is a single atom that is equal to the pattern.
-      result = AtomCompile(re, pattern, flags, pattern);
-    } else if (parse_result.tree->IsAtom() &&
-        !flags.is_ignore_case() &&
-        parse_result.capture_count == 0) {
-      RegExpAtom* atom = parse_result.tree->AsAtom();
-      Vector<const uc16> atom_pattern = atom->data();
-      Handle<String> atom_string = Factory::NewStringFromTwoByte(atom_pattern);
-      result = AtomCompile(re, pattern, flags, atom_string);
-    } else {
-      result = IrregexpPrepare(re, pattern, flags);
-    }
-    Object* data = re->data();
-    if (data->IsFixedArray()) {
-      // If compilation succeeded then the data is set on the regexp
-      // and we can store it in the cache.
-      Handle<FixedArray> data(FixedArray::cast(re->data()));
-      CompilationCache::PutRegExp(pattern, flags, data);
-    }
+    return re;
+  }
+  FlattenString(pattern);
+  ZoneScope zone_scope(DELETE_ON_EXIT);
+  RegExpCompileData parse_result;
+  FlatStringReader reader(pattern);
+  if (!ParseRegExp(&reader, flags.is_multiline(), &parse_result)) {
+    // Throw an exception if we fail to parse the pattern.
+    ThrowRegExpException(re,
+                         pattern,
+                         parse_result.error,
+                         "malformed_regexp");
+    return Handle<Object>::null();
   }
 
-  return result;
+  if (parse_result.simple && !flags.is_ignore_case()) {
+    // Parse-tree is a single atom that is equal to the pattern.
+    AtomCompile(re, pattern, flags, pattern);
+  } else if (parse_result.tree->IsAtom() &&
+      !flags.is_ignore_case() &&
+      parse_result.capture_count == 0) {
+    RegExpAtom* atom = parse_result.tree->AsAtom();
+    Vector<const uc16> atom_pattern = atom->data();
+    Handle<String> atom_string = Factory::NewStringFromTwoByte(atom_pattern);
+    AtomCompile(re, pattern, flags, atom_string);
+  } else {
+    IrregexpPrepare(re, pattern, flags, parse_result.capture_count);
+  }
+  ASSERT(re->data()->IsFixedArray());
+  // Compilation succeeded so the data is set on the regexp
+  // and we can store it in the cache.
+  Handle<FixedArray> data(FixedArray::cast(re->data()));
+  CompilationCache::PutRegExp(pattern, flags, data);
+
+  return re;
 }
 
 
@@ -275,8 +272,8 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
 
 
 Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
-                                Handle<String> subject,
-                                Handle<JSArray> last_match_info) {
+                                      Handle<String> subject,
+                                      Handle<JSArray> last_match_info) {
   switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
       return AtomExecGlobal(regexp, subject, last_match_info);
@@ -296,12 +293,15 @@ Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
 // RegExp Atom implementation: Simple string search using indexOf.
 
 
-Handle<Object> RegExpImpl::AtomCompile(Handle<JSRegExp> re,
-                                       Handle<String> pattern,
-                                       JSRegExp::Flags flags,
-                                       Handle<String> match_pattern) {
-  Factory::SetRegExpData(re, JSRegExp::ATOM, pattern, flags, match_pattern);
-  return re;
+void RegExpImpl::AtomCompile(Handle<JSRegExp> re,
+                             Handle<String> pattern,
+                             JSRegExp::Flags flags,
+                             Handle<String> match_pattern) {
+  Factory::SetRegExpAtomData(re,
+                             JSRegExp::ATOM,
+                             pattern,
+                             flags,
+                             match_pattern);
 }
 
 
@@ -386,23 +386,29 @@ Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
 // Irregexp implementation.
 
 
-// Retrieves a compiled version of the regexp for either ASCII or non-ASCII
-// strings. If the compiled version doesn't already exist, it is compiled
+// Ensures that the regexp object contains a compiled version of the
+// source for either ASCII or non-ASCII strings.
+// If the compiled version doesn't already exist, it is compiled
 // from the source pattern.
-// Irregexp is not feature complete yet. If there is something in the
-// regexp that the compiler cannot currently handle, an empty
-// handle is returned, but no exception is thrown.
-static Handle<FixedArray> GetCompiledIrregexp(Handle<JSRegExp> re,
-                                              bool is_ascii) {
-  ASSERT(re->DataAt(JSRegExp::kIrregexpDataIndex)->IsFixedArray());
-  Handle<FixedArray> alternatives(
-      FixedArray::cast(re->DataAt(JSRegExp::kIrregexpDataIndex)));
-  ASSERT_EQ(2, alternatives->length());
-
-  int index = is_ascii ? 0 : 1;
-  Object* entry = alternatives->get(index);
-  if (!entry->IsNull()) {
-    return Handle<FixedArray>(FixedArray::cast(entry));
+// If compilation fails, an exception is thrown and this function
+// returns false.
+bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re,
+                                        bool is_ascii) {
+  int index;
+  if (is_ascii) {
+    index = JSRegExp::kIrregexpASCIICodeIndex;
+  } else {
+    index = JSRegExp::kIrregexpUC16CodeIndex;
+  }
+  Object* entry = re->DataAt(index);
+  if (!entry->IsTheHole()) {
+    // A value has already been compiled.
+    if (entry->IsJSObject()) {
+      // If it's a JS value, it's an error.
+      Top::Throw(entry);
+      return false;
+    }
+    return true;
   }
 
   // Compile the RegExp.
@@ -424,54 +430,101 @@ static Handle<FixedArray> GetCompiledIrregexp(Handle<JSRegExp> re,
                          pattern,
                          compile_data.error,
                          "malformed_regexp");
-    return Handle<FixedArray>::null();
+    return false;
   }
-  Handle<FixedArray> compiled_entry =
+  RegExpEngine::CompilationResult result =
       RegExpEngine::Compile(&compile_data,
                             flags.is_ignore_case(),
                             flags.is_multiline(),
                             pattern,
                             is_ascii);
-  if (!compiled_entry.is_null()) {
-    alternatives->set(index, *compiled_entry);
+  if (result.error_message != NULL) {
+    // Unable to compile regexp.
+    Handle<JSArray> array = Factory::NewJSArray(2);
+    SetElement(array, 0, pattern);
+    SetElement(array,
+               1,
+               Factory::NewStringFromUtf8(CStrVector(result.error_message)));
+    Handle<Object> regexp_err =
+        Factory::NewSyntaxError("malformed_regexp", array);
+    Top::Throw(*regexp_err);
+    re->SetDataAt(index, *regexp_err);
+    return false;
   }
-  return compiled_entry;
+
+  Handle<FixedArray> data(FixedArray::cast(re->data()));
+  data->set(index, result.code);
+  int register_max = IrregexpMaxRegisterCount(data);
+  if (result.num_registers > register_max) {
+    SetIrregexpMaxRegisterCount(data, result.num_registers);
+  }
+
+  return true;
 }
 
 
-int RegExpImpl::IrregexpNumberOfCaptures(Handle<FixedArray> irre) {
-  return Smi::cast(irre->get(kIrregexpNumberOfCapturesIndex))->value();
+int RegExpImpl::IrregexpMaxRegisterCount(Handle<FixedArray> re) {
+  return Smi::cast(
+      re->get(JSRegExp::kIrregexpMaxRegisterCountIndex))->value();
 }
 
 
-int RegExpImpl::IrregexpNumberOfRegisters(Handle<FixedArray> irre) {
-  return Smi::cast(irre->get(kIrregexpNumberOfRegistersIndex))->value();
+void RegExpImpl::SetIrregexpMaxRegisterCount(Handle<FixedArray> re, int value) {
+  re->set(JSRegExp::kIrregexpMaxRegisterCountIndex,
+          Smi::FromInt(value));
 }
 
 
-Handle<ByteArray> RegExpImpl::IrregexpByteCode(Handle<FixedArray> irre) {
-  ASSERT(Smi::cast(irre->get(kIrregexpImplementationIndex))->value()
-      == RegExpMacroAssembler::kBytecodeImplementation);
-  return Handle<ByteArray>(ByteArray::cast(irre->get(kIrregexpCodeIndex)));
+int RegExpImpl::IrregexpNumberOfCaptures(Handle<FixedArray> re) {
+  return Smi::cast(
+      re->get(JSRegExp::kIrregexpCaptureCountIndex))->value();
 }
 
 
-Handle<Code> RegExpImpl::IrregexpNativeCode(Handle<FixedArray> irre) {
-  ASSERT(Smi::cast(irre->get(kIrregexpImplementationIndex))->value()
-      != RegExpMacroAssembler::kBytecodeImplementation);
-  return Handle<Code>(Code::cast(irre->get(kIrregexpCodeIndex)));
+int RegExpImpl::IrregexpNumberOfRegisters(Handle<FixedArray> re) {
+  return Smi::cast(
+      re->get(JSRegExp::kIrregexpMaxRegisterCountIndex))->value();
 }
 
 
-Handle<Object>RegExpImpl::IrregexpPrepare(Handle<JSRegExp> re,
-                                          Handle<String> pattern,
-                                          JSRegExp::Flags flags) {
-  // Make space for ASCII and UC16 versions.
-  Handle<FixedArray> alternatives = Factory::NewFixedArray(2);
-  alternatives->set_null(0);
-  alternatives->set_null(1);
-  Factory::SetRegExpData(re, JSRegExp::IRREGEXP, pattern, flags, alternatives);
-  return re;
+Handle<ByteArray> RegExpImpl::IrregexpByteCode(Handle<FixedArray> re,
+                                               bool is_ascii) {
+  int index;
+  if (is_ascii) {
+    index = JSRegExp::kIrregexpASCIICodeIndex;
+  } else {
+    index = JSRegExp::kIrregexpUC16CodeIndex;
+  }
+  Object* value = re->get(index);
+  ASSERT(value->IsByteArray());
+  return Handle<ByteArray>(ByteArray::cast(value));
+}
+
+
+Handle<Code> RegExpImpl::IrregexpNativeCode(Handle<FixedArray> re,
+                                            bool is_ascii) {
+  int index;
+  if (is_ascii) {
+    index = JSRegExp::kIrregexpASCIICodeIndex;
+  } else {
+    index = JSRegExp::kIrregexpUC16CodeIndex;
+  }
+  Object* value = re->get(index);
+  ASSERT(value->IsCode());
+  return Handle<Code>(Code::cast(value));
+}
+
+
+void RegExpImpl::IrregexpPrepare(Handle<JSRegExp> re,
+                                 Handle<String> pattern,
+                                 JSRegExp::Flags flags,
+                                 int capture_count) {
+  // Initialize compiled code entries to null.
+  Factory::SetRegExpIrregexpData(re,
+                                 JSRegExp::IRREGEXP,
+                                 pattern,
+                                 flags,
+                                 capture_count);
 }
 
 
@@ -480,18 +533,16 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
                                         int index,
                                         Handle<JSArray> last_match_info) {
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
-  ASSERT(regexp->DataAt(JSRegExp::kIrregexpDataIndex)->IsFixedArray());
 
   bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
-  Handle<FixedArray> irregexp = GetCompiledIrregexp(regexp, is_ascii);
-  if (irregexp.is_null()) {
-    // We can't handle the RegExp with IRRegExp.
+  if (!EnsureCompiledIrregexp(regexp, is_ascii)) {
     return Handle<Object>::null();
   }
 
   // Prepare space for the return values.
+  Handle<FixedArray> re_data(FixedArray::cast(regexp->data()));
   int number_of_capture_registers =
-      (IrregexpNumberOfCaptures(irregexp) + 1) * 2;
+      (IrregexpNumberOfCaptures(re_data) + 1) * 2;
   OffsetsVector offsets(number_of_capture_registers);
 
   int previous_index = index;
@@ -510,7 +561,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
 
   last_match_info->EnsureSize(number_of_capture_registers + kLastMatchOverhead);
 
-  return IrregexpExecOnce(irregexp,
+  return IrregexpExecOnce(re_data,
                           number_of_capture_registers,
                           last_match_info,
                           subject,
@@ -524,10 +575,10 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
                                               Handle<String> subject,
                                               Handle<JSArray> last_match_info) {
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
+  Handle<FixedArray> irregexp(FixedArray::cast(regexp->data()));
 
   bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
-  Handle<FixedArray> irregexp = GetCompiledIrregexp(regexp, is_ascii);
-  if (irregexp.is_null()) {
+  if (!EnsureCompiledIrregexp(regexp, is_ascii)) {
     return Handle<Object>::null();
   }
 
@@ -605,135 +656,124 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
 }
 
 
-Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
+Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> regexp,
                                             int number_of_capture_registers,
                                             Handle<JSArray> last_match_info,
                                             Handle<String> subject,
                                             int previous_index,
                                             int* offsets_vector,
                                             int offsets_vector_length) {
-  ASSERT(subject->IsFlat(StringShape(*subject)));
+  StringShape shape(*subject);
+  ASSERT(subject->IsFlat(shape));
+  bool is_ascii = shape.IsAsciiRepresentation();
   bool rc;
 
-  int tag = Smi::cast(irregexp->get(kIrregexpImplementationIndex))->value();
-
-  switch (tag) {
-    case RegExpMacroAssembler::kIA32Implementation: {
+  if (FLAG_regexp_native) {
 #ifndef ARM
-      Handle<Code> code = IrregexpNativeCode(irregexp);
+    Handle<Code> code(IrregexpNativeCode(regexp, is_ascii));
 
-      StringShape shape(*subject);
+    // Character offsets into string.
+    int start_offset = previous_index;
+    int end_offset = subject->length(shape);
 
-      // Character offsets into string.
-      int start_offset = previous_index;
-      int end_offset = subject->length(shape);
+    if (shape.IsCons()) {
+      subject = Handle<String>(ConsString::cast(*subject)->first());
+    } else if (shape.IsSliced()) {
+      SlicedString* slice = SlicedString::cast(*subject);
+      start_offset += slice->start();
+      end_offset += slice->start();
+      subject = Handle<String>(slice->buffer());
+    }
 
-      if (shape.IsCons()) {
-        subject = Handle<String>(ConsString::cast(*subject)->first());
-      } else if (shape.IsSliced()) {
-        SlicedString* slice = SlicedString::cast(*subject);
-        start_offset += slice->start();
-        end_offset += slice->start();
-        subject = Handle<String>(slice->buffer());
+    // String is now either Sequential or External
+    StringShape flatshape(*subject);
+    bool is_ascii = flatshape.IsAsciiRepresentation();
+    int char_size_shift = is_ascii ? 0 : 1;
+
+    RegExpMacroAssemblerIA32::Result res;
+
+    if (flatshape.IsExternal()) {
+      const byte* address;
+      if (is_ascii) {
+        ExternalAsciiString* ext = ExternalAsciiString::cast(*subject);
+        address = reinterpret_cast<const byte*>(ext->resource()->data());
+      } else {
+        ExternalTwoByteString* ext = ExternalTwoByteString::cast(*subject);
+        address = reinterpret_cast<const byte*>(ext->resource()->data());
       }
+      res = RegExpMacroAssemblerIA32::Execute(
+          *code,
+          const_cast<Address*>(&address),
+          start_offset << char_size_shift,
+          end_offset << char_size_shift,
+          offsets_vector,
+          previous_index == 0);
+    } else {  // Sequential string
+      ASSERT(StringShape(*subject).IsSequential());
+      Address char_address =
+          is_ascii ? SeqAsciiString::cast(*subject)->GetCharsAddress()
+                   : SeqTwoByteString::cast(*subject)->GetCharsAddress();
+      int byte_offset = char_address - reinterpret_cast<Address>(*subject);
+      res = RegExpMacroAssemblerIA32::Execute(
+          *code,
+          reinterpret_cast<Address*>(subject.location()),
+          byte_offset + (start_offset << char_size_shift),
+          byte_offset + (end_offset << char_size_shift),
+          offsets_vector,
+          previous_index == 0);
+    }
 
-      // String is now either Sequential or External
-      StringShape flatshape(*subject);
-      bool is_ascii = flatshape.IsAsciiRepresentation();
-      int char_size_shift = is_ascii ? 0 : 1;
+    if (res == RegExpMacroAssemblerIA32::EXCEPTION) {
+      ASSERT(Top::has_pending_exception());
+      return Handle<Object>::null();
+    }
+    rc = (res == RegExpMacroAssemblerIA32::SUCCESS);
 
-      RegExpMacroAssemblerIA32::Result res;
-
-      if (flatshape.IsExternal()) {
-        const byte* address;
-        if (is_ascii) {
-          ExternalAsciiString* ext = ExternalAsciiString::cast(*subject);
-          address = reinterpret_cast<const byte*>(ext->resource()->data());
-        } else {
-          ExternalTwoByteString* ext = ExternalTwoByteString::cast(*subject);
-          address = reinterpret_cast<const byte*>(ext->resource()->data());
-        }
-        res = RegExpMacroAssemblerIA32::Execute(
-            *code,
-            const_cast<Address*>(&address),
-            start_offset << char_size_shift,
-            end_offset << char_size_shift,
-            offsets_vector,
-            previous_index == 0);
-      } else {  // Sequential string
-        ASSERT(StringShape(*subject).IsSequential());
-        Address char_address =
-            is_ascii ? SeqAsciiString::cast(*subject)->GetCharsAddress()
-                     : SeqTwoByteString::cast(*subject)->GetCharsAddress();
-        int byte_offset = char_address - reinterpret_cast<Address>(*subject);
-        res = RegExpMacroAssemblerIA32::Execute(
-            *code,
-            reinterpret_cast<Address*>(subject.location()),
-            byte_offset + (start_offset << char_size_shift),
-            byte_offset + (end_offset << char_size_shift),
-            offsets_vector,
-            previous_index == 0);
-      }
-
-      if (res == RegExpMacroAssemblerIA32::EXCEPTION) {
-        ASSERT(Top::has_pending_exception());
-        return Handle<Object>::null();
-      }
-      rc = (res == RegExpMacroAssemblerIA32::SUCCESS);
-
-      if (rc) {
-        // Capture values are relative to start_offset only.
-        for (int i = 0; i < offsets_vector_length; i++) {
-          if (offsets_vector[i] >= 0) {
-            offsets_vector[i] += previous_index;
-          }
+    if (rc) {
+      // Capture values are relative to start_offset only.
+      for (int i = 0; i < offsets_vector_length; i++) {
+        if (offsets_vector[i] >= 0) {
+          offsets_vector[i] += previous_index;
         }
       }
-      break;
+    }
+  } else {
 #else
-      UNIMPLEMENTED();
-      rc = false;
-      break;
+  // Unimplemented on ARM, fall through to bytecode.
+  }
+  {
 #endif
+    for (int i = number_of_capture_registers - 1; i >= 0; i--) {
+      offsets_vector[i] = -1;
     }
-    case RegExpMacroAssembler::kBytecodeImplementation: {
-      for (int i = number_of_capture_registers - 1; i >= 0; i--) {
-        offsets_vector[i] = -1;
-      }
-      Handle<ByteArray> byte_codes = IrregexpByteCode(irregexp);
+    Handle<ByteArray> byte_codes = IrregexpByteCode(regexp, is_ascii);
 
-      rc = IrregexpInterpreter::Match(byte_codes,
-                                      subject,
-                                      offsets_vector,
-                                      previous_index);
-      break;
-    }
-    case RegExpMacroAssembler::kARMImplementation:
-    default:
-      UNREACHABLE();
-      rc = false;
-      break;
+    rc = IrregexpInterpreter::Match(byte_codes,
+                                    subject,
+                                    offsets_vector,
+                                    previous_index);
   }
 
   if (!rc) {
     return Factory::null_value();
   }
 
-  Handle<FixedArray> array(last_match_info->elements());
+  FixedArray* array = last_match_info->elements();
+  ASSERT(array->length() >= number_of_capture_registers + kLastMatchOverhead);
   // The captures come in (start, end+1) pairs.
   for (int i = 0; i < number_of_capture_registers; i += 2) {
-    SetCapture(*array, i, offsets_vector[i]);
-    SetCapture(*array, i + 1, offsets_vector[i + 1]);
+    SetCapture(array, i, offsets_vector[i]);
+    SetCapture(array, i + 1, offsets_vector[i + 1]);
   }
-  SetLastCaptureCount(*array, number_of_capture_registers);
-  SetLastSubject(*array, *subject);
-  SetLastInput(*array, *subject);
+  SetLastCaptureCount(array, number_of_capture_registers);
+  SetLastSubject(array, *subject);
+  SetLastInput(array, *subject);
   return last_match_info;
 }
 
 
 // -------------------------------------------------------------------
-// Implmentation of the Irregexp regular expression engine.
+// Implementation of the Irregexp regular expression engine.
 //
 // The Irregexp regular expression engine is intended to be a complete
 // implementation of ECMAScript regular expressions.  It generates either
@@ -950,10 +990,10 @@ class RegExpCompiler {
     return next_register_++;
   }
 
-  Handle<FixedArray> Assemble(RegExpMacroAssembler* assembler,
-                              RegExpNode* start,
-                              int capture_count,
-                              Handle<String> pattern);
+  RegExpEngine::CompilationResult Assemble(RegExpMacroAssembler* assembler,
+                                           RegExpNode* start,
+                                           int capture_count,
+                                           Handle<String> pattern);
 
   inline void AddWork(RegExpNode* node) { work_list_->Add(node); }
 
@@ -998,15 +1038,8 @@ class RecursionCheck {
 };
 
 
-static Handle<FixedArray> IrregexpRegExpTooBig(Handle<String> pattern) {
-  Handle<JSArray> array = Factory::NewJSArray(2);
-  SetElement(array, 0, pattern);
-  const char* message = "RegExp too big";
-  SetElement(array, 1, Factory::NewStringFromUtf8(CStrVector(message)));
-  Handle<Object> regexp_err =
-      Factory::NewSyntaxError("malformed_regexp", array);
-  Top::Throw(*regexp_err);
-  return Handle<FixedArray>();
+static RegExpEngine::CompilationResult IrregexpRegExpTooBig() {
+  return RegExpEngine::CompilationResult("RegExp too big");
 }
 
 
@@ -1024,7 +1057,7 @@ RegExpCompiler::RegExpCompiler(int capture_count, bool ignore_case, bool ascii)
 }
 
 
-Handle<FixedArray> RegExpCompiler::Assemble(
+RegExpEngine::CompilationResult RegExpCompiler::Assemble(
     RegExpMacroAssembler* macro_assembler,
     RegExpNode* start,
     int capture_count,
@@ -1046,24 +1079,17 @@ Handle<FixedArray> RegExpCompiler::Assemble(
   while (!work_list.is_empty()) {
     work_list.RemoveLast()->Emit(this, &new_trace);
   }
-  if (reg_exp_too_big_) return IrregexpRegExpTooBig(pattern);
-  Handle<FixedArray> array =
-      Factory::NewFixedArray(RegExpImpl::kIrregexpDataLength);
-  array->set(RegExpImpl::kIrregexpImplementationIndex,
-             Smi::FromInt(macro_assembler_->Implementation()));
-  array->set(RegExpImpl::kIrregexpNumberOfRegistersIndex,
-             Smi::FromInt(next_register_));
-  array->set(RegExpImpl::kIrregexpNumberOfCapturesIndex,
-             Smi::FromInt(capture_count));
+  if (reg_exp_too_big_) return IrregexpRegExpTooBig();
+
   Handle<Object> code = macro_assembler_->GetCode(pattern);
-  array->set(RegExpImpl::kIrregexpCodeIndex, *code);
+
   work_list_ = NULL;
 #ifdef DEBUG
   if (FLAG_trace_regexp_assembler) {
     delete macro_assembler_;
   }
 #endif
-  return array;
+  return RegExpEngine::CompilationResult(*code, next_register_);
 }
 
 
@@ -4647,13 +4673,13 @@ void DispatchTableConstructor::VisitAction(ActionNode* that) {
 }
 
 
-Handle<FixedArray> RegExpEngine::Compile(RegExpCompileData* data,
-                                         bool ignore_case,
-                                         bool is_multiline,
-                                         Handle<String> pattern,
-                                         bool is_ascii) {
+RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
+                                                      bool ignore_case,
+                                                      bool is_multiline,
+                                                      Handle<String> pattern,
+                                                      bool is_ascii) {
   if ((data->capture_count + 1) * 2 - 1 > RegExpMacroAssembler::kMaxRegister) {
-    return IrregexpRegExpTooBig(pattern);
+    return IrregexpRegExpTooBig();
   }
   RegExpCompiler compiler(data->capture_count, ignore_case, is_ascii);
   // Wrap the body of the regexp in capture #0.
