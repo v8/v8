@@ -39,7 +39,6 @@
 #include "v8threads.h"
 
 
-namespace i = v8::internal;
 #define LOG_API(expr) LOG(ApiEntryCall(expr))
 
 

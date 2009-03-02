@@ -141,6 +141,7 @@ const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdad);
 
 class AccessorInfo;
 class Allocation;
+class Arguments;
 class Assembler;
 class BreakableStatement;
 class Code;

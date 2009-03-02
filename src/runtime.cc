@@ -84,7 +84,7 @@ namespace v8 { namespace internal {
   type name = NumberTo##Type(obj);
 
 // Non-reentrant string buffer for efficient general use in this file.
-static StaticResource<StringInputBuffer> string_input_buffer;
+static StaticResource<StringInputBuffer> runtime_string_input_buffer;
 
 
 static Object* IllegalOperation() {
@@ -2315,7 +2315,7 @@ static Object* Runtime_URIEscape(Arguments args) {
   int escaped_length = 0;
   int length = source->length();
   {
-    Access<StringInputBuffer> buffer(&string_input_buffer);
+    Access<StringInputBuffer> buffer(&runtime_string_input_buffer);
     buffer->Reset(source);
     while (buffer->has_more()) {
       uint16_t character = buffer->GetNext();
@@ -2343,7 +2343,7 @@ static Object* Runtime_URIEscape(Arguments args) {
   StringShape dshape(destination);
   int dest_position = 0;
 
-  Access<StringInputBuffer> buffer(&string_input_buffer);
+  Access<StringInputBuffer> buffer(&runtime_string_input_buffer);
   buffer->Rewind();
   while (buffer->has_more()) {
     uint16_t chr = buffer->GetNext();
@@ -2579,7 +2579,7 @@ static Object* ConvertCase(Arguments args,
 
   // Convert all characters to upper case, assuming that they will fit
   // in the buffer
-  Access<StringInputBuffer> buffer(&string_input_buffer);
+  Access<StringInputBuffer> buffer(&runtime_string_input_buffer);
   buffer->Reset(s);
   unibrow::uchar chars[Converter::kMaxWidth];
   int i = 0;
