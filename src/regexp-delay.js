@@ -318,7 +318,8 @@ function SetupRegExp() {
     return IS_UNDEFINED(regExpInput) ? "" : regExpInput;
   }
   function RegExpSetInput(string) {
-    lastMatchInfo[lastMatchInfo[REGEXP_NUMBER_OF_CAPTURES] + 2] = string;
+    lastMatchInfo[lastMatchInfo[REGEXP_NUMBER_OF_CAPTURES] + 2] =
+        ToString(string);
   };
 
   %DefineAccessor($RegExp, 'input', GETTER, RegExpGetInput, DONT_DELETE);
