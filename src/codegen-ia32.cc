@@ -2031,199 +2031,121 @@ void CodeGenerator::VisitSwitchStatement(SwitchStatement* node) {
   node->set_break_stack_height(break_stack_height_);
   node->break_target()->Initialize(this);
 
+  // Compile the switch value.
   Load(node->tag());
+
   if (TryGenerateFastCaseSwitchStatement(node)) {
     return;
   }
 
-  JumpTarget next_test(this);
-  JumpTarget fall_through(this);
-  JumpTarget default_entry(this);
-  JumpTarget default_exit(this, JumpTarget::BIDIRECTIONAL);
   ZoneList<CaseClause*>* cases = node->cases();
   int length = cases->length();
   CaseClause* default_clause = NULL;
 
-  // Loop over the cases, compiling tests and bodies.  Skip the
-  // default if found and compile it at the end.  Exit early if an
-  // unconditionally true match occurs (which can happen, eg, in the
-  // event the switch value is a compile-time constant).
-  //
-  // Bind the next_test target before entering the loop so we can use
-  // its state to detect whether the switch value needs to be dropped
-  // from the frame.
+  JumpTarget next_test(this);
+  // Compile the case label expressions and comparisons.  Exit early
+  // if a comparison is unconditionally true.  The target next_test is
+  // bound before the loop in order to indicate control flow to the
+  // first comparison.
   next_test.Bind();
-  int index = 0;
-  for (; index < length; index++) {
-    CaseClause* clause = cases->at(index);
+  for (int i = 0; i < length && !next_test.is_unused(); i++) {
+    CaseClause* clause = cases->at(i);
+    clause->body_target()->Initialize(this);
+    // The default is not a test, but remember it for later.
     if (clause->is_default()) {
-      // Remember the default clause and compile it at the end.
       default_clause = clause;
       continue;
     }
 
-    // Compile each non-default clause.
-    Comment cmnt(masm_, "[ Case clause");
-    // Recycle the same target for each test.
-    if (!next_test.is_unused()) {
-      // The next test target may be linked (as the target of a
-      // previous match failure) or bound (if the previous comparison
-      // was unconditionally false or this is the first non-default
-      // comparison).
-      if (next_test.is_linked()) {
-        next_test.Bind();
-      }
-      next_test.Unuse();
+    Comment cmnt(masm_, "[ Case comparison");
+    // We recycle the same target next_test for each test.  Bind it if
+    // the previous test has not done so and then unuse it for the
+    // loop.
+    if (next_test.is_linked()) {
+      next_test.Bind();
     }
+    next_test.Unuse();
 
     // Duplicate the switch value.
     frame_->Dup();
 
-    // Compile the clause's label expression.
+    // Compile the label expression.
     Load(clause->label());
 
-    // Compare and branch to the body if true and to the next test if
-    // false.
-    JumpTarget enter_body(this);
-    ControlDestination dest(&enter_body, &next_test, true);
+    // Compare and branch to the body if true or the next test if
+    // false.  Prefer the next test as a fall through.
+    ControlDestination dest(clause->body_target(), &next_test, false);
     Comparison(equal, true, &dest);
 
-    bool previous_was_default =
-        index > 0 && cases->at(index - 1)->is_default();
-    if (dest.false_was_fall_through()) {
-      // The false target next_test was bound as the fall-through.
-      // This may indicate that the comparison was unconditionally
-      // false if there are no dangling jumps to enter_body.  Even
-      // then we may still need to compile the body if it is reachable
-      // as a fall through.
-
-      // We do not need to compile the body if control cannot reach
-      // it.  Control could reach the body (1) from the comparison by
-      // a branch to enter_body, (2) as the fall through of some
-      // previous case, or (3) possibly via a backward jump from the
-      // default.
-      if (!enter_body.is_linked() &&
-          !fall_through.is_linked() &&
-          !previous_was_default) {
-        continue;
-      }
-
-      // We will compile the body and we have to jump around it on
-      // this path where the comparison failed.
-      next_test.Unuse();
-      next_test.Jump();
-      if (enter_body.is_linked()) {
-        enter_body.Bind();
-      }
-    }
-
-    // The body entry target may have been bound, indicating control
-    // flow can reach the body via the comparison.
-    if (enter_body.is_bound()) {
-      // The switch value is no longer needed.
-      frame_->Drop();
-    } else {
-      // The test was unconditionally false but we will compile the
-      // body as a fall through.
-      ASSERT(!has_valid_frame());
-    }
-
-    // Label the body if needed for fall through.
-    if (previous_was_default) {
-      // Because the default is compiled last, there is always a potential
-      // backwards edge to here, falling through from the default.
-      default_exit.Bind();
-    } else {
-      // Recycle the same target for each fall through.
-      fall_through.Bind();
-      fall_through.Unuse();
-    }
-
-    // Compile the body.
-    ASSERT(has_valid_frame());
-    { Comment body_cmnt(masm_, "[ Case body");
-      VisitStatements(clause->statements());
-    }
-
-    // The test may have been unconditionally true, which is indicated
-    // by the absence of any control flow to the next_test target.  In
-    // that case, exit this loop and stop compiling both tests and
-    // bodies (and begin compiling only bodies if necessary).
-
-    // Otherwise, if control flow can fall off the end of the body
-    // jump to the body of the next case as fall through unless this
-    // is the last non-default case.
-    if (!next_test.is_linked()) {
-      index++;
-      break;
-    } else if (has_valid_frame()) {
-      if (index < length - 2 &&  // There are at least two cases after this
-          cases->at(index + 1)->is_default()) {  // The next is the default.
-        default_entry.Jump();
-      } else if (index < length - 1) {  // This is not the last case.
-        fall_through.Jump();
-      }
+    // If the comparison fell through to the true target, jump to the
+    // actual body.
+    if (dest.true_was_fall_through()) {
+      clause->body_target()->Unuse();
+      clause->body_target()->Jump();
     }
   }
 
-  // If we did not compile all the cases then we must have hit one
-  // that was unconditionally true.  We do not need to compile any
-  // more tests but we may have (and continue to have) fall through.
-  for (; index < length && has_valid_frame(); index++) {
-    Comment cmnt(masm_, "[ Case fall-through");
-    VisitStatements(cases->at(index)->statements());
-  }
-
-  // Complete the switch statement based on the compilation state of
-  // the last case that was compiled.
-  if (next_test.is_unused()) {
-    // The last test compiled was unconditionally true.  We still need
-    // to compile the default if we found one and it can be targeted
-    // by fall through.
-    if (default_clause != NULL) {
-      bool was_only_clause = length == 1 && cases->at(0) == default_clause;
-      if (was_only_clause || default_entry.is_linked()) {
-        Comment cmnt(masm_, "[ Default clause");
-        default_entry.Bind();
-        VisitStatements(default_clause->statements());
-        // If control flow can fall off the end of the default and there
-        // was a case after it, jump to that case's body.
-        if (has_valid_frame() && default_exit.is_bound()) {
-          default_exit.Jump();
-        }
-      }
-    }
-  } else {
-    // The switch value is still on the frame.  We have to drop it and
-    // possibly compile a default case.
+  // If there was control flow to a next test from the last one
+  // compiled, compile a jump to the default or break target.
+  if (!next_test.is_unused()) {
     if (next_test.is_linked()) {
-      if (has_valid_frame()) {
-        // We have fall through and thus need to jump around the code
-        // to drop the switch value.
-        fall_through.Jump();
-      }
       next_test.Bind();
     }
+    // Drop the switch value.
     frame_->Drop();
-
-    // If there was a default clause, compile it now.
     if (default_clause != NULL) {
-      Comment cmnt(masm_, "[ Default clause");
-      if (default_entry.is_linked()) {
-        default_entry.Bind();
-      }
-      VisitStatements(default_clause->statements());
-      // If control flow can fall off the end of the default and there
-      // was a case after it, jump to that case's body.
-      if (has_valid_frame() && default_exit.is_bound()) {
-        default_exit.Jump();
-      }
+      default_clause->body_target()->Jump();
+    } else {
+      node->break_target()->Jump();
     }
   }
 
-  if (fall_through.is_linked()) {
-    fall_through.Bind();
+
+  // The last instruction emitted was a jump, either to the default
+  // clause or the break target, or else to a case body from the loop
+  // that compiles the tests.
+  ASSERT(!has_valid_frame());
+  // Compile case bodies as needed.
+  for (int i = 0; i < length; i++) {
+    CaseClause* clause = cases->at(i);
+
+    // There are two ways to reach the body: from the corresponding
+    // test or as the fall through of the previous body.
+    if (!clause->body_target()->is_linked() && !has_valid_frame()) {
+      // If we have neither, skip this body.
+      continue;
+    } else if (clause->body_target()->is_linked() && has_valid_frame()) {
+      // If we have both, put a jump on the fall through path to avoid
+      // the dropping of the switch value on the test path.  The
+      // exception is the default which has already had the switch
+      // value dropped.
+      if (clause->is_default()) {
+        clause->body_target()->Bind();
+      } else {
+        JumpTarget body(this);
+        body.Jump();
+        clause->body_target()->Bind();
+        frame_->Drop();
+        body.Bind();
+      }
+    } else if (clause->body_target()->is_linked()) {
+      // No fall through to worry about.
+      clause->body_target()->Bind();
+      if (!clause->is_default()) {
+        frame_->Drop();
+      }
+    } else {
+      // Otherwise, we have only fall through.
+      ASSERT(has_valid_frame());
+    }
+
+    // We are now prepared to compile the body.
+    Comment cmnt(masm_, "[ Case body");
+    VisitStatements(clause->statements());
   }
+
+  // We may not have a valid frame here so bind the break target only
+  // if needed.
   if (node->break_target()->is_linked()) {
     node->break_target()->Bind();
   }

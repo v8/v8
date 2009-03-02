@@ -447,10 +447,12 @@ class CaseClause: public ZoneObject {
     CHECK(!is_default());
     return label_;
   }
+  JumpTarget* body_target() { return &body_target_; }
   ZoneList<Statement*>* statements() const  { return statements_; }
 
  private:
   Expression* label_;
+  JumpTarget body_target_;
   ZoneList<Statement*>* statements_;
 };
 
