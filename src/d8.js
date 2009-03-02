@@ -102,85 +102,98 @@ Debug.State = {
 var trace_compile = false;  // Tracing all compile events?
 
 
-function DebugEventToText(event) {
+// Process a debugger JSON message into a display text and a running status.
+// This function returns an object with properties "text" and "running" holding
+// this information.
+function DebugMessageDetails(message) {
   // Convert the JSON string to an object.
-  var response = new ProtocolPackage(event);
+  var response = new ProtocolPackage(message);
 
-  // Build the text.
+  if (response.type() == 'event') {
+    return DebugEventDetails(response);
+  } else {
+    return DebugResponseDetails(response);
+  }
+}
+
+function DebugEventDetails(response) {
+  details = {text:'', running:false}
+
+  // Get the running state.
+  details.running = response.running();
+
   var body = response.body();
-  var details = '';
+  var result = '';
   switch (response.event()) {
     case 'break':
       if (body.breakpoints) {
-        details += 'breakpoint';
+        result += 'breakpoint';
         if (body.breakpoints.length > 1) {
-          details += 's';
+          result += 's';
         }
-        details += ' #';
+        result += ' #';
         for (var i = 0; i < body.breakpoints.length; i++) {
           if (i > 0) {
-            details += ', #';
+            result += ', #';
           }
-          details += body.breakpoints[i];
+          result += body.breakpoints[i];
         }
       } else {
-        details += 'break';
+        result += 'break';
       }
-      details += ' in ';
-      details += body.invocationText;
-      details += ', ';
-      details += SourceInfo(body);
-      details += '\n';
-      details += SourceUnderline(body.sourceLineText, body.sourceColumn);
+      result += ' in ';
+      result += body.invocationText;
+      result += ', ';
+      result += SourceInfo(body);
+      result += '\n';
+      result += SourceUnderline(body.sourceLineText, body.sourceColumn);
       Debug.State.currentSourceLine = body.sourceLine;
       Debug.State.currentFrame = 0;
-      return details;
+      details.text = result;
+      break;
       
     case 'exception':
       if (body.uncaught) {
-        details += 'Uncaught: ';
+        result += 'Uncaught: ';
       } else {
-        details += 'Exception: ';
+        result += 'Exception: ';
       }
-      details += '"';
-      details += body.exception.text;
-      details += '"';
+      result += '"';
+      result += body.exception.text;
+      result += '"';
       if (body.sourceLine >= 0) {
-        details += ', ';
-        details += SourceInfo(body);
-        details += '\n';
-        details += SourceUnderline(body.sourceLineText, body.sourceColumn);
+        result += ', ';
+        result += SourceInfo(body);
+        result += '\n';
+        result += SourceUnderline(body.sourceLineText, body.sourceColumn);
         Debug.State.currentSourceLine = body.sourceLine;
         Debug.State.currentFrame = 0;
       } else {
-        details += ' (empty stack)';
+        result += ' (empty stack)';
         Debug.State.currentSourceLine = -1;
         Debug.State.currentFrame = kNoFrame;
       }
-      return details;
+      details.text = result;
+      break;
 
-    case 'exception':
-      if (trace_compile) {
-        details = 'Source ' + body.script.name + ' compiled:\n'
-      } else {
-        return '';
-      }
-     
     case 'afterCompile':
       if (trace_compile) {
-        details = 'Source ' + event.script().name() + ' compiled:\n'
+        result = 'Source ' + body.script.name + ' compiled:\n'
         var source = body.script.source;
         if (!(source[source.length - 1] == '\n')) {
-          details += source;
+          result += source;
         } else {
-          details += source.substring(0, source.length - 1);
+          result += source.substring(0, source.length - 1);
         }
-        return details;
-      } else {
-        return '';
       }
+      details.text = result;
+      break;
+
+    default:
+      details.text = 'Unknown debug event ' + response.event();
   }
-  return 'Unknown debug event ' + response.event();
+
+  return details;
 };
 
 
@@ -749,13 +762,10 @@ function formatObject_(value, include_properties) {
 
 
 // Convert a JSON response to text for display in a text based debugger.
-function DebugResponseDetails(json_response) {
+function DebugResponseDetails(response) {
   details = {text:'', running:false}
 
   try {
-    // Convert the JSON string to an object.
-    var response = new ProtocolPackage(json_response);
-
     if (!response.success()) {
       details.text = response.message();
       return details;

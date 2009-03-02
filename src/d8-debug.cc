@@ -57,13 +57,17 @@ void HandleDebugEvent(DebugEvent event,
   }
 
   // Print the event details.
-  Handle<String> details =
-      Shell::DebugEventToText(Handle<String>::Cast(event_json));
-  if (details->Length() == 0) {
+  Handle<Object> details =
+      Shell::DebugMessageDetails(Handle<String>::Cast(event_json));
+  if (try_catch.HasCaught()) {
+    Shell::ReportException(&try_catch);
+    return;
+  }
+  String::Utf8Value str(details->Get(String::New("text")));
+  if (str.length() == 0) {
     // Empty string is used to signal not to process this event.
     return;
   }
-  String::Utf8Value str(details);
   printf("%s\n", *str);
 
   // Get the debug command processor.
@@ -123,7 +127,7 @@ void HandleDebugEvent(DebugEvent event,
     Handle<String> response = Handle<String>::Cast(response_val);
 
     // Convert the debugger response into text details and the running state.
-    Handle<Object> response_details = Shell::DebugResponseDetails(response);
+    Handle<Object> response_details = Shell::DebugMessageDetails(response);
     if (try_catch.HasCaught()) {
       Shell::ReportException(&try_catch);
       continue;
