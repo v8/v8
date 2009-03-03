@@ -198,6 +198,7 @@
 		89F23C9E0E78D5FD006B2466 /* macro-assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1540E719B8F00D62E90 /* macro-assembler-arm.cc */; };
 		89F23C9F0E78D604006B2466 /* simulator-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF17D0E719B8F00D62E90 /* simulator-arm.cc */; };
 		89F23CA00E78D609006B2466 /* stub-cache-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */; };
+		B51EA642E40FEA8ACC0C3D62 /* debug-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 31365DC16327FFDDD8564C09 /* debug-agent.cc */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -260,6 +261,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		31365DC16327FFDDD8564C09 /* debug-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = debug-agent.cc; path = "src/debug-agent.cc"; sourceTree = SOURCE_ROOT; };
+		41ABB873EEBB03A133616545 /* debug-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = debug-agent.h; path = "src/debug-agent.h"; sourceTree = SOURCE_ROOT; };
 		58950D4E0F55514900F3E8BA /* jump-target-arm.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target-arm.cc"; sourceTree = "<group>"; };
 		58950D4F0F55514900F3E8BA /* jump-target-ia32.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target-ia32.cc"; sourceTree = "<group>"; };
 		58950D500F55514900F3E8BA /* jump-target.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "jump-target.cc"; sourceTree = "<group>"; };
@@ -554,6 +557,8 @@
 			children = (
 				897FF0CF0E71996900D62E90 /* v8 */,
 				897FF1C00E719CB600D62E90 /* Products */,
+				31365DC16327FFDDD8564C09 /* debug-agent.cc */,
+				41ABB873EEBB03A133616545 /* debug-agent.h */,
 			);
 			sourceTree = "<group>";
 		};
@@ -1078,6 +1083,7 @@
 				89A88DFC0E71A6460043BA31 /* counters.cc in Sources */,
 				89A88DFD0E71A6470043BA31 /* cpu-ia32.cc in Sources */,
 				89A88DFE0E71A6480043BA31 /* dateparser.cc in Sources */,
+				B51EA642E40FEA8ACC0C3D62 /* debug-agent.cc in Sources */,
 				898BD20E0EF6CC930068B00A /* debug-ia32.cc in Sources */,
 				89A88DFF0E71A6530043BA31 /* debug.cc in Sources */,
 				89A88E000E71A6540043BA31 /* disasm-ia32.cc in Sources */,

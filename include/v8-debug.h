@@ -158,6 +158,13 @@ class EXPORT Debug {
   */
   static Handle<Value> Call(v8::Handle<v8::Function> fun,
                             Handle<Value> data = Handle<Value>());
+
+ /**
+  * Enable the V8 builtin debug agent. The debugger agent will listen on the
+  * supplied TCP/IP port for remote debugger connection.
+  * \param port the TCP/IP port to listen on
+  */
+  static bool EnableAgent(int port);
 };
 
 

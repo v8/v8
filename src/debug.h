@@ -31,6 +31,7 @@
 #include "../include/v8-debug.h"
 #include "assembler.h"
 #include "code-stubs.h"
+#include "debug-agent.h"
 #include "execution.h"
 #include "factory.h"
 #include "platform.h"
@@ -391,6 +392,9 @@ class Debugger {
                              Handle<Object> data,
                              bool* pending_exception);
 
+  // Start the debugger agent listening on the provided port.
+  static bool StartAgent(int port);
+
   inline static bool EventActive(v8::DebugEvent event) {
     // Currently argument event is not used.
     return !Debugger::compiling_natives_ && Debugger::debugger_active_;
@@ -418,6 +422,8 @@ class Debugger {
   static void* message_handler_data_;
   static v8::DebugHostDispatchHandler host_dispatch_handler_;
   static void* host_dispatch_handler_data_;
+
+  static DebuggerAgent* agent_;
 
   friend class DebugMessageThread;
 };

@@ -201,7 +201,8 @@ DEFINE_bool(preemption, false,
 
 // Regexp
 DEFINE_bool(trace_regexps, false, "trace regexp execution")
-DEFINE_bool(regexp_native, true, "use native code regexp implementation (IA32 only)")
+DEFINE_bool(regexp_native, true,
+            "use native code regexp implementation (IA32 only)")
 DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
@@ -225,6 +226,8 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
 DEFINE_bool(help, false, "Print usage message, including flags, on console")
 DEFINE_bool(dump_counters, false, "Dump counters on exit")
 DEFINE_bool(debugger, true, "Enable JavaScript debugger")
+DEFINE_bool(debugger_agent, false, "Enable debugger agent")
+DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
 DEFINE_string(map_counters, false, "Map counters to a file")
 DEFINE_args(js_arguments, JSArguments(),
             "Pass all remaining arguments to the script. Alias for \"--\".")

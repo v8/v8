@@ -2960,6 +2960,11 @@ Handle<Value> Debug::Call(v8::Handle<v8::Function> fun,
 }
 
 
+bool Debug::EnableAgent(int port) {
+  return i::Debugger::StartAgent(port);
+}
+
+
 namespace internal {
 
 

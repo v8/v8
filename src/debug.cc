@@ -1355,6 +1355,7 @@ v8::DebugMessageHandler Debugger::message_handler_ = NULL;
 void* Debugger::message_handler_data_ = NULL;
 v8::DebugHostDispatchHandler Debugger::host_dispatch_handler_ = NULL;
 void* Debugger::host_dispatch_handler_data_ = NULL;
+DebuggerAgent* Debugger::agent_ = NULL;
 
 
 Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
@@ -1789,6 +1790,17 @@ Handle<Object> Debugger::Call(Handle<JSFunction> fun,
   Handle<Object> result = Execution::Call(fun, Factory::undefined_value(),
                                           kArgc, argv, pending_exception);
   return result;
+}
+
+
+bool Debugger::StartAgent(int port) {
+  if (Socket::Setup()) {
+    agent_ = new DebuggerAgent(port);
+    agent_->Start();
+    return true;
+  }
+
+  return false;
 }
 
 

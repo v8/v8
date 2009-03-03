@@ -345,6 +345,14 @@
 				>
 			</File>
 			<File
+				RelativePath="..\..\src\debug-agent.cc"
+				>
+			</File>
+			<File
+				RelativePath="..\..\src\debug-agent.h"
+				>
+			</File>
+			<File
 				RelativePath="..\..\src\debug-ia32.cc"
 				>
 			</File>
