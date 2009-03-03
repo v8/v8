@@ -309,6 +309,7 @@ static void SetAtomLastCapture(FixedArray* array,
                                String* subject,
                                int from,
                                int to) {
+  NoHandleAllocation no_handles;
   RegExpImpl::SetLastCaptureCount(array, 2);
   RegExpImpl::SetLastSubject(array, subject);
   RegExpImpl::SetLastInput(array, subject);
@@ -329,8 +330,11 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
   if (value == -1) return Factory::null_value();
   ASSERT(last_match_info->HasFastElements());
 
-  Handle<FixedArray> array(last_match_info->elements());
-  SetAtomLastCapture(*array, *subject, value, value + needle->length());
+  {
+    NoHandleAllocation no_handles;
+    FixedArray* array = last_match_info->elements();
+    SetAtomLastCapture(array, *subject, value, value + needle->length());
+  }
   return last_match_info;
 }
 
@@ -452,7 +456,9 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re,
     return false;
   }
 
-  Handle<FixedArray> data(FixedArray::cast(re->data()));
+  NoHandleAllocation no_handles;
+
+  FixedArray* data = FixedArray::cast(re->data());
   data->set(index, result.code);
   int register_max = IrregexpMaxRegisterCount(data);
   if (result.num_registers > register_max) {
@@ -463,55 +469,46 @@ bool RegExpImpl::EnsureCompiledIrregexp(Handle<JSRegExp> re,
 }
 
 
-int RegExpImpl::IrregexpMaxRegisterCount(Handle<FixedArray> re) {
+int RegExpImpl::IrregexpMaxRegisterCount(FixedArray* re) {
   return Smi::cast(
       re->get(JSRegExp::kIrregexpMaxRegisterCountIndex))->value();
 }
 
 
-void RegExpImpl::SetIrregexpMaxRegisterCount(Handle<FixedArray> re, int value) {
-  re->set(JSRegExp::kIrregexpMaxRegisterCountIndex,
-          Smi::FromInt(value));
+void RegExpImpl::SetIrregexpMaxRegisterCount(FixedArray* re, int value) {
+  re->set(JSRegExp::kIrregexpMaxRegisterCountIndex, Smi::FromInt(value));
 }
 
 
-int RegExpImpl::IrregexpNumberOfCaptures(Handle<FixedArray> re) {
-  return Smi::cast(
-      re->get(JSRegExp::kIrregexpCaptureCountIndex))->value();
+int RegExpImpl::IrregexpNumberOfCaptures(FixedArray* re) {
+  return Smi::cast(re->get(JSRegExp::kIrregexpCaptureCountIndex))->value();
 }
 
 
-int RegExpImpl::IrregexpNumberOfRegisters(Handle<FixedArray> re) {
-  return Smi::cast(
-      re->get(JSRegExp::kIrregexpMaxRegisterCountIndex))->value();
+int RegExpImpl::IrregexpNumberOfRegisters(FixedArray* re) {
+  return Smi::cast(re->get(JSRegExp::kIrregexpMaxRegisterCountIndex))->value();
 }
 
 
-Handle<ByteArray> RegExpImpl::IrregexpByteCode(Handle<FixedArray> re,
-                                               bool is_ascii) {
+ByteArray* RegExpImpl::IrregexpByteCode(FixedArray* re, bool is_ascii) {
   int index;
   if (is_ascii) {
     index = JSRegExp::kIrregexpASCIICodeIndex;
   } else {
     index = JSRegExp::kIrregexpUC16CodeIndex;
   }
-  Object* value = re->get(index);
-  ASSERT(value->IsByteArray());
-  return Handle<ByteArray>(ByteArray::cast(value));
+  return ByteArray::cast(re->get(index));
 }
 
 
-Handle<Code> RegExpImpl::IrregexpNativeCode(Handle<FixedArray> re,
-                                            bool is_ascii) {
+Code* RegExpImpl::IrregexpNativeCode(FixedArray* re, bool is_ascii) {
   int index;
   if (is_ascii) {
     index = JSRegExp::kIrregexpASCIICodeIndex;
   } else {
     index = JSRegExp::kIrregexpUC16CodeIndex;
   }
-  Object* value = re->get(index);
-  ASSERT(value->IsCode());
-  return Handle<Code>(Code::cast(value));
+  return Code::cast(re->get(index));
 }
 
 
@@ -542,7 +539,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   // Prepare space for the return values.
   Handle<FixedArray> re_data(FixedArray::cast(regexp->data()));
   int number_of_capture_registers =
-      (IrregexpNumberOfCaptures(re_data) + 1) * 2;
+      (IrregexpNumberOfCaptures(*re_data) + 1) * 2;
   OffsetsVector offsets(number_of_capture_registers);
 
   int previous_index = index;
@@ -584,7 +581,7 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
 
   // Prepare space for the return values.
   int number_of_capture_registers =
-      (IrregexpNumberOfCaptures(irregexp) + 1) * 2;
+      (IrregexpNumberOfCaptures(*irregexp) + 1) * 2;
   OffsetsVector offsets(number_of_capture_registers);
 
   int previous_index = 0;
@@ -670,7 +667,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> regexp,
 
   if (FLAG_regexp_native) {
 #ifndef ARM
-    Handle<Code> code(IrregexpNativeCode(regexp, is_ascii));
+    Handle<Code> code(IrregexpNativeCode(*regexp, is_ascii));
 
     // Character offsets into string.
     int start_offset = previous_index;
@@ -746,7 +743,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> regexp,
     for (int i = number_of_capture_registers - 1; i >= 0; i--) {
       offsets_vector[i] = -1;
     }
-    Handle<ByteArray> byte_codes = IrregexpByteCode(regexp, is_ascii);
+    Handle<ByteArray> byte_codes(IrregexpByteCode(*regexp, is_ascii));
 
     rc = IrregexpInterpreter::Match(byte_codes,
                                     subject,

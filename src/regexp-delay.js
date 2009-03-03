@@ -196,10 +196,36 @@ function RegExpExec(string) {
 
 
 // Section 15.10.6.3 doesn't actually make sense, but the intention seems to be
-// that test is defined in terms of String.prototype.exec even if it changes.
+// that test is defined in terms of String.prototype.exec even if the method is
+// called on a non-RegExp object. However, it probably means the original 
+// value of String.prototype.exec, which is what everybody else implements.
 function RegExpTest(string) {
-  var result = (%_ArgumentsLength() == 0) ? this.exec() : this.exec(string);
-  return result != null;
+  if (%_ArgumentsLength() == 0) {
+    var regExpInput = LAST_INPUT(lastMatchInfo);
+    if (IS_UNDEFINED(regExpInput)) {
+      throw MakeError('no_input_to_regexp', [this]);
+    }
+    string = regExpInput;
+  }
+  var s = ToString(string);
+  var length = s.length;
+  var lastIndex = this.lastIndex;
+  var i = this.global ? TO_INTEGER(lastIndex) : 0;
+
+  if (i < 0 || i > s.length) {
+    this.lastIndex = 0;
+    return false;
+  }
+
+  %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
+  // matchIndices is either null or the lastMatchInfo array.
+  var matchIndices = %RegExpExec(this, s, i, lastMatchInfo);
+
+  if (matchIndices == null) {
+    if (this.global) this.lastIndex = 0;
+    return false;
+  }
+  return true;
 }
 
 

@@ -139,13 +139,12 @@ class RegExpImpl {
 
   static bool EnsureCompiledIrregexp(Handle<JSRegExp> re, bool is_ascii);
 
-  static int IrregexpMaxRegisterCount(Handle<FixedArray> re);
-  static void SetIrregexpMaxRegisterCount(Handle<FixedArray> re, int value);
-  static int IrregexpNumberOfCaptures(Handle<FixedArray> re);
-  static int IrregexpNumberOfRegisters(Handle<FixedArray> re);
-  static Handle<ByteArray> IrregexpByteCode(Handle<FixedArray> re,
-                                            bool is_ascii);
-  static Handle<Code> IrregexpNativeCode(Handle<FixedArray> re, bool is_ascii);
+  static int IrregexpMaxRegisterCount(FixedArray* re);
+  static void SetIrregexpMaxRegisterCount(FixedArray* re, int value);
+  static int IrregexpNumberOfCaptures(FixedArray* re);
+  static int IrregexpNumberOfRegisters(FixedArray* re);
+  static ByteArray* IrregexpByteCode(FixedArray* re, bool is_ascii);
+  static Code* IrregexpNativeCode(FixedArray* re, bool is_ascii);
 
   // On a successful match, the result is a JSArray containing
   // captured positions. On a failure, the result is the null value.
