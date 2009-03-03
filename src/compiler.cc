@@ -210,7 +210,7 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
                           extension,
                           pre_data);
     if (extension == NULL && !result.is_null()) {
-      CompilationCache::PutFunction(source, CompilationCache::SCRIPT, result);
+      CompilationCache::PutScript(source, CompilationCache::SCRIPT, result);
     }
 
     // Get rid of the pre-parsing data (if necessary).
@@ -220,7 +220,6 @@ Handle<JSFunction> Compiler::Compile(Handle<String> source,
   }
 
   if (result.is_null()) Top::ReportPendingMessages();
-
   return result;
 }
 
@@ -249,7 +248,7 @@ Handle<JSFunction> Compiler::CompileEval(Handle<String> source,
     script->set_line_offset(Smi::FromInt(line_offset));
     result = MakeFunction(is_global, true, script, context, NULL, NULL);
     if (!result.is_null()) {
-      CompilationCache::PutEvalFunction(source, context, entry, result);
+      CompilationCache::PutEval(source, context, entry, result);
     }
   }
 

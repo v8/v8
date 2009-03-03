@@ -154,18 +154,14 @@ void CodeGenerator::GenCode(FunctionLiteral* fun) {
       // Get outer context and create a new context based on it.
       frame_->PushFunction();
       Result context = frame_->CallRuntime(Runtime::kNewContext, 1);
+
       // Update context local.
       frame_->SaveContextRegister();
 
-      if (kDebug) {
-        JumpTarget verified_true(this);
-        // Verify eax and esi are the same in debug mode
+      // Verify that the runtime call result and esi agree.
+      if (FLAG_debug_code) {
         __ cmp(context.reg(), Operand(esi));
-        context.Unuse();
-        verified_true.Branch(equal);
-        frame_->SpillAll();
-        __ int3();
-        verified_true.Bind();
+        __ Assert(equal, "Runtime::NewContext should end up in esi");
       }
     }
 
@@ -1870,16 +1866,10 @@ void CodeGenerator::VisitWithEnterStatement(WithEnterStatement* node) {
   // Update context local.
   frame_->SaveContextRegister();
 
-  if (kDebug) {
-    JumpTarget verified_true(this);
-    // Verify that the result of the runtime call and the esi register are
-    // the same in debug mode.
+  // Verify that the runtime call result and esi agree.
+  if (FLAG_debug_code) {
     __ cmp(context.reg(), Operand(esi));
-    context.Unuse();
-    verified_true.Branch(equal);
-    frame_->SpillAll();
-    __ int3();
-    verified_true.Bind();
+    __ Assert(equal, "Runtime::NewContext should end up in esi");
   }
 }
 

@@ -877,7 +877,7 @@ void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id, InvokeFlag flag) {
   bool resolved;
   Handle<Code> code = ResolveBuiltin(id, &resolved);
 
-    // Calls are not allowed in some stubs.
+  // Calls are not allowed in some stubs.
   ASSERT(flag == JUMP_FUNCTION || allow_stub_calls());
 
   // Rely on the assertion to check that the number of provided
