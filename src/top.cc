@@ -668,26 +668,6 @@ Object* Top::PromoteScheduledException() {
 }
 
 
-// NOTE: The stack trace frame iterator is an iterator that only
-// traverse proper JavaScript frames; that is JavaScript frames that
-// have proper JavaScript functions. This excludes the problematic
-// functions in runtime.js.
-class StackTraceFrameIterator: public JavaScriptFrameIterator {
- public:
-  StackTraceFrameIterator() {
-    if (!done() && !frame()->function()->IsJSFunction()) Advance();
-  }
-
-  void Advance() {
-    while (true) {
-      JavaScriptFrameIterator::Advance();
-      if (done()) return;
-      if (frame()->function()->IsJSFunction()) return;
-    }
-  }
-};
-
-
 void Top::PrintCurrentStackTrace(FILE* out) {
   StackTraceFrameIterator it;
   while (!it.done()) {

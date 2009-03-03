@@ -74,6 +74,11 @@ StackFrameIterator::StackFrameIterator(ThreadLocalTop* t)
       frame_(NULL), handler_(NULL), thread_(t) {
   Reset();
 }
+StackFrameIterator::StackFrameIterator(bool reset)
+    : STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
+      frame_(NULL), handler_(NULL), thread_(Top::GetCurrentThread()) {
+  if (reset) Reset();
+}
 #undef INITIALIZE_SINGLETON
 
 
@@ -131,32 +136,77 @@ StackFrame* StackFrameIterator::SingletonFor(StackFrame::Type type,
 // -------------------------------------------------------------------------
 
 
-JavaScriptFrameIterator::JavaScriptFrameIterator(StackFrame::Id id) {
+StackTraceFrameIterator::StackTraceFrameIterator() {
+  if (!done() && !frame()->function()->IsJSFunction()) Advance();
+}
+
+
+void StackTraceFrameIterator::Advance() {
   while (true) {
-    Advance();
-    if (frame()->id() == id) return;
+    JavaScriptFrameIterator::Advance();
+    if (done()) return;
+    if (frame()->function()->IsJSFunction()) return;
   }
 }
 
 
-void JavaScriptFrameIterator::Advance() {
-  do {
+// -------------------------------------------------------------------------
+
+
+SafeStackFrameIterator::SafeStackFrameIterator(
+    Address low_bound, Address high_bound) :
+    low_bound_(low_bound), high_bound_(high_bound),
+    is_working_iterator_(IsInBounds(low_bound, high_bound,
+                                    Top::c_entry_fp(Top::GetCurrentThread()))),
+    iteration_done_(!is_working_iterator_), iterator_(is_working_iterator_) {
+}
+
+
+void SafeStackFrameIterator::Advance() {
+  ASSERT(is_working_iterator_);
+  ASSERT(!done());
+  StackFrame* frame = iterator_.frame();
+  iteration_done_ =
+      !IsGoodStackAddress(frame->sp()) || !IsGoodStackAddress(frame->fp());
+  if (!iteration_done_) {
     iterator_.Advance();
-  } while (!iterator_.done() && !iterator_.frame()->is_java_script());
+    if (!iterator_.done()) {
+      // Check that we have actually moved to the previous frame in the stack
+      StackFrame* prev_frame = iterator_.frame();
+      iteration_done_ =
+          prev_frame->sp() < frame->sp() || prev_frame->fp() < frame->fp();
+    }
+  }
 }
 
 
-void JavaScriptFrameIterator::AdvanceToArgumentsFrame() {
-  if (!frame()->has_adapted_arguments()) return;
-  iterator_.Advance();
-  ASSERT(iterator_.frame()->is_arguments_adaptor());
+void SafeStackFrameIterator::Reset() {
+  if (is_working_iterator_) {
+    iterator_.Reset();
+    iteration_done_ = false;
+  }
 }
 
 
-void JavaScriptFrameIterator::Reset() {
-  iterator_.Reset();
-  Advance();
+// -------------------------------------------------------------------------
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+SafeStackTraceFrameIterator::SafeStackTraceFrameIterator(
+    Address low_bound, Address high_bound) :
+    SafeJavaScriptFrameIterator(low_bound, high_bound) {
+  if (!done() && !frame()->function()->IsJSFunction()) Advance();
 }
+
+
+void SafeStackTraceFrameIterator::Advance() {
+  while (true) {
+    SafeJavaScriptFrameIterator::Advance();
+    if (done()) return;
+    if (frame()->function()->IsJSFunction()) return;
+  }
+}
+#endif
 
 
 // -------------------------------------------------------------------------

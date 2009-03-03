@@ -509,6 +509,9 @@ class StackFrameIterator BASE_EMBEDDED {
   // An iterator that iterates over a given thread's stack.
   explicit StackFrameIterator(ThreadLocalTop* thread);
 
+  // An iterator that conditionally resets itself on init.
+  explicit StackFrameIterator(bool reset);
+
   StackFrame* frame() const {
     ASSERT(!done());
     return frame_;
@@ -542,16 +545,21 @@ class StackFrameIterator BASE_EMBEDDED {
 
 
 // Iterator that supports iterating through all JavaScript frames.
-class JavaScriptFrameIterator BASE_EMBEDDED {
+template<typename Iterator>
+class JavaScriptFrameIteratorTemp BASE_EMBEDDED {
  public:
-  JavaScriptFrameIterator() { if (!done()) Advance(); }
+  JavaScriptFrameIteratorTemp() { if (!done()) Advance(); }
 
-  explicit JavaScriptFrameIterator(ThreadLocalTop* thread) : iterator_(thread) {
+  explicit JavaScriptFrameIteratorTemp(ThreadLocalTop* thread) :
+      iterator_(thread) {
     if (!done()) Advance();
   }
 
   // Skip frames until the frame with the given id is reached.
-  explicit JavaScriptFrameIterator(StackFrame::Id id);
+  explicit JavaScriptFrameIteratorTemp(StackFrame::Id id);
+
+  explicit JavaScriptFrameIteratorTemp(Address low_bound, Address high_bound) :
+      iterator_(low_bound, high_bound) { if (!done()) Advance(); }
 
   inline JavaScriptFrame* frame() const;
 
@@ -567,8 +575,66 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
   void Reset();
 
  private:
+  Iterator iterator_;
+};
+
+
+typedef JavaScriptFrameIteratorTemp<StackFrameIterator> JavaScriptFrameIterator;
+
+
+// NOTE: The stack trace frame iterator is an iterator that only
+// traverse proper JavaScript frames; that is JavaScript frames that
+// have proper JavaScript functions. This excludes the problematic
+// functions in runtime.js.
+class StackTraceFrameIterator: public JavaScriptFrameIterator {
+ public:
+  StackTraceFrameIterator();
+  void Advance();
+};
+
+
+class SafeStackFrameIterator BASE_EMBEDDED {
+ public:
+  explicit SafeStackFrameIterator(Address low_bound, Address high_bound);
+
+  StackFrame* frame() const {
+    ASSERT(is_working_iterator_);
+    return iterator_.frame();
+  }
+
+  bool done() const { return iteration_done_ ? true : iterator_.done(); }
+
+  void Advance();
+  void Reset();
+
+ private:
+  static bool IsInBounds(
+      Address low_bound, Address high_bound, Address addr) {
+    return low_bound <= addr && addr <= high_bound;
+  }
+  bool IsGoodStackAddress(Address addr) const {
+    return IsInBounds(low_bound_, high_bound_, addr);
+  }
+
+  Address low_bound_;
+  Address high_bound_;
+  const bool is_working_iterator_;
+  bool iteration_done_;
   StackFrameIterator iterator_;
 };
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
+typedef JavaScriptFrameIteratorTemp<SafeStackFrameIterator>
+    SafeJavaScriptFrameIterator;
+
+
+class SafeStackTraceFrameIterator: public SafeJavaScriptFrameIterator {
+ public:
+  explicit SafeStackTraceFrameIterator(Address low_bound, Address high_bound);
+  void Advance();
+};
+#endif
 
 
 class StackFrameLocator BASE_EMBEDDED {

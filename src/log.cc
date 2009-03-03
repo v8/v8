@@ -137,14 +137,38 @@ bool Profiler::paused_ = false;
 // StackTracer implementation
 //
 void StackTracer::Trace(TickSample* sample) {
-  // Assuming that stack grows from lower addresses
-  if (sample->state != GC
-      && (sample->sp < sample->fp && sample->fp < low_stack_bound_)) {
+  if (sample->state == GC) {
+    sample->InitStack(0);
+    return;
+  }
+
+  // If c_entry_fp is available, this means that we are inside a C++
+  // function and sample->fp value isn't reliable due to FPO
+  if (Top::c_entry_fp(Top::GetCurrentThread()) != NULL) {
+    SafeStackTraceFrameIterator it(
+        reinterpret_cast<Address>(sample->sp),
+        reinterpret_cast<Address>(low_stack_bound_));
+    // Pass 1: Calculate depth
+    int depth = 0;
+    while (!it.done() && depth <= kMaxStackFrames) {
+      ++depth;
+      it.Advance();
+    }
+    // Pass 2: Save stack
+    sample->InitStack(depth);
+    if (depth > 0) {
+      it.Reset();
+      for (int i = 0; i < depth && !it.done(); ++i, it.Advance()) {
+        sample->stack[i] = it.frame()->pc();
+      }
+    }
+  } else if (sample->sp < sample->fp && sample->fp < low_stack_bound_) {
+    // The check assumes that stack grows from lower addresses
     sample->InitStack(1);
     sample->stack[0] = Memory::Address_at(
         (Address)(sample->fp + StandardFrameConstants::kCallerPCOffset));
   } else {
-    // GC runs or FP seems to be in some intermediate state,
+    // FP seems to be in some intermediate state,
     // better discard this sample
     sample->InitStack(0);
   }

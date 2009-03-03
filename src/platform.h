@@ -481,9 +481,11 @@ class TickSample {
   }
 
   inline void InitStack(int depth) {
-    stack = SmartPointer<Address>(NewArray<Address>(depth + 1));
-    // null-terminate
-    stack[depth] = 0;
+    if (depth) {
+      stack = SmartPointer<Address>(NewArray<Address>(depth + 1));
+      // null-terminate
+      stack[depth] = 0;
+    }
   }
 };
 

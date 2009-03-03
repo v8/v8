@@ -43,7 +43,7 @@ static void InitTraceEnv(StackTracer* tracer, TickSample* sample) {
 static void DoTrace(unsigned int fp) {
   trace_env.sample->fp = fp;
   // something that is less than fp
-  trace_env.sample->sp = trace_env.sample->fp - sizeof(unsigned int);
+  trace_env.sample->sp = trace_env.sample->fp - 100;
   trace_env.tracer->Trace(trace_env.sample);
 }
 
@@ -217,15 +217,18 @@ TEST(PureJSStackTrace) {
       "  JSFuncDoTrace();"
       "};\n"
       "JSTrace();");
+  CHECK_NE(0, *(sample.stack));
+  CheckRetAddrIsInFunction(
+      reinterpret_cast<unsigned int>(sample.stack[0]),
+      reinterpret_cast<unsigned int>(call_trace_code->instruction_start()),
+      call_trace_code->instruction_size());
   Handle<JSFunction> js_trace(JSFunction::cast(*(v8::Utils::OpenHandle(
       *GetGlobalProperty("JSTrace")))));
   v8::internal::Code* js_trace_code = js_trace->code();
   CheckRetAddrIsInFunction(
-      reinterpret_cast<unsigned int>(sample.stack[0]),
+      reinterpret_cast<unsigned int>(sample.stack[1]),
       reinterpret_cast<unsigned int>(js_trace_code->instruction_start()),
       js_trace_code->instruction_size());
-  CHECK_EQ(0, sample.stack[1]);
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
-
