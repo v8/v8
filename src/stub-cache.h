@@ -362,7 +362,7 @@ class StubCompiler BASE_EMBEDDED {
   static void GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind);
 
  protected:
-  Object* GetCodeWithFlags(Code::Flags flags, char* name);
+  Object* GetCodeWithFlags(Code::Flags flags, const char* name);
   Object* GetCodeWithFlags(Code::Flags flags, String* name);
 
   MacroAssembler* masm() { return &masm_; }

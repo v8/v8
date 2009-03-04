@@ -889,7 +889,7 @@ Object* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
 }
 
 
-Object* StubCompiler::GetCodeWithFlags(Code::Flags flags, char* name) {
+Object* StubCompiler::GetCodeWithFlags(Code::Flags flags, const char* name) {
   CodeDesc desc;
   masm_.GetCode(&desc);
   Object* result = Heap::CreateCode(desc, NULL, flags, masm_.CodeObject());
