@@ -1306,6 +1306,8 @@ void CodeGenerator::Comparison(Condition cc,
     right_side = frame_->Pop();
     left_side = frame_->Pop();
   }
+  ASSERT(cc == less || cc == equal || cc == greater_equal);
+
   // If either side is a constant smi, optimize the comparison.
   bool left_side_constant_smi =
       left_side.is_constant() && left_side.handle()->IsSmi();
@@ -1321,17 +1323,18 @@ void CodeGenerator::Comparison(Condition cc,
       // Trivial case, comparing two constants.
       int left_value = Smi::cast(*left_side.handle())->value();
       int right_value = Smi::cast(*right_side.handle())->value();
-      if (left_value < right_value &&
-          (cc == less || cc == less_equal || cc == not_equal) ||
-          left_value == right_value &&
-          (cc == less_equal || cc == equal || cc == greater_equal) ||
-          left_value > right_value &&
-          (cc == greater || cc == greater_equal || cc == not_equal)) {
-        // The comparison is unconditionally true.
-        dest->Goto(true);
-      } else {
-        // The comparison is unconditionally false.
-        dest->Goto(false);
+      switch (cc) {
+        case less:
+          dest->Goto(left_value < right_value);
+          break;
+        case equal:
+          dest->Goto(left_value == right_value);
+          break;
+        case greater_equal:
+          dest->Goto(left_value >= right_value);
+          break;
+        default:
+          UNREACHABLE();
       }
     } else {  // Only one side is a constant Smi.
       // If left side is a constant Smi, reverse the operands.
@@ -1417,8 +1420,8 @@ void CodeGenerator::Comparison(Condition cc,
   } else {  // Neither side is a constant Smi or null.
     // If either side is a non-smi constant, skip the smi check.
     bool known_non_smi =
-      left_side.is_constant() && !left_side.handle()->IsSmi() ||
-      right_side.is_constant() && !right_side.handle()->IsSmi();
+        (left_side.is_constant() && !left_side.handle()->IsSmi()) ||
+        (right_side.is_constant() && !right_side.handle()->IsSmi());
     left_side.ToRegister();
     right_side.ToRegister();
     JumpTarget is_smi(this);
