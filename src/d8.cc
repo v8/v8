@@ -574,16 +574,22 @@ int Shell::Main(int argc, char* argv[]) {
       }
     }
 
+    // Run the remote debugger if requested.
+    if (i::FLAG_remote_debugger) {
+      RunRemoteDebugger(i::FLAG_debugger_port);
+      return 0;
+    }
+
     // Start the debugger agent if requested.
     if (i::FLAG_debugger_agent) {
       v8::Debug::EnableAgent(i::FLAG_debugger_port);
     }
 
     // Start the in-process debugger if requested.
-    if (i::FLAG_debugger && !i::FLAG_debugger_agent)
+    if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
       v8::Debug::SetDebugEventListener(HandleDebugEvent);
+    }
   }
-
   if (run_shell)
     RunShell();
   for (int i = 0; i < threads.length(); i++) {

@@ -28,6 +28,8 @@
 
 #include "d8.h"
 #include "d8-debug.h"
+#include "platform.h"
+#include "debug-agent.h"
 
 
 namespace v8 {
@@ -138,6 +140,199 @@ void HandleDebugEvent(DebugEvent event,
     }
     running =
         response_details->Get(String::New("running"))->ToBoolean()->Value();
+  }
+}
+
+
+void RunRemoteDebugger(int port) {
+  RemoteDebugger debugger(port);
+  debugger.Run();
+}
+
+
+void RemoteDebugger::Run() {
+  bool ok;
+
+  // Make sure that socket support is initialized.
+  ok = i::Socket::Setup();
+  if (!ok) {
+    printf("Unable to initialize socket support %d\n", i::Socket::LastError());
+    return;
+  }
+
+  // Connect to the debugger agent.
+  conn_ = i::OS::CreateSocket();
+  static const int kPortStrSize = 6;
+  char port_str[kPortStrSize];
+  i::OS::SNPrintF(i::Vector<char>(port_str, kPortStrSize), "%d", port_);
+  ok = conn_->Connect("localhost", port_str);
+  if (!ok) {
+    printf("Unable to connect to debug agent %d\n", i::Socket::LastError());
+    return;
+  }
+
+  // Start the receiver thread.
+  ReceiverThread receiver(this);
+  receiver.Start();
+
+  // Start the keyboard thread.
+  KeyboardThread keyboard(this);
+  keyboard.Start();
+
+  // Process events received from debugged VM and from the keyboard.
+  bool terminate = false;
+  while (!terminate) {
+    event_available_->Wait();
+    RemoteDebuggerEvent* event = GetEvent();
+    switch (event->type()) {
+      case RemoteDebuggerEvent::kMessage:
+        HandleMessageReceived(event->data());
+        break;
+      case RemoteDebuggerEvent::kKeyboard:
+        HandleKeyboardCommand(event->data());
+        break;
+      case RemoteDebuggerEvent::kDisconnect:
+        terminate = true;
+        break;
+
+      default:
+        UNREACHABLE();
+    }
+    delete event;
+  }
+
+  // Wait for the receiver thread to end.
+  receiver.Join();
+}
+
+
+void RemoteDebugger::MessageReceived(i::SmartPointer<char> message) {
+  RemoteDebuggerEvent* event =
+      new RemoteDebuggerEvent(RemoteDebuggerEvent::kMessage, message);
+  AddEvent(event);
+}
+
+
+void RemoteDebugger::KeyboardCommand(i::SmartPointer<char> command) {
+  RemoteDebuggerEvent* event =
+      new RemoteDebuggerEvent(RemoteDebuggerEvent::kKeyboard, command);
+  AddEvent(event);
+}
+
+
+void RemoteDebugger::ConnectionClosed() {
+  RemoteDebuggerEvent* event =
+      new RemoteDebuggerEvent(RemoteDebuggerEvent::kDisconnect,
+                              i::SmartPointer<char>());
+  AddEvent(event);
+}
+
+
+void RemoteDebugger::AddEvent(RemoteDebuggerEvent* event) {
+  i::ScopedLock lock(event_access_);
+  if (head_ == NULL) {
+    ASSERT(tail_ == NULL);
+    head_ = event;
+    tail_ = event;
+  } else {
+    ASSERT(tail_ != NULL);
+    tail_->set_next(event);
+    tail_ = event;
+  }
+  event_available_->Signal();
+}
+
+
+RemoteDebuggerEvent* RemoteDebugger::GetEvent() {
+  i::ScopedLock lock(event_access_);
+  ASSERT(head_ != NULL);
+  RemoteDebuggerEvent* result = head_;
+  head_ = head_->next();
+  if (head_ == NULL) {
+    ASSERT(tail_ == result);
+    tail_ = NULL;
+  }
+  return result;
+}
+
+
+void RemoteDebugger::HandleMessageReceived(char* message) {
+  HandleScope scope;
+
+  // Print the event details.
+  TryCatch try_catch;
+  Handle<Object> details =
+      Shell::DebugMessageDetails(Handle<String>::Cast(String::New(message)));
+  if (try_catch.HasCaught()) {
+      Shell::ReportException(&try_catch);
+    return;
+  }
+  String::Utf8Value str(details->Get(String::New("text")));
+  if (str.length() == 0) {
+    // Empty string is used to signal not to process this event.
+    return;
+  }
+  if (*str != NULL) {
+    printf("%s\n", *str);
+  } else {
+    printf("???\n");
+  }
+  printf("dbg> ");
+}
+
+
+void RemoteDebugger::HandleKeyboardCommand(char* command) {
+  HandleScope scope;
+
+  // Convert the debugger command to a JSON debugger request.
+  TryCatch try_catch;
+  Handle<Value> request =
+      Shell::DebugCommandToJSONRequest(String::New(command));
+  if (try_catch.HasCaught()) {
+    Shell::ReportException(&try_catch);
+    return;
+  }
+
+  // If undefined is returned the command was handled internally and there is
+  // no JSON to send.
+  if (request->IsUndefined()) {
+    return;
+  }
+
+  // Send the JSON debugger request.
+  i::DebuggerAgentUtil::SendMessage(conn_, Handle<String>::Cast(request));
+}
+
+
+void ReceiverThread::Run() {
+  while (true) {
+    // Receive a message.
+    i::SmartPointer<char> message =
+      i::DebuggerAgentUtil::ReceiveMessage(remote_debugger_->conn());
+    if (*message == NULL) {
+      remote_debugger_->ConnectionClosed();
+      return;
+    }
+
+    // Pass the message to the main thread.
+    remote_debugger_->MessageReceived(message);
+  }
+}
+
+
+void KeyboardThread::Run() {
+  static const int kBufferSize = 256;
+  while (true) {
+    // read keyboard input.
+    char command[kBufferSize];
+    char* str = fgets(command, kBufferSize, stdin);
+    if (str == NULL) {
+      break;
+    }
+
+    // Pass the keyboard command to the main thread.
+    remote_debugger_->KeyboardCommand(
+        i::SmartPointer<char>(i::OS::StrDup(command)));
   }
 }
 
