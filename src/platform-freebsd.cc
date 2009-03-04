@@ -656,7 +656,6 @@ class FreeBSDSocket : public Socket {
 
   // Data Transimission
   int Send(const char* data, int len) const;
-  bool SendAll(const char* data, int len) const;
   int Receive(char* data, int len) const;
 
   bool IsValid() const { return socket_ != -1; }
@@ -733,19 +732,6 @@ bool FreeBSDSocket::Connect(const char* host, const char* port) {
 int FreeBSDSocket::Send(const char* data, int len) const {
   int status = send(socket_, data, len, 0);
   return status;
-}
-
-
-bool FreeBSDSocket::SendAll(const char* data, int len) const {
-  int sent_len = 0;
-  while (sent_len < len) {
-    int status = Send(data, len);
-    if (status <= 0) {
-      return false;
-    }
-    sent_len += status;
-  }
-  return true;
 }
 
 

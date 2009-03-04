@@ -437,7 +437,6 @@ class Socket {
 
   // Data Transimission
   virtual int Send(const char* data, int len) const = 0;
-  virtual bool SendAll(const char* data, int len) const = 0;
   virtual int Receive(char* data, int len) const = 0;
 
   virtual bool IsValid() const = 0;
