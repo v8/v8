@@ -225,6 +225,8 @@ function RegExpTest(string) {
     if (this.global) this.lastIndex = 0;
     return false;
   }
+
+  if (this.global) this.lastIndex = lastMatchInfo[CAPTURE1];
   return true;
 }
 
