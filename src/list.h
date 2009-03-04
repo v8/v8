@@ -79,9 +79,16 @@ class List {
   // until the next change is made to this list.
   Vector<T> AddBlock(const T& value, int count);
 
+  // Inserts a copy of the given element at index i in the list.  All
+  // elements formerly at or above i are moved up and the length of
+  // the list increases by one.  This function's complexity is linear
+  // in the size of the list.
+  T& Insert(int i, const T& element);
+
   // Removes the i'th element without deleting it even if T is a
   // pointer type; moves all elements above i "down". Returns the
-  // removed element.
+  // removed element.  This function's complexity is linear in the
+  // size of the list.
   T Remove(int i);
 
   // Removes the last element without deleting it even if T is a

@@ -59,6 +59,18 @@ Vector<T> List<T, P>::AddBlock(const T& element, int count) {
 
 
 template<typename T, class P>
+T& List<T, P>::Insert(int i, const T& element) {
+  int free_index = length_ - 1;
+  Add(last());  // Add grows the list if necessary.
+  while (free_index > i) {
+    data_[free_index] = data_[free_index - 1];
+    free_index--;
+  }
+  data_[free_index] = element;
+}
+
+
+template<typename T, class P>
 T List<T, P>::Remove(int i) {
   T element = at(i);
   length_--;
