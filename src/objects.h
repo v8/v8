@@ -3786,10 +3786,6 @@ class JSArray: public JSObject {
   // Casting.
   static inline JSArray* cast(Object* obj);
 
-  // Uses handles.  Ensures that the fixed array backing the JSArray has at
-  // least the stated size.
-  void EnsureSize(int minimum_size_of_backing_fixed_array);
-
   // Dispatched behavior.
 #ifdef DEBUG
   void JSArrayPrint();
