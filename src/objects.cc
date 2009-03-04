@@ -4883,6 +4883,7 @@ Object* JSArray::Initialize(int capacity) {
 
 
 void JSArray::EnsureSize(int required_size) {
+  Handle<JSArray> self(this);
   ASSERT(HasFastElements());
   if (elements()->length() >= required_size) return;
   Handle<FixedArray> old_backing(elements());
@@ -4891,8 +4892,9 @@ void JSArray::EnsureSize(int required_size) {
   // constantly growing.
   int new_size = required_size + (required_size >> 3);
   Handle<FixedArray> new_backing = Factory::NewFixedArray(new_size);
+  // Can't use this any more now because we may have had a GC!
   for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
-  SetContent(*new_backing);
+  self->SetContent(*new_backing);
 }
 
 
