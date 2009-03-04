@@ -732,17 +732,17 @@ class GenericBinaryOpStub: public CodeStub {
 
 const char* GenericBinaryOpStub::GetName() {
   switch (op_) {
-  case Token::ADD: return "GenericBinaryOpStub_ADD";
-  case Token::SUB: return "GenericBinaryOpStub_SUB";
-  case Token::MUL: return "GenericBinaryOpStub_MUL";
-  case Token::DIV: return "GenericBinaryOpStub_DIV";
-  case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
-  case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
-  case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
-  case Token::SAR: return "GenericBinaryOpStub_SAR";
-  case Token::SHL: return "GenericBinaryOpStub_SHL";
-  case Token::SHR: return "GenericBinaryOpStub_SHR";
-  default:         return "GenericBinaryOpStub";
+    case Token::ADD: return "GenericBinaryOpStub_ADD";
+    case Token::SUB: return "GenericBinaryOpStub_SUB";
+    case Token::MUL: return "GenericBinaryOpStub_MUL";
+    case Token::DIV: return "GenericBinaryOpStub_DIV";
+    case Token::BIT_OR: return "GenericBinaryOpStub_BIT_OR";
+    case Token::BIT_AND: return "GenericBinaryOpStub_BIT_AND";
+    case Token::BIT_XOR: return "GenericBinaryOpStub_BIT_XOR";
+    case Token::SAR: return "GenericBinaryOpStub_SAR";
+    case Token::SHL: return "GenericBinaryOpStub_SHL";
+    case Token::SHR: return "GenericBinaryOpStub_SHR";
+    default:         return "GenericBinaryOpStub";
   }
 }
 
@@ -836,9 +836,9 @@ void CodeGenerator::GenericBinaryOperation(Token::Value op,
 class DeferredInlineSmiOperation: public DeferredCode {
  public:
   DeferredInlineSmiOperation(CodeGenerator* generator,
-                              Token::Value op,
-                              Smi* value,
-                              OverwriteMode overwrite_mode)
+                             Token::Value op,
+                             Smi* value,
+                             OverwriteMode overwrite_mode)
       : DeferredCode(generator),
         op_(op),
         value_(value),
@@ -1119,8 +1119,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
         // In the slow case, this masking is done inside the runtime call.
         int shift_value = int_value & 0x1f;
         DeferredCode* deferred =
-          new DeferredInlineSmiOperation(this, Token::SAR, smi_value,
-                                         overwrite_mode);
+            new DeferredInlineSmiOperation(this, Token::SAR, smi_value,
+                                           overwrite_mode);
         Result result = frame_->Pop();
         result.ToRegister();
         __ test(result.reg(), Immediate(kSmiTagMask));
@@ -1145,8 +1145,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
         // In the slow case, this masking is done inside the runtime call.
         int shift_value = int_value & 0x1f;
         DeferredCode* deferred =
-        new DeferredInlineSmiOperation(this, Token::SHR, smi_value,
-                                       overwrite_mode);
+            new DeferredInlineSmiOperation(this, Token::SHR, smi_value,
+                                           overwrite_mode);
         Result operand = frame_->Pop();
         operand.ToRegister();
         __ test(operand.reg(), Immediate(kSmiTagMask));
@@ -1182,8 +1182,8 @@ void CodeGenerator::SmiOperation(Token::Value op,
         // In the slow case, this masking is done inside the runtime call.
         int shift_value = int_value & 0x1f;
         DeferredCode* deferred =
-        new DeferredInlineSmiOperation(this, Token::SHL, smi_value,
-                                       overwrite_mode);
+            new DeferredInlineSmiOperation(this, Token::SHL, smi_value,
+                                           overwrite_mode);
         Result operand = frame_->Pop();
         operand.ToRegister();
         __ test(operand.reg(), Immediate(kSmiTagMask));
@@ -1375,7 +1375,7 @@ void CodeGenerator::Comparison(Condition cc,
         ASSERT(right_side.is_valid());
         __ cmp(left_side.reg(), Operand(right_side.reg()));
       } else {
-      __ cmp(Operand(left_side.reg()), Immediate(right_side.handle()));
+        __ cmp(Operand(left_side.reg()), Immediate(right_side.handle()));
       }
       left_side.Unuse();
       right_side.Unuse();
