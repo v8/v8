@@ -3607,7 +3607,7 @@ RegExpParser::RegExpParser(FlatStringReader* in,
     next_pos_(0),
     in_(in),
     error_(error),
-    simple_(true),
+    simple_(false),
     contains_anchor_(false),
     captures_(NULL),
     is_scanned_for_captures_(false),
@@ -3676,6 +3676,11 @@ RegExpTree* RegExpParser::ParsePattern() {
   RegExpTree* result = ParseDisjunction(CHECK_FAILED);
   if (has_more()) {
     ReportError(CStrVector("Unmatched ')'") CHECK_FAILED);
+  }
+  // If the result of parsing is a literal string atom, and it has the
+  // same length as the input, then the atom is identical to the input.
+  if (result->IsAtom() && result->AsAtom()->length() == in()->length()) {
+    simple_ = true;
   }
   return result;
 }
@@ -3876,7 +3881,6 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         Advance(2);
         break;
       }
-      simple_ = false;
       break;
     case '{': {
       int dummy;
@@ -3933,7 +3937,6 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       is_greedy = false;
       Advance();
     }
-    simple_ = false;  // Adding quantifier might *remove* look-ahead.
     builder.AddQuantifierToAtom(min, max, is_greedy);
   }
 }

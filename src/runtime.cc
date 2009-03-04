@@ -2164,16 +2164,22 @@ static Object* Runtime_GetArgumentsProperty(Arguments args) {
 
 static Object* Runtime_ToFastProperties(Arguments args) {
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
-  object->TransformToFastProperties(0);
+  Handle<Object> object = args.at<Object>(0);
+  if (object->IsJSObject()) {
+    Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+    js_object->TransformToFastProperties(0);
+  }
   return *object;
 }
 
 
 static Object* Runtime_ToSlowProperties(Arguments args) {
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
-  object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+  Handle<Object> object = args.at<Object>(0);
+  if (object->IsJSObject()) {
+    Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+    js_object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+  }
   return *object;
 }
 
