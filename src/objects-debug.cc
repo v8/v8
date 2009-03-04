@@ -658,7 +658,7 @@ void Oddball::OddballVerify() {
 void Code::CodePrint() {
   HeapObject::PrintHeader("Code");
 #ifdef ENABLE_DISASSEMBLER
-  Disassemble();
+  Disassemble(NULL);
 #endif
 }
 

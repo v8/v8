@@ -179,7 +179,7 @@ Handle<Code> CodeGenerator::MakeCode(FunctionLiteral* flit,
       PrintF("\n\n");
     }
     PrintF("--- Code ---\n");
-    code->Disassemble();
+    code->Disassemble(*flit->name()->ToCString());
   }
 #endif  // ENABLE_DISASSEMBLER
 

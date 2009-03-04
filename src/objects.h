@@ -2157,7 +2157,7 @@ class Code: public HeapObject {
   // Printing
   static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
-  void Disassemble();
+  void Disassemble(const char* name);
 #endif  // ENABLE_DISASSEMBLER
 
   // [instruction_size]: Size of the native instructions

@@ -362,7 +362,8 @@ class StubCompiler BASE_EMBEDDED {
   static void GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind);
 
  protected:
-  Object* GetCodeWithFlags(Code::Flags flags);
+  Object* GetCodeWithFlags(Code::Flags flags, char* name);
+  Object* GetCodeWithFlags(Code::Flags flags, String* name);
 
   MacroAssembler* masm() { return &masm_; }
 
@@ -374,19 +375,24 @@ class StubCompiler BASE_EMBEDDED {
 
 class LoadStubCompiler: public StubCompiler {
  public:
-  Object* CompileLoadField(JSObject* object, JSObject* holder, int index);
+  Object* CompileLoadField(JSObject* object,
+                           JSObject* holder,
+                           int index,
+                           String* name);
   Object* CompileLoadCallback(JSObject* object,
                               JSObject* holder,
-                              AccessorInfo* callback);
+                              AccessorInfo* callback,
+                              String* name);
   Object* CompileLoadConstant(JSObject* object,
                               JSObject* holder,
-                              Object* value);
+                              Object* value,
+                              String* name);
   Object* CompileLoadInterceptor(JSObject* object,
                                  JSObject* holder,
                                  String* name);
 
  private:
-  Object* GetCode(PropertyType);
+  Object* GetCode(PropertyType type, String* name);
 };
 
 
@@ -412,7 +418,7 @@ class KeyedLoadStubCompiler: public StubCompiler {
   Object* CompileLoadFunctionPrototype(String* name);
 
  private:
-  Object* GetCode(PropertyType);
+  Object* GetCode(PropertyType type, String* name);
 };
 
 
@@ -428,7 +434,7 @@ class StoreStubCompiler: public StubCompiler {
   Object* CompileStoreInterceptor(JSObject* object, String* name);
 
  private:
-  Object* GetCode(PropertyType type);
+  Object* GetCode(PropertyType type, String* name);
 };
 
 
@@ -440,7 +446,7 @@ class KeyedStoreStubCompiler: public StubCompiler {
                             String* name);
 
  private:
-  Object* GetCode(PropertyType type);
+  Object* GetCode(PropertyType type, String* name);
 };
 
 
@@ -448,7 +454,10 @@ class CallStubCompiler: public StubCompiler {
  public:
   explicit CallStubCompiler(int argc) : arguments_(argc) { }
 
-  Object* CompileCallField(Object* object, JSObject* holder, int index);
+  Object* CompileCallField(Object* object,
+                           JSObject* holder,
+                           int index,
+                           String* name);
   Object* CompileCallConstant(Object* object,
                               JSObject* holder,
                               JSFunction* function,
@@ -462,7 +471,7 @@ class CallStubCompiler: public StubCompiler {
 
   const ParameterCount& arguments() { return arguments_; }
 
-  Object* GetCode(PropertyType type);
+  Object* GetCode(PropertyType type, String* name);
 };
 
 

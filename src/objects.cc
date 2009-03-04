@@ -4795,10 +4795,13 @@ const char* Code::ICState2String(InlineCacheState state) {
 }
 
 
-void Code::Disassemble() {
-  PrintF("kind = %s", Kind2String(kind()));
+void Code::Disassemble(const char* name) {
+  PrintF("kind = %s\n", Kind2String(kind()));
+  if ((name != NULL) && (name[0] != '\0')) {
+    PrintF("name = %s\n", name);
+  }
 
-  PrintF("\nInstructions (size = %d)\n", instruction_size());
+  PrintF("Instructions (size = %d)\n", instruction_size());
   Disassembler::Decode(NULL, this);
   PrintF("\n");
 
