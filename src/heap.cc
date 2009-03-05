@@ -295,11 +295,15 @@ void Heap::CollectAllGarbage() {
 
 
 void Heap::CollectAllGarbageIfContextDisposed() {
-  if (context_disposed_pending_) {
+  // If the garbage collector interface is exposed through the global
+  // gc() function, we avoid being clever about forcing GCs when
+  // contexts are disposed and leave it to the embedder to make
+  // informed decisions about when to force a collection.
+  if (!FLAG_expose_gc && context_disposed_pending_) {
     StatsRateScope scope(&Counters::gc_context);
     CollectAllGarbage();
-    context_disposed_pending_ = false;
   }
+  context_disposed_pending_ = false;
 }
 
 
