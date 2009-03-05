@@ -104,7 +104,7 @@ def ExpandConstants(lines, constants):
 
 def ExpandMacros(lines, macros):
   for name, macro in macros.items():
-    start = lines.find(name + '(', 0)
+    start = lines.find(name, 0)
     while start != -1:
       # Scan over the arguments
       assert lines[start + len(name)] == '('
@@ -132,7 +132,7 @@ def ExpandMacros(lines, macros):
       result = macro.expand(mapping)
       # Replace the occurrence of the macro with the expansion
       lines = lines[:start] + result + lines[end:]
-      start = lines.find(name + '(', end)
+      start = lines.find(name, end)
   return lines
 
 class TextMacro:

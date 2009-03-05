@@ -316,20 +316,12 @@ class Factory : public AllStatic {
                                                Handle<FixedArray> keys);
 
   // Creates a new FixedArray that holds the data associated with the
-  // atom regexp and stores it in the regexp.
-  static void SetRegExpAtomData(Handle<JSRegExp> regexp,
-                                JSRegExp::Type type,
-                                Handle<String> source,
-                                JSRegExp::Flags flags,
-                                Handle<Object> match_pattern);
-
-  // Creates a new FixedArray that holds the data associated with the
-  // irregexp regexp and stores it in the regexp.
-  static void SetRegExpIrregexpData(Handle<JSRegExp> regexp,
-                                    JSRegExp::Type type,
-                                    Handle<String> source,
-                                    JSRegExp::Flags flags,
-                                    int capture_count);
+  // regexp and stores it in the regexp.
+  static void SetRegExpData(Handle<JSRegExp> regexp,
+                            JSRegExp::Type type,
+                            Handle<String> source,
+                            JSRegExp::Flags flags,
+                            Handle<Object> data);
 
  private:
   static Handle<JSFunction> NewFunctionHelper(Handle<String> name,

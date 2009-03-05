@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -52,7 +52,7 @@ function DoConstructRegExp(object, pattern, flags, isConstructorCall) {
   var multiline = false;
 
   for (var i = 0; i < flags.length; i++) {
-    var c = StringCharAt.call(flags, i);
+    var c = flags.charAt(i);
     switch (c) {
       case 'g':
         // Allow duplicate flags to be consistent with JSC and others.
@@ -117,15 +117,15 @@ function RegExpConstructor(pattern, flags) {
 
 // Deprecated RegExp.prototype.compile method.  We behave like the constructor
 // were called again.  In SpiderMonkey, this method returns the regexp object.
-// In JSC, it returns undefined.  For compatibility with JSC, we match their
+// In KJS, it returns undefined.  For compatibility with KJS, we match their
 // behavior.
 function CompileRegExp(pattern, flags) {
-  // Both JSC and SpiderMonkey treat a missing pattern argument as the
+  // Both KJS and SpiderMonkey treat a missing pattern argument as the
   // empty subject string, and an actual undefined value passed as the
-  // pattern as the string 'undefined'.  Note that JSC is inconsistent
+  // patter as the string 'undefined'.  Note that KJS is inconsistent
   // here, treating undefined values differently in
   // RegExp.prototype.compile and in the constructor, where they are
-  // the empty string.  For compatibility with JSC, we match their
+  // the empty string.  For compatibility with KJS, we match their
   // behavior.
   if (IS_UNDEFINED(pattern) && %_ArgumentsLength() != 0) {
     DoConstructRegExp(this, 'undefined', flags, false);
@@ -135,20 +135,32 @@ function CompileRegExp(pattern, flags) {
 }
 
 
+// DoRegExpExec and DoRegExpExecGlobal are wrappers around the runtime
+// %RegExp and %RegExpGlobal functions that ensure that the static
+// properties of the RegExp constructor are set.
 function DoRegExpExec(regexp, string, index) {
-  return %RegExpExec(regexp, string, index, lastMatchInfo);
+  var matchIndices = %RegExpExec(regexp, string, index);
+  if (!IS_NULL(matchIndices)) {
+    regExpCaptures = matchIndices;
+    regExpSubject = regExpInput = string;
+  }
+  return matchIndices;
 }
 
 
 function DoRegExpExecGlobal(regexp, string) {
-  // Returns an array of arrays of substring indices.
-  return %RegExpExecGlobal(regexp, string, lastMatchInfo);
+  // Here, matchIndices is an array of arrays of substring indices.
+  var matchIndices = %RegExpExecGlobal(regexp, string);
+  if (matchIndices.length != 0) {
+    regExpCaptures = matchIndices[matchIndices.length - 1];
+    regExpSubject = regExpInput = string;
+  }
+  return matchIndices;
 }
 
 
 function RegExpExec(string) {
   if (%_ArgumentsLength() == 0) {
-    var regExpInput = LAST_INPUT(lastMatchInfo);
     if (IS_UNDEFINED(regExpInput)) {
       throw MakeError('no_input_to_regexp', [this]);
     }
@@ -165,21 +177,23 @@ function RegExpExec(string) {
   }
 
   %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
-  // matchIndices is either null or the lastMatchInfo array.
-  var matchIndices = %RegExpExec(this, s, i, lastMatchInfo);
+  // matchIndices is an array of integers with length of captures*2,
+  // each pair of integers specified the start and the end of index
+  // in the string.
+  var matchIndices = DoRegExpExec(this, s, i);
 
   if (matchIndices == null) {
     if (this.global) this.lastIndex = 0;
     return matchIndices; // no match
   }
 
-  var numResults = NUMBER_OF_CAPTURES(lastMatchInfo) >> 1;
+  var numResults = matchIndices.length >> 1;
   var result = new $Array(numResults);
   for (var i = 0; i < numResults; i++) {
-    var matchStart = lastMatchInfo[CAPTURE(i << 1)];
-    var matchEnd = lastMatchInfo[CAPTURE((i << 1) + 1)];
+    var matchStart = matchIndices[2*i];
+    var matchEnd = matchIndices[2*i + 1];
     if (matchStart != -1 && matchEnd != -1) {
-      result[i] = SubString(s, matchStart, matchEnd);
+      result[i] = s.slice(matchStart, matchEnd);
     } else {
       // Make sure the element is present. Avoid reading the undefined
       // property from the global object since this may change.
@@ -188,46 +202,16 @@ function RegExpExec(string) {
   }
 
   if (this.global)
-    this.lastIndex = lastMatchInfo[CAPTURE1];
-  result.index = lastMatchInfo[CAPTURE0];
+    this.lastIndex = matchIndices[1];
+  result.index = matchIndices[0];
   result.input = s;
   return result;
 }
 
 
-// Section 15.10.6.3 doesn't actually make sense, but the intention seems to be
-// that test is defined in terms of String.prototype.exec even if the method is
-// called on a non-RegExp object. However, it probably means the original 
-// value of String.prototype.exec, which is what everybody else implements.
 function RegExpTest(string) {
-  if (%_ArgumentsLength() == 0) {
-    var regExpInput = LAST_INPUT(lastMatchInfo);
-    if (IS_UNDEFINED(regExpInput)) {
-      throw MakeError('no_input_to_regexp', [this]);
-    }
-    string = regExpInput;
-  }
-  var s = ToString(string);
-  var length = s.length;
-  var lastIndex = this.lastIndex;
-  var i = this.global ? TO_INTEGER(lastIndex) : 0;
-
-  if (i < 0 || i > s.length) {
-    this.lastIndex = 0;
-    return false;
-  }
-
-  %_Log('regexp', 'regexp-exec,%0r,%1S,%2i', [this, s, lastIndex]);
-  // matchIndices is either null or the lastMatchInfo array.
-  var matchIndices = %RegExpExec(this, s, i, lastMatchInfo);
-
-  if (matchIndices == null) {
-    if (this.global) this.lastIndex = 0;
-    return false;
-  }
-
-  if (this.global) this.lastIndex = lastMatchInfo[CAPTURE1];
-  return true;
+  var result = (%_ArgumentsLength() == 0) ? this.exec() : this.exec(string);
+  return result != null;
 }
 
 
@@ -252,69 +236,56 @@ function RegExpToString() {
 // on the captures array of the last successful match and the subject string
 // of the last successful match.
 function RegExpGetLastMatch() {
-  var regExpSubject = LAST_SUBJECT(lastMatchInfo);
-  return SubString(regExpSubject,
-                   lastMatchInfo[CAPTURE0],
-                   lastMatchInfo[CAPTURE1]);
+  return regExpSubject.slice(regExpCaptures[0], regExpCaptures[1]);
 }
 
 
 function RegExpGetLastParen() {
-  var length = NUMBER_OF_CAPTURES(lastMatchInfo);
-  if (length <= 2) return '';  // There were no captures.
+  var length = regExpCaptures.length;
+  if (length <= 2) return ''; // There were no captures.
   // We match the SpiderMonkey behavior: return the substring defined by the
   // last pair (after the first pair) of elements of the capture array even if
   // it is empty.
-  var regExpSubject = LAST_SUBJECT(lastMatchInfo);
-  return SubString(regExpSubject,
-                   lastMatchInfo[CAPTURE(length - 2)],
-                   lastMatchInfo[CAPTURE(length - 1)]);
+  return regExpSubject.slice(regExpCaptures[length - 2],
+                             regExpCaptures[length - 1]);
 }
 
 
 function RegExpGetLeftContext() {
-  return SubString(LAST_SUBJECT(lastMatchInfo),
-                   0,
-                   lastMatchInfo[CAPTURE0]);
+  return regExpSubject.slice(0, regExpCaptures[0]);
 }
 
 
 function RegExpGetRightContext() {
-  var subject = LAST_SUBJECT(lastMatchInfo);
-  return SubString(subject,
-                   lastMatchInfo[CAPTURE1],
-                   subject.length);
+  return regExpSubject.slice(regExpCaptures[1], regExpSubject.length);
 }
 
 
 // The properties $1..$9 are the first nine capturing substrings of the last
 // successful match, or ''.  The function RegExpMakeCaptureGetter will be
-// called with indeces from 1 to 9.
+// called with an index greater than or equal to 1 but it actually works for
+// any non-negative index.
 function RegExpMakeCaptureGetter(n) {
   return function() {
     var index = n * 2;
-    if (index >= NUMBER_OF_CAPTURES(lastMatchInfo)) return '';
-    var matchStart = lastMatchInfo[CAPTURE(index)];
-    var matchEnd = lastMatchInfo[CAPTURE(index + 1)];
+    if (index >= regExpCaptures.length) return '';
+    var matchStart = regExpCaptures[index];
+    var matchEnd = regExpCaptures[index + 1];
     if (matchStart == -1 || matchEnd == -1) return '';
-    return SubString(LAST_SUBJECT(lastMatchInfo), matchStart, matchEnd);
+    return regExpSubject.slice(matchStart, matchEnd);
   };
 }
 
 
-// Property of the builtins object for recording the result of the last
-// regexp match.  The property lastMatchInfo includes the matchIndices
-// array of the last successful regexp match (an array of start/end index
-// pairs for the match and all the captured substrings), the invariant is
-// that there are at least two capture indeces.  The array also contains
-// the subject string for the last successful match.
-var lastMatchInfo = [
-    2,                 // REGEXP_NUMBER_OF_CAPTURES
-    0,                 // REGEXP_FIRST_CAPTURE + 0
-    0,                 // REGEXP_FIRST_CAPTURE + 1
-    "",                // Last subject.
-    void 0,            // Last input - settable with RegExpSetInput.
-];
+// Properties of the builtins object for recording the result of the last
+// regexp match.  The property regExpCaptures is the matchIndices array of the
+// last successful regexp match (an array of start/end index pairs for the
+// match and all the captured substrings), the invariant is that there is at
+// least two elements.  The property regExpSubject is the subject string for
+// the last successful match.
+var regExpCaptures = [0, 0];
+var regExpSubject = '';
+var regExpInput;
 
 // -------------------------------------------------------------------
 
@@ -332,23 +303,19 @@ function SetupRegExp() {
   ));
 
   // The spec says nothing about the length of exec and test, but
-  // SpiderMonkey and JSC have length equal to 0.
+  // SpiderMonkey and KJS have length equal to 0.
   %FunctionSetLength($RegExp.prototype.exec, 0);
   %FunctionSetLength($RegExp.prototype.test, 0);
   // The length of compile is 1 in SpiderMonkey.
   %FunctionSetLength($RegExp.prototype.compile, 1);
 
   // The properties input, $input, and $_ are aliases for each other.  When this
-  // value is set the value it is set to is coerced to a string.
+  // value is set the value it is set to is coerced to a string. 
   // Getter and setter for the input.
   function RegExpGetInput() {
-    var regExpInput = LAST_INPUT(lastMatchInfo);
     return IS_UNDEFINED(regExpInput) ? "" : regExpInput;
   }
-  function RegExpSetInput(string) {
-    lastMatchInfo[lastMatchInfo[REGEXP_NUMBER_OF_CAPTURES] + 2] =
-        ToString(string);
-  };
+  function RegExpSetInput(string) { regExpInput = ToString(string); }
 
   %DefineAccessor($RegExp, 'input', GETTER, RegExpGetInput, DONT_DELETE);
   %DefineAccessor($RegExp, 'input', SETTER, RegExpSetInput, DONT_DELETE);
