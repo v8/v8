@@ -711,24 +711,13 @@ void Logger::DeleteEvent(const char* name, void* object) {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-int Logger::CodeObjectSize(Code* code) {
-  // Check that the assumptions about the layout of the code object holds.
-  ASSERT_EQ(reinterpret_cast<unsigned int>(code->instruction_start()) -
-            reinterpret_cast<unsigned int>(code->address()),
-            Code::kHeaderSize);
-  return code->instruction_size() + Code::kHeaderSize;
-}
-#endif
-
-
 void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("code-creation,%s,0x%x,%d,\"", tag,
              reinterpret_cast<unsigned int>(code->address()),
-             CodeObjectSize(code));
+             code->ExecutableSize());
   for (const char* p = comment; *p != '\0'; p++) {
     if (*p == '"') {
       msg.Append('\\');
@@ -750,7 +739,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("code-creation,%s,0x%x,%d,\"%s\"\n", tag,
              reinterpret_cast<unsigned int>(code->address()),
-             CodeObjectSize(code), *str);
+             code->ExecutableSize(), *str);
   msg.WriteToLogFile();
 #endif
 }
@@ -767,7 +756,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("code-creation,%s,0x%x,%d,\"%s %s:%d\"\n", tag,
              reinterpret_cast<unsigned int>(code->address()),
-             CodeObjectSize(code),
+             code->ExecutableSize(),
              *str, *sourcestr, line);
   msg.WriteToLogFile();
 #endif
@@ -780,7 +769,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
   LogMessageBuilder msg;
   msg.Append("code-creation,%s,0x%x,%d,\"args_count: %d\"\n", tag,
              reinterpret_cast<unsigned int>(code->address()),
-             CodeObjectSize(code),
+             code->ExecutableSize(),
              args_count);
   msg.WriteToLogFile();
 #endif

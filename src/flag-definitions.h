@@ -334,6 +334,8 @@ DEFINE_bool(log_regexp, false, "Log regular expression execution.")
 DEFINE_bool(sliding_state_window, false,
             "Update sliding state window counters.")
 DEFINE_string(logfile, "v8.log", "Specify the name of the log file.")
+DEFINE_bool(oprofile, false,
+            "Enable JIT agent for OProfile.")
 
 //
 // Disassembler only flags

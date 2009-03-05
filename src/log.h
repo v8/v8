@@ -215,10 +215,6 @@ class Logger {
 
  private:
 
-  // Calculate the size of the code object to report for log events. This takes
-  // the layout of the code object into account.
-  static int CodeObjectSize(Code* code);
-
   // Emits the source code of a regexp. Used by regexp events.
   static void LogRegExpSource(Handle<JSRegExp> regexp);
 
@@ -268,6 +264,8 @@ class Logger {
   friend class Profiler;
   friend class SlidingStateWindow;
   friend class VMState;
+#else
+  static bool is_enabled() { return false; }
 #endif
 };
 

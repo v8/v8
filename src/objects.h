@@ -2258,6 +2258,16 @@ class Code: public HeapObject {
     return RoundUp(kHeaderSize + body_size + sinfo_size, kCodeAlignment);
   }
 
+  // Calculate the size of the code object to report for log events. This takes
+  // the layout of the code object into account.
+  int ExecutableSize() {
+    // Check that the assumptions about the layout of the code object holds.
+    ASSERT_EQ(reinterpret_cast<unsigned int>(instruction_start()) -
+              reinterpret_cast<unsigned int>(address()),
+              Code::kHeaderSize);
+    return instruction_size() + Code::kHeaderSize;
+  }
+
   // Locating source position.
   int SourcePosition(Address pc);
   int SourceStatementPosition(Address pc);

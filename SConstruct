@@ -68,6 +68,9 @@ LIBRARY_FLAGS = {
     'wordsize:64': {
       'CCFLAGS':      ['-m32'],
       'LINKFLAGS':    ['-m32']
+    },
+    'prof:oprofile': {
+      'CPPDEFINES':   ['ENABLE_OPROFILE_AGENT']
     }
   },
   'msvc': {
@@ -249,6 +252,10 @@ SAMPLE_FLAGS = {
     },
     'mode:debug': {
       'CCFLAGS':      ['-g', '-O0']
+    },
+    'prof:oprofile': {
+      'LIBPATH': ['/usr/lib32', '/usr/lib32/oprofile'],
+      'LIBS': ['opagent']
     }
   },
   'msvc': {
@@ -362,7 +369,7 @@ SIMPLE_OPTIONS = {
     'help': 'build using snapshots for faster start-up'
   },
   'prof': {
-    'values': ['on', 'off'],
+    'values': ['on', 'off', 'oprofile'],
     'default': 'off',
     'help': 'enable profiling of build target'
   },
@@ -435,6 +442,8 @@ def VerifyOptions(env):
     return False
   if env['os'] == 'win32' and env['library'] == 'shared' and env['prof'] == 'on':
     Abort("Profiling on windows only supported for static library.")
+  if env['prof'] == 'oprofile' and env['os'] != 'linux':
+    Abort("OProfile is only supported on Linux.")
   for (name, option) in SIMPLE_OPTIONS.iteritems():
     if (not option.get('default')) and (name not in ARGUMENTS):
       message = ("A value for option %s must be specified (%s)." %
