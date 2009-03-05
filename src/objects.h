@@ -1433,6 +1433,7 @@ class JSObject: public HeapObject {
 
   static const uint32_t kMaxGap = 1024;
   static const int kMaxFastElementsLength = 5000;
+  static const int kInitialMaxFastElementArray = 100000;
   static const int kMaxFastProperties = 8;
   static const int kMaxInstanceSize = 255 * kPointerSize;
   // When extending the backing storage for property values, we increase

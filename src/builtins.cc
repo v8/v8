@@ -155,7 +155,7 @@ BUILTIN(ArrayCode) {
     Object* obj = BUILTIN_ARG(1);
     if (obj->IsSmi()) {
       int len = Smi::cast(obj)->value();
-      if (len >= 0 && len < JSObject::kMaxFastElementsLength) {
+      if (len >= 0 && len < JSObject::kInitialMaxFastElementArray) {
         Object* obj = Heap::AllocateFixedArrayWithHoles(len);
         if (obj->IsFailure()) return obj;
         array->SetContent(FixedArray::cast(obj));
