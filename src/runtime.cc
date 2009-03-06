@@ -208,7 +208,7 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
   if (result.is_null()) return Failure::Exception();
 
   // Update the functions literal and return the boilerplate.
-  literals->set(literals_index, *result);;
+  literals->set(literals_index, *result);
 
   return *result;
 }
