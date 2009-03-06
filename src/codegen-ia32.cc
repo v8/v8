@@ -3432,7 +3432,10 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
   for (int i = 0; i < node->properties()->length(); i++) {
     ObjectLiteral::Property* property = node->properties()->at(i);
     switch (property->kind()) {
-      case ObjectLiteral::Property::CONSTANT: break;
+      case ObjectLiteral::Property::CONSTANT:
+        break;
+      case ObjectLiteral::Property::OBJECT_LITERAL:
+        if (property->value()->AsObjectLiteral()->is_simple()) break;
       case ObjectLiteral::Property::COMPUTED: {
         Handle<Object> key(property->key()->handle());
         Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));

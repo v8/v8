@@ -129,6 +129,7 @@ class Node: public ZoneObject {
   virtual BinaryOperation* AsBinaryOperation() { return NULL; }
   virtual Assignment* AsAssignment() { return NULL; }
   virtual FunctionLiteral* AsFunctionLiteral() { return NULL; }
+  virtual ObjectLiteral* AsObjectLiteral() { return NULL; }
 
   void set_statement_pos(int statement_pos) { statement_pos_ = statement_pos; }
   int statement_pos() const { return statement_pos_; }
@@ -651,10 +652,11 @@ class ObjectLiteral: public MaterializedLiteral {
    public:
 
     enum Kind {
-      CONSTANT,       // Property with constant value (at compile time).
-      COMPUTED,       // Property with computed value (at execution time).
+      CONSTANT,        // Property with constant value (at compile time).
+      COMPUTED,        // Property with computed value (at execution time).
+      OBJECT_LITERAL,  // Property value is an object literal.
       GETTER, SETTER,  // Property is an accessor function.
-      PROTOTYPE       // Property is __proto__.
+      PROTOTYPE        // Property is __proto__.
     };
 
     Property(Literal* key, Expression* value);
@@ -672,12 +674,15 @@ class ObjectLiteral: public MaterializedLiteral {
 
   ObjectLiteral(Handle<FixedArray> constant_properties,
                 ZoneList<Property*>* properties,
-                int literal_index)
+                int literal_index,
+                bool is_simple)
       : MaterializedLiteral(literal_index),
         constant_properties_(constant_properties),
-        properties_(properties) {
+        properties_(properties),
+        is_simple_(is_simple) {
   }
 
+  virtual ObjectLiteral* AsObjectLiteral() { return this; }
   virtual void Accept(AstVisitor* v);
 
   Handle<FixedArray> constant_properties() const {
@@ -685,9 +690,14 @@ class ObjectLiteral: public MaterializedLiteral {
   }
   ZoneList<Property*>* properties() const { return properties_; }
 
+  // An object literal is simple if the values consist of only
+  // constants and simple object literals.
+  bool is_simple() const { return is_simple_; }
+
  private:
   Handle<FixedArray> constant_properties_;
   ZoneList<Property*>* properties_;
+  bool is_simple_;
 };
 
 

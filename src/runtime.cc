@@ -131,14 +131,9 @@ static Handle<Map> ComputeObjectLiteralMap(
 }
 
 
-static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 3);
-  // Copy the arguments.
-  Handle<FixedArray> literals = args.at<FixedArray>(0);
-  int literals_index = Smi::cast(args[1])->value();
-  Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
-
+static Handle<Object> CreateObjectLiteralBoilerplate(
+    Handle<FixedArray> literals,
+    Handle<FixedArray> constant_properties) {
   // Get the global context from the literals array.  This is the
   // context in which the function was created and we use the object
   // function from this context to create the object literal.  We do
@@ -161,6 +156,12 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
     for (int index = 0; index < length; index +=2) {
       Handle<Object> key(constant_properties->get(index+0));
       Handle<Object> value(constant_properties->get(index+1));
+      if (value->IsFixedArray()) {
+        // The value contains the constant_properties of a
+        // simple object literal.
+        Handle<FixedArray> array = Handle<FixedArray>::cast(value);
+        value = CreateObjectLiteralBoilerplate(literals, array);
+      }
       Handle<Object> result;
       uint32_t element_index = 0;
       if (key->IsSymbol()) {
@@ -185,14 +186,31 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
       // exception, the exception is converted to an empty handle in
       // the handle based operations.  In that case, we need to
       // convert back to an exception.
-      if (result.is_null()) return Failure::Exception();
+      if (result.is_null()) return result;
     }
   }
 
-  // Update the functions literal and return the boilerplate.
-  literals->set(literals_index, *boilerplate);
+  return boilerplate;
+}
 
-  return *boilerplate;
+
+static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  // Copy the arguments.
+  Handle<FixedArray> literals = args.at<FixedArray>(0);
+  int literals_index = Smi::cast(args[1])->value();
+  Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
+
+  Handle<Object> result =
+    CreateObjectLiteralBoilerplate(literals, constant_properties);
+
+  if (result.is_null()) return Failure::Exception();
+
+  // Update the functions literal and return the boilerplate.
+  literals->set(literals_index, *result);;
+
+  return *result;
 }
 
 
