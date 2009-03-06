@@ -2830,22 +2830,29 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   }
 
   // Unlink from try chain; be careful not to destroy the TOS.
-  unlink.Bind();
-  // Reload sp from the top handler, because some statements that we
-  // break from (eg, for...in) may have left stuff on the stack.
-  // Preserve the TOS in a register across stack manipulation.
-  frame_->EmitPop(eax);
-  ExternalReference handler_address(Top::k_handler_address);
-  __ mov(edx, Operand::StaticVariable(handler_address));
-  const int kNextOffset = StackHandlerConstants::kNextOffset +
-      StackHandlerConstants::kAddressDisplacement;
-  __ lea(esp, Operand(edx, kNextOffset));
-  frame_->Forget(frame_->height() - handler_height);
+  if (unlink.is_linked()) {
+    unlink.Bind();
+  }
 
-  frame_->EmitPop(Operand::StaticVariable(handler_address));
-  frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-  // Next_sp popped.
-  frame_->EmitPush(eax);
+  // Control can reach here via a jump to unlink or by falling off the
+  // end of the try block (with no unlinks).
+  if (has_valid_frame()) {
+    // Reload sp from the top handler, because some statements that we
+    // break from (eg, for...in) may have left stuff on the stack.
+    // Preserve the TOS in a register across stack manipulation.
+    frame_->EmitPop(eax);
+    ExternalReference handler_address(Top::k_handler_address);
+    __ mov(edx, Operand::StaticVariable(handler_address));
+    const int kNextOffset = StackHandlerConstants::kNextOffset +
+        StackHandlerConstants::kAddressDisplacement;
+    __ lea(esp, Operand(edx, kNextOffset));
+    frame_->Forget(frame_->height() - handler_height);
+
+    frame_->EmitPop(Operand::StaticVariable(handler_address));
+    frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
+    // Next_sp popped.
+    frame_->EmitPush(eax);
+  }
 
   // --- Finally block ---
   finally_block.Bind();
