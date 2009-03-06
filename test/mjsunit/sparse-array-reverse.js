@@ -74,7 +74,15 @@ for (var iterations = 0; iterations < 20; iterations++) {
 
     var to_delete = [];
 
-    var a = new Array(size);
+    var a;
+    // Make sure we test both array-backed and hash-table backed
+    // arrays.
+    if (size < 1000) {
+      a = new Array(size);
+    } else {
+      a = new Array();
+      a.length = size;
+    }
 
     var expected = '';
     var expected_reversed = '';

@@ -65,7 +65,7 @@ assertEquals(2, guard(function() { try { throw 2; } finally { var x = 12; } }));
 assertEquals(4, guard(function() { try { throw 3; } finally { throw 4; } }));
 
 (function () {
-  var iter = 10000000;
+  var iter = 1000000;
   for (var i = 1; i <= iter; i++) {
     try {
       if (i == iter) gc();
