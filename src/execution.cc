@@ -523,7 +523,12 @@ static Object* RuntimePreempt() {
 
   ContextSwitcher::PreemptionReceived();
 
-  {
+  if (Debug::InDebugger()) {
+    // If currently in the debugger don't do any actual preemption but record
+    // that preemption occoured while in the debugger.
+    Debug::PreemptionWhileInDebugger();
+  } else {
+    // Perform preemption.
     v8::Unlocker unlocker;
     Thread::YieldCPU();
   }

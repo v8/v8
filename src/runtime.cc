@@ -4967,7 +4967,7 @@ static Object* Runtime_CheckExecutionState(Arguments args) {
   ASSERT(args.length() >= 1);
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   // Check that the break id is valid.
-  if (Top::break_id() == 0 || break_id != Top::break_id()) {
+  if (Debug::break_id() == 0 || break_id != Debug::break_id()) {
     return Top::Throw(Heap::illegal_execution_state_symbol());
   }
 
@@ -4985,7 +4985,7 @@ static Object* Runtime_GetFrameCount(Arguments args) {
 
   // Count all frames which are relevant to debugging stack trace.
   int n = 0;
-  StackFrame::Id id = Top::break_frame_id();
+  StackFrame::Id id = Debug::break_frame_id();
   if (id == StackFrame::NO_ID) {
     // If there is no JavaScript stack frame count is 0.
     return Smi::FromInt(0);
@@ -5030,7 +5030,7 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
 
   // Find the relevant frame with the requested index.
-  StackFrame::Id id = Top::break_frame_id();
+  StackFrame::Id id = Debug::break_frame_id();
   if (id == StackFrame::NO_ID) {
     // If there are no JavaScript stack frames return undefined.
     return Heap::undefined_value();

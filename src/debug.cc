@@ -400,12 +400,17 @@ DebugInfoListNode* Debug::debug_info_list_ = NULL;
 
 // Threading support.
 void Debug::ThreadInit() {
+  thread_local_.break_count_ = 0;
+  thread_local_.break_id_ = 0;
+  thread_local_.break_frame_id_ = StackFrame::NO_ID;
   thread_local_.last_step_action_ = StepNone;
   thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
   thread_local_.step_count_ = 0;
   thread_local_.last_fp_ = 0;
   thread_local_.step_into_fp_ = 0;
   thread_local_.after_break_target_ = 0;
+  thread_local_.debugger_entry_ = NULL;
+  thread_local_.preemption_pending_ = false;
 }
 
 
@@ -611,6 +616,13 @@ void Debug::Unload() {
 }
 
 
+// Set the flag indicating that preemption happened during debugging.
+void Debug::PreemptionWhileInDebugger() {
+  ASSERT(InDebugger());
+  Debug::set_preemption_pending(true);
+}
+
+
 void Debug::Iterate(ObjectVisitor* v) {
   v->VisitPointer(bit_cast<Object**, Code**>(&(debug_break_return_entry_)));
   v->VisitPointer(bit_cast<Object**, Code**>(&(debug_break_return_)));
@@ -743,7 +755,7 @@ bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
           *Factory::LookupAsciiSymbol("IsBreakPointTriggered"))));
 
   // Get the break id as an object.
-  Handle<Object> break_id = Factory::NewNumberFromInt(Top::break_id());
+  Handle<Object> break_id = Factory::NewNumberFromInt(Debug::break_id());
 
   // Call HandleBreakPointx.
   bool caught_exception = false;
@@ -873,7 +885,7 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
 
 void Debug::FloodHandlerWithOneShot() {
   // Iterate through the JavaScript stack looking for handlers.
-  StackFrame::Id id = Top::break_frame_id();
+  StackFrame::Id id = break_frame_id();
   if (id == StackFrame::NO_ID) {
     // If there is no JavaScript stack don't do anything.
     return;
@@ -913,7 +925,7 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
   // any. The debug frame will only be present if execution was stopped due to
   // hitting a break point. In other situations (e.g. unhandled exception) the
   // debug frame is not present.
-  StackFrame::Id id = Top::break_frame_id();
+  StackFrame::Id id = break_frame_id();
   if (id == StackFrame::NO_ID) {
     // If there is no JavaScript stack don't do anything.
     return;
@@ -1115,6 +1127,18 @@ Handle<Object> Debug::GetSourceBreakLocations(
     }
   }
   return locations;
+}
+
+
+void Debug::NewBreak(StackFrame::Id break_frame_id) {
+  thread_local_.break_frame_id_ = break_frame_id;
+  thread_local_.break_id_ = ++thread_local_.break_count_;
+}
+
+
+void Debug::SetBreak(StackFrame::Id break_frame_id, int break_id) {
+  thread_local_.break_frame_id_ = break_frame_id;
+  thread_local_.break_id_ = break_id;
 }
 
 
@@ -1381,7 +1405,7 @@ Handle<Object> Debugger::MakeJSObject(Vector<const char> constructor_name,
 
 Handle<Object> Debugger::MakeExecutionState(bool* caught_exception) {
   // Create the execution state object.
-  Handle<Object> break_id = Factory::NewNumberFromInt(Top::break_id());
+  Handle<Object> break_id = Factory::NewNumberFromInt(Debug::break_id());
   const int argc = 1;
   Object** argv[argc] = { break_id.location() };
   return MakeJSObject(CStrVector("MakeExecutionState"),

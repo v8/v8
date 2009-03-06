@@ -36,9 +36,15 @@
 #include "factory.h"
 #include "platform.h"
 #include "string-stream.h"
+#include "v8threads.h"
 
 
 namespace v8 { namespace internal {
+
+
+// Forward declarations.
+class EnterDebugger;
+
 
 // Step actions. NOTE: These values are in macros.py as well.
 enum StepAction {
@@ -166,7 +172,8 @@ class Debug {
   static bool Load();
   static void Unload();
   static bool IsLoaded() { return !debug_context_.is_null(); }
-  static bool InDebugger() { return Top::is_break(); }
+  static bool InDebugger() { return thread_local_.debugger_entry_ != NULL; }
+  static void PreemptionWhileInDebugger();
   static void Iterate(ObjectVisitor* v);
 
   static Object* Break(Arguments args);
@@ -211,12 +218,36 @@ class Debug {
   // Fast check to see if any break points are active.
   inline static bool has_break_points() { return has_break_points_; }
 
+  static void NewBreak(StackFrame::Id break_frame_id);
+  static void SetBreak(StackFrame::Id break_frame_id, int break_id);
+  static StackFrame::Id break_frame_id() {
+    return thread_local_.break_frame_id_;
+  }
+  static int break_id() { return thread_local_.break_id_; }
+
+
+
+
   static bool StepInActive() { return thread_local_.step_into_fp_ != 0; }
   static void HandleStepIn(Handle<JSFunction> function,
                            Address fp,
                            bool is_constructor);
   static Address step_in_fp() { return thread_local_.step_into_fp_; }
   static Address* step_in_fp_addr() { return &thread_local_.step_into_fp_; }
+
+  static EnterDebugger* debugger_entry() {
+    return thread_local_.debugger_entry_;
+  }
+  static void set_debugger_entry(EnterDebugger* entry) {
+    thread_local_.debugger_entry_ = entry;
+  }
+
+  static bool preemption_pending() {
+    return thread_local_.preemption_pending_;
+  }
+  static void set_preemption_pending(bool preemption_pending) {
+    thread_local_.preemption_pending_ = preemption_pending;
+  }
 
   // Getter and setter for the disable break state.
   static bool disable_break() { return disable_break_; }
@@ -313,9 +344,18 @@ class Debug {
   static bool break_on_exception_;
   static bool break_on_uncaught_exception_;
 
-  // Per-thread:
+  // Per-thread data.
   class ThreadLocal {
    public:
+    // Counter for generating next break id.
+    int break_count_;
+
+    // Current break id.
+    int break_id_;
+
+    // Frame id for the frame of the current break.
+    StackFrame::Id break_frame_id_;
+
     // Step action for last step performed.
     StepAction last_step_action_;
 
@@ -333,6 +373,12 @@ class Debug {
 
     // Storage location for jump when exiting debug break calls.
     Address after_break_target_;
+
+    // Top debugger entry.
+    EnterDebugger* debugger_entry_;
+
+    // Preemption happened while debugging.
+    bool preemption_pending_;
   };
 
   // Storage location for registers when handling debug break calls
@@ -519,17 +565,34 @@ class DebugMessageThread: public Thread {
 // some reason could not be entered FailedToEnter will return true.
 class EnterDebugger BASE_EMBEDDED {
  public:
-  EnterDebugger() : has_js_frames_(!it_.done()) {
+  EnterDebugger()
+      : prev_(Debug::debugger_entry()),
+        has_js_frames_(!it_.done()) {
+    ASSERT(!Debug::preemption_pending());
+
+    // Link recursive debugger entry.
+    Debug::set_debugger_entry(this);
+
+    // If a preemption is pending when first entering the debugger clear it as
+    // we don't want preemption happening while executing JavaScript in the
+    // debugger. When recursively entering the debugger the preemption flag
+    // cannot be set as this is disabled while in the debugger (see
+    // RuntimePreempt).
+    if (prev_ == NULL && StackGuard::IsPreempted()) {
+      StackGuard::Continue(PREEMPT);
+    }
+    ASSERT(!StackGuard::IsPreempted());
+
     // Store the previous break id and frame id.
-    break_id_ = Top::break_id();
-    break_frame_id_ = Top::break_frame_id();
+    break_id_ = Debug::break_id();
+    break_frame_id_ = Debug::break_frame_id();
 
     // Create the new break info. If there is no JavaScript frames there is no
     // break frame id.
     if (has_js_frames_) {
-      Top::new_break(it_.frame()->id());
+      Debug::NewBreak(it_.frame()->id());
     } else {
-      Top::new_break(StackFrame::NO_ID);
+      Debug::NewBreak(StackFrame::NO_ID);
     }
 
     // Make sure that debugger is loaded and enter the debugger context.
@@ -543,7 +606,18 @@ class EnterDebugger BASE_EMBEDDED {
 
   ~EnterDebugger() {
     // Restore to the previous break state.
-    Top::set_break(break_frame_id_, break_id_);
+    Debug::SetBreak(break_frame_id_, break_id_);
+
+    // Request preemption when leaving the last debugger entry and a preemption
+    // had been recorded while debugging. This is to avoid starvation in some
+    // debugging scenarios.
+    if (prev_ == NULL && Debug::preemption_pending()) {
+      StackGuard::Preempt();
+      Debug::set_preemption_pending(false);
+    }
+  
+    // Leaving this debugger entry.
+    Debug::set_debugger_entry(prev_);
   }
 
   // Check whether the debugger could be entered.
@@ -553,6 +627,7 @@ class EnterDebugger BASE_EMBEDDED {
   inline bool HasJavaScriptFrames() { return has_js_frames_; }
 
  private:
+  EnterDebugger* prev_;  // Previous debugger entry if entered recursively.
   JavaScriptFrameIterator it_;
   const bool has_js_frames_;  // Were there any JavaScript frames?
   StackFrame::Id break_frame_id_;  // Previous break frame id.
