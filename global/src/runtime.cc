@@ -420,9 +420,6 @@ static Object* Runtime_DeclareGlobals(Arguments args) {
   // property as read-only, so we don't either.
   PropertyAttributes base = is_eval ? NONE : DONT_DELETE;
 
-  // Only optimize the object if we intend to add more than 5 properties.
-  OptimizedObjectForAddingMultipleProperties ba(global, pairs->length()/2 > 5);
-
   // Traverse the name/value pairs and set the properties.
   int length = pairs->length();
   for (int i = 0; i < length; i += 2) {
@@ -734,10 +731,8 @@ static Object* Runtime_InitializeConstGlobal(Arguments args) {
       properties->set(index, *value);
     }
   } else if (type == NORMAL) {
-    Dictionary* dictionary = global->property_dictionary();
-    int entry = lookup.GetDictionaryEntry();
-    if (dictionary->ValueAt(entry)->IsTheHole()) {
-      dictionary->ValueAtPut(entry, *value);
+    if (global->GetNormalizedProperty(&lookup)->IsTheHole()) {
+      global->SetNormalizedProperty(&lookup, *value);
     }
   } else {
     // Ignore re-initialization of constants that have already been
@@ -827,10 +822,8 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
         properties->set(index, *value);
       }
     } else if (type == NORMAL) {
-      Dictionary* dictionary = context_ext->property_dictionary();
-      int entry = lookup.GetDictionaryEntry();
-      if (dictionary->ValueAt(entry)->IsTheHole()) {
-        dictionary->ValueAtPut(entry, *value);
+      if (context_ext->GetNormalizedProperty(&lookup)->IsTheHole()) {
+        context_ext->SetNormalizedProperty(&lookup, *value);
       }
     } else {
       // We should not reach here. Any real, named property should be
@@ -1881,7 +1874,11 @@ static Object* Runtime_KeyedGetProperty(Arguments args) {
       int entry = dictionary->FindStringEntry(key);
       if ((entry != DescriptorArray::kNotFound) &&
           (dictionary->DetailsAt(entry).type() == NORMAL)) {
-        return dictionary->ValueAt(entry);
+        Object* value = dictionary->ValueAt(entry);
+        if (receiver->IsJSGlobalObject()) {
+           value = JSGlobalPropertyCell::cast(value)->value();
+        }
+        return value;
       }
     }
   }
@@ -3426,6 +3423,7 @@ static Object* Runtime_NewObject(Arguments args) {
   ASSERT(args.length() == 1);
 
   Object* constructor = args[0];
+
   if (constructor->IsJSFunction()) {
     JSFunction* function = JSFunction::cast(constructor);
 
@@ -4627,15 +4625,12 @@ static Object* DebugLookupResultValue(Object* receiver, LookupResult* result,
                                       bool* caught_exception) {
   Object* value;
   switch (result->type()) {
-    case NORMAL: {
-      Dictionary* dict =
-          JSObject::cast(result->holder())->property_dictionary();
-      value = dict->ValueAt(result->GetDictionaryEntry());
+    case NORMAL:
+      value = result->holder()->GetNormalizedProperty(result);
       if (value->IsTheHole()) {
         return Heap::undefined_value();
       }
       return value;
-    }
     case FIELD:
       value =
           JSObject::cast(

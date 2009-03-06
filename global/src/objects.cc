@@ -405,6 +405,63 @@ Object* JSObject::DeleteLazyProperty(LookupResult* result, String* name) {
 }
 
 
+Object* JSObject::GetNormalizedProperty(LookupResult* result) {
+  ASSERT(!HasFastProperties());
+  Object* value = property_dictionary()->ValueAt(result->GetDictionaryEntry());
+  if (IsJSGlobalObject()) {
+    value = JSGlobalPropertyCell::cast(value)->value();
+  }
+  ASSERT(!value->IsJSGlobalPropertyCell());
+  return value;
+}
+
+
+Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
+  ASSERT(!HasFastProperties());
+  if (IsJSGlobalObject()) {
+    JSGlobalPropertyCell* cell =
+        JSGlobalPropertyCell::cast(
+            property_dictionary()->ValueAt(result->GetDictionaryEntry()));
+    cell->set_value(value);
+  } else {
+    property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
+  }
+  return value;
+}
+
+
+Object* JSObject::SetNormalizedProperty(String* name,
+                                        Object* value,
+                                        PropertyDetails details) {
+  ASSERT(!HasFastProperties());
+  int entry = property_dictionary()->FindStringEntry(name);
+  Object* store_value = value;
+  if (entry == -1) {
+    if (IsJSGlobalObject()) {
+      store_value = Heap::AllocateJSGlobalPropertyCell(value);
+    }
+    if (store_value->IsFailure()) return store_value;
+    Object* dict =
+        property_dictionary()->AddStringEntry(name, store_value, details);
+    if (dict->IsFailure()) return dict;
+    set_properties(Dictionary::cast(dict));
+    return value;
+  }
+  // Preserve enumeration index.
+  details = PropertyDetails(details.attributes(),
+                            details.type(),
+                            property_dictionary()->DetailsAt(entry).index());
+  if (IsJSGlobalObject()) {
+    JSGlobalPropertyCell* cell =
+        JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
+    cell->set_value(value);
+    store_value = cell;
+  }
+  property_dictionary()->SetStringEntry(entry, name, store_value, details);
+  return value;
+}
+
+
 Object* Object::GetProperty(Object* receiver,
                             LookupResult* result,
                             String* name,
@@ -455,8 +512,7 @@ Object* Object::GetProperty(Object* receiver,
   JSObject* holder = result->holder();
   switch (result->type()) {
     case NORMAL:
-      value =
-          holder->property_dictionary()->ValueAt(result->GetDictionaryEntry());
+      value = holder->GetNormalizedProperty(result);
       ASSERT(!value->IsTheHole() || result->IsReadOnly());
       return value->IsTheHole() ? Heap::undefined_value() : value;
     case FIELD:
@@ -958,6 +1014,10 @@ void HeapObject::HeapObjectShortPrint(StringStream* accumulator) {
     case PROXY_TYPE:
       accumulator->Add("<Proxy>");
       break;
+    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+      accumulator->Add("Cell for ");
+      JSGlobalPropertyCell::cast(this)->value()->ShortPrint(accumulator);
+      break;
     default:
       accumulator->Add("<Other heap object (%d)>", map()->instance_type());
       break;
@@ -1049,6 +1109,10 @@ void HeapObject::IterateBody(InstanceType type, int object_size,
       break;
     case CODE_TYPE:
       reinterpret_cast<Code*>(this)->CodeIterateBody(v);
+      break;
+    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+      reinterpret_cast<JSGlobalPropertyCell*>(this)
+          ->JSGlobalPropertyCellIterateBody(v);
       break;
     case HEAP_NUMBER_TYPE:
     case FILLER_TYPE:
@@ -1258,6 +1322,10 @@ Object* JSObject::AddSlowProperty(String* name,
                                   Object* value,
                                   PropertyAttributes attributes) {
   PropertyDetails details = PropertyDetails(attributes, NORMAL);
+  if (IsJSGlobalObject()) {
+    value = Heap::AllocateJSGlobalPropertyCell(value);
+    if (value->IsFailure()) return value;
+  }
   Object* result = property_dictionary()->AddStringEntry(name, value, details);
   if (result->IsFailure()) return result;
   if (property_dictionary() != result) {
@@ -1315,14 +1383,9 @@ Object* JSObject::ReplaceSlowProperty(String* name,
   if (old_details.IsTransition()) new_index = 0;
 
   PropertyDetails new_details(attributes, NORMAL, old_details.index());
-  Object* result =
-      property_dictionary()->SetOrAddStringEntry(name, value, new_details);
-  if (result->IsFailure()) return result;
-  if (property_dictionary() != result) {
-    set_properties(Dictionary::cast(result));
-  }
-  return value;
+  return SetNormalizedProperty(name, value, new_details);
 }
+
 
 Object* JSObject::ConvertDescriptorToFieldAndMapTransition(
     String* name,
@@ -1578,7 +1641,11 @@ void JSObject::LocalLookupRealNamedProperty(String* name,
     if (entry != DescriptorArray::kNotFound) {
       // Make sure to disallow caching for uninitialized constants
       // found in the dictionary-mode objects.
-      if (property_dictionary()->ValueAt(entry)->IsTheHole()) {
+      Object* value = property_dictionary()->ValueAt(entry);
+      if (IsJSGlobalObject()) {
+        value = JSGlobalPropertyCell::cast(value)->value();
+      }
+      if (value->IsTheHole()) {
         result->DisallowCaching();
       }
       result->DictionaryResult(this, entry);
@@ -1710,8 +1777,7 @@ Object* JSObject::SetProperty(LookupResult* result,
   // transition or null descriptor and there are no setters in the prototypes.
   switch (result->type()) {
     case NORMAL:
-      property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
-      return value;
+      return SetNormalizedProperty(result, value);
     case FIELD:
       return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:
@@ -1780,8 +1846,7 @@ Object* JSObject::IgnoreAttributesAndSetLocalProperty(
   //  Check of IsReadOnly removed from here in clone.
   switch (result->type()) {
     case NORMAL:
-      property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
-      return value;
+      return SetNormalizedProperty(result, value);
     case FIELD:
       return FastPropertyAtPut(result->GetFieldIndex(), value);
     case MAP_TRANSITION:
@@ -1971,6 +2036,10 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = r.GetConstantFunction();
+        if (IsJSGlobalObject()) {
+          value = Heap::AllocateJSGlobalPropertyCell(value);
+          if (value->IsFailure()) return value;
+        }
         Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
         if (result->IsFailure()) return result;
         dictionary = Dictionary::cast(result);
@@ -1980,6 +2049,10 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), NORMAL, details.index());
         Object* value = FastPropertyAt(r.GetFieldIndex());
+        if (IsJSGlobalObject()) {
+          value = Heap::AllocateJSGlobalPropertyCell(value);
+          if (value->IsFailure()) return value;
+        }
         Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
         if (result->IsFailure()) return result;
         dictionary = Dictionary::cast(result);
@@ -1989,6 +2062,10 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
         PropertyDetails d =
             PropertyDetails(details.attributes(), CALLBACKS, details.index());
         Object* value = r.GetCallbacksObject();
+        if (IsJSGlobalObject()) {
+          value = Heap::AllocateJSGlobalPropertyCell(value);
+          if (value->IsFailure()) return value;
+        }
         Object* result = dictionary->AddStringEntry(r.GetKey(), value, d);
         if (result->IsFailure()) return result;
         dictionary = Dictionary::cast(result);
@@ -2048,6 +2125,7 @@ Object* JSObject::NormalizeProperties(PropertyNormalizationMode mode) {
 
 Object* JSObject::TransformToFastProperties(int unused_property_fields) {
   if (HasFastProperties()) return this;
+  ASSERT(!IsJSGlobalObject());
   return property_dictionary()->
     TransformPropertiesToFastFor(this, unused_property_fields);
 }
@@ -2537,13 +2615,7 @@ Object* JSObject::DefineGetterSetter(String* name,
 
   // Update the dictionary with the new CALLBACKS property.
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS);
-  Object* dict =
-      property_dictionary()->SetOrAddStringEntry(name, array, details);
-  if (dict->IsFailure()) return dict;
-
-  // Set the potential new dictionary on the object.
-  set_properties(Dictionary::cast(dict));
-  return array;
+  return SetNormalizedProperty(name, array, details);
 }
 
 
@@ -3858,6 +3930,11 @@ void SlicedString::SlicedStringReadBlockIntoBuffer(ReadBlockBuffer* rbb,
 
 void ConsString::ConsStringIterateBody(ObjectVisitor* v) {
   IteratePointers(v, kFirstOffset, kSecondOffset + kPointerSize);
+}
+
+
+void JSGlobalPropertyCell::JSGlobalPropertyCellIterateBody(ObjectVisitor* v) {
+  IteratePointers(v, kValueOffset, kValueOffset + kPointerSize);
 }
 
 
@@ -6738,12 +6815,6 @@ Object* Dictionary::AddNumberEntry(uint32_t key,
 }
 
 
-Object* Dictionary::AtStringPut(String* key, Object* value) {
-  StringKey k(key);
-  return AtPut(&k, value);
-}
-
-
 Object* Dictionary::AtNumberPut(uint32_t key, Object* value) {
   NumberKey k(key);
   UpdateMaxNumberKey(key);
@@ -6751,12 +6822,10 @@ Object* Dictionary::AtNumberPut(uint32_t key, Object* value) {
 }
 
 
-Object* Dictionary::SetOrAddStringEntry(String* key,
-                                        Object* value,
-                                        PropertyDetails details) {
-  StringKey k(key);
-  int entry = FindEntry(&k);
-  if (entry == -1) return AddStringEntry(key, value, details);
+Object* Dictionary::SetStringEntry(int entry,
+                                   String* key,
+                                   Object* value,
+                                   PropertyDetails details) {
   // Preserve enumeration index.
   details = PropertyDetails(details.attributes(),
                             details.type(),
@@ -6843,8 +6912,12 @@ Object* Dictionary::SlowReverseLookup(Object* value) {
   int capacity = Capacity();
   for (int i = 0; i < capacity; i++) {
     Object* k = KeyAt(i);
-    if (IsKey(k) && ValueAt(i) == value) {
-      return k;
+    if (IsKey(k)) {
+      Object* e = ValueAt(i);
+      if (e->IsJSGlobalPropertyCell()) {
+        e = JSGlobalPropertyCell::cast(e)->value();
+      }
+      if (e == value) return k;
     }
   }
   return Heap::undefined_value();

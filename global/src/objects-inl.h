@@ -395,6 +395,13 @@ bool Object::IsOddball() {
 }
 
 
+bool Object::IsJSGlobalPropertyCell() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type()
+      == JS_GLOBAL_PROPERTY_CELL_TYPE;
+}
+
+
 bool Object::IsSharedFunctionInfo() {
   return Object::IsHeapObject() &&
       (HeapObject::cast(this)->map()->instance_type() ==
@@ -1008,6 +1015,8 @@ ACCESSORS(Oddball, to_string, String, kToStringOffset)
 ACCESSORS(Oddball, to_number, Object, kToNumberOffset)
 
 
+ACCESSORS(JSGlobalPropertyCell, value, Object, kValueOffset)
+
 int JSObject::GetHeaderSize() {
   switch (map()->instance_type()) {
     case JS_GLOBAL_PROXY_TYPE:
@@ -1353,6 +1362,7 @@ CAST_ACCESSOR(Failure)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(HeapNumber)
 CAST_ACCESSOR(Oddball)
+CAST_ACCESSOR(JSGlobalPropertyCell)
 CAST_ACCESSOR(SharedFunctionInfo)
 CAST_ACCESSOR(Map)
 CAST_ACCESSOR(JSFunction)

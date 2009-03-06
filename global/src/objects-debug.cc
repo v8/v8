@@ -150,7 +150,9 @@ void HeapObject::HeapObjectPrint() {
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(this)->SharedFunctionInfoPrint();
       break;
-
+    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+      JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellPrint();
+      break;
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
     Name::cast(this)->Name##Print();       \
@@ -211,6 +213,9 @@ void HeapObject::HeapObjectVerify() {
       break;
     case JS_BUILTINS_OBJECT_TYPE:
       JSBuiltinsObject::cast(this)->JSBuiltinsObjectVerify();
+      break;
+    case JS_GLOBAL_PROPERTY_CELL_TYPE:
+      JSGlobalPropertyCell::cast(this)->JSGlobalPropertyCellVerify();
       break;
     case JS_ARRAY_TYPE:
       JSArray::cast(this)->JSArrayVerify();
@@ -390,6 +395,7 @@ static const char* TypeToString(InstanceType type) {
     case JS_OBJECT_TYPE: return "JS_OBJECT";
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE: return "JS_CONTEXT_EXTENSION_OBJECT";
     case ODDBALL_TYPE: return "ODDBALL";
+    case JS_GLOBAL_PROPERTY_CELL_TYPE: return "JS_GLOBAL_PROPERTY_CELL";
     case SHARED_FUNCTION_INFO_TYPE: return "SHARED_FUNCTION_INFO";
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";
     case CODE_TYPE: return "CODE";
@@ -652,6 +658,17 @@ void Oddball::OddballVerify() {
     int value = Smi::cast(number)->value();
     ASSERT(value == 0 || value == 1 || value == -1);
   }
+}
+
+
+void JSGlobalPropertyCell::JSGlobalPropertyCellVerify() {
+  CHECK(IsJSGlobalPropertyCell());
+  VerifyObjectField(kValueOffset);
+}
+
+
+void JSGlobalPropertyCell::JSGlobalPropertyCellPrint() {
+  HeapObject::PrintHeader("JSGlobalPropertyCell");
 }
 
 

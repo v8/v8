@@ -71,6 +71,11 @@ static void GenerateDictionaryLoad(MacroAssembler* masm,
   // Jump to miss if the interceptor bit is set.
   __ b(ne, miss);
 
+  // Bail out if we have a JS global object.
+  __ ldr(t0, FieldMemOperand(t1, JSObject::kMapOffset));
+  __ ldrb(t0, FieldMemOperand(t0, Map::kInstanceTypeOffset));
+  __ cmp(t0, Operand(JS_GLOBAL_OBJECT_TYPE));
+  __ b(eq, miss);
 
   // Check that the properties array is a dictionary.
   __ ldr(t0, FieldMemOperand(t1, JSObject::kPropertiesOffset));

@@ -96,6 +96,7 @@ namespace v8 { namespace internal {
   V(Map, global_context_map)                            \
   V(Map, code_map)                                      \
   V(Map, oddball_map)                                   \
+  V(Map, global_property_value_map)                     \
   V(Map, boilerplate_function_map)                      \
   V(Map, shared_function_info_map)                      \
   V(Map, proxy_map)                                     \
@@ -281,6 +282,12 @@ class Heap : public AllStatic {
   static Object* AllocateJSObject(JSFunction* constructor,
                                   PretenureFlag pretenure = NOT_TENURED);
 
+  // Allocates and initializes a new JS global object based on a constructor.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocateJSGlobalObject(JSFunction* constructor);
+
   // Returns a deep copy of the JavaScript object.
   // Properties and elements are copied too.
   // Returns failure if allocation failed.
@@ -400,6 +407,12 @@ class Heap : public AllStatic {
   // failed.
   // Please note this does not perform a garbage collection.
   static Object* AllocateByteArray(int length);
+
+  // Allocate a tenured JS global property cell.
+  // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
+  // failed.
+  // Please note this does not perform a garbage collection.
+  static Object* AllocateJSGlobalPropertyCell(Object* value);
 
   // Allocates a fixed array initialized with undefined values
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation

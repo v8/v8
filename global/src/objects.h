@@ -158,7 +158,7 @@ class PropertyDetails BASE_EMBEDDED {
   // constants can be embedded in generated code.
   class TypeField:       public BitField<PropertyType,       0, 3> {};
   class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
-  class IndexField:      public BitField<uint32_t,           6, 32-6> {};
+  class IndexField:      public BitField<uint32_t,           6, 31-6> {};
 
   static const int kInitialIndex = 1;
 
@@ -258,6 +258,7 @@ enum PropertyNormalizationMode {
   V(HEAP_NUMBER_TYPE)                           \
   V(FIXED_ARRAY_TYPE)                           \
   V(CODE_TYPE)                                  \
+  V(JS_GLOBAL_PROPERTY_CELL_TYPE)               \
   V(ODDBALL_TYPE)                               \
   V(PROXY_TYPE)                                 \
   V(BYTE_ARRAY_TYPE)                            \
@@ -516,6 +517,7 @@ enum InstanceType {
   FIXED_ARRAY_TYPE,
   CODE_TYPE,
   ODDBALL_TYPE,
+  JS_GLOBAL_PROPERTY_CELL_TYPE,
   PROXY_TYPE,
   BYTE_ARRAY_TYPE,
   FILLER_TYPE,
@@ -654,6 +656,7 @@ class Object BASE_EMBEDDED {
   inline bool IsJSGlobalProxy();
   inline bool IsUndetectableObject();
   inline bool IsAccessCheckNeeded();
+  inline bool IsJSGlobalPropertyCell();
 
   // Returns true if this object is an instance of the specified
   // function template.
@@ -1173,6 +1176,20 @@ class JSObject: public HeapObject {
   Object* IgnoreAttributesAndSetLocalProperty(String* key,
                                               Object* value,
                                               PropertyAttributes attributes);
+
+  // Retrieve a value in a normalized object given a lookup result.
+  // Handles the special representation of JS global objects.
+  Object* GetNormalizedProperty(LookupResult* result);
+
+  // Sets the property value in a normalized object given a lookup result.
+  // Handles the special representation of JS global objects.
+  Object* SetNormalizedProperty(LookupResult* result, Object* value);
+
+  // Sets the property value in a normalized object given (key, value, details).
+  // Handles the special representation of JS global objects.
+  Object* SetNormalizedProperty(String* name,
+                                Object* value,
+                                PropertyDetails details);
 
   // Sets a property that currently has lazy loading.
   Object* SetLazyProperty(LookupResult* result,
@@ -1938,7 +1955,9 @@ class DictionaryBase: public HashTable<2, 3> {};
 class Dictionary: public DictionaryBase {
  public:
   // Returns the value at entry.
-  Object* ValueAt(int entry) { return get(EntryToIndex(entry)+1); }
+  Object* ValueAt(int entry) {
+    return get(EntryToIndex(entry)+1);
+  }
 
   // Set the value for entry.
   void ValueAtPut(int entry, Object* value) {
@@ -1975,16 +1994,16 @@ class Dictionary: public DictionaryBase {
   Object* DeleteProperty(int entry);
 
   // Type specific at put (default NONE attributes is used when adding).
-  Object* AtStringPut(String* key, Object* value);
   Object* AtNumberPut(uint32_t key, Object* value);
 
   Object* AddStringEntry(String* key, Object* value, PropertyDetails details);
   Object* AddNumberEntry(uint32_t key, Object* value, PropertyDetails details);
 
   // Set and existing string entry or add a new one if needed.
-  Object* SetOrAddStringEntry(String* key,
-                              Object* value,
-                              PropertyDetails details);
+  Object* SetStringEntry(int entry,
+                         String* key,
+                         Object* value,
+                         PropertyDetails details);
 
   // Returns the number of elements in the dictionary filtering out properties
   // with the specified attributes.
@@ -3729,6 +3748,31 @@ class Oddball: public HeapObject {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Oddball);
 };
+
+
+class JSGlobalPropertyCell: public HeapObject {
+ public:
+  // [value]: value of the global property.
+  DECL_ACCESSORS(value, Object)
+
+  // Casting.
+  static inline JSGlobalPropertyCell* cast(Object* obj);
+
+  // Dispatched behavior.
+  void JSGlobalPropertyCellIterateBody(ObjectVisitor* v);
+#ifdef DEBUG
+  void JSGlobalPropertyCellVerify();
+  void JSGlobalPropertyCellPrint();
+#endif
+
+  // Layout description.
+  static const int kValueOffset = HeapObject::kHeaderSize;
+  static const int kSize = kValueOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalPropertyCell);
+};
+
 
 
 // Proxy describes objects pointing from JavaScript to C structures.

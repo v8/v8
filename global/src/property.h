@@ -294,7 +294,7 @@ class LookupResult BASE_EMBEDDED {
     }
     // In the dictionary case, the data is held in the value field.
     ASSERT(lookup_type_ == DICTIONARY_TYPE);
-    return holder()->property_dictionary()->ValueAt(GetDictionaryEntry());
+    return holder()->GetNormalizedProperty(this);
   }
 
  private:
