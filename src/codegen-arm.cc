@@ -2688,6 +2688,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
     Expression* value = property->value();
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT: break;
+      case ObjectLiteral::Property::OBJECT_LITERAL:
+        if (property->value()->AsObjectLiteral()->is_simple()) break;
       case ObjectLiteral::Property::COMPUTED:  // fall through
       case ObjectLiteral::Property::PROTOTYPE: {
         frame_->EmitPush(r0);  // dup the result
