@@ -138,39 +138,31 @@ bool Profiler::paused_ = false;
 //
 void StackTracer::Trace(TickSample* sample) {
   if (sample->state == GC) {
-    sample->InitStack(0);
+    sample->frames_count = 0;
     return;
   }
 
   // If c_entry_fp is available, this means that we are inside a C++
-  // function and sample->fp value isn't reliable due to FPO
+  // function and sample->fp value isn't reliable due to FPO.
   if (Top::c_entry_fp(Top::GetCurrentThread()) != NULL) {
     SafeStackTraceFrameIterator it(
         reinterpret_cast<Address>(sample->sp),
         reinterpret_cast<Address>(low_stack_bound_));
-    // Pass 1: Calculate depth
-    int depth = 0;
-    while (!it.done() && depth <= kMaxStackFrames) {
-      ++depth;
+    int i = 0;
+    while (!it.done() && i < TickSample::kMaxFramesCount) {
+      sample->stack[i++] = it.frame()->pc();
       it.Advance();
     }
-    // Pass 2: Save stack
-    sample->InitStack(depth);
-    if (depth > 0) {
-      it.Reset();
-      for (int i = 0; i < depth && !it.done(); ++i, it.Advance()) {
-        sample->stack[i] = it.frame()->pc();
-      }
-    }
+    sample->frames_count = i;
   } else if (sample->sp < sample->fp && sample->fp < low_stack_bound_) {
-    // The check assumes that stack grows from lower addresses
-    sample->InitStack(1);
+    // The check assumes that stack grows from lower addresses.
     sample->stack[0] = Memory::Address_at(
         (Address)(sample->fp + StandardFrameConstants::kCallerPCOffset));
+    sample->frames_count = 1;
   } else {
     // FP seems to be in some intermediate state,
     // better discard this sample
-    sample->InitStack(0);
+    sample->frames_count = 0;
   }
 }
 
@@ -945,10 +937,8 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (overflow) {
     msg.Append(",overflow");
   }
-  if (*(sample->stack)) {
-    for (size_t i = 0; sample->stack[i]; ++i) {
-      msg.Append(",0x%x", reinterpret_cast<unsigned int>(sample->stack[i]));
-    }
+  for (int i = 0; i < sample->frames_count; ++i) {
+    msg.Append(",%p", sample->stack[i]);
   }
   msg.Append('\n');
   msg.WriteToLogFile();

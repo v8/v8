@@ -277,8 +277,6 @@ class StackTracer BASE_EMBEDDED {
       : low_stack_bound_(low_stack_bound) { }
   void Trace(TickSample* sample);
  private:
-  // Maximum number of stack frames to capture
-  static const int kMaxStackFrames = 5;
 
   unsigned int low_stack_bound_;
 };

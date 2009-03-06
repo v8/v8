@@ -94,9 +94,9 @@ TEST(PureCStackTrace) {
 #ifdef DEBUG
   // C stack trace works only in debug mode, in release mode EBP is
   // usually treated as a general-purpose register
+  CHECK_GT(sample.frames_count, 0);
   CheckRetAddrIsInCFunction(reinterpret_cast<unsigned int>(sample.stack[0]),
                             reinterpret_cast<unsigned int>(&CFunc));
-  CHECK_EQ(0, sample.stack[1]);
 #endif
 }
 
@@ -217,7 +217,7 @@ TEST(PureJSStackTrace) {
       "  JSFuncDoTrace();"
       "};\n"
       "JSTrace();");
-  CHECK_NE(0, *(sample.stack));
+  CHECK_GT(sample.frames_count, 1);
   CheckRetAddrIsInFunction(
       reinterpret_cast<unsigned int>(sample.stack[0]),
       reinterpret_cast<unsigned int>(call_trace_code->instruction_start()),
