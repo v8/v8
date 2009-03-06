@@ -615,7 +615,7 @@ class EnterDebugger BASE_EMBEDDED {
       StackGuard::Preempt();
       Debug::set_preemption_pending(false);
     }
-  
+
     // Leaving this debugger entry.
     Debug::set_debugger_entry(prev_);
   }
