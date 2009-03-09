@@ -5321,7 +5321,7 @@ TEST(CatchStackOverflow) {
 
 
 static void CheckTryCatchSourceInfo(v8::Handle<v8::Script> script,
-                                    char* resource_name,
+                                    const char* resource_name,
                                     int line_offset) {
   v8::HandleScope scope;
   v8::TryCatch try_catch;
@@ -5360,7 +5360,7 @@ THREADED_TEST(TryCatchSourceInfo) {
       "\n"
       "Foo();\n");
 
-  char* resource_name;
+  const char* resource_name;
   v8::Handle<v8::Script> script;
   resource_name = "test.js";
   script = v8::Script::Compile(source, v8::String::New(resource_name));
