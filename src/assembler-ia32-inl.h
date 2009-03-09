@@ -279,7 +279,8 @@ void Operand::set_modrm(int mod, Register rm) {
 
 void Operand::set_dispr(int32_t disp, RelocInfo::Mode rmode) {
   ASSERT(len_ == 1 || len_ == 2);
-  *reinterpret_cast<int32_t*>(&buf_[len_]) = disp;
+  int32_t* p = reinterpret_cast<int32_t*>(&buf_[len_]);
+  *p = disp;
   len_ += sizeof(int32_t);
   rmode_ = rmode;
 }
