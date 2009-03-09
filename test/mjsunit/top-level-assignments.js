@@ -94,3 +94,14 @@ assertEquals(30, calc.sum());
 assertEquals(10, calc.difference());
 assertEquals(200, calc.product());
 assertEquals(2, calc.quotient());
+
+var x = new Object();
+x.__defineGetter__('a', function() { return 7 });
+x.b = function() { return 42; };
+x.c = 88;
+x.d = "A Man Called Horse";
+
+assertEquals(7, x.a);
+assertEquals(42, x.b());
+assertEquals(88, x.c);
+assertEquals("A Man Called Horse", x.d);

@@ -2532,7 +2532,7 @@ Object* JSObject::DefineGetterSetter(String* name,
   if (ok->IsFailure()) return ok;
 
   // Allocate the fixed array to hold getter and setter.
-  Object* array = Heap::AllocateFixedArray(2);
+  Object* array = Heap::AllocateFixedArray(2, TENURED);
   if (array->IsFailure()) return array;
 
   // Update the dictionary with the new CALLBACKS property.
