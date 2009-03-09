@@ -2172,15 +2172,16 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       JumpTarget body(this, JumpTarget::BIDIRECTIONAL);
       IncrementLoopNesting();
 
-      // Label the top of the loop for the backward CFG edge.  If the test
-      // is always true we can use the continue target, and if the test is
-      // always false there is no need.
+      // Label the top of the loop for the backward jump if necessary.
       if (info == ALWAYS_TRUE) {
+        // Use the continue target.
         node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
         node->continue_target()->Bind();
       } else if (info == ALWAYS_FALSE) {
+        // No need to label it.
         node->continue_target()->Initialize(this);
       } else {
+        // Continue is the test, so use the backward body target.
         ASSERT(info == DONT_KNOW);
         node->continue_target()->Initialize(this);
         body.Bind();
@@ -2191,8 +2192,8 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
 
       // Compile the test.
       if (info == ALWAYS_TRUE) {
-        // If control flow can fall off the end of the body, jump back to
-        // the top and bind the break target as the exit.
+        // If control flow can fall off the end of the body, jump back
+        // to the top and bind the break target at the exit.
         if (has_valid_frame()) {
           node->continue_target()->Jump();
         }
@@ -2228,15 +2229,19 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::WHILE_LOOP: {
-      JumpTarget body(this, JumpTarget::BIDIRECTIONAL);
+      // TODO(260): This flag controls whether to duplicate the test
+      // at the bottom of the loop.  Replace it with a better
+      // indication of when it is safe to do so.
+      static const bool test_at_bottom = false;
+
+      JumpTarget body;  // Uninitialized.
       IncrementLoopNesting();
 
       // If the condition is always false and has no side effects, we
       // do not need to compile anything.
       if (info == ALWAYS_FALSE) break;
 
-      // Based on the condition analysis, compile the test if
-      // necessary and label the body if necessary.
+      // Based on the condition analysis, compile the test as necessary.
       if (info == ALWAYS_TRUE) {
         // We will not compile the test expression.  Label the top of
         // the loop with the continue target.
@@ -2244,7 +2249,18 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         node->continue_target()->Bind();
       } else {
         ASSERT(info == DONT_KNOW);  // ALWAYS_FALSE cannot reach here.
-        node->continue_target()->Initialize(this);
+        if (test_at_bottom) {
+          // Continue is the test at the bottom, no need to label the
+          // test at the top.  The body is a backward target.
+          node->continue_target()->Initialize(this);
+          body.Initialize(this, JumpTarget::BIDIRECTIONAL);
+        } else {
+          // Label the test at the top as the continue target.  The
+          // body is a forward-only target.
+          node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+          node->continue_target()->Bind();
+          body.Initialize(this);
+        }
         // Compile the test with the body as the true target and
         // preferred fall-through and with the break target as the
         // false target.
@@ -2252,9 +2268,9 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
 
         if (dest.false_was_fall_through()) {
-          // If we don't have dangling jumps to the body, the test is
-          // unconditionally false and we do not need to compile the
-          // body.
+          // If we got the break target as fall-through, the test may
+          // have been unconditionally false (if there are no jumps to
+          // the body).
           if (!body.is_linked()) break;
 
           // Otherwise, jump around the body on the fall through and
@@ -2265,30 +2281,36 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         }
       }
 
-      // The (stack check at the start of the) body was labeled.
-      // Compile it.
       CheckStack();  // TODO(1222600): ignore if body contains calls.
       Visit(node->body());
 
-      // Compile the test if necessary and jump back.
+      // Based on the condition analysis, compile the backward jump as
+      // necessary.
       if (info == ALWAYS_TRUE) {
-        // The body has been labeled with the continue target.
+        // The loop body has been labeled with the continue target.
         if (has_valid_frame()) {
           node->continue_target()->Jump();
         }
       } else {
         ASSERT(info == DONT_KNOW);  // ALWAYS_FALSE cannot reach here.
-        if (node->continue_target()->is_linked()) {
-          node->continue_target()->Bind();
-        }
-
-        // If control can reach the bottom by falling off the body or
-        // a continue in the body, (re)compile the test at the bottom.
-        if (has_valid_frame()) {
-          // The break target is the fall-through (body is a backward
-          // jump from here).
-          ControlDestination dest(&body, node->break_target(), false);
-          LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+        if (test_at_bottom) {
+          // If we have chosen to recompile the test at the bottom,
+          // then it is the continue target.
+          if (node->continue_target()->is_linked()) {
+            node->continue_target()->Bind();
+          }
+          if (has_valid_frame()) {
+            // The break target is the fall-through (body is a backward
+            // jump from here and thus an invalid fall-through).
+            ControlDestination dest(&body, node->break_target(), false);
+            LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+          }
+        } else {
+          // If we have chosen not to recompile the test at the
+          // bottom, jump back to the one at the top.
+          if (has_valid_frame()) {
+            node->continue_target()->Jump();
+          }
         }
       }
 
@@ -2301,7 +2323,13 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
     }
 
     case LoopStatement::FOR_LOOP: {
-      JumpTarget body(this, JumpTarget::BIDIRECTIONAL);
+      // TODO(260): This flag controls whether to duplicate the test
+      // at the bottom of the loop.  Replace it with a better
+      // indication of when it is safe to do so.
+      static const bool test_at_bottom = false;
+
+      JumpTarget loop(this, JumpTarget::BIDIRECTIONAL);
+      JumpTarget body(this);
 
       // Compile the init expression if present.
       if (node->init() != NULL) {
@@ -2314,22 +2342,37 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
       // do not need to compile anything else.
       if (info == ALWAYS_FALSE) break;
 
-      // Based on the condition analysis, compile the test if
-      // necessary and label the body if necessary.
+      // Based on the condition analysis, compile the test as necessary.
       if (info == ALWAYS_TRUE) {
         // We will not compile the test expression.  Label the top of
-        // the loop with the continue target if there is no update
-        // expression, otherwise with the body target.
+        // the loop.
         if (node->next() == NULL) {
+          // Use the continue target if there is no update expression.
           node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
           node->continue_target()->Bind();
         } else {
+          // Otherwise use the backward loop target.
           node->continue_target()->Initialize(this);
-          body.Bind();
+          loop.Bind();
         }
       } else {
         ASSERT(info == DONT_KNOW);
-        node->continue_target()->Initialize(this);
+        if (test_at_bottom) {
+          // Continue is either the update expression or the test at
+          // the bottom, no need to label the test at the top.
+          node->continue_target()->Initialize(this);
+        } else if (node->next() == NULL) {
+          // We are not recompiling the test at the bottom and there
+          // is no update expression.
+          node->continue_target()->Initialize(this, JumpTarget::BIDIRECTIONAL);
+          node->continue_target()->Bind();
+        } else {
+          // We are not recompiling the test at the bottom and there
+          // is an update expression.
+          node->continue_target()->Initialize(this);
+          loop.Bind();
+        }
+
         // Compile the test with the body as the true target and
         // preferred fall-through and with the break target as the
         // false target.
@@ -2337,9 +2380,9 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
 
         if (dest.false_was_fall_through()) {
-          // If we don't have dangling jumps to the body, the test is
-          // unconditionally false and we do not need to compile the
-          // body.
+          // If we got the break target as fall-through, the test may
+          // have been unconditionally false (if there are no jumps to
+          // the body).
           if (!body.is_linked()) break;
 
           // Otherwise, jump around the body on the fall through and
@@ -2350,20 +2393,17 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         }
       }
 
-      // The (stack check at the start of the) body was labeled.
-      // Compile it.
       CheckStack();  // TODO(1222600): ignore if body contains calls.
       Visit(node->body());
 
       // If there is an update expression, compile it if necessary.
       if (node->next() != NULL) {
-        // We did not use the continue target for the body.
         if (node->continue_target()->is_linked()) {
           node->continue_target()->Bind();
         }
 
         // Control can reach the update by falling out of the body or
-        // by a continue in the body.
+        // by a continue.
         if (has_valid_frame()) {
           // Record the source position of the statement as this code
           // which is after the code for the body actually belongs to
@@ -2373,31 +2413,42 @@ void CodeGenerator::VisitLoopStatement(LoopStatement* node) {
         }
       }
 
-      // Compile the test if necessary and jump back.
+      // Based on the condition analysis, compile the backward jump as
+      // necessary.
       if (info == ALWAYS_TRUE) {
         if (has_valid_frame()) {
           if (node->next() == NULL) {
             node->continue_target()->Jump();
           } else {
-            body.Jump();
+            loop.Jump();
           }
         }
       } else {
         ASSERT(info == DONT_KNOW);  // ALWAYS_FALSE cannot reach here.
-        if (node->continue_target()->is_linked()) {
-          // We can have dangling jumps to the continue target if
-          // there was no update expression.
-          node->continue_target()->Bind();
-        }
-
-        // Control can reach the test at the bottom by falling out of
-        // the body, by a continue in the body, or from the update
-        // expression.
-        if (has_valid_frame()) {
-          // The break target is the fall-through (body is a backward
-          // jump from here).
-          ControlDestination dest(&body, node->break_target(), false);
-          LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+        if (test_at_bottom) {
+          if (node->continue_target()->is_linked()) {
+            // We can have dangling jumps to the continue target if
+            // there was no update expression.
+            node->continue_target()->Bind();
+          }
+          // Control can reach the test at the bottom by falling out
+          // of the body, by a continue in the body, or from the
+          // update expression.
+          if (has_valid_frame()) {
+            // The break target is the fall-through (body is a
+            // backward jump from here).
+            ControlDestination dest(&body, node->break_target(), false);
+            LoadCondition(node->cond(), NOT_INSIDE_TYPEOF, &dest, true);
+          }
+        } else {
+          // Otherwise, jump back to the test at the top.
+          if (has_valid_frame()) {
+            if (node->next() == NULL) {
+              node->continue_target()->Jump();
+            } else {
+              loop.Jump();
+            }
+          }
         }
       }
 
