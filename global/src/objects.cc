@@ -435,12 +435,12 @@ Object* JSObject::SetNormalizedProperty(String* name,
                                         PropertyDetails details) {
   ASSERT(!HasFastProperties());
   int entry = property_dictionary()->FindStringEntry(name);
-  Object* store_value = value;
   if (entry == -1) {
+    Object* store_value = value;
     if (IsJSGlobalObject()) {
       store_value = Heap::AllocateJSGlobalPropertyCell(value);
+      if (store_value->IsFailure()) return store_value;
     }
-    if (store_value->IsFailure()) return store_value;
     Object* dict =
         property_dictionary()->AddStringEntry(name, store_value, details);
     if (dict->IsFailure()) return dict;
@@ -455,9 +455,10 @@ Object* JSObject::SetNormalizedProperty(String* name,
     JSGlobalPropertyCell* cell =
         JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
     cell->set_value(value);
-    store_value = cell;
+    // No need to update the property dictionary.
+  } else {
+    property_dictionary()->SetStringEntry(entry, name, value, details);
   }
-  property_dictionary()->SetStringEntry(entry, name, store_value, details);
   return value;
 }
 
@@ -1322,14 +1323,17 @@ Object* JSObject::AddSlowProperty(String* name,
                                   Object* value,
                                   PropertyAttributes attributes) {
   PropertyDetails details = PropertyDetails(attributes, NORMAL);
+  Object* store_value = value;
   if (IsJSGlobalObject()) {
-    value = Heap::AllocateJSGlobalPropertyCell(value);
-    if (value->IsFailure()) return value;
+    store_value = Heap::AllocateJSGlobalPropertyCell(value);
+    if (store_value->IsFailure()) return store_value;
   }
-  Object* result = property_dictionary()->AddStringEntry(name, value, details);
+  Object* result = property_dictionary()->AddStringEntry(name,
+                                                         store_value,
+                                                         details);
   if (result->IsFailure()) return result;
   if (property_dictionary() != result) {
-     set_properties(Dictionary::cast(result));
+    set_properties(Dictionary::cast(result));
   }
   return value;
 }
