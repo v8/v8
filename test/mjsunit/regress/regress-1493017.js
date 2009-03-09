@@ -54,8 +54,8 @@ function dotest() {
   var r = 1;
   var i = 0;
   var holder = new Array();
-  while (i++ < 15000) {
-    if (i == 14000) {
+  while (i++ < 2001) {
+    if (i == 1400) {
       gc();
     }
     var s = r % 100000000;
@@ -66,7 +66,7 @@ function dotest() {
       obj[property_name] = a_B;
       s = s / 10;
     }
-    if ( i % 101 == 0 ) {
+    if (i % 101 == 0) {
       // Check that all object maps have no undefined properties
       s = r % 100000000;
       obj = new A();
@@ -76,7 +76,7 @@ function dotest() {
         }
         property_name = String.fromCharCode(s % 10 + 97);
         obj[property_name] = a_B;
-      s = s / 10;
+        s = s / 10;
       }
     }
     r = r * 7 % 100000000;
