@@ -232,21 +232,14 @@ Handle<Array> Shell::GetCompletions(Handle<String> text, Handle<String> full) {
 }
 
 
-Handle<String> Shell::DebugEventToText(Handle<String> event) {
-  HandleScope handle_scope;
+Handle<Object> Shell::DebugMessageDetails(Handle<String> message) {
   Context::Scope context_scope(utility_context_);
   Handle<Object> global = utility_context_->Global();
-  Handle<Value> fun = global->Get(String::New("DebugEventToText"));
-  TryCatch try_catch;
-  try_catch.SetVerbose(true);
+  Handle<Value> fun = global->Get(String::New("DebugMessageDetails"));
   static const int kArgc = 1;
-  Handle<Value> argv[kArgc] = { event };
+  Handle<Value> argv[kArgc] = { message };
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
-  if (try_catch.HasCaught()) {
-    return handle_scope.Close(try_catch.Exception()->ToString());
-  } else {
-    return handle_scope.Close(Handle<String>::Cast(val));
-  }
+  return Handle<Object>::Cast(val);
 }
 
 
@@ -258,17 +251,6 @@ Handle<Value> Shell::DebugCommandToJSONRequest(Handle<String> command) {
   Handle<Value> argv[kArgc] = { command };
   Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
   return val;
-}
-
-
-Handle<Object> Shell::DebugResponseDetails(Handle<String> response) {
-  Context::Scope context_scope(utility_context_);
-  Handle<Object> global = utility_context_->Global();
-  Handle<Value> fun = global->Get(String::New("DebugResponseDetails"));
-  static const int kArgc = 1;
-  Handle<Value> argv[kArgc] = { response };
-  Handle<Value> val = Handle<Function>::Cast(fun)->Call(global, kArgc, argv);
-  return Handle<Object>::Cast(val);
 }
 
 
@@ -591,8 +573,22 @@ int Shell::Main(int argc, char* argv[]) {
           return 1;
       }
     }
-    if (i::FLAG_debugger)
+
+    // Run the remote debugger if requested.
+    if (i::FLAG_remote_debugger) {
+      RunRemoteDebugger(i::FLAG_debugger_port);
+      return 0;
+    }
+
+    // Start the debugger agent if requested.
+    if (i::FLAG_debugger_agent) {
+      v8::Debug::EnableAgent(i::FLAG_debugger_port);
+    }
+
+    // Start the in-process debugger if requested.
+    if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
       v8::Debug::SetDebugEventListener(HandleDebugEvent);
+    }
   }
   if (run_shell)
     RunShell();

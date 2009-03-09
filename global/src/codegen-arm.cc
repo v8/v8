@@ -2214,28 +2214,34 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   }
 
   // Unlink from try chain;
-  unlink.Bind();
+  if (unlink.is_linked()) {
+    unlink.Bind();
+  }
 
-  // Preserve TOS result in r0 across stack manipulation.
-  frame_->EmitPop(r0);
-  // Reload sp from the top handler, because some statements that we
-  // break from (eg, for...in) may have left stuff on the stack.
-  __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
-  __ ldr(sp, MemOperand(r3));
-  // The stack pointer was restored to just below the code slot
-  // (the topmost slot) in the handler.
-  frame_->Forget(frame_->height() - handler_height + 1);
-  const int kNextIndex = (StackHandlerConstants::kNextOffset
-                          + StackHandlerConstants::kAddressDisplacement)
-                       / kPointerSize;
-  __ ldr(r1, frame_->ElementAt(kNextIndex));
-  __ str(r1, MemOperand(r3));
-  ASSERT(StackHandlerConstants::kCodeOffset == 0);  // first field is code
-  // Drop the rest of the handler (not including the already dropped
-  // code slot).
-  frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-  // Restore the result to TOS.
-  frame_->EmitPush(r0);
+  // Control can reach here via a jump to unlink or by falling off the
+  // end of the try block (with no unlinks).
+  if (has_valid_frame()) {
+    // Preserve TOS result in r0 across stack manipulation.
+    frame_->EmitPop(r0);
+    // Reload sp from the top handler, because some statements that we
+    // break from (eg, for...in) may have left stuff on the stack.
+    __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+    __ ldr(sp, MemOperand(r3));
+    // The stack pointer was restored to just below the code slot (the
+    // topmost slot) in the handler.
+    frame_->Forget(frame_->height() - handler_height + 1);
+    const int kNextIndex = (StackHandlerConstants::kNextOffset
+                            + StackHandlerConstants::kAddressDisplacement)
+        / kPointerSize;
+    __ ldr(r1, frame_->ElementAt(kNextIndex));
+    __ str(r1, MemOperand(r3));
+    ASSERT(StackHandlerConstants::kCodeOffset == 0);
+    // Drop the rest of the handler (not including the already dropped
+    // code slot).
+    frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
+    // Restore the result to TOS.
+    frame_->EmitPush(r0);
+  }
 
   // --- Finally block ---
   finally_block.Bind();
@@ -2688,6 +2694,8 @@ void CodeGenerator::VisitObjectLiteral(ObjectLiteral* node) {
     Expression* value = property->value();
     switch (property->kind()) {
       case ObjectLiteral::Property::CONSTANT: break;
+      case ObjectLiteral::Property::OBJECT_LITERAL:
+        if (property->value()->AsObjectLiteral()->is_simple()) break;
       case ObjectLiteral::Property::COMPUTED:  // fall through
       case ObjectLiteral::Property::PROTOTYPE: {
         frame_->EmitPush(r0);  // dup the result

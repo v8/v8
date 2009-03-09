@@ -1450,6 +1450,7 @@ class JSObject: public HeapObject {
 
   static const uint32_t kMaxGap = 1024;
   static const int kMaxFastElementsLength = 5000;
+  static const int kInitialMaxFastElementArray = 100000;
   static const int kMaxFastProperties = 8;
   static const int kMaxInstanceSize = 255 * kPointerSize;
   // When extending the backing storage for property values, we increase
@@ -2176,7 +2177,7 @@ class Code: public HeapObject {
   // Printing
   static const char* Kind2String(Kind kind);
   static const char* ICState2String(InlineCacheState state);
-  void Disassemble();
+  void Disassemble(const char* name);
 #endif  // ENABLE_DISASSEMBLER
 
   // [instruction_size]: Size of the native instructions
@@ -2275,6 +2276,16 @@ class Code: public HeapObject {
     ASSERT_SIZE_TAG_ALIGNED(body_size);
     ASSERT_SIZE_TAG_ALIGNED(sinfo_size);
     return RoundUp(kHeaderSize + body_size + sinfo_size, kCodeAlignment);
+  }
+
+  // Calculate the size of the code object to report for log events. This takes
+  // the layout of the code object into account.
+  int ExecutableSize() {
+    // Check that the assumptions about the layout of the code object holds.
+    ASSERT_EQ(reinterpret_cast<unsigned int>(instruction_start()) -
+              reinterpret_cast<unsigned int>(address()),
+              Code::kHeaderSize);
+    return instruction_size() + Code::kHeaderSize;
   }
 
   // Locating source position.
@@ -3829,10 +3840,6 @@ class JSArray: public JSObject {
 
   // Casting.
   static inline JSArray* cast(Object* obj);
-
-  // Uses handles.  Ensures that the fixed array backing the JSArray has at
-  // least the stated size.
-  void EnsureSize(int minimum_size_of_backing_fixed_array);
 
   // Dispatched behavior.
 #ifdef DEBUG

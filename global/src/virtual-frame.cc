@@ -230,14 +230,19 @@ void VirtualFrame::SpillAll() {
 
 
 void VirtualFrame::PrepareMergeTo(VirtualFrame* expected) {
-  // No code needs to be generated to invalidate valid elements.  No
-  // code needs to be generated to move values to memory if they are
-  // already synced.
+  // Perform state changes on this frame that will make merge to the
+  // expected frame simpler or else increase the likelihood that his
+  // frame will match another.
   for (int i = 0; i < elements_.length(); i++) {
     FrameElement source = elements_[i];
     FrameElement target = expected->elements_[i];
+
     if (!target.is_valid() ||
         (target.is_memory() && !source.is_memory() && source.is_synced())) {
+      // No code needs to be generated to invalidate valid elements.
+      // No code needs to be generated to move values to memory if
+      // they are already synced.  We perform those moves here, before
+      // merging.
       if (source.is_register()) {
         // If the frame is the code generator's current frame, we have
         // to decrement both the frame-internal and global register
@@ -249,6 +254,13 @@ void VirtualFrame::PrepareMergeTo(VirtualFrame* expected) {
         }
       }
       elements_[i] = target;
+    } else if (target.is_register() && !target.is_synced() &&
+               !source.is_memory()) {
+      // If an element's target is a register that doesn't need to be
+      // synced, and the element is not in memory, then the sync state
+      // of the element is irrelevant.  We clear the sync bit.
+      ASSERT(source.is_valid());
+      elements_[i].clear_sync();
     }
   }
 }

@@ -675,7 +675,7 @@ void JSGlobalPropertyCell::JSGlobalPropertyCellPrint() {
 void Code::CodePrint() {
   HeapObject::PrintHeader("Code");
 #ifdef ENABLE_DISASSEMBLER
-  Disassemble();
+  Disassemble(NULL);
 #endif
 }
 

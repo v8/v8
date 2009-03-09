@@ -63,6 +63,19 @@ void SocketListenerThread::Run() {
 }
 
 
+static bool SendAll(Socket* socket, const char* data, int len) {
+  int sent_len = 0;
+  while (sent_len < len) {
+    int status = socket->Send(data, len);
+    if (status <= 0) {
+      return false;
+    }
+    sent_len += status;
+  }
+  return true;
+}
+
+
 static void SendAndReceive(char *data, int len) {
   bool ok;
 
@@ -78,7 +91,7 @@ static void SendAndReceive(char *data, int len) {
   CHECK(ok);
 
   // Send all the data.
-  ok = client->SendAll(data, len);
+  ok = SendAll(client, data, len);
   CHECK(ok);
 
   // Wait until data is received.

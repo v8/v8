@@ -67,25 +67,24 @@ class CompilationCache {
   static Handle<FixedArray> LookupRegExp(Handle<String> source,
                                          JSRegExp::Flags flags);
 
+  // Associate the (source, kind) pair to the boilerplate. This may
+  // overwrite an existing mapping.
+  static void PutScript(Handle<String> source,
+                        Entry entry,
+                        Handle<JSFunction> boilerplate);
+
+  // Associate the (source, context->closure()->shared(), kind) triple
+  // with the boilerplate. This may overwrite an existing mapping.
+  static void PutEval(Handle<String> source,
+                      Handle<Context> context,
+                      Entry entry,
+                      Handle<JSFunction> boilerplate);
+
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.
   static void PutRegExp(Handle<String> source,
                         JSRegExp::Flags flags,
                         Handle<FixedArray> data);
-
-  // Associate the (source, kind) pair to the boilerplate. This may
-  // overwrite an existing mapping.
-  static void PutFunction(Handle<String> source,
-                          Entry entry,
-                          Handle<JSFunction> boilerplate);
-
-  // Associate the (source, context->closure()->shared(), kind)
-  // triple with the boilerplate. This may overwrite an existing
-  // mapping.
-  static void PutEvalFunction(Handle<String> source,
-                              Handle<Context> context,
-                              Entry entry,
-                              Handle<JSFunction> boilerplate);
 
   // Clear the cache - also used to initialize the cache at startup.
   static void Clear();

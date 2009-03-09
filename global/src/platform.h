@@ -437,7 +437,6 @@ class Socket {
 
   // Data Transimission
   virtual int Send(const char* data, int len) const = 0;
-  virtual bool SendAll(const char* data, int len) const = 0;
   virtual int Receive(char* data, int len) const = 0;
 
   virtual bool IsValid() const = 0;
@@ -467,24 +466,9 @@ class TickSample {
   unsigned int sp;  // Stack pointer.
   unsigned int fp;  // Frame pointer.
   StateTag state;   // The state of the VM.
-  SmartPointer<Address> stack;  // Call stack, null-terminated.
-
-  inline TickSample& operator=(const TickSample& rhs) {
-    if (this == &rhs) return *this;
-    pc = rhs.pc;
-    sp = rhs.sp;
-    fp = rhs.fp;
-    state = rhs.state;
-    DeleteArray(stack.Detach());
-    stack = rhs.stack;
-    return *this;
-  }
-
-  inline void InitStack(int depth) {
-    stack = SmartPointer<Address>(NewArray<Address>(depth + 1));
-    // null-terminate
-    stack[depth] = 0;
-  }
+  static const int kMaxFramesCount = 5;
+  EmbeddedVector<Address, kMaxFramesCount> stack;  // Call stack.
+  int frames_count;  // Number of captured frames.
 };
 
 class Sampler {

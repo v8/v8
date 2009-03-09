@@ -34,26 +34,29 @@ namespace v8 { namespace internal {
 
 
 template<typename T, class P>
-T& List<T, P>::Add(const T& element) {
-  if (length_ >= capacity_) {
+void List<T, P>::Add(const T& element) {
+  if (length_ < capacity_) {
+    data_[length_++] = element;
+  } else {
     // Grow the list capacity by 50%, but make sure to let it grow
     // even when the capacity is zero (possible initial case).
     int new_capacity = 1 + capacity_ + (capacity_ >> 1);
     T* new_data = NewData(new_capacity);
     memcpy(new_data, data_, capacity_ * sizeof(T));
+    // Since the element reference could be an element of the list,
+    // assign it to the new backing store before deleting the old.
+    new_data[length_++] = element;
     DeleteData(data_);
     data_ = new_data;
     capacity_ = new_capacity;
   }
-  return data_[length_++] = element;
 }
 
 
 template<typename T, class P>
-Vector<T> List<T, P>::AddBlock(const T& element, int count) {
+Vector<T> List<T, P>::AddBlock(T value, int count) {
   int start = length_;
-  for (int i = 0; i < count; i++)
-    Add(element);
+  for (int i = 0; i < count; i++) Add(value);
   return Vector<T>(&data_[start], count);
 }
 

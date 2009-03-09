@@ -182,13 +182,6 @@ class Top {
   // Generated code scratch locations.
   static void* formal_count_address() { return &thread_local_.formal_count_; }
 
-  static void new_break(StackFrame::Id break_frame_id);
-  static void set_break(StackFrame::Id break_frame_id, int break_id);
-  static bool check_break(int break_id);
-  static bool is_break();
-  static StackFrame::Id break_frame_id();
-  static int break_id();
-
   static void MarkCompactPrologue(bool is_compacting);
   static void MarkCompactEpilogue(bool is_compacting);
   static void MarkCompactPrologue(bool is_compacting,
@@ -304,15 +297,6 @@ class Top {
   // Mutex for serializing access to break control structures.
   static Mutex* break_access_;
 
-  // ID of the frame where execution is stopped by debugger.
-  static StackFrame::Id break_frame_id_;
-
-  // Counter to create unique id for each debug break.
-  static int break_count_;
-
-  // Current debug break, 0 if running.
-  static int break_id_;
-
   friend class SaveContext;
   friend class AssertNoContextChange;
   friend class ExecutionAccess;
@@ -326,12 +310,12 @@ class Top {
 // versions of GCC. See V8 issue 122 for details.
 class SaveContext BASE_EMBEDDED {
  public:
-  SaveContext() :
-      context_(Top::context()),
+  SaveContext()
+      : context_(Top::context()),
 #if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
-      dummy_(Top::context()),
+        dummy_(Top::context()),
 #endif
-      prev_(Top::save_context()) {
+        prev_(Top::save_context()) {
     Top::set_save_context(this);
 
     // If there is no JS frame under the current C frame, use the value 0.

@@ -4872,10 +4872,13 @@ const char* Code::ICState2String(InlineCacheState state) {
 }
 
 
-void Code::Disassemble() {
-  PrintF("kind = %s", Kind2String(kind()));
+void Code::Disassemble(const char* name) {
+  PrintF("kind = %s\n", Kind2String(kind()));
+  if ((name != NULL) && (name[0] != '\0')) {
+    PrintF("name = %s\n", name);
+  }
 
-  PrintF("\nInstructions (size = %d)\n", instruction_size());
+  PrintF("Instructions (size = %d)\n", instruction_size());
   Disassembler::Decode(NULL, this);
   PrintF("\n");
 
@@ -4953,20 +4956,6 @@ Object* JSArray::Initialize(int capacity) {
   }
   set_elements(new_elements);
   return this;
-}
-
-
-void JSArray::EnsureSize(int required_size) {
-  ASSERT(HasFastElements());
-  if (elements()->length() >= required_size) return;
-  Handle<FixedArray> old_backing(elements());
-  int old_size = old_backing->length();
-  // Doubling in size would be overkill, but leave some slack to avoid
-  // constantly growing.
-  int new_size = required_size + (required_size >> 3);
-  Handle<FixedArray> new_backing = Factory::NewFixedArray(new_size);
-  for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
-  SetContent(*new_backing);
 }
 
 

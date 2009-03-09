@@ -88,9 +88,8 @@ class Shell: public i::AllStatic {
   static int Main(int argc, char* argv[]);
   static Handle<Array> GetCompletions(Handle<String> text,
                                       Handle<String> full);
-  static Handle<String> DebugEventToText(Handle<String> event);
+  static Handle<Object> DebugMessageDetails(Handle<String> message);
   static Handle<Value> DebugCommandToJSONRequest(Handle<String> command);
-  static Handle<Object> DebugResponseDetails(Handle<String> response);
 
   static Handle<Value> Print(const Arguments& args);
   static Handle<Value> Quit(const Arguments& args);

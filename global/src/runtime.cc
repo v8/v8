@@ -131,14 +131,9 @@ static Handle<Map> ComputeObjectLiteralMap(
 }
 
 
-static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
-  HandleScope scope;
-  ASSERT(args.length() == 3);
-  // Copy the arguments.
-  Handle<FixedArray> literals = args.at<FixedArray>(0);
-  int literals_index = Smi::cast(args[1])->value();
-  Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
-
+static Handle<Object> CreateObjectLiteralBoilerplate(
+    Handle<FixedArray> literals,
+    Handle<FixedArray> constant_properties) {
   // Get the global context from the literals array.  This is the
   // context in which the function was created and we use the object
   // function from this context to create the object literal.  We do
@@ -161,6 +156,12 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
     for (int index = 0; index < length; index +=2) {
       Handle<Object> key(constant_properties->get(index+0));
       Handle<Object> value(constant_properties->get(index+1));
+      if (value->IsFixedArray()) {
+        // The value contains the constant_properties of a
+        // simple object literal.
+        Handle<FixedArray> array = Handle<FixedArray>::cast(value);
+        value = CreateObjectLiteralBoilerplate(literals, array);
+      }
       Handle<Object> result;
       uint32_t element_index = 0;
       if (key->IsSymbol()) {
@@ -185,14 +186,31 @@ static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
       // exception, the exception is converted to an empty handle in
       // the handle based operations.  In that case, we need to
       // convert back to an exception.
-      if (result.is_null()) return Failure::Exception();
+      if (result.is_null()) return result;
     }
   }
 
-  // Update the functions literal and return the boilerplate.
-  literals->set(literals_index, *boilerplate);
+  return boilerplate;
+}
 
-  return *boilerplate;
+
+static Object* Runtime_CreateObjectLiteralBoilerplate(Arguments args) {
+  HandleScope scope;
+  ASSERT(args.length() == 3);
+  // Copy the arguments.
+  Handle<FixedArray> literals = args.at<FixedArray>(0);
+  int literals_index = Smi::cast(args[1])->value();
+  Handle<FixedArray> constant_properties = args.at<FixedArray>(2);
+
+  Handle<Object> result =
+    CreateObjectLiteralBoilerplate(literals, constant_properties);
+
+  if (result.is_null()) return Failure::Exception();
+
+  // Update the functions literal and return the boilerplate.
+  literals->set(literals_index, *result);
+
+  return *result;
 }
 
 
@@ -851,21 +869,14 @@ static Object* Runtime_InitializeConstContextSlot(Arguments args) {
 
 static Object* Runtime_RegExpExec(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 4);
+  ASSERT(args.length() == 3);
   CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  // Due to the way the JS files are constructed this must be less than the
-  // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CONVERT_CHECKED(Smi, index, args[2]);
-  CONVERT_CHECKED(JSArray, raw_last_match_info, args[3]);
-  Handle<JSArray> last_match_info(raw_last_match_info);
-  CHECK(last_match_info->HasFastElements());
-  Handle<Object> result = RegExpImpl::Exec(regexp,
-                                           subject,
-                                           index->value(),
-                                           last_match_info);
+  Handle<Object> index(args[2]);
+  ASSERT(index->IsNumber());
+  Handle<Object> result = RegExpImpl::Exec(regexp, subject, index);
   if (result.is_null()) return Failure::Exception();
   return *result;
 }
@@ -873,16 +884,12 @@ static Object* Runtime_RegExpExec(Arguments args) {
 
 static Object* Runtime_RegExpExecGlobal(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSRegExp, raw_regexp, args[0]);
   Handle<JSRegExp> regexp(raw_regexp);
   CONVERT_CHECKED(String, raw_subject, args[1]);
   Handle<String> subject(raw_subject);
-  CONVERT_CHECKED(JSArray, raw_last_match_info, args[2]);
-  Handle<JSArray> last_match_info(raw_last_match_info);
-  CHECK(last_match_info->HasFastElements());
-  Handle<Object> result =
-      RegExpImpl::ExecGlobal(regexp, subject, last_match_info);
+  Handle<Object> result = RegExpImpl::ExecGlobal(regexp, subject);
   if (result.is_null()) return Failure::Exception();
   return *result;
 }
@@ -2161,16 +2168,22 @@ static Object* Runtime_GetArgumentsProperty(Arguments args) {
 
 static Object* Runtime_ToFastProperties(Arguments args) {
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
-  object->TransformToFastProperties(0);
+  Handle<Object> object = args.at<Object>(0);
+  if (object->IsJSObject()) {
+    Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+    js_object->TransformToFastProperties(0);
+  }
   return *object;
 }
 
 
 static Object* Runtime_ToSlowProperties(Arguments args) {
   ASSERT(args.length() == 1);
-  CONVERT_ARG_CHECKED(JSObject, object, 0);
-  object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+  Handle<Object> object = args.at<Object>(0);
+  if (object->IsJSObject()) {
+    Handle<JSObject> js_object = Handle<JSObject>::cast(object);
+    js_object->NormalizeProperties(CLEAR_INOBJECT_PROPERTIES);
+  }
   return *object;
 }
 
@@ -4949,7 +4962,7 @@ static Object* Runtime_CheckExecutionState(Arguments args) {
   ASSERT(args.length() >= 1);
   CONVERT_NUMBER_CHECKED(int, break_id, Int32, args[0]);
   // Check that the break id is valid.
-  if (Top::break_id() == 0 || break_id != Top::break_id()) {
+  if (Debug::break_id() == 0 || break_id != Debug::break_id()) {
     return Top::Throw(Heap::illegal_execution_state_symbol());
   }
 
@@ -4967,7 +4980,7 @@ static Object* Runtime_GetFrameCount(Arguments args) {
 
   // Count all frames which are relevant to debugging stack trace.
   int n = 0;
-  StackFrame::Id id = Top::break_frame_id();
+  StackFrame::Id id = Debug::break_frame_id();
   if (id == StackFrame::NO_ID) {
     // If there is no JavaScript stack frame count is 0.
     return Smi::FromInt(0);
@@ -5012,7 +5025,7 @@ static Object* Runtime_GetFrameDetails(Arguments args) {
   CONVERT_NUMBER_CHECKED(int, index, Int32, args[1]);
 
   // Find the relevant frame with the requested index.
-  StackFrame::Id id = Top::break_frame_id();
+  StackFrame::Id id = Debug::break_frame_id();
   if (id == StackFrame::NO_ID) {
     // If there are no JavaScript stack frames return undefined.
     return Heap::undefined_value();

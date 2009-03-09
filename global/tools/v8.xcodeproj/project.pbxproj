@@ -50,8 +50,10 @@
 		893CCE640E71D83700357A03 /* code-stubs.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1110E719B8F00D62E90 /* code-stubs.cc */; };
 		8944AD100F1D4D500028D560 /* regexp-stack.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */; };
 		8944AD110F1D4D570028D560 /* regexp-stack.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8944AD0E0F1D4D3A0028D560 /* regexp-stack.cc */; };
+		894599A30F5D8729008DA8FB /* debug-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8956B6CD0F5D86570033B5A2 /* debug-agent.cc */; };
 		89495E480E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
 		89495E490E79FC23001F68C3 /* compilation-cache.cc in Sources */ = {isa = PBXBuildFile; fileRef = 89495E460E79FC23001F68C3 /* compilation-cache.cc */; };
+		8956B6CF0F5D86730033B5A2 /* debug-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 8956B6CD0F5D86570033B5A2 /* debug-agent.cc */; };
 		896FD03A0E78D717003DFB6A /* libv8-arm.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 89F23C870E78D5B2006B2466 /* libv8-arm.a */; };
 		897F767F0E71B690007ACF34 /* shell.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1B50E719C0900D62E90 /* shell.cc */; };
 		897F76850E71B6B1007ACF34 /* libv8.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 8970F2F00E719FB2006AE7B5 /* libv8.a */; };
@@ -198,6 +200,8 @@
 		89F23C9E0E78D5FD006B2466 /* macro-assembler-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF1540E719B8F00D62E90 /* macro-assembler-arm.cc */; };
 		89F23C9F0E78D604006B2466 /* simulator-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF17D0E719B8F00D62E90 /* simulator-arm.cc */; };
 		89F23CA00E78D609006B2466 /* stub-cache-arm.cc in Sources */ = {isa = PBXBuildFile; fileRef = 897FF18A0E719B8F00D62E90 /* stub-cache-arm.cc */; };
+		9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
+		9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */ = {isa = PBXBuildFile; fileRef = 9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -284,6 +288,8 @@
 		89471C7F0EB23EE400B6874B /* flag-definitions.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "flag-definitions.h"; sourceTree = "<group>"; };
 		89495E460E79FC23001F68C3 /* compilation-cache.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "compilation-cache.cc"; sourceTree = "<group>"; };
 		89495E470E79FC23001F68C3 /* compilation-cache.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "compilation-cache.h"; sourceTree = "<group>"; };
+		8956B6CD0F5D86570033B5A2 /* debug-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "debug-agent.cc"; sourceTree = "<group>"; };
+		8956B6CE0F5D86570033B5A2 /* debug-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "debug-agent.h"; sourceTree = "<group>"; };
 		8964482B0E9C00F700E7C516 /* codegen-ia32.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "codegen-ia32.h"; sourceTree = "<group>"; };
 		896448BC0E9D530500E7C516 /* codegen-arm.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "codegen-arm.h"; sourceTree = "<group>"; };
 		8970F2F00E719FB2006AE7B5 /* libv8.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = libv8.a; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -505,6 +511,8 @@
 		89B12E8D0E7FF2A40080BA62 /* presubmit.py */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.script.python; path = presubmit.py; sourceTree = "<group>"; };
 		89F23C870E78D5B2006B2466 /* libv8-arm.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libv8-arm.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		89F23C950E78D5B6006B2466 /* v8_shell-arm */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "v8_shell-arm"; sourceTree = BUILT_PRODUCTS_DIR; };
+		9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = "oprofile-agent.cc"; sourceTree = "<group>"; };
+		9FC86ABC0F5FEDAC00F22668 /* oprofile-agent.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "oprofile-agent.h"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -652,6 +660,8 @@
 				898BD20D0EF6CC850068B00A /* debug-ia32.cc */,
 				897FF1280E719B8F00D62E90 /* debug.cc */,
 				897FF1290E719B8F00D62E90 /* debug.h */,
+				8956B6CD0F5D86570033B5A2 /* debug-agent.cc */,
+				8956B6CE0F5D86570033B5A2 /* debug-agent.h */,
 				897FF12A0E719B8F00D62E90 /* disasm-arm.cc */,
 				897FF12B0E719B8F00D62E90 /* disasm-ia32.cc */,
 				897FF12C0E719B8F00D62E90 /* disasm.h */,
@@ -717,6 +727,8 @@
 				897FF1610E719B8F00D62E90 /* objects-inl.h */,
 				897FF1620E719B8F00D62E90 /* objects.cc */,
 				897FF1630E719B8F00D62E90 /* objects.h */,
+				9FC86ABB0F5FEDAC00F22668 /* oprofile-agent.cc */,
+				9FC86ABC0F5FEDAC00F22668 /* oprofile-agent.h */,
 				897FF1640E719B8F00D62E90 /* parser.cc */,
 				897FF1650E719B8F00D62E90 /* parser.h */,
 				89A15C6D0EE466A900B48DEB /* platform-freebsd.cc */,
@@ -1078,6 +1090,7 @@
 				89A88DFC0E71A6460043BA31 /* counters.cc in Sources */,
 				89A88DFD0E71A6470043BA31 /* cpu-ia32.cc in Sources */,
 				89A88DFE0E71A6480043BA31 /* dateparser.cc in Sources */,
+				8956B6CF0F5D86730033B5A2 /* debug-agent.cc in Sources */,
 				898BD20E0EF6CC930068B00A /* debug-ia32.cc in Sources */,
 				89A88DFF0E71A6530043BA31 /* debug.cc in Sources */,
 				89A88E000E71A6540043BA31 /* disasm-ia32.cc in Sources */,
@@ -1140,6 +1153,7 @@
 				58950D660F5551C200F3E8BA /* virtual-frame.cc in Sources */,
 				58950D670F5551C400F3E8BA /* virtual-frame-ia32.cc in Sources */,
 				89A88E2E0E71A6D60043BA31 /* zone.cc in Sources */,
+				9FC86ABD0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1175,6 +1189,7 @@
 				89F23C4F0E78D5B2006B2466 /* counters.cc in Sources */,
 				89F23C9A0E78D5EC006B2466 /* cpu-arm.cc in Sources */,
 				89F23C510E78D5B2006B2466 /* dateparser.cc in Sources */,
+				894599A30F5D8729008DA8FB /* debug-agent.cc in Sources */,
 				898BD20F0EF6CC9A0068B00A /* debug-arm.cc in Sources */,
 				89F23C520E78D5B2006B2466 /* debug.cc in Sources */,
 				89F23C9B0E78D5EE006B2466 /* disasm-arm.cc in Sources */,
@@ -1238,6 +1253,7 @@
 				58950D680F5551CB00F3E8BA /* virtual-frame.cc in Sources */,
 				58950D690F5551CE00F3E8BA /* virtual-frame-arm.cc in Sources */,
 				89F23C820E78D5B2006B2466 /* zone.cc in Sources */,
+				9FC86ABE0F5FEDAC00F22668 /* oprofile-agent.cc in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -100,7 +100,7 @@ Object* StubCache::ComputeLoadField(String* name,
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
-    code = compiler.CompileLoadField(receiver, holder, field_index);
+    code = compiler.CompileLoadField(receiver, holder, field_index, name);
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent("LoadIC", Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
@@ -119,7 +119,7 @@ Object* StubCache::ComputeLoadCallback(String* name,
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
-    code = compiler.CompileLoadCallback(receiver, holder, callback);
+    code = compiler.CompileLoadCallback(receiver, holder, callback, name);
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent("LoadIC", Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
@@ -138,7 +138,7 @@ Object* StubCache::ComputeLoadConstant(String* name,
   Object* code = receiver->map()->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     LoadStubCompiler compiler;
-    code = compiler.CompileLoadConstant(receiver, holder, value);
+    code = compiler.CompileLoadConstant(receiver, holder, value, name);
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent("LoadIC", Code::cast(code), name));
     Object* result = receiver->map()->UpdateCodeCache(name, Code::cast(code));
@@ -434,7 +434,7 @@ Object* StubCache::ComputeCallField(int argc,
   Object* code = map->FindInCodeCache(name, flags);
   if (code->IsUndefined()) {
     CallStubCompiler compiler(argc);
-    code = compiler.CompileCallField(object, holder, index);
+    code = compiler.CompileCallField(object, holder, index, name);
     if (code->IsFailure()) return code;
     LOG(CodeCreateEvent("CallIC", Code::cast(code), name));
     Object* result = map->UpdateCodeCache(name, Code::cast(code));
@@ -788,7 +788,7 @@ Object* StubCompiler::CompileCallInitialize(Code::Flags flags) {
   HandleScope scope;
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   CallIC::GenerateInitialize(masm(), argc);
-  Object* result = GetCodeWithFlags(flags);
+  Object* result = GetCodeWithFlags(flags, "CompileCallInitialize");
   if (!result->IsFailure()) {
     Counters::call_initialize_stubs.Increment();
     Code* code = Code::cast(result);
@@ -803,7 +803,7 @@ Object* StubCompiler::CompileCallPreMonomorphic(Code::Flags flags) {
   HandleScope scope;
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   CallIC::GenerateInitialize(masm(), argc);
-  Object* result = GetCodeWithFlags(flags);
+  Object* result = GetCodeWithFlags(flags, "CompileCallPreMonomorphic");
   if (!result->IsFailure()) {
     Counters::call_premonomorphic_stubs.Increment();
     Code* code = Code::cast(result);
@@ -818,7 +818,7 @@ Object* StubCompiler::CompileCallNormal(Code::Flags flags) {
   HandleScope scope;
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   CallIC::GenerateNormal(masm(), argc);
-  Object* result = GetCodeWithFlags(flags);
+  Object* result = GetCodeWithFlags(flags, "CompileCallNormal");
   if (!result->IsFailure()) {
     Counters::call_normal_stubs.Increment();
     Code* code = Code::cast(result);
@@ -833,7 +833,7 @@ Object* StubCompiler::CompileCallMegamorphic(Code::Flags flags) {
   HandleScope scope;
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   CallIC::GenerateMegamorphic(masm(), argc);
-  Object* result = GetCodeWithFlags(flags);
+  Object* result = GetCodeWithFlags(flags, "CompileCallMegamorphic");
   if (!result->IsFailure()) {
     Counters::call_megamorphic_stubs.Increment();
     Code* code = Code::cast(result);
@@ -848,7 +848,7 @@ Object* StubCompiler::CompileCallMiss(Code::Flags flags) {
   HandleScope scope;
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   CallIC::GenerateMiss(masm(), argc);
-  Object* result = GetCodeWithFlags(flags);
+  Object* result = GetCodeWithFlags(flags, "CompileCallMiss");
   if (!result->IsFailure()) {
     Counters::call_megamorphic_stubs.Increment();
     Code* code = Code::cast(result);
@@ -862,7 +862,7 @@ Object* StubCompiler::CompileCallMiss(Code::Flags flags) {
 Object* StubCompiler::CompileCallDebugBreak(Code::Flags flags) {
   HandleScope scope;
   Debug::GenerateCallICDebugBreak(masm());
-  Object* result = GetCodeWithFlags(flags);
+  Object* result = GetCodeWithFlags(flags, "CompileCallDebugBreak");
   if (!result->IsFailure()) {
     Code* code = Code::cast(result);
     USE(code);
@@ -878,7 +878,7 @@ Object* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
   // the miss case.
   int argc = Code::ExtractArgumentsCountFromFlags(flags);
   CallIC::GenerateMiss(masm(), argc);
-  Object* result = GetCodeWithFlags(flags);
+  Object* result = GetCodeWithFlags(flags, "CompileCallDebugPrepareStepIn");
   if (!result->IsFailure()) {
     Code* code = Code::cast(result);
     USE(code);
@@ -889,45 +889,55 @@ Object* StubCompiler::CompileCallDebugPrepareStepIn(Code::Flags flags) {
 }
 
 
-Object* StubCompiler::GetCodeWithFlags(Code::Flags flags) {
+Object* StubCompiler::GetCodeWithFlags(Code::Flags flags, const char* name) {
   CodeDesc desc;
   masm_.GetCode(&desc);
   Object* result = Heap::CreateCode(desc, NULL, flags, masm_.CodeObject());
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs && !result->IsFailure()) {
-    Code::cast(result)->Print();
+    Code::cast(result)->Disassemble(name);
   }
 #endif
   return result;
 }
 
 
-Object* LoadStubCompiler::GetCode(PropertyType type) {
-  return GetCodeWithFlags(Code::ComputeMonomorphicFlags(Code::LOAD_IC, type));
+Object* StubCompiler::GetCodeWithFlags(Code::Flags flags, String* name) {
+  if (FLAG_print_code_stubs && (name != NULL)) {
+    return GetCodeWithFlags(flags, *name->ToCString());
+  }
+  return GetCodeWithFlags(flags, reinterpret_cast<char*>(NULL));
 }
 
 
-Object* KeyedLoadStubCompiler::GetCode(PropertyType type) {
-  return GetCodeWithFlags(Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC,
-                                                        type));
+Object* LoadStubCompiler::GetCode(PropertyType type, String* name) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, type);
+  return GetCodeWithFlags(flags, name);
 }
 
 
-Object* StoreStubCompiler::GetCode(PropertyType type) {
-  return GetCodeWithFlags(Code::ComputeMonomorphicFlags(Code::STORE_IC, type));
+Object* KeyedLoadStubCompiler::GetCode(PropertyType type, String* name) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_LOAD_IC, type);
+  return GetCodeWithFlags(flags, name);
 }
 
 
-Object* KeyedStoreStubCompiler::GetCode(PropertyType type) {
-  return GetCodeWithFlags(Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC,
-                                                        type));
+Object* StoreStubCompiler::GetCode(PropertyType type, String* name) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, type);
+  return GetCodeWithFlags(flags, name);
 }
 
 
-Object* CallStubCompiler::GetCode(PropertyType type) {
+Object* KeyedStoreStubCompiler::GetCode(PropertyType type, String* name) {
+  Code::Flags flags = Code::ComputeMonomorphicFlags(Code::KEYED_STORE_IC, type);
+  return GetCodeWithFlags(flags, name);
+}
+
+
+Object* CallStubCompiler::GetCode(PropertyType type, String* name) {
   int argc = arguments_.immediate();
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::CALL_IC, type, argc);
-  return GetCodeWithFlags(flags);
+  return GetCodeWithFlags(flags, name);
 }
 
 

@@ -256,14 +256,12 @@ Handle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
 
 Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
                                 Handle<String> subject,
-                                int index,
-                                Handle<JSArray> last_match_info) {
+                                Handle<Object> index) {
   switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
-      return AtomExec(regexp, subject, index, last_match_info);
+      return AtomExec(regexp, subject, index);
     case JSRegExp::IRREGEXP: {
-      Handle<Object> result =
-          IrregexpExec(regexp, subject, index, last_match_info);
+      Handle<Object> result = IrregexpExec(regexp, subject, index);
       ASSERT(!result.is_null() || Top::has_pending_exception());
       return result;
     }
@@ -275,14 +273,12 @@ Handle<Object> RegExpImpl::Exec(Handle<JSRegExp> regexp,
 
 
 Handle<Object> RegExpImpl::ExecGlobal(Handle<JSRegExp> regexp,
-                                Handle<String> subject,
-                                Handle<JSArray> last_match_info) {
+                                Handle<String> subject) {
   switch (regexp->TypeTag()) {
     case JSRegExp::ATOM:
-      return AtomExecGlobal(regexp, subject, last_match_info);
+      return AtomExecGlobal(regexp, subject);
     case JSRegExp::IRREGEXP: {
-      Handle<Object> result =
-          IrregexpExecGlobal(regexp, subject, last_match_info);
+      Handle<Object> result = IrregexpExecGlobal(regexp, subject);
       ASSERT(!result.is_null() || Top::has_pending_exception());
       return result;
     }
@@ -305,79 +301,51 @@ Handle<Object> RegExpImpl::AtomCompile(Handle<JSRegExp> re,
 }
 
 
-static void SetAtomLastCapture(FixedArray* array,
-                               String* subject,
-                               int from,
-                               int to) {
-  RegExpImpl::SetLastCaptureCount(array, 2);
-  RegExpImpl::SetLastSubject(array, subject);
-  RegExpImpl::SetLastInput(array, subject);
-  RegExpImpl::SetCapture(array, 0, from);
-  RegExpImpl::SetCapture(array, 1, to);
-}
-
-
 Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                     Handle<String> subject,
-                                    int index,
-                                    Handle<JSArray> last_match_info) {
+                                    Handle<Object> index) {
   Handle<String> needle(String::cast(re->DataAt(JSRegExp::kAtomPatternIndex)));
 
-  uint32_t start_index = index;
+  uint32_t start_index;
+  if (!Array::IndexFromObject(*index, &start_index)) {
+    return Handle<Smi>(Smi::FromInt(-1));
+  }
 
   int value = Runtime::StringMatch(subject, needle, start_index);
   if (value == -1) return Factory::null_value();
-  ASSERT(last_match_info->HasFastElements());
 
-  Handle<FixedArray> array(last_match_info->elements());
-  SetAtomLastCapture(*array, *subject, value, value + needle->length());
-  return last_match_info;
+  Handle<FixedArray> array = Factory::NewFixedArray(2);
+  array->set(0, Smi::FromInt(value));
+  array->set(1, Smi::FromInt(value + needle->length()));
+  return Factory::NewJSArrayWithElements(array);
 }
 
 
 Handle<Object> RegExpImpl::AtomExecGlobal(Handle<JSRegExp> re,
-                                          Handle<String> subject,
-                                          Handle<JSArray> last_match_info) {
+                                          Handle<String> subject) {
   Handle<String> needle(String::cast(re->DataAt(JSRegExp::kAtomPatternIndex)));
-  ASSERT(last_match_info->HasFastElements());
   Handle<JSArray> result = Factory::NewJSArray(1);
   int index = 0;
   int match_count = 0;
   int subject_length = subject->length();
   int needle_length = needle->length();
-  int last_value = -1;
   while (true) {
-    HandleScope scope;
     int value = -1;
     if (index + needle_length <= subject_length) {
       value = Runtime::StringMatch(subject, needle, index);
     }
-    if (value == -1) {
-      if (last_value != -1) {
-        Handle<FixedArray> array(last_match_info->elements());
-        SetAtomLastCapture(*array,
-                           *subject,
-                           last_value,
-                           last_value + needle->length());
-      }
-      break;
-    }
-
+    if (value == -1) break;
+    HandleScope scope;
     int end = value + needle_length;
 
-    // Create an array that looks like the static last_match_info array
-    // that is attached to the global RegExp object.  We will be returning
-    // an array of these.
-    Handle<FixedArray> array = Factory::NewFixedArray(kFirstCapture + 2);
-    SetCapture(*array, 0, value);
-    SetCapture(*array, 1, end);
-    SetLastCaptureCount(*array, 2);
+    Handle<FixedArray> array = Factory::NewFixedArray(2);
+    array->set(0, Smi::FromInt(value));
+    array->set(1, Smi::FromInt(end));
     Handle<JSArray> pair = Factory::NewJSArrayWithElements(array);
     SetElement(result, match_count, pair);
     match_count++;
     index = end;
     if (needle_length == 0) index++;
-    last_value = value;
   }
   return result;
 }
@@ -477,8 +445,7 @@ Handle<Object>RegExpImpl::IrregexpPrepare(Handle<JSRegExp> re,
 
 Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
                                         Handle<String> subject,
-                                        int index,
-                                        Handle<JSArray> last_match_info) {
+                                        Handle<Object> index) {
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
   ASSERT(regexp->DataAt(JSRegExp::kIrregexpDataIndex)->IsFixedArray());
 
@@ -490,11 +457,12 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
   }
 
   // Prepare space for the return values.
-  int number_of_capture_registers =
-      (IrregexpNumberOfCaptures(irregexp) + 1) * 2;
-  OffsetsVector offsets(number_of_capture_registers);
+  int number_of_registers = IrregexpNumberOfRegisters(irregexp);
+  OffsetsVector offsets(number_of_registers);
 
-  int previous_index = index;
+  int num_captures = IrregexpNumberOfCaptures(irregexp);
+
+  int previous_index = static_cast<int>(DoubleToInteger(index->Number()));
 
 #ifdef DEBUG
   if (FLAG_trace_regexp_bytecodes) {
@@ -508,11 +476,8 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
     FlattenString(subject);
   }
 
-  last_match_info->EnsureSize(number_of_capture_registers + kLastMatchOverhead);
-
   return IrregexpExecOnce(irregexp,
-                          number_of_capture_registers,
-                          last_match_info,
+                          num_captures,
                           subject,
                           previous_index,
                           offsets.vector(),
@@ -521,8 +486,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> regexp,
 
 
 Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
-                                              Handle<String> subject,
-                                              Handle<JSArray> last_match_info) {
+                                              Handle<String> subject) {
   ASSERT_EQ(regexp->TypeTag(), JSRegExp::IRREGEXP);
 
   bool is_ascii = StringShape(*subject).IsAsciiRepresentation();
@@ -532,21 +496,18 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
   }
 
   // Prepare space for the return values.
-  int number_of_capture_registers =
-      (IrregexpNumberOfCaptures(irregexp) + 1) * 2;
-  OffsetsVector offsets(number_of_capture_registers);
+  int number_of_registers = IrregexpNumberOfRegisters(irregexp);
+  OffsetsVector offsets(number_of_registers);
 
   int previous_index = 0;
 
   Handle<JSArray> result = Factory::NewJSArray(0);
-  int result_length = 0;
+  int i = 0;
   Handle<Object> matches;
 
   if (!subject->IsFlat(StringShape(*subject))) {
     FlattenString(subject);
   }
-
-  last_match_info->EnsureSize(number_of_capture_registers + kLastMatchOverhead);
 
   while (true) {
     if (previous_index > subject->length() || previous_index < 0) {
@@ -562,10 +523,8 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
         PrintF("\n\nSubject string: '%s'\n\n", *(subject->ToCString()));
       }
 #endif
-      HandleScope scope;
       matches = IrregexpExecOnce(irregexp,
-                                 number_of_capture_registers,
-                                 last_match_info,
+                                 IrregexpNumberOfCaptures(irregexp),
                                  subject,
                                  previous_index,
                                  offsets.vector(),
@@ -577,25 +536,12 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
       }
 
       if (matches->IsJSArray()) {
-        // Create an array that looks like the static last_match_info array
-        // that is attached to the global RegExp object.  We will be returning
-        // an array of these.
-        Handle<FixedArray> matches_array(JSArray::cast(*matches)->elements());
-        Handle<JSArray> latest_match =
-            Factory::NewJSArray(kFirstCapture + number_of_capture_registers);
-        Handle<FixedArray> latest_match_array(latest_match->elements());
-
-        for (int i = 0; i < number_of_capture_registers; i++) {
-          SetCapture(*latest_match_array, i, GetCapture(*matches_array, i));
-        }
-        SetLastCaptureCount(*latest_match_array, number_of_capture_registers);
-
-        SetElement(result, result_length, latest_match);
-        result_length++;
-        previous_index = GetCapture(*matches_array, 1);
-        if (GetCapture(*matches_array, 0) == previous_index)
+        SetElement(result, i, matches);
+        i++;
+        previous_index = offsets.vector()[1];
+        if (offsets.vector()[0] == offsets.vector()[1]) {
           previous_index++;
-
+        }
       } else {
         ASSERT(matches->IsNull());
         return result;
@@ -606,8 +552,7 @@ Handle<Object> RegExpImpl::IrregexpExecGlobal(Handle<JSRegExp> regexp,
 
 
 Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
-                                            int number_of_capture_registers,
-                                            Handle<JSArray> last_match_info,
+                                            int num_captures,
                                             Handle<String> subject,
                                             int previous_index,
                                             int* offsets_vector,
@@ -697,7 +642,7 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
 #endif
     }
     case RegExpMacroAssembler::kBytecodeImplementation: {
-      for (int i = number_of_capture_registers - 1; i >= 0; i--) {
+      for (int i = (num_captures + 1) * 2 - 1; i >= 0; i--) {
         offsets_vector[i] = -1;
       }
       Handle<ByteArray> byte_codes = IrregexpByteCode(irregexp);
@@ -719,16 +664,13 @@ Handle<Object> RegExpImpl::IrregexpExecOnce(Handle<FixedArray> irregexp,
     return Factory::null_value();
   }
 
-  Handle<FixedArray> array(last_match_info->elements());
+  Handle<FixedArray> array = Factory::NewFixedArray(2 * (num_captures+1));
   // The captures come in (start, end+1) pairs.
-  for (int i = 0; i < number_of_capture_registers; i += 2) {
-    SetCapture(*array, i, offsets_vector[i]);
-    SetCapture(*array, i + 1, offsets_vector[i + 1]);
+  for (int i = 0; i < 2 * (num_captures + 1); i += 2) {
+    array->set(i, Smi::FromInt(offsets_vector[i]));
+    array->set(i + 1, Smi::FromInt(offsets_vector[i + 1]));
   }
-  SetLastCaptureCount(*array, number_of_capture_registers);
-  SetLastSubject(*array, *subject);
-  SetLastInput(*array, *subject);
-  return last_match_info;
+  return Factory::NewJSArrayWithElements(array);
 }
 
 
@@ -3781,6 +3723,9 @@ RegExpNode* RegExpQuantifier::ToNode(int min,
   //               |
   //   [if r >= f] \----> ...
   //
+  //
+  // TODO(someone): clear captures on repetition and handle empty
+  //   matches.
 
   // 15.10.2.5 RepeatMatcher algorithm.
   // The parser has already eliminated the case where max is 0.  In the case

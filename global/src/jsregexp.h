@@ -59,15 +59,13 @@ class RegExpImpl {
   // This function calls the garbage collector if necessary.
   static Handle<Object> Exec(Handle<JSRegExp> regexp,
                              Handle<String> subject,
-                             int index,
-                             Handle<JSArray> lastMatchInfo);
+                             Handle<Object> index);
 
   // Call RegExp.prototyp.exec(string) in a loop.
   // Used by String.prototype.match and String.prototype.replace.
   // This function calls the garbage collector if necessary.
   static Handle<Object> ExecGlobal(Handle<JSRegExp> regexp,
-                                   Handle<String> subject,
-                                   Handle<JSArray> lastMatchInfo);
+                                   Handle<String> subject);
 
   // Prepares a JSRegExp object with Irregexp-specific data.
   static Handle<Object> IrregexpPrepare(Handle<JSRegExp> re,
@@ -81,22 +79,18 @@ class RegExpImpl {
                                     Handle<String> match_pattern);
   static Handle<Object> AtomExec(Handle<JSRegExp> regexp,
                                  Handle<String> subject,
-                                 int index,
-                                 Handle<JSArray> lastMatchInfo);
+                                 Handle<Object> index);
 
   static Handle<Object> AtomExecGlobal(Handle<JSRegExp> regexp,
-                                       Handle<String> subject,
-                                       Handle<JSArray> lastMatchInfo);
+                                       Handle<String> subject);
 
   // Execute an Irregexp bytecode pattern.
   static Handle<Object> IrregexpExec(Handle<JSRegExp> regexp,
                                      Handle<String> subject,
-                                     int index,
-                                     Handle<JSArray> lastMatchInfo);
+                                     Handle<Object> index);
 
   static Handle<Object> IrregexpExecGlobal(Handle<JSRegExp> regexp,
-                                           Handle<String> subject,
-                                           Handle<JSArray> lastMatchInfo);
+                                           Handle<String> subject);
 
   static void NewSpaceCollectionPrologue();
   static void OldSpaceCollectionPrologue();
@@ -113,30 +107,6 @@ class RegExpImpl {
   static const int kIrregexpCodeIndex = 3;
   static const int kIrregexpDataLength = 4;
 
-  // Offsets in the lastMatchInfo array.
-  static const int kLastCaptureCount = 0;
-  static const int kLastSubject = 1;
-  static const int kLastInput = 2;
-  static const int kFirstCapture = 1;
-  static const int kLastMatchOverhead = 3;
-  static int GetCapture(FixedArray* array, int index) {
-    return Smi::cast(array->get(index + kFirstCapture))->value();
-  }
-  static void SetLastCaptureCount(FixedArray* array, int to) {
-    array->set(kLastCaptureCount, Smi::FromInt(to));
-  }
-  static void SetLastSubject(FixedArray* array, String* to) {
-    int capture_count = GetLastCaptureCount(array);
-    array->set(capture_count + kLastSubject, to);
-  }
-  static void SetLastInput(FixedArray* array, String* to) {
-    int capture_count = GetLastCaptureCount(array);
-    array->set(capture_count + kLastInput, to);
-  }
-  static void SetCapture(FixedArray* array, int index, int to) {
-    array->set(index + kFirstCapture, Smi::FromInt(to));
-  }
-
  private:
   static String* last_ascii_string_;
   static String* two_byte_cached_string_;
@@ -151,7 +121,6 @@ class RegExpImpl {
   // Returns an empty handle in case of an exception.
   static Handle<Object> IrregexpExecOnce(Handle<FixedArray> regexp,
                                          int num_captures,
-                                         Handle<JSArray> lastMatchInfo,
                                          Handle<String> subject16,
                                          int previous_index,
                                          int* ovector,
@@ -165,10 +134,6 @@ class RegExpImpl {
                               int character_position,
                               int utf8_position);
 
-  // Used to access the lastMatchInfo array.
-  static int GetLastCaptureCount(FixedArray* array) {
-    return Smi::cast(array->get(kLastCaptureCount))->value();
-  }
   // A one element cache of the last utf8_subject string and its length.  The
   // subject JS String object is cached in the heap.  We also cache a
   // translation between position and utf8 position.

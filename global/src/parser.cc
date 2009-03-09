@@ -158,10 +158,13 @@ class Parser {
 
   // Decide if a property should be the object boilerplate.
   bool IsBoilerplateProperty(ObjectLiteral::Property* property);
-  // If the property is CONSTANT type, it returns the literal value,
-  // otherwise, it return undefined literal as the placeholder
+  // If the property is CONSTANT type, return the literal value;
+  // if the property is OBJECT_LITERAL and the object literal is
+  // simple return a fixed array containing the keys and values of the
+  // object literal.
+  // Otherwise, return undefined literal as the placeholder
   // in the object literal boilerplate.
-  Literal* GetBoilerplateValue(ObjectLiteral::Property* property);
+  Handle<Object> GetBoilerplateValue(ObjectLiteral::Property* property);
 
   enum FunctionLiteralType {
     EXPRESSION,
@@ -3083,10 +3086,16 @@ bool Parser::IsBoilerplateProperty(ObjectLiteral::Property* property) {
 }
 
 
-Literal* Parser::GetBoilerplateValue(ObjectLiteral::Property* property) {
+Handle<Object> Parser::GetBoilerplateValue(ObjectLiteral::Property* property) {
   if (property->kind() == ObjectLiteral::Property::CONSTANT)
-    return property->value()->AsLiteral();
-  return GetLiteralUndefined();
+    return property->value()->AsLiteral()->handle();
+  if (property->kind() == ObjectLiteral::Property::OBJECT_LITERAL) {
+    ObjectLiteral* object_literal = property->value()->AsObjectLiteral();
+    if (object_literal->is_simple()) {
+      return object_literal->constant_properties();
+    }
+  }
+  return Factory::undefined_value();
 }
 
 
@@ -3181,24 +3190,30 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   Handle<FixedArray> constant_properties =
       Factory::NewFixedArray(number_of_boilerplate_properties * 2, TENURED);
   int position = 0;
+  bool is_simple = true;
   for (int i = 0; i < properties.length(); i++) {
     ObjectLiteral::Property* property = properties.at(i);
-    if (!IsBoilerplateProperty(property)) continue;
+    if (!IsBoilerplateProperty(property)) {
+      is_simple = false;
+      continue;
+    }
 
     // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
     // value for COMPUTED properties, the real value is filled in at
     // runtime. The enumeration order is maintained.
     Handle<Object> key = property->key()->handle();
-    Literal* literal = GetBoilerplateValue(property);
+    Handle<Object> value = GetBoilerplateValue(property);
+    is_simple = is_simple && !value->IsUndefined();
 
     // Add name, value pair to the fixed array.
     constant_properties->set(position++, *key);
-    constant_properties->set(position++, *literal->handle());
+    constant_properties->set(position++, *value);
   }
 
   return new ObjectLiteral(constant_properties,
                            properties.elements(),
-                           literal_index);
+                           literal_index,
+                           is_simple);
 }
 
 
@@ -3606,7 +3621,7 @@ RegExpParser::RegExpParser(FlatStringReader* in,
     next_pos_(0),
     in_(in),
     error_(error),
-    simple_(true),
+    simple_(false),
     contains_anchor_(false),
     captures_(NULL),
     is_scanned_for_captures_(false),
@@ -3675,6 +3690,11 @@ RegExpTree* RegExpParser::ParsePattern() {
   RegExpTree* result = ParseDisjunction(CHECK_FAILED);
   if (has_more()) {
     ReportError(CStrVector("Unmatched ')'") CHECK_FAILED);
+  }
+  // If the result of parsing is a literal string atom, and it has the
+  // same length as the input, then the atom is identical to the input.
+  if (result->IsAtom() && result->AsAtom()->length() == in()->length()) {
+    simple_ = true;
   }
   return result;
 }
@@ -3875,7 +3895,6 @@ RegExpTree* RegExpParser::ParseDisjunction() {
         Advance(2);
         break;
       }
-      simple_ = false;
       break;
     case '{': {
       int dummy;
@@ -3932,7 +3951,6 @@ RegExpTree* RegExpParser::ParseDisjunction() {
       is_greedy = false;
       Advance();
     }
-    simple_ = false;  // Adding quantifier might *remove* look-ahead.
     builder.AddQuantifierToAtom(min, max, is_greedy);
   }
 }

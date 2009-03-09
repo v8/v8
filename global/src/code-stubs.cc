@@ -68,10 +68,12 @@ Handle<Code> CodeStub::GetCode() {
     LOG(CodeCreateEvent("Stub", *code, GetName()));
     Counters::total_stubs_code_size.Increment(code->instruction_size());
 
-#ifdef DEBUG
+#ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code_stubs) {
+#ifdef DEBUG
       Print();
-      code->Print();
+#endif
+      code->Disassemble(GetName());
       PrintF("\n");
     }
 #endif

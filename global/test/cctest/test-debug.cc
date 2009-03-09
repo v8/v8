@@ -511,7 +511,7 @@ static void DebugEventBreakPointHitCount(v8::DebugEvent event,
                                          v8::Handle<v8::Object> event_data,
                                          v8::Handle<v8::Value> data) {
   // When hitting a debug event listener there must be a break set.
-  CHECK(v8::internal::Top::is_break());
+  CHECK_NE(v8::internal::Debug::break_id(), 0);
 
   // Count the number of breaks.
   if (event == v8::Break) {
@@ -551,7 +551,7 @@ static void DebugEventCounter(v8::DebugEvent event,
                               v8::Handle<v8::Object> event_data,
                               v8::Handle<v8::Value> data) {
   // When hitting a debug event listener there must be a break set.
-  CHECK(v8::internal::Top::is_break());
+  CHECK_NE(v8::internal::Debug::break_id(), 0);
 
   // Count the number of breaks.
   if (event == v8::Break) {
@@ -609,7 +609,7 @@ static void DebugEventEvaluate(v8::DebugEvent event,
                                v8::Handle<v8::Object> event_data,
                                v8::Handle<v8::Value> data) {
   // When hitting a debug event listener there must be a break set.
-  CHECK(v8::internal::Top::is_break());
+  CHECK_NE(v8::internal::Debug::break_id(), 0);
 
   if (event == v8::Break) {
     for (int i = 0; checks[i].expr != NULL; i++) {
@@ -635,7 +635,7 @@ static void DebugEventRemoveBreakPoint(v8::DebugEvent event,
                                        v8::Handle<v8::Object> event_data,
                                        v8::Handle<v8::Value> data) {
   // When hitting a debug event listener there must be a break set.
-  CHECK(v8::internal::Top::is_break());
+  CHECK_NE(v8::internal::Debug::break_id(), 0);
 
   if (event == v8::Break) {
     break_point_hit_count++;
@@ -653,7 +653,7 @@ static void DebugEventStep(v8::DebugEvent event,
                            v8::Handle<v8::Object> event_data,
                            v8::Handle<v8::Value> data) {
   // When hitting a debug event listener there must be a break set.
-  CHECK(v8::internal::Top::is_break());
+  CHECK_NE(v8::internal::Debug::break_id(), 0);
 
   if (event == v8::Break) {
     break_point_hit_count++;
@@ -679,7 +679,7 @@ static void DebugEventStepSequence(v8::DebugEvent event,
                                    v8::Handle<v8::Object> event_data,
                                    v8::Handle<v8::Value> data) {
   // When hitting a debug event listener there must be a break set.
-  CHECK(v8::internal::Top::is_break());
+  CHECK_NE(v8::internal::Debug::break_id(), 0);
 
   if (event == v8::Break || event == v8::Exception) {
     // Check that the current function is the expected.
@@ -709,7 +709,7 @@ static void DebugEventBreakPointCollectGarbage(
     v8::Handle<v8::Object> event_data,
     v8::Handle<v8::Value> data) {
   // When hitting a debug event listener there must be a break set.
-  CHECK(v8::internal::Top::is_break());
+  CHECK_NE(v8::internal::Debug::break_id(), 0);
 
   // Perform a garbage collection when break point is hit and continue. Based
   // on the number of break points hit either scavenge or mark compact
@@ -734,7 +734,7 @@ static void DebugEventBreak(v8::DebugEvent event,
                             v8::Handle<v8::Object> event_data,
                             v8::Handle<v8::Value> data) {
   // When hitting a debug event listener there must be a break set.
-  CHECK(v8::internal::Top::is_break());
+  CHECK_NE(v8::internal::Debug::break_id(), 0);
 
   if (event == v8::Break) {
     // Count the number of breaks.
@@ -3695,4 +3695,3 @@ TEST(DebuggerHostDispatch) {
   // The host dispatch callback should be called.
   CHECK_EQ(1, host_dispatch_hit_count);
 }
-

@@ -38,9 +38,6 @@ namespace v8 { namespace internal {
 
 ThreadLocalTop Top::thread_local_;
 Mutex* Top::break_access_ = OS::CreateMutex();
-StackFrame::Id Top::break_frame_id_;
-int Top::break_count_;
-int Top::break_id_;
 
 NoAllocationStringAllocator* preallocated_message_space = NULL;
 
@@ -222,10 +219,6 @@ void Top::Initialize() {
 
   InitializeThreadLocal();
 
-  break_frame_id_ = StackFrame::NO_ID;
-  break_count_ = 0;
-  break_id_ = 0;
-
   // Only preallocate on the first initialization.
   if (FLAG_preallocate_message_memory && (preallocated_message_space == NULL)) {
     // Start the thread which will set aside some memory.
@@ -292,44 +285,6 @@ void Top::RegisterTryCatchHandler(v8::TryCatch* that) {
 void Top::UnregisterTryCatchHandler(v8::TryCatch* that) {
   ASSERT(thread_local_.try_catch_handler_ == that);
   thread_local_.try_catch_handler_ = that->next_;
-}
-
-
-void Top::new_break(StackFrame::Id break_frame_id) {
-  ExecutionAccess access;
-  break_frame_id_ = break_frame_id;
-  break_id_ = ++break_count_;
-}
-
-
-void Top::set_break(StackFrame::Id break_frame_id, int break_id) {
-  ExecutionAccess access;
-  break_frame_id_ = break_frame_id;
-  break_id_ = break_id;
-}
-
-
-bool Top::check_break(int break_id) {
-  ExecutionAccess access;
-  return break_id == break_id_;
-}
-
-
-bool Top::is_break() {
-  ExecutionAccess access;
-  return break_id_ != 0;
-}
-
-
-StackFrame::Id Top::break_frame_id() {
-  ExecutionAccess access;
-  return break_frame_id_;
-}
-
-
-int Top::break_id() {
-  ExecutionAccess access;
-  return break_id_;
 }
 
 
@@ -666,26 +621,6 @@ Object* Top::PromoteScheduledException() {
   // Re-throw the exception to avoid getting repeated error reporting.
   return ReThrow(thrown);
 }
-
-
-// NOTE: The stack trace frame iterator is an iterator that only
-// traverse proper JavaScript frames; that is JavaScript frames that
-// have proper JavaScript functions. This excludes the problematic
-// functions in runtime.js.
-class StackTraceFrameIterator: public JavaScriptFrameIterator {
- public:
-  StackTraceFrameIterator() {
-    if (!done() && !frame()->function()->IsJSFunction()) Advance();
-  }
-
-  void Advance() {
-    while (true) {
-      JavaScriptFrameIterator::Advance();
-      if (done()) return;
-      if (frame()->function()->IsJSFunction()) return;
-    }
-  }
-};
 
 
 void Top::PrintCurrentStackTrace(FILE* out) {

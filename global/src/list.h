@@ -53,13 +53,15 @@ class List {
   INLINE(void* operator new(size_t size)) { return P::New(size); }
   INLINE(void operator delete(void* p, size_t)) { return P::Delete(p); }
 
+  // Returns a reference to the element at index i.  This reference is
+  // not safe to use after operations that can change the list's
+  // backing store (eg, Add).
   inline T& operator[](int i) const  {
     ASSERT(0 <= i && i < length_);
     return data_[i];
   }
   inline T& at(int i) const  { return operator[](i); }
   inline T& last() const {
-    ASSERT(!is_empty());
     return at(length_ - 1);
   }
 
@@ -72,16 +74,17 @@ class List {
 
   // Adds a copy of the given 'element' to the end of the list,
   // expanding the list if necessary.
-  T& Add(const T& element);
+  void Add(const T& element);
 
   // Added 'count' elements with the value 'value' and returns a
   // vector that allows access to the elements.  The vector is valid
   // until the next change is made to this list.
-  Vector<T> AddBlock(const T& value, int count);
+  Vector<T> AddBlock(T value, int count);
 
   // Removes the i'th element without deleting it even if T is a
   // pointer type; moves all elements above i "down". Returns the
-  // removed element.
+  // removed element.  This function's complexity is linear in the
+  // size of the list.
   T Remove(int i);
 
   // Removes the last element without deleting it even if T is a

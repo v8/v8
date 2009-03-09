@@ -137,16 +137,32 @@ bool Profiler::paused_ = false;
 // StackTracer implementation
 //
 void StackTracer::Trace(TickSample* sample) {
-  // Assuming that stack grows from lower addresses
-  if (sample->state != GC
-      && (sample->sp < sample->fp && sample->fp < low_stack_bound_)) {
-    sample->InitStack(1);
+  if (sample->state == GC) {
+    sample->frames_count = 0;
+    return;
+  }
+
+  // If c_entry_fp is available, this means that we are inside a C++
+  // function and sample->fp value isn't reliable due to FPO.
+  if (Top::c_entry_fp(Top::GetCurrentThread()) != NULL) {
+    SafeStackTraceFrameIterator it(
+        reinterpret_cast<Address>(sample->sp),
+        reinterpret_cast<Address>(low_stack_bound_));
+    int i = 0;
+    while (!it.done() && i < TickSample::kMaxFramesCount) {
+      sample->stack[i++] = it.frame()->pc();
+      it.Advance();
+    }
+    sample->frames_count = i;
+  } else if (sample->sp < sample->fp && sample->fp < low_stack_bound_) {
+    // The check assumes that stack grows from lower addresses.
     sample->stack[0] = Memory::Address_at(
         (Address)(sample->fp + StandardFrameConstants::kCallerPCOffset));
+    sample->frames_count = 1;
   } else {
-    // GC runs or FP seems to be in some intermediate state,
+    // FP seems to be in some intermediate state,
     // better discard this sample
-    sample->InitStack(0);
+    sample->frames_count = 0;
   }
 }
 
@@ -687,24 +703,13 @@ void Logger::DeleteEvent(const char* name, void* object) {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-int Logger::CodeObjectSize(Code* code) {
-  // Check that the assumptions about the layout of the code object holds.
-  ASSERT_EQ(reinterpret_cast<unsigned int>(code->instruction_start()) -
-            reinterpret_cast<unsigned int>(code->address()),
-            Code::kHeaderSize);
-  return code->instruction_size() + Code::kHeaderSize;
-}
-#endif
-
-
 void Logger::CodeCreateEvent(const char* tag, Code* code, const char* comment) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (logfile_ == NULL || !FLAG_log_code) return;
   LogMessageBuilder msg;
   msg.Append("code-creation,%s,0x%x,%d,\"", tag,
              reinterpret_cast<unsigned int>(code->address()),
-             CodeObjectSize(code));
+             code->ExecutableSize());
   for (const char* p = comment; *p != '\0'; p++) {
     if (*p == '"') {
       msg.Append('\\');
@@ -726,7 +731,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name) {
       name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("code-creation,%s,0x%x,%d,\"%s\"\n", tag,
              reinterpret_cast<unsigned int>(code->address()),
-             CodeObjectSize(code), *str);
+             code->ExecutableSize(), *str);
   msg.WriteToLogFile();
 #endif
 }
@@ -743,7 +748,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, String* name,
       source->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
   msg.Append("code-creation,%s,0x%x,%d,\"%s %s:%d\"\n", tag,
              reinterpret_cast<unsigned int>(code->address()),
-             CodeObjectSize(code),
+             code->ExecutableSize(),
              *str, *sourcestr, line);
   msg.WriteToLogFile();
 #endif
@@ -756,7 +761,7 @@ void Logger::CodeCreateEvent(const char* tag, Code* code, int args_count) {
   LogMessageBuilder msg;
   msg.Append("code-creation,%s,0x%x,%d,\"args_count: %d\"\n", tag,
              reinterpret_cast<unsigned int>(code->address()),
-             CodeObjectSize(code),
+             code->ExecutableSize(),
              args_count);
   msg.WriteToLogFile();
 #endif
@@ -932,10 +937,8 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
   if (overflow) {
     msg.Append(",overflow");
   }
-  if (*(sample->stack)) {
-    for (size_t i = 0; sample->stack[i]; ++i) {
-      msg.Append(",0x%x", reinterpret_cast<unsigned int>(sample->stack[i]));
-    }
+  for (int i = 0; i < sample->frames_count; ++i) {
+    msg.Append(",%p", sample->stack[i]);
   }
   msg.Append('\n');
   msg.WriteToLogFile();
