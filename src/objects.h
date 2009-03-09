@@ -144,6 +144,10 @@ class PropertyDetails BASE_EMBEDDED {
     return t == MAP_TRANSITION || t == CONSTANT_TRANSITION;
   }
 
+  bool IsProperty() {
+    return type() < FIRST_PHANTOM_PROPERTY_TYPE;
+  }
+
   PropertyAttributes attributes() { return AttributesField::decode(value_); }
 
   int index() { return IndexField::decode(value_); }
@@ -1718,6 +1722,10 @@ class DescriptorArray: public FixedArray {
     return( descriptor_number << 1) + 1;
   }
 
+  bool is_null_descriptor(int descriptor_number) {
+    return PropertyDetails(GetDetails(descriptor_number)).type() ==
+        NULL_DESCRIPTOR;
+  }
   // Swap operation on FixedArray without using write barriers.
   static inline void fast_swap(FixedArray* array, int first, int second);
 

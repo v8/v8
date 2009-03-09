@@ -536,7 +536,9 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   // Copy the descriptors from the array.
   DescriptorWriter w(*result);
   for (DescriptorReader r(*array); !r.eos(); r.advance()) {
-    w.WriteFrom(&r);
+    if (!r.IsNullDescriptor()) {
+      w.WriteFrom(&r);
+    }
     descriptor_count++;
   }
 

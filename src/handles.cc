@@ -467,7 +467,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object) {
     for (DescriptorReader r(object->map()->instance_descriptors());
          !r.eos();
          r.advance()) {
-      if (!r.IsTransition() && !r.IsDontEnum()) {
+      if (r.IsProperty() && !r.IsDontEnum()) {
         (*storage)->set(index, r.GetKey());
         (*sort_array)->set(index, Smi::FromInt(r.GetDetails().index()));
         index++;

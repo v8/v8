@@ -2391,7 +2391,7 @@ bool JSObject::IsSimpleEnum() {
 int Map::NumberOfDescribedProperties() {
   int result = 0;
   for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (!r.IsTransition()) result++;
+    if (r.IsProperty()) result++;
   }
   return result;
 }
@@ -2399,7 +2399,7 @@ int Map::NumberOfDescribedProperties() {
 
 int Map::PropertyIndexFor(String* name) {
   for (DescriptorReader r(instance_descriptors()); !r.eos(); r.advance()) {
-    if (r.Equals(name)) return r.GetFieldIndex();
+    if (r.Equals(name) && !r.IsNullDescriptor()) return r.GetFieldIndex();
   }
   return -1;
 }
@@ -2933,6 +2933,7 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
   int new_size = number_of_descriptors() - transitions - null_descriptors;
 
   // If key is in descriptor, we replace it in-place when filtering.
+  // Count a null descriptor for key as inserted, not replaced.
   int index = Search(descriptor->GetKey());
   const bool inserting = (index == kNotFound);
   const bool replacing = !inserting;
@@ -2949,9 +2950,9 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
         t == CALLBACKS ||
         t == INTERCEPTOR) {
       keep_enumeration_index = true;
-    } else if (t == NULL_DESCRIPTOR || remove_transitions) {
-     // Replaced descriptor has been counted as removed if it is null
-     // or a transition that will be replaced.  Adjust count in this case.
+    } else if (remove_transitions) {
+     // Replaced descriptor has been counted as removed if it is
+     // a transition that will be replaced.  Adjust count in this case.
       ++new_size;
     }
   }
@@ -2990,7 +2991,9 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
     ASSERT(r.GetKey() == descriptor->GetKey());
     r.advance();
   } else {
-    ASSERT(r.eos() || r.GetKey()->Hash() > descriptor_hash);
+    ASSERT(r.eos() ||
+           r.GetKey()->Hash() > descriptor_hash ||
+           r.IsNullDescriptor());
   }
   for (; !r.eos(); r.advance()) {
     if (r.IsNullDescriptor()) continue;
@@ -3004,24 +3007,25 @@ Object* DescriptorArray::CopyInsert(Descriptor* descriptor,
 
 
 Object* DescriptorArray::RemoveTransitions() {
-  // Remove all transitions.  Return a copy of the array with all transitions
-  // removed, or a Failure object if the new array could not be allocated.
+  // Remove all transitions and null descriptors. Return a copy of the array
+  // with all transitions removed, or a Failure object if the new array could
+  // not be allocated.
 
   // Compute the size of the map transition entries to be removed.
-  int count_transitions = 0;
+  int num_removed = 0;
   for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    if (r.IsTransition()) count_transitions++;
+    if (!r.IsProperty()) num_removed++;
   }
 
   // Allocate the new descriptor array.
-  Object* result = Allocate(number_of_descriptors() - count_transitions);
+  Object* result = Allocate(number_of_descriptors() - num_removed);
   if (result->IsFailure()) return result;
   DescriptorArray* new_descriptors = DescriptorArray::cast(result);
 
   // Copy the content.
   DescriptorWriter w(new_descriptors);
   for (DescriptorReader r(this); !r.eos(); r.advance()) {
-    if (!r.IsTransition()) w.WriteFrom(&r);
+    if (r.IsProperty()) w.WriteFrom(&r);
   }
   ASSERT(w.eos());
 
@@ -3097,10 +3101,10 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
     ASSERT(hash == mid_hash);
     // There might be more, so we find the first one and
     // check them all to see if we have a match.
-    if (name == mid_name) return mid;
+    if (name == mid_name  && !is_null_descriptor(mid)) return mid;
     while ((mid > low) && (GetKey(mid - 1)->Hash() == hash)) mid--;
     for (; (mid <= high) && (GetKey(mid)->Hash() == hash); mid++) {
-      if (GetKey(mid)->Equals(name)) return mid;
+      if (GetKey(mid)->Equals(name) && !is_null_descriptor(mid)) return mid;
     }
     break;
   }
@@ -3110,7 +3114,9 @@ int DescriptorArray::BinarySearch(String* name, int low, int high) {
 
 int DescriptorArray::LinearSearch(String* name, int len) {
   for (int number = 0; number < len; number++) {
-    if (name->Equals(GetKey(number))) return number;
+    if (name->Equals(GetKey(number)) && !is_null_descriptor(number)) {
+      return number;
+    }
   }
   return kNotFound;
 }
@@ -5643,7 +5649,8 @@ int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
          !r.eos();
          r.advance()) {
       PropertyDetails details = r.GetDetails();
-      if (!details.IsTransition() && (details.attributes() & filter) == 0) {
+      if (details.IsProperty() &&
+          (details.attributes() & filter) == 0) {
         result++;
       }
     }
@@ -5785,7 +5792,7 @@ void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
     for (DescriptorReader r(map()->instance_descriptors());
          !r.eos();
          r.advance()) {
-      if (!r.IsTransition()) {
+      if (r.IsProperty()) {
         storage->set(index++, r.GetKey());
       }
     }

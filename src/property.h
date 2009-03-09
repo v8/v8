@@ -356,6 +356,10 @@ class DescriptorReader: public DescriptorStream {
     return type() == NULL_DESCRIPTOR;
   }
 
+  bool IsProperty() {
+    return type() < FIRST_PHANTOM_PROPERTY_TYPE;
+  }
+
   JSFunction* GetConstantFunction() { return JSFunction::cast(GetValue()); }
 
   AccessorDescriptor* GetCallbacks() {
