@@ -63,3 +63,6 @@ debug-handle: CRASH, FAIL if $mode == debug
 # Bug number 130 http://code.google.com/p/v8/issues/detail?id=130
 # Fails on real ARM hardware but not on the simulator.
 string-compare-alignment: PASS || FAIL
+
+# Bug on IA32, passes on ARM.
+bugs/bug-265: PASS
