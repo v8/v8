@@ -437,10 +437,11 @@ Debug.sourcePosition = function(f) {
   return %FunctionGetScriptSourcePosition(f);
 };
 
-Debug.findFunctionSourcePosition = function(func, opt_line, opt_column) {
+
+Debug.findFunctionSourceLocation = function(func, opt_line, opt_column) {
   var script = %FunctionGetScript(func);
   var script_offset = %FunctionGetScriptSourcePosition(func);
-  return script.locationFromLine(opt_line, opt_column, script_offset).position;
+  return script.locationFromLine(opt_line, opt_column, script_offset);
 }
 
 
@@ -478,8 +479,10 @@ Debug.setBreakPoint = function(func, opt_line, opt_column, opt_condition) {
   if (%FunctionIsAPIFunction(func)) {
     throw new Error('Cannot set break point in native code.');
   }
-  var source_position = this.findFunctionSourcePosition(func, opt_line, opt_column) -
-                        this.sourcePosition(func);
+  // Find source position relative to start of the function
+  var break_position =
+      this.findFunctionSourceLocation(func, opt_line, opt_column).position;
+  var source_position = break_position - this.sourcePosition(func);
   // Find the script for the function.
   var script = %FunctionGetScript(func);
   // Break in builtin JavaScript code is not supported.

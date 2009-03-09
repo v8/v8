@@ -181,7 +181,7 @@ function FormatMessage(message) {
 
 function GetLineNumber(message) {
   if (message.startPos == -1) return -1;
-  var location = message.script.locationFromPosition(message.startPos);
+  var location = message.script.locationFromPosition(message.startPos, true);
   if (location == null) return -1;
   return location.line + 1;
 }
@@ -190,7 +190,7 @@ function GetLineNumber(message) {
 // Returns the source code line containing the given source
 // position, or the empty string if the position is invalid.
 function GetSourceLine(message) {
-  var location = message.script.locationFromPosition(message.startPos);
+  var location = message.script.locationFromPosition(message.startPos, true);
   if (location == null) return "";
   location.restrict();
   return location.sourceText();
@@ -230,10 +230,13 @@ function MakeError(type, args) {
 /**
  * Get information on a specific source position.
  * @param {number} position The source position
+ * @param {boolean} include_resource_offset Set to true to have the resource
+ *     offset added to the location
  * @return {SourceLocation}
  *     If line is negative or not in the source null is returned.
  */
-Script.prototype.locationFromPosition = function (position) {
+Script.prototype.locationFromPosition = function (position,
+                                                  include_resource_offset) {
   var lineCount = this.lineCount();
   var line = -1;
   if (position <= this.line_ends[0]) {
@@ -256,9 +259,11 @@ Script.prototype.locationFromPosition = function (position) {
   var column = position - start;
 
   // Adjust according to the offset within the resource.
-  line += this.line_offset;
-  if (line == this.line_offset) {
-    column += this.column_offset;
+  if (include_resource_offset) {
+    line += this.line_offset;
+    if (line == this.line_offset) {
+      column += this.column_offset;
+    }
   }
 
   return new SourceLocation(this, position, line, column, start, end);
@@ -573,7 +578,7 @@ function UnsafeGetStackTraceLine(recv, fun, pos, isTopLevel) {
       file = %FunctionGetScript(fun).data;
     }
     if (file) {
-      var location = %FunctionGetScript(fun).locationFromPosition(pos);
+      var location = %FunctionGetScript(fun).locationFromPosition(pos, true);
       if (!isTopLevel) result += "(";
       result += file;
       if (location != null) {

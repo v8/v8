@@ -5320,6 +5320,28 @@ TEST(CatchStackOverflow) {
 }
 
 
+static void CheckTryCatchSourceInfo(v8::Handle<v8::Script> script,
+                                    char* resource_name,
+                                    int line_offset) {
+  v8::HandleScope scope;
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Value> result = script->Run();
+  CHECK(result.IsEmpty());
+  CHECK(try_catch.HasCaught());
+  v8::Handle<v8::Message> message = try_catch.Message();
+  CHECK(!message.IsEmpty());
+  CHECK_EQ(10 + line_offset, message->GetLineNumber());
+  CHECK_EQ(91, message->GetStartPosition());
+  CHECK_EQ(92, message->GetEndPosition());
+  CHECK_EQ(2, message->GetStartColumn());
+  CHECK_EQ(3, message->GetEndColumn());
+  v8::String::AsciiValue line(message->GetSourceLine());
+  CHECK_EQ("  throw 'nirk';", *line);
+  v8::String::AsciiValue name(message->GetScriptResourceName());
+  CHECK_EQ(resource_name, *name);
+}
+
+
 THREADED_TEST(TryCatchSourceInfo) {
   v8::HandleScope scope;
   LocalContext context;
@@ -5337,23 +5359,22 @@ THREADED_TEST(TryCatchSourceInfo) {
       "}\n"
       "\n"
       "Foo();\n");
-  v8::Handle<v8::Script> script =
-      v8::Script::Compile(source, v8::String::New("test.js"));
-  v8::TryCatch try_catch;
-  v8::Handle<v8::Value> result = script->Run();
-  CHECK(result.IsEmpty());
-  CHECK(try_catch.HasCaught());
-  v8::Handle<v8::Message> message = try_catch.Message();
-  CHECK(!message.IsEmpty());
-  CHECK_EQ(10, message->GetLineNumber());
-  CHECK_EQ(91, message->GetStartPosition());
-  CHECK_EQ(92, message->GetEndPosition());
-  CHECK_EQ(2, message->GetStartColumn());
-  CHECK_EQ(3, message->GetEndColumn());
-  v8::String::AsciiValue line(message->GetSourceLine());
-  CHECK_EQ("  throw 'nirk';", *line);
-  v8::String::AsciiValue name(message->GetScriptResourceName());
-  CHECK_EQ("test.js", *name);
+
+  char* resource_name;
+  v8::Handle<v8::Script> script;
+  resource_name = "test.js";
+  script = v8::Script::Compile(source, v8::String::New(resource_name));
+  CheckTryCatchSourceInfo(script, resource_name, 0);
+
+  resource_name = "test1.js";
+  v8::ScriptOrigin origin1(v8::String::New(resource_name));
+  script = v8::Script::Compile(source, &origin1);
+  CheckTryCatchSourceInfo(script, resource_name, 0);
+
+  resource_name = "test2.js";
+  v8::ScriptOrigin origin2(v8::String::New(resource_name), v8::Integer::New(7));
+  script = v8::Script::Compile(source, &origin2);
+  CheckTryCatchSourceInfo(script, resource_name, 7);
 }
 
 
