@@ -386,7 +386,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ mov(edi, Operand(esp, eax, times_4, +1 * kPointerSize));
     __ test(edi, Immediate(kSmiTagMask));
     __ j(zero, &non_function, not_taken);
-    __ CmpObjectType(edi,JS_FUNCTION_TYPE, ecx);
+    __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
     __ j(equal, &function, taken);
 
     // Non-function called: Clear the function to force exception.
