@@ -922,6 +922,16 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
         }
         break;
 
+      case 0x80:
+        { data++;
+          AppendToBuffer("%s ", "cmpb");
+          data += PrintRightOperand(data);
+          int32_t imm = *data;
+          AppendToBuffer(",0x%x", imm);
+          data++;
+        }
+        break;
+
       case 0x88:  // 8bit, fall through
       case 0x89:  // 32bit
         { bool is_byte = *data == 0x88;
