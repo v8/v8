@@ -396,9 +396,7 @@ void VirtualFrame::Enter() {
   __ test(edi, Immediate(kSmiTagMask));
   __ Check(not_zero,
            "VirtualFrame::Enter - edi is not a function (smi check).");
-  __ mov(eax, FieldOperand(edi, HeapObject::kMapOffset));
-  __ movzx_b(eax, FieldOperand(eax, Map::kInstanceTypeOffset));
-  __ cmp(eax, JS_FUNCTION_TYPE);
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, eax);
   __ Check(equal,
            "VirtualFrame::Enter - edi is not a function (map check).");
 #endif

@@ -139,6 +139,13 @@ class MacroAssembler: public Assembler {
   void Set(Register dst, const Immediate& x);
   void Set(const Operand& dst, const Immediate& x);
 
+  // Compare object type for heap object.
+  // Incoming register is heap_object and outgoing register is map.
+  void CmpObjectType(Register heap_object, InstanceType type, Register map);
+
+  // Compare instance type for map.
+  void CmpInstanceType(Register map, InstanceType type);
+
   // FCmp is similar to integer cmp, but requires unsigned
   // jcc instructions (je, ja, jae, jb, jbe, je, and jz).
   void FCmp();

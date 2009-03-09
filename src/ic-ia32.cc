@@ -130,9 +130,7 @@ static void GenerateCheckNonFunctionOrLoaded(MacroAssembler* masm, Label* miss,
   __ test(value, Immediate(kSmiTagMask));
   __ j(zero, &done, not_taken);
   // Check if the value is a function.
-  __ mov(scratch, FieldOperand(value, HeapObject::kMapOffset));
-  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, JS_FUNCTION_TYPE);
+  __ CmpObjectType(value, JS_FUNCTION_TYPE, scratch);
   __ j(not_equal, &done, taken);
   // Check if the function has been loaded.
   __ mov(scratch, FieldOperand(value, JSFunction::kSharedFunctionInfoOffset));
@@ -441,9 +439,7 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // Check for number.
   __ test(edx, Immediate(kSmiTagMask));
   __ j(zero, &number, not_taken);
-  __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(ebx, HEAP_NUMBER_TYPE);
+  __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ebx);
   __ j(not_equal, &non_number, taken);
   __ bind(&number);
   StubCompiler::GenerateLoadGlobalFunctionPrototype(
@@ -491,9 +487,7 @@ static void GenerateNormalHelper(MacroAssembler* masm,
   __ j(zero, miss, not_taken);
 
   // Check that the value is a JavaScript function.
-  __ mov(edx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(edx, FieldOperand(edx, Map::kInstanceTypeOffset));
-  __ cmp(edx, JS_FUNCTION_TYPE);
+  __ CmpObjectType(edx, JS_FUNCTION_TYPE, edx);
   __ j(not_equal, miss, not_taken);
 
   // Check that the function has been loaded.

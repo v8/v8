@@ -1934,9 +1934,7 @@ void CodeGenerator::GenerateFastCaseSwitchJumpTable(
   // heap number.
   Result temp = allocator()->Allocate();
   ASSERT(temp.is_valid());
-  __ mov(temp.reg(), FieldOperand(switch_value.reg(), HeapObject::kMapOffset));
-  __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
-  __ cmp(temp.reg(), HEAP_NUMBER_TYPE);
+  __ CmpObjectType(switch_value.reg(), HEAP_NUMBER_TYPE, temp.reg());
   temp.Unuse();
   default_target->Branch(not_equal);
 
@@ -4129,10 +4127,8 @@ void CodeGenerator::GenerateIsArray(ZoneList<Expression*>* args) {
   // It is a heap object - get map.
   Result temp = allocator()->Allocate();
   ASSERT(temp.is_valid());
-  __ mov(temp.reg(), FieldOperand(value.reg(), HeapObject::kMapOffset));
-  __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
   // Check if the object is a JS array or not.
-  __ cmp(temp.reg(), JS_ARRAY_TYPE);
+  __ CmpObjectType(value.reg(), JS_ARRAY_TYPE, temp.reg());
   value.Unuse();
   temp.Unuse();
   destination()->Split(equal);
@@ -4168,10 +4164,8 @@ void CodeGenerator::GenerateValueOf(ZoneList<Expression*>* args) {
   // It is a heap object - get map.
   Result temp = allocator()->Allocate();
   ASSERT(temp.is_valid());
-  __ mov(temp.reg(), FieldOperand(object.reg(), HeapObject::kMapOffset));
-  __ movzx_b(temp.reg(), FieldOperand(temp.reg(), Map::kInstanceTypeOffset));
   // if (!object->IsJSValue()) return object.
-  __ cmp(temp.reg(), JS_VALUE_TYPE);
+  __ CmpObjectType(object.reg(), JS_VALUE_TYPE, temp.reg());
   leave.Branch(not_equal, not_taken);
   __ mov(temp.reg(), FieldOperand(object.reg(), JSValue::kValueOffset));
   object.Unuse();
@@ -4197,11 +4191,8 @@ void CodeGenerator::GenerateSetValueOf(ZoneList<Expression*>* args) {
   // It is a heap object - get its map.
   Result scratch = allocator_->Allocate();
   ASSERT(scratch.is_valid());
-  __ mov(scratch.reg(), FieldOperand(object.reg(), HeapObject::kMapOffset));
-  __ movzx_b(scratch.reg(),
-             FieldOperand(scratch.reg(), Map::kInstanceTypeOffset));
   // if (!object->IsJSValue()) return value.
-  __ cmp(scratch.reg(), JS_VALUE_TYPE);
+  __ CmpObjectType(object.reg(), JS_VALUE_TYPE, scratch.reg());
   leave.Branch(not_equal, &value, not_taken);
 
   // Store the value.
@@ -4915,10 +4906,7 @@ void CodeGenerator::VisitCompareOperation(CompareOperation* node) {
       __ test(answer.reg(), Immediate(kSmiTagMask));
       destination()->false_target()->Branch(zero);
       frame_->Spill(answer.reg());
-      __ mov(answer.reg(), FieldOperand(answer.reg(), HeapObject::kMapOffset));
-      __ movzx_b(answer.reg(),
-                 FieldOperand(answer.reg(), Map::kInstanceTypeOffset));
-      __ cmp(answer.reg(), JS_FUNCTION_TYPE);
+      __ CmpObjectType(answer.reg(), JS_FUNCTION_TYPE, answer.reg());
       answer.Unuse();
       destination()->Split(equal);
 
@@ -6415,10 +6403,8 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   // Check that the function really is a JavaScript function.
   __ test(edi, Immediate(kSmiTagMask));
   __ j(zero, &slow, not_taken);
-  // Get the map.
-  __ mov(ecx, FieldOperand(edi, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ cmp(ecx, JS_FUNCTION_TYPE);
+  // Goto slow case if we do not have a function.
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
   __ j(not_equal, &slow, not_taken);
 
   // Fast-case: Just invoke the function.

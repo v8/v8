@@ -148,9 +148,7 @@ void StubCompiler::GenerateLoadArrayLength(MacroAssembler* masm,
   __ j(zero, miss_label, not_taken);
 
   // Check that the object is a JS array.
-  __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
-  __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  __ cmp(scratch, JS_ARRAY_TYPE);
+  __ CmpObjectType(receiver, JS_ARRAY_TYPE, scratch);
   __ j(not_equal, miss_label, not_taken);
 
   // Load length directly from the JS array.
@@ -494,9 +492,7 @@ Object* CallStubCompiler::CompileCallField(Object* object,
   // Check that the function really is a function.
   __ test(edi, Immediate(kSmiTagMask));
   __ j(zero, &miss, not_taken);
-  __ mov(ebx, FieldOperand(edi, HeapObject::kMapOffset));  // get the map
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(ebx, JS_FUNCTION_TYPE);
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ebx);
   __ j(not_equal, &miss, not_taken);
 
   // Patch the receiver on the stack with the global proxy if
@@ -573,9 +569,7 @@ Object* CallStubCompiler::CompileCallConstant(Object* object,
       // Check that the object is a smi or a heap number.
       __ test(edx, Immediate(kSmiTagMask));
       __ j(zero, &fast, taken);
-      __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-      __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-      __ cmp(ecx, HEAP_NUMBER_TYPE);
+      __ CmpObjectType(edx, HEAP_NUMBER_TYPE, ecx);
       __ j(not_equal, &miss, not_taken);
       __ bind(&fast);
       // Check that the maps starting from the prototype haven't changed.
@@ -691,9 +685,7 @@ Object* CallStubCompiler::CompileCallInterceptor(Object* object,
   // Check that the function really is a function.
   __ test(edi, Immediate(kSmiTagMask));
   __ j(zero, &miss, not_taken);
-  __ mov(ebx, FieldOperand(edi, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ cmp(ebx, JS_FUNCTION_TYPE);
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ebx);
   __ j(not_equal, &miss, not_taken);
 
   // Patch the receiver on the stack with the global proxy if

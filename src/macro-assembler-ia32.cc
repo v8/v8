@@ -306,6 +306,20 @@ void MacroAssembler::Set(const Operand& dst, const Immediate& x) {
 }
 
 
+void MacroAssembler::CmpObjectType(Register heap_object,
+                                   InstanceType type,
+                                   Register map) {
+  mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
+  CmpInstanceType(map, type);
+}
+
+
+void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
+  cmpb(FieldOperand(map, Map::kInstanceTypeOffset),
+       static_cast<int8_t>(type));
+}
+
+
 void MacroAssembler::FCmp() {
   fcompp();
   push(eax);
@@ -657,9 +671,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   j(zero, miss, not_taken);
 
   // Check that the function really is a function.
-  mov(result, FieldOperand(function, HeapObject::kMapOffset));
-  movzx_b(scratch, FieldOperand(result, Map::kInstanceTypeOffset));
-  cmp(scratch, JS_FUNCTION_TYPE);
+  CmpObjectType(function, JS_FUNCTION_TYPE, result);
   j(not_equal, miss, not_taken);
 
   // Make sure that the function has an instance prototype.
@@ -680,9 +692,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
   // If the function does not have an initial map, we're done.
   Label done;
-  mov(scratch, FieldOperand(result, HeapObject::kMapOffset));
-  movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  cmp(scratch, MAP_TYPE);
+  CmpObjectType(result, MAP_TYPE, scratch);
   j(not_equal, &done);
 
   // Get the prototype from the initial map.
