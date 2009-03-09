@@ -455,7 +455,8 @@ Object* JSObject::SetNormalizedProperty(String* name,
     JSGlobalPropertyCell* cell =
         JSGlobalPropertyCell::cast(property_dictionary()->ValueAt(entry));
     cell->set_value(value);
-    // No need to update the property dictionary.
+    // Please note we have to update the property details.
+    property_dictionary()->SetStringEntry(entry, name, cell, details);
   } else {
     property_dictionary()->SetStringEntry(entry, name, value, details);
   }
