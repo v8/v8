@@ -262,7 +262,7 @@ void Heap::ClearKeyedLookupCache() {
 
 
 #define CALL_HEAP_FUNCTION_VOID(FUNCTION_CALL) \
-  CALL_AND_RETRY(FUNCTION_CALL, ;, ;)
+  CALL_AND_RETRY(FUNCTION_CALL, ;, ;)  // NOLINT
 
 
 #ifdef DEBUG
