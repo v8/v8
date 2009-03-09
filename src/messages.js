@@ -153,7 +153,7 @@ function MakeGenericError(constructor, type, args) {
     args = [];
   }
 
-  var e = new constructor();
+  var e = new constructor(kAddMessageAccessorsMarker);
   e.type = type;
   e.arguments = args;
   return e;
@@ -589,6 +589,29 @@ function UnsafeGetStackTraceLine(recv, fun, pos, isTopLevel) {
 // ----------------------------------------------------------------------------
 // Error implementation
 
+// If this object gets passed to an error constructor the error will
+// get an accessor for .message that constructs a descriptive error
+// message on access.
+var kAddMessageAccessorsMarker = { };
+
+// Defines accessors for a property that is calculated the first time
+// the property is read and then replaces the accessor with the value.
+// Also, setting the property causes the accessors to be deleted.
+function DefineOneShotAccessor(obj, name, fun) {
+  // Note that the accessors consistently operate on 'obj', not 'this'.
+  // Since the object may occur in someone else's prototype chain we
+  // can't rely on 'this' being the same as 'obj'.
+  obj.__defineGetter__(name, function () {
+    var value = fun(obj);
+    obj[name] = value;
+    return value;
+  });
+  obj.__defineSetter__(name, function (v) {
+    delete obj[name];
+    obj[name] = v;
+  });
+}
+
 function DefineError(f) {
   // Store the error function in both the global object
   // and the runtime object. The function is fetched
@@ -607,7 +630,13 @@ function DefineError(f) {
   f.prototype.name = name;
   %SetCode(f, function(m) {
     if (%IsConstructCall()) {
-      if (!IS_UNDEFINED(m)) this.message = ToString(m);
+      if (m === kAddMessageAccessorsMarker) {
+        DefineOneShotAccessor(this, 'message', function (obj) {
+          return FormatMessage({type: obj.type, args: obj.arguments});
+        });
+      } else if (!IS_UNDEFINED(m)) {
+        this.message = ToString(m);
+      }
     } else {
       return new f(m);
     }
