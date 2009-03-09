@@ -36,7 +36,7 @@ fuzz-natives: PASS, SKIP if ($mode == release || $arch == arm)
 
 # Bug on IA32, realiably triggers a debug assertion.  Unpredictable in
 # release mode.
-bugs/bug-265: (PASS || FAIL) if $mode == debug
+bugs/bug-265: (PASS || FAIL) if $mode == release
 
 [ $arch == arm ]
 
