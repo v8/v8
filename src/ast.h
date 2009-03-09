@@ -1197,6 +1197,9 @@ class FunctionLiteral: public Expression {
         is_expression_(is_expression),
         loop_nesting_(0),
         function_token_position_(RelocInfo::kNoPosition) {
+#ifdef DEBUG
+    already_compiled_ = false;
+#endif
   }
 
   virtual void Accept(AstVisitor* v);
@@ -1223,6 +1226,13 @@ class FunctionLiteral: public Expression {
   bool loop_nesting() const { return loop_nesting_; }
   void set_loop_nesting(int nesting) { loop_nesting_ = nesting; }
 
+#ifdef DEBUG
+  void mark_as_compiled() {
+    ASSERT(!already_compiled_);
+    already_compiled_ = true;
+  }
+#endif
+
  private:
   Handle<String> name_;
   Scope* scope_;
@@ -1236,6 +1246,9 @@ class FunctionLiteral: public Expression {
   bool is_expression_;
   int loop_nesting_;
   int function_token_position_;
+#ifdef DEBUG
+  bool already_compiled_;
+#endif
 };
 
 

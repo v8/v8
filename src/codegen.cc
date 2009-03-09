@@ -237,6 +237,12 @@ static Handle<Code> ComputeLazyCompile(int argc) {
 
 
 Handle<JSFunction> CodeGenerator::BuildBoilerplate(FunctionLiteral* node) {
+#ifdef DEBUG
+  // We should not try to compile the same function literal more than
+  // once.
+  node->mark_as_compiled();
+#endif
+
   // Determine if the function can be lazily compiled. This is
   // necessary to allow some of our builtin JS files to be lazily
   // compiled. These builtins cannot be handled lazily by the parser,
