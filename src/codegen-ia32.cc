@@ -2671,10 +2671,10 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original targets are unshadowed and the
   // ShadowTargets represent the formerly shadowing targets.
-  int nof_unlinks = 0;
+  bool has_unlinks = false;
   for (int i = 0; i <= nof_escapes; i++) {
     shadows[i]->StopShadowing();
-    if (shadows[i]->is_linked()) nof_unlinks++;
+    has_unlinks = has_unlinks || shadows[i]->is_linked();
   }
   function_return_is_shadowed_ = function_return_was_shadowed;
 
@@ -2692,11 +2692,12 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
   // If we can fall off the end of the try block, unlink from try chain.
   if (has_valid_frame()) {
-    // The TOS is the next handler address.
-    frame_->EmitPop(eax);
-    __ mov(Operand::StaticVariable(handler_address), eax);
+    // The next handler address is on top of the frame.  Unlink from
+    // the handler list and drop the rest of this handler from the
+    // frame.
+    frame_->EmitPop(Operand::StaticVariable(handler_address));
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-    if (nof_unlinks > 0) {
+    if (has_unlinks) {
       exit.Jump();
     }
   }
@@ -2745,7 +2746,6 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // break/continue from within the try block.
   enum { FALLING, THROWING, JUMPING };
 
-  JumpTarget unlink(this);
   JumpTarget try_block(this);
   JumpTarget finally_block(this);
 
@@ -2797,25 +2797,54 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   }
   function_return_is_shadowed_ = function_return_was_shadowed;
 
-  // If we can fall off the end of the try block, set the state on the stack
-  // to FALLING.
+  // Get an external reference to the handler address.
+  ExternalReference handler_address(Top::k_handler_address);
+
+  // If we can fall off the end of the try block, unlink from the try
+  // chain and set the state on the frame to FALLING.
   if (has_valid_frame()) {
-    frame_->EmitPush(Immediate(Factory::undefined_value()));  // fake TOS
+    // The next handler address is on top of the frame.
+    ASSERT(StackHandlerConstants::kNextOffset == 0);
+    frame_->EmitPop(eax);
+    __ mov(Operand::StaticVariable(handler_address), eax);
+    frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
+
+    // Fake a top of stack value (unneeded when FALLING) and set the
+    // state in ecx, then jump around the unlink blocks if any.
+    frame_->EmitPush(Immediate(Factory::undefined_value()));
     __ Set(ecx, Immediate(Smi::FromInt(FALLING)));
     if (nof_unlinks > 0) {
-      unlink.Jump();
+      finally_block.Jump();
     }
   }
 
-  // Generate code to set the state for the (formerly) shadowing targets that
-  // have been jumped to.
+  // Generate code to unlink and set the state for the (formerly)
+  // shadowing targets that have been jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
+      // If we have come from the shadowed return, the return value is
+      // in (a non-refcounted reference to) eax.  We must preserve it
+      // until it is pushed.
+      //
       // Because we can be jumping here (to spilled code) from
       // unspilled code, we need to reestablish a spilled frame at
       // this block.
       shadows[i]->Bind();
       frame_->SpillAll();
+
+      // Reload sp from the top handler, because some statements that
+      // we break from (eg, for...in) may have left stuff on the
+      // stack.
+      __ mov(edx, Operand::StaticVariable(handler_address));
+      const int kNextOffset = StackHandlerConstants::kNextOffset +
+          StackHandlerConstants::kAddressDisplacement;
+      __ lea(esp, Operand(edx, kNextOffset));
+      frame_->Forget(frame_->height() - handler_height);
+
+      // Unlink this handler and drop it from the frame.
+      frame_->EmitPop(Operand::StaticVariable(handler_address));
+      frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
+
       if (i == kReturnShadowIndex) {
         // If this target shadowed the function return, materialize
         // the return value on the stack.
@@ -2825,33 +2854,11 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
         frame_->EmitPush(Immediate(Factory::undefined_value()));
       }
       __ Set(ecx, Immediate(Smi::FromInt(JUMPING + i)));
-      unlink.Jump();
+      if (--nof_unlinks > 0) {
+        // If this is not the last unlink block, jump around the next.
+        finally_block.Jump();
+      }
     }
-  }
-
-  // Unlink from try chain; be careful not to destroy the TOS.
-  if (unlink.is_linked()) {
-    unlink.Bind();
-  }
-
-  // Control can reach here via a jump to unlink or by falling off the
-  // end of the try block (with no unlinks).
-  if (has_valid_frame()) {
-    // Reload sp from the top handler, because some statements that we
-    // break from (eg, for...in) may have left stuff on the stack.
-    // Preserve the TOS in a register across stack manipulation.
-    frame_->EmitPop(eax);
-    ExternalReference handler_address(Top::k_handler_address);
-    __ mov(edx, Operand::StaticVariable(handler_address));
-    const int kNextOffset = StackHandlerConstants::kNextOffset +
-        StackHandlerConstants::kAddressDisplacement;
-    __ lea(esp, Operand(edx, kNextOffset));
-    frame_->Forget(frame_->height() - handler_height);
-
-    frame_->EmitPop(Operand::StaticVariable(handler_address));
-    frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-    // Next_sp popped.
-    frame_->EmitPush(eax);
   }
 
   // --- Finally block ---

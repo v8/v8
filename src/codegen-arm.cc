@@ -2058,22 +2058,25 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
   // Stop the introduced shadowing and count the number of required unlinks.
   // After shadowing stops, the original labels are unshadowed and the
   // LabelShadows represent the formerly shadowing labels.
-  int nof_unlinks = 0;
+  bool has_unlinks = false;
   for (int i = 0; i <= nof_escapes; i++) {
     shadows[i]->StopShadowing();
-    if (shadows[i]->is_linked()) nof_unlinks++;
+    has_unlinks = has_unlinks || shadows[i]->is_linked();
   }
   function_return_is_shadowed_ = function_return_was_shadowed;
 
+  // Get an external reference to the handler address.
+  ExternalReference handler_address(Top::k_handler_address);
+
+  // The next handler address is at kNextIndex in the stack.
   const int kNextIndex = StackHandlerConstants::kNextOffset / kPointerSize;
   // If we can fall off the end of the try block, unlink from try chain.
   if (has_valid_frame()) {
-    // The next handler address is at kNextIndex in the stack.
     __ ldr(r1, frame_->ElementAt(kNextIndex));
-    __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+    __ mov(r3, Operand(handler_address));
     __ str(r1, MemOperand(r3));
     frame_->Drop(StackHandlerConstants::kSize / kPointerSize);
-    if (nof_unlinks > 0) {
+    if (has_unlinks) {
       exit.Jump();
     }
   }
@@ -2090,7 +2093,7 @@ void CodeGenerator::VisitTryCatch(TryCatch* node) {
 
       // Reload sp from the top handler, because some statements that we
       // break from (eg, for...in) may have left stuff on the stack.
-      __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
+      __ mov(r3, Operand(handler_address));
       __ ldr(sp, MemOperand(r3));
       // The stack pointer was restored to just below the code slot
       // (the topmost slot) in the handler.
@@ -2128,7 +2131,6 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   // break/continue from within the try block.
   enum { FALLING, THROWING, JUMPING };
 
-  JumpTarget unlink(this);
   JumpTarget try_block(this);
   JumpTarget finally_block(this);
 
@@ -2179,26 +2181,60 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
   }
   function_return_is_shadowed_ = function_return_was_shadowed;
 
-  // If we can fall off the end of the try block, set the state on the stack
-  // to FALLING.
+  // Get an external reference to the handler address.
+  ExternalReference handler_address(Top::k_handler_address);
+
+  // The next handler address is at kNextIndex in the stack.
+  const int kNextIndex = StackHandlerConstants::kNextOffset / kPointerSize;
+  // If we can fall off the end of the try block, unlink from the try
+  // chain and set the state on the frame to FALLING.
   if (has_valid_frame()) {
-    __ mov(r0, Operand(Factory::undefined_value()));  // fake TOS
+    __ ldr(r1, frame_->ElementAt(kNextIndex));
+    __ mov(r3, Operand(handler_address));
+    __ str(r1, MemOperand(r3));
+    frame_->Drop(StackHandlerConstants::kSize / kPointerSize);
+
+    // Fake a top of stack value (unneeded when FALLING) and set the
+    // state in r2, then jump around the unlink blocks if any.
+    __ mov(r0, Operand(Factory::undefined_value()));
     frame_->EmitPush(r0);
     __ mov(r2, Operand(Smi::FromInt(FALLING)));
     if (nof_unlinks > 0) {
-      unlink.Jump();
+      finally_block.Jump();
     }
   }
 
-  // Generate code to set the state for the (formerly) shadowing labels that
-  // have been jumped to.
+  // Generate code to unlink and set the state for the (formerly)
+  // shadowing labels that have been jumped to.
   for (int i = 0; i <= nof_escapes; i++) {
     if (shadows[i]->is_linked()) {
+      // If we have come from the shadowed return, the return value is
+      // in (a non-refcounted reference to) r0.  We must preserve it
+      // until it is pushed.
+      //
       // Because we can be jumping here (to spilled code) from
       // unspilled code, we need to reestablish a spilled frame at
       // this block.
       shadows[i]->Bind();
       frame_->SpillAll();
+
+      // Reload sp from the top handler, because some statements that
+      // we break from (eg, for...in) may have left stuff on the
+      // stack.
+      __ mov(r3, Operand(handler_address));
+      __ ldr(sp, MemOperand(r3));
+      // The stack pointer was restored to the address slot in the handler.
+      ASSERT(StackHandlerConstants::kNextOffset == 1 * kPointerSize);
+      frame_->Forget(frame_->height() - handler_height + 1);
+
+      // Unlink this handler and drop it from the frame.  The next
+      // handler address is now on top of the frame.
+      frame_->EmitPop(r1);
+      __ str(r1, MemOperand(r3));
+      // The top (code) and the second (handler) slot have both been
+      // dropped already.
+      frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 2);
+
       if (i == kReturnShadowIndex) {
         // If this label shadowed the function return, materialize the
         // return value on the stack.
@@ -2209,38 +2245,11 @@ void CodeGenerator::VisitTryFinally(TryFinally* node) {
         frame_->EmitPush(r0);
       }
       __ mov(r2, Operand(Smi::FromInt(JUMPING + i)));
-      unlink.Jump();
+      if (--nof_unlinks > 0) {
+        // If this is not the last unlink block, jump around the next.
+        finally_block.Jump();
+      }
     }
-  }
-
-  // Unlink from try chain;
-  if (unlink.is_linked()) {
-    unlink.Bind();
-  }
-
-  // Control can reach here via a jump to unlink or by falling off the
-  // end of the try block (with no unlinks).
-  if (has_valid_frame()) {
-    // Preserve TOS result in r0 across stack manipulation.
-    frame_->EmitPop(r0);
-    // Reload sp from the top handler, because some statements that we
-    // break from (eg, for...in) may have left stuff on the stack.
-    __ mov(r3, Operand(ExternalReference(Top::k_handler_address)));
-    __ ldr(sp, MemOperand(r3));
-    // The stack pointer was restored to just below the code slot (the
-    // topmost slot) in the handler.
-    frame_->Forget(frame_->height() - handler_height + 1);
-    const int kNextIndex = (StackHandlerConstants::kNextOffset
-                            + StackHandlerConstants::kAddressDisplacement)
-        / kPointerSize;
-    __ ldr(r1, frame_->ElementAt(kNextIndex));
-    __ str(r1, MemOperand(r3));
-    ASSERT(StackHandlerConstants::kCodeOffset == 0);
-    // Drop the rest of the handler (not including the already dropped
-    // code slot).
-    frame_->Drop(StackHandlerConstants::kSize / kPointerSize - 1);
-    // Restore the result to TOS.
-    frame_->EmitPush(r0);
   }
 
   // --- Finally block ---
