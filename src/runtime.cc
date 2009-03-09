@@ -5718,17 +5718,13 @@ static int DebugGetLoadedScripts(FixedArray* instances, int instances_size) {
   NoHandleAllocation ha;
   AssertNoAllocation no_alloc;
 
-  // Get hold of the current empty script.
-  Context* context = Top::context()->global_context();
-  Script* empty = context->empty_script();
-
   // Scan heap for Script objects.
   int count = 0;
   HeapIterator iterator;
   while (iterator.has_next()) {
     HeapObject* obj = iterator.next();
     ASSERT(obj != NULL);
-    if (obj->IsScript() && obj != empty) {
+    if (obj->IsScript()) {
       if (instances != NULL && count < instances_size) {
         instances->set(count, obj);
       }

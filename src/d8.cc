@@ -351,7 +351,15 @@ void Shell::Initialize() {
                                       shell_source.length());
   Handle<String> name = String::New(shell_source_name.start(),
                                     shell_source_name.length());
-  Script::Compile(source, name)->Run();
+  Handle<Script> script = Script::Compile(source, name);
+  script->Run();
+
+  // Mark the d8 shell script as native to avoid it showing up as normal source
+  // in the debugger.
+  i::Handle<i::JSFunction> script_fun = Utils::OpenHandle(*script);
+  i::Handle<i::Script> script_object =
+      i::Handle<i::Script>(i::Script::cast(script_fun->shared()->script()));
+  script_object->set_type(i::Smi::FromInt(i::SCRIPT_TYPE_NATIVE));
 
   // Create the evaluation context
   evaluation_context_ = Context::New(NULL, global_template);
