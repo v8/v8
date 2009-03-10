@@ -1238,6 +1238,9 @@ bool Heap::CreateInitialObjects() {
   if (obj->IsFailure()) return false;
   natives_source_cache_ = FixedArray::cast(obj);
 
+  // Handling of script id generation is in Factory::NewScript.
+  last_script_id_ = undefined_value();
+
   // Initialize keyed lookup cache.
   ClearKeyedLookupCache();
 

@@ -59,7 +59,6 @@ function testArguments(dcp, arguments, success, is_script) {
       assertEquals('scriptName', response.body.type, json_response);
     } else {
       assertEquals('scriptId', response.body.type, json_response);
-      print(response.body.script_id);
     }
   } else {
     assertFalse(response.success, json_response);

@@ -123,7 +123,8 @@ namespace v8 { namespace internal {
   V(FixedArray, number_string_cache)                    \
   V(FixedArray, single_character_string_cache)          \
   V(FixedArray, natives_source_cache)                   \
-  V(Object, keyed_lookup_cache)
+  V(Object, keyed_lookup_cache)                         \
+  V(Object, last_script_id)
 
 
 #define ROOT_LIST(V)                                  \
@@ -689,6 +690,9 @@ class Heap : public AllStatic {
   static inline Object* GetKeyedLookupCache();
   static inline void SetKeyedLookupCache(LookupCache* cache);
   static inline void ClearKeyedLookupCache();
+
+  // Update the next script id.
+  static inline void SetLastScriptId(Object* last_script_id);
 
 #ifdef DEBUG
   static void Print();

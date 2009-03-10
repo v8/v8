@@ -153,17 +153,32 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
 
 
 Handle<Script> Factory::NewScript(Handle<String> source) {
-  static uint32_t next_id = 1;
-
+  // Generate id for this script.
+  int id;
+  if (Heap::last_script_id()->IsUndefined()) {
+    // Script ids start from one.
+    id = 1;
+  } else {
+    // Increment id, wrap when positive smi is exhausted.
+    id = Smi::cast(Heap::last_script_id())->value();
+    id++;
+    if (!Smi::IsValid(id)) {
+      id = 0;
+    }
+  }
+  Heap::SetLastScriptId(Smi::FromInt(id));
+  
+  // Create and initialize script object.
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
   script->set_name(Heap::undefined_value());
-  script->set_id(*Factory::NewNumberFromUint(next_id++));
+  script->set_id(Heap::last_script_id());
   script->set_line_offset(Smi::FromInt(0));
   script->set_column_offset(Smi::FromInt(0));
   script->set_type(Smi::FromInt(SCRIPT_TYPE_NORMAL));
   script->set_wrapper(*Factory::NewProxy(0, TENURED));
   script->set_line_ends(Heap::undefined_value());
+
   return script;
 }
 

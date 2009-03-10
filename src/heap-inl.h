@@ -211,6 +211,11 @@ void Heap::ClearKeyedLookupCache() {
 }
 
 
+void Heap::SetLastScriptId(Object* last_script_id) {
+  last_script_id_ = last_script_id;
+}
+
+
 #define GC_GREEDY_CHECK() \
   ASSERT(!FLAG_gc_greedy || v8::internal::Heap::GarbageCollectionGreedyCheck())
 
