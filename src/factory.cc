@@ -167,7 +167,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
     }
   }
   Heap::SetLastScriptId(Smi::FromInt(id));
-  
+
   // Create and initialize script object.
   Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
   script->set_source(*source);
