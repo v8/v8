@@ -3076,8 +3076,13 @@ void CodeGenerator::VisitCall(Call* node) {
       ref.GetValueAndSpill(NOT_INSIDE_TYPEOF);  // receiver
 
       // Pass receiver to called function.
-      __ ldr(r0, frame_->ElementAt(ref.size()));
-      frame_->EmitPush(r0);
+      if (property->is_synthetic()) {
+        LoadGlobalReceiver(r0);
+      } else {
+        __ ldr(r0, frame_->ElementAt(ref.size()));
+        frame_->EmitPush(r0);
+      }
+
       // Call the function.
       CallWithArguments(args, node->position());
       frame_->EmitPush(r0);

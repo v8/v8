@@ -3911,9 +3911,13 @@ void CodeGenerator::VisitCall(Call* node) {
       ref.GetValue(NOT_INSIDE_TYPEOF);
 
       // Pass receiver to called function.
-      // The reference's size is non-negative.
-      frame_->SpillAll();
-      frame_->EmitPush(frame_->ElementAt(ref.size()));
+      if (property->is_synthetic()) {
+        // Use global object as receiver.
+        LoadGlobalReceiver();
+      } else {
+        // The reference's size is non-negative.
+        frame_->PushElementAt(ref.size());
+      }
 
       // Call the function.
       CallWithArguments(args, node->position());

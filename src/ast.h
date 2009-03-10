@@ -887,8 +887,13 @@ class Slot: public Expression {
 
 class Property: public Expression {
  public:
-  Property(Expression* obj, Expression* key, int pos)
-      : obj_(obj), key_(key), pos_(pos) { }
+  // Synthetic properties are property lookups introduced by the system,
+  // to objects that aren't visible to the user. Function calls to synthetic
+  // properties should use the global object as receiver, not the base object
+  // of the resolved Reference.
+  enum Type { NORMAL, SYNTHETIC };
+  Property(Expression* obj, Expression* key, int pos, Type type = NORMAL)
+      : obj_(obj), key_(key), pos_(pos), type_(type) { }
 
   virtual void Accept(AstVisitor* v);
 
@@ -900,6 +905,7 @@ class Property: public Expression {
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
   int position() const { return pos_; }
+  bool is_synthetic() const { return type_ == SYNTHETIC; }
 
   // Returns a property singleton property access on 'this'.  Used
   // during preparsing.
@@ -909,8 +915,9 @@ class Property: public Expression {
   Expression* obj_;
   Expression* key_;
   int pos_;
+  Type type_;
 
-  // Dummy property used during preparsing
+  // Dummy property used during preparsing.
   static Property this_property_;
 };
 
