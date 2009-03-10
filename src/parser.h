@@ -188,10 +188,10 @@ class CompileTimeValue: public AllStatic {
   static Handle<FixedArray> GetElements(Handle<FixedArray> value);
 
  private:
-   static const int kTypeSlot = 0;
-   static const int kElementsSlot = 1;
+  static const int kTypeSlot = 0;
+  static const int kElementsSlot = 1;
 
-   DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CompileTimeValue);
 };
 
 
