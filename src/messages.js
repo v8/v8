@@ -634,6 +634,7 @@ function DefineError(f) {
     // it hasn't been properly configured yet.  Instead we create a
     // special not-a-true-error-but-close-enough object.
     function ErrorPrototype() {}
+    %FunctionSetPrototype(ErrorPrototype, $Object.prototype);
     %FunctionSetInstanceClassName(ErrorPrototype, 'Error');
     %FunctionSetPrototype(f, new ErrorPrototype());
   } else {
