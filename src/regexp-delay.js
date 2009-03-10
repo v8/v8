@@ -302,10 +302,6 @@ function SetupRegExp() {
     "compile", CompileRegExp
   ));
 
-  // The spec says nothing about the length of exec and test, but
-  // SpiderMonkey and KJS have length equal to 0.
-  %FunctionSetLength($RegExp.prototype.exec, 0);
-  %FunctionSetLength($RegExp.prototype.test, 0);
   // The length of compile is 1 in SpiderMonkey.
   %FunctionSetLength($RegExp.prototype.compile, 1);
 

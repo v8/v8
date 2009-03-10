@@ -90,27 +90,65 @@ function URIHexCharsToCharCode(ch1, ch2) {
 
 
 function URIDecodeOctets(octets, result, index) {
-  if (octets[3]) {
-    var x = (octets[2] >> 4) & 3;
-    var y = octets[2] & 0xF;
-    var z = octets[3] & 63;
-    var v = (((octets[0] & 7) << 2) | ((octets[1] >> 4) & 3)) - 1;
-    var w = octets[1] & 0xF;
-    result[index++] = 55296 | (v << 6) | (w << 2) | x;
-    result[index++] = 56320 | (y << 6) | z;
+  var value;
+  var o0 = octets[0];
+  if (o0 < 0x80) {
+    value = o0;
+  } else if (o0 < 0xc2) {
+    throw new $URIError("URI malformed");
+  } else {
+    var o1 = octets[1];
+    if (o0 < 0xe0) {
+      var a = o0 & 0x1f;
+      if ((o1 < 0x80) || (o1 > 0xbf))
+        throw new $URIError("URI malformed");
+      var b = o1 & 0x3f;
+      value = (a << 6) + b;
+      if (value < 0x80 || value > 0x7ff)
+        throw new $URIError("URI malformed");
+    } else {
+      var o2 = octets[2];
+      if (o0 < 0xf0) {
+        var a = o0 & 0x0f;
+        if ((o1 < 0x80) || (o1 > 0xbf))
+          throw new $URIError("URI malformed");
+        var b = o1 & 0x3f;
+        if ((o2 < 0x80) || (o2 > 0xbf))
+          throw new $URIError("URI malformed");
+        var c = o2 & 0x3f;
+        value = (a << 12) + (b << 6) + c;
+        if ((value < 0x800) || (value > 0xffff))
+          throw new $URIError("URI malformed");
+      } else {
+        var o3 = octets[3];
+        if (o0 < 0xf8) {
+          var a = (o0 & 0x07);
+          if ((o1 < 0x80) || (o1 > 0xbf))
+            throw new $URIError("URI malformed");
+          var b = (o1 & 0x3f);
+          if ((o2 < 0x80) || (o2 > 0xbf))
+            throw new $URIError("URI malformed");
+          var c = (o2 & 0x3f);
+          if ((o3 < 0x80) || (o3 > 0xbf))
+            throw new $URIError("URI malformed");
+          var d = (o3 & 0x3f);
+          value = (a << 18) + (b << 12) + (c << 6) + d;
+          if ((value < 0x10000) || (value > 0x10ffff))
+            throw new $URIError("URI malformed");
+        } else {
+          throw new $URIError("URI malformed");
+        }
+      }
+    }
+  }
+  if (value < 0x10000) {
+    result[index++] = value;
+    return index;
+  } else {
+    result[index++] = (value >> 10) + 0xd7c0;
+    result[index++] = (value & 0x3ff) + 0xdc00;
     return index;
   }
-  if (octets[2]) {
-    var x = octets[0] & 0xF;
-    var y = octets[1] & 63;
-    var z = octets[2] & 63;
-    result[index++] = (x << 12) | (y << 6) | z;
-    return index;
-  }
-  var z = octets[1] & 63;
-  var y = octets[0] & 31;
-  result[index++] = (y << 6) | z;
-  return index;
 }
 
 
